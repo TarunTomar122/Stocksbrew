@@ -3,8 +3,9 @@ import { Suspense } from "react";
 
 import { CompareStocksStream } from "@/components/compare-stocks-stream";
 import { CompareStocksLandingSections } from "@/components/compare-stocks-landing-sections";
-import { FreeToolBreadcrumb, FreeToolRelated } from "@/components/marketing/free-tool-chrome";
+import { FreeToolRelated } from "@/components/marketing/free-tool-chrome";
 import { MarketFeedStreamSkeleton } from "@/components/page-stream-skeletons";
+import { OaSiteHeader } from "@/components/oa/oa-site-header";
 
 export const metadata: Metadata = {
   title: "Compare Stocks: Valuation, Quality, Momentum & Returns",
@@ -27,17 +28,15 @@ export const metadata: Metadata = {
 
 export default function CompareStocksPage() {
   return (
-    <main className="flex-grow">
-      <div className="mx-auto w-full max-w-[1320px] px-4 pt-6 sm:px-6 md:px-10 md:pt-8">
-        <FreeToolBreadcrumb title="Compare stocks" />
-      </div>
+    <main className="oa-landing flex-grow">
+      <OaSiteHeader />
       <Suspense fallback={<MarketFeedStreamSkeleton />}>
         <div className="landing-stream-in">
           <CompareStocksStream />
         </div>
       </Suspense>
       <CompareStocksLandingSections />
-      <div className="mx-auto w-full max-w-screen-2xl px-6 pb-14 md:px-10 lg:px-16">
+      <div className="mx-auto w-full max-w-[76rem] px-4 pb-14 sm:px-6">
         <FreeToolRelated currentHref="/compare-stocks" />
       </div>
     </main>

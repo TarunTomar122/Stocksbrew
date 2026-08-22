@@ -1,7 +1,5 @@
 "use client";
 
-import { AnimatedIcon } from "@/components/animated-icon";
-
 import { signOut } from "firebase/auth";
 import { useState } from "react";
 import { getFirebaseAuth } from "@/lib/firebase-client";
@@ -46,18 +44,17 @@ export function DeleteAccountButton({
   }
 
   return (
-    <div className="flex flex-col items-end gap-2">
+    <div className="flex flex-col items-start gap-2 sm:items-end">
       <button
         type="button"
         onClick={handleDelete}
         disabled={busy}
-        className="inline-flex items-center gap-2 px-4 py-2 text-sm font-bold text-signal-bearish border border-signal-bearish/30 hover:bg-signal-bearish/10 transition-colors rounded-full disabled:opacity-60"
+        className="inline-flex h-8 shrink-0 cursor-pointer items-center justify-center gap-1 whitespace-nowrap rounded-lg px-3 text-sm font-medium text-red-700 outline-none transition-all hover:bg-[color-mix(in_srgb,var(--signal-bearish)_8%,transparent)] focus-visible:ring-[3px] focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)] active:translate-y-px active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 dark:text-red-400"
       >
-        <AnimatedIcon name="delete_forever" size={16} className="text-base" />
         {busy ? "Deleting…" : "Delete account"}
       </button>
       {error && (
-        <p className="text-[12px] text-red-600 dark:text-red-400 text-right max-w-xs" role="alert">
+        <p className="max-w-xs text-xs leading-5 text-red-600 dark:text-red-400" role="alert">
           {error}
         </p>
       )}

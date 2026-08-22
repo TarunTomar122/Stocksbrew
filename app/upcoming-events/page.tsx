@@ -1,3 +1,4 @@
+import { OaSiteHeader } from "@/components/oa/oa-site-header";
 import type { Metadata } from "next";
 
 import { UpcomingEarningsView } from "@/components/upcoming-earnings-view";
@@ -57,7 +58,8 @@ export default async function UpcomingEventsPage() {
   }
 
   return (
-    <main className="flex-grow">
+    <main className="oa-landing flex-grow">
+      <OaSiteHeader />
       <div className="mx-auto flex w-full max-w-screen-xl flex-col gap-10 px-6 py-12 md:px-10 md:py-16 lg:px-16">
         <UpcomingEarningsView
           upcoming={upcoming}

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { indexableBlogPosts } from "@/lib/blog-data";
 import { ALL_COMPARE_LINKS } from "@/lib/seo/compare-links";
+import { OaSiteHeader } from "@/components/oa/oa-site-header";
 
 export const metadata: Metadata = {
   title: "Stock Analysis Guides: Fundamentals, Earnings & Tools",
@@ -22,12 +23,9 @@ export const metadata: Metadata = {
   },
 };
 
-const CATEGORY_COLORS: Record<string, string> = {
-  intelligence: "bg-[#ecfdf5] text-[#10b981]",
-  tools: "bg-[#eef2ff] text-[#6366f1]",
-  comparison: "bg-[#fef3c7] text-[#d97706]",
-  guides: "bg-[#eff6ff] text-[#3b82f6]",
-};
+const EYEBROW = "text-xs uppercase tracking-[0.12em] text-oa-muted-fg";
+const H1 =
+  "text-balance font-medium tracking-tight text-oa-fg text-[2.5rem] leading-[1.06] sm:text-5xl sm:leading-[1.04]";
 
 const STOCK_ANALYSIS_GUIDE_SLUGS = new Set([
   "best-stock-research-websites-2026",
@@ -51,7 +49,7 @@ const RESEARCH_CLUSTERS = [
       ["What is a good P/E ratio?", "/blog/what-is-a-good-pe-ratio"],
       ["Free cash flow vs net income", "/blog/free-cash-flow-vs-net-income"],
       ["Profit margins explained", "/blog/gross-margin-vs-operating-margin-vs-net-margin"],
-      ["Analyst ratings & targets", "/blog/analyst-ratings-price-targets-explained"],
+      ["Analyst ratings and targets", "/blog/analyst-ratings-price-targets-explained"],
       ["Browse US stocks", "/stocks"],
     ],
   },
@@ -65,7 +63,7 @@ const RESEARCH_CLUSTERS = [
     ],
   },
   {
-    label: "Markets & sectors",
+    label: "Markets and sectors",
     description: "Separate company events from the market and sector forces around them.",
     links: [
       ["Semiconductor stocks", "/blog/semiconductor-stocks-analysis-guide"],
@@ -77,56 +75,65 @@ const RESEARCH_CLUSTERS = [
 
 export default function BlogPage() {
   return (
-    <main className="flex-grow">
-      <div className="mx-auto w-full max-w-[800px] px-6 md:px-10 lg:px-16 py-16 md:py-24 flex flex-col gap-10">
-        <header className="flex flex-col gap-4">
-          <span className="text-[12px] font-semibold tracking-[0.14em] uppercase text-[#6b7280]">
-            Blog
-          </span>
-          <h1 className="text-[40px] md:text-[52px] font-semibold tracking-[-0.04em] text-[#111111] leading-[1.05]">
-            Stock research guides
-          </h1>
-          <p className="text-[16px] text-[#374151] leading-[1.55] max-w-[640px]">
-            Clear methods, primary sources, and practical ways to research the US stocks you care about.
+    <main className="oa-landing flex-grow">
+      <OaSiteHeader />
+      <div className="mx-auto w-full max-w-[52rem] px-4 pb-20 sm:px-6">
+        <header className="pb-12 pt-10 sm:pt-16">
+          <p className={EYEBROW}>Blog</p>
+          <h1 className={`mt-4 ${H1}`}>Stock research, written down</h1>
+          <p className="mt-4 max-w-[560px] text-[15px] leading-relaxed text-oa-muted-fg sm:text-base">
+            Methods, primary sources and honest tool reviews. Everything we learn researching US stocks lands here first.
           </p>
         </header>
 
-        <section className="border-y border-[#d1fae5] bg-[#f0fdf4] px-1 py-6" aria-labelledby="stock-analysis-guides">
-          <div className="mb-4 flex flex-col gap-1">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#15803d]">2026 buyer guides</span>
-            <h2 id="stock-analysis-guides" className="text-[20px] font-semibold tracking-[-0.02em] text-[#111111]">Stock analysis apps, evaluated by workflow</h2>
-            <p className="text-[13px] leading-relaxed text-[#4b5563]">Current pricing, visible methodology, primary sources, honest limits, and a test you can run yourself.</p>
+        <section className="flex flex-col gap-4 rounded-[22px] border border-oa-border bg-oa-bg p-5 sm:p-6" aria-labelledby="buyer-guides">
+          <div className="flex flex-col gap-1">
+            <p className="oa-mono text-[10px] uppercase tracking-[0.12em] text-oa-muted-fg">2026 buyer guides</p>
+            <h2 id="buyer-guides" className="text-[17px] font-medium tracking-tight text-oa-fg">
+              Stock analysis apps, evaluated by workflow
+            </h2>
+            <p className="text-sm leading-relaxed text-oa-muted-fg">
+              Current pricing, visible methodology, primary sources, honest limits, and a test you can run yourself.
+            </p>
           </div>
-          <ol className="divide-y divide-[#d1fae5]">
+          <ol className="flex flex-col">
             {stockAnalysisGuides.map((post, index) => (
               <li key={post.slug}>
-                <Link href={`/blog/${post.slug}`} className="group flex items-start gap-3 py-3">
-                  <span className="font-mono text-[11px] text-[#15803d]">0{index + 1}</span>
-                  <span className="text-[14px] font-semibold leading-snug text-[#111111] group-hover:text-[#15803d]">{post.title}</span>
-                  <span className="ml-auto shrink-0 text-[#15803d]" aria-hidden>→</span>
+                <Link
+                  href={`/blog/${post.slug}`}
+                  className="group -mx-3 flex items-baseline gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-oa-accent"
+                >
+                  <span className="oa-mono shrink-0 text-xs tabular-nums text-oa-muted-fg">0{index + 1}</span>
+                  <span className="text-sm font-medium leading-snug text-oa-fg transition-colors group-hover:text-oa-primary">
+                    {post.title}
+                  </span>
+                  <span aria-hidden className="ml-auto shrink-0 text-oa-muted-fg transition-transform duration-200 group-hover:translate-x-0.5">
+                    ›
+                  </span>
                 </Link>
               </li>
             ))}
           </ol>
         </section>
 
-        <section className="border-y border-[#e5e7eb] py-7" aria-labelledby="research-library">
-          <div className="mb-5">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#6b7280]">Research library</span>
-            <h2 id="research-library" className="mt-1 text-[20px] font-semibold tracking-[-0.02em] text-[#111111]">
+        <section className="flex flex-col gap-4 pt-10" aria-labelledby="research-library">
+          <div>
+            <p className={EYEBROW}>Research library</p>
+            <h2 id="research-library" className="mt-2 text-[22px] font-medium tracking-tight text-oa-fg">
               Start with the question you have
             </h2>
           </div>
-          <div className="grid gap-7 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {RESEARCH_CLUSTERS.map((cluster) => (
-              <div key={cluster.label}>
-                <h3 className="text-[14px] font-semibold text-[#111111]">{cluster.label}</h3>
-                <p className="mt-1 text-[12px] leading-relaxed text-[#6b7280]">{cluster.description}</p>
-                <ul className="mt-3 divide-y divide-[#e5e7eb]">
+              <div key={cluster.label} className="rounded-[22px] border border-oa-border bg-oa-card p-5 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
+                <h3 className="text-sm font-medium tracking-tight text-oa-fg">{cluster.label}</h3>
+                <p className="mt-1 text-xs leading-relaxed text-oa-muted-fg">{cluster.description}</p>
+                <ul className="mt-3 flex flex-col">
                   {cluster.links.map(([label, href]) => (
                     <li key={href}>
-                      <Link href={href} className="flex items-center justify-between gap-3 py-2 text-[12px] font-semibold text-[#166534] hover:underline">
-                        {label}<span aria-hidden>→</span>
+                      <Link href={href} className="group -mx-2 flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-[13px] font-medium text-oa-muted-fg transition-colors hover:bg-oa-accent hover:text-oa-primary">
+                        {label}
+                        <span aria-hidden className="transition-transform duration-200 group-hover:translate-x-0.5">›</span>
                       </Link>
                     </li>
                   ))}
@@ -138,75 +145,75 @@ export default function BlogPage() {
 
         <Link
           href="/guides"
-          className="rounded-2xl border border-[#e5e7eb] bg-[#fafaf7] p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 hover:border-[#111111] transition-colors"
+          className="group mt-10 flex flex-col gap-3 rounded-[22px] border border-oa-border bg-oa-card p-5 shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_2px_10px_rgba(0,0,0,0.08)] sm:flex-row sm:items-center sm:justify-between sm:p-6"
         >
           <div className="flex flex-col gap-1">
-            <span className="text-[10px] font-semibold tracking-[0.12em] uppercase text-[#9ca3af]">Guides</span>
-            <span className="text-[16px] font-semibold text-[#111111]">Stock research guide</span>
-            <span className="text-[13px] text-[#6b7280]">Free tools, comparisons, tutorials, and a weekly workflow in one place.</span>
+            <span className="oa-mono text-[10px] uppercase tracking-[0.12em] text-oa-muted-fg">Guides</span>
+            <span className="text-[16px] font-medium tracking-tight text-oa-fg">The stock research guide</span>
+            <span className="text-[13px] leading-relaxed text-oa-muted-fg">Free tools, comparisons, tutorials, and a weekly workflow in one place.</span>
           </div>
-          <span className="text-[13px] font-semibold text-[#111111] shrink-0">Open guide →</span>
+          <span className="flex items-center gap-1 text-[13px] font-medium text-oa-muted-fg transition-colors group-hover:text-oa-fg">
+            Open guide
+            <span aria-hidden className="transition-transform duration-200 group-hover:translate-x-0.5">›</span>
+          </span>
         </Link>
 
         <Link
           href="/agents"
-          className="rounded-2xl border border-[#bbf7d0] bg-[#f0fdf4] p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 hover:border-[#16a34a] transition-colors"
+          className="group mt-3 flex flex-col gap-3 rounded-[22px] border border-[color-mix(in_srgb,var(--oa-primary)_35%,transparent)] bg-oa-card p-5 shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_2px_10px_rgba(0,0,0,0.08)] sm:flex-row sm:items-center sm:justify-between sm:p-6"
         >
           <div className="flex flex-col gap-1">
-            <span className="text-[10px] font-semibold tracking-[0.12em] uppercase text-[#16a34a]">Stocksbrew for AI agents</span>
-            <span className="text-[16px] font-semibold text-[#111111]">Give your AI current, structured stock data</span>
-            <span className="text-[13px] text-[#6b7280]">Connect with MCP or use the stock research, Watchlist and alerts API.</span>
+            <span className="oa-mono text-[10px] uppercase tracking-[0.12em] text-oa-primary">For AI agents</span>
+            <span className="text-[16px] font-medium tracking-tight text-oa-fg">Give your agent current, structured stock data</span>
+            <span className="text-[13px] leading-relaxed text-oa-muted-fg">Connect over MCP or use the research, Watchlist and alerts API.</span>
           </div>
-          <span className="text-[13px] font-semibold text-[#166534] shrink-0">Read the guide →</span>
+          <span className="flex items-center gap-1 text-[13px] font-medium text-oa-primary">
+            Read the guide
+            <span aria-hidden className="transition-transform duration-200 group-hover:translate-x-0.5">›</span>
+          </span>
         </Link>
 
-        <section className="rounded-2xl border border-[#e5e7eb] bg-[#fafaf7] p-6 flex flex-col gap-4">
-          <div className="flex flex-col gap-1">
-            <span className="text-[10px] font-semibold tracking-[0.12em] uppercase text-[#9ca3af]">Compare</span>
-            <span className="text-[16px] font-semibold text-[#111111]">How stocksbrew compares</span>
-            <span className="text-[13px] text-[#6b7280]">Honest side-by-sides with Finviz, TradingView, Yahoo Finance, and more.</span>
-          </div>
-          <div className="flex flex-wrap gap-2">
+        <section className="mt-10 flex flex-col gap-3" aria-labelledby="compare-stack">
+          <h2 id="compare-stack" className="text-[17px] font-medium tracking-tight text-oa-fg">How stocksbrew compares</h2>
+          <p className="text-sm leading-relaxed text-oa-muted-fg">Honest side-by-sides with Finviz, TradingView, Yahoo Finance, and more.</p>
+          <div className="flex flex-wrap gap-2 pt-1">
             {ALL_COMPARE_LINKS.slice(0, 8).map((c) => (
               <Link
                 key={c.href}
                 href={c.href}
-                className="inline-flex h-[34px] items-center px-3 rounded-full border border-[#e5e7eb] bg-white text-[12px] font-medium text-[#374151] hover:border-[#111111]"
+                className="inline-flex h-8 items-center rounded-full border border-oa-border bg-oa-card px-3.5 text-[13px] font-medium text-oa-muted-fg transition-colors hover:border-oa-fg/30 hover:text-oa-fg"
               >
                 {c.label}
               </Link>
             ))}
-            <Link href="/compare" className="inline-flex h-[34px] items-center px-3 text-[12px] font-semibold text-[#0052ff] hover:underline">
-              All comparisons →
+            <Link href="/compare" className="inline-flex h-8 items-center px-2 text-[13px] font-medium text-oa-primary hover:underline underline-offset-4">
+              All comparisons ›
             </Link>
           </div>
         </section>
 
-        <section className="flex flex-col gap-5">
-          {indexableBlogPosts.map((post) => (
-            <Link
-              key={post.slug}
-              href={`/blog/${post.slug}`}
-              className="group flex flex-col gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-6 hover:border-[#111111] hover:shadow-card-hover transition-all duration-200"
-            >
-              <div className="flex items-center gap-3">
-                <span
-                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold tracking-[0.06em] uppercase ${CATEGORY_COLORS[post.category] || "bg-[#f3f4f6] text-[#6b7280]"}`}
-                >
-                  {post.category}
-                </span>
-                <span className="text-[12px] text-[#9ca3af]">{post.date}</span>
-                <span className="text-[12px] text-[#9ca3af]">·</span>
-                <span className="text-[12px] text-[#9ca3af]">{post.readTime}</span>
-              </div>
-              <h2 className="text-[18px] md:text-[20px] font-semibold text-[#111111] tracking-[-0.01em] leading-snug group-hover:text-[#0052ff] transition-colors">
-                {post.title}
-              </h2>
-              <p className="text-[14px] text-[#6b7280] leading-relaxed line-clamp-2">
-                {post.description}
-              </p>
-            </Link>
-          ))}
+        <section className="flex flex-col pt-14" aria-labelledby="all-posts">
+          <h2 id="all-posts" className="pb-4 text-[22px] font-medium tracking-tight text-oa-fg">All posts</h2>
+          <div className="flex flex-col gap-3">
+            {indexableBlogPosts.map((post) => (
+              <Link
+                key={post.slug}
+                href={`/blog/${post.slug}`}
+                className="group flex flex-col gap-2 rounded-[22px] border border-oa-border bg-oa-card p-5 shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_2px_10px_rgba(0,0,0,0.08)]"
+              >
+                <div className="flex items-center gap-2.5 text-xs tabular-nums text-oa-muted-fg">
+                  <span className="rounded-full bg-oa-accent px-2.5 py-0.5 font-medium text-oa-fg">{post.category}</span>
+                  <span>{post.date}</span>
+                  <span aria-hidden>·</span>
+                  <span>{post.readTime}</span>
+                </div>
+                <h3 className="text-[17px] font-medium leading-snug tracking-tight text-oa-fg transition-colors group-hover:text-oa-primary">
+                  {post.title}
+                </h3>
+                <p className="text-sm leading-relaxed text-oa-muted-fg">{post.description}</p>
+              </Link>
+            ))}
+          </div>
         </section>
       </div>
     </main>

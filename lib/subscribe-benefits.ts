@@ -21,6 +21,12 @@ export type ProValuePillar = {
   body: string;
 };
 
+export type ProPoint = {
+  icon: string;
+  title: string;
+  body: string;
+};
+
 /** The three outcomes every Pro surface should sell and explain. */
 export const PRO_VALUE_PILLARS: ProValuePillar[] = [
   {
@@ -43,6 +49,30 @@ export const PRO_VALUE_PILLARS: ProValuePillar[] = [
     title: "Watchlist tracking and alerts",
     shortTitle: "Watchlist and alerts",
     body: "Track every stock you care about. Get automatic earnings and zone alerts, or set your own price alert.",
+  },
+];
+
+/** Four reasons to upgrade — shown consistently across Pulse, Explore, and Watchlist. */
+export const PRO_POINTS: ProPoint[] = [
+  {
+    icon: "layout-grid",
+    title: "Unlimited tracked stocks",
+    body: "Free stops at 3. Pro never asks you to choose.",
+  },
+  {
+    icon: "gauge",
+    title: "Calls, price zones and targets",
+    body: "Add zones, trim zones and a target for every name.",
+  },
+  {
+    icon: "bell",
+    title: "Earnings and price-level alerts",
+    body: "Earnings and price levels, without watching the tape.",
+  },
+  {
+    icon: "smart_toy",
+    title: "Use it inside your AI agent",
+    body: "Connect a compatible agent to Stocksbrew calls, targets, drivers, and risks.",
   },
 ];
 

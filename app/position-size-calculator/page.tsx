@@ -1,3 +1,4 @@
+import { OaSiteHeader } from "@/components/oa/oa-site-header";
 import type { Metadata } from "next";
 
 import { FreeToolPageFrame } from "@/components/marketing/free-tool-chrome";
@@ -18,7 +19,8 @@ export const metadata: Metadata = {
 
 export default function PositionSizeCalculatorPage() {
   return (
-    <main className="flex-grow">
+    <main className="oa-landing flex-grow">
+      <OaSiteHeader />
       <FreeToolPageFrame toolHref="/position-size-calculator">
         <PositionSizeCalculator />
       </FreeToolPageFrame>

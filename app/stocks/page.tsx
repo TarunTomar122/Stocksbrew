@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { StockDirectorySchema } from "@/components/seo/stock-directory-schema";
+import { OaSiteHeader } from "@/components/oa/oa-site-header";
 import {
   FEATURED_STOCK_TICKERS,
   SEO_STOCK_PAGES,
@@ -64,6 +65,7 @@ export default async function StocksDirectoryPage() {
 
   return (
     <main className="flex-grow">
+      <OaSiteHeader />
       <StockDirectorySchema stocks={directoryStocks} />
       <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-12 px-6 py-12 md:px-10 md:py-16 lg:px-16">
         <header className="max-w-4xl">

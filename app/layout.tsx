@@ -8,7 +8,6 @@ import { GeistMono } from "geist/font/mono";
 import { Analytics } from "@vercel/analytics/next";
 
 import { Footer } from "@/components/footer";
-import { Header } from "@/components/header";
 import { getSessionUser } from "@/lib/auth-server";
 import { getCurrentMarket } from "@/lib/market";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
@@ -160,41 +159,9 @@ const getLayoutUserData = cache(async () => {
   return { market, trackedIds, isSubscribed };
 });
 
-async function HeaderData() {
-  const { market, trackedIds, isSubscribed } = await getLayoutUserData();
-  return (
-    <Header
-      market={market}
-      trackedIds={trackedIds}
-      isSubscribed={isSubscribed}
-    />
-  );
-}
-
-function HeaderFallback() {
-  return (
-    <header className="sticky top-0 z-[65] w-full border-b border-outline-variant bg-surface">
-      <div className="mx-auto flex h-14 w-full max-w-screen-2xl items-center gap-4 px-6 md:px-10 lg:px-16">
-        <a
-          href="/"
-          className="shrink-0 font-display text-[17px] font-extrabold leading-none tracking-tight text-landing-brand"
-        >
-          stocksbrew
-        </a>
-        <div className="hidden items-center gap-1 md:flex" aria-hidden="true">
-          <div className="h-8 w-16 rounded-full bg-surface-container" />
-          <div className="h-8 w-14 rounded-full bg-surface-container" />
-        </div>
-        <div className="hidden min-w-0 flex-1 md:block" aria-hidden="true">
-          <div className="h-10 w-full rounded-full bg-surface-container-low" />
-        </div>
-        <div className="ml-auto flex items-center gap-3" aria-hidden="true">
-          <div className="hidden h-9 w-9 rounded-full border border-outline-variant bg-surface-container sm:block" />
-          <div className="h-9 w-9 rounded-full bg-surface-container-high" />
-        </div>
-      </div>
-    </header>
-  );
+async function FooterData() {
+  const { isSubscribed } = await getLayoutUserData();
+  return <Footer isSubscribed={isSubscribed} />;
 }
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -256,13 +223,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       </head>
       <body className="bg-background font-body text-on-background antialiased min-h-screen flex flex-col">
         <Providers initialAuthed={hasSessionCookie}>
-          <Suspense fallback={<HeaderFallback />}>
-            <HeaderData />
-          </Suspense>
           <div className="flex min-h-0 w-full flex-1 flex-col px-0 md:px-8 lg:px-12 xl:px-32">
             {children}
           </div>
-          <Footer />
+          <Suspense fallback={null}>
+            <FooterData />
+          </Suspense>
         </Providers>
         <Analytics />
       </body>

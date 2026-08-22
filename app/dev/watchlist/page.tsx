@@ -1,3 +1,4 @@
+import { OaSiteHeader } from "@/components/oa/oa-site-header";
 import Link from "next/link";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { getWatchlistView } from "@/lib/watchlist-view";
@@ -88,7 +89,7 @@ export default async function DevWatchlistPage({ searchParams }: Props) {
     return (
       <div className="flex h-full w-full">
         <DevWatchlistPicker users={users} initialUserId={userId} />
-        <div className="flex flex-1 items-center justify-center bg-white">
+        <div className="flex flex-1 items-center justify-center bg-oa-card">
           <p className="text-[15px] text-[#b91c1c]">User not found</p>
         </div>
       </div>
@@ -199,24 +200,24 @@ export default async function DevWatchlistPage({ searchParams }: Props) {
   return (
     <div className="flex h-full w-full">
       <DevWatchlistPicker users={users} initialUserId={userId} />
-      <main className="flex flex-1 flex-col overflow-y-auto bg-white">
+      <main className="oa-app flex flex-1 flex-col overflow-y-auto bg-oa-card">
         <style>{tapeStyles}</style>
         <div className="mx-auto w-full max-w-screen-2xl px-6 py-6 md:px-10 lg:px-16 flex flex-col gap-2">
           {/* Dev user badge */}
-          <div className="flex items-center gap-2 rounded-xl border border-[#e5e7eb] bg-[#fafaf7] px-3 py-2">
-            <span className="text-[10px] font-semibold tracking-[0.12em] uppercase text-[#9ca3af]">Dev Console</span>
-            <span aria-hidden className="h-3 w-px bg-[#d1d5db]" />
+          <div className="flex items-center gap-2 rounded-xl border border-[var(--oa-border)] bg-[#fafaf7] px-3 py-2">
+            <span className="text-[10px] font-medium tracking-[0.12em] uppercase text-[var(--oa-muted-fg)]">Dev Console</span>
+            <span aria-hidden className="h-3 w-px bg-[var(--oa-border)]" />
             {userInfo?.photo_url ? (
               <img src={userInfo.photo_url} alt="" className="h-5 w-5 rounded-full" />
             ) : null}
-            <span className="text-[12px] font-semibold text-[#0a0a0a]">{userInfo?.display_name || userInfo?.email || userId}</span>
+            <span className="text-[12px] font-medium text-[#0a0a0a]">{userInfo?.display_name || userInfo?.email || userId}</span>
             {userInfo?.subscriptionPlan && (
-              <span className="rounded bg-[#ecfdf5] px-1.5 py-0.5 text-[9px] font-semibold text-[#047857] uppercase">{userInfo.subscriptionPlan}</span>
+              <span className="rounded bg-[#ecfdf5] px-1.5 py-0.5 text-[9px] font-medium text-[#047857] uppercase">{userInfo.subscriptionPlan}</span>
             )}
             {userInfo?.subscriptionStatus && (
-              <span className="rounded bg-[#eff6ff] px-1.5 py-0.5 text-[9px] font-semibold text-[#1e3a8a] uppercase">{userInfo.subscriptionStatus}</span>
+              <span className="rounded bg-[#eff6ff] px-1.5 py-0.5 text-[9px] font-medium text-[#1e3a8a] uppercase">{userInfo.subscriptionStatus}</span>
             )}
-            <span className="text-[10px] text-[#9ca3af] ml-auto">
+            <span className="text-[10px] text-[var(--oa-muted-fg)] ml-auto">
               {tracked.length} tracked · v{userData.watchlist_version || 0}
               {builtAt ? ` · ${formatRelative(builtAt)}` : ""}
             </span>

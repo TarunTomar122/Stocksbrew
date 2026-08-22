@@ -1,6 +1,7 @@
 import { unstable_cache } from "next/cache";
 
 import { adminFirestore } from "@/lib/firebase-admin";
+import { getInstrumentLabels } from "@/lib/instrument-resolver";
 
 // Heat list reader.
 //
@@ -119,6 +120,17 @@ export function compactHeatListForView(data: HeatList | null): HeatList | null {
   };
 }
 
+/** Backfills real company names where the upstream doc fell back to the ticker. */
+async function fillMissingNames(rows: HeatRow[]): Promise<HeatRow[]> {
+  const missingIds = rows.filter((r) => !r.name || r.name === r.ticker).map((r) => r.instrument_id);
+  if (missingIds.length === 0) return rows;
+  const labels = await getInstrumentLabels(missingIds).catch(() => new Map());
+  return rows.map((row) => {
+    const label = labels.get(row.instrument_id);
+    return label?.name && label.name !== row.ticker ? { ...row, name: label.name } : row;
+  });
+}
+
 async function getHeatListUncached(
   market: "US" | "IN" = "US",
 ): Promise<HeatList | null> {
@@ -127,17 +139,19 @@ async function getHeatListUncached(
     const data = compactDoc.data() as HeatList;
     return {
       ...data,
-      rows: Array.isArray(data.rows) ? data.rows : [],
+      rows: await fillMissingNames(Array.isArray(data.rows) ? data.rows : []),
     };
   }
   const doc = await adminFirestore.collection("tm_heat_list").doc(market).get();
   if (!doc.exists) return null;
   const data = doc.data() as HeatList;
   // Defensive: Firestore maps occasionally omit empty arrays - normalise.
-  return compactHeatListForView({
+  const compacted = compactHeatListForView({
     ...data,
     rows: Array.isArray(data.rows) ? data.rows : [],
   });
+  if (!compacted) return null;
+  return { ...compacted, rows: await fillMissingNames(compacted.rows) };
 }
 
 const getHeatListCached = unstable_cache(

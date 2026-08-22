@@ -1,3 +1,4 @@
+import { OaSiteHeader } from "@/components/oa/oa-site-header";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
@@ -27,7 +28,8 @@ export const metadata: Metadata = {
 
 export default function PremarketPage() {
   return (
-    <main className="min-w-0 flex-grow bg-background">
+    <main className="oa-landing flex-grow">
+      <OaSiteHeader />
       <Suspense fallback={<div className="mx-auto w-full max-w-[1180px] px-3 py-4 sm:px-5 sm:py-7"><MarketFeedStreamSkeleton /></div>}>
         <PremarketPageStream />
       </Suspense>

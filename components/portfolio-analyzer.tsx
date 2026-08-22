@@ -15,10 +15,10 @@ import type { PortfolioAnalysis, PortfolioStock, RiskFlag, Opportunity } from "@
 // ---------------------------------------------------------------------------
 
 function scoreColor(s: number | null): string {
-  if (s === null) return "var(--on-surface-variant)";
+  if (s === null) return "var(--oa-muted-fg)";
   if (s >= 80) return "var(--signal-bullish)";
-  if (s >= 60) return "var(--on-surface)";
-  if (s >= 40) return "var(--on-surface-variant)";
+  if (s >= 60) return "var(--oa-fg)";
+  if (s >= 40) return "var(--oa-muted-fg)";
   return "var(--signal-bearish)";
 }
 
@@ -44,7 +44,7 @@ function fmtPct(n: number | null): string {
 }
 
 const SECTOR_COLORS = [
-  "#0052ff", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6",
+  "var(--oa-primary)", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6",
   "#ec4899", "#14b8a6", "#f97316", "#6366f1", "#84cc16",
   "#06b6d4", "#d946ef", "#0ea5e9", "#a855f7", "#22c55e",
 ];
@@ -74,12 +74,12 @@ type InputMode = "paste" | "search";
 
 function SectionOpener({ num, title, meta }: { num: string; title: string; meta?: string }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 border-t border-[#e5e7eb] pt-8 mb-5">
+    <div className="flex items-baseline justify-between gap-3 border-t border-[var(--oa-border)] pt-8 mb-5">
       <div className="flex items-baseline gap-3">
-        <span className="text-[11px] font-semibold tracking-[0.12em] uppercase text-[#9ca3af] tabular-nums">§ {num}</span>
-        <h2 className="text-[20px] font-semibold tracking-[-0.015em] text-[#111111]">{title}</h2>
+        <span className="text-[11px] font-medium tracking-[0.12em] uppercase text-[var(--oa-muted-fg)] tabular-nums">§ {num}</span>
+        <h2 className="text-[20px] font-medium tracking-[-0.015em] text-[var(--oa-fg)]">{title}</h2>
       </div>
-      {meta && <span className="text-[12px] text-[#9ca3af]">{meta}</span>}
+      {meta && <span className="text-[12px] text-[var(--oa-muted-fg)]">{meta}</span>}
     </div>
   );
 }
@@ -88,16 +88,16 @@ function ScoreBar({ score }: { score: number | null }) {
   if (score === null) return null;
   const clamped = Math.min(Math.max(score, 0), 100);
   return (
-    <div className="relative h-1.5 rounded-full bg-[#f3f4f6] overflow-hidden w-16">
+    <div className="relative h-1.5 rounded-full bg-[var(--oa-bg)] overflow-hidden w-16">
       <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${clamped}%`, background: scoreColor(score) }} />
     </div>
   );
 }
 
 function VerdictBadge({ verdict }: { verdict: string | null }) {
-  const m = VERDICT_META[verdict ?? ""] ?? { bg: "#f3f4f6", text: "#6b7280", label: verdict ?? "—" };
+  const m = VERDICT_META[verdict ?? ""] ?? { bg: "var(--oa-bg)", text: "var(--oa-muted-fg)", label: verdict ?? "—" };
   return (
-    <span className="inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: m.bg, color: m.text }}>
+    <span className="inline-block rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: m.bg, color: m.text }}>
       {m.label}
     </span>
   );
@@ -165,10 +165,10 @@ function InputSection({
           <button
             key={m.key}
             onClick={() => setMode(m.key)}
-            className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12px] font-semibold transition-colors ${
+            className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12px] font-medium transition-colors ${
               mode === m.key
-                ? "bg-[#111111] text-white"
-                : "bg-[#f3f4f6] text-[#6b7280] hover:bg-[#e5e7eb] hover:text-[#111111]"
+                ? "bg-[var(--oa-fg)] text-white"
+                : "bg-[var(--oa-bg)] text-[var(--oa-muted-fg)] hover:bg-[var(--oa-border)] hover:text-[var(--oa-fg)]"
             }`}
           >
             {m.icon}
@@ -186,12 +186,12 @@ function InputSection({
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handlePasteAnalyze(); }}}
             placeholder="NVDA, AAPL, MSFT, GOOGL, AMZN..."
             rows={3}
-            className="w-full rounded-xl border border-[#e5e7eb] bg-[#fafafa] p-4 text-[14px] text-[#111111] placeholder:text-[#9ca3af] outline-none focus:border-[#111111] focus:bg-white transition-all resize-none"
+            className="w-full rounded-xl border border-[var(--oa-border)] bg-[#fafafa] p-4 text-[14px] text-[var(--oa-fg)] placeholder:text-[var(--oa-muted-fg)] outline-none focus:border-[var(--oa-fg)] focus:bg-oa-card transition-all resize-none"
           />
           <button
             onClick={handlePasteAnalyze}
             disabled={!pasteText.trim()}
-            className="self-start inline-flex items-center h-9 rounded-full bg-[#111111] px-5 text-[12px] font-semibold text-white hover:bg-black transition-colors disabled:opacity-40"
+            className="self-start inline-flex items-center h-9 rounded-full bg-[var(--oa-fg)] px-5 text-[12px] font-medium text-white hover:bg-black transition-colors disabled:opacity-40"
           >
             Add to list
           </button>
@@ -206,12 +206,12 @@ function InputSection({
       {tickers.length > 0 && (
         <div className="flex flex-col gap-3 pt-1">
           <div className="flex items-center justify-between">
-            <span className="text-[12px] font-semibold text-[#374151]">
+            <span className="text-[12px] font-medium text-[var(--oa-fg)]">
               {tickers.length} stock{tickers.length > 1 ? "s" : ""} selected
             </span>
             <button
               onClick={() => onAddTickers([])}
-              className="text-[11px] text-[#9ca3af] hover:text-[#ef4444] transition-colors"
+              className="text-[11px] text-[var(--oa-muted-fg)] hover:text-[#ef4444] transition-colors"
             >
               Clear all
             </button>
@@ -220,15 +220,15 @@ function InputSection({
             {tickers.map((t) => (
               <span
                 key={t}
-                className="inline-flex items-center gap-1 rounded-full border border-[#e5e7eb] bg-white pl-3 pr-1.5 py-1 text-[12px] font-semibold text-[#111111]"
+                className="inline-flex items-center gap-1 rounded-full border border-[var(--oa-border)] bg-oa-card pl-3 pr-1.5 py-1 text-[12px] font-medium text-[var(--oa-fg)]"
               >
                 {t}
                 <button
                   onClick={() => onRemoveTicker(t)}
-                  className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-[#f3f4f6] transition-colors"
+                  className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-[var(--oa-bg)] transition-colors"
                 >
                   <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                    <path d="M1.5 1.5l5 5M6.5 1.5l-5 5" stroke="#9ca3af" strokeWidth="1.4" strokeLinecap="round"/>
+                    <path d="M1.5 1.5l5 5M6.5 1.5l-5 5" stroke="var(--oa-muted-fg)" strokeWidth="1.4" strokeLinecap="round"/>
                   </svg>
                 </button>
               </span>
@@ -237,7 +237,7 @@ function InputSection({
           <button
             onClick={onAnalyze}
             disabled={loading || tickers.length === 0}
-            className="self-start inline-flex items-center justify-center h-11 rounded-full bg-[#111111] px-7 text-[13px] font-semibold text-white hover:bg-black active:scale-[0.98] transition-all disabled:opacity-40"
+            className="self-start inline-flex items-center justify-center h-11 rounded-full bg-[var(--oa-fg)] px-7 text-[13px] font-medium text-white hover:bg-black active:scale-[0.98] transition-all disabled:opacity-40"
           >
             {loading ? (
               <span className="flex items-center gap-2">
@@ -262,48 +262,48 @@ function SummaryCard({ analysis }: { analysis: PortfolioAnalysis }) {
   const { factor_tilt, diversification_score, total_market_cap, total_stocks, stocks_with_scores, summary } = analysis;
   const avgScore = factor_tilt.overall;
   const verdict = scoreLabel(avgScore);
-  const vm = VERDICT_META[verdict] ?? { bg: "#f3f4f6", text: "#6b7280" };
+  const vm = VERDICT_META[verdict] ?? { bg: "var(--oa-bg)", text: "var(--oa-muted-fg)" };
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-      <div className="col-span-2 md:col-span-1 rounded-2xl border border-[#e5e7eb] bg-white p-5 flex flex-col gap-2">
-        <span className="text-[10px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">Portfolio score</span>
+      <div className="col-span-2 md:col-span-1 rounded-2xl border border-[var(--oa-border)] bg-oa-card p-5 flex flex-col gap-2">
+        <span className="text-[10px] font-medium tracking-[0.08em] uppercase text-[var(--oa-muted-fg)]">Portfolio score</span>
         <div className="flex items-baseline gap-2">
-          <span className="text-[48px] font-bold tracking-[-0.03em] leading-none" style={{ color: scoreColor(avgScore) }}>
+          <span className="text-[48px] font-medium tracking-[-0.03em] leading-none" style={{ color: scoreColor(avgScore) }}>
             {avgScore ?? "—"}
           </span>
-          {avgScore !== null && <span className="text-[13px] font-medium text-[#9ca3af]">/ 100</span>}
+          {avgScore !== null && <span className="text-[13px] font-medium text-[var(--oa-muted-fg)]">/ 100</span>}
         </div>
-        <span className="inline-block self-start rounded-full px-2.5 py-0.5 text-[11px] font-semibold" style={{ background: vm.bg, color: vm.text }}>
+        <span className="inline-block self-start rounded-full px-2.5 py-0.5 text-[11px] font-medium" style={{ background: vm.bg, color: vm.text }}>
           {verdict}
         </span>
-        {summary && <p className="text-[12px] text-[#6b7280] leading-[1.5] mt-1">{summary}</p>}
+        {summary && <p className="text-[12px] text-[var(--oa-muted-fg)] leading-[1.5] mt-1">{summary}</p>}
       </div>
 
-      <div className="rounded-2xl border border-[#e5e7eb] bg-white p-5 flex flex-col gap-2">
-        <span className="text-[10px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">Diversification</span>
-        <span className="text-[40px] font-bold tracking-[-0.03em] leading-none" style={{ color: scoreColor(diversification_score) }}>
+      <div className="rounded-2xl border border-[var(--oa-border)] bg-oa-card p-5 flex flex-col gap-2">
+        <span className="text-[10px] font-medium tracking-[0.08em] uppercase text-[var(--oa-muted-fg)]">Diversification</span>
+        <span className="text-[40px] font-medium tracking-[-0.03em] leading-none" style={{ color: scoreColor(diversification_score) }}>
           {diversification_score}
         </span>
-        <span className="text-[11px] text-[#6b7280]">/ 100</span>
-        <p className="text-[12px] text-[#6b7280] leading-snug mt-1">
+        <span className="text-[11px] text-[var(--oa-muted-fg)]">/ 100</span>
+        <p className="text-[12px] text-[var(--oa-muted-fg)] leading-snug mt-1">
           {diversification_score >= 70 ? "Well spread across sectors." :
            diversification_score >= 40 ? "Moderate diversification." :
            "Highly concentrated."}
         </p>
       </div>
 
-      <div className="rounded-2xl border border-[#e5e7eb] bg-white p-5 flex flex-col gap-2">
-        <span className="text-[10px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">Holdings</span>
-        <span className="text-[40px] font-bold tracking-[-0.03em] leading-none text-[#111111]">{total_stocks}</span>
-        <span className="text-[11px] text-[#6b7280]">{stocks_with_scores} with scores</span>
+      <div className="rounded-2xl border border-[var(--oa-border)] bg-oa-card p-5 flex flex-col gap-2">
+        <span className="text-[10px] font-medium tracking-[0.08em] uppercase text-[var(--oa-muted-fg)]">Holdings</span>
+        <span className="text-[40px] font-medium tracking-[-0.03em] leading-none text-[var(--oa-fg)]">{total_stocks}</span>
+        <span className="text-[11px] text-[var(--oa-muted-fg)]">{stocks_with_scores} with scores</span>
       </div>
 
-      <div className="rounded-2xl border border-[#e5e7eb] bg-white p-5 flex flex-col gap-2">
-        <span className="text-[10px] font-semibold tracking-[0.08em] uppercase text-[#9ca3af]">Total mkt cap</span>
-        <span className="text-[28px] font-bold tracking-[-0.03em] leading-none text-[#111111] break-all">{fmtLarge(total_market_cap)}</span>
+      <div className="rounded-2xl border border-[var(--oa-border)] bg-oa-card p-5 flex flex-col gap-2">
+        <span className="text-[10px] font-medium tracking-[0.08em] uppercase text-[var(--oa-muted-fg)]">Total mkt cap</span>
+        <span className="text-[28px] font-medium tracking-[-0.03em] leading-none text-[var(--oa-fg)] break-all">{fmtLarge(total_market_cap)}</span>
         {total_market_cap !== null && total_stocks > 0 && (
-          <span className="text-[11px] text-[#6b7280]">avg {fmtLarge(total_market_cap / total_stocks)} / stock</span>
+          <span className="text-[11px] text-[var(--oa-muted-fg)]">avg {fmtLarge(total_market_cap / total_stocks)} / stock</span>
         )}
       </div>
     </div>
@@ -314,8 +314,8 @@ function SectorPieChart({ allocation }: { allocation: PortfolioAnalysis["sector_
   if (!allocation.length) return null;
   const data = allocation.map((a) => ({ name: a.sector, value: a.count }));
   return (
-    <div className="rounded-2xl border border-[#e5e7eb] bg-white p-5">
-      <h3 className="text-[13px] font-semibold text-[#111111] mb-4">Sector allocation</h3>
+    <div className="rounded-2xl border border-[var(--oa-border)] bg-oa-card p-5">
+      <h3 className="text-[13px] font-medium text-[var(--oa-fg)] mb-4">Sector allocation</h3>
       <div className="flex flex-col md:flex-row items-center gap-5">
         <div className="w-44 h-44 shrink-0">
           <ResponsiveContainer width="100%" height="100%">
@@ -332,12 +332,12 @@ function SectorPieChart({ allocation }: { allocation: PortfolioAnalysis["sector_
           {allocation.map((s, i) => (
             <div key={s.sector} className="flex items-center gap-2.5">
               <span className="w-2 h-2 rounded-full shrink-0" style={{ background: SECTOR_COLORS[i % SECTOR_COLORS.length] }} />
-              <span className="flex-1 text-[12px] font-medium text-[#374151] truncate">{s.sector}</span>
+              <span className="flex-1 text-[12px] font-medium text-[var(--oa-fg)] truncate">{s.sector}</span>
               <div className="flex items-center gap-2">
-                <div className="w-16 h-1.5 rounded-full bg-[#f3f4f6] overflow-hidden">
+                <div className="w-16 h-1.5 rounded-full bg-[var(--oa-bg)] overflow-hidden">
                   <div className="h-full rounded-full" style={{ width: `${s.weight_pct}%`, background: SECTOR_COLORS[i % SECTOR_COLORS.length] }} />
                 </div>
-                <span className="text-[12px] font-semibold text-[#111111] tabular-nums w-8 text-right">{s.weight_pct}%</span>
+                <span className="text-[12px] font-medium text-[var(--oa-fg)] tabular-nums w-8 text-right">{s.weight_pct}%</span>
               </div>
             </div>
           ))}
@@ -357,24 +357,24 @@ function FactorRadar({ tilt }: { tilt: PortfolioAnalysis["factor_tilt"] }) {
   if (!data.some((d) => d.score > 0)) return null;
 
   return (
-    <div className="rounded-2xl border border-[#e5e7eb] bg-white p-5">
-      <h3 className="text-[13px] font-semibold text-[#111111]">Factor tilt</h3>
-      <p className="text-[11px] text-[#9ca3af] mt-0.5 mb-3">Average across 4 pillars · 0–100</p>
+    <div className="rounded-2xl border border-[var(--oa-border)] bg-oa-card p-5">
+      <h3 className="text-[13px] font-medium text-[var(--oa-fg)]">Factor tilt</h3>
+      <p className="text-[11px] text-[var(--oa-muted-fg)] mt-0.5 mb-3">Average across 4 pillars · 0–100</p>
       <div className="w-full h-52">
         <ResponsiveContainer width="100%" height="100%">
           <RadarChart data={data}>
-            <PolarGrid stroke="#e5e7eb" />
-            <PolarAngleAxis dataKey="factor" tick={{ fontSize: 11, fill: "#6b7280" }} />
-            <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 9, fill: "#9ca3af" }} />
-            <Radar dataKey="score" stroke="#0052ff" fill="#0052ff" fillOpacity={0.1} strokeWidth={2} />
+            <PolarGrid stroke="var(--oa-border)" />
+            <PolarAngleAxis dataKey="factor" tick={{ fontSize: 11, fill: "var(--oa-muted-fg)" }} />
+            <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 9, fill: "var(--oa-muted-fg)" }} />
+            <Radar dataKey="score" stroke="var(--oa-primary)" fill="var(--oa-primary)" fillOpacity={0.1} strokeWidth={2} />
           </RadarChart>
         </ResponsiveContainer>
       </div>
       <div className="grid grid-cols-2 gap-2 mt-1">
         {data.map((d) => (
-          <div key={d.factor} className="flex items-center justify-between gap-2 rounded-lg bg-[#f9fafb] px-3 py-1.5">
-            <span className="text-[11px] text-[#6b7280]">{d.factor}</span>
-            <span className="text-[13px] font-bold tabular-nums" style={{ color: scoreColor(d.score || null) }}>{d.score}</span>
+          <div key={d.factor} className="flex items-center justify-between gap-2 rounded-lg bg-[var(--oa-bg)] px-3 py-1.5">
+            <span className="text-[11px] text-[var(--oa-muted-fg)]">{d.factor}</span>
+            <span className="text-[13px] font-medium tabular-nums" style={{ color: scoreColor(d.score || null) }}>{d.score}</span>
           </div>
         ))}
       </div>
@@ -384,15 +384,15 @@ function FactorRadar({ tilt }: { tilt: PortfolioAnalysis["factor_tilt"] }) {
 
 function HoldingCard({ stock, index }: { stock: PortfolioStock; index: number }) {
   const positive = (stock.day_change_pct ?? 0) >= 0;
-  const vm = VERDICT_META[stock.verdict ?? ""] ?? { bg: "#f3f4f6", text: "#6b7280", label: "—" };
+  const vm = VERDICT_META[stock.verdict ?? ""] ?? { bg: "var(--oa-bg)", text: "var(--oa-muted-fg)", label: "—" };
   return (
     <Link
       href={`/stock/${stock.ticker}`}
-      className="group flex flex-col gap-4 rounded-2xl border border-[#e5e7eb] bg-white p-4 hover:border-[#111111] hover:shadow-sm transition-all"
+      className="group flex flex-col gap-4 rounded-2xl border border-[var(--oa-border)] bg-oa-card p-4 hover:border-[var(--oa-fg)] hover:shadow-sm transition-all"
     >
       {/* Top row: index + verdict badge */}
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[10px] font-semibold tracking-[0.1em] uppercase text-[#9ca3af] tabular-nums">
+        <span className="text-[10px] font-medium tracking-[0.1em] uppercase text-[var(--oa-muted-fg)] tabular-nums">
           {String(index + 1).padStart(2, "0")}
         </span>
         <VerdictBadge verdict={stock.verdict} />
@@ -402,17 +402,17 @@ function HoldingCard({ stock, index }: { stock: PortfolioStock; index: number })
       <div className="flex items-center gap-3">
         <StockLogo ticker={stock.ticker} logoUrl={stock.logo_url} size={36} market={stock.market} />
         <div className="flex flex-col min-w-0">
-          <span className="text-[15px] font-semibold text-[#111111] leading-none">{stock.ticker}</span>
-          <span className="text-[11px] text-[#9ca3af] mt-0.5 truncate">{stock.name}</span>
+          <span className="text-[15px] font-medium text-[var(--oa-fg)] leading-none">{stock.ticker}</span>
+          <span className="text-[11px] text-[var(--oa-muted-fg)] mt-0.5 truncate">{stock.name}</span>
         </div>
       </div>
 
       {/* Price + day change */}
       <div className="flex items-baseline justify-between gap-2">
-        <span className="text-[18px] font-semibold tabular-nums text-[#111111] leading-none">
+        <span className="text-[18px] font-medium tabular-nums text-[var(--oa-fg)] leading-none">
           {stock.price !== null ? `$${stock.price.toFixed(2)}` : "—"}
         </span>
-        <span className={`text-[13px] font-semibold tabular-nums ${positive ? "text-[#10b981]" : "text-[#ef4444]"}`}>
+        <span className={`text-[13px] font-medium tabular-nums ${positive ? "text-[#10b981]" : "text-[#ef4444]"}`}>
           {fmtPct(stock.day_change_pct)}
         </span>
       </div>
@@ -420,8 +420,8 @@ function HoldingCard({ stock, index }: { stock: PortfolioStock; index: number })
       {/* Score bar */}
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#9ca3af]">Score</span>
-          <span className="text-[13px] font-bold tabular-nums" style={{ color: scoreColor(stock.scores.overall) }}>
+          <span className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--oa-muted-fg)]">Score</span>
+          <span className="text-[13px] font-medium tabular-nums" style={{ color: scoreColor(stock.scores.overall) }}>
             {stock.scores.overall ?? "—"}
           </span>
         </div>
@@ -429,21 +429,21 @@ function HoldingCard({ stock, index }: { stock: PortfolioStock; index: number })
       </div>
 
       {/* Footer: sector + RSI + mkt cap */}
-      <div className="flex items-center justify-between gap-2 pt-1 border-t border-[#f3f4f6]">
-        <span className="text-[11px] text-[#6b7280] truncate">{stock.sector}</span>
+      <div className="flex items-center justify-between gap-2 pt-1 border-t border-[var(--oa-bg)]">
+        <span className="text-[11px] text-[var(--oa-muted-fg)] truncate">{stock.sector}</span>
         <div className="flex items-center gap-2 shrink-0">
           {stock.rsi !== null && (
             <span
-              className="text-[10px] font-semibold tabular-nums rounded-md px-1.5 py-0.5"
+              className="text-[10px] font-medium tabular-nums rounded-md px-1.5 py-0.5"
               style={{
-                background: stock.rsi >= 70 ? "#fef2f2" : stock.rsi <= 30 ? "#ecfdf5" : "#f3f4f6",
-                color: stock.rsi >= 70 ? "#b91c1c" : stock.rsi <= 30 ? "#047857" : "#6b7280",
+                background: stock.rsi >= 70 ? "#fef2f2" : stock.rsi <= 30 ? "#ecfdf5" : "var(--oa-bg)",
+                color: stock.rsi >= 70 ? "#b91c1c" : stock.rsi <= 30 ? "#047857" : "var(--oa-muted-fg)",
               }}
             >
               RSI {stock.rsi.toFixed(0)}
             </span>
           )}
-          <span className="text-[11px] text-[#9ca3af] tabular-nums">{fmtLarge(stock.market_cap)}</span>
+          <span className="text-[11px] text-[var(--oa-muted-fg)] tabular-nums">{fmtLarge(stock.market_cap)}</span>
         </div>
       </div>
     </Link>
@@ -453,11 +453,11 @@ function HoldingCard({ stock, index }: { stock: PortfolioStock; index: number })
 function RiskFlagsCard({ flags, logoMap }: { flags: RiskFlag[]; logoMap: Map<string, string | null> }) {
   if (!flags.length) return null;
   return (
-    <div className="rounded-2xl border border-[#e5e7eb] bg-white p-5">
-      <h3 className="text-[13px] font-semibold text-[#111111] mb-3 flex items-center gap-2">
+    <div className="rounded-2xl border border-[var(--oa-border)] bg-oa-card p-5">
+      <h3 className="text-[13px] font-medium text-[var(--oa-fg)] mb-3 flex items-center gap-2">
         <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-[#fef2f2] text-[13px]">⚠️</span>
         Risk flags
-        <span className="text-[11px] font-normal text-[#9ca3af]">{flags.length}</span>
+        <span className="text-[11px] font-normal text-[var(--oa-muted-fg)]">{flags.length}</span>
       </h3>
       <div className="flex flex-col gap-2">
         {flags.map((f, i) => {
@@ -470,8 +470,8 @@ function RiskFlagsCard({ flags, logoMap }: { flags: RiskFlag[]; logoMap: Map<str
                 <span className="text-[15px] shrink-0">{meta.icon}</span>
               )}
               <div className="min-w-0">
-                <p className="text-[13px] font-semibold text-[#111111]">{f.headline}</p>
-                <p className="text-[12px] text-[#6b7280] mt-0.5 leading-relaxed">{f.body}</p>
+                <p className="text-[13px] font-medium text-[var(--oa-fg)]">{f.headline}</p>
+                <p className="text-[12px] text-[var(--oa-muted-fg)] mt-0.5 leading-relaxed">{f.body}</p>
               </div>
             </div>
           );
@@ -484,19 +484,19 @@ function RiskFlagsCard({ flags, logoMap }: { flags: RiskFlag[]; logoMap: Map<str
 function OpportunitiesCard({ opportunities, logoMap }: { opportunities: Opportunity[]; logoMap: Map<string, string | null> }) {
   if (!opportunities.length) return null;
   return (
-    <div className="rounded-2xl border border-[#e5e7eb] bg-white p-5">
-      <h3 className="text-[13px] font-semibold text-[#111111] mb-3 flex items-center gap-2">
+    <div className="rounded-2xl border border-[var(--oa-border)] bg-oa-card p-5">
+      <h3 className="text-[13px] font-medium text-[var(--oa-fg)] mb-3 flex items-center gap-2">
         <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-[#ecfdf5] text-[13px]">💡</span>
         Opportunities
-        <span className="text-[11px] font-normal text-[#9ca3af]">{opportunities.length}</span>
+        <span className="text-[11px] font-normal text-[var(--oa-muted-fg)]">{opportunities.length}</span>
       </h3>
       <div className="flex flex-col gap-2">
         {opportunities.map((o, i) => (
           <div key={i} className="rounded-xl bg-[#ecfdf5] px-4 py-3 flex items-center gap-3">
             <StockLogo ticker={o.ticker} logoUrl={logoMap.get(o.ticker) ?? null} market="US" size={32} />
             <div className="min-w-0">
-              <p className="text-[13px] font-semibold text-[#111111]">{o.headline}</p>
-              <p className="text-[12px] text-[#6b7280] mt-0.5 leading-relaxed">{o.body}</p>
+              <p className="text-[13px] font-medium text-[var(--oa-fg)]">{o.headline}</p>
+              <p className="text-[12px] text-[var(--oa-muted-fg)] mt-0.5 leading-relaxed">{o.body}</p>
             </div>
           </div>
         ))}
@@ -511,7 +511,7 @@ function MissingTickersNote({ missing }: { missing: string[] }) {
     <div className="rounded-xl border border-[#fde68a] bg-[#fffbeb] px-4 py-3 flex items-start gap-2.5">
       <span className="text-[14px] mt-0.5">⚠️</span>
       <div>
-        <p className="text-[12px] font-semibold text-[#92400e]">
+        <p className="text-[12px] font-medium text-[#92400e]">
           Couldn&apos;t resolve: {missing.join(", ")}
         </p>
         <p className="text-[11px] text-[#b45309] mt-0.5">
@@ -527,21 +527,21 @@ function LoadingSkeleton() {
     <div className="flex flex-col gap-6 animate-pulse">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="rounded-2xl border border-[#e5e7eb] bg-white p-5 h-32">
-            <div className="h-2.5 w-20 rounded-full bg-[#f3f4f6] mb-3" />
-            <div className="h-10 w-14 rounded-lg bg-[#f3f4f6] mb-2" />
-            <div className="h-2 w-24 rounded-full bg-[#f3f4f6]" />
+          <div key={i} className="rounded-2xl border border-[var(--oa-border)] bg-oa-card p-5 h-32">
+            <div className="h-2.5 w-20 rounded-full bg-[var(--oa-bg)] mb-3" />
+            <div className="h-10 w-14 rounded-lg bg-[var(--oa-bg)] mb-2" />
+            <div className="h-2 w-24 rounded-full bg-[var(--oa-bg)]" />
           </div>
         ))}
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div className="rounded-2xl border border-[#e5e7eb] bg-white p-5 h-64">
-          <div className="h-3 w-28 rounded-full bg-[#f3f4f6] mb-4" />
-          <div className="h-48 rounded-xl bg-[#f3f4f6]" />
+        <div className="rounded-2xl border border-[var(--oa-border)] bg-oa-card p-5 h-64">
+          <div className="h-3 w-28 rounded-full bg-[var(--oa-bg)] mb-4" />
+          <div className="h-48 rounded-xl bg-[var(--oa-bg)]" />
         </div>
-        <div className="rounded-2xl border border-[#e5e7eb] bg-white p-5 h-64">
-          <div className="h-3 w-24 rounded-full bg-[#f3f4f6] mb-4" />
-          <div className="h-48 rounded-xl bg-[#f3f4f6]" />
+        <div className="rounded-2xl border border-[var(--oa-border)] bg-oa-card p-5 h-64">
+          <div className="h-3 w-24 rounded-full bg-[var(--oa-bg)] mb-4" />
+          <div className="h-48 rounded-xl bg-[var(--oa-bg)]" />
         </div>
       </div>
     </div>
@@ -554,18 +554,18 @@ function LoadingSkeleton() {
 
 function ProCTA() {
   return (
-    <div className="rounded-3xl border border-[#e5e7eb] bg-[#fafaf7] p-8 md:p-10 flex flex-col md:flex-row md:items-center gap-8">
+    <div className="rounded-3xl border border-[var(--oa-border)] bg-[#fafaf7] p-8 md:p-10 flex flex-col md:flex-row md:items-center gap-8">
       <div className="flex flex-col gap-4 flex-1">
         <div className="flex flex-col gap-2">
-          <span className="inline-flex items-center gap-1.5 self-start rounded-full bg-white border border-[#e5e7eb] px-3 py-1 text-[11px] font-semibold text-[#374151]">
+          <span className="inline-flex items-center gap-1.5 self-start rounded-full bg-oa-card border border-[var(--oa-border)] px-3 py-1 text-[11px] font-medium text-[var(--oa-fg)]">
             <span className="h-1.5 w-1.5 rounded-full bg-[#10b981]" />
             This was a one-time snapshot
           </span>
-          <h3 className="text-[22px] md:text-[26px] font-semibold tracking-[-0.02em] text-[#0a0a0a] leading-[1.2]">
+          <h3 className="text-[22px] md:text-[26px] font-medium tracking-[-0.02em] text-[var(--oa-fg)] leading-[1.2]">
             Your portfolio changes every day.<br />Your analysis should too.
           </h3>
         </div>
-        <p className="text-[14px] text-[#6b7280] leading-relaxed max-w-[480px]">
+        <p className="text-[14px] text-[var(--oa-muted-fg)] leading-relaxed max-w-[480px]">
           stocksbrew Pro tracks each of your stocks daily, flagging risk before it hits, surfacing opportunities you&apos;d miss, and telling you exactly what to do with every holding every morning.
         </p>
         <ul className="flex flex-col gap-2">
@@ -575,7 +575,7 @@ function ProCTA() {
             "Full pillar breakdown: Valuation · Growth · Quality · Momentum",
             "Morning brief with what actually matters before the open",
           ].map((item) => (
-            <li key={item} className="flex items-start gap-2 text-[13px] text-[#374151]">
+            <li key={item} className="flex items-start gap-2 text-[13px] text-[var(--oa-fg)]">
               <svg className="shrink-0 mt-0.5" width="14" height="14" viewBox="0 0 14 14" fill="none">
                 <circle cx="7" cy="7" r="7" fill="#ecfdf5"/>
                 <path d="M4 7l2.2 2.2L10 5" stroke="#10b981" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
@@ -591,11 +591,11 @@ function ProCTA() {
         </ProCtaLink>
         <Link
           href="/watchlist"
-          className="text-[12px] font-medium text-[#6b7280] hover:text-[#111111] transition-colors"
+          className="text-[12px] font-medium text-[var(--oa-muted-fg)] hover:text-[var(--oa-fg)] transition-colors"
         >
           See a demo first
         </Link>
-        <p className="text-[11px] text-[#9ca3af]">Free for 3 stocks · No credit card</p>
+        <p className="text-[11px] text-[var(--oa-muted-fg)]">Free for 3 stocks · No credit card</p>
       </div>
     </div>
   );
@@ -660,14 +660,14 @@ export function PortfolioAnalyzer({ searchIndex }: { searchIndex: SearchEntry[] 
       {/* ── Header ── */}
       <div className="flex flex-col gap-6 mb-10">
         <div className="flex flex-col gap-3">
-          <span className="inline-flex items-center gap-1.5 self-start rounded-full border border-[#e5e7eb] bg-white px-3 py-1 text-[11px] font-semibold text-[#374151]">
+          <span className="inline-flex items-center gap-1.5 self-start rounded-full border border-[var(--oa-border)] bg-oa-card px-3 py-1 text-[11px] font-medium text-[var(--oa-fg)]">
             <span className="h-1.5 w-1.5 rounded-full bg-[#10b981]" />
             Free tool
           </span>
-          <h1 className="text-[36px] md:text-[48px] font-semibold tracking-[-0.03em] text-[#0a0a0a] leading-[1.05]">
+          <h1 className="text-[36px] md:text-[48px] font-medium tracking-[-0.03em] text-[var(--oa-fg)] leading-[1.05]">
             Portfolio analyzer
           </h1>
-          <p className="text-[15px] text-[#6b7280] max-w-[540px] leading-relaxed">
+          <p className="text-[15px] text-[var(--oa-muted-fg)] max-w-[540px] leading-relaxed">
             Paste your tickers or search by company. Get sector allocation, factor tilt, risk flags, and opportunities instantly, for free.
           </p>
         </div>
@@ -681,7 +681,7 @@ export function PortfolioAnalyzer({ searchIndex }: { searchIndex: SearchEntry[] 
             { icon: "💡", label: "Opportunities" },
             { icon: "📈", label: "RSI signals" },
           ].map((v) => (
-            <span key={v.label} className="inline-flex items-center gap-1.5 rounded-full border border-[#e5e7eb] bg-white px-3 py-1 text-[12px] font-medium text-[#374151]">
+            <span key={v.label} className="inline-flex items-center gap-1.5 rounded-full border border-[var(--oa-border)] bg-oa-card px-3 py-1 text-[12px] font-medium text-[var(--oa-fg)]">
               <span>{v.icon}</span>
               {v.label}
             </span>
@@ -691,7 +691,7 @@ export function PortfolioAnalyzer({ searchIndex }: { searchIndex: SearchEntry[] 
 
       {/* ── Input card ── */}
       {!analysis && (
-        <div className="rounded-2xl border border-[#e5e7eb] bg-white p-6">
+        <div className="rounded-2xl border border-[var(--oa-border)] bg-oa-card p-6">
           <InputSection
             searchIndex={searchIndex}
             tickers={tickers}
@@ -715,8 +715,8 @@ export function PortfolioAnalyzer({ searchIndex }: { searchIndex: SearchEntry[] 
         <div className="mt-6 rounded-xl border border-[#fecaca] bg-[#fef2f2] px-4 py-3 flex items-start gap-2.5">
           <span className="text-[14px] mt-0.5">⚠️</span>
           <div>
-            <p className="text-[13px] font-semibold text-[#991b1b]">{error}</p>
-            <button onClick={() => setError(null)} className="mt-1 text-[12px] text-[#6b7280] hover:text-[#111111] transition-colors">
+            <p className="text-[13px] font-medium text-[#991b1b]">{error}</p>
+            <button onClick={() => setError(null)} className="mt-1 text-[12px] text-[var(--oa-muted-fg)] hover:text-[var(--oa-fg)] transition-colors">
               ← Try again
             </button>
           </div>
@@ -730,7 +730,7 @@ export function PortfolioAnalyzer({ searchIndex }: { searchIndex: SearchEntry[] 
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <button
               onClick={() => { setAnalysis(null); }}
-              className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#6b7280] hover:text-[#111111] transition-colors"
+              className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[var(--oa-muted-fg)] hover:text-[var(--oa-fg)] transition-colors"
             >
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                 <path d="M7 3L4 6l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -740,7 +740,7 @@ export function PortfolioAnalyzer({ searchIndex }: { searchIndex: SearchEntry[] 
 
             <div className="flex flex-wrap gap-1.5">
               {tickers.map((t) => (
-                <span key={t} className="inline-flex items-center rounded-full border border-[#e5e7eb] bg-white px-2.5 py-0.5 text-[11px] font-semibold text-[#374151]">
+                <span key={t} className="inline-flex items-center rounded-full border border-[var(--oa-border)] bg-oa-card px-2.5 py-0.5 text-[11px] font-medium text-[var(--oa-fg)]">
                   {t}
                 </span>
               ))}
@@ -782,14 +782,14 @@ export function PortfolioAnalyzer({ searchIndex }: { searchIndex: SearchEntry[] 
                 .filter((id): id is string => !!id);
               if (instrumentIds.length === 0) return null;
               return (
-                <div className="rounded-2xl border border-[#e5e7eb] bg-[#fafaf7] p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="rounded-2xl border border-[var(--oa-border)] bg-[#fafaf7] p-5 flex flex-col sm:flex-row sm:items-center gap-4">
                   <div className="flex items-start gap-3 flex-1 min-w-0">
-                    <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white border border-[#e5e7eb] text-[16px]">📡</span>
+                    <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-oa-card border border-[var(--oa-border)] text-[16px]">📡</span>
                     <div className="flex flex-col gap-0.5 min-w-0">
-                      <p className="text-[14px] font-semibold text-[#111111] tracking-[-0.01em]">
+                      <p className="text-[14px] font-medium text-[var(--oa-fg)] tracking-[-0.01em]">
                         Start tracking to get the full picture
                       </p>
-                      <p className="text-[12px] text-[#6b7280] leading-relaxed">
+                      <p className="text-[12px] text-[var(--oa-muted-fg)] leading-relaxed">
                         Add these stocks to your Watchlist for current calls, portfolio gaps, analyst targets and alerts.
                       </p>
                     </div>
@@ -822,14 +822,14 @@ export function PortfolioAnalyzer({ searchIndex }: { searchIndex: SearchEntry[] 
       {/* ── Empty hint ── */}
       {!analysis && !loading && tickers.length === 0 && (
         <div className="mt-16 flex flex-col items-center gap-3 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#f3f4f6]">
-            <svg width="22" height="22" viewBox="0 0 22 22" fill="none" className="text-[#9ca3af]">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--oa-bg)]">
+            <svg width="22" height="22" viewBox="0 0 22 22" fill="none" className="text-[var(--oa-muted-fg)]">
               <circle cx="11" cy="11" r="9" stroke="currentColor" strokeWidth="1.5"/>
               <path d="M11 7v4l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
             </svg>
           </div>
-          <p className="text-[14px] font-medium text-[#374151]">Add your stocks above to get started</p>
-          <p className="text-[12px] text-[#9ca3af]">Paste tickers or search by company name</p>
+          <p className="text-[14px] font-medium text-[var(--oa-fg)]">Add your stocks above to get started</p>
+          <p className="text-[12px] text-[var(--oa-muted-fg)]">Paste tickers or search by company name</p>
         </div>
       )}
     </div>

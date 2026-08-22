@@ -45,7 +45,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       { dimension: "Watchlist research", stocksbrew: "Current briefs + daily digest", competitor: "Stock pages + screener exports" },
       { dimension: "Alerts", stocksbrew: "Email on buy/sell zones (Pro)", competitor: "Price and news alerts (plan-dependent)" },
       { dimension: "Free tier", stocksbrew: "3 Watchlist stocks, Should I Buy, Earnings Intel", competitor: "Free tier on tickertape.in" },
-      { dimension: "Paid entry", stocksbrew: "Pro $9/mo or $99/yr unlimited Watchlist", competitor: "See Tickertape pricing page" },
+      { dimension: "Paid entry", stocksbrew: "Pro $9/mo unlimited Watchlist", competitor: "See Tickertape pricing page" },
     ],
     stocksbrewStrengths: [
       "Clear calls on US Watchlist stocks",
@@ -125,7 +125,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       { dimension: "AI features", stocksbrew: "Core — signal scoring, sentiment, earnings intel", competitor: "Quant ratings, Virtual Analyst reports, earnings-call insights" },
       { dimension: "Dividend analysis", stocksbrew: "Dividend tracking in daily briefs", competitor: "Excellent — dividend grades, safety scores, history" },
       { dimension: "Free tier", stocksbrew: "Watchlist for 3 stocks plus free tools", competitor: "Limited article and portfolio access" },
-      { dimension: "Paid entry", stocksbrew: "Pro $9/mo or $99/yr unlimited Watchlist", competitor: "Premium $299/yr as listed by Seeking Alpha" },
+      { dimension: "Paid entry", stocksbrew: "Pro $9/mo unlimited Watchlist", competitor: "Premium $299/yr as listed by Seeking Alpha" },
     ],
     stocksbrewStrengths: [
       "AI personalized brief — ready in 5 minutes, no manual filtering",
@@ -208,7 +208,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       { dimension: "Portfolio analysis", stocksbrew: "Portfolio analyzer with health scoring", competitor: "Chart trading and broker connections; not tax accounting" },
       { dimension: "Earnings intel", stocksbrew: "AI earnings previews and post-earnings analysis", competitor: "Earnings calendar + basic data" },
       { dimension: "Free tier", stocksbrew: "Watchlist for 3 stocks plus free tools", competitor: "Free charting and screening with plan limits" },
-      { dimension: "Paid entry", stocksbrew: "Pro $9/mo or $99/yr", competitor: "Several plans; exchange data and limits vary" },
+      { dimension: "Paid entry", stocksbrew: "Pro $9/mo", competitor: "Several plans; exchange data and limits vary" },
     ],
     stocksbrewStrengths: [
       "Personalized AI daily brief — 5 minutes covers your entire watchlist",
@@ -286,7 +286,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       { dimension: "Sentiment analysis", stocksbrew: "Multi-source AI sentiment tracking", competitor: "None" },
       { dimension: "Ad experience", stocksbrew: "No ads", competitor: "Heavy — popups, banners, auto-play video" },
       { dimension: "Time to value", stocksbrew: "5 min/day — read AI brief", competitor: "10-20 min/day — navigate, read, filter manually" },
-      { dimension: "Price", stocksbrew: "Free tier / Pro $9/mo or $99/yr", competitor: "Free (ad-supported)" },
+      { dimension: "Price", stocksbrew: "Free tier / Pro $9/mo", competitor: "Free (ad-supported)" },
     ],
     stocksbrewStrengths: [
       "AI-generated personalized brief — no manual news filtering needed",
@@ -363,7 +363,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       { dimension: "Track record", stocksbrew: "N/A — not a prediction tool", competitor: "Published performance against S&P 500" },
       { dimension: "Sentiment analysis", stocksbrew: "Multi-source tracking with trend detection", competitor: "Basic sentiment in analysis" },
       { dimension: "Earnings analysis", stocksbrew: "Dedicated AI earnings intel pre/post", competitor: "Considered in pick models" },
-      { dimension: "Price", stocksbrew: "Free tier / Pro $9/mo or $99/yr", competitor: "Free / Premium $30-80/mo" },
+      { dimension: "Price", stocksbrew: "Free tier / Pro $9/mo", competitor: "Free / Premium $30-80/mo" },
     ],
     stocksbrewStrengths: [
       "AI intelligence, not predictions — helps you make your own decisions",
@@ -442,7 +442,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       { dimension: "Alerts", stocksbrew: "AI alerts: breakouts, RSI, earnings, sentiment", competitor: "Price alerts, report availability alerts" },
       { dimension: "Portfolio analysis", stocksbrew: "Health scoring with risk flags", competitor: "X-ray, style box, sector allocation (Investor tier)" },
       { dimension: "Free tier", stocksbrew: "Daily brief, three-stock Watchlist, sector overview", competitor: "Limited quotes, ratings, articles" },
-      { dimension: "Paid entry", stocksbrew: "Pro $9/mo or $99/yr", competitor: "Premium $249/yr or Investor $299/yr" },
+      { dimension: "Paid entry", stocksbrew: "Pro $9/mo", competitor: "Premium $249/yr or Investor $299/yr" },
     ],
     stocksbrewStrengths: [
       "Unlimited watchlist coverage — track any US stock, not just analyst-covered names",
@@ -524,7 +524,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       { dimension: "Alerts", stocksbrew: "Price zones and setup-change emails", competitor: "Elite price, news, ratings, insider, filing, portfolio, and screener alerts" },
       { dimension: "Written watchlist context", stocksbrew: "Calls with earnings, news, price, and sentiment context", competitor: "Market data and alerts rather than an equivalent written call" },
       { dimension: "Free tier", stocksbrew: "Daily brief, Watchlist for 3 stocks, Should I Buy", competitor: "Full screener with delayed data, heatmaps" },
-      { dimension: "Paid entry", stocksbrew: "Pro $9/mo or $99/yr", competitor: "Elite $39.50/mo or $299.50/yr when reviewed" },
+      { dimension: "Paid entry", stocksbrew: "Pro $9/mo", competitor: "Elite $39.50/mo or $299.50/yr when reviewed" },
     ],
     stocksbrewStrengths: [
       "AI daily brief replaces manual scanning — 5 minutes covers your watchlist",
@@ -606,7 +606,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       { dimension: "Earnings analysis", stocksbrew: "AI earnings intel with pre/post analysis", competitor: "Core strength — earnings estimate tracking" },
       { dimension: "Alerts", stocksbrew: "AI alerts: breakouts, RSI, sentiment, earnings", competitor: "Rank change alerts (Premium)" },
       { dimension: "Free tier", stocksbrew: "Daily brief, Watchlist for 3 stocks", competitor: "Limited rankings, daily market commentary" },
-      { dimension: "Paid entry", stocksbrew: "Pro $9/mo or $99/yr", competitor: "Premium $249/yr" },
+      { dimension: "Paid entry", stocksbrew: "Pro $9/mo", competitor: "Premium $249/yr" },
     ],
     stocksbrewStrengths: [
       "Multi-source AI intelligence — not limited to earnings estimates",
@@ -683,7 +683,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       { dimension: "AI features", stocksbrew: "Full — sentiment, technicals, filings, earnings", competitor: "Limited — some AI-assisted research tools" },
       { dimension: "Earnings intel", stocksbrew: "AI earnings analysis pre and post report", competitor: "Earnings commentary in articles" },
       { dimension: "Community", stocksbrew: "None", competitor: "Large — discussion boards, member community" },
-      { dimension: "Price", stocksbrew: "Free tier / Pro $9/mo or $99/yr", competitor: "Stock Advisor $99/yr first year, $199/yr after" },
+      { dimension: "Price", stocksbrew: "Free tier / Pro $9/mo", competitor: "Stock Advisor $99/yr first year, $199/yr after" },
     ],
     stocksbrewStrengths: [
       "Daily AI intelligence — not just monthly stock picks",
@@ -765,7 +765,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       { dimension: "Sentiment analysis", stocksbrew: "Multi-source AI sentiment with trends", competitor: "News sentiment scoring per stock" },
       { dimension: "Stock screening", stocksbrew: "Curated thematic screens", competitor: "Analyst-based and insider-based screeners" },
       { dimension: "Earnings intel", stocksbrew: "AI earnings analysis with scenarios", competitor: "Earnings estimates and surprise history" },
-      { dimension: "Price", stocksbrew: "Free tier / Pro $9/mo or $99/yr", competitor: "Free tier / Premium $30/mo or $360/yr" },
+      { dimension: "Price", stocksbrew: "Free tier / Pro $9/mo", competitor: "Free tier / Premium $30/mo or $360/yr" },
     ],
     stocksbrewStrengths: [
       "Broader intelligence — multiple configured inputs vs analyst/insider focus",
@@ -842,7 +842,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       { dimension: "Analyst estimates", stocksbrew: "Analyst signals in AI brief", competitor: "Consensus estimates and price targets" },
       { dimension: "Sentiment analysis", stocksbrew: "Multi-source AI sentiment tracking", competitor: "Basic news feed per stock" },
       { dimension: "Ad experience", stocksbrew: "No ads", competitor: "Minimal — clean interface" },
-      { dimension: "Price", stocksbrew: "Free tier / Pro $9/mo or $99/yr", competitor: "Generous free tier / Pro $10/mo" },
+      { dimension: "Price", stocksbrew: "Free tier / Pro $9/mo", competitor: "Generous free tier / Pro $10/mo" },
     ],
     stocksbrewStrengths: [
       "AI does the analysis — no manual data interpretation needed",
@@ -919,7 +919,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       { dimension: "Daily brief", stocksbrew: "Personalized AI brief covering your stocks", competitor: "No brief — manual score lookup" },
       { dimension: "Earnings intel", stocksbrew: "AI earnings analysis with scenarios", competitor: "Earnings considered in score model" },
       { dimension: "Alerts", stocksbrew: "AI alerts: breakouts, RSI, sentiment, earnings", competitor: "Score change alerts (paid)" },
-      { dimension: "Price", stocksbrew: "Free tier / Pro $9/mo or $99/yr", competitor: "Free tier / Plus $19/mo or $190/yr" },
+      { dimension: "Price", stocksbrew: "Free tier / Pro $9/mo", competitor: "Free tier / Plus $19/mo or $190/yr" },
     ],
     stocksbrewStrengths: [
       "Narrative brief with context — not just a number",

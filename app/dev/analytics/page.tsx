@@ -1,3 +1,4 @@
+import { OaSiteHeader } from "@/components/oa/oa-site-header";
 import { notFound } from "next/navigation";
 
 import { AnalyticsPeriodToggle } from "@/components/analytics-period-toggle";
@@ -31,11 +32,11 @@ export default async function DevAnalyticsPage({
   const posthogReady = isPostHogQueryConfigured() && !posthog.error;
 
   return (
-    <main className="mx-auto max-w-6xl px-6 py-10 md:px-10">
+    <main className="oa-app mx-auto max-w-6xl px-6 py-10 md:px-10">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-semibold tracking-tight text-[#111111]">App analytics</h1>
-          <p className="text-sm text-[#6b7280]">
+          <h1 className="text-3xl font-medium tracking-tight text-[var(--oa-fg)]">App analytics</h1>
+          <p className="text-sm text-[var(--oa-muted-fg)]">
             Human traffic, Watchlist activation, retention, and conversions · stocksbrew.online only
           </p>
         </div>

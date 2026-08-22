@@ -65,32 +65,32 @@ function IndexChart({ edition }: { edition: MarketDailyEdition }) {
       <div className={styles.chartCanvas}>
         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
           <LineChart data={data} margin={{ top: 10, right: 8, bottom: 0, left: -12 }}>
-            <CartesianGrid stroke="var(--outline-variant)" strokeDasharray="2 5" vertical={false} />
+            <CartesianGrid stroke="var(--oa-border)" strokeDasharray="2 5" vertical={false} />
             <XAxis
               dataKey="date"
               tickFormatter={shortDate}
               minTickGap={34}
-              tick={{ fill: "var(--on-surface-variant)", fontSize: 10 }}
+              tick={{ fill: "var(--oa-muted-fg)", fontSize: 10 }}
               axisLine={false}
               tickLine={false}
             />
             <YAxis
               tickFormatter={(value) => `${Number(value).toFixed(0)}%`}
-              tick={{ fill: "var(--on-surface-variant)", fontSize: 10 }}
+              tick={{ fill: "var(--oa-muted-fg)", fontSize: 10 }}
               axisLine={false}
               tickLine={false}
             />
             <Tooltip
               labelFormatter={(value) => shortDate(String(value))}
               formatter={(value, name) => [signed(Number(value)), String(name)]}
-              contentStyle={{ background: "var(--inverse-surface)", border: 0, color: "var(--inverse-on-surface)", borderRadius: 2 }}
-              itemStyle={{ color: "var(--inverse-on-surface)" }}
+              contentStyle={{ background: "var(--oa-fg)", border: 0, color: "var(--oa-card)", borderRadius: 2 }}
+              itemStyle={{ color: "var(--oa-card)" }}
             />
             <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
             <Line
               dataKey="sp500"
               name="S&P 500"
-              stroke="var(--on-surface)"
+              stroke="var(--oa-fg)"
               strokeWidth={2.4}
               dot={false}
               activeDot={{ r: 4 }}
@@ -160,11 +160,11 @@ function SectorChart({ edition }: { edition: MarketDailyEdition }) {
       <div className={styles.sectorChartCanvas}>
         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
           <BarChart data={data} layout="vertical" margin={{ top: 4, right: 16, bottom: 0, left: 18 }}>
-            <CartesianGrid stroke="var(--outline-variant)" strokeDasharray="2 5" horizontal={false} />
+            <CartesianGrid stroke="var(--oa-border)" strokeDasharray="2 5" horizontal={false} />
             <XAxis
               type="number"
               tickFormatter={(value) => `${Number(value).toFixed(0)}%`}
-              tick={{ fill: "var(--on-surface-variant)", fontSize: 10 }}
+              tick={{ fill: "var(--oa-muted-fg)", fontSize: 10 }}
               axisLine={false}
               tickLine={false}
             />
@@ -172,14 +172,14 @@ function SectorChart({ edition }: { edition: MarketDailyEdition }) {
               dataKey="label"
               type="category"
               width={112}
-              tick={{ fill: "var(--on-surface)", fontSize: 10 }}
+              tick={{ fill: "var(--oa-fg)", fontSize: 10 }}
               axisLine={false}
               tickLine={false}
             />
             <Tooltip
               formatter={(value) => [signed(Number(value)), windows[windowKey]]}
-              contentStyle={{ background: "var(--inverse-surface)", border: 0, color: "var(--inverse-on-surface)", borderRadius: 2 }}
-              itemStyle={{ color: "var(--inverse-on-surface)" }}
+              contentStyle={{ background: "var(--oa-fg)", border: 0, color: "var(--oa-card)", borderRadius: 2 }}
+              itemStyle={{ color: "var(--oa-card)" }}
             />
             <Bar dataKey="value" radius={2}>
               {data.map((row) => (

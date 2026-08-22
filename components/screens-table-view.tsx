@@ -32,20 +32,20 @@ const isScore = (v: unknown): v is number =>
 
 /** Overall score chip — green for strong, neutral gray otherwise. No amber. */
 function ScoreBadge({ value }: { value: number | null | undefined }) {
-  if (!isScore(value)) return <span className="text-[12px] text-on-surface-variant/50">–</span>;
+  if (!isScore(value)) return <span className="text-[12px] text-oa-muted-fg/50">–</span>;
   const rounded = Math.round(value);
   return <Badge variant={rounded >= 70 ? "bull" : "neutral"}>{rounded}</Badge>;
 }
 
 /** Pillar score — green when strong, muted otherwise. */
 function PillarScore({ value }: { value: number | null | undefined }) {
-  if (!isScore(value)) return <span className="text-[12px] text-on-surface-variant/50">–</span>;
+  if (!isScore(value)) return <span className="text-[12px] text-oa-muted-fg/50">–</span>;
   const rounded = Math.round(value);
   return (
     <span
       className={cn(
-        "font-mono text-[13px] font-semibold tabular-nums",
-        rounded >= 70 ? "text-[var(--signal-bullish)]" : "text-on-surface-variant",
+        "font-mono text-[13px] font-medium tabular-nums",
+        rounded >= 70 ? "text-[var(--signal-bullish)]" : "text-oa-muted-fg",
       )}
     >
       {rounded}
@@ -64,7 +64,7 @@ function useScreenColumns(market: "US" | "IN"): ColumnDef<ScreenMatchRow>[] {
         header: "#",
         enableSorting: false,
         cell: ({ row }) => (
-          <span className="hidden font-mono text-[12px] font-semibold tabular-nums text-on-surface-variant/70 md:inline">
+          <span className="hidden font-mono text-[12px] font-medium tabular-nums text-oa-muted-fg/70 md:inline">
             {row.index + 1}
           </span>
         ),
@@ -80,11 +80,11 @@ function useScreenColumns(market: "US" | "IN"): ColumnDef<ScreenMatchRow>[] {
             <Link href={`/stock/${encodeURIComponent(r.ticker)}`} className="group flex items-center gap-2.5">
               <StockLogo ticker={r.ticker} logoUrl={r.logo_url} market={market} size={34} />
               <div className="flex min-w-0 flex-col">
-                <span className="text-[14px] font-semibold text-on-surface transition-colors group-hover:text-primary">
+                <span className="text-[14px] font-medium text-oa-fg transition-colors group-hover:text-primary">
                   {r.ticker}
                 </span>
                 {r.name ? (
-                  <span className="max-w-[170px] truncate text-[11px] text-on-surface-variant">{r.name}</span>
+                  <span className="max-w-[170px] truncate text-[11px] text-oa-muted-fg">{r.name}</span>
                 ) : null}
               </div>
             </Link>
@@ -143,18 +143,18 @@ export function ScreensTableView({
               key={s.id}
               onClick={() => setActiveId(s.id)}
               className={cn(
-                "flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12px] font-semibold transition-colors",
+                "flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12px] font-medium transition-colors",
                 isActive
-                  ? "bg-on-surface text-surface"
-                  : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high",
+                  ? "bg-oa-fg text-oa-card"
+                  : "bg-oa-accent text-oa-muted-fg hover:bg-oa-accent-high",
               )}
             >
               {isHouse ? <span className={cn("text-[11px]", isActive ? "text-surface" : "text-primary")}>✦</span> : null}
               {c.title}
               <span
                 className={cn(
-                  "rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums",
-                  isActive ? "bg-surface/20 text-surface" : "bg-surface text-on-surface-variant",
+                  "rounded-full px-1.5 py-0.5 text-[10px] font-medium tabular-nums",
+                  isActive ? "bg-oa-card/20 text-surface" : "bg-oa-card text-oa-muted-fg",
                 )}
               >
                 {s.match_count}
@@ -166,17 +166,17 @@ export function ScreensTableView({
 
       {/* Screen description */}
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <p className="text-[13px] text-on-surface-variant">{copy.subtitle}</p>
+        <p className="text-[13px] text-oa-muted-fg">{copy.subtitle}</p>
         <Link
           href={`/screens/${encodeURIComponent(activeId)}?market=${market}`}
-          className="shrink-0 text-[12px] font-semibold text-primary hover:underline"
+          className="shrink-0 text-[12px] font-medium text-primary hover:underline"
         >
           View full screen →
         </Link>
       </div>
 
       {/* Table — TanStack sorting, click a header to sort */}
-      <div className="overflow-hidden rounded-2xl border border-outline-variant bg-surface">
+      <div className="overflow-hidden rounded-2xl border border-oa-border bg-oa-card">
         <DataTable
           key={activeId}
           columns={columns}

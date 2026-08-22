@@ -7,6 +7,9 @@ type Props = {
   title: string;
 };
 
+const PILL =
+  "inline-flex h-8 items-center rounded-full border border-oa-border bg-oa-card px-3.5 text-[13px] font-medium text-oa-muted-fg transition-colors hover:border-oa-fg/30 hover:text-oa-fg";
+
 export function ShareLinkBar({ url, title }: Props) {
   const [copied, setCopied] = useState(false);
   const absolute = url.startsWith("http") ? url : `https://www.stocksbrew.online${url.startsWith("/") ? url : `/${url}`}`;
@@ -24,24 +27,20 @@ export function ShareLinkBar({ url, title }: Props) {
   }
 
   return (
-    <section className="rounded-2xl border border-[#e5e7eb] bg-[#fafaf7] p-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <section className="flex flex-col gap-3 rounded-[22px] border border-oa-border bg-oa-bg p-5 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
-        <p className="text-[12px] font-semibold uppercase tracking-wide text-[#6b7280]">Share this page</p>
-        <p className="mt-1 text-[13px] text-[#374151] truncate">{absolute}</p>
+        <p className="oa-mono text-[10px] uppercase tracking-[0.12em] text-oa-muted-fg">Share this page</p>
+        <p className="oa-mono mt-1 truncate text-[13px] text-oa-fg/70">{absolute}</p>
       </div>
-      <div className="flex flex-wrap gap-2 shrink-0">
-        <button
-          type="button"
-          onClick={() => void copyLink()}
-          className="inline-flex h-[36px] items-center px-4 rounded-full border border-[#e5e7eb] bg-white text-[13px] font-medium text-[#111111] hover:border-[#111111] transition-colors"
-        >
-          {copied ? "Copied ✓" : "Copy link"}
+      <div className="flex shrink-0 flex-wrap gap-2">
+        <button type="button" onClick={() => void copyLink()} className={PILL}>
+          {copied ? "Copied" : "Copy link"}
         </button>
         <a
           href={`https://www.reddit.com/submit?url=${encoded}&title=${text}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex h-[36px] items-center px-4 rounded-full border border-[#e5e7eb] bg-white text-[13px] font-medium text-[#374151] hover:border-[#111111] transition-colors"
+          className={PILL}
         >
           Reddit ↗
         </a>
@@ -49,7 +48,7 @@ export function ShareLinkBar({ url, title }: Props) {
           href={`https://twitter.com/intent/tweet?url=${encoded}&text=${text}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex h-[36px] items-center px-4 rounded-full border border-[#e5e7eb] bg-white text-[13px] font-medium text-[#374151] hover:border-[#111111] transition-colors"
+          className={PILL}
         >
           Post ↗
         </a>

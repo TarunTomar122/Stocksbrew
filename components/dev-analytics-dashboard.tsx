@@ -18,12 +18,12 @@ import type { DevBusinessMetrics } from "@/lib/dev-business-metrics";
 import type { DevEngagementMetrics } from "@/lib/dev-engagement-metrics";
 import type { PostHogAnalyticsSnapshot } from "@/lib/posthog-server";
 
-const INK = "#111111";
-const MUTED = "#9ca3af";
-const GRID = "#f3f4f6";
+const INK = "var(--oa-fg)";
+const MUTED = "var(--oa-muted-fg)";
+const GRID = "var(--oa-bg)";
 const GREEN = "#059669";
 const AMBER = "#d97706";
-const BAR_COLORS = ["#111111", "#374151", "#6b7280", "#9ca3af", "#d1d5db"];
+const BAR_COLORS = ["var(--oa-fg)", "var(--oa-fg)", "var(--oa-muted-fg)", "var(--oa-muted-fg)", "var(--oa-border)"];
 
 type Props = {
   posthog: PostHogAnalyticsSnapshot;
@@ -108,7 +108,7 @@ export function DevAnalyticsDashboard({ posthog, business, engagement, posthogRe
       </div>
 
       {!posthogReady && (
-        <p className="text-sm text-[#6b7280]">
+        <p className="text-sm text-[var(--oa-muted-fg)]">
           Connect PostHog query API to see traffic charts. Firestore paid count still loads above.
         </p>
       )}
@@ -149,7 +149,7 @@ export function DevAnalyticsDashboard({ posthog, business, engagement, posthogRe
                     width={28}
                   />
                   <Tooltip
-                    contentStyle={{ borderRadius: 12, border: "1px solid #e5e7eb", fontSize: 12 }}
+                    contentStyle={{ borderRadius: 12, border: "1px solid var(--oa-border)", fontSize: 12 }}
                     labelFormatter={(label) => String(label)}
                     formatter={(value, name) => [fmtNum(Number(value)), String(name)]}
                   />
@@ -162,7 +162,7 @@ export function DevAnalyticsDashboard({ posthog, business, engagement, posthogRe
                   <Bar
                     yAxisId="visitors"
                     dataKey="visitors"
-                    fill="#e5e7eb"
+                    fill="var(--oa-border)"
                     radius={[4, 4, 0, 0]}
                     barSize={periodDays <= 7 ? 28 : 12}
                     name="Visitors"
@@ -212,7 +212,7 @@ export function DevAnalyticsDashboard({ posthog, business, engagement, posthogRe
                       tickLine={false}
                     />
                     <Tooltip
-                      contentStyle={{ borderRadius: 12, border: "1px solid #e5e7eb", fontSize: 12 }}
+                      contentStyle={{ borderRadius: 12, border: "1px solid var(--oa-border)", fontSize: 12 }}
                       formatter={(value) => [fmtNum(Number(value)), "Users"]}
                     />
                     <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={28}>
@@ -223,7 +223,7 @@ export function DevAnalyticsDashboard({ posthog, business, engagement, posthogRe
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-              <p className="mt-2 text-[11px] text-[#6b7280]">
+              <p className="mt-2 text-[11px] text-[var(--oa-muted-fg)]">
                 Activated cohort return: {summary.activatedReturned} / {summary.activatedCohort} users who added their first Watchlist stock in the prior {periodDays} days.
               </p>
             </Panel>
@@ -249,17 +249,17 @@ export function DevAnalyticsDashboard({ posthog, business, engagement, posthogRe
                   return (
                     <div key={step.key}>
                       <div className="mb-1 flex items-baseline justify-between gap-2 text-[12px]">
-                        <span className="font-medium text-[#111111]">{step.label}</span>
-                        <span className="tabular-nums text-[#6b7280]">
+                        <span className="font-medium text-[var(--oa-fg)]">{step.label}</span>
+                        <span className="tabular-nums text-[var(--oa-muted-fg)]">
                           {fmtNum(step.count)}
                           {stepRate && stepRate !== "—" ? (
-                            <span className="ml-2 text-[#9ca3af]">{stepRate} of prev</span>
+                            <span className="ml-2 text-[var(--oa-muted-fg)]">{stepRate} of prev</span>
                           ) : null}
                         </span>
                       </div>
-                      <div className="h-7 overflow-hidden rounded-lg bg-[#f3f4f6]">
+                      <div className="h-7 overflow-hidden rounded-lg bg-[var(--oa-bg)]">
                         <div
-                          className="flex h-full items-center rounded-lg bg-[#111111] pl-2 text-[10px] font-medium text-white transition-all"
+                          className="flex h-full items-center rounded-lg bg-[var(--oa-fg)] pl-2 text-[10px] font-medium text-white transition-all"
                           style={{ width: `${widthPct}%`, minWidth: step.count > 0 ? "2.5rem" : 0 }}
                         />
                       </div>
@@ -267,7 +267,7 @@ export function DevAnalyticsDashboard({ posthog, business, engagement, posthogRe
                   );
                 })}
               </div>
-              <p className="mt-4 text-[11px] text-[#9ca3af]">
+              <p className="mt-4 text-[11px] text-[var(--oa-muted-fg)]">
                 Unique people per stage in this period · Paid Pro in Firestore: {business.paidProActive} · new accounts (7d): {business.newUsers7d}
               </p>
             </Panel>
@@ -300,7 +300,7 @@ export function DevAnalyticsDashboard({ posthog, business, engagement, posthogRe
                         tickLine={false}
                       />
                       <Tooltip
-                        contentStyle={{ borderRadius: 12, border: "1px solid #e5e7eb", fontSize: 12 }}
+                        contentStyle={{ borderRadius: 12, border: "1px solid var(--oa-border)", fontSize: 12 }}
                         formatter={(value) => [fmtNum(Number(value)), "Visitors"]}
                       />
                       <Bar dataKey="visitors" fill={GREEN} radius={[0, 4, 4, 0]} barSize={18} />
@@ -333,7 +333,7 @@ export function DevAnalyticsDashboard({ posthog, business, engagement, posthogRe
                         tickLine={false}
                       />
                       <Tooltip
-                        contentStyle={{ borderRadius: 12, border: "1px solid #e5e7eb", fontSize: 12 }}
+                        contentStyle={{ borderRadius: 12, border: "1px solid var(--oa-border)", fontSize: 12 }}
                         labelFormatter={(_, payload) =>
                           String(payload?.[0]?.payload?.fullPath ?? "")
                         }
@@ -373,7 +373,7 @@ export function DevAnalyticsDashboard({ posthog, business, engagement, posthogRe
                         tickLine={false}
                       />
                       <Tooltip
-                        contentStyle={{ borderRadius: 12, border: "1px solid #e5e7eb", fontSize: 12 }}
+                        contentStyle={{ borderRadius: 12, border: "1px solid var(--oa-border)", fontSize: 12 }}
                         formatter={(value) => [fmtNum(Number(value)), "Pageviews"]}
                       />
                       <Bar dataKey="views" fill={AMBER} radius={[0, 4, 4, 0]} barSize={18} />
@@ -420,8 +420,8 @@ export function DevAnalyticsDashboard({ posthog, business, engagement, posthogRe
           <div className="max-h-[360px] space-y-2 overflow-y-auto scrollbar-hide">
             {business.recentFeedback.map((row) => (
               <div key={row.id} className="rounded-xl border border-[#f1f5f9] bg-[#fafafa] p-3">
-                <p className="text-[13px] leading-snug text-[#111111]">{row.text}</p>
-                <p className="mt-2 text-[11px] text-[#9ca3af]">
+                <p className="text-[13px] leading-snug text-[var(--oa-fg)]">{row.text}</p>
+                <p className="mt-2 text-[11px] text-[var(--oa-muted-fg)]">
                   {[row.email, row.createdAt, row.path].filter(Boolean).join(" · ")}
                 </p>
               </div>
@@ -445,16 +445,16 @@ function Kpi({
   tone?: "good";
 }) {
   return (
-    <article className="rounded-2xl border border-[#e5e7eb] bg-white px-4 py-3">
-      <p className="text-[11px] font-medium uppercase tracking-wide text-[#9ca3af]">{label}</p>
+    <article className="rounded-2xl border border-[var(--oa-border)] bg-oa-card px-4 py-3">
+      <p className="text-[11px] font-medium uppercase tracking-wide text-[var(--oa-muted-fg)]">{label}</p>
       <p
-        className={`mt-1 text-2xl font-semibold tabular-nums ${
-          tone === "good" ? "text-[#059669]" : "text-[#111111]"
+        className={`mt-1 text-2xl font-medium tabular-nums ${
+          tone === "good" ? "text-[#059669]" : "text-[var(--oa-fg)]"
         }`}
       >
         {typeof value === "number" ? fmtNum(value) : value}
       </p>
-      {hint && <p className="mt-0.5 text-[10px] text-[#9ca3af]">{hint}</p>}
+      {hint && <p className="mt-0.5 text-[10px] text-[var(--oa-muted-fg)]">{hint}</p>}
     </article>
   );
 }
@@ -485,8 +485,8 @@ function EngagementEmailPanel({
                 error ? "border-[#fecaca] bg-[#fef2f2]" : "border-[#f1f5f9] bg-[#fafafa]"
               }`}
             >
-              <p className="font-mono text-[13px] font-medium text-[#111111]">{row.email}</p>
-              <p className="mt-1 text-[11px] text-[#9ca3af]">
+              <p className="font-mono text-[13px] font-medium text-[var(--oa-fg)]">{row.email}</p>
+              <p className="mt-1 text-[11px] text-[var(--oa-muted-fg)]">
                 {[row.detail, row.createdAt, row.uid ? `uid ${row.uid.slice(0, 8)}…` : null]
                   .filter(Boolean)
                   .join(" · ")}
@@ -509,10 +509,10 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <article className="rounded-2xl border border-[#e5e7eb] bg-white p-5">
+    <article className="rounded-2xl border border-[var(--oa-border)] bg-oa-card p-5">
       <div>
-        <h2 className="text-base font-semibold text-[#111111]">{title}</h2>
-        {subtitle && <p className="mt-0.5 text-[12px] text-[#6b7280]">{subtitle}</p>}
+        <h2 className="text-base font-medium text-[var(--oa-fg)]">{title}</h2>
+        {subtitle && <p className="mt-0.5 text-[12px] text-[var(--oa-muted-fg)]">{subtitle}</p>}
       </div>
       <div className="mt-4">{children}</div>
     </article>
@@ -520,5 +520,5 @@ function Panel({
 }
 
 function Empty({ children }: { children: React.ReactNode }) {
-  return <p className="py-8 text-center text-sm text-[#6b7280]">{children}</p>;
+  return <p className="py-8 text-center text-sm text-[var(--oa-muted-fg)]">{children}</p>;
 }

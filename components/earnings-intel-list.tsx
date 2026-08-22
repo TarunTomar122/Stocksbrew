@@ -13,7 +13,7 @@ function formatDate(iso: string): string {
 
 function confidenceLabel(score: number) {
   if (score >= 75) return { text: "High conviction", className: "bg-[#ecfdf5] text-[#10b981]" };
-  if (score >= 50) return { text: "Moderate", className: "bg-[#eff6ff] text-[#0052ff]" };
+  if (score >= 50) return { text: "Moderate", className: "bg-[#eff6ff] text-[var(--oa-primary)]" };
   return { text: "Use caution", className: "bg-[#fef3c7] text-[#b45309]" };
 }
 
@@ -32,12 +32,12 @@ type EarningsIntelListProps = {
 export function EarningsIntelList({ docs, stockByTicker, market }: EarningsIntelListProps) {
   if (docs.length === 0) {
     return (
-      <div className="mx-4 rounded-2xl border border-dashed border-[#d1d5db] bg-[#fafafa] px-6 py-12 text-center sm:mx-0">
-        <AnimatedIcon name="analytics" size={40} className="text-[#9ca3af]" aria-hidden />
-        <h2 className="mt-4 text-lg font-semibold text-[#111111]">No reports yet</h2>
-        <p className="mx-auto mt-2 max-w-md text-base leading-relaxed text-[#6b7280]">
+      <div className="mx-4 rounded-2xl border border-dashed border-[var(--oa-border)] bg-[#fafafa] px-6 py-12 text-center sm:mx-0">
+        <AnimatedIcon name="analytics" size={40} className="text-[var(--oa-muted-fg)]" aria-hidden />
+        <h2 className="mt-4 text-lg font-medium text-[var(--oa-fg)]">No reports yet</h2>
+        <p className="mx-auto mt-2 max-w-md text-base leading-relaxed text-[var(--oa-muted-fg)]">
           Post-earnings briefs land here after companies report. Check the{" "}
-          <Link href="/earnings" className="font-semibold text-[#0052ff] hover:underline">
+          <Link href="/earnings" className="font-medium text-[var(--oa-primary)] hover:underline">
             earnings calendar
           </Link>{" "}
           for upcoming dates.
@@ -50,14 +50,14 @@ export function EarningsIntelList({ docs, stockByTicker, market }: EarningsIntel
     <section className="flex flex-col gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3 px-4 sm:px-0">
         <div>
-          <h2 className="text-sm font-semibold uppercase tracking-widest text-[#6b7280]">
+          <h2 className="text-sm font-medium uppercase tracking-widest text-[var(--oa-muted-fg)]">
             All reports
           </h2>
-          <p className="mt-1 text-base text-[#6b7280]">
+          <p className="mt-1 text-base text-[var(--oa-muted-fg)]">
             {docs.length} post-earnings {docs.length === 1 ? "brief" : "briefs"}, newest first
           </p>
         </div>
-        <p className="text-sm text-[#9ca3af]">Tap a card for the full brief</p>
+        <p className="text-sm text-[var(--oa-muted-fg)]">Tap a card for the full brief</p>
       </div>
 
       <ul className="flex flex-col gap-3 px-0 sm:gap-4">
@@ -74,7 +74,7 @@ export function EarningsIntelList({ docs, stockByTicker, market }: EarningsIntel
             <li key={doc.doc_id}>
               <Link
                 href={`/earnings-intel/${encodeURIComponent(doc.ticker)}`}
-                className="group block border-y border-[#e5e7eb] bg-white transition-colors hover:bg-[#fafafa] sm:rounded-2xl sm:border sm:hover:border-[#111111] sm:hover:shadow-sm"
+                className="group block border-y border-[var(--oa-border)] bg-oa-card transition-colors hover:bg-[#fafafa] sm:rounded-2xl sm:border sm:hover:border-[var(--oa-fg)] sm:hover:shadow-sm"
               >
                 <div className="flex gap-4 px-4 py-5 sm:p-6">
                   <StockLogo
@@ -86,11 +86,11 @@ export function EarningsIntelList({ docs, stockByTicker, market }: EarningsIntel
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2 gap-y-1">
-                      <span className="text-base font-semibold text-[#111111]">{doc.ticker}</span>
+                      <span className="text-base font-medium text-[var(--oa-fg)]">{doc.ticker}</span>
                       {stock?.name ? (
-                        <span className="truncate text-sm text-[#6b7280]">{stock.name}</span>
+                        <span className="truncate text-sm text-[var(--oa-muted-fg)]">{stock.name}</span>
                       ) : null}
-                      <span className="w-full text-xs text-[#9ca3af] sm:ml-auto sm:w-auto">
+                      <span className="w-full text-xs text-[var(--oa-muted-fg)] sm:ml-auto sm:w-auto">
                         Earnings {formatDate(doc.event_date)}
                       </span>
                     </div>
@@ -98,26 +98,26 @@ export function EarningsIntelList({ docs, stockByTicker, market }: EarningsIntel
                     <div className="mt-2 flex flex-wrap gap-2">
                       {conf ? (
                         <span
-                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${conf.className}`}
+                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${conf.className}`}
                         >
                           {confidence != null ? `${Math.round(confidence)} · ` : ""}
                           {conf.text}
                         </span>
                       ) : null}
                       {leadScenario ? (
-                        <span className="inline-flex items-center rounded-full bg-[#f3f4f6] px-2.5 py-0.5 text-xs font-medium capitalize text-[#374151]">
+                        <span className="inline-flex items-center rounded-full bg-[var(--oa-bg)] px-2.5 py-0.5 text-xs font-medium capitalize text-[var(--oa-fg)]">
                           {leadScenario.case} {Math.round(leadScenario.probability_pct)}%
                         </span>
                       ) : null}
                     </div>
 
-                    <h3 className="mt-3 text-lg font-semibold leading-snug tracking-tight text-[#111111] group-hover:text-[#0052ff] sm:text-xl">
+                    <h3 className="mt-3 text-lg font-medium leading-snug tracking-tight text-[var(--oa-fg)] group-hover:text-[var(--oa-primary)] sm:text-xl">
                       {doc.report?.headline || `${doc.ticker} earnings update`}
                     </h3>
-                    <p className="mt-2 text-base leading-relaxed text-[#4b5563]">
+                    <p className="mt-2 text-base leading-relaxed text-[var(--oa-muted-fg)]">
                       {doc.report?.summary || "Open full report"}
                     </p>
-                    <span className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-[#111111]">
+                    <span className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-[var(--oa-fg)]">
                       Read full report
                       <AnimatedIcon
                         name="arrow_forward"

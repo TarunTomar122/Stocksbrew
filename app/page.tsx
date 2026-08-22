@@ -1,5 +1,5 @@
-import { PublicHomePage } from "@/components/public-home-page";
+import { OaLanding } from "@/components/oa/oa-landing";
 
-export default async function HomePage() {
-  return <PublicHomePage />;
+export default function HomePage() {
+  return <OaLanding />;
 }

@@ -43,11 +43,11 @@ export function SubscriptionSuccessModal({ open, subscriptionId }: Props) {
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/45 px-4 py-8 overflow-y-auto">
-      <div className="relative my-auto w-full max-w-[680px] rounded-3xl border border-[#e5e7eb] bg-white p-6 md:p-7 shadow-[0_30px_90px_rgba(17,24,39,0.30)]">
+      <div className="relative my-auto w-full max-w-[680px] rounded-3xl border border-[var(--oa-border)] bg-oa-card p-6 md:p-7 shadow-[0_30px_90px_rgba(17,24,39,0.30)]">
         <button
           type="button"
           onClick={() => setVisible(false)}
-          className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#e5e7eb] text-[#6b7280] hover:bg-[#f8f9fa]"
+          className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--oa-border)] text-[var(--oa-muted-fg)] hover:bg-[#f8f9fa]"
           aria-label="Close welcome modal"
         >
           <AnimatedIcon name="close" size={18} className="text-[18px]" />

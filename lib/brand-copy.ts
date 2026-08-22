@@ -18,12 +18,12 @@ export const MEDIUM_DESCRIPTION =
 export const LONG_DESCRIPTION =
   "Search any US stock for financials, valuation, filings, earnings, analyst targets and news. Add the stocks you care about to your Watchlist and we’ll keep checking new filings, earnings reports and news. Pro adds detailed calls, price zones, targets and unlimited tracking. Research only, not investment advice.";
 
-export const HERO_HEADLINE = "Track and Analyse US stocks";
-export const HERO_HEADLINE_LEAD = "Track and Analyse";
-export const HERO_HEADLINE_EMPHASIS = "US stocks";
+export const HERO_HEADLINE = "Understand any stock in minutes.";
+export const HERO_HEADLINE_LEAD = "Understand any stock";
+export const HERO_HEADLINE_EMPHASIS = "in minutes.";
 
 export const HERO_SUBHEAD =
-  "Financials, valuation, filings, earnings, analyst targets and news for any US stock.";
+  "We read the filings, earnings and news for you, then tell you what changed, why it matters, and when to look again.";
 
 /** Homepage block above live movers / Reddit / sectors (Finviz-style labels, not manifesto). */
 export const HOME_LIVE_FEED_EYEBROW = "Market today";

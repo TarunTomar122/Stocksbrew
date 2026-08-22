@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 
 import { HeatListView } from "@/components/heat-list";
 import { FreeToolPageFrame } from "@/components/marketing/free-tool-chrome";
+import { OaSiteHeader } from "@/components/oa/oa-site-header";
 import { getSessionUser } from "@/lib/auth-server";
 import { getDivergenceList, type DivergenceList } from "@/lib/divergence";
 import { getHeatList, type HeatList } from "@/lib/heat";
@@ -33,7 +34,7 @@ function HeatContentFallback() {
   return (
     <div className="grid animate-pulse grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
       {Array.from({ length: 9 }).map((_, i) => (
-        <div key={i} className="h-40 rounded-[18px] border border-outline-variant bg-surface" />
+        <div key={i} className="h-40 rounded-[18px] border border-oa-border bg-oa-card" />
       ))}
     </div>
   );
@@ -70,12 +71,13 @@ async function HeatContentStream() {
 
 export default function HeatPage() {
   return (
-    <main className="flex-grow">
+    <main className="oa-landing flex-grow">
+      <OaSiteHeader />
       <FreeToolPageFrame toolHref="/heat">
         <Suspense fallback={<HeatContentFallback />}>
           <HeatContentStream />
         </Suspense>
-        <footer className="text-[11px] text-on-surface-variant">Heat score 0-100 · not investment advice.</footer>
+        <footer className="text-xs text-oa-muted-fg">Heat score 0-100 · not investment advice.</footer>
       </FreeToolPageFrame>
     </main>
   );

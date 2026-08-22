@@ -166,10 +166,11 @@ describe("Pulse, Social, Watchlist, and home cleanup", () => {
 
   it("shows no more than three Watchlist decisions", () => {
     const queue = source("components/radar-next/decision-queue.tsx");
-    const page = source("app/watchlist/page.tsx");
+    const hub = source("components/watchlist-hub.tsx");
 
     expect(queue).toContain("items.slice(0, 3)");
-    expect(page).toContain("buildDecisionCards(rows, activeRadarUserView).slice(0, 3)");
+    expect(hub).toContain("FREE_BOOK_ROWS");
+    expect(hub).toContain("slice(0, FREE_BOOK_ROWS)");
   });
 
   it("keeps Watchlist discovery as one deduplicated list", () => {

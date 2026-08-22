@@ -31,8 +31,8 @@ function StripMarker({
       title={title}
       className={
         isRef
-          ? "absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-outline-variant bg-surface-container-high shadow-sm"
-          : "absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-on-surface bg-surface shadow-[0_1px_4px_rgba(17,24,39,0.16)]"
+          ? "absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-oa-border bg-oa-secondary shadow-sm"
+          : "absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[var(--oa-fg,#292929)] bg-[var(--oa-card,#fff)] shadow-[0_1px_4px_rgba(17,24,39,0.16)]"
       }
       style={{ left: `${clampPct(leftPct)}%` }}
     />
@@ -73,7 +73,7 @@ export function RsiZoneLabels() {
     `calc(${STRIP_PAD}px + (100% - ${STRIP_PAD * 2}px) * ${pct / 100})`;
 
   return (
-    <div className="relative mt-2 h-3.5 font-mono text-[9px] tabular-nums text-on-surface-variant/75">
+    <div className="relative mt-2 h-3.5 oa-mono text-[9px] tabular-nums text-oa-muted-fg/75">
       <span className="absolute left-0 top-0">0</span>
       <span
         className="absolute top-0 -translate-x-1/2 whitespace-nowrap"
@@ -95,10 +95,10 @@ export function RsiZoneLabels() {
 }
 
 const RSI_TRACK_BG =
-  "linear-gradient(90deg, color-mix(in srgb, var(--signal-bearish) 40%, var(--surface-container-high)) 0%, var(--surface-container-high) 30%, color-mix(in srgb, var(--signal-bullish) 35%, var(--surface-container-high)) 50%, var(--surface-container-high) 70%, color-mix(in srgb, var(--signal-bearish) 40%, var(--surface-container-high)) 100%)";
+  "linear-gradient(90deg, color-mix(in srgb, var(--signal-bearish) 40%, var(--oa-secondary)) 0%, var(--oa-secondary) 30%, color-mix(in srgb, var(--signal-bullish) 35%, var(--oa-secondary)) 50%, var(--oa-secondary) 70%, color-mix(in srgb, var(--signal-bearish) 40%, var(--oa-secondary)) 100%)";
 
 const WEEK52_FILL_BG =
-  "linear-gradient(90deg, color-mix(in srgb, var(--signal-bearish) 40%, var(--surface-container-high)), color-mix(in srgb, var(--signal-bullish) 45%, var(--surface-container-high)))";
+  "linear-gradient(90deg, color-mix(in srgb, var(--signal-bearish) 40%, var(--oa-secondary)), color-mix(in srgb, var(--signal-bullish) 45%, var(--oa-secondary)))";
 
 export { RSI_TRACK_BG, WEEK52_FILL_BG };
 
@@ -121,30 +121,30 @@ export function RangeBar({
 
   return (
     <div className="grid min-w-0 grid-rows-[1.25rem_2.5rem_auto_auto] gap-y-2.5">
-      <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-on-surface-variant">
+      <span className="text-[11px] font-medium uppercase tracking-[0.1em] text-oa-muted-fg">
         {label}
       </span>
       <div className="grid grid-cols-2 gap-2">
         <div className="min-w-0">
-          <span className="text-[10px] font-semibold tracking-[0.08em] uppercase text-on-surface-variant">
+          <span className="text-[10px] font-medium uppercase tracking-[0.08em] text-oa-muted-fg">
             Low
           </span>
-          <span className="mt-0.5 block text-[12px] font-semibold tabular-nums text-on-surface sm:text-[14px]">
+          <span className="mt-0.5 block text-[12px] font-medium tabular-nums text-oa-fg sm:text-[14px]">
             {format(low)}
           </span>
         </div>
         <div className="min-w-0 text-right">
-          <span className="text-[10px] font-semibold tracking-[0.08em] uppercase text-on-surface-variant">
+          <span className="text-[10px] font-medium uppercase tracking-[0.08em] text-oa-muted-fg">
             High
           </span>
-          <span className="mt-0.5 block text-[12px] font-semibold tabular-nums text-on-surface sm:text-[14px]">
+          <span className="mt-0.5 block text-[12px] font-medium tabular-nums text-oa-fg sm:text-[14px]">
             {format(high)}
           </span>
         </div>
       </div>
 
       <div className="relative h-2.5">
-        <div className="absolute inset-0 rounded-full bg-surface-container-high" />
+        <div className="absolute inset-0 rounded-full bg-oa-secondary" />
         <div
           className="absolute inset-0 rounded-full"
           style={{ background: WEEK52_FILL_BG }}
@@ -159,14 +159,14 @@ export function RangeBar({
         </div>
       </div>
 
-      <div className="flex min-w-0 items-baseline justify-between gap-2 text-[11px] text-on-surface-variant">
+      <div className="flex min-w-0 items-baseline justify-between gap-2 text-[11px] text-oa-muted-fg">
         <span className="min-w-0 truncate tabular-nums">
-          Today <span className="font-semibold text-on-surface">{format(current)}</span>
+          Today <span className="font-medium text-oa-fg">{format(current)}</span>
         </span>
         {reference && (
           <span className="shrink-0 text-right tabular-nums">
             {reference.label}{" "}
-            <span className="font-semibold text-on-surface">{format(reference.value)}</span>
+            <span className="font-medium text-oa-fg">{format(reference.value)}</span>
           </span>
         )}
       </div>
@@ -194,16 +194,16 @@ export function RsiStrength({ value, state }: RsiProps) {
 
   return (
     <div className="grid min-w-0 grid-rows-[1.25rem_2.5rem_auto_auto] gap-y-2.5">
-      <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-on-surface-variant">
+      <span className="text-[11px] font-medium uppercase tracking-[0.1em] text-oa-muted-fg">
         RSI (14)
       </span>
       <div className="flex items-baseline justify-between gap-3">
         <span className="flex items-baseline gap-2">
-          <span className="text-[18px] font-semibold tabular-nums text-on-surface">
+          <span className="text-[18px] font-medium tabular-nums text-oa-fg">
             {value.toFixed(1)}
           </span>
           <span
-            className="text-[10px] font-semibold uppercase tracking-[0.08em]"
+            className="text-[10px] font-medium uppercase tracking-[0.08em]"
             style={{ color: verdict.color }}
           >
             {verdict.label}

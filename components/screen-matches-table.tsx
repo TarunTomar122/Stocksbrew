@@ -54,11 +54,11 @@ function fmtScore(v: number | null | undefined): string {
 }
 
 function scoreTone(v: number | null | undefined): string {
-  if (typeof v !== "number" || !Number.isFinite(v)) return "text-[#9ca3af]";
+  if (typeof v !== "number" || !Number.isFinite(v)) return "text-[var(--oa-muted-fg)]";
   if (v >= 80) return "text-[#10b981]";
-  if (v >= 60) return "text-[#111111]";
-  if (v >= 40) return "text-[#6b7280]";
-  return "text-[#9ca3af]";
+  if (v >= 60) return "text-[var(--oa-fg)]";
+  if (v >= 40) return "text-[var(--oa-muted-fg)]";
+  return "text-[var(--oa-muted-fg)]";
 }
 
 function extraMatchCell(row: ScreenMatchRow, screenId: string): string {
@@ -132,7 +132,7 @@ function SortIndicator({
   return (
     <span
       className={`ml-1 inline-flex flex-col leading-[6px] text-[8px] ${
-        active ? "text-[#111111]" : "text-[#d1d5db]"
+        active ? "text-[var(--oa-fg)]" : "text-[var(--oa-border)]"
       }`}
       aria-hidden
     >
@@ -163,17 +163,17 @@ export function ScreenMatchesTable({
   }
 
   return (
-    <section className="rounded-[24px] border border-[#e5e7eb] bg-white overflow-hidden">
+    <section className="rounded-[24px] border border-[var(--oa-border)] bg-oa-card overflow-hidden">
       {/* Header */}
-      <div className="hidden md:grid grid-cols-[2fr_1.2fr_0.8fr_0.8fr_0.7fr_0.7fr_0.7fr_0.7fr_1fr] items-center gap-4 px-6 py-3.5 border-b border-[#f3f4f6] text-[10px] font-semibold tracking-[0.12em] uppercase text-[#9ca3af]">
+      <div className="hidden md:grid grid-cols-[2fr_1.2fr_0.8fr_0.8fr_0.7fr_0.7fr_0.7fr_0.7fr_1fr] items-center gap-4 px-6 py-3.5 border-b border-[var(--oa-bg)] text-[10px] font-medium tracking-[0.12em] uppercase text-[var(--oa-muted-fg)]">
         {COLUMNS.map((col) => (
           <button
             key={col.key}
             type="button"
             onClick={() => cycleSort(col.key)}
-            className={`inline-flex items-center select-none cursor-pointer hover:text-[#111111] transition-colors ${
+            className={`inline-flex items-center select-none cursor-pointer hover:text-[var(--oa-fg)] transition-colors ${
               col.align === "right" ? "justify-end" : "justify-start"
-            } ${sort?.key === col.key ? "text-[#111111]" : ""}`}
+            } ${sort?.key === col.key ? "text-[var(--oa-fg)]" : ""}`}
             aria-sort={
               sort?.key === col.key
                 ? sort.dir === "asc"
@@ -191,10 +191,10 @@ export function ScreenMatchesTable({
 
       {sorted.length === 0 ? (
         <div className="px-6 py-16 text-center">
-          <p className="text-[14px] text-[#374151]">
+          <p className="text-[14px] text-[var(--oa-fg)]">
             No stocks match this screen right now.
           </p>
-          <p className="text-[12px] text-[#6b7280] mt-1">
+          <p className="text-[12px] text-[var(--oa-muted-fg)] mt-1">
             Screens refresh daily. Check back tomorrow.
           </p>
         </div>
@@ -208,40 +208,40 @@ export function ScreenMatchesTable({
             ? "bg-[#ecfdf5] text-[#10b981]"
             : down
               ? "bg-[#fef2f2] text-[#ef4444]"
-              : "bg-[#f3f4f6] text-[#6b7280]";
+              : "bg-[var(--oa-bg)] text-[var(--oa-muted-fg)]";
 
           return (
             <Link
               key={row.instrument_id}
               href={`/stock/${encodeURIComponent(row.ticker)}`}
-              className="grid grid-cols-[2fr_auto] md:grid-cols-[2fr_1.2fr_0.8fr_0.8fr_0.7fr_0.7fr_0.7fr_0.7fr_1fr] gap-4 px-6 py-4 items-center border-b border-[#f3f4f6] last:border-b-0 hover:bg-[#f8f9fa] transition-colors"
+              className="grid grid-cols-[2fr_auto] md:grid-cols-[2fr_1.2fr_0.8fr_0.8fr_0.7fr_0.7fr_0.7fr_0.7fr_1fr] gap-4 px-6 py-4 items-center border-b border-[var(--oa-bg)] last:border-b-0 hover:bg-[#f8f9fa] transition-colors"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <StockLogo ticker={row.ticker} logoUrl={row.logo_url} market={market} size={40} />
                 <div className="flex flex-col min-w-0">
-                  <span className="text-[14px] font-semibold text-[#111111] truncate">
+                  <span className="text-[14px] font-medium text-[var(--oa-fg)] truncate">
                     {row.ticker}
                   </span>
-                  <span className="text-[11px] text-[#6b7280] truncate">
+                  <span className="text-[11px] text-[var(--oa-muted-fg)] truncate">
                     {row.name ?? ""}
                   </span>
                 </div>
               </div>
-              <span className="hidden md:inline text-[13px] text-[#374151] truncate">
+              <span className="hidden md:inline text-[13px] text-[var(--oa-fg)] truncate">
                 {row.sector ?? "-"}
               </span>
-              <span className="hidden md:inline text-right text-[14px] text-[#111111] tabular-nums">
+              <span className="hidden md:inline text-right text-[14px] text-[var(--oa-fg)] tabular-nums">
                 {fmtPrice(row.price)}
               </span>
               <div className="hidden md:flex justify-end">
                 <span
-                  className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[12px] font-semibold tabular-nums ${tone}`}
+                  className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[12px] font-medium tabular-nums ${tone}`}
                 >
                   {up ? "▲" : down ? "▼" : "•"} {fmtPct(change)}
                 </span>
               </div>
               <span
-                className={`hidden md:block text-right text-[16px] font-semibold tabular-nums ${scoreTone(row.overall_score)}`}
+                className={`hidden md:block text-right text-[16px] font-medium tabular-nums ${scoreTone(row.overall_score)}`}
               >
                 {fmtScore(row.overall_score)}
               </span>
@@ -260,17 +260,17 @@ export function ScreenMatchesTable({
               >
                 {fmtScore(row.pillar_scores?.quality)}
               </span>
-              <span className="hidden md:block text-right text-[11px] text-[#6b7280] tabular-nums">
+              <span className="hidden md:block text-right text-[11px] text-[var(--oa-muted-fg)] tabular-nums">
                 {extraMatchCell(row, screenId)}
               </span>
 
               {/* Mobile compact column */}
               <div className="md:hidden flex items-center gap-3 justify-end">
-                <span className="text-[14px] font-semibold text-[#111111] tabular-nums">
+                <span className="text-[14px] font-medium text-[var(--oa-fg)] tabular-nums">
                   {fmtPrice(row.price)}
                 </span>
                 <span
-                  className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold tabular-nums ${tone}`}
+                  className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium tabular-nums ${tone}`}
                 >
                   {up ? "▲" : down ? "▼" : "•"} {fmtPct(change)}
                 </span>

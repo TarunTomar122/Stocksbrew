@@ -16,13 +16,6 @@ const PLANS = {
     detail: "Billed monthly",
     trial: "3 days free",
   },
-  yearly: {
-    price: US_PRO_YEARLY,
-    suffix: "/year",
-    detail: `$${(US_PRO_YEARLY / 12).toFixed(2)}/mo billed annually`,
-    trial: "3 days free",
-    save: `Save ${US_YEARLY_SAVE_PCT}%`,
-  },
 } as const;
 
 const COMPARE_ROWS = [
@@ -124,36 +117,11 @@ function FreeRadarCta() {
 }
 
 export function ProPlanPicker() {
-  const [plan, setPlan] = useState<"monthly" | "yearly">("monthly");
+  const plan = "monthly" as const;
   const active = PLANS[plan];
 
   return (
     <div className="mx-auto w-full max-w-3xl">
-      <div className="mb-6 flex flex-col items-center justify-center gap-2">
-        <div className="pro-billing-toggle" role="group" aria-label="Billing period">
-          <button
-            type="button"
-            aria-pressed={plan === "monthly"}
-            onClick={() => setPlan("monthly")}
-            className={plan === "monthly" ? "pro-billing-toggle-active" : ""}
-          >
-            Monthly
-          </button>
-          <button
-            type="button"
-            aria-pressed={plan === "yearly"}
-            onClick={() => setPlan("yearly")}
-            className={plan === "yearly" ? "pro-billing-toggle-active" : ""}
-          >
-            Yearly
-          </button>
-        </div>
-        {plan === "yearly" ? (
-          <span className="pro-billing-save-note">≈ 2 months free</span>
-        ) : (
-          <span className="pro-billing-save-note pro-billing-save-note-muted">Switch to yearly to save {US_YEARLY_SAVE_PCT}%</span>
-        )}
-      </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="pro-compare-card">
@@ -184,9 +152,6 @@ export function ProPlanPicker() {
           </p>
           <p className="pro-compare-detail">
             {active.detail}
-            {plan === "yearly" ? (
-              <span className="ml-1.5 font-semibold text-landing-brand">{PLANS.yearly.save}</span>
-            ) : null}
           </p>
 
           <ul className="pro-compare-features">
@@ -195,7 +160,7 @@ export function ProPlanPicker() {
             ))}
           </ul>
 
-          <Link href={`/subscribe?plan=${plan}`} className="pro-plan-cta">
+          <Link href={`/subscribe?plan=monthly`} className="pro-plan-cta">
             Start 3-day free trial
             <span aria-hidden>→</span>
           </Link>

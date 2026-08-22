@@ -2,72 +2,54 @@ import { Suspense } from "react";
 
 import { getSessionUser } from "@/lib/auth-server";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
+import { FREE_RADAR_TRACK_LIMIT } from "@/lib/pro-features";
 import {
   getWatchlistView,
-  getRadarUserView,
+  overlayLatestPrices,
   getRadarStockStates,
   getIdeaMarketData,
-  isActiveRadarUserView,
-  overlayLatestPrices,
   buildHoldingsDiagnosis,
   type WatchlistRow,
 } from "@/lib/watchlist-view";
+import { getDailyAnomalies } from "@/lib/daily-anomalies";
+import { getPremarketMovers } from "@/lib/premarket";
+import { getLatestEarningsIntelForInstruments } from "@/lib/earnings-intel";
+import { getPreEarningsIntelForInstruments } from "@/lib/pre-earnings-intel";
 import {
-  buildRadarStarterPicks,
-  starterPickInstrumentIds,
-} from "@/lib/radar-starter-picks";
-import { getInstrumentLabels } from "@/lib/instrument-resolver";
-import { getInterestingStocks } from "@/lib/interesting-stocks";
-import {
-  buildDecisionCards,
-  buildBookRows,
   buildHealthProps,
   buildIdeas,
-  collectIdeaInstrumentIds,
-  countOpenLoops,
   enrichIdeas,
+  collectIdeaInstrumentIds,
 } from "@/lib/radar-next-data";
-import { CommandHeader } from "@/components/radar-next/command-header";
-import { Book } from "@/components/radar-next/book";
-import { Health } from "@/components/radar-next/health";
-import { Ideas } from "@/components/radar-next/ideas";
-import { RadarNextSkeleton } from "@/components/radar-next/skeleton";
-import { RadarNextSignedOut, RadarNextEmpty } from "@/components/radar-next/states";
+import { getInstrumentLabels } from "@/lib/instrument-resolver";
+import { buildEarningsCards, buildHubRows } from "@/lib/watchlist-hub-data";
+import { WatchlistHub } from "@/components/watchlist-hub";
+import { WatchlistHubSkeleton } from "@/components/watchlist-hub-skeleton";
+import { WatchlistShowcase } from "@/components/watchlist-showcase";
 import { RadarPageAnalytics } from "@/components/radar-page-analytics";
-import { RadarBatchEditModal } from "@/components/radar-batch-edit-modal";
-import { WatchlistAiPromptButton } from "@/components/watchlist-ai-prompt-button";
+import { OaSiteHeader } from "@/components/oa/oa-site-header";
+import { interTight } from "@/components/oa/font";
 
 export const dynamic = "force-dynamic";
 
-function greetingFor(date: Date): string {
-  const h = date.getHours();
-  if (h < 5) return "Late session";
-  if (h < 12) return "Good morning";
-  if (h < 17) return "Good afternoon";
-  return "Good evening";
-}
-
-function dateLabelFor(date: Date): string {
-  return date
-    .toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
-    .toUpperCase();
-}
-
 export default function WatchlistPage() {
   return (
-    <Suspense fallback={<RadarNextSkeleton />}>
-      <RadarNextStream />
-    </Suspense>
+    <main className={`oa-landing ${interTight.variable} min-w-0 flex-grow overflow-x-clip`}>
+      <OaSiteHeader />
+      <Suspense fallback={<WatchlistHubSkeleton />}>
+        <WatchlistStream />
+      </Suspense>
+    </main>
   );
 }
 
-async function RadarNextStream() {
+async function WatchlistStream() {
   const session = await getSessionUser();
   if (!session) {
     return (
       <>
         <RadarPageAnalytics state="signed_out" trackedCount={0} isSubscribed={false} />
-        <RadarNextSignedOut />
+        <WatchlistShowcase mode="signed_out" />
       </>
     );
   }
@@ -76,45 +58,30 @@ async function RadarNextStream() {
   const tracked = Array.isArray(userDoc?.tracked_stocks) ? userDoc!.tracked_stocks! : [];
   const isSubscribed = resolveIsSubscribed(userDoc);
 
-  const now = new Date();
   if (tracked.length === 0) {
-    const [interestingDoc, labelsById] = await Promise.all([
-      getInterestingStocks("US").catch(() => null),
-      getInstrumentLabels(starterPickInstrumentIds()).catch(() => new Map()),
-    ]);
-    const picks = buildRadarStarterPicks(interestingDoc?.rows, labelsById);
-
     return (
       <>
         <RadarPageAnalytics state="empty" trackedCount={0} isSubscribed={isSubscribed} />
-        <RadarNextEmpty
-          header={{
-            greeting: greetingFor(now),
-            dateLabel: dateLabelFor(now),
-            statusLine: "0 tracked. Add stocks to start your Watchlist",
-            trackedCount: 0,
-            isSubscribed,
-          }}
-          picks={picks}
-          trackedIds={[]}
-        />
+        <WatchlistShowcase mode="empty" />
       </>
     );
   }
 
-  const [watchlistView, radarUserView] = await Promise.all([
-    getWatchlistView(session.uid).catch(() => null),
-    getRadarUserView(session.uid).catch(() => null),
-  ]);
-  const activeRadarUserView = isActiveRadarUserView(radarUserView) ? radarUserView : null;
+  const now = new Date();
 
-  const materializedRows = (watchlistView?.rows || []) as WatchlistRow[];
+  const [watchlistView, anomaliesDoc, premarketDoc] = await Promise.all([
+    getWatchlistView(session.uid).catch(() => null),
+    getDailyAnomalies("US").catch(() => null),
+    getPremarketMovers("US").catch(() => null),
+  ]);
+
   const trackedSet = new Set(tracked);
   const positions =
     userDoc?.watchlist_positions && typeof userDoc.watchlist_positions === "object"
       ? (userDoc.watchlist_positions as Record<string, "holding" | "watchlist">)
       : {};
 
+  const materializedRows = (watchlistView?.rows ?? []) as WatchlistRow[];
   const rowsBase = materializedRows
     .filter((row) => trackedSet.has(row.instrument_id))
     .map((row) => ({
@@ -122,85 +89,62 @@ async function RadarNextStream() {
       position_type: positions[row.instrument_id] === "holding" ? "holding" : "watchlist",
     })) as WatchlistRow[];
 
-  const rowsPriced = await overlayLatestPrices(rowsBase).catch(() => rowsBase);
-  const labelsById = await getInstrumentLabels(rowsPriced.map((r) => r.instrument_id)).catch(
-    () => new Map(),
-  );
-  const rows = rowsPriced.map((r) => {
-    const label = labelsById.get(r.instrument_id);
-    return label ? { ...r, ticker: label.ticker || r.ticker, instrument_name: label.name } : r;
+  const [rowsPriced, labelsById] = await Promise.all([
+    overlayLatestPrices(rowsBase).catch(() => rowsBase),
+    getInstrumentLabels(rowsBase.map((row) => row.instrument_id)).catch(() => new Map()),
+  ]);
+  const rows = rowsPriced.map((row) => {
+    const label = labelsById.get(row.instrument_id);
+    return label ? { ...row, ticker: label.ticker || row.ticker, instrument_name: label.name } : row;
   });
 
-  const holdings = rows.filter((r) => r.position_type === "holding");
+  const instrumentIds = rows.map((row) => row.instrument_id);
+  const holdings = rows.filter((row) => row.position_type === "holding");
   const diagnosis = buildHoldingsDiagnosis(holdings);
-  const radarStockStates = await getRadarStockStates(rows.map((r) => r.instrument_id)).catch(() => ({}));
 
-  const decisions = buildDecisionCards(rows, activeRadarUserView).slice(0, 3);
-  const openLoops = countOpenLoops(rows);
-  const book = buildBookRows(rows, { states: radarStockStates });
+  const [radarStockStates, earningsDocs, preEarnings] = await Promise.all([
+    getRadarStockStates(instrumentIds).catch(() => ({})),
+    getLatestEarningsIntelForInstruments("US", instrumentIds).catch(() => []),
+    getPreEarningsIntelForInstruments("US", instrumentIds).catch(() => []),
+  ]);
+
+  // Cross-reference feeds by instrument id; both are keyed by ticker in Firestore.
+  const anomaliesByInstrumentId = new Map(
+    (anomaliesDoc?.anomalies ?? [])
+      .filter((item) => trackedSet.has(item.instrument_id))
+      .map((item) => [item.instrument_id, item]),
+  );
+  const gappersByInstrumentId = new Map<string, number>();
+  for (const gapper of [...(premarketDoc?.gappers_up ?? []), ...(premarketDoc?.gappers_down ?? [])]) {
+    gappersByInstrumentId.set(gapper.instrument_id, gapper.pre_market_change_pct);
+  }
+  const earningsById = new Map(earningsDocs.map((doc) => [doc.instrument_id, doc]));
+
+  const hubRows = buildHubRows({
+    rows,
+    states: radarStockStates,
+    anomaliesByInstrumentId,
+    earningsById,
+    gappersByInstrumentId,
+    now,
+  });
+  const earningsCards = buildEarningsCards(hubRows, preEarnings, now);
   const health = buildHealthProps(diagnosis, holdings.length);
   const ideasBase = buildIdeas(watchlistView?.suggestions);
-  const ideaMarket = await getIdeaMarketData(collectIdeaInstrumentIds(ideasBase)).catch(
-    () => new Map(),
-  );
+  const ideaMarket = await getIdeaMarketData(collectIdeaInstrumentIds(ideasBase)).catch(() => new Map());
   const ideas = enrichIdeas(ideasBase, ideaMarket);
-
-  const moversUp = rows.filter((r) => (r.day_change_pct ?? 0) > 0).length;
-  const moversDown = rows.filter((r) => (r.day_change_pct ?? 0) < 0).length;
-  const statusLine = `${rows.length} tracked · ${decisions.length} ${
-    decisions.length === 1 ? "decision" : "decisions"
-  } · ${openLoops} open ${openLoops === 1 ? "checkpoint" : "checkpoints"} · ${moversUp} up / ${moversDown} down`;
-  const editableItems = rows.map((row) => ({
-    instrument_id: row.instrument_id,
-    ticker: row.ticker,
-    name: row.instrument_name ?? row.ticker,
-    position_type: row.position_type === "holding" ? ("holding" as const) : ("watchlist" as const),
-    holding:
-      row.position_type === "holding"
-        ? {
-            quantity: row.holding?.quantity ?? null,
-            market_value: row.holding?.market_value ?? null,
-            average_cost: row.holding?.average_cost ?? null,
-          }
-        : undefined,
-  }));
 
   return (
     <>
-      <RadarPageAnalytics state="active" trackedCount={rows.length} isSubscribed={isSubscribed} />
-      <div className="radar-next mx-auto flex w-full max-w-[1240px] flex-col gap-10 px-4 pb-8 pt-3 sm:gap-14 sm:px-6 sm:pb-12 sm:pt-6">
-        <CommandHeader
-          greeting={greetingFor(now)}
-          dateLabel={dateLabelFor(now)}
-          statusLine={statusLine}
-          trackedCount={rows.length}
-          isSubscribed={isSubscribed}
-          actions={
-            <>
-              <WatchlistAiPromptButton
-                className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-[#D97757]/45 bg-[#D97757]/10 px-2.5 text-[13px] font-medium text-[#D97757] shadow-none transition-colors hover:bg-[#D97757]/15 dark:border-[#D97757]/60 dark:bg-[#D97757]/15 dark:text-[#F1B19B] dark:hover:bg-[#D97757]/20"
-              />
-              <RadarBatchEditModal
-                initialItems={editableItems}
-                isSubscribed={isSubscribed}
-                ctaLabel="Manage watchlist"
-                triggerClassName="inline-flex items-center rounded-full bg-[var(--rn-ink)] px-4 py-2 text-[12px] font-bold text-[var(--rn-card)] transition-opacity hover:opacity-85"
-              />
-            </>
-          }
-        />
-
-        <Book holdings={book.holdings} watching={book.watching} />
-        <Health
-          grade={health.grade}
-          gradePct={health.gradePct}
-          headline={health.headline}
-          body={health.body}
-          fixes={health.fixes}
-          pillars={health.pillars}
-        />
-        <Ideas fits={ideas.fits} top={ideas.top} unusual={ideas.unusual} />
-      </div>
+      <RadarPageAnalytics state="active" trackedCount={hubRows.length} isSubscribed={isSubscribed} />
+      <WatchlistHub
+        rows={hubRows}
+        earningsCards={earningsCards}
+        health={health}
+        ideas={ideas}
+        isSubscribed={isSubscribed}
+        freeLimit={FREE_RADAR_TRACK_LIMIT}
+      />
     </>
   );
 }

@@ -93,11 +93,11 @@ export function ShouldIBuySearch({ searchIndex, onSelect }: Props) {
   const showDropdown = open && query.trim().length > 0 && results.length > 0;
 
   return (
-    <div ref={containerRef} className="relative w-full max-w-lg">
-      <form onSubmit={handleSubmit} className="flex w-full gap-3">
+    <div ref={containerRef} className="oa-sib-search relative w-full max-w-lg">
+      <form onSubmit={handleSubmit} className="flex w-full gap-2">
         <div className="relative flex-1">
           {/* Search icon */}
-          <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#9ca3af]">
+          <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-oa-muted-fg">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
               <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" strokeWidth="1.5"/>
               <path d="M10.5 10.5L14 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
@@ -110,17 +110,17 @@ export function ShouldIBuySearch({ searchIndex, onSelect }: Props) {
             onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
             onFocus={() => setOpen(true)}
             onKeyDown={onKeyDown}
-            placeholder="Enter a ticker or company name..."
+            placeholder="Enter a ticker or company name"
             maxLength={32}
             autoCapitalize="characters"
             autoComplete="off"
             spellCheck={false}
-            className="w-full rounded-[14px] border border-[#e5e7eb] bg-white pl-11 pr-4 py-3.5 text-[15px] text-[#111111] placeholder:text-[#9ca3af] outline-none focus:border-[#0052ff] focus:ring-2 focus:ring-[#0052ff]/10 transition-all"
+            className="h-12 w-full rounded-full border border-oa-border bg-oa-card pl-11 pr-4 text-[15px] text-oa-fg outline-none transition-colors placeholder:text-oa-muted-fg focus:border-[color-mix(in_srgb,var(--oa-fg)_30%,transparent)]"
           />
         </div>
         <button
           type="submit"
-          className="rounded-[14px] bg-[#0052ff] px-6 py-3 text-[15px] font-semibold text-white hover:bg-[#0041cc] transition-colors disabled:opacity-40"
+          className="inline-flex h-12 shrink-0 items-center rounded-full bg-oa-primary px-5 text-[15px] font-medium text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] transition-all hover:bg-[color-mix(in_srgb,var(--oa-primary)_88%,black)] active:translate-y-px active:scale-[0.98] disabled:opacity-40"
           disabled={!query.trim()}
         >
           Analyse
@@ -129,7 +129,7 @@ export function ShouldIBuySearch({ searchIndex, onSelect }: Props) {
 
       {/* Dropdown */}
       {showDropdown && (
-        <div className="absolute left-0 right-[88px] top-full mt-2 rounded-[16px] border border-[#e5e7eb] bg-white shadow-[0_8px_24px_rgba(0,0,0,0.10)] overflow-hidden z-50">
+        <div className="absolute left-0 right-[92px] top-full z-50 mt-2 overflow-hidden rounded-2xl border border-oa-border bg-oa-card shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
           <ul>
             {results.map((r, i) => {
               const pct = fmtPct(r.day_change_pct);
@@ -144,32 +144,32 @@ export function ShouldIBuySearch({ searchIndex, onSelect }: Props) {
                       e.preventDefault();
                       navigateTo(r.ticker);
                     }}
-                    className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
-                      isActive ? "bg-[#f5f7ff]" : "hover:bg-[#fafafa]"
+                    className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors ${
+                      isActive ? "bg-oa-accent" : ""
                     }`}
                   >
                     {/* Ticker + name */}
-                    <div className="flex-1 min-w-0">
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-[14px] font-semibold text-[#111111]">
+                        <span className="oa-mono text-[13px] font-medium text-oa-fg">
                           {r.ticker}
                         </span>
-                        <span className="text-[13px] text-[#6b7280] truncate">
+                        <span className="truncate text-[13px] text-oa-muted-fg">
                           {r.name}
                         </span>
                       </div>
                     </div>
                     {/* Price + change */}
-                    <div className="shrink-0 flex flex-col items-end">
+                    <div className="flex shrink-0 flex-col items-end">
                       {typeof r.price === "number" && (
-                        <span className="text-[13px] font-semibold text-[#111111] tabular-nums">
+                        <span className="text-[13px] font-medium tabular-nums text-oa-fg">
                           ${r.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                       )}
                       {pct && (
                         <span
-                          className="text-[11px] font-semibold tabular-nums"
-                          style={{ color: positive ? "#10b981" : "#ef4444" }}
+                          className="text-[11px] font-medium tabular-nums"
+                          style={{ color: positive ? "#059669" : "#dc2626" }}
                         >
                           {pct}
                         </span>
@@ -177,8 +177,8 @@ export function ShouldIBuySearch({ searchIndex, onSelect }: Props) {
                     </div>
                     {/* Arrow hint */}
                     {isActive && (
-                      <span className="shrink-0 text-[12px] font-semibold text-[#0052ff]">
-                        Analyse →
+                      <span className="shrink-0 text-xs font-medium text-oa-primary">
+                        Analyse ›
                       </span>
                     )}
                   </button>

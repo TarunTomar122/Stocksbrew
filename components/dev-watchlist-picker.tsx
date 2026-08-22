@@ -59,27 +59,27 @@ export function DevWatchlistPicker({ users, initialUserId }: { users: UserSummar
   }, [users, planFilter, query]);
 
   return (
-    <div className="flex w-72 shrink-0 flex-col border-r border-[#e5e7eb] bg-[#fafaf7]">
+    <div className="flex w-72 shrink-0 flex-col border-r border-[var(--oa-border)] bg-[#fafaf7]">
       {/* Header */}
-      <div className="flex items-center gap-2 border-b border-[#e5e7eb] px-4 py-3">
-        <span className="text-[11px] font-semibold tracking-[0.12em] uppercase text-[#9ca3af]">
+      <div className="flex items-center gap-2 border-b border-[var(--oa-border)] px-4 py-3">
+        <span className="text-[11px] font-medium tracking-[0.12em] uppercase text-[var(--oa-muted-fg)]">
           Dev · Users
         </span>
-        <span className="ml-auto rounded-full bg-[#111111] px-2 py-0.5 text-[10px] font-semibold text-white tabular-nums">
+        <span className="ml-auto rounded-full bg-[var(--oa-fg)] px-2 py-0.5 text-[10px] font-medium text-white tabular-nums">
           {filtered.length}
         </span>
       </div>
 
       {/* Plan filter pills */}
-      <div className="flex gap-1 border-b border-[#e5e7eb] px-3 py-2">
+      <div className="flex gap-1 border-b border-[var(--oa-border)] px-3 py-2">
         {PLAN_TABS.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setPlanFilter(tab.key)}
-            className={`flex-1 rounded-md py-1 text-[11px] font-semibold transition-colors ${
+            className={`flex-1 rounded-md py-1 text-[11px] font-medium transition-colors ${
               planFilter === tab.key
-                ? "bg-[#111111] text-white"
-                : "bg-[#f3f4f6] text-[#6b7280] hover:bg-[#e5e7eb]"
+                ? "bg-[var(--oa-fg)] text-white"
+                : "bg-[var(--oa-bg)] text-[var(--oa-muted-fg)] hover:bg-[var(--oa-border)]"
             }`}
           >
             {tab.label}
@@ -88,20 +88,20 @@ export function DevWatchlistPicker({ users, initialUserId }: { users: UserSummar
       </div>
 
       {/* Search input */}
-      <div className="border-b border-[#e5e7eb] px-3 py-2">
+      <div className="border-b border-[var(--oa-border)] px-3 py-2">
         <div className="relative">
-          <AnimatedIcon name="search" size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[14px] text-[#9ca3af]" />
+          <AnimatedIcon name="search" size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[14px] text-[var(--oa-muted-fg)]" />
           <input
             type="text"
             placeholder="Name, email, plan…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="h-8 w-full rounded-md border border-[#e5e7eb] bg-white pl-7 pr-2 text-[12px] text-[#111111] placeholder:text-[#9ca3af] outline-none focus:border-[#111111] transition-colors"
+            className="h-8 w-full rounded-md border border-[var(--oa-border)] bg-oa-card pl-7 pr-2 text-[12px] text-[var(--oa-fg)] placeholder:text-[var(--oa-muted-fg)] outline-none focus:border-[var(--oa-fg)] transition-colors"
           />
           {query && (
             <button
               onClick={() => setQuery("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-[#9ca3af] hover:text-[#111111]"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--oa-muted-fg)] hover:text-[var(--oa-fg)]"
             >
               <AnimatedIcon name="close" size={14} />
             </button>
@@ -112,7 +112,7 @@ export function DevWatchlistPicker({ users, initialUserId }: { users: UserSummar
       <div className="flex-1 overflow-y-auto">
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
-            <span className="text-[13px] text-[#9ca3af]">
+            <span className="text-[13px] text-[var(--oa-muted-fg)]">
               {users.length === 0 ? "No users found" : "No matches"}
             </span>
           </div>
@@ -124,11 +124,11 @@ export function DevWatchlistPicker({ users, initialUserId }: { users: UserSummar
                 <button
                   key={user.uid}
                   onClick={() => router.push(`/dev/watchlist?userId=${user.uid}`)}
-                  className={`flex items-start gap-3 border-b border-[#f3f4f6] px-4 py-3 text-left transition-colors hover:bg-[#f3f4f6] ${
-                    isSelected ? "bg-white shadow-[inset_3px_0_0_0_#111111]" : ""
+                  className={`flex items-start gap-3 border-b border-[var(--oa-bg)] px-4 py-3 text-left transition-colors hover:bg-[var(--oa-bg)] ${
+                    isSelected ? "bg-oa-card shadow-[inset_3px_0_0_0_var(--oa-fg)]" : ""
                   }`}
                 >
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#e5e7eb] text-[11px] font-semibold text-[#6b7280]">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--oa-border)] text-[11px] font-medium text-[var(--oa-muted-fg)]">
                     {user.photo_url ? (
                       <img src={user.photo_url} alt="" className="h-full w-full object-cover" />
                     ) : (
@@ -137,11 +137,11 @@ export function DevWatchlistPicker({ users, initialUserId }: { users: UserSummar
                   </div>
                   <div className="flex min-w-0 flex-col gap-0.5">
                     <div className="flex items-center gap-1.5">
-                      <span className="truncate text-[13px] font-semibold text-[#0a0a0a]">
+                      <span className="truncate text-[13px] font-medium text-[#0a0a0a]">
                         {user.display_name || "Unknown"}
                       </span>
                       {user.plan === "pro" && (
-                        <span className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-semibold ${
+                        <span className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-medium ${
                           user.subscriptionPlan
                             ? "bg-[#ecfdf5] text-[#047857]"
                             : "bg-[#eff6ff] text-[#1e3a8a]"
@@ -151,9 +151,9 @@ export function DevWatchlistPicker({ users, initialUserId }: { users: UserSummar
                       )}
                     </div>
                     {user.email && (
-                      <span className="truncate text-[11px] text-[#6b7280]">{user.email}</span>
+                      <span className="truncate text-[11px] text-[var(--oa-muted-fg)]">{user.email}</span>
                     )}
-                    <div className="flex items-center gap-2 text-[10px] text-[#9ca3af]">
+                    <div className="flex items-center gap-2 text-[10px] text-[var(--oa-muted-fg)]">
                       <span>{user.tracked_stocks_count} stocks</span>
                       {user.subscribedAt && <span>{formatRelative(user.subscribedAt)}</span>}
                     </div>

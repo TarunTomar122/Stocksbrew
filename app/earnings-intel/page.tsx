@@ -1,3 +1,4 @@
+import { OaSiteHeader } from "@/components/oa/oa-site-header";
 import type { Metadata } from "next";
 import { AnimatedIcon } from "@/components/animated-icon";
 import type { ReactNode } from "react";
@@ -46,7 +47,8 @@ const VALUE_PROPS = [
 
 function PageShell({ children }: { children: ReactNode }) {
   return (
-    <main className="flex-grow overflow-x-hidden">
+    <main className="oa-landing flex-grow overflow-x-hidden">
+      <OaSiteHeader />
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-0 py-6 sm:gap-10 sm:px-10 sm:py-10 md:px-14 lg:px-16">
         {children}
       </div>
@@ -72,11 +74,11 @@ export default async function EarningsIntelPage() {
   return (
     <PageShell>
       <header className="px-4 sm:px-0">
-        <span className="text-xs font-semibold uppercase tracking-widest text-[#6b38d4]">Free</span>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-[#111111] sm:text-4xl">
+        <span className="text-xs font-medium uppercase tracking-widest text-[#6b38d4]">Free</span>
+        <h1 className="mt-2 text-3xl font-medium tracking-tight text-[var(--oa-fg)] sm:text-4xl">
           What changed after earnings
         </h1>
-        <p className="mt-3 max-w-2xl text-base leading-relaxed text-[#6b7280] sm:text-lg">
+        <p className="mt-3 max-w-2xl text-base leading-relaxed text-[var(--oa-muted-fg)] sm:text-lg">
           Post-earnings reports for every name we&apos;ve published. What happened, so what, and what
           to do next. No sign-in required.
         </p>
@@ -85,14 +87,14 @@ export default async function EarningsIntelPage() {
           {VALUE_PROPS.map(({ icon, title, body }) => (
             <div
               key={title}
-              className="flex gap-3 rounded-2xl border border-[#e5e7eb] bg-[#fafafa] p-4"
+              className="flex gap-3 rounded-2xl border border-[var(--oa-border)] bg-[#fafafa] p-4"
             >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-[#111111] ring-1 ring-[#e5e7eb]">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-oa-card text-[var(--oa-fg)] ring-1 ring-[var(--oa-border)]">
                 <AnimatedIcon name={icon} size={20} aria-hidden />
               </span>
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-[#111111]">{title}</p>
-                <p className="mt-1 text-sm leading-snug text-[#6b7280]">{body}</p>
+                <p className="text-sm font-medium text-[var(--oa-fg)]">{title}</p>
+                <p className="mt-1 text-sm leading-snug text-[var(--oa-muted-fg)]">{body}</p>
               </div>
             </div>
           ))}

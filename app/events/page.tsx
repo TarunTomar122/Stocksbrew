@@ -1,3 +1,4 @@
+import { OaSiteHeader } from "@/components/oa/oa-site-header";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
@@ -25,13 +26,14 @@ export const metadata: Metadata = {
 
 export default function EventsPage() {
   return (
-    <main className="flex-grow">
+    <main className="oa-landing flex-grow">
+      <OaSiteHeader />
       <div className="mx-auto flex w-full max-w-screen-xl flex-col gap-10 px-6 py-12 md:px-10 md:py-16 lg:px-16">
         <header className="flex flex-col gap-2">
-          <h1 className="text-[32px] font-semibold tracking-[-0.03em] text-[#111111] md:text-[40px]">
+          <h1 className="text-[32px] font-medium tracking-[-0.03em] text-[var(--oa-fg)] md:text-[40px]">
             Earnings reports
           </h1>
-          <p className="max-w-2xl text-[15px] leading-relaxed text-[#6b7280]">
+          <p className="max-w-2xl text-[15px] leading-relaxed text-[var(--oa-muted-fg)]">
             Fresh post-earnings reads from names that just reported — plus upcoming setups on deck.
           </p>
         </header>
@@ -42,7 +44,7 @@ export default function EventsPage() {
           </div>
         </Suspense>
 
-        <footer className="text-[11px] text-[#9ca3af]">Not investment advice.</footer>
+        <footer className="text-[11px] text-[var(--oa-muted-fg)]">Not investment advice.</footer>
       </div>
     </main>
   );

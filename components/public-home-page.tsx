@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 
 import { FeedbackWidget } from "@/components/feedback-widget";
+import { Reveal } from "@/components/reveal";
 import { LandingSimpleWay } from "@/components/landing-simple-way";
 import { HomeMarketDaily, HomeMarketDailySkeleton } from "@/components/home-market-daily";
 import { TerminalLandingFaq } from "@/components/terminal-landing-faq";
@@ -36,25 +37,41 @@ export function PublicHomePage() {
           </div>
         </header>
 
-        <LandingSimpleWay />
+        <Reveal>
+          <LandingSimpleWay />
+        </Reveal>
 
-        <Suspense fallback={<LandingScannerRedditSkeleton />}>
-          <LandingScannerRedditStream />
-        </Suspense>
+        <Reveal>
+          <Suspense fallback={<LandingScannerRedditSkeleton />}>
+            <LandingScannerRedditStream />
+          </Suspense>
+        </Reveal>
 
-        <Suspense fallback={<LandingSectorHeatSkeleton />}>
-          <LandingSectorHeatStream />
-        </Suspense>
+        <Reveal>
+          <Suspense fallback={<LandingSectorHeatSkeleton />}>
+            <LandingSectorHeatStream />
+          </Suspense>
+        </Reveal>
 
-        <Suspense fallback={<LandingPricingSkeleton />}>
-          <LandingProSectionStream />
-        </Suspense>
+        <Reveal>
+          <Suspense fallback={<LandingPricingSkeleton />}>
+            <LandingProSectionStream />
+          </Suspense>
+        </Reveal>
 
-        <TerminalLandingTestimonials />
-        <Suspense fallback={<HomeMarketDailySkeleton />}>
-          <HomeMarketDaily />
-        </Suspense>
-        <TerminalLandingFaq />
+        <Reveal>
+          <TerminalLandingTestimonials />
+        </Reveal>
+
+        <Reveal>
+          <Suspense fallback={<HomeMarketDailySkeleton />}>
+            <HomeMarketDaily />
+          </Suspense>
+        </Reveal>
+
+        <Reveal>
+          <TerminalLandingFaq />
+        </Reveal>
       </div>
 
       <FeedbackWidget />

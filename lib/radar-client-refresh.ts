@@ -22,6 +22,10 @@ export function flushWatchlistRebuild(
     clearTimeout(rebuildTimer);
     rebuildTimer = null;
   }
+  // Profile writes are already complete when this helper runs. Refresh once
+  // now so position changes appear immediately; refresh again after the
+  // materialized view rebuild finishes for the rest of the page data.
+  if (router) router.refresh();
   return fetch("/api/watchlist/refresh", { method: "POST" })
     .catch(() => undefined)
     .finally(() => {

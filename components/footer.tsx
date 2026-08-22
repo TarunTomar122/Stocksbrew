@@ -1,7 +1,14 @@
 import Link from "next/link";
 
 import { ThemeToggle } from "@/components/theme-toggle";
+import { StartFreeButton } from "@/components/oa/start-free-button";
+import { interTight } from "@/components/oa/font";
 import { SHORT_DESCRIPTION } from "@/lib/brand-copy";
+
+const FRAME = "mx-auto w-full max-w-[76rem] px-4 sm:px-6";
+
+const PILL_CTA =
+  "inline-flex h-11 items-center justify-center whitespace-nowrap rounded-lg border border-[color-mix(in_srgb,var(--oa-primary)_80%,#3a3480)] bg-[color-mix(in_srgb,var(--oa-primary)_90%,#3a3480)] px-6 text-base font-medium text-oa-primary-fg shadow-[inset_0_1px_0_rgba(255,255,255,0.22),inset_0_-1px_0_rgba(58,52,128,0.30)] outline-none transition-all hover:bg-oa-primary active:translate-y-px active:scale-[0.98]";
 
 type Column = {
   title: string;
@@ -51,122 +58,80 @@ const COLUMNS: Column[] = [
   },
 ];
 
-const BADGES = [
-  {
-    href: "https://submitforbacklinks.com/badge/xNvGEzXTw4VcoyOPskL10pWc?ref=badge",
-    src: "https://submitforbacklinks.com/api/badge/xNvGEzXTw4VcoyOPskL10pWc.svg?variant=verified&theme=dark",
-    alt: "stocksbrew — Verified on SubmitForBacklinks",
-    width: 220,
-    height: 48,
-  },
-  {
-    href: "https://www.scrolllaunch.com/products/stocksbrew?utm_source=badge&utm_medium=embed&utm_campaign=stocksbrew&ref=scrolllaunch",
-    src: "https://www.scrolllaunch.com/api/badge/tikrr",
-    alt: "Featured on ScrollLaunch",
-    width: 220,
-    height: 48,
-  },
-  {
-    href: "https://fazier.com",
-    src: "https://fazier.com/api/v1//public/badges/launch_badges.svg?badge_type=launched&theme=light",
-    alt: "Launched on Fazier",
-    width: 120,
-    height: 48,
-  },
-  {
-    href: "https://startupfa.me/s/stocksbrew?utm_source=www.stocksbrew.online",
-    src: "https://startupfa.me/badges/featured-badge-small.webp",
-    alt: "StocksBrew - Featured on Startup Fame",
-    width: 224,
-    height: 36,
-  },
-  {
-    href: "https://wired.business",
-    src: "https://wired.business/badge0-white.svg",
-    alt: "Featured on Wired Business",
-    width: 200,
-    height: 54,
-  },
-] as const;
-
-export function Footer() {
+/**
+ * The site-wide footer, in the OA design language.
+ *
+ * The footer is the last thing a visitor reads, so it sells before it
+ * lists: one outcome headline, one action, one risk-reversal line. Then
+ * navigation, then the legal line. The background stays transparent so the
+ * footer sits seamlessly on whatever page hosts it; Pro subscribers skip
+ * the sell strip entirely.
+ */
+export function Footer({ isSubscribed = false }: { isSubscribed?: boolean }) {
   const year = new Date().getFullYear();
   return (
-    <footer className="mt-16 bg-[#070b09] text-white">
-      <div className="mx-auto w-full max-w-screen-2xl px-6 py-16 md:px-10 lg:px-16">
-        <div className="grid grid-cols-2 gap-10 sm:grid-cols-3 lg:grid-cols-6">
+    <footer className={`oa-app ${interTight.variable} text-oa-fg`}>
+      <div className={`${FRAME} py-12 sm:py-16`}>
+        {/* the sell: outcome, action, risk reversal */}
+        {!isSubscribed && (
+          <div className="flex flex-col gap-6 rounded-[26px] bg-[color-mix(in_srgb,var(--oa-fg)_4%,transparent)] p-7 sm:flex-row sm:items-center sm:justify-between sm:p-10">
+            <div className="max-w-xl">
+              <h2 className="text-balance font-medium tracking-tight text-oa-fg text-[26px] leading-tight sm:text-3xl">
+                Know what&rsquo;s moving before the crowd does.
+              </h2>
+              <p className="mt-2 text-[16.5px] leading-7 text-oa-muted-fg">
+                Eight live market scans and plain-English briefs, updated every few minutes.
+              </p>
+            </div>
+            <div className="flex shrink-0 flex-col items-start gap-2.5 sm:items-end">
+              <StartFreeButton surface="footer" className={PILL_CTA} />
+              <p className="text-sm leading-5 text-oa-muted-fg">Free forever for 3 stocks. No card required.</p>
+            </div>
+          </div>
+        )}
+
+        {/* brand + navigation */}
+        <div className="mt-12 grid grid-cols-2 gap-x-8 gap-y-10 sm:grid-cols-3 lg:grid-cols-6">
           <div className="col-span-2 flex flex-col gap-4">
-            <Link href="/" className="flex w-fit items-center gap-1.5">
-              <span className="font-mono text-[19px] font-bold leading-none tracking-[-0.03em] text-white">
-                stocksbrew<span style={{ color: "#4ade80" }}>.</span>
-              </span>
+            <Link href="/" className="w-fit text-[19px] font-medium tracking-tight text-oa-fg">
+              stocksbrew<span aria-hidden className="text-oa-primary">.</span>
             </Link>
-            <p className="max-w-[320px] text-[14px] leading-[1.55] text-white/65">{SHORT_DESCRIPTION}</p>
-            <div className="mt-2 flex w-fit items-center gap-2.5">
-              <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-white/50">
-                Appearance
-              </span>
-              <ThemeToggle variant="footer" />
+            <p className="max-w-[320px] text-[15px] leading-7 text-oa-muted-fg">{SHORT_DESCRIPTION}</p>
+            <div className="mt-2 flex w-fit items-center gap-3">
+              <span className="text-xs uppercase tracking-[0.12em] text-oa-muted-fg">Appearance</span>
+              <ThemeToggle />
             </div>
           </div>
 
           {COLUMNS.map((col) => (
-            <div key={col.title} className="flex flex-col gap-3">
-              <h3 className="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-white/55">
-                {col.title}
-              </h3>
-              <ul className="flex flex-col gap-2.5">
+            <nav key={col.title} aria-label={col.title} className="flex flex-col gap-4">
+              <h3 className="text-[13px] font-medium uppercase tracking-[0.14em] text-oa-muted-fg">{col.title}</h3>
+              <ul className="flex flex-col gap-3">
                 {col.links.map((link) => (
                   <li key={link.label}>
                     {link.external ? (
-                      <a
-                        href={link.href}
-                        className="text-[14px] text-white/80 transition-colors hover:text-white"
-                      >
+                      <a href={link.href} className="text-[15px] leading-6 text-oa-muted-fg transition-colors hover:text-oa-fg">
                         {link.label}
                       </a>
                     ) : (
-                      <Link
-                        href={link.href}
-                        className="text-[14px] text-white/80 transition-colors hover:text-white"
-                      >
+                      <Link href={link.href} className="text-[15px] leading-6 text-oa-muted-fg transition-colors hover:text-oa-fg">
                         {link.label}
                       </Link>
                     )}
                   </li>
                 ))}
               </ul>
-            </div>
+            </nav>
           ))}
         </div>
 
-        <div className="mt-10 flex flex-wrap items-center justify-between gap-4 border-t border-white/10 pt-6">
-          <p className="text-[12px] text-white/55">© {year} stocksbrew. All rights reserved.</p>
-          <p className="max-w-[640px] text-[12px] text-white/45">
-            stocksbrew provides market data and analytics for informational purposes only. Nothing here is investment
-            advice. Past performance does not guarantee future results.
+        {/* legal */}
+        <div className="mt-12 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-[13px] text-oa-muted-fg">© {year} stocksbrew. All rights reserved.</p>
+          <p className="max-w-[640px] text-[13px] leading-5 text-oa-muted-fg">
+            Market data and analytics for informational purposes only. Nothing here is investment advice. Past
+            performance does not guarantee future results.
           </p>
-        </div>
-
-        <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3" aria-label="StocksBrew directory features">
-          {BADGES.map((badge) => (
-            <a
-              href={badge.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="shrink-0 opacity-85 transition-opacity hover:opacity-100"
-              key={badge.alt}
-            >
-              <img
-                src={badge.src}
-                alt={badge.alt}
-                width={badge.width}
-                height={badge.height}
-                className="h-6 w-auto max-w-none object-contain"
-                loading="lazy"
-              />
-            </a>
-          ))}
         </div>
       </div>
     </footer>

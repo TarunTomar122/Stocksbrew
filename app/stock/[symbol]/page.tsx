@@ -4,6 +4,7 @@ import { Suspense } from "react";
 
 import { StockPageStream } from "@/components/stock-page-stream";
 import { StockPageSkeleton } from "@/components/page-stream-skeletons";
+import { OaSiteHeader } from "@/components/oa/oa-site-header";
 import { getStockSummary, normalizeStockSymbolParam } from "@/lib/stock";
 import {
   getSeoStockPage,
@@ -76,8 +77,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default function StockPage({ params }: Props) {
   return (
-    <Suspense fallback={<StockPageSkeleton />}>
-      <StockPageStream params={params} />
-    </Suspense>
+    <main className="oa-landing flex-grow">
+      <OaSiteHeader />
+      <Suspense fallback={<StockPageSkeleton />}>
+        <StockPageStream params={params} />
+      </Suspense>
+    </main>
   );
 }

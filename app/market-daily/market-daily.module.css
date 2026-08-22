@@ -1,11 +1,11 @@
 .page {
-  --paper: var(--surface);
-  --paper-deep: var(--surface-container);
-  --ink: var(--on-surface);
-  --muted: var(--on-surface-variant);
-  --rule: var(--outline-variant);
-  --red: var(--primary);
-  --panel: var(--surface);
+  --paper: var(--oa-card);
+  --paper-deep: var(--oa-bg);
+  --ink: var(--oa-fg);
+  --muted: var(--oa-muted-fg);
+  --rule: var(--oa-border);
+  --red: var(--oa-primary);
+  --panel: var(--oa-card);
   position: relative;
   left: 50%;
   width: 100vw;
@@ -45,7 +45,7 @@
 }
 
 .brand {
-  color: var(--primary);
+  color: var(--oa-primary);
   font-family: Satoshi, sans-serif;
   font-size: 18px;
   font-weight: 800;
@@ -121,7 +121,7 @@
   font-size: 17px;
   font-weight: 450;
   line-height: 1.55;
-  color: var(--on-surface-variant);
+  color: var(--oa-muted-fg);
   text-wrap: balance;
 }
 
@@ -150,7 +150,7 @@
 
 .articleProse {
   font-family: Satoshi, sans-serif;
-  color: var(--on-surface);
+  color: var(--oa-fg);
 }
 
 .articleProse:first-child > p:first-child {
@@ -190,7 +190,7 @@
   margin: 44px 0;
   padding: 8px 0 8px 28px;
   border-left: 4px solid var(--red);
-  color: var(--on-surface-variant);
+  color: var(--oa-muted-fg);
   font-style: italic;
 }
 
@@ -372,7 +372,7 @@
 
 .moverCard:hover {
   border-color: var(--ink);
-  background: var(--surface-container-low);
+  background: var(--oa-bg);
 }
 
 .moverCard > div {
@@ -439,7 +439,7 @@
 }
 
 .anomalyCard:hover {
-  background: var(--surface-container-low);
+  background: var(--oa-bg);
 }
 
 .anomalyIdentity,
@@ -467,7 +467,7 @@
 
 .anomalyCard p {
   margin: 0;
-  color: var(--on-surface-variant);
+  color: var(--oa-muted-fg);
   font-size: 11px;
   line-height: 1.4;
 }
@@ -534,7 +534,7 @@
   font-family: Satoshi, sans-serif;
   font-size: 16px;
   line-height: 1.7;
-  color: var(--on-surface);
+  color: var(--oa-fg);
 }
 
 .sourceLine {
@@ -551,7 +551,7 @@
 .sourceLink {
   color: inherit;
   text-decoration: underline;
-  text-decoration-color: var(--primary);
+  text-decoration-color: var(--oa-primary);
   text-underline-offset: 3px;
 }
 
@@ -713,7 +713,7 @@
 .archiveLink {
   font-size: 10px;
   font-weight: 800;
-  color: var(--primary);
+  color: var(--oa-primary);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -758,7 +758,7 @@
   font-family: Satoshi, sans-serif;
   font-size: 17px;
   line-height: 1.55;
-  color: var(--on-surface-variant);
+  color: var(--oa-muted-fg);
 }
 
 .archiveGrid {
@@ -810,7 +810,7 @@
   font-family: Satoshi, sans-serif;
   font-size: 10px;
   font-weight: 800;
-  color: var(--surface);
+  color: var(--oa-card);
   background: var(--ink);
   letter-spacing: 0.14em;
   text-transform: uppercase;

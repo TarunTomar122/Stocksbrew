@@ -188,7 +188,7 @@ function StockScreener({
       <h2 className="text-[22px] font-semibold tracking-tight text-on-surface">Stock screener</h2>
       <div className="mt-4 overflow-hidden rounded-xl border border-outline-variant bg-surface md:grid md:grid-cols-[16rem_1fr] md:items-start">
         {/* Mobile: horizontal scrollable pill tabs. Desktop: left sidebar list. */}
-        <div className="flex gap-2 overflow-x-auto border-b border-outline-variant px-4 py-3 md:hidden" style={{ scrollbarWidth: "none" }}>
+        <div className="flex gap-1 overflow-x-auto border-b border-outline-variant px-4 py-2 md:hidden" style={{ scrollbarWidth: "none" }}>
           {categories.map((c) => {
             const isActive = c.key === category.key;
             return (
@@ -196,7 +196,7 @@ function StockScreener({
                 key={c.key}
                 type="button"
                 onClick={() => selectCategory(c)}
-                className="shrink-0 rounded-full border px-3.5 py-1.5 text-[13.5px] font-medium transition-colors"
+                className="shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors"
                 style={
                   isActive
                     ? {
@@ -243,24 +243,26 @@ function StockScreener({
               key={row.key}
               href={`/stock/${row.ticker}`}
               onClick={() => captureEvent("explore_stock_clicked", { ticker: row.ticker, section: "screener", category: category.key })}
-              className="grid grid-cols-[2rem_5rem_1fr_4.5rem] items-center gap-2 border-t border-outline-variant/70 px-3 py-4 first:border-t-0 hover:bg-surface-container-low sm:grid-cols-[2rem_10rem_1fr_6rem] sm:gap-3 sm:px-5"
+              className="grid grid-cols-[2rem_3rem_1fr_3rem] items-center gap-1 border-t border-outline-variant/70 px-3 py-4 first:border-t-0 hover:bg-surface-container-low sm:grid-cols-[2rem_10rem_1fr_6rem] sm:gap-3 sm:px-5"
             >
               <StockLogo ticker={row.ticker} market="US" size={32} />
               <div className="min-w-0">
                 <p className="text-[15.5px] font-medium text-on-surface">{row.ticker}</p>
                 {row.name ? <p className="truncate text-[13px] leading-snug text-on-surface-variant">{row.name}</p> : null}
               </div>
-              <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                {row.pills.map((pill) => (
-                  <span
-                    key={pill.text}
-                    className="rounded-full px-2.5 py-1 text-[12px] font-medium"
-                    style={{ color: pill.color, background: `color-mix(in srgb, ${pill.color} 12%, var(--surface))` }}
-                  >
-                    {pill.text}
-                  </span>
-                ))}
-                {row.detail ? <p className="w-full text-[12.5px] leading-relaxed text-on-surface-variant">{row.detail}</p> : null}
+              <div className="flex min-w-0 flex-col gap-1">
+                <div className="flex min-w-0 items-center gap-1">
+                  {row.pills.slice(0, 1).map((pill) => (
+                    <span
+                      key={pill.text}
+                      className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium sm:px-2.5 sm:py-1 sm:text-[12px]"
+                      style={{ color: pill.color, background: `color-mix(in srgb, ${pill.color} 12%, var(--surface))` }}
+                    >
+                      {pill.text}
+                    </span>
+                  ))}
+                </div>
+                {row.detail ? <p className="hidden text-[11px] leading-relaxed text-on-surface-variant sm:block sm:text-[12.5px]">{row.detail}</p> : null}
               </div>
               <div className="flex flex-col items-end gap-0.5">
                 {typeof row.price === "number" ? (

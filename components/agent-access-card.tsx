@@ -4,8 +4,15 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { AgentSetupPrompt } from "@/components/agent-setup-prompt";
-import { ProCtaLink } from "@/components/pro-cta";
 import { trackAgentAccessAction } from "@/lib/product-analytics";
+import { OaButton } from "@/components/oa/button";
+import { useUser } from "@/lib/auth-context";
+import { signInWithGoogle } from "@/lib/sign-in";
+import {
+  trackCheckoutClicked,
+  trackCheckoutStarted,
+} from "@/lib/product-analytics";
+import { startDodoCheckout } from "@/lib/dodo-checkout-client";
 
 export type AgentTokenSummary = {
   id: string;
@@ -29,6 +36,37 @@ function dateLabel(value: string | null): string {
   const date = new Date(value);
   return Number.isFinite(date.getTime()) ? date.toLocaleDateString() : "Unknown";
 }
+
+/** Checkout button in the OA system. */
+function GetProButton() {
+  const { user } = useUser();
+  const [busy, setBusy] = useState(false);
+
+  async function openCheckout() {
+    if (busy) return;
+    setBusy(true);
+    trackCheckoutClicked({ period: "monthly", market: "US", signedIn: Boolean(user) });
+    try {
+      if (!user) await signInWithGoogle({ surface: "paywall" });
+      const checkoutUrl = await startDodoCheckout();
+      trackCheckoutStarted({ period: "monthly", market: "US" });
+      window.location.assign(checkoutUrl);
+    } catch (err) {
+      console.error("direct checkout failed", err);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <OaButton onClick={() => void openCheckout()} loading={busy} size="sm">
+      Get Pro
+    </OaButton>
+  );
+}
+
+const LINK =
+  "font-medium text-oa-fg underline decoration-oa-border underline-offset-4 outline-none transition-colors hover:decoration-oa-fg focus-visible:ring-[3px] focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]";
 
 export function AgentAccessCard({ isSubscribed, serverUrl, initialTokens, initialUsage }: Props) {
   const [tokens, setTokens] = useState(initialTokens);
@@ -102,13 +140,18 @@ export function AgentAccessCard({ isSubscribed, serverUrl, initialTokens, initia
   if (!isSubscribed) {
     return (
       <div>
-        <h3 className="text-[18px] font-extrabold tracking-tight text-on-surface">Give your AI current stock context.</h3>
-        <p className="mt-2 max-w-2xl text-[12px] leading-relaxed text-on-surface-variant">
-          Instead of a generic stock answer, it can retrieve Stocksbrew&apos;s current call, target, drivers, risks, and freshness.
+        <h3 className="text-balance font-medium tracking-tight text-oa-fg text-lg leading-snug">
+          Give your AI current stock context.
+        </h3>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-oa-muted-fg">
+          Instead of a generic stock answer, it can retrieve Stocksbrew&apos;s current call,
+          target, drivers, risks, and freshness.
         </p>
-        <div className="mt-5 flex flex-wrap items-center gap-3">
-          <ProCtaLink href="/subscribe" size="sm" showStar>Get Pro</ProCtaLink>
-          <Link href="/agents" className="text-[11px] font-bold text-landing-brand">How agent access works →</Link>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <GetProButton />
+          <Link href="/agents" className={LINK}>
+            How agent access works
+          </Link>
         </div>
       </div>
     );
@@ -118,36 +161,45 @@ export function AgentAccessCard({ isSubscribed, serverUrl, initialTokens, initia
   return (
     <div>
       <section>
-        <p className="text-[14px] font-semibold text-on-surface">Connect Stocksbrew</p>
-        <p className="mt-1 text-[12px] leading-relaxed text-on-surface-variant">
-          Copy the setup prompt into your agent and approve only the research, Watchlist and alert permissions it needs.
+        <p className="text-[15px] font-medium text-oa-fg">Connect Stocksbrew</p>
+        <p className="mt-1 text-sm leading-6 text-oa-muted-fg">
+          Copy the setup prompt into your agent and approve only the research, Watchlist and alert
+          permissions it needs.
         </p>
         <AgentSetupPrompt compact className="mt-4" />
       </section>
 
-      <section className="mt-7 border-t border-outline-variant pt-6">
+      <section className="mt-6 border-t border-oa-border pt-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-[14px] font-semibold text-on-surface">Manual OAuth setup</p>
-            <p className="mt-1 text-[12px] leading-relaxed text-on-surface-variant">Add the remote server URL directly if your client has an MCP settings screen.</p>
+            <p className="text-[15px] font-medium text-oa-fg">Manual OAuth setup</p>
+            <p className="mt-1 text-sm leading-6 text-oa-muted-fg">
+              Add the remote server URL directly if your client has an MCP settings screen.
+            </p>
           </div>
-          <button type="button" onClick={() => copy(serverUrl, "url")} className="text-[11px] font-semibold text-landing-brand">
-            {copied === "url" ? "URL copied ✓" : "Copy server URL"}
+          <button
+            type="button"
+            onClick={() => copy(serverUrl, "url")}
+            className="cursor-pointer rounded-lg px-1 text-sm font-medium text-oa-muted-fg outline-none transition-colors hover:text-oa-fg focus-visible:ring-[3px] focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
+          >
+            {copied === "url" ? "URL copied" : "Copy server URL"}
           </button>
         </div>
-        <code className="mt-3 block break-all border-y border-outline-variant bg-surface-container-low/45 px-3 py-3 text-[11px] text-on-surface">{serverUrl}</code>
+        <code className="oa-mono mt-3 block break-all rounded-lg border border-oa-border bg-oa-bg px-3 py-2.5 text-xs text-oa-fg/80">
+          {serverUrl}
+        </code>
       </section>
 
-      <section className="mt-7 border-t border-outline-variant pt-6">
+      <section className="mt-6 border-t border-oa-border pt-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="text-[14px] font-semibold text-on-surface">Personal access token</p>
-            <p className="mt-1 text-[12px] leading-relaxed text-on-surface-variant">
+            <p className="text-[15px] font-medium text-oa-fg">Personal access token</p>
+            <p className="mt-1 text-sm leading-6 text-oa-muted-fg">
               Use a token when your developer tool asks for a Bearer header instead of OAuth.
             </p>
           </div>
-          <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.08em] text-on-surface-variant">
-            {usage.used}/{usage.limit} calls
+          <span className="oa-mono shrink-0 text-xs tabular-nums text-oa-muted-fg">
+            {usage.used}/{usage.limit} calls today
           </span>
         </div>
         <div className="mt-3 flex flex-col gap-2 sm:flex-row">
@@ -156,68 +208,90 @@ export function AgentAccessCard({ isSubscribed, serverUrl, initialTokens, initia
             onChange={(event) => setLabel(event.target.value)}
             maxLength={80}
             aria-label="Token name"
-            className="min-w-0 flex-1 rounded-lg border border-outline-variant bg-surface px-3 py-2 text-[12px] text-on-surface outline-none focus:border-landing-brand"
+            className="min-w-0 flex-1 rounded-lg border border-oa-border bg-oa-bg px-3 py-2 text-sm text-oa-fg outline-none transition-colors placeholder:text-oa-muted-fg/70 focus-visible:border-transparent focus-visible:ring-[3px] focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
           />
-          <button
-            type="button"
-            disabled={busy || activeTokens.length >= 5}
-            onClick={createToken}
-            className="rounded-full bg-landing-brand px-4 py-2 text-[12px] font-bold text-white disabled:opacity-50"
-          >
-            {busy ? "Working…" : "Create token"}
-          </button>
+          <OaButton variant="secondary" size="sm" loading={busy} disabled={activeTokens.length >= 5} onClick={createToken}>
+            Create token
+          </OaButton>
         </div>
         {activeTokens.length >= 5 ? (
-          <p className="mt-2 text-[11px] text-on-surface-variant">Revoke a token before creating another.</p>
+          <p className="mt-2 text-sm leading-6 text-oa-muted-fg">
+            Revoke a token before creating another.
+          </p>
         ) : null}
       </section>
 
       {newToken ? (
-        <section className="mt-6 border-l-2 border-landing-brand bg-landing-brand/5 px-4 py-3" role="status">
-          <p className="text-[13px] font-bold text-on-surface">Copy this token now</p>
-          <p className="mt-1 text-[11px] text-on-surface-variant">It will not be shown again.</p>
-          <div className="mt-3 flex items-center gap-2 rounded-lg border border-outline-variant bg-surface px-3 py-2">
-            <code className="min-w-0 flex-1 break-all text-[10px] text-on-surface">{newToken}</code>
-            <button type="button" onClick={() => copy(newToken, "token")} className="shrink-0 text-[11px] font-semibold text-landing-brand">
+        <section className="mt-5 rounded-[18px] border border-oa-border bg-oa-bg p-4" role="status">
+          <p className="font-medium text-emerald-700 dark:text-emerald-400">Copy this token now</p>
+          <p className="mt-0.5 text-sm leading-6 text-oa-muted-fg">It will not be shown again.</p>
+          <div className="mt-3 flex items-center gap-2 rounded-lg border border-oa-border bg-oa-card px-3 py-2">
+            <code className="oa-mono min-w-0 flex-1 break-all text-xs text-oa-fg">{newToken}</code>
+            <button
+              type="button"
+              onClick={() => copy(newToken, "token")}
+              className="shrink-0 cursor-pointer rounded-lg px-1 text-sm font-medium text-oa-muted-fg outline-none transition-colors hover:text-oa-fg focus-visible:ring-[3px] focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
+            >
               {copied === "token" ? "Copied" : "Copy"}
             </button>
           </div>
-          <pre className="mt-3 overflow-x-auto border-y border-outline-variant bg-surface p-3 text-[10px] leading-relaxed text-on-surface">{config}</pre>
-          <button type="button" onClick={() => copy(config, "config")} className="mt-2 text-[11px] font-semibold text-landing-brand">
+          <pre className="oa-mono mt-3 overflow-x-auto rounded-lg border border-oa-border bg-oa-card p-3 text-xs leading-relaxed text-oa-fg/80">
+            {config}
+          </pre>
+          <button
+            type="button"
+            onClick={() => copy(config, "config")}
+            className="mt-2 cursor-pointer rounded-lg px-1 text-sm font-medium text-oa-muted-fg outline-none transition-colors hover:text-oa-fg focus-visible:ring-[3px] focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
+          >
             {copied === "config" ? "Configuration copied" : "Copy configuration"}
           </button>
         </section>
       ) : null}
 
       {tokens.length ? (
-        <section className="mt-7 border-t border-outline-variant pt-5">
-          <p className="mb-2 font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-on-surface-variant">Issued tokens</p>
-          <div className="divide-y divide-outline-variant border-y border-outline-variant">
-          {tokens.map((token) => (
-            <div key={token.id} className="flex flex-wrap items-center justify-between gap-3 p-3.5">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-[12px] font-semibold text-on-surface">{token.label}</p>
-                  {token.revoked_at ? <span className="font-mono text-[9px] uppercase text-on-surface-variant">Revoked</span> : null}
+        <section className="mt-6 border-t border-oa-border pt-5">
+          <p className="mb-2 text-sm font-medium text-oa-fg/80">Issued tokens</p>
+          <div className="divide-y divide-oa-border">
+            {tokens.map((token) => (
+              <div key={token.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-medium text-oa-fg">{token.label}</p>
+                    {token.revoked_at ? (
+                      <span className="rounded-full border border-oa-border px-2 py-0.5 text-xs text-oa-muted-fg">
+                        Revoked
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="oa-mono mt-0.5 text-xs text-oa-muted-fg">
+                    {token.prefix} · last used {dateLabel(token.last_used_at)}
+                  </p>
                 </div>
-                <p className="mt-0.5 font-mono text-[10px] text-on-surface-variant">
-                  {token.prefix} · last used {dateLabel(token.last_used_at)}
-                </p>
+                {!token.revoked_at ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => revokeToken(token.id)}
+                    className="cursor-pointer rounded-lg px-1 text-sm font-medium text-red-600 outline-none transition-colors hover:text-red-700 focus-visible:ring-[3px] focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)] disabled:opacity-50 dark:text-red-400 dark:hover:text-red-300"
+                  >
+                    Revoke
+                  </button>
+                ) : null}
               </div>
-              {!token.revoked_at ? (
-                <button type="button" disabled={busy} onClick={() => revokeToken(token.id)} className="text-[11px] font-semibold text-red-600 disabled:opacity-50 dark:text-red-400">
-                  Revoke
-                </button>
-              ) : null}
-            </div>
-          ))}
+            ))}
           </div>
         </section>
       ) : null}
 
-      {error ? <p className="text-[12px] text-red-600 dark:text-red-400" role="alert">{error}</p> : null}
-      <p className="mt-6 border-t border-outline-variant pt-4 text-[11px] leading-relaxed text-on-surface-variant">
-        Personal use only. No bulk extraction, resale, or redistribution. <Link href="/agents" className="font-semibold text-landing-brand">See agent access</Link> or <Link href="/developers" className="font-semibold text-landing-brand">read the API docs</Link>.
+      {error ? (
+        <p className="mt-4 text-xs leading-5 text-red-600 dark:text-red-400" role="alert">
+          {error}
+        </p>
+      ) : null}
+      <p className="mt-6 border-t border-oa-border pt-4 text-sm leading-6 text-oa-muted-fg">
+        Personal use only. No bulk extraction, resale, or redistribution.{" "}
+        <Link href="/agents" className={LINK}>See agent access</Link> or{" "}
+        <Link href="/developers" className={LINK}>read the API docs</Link>.
       </p>
     </div>
   );

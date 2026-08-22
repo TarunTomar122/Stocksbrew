@@ -2,9 +2,10 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { allLearnPosts, type LearnPost } from "@/lib/learn-data";
+import { allLearnPosts } from "@/lib/learn-data";
 import { getLearnImage } from "@/lib/learn/images";
 import { getLearnContent } from "@/lib/learn/content";
+import { OaSiteHeader } from "@/components/oa/oa-site-header";
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -40,6 +41,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+const PROSE =
+  "prose max-w-none prose-headings:font-medium prose-headings:tracking-tight prose-headings:text-oa-fg prose-h2:text-[24px] prose-h2:mt-12 prose-h2:mb-4 prose-h3:text-[19px] prose-h3:mt-10 prose-h3:mb-3 prose-p:text-[16px] prose-p:leading-[1.8] prose-p:text-oa-fg/80 prose-p:my-5 prose-a:text-oa-primary prose-a:no-underline prose-a:font-medium hover:prose-a:underline prose-strong:text-oa-fg prose-strong:font-medium prose-ul:my-5 prose-ul:pl-0 prose-ul:list-none prose-li:text-[16px] prose-li:leading-[1.7] prose-li:text-oa-fg/80 prose-li:pl-6 prose-li:relative prose-li:my-2 [&_li::before]:content-['–'] [&_li::before]:absolute [&_li::before]:left-0 [&_li::before]:text-oa-muted-fg prose-ol:my-5 prose-ol:pl-6 prose-ol:list-decimal [&_ol>li]:pl-1 prose-blockquote:border-0 prose-blockquote:bg-oa-bg prose-blockquote:py-4 prose-blockquote:px-6 prose-blockquote:rounded-[18px] prose-blockquote:not-italic prose-blockquote:text-oa-fg/80 prose-hr:hidden prose-img:rounded-[18px]";
+
 export default async function LearnPostPage({ params }: Props) {
   const { slug } = await params;
   const post = allLearnPosts.find((p) => p.slug === slug);
@@ -49,36 +53,32 @@ export default async function LearnPostPage({ params }: Props) {
   const image = post.image || getLearnImage(slug);
 
   return (
-    <main className="flex-grow">
-      <article className="mx-auto w-full max-w-[800px] px-6 md:px-10 lg:px-16 py-12 md:py-16">
+    <main className="oa-landing flex-grow">
+      <OaSiteHeader />
+      <article className="mx-auto w-full max-w-[46rem] px-4 pb-20 pt-10 sm:px-6 sm:pt-14">
         <Link
           href="/learn"
-          className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[#6b7280] hover:text-[#111111] transition-colors mb-8"
+          className="group inline-flex items-center gap-1 text-[13px] font-medium text-oa-muted-fg transition-colors hover:text-oa-fg"
         >
-          <span aria-hidden>←</span> Back to Learn
+          <span aria-hidden className="transition-transform duration-200 group-hover:-translate-x-0.5">‹</span> Back to Learn
         </Link>
 
-        <header className="flex flex-col gap-4 mb-10">
-          <span className="inline-flex items-center gap-2 rounded-full border border-[#e5e7eb] bg-white px-3 py-1 text-[11px] font-semibold tracking-[0.1em] uppercase text-[#6b7280] w-fit">
+        <header className="mt-8 flex flex-col gap-4">
+          <span className="inline-flex w-fit items-center gap-2 rounded-full bg-oa-accent px-3 py-1 text-xs font-medium capitalize text-oa-fg">
             {post.category}
           </span>
-          <h1 className="text-[36px] md:text-[44px] font-semibold tracking-[-0.03em] text-[#111111] leading-[1.1]">
+          <h1 className="text-balance font-medium tracking-tight text-oa-fg text-[2.25rem] leading-[1.08] sm:text-[2.75rem] sm:leading-[1.06]">
             {post.title}
           </h1>
-          <p className="text-[16px] text-[#374151] leading-[1.55]">
-            {post.description}
-          </p>
-          <div className="flex items-center gap-4 text-[13px] text-[#6b7280]">
+          <p className="text-[15px] leading-relaxed text-oa-muted-fg sm:text-base">{post.description}</p>
+          <div className="flex items-center gap-2.5 text-[13px] tabular-nums text-oa-muted-fg">
             <span>{post.date}</span>
             <span aria-hidden>·</span>
             <span>{post.readTime}</span>
           </div>
           <div className="flex flex-wrap gap-2">
             {post.tags.map((tag) => (
-              <span
-                key={tag}
-                className="inline-flex items-center rounded-full bg-[#f3f4f6] px-2.5 py-0.5 text-[11px] font-medium text-[#6b7280]"
-              >
+              <span key={tag} className="inline-flex items-center rounded-full border border-oa-border bg-oa-card px-2.5 py-0.5 text-xs font-medium text-oa-muted-fg">
                 {tag}
               </span>
             ))}
@@ -86,45 +86,31 @@ export default async function LearnPostPage({ params }: Props) {
         </header>
 
         {image && (
-          <div className="relative w-full aspect-[21/9] rounded-2xl overflow-hidden mb-10 bg-[#f3f4f6]">
-            <Image
-              src={image}
-              alt={post.imageAlt}
-              fill
-              className="object-cover"
-              sizes="(max-width: 800px) 100vw, 800px"
-              priority
-            />
+          <div className="relative mt-10 aspect-[21/9] w-full overflow-hidden rounded-[22px] border border-oa-border bg-oa-bg">
+            <Image src={image} alt={post.imageAlt} fill className="object-cover" sizes="(max-width: 800px) 100vw, 800px" priority />
           </div>
         )}
 
-        <div
-          className="prose prose-lg max-w-none
-            prose-headings:text-[#111111] prose-headings:font-semibold prose-headings:tracking-[-0.02em]
-            prose-h2:text-[26px] prose-h2:mt-12 prose-h2:mb-5 prose-h2:pb-2 prose-h2:border-b prose-h2:border-[#e5e7eb]
-            prose-h3:text-[20px] prose-h3:mt-10 prose-h3:mb-4 prose-h3:font-semibold
-            prose-p:text-[16px] prose-p:text-[#374151] prose-p:leading-[1.8] prose-p:my-5
-            prose-a:text-[#0052ff] prose-a:no-underline prose-a:font-medium hover:prose-a:underline
-            prose-strong:text-[#111111] prose-strong:font-semibold
-            prose-ul:my-5 prose-ul:pl-0 prose-ul:list-none
-            prose-li:text-[16px] prose-li:text-[#374151] prose-li:leading-[1.7] prose-li:pl-6 prose-li:relative prose-li:my-2
-            [&_li::before]:content-['-'] [&_li::before]:absolute [&_li::before]:left-0 [&_li::before]:text-[#d1d5db]
-            prose-ol:my-5 prose-ol:pl-6 prose-ol:list-decimal
-            [&_ol>li]:pl-1
-            prose-blockquote:border-l-[3px] prose-blockquote:border-[#0052ff] prose-blockquote:bg-[#f8f9fa] prose-blockquote:py-4 prose-blockquote:px-6 prose-blockquote:rounded-r-xl prose-blockquote:not-italic prose-blockquote:text-[#374151]
-            prose-hr:my-10 prose-hr:border-[#e5e7eb]
-            prose-img:rounded-xl"
-          dangerouslySetInnerHTML={{ __html: content }}
-        />
+        <div className={`mt-10 ${PROSE}`} dangerouslySetInnerHTML={{ __html: content }} />
 
-        <footer className="mt-16 pt-8 border-t border-[#e5e7eb]">
+        <footer className="mt-14 flex flex-col gap-5 rounded-[22px] border border-oa-border bg-oa-bg p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
+          <div className="flex flex-col gap-1">
+            <p className="text-[17px] font-medium tracking-tight text-oa-fg">Research a real stock now</p>
+            <p className="text-sm leading-relaxed text-oa-muted-fg">Search any US ticker and get the brief in minutes.</p>
+          </div>
           <Link
-            href="/learn"
-            className="inline-flex items-center justify-center h-[40px] px-5 rounded-full bg-[#111111] text-white text-[13px] font-semibold tracking-tight hover:-translate-y-[1px] active:translate-y-0 transition-transform"
+            href="/watchlist"
+            className="inline-flex h-10 w-fit shrink-0 items-center rounded-full bg-oa-primary px-5 text-sm font-medium text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] transition-all hover:bg-[color-mix(in_srgb,var(--oa-primary)_88%,black)] active:translate-y-px active:scale-[0.98]"
           >
-            ← Back to all articles
+            Open Watchlist
           </Link>
         </footer>
+
+        <div className="mt-6">
+          <Link href="/learn" className="group inline-flex items-center gap-1 text-[13px] font-medium text-oa-muted-fg transition-colors hover:text-oa-fg">
+            <span aria-hidden className="transition-transform duration-200 group-hover:-translate-x-0.5">‹</span> All articles
+          </Link>
+        </div>
       </article>
     </main>
   );

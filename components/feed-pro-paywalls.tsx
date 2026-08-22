@@ -229,7 +229,7 @@ function ContextualFeedPaywallShell({
               {!busy && <span aria-hidden>→</span>}
             </ProCtaButton>
             <span className="text-center text-[11px] font-medium text-[#9ca3af] sm:text-left">
-              3 days free on monthly or yearly. Cancel anytime.
+              3 days free, then $9/month. Cancel anytime.
             </span>
           </div>
         </div>

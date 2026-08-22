@@ -1,3 +1,4 @@
+import { OaSiteHeader } from "@/components/oa/oa-site-header";
 import { Suspense } from "react";
 import type { Metadata } from "next";
 
@@ -23,10 +24,10 @@ export const metadata: Metadata = {
 function TrumpLogicFallback() {
   return (
     <div className="flex max-w-2xl animate-pulse flex-col gap-4">
-      <div className="h-10 w-64 rounded-lg bg-surface-container" />
-      <div className="h-4 max-w-lg rounded bg-surface-container" />
+      <div className="h-10 w-64 rounded-lg bg-oa-accent" />
+      <div className="h-4 max-w-lg rounded bg-oa-accent" />
       {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="h-48 rounded-[20px] border border-outline-variant bg-surface" />
+        <div key={i} className="h-48 rounded-[20px] border border-oa-border bg-oa-card" />
       ))}
     </div>
   );
@@ -53,12 +54,13 @@ async function TrumpLogicContent() {
 
 export default function TrumpLogicPage() {
   return (
-    <main className="flex-grow">
+    <main className="oa-landing flex-grow">
+      <OaSiteHeader />
       <FreeToolPageFrame toolHref="/trump-logic">
         <Suspense fallback={<TrumpLogicFallback />}>
           <TrumpLogicContent />
         </Suspense>
-        <footer className="max-w-3xl text-[11px] text-on-surface-variant">
+        <footer className="max-w-3xl text-[11px] text-oa-muted-fg">
           Briefs are AI-distilled from Truth Social. Source links on each card. Not investment advice.
         </footer>
       </FreeToolPageFrame>

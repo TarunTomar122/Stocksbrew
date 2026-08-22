@@ -64,9 +64,10 @@ STALE_RUNNING_TTL_MINUTES = 20
 # competes with the market-session pipeline without any new information.
 RUNNABLE_REQUEST_STATUSES = {"queued", "retry", "pending"}
 INVALID_REQUEST_TOKENS = {
-    "TO", "IT", "IN", "ON", "AT", "IS", "ARE",
+    "TO", "IT", "IN", "AT", "IS", "ARE",
     "HTTPS", "HTTP", "WWW", "COM", "DIV", "HREF",
 }
+EXACT_SYMBOL_RE = re.compile(r"^[A-Z][A-Z0-9.-]{0,7}$")
 
 SYMBOL_HINT_PROMPT = """You map user stock requests to likely US stock tickers.
 
@@ -244,6 +245,41 @@ def _search_provider_candidates(query: str, market: str) -> list[dict[str, Any]]
     return out
 
 
+def _resolve_exact_symbol_from_quotes(query: str, market: str) -> dict[str, Any] | None:
+    """Resolve a clearly typed US ticker when the symbol catalog is behind.
+
+    ponytail: exact-symbol fallback only; company-name and foreign-market
+    requests stay in confirmation until their catalog/provider evidence exists.
+    """
+    symbol = str(query or "").strip().upper()
+    if market != "US" or symbol in INVALID_REQUEST_TOKENS or not EXACT_SYMBOL_RE.fullmatch(symbol):
+        return None
+    instrument = {
+        "instrument_id": f"US_{symbol}",
+        "market": "US",
+        "ticker": symbol,
+        "currency": "USD",
+    }
+    quote = YFinanceClient(max_workers=1, max_retries=1).fetch_quotes(
+        [instrument], include_fundamentals=False
+    ).get(instrument["instrument_id"])
+    current = (quote or {}).get("quote", {}).get("current")
+    if not quote or not current:
+        return None
+    name = str(quote.get("name") or symbol).strip()
+    return {
+        "market": "US",
+        "symbol": symbol,
+        "instrument_id": instrument["instrument_id"],
+        "name": name,
+        "exchange": str(quote.get("exchange") or "").strip(),
+        "aliases": [symbol, name],
+        "normalized_name": normalize_name(name),
+        "active": True,
+        "_score": 100,
+    }
+
+
 def _llm_symbol_hints(query: str, market: str) -> tuple[list[str], list[str]]:
     if market != "US":
         return [], []
@@ -298,6 +334,9 @@ def _llm_symbol_hints(query: str, market: str) -> tuple[list[str], list[str]]:
 
 
 def _resolve_request(master_rows: list[dict[str, Any]], market: str, query: str) -> dict[str, Any] | None:
+    resolved = _resolve_exact_symbol_from_quotes(query, market)
+    if resolved:
+        return resolved
     resolved = _resolve_from_master(master_rows, market, query)
     if resolved:
         return resolved
@@ -885,17 +924,21 @@ def _process_one_request(
         print(f"  [ok] {query} -> {instrument.get('instrument_id')}")
         return "ok"
     except Exception as exc:
+        attempt_count = int(data.get("attempt_count") or 0) + 1
+        terminal = attempt_count >= 3
         ref.set(
             {
-                "status": "retry",
+                "status": "needs_confirmation" if terminal else "retry",
                 "fulfilled": False,
                 "resolve_error": str(exc),
+                "attempt_count": attempt_count,
                 "updated_at": _now(),
             },
             merge=True,
         )
-        print(f"  [fail] {query}: {exc}")
-        return "fail"
+        state = "needs_confirmation" if terminal else "retry"
+        print(f"  [fail] {query}: {exc} ({state}, attempt={attempt_count})")
+        return "needs_confirmation" if terminal else "fail"
 
 
 def main() -> None:

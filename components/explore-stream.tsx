@@ -1,4 +1,4 @@
-import { ExploreHub } from "@/components/explore-hub";
+import { OaExplore } from "@/components/oa/oa-explore";
 import type { TrendingStock } from "@/components/trending-now";
 import { getMarketSnapshot } from "@/lib/firestore";
 import { getHeatList } from "@/lib/heat";
@@ -74,20 +74,18 @@ export async function ExploreStream() {
     });
 
   return (
-    <div className="landing-stream-in">
-      <ExploreHub
-        trending={trending}
-        hotStocks={hotStocks}
-        nearHighs={near52.nearHighs}
-        nearLows={near52.nearLows}
-        momentumStocks={momentumStocks}
-        newsSpikes={newsSpikes}
-        catalystStocks={catalystStocks}
-        dipStocks={dipStocks}
-        redditTickers={redditTickers}
-        trumpMentions={trumpMentions}
-        isSubscribed={isSubscribed}
-      />
-    </div>
+    <OaExplore
+      trending={trending}
+      hotStocks={hotStocks}
+      nearHighs={near52.nearHighs}
+      nearLows={near52.nearLows}
+      momentumStocks={momentumStocks}
+      newsSpikes={newsSpikes}
+      catalystStocks={catalystStocks}
+      dipStocks={dipStocks}
+      redditTickers={redditTickers}
+      trumpMentions={trumpMentions}
+      isSubscribed={isSubscribed}
+    />
   );
 }

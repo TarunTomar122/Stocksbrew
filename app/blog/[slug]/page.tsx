@@ -1,18 +1,12 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { allBlogPosts, isIndexableBlogPost, type BlogPost } from "@/lib/blog-data";
+import { allBlogPosts, isIndexableBlogPost } from "@/lib/blog-data";
 import { getBlogContent } from "@/lib/blog";
 import { BlogCompareStrip } from "@/components/marketing/compare-related-reading";
 import { ShareLinkBar } from "@/components/marketing/share-link-bar";
 import { ArticleSchema } from "@/components/seo/article-schema";
-
-const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
-  intelligence: { bg: "bg-[#ecfdf5]", text: "text-[#10b981]" },
-  tools: { bg: "bg-[#eef2ff]", text: "text-[#6366f1]" },
-  comparison: { bg: "bg-[#fef3c7]", text: "text-[#d97706]" },
-  guides: { bg: "bg-[#eff6ff]", text: "text-[#3b82f6]" },
-};
+import { OaSiteHeader } from "@/components/oa/oa-site-header";
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -52,6 +46,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+const PROSE =
+  "blog-prose prose max-w-none prose-headings:font-medium prose-headings:tracking-tight prose-headings:text-oa-fg prose-h2:text-[24px] prose-h2:mt-12 prose-h2:mb-4 prose-h3:text-[19px] prose-h3:mt-10 prose-h3:mb-3 prose-p:text-[16px] prose-p:leading-[1.8] prose-p:text-oa-fg/80 prose-p:my-5 prose-a:text-oa-primary prose-a:no-underline prose-a:font-medium hover:prose-a:underline prose-strong:text-oa-fg prose-strong:font-medium prose-ul:my-5 prose-ul:pl-0 prose-ul:list-none prose-li:text-[16px] prose-li:leading-[1.7] prose-li:text-oa-fg/80 prose-li:pl-6 prose-li:relative prose-li:my-2 [&_li::before]:content-['–'] [&_li::before]:absolute [&_li::before]:left-0 [&_li::before]:text-oa-muted-fg prose-ol:my-5 prose-ol:pl-6 prose-ol:list-decimal [&_ol>li]:pl-1 prose-blockquote:border-0 prose-blockquote:bg-oa-bg prose-blockquote:py-4 prose-blockquote:px-6 prose-blockquote:rounded-[18px] prose-blockquote:not-italic prose-blockquote:text-oa-fg/80 prose-hr:hidden prose-img:rounded-[18px] [&_.sample-brief]:bg-oa-bg [&_.sample-brief]:border [&_.sample-brief]:border-oa-border [&_.sample-brief]:rounded-[18px] [&_.sample-brief]:p-5 [&_.sample-brief]:my-5 [&_.sample-brief_h4]:text-oa-fg [&_.sample-brief_h4]:font-medium [&_.sample-brief_h4]:mb-3 [&_.article-summary]:rounded-[22px] [&_.article-summary]:border [&_.article-summary]:border-oa-border [&_.article-summary]:bg-oa-bg [&_.article-summary]:p-6 [&_.article-summary]:my-8 [&_.article-summary_h2]:mt-0 [&_.article-summary_h2]:p-0 [&_.article-summary_h2]:text-[20px] [&_.source-note]:rounded-[18px] [&_.source-note]:border [&_.source-note]:border-oa-border [&_.source-note]:bg-oa-bg [&_.source-note]:p-5 [&_.source-note]:my-6 [&_.source-note]:text-sm [&_.table-scroll]:my-8 [&_.table-scroll]:overflow-x-auto [&_.table-scroll]:rounded-[18px] [&_.table-scroll]:border [&_.table-scroll]:border-oa-border [&_.table-scroll_table]:my-0 [&_.table-scroll_table]:min-w-[720px] [&_.table-scroll_table]:border-collapse [&_.table-scroll_th]:bg-oa-bg [&_.table-scroll_th]:px-4 [&_.table-scroll_th]:py-3 [&_.table-scroll_th]:text-left [&_.table-scroll_th]:text-xs [&_.table-scroll_th]:uppercase [&_.table-scroll_th]:tracking-wide [&_.table-scroll_th]:text-oa-muted-fg [&_.table-scroll_th]:font-medium [&_.table-scroll_td]:border-t [&_.table-scroll_td]:border-oa-border [&_.table-scroll_td]:px-4 [&_.table-scroll_td]:py-3 [&_.table-scroll_td]:align-top [&_.table-scroll_td]:text-sm [&_.cta-section]:mt-12 [&_.cta-section]:p-6 [&_.cta-section]:bg-oa-bg [&_.cta-section]:border [&_.cta-section]:border-oa-border [&_.cta-section]:rounded-[22px] [&_.cta-section]:text-center [&_.cta-section_h3]:text-xl [&_.cta-section_h3]:font-medium [&_.cta-section_h3]:tracking-tight [&_.cta-section_h3]:text-oa-fg [&_.cta-section_h3]:mb-2 [&_.cta-section_h3]:mt-0 [&_.cta-section_p]:text-sm [&_.cta-section_p]:text-oa-muted-fg [&_.cta-section_p]:mb-5 [&_.cta-button]:inline-flex [&_.cta-button]:items-center [&_.cta-button]:justify-center [&_.cta-button]:h-11 [&_.cta-button]:px-6 [&_.cta-button]:rounded-full [&_.cta-button]:bg-oa-primary [&_.cta-button]:text-white [&_.cta-button]:text-sm [&_.cta-button]:font-medium [&_.cta-button]:tracking-tight [&_.cta-button]:no-underline";
+
 export default async function BlogPostPage({ params }: Props) {
   const { slug } = await params;
   const post = allBlogPosts.find((p) => p.slug === slug);
@@ -59,7 +56,8 @@ export default async function BlogPostPage({ params }: Props) {
 
   const content = getBlogContent(slug);
   return (
-    <main className="flex-grow">
+    <main className="oa-landing flex-grow">
+      <OaSiteHeader />
       <ArticleSchema
         slug={slug}
         title={post.title}
@@ -69,126 +67,101 @@ export default async function BlogPostPage({ params }: Props) {
         keywords={post.tags}
         faqs={post.faqs}
       />
-      <article className="mx-auto w-full max-w-[800px] px-6 md:px-10 lg:px-16 py-12 md:py-16">
+      <article className="mx-auto w-full max-w-[46rem] px-4 pb-20 pt-10 sm:px-6 sm:pt-14">
         <Link
           href="/blog"
-          className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[#6b7280] hover:text-[#111111] transition-colors mb-8"
+          className="group inline-flex items-center gap-1 text-[13px] font-medium text-oa-muted-fg transition-colors hover:text-oa-fg"
         >
-          <span aria-hidden>←</span> Back to Blog
+          <span aria-hidden className="transition-transform duration-200 group-hover:-translate-x-0.5">‹</span> Back to Blog
         </Link>
 
-        <header className="flex flex-col gap-4 mb-10">
-          <div className="flex items-center gap-3">
-            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold tracking-[0.06em] uppercase ${CATEGORY_COLORS[post.category]?.bg || "bg-[#f3f4f6]"} ${CATEGORY_COLORS[post.category]?.text || "text-[#6b7280]"}`}>
-              {post.category}
+        <header className="mt-8 flex flex-col gap-4">
+          <div className="flex flex-wrap items-center gap-2.5 text-[13px] tabular-nums text-oa-muted-fg">
+            <span className="rounded-full bg-oa-accent px-2.5 py-0.5 font-medium capitalize text-oa-fg">{post.category}</span>
+            <span>
+              Published {post.date}
+              {post.updated ? ` · Updated ${post.updated}` : ""}
             </span>
-            <span className="text-[13px] text-[#6b7280]">
-              Published {post.date}{post.updated ? ` · Updated ${post.updated}` : ""}
-            </span>
-            <span className="text-[13px] text-[#6b7280]">·</span>
-            <span className="text-[13px] text-[#6b7280]">{post.readTime}</span>
+            <span aria-hidden>·</span>
+            <span>{post.readTime}</span>
           </div>
-          <h1 className="text-[36px] md:text-[44px] font-semibold tracking-[-0.03em] text-[#111111] leading-[1.1]">
+          <h1 className="text-balance font-medium tracking-tight text-oa-fg text-[2.25rem] leading-[1.08] sm:text-[2.75rem] sm:leading-[1.06]">
             {post.title}
           </h1>
-          <p className="text-[16px] text-[#374151] leading-[1.55]">
-            {post.description}
-          </p>
-          <p className="text-[13px] text-[#6b7280] leading-relaxed">
+          <p className="text-[15px] leading-relaxed text-oa-muted-fg sm:text-base">{post.description}</p>
+          <p className="text-[13px] leading-relaxed text-oa-muted-fg">
             By{" "}
-            <Link href="/authors/tarun-tomar" rel="author" className="font-medium text-[#111111] underline underline-offset-2">
+            <Link href="/authors/tarun-tomar" rel="author" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-4 hover:decoration-oa-fg">
               Tarun Tomar
             </Link>
             {" · "}
-            <Link href="/editorial-policy" className="underline underline-offset-2 hover:text-[#111111]">
+            <Link href="/editorial-policy" className="underline decoration-oa-border underline-offset-4 hover:decoration-oa-fg">
               Editorial standards
             </Link>
           </p>
           <div className="flex flex-wrap gap-2">
             {post.tags.map((tag) => (
-              <span
-                key={tag}
-                className="inline-flex items-center rounded-full bg-[#f3f4f6] px-2.5 py-0.5 text-[11px] font-medium text-[#6b7280]"
-              >
+              <span key={tag} className="inline-flex items-center rounded-full border border-oa-border bg-oa-card px-2.5 py-0.5 text-xs font-medium text-oa-muted-fg">
                 {tag}
               </span>
             ))}
           </div>
         </header>
 
-        <div
-          className="blog-prose prose prose-lg max-w-none
-            prose-headings:text-[#111111] prose-headings:font-semibold prose-headings:tracking-[-0.02em]
-            prose-h2:text-[26px] prose-h2:mt-12 prose-h2:mb-5 prose-h2:pb-2 prose-h2:border-b prose-h2:border-[#e5e7eb]
-            prose-h3:text-[20px] prose-h3:mt-10 prose-h3:mb-4 prose-h3:font-semibold
-            prose-p:text-[16px] prose-p:text-[#374151] prose-p:leading-[1.8] prose-p:my-5
-            prose-a:text-[#0052ff] prose-a:no-underline prose-a:font-medium hover:prose-a:underline
-            prose-strong:text-[#111111] prose-strong:font-semibold
-            prose-ul:my-5 prose-ul:pl-0 prose-ul:list-none
-            prose-li:text-[16px] prose-li:text-[#374151] prose-li:leading-[1.7] prose-li:pl-6 prose-li:relative prose-li:my-2
-            [&_li::before]:content-['-'] [&_li::before]:absolute [&_li::before]:left-0 [&_li::before]:text-[#d1d5db]
-            prose-ol:my-5 prose-ol:pl-6 prose-ol:list-decimal
-            [&_ol>li]:pl-1
-            prose-blockquote:border-l-[3px] prose-blockquote:border-[#0052ff] prose-blockquote:bg-[#f8f9fa] prose-blockquote:py-4 prose-blockquote:px-6 prose-blockquote:rounded-r-xl prose-blockquote:not-italic prose-blockquote:text-[#374151]
-            prose-hr:my-10 prose-hr:border-[#e5e7eb]
-            prose-img:rounded-xl
-            [&_.sample-brief]:bg-[#f8f9fa] [&_.sample-brief]:border [&_.sample-brief]:border-[#e5e7eb] [&_.sample-brief]:rounded-xl [&_.sample-brief]:p-5 [&_.sample-brief]:my-5
-            [&_.sample-brief_h4]:text-[#6b38d4] [&_.sample-brief_h4]:font-semibold [&_.sample-brief_h4]:mb-3
-            [&_.article-summary]:rounded-2xl [&_.article-summary]:border [&_.article-summary]:border-[#bbf7d0] [&_.article-summary]:bg-[#f0fdf4] [&_.article-summary]:p-6 [&_.article-summary]:my-8
-            [&_.article-summary_h2]:mt-0 [&_.article-summary_h2]:border-0 [&_.article-summary_h2]:p-0 [&_.article-summary_h2]:text-[20px]
-            [&_.source-note]:rounded-xl [&_.source-note]:border [&_.source-note]:border-[#e5e7eb] [&_.source-note]:bg-[#fafaf7] [&_.source-note]:p-5 [&_.source-note]:my-6 [&_.source-note]:text-[14px]
-            [&_.table-scroll]:my-8 [&_.table-scroll]:overflow-x-auto [&_.table-scroll]:rounded-xl [&_.table-scroll]:border [&_.table-scroll]:border-[#e5e7eb]
-            [&_.table-scroll_table]:my-0 [&_.table-scroll_table]:min-w-[720px] [&_.table-scroll_table]:border-collapse
-            [&_.table-scroll_th]:bg-[#f8f9fa] [&_.table-scroll_th]:px-4 [&_.table-scroll_th]:py-3 [&_.table-scroll_th]:text-left [&_.table-scroll_th]:text-[12px] [&_.table-scroll_th]:uppercase [&_.table-scroll_th]:tracking-wide
-            [&_.table-scroll_td]:border-t [&_.table-scroll_td]:border-[#e5e7eb] [&_.table-scroll_td]:px-4 [&_.table-scroll_td]:py-3 [&_.table-scroll_td]:align-top [&_.table-scroll_td]:text-[14px]
-            [&_.cta-section]:mt-12 [&_.cta-section]:p-6 [&_.cta-section]:bg-[#f8f9fa] [&_.cta-section]:border [&_.cta-section]:border-[#e5e7eb] [&_.cta-section]:rounded-2xl [&_.cta-section]:text-center
-            [&_.cta-section_h3]:text-[20px] [&_.cta-section_h3]:font-semibold [&_.cta-section_h3]:text-[#111111] [&_.cta-section_h3]:mb-2 [&_.cta-section_h3]:mt-0
-            [&_.cta-section_p]:text-[14px] [&_.cta-section_p]:text-[#6b7280] [&_.cta-section_p]:mb-5
-            [&_.cta-button]:inline-flex [&_.cta-button]:items-center [&_.cta-button]:justify-center [&_.cta-button]:h-[44px] [&_.cta-button]:px-6 [&_.cta-button]:rounded-full [&_.cta-button]:bg-[#111111] [&_.cta-button]:text-white [&_.cta-button]:text-[14px] [&_.cta-button]:font-semibold [&_.cta-button]:tracking-tight [&_.cta-button]:no-underline [&_.cta-button]:hover:-translate-y-[1px]"
-          dangerouslySetInnerHTML={{ __html: content }}
-        />
+        <div className={`mt-10 ${PROSE}`} dangerouslySetInnerHTML={{ __html: content }} />
+
         {post.faqs?.length && !content.includes('id="faq"') ? (
-          <section id="faq" className="mt-12 border-t border-[#e5e7eb] pt-8" aria-labelledby="faq-heading">
-            <h2 id="faq-heading" className="text-[26px] font-semibold tracking-[-0.02em] text-[#111111]">
+          <section id="faq" className="mt-14" aria-labelledby="faq-heading">
+            <h2 id="faq-heading" className="text-[22px] font-medium tracking-tight text-oa-fg">
               Frequently asked questions
             </h2>
             <dl className="mt-6 flex flex-col gap-6">
               {post.faqs.map((faq) => (
                 <div key={faq.question}>
-                  <dt className="text-[17px] font-semibold text-[#111111]">{faq.question}</dt>
-                  <dd className="mt-2 text-[15px] leading-7 text-[#4b5563]">{faq.answer}</dd>
+                  <dt className="text-[17px] font-medium tracking-tight text-oa-fg">{faq.question}</dt>
+                  <dd className="mt-2 text-[15px] leading-relaxed text-oa-muted-fg">{faq.answer}</dd>
                 </div>
               ))}
             </dl>
           </section>
         ) : null}
 
-        <footer className="mt-16 pt-8 border-t border-[#e5e7eb] flex flex-col gap-6">
-          <div className="rounded-xl border border-[#e5e7eb] bg-white p-5 text-[13px] leading-relaxed text-[#6b7280]">
-            <strong className="text-[#111111]">How this was made:</strong> Tarun reviewed the article for product accuracy and investor usefulness. AI may assist with structure or editing; material factual claims should be verified against linked primary sources. See the{" "}
-            <Link href="/editorial-policy" className="font-medium text-[#111111] underline underline-offset-2">editorial policy</Link>.
+        <footer className="mt-14 flex flex-col gap-6">
+          <div className="rounded-[18px] border border-oa-border bg-oa-bg p-5 text-[13px] leading-relaxed text-oa-muted-fg">
+            <strong className="font-medium text-oa-fg">How this was made:</strong> Tarun reviewed the article for product accuracy and investor usefulness. AI may assist with structure or editing; material factual claims should be verified against linked primary sources. See the{" "}
+            <Link href="/editorial-policy" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-4">editorial policy</Link>.
           </div>
           <BlogCompareStrip slug={slug} />
           <ShareLinkBar url={`/blog/${slug}`} title={post.title} />
 
-          <div className="rounded-2xl border border-[#e5e7eb] bg-[#f8f9fa] p-8 text-center">
-            <h3 className="text-[20px] font-semibold text-[#111111] mb-2">
+          <div className="flex flex-col items-center gap-5 rounded-[22px] border border-oa-border bg-oa-bg px-6 py-12 text-center">
+            <h3 className="max-w-[420px] text-balance text-[26px] font-medium leading-tight tracking-tight text-oa-fg">
               Analyse a stock on stocksbrew
             </h3>
-            <p className="text-[14px] text-[#6b7280] mb-5">
+            <p className="max-w-[400px] text-[15px] leading-relaxed text-oa-muted-fg">
               Search any US stock for financials, news and market context.
             </p>
-            <div className="flex flex-wrap justify-center gap-2">
-              <Link href="/stocks" className="inline-flex items-center justify-center h-[44px] px-6 rounded-full bg-[#111111] text-white text-[14px] font-semibold tracking-tight hover:-translate-y-[1px] active:translate-y-0 transition-transform">Search US stocks →</Link>
-              <Link href="/watchlist" className="inline-flex items-center justify-center h-[44px] px-6 rounded-full border border-[#d1d5db] bg-white text-[#111111] text-[14px] font-semibold tracking-tight hover:border-[#111111] transition-colors">Open Watchlist</Link>
+            <div className="flex flex-wrap justify-center gap-3">
+              <Link
+                href="/stocks"
+                className="inline-flex h-11 items-center rounded-full bg-oa-primary px-6 text-sm font-medium text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] transition-all hover:bg-[color-mix(in_srgb,var(--oa-primary)_88%,black)] active:translate-y-px active:scale-[0.98]"
+              >
+                Search US stocks
+              </Link>
+              <Link
+                href="/watchlist"
+                className="inline-flex h-11 items-center rounded-full border border-oa-border bg-oa-card px-6 text-sm font-medium text-oa-fg transition-colors hover:border-oa-fg/30"
+              >
+                Open Watchlist
+              </Link>
             </div>
           </div>
 
           <Link
             href="/blog"
-            className="inline-flex items-center justify-center h-[40px] px-5 rounded-full border border-[#e5e7eb] text-[#111111] text-[13px] font-semibold tracking-tight hover:border-[#111111] transition-colors w-fit"
+            className="group inline-flex w-fit items-center gap-1 text-[13px] font-medium text-oa-muted-fg transition-colors hover:text-oa-fg"
           >
-            ← Back to all posts
+            <span aria-hidden className="transition-transform duration-200 group-hover:-translate-x-0.5">‹</span> All posts
           </Link>
         </footer>
       </article>

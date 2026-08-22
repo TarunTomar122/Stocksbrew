@@ -83,22 +83,12 @@ export function LandingProPreview({ isSignedIn, isSubscribed }: Props) {
           </h2>
         </div>
 
-        <div className="mx-auto grid w-full max-w-[860px] grid-cols-1 gap-5 md:grid-cols-2">
+        <div className="mx-auto grid w-full max-w-[860px] grid-cols-1 gap-5 md:grid-cols-1">
           <PricingCard
-            tag="Monthly"
+            tag="Pro"
             price={US_PRO_MONTHLY_LABEL}
             period="/ month"
             trial={`3 days free, then ${US_PRO_MONTHLY_LABEL}/mo`}
-            isSignedIn={isSignedIn}
-            ctaLabel={ctaLabel}
-          />
-          <PricingCard
-            tag="Yearly"
-            price={US_PRO_YEARLY_LABEL}
-            period="/ year"
-            save={`Save ${US_YEARLY_SAVE_PCT}%`}
-            trial={`3 days free, then ${US_PRO_YEARLY_LABEL}/yr`}
-            highlight
             isSignedIn={isSignedIn}
             ctaLabel={ctaLabel}
           />

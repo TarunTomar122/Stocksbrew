@@ -10,6 +10,11 @@ import {
 import { MarketingSchema } from "@/components/seo/marketing-schema";
 import { US_PRO_MONTHLY } from "@/lib/pricing";
 
+const H2 = "text-[22px] font-medium tracking-tight text-oa-fg";
+
+const PILL =
+  "inline-flex h-8 items-center rounded-full border border-oa-border bg-oa-card px-3.5 text-[13px] font-medium text-oa-muted-fg transition-colors hover:border-oa-fg/30 hover:text-oa-fg";
+
 export function ShouldIBuyLandingSections() {
   return (
     <>
@@ -20,43 +25,41 @@ export function ShouldIBuyLandingSections() {
         faqs={SHOULD_I_BUY_FAQS}
         breadcrumbLabel="Should I Buy"
       />
-      <div className="border-t border-[#e5e7eb] bg-[#fafaf7]">
-        <div className="mx-auto w-full max-w-screen-xl px-6 md:px-10 lg:px-16 py-14 md:py-20 flex flex-col gap-14">
-          <section className="flex flex-col gap-5 max-w-[720px]">
-            <h2 className="text-[28px] font-semibold text-[#111111] tracking-[-0.03em]">What you get</h2>
-            <ol className="flex flex-col gap-4">
+      <div className="bg-oa-bg">
+        <div className="mx-auto flex w-full max-w-[76rem] flex-col gap-14 px-4 py-14 sm:px-6 sm:py-20">
+          <section className="flex max-w-[720px] flex-col gap-5" aria-labelledby="sib-what">
+            <h2 id="sib-what" className="text-[26px] font-medium tracking-tight text-oa-fg">What you get</h2>
+            <ol className="flex flex-col rounded-[22px] border border-oa-border bg-oa-card px-5 py-1 shadow-[0_1px_2px_rgba(0,0,0,0.06)] sm:px-6">
               {SHOULD_I_BUY_STEPS.map((step, i) => (
-                <li key={step.title} className="flex gap-4">
-                  <span className="shrink-0 flex h-7 w-7 items-center justify-center rounded-full bg-[#111111] text-[12px] font-bold text-white">
-                    {i + 1}
-                  </span>
+                <li key={step.title} className="flex gap-4 border-b border-oa-border py-4 last:border-b-0">
+                  <span className="oa-mono shrink-0 pt-0.5 text-xs tabular-nums text-oa-muted-fg">0{i + 1}</span>
                   <div className="flex flex-col gap-1">
-                    <h3 className="text-[15px] font-semibold text-[#111111]">{step.title}</h3>
-                    <p className="text-[14px] text-[#6b7280] leading-relaxed">{step.body}</p>
+                    <h3 className="text-[15px] font-medium tracking-tight text-oa-fg">{step.title}</h3>
+                    <p className="text-sm leading-relaxed text-oa-muted-fg">{step.body}</p>
                   </div>
                 </li>
               ))}
             </ol>
           </section>
 
-          <section className="flex flex-col gap-5">
-            <h2 className="text-[22px] font-semibold text-[#111111] tracking-[-0.02em]">Screeners vs Should I Buy</h2>
-            <div className="rounded-2xl border border-[#e5e7eb] overflow-hidden bg-white">
+          <section className="flex flex-col gap-5" aria-labelledby="sib-vs">
+            <h2 id="sib-vs" className={H2}>Screeners vs Should I Buy</h2>
+            <div className="overflow-hidden rounded-[18px] border border-oa-border bg-oa-card shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
               <div className="overflow-x-auto">
-                <table className="w-full text-[14px]">
+                <table className="w-full min-w-[560px] text-sm">
                   <thead>
-                    <tr className="border-b border-[#e5e7eb] bg-[#fafaf7]">
-                      <th className="text-left px-4 py-3 font-semibold text-[#111111]">Capability</th>
-                      <th className="text-left px-4 py-3 font-semibold text-[#111111]">stocksbrew</th>
-                      <th className="text-left px-4 py-3 font-semibold text-[#111111]">Typical screener</th>
+                    <tr className="border-b border-oa-border bg-oa-bg">
+                      <th className="px-4 py-3 text-left font-medium text-oa-muted-fg">Capability</th>
+                      <th className="px-4 py-3 text-left font-medium text-oa-muted-fg">stocksbrew</th>
+                      <th className="px-4 py-3 text-left font-medium text-oa-muted-fg">Typical screener</th>
                     </tr>
                   </thead>
                   <tbody>
                     {SHOULD_I_BUY_VS_ROWS.map((row) => (
-                      <tr key={row.label} className="border-b border-[#f3f4f6] last:border-0">
-                        <td className="px-4 py-3 font-medium text-[#374151]">{row.label}</td>
-                        <td className="px-4 py-3 text-[#6b7280]">{row.stocksbrew}</td>
-                        <td className="px-4 py-3 text-[#6b7280]">{row.other}</td>
+                      <tr key={row.label} className="border-b border-oa-border last:border-b-0">
+                        <td className="px-4 py-3 font-medium text-oa-fg">{row.label}</td>
+                        <td className="px-4 py-3 text-oa-muted-fg">{row.stocksbrew}</td>
+                        <td className="px-4 py-3 text-oa-muted-fg">{row.other}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -65,34 +68,37 @@ export function ShouldIBuyLandingSections() {
             </div>
           </section>
 
-          <section className="flex flex-col gap-5">
-            <h2 className="text-[22px] font-semibold text-[#111111] tracking-[-0.02em]">Recommended free stack</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <section className="flex flex-col gap-5" aria-labelledby="sib-stack">
+            <h2 id="sib-stack" className={H2}>Recommended free stack</h2>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {SHOULD_I_BUY_STACK.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="group flex flex-col gap-1 rounded-xl border border-[#e5e7eb] bg-white p-4 hover:border-[#111111] transition-all"
+                  className="group flex items-center justify-between gap-3 rounded-[18px] border border-oa-border bg-oa-bg p-4 transition-colors hover:bg-oa-card"
                 >
-                  <span className="text-[14px] font-semibold text-[#111111] group-hover:text-[#0052ff] transition-colors">
-                    {item.name}
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium tracking-tight text-oa-fg transition-colors group-hover:text-oa-primary">
+                      {item.name}
+                    </span>
+                    <span className="mt-0.5 block text-[13px] leading-relaxed text-oa-muted-fg">{item.role}</span>
                   </span>
-                  <span className="text-[12px] text-[#6b7280]">{item.role}</span>
+                  <span aria-hidden className="shrink-0 text-oa-muted-fg transition-transform duration-200 group-hover:translate-x-0.5">›</span>
                 </Link>
               ))}
             </div>
           </section>
 
-          <section className="flex flex-col gap-3">
-            <h2 className="text-[18px] font-semibold text-[#111111]">Related</h2>
+          <section className="flex flex-col gap-3" aria-labelledby="sib-related">
+            <h2 id="sib-related" className="text-[17px] font-medium tracking-tight text-oa-fg">Related</h2>
             <div className="flex flex-wrap gap-2">
-              <Link href="/compare/stocksbrew-vs-tickertape" className="inline-flex h-[36px] items-center px-4 rounded-full border border-[#e5e7eb] bg-white text-[13px] font-medium text-[#374151] hover:border-[#111111]">
+              <Link href="/compare/stocksbrew-vs-tickertape" className={PILL}>
                 vs Tickertape
               </Link>
-              <Link href="/use-cases/swing-trading" className="inline-flex h-[36px] items-center px-4 rounded-full border border-[#e5e7eb] bg-white text-[13px] font-medium text-[#374151] hover:border-[#111111]">
+              <Link href="/use-cases/swing-trading" className={PILL}>
                 Swing trading workflow
               </Link>
-              <Link href="/guides" className="inline-flex h-[36px] items-center px-4 rounded-full border border-[#e5e7eb] bg-white text-[13px] font-medium text-[#374151] hover:border-[#111111]">
+              <Link href="/guides" className={PILL}>
                 Research guide
               </Link>
             </div>
@@ -100,7 +106,7 @@ export function ShouldIBuyLandingSections() {
 
           <FaqSection faqs={SHOULD_I_BUY_FAQS} />
 
-          <p className="text-[12px] text-[#9ca3af] leading-relaxed max-w-[640px]">
+          <p className="max-w-[640px] text-xs leading-relaxed text-oa-muted-fg">
             Research and education only. Not investment advice. Not a broker. Free Watchlist is capped at 3 stocks; Pro unlocks unlimited tracking at ${US_PRO_MONTHLY}/month.
           </p>
         </div>

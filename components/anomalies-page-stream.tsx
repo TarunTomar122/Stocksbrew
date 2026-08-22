@@ -18,9 +18,9 @@ export async function AnomaliesPageStream() {
 
   if (isEmpty) {
     return (
-      <div className="rounded-[20px] border border-[#e5e7eb] bg-white p-10 text-center">
-        <p className="text-[12px] font-semibold tracking-[0.12em] uppercase text-[#111111]">Quiet day</p>
-        <p className="mx-auto mt-2 max-w-md text-[13px] leading-relaxed text-[#6b7280]">
+      <div className="rounded-[20px] border border-[var(--oa-border)] bg-oa-card p-10 text-center">
+        <p className="text-[12px] font-medium tracking-[0.12em] uppercase text-[var(--oa-fg)]">Quiet day</p>
+        <p className="mx-auto mt-2 max-w-md text-[13px] leading-relaxed text-[var(--oa-muted-fg)]">
           No significant price moves detected yet. Check back during market hours.
         </p>
       </div>

@@ -77,7 +77,7 @@ export function PositionSizeCalculator() {
   return (
     <div className="flex flex-col gap-8 w-full max-w-[960px]">
       {/* Input card */}
-      <div className="rounded-2xl border border-[#e5e7eb] bg-white p-6 md:p-8 flex flex-col gap-6">
+      <div className="rounded-2xl border border-[var(--oa-border)] bg-oa-card p-6 md:p-8 flex flex-col gap-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {/* Account size */}
           <InputField
@@ -89,7 +89,7 @@ export function PositionSizeCalculator() {
 
           {/* Risk per trade */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-[13px] font-semibold text-[#111111]">Risk per trade</label>
+            <label className="text-[13px] font-medium text-[var(--oa-fg)]">Risk per trade</label>
             <div className="flex gap-2">
               <input
                 type="number"
@@ -98,12 +98,12 @@ export function PositionSizeCalculator() {
                 value={riskValue}
                 onChange={(e) => setRiskValue(e.target.value)}
                 placeholder={riskMode === "percent" ? "e.g. 1.5" : "e.g. 750"}
-                className="flex-1 rounded-xl border border-[#d1d5db] px-3.5 py-2.5 text-[14px] text-[#111111] placeholder:text-[#9ca3af] outline-none focus:border-[#0052ff] transition-colors"
+                className="flex-1 rounded-xl border border-[var(--oa-border)] px-3.5 py-2.5 text-[14px] text-[var(--oa-fg)] placeholder:text-[var(--oa-muted-fg)] outline-none focus:border-[var(--oa-primary)] transition-colors"
               />
               <button
                 type="button"
                 onClick={() => setRiskMode(riskMode === "percent" ? "dollars" : "percent")}
-                className="shrink-0 rounded-xl border border-[#d1d5db] px-3.5 py-2.5 text-[13px] font-semibold text-[#6b7280] hover:border-[#0052ff] hover:text-[#0052ff] transition-colors min-w-[52px]"
+                className="shrink-0 rounded-xl border border-[var(--oa-border)] px-3.5 py-2.5 text-[13px] font-medium text-[var(--oa-muted-fg)] hover:border-[var(--oa-primary)] hover:text-[var(--oa-primary)] transition-colors min-w-[52px]"
               >
                 {riskMode === "percent" ? "%" : "$"}
               </button>
@@ -145,7 +145,7 @@ export function PositionSizeCalculator() {
 
         {/* Ticker (optional) */}
         <div className="flex flex-col gap-1.5 max-w-[380px]">
-          <label className="text-[13px] font-semibold text-[#111111]">
+          <label className="text-[13px] font-medium text-[var(--oa-fg)]">
             Ticker (optional)
           </label>
           <input
@@ -154,7 +154,7 @@ export function PositionSizeCalculator() {
             onChange={(e) => setTicker(e.target.value.toUpperCase())}
             placeholder="e.g. AAPL"
             maxLength={10}
-            className="rounded-xl border border-[#d1d5db] px-3.5 py-2.5 text-[14px] text-[#111111] placeholder:text-[#9ca3af] outline-none focus:border-[#0052ff] transition-colors uppercase"
+            className="rounded-xl border border-[var(--oa-border)] px-3.5 py-2.5 text-[14px] text-[var(--oa-fg)] placeholder:text-[var(--oa-muted-fg)] outline-none focus:border-[var(--oa-primary)] transition-colors uppercase"
           />
         </div>
       </div>
@@ -165,8 +165,8 @@ export function PositionSizeCalculator() {
           <p className="text-[14px] font-medium text-[#991b1b]">{result.error}</p>
         </div>
       ) : result ? (
-        <div className="rounded-2xl border border-[#e5e7eb] bg-white p-6 md:p-8 flex flex-col gap-5">
-          <h2 className="text-[18px] font-semibold tracking-[-0.02em] text-[#111111]">
+        <div className="rounded-2xl border border-[var(--oa-border)] bg-oa-card p-6 md:p-8 flex flex-col gap-5">
+          <h2 className="text-[18px] font-medium tracking-[-0.02em] text-[var(--oa-fg)]">
             Position Summary
           </h2>
 
@@ -205,22 +205,22 @@ export function PositionSizeCalculator() {
 
           {/* CTA links */}
           {tickerSlug && (
-            <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-[#f3f4f6]">
+            <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-[var(--oa-bg)]">
               <Link
                 href="/watchlist"
-                className="inline-flex items-center gap-1.5 rounded-full bg-[#0052ff] px-5 py-2 text-[13px] font-medium text-white hover:bg-[#0045d6] transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-full bg-[var(--oa-primary)] px-5 py-2 text-[13px] font-medium text-white hover:bg-[#0045d6] transition-colors"
               >
                 Add {tickerSlug} to Watchlist
               </Link>
               <Link
                 href={tickerSlug ? `/should-i-buy/${tickerSlug}` : "/should-i-buy"}
-                className="inline-flex items-center gap-1.5 rounded-full border border-[#d1d5db] px-5 py-2 text-[13px] font-medium text-[#374151] hover:border-[#0052ff] hover:text-[#0052ff] transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[var(--oa-border)] px-5 py-2 text-[13px] font-medium text-[var(--oa-fg)] hover:border-[var(--oa-primary)] hover:text-[var(--oa-primary)] transition-colors"
               >
                 Run Should I Buy on {tickerSlug}
               </Link>
               <Link
                 href="/compare-stocks"
-                className="inline-flex items-center gap-1.5 rounded-full border border-[#d1d5db] px-5 py-2 text-[13px] font-medium text-[#374151] hover:border-[#0052ff] hover:text-[#0052ff] transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[var(--oa-border)] px-5 py-2 text-[13px] font-medium text-[var(--oa-fg)] hover:border-[var(--oa-primary)] hover:text-[var(--oa-primary)] transition-colors"
               >
                 Compare stocks
               </Link>
@@ -228,22 +228,22 @@ export function PositionSizeCalculator() {
           )}
 
           {!tickerSlug && (
-            <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-[#f3f4f6]">
+            <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-[var(--oa-bg)]">
               <Link
                 href="/watchlist"
-                className="inline-flex items-center gap-1.5 rounded-full bg-[#0052ff] px-5 py-2 text-[13px] font-medium text-white hover:bg-[#0045d6] transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-full bg-[var(--oa-primary)] px-5 py-2 text-[13px] font-medium text-white hover:bg-[#0045d6] transition-colors"
               >
                 Track stocks in your Watchlist
               </Link>
               <Link
                 href="/should-i-buy"
-                className="inline-flex items-center gap-1.5 rounded-full border border-[#d1d5db] px-5 py-2 text-[13px] font-medium text-[#374151] hover:border-[#0052ff] hover:text-[#0052ff] transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[var(--oa-border)] px-5 py-2 text-[13px] font-medium text-[var(--oa-fg)] hover:border-[var(--oa-primary)] hover:text-[var(--oa-primary)] transition-colors"
               >
                 Try Should I Buy
               </Link>
               <Link
                 href="/compare-stocks"
-                className="inline-flex items-center gap-1.5 rounded-full border border-[#d1d5db] px-5 py-2 text-[13px] font-medium text-[#374151] hover:border-[#0052ff] hover:text-[#0052ff] transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[var(--oa-border)] px-5 py-2 text-[13px] font-medium text-[var(--oa-fg)] hover:border-[var(--oa-primary)] hover:text-[var(--oa-primary)] transition-colors"
               >
                 Compare stocks
               </Link>
@@ -254,8 +254,8 @@ export function PositionSizeCalculator() {
 
       {/* Empty state hint */}
       {!result && (
-        <div className="rounded-2xl border border-[#e5e7eb] bg-[#fafafa] p-6 md:p-8">
-          <p className="text-[14px] text-[#6b7280]">
+        <div className="rounded-2xl border border-[var(--oa-border)] bg-[#fafafa] p-6 md:p-8">
+          <p className="text-[14px] text-[var(--oa-muted-fg)]">
             Fill in your account size, risk, entry, and stop-loss to see your position size.
           </p>
         </div>
@@ -277,7 +277,7 @@ function InputField({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-[13px] font-semibold text-[#111111]">{label}</label>
+      <label className="text-[13px] font-medium text-[var(--oa-fg)]">{label}</label>
       <input
         type="number"
         step="any"
@@ -285,7 +285,7 @@ function InputField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="rounded-xl border border-[#d1d5db] px-3.5 py-2.5 text-[14px] text-[#111111] placeholder:text-[#9ca3af] outline-none focus:border-[#0052ff] transition-colors"
+        className="rounded-xl border border-[var(--oa-border)] px-3.5 py-2.5 text-[14px] text-[var(--oa-fg)] placeholder:text-[var(--oa-muted-fg)] outline-none focus:border-[var(--oa-primary)] transition-colors"
       />
     </div>
   );
@@ -293,11 +293,11 @@ function InputField({
 
 function ResultItem({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex flex-col gap-0.5 rounded-xl bg-[#f9fafb] px-4 py-3">
-      <span className="text-[11px] font-medium tracking-[0.06em] uppercase text-[#6b7280]">
+    <div className="flex flex-col gap-0.5 rounded-xl bg-[var(--oa-bg)] px-4 py-3">
+      <span className="text-[11px] font-medium tracking-[0.06em] uppercase text-[var(--oa-muted-fg)]">
         {label}
       </span>
-      <span className="text-[18px] font-semibold tracking-[-0.02em] text-[#111111]">
+      <span className="text-[18px] font-medium tracking-[-0.02em] text-[var(--oa-fg)]">
         {value}
       </span>
     </div>

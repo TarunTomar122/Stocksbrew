@@ -156,7 +156,7 @@ export function StockProPaywall({
             {!busy && <span aria-hidden>→</span>}
           </ProCtaButton>
           <span className="text-[11px] text-on-surface-variant">
-            3 days free on monthly or yearly. Cancel anytime.
+            3 days free, then $9/month. Cancel anytime.
           </span>
         </div>
       </div>

@@ -1,3 +1,4 @@
+import { OaSiteHeader } from "@/components/oa/oa-site-header";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -71,7 +72,8 @@ const FAQS = [
 
 export default function RadarLandingPage() {
   return (
-    <main className="flex-grow">
+    <main className="oa-landing flex-grow">
+      <OaSiteHeader />
       <MarketingSchema
         path="/radar"
         name="stocksbrew Watchlist"
@@ -81,23 +83,23 @@ export default function RadarLandingPage() {
       />
       <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-14 px-6 py-12 md:px-10 md:py-16 lg:px-16">
         <header className="flex max-w-[760px] flex-col gap-5">
-          <span className="text-[12px] font-semibold tracking-[0.14em] uppercase text-[#6b7280]">Watchlist</span>
-          <h1 className="text-[40px] md:text-[56px] font-semibold tracking-[-0.04em] text-[#111111] leading-[1.05]">
+          <span className="text-[12px] font-medium tracking-[0.14em] uppercase text-[var(--oa-muted-fg)]">Watchlist</span>
+          <h1 className="text-[40px] md:text-[56px] font-medium tracking-[-0.04em] text-[var(--oa-fg)] leading-[1.05]">
             {TAGLINE}
           </h1>
-          <p className="text-[17px] text-[#374151] leading-[1.6]">
+          <p className="text-[17px] text-[var(--oa-fg)] leading-[1.6]">
             Add the stocks you own or follow. See their financials, latest research, earnings, news, calls and price levels together. We&apos;ll email you when something important changes.
           </p>
           <div className="flex flex-wrap gap-3 pt-1">
             <Link
               href="/watchlist"
-              className="inline-flex h-[44px] items-center px-6 rounded-full bg-[#111111] text-white text-[14px] font-semibold"
+              className="inline-flex h-[44px] items-center px-6 rounded-full bg-[var(--oa-fg)] text-white text-[14px] font-medium"
             >
               Open your free watchlist →
             </Link>
             <Link
               href="/should-i-buy"
-              className="inline-flex h-[44px] items-center px-6 rounded-full border border-[#e5e7eb] text-[#111111] text-[14px] font-medium hover:border-[#111111] transition-colors"
+              className="inline-flex h-[44px] items-center px-6 rounded-full border border-[var(--oa-border)] text-[var(--oa-fg)] text-[14px] font-medium hover:border-[var(--oa-fg)] transition-colors"
             >
               Try Should I Buy
             </Link>
@@ -108,41 +110,41 @@ export default function RadarLandingPage() {
 
         <section className="grid gap-4 md:grid-cols-2">
           {FEATURES.map((f) => (
-            <div key={f.title} className="rounded-2xl border border-[#e5e7eb] p-6 flex flex-col gap-2">
-              <h2 className="text-[17px] font-semibold text-[#111111]">{f.title}</h2>
-              <p className="text-[14px] text-[#6b7280] leading-relaxed">{f.body}</p>
+            <div key={f.title} className="rounded-2xl border border-[var(--oa-border)] p-6 flex flex-col gap-2">
+              <h2 className="text-[17px] font-medium text-[var(--oa-fg)]">{f.title}</h2>
+              <p className="text-[14px] text-[var(--oa-muted-fg)] leading-relaxed">{f.body}</p>
             </div>
           ))}
         </section>
 
         <section className="flex flex-col gap-4">
-          <h2 className="text-[22px] font-semibold text-[#111111]">Learn more</h2>
+          <h2 className="text-[22px] font-medium text-[var(--oa-fg)]">Learn more</h2>
           <div className="flex flex-wrap gap-2">
-            <Link href="/blog/buy-hold-sell-signals-explained" className="inline-flex h-[36px] items-center px-4 rounded-full border border-[#e5e7eb] text-[13px] font-medium hover:border-[#111111]">
+            <Link href="/blog/buy-hold-sell-signals-explained" className="inline-flex h-[36px] items-center px-4 rounded-full border border-[var(--oa-border)] text-[13px] font-medium hover:border-[var(--oa-fg)]">
               Buy/hold/sell signals
             </Link>
-            <Link href="/blog/watchlist-vs-portfolio-tracker" className="inline-flex h-[36px] items-center px-4 rounded-full border border-[#e5e7eb] text-[13px] font-medium hover:border-[#111111]">
+            <Link href="/blog/watchlist-vs-portfolio-tracker" className="inline-flex h-[36px] items-center px-4 rounded-full border border-[var(--oa-border)] text-[13px] font-medium hover:border-[var(--oa-fg)]">
               Watchlist vs portfolio
             </Link>
-            <Link href="/guides" className="inline-flex h-[36px] items-center px-4 rounded-full border border-[#e5e7eb] text-[13px] font-medium hover:border-[#111111]">
+            <Link href="/guides" className="inline-flex h-[36px] items-center px-4 rounded-full border border-[var(--oa-border)] text-[13px] font-medium hover:border-[var(--oa-fg)]">
               Research guide
             </Link>
           </div>
         </section>
 
         <section className="flex flex-col gap-4">
-          <h2 className="text-[22px] font-semibold text-[#111111]">How stocksbrew compares</h2>
+          <h2 className="text-[22px] font-medium text-[var(--oa-fg)]">How stocksbrew compares</h2>
           <div className="flex flex-wrap gap-2">
             {ALL_COMPARE_LINKS.slice(0, 6).map((c) => (
               <Link
                 key={c.href}
                 href={c.href}
-                className="inline-flex h-[36px] items-center px-4 rounded-full border border-[#e5e7eb] bg-[#fafaf7] text-[13px] font-medium text-[#374151] hover:border-[#111111] transition-colors"
+                className="inline-flex h-[36px] items-center px-4 rounded-full border border-[var(--oa-border)] bg-[#fafaf7] text-[13px] font-medium text-[var(--oa-fg)] hover:border-[var(--oa-fg)] transition-colors"
               >
                 {c.label}
               </Link>
             ))}
-            <Link href="/compare" className="inline-flex h-[36px] items-center px-4 text-[13px] font-medium text-[#0052ff] hover:underline">
+            <Link href="/compare" className="inline-flex h-[36px] items-center px-4 text-[13px] font-medium text-[var(--oa-primary)] hover:underline">
               All comparisons →
             </Link>
           </div>
@@ -152,14 +154,14 @@ export default function RadarLandingPage() {
 
         <FaqSection faqs={FAQS} />
 
-        <section className="rounded-2xl border border-[#111111] bg-[#111111] p-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <section className="rounded-2xl border border-[var(--oa-fg)] bg-[var(--oa-fg)] p-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex flex-col gap-2 max-w-[480px]">
-            <h2 className="text-[22px] font-semibold text-white">Start with 3 free stocks</h2>
-            <p className="text-[14px] text-[#d1d5db] leading-relaxed">
+            <h2 className="text-[22px] font-medium text-white">Start with 3 free stocks</h2>
+            <p className="text-[14px] text-[var(--oa-border)] leading-relaxed">
               Add your holdings and watchlist. Get today&apos;s calls in under a minute.
             </p>
           </div>
-          <Link href="/watchlist" className="inline-flex h-[44px] w-fit items-center px-6 rounded-full bg-white text-[#111111] text-[14px] font-semibold">
+          <Link href="/watchlist" className="inline-flex h-[44px] w-fit items-center px-6 rounded-full bg-oa-card text-[var(--oa-fg)] text-[14px] font-medium">
             Open Watchlist →
           </Link>
         </section>

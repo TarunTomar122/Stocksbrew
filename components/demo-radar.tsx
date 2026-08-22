@@ -93,9 +93,9 @@ const DEMO_ROWS: DemoRow[] = [
 const STANCE_META: Record<DemoRow["stance"], { bg: string; fg: string; dot: string }> = {
   accumulate: { bg: "color-mix(in srgb, var(--signal-bullish) 14%, var(--surface))", fg: "#10b981", dot: "#10b981" },
   trim:       { bg: "color-mix(in srgb, var(--signal-neutral) 16%, var(--surface))", fg: "#f59e0b", dot: "#f59e0b" },
-  watch:      { bg: "color-mix(in srgb, #2563eb 13%, var(--surface))", fg: "#1e3a8a", dot: "#0052ff" },
+  watch:      { bg: "color-mix(in srgb, #2563eb 13%, var(--surface))", fg: "#1e3a8a", dot: "var(--oa-primary)" },
   avoid:      { bg: "color-mix(in srgb, var(--signal-bearish) 14%, var(--surface))", fg: "#ef4444", dot: "#ef4444" },
-  hold:       { bg: "var(--surface-container)", fg: "var(--on-surface)", dot: "var(--on-surface)" },
+  hold:       { bg: "var(--oa-bg)", fg: "var(--oa-fg)", dot: "var(--oa-fg)" },
 };
 
 function fmtPrice(v: number): string {
@@ -155,7 +155,7 @@ export function DemoRadar({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
 
       {/* ── STICKY CONVERSION BAR ────────────────────────────────────────────── */}
       <div
-        className={`fixed inset-x-0 top-0 z-50 flex items-center justify-between gap-4 px-4 sm:px-8 h-12 bg-on-surface transition-transform duration-300 ease-out ${
+        className={`fixed inset-x-0 top-0 z-50 flex items-center justify-between gap-4 px-4 sm:px-8 h-12 bg-oa-fg transition-transform duration-300 ease-out ${
           scrolled ? "translate-y-0" : "-translate-y-full"
         }`}
       >
@@ -169,7 +169,7 @@ export function DemoRadar({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
           type="button"
           onClick={startSignIn}
           disabled={busy}
-          className="shrink-0 h-7 px-4 rounded-full bg-surface text-on-surface text-[11px] font-bold hover:bg-surface/90 transition-colors disabled:opacity-50"
+          className="shrink-0 h-7 px-4 rounded-full bg-oa-card text-oa-fg text-[11px] font-medium hover:bg-oa-card/90 transition-colors disabled:opacity-50"
         >
           {busy ? "Signing in…" : "Start your free Watchlist →"}
         </button>
@@ -182,19 +182,19 @@ export function DemoRadar({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
 
           {/* Left: label + title + description */}
           <div className="flex flex-col gap-4 max-w-[580px]">
-            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-outline-variant bg-surface-container-low px-3 py-1">
+            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-oa-border bg-oa-bg px-3 py-1">
               <span className="relative flex h-1.5 w-1.5 shrink-0">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#f59e0b] opacity-60" />
                 <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#f59e0b]" />
               </span>
-              <span className="text-[11px] font-semibold text-on-surface">Sample portfolio · refreshed this morning</span>
+              <span className="text-[11px] font-medium text-oa-fg">Sample portfolio · refreshed this morning</span>
             </div>
 
             <div className="flex flex-col gap-1">
-              <Heading className="text-[40px] md:text-[56px] font-semibold tracking-[-0.035em] text-on-surface leading-[1.0]">
+              <Heading className="text-[40px] md:text-[56px] font-medium tracking-[-0.035em] text-oa-fg leading-[1.0]">
                 Your Watchlist
               </Heading>
-              <p className="text-[15px] text-on-surface-variant leading-[1.65] mt-3">
+              <p className="text-[15px] text-oa-muted-fg leading-[1.65] mt-3">
                 Every morning we read the buzz, the moves, the earnings, and the sector regime on
                 the stocks you own, then tell you what it all adds up to and what to do about it.
                 This is what yours could look like.
@@ -205,7 +205,7 @@ export function DemoRadar({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
               type="button"
               onClick={startSignIn}
               disabled={busy}
-              className="self-start inline-flex items-center justify-center h-11 px-6 rounded-full bg-on-surface text-surface text-[13px] font-semibold hover:bg-on-surface transition-colors disabled:opacity-60 shadow-[0_2px_16px_rgba(0,0,0,0.15)]"
+              className="self-start inline-flex items-center justify-center h-11 px-6 rounded-full bg-oa-fg text-oa-card text-[13px] font-medium hover:bg-oa-fg transition-colors disabled:opacity-60 shadow-[0_2px_16px_rgba(0,0,0,0.15)]"
             >
               {busy ? "Signing you in…" : "Start your 3-day free trial"}
             </button>
@@ -213,7 +213,7 @@ export function DemoRadar({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
 
           {/* Right: a connected read — signals chaining into a call */}
           <div className="flex w-full flex-col gap-2 md:max-w-[400px] shrink-0">
-            <span className="text-[10px] font-semibold tracking-[0.14em] uppercase text-on-surface-variant">
+            <span className="text-[10px] font-medium tracking-[0.14em] uppercase text-oa-muted-fg">
               This morning on this book
             </span>
             <ConnectedReadCard
@@ -233,12 +233,12 @@ export function DemoRadar({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
 
         {/* ── § 01 · TODAY ────────────────────────────────────────────────────── */}
         <section className="flex flex-col gap-6">
-          <div className="flex items-baseline gap-3 border-t border-outline-variant pt-8">
-            <span className="text-[11px] font-semibold tracking-[0.12em] uppercase text-on-surface-variant">§ 01</span>
-            <h2 className="text-[20px] font-semibold tracking-[-0.01em] text-on-surface">Today</h2>
+          <div className="flex items-baseline gap-3 border-t border-oa-border pt-8">
+            <span className="text-[11px] font-medium tracking-[0.12em] uppercase text-oa-muted-fg">§ 01</span>
+            <h2 className="text-[20px] font-medium tracking-[-0.01em] text-oa-fg">Today</h2>
           </div>
 
-          <p className="text-[15px] md:text-[16px] text-on-surface leading-[1.6] max-w-[820px]">
+          <p className="text-[15px] md:text-[16px] text-oa-fg leading-[1.6] max-w-[820px]">
             Tech holds up despite Intel&apos;s slide. Microsoft strength offsets AMD chop, and Meta&apos;s pullback into oversold territory could be your re-entry window.
           </p>
 
@@ -280,11 +280,11 @@ export function DemoRadar({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
             ].map((label) => (
               <span
                 key={label}
-                className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant bg-surface px-2.5 py-1 text-[11px] font-semibold text-on-surface shadow-sm"
+                className="inline-flex items-center gap-1.5 rounded-full border border-oa-border bg-oa-card px-2.5 py-1 text-[11px] font-medium text-oa-fg shadow-sm"
               >
                 <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden>
-                  <rect x="2.5" y="4.5" width="5" height="4" rx="1" stroke="var(--on-surface-variant)" strokeWidth="1.1" />
-                  <path d="M3.5 4.5V3a1.5 1.5 0 013 0v1.5" stroke="var(--on-surface-variant)" strokeWidth="1.1" strokeLinecap="round" />
+                  <rect x="2.5" y="4.5" width="5" height="4" rx="1" stroke="var(--oa-muted-fg)" strokeWidth="1.1" />
+                  <path d="M3.5 4.5V3a1.5 1.5 0 013 0v1.5" stroke="var(--oa-muted-fg)" strokeWidth="1.1" strokeLinecap="round" />
                 </svg>
                 {label}
               </span>
@@ -293,11 +293,11 @@ export function DemoRadar({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
 
           {/* Headline */}
           <div className="flex flex-col gap-3 max-w-[520px]">
-            <h2 className="text-[30px] md:text-[40px] font-semibold tracking-[-0.03em] text-on-surface leading-[1.1]">
+            <h2 className="text-[30px] md:text-[40px] font-medium tracking-[-0.03em] text-oa-fg leading-[1.1]">
               Make this yours.<br />
               <span className="text-[#10b981]">It takes 30 seconds.</span>
             </h2>
-            <p className="text-[14px] text-on-surface-variant leading-[1.6]">
+            <p className="text-[14px] text-oa-muted-fg leading-[1.6]">
               Add the stocks you own and follow. stocksbrew keeps their research current with
               a full directive on every holding, risk flags, and opportunities, waiting for you
               each morning. Free for 3 stocks, no credit card.
@@ -310,25 +310,25 @@ export function DemoRadar({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
               type="button"
               onClick={startSignIn}
               disabled={busy}
-              className="w-full inline-flex items-center justify-center h-13 px-8 rounded-full bg-on-surface text-surface text-[15px] font-semibold hover:bg-on-surface transition-colors disabled:opacity-60 shadow-[0_4px_24px_rgba(0,0,0,0.18)]"
+              className="w-full inline-flex items-center justify-center h-13 px-8 rounded-full bg-oa-fg text-oa-card text-[15px] font-medium hover:bg-oa-fg transition-colors disabled:opacity-60 shadow-[0_4px_24px_rgba(0,0,0,0.18)]"
               style={{ height: "52px" }}
             >
               {busy ? "Signing you in…" : "Start your 3-day free trial"}
             </button>
-            <p className="text-[12px] text-on-surface-variant">
+            <p className="text-[12px] text-oa-muted-fg">
               Free for 3 stocks &nbsp;·&nbsp; No credit card &nbsp;·&nbsp; Cancel anytime
             </p>
           </div>
 
           {/* Social proof row */}
-          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[12px] text-on-surface-variant">
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[12px] text-oa-muted-fg">
             {[
               { icon: "✓", text: "Directives delivered every morning" },
               { icon: "✓", text: "Personalized to what you own" },
               { icon: "✓", text: "Upgrade anytime for unlimited stocks" },
             ].map((item) => (
               <span key={item.text} className="flex items-center gap-1.5">
-                <span className="text-[#10b981] font-semibold">{item.icon}</span>
+                <span className="text-[#10b981] font-medium">{item.icon}</span>
                 {item.text}
               </span>
             ))}
@@ -351,19 +351,19 @@ function DirectiveHeader({ row, eyebrow }: { row: DemoRow; eyebrow: string }) {
       <StockLogo ticker={row.ticker} logoUrl={row.logoUrl} market="US" size={36} />
       <div className="flex flex-col gap-0">
         <div className="flex items-center gap-2">
-          <span className="text-[18px] font-semibold tracking-[-0.01em] text-on-surface">{row.ticker}</span>
-          <span className="text-[12px] text-on-surface-variant">Technology</span>
-          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold tracking-[0.06em] uppercase tint-bull text-[#10b981]">
+          <span className="text-[18px] font-medium tracking-[-0.01em] text-oa-fg">{row.ticker}</span>
+          <span className="text-[12px] text-oa-muted-fg">Technology</span>
+          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-medium tracking-[0.06em] uppercase tint-bull text-[#10b981]">
             <span aria-hidden className="h-1 w-1 rounded-full bg-[#10b981]" />
             Holding
           </span>
         </div>
         <div className="flex items-baseline gap-2">
-          <span className="text-[13px] font-semibold tabular-nums text-on-surface">{fmtPrice(row.price)}</span>
-          <span className={`text-[12px] font-semibold tabular-nums ${positive ? "text-[#10b981]" : "text-[#ef4444]"}`}>
+          <span className="text-[13px] font-medium tabular-nums text-oa-fg">{fmtPrice(row.price)}</span>
+          <span className={`text-[12px] font-medium tabular-nums ${positive ? "text-[#10b981]" : "text-[#ef4444]"}`}>
             {fmtPct(row.changePct)}
           </span>
-          <span className="text-[10px] font-semibold tracking-[0.1em] uppercase text-on-surface-variant">
+          <span className="text-[10px] font-medium tracking-[0.1em] uppercase text-oa-muted-fg">
             {eyebrow}
           </span>
         </div>
@@ -376,13 +376,13 @@ function PrimaryDirectiveCard({ row }: { row: DemoRow }) {
   const meta = STANCE_META[row.stance];
   return (
     <div
-      className="relative overflow-hidden rounded-3xl border border-outline-variant p-6 md:p-8 flex flex-col gap-4"
+      className="relative overflow-hidden rounded-3xl border border-oa-border p-6 md:p-8 flex flex-col gap-4"
       style={{ background: meta.bg }}
     >
       {/* Watermark ticker */}
       <span
         aria-hidden
-        className="absolute right-4 top-2 select-none text-[120px] font-semibold tracking-tighter leading-none opacity-[0.06]"
+        className="absolute right-4 top-2 select-none text-[120px] font-medium tracking-tighter leading-none opacity-[0.06]"
         style={{ color: meta.fg }}
       >
         {row.ticker}
@@ -391,22 +391,22 @@ function PrimaryDirectiveCard({ row }: { row: DemoRow }) {
       <div className="flex items-center justify-between flex-wrap gap-3 relative z-10">
         <div className="flex items-center gap-3 flex-wrap">
           <span
-            className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold tracking-[0.06em] uppercase"
+            className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium tracking-[0.06em] uppercase"
             style={{ background: meta.dot, color: "var(--surface)" }}
           >
             {row.stanceLabel}
           </span>
-          <span className="text-[11px] font-semibold tracking-[0.12em] uppercase" style={{ color: meta.fg, opacity: 0.7 }}>
+          <span className="text-[11px] font-medium tracking-[0.12em] uppercase" style={{ color: meta.fg, opacity: 0.7 }}>
             Strategic directive · High confidence
           </span>
         </div>
-        <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold" style={{ color: "#0052ff" }}>
+        <span className="inline-flex items-center gap-1.5 text-[12px] font-medium" style={{ color: "var(--oa-primary)" }}>
           🔔 Set alert above $410.00
         </span>
       </div>
 
       <h3
-        className="text-[28px] md:text-[36px] font-semibold tracking-[-0.025em] leading-[1.15] max-w-[680px] relative z-10"
+        className="text-[28px] md:text-[36px] font-medium tracking-[-0.025em] leading-[1.15] max-w-[680px] relative z-10"
         style={{ color: meta.fg }}
       >
         Accumulate on dips below $410
@@ -425,7 +425,7 @@ function PrimaryDirectiveCard({ row }: { row: DemoRow }) {
         {["RSI cooling from 72 → 61", "Earnings May 20 AMC", "Insider buying $2.1M"].map((s) => (
           <span
             key={s}
-            className="inline-flex items-center rounded-lg px-2.5 py-1 text-[11px] font-semibold"
+            className="inline-flex items-center rounded-lg px-2.5 py-1 text-[11px] font-medium"
             style={{ background: meta.fg + "18", color: meta.fg }}
           >
             {s}
@@ -440,15 +440,15 @@ function SecondaryDirectiveCard({ row }: { row: DemoRow }) {
   const meta = STANCE_META[row.stance];
   const positive = row.changePct >= 0;
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-outline-variant bg-surface p-4 flex flex-col gap-3 h-full">
+    <div className="relative overflow-hidden rounded-2xl border border-oa-border bg-oa-card p-4 flex flex-col gap-3 h-full">
       <div className="flex items-center justify-between gap-2">
         <span
-          className="inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold tracking-[0.1em] uppercase"
+          className="inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-medium tracking-[0.1em] uppercase"
           style={{ background: meta.dot, color: "var(--surface)" }}
         >
           {row.stanceLabel}
         </span>
-        <span className={`text-[11px] font-semibold tabular-nums ${positive ? "text-[#10b981]" : "text-[#ef4444]"}`}>
+        <span className={`text-[11px] font-medium tabular-nums ${positive ? "text-[#10b981]" : "text-[#ef4444]"}`}>
           {fmtPct(row.changePct)}
         </span>
       </div>
@@ -457,19 +457,19 @@ function SecondaryDirectiveCard({ row }: { row: DemoRow }) {
         <StockLogo ticker={row.ticker} logoUrl={row.logoUrl} market="US" size={32} />
         <div className="flex flex-col min-w-0">
           <div className="flex items-center gap-1.5">
-            <span className="text-[14px] font-semibold text-on-surface">{row.ticker}</span>
-            <span className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.06em] uppercase bg-surface-container text-on-surface-variant">
+            <span className="text-[14px] font-medium text-oa-fg">{row.ticker}</span>
+            <span className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-medium tracking-[0.06em] uppercase bg-oa-accent text-oa-muted-fg">
               {row.position === "holding" ? "Holding" : "Watching"}
             </span>
           </div>
           <div className="flex items-baseline gap-1.5">
-            <span className="text-[12px] font-semibold tabular-nums text-on-surface">{fmtPrice(row.price)}</span>
-            <span className="text-[11px] text-on-surface-variant">Technology</span>
+            <span className="text-[12px] font-medium tabular-nums text-oa-fg">{fmtPrice(row.price)}</span>
+            <span className="text-[11px] text-oa-muted-fg">Technology</span>
           </div>
         </div>
       </div>
 
-      <p className="text-[13px] font-medium text-on-surface leading-snug mt-auto">
+      <p className="text-[13px] font-medium text-oa-fg leading-snug mt-auto">
         {row.stance === "accumulate" ? "Accumulate on dips below recent support." :
          row.stance === "trim"       ? "Trim into strength above resistance." :
          row.stance === "avoid"      ? "Avoid until turnaround shows in earnings." :

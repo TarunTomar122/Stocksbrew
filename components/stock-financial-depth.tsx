@@ -256,9 +256,7 @@ export function StockOperatingRecord({ facts, currency = "$" }: Pick<Props, "fac
   const history = useMemo(() => [...(facts?.financial_history ?? [])].reverse(), [facts?.financial_history]);
   const series = useMemo(() => chartSeries(mode, history), [history, mode]);
   const periods = history.map((row) => row.period);
-  const hasMix = Boolean(facts?.business_segments?.items?.length);
-
-  if (history.length < 2 && !hasMix) return null;
+  if (history.length < 2) return null;
 
   return (
     <div className="flex flex-col gap-10">
@@ -301,12 +299,6 @@ export function StockOperatingRecord({ facts, currency = "$" }: Pick<Props, "fac
         </div>
       ) : null}
 
-      {hasMix ? (
-        <div className="grid gap-10 sm:grid-cols-2 sm:gap-14">
-          <MixBreakdown title="Business mix" mix={facts?.business_segments} currency={currency} />
-          <MixBreakdown title="Geographic mix" mix={facts?.geographic_mix} currency={currency} />
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -456,93 +448,50 @@ export function StockFinancialDepth({ facts, currency = "$", intelPro }: Props) 
 
   if (!hasBalance && !hasRatios) return null;
 
-  const forwardPeGuidance = guidanceFromMetric(matchingMetric(intelPro, ["Forward P/E"])) ?? bandGuidance(valuation?.forward_pe, { green: 20, yellow: 35, lowerIsBetter: true, greenCopy: "Priced cheaper than most earnings-growth stocks", yellowCopy: "Priced about average for its growth rate", redCopy: "Priced for strong growth that still has to show up" });
-  const priceSalesGuidance = bandGuidance(valuation?.price_to_sales, { green: 3, yellow: 8, lowerIsBetter: true, greenCopy: "Priced modestly against the revenue it brings in", yellowCopy: "Priced reasonably against its revenue", redCopy: "Priced well above what its revenue alone supports" });
-  const priceFcfGuidance = bandGuidance(valuation?.price_to_fcf, { green: 20, yellow: 35, lowerIsBetter: true, greenCopy: "Priced well within what its cash flow supports", yellowCopy: "Priced a bit rich against its cash flow", redCopy: "Priced far above what its cash flow currently supports" });
-  const evEbitdaGuidance = bandGuidance(valuation?.ev_to_ebitda, { green: 12, yellow: 22, lowerIsBetter: true, greenCopy: "Operating earnings comfortably support this price", yellowCopy: "Operating earnings make this price a stretch but plausible", redCopy: "Operating earnings don't yet support this price" });
-  const roicGuidance = bandGuidance(quality?.roic_pct, { green: 15, yellow: 8, greenCopy: "Comfortably clears the bar for efficient capital use", yellowCopy: "A middling return on the capital it puts to work", redCopy: "Struggling to earn much on the capital it uses" });
-  const roeGuidance = guidanceFromMetric(matchingMetric(intelPro, ["ROE", "Return on equity"])) ?? bandGuidance(quality?.roe_pct, { green: 20, yellow: 10, greenCopy: "Strong returns on shareholders' money", yellowCopy: "Average returns on shareholders' money", redCopy: "Weak returns on shareholders' money" });
-  const debtEquityGuidance = guidanceFromMetric(matchingMetric(intelPro, ["Debt / Equity", "Debt to equity"])) ?? bandGuidance(quality?.debt_to_equity, { green: 0.5, yellow: 1.5, lowerIsBetter: true, greenCopy: "Very little debt relative to equity", yellowCopy: "A moderate amount of debt to manage", redCopy: "Carrying more debt than equity can comfortably absorb" });
-  const currentRatioGuidance = bandGuidance(quality?.current_ratio, { green: 1.5, yellow: 1, greenCopy: "Comfortable room to cover bills due within a year", yellowCopy: "Just enough on hand to cover near-term bills", redCopy: "Not enough on hand to cover near-term bills" });
-  const ratioPoints = [
-    { label: "Forward P/E", guidance: forwardPeGuidance },
-    { label: "Price / sales", guidance: priceSalesGuidance },
-    { label: "Price / FCF", guidance: priceFcfGuidance },
-    { label: "EV / EBITDA", guidance: evEbitdaGuidance },
-    { label: "ROIC", guidance: roicGuidance },
-    { label: "ROE", guidance: roeGuidance },
-    { label: "Debt / equity", guidance: debtEquityGuidance },
-    { label: "Current ratio", guidance: currentRatioGuidance },
-  ];
-  const pointCopy = ({ label, guidance }: { label: string; guidance: Guidance }) =>
-    `${label}: ${practicalTakeaway(label, guidance.signal)}`;
-  const netCashPoint = finite(balance?.net_cash)
-    ? {
-        signal: balance.net_cash >= 0 ? "green" : "red" as StockIntelSignal,
-        text: balance.net_cash >= 0
-          ? `Cash exceeds debt by ${compactMoney(balance.net_cash, currency)}, leaving a net cash buffer, a good sign.`
-          : `Debt exceeds cash by ${compactMoney(Math.abs(balance.net_cash), currency)}, increasing balance-sheet pressure, a warning sign.`,
-      }
-    : null;
-  const goodPoints = [
-    ...(netCashPoint?.signal === "green" ? [netCashPoint.text] : []),
-    ...ratioPoints.filter((item) => item.guidance.signal === "green").map(pointCopy),
-  ].slice(0, 2);
-  const badPoints = [
-    ...(netCashPoint?.signal === "red" ? [netCashPoint.text] : []),
-    ...ratioPoints.filter((item) => item.guidance.signal === "red").map(pointCopy),
-  ].slice(0, 2);
+  const forwardPeGuidance = guidanceFromMetric(matchingMetric(intelPro, ["Forward P/E"])) ?? bandGuidance(valuation?.forward_pe, { green: 20, yellow: 35, lowerIsBetter: true, greenCopy: "Cheaper than peers", yellowCopy: "Average valuation", redCopy: "Expensive growth bet" });
+  const priceSalesGuidance = bandGuidance(valuation?.price_to_sales, { green: 3, yellow: 8, lowerIsBetter: true, greenCopy: "Low price-to-sales", yellowCopy: "Fair sales multiple", redCopy: "Overpriced by revenue" });
+  const priceFcfGuidance = bandGuidance(valuation?.price_to_fcf, { green: 20, yellow: 35, lowerIsBetter: true, greenCopy: "Cash flow supports price", yellowCopy: "Fair cash flow price", redCopy: "Expensive vs. cash flow" });
+  const evEbitdaGuidance = bandGuidance(valuation?.ev_to_ebitda, { green: 12, yellow: 22, lowerIsBetter: true, greenCopy: "Earnings support price", yellowCopy: "Moderate earnings multiple", redCopy: "Earnings can't support price" });
+  const roicGuidance = bandGuidance(quality?.roic_pct, { green: 15, yellow: 8, greenCopy: "Excellent capital returns", yellowCopy: "Average capital returns", redCopy: "Weak capital efficiency" });
+  const roeGuidance = guidanceFromMetric(matchingMetric(intelPro, ["ROE", "Return on equity"])) ?? bandGuidance(quality?.roe_pct, { green: 20, yellow: 10, greenCopy: "Strong shareholder returns", yellowCopy: "Average shareholder returns", redCopy: "Weak shareholder returns" });
+  const debtEquityGuidance = guidanceFromMetric(matchingMetric(intelPro, ["Debt / Equity", "Debt to equity"])) ?? bandGuidance(quality?.debt_to_equity, { green: 0.5, yellow: 1.5, lowerIsBetter: true, greenCopy: "Low debt, strong balance", yellowCopy: "Moderate debt levels", redCopy: "Too much debt" });
+  const currentRatioGuidance = bandGuidance(quality?.current_ratio, { green: 1.5, yellow: 1, greenCopy: "Good liquidity position", yellowCopy: "Tight cash position", redCopy: "Low cash for bills" });
+
+  const ratios = hasRatios ? [
+    { label: "Forward P/E", value: ratio(valuation?.forward_pe), guidance: forwardPeGuidance },
+    { label: "Price / sales", value: ratio(valuation?.price_to_sales), guidance: priceSalesGuidance },
+    { label: "Price / FCF", value: ratio(valuation?.price_to_fcf), guidance: priceFcfGuidance },
+    { label: "EV / EBITDA", value: ratio(valuation?.ev_to_ebitda), guidance: evEbitdaGuidance },
+    { label: "ROIC", value: pct(quality?.roic_pct), guidance: roicGuidance },
+    { label: "ROE", value: pct(quality?.roe_pct), guidance: roeGuidance },
+    { label: "Debt / equity", value: ratio(quality?.debt_to_equity), guidance: debtEquityGuidance },
+    { label: "Current ratio", value: ratio(quality?.current_ratio), guidance: currentRatioGuidance },
+  ] : [];
+
+  const goodThings = ratios.filter((r) => r.guidance.signal === "green");
+  const badThings = ratios.filter((r) => r.guidance.signal === "red");
 
   return (
     <section id="stock-financial-depth" className="flex flex-col gap-12 bg-transparent">
-      {(goodPoints.length > 0 || badPoints.length > 0) ? (
-        <section className="grid gap-6 sm:grid-cols-2">
-          {goodPoints.length ? (
-            <div className="rounded-xl border border-outline-variant bg-surface-container-low/50 p-5 sm:p-6">
-              <h3 className="text-[17px] font-medium text-on-surface">What&apos;s working</h3>
-              <ul className="mt-4 space-y-4 border-t border-outline-variant pt-4">
-                {goodPoints.map((text, index) => (
-                  <li key={index} className="flex gap-2.5 text-[15px] leading-relaxed text-on-surface text-pretty">
-                    <span aria-hidden className="mt-[0.55rem] h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: SIGNAL_COLOR.green }} />
-                    <span>{text}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-          {badPoints.length ? (
-            <div className="rounded-xl border border-outline-variant bg-surface-container-low/50 p-5 sm:p-6">
-              <h3 className="text-[17px] font-medium text-on-surface">What to watch</h3>
-              <ul className="mt-4 space-y-4 border-t border-outline-variant pt-4">
-                {badPoints.map((text, index) => (
-                  <li key={index} className="flex gap-2.5 text-[15px] leading-relaxed text-on-surface text-pretty">
-                    <span aria-hidden className="mt-[0.55rem] h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: SIGNAL_COLOR.red }} />
-                    <span>{text}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-        </section>
-      ) : null}
-
       {hasRatios ? (
         <section>
           <div className="grid gap-8 sm:grid-cols-2">
-            <div>
-              <h3 className="border-b border-outline-variant pb-2.5 text-[16px] font-medium text-on-surface">What the market charges</h3>
-              <RatioRow label="Forward P/E" value={ratio(valuation?.forward_pe)} guidance={forwardPeGuidance} />
-              <RatioRow label="Price / sales" value={ratio(valuation?.price_to_sales)} guidance={priceSalesGuidance} />
-              <RatioRow label="Price / FCF" value={ratio(valuation?.price_to_fcf)} guidance={priceFcfGuidance} />
-              <RatioRow label="EV / EBITDA" value={ratio(valuation?.ev_to_ebitda)} guidance={evEbitdaGuidance} />
-            </div>
-            <div>
-              <h3 className="border-b border-outline-variant pb-2.5 text-[16px] font-medium text-on-surface">How efficiently it compounds</h3>
-              <RatioRow label="ROIC" value={pct(quality?.roic_pct)} guidance={roicGuidance} />
-              <RatioRow label="ROE" value={pct(quality?.roe_pct)} guidance={roeGuidance} />
-              <RatioRow label="Debt / equity" value={ratio(quality?.debt_to_equity)} guidance={debtEquityGuidance} />
-              <RatioRow label="Current ratio" value={ratio(quality?.current_ratio)} guidance={currentRatioGuidance} />
-            </div>
+            {goodThings.length > 0 && (
+              <div>
+                <h3 className="border-b border-emerald-600/30 pb-2.5 text-[16px] font-medium text-on-surface">✓ Good things about the company</h3>
+                {goodThings.map((r) => (
+                  <RatioRow key={r.label} label={r.label} value={r.value} guidance={r.guidance} />
+                ))}
+              </div>
+            )}
+            {badThings.length > 0 && (
+              <div>
+                <h3 className="border-b border-red-600/30 pb-2.5 text-[16px] font-medium text-on-surface">⚠ Things to watch</h3>
+                {badThings.map((r) => (
+                  <RatioRow key={r.label} label={r.label} value={r.value} guidance={r.guidance} />
+                ))}
+              </div>
+            )}
           </div>
         </section>
       ) : null}

@@ -28,7 +28,7 @@ export function LandingFinalCta({
         />
       </div>
       <p className="mt-3 text-[11px] font-medium text-[#6b7280]">
-        3 days free on monthly or yearly. Cancel anytime. Not investment advice.
+        3 days free, then $9/month. Cancel anytime. Not investment advice.
       </p>
     </section>
   );
