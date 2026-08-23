@@ -95,44 +95,41 @@ function MatchRow({ row, market }: { row: ScreenMatchRow; market: "US" | "IN" })
   const change = row.day_change_pct;
   const up = typeof change === "number" && change > 0;
   const down = typeof change === "number" && change < 0;
-  const tone = up
-    ? "bg-[#ecfdf5] text-[#10b981]"
-    : down
-      ? "bg-[#fef2f2] text-[#ef4444]"
-      : "bg-[#f3f4f6] text-[#6b7280]";
+  const toneColor = up ? "var(--signal-bullish)" : down ? "var(--signal-bearish)" : "var(--oa-muted-fg)";
 
   return (
     <Link
       href={`/stock/${encodeURIComponent(row.ticker)}`}
-      className="grid grid-cols-[1.6fr_0.6fr_0.8fr_0.9fr] items-center gap-4 px-5 py-3.5 border-t border-[#f3f4f6] hover:bg-[#f8f9fa] transition-colors"
+      className="grid grid-cols-[1.6fr_0.6fr_0.8fr_0.9fr] items-center gap-4 px-5 py-3.5 border-t border-oa-border hover:bg-oa-accent transition-colors"
     >
       <div className="flex items-center gap-3 min-w-0">
         <StockLogo ticker={row.ticker} logoUrl={row.logo_url} market={market} size={36} />
         <div className="flex flex-col min-w-0">
-          <span className="text-[14px] font-semibold text-[#111111] truncate">
+          <span className="text-[14px] font-medium text-oa-fg truncate">
             {row.ticker}
           </span>
-          <span className="text-[11px] text-[#6b7280] truncate">
+          <span className="text-[11px] text-oa-muted-fg truncate">
             {row.name ?? row.sector ?? ""}
           </span>
         </div>
       </div>
       <div className="hidden sm:flex flex-col items-end">
-        <span className="text-[10px] font-semibold tracking-[0.1em] uppercase text-[#9ca3af]">
+        <span className="text-[10px] font-medium tracking-[0.1em] uppercase text-oa-muted-fg">
           Score
         </span>
-        <span className="text-[14px] font-semibold text-[#111111] tabular-nums">
+        <span className="text-[14px] font-medium text-oa-fg tabular-nums">
           {typeof row.overall_score === "number"
             ? Math.round(row.overall_score)
             : "-"}
         </span>
       </div>
-      <span className="text-[14px] font-medium text-[#111111] tabular-nums text-right">
+      <span className="text-[14px] font-medium text-oa-fg tabular-nums text-right">
         {fmtPrice(row.price)}
       </span>
       <div className="flex justify-end">
         <span
-          className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[12px] font-semibold tabular-nums ${tone}`}
+          className="inline-flex items-center gap-1 rounded-md bg-oa-bg px-2 py-1 text-[12px] font-medium tabular-nums"
+          style={{ color: toneColor }}
         >
           {up ? "▲" : down ? "▼" : "•"} {fmtPct(change)}
         </span>
@@ -165,15 +162,15 @@ export function ThematicScreens({ doc, market, isSubscribed }: Props) {
     <section>
       <div className="flex items-baseline justify-between gap-3 flex-wrap mb-5">
         <div>
-          <h2 className="inline-flex items-center gap-2 text-[18px] md:text-[20px] font-semibold text-[#111111] tracking-[-0.01em]">
+          <h2 className="inline-flex items-center gap-2 text-[18px] md:text-[20px] font-medium text-oa-fg tracking-[-0.01em]">
             Screens worth watching
             <ProBadge isSubscribed={isSubscribed} />
           </h2>
-          <p className="text-[13px] text-[#6b7280] mt-1.5 leading-relaxed">
+          <p className="text-[13px] text-oa-muted-fg mt-1.5 leading-relaxed">
             Curated screens based on growth, momentum, quality and valuation. Skip the screener.
           </p>
         </div>
-        <span className="text-[12px] text-[#9ca3af]">
+        <span className="text-[12px] text-oa-muted-fg">
           {relativeTime(doc?.generated_at) ? `Updated ${relativeTime(doc?.generated_at)}` : "Updated daily"}
         </span>
       </div>
@@ -189,17 +186,15 @@ export function ThematicScreens({ doc, market, isSubscribed }: Props) {
               key={screen.id}
               type="button"
               onClick={() => setActiveId(screen.id)}
-              className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-[13px] font-semibold transition-colors ${
+              className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-[13px] font-medium transition-colors ${
                 isActive
-                  ? "bg-[#111111] text-white"
-                  : "bg-white text-[#111111] border border-[#e5e7eb] hover:border-[#111111]"
+                  ? "bg-oa-primary text-white"
+                  : "bg-oa-card text-oa-fg border border-oa-border hover:border-oa-fg/30"
               }`}
             >
               {isHouse && (
                 <span
-                  className={`text-[12px] leading-none ${
-                    isActive ? "text-[#c7d2fe]" : "text-[#7c3aed]"
-                  }`}
+                  className={`text-[12px] leading-none ${isActive ? "text-white/70" : "text-oa-primary"}`}
                   aria-hidden
                 >
                   ✦
@@ -207,10 +202,10 @@ export function ThematicScreens({ doc, market, isSubscribed }: Props) {
               )}
               <span>{label}</span>
               <span
-                className={`text-[10px] font-semibold tabular-nums rounded-full px-1.5 py-0.5 ${
+                className={`text-[10px] font-medium tabular-nums rounded-full px-1.5 py-0.5 ${
                   isActive
                     ? "bg-white/20 text-white"
-                    : "bg-[#f3f4f6] text-[#6b7280]"
+                    : "bg-oa-bg text-oa-muted-fg"
                 }`}
               >
                 {screen.match_count}
@@ -220,22 +215,22 @@ export function ThematicScreens({ doc, market, isSubscribed }: Props) {
         })}
       </div>
 
-      <div className="rounded-[24px] border border-[#e5e7eb] bg-white overflow-hidden">
+      <div className="rounded-[24px] border border-oa-border bg-oa-card overflow-hidden">
         <div className="flex items-baseline justify-between gap-3 flex-wrap px-5 pt-5">
           <div className="flex flex-col gap-1">
-            <h3 className="text-[16px] font-semibold text-[#111111] tracking-[-0.01em]">
+            <h3 className="text-[16px] font-medium text-oa-fg tracking-[-0.01em]">
               {copy.title}
             </h3>
-            <p className="text-[13px] text-[#6b7280] leading-relaxed">
+            <p className="text-[13px] text-oa-muted-fg leading-relaxed">
               {copy.subtitle}
             </p>
           </div>
-          <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#9ca3af]">
+          <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-oa-muted-fg">
             {uniqueMatches.length} {uniqueMatches.length === 1 ? "match" : "matches"}
           </span>
         </div>
 
-        <div className="grid grid-cols-[1.6fr_0.6fr_0.8fr_0.9fr] gap-4 px-5 pt-5 pb-2 text-[10px] font-semibold tracking-[0.12em] uppercase text-[#9ca3af]">
+        <div className="grid grid-cols-[1.6fr_0.6fr_0.8fr_0.9fr] gap-4 px-5 pt-5 pb-2 text-[10px] font-medium tracking-[0.12em] uppercase text-oa-muted-fg">
           <span>Stock</span>
           <span className="hidden sm:block text-right">Score</span>
           <span className="text-right">Price</span>
@@ -249,11 +244,11 @@ export function ThematicScreens({ doc, market, isSubscribed }: Props) {
         </div>
 
         {showLock && (
-          <div className="border-t border-[#e5e7eb] bg-gradient-to-b from-white to-[#f9fafb] px-5 py-7 text-center">
-            <p className="text-[14px] font-semibold text-[#111111]">
+          <div className="border-t border-oa-border bg-oa-bg px-5 py-7 text-center">
+            <p className="text-[14px] font-medium text-oa-fg">
               {lockedCount} more {lockedCount === 1 ? "match" : "matches"} on this screen
             </p>
-            <p className="mt-1 text-[13px] text-[#6b7280] max-w-[420px] mx-auto leading-relaxed">
+            <p className="mt-1 text-[13px] text-oa-muted-fg max-w-[420px] mx-auto leading-relaxed">
               Subscribe to unlock the full list, updated daily.
             </p>
             <ProCtaLink href="/subscribe" className="mt-4" showStar>
@@ -265,7 +260,7 @@ export function ThematicScreens({ doc, market, isSubscribed }: Props) {
         {isSubscribed && uniqueMatches.length > HOME_SCREEN_ROWS_PRO && (
           <Link
             href={`/screens/${active.id}?market=${market}`}
-            className="flex items-center justify-center gap-1 border-t border-[#f3f4f6] px-5 py-3 text-[13px] font-semibold text-[#0052ff] hover:bg-[#f8f9fa] transition-colors"
+            className="flex items-center justify-center gap-1 border-t border-oa-border px-5 py-3 text-[13px] font-medium text-oa-primary hover:bg-oa-accent transition-colors"
           >
             See all {uniqueMatches.length} matches →
           </Link>
@@ -273,7 +268,7 @@ export function ThematicScreens({ doc, market, isSubscribed }: Props) {
         {!isSubscribed && uniqueMatches.length <= HOME_SCREEN_ROWS_FREE && uniqueMatches.length > 0 && (
           <Link
             href={`/screens/${active.id}?market=${market}`}
-            className="flex items-center justify-center gap-1 border-t border-[#f3f4f6] px-5 py-3 text-[13px] font-semibold text-[#0052ff] hover:bg-[#f8f9fa] transition-colors"
+            className="flex items-center justify-center gap-1 border-t border-oa-border px-5 py-3 text-[13px] font-medium text-oa-primary hover:bg-oa-accent transition-colors"
           >
             Open screen →
           </Link>
