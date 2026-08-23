@@ -50,16 +50,16 @@ const SECTOR_COLORS = [
 ];
 
 const VERDICT_META: Record<string, { bg: string; text: string; label: string }> = {
-  strong: { bg: "#ecfdf5", text: "#065f46", label: "Strong" },
-  solid:  { bg: "#d1fae5", text: "#065f46", label: "Solid" },
-  mixed:  { bg: "#fef3c7", text: "#92400e", label: "Mixed" },
-  weak:   { bg: "#fef2f2", text: "#991b1b", label: "Weak" },
+  strong: { bg: "var(--oa-bg)", text: "var(--signal-bullish)", label: "Strong" },
+  solid:  { bg: "var(--oa-bg)", text: "var(--signal-bullish)", label: "Solid" },
+  mixed:  { bg: "var(--oa-bg)", text: "var(--signal-neutral)", label: "Mixed" },
+  weak:   { bg: "var(--oa-bg)", text: "var(--signal-bearish)", label: "Weak" },
 };
 
 const RISK_META: Record<string, { icon: string; bg: string }> = {
-  sector_concentration: { icon: "📊", bg: "#fef3c7" },
-  low_score:            { icon: "⚠️", bg: "#fef2f2" },
-  overbought:           { icon: "📈", bg: "#fef2f2" },
+  sector_concentration: { icon: "📊", bg: "var(--oa-bg)" },
+  low_score:            { icon: "⚠️", bg: "var(--oa-bg)" },
+  overbought:           { icon: "📈", bg: "var(--oa-bg)" },
 };
 
 const OPP_META: Record<string, { icon: string }> = {
@@ -186,12 +186,12 @@ function InputSection({
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handlePasteAnalyze(); }}}
             placeholder="NVDA, AAPL, MSFT, GOOGL, AMZN..."
             rows={3}
-            className="w-full rounded-xl border border-[var(--oa-border)] bg-[#fafafa] p-4 text-[14px] text-[var(--oa-fg)] placeholder:text-[var(--oa-muted-fg)] outline-none focus:border-[var(--oa-fg)] focus:bg-oa-card transition-all resize-none"
+            className="w-full rounded-xl border border-[var(--oa-border)] bg-oa-bg p-4 text-[14px] text-[var(--oa-fg)] placeholder:text-[var(--oa-muted-fg)] outline-none focus:border-[var(--oa-fg)] focus:bg-oa-card transition-all resize-none"
           />
           <button
             onClick={handlePasteAnalyze}
             disabled={!pasteText.trim()}
-            className="self-start inline-flex items-center h-9 rounded-full bg-[var(--oa-fg)] px-5 text-[12px] font-medium text-white hover:bg-black transition-colors disabled:opacity-40"
+            className="self-start inline-flex items-center h-9 rounded-full bg-oa-primary px-5 text-[12px] font-medium text-white transition-[filter] hover:brightness-110 disabled:opacity-40"
           >
             Add to list
           </button>
@@ -412,7 +412,7 @@ function HoldingCard({ stock, index }: { stock: PortfolioStock; index: number })
         <span className="text-[18px] font-medium tabular-nums text-[var(--oa-fg)] leading-none">
           {stock.price !== null ? `$${stock.price.toFixed(2)}` : "—"}
         </span>
-        <span className={`text-[13px] font-medium tabular-nums ${positive ? "text-[#10b981]" : "text-[#ef4444]"}`}>
+        <span className="text-[13px] font-medium tabular-nums" style={{ color: positive ? "var(--signal-bullish)" : "var(--signal-bearish)" }}>
           {fmtPct(stock.day_change_pct)}
         </span>
       </div>
@@ -436,8 +436,8 @@ function HoldingCard({ stock, index }: { stock: PortfolioStock; index: number })
             <span
               className="text-[10px] font-medium tabular-nums rounded-md px-1.5 py-0.5"
               style={{
-                background: stock.rsi >= 70 ? "#fef2f2" : stock.rsi <= 30 ? "#ecfdf5" : "var(--oa-bg)",
-                color: stock.rsi >= 70 ? "#b91c1c" : stock.rsi <= 30 ? "#047857" : "var(--oa-muted-fg)",
+                background: "var(--oa-bg)",
+                color: stock.rsi >= 70 ? "var(--signal-bearish)" : stock.rsi <= 30 ? "var(--signal-bullish)" : "var(--oa-muted-fg)",
               }}
             >
               RSI {stock.rsi.toFixed(0)}
@@ -455,13 +455,13 @@ function RiskFlagsCard({ flags, logoMap }: { flags: RiskFlag[]; logoMap: Map<str
   return (
     <div className="rounded-2xl border border-[var(--oa-border)] bg-oa-card p-5">
       <h3 className="text-[13px] font-medium text-[var(--oa-fg)] mb-3 flex items-center gap-2">
-        <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-[#fef2f2] text-[13px]">⚠️</span>
+        <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-oa-bg text-[13px]">⚠️</span>
         Risk flags
         <span className="text-[11px] font-normal text-[var(--oa-muted-fg)]">{flags.length}</span>
       </h3>
       <div className="flex flex-col gap-2">
         {flags.map((f, i) => {
-          const meta = RISK_META[f.kind] ?? { icon: "⚠️", bg: "#fef3c7" };
+          const meta = RISK_META[f.kind] ?? { icon: "⚠️", bg: "var(--oa-bg)" };
           return (
             <div key={i} className="rounded-xl px-4 py-3 flex items-center gap-3" style={{ background: meta.bg }}>
               {f.ticker ? (
@@ -486,13 +486,13 @@ function OpportunitiesCard({ opportunities, logoMap }: { opportunities: Opportun
   return (
     <div className="rounded-2xl border border-[var(--oa-border)] bg-oa-card p-5">
       <h3 className="text-[13px] font-medium text-[var(--oa-fg)] mb-3 flex items-center gap-2">
-        <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-[#ecfdf5] text-[13px]">💡</span>
+        <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-oa-bg text-[13px]">💡</span>
         Opportunities
         <span className="text-[11px] font-normal text-[var(--oa-muted-fg)]">{opportunities.length}</span>
       </h3>
       <div className="flex flex-col gap-2">
         {opportunities.map((o, i) => (
-          <div key={i} className="rounded-xl bg-[#ecfdf5] px-4 py-3 flex items-center gap-3">
+          <div key={i} className="rounded-xl bg-oa-bg px-4 py-3 flex items-center gap-3">
             <StockLogo ticker={o.ticker} logoUrl={logoMap.get(o.ticker) ?? null} market="US" size={32} />
             <div className="min-w-0">
               <p className="text-[13px] font-medium text-[var(--oa-fg)]">{o.headline}</p>
@@ -508,13 +508,13 @@ function OpportunitiesCard({ opportunities, logoMap }: { opportunities: Opportun
 function MissingTickersNote({ missing }: { missing: string[] }) {
   if (!missing.length) return null;
   return (
-    <div className="rounded-xl border border-[#fde68a] bg-[#fffbeb] px-4 py-3 flex items-start gap-2.5">
+    <div className="rounded-xl border border-oa-border bg-oa-bg px-4 py-3 flex items-start gap-2.5">
       <span className="text-[14px] mt-0.5">⚠️</span>
       <div>
-        <p className="text-[12px] font-medium text-[#92400e]">
+        <p className="text-[12px] font-medium text-oa-fg">
           Couldn&apos;t resolve: {missing.join(", ")}
         </p>
-        <p className="text-[11px] text-[#b45309] mt-0.5">
+        <p className="text-[11px] text-oa-muted-fg mt-0.5">
           These may be delisted, renamed, or not in our universe.
         </p>
       </div>
@@ -554,7 +554,7 @@ function LoadingSkeleton() {
 
 function ProCTA() {
   return (
-    <div className="rounded-3xl border border-[var(--oa-border)] bg-[#fafaf7] p-8 md:p-10 flex flex-col md:flex-row md:items-center gap-8">
+    <div className="rounded-3xl border border-[var(--oa-border)] bg-oa-bg p-8 md:p-10 flex flex-col md:flex-row md:items-center gap-8">
       <div className="flex flex-col gap-4 flex-1">
         <div className="flex flex-col gap-2">
           <span className="inline-flex items-center gap-1.5 self-start rounded-full bg-oa-card border border-[var(--oa-border)] px-3 py-1 text-[11px] font-medium text-[var(--oa-fg)]">
@@ -712,10 +712,10 @@ export function PortfolioAnalyzer({ searchIndex }: { searchIndex: SearchEntry[] 
 
       {/* ── Error ── */}
       {error && (
-        <div className="mt-6 rounded-xl border border-[#fecaca] bg-[#fef2f2] px-4 py-3 flex items-start gap-2.5">
+        <div className="mt-6 rounded-xl border border-oa-border bg-oa-bg px-4 py-3 flex items-start gap-2.5">
           <span className="text-[14px] mt-0.5">⚠️</span>
           <div>
-            <p className="text-[13px] font-medium text-[#991b1b]">{error}</p>
+            <p className="text-[13px] font-medium" style={{ color: "var(--signal-bearish)" }}>{error}</p>
             <button onClick={() => setError(null)} className="mt-1 text-[12px] text-[var(--oa-muted-fg)] hover:text-[var(--oa-fg)] transition-colors">
               ← Try again
             </button>
@@ -782,7 +782,7 @@ export function PortfolioAnalyzer({ searchIndex }: { searchIndex: SearchEntry[] 
                 .filter((id): id is string => !!id);
               if (instrumentIds.length === 0) return null;
               return (
-                <div className="rounded-2xl border border-[var(--oa-border)] bg-[#fafaf7] p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="rounded-2xl border border-[var(--oa-border)] bg-oa-bg p-5 flex flex-col sm:flex-row sm:items-center gap-4">
                   <div className="flex items-start gap-3 flex-1 min-w-0">
                     <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-oa-card border border-[var(--oa-border)] text-[16px]">📡</span>
                     <div className="flex flex-col gap-0.5 min-w-0">
