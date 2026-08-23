@@ -110,18 +110,18 @@ export function todayMasthead(): string {
 
 export function scoreToneText(score: number | null): string {
   if (score === null) return "text-[var(--oa-muted-fg)]";
-  if (score >= 80) return "text-[#10b981]";
+  if (score >= 80) return "text-[var(--signal-bullish)]";
   if (score >= 60) return "text-[var(--oa-fg)]";
   if (score >= 40) return "text-[var(--oa-muted-fg)]";
-  return "text-[#ef4444]";
+  return "text-[var(--signal-bearish)]";
 }
 
 export function scoreToneFill(score: number | null): string {
   if (score === null) return "bg-[var(--oa-border)]";
-  if (score >= 80) return "bg-[#10b981]";
+  if (score >= 80) return "bg-[var(--signal-bullish)]";
   if (score >= 60) return "bg-[var(--oa-primary)]";
-  if (score >= 40) return "bg-[#f59e0b]";
-  return "bg-[#ef4444]";
+  if (score >= 40) return "bg-[var(--signal-neutral)]";
+  return "bg-[var(--signal-bearish)]";
 }
 
 export function verdictLabel(score: number | null): string {
@@ -318,11 +318,11 @@ export function extractRunwayPct(item: Dict, headline: string): number | null {
 // =============================================================================
 
 export const STANCE_META: Record<string, { label: string; bg: string; fg: string; chipBg: string; chipFg: string }> = {
-  accumulate: { label: "Accumulate", bg: "#ecfdf5", fg: "#065f46", chipBg: "#10b981", chipFg: "#ffffff" },
-  trim: { label: "Trim", bg: "#fef3c7", fg: "#92400e", chipBg: "#f59e0b", chipFg: "#ffffff" },
-  watch: { label: "Watch", bg: "#eff6ff", fg: "#1e3a8a", chipBg: "var(--oa-primary)", chipFg: "#ffffff" },
-  avoid: { label: "Avoid", bg: "#fef2f2", fg: "#991b1b", chipBg: "#ef4444", chipFg: "#ffffff" },
-  hold: { label: "Hold", bg: "var(--oa-bg)", fg: "var(--oa-fg)", chipBg: "var(--oa-fg)", chipFg: "#ffffff" },
+  accumulate: { label: "Accumulate", bg: "var(--oa-bg)", fg: "var(--signal-bullish)", chipBg: "var(--signal-bullish)", chipFg: "#ffffff" },
+  trim: { label: "Trim", bg: "var(--oa-bg)", fg: "var(--signal-neutral)", chipBg: "var(--signal-neutral)", chipFg: "#ffffff" },
+  watch: { label: "Watch", bg: "var(--oa-bg)", fg: "var(--oa-primary)", chipBg: "var(--oa-primary)", chipFg: "#ffffff" },
+  avoid: { label: "Avoid", bg: "var(--oa-bg)", fg: "var(--signal-bearish)", chipBg: "var(--signal-bearish)", chipFg: "#ffffff" },
+  hold: { label: "Hold", bg: "var(--oa-bg)", fg: "var(--oa-muted-fg)", chipBg: "var(--oa-muted-fg)", chipFg: "#ffffff" },
 };
 
 export const CLUSTER_COLORS = ["var(--oa-primary)", "#10b981", "#b45309", "#7c3aed", "#ef4444"];
@@ -356,12 +356,12 @@ export function SectionOpener({ number, title, meta, refreshing }: {
   number: string; title: string; meta?: string; refreshing?: boolean;
 }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 border-t border-[#ececea] pt-8">
+    <div className="flex items-baseline justify-between gap-3 border-t border-oa-border pt-8">
       <div className="flex items-baseline gap-3">
         <span className="text-[11px] font-medium tracking-[0.12em] uppercase text-[var(--oa-muted-fg)] tabular-nums">
           § {number}
         </span>
-        <h2 className="text-[22px] md:text-[24px] font-medium tracking-[-0.02em] text-[#0a0a0a]">
+        <h2 className="text-[22px] md:text-[24px] font-medium tracking-[-0.02em] text-oa-fg">
           {title}
         </h2>
         {refreshing && (
@@ -402,7 +402,7 @@ export function PositionPill({ type }: { type?: string }) {
 export function LiveTape({ items }: { items: TapeItem[] }) {
   const doubled = [...items, ...items];
   return (
-    <div className="relative overflow-hidden border-y border-[#ececea] bg-[#fafaf7] py-2">
+    <div className="relative overflow-hidden border-y border-oa-border bg-[#fafaf7] py-2">
       <div className="radar-tape flex shrink-0 items-center gap-8 whitespace-nowrap">
         {doubled.map((item, i) => {
           const color = item.tone === "bull" ? "#047857" : item.tone === "bear" ? "#b91c1c" : "var(--oa-muted-fg)";
@@ -410,7 +410,7 @@ export function LiveTape({ items }: { items: TapeItem[] }) {
             <Link key={`tape-${i}-${item.ticker}`} href={`/stock/${encodeURIComponent(item.ticker)}`}
               className="inline-flex items-center gap-2 text-[12px] font-medium tabular-nums hover:underline">
               <span aria-hidden className="h-1.5 w-1.5 rounded-full" style={{ background: color }} />
-              <span className="font-medium text-[#0a0a0a]">{item.ticker}</span>
+              <span className="font-medium text-oa-fg">{item.ticker}</span>
               <span style={{ color }}>{item.body}</span>
             </Link>
           );
@@ -438,7 +438,7 @@ export function HeaderStrip({ rows, builtAt, pulse, tapeItems, isSubscribed, tra
             stocksbrew · {todayMasthead()}
           </span>
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-[32px] md:text-[40px] font-medium tracking-[-0.025em] text-[#0a0a0a] leading-none">Watchlist</h1>
+            <h1 className="text-[32px] md:text-[40px] font-medium tracking-[-0.025em] text-oa-fg leading-none">Watchlist</h1>
             {!isSubscribed && (
               <Link href="/subscribe"
                 className="inline-flex items-center gap-1.5 rounded-full border border-[#fde68a] bg-[#fffbeb] px-2.5 py-1 text-[11px] font-medium text-[#92400e] hover:border-[#f59e0b] transition-colors">
@@ -565,7 +565,7 @@ function PreopenSetupCard({ setup }: { setup: WatchlistTodaySetup }) {
     <div className="rounded-[24px] border border-[#dbe7ff] bg-[linear-gradient(180deg,#f8fbff_0%,#ffffff_100%)] px-5 py-5 md:px-6 md:py-6 shadow-[0_1px_0_rgba(0,82,255,0.06)]">
       <div className="flex flex-col gap-2">
         <span className="text-[11px] font-medium tracking-[0.12em] uppercase text-[#5b6f99]">Before open</span>
-        <h3 className="text-[22px] font-medium tracking-[-0.02em] text-[#0a0a0a]">{setup.headline}</h3>
+        <h3 className="text-[22px] font-medium tracking-[-0.02em] text-oa-fg">{setup.headline}</h3>
         {setup.body && !signals.length ? <p className="max-w-[900px] text-[15px] leading-[1.65] text-[var(--oa-fg)]">{compact(setup.body, 160)}</p> : null}
       </div>
       {threads.length > 0 ? (
@@ -588,7 +588,7 @@ function PreopenSetupCard({ setup }: { setup: WatchlistTodaySetup }) {
               >
                 <div className="grid gap-3 md:grid-cols-[72px_minmax(0,1fr)] md:items-start">
                   <div className="flex items-center gap-2 md:flex-col md:items-start md:gap-1">
-                    <span className="text-[16px] font-medium text-[#0a0a0a]">{signal.ticker}</span>
+                    <span className="text-[16px] font-medium text-oa-fg">{signal.ticker}</span>
                     <PositionPill type={signal.position_type} />
                   </div>
                   <div className="min-w-0">
@@ -620,7 +620,7 @@ function PrimaryDirectiveHeader({ row }: { row: WatchlistRow }) {
     attentionKind === "move" ? "bg-[#fef3c7] text-[#92400e]"
     : attentionKind === "risk" ? "bg-[#fef2f2] text-[#991b1b]"
     : attentionKind === "opportunity" ? "bg-[#ecfdf5] text-[#065f46]"
-    : attentionKind === "news" ? "bg-[#eff6ff] text-[#1e3a8a]"
+    : attentionKind === "news" ? "bg-oa-bg text-oa-primary"
     : "bg-[var(--oa-bg)] text-[var(--oa-muted-fg)]";
   const priceStr = typeof row.price === "number"
     ? `${symbol}${row.price.toLocaleString(undefined, {
@@ -632,7 +632,7 @@ function PrimaryDirectiveHeader({ row }: { row: WatchlistRow }) {
         <StockLogo ticker={row.ticker} logoUrl={row.logo_url} market={market} size={36} />
         <div className="flex flex-col gap-0">
           <div className="flex items-center gap-2">
-            <span className="text-[18px] font-medium tracking-[-0.01em] text-[#0a0a0a] group-hover:text-[var(--oa-primary)] transition-colors">{row.ticker}</span>
+            <span className="text-[18px] font-medium tracking-[-0.01em] text-oa-fg group-hover:text-[var(--oa-primary)] transition-colors">{row.ticker}</span>
             {attention !== undefined && attention !== null && (
               <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-medium tracking-[0.06em] uppercase ${attentionColor}`}>
                 <span aria-hidden className="h-1 w-1 rounded-full bg-current opacity-60" />{attention}
@@ -648,7 +648,7 @@ function PrimaryDirectiveHeader({ row }: { row: WatchlistRow }) {
             )}
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-[13px] font-medium tabular-nums text-[#0a0a0a]">{priceStr}</span>
+            <span className="text-[13px] font-medium tabular-nums text-oa-fg">{priceStr}</span>
             {typeof row.day_change_pct === "number" && (
               <span className={`text-[12px] font-medium tabular-nums ${positive ? "text-[#047857]" : "text-[#b91c1c]"}`}>
                 {positive ? "+" : ""}{dayChange.toFixed(2)}%
@@ -674,7 +674,7 @@ function SecondaryDirectiveCard({ row, directive }: { row: WatchlistRow; directi
     attentionKind === "move" ? "bg-[#fef3c7] text-[#92400e]"
     : attentionKind === "risk" ? "bg-[#fef2f2] text-[#991b1b]"
     : attentionKind === "opportunity" ? "bg-[#ecfdf5] text-[#065f46]"
-    : attentionKind === "news" ? "bg-[#eff6ff] text-[#1e3a8a]"
+    : attentionKind === "news" ? "bg-oa-bg text-oa-primary"
     : "bg-[var(--oa-bg)] text-[var(--oa-muted-fg)]";
   return (
     <Link href={`/stock/${encodeURIComponent(row.ticker)}`}
@@ -699,7 +699,7 @@ function SecondaryDirectiveCard({ row, directive }: { row: WatchlistRow; directi
         <StockLogo ticker={row.ticker} logoUrl={row.logo_url} market={market} size={32} />
         <div className="flex flex-col min-w-0">
           <div className="flex items-center gap-1.5">
-            <span className="text-[14px] font-medium text-[#0a0a0a] group-hover:text-[var(--oa-primary)] transition-colors">{row.ticker}</span>
+            <span className="text-[14px] font-medium text-oa-fg group-hover:text-[var(--oa-primary)] transition-colors">{row.ticker}</span>
             {upside !== null && upside !== undefined ? (
               <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-medium tracking-[0.06em] uppercase bg-[#ecfdf5] text-[#047857]">
                 <span aria-hidden className="h-1 w-1 rounded-full bg-[#10b981]" />+{upside.toFixed(0)}% upside
@@ -720,7 +720,7 @@ function SecondaryDirectiveCard({ row, directive }: { row: WatchlistRow; directi
           </div>
         </div>
       </div>
-      <p className="text-[13px] font-medium text-[#0a0a0a] leading-snug line-clamp-2 mt-auto">{directive.text}</p>
+      <p className="text-[13px] font-medium text-oa-fg leading-snug line-clamp-2 mt-auto">{directive.text}</p>
       {directive.rationale && (
         <p className="text-[11.5px] text-[var(--oa-muted-fg)] leading-snug line-clamp-2">{directive.rationale}</p>
       )}
@@ -749,7 +749,7 @@ function ExploreDirectiveCard({ suggestion, isTracked = false }: { suggestion: D
         <Link href={`/stock/${encodeURIComponent(ticker)}`} className="flex items-center gap-2.5 min-w-0 flex-1">
           <StockLogo ticker={ticker} market={market} size={32} />
           <div className="flex flex-col min-w-0">
-            <span className="text-[14px] font-medium text-[#0a0a0a] group-hover:text-[var(--oa-primary)] transition-colors">{ticker}</span>
+            <span className="text-[14px] font-medium text-oa-fg group-hover:text-[var(--oa-primary)] transition-colors">{ticker}</span>
             {sector && <span className="text-[11px] text-[var(--oa-muted-fg)] truncate max-w-[130px]">{sector}</span>}
           </div>
         </Link>
@@ -923,7 +923,7 @@ export function DiagnosisSection({ portfolio, pillarAverages, factorTilt, sugges
       {summary && <p className="text-[15px] md:text-[16px] text-[var(--oa-fg)] leading-[1.6] max-w-[820px]">{summary}</p>}
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(240px,_300px)_1fr] gap-6 md:gap-10 items-start">
         <div className="flex flex-col gap-2">
-          <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-[#eff6ff] px-2.5 py-1 text-[10px] font-medium tracking-[0.12em] uppercase text-[#1e3a8a]">
+          <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-oa-bg px-2.5 py-1 text-[10px] font-medium tracking-[0.12em] uppercase text-oa-primary">
             <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[var(--oa-primary)]" />Your whole book
           </span>
           <span className="text-[11px] font-medium tracking-[0.1em] uppercase text-[var(--oa-muted-fg)] mt-1">Portfolio score</span>
@@ -939,7 +939,7 @@ export function DiagnosisSection({ portfolio, pillarAverages, factorTilt, sugges
           <PortfolioPillarCard name="Valuation" emoji="🏷️" iconBg="#fef3c7" score={valuation} />
           <PortfolioPillarCard name="Growth" emoji="🌱" iconBg="#ecfdf5" score={growth} />
           <PortfolioPillarCard name="Quality" emoji="🏛️" iconBg="var(--oa-bg)" score={quality} />
-          <PortfolioPillarCard name="Momentum" emoji="🚀" iconBg="#eff6ff" score={momentum} />
+          <PortfolioPillarCard name="Momentum" emoji="🚀" iconBg="var(--oa-bg)" score={momentum} />
         </div>
       </div>
       {clusters.length > 0 && (
@@ -1010,7 +1010,7 @@ function RiskFlagsBlock({ risks }: { risks: Dict[] }) {
             return (
               <div key={`risk-${i}`} className="flex h-full flex-col gap-3 rounded-2xl border border-[var(--oa-border)] bg-oa-card p-4">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[14px] font-medium text-[#0a0a0a] tracking-[-0.01em] min-w-0 truncate">
+                  <span className="text-[14px] font-medium text-oa-fg tracking-[-0.01em] min-w-0 truncate">
                     {ticker ? <Link href={`/stock/${encodeURIComponent(ticker)}`} className="hover:text-[var(--oa-primary)] transition-colors">{ticker}</Link> : title}
                     {ticker && kindLabel && <span className="ml-2 text-[11px] font-medium text-[var(--oa-muted-fg)] tracking-[0.04em] uppercase">{kindLabel}</span>}
                   </span>
@@ -1063,7 +1063,7 @@ function OpportunitiesGrid({ items }: { items: Dict[] }) {
                   <div className="flex items-center gap-2.5 min-w-0">
                     <span className="text-[11px] font-medium tracking-[0.08em] uppercase text-[var(--oa-muted-fg)] tabular-nums">{String(i + 1).padStart(2, "0")}</span>
                     {ticker && <StockLogo ticker={ticker} market={market} size={28} />}
-                    <span className="text-[14px] font-medium text-[#0a0a0a] group-hover:text-[var(--oa-primary)] transition-colors">{ticker || "Opportunity"}</span>
+                    <span className="text-[14px] font-medium text-oa-fg group-hover:text-[var(--oa-primary)] transition-colors">{ticker || "Opportunity"}</span>
                   </div>
                   {kind && <span className="inline-flex items-center rounded-md bg-[#ecfdf5] px-2 py-0.5 text-[9px] font-medium tracking-[0.08em] uppercase text-[#065f46] shrink-0">{kind}</span>}
                 </div>
@@ -1090,8 +1090,8 @@ function StocksToCheckOut({ suggestions, tracked, isSubscribed }: {
   return (
     <div className="flex flex-col gap-3 pt-2">
       <div className="flex items-center gap-2">
-        <span aria-hidden className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-[#eff6ff] text-[14px]">🔍</span>
-        <span className="text-[11px] font-medium tracking-[0.1em] uppercase text-[#1e3a8a]">Stocks to check out</span>
+        <span aria-hidden className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-oa-bg text-[14px]">🔍</span>
+        <span className="text-[11px] font-medium tracking-[0.1em] uppercase text-oa-primary">Stocks to check out</span>
         <span className="text-[10px] font-medium tabular-nums text-[var(--oa-muted-fg)]">{list.length}</span>
       </div>
       {list.length === 0 ? (
@@ -1111,7 +1111,7 @@ function StocksToCheckOut({ suggestions, tracked, isSubscribed }: {
                 <Link href={ticker ? `/stock/${encodeURIComponent(ticker)}` : "#"} className="flex items-center gap-3 flex-1 min-w-0 group">
                   {ticker && <StockLogo ticker={ticker} market={market} size={32} />}
                   <div className="flex flex-col min-w-0 flex-1">
-                    <span className="text-[13px] font-medium text-[#0a0a0a] group-hover:text-[var(--oa-primary)] transition-colors">{ticker || "Suggestion"}</span>
+                    <span className="text-[13px] font-medium text-oa-fg group-hover:text-[var(--oa-primary)] transition-colors">{ticker || "Suggestion"}</span>
                     {reason && <span className="text-[11.5px] text-[var(--oa-muted-fg)] truncate">{reason}</span>}
                     {why && <span className="text-[11.5px] text-[var(--oa-muted-fg)] truncate mt-0.5">{why}</span>}
                   </div>

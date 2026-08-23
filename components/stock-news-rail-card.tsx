@@ -44,6 +44,23 @@ function formatArticleTime(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
+function normalizeForCompare(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/\s*[-–|]\s*[^-–|]+$/, "") // drop a trailing " - Source Name" suffix
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+/** Some sources' summaries are just the headline restated - skip showing those. */
+function isNearDuplicate(summary: string, title: string): boolean {
+  const a = normalizeForCompare(summary);
+  const b = normalizeForCompare(title);
+  if (!a || !b) return false;
+  if (a === b) return true;
+  return a.startsWith(b) || b.startsWith(a);
+}
+
 function displaySentiment(raw: string): string {
   const normalized = raw.toLowerCase();
   if (normalized === "bullish") return "Bullish";
@@ -63,7 +80,8 @@ function sentimentTagClass(label: string): string {
 function NewsSummaryModal({ article, onClose }: { article: NewsArticle; onClose: () => void }) {
   const time = formatArticleTime(article.published_at);
   const source = article.source_name?.trim() || "News";
-  const summary = article.summary?.trim();
+  const rawSummary = article.summary?.trim();
+  const summary = rawSummary && !isNearDuplicate(rawSummary, article.title) ? rawSummary : undefined;
 
   return (
     <div

@@ -322,7 +322,9 @@ function BookPlate({
 
 function EarningsCardTile({ card }: { card: EarningsCard }) {
   return (
-    <div className="flex min-w-[15.5rem] shrink-0 flex-col gap-3 rounded-[18px] border border-oa-border bg-oa-card p-4 shadow-[0_1px_2px_rgba(0,0,0,0.06)] sm:min-w-[17rem]">
+    <Link
+      href={`/stock/${card.ticker}`}
+      className="flex min-w-[15.5rem] shrink-0 flex-col gap-3 rounded-[18px] border border-oa-border bg-oa-card p-4 shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition-colors hover:border-oa-fg/30 sm:min-w-[17rem]">
       <div className="flex items-center gap-2.5">
         <StockLogo ticker={card.ticker} market="US" size={28} circle className="shrink-0" />
         <div className="min-w-0 flex-1">
@@ -359,7 +361,7 @@ function EarningsCardTile({ card }: { card: EarningsCard }) {
           ) : null}
         </>
       ) : null}
-    </div>
+    </Link>
   );
 }
 

@@ -55,7 +55,7 @@ function fmtScore(v: number | null | undefined): string {
 
 function scoreTone(v: number | null | undefined): string {
   if (typeof v !== "number" || !Number.isFinite(v)) return "text-[var(--oa-muted-fg)]";
-  if (v >= 80) return "text-[#10b981]";
+  if (v >= 80) return "text-[var(--signal-bullish)]";
   if (v >= 60) return "text-[var(--oa-fg)]";
   if (v >= 40) return "text-[var(--oa-muted-fg)]";
   return "text-[var(--oa-muted-fg)]";
@@ -205,16 +205,16 @@ export function ScreenMatchesTable({
           const up = typeof change === "number" && change > 0;
           const down = typeof change === "number" && change < 0;
           const tone = up
-            ? "bg-[#ecfdf5] text-[#10b981]"
+            ? "bg-[var(--oa-bg)] text-[var(--signal-bullish)]"
             : down
-              ? "bg-[#fef2f2] text-[#ef4444]"
+              ? "bg-[var(--oa-bg)] text-[var(--signal-bearish)]"
               : "bg-[var(--oa-bg)] text-[var(--oa-muted-fg)]";
 
           return (
             <Link
               key={row.instrument_id}
               href={`/stock/${encodeURIComponent(row.ticker)}`}
-              className="grid grid-cols-[2fr_auto] md:grid-cols-[2fr_1.2fr_0.8fr_0.8fr_0.7fr_0.7fr_0.7fr_0.7fr_1fr] gap-4 px-6 py-4 items-center border-b border-[var(--oa-bg)] last:border-b-0 hover:bg-[#f8f9fa] transition-colors"
+              className="grid grid-cols-[2fr_auto] md:grid-cols-[2fr_1.2fr_0.8fr_0.8fr_0.7fr_0.7fr_0.7fr_0.7fr_1fr] gap-4 px-6 py-4 items-center border-b border-[var(--oa-bg)] last:border-b-0 hover:bg-oa-accent transition-colors"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <StockLogo ticker={row.ticker} logoUrl={row.logo_url} market={market} size={40} />

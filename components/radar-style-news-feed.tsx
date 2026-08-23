@@ -47,9 +47,9 @@ function displaySentiment(raw: string): string {
 
 function sentimentTagStyles(label: string): string {
   const s = label.toLowerCase();
-  if (s === "bullish") return "text-[#10b981] tint-bull";
-  if (s === "bearish") return "text-[#ef4444] tint-bear";
-  if (s === "mixed") return "text-[#f59e0b] tint-warn";
+  if (s === "bullish") return "text-[var(--signal-bullish)] tint-bull";
+  if (s === "bearish") return "text-[var(--signal-bearish)] tint-bear";
+  if (s === "mixed") return "text-[var(--signal-neutral)] tint-warn";
   return "text-oa-muted-fg bg-oa-accent";
 }
 
@@ -212,7 +212,7 @@ function ArticleCard({ article, radarSet, tickerMetaMode, compact }: ArticleCard
         className="group block w-full border-b border-dashed border-oa-border px-1.5 py-5 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-bg focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--oa-fg)]/10 sm:px-2"
       >
         <h3
-          className={`font-medium tracking-[-0.02em] text-oa-fg leading-snug group-hover:text-[#22d3ee] transition-colors ${
+          className={`font-medium tracking-[-0.02em] text-oa-fg leading-snug group-hover:text-oa-primary transition-colors ${
             compact ? "text-[14px]" : "text-[15px] sm:text-[16px]"
           }`}
         >
@@ -374,7 +374,7 @@ export function RadarStyleNewsFeed(props: RadarStyleNewsFeedProps) {
           No recent news matched your Watchlist.
           refreshes, or open the full market feed.
         </p>
-        <Link href="/news" className="w-fit font-medium text-[#22d3ee] hover:underline">
+        <Link href="/news" className="w-fit font-medium text-oa-primary hover:underline">
           Market news →
         </Link>
       </div>
