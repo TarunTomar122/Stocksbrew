@@ -16,11 +16,11 @@ type TimeframeFilter = "24h" | "48h" | "7d" | "all";
 const PAGE_SIZE = 30;
 
 const SENTIMENT_OPTIONS: { id: SentimentFilter; label: string; dot: string }[] = [
-  { id: "all", label: "All", dot: "#9ca3af" },
-  { id: "bullish", label: "Bullish", dot: "#10b981" },
-  { id: "bearish", label: "Bearish", dot: "#ef4444" },
-  { id: "neutral", label: "Neutral", dot: "#6b7280" },
-  { id: "mixed", label: "Mixed", dot: "#f59e0b" },
+  { id: "all", label: "All", dot: "var(--oa-muted-fg)" },
+  { id: "bullish", label: "Bullish", dot: "var(--signal-bullish)" },
+  { id: "bearish", label: "Bearish", dot: "var(--signal-bearish)" },
+  { id: "neutral", label: "Neutral", dot: "var(--oa-muted-fg)" },
+  { id: "mixed", label: "Mixed", dot: "var(--signal-neutral)" },
 ];
 
 const TIMEFRAME_OPTIONS: { id: TimeframeFilter; label: string }[] = [
@@ -32,10 +32,10 @@ const TIMEFRAME_OPTIONS: { id: TimeframeFilter; label: string }[] = [
 
 function sentimentMeta(label: string): { dot: string; tone: string } {
   const v = label.toLowerCase();
-  if (v === "bullish") return { dot: "#10b981", tone: "text-[#10b981]" };
-  if (v === "bearish") return { dot: "#ef4444", tone: "text-[#ef4444]" };
-  if (v === "mixed") return { dot: "#f59e0b", tone: "text-[#f59e0b]" };
-  return { dot: "#6b7280", tone: "text-[#6b7280]" };
+  if (v === "bullish") return { dot: "var(--signal-bullish)", tone: "text-[var(--signal-bullish)]" };
+  if (v === "bearish") return { dot: "var(--signal-bearish)", tone: "text-[var(--signal-bearish)]" };
+  if (v === "mixed") return { dot: "var(--signal-neutral)", tone: "text-[var(--signal-neutral)]" };
+  return { dot: "var(--oa-muted-fg)", tone: "text-oa-muted-fg" };
 }
 
 function formatRelative(iso: string): string {
@@ -137,9 +137,9 @@ export function NewsExplorer({ articles, market }: Props) {
     <div className="grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)] gap-6">
       {/* Filter rail */}
       <aside className="flex flex-col gap-4 lg:sticky lg:top-20 lg:self-start">
-        <div className="rounded-[20px] border border-[#e5e7eb] bg-white p-5 flex flex-col gap-5">
+        <div className="rounded-[20px] border border-oa-border bg-oa-card p-5 flex flex-col gap-5">
           <div className="flex flex-col gap-2">
-            <label className="text-[10px] font-semibold tracking-[0.12em] uppercase text-[#9ca3af]">
+            <label className="text-[10px] font-medium tracking-[0.12em] uppercase text-oa-muted-fg">
               Search
             </label>
             <input
@@ -150,12 +150,12 @@ export function NewsExplorer({ articles, market }: Props) {
                 setVisible(PAGE_SIZE);
               }}
               placeholder="title, summary, ticker…"
-              className="h-10 w-full rounded-lg border border-[#e5e7eb] bg-white px-3 text-[13px] text-[#111111] placeholder:text-[#9ca3af] outline-none focus:border-[#111111]"
+              className="h-10 w-full rounded-lg border border-oa-border bg-oa-card px-3 text-[13px] text-oa-fg placeholder:text-oa-muted-fg outline-none focus:border-oa-fg/30"
             />
           </div>
 
           <div className="flex flex-col gap-2">
-            <span className="text-[10px] font-semibold tracking-[0.12em] uppercase text-[#9ca3af]">
+            <span className="text-[10px] font-medium tracking-[0.12em] uppercase text-oa-muted-fg">
               Timeframe
             </span>
             <div className="flex gap-1.5 flex-wrap">
@@ -169,10 +169,10 @@ export function NewsExplorer({ articles, market }: Props) {
                       setTimeframe(opt.id);
                       setVisible(PAGE_SIZE);
                     }}
-                    className={`px-3 py-1 rounded-full text-[12px] font-semibold transition-colors ${
+                    className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors ${
                       active
-                        ? "bg-[#111111] text-white"
-                        : "bg-white text-[#111111] border border-[#e5e7eb] hover:border-[#111111]"
+                        ? "bg-oa-primary text-white"
+                        : "bg-oa-card text-oa-fg border border-oa-border hover:border-oa-fg/30"
                     }`}
                   >
                     {opt.label}
@@ -183,7 +183,7 @@ export function NewsExplorer({ articles, market }: Props) {
           </div>
 
           <div className="flex flex-col gap-2">
-            <span className="text-[10px] font-semibold tracking-[0.12em] uppercase text-[#9ca3af]">
+            <span className="text-[10px] font-medium tracking-[0.12em] uppercase text-oa-muted-fg">
               Sentiment
             </span>
             <div className="flex flex-wrap gap-1.5">
@@ -197,10 +197,10 @@ export function NewsExplorer({ articles, market }: Props) {
                       setSentiment(opt.id);
                       setVisible(PAGE_SIZE);
                     }}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-semibold transition-colors ${
+                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-medium transition-colors ${
                       active
-                        ? "bg-[#111111] text-white"
-                        : "bg-white text-[#111111] border border-[#e5e7eb] hover:border-[#111111]"
+                        ? "bg-oa-primary text-white"
+                        : "bg-oa-card text-oa-fg border border-oa-border hover:border-oa-fg/30"
                     }`}
                   >
                     <span
@@ -217,7 +217,7 @@ export function NewsExplorer({ articles, market }: Props) {
 
           {sectorCounts.length > 0 && (
             <div className="flex flex-col gap-1.5">
-              <span className="text-[10px] font-semibold tracking-[0.12em] uppercase text-[#9ca3af]">
+              <span className="text-[10px] font-medium tracking-[0.12em] uppercase text-oa-muted-fg">
                 Sectors
               </span>
               <div className="flex flex-col max-h-56 overflow-y-auto pr-1">
@@ -233,12 +233,12 @@ export function NewsExplorer({ articles, market }: Props) {
                       }}
                       className={`flex items-center justify-between rounded-lg px-2 py-1.5 text-[12px] transition-colors ${
                         active
-                          ? "bg-[#f3f4f6] text-[#111111] font-semibold"
-                          : "text-[#374151] hover:bg-[#f8f9fa]"
+                          ? "bg-oa-bg text-oa-fg font-medium"
+                          : "text-oa-fg hover:bg-oa-accent"
                       }`}
                     >
                       <span className="truncate">{tag}</span>
-                      <span className="text-[10px] tabular-nums text-[#9ca3af] ml-2">
+                      <span className="text-[10px] tabular-nums text-oa-muted-fg ml-2">
                         {count}
                       </span>
                     </button>
@@ -250,7 +250,7 @@ export function NewsExplorer({ articles, market }: Props) {
 
           {sourceCounts.length > 0 && (
             <div className="flex flex-col gap-1.5">
-              <span className="text-[10px] font-semibold tracking-[0.12em] uppercase text-[#9ca3af]">
+              <span className="text-[10px] font-medium tracking-[0.12em] uppercase text-oa-muted-fg">
                 Sources
               </span>
               <div className="flex flex-col max-h-56 overflow-y-auto pr-1">
@@ -266,12 +266,12 @@ export function NewsExplorer({ articles, market }: Props) {
                       }}
                       className={`flex items-center justify-between rounded-lg px-2 py-1.5 text-[12px] transition-colors ${
                         active
-                          ? "bg-[#f3f4f6] text-[#111111] font-semibold"
-                          : "text-[#374151] hover:bg-[#f8f9fa]"
+                          ? "bg-oa-bg text-oa-fg font-medium"
+                          : "text-oa-fg hover:bg-oa-accent"
                       }`}
                     >
                       <span className="truncate">{src}</span>
-                      <span className="text-[10px] tabular-nums text-[#9ca3af] ml-2">
+                      <span className="text-[10px] tabular-nums text-oa-muted-fg ml-2">
                         {count}
                       </span>
                     </button>
@@ -285,7 +285,7 @@ export function NewsExplorer({ articles, market }: Props) {
             <button
               type="button"
               onClick={resetFilters}
-              className="text-[12px] font-semibold text-[#0052ff] hover:underline self-start"
+              className="text-[12px] font-medium text-oa-primary hover:underline self-start"
             >
               Reset filters
             </button>
@@ -295,24 +295,24 @@ export function NewsExplorer({ articles, market }: Props) {
 
       {/* Article list */}
       <section className="flex flex-col gap-3 min-w-0">
-        <div className="text-[13px] text-[#6b7280]">
+        <div className="text-[13px] text-oa-muted-fg">
           Showing{" "}
-          <span className="font-semibold text-[#111111] tabular-nums">
+          <span className="font-medium text-oa-fg tabular-nums">
             {page.length}
           </span>{" "}
           of{" "}
-          <span className="font-semibold text-[#111111] tabular-nums">
+          <span className="font-medium text-oa-fg tabular-nums">
             {filtered.length}
           </span>{" "}
           articles · {market === "IN" ? "India" : "US"}
         </div>
 
         {page.length === 0 ? (
-          <div className="rounded-[24px] border border-[#e5e7eb] bg-white px-6 py-16 text-center">
-            <h3 className="text-[16px] font-semibold text-[#111111]">
+          <div className="rounded-[24px] border border-oa-border bg-oa-card px-6 py-16 text-center">
+            <h3 className="text-[16px] font-medium text-oa-fg">
               No articles match your filters.
             </h3>
-            <p className="text-[13px] text-[#6b7280] mt-2">
+            <p className="text-[13px] text-oa-muted-fg mt-2">
               Try widening the timeframe or clearing sector / source picks.
             </p>
           </div>
@@ -326,17 +326,17 @@ export function NewsExplorer({ articles, market }: Props) {
                     href={a.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="block rounded-2xl border border-[#e5e7eb] bg-white p-5 hover:border-[#111111] transition-colors [overflow-wrap:anywhere]"
+                    className="block rounded-2xl border border-oa-border bg-oa-card p-5 hover:border-oa-fg/30 transition-colors [overflow-wrap:anywhere]"
                   >
                     <div className="flex items-center gap-2 text-[11px] mb-2 flex-wrap">
-                      <span className="font-semibold tracking-[0.05em] uppercase text-[#0052ff]">
+                      <span className="font-medium tracking-[0.05em] uppercase text-oa-primary">
                         {a.source_name || "Unknown source"}
                       </span>
-                      <span className="text-[#d1d5db]">·</span>
-                      <span className="text-[#6b7280]">
+                      <span className="text-oa-muted-fg/50">·</span>
+                      <span className="text-oa-muted-fg">
                         {formatRelative(a.published_at)}
                       </span>
-                      <span className="text-[#d1d5db]">·</span>
+                      <span className="text-oa-muted-fg/50">·</span>
                       <span className="inline-flex items-center gap-1.5">
                         <span
                           className="inline-block h-1.5 w-1.5 rounded-full"
@@ -344,19 +344,19 @@ export function NewsExplorer({ articles, market }: Props) {
                           aria-hidden
                         />
                         <span
-                          className={`font-semibold uppercase tracking-[0.08em] ${meta.tone}`}
+                          className={`font-medium uppercase tracking-[0.08em] ${meta.tone}`}
                         >
                           {a.sentiment_label}
                         </span>
                       </span>
                     </div>
 
-                    <h3 className="text-[16px] font-semibold text-[#111111] leading-snug tracking-[-0.01em]">
+                    <h3 className="text-[16px] font-medium text-oa-fg leading-snug tracking-[-0.01em]">
                       {a.title}
                     </h3>
 
                     {a.summary && (
-                      <p className="mt-2 text-[13px] text-[#374151] leading-[1.6] line-clamp-3">
+                      <p className="mt-2 text-[13px] text-oa-fg leading-[1.6] line-clamp-3">
                         {a.summary}
                       </p>
                     )}
@@ -366,7 +366,7 @@ export function NewsExplorer({ articles, market }: Props) {
                         {a.tickers.slice(0, 4).map((t) => (
                           <span
                             key={`t-${t}`}
-                            className="inline-flex items-center gap-1.5 rounded-full border border-[#e5e7eb] bg-white pl-1 pr-2.5 py-1 text-[11px] font-semibold text-[#111111]"
+                            className="inline-flex items-center gap-1.5 rounded-full border border-oa-border bg-oa-card pl-1 pr-2.5 py-1 text-[11px] font-medium text-oa-fg"
                           >
                             <StockLogo ticker={t} size={18} />
                             {t}
@@ -375,7 +375,7 @@ export function NewsExplorer({ articles, market }: Props) {
                         {a.sector_tags.slice(0, 3).map((s) => (
                           <span
                             key={`s-${s}`}
-                            className="inline-flex items-center rounded-full bg-[#f3f4f6] px-2.5 py-1 text-[11px] font-medium text-[#374151]"
+                            className="inline-flex items-center rounded-full bg-oa-bg px-2.5 py-1 text-[11px] font-medium text-oa-fg"
                           >
                             {s}
                           </span>
@@ -393,7 +393,7 @@ export function NewsExplorer({ articles, market }: Props) {
           <button
             type="button"
             onClick={() => setVisible((v) => v + PAGE_SIZE)}
-            className="self-center mt-2 px-5 py-2 rounded-full border border-[#e5e7eb] bg-white text-[13px] font-semibold text-[#111111] hover:border-[#111111] transition-colors"
+            className="self-center mt-2 px-5 py-2 rounded-full border border-oa-border bg-oa-card text-[13px] font-medium text-oa-fg hover:border-oa-fg/30 transition-colors"
           >
             Load {Math.min(PAGE_SIZE, filtered.length - visible)} more
           </button>
