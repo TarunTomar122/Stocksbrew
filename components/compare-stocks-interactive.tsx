@@ -78,14 +78,14 @@ function targetUpside(stock: CompareStock): number | null {
 
 function toneForNumber(value: number | null): string {
   if (value === null || value === 0) return "text-[var(--oa-muted-fg)]";
-  return value > 0 ? "text-[var(--oa-primary)]" : "text-[#c43c3c]";
+  return value > 0 ? "text-[var(--signal-bullish)]" : "text-[var(--signal-bearish)]";
 }
 
 function scoreTone(score: number | null): string {
   if (score === null) return "text-[var(--oa-muted-fg)]";
-  if (score >= 75) return "text-[var(--oa-primary)]";
+  if (score >= 75) return "text-[var(--signal-bullish)]";
   if (score >= 55) return "text-oa-fg";
-  return "text-[#c43c3c]";
+  return "text-[var(--signal-bearish)]";
 }
 
 const METRICS: Metric[] = [
@@ -620,7 +620,7 @@ function CompareBuilder({
           </div>
 
           {error && (
-            <div role="alert" className="mt-4 rounded-xl bg-[#fff0f0] px-3 py-2 text-[12px] font-medium text-[#a12f2f]">
+            <div role="alert" className="mt-4 rounded-xl bg-oa-bg px-3 py-2 text-[12px] font-medium text-[var(--signal-bearish)]">
               {error}
             </div>
           )}
