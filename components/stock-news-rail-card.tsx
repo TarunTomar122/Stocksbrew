@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 
 import { StockLogo } from "@/components/stock-logo";
 import type { NewsArticle } from "@/lib/news";
@@ -57,6 +60,59 @@ function sentimentTagClass(label: string): string {
   return "bg-surface-container text-on-surface-variant";
 }
 
+function NewsSummaryModal({ article, onClose }: { article: NewsArticle; onClose: () => void }) {
+  const time = formatArticleTime(article.published_at);
+  const source = article.source_name?.trim() || "News";
+  const summary = article.summary?.trim();
+
+  return (
+    <div
+      className="fixed inset-0 z-[120] flex items-end justify-center bg-[#111827]/35 p-4 backdrop-blur-[1px] sm:items-center"
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-[480px] rounded-2xl border border-outline-variant bg-surface px-6 py-6 shadow-[0_24px_48px_rgba(17,24,39,0.22)]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.04em] ${sentimentTagClass(article.sentiment_label)}`}>
+            {displaySentiment(article.sentiment_label)}
+          </span>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="shrink-0 rounded-full p-1 text-on-surface-variant transition-colors hover:text-on-surface"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+              <path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+
+        <p className="mt-3 text-[12px] text-on-surface-variant">{[time, source].filter(Boolean).join(" · ")}</p>
+        <h3 className="mt-2 text-[18px] font-medium leading-snug tracking-[-0.01em] text-on-surface">{article.title}</h3>
+
+        {summary ? (
+          <p className="mt-4 text-[14.5px] leading-relaxed text-on-surface-variant">{summary}</p>
+        ) : null}
+
+        <a
+          href={article.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="group mt-6 inline-flex items-center gap-1.5 text-[13px] font-medium text-primary"
+        >
+          <span className="group-hover:underline">Read the original source</span>
+          <span aria-hidden className="transition-transform group-hover:translate-x-0.5">→</span>
+        </a>
+      </div>
+    </div>
+  );
+}
+
 /** Editorial news stream for the stock page activity section. */
 export function StockNewsRailCard({
   ticker,
@@ -69,6 +125,7 @@ export function StockNewsRailCard({
   days?: number;
   fullWidth?: boolean;
 }) {
+  const [selected, setSelected] = useState<NewsArticle | null>(null);
   const stories = articles.slice(0, MAX_STORIES);
   if (!stories.length) return null;
 
@@ -90,11 +147,10 @@ export function StockNewsRailCard({
           const source = article.source_name?.trim() || "News";
           return (
             <li key={article.id}>
-              <a
-                href={article.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group block"
+              <button
+                type="button"
+                onClick={() => setSelected(article)}
+                className="group block w-full text-left"
               >
                 <span className="flex items-center gap-1.5 text-[12px] leading-snug text-on-surface-variant">
                   {article.tickers.length > 0 ? (
@@ -118,7 +174,7 @@ export function StockNewsRailCard({
                 <span className={`mt-2.5 inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.04em] ${sentimentTagClass(article.sentiment_label)}`}>
                   {displaySentiment(article.sentiment_label)}
                 </span>
-              </a>
+              </button>
             </li>
           );
         })}
@@ -131,6 +187,8 @@ export function StockNewsRailCard({
         <span className="group-hover:underline">All market news</span>
         <span aria-hidden className="transition-transform group-hover:translate-x-0.5">→</span>
       </Link>
+
+      {selected ? <NewsSummaryModal article={selected} onClose={() => setSelected(null)} /> : null}
     </section>
   );
 }
