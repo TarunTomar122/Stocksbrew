@@ -40,7 +40,7 @@ function ToolCard({ tool }: { tool: HubLink }) {
   return (
     <Link
       href={tool.href}
-      className="group flex items-center justify-between gap-4 rounded-[18px] border border-oa-border bg-oa-bg p-4 transition-colors duration-200 hover:bg-oa-card"
+      className="group flex items-center justify-between gap-4 rounded-[18px] border border-oa-border bg-oa-card p-4 shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_2px_10px_rgba(0,0,0,0.08)]"
     >
       <span className="min-w-0">
         <h3 className="text-[15px] font-medium tracking-tight text-oa-fg transition-colors group-hover:text-oa-primary">
@@ -130,7 +130,7 @@ export function FreeToolsHub() {
               <Link
                 key={href}
                 href={href}
-                className="group flex items-center justify-between gap-3 rounded-[18px] border border-oa-border bg-oa-bg p-4 text-[15px] font-medium tracking-tight text-oa-fg transition-colors hover:bg-oa-card"
+                className="group flex items-center justify-between gap-3 rounded-[18px] border border-oa-border bg-oa-card p-4 text-[15px] font-medium tracking-tight text-oa-fg shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition-all hover:-translate-y-0.5 hover:shadow-[0_2px_10px_rgba(0,0,0,0.08)]"
               >
                 {label}
                 <span aria-hidden className="shrink-0 text-oa-muted-fg transition-transform duration-200 group-hover:translate-x-0.5">
@@ -141,7 +141,7 @@ export function FreeToolsHub() {
           </div>
         </section>
 
-        <section className="flex flex-col gap-4 rounded-[22px] border border-oa-border bg-oa-bg p-6 sm:p-8" aria-labelledby="all-tools">
+        <section className="flex flex-col gap-4 rounded-[22px] border border-oa-border bg-oa-card p-6 shadow-[0_1px_2px_rgba(0,0,0,0.06)] sm:p-8" aria-labelledby="all-tools">
           <h2 id="all-tools" className="text-[17px] font-medium tracking-tight text-oa-fg">
             All {ALL_FREE_TOOLS.length} tools
           </h2>
@@ -150,7 +150,7 @@ export function FreeToolsHub() {
               <li key={t.href}>
                 <Link
                   href={t.href}
-                  className="inline-flex h-8 items-center rounded-full border border-oa-border bg-oa-card px-3.5 text-[13px] font-medium text-oa-muted-fg transition-colors hover:border-oa-fg/30 hover:text-oa-fg"
+                  className="inline-flex h-8 items-center rounded-full border border-oa-border bg-oa-bg px-3.5 text-[13px] font-medium text-oa-muted-fg transition-colors hover:border-oa-fg/30 hover:text-oa-fg"
                 >
                   {t.title}
                 </Link>
@@ -159,7 +159,7 @@ export function FreeToolsHub() {
           </ul>
         </section>
 
-        <section className="flex flex-col gap-6 rounded-[22px] border border-oa-border bg-oa-bg p-7 sm:flex-row sm:items-center sm:justify-between sm:p-10">
+        <section className="flex flex-col gap-6 rounded-[22px] border border-oa-border bg-oa-card p-7 shadow-[0_1px_2px_rgba(0,0,0,0.06)] sm:flex-row sm:items-center sm:justify-between sm:p-10">
           <div className="max-w-md">
             <h2 className="text-balance text-[26px] font-medium leading-tight tracking-tight text-oa-fg sm:text-3xl">
               Found a stock? Add it to Watchlist.

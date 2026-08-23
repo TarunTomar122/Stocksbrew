@@ -161,7 +161,7 @@ export function PositionSizeCalculator() {
 
       {/* Results */}
       {result && "error" in result ? (
-        <div className="rounded-2xl border border-oa-border bg-oa-bg p-6">
+        <div className="rounded-2xl border border-oa-border bg-oa-card p-6">
           <p className="text-[14px] font-medium text-oa-fg">{result.error}</p>
         </div>
       ) : result ? (
@@ -254,7 +254,7 @@ export function PositionSizeCalculator() {
 
       {/* Empty state hint */}
       {!result && (
-        <div className="rounded-2xl border border-[var(--oa-border)] bg-oa-bg p-6 md:p-8">
+        <div className="rounded-2xl border border-[var(--oa-border)] bg-oa-card p-6 md:p-8">
           <p className="text-[14px] text-[var(--oa-muted-fg)]">
             Fill in your account size, risk, entry, and stop-loss to see your position size.
           </p>

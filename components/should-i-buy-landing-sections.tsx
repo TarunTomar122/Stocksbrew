@@ -75,7 +75,7 @@ export function ShouldIBuyLandingSections() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="group flex items-center justify-between gap-3 rounded-[18px] border border-oa-border bg-oa-bg p-4 transition-colors hover:bg-oa-card"
+                  className="group flex items-center justify-between gap-3 rounded-[18px] border border-oa-border bg-oa-card p-4 shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition-all hover:-translate-y-0.5 hover:shadow-[0_2px_10px_rgba(0,0,0,0.08)]"
                 >
                   <span className="min-w-0">
                     <span className="block text-sm font-medium tracking-tight text-oa-fg transition-colors group-hover:text-oa-primary">
