@@ -8,6 +8,8 @@ import { AnimatePresence, motion } from "motion/react";
 import { StockLogo } from "@/components/stock-logo";
 import { OaButton } from "@/components/oa/button";
 import { SquircleSurface } from "@/components/oa/squircle";
+import { TrackButton } from "@/components/track-button";
+import { resolveStockTier } from "@/lib/ai-launch-tier";
 import { captureEvent } from "@/lib/posthog";
 import {
   trackCheckoutClicked,
@@ -53,6 +55,7 @@ type Pill = { text: string; color: string };
 export type ScreenerRow = {
   key: string;
   ticker: string;
+  instrumentId: string;
   name: string;
   price?: number;
   changePct?: number;
@@ -94,6 +97,7 @@ function rowsFromNear52(rows: Near52WeekRow[], kind: "high" | "low"): ScreenerRo
     return {
       key: r.ticker,
       ticker: r.ticker,
+      instrumentId: `US_${r.ticker}`,
       name: r.name,
       price: r.price,
       changePct: r.changePct,
@@ -128,6 +132,7 @@ function rowsFromHeat(rows: HeatRow[], kind: "hot" | "momentum" | "news_spike" |
     return {
       key: r.instrument_id,
       ticker: r.ticker,
+      instrumentId: r.instrument_id,
       name: r.name,
       price: r.price ?? undefined,
       changePct: r.day_change_pct ?? undefined,
@@ -148,6 +153,7 @@ function rowsFromTrump(rows: TrumpMentionRow[]): ScreenerRow[] {
     return {
       key: `trump-${row.ticker}`,
       ticker: row.ticker,
+      instrumentId: `US_${row.ticker}`,
       name: row.name,
       price: row.price,
       changePct: row.changePct,
@@ -254,41 +260,70 @@ function TrendingStrip({ stocks }: { stocks: TrendingStock[] }) {
 }
 
 /* ── screener row ───────────────────────────────────────────────────────── */
-function ScanRow({ row, category }: { row: ScreenerRow; category: string }) {
+function ScanRow({
+  row,
+  category,
+  isSubscribed,
+  isTracked,
+  trackedIds,
+  trackedCount,
+}: {
+  row: ScreenerRow;
+  category: string;
+  isSubscribed?: boolean;
+  isTracked?: boolean;
+  trackedIds?: string[];
+  trackedCount?: number;
+}) {
   return (
-    <Link
-      href={`/stock/${row.ticker}`}
-      onClick={() => captureEvent("explore_stock_clicked", { ticker: row.ticker, section: "screener", category })}
-      className="flex items-start gap-2 px-3 py-3 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent sm:gap-3.5 sm:px-5"
-    >
-      <StockLogo ticker={row.ticker} market="US" size={32} circle />
-      <div className="w-20 shrink-0 sm:w-44">
-        <p className="text-lg font-medium leading-6 text-oa-fg">{row.ticker}</p>
-        {row.name ? <p className="mt-0.5 truncate text-[14.5px] leading-6 text-oa-muted-fg">{row.name}</p> : null}
-      </div>
-      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
-        {row.pills.map((pill) => (
-          <span
-            key={pill.text}
-            className="max-w-full break-words rounded-full border border-oa-border bg-oa-card px-3 py-1 text-[12px] font-medium leading-6"
-            style={{ color: pill.color }}
-          >
-            {pill.text}
-          </span>
-        ))}
-        {row.detail ? (
-          <p className="w-full text-[14.5px] leading-6 text-oa-muted-fg">&ldquo;{row.detail}&rdquo;</p>
-        ) : null}
-      </div>
-      <div className="flex shrink-0 flex-col items-end">
-        {typeof row.price === "number" ? (
-          <span className="text-[17px] font-medium tabular-nums leading-6 text-oa-fg">${money(row.price)}</span>
-        ) : null}
-        {typeof row.changePct === "number" ? (
-          <span className="text-[15px] font-medium leading-6">{pctLabel(row.changePct)}</span>
-        ) : null}
-      </div>
-    </Link>
+    <div className="group relative">
+      <Link
+        href={`/stock/${row.ticker}`}
+        onClick={() => captureEvent("explore_stock_clicked", { ticker: row.ticker, section: "screener", category })}
+        className="flex items-start gap-2 px-3 py-3 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent sm:gap-3.5 sm:px-5"
+      >
+        <StockLogo ticker={row.ticker} market="US" size={32} circle />
+        <div className="w-20 shrink-0 pr-6 sm:w-44">
+          <p className="text-lg font-medium leading-6 text-oa-fg">{row.ticker}</p>
+          {row.name ? <p className="mt-0.5 truncate text-[14.5px] leading-6 text-oa-muted-fg">{row.name}</p> : null}
+        </div>
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+          {row.pills.map((pill) => (
+            <span
+              key={pill.text}
+              className="max-w-full break-words rounded-full border border-oa-border bg-oa-card px-3 py-1 text-[12px] font-medium leading-6"
+              style={{ color: pill.color }}
+            >
+              {pill.text}
+            </span>
+          ))}
+          {row.detail ? (
+            <p className="w-full text-[14.5px] leading-6 text-oa-muted-fg">&ldquo;{row.detail}&rdquo;</p>
+          ) : null}
+        </div>
+        <div className="flex shrink-0 flex-col items-end">
+          {typeof row.price === "number" ? (
+            <span className="text-[17px] font-medium tabular-nums leading-6 text-oa-fg">${money(row.price)}</span>
+          ) : null}
+          {typeof row.changePct === "number" ? (
+            <span className="text-[15px] font-medium leading-6">{pctLabel(row.changePct)}</span>
+          ) : null}
+        </div>
+      </Link>
+      <span className="pointer-events-none absolute left-[42px] top-1/2 -translate-y-1/2 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 sm:left-[52px]">
+        <span className="pointer-events-auto flex size-6 items-center justify-center rounded-full bg-oa-card shadow-[0_1px_2px_rgba(0,0,0,0.12)]">
+          <TrackButton
+            ticker={row.ticker}
+            instrumentId={row.instrumentId}
+            tier={resolveStockTier(row.instrumentId, trackedIds ?? [])}
+            isSubscribed={isSubscribed}
+            isTracked={isTracked ?? Boolean(trackedIds?.includes(row.instrumentId))}
+            trackedCount={trackedCount}
+            variant="icon"
+          />
+        </span>
+      </span>
+    </div>
   );
 }
 
@@ -337,9 +372,13 @@ function ScanRowGhost() {
 function MarketScans({
   scans,
   isSubscribed,
+  trackedIds,
+  trackedCount,
 }: {
   scans: { key: string; label: string; blurb: string; rows: ScreenerRow[] }[];
   isSubscribed: boolean;
+  trackedIds?: string[];
+  trackedCount?: number;
 }) {
   const populated = scans.filter((s) => s.rows.length > 0);
   const [activeKey, setActiveKey] = useState(populated[0]?.key ?? "");
@@ -419,7 +458,14 @@ function MarketScans({
           >
             <div className="max-h-[40rem] overflow-y-auto">
               {visibleRows.map((row) => (
-                <ScanRow key={row.key} row={row} category={active.key} />
+                <ScanRow
+                  key={row.key}
+                  row={row}
+                  category={active.key}
+                  isSubscribed={isSubscribed}
+                  trackedIds={trackedIds}
+                  trackedCount={trackedCount}
+                />
               ))}
             </div>
             {hiddenCount > 0 ? (
@@ -545,6 +591,8 @@ export function OaExplore({
   redditTickers,
   trumpMentions,
   isSubscribed,
+  trackedIds,
+  trackedCount,
 }: {
   trending: TrendingStock[];
   hotStocks: HeatRow[];
@@ -557,6 +605,8 @@ export function OaExplore({
   redditTickers: RedditRow[];
   trumpMentions: TrumpMentionRow[];
   isSubscribed: boolean;
+  trackedIds?: string[];
+  trackedCount?: number;
 }) {
   useEffect(() => {
     captureEvent("explore_viewed", {
@@ -606,7 +656,7 @@ export function OaExplore({
       <TrendingStrip stocks={trending} />
 
       <section aria-label="Market scans">
-        <MarketScans scans={scans} isSubscribed={isSubscribed} />
+        <MarketScans scans={scans} isSubscribed={isSubscribed} trackedIds={trackedIds} trackedCount={trackedCount} />
       </section>
 
       {!isSubscribed ? <ProPlate /> : null}

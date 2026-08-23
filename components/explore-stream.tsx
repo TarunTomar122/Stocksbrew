@@ -25,6 +25,7 @@ export async function ExploreStream() {
   ]);
   const userDoc = session ? await getUserDoc(session.uid) : null;
   const isSubscribed = resolveIsSubscribed(userDoc);
+  const trackedIds = Array.isArray(userDoc?.tracked_stocks) ? userDoc!.tracked_stocks! : [];
 
   const bySymbol = new Map(snapshotRows.map((row) => [row.symbol.toUpperCase(), row]));
   const trending: TrendingStock[] = TRENDING_TICKERS.map((ticker) => {
@@ -86,6 +87,8 @@ export async function ExploreStream() {
       redditTickers={redditTickers}
       trumpMentions={trumpMentions}
       isSubscribed={isSubscribed}
+      trackedIds={trackedIds}
+      trackedCount={trackedIds.length}
     />
   );
 }
