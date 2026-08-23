@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import { StockLogo } from "@/components/stock-logo";
 import { TrackButton } from "@/components/track-button";
+import { ProCtaLink } from "@/components/pro-cta";
 import type { PowerTrade, PowerTradesResult } from "@/lib/power-trades";
 
 const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -50,24 +51,31 @@ export function TradeCard({ trade }: { trade: PowerTrade }) {
           className="absolute inset-0 z-10 rounded-[24px] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--oa-ring)]"
         />
       )}
-      {trackable && (
-        <div className="absolute right-3 top-3 z-20 opacity-0 transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 pointer-events-none motion-reduce:transition-none">
-          <TrackButton ticker={trade.ticker} instrumentId={`US_${trade.ticker}`} isTracked={false} variant="icon" />
-        </div>
-      )}
       <div className="flex items-center gap-3">
         <StockLogo ticker={trade.ticker || "US"} size={40} market="US" circle />
         <div className="min-w-0 flex-1">
-          {trade.ticker ? (
-            <Link
-              href={`/stock/${encodeURIComponent(trade.ticker)}`}
-              className="oa-mono block text-[15px] font-medium tabular-nums tracking-[-0.01em] text-[var(--oa-fg)] transition-colors hover:text-[var(--oa-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--oa-ring)]"
-            >
-              {trade.ticker}
-            </Link>
-          ) : (
-            <span className="oa-mono text-[15px] font-medium text-[var(--oa-muted-fg)]">no ticker</span>
-          )}
+          <div className="flex items-center gap-2">
+            {trade.ticker ? (
+              <Link
+                href={`/stock/${encodeURIComponent(trade.ticker)}`}
+                className="oa-mono text-[15px] font-medium tabular-nums tracking-[-0.01em] text-[var(--oa-fg)] transition-colors hover:text-[var(--oa-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--oa-ring)]"
+              >
+                {trade.ticker}
+              </Link>
+            ) : (
+              <span className="oa-mono text-[15px] font-medium text-[var(--oa-muted-fg)]">no ticker</span>
+            )}
+            {trackable && (
+              <span className="relative z-20 shrink-0 opacity-0 transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 pointer-events-none motion-reduce:transition-none">
+                <TrackButton
+                  ticker={trade.ticker}
+                  instrumentId={`US_${trade.ticker}`}
+                  isTracked={false}
+                  variant="icon"
+                />
+              </span>
+            )}
+          </div>
           <p className="mt-0.5 truncate text-[12px] text-[var(--oa-muted-fg)]">{trade.company || "—"}</p>
         </div>
         <span className={`flex shrink-0 items-center gap-2 ${meta.text}`}>
@@ -152,7 +160,48 @@ function EmptyState() {
   );
 }
 
-export function PowerTradesFeed() {
+function ProCallout() {
+  const perks = [
+    {
+      title: "Instant email on your stocks",
+      body: "A lawmaker trades something you hold, an email lands before the market can react.",
+    },
+    {
+      title: "Track every holding",
+      body: "Free stops at 3 tracked stocks. Pro follows your whole book across both feeds.",
+    },
+    {
+      title: "The powerful, expanding",
+      body: "Cabinet and White House OGE filings join this watchlist as we add them — Pro sees them first.",
+    },
+  ];
+
+  return (
+    <aside className="rounded-[24px] border border-[color-mix(in_srgb,var(--oa-primary)_25%,transparent)] bg-[var(--oa-card)] p-6 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="max-w-md">
+          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--oa-primary)]">Pro</p>
+          <p className="mt-2 text-[19px] font-medium tracking-[-0.02em] text-[var(--oa-fg)]">
+            Don&apos;t just scroll their trades. Trade on them.
+          </p>
+        </div>
+        <ProCtaLink size="md" showStar>
+          Go Pro
+        </ProCtaLink>
+      </div>
+      <ul className="mt-5 grid gap-4 sm:grid-cols-3">
+        {perks.map((perk) => (
+          <li key={perk.title}>
+            <p className="text-[13px] font-medium text-[var(--oa-fg)]">{perk.title}</p>
+            <p className="mt-1 text-[12px] leading-relaxed text-[var(--oa-muted-fg)]">{perk.body}</p>
+          </li>
+        ))}
+      </ul>
+    </aside>
+  );
+}
+
+export function PowerTradesFeed({ isPro = false }: { isPro?: boolean }) {
   const [data, setData] = useState<PowerTradesResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -191,6 +240,8 @@ export function PowerTradesFeed() {
           {summary.people} people
         </p>
       )}
+
+      {!isPro && <ProCallout />}
 
       {loading ? (
         <Skeleton />
