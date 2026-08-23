@@ -161,8 +161,8 @@ export function PositionSizeCalculator() {
 
       {/* Results */}
       {result && "error" in result ? (
-        <div className="rounded-2xl border border-[#fecaca] bg-[#fef2f2] p-6">
-          <p className="text-[14px] font-medium text-[#991b1b]">{result.error}</p>
+        <div className="rounded-2xl border border-oa-border bg-oa-bg p-6">
+          <p className="text-[14px] font-medium text-oa-fg">{result.error}</p>
         </div>
       ) : result ? (
         <div className="rounded-2xl border border-[var(--oa-border)] bg-oa-card p-6 md:p-8 flex flex-col gap-5">
@@ -171,7 +171,7 @@ export function PositionSizeCalculator() {
           </h2>
 
           {result.capped && (
-            <div className="rounded-xl border border-[#fef3c7] bg-[#fffbeb] px-4 py-3 text-[13px] text-[#92400e]">
+            <div className="rounded-xl border border-oa-border bg-oa-bg px-4 py-3 text-[13px] text-oa-muted-fg">
               Position capped to {result.shares.toLocaleString()} shares — full risk would exceed your{" "}
               {maxAllocation}% max allocation cap.
             </div>
@@ -208,7 +208,7 @@ export function PositionSizeCalculator() {
             <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-[var(--oa-bg)]">
               <Link
                 href="/watchlist"
-                className="inline-flex items-center gap-1.5 rounded-full bg-[var(--oa-primary)] px-5 py-2 text-[13px] font-medium text-white hover:bg-[#0045d6] transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-full bg-[var(--oa-primary)] px-5 py-2 text-[13px] font-medium text-white hover:brightness-110 transition-colors"
               >
                 Add {tickerSlug} to Watchlist
               </Link>
@@ -231,7 +231,7 @@ export function PositionSizeCalculator() {
             <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-[var(--oa-bg)]">
               <Link
                 href="/watchlist"
-                className="inline-flex items-center gap-1.5 rounded-full bg-[var(--oa-primary)] px-5 py-2 text-[13px] font-medium text-white hover:bg-[#0045d6] transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-full bg-[var(--oa-primary)] px-5 py-2 text-[13px] font-medium text-white hover:brightness-110 transition-colors"
               >
                 Track stocks in your Watchlist
               </Link>
@@ -254,7 +254,7 @@ export function PositionSizeCalculator() {
 
       {/* Empty state hint */}
       {!result && (
-        <div className="rounded-2xl border border-[var(--oa-border)] bg-[#fafafa] p-6 md:p-8">
+        <div className="rounded-2xl border border-[var(--oa-border)] bg-oa-bg p-6 md:p-8">
           <p className="text-[14px] text-[var(--oa-muted-fg)]">
             Fill in your account size, risk, entry, and stop-loss to see your position size.
           </p>

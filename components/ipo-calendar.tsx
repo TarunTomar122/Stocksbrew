@@ -181,7 +181,7 @@ export function IpoCalendar() {
             {/* Day headers */}
             <div className="grid grid-cols-7 border-b border-[var(--oa-border)]">
               {DAYS.map((d) => (
-                <div key={d} className="py-2.5 text-center text-[11px] font-medium tracking-[0.07em] uppercase text-[var(--oa-muted-fg)] bg-[#fafafa]">
+                <div key={d} className="py-2.5 text-center text-[11px] font-medium tracking-[0.07em] uppercase text-[var(--oa-muted-fg)] bg-oa-bg">
                   {d}
                 </div>
               ))}
@@ -190,7 +190,7 @@ export function IpoCalendar() {
             {/* Grid */}
             <div className="grid grid-cols-7">
               {Array.from({ length: firstDayOfWeek }).map((_, i) => (
-                <div key={`empty-${i}`} className="min-h-[110px] bg-[#fafafa] border-r border-b border-[var(--oa-bg)]" />
+                <div key={`empty-${i}`} className="min-h-[110px] bg-oa-bg border-r border-b border-[var(--oa-bg)]" />
               ))}
 
               {Array.from({ length: daysInMonth }).map((_, i) => {
@@ -210,9 +210,9 @@ export function IpoCalendar() {
                     key={dateStr}
                     onClick={() => hasEvents && setSelectedDate(dateStr)}
                     className={`min-h-[110px] p-2 flex flex-col gap-1 border-r border-b border-[var(--oa-bg)] transition-colors ${
-                      isWeekend ? "bg-[#fafafa]" : "bg-oa-card"
-                    } ${hasEvents ? "cursor-pointer hover:bg-[#f0f4ff]" : ""} ${
-                      isSelected ? "bg-[#eef2ff]" : ""
+                      isWeekend ? "bg-oa-bg" : "bg-oa-card"
+                    } ${hasEvents ? "cursor-pointer hover:bg-oa-accent" : ""} ${
+                      isSelected ? "bg-oa-accent" : ""
                     }`}
                   >
                     <div className="flex items-center justify-end mb-0.5">
@@ -221,7 +221,7 @@ export function IpoCalendar() {
                           isToday
                             ? "bg-[var(--oa-primary)] text-white"
                             : isWeekend
-                            ? "text-[#c4c4c4]"
+                            ? "text-oa-muted-fg/50"
                             : "text-[var(--oa-muted-fg)]"
                         }`}
                       >
@@ -231,7 +231,7 @@ export function IpoCalendar() {
 
                     {dayEvents.slice(0, MAX_SHOW).map((ipo) => (
                       <div key={ipo.ticker} className="flex items-center gap-1.5 px-1.5 py-1 rounded-md">
-                        <span className="shrink-0 h-1.5 w-1.5 rounded-full bg-[#6366f1]" />
+                        <span className="shrink-0 h-1.5 w-1.5 rounded-full bg-oa-primary" />
                         <span className="text-[11px] font-medium text-[var(--oa-fg)] leading-none truncate flex-1">
                           {ipo.ticker}
                         </span>

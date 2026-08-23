@@ -27,15 +27,15 @@ const SIDE_META: Record<
 > = {
   bullish: {
     label: "Bullish",
-    color: "#047857",
-    bg: "#ecfdf5",
-    border: "#bbf7d0",
+    color: "var(--signal-bullish)",
+    bg: "var(--oa-bg)",
+    border: "var(--oa-border)",
   },
   bearish: {
     label: "Bearish",
-    color: "#b91c1c",
-    bg: "#fef2f2",
-    border: "#fecaca",
+    color: "var(--signal-bearish)",
+    bg: "var(--oa-bg)",
+    border: "var(--oa-border)",
   },
 };
 
@@ -52,7 +52,7 @@ function MentionTable({
 
   if (rows.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-[var(--oa-border)] bg-[#fafafa] px-4 py-10 text-center">
+      <div className="rounded-2xl border border-dashed border-[var(--oa-border)] bg-oa-bg px-4 py-10 text-center">
         <p className="text-[13px] text-[var(--oa-muted-fg)]">No {meta.label.toLowerCase()} mentions in this window.</p>
       </div>
     );
@@ -104,7 +104,7 @@ function MentionTable({
                   {since ? (
                     <span
                       className="shrink-0 text-[15px] font-medium tabular-nums"
-                      style={{ color: since.positive ? "#10b981" : "#ef4444" }}
+                      style={{ color: since.positive ? "var(--signal-bullish)" : "var(--signal-bearish)" }}
                     >
                       {since.text}
                     </span>
@@ -145,7 +145,7 @@ function MentionTable({
               return (
                 <tr
                   key={row.id}
-                  className="border-b border-[var(--oa-bg)] last:border-b-0 align-top hover:bg-[#fafafa]"
+                  className="border-b border-[var(--oa-bg)] last:border-b-0 align-top hover:bg-oa-bg"
                 >
                   <td className="whitespace-nowrap px-4 py-3">
                     <Link
@@ -181,7 +181,7 @@ function MentionTable({
                     {since ? (
                       <span
                         className="text-[13px] font-medium tabular-nums"
-                        style={{ color: since.positive ? "#10b981" : "#ef4444" }}
+                        style={{ color: since.positive ? "var(--signal-bullish)" : "var(--signal-bearish)" }}
                       >
                         {since.text}
                       </span>
