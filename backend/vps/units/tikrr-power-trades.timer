@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Tikrr Power Trades sync + alerts once a day
+
+[Timer]
+OnCalendar=*-*-* 05:10:00
+Persistent=true
+AccuracySec=10min
+Unit=tikrr-power-trades.service
+
+[Install]
+WantedBy=timers.target

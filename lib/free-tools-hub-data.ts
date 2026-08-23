@@ -15,6 +15,20 @@ export type FreeToolGroup = {
 
 export const FREE_TOOL_GROUPS: FreeToolGroup[] = [
   {
+    title: "Follow the money",
+    description: "Public-disclosure feeds that show what powerful people actually did.",
+    tools: [
+      {
+        href: "/power-trades",
+        title: "Power trades",
+        description: "What US lawmakers bought and sold, straight from STOCK Act filings. Updated daily.",
+        icon: "account_balance",
+        accent: "#b45309",
+        featured: true,
+      },
+    ],
+  },
+  {
     title: "Pick & compare",
     description: "Run a quick read on a ticker, line up peers, or stress-test your book.",
     tools: [

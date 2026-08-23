@@ -30,6 +30,7 @@ const COLUMNS: Column[] = [
   {
     title: "Free tools",
     links: [
+      { label: "Power Trades", href: "/power-trades" },
       { label: "Should I Buy?", href: "/should-i-buy" },
       { label: "Compare stocks", href: "/compare-stocks" },
       { label: "Portfolio Analyzer", href: "/portfolio" },

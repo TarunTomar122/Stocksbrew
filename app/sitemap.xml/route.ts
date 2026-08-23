@@ -47,6 +47,7 @@ export async function GET() {
     "/compare-stocks",
     "/developers",
     "/agents",
+    "/power-trades",
   ] as const) {
     entries.push(url(path));
   }

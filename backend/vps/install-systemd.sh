@@ -133,6 +133,13 @@ write_pair radar-official-close "Mon..Fri *-*-* 21:10:00" radar_official_sources
 write_pair radar-materialize-close "Mon..Fri *-*-* 21:45:00" radar_materialize "--activate --with-llm" "" "5min"
 write_pair radar-outcomes "Mon..Fri *-*-* 23:00:00" radar_outcomes "--limit 0"
 write_pair radar-alerts "Mon..Fri *-*-* *:00/15:00" radar_alerts
+# Power trades: daily STOCK Act sync + hold-based email alerts. Custom oneshot
+# wrapper (not an orchestrator lane); unit files are committed in the repo.
+for unit in tikrr-power-trades.service tikrr-power-trades.timer; do
+  cp "${REPO_DIR}/backend/vps/units/${unit}" "${UNIT_DIR}/${unit}"
+  chmod 0644 "${UNIT_DIR}/${unit}"
+done
+TIMER_NAMES+=("tikrr-power-trades.timer")
 
 systemctl disable --now tikrr-intraday-price-openburst.timer >/dev/null 2>&1 || true
 rm -f "${UNIT_DIR}/tikrr-intraday-price-openburst.service" "${UNIT_DIR}/tikrr-intraday-price-openburst.timer"

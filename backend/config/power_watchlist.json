@@ -1,0 +1,235 @@
+{
+  "version": 1,
+  "note": "Curated watchlist of US politicians whose STOCK Act trade disclosures we track. The sync script resolves each name/alias against the Bargo member directory, so display-name variants go in aliases.",
+  "members": [
+    {
+      "id": "nancy-pelosi",
+      "name": "Nancy Pelosi",
+      "chamber": "house",
+      "party": "D",
+      "state": "CA",
+      "aliases": [
+        "Nancy Pelosi",
+        "Nancy P. Pelosi",
+        "Pelosi, Nancy"
+      ]
+    },
+    {
+      "id": "ro-khanna",
+      "name": "Ro Khanna",
+      "chamber": "house",
+      "party": "D",
+      "state": "CA",
+      "aliases": [
+        "Ro Khanna",
+        "Rohit Khanna"
+      ]
+    },
+    {
+      "id": "tommy-tuberville",
+      "name": "Tommy Tuberville",
+      "chamber": "senate",
+      "party": "R",
+      "state": "AL",
+      "aliases": [
+        "Tommy Tuberville",
+        "Thomas Tuberville",
+        "Thomas H. Tuberville"
+      ]
+    },
+    {
+      "id": "mark-kelly",
+      "name": "Mark Kelly",
+      "chamber": "senate",
+      "party": "D",
+      "state": "AZ",
+      "aliases": [
+        "Mark Kelly",
+        "Mark E. Kelly"
+      ]
+    },
+    {
+      "id": "dan-sullivan",
+      "name": "Dan Sullivan",
+      "chamber": "senate",
+      "party": "R",
+      "state": "AK",
+      "aliases": [
+        "Dan Sullivan",
+        "Daniel S. Sullivan"
+      ]
+    },
+    {
+      "id": "tim-scott",
+      "name": "Tim Scott",
+      "chamber": "senate",
+      "party": "R",
+      "state": "SC",
+      "aliases": [
+        "Tim Scott",
+        "Timothy Scott"
+      ]
+    },
+    {
+      "id": "rick-scott",
+      "name": "Rick Scott",
+      "chamber": "senate",
+      "party": "R",
+      "state": "FL",
+      "aliases": [
+        "Rick Scott",
+        "Richard L. Scott"
+      ]
+    },
+    {
+      "id": "john-thune",
+      "name": "John Thune",
+      "chamber": "senate",
+      "party": "R",
+      "state": "SD",
+      "aliases": [
+        "John Thune",
+        "John R. Thune"
+      ]
+    },
+    {
+      "id": "michael-mccaul",
+      "name": "Michael McCaul",
+      "chamber": "house",
+      "party": "R",
+      "state": "TX",
+      "aliases": [
+        "Michael McCaul",
+        "Michael T. McCaul"
+      ]
+    },
+    {
+      "id": "josh-gottheimer",
+      "name": "Josh Gottheimer",
+      "chamber": "house",
+      "party": "D",
+      "state": "NJ",
+      "aliases": [
+        "Josh Gottheimer",
+        "Joshua Gottheimer"
+      ]
+    },
+    {
+      "id": "marjorie-taylor-greene",
+      "name": "Marjorie Taylor Greene",
+      "chamber": "house",
+      "party": "R",
+      "state": "GA",
+      "aliases": [
+        "Marjorie Taylor Greene",
+        "Marjorie Greene"
+      ]
+    },
+    {
+      "id": "debbie-wasserman-schultz",
+      "name": "Debbie Wasserman Schultz",
+      "chamber": "house",
+      "party": "D",
+      "state": "FL",
+      "aliases": [
+        "Debbie Wasserman Schultz",
+        "Deborah Wasserman Schultz"
+      ]
+    },
+    {
+      "id": "kevin-hern",
+      "name": "Kevin Hern",
+      "chamber": "house",
+      "party": "R",
+      "state": "OK",
+      "aliases": [
+        "Kevin Hern",
+        "Kevin R. Hern"
+      ]
+    },
+    {
+      "id": "gary-peters",
+      "name": "Gary Peters",
+      "chamber": "senate",
+      "party": "D",
+      "state": "MI",
+      "aliases": [
+        "Gary Peters",
+        "Gary C. Peters"
+      ]
+    },
+    {
+      "id": "sheldon-whitehouse",
+      "name": "Sheldon Whitehouse",
+      "chamber": "senate",
+      "party": "D",
+      "state": "RI",
+      "aliases": [
+        "Sheldon Whitehouse"
+      ]
+    },
+    {
+      "id": "dan-crenshaw",
+      "name": "Dan Crenshaw",
+      "chamber": "house",
+      "party": "R",
+      "state": "TX",
+      "aliases": [
+        "Dan Crenshaw",
+        "Daniel Crenshaw"
+      ]
+    },
+    {
+      "id": "michael-rulli",
+      "name": "Michael Rulli",
+      "chamber": "house",
+      "party": "R",
+      "state": "OH",
+      "aliases": [
+        "Michael Rulli",
+        "Michael A. Rulli"
+      ]
+    },
+    {
+      "id": "gilbert-cisneros",
+      "name": "Gilbert Cisneros",
+      "chamber": "house",
+      "party": "D",
+      "state": "CA",
+      "aliases": [
+        "Gilbert Cisneros",
+        "Gilbert Ray Cisneros, Jr.",
+        "Gilbert R. Cisneros, Jr."
+      ]
+    }
+  ],
+  "executive_phase2": {
+    "note": "Not in congressional PTR feeds. Trades surface via OGE Form 278e annual public financial disclosures (XML dataset) plus scattered agency-level periodic reports. Phase 2 source.",
+    "people": [
+      {
+        "name": "Donald J. Trump",
+        "role": "President"
+      },
+      {
+        "name": "JD Vance",
+        "role": "Vice President"
+      },
+      {
+        "name": "Marco Rubio",
+        "role": "Secretary of State"
+      },
+      {
+        "name": "Scott Bessent",
+        "role": "Treasury Secretary"
+      },
+      {
+        "name": "Howard Lutnick",
+        "role": "Commerce Secretary"
+      },
+      {
+        "name": "Robert F. Kennedy Jr.",
+        "role": "HHS Secretary"
+      }
+    ]
+  }
+}

@@ -30,6 +30,7 @@
     "backend:purge-tikrr-stale": "python3 -m backend.scripts.purge_tikrr_stale_data",
     "backend:seed-tikrr-meta": "python3 -m backend.scripts.seed_tikrr_meta",
     "backend:set-promoted": "python3 -m backend.scripts.set_promoted_tickers",
+    "backend:sync-power-trades": "python3 -m backend.scripts.sync_power_trades",
     "backend:sync-config": "python3 -m backend.scripts.sync_config",
     "backend:sync-prices": "python3 -m backend.scripts.sync_price_snapshots --market US --universe us_core_155 --session-phase manual --activate",
     "backend:sync-prices:100": "npm run backend:sync-prices:tracked",

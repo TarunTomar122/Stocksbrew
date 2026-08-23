@@ -1,0 +1,12 @@
+[Unit]
+Description=Tikrr Power Trades sync + hold alerts
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/opt/tikrr
+Environment=TIKRR_REPO_DIR=/opt/tikrr
+Environment=TIKRR_ENV_FILE=/etc/tikrr/backend.env
+MemoryMax=2G
+MemorySwapMax=1G
+ExecStart=/opt/tikrr/backend/vps/run-power-trades.sh
