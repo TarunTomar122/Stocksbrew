@@ -13,16 +13,16 @@ table tbody tr:hover > * {
 /* ── Theme tokens: light ─────────────────────────────────────────────────── */
 :root {
   color-scheme: light;
-  /* Brand / primary - refined violet */
-  --primary:                   #6b38d4;
-  --primary-container:         #8455ef;
-  --primary-fixed:             #e9ddff;
-  --primary-fixed-dim:         #d0bcff;
+  /* Brand / primary - matches --oa-primary, the one accent */
+  --primary:                   #305dde;
+  --primary-container:         #4a72e8;
+  --primary-fixed:             #dce6fb;
+  --primary-fixed-dim:         #a9c0f5;
   --on-primary:                #ffffff;
-  --on-primary-container:      #fffbff;
-  --on-primary-fixed:          #23005c;
-  --on-primary-fixed-variant:  #5516be;
-  --inverse-primary:           #d0bcff;
+  --on-primary-container:      #ffffff;
+  --on-primary-fixed:          #0a1a3d;
+  --on-primary-fixed-variant:  #1f3f99;
+  --inverse-primary:           #a9c0f5;
 
   /* Secondary - collapsed to neutral (was amber). Decorative accents go grayscale. */
   --secondary:                   #475569;
@@ -121,15 +121,15 @@ table tbody tr:hover > * {
 /* ── Theme tokens: dark ─────────────────────────────────────────────────── */
 .dark {
   color-scheme: dark;
-  --primary:                   #cbb5ff;
-  --primary-container:         #5516be;
-  --primary-fixed:             #e9ddff;
-  --primary-fixed-dim:         #cbb5ff;
-  --on-primary:                #3a0092;
-  --on-primary-container:      #e9ddff;
-  --on-primary-fixed:          #23005c;
-  --on-primary-fixed-variant:  #5516be;
-  --inverse-primary:           #6b38d4;
+  --primary:                   #a9c0f5;
+  --primary-container:         #1f3f99;
+  --primary-fixed:             #dce6fb;
+  --primary-fixed-dim:         #a9c0f5;
+  --on-primary:                #0a1a3d;
+  --on-primary-container:      #dce6fb;
+  --on-primary-fixed:          #0a1a3d;
+  --on-primary-fixed-variant:  #1f3f99;
+  --inverse-primary:           #305dde;
 
   --secondary:                   #94a3b8;
   --secondary-container:         #1e2530;

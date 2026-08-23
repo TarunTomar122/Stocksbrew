@@ -21,10 +21,10 @@ const PRO_CTA_BASE =
   "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full font-semibold tracking-tight transition-all hover:-translate-y-[1px] active:translate-y-0 disabled:cursor-wait disabled:opacity-60 disabled:hover:translate-y-0";
 
 const PRO_CTA_FILL =
-  "bg-gradient-to-r from-[#6d35dc] to-[#7c3aed] text-white border border-[#6d35dc] shadow-[0_1px_2px_rgba(76,29,149,0.14),0_6px_18px_rgba(109,53,220,0.24)] hover:shadow-[0_2px_4px_rgba(76,29,149,0.18),0_10px_22px_rgba(109,53,220,0.3)]";
+  "bg-oa-primary text-oa-primary-fg border border-[color-mix(in_srgb,var(--oa-primary)_80%,#3a3480)] shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_1px_2px_rgba(0,0,0,0.12)] hover:brightness-110";
 
 const PRO_CTA_OUTLINE =
-  "bg-[#f7f5ff] text-[#6330c9] border-2 border-[#c4b5fd] hover:bg-[#ede9fe] shadow-none hover:shadow-[0_4px_14px_rgba(109,53,220,0.16)]";
+  "bg-oa-accent text-oa-primary border-2 border-[color-mix(in_srgb,var(--oa-primary)_45%,transparent)] shadow-none hover:bg-[color-mix(in_srgb,var(--oa-primary)_10%,transparent)]";
 
 export function proCtaClassName({
   size = "md",

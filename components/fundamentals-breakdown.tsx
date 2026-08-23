@@ -331,7 +331,7 @@ export function FundamentalsBreakdown({
       )}
 
       {!isSubscribed && (
-        <div className="relative mt-8 flex min-h-[22rem] flex-1 overflow-hidden rounded-2xl border border-outline-variant bg-surface-container-low/70">
+        <div className="relative mt-8 flex min-h-[22rem] flex-1 overflow-hidden rounded-2xl bg-surface-container-low/70">
           <div aria-hidden className="pointer-events-none absolute inset-0 select-none space-y-5 p-7 blur-[7px]">
             <div className="flex items-start justify-between gap-5">
               <div className="space-y-2">

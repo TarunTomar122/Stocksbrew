@@ -241,11 +241,13 @@ export function RadarBatchEditModal({
       if (addedCount > 0) {
         dispatchRadarTrackChanged({ action: "add", count: addedCount });
       }
-      setTimeout(() => {
-        setModalOpen(false);
-        setOpen(false);
-        flushWatchlistRebuild(router, 0);
-      }, 700);
+      // Keep the status modal open through the whole rebuild + refresh cycle so
+      // the destination page never appears to "suddenly" swap with no feedback.
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      await flushWatchlistRebuild(router, 500);
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      setModalOpen(false);
+      setOpen(false);
     } catch (e) {
       setModalStatus("error");
       setError("Could not update your Watchlist in one go. Try again.");
@@ -347,12 +349,12 @@ export function RadarBatchEditModal({
                           <button
                             type="button"
                             onClick={() => setPosition(item.instrument_id, "holding")}
-                            className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors ${item.position_type === "holding" ? "bg-surface text-on-surface shadow-sm" : "text-on-surface-variant hover:text-on-surface-variant"}`}
+                            className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors ${item.position_type === "holding" ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant hover:text-on-surface"}`}
                           >Hold</button>
                           <button
                             type="button"
                             onClick={() => setPosition(item.instrument_id, "watchlist")}
-                            className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors ${item.position_type === "watchlist" ? "bg-surface text-on-surface shadow-sm" : "text-on-surface-variant hover:text-on-surface-variant"}`}
+                            className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors ${item.position_type === "watchlist" ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant hover:text-on-surface"}`}
                           >Watch</button>
                         </div>
                         <button
