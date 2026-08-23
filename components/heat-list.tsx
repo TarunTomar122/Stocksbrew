@@ -107,15 +107,15 @@ function RailRow({ row, trackedIds, isSubscribed }: { row: HeatRow; trackedIds: 
   const market = row.instrument_id.startsWith("IN_") ? "IN" : "US";
 
   return (
-    <div className="flex items-center gap-2.5 py-2.5 border-t border-[var(--oa-bg)] first:border-t-0 -mx-1 px-1 rounded-lg hover:bg-oa-bg transition-colors">
+    <div className="group flex items-center gap-2.5 rounded-[14px] border border-[var(--oa-border)] bg-[var(--oa-bg)] px-3 py-2.5 transition-all hover:-translate-y-0.5 hover:border-[color-mix(in_srgb,var(--oa-fg)_25%,transparent)] hover:shadow-[0_4px_14px_rgba(0,0,0,0.06)]">
       <a href={`/stock/${encodeURIComponent(row.ticker)}`} className="flex items-center gap-2.5 flex-1 min-w-0">
-        <StockLogo ticker={row.ticker} logoUrl={row.logo_url} market={market} size={32} />
+        <StockLogo ticker={row.ticker} logoUrl={row.logo_url} market={market} size={32} circle />
         <div className="flex items-center gap-1.5 min-w-0">
-          <span className="text-[13px] font-medium tracking-[-0.01em] text-[var(--oa-fg)] hover:text-[var(--oa-primary)] transition-colors">
+          <span className="text-[13px] font-medium tracking-[-0.01em] text-[var(--oa-fg)] group-hover:text-[var(--oa-primary)] transition-colors">
             {row.ticker}
           </span>
           {row.first_appearance && (
-            <span className="text-[9px] font-medium tracking-[0.08em] uppercase text-[var(--oa-primary)] bg-oa-bg px-1.5 py-0.5 rounded-md">New</span>
+            <span className="text-[9px] font-medium tracking-[0.08em] uppercase text-[var(--oa-primary)] bg-oa-card px-1.5 py-0.5 rounded-md">New</span>
           )}
         </div>
       </a>
@@ -213,7 +213,7 @@ function HotStocksCard({
           <span className="text-[12px] font-medium tabular-nums text-[var(--oa-muted-fg)]">{count}</span>
         )}
       </div>
-      <div className="flex flex-col">
+      <div className="flex flex-col gap-2">
         {rows.map((r) => (
           <RailRow key={r.instrument_id} row={r} trackedIds={trackedIds} isSubscribed={isSubscribed} />
         ))}
@@ -235,7 +235,7 @@ function DivergenceRow({
   return (
     <a
       href={`/stock/${encodeURIComponent(row.ticker)}`}
-      className="flex items-start gap-3 py-3 border-t border-[var(--oa-bg)] first:border-t-0 -mx-1 px-1 rounded-lg hover:bg-oa-bg transition-colors"
+      className="flex items-start gap-3 rounded-[14px] border border-[var(--oa-border)] bg-[var(--oa-bg)] px-3 py-3 transition-all hover:-translate-y-0.5 hover:border-[color-mix(in_srgb,var(--oa-fg)_25%,transparent)] hover:shadow-[0_4px_14px_rgba(0,0,0,0.06)]"
     >
       <div className="flex flex-col flex-1 min-w-0 gap-1">
         <div className="flex items-center gap-1.5">
@@ -283,7 +283,7 @@ function MixedSignalsCard({ divergence }: { divergence: DivergenceList }) {
         </h3>
         <p className="text-[11px] text-[var(--oa-muted-fg)]">News and price moving in opposite directions</p>
       </div>
-      <div className="flex flex-col">
+      <div className="flex flex-col gap-2">
         {rows.map((r) => (
           <DivergenceRow key={r.instrument_id} row={r} />
         ))}
