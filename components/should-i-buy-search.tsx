@@ -169,7 +169,7 @@ export function ShouldIBuySearch({ searchIndex, onSelect }: Props) {
                       {pct && (
                         <span
                           className="text-[11px] font-medium tabular-nums"
-                          style={{ color: positive ? "#059669" : "#dc2626" }}
+                          style={{ color: positive ? "var(--signal-bullish)" : "var(--signal-bearish)" }}
                         >
                           {pct}
                         </span>

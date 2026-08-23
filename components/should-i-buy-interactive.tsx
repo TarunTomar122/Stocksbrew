@@ -23,17 +23,17 @@ const PILL =
 // ---------------------------------------------------------------------------
 
 function VerdictBadge({ verdict }: { verdict: string }) {
-  const map: Record<string, { bg: string; text: string; label: string }> = {
-    strong: { bg: "#ecfdf5", text: "#047857", label: "Strong" },
-    solid:  { bg: "#d1fae5", text: "#047857", label: "Solid" },
-    mixed:  { bg: "#fef3c7", text: "#92400e", label: "Mixed" },
-    weak:   { bg: "#fef2f2", text: "#b91c1c", label: "Weak" },
+  const map: Record<string, { text: string; label: string }> = {
+    strong: { text: "var(--signal-bullish)", label: "Strong" },
+    solid:  { text: "var(--signal-bullish)", label: "Solid" },
+    mixed:  { text: "var(--signal-neutral)", label: "Mixed" },
+    weak:   { text: "var(--signal-bearish)", label: "Weak" },
   };
   const s = map[verdict] ?? map["mixed"];
   return (
     <span
-      className="inline-block rounded-full px-2.5 py-0.5 text-[11px] font-medium"
-      style={{ background: s.bg, color: s.text }}
+      className="inline-block rounded-full bg-oa-card px-2.5 py-0.5 text-[11px] font-medium"
+      style={{ color: s.text }}
     >
       {s.label}
     </span>
@@ -55,7 +55,7 @@ type SampleCardProps = {
   pillarScores: [number, number, number, number];
 };
 
-function SampleCard({ ticker, name, verdict, score, bg, textColor, color, pillarScores }: SampleCardProps) {
+function SampleCard({ ticker, name, verdict, score, color, pillarScores }: SampleCardProps) {
   const pillars = [
     { label: "Val",    s: pillarScores[0] },
     { label: "Growth", s: pillarScores[1] },
@@ -63,31 +63,31 @@ function SampleCard({ ticker, name, verdict, score, bg, textColor, color, pillar
     { label: "Mom",    s: pillarScores[3] },
   ];
   return (
-    <div className="w-full overflow-hidden rounded-[22px] border border-black/5">
-      <div className="flex flex-col items-center gap-3 px-5 pb-4 pt-5 text-center" style={{ background: bg }}>
-        <div className="flex size-10 items-center justify-center rounded-full text-[13px] font-medium" style={{ background: color + "22", color: textColor }}>
+    <div className="w-full overflow-hidden rounded-[22px] border border-oa-border bg-oa-card shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
+      <div className="flex flex-col items-center gap-3 px-5 pb-4 pt-5 text-center">
+        <div className="flex size-10 items-center justify-center rounded-full bg-oa-bg text-[13px] font-medium text-oa-fg">
           {ticker.slice(0, 2)}
         </div>
         <div className="flex flex-col gap-0.5">
-          <span className="text-[13px] font-medium" style={{ color: textColor }}>{ticker}</span>
-          <span className="text-[11px]" style={{ color: textColor, opacity: 0.6 }}>{name}</span>
+          <span className="text-[13px] font-medium text-oa-fg">{ticker}</span>
+          <span className="text-[11px] text-oa-muted-fg">{name}</span>
         </div>
-        <div className="h-px w-full" style={{ background: color, opacity: 0.2 }} />
+        <div className="h-px w-full bg-oa-border" />
         <div className="flex flex-col gap-1">
-          <span className="text-[9px] font-medium uppercase tracking-[0.12em]" style={{ color: textColor, opacity: 0.55 }}>Signal</span>
-          <span className="text-[15px] font-medium leading-tight tracking-tight" style={{ color: textColor }}>{verdict}</span>
+          <span className="text-[9px] font-medium uppercase tracking-[0.12em] text-oa-muted-fg">Signal</span>
+          <span className="text-[15px] font-medium leading-tight tracking-tight" style={{ color }}>{verdict}</span>
         </div>
-        <div className="flex items-center gap-1 rounded-full px-3 py-1" style={{ background: color + "22" }}>
-          <span className="text-[16px] font-medium leading-none tabular-nums" style={{ color: textColor }}>{score}</span>
-          <span className="text-[11px] tabular-nums" style={{ color: textColor, opacity: 0.5 }}>/100</span>
+        <div className="flex items-center gap-1 rounded-full bg-oa-bg px-3 py-1">
+          <span className="text-[16px] font-medium leading-none tabular-nums" style={{ color }}>{score}</span>
+          <span className="text-[11px] tabular-nums text-oa-muted-fg">/100</span>
         </div>
       </div>
-      <div className="flex flex-col gap-2 bg-white px-4 py-3">
+      <div className="flex flex-col gap-2 bg-oa-bg px-4 py-3">
         {pillars.map(({ label, s }) => (
           <div key={label} className="flex items-center gap-2">
             <span className="w-[36px] shrink-0 text-[10px] font-medium text-oa-muted-fg">{label}</span>
-            <div className="h-[4px] flex-1 overflow-hidden rounded-full bg-oa-bg">
-              <div className="h-full rounded-full" style={{ width: `${s}%`, background: s >= 60 ? "#10b981" : s >= 40 ? "#f59e0b" : "#ef4444" }} />
+            <div className="h-[4px] flex-1 overflow-hidden rounded-full bg-oa-card">
+              <div className="h-full rounded-full bg-oa-primary" style={{ width: `${s}%` }} />
             </div>
             <span className="w-[20px] shrink-0 text-right text-[10px] font-medium tabular-nums text-oa-fg">{s}</span>
           </div>
@@ -200,7 +200,7 @@ function PriceOnlyPanel({ data, onReset }: { data: Extract<VerdictApiResponse, {
           )}
         </div>
       </div>
-      <div className="max-w-[300px] rounded-[14px] bg-[#fef3c7] px-4 py-3 text-[13px] leading-relaxed text-[#92400e]">
+      <div className="max-w-[300px] rounded-[14px] bg-oa-bg px-4 py-3 text-[13px] leading-relaxed text-oa-muted-fg">
         We have price data but our full scoring model is still being built for this stock.
       </div>
       <button onClick={onReset} className="group inline-flex items-center gap-1 text-[13px] font-medium text-oa-muted-fg transition-colors hover:text-oa-fg">
@@ -232,20 +232,20 @@ function FullVerdictPanel({
       {/* The card */}
       <div id="should-i-buy-card" className="overflow-hidden rounded-[28px] shadow-[0_16px_56px_rgba(0,0,0,0.12)]">
 
-        {/* Colored top */}
-        <div className="flex flex-col items-center gap-5 px-8 pb-8 pt-9 text-center" style={{ background: verdict.bg }}>
+        {/* Top */}
+        <div className="flex flex-col items-center gap-5 bg-oa-bg px-8 pb-8 pt-9 text-center">
           <div className="flex items-center gap-3 text-left">
             <StockLogo ticker={ticker} logoUrl={stock.logo_url} size={48} market="US" />
             <div className="flex flex-col gap-1">
-              <p className="text-[15px] font-medium leading-tight tracking-tight" style={{ color: verdict.textColor }}>
+              <p className="text-[15px] font-medium leading-tight tracking-tight text-oa-fg">
                 {stock.name}
               </p>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="oa-mono text-xs font-medium" style={{ color: verdict.textColor, opacity: 0.55 }}>{ticker}</span>
-                <span className="h-3 w-px" style={{ background: verdict.textColor, opacity: 0.2 }} />
-                <span className="text-[13px] font-medium tabular-nums" style={{ color: verdict.textColor }}>{stock.priceStr}</span>
+                <span className="oa-mono text-xs font-medium text-oa-muted-fg">{ticker}</span>
+                <span className="h-3 w-px bg-oa-border" />
+                <span className="text-[13px] font-medium tabular-nums text-oa-fg">{stock.priceStr}</span>
                 {stock.priceChangeStr && (
-                  <span className="text-xs font-medium tabular-nums" style={{ color: (stock.priceChange ?? 0) >= 0 ? "#059669" : "#dc2626" }}>
+                  <span className="text-xs font-medium tabular-nums" style={{ color: (stock.priceChange ?? 0) >= 0 ? "var(--signal-bullish)" : "var(--signal-bearish)" }}>
                     {stock.priceChangeStr}
                   </span>
                 )}
@@ -253,20 +253,20 @@ function FullVerdictPanel({
             </div>
           </div>
 
-          <div className="h-px w-full" style={{ background: verdict.color, opacity: 0.2 }} />
+          <div className="h-px w-full bg-oa-border" />
 
           <div className="flex flex-col items-center gap-2">
-            <h2 className="text-[26px] font-medium leading-[1.1] tracking-tight md:text-[30px]" style={{ color: verdict.textColor }}>
+            <h2 className="text-[26px] font-medium leading-[1.1] tracking-tight text-oa-fg md:text-[30px]">
               {verdict.level}
             </h2>
-            <div data-score-pill className="flex items-center gap-1 rounded-full px-3.5 py-1.5" style={{ background: verdict.color + "22" }}>
-              <span className="text-xl font-medium leading-none tracking-tight tabular-nums" style={{ color: verdict.textColor }}>{overall.score}</span>
-              <span className="text-xs font-medium tabular-nums" style={{ color: verdict.textColor, opacity: 0.55 }}>/100</span>
+            <div data-score-pill className="flex items-center gap-1 rounded-full bg-oa-card px-3.5 py-1.5">
+              <span className="text-xl font-medium leading-none tracking-tight tabular-nums" style={{ color: verdict.color }}>{overall.score}</span>
+              <span className="text-xs font-medium tabular-nums text-oa-muted-fg">/100</span>
             </div>
           </div>
         </div>
 
-        {/* White bottom */}
+        {/* Bottom */}
         <div className="flex flex-col gap-5 bg-oa-card px-6 pb-5 pt-6">
           <div className="h-px bg-oa-border" />
 
@@ -274,7 +274,7 @@ function FullVerdictPanel({
             <>
               <div className="grid grid-cols-2 gap-2">
                 {pillarList.map(({ label, p }) => {
-                  const barColor = p.score >= 60 ? "#10b981" : p.score >= 40 ? "#f59e0b" : "#ef4444";
+                  const barColor = p.score >= 60 ? "var(--signal-bullish)" : p.score >= 40 ? "var(--signal-neutral)" : "var(--signal-bearish)";
                   return (
                     <div key={label} className="flex flex-col gap-1.5 rounded-[14px] bg-oa-bg px-3 py-2.5">
                       <div className="flex items-center justify-between gap-1">
@@ -293,14 +293,17 @@ function FullVerdictPanel({
               {typeof rsi === "number" && (rsi >= 70 || rsi <= 30) && (
                 <>
                   <div className="h-px bg-oa-border" />
-                  <div className="flex items-center justify-between gap-2 rounded-[14px] px-4 py-3.5" style={{ background: rsi >= 70 ? "#fef2f2" : "#ecfdf5" }}>
+                  <div className="flex items-center justify-between gap-2 rounded-[14px] bg-oa-bg px-4 py-3.5">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium tabular-nums" style={{ color: rsi >= 70 ? "#991b1b" : "#065f46" }}>RSI {rsi.toFixed(1)}</span>
-                      <span className="rounded-full px-2 py-0.5 text-[11px] font-medium" style={{ background: rsi >= 70 ? "#fecaca" : "#a7f3d0", color: rsi >= 70 ? "#991b1b" : "#065f46" }}>
+                      <span className="text-xs font-medium tabular-nums text-oa-fg">RSI {rsi.toFixed(1)}</span>
+                      <span
+                        className="rounded-full px-2 py-0.5 text-[11px] font-medium"
+                        style={{ color: rsi >= 70 ? "var(--signal-bearish)" : "var(--signal-bullish)" }}
+                      >
                         {rsi >= 70 ? "Overbought" : "Oversold"}
                       </span>
                     </div>
-                    <p className="text-right text-[11px]" style={{ color: rsi >= 70 ? "#991b1b" : "#065f46", opacity: 0.7 }}>
+                    <p className="text-right text-[11px] text-oa-muted-fg">
                       {rsi >= 70 ? "Pullback risk" : "Bounce zone"}
                     </p>
                   </div>
@@ -320,21 +323,21 @@ function FullVerdictPanel({
           {/* Action row */}
           <div data-screenshot-exclude className="flex items-center justify-center gap-10 pt-1">
             <button onClick={onReset} className="group flex flex-col items-center gap-1.5">
-              <div className="flex size-[52px] items-center justify-center rounded-full border border-oa-border bg-oa-card transition-all group-hover:border-red-400 group-hover:shadow-md">
+              <div className="flex size-[52px] items-center justify-center rounded-full border border-oa-border bg-oa-card transition-all group-hover:border-oa-fg/30 group-hover:shadow-md">
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                  <path d="M5.5 5.5l9 9M14.5 5.5l-9 9" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" className="text-oa-muted-fg transition-colors group-hover:text-red-500" />
+                  <path d="M5.5 5.5l9 9M14.5 5.5l-9 9" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" className="text-oa-muted-fg transition-colors group-hover:text-oa-fg" />
                 </svg>
               </div>
-              <span className="text-[11px] font-medium text-oa-muted-fg transition-colors group-hover:text-red-600">Try another</span>
+              <span className="text-[11px] font-medium text-oa-muted-fg transition-colors group-hover:text-oa-fg">Try another</span>
             </button>
 
             <Link href={`/stock/${ticker}`} className="group flex flex-col items-center gap-1.5">
-              <div className="flex size-[64px] items-center justify-center rounded-full shadow-lg transition-all group-hover:shadow-xl" style={{ background: verdict.color }}>
+              <div className="flex size-[64px] items-center justify-center rounded-full bg-oa-primary shadow-lg transition-all group-hover:shadow-xl">
                 <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
                   <path d="M13 22.5C13 22.5 3.5 17 3.5 10C3.5 7.1 5.85 4.8 8.75 4.8C10.4 4.8 11.9 5.65 12.85 6.95C12.95 7.08 13.05 7.08 13.15 6.95C14.1 5.65 15.6 4.8 17.25 4.8C20.15 4.8 22.5 7.1 22.5 10C22.5 17 13 22.5 13 22.5Z" fill="white" />
                 </svg>
               </div>
-              <span className="text-[11px] font-medium" style={{ color: verdict.color }}>Deep dive</span>
+              <span className="text-[11px] font-medium text-oa-primary">Deep dive</span>
             </Link>
           </div>
         </div>
