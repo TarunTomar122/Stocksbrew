@@ -65,6 +65,7 @@ import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { normalizeDirectiveForUi } from "@/lib/directive-ui";
 import { getLivePremarketQuote, getPremarketMovers } from "@/lib/premarket";
 import { isFeaturedStockTicker } from "@/lib/seo/stock-pages";
+import { getPowerTrades, type PowerTrade } from "@/lib/power-trades";
 
 export const revalidate = 60;
 
@@ -235,6 +236,7 @@ export async function StockPageStream({ params }: Props) {
     calendarEarnings,
     recentNews,
     premarketDoc,
+    powerTradesRecent,
   ] = await Promise.all([
     getStockIntelligenceDoc(stock.instrument_id, market).catch(() => null),
     shouldLoadAI
@@ -264,12 +266,19 @@ export async function StockPageStream({ params }: Props) {
     market === "US"
       ? getPremarketMovers(market).catch(() => null)
       : Promise.resolve(null),
+    market === "US"
+      ? getPowerTrades(7).catch(() => null)
+      : Promise.resolve(null),
   ]);
   const premarketQuote = getLivePremarketQuote(
     premarketDoc,
     stock.ticker,
     market,
   );
+  const powerTradesForTicker: PowerTrade[] | null =
+    powerTradesRecent && market === "US"
+      ? powerTradesRecent.trades.filter((t) => t.ticker === stock.ticker)
+      : null;
   const normalizedDirective = normalizeDirectiveForUi(intelligence?.directive_v2 ?? null);
   const activePreEarningsIntel =
     preEarningsDoc &&
@@ -424,6 +433,7 @@ export async function StockPageStream({ params }: Props) {
               }
             : null
         }
+        powerTrades={powerTradesForTicker}
         recentNews={recentNews}
         subscribed={hasFullAnalysisAccess}
         isTracked={isTracked}

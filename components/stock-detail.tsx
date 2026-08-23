@@ -42,6 +42,8 @@ import {
   resolvePriceAwareCall,
 } from "@/lib/directive-ui";
 import { hasRedditBuzzData, StockRedditBuzzRailCard } from "@/components/stock-social-proof-card";
+import { StockPowerTradesCard } from "@/components/stock-power-trades-card";
+import type { PowerTrade } from "@/lib/power-trades";
 import { StockNewsRailCard } from "@/components/stock-news-rail-card";
 import { StockPremarketQuote } from "@/components/stock-premarket-quote";
 import type { NewsArticle } from "@/lib/news";
@@ -121,6 +123,7 @@ type Props = {
     revenue_growth_yoy_pct?: number;
   }[];
   reddit?: RedditCtx;
+  powerTrades?: PowerTrade[] | null;
   recentNews?: NewsArticle[];
   subscribed: boolean;
   isTracked: boolean;
@@ -363,7 +366,7 @@ function LongTailResearchCard({
 }
 
 export function StockDetail(props: Props) {
-  const { stock, market, currency, directive, visual, overview, overviewHeadline, facts, intelPro, analyst, fundamentals, rsi, rsiState, technicalLevels, priceHistory, earnings, preEarnings, preEarningsDoc, calendarEarnings, cards, sentiment, peers, betterPeers, sectorPeers, reddit, recentNews, subscribed, isTracked, tier, premarketQuote, updatedLabel, businessQuestions, lockedCall } = props;
+  const { stock, market, currency, directive, visual, overview, overviewHeadline, facts, intelPro, analyst, fundamentals, rsi, rsiState, technicalLevels, priceHistory, earnings, preEarnings, preEarningsDoc, calendarEarnings, cards, sentiment, peers, betterPeers, sectorPeers, reddit, powerTrades, recentNews, subscribed, isTracked, tier, premarketQuote, updatedLabel, businessQuestions, lockedCall } = props;
 
   const money = (v: number) => `${currency}${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const levelMoney = (v: number) => `${currency}${Math.round(v).toLocaleString()}`;
@@ -500,6 +503,7 @@ export function StockDetail(props: Props) {
   const crowdColor = crowdScore >= 50 ? "var(--signal-bullish)" : "var(--signal-bearish)";
   const hasCrowdSignal = Boolean(reddit || n(sentiment?.overall_score));
   const hasMarketReddit = Boolean(hasRedditBuzz && reddit);
+  const hasPowerTrades = market === "US" && !!powerTrades?.length;
 
   const analystBarPct =
     n(target) && target! > 0
@@ -891,7 +895,7 @@ export function StockDetail(props: Props) {
       )}
 
       {/* ── WHAT WALL STREET THINKS ────────────────────────────────────────── */}
-      {(showAnalyst || hasExtendedAnalyst || hasCrowdSignal) && (
+      {(showAnalyst || hasExtendedAnalyst || hasCrowdSignal || hasPowerTrades) && (
         <section>
           <SectionHead
             title="What Wall Street thinks"
@@ -905,7 +909,7 @@ export function StockDetail(props: Props) {
 
               <div
                 className={`grid gap-10 ${
-                  showBasicAnalyst && (hasMarketReddit || hasCrowdSignal) ? "lg:grid-cols-2 lg:gap-12" : ""
+                  showBasicAnalyst && (hasMarketReddit || hasCrowdSignal || hasPowerTrades) ? "lg:grid-cols-2 lg:gap-12" : ""
                 }`}
               >
             {showBasicAnalyst && (
@@ -1020,6 +1024,11 @@ export function StockDetail(props: Props) {
                 />
               </div>
                 ) : null}
+            {hasPowerTrades ? (
+              <div className="min-w-0">
+                <StockPowerTradesCard ticker={stock.ticker} trades={powerTrades!} />
+              </div>
+            ) : null}
               </div>
             </div>
           </Plate>
