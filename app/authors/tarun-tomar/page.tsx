@@ -70,7 +70,7 @@ export default function TarunTomarAuthorPage() {
         </section>
 
         <nav className="flex flex-wrap gap-3">
-          <Link href="/blog" className="inline-flex h-10 items-center rounded-full bg-[var(--oa-fg)] px-5 text-[13px] font-medium text-white">
+          <Link href="/blog" className="inline-flex h-10 items-center rounded-full bg-oa-primary px-5 text-[13px] font-medium text-white">
             Read the blog
           </Link>
           <Link href="/about" className="inline-flex h-10 items-center rounded-full border border-[var(--oa-border)] px-5 text-[13px] font-medium text-[var(--oa-fg)]">

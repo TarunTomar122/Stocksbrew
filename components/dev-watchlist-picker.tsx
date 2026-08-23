@@ -65,7 +65,7 @@ export function DevWatchlistPicker({ users, initialUserId }: { users: UserSummar
         <span className="text-[11px] font-medium tracking-[0.12em] uppercase text-[var(--oa-muted-fg)]">
           Dev · Users
         </span>
-        <span className="ml-auto rounded-full bg-[var(--oa-fg)] px-2 py-0.5 text-[10px] font-medium text-white tabular-nums">
+        <span className="ml-auto rounded-full bg-oa-primary px-2 py-0.5 text-[10px] font-medium text-white tabular-nums">
           {filtered.length}
         </span>
       </div>
@@ -78,7 +78,7 @@ export function DevWatchlistPicker({ users, initialUserId }: { users: UserSummar
             onClick={() => setPlanFilter(tab.key)}
             className={`flex-1 rounded-md py-1 text-[11px] font-medium transition-colors ${
               planFilter === tab.key
-                ? "bg-[var(--oa-fg)] text-white"
+                ? "bg-oa-primary text-white"
                 : "bg-[var(--oa-bg)] text-[var(--oa-muted-fg)] hover:bg-[var(--oa-border)]"
             }`}
           >

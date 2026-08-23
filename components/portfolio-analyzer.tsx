@@ -249,7 +249,7 @@ function InputSection({
           <button
             onClick={onAnalyze}
             disabled={loading || tickers.length === 0}
-            className="self-start inline-flex items-center justify-center h-11 rounded-full bg-[var(--oa-fg)] px-7 text-[13px] font-medium text-white hover:bg-black active:scale-[0.98] transition-all disabled:opacity-40"
+            className="self-start inline-flex items-center justify-center h-11 rounded-full bg-oa-primary px-7 text-[13px] font-medium text-white hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-40"
           >
             {loading ? (
               <span className="flex items-center gap-2">

@@ -259,7 +259,7 @@ export function DevAnalyticsDashboard({ posthog, business, engagement, posthogRe
                       </div>
                       <div className="h-7 overflow-hidden rounded-lg bg-[var(--oa-bg)]">
                         <div
-                          className="flex h-full items-center rounded-lg bg-[var(--oa-fg)] pl-2 text-[10px] font-medium text-white transition-all"
+                          className="flex h-full items-center rounded-lg bg-oa-primary pl-2 text-[10px] font-medium text-white transition-all"
                           style={{ width: `${widthPct}%`, minWidth: step.count > 0 ? "2.5rem" : 0 }}
                         />
                       </div>

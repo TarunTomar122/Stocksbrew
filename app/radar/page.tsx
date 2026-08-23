@@ -93,7 +93,7 @@ export default function RadarLandingPage() {
           <div className="flex flex-wrap gap-3 pt-1">
             <Link
               href="/watchlist"
-              className="inline-flex h-[44px] items-center px-6 rounded-full bg-[var(--oa-fg)] text-white text-[14px] font-medium"
+              className="inline-flex h-[44px] items-center px-6 rounded-full bg-oa-primary text-white text-[14px] font-medium"
             >
               Open your free watchlist →
             </Link>
@@ -154,7 +154,7 @@ export default function RadarLandingPage() {
 
         <FaqSection faqs={FAQS} />
 
-        <section className="rounded-2xl border border-[var(--oa-fg)] bg-[var(--oa-fg)] p-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <section className="rounded-2xl border border-oa-primary bg-oa-primary p-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex flex-col gap-2 max-w-[480px]">
             <h2 className="text-[22px] font-medium text-white">Start with 3 free stocks</h2>
             <p className="text-[14px] text-[var(--oa-border)] leading-relaxed">

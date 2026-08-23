@@ -76,7 +76,7 @@ export default function CompareIndexPage() {
           ))}
         </section>
 
-        <section className="rounded-2xl border border-[var(--oa-fg)] bg-[var(--oa-fg)] p-8 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+        <section className="rounded-2xl border border-oa-primary bg-oa-primary p-8 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
           <div className="flex flex-col gap-2 max-w-[440px]">
             <h2 className="text-[20px] font-medium text-white">Not sure yet?</h2>
             <p className="text-[14px] text-[var(--oa-border)] leading-relaxed">
@@ -87,7 +87,7 @@ export default function CompareIndexPage() {
             <Link href="/radar" className="inline-flex h-[44px] items-center px-6 rounded-full bg-oa-card text-[var(--oa-fg)] text-[13px] font-medium">
               Open Watchlist →
             </Link>
-            <Link href="/should-i-buy" className="inline-flex h-[44px] items-center px-6 rounded-full border border-[var(--oa-fg)] text-white text-[13px] font-medium hover:border-white transition-colors">
+            <Link href="/should-i-buy" className="inline-flex h-[44px] items-center px-6 rounded-full border border-white/40 text-white text-[13px] font-medium hover:border-white transition-colors">
               Try Should I Buy
             </Link>
           </div>

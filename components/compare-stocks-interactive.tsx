@@ -556,7 +556,7 @@ function CompareBuilder({
                     transition={{ type: "spring", stiffness: 420, damping: 30 }}
                     className={`group relative flex min-w-0 items-center gap-2.5 rounded-2xl border p-3 ${
                       index === 0
-                        ? "border-[var(--oa-fg)] bg-[var(--oa-fg)] text-white"
+                        ? "border-oa-primary bg-oa-primary text-white"
                         : "border-[var(--oa-border)] bg-[var(--oa-bg)] text-[var(--oa-fg)]"
                     }`}
                   >
@@ -767,7 +767,7 @@ function ResultsExperience({
       )}
 
       <div className="grid overflow-hidden rounded-[30px] border border-[var(--oa-border)] bg-oa-card lg:grid-cols-[0.92fr_1.08fr]">
-        <div className="relative overflow-hidden bg-[var(--oa-fg)] px-6 py-8 text-white sm:px-9 sm:py-10">
+        <div className="relative overflow-hidden bg-oa-primary px-6 py-8 text-white sm:px-9 sm:py-10">
           <div aria-hidden className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-[var(--oa-primary)]/20 blur-3xl" />
           <p className="relative font-mono text-[10px] font-medium uppercase tracking-[0.16em] text-[color-mix(in srgb, var(--oa-primary) 45%, white)]">
             The quick read
@@ -916,7 +916,7 @@ function StockScorecards({
             transition={{ duration: 0.35, delay: index * 0.06 }}
             className={`relative min-w-0 rounded-[20px] border p-4 ${
               isLeader
-                ? "border-[var(--oa-fg)] bg-[var(--oa-fg)] text-white shadow-[0_14px_34px_rgba(16,36,24,0.16)]"
+                ? "border-oa-primary bg-oa-primary text-white shadow-[0_14px_34px_rgba(16,36,24,0.16)]"
                 : "border-[var(--oa-border)] bg-oa-card text-[var(--oa-fg)]"
             }`}
           >

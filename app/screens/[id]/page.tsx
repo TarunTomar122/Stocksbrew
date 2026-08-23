@@ -240,7 +240,7 @@ export default async function ScreenDetailPage({ params, searchParams }: Props) 
           </div>
           <Link
             href="/subscribe"
-            className="inline-flex items-center justify-center h-[40px] px-5 rounded-full bg-[var(--oa-fg)] text-white text-[13px] font-medium tracking-tight hover:-translate-y-[1px] active:translate-y-0 transition-transform shrink-0 w-fit"
+            className="inline-flex items-center justify-center h-[40px] px-5 rounded-full bg-oa-primary text-white text-[13px] font-medium tracking-tight hover:-translate-y-[1px] active:translate-y-0 transition-transform shrink-0 w-fit"
           >
             Save this screen
           </Link>

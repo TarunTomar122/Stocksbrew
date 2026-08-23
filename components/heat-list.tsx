@@ -316,7 +316,7 @@ function SetupPills({
           onClick={() => onSelect(k)}
           className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12px] font-medium transition-colors ${
             active === k
-              ? "bg-[var(--oa-fg)] text-white"
+              ? "bg-oa-primary text-white"
               : "bg-[var(--oa-bg)] text-[var(--oa-fg)] hover:bg-[var(--oa-border)]"
           }`}
         >

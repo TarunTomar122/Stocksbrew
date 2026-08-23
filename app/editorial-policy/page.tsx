@@ -93,7 +93,7 @@ export default function EditorialPolicyPage() {
         </section>
 
         <nav className="flex flex-wrap gap-3">
-          <Link href="/authors/tarun-tomar" className="inline-flex h-10 items-center rounded-full bg-[var(--oa-fg)] px-5 text-[13px] font-medium text-white">About the author</Link>
+          <Link href="/authors/tarun-tomar" className="inline-flex h-10 items-center rounded-full bg-oa-primary px-5 text-[13px] font-medium text-white">About the author</Link>
           <Link href="/compare" className="inline-flex h-10 items-center rounded-full border border-[var(--oa-border)] px-5 text-[13px] font-medium text-[var(--oa-fg)]">View comparisons</Link>
         </nav>
       </article>

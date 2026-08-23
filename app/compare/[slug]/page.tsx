@@ -72,7 +72,7 @@ export default async function ComparePage({ params }: Props) {
             </Link>.
           </p>
           <div className="flex flex-wrap gap-3 pt-1">
-            <Link href="/radar" className="inline-flex h-[40px] items-center px-5 rounded-full bg-[var(--oa-fg)] text-white text-[13px] font-medium">
+            <Link href="/radar" className="inline-flex h-[40px] items-center px-5 rounded-full bg-oa-primary text-white text-[13px] font-medium">
               Start free Watchlist →
             </Link>
             <a
@@ -154,7 +154,7 @@ export default async function ComparePage({ params }: Props) {
           <ol className="flex flex-col gap-4">
             {page.workflow.map((step, i) => (
               <li key={step.title} className="flex gap-4">
-                <span className="shrink-0 flex h-7 w-7 items-center justify-center rounded-full bg-[var(--oa-fg)] text-[12px] font-medium text-white">
+                <span className="shrink-0 flex h-7 w-7 items-center justify-center rounded-full bg-oa-primary text-[12px] font-medium text-white">
                   {i + 1}
                 </span>
                 <div className="flex flex-col gap-1">
@@ -200,7 +200,7 @@ export default async function ComparePage({ params }: Props) {
 
         <FaqSection faqs={page.faqs} />
 
-        <section className="rounded-2xl border border-[var(--oa-fg)] bg-[var(--oa-fg)] p-8 flex flex-col gap-4">
+        <section className="rounded-2xl border border-oa-primary bg-oa-primary p-8 flex flex-col gap-4">
           <h2 className="text-[20px] font-medium text-white">Try the US workflow</h2>
           <p className="text-[14px] text-[var(--oa-border)] leading-relaxed max-w-[520px]">
             Add 3 stocks free. Get AI calls and optional email alerts when setups change.
