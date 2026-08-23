@@ -43,6 +43,8 @@ function fmtPct(n: number | null): string {
   return `${n >= 0 ? "+" : ""}${n.toFixed(1)}%`;
 }
 
+const SAMPLE_PORTFOLIO = ["NVDA", "AAPL", "MSFT", "GOOGL", "AMZN"];
+
 const SECTOR_COLORS = [
   "var(--oa-primary)", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6",
   "#ec4899", "#14b8a6", "#f97316", "#6366f1", "#84cc16",
@@ -167,7 +169,7 @@ function InputSection({
             onClick={() => setMode(m.key)}
             className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12px] font-medium transition-colors ${
               mode === m.key
-                ? "bg-[var(--oa-fg)] text-white"
+                ? "bg-oa-primary text-white"
                 : "bg-[var(--oa-bg)] text-[var(--oa-muted-fg)] hover:bg-[var(--oa-border)] hover:text-[var(--oa-fg)]"
             }`}
           >
@@ -188,13 +190,23 @@ function InputSection({
             rows={3}
             className="w-full rounded-xl border border-[var(--oa-border)] bg-oa-bg p-4 text-[14px] text-[var(--oa-fg)] placeholder:text-[var(--oa-muted-fg)] outline-none focus:border-[var(--oa-fg)] focus:bg-oa-card transition-all resize-none"
           />
-          <button
-            onClick={handlePasteAnalyze}
-            disabled={!pasteText.trim()}
-            className="self-start inline-flex items-center h-9 rounded-full bg-oa-primary px-5 text-[12px] font-medium text-white transition-[filter] hover:brightness-110 disabled:opacity-40"
-          >
-            Add to list
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={handlePasteAnalyze}
+              disabled={!pasteText.trim()}
+              className="inline-flex items-center h-9 rounded-full bg-oa-primary px-5 text-[12px] font-medium text-white transition-[filter] hover:brightness-110 disabled:opacity-40"
+            >
+              Add to list
+            </button>
+            {tickers.length === 0 && !pasteText.trim() && (
+              <button
+                onClick={() => onAddTickers(SAMPLE_PORTFOLIO)}
+                className="inline-flex items-center h-9 rounded-full border border-[var(--oa-border)] px-4 text-[12px] font-medium text-[var(--oa-muted-fg)] transition-colors hover:border-[var(--oa-fg)]/30 hover:text-[var(--oa-fg)]"
+              >
+                Try a sample portfolio
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -821,12 +833,11 @@ export function PortfolioAnalyzer({ searchIndex }: { searchIndex: SearchEntry[] 
 
       {/* ── Empty hint ── */}
       {!analysis && !loading && tickers.length === 0 && (
-        <div className="mt-16 flex flex-col items-center gap-3 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--oa-bg)]">
-            <svg width="22" height="22" viewBox="0 0 22 22" fill="none" className="text-[var(--oa-muted-fg)]">
-              <circle cx="11" cy="11" r="9" stroke="currentColor" strokeWidth="1.5"/>
-              <path d="M11 7v4l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-            </svg>
+        <div className="mt-16 flex flex-col items-center gap-4 text-center">
+          <div className="flex items-center -space-x-3">
+            {SAMPLE_PORTFOLIO.map((t) => (
+              <StockLogo key={t} ticker={t} size={40} circle className="border-2 border-oa-card shadow-[0_1px_2px_rgba(0,0,0,0.08)]" />
+            ))}
           </div>
           <p className="text-[14px] font-medium text-[var(--oa-fg)]">Add your stocks above to get started</p>
           <p className="text-[12px] text-[var(--oa-muted-fg)]">Paste tickers or search by company name</p>
