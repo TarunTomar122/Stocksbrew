@@ -29,12 +29,12 @@ type SetupMeta = {
 };
 
 const SETUP_META: Record<string, SetupMeta> = {
-  overheated:     { label: "Overheated",     short: "Overheated", desc: "Heat score is extreme. Unusually high volume, momentum, or news velocity. Proceed with caution.",   color: "#c2410c", bg: "#fff7ed", order: 1 },
-  catalyst_watch: { label: "Catalyst watch", short: "Catalyst",   desc: "An upcoming event (earnings, FDA ruling, or macro data) could be a significant price mover.",      color: "#b45309", bg: "#fffbeb", order: 2 },
-  breakout:       { label: "Breakout",       short: "Breakout",   desc: "Price breaking above a key level with confirmation. Momentum is building on the upside.",            color: "#047857", bg: "#ecfdf5", order: 3 },
-  news_spike:     { label: "News spike",     short: "News",       desc: "A sudden surge in news coverage or press mentions is driving unusual attention to this stock.",      color: "#7c3aed", bg: "#f5f3ff", order: 4 },
-  dip_setup:      { label: "Dip setup",      short: "Dip",        desc: "Stock is pulling back within an uptrend, a potential re-entry point if the thesis still holds.",    color: "var(--oa-primary)", bg: "#eff6ff", order: 5 },
-  momentum_watch: { label: "Momentum watch", short: "Momentum",   desc: "Consistent signal strength without a single trigger. Worth watching for a cleaner entry.",          color: "var(--oa-muted-fg)", bg: "#f8fafc", order: 6 },
+  overheated:     { label: "Overheated",     short: "Overheated", desc: "Heat score is extreme. Unusually high volume, momentum, or news velocity. Proceed with caution.",   color: "#c2410c", bg: "var(--oa-bg)", order: 1 },
+  catalyst_watch: { label: "Catalyst watch", short: "Catalyst",   desc: "An upcoming event (earnings, FDA ruling, or macro data) could be a significant price mover.",      color: "#b45309", bg: "var(--oa-bg)", order: 2 },
+  breakout:       { label: "Breakout",       short: "Breakout",   desc: "Price breaking above a key level with confirmation. Momentum is building on the upside.",            color: "#047857", bg: "var(--oa-bg)", order: 3 },
+  news_spike:     { label: "News spike",     short: "News",       desc: "A sudden surge in news coverage or press mentions is driving unusual attention to this stock.",      color: "#7c3aed", bg: "var(--oa-bg)", order: 4 },
+  dip_setup:      { label: "Dip setup",      short: "Dip",        desc: "Stock is pulling back within an uptrend, a potential re-entry point if the thesis still holds.",    color: "var(--oa-primary)", bg: "var(--oa-bg)", order: 5 },
+  momentum_watch: { label: "Momentum watch", short: "Momentum",   desc: "Consistent signal strength without a single trigger. Worth watching for a cleaner entry.",          color: "var(--oa-muted-fg)", bg: "var(--oa-bg)", order: 6 },
 };
 
 function getSetupMeta(key?: string): SetupMeta {
@@ -64,12 +64,12 @@ function heatScoreColor(score: number): string {
 
 type DriverMeta = { label: string; color: string; bg: string };
 const DRIVER_META: Record<string, DriverMeta> = {
-  "Momentum score":      { label: "Momentum",     color: "var(--oa-primary)", bg: "#eff6ff" },
-  "News velocity":       { label: "News",         color: "#7c3aed", bg: "#f5f3ff" },
-  "Upcoming catalyst":   { label: "Catalyst",     color: "#b45309", bg: "#fffbeb" },
-  "Stretched RSI":       { label: "Stretched",    color: "#c2410c", bg: "#fff7ed" },
-  "Price breakout":      { label: "Breakout",     color: "#047857", bg: "#ecfdf5" },
-  "Washed-out quality":  { label: "Washed-out",   color: "var(--oa-muted-fg)", bg: "#f8fafc" },
+  "Momentum score":      { label: "Momentum",     color: "var(--oa-primary)", bg: "var(--oa-bg)" },
+  "News velocity":       { label: "News",         color: "#7c3aed", bg: "var(--oa-bg)" },
+  "Upcoming catalyst":   { label: "Catalyst",     color: "#b45309", bg: "var(--oa-bg)" },
+  "Stretched RSI":       { label: "Stretched",    color: "#c2410c", bg: "var(--oa-bg)" },
+  "Price breakout":      { label: "Breakout",     color: "#047857", bg: "var(--oa-bg)" },
+  "Washed-out quality":  { label: "Washed-out",   color: "var(--oa-muted-fg)", bg: "var(--oa-bg)" },
 };
 
 function driverMeta(key?: string | null): DriverMeta | null {
@@ -93,9 +93,9 @@ function DriverTag({ driver }: { driver?: string | null }) {
 function rsiMeta(state?: string): { label: string; color: string; bg: string } | null {
   switch ((state ?? "").toLowerCase()) {
     case "overbought":
-      return { label: "Overbought", color: "#c2410c", bg: "#fff7ed" };
+      return { label: "Overbought", color: "#c2410c", bg: "var(--oa-bg)" };
     case "oversold":
-      return { label: "Oversold", color: "#047857", bg: "#ecfdf5" };
+      return { label: "Oversold", color: "#047857", bg: "var(--oa-bg)" };
     default:
       return null;
   }
@@ -115,7 +115,7 @@ function RailRow({ row, trackedIds, isSubscribed }: { row: HeatRow; trackedIds: 
             {row.ticker}
           </span>
           {row.first_appearance && (
-            <span className="text-[9px] font-medium tracking-[0.08em] uppercase text-[var(--oa-primary)] bg-[#eff6ff] px-1.5 py-0.5 rounded-md">New</span>
+            <span className="text-[9px] font-medium tracking-[0.08em] uppercase text-[var(--oa-primary)] bg-oa-bg px-1.5 py-0.5 rounded-md">New</span>
           )}
         </div>
       </a>
@@ -149,7 +149,7 @@ function TableRow({ row, trackedIds, isSubscribed, showReason = false }: { row: 
               {row.ticker}
             </span>
             {row.first_appearance && (
-              <span className="text-[9px] font-medium tracking-[0.08em] uppercase text-[var(--oa-primary)] bg-[#eff6ff] px-1.5 py-0.5 rounded-md">New</span>
+              <span className="text-[9px] font-medium tracking-[0.08em] uppercase text-[var(--oa-primary)] bg-oa-bg px-1.5 py-0.5 rounded-md">New</span>
             )}
           </div>
           {showReason && (() => {
@@ -249,8 +249,8 @@ function DivergenceRow({
         <span
           className="text-[10px] font-medium tracking-[0.04em] uppercase rounded-md px-1.5 py-0.5 w-fit"
           style={{
-            background: isBullishNewsDown ? "#ecfdf5" : "#fef2f2",
-            color: isBullishNewsDown ? "#047857" : "#b91c1c",
+            background: "var(--oa-bg)",
+            color: isBullishNewsDown ? "var(--signal-bullish)" : "var(--signal-bearish)",
           }}
         >
           {isBullishNewsDown ? "Good news, price fell" : "Bad news, price rose"}
@@ -260,8 +260,8 @@ function DivergenceRow({
         <span
           className="shrink-0 inline-flex items-center gap-0.5 rounded-md px-2 py-1 text-[11px] font-medium tabular-nums"
           style={{
-            background: pct.positive ? "#ecfdf5" : "#fef2f2",
-            color: pct.positive ? "#10b981" : "#ef4444",
+            background: "var(--oa-bg)",
+            color: pct.positive ? "var(--signal-bullish)" : "var(--signal-bearish)",
           }}
         >
           {pct.positive ? "▲" : "▼"} {pct.text}
@@ -403,7 +403,7 @@ export function HeatListView({ data, divergence, trackedIds = [], isSubscribed =
               Updated {relativeTime(data.generated_at)}
             </span>
             {SHOW_DATA_FRESHNESS_UI && freshness?.status === "stale" && (
-              <span className="text-[11px] text-[#991b1b]">Heat data is older than 72h</span>
+              <span className="text-[11px]" style={{ color: "var(--signal-bearish)" }}>Heat data is older than 72h</span>
             )}
           </div>
         )}
