@@ -383,7 +383,7 @@ export function ShouldIBuyInteractive({ searchIndex, isSubscribed }: { searchInd
 
   return (
     <div className="mx-auto w-full max-w-[76rem] px-4 py-10 sm:px-6 sm:py-16">
-      <div className="flex flex-col items-start gap-12 lg:flex-row lg:gap-16">
+      <div className="flex flex-col items-start gap-12 lg:flex-row lg:items-center lg:gap-16">
 
         {/* LEFT: static content + search */}
         <div className="flex min-w-0 flex-1 flex-col items-start gap-7">

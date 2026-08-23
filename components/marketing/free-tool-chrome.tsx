@@ -64,7 +64,7 @@ function RelatedCard({ tool }: { tool: HubLink }) {
   return (
     <Link
       href={tool.href}
-      className="group flex flex-col gap-1.5 rounded-[18px] border border-oa-border bg-oa-bg p-4 transition-colors duration-200 hover:bg-oa-card"
+      className="group flex flex-col gap-1.5 rounded-[18px] border border-oa-border bg-oa-card p-4 shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_2px_10px_rgba(0,0,0,0.08)]"
     >
       <span className="block text-sm font-medium tracking-tight text-oa-fg transition-colors group-hover:text-oa-primary">
         {tool.title}

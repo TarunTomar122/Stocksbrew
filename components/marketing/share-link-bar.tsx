@@ -8,7 +8,7 @@ type Props = {
 };
 
 const PILL =
-  "inline-flex h-8 items-center rounded-full border border-oa-border bg-oa-card px-3.5 text-[13px] font-medium text-oa-muted-fg transition-colors hover:border-oa-fg/30 hover:text-oa-fg";
+  "inline-flex h-8 items-center rounded-full border border-oa-border bg-oa-bg px-3.5 text-[13px] font-medium text-oa-muted-fg transition-colors hover:border-oa-fg/30 hover:text-oa-fg";
 
 export function ShareLinkBar({ url, title }: Props) {
   const [copied, setCopied] = useState(false);
@@ -27,7 +27,7 @@ export function ShareLinkBar({ url, title }: Props) {
   }
 
   return (
-    <section className="flex flex-col gap-3 rounded-[22px] border border-oa-border bg-oa-bg p-5 sm:flex-row sm:items-center sm:justify-between">
+    <section className="flex flex-col gap-3 rounded-[22px] border border-oa-border bg-oa-card p-5 shadow-[0_1px_2px_rgba(0,0,0,0.06)] sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
         <p className="oa-mono text-[10px] uppercase tracking-[0.12em] text-oa-muted-fg">Share this page</p>
         <p className="oa-mono mt-1 truncate text-[13px] text-oa-fg/70">{absolute}</p>
