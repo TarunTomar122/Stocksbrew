@@ -480,7 +480,7 @@ function CompareBuilder({
   );
 
   return (
-    <section className="compare-builder relative overflow-hidden rounded-[32px] border border-[var(--oa-border)] bg-[var(--oa-bg)]">
+    <section className="compare-builder relative overflow-hidden rounded-[32px] border border-[var(--oa-border)] bg-oa-card">
       <div
         aria-hidden
         className="pointer-events-none absolute -right-24 -top-36 h-[420px] w-[420px] rounded-full bg-[var(--oa-accent)]/45 blur-3xl"
@@ -629,7 +629,7 @@ function CompareBuilder({
             type="button"
             onClick={onCompare}
             disabled={!canCompare}
-            className="mt-5 flex h-12 w-full items-center justify-between rounded-2xl bg-[var(--oa-fg)] px-5 text-[13px] font-medium text-white shadow-[0_8px_22px_rgba(17,23,19,0.18)] transition-all hover:-translate-y-0.5 hover:bg-black disabled:cursor-not-allowed disabled:bg-[var(--oa-border)] disabled:text-[var(--oa-muted-fg)] disabled:shadow-none"
+            className="mt-5 flex h-12 w-full items-center justify-between rounded-2xl bg-oa-primary px-5 text-[13px] font-medium text-white shadow-[0_8px_22px_rgba(17,23,19,0.18)] transition-all hover:-translate-y-0.5 hover:brightness-110 disabled:cursor-not-allowed disabled:bg-[var(--oa-border)] disabled:text-[var(--oa-muted-fg)] disabled:shadow-none"
           >
             <span>{canCompare ? `Compare ${selected.length} stocks` : "Choose at least two"}</span>
             <span className="text-[18px]" aria-hidden>↗</span>
@@ -643,7 +643,7 @@ function CompareBuilder({
 function LoadingArena({ tickers }: { tickers: string[] }) {
   const reducedMotion = useReducedMotion();
   return (
-    <section className="flex min-h-[560px] flex-col items-center justify-center overflow-hidden rounded-[32px] border border-[var(--oa-border)] bg-[var(--oa-bg)] px-6 text-center">
+    <section className="flex min-h-[560px] flex-col items-center justify-center overflow-hidden rounded-[32px] border border-[var(--oa-border)] bg-oa-card px-6 text-center">
       <div className="relative mb-8 flex h-28 items-center justify-center">
         {tickers.slice(0, 3).map((ticker, index) => (
           <motion.div
@@ -705,7 +705,7 @@ function ResultsExperience({
 
   if (stocks.length < 2) {
     return (
-      <section className="rounded-[28px] border border-[var(--oa-accent)] bg-[var(--oa-bg)] px-6 py-12 text-center">
+      <section className="rounded-[28px] border border-[var(--oa-accent)] bg-oa-card px-6 py-12 text-center">
         <h1 className="text-[28px] font-medium tracking-[-0.03em] text-[var(--oa-fg)]">
           We need two covered stocks.
         </h1>
@@ -761,7 +761,7 @@ function ResultsExperience({
       </div>
 
       {missingTickers.length > 0 && (
-        <div className="rounded-2xl border border-[var(--oa-accent)] bg-[var(--oa-bg)] px-4 py-3 text-[12px] text-[var(--oa-fg)]">
+        <div className="rounded-2xl border border-[var(--oa-accent)] bg-oa-card px-4 py-3 text-[12px] text-[var(--oa-fg)]">
           No current data for {missingTickers.join(", ")}. The comparison below uses the covered stocks.
         </div>
       )}
