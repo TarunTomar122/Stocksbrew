@@ -5,6 +5,8 @@ import { adminFirestore } from "@/lib/firebase-admin";
 import { recordLifecycleEvent } from "@/lib/lifecycle-events";
 import { trialConsumedPatch } from "@/lib/trial-eligibility";
 import { captureServerEvent } from "@/lib/posthog-server-capture";
+import { sendTransactionalEmail } from "@/lib/brevo";
+import { buildWelcomeProEmail } from "@/lib/emails/welcome-pro";
 
 type WebhookLogLevel = "info" | "warn" | "error";
 
@@ -146,6 +148,11 @@ async function handleEvent(
   switch (type) {
     case "subscription.active":
     case "subscription.renewed": {
+      // Read before write so we can tell a first-time conversion apart from a
+      // renewal or a retried webhook delivery, without touching the write path.
+      const beforeSnap = await ref.get().catch(() => null);
+      const wasAlreadySubscribed = beforeSnap?.data()?.is_subscribed === true;
+
       await ref.set(
         {
           is_subscribed: true,
@@ -172,6 +179,24 @@ async function handleEvent(
         $insert_id: `dodo:${deliveryId}:${type}`,
       }).catch(() => undefined);
       dodoWebhookLog(deliveryId, "info", "firestore_user_updated", { uid, type, subscription_id: subId });
+
+      // Best-effort welcome email for genuinely new Pro subscribers only.
+      // Never allowed to affect the webhook response either way.
+      if (type === "subscription.active" && !wasAlreadySubscribed) {
+        try {
+          const profile = beforeSnap?.data() as { email?: string; display_name?: string } | undefined;
+          const recipient = profile?.email;
+          if (recipient) {
+            const { subject, html } = buildWelcomeProEmail({
+              email: recipient,
+              displayName: profile?.display_name,
+            });
+            sendTransactionalEmail(recipient, subject, html).catch(() => undefined);
+          }
+        } catch {
+          // never let the welcome email affect the subscription flow
+        }
+      }
       break;
     }
 
