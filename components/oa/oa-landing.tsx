@@ -5,6 +5,7 @@ import { OaSiteHeader } from "@/components/oa/oa-site-header";
 import { OaHeroSearch } from "@/components/oa/oa-hero-search";
 import { OaButton } from "@/components/oa/button";
 import { StartFreeButton } from "@/components/oa/start-free-button";
+import { ProCheckoutButton } from "@/components/oa/pro-checkout-button";
 import { SquircleCard, SquircleSurface } from "@/components/oa/squircle";
 import { AnimatedIcon } from "@/components/animated-icon";
 import { Reveal } from "@/components/reveal";
@@ -496,7 +497,7 @@ export async function OaLanding() {
                   ))}
                 </ul>
                 <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-                  <StartFreeButton surface="landing_pro_preview" size="sm" label="Try Pro" className="h-11 px-6 text-base" />
+                  <ProCheckoutButton size="md" className="h-11 px-6 text-base">Try Pro</ProCheckoutButton>
                   <p className="text-[16.5px] text-oa-muted-fg">
                     <span className="font-medium tabular-nums text-oa-fg">${US_PRO_MONTHLY}/mo</span> · 3-day full trial · cancel anytime
                   </p>

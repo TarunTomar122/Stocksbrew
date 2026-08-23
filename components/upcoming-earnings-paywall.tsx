@@ -2,10 +2,10 @@
 
 import { AnimatedIcon } from "@/components/animated-icon";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 import { useUser } from "@/lib/auth-context";
+import { useProCheckout } from "@/lib/use-pro-checkout";
 import { PRO_LOCKED_FEED_TEASER } from "@/lib/pro-features";
 import {
   trackPaywallShown,
@@ -13,7 +13,6 @@ import {
 } from "@/lib/product-analytics";
 import { ProCtaButton } from "@/components/pro-cta";
 import { StockLogo } from "@/components/stock-logo";
-import { signInWithGoogle } from "@/lib/sign-in";
 
 type Benefit = {
   icon: string;
@@ -206,8 +205,7 @@ function MockSetupCard({ ticker }: { ticker: string }) {
 
 export function UpcomingEarningsPaywall({ setupCount, tickers }: Props) {
   const { user } = useUser();
-  const router = useRouter();
-  const [busy, setBusy] = useState(false);
+  const { openCheckout, busy } = useProCheckout("paywall");
 
   useEffect(() => {
     trackPaywallShown({
@@ -221,19 +219,7 @@ export function UpcomingEarningsPaywall({ setupCount, tickers }: Props) {
       surface: "upcoming_earnings",
       signedIn: Boolean(user),
     });
-    if (!user) {
-      setBusy(true);
-      try {
-        await signInWithGoogle({ surface: "paywall" });
-        router.push("/subscribe");
-      } catch (err) {
-        console.error("sign-in failed", err);
-      } finally {
-        setBusy(false);
-      }
-      return;
-    }
-    router.push("/subscribe");
+    await openCheckout();
   }
 
   const reportingLine =

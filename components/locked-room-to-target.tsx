@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 
 import { useUser } from "@/lib/auth-context";
 import { signInWithGoogle } from "@/lib/sign-in";
-import { trackPaywallShown, trackPaywallUnlockClicked } from "@/lib/product-analytics";
+import { trackCheckoutClicked, trackCheckoutStarted, trackPaywallShown, trackPaywallUnlockClicked } from "@/lib/product-analytics";
+import { startDodoCheckout } from "@/lib/dodo-checkout-client";
 
 const RAIL_KICKER = "font-mono text-[11px] uppercase tracking-[0.13em] text-on-surface-variant";
 
@@ -66,9 +67,17 @@ export function LockedRoomToTarget({
       }
     : {
         label: "Get Pro",
-        onClick: () => {
+        onClick: async () => {
           trackPaywallUnlockClicked({ surface: "locked_room_to_target", ticker, signedIn: true });
-          router.push("/subscribe");
+          trackCheckoutClicked({ period: "monthly", market: "US", signedIn: true });
+          try {
+            const checkoutUrl = await startDodoCheckout();
+            trackCheckoutStarted({ period: "monthly", market: "US" });
+            window.location.assign(checkoutUrl);
+          } catch (err) {
+            console.error("direct checkout failed", err);
+            setError("Could not open checkout. Please try again.");
+          }
         },
       };
 

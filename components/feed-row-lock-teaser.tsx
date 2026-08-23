@@ -7,11 +7,14 @@ import { proCtaClassName } from "@/components/pro-cta";
 import { useUser } from "@/lib/auth-context";
 import {
   type PaywallSurface,
+  trackCheckoutClicked,
+  trackCheckoutStarted,
   trackPaywallShown,
   trackPaywallUnlockClicked,
 } from "@/lib/product-analytics";
 import { captureEvent } from "@/lib/posthog";
 import { signInWithGoogle } from "@/lib/sign-in";
+import { startDodoCheckout } from "@/lib/dodo-checkout-client";
 
 const REDDIT_LINES = [
   (ticker: string) =>
@@ -132,7 +135,16 @@ function useFeedUnlockCta(surface: PaywallSurface) {
       }
       return;
     }
-    router.push("/subscribe");
+    setBusy(true);
+    trackCheckoutClicked({ period: "monthly", market: "US", signedIn: true });
+    try {
+      const checkoutUrl = await startDodoCheckout();
+      trackCheckoutStarted({ period: "monthly", market: "US" });
+      window.location.assign(checkoutUrl);
+    } catch (err) {
+      console.error("direct checkout failed", err);
+      setBusy(false);
+    }
   }
 
   return { user, busy, handleUnlock };

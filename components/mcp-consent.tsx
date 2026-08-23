@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { signInWithGoogle } from "@/lib/sign-in";
+import { useProCheckout } from "@/lib/use-pro-checkout";
 
 type Props = {
   clientName: string;
@@ -26,6 +27,7 @@ export function McpConsent({ clientName, scopes, authorizationParams, signedIn, 
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { openCheckout, busy: checkoutBusy } = useProCheckout("paywall");
 
   async function signIn() {
     setBusy(true);
@@ -88,7 +90,9 @@ export function McpConsent({ clientName, scopes, authorizationParams, signedIn, 
             {busy ? "Signing in…" : "Sign in to continue"}
           </button>
         ) : !subscribed ? (
-          <a href="/subscribe" className="rounded-full bg-oa-primary px-5 py-2.5 text-[13px] font-medium text-white">Get Pro to connect</a>
+          <button type="button" disabled={checkoutBusy} onClick={() => void openCheckout()} className="rounded-full bg-oa-primary px-5 py-2.5 text-[13px] font-medium text-white disabled:opacity-50">
+            {checkoutBusy ? "Opening checkout…" : "Get Pro to connect"}
+          </button>
         ) : (
           <button type="button" disabled={busy} onClick={() => decide("approve")} className="rounded-full bg-oa-primary px-5 py-2.5 text-[13px] font-medium text-white disabled:opacity-50">
             {busy ? "Connecting…" : "Approve connection"}

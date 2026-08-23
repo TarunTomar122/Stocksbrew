@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 
 import { VerdictCallChart } from "@/components/verdict-call-chart";
 import { useUser } from "@/lib/auth-context";
-import { signInWithGoogle } from "@/lib/sign-in";
+import { useProCheckout } from "@/lib/use-pro-checkout";
 import { trackPaywallShown, trackPaywallUnlockClicked } from "@/lib/product-analytics";
 import type { StockReturns } from "@/lib/chart-range";
 import { US_PRO_MONTHLY_MO } from "@/lib/pricing";
@@ -207,8 +206,8 @@ export function LockedVerdictCall({
 }) {
   const hasTrial = market === "US";
   const { user, loading } = useUser();
-  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const { openCheckout } = useProCheckout("locked_verdict_call");
 
   useEffect(() => {
     if (loading) return;
@@ -222,16 +221,15 @@ export function LockedVerdictCall({
   async function handleSignIn() {
     trackPaywallUnlockClicked({ surface: "locked_verdict_call", ticker, signedIn: false });
     try {
-      await signInWithGoogle({ surface: "locked_verdict_call" });
-      router.push("/subscribe");
+      await openCheckout();
     } catch {
       setError("Sign-in cancelled or failed.");
     }
   }
 
-  function handleGetPro() {
+  async function handleGetPro() {
     trackPaywallUnlockClicked({ surface: "locked_verdict_call", ticker, signedIn: true });
-    router.push("/subscribe");
+    await openCheckout();
   }
 
   const callSlot = (

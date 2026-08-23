@@ -2,10 +2,9 @@
 
 import { AnimatedIcon } from "@/components/animated-icon";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { useUser } from "@/lib/auth-context";
-import { signInWithGoogle } from "@/lib/sign-in";
+import { useProCheckout } from "@/lib/use-pro-checkout";
 import { ProCtaButton } from "@/components/pro-cta";
 import {
   type PaywallSurface,
@@ -35,8 +34,7 @@ export function ProLockCard({
   ticker,
 }: Props) {
   const { user } = useUser();
-  const router = useRouter();
-  const [busy, setBusy] = useState(false);
+  const { openCheckout, busy } = useProCheckout("paywall");
 
   useEffect(() => {
     trackPaywallShown({
@@ -52,19 +50,7 @@ export function ProLockCard({
       ticker,
       signedIn: Boolean(user),
     });
-    if (!user) {
-      setBusy(true);
-      try {
-        await signInWithGoogle({ surface: "paywall" });
-        router.push("/subscribe");
-      } catch (err) {
-        console.error("sign-in failed", err);
-      } finally {
-        setBusy(false);
-      }
-      return;
-    }
-    router.push("/subscribe");
+    await openCheckout();
   }
 
   return (

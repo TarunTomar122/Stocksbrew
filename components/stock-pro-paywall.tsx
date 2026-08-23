@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 import { useUser } from "@/lib/auth-context";
 import { ProCtaButton } from "@/components/pro-cta";
@@ -10,7 +9,7 @@ import {
   trackPaywallShown,
   trackPaywallUnlockClicked,
 } from "@/lib/product-analytics";
-import { signInWithGoogle } from "@/lib/sign-in";
+import { useProCheckout } from "@/lib/use-pro-checkout";
 import type { StockIntelPro } from "@/lib/types";
 
 const BENEFITS = [
@@ -92,8 +91,7 @@ export function StockProPaywall({
   surface?: PaywallSurface;
 }) {
   const { user } = useUser();
-  const router = useRouter();
-  const [busy, setBusy] = useState(false);
+  const { openCheckout, busy } = useProCheckout("paywall");
 
   useEffect(() => {
     trackPaywallShown({
@@ -109,19 +107,7 @@ export function StockProPaywall({
       ticker,
       signedIn: Boolean(user),
     });
-    if (!user) {
-      setBusy(true);
-      try {
-        await signInWithGoogle({ surface: "paywall" });
-        router.push("/subscribe");
-      } catch (err) {
-        console.error("sign-in failed", err);
-      } finally {
-        setBusy(false);
-      }
-      return;
-    }
-    router.push("/subscribe");
+    await openCheckout();
   }
 
   return (

@@ -1,13 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 
 import { StockLogo } from "@/components/stock-logo";
 import { useUser } from "@/lib/auth-context";
 import { US_PRO_MONTHLY_MO } from "@/lib/pricing";
 import { trackPaywallUnlockClicked } from "@/lib/product-analytics";
-import { signInWithGoogle } from "@/lib/sign-in";
+import { useProCheckout } from "@/lib/use-pro-checkout";
 
 type Props = {
   stock: {
@@ -23,8 +22,7 @@ type Props = {
 
 export function StockTrialGate({ stock, currency, market }: Props) {
   const { user } = useUser();
-  const router = useRouter();
-  const [busy, setBusy] = useState(false);
+  const { openCheckout, busy } = useProCheckout("locked_verdict_call");
   const [error, setError] = useState<string | null>(null);
   const move = stock.day_change_pct ?? 0;
   const hasTrial = market === "US";
@@ -36,17 +34,11 @@ export function StockTrialGate({ stock, currency, market }: Props) {
       ticker: stock.ticker,
       signedIn: Boolean(user),
     });
-    if (!user) {
-      setBusy(true);
-      try {
-        await signInWithGoogle({ surface: "locked_verdict_call" });
-      } catch {
-        setError("Sign-in cancelled or failed.");
-        setBusy(false);
-        return;
-      }
+    try {
+      await openCheckout();
+    } catch {
+      setError("Sign-in cancelled or failed.");
     }
-    router.push("/subscribe");
   }
 
   return (
