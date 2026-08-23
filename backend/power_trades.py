@@ -216,14 +216,21 @@ class SourceError(RuntimeError):
     pass
 
 
+_BARGO_UA = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+)
+
+
 def _bargo_get(
     session: requests.Session,
     url: str,
     params: dict[str, Any],
     api_key: str | None = None,
 ) -> requests.Response:
-    """GET with patience: the anonymous tier rate-limits bursts, so wait out 429s."""
-    headers: dict[str, str] = {}
+    """GET with patience: wait out 429s, and carry a browser UA because
+    datacenter IPs get a Cloudflare challenge under curl's default one."""
+    headers = {"User-Agent": _BARGO_UA, "Accept": "application/json"}
     key = api_key or os.environ.get("BARGO_API_KEY", "").strip()
     if key:
         headers["Authorization"] = f"Bearer {key}"
