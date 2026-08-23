@@ -52,7 +52,7 @@ function MentionTable({
 
   if (rows.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-[var(--oa-border)] bg-oa-bg px-4 py-10 text-center">
+      <div className="rounded-2xl border border-dashed border-[var(--oa-border)] bg-oa-card px-4 py-10 text-center">
         <p className="text-[13px] text-[var(--oa-muted-fg)]">No {meta.label.toLowerCase()} mentions in this window.</p>
       </div>
     );

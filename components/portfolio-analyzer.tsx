@@ -566,7 +566,7 @@ function LoadingSkeleton() {
 
 function ProCTA() {
   return (
-    <div className="rounded-3xl border border-[var(--oa-border)] bg-oa-bg p-8 md:p-10 flex flex-col md:flex-row md:items-center gap-8">
+    <div className="rounded-3xl border border-[var(--oa-border)] bg-oa-card p-8 md:p-10 flex flex-col md:flex-row md:items-center gap-8">
       <div className="flex flex-col gap-4 flex-1">
         <div className="flex flex-col gap-2">
           <span className="inline-flex items-center gap-1.5 self-start rounded-full bg-oa-card border border-[var(--oa-border)] px-3 py-1 text-[11px] font-medium text-[var(--oa-fg)]">
@@ -794,7 +794,7 @@ export function PortfolioAnalyzer({ searchIndex }: { searchIndex: SearchEntry[] 
                 .filter((id): id is string => !!id);
               if (instrumentIds.length === 0) return null;
               return (
-                <div className="rounded-2xl border border-[var(--oa-border)] bg-oa-bg p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="rounded-2xl border border-[var(--oa-border)] bg-oa-card p-5 flex flex-col sm:flex-row sm:items-center gap-4">
                   <div className="flex items-start gap-3 flex-1 min-w-0">
                     <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-oa-card border border-[var(--oa-border)] text-[16px]">📡</span>
                     <div className="flex flex-col gap-0.5 min-w-0">

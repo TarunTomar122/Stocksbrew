@@ -107,7 +107,7 @@ function RailRow({ row, trackedIds, isSubscribed }: { row: HeatRow; trackedIds: 
   const market = row.instrument_id.startsWith("IN_") ? "IN" : "US";
 
   return (
-    <div className="group flex items-center gap-2.5 rounded-[14px] border border-[var(--oa-border)] bg-[var(--oa-bg)] px-3 py-2.5 transition-all hover:-translate-y-0.5 hover:border-[color-mix(in_srgb,var(--oa-fg)_25%,transparent)] hover:shadow-[0_4px_14px_rgba(0,0,0,0.06)]">
+    <div className="group flex items-center gap-2.5 rounded-[14px] border border-[var(--oa-border)] bg-oa-card px-3 py-2.5 transition-all hover:-translate-y-0.5 hover:border-[color-mix(in_srgb,var(--oa-fg)_25%,transparent)] hover:shadow-[0_4px_14px_rgba(0,0,0,0.06)]">
       <a href={`/stock/${encodeURIComponent(row.ticker)}`} className="flex items-center gap-2.5 flex-1 min-w-0">
         <StockLogo ticker={row.ticker} logoUrl={row.logo_url} market={market} size={32} circle />
         <div className="flex items-center gap-1.5 min-w-0">
@@ -235,7 +235,7 @@ function DivergenceRow({
   return (
     <a
       href={`/stock/${encodeURIComponent(row.ticker)}`}
-      className="flex items-start gap-3 rounded-[14px] border border-[var(--oa-border)] bg-[var(--oa-bg)] px-3 py-3 transition-all hover:-translate-y-0.5 hover:border-[color-mix(in_srgb,var(--oa-fg)_25%,transparent)] hover:shadow-[0_4px_14px_rgba(0,0,0,0.06)]"
+      className="flex items-start gap-3 rounded-[14px] border border-[var(--oa-border)] bg-oa-card px-3 py-3 transition-all hover:-translate-y-0.5 hover:border-[color-mix(in_srgb,var(--oa-fg)_25%,transparent)] hover:shadow-[0_4px_14px_rgba(0,0,0,0.06)]"
     >
       <div className="flex flex-col flex-1 min-w-0 gap-1">
         <div className="flex items-center gap-1.5">

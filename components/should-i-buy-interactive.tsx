@@ -311,7 +311,7 @@ function FullVerdictPanel({
               )}
             </>
           ) : (
-            <div className="rounded-[14px] border border-oa-border bg-oa-bg px-4 py-3 text-center">
+            <div className="rounded-[14px] border border-oa-border bg-oa-card px-4 py-3 text-center">
               <p className="text-[13px] font-medium text-oa-fg">Free shows verdict + score.</p>
               <p className="mt-1 text-xs text-oa-muted-fg">Pro unlocks pillar breakdown, reasons, and RSI context.</p>
               <Link href="/subscribe" className={`mt-3 ${proCtaClassName({ size: "sm", className: "h-[34px] px-4 text-[12px]" })}`}>

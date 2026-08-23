@@ -25,7 +25,7 @@ export function ShouldIBuyLandingSections() {
         faqs={SHOULD_I_BUY_FAQS}
         breadcrumbLabel="Should I Buy"
       />
-      <div className="bg-oa-bg">
+      <div>
         <div className="mx-auto flex w-full max-w-[76rem] flex-col gap-14 px-4 py-14 sm:px-6 sm:py-20">
           <section className="flex max-w-[720px] flex-col gap-5" aria-labelledby="sib-what">
             <h2 id="sib-what" className="text-[26px] font-medium tracking-tight text-oa-fg">What you get</h2>

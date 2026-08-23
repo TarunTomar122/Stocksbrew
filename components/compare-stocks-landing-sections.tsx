@@ -32,7 +32,7 @@ export function CompareStocksLandingSections() {
         breadcrumbLabel="Compare Stocks"
       />
 
-      <div className="bg-oa-bg">
+      <div>
         <div className="mx-auto grid w-full max-w-[76rem] gap-12 px-4 py-14 sm:px-6 md:grid-cols-[0.8fr_1.2fr] sm:py-20">
           <section aria-labelledby="compare-after">
             <p className="oa-mono text-[10px] uppercase tracking-[0.14em] text-oa-muted-fg">

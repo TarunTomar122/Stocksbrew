@@ -85,7 +85,7 @@ export default function ScreensIndexPage() {
         <Suspense fallback={<ScreensFallback />}>
           <ScreensContentStream />
         </Suspense>
-        <nav className="rounded-[22px] border border-oa-border bg-oa-bg px-5 py-4" aria-label="Browse stock screens">
+        <nav className="rounded-[22px] border border-oa-border bg-oa-card px-5 py-4 shadow-[0_1px_2px_rgba(0,0,0,0.06)]" aria-label="Browse stock screens">
           <p className="oa-mono text-[10px] uppercase tracking-[0.12em] text-oa-muted-fg">
             Browse stock screens
           </p>
