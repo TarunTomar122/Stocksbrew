@@ -129,7 +129,6 @@ type Props = {
   isTracked: boolean;
   tier: "ai_launch" | "ai_personal" | "free";
   premarketQuote?: LivePremarketQuote | null;
-  updatedLabel?: string;
   businessQuestions?: StockBusinessQuestionsDoc | null;
   lockedCall: ReactNode;
 };
@@ -369,7 +368,7 @@ function LongTailResearchCard({
 }
 
 export function StockDetail(props: Props) {
-  const { stock, market, currency, directive, visual, overview, overviewHeadline, facts, intelPro, analyst, fundamentals, rsi, rsiState, technicalLevels, priceHistory, earnings, preEarnings, preEarningsDoc, calendarEarnings, cards, sentiment, peers, betterPeers, sectorPeers, reddit, powerTrades, recentNews, subscribed, isTracked, tier, premarketQuote, updatedLabel, businessQuestions, lockedCall } = props;
+  const { stock, market, currency, directive, visual, overview, overviewHeadline, facts, intelPro, analyst, fundamentals, rsi, rsiState, technicalLevels, priceHistory, earnings, preEarnings, preEarningsDoc, calendarEarnings, cards, sentiment, peers, betterPeers, sectorPeers, reddit, powerTrades, recentNews, subscribed, isTracked, tier, premarketQuote, businessQuestions, lockedCall } = props;
 
   const money = (v: number) => `${currency}${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const levelMoney = (v: number) => `${currency}${Math.round(v).toLocaleString()}`;
@@ -696,9 +695,6 @@ export function StockDetail(props: Props) {
             <div className="mt-3">
               <StockPremarketQuote currency={currency} market={market} quote={premarketQuote} />
             </div>
-          ) : null}
-          {updatedLabel ? (
-            <p className="oa-mono mt-3 text-[11px] uppercase tracking-[0.08em] text-oa-muted-fg">{updatedLabel}</p>
           ) : null}
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">

@@ -18,6 +18,7 @@ export function useModalBackClose(open: boolean, onClose: () => void): void {
 
   useEffect(() => {
     if (!open) return;
+    if (!window.matchMedia("(max-width: 639px)").matches) return;
 
     // Keep Next's __NA/tree fields so App Router treats Back as an in-page
     // history restore instead of reloading the previous route.

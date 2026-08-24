@@ -73,19 +73,6 @@ type Props = {
   params: Promise<{ symbol: string }>;
 };
 
-function formatRelative(iso?: string): string {
-  if (!iso) return "";
-  const then = new Date(iso).getTime();
-  if (Number.isNaN(then)) return "";
-  const mins = Math.round((Date.now() - then) / 60_000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.round(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.round(hours / 24);
-  return `${days}d ago`;
-}
-
 function hasBriefText(intelligence: StockIntelligenceDoc | null): boolean {
   if (!intelligence) return false;
   const visual = intelligence.visual_summary ?? {};
@@ -439,7 +426,6 @@ export async function StockPageStream({ params }: Props) {
         isTracked={isTracked}
         tier={tier}
         premarketQuote={premarketQuote}
-        updatedLabel={stock.captured_at ? `updated ${formatRelative(stock.captured_at)}` : undefined}
         lockedCall={
           hasBriefText(intelligence) ? (
             <AiSynthesis intelligence={intelligence} />
