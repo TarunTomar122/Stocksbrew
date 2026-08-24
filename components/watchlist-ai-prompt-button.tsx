@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { AnimatedIcon } from "@/components/animated-icon";
 import { buildWatchlistAiPrompt } from "@/lib/watchlist-ai-prompt";
 import { trackAskAiClicked } from "@/lib/product-analytics";
+import { useModalBackClose } from "@/lib/use-modal-back-close";
 
 export function WatchlistAiPromptButton({
   ticker,
@@ -26,6 +27,8 @@ export function WatchlistAiPromptButton({
     document.addEventListener("keydown", closeOnEscape);
     return () => document.removeEventListener("keydown", closeOnEscape);
   }, [showHelp]);
+
+  useModalBackClose(showHelp, () => setShowHelp(false));
 
   async function copyPrompt() {
     trackAskAiClicked({ surface: ticker ? "stock" : "watchlist", ticker });

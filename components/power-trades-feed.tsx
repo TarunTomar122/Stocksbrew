@@ -43,7 +43,7 @@ export function TradeCard({ trade }: { trade: PowerTrade }) {
   const trackable = /^[A-Z0-9_]+$/.test(trade.ticker || "");
 
   return (
-    <article className="group relative flex flex-col gap-4 rounded-[24px] border border-[var(--oa-border)] bg-[var(--oa-card)] p-5 shadow-sm transition-shadow hover:shadow-md">
+    <article className="group relative flex min-w-0 flex-col gap-4 rounded-[24px] border border-[var(--oa-border)] bg-[var(--oa-card)] p-5 shadow-sm transition-shadow hover:shadow-md">
       {trackable && (
         <Link
           href={`/stock/${encodeURIComponent(trade.ticker)}`}
@@ -98,7 +98,7 @@ export function TradeCard({ trade }: { trade: PowerTrade }) {
             {fmtAmount(trade.amount_low, trade.amount_high)}
           </p>
         </div>
-        <div className="text-right">
+        <div className="min-w-0 max-w-[58%] text-right">
           <p className="text-[10px] uppercase tracking-[0.1em] text-[var(--oa-muted-fg)]">Traded {fmtDate(trade.transaction_date)}</p>
           <p className="mt-1 flex items-center justify-end gap-2">
             {trade.lag_days != null && (
@@ -130,7 +130,7 @@ export function TradeCard({ trade }: { trade: PowerTrade }) {
 
 export function Skeleton() {
   return (
-    <div role="status" aria-label="Loading power trades" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+    <div role="status" aria-label="Loading power trades" className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {[0, 1, 2, 3, 4, 5].map((card) => (
         <div key={card} className="flex flex-col gap-4 rounded-[24px] bg-[var(--oa-card)] p-5 shadow-sm">
           <div className="flex items-center gap-3">
@@ -233,7 +233,7 @@ export function PowerTradesFeed({ isPro = false }: { isPro?: boolean }) {
   const summary = useMemo(() => data?.summary, [data]);
 
   return (
-    <section aria-label="Power trades feed" className="flex flex-col gap-6">
+    <section aria-label="Power trades feed" className="flex min-w-0 flex-col gap-6">
       {summary && summary.total > 0 && (
         <p className="oa-mono text-[12px] tabular-nums text-[var(--oa-muted-fg)]">
           last 30 days · {summary.total} trades · {summary.buys} buys · {summary.sells} sells ·{" "}
@@ -255,7 +255,7 @@ export function PowerTradesFeed({ isPro = false }: { isPro?: boolean }) {
       ) : trades.length === 0 ? (
         <EmptyState />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {trades.map((trade) => (
             <TradeCard key={trade.trade_id} trade={trade} />
           ))}

@@ -112,7 +112,7 @@ export function FreeToolPageFrame({
   const tool = getFreeToolByHref(toolHref);
 
   return (
-    <div className="mx-auto flex w-full max-w-[76rem] flex-col gap-10 px-4 py-10 sm:px-6 sm:py-14">
+    <div className="mx-auto flex min-w-0 w-full max-w-[76rem] flex-col gap-10 px-4 py-10 sm:px-6 sm:py-14">
       {hero === "full" && tool ? (
         <FreeToolHero title={tool.title} description={tool.description} />
       ) : (

@@ -164,6 +164,22 @@ describe("Pulse, Social, Watchlist, and home cleanup", () => {
     expect(css).toContain("flex-shrink: 0");
   });
 
+  it("keeps mobile modal history and free-tool cards inside the viewport", () => {
+    const modalHistory = source("lib/use-modal-back-close.ts");
+    const news = source("components/stock-news-rail-card.tsx");
+    const trades = source("components/power-trades-feed.tsx");
+    const frame = source("components/marketing/free-tool-chrome.tsx");
+
+    expect(modalHistory).toContain("{ ...(state && typeof state === \"object\" ? state : {})");
+    expect(news).toContain("useModalBackClose(true, onClose)");
+    expect(news).toContain("max-h-[85dvh]");
+    expect(news).toContain("overscroll-contain");
+    expect(trades).toContain("flex min-w-0 flex-col");
+    expect(trades).toContain("grid min-w-0 gap-4");
+    expect(trades).toContain("max-w-[58%]");
+    expect(frame).toContain("flex min-w-0 w-full");
+  });
+
   it("shows no more than three Watchlist decisions", () => {
     const queue = source("components/radar-next/decision-queue.tsx");
     const hub = source("components/watchlist-hub.tsx");

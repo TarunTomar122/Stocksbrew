@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { StockLogo } from "@/components/stock-logo";
 import type { NewsArticle } from "@/lib/news";
+import { useModalBackClose } from "@/lib/use-modal-back-close";
 
 const MAX_STORIES = 7;
 
@@ -83,15 +84,25 @@ function NewsSummaryModal({ article, onClose }: { article: NewsArticle; onClose:
   const rawSummary = article.summary?.trim();
   const summary = rawSummary && !isNearDuplicate(rawSummary, article.title) ? rawSummary : undefined;
 
+  useModalBackClose(true, onClose);
+
+  useEffect(() => {
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [onClose]);
+
   return (
     <div
-      className="fixed inset-0 z-[120] flex items-end justify-center bg-[#111827]/35 p-4 backdrop-blur-[1px] sm:items-center"
+      className="fixed inset-0 z-[120] flex items-end justify-center bg-[#111827]/35 p-0 backdrop-blur-[1px] sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-[480px] rounded-2xl border border-outline-variant bg-surface px-6 py-6 shadow-[0_24px_48px_rgba(17,24,39,0.22)]"
+        className="max-h-[85dvh] min-h-0 w-full max-w-[480px] overscroll-contain overflow-y-auto rounded-t-2xl border border-outline-variant bg-surface px-6 py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-[0_24px_48px_rgba(17,24,39,0.22)] sm:max-h-[85vh] sm:rounded-2xl sm:pb-6"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">
