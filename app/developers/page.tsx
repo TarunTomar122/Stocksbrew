@@ -178,6 +178,16 @@ openclaw mcp doctor stocksbrew --probe`}</Code>
   "${base}/api/v1/stocks/NVDA"`}</Code>
         </Section>
 
+        <Section id="cli" title="CLI" sub="Use the official npm package when your agent or shell script needs a small REST client.">
+          <Code label="Install and query">{`npm install -g stocksbrew-cli
+stocksbrew market
+stocksbrew stock NVDA
+stocksbrew search "semiconductor"`}</Code>
+          <p className="text-sm leading-relaxed text-oa-muted-fg">
+            Set <code className="oa-mono text-[13px]">STOCKSBREW_TOKEN</code> for authenticated requests. Read the <Link href="/api/v1/openapi.json" className="text-oa-primary hover:underline">OpenAPI contract</Link> for the complete API surface.
+          </p>
+        </Section>
+
         <Section id="recipes" title="Common recipes" sub="The jobs agents can do.">
           <div className="flex flex-col rounded-[22px] border border-oa-border bg-oa-card px-5 py-1 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
             {[

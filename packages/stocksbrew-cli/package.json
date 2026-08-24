@@ -1,0 +1,10 @@
+{
+  "name": "stocksbrew-cli",
+  "version": "0.1.0",
+  "description": "Official command-line client for Stocksbrew agent-ready stock intelligence",
+  "type": "module",
+  "bin": { "stocksbrew": "bin/stocksbrew.js" },
+  "engines": { "node": ">=18" },
+  "files": ["bin", "README.md"],
+  "scripts": { "test": "node --test test/cli.test.js" }
+}

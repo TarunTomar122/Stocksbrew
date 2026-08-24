@@ -7,6 +7,7 @@ Stocksbrew exposes its existing Pro intelligence through a hosted MCP server and
 - Remote MCP endpoint: `https://www.stocksbrew.online/api/mcp`
 - REST base: `https://www.stocksbrew.online/api/v1`
 - OpenAPI: `https://www.stocksbrew.online/api/v1/openapi.json`
+- Official CLI: `npm install -g stocksbrew-cli` (source: `packages/stocksbrew-cli`)
 - Pro allowance: 200 tool/API calls per UTC day and 30 calls per minute
 - Personal tokens: up to five active tokens; raw secrets are displayed once and stored only as SHA-256 hashes
 - OAuth: Authorization Code with PKCE S256, rate-limited Dynamic Client Registration, one-hour access tokens, and rotating 30-day refresh tokens
