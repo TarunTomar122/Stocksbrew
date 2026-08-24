@@ -176,18 +176,21 @@ const SECONDARY_PILL = `inline-flex h-8 shrink-0 cursor-pointer items-center gap
  *  the page sits in one of these so the page reads as physical objects. */
 function Plate({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <SquircleSurface className={`overflow-hidden bg-oa-bg ${className}`}>
-      {children}
+    <SquircleSurface className={`border border-oa-border p-1 shadow-[0_1px_2px_rgba(0,0,0,0.06)] ${className}`}>
+      <SquircleSurface className="overflow-hidden rounded-[22px] border border-oa-border bg-oa-bg [--card-clip-radius:12px] sm:rounded-[44px] sm:[--card-clip-radius:17px]">
+        {children}
+      </SquircleSurface>
     </SquircleSurface>
   );
 }
 
-/** H2, optionally with a right-aligned action. */
-function SectionHead({ title, right }: { title: ReactNode; sub?: string; right?: ReactNode }) {
+/** H2 + one-line outcome subtitle, optionally with a right-aligned action. */
+function SectionHead({ title, sub, right }: { title: ReactNode; sub?: string; right?: ReactNode }) {
   return (
     <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
       <div className="max-w-2xl">
         <h2 className={H2}>{title}</h2>
+        {sub ? <p className={SUB}>{sub}</p> : null}
       </div>
       {right}
     </div>
