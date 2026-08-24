@@ -1,7 +1,5 @@
 #!/usr/bin/env node
 
-import { pathToFileURL } from "node:url";
-
 const HELP = `Stocksbrew CLI
 
 Usage:
@@ -80,4 +78,4 @@ export async function main(args = process.argv.slice(2)) {
   }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();
+main();
