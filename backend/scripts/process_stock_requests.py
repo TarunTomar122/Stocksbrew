@@ -721,12 +721,26 @@ def _notify_requesters(
     ref: Any,
     data: dict[str, Any],
     ticker: str,
+    instrument: dict[str, Any] | None = None,
     override_email: str = "",
 ) -> int:
     """Send each requester's one-time ready email after the stock is live."""
     already_sent = {str(e).strip().lower() for e in (data.get("notification_sent_to") or []) if str(e).strip()}
     sent = 0
-    subject, html_body = build_brief_ready_email(ticker=ticker)
+    instrument_id = str((instrument or {}).get("instrument_id") or "").strip().upper()
+    latest = store.get_latest_prices([instrument_id]).get(instrument_id, {}) if instrument_id else {}
+    quote = latest.get("quote") or {}
+    universe_id = store.get_active_ai_universe(str((instrument or {}).get("market") or "US").upper()) or ""
+    intelligence = store.get_stock_intelligence_doc(
+        str((instrument or {}).get("market") or "US").upper(), universe_id, instrument_id
+    ) if universe_id and instrument_id else None
+    subject, html_body = build_brief_ready_email(
+        ticker=ticker,
+        company_name=(instrument or {}).get("name") or (latest.get("provider_metadata") or {}).get("name"),
+        price=quote.get("current"),
+        day_change_pct=quote.get("day_change_pct"),
+        headline=(intelligence or {}).get("headline"),
+    )
     recipients = _requester_emails(data)
     if override_email.strip():
         recipients = {override_email.strip().lower()}
@@ -917,6 +931,7 @@ def _process_one_request(
             ref,
             fulfilled_data,
             fulfilled_data["resolved_symbol"],
+            instrument=instrument,
             override_email=to_email,
         )
         if notified:

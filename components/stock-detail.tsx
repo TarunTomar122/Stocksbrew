@@ -7,6 +7,7 @@ import { PriceChart, type PriceChartZone } from "@/components/price-chart";
 import { ConvictionDotsInline } from "@/components/verdict-call-ui";
 import { LockedVerdictCall } from "@/components/locked-verdict-call";
 import { FundamentalsBreakdown } from "@/components/fundamentals-breakdown";
+import { hasSufficientPillarData } from "@/lib/fundamentals-coverage";
 import { SquircleSurface } from "@/components/oa/squircle";
 import { StockAnalystDepth, StockFinancialDepth, StockOperatingRecord } from "@/components/stock-financial-depth";
 import { StockSmartAlertsRail } from "@/components/stock-smart-alerts-rail";
@@ -393,6 +394,7 @@ export function StockDetail(props: Props) {
 
   // ---- scores -------------------------------------------------------------
   const pillars = intelPro?.pillars;
+  const hasFundamentalsData = Boolean(pillars && Object.values(pillars).some(hasSufficientPillarData));
   const overallCoverage =
     typeof intelPro?.overall?.coverage === "number" && Number.isFinite(intelPro.overall.coverage)
       ? Math.max(0, Math.min(1, intelPro.overall.coverage))
@@ -859,7 +861,7 @@ export function StockDetail(props: Props) {
       ) : null}
 
       {/* ── WHERE IT SITS TODAY ────────────────────────────────────────────── */}
-      {(showWhereItSits || pillars) && (
+      {(showWhereItSits || hasFundamentalsData) && (
         <section>
           <SectionHead
             title={<>Where {stock.ticker} sits today</>}
@@ -882,7 +884,7 @@ export function StockDetail(props: Props) {
             </Plate>
           )}
 
-          {pillars && (
+          {hasFundamentalsData && pillars && (
             <FundamentalsBreakdown
               pillars={pillars}
               isSubscribed={subscribed}

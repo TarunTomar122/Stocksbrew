@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { FeedUnlockBar } from "@/components/feed-row-lock-teaser";
 import { metricRelativeTier } from "@/components/percentile-rail";
-import { pillarCoverage } from "@/lib/fundamentals-coverage";
+import { hasSufficientPillarData, pillarCoverage } from "@/lib/fundamentals-coverage";
 import type { StockIntelMetric, StockIntelPro } from "@/lib/types";
 
 const KEYS = ["growth", "momentum", "valuation", "quality"] as const;
@@ -263,6 +263,8 @@ export function FundamentalsBreakdown({
   overallCoverage?: number | null;
 }) {
   const [active, setActive] = useState<Key>("growth");
+  if (!KEYS.some((key) => hasSufficientPillarData(pillars[key]))) return null;
+
   const p = pillars[active];
   const metrics = (p?.metrics ?? []).filter((m) => m.value != null || m.summary);
   const groups = groupPillarMetrics(active, metrics);

@@ -164,11 +164,35 @@ def _generate(instrument: dict[str, Any], payload: dict[str, Any]) -> dict[str, 
     }
 
 
+def _merge_researched_instruments(
+    store: TraceMoneyStore,
+    market: str,
+    universe_id: str,
+    instruments: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Include on-demand researched stocks outside the static AI universe."""
+    existing_ids = {
+        str(row.get("instrument_id") or "").strip().upper()
+        for row in instruments
+        if row.get("instrument_id")
+    }
+    researched_ids = {
+        str(row.get("instrument_id") or "").strip().upper()
+        for row in store.list_stock_intelligence_docs(market, universe_id)
+        if row.get("instrument_id")
+    }
+    extra_ids = sorted(researched_ids - existing_ids)
+    if not extra_ids:
+        return instruments
+    return instruments + store.list_instruments(market, extra_ids)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build weekly business questions for the AI stock cohort")
     parser.add_argument("--market", choices=["US", "IN"], default="US")
     parser.add_argument("--universe", default=None)
     parser.add_argument("--instrument-ids", default="")
+    parser.add_argument("--missing-only", action="store_true", help="Generate questions only for researched stocks missing them")
     parser.add_argument("--max-workers", type=int, default=4)
     args = parser.parse_args()
 
@@ -180,6 +204,7 @@ def main() -> None:
     instruments, paid_count, paid_extra = _merge_with_paid_tracked(
         store, args.market, list_instruments(args.market, universe_id)
     )
+    instruments = _merge_researched_instruments(store, args.market, universe_id, instruments)
     requested = {item.strip().upper() for item in args.instrument_ids.split(",") if item.strip()}
     if requested:
         instruments = [
@@ -187,6 +212,14 @@ def main() -> None:
             if str(row.get("instrument_id") or "").strip().upper() in requested
         ]
     ids = [str(row.get("instrument_id") or "").strip().upper() for row in instruments if row.get("instrument_id")]
+    if args.missing_only:
+        existing_questions = store.get_business_questions_docs_batch(args.market, universe_id, ids)
+        instruments = [row for row in instruments if str(row.get("instrument_id") or "").strip().upper() not in existing_questions]
+        ids = [str(row.get("instrument_id") or "").strip().upper() for row in instruments if row.get("instrument_id")]
+        print({"missing_only": True, "selected_missing": len(ids)})
+        if not ids:
+            print("[business-questions] no missing documents")
+            return
     facts = store.get_stock_facts_batch(ids)
     latest = store.get_latest_prices(ids)
     intelligence = store.get_stock_intelligence_docs_batch(args.market, universe_id, ids)

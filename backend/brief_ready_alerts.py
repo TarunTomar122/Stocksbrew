@@ -49,7 +49,18 @@ def notify_brief_ready(
             logger.info("brief_ready alert %s: user %s opted out of alert emails", alert_id, uid)
             continue
 
-        subject, html_body = build_brief_ready_email(ticker=ticker, headline=headline)
+        latest = store.get_latest_prices([instrument_id]).get(instrument_id) or {}
+        quote = latest.get("quote") or {}
+        market = instrument_id.split("_", 1)[0].upper() if "_" in instrument_id else "US"
+        instrument = next(iter(store.list_instruments(market, [instrument_id])), {})
+        subject, html_body = build_brief_ready_email(
+            ticker=ticker,
+            headline=headline,
+            company_name=instrument.get("name") or (latest.get("provider_metadata") or {}).get("name"),
+            price=quote.get("current"),
+            day_change_pct=quote.get("day_change_pct"),
+            currency="$" if market == "US" else "₹",
+        )
 
         if dry_run:
             print(f"[dry-run] would send to {email}: {subject}")
