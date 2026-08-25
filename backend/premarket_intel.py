@@ -304,10 +304,8 @@ def article_to_context_row(
         or str(article.summary or "").strip()
         or str(article.title or "").strip()
     )
-    if len(why) > 180:
-        why = why[:177].rstrip() + "..."
     row = {
-        "headline": str(article.title or "").strip()[:200],
+        "headline": str(article.title or "").strip(),
         "why": why,
         "source": str(article.source_name or "").strip()[:80],
         "published_at": str(article.published_at or ""),
@@ -395,10 +393,8 @@ def pick_best_enrichment(
             or str(best.get("article_overview") or "").strip()
             or str(best.get("summary") or "").strip()
         )
-    if len(why) > 180:
-        why = why[:177].rstrip() + "..."
     context_row = {
-        "headline": str(best.get("title") or "").strip()[:200],
+        "headline": str(best.get("title") or "").strip(),
         "why": why,
         "source": str(best.get("source_name") or "").strip()[:80],
         "published_at": str(best.get("published_at") or ""),

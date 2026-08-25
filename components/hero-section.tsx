@@ -201,7 +201,7 @@ function StockVerdictChip({
 
       <p
         className={`flex-1 min-h-[2.75em] leading-snug text-[#6b7280] ${
-          compact ? "text-[10px] line-clamp-2" : "text-[12px] line-clamp-2"
+          compact ? "text-[10px]" : "text-[12px]"
         }`}
       >
         {locked ? directiveTeaser(directive) : directive}

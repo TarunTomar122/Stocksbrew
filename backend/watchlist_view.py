@@ -515,7 +515,7 @@ def _row_premium_signals(
                 "label": "Alert",
                 "value": flag.get("type") or flag.get("kind"),
                 "tone": "negative" if "bear" in str(flag).lower() else "neutral",
-                "sentence": message[:140],
+                "sentence": message,
             })
     if day_change_pct is not None and abs(day_change_pct) >= 3:
         signals.append({
@@ -549,7 +549,7 @@ def _row_attention(
     if alert_message:
         return {
             "attention_score": 92,
-            "attention_reason": alert_message[:150],
+            "attention_reason": alert_message,
             "attention_kind": "risk",
             "suggested_action": "Review holding" if position_type == "holding" else "Keep watching",
             "action_tone": "negative",
@@ -1580,11 +1580,8 @@ def _clean_signal_text(value: Any) -> str:
 
 
 def _clip_signal_text(value: Any, limit: int) -> str:
-    text = _clean_signal_text(value)
-    if len(text) <= limit:
-        return text
-    trimmed = text[: limit - 1].rsplit(" ", 1)[0].strip()
-    return (trimmed or text[: limit - 1]).rstrip(" ,.:;-") + "…"
+    del limit
+    return _clean_signal_text(value)
 
 
 def _stock_mentions(article: dict[str, Any]) -> list[dict[str, Any]]:
@@ -1687,14 +1684,11 @@ def _mention_quality_score(article: dict[str, Any], mention: dict[str, Any]) -> 
 
 
 def _format_event_body(base: str, beneficiaries: list[str] | None = None) -> str:
-    body = _clip_signal_text(base, 150)
+    body = _clean_signal_text(base)
     if beneficiaries:
         suffix = f" That can matter for {', '.join(beneficiaries)} in your Watchlist."
-        if len(body) + len(suffix) > 220:
-            allowed = max(40, 220 - len(suffix))
-            body = _clip_signal_text(body, allowed)
         body = f"{body}{suffix}"
-    return body[:220]
+    return body
 
 
 def _beneficiary_verb(tone: str | None) -> str:
@@ -2050,7 +2044,7 @@ def _direct_event_signals(
                             "tone": str(beneficiary.get("sentiment_label") or "neutral").strip().lower(),
                             "urgency": 86,
                             "title": f"{ticker} has a fresh pre-open event to price in",
-                            "why_it_matters": why[:220],
+                            "why_it_matters": why,
                             "action": f"Keep {ticker} on the first read after the open",
                             "evidence": evidence,
                         }
@@ -2125,9 +2119,9 @@ def _today_setup(
                     "kind": "preopen_catalyst",
                     "tone": "positive" if (move or 0) > 0 else "negative" if (move or 0) < 0 else "neutral",
                     "urgency": int(min(98, 72 + abs(move or 0) * 3)),
-                    "title": headline[:140],
-                    "why_it_matters": why[:220] if why else f"{ticker} is already moving hard enough to matter for today's setup.",
-                    "action": action[:120],
+                    "title": headline,
+                    "why_it_matters": why if why else f"{ticker} is already moving hard enough to matter for today's setup.",
+                    "action": action,
                     "evidence": evidence[:3],
                 }
             )
@@ -2146,7 +2140,7 @@ def _today_setup(
                         if isinstance(post, dict):
                             title = str(post.get("title") or "").strip()
                             if title:
-                                market_threads.append(title[:120])
+                                market_threads.append(title)
                 signals.append(
                     {
                         "ticker": ticker,
@@ -2155,8 +2149,8 @@ def _today_setup(
                         "tone": "positive" if sentiment == "bullish" else "negative" if sentiment == "bearish" else "neutral",
                         "urgency": int(min(90, 54 + mentions * 7)),
                         "title": f"{ticker} has fresh retail buzz before the open",
-                        "why_it_matters": (summary or f"Retail attention on {ticker} is elevated heading into today's session.")[:220],
-                        "action": action[:120],
+                        "why_it_matters": summary or f"Retail attention on {ticker} is elevated heading into today's session.",
+                        "action": action,
                         "evidence": [f"{mentions} Reddit mentions", *catalysts[:2]],
                     }
                 )
@@ -2186,8 +2180,8 @@ def _today_setup(
                     "kind": "earnings_setup",
                     "tone": "neutral",
                     "urgency": int(min(96, 92 - max(0, days_until) * 7)),
-                    "title": headline[:140],
-                    "why_it_matters": why[:220] if why else f"{ticker} reports soon and needs a pre-open read.",
+                    "title": headline,
+                    "why_it_matters": why if why else f"{ticker} reports soon and needs a pre-open read.",
                     "action": f"Open {ticker} earnings setup",
                     "evidence": evidence[:3],
                 }
@@ -2240,7 +2234,7 @@ def _today_setup(
                     "tone": "positive" if (move or 0) > 0 else "negative" if (move or 0) < 0 else "neutral",
                     "urgency": int(min(94, 76 + abs(move or 0) * 2.5)),
                     "title": f"{broad_ticker} may set the tone for your {sector_label} names",
-                    "why_it_matters": f"{why[:150]} This could spill into {', '.join(affected[:3])} in your Watchlist.",
+                    "why_it_matters": f"{why} This could spill into {', '.join(affected[:3])} in your Watchlist.",
                     "action": f"Watch {', '.join(affected[:3])} for follow-through after the open",
                     "evidence": [f"{move:+.1f}% move" if move is not None else sector_label, catalyst][:2],
                 }
@@ -2260,8 +2254,8 @@ def _today_setup(
                     "tone": "neutral",
                     "urgency": 70,
                     "title": f"{sector_label} is a live theme across your Watchlist",
-                    "why_it_matters": f"{sector_change[:150]} This theme runs through {', '.join(affected[:3])}.",
-                    "action": sector_watch[:120] if sector_watch else f"Review {', '.join(affected[:3])} together, not one by one",
+                    "why_it_matters": f"{sector_change} This theme runs through {', '.join(affected[:3])}.",
+                    "action": sector_watch if sector_watch else f"Review {', '.join(affected[:3])} together, not one by one",
                     "evidence": [f"{len(affected)} tracked names in {sector_label}"],
                 }
             )
@@ -2274,12 +2268,12 @@ def _today_setup(
             str(visual.get("what_to_watch") or "").strip(),
         ):
             if line:
-                market_threads.append(line[:120])
+                market_threads.append(line)
         reddit_snapshot = reddit_by_market.get(market_key) or {}
         for item in reddit_snapshot.values():
             summary = str(item.get("summary") or item.get("context") or "").strip()
             if summary:
-                market_threads.append(summary[:120])
+                market_threads.append(summary)
                 break
 
     for (market_key, tag), tagged_rows in theme_groups.items():
@@ -2342,7 +2336,7 @@ def _today_setup(
                 "tone": "positive" if (move or 0) > 0 else "negative" if (move or 0) < 0 else "neutral",
                 "urgency": int(min(96, 82 + abs(move or 0) * 2.5)),
                 "title": f"{candidate_ticker or tag.upper()} could influence your {display_tag} names",
-                "why_it_matters": f"{why[:150]} That can matter for {', '.join(beneficiary_targets)} in your Watchlist.",
+                "why_it_matters": f"{why} That can matter for {', '.join(beneficiary_targets)} in your Watchlist.",
                 "action": f"Check {', '.join(beneficiary_targets)} for theme follow-through after the open",
                 "evidence": [f"{move:+.1f}% move" if move is not None else display_tag, catalyst][:2],
             }

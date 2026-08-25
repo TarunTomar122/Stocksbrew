@@ -421,7 +421,7 @@ function MoveRow({
             {fitScore != null ? `fit ${Math.round(fitScore)}` : "—"}
           </span>
         </div>
-        <p className="mt-0.5 line-clamp-2 text-[12px] leading-snug text-[#4b5563]">
+        <p className="mt-0.5 text-[12px] leading-snug text-[#4b5563]">
           {reason}
         </p>
         {meta ? (

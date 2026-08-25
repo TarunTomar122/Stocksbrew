@@ -116,8 +116,8 @@ def _weekly_stories_section(stories: list[dict[str, Any]]) -> str:
     cards: list[str] = []
     for item in stories[:5]:
         ticker = str(item.get("ticker") or "").strip().upper()
-        headline = clean_optional_email_text(item.get("headline"), max_chars=90)
-        story = clean_optional_email_text(item.get("story"), max_chars=320)
+        headline = clean_optional_email_text(item.get("headline"))
+        story = clean_optional_email_text(item.get("story"))
         if not ticker or not story:
             continue
         move = float(item.get("week_change_pct") or 0)
@@ -277,7 +277,7 @@ def build_weekly_brief_email(
         for item in list(stories_payload.get("stories") or [])
         if isinstance(item, dict) and clean_optional_email_text(item.get("story"))
     ]
-    week_lede = clean_optional_email_text(stories_payload.get("week_lede"), max_chars=180)
+    week_lede = clean_optional_email_text(stories_payload.get("week_lede"))
 
     if stories:
         top = stories[0]

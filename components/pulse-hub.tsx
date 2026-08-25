@@ -455,8 +455,8 @@ function MoverRow({
       <StockLogo ticker={item.ticker} market="US" size={32} circle className="shrink-0 mt-0.5 sm:mt-0" />
       <div className="min-w-0 flex-1">
         <p className="text-base font-medium leading-5 text-oa-fg">{item.ticker}</p>
-        {item.company ? <p className="hidden truncate text-[16px] leading-4 text-oa-muted-fg sm:block">{item.company}</p> : null}
-        {reason ? <p className="text-[15px] leading-5 text-oa-muted-fg sm:truncate md:hidden">{reason}</p> : null}
+        {item.company ? <p className="hidden text-[16px] leading-4 text-oa-muted-fg sm:block">{item.company}</p> : null}
+        {reason ? <p className="text-[15px] leading-5 text-oa-muted-fg break-words md:hidden">{reason}</p> : null}
       </div>
       <div className="shrink-0 flex flex-col items-end gap-0.5">
         <span className="text-[15px] font-medium tabular-nums leading-5 text-oa-fg">${money(item.price)}</span>
@@ -804,7 +804,7 @@ function EarningsCard({ item }: { item: RecentEarningsCard }) {
             </span>
           ) : null}
         </div>
-        <p className="mt-3 line-clamp-2 text-[16px] leading-6 text-oa-fg/80">{item.headline}</p>
+        <p className="mt-3 text-[16px] leading-6 text-oa-fg/80">{item.headline}</p>
         {item.leadCase && item.leadPct != null ? (
           <p className="mt-3 text-[16px] font-medium capitalize" style={{ color: scenarioColor }}>
             {item.leadCase} case leads · {Math.round(item.leadPct)}%

@@ -356,7 +356,7 @@ export function NewsExplorer({ articles, market }: Props) {
                     </h3>
 
                     {a.summary && (
-                      <p className="mt-2 text-[13px] text-oa-fg leading-[1.6] line-clamp-3">
+                      <p className="mt-2 text-[13px] text-oa-fg leading-[1.6]">
                         {a.summary}
                       </p>
                     )}

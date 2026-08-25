@@ -154,10 +154,8 @@ def _bounded(value: float, lower: float, upper: float) -> float:
 
 
 def _clip(value: Any, max_chars: int) -> str:
-    text = " ".join(str(value or "").split()).strip()
-    if len(text) <= max_chars:
-        return text
-    return text[: max_chars - 1].rstrip() + "…"
+    del max_chars
+    return " ".join(str(value or "").split()).strip()
 
 
 def _us_date() -> str:

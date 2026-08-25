@@ -119,7 +119,7 @@ export function DiagnosisSectorChart({
         </div>
 
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <p className="mb-1 line-clamp-2 text-[13px] font-semibold leading-snug text-on-surface">{active.name}</p>
+          <p className="mb-1 text-[13px] font-semibold leading-snug text-on-surface">{active.name}</p>
           <p className="mb-2 font-mono text-[10px] text-on-surface-variant">
             {active.count} {active.count === 1 ? "name" : "names"} in this sector
           </p>

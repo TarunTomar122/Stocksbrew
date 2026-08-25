@@ -1309,11 +1309,11 @@ function SecondaryDirectiveCard({
         </div>
       </div>
 
-      <p className="text-[13px] font-medium text-on-surface leading-snug line-clamp-2 mt-auto">
+      <p className="text-[13px] font-medium text-on-surface leading-snug mt-auto">
         {directive.text}
       </p>
       {directive.rationale && (
-        <p className="text-[11.5px] text-on-surface-variant leading-snug line-clamp-2">
+        <p className="text-[11.5px] text-on-surface-variant leading-snug">
           {directive.rationale}
         </p>
       )}
@@ -1468,7 +1468,7 @@ function ExploreDirectiveCard({
 
       <Link href={`/stock/${encodeURIComponent(ticker)}`} className="flex flex-col gap-2 flex-1">
         {why && (
-          <p className="text-[12px] text-on-surface-variant leading-snug line-clamp-2">
+          <p className="text-[12px] text-on-surface-variant leading-snug">
             {why}
           </p>
         )}
@@ -2174,7 +2174,7 @@ function RiskFlagsBlock({ risks }: { risks: Dict[] }) {
                   </p>
                 )}
                 {body && (
-                  <p className="text-[12px] text-on-surface-variant leading-snug line-clamp-4 mt-auto">
+                  <p className="text-[12px] text-on-surface-variant leading-snug mt-auto">
                     {body}
                   </p>
                 )}
@@ -2279,7 +2279,7 @@ function PositionRisksBlock({
                   <p className="text-[13px] font-medium text-on-surface leading-snug">{headline}</p>
                 )}
                 {body && (
-                  <p className="text-[11.5px] text-on-surface-variant leading-snug line-clamp-3 mt-auto">{body}</p>
+                  <p className="text-[11.5px] text-on-surface-variant leading-snug mt-auto">{body}</p>
                 )}
               </div>
             );
@@ -2365,7 +2365,7 @@ function OpportunitiesGrid({ items }: { items: Dict[] }) {
                   <p className="text-[14px] font-semibold text-on-surface leading-snug">{headline}</p>
                 ) : null}
                 {body && (
-                  <p className="text-[12px] text-on-surface-variant leading-snug line-clamp-3 mt-auto">
+                  <p className="text-[12px] text-on-surface-variant leading-snug mt-auto">
                     {body}
                   </p>
                 )}
@@ -3006,7 +3006,7 @@ function UnsubscribedState({
                             </span>
                             {pick.chips.length > 0 ? <SignalChips chips={pick.chips} /> : null}
                           </div>
-                          <p className="mt-1 text-[12px] leading-relaxed text-on-surface-variant [overflow-wrap:anywhere] line-clamp-2">
+                          <p className="mt-1 text-[12px] leading-relaxed text-on-surface-variant [overflow-wrap:anywhere]">
                             {pick.line}
                           </p>
                         </div>

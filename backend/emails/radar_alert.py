@@ -29,7 +29,7 @@ def build_radar_alert_email(event_type: str, payload: dict[str, Any]) -> tuple[s
         else:
             subject = f"Something changed for {ticker}"
             headline = subject
-        detail = clean_optional_email_text(payload.get("directive_text"), max_chars=320)
+        detail = clean_optional_email_text(payload.get("directive_text"))
         label = "Watchlist alert"
 
     detail_block = (

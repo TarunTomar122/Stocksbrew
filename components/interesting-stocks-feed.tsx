@@ -97,11 +97,11 @@ function InterestingRow({ row, locked }: { row: InterestingStockRow; locked: boo
           />
         ) : (
           <>
-            <p className="line-clamp-2 text-[13px] font-medium leading-relaxed text-on-surface">
+            <p className="text-[13px] font-medium leading-relaxed text-on-surface">
               {row.headline}
             </p>
             {row.reasons?.length ? (
-              <p className="mt-1 line-clamp-1 text-[11.5px] font-medium text-on-surface-variant">
+              <p className="mt-1 text-[11.5px] font-medium text-on-surface-variant">
                 {row.reasons.slice(0, 2).join(" · ")}
               </p>
             ) : null}

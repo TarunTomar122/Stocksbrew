@@ -54,15 +54,15 @@ def sector_summary_from_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]
 
 def book_tape_line(row: dict[str, Any]) -> str:
     for key in ("today_brief", "thesis", "summary"):
-        text = clean_optional_email_text(row.get(key), max_chars=220)
+        text = clean_optional_email_text(row.get(key))
         if text and not _is_generic_weekly_tape(text):
-            return text[:220]
-    headline = clean_optional_email_text(row.get("headline") or row.get("anomaly_headline"), max_chars=220)
+            return text
+    headline = clean_optional_email_text(row.get("headline") or row.get("anomaly_headline"))
     if headline and not _is_generic_weekly_tape(headline):
-        return headline[:220]
-    catalyst = clean_optional_email_text(row.get("catalyst"), max_chars=220)
+        return headline
+    catalyst = clean_optional_email_text(row.get("catalyst"))
     if catalyst and not _is_generic_weekly_tape(catalyst):
-        return catalyst[:220]
+        return catalyst
     return ""
 
 
@@ -84,20 +84,20 @@ def _is_generic_weekly_tape(text: str) -> bool:
 def intel_tape_line(intel_doc: dict[str, Any] | None) -> str:
     intel_doc = intel_doc or {}
     for key in ("today_brief", "body", "thesis"):
-        text = clean_optional_email_text(intel_doc.get(key), max_chars=220)
+        text = clean_optional_email_text(intel_doc.get(key))
         if text and not _is_generic_weekly_tape(text):
-            return text[:220]
-    headline = clean_optional_email_text(intel_doc.get("headline"), max_chars=220)
+            return text
+    headline = clean_optional_email_text(intel_doc.get("headline"))
     if headline and not _is_generic_weekly_tape(headline):
-        return headline[:220]
-    catalyst = clean_optional_email_text(intel_doc.get("catalyst"), max_chars=220)
+        return headline
+    catalyst = clean_optional_email_text(intel_doc.get("catalyst"))
     if catalyst and not _is_generic_weekly_tape(catalyst):
-        return catalyst[:220]
+        return catalyst
     visual = intel_doc.get("visual_summary")
     if isinstance(visual, dict):
-        text = clean_optional_email_text(visual.get("why_it_matters") or visual.get("what_changed"), max_chars=220)
+        text = clean_optional_email_text(visual.get("why_it_matters") or visual.get("what_changed"))
         if text and not _is_generic_weekly_tape(text):
-            return text[:220]
+            return text
     return ""
 
 

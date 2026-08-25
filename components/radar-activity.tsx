@@ -27,7 +27,7 @@ function TodayMarketEventCard({ event }: { event: EventItem }) {
       >
         {eventType}
       </span>
-      <p className="text-[13px] font-medium leading-snug text-on-surface line-clamp-3">
+      <p className="text-[13px] font-medium leading-snug text-on-surface">
         {title}
       </p>
     </article>

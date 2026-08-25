@@ -23,9 +23,8 @@ from backend.storage import TraceMoneyStore
 
 logger = logging.getLogger(__name__)
 
-CACHE_VERSION = "premarket-lines-v4-plain-language"
+CACHE_VERSION = "premarket-lines-v5-full-copy"
 BATCH_SIZE = 40
-MAX_TAPE_WORDS = 28
 
 TAPE_PROMPT = (
     "You write short pre-market notes for an investor morning email.\n"
@@ -69,24 +68,16 @@ def _cache_key(market: str, ticker: str, raw_headline: str, raw_detail: str) -> 
     return f"{CACHE_VERSION}:{market.upper()}:{ticker.upper()}:{digest}"
 
 
-def _clip_tape_line(value: str) -> str:
-    text = " ".join(str(value or "").split()).strip()
-    if not text:
-        return ""
-    words = text.split()
-    if len(words) > MAX_TAPE_WORDS:
-        text = " ".join(words[:MAX_TAPE_WORDS]).rstrip(".,;:") + "."
-    if len(text) > 220:
-        text = text[:217].rstrip() + "..."
-    return text
+def _normalize_tape_line(value: str) -> str:
+    return " ".join(str(value or "").split()).strip()
 
 
 def _fallback_tape_line(raw_headline: str, raw_detail: str) -> str:
     for candidate in (raw_detail, raw_headline):
         text = clean_optional_email_text(candidate)
         if text and len(text) > 24:
-            return _clip_tape_line(text)
-    return clean_optional_email_text(raw_headline or raw_detail, max_chars=220)
+            return _normalize_tape_line(text)
+    return clean_optional_email_text(raw_headline or raw_detail)
 
 
 def _llm_batch_lines(items: list[dict[str, Any]]) -> dict[str, str]:
@@ -132,7 +123,7 @@ def _llm_batch_lines(items: list[dict[str, Any]]) -> dict[str, str]:
         if not isinstance(row, dict):
             continue
         ticker = str(row.get("ticker") or "").strip().upper()
-        line = clean_optional_email_text(row.get("tape_line"), max_chars=220)
+        line = clean_optional_email_text(row.get("tape_line"))
         if ticker:
             out[ticker] = line
     return out
@@ -179,7 +170,7 @@ def enrich_context_with_tape_lines(
         if store is not None:
             hit = store.get_llm_enrichment(cache_key)
             if hit and hit.get("tape_line") and not force:
-                cached_line = clean_optional_email_text(hit["tape_line"], max_chars=220)
+                cached_line = clean_optional_email_text(hit["tape_line"])
                 if cached_line:
                     row["tape_line"] = cached_line
                     continue

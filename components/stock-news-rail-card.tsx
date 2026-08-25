@@ -197,7 +197,7 @@ export function StockNewsRailCard({
                   ) : null}
                   <span>{[time, source].filter(Boolean).join(" · ")}</span>
                 </span>
-                <p className="mt-2 line-clamp-3 text-[15px] font-medium leading-[1.45] tracking-[-0.01em] text-on-surface group-hover:text-accent-terminal">
+                <p className="mt-2 text-[15px] font-medium leading-[1.45] tracking-[-0.01em] text-on-surface group-hover:text-accent-terminal">
                   {article.title}
                 </p>
                 <span className={`mt-2.5 inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.04em] ${sentimentTagClass(article.sentiment_label)}`}>

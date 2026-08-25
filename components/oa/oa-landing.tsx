@@ -234,7 +234,7 @@ async function HeroBriefCard() {
               </span>
               <ChangeText pct={anomaly.day_change_pct ?? 0} className="text-base font-medium" />
             </div>
-            <p className="mt-3 line-clamp-2 text-base leading-6 text-oa-fg/80">{why}</p>
+            <p className="mt-3 text-base leading-6 text-oa-fg/80">{why}</p>
             {stats.length > 0 ? (
               <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-oa-border pt-3 sm:grid-cols-4">
                 {stats.map((s) => (
@@ -323,7 +323,7 @@ async function LiveProofCards() {
                       <StockLogo ticker={t.ticker} size={18} circle />
                       <span className="oa-mono text-base text-oa-fg">{t.ticker}</span>
                     </div>
-                    <span className="min-w-0 line-clamp-2 text-oa-muted-fg">
+                    <span className="min-w-0 text-oa-muted-fg">
                       {t.summary}
                     </span>
                   </>
@@ -541,8 +541,8 @@ export async function OaLanding() {
                       <SquircleSurface className="group h-full border border-oa-border shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition-colors hover:border-oa-accent">
                         <div className="flex h-full flex-col bg-oa-bg px-5 py-6 text-left sm:px-6 sm:py-7">
                           <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-oa-muted-fg">Market Daily</span>
-                          <h3 className="mt-3 line-clamp-2 text-[17px] font-medium tracking-tight text-oa-fg">{edition.headline}</h3>
-                          <p className="mt-2 line-clamp-2 flex-grow text-base leading-5 text-oa-muted-fg">{edition.dek}</p>
+                          <h3 className="mt-3 text-[17px] font-medium tracking-tight text-oa-fg">{edition.headline}</h3>
+                          <p className="mt-2 flex-grow text-base leading-5 text-oa-muted-fg">{edition.dek}</p>
                           <p className="mt-3 text-[13px] text-oa-muted-fg">{edition.edition_date}</p>
                         </div>
                       </SquircleSurface>
@@ -556,8 +556,8 @@ export async function OaLanding() {
                       <SquircleSurface className="group h-full border border-oa-border shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition-colors hover:border-oa-accent">
                         <div className="flex h-full flex-col bg-oa-bg px-5 py-6 text-left sm:px-6 sm:py-7">
                           <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-oa-muted-fg">{post.category}</span>
-                          <h3 className="mt-3 line-clamp-2 text-[17px] font-medium tracking-tight text-oa-fg">{post.title}</h3>
-                          <p className="mt-2 line-clamp-2 flex-grow text-base leading-5 text-oa-muted-fg">{post.description}</p>
+                          <h3 className="mt-3 text-[17px] font-medium tracking-tight text-oa-fg">{post.title}</h3>
+                          <p className="mt-2 flex-grow text-base leading-5 text-oa-muted-fg">{post.description}</p>
                           <p className="mt-3 text-[13px] text-oa-muted-fg">{post.date}</p>
                         </div>
                       </SquircleSurface>

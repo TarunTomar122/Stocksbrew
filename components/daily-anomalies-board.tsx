@@ -37,7 +37,7 @@ function MoveRowCompact({ item }: { item: AnomalyItem }) {
       <span className="text-[13px] font-bold tabular-nums" style={{ color: changeColor }}>
         {isUp ? "▲" : "▼"} {fmtMovePct(item.day_change_pct)}
       </span>
-      <span className="min-w-0 truncate text-[13px] leading-normal text-[#6b7280]">{headline}</span>
+      <span className="min-w-0 break-words text-[13px] leading-normal text-[#6b7280]">{headline}</span>
     </Link>
   );
 }
@@ -83,7 +83,7 @@ function MoveCard({ item }: { item: AnomalyItem }) {
           <StockLogo ticker={item.ticker} logoUrl={item.logo_url} size={36} className="shrink-0" />
           <div className="min-w-0">
             <p className="text-[15px] font-semibold text-[#111111] group-hover:text-[#0052ff]">{item.ticker}</p>
-            <p className="line-clamp-1 text-[12px] leading-snug text-[#9ca3af]">{item.name}</p>
+            <p className="text-[12px] leading-snug text-[#9ca3af]">{item.name}</p>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -141,7 +141,7 @@ function LockedMoveCard({ item }: { item: AnomalyItem }) {
           <StockLogo ticker={item.ticker} logoUrl={item.logo_url} size={36} className="shrink-0" />
           <div className="min-w-0">
             <p className="text-[15px] font-semibold text-[#111111]">{item.ticker}</p>
-            <p className="line-clamp-1 text-[12px] leading-snug text-[#9ca3af]">{item.name}</p>
+            <p className="text-[12px] leading-snug text-[#9ca3af]">{item.name}</p>
           </div>
         </div>
         <span className="text-[14px] font-bold" style={{ color }}>

@@ -58,10 +58,10 @@ export function LearnTeaser() {
                 >
                   {post.category}
                 </span>
-                <h3 className="text-[14px] font-semibold text-[#111111] tracking-[-0.01em] leading-snug line-clamp-2 group-hover:text-[#0052ff] transition-colors">
+                <h3 className="text-[14px] font-semibold text-[#111111] tracking-[-0.01em] leading-snug group-hover:text-[#0052ff] transition-colors">
                   {post.title}
                 </h3>
-                <p className="text-[12px] text-[#6b7280] leading-relaxed line-clamp-2">
+                <p className="text-[12px] text-[#6b7280] leading-relaxed">
                   {post.description}
                 </p>
                 <span className="text-[11px] text-[#9ca3af] mt-auto">{post.readTime}</span>

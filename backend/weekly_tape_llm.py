@@ -25,7 +25,7 @@ from backend.weekly_intel import intel_tape_line, resolve_weekly_book_tape
 
 logger = logging.getLogger(__name__)
 
-CACHE_VERSION = "weekly-stories-v2"
+CACHE_VERSION = "weekly-stories-v3-full-copy"
 MAX_STORIES = 5
 MIN_STORIES = 3
 
@@ -75,19 +75,12 @@ def _cache_key(market: str, week_key: str, tickers: list[str]) -> str:
     return f"{CACHE_VERSION}:{market.upper()}:{week_key}:{digest}"
 
 
-def _clip_story(value: str, *, max_len: int = 320) -> str:
-    text = " ".join(str(value or "").split()).strip()
-    if len(text) > max_len:
-        text = text[: max_len - 3].rstrip() + "..."
-    return text
+def _normalize_story(value: str) -> str:
+    return " ".join(str(value or "").split()).strip()
 
 
-def _clip_headline(value: str) -> str:
-    text = " ".join(str(value or "").split()).strip()
-    words = text.split()
-    if len(words) > 10:
-        text = " ".join(words[:10])
-    return text[:90]
+def _normalize_headline(value: str) -> str:
+    return " ".join(str(value or "").split()).strip()
 
 
 def _raw_material_for_mover(
@@ -115,7 +108,7 @@ def _raw_material_for_mover(
     if not headline and anomaly_item:
         headline = str(anomaly_tape_line(anomaly_item) or "").strip()
 
-    return headline[:220], detail[:320]
+    return headline, detail
 
 
 def collect_weekly_story_candidates(
@@ -233,14 +226,14 @@ def _fallback_stories(candidates: list[dict[str, Any]], *, max_stories: int = MA
     out: list[dict[str, Any]] = []
     for item in candidates[:max_stories]:
         ticker = str(item.get("ticker") or "").upper()
-        detail = clean_optional_email_text(item.get("raw_detail") or item.get("raw_headline"), max_chars=320)
+        detail = clean_optional_email_text(item.get("raw_detail") or item.get("raw_headline"))
         if not detail:
             continue
-        headline = clean_optional_email_text(item.get("raw_headline"), max_chars=90)
+        headline = clean_optional_email_text(item.get("raw_headline"))
         out.append({
             "ticker": ticker,
-            "headline": _clip_headline(headline) or ticker,
-            "story": _clip_story(detail),
+            "headline": _normalize_headline(headline) or ticker,
+            "story": _normalize_story(detail),
             "week_change_pct": float(item.get("week_change_pct") or 0),
             "on_book": bool(item.get("on_book")),
         })
@@ -270,11 +263,11 @@ def generate_weekly_stories(
                 if not isinstance(row, dict):
                     continue
                 ticker = str(row.get("ticker") or "").strip().upper()
-                story = clean_optional_email_text(row.get("story"), max_chars=320)
+                story = clean_optional_email_text(row.get("story"))
                 if ticker and story:
                     cached_stories.append({**row, "ticker": ticker, "story": story})
             return {
-                "week_lede": clean_optional_email_text(hit.get("week_lede"), max_chars=180),
+                "week_lede": clean_optional_email_text(hit.get("week_lede")),
                 "stories": cached_stories[:MAX_STORIES],
             }
 
@@ -301,8 +294,8 @@ def generate_weekly_stories(
         if not isinstance(row, dict):
             continue
         ticker = str(row.get("ticker") or "").strip().upper()
-        headline = _clip_headline(clean_optional_email_text(row.get("headline"), max_chars=90))
-        story = _clip_story(clean_optional_email_text(row.get("story"), max_chars=320))
+        headline = _normalize_headline(clean_optional_email_text(row.get("headline")))
+        story = _normalize_story(clean_optional_email_text(row.get("story")))
         if not ticker or not story:
             continue
         stories.append({
@@ -325,7 +318,7 @@ def generate_weekly_stories(
             if len(stories) >= MIN_STORIES:
                 break
 
-    week_lede = _clip_story(clean_optional_email_text(parsed.get("week_lede")), max_len=180)
+    week_lede = _normalize_story(clean_optional_email_text(parsed.get("week_lede")))
     result = {"week_lede": week_lede, "stories": stories[:MAX_STORIES]}
 
     if store is not None and stories:

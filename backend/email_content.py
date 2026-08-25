@@ -30,7 +30,7 @@ def is_missing_information_statement(value: Any) -> bool:
     return any(pattern.search(text) for pattern in _MISSING_INFORMATION_PATTERNS)
 
 
-def clean_optional_email_text(value: Any, *, max_chars: int | None = None) -> str:
+def clean_optional_email_text(value: Any) -> str:
     """Remove no-data sentences while preserving any supported sentences.
 
     This is intentionally for optional narrative.  Measured values such as a
@@ -49,7 +49,4 @@ def clean_optional_email_text(value: Any, *, max_chars: int | None = None) -> st
         cleaned_paragraph = " ".join(part for part in kept if part).strip()
         if cleaned_paragraph:
             paragraphs.append(cleaned_paragraph)
-    cleaned = "\n\n".join(paragraphs)
-    if max_chars is not None and len(cleaned) > max_chars:
-        cleaned = cleaned[: max(0, max_chars - 3)].rstrip() + "..."
-    return cleaned
+    return "\n\n".join(paragraphs)

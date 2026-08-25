@@ -339,7 +339,7 @@ function DirectiveDisplay({
   return (
     <p
       className={`leading-snug [overflow-wrap:anywhere] ${
-        compact ? "mt-0.5 text-[11px] line-clamp-2" : "text-[12px] line-clamp-3"
+        compact ? "mt-0.5 text-[11px]" : "text-[12px]"
       } ${radarSignal?.urgent ? "font-semibold text-on-surface" : "text-on-surface-variant"}`}
     >
       {cell.headline}
@@ -863,12 +863,12 @@ function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
               </div>
             )}
             {suggestion.why && (
-              <span className="line-clamp-2 text-[11px] leading-snug text-on-surface">
+              <span className="text-[11px] leading-snug text-on-surface">
                 {suggestion.why}
               </span>
             )}
             {!suggestion.why && suggestion.reason && (
-              <span className="line-clamp-2 text-[11px] leading-snug text-on-surface-variant">
+              <span className="text-[11px] leading-snug text-on-surface-variant">
                 {suggestion.reason}
               </span>
             )}

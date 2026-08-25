@@ -82,6 +82,30 @@ class OpenBriefTemplateTests(unittest.TestCase):
         )
         self.assertEqual(line, "Services pricing is supporting the move.")
 
+    def test_long_move_copy_reaches_email_without_truncation(self) -> None:
+        long_copy = (
+            "Supermicro raised its fiscal 2027 revenue outlook and expanded a new infrastructure partnership, "
+            "which could support demand across liquid cooled systems and strengthen the company position with "
+            "large enterprise customers through the next reporting period."
+        )
+        _, html = build_open_brief_email(
+            first_name="Arun",
+            anomalies_doc={
+                "market": "US",
+                "generated_at": datetime.now(timezone.utc).isoformat(),
+                "anomalies": [{
+                    "ticker": "SMCI",
+                    "day_change_pct": 4.0,
+                    "price": 100.0,
+                    "price_as_of": datetime.now(timezone.utc).isoformat(),
+                    "move_explanation": {"headline": "SMCI outlook improves", "why_it_matters": long_copy},
+                }],
+            },
+            rows=[{"ticker": "SMCI"}],
+        )
+
+        self.assertIn(long_copy, html)
+
 
 if __name__ == "__main__":
     unittest.main()

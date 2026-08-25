@@ -91,7 +91,7 @@ export function ExpandableYoutubeVideo({
 
           <div className="relative z-[1] w-full max-w-[960px]">
             <div className="mb-3 flex items-start justify-between gap-4 px-1">
-              <p id={titleId} className="text-[14px] font-medium text-white/90 line-clamp-2">
+              <p id={titleId} className="text-[14px] font-medium text-white/90">
                 {title}
               </p>
               <button

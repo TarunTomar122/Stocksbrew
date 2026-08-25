@@ -95,7 +95,7 @@ export function DecisionQueue({
                     {item.action}
                   </span>
                   {item.driver ? (
-                    <span className="mt-2 block line-clamp-2 text-[11.5px] leading-relaxed text-[var(--rn-muted)]">
+                    <span className="mt-2 block text-[11.5px] leading-relaxed text-[var(--rn-muted)]">
                       <span className="font-semibold text-[var(--rn-ink)]">Why:</span> {item.driver}
                     </span>
                   ) : null}

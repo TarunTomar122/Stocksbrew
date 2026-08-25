@@ -167,26 +167,26 @@ def is_weak_move_explanation(row: dict[str, Any]) -> bool:
 def anomaly_tape_line(row: dict[str, Any]) -> str:
     move = row.get("move_explanation")
     if isinstance(move, dict) and not is_weak_move_explanation(row):
-        why = clean_optional_email_text(move.get("why_it_matters"), max_chars=220)
-        headline = clean_optional_email_text(move.get("headline"), max_chars=220)
+        why = clean_optional_email_text(move.get("why_it_matters"))
+        headline = clean_optional_email_text(move.get("headline"))
         if why and why != headline:
-            return why[:220]
+            return why
         if headline:
-            return headline[:220]
+            return headline
 
     for key in ("today_brief", "thesis"):
-        text = clean_optional_email_text(row.get(key), max_chars=220)
+        text = clean_optional_email_text(row.get(key))
         if text:
-            return text[:220]
+            return text
 
     visual = row.get("visual_summary")
     if isinstance(visual, dict):
         for key in ("why_it_matters", "what_changed"):
-            text = clean_optional_email_text(visual.get(key), max_chars=220)
+            text = clean_optional_email_text(visual.get(key))
             if text:
                 return text
 
-    headline = clean_optional_email_text(row.get("headline"), max_chars=220)
+    headline = clean_optional_email_text(row.get("headline"))
     if headline and not headline.lower().startswith("top "):
         return headline
 

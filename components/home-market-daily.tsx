@@ -44,7 +44,7 @@ export async function HomeMarketDaily() {
                   {edition.headline}
                 </Link>
               </h3>
-              <p className="mt-4 line-clamp-4 text-[14px] leading-6 text-on-surface-variant">{edition.dek}</p>
+              <p className="mt-4 text-[14px] leading-6 text-on-surface-variant">{edition.dek}</p>
               <Link href={`/market-daily/${edition.edition_date}`} className="mt-auto pt-7 text-[12px] font-bold uppercase tracking-[0.08em] text-on-surface hover:text-primary">
                 Read the market view →
               </Link>

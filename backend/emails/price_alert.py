@@ -52,7 +52,7 @@ def _fmt_price(value: Any) -> str | None:
 def _zone_line(zone: dict[str, Any] | None, *, fallback_prefix: str) -> str | None:
     if not zone or not isinstance(zone, dict):
         return None
-    text = clean_optional_email_text(zone.get("text"), max_chars=220)
+    text = clean_optional_email_text(zone.get("text"))
     if text:
         return text
     trigger_type = str(zone.get("trigger_type") or "").strip()
@@ -128,7 +128,7 @@ def build_price_alert_email(
         directive = {}
 
     stance = str(directive.get("stance") or (row or {}).get("stance") or "watch")
-    directive_text = clean_optional_email_text(directive.get("text"), max_chars=320)
+    directive_text = clean_optional_email_text(directive.get("text"))
     score = directive.get("score")
     if score is None and isinstance(row, dict):
         score = row.get("score")

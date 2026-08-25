@@ -344,7 +344,7 @@ def score_interesting_row(
         for candidate in (visual.get("why_it_matters"), intel_doc.get("today_brief"), visual.get("what_changed")):
             text = str(candidate or "").strip()
             if text:
-                headline = text if len(text) <= 140 else text[:137] + "..."
+                headline = text
                 break
 
     eligible = (

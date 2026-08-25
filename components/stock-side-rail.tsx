@@ -180,7 +180,7 @@ function StockCompanyBlurb({
         </div>
       )}
       {showDescription && (
-        <p className="line-clamp-4 text-[12px] leading-relaxed text-on-surface-variant">{description}</p>
+        <p className="text-[12px] leading-relaxed text-on-surface-variant">{description}</p>
       )}
     </div>
   );
@@ -228,7 +228,7 @@ export function StockSideRail({
             size={48}
           />
           <div className="flex flex-col flex-1 min-w-0">
-            <span className="text-[15px] font-semibold text-on-surface tracking-[-0.01em] leading-snug line-clamp-2">
+            <span className="text-[15px] font-semibold text-on-surface tracking-[-0.01em] leading-snug">
               {stock.name}
             </span>
             <div className="flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.06em] text-on-surface-variant mt-0.5">
@@ -382,7 +382,7 @@ export function StockSideRail({
                     aria-hidden
                   />
                   <div className="flex-1 min-w-0">
-                    <p className="text-[12px] font-semibold text-on-surface leading-snug line-clamp-2">
+                    <p className="text-[12px] font-semibold text-on-surface leading-snug">
                       {event.title ?? "Untitled"}
                     </p>
                     <div className="mt-1 flex items-center gap-1.5 text-[10px]">

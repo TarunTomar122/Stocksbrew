@@ -224,11 +224,7 @@ function ArticleCard({ article, radarSet, tickerMetaMode, compact }: ArticleCard
           {displaySentiment(article.sentiment_label)}
         </span>
         {showSummary && (
-          <p
-            className={`mt-2 text-[13px] leading-relaxed text-oa-muted-fg ${
-              compact ? "line-clamp-2" : "line-clamp-4"
-            }`}
-          >
+          <p className="mt-2 text-[13px] leading-relaxed text-oa-muted-fg">
             {rawSummary}
           </p>
         )}

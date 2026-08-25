@@ -29,7 +29,7 @@ def _gap_arrow(gap: float) -> str:
 
 
 def _context_tape_line(ctx: dict[str, Any]) -> str:
-    return clean_optional_email_text(ctx.get("tape_line"), max_chars=220)
+    return clean_optional_email_text(ctx.get("tape_line"))
 
 
 def _table_header(cells: list[tuple[str, str]]) -> str:

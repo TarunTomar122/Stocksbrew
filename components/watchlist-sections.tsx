@@ -720,9 +720,9 @@ function SecondaryDirectiveCard({ row, directive }: { row: WatchlistRow; directi
           </div>
         </div>
       </div>
-      <p className="text-[13px] font-medium text-oa-fg leading-snug line-clamp-2 mt-auto">{directive.text}</p>
+      <p className="text-[13px] font-medium text-oa-fg leading-snug mt-auto">{directive.text}</p>
       {directive.rationale && (
-        <p className="text-[11.5px] text-[var(--oa-muted-fg)] leading-snug line-clamp-2">{directive.rationale}</p>
+        <p className="text-[11.5px] text-[var(--oa-muted-fg)] leading-snug">{directive.rationale}</p>
       )}
     </Link>
   );
@@ -756,7 +756,7 @@ function ExploreDirectiveCard({ suggestion, isTracked = false }: { suggestion: D
         <TrackButton ticker={ticker} instrumentId={instrumentId} isTracked={isTracked} variant="icon" />
       </div>
       <Link href={`/stock/${encodeURIComponent(ticker)}`} className="flex flex-col gap-2 flex-1">
-        {why && <p className="text-[12px] text-[var(--oa-muted-fg)] leading-snug line-clamp-2">{why}</p>}
+        {why && <p className="text-[12px] text-[var(--oa-muted-fg)] leading-snug">{why}</p>}
         <span className="text-[11px] font-medium text-[var(--oa-muted-fg)] group-hover:text-[var(--oa-primary)] transition-colors mt-auto">View analysis →</span>
       </Link>
     </div>
@@ -1022,7 +1022,7 @@ function RiskFlagsBlock({ risks }: { risks: Dict[] }) {
                   )}
                 </div>
                 {headline && <p className="text-[14px] font-medium text-[var(--oa-fg)] leading-snug">{headline}</p>}
-                {body && <p className="text-[12px] text-[var(--oa-muted-fg)] leading-snug line-clamp-4 mt-auto">{body}</p>}
+                {body && <p className="text-[12px] text-[var(--oa-muted-fg)] leading-snug mt-auto">{body}</p>}
               </div>
             );
           })}
@@ -1073,7 +1073,7 @@ function OpportunitiesGrid({ items }: { items: Dict[] }) {
                     <span className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--oa-muted-fg)]">runway</span>
                   </div>
                 ) : headline ? <p className="text-[14px] font-medium text-[var(--oa-fg)] leading-snug">{headline}</p> : null}
-                {body && <p className="text-[12px] text-[var(--oa-muted-fg)] leading-snug line-clamp-3 mt-auto">{body}</p>}
+                {body && <p className="text-[12px] text-[var(--oa-muted-fg)] leading-snug mt-auto">{body}</p>}
               </Link>
             );
           })}
@@ -1112,8 +1112,8 @@ function StocksToCheckOut({ suggestions, tracked, isSubscribed }: {
                   {ticker && <StockLogo ticker={ticker} market={market} size={32} />}
                   <div className="flex flex-col min-w-0 flex-1">
                     <span className="text-[13px] font-medium text-oa-fg group-hover:text-[var(--oa-primary)] transition-colors">{ticker || "Suggestion"}</span>
-                    {reason && <span className="text-[11.5px] text-[var(--oa-muted-fg)] truncate">{reason}</span>}
-                    {why && <span className="text-[11.5px] text-[var(--oa-muted-fg)] truncate mt-0.5">{why}</span>}
+                    {reason && <span className="text-[11.5px] text-[var(--oa-muted-fg)]">{reason}</span>}
+                    {why && <span className="text-[11.5px] text-[var(--oa-muted-fg)] mt-0.5">{why}</span>}
                   </div>
                 </Link>
                 <div className="flex items-center gap-3 shrink-0">

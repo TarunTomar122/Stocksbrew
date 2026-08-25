@@ -198,7 +198,7 @@ export function WatchlistShowcase({ mode }: { mode: "signed_out" | "empty" }) {
                     <span className="hidden truncate text-[13px] leading-5 text-oa-muted-fg md:inline">{row.name}</span>
                   </div>
                   <p
-                    className="mt-0.5 line-clamp-1 text-[13px] leading-5 sm:text-[13.5px]"
+                    className="mt-0.5 text-[13px] leading-5 sm:text-[13.5px]"
                     style={{ color: row.tone === "bull" ? "var(--signal-bullish)" : row.tone === "bear" ? "var(--signal-bearish)" : "var(--signal-neutral)" }}
                   >
                     {row.reason}
@@ -267,7 +267,7 @@ export function WatchlistShowcase({ mode }: { mode: "signed_out" | "empty" }) {
                 <StockLogo ticker={idea.ticker} market="US" size={32} circle className="shrink-0" />
                 <div className="min-w-0 flex-1">
                   <span className="text-[15px] font-medium leading-5 text-oa-fg">{idea.ticker}</span>
-                  <p className="mt-0.5 line-clamp-1 text-[13px] leading-5 text-oa-muted-fg">{idea.reason}</p>
+                  <p className="mt-0.5 text-[13px] leading-5 text-oa-muted-fg">{idea.reason}</p>
                 </div>
                 <div className="shrink-0 text-right">
                   <p className="text-[14px] font-medium tabular-nums leading-5 text-oa-fg">${idea.price.toFixed(2)}</p>

@@ -737,10 +737,6 @@ html:not(.dark):has(.landing-page) body {
   line-height: 1.45;
   letter-spacing: -0.01em;
   color: var(--on-surface);
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  overflow: hidden;
 }
 
 .landing-section-label {

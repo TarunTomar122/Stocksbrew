@@ -29,8 +29,8 @@ def build_brief_ready_email(
 ) -> tuple[str, str]:
     ticker = ticker.strip().upper()
     subject = f"Your AI brief for {ticker} is ready"
-    clean_headline = clean_optional_email_text(headline, max_chars=200)
-    clean_company_name = clean_optional_email_text(company_name, max_chars=100)
+    clean_headline = clean_optional_email_text(headline)
+    clean_company_name = clean_optional_email_text(company_name)
     current_price = _number(price)
     day_change = _number(day_change_pct)
     identity = f"{html.escape(ticker)} · {html.escape(clean_company_name)}" if clean_company_name else html.escape(ticker)

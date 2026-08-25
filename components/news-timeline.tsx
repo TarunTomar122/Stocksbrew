@@ -64,7 +64,7 @@ export function NewsTimeline({ timeline }: Props) {
                     {event.title ?? "Untitled"}
                   </p>
                   {event.summary && (
-                    <p className="mt-1 text-[13px] text-oa-fg leading-relaxed line-clamp-2">
+                    <p className="mt-1 text-[13px] text-oa-fg leading-relaxed">
                       {event.summary}
                     </p>
                   )}

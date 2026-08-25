@@ -161,7 +161,7 @@ function BookRow({ row }: { row: HubRow }) {
         </div>
         {row.reason_line ? (
           <p
-            className="mt-0.5 text-[14px] leading-5 sm:line-clamp-1 sm:text-[13.5px]"
+            className="mt-0.5 text-[14px] leading-5 sm:text-[13.5px]"
             style={{ color: toneColor(row.reason_tone) }}
           >
             {row.reason_line}
@@ -357,7 +357,7 @@ function EarningsCardTile({ card }: { card: EarningsCard }) {
             ) : null}
           </div>
           {card.prediction.headline ? (
-            <p className="line-clamp-2 text-[12.5px] leading-5 text-oa-muted-fg">{card.prediction.headline}</p>
+            <p className="text-[12.5px] leading-5 text-oa-muted-fg">{card.prediction.headline}</p>
           ) : null}
         </>
       ) : null}
@@ -484,7 +484,7 @@ function IdeaTile({ idea }: { idea: IdeaCard }) {
           {idea.tag ? <span className="truncate text-[12px] leading-5 text-oa-muted-fg">{idea.tag}</span> : null}
         </div>
         {idea.reason ? (
-          <p className="mt-0.5 line-clamp-1 text-[13px] leading-5 text-oa-muted-fg">{idea.reason}</p>
+          <p className="mt-0.5 text-[13px] leading-5 text-oa-muted-fg">{idea.reason}</p>
         ) : null}
       </div>
       <div className="shrink-0 text-right">
