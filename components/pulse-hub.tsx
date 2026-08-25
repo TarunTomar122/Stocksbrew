@@ -36,7 +36,6 @@ const EYEBROW = "text-base uppercase tracking-[0.12em] text-oa-muted-fg";
 /* Free readers see six full reads per side before the gate; the point of this
    page is how much is given away, not how much is held back. */
 const FREE_ROWS = 6;
-const MAX_MOVERS_ROWS = 8;
 
 function money(v: number) {
   return v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -434,7 +433,7 @@ function MoverRow({
   active: boolean;
   onSelect: () => void;
 }) {
-  const reason = (item.headline || item.whyItMatters || item.tag || "").trim();
+  const reason = moverReason(item);
 
   return (
     <Link
@@ -457,7 +456,7 @@ function MoverRow({
       <div className="min-w-0 flex-1">
         <p className="text-base font-medium leading-5 text-oa-fg">{item.ticker}</p>
         {item.company ? <p className="hidden truncate text-[16px] leading-4 text-oa-muted-fg sm:block">{item.company}</p> : null}
-        {reason ? <p className="text-[15px] leading-5 text-oa-muted-fg sm:truncate">{reason}</p> : null}
+        {reason ? <p className="text-[15px] leading-5 text-oa-muted-fg sm:truncate md:hidden">{reason}</p> : null}
       </div>
       <div className="shrink-0 flex flex-col items-end gap-0.5">
         <span className="text-[15px] font-medium tabular-nums leading-5 text-oa-fg">${money(item.price)}</span>
@@ -465,6 +464,10 @@ function MoverRow({
       </div>
     </Link>
   );
+}
+
+function moverReason(item: ScannerItem) {
+  return (item.headline || item.whyItMatters || item.tag || "").trim();
 }
 
 function MoverGhostRow() {
@@ -528,14 +531,15 @@ function MoversBoard({ items, isSubscribed }: { items: ScannerItem[]; isSubscrib
     return (headline.length > 0 && headline !== "--") || (why.length > 0 && why !== "--");
   };
   const withAnomaly = items.filter(hasRealAnomaly);
-  const winners = [...withAnomaly].filter((i) => i.changePct >= 0).sort((a, b) => b.changePct - a.changePct).slice(0, MAX_MOVERS_ROWS);
-  const losers = [...withAnomaly].filter((i) => i.changePct < 0).sort((a, b) => a.changePct - b.changePct).slice(0, MAX_MOVERS_ROWS);
+  const winners = [...withAnomaly].filter((i) => i.changePct >= 0).sort((a, b) => b.changePct - a.changePct);
+  const losers = [...withAnomaly].filter((i) => i.changePct < 0).sort((a, b) => a.changePct - b.changePct);
   const rows = tab === "gainers" ? winners : losers;
   const visibleRows = isSubscribed ? rows : rows.slice(0, FREE_ROWS);
   const hiddenCount = rows.length - visibleRows.length;
 
   const selectedIndex = rows.findIndex((r) => r.ticker === selectedTicker);
   const selected = selectedIndex >= 0 ? rows[selectedIndex] : visibleRows[0] ?? null;
+  const selectedReason = selected ? moverReason(selected) : "";
   const { data: chartData, extras: chartExtras, loading: chartLoading } = useStockChart(selected?.instrument_id);
 
   function selectTab(key: "gainers" | "losers") {
@@ -698,8 +702,12 @@ function MoversBoard({ items, isSubscribed }: { items: ScannerItem[]; isSubscrib
                       )}
                     </div>
 
+                    {selectedReason && selectedReason !== selected.whyItMatters?.trim() ? (
+                      <p className="mt-4 text-[16px] leading-7 text-oa-muted-fg">{selectedReason}</p>
+                    ) : null}
+
                     {selected.whyItMatters ? (
-                      <p className="mt-4 text-[16px] leading-7 text-oa-muted-fg">{selected.whyItMatters}</p>
+                      <p className="mt-3 text-[16px] leading-7 text-oa-muted-fg">{selected.whyItMatters}</p>
                     ) : null}
 
                     {chartLoading ? (
