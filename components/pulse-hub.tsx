@@ -703,7 +703,7 @@ function MoversBoard({ items, isSubscribed }: { items: ScannerItem[]; isSubscrib
                     </div>
 
                     {selectedReason && selectedReason !== selected.whyItMatters?.trim() ? (
-                      <p className="mt-4 text-[16px] leading-7 text-oa-muted-fg">{selectedReason}</p>
+                      <p className="mt-4 text-[16px] font-medium leading-7 text-oa-muted-fg">{selectedReason}</p>
                     ) : null}
 
                     {selected.whyItMatters ? (
