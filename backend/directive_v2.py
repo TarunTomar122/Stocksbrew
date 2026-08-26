@@ -76,6 +76,41 @@ def _news_digest(doc: dict[str, Any]) -> dict[str, Any]:
     return doc.get("news_digest") if isinstance(doc.get("news_digest"), dict) else {}
 
 
+def _evidence_history(doc: dict[str, Any], key: str) -> dict[str, Any]:
+    value = doc.get(key)
+    return value if isinstance(value, dict) else {}
+
+
+def _evidence_history_score(doc: dict[str, Any]) -> float:
+    """Give repeated dated evidence a small vote without making one day sticky."""
+    stock = _evidence_history(doc, "evidence_history")
+    sector = _evidence_history(doc, "sector_evidence_history")
+    score = 0.0
+    if int(stock.get("coverage_days") or 0) >= 2:
+        trend = _text(stock.get("trend")).lower()
+        if trend == "negative_building":
+            score -= 8
+        elif trend == "positive_building":
+            score += 5
+        elif trend == "negative":
+            score -= 3
+        elif trend == "positive":
+            score += 2
+        score -= min(4, len(stock.get("repeated_negative_themes") or []))
+
+    if int(sector.get("coverage_days") or 0) >= 2:
+        trend = _text(sector.get("trend")).lower()
+        if trend == "negative_building":
+            score -= 4
+        elif trend == "positive_building":
+            score += 3
+        elif trend == "negative":
+            score -= 2
+        elif trend == "positive":
+            score += 1
+    return max(-12, min(8, score))
+
+
 def _anomaly_digest(doc: dict[str, Any]) -> dict[str, Any]:
     return doc.get("anomaly_digest") if isinstance(doc.get("anomaly_digest"), dict) else {}
 
@@ -148,6 +183,8 @@ def _score(doc: dict[str, Any]) -> float:
         score -= 20 if hard else 8
     elif news_direction == "mixed":
         score -= 2
+
+    score += _evidence_history_score(doc)
 
     anomaly = _anomaly_digest(doc)
     if anomaly:
@@ -328,6 +365,10 @@ def build_directive_v2(doc: dict[str, Any], previous_v2: dict[str, Any] | None =
         stance, execution, confidence = "trim", "do_not_chase", "medium"
     else:
         stance, execution, confidence = "hold", "now", "medium"
+
+    stock_history = _evidence_history(doc, "evidence_history")
+    if int(stock_history.get("coverage_days") or 0) == 1 and confidence == "high":
+        confidence = "medium"
 
     options = _options_digest(doc)
     iv_rank = _num(options.get("iv_rank")) if options else None

@@ -1074,6 +1074,90 @@ class TraceMoneyStore:
                 result[slug] = data
         return result
 
+    def _get_evidence_history(
+        self,
+        collection_name: str,
+        market: str,
+        keys: list[str],
+        key_field: str,
+        lookback_days: int,
+    ) -> dict[str, list[dict[str, Any]]]:
+        """Read the small date-keyed evidence snapshots used by stock briefs."""
+        wanted = {str(key).strip() for key in keys if str(key).strip()}
+        if not wanted:
+            return {}
+        cutoff = (datetime.now(timezone.utc).date() - timedelta(days=max(1, lookback_days) - 1)).isoformat()
+        market_up = str(market or "").strip().upper()
+        result: dict[str, list[dict[str, Any]]] = {}
+        query = self.db.collection(collection_name).where("market", "==", market_up)
+        for doc in query.stream():
+            data = _serialize(doc.to_dict()) or {}
+            key = str(data.get(key_field) or "").strip()
+            day = str(data.get("day") or "")[:10]
+            if key not in wanted or day < cutoff:
+                continue
+            result.setdefault(key, []).append(data)
+        for rows in result.values():
+            rows.sort(key=lambda row: str(row.get("day") or ""))
+        return result
+
+    def get_stock_evidence_history(
+        self,
+        market: str,
+        instrument_ids: list[str],
+        lookback_days: int = 14,
+    ) -> dict[str, list[dict[str, Any]]]:
+        return self._get_evidence_history(
+            "tm_stock_evidence_history",
+            market,
+            instrument_ids,
+            "instrument_id",
+            lookback_days,
+        )
+
+    def get_sector_evidence_history(
+        self,
+        market: str,
+        sector_slugs: list[str],
+        lookback_days: int = 14,
+    ) -> dict[str, list[dict[str, Any]]]:
+        return self._get_evidence_history(
+            "tm_sector_evidence_history",
+            market,
+            sector_slugs,
+            "sector_slug",
+            lookback_days,
+        )
+
+    def _save_evidence_history(
+        self,
+        collection_name: str,
+        market: str,
+        docs_payload: list[dict[str, Any]],
+        key_field: str,
+    ) -> None:
+        writes: list[tuple[Any, dict[str, Any]]] = []
+        market_up = str(market or "").strip().upper()
+        for payload in docs_payload:
+            key = str(payload.get(key_field) or "").strip()
+            day = str(payload.get("day") or "").strip()[:10]
+            if not (key and day and market_up):
+                continue
+            write_payload = {**payload, "market": market_up}
+            ref = self.db.collection(collection_name).document(f"{market_up}__{key}__{day}")
+            writes.append((ref, write_payload))
+        for batch_rows in _firestore_write_batches(writes, max_operations=450):
+            batch = self.db.batch()
+            for ref, payload in batch_rows:
+                batch.set(ref, payload, merge=True)
+            batch.commit()
+
+    def save_stock_evidence_history(self, market: str, docs_payload: list[dict[str, Any]]) -> None:
+        self._save_evidence_history("tm_stock_evidence_history", market, docs_payload, "instrument_id")
+
+    def save_sector_evidence_history(self, market: str, docs_payload: list[dict[str, Any]]) -> None:
+        self._save_evidence_history("tm_sector_evidence_history", market, docs_payload, "sector_slug")
+
     def get_sector_benchmarks(
         self, market: str, snapshot_date: str | None = None
     ) -> dict[str, Any] | None:

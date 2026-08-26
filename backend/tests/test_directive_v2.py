@@ -109,6 +109,50 @@ class DirectiveV2Test(unittest.TestCase):
         self.assertIn(stressed["stance"], {"hold", "trim", "avoid"})
         self.assertNotEqual(stressed["setup"]["catalyst_state"], "fresh_positive")
 
+    def test_single_day_history_does_not_change_the_score(self) -> None:
+        base = {
+            "current_price": 100,
+            "overall_label": "constructive",
+            "overall_score": 62,
+            "setup_state": "accumulation",
+            "visual_summary": {"drivers": [], "risk_cards": []},
+            "evidence_history": {
+                "history_status": "current_only",
+                "coverage_days": 1,
+                "trend": "negative",
+            },
+        }
+
+        self.assertEqual(build_directive_v2(base)["stance"], "accumulate")
+
+    def test_repeated_stock_and_sector_news_can_lower_the_call(self) -> None:
+        base = {
+            "current_price": 100,
+            "overall_label": "constructive",
+            "overall_score": 45,
+            "setup_state": "accumulation",
+            "visual_summary": {"drivers": [], "risk_cards": []},
+        }
+        history = {
+            "history_status": "building",
+            "coverage_days": 3,
+            "trend": "negative_building",
+            "repeated_negative_themes": ["guidance", "demand"],
+        }
+        sector_history = {
+            "history_status": "building",
+            "coverage_days": 3,
+            "trend": "negative_building",
+        }
+
+        out = build_directive_v2({
+            **base,
+            "evidence_history": history,
+            "sector_evidence_history": sector_history,
+        })
+
+        self.assertIn(out["stance"], {"hold", "trim", "avoid"})
+
     def test_options_digest_moderates_zones_without_overriding_thesis(self) -> None:
         doc = {
             "current_price": 100,

@@ -12,6 +12,12 @@ import re
 from typing import Any
 
 from backend.directive_v2 import build_directive_v2
+from backend.evidence_history import (
+    build_daily_evidence_snapshots,
+    merge_evidence_history_rows,
+    normalise_sector_slug,
+    summarize_evidence_history,
+)
 from backend.llm_client import (
     LLM_BRIEF_SOURCE,
     json_response_format,
@@ -28,7 +34,7 @@ from backend.providers.options_scrape import fetch_alphaquery_options_digest
 
 logger = logging.getLogger(__name__)
 
-STOCK_BRIEF_CACHE_VERSION = "2026-08-09-stock-brief-v21-everyday-reasons"
+STOCK_BRIEF_CACHE_VERSION = "2026-08-26-stock-brief-v22-rolling-evidence"
 DEFAULT_STOCK_BRIEF_MODEL = "gpt-5.6-luna"
 
 
@@ -494,8 +500,16 @@ RISK APPETITE - OFFENSIVE, NOT TIMID:
 - Avoid canned disclaimers inside the brief. State the evidence and uncertainty plainly.
 - Still stay evidence-bound: no hype, no invented catalysts, no fake certainty.
 
+ROLLING EVIDENCE HISTORY:
+- The payload may include `evidence_history` for this stock and `sector_evidence_history` for its sector.
+- Each history contains dated article counts, sentiment, hard-catalyst counts, and repeated themes. Use the dated rows to tell whether a signal is accumulating or is only a one-day headline.
+- A `current_only` or `building` history is a cold start. Keep the current evidence useful, state uncertainty through the setup and confidence, and do not call one day's sentiment an established trend.
+- When negative evidence repeats across days, especially around the same theme, explain the accumulation and let it affect the risk cards. Do the same for repeated positive evidence.
+- Sector history is context. Use it to explain whether company news is reinforced or offset by broader sector pressure; never let sector history erase stronger company-specific evidence.
+
 BRIEF STABILITY:
 - The payload may include `previous_brief_summary`. Treat it as continuity context, not as fresh evidence.
+- The payload may include `previous_directive` with the last published stance. Preserve that stance's reasoning when the rolling evidence is still a cold start; a stance change needs a dated company or sector pattern that supports it.
 - Keep prior thesis/setup/drivers/risks when the new evidence says the same thing.
 - Change them only when fresh news, price action, sector/market regime, earnings, or anomaly context changes the setup.
 - Do not copy stale facts blindly; if prior content conflicts with dated `recent_news` or `price_context`, trust the fresh payload.
@@ -772,6 +786,9 @@ def _llm_synthesize_brief(
     earnings: dict[str, Any] | None = None,
     anomaly_digest: dict[str, Any] | None = None,
     previous_brief_summary: dict[str, Any] | None = None,
+    previous_directive: dict[str, Any] | None = None,
+    evidence_history: dict[str, Any] | None = None,
+    sector_evidence_history: dict[str, Any] | None = None,
     store: Any | None = None,
 ) -> dict[str, Any] | None:
     """Call OpenAI to generate a synthesized stock brief. Returns None on failure."""
@@ -808,6 +825,16 @@ def _llm_synthesize_brief(
         payload["anomaly_digest"] = anomaly_digest
     if previous_brief_summary:
         payload["previous_brief_summary"] = previous_brief_summary
+    if previous_directive:
+        payload["previous_directive"] = {
+            "stance": previous_directive.get("stance"),
+            "execution": previous_directive.get("execution"),
+            "action": previous_directive.get("action"),
+        }
+    if evidence_history:
+        payload["evidence_history"] = evidence_history
+    if sector_evidence_history:
+        payload["sector_evidence_history"] = sector_evidence_history
     if price_context:
         payload["price_context"] = price_context
     if market_regime:
@@ -3507,6 +3534,78 @@ def build_stock_intelligence_docs(
         for instrument_id in matched_ids:
             articles_by_instrument[instrument_id].append(article)
 
+    # Build date-keyed evidence before synthesis. The current run can therefore
+    # seed history immediately, while later runs add a real multi-day context.
+    generated_at = now_utc.isoformat()
+    stock_history_snapshots: dict[str, list[dict[str, Any]]] = {}
+    for instrument in instruments:
+        instrument_id = instrument["instrument_id"]
+        history_articles = articles_by_instrument.get(instrument_id) or raw_articles_by_instrument.get(instrument_id, [])
+        if history_articles:
+            stock_history_snapshots[instrument_id] = build_daily_evidence_snapshots(
+                history_articles,
+                market=market,
+                subject_kind="stock",
+                instrument_id=instrument_id,
+                ticker=str(instrument.get("ticker") or "").strip().upper(),
+                sector_slug=normalise_sector_slug(instrument.get("sector")),
+                generated_at=generated_at,
+            )
+
+    sector_slugs = {
+        normalise_sector_slug(instrument.get("sector"))
+        for instrument in instruments
+        if normalise_sector_slug(instrument.get("sector"))
+    }
+    articles_by_sector: dict[str, list[Article]] = defaultdict(list)
+    for article in articles:
+        if str(article.sentiment_label or "").lower() == "unscored":
+            continue
+        title_lower = str(getattr(article, "title", "") or "").lower()
+        if any(pattern in title_lower for pattern in thin_title_patterns):
+            continue
+        article_sectors = {
+            normalise_sector_slug(tag)
+            for tag in (article.sector_tags or [])
+            if normalise_sector_slug(tag) in sector_slugs
+        }
+        if not article_sectors:
+            for mention in article.entity_mentions:
+                ticker = str(mention.get("ticker") or "").upper().strip()
+                instrument = instruments_by_ticker.get(ticker)
+                if instrument and str(mention.get("mention_role", "secondary")).lower() != "incidental":
+                    sector_slug = normalise_sector_slug(instrument.get("sector"))
+                    if sector_slug:
+                        article_sectors.add(sector_slug)
+        for sector_slug in article_sectors:
+            articles_by_sector[sector_slug].append(article)
+
+    sector_history_snapshots: dict[str, list[dict[str, Any]]] = {}
+    for sector_slug, sector_articles in articles_by_sector.items():
+        sector_history_snapshots[sector_slug] = build_daily_evidence_snapshots(
+            sector_articles,
+            market=market,
+            subject_kind="sector",
+            sector_slug=sector_slug,
+            generated_at=generated_at,
+        )
+
+    stored_stock_history: dict[str, list[dict[str, Any]]] = {}
+    stored_sector_history: dict[str, list[dict[str, Any]]] = {}
+    if store is not None:
+        try:
+            loader = getattr(store, "get_stock_evidence_history", None)
+            if callable(loader):
+                stored_stock_history = loader(market, list(instruments_by_id), 14) or {}
+        except Exception:
+            stored_stock_history = {}
+        try:
+            loader = getattr(store, "get_sector_evidence_history", None)
+            if callable(loader):
+                stored_sector_history = loader(market, sorted(sector_slugs), 14) or {}
+        except Exception:
+            stored_sector_history = {}
+
     docs: list[dict[str, Any]] = []
     for instrument in instruments:
         instrument_id = instrument["instrument_id"]
@@ -3749,8 +3848,22 @@ def build_stock_intelligence_docs(
         anomaly_digest = _build_anomaly_digest(
             anomaly_by_doc_id.get(f"{market.upper()}__{str(instrument['ticker']).upper()}")
         )
+        evidence_history_rows = merge_evidence_history_rows(
+            stored_stock_history.get(instrument_id),
+            stock_history_snapshots.get(instrument_id),
+        )
+        evidence_history = summarize_evidence_history(evidence_history_rows, lookback_days=5)
+        instrument_sector_slug = normalise_sector_slug(instrument.get("sector"))
+        sector_history_rows = merge_evidence_history_rows(
+            stored_sector_history.get(instrument_sector_slug),
+            sector_history_snapshots.get(instrument_sector_slug),
+        )
+        sector_evidence_history = summarize_evidence_history(sector_history_rows, lookback_days=5)
         prev_doc = store.get_stock_intelligence_doc(market, universe_id, instrument_id) if store else None
         previous_brief_summary = _previous_brief_summary(prev_doc)
+        previous_v2 = (prev_doc or {}).get("directive_v2")
+        if not isinstance(previous_v2, dict):
+            previous_v2 = None
 
         # Try LLM synthesis first - falls back to deterministic if unavailable
         fundamentals_block = _summarize_intel_pro(intel_pro_by_id.get(instrument_id))
@@ -3776,6 +3889,9 @@ def build_stock_intelligence_docs(
             earnings=earnings_ctx,
             anomaly_digest=anomaly_digest,
             previous_brief_summary=previous_brief_summary,
+            previous_directive=previous_v2,
+            evidence_history=evidence_history,
+            sector_evidence_history=sector_evidence_history,
             store=store,
         )
 
@@ -3988,9 +4104,6 @@ def build_stock_intelligence_docs(
             "vs_sector_day_change_pct": round(self_day_change - sector_median, 4),
             "market_percentile": percentile,
         }
-        previous_v2 = (prev_doc or {}).get("directive_v2")
-        if not isinstance(previous_v2, dict):
-            previous_v2 = None
         visual_cards = _visual_cards(
             drivers=drivers,
             catalyst_cards=catalyst_cards,
@@ -4026,6 +4139,8 @@ def build_stock_intelligence_docs(
                 freshness_hours=freshness_hours,
             ),
             "anomaly_digest": anomaly_digest,
+            "evidence_history": evidence_history,
+            "sector_evidence_history": sector_evidence_history,
             "options_digest": options_by_id.get(instrument_id),
             "overall_label": label,
             "overall_score": score,
@@ -4064,5 +4179,25 @@ def build_stock_intelligence_docs(
                 "has_prior_run": bool(prev_doc),
             },
         })
+
+    if store is not None:
+        try:
+            saver = getattr(store, "save_stock_evidence_history", None)
+            if callable(saver):
+                saver(
+                    market,
+                    [row for rows in stock_history_snapshots.values() for row in rows],
+                )
+        except Exception as exc:
+            logger.warning("stock evidence history save failed market=%s: %s", market, exc)
+        try:
+            saver = getattr(store, "save_sector_evidence_history", None)
+            if callable(saver):
+                saver(
+                    market,
+                    [row for rows in sector_history_snapshots.values() for row in rows],
+                )
+        except Exception as exc:
+            logger.warning("sector evidence history save failed market=%s: %s", market, exc)
 
     return docs

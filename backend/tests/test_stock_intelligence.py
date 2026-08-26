@@ -250,12 +250,14 @@ class StockIntelligenceTest(unittest.TestCase):
                 "market": "US",
                 "ticker": "NVDA",
                 "name": "NVIDIA Corporation",
+                "sector": "Semiconductors",
             },
             {
                 "instrument_id": "US_AMD",
                 "market": "US",
                 "ticker": "AMD",
                 "name": "Advanced Micro Devices",
+                "sector": "Semiconductors",
             },
         ]
         articles = [
@@ -351,6 +353,9 @@ class StockIntelligenceTest(unittest.TestCase):
         self.assertEqual(nvda["overall_label"], "bullish")
         self.assertEqual(nvda["related_instrument_ids"], ["US_AMD"])
         self.assertEqual(amd["news_count"], 1)
+        self.assertEqual(nvda["evidence_history"]["history_status"], "current_only")
+        self.assertEqual(nvda["evidence_history"]["coverage_days"], 1)
+        self.assertEqual(nvda["sector_evidence_history"]["history_status"], "current_only")
 
     def test_summarize_price_context(self) -> None:
         latest = {
