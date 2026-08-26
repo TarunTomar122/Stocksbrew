@@ -10,7 +10,7 @@ export const revalidate = 120;
 export const metadata: Metadata = {
   title: "Explore Stocks",
   description:
-    "See what's moving before the crowd does: AI capex beneficiaries and live scans for hot stocks, momentum, breakouts, news spikes, oversold dips and Trump mentions.",
+    "See what's moving before the crowd does: research themes and live scans for hot stocks, momentum, breakouts, news spikes, oversold dips and Trump mentions.",
   keywords: [
     "stock screener",
     "most traded stocks",
@@ -23,14 +23,14 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Explore Stocks · stocksbrew",
     description:
-      "AI capex beneficiaries and live market scans for heat, momentum, breakouts and news spikes.",
+      "Research themes and live market scans for heat, momentum, breakouts and news spikes.",
     url: "https://www.stocksbrew.online/explore",
   },
   twitter: {
     card: "summary_large_image",
     title: "Explore Stocks · stocksbrew",
     description:
-      "AI capex beneficiaries and live market scans for heat, momentum, breakouts and news spikes.",
+      "Research themes and live market scans for heat, momentum, breakouts and news spikes.",
   },
 };
 

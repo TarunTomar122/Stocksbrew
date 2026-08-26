@@ -4,6 +4,7 @@ import { USE_CASES } from "@/lib/use-cases-data";
 import { FEATURED_STOCK_TICKERS, getSeoStockPage } from "@/lib/seo/stock-pages";
 import { SEO_SECTOR_PAGES } from "@/lib/seo/sector-pages";
 import { listMarketDailyEditions } from "@/lib/market-daily";
+import { INVESTMENT_THEMES } from "@/lib/investment-themes";
 
 export const revalidate = 86400; // ISR once a day
 
@@ -58,6 +59,10 @@ export async function GET() {
 
   for (const u of USE_CASES) {
     entries.push(url(`/use-cases/${u.slug}`));
+  }
+
+  for (const theme of INVESTMENT_THEMES) {
+    entries.push(url(`/themes/${theme.slug}`));
   }
 
   // Blog posts

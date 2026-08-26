@@ -24,11 +24,7 @@ import { formatTrumpLogicDate } from "@/lib/trump-logic-format";
 import { US_PRO_MONTHLY, US_PRO_YEARLY } from "@/lib/pricing";
 import { PRO_POINTS } from "@/lib/subscribe-benefits";
 import { AnimatedIcon } from "@/components/animated-icon";
-import {
-  AiCapexSection,
-  type AiCapexRow,
-  type AiCapexWatchRow,
-} from "@/components/oa/ai-capex-section";
+import { ThemeDirectory } from "@/components/theme-directory";
 
 /* ── springs (oa-design: one spring family) ────────────────────────────── */
 const LAYOUT = { type: "spring", stiffness: 550, damping: 40 } as const;
@@ -748,8 +744,6 @@ export function OaExplore({
   catalystStocks,
   dipStocks,
   trumpMentions,
-  aiCapexRows,
-  aiCapexWatchlist,
   isSubscribed,
   trackedIds,
   trackedCount,
@@ -763,8 +757,6 @@ export function OaExplore({
   catalystStocks: HeatRow[];
   dipStocks: HeatRow[];
   trumpMentions: TrumpMentionRow[];
-  aiCapexRows: AiCapexRow[];
-  aiCapexWatchlist: AiCapexWatchRow[];
   isSubscribed: boolean;
   trackedIds?: string[];
   trackedCount?: number;
@@ -779,7 +771,6 @@ export function OaExplore({
       catalyst_count: catalystStocks.length,
       dip_count: dipStocks.length,
       trump_count: trumpMentions.length,
-      ai_capex_count: aiCapexRows.length,
     });
     // Fires once per mount to mark the page view; counts are a snapshot, not reactive state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -817,18 +808,7 @@ export function OaExplore({
 
       <TrendingStrip stocks={trending} />
 
-      <AiCapexSection
-        rows={aiCapexRows}
-        watchlist={aiCapexWatchlist}
-        isSubscribed={isSubscribed}
-        trackedIds={trackedIds}
-        trackedCount={trackedCount}
-        unlockAction={
-          <ProCheckoutButton size="md" className="h-10 px-5 text-[15px]">
-            Try Pro
-          </ProCheckoutButton>
-        }
-      />
+      <ThemeDirectory />
 
       <section aria-label="Market scans">
         <MarketScans

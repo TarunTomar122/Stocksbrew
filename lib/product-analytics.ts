@@ -31,6 +31,7 @@ export type PaywallSurface =
   | "upcoming_earnings"
   | "market_anomalies"
   | "reddit_buzz"
+  | "theme_page"
   | "interesting_stocks"
   | "locked_ai_brief"
   | "locked_verdict_call"
@@ -46,7 +47,10 @@ function dedupeSession(key: string): boolean {
   }
 }
 
-export function trackUserSignedIn(props: { surface: AuthSurface; isNewUser?: boolean }) {
+export function trackUserSignedIn(props: {
+  surface: AuthSurface;
+  isNewUser?: boolean;
+}) {
   const event = props.isNewUser ? "user_signed_up" : "user_signed_in";
   captureEvent(event, {
     surface: props.surface,
@@ -156,7 +160,11 @@ export function trackRadarStockAdded(props: {
 }
 
 export function trackAgentAccessAction(props: {
-  action: "server_url_copied" | "token_created" | "token_revoked" | "config_copied";
+  action:
+    | "server_url_copied"
+    | "token_created"
+    | "token_revoked"
+    | "config_copied";
 }) {
   captureEvent("agent_access_action", props);
 }
