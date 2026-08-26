@@ -138,9 +138,14 @@ def test_current_symbol_alias_resolves_to_live_listing(monkeypatch) -> None:
         },
     )
 
-    resolved = process_stock_requests._resolve_request([], "US", "SK HYNIX")
+    for query, symbol, name in [
+        ("SK HYNIX", "SKHY", "SK hynix Inc."),
+        ("CTRA", "DVN", "Devon Energy Corporation"),
+        ("CWEN-A", "CWEN", "Clearway Energy, Inc. (Class C)"),
+    ]:
+        resolved = process_stock_requests._resolve_request([], "US", query)
 
-    assert resolved is not None
-    assert resolved["symbol"] == "SKHY"
-    assert resolved["name"] == "SK hynix Inc."
-    assert resolved["resolution_source"] == "current_symbol_alias"
+        assert resolved is not None
+        assert resolved["symbol"] == symbol
+        assert resolved["name"] == name
+        assert resolved["resolution_source"] == "current_symbol_alias"
