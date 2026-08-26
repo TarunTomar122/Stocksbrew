@@ -41,7 +41,7 @@ export const metadata: Metadata = {
 
 function ScreensFallback() {
   return (
-    <div className="animate-pulse rounded-[22px] border border-oa-border bg-oa-card p-4">
+    <div className="loading-screen animate-pulse rounded-[22px] border border-oa-border bg-oa-card p-4">
       <div className="mb-4 h-8 w-64 rounded-full border border-oa-border bg-oa-bg" />
       <div className="flex flex-col gap-3">
         {Array.from({ length: 8 }).map((_, i) => (

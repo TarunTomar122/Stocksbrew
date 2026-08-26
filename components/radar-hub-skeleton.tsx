@@ -36,7 +36,7 @@ export function RadarHubStaticHeader() {
 
 export function RadarPageSkeleton() {
   return (
-    <main className="flex flex-grow flex-col bg-background">
+    <main className="loading-screen flex flex-grow flex-col bg-background" aria-busy="true">
       <div className="mx-auto w-full max-w-[1440px] px-4 sm:px-6 md:px-8 lg:px-10">
         <RadarHubStaticHeader />
         <RadarHubContentSkeleton />

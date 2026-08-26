@@ -45,7 +45,7 @@ function GhostSectionHead() {
 
 export function WatchlistHubSkeleton() {
   return (
-    <div aria-hidden="true" className={`mx-auto w-full max-w-[76rem] flex flex-col gap-10 px-0 pb-36 pt-8 sm:gap-12 sm:pb-36 sm:px-6 sm:pt-10`}>
+    <div aria-hidden="true" aria-busy="true" className={`loading-screen mx-auto w-full max-w-[76rem] flex flex-col gap-10 px-0 pb-36 pt-8 sm:gap-12 sm:pb-36 sm:px-6 sm:pt-10`}>
       <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div className={`h-9 w-72 max-w-full rounded-full ${PULSE}`} />
         <div className={`h-9 w-40 shrink-0 rounded-full ${PULSE}`} />

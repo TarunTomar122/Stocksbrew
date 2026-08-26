@@ -149,7 +149,7 @@ function EarningsSkeleton() {
 
 export function PulseHubContentSkeleton() {
   return (
-    <div className={`${FRAME} flex flex-col gap-12 py-8 sm:gap-16 sm:py-12`}>
+    <div className={`${FRAME} loading-screen flex flex-col gap-12 py-8 sm:gap-16 sm:py-12`} aria-busy="true">
       <header className="max-w-2xl space-y-4" aria-hidden>
         <Bone className="h-10 w-4/5" />
         <Bone className="h-10 w-3/5" />

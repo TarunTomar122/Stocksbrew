@@ -194,7 +194,7 @@ function WatchlistCard({ candidate }: { candidate: ThemeCandidateQuote }) {
           </div>
           <Quote candidate={candidate} />
         </div>
-        <p className="mt-5 inline-flex rounded-full border border-oa-border px-2.5 py-1 text-[12px] text-oa-muted-fg">
+        <p className="mt-5 inline-flex w-fit self-start rounded-full border border-oa-border px-2.5 py-1 text-[12px] text-oa-muted-fg">
           {candidate.role}
         </p>
         <p className="mt-4 text-[14px] leading-5 text-oa-muted-fg">

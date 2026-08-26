@@ -213,7 +213,7 @@ export function LandingPricingSkeleton() {
 
 export function TerminalLandingPageSkeleton() {
   return (
-    <div className="landing-page bg-background text-on-surface">
+    <div className="loading-screen landing-page bg-background text-on-surface" aria-busy="true">
       <LandingTapeSkeleton />
       <header className="landing-hero-glow relative border-b border-outline-variant">
         <div className="landing-inner py-10 sm:py-14 lg:py-20">

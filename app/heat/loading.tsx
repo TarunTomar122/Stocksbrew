@@ -1,6 +1,6 @@
 export default function HeatLoading() {
   return (
-    <main className="oa-landing flex-grow">
+    <main className="loading-screen oa-landing flex-grow">
       <div className="mx-auto w-full max-w-[76rem] flex animate-pulse flex-col gap-6 px-4 py-10 sm:px-6">
         <div className="flex flex-col gap-2">
           <div className="h-5 w-32 rounded-full border border-oa-border bg-oa-bg" />

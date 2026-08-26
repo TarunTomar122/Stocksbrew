@@ -12,15 +12,15 @@ export function ThemeDirectory() {
     >
       <div className="flex flex-col gap-2">
         <div>
-          <p className="text-[12px] font-medium uppercase tracking-[0.16em] text-oa-muted-fg">
-            Research themes
-          </p>
           <h2
             id="research-themes-heading"
-            className="mt-2 text-[28px] font-medium leading-tight tracking-tight text-oa-fg sm:text-3xl"
+            className="text-[28px] font-medium leading-tight tracking-tight text-oa-fg sm:text-3xl"
           >
-            Follow the story underneath the market.
+            Research themes
           </h2>
+          <p className="mt-2 text-[17px] leading-6 text-oa-muted-fg">
+            Follow the story underneath the market.
+          </p>
         </div>
       </div>
 

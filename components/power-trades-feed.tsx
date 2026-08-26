@@ -130,7 +130,7 @@ export function TradeCard({ trade }: { trade: PowerTrade }) {
 
 export function Skeleton() {
   return (
-    <div role="status" aria-label="Loading power trades" className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+    <div role="status" aria-busy="true" aria-label="Loading power trades" className="loading-screen grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {[0, 1, 2, 3, 4, 5].map((card) => (
         <div key={card} className="flex flex-col gap-4 rounded-[24px] bg-[var(--oa-card)] p-5 shadow-sm">
           <div className="flex items-center gap-3">

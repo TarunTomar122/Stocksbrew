@@ -30,7 +30,7 @@ function ResearchRowSkeleton() {
 export function ThemePageSkeleton() {
   return (
     <div
-      className="mx-auto flex w-full max-w-[76rem] flex-col gap-10 px-4 py-8 sm:gap-14 sm:px-6 sm:py-12"
+      className="loading-screen mx-auto flex w-full max-w-[76rem] flex-col gap-10 px-4 py-8 sm:gap-14 sm:px-6 sm:py-12"
       aria-busy="true"
       aria-label="Loading theme"
     >

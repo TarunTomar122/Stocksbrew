@@ -32,7 +32,7 @@ function TableSkeleton({ rows = 5 }: { rows?: number }) {
 
 export function RadarNextSkeleton() {
   return (
-    <div className="radar-next mx-auto flex w-full max-w-[1240px] flex-col gap-10 px-4 pb-8 pt-3 sm:gap-14 sm:px-6 sm:pb-12 sm:pt-6" aria-busy>
+    <div className="loading-screen radar-next mx-auto flex w-full max-w-[1240px] flex-col gap-10 px-4 pb-8 pt-3 sm:gap-14 sm:px-6 sm:pb-12 sm:pt-6" aria-busy>
       <header className="border-b border-[var(--rn-line)] pb-6 pt-3 sm:pb-8 sm:pt-5">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
           <Bone className="h-8 w-48" />

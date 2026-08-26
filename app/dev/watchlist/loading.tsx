@@ -1,6 +1,6 @@
 export default function DevWatchlistLoading() {
   return (
-    <div className="flex h-full w-full">
+    <div className="loading-screen flex h-full w-full">
       {/* Sidebar skeleton */}
       <div className="flex w-72 shrink-0 flex-col border-r border-[#e5e7eb] bg-[#fafaf7]">
         <div className="flex items-center gap-2 border-b border-[#e5e7eb] px-4 py-3">

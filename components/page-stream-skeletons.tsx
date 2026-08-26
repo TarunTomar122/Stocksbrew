@@ -5,7 +5,7 @@ function Bone({ className = "" }: { className?: string }) {
 /** Content-only skeleton for Suspense fallbacks inside a page shell. */
 export function MarketFeedStreamSkeleton() {
   return (
-    <div className="flex flex-col gap-3" aria-busy="true">
+    <div className="loading-screen flex flex-col gap-3" aria-busy="true">
       <div className="grid gap-3 md:grid-cols-2">
         {Array.from({ length: 6 }).map((_, i) => (
           <div key={i} className="rounded-2xl border border-oa-border bg-oa-card p-4">
@@ -27,7 +27,7 @@ export function MarketFeedStreamSkeleton() {
 /** Generic market feed page — anomalies, reddit, events, premarket. */
 export function MarketFeedPageSkeleton() {
   return (
-    <main className="flex-grow">
+    <main className="loading-screen flex-grow" aria-busy="true">
       <div className="mx-auto flex w-full max-w-screen-xl flex-col gap-10 px-6 py-12 md:px-10 md:py-16 lg:px-16">
         <div className="flex flex-col gap-3">
           <Bone className="h-3 w-32" />
@@ -42,7 +42,7 @@ export function MarketFeedPageSkeleton() {
 
 export function SectorPageSkeleton() {
   return (
-    <main className="flex-grow">
+    <main className="loading-screen flex-grow" aria-busy="true">
       <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-8 px-6 py-12 md:px-10 lg:px-16">
         <Bone className="h-3 w-40" />
         <div className="rounded-xl border border-oa-border bg-oa-card p-8 md:p-10">
@@ -69,7 +69,7 @@ export function SectorPageSkeleton() {
 
 export function EarningsCalendarPageSkeleton() {
   return (
-    <main className="flex-grow">
+    <main className="loading-screen flex-grow" aria-busy="true">
       <div className="mx-auto flex w-full max-w-screen-xl flex-col items-center gap-8 px-6 py-12 md:px-10 lg:px-16">
         <div className="flex w-full max-w-[960px] flex-col gap-2">
           <Bone className="h-3 w-20" />
@@ -84,7 +84,7 @@ export function EarningsCalendarPageSkeleton() {
 
 export function PortfolioRebalancePageSkeleton() {
   return (
-    <main className="flex-grow">
+    <main className="loading-screen flex-grow" aria-busy="true">
       <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-8 px-6 py-10 md:px-10 md:py-12 lg:px-12">
         <div className="flex flex-col gap-3 border-b border-[var(--oa-bg)] pb-6">
           <Bone className="h-3 w-16" />
@@ -108,7 +108,7 @@ export function PortfolioRebalancePageSkeleton() {
 
 export function RadarDiagnosisSectionSkeleton() {
   return (
-    <section className="flex flex-col gap-8" aria-busy="true" aria-label="Loading diagnosis">
+    <section className="loading-screen flex flex-col gap-8" aria-busy="true" aria-label="Loading diagnosis">
       <div className="border-t border-oa-border/60 pt-8">
         <Bone className="h-3 w-24" />
         <Bone className="mt-3 h-6 w-40" />
@@ -125,7 +125,7 @@ export function RadarDiagnosisSectionSkeleton() {
 
 export function RadarEarningsRailSkeleton() {
   return (
-    <div className="flex flex-col gap-3" aria-busy="true" aria-label="Loading earnings">
+    <div className="loading-screen flex flex-col gap-3" aria-busy="true" aria-label="Loading earnings">
       <Bone className="h-24 w-full rounded-xl" />
     </div>
   );
@@ -134,7 +134,7 @@ export function RadarEarningsRailSkeleton() {
 export function SectorConstituentsSkeleton() {
   return (
     <>
-      <div className="rounded-xl border border-oa-border bg-oa-card p-6" aria-busy="true">
+      <div className="loading-screen rounded-xl border border-oa-border bg-oa-card p-6" aria-busy="true">
         <Bone className="mb-4 h-4 w-48" />
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="flex items-center gap-3 border-t border-oa-border/50 py-3 first:border-t-0">
@@ -145,7 +145,7 @@ export function SectorConstituentsSkeleton() {
           </div>
         ))}
       </div>
-      <div className="rounded-xl border border-oa-border bg-oa-card p-6">
+      <div className="loading-screen rounded-xl border border-oa-border bg-oa-card p-6" aria-busy="true">
         <Bone className="mb-4 h-4 w-24" />
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -160,7 +160,7 @@ export function SectorConstituentsSkeleton() {
 /** Neutral route transition shell — not the marketing homepage. */
 export function RouteLoadingShell() {
   return (
-    <main className="flex-grow" aria-busy="true" aria-label="Loading page">
+    <main className="loading-screen flex-grow" aria-busy="true" aria-label="Loading page">
       <div className="mx-auto flex w-full max-w-screen-xl flex-col gap-6 px-6 py-12 md:px-10 md:py-16">
         <Bone className="h-3 w-24" />
         <Bone className="h-9 w-64 max-w-full" />
@@ -173,7 +173,7 @@ export function RouteLoadingShell() {
 
 export function SubscribePageSkeleton() {
   return (
-    <main className="flex-grow bg-background" aria-busy="true" aria-label="Loading pricing">
+    <main className="loading-screen flex-grow bg-background" aria-busy="true" aria-label="Loading pricing">
       <div className="mx-auto flex w-full max-w-[640px] flex-col gap-8 px-4 py-12 sm:px-6 md:py-16">
         <div className="flex flex-col items-center gap-3 text-center">
           <Bone className="h-4 w-28" />
@@ -195,7 +195,7 @@ export function SubscribePageSkeleton() {
 export function StockPageSkeleton() {
   return (
     <div
-      className="mx-auto flex w-full min-w-0 max-w-[76rem] flex-col gap-12 px-4 py-8 sm:gap-16 sm:px-6 sm:py-12"
+      className="loading-screen mx-auto flex w-full min-w-0 max-w-[76rem] flex-col gap-12 px-4 py-8 sm:gap-16 sm:px-6 sm:py-12"
       aria-busy="true"
       aria-label="Loading stock"
     >
