@@ -62,13 +62,10 @@ function CandidateIdentity({
       <StockLogo ticker={candidate.ticker} size={38} circle eager />
       <div className="min-w-0">
         <div className="flex items-center gap-2">
-          <Link
-            href={`/stock/${encodeURIComponent(candidate.ticker)}`}
-            className="text-[17px] font-medium tracking-tight text-oa-fg hover:underline"
-          >
+          <span className="text-[17px] font-medium tracking-tight text-oa-fg">
             {candidate.ticker}
-          </Link>
-          <span className="opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+          </span>
+          <span className="pointer-events-auto opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
             <TrackButton
               ticker={candidate.ticker}
               instrumentId={id}
@@ -121,31 +118,38 @@ function CandidateRow({
   isSubscribed: boolean;
 }) {
   return (
-    <div className="group grid gap-4 border-t border-oa-border/80 px-5 py-5 first:border-t-0 sm:grid-cols-[minmax(11rem,1fr)_minmax(18rem,1.55fr)_6.5rem] sm:items-start sm:gap-6 sm:px-6">
-      <CandidateIdentity
-        candidate={candidate}
-        trackedIds={trackedIds}
-        trackedCount={trackedCount}
-        isSubscribed={isSubscribed}
+    <div className="group relative border-t border-oa-border/80 px-5 py-5 first:border-t-0 sm:px-6">
+      <Link
+        href={`/stock/${encodeURIComponent(candidate.ticker)}`}
+        aria-label={`Open ${candidate.ticker} stock page`}
+        className="absolute inset-0 z-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-oa-fg/40"
       />
-      <div className="min-w-0">
-        <p className="text-[15px] leading-6 text-oa-fg">
-          {candidate.benefitMechanism}
-        </p>
-        {candidate.catalyst ? (
-          <p className="mt-2 text-[13px] leading-5 text-oa-muted-fg">
-            <span className="font-medium text-oa-fg">Catalyst:</span>{" "}
-            {candidate.catalyst}
+      <div className="pointer-events-none relative z-10 grid gap-4 sm:grid-cols-[minmax(16rem,0.8fr)_minmax(0,2fr)_7rem] sm:items-start sm:gap-4">
+        <CandidateIdentity
+          candidate={candidate}
+          trackedIds={trackedIds}
+          trackedCount={trackedCount}
+          isSubscribed={isSubscribed}
+        />
+        <div className="min-w-0">
+          <p className="text-[16px] leading-6 text-oa-fg">
+            {candidate.benefitMechanism}
           </p>
-        ) : null}
-      </div>
-      <div className="flex items-end justify-between gap-4 text-left sm:block sm:text-right">
-        <p
-          className={`text-[14px] font-medium ${candidate.stocksbrewScore ? "text-[#087f5b]" : "text-oa-muted-fg"}`}
-        >
-          {scoreLabel(candidate)}
-        </p>
-        <Quote candidate={candidate} />
+          {candidate.catalyst ? (
+            <p className="mt-2 text-[13px] leading-5 text-oa-muted-fg">
+              <span className="font-medium text-oa-fg">Catalyst:</span>{" "}
+              {candidate.catalyst}
+            </p>
+          ) : null}
+        </div>
+        <div className="flex items-end justify-between gap-4 text-left sm:block sm:text-right">
+          <p
+            className={`text-[14px] font-medium ${candidate.stocksbrewScore ? "text-[#087f5b]" : "text-oa-muted-fg"}`}
+          >
+            {scoreLabel(candidate)}
+          </p>
+          <Quote candidate={candidate} />
+        </div>
       </div>
     </div>
   );
@@ -154,7 +158,7 @@ function CandidateRow({
 function LockedCandidateRow({ candidate }: { candidate: ThemeCandidateQuote }) {
   return (
     <div className="border-t border-oa-border/80 px-5 py-5 sm:px-6" aria-hidden>
-      <div className="pointer-events-none grid select-none gap-4 blur-[5px] sm:grid-cols-[minmax(11rem,1fr)_minmax(18rem,1.55fr)_6.5rem] sm:items-start sm:gap-6">
+      <div className="pointer-events-none grid select-none gap-4 blur-[5px] sm:grid-cols-[minmax(16rem,0.8fr)_minmax(0,2fr)_7rem] sm:items-start sm:gap-4">
         <div className="flex items-center gap-3">
           <StockLogo ticker={candidate.ticker} size={38} circle />
           <div>
@@ -163,7 +167,7 @@ function LockedCandidateRow({ candidate }: { candidate: ThemeCandidateQuote }) {
             <p className="mt-2 text-[12px]">{candidate.role}</p>
           </div>
         </div>
-        <p className="text-[15px] leading-6">{candidate.benefitMechanism}</p>
+        <p className="text-[16px] leading-6">{candidate.benefitMechanism}</p>
         <div className="text-right">
           <p className="text-[14px] font-medium">{scoreLabel(candidate)}</p>
           <Quote candidate={candidate} />
@@ -245,18 +249,9 @@ export function ThemePageView({
         </div>
       </div>
 
-      <section aria-labelledby="theme-candidates-heading">
-        <div>
-          <h2
-            id="theme-candidates-heading"
-            className="text-[28px] font-medium tracking-tight text-oa-fg sm:text-3xl"
-          >
-            The research list
-          </h2>
-        </div>
-
-        <SquircleSurface className="mt-5 overflow-hidden border border-oa-border">
-          <div className="hidden grid-cols-[minmax(11rem,1fr)_minmax(18rem,1.55fr)_6.5rem] gap-6 border-b border-oa-border bg-oa-bg/60 px-6 py-3 text-[11px] font-medium uppercase tracking-[0.12em] text-oa-muted-fg sm:grid">
+      <section aria-label="Theme research">
+        <SquircleSurface className="overflow-hidden border border-oa-border">
+          <div className="hidden grid-cols-[minmax(16rem,0.8fr)_minmax(0,2fr)_7rem] gap-4 border-b border-oa-border bg-oa-bg/60 px-6 py-3 text-[11px] font-medium uppercase tracking-[0.12em] text-oa-muted-fg sm:grid">
             <span>Company</span>
             <span>Why it matters</span>
             <span className="text-right">Signal</span>
@@ -300,20 +295,23 @@ export function ThemePageView({
           </div>
           <div className="mt-5 grid gap-3 md:grid-cols-3">
             {catalystCandidates.map((candidate) => (
-              <SquircleSurface
+              <Link
                 key={candidate.ticker}
-                className="border border-oa-border p-5"
+                href={`/stock/${encodeURIComponent(candidate.ticker)}`}
+                className="group rounded-[24px] outline-none focus-visible:ring-2 focus-visible:ring-oa-fg/40"
               >
-                <div className="flex items-center gap-3">
-                  <StockLogo ticker={candidate.ticker} size={30} circle />
-                  <p className="text-[17px] font-medium text-oa-fg">
-                    {candidate.ticker}
+                <SquircleSurface className="border border-oa-border p-5 transition-[border-color,box-shadow,transform] duration-200 group-hover:-translate-y-0.5 group-hover:border-oa-fg/25 group-hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)]">
+                  <div className="flex items-center gap-3">
+                    <StockLogo ticker={candidate.ticker} size={30} circle />
+                    <p className="text-[17px] font-medium text-oa-fg">
+                      {candidate.ticker}
+                    </p>
+                  </div>
+                  <p className="mt-3 text-[14px] leading-6 text-oa-muted-fg">
+                    {candidate.catalyst}
                   </p>
-                </div>
-                <p className="mt-3 text-[14px] leading-6 text-oa-muted-fg">
-                  {candidate.catalyst}
-                </p>
-              </SquircleSurface>
+                </SquircleSurface>
+              </Link>
             ))}
           </div>
         </section>

@@ -31,7 +31,7 @@ export function ThemeDirectory() {
             href={`/themes/${theme.slug}`}
             className="group min-w-0 rounded-[26px] outline-none focus-visible:ring-2 focus-visible:ring-oa-fg/40 sm:rounded-[34px]"
           >
-            <SquircleSurface className="h-full border border-oa-border p-5 shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition-[border-color,box-shadow,transform] duration-200 group-hover:-translate-y-0.5 group-hover:border-oa-fg/25 group-hover:shadow-[0_8px_24px_rgba(0,0,0,0.07)] group-focus-visible:-translate-y-0.5">
+            <SquircleSurface className="flex h-full flex-col border border-oa-border p-5 shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition-[border-color,box-shadow,transform] duration-200 group-hover:-translate-y-0.5 group-hover:border-oa-fg/25 group-hover:shadow-[0_8px_24px_rgba(0,0,0,0.07)] group-focus-visible:-translate-y-0.5">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h3 className="text-[19px] font-medium tracking-tight text-oa-fg">
@@ -50,7 +50,7 @@ export function ThemeDirectory() {
               </div>
 
               <div
-                className="mt-6 flex items-center gap-1.5"
+                className="mt-auto flex shrink-0 items-center gap-1.5 pt-6"
                 aria-label={`${theme.name} example stocks`}
               >
                 {theme.candidates.slice(0, 4).map((candidate) => (
