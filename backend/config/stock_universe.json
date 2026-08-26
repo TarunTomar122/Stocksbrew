@@ -30,7 +30,15 @@
       {"ticker": "LLY", "display_name": "Eli Lilly", "aliases": ["Eli Lilly and Company"], "sector_tags": ["healthcare"]},
       {"ticker": "UNH", "display_name": "UnitedHealth Group", "aliases": ["UnitedHealth", "UnitedHealth Group Incorporated"], "sector_tags": ["healthcare"]},
       {"ticker": "PFE", "display_name": "Pfizer", "aliases": ["Pfizer Inc."], "sector_tags": ["healthcare"]},
-      {"ticker": "COST", "display_name": "Costco", "aliases": ["Costco Wholesale Corporation"], "sector_tags": ["consumer"]}
+      {"ticker": "COST", "display_name": "Costco", "aliases": ["Costco Wholesale Corporation"], "sector_tags": ["consumer"]},
+      {"ticker": "GEV", "display_name": "GE Vernova", "aliases": ["GE Vernova Inc."], "sector_tags": ["industrials", "ai-infrastructure", "energy"]},
+      {"ticker": "PWR", "display_name": "Quanta Services", "aliases": ["Quanta Services, Inc."], "sector_tags": ["industrials", "ai-infrastructure", "energy"]},
+      {"ticker": "WMB", "display_name": "Williams Companies", "aliases": ["The Williams Companies, Inc.", "Williams"], "sector_tags": ["energy", "ai-infrastructure"]},
+      {"ticker": "LNG", "display_name": "Cheniere Energy", "aliases": ["Cheniere Energy, Inc."], "sector_tags": ["energy", "ai-infrastructure"]},
+      {"ticker": "CCJ", "display_name": "Cameco", "aliases": ["Cameco Corporation"], "sector_tags": ["energy", "ai-infrastructure"]},
+      {"ticker": "BEPC", "display_name": "Brookfield Renewable", "aliases": ["Brookfield Renewable Corporation"], "sector_tags": ["energy", "ai-infrastructure"]},
+      {"ticker": "NVO", "display_name": "Novo Nordisk", "aliases": ["Novo Nordisk A/S"], "sector_tags": ["healthcare"]},
+      {"ticker": "HII", "display_name": "Huntington Ingalls", "aliases": ["Huntington Ingalls Industries, Inc."], "sector_tags": ["industrials"]}
     ],
     "IN": [
       {"ticker": "HDFCBANK", "display_name": "HDFC Bank", "aliases": ["HDFC Bank Ltd."], "sector_tags": ["banking"]},

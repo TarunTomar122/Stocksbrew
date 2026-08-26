@@ -711,7 +711,15 @@
           "US_HWKN",
           "US_ASO",
           "US_HDB",
-          "US_STX"
+          "US_STX",
+          "US_GEV",
+          "US_PWR",
+          "US_WMB",
+          "US_LNG",
+          "US_CCJ",
+          "US_BEPC",
+          "US_NVO",
+          "US_HII"
         ],
         "us_macro_cues": [
           "US_IDX_SPX",
@@ -15017,6 +15025,256 @@
           ],
           "status": "active",
           "updated_at": "2026-06-16T07:17:21Z"
+        },
+        {
+          "instrument_id": "US_GEV",
+          "market": "US",
+          "ticker": "GEV",
+          "name": "GE Vernova Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Electrical Equipment",
+          "description": "GE Vernova Inc. tracked for power-generation, grid, and electrification research.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_PWR",
+            "US_ETN",
+            "US_CEG"
+          ],
+          "aliases": [
+            "GEV",
+            "GE Vernova",
+            "GE Vernova Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-08-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_PWR",
+          "market": "US",
+          "ticker": "PWR",
+          "name": "Quanta Services, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Engineering & Construction",
+          "description": "Quanta Services, Inc. tracked for electric-grid, utility, and energy-infrastructure research.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_GEV",
+            "US_ETN",
+            "US_EME"
+          ],
+          "aliases": [
+            "PWR",
+            "Quanta Services",
+            "Quanta Services, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-08-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_WMB",
+          "market": "US",
+          "ticker": "WMB",
+          "name": "The Williams Companies, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Energy",
+          "industry": "Oil & Gas Midstream",
+          "description": "The Williams Companies, Inc. tracked for natural-gas transmission, storage, and infrastructure research.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_LNG",
+            "US_EQT",
+            "US_COP"
+          ],
+          "aliases": [
+            "WMB",
+            "Williams",
+            "The Williams Companies",
+            "The Williams Companies, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-08-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_LNG",
+          "market": "US",
+          "ticker": "LNG",
+          "name": "Cheniere Energy, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Energy",
+          "industry": "Oil & Gas Midstream",
+          "description": "Cheniere Energy, Inc. tracked for US LNG production, exports, and natural-gas infrastructure research.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_WMB",
+            "US_EQT",
+            "US_COP"
+          ],
+          "aliases": [
+            "LNG",
+            "Cheniere Energy",
+            "Cheniere Energy, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-08-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_CCJ",
+          "market": "US",
+          "ticker": "CCJ",
+          "name": "Cameco Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Energy",
+          "industry": "Uranium",
+          "description": "Cameco Corporation tracked for uranium, nuclear-fuel, and reactor-services research.",
+          "logo_url": "",
+          "index_memberships": [],
+          "peer_ids": [
+            "US_CEG",
+            "US_BWXT",
+            "US_BEPC"
+          ],
+          "aliases": [
+            "CCJ",
+            "Cameco",
+            "Cameco Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-08-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_BEPC",
+          "market": "US",
+          "ticker": "BEPC",
+          "name": "Brookfield Renewable Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Utilities",
+          "industry": "Utilities - Renewable",
+          "description": "Brookfield Renewable Corporation tracked for renewable generation, storage, and long-term power-contract research.",
+          "logo_url": "",
+          "index_memberships": [],
+          "peer_ids": [
+            "US_CEG",
+            "US_NEE",
+            "US_CCJ"
+          ],
+          "aliases": [
+            "BEPC",
+            "Brookfield Renewable",
+            "Brookfield Renewable Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-08-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_NVO",
+          "market": "US",
+          "ticker": "NVO",
+          "name": "Novo Nordisk A/S",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Healthcare",
+          "industry": "Drug Manufacturers - General",
+          "description": "Novo Nordisk A/S tracked for diabetes, obesity, GLP-1, and metabolic-health research.",
+          "logo_url": "",
+          "index_memberships": [],
+          "peer_ids": [
+            "US_LLY",
+            "US_REGN",
+            "US_ABT"
+          ],
+          "aliases": [
+            "NVO",
+            "Novo Nordisk",
+            "Novo Nordisk A/S"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-08-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_HII",
+          "market": "US",
+          "ticker": "HII",
+          "name": "Huntington Ingalls Industries, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Aerospace & Defense",
+          "description": "Huntington Ingalls Industries, Inc. tracked for naval shipbuilding, nuclear carriers, submarines, and mission technologies research.",
+          "logo_url": "",
+          "index_memberships": [],
+          "peer_ids": [
+            "US_GD",
+            "US_LMT",
+            "US_NOC"
+          ],
+          "aliases": [
+            "HII",
+            "Huntington Ingalls",
+            "Huntington Ingalls Industries",
+            "Huntington Ingalls Industries, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-08-26T00:00:00Z"
         }
       ]
     },
