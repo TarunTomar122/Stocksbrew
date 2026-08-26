@@ -73,6 +73,8 @@ EXACT_SYMBOL_RE = re.compile(r"^[A-Z][A-Z0-9.-]{0,7}$")
 # symbol. Keep this small and explicit; ordinary company-name resolution still
 # goes through the LLM hint plus a live quote guardrail below.
 CURRENT_US_SYMBOL_ALIASES = {
+    "CTRA": ("DVN", "Devon Energy Corporation"),
+    "CWEN-A": ("CWEN", "Clearway Energy, Inc. (Class C)"),
     "HYNIX": ("SKHY", "SK hynix Inc."),
     "SK HYNIX": ("SKHY", "SK hynix Inc."),
     "SK HYNX": ("SKHY", "SK hynix Inc."),
