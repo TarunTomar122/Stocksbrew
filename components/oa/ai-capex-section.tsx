@@ -55,12 +55,16 @@ function StocksbrewView({ row }: { row: AiCapexRow }) {
   const hasScore = typeof row.stocksbrewScore === "number";
   return (
     <div className="shrink-0 text-left md:text-right">
-      <p className="text-[13px] font-medium text-oa-muted-fg">Stocksbrew</p>
-      <p className="mt-0.5 text-[16px] font-medium" style={{ color: hasScore ? "var(--signal-bullish)" : "var(--on-surface-variant)" }}>
-        {row.stocksbrewLabel}
-        {hasScore ? <span className="ml-1 tabular-nums">· {row.stocksbrewScore}</span> : null}
+      <p className="text-[16px] font-medium" style={{ color: hasScore ? "var(--signal-bullish)" : "var(--on-surface-variant)" }}>
+        {hasScore ? (
+          <>
+            {row.stocksbrewLabel}
+            <span className="ml-1 tabular-nums">· {row.stocksbrewScore}</span>
+          </>
+        ) : (
+          "—"
+        )}
       </p>
-      {row.coverageNote ? <p className="mt-0.5 text-[12px] text-oa-muted-fg">{row.coverageNote}</p> : null}
     </div>
   );
 }
@@ -68,8 +72,7 @@ function StocksbrewView({ row }: { row: AiCapexRow }) {
 function BeneficiaryRow({ row }: { row: AiCapexRow }) {
   return (
     <div className="border-t border-oa-border/70 px-3 py-4 first:border-t-0 sm:px-5 sm:py-5">
-      <div className="grid gap-4 md:grid-cols-[2rem_minmax(10rem,0.85fr)_9rem_minmax(0,1.6fr)_8rem] md:items-start md:gap-5">
-        <span className="pt-1 text-[15px] font-medium tabular-nums text-oa-muted-fg">{row.rank}</span>
+      <div className="grid gap-4 md:grid-cols-[minmax(10rem,0.85fr)_9rem_minmax(0,1.6fr)_8rem] md:items-start md:gap-5">
         <Link
           href={`/stock/${row.ticker}`}
           className="group flex min-w-0 items-start gap-2.5 outline-none"
@@ -85,12 +88,6 @@ function BeneficiaryRow({ row }: { row: AiCapexRow }) {
         <RolePill role={row.role} />
         <div className="min-w-0">
           <p className="text-[15px] leading-6 text-oa-fg">{row.whyItBenefits}</p>
-          <details className="mt-2 text-[14px] leading-6 text-oa-muted-fg">
-            <summary className="cursor-pointer font-medium text-oa-muted-fg underline decoration-oa-border underline-offset-4 hover:text-oa-fg">
-              What could break it
-            </summary>
-            <p className="mt-1.5 max-w-2xl">{row.breaksThesis}</p>
-          </details>
         </div>
         <StocksbrewView row={row} />
       </div>
@@ -145,7 +142,7 @@ export function AiCapexSection({ rows, watchlist }: { rows: AiCapexRow[]; watchl
       <SquircleSurface className="overflow-hidden border border-oa-border bg-oa-card shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
         {rows.map((row) => <BeneficiaryRow key={row.ticker} row={row} />)}
         <div className="border-t border-oa-border bg-oa-bg px-3 py-3 text-[13px] leading-5 text-oa-muted-fg sm:px-5">
-          Curated research map · each thesis includes a failure case · research only, not investment advice.
+          Curated research map · research only, not investment advice.
         </div>
       </SquircleSurface>
 
