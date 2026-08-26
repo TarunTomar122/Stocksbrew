@@ -7,6 +7,13 @@ from backend.email import APP_URL
 from backend.emails._theme import BORDER
 
 
+LOGO_SOURCE_OVERRIDES = {
+    # Finnhub does not publish a CEG image. This source has a stable company
+    # mark and is still served through the app proxy for email clients.
+    "CEG": "https://companiesmarketcap.com/img/company-logos/256/CEG.png",
+}
+
+
 def _is_bad_logo_url(raw: str) -> bool:
     s = str(raw or "").strip().lower()
     if not s:
@@ -21,6 +28,8 @@ def _is_bad_logo_url(raw: str) -> bool:
 def logo_src(*, ticker: str, logo_url: str | None = None) -> str:
     symbol = str(ticker or "").strip().upper()
     candidate = str(logo_url or "").strip()
+    if not candidate:
+        candidate = LOGO_SOURCE_OVERRIDES.get(symbol, "")
     if candidate and not _is_bad_logo_url(candidate):
         return f"{APP_URL}/api/logo-proxy?url={quote(candidate, safe='')}"
     if symbol:

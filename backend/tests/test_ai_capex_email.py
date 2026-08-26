@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 
+from backend.emails._assets import logo_src
 from backend.emails.ai_capex_watch import build_ai_capex_watch_email
 
 
@@ -35,6 +36,11 @@ class AiCapexEmailTests(unittest.TestCase):
         self.assertIn("Explore these names in stocksbrew", body)
         self.assertIn("https://www.stocksbrew.online/explore", body)
         self.assertIn("Manage email preferences", body)
+        self.assertNotIn("Market data and targets checked", body)
+        self.assertNotIn("The angle", body)
+
+    def test_ceg_uses_a_stable_logo_source(self) -> None:
+        self.assertIn("companiesmarketcap.com", logo_src(ticker="CEG"))
 
 
 if __name__ == "__main__":

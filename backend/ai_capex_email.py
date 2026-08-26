@@ -4,9 +4,10 @@ from datetime import datetime, timezone
 from typing import Any
 
 from backend.email import send_email
-from backend.email_runtime import log_email_send
+from backend.email_runtime import load_recent_send_index, log_email_send
 from backend.emails.ai_capex_watch import build_ai_capex_watch_for_user
 from backend.instrument_universe import list_intel_universe_ids
+from backend.newsletter_intel import load_newsletter_subscribers
 from backend.storage import TraceMoneyStore
 
 
@@ -167,3 +168,104 @@ def send_ai_capex_preview(
         meta={"market": "US", "as_of": as_of, "preview": True, "tickers": [item["ticker"] for item in names]},
     )
     return {"checked": 1, "sent": 1, "failed": 0}
+
+
+def load_ai_capex_recipients(store: TraceMoneyStore) -> list[dict[str, Any]]:
+    """Merge account and newsletter audiences while honoring explicit opt-outs."""
+    account_rows: dict[str, dict[str, Any] | None] = {}
+    users = store.db.collection("users").select(
+        ["email", "email_lower", "email_digest_enabled", "display_name"]
+    ).stream()
+    for doc in users:
+        user = doc.to_dict() or {}
+        email = str(user.get("email") or user.get("email_lower") or "").strip().lower()
+        if "@" not in email:
+            continue
+        if user.get("email_digest_enabled") is False:
+            account_rows[email] = None
+            continue
+        account_rows.setdefault(email, {
+            "email": email,
+            "uid": doc.id,
+            "display_name": user.get("display_name"),
+            "source": "account",
+        })
+
+    recipients = {
+        email: row
+        for email, row in account_rows.items()
+        if row is not None
+    }
+    opted_out = {email for email, row in account_rows.items() if row is None}
+
+    for row in load_newsletter_subscribers(store):
+        email = str(row.get("email") or "").strip().lower()
+        if "@" not in email or email in opted_out or email in recipients:
+            continue
+        recipients[email] = {
+            "email": email,
+            "uid": f"newsletter:{email}",
+            "display_name": None,
+            "source": "newsletter",
+        }
+
+    # The owner has already received the preview of this exact campaign.
+    recipients.pop(PREVIEW_RECIPIENT, None)
+    return sorted(recipients.values(), key=lambda row: str(row.get("email") or ""))
+
+
+def send_ai_capex_campaign(
+    store: TraceMoneyStore,
+    *,
+    dry_run: bool = False,
+    limit: int = 0,
+) -> dict[str, int]:
+    """Send the one-time AI-capex note to the merged opted-in audience."""
+    names, as_of = build_ai_capex_watch_data(store)
+    recipients = load_ai_capex_recipients(store)
+    dedupe_key = f"{EMAIL_TYPE}_{as_of}"
+    recent_sends = load_recent_send_index(store, lookback_hours=720)
+    subject = ""
+    stats = {"checked": 0, "sent": 0, "skipped": 0, "failed": 0}
+
+    for recipient in recipients:
+        if limit and stats["checked"] >= limit:
+            break
+        email = str(recipient.get("email") or "").strip().lower()
+        uid = str(recipient.get("uid") or "").strip()
+        if not email or not uid:
+            continue
+        stats["checked"] += 1
+        if recent_sends.get((uid, dedupe_key)):
+            stats["skipped"] += 1
+            continue
+
+        subject, html_body = build_ai_capex_watch_for_user(
+            display_name=recipient.get("display_name"),
+            email=email,
+            names=names,
+            as_of=as_of,
+        )
+        if dry_run:
+            stats["sent"] += 1
+            continue
+
+        if not send_email(email, subject, html_body):
+            stats["failed"] += 1
+            continue
+
+        log_email_send(
+            store,
+            uid=uid,
+            email=email,
+            email_type=EMAIL_TYPE,
+            subject=subject,
+            dedupe_key=dedupe_key,
+            trigger_type="ai_capex_campaign",
+            meta={"market": "US", "as_of": as_of, "source": recipient.get("source"), "tickers": [item["ticker"] for item in names]},
+        )
+        stats["sent"] += 1
+
+    if not subject and recipients:
+        subject = "5 less-obvious AI-capex names to watch"
+    return stats

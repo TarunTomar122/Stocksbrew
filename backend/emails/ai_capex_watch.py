@@ -131,7 +131,6 @@ def build_ai_capex_watch_email(
 ) -> tuple[str, str]:
     subject = "5 less-obvious AI-capex names to watch"
     greeting = f"{html.escape(first_name)}, " if first_name and first_name != "there" else ""
-    date_label = html.escape(str(as_of or "").strip() or "today")
     cards = "".join(_name_card(item) for item in names)
     explore_url = f"{APP_URL}/explore"
 
@@ -142,13 +141,11 @@ def build_ai_capex_watch_email(
           5 less-obvious names in the AI buildout</div>
         <p style='margin:14px 0 0;font-size:16px;line-height:1.58;color:{BODY}'>
           {greeting}the AI spending story is spreading beyond the headline chip names. These five sit in the equipment, power, optics, grid, and nuclear layers that have to keep expanding for new compute capacity to work.</p>
-        <div style='margin-top:12px;font-size:12px;color:{MUTED}'>Market data and targets checked {date_label} · research only</div>
       </td></tr>
       <tr><td style='padding:12px 24px 22px'>
         <table width='100%' cellpadding='0' cellspacing='0' style='background:{INSET};border-radius:{RADIUS_INNER}px'>
           <tr><td style='padding:16px 18px'>
-            <div style='font-size:10px;font-weight:700;letter-spacing:0.1em;color:{MUTED};text-transform:uppercase'>The angle</div>
-            <div style='margin-top:7px;font-size:15px;line-height:1.55;color:{BODY}'>AI demand can slow and still leave a durable electricity, grid, cooling, and networking buildout behind. That is why the second-order beneficiaries deserve a separate look.</div>
+            <div style='font-size:15px;line-height:1.55;color:{BODY}'>AI demand can slow and still leave a durable electricity, grid, cooling, and networking buildout behind. That is why the second-order beneficiaries deserve a separate look.</div>
           </td></tr>
         </table>
       </td></tr>
