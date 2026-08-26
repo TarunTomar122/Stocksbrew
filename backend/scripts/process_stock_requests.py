@@ -69,6 +69,16 @@ INVALID_REQUEST_TOKENS = {
 }
 EXACT_SYMBOL_RE = re.compile(r"^[A-Z][A-Z0-9.-]{0,7}$")
 
+# Verified current US listings for requests that use a former/home-market
+# symbol. Keep this small and explicit; ordinary company-name resolution still
+# goes through the LLM hint plus a live quote guardrail below.
+CURRENT_US_SYMBOL_ALIASES = {
+    "HYNIX": ("SKHY", "SK hynix Inc."),
+    "SK HYNIX": ("SKHY", "SK hynix Inc."),
+    "SK HYNX": ("SKHY", "SK hynix Inc."),
+    "TCNNF": ("TRLV", "Trulieve Cannabis Corp."),
+}
+
 SYMBOL_HINT_PROMPT = """You map user stock requests to likely US stock tickers.
 
 Return JSON with:
@@ -194,6 +204,49 @@ def _resolve_from_master(rows: list[dict[str, Any]], market: str, query: str) ->
     return top
 
 
+def _resolve_inactive_successor(rows: list[dict[str, Any]], market: str, query: str) -> dict[str, Any] | None:
+    """Follow an explicit catalog successor for a delisted share class.
+
+    The symbol master keeps inactive rows so historical links remain useful.
+    A new request for one of those exact symbols should resolve to its recorded
+    successor instead of being left in ``needs_confirmation`` forever.
+    """
+    normalized_query = normalize_name(query)
+    source = next(
+        (
+            row
+            for row in rows
+            if str(row.get("symbol") or "").strip().upper() == str(query).strip().upper()
+            or normalized_query == normalize_name(str(row.get("name") or ""))
+            or any(normalized_query == normalize_name(str(alias)) for alias in row.get("aliases") or [])
+        ),
+        None,
+    )
+    if not source or source.get("active") is not False:
+        return None
+    successor_id = str(source.get("successor_instrument_id") or "").strip().upper()
+    if not successor_id:
+        return None
+    successor = next(
+        (
+            row
+            for row in rows
+            if str(row.get("instrument_id") or "").strip().upper() == successor_id
+            and str(row.get("market") or market).strip().upper() == market
+            and row.get("active") is not False
+        ),
+        None,
+    )
+    if not successor:
+        return None
+    return {
+        **successor,
+        "_score": 100,
+        "resolved_from": str(query).strip().upper(),
+        "resolution_source": "catalog_successor",
+    }
+
+
 def _search_provider_candidates(query: str, market: str) -> list[dict[str, Any]]:
     import os
 
@@ -280,6 +333,25 @@ def _resolve_exact_symbol_from_quotes(query: str, market: str) -> dict[str, Any]
     }
 
 
+def _resolve_current_symbol_alias(query: str, market: str) -> dict[str, Any] | None:
+    if market != "US":
+        return None
+    alias = CURRENT_US_SYMBOL_ALIASES.get(str(query or "").strip().upper())
+    if not alias:
+        return None
+    symbol, name = alias
+    resolved = _resolve_exact_symbol_from_quotes(symbol, market)
+    if not resolved:
+        return None
+    return {
+        **resolved,
+        "name": name,
+        "aliases": [symbol, str(query).strip().upper(), name],
+        "resolved_from": str(query).strip().upper(),
+        "resolution_source": "current_symbol_alias",
+    }
+
+
 def _llm_symbol_hints(query: str, market: str) -> tuple[list[str], list[str]]:
     if market != "US":
         return [], []
@@ -334,6 +406,12 @@ def _llm_symbol_hints(query: str, market: str) -> tuple[list[str], list[str]]:
 
 
 def _resolve_request(master_rows: list[dict[str, Any]], market: str, query: str) -> dict[str, Any] | None:
+    resolved = _resolve_inactive_successor(master_rows, market, query)
+    if resolved:
+        return resolved
+    resolved = _resolve_current_symbol_alias(query, market)
+    if resolved:
+        return resolved
     resolved = _resolve_exact_symbol_from_quotes(query, market)
     if resolved:
         return resolved
@@ -369,8 +447,7 @@ def _resolve_request_with_llm_fallback(
         return resolved
 
     symbol_hints, name_hints = _llm_symbol_hints(query, market)
-    probe_queries = [*symbol_hints, *name_hints]
-    for probe in probe_queries:
+    for probe in [*symbol_hints, *name_hints]:
         candidate = _resolve_request(master_rows, market, probe)
         if not candidate:
             continue
@@ -382,6 +459,43 @@ def _resolve_request_with_llm_fallback(
         }
         if int(rescored["_score"]) >= 70:
             return rescored
+
+        # A current quote for an LLM-suggested symbol plus a matching company
+        # name is enough evidence when the symbol master is behind (for
+        # example, ``VERTIV`` -> ``VRT``). The old guardrail rejected these
+        # because quote-only rows only contain the ticker as their display name.
+        query_name = normalize_name(query)
+        matching_name = next(
+            (
+                name
+                for name in name_hints
+                if query_name and query_name in normalize_name(name)
+            ),
+            None,
+        )
+        candidate_symbol = str(candidate.get("symbol") or "").strip().upper()
+        query_symbol = str(query or "").strip().upper()
+        symbol_alias_match = bool(
+            candidate_symbol
+            and query_symbol
+            and len(query_symbol) <= 5
+            and len(candidate_symbol) >= 3
+            and query_symbol.startswith(candidate_symbol)
+            and len(query_symbol) - len(candidate_symbol) <= 1
+        )
+        if matching_name or symbol_alias_match:
+            aliases = [
+                *[str(alias) for alias in candidate.get("aliases") or []],
+                query_symbol,
+                *(name_hints[:1] if matching_name else []),
+            ]
+            return {
+                **candidate,
+                "name": str(matching_name or (name_hints[0] if symbol_alias_match and name_hints else candidate.get("name") or candidate_symbol)),
+                "aliases": list(dict.fromkeys(alias for alias in aliases if alias)),
+                "_score": max(70, int(candidate.get("_score") or 0)),
+                "resolution_source": "llm_symbol_hint",
+            }
 
     # Name-first salvage path: if query is a company name, allow a slightly
     # lower score only when the top candidate is clearly ahead and exchange-safe.

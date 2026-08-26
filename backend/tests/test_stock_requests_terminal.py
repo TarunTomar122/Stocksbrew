@@ -62,3 +62,85 @@ def test_exact_ticker_beats_a_misleading_master_alias(monkeypatch) -> None:
 
     assert resolved is not None
     assert resolved["instrument_id"] == "US_ON"
+
+
+def test_inactive_catalog_symbol_resolves_to_successor(monkeypatch) -> None:
+    monkeypatch.setattr(process_stock_requests, "_resolve_exact_symbol_from_quotes", lambda *_args: None)
+    resolved = process_stock_requests._resolve_request(
+        [
+            {
+                "market": "US",
+                "symbol": "OLD",
+                "instrument_id": "US_OLD",
+                "name": "Old Company",
+                "aliases": ["OLD"],
+                "active": False,
+                "successor_instrument_id": "US_NEW",
+            },
+            {
+                "market": "US",
+                "symbol": "NEW",
+                "instrument_id": "US_NEW",
+                "name": "New Company",
+                "exchange": "NYSE",
+                "active": True,
+            },
+        ],
+        "US",
+        "OLD",
+    )
+
+    assert resolved is not None
+    assert resolved["symbol"] == "NEW"
+    assert resolved["resolution_source"] == "catalog_successor"
+
+
+def test_llm_name_hint_accepts_current_symbol_when_catalog_is_behind(monkeypatch) -> None:
+    monkeypatch.setattr(
+        process_stock_requests,
+        "_resolve_request",
+        lambda _rows, _market, probe: {
+            "market": "US",
+            "symbol": probe,
+            "instrument_id": f"US_{probe}",
+            "name": probe,
+            "aliases": [probe],
+            "_score": 100,
+        }
+        if probe == "VRT"
+        else None,
+    )
+    monkeypatch.setattr(
+        process_stock_requests,
+        "_llm_symbol_hints",
+        lambda _query, _market: (["VRT"], ["Vertiv Holdings Co"]),
+    )
+
+    resolved = process_stock_requests._resolve_request_with_llm_fallback([], "US", "VERTIV")
+
+    assert resolved is not None
+    assert resolved["symbol"] == "VRT"
+    assert resolved["name"] == "Vertiv Holdings Co"
+    assert resolved["resolution_source"] == "llm_symbol_hint"
+
+
+def test_current_symbol_alias_resolves_to_live_listing(monkeypatch) -> None:
+    monkeypatch.setattr(
+        process_stock_requests,
+        "_resolve_exact_symbol_from_quotes",
+        lambda symbol, market: {
+            "market": market,
+            "symbol": symbol,
+            "instrument_id": f"US_{symbol}",
+            "name": symbol,
+            "aliases": [symbol],
+            "_score": 100,
+        },
+    )
+
+    resolved = process_stock_requests._resolve_request([], "US", "SK HYNIX")
+
+    assert resolved is not None
+    assert resolved["symbol"] == "SKHY"
+    assert resolved["name"] == "SK hynix Inc."
+    assert resolved["resolution_source"] == "current_symbol_alias"
