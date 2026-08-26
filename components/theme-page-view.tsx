@@ -139,7 +139,7 @@ function CandidateRow({
           </p>
         ) : null}
       </div>
-      <div className="flex items-end justify-between gap-4 sm:block">
+      <div className="flex items-end justify-between gap-4 text-left sm:block sm:text-right">
         <p
           className={`text-[14px] font-medium ${candidate.stocksbrewScore ? "text-[#087f5b]" : "text-oa-muted-fg"}`}
         >
@@ -164,7 +164,10 @@ function LockedCandidateRow({ candidate }: { candidate: ThemeCandidateQuote }) {
           </div>
         </div>
         <p className="text-[15px] leading-6">{candidate.benefitMechanism}</p>
-        <p className="text-[14px] font-medium">{scoreLabel(candidate)}</p>
+        <div className="text-right">
+          <p className="text-[14px] font-medium">{scoreLabel(candidate)}</p>
+          <Quote candidate={candidate} />
+        </div>
       </div>
     </div>
   );
@@ -213,10 +216,12 @@ export function ThemePageView({
   const visibleCandidates = isSubscribed
     ? candidates
     : candidates.slice(0, FREE_THEME_VISIBLE_LIMIT);
-  const lockedCandidates = isSubscribed
+  const lockedCount = isSubscribed
+    ? 0
+    : Math.max(0, candidates.length - FREE_THEME_VISIBLE_LIMIT);
+  const lockedPreviewCandidates = isSubscribed
     ? []
-    : candidates.slice(FREE_THEME_VISIBLE_LIMIT);
-  const lockedCount = lockedCandidates.length;
+    : candidates.slice(FREE_THEME_VISIBLE_LIMIT, FREE_THEME_VISIBLE_LIMIT + 1);
   const catalystCandidates = candidates
     .filter((candidate) => candidate.catalyst)
     .slice(0, 3);
@@ -254,7 +259,7 @@ export function ThemePageView({
           <div className="hidden grid-cols-[minmax(11rem,1fr)_minmax(18rem,1.55fr)_6.5rem] gap-6 border-b border-oa-border bg-oa-bg/60 px-6 py-3 text-[11px] font-medium uppercase tracking-[0.12em] text-oa-muted-fg sm:grid">
             <span>Company</span>
             <span>Why it matters</span>
-            <span>Signal</span>
+            <span className="text-right">Signal</span>
           </div>
           {visibleCandidates.map((candidate) => (
             <CandidateRow
@@ -265,7 +270,7 @@ export function ThemePageView({
               isSubscribed={isSubscribed}
             />
           ))}
-          {lockedCandidates.map((candidate) => (
+          {lockedPreviewCandidates.map((candidate) => (
             <LockedCandidateRow key={candidate.ticker} candidate={candidate} />
           ))}
           {lockedCount > 0 ? (
@@ -299,9 +304,12 @@ export function ThemePageView({
                 key={candidate.ticker}
                 className="border border-oa-border p-5"
               >
-                <p className="text-[17px] font-medium text-oa-fg">
-                  {candidate.ticker}
-                </p>
+                <div className="flex items-center gap-3">
+                  <StockLogo ticker={candidate.ticker} size={30} circle />
+                  <p className="text-[17px] font-medium text-oa-fg">
+                    {candidate.ticker}
+                  </p>
+                </div>
                 <p className="mt-3 text-[14px] leading-6 text-oa-muted-fg">
                   {candidate.catalyst}
                 </p>
