@@ -66,6 +66,12 @@ class InstrumentUniverseTest(unittest.TestCase):
             "BEPC": "Brookfield Renewable Corporation",
             "NVO": "Novo Nordisk A/S",
             "HII": "Huntington Ingalls Industries, Inc.",
+            "GH": "Guardant Health, Inc.",
+            "VKTX": "Viking Therapeutics, Inc.",
+            "RXRX": "Recursion Pharmaceuticals, Inc.",
+            "RHM": "Rheinmetall AG",
+            "MOD": "Modine Manufacturing Company",
+            "VRT": "Vertiv Holdings Co",
         }
         self.assertEqual({ticker: by_ticker[ticker]["name"] for ticker in expected}, expected)
         self.assertTrue(all(by_ticker[ticker]["status"] == "active" for ticker in expected))

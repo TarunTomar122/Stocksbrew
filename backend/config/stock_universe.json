@@ -38,7 +38,13 @@
       {"ticker": "CCJ", "display_name": "Cameco", "aliases": ["Cameco Corporation"], "sector_tags": ["energy", "ai-infrastructure"]},
       {"ticker": "BEPC", "display_name": "Brookfield Renewable", "aliases": ["Brookfield Renewable Corporation"], "sector_tags": ["energy", "ai-infrastructure"]},
       {"ticker": "NVO", "display_name": "Novo Nordisk", "aliases": ["Novo Nordisk A/S"], "sector_tags": ["healthcare"]},
-      {"ticker": "HII", "display_name": "Huntington Ingalls", "aliases": ["Huntington Ingalls Industries, Inc."], "sector_tags": ["industrials"]}
+      {"ticker": "HII", "display_name": "Huntington Ingalls", "aliases": ["Huntington Ingalls Industries, Inc."], "sector_tags": ["industrials"]},
+      {"ticker": "GH", "display_name": "Guardant Health", "aliases": ["Guardant Health, Inc."], "sector_tags": ["healthcare"]},
+      {"ticker": "VKTX", "display_name": "Viking Therapeutics", "aliases": ["Viking Therapeutics, Inc."], "sector_tags": ["healthcare"]},
+      {"ticker": "RXRX", "display_name": "Recursion Pharmaceuticals", "aliases": ["Recursion Pharmaceuticals, Inc."], "sector_tags": ["healthcare", "ai-infrastructure"]},
+      {"ticker": "RHM", "display_name": "Rheinmetall", "aliases": ["Rheinmetall AG", "RNMBY"], "sector_tags": ["industrials"]},
+      {"ticker": "MOD", "display_name": "Modine Manufacturing", "aliases": ["Modine Manufacturing Company"], "sector_tags": ["industrials", "ai-infrastructure"]},
+      {"ticker": "VRT", "display_name": "Vertiv", "aliases": ["Vertiv Holdings Co"], "sector_tags": ["industrials", "ai-infrastructure"]}
     ],
     "IN": [
       {"ticker": "HDFCBANK", "display_name": "HDFC Bank", "aliases": ["HDFC Bank Ltd."], "sector_tags": ["banking"]},

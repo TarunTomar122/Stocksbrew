@@ -719,7 +719,13 @@
           "US_CCJ",
           "US_BEPC",
           "US_NVO",
-          "US_HII"
+          "US_HII",
+          "US_GH",
+          "US_VKTX",
+          "US_RXRX",
+          "US_RHM",
+          "US_MOD",
+          "US_VRT"
         ],
         "us_macro_cues": [
           "US_IDX_SPX",
@@ -15268,6 +15274,192 @@
             "Huntington Ingalls",
             "Huntington Ingalls Industries",
             "Huntington Ingalls Industries, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-08-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_GH",
+          "market": "US",
+          "ticker": "GH",
+          "name": "Guardant Health, Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Healthcare",
+          "industry": "Diagnostics & Research",
+          "description": "Guardant Health, Inc. tracked for liquid-biopsy, precision-oncology, and cancer-screening research.",
+          "logo_url": "",
+          "index_memberships": [],
+          "peer_ids": [
+            "US_DXCM",
+            "US_REGN",
+            "US_TMO"
+          ],
+          "aliases": [
+            "GH",
+            "Guardant Health",
+            "Guardant Health, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-08-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_VKTX",
+          "market": "US",
+          "ticker": "VKTX",
+          "name": "Viking Therapeutics, Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Healthcare",
+          "industry": "Biotechnology",
+          "description": "Viking Therapeutics, Inc. tracked for oral and injectable metabolic, obesity, and liver-disease pipeline research.",
+          "logo_url": "",
+          "index_memberships": [],
+          "peer_ids": [
+            "US_LLY",
+            "US_NVO",
+            "US_REGN"
+          ],
+          "aliases": [
+            "VKTX",
+            "Viking Therapeutics",
+            "Viking Therapeutics, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-08-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_RXRX",
+          "market": "US",
+          "ticker": "RXRX",
+          "name": "Recursion Pharmaceuticals, Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Healthcare",
+          "industry": "Biotechnology",
+          "description": "Recursion Pharmaceuticals, Inc. tracked for AI-native drug-discovery, automation, and clinical-platform research.",
+          "logo_url": "",
+          "index_memberships": [],
+          "peer_ids": [
+            "US_VKTX",
+            "US_REGN",
+            "US_TMO"
+          ],
+          "aliases": [
+            "RXRX",
+            "Recursion",
+            "Recursion Pharmaceuticals",
+            "Recursion Pharmaceuticals, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-08-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_RHM",
+          "market": "US",
+          "ticker": "RHM",
+          "name": "Rheinmetall AG",
+          "exchange": "XETRA",
+          "quote_symbol_yahoo": "RHM.DE",
+          "quote_exchange": "XETRA",
+          "country": "DE",
+          "currency": "EUR",
+          "sector": "Industrials",
+          "industry": "Aerospace & Defense",
+          "description": "Rheinmetall AG tracked for European defense, land systems, munitions, and military-vehicle research.",
+          "logo_url": "",
+          "index_memberships": [],
+          "peer_ids": [
+            "US_LMT",
+            "US_NOC",
+            "US_HII"
+          ],
+          "aliases": [
+            "RHM",
+            "Rheinmetall",
+            "Rheinmetall AG",
+            "RNMBY"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-08-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_MOD",
+          "market": "US",
+          "ticker": "MOD",
+          "name": "Modine Manufacturing Company",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Auto Parts & Thermal Management",
+          "description": "Modine Manufacturing Company tracked for data-center cooling, thermal management, and electrification research.",
+          "logo_url": "",
+          "index_memberships": [],
+          "peer_ids": [
+            "US_VRT",
+            "US_ETN",
+            "US_EQIX"
+          ],
+          "aliases": [
+            "MOD",
+            "Modine",
+            "Modine Manufacturing",
+            "Modine Manufacturing Company"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-08-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_VRT",
+          "market": "US",
+          "ticker": "VRT",
+          "name": "Vertiv Holdings Co",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Electrical Equipment",
+          "description": "Vertiv Holdings Co tracked for data-center power, thermal, rack, and AI-infrastructure research.",
+          "logo_url": "",
+          "index_memberships": [],
+          "peer_ids": [
+            "US_MOD",
+            "US_GEV",
+            "US_ETN"
+          ],
+          "aliases": [
+            "VRT",
+            "Vertiv",
+            "Vertiv Holdings",
+            "Vertiv Holdings Co"
           ],
           "support_tier": "catalog",
           "universes": [
