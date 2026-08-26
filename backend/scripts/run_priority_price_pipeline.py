@@ -43,7 +43,7 @@ def _build_movers_rows(
     snapshot_rows: list[dict[str, Any]],
     *,
     allowed_ids: set[str],
-    limit: int = 5,
+    limit: int = 10,
 ) -> dict[str, list[dict[str, Any]]]:
     rows: list[dict[str, Any]] = []
     for row in snapshot_rows:
@@ -376,7 +376,7 @@ def run_priority_price_pipeline(
         )
         summary["dashboard_refresh"] = dashboard_result
         snapshot_rows = store.get_market_price_snapshot(market)
-        movers = _build_movers_rows(snapshot_rows, allowed_ids=ranked_ids, limit=5)
+        movers = _build_movers_rows(snapshot_rows, allowed_ids=ranked_ids, limit=10)
         store.save_market_movers(market, {
             "market": market.upper(),
             "generated_at": _utc_now(),

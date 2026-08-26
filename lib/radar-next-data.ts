@@ -298,14 +298,8 @@ export function countOpenLoops(rows: WatchlistRow[]): number {
 }
 
 const SOURCE_TAGS: Record<string, string> = {
-  quality_compounders: "Quality compounder",
-  cheap_growth: "Cheap growth",
-  oversold_quality: "Oversold quality",
-  momentum_leaders: "Momentum leader",
-  smart_money: "Smart money",
-  tikrr_top: "Top rated",
-  anomaly: "Unusual move",
-  heat: "Heating up",
+  theme: "Theme",
+  mover: "Yesterday's mover",
   reddit: "Reddit buzz",
 };
 
@@ -321,19 +315,29 @@ function ideaFromCandidate(c: Record<string, unknown>): IdeaCard | null {
     ? (c.personalization_reasons as unknown[]).map((r) => String(r)).filter(Boolean)
     : [];
   const sources = Array.isArray(c.sources) ? (c.sources as unknown[]).map((s) => String(s)) : [];
+  const themeName = Array.isArray(c.theme_names)
+    ? String((c.theme_names as unknown[])[0] || "").trim()
+    : "";
   // Fresh source context wins over an evergreen portfolio-fit explanation.
   // Otherwise every row repeats the same diversification copy day after day.
   const freshReason =
-    (sources.includes("anomaly") && String(c.anomaly_headline || "").trim()) ||
-    (sources.includes("heat") && String(c.heat_reason || c.heat_driver || "").trim()) ||
+    (sources.includes("mover") && String(c.mover_headline || "").trim()) ||
     (sources.includes("reddit") && String(c.reddit_summary || "").trim()) ||
+    (sources.includes("theme") && String(c.why || c.reason || "").trim()) ||
     "";
-  const reason =
-    freshReason ||
+  const normalizedFreshReason =
+    themeName && /^part of (the )?.*research theme\.?$/i.test(freshReason)
+      ? ""
+      : freshReason;
+  const rawReason =
+    normalizedFreshReason ||
     reasons[0] ||
     String(c.why || c.reason || "").trim() ||
     null;
-  const tag = sources.map((s) => SOURCE_TAGS[s]).find(Boolean) ?? null;
+  const tag = sources.includes("theme")
+    ? themeName || SOURCE_TAGS.theme
+    : sources.map((s) => SOURCE_TAGS[s]).find(Boolean) ?? null;
+  const reason = rawReason && tag && rawReason.toLowerCase() === tag.toLowerCase() ? null : rawReason;
   return {
     instrumentId,
     ticker,
@@ -342,7 +346,7 @@ function ideaFromCandidate(c: Record<string, unknown>): IdeaCard | null {
     href: `/stock/${ticker}`,
     score: num(c.overall_score) ?? num(c.score),
     reason: reason ? reason.charAt(0).toUpperCase() + reason.slice(1) : null,
-    movePct: num(c.anomaly_move_pct),
+    movePct: num(c.mover_move_pct),
     tag,
     // Enriched server-side from live prices + analyst facts (see enrichIdeas).
     price: num(c.price),
@@ -379,14 +383,13 @@ export function buildIdeas(
     .filter(({ raw }) => {
       const sources = Array.isArray(raw.sources) ? raw.sources.map(String) : [];
       return (
-        sources.some((source) => ["anomaly", "heat", "reddit"].includes(source)) &&
-        (num(raw.anomaly_move_pct) !== null || Boolean(String(raw.heat_reason || raw.heat_driver || "").trim()) || (num(raw.reddit_mentions) ?? 0) >= 3)
+        sources.some((source) => ["mover", "reddit"].includes(source)) &&
+        (num(raw.mover_move_pct) !== null || (num(raw.reddit_mentions) ?? 0) >= 3)
       );
     })
     .sort((a, b) => {
       const freshness = (raw: Record<string, unknown>) =>
-        Math.abs(num(raw.anomaly_move_pct) ?? 0) * 10 +
-        (num(raw.heat_score) ?? 0) +
+        Math.abs(num(raw.mover_move_pct) ?? 0) * 10 +
         (num(raw.reddit_mentions) ?? 0) * 4;
       return freshness(b.raw) - freshness(a.raw);
     })

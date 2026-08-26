@@ -25,6 +25,7 @@ import { US_PRO_MONTHLY, US_PRO_YEARLY } from "@/lib/pricing";
 import { PRO_POINTS } from "@/lib/subscribe-benefits";
 import { AnimatedIcon } from "@/components/animated-icon";
 import { ThemeDirectory } from "@/components/theme-directory";
+import type { InvestmentTheme } from "@/lib/investment-themes";
 
 /* ── springs (oa-design: one spring family) ────────────────────────────── */
 const LAYOUT = { type: "spring", stiffness: 550, damping: 40 } as const;
@@ -747,6 +748,7 @@ export function OaExplore({
   isSubscribed,
   trackedIds,
   trackedCount,
+  themes,
 }: {
   trending: TrendingStock[];
   hotStocks: HeatRow[];
@@ -760,6 +762,7 @@ export function OaExplore({
   isSubscribed: boolean;
   trackedIds?: string[];
   trackedCount?: number;
+  themes: InvestmentTheme[];
 }) {
   useEffect(() => {
     captureEvent("explore_viewed", {
@@ -808,7 +811,7 @@ export function OaExplore({
 
       <TrendingStrip stocks={trending} />
 
-      <ThemeDirectory />
+      <ThemeDirectory themes={themes} />
 
       <section aria-label="Market scans">
         <MarketScans

@@ -6,6 +6,7 @@ import { ThemePageSkeleton } from "@/components/theme-page-skeleton";
 import { ThemePageStream } from "@/components/theme-page-stream";
 import { OaSiteHeader } from "@/components/oa/oa-site-header";
 import { INVESTMENT_THEMES, getInvestmentTheme } from "@/lib/investment-themes";
+import { getLiveInvestmentTheme } from "@/lib/research-themes";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,7 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const theme = getInvestmentTheme(slug);
+  const theme = await getLiveInvestmentTheme(slug);
   if (!theme) return {};
   return {
     title: `${theme.name} theme`,

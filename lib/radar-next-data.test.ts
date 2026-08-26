@@ -94,22 +94,23 @@ describe("buildIdeas", () => {
       {
         instrument_id: "US_STATIC",
         ticker: "STATIC",
-        sources: ["screen"],
+        sources: ["theme"],
+        theme_names: ["Healthcare"],
         personalization_reasons: ["reduces technology concentration"],
         overall_score: 90,
       },
       {
         instrument_id: "US_FRESH",
         ticker: "FRESH",
-        sources: ["anomaly"],
-        anomaly_move_pct: 8.4,
-        anomaly_headline: "Fresh earnings reaction",
+        sources: ["mover"],
+        mover_move_pct: 8.4,
+        mover_headline: "Fresh earnings reaction",
         overall_score: 70,
       },
     ]);
 
     expect(ideas.unusual).toMatchObject([{ ticker: "FRESH", reason: "Fresh earnings reaction" }]);
     expect(ideas.unusual).not.toContainEqual(expect.objectContaining({ ticker: "STATIC" }));
-    expect(ideas.fits[0]).toMatchObject({ ticker: "STATIC", reason: "Reduces technology concentration" });
+    expect(ideas.fits[0]).toMatchObject({ ticker: "STATIC", reason: "Reduces technology concentration", tag: "Healthcare" });
   });
 });

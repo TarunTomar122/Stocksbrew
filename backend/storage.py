@@ -376,6 +376,18 @@ class TraceMoneyStore:
             "updated_at": datetime.now(timezone.utc).isoformat(),
         })
 
+    def get_research_themes(self) -> dict[str, Any] | None:
+        """Return the runtime research-theme config, if one has been published."""
+        doc = self.db.collection("tm_config").document("research_themes").get()
+        if not doc.exists:
+            return None
+        payload = doc.to_dict()
+        return payload if isinstance(payload, dict) else None
+
+    def save_research_themes(self, payload: dict[str, Any]) -> None:
+        """Replace the complete research-theme config after a validated review."""
+        self.db.collection("tm_config").document("research_themes").set(payload)
+
     def save_instrument_universe_manifest(self, payload: dict[str, Any]) -> None:
         self.db.collection("tm_config").document("instrument_universe").set({
             **payload,

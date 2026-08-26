@@ -12,6 +12,7 @@
     "backend:build-per-stock:us": "python3 -m backend.scripts.build_per_stock_intelligence --market US --universe us_core_155",
     "backend:build-per-stock:in": "python3 -m backend.scripts.build_per_stock_intelligence --market IN --universe in_ai_launch",
     "backend:build-business-questions": "python3 -m backend.scripts.build_business_questions --market US",
+    "backend:refresh-research-themes": "python3 -m backend.scripts.refresh_research_themes --market US",
     "backend:on-demand-news": "python3 -m backend.scripts.process_on_demand_news_jobs",
     "backend:build-news-intel:in": "python3 -m backend.scripts.build_news_intelligence --market IN --universe in_ai_launch --max-articles 36 --skip-materialize",
     "backend:backfill-watchlist-versions": "python3 -m backend.scripts.backfill_watchlist_versions",

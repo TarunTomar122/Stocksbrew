@@ -1,6 +1,6 @@
 import { getSessionUser } from "@/lib/auth-server";
 import { getMarketSnapshot } from "@/lib/firestore";
-import { getInvestmentTheme } from "@/lib/investment-themes";
+import { getLiveInvestmentTheme } from "@/lib/research-themes";
 import { getCurrentMarket } from "@/lib/market";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import {
@@ -18,7 +18,7 @@ function quoteFor(
 }
 
 export async function ThemePageStream({ slug }: { slug: string }) {
-  const theme = getInvestmentTheme(slug);
+  const theme = await getLiveInvestmentTheme(slug);
   if (!theme) return null;
 
   const market = getCurrentMarket();

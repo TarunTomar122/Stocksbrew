@@ -8,6 +8,7 @@ import { getTrumpLogic } from "@/lib/trump-logic";
 import { isTrumpMentionRecent } from "@/lib/trump-logic-format";
 import { getSessionUser } from "@/lib/auth-server";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
+import { getLiveInvestmentThemes } from "@/lib/research-themes";
 
 // ponytail: hardcoded "most traded" list for now, swap for a real ranking source later
 const TRENDING_TICKERS = [
@@ -26,7 +27,7 @@ const TRENDING_TICKERS = [
 
 export async function ExploreStream() {
   const market = getCurrentMarket();
-  const [session, snapshotRows, heatList, near52, trumpLogic] =
+  const [session, snapshotRows, heatList, near52, trumpLogic, themes] =
     await Promise.all([
       getSessionUser(),
       getMarketSnapshot(market).catch(() => []),
@@ -36,6 +37,7 @@ export async function ExploreStream() {
         nearLows: [],
       })),
       getTrumpLogic(market).catch(() => null),
+      getLiveInvestmentThemes(),
     ]);
   const userDoc = session ? await getUserDoc(session.uid) : null;
   const isSubscribed = resolveIsSubscribed(userDoc);
@@ -113,6 +115,7 @@ export async function ExploreStream() {
       isSubscribed={isSubscribed}
       trackedIds={trackedIds}
       trackedCount={trackedIds.length}
+      themes={themes}
     />
   );
 }

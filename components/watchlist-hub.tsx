@@ -100,14 +100,19 @@ function ProCheckoutButton({
 function SectionHead({
   title,
   sub,
+  action,
 }: {
   title: string;
   sub: string;
+  action?: React.ReactNode;
 }) {
   return (
-    <div className="mb-4 max-w-2xl">
-      <h2 className={H2}>{title}</h2>
-      <p className={SUB}>{sub}</p>
+    <div className={`mb-4 ${action ? "flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between" : "max-w-2xl"}`}>
+      <div className="min-w-0 max-w-2xl">
+        <h2 className={H2}>{title}</h2>
+        <p className={SUB}>{sub}</p>
+      </div>
+      {action ? <div className="shrink-0">{action}</div> : null}
     </div>
   );
 }
@@ -662,39 +667,30 @@ export function WatchlistHub({
 }: WatchlistHubProps) {
   return (
     <div className={`mx-auto w-full max-w-[76rem] flex flex-col gap-10 px-0 pb-36 pt-8 sm:gap-12 sm:pb-36 sm:px-6 sm:pt-10`}>
-      {/* title row: one h1, one cluster of controls */}
-      <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-        <div className="min-w-0">
-          <h1 className="text-balance font-medium tracking-tight text-oa-fg text-[28px] leading-tight sm:text-4xl sm:leading-tight">
-            Every stock you follow, already read for you.
-          </h1>
-        </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          <RadarBatchEditModal
-            initialItems={rows.map((row) => ({
-              instrument_id: row.instrument_id,
-              ticker: row.ticker,
-              name: row.name,
-              position_type: row.position_type,
-              holding:
-                row.position_type === "holding"
-                  ? { quantity: null, market_value: null, average_cost: null }
-                  : undefined,
-            }))}
-            isSubscribed={isSubscribed}
-            freeLimit={freeLimit}
-            ctaLabel="Manage watchlist"
-            triggerClassName="inline-flex h-9 cursor-pointer items-center rounded-full bg-oa-primary px-4 text-[13px] font-medium text-oa-primary-fg shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] transition-[filter] hover:brightness-110 focus-visible:ring-[3px] focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)] active:translate-y-px active:scale-[0.98]"
-          />
-        </div>
-      </header>
-
       <ReportingSoon cards={earningsCards} />
 
       <section aria-label="Your book">
         <SectionHead
           title="The book"
           sub="Prices, reasons, earnings and buzz on one line each."
+          action={
+            <RadarBatchEditModal
+              initialItems={rows.map((row) => ({
+                instrument_id: row.instrument_id,
+                ticker: row.ticker,
+                name: row.name,
+                position_type: row.position_type,
+                holding:
+                  row.position_type === "holding"
+                    ? { quantity: null, market_value: null, average_cost: null }
+                    : undefined,
+              }))}
+              isSubscribed={isSubscribed}
+              freeLimit={freeLimit}
+              ctaLabel="Manage Watch List"
+              triggerClassName="inline-flex h-9 cursor-pointer items-center rounded-full bg-oa-primary px-4 text-[13px] font-medium text-oa-primary-fg shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] transition-[filter] hover:brightness-110 focus-visible:ring-[3px] focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)] active:translate-y-px active:scale-[0.98]"
+            />
+          }
         />
         <BookPlate rows={rows} isSubscribed={isSubscribed} />
       </section>

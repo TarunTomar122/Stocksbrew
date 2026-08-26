@@ -113,6 +113,7 @@ write_pair pre-earnings-intel "Mon..Fri *-*-* 22:45:00" pre_earnings_intel "--up
 write_pair on-demand-news "*-*-* *:00/5:00" on_demand_news "--limit 12 --per-stock-cap 6 --max-workers 2"
 write_pair stock-requests "*-*-* *:00/30:00" stock_requests "--limit 25"
 write_pair stock-facts "Sun *-*-* 08:00:00" stock_facts "--universe us_core_155 --limit 0 --max-workers 4"
+write_pair research-themes "Sun *-*-* 10:00:00 America/New_York" research_themes
 write_pair trump-logic "*-*-* 12:30:00" trump_logic
 # One pre-market pipeline for the opening report and subscriber email.
 # Market Daily starts only after that fresh evidence is ready. Both services

@@ -447,6 +447,7 @@ def main() -> None:
             "radar_materialize",
             "radar_outcomes",
             "radar_alerts",
+            "research_themes",
         ],
         required=True,
     )
@@ -493,6 +494,7 @@ def main() -> None:
     parser.add_argument("--include-ir", action="store_true")
     parser.add_argument("--wait-for-completion", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--seed-only", action="store_true")
     args = parser.parse_args()
 
     # Cost guardrails: cap intraday fanout server-side so a stale scheduler payload
@@ -515,7 +517,7 @@ def main() -> None:
     store = TraceMoneyStore()
     state = PipelineStateStore(store)
     universe_id = _lane_universe_id(store, args.market, args.lane, args.universe or None)
-    if args.lane != "pre_earnings_intel" and not universe_id:
+    if args.lane not in {"pre_earnings_intel", "research_themes"} and not universe_id:
         raise ValueError(f"No active universe configured for {args.market}")
     run_id = args.run_id or _utc_run_id(args.lane, args.market)
 
@@ -560,6 +562,7 @@ def main() -> None:
         "radar_materialize": os.getenv("RADAR_MATERIALIZE_JOB_NAME", "tikrr-radar-materialize"),
         "radar_outcomes": os.getenv("RADAR_OUTCOMES_JOB_NAME", "tikrr-radar-outcomes"),
         "radar_alerts": os.getenv("RADAR_ALERTS_JOB_NAME", "tikrr-radar-alerts"),
+        "research_themes": os.getenv("RESEARCH_THEMES_JOB_NAME", "tikrr-research-themes"),
     }
     job_name = job_name_by_lane[args.lane]
     client: Any
@@ -812,6 +815,15 @@ def main() -> None:
                 single_extra_args.append("--with-llm")
         elif args.lane == "radar_outcomes":
             single_extra_args = ["--limit", str(max(0, args.limit))]
+        elif args.lane == "research_themes":
+            single_extra_args = [
+                "--min-candidates",
+                "8",
+                "--max-candidates",
+                "12",
+            ]
+            if args.seed_only:
+                single_extra_args.append("--seed-only")
 
         summary = _run_single_job_lane(
             lane=args.lane,
@@ -860,6 +872,7 @@ def main() -> None:
         "radar_materialize",
         "radar_outcomes",
         "radar_alerts",
+        "research_themes",
     } and summary.get("status") not in {"success", "dispatched"}:
         status = "failed"
     if status == "dispatched":

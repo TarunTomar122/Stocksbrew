@@ -2,9 +2,9 @@ import Link from "next/link";
 
 import { StockLogo } from "@/components/stock-logo";
 import { SquircleSurface } from "@/components/oa/squircle";
-import { INVESTMENT_THEMES } from "@/lib/investment-themes";
+import type { InvestmentTheme } from "@/lib/investment-themes";
 
-export function ThemeDirectory() {
+export function ThemeDirectory({ themes }: { themes: InvestmentTheme[] }) {
   return (
     <section
       aria-labelledby="research-themes-heading"
@@ -25,7 +25,7 @@ export function ThemeDirectory() {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        {INVESTMENT_THEMES.map((theme) => (
+        {themes.map((theme) => (
           <Link
             key={theme.slug}
             href={`/themes/${theme.slug}`}

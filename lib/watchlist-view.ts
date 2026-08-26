@@ -1,5 +1,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { adminFirestore } from "@/lib/firebase-admin";
+import { getMarketMovers, getMarketSnapshot } from "@/lib/firestore";
+import { INVESTMENT_THEMES } from "@/lib/investment-themes";
 import { LLM_BRIEF_SOURCE, type BriefSource, isLlmBriefSource } from "@/lib/brief-source";
 import { llmApiKey, llmApiUrl, llmHeaders, llmModel } from "@/lib/server-llm";
 
@@ -1399,6 +1401,7 @@ function averageScore(
 }
 
 type SuggestionContext = {
+  avgOverall: number | null;
   avgGrowth: number | null;
   avgQuality: number | null;
   avgValuation: number | null;
@@ -1406,377 +1409,36 @@ type SuggestionContext = {
   dominantSector: string;
 };
 
-// Gather + score the full deduped candidate pool from every signal source
-// (screens, heat, anomalies, reddit). Returns candidates sorted descending by
-// personalization_score so both the top-suggestions and the blind-spot fill can
-// draw from the same scored pool without re-reading Firestore.
-async function gatherSuggestionCandidates(
-  rows: WatchlistRow[],
-): Promise<{ candidates: Array<Record<string, unknown>>; ctx: SuggestionContext }> {
-  const tracked = new Set(rows.map((row) => row.instrument_id));
-  const markets = [...new Set(rows.map((row) => row.market).filter(Boolean))];
-  // Fall back to US when the user has no rows yet — otherwise suggestions never appear.
-  const effectiveMarkets = markets.length > 0 ? markets : ["US"];
-  const preferred = [
-    "quality_compounders",
-    "cheap_growth",
-    "oversold_quality",
-    "momentum_leaders",
-    "smart_money",
-    "tikrr_top",
-  ];
-  const avgGrowth = averageScore(rows, "growth");
-  const avgQuality = averageScore(rows, "quality");
-  const avgValuation = averageScore(rows, "valuation");
-  const avgMomentum = averageScore(rows, "momentum");
-  const clusters = sectorClusters(rows);
-  const dominant = (clusters[0] || {}) as Record<string, unknown>;
-  const dominantSector = String(dominant.sector || "");
-  const dominantWeight = toNumber(dominant.weight_pct) ?? 0;
-
-  const screenDocs = await adminFirestore.getAll(
-    ...effectiveMarkets.map((market) => adminFirestore.collection("tm_thematic_screens").doc(market)),
-  );
-  const redditDocs = await adminFirestore.getAll(
-    ...effectiveMarkets.map((market) => adminFirestore.collection("reddit_snapshots").doc(`${market}__latest`)),
-  );
-  const anomalyDocs = await adminFirestore.getAll(
-    ...effectiveMarkets.map((market) => adminFirestore.collection("tm_daily_anomalies").doc(`${market}__latest`)),
-  );
-  const heatDocs = await adminFirestore.getAll(
-    ...effectiveMarkets.map((market) => adminFirestore.collection("tm_heat_list").doc(market)),
-  );
-  const redditByMarket = new Map<string, Map<string, Record<string, unknown>>>();
-  for (const doc of redditDocs) {
-    if (!doc.exists) continue;
-    const payload = (doc.data() || {}) as Record<string, unknown>;
-    const rowsRaw = payload.tickers;
-    const market = String(doc.id.split("__")[0] || "").toUpperCase();
-    const map = new Map<string, Record<string, unknown>>();
-    if (rowsRaw && typeof rowsRaw === "object" && !Array.isArray(rowsRaw)) {
-      for (const [ticker, item] of Object.entries(rowsRaw as Record<string, unknown>)) {
-        map.set(String(ticker).toUpperCase(), (item || {}) as Record<string, unknown>);
-      }
-    } else if (Array.isArray(rowsRaw)) {
-      for (const item of rowsRaw) {
-        const row = (item || {}) as Record<string, unknown>;
-        const ticker = String(row.ticker || row.symbol || "").toUpperCase();
-        if (ticker) map.set(ticker, row);
-      }
-    }
-    redditByMarket.set(market, map);
-  }
-  const anomalyByMarket = new Map<string, Map<string, Record<string, unknown>>>();
-  for (const doc of anomalyDocs) {
-    if (!doc.exists) continue;
-    const payload = (doc.data() || {}) as Record<string, unknown>;
-    const rowsRaw = (payload.anomalies || []) as Array<Record<string, unknown>>;
-    const market = String(doc.id.split("__")[0] || "").toUpperCase();
-    const map = new Map<string, Record<string, unknown>>();
-    for (const row of rowsRaw) {
-      const ticker = String(row.ticker || row.symbol || "").toUpperCase();
-      if (ticker) map.set(ticker, row);
-    }
-    anomalyByMarket.set(market, map);
-  }
-
-  // Dedupe candidates by instrument_id across all signal sources (screens,
-  // heat, anomalies, reddit). When the same ticker shows up in multiple
-  // sources, merge the source tags and stack the personalization_score so
-  // multi-source hits float to the top.
-  const candidateMap = new Map<string, Record<string, unknown>>();
-  function mergeCandidate(next: Record<string, unknown>): void {
-    const id = String(next.instrument_id || "");
-    if (!id) return;
-    const existing = candidateMap.get(id);
-    if (!existing) {
-      candidateMap.set(id, { ...next, sources: Array.from(new Set([...(((next.sources as string[]) || []))])) });
-      return;
-    }
-    const mergedSources = new Set<string>([
-      ...(((existing.sources as string[]) || [])),
-      ...(((next.sources as string[]) || [])),
-    ]);
-    const existingScore = toNumber(existing.personalization_score) ?? 0;
-    const nextScore = toNumber(next.personalization_score) ?? 0;
-    // Multi-source bonus: each additional source adds 8 points so signals stack
-    const multiSourceBonus = mergedSources.size > 1 ? (mergedSources.size - 1) * 8 : 0;
-    const mergedScore = Math.max(existingScore, nextScore) + multiSourceBonus;
-    candidateMap.set(id, {
-      ...existing,
-      // Prefer richer fields from whichever source supplied them
-      name: existing.name || next.name,
-      sector: existing.sector || next.sector,
-      score: existing.score ?? next.score,
-      reason: existing.reason || next.reason,
-      why: existing.why || next.why,
-      sources: Array.from(mergedSources),
-      personalization_score: Math.round(mergedScore * 10) / 10,
-      reddit_mentions: Math.max(
-        toNumber(existing.reddit_mentions) ?? 0,
-        toNumber(next.reddit_mentions) ?? 0,
-      ),
-      reddit_summary: existing.reddit_summary || next.reddit_summary,
-      anomaly_move_pct: existing.anomaly_move_pct ?? next.anomaly_move_pct,
-      anomaly_headline: existing.anomaly_headline || next.anomaly_headline,
-      heat_score: existing.heat_score ?? next.heat_score,
-      heat_reason: existing.heat_reason || next.heat_reason,
-      heat_driver: existing.heat_driver || next.heat_driver,
-      momentum_score:
-        Math.max(toNumber(existing.momentum_score) ?? -1, toNumber(next.momentum_score) ?? -1) >= 0
-          ? Math.max(toNumber(existing.momentum_score) ?? -1, toNumber(next.momentum_score) ?? -1)
-          : undefined,
-      overall_score: existing.overall_score ?? next.overall_score,
-      growth_score:
-        Math.max(toNumber(existing.growth_score) ?? -1, toNumber(next.growth_score) ?? -1) >= 0
-          ? Math.max(toNumber(existing.growth_score) ?? -1, toNumber(next.growth_score) ?? -1)
-          : undefined,
-      quality_score:
-        Math.max(toNumber(existing.quality_score) ?? -1, toNumber(next.quality_score) ?? -1) >= 0
-          ? Math.max(toNumber(existing.quality_score) ?? -1, toNumber(next.quality_score) ?? -1)
-          : undefined,
-      valuation_score:
-        Math.max(toNumber(existing.valuation_score) ?? -1, toNumber(next.valuation_score) ?? -1) >= 0
-          ? Math.max(toNumber(existing.valuation_score) ?? -1, toNumber(next.valuation_score) ?? -1)
-          : undefined,
-      personalization_reasons: [
-        ...(((existing.personalization_reasons as string[]) || [])),
-        ...(((next.personalization_reasons as string[]) || [])),
-      ].slice(0, 3),
-    });
-  }
-
-  for (const doc of screenDocs) {
-    const market = doc.id as "US" | "IN";
-    const screens = ((doc.exists ? doc.data()?.screens : []) || []) as Array<Record<string, unknown>>;
-    for (const screenId of preferred) {
-      const screen = screens.find((item) => item.id === screenId);
-      const matches = (screen?.matches || []) as Array<Record<string, unknown>>;
-      matches.forEach((item, rank) => {
-        const instrumentId = String(item.instrument_id || "");
-        if (!instrumentId || tracked.has(instrumentId)) return;
-        const ticker = String(item.ticker || "").toUpperCase();
-        if (!ticker) return;
-        const overallScore = toNumber(item.overall_score) ?? 0;
-        const sector = String(item.sector || "");
-        let weaknessFit = 0;
-        const reasons: string[] = [];
-        const pillars = readCandidatePillarScores(item);
-        const growthScore = pillars.growth;
-        const qualityScore = pillars.quality;
-        const valuationScore = pillars.valuation;
-        const momentumScore = pillars.momentum;
-        if (avgGrowth !== null && avgGrowth < 62 && growthScore !== null) {
-          const fit = Math.max(0, growthScore - avgGrowth);
-          weaknessFit += Math.min(12, fit * 0.35);
-          if (fit >= 4) reasons.push("improves growth balance");
-        }
-        if (avgQuality !== null && avgQuality < 62 && qualityScore !== null) {
-          const fit = Math.max(0, qualityScore - avgQuality);
-          weaknessFit += Math.min(12, fit * 0.35);
-          if (fit >= 4) reasons.push("lifts quality profile");
-        }
-        if (avgMomentum !== null && avgMomentum < 58 && momentumScore !== null) {
-          const fit = Math.max(0, momentumScore - avgMomentum);
-          weaknessFit += Math.min(10, fit * 0.3);
-          if (fit >= 4) reasons.push("adds momentum support");
-        }
-        if (avgValuation !== null && avgValuation < 58 && valuationScore !== null) {
-          const fit = Math.max(0, valuationScore - avgValuation);
-          weaknessFit += Math.min(10, fit * 0.3);
-          if (fit >= 4) reasons.push("improves valuation cushion");
-        }
-        let sectorFit = 0;
-        if (dominantWeight >= 50 && dominantSector) {
-          if (sector && sector !== dominantSector) {
-            sectorFit += 12;
-            reasons.push(`reduces ${dominantSector} concentration`);
-          } else if (sector === dominantSector) {
-            sectorFit -= 10;
-          }
-        }
-        const redditItem = redditByMarket.get(String(market).toUpperCase())?.get(ticker) || {};
-        const redditMentions = Math.max(0, Math.round(toNumber(redditItem.mention_count ?? redditItem.mentions) ?? 0));
-        const redditSummary = String(redditItem.summary || redditItem.context || "");
-        const redditBoost = Math.min(12, redditMentions * 2);
-        const anomalyItem = anomalyByMarket.get(String(market).toUpperCase())?.get(ticker) || {};
-        const anomalyMove = toNumber(anomalyItem.day_change_pct);
-        const anomalyBoost = Math.min(12, Math.abs(anomalyMove ?? 0) * 1.2);
-        const screenBias = screenId === "oversold_quality" ? 8 : screenId === "cheap_growth" ? 6 : 4;
-        const rankBonus = Math.max(0, 8 - rank);
-        const personalizationScore =
-          25 + overallScore * 0.45 + screenBias + rankBonus + weaknessFit + sectorFit + redditBoost + anomalyBoost;
-        mergeCandidate({
-          instrument_id: instrumentId,
-          ticker,
-          name: item.name,
-          market,
-          reason: screen?.title,
-          why: screen?.hook || screen?.tagline,
-          score: item.overall_score,
-          match_score: item.match_score,
-          sector,
-          sources: ["screen"],
-          personalization_score: Math.round(personalizationScore * 10) / 10,
-          momentum_score: momentumScore,
-          overall_score: overallScore,
-          growth_score: growthScore,
-          quality_score: qualityScore,
-          valuation_score: valuationScore,
-          reddit_mentions: redditMentions,
-          reddit_summary: redditSummary ? redditSummary.slice(0, 140) : "",
-          anomaly_move_pct: anomalyMove,
-          anomaly_headline: String(anomalyItem.headline || "").slice(0, 140),
-          personalization_reasons: reasons.slice(0, 3),
-        });
-      });
-    }
-  }
-
-  // ── Source 2: Heat list — stocks the market is paying unusual attention to.
-  // Pull top heat rows (already sorted descending by heat_score in the doc).
-  for (const doc of heatDocs) {
-    if (!doc.exists) continue;
-    const market = doc.id as "US" | "IN";
-    const heatRows = (doc.data()?.rows || []) as Array<Record<string, unknown>>;
-    heatRows.slice(0, 25).forEach((item, rank) => {
-      const instrumentId = String(item.instrument_id || "");
-      if (!instrumentId || tracked.has(instrumentId)) return;
-      const ticker = String(item.ticker || "").toUpperCase();
-      if (!ticker) return;
-      const heatScore = toNumber(item.heat_score) ?? 0;
-      const rankBonus = Math.max(0, 12 - rank);
-      // Heat score is already 0-100, weight it strongly. Range 25-55.
-      const personalizationScore = 28 + heatScore * 0.27 + rankBonus;
-      mergeCandidate({
-        instrument_id: instrumentId,
-        ticker,
-        name: item.name,
-        market,
-        reason: "Heat list",
-        why: String(item.reason_sentence || "").slice(0, 200) || undefined,
-        score: toNumber(item.overall_score) ?? null,
-        sector: String(item.sector || ""),
-        sources: ["heat"],
-        personalization_score: Math.round(personalizationScore * 10) / 10,
-        momentum_score: toNumber(item.momentum_score),
-        overall_score: toNumber(item.overall_score),
-        heat_score: heatScore,
-        heat_reason: String(item.reason_sentence || "").slice(0, 200),
-        heat_driver: String(item.primary_driver || ""),
-      });
-    });
-  }
-
-  // ── Source 3: Daily anomalies — sharp, unusual moves on a single day.
-  for (const doc of anomalyDocs) {
-    if (!doc.exists) continue;
-    const market = doc.id.split("__")[0] as "US" | "IN";
-    const anomalyRows = (doc.data()?.anomalies || []) as Array<Record<string, unknown>>;
-    anomalyRows.slice(0, 15).forEach((item, rank) => {
-      const instrumentId = String(item.instrument_id || "");
-      if (!instrumentId || tracked.has(instrumentId)) return;
-      const ticker = String(item.ticker || item.symbol || "").toUpperCase();
-      if (!ticker) return;
-      const move = Math.abs(toNumber(item.day_change_pct) ?? 0);
-      const rankBonus = Math.max(0, 10 - rank);
-      // Anomaly moves are typically 3-30%; scale to give clear separation.
-      const personalizationScore = 26 + Math.min(28, move * 1.4) + rankBonus;
-      mergeCandidate({
-        instrument_id: instrumentId,
-        ticker,
-        name: item.name,
-        market,
-        reason: "Daily anomaly",
-        why: String(item.headline || "").slice(0, 200) || undefined,
-        score: toNumber(item.overall_score) ?? null,
-        sector: String(item.sector || ""),
-        sources: ["anomaly"],
-        personalization_score: Math.round(personalizationScore * 10) / 10,
-        anomaly_move_pct: toNumber(item.day_change_pct),
-        anomaly_headline: String(item.headline || "").slice(0, 200),
-      });
-    });
-  }
-
-  // ── Source 4: Reddit buzz — top tickers by mentions in the last 24h.
-  for (const doc of redditDocs) {
-    if (!doc.exists) continue;
-    const market = doc.id.split("__")[0] as "US" | "IN";
-    const tickersRaw = doc.data()?.tickers;
-    const entries: Array<[string, Record<string, unknown>]> = [];
-    if (tickersRaw && typeof tickersRaw === "object" && !Array.isArray(tickersRaw)) {
-      for (const [ticker, payload] of Object.entries(tickersRaw as Record<string, unknown>)) {
-        entries.push([String(ticker).toUpperCase(), (payload || {}) as Record<string, unknown>]);
-      }
-    } else if (Array.isArray(tickersRaw)) {
-      for (const item of tickersRaw) {
-        const t = String((item as Record<string, unknown>)?.ticker || "").toUpperCase();
-        if (t) entries.push([t, (item || {}) as Record<string, unknown>]);
-      }
-    }
-    entries.sort(
-      (a, b) =>
-        (toNumber(b[1].mention_count ?? b[1].mentions) ?? 0) -
-        (toNumber(a[1].mention_count ?? a[1].mentions) ?? 0),
-    );
-    entries.slice(0, 15).forEach(([ticker, item], rank) => {
-      const instrumentId = String(item.instrument_id || `${market}_${ticker}`);
-      if (!instrumentId || tracked.has(instrumentId)) return;
-      const mentions = Math.round(toNumber(item.mention_count ?? item.mentions) ?? 0);
-      if (mentions < 3) return; // skip noise — need at least 3 mentions to count
-      const rankBonus = Math.max(0, 8 - rank);
-      const personalizationScore = 24 + Math.min(20, mentions * 1.5) + rankBonus;
-      mergeCandidate({
-        instrument_id: instrumentId,
-        ticker,
-        name: item.company_name || item.name,
-        market,
-        reason: "Reddit buzz",
-        why: String(item.summary || item.context || "").slice(0, 200) || undefined,
-        score: null,
-        sector: String(item.sector || ""),
-        sources: ["reddit"],
-        personalization_score: Math.round(personalizationScore * 10) / 10,
-        reddit_mentions: mentions,
-        reddit_summary: String(item.summary || item.context || "").slice(0, 200),
-      });
-    });
-  }
-
-  const candidates = Array.from(candidateMap.values());
-  candidates.sort((a, b) => (toNumber(b.personalization_score) ?? 0) - (toNumber(a.personalization_score) ?? 0));
-
-  return {
-    candidates,
-    ctx: { avgGrowth, avgQuality, avgValuation, avgMomentum, dominantSector },
-  };
-}
-
 function liveDiscoveryScore(candidate: Record<string, unknown>): number {
   const sources = Array.isArray(candidate.sources) ? candidate.sources.map(String) : [];
-  if (!sources.some((source) => ["anomaly", "heat", "reddit"].includes(source))) return 0;
-  return (
-    Math.abs(toNumber(candidate.anomaly_move_pct) ?? 0) * 10 +
-    (toNumber(candidate.heat_score) ?? 0) +
-    (toNumber(candidate.reddit_mentions) ?? 0) * 4
-  );
+  if (!sources.some((source) => ["mover", "reddit"].includes(source))) return 0;
+  return Math.abs(toNumber(candidate.mover_move_pct) ?? 0) * 10 + (toNumber(candidate.reddit_mentions) ?? 0) * 4;
 }
 
-// Keep current market signals in the materialized pool before filling with
-// evergreen portfolio matches. Otherwise the same diversification names win
-// every rebuild and Discovery never feels current.
+// Rank the personalized union with a small freshness bonus so daily movers and
+// Reddit names can rotate into the six suggestions.
 async function finalizeSuggestions(
   candidates: Array<Record<string, unknown>>,
   ctx: SuggestionContext,
 ): Promise<Array<Record<string, unknown>>> {
   const suggested = new Set<string>();
-  const freshFirst = [...candidates].sort(
-    (a, b) => liveDiscoveryScore(b) - liveDiscoveryScore(a),
+  const rankScore = (candidate: Record<string, unknown>) =>
+    (toNumber(candidate.personalization_score) ?? 0) + liveDiscoveryScore(candidate) * 0.2;
+  const freshFirst = [...candidates].sort((a, b) => rankScore(b) - rankScore(a));
+  const moverCandidate = freshFirst.find((candidate) =>
+    Array.isArray(candidate.sources) && candidate.sources.map(String).includes("mover"),
   );
+  const redditCandidate = freshFirst.find((candidate) =>
+    Array.isArray(candidate.sources) && candidate.sources.map(String).includes("reddit"),
+  );
+  const orderedCandidates = [
+    ...[moverCandidate, redditCandidate].filter((candidate): candidate is Record<string, unknown> => Boolean(candidate)),
+    ...freshFirst,
+    ...candidates,
+  ];
   // Take top 8 to give the LLM rewriter some room to pick the best 6.
   const topCandidates: Array<Record<string, unknown>> = [];
-  for (const candidate of [...freshFirst, ...candidates]) {
+  for (const candidate of orderedCandidates) {
     const instrumentId = String(candidate.instrument_id || "");
     if (!instrumentId || suggested.has(instrumentId)) continue;
     suggested.add(instrumentId);
@@ -1788,11 +1450,11 @@ async function finalizeSuggestions(
     const summaryBits = [...reasons];
     const mentions = Math.round(toNumber(candidate.reddit_mentions) ?? 0);
     if (mentions > 0) summaryBits.push(`Reddit buzz ${mentions} mentions`);
-    const anomalyMove = toNumber(candidate.anomaly_move_pct);
-    if (anomalyMove !== null) summaryBits.push(`${anomalyMove >= 0 ? "+" : ""}${anomalyMove.toFixed(1)}% anomaly move`);
-    const heatDriver = String(candidate.heat_driver || "").trim();
-    if (heatDriver) summaryBits.push(`heat: ${heatDriver.toLowerCase()}`);
-    // If `why` is still empty (e.g. anomaly-only candidate with no headline), fill from bits.
+    const moverMove = toNumber(candidate.mover_move_pct);
+    if (moverMove !== null) summaryBits.push(`${moverMove >= 0 ? "+" : ""}${moverMove.toFixed(1)}% yesterday`);
+    const themeName = Array.isArray(candidate.theme_names) ? String(candidate.theme_names[0] || "").trim() : "";
+    if (themeName) summaryBits.push(themeName);
+    // If `why` is still empty, fill from the candidate's current evidence.
     if (!candidate.why && summaryBits.length) {
       candidate.why = summaryBits.slice(0, 3).join("; ");
     }
@@ -1819,14 +1481,259 @@ async function finalizeSuggestions(
   return topCandidates.slice(0, 6);
 }
 
-async function screenSuggestions(rows: WatchlistRow[]): Promise<Array<Record<string, unknown>>> {
+async function gatherSuggestionCandidates(
+  rows: WatchlistRow[],
+): Promise<{ candidates: Array<Record<string, unknown>>; ctx: SuggestionContext }> {
+  const tracked = new Set(rows.map((row) => row.instrument_id));
+  const markets = [...new Set(rows.map((row) => row.market).filter(Boolean))] as Array<"US" | "IN">;
+  const effectiveMarkets: Array<"US" | "IN"> = markets.length > 0 ? markets : ["US"];
+  const avgOverall = averageScore(rows, "overall");
+  const avgGrowth = averageScore(rows, "growth");
+  const avgQuality = averageScore(rows, "quality");
+  const avgValuation = averageScore(rows, "valuation");
+  const avgMomentum = averageScore(rows, "momentum");
+  const clusters = sectorClusters(rows);
+  const dominant = (clusters[0] || {}) as Record<string, unknown>;
+  const dominantSector = String(dominant.sector || "");
+  const dominantWeight = toNumber(dominant.weight_pct) ?? 0;
+
+  const [moverDocs, redditDocs, snapshots] = await Promise.all([
+    Promise.all(effectiveMarkets.map((market) => getMarketMovers(market))),
+    adminFirestore.getAll(
+      ...effectiveMarkets.map((market) => adminFirestore.collection("reddit_snapshots").doc(`${market}__latest`)),
+    ),
+    Promise.all(effectiveMarkets.map((market) => getMarketSnapshot(market))),
+  ]);
+
+  const snapshotByMarket = new Map<string, Map<string, Record<string, unknown>>>();
+  effectiveMarkets.forEach((market, index) => {
+    const byTicker = new Map<string, Record<string, unknown>>();
+    for (const row of snapshots[index] || []) {
+      const ticker = String(row.symbol || "").trim().toUpperCase();
+      if (ticker) byTicker.set(ticker, row as unknown as Record<string, unknown>);
+    }
+    snapshotByMarket.set(market, byTicker);
+  });
+
+  const candidateMap = new Map<string, Record<string, unknown>>();
+  const uniqueStrings = (values: unknown[]): string[] =>
+    [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))];
+
+  function portfolioFit(
+    score: number | null,
+    sector: string,
+  ): { points: number; reasons: string[] } {
+    let points = 0;
+    const reasons: string[] = [];
+    if (score !== null && avgOverall !== null) {
+      const gap = score - avgOverall;
+      if (gap >= 4) {
+        points += Math.min(12, gap * 0.35);
+        reasons.push(`scores ${Math.round(gap)} points above your average`);
+      }
+    }
+    if (dominantWeight >= 50 && dominantSector && sector) {
+      if (sector !== dominantSector) {
+        points += 10;
+        reasons.push(`adds exposure outside ${dominantSector}`);
+      } else {
+        points -= 6;
+      }
+    }
+    return { points, reasons };
+  }
+
+  function resolveInstrument(
+    market: "US" | "IN",
+    ticker: string,
+    payload: Record<string, unknown> = {},
+  ): Record<string, unknown> {
+    const snapshot = snapshotByMarket.get(market)?.get(ticker) || {};
+    const price = (snapshot.price as Record<string, unknown> | undefined) || {};
+    return {
+      instrument_id: String(payload.instrument_id || snapshot.instrumentId || `${market}_${ticker}`),
+      ticker,
+      market,
+      name: String(payload.name || payload.company_name || snapshot.name || ticker),
+      sector: String(payload.sector || snapshot.sectorId || ""),
+      price: toNumber(payload.price) ?? toNumber(price.current),
+      day_change_pct: toNumber(payload.day_change_pct) ?? toNumber(price.changePct),
+    };
+  }
+
+  function mergeCandidate(next: Record<string, unknown>): void {
+    const id = String(next.instrument_id || "");
+    if (!id || tracked.has(id)) return;
+    const existing = candidateMap.get(id);
+    if (!existing) {
+      candidateMap.set(id, {
+        ...next,
+        sources: uniqueStrings((next.sources as unknown[]) || []),
+        theme_names: uniqueStrings((next.theme_names as unknown[]) || []),
+        theme_roles: uniqueStrings((next.theme_roles as unknown[]) || []),
+      });
+      return;
+    }
+    const sources = uniqueStrings([
+      ...((existing.sources as unknown[]) || []),
+      ...((next.sources as unknown[]) || []),
+    ]);
+    const themeNames = uniqueStrings([
+      ...((existing.theme_names as unknown[]) || []),
+      ...((next.theme_names as unknown[]) || []),
+    ]);
+    const themeRoles = uniqueStrings([
+      ...((existing.theme_roles as unknown[]) || []),
+      ...((next.theme_roles as unknown[]) || []),
+    ]);
+    const existingScore = toNumber(existing.personalization_score) ?? 0;
+    const nextScore = toNumber(next.personalization_score) ?? 0;
+    candidateMap.set(id, {
+      ...existing,
+      name: existing.name || next.name,
+      sector: existing.sector || next.sector,
+      price: existing.price ?? next.price,
+      day_change_pct: existing.day_change_pct ?? next.day_change_pct,
+      score: existing.score ?? next.score,
+      overall_score: existing.overall_score ?? next.overall_score,
+      why: existing.why || next.why,
+      sources,
+      theme_names: themeNames,
+      theme_roles: themeRoles,
+      personalization_score: Math.round((Math.max(existingScore, nextScore) + (sources.length - 1) * 8) * 10) / 10,
+      reddit_mentions: Math.max(toNumber(existing.reddit_mentions) ?? 0, toNumber(next.reddit_mentions) ?? 0),
+      reddit_summary: existing.reddit_summary || next.reddit_summary,
+      mover_move_pct: existing.mover_move_pct ?? next.mover_move_pct,
+      mover_headline: existing.mover_headline || next.mover_headline,
+      personalization_reasons: uniqueStrings([
+        ...((existing.personalization_reasons as unknown[]) || []),
+        ...((next.personalization_reasons as unknown[]) || []),
+      ]).slice(0, 3),
+    });
+  }
+
+  // 1. Research themes are the evergreen research universe.
+  if (effectiveMarkets.includes("US")) {
+    for (const theme of INVESTMENT_THEMES) {
+      for (const [rank, candidate] of theme.candidates.slice(0, 10).entries()) {
+        const ticker = candidate.ticker.toUpperCase();
+        const base = resolveInstrument("US", ticker, { name: candidate.company });
+        const score = candidate.stocksbrewScore ?? null;
+        const fit = portfolioFit(score, String(base.sector || ""));
+        mergeCandidate({
+          ...base,
+          reason: theme.name,
+          why: candidate.benefitMechanism,
+          score,
+          overall_score: score,
+          sources: ["theme"],
+          theme_names: [theme.name],
+          theme_roles: [candidate.role],
+          personalization_score: 38 + (score ?? 55) * 0.42 + Math.max(0, 10 - rank) + fit.points,
+          personalization_reasons: [
+            `${theme.name} · ${candidate.role}`,
+            ...fit.reasons,
+          ].slice(0, 3),
+        });
+      }
+    }
+  }
+
+  // 2. Yesterday's top 10 gainers and top 10 losers add the daily reset.
+  for (const [index, doc] of moverDocs.entries()) {
+    const market = effectiveMarkets[index] as "US" | "IN";
+    if (!doc) continue;
+    const addMovers = (items: Array<Record<string, unknown>>, direction: "gainer" | "loser") => {
+      items.slice(0, 10).forEach((item, rank) => {
+        const ticker = String(item.ticker || "").trim().toUpperCase();
+        if (!ticker) return;
+        const base = resolveInstrument(market, ticker, item);
+        const move = toNumber(item.day_change_pct);
+        const score = toNumber(item.overall_score);
+        const fit = portfolioFit(score, String(base.sector || ""));
+        const moveText = move === null ? "Yesterday's mover" : `${move >= 0 ? "+" : ""}${move.toFixed(1)}% yesterday`;
+        mergeCandidate({
+          ...base,
+          reason: "Yesterday's movers",
+          why: moveText,
+          score,
+          overall_score: score,
+          sources: ["mover"],
+          mover_direction: direction,
+          mover_rank: rank + 1,
+          mover_move_pct: move,
+          mover_headline: moveText,
+          personalization_score: 42 + Math.min(28, Math.abs(move ?? 0) * 1.35) + Math.max(0, 10 - rank) + fit.points,
+          personalization_reasons: [moveText, ...fit.reasons].slice(0, 3),
+        });
+      });
+    };
+    addMovers((doc.gainers || []) as unknown as Array<Record<string, unknown>>, "gainer");
+    addMovers((doc.losers || []) as unknown as Array<Record<string, unknown>>, "loser");
+  }
+
+  // 3. Reddit contributes the six most-mentioned names from the latest scan.
+  for (const doc of redditDocs) {
+    if (!doc.exists) continue;
+    const market = String(doc.id.split("__")[0] || "US").toUpperCase() as "US" | "IN";
+    const raw = doc.data()?.tickers;
+    const entries: Array<[string, Record<string, unknown>]> = [];
+    if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+      for (const [ticker, payload] of Object.entries(raw as Record<string, unknown>)) {
+        entries.push([ticker.toUpperCase(), (payload || {}) as Record<string, unknown>]);
+      }
+    } else if (Array.isArray(raw)) {
+      for (const item of raw) {
+        const payload = (item || {}) as Record<string, unknown>;
+        const ticker = String(payload.ticker || payload.symbol || "").toUpperCase();
+        if (ticker) entries.push([ticker, payload]);
+      }
+    }
+    entries
+      .sort((a, b) => (toNumber(b[1].mention_count ?? b[1].mentions) ?? 0) - (toNumber(a[1].mention_count ?? a[1].mentions) ?? 0))
+      .slice(0, 6)
+      .forEach(([ticker, item], rank) => {
+        const base = resolveInstrument(market, ticker, item);
+        const mentions = Math.max(0, Math.round(toNumber(item.mention_count ?? item.mentions) ?? 0));
+        const summary = String(item.summary || item.context || "").trim().slice(0, 200);
+        const score = toNumber(item.overall_score);
+        const fit = portfolioFit(score, String(base.sector || ""));
+        mergeCandidate({
+          ...base,
+          name: String(item.company_name || item.name || base.name),
+          reason: "Reddit buzz",
+          why: summary || `${mentions} Reddit mentions`,
+          score,
+          overall_score: score,
+          sources: ["reddit"],
+          reddit_mentions: mentions,
+          reddit_summary: summary,
+          reddit_sentiment: String(item.sentiment || "").toLowerCase(),
+          personalization_score: 40 + Math.min(28, mentions * 1.7) + Math.max(0, 8 - rank) + fit.points,
+          personalization_reasons: [
+            `Reddit buzz · ${mentions} mentions`,
+            ...fit.reasons,
+          ].slice(0, 3),
+        });
+      });
+  }
+
+  const candidates = Array.from(candidateMap.values()).sort(
+    (a, b) => (toNumber(b.personalization_score) ?? 0) - (toNumber(a.personalization_score) ?? 0),
+  );
+  return {
+    candidates,
+    ctx: { avgOverall, avgGrowth, avgQuality, avgValuation, avgMomentum, dominantSector },
+  };
+}
+
+async function radarSuggestions(rows: WatchlistRow[]): Promise<Array<Record<string, unknown>>> {
   const { candidates, ctx } = await gatherSuggestionCandidates(rows);
   return finalizeSuggestions(candidates, ctx);
 }
 
 // Broad sector buckets used to detect what the user has *no* exposure to. Keyword
-// matching keeps it robust across the differing sector vocabularies that screens,
-// anomalies, reddit, and intel docs each use ("Financials" vs "Financial Services").
+// matching keeps it robust across the differing sector vocabularies in the book.
 export const SECTOR_BUCKETS: Array<{ label: string; pattern: RegExp }> = [
   { label: "Energy", pattern: /energy|oil|gas|petroleum|refin/i },
   { label: "Financials", pattern: /financ|bank|insur|capital market|asset manage|brokerage|payment/i },
@@ -1979,11 +1886,11 @@ function buildPillarLiftHook(
   const existing = String(candidate.why || "").trim();
   if (existing && !boilerplate.test(existing)) return existing;
 
-  const heatReason = String(candidate.heat_reason || candidate.heat_driver || "").trim();
-  if (heatReason) return heatReason;
+  const mover = String(candidate.mover_headline || "").trim();
+  if (mover) return mover;
 
-  const anomaly = String(candidate.anomaly_headline || "").trim();
-  if (anomaly) return anomaly;
+  const theme = Array.isArray(candidate.theme_names) ? String(candidate.theme_names[0] || "").trim() : "";
+  if (theme) return theme;
 
   const reddit = String(candidate.reddit_summary || "").trim();
   if (reddit) return reddit;
@@ -1993,8 +1900,8 @@ function buildPillarLiftHook(
     : [];
   if (reasons.length) return reasons.slice(0, 2).join(" · ");
 
-  const screenHook = String(candidate.why || "").trim();
-  if (screenHook && !boilerplate.test(screenHook)) return screenHook;
+  const candidateWhy = String(candidate.why || "").trim();
+  if (candidateWhy && !boilerplate.test(candidateWhy)) return candidateWhy;
 
   const source = String(candidate.reason || "").trim();
   const pillarScore = candidatePillarScore(candidate, pillar);
@@ -2172,6 +2079,7 @@ export function momentumLiftSuggestions(
 async function rewriteSuggestionWhys(
   candidates: Array<Record<string, unknown>>,
   ctx: {
+    avgOverall: number | null;
     avgGrowth: number | null;
     avgQuality: number | null;
     avgValuation: number | null;
@@ -2191,11 +2099,13 @@ async function rewriteSuggestionWhys(
     sources: c.sources || [],
     raw_why: c.why || null,
     reddit_mentions: toNumber(c.reddit_mentions) ?? 0,
-    anomaly_move_pct: toNumber(c.anomaly_move_pct),
-    heat_driver: c.heat_driver || null,
+    mover_move_pct: toNumber(c.mover_move_pct),
+    mover_headline: c.mover_headline || null,
+    theme_names: c.theme_names || [],
   }));
 
   const radarSummary = {
+    avg_overall: ctx.avgOverall,
     avg_growth: ctx.avgGrowth,
     avg_quality: ctx.avgQuality,
     avg_valuation: ctx.avgValuation,
@@ -2205,14 +2115,14 @@ async function rewriteSuggestionWhys(
 
   const SYSTEM_PROMPT = `You write one-line stock suggestion rationales for a financial app's Watchlist page.
 
-You receive (a) a user's current Watchlist profile (avg pillar scores, dominant sector) and (b) a list of candidate stocks with their raw signal data (reddit buzz, anomaly move, heat list driver, screen hook).
+You receive (a) a user's current Watchlist profile (avg scores, dominant sector) and (b) a list of candidate stocks from research themes, yesterday's movers, and Reddit buzz.
 
 For each candidate, write a SINGLE sentence (8-16 words) explaining why this stock could fit THIS user's Watchlist. Be specific to the signal:
-- If multi-source (sources length > 1) — lead with that ("Showing up in heat + reddit").
-- If anomaly_move_pct — mention the move size and direction.
+- If multi-source (sources length > 1) — mention the combined evidence.
+- If mover_move_pct — mention the move size and direction.
 - If reddit_mentions >= 5 — mention the buzz.
-- If heat_driver — mention the driver (momentum, breakout, etc).
-- If only a screen match — translate the raw_why into something concrete.
+- If theme_names — mention the relevant research theme when useful.
+- Otherwise translate raw_why into something concrete.
 
 Rules:
 - NO marketing fluff ("must-buy", "explosive"). Plain, factual, conversational.
@@ -2254,7 +2164,14 @@ Rules:
 
 async function portfolioDiagnostics(rows: WatchlistRow[]): Promise<Record<string, unknown>> {
   if (!rows.length) {
-    return { summary: "No Watchlist stocks yet.", clusters: [], risk_flags: [], opportunities: [], suggestions: [] };
+    const { candidates, ctx } = await gatherSuggestionCandidates(rows);
+    return {
+      summary: "No Watchlist stocks yet.",
+      clusters: [],
+      risk_flags: [],
+      opportunities: [],
+      suggestions: await finalizeSuggestions(candidates, ctx),
+    };
   }
 
   // ── Step 1: Position weights (all-or-none) ─────────────────────────────────
@@ -2365,7 +2282,7 @@ async function portfolioDiagnostics(rows: WatchlistRow[]): Promise<Record<string
         },
     risk_flags: riskFlags.slice(0, 6),
     opportunities: opportunities.slice(0, 6),
-    suggestions: await screenSuggestions(rows),
+    suggestions: await radarSuggestions(rows),
     position_aware: positionAware,
     total_entered_value: totalEnteredValue > 0 ? totalEnteredValue : null,
     concentration: {
