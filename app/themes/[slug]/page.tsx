@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
-import { MarketFeedPageSkeleton } from "@/components/page-stream-skeletons";
+import { ThemePageSkeleton } from "@/components/theme-page-skeleton";
 import { ThemePageStream } from "@/components/theme-page-stream";
 import { OaSiteHeader } from "@/components/oa/oa-site-header";
 import { INVESTMENT_THEMES, getInvestmentTheme } from "@/lib/investment-themes";
@@ -40,7 +40,7 @@ export default async function ThemePage({ params }: Props) {
   return (
     <main className="oa-landing flex-grow overflow-x-clip">
       <OaSiteHeader />
-      <Suspense fallback={<MarketFeedPageSkeleton />}>
+      <Suspense fallback={<ThemePageSkeleton />}>
         <ThemePageStream slug={slug} />
       </Suspense>
     </main>

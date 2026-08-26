@@ -135,19 +135,13 @@ function CandidateRow({
           <p className="text-[16px] leading-6 text-oa-fg">
             {candidate.benefitMechanism}
           </p>
-          {candidate.catalyst ? (
-            <p className="mt-2 text-[13px] leading-5 text-oa-muted-fg">
-              <span className="font-medium text-oa-fg">Catalyst:</span>{" "}
-              {candidate.catalyst}
-            </p>
-          ) : null}
-        </div>
-        <div className="flex items-end justify-between gap-4 text-left sm:block sm:text-right">
           <p
-            className={`text-[14px] font-medium ${candidate.stocksbrewScore ? "text-[#087f5b]" : "text-oa-muted-fg"}`}
+            className={`mt-3 text-[14px] font-medium ${typeof candidate.stocksbrewScore === "number" ? "text-[#087f5b]" : "text-oa-muted-fg"}`}
           >
             {scoreLabel(candidate)}
           </p>
+        </div>
+        <div className="text-left sm:text-right">
           <Quote candidate={candidate} />
         </div>
       </div>
@@ -167,9 +161,11 @@ function LockedCandidateRow({ candidate }: { candidate: ThemeCandidateQuote }) {
             <p className="mt-2 text-[12px]">{candidate.role}</p>
           </div>
         </div>
-        <p className="text-[16px] leading-6">{candidate.benefitMechanism}</p>
+        <div>
+          <p className="text-[16px] leading-6">{candidate.benefitMechanism}</p>
+          <p className="mt-2 text-[14px] font-medium">{scoreLabel(candidate)}</p>
+        </div>
         <div className="text-right">
-          <p className="text-[14px] font-medium">{scoreLabel(candidate)}</p>
           <Quote candidate={candidate} />
         </div>
       </div>
@@ -226,10 +222,6 @@ export function ThemePageView({
   const lockedPreviewCandidates = isSubscribed
     ? []
     : candidates.slice(FREE_THEME_VISIBLE_LIMIT, FREE_THEME_VISIBLE_LIMIT + 1);
-  const catalystCandidates = candidates
-    .filter((candidate) => candidate.catalyst)
-    .slice(0, 3);
-
   return (
     <div className="mx-auto flex w-full max-w-[76rem] flex-col gap-10 px-4 py-8 sm:gap-14 sm:px-6 sm:py-12">
       <div>
@@ -278,44 +270,6 @@ export function ThemePageView({
         </SquircleSurface>
         {lockedCount > 0 ? <FeedStickyUnlock surface="theme_page" /> : null}
       </section>
-
-      {catalystCandidates.length > 0 ? (
-        <section aria-labelledby="theme-catalysts-heading">
-          <div>
-            <h2
-              id="theme-catalysts-heading"
-              className="text-[28px] font-medium tracking-tight text-oa-fg sm:text-3xl"
-            >
-              What to watch
-            </h2>
-            <p className="mt-2 text-[15px] leading-6 text-oa-muted-fg">
-              The near-term developments that would confirm or challenge the
-              theme.
-            </p>
-          </div>
-          <div className="mt-5 grid gap-3 md:grid-cols-3">
-            {catalystCandidates.map((candidate) => (
-              <Link
-                key={candidate.ticker}
-                href={`/stock/${encodeURIComponent(candidate.ticker)}`}
-                className="group rounded-[24px] outline-none focus-visible:ring-2 focus-visible:ring-oa-fg/40"
-              >
-                <SquircleSurface className="border border-oa-border p-5 transition-[border-color,box-shadow,transform] duration-200 group-hover:-translate-y-0.5 group-hover:border-oa-fg/25 group-hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)]">
-                  <div className="flex items-center gap-3">
-                    <StockLogo ticker={candidate.ticker} size={30} circle />
-                    <p className="text-[17px] font-medium text-oa-fg">
-                      {candidate.ticker}
-                    </p>
-                  </div>
-                  <p className="mt-3 text-[14px] leading-6 text-oa-muted-fg">
-                    {candidate.catalyst}
-                  </p>
-                </SquircleSurface>
-              </Link>
-            ))}
-          </div>
-        </section>
-      ) : null}
 
       {watchlist.length > 0 ? (
         <section aria-labelledby="theme-watchlist-heading">

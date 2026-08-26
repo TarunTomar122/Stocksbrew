@@ -1,3 +1,3 @@
-import { MarketFeedPageSkeleton } from "@/components/page-stream-skeletons";
+import { ThemePageSkeleton } from "@/components/theme-page-skeleton";
 
-export default MarketFeedPageSkeleton;
+export default ThemePageSkeleton;
