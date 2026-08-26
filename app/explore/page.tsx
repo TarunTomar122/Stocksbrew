@@ -10,27 +10,27 @@ export const revalidate = 120;
 export const metadata: Metadata = {
   title: "Explore Stocks",
   description:
-    "See what's moving before the crowd does: live scans for hot stocks, momentum, 52-week breakouts, news spikes, oversold dips, Reddit buzz and Trump mentions.",
+    "See what's moving before the crowd does: AI capex beneficiaries and live scans for hot stocks, momentum, breakouts, news spikes, oversold dips and Trump mentions.",
   keywords: [
     "stock screener",
     "most traded stocks",
     "52 week high",
     "52 week low",
     "breakout stocks",
-    "reddit stocks",
+    "AI infrastructure stocks",
   ],
   alternates: { canonical: "/explore" },
   openGraph: {
     title: "Explore Stocks · stocksbrew",
     description:
-      "Live market scans: heat, momentum, breakouts and Reddit buzz. See what's moving before the crowd does.",
+      "AI capex beneficiaries and live market scans for heat, momentum, breakouts and news spikes.",
     url: "https://www.stocksbrew.online/explore",
   },
   twitter: {
     card: "summary_large_image",
     title: "Explore Stocks · stocksbrew",
     description:
-      "Live market scans: heat, momentum, breakouts and Reddit buzz. See what's moving before the crowd does.",
+      "AI capex beneficiaries and live market scans for heat, momentum, breakouts and news spikes.",
   },
 };
 

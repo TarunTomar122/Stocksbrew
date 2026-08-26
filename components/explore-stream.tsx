@@ -1,10 +1,10 @@
 import { OaExplore } from "@/components/oa/oa-explore";
 import type { TrendingStock } from "@/components/trending-now";
+import { AI_CAPEX_BENEFICIARIES, AI_CAPEX_WATCHLIST } from "@/lib/ai-capex";
 import { getMarketSnapshot } from "@/lib/firestore";
 import { getHeatList } from "@/lib/heat";
 import { getCurrentMarket } from "@/lib/market";
 import { getNear52WeekLists } from "@/lib/near-52-week";
-import { getRedditCues, hasRedditBrief } from "@/lib/reddit-cues";
 import { getTrumpLogic } from "@/lib/trump-logic";
 import { isTrumpMentionRecent } from "@/lib/trump-logic-format";
 import { getSessionUser } from "@/lib/auth-server";
@@ -15,11 +15,10 @@ const TRENDING_TICKERS = ["NVDA", "TSM", "MSFT", "GOOGL", "AAPL", "PLTR", "MU", 
 
 export async function ExploreStream() {
   const market = getCurrentMarket();
-  const [session, snapshotRows, heatList, redditData, near52, trumpLogic] = await Promise.all([
+  const [session, snapshotRows, heatList, near52, trumpLogic] = await Promise.all([
     getSessionUser(),
     getMarketSnapshot(market).catch(() => []),
     getHeatList(market).catch(() => null),
-    getRedditCues(market).catch(() => null),
     getNear52WeekLists(market, 20).catch(() => ({ nearHighs: [], nearLows: [] })),
     getTrumpLogic(market).catch(() => null),
   ]);
@@ -48,14 +47,12 @@ export async function ExploreStream() {
   // Same setup buckets the /heat page tabs use.
   const catalystStocks = (heatList?.rows ?? []).filter((row) => (row.setup_type ?? "momentum_watch") === "catalyst_watch").slice(0, 20);
   const dipStocks = (heatList?.rows ?? []).filter((row) => (row.setup_type ?? "momentum_watch") === "dip_setup").slice(0, 20);
-  const redditTickers = (redditData?.tickers ?? [])
-    .filter(hasRedditBrief)
-    .sort((a, b) => (b.mention_count ?? 0) - (a.mention_count ?? 0))
-    .slice(0, 9)
-    .map((row) => {
-      const snap = bySymbol.get(row.ticker.toUpperCase());
-      return { ...row, price: snap?.price.current, changePct: snap?.price.changePct };
-    });
+  const quoteFor = (ticker: string) => {
+    const snapshot = bySymbol.get(ticker);
+    return { price: snapshot?.price.current, changePct: snapshot?.price.changePct };
+  };
+  const aiCapexRows = AI_CAPEX_BENEFICIARIES.map((row) => ({ ...row, ...quoteFor(row.ticker) }));
+  const aiCapexWatchlist = AI_CAPEX_WATCHLIST.map((row) => ({ ...row, ...quoteFor(row.ticker) }));
   const now = Date.now();
   const trumpMentions = (trumpLogic?.tickers ?? [])
     .filter((row) => isTrumpMentionRecent(row.latest_published_at, now))
@@ -84,8 +81,9 @@ export async function ExploreStream() {
       newsSpikes={newsSpikes}
       catalystStocks={catalystStocks}
       dipStocks={dipStocks}
-      redditTickers={redditTickers}
       trumpMentions={trumpMentions}
+      aiCapexRows={aiCapexRows}
+      aiCapexWatchlist={aiCapexWatchlist}
       isSubscribed={isSubscribed}
       trackedIds={trackedIds}
       trackedCount={trackedIds.length}

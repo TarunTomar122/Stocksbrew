@@ -20,11 +20,11 @@ import { signInWithGoogle } from "@/lib/sign-in";
 import { useUser } from "@/lib/auth-context";
 import type { HeatRow } from "@/lib/heat";
 import type { Near52WeekRow } from "@/lib/near-52-week";
-import type { RedditTicker } from "@/lib/reddit-cues";
 import { formatTrumpLogicDate } from "@/lib/trump-logic-format";
 import { US_PRO_MONTHLY, US_PRO_YEARLY } from "@/lib/pricing";
 import { PRO_POINTS } from "@/lib/subscribe-benefits";
 import { AnimatedIcon } from "@/components/animated-icon";
+import { AiCapexSection, type AiCapexRow, type AiCapexWatchRow } from "@/components/oa/ai-capex-section";
 
 /* ── springs (oa-design: one spring family) ────────────────────────────── */
 const LAYOUT = { type: "spring", stiffness: 550, damping: 40 } as const;
@@ -63,7 +63,6 @@ export type ScreenerRow = {
   detail?: string;
 };
 
-export type RedditRow = RedditTicker & { price?: number; changePct?: number };
 export type TrumpMentionRow = {
   ticker: string;
   name: string;
@@ -517,67 +516,6 @@ function ProPlate() {
   );
 }
 
-/* ── reddit buzz ────────────────────────────────────────────────────────── */
-function sentimentColor(sentiment: string) {
-  if (sentiment === "bearish") return "var(--signal-bearish)";
-  if (sentiment === "bullish") return "var(--signal-bullish)";
-  return "var(--oa-muted-fg)";
-}
-
-function RedditCard({ row }: { row: RedditRow }) {
-  const tone = sentimentColor(row.sentiment);
-  return (
-    <Link
-      href={`/stock/${row.ticker}`}
-      onClick={() => captureEvent("explore_stock_clicked", { ticker: row.ticker, section: "reddit_buzz" })}
-      className="group outline-none"
-    >
-      <SquircleSurface className="h-full border border-oa-border p-4 shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition-colors group-hover:bg-oa-accent/60 group-focus-visible:bg-oa-accent/60">
-        <div className="flex items-center gap-2.5">
-          <StockLogo ticker={row.ticker} market="US" size={26} circle />
-          <p className="text-lg font-medium text-oa-fg">{row.ticker}</p>
-          <span
-            className="shrink-0 rounded-full border border-oa-border bg-oa-card px-2.5 py-0.5 text-[13px] font-medium capitalize leading-5"
-            style={{ color: tone }}
-          >
-            {row.sentiment}
-          </span>
-          {typeof row.price === "number" ? (
-            <div className="ml-auto shrink-0 text-right">
-              <p className="text-[17px] font-medium tabular-nums leading-none text-oa-fg">${money(row.price)}</p>
-              {typeof row.changePct === "number" ? <p className="mt-1 text-sm font-medium">{pctLabel(row.changePct)}</p> : null}
-            </div>
-          ) : null}
-        </div>
-        {row.summary ? (
-          <p className="mt-3 text-[16.5px] leading-8 text-oa-muted-fg">{row.summary}</p>
-        ) : null}
-      </SquircleSurface>
-    </Link>
-  );
-}
-
-function RedditBuzz({ redditTickers }: { redditTickers: RedditRow[] }) {
-  const top = redditTickers.slice(0, 9);
-  if (top.length === 0) return null;
-
-  return (
-    <section>
-      <div className="mb-4 max-w-2xl">
-        <h2 className="text-2xl font-medium tracking-tight text-oa-fg">What Reddit is talking about</h2>
-        <p className="mt-1 text-[16.5px] leading-7 text-oa-muted-fg">
-          Summarized from today&rsquo;s top posts, so you never have to scroll the thread again.
-        </p>
-      </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {top.map((row) => (
-          <RedditCard key={row.ticker} row={row} />
-        ))}
-      </div>
-    </section>
-  );
-}
-
 /* ── page ───────────────────────────────────────────────────────────────── */
 export function OaExplore({
   trending,
@@ -588,8 +526,9 @@ export function OaExplore({
   newsSpikes,
   catalystStocks,
   dipStocks,
-  redditTickers,
   trumpMentions,
+  aiCapexRows,
+  aiCapexWatchlist,
   isSubscribed,
   trackedIds,
   trackedCount,
@@ -602,8 +541,9 @@ export function OaExplore({
   newsSpikes: HeatRow[];
   catalystStocks: HeatRow[];
   dipStocks: HeatRow[];
-  redditTickers: RedditRow[];
   trumpMentions: TrumpMentionRow[];
+  aiCapexRows: AiCapexRow[];
+  aiCapexWatchlist: AiCapexWatchRow[];
   isSubscribed: boolean;
   trackedIds?: string[];
   trackedCount?: number;
@@ -617,8 +557,8 @@ export function OaExplore({
       news_spike_count: newsSpikes.length,
       catalyst_count: catalystStocks.length,
       dip_count: dipStocks.length,
-      reddit_count: redditTickers.length,
       trump_count: trumpMentions.length,
+      ai_capex_count: aiCapexRows.length,
     });
     // Fires once per mount to mark the page view; counts are a snapshot, not reactive state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -655,13 +595,13 @@ export function OaExplore({
 
       <TrendingStrip stocks={trending} />
 
+      <AiCapexSection rows={aiCapexRows} watchlist={aiCapexWatchlist} />
+
       <section aria-label="Market scans">
         <MarketScans scans={scans} isSubscribed={isSubscribed} trackedIds={trackedIds} trackedCount={trackedCount} />
       </section>
 
       {!isSubscribed ? <ProPlate /> : null}
-
-      <RedditBuzz redditTickers={redditTickers} />
     </div>
   );
 }

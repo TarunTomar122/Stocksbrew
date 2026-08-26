@@ -25,6 +25,39 @@ function TrendingSkeleton() {
   );
 }
 
+function AiCapexSkeleton() {
+  return (
+    <section aria-hidden>
+      <Bone className="h-4 w-16" />
+      <Bone className="mt-2 h-7 w-64" />
+      <Bone className="mt-2 h-4 w-full max-w-2xl" />
+      <div className="mt-4 overflow-hidden rounded-[26px] border border-oa-border bg-oa-card shadow-[0_1px_2px_rgba(0,0,0,0.06)] sm:rounded-[44px]">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="flex flex-col gap-3 border-t border-oa-border/70 px-4 py-5 first:border-t-0 sm:px-5 md:grid md:grid-cols-[2rem_12rem_9rem_1fr_8rem] md:items-start">
+            <Bone className="h-4 w-4" />
+            <div className="flex gap-2.5">
+              <Bone className="size-8 !rounded-full" />
+              <div className="space-y-1.5">
+                <Bone className="h-4 w-14" />
+                <Bone className="h-3 w-24" />
+              </div>
+            </div>
+            <Bone className="h-7 w-28" />
+            <div className="space-y-2">
+              <Bone className="h-4 w-full max-w-lg" />
+              <Bone className="h-3 w-28" />
+            </div>
+            <div className="space-y-1.5">
+              <Bone className="h-3 w-16" />
+              <Bone className="h-4 w-20" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function ScanRowSkeleton() {
   return (
     <div className="flex items-start gap-3 px-4 py-3 sm:px-5">
@@ -71,6 +104,8 @@ export function ExplorePageSkeleton() {
       </header>
 
       <TrendingSkeleton />
+
+      <AiCapexSkeleton />
 
       <ScansSkeleton />
     </div>

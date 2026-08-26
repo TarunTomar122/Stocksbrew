@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "motion/react";
 
 import { PriceChart } from "@/components/price-chart";
 import { RangeBar, RsiStrength } from "@/components/range-bar";
+import { RedditBuzzCard } from "@/components/reddit-buzz-card";
 import { StockLogo } from "@/components/stock-logo";
 import { SquircleSurface } from "@/components/oa/squircle";
 import { AnimatedIcon } from "@/components/animated-icon";
@@ -26,6 +27,7 @@ import type {
   OpeningSession,
 } from "@/lib/premarket-opening";
 import type { PremarketMovers, PremarketRow } from "@/lib/premarket";
+import type { RedditTicker } from "@/lib/reddit-cues-shared";
 
 const FRAME = "mx-auto w-full max-w-[76rem] px-4 sm:px-6";
 const H2 =
@@ -756,6 +758,42 @@ function MoversBoard({ items, isSubscribed }: { items: ScannerItem[]; isSubscrib
   );
 }
 
+function RedditBuzzPlate({
+  tickers,
+  postCount,
+}: {
+  tickers: RedditTicker[];
+  postCount?: number;
+}) {
+  if (tickers.length === 0) return null;
+
+  return (
+    <section aria-label="Reddit buzz">
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <div className="max-w-2xl">
+          <h2 className={H2}>Reddit buzz</h2>
+          <p className={SUB}>The names getting attention right now, with the context behind the chatter.</p>
+          {typeof postCount === "number" && postCount > 0 ? (
+            <p className="mt-2 text-[13px] text-oa-muted-fg">{postCount} posts scanned</p>
+          ) : null}
+        </div>
+        <Link
+          href="/reddit-buzz"
+          className="group flex items-center gap-1 rounded-full px-2 py-1 text-base font-medium text-oa-muted-fg outline-none transition-colors hover:bg-oa-accent hover:text-oa-fg focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
+        >
+          See all
+          <span aria-hidden="true" className="transition-transform duration-200 group-hover:translate-x-0.5">›</span>
+        </Link>
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {tickers.map((item) => (
+          <RedditBuzzCard key={item.ticker} item={item} variant="pulse" />
+        ))}
+      </div>
+    </section>
+  );
+}
+
 /* ── earnings ───────────────────────────────────────────────────────────── */
 export type RecentEarningsCard = {
   ticker: string;
@@ -889,12 +927,16 @@ export function PulseHub({
   premarketReport,
   isSubscribed = false,
   recentEarnings = [],
+  redditTickers = [],
+  redditPostCount,
 }: {
   items: ScannerItem[];
   premarketMovers?: PremarketMovers | null;
   premarketReport?: OpeningReport | null;
   isSubscribed?: boolean;
   recentEarnings?: RecentEarningsCard[];
+  redditTickers?: RedditTicker[];
+  redditPostCount?: number;
 }) {
   useEffect(() => {
     captureEvent("market_viewed", {
@@ -911,6 +953,7 @@ export function PulseHub({
       <OpensPlate movers={premarketMovers ?? null} report={premarketReport ?? null} />
       <LeaningPlate movers={premarketMovers ?? null} />
       <MoversBoard items={items} isSubscribed={isSubscribed} />
+      <RedditBuzzPlate tickers={redditTickers} postCount={redditPostCount} />
       <EarningsPlate items={recentEarnings} />
 
       {!isSubscribed ? <ProPlate /> : null}

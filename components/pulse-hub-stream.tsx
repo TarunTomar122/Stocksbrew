@@ -6,17 +6,20 @@ import { getDailyAnomalies } from "@/lib/daily-anomalies";
 import { listAllEarningsIntelDocs } from "@/lib/earnings-intel";
 import { mergeIntelScenarios } from "@/lib/earnings-scenario-weights";
 import { redactScannerItemsAfterLimit, resolveFeedAccess } from "@/lib/feed-access";
+import { getMarketSnapshot } from "@/lib/firestore";
 import { getCurrentMarket } from "@/lib/market";
 import { getPremarketMovers, isPremarketLive } from "@/lib/premarket";
 import { getPremarketOpeningReport } from "@/lib/premarket-opening";
-import { getRedditCues } from "@/lib/reddit-cues";
+import { enrichRedditTickers } from "@/lib/reddit-buzz-enrich";
+import { getRedditCues, hasRedditBrief } from "@/lib/reddit-cues";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 
 export async function PulseHubStream() {
   const market = getCurrentMarket();
-  const [anomaliesData, redditData, premarketDoc, premarketReport, earningsIntelDocs, session] = await Promise.all([
+  const [anomaliesData, redditData, snapshotRows, premarketDoc, premarketReport, earningsIntelDocs, session] = await Promise.all([
     getDailyAnomalies(market).catch(() => null),
     getRedditCues(market).catch(() => null),
+    getMarketSnapshot(market).catch(() => []),
     getPremarketMovers(market).catch(() => null),
     getPremarketOpeningReport().catch(() => null),
     listAllEarningsIntelDocs().catch(() => []),
@@ -44,11 +47,19 @@ export async function PulseHubStream() {
     isSubscribed: resolveIsSubscribed(userDoc),
   });
 
+  const redditTickers = enrichRedditTickers(
+    (redditData?.tickers ?? []).filter(hasRedditBrief),
+    anomaliesData?.anomalies ?? [],
+    snapshotRows,
+  )
+    .sort((a, b) => b.mention_count - a.mention_count)
+    .slice(0, 6);
+
   const data = buildPulsePageData({
     market,
     anomalies: anomaliesData?.anomalies ?? [],
-    redditTickers: redditData?.tickers ?? [],
-    snapshotRows: [],
+    redditTickers,
+    snapshotRows,
     earningsEvents: [],
     predBy: new Map(),
     recentIntelDocs: [],
@@ -63,6 +74,8 @@ export async function PulseHubStream() {
         premarketReport={premarketLive ? premarketReport : null}
         isSubscribed={feedAccess.isSubscribed}
         recentEarnings={recentEarnings}
+        redditTickers={redditTickers}
+        redditPostCount={redditData?.post_count}
       />
     </div>
   );
