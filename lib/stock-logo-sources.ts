@@ -82,6 +82,7 @@ export const US_DOMAIN: Record<string, string> = {
   ABNB: "airbnb.com",
   ADBE: "adobe.com",
   AMD: "amd.com",
+  ANET: "arista.com",
   AMGN: "amgen.com",
   AMZN: "amazon.com",
   APTV: "aptiv.com",
@@ -91,14 +92,19 @@ export const US_DOMAIN: Record<string, string> = {
   BRK_B: "berkshirehathaway.com",
   BRK_A: "berkshirehathaway.com",
   CAT: "cat.com",
+  CEG: "constellationenergy.com",
   CMCSA: "comcast.com",
   COIN: "coinbase.com",
+  COHR: "coherent.com",
   COST: "costco.com",
   CRM: "salesforce.com",
   CSCO: "cisco.com",
   CVX: "chevron.com",
   DIS: "disney.com",
+  DLR: "digitalrealty.com",
   DOCN: "digitalocean.com",
+  EQIX: "equinix.com",
+  ETN: "eaton.com",
   EXPE: "expediagroup.com",
   F: "ford.com",
   GE: "ge.com",
@@ -107,9 +113,11 @@ export const US_DOMAIN: Record<string, string> = {
   GS: "goldmansachs.com",
   HD: "homedepot.com",
   INTC: "intel.com",
+  IREN: "iren.com",
   JNJ: "jnj.com",
   JPM: "jpmorganchase.com",
   KO: "coca-colacompany.com",
+  LRCX: "lamresearch.com",
   MA: "mastercard.com",
   META: "meta.com",
   MRK: "merck.com",
@@ -117,10 +125,12 @@ export const US_DOMAIN: Record<string, string> = {
   MSFT: "microsoft.com",
   MU: "micron.com",
   MRVL: "marvell.com",
+  MOD: "modine.com",
   NFLX: "netflix.com",
   NKE: "nike.com",
   NVDA: "nvidia.com",
   ORCL: "oracle.com",
+  PWR: "quanta.com",
   PEP: "pepsico.com",
   PFE: "pfizer.com",
   PG: "pg.com",
@@ -128,10 +138,12 @@ export const US_DOMAIN: Record<string, string> = {
   QCOM: "qualcomm.com",
   SBUX: "starbucks.com",
   TSLA: "tesla.com",
+  TSM: "tsmc.com",
   UBER: "uber.com",
   UNH: "unitedhealthgroup.com",
   V: "visa.com",
   VZ: "verizon.com",
+  VRT: "vertiv.com",
   WMT: "walmart.com",
   XOM: "exxonmobil.com",
 };
@@ -158,9 +170,17 @@ export function faviconUrl(domain: string): string {
   return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
 }
 
-export function domainForTicker(ticker: string, market: "US" | "IN"): string | undefined {
-  const normalized = ticker.toUpperCase().replace(/\./g, "_").replace(/-/g, "_");
-  return market === "IN" ? IN_DOMAIN[ticker.toUpperCase()] : US_DOMAIN[normalized];
+export function domainForTicker(
+  ticker: string,
+  market: "US" | "IN",
+): string | undefined {
+  const normalized = ticker
+    .toUpperCase()
+    .replace(/\./g, "_")
+    .replace(/-/g, "_");
+  return market === "IN"
+    ? IN_DOMAIN[ticker.toUpperCase()]
+    : US_DOMAIN[normalized];
 }
 
 /** Ordered logo-source chain used by the client <img> fallback walk. */

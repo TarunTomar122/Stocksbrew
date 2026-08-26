@@ -17,10 +17,20 @@ export async function RedditBuzzPageStream() {
     session ? getUserDoc(session.uid).catch(() => null) : Promise.resolve(null),
   ]);
   const isSubscribed = resolveIsSubscribed(userDoc);
+  const cutoff = Date.now() - 72 * 60 * 60 * 1000;
   const enrichedData = data
     ? {
         ...data,
-        tickers: enrichRedditTickers(data.tickers ?? [], anomaliesDoc?.anomalies ?? [], snapshotRows),
+        tickers: enrichRedditTickers(
+          data.tickers ?? [],
+          anomaliesDoc?.anomalies ?? [],
+          snapshotRows,
+        ).filter((item) => {
+          if (!item.latest_post_at) return true;
+          const latestPostAt = Date.parse(item.latest_post_at);
+          return Number.isNaN(latestPostAt) || latestPostAt >= cutoff;
+        }),
+        window_hours: 72,
       }
     : null;
 

@@ -8,7 +8,10 @@ function source(path: string): string {
 }
 
 function relativeLuminance(hex: string): number {
-  const channels = hex.match(/[\da-f]{2}/gi)?.map((channel) => Number.parseInt(channel, 16) / 255) ?? [];
+  const channels =
+    hex
+      .match(/[\da-f]{2}/gi)
+      ?.map((channel) => Number.parseInt(channel, 16) / 255) ?? [];
   const linear = channels.map((value) =>
     value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4,
   );
@@ -16,16 +19,22 @@ function relativeLuminance(hex: string): number {
 }
 
 function contrastRatio(foreground: string, background: string): number {
-  const lighter = Math.max(relativeLuminance(foreground), relativeLuminance(background));
-  const darker = Math.min(relativeLuminance(foreground), relativeLuminance(background));
+  const lighter = Math.max(
+    relativeLuminance(foreground),
+    relativeLuminance(background),
+  );
+  const darker = Math.min(
+    relativeLuminance(foreground),
+    relativeLuminance(background),
+  );
   return (lighter + 0.05) / (darker + 0.05);
 }
 
 describe("Pulse, Social, Watchlist, and home cleanup", () => {
   it("puts price before the final interesting rationale column", () => {
     const feed = source("components/interesting-stocks-feed.tsx");
-    const today = feed.indexOf("<span className=\"text-right\">Today</span>");
-    const price = feed.indexOf("<span className=\"text-right\">Price</span>");
+    const today = feed.indexOf('<span className="text-right">Today</span>');
+    const price = feed.indexOf('<span className="text-right">Price</span>');
     const why = feed.indexOf("<span>Why it is interesting</span>");
 
     expect(today).toBeGreaterThan(-1);
@@ -41,9 +50,14 @@ describe("Pulse, Social, Watchlist, and home cleanup", () => {
     expect(pulse).toContain("Today&apos;s gainers &amp; losers");
   });
 
-  it("folds Social into Explore instead of keeping a separate page", () => {
+  it("keeps Reddit Buzz as a dedicated recent-buzz page", () => {
     expect(source("app/social/page.tsx")).toContain('redirect("/explore")');
-    expect(source("app/reddit-buzz/page.tsx")).toContain('redirect("/explore")');
+    expect(source("app/reddit-buzz/page.tsx")).toContain(
+      "RedditBuzzPageStream",
+    );
+    expect(source("components/reddit-buzz-page-stream.tsx")).toContain(
+      "72 * 60 * 60 * 1000",
+    );
     expect(source("components/footer.tsx")).not.toContain('href: "/social"');
   });
 
@@ -74,16 +88,28 @@ describe("Pulse, Social, Watchlist, and home cleanup", () => {
     const book = source("components/radar-next/book.tsx");
     expect(book).not.toContain("Watchlist call");
     expect(book).not.toContain("row.call");
-    expect(book.indexOf('label="Signals"')).toBeLessThan(book.indexOf('label="Score"'));
+    expect(book.indexOf('label="Signals"')).toBeLessThan(
+      book.indexOf('label="Score"'),
+    );
     expect(book).not.toContain(">\n                Ready\n");
-    expect(book).toContain("Number(right.needsAttention) - Number(left.needsAttention)");
-    expect(book).toContain("backgroundColor: `color-mix(in srgb, ${accent} 9%, var(--rn-card))`");
-    expect(book).toContain("overflow-hidden rounded-xl border border-[var(--rn-line)] bg-[var(--rn-card)]");
-    expect(source("app/watchlist/page.tsx")).toContain("mx-auto flex w-full max-w-[1240px]");
+    expect(book).toContain(
+      "Number(right.needsAttention) - Number(left.needsAttention)",
+    );
+    expect(book).toContain(
+      "backgroundColor: `color-mix(in srgb, ${accent} 9%, var(--rn-card))`",
+    );
+    expect(book).toContain(
+      "overflow-hidden rounded-xl border border-[var(--rn-line)] bg-[var(--rn-card)]",
+    );
+    expect(source("app/watchlist/page.tsx")).toContain(
+      "mx-auto flex w-full max-w-[1240px]",
+    );
     expect(header).not.toContain("sb://radar");
     expect(header).not.toContain("brew radar --today");
     expect(backend).not.toContain("Selling has become unusually one-sided");
-    expect(backend).not.toContain("condition to monitor, not a reversal signal");
+    expect(backend).not.toContain(
+      "condition to monitor, not a reversal signal",
+    );
   });
 
   it("keeps sparse stock data compact and restores meaningful activity cards", () => {
@@ -97,46 +123,80 @@ describe("Pulse, Social, Watchlist, and home cleanup", () => {
 
     expect(fundamentals).toContain("groupPillarMetrics");
     expect(fundamentals).toContain("rounded-full border px-3 py-2");
-    expect(fundamentals).toContain('aria-pressed={active}');
+    expect(fundamentals).toContain("aria-pressed={active}");
     expect(fundamentals).toContain("isSubscribed: boolean");
     expect(fundamentals).toContain("FeedUnlockBar");
-    expect(fundamentals).toContain('isSubscribed ? "" : "flex h-full min-h-[32rem] flex-col"');
+    expect(fundamentals).toContain(
+      'isSubscribed ? "" : "flex h-full min-h-[32rem] flex-col"',
+    );
     expect(fundamentals).not.toContain("max-w-[29rem]");
     expect(fundamentals).not.toContain("bg-on-surface text-surface");
-    expect(detail).toContain("lg:grid-cols-[minmax(15rem,0.32fr)_minmax(0,0.68fr)]");
-    expect(detail).toContain("overflow-hidden rounded-2xl border border-outline-variant");
+    expect(detail).toContain(
+      "lg:grid-cols-[minmax(15rem,0.32fr)_minmax(0,0.68fr)]",
+    );
+    expect(detail).toContain(
+      "overflow-hidden rounded-2xl border border-outline-variant",
+    );
     expect(detail).toContain("ttm snapshot");
-    expect(fundamentals).not.toContain("rounded-xl border border-outline-variant");
+    expect(fundamentals).not.toContain(
+      "rounded-xl border border-outline-variant",
+    );
     expect(fundamentals).not.toContain("xl:grid-cols-5");
     expect(stream).toContain("flex-grow flex-col bg-surface");
     expect(stream).not.toContain("StockAgentAccessCta");
     expect(detail).not.toContain("bg-[var(--background)]");
     expect(detail).toContain("const levelMoney");
-    expect(detail).toContain("style={{ color: scoreToneColor(hasReliableOverall");
+    expect(detail).toContain(
+      "style={{ color: scoreToneColor(hasReliableOverall",
+    );
     expect(detail).toContain("Street expectations and crowd signal");
-    expect(detail).toContain("{(showAnalyst || hasExtendedAnalyst || hasCrowdSignal) && (");
-    expect(detail).not.toContain("{subscribed && (showAnalyst || hasExtendedAnalyst || hasCrowdSignal) && (");
+    expect(detail).toContain(
+      "{(showAnalyst || hasExtendedAnalyst || hasCrowdSignal) && (",
+    );
+    expect(detail).not.toContain(
+      "{subscribed && (showAnalyst || hasExtendedAnalyst || hasCrowdSignal) && (",
+    );
     expect(detail).toContain("hasCrowdSignal && hasMarketReddit");
-    expect(detail).toContain('const showPeerRevenueGrowth = peerRows.some((peer) => peer.revGrowth !== "-");');
-    expect(detail).toContain('{showPeerRevenueGrowth ? "rev growth" : "price"}');
-    expect(detail).toContain('hasMarketReddit && showBasicAnalyst ? "flex min-w-0 flex-col divide-y');
-    expect(detail.indexOf("Street expectations and crowd signal")).toBeLessThan(detail.indexOf("{/* ACTIVITY */}"));
+    expect(detail).toContain(
+      'const showPeerRevenueGrowth = peerRows.some((peer) => peer.revGrowth !== "-");',
+    );
+    expect(detail).toContain(
+      '{showPeerRevenueGrowth ? "rev growth" : "price"}',
+    );
+    expect(detail).toContain(
+      'hasMarketReddit && showBasicAnalyst ? "flex min-w-0 flex-col divide-y',
+    );
+    expect(detail.indexOf("Street expectations and crowd signal")).toBeLessThan(
+      detail.indexOf("{/* ACTIVITY */}"),
+    );
     expect(reddit).toContain('<section className="min-w-0">');
     expect(reddit).toContain("max-w-[65ch]");
     expect(reddit).toContain("isSubscribed: boolean");
     expect(reddit).toContain("FeedUnlockBar");
     expect(reddit).toContain('signedOutLabel="Start your 3-day free trial"');
     expect(reddit).toContain('signedInLabel="Unlock Reddit Buzz"');
-    expect(reddit).toContain('buttonClassName="!rounded-lg !border-primary !bg-none !bg-primary');
-    expect(detail.indexOf("<StockRedditBuzzRailCard")).toBeLessThan(detail.indexOf("{/* ACTIVITY */}"));
-    expect(detail).toContain("const hasActivitySection = Boolean(recentNews?.length);");
+    expect(reddit).toContain(
+      'buttonClassName="!rounded-lg !border-primary !bg-none !bg-primary',
+    );
+    expect(detail.indexOf("<StockRedditBuzzRailCard")).toBeLessThan(
+      detail.indexOf("{/* ACTIVITY */}"),
+    );
+    expect(detail).toContain(
+      "const hasActivitySection = Boolean(recentNews?.length);",
+    );
     expect(news).toContain("Editorial news stream");
-    expect(news).toContain('fullWidth ? "sm:grid-cols-2 xl:grid-cols-3" : "sm:grid-cols-2"');
+    expect(news).toContain(
+      'fullWidth ? "sm:grid-cols-2 xl:grid-cols-3" : "sm:grid-cols-2"',
+    );
     expect(news).not.toContain("max-h-[19rem]");
     expect(news).toContain("<StockLogo");
     expect(news).toContain("sentimentTagClass");
-    expect(detail.indexOf("<StockSmartAlertsRail")).toBeLessThan(detail.indexOf("{/* EVIDENCE */}"));
-    expect(detail.indexOf("<StockSmartAlertsRail")).toBeLessThan(detail.indexOf("{/* ACTIVITY */}"));
+    expect(detail.indexOf("<StockSmartAlertsRail")).toBeLessThan(
+      detail.indexOf("{/* EVIDENCE */}"),
+    );
+    expect(detail.indexOf("<StockSmartAlertsRail")).toBeLessThan(
+      detail.indexOf("{/* ACTIVITY */}"),
+    );
     expect(detail).toContain("actions={");
     expect(callUi).toContain("actions?: ReactNode");
     expect(callUi).toContain("{actions}");
@@ -170,7 +230,9 @@ describe("Pulse, Social, Watchlist, and home cleanup", () => {
     const trades = source("components/power-trades-feed.tsx");
     const frame = source("components/marketing/free-tool-chrome.tsx");
 
-    expect(modalHistory).toContain("{ ...(state && typeof state === \"object\" ? state : {})");
+    expect(modalHistory).toContain(
+      '{ ...(state && typeof state === "object" ? state : {})',
+    );
     expect(news).toContain("useModalBackClose(true, onClose)");
     expect(news).toContain("max-h-[85dvh]");
     expect(news).toContain("overscroll-contain");
@@ -220,7 +282,9 @@ describe("Pulse, Social, Watchlist, and home cleanup", () => {
     expect(chart).toContain("Nearest support");
     expect(chart).toContain("Nearest resistance");
     expect(chart).toContain("technicalLevels?.source");
-    expect(chart).not.toContain("{technicalLevels?.source} · {technicalLevels?.as_of}");
+    expect(chart).not.toContain(
+      "{technicalLevels?.source} · {technicalLevels?.as_of}",
+    );
   });
 
   it("uses distinct financial-series colors and reserves red for losses", () => {
@@ -265,17 +329,28 @@ describe("Pulse, Social, Watchlist, and home cleanup", () => {
   it("keeps the dark palette readable and its controls visibly bounded", () => {
     const css = source("app/globals.css");
     const dark = css.match(/\.dark \{([\s\S]*?)\n\}/)?.[1] ?? "";
-    const token = (name: string) => dark.match(new RegExp(`--${name}:\\s*(#[\\da-f]{6})`, "i"))?.[1] ?? "";
+    const token = (name: string) =>
+      dark.match(new RegExp(`--${name}:\\s*(#[\\da-f]{6})`, "i"))?.[1] ?? "";
 
     const background = token("background");
     const surface = token("surface");
 
-    expect(contrastRatio(token("on-surface"), background)).toBeGreaterThanOrEqual(7);
-    expect(contrastRatio(token("on-surface-variant"), surface)).toBeGreaterThanOrEqual(7);
+    expect(
+      contrastRatio(token("on-surface"), background),
+    ).toBeGreaterThanOrEqual(7);
+    expect(
+      contrastRatio(token("on-surface-variant"), surface),
+    ).toBeGreaterThanOrEqual(7);
     expect(contrastRatio(token("outline"), surface)).toBeGreaterThanOrEqual(3);
-    expect(contrastRatio(token("outline-variant"), surface)).toBeGreaterThanOrEqual(1.2);
+    expect(
+      contrastRatio(token("outline-variant"), surface),
+    ).toBeGreaterThanOrEqual(1.2);
     expect(contrastRatio(token("outline-variant"), surface)).toBeLessThan(3);
-    expect(contrastRatio(token("signal-bullish"), surface)).toBeGreaterThanOrEqual(4.5);
-    expect(contrastRatio(token("signal-bearish"), surface)).toBeGreaterThanOrEqual(4.5);
+    expect(
+      contrastRatio(token("signal-bullish"), surface),
+    ).toBeGreaterThanOrEqual(4.5);
+    expect(
+      contrastRatio(token("signal-bearish"), surface),
+    ).toBeGreaterThanOrEqual(4.5);
   });
 });

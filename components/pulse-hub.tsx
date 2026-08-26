@@ -40,13 +40,19 @@ const EYEBROW = "text-base uppercase tracking-[0.12em] text-oa-muted-fg";
 const FREE_ROWS = 6;
 
 function money(v: number) {
-  return v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return v.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 function pctLabel(value: number) {
   const up = value >= 0;
   return (
-    <span className="tabular-nums" style={{ color: up ? "var(--signal-bullish)" : "var(--signal-bearish)" }}>
+    <span
+      className="tabular-nums"
+      style={{ color: up ? "var(--signal-bullish)" : "var(--signal-bearish)" }}
+    >
       {up ? "+" : "\u2212"}
       {Math.abs(value).toFixed(2)}%
     </span>
@@ -82,7 +88,11 @@ function ProCheckoutButton({
   async function openCheckout() {
     if (busy) return;
     setBusy(true);
-    trackCheckoutClicked({ period: "monthly", market: "US", signedIn: Boolean(user) });
+    trackCheckoutClicked({
+      period: "monthly",
+      market: "US",
+      signedIn: Boolean(user),
+    });
     try {
       if (!user) await signInWithGoogle({ surface: "paywall" });
       const checkoutUrl = await startDodoCheckout();
@@ -115,13 +125,19 @@ function SessionsTrend({ sessions }: { sessions: OpeningSession[] }) {
   if (rows.length === 0) return null;
   const maxAbs = Math.max(1, ...rows.map((s) => Math.abs(s.change_pct)));
   const latest = rows[rows.length - 1];
-  const latestColor = latest.change_pct >= 0 ? "var(--signal-bullish)" : "var(--signal-bearish)";
+  const latestColor =
+    latest.change_pct >= 0 ? "var(--signal-bullish)" : "var(--signal-bearish)";
 
   return (
     <div className="shrink-0 rounded-[18px] border border-oa-border bg-oa-card p-3">
       <div className="flex items-baseline justify-between gap-4">
-        <p className="text-[16px] text-oa-muted-fg">Last {rows.length} sessions</p>
-        <span className="text-[17px] font-medium tabular-nums" style={{ color: latestColor }}>
+        <p className="text-[16px] text-oa-muted-fg">
+          Last {rows.length} sessions
+        </p>
+        <span
+          className="text-[17px] font-medium tabular-nums"
+          style={{ color: latestColor }}
+        >
           {latest.change_pct >= 0 ? "+" : ""}
           {latest.change_pct.toFixed(1)}%
         </span>
@@ -130,14 +146,20 @@ function SessionsTrend({ sessions }: { sessions: OpeningSession[] }) {
         {rows.map((s) => {
           const up = s.change_pct >= 0;
           const color = up ? "var(--signal-bullish)" : "var(--signal-bearish)";
-          const barHeightPct = Math.max(15, (Math.abs(s.change_pct) / maxAbs) * 100);
+          const barHeightPct = Math.max(
+            15,
+            (Math.abs(s.change_pct) / maxAbs) * 100,
+          );
           return (
             <div
               key={s.date}
               title={`${dateLabel(s.date) ?? ""} ${up ? "+" : ""}${s.change_pct.toFixed(1)}%`}
               className="flex h-full w-4 items-end"
             >
-              <div className="w-full rounded-t" style={{ height: `${barHeightPct}%`, background: color }} />
+              <div
+                className="w-full rounded-t"
+                style={{ height: `${barHeightPct}%`, background: color }}
+              />
             </div>
           );
         })}
@@ -165,10 +187,17 @@ function FuturesRow({ cues }: { cues: OpeningCue[] }) {
   );
 }
 
-function OpensPlate({ movers, report }: { movers: PremarketMovers | null; report: OpeningReport | null }) {
+function OpensPlate({
+  movers,
+  report,
+}: {
+  movers: PremarketMovers | null;
+  report: OpeningReport | null;
+}) {
   if (!movers && !report) return null;
   const label = dateLabel(movers?.date || report?.generated_at);
-  const color = TONE_COLOR[report?.direction ?? "neutral"] ?? TONE_COLOR.neutral;
+  const color =
+    TONE_COLOR[report?.direction ?? "neutral"] ?? TONE_COLOR.neutral;
 
   return (
     <section aria-label="Pre-market setup">
@@ -192,15 +221,22 @@ function OpensPlate({ movers, report }: { movers: PremarketMovers | null; report
                     </span>
                     <span className="text-[14px] text-oa-muted-fg">/100</span>
                   </div>
-                  <p className="mt-1.5 text-[14px] font-medium" style={{ color }}>
+                  <p
+                    className="mt-1.5 text-[14px] font-medium"
+                    style={{ color }}
+                  >
                     {report.label}
                   </p>
                 </>
               ) : null}
             </div>
-            {report?.sessions?.length ? <SessionsTrend sessions={report.sessions} /> : null}
+            {report?.sessions?.length ? (
+              <SessionsTrend sessions={report.sessions} />
+            ) : null}
           </div>
-          {report?.global_cues?.length ? <FuturesRow cues={report.global_cues} /> : null}
+          {report?.global_cues?.length ? (
+            <FuturesRow cues={report.global_cues} />
+          ) : null}
         </SquircleSurface>
       </SquircleSurface>
     </section>
@@ -211,12 +247,12 @@ function OpensPlate({ movers, report }: { movers: PremarketMovers | null; report
 // Only these buckets are worth a tile; everything else is noise for a
 // "what's moving" heatmap. All Consumer* GICS sectors collapse into one.
 const SECTOR_BUCKET: Record<string, string> = {
-  "technology": "Tech",
+  technology: "Tech",
   "information technology": "IT",
-  "energy": "Energy",
-  "materials": "Materials",
+  energy: "Energy",
+  materials: "Materials",
   "health care": "Healthcare",
-  "healthcare": "Healthcare",
+  healthcare: "Healthcare",
   "consumer staples": "Consumers",
   "consumer discretionary": "Consumers",
   "consumer cyclical": "Consumers",
@@ -236,7 +272,10 @@ const SECTOR_BELLWETHERS: Record<string, string[]> = {
 
 function SectorPulse({ movers }: { movers: PremarketMovers }) {
   const rows = [...(movers.gappers_up ?? []), ...(movers.gappers_down ?? [])];
-  const bySector = new Map<string, { sum: number; count: number; tickers: { ticker: string; pct: number }[] }>();
+  const bySector = new Map<
+    string,
+    { sum: number; count: number; tickers: { ticker: string; pct: number }[] }
+  >();
   for (const row of rows) {
     const sector = SECTOR_BUCKET[row.sector?.trim().toLowerCase() ?? ""];
     if (!sector) continue;
@@ -251,7 +290,9 @@ function SectorPulse({ movers }: { movers: PremarketMovers }) {
       sector,
       avg: sum / count,
       count,
-      topTickers: [...tickers].sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct)).slice(0, 4),
+      topTickers: [...tickers]
+        .sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct))
+        .slice(0, 4),
     }))
     .sort((a, b) => Math.abs(b.avg) - Math.abs(a.avg));
   if (ranked.length === 0) return null;
@@ -266,7 +307,11 @@ function SectorPulse({ movers }: { movers: PremarketMovers }) {
   const fillIndex = ranked.length - remainder;
   // Tailwind's JIT only picks up literal class strings, so the fill span for
   // the trailing tile is looked up rather than interpolated.
-  const FILL_SPAN_CLASS: Record<number, string> = { 2: "col-span-2", 3: "col-span-3", 4: "col-span-4" };
+  const FILL_SPAN_CLASS: Record<number, string> = {
+    2: "col-span-2",
+    3: "col-span-3",
+    4: "col-span-4",
+  };
   const spanClass = (rank: number) => {
     if (ranked.length < 5) return "col-span-1 row-span-1";
     if (rank === 0) return "col-span-2 row-span-2";
@@ -284,25 +329,38 @@ function SectorPulse({ movers }: { movers: PremarketMovers }) {
         const tone = up ? "var(--signal-bullish)" : "var(--signal-bearish)";
         const intensity = Math.min(1, Math.abs(s.avg) / maxAbs);
         const logoTickers = [
-          ...new Set([...s.topTickers.map((t) => t.ticker), ...(SECTOR_BELLWETHERS[s.sector] ?? [])]),
+          ...new Set([
+            ...s.topTickers.map((t) => t.ticker),
+            ...(SECTOR_BELLWETHERS[s.sector] ?? []),
+          ]),
         ].slice(0, 3);
         return (
           <div
             key={s.sector}
             className={`flex flex-col justify-between rounded-[14px] px-3 py-2.5 ${spanClass(i)}`}
-            style={{ background: `color-mix(in srgb, ${tone} ${8 + intensity * 22}%, var(--oa-card))` }}
+            style={{
+              background: `color-mix(in srgb, ${tone} ${8 + intensity * 22}%, var(--oa-card))`,
+            }}
           >
             <div className="flex min-w-0 items-center gap-2">
-              <p className="truncate text-[15px] font-medium text-oa-muted-fg">{s.sector}</p>
+              <p className="truncate text-[15px] font-medium text-oa-muted-fg">
+                {s.sector}
+              </p>
               <div className="flex shrink-0 -space-x-2">
                 {logoTickers.map((ticker) => (
-                  <span key={ticker} className="overflow-hidden rounded-full ring-2 ring-oa-card">
+                  <span
+                    key={ticker}
+                    className="overflow-hidden rounded-full ring-2 ring-oa-card"
+                  >
                     <StockLogo ticker={ticker} market="US" size={22} circle />
                   </span>
                 ))}
               </div>
             </div>
-            <p className="text-[16px] font-medium tabular-nums" style={{ color: tone }}>
+            <p
+              className="text-[16px] font-medium tabular-nums"
+              style={{ color: tone }}
+            >
               {up ? "+" : ""}
               {s.avg.toFixed(1)}%
             </p>
@@ -313,9 +371,18 @@ function SectorPulse({ movers }: { movers: PremarketMovers }) {
   );
 }
 
-function GapperStrip({ title, tone, rows }: { title: string; tone: "up" | "down"; rows: PremarketRow[] }) {
+function GapperStrip({
+  title,
+  tone,
+  rows,
+}: {
+  title: string;
+  tone: "up" | "down";
+  rows: PremarketRow[];
+}) {
   if (rows.length === 0) return null;
-  const color = tone === "up" ? "var(--signal-bullish)" : "var(--signal-bearish)";
+  const color =
+    tone === "up" ? "var(--signal-bullish)" : "var(--signal-bearish)";
 
   return (
     <div>
@@ -327,18 +394,24 @@ function GapperStrip({ title, tone, rows }: { title: string; tone: "up" | "down"
           <Link
             key={row.instrument_id}
             href={`/stock/${row.ticker}`}
-            onClick={() => captureEvent("pulse_gapper_clicked", { ticker: row.ticker })}
+            onClick={() =>
+              captureEvent("pulse_gapper_clicked", { ticker: row.ticker })
+            }
             className="group shrink-0 outline-none"
           >
             <div className="w-40 rounded-[18px] border border-oa-border bg-oa-card p-3 shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition-colors group-hover:bg-oa-accent/60 group-focus-visible:bg-oa-accent/60 sm:w-44">
               <div className="flex items-center gap-2">
                 <StockLogo ticker={row.ticker} market="US" size={24} circle />
-                <p className="min-w-0 truncate text-[16px] font-medium text-oa-fg">{row.ticker}</p>
+                <p className="min-w-0 truncate text-[16px] font-medium text-oa-fg">
+                  {row.ticker}
+                </p>
               </div>
               <p className="mt-2.5 text-[16px] font-medium tabular-nums leading-none tracking-tight text-oa-fg">
                 ${money(row.pre_market_price)}
               </p>
-              <p className="mt-1.5 text-[15px] font-medium">{pctLabel(row.pre_market_change_pct)}</p>
+              <p className="mt-1.5 text-[15px] font-medium">
+                {pctLabel(row.pre_market_change_pct)}
+              </p>
             </div>
           </Link>
         ))}
@@ -397,14 +470,18 @@ function useStockChart(instrumentId?: string) {
     }
     let cancelled = false;
     setLoading(true);
-    fetch(`/api/pulse-stock-chart?instrument_id=${encodeURIComponent(instrumentId)}`)
+    fetch(
+      `/api/pulse-stock-chart?instrument_id=${encodeURIComponent(instrumentId)}`,
+    )
       .then((res) => res.json())
       .then((body) => {
         if (cancelled) return;
         setData(Array.isArray(body?.data) ? body.data : []);
         setExtras({
-          week52High: typeof body?.week52High === "number" ? body.week52High : null,
-          week52Low: typeof body?.week52Low === "number" ? body.week52Low : null,
+          week52High:
+            typeof body?.week52High === "number" ? body.week52High : null,
+          week52Low:
+            typeof body?.week52Low === "number" ? body.week52Low : null,
           rsi14: typeof body?.rsi14 === "number" ? body.rsi14 : null,
           rsiState: typeof body?.rsiState === "string" ? body.rsiState : null,
         });
@@ -454,15 +531,35 @@ function MoverRow({
       }`}
       aria-current={active ? "true" : undefined}
     >
-      <StockLogo ticker={item.ticker} market="US" size={32} circle className="shrink-0 mt-0.5 sm:mt-0" />
+      <StockLogo
+        ticker={item.ticker}
+        market="US"
+        size={32}
+        circle
+        className="shrink-0 mt-0.5 sm:mt-0"
+      />
       <div className="min-w-0 flex-1">
-        <p className="text-base font-medium leading-5 text-oa-fg">{item.ticker}</p>
-        {item.company ? <p className="hidden text-[16px] leading-4 text-oa-muted-fg sm:block">{item.company}</p> : null}
-        {reason ? <p className="text-[15px] leading-5 text-oa-muted-fg break-words md:hidden">{reason}</p> : null}
+        <p className="text-base font-medium leading-5 text-oa-fg">
+          {item.ticker}
+        </p>
+        {item.company ? (
+          <p className="hidden text-[16px] leading-4 text-oa-muted-fg sm:block">
+            {item.company}
+          </p>
+        ) : null}
+        {reason ? (
+          <p className="text-[15px] leading-5 text-oa-muted-fg break-words md:hidden">
+            {reason}
+          </p>
+        ) : null}
       </div>
       <div className="shrink-0 flex flex-col items-end gap-0.5">
-        <span className="text-[15px] font-medium tabular-nums leading-5 text-oa-fg">${money(item.price)}</span>
-        <span className="text-[15px] font-medium leading-5">{pctLabel(item.changePct)}</span>
+        <span className="text-[15px] font-medium tabular-nums leading-5 text-oa-fg">
+          ${money(item.price)}
+        </span>
+        <span className="text-[15px] font-medium leading-5">
+          {pctLabel(item.changePct)}
+        </span>
       </div>
     </Link>
   );
@@ -506,7 +603,10 @@ function GateStrip({ hiddenCount }: { hiddenCount: number }) {
             Pro will unlock all the movers and their reasoning.
           </span>
         </p>
-        <ProCheckoutButton size="sm" className="h-10 w-full shrink-0 whitespace-nowrap px-5 text-[16px] sm:w-auto">
+        <ProCheckoutButton
+          size="sm"
+          className="h-10 w-full shrink-0 whitespace-nowrap px-5 text-[16px] sm:w-auto"
+        >
           Try Pro
         </ProCheckoutButton>
       </div>
@@ -514,35 +614,61 @@ function GateStrip({ hiddenCount }: { hiddenCount: number }) {
   );
 }
 
-function DetailStat({ label, children }: { label: string; children: React.ReactNode }) {
+function DetailStat({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="min-w-0">
       <p className="text-[16px] leading-4 text-oa-muted-fg">{label}</p>
-      <div className="mt-0.5 text-base font-medium tabular-nums text-oa-fg">{children}</div>
+      <div className="mt-0.5 text-base font-medium tabular-nums text-oa-fg">
+        {children}
+      </div>
     </div>
   );
 }
 
-function MoversBoard({ items, isSubscribed }: { items: ScannerItem[]; isSubscribed: boolean }) {
+function MoversBoard({
+  items,
+  isSubscribed,
+}: {
+  items: ScannerItem[];
+  isSubscribed: boolean;
+}) {
   const [tab, setTab] = useState<"gainers" | "losers">("gainers");
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
 
   const hasRealAnomaly = (i: ScannerItem) => {
     const headline = (i.headline || "").trim();
     const why = (i.whyItMatters || "").trim();
-    return (headline.length > 0 && headline !== "--") || (why.length > 0 && why !== "--");
+    return (
+      (headline.length > 0 && headline !== "--") ||
+      (why.length > 0 && why !== "--")
+    );
   };
   const withAnomaly = items.filter(hasRealAnomaly);
-  const winners = [...withAnomaly].filter((i) => i.changePct >= 0).sort((a, b) => b.changePct - a.changePct);
-  const losers = [...withAnomaly].filter((i) => i.changePct < 0).sort((a, b) => a.changePct - b.changePct);
+  const winners = [...withAnomaly]
+    .filter((i) => i.changePct >= 0)
+    .sort((a, b) => b.changePct - a.changePct);
+  const losers = [...withAnomaly]
+    .filter((i) => i.changePct < 0)
+    .sort((a, b) => a.changePct - b.changePct);
   const rows = tab === "gainers" ? winners : losers;
   const visibleRows = isSubscribed ? rows : rows.slice(0, FREE_ROWS);
   const hiddenCount = rows.length - visibleRows.length;
 
   const selectedIndex = rows.findIndex((r) => r.ticker === selectedTicker);
-  const selected = selectedIndex >= 0 ? rows[selectedIndex] : visibleRows[0] ?? null;
+  const selected =
+    selectedIndex >= 0 ? rows[selectedIndex] : (visibleRows[0] ?? null);
   const selectedReason = selected ? moverReason(selected) : "";
-  const { data: chartData, extras: chartExtras, loading: chartLoading } = useStockChart(selected?.instrument_id);
+  const {
+    data: chartData,
+    extras: chartExtras,
+    loading: chartLoading,
+  } = useStockChart(selected?.instrument_id);
 
   function selectTab(key: "gainers" | "losers") {
     setTab(key);
@@ -556,7 +682,9 @@ function MoversBoard({ items, isSubscribed }: { items: ScannerItem[]; isSubscrib
     <section aria-label="Today's movers">
       <div className="mb-4 max-w-2xl">
         <h2 className={H2}>Why these stocks are moving</h2>
-        <p className={SUB}>Every big move with the reason behind it. Rescanned through the day.</p>
+        <p className={SUB}>
+          Every big move with the reason behind it. Rescanned through the day.
+        </p>
       </div>
 
       {hasMovers ? (
@@ -565,10 +693,22 @@ function MoversBoard({ items, isSubscribed }: { items: ScannerItem[]; isSubscrib
             <div className="md:grid md:grid-cols-[22rem_1fr] lg:grid-cols-[26rem_1fr]">
               <div className="min-w-0 md:border-r md:border-oa-border">
                 <div className="flex gap-2 px-3 pb-3 pt-4 sm:px-5">
-                  {([
-                    ["gainers", "Gainers", "trending-up", "var(--signal-bullish)"],
-                    ["losers", "Losers", "trending-down", "var(--signal-bearish)"],
-                  ] as const).map(([key, tabLabel, iconName, iconColor]) => {
+                  {(
+                    [
+                      [
+                        "gainers",
+                        "Gainers",
+                        "trending-up",
+                        "var(--signal-bullish)",
+                      ],
+                      [
+                        "losers",
+                        "Losers",
+                        "trending-down",
+                        "var(--signal-bearish)",
+                      ],
+                    ] as const
+                  ).map(([key, tabLabel, iconName, iconColor]) => {
                     const active = tab === key;
                     return (
                       <button
@@ -592,7 +732,12 @@ function MoversBoard({ items, isSubscribed }: { items: ScannerItem[]; isSubscrib
                             : undefined
                         }
                       >
-                        <AnimatedIcon name={iconName} size={15} style={{ color: iconColor }} aria-hidden />
+                        <AnimatedIcon
+                          name={iconName}
+                          size={15}
+                          style={{ color: iconColor }}
+                          aria-hidden
+                        />
                         {tabLabel}
                       </button>
                     );
@@ -601,7 +746,8 @@ function MoversBoard({ items, isSubscribed }: { items: ScannerItem[]; isSubscrib
 
                 {rows.length === 0 ? (
                   <p className="px-3 pb-6 text-base text-oa-muted-fg sm:px-5">
-                    No {tab === "gainers" ? "gainers" : "losers"} with a source-backed reason right now.
+                    No {tab === "gainers" ? "gainers" : "losers"} with a
+                    source-backed reason right now.
                   </p>
                 ) : (
                   <>
@@ -639,19 +785,30 @@ function MoversBoard({ items, isSubscribed }: { items: ScannerItem[]; isSubscrib
                 {selected ? (
                   <>
                     <div className="flex flex-wrap items-center gap-3">
-                      <StockLogo ticker={selected.ticker} market="US" size={40} circle />
+                      <StockLogo
+                        ticker={selected.ticker}
+                        market="US"
+                        size={40}
+                        circle
+                      />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-[16px] font-medium tracking-tight text-oa-fg">
                           {selected.ticker}
                           {selected.company ? ` · ${selected.company}` : ""}
                         </p>
                         <p className="text-[15px] font-medium">
-                          ${money(selected.price)} · {pctLabel(selected.changePct)}
+                          ${money(selected.price)} ·{" "}
+                          {pctLabel(selected.changePct)}
                         </p>
                       </div>
                       <Link
                         href={`/stock/${selected.ticker}`}
-                        onClick={() => captureEvent("pulse_mover_open_stock_page", { ticker: selected.ticker, tab })}
+                        onClick={() =>
+                          captureEvent("pulse_mover_open_stock_page", {
+                            ticker: selected.ticker,
+                            tab,
+                          })
+                        }
                         className="shrink-0 rounded-full border border-oa-border px-3.5 py-1.5 text-[16px] font-medium text-oa-fg transition-colors hover:bg-oa-accent"
                       >
                         Open stock page ›
@@ -669,10 +826,12 @@ function MoversBoard({ items, isSubscribed }: { items: ScannerItem[]; isSubscrib
                                 : selected.overallLabel === "bearish"
                                   ? "var(--signal-bearish)"
                                   : "var(--oa-muted-fg)",
-                            background: "color-mix(in srgb, currentColor 10%, transparent)",
+                            background:
+                              "color-mix(in srgb, currentColor 10%, transparent)",
                           }}
                         >
-                          {selected.overallLabel} · {Math.round(selected.overallScore)}/100
+                          {selected.overallLabel} ·{" "}
+                          {Math.round(selected.overallScore)}/100
                         </span>
                         {selected.tag && selected.tag !== "--" ? (
                           <span className="rounded-full bg-oa-secondary px-2.5 py-1 text-base font-medium text-oa-muted-fg">
@@ -696,7 +855,13 @@ function MoversBoard({ items, isSubscribed }: { items: ScannerItem[]; isSubscrib
                       {chartLoading ? (
                         <div className="h-[180px] animate-pulse bg-oa-secondary" />
                       ) : chartData.length > 1 ? (
-                        <PriceChart data={chartData} currency="$" embedded currentPrice={selected.price} height={180} />
+                        <PriceChart
+                          data={chartData}
+                          currency="$"
+                          embedded
+                          currentPrice={selected.price}
+                          height={180}
+                        />
                       ) : (
                         <div className="flex h-[100px] items-center justify-center text-[16px] text-oa-muted-fg">
                           No chart data available
@@ -704,12 +869,17 @@ function MoversBoard({ items, isSubscribed }: { items: ScannerItem[]; isSubscrib
                       )}
                     </div>
 
-                    {selectedReason && selectedReason !== selected.whyItMatters?.trim() ? (
-                      <p className="mt-4 text-[16px] font-medium leading-7 text-oa-muted-fg">{selectedReason}</p>
+                    {selectedReason &&
+                    selectedReason !== selected.whyItMatters?.trim() ? (
+                      <p className="mt-4 text-[16px] font-medium leading-7 text-oa-muted-fg">
+                        {selectedReason}
+                      </p>
                     ) : null}
 
                     {selected.whyItMatters ? (
-                      <p className="mt-3 text-[16px] leading-7 text-oa-muted-fg">{selected.whyItMatters}</p>
+                      <p className="mt-3 text-[16px] leading-7 text-oa-muted-fg">
+                        {selected.whyItMatters}
+                      </p>
                     ) : null}
 
                     {chartLoading ? (
@@ -721,9 +891,12 @@ function MoversBoard({ items, isSubscribed }: { items: ScannerItem[]; isSubscrib
                           </div>
                         ))}
                       </div>
-                    ) : chartExtras && (Number.isFinite(chartExtras.week52High) || Number.isFinite(chartExtras.rsi14)) ? (
+                    ) : chartExtras &&
+                      (Number.isFinite(chartExtras.week52High) ||
+                        Number.isFinite(chartExtras.rsi14)) ? (
                       <div className="mt-5 grid grid-cols-1 gap-6 border-t border-oa-border pt-4 sm:grid-cols-2">
-                        {Number.isFinite(chartExtras.week52High) && Number.isFinite(chartExtras.week52Low) ? (
+                        {Number.isFinite(chartExtras.week52High) &&
+                        Number.isFinite(chartExtras.week52Low) ? (
                           <RangeBar
                             label="52-week range"
                             low={chartExtras.week52Low!}
@@ -733,13 +906,18 @@ function MoversBoard({ items, isSubscribed }: { items: ScannerItem[]; isSubscrib
                           />
                         ) : null}
                         {Number.isFinite(chartExtras.rsi14) ? (
-                          <RsiStrength value={chartExtras.rsi14!} state={chartExtras.rsiState ?? undefined} />
+                          <RsiStrength
+                            value={chartExtras.rsi14!}
+                            state={chartExtras.rsiState ?? undefined}
+                          />
                         ) : null}
                       </div>
                     ) : null}
                   </>
                 ) : (
-                  <p className="text-[16px] text-oa-muted-fg">Select a stock to see why it moved.</p>
+                  <p className="text-[16px] text-oa-muted-fg">
+                    Select a stock to see why it moved.
+                  </p>
                 )}
               </div>
             </div>
@@ -749,7 +927,8 @@ function MoversBoard({ items, isSubscribed }: { items: ScannerItem[]; isSubscrib
         <SquircleSurface className="border border-oa-border p-1 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
           <div className="rounded-[22px] border border-oa-border bg-oa-bg px-5 py-10 text-center sm:rounded-[44px]">
             <p className="text-[17px] text-oa-muted-fg">
-              <span className="font-medium text-oa-fg">Warming up.</span> Movers land here as the market opens.
+              <span className="font-medium text-oa-fg">Warming up.</span> Movers
+              land here as the market opens.
             </p>
           </div>
         </SquircleSurface>
@@ -772,9 +951,14 @@ function RedditBuzzPlate({
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div className="max-w-2xl">
           <h2 className={H2}>Reddit buzz</h2>
-          <p className={SUB}>The names getting attention right now, with the context behind the chatter.</p>
+          <p className={SUB}>
+            The names getting attention right now, with the context behind the
+            chatter.
+          </p>
           {typeof postCount === "number" && postCount > 0 ? (
-            <p className="mt-2 text-[13px] text-oa-muted-fg">{postCount} posts scanned</p>
+            <p className="mt-2 text-[13px] text-oa-muted-fg">
+              {postCount} posts scanned
+            </p>
           ) : null}
         </div>
         <Link
@@ -782,12 +966,23 @@ function RedditBuzzPlate({
           className="group flex items-center gap-1 rounded-full px-2 py-1 text-base font-medium text-oa-muted-fg outline-none transition-colors hover:bg-oa-accent hover:text-oa-fg focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
         >
           See all
-          <span aria-hidden="true" className="transition-transform duration-200 group-hover:translate-x-0.5">›</span>
+          <span
+            aria-hidden="true"
+            className="transition-transform duration-200 group-hover:translate-x-0.5"
+          >
+            ›
+          </span>
         </Link>
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {tickers.map((item) => (
-          <RedditBuzzCard key={item.ticker} item={item} variant="pulse" />
+          <RedditBuzzCard
+            key={item.ticker}
+            item={item}
+            variant="pulse"
+            showStockLink={false}
+            showTalkingPoints={false}
+          />
         ))}
       </div>
     </section>
@@ -804,7 +999,11 @@ export type RecentEarningsCard = {
   leadPct: number | null;
 };
 
-const EPS_TAG_LABEL: Record<string, string> = { beat: "Beat", miss: "Miss", inline: "In line" };
+const EPS_TAG_LABEL: Record<string, string> = {
+  beat: "Beat",
+  miss: "Miss",
+  inline: "In line",
+};
 const EPS_TAG_COLOR: Record<string, string> = {
   beat: "var(--signal-bullish)",
   miss: "var(--signal-bearish)",
@@ -817,13 +1016,19 @@ const SCENARIO_COLOR: Record<string, string> = {
 };
 
 function EarningsCard({ item }: { item: RecentEarningsCard }) {
-  const epsColor = item.epsTag ? EPS_TAG_COLOR[item.epsTag] ?? "var(--oa-muted-fg)" : undefined;
-  const scenarioColor = item.leadCase ? SCENARIO_COLOR[item.leadCase] : "var(--oa-muted-fg)";
+  const epsColor = item.epsTag
+    ? (EPS_TAG_COLOR[item.epsTag] ?? "var(--oa-muted-fg)")
+    : undefined;
+  const scenarioColor = item.leadCase
+    ? SCENARIO_COLOR[item.leadCase]
+    : "var(--oa-muted-fg)";
 
   return (
     <Link
       href={`/earnings-intel/${encodeURIComponent(item.ticker)}`}
-      onClick={() => captureEvent("pulse_earnings_card_clicked", { ticker: item.ticker })}
+      onClick={() =>
+        captureEvent("pulse_earnings_card_clicked", { ticker: item.ticker })
+      }
       className="group outline-none"
     >
       <SquircleSurface className="h-full border border-oa-border p-4 shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition-colors group-hover:bg-oa-accent/60 group-focus-visible:bg-oa-accent/60">
@@ -831,20 +1036,30 @@ function EarningsCard({ item }: { item: RecentEarningsCard }) {
           <StockLogo ticker={item.ticker} market="US" size={32} circle />
           <div className="min-w-0 flex-1">
             <p className="text-[16px] font-medium text-oa-fg">{item.ticker}</p>
-            <p className="text-base text-oa-muted-fg">{dateLabel(item.eventDate)}</p>
+            <p className="text-base text-oa-muted-fg">
+              {dateLabel(item.eventDate)}
+            </p>
           </div>
           {item.epsTag ? (
             <span
               className="shrink-0 rounded-full px-2.5 py-1 text-base font-medium"
-              style={{ color: epsColor, background: `color-mix(in srgb, ${epsColor} 10%, transparent)` }}
+              style={{
+                color: epsColor,
+                background: `color-mix(in srgb, ${epsColor} 10%, transparent)`,
+              }}
             >
               {EPS_TAG_LABEL[item.epsTag] ?? item.epsTag}
             </span>
           ) : null}
         </div>
-        <p className="mt-3 text-[16px] leading-6 text-oa-fg/80">{item.headline}</p>
+        <p className="mt-3 text-[16px] leading-6 text-oa-fg/80">
+          {item.headline}
+        </p>
         {item.leadCase && item.leadPct != null ? (
-          <p className="mt-3 text-[16px] font-medium capitalize" style={{ color: scenarioColor }}>
+          <p
+            className="mt-3 text-[16px] font-medium capitalize"
+            style={{ color: scenarioColor }}
+          >
             {item.leadCase} case leads · {Math.round(item.leadPct)}%
           </p>
         ) : null}
@@ -861,14 +1076,19 @@ function EarningsPlate({ items }: { items: RecentEarningsCard[] }) {
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div className="max-w-2xl">
           <h2 className={H2}>What earnings just changed</h2>
-          <p className={SUB}>The latest reports and the market&rsquo;s read on each.</p>
+          <p className={SUB}>
+            The latest reports and the market&rsquo;s read on each.
+          </p>
         </div>
         <Link
           href="/earnings-intel"
           className="group flex items-center gap-1 rounded-full px-2 py-1 text-base font-medium text-oa-muted-fg outline-none transition-colors hover:bg-oa-accent hover:text-oa-fg focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
         >
           All earnings
-          <span aria-hidden="true" className="transition-transform duration-200 group-hover:translate-x-0.5">
+          <span
+            aria-hidden="true"
+            className="transition-transform duration-200 group-hover:translate-x-0.5"
+          >
             ›
           </span>
         </Link>
@@ -902,17 +1122,25 @@ function ProPlate() {
                 <AnimatedIcon name={point.icon} size={18} />
               </span>
               <span className="min-w-0">
-                <span className="block text-[17px] font-medium leading-6 text-oa-fg">{point.title}</span>
-                <span className="mt-0.5 block text-[16px] leading-6 text-oa-muted-fg">{point.body}</span>
+                <span className="block text-[17px] font-medium leading-6 text-oa-fg">
+                  {point.title}
+                </span>
+                <span className="mt-0.5 block text-[16px] leading-6 text-oa-muted-fg">
+                  {point.body}
+                </span>
               </span>
             </li>
           ))}
         </ul>
         <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-          <ProCheckoutButton className="h-11 w-full px-6 text-base sm:w-auto">Try Pro</ProCheckoutButton>
+          <ProCheckoutButton className="h-11 w-full px-6 text-base sm:w-auto">
+            Try Pro
+          </ProCheckoutButton>
           <p className="text-center text-[17px] leading-6 text-oa-muted-fg sm:text-left">
-            <span className="font-medium tabular-nums text-oa-fg">${US_PRO_MONTHLY}/mo</span> · 3-day full trial · cancel
-            anytime
+            <span className="font-medium tabular-nums text-oa-fg">
+              ${US_PRO_MONTHLY}/mo
+            </span>{" "}
+            · 3-day full trial · cancel anytime
           </p>
         </div>
       </div>
@@ -949,8 +1177,13 @@ export function PulseHub({
   }, []);
 
   return (
-    <div className={`mx-auto w-full max-w-[76rem] flex flex-col gap-12 px-0 py-8 sm:gap-16 sm:px-6 sm:py-12`}>
-      <OpensPlate movers={premarketMovers ?? null} report={premarketReport ?? null} />
+    <div
+      className={`mx-auto w-full max-w-[76rem] flex flex-col gap-12 px-0 py-8 sm:gap-16 sm:px-6 sm:py-12`}
+    >
+      <OpensPlate
+        movers={premarketMovers ?? null}
+        report={premarketReport ?? null}
+      />
       <LeaningPlate movers={premarketMovers ?? null} />
       <MoversBoard items={items} isSubscribed={isSubscribed} />
       <RedditBuzzPlate tickers={redditTickers} postCount={redditPostCount} />
