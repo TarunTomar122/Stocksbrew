@@ -112,7 +112,8 @@ def build_theme_watch_data(
         facts_doc = facts.get(instrument_id) or {}
         analyst = facts_doc.get("analyst") if isinstance(facts_doc.get("analyst"), dict) else {}
         analyst_target = _number(analyst.get("target_price"))
-        stocksbrew_target = stocksbrew_targets.get(instrument_id)
+        # Match the stock page: use the directive target first, then analyst consensus.
+        stocksbrew_target = stocksbrew_targets.get(instrument_id) or analyst_target
         if current_price is None or analyst_target is None or stocksbrew_target is None:
             raise RuntimeError(f"Incomplete market data for {ticker}")
 
