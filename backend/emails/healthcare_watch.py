@@ -5,7 +5,7 @@ from typing import Any
 
 from backend.email import APP_URL, first_name_from_profile
 from backend.emails._shell import email_shell
-from backend.emails._theme import BODY, DIVIDER, INK, INSET, MUTED, PRIMARY, RADIUS_INNER
+from backend.emails._theme import BODY, DIVIDER, INK, INSET, PRIMARY, RADIUS_INNER
 from backend.emails.ai_capex_watch import _name_card
 
 
@@ -41,7 +41,6 @@ def build_healthcare_watch_email(
       {cards}
       <tr><td style='padding:22px 24px 26px;border-top:1px solid {DIVIDER}'>
         <a href='{html.escape(explore_url)}' style='display:inline-block;padding:12px 20px;background:{PRIMARY};color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;border-radius:10px'>Explore these names in stocksbrew</a>
-        <p style='margin:16px 0 0;font-size:12px;line-height:1.6;color:{MUTED}'>Analyst target is the current consensus mean in Stocksbrew’s market data. Stocksbrew target is the current model level. Both can change as prices, evidence, and expectations change.</p>
       </td></tr>"""
 
     footer = (

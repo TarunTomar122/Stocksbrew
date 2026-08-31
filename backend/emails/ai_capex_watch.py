@@ -45,9 +45,9 @@ def _pct_color(value: Any) -> str:
     return BULLISH if parsed is not None and parsed >= 0 else BEARISH
 
 
-def _target_cell(label: str, value: Any, *, accent: str = INK) -> str:
+def _target_cell(label: str, value: Any, *, accent: str = INK, width: str = "50%") -> str:
     return (
-        f"<td style='width:33.33%;padding:0 8px 0 0;vertical-align:top'>"
+        f"<td style='width:{width};padding:0 8px 0 0;vertical-align:top'>"
         f"<div style='font-size:10px;font-weight:700;letter-spacing:0.08em;"
         f"text-transform:uppercase;color:{MUTED}'>{html.escape(label)}</div>"
         f"<div style='margin-top:5px;font-size:18px;font-weight:800;letter-spacing:-0.02em;"
@@ -60,25 +60,16 @@ def _name_card(item: dict[str, Any]) -> str:
     company = str(item.get("company") or ticker).strip()
     role = str(item.get("role") or "AI-capex exposure").strip()
     why = str(item.get("why_benefits") or "").strip()
-    risk = str(item.get("risk") or "").strip()
     current = _number(item.get("current_price"))
-    analyst_target = _number(item.get("analyst_target"))
     stocksbrew_target = _number(item.get("stocksbrew_target"))
-    analyst_upside = (
-        ((analyst_target - current) / current) * 100
-        if analyst_target is not None and current is not None and current > 0
-        else None
-    )
     day_change = item.get("day_change_pct")
-    analyst_count = item.get("analyst_count")
     score = _number(item.get("stocksbrew_score"))
     score_block = (
-        f"<span style='margin-left:10px;color:{PRIMARY};font-weight:700'>"
-        f"Stocksbrew {html.escape(f'{score:.1f}')}</span>"
+        f"<div style='margin-top:11px;font-size:13px;color:{MUTED}'>"
+        f"<strong style='color:{PRIMARY}'>Stocksbrew score: {html.escape(f'{score:.1f}')}</strong></div>"
         if score is not None
         else ""
     )
-    count_block = f" · {int(analyst_count)} analysts" if _number(analyst_count) is not None else ""
     stock_url = f"{APP_URL}/stock/{html.escape(ticker)}"
 
     return f"""
@@ -102,19 +93,14 @@ def _name_card(item: dict[str, Any]) -> str:
 
         <p style='margin:18px 0 0;font-size:15px;line-height:1.58;color:{BODY}'>
           <strong style='color:{INK}'>Why it benefits:</strong> {html.escape(why)}</p>
-        <p style='margin:10px 0 0;font-size:14px;line-height:1.55;color:{BODY}'>
-          <strong style='color:{INK}'>What breaks it:</strong> {html.escape(risk)}</p>
 
         <table width='100%' cellpadding='0' cellspacing='0' style='margin-top:18px;background:{INSET};border-radius:{RADIUS_INNER}px'>
           <tr><td style='padding:14px 16px'>
             <table width='100%' cellpadding='0' cellspacing='0'><tr>
               {_target_cell('Now', current)}
-              {_target_cell('Analyst target', analyst_target, accent=BULLISH if (analyst_upside or 0) >= 0 else BEARISH)}
               {_target_cell('Stocksbrew target', stocksbrew_target, accent=PRIMARY)}
             </tr></table>
-            <div style='margin-top:11px;font-size:13px;color:{MUTED}'>
-              Analyst runway: <strong style='color:{_pct_color(analyst_upside)}'>{html.escape(_signed_pct(analyst_upside))}</strong>{html.escape(count_block)}{score_block}
-            </div>
+            {score_block}
           </td></tr>
         </table>
         <div style='margin-top:14px'>
@@ -152,7 +138,6 @@ def build_ai_capex_watch_email(
       {cards}
       <tr><td style='padding:22px 24px 26px;border-top:1px solid {DIVIDER}'>
         <a href='{html.escape(explore_url)}' style='display:inline-block;padding:12px 20px;background:{PRIMARY};color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;border-radius:10px'>Explore these names in stocksbrew</a>
-        <p style='margin:16px 0 0;font-size:12px;line-height:1.6;color:{MUTED}'>Analyst target is the current consensus mean in Stocksbrew’s market data. Stocksbrew target is the current model level. Both can change as prices, evidence, and expectations change.</p>
       </td></tr>"""
 
     footer = (

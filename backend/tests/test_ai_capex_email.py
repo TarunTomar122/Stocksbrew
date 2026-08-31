@@ -31,8 +31,12 @@ class AiCapexEmailTests(unittest.TestCase):
 
         self.assertEqual(subject, "5 less-obvious AI-capex names to watch")
         self.assertIn("LRCX", body)
-        self.assertIn("Analyst target", body)
         self.assertIn("Stocksbrew target", body)
+        self.assertIn("Stocksbrew score", body)
+        self.assertNotIn("Analyst target", body)
+        self.assertNotIn("What breaks it", body)
+        self.assertNotIn("Analyst runway", body)
+        self.assertNotIn("Both can change as prices", body)
         self.assertIn("Explore these names in stocksbrew", body)
         self.assertIn("https://www.stocksbrew.online/explore", body)
         self.assertIn("Manage email preferences", body)

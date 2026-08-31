@@ -31,8 +31,12 @@ class HealthcareEmailTests(unittest.TestCase):
         self.assertEqual(subject, "5 healthcare names worth a closer look")
         self.assertIn("LLY", body)
         self.assertIn("GLP-1 medicines", body)
-        self.assertIn("Analyst target", body)
         self.assertIn("Stocksbrew target", body)
+        self.assertIn("Stocksbrew score", body)
+        self.assertNotIn("Analyst target", body)
+        self.assertNotIn("What breaks it", body)
+        self.assertNotIn("Analyst runway", body)
+        self.assertNotIn("Both can change as prices", body)
         self.assertIn("https://www.stocksbrew.online/explore", body)
         self.assertIn("Manage email preferences", body)
 
