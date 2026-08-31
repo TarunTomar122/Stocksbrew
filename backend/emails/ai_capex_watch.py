@@ -45,13 +45,27 @@ def _pct_color(value: Any) -> str:
     return BULLISH if parsed is not None and parsed >= 0 else BEARISH
 
 
-def _target_cell(label: str, value: Any, *, accent: str = INK, width: str = "50%") -> str:
+def _target_cell(
+    label: str,
+    value: Any,
+    *,
+    accent: str = INK,
+    width: str = "50%",
+    detail: str = "",
+    detail_color: str = INK,
+) -> str:
+    detail_html = (
+        f"<span style='margin-left:6px;font-size:13px;font-weight:700;color:{detail_color}'>"
+        f"{html.escape(detail)}</span>"
+        if detail
+        else ""
+    )
     return (
         f"<td style='width:{width};padding:0 8px 0 0;vertical-align:top'>"
         f"<div style='font-size:10px;font-weight:700;letter-spacing:0.08em;"
         f"text-transform:uppercase;color:{MUTED}'>{html.escape(label)}</div>"
         f"<div style='margin-top:5px;font-size:18px;font-weight:800;letter-spacing:-0.02em;"
-        f"color:{accent}'>{html.escape(_money(value))}</div></td>"
+        f"color:{accent}'>{html.escape(_money(value))}{detail_html}</div></td>"
     )
 
 
@@ -62,11 +76,16 @@ def _name_card(item: dict[str, Any]) -> str:
     why = str(item.get("why_benefits") or "").strip()
     current = _number(item.get("current_price"))
     stocksbrew_target = _number(item.get("stocksbrew_target"))
+    stocksbrew_upside = (
+        ((stocksbrew_target - current) / current) * 100
+        if stocksbrew_target is not None and current is not None and current > 0
+        else None
+    )
     day_change = item.get("day_change_pct")
     score = _number(item.get("stocksbrew_score"))
     score_block = (
         f"<div style='margin-top:11px;font-size:13px;color:{MUTED}'>"
-        f"<strong style='color:{PRIMARY}'>Stocksbrew score: {html.escape(f'{score:.1f}')}</strong></div>"
+        f"<strong style='color:{INK}'>Stocksbrew score: {html.escape(f'{score:.1f}')}</strong></div>"
         if score is not None
         else ""
     )
@@ -98,7 +117,7 @@ def _name_card(item: dict[str, Any]) -> str:
           <tr><td style='padding:14px 16px'>
             <table width='100%' cellpadding='0' cellspacing='0'><tr>
               {_target_cell('Now', current)}
-              {_target_cell('Stocksbrew target', stocksbrew_target, accent=PRIMARY)}
+              {_target_cell('Stocksbrew target', stocksbrew_target, accent=PRIMARY, detail=_signed_pct(stocksbrew_upside), detail_color=_pct_color(stocksbrew_upside))}
             </tr></table>
             {score_block}
           </td></tr>
