@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Sequence
 
 from backend.email import send_email
 from backend.email_runtime import load_recent_send_index, log_email_send
@@ -88,8 +88,11 @@ def _directive_targets(
     return targets
 
 
-def build_ai_capex_watch_data(store: TraceMoneyStore) -> tuple[list[dict[str, Any]], str]:
-    tickers = [selection["ticker"] for selection in SELECTIONS]
+def build_theme_watch_data(
+    store: TraceMoneyStore,
+    selections: Sequence[dict[str, str]],
+) -> tuple[list[dict[str, Any]], str]:
+    tickers = [selection["ticker"] for selection in selections]
     instrument_ids = [f"US_{ticker}" for ticker in tickers]
     instruments = {row.get("instrument_id"): row for row in store.list_instruments("US", instrument_ids)}
     prices = store.get_latest_prices(instrument_ids)
@@ -99,7 +102,7 @@ def build_ai_capex_watch_data(store: TraceMoneyStore) -> tuple[list[dict[str, An
 
     names: list[dict[str, Any]] = []
     dates: list[str] = []
-    for selection in SELECTIONS:
+    for selection in selections:
         ticker = selection["ticker"]
         instrument_id = f"US_{ticker}"
         instrument = instruments.get(instrument_id) or {}
@@ -111,7 +114,7 @@ def build_ai_capex_watch_data(store: TraceMoneyStore) -> tuple[list[dict[str, An
         analyst_target = _number(analyst.get("target_price"))
         stocksbrew_target = stocksbrew_targets.get(instrument_id)
         if current_price is None or analyst_target is None or stocksbrew_target is None:
-            raise RuntimeError(f"Incomplete AI-capex market data for {ticker}")
+            raise RuntimeError(f"Incomplete market data for {ticker}")
 
         captured_at = str(price_doc.get("captured_at") or price_doc.get("updated_at") or "").strip()
         if captured_at:
@@ -131,6 +134,10 @@ def build_ai_capex_watch_data(store: TraceMoneyStore) -> tuple[list[dict[str, An
 
     as_of = max(dates) if dates else datetime.now(timezone.utc).date().isoformat()
     return names, as_of
+
+
+def build_ai_capex_watch_data(store: TraceMoneyStore) -> tuple[list[dict[str, Any]], str]:
+    return build_theme_watch_data(store, SELECTIONS)
 
 
 def send_ai_capex_preview(
