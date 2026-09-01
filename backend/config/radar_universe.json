@@ -6,10 +6,10 @@
     "defense": ["RTX", "NOC", "CACI", "GD", "KTOS", "LMT", "AVAV", "PLTR", "HII", "BWXT"],
     "financials": ["ICE", "V", "MA", "GS", "JPM", "CME", "BX", "BLK", "COF", "BRK.B"],
     "cybersecurity": ["PANW", "CRWD", "FTNT", "ZS", "OKTA", "NET", "GEN", "S", "RBRK", "QLYS"],
-    "robotics-automation": ["TER", "ROK", "ABB", "CGNX", "SYM", "ISRG", "HON", "EMR", "ZBRA", "DE"],
+    "robotics-automation": ["TER", "ROK", "PATH", "CGNX", "SYM", "ISRG", "HON", "EMR", "ZBRA", "DE"],
     "water-infrastructure": ["XYL", "ECL", "PNR", "WTS", "AWK", "AOS", "MWA", "BMI", "TTEK", "WMS"],
     "critical-materials": ["FCX", "SCCO", "MP", "ALB", "LAC", "CCJ", "UEC", "CENX", "TECK", "SQM"],
-    "space-infrastructure": ["RKLB", "IRDM", "ASTS", "PL", "RDW", "LUNR", "BKSY", "VSAT", "SATS", "LHX"]
+    "space-infrastructure": ["RKLB", "IRDM", "ASTS", "PL", "RDW", "LUNR", "BKSY", "VSAT", "SPIR", "LHX"]
   },
   "US_scores": {
     "NVDA": 86.5,

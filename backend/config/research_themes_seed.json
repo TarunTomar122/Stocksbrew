@@ -803,11 +803,11 @@
         "stocksbrewLabel": "Not covered"
       },
       {
-        "company": "ABB",
-        "ticker": "ABB",
-        "role": "Industrial robotics",
-        "benefitMechanism": "Robots, motion systems, and electrification equipment automate factories and logistics.",
-        "failureCase": "China and global industrial demand weaken or pricing normalizes.",
+        "company": "UiPath",
+        "ticker": "PATH",
+        "role": "Software automation",
+        "benefitMechanism": "Robotic-process automation software turns repetitive business workflows into programmable systems.",
+        "failureCase": "AI-native tools displace legacy automation or enterprise expansion slows.",
         "stocksbrewLabel": "Not covered"
       },
       {
@@ -1163,11 +1163,11 @@
         "stocksbrewLabel": "Not covered"
       },
       {
-        "company": "EchoStar",
-        "ticker": "SATS",
-        "role": "Spectrum and satellites",
-        "benefitMechanism": "Satellite assets and spectrum create optionality across connectivity and direct-to-device services.",
-        "failureCase": "Heavy investment, leverage, or regulatory outcomes impair value.",
+        "company": "Spire Global",
+        "ticker": "SPIR",
+        "role": "Space data",
+        "benefitMechanism": "A satellite constellation supplies weather, maritime, aviation, and tracking data through recurring services.",
+        "failureCase": "Constellation costs rise faster than data-subscription growth.",
         "stocksbrewLabel": "Not covered"
       },
       {

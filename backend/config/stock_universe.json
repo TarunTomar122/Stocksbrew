@@ -57,7 +57,7 @@
       {"ticker": "QLYS", "display_name": "Qualys", "aliases": ["Qualys", "Qualys, Inc."], "sector_tags": ["cybersecurity", "technology"]},
       {"ticker": "TER", "display_name": "Teradyne", "aliases": ["Teradyne", "Teradyne, Inc."], "sector_tags": ["robotics-automation", "industrials"]},
       {"ticker": "ROK", "display_name": "Rockwell Automation", "aliases": ["Rockwell Automation", "Rockwell Automation, Inc."], "sector_tags": ["robotics-automation", "industrials"]},
-      {"ticker": "ABB", "display_name": "ABB", "aliases": ["ABB"], "sector_tags": ["robotics-automation", "industrials"]},
+      {"ticker": "PATH", "display_name": "UiPath", "aliases": ["UiPath", "UiPath Inc."], "sector_tags": ["robotics-automation", "technology"]},
       {"ticker": "CGNX", "display_name": "Cognex", "aliases": ["Cognex"], "sector_tags": ["robotics-automation", "industrials"]},
       {"ticker": "SYM", "display_name": "Symbotic", "aliases": ["Symbotic", "Symbotic Inc."], "sector_tags": ["robotics-automation", "industrials"]},
       {"ticker": "ISRG", "display_name": "Intuitive Surgical", "aliases": ["Intuitive Surgical", "Intuitive Surgical Inc."], "sector_tags": ["robotics-automation", "industrials"]},
@@ -92,7 +92,7 @@
       {"ticker": "LUNR", "display_name": "Intuitive Machines", "aliases": ["Intuitive Machines", "Intuitive Machines, Inc."], "sector_tags": ["space-infrastructure", "industrials"]},
       {"ticker": "BKSY", "display_name": "BlackSky Technology", "aliases": ["BlackSky Technology", "BlackSky Technology Inc."], "sector_tags": ["space-infrastructure", "industrials"]},
       {"ticker": "VSAT", "display_name": "Viasat", "aliases": ["Viasat", "Viasat, Inc."], "sector_tags": ["space-infrastructure", "industrials"]},
-      {"ticker": "SATS", "display_name": "EchoStar", "aliases": ["EchoStar"], "sector_tags": ["space-infrastructure", "industrials"]},
+      {"ticker": "SPIR", "display_name": "Spire Global", "aliases": ["Spire Global", "Spire Global, Inc."], "sector_tags": ["space-infrastructure", "industrials"]},
       {"ticker": "LHX", "display_name": "L3Harris Technologies", "aliases": ["L3Harris Technologies", "L3Harris Technologies, Inc."], "sector_tags": ["space-infrastructure", "industrials"]},
       {"ticker": "ABBV", "display_name": "AbbVie", "aliases": ["AbbVie", "AbbVie Inc."], "sector_tags": ["healthcare"]},
       {"ticker": "VST", "display_name": "Vistra", "aliases": ["Vistra", "Vistra Corp."], "sector_tags": ["energy", "ai-infrastructure"]}

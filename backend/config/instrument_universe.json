@@ -480,7 +480,7 @@
           "US_DTE",
           "US_DD",
           "US_EBAY",
-          "US_SATS",
+          "US_SPIR",
           "US_ECL",
           "US_EIX",
           "US_EW",
@@ -753,7 +753,7 @@
           "US_BKSY",
           "US_VSAT",
           "US_LHX",
-          "US_ABB",
+          "US_PATH",
           "US_VST"
         ],
         "us_macro_cues": [
@@ -8795,25 +8795,24 @@
           "updated_at": "2026-05-03T12:00:00Z"
         },
         {
-          "instrument_id": "US_SATS",
+          "instrument_id": "US_SPIR",
           "market": "US",
-          "ticker": "SATS",
-          "name": "EchoStar",
-          "exchange": "NASDAQ",
+          "ticker": "SPIR",
+          "name": "Spire Global, Inc.",
+          "exchange": "NYSE",
           "country": "US",
           "currency": "USD",
-          "sector": "Communication Services",
-          "industry": "Wireless Telecommunication Services",
-          "description": "EchoStar — US core universe (S&P 500 sourced).",
+          "sector": "Industrials",
+          "industry": "Specialty Business Services",
+          "description": "Spire Global, Inc. tracked for research-theme coverage.",
           "logo_url": "",
-          "index_memberships": [
-            "S&P 500"
-          ],
+          "index_memberships": [],
           "peer_ids": [],
           "aliases": [
-            "SATS"
+            "SPIR",
+            "Spire Global, Inc."
           ],
-          "support_tier": "core",
+          "support_tier": "catalog",
           "universes": [
             "us_core_155"
           ],
@@ -16094,7 +16093,7 @@
           "peer_ids": [
             "US_IRDM",
             "US_VSAT",
-            "US_SATS"
+            "US_SPIR"
           ],
           "aliases": [
             "ASTS",
@@ -16238,7 +16237,7 @@
           "index_memberships": [],
           "peer_ids": [
             "US_IRDM",
-            "US_SATS",
+            "US_SPIR",
             "US_ASTS"
           ],
           "aliases": [
@@ -16312,26 +16311,26 @@
           "updated_at": "2026-09-01T00:00:00Z"
         },
         {
-          "instrument_id": "US_ABB",
+          "instrument_id": "US_PATH",
           "market": "US",
-          "ticker": "ABB",
-          "name": "ABB Ltd.",
+          "ticker": "PATH",
+          "name": "UiPath Inc.",
           "exchange": "NYSE",
           "country": "US",
           "currency": "USD",
-          "sector": "Industrials",
-          "industry": "Electrical Equipment & Parts",
-          "description": "ABB Ltd. tracked for research-theme coverage.",
+          "sector": "Technology",
+          "industry": "Software - Infrastructure",
+          "description": "UiPath Inc. tracked for research-theme coverage.",
           "logo_url": "",
           "index_memberships": [],
           "peer_ids": [
             "US_ROK",
-            "US_HON",
-            "US_EMR"
+            "US_SYM",
+            "US_CGNX"
           ],
           "aliases": [
-            "ABB",
-            "ABB Ltd."
+            "PATH",
+            "UiPath Inc."
           ],
           "support_tier": "catalog",
           "universes": [
