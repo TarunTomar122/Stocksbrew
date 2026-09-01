@@ -74,6 +74,21 @@ def _enrich_snapshot_from_facts(
     add("recom", quick.get("recommendation_score"))
     add("perf_1m", returns.get("one_month_pct"))
     add("stock_cagr_1y", returns.get("one_year_pct"))
+    sessions = latest_price.get("recent_sessions") or []
+    if not sessions:
+        window = latest_price.get("history_window") or []
+        sessions = next(
+            (
+                row.get("recent_sessions") or []
+                for row in reversed(window)
+                if isinstance(row, dict) and row.get("recent_sessions")
+            ),
+            [],
+        )
+    closes = [_number(row.get("close")) for row in sessions if isinstance(row, dict)]
+    closes = [close for close in closes if close is not None]
+    if len(closes) >= 2 and closes[0] != 0:
+        add("perf_1w", ((closes[-1] - closes[0]) / abs(closes[0])) * 100)
     buy, analyst_count = _number(analyst.get("buy")), _number(analyst.get("analyst_count"))
     if buy is not None and analyst_count not in (None, 0):
         add("analyst_buy_pct", (buy / analyst_count) * 100)

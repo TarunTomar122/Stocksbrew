@@ -33,8 +33,15 @@ class StockIntelFactsFallbackTests(unittest.TestCase):
         enriched = _enrich_snapshot_from_facts(
             snapshot,
             facts,
-            {"quote": {"current": 366.0}},
+            {
+                "quote": {"current": 366.0},
+                "history_window": [
+                    {"recent_sessions": [{"close": 350.0}, {"close": 366.0}]},
+                ],
+            },
         )
+
+        self.assertAlmostEqual(enriched["metrics"]["perf_1w"], 4.57, places=2)
 
         result = score_stock(
             {"instrument_id": "US_WTS", "ticker": "WTS", "sector": "Industrials"},
