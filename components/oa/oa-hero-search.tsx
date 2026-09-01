@@ -9,7 +9,7 @@ import { formatSearchPct, scoreSearchEntry } from "@/lib/ticker-search-utils";
 import { StockRequestModal } from "@/components/stock-request-modal";
 
 const ANALYZE_PILL =
-  "inline-flex h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-lg border border-[color-mix(in_srgb,var(--oa-primary)_80%,#3a3480)] bg-[color-mix(in_srgb,var(--oa-primary)_90%,#3a3480)] px-4 text-[15px] font-medium text-oa-primary-fg shadow-[inset_0_1px_0_rgba(255,255,255,0.22),inset_0_-1px_0_rgba(58,52,128,0.30)] outline-none transition-all hover:bg-oa-primary active:translate-y-px active:scale-[0.98] sm:px-5";
+  "inline-flex h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-[color-mix(in_srgb,var(--oa-primary)_80%,#3a3480)] bg-[color-mix(in_srgb,var(--oa-primary)_90%,#3a3480)] px-4 text-[15px] font-medium text-oa-primary-fg shadow-[inset_0_1px_0_rgba(255,255,255,0.22),inset_0_-1px_0_rgba(58,52,128,0.30)] outline-none transition-all hover:bg-oa-primary active:translate-y-px active:scale-[0.98] sm:px-5";
 
 /** The hero search: one field, one action. Type a company or ticker,
  *  pick a live suggestion or press Analyze to jump straight to the
