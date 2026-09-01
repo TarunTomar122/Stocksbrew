@@ -10,6 +10,10 @@ from typing import Any
 
 from backend.instrument_universe import get_coverage_universe_id, list_instruments
 from backend.market_session_state import MarketSessionState
+from backend.price_pipeline_contract import (
+    PriceFreshnessPolicy,
+    partition_fresh_price_documents,
+)
 from backend.scripts.materialize_views import materialize_views
 from backend.scripts.run_priority_price_pipeline import _rank_instruments
 from backend.search_heat import rank_search_heat_rows
@@ -79,6 +83,42 @@ def _ai_brief_ids(
             seen.add(instrument_id)
             ids.append(instrument_id)
     return ids
+
+
+def _fresh_open_brief_ids(
+    store: TraceMoneyStore,
+    instrument_ids: list[str],
+    *,
+    market: str,
+    session_phase: str,
+    max_age_hours: float = 3.0,
+) -> list[str]:
+    """Drop unavailable quotes before making shards; reject an all-stale run."""
+    latest = store.get_latest_prices(instrument_ids)
+    fresh, stale = partition_fresh_price_documents(
+        latest,
+        instrument_ids,
+        policy=PriceFreshnessPolicy(
+            required_phase=session_phase,
+            max_age_hours=max(0.25, max_age_hours),
+            market=market,
+        ),
+    )
+    if stale:
+        print(
+            {
+                "stage": "brief_dispatch_price_freshness",
+                "expected_phase": session_phase,
+                "fresh_count": len(fresh),
+                "stale_count": len(stale),
+                "stale_ids": stale,
+            }
+        )
+    if not fresh:
+        raise RuntimeError(
+            f"No prices match required phase {session_phase}; refusing an all-stale brief run"
+        )
+    return list(fresh)
 
 
 def _search_heat_ids(
@@ -654,6 +694,13 @@ def main() -> None:
                 }
             )
             return
+        if args.lane == "tracked_open_briefs":
+            instrument_ids = _fresh_open_brief_ids(
+                store,
+                instrument_ids,
+                market=args.market,
+                session_phase=args.session_phase,
+            )
         state.create_run(
             run_id=run_id,
             lane=args.lane,

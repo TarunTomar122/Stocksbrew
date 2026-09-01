@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timezone
 import unittest
 
 from unittest.mock import patch
 
 from backend.cloudrun.orchestrator.dispatch import (
     _ai_brief_ids,
+    _fresh_open_brief_ids,
     _lane_universe_id,
     _price_core_ids,
     _search_heat_ids,
@@ -29,6 +31,43 @@ class _StubStore:
 
 
 class DispatchUniverseScopeTest(unittest.TestCase):
+    def test_open_brief_dispatch_drops_stale_ids_before_sharding(self) -> None:
+        now = datetime.now(timezone.utc).isoformat()
+
+        class Store:
+            def get_latest_prices(self, _instrument_ids):
+                return {
+                    "US_AAPL": {
+                        "session_phase": "open_check",
+                        "captured_at": now,
+                        "updated_at": now,
+                    }
+                }
+
+        fresh = _fresh_open_brief_ids(
+            Store(),
+            ["US_AAPL", "US_DEAD"],
+            market="US",
+            session_phase="open_check",
+            max_age_hours=3,
+        )
+
+        self.assertEqual(fresh, ["US_AAPL"])
+
+    def test_open_brief_dispatch_rejects_an_all_stale_cohort(self) -> None:
+        class Store:
+            def get_latest_prices(self, _instrument_ids):
+                return {}
+
+        with self.assertRaisesRegex(RuntimeError, "all-stale brief run"):
+            _fresh_open_brief_ids(
+                Store(),
+                ["US_DEAD"],
+                market="US",
+                session_phase="open_check",
+                max_age_hours=3,
+            )
+
     def test_search_heat_accepts_any_active_live_catalog_stock(self) -> None:
         class Store:
             def list_instruments(self, market):
