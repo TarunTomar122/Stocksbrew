@@ -52,6 +52,14 @@ def _article(
 
 
 class IncrementalStockNewsTest(unittest.TestCase):
+    def test_article_accepts_persisted_body_truncation_metadata(self) -> None:
+        payload = _article("a1", title="NVIDIA signs new AI deal").to_dict()
+        payload["body_text_truncated"] = True
+
+        article = Article(**payload)
+
+        self.assertTrue(article.body_text_truncated)
+
     def test_map_articles_to_instruments_uses_focus_and_regex(self) -> None:
         instruments = [
             {"instrument_id": "US_NVDA", "ticker": "NVDA"},

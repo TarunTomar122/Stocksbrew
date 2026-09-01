@@ -64,6 +64,7 @@ class Article:
     source_lane: str = "broad"
     focus_ticker: str = ""
     body_text: str = ""
+    body_text_truncated: bool = False
     source_coverage_modes: list[str] = field(default_factory=list)
     coverage_mode: str = ""
 
