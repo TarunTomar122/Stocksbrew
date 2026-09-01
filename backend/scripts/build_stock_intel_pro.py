@@ -10,7 +10,9 @@ Writes one doc per instrument under tm_stock_intel_pro/{market}__{universe}/stoc
 from __future__ import annotations
 
 import argparse
+import math
 from datetime import datetime, timezone
+from typing import Any
 
 from backend.instrument_universe import get_coverage_universe_id, list_instruments
 from backend.stock_scoring import score_stock
@@ -23,6 +25,60 @@ def _parse_instrument_ids(value: str | None) -> set[str] | None:
         return None
     ids = {item.strip().upper() for item in value.split(",") if item.strip()}
     return ids or None
+
+
+def _number(value: Any) -> float | None:
+    if isinstance(value, bool):
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if math.isfinite(number) else None
+
+
+def _enrich_snapshot_from_facts(
+    snapshot: dict[str, Any],
+    facts: dict[str, Any],
+    latest_price: dict[str, Any],
+) -> dict[str, Any]:
+    """Fill sparse scraper metrics from the richer stock-page facts we already store."""
+    metrics = dict(snapshot.get("metrics") or {})
+    quick = facts.get("quick_stats") or {}
+    financials = facts.get("financials") or {}
+    quality = facts.get("quality") or {}
+    valuation = facts.get("valuation") or {}
+    analyst = facts.get("analyst") or {}
+    returns = facts.get("returns") or {}
+    history = [row for row in (facts.get("financial_history") or []) if isinstance(row, dict)]
+    current = next((row for row in history if row.get("period") == "TTM"), history[0] if history else {})
+    prior = next((row for row in history if row is not current), {})
+
+    def add(key: str, value: Any) -> None:
+        if _number(metrics.get(key)) is None and (number := _number(value)) is not None:
+            metrics[key] = number
+
+    add("pe", quick.get("pe_ttm"))
+    add("fwd_pe", valuation.get("forward_pe"))
+    add("target_price", analyst.get("target_price"))
+    add("price", (latest_price.get("quote") or {}).get("current"))
+    add("sales_yy_ttm", financials.get("revenue_growth_yoy_pct"))
+    add("eps_next_y_growth", quick.get("eps_next_year_growth_pct"))
+    current_eps, prior_eps = _number(current.get("eps_diluted")), _number(prior.get("eps_diluted"))
+    if current_eps is not None and prior_eps not in (None, 0):
+        add("eps_yy_ttm", ((current_eps - prior_eps) / abs(prior_eps)) * 100)
+    add("roe", quality.get("roe_pct"))
+    add("oper_margin", current.get("operating_margin_pct"))
+    add("debt_eq", quality.get("debt_to_equity"))
+    add("inst_own_pct", quick.get("institutional_ownership_pct"))
+    add("recom", quick.get("recommendation_score"))
+    add("perf_1m", returns.get("one_month_pct"))
+    add("stock_cagr_1y", returns.get("one_year_pct"))
+    buy, analyst_count = _number(analyst.get("buy")), _number(analyst.get("analyst_count"))
+    if buy is not None and analyst_count not in (None, 0):
+        add("analyst_buy_pct", (buy / analyst_count) * 100)
+
+    return {**snapshot, "metrics": metrics}
 
 
 def _resolve_instruments(
@@ -81,6 +137,8 @@ def main() -> None:
     allowed_ids = _parse_instrument_ids(args.instrument_ids)
     instruments = _resolve_instruments(store, args.market, universe_id, allowed_ids)
     instrument_ids = [instrument["instrument_id"] for instrument in instruments]
+    facts_by_id = store.get_stock_facts_batch(instrument_ids)
+    prices_by_id = store.get_latest_prices(instrument_ids)
     today_snaps = store.get_stock_metrics_snapshots_batch(instrument_ids, today_date)
     if len(today_snaps) < len(instrument_ids):
         latest_snaps = store.get_stock_metrics_snapshots_batch(instrument_ids)
@@ -93,6 +151,11 @@ def main() -> None:
         if not today_snap:
             print(f"  [skip] {instrument['ticker']}: no snapshot yet")
             continue
+        today_snap = _enrich_snapshot_from_facts(
+            today_snap,
+            facts_by_id.get(instrument_id) or {},
+            prices_by_id.get(instrument_id) or {},
+        )
         sector_slug, sector_label = resolve_sector_fields(
             sector_slug=str(today_snap.get("sector_slug") or ""),
             sector_label=str(today_snap.get("sector_label") or ""),

@@ -6,6 +6,11 @@ const DEFAULT_COVERAGE_UNIVERSE: Record<"US" | "IN", string> = {
   IN: "in_core_150",
 };
 
+const DEFAULT_RUNTIME_UNIVERSE: Record<"US" | "IN", string> = {
+  US: "us_core_100",
+  IN: "in_core_150",
+};
+
 /** coverage_catalog tier — ~500 slower-baseline names (historical id us_core_155). */
 export async function getCoverageUniverse(market: "US" | "IN" = "US"): Promise<string> {
   const doc = await adminFirestore.collection("tm_config").doc("instrument_universe_state").get();
@@ -22,5 +27,15 @@ export async function getIntelUniverseIds(market: "US" | "IN" = "US"): Promise<s
     getPriceUniverse(market).catch(() => ""),
     getCoverageUniverse(market).catch(() => DEFAULT_COVERAGE_UNIVERSE[market]),
   ]);
-  return [...new Set([priceUniverse, aiUniverse, coverageUniverse, DEFAULT_COVERAGE_UNIVERSE[market]].filter(Boolean))];
+  return [
+    ...new Set(
+      [
+        priceUniverse,
+        aiUniverse,
+        coverageUniverse,
+        DEFAULT_COVERAGE_UNIVERSE[market],
+        DEFAULT_RUNTIME_UNIVERSE[market],
+      ].filter(Boolean),
+    ),
+  ];
 }

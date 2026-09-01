@@ -575,31 +575,42 @@ export async function getStockIntelligenceDoc(
   instrumentId: string,
   market: "US" | "IN" = "US",
 ): Promise<StockIntelligenceDoc | null> {
-  const universe = await getAiUniverse(market);
-  const ns = `${market}__${universe}`;
-  const doc = await adminFirestore
-    .collection("tm_news_runs")
-    .doc(ns)
-    .collection("stock_intelligence")
-    .doc(instrumentId)
-    .get();
-  if (!doc.exists) return null;
-  return doc.data() as StockIntelligenceDoc;
+  return getNewsRunDoc<StockIntelligenceDoc>(
+    instrumentId,
+    market,
+    "stock_intelligence",
+  );
 }
 
 export async function getStockBusinessQuestions(
   instrumentId: string,
   market: "US" | "IN" = "US",
 ): Promise<StockBusinessQuestionsDoc | null> {
-  const universe = await getAiUniverse(market);
-  const doc = await adminFirestore
-    .collection("tm_news_runs")
-    .doc(`${market}__${universe}`)
-    .collection("business_questions")
-    .doc(instrumentId)
-    .get();
-  if (!doc.exists) return null;
-  return doc.data() as StockBusinessQuestionsDoc;
+  return getNewsRunDoc<StockBusinessQuestionsDoc>(
+    instrumentId,
+    market,
+    "business_questions",
+  );
+}
+
+async function getNewsRunDoc<T>(
+  instrumentId: string,
+  market: "US" | "IN",
+  collection: "stock_intelligence" | "business_questions",
+): Promise<T | null> {
+  const universes = await getIntelUniverseIds(market);
+  const refs = universes.map((universe) =>
+    adminFirestore
+      .collection("tm_news_runs")
+      .doc(`${market}__${universe}`)
+      .collection(collection)
+      .doc(instrumentId),
+  );
+  if (!refs.length) return null;
+
+  const docs = await adminFirestore.getAll(...refs);
+  const match = docs.find((doc) => doc.exists);
+  return match ? (match.data() as T) : null;
 }
 
 export async function getStockIntelPro(
