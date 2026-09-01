@@ -674,5 +674,525 @@
         "href": "https://www.cmegroup.com/education/podcasts.html"
       }
     ]
+  },
+  {
+    "slug": "cybersecurity",
+    "name": "Cybersecurity",
+    "cardDescription": "Identity, endpoint, network, cloud, data protection, and cyber recovery.",
+    "description": "Security spending follows expanding attack surfaces, cloud adoption, regulation, and the rising cost of downtime across enterprises and governments.",
+    "resilienceNote": "The theme has durable demand, but platform consolidation, breach-related reputational damage, and aggressive valuations can separate winners from the category.",
+    "candidates": [
+      {
+        "company": "Palo Alto Networks",
+        "ticker": "PANW",
+        "role": "Security platform",
+        "benefitMechanism": "Combines network, cloud, and security-operations products as enterprises consolidate vendors.",
+        "failureCase": "Platform consolidation slows or large customers resist bundled pricing.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "CrowdStrike",
+        "ticker": "CRWD",
+        "role": "Endpoint security",
+        "benefitMechanism": "Cloud-native endpoint, identity, and threat-intelligence products benefit from recurring security workloads.",
+        "failureCase": "Operational failures damage trust or Microsoft and other platforms take share.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "Fortinet",
+        "ticker": "FTNT",
+        "role": "Network security",
+        "benefitMechanism": "Firewalls, secure networking, and security appliances protect distributed enterprise infrastructure.",
+        "failureCase": "Appliance demand weakens or cloud-native rivals compress growth.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "Zscaler",
+        "ticker": "ZS",
+        "role": "Zero trust",
+        "benefitMechanism": "Cloud-delivered access controls replace legacy perimeter security for users, devices, and applications.",
+        "failureCase": "Sales execution slips or customers delay large zero-trust projects.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "Okta",
+        "ticker": "OKTA",
+        "role": "Identity",
+        "benefitMechanism": "Identity and access management sit at the control point for workforce and customer applications.",
+        "failureCase": "Security incidents, pricing pressure, or Microsoft reduce new-logo growth.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "Cloudflare",
+        "ticker": "NET",
+        "role": "Edge security",
+        "benefitMechanism": "Its global edge network bundles application security, developer services, and network performance.",
+        "failureCase": "Edge services commoditize or infrastructure spending outruns monetization.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "Gen Digital",
+        "ticker": "GEN",
+        "role": "Consumer security",
+        "benefitMechanism": "Subscription security, privacy, and identity products serve a large consumer installed base.",
+        "failureCase": "Churn rises or free platform security reduces willingness to pay.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "SentinelOne",
+        "ticker": "S",
+        "role": "AI endpoint",
+        "benefitMechanism": "Automated endpoint detection and response can win customers seeking an independent security platform.",
+        "failureCase": "Losses persist while larger competitors bundle comparable tools.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "Rubrik",
+        "ticker": "RBRK",
+        "role": "Cyber recovery",
+        "benefitMechanism": "Data-security and recovery software benefits as ransomware makes resilient backups mission critical.",
+        "failureCase": "Hyperscalers improve native recovery products or growth remains expensive.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "Qualys",
+        "ticker": "QLYS",
+        "role": "Exposure management",
+        "benefitMechanism": "Vulnerability, compliance, and asset-management tools help enterprises continuously measure cyber risk.",
+        "failureCase": "Broader security platforms displace standalone vulnerability products.",
+        "stocksbrewLabel": "Not covered"
+      }
+    ],
+    "watchlist": [],
+    "resources": [
+      {
+        "label": "CISA advisories",
+        "href": "https://www.cisa.gov/news-events/cybersecurity-advisories"
+      },
+      {
+        "label": "Risky Business",
+        "href": "https://risky.biz/"
+      },
+      {
+        "label": "Krebs on Security",
+        "href": "https://krebsonsecurity.com/"
+      }
+    ]
+  },
+  {
+    "slug": "robotics-automation",
+    "name": "Robotics & automation",
+    "cardDescription": "Factory automation, machine vision, warehouses, surgical robots, and autonomy.",
+    "description": "Labor scarcity, reshoring, quality control, and falling compute costs are pushing automation into factories, warehouses, hospitals, and farms.",
+    "resilienceNote": "Automation can compound for years, while industrial cycles, customer concentration, and long payback periods make order timing uneven.",
+    "candidates": [
+      {
+        "company": "Teradyne",
+        "ticker": "TER",
+        "role": "Testing and cobots",
+        "benefitMechanism": "Semiconductor test systems and collaborative robots support more automated electronics production.",
+        "failureCase": "Chip-test demand falls or collaborative robots fail to scale profitably.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "Rockwell Automation",
+        "ticker": "ROK",
+        "role": "Factory control",
+        "benefitMechanism": "Control systems, software, and services digitize factories and recurring industrial workflows.",
+        "failureCase": "Industrial capex slows or customers delay large modernization projects.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "ABB",
+        "ticker": "ABB",
+        "role": "Industrial robotics",
+        "benefitMechanism": "Robots, motion systems, and electrification equipment automate factories and logistics.",
+        "failureCase": "China and global industrial demand weaken or pricing normalizes.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "Cognex",
+        "ticker": "CGNX",
+        "role": "Machine vision",
+        "benefitMechanism": "Vision systems let machines inspect, identify, and guide products at production speed.",
+        "failureCase": "Consumer-electronics and logistics customers pause investment.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "Symbotic",
+        "ticker": "SYM",
+        "role": "Warehouse automation",
+        "benefitMechanism": "AI-driven storage and retrieval systems automate high-volume distribution centers.",
+        "failureCase": "Customer concentration, deployment delays, or project economics disappoint.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "Intuitive Surgical",
+        "ticker": "ISRG",
+        "role": "Robotic surgery",
+        "benefitMechanism": "A growing installed base drives recurring instruments and more robot-assisted procedures.",
+        "failureCase": "Hospitals delay purchases or competing surgical systems gain adoption.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "Honeywell",
+        "ticker": "HON",
+        "role": "Industrial automation",
+        "benefitMechanism": "Process controls, warehouse systems, and aerospace automation span several mission-critical markets.",
+        "failureCase": "Portfolio complexity and slow industrial orders limit growth.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "Emerson Electric",
+        "ticker": "EMR",
+        "role": "Process automation",
+        "benefitMechanism": "Automation hardware and software improve uptime and efficiency in process industries.",
+        "failureCase": "Energy and industrial customers defer projects or integration execution slips.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "Zebra Technologies",
+        "ticker": "ZBRA",
+        "role": "Workflow automation",
+        "benefitMechanism": "Scanning, tracking, and mobile-computing systems automate inventory and frontline workflows.",
+        "failureCase": "Retail and logistics customers cut device-refresh budgets.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "Deere & Company",
+        "ticker": "DE",
+        "role": "Autonomous agriculture",
+        "benefitMechanism": "Precision agriculture and autonomous equipment raise farm productivity and software attachment.",
+        "failureCase": "Farm income weakens or customers delay expensive equipment upgrades.",
+        "stocksbrewLabel": "Not covered"
+      }
+    ],
+    "watchlist": [],
+    "resources": [
+      {
+        "label": "International Federation of Robotics",
+        "href": "https://ifr.org/"
+      },
+      {
+        "label": "A3 Robotics",
+        "href": "https://www.automate.org/robotics"
+      },
+      {
+        "label": "The Robot Report",
+        "href": "https://www.therobotreport.com/"
+      }
+    ]
+  },
+  {
+    "slug": "water-infrastructure",
+    "name": "Water infrastructure",
+    "cardDescription": "Pumps, treatment, smart metering, utilities, engineering, and drainage systems.",
+    "description": "Aging networks, water scarcity, tighter quality standards, and climate adaptation require sustained investment across treatment, distribution, measurement, and reuse.",
+    "resilienceNote": "Municipal and regulated spending can be durable, while project timing, public budgets, weather, and interest rates shape near-term returns.",
+    "candidates": [
+      {
+        "company": "Xylem",
+        "ticker": "XYL",
+        "role": "Water systems",
+        "benefitMechanism": "Pumps, treatment, analytics, and smart-metering systems address the full water cycle.",
+        "failureCase": "Municipal budgets tighten or integration and project execution disappoint.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "Ecolab",
+        "ticker": "ECL",
+        "role": "Water efficiency",
+        "benefitMechanism": "Industrial water-treatment chemistry and services help customers reduce water and energy use.",
+        "failureCase": "Industrial volumes soften or customers push back on pricing.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "Pentair",
+        "ticker": "PNR",
+        "role": "Filtration and pumps",
+        "benefitMechanism": "Pool, filtration, and flow-control products provide exposure to residential and commercial water systems.",
+        "failureCase": "Housing and pool demand weaken or channel inventory rises.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "Watts Water Technologies",
+        "ticker": "WTS",
+        "role": "Flow control",
+        "benefitMechanism": "Valves, controls, and treatment products improve safety and efficiency in buildings.",
+        "failureCase": "Construction slows or input-cost pressure compresses margins.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "American Water Works",
+        "ticker": "AWK",
+        "role": "Regulated utility",
+        "benefitMechanism": "The largest listed U.S. water utility can earn on long-lived network investment.",
+        "failureCase": "Regulators limit allowed returns or financing costs remain elevated.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "A. O. Smith",
+        "ticker": "AOS",
+        "role": "Heating and treatment",
+        "benefitMechanism": "Water heaters and treatment products benefit from replacement demand and efficiency upgrades.",
+        "failureCase": "China and North American housing demand weaken.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "Mueller Water Products",
+        "ticker": "MWA",
+        "role": "Network hardware",
+        "benefitMechanism": "Hydrants, valves, and pipe products are essential to replacing aging municipal networks.",
+        "failureCase": "Municipal projects slip or raw-material costs rise.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "Badger Meter",
+        "ticker": "BMI",
+        "role": "Smart metering",
+        "benefitMechanism": "Connected meters and analytics help utilities find leaks, bill accurately, and manage scarce water.",
+        "failureCase": "Utility adoption slows or premium valuation compresses.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "Tetra Tech",
+        "ticker": "TTEK",
+        "role": "Water engineering",
+        "benefitMechanism": "Engineering and consulting services support treatment, remediation, and climate-resilience projects.",
+        "failureCase": "Government awards slow or labor constraints pressure delivery.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "Advanced Drainage Systems",
+        "ticker": "WMS",
+        "role": "Stormwater management",
+        "benefitMechanism": "Drainage pipe and water-management systems benefit from construction and resilience spending.",
+        "failureCase": "Construction volumes fall or resin costs reduce margins.",
+        "stocksbrewLabel": "Not covered"
+      }
+    ],
+    "watchlist": [],
+    "resources": [
+      {
+        "label": "EPA water infrastructure",
+        "href": "https://www.epa.gov/water-infrastructure"
+      },
+      {
+        "label": "American Water Works Association",
+        "href": "https://www.awwa.org/"
+      },
+      {
+        "label": "Water Online",
+        "href": "https://www.wateronline.com/"
+      }
+    ]
+  },
+  {
+    "slug": "critical-materials",
+    "name": "Critical materials",
+    "cardDescription": "Copper, rare earths, lithium, uranium, aluminum, and diversified mining.",
+    "description": "Electrification, grid expansion, defense, batteries, and domestic supply policy are increasing the strategic value of materials with slow, concentrated supply chains.",
+    "resilienceNote": "Scarcity can create pricing power, while commodity cycles, project delays, geopolitics, dilution, and cost inflation make the theme volatile.",
+    "candidates": [
+      {
+        "company": "Freeport-McMoRan",
+        "ticker": "FCX",
+        "role": "Copper",
+        "benefitMechanism": "Large copper assets provide direct exposure to grid, data-center, and electrification demand.",
+        "failureCase": "Copper prices fall or major mine disruptions raise costs.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "Southern Copper",
+        "ticker": "SCCO",
+        "role": "Copper",
+        "benefitMechanism": "Long-life copper reserves can benefit from constrained supply and rising electrical demand.",
+        "failureCase": "Political, permitting, or operating risk disrupts production.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "MP Materials",
+        "ticker": "MP",
+        "role": "Rare earths",
+        "benefitMechanism": "U.S. rare-earth mining and magnet capacity support defense and supply-chain localization.",
+        "failureCase": "Magnet ramp-up slips or Chinese pricing keeps margins weak.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "Albemarle",
+        "ticker": "ALB",
+        "role": "Lithium",
+        "benefitMechanism": "A global lithium position benefits if battery demand absorbs current oversupply.",
+        "failureCase": "Lithium prices remain depressed or expansion projects destroy returns.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "Lithium Americas",
+        "ticker": "LAC",
+        "role": "U.S. lithium development",
+        "benefitMechanism": "Thacker Pass offers strategic domestic lithium exposure as production comes online.",
+        "failureCase": "Construction, financing, permitting, or ramp-up setbacks dilute shareholders.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "Cameco",
+        "ticker": "CCJ",
+        "role": "Uranium",
+        "benefitMechanism": "Uranium production and fuel services benefit from nuclear restarts and long-term contracting.",
+        "failureCase": "Nuclear projects slip or uranium prices reverse.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "Uranium Energy",
+        "ticker": "UEC",
+        "role": "U.S. uranium",
+        "benefitMechanism": "Restartable U.S. uranium assets offer higher-beta exposure to domestic nuclear fuel demand.",
+        "failureCase": "Production ramps slowly or equity dilution offsets commodity upside.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "Century Aluminum",
+        "ticker": "CENX",
+        "role": "Aluminum",
+        "benefitMechanism": "Domestic smelting capacity serves power, transport, and strategic manufacturing supply chains.",
+        "failureCase": "Power costs rise or aluminum spreads compress.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "Teck Resources",
+        "ticker": "TECK",
+        "role": "Copper and zinc",
+        "benefitMechanism": "A diversified base-metals portfolio benefits from electrification and constrained mine supply.",
+        "failureCase": "Project execution slips or commodity prices weaken together.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "SQM",
+        "ticker": "SQM",
+        "role": "Lithium and specialty chemicals",
+        "benefitMechanism": "Low-cost lithium and iodine assets provide scale across battery and industrial markets.",
+        "failureCase": "Lithium oversupply, regulation, or contract changes reduce economics.",
+        "stocksbrewLabel": "Not covered"
+      }
+    ],
+    "watchlist": [],
+    "resources": [
+      {
+        "label": "IEA critical minerals",
+        "href": "https://www.iea.org/topics/critical-minerals"
+      },
+      {
+        "label": "USGS critical minerals",
+        "href": "https://www.usgs.gov/programs/mineral-resources-program/science/critical-minerals"
+      },
+      {
+        "label": "DOE critical materials",
+        "href": "https://www.energy.gov/cmm/critical-materials-collaborative"
+      }
+    ]
+  },
+  {
+    "slug": "space-infrastructure",
+    "name": "Space infrastructure",
+    "cardDescription": "Launch, satellites, communications, earth observation, lunar systems, and payloads.",
+    "description": "Cheaper launch and growing government demand are expanding the market for satellite networks, earth data, spacecraft components, and national-security space systems.",
+    "resilienceNote": "Government contracts provide real demand, while launch failures, capital intensity, dilution, binary milestones, and unproven unit economics keep risk high.",
+    "candidates": [
+      {
+        "company": "Rocket Lab USA",
+        "ticker": "RKLB",
+        "role": "Launch and space systems",
+        "benefitMechanism": "Launch services, spacecraft, components, and government missions span more of the space stack.",
+        "failureCase": "Launch setbacks, program delays, or valuation outrun execution.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "Iridium Communications",
+        "ticker": "IRDM",
+        "role": "Satellite communications",
+        "benefitMechanism": "A global low-earth-orbit network supports resilient voice, data, and government communications.",
+        "failureCase": "Subscriber growth slows or replacement-satellite capex rises.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "AST SpaceMobile",
+        "ticker": "ASTS",
+        "role": "Direct-to-device",
+        "benefitMechanism": "A satellite network aims to extend ordinary mobile coverage through carrier partnerships.",
+        "failureCase": "Deployment, financing, spectrum, or technical milestones slip.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "Planet Labs",
+        "ticker": "PL",
+        "role": "Earth observation",
+        "benefitMechanism": "A large imaging constellation turns frequent earth data into subscriptions and analytics.",
+        "failureCase": "Imagery commoditizes or commercial demand grows too slowly.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "Redwire",
+        "ticker": "RDW",
+        "role": "Space components",
+        "benefitMechanism": "Power, structures, sensors, and in-space manufacturing serve civil and defense missions.",
+        "failureCase": "Acquisitions, leverage, or program execution strain cash flow.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "Intuitive Machines",
+        "ticker": "LUNR",
+        "role": "Lunar systems",
+        "benefitMechanism": "Lunar delivery, communications, and infrastructure contracts provide exposure to NASA's lunar buildout.",
+        "failureCase": "Mission failures or contract timing create large revenue gaps.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "BlackSky Technology",
+        "ticker": "BKSY",
+        "role": "Geospatial intelligence",
+        "benefitMechanism": "Rapid satellite imagery and analytics support defense and intelligence customers.",
+        "failureCase": "Constellation capex rises faster than contract wins.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "Viasat",
+        "ticker": "VSAT",
+        "role": "Satellite broadband",
+        "benefitMechanism": "Satellite capacity and secure communications serve aviation, government, and remote connectivity.",
+        "failureCase": "Leverage, satellite failures, or low-earth-orbit competition erode returns.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "EchoStar",
+        "ticker": "SATS",
+        "role": "Spectrum and satellites",
+        "benefitMechanism": "Satellite assets and spectrum create optionality across connectivity and direct-to-device services.",
+        "failureCase": "Heavy investment, leverage, or regulatory outcomes impair value.",
+        "stocksbrewLabel": "Not covered"
+      },
+      {
+        "company": "L3Harris Technologies",
+        "ticker": "LHX",
+        "role": "Defense space systems",
+        "benefitMechanism": "Sensors, payloads, propulsion, and secure communications serve national-security space programs.",
+        "failureCase": "Program delays, fixed-price costs, or defense priorities shift.",
+        "stocksbrewLabel": "Not covered"
+      }
+    ],
+    "watchlist": [],
+    "resources": [
+      {
+        "label": "Payload",
+        "href": "https://payloadspace.com/"
+      },
+      {
+        "label": "NASA commercial space",
+        "href": "https://www.nasa.gov/humans-in-space/commercial-space/"
+      },
+      {
+        "label": "Space Foundation",
+        "href": "https://www.spacefoundation.org/"
+      }
+    ]
   }
 ]

@@ -37,7 +37,7 @@ export function ThemeDirectory({ themes }: { themes: InvestmentTheme[] }) {
                   <h3 className="text-[19px] font-medium tracking-tight text-oa-fg">
                     {theme.name}
                   </h3>
-                  <p className="mt-2 text-[14px] leading-5 text-oa-muted-fg">
+                  <p className="mt-2 text-pretty text-[14px] leading-5 text-oa-muted-fg">
                     {theme.cardDescription}
                   </p>
                 </div>

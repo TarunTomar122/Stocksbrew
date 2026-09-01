@@ -2431,6 +2431,11 @@ RADAR_THEME_NAMES = {
     "healthcare": "Healthcare",
     "defense": "Defense",
     "financials": "Financials",
+    "cybersecurity": "Cybersecurity",
+    "robotics-automation": "Robotics & automation",
+    "water-infrastructure": "Water infrastructure",
+    "critical-materials": "Critical materials",
+    "space-infrastructure": "Space infrastructure",
 }
 RADAR_THEME_SECTORS = {
     "ai-capex": "Technology",
@@ -2438,37 +2443,59 @@ RADAR_THEME_SECTORS = {
     "healthcare": "Healthcare",
     "defense": "Industrials",
     "financials": "Financials",
+    "cybersecurity": "Technology",
+    "robotics-automation": "Industrials",
+    "water-infrastructure": "Industrials",
+    "critical-materials": "Materials",
+    "space-infrastructure": "Industrials",
 }
 
 
-def _radar_universe() -> dict[str, list[str]]:
+def _radar_theme_data(store: TraceMoneyStore) -> tuple[dict[str, list[str]], dict[str, float]]:
+    try:
+        live_payload = store.get_research_themes() or {}
+    except Exception:
+        live_payload = {}
+    live_themes = live_payload.get("themes") if isinstance(live_payload, dict) else None
+    if isinstance(live_themes, list):
+        universe: dict[str, list[str]] = {}
+        scores: dict[str, float] = {}
+        for theme in live_themes:
+            if not isinstance(theme, dict) or not str(theme.get("slug") or "").strip():
+                continue
+            candidates = theme.get("candidates")
+            if not isinstance(candidates, list):
+                continue
+            slug = str(theme["slug"])
+            universe[slug] = [
+                str(row.get("ticker") or "").upper()
+                for row in candidates
+                if isinstance(row, dict) and str(row.get("ticker") or "").strip()
+            ]
+            for row in candidates:
+                if not isinstance(row, dict) or not isinstance(row.get("stocksbrewScore"), (int, float)):
+                    continue
+                scores[str(row.get("ticker") or "").upper()] = float(row["stocksbrewScore"])
+        if universe:
+            return universe, scores
+
     try:
         payload = json.loads(RADAR_UNIVERSE_PATH.read_text())
     except (OSError, json.JSONDecodeError):
-        return {}
+        return {}, {}
     us = payload.get("US") if isinstance(payload, dict) else None
-    if not isinstance(us, dict):
-        return {}
-    return {
+    raw_scores = payload.get("US_scores") if isinstance(payload, dict) else None
+    universe = {
         str(theme): [str(ticker).upper() for ticker in tickers if str(ticker).strip()]
-        for theme, tickers in us.items()
+        for theme, tickers in (us or {}).items()
         if isinstance(tickers, list)
     }
-
-
-def _radar_scores() -> dict[str, float]:
-    try:
-        payload = json.loads(RADAR_UNIVERSE_PATH.read_text())
-    except (OSError, json.JSONDecodeError):
-        return {}
-    raw_scores = payload.get("US_scores") if isinstance(payload, dict) else None
-    if not isinstance(raw_scores, dict):
-        return {}
-    return {
+    scores = {
         str(ticker).upper(): float(score)
-        for ticker, score in raw_scores.items()
+        for ticker, score in (raw_scores or {}).items()
         if isinstance(score, (int, float))
     }
+    return universe, scores
 
 
 def _radar_suggestions(
@@ -2553,8 +2580,7 @@ def _radar_suggestions(
         })
 
     # Theme membership is the evergreen universe. The daily inputs below rotate the result.
-    theme_universe = _radar_universe()
-    theme_scores = _radar_scores()
+    theme_universe, theme_scores = _radar_theme_data(store)
     if "US" in effective_markets:
         for theme_id, tickers in theme_universe.items():
             theme_name = RADAR_THEME_NAMES.get(theme_id, theme_id.replace("-", " ").title())

@@ -8,6 +8,7 @@ from backend.scripts.refresh_research_themes import (
     load_seed,
     validate_theme,
 )
+from backend.watchlist_view import _radar_theme_data
 
 
 class RefreshResearchThemesTest(unittest.TestCase):
@@ -78,6 +79,36 @@ class RefreshResearchThemesTest(unittest.TestCase):
         self.assertEqual(by_ticker["CEG"]["stocksbrewScore"], self.by_slug["energy"]["candidates"][0]["stocksbrewScore"])
         self.assertEqual(by_ticker["NVDA"]["stocksbrewLabel"], "Not covered")
         self.assertNotIn("stocksbrewScore", by_ticker["NVDA"])
+
+    def test_radar_uses_live_themes_and_keeps_the_seed_as_its_fallback(self) -> None:
+        class LiveStore:
+            def get_research_themes(self) -> dict[str, object]:
+                return {
+                    "themes": [
+                        {
+                            "slug": "cybersecurity",
+                            "candidates": [
+                                {"ticker": "PANW", "stocksbrewScore": 72.5},
+                                {"ticker": "CRWD"},
+                            ],
+                        }
+                    ]
+                }
+
+        live_universe, live_scores = _radar_theme_data(LiveStore())  # type: ignore[arg-type]
+        self.assertEqual(live_universe, {"cybersecurity": ["PANW", "CRWD"]})
+        self.assertEqual(live_scores, {"PANW": 72.5})
+
+        class EmptyStore:
+            def get_research_themes(self) -> None:
+                return None
+
+        fallback_universe, _ = _radar_theme_data(EmptyStore())  # type: ignore[arg-type]
+        for theme in self.seed:
+            self.assertEqual(
+                fallback_universe[theme["slug"]],
+                [row["ticker"] for row in theme["candidates"]],
+            )
 
 
 if __name__ == "__main__":

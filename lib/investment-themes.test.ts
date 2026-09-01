@@ -4,13 +4,18 @@ import { FREE_THEME_VISIBLE_LIMIT } from "@/lib/pro-features";
 import { INVESTMENT_THEMES, getInvestmentTheme } from "@/lib/investment-themes";
 
 describe("investment themes", () => {
-  it("contains the five Explore theme destinations", () => {
+  it("contains the ten Explore theme destinations", () => {
     expect(INVESTMENT_THEMES.map((theme) => theme.slug)).toEqual([
       "ai-capex",
       "energy",
       "healthcare",
       "defense",
       "financials",
+      "cybersecurity",
+      "robotics-automation",
+      "water-infrastructure",
+      "critical-materials",
+      "space-infrastructure",
     ]);
   });
 

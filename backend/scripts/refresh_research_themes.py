@@ -1,4 +1,4 @@
-"""Review and publish the five runtime investment-theme lists.
+"""Review and publish the runtime investment-theme lists.
 
 The checked-in seed is the safe fallback. A weekly run gathers bounded
 Firecrawl evidence, asks the configured OpenAI model to review one theme at a
@@ -27,7 +27,18 @@ from backend.url_extractor import search_firecrawl
 
 
 SEED_PATH = Path(__file__).resolve().parents[1] / "config" / "research_themes_seed.json"
-THEME_SLUGS = ("ai-capex", "energy", "healthcare", "defense", "financials")
+THEME_SLUGS = (
+    "ai-capex",
+    "energy",
+    "healthcare",
+    "defense",
+    "financials",
+    "cybersecurity",
+    "robotics-automation",
+    "water-infrastructure",
+    "critical-materials",
+    "space-infrastructure",
+)
 TICKER_RE = re.compile(r"^[A-Z][A-Z0-9.-]{0,9}$")
 DEFAULT_MIN_CANDIDATES = 8
 DEFAULT_MAX_CANDIDATES = 12

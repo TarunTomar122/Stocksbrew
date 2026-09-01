@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
 import unittest
 
 from backend.instrument_universe import (
@@ -75,6 +77,17 @@ class InstrumentUniverseTest(unittest.TestCase):
         }
         self.assertEqual({ticker: by_ticker[ticker]["name"] for ticker in expected}, expected)
         self.assertTrue(all(by_ticker[ticker]["status"] == "active" for ticker in expected))
+
+    def test_every_research_theme_candidate_is_in_the_coverage_catalog(self) -> None:
+        seed_path = Path(__file__).resolve().parents[1] / "config" / "research_themes_seed.json"
+        themes = json.loads(seed_path.read_text(encoding="utf-8"))
+        expected = {
+            candidate["ticker"]
+            for theme in themes
+            for candidate in theme["candidates"]
+        }
+        covered = {row["ticker"] for row in list_instruments("US", "us_core_155")}
+        self.assertTrue(expected.issubset(covered))
 
 
 if __name__ == "__main__":
