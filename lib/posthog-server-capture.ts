@@ -12,6 +12,7 @@ export async function captureServerEvent(
   const response = await fetch(`${host}/capture/`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    signal: AbortSignal.timeout(3000),
     body: JSON.stringify({
       api_key: apiKey,
       event,
