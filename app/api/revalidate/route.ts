@@ -1,4 +1,4 @@
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 
 const DEFAULT_PATHS = ["/"];
@@ -45,6 +45,10 @@ export async function POST(req: NextRequest) {
       continue;
     }
     revalidatePath(path, "page");
+    if (path === "/pulse" || path === "/premarket") {
+      revalidateTag("premarket-US");
+      revalidateTag("premarket-opening");
+    }
     lastByPath.set(path, now);
     revalidated.push(path);
   }
