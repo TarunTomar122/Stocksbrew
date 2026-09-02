@@ -7,10 +7,14 @@ class _Document:
     def __init__(self) -> None:
         self.payload: dict | None = None
         self.merge: bool | None = None
+        self.updated: dict | None = None
 
     def set(self, payload: dict, *, merge: bool = False) -> None:
         self.payload = payload
         self.merge = merge
+
+    def update(self, payload: dict) -> None:
+        self.updated = payload
 
 
 class _Collection:
@@ -29,7 +33,7 @@ class _Database:
         return _Collection(self._document)
 
 
-def test_search_index_partial_save_uses_nested_entry_map() -> None:
+def test_search_index_partial_save_uses_nested_field_path() -> None:
     document = _Document()
     store = object.__new__(TraceMoneyStore)
     store.db = _Database(document)
@@ -47,7 +51,6 @@ def test_search_index_partial_save_uses_nested_entry_map() -> None:
     )
 
     assert saved == 1
-    assert document.merge is True
-    assert document.payload is not None
-    assert "entries.US_SNDK" not in document.payload
-    assert document.payload["entries"]["US_SNDK"]["day_change_pct"] == 14.27
+    assert document.updated is not None
+    assert "entries.US_SNDK" in document.updated
+    assert document.updated["entries.US_SNDK"]["day_change_pct"] == 14.27

@@ -933,7 +933,6 @@ class TraceMoneyStore:
 
     def save_search_index_entries(self, market: str, entries: list[dict[str, Any]]) -> int:
         market_key = str(market).upper()
-        entries_map: dict[str, dict[str, Any]] = {}
         updates: dict[str, Any] = {
             "market": market_key,
             "updated_at": datetime.now(timezone.utc).isoformat(),
@@ -944,16 +943,13 @@ class TraceMoneyStore:
             ticker = str(row.get("ticker") or "").strip().upper()
             if not instrument_id or not ticker:
                 continue
-            entries_map[instrument_id] = row
-        if not entries_map:
+            updates[f"entries.{instrument_id}"] = row
+        if len(updates) == 2:
             return 0
-        # `DocumentReference.set(..., merge=True)` does not interpret dotted
-        # dictionary keys as nested field paths. The old shape created literal
-        # top-level fields such as `entries.US_NVDA`, leaving the real
-        # `entries.US_NVDA` map value stale. Merge a nested map instead.
-        updates["entries"] = entries_map
-        self.db.collection("tm_search_index").document(market_key).set(updates, merge=True)
-        return len(entries_map)
+        # Update each map key so a small incremental refresh cannot replace the
+        # broad catalog built by materialize_search_index.
+        self.db.collection("tm_search_index").document(market_key).update(updates)
+        return len(updates) - 2
 
     def get_news_home_feed(self, market: str, universe_id: str, limit: int = 30) -> list[dict[str, Any]]:
         namespace = self._news_namespace(market, universe_id).get()
