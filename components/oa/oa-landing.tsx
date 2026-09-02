@@ -28,8 +28,6 @@ import { normalizeDirectiveForUi } from "@/lib/directive-ui";
 import { buildLandingHeroMetrics } from "@/lib/landing-hero-metrics";
 import {
   anomalyHeadline,
-  hasUnverifiedNarrative,
-  isWeakMoveExplanation,
 } from "@/components/daily-anomalies-shared";
 import { StockLogo } from "@/components/stock-logo";
 import {
@@ -263,9 +261,7 @@ async function LiveProofCards() {
     getRedditCues(market).catch(() => null),
   ]);
 
-  const movers = (anomaliesDoc?.anomalies ?? [])
-    .filter((a) => !isWeakMoveExplanation(a) && !hasUnverifiedNarrative(a))
-    .slice(0, 5);
+  const movers = anomaliesDoc?.anomalies ?? [];
   const sectors = buildLandingSectorCards(snapshotRows)
     .slice()
     .sort((a, b) => b.avg - a.avg)
