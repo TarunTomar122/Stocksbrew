@@ -11,6 +11,23 @@ import math
 from typing import Any
 
 
+def denormalise_value(value: Any) -> Any:
+    """Expose stored Firestore values in the JSON-friendly shape callers use."""
+
+    if isinstance(value, list):
+        return [denormalise_value(item) for item in value]
+    if isinstance(value, dict):
+        marker = value.get("__localdb_type__")
+        if marker in {"timestamp", "date"} and isinstance(value.get("value"), str):
+            return value["value"]
+        if marker == "reference" and isinstance(value.get("path"), str):
+            return value["path"]
+        if marker == "bytes" and isinstance(value.get("base64"), str):
+            return value["base64"]
+        return {key: denormalise_value(item) for key, item in value.items()}
+    return value
+
+
 def normalise_value(value: Any) -> Any:
     """Return JSON-safe data with stable tags for common Firestore values."""
 

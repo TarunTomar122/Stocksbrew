@@ -3,7 +3,8 @@ import path from "path";
 
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
-import { getFirestore } from "firebase-admin/firestore";
+import { getFirestore, type Firestore } from "firebase-admin/firestore";
+import { localFirestoreFromEnv } from "@/lib/local-firestore";
 
 function loadEnvFile(filePath: string): void {
   if (!fs.existsSync(filePath)) {
@@ -69,11 +70,19 @@ if (!getApps().length) {
   });
 }
 
-const _fs = getFirestore();
-try {
-  _fs.settings({ ignoreUndefinedProperties: true });
-} catch {
-  // settings() throws if already called - safe to ignore on HMR re-evaluation
+const localFirestore = localFirestoreFromEnv();
+const firestoreBackend = process.env.FIRESTORE_BACKEND?.trim().toLowerCase();
+if (!localFirestore && firestoreBackend !== "firebase") {
+  throw new Error("Set LOCALDB_URL and LOCALDB_API_TOKEN for the database, or FIRESTORE_BACKEND=firebase for an explicit rollback");
 }
-export const adminFirestore = _fs;
+
+const _fs = localFirestore || getFirestore();
+if (!localFirestore) {
+  try {
+    getFirestore().settings({ ignoreUndefinedProperties: true });
+  } catch {
+    // settings() throws if already called - safe to ignore on HMR re-evaluation
+  }
+}
+export const adminFirestore = _fs as unknown as Firestore;
 export const adminAuth = getAuth();

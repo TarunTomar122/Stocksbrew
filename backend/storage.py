@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from backend.env import load_backend_env, resolve_backend_path
+from backend.localdb.firestore import LocalFirestoreClient
 from backend.price_history import latest_price_history
 
 load_backend_env()
@@ -332,9 +333,14 @@ def _home_news_view(payload: dict[str, Any], limit: int = 8) -> dict[str, Any]:
 
 
 class TraceMoneyStore:
-    """Firestore persistence for config, market data, and derived views."""
+    """Firestore-shaped persistence for config, market data, and derived views."""
 
     def __init__(self) -> None:
+        localdb_path = os.getenv("LOCALDB_PATH", "").strip()
+        if localdb_path:
+            self.db = LocalFirestoreClient(localdb_path)
+            return
+
         from firebase_admin import credentials, firestore, initialize_app
         import firebase_admin
 
@@ -375,18 +381,6 @@ class TraceMoneyStore:
             **strategy_payload,
             "updated_at": datetime.now(timezone.utc).isoformat(),
         })
-
-    def get_research_themes(self) -> dict[str, Any] | None:
-        """Return the runtime research-theme config, if one has been published."""
-        doc = self.db.collection("tm_config").document("research_themes").get()
-        if not doc.exists:
-            return None
-        payload = doc.to_dict()
-        return payload if isinstance(payload, dict) else None
-
-    def save_research_themes(self, payload: dict[str, Any]) -> None:
-        """Replace the complete research-theme config after a validated review."""
-        self.db.collection("tm_config").document("research_themes").set(payload)
 
     def save_instrument_universe_manifest(self, payload: dict[str, Any]) -> None:
         self.db.collection("tm_config").document("instrument_universe").set({
@@ -1086,90 +1080,6 @@ class TraceMoneyStore:
                 result[slug] = data
         return result
 
-    def _get_evidence_history(
-        self,
-        collection_name: str,
-        market: str,
-        keys: list[str],
-        key_field: str,
-        lookback_days: int,
-    ) -> dict[str, list[dict[str, Any]]]:
-        """Read the small date-keyed evidence snapshots used by stock briefs."""
-        wanted = {str(key).strip() for key in keys if str(key).strip()}
-        if not wanted:
-            return {}
-        cutoff = (datetime.now(timezone.utc).date() - timedelta(days=max(1, lookback_days) - 1)).isoformat()
-        market_up = str(market or "").strip().upper()
-        result: dict[str, list[dict[str, Any]]] = {}
-        query = self.db.collection(collection_name).where("market", "==", market_up)
-        for doc in query.stream():
-            data = _serialize(doc.to_dict()) or {}
-            key = str(data.get(key_field) or "").strip()
-            day = str(data.get("day") or "")[:10]
-            if key not in wanted or day < cutoff:
-                continue
-            result.setdefault(key, []).append(data)
-        for rows in result.values():
-            rows.sort(key=lambda row: str(row.get("day") or ""))
-        return result
-
-    def get_stock_evidence_history(
-        self,
-        market: str,
-        instrument_ids: list[str],
-        lookback_days: int = 14,
-    ) -> dict[str, list[dict[str, Any]]]:
-        return self._get_evidence_history(
-            "tm_stock_evidence_history",
-            market,
-            instrument_ids,
-            "instrument_id",
-            lookback_days,
-        )
-
-    def get_sector_evidence_history(
-        self,
-        market: str,
-        sector_slugs: list[str],
-        lookback_days: int = 14,
-    ) -> dict[str, list[dict[str, Any]]]:
-        return self._get_evidence_history(
-            "tm_sector_evidence_history",
-            market,
-            sector_slugs,
-            "sector_slug",
-            lookback_days,
-        )
-
-    def _save_evidence_history(
-        self,
-        collection_name: str,
-        market: str,
-        docs_payload: list[dict[str, Any]],
-        key_field: str,
-    ) -> None:
-        writes: list[tuple[Any, dict[str, Any]]] = []
-        market_up = str(market or "").strip().upper()
-        for payload in docs_payload:
-            key = str(payload.get(key_field) or "").strip()
-            day = str(payload.get("day") or "").strip()[:10]
-            if not (key and day and market_up):
-                continue
-            write_payload = {**payload, "market": market_up}
-            ref = self.db.collection(collection_name).document(f"{market_up}__{key}__{day}")
-            writes.append((ref, write_payload))
-        for batch_rows in _firestore_write_batches(writes, max_operations=450):
-            batch = self.db.batch()
-            for ref, payload in batch_rows:
-                batch.set(ref, payload, merge=True)
-            batch.commit()
-
-    def save_stock_evidence_history(self, market: str, docs_payload: list[dict[str, Any]]) -> None:
-        self._save_evidence_history("tm_stock_evidence_history", market, docs_payload, "instrument_id")
-
-    def save_sector_evidence_history(self, market: str, docs_payload: list[dict[str, Any]]) -> None:
-        self._save_evidence_history("tm_sector_evidence_history", market, docs_payload, "sector_slug")
-
     def get_sector_benchmarks(
         self, market: str, snapshot_date: str | None = None
     ) -> dict[str, Any] | None:
@@ -1319,15 +1229,6 @@ class TraceMoneyStore:
         for article in articles:
             article_id = str(article.get("id") or "")
             if article_id:
-                # Firestore fields are limited to 1 MiB. Enriched articles can
-                # carry the original article body, so apply the same safe cap
-                # used by the raw-article write path before upserting.
-                if "body_text" in article:
-                    bt = article["body_text"]
-                    max_bytes = 900_000
-                    if isinstance(bt, str) and len(bt.encode("utf-8")) > max_bytes:
-                        article["body_text"] = bt.encode("utf-8")[:max_bytes].decode("utf-8", errors="ignore")
-                        article["body_text_truncated"] = True
                 namespace.collection("enrichments").document(article_id).set(article, merge=True)
         namespace.set({
             "market": market,
@@ -1500,52 +1401,6 @@ class TraceMoneyStore:
         for start in range(0, len(instrument_ids), 500):
             refs = [
                 collection.document(instrument_id)
-                for instrument_id in instrument_ids[start : start + 500]
-            ]
-            for doc in self.db.get_all(refs):
-                if doc.exists:
-                    rows[doc.id] = _serialize(doc.to_dict()) or {}
-        return rows
-
-    def save_business_questions_docs(
-        self, market: str, universe_id: str, docs_payload: list[dict[str, Any]]
-    ) -> int:
-        collection = self._news_namespace(market, universe_id).collection("business_questions")
-        saved = 0
-        for start in range(0, len(docs_payload), 400):
-            batch = self.db.batch()
-            for payload in docs_payload[start : start + 400]:
-                instrument_id = str(payload.get("instrument_id") or "").strip().upper()
-                if not instrument_id:
-                    continue
-                batch.set(collection.document(instrument_id), payload, merge=False)
-                saved += 1
-            batch.commit()
-        self._news_namespace(market, universe_id).set({
-            "last_business_questions_at": datetime.now(timezone.utc).isoformat(),
-            "business_questions_count": saved,
-        }, merge=True)
-        return saved
-
-    def get_business_questions_doc(
-        self, market: str, universe_id: str, instrument_id: str
-    ) -> dict[str, Any] | None:
-        doc = (
-            self._news_namespace(market, universe_id)
-            .collection("business_questions")
-            .document(str(instrument_id).strip().upper())
-            .get()
-        )
-        return _serialize(doc.to_dict()) if doc.exists else None
-
-    def get_business_questions_docs_batch(
-        self, market: str, universe_id: str, instrument_ids: list[str]
-    ) -> dict[str, dict[str, Any]]:
-        collection = self._news_namespace(market, universe_id).collection("business_questions")
-        rows: dict[str, dict[str, Any]] = {}
-        for start in range(0, len(instrument_ids), 500):
-            refs = [
-                collection.document(str(instrument_id).strip().upper())
                 for instrument_id in instrument_ids[start : start + 500]
             ]
             for doc in self.db.get_all(refs):

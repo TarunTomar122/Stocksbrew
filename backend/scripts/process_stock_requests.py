@@ -31,9 +31,6 @@ import requests
 from google.cloud import firestore
 
 from backend.instrument_universe import list_instruments
-from backend.email import send_email
-from backend.email_runtime import log_email_send
-from backend.emails.brief_ready import build_brief_ready_email
 from backend.llm_client import (
     json_response_format,
     llm_api_key,
@@ -49,6 +46,7 @@ from backend.providers.stock_facts_provider import fetch_stock_facts
 from backend.providers.yfinance_provider import YFinanceClient
 from backend.scripts.materialize_views import materialize_views
 from backend.storage import TraceMoneyStore
+from backend.localdb.firestore import LocalFirestoreClient
 
 
 SUFFIX_RE = re.compile(
@@ -64,21 +62,8 @@ STALE_RUNNING_TTL_MINUTES = 20
 # competes with the market-session pipeline without any new information.
 RUNNABLE_REQUEST_STATUSES = {"queued", "retry", "pending"}
 INVALID_REQUEST_TOKENS = {
-    "TO", "IT", "IN", "AT", "IS", "ARE",
+    "TO", "IT", "IN", "ON", "AT", "IS", "ARE",
     "HTTPS", "HTTP", "WWW", "COM", "DIV", "HREF",
-}
-EXACT_SYMBOL_RE = re.compile(r"^[A-Z][A-Z0-9.-]{0,7}$")
-
-# Verified current US listings for requests that use a former/home-market
-# symbol. Keep this small and explicit; ordinary company-name resolution still
-# goes through the LLM hint plus a live quote guardrail below.
-CURRENT_US_SYMBOL_ALIASES = {
-    "CTRA": ("DVN", "Devon Energy Corporation"),
-    "CWEN-A": ("CWEN", "Clearway Energy, Inc. (Class C)"),
-    "HYNIX": ("SKHY", "SK hynix Inc."),
-    "SK HYNIX": ("SKHY", "SK hynix Inc."),
-    "SK HYNX": ("SKHY", "SK hynix Inc."),
-    "TCNNF": ("TRLV", "Trulieve Cannabis Corp."),
 }
 
 SYMBOL_HINT_PROMPT = """You map user stock requests to likely US stock tickers.
@@ -206,49 +191,6 @@ def _resolve_from_master(rows: list[dict[str, Any]], market: str, query: str) ->
     return top
 
 
-def _resolve_inactive_successor(rows: list[dict[str, Any]], market: str, query: str) -> dict[str, Any] | None:
-    """Follow an explicit catalog successor for a delisted share class.
-
-    The symbol master keeps inactive rows so historical links remain useful.
-    A new request for one of those exact symbols should resolve to its recorded
-    successor instead of being left in ``needs_confirmation`` forever.
-    """
-    normalized_query = normalize_name(query)
-    source = next(
-        (
-            row
-            for row in rows
-            if str(row.get("symbol") or "").strip().upper() == str(query).strip().upper()
-            or normalized_query == normalize_name(str(row.get("name") or ""))
-            or any(normalized_query == normalize_name(str(alias)) for alias in row.get("aliases") or [])
-        ),
-        None,
-    )
-    if not source or source.get("active") is not False:
-        return None
-    successor_id = str(source.get("successor_instrument_id") or "").strip().upper()
-    if not successor_id:
-        return None
-    successor = next(
-        (
-            row
-            for row in rows
-            if str(row.get("instrument_id") or "").strip().upper() == successor_id
-            and str(row.get("market") or market).strip().upper() == market
-            and row.get("active") is not False
-        ),
-        None,
-    )
-    if not successor:
-        return None
-    return {
-        **successor,
-        "_score": 100,
-        "resolved_from": str(query).strip().upper(),
-        "resolution_source": "catalog_successor",
-    }
-
-
 def _search_provider_candidates(query: str, market: str) -> list[dict[str, Any]]:
     import os
 
@@ -298,60 +240,6 @@ def _search_provider_candidates(query: str, market: str) -> list[dict[str, Any]]
             }
         )
     return out
-
-
-def _resolve_exact_symbol_from_quotes(query: str, market: str) -> dict[str, Any] | None:
-    """Resolve a clearly typed US ticker when the symbol catalog is behind.
-
-    ponytail: exact-symbol fallback only; company-name and foreign-market
-    requests stay in confirmation until their catalog/provider evidence exists.
-    """
-    symbol = str(query or "").strip().upper()
-    if market != "US" or symbol in INVALID_REQUEST_TOKENS or not EXACT_SYMBOL_RE.fullmatch(symbol):
-        return None
-    instrument = {
-        "instrument_id": f"US_{symbol}",
-        "market": "US",
-        "ticker": symbol,
-        "currency": "USD",
-    }
-    quote = YFinanceClient(max_workers=1, max_retries=1).fetch_quotes(
-        [instrument], include_fundamentals=False
-    ).get(instrument["instrument_id"])
-    current = (quote or {}).get("quote", {}).get("current")
-    if not quote or not current:
-        return None
-    name = str(quote.get("name") or symbol).strip()
-    return {
-        "market": "US",
-        "symbol": symbol,
-        "instrument_id": instrument["instrument_id"],
-        "name": name,
-        "exchange": str(quote.get("exchange") or "").strip(),
-        "aliases": [symbol, name],
-        "normalized_name": normalize_name(name),
-        "active": True,
-        "_score": 100,
-    }
-
-
-def _resolve_current_symbol_alias(query: str, market: str) -> dict[str, Any] | None:
-    if market != "US":
-        return None
-    alias = CURRENT_US_SYMBOL_ALIASES.get(str(query or "").strip().upper())
-    if not alias:
-        return None
-    symbol, name = alias
-    resolved = _resolve_exact_symbol_from_quotes(symbol, market)
-    if not resolved:
-        return None
-    return {
-        **resolved,
-        "name": name,
-        "aliases": [symbol, str(query).strip().upper(), name],
-        "resolved_from": str(query).strip().upper(),
-        "resolution_source": "current_symbol_alias",
-    }
 
 
 def _llm_symbol_hints(query: str, market: str) -> tuple[list[str], list[str]]:
@@ -408,15 +296,6 @@ def _llm_symbol_hints(query: str, market: str) -> tuple[list[str], list[str]]:
 
 
 def _resolve_request(master_rows: list[dict[str, Any]], market: str, query: str) -> dict[str, Any] | None:
-    resolved = _resolve_inactive_successor(master_rows, market, query)
-    if resolved:
-        return resolved
-    resolved = _resolve_current_symbol_alias(query, market)
-    if resolved:
-        return resolved
-    resolved = _resolve_exact_symbol_from_quotes(query, market)
-    if resolved:
-        return resolved
     resolved = _resolve_from_master(master_rows, market, query)
     if resolved:
         return resolved
@@ -449,7 +328,8 @@ def _resolve_request_with_llm_fallback(
         return resolved
 
     symbol_hints, name_hints = _llm_symbol_hints(query, market)
-    for probe in [*symbol_hints, *name_hints]:
+    probe_queries = [*symbol_hints, *name_hints]
+    for probe in probe_queries:
         candidate = _resolve_request(master_rows, market, probe)
         if not candidate:
             continue
@@ -461,43 +341,6 @@ def _resolve_request_with_llm_fallback(
         }
         if int(rescored["_score"]) >= 70:
             return rescored
-
-        # A current quote for an LLM-suggested symbol plus a matching company
-        # name is enough evidence when the symbol master is behind (for
-        # example, ``VERTIV`` -> ``VRT``). The old guardrail rejected these
-        # because quote-only rows only contain the ticker as their display name.
-        query_name = normalize_name(query)
-        matching_name = next(
-            (
-                name
-                for name in name_hints
-                if query_name and query_name in normalize_name(name)
-            ),
-            None,
-        )
-        candidate_symbol = str(candidate.get("symbol") or "").strip().upper()
-        query_symbol = str(query or "").strip().upper()
-        symbol_alias_match = bool(
-            candidate_symbol
-            and query_symbol
-            and len(query_symbol) <= 5
-            and len(candidate_symbol) >= 3
-            and query_symbol.startswith(candidate_symbol)
-            and len(query_symbol) - len(candidate_symbol) <= 1
-        )
-        if matching_name or symbol_alias_match:
-            aliases = [
-                *[str(alias) for alias in candidate.get("aliases") or []],
-                query_symbol,
-                *(name_hints[:1] if matching_name else []),
-            ]
-            return {
-                **candidate,
-                "name": str(matching_name or (name_hints[0] if symbol_alias_match and name_hints else candidate.get("name") or candidate_symbol)),
-                "aliases": list(dict.fromkeys(alias for alias in aliases if alias)),
-                "_score": max(70, int(candidate.get("_score") or 0)),
-                "resolution_source": "llm_symbol_hint",
-            }
 
     # Name-first salvage path: if query is a company name, allow a slightly
     # lower score only when the top candidate is clearly ahead and exchange-safe.
@@ -832,55 +675,6 @@ def _requester_emails(data: dict[str, Any]) -> set[str]:
     return emails
 
 
-def _notify_requesters(
-    store: TraceMoneyStore,
-    ref: Any,
-    data: dict[str, Any],
-    ticker: str,
-    instrument: dict[str, Any] | None = None,
-    override_email: str = "",
-) -> int:
-    """Send each requester's one-time ready email after the stock is live."""
-    already_sent = {str(e).strip().lower() for e in (data.get("notification_sent_to") or []) if str(e).strip()}
-    sent = 0
-    instrument_id = str((instrument or {}).get("instrument_id") or "").strip().upper()
-    latest = store.get_latest_prices([instrument_id]).get(instrument_id, {}) if instrument_id else {}
-    quote = latest.get("quote") or {}
-    universe_id = store.get_active_ai_universe(str((instrument or {}).get("market") or "US").upper()) or ""
-    intelligence = store.get_stock_intelligence_doc(
-        str((instrument or {}).get("market") or "US").upper(), universe_id, instrument_id
-    ) if universe_id and instrument_id else None
-    subject, html_body = build_brief_ready_email(
-        ticker=ticker,
-        company_name=(instrument or {}).get("name") or (latest.get("provider_metadata") or {}).get("name"),
-        price=quote.get("current"),
-        day_change_pct=quote.get("day_change_pct"),
-        headline=(intelligence or {}).get("headline"),
-    )
-    recipients = _requester_emails(data)
-    if override_email.strip():
-        recipients = {override_email.strip().lower()}
-    for email in sorted(recipients - already_sent):
-        if not send_email(email, subject, html_body):
-            continue
-        log_email_send(
-            store,
-            uid="",
-            email=email,
-            email_type="stock_request_ready",
-            subject=subject,
-            dedupe_key=f"stock_request_ready:{ref.id}:{email}",
-            trigger_type="stock_request_ready",
-            trigger_id=str(ref.id),
-            meta={"ticker": ticker, "query": str(data.get("query") or ref.id)},
-        )
-        already_sent.add(email)
-        sent += 1
-    if sent:
-        ref.set({"notification_sent_to": sorted(already_sent), "notification_sent_at": _now()}, merge=True)
-    return sent
-
-
 def _pending_requests(
     store: TraceMoneyStore,
     limit: int,
@@ -950,7 +744,12 @@ def _claim_request(store: TraceMoneyStore, ref: Any, claim_id: str) -> dict[str,
         )
         return data
 
-    return _txn(store.db.transaction())
+    transaction = store.db.transaction()
+    if isinstance(store.db, LocalFirestoreClient):
+        result = _txn(transaction)
+        transaction.commit()
+        return result
+    return firestore.transactional(_txn)(transaction)
 
 
 def _process_one_request(
@@ -1041,35 +840,20 @@ def _process_one_request(
             },
             merge=True,
         )
-        fulfilled_data = {**data, "resolved_symbol": str(instrument.get("ticker") or "").upper()}
-        notified = _notify_requesters(
-            store,
-            ref,
-            fulfilled_data,
-            fulfilled_data["resolved_symbol"],
-            instrument=instrument,
-            override_email=to_email,
-        )
-        if notified:
-            print(f"  [email] {query}: notified={notified}")
         print(f"  [ok] {query} -> {instrument.get('instrument_id')}")
         return "ok"
     except Exception as exc:
-        attempt_count = int(data.get("attempt_count") or 0) + 1
-        terminal = attempt_count >= 3
         ref.set(
             {
-                "status": "needs_confirmation" if terminal else "retry",
+                "status": "retry",
                 "fulfilled": False,
                 "resolve_error": str(exc),
-                "attempt_count": attempt_count,
                 "updated_at": _now(),
             },
             merge=True,
         )
-        state = "needs_confirmation" if terminal else "retry"
-        print(f"  [fail] {query}: {exc} ({state}, attempt={attempt_count})")
-        return "needs_confirmation" if terminal else "fail"
+        print(f"  [fail] {query}: {exc}")
+        return "fail"
 
 
 def main() -> None:

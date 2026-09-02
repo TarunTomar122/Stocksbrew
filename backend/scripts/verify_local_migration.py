@@ -30,6 +30,7 @@ def _expected_from_manifest(
     path: Path,
     selectors: list[str],
     collection_groups: list[str] | None = None,
+    all_documents: bool = False,
 ) -> dict[str, str]:
     collection_groups = collection_groups or []
     expected: dict[str, str] = {}
@@ -50,7 +51,7 @@ def _expected_from_manifest(
                     raise ValueError
             except (json.JSONDecodeError, ValueError) as error:
                 raise ValueError(f"manifest line {line_number} is invalid") from error
-            if any(selector_matches_path(selector, document_path) for selector in selectors) or any(
+            if all_documents or any(selector_matches_path(selector, document_path) for selector in selectors) or any(
                 collection_group_matches_path(collection_group, document_path)
                 for collection_group in collection_groups
             ):
@@ -87,10 +88,13 @@ def _local_hashes(
     store: LocalDocumentStore,
     selectors: list[str],
     collection_groups: list[str] | None = None,
+    all_documents: bool = False,
 ) -> dict[str, str]:
     collection_groups = collection_groups or []
     actual: dict[str, str] = {}
     roots = sorted({selector.split("/", 1)[0] for selector in selectors})
+    if all_documents:
+        return {document["path"]: document["hash"] for document in store.iter_all_documents()}
     if collection_groups:
         with sqlite3.connect(str(store.db_path)) as connection:
             roots = sorted(
@@ -113,6 +117,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--collection", dest="collections", action="append", default=[])
     parser.add_argument("--collection-group", dest="collection_groups", action="append", default=[])
     parser.add_argument("--collections-file")
+    parser.add_argument("--all", action="store_true", help="verify every document in the manifest and local store")
     parser.add_argument("--db", default="localdb.sqlite3")
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("--manifest")
@@ -128,12 +133,10 @@ def main(argv: list[str] | None = None) -> int:
         if args.max_items < 1:
             raise ValueError("--max-items must be positive")
         collection_groups = _read_collection_groups(args.collection_groups)
-        selectors = _read_selectors(
-            args.collections,
-            args.collections_file,
-            allow_empty=bool(collection_groups),
-        )
-        if not selectors and not collection_groups:
+        selectors = _read_selectors(args.collections, args.collections_file, allow_empty=bool(collection_groups or args.all))
+        if args.all and (args.collections or args.collections_file or args.collection_groups):
+            raise ValueError("--all cannot be combined with explicit collection selectors")
+        if not selectors and not collection_groups and not args.all:
             raise ValueError("at least one explicit collection selector is required")
         db_path = validate_local_file_path(args.db)
         if not db_path.exists():
@@ -141,7 +144,7 @@ def main(argv: list[str] | None = None) -> int:
         store = LocalDocumentStore(db_path)
         if args.manifest:
             expected = _expected_from_manifest(
-                validate_local_file_path(args.manifest), selectors, collection_groups
+                validate_local_file_path(args.manifest), selectors, collection_groups, args.all
             )
             source = "manifest"
         else:
@@ -149,7 +152,7 @@ def main(argv: list[str] | None = None) -> int:
                 _firestore_client(args.project_id), selectors, collection_groups
             )
             source = "firestore"
-        actual = _local_hashes(store, selectors, collection_groups)
+        actual = _local_hashes(store, selectors, collection_groups, args.all)
         missing = sorted(set(expected) - set(actual))
         extra = sorted(set(actual) - set(expected))
         mismatches = sorted(path for path in set(expected) & set(actual) if expected[path] != actual[path])

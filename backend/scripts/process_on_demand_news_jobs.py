@@ -30,7 +30,7 @@ from backend.llm_client import (
     summarize_llm_usage,
 )
 from backend.stock_intelligence import build_stock_intelligence_docs
-from backend.scripts.build_business_questions import _generate, _payload
+from backend.localdb.firestore import LocalFirestoreClient
 from backend.storage import TraceMoneyStore
 
 logger = logging.getLogger(__name__)
@@ -210,7 +210,12 @@ def _claim_job(store: TraceMoneyStore, ref: Any, claim_id: str) -> dict[str, Any
         data["attempts"] = attempts
         return data
 
-    return _txn(store.db.transaction())
+    transaction = store.db.transaction()
+    if isinstance(store.db, LocalFirestoreClient):
+        result = _txn(transaction)
+        transaction.commit()
+        return result
+    return firestore.transactional(_txn)(transaction)
 
 
 def process_job(
@@ -306,18 +311,6 @@ def process_job(
             return "no_brief"
 
         store.upsert_stock_intelligence_docs(market, universe_id, docs)
-        try:
-            facts = store.get_stock_facts_batch([instrument_id]).get(instrument_id, {})
-            latest = store.get_latest_prices([instrument_id]).get(instrument_id, {})
-            intelligence = docs[0]
-            intel_pro = store.get_stock_intel_pro_batch(market, universe_id, [instrument_id]).get(instrument_id, {})
-            questions = _generate(
-                instrument,
-                _payload(instrument, facts, latest, intelligence, intel_pro),
-            )
-            store.save_business_questions_docs(market, universe_id, [questions])
-        except Exception:
-            logger.exception("business questions backfill failed job_id=%s instrument_id=%s", job_doc.id, instrument_id)
         try:
             notify_brief_ready(
                 store,

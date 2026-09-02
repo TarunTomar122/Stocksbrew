@@ -11,6 +11,7 @@ import argparse
 import hmac
 import json
 import os
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -108,6 +109,36 @@ def iter_firestore_collection_group(client: Any, collection_group: str) -> Itera
     valid_group = validate_collection_group(collection_group)
     for snapshot in _ordered_stream(client.collection_group(valid_group)):
         yield _record_from_snapshot(snapshot)
+
+
+def discover_firestore_selectors(client: Any) -> tuple[list[str], list[str]]:
+    """Discover root collections and code-referenced collection groups.
+
+    Listing subcollections per document is a network round-trip per document.
+    Root collection reads plus collection-group scans cover the app's static
+    Firestore paths without turning a migration into a multi-hour metadata walk.
+    """
+
+    selectors = {collection.id for collection in client.collections()}
+    groups: set[str] = set()
+    pattern = re.compile(r"\.collection(?:_group)?\(\s*[\"']([^\"']+)[\"']")
+    for source_path in REPO_ROOT.rglob("*"):
+        if source_path.is_dir() or any(part in {".git", "node_modules", ".venv"} for part in source_path.parts):
+            continue
+        if source_path.suffix not in {".py", ".ts", ".tsx", ".js", ".jsx"}:
+            continue
+        try:
+            text = source_path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        for collection_id in pattern.findall(text):
+            parts = collection_id.split("/")
+            if len(parts) == 1:
+                groups.add(parts[0])
+            else:
+                groups.add(parts[-1])
+    groups.update({"stocks"})
+    return sorted(selectors), sorted(groups - selectors)
 
 
 def _read_selectors(values: list[str], config_path: str | None, *, allow_empty: bool = False) -> list[str]:
@@ -262,7 +293,7 @@ def _iter_archive(
                 record = _record_from_archive(payload, line_number)
             except (json.JSONDecodeError, ValueError) as error:
                 raise ValueError(str(error)) from error
-            if any(selector_matches_path(selector, record["path"]) for selector in selectors) or any(
+            if (not selectors and not collection_groups) or any(selector_matches_path(selector, record["path"]) for selector in selectors) or any(
                 collection_group_matches_path(collection_group, record["path"])
                 for collection_group in collection_groups
             ):
@@ -446,7 +477,8 @@ def _migrate_archive(
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="migrate an explicit Firestore allowlist to local SQLite")
+    parser = argparse.ArgumentParser(description="migrate Firestore into local SQLite")
+    parser.add_argument("--all", action="store_true", help="discover and copy every reachable Firestore collection")
     parser.add_argument("--collection", dest="collections", action="append", default=[])
     parser.add_argument("--collection-group", dest="collection_groups", action="append", default=[])
     parser.add_argument("--collections-file")
@@ -473,12 +505,10 @@ def main(argv: list[str] | None = None) -> int:
         if args.checkpoint_every < 1:
             raise ValueError("--checkpoint-every must be positive")
         collection_groups = _read_collection_groups(args.collection_groups)
-        selectors = _read_selectors(
-            args.collections,
-            args.collections_file,
-            allow_empty=bool(collection_groups),
-        )
-        if not selectors and not collection_groups:
+        selectors = _read_selectors(args.collections, args.collections_file, allow_empty=bool(collection_groups or args.all))
+        if args.all and (args.collections or args.collections_file or args.collection_groups):
+            raise ValueError("--all cannot be combined with explicit collection selectors")
+        if not selectors and not collection_groups and not args.all:
             raise ValueError("at least one explicit collection selector is required")
         db_path = validate_local_file_path(args.db)
         checkpoint_path = validate_local_file_path(args.checkpoint)
@@ -499,6 +529,9 @@ def main(argv: list[str] | None = None) -> int:
         else:
             export_path = validate_local_file_path(args.export_path) if args.export_path else None
             client = _firestore_client(args.project_id)
+            if args.all:
+                selectors, discovered_groups = discover_firestore_selectors(client)
+                collection_groups = sorted(set(collection_groups).union(discovered_groups))
             result = _migrate_firestore(
                 client,
                 store,

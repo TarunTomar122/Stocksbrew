@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Iterator
 
-from .codec import canonical_json, stable_document_hash
+from .codec import canonical_json, denormalise_value, stable_document_hash
 from .paths import validate_collection_name, validate_document_path, validate_local_file_path, validate_path_prefix
 
 
@@ -69,7 +69,7 @@ class LocalDocumentStore:
     def _row(row: sqlite3.Row) -> dict[str, Any]:
         return {
             "path": row["path"],
-            "data": json.loads(row["data_json"]),
+            "data": denormalise_value(json.loads(row["data_json"])),
             "hash": row["document_hash"],
             "updated_at": row["updated_at"],
         }
@@ -174,6 +174,143 @@ class LocalDocumentStore:
         limit: int | None = None,
     ) -> list[dict[str, Any]]:
         return list(self.iter_documents(collection, prefix=prefix, limit=limit))
+
+    def list_collection_documents(
+        self,
+        collection_path: str,
+        limit: int | None = None,
+    ) -> list[dict[str, Any]]:
+        """List direct children of a root or nested Firestore collection."""
+
+        valid_path = validate_path_prefix(collection_path)
+        parts = valid_path.split("/")
+        if len(parts) % 2 == 0:
+            raise ValueError("collection path must end at a collection")
+        if limit is not None and (not isinstance(limit, int) or limit < 0):
+            raise ValueError("limit must be a non-negative integer")
+        root = parts[0]
+        prefix = valid_path + "/"
+        connection = self._connect()
+        try:
+            rows = connection.execute(
+                "SELECT path, data_json, document_hash, updated_at FROM documents "
+                "WHERE collection = ? AND path LIKE ? ESCAPE '\\' ORDER BY path",
+                (root, prefix.replace("%", "\\%").replace("_", "\\_") + "%"),
+            )
+            documents = [
+                self._row(row)
+                for row in rows
+                if len(row["path"].split("/")) == len(parts) + 1
+            ]
+            return documents[:limit] if limit is not None else documents
+        finally:
+            connection.close()
+
+    def iter_all_documents(self) -> Iterator[dict[str, Any]]:
+        connection = self._connect()
+        try:
+            for row in connection.execute(
+                "SELECT path, data_json, document_hash, updated_at FROM documents ORDER BY path"
+            ):
+                yield self._row(row)
+        finally:
+            connection.close()
+
+    @staticmethod
+    def _merge_data(existing: dict[str, Any], updates: dict[str, Any]) -> dict[str, Any]:
+        result = dict(existing)
+        for key, value in updates.items():
+            if "." not in key:
+                if isinstance(result.get(key), dict) and isinstance(value, dict):
+                    result[key] = LocalDocumentStore._merge_data(result[key], value)
+                else:
+                    result[key] = value
+                continue
+            target = result
+            pieces = key.split(".")
+            for piece in pieces[:-1]:
+                child = target.get(piece)
+                if not isinstance(child, dict):
+                    child = {}
+                    target[piece] = child
+                target = child
+            target[pieces[-1]] = value
+        return result
+
+    def apply_operations(
+        self,
+        operations: Iterable[dict[str, Any]],
+        expected_hashes: dict[str, str | None] | None = None,
+    ) -> list[dict[str, Any] | None]:
+        """Apply resolved writes atomically, optionally checking read versions."""
+
+        prepared = list(operations)
+        if not prepared:
+            return []
+        connection = self._connect()
+        results: list[dict[str, Any] | None] = []
+        try:
+            connection.execute("BEGIN IMMEDIATE")
+            for path, expected in (expected_hashes or {}).items():
+                valid_path = validate_document_path(path)
+                row = connection.execute(
+                    "SELECT document_hash FROM documents WHERE path = ?", (valid_path,)
+                ).fetchone()
+                actual = row["document_hash"] if row else None
+                if actual != expected:
+                    raise RuntimeError(f"transaction conflict for {valid_path}")
+
+            updated_at = datetime.now(timezone.utc).isoformat()
+            for operation in prepared:
+                path = validate_document_path(operation.get("path"))
+                kind = operation.get("op", "set")
+                if kind == "delete":
+                    connection.execute("DELETE FROM documents WHERE path = ?", (path,))
+                    results.append(None)
+                    continue
+                if kind == "create" and connection.execute(
+                    "SELECT 1 FROM documents WHERE path = ?", (path,)
+                ).fetchone():
+                    raise ValueError(f"document already exists: {path}")
+                data = operation.get("data")
+                if not isinstance(data, dict):
+                    raise ValueError("document data must be an object")
+                existing_row = connection.execute(
+                    "SELECT data_json FROM documents WHERE path = ?", (path,)
+                ).fetchone()
+                existing = denormalise_value(json.loads(existing_row["data_json"])) if existing_row else {}
+                merged = self._merge_data(existing, data) if operation.get("merge") else data
+                _, data_json, document_hash, identity = self._prepare(path, merged)
+                collection, document_id = identity.split("\x00", 1)
+                connection.execute(
+                    """
+                    INSERT INTO documents(path, collection, document_id, data_json, document_hash, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(path) DO UPDATE SET
+                        collection=excluded.collection,
+                        document_id=excluded.document_id,
+                        data_json=excluded.data_json,
+                        document_hash=excluded.document_hash,
+                        updated_at=excluded.updated_at
+                    """,
+                    (path, collection, document_id, data_json, document_hash, updated_at),
+                )
+                results.append({
+                    "path": path,
+                    "data": denormalise_value(json.loads(data_json)),
+                    "hash": document_hash,
+                    "updated_at": updated_at,
+                })
+            connection.commit()
+            return results
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
+
+    def delete(self, path: str) -> None:
+        self.apply_operations([{"op": "delete", "path": path}])
 
     def health(self) -> bool:
         connection = self._connect()
