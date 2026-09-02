@@ -20,7 +20,6 @@ export async function getLocalDBDocument<T = Record<string, unknown>>(
   try {
     const response = await fetch(`${baseUrl}/documents/${encodeURIComponent(documentPath)}`, {
       headers: { Authorization: `Bearer ${token}` },
-      cache: "no-store",
     });
     if (!response.ok) return null;
 

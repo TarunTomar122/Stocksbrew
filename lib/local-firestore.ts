@@ -303,7 +303,6 @@ export class LocalFirestore {
         ...(init.body ? { "Content-Type": "application/json" } : {}),
       },
       body: init.body ? JSON.stringify(init.body) : undefined,
-      cache: "no-store",
     });
     return response;
   }
