@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import type { AnomalyItem } from "@/lib/daily-anomalies";
-import { buildPulsePageData } from "@/lib/pulse-data";
+import { buildPulsePageData, splitPulseMovers } from "@/lib/pulse-data";
+import type { ScannerItem } from "@/components/movers-scanner";
 
 function anomaly(overrides: Partial<AnomalyItem> = {}): AnomalyItem {
   return {
@@ -49,6 +50,32 @@ function pulseItems(rows: AnomalyItem[]) {
 }
 
 describe("Pulse mover narratives", () => {
+  it("keeps all mover rows even when the explanation is unresolved", () => {
+    const items: ScannerItem[] = [
+      ...Array.from({ length: 15 }, (_, index) => ({
+        ticker: `UP${index}`,
+        price: 100,
+        changePct: index + 1,
+        tag: "",
+        headline: "--",
+        whyItMatters: "",
+      })),
+      ...Array.from({ length: 15 }, (_, index) => ({
+        ticker: `DOWN${index}`,
+        price: 100,
+        changePct: -(index + 1),
+        tag: "",
+        headline: "--",
+        whyItMatters: "",
+      })),
+    ];
+
+    const { gainers, losers } = splitPulseMovers(items);
+
+    expect(gainers).toHaveLength(15);
+    expect(losers).toHaveLength(15);
+  });
+
   it("shows a mover only after a researched explanation was stored", () => {
     expect(pulseItems([anomaly({
       narrative_status: "verified",

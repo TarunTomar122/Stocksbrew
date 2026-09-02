@@ -21,6 +21,7 @@ import { startDodoCheckout } from "@/lib/dodo-checkout-client";
 import { signInWithGoogle } from "@/lib/sign-in";
 import { US_PRO_MONTHLY, US_PRO_YEARLY } from "@/lib/pricing";
 import { PRO_POINTS } from "@/lib/subscribe-benefits";
+import { splitPulseMovers } from "@/lib/pulse-data";
 import type {
   OpeningCue,
   OpeningReport,
@@ -34,10 +35,6 @@ const H2 =
   "text-balance font-medium tracking-tight text-oa-fg text-[28px] leading-tight sm:text-4xl sm:leading-tight";
 const SUB = "mt-2 text-base leading-7 text-oa-muted-fg";
 const EYEBROW = "text-base uppercase tracking-[0.12em] text-oa-muted-fg";
-
-/* Free readers see six full reads per side before the gate; the point of this
-   page is how much is given away, not how much is held back. */
-const FREE_ROWS = 6;
 
 function money(v: number) {
   return v.toLocaleString(undefined, {
@@ -569,51 +566,6 @@ function moverReason(item: ScannerItem) {
   return (item.headline || item.whyItMatters || item.tag || "").trim();
 }
 
-function MoverGhostRow() {
-  return (
-    <div className="flex items-start gap-2.5 px-3 py-4 sm:items-center sm:gap-3 sm:px-5">
-      <div className="mt-0.5 size-8 shrink-0 rounded-full bg-oa-secondary sm:mt-0" />
-      <div className="min-w-0 flex-1 space-y-1.5">
-        <div className="h-3.5 w-14 rounded-full bg-oa-secondary" />
-        <div className="h-2.5 w-20 rounded-full bg-oa-secondary" />
-      </div>
-      <div className="shrink-0 flex flex-col items-end gap-0.5">
-        <div className="ml-auto h-3.5 w-14 rounded-full bg-oa-secondary" />
-        <div className="ml-auto h-2.5 w-12 rounded-full bg-oa-secondary" />
-      </div>
-    </div>
-  );
-}
-
-function GateStrip({ hiddenCount }: { hiddenCount: number }) {
-  return (
-    <div className="border-t border-oa-border">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none select-none overflow-hidden opacity-60 [mask-image:linear-gradient(to_bottom,black,transparent_90%)]"
-      >
-        <MoverGhostRow />
-      </div>
-      <div
-        role="status"
-        className="flex flex-col items-center gap-3 px-3 py-5 text-center sm:flex-row sm:justify-between sm:px-5 sm:text-left"
-      >
-        <p className="text-[16px] leading-6 text-oa-muted-fg">
-          <span className="font-medium text-oa-fg">
-            Pro will unlock all the movers and their reasoning.
-          </span>
-        </p>
-        <ProCheckoutButton
-          size="sm"
-          className="h-10 w-full shrink-0 whitespace-nowrap px-5 text-[16px] sm:w-auto"
-        >
-          Try Pro
-        </ProCheckoutButton>
-      </div>
-    </div>
-  );
-}
-
 function DetailStat({
   label,
   children,
@@ -633,32 +585,15 @@ function DetailStat({
 
 function MoversBoard({
   items,
-  isSubscribed,
 }: {
   items: ScannerItem[];
-  isSubscribed: boolean;
 }) {
   const [tab, setTab] = useState<"gainers" | "losers">("gainers");
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
 
-  const hasRealAnomaly = (i: ScannerItem) => {
-    const headline = (i.headline || "").trim();
-    const why = (i.whyItMatters || "").trim();
-    return (
-      (headline.length > 0 && headline !== "--") ||
-      (why.length > 0 && why !== "--")
-    );
-  };
-  const withAnomaly = items.filter(hasRealAnomaly);
-  const winners = [...withAnomaly]
-    .filter((i) => i.changePct >= 0)
-    .sort((a, b) => b.changePct - a.changePct);
-  const losers = [...withAnomaly]
-    .filter((i) => i.changePct < 0)
-    .sort((a, b) => a.changePct - b.changePct);
+  const { gainers: winners, losers } = splitPulseMovers(items);
   const rows = tab === "gainers" ? winners : losers;
-  const visibleRows = isSubscribed ? rows : rows.slice(0, FREE_ROWS);
-  const hiddenCount = rows.length - visibleRows.length;
+  const visibleRows = rows;
 
   const selectedIndex = rows.findIndex((r) => r.ticker === selectedTicker);
   const selected =
@@ -746,8 +681,7 @@ function MoversBoard({
 
                 {rows.length === 0 ? (
                   <p className="px-3 pb-6 text-base text-oa-muted-fg sm:px-5">
-                    No {tab === "gainers" ? "gainers" : "losers"} with a
-                    source-backed reason right now.
+                    No {tab === "gainers" ? "gainers" : "losers"} right now.
                   </p>
                 ) : (
                   <>
@@ -772,11 +706,7 @@ function MoversBoard({
                         </motion.div>
                       </AnimatePresence>
                     </div>
-                    {hiddenCount > 0 ? (
-                      <GateStrip hiddenCount={hiddenCount} />
-                    ) : (
-                      <div className="h-2" />
-                    )}
+                    <div className="h-2" />
                   </>
                 )}
               </div>
@@ -1185,7 +1115,7 @@ export function PulseHub({
         report={premarketReport ?? null}
       />
       <LeaningPlate movers={premarketMovers ?? null} />
-      <MoversBoard items={items} isSubscribed={isSubscribed} />
+      <MoversBoard items={items} />
       <RedditBuzzPlate tickers={redditTickers} postCount={redditPostCount} />
       <EarningsPlate items={recentEarnings} />
 

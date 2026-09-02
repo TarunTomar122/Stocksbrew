@@ -50,6 +50,16 @@ export function epsTagFromReported(reported?: string): string | undefined {
   return undefined;
 }
 
+export function splitPulseMovers(items: ScannerItem[]): {
+  gainers: ScannerItem[];
+  losers: ScannerItem[];
+} {
+  return {
+    gainers: [...items].filter((item) => item.changePct >= 0).sort((a, b) => b.changePct - a.changePct),
+    losers: [...items].filter((item) => item.changePct < 0).sort((a, b) => a.changePct - b.changePct),
+  };
+}
+
 function mapScannerItems(anomalies: AnomalyItem[], buzzBy: Map<string, string>): ScannerItem[] {
   return anomalies.map((a) => {
     const weakExplanation = isWeakMoveExplanation(a);

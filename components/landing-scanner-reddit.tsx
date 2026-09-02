@@ -77,7 +77,6 @@ export function LandingScannerReddit({
               <SectionHeader icon="trending_up" tone="scanner" title="Today's movers, and why" />
               <MoversScanner
                 items={scannerItems}
-                limit={8}
                 showCount={false}
                 embedded
                 trackedIds={trackedIds}

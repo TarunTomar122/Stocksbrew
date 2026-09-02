@@ -8,7 +8,6 @@ import { TerminalLandingProSection } from "@/components/terminal-landing-pro-sec
 import { resolveStockTier } from "@/lib/ai-launch-tier";
 import { getDailyAnomalies } from "@/lib/daily-anomalies";
 import { enrichRedditTickers } from "@/lib/reddit-buzz-enrich";
-import { resolveFeedAccess } from "@/lib/feed-access";
 import type { AnomalyItem } from "@/lib/daily-anomalies";
 import { anomalyTag, buildLandingSectorCards } from "@/lib/landing-sector-data";
 import {
@@ -20,7 +19,7 @@ import {
 import { buildLandingHeroCallData } from "@/lib/landing-hero-call";
 import { buildLandingHeroMetrics } from "@/lib/landing-hero-metrics";
 import { normalizeDirectiveForUi } from "@/lib/directive-ui";
-import { anomalyDetail, anomalyHeadline, hasUnverifiedNarrative, isWeakMoveExplanation } from "@/components/daily-anomalies-shared";
+import { anomalyDetail, anomalyHeadline } from "@/components/daily-anomalies-shared";
 import { getCurrentMarket } from "@/lib/market";
 import { getMarketSnapshot } from "@/lib/firestore";
 import { getRedditCues } from "@/lib/reddit-cues";
@@ -43,7 +42,6 @@ export const getLandingUserContext = cache(async () => {
       signedIn: false,
       isSubscribed: false,
       trackedIds: [] as string[],
-      fullItemLimit: resolveFeedAccess({ signedIn: false, isSubscribed: false }).fullItemLimit,
     };
   }
   const userDoc = await getUserDoc(session.uid).catch(() => null);
@@ -55,7 +53,6 @@ export const getLandingUserContext = cache(async () => {
     signedIn: true,
     isSubscribed,
     trackedIds,
-    fullItemLimit: resolveFeedAccess({ signedIn: true, isSubscribed }).fullItemLimit,
   };
 });
 
@@ -206,9 +203,7 @@ export async function LandingScannerRedditStream() {
     getMarketSnapshot(market).catch(() => []),
     getLandingUserContext(),
   ]);
-  const anomalies = (anomaliesDoc?.anomalies ?? []).filter(
-    (a) => !isWeakMoveExplanation(a) && !hasUnverifiedNarrative(a),
-  );
+  const anomalies = anomaliesDoc?.anomalies ?? [];
   if (anomalies.length === 0) return null;
 
   const redditPicks = enrichRedditTickers(

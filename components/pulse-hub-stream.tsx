@@ -5,7 +5,6 @@ import { buildPulsePageData, epsTagFromReported } from "@/lib/pulse-data";
 import { getDailyAnomalies } from "@/lib/daily-anomalies";
 import { listAllEarningsIntelDocs } from "@/lib/earnings-intel";
 import { mergeIntelScenarios } from "@/lib/earnings-scenario-weights";
-import { redactScannerItemsAfterLimit, resolveFeedAccess } from "@/lib/feed-access";
 import { getMarketSnapshot } from "@/lib/firestore";
 import { getCurrentMarket } from "@/lib/market";
 import { getPremarketMovers, isPremarketLive } from "@/lib/premarket";
@@ -42,10 +41,7 @@ export async function PulseHubStream() {
       };
     });
   const userDoc = session ? await getUserDoc(session.uid).catch(() => null) : null;
-  const feedAccess = resolveFeedAccess({
-    signedIn: Boolean(session),
-    isSubscribed: resolveIsSubscribed(userDoc),
-  });
+  const isSubscribed = resolveIsSubscribed(userDoc);
 
   const redditTickers = enrichRedditTickers(
     (redditData?.tickers ?? []).filter(hasRedditBrief),
@@ -69,10 +65,10 @@ export async function PulseHubStream() {
   return (
     <div className="landing-stream-in">
       <PulseHub
-        items={redactScannerItemsAfterLimit(data.items, feedAccess.fullItemLimit, { preservePreview: true })}
+        items={data.items}
         premarketMovers={premarketLive ? premarketDoc : null}
         premarketReport={premarketLive ? premarketReport : null}
-        isSubscribed={feedAccess.isSubscribed}
+        isSubscribed={isSubscribed}
         recentEarnings={recentEarnings}
         redditTickers={redditTickers}
         redditPostCount={redditData?.post_count}
