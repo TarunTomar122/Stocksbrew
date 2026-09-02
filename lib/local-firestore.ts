@@ -271,8 +271,31 @@ export class LocalFirestore {
     return new LocalQuery(this, collectionId, [], [], undefined, undefined, true);
   }
 
+  private async batchGet(
+    refs: LocalDocumentReference[],
+    select?: string[],
+  ): Promise<LocalDocumentSnapshot[]> {
+    const documents = new Map<string, LocalDocumentPayload>();
+    const chunkSize = select ? 500 : 100;
+    for (let start = 0; start < refs.length; start += chunkSize) {
+      const chunk = refs.slice(start, start + chunkSize);
+      const response = await this.request("/documents:batchGet", {
+        method: "POST",
+        body: { paths: chunk.map((ref) => ref.path), ...(select ? { select } : {}) },
+      });
+      if (!response.ok) throw new Error(`LocalDB batch read failed (${response.status})`);
+      const payload = await response.json() as { documents?: LocalDocumentPayload[] };
+      for (const document of payload.documents || []) documents.set(document.path, document);
+    }
+    return refs.map((ref) => new LocalDocumentSnapshot(ref, documents.get(ref.path)));
+  }
+
   async getAll(...refs: LocalDocumentReference[]): Promise<LocalDocumentSnapshot[]> {
-    return Promise.all(refs.map((ref) => ref.get()));
+    return this.batchGet(refs);
+  }
+
+  async getAllSelected(refs: LocalDocumentReference[], select: string[]): Promise<LocalDocumentSnapshot[]> {
+    return this.batchGet(refs, select);
   }
 
   batch(): LocalWriteBatch {

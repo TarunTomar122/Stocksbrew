@@ -12,12 +12,13 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 from urllib.parse import parse_qs, unquote, urlsplit
 
-from .firestore import LocalFirestoreClient, _MISSING, _delete_field, _field_value, _set_field
+from .firestore import LocalFirestoreClient, _MISSING, _delete_field, _field_value, _select_data, _set_field
 from .paths import validate_collection_name, validate_document_path, validate_path_prefix
 from .store import LocalDocumentStore
 
 MAX_BODY_BYTES = 16 * 1024 * 1024
 MAX_BATCH_DOCUMENTS = 500
+MAX_BATCH_GET_DOCUMENTS = 500
 MAX_LIST_DOCUMENTS = 5_000
 
 
@@ -201,6 +202,38 @@ class LocalDBRequestHandler(BaseHTTPRequestHandler):
         if not self._require_auth():
             return
         endpoint = urlsplit(self.path).path
+        if endpoint == "/documents:batchGet":
+            try:
+                body = self._read_json()
+                paths = body.get("paths") if isinstance(body, dict) else None
+                select = body.get("select") if isinstance(body, dict) else None
+                if not isinstance(paths, list) or len(paths) > MAX_BATCH_GET_DOCUMENTS:
+                    raise ValueError("paths must be a list of at most 500 items")
+                if select is not None and (not isinstance(select, list) or not all(isinstance(item, str) for item in select)):
+                    raise ValueError("select must be a list of field paths")
+                valid_paths = [validate_document_path(path) for path in paths]
+                for path in valid_paths:
+                    if not self._allowed(path):
+                        self._error("collection is not allowed", 403)
+                        return
+                documents = self.server.store.get_many(valid_paths)
+                payload = []
+                for document in documents:
+                    data = document["data"]
+                    if select is not None:
+                        data = _select_data(data, select)
+                    payload.append({
+                        "path": document["path"],
+                        "data": data,
+                        "hash": document["hash"],
+                        "updated_at": document["updated_at"],
+                    })
+                self._send_json({"documents": payload, "count": len(payload)})
+            except ValueError as error:
+                self._error(str(error), 400)
+            except Exception:
+                self._error("internal error", 500)
+            return
         if endpoint == "/query":
             try:
                 body = self._read_json()

@@ -181,6 +181,37 @@ def _latest_price_write_payload(
     return latest_payload
 
 
+def _near_52_week_row(payload: dict[str, Any]) -> dict[str, Any] | None:
+    instrument_id = str(payload.get("instrument_id") or "").strip()
+    market = str(payload.get("market") or "").strip().upper()
+    ticker = str(payload.get("ticker") or "").strip()
+    quote = payload.get("quote") if isinstance(payload.get("quote"), dict) else {}
+    fundamentals = payload.get("fundamentals") if isinstance(payload.get("fundamentals"), dict) else {}
+    current = quote.get("current")
+    high = fundamentals.get("week_52_high")
+    low = fundamentals.get("week_52_low")
+    if (
+        not instrument_id
+        or not market
+        or not ticker
+        or not all(isinstance(value, (int, float)) and not isinstance(value, bool) for value in (current, high, low))
+        or high <= low
+    ):
+        return None
+    metadata = payload.get("provider_metadata") if isinstance(payload.get("provider_metadata"), dict) else {}
+    return {
+        "instrumentId": instrument_id,
+        "market": market,
+        "ticker": ticker,
+        "name": str(metadata.get("name") or ticker),
+        "price": current,
+        "changePct": quote.get("day_change_pct"),
+        "week52High": high,
+        "week52Low": low,
+        "updatedAt": str(payload.get("updated_at") or payload.get("captured_at") or ""),
+    }
+
+
 def _compact_heat_list(payload: dict[str, Any]) -> dict[str, Any]:
     rows_raw = payload.get("rows") or []
     rows = [row for row in rows_raw if isinstance(row, dict)]
@@ -461,6 +492,58 @@ class TraceMoneyStore:
         )
 
         latest_ref.set(latest_payload, merge=True)
+        self._refresh_near_52_week_view(str(latest_payload.get("market") or payload.get("market") or ""), [latest_payload])
+
+    def rebuild_near_52_week_view(self, market: str) -> int:
+        market_key = str(market).upper()
+        rows: list[dict[str, Any]] = []
+        for doc in self.db.collection("tm_latest_prices").stream():
+            payload = _serialize(doc.to_dict()) or {}
+            if str(payload.get("market") or "").upper() != market_key:
+                continue
+            row = _near_52_week_row(payload)
+            if row:
+                rows.append(row)
+        rows.sort(key=lambda row: str(row["instrumentId"]))
+        self.db.collection("tm_views_near_52_week").document(market_key).set({
+            "market": market_key,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "row_count": len(rows),
+            "rows": rows,
+        })
+        return len(rows)
+
+    def _refresh_near_52_week_view(self, market: str, payloads: list[dict[str, Any]]) -> None:
+        market_key = str(market).upper()
+        if not market_key or not payloads:
+            return
+        ref = self.db.collection("tm_views_near_52_week").document(market_key)
+        existing = ref.get()
+        if not existing.exists:
+            self.rebuild_near_52_week_view(market_key)
+            return
+        data = _serialize(existing.to_dict()) or {}
+        rows_by_id = {
+            str(row.get("instrumentId")): row
+            for row in data.get("rows", [])
+            if isinstance(row, dict) and row.get("instrumentId")
+        }
+        for payload in payloads:
+            row = _near_52_week_row(payload)
+            instrument_id = str(payload.get("instrument_id") or "").strip()
+            if not instrument_id:
+                continue
+            if row:
+                rows_by_id[instrument_id] = row
+            else:
+                rows_by_id.pop(instrument_id, None)
+        rows = sorted(rows_by_id.values(), key=lambda row: str(row["instrumentId"]))
+        ref.set({
+            "market": market_key,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "row_count": len(rows),
+            "rows": rows,
+        })
 
     def save_price_snapshots_bulk(self, payloads: list[dict[str, Any]]) -> int:
         """Bulk variant of save_price_snapshot.
@@ -480,6 +563,7 @@ class TraceMoneyStore:
                     existing_by_id[doc.id] = _serialize(doc.to_dict()) or {}
 
         pending: list[tuple[Any, dict[str, Any]]] = []
+        latest_payloads: list[dict[str, Any]] = []
         updated_at = datetime.now(timezone.utc).isoformat()
         for payload in payloads:
             instrument_id = payload["instrument_id"]
@@ -492,6 +576,7 @@ class TraceMoneyStore:
                 history_limit=self.PRICE_HISTORY_WINDOW_MAX,
             )
             pending.append((latest_collection.document(instrument_id), latest_payload))
+            latest_payloads.append(latest_payload)
 
         saved = 0
         write_batches = _firestore_write_batches(pending)
@@ -505,6 +590,11 @@ class TraceMoneyStore:
             print(
                 f"[price storage] committed {saved} rolling price docs "
                 f"in {len(write_batches)} size-bounded batches"
+            )
+        for market in {str(payload.get("market") or "") for payload in latest_payloads}:
+            self._refresh_near_52_week_view(
+                market,
+                [payload for payload in latest_payloads if str(payload.get("market") or "") == market],
             )
         return saved
 

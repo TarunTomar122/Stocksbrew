@@ -3,9 +3,10 @@
 import { useMemo, useState } from "react";
 import {
   Bar,
-  BarChart,
   Cell,
   CartesianGrid,
+  ComposedChart,
+  Line,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -103,8 +104,10 @@ function FinancialChart({
   const data = periods.map((period, index) => {
     const row: Record<string, string | number | null> = { period: period.replace("FY ", "") };
     series.forEach((item) => { row[item.key] = item.values[index] ?? null; });
+    if (series.length === 1) row.trend = series[0].values[index] ?? null;
     return row;
   });
+  const trendSeries = series.length === 1 ? series[0] : null;
   const valueLabel = (value: number) => mode === "margins" ? `${value.toFixed(1)}%` : compactMoney(value, currency);
   const common = {
     data,
@@ -128,7 +131,7 @@ function FinancialChart({
   return (
     <div className="h-[280px] w-full" role="img" aria-label={`${mode} history chart`}>
       <ResponsiveContainer width="100%" height="100%" minWidth={0} initialDimension={{ width: 800, height: 280 }}>
-        <BarChart {...common} barGap={3}>
+        <ComposedChart {...common} barGap={3}>
           {axes}
           {series.map((item) => (
             <Bar key={item.key} dataKey={item.key} name={item.key} fill={item.color} radius={[3, 3, 0, 0]} maxBarSize={56}>
@@ -139,7 +142,20 @@ function FinancialChart({
               })}
             </Bar>
           ))}
-        </BarChart>
+          {trendSeries ? (
+            <Line
+              type="monotone"
+              dataKey="trend"
+              name="Trend"
+              tooltipType="none"
+              stroke="var(--oa-fg)"
+              strokeWidth={2.5}
+              dot={{ r: 3, strokeWidth: 2, fill: "var(--oa-bg)" }}
+              activeDot={{ r: 5, strokeWidth: 2, fill: "var(--oa-fg)" }}
+              connectNulls
+            />
+          ) : null}
+        </ComposedChart>
       </ResponsiveContainer>
     </div>
   );
@@ -288,11 +304,17 @@ export function StockOperatingRecord({ facts, currency = "$" }: Pick<Props, "fac
           <div className="mt-6">
             <div className="mb-2 flex flex-wrap gap-x-5 gap-y-2">
               {series.map((item) => (
-                <span key={item.label} className="text-[12px] font-medium text-on-surface-variant">
+               <span key={item.label} className="text-[12px] font-medium text-on-surface-variant">
                   <i className="mr-1.5 inline-block h-2 w-2 rounded-full" style={{ backgroundColor: item.color }} />
                   {item.label}
                 </span>
               ))}
+              {series.length === 1 ? (
+                <span className="text-[12px] font-medium text-on-surface-variant">
+                  <i className="mr-1.5 inline-block h-0.5 w-3 align-middle bg-on-surface" />
+                  Trend
+                </span>
+              ) : null}
             </div>
             <FinancialChart periods={periods} series={series} mode={mode} currency={currency} />
           </div>

@@ -131,6 +131,22 @@ class LocalDocumentStore:
         finally:
             connection.close()
 
+    def get_many(self, paths: Iterable[str]) -> list[dict[str, Any]]:
+        valid_paths = list(dict.fromkeys(validate_document_path(path) for path in paths))
+        if not valid_paths:
+            return []
+        placeholders = ",".join("?" for _ in valid_paths)
+        connection = self._connect()
+        try:
+            rows = connection.execute(
+                f"SELECT path, data_json, document_hash, updated_at FROM documents WHERE path IN ({placeholders})",
+                valid_paths,
+            ).fetchall()
+            by_path = {row["path"]: self._row(row) for row in rows}
+            return [by_path[path] for path in valid_paths if path in by_path]
+        finally:
+            connection.close()
+
     def iter_documents(
         self,
         collection: str,
@@ -213,6 +229,19 @@ class LocalDocumentStore:
                 "SELECT path, data_json, document_hash, updated_at FROM documents ORDER BY path"
             ):
                 yield self._row(row)
+        finally:
+            connection.close()
+
+    def iter_collection_group_documents(self, collection: str) -> Iterator[dict[str, Any]]:
+        valid_collection = validate_collection_name(collection)
+        connection = self._connect()
+        try:
+            for row in connection.execute(
+                "SELECT path, data_json, document_hash, updated_at FROM documents WHERE path LIKE ? ORDER BY path",
+                (f"%/{valid_collection}/%",),
+            ):
+                if len(row["path"].split("/")) >= 2 and row["path"].split("/")[-2] == valid_collection:
+                    yield self._row(row)
         finally:
             connection.close()
 

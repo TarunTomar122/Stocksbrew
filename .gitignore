@@ -35,6 +35,14 @@ coverage/
 
 # Local tool dirs
 .claude/
+.playwright-cli/
+.opencode/
+
+# Browser test output
+output/playwright/
+playwright-report/
+test-results/
+blob-report/
 
 # Firebase service account keys
 *firebase-adminsdk*.json

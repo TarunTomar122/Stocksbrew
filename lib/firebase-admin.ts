@@ -39,6 +39,7 @@ function loadEnvFile(filePath: string): void {
 function loadTraceMoneyEnv(): void {
   const rootDir = process.cwd();
   loadEnvFile(path.join(rootDir, ".env.local"));
+  loadEnvFile(path.join(rootDir, ".env.vps.local"));
   loadEnvFile(path.join(rootDir, ".env"));
   loadEnvFile(path.join(rootDir, "backend", ".env"));
 }

@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { StockLogo } from "@/components/stock-logo";
-import { getMarketSnapshot } from "@/lib/firestore";
+import { getInstruments, getLatestPriceQuotes } from "@/lib/firestore";
 import { getDailyAnomalies } from "@/lib/daily-anomalies";
 import { getStockSummary, type StockSummary } from "@/lib/stock";
 
@@ -98,29 +98,33 @@ export async function SectorConstituentsStream({
   if (tickers.length === 0) return null;
 
   const tickerOrder = new Map(tickers.map((t, index) => [String(t).toUpperCase(), index]));
-  const [snapshotRows, anomalies] = await Promise.all([
-    getMarketSnapshot(market).catch(() => []),
+  const instrumentIds = [...tickerOrder.keys()].map((ticker) => `${market}_${ticker}`);
+  const [instruments, prices, anomalies] = await Promise.all([
+    getInstruments(instrumentIds).catch(() => new Map()),
+    getLatestPriceQuotes(instrumentIds).catch(() => new Map()),
     getDailyAnomalies(market).catch(() => null),
   ]);
 
-  let constituents: StockSummary[] = snapshotRows
-    .filter((row) => tickerOrder.has(String(row.symbol ?? "").toUpperCase()))
-    .sort(
-      (a, b) =>
-        (tickerOrder.get(String(a.symbol ?? "").toUpperCase()) ?? 0) -
-        (tickerOrder.get(String(b.symbol ?? "").toUpperCase()) ?? 0),
-    )
-    .map((row) => ({
-      instrument_id: row.instrumentId,
-      ticker: row.symbol,
-      name: row.name || row.symbol,
-      price: row.price.current,
-      day_change_abs: row.price.change,
-      day_change_pct: row.price.changePct,
-      previous_close: row.price.previousClose,
-      source: "snapshot" as const,
-      fundamentals: null,
-    }));
+  let constituents: StockSummary[] = [...tickerOrder.entries()]
+    .map<StockSummary | null>(([ticker], index) => {
+      const id = instrumentIds[index];
+      const instrument = instruments.get(id);
+      const quote = prices.get(id)?.quote;
+      if (!instrument || typeof quote?.current !== "number") return null;
+      return {
+        instrument_id: id,
+        ticker: instrument.ticker || ticker,
+        name: instrument.name || ticker,
+        industry: instrument.industry,
+        price: quote.current,
+        day_change_abs: quote.day_change_abs,
+        day_change_pct: quote.day_change_pct,
+        previous_close: quote.previous_close,
+        source: "snapshot" as const,
+        fundamentals: null,
+      };
+    })
+    .filter((row): row is StockSummary => row !== null);
 
   if (constituents.length === 0) {
     constituents = (

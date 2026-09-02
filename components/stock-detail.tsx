@@ -885,12 +885,16 @@ export function StockDetail(props: Props) {
           )}
 
           {hasFundamentalsData && pillars && (
-            <FundamentalsBreakdown
-              pillars={pillars}
-              isSubscribed={subscribed}
-              overallScore={hasReliableOverall ? (intelPro?.overall?.score ?? null) : null}
-              overallCoverage={overallCoverage}
-            />
+            <Plate>
+              <div className="p-6 sm:p-8">
+                <FundamentalsBreakdown
+                  pillars={pillars}
+                  isSubscribed={subscribed}
+                  overallScore={hasReliableOverall ? (intelPro?.overall?.score ?? null) : null}
+                  overallCoverage={overallCoverage}
+                />
+              </div>
+            </Plate>
           )}
         </section>
       )}

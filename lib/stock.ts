@@ -1,5 +1,13 @@
 import { adminFirestore } from "@/lib/firebase-admin";
-import { batchGetRefs, getLatestPrices } from "@/lib/firestore";
+import {
+  batchGetRefs,
+  getLatestPriceCore,
+  getLatestPriceCores,
+  getLatestPrices,
+  getLatestPriceFundamentals,
+  getLatestPriceHistory,
+  type LatestPriceCore,
+} from "@/lib/firestore";
 import { getAiUniverse, getInstrument, getPriceUniverse } from "@/lib/firestore";
 import { hasSufficientOverallData } from "@/lib/fundamentals-coverage";
 import { buildPriceHistorySeries } from "@/lib/price-history-series";
@@ -277,9 +285,8 @@ const PRICE_HISTORY_CHART_MAX = 252;
 export async function getStockPriceHistory(
   instrumentId: string,
 ): Promise<PriceHistoryPoint[]> {
-  const doc = await adminFirestore.collection("tm_latest_prices").doc(instrumentId).get();
-  if (!doc.exists) return [];
-  return buildPriceHistorySeries(doc.data() as LatestPrice).slice(-PRICE_HISTORY_CHART_MAX);
+  const data = await getLatestPriceHistory(instrumentId);
+  return buildPriceHistorySeries(data).slice(-PRICE_HISTORY_CHART_MAX);
 }
 
 export type StockFacts = {
@@ -448,14 +455,12 @@ export async function getStockSummary(
   const ticker = symbol.toUpperCase();
   const instrumentId = `${market}_${ticker}`;
 
-  const [instrumentDoc, priceDoc] = await Promise.all([
-    adminFirestore.collection("tm_instruments").doc(instrumentId).get(),
-    adminFirestore.collection("tm_latest_prices").doc(instrumentId).get(),
+  const [instrument, priceData] = await Promise.all([
+    getInstrument(instrumentId),
+    getLatestPriceCore(instrumentId),
   ]);
 
-  if (instrumentDoc.exists) {
-    const instrument = instrumentDoc.data() as Instrument;
-    const priceData = priceDoc.exists ? (priceDoc.data() as LatestPrice) : null;
+  if (instrument) {
     const quote = priceData?.quote;
     if (quote && typeof quote.current === "number") {
       return {
@@ -494,13 +499,7 @@ export async function getStockSummary(
   const fallbackDoc = fallbackSnap.docs[0];
   if (fallbackDoc) {
     const instrument = fallbackDoc.data() as Instrument;
-    const fallbackPriceDoc = await adminFirestore
-      .collection("tm_latest_prices")
-      .doc(instrument.instrument_id)
-      .get();
-    const fallbackPrice = fallbackPriceDoc.exists
-      ? (fallbackPriceDoc.data() as LatestPrice)
-      : null;
+    const fallbackPrice = await getLatestPriceCore(instrument.instrument_id);
     const quote = fallbackPrice?.quote;
     if (quote && typeof quote.current === "number") {
       return {
@@ -531,8 +530,7 @@ export async function getStockSummary(
   // Last-resort: synthesize a summary from the price doc alone. This covers
   // tickers that the snapshot pipeline writes but that haven't been registered
   // in `tm_instruments` yet (a known gap on the IN side).
-  if (priceDoc.exists) {
-    const priceData = priceDoc.data() as LatestPrice;
+  if (priceData) {
     const quote = priceData?.quote;
     if (quote && typeof quote.current === "number") {
       return {
@@ -791,7 +789,7 @@ async function loadCatalogSectorPeers(
     }
   }
 
-  const prices = await getLatestPrices(candidateIds);
+  const prices = await getLatestPriceFundamentals(candidateIds);
   const sorted = [...matches].sort((a, b) => {
     const capA = prices.get(a.instrument_id)?.fundamentals?.market_cap ?? 0;
     const capB = prices.get(b.instrument_id)?.fundamentals?.market_cap ?? 0;
@@ -898,7 +896,7 @@ export type SectorPeerRow = {
 function peerFundamentalsFromDocs(
   instrumentId: string,
   factsById: Map<string, StockFacts>,
-  pricesById: Map<string, LatestPrice>,
+  pricesById: Map<string, LatestPriceCore>,
 ): Pick<SectorPeerRow, "market_cap" | "pe_ttm" | "revenue_growth_yoy_pct"> {
   const facts = factsById.get(instrumentId);
   const price = pricesById.get(instrumentId);
@@ -916,7 +914,7 @@ async function enrichSectorPeerRows(
   if (peers.length === 0) return [];
   const peerIds = peers.map((p) => p.instrument_id);
   const [prices, factsById, instrumentsById] = await Promise.all([
-    getLatestPrices(peerIds),
+    getLatestPriceCores(peerIds),
     batchGetRefs<StockFacts>(peerIds.map((id) => adminFirestore.collection("tm_stock_facts").doc(id))),
     batchGetRefs<Instrument>(peerIds.map((id) => adminFirestore.collection("tm_instruments").doc(id))),
   ]);
@@ -951,7 +949,7 @@ export async function enrichRelatedTickersForComparison(
   const universes = await getIntelUniverseIds(market);
 
   const [prices, factsById, instrumentsById] = await Promise.all([
-    getLatestPrices(ids),
+    getLatestPriceCores(ids),
     batchGetRefs<StockFacts>(ids.map((id) => adminFirestore.collection("tm_stock_facts").doc(id))),
     batchGetRefs<Instrument>(ids.map((id) => adminFirestore.collection("tm_instruments").doc(id))),
   ]);
@@ -1056,12 +1054,8 @@ export async function getOnDemandNewsJob(
 export async function getStockFundamentals(
   instrumentId: string,
 ): Promise<StockFundamentals | null> {
-  const doc = await adminFirestore
-    .collection("tm_latest_prices")
-    .doc(instrumentId)
-    .get();
-  if (!doc.exists) return null;
-  const data = doc.data() as LatestPrice;
+  const data = (await getLatestPriceFundamentals([instrumentId])).get(instrumentId);
+  if (!data) return null;
   return (data.fundamentals ?? null) as StockFundamentals | null;
 }
 

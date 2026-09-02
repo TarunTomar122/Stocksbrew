@@ -7,7 +7,7 @@ import { TerminalLandingHeroCopy } from "@/components/terminal-landing-hero-copy
 import { TerminalLandingProSection } from "@/components/terminal-landing-pro-section";
 import { resolveStockTier } from "@/lib/ai-launch-tier";
 import { getDailyAnomalies } from "@/lib/daily-anomalies";
-import { enrichRedditTickers } from "@/lib/reddit-buzz-enrich";
+import { enrichRedditTickersWithQuotes } from "@/lib/reddit-buzz-enrich";
 import type { AnomalyItem } from "@/lib/daily-anomalies";
 import { anomalyTag, buildLandingSectorCards } from "@/lib/landing-sector-data";
 import {
@@ -21,7 +21,7 @@ import { buildLandingHeroMetrics } from "@/lib/landing-hero-metrics";
 import { normalizeDirectiveForUi } from "@/lib/directive-ui";
 import { anomalyDetail, anomalyHeadline } from "@/components/daily-anomalies-shared";
 import { getCurrentMarket } from "@/lib/market";
-import { getMarketSnapshot } from "@/lib/firestore";
+import { getLatestPriceQuotes, getMarketSnapshot } from "@/lib/firestore";
 import { getRedditCues } from "@/lib/reddit-cues";
 import { getSessionUser } from "@/lib/auth-server";
 import { getStockFacts, getStockIntelligenceDoc, getStockPriceHistory, getStockSummary } from "@/lib/stock";
@@ -197,21 +197,34 @@ export async function LandingHeroCommandStream() {
 
 export async function LandingScannerRedditStream() {
   const market = getCurrentMarket();
-  const [anomaliesDoc, redditData, snapshotRows, user] = await Promise.all([
+  const [anomaliesDoc, redditData, user] = await Promise.all([
     getLandingAnomaliesDoc(),
     getRedditCues(market).catch(() => null),
-    getMarketSnapshot(market).catch(() => []),
     getLandingUserContext(),
   ]);
   const anomalies = anomaliesDoc?.anomalies ?? [];
   if (anomalies.length === 0) return null;
 
-  const redditPicks = enrichRedditTickers(
-    (redditData?.tickers ?? [])
-      .filter((t) => t.summary?.trim())
-      .slice(0, 3),
+  const redditCandidates = (redditData?.tickers ?? [])
+    .filter((t) => t.summary?.trim())
+    .slice(0, 3);
+  const quoteIds = [...new Set(redditCandidates.map((item) => `${market}_${item.ticker.toUpperCase()}`))];
+  const quotes = await getLatestPriceQuotes(quoteIds).catch(() => new Map());
+  const quoteByTicker = new Map(
+    [...quotes.entries()].map(([id, row]) => [
+      row.ticker?.toUpperCase() ?? id.split("_").slice(1).join("_"),
+      {
+        company: row.ticker,
+        price: row.quote?.current,
+        changePct: row.quote?.day_change_pct,
+        volume: row.quote?.volume,
+      },
+    ]),
+  );
+  const redditPicks = enrichRedditTickersWithQuotes(
+    redditCandidates,
     anomalies,
-    snapshotRows,
+    quoteByTicker,
   );
 
   return (

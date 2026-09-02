@@ -1,7 +1,7 @@
 import { unstable_cache } from "next/cache";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { EARNINGS_RECENT_MAX_DAYS, isEventDateWithinRecentWindow } from "@/lib/earnings-intel";
-import { getLatestPrices } from "@/lib/firestore";
+import { getLatestPriceQuotes } from "@/lib/firestore";
 import {
   sortEventsByReportDate,
   type MarketEvent,
@@ -34,7 +34,7 @@ export type MarketEventsDoc = {
 async function attachQuotes(events: MarketEvent[]): Promise<MarketEvent[]> {
   const ids = [...new Set(events.map((e) => e.instrument_id).filter(Boolean))];
   if (ids.length === 0) return events;
-  const prices = await getLatestPrices(ids);
+  const prices = await getLatestPriceQuotes(ids);
   return events.map((event) => {
     const latest = prices.get(event.instrument_id);
     const quote = latest?.quote;

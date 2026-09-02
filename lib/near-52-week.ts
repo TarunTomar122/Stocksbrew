@@ -1,4 +1,4 @@
-import { getLatestPrices, getMarketSnapshot } from "@/lib/firestore";
+import { getLatestPriceFundamentals, getMarketSnapshot, getNear52WeekView } from "@/lib/firestore";
 import type { Market } from "@/lib/types";
 
 export type Near52WeekRow = {
@@ -23,9 +23,28 @@ export async function getNear52WeekLists(
   market: Market,
   limit = 10,
 ): Promise<{ nearHighs: Near52WeekRow[]; nearLows: Near52WeekRow[] }> {
+  const materialized = await getNear52WeekView(market);
+  if (materialized) {
+    const rows = materialized.map((row) => ({
+      instrumentId: row.instrumentId,
+      ticker: row.ticker,
+      name: row.name,
+      price: row.price,
+      changePct: row.changePct,
+      week52High: row.week52High,
+      week52Low: row.week52Low,
+      rangePct: ((row.price - row.week52Low) / (row.week52High - row.week52Low)) * 100,
+      pctFromHigh: ((row.price - row.week52High) / row.week52High) * 100,
+      pctFromLow: ((row.price - row.week52Low) / row.week52Low) * 100,
+    }));
+    return {
+      nearHighs: [...rows].sort((a, b) => b.rangePct - a.rangePct).slice(0, limit),
+      nearLows: [...rows].sort((a, b) => a.rangePct - b.rangePct).slice(0, limit),
+    };
+  }
   const snapshot = await getMarketSnapshot(market);
   const ids = snapshot.map((row) => row.instrumentId).filter(Boolean);
-  const prices = await getLatestPrices(ids);
+  const prices = await getLatestPriceFundamentals(ids);
 
   const rows: Near52WeekRow[] = [];
   for (const row of snapshot) {

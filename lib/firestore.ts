@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { adminFirestore } from "@/lib/firebase-admin";
+import { localFirestoreFromEnv } from "@/lib/local-firestore";
 import type { DocumentData, DocumentReference } from "firebase-admin/firestore";
 import type {
   DashboardView,
@@ -137,10 +138,171 @@ export async function getLatestPrice(instrumentId: string): Promise<LatestPrice 
   return doc.data() as LatestPrice;
 }
 
+export async function getLatestPriceHistory(
+  instrumentId: string,
+): Promise<Pick<LatestPrice, "history_window" | "quote" | "captured_at" | "updated_at"> | null> {
+  const local = localFirestoreFromEnv();
+  if (!local) return getLatestPrice(instrumentId);
+  const snapshot = (await local.getAllSelected(
+    [local.collection("tm_latest_prices").doc(instrumentId)],
+    ["history_window", "quote", "captured_at", "updated_at"],
+  ))[0];
+  return snapshot?.exists
+    ? snapshot.data() as Pick<LatestPrice, "history_window" | "quote" | "captured_at" | "updated_at">
+    : null;
+}
+
 export async function getLatestPrices(instrumentIds: string[]): Promise<Map<string, LatestPrice>> {
   return batchGetRefs<LatestPrice>(
     instrumentIds.map((id) => adminFirestore.collection("tm_latest_prices").doc(id)),
   );
+}
+
+export type LatestPriceQuote = Pick<
+  LatestPrice,
+  "ticker" | "currency" | "captured_at" | "updated_at" | "quote"
+>;
+
+const LATEST_PRICE_QUOTE_FIELDS = ["ticker", "currency", "captured_at", "updated_at", "quote"];
+
+export async function getLatestPriceQuotes(
+  instrumentIds: string[],
+): Promise<Map<string, LatestPriceQuote>> {
+  const local = localFirestoreFromEnv();
+  if (!local) {
+    return batchGetRefs<LatestPriceQuote>(
+      instrumentIds.map((id) => adminFirestore.collection("tm_latest_prices").doc(id)),
+    );
+  }
+  const snapshots = await local.getAllSelected(
+    instrumentIds.map((id) => local.collection("tm_latest_prices").doc(id)),
+    LATEST_PRICE_QUOTE_FIELDS,
+  );
+  const result = new Map<string, LatestPriceQuote>();
+  for (const snapshot of snapshots) {
+    if (snapshot.exists) result.set(snapshot.id, snapshot.data() as LatestPriceQuote);
+  }
+  return result;
+}
+
+export async function getLatestPriceFundamentals(
+  instrumentIds: string[],
+): Promise<Map<string, Pick<LatestPrice, "fundamentals">>> {
+  const local = localFirestoreFromEnv();
+  if (!local) {
+    return batchGetRefs<Pick<LatestPrice, "fundamentals">>(
+      instrumentIds.map((id) => adminFirestore.collection("tm_latest_prices").doc(id)),
+    );
+  }
+  const snapshots = await local.getAllSelected(
+    instrumentIds.map((id) => local.collection("tm_latest_prices").doc(id)),
+    ["fundamentals"],
+  );
+  const result = new Map<string, Pick<LatestPrice, "fundamentals">>();
+  for (const snapshot of snapshots) {
+    if (snapshot.exists) result.set(snapshot.id, snapshot.data() as Pick<LatestPrice, "fundamentals">);
+  }
+  return result;
+}
+
+export type LatestPriceCore = Pick<
+  LatestPrice,
+  | "instrument_id"
+  | "ticker"
+  | "market"
+  | "currency"
+  | "captured_at"
+  | "updated_at"
+  | "session_phase"
+  | "quote"
+  | "fundamentals"
+  | "analyst_consensus"
+  | "provider_metadata"
+>;
+
+const LATEST_PRICE_CORE_FIELDS = [
+  "instrument_id",
+  "ticker",
+  "market",
+  "currency",
+  "captured_at",
+  "updated_at",
+  "session_phase",
+  "quote",
+  "fundamentals",
+  "analyst_consensus",
+  "provider_metadata",
+];
+
+export async function getLatestPriceCores(
+  instrumentIds: string[],
+): Promise<Map<string, LatestPriceCore>> {
+  const local = localFirestoreFromEnv();
+  if (!local) {
+    return batchGetRefs<LatestPriceCore>(
+      instrumentIds.map((id) => adminFirestore.collection("tm_latest_prices").doc(id)),
+    );
+  }
+  const snapshots = await local.getAllSelected(
+    instrumentIds.map((id) => local.collection("tm_latest_prices").doc(id)),
+    LATEST_PRICE_CORE_FIELDS,
+  );
+  const result = new Map<string, LatestPriceCore>();
+  for (const snapshot of snapshots) {
+    if (snapshot.exists) result.set(snapshot.id, snapshot.data() as LatestPriceCore);
+  }
+  return result;
+}
+
+const getLatestPriceCoreUncached = async (instrumentId: string): Promise<LatestPriceCore | null> => {
+  return (await getLatestPriceCores([instrumentId])).get(instrumentId) ?? null;
+};
+
+export const getLatestPriceCore = cache(getLatestPriceCoreUncached);
+
+export type Near52WeekViewRow = {
+  instrumentId: string;
+  market: "US" | "IN";
+  ticker: string;
+  name: string;
+  price: number;
+  changePct?: number;
+  week52High: number;
+  week52Low: number;
+  updatedAt?: string;
+};
+
+const getNear52WeekViewUncached = async (
+  market: "US" | "IN" = "US",
+): Promise<Near52WeekViewRow[] | null> => {
+  const doc = await adminFirestore.collection("tm_views_near_52_week").doc(market).get();
+  if (!doc.exists) return null;
+  const rows = (doc.data() as { rows?: unknown } | undefined)?.rows;
+  if (!Array.isArray(rows)) return null;
+  return rows.filter((row): row is Near52WeekViewRow => {
+    if (!row || typeof row !== "object") return false;
+    const item = row as Record<string, unknown>;
+    return (
+      typeof item.instrumentId === "string" &&
+      typeof item.ticker === "string" &&
+      typeof item.name === "string" &&
+      typeof item.price === "number" &&
+      typeof item.week52High === "number" &&
+      typeof item.week52Low === "number"
+    );
+  });
+};
+
+const getNear52WeekViewCached = unstable_cache(
+  getNear52WeekViewUncached,
+  ["near-52-week-view"],
+  { revalidate: 60 },
+);
+
+export async function getNear52WeekView(
+  market: "US" | "IN" = "US",
+): Promise<Near52WeekViewRow[] | null> {
+  return getNear52WeekViewCached(market);
 }
 
 // ─── Market price snapshots (full universe, camelCase price) ──────────────────
@@ -218,11 +380,13 @@ export const getPriceCoreOverrides = cache(getPriceCoreOverridesCached);
 
 // ─── Instruments ─────────────────────────────────────────────────────────────
 
-export async function getInstrument(instrumentId: string): Promise<Instrument | null> {
+const getInstrumentUncached = async (instrumentId: string): Promise<Instrument | null> => {
   const doc = await adminFirestore.collection("tm_instruments").doc(instrumentId).get();
   if (!doc.exists) return null;
   return doc.data() as Instrument;
-}
+};
+
+export const getInstrument = cache(getInstrumentUncached);
 
 export async function getInstruments(instrumentIds: string[]): Promise<Map<string, Instrument>> {
   return batchGetRefs<Instrument>(

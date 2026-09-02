@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { UpcomingEarningsView } from "@/components/upcoming-earnings-view";
 import { getCurrentMarket } from "@/lib/market";
 import { getSessionUser } from "@/lib/auth-server";
-import { getInstruments, getLatestPrices } from "@/lib/firestore";
+import { getInstruments, getLatestPriceQuotes } from "@/lib/firestore";
 import type { PreEarningsCardQuote } from "@/lib/pre-earnings-intel-shared";
 import { listUpcomingPreEarningsIntel } from "@/lib/pre-earnings-intel";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
@@ -34,7 +34,7 @@ export default async function UpcomingEventsPage() {
   const instrumentIds = [...new Set(upcoming.map((d) => d.instrument_id).filter(Boolean))];
   const [instruments, prices] = await Promise.all([
     instrumentIds.length ? getInstruments(instrumentIds) : Promise.resolve(new Map()),
-    instrumentIds.length ? getLatestPrices(instrumentIds) : Promise.resolve(new Map()),
+    instrumentIds.length ? getLatestPriceQuotes(instrumentIds) : Promise.resolve(new Map()),
   ]);
 
   const namesByTicker = new Map<string, string>();

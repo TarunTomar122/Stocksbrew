@@ -403,8 +403,8 @@ function ScanRow({
   trackedCount?: number;
 }) {
   return (
-    <div className="group flex items-start gap-2 px-3 py-3 transition-colors hover:bg-oa-accent focus-within:bg-oa-accent sm:gap-3.5 sm:px-5">
-      <div className="flex min-w-0 w-20 shrink-0 items-start gap-2 sm:w-44 sm:gap-3.5">
+    <div className="group grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-2 gap-y-2 px-3 py-3 transition-colors hover:bg-oa-accent focus-within:bg-oa-accent sm:flex sm:gap-3.5 sm:px-5">
+      <div className="flex min-w-0 items-start gap-2 sm:w-44 sm:shrink-0 sm:gap-3.5">
         <Link
           href={`/stock/${row.ticker}`}
           onClick={() =>
@@ -473,12 +473,12 @@ function ScanRow({
             category,
           })
         }
-        className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 outline-none"
+        className="col-span-2 row-start-2 flex min-w-0 flex-wrap items-center gap-1.5 outline-none sm:row-auto sm:flex-1"
       >
         {row.pills.map((pill) => (
           <span
             key={pill.text}
-            className="max-w-full break-words rounded-full border border-oa-border bg-oa-card px-3 py-1 text-[12px] font-medium leading-6"
+            className="max-w-full break-words px-0 py-0 text-[13.5px] font-medium leading-6 sm:rounded-full sm:border sm:border-oa-border sm:bg-oa-card sm:px-3 sm:py-1 sm:text-[12px]"
             style={{ color: pill.color }}
           >
             {pill.text}
@@ -499,7 +499,7 @@ function ScanRow({
             category,
           })
         }
-        className="flex shrink-0 flex-col items-end outline-none"
+        className="col-start-2 row-start-1 flex shrink-0 flex-col items-end outline-none sm:row-auto"
       >
         {typeof row.price === "number" ? (
           <span className="text-[17px] font-medium tabular-nums leading-6 text-oa-fg">

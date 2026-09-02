@@ -361,7 +361,12 @@ class LocalFirestoreClient:
         return Query(self, collection_id, collection_group=True)
 
     def get_all(self, references: Iterable[DocumentReference], **_kwargs: Any) -> Iterator[DocumentSnapshot]:
-        return iter([self._snapshot(reference) for reference in references])
+        refs = list(references)
+        rows = {row["path"]: row for row in self._store.get_many(reference.path for reference in refs)}
+        return iter([
+            DocumentSnapshot(reference, rows[reference.path]["data"] if reference.path in rows else None)
+            for reference in refs
+        ])
 
     def batch(self) -> LocalWriteBatch:
         return LocalWriteBatch(self)
@@ -377,8 +382,7 @@ class LocalFirestoreClient:
         if collection_group:
             return [
                 {"path": row["path"], "id": row["path"].rsplit("/", 1)[-1], "data": row["data"]}
-                for row in self._store.iter_all_documents()
-                if len(row["path"].split("/")) >= 2 and row["path"].split("/")[-2] == collection_path
+                for row in self._store.iter_collection_group_documents(collection_path)
             ]
         return [
             {"path": row["path"], "id": row["path"].rsplit("/", 1)[-1], "data": row["data"]}

@@ -1,5 +1,5 @@
 import { getSessionUser } from "@/lib/auth-server";
-import { getMarketSnapshot } from "@/lib/firestore";
+import { getLatestPriceQuotes } from "@/lib/firestore";
 import { getLiveInvestmentTheme } from "@/lib/research-themes";
 import { getCurrentMarket } from "@/lib/market";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
@@ -10,11 +10,12 @@ import {
 
 function quoteFor(
   ticker: string,
-  bySymbol: Map<string, { price: { current: number; changePct?: number } }>,
+  bySymbol: Map<string, { current?: number; changePct?: number }>,
 ): Pick<ThemeCandidateQuote, "price" | "changePct"> {
   const snapshot = bySymbol.get(ticker.toUpperCase());
-  if (!snapshot) return {};
-  return { price: snapshot.price.current, changePct: snapshot.price.changePct };
+  return typeof snapshot?.current === "number"
+    ? { price: snapshot.current, changePct: snapshot.changePct }
+    : {};
 }
 
 export async function ThemePageStream({ slug }: { slug: string }) {
@@ -22,16 +23,22 @@ export async function ThemePageStream({ slug }: { slug: string }) {
   if (!theme) return null;
 
   const market = getCurrentMarket();
-  const [session, snapshotRows] = await Promise.all([
-    getSessionUser(),
-    getMarketSnapshot(market).catch(() => []),
+  const themeTickers = [...theme.candidates, ...theme.watchlist].map((row) => row.ticker);
+  const instrumentIds = [...new Set(themeTickers.map((ticker) => `${market}_${ticker.toUpperCase()}`))];
+  const session = await getSessionUser();
+  const userDocPromise = session ? getUserDoc(session.uid) : Promise.resolve(null);
+  const [prices, userDoc] = await Promise.all([
+    getLatestPriceQuotes(instrumentIds).catch(() => new Map()),
+    userDocPromise,
   ]);
-  const userDoc = session ? await getUserDoc(session.uid) : null;
   const trackedIds = Array.isArray(userDoc?.tracked_stocks)
     ? userDoc.tracked_stocks
     : [];
   const bySymbol = new Map(
-    snapshotRows.map((row) => [row.symbol.toUpperCase(), row]),
+    [...prices.entries()].map(([id, row]) => [
+      row.ticker?.toUpperCase() ?? id.split("_").slice(1).join("_"),
+      { current: row.quote?.current, changePct: row.quote?.day_change_pct },
+    ]),
   );
   const withQuotes = (rows: typeof theme.candidates): ThemeCandidateQuote[] =>
     rows.map((candidate) => ({

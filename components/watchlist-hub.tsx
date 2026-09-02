@@ -34,6 +34,19 @@ function money(v: number) {
   return v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+function firstSentence(value: string): string {
+  return value.trim().match(/^.*?[.!?](?:\s|$)/)?.[0].trim() || value.trim();
+}
+
+function reasonText(value: string, ticker: string, name: string): string {
+  const sentence = firstSentence(value);
+  const prefixes = [ticker, name]
+    .map((item) => item.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .filter(Boolean)
+    .join("|");
+  return prefixes ? sentence.replace(new RegExp(`^(?:${prefixes}):\\s*`, "i"), "") : sentence;
+}
+
 function toneColor(tone: "bull" | "bear" | "neutral") {
   return tone === "bull"
     ? "var(--signal-bullish)"
@@ -165,11 +178,8 @@ function BookRow({ row }: { row: HubRow }) {
           {row.stance ? <StanceChip stance={row.stance} accent={row.needs_attention} /> : null}
         </div>
         {row.reason_line ? (
-          <p
-            className="mt-0.5 text-[14px] leading-5 sm:text-[13.5px]"
-            style={{ color: toneColor(row.reason_tone) }}
-          >
-            {row.reason_line}
+          <p className="mt-0.5 truncate text-[14px] leading-5 text-oa-fg sm:text-[13.5px]">
+            {reasonText(row.reason_line, row.ticker, row.name)}
           </p>
         ) : null}
       </Link>

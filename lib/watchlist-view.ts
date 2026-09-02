@@ -1,6 +1,6 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { adminFirestore } from "@/lib/firebase-admin";
-import { getMarketMovers, getMarketSnapshot } from "@/lib/firestore";
+import { getLatestPriceQuotes, getMarketMovers, getMarketSnapshot } from "@/lib/firestore";
 import { INVESTMENT_THEMES } from "@/lib/investment-themes";
 import { LLM_BRIEF_SOURCE, type BriefSource, isLlmBriefSource } from "@/lib/brief-source";
 import { llmApiKey, llmApiUrl, llmHeaders, llmModel } from "@/lib/server-llm";
@@ -363,16 +363,13 @@ export type RadarStockStateDoc = {
 export async function overlayLatestPrices(rows: WatchlistRow[]): Promise<WatchlistRow[]> {
   const ids = rows.map((row) => row.instrument_id).filter(Boolean);
   if (ids.length === 0) return rows;
-  const latestById = await getDocsById<Record<string, unknown>>(
-    adminFirestore.collection("tm_latest_prices"),
-    ids,
-  );
+  const latestById = await getLatestPriceQuotes(ids);
   return rows.map((row) => {
     const latest = latestById.get(row.instrument_id);
-    const quote = (latest?.quote as Record<string, unknown> | undefined) || {};
-    const price = toNumber(quote.current);
-    const dayChangePct = toNumber(quote.day_change_pct);
-    const dayChangeAbs = toNumber(quote.day_change_abs);
+    const quote = latest?.quote;
+    const price = toNumber(quote?.current);
+    const dayChangePct = toNumber(quote?.day_change_pct);
+    const dayChangeAbs = toNumber(quote?.day_change_abs);
     if (price === null && dayChangePct === null && dayChangeAbs === null) {
       return row;
     }
@@ -415,14 +412,14 @@ export async function getIdeaMarketData(
   if (ids.length === 0) return out;
 
   const [pricesById, factsById] = await Promise.all([
-    getDocsById<Record<string, unknown>>(adminFirestore.collection("tm_latest_prices"), ids),
+    getLatestPriceQuotes(ids),
     getDocsById<Record<string, unknown>>(adminFirestore.collection("tm_stock_facts"), ids),
   ]);
 
   for (const id of ids) {
     const latest = pricesById.get(id);
-    const quote = (latest?.quote as Record<string, unknown> | undefined) || {};
-    const price = toNumber(quote.current);
+    const quote = latest?.quote;
+    const price = toNumber(quote?.current);
     const currency =
       typeof latest?.currency === "string"
         ? (latest.currency as string)
@@ -433,7 +430,7 @@ export async function getIdeaMarketData(
     out.set(id, {
       price,
       currency,
-      dayChangePct: toNumber(quote.day_change_pct),
+      dayChangePct: toNumber(quote?.day_change_pct),
       targetUpsidePct: targetUpsidePct(price, facts, {}),
     });
   }
@@ -1147,7 +1144,7 @@ async function buildRows(
   alertsByInstrument: Record<string, Record<string, unknown>[]>,
 ): Promise<WatchlistRow[]> {
   const [latestById, instrumentsById, factsById, technicalsById, mentionsById] = await Promise.all([
-    getDocsById<Record<string, unknown>>(adminFirestore.collection("tm_latest_prices"), ids),
+    getLatestPriceQuotes(ids),
     getDocsById<Record<string, unknown>>(adminFirestore.collection("tm_instruments"), ids),
     getDocsById<Record<string, unknown>>(adminFirestore.collection("tm_stock_facts"), ids),
     getDocsById<Record<string, unknown>>(adminFirestore.collection("tm_stock_technicals_latest"), ids),

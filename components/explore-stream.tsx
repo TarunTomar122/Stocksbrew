@@ -1,6 +1,6 @@
 import { OaExplore } from "@/components/oa/oa-explore";
 import type { TrendingStock } from "@/components/trending-now";
-import { getMarketSnapshot } from "@/lib/firestore";
+import { getInstruments, getLatestPriceQuotes } from "@/lib/firestore";
 import { getHeatList } from "@/lib/heat";
 import { getCurrentMarket } from "@/lib/market";
 import { getNear52WeekLists } from "@/lib/near-52-week";
@@ -27,10 +27,9 @@ const TRENDING_TICKERS = [
 
 export async function ExploreStream() {
   const market = getCurrentMarket();
-  const [session, snapshotRows, heatList, near52, trumpLogic, themes] =
+  const [session, heatList, near52, trumpLogic, themes] =
     await Promise.all([
       getSessionUser(),
-      getMarketSnapshot(market).catch(() => []),
       getHeatList(market).catch(() => null),
       getNear52WeekLists(market, 20).catch(() => ({
         nearHighs: [],
@@ -39,14 +38,33 @@ export async function ExploreStream() {
       getTrumpLogic(market).catch(() => null),
       getLiveInvestmentThemes(),
     ]);
-  const userDoc = session ? await getUserDoc(session.uid) : null;
+  const targetedTickers = [
+    ...TRENDING_TICKERS,
+    ...(trumpLogic?.tickers ?? []).map((row) => row.ticker),
+  ];
+  const targetedIds = [...new Set(targetedTickers.map((ticker) => `${market}_${ticker.toUpperCase()}`))];
+  const userDocPromise = session ? getUserDoc(session.uid) : Promise.resolve(null);
+  const [instrumentsById, pricesById, userDoc] = await Promise.all([
+    getInstruments(targetedIds),
+    getLatestPriceQuotes(targetedIds),
+    userDocPromise,
+  ]);
   const isSubscribed = resolveIsSubscribed(userDoc);
   const trackedIds = Array.isArray(userDoc?.tracked_stocks)
     ? userDoc!.tracked_stocks!
     : [];
 
   const bySymbol = new Map(
-    snapshotRows.map((row) => [row.symbol.toUpperCase(), row]),
+    targetedIds.map((id) => {
+      const instrument = instrumentsById.get(id);
+      const latest = pricesById.get(id);
+      const price = latest?.quote;
+      const ticker = instrument?.ticker ?? latest?.ticker ?? id.split("_").slice(1).join("_");
+      return [ticker.toUpperCase(), {
+        name: instrument?.name ?? ticker,
+        price: { current: price?.current, changePct: price?.day_change_pct },
+      }];
+    }),
   );
   const trending: TrendingStock[] = TRENDING_TICKERS.map((ticker) => {
     const row = bySymbol.get(ticker);

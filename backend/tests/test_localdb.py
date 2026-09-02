@@ -182,6 +182,23 @@ class LocalDBTest(unittest.TestCase):
                     self.assertEqual(json.load(response)["count"], 1)
 
                 request = Request(
+                    f"{base_url}/documents:batchGet",
+                    data=json.dumps(
+                        {
+                            "paths": ["users/u1", "users/u1/watchlist/w2", "users/missing"],
+                            "select": ["name", "ticker"],
+                        }
+                    ).encode(),
+                    method="POST",
+                    headers={"Authorization": "Bearer test-token", "Content-Type": "application/json"},
+                )
+                with urlopen(request) as response:
+                    payload = json.load(response)
+                    self.assertEqual(payload["count"], 2)
+                    self.assertEqual(payload["documents"][0]["data"], {"name": "updated"})
+                    self.assertEqual(payload["documents"][1]["data"], {"ticker": "MSFT"})
+
+                request = Request(
                     f"{base_url}/documents?collection=users&limit=10",
                     headers={"Authorization": "Bearer test-token"},
                 )

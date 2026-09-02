@@ -1,5 +1,6 @@
 import { unstable_cache } from "next/cache";
 import { adminFirestore } from "@/lib/firebase-admin";
+import { getLatestPriceQuotes } from "@/lib/firestore";
 import type { LatestPrice } from "@/lib/types";
 
 export type AnomalyItem = {
@@ -273,19 +274,7 @@ async function getDailyAnomaliesUncached(
   );
   if (instrumentIds.length === 0) return feed;
 
-  const latestPrices = await adminFirestore
-    .getAll(
-      ...instrumentIds.map((instrumentId) =>
-        adminFirestore.collection("tm_latest_prices").doc(instrumentId),
-      ),
-    )
-    .then((docs) => {
-      const prices = new Map<string, LatestPrice>();
-      for (const priceDoc of docs) {
-        if (priceDoc.exists) prices.set(priceDoc.id, priceDoc.data() as LatestPrice);
-      }
-      return prices;
-    })
+  const latestPrices = await getLatestPriceQuotes(instrumentIds)
     .catch(() => new Map<string, LatestPrice>());
   return mergeAnomaliesWithLatestPrices(feed, latestPrices);
 }

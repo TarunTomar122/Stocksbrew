@@ -1,4 +1,5 @@
 import { adminFirestore } from "@/lib/firebase-admin";
+import { getLatestPriceQuotes } from "@/lib/firestore";
 
 // Live "what's moving right now" reader.
 //
@@ -160,9 +161,9 @@ export async function getTrendingSignals(
   const all = [...movers, ...buzz];
   const ids = Array.from(new Set(all.map((s) => s.instrument_id)));
   if (ids.length > 0) {
-    const [factDocs, priceDocs] = await Promise.all([
+    const [factDocs, pricesById] = await Promise.all([
       adminFirestore.getAll(...ids.map((id) => adminFirestore.collection("tm_stock_facts").doc(id))),
-      adminFirestore.getAll(...ids.map((id) => adminFirestore.collection("tm_latest_prices").doc(id))),
+      getLatestPriceQuotes(ids),
     ]);
     const targetById = new Map<string, { target: number | null; count: number | null }>();
     for (const doc of factDocs) {
@@ -173,18 +174,11 @@ export async function getTrendingSignals(
         count: toNumber(analyst.analyst_count),
       });
     }
-    const priceById = new Map<string, number | null>();
-    const changeById = new Map<string, number | null>();
-    for (const doc of priceDocs) {
-      if (!doc.exists) continue;
-      const quote = ((doc.data()?.quote || {}) as Record<string, unknown>) || {};
-      priceById.set(doc.id, toNumber(quote.current ?? quote.close ?? quote.price));
-      changeById.set(doc.id, toNumber(quote.day_change_pct));
-    }
     for (const s of all) {
       const analyst = targetById.get(s.instrument_id);
-      const price = s.price ?? priceById.get(s.instrument_id) ?? null;
-      const dayChange = changeById.get(s.instrument_id) ?? s.anomaly_move_pct ?? null;
+      const quote = pricesById.get(s.instrument_id)?.quote;
+      const price = s.price ?? toNumber(quote?.current) ?? null;
+      const dayChange = toNumber(quote?.day_change_pct) ?? s.anomaly_move_pct ?? null;
       s.price = price;
       s.day_change_pct = dayChange;
       s.analyst_count = analyst?.count ?? null;

@@ -81,6 +81,14 @@ For any task that changes code, data, infrastructure, deployment, product behavi
 
 Do not save secrets, credentials, private keys, raw environment values, personal data, or unnecessarily large command output. Routine read-only answers do not require a manual handoff when hooks are healthy.
 
+## Coding model
+
+For every task that writes, edits, refactors, fixes, or generates code in this project, delegate all code-writing work to a subagent using `gpt-5.6-luna` with `max` reasoning effort, unless the user explicitly asks for a different model or reasoning effort. The primary agent may inspect, plan, review, test, and integrate the work. If Luna Max is unavailable, tell the user instead of silently substituting another model.
+
+## Vercel commit identity
+
+Commits deployed to the `yourtraceonline-5491s-projects` Vercel team must use `Tarun Tomar <yourtrace.online@gmail.com>` as the Git author. The `ttomar@adobe.com` identity is not a member of that team and causes Vercel deployments to be blocked.
+
 ## Writing voice
 
 For user-facing conversation and writing, prefer the voice of Tarat's Garden: direct, first-person, concrete, informal, and lightly playful when it fits. Use lowercase and short replies by default (unless the task genuinely needs detail). Start with what actually happened, keep the useful details, and avoid polished generic AI/product-marketing phrasing, empty framing, em dashes, and over-structured lists. Do not imitate distinctive wording verbatim; use the qualities of the voice rather than copying it.

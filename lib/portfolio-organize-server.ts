@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 import { adminFirestore } from "@/lib/firebase-admin";
-import { getAiUniverse, getLatestPrices, getInstruments } from "@/lib/firestore";
+import { getAiUniverse, getLatestPriceCores, getInstruments } from "@/lib/firestore";
 import { buildRebalancePlanFromData, type RebalanceUniverseCandidate } from "@/lib/portfolio-organize";
 import type { PortfolioRebalanceBundle, RebalanceStrategyId } from "@/lib/portfolio-organize-types";
 import type { PortfolioBookRow } from "@/lib/portfolio-book";
@@ -57,7 +57,7 @@ async function loadUniverseCandidates(market: "US" | "IN"): Promise<RebalanceUni
 
   const [instrumentsById, latestById, intelSnap] = await Promise.all([
     getInstruments(instrumentIds),
-    getLatestPrices(instrumentIds),
+    getLatestPriceCores(instrumentIds),
     adminFirestore
       .collection("tm_stock_intel_pro")
       .doc(`${market}__${universeId}`)

@@ -146,10 +146,10 @@ export async function StockPageStream({ params }: Props) {
   // Try the active market first, then fall back to the other one so that
   // sharing an IN link from a US session (or vice-versa) still resolves.
   const otherMarket: "US" | "IN" = cookieMarket === "IN" ? "US" : "IN";
-  const [stockInCookieMarket, stockInOtherMarket] = await Promise.all([
-    getStockSummary(symbol, cookieMarket),
-    getStockSummary(symbol, otherMarket),
-  ]);
+  const stockInCookieMarket = await getStockSummary(symbol, cookieMarket);
+  const stockInOtherMarket = stockInCookieMarket
+    ? null
+    : await getStockSummary(symbol, otherMarket);
   const stock = stockInCookieMarket ?? stockInOtherMarket;
   const market: "US" | "IN" = stockInCookieMarket ? cookieMarket : otherMarket;
   if (!stock) {

@@ -1,7 +1,7 @@
 import { unstable_cache } from "next/cache";
 
 import { adminFirestore } from "@/lib/firebase-admin";
-import { batchGetRefs } from "@/lib/firestore";
+import { batchGetRefs, getLatestPriceQuotes } from "@/lib/firestore";
 
 export type MacroTick = {
   instrument_id: string;
@@ -35,14 +35,7 @@ async function getMacroStripUncached(
 ): Promise<MacroTick[]> {
   const cfg = MACRO_TICKERS[market] ?? [];
   if (cfg.length === 0) return [];
-  const refs = cfg.map((c) =>
-    adminFirestore.collection("tm_latest_prices").doc(c.id),
-  );
-  const snaps = await adminFirestore.getAll(...refs);
-  const byId = new Map<string, any>();
-  for (const snap of snaps) {
-    if (snap.exists) byId.set(snap.id, snap.data());
-  }
+  const byId = await getLatestPriceQuotes(cfg.map((c) => c.id));
 
   const technicalRefs = cfg.map((c) =>
     adminFirestore.collection("tm_stock_technicals_latest").doc(c.id),
@@ -54,14 +47,14 @@ async function getMacroStripUncached(
   const out: MacroTick[] = [];
   for (const c of cfg) {
     const doc = byId.get(c.id);
-    const quote = doc?.quote ?? {};
+    const quote = doc?.quote;
     out.push({
       instrument_id: c.id,
       ticker: c.display,
       name: c.name,
-      price: typeof quote.current === "number" ? quote.current : null,
+      price: typeof quote?.current === "number" ? quote.current : null,
       day_change_pct:
-        typeof quote.day_change_pct === "number" ? quote.day_change_pct : null,
+        typeof quote?.day_change_pct === "number" ? quote.day_change_pct : null,
       from_52w_high_pct:
         typeof technicals.get(c.id)?.distance?.from_52w_high_pct === "number"
           ? technicals.get(c.id)!.distance!.from_52w_high_pct
