@@ -1,0 +1,35 @@
+[Unit]
+Description=Tikrr local document database
+After=network.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/tikrr
+EnvironmentFile=/etc/tikrr/localdb.env
+ExecStart=/opt/tikrr/.venv/bin/python -m backend.localdb.server --db /srv/tikrr-data/localdb/documents.sqlite3 --host 127.0.0.1 --port 8500
+Restart=on-failure
+RestartSec=5s
+
+# Keep the service read-only everywhere except its data directory.
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+SystemCallArchitectures=native
+ReadWritePaths=/srv/tikrr-data
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

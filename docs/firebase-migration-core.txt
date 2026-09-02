@@ -1,0 +1,42 @@
+# First cutover only: direct app read models and user-facing state.
+# Every selector below has a current page/API consumer. Firebase retains all
+# excluded collections, including caches, logs, analytics, queues, and history.
+market_price_snapshots
+market_price_snapshots/*/shards
+reddit_snapshots
+reddit_ticker_contexts
+tm_alerts
+tm_config
+tm_daily_anomalies
+tm_daily_anomaly_tickers
+tm_earnings_events
+tm_earnings_intel
+tm_heat_list
+tm_heat_list_view
+tm_home_news
+tm_home_view
+tm_home_view_core
+tm_instruments
+tm_latest_prices
+tm_market_events
+tm_market_movers
+tm_news_runs
+tm_news_runs/*/enrichments
+tm_news_runs/*/stock_intelligence
+tm_on_demand_news_jobs
+tm_portfolio_exposure
+tm_portfolio_rebalance
+tm_portfolio_scenarios
+tm_pre_earnings_intel
+tm_premarket_movers
+tm_search_index
+tm_stock_facts
+tm_stock_technicals_latest
+tm_thematic_screens
+tm_user_alert_flags
+tm_user_watchlists
+tm_views_dashboard
+tm_views_instrument
+tm_watchlist_view_refresh_control
+tm_watchlist_views
+users

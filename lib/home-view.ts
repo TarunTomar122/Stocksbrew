@@ -1,6 +1,7 @@
 import { unstable_cache } from "next/cache";
 
 import { adminFirestore } from "@/lib/firebase-admin";
+import { getLocalDBDocument } from "@/lib/localdb";
 import type { DashboardView, SnapshotRow } from "@/lib/types";
 import type { ThematicScreensDoc } from "@/lib/screens";
 import type { NewsArticle } from "@/lib/news";
@@ -27,6 +28,20 @@ export type HomeNewsView = {
 };
 
 async function getHomeViewUncached(market: "US" | "IN" = "US"): Promise<HomeView | null> {
+  const localData =
+    (await getLocalDBDocument<HomeView>(`tm_home_view_core/${market}`)) ??
+    (await getLocalDBDocument<HomeView>(`tm_home_view/${market}`));
+  if (localData) {
+    return {
+      ...localData,
+      market,
+      market_snapshot_rows: Array.isArray(localData.market_snapshot_rows)
+        ? localData.market_snapshot_rows
+        : [],
+      news: Array.isArray(localData.news) ? localData.news : [],
+    };
+  }
+
   const compactDoc = await adminFirestore.collection("tm_home_view_core").doc(market).get();
   const doc = compactDoc.exists
     ? compactDoc
@@ -42,6 +57,17 @@ async function getHomeViewUncached(market: "US" | "IN" = "US"): Promise<HomeView
 }
 
 async function getHomeNewsUncached(market: "US" | "IN" = "US"): Promise<HomeNewsView | null> {
+  const localData =
+    (await getLocalDBDocument<HomeNewsView>(`tm_home_news/${market}`)) ??
+    (await getLocalDBDocument<HomeNewsView>(`tm_home_view/${market}`));
+  if (localData) {
+    return {
+      ...localData,
+      market,
+      news: Array.isArray(localData.news) ? localData.news : [],
+    };
+  }
+
   const compactDoc = await adminFirestore.collection("tm_home_news").doc(market).get();
   const doc = compactDoc.exists
     ? compactDoc

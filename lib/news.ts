@@ -172,12 +172,35 @@ export async function getNewsFeed(
 }
 
 const TICKER_NEWS_SCAN_LIMIT = 500;
+const TICKER_NEWS_TARGET_LIMIT = 50;
 const TICKER_NEWS_DEFAULT_LIMIT = 7;
 
 /** Ticker pages need a deep scan — not the 30-row home feed snapshot. */
-async function loadEnrichedArticlesForTicker(market: "US" | "IN", limit: number): Promise<RawEnrichedArticle[]> {
+async function loadEnrichedArticlesForTicker(
+  market: "US" | "IN",
+  ticker: string,
+  limit: number,
+): Promise<RawEnrichedArticle[]> {
   const universe = await getAiUniverse(market);
   const ns = `${market}__${universe}`;
+
+  for (const name of ["enrichments", "articles"] as const) {
+    const collection = adminFirestore.collection("tm_news_runs").doc(ns).collection(name);
+    try {
+      const snap = await collection
+        .where("stock_tickers", "array-contains", ticker)
+        .limit(TICKER_NEWS_TARGET_LIMIT)
+        .get();
+      if (!snap.empty) {
+        return snap.docs
+          .map((doc) => doc.data() as RawEnrichedArticle)
+          .sort((a, b) => String(b.published_at ?? "").localeCompare(String(a.published_at ?? "")));
+      }
+    } catch (err) {
+      console.warn(`[news] targeted ${name} query failed, falling back to limited scan:`, err);
+      break;
+    }
+  }
 
   for (const name of ["enrichments", "articles"] as const) {
     const collection = adminFirestore.collection("tm_news_runs").doc(ns).collection(name);
@@ -235,7 +258,7 @@ async function getNewsForTickerUncached(
 ): Promise<NewsArticle[]> {
   const upper = ticker.toUpperCase();
   const cutoffMs = Date.now() - days * 86_400_000;
-  const rows = await loadEnrichedArticlesForTicker(market, TICKER_NEWS_SCAN_LIMIT);
+  const rows = await loadEnrichedArticlesForTicker(market, upper, TICKER_NEWS_SCAN_LIMIT);
   return filterTickerNews(rows, market, upper, cutoffMs, limit);
 }
 

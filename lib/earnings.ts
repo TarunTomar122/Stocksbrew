@@ -39,6 +39,17 @@ export async function getNextEarningsCalendarEvent(
   const upper = ticker.trim().toUpperCase();
   if (!upper) return null;
 
-  const events = await getEarnings(market);
-  return events.find((e) => e.ticker?.toUpperCase() === upper) ?? null;
+  const today = new Date().toISOString().slice(0, 10);
+  const to = new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
+  const snap = await adminFirestore
+    .collection("tm_earnings_events")
+    .where("ticker", "==", upper)
+    .get();
+
+  return (
+    snap.docs
+      .map((d) => d.data() as EarningsEvent)
+      .filter((e) => e.market === market && e.event_date >= today && e.event_date <= to)
+      .sort((a, b) => a.event_date.localeCompare(b.event_date))[0] ?? null
+  );
 }
