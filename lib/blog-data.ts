@@ -13,6 +13,36 @@ export type BlogPost = {
 
 export const allBlogPosts: BlogPost[] = [
   {
+    slug: "chartrecap-review",
+    title: "ChartRecap Review: A Trading Journal That Keeps the Chart in the Record",
+    seoTitle: "ChartRecap Review: A Trading Journal That Reads Your Charts",
+    description:
+      "A practical review of ChartRecap, a trading journal that captures the chart behind each trade and turns setups, outcomes, and discipline into a reviewable record.",
+    category: "tools",
+    tags: ["ChartRecap", "trading-journal", "chart-capture", "trade-review", "AI-trading", "tools"],
+    date: "2026-09-02",
+    updated: "2026-09-02",
+    readTime: "8 min read",
+    faqs: [
+      {
+        question: "What is ChartRecap?",
+        answer: "ChartRecap is a trading journal built around capturing the chart you were looking at when you entered a trade, then reviewing the setup, outcome, and process together.",
+      },
+      {
+        question: "What makes ChartRecap different from a normal trade journal?",
+        answer: "A normal journal often stores fills and notes. ChartRecap also stores the chart context, then uses it for setup grading, pattern analysis, and plan-versus-execution review.",
+      },
+      {
+        question: "Is ChartRecap free?",
+        answer: "ChartRecap has a free journal with no trade limit and no card required. Its current free plan includes six months of history and limited AI setup grades; paid features and prices can change.",
+      },
+      {
+        question: "How does ChartRecap fit with Stocksbrew?",
+        answer: "Stocksbrew helps research a stock and monitor what changes. ChartRecap helps review the trade you actually took. They solve different halves of the investing workflow.",
+      },
+    ],
+  },
+  {
     slug: "ai-infrastructure-power-capex-utilization",
     title: "AI Infrastructure Stocks: The Power, Capex, and Utilization Test",
     seoTitle: "AI Infrastructure Stocks: How to Analyze the AI Power Trade",
@@ -905,6 +935,7 @@ export const allBlogPosts: BlogPost[] = [
 // discovery until their article has a clear intent, original value, sources,
 // useful internal links, and a human read-through.
 export const REVIEWED_BLOG_SLUGS = new Set([
+  "chartrecap-review",
   "best-stock-research-websites-2026",
   "best-stock-watchlist-apps-2026",
   "best-stock-news-apps-2026",

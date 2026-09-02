@@ -1,6 +1,6 @@
 # local document store migration
 
-This is the first, reversible foundation for moving Firebase data services to the VPS. It is a small SQLite document store, not a Firestore-compatible replacement. Firebase remains the source of truth in this stage, and Firebase Auth stays in Firebase.
+This is the current runtime path for moving Firebase data services to the VPS. It is a small SQLite document store with a Firestore-shaped adapter for the app's reads, writes, batches, transactions, and transforms. Firebase Auth stays in Firebase, and Firebase data remains preserved for rollback and parity checks.
 
 ## contract
 
@@ -73,11 +73,41 @@ Start it with `python3 -m backend.localdb.server`. `/health` is an unauthenticat
 ```text
 GET  /documents/<document-path>
 GET  /documents?collection=<top-level-collection>&prefix=<optional-path>&limit=1000
-PUT  /documents/<document-path>       body: {"data": {...}, "hash": "..."}
+POST /query                           body: collection, filters, orders, select, limit
+POST /documents:batchGet              body: {"paths": ["..."], "select": ["..."]}
+POST /documents:batchWrite            body: {"operations": [{"op": "set|update|create|delete", "path": "..."}]}
+POST /transactions:commit             body: {"reads": {"path": "hash"}, "operations": [...]}
+PUT  /documents/<document-path>       body: {"data": {...}, "merge": true}
+DELETE /documents/<document-path>
 POST /documents:batchUpsert            body: {"documents": [{"path": "...", "data": {...}, "hash": "..."}]}
 ```
 
-The API intentionally has no queries, transactions across arbitrary paths, listeners, or Firestore rules. The application adapter must add those semantics later, with Firebase fallback during rollout.
+The API supports the application-required document reads, collection queries, selected-field reads, batches, transactions, and transforms. It has no listeners or Firestore security rules; the service is authenticated by `LOCALDB_API_TOKEN` and restricted by `LOCALDB_ALLOWED_COLLECTIONS` when configured.
+
+## current production wiring
+
+- VPS checkout: `/opt/tikrr`, tracking `origin/main`.
+- Service: `tikrr-localdb.service`.
+- SQLite database: `/srv/tikrr-data/localdb/documents.sqlite3`.
+- Listener: `127.0.0.1:8500`.
+- Public Vercel-to-VPS URL: `https://vps-148f55ad.tail5dcb5e.ts.net` through Tailscale Funnel.
+- Vercel environment: `LOCALDB_URL` and `LOCALDB_API_TOKEN` must be set for the deployed environment. Local development uses the ignored `.env.vps.local` file, which is loaded by `lib/firebase-admin.ts`.
+
+After changing `backend/localdb/`, fast-forward the VPS checkout and restart the service:
+
+```sh
+ssh vps 'cd /opt/tikrr && git pull --ff-only origin main && sudo systemctl restart tikrr-localdb.service'
+```
+
+Verify liveness and the compatibility endpoint before debugging a page:
+
+```sh
+curl "$LOCALDB_URL/health"
+# With the bearer token, POST a small JSON body to:
+# $LOCALDB_URL/documents:batchGet
+```
+
+If `/health` is `200` but `/documents:batchGet` is `404`, Vercel can reach the VPS and the running service is stale. Check the VPS revision, update it, restart `tikrr-localdb.service`, and retest. Do not switch the app back to Firebase to mask this deployment mismatch.
 
 ## backup and rollback
 
@@ -87,4 +117,4 @@ Use SQLite's online backup API while the service is running and keep the backup 
 python3 -c 'from backend.localdb import LocalDocumentStore; LocalDocumentStore("/var/lib/tikrr/localdb/documents.sqlite3").backup_to("/var/lib/tikrr/backups/localdb.sqlite3")'
 ```
 
-Rollback for this slice is simply to keep the application on Firebase; no existing app call sites or VPS services are changed here. If a later cutover is enabled, use its feature flag to return to Firebase reads, preserve the local backup, and keep Firebase data untouched until parity and stability are jointly confirmed.
+Rollback is explicit: set `FIRESTORE_BACKEND=firebase` in the deployed environment and redeploy, while preserving the local backup. Keep Firebase data untouched until parity and stability are jointly confirmed.

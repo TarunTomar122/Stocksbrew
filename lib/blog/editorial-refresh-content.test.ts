@@ -12,7 +12,7 @@ const REWRITTEN = [
 describe("editorial indexing gate", () => {
   it("indexes only articles that passed editorial review", () => {
     expect(indexableBlogPosts).toHaveLength(REVIEWED_BLOG_SLUGS.size);
-    expect(REVIEWED_BLOG_SLUGS.size).toBe(27);
+    expect(REVIEWED_BLOG_SLUGS.size).toBe(29);
     expect(allBlogPosts.length).toBeGreaterThan(REVIEWED_BLOG_SLUGS.size);
     for (const post of indexableBlogPosts) {
       expect(REVIEWED_BLOG_SLUGS.has(post.slug), post.slug).toBe(true);

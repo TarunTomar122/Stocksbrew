@@ -282,4 +282,85 @@ export const productIntentBlogContent: Record<string, string> = {
 
 <div class="cta-section"><h3>See the news around your stocks</h3><p>Track a US stock in Watchlist to connect relevant headlines with the company’s price, financials, catalysts, risks, and current research brief.</p><a class="cta-button" href="/radar">Track a stock →</a></div>
 `,
+
+  "chartrecap-review": `
+<div class="source-note"><strong>Disclosure:</strong> ChartRecap recently published a <a href="https://chartrecap.app/blog/stocksbrew-review" rel="nofollow">review of Stocksbrew</a>, so we are returning the favor with a straightforward product note. We are not being paid for this article and receive no affiliate compensation.</div>
+
+<div class="article-summary"><h2>Short version</h2><p>ChartRecap is a trading journal built around one useful idea: the chart you were looking at when you entered is part of the trade record. It captures that context, links it to the trade, and gives you a way to review setup quality, plan adherence, and results together. Stocksbrew is for the research before the trade and the monitoring after it. ChartRecap is for learning from the trade itself.</p></div>
+
+<p>Most trading journals begin with fills. That makes sense: entry, exit, size, and profit or loss are the facts a broker already knows. But a fill does not show whether you entered at the level you planned, chased the move, ignored the trend, or took a setup that was never really there.</p>
+
+<p>ChartRecap tries to keep that missing context. Its core workflow is simple: capture the chart, connect it to the trade, and review the record later. The product supports stocks, options, futures, and forex, so the same idea can follow a trader across markets.</p>
+
+<h2>What ChartRecap does</h2>
+
+<p>ChartRecap describes itself as a journal that reads charts, not just numbers. You can capture a chart from the screen or from TradingView, with the symbol, timeframe, and entry context attached. Broker fills can then be imported through CSV, with automatic broker syncing available on supported paid plans.</p>
+
+<p>The journal is not trying to be a replacement for a broker or a live market terminal. It is a record of your decision process. That distinction matters. The value is not another quote screen; it is being able to look back at the setup you actually saw instead of reconstructing it from memory after the outcome is known.</p>
+
+<h2>Where it is strongest</h2>
+
+<h3>1. The chart stays attached to the trade</h3>
+
+<p>This is the product’s clearest difference. A note saying “breakout” is an interpretation. A captured chart shows the level, candles, trend, volume, and timing that were visible when the decision happened. That makes a weekend review more concrete and makes hindsight a little harder.</p>
+
+<h3>2. Process is separate from P&amp;L</h3>
+
+<p>A profitable trade can still be badly executed, and a stopped-out trade can still follow the plan. ChartRecap’s plan-versus-execution review and setup grades are useful because they create room for that distinction. You can ask whether the decision was good before asking whether the market rewarded it.</p>
+
+<h3>3. The metrics can point back to setups</h3>
+
+<p>Win rate, expectancy, and profit factor are more useful when grouped by the setup or playbook behind each trade. A single account-level number can hide the fact that one setup carries the book while another quietly leaks. ChartRecap’s analytics are designed to make that grouping part of the review.</p>
+
+<h2>What you get for free</h2>
+
+<p>At the time we checked, ChartRecap’s free plan included unlimited trade journaling, chart snapshots, analytics, plan-versus-execution review, a calendar, a weekly AI review, and broker CSV import. It required no card. The free history window was six months, and AI setup grading had a small monthly allowance after the initial grades.</p>
+
+<p>The paid plan listed broker auto-sync, more AI setup grades, the full AI coach, multiple accounts, and unlimited history. The price page listed $9 per month or $89 per year when we reviewed it. Prices, limits, and integrations change, so check the current <a href="https://chartrecap.app/stock-trading-journal" rel="nofollow">ChartRecap stock journal page</a> before treating any number as permanent.</p>
+
+<h2>How it fits with Stocksbrew</h2>
+
+<div class="table-scroll"><table><thead><tr><th>Question</th><th>Better fit</th><th>Why</th></tr></thead><tbody>
+<tr><td>What changed in this company?</td><td>Stocksbrew</td><td>Stock research, filings, financials, news, market context, and watchlist monitoring.</td></tr>
+<tr><td>Was my entry actually a good setup?</td><td>ChartRecap</td><td>Captured chart context, setup grading, and review of the plan against the trade.</td></tr>
+<tr><td>Which stocks deserve attention today?</td><td>Stocksbrew</td><td>Current US-stock briefs, market scans, catalysts, risks, and material-change monitoring.</td></tr>
+<tr><td>Which setups are working for me?</td><td>ChartRecap</td><td>Trade history and performance grouped around the setups you actually take.</td></tr>
+</tbody></table></div>
+
+<p>That makes the two products complementary rather than direct substitutes. Stocksbrew helps answer “what should I investigate, and what changed?” ChartRecap helps answer “what did I do, and did my process hold?” A trader who uses both can keep the research case and the execution record separate without losing the connection between them.</p>
+
+<h2>What I would test before paying</h2>
+
+<ol>
+<li>Capture the chart for one real trade at entry, not after the outcome.</li>
+<li>Import or log enough trades from one setup that the review has a real sample.</li>
+<li>Compare the original plan with the actual entry, stop, size, and exit.</li>
+<li>Check whether the analytics tell you something beyond win rate and total P&amp;L.</li>
+<li>Review the privacy policy and broker permissions before connecting an account.</li>
+</ol>
+
+<p>The test should be boring. A journal earns its place by making the next review clearer, not by producing the most impressive demo. If attaching the chart changes how honestly you review a trade, the workflow is doing its job.</p>
+
+<h2>Where it may not fit</h2>
+
+<p>ChartRecap is not the right center of the workflow if you need deep company financials, current market intelligence, a large research directory, or a stock watchlist that tells you when the investment case changed. That is the job Stocksbrew is built for, alongside primary filings and your own judgment.</p>
+
+<p>It also cannot turn a journal into a reliable prediction engine. An AI grade is still an interpretation of a chart. The useful question is whether the grade helps you see a repeatable process, not whether it promises the next trade will win.</p>
+
+<h2 id="faq">Frequently asked questions</h2>
+
+<h3>What is ChartRecap?</h3>
+<p>ChartRecap is a trading journal built around capturing the chart you were looking at when you entered a trade, then reviewing the setup, outcome, and process together.</p>
+
+<h3>What makes ChartRecap different from a normal trade journal?</h3>
+<p>A normal journal often stores fills and notes. ChartRecap also stores the chart context, then uses it for setup grading, pattern analysis, and plan-versus-execution review.</p>
+
+<h3>Is ChartRecap free?</h3>
+<p>ChartRecap has a free journal with no trade limit and no card required. Its current free plan includes six months of history and limited AI setup grades; paid features and prices can change.</p>
+
+<h3>How does ChartRecap fit with Stocksbrew?</h3>
+<p>Stocksbrew helps research a stock and monitor what changes. ChartRecap helps review the trade you actually took. They solve different halves of the investing workflow.</p>
+
+<div class="cta-section"><h3>Review the trade, then research the next one</h3><p>Try ChartRecap for the execution record and use Stocksbrew when you need current context around a US stock.</p><a class="cta-button" href="https://chartrecap.app/stock-trading-journal" rel="nofollow">Try ChartRecap →</a></div>
+`,
 };
