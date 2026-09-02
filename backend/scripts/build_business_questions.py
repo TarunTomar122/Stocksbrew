@@ -1,4 +1,4 @@
-"""Generate the five plain-English business questions for the AI stock cohort."""
+"""Generate the five plain-English business questions for Stocksbrew stocks."""
 from __future__ import annotations
 
 import argparse
@@ -192,6 +192,7 @@ def main() -> None:
     parser.add_argument("--market", choices=["US", "IN"], default="US")
     parser.add_argument("--universe", default=None)
     parser.add_argument("--instrument-ids", default="")
+    parser.add_argument("--all-stocks", action="store_true", help="Generate for every persisted stock in the market")
     parser.add_argument("--missing-only", action="store_true", help="Generate questions only for researched stocks missing them")
     parser.add_argument("--max-workers", type=int, default=4)
     args = parser.parse_args()
@@ -201,9 +202,8 @@ def main() -> None:
     if not universe_id:
         raise ValueError(f"No active AI universe configured for {args.market}")
 
-    instruments, paid_count, paid_extra = _merge_with_paid_tracked(
-        store, args.market, list_instruments(args.market, universe_id)
-    )
+    seed_instruments = store.list_instruments(args.market) if args.all_stocks else list_instruments(args.market, universe_id)
+    instruments, paid_count, paid_extra = _merge_with_paid_tracked(store, args.market, seed_instruments)
     instruments = _merge_researched_instruments(store, args.market, universe_id, instruments)
     requested = {item.strip().upper() for item in args.instrument_ids.split(",") if item.strip()}
     if requested:

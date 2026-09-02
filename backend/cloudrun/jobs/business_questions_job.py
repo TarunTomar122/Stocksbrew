@@ -20,6 +20,8 @@ def main() -> None:
         "backend.scripts.build_business_questions",
         "--market",
         args.market,
+        "--all-stocks",
+        "--missing-only",
         "--max-workers",
         str(max(1, args.max_workers)),
     ]
