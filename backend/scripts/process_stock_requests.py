@@ -643,7 +643,6 @@ def _materialize_search_index(store: TraceMoneyStore, market: str) -> None:
             "backend.scripts.materialize_search_index",
             "--market",
             market,
-            "--active-only",
         ],
         check=True,
         capture_output=True,

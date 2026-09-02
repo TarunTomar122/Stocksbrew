@@ -59,7 +59,7 @@ export const getSearchIndex = cache(getSearchIndexUncached);
 export function getSearchIndexForApi(market: "US" | "IN" = "US"): Promise<SearchEntry[]> {
   return unstable_cache(
     async () => getSearchIndexUncached(market),
-    ["search-index-api", market],
-    { revalidate: 300 },
+    ["search-index-api-v2", market],
+    { revalidate: 60 },
   )();
 }

@@ -235,7 +235,6 @@ export function RadarBatchEditModal({
         throw new Error(data?.error || "batch_update_failed");
       }
 
-      setModalStatus("success");
       const initialIds = new Set(initialItems.map((i) => i.instrument_id));
       const addedCount = items.filter((i) => !initialIds.has(i.instrument_id)).length;
       if (addedCount > 0) {

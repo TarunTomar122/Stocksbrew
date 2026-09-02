@@ -172,7 +172,7 @@ def main() -> None:
     timings.append(
         _run(
             "materialize_search",
-            [py, "-m", "backend.scripts.materialize_search_index", "--market", args.market, "--active-only"],
+            [py, "-m", "backend.scripts.materialize_search_index", "--market", args.market],
         )
     )
     timings.append(_run("watchlists", [py, "-m", "backend.scripts.build_watchlist_views", "--no-llm"]))

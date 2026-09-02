@@ -2,6 +2,7 @@ import type { ScannerItem } from "@/components/movers-scanner";
 import {
   anomalyDetail,
   anomalyHeadline,
+  hasResearchBackedNarrative,
   isWeakMoveExplanation,
 } from "@/components/daily-anomalies-shared";
 import type { AnomalyItem } from "@/lib/daily-anomalies";
@@ -61,7 +62,7 @@ export function splitPulseMovers(items: ScannerItem[]): {
 }
 
 function mapScannerItems(anomalies: AnomalyItem[], buzzBy: Map<string, string>): ScannerItem[] {
-  return anomalies.map((a) => {
+  return anomalies.filter(hasResearchBackedNarrative).map((a) => {
     const weakExplanation = isWeakMoveExplanation(a);
     const headline = anomalyHeadline(a);
     const whyItMatters = anomalyDetail(a) || "";

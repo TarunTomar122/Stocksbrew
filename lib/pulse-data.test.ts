@@ -121,7 +121,7 @@ describe("Pulse mover narratives", () => {
     });
   });
 
-  it("keeps an unresearched mover visible with an honest temporary price read", () => {
+  it("skips an unresearched mover without a reason", () => {
     const row = anomaly({
       ticker: "EMPTY",
       narrative_status: "unverified",
@@ -130,11 +130,7 @@ describe("Pulse mover narratives", () => {
       thesis: null,
     });
 
-    expect(pulseItems([row])[0]).toMatchObject({
-      headline: "EMPTY is up 11.0% today",
-      whyItMatters: expect.stringContaining("No company-specific catalyst has been verified yet"),
-      confidence: "low",
-    });
+    expect(pulseItems([row])).toEqual([]);
   });
 
   it("does not display stale research as a reason for a current move", () => {
@@ -146,9 +142,6 @@ describe("Pulse mover narratives", () => {
       today_brief: "Stale price commentary.",
     });
 
-    expect(pulseItems([row])[0]).toMatchObject({
-      headline: "BKNG is up 6.7% today",
-      whyItMatters: expect.stringContaining("No company-specific catalyst has been verified yet"),
-    });
+    expect(pulseItems([row])).toEqual([]);
   });
 });
