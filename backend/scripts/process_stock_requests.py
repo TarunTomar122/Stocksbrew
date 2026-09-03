@@ -720,7 +720,6 @@ def _claim_request(store: TraceMoneyStore, ref: Any, claim_id: str) -> dict[str,
     """Atomically claim a request so concurrent Cloud Run triggers do not
     process or email the same query twice."""
 
-    @firestore.transactional
     def _txn(tx: Any) -> dict[str, Any] | None:
         snap = ref.get(transaction=tx)
         if not snap.exists:
@@ -914,6 +913,10 @@ def main() -> None:
 
     def _run_claimed(job: Any) -> str:
         ref = job.reference
+        if args.dry_run:
+            data = job.to_dict() or {}
+            print(f"  [dry] {ref.id} query={data.get('query') or ref.id}")
+            return "dry"
         claim_id = uuid4().hex
         data = _claim_request(store, ref, claim_id)
         if not data:
