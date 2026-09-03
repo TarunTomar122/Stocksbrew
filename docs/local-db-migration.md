@@ -90,7 +90,7 @@ The API supports the application-required document reads, collection queries, se
 - Service: `tikrr-localdb.service`.
 - SQLite database: `/srv/tikrr-data/localdb/documents.sqlite3`.
 - Listener: `127.0.0.1:8500`.
-- Public Vercel-to-VPS URL: `https://vps-148f55ad.tail5dcb5e.ts.net` through Tailscale Funnel.
+- Public Vercel-to-VPS URL: `https://db.stocksbrew.online` through Caddy, reverse-proxied to `127.0.0.1:8500`. The Tailscale Funnel URL is retained only as an emergency fallback.
 - Vercel environment: `LOCALDB_URL` and `LOCALDB_API_TOKEN` must be set for the deployed environment. Local development uses the ignored `.env.vps.local` file, which is loaded by `lib/firebase-admin.ts`.
 
 After changing `backend/localdb/`, fast-forward the VPS checkout and restart the service:

@@ -1,0 +1,6 @@
+# Stable public endpoint for Vercel -> VPS LocalDB traffic.
+# Keep LocalDB itself bound to 127.0.0.1:8500.
+db.stocksbrew.online {
+	bind 144.217.6.112
+	reverse_proxy 127.0.0.1:8500
+}
