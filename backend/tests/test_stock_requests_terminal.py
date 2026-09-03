@@ -64,6 +64,26 @@ def test_exact_ticker_beats_a_misleading_master_alias(monkeypatch) -> None:
     assert resolved["instrument_id"] == "US_ON"
 
 
+def test_exact_symbol_quote_fallback_resolves_valid_us_ticker(monkeypatch) -> None:
+    monkeypatch.setattr(
+        process_stock_requests,
+        "_resolve_exact_symbol_from_quotes",
+        lambda symbol, market: {
+            "market": market,
+            "symbol": symbol,
+            "instrument_id": f"US_{symbol}",
+            "name": "Regal Rexnord Corporation",
+            "aliases": [symbol],
+            "_score": 100,
+        },
+    )
+
+    resolved = process_stock_requests._resolve_request([], "US", "RRX")
+
+    assert resolved is not None
+    assert resolved["instrument_id"] == "US_RRX"
+
+
 def test_inactive_catalog_symbol_resolves_to_successor(monkeypatch) -> None:
     monkeypatch.setattr(process_stock_requests, "_resolve_exact_symbol_from_quotes", lambda *_args: None)
     resolved = process_stock_requests._resolve_request(

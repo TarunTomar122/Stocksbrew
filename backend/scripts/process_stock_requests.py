@@ -242,6 +242,35 @@ def _search_provider_candidates(query: str, market: str) -> list[dict[str, Any]]
     return out
 
 
+def _resolve_exact_symbol_from_quotes(symbol: str, market: str) -> dict[str, Any] | None:
+    if market != "US" or not re.fullmatch(r"[A-Z]{1,5}", symbol):
+        return None
+    instrument = {
+        "market": market,
+        "ticker": symbol,
+        "instrument_id": f"{market}_{symbol}",
+    }
+    try:
+        row = YFinanceClient(max_workers=1, max_retries=0).fetch_quotes(
+            [instrument], include_fundamentals=True
+        ).get(instrument["instrument_id"])
+    except Exception:
+        return None
+    if not row or not (row.get("quote") or {}).get("current"):
+        return None
+    name = str(row.get("name") or symbol).strip()
+    return {
+        **instrument,
+        "name": name,
+        "exchange": str(row.get("exchange") or "").strip(),
+        "aliases": [symbol, name],
+        "normalized_name": normalize_name(name),
+        "active": True,
+        "_score": 100,
+        "resolution_source": "exact_symbol_quote",
+    }
+
+
 def _llm_symbol_hints(query: str, market: str) -> tuple[list[str], list[str]]:
     if market != "US":
         return [], []
@@ -299,6 +328,9 @@ def _resolve_request(master_rows: list[dict[str, Any]], market: str, query: str)
     resolved = _resolve_from_master(master_rows, market, query)
     if resolved:
         return resolved
+    exact = _resolve_exact_symbol_from_quotes(query.strip().upper(), market)
+    if exact:
+        return exact
     provider_rows = _search_provider_candidates(query, market)
     if not provider_rows:
         return None
