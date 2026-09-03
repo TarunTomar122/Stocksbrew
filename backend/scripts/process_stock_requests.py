@@ -188,6 +188,14 @@ def _resolve_from_master(rows: list[dict[str, Any]], market: str, query: str) ->
         return None
     if second and int(top["_score"]) - int(second["_score"]) < 15:
         return None
+    if top.get("active") is False:
+        successor_id = str(top.get("successor_instrument_id") or "").strip().upper()
+        successor = next(
+            (row for row in rows if str(row.get("instrument_id") or "").upper() == successor_id),
+            None,
+        )
+        if successor:
+            return {**successor, "_score": top["_score"], "resolution_source": "catalog_successor"}
     return top
 
 
@@ -252,7 +260,7 @@ def _resolve_exact_symbol_from_quotes(symbol: str, market: str) -> dict[str, Any
     }
     try:
         row = YFinanceClient(max_workers=1, max_retries=0).fetch_quotes(
-            [instrument], include_fundamentals=True
+            [instrument], include_fundamentals=False
         ).get(instrument["instrument_id"])
     except Exception:
         return None
@@ -326,12 +334,15 @@ def _llm_symbol_hints(query: str, market: str) -> tuple[list[str], list[str]]:
 
 
 def _resolve_request(master_rows: list[dict[str, Any]], market: str, query: str) -> dict[str, Any] | None:
+    query_symbol = query.strip().upper()
     resolved = _resolve_from_master(master_rows, market, query)
-    if resolved:
+    if resolved and str(resolved.get("symbol") or "").upper() == query_symbol and resolved.get("active", True) is not False:
         return resolved
-    exact = _resolve_exact_symbol_from_quotes(query.strip().upper(), market)
+    exact = _resolve_exact_symbol_from_quotes(query_symbol, market)
     if exact:
         return exact
+    if resolved:
+        return resolved
     provider_rows = _search_provider_candidates(query, market)
     if not provider_rows:
         return None
