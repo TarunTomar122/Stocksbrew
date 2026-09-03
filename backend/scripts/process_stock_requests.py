@@ -261,6 +261,7 @@ def _resolve_exact_symbol_from_quotes(symbol: str, market: str) -> dict[str, Any
     name = str(row.get("name") or symbol).strip()
     return {
         **instrument,
+        "symbol": symbol,
         "name": name,
         "exchange": str(row.get("exchange") or "").strip(),
         "aliases": [symbol, name],
