@@ -77,7 +77,7 @@ async function readLiveResearchThemes(): Promise<InvestmentTheme[]> {
 
 const getCachedResearchThemes = unstable_cache(
   readLiveResearchThemes,
-  ["research-themes-runtime"],
+  ["research-themes-runtime-v2"],
   { revalidate: 900 },
 );
 

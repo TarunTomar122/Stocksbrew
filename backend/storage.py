@@ -2240,6 +2240,13 @@ class TraceMoneyStore:
         doc = self.db.collection("tm_config").document("preferences_schema").get()
         return _serialize(doc.to_dict()) if doc.exists else None
 
+    def get_research_themes(self) -> dict[str, Any] | None:
+        doc = self.db.collection("tm_config").document("research_themes").get()
+        return _serialize(doc.to_dict()) if doc.exists else None
+
+    def save_research_themes(self, payload: dict[str, Any]) -> None:
+        self.db.collection("tm_config").document("research_themes").set(_serialize(payload))
+
     def save_user_preferences(self, user_id: str, preferences: dict[str, Any]) -> None:
         self.db.collection("tm_user_preferences").document(user_id).set({
             **preferences,
