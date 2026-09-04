@@ -16,6 +16,7 @@ import { captureEvent } from "@/lib/posthog";
 import type { Market } from "@/lib/types";
 import type { SearchEntry } from "@/lib/search";
 import { formatSearchPct, scoreSearchEntry } from "@/lib/ticker-search-utils";
+import { StocksbrewLogo } from "@/components/stocksbrew-logo";
 
 type Props = {
   searchIndex?: SearchEntry[];
@@ -128,9 +129,9 @@ export function Header({ searchIndex: initialSearchIndex = [], market, trackedId
           <div className="flex min-w-0 shrink-0 items-center gap-4 lg:gap-6">
             <Link
               href="/"
-              className="shrink-0 font-display text-[19px] font-extrabold leading-none tracking-tight text-landing-brand"
+              className="shrink-0 text-landing-brand"
             >
-              stocksbrew
+              <StocksbrewLogo markSize={24} wordmarkClassName="font-display text-[19px] font-extrabold leading-none tracking-tight" />
             </Link>
             <nav className="hidden items-center gap-0.5 md:flex" aria-label="Primary">
               {navItems.map((item) => {

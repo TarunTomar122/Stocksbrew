@@ -4,6 +4,7 @@ import { OaProfileButton } from "@/components/oa/oa-profile-button";
 import { OaHeaderSearchButton } from "@/components/oa/oa-header-search-button";
 import { MobileNav } from "@/components/oa/mobile-nav";
 import { getLandingUserContext } from "@/components/terminal-landing-streams";
+import { StocksbrewLogo } from "@/components/stocksbrew-logo";
 
 export async function OaSiteHeader() {
   const user = await getLandingUserContext();
@@ -11,8 +12,11 @@ export async function OaSiteHeader() {
   return (
     <>
       <HeaderMorph>
-        <a href="/" className="flex items-center gap-2 pl-3 text-[17px] font-medium tracking-tight text-oa-fg sm:pl-0">
-          stocksbrew
+        <a href="/" className="pl-3 text-oa-fg sm:pl-0">
+          <StocksbrewLogo
+            markSize={24}
+            wordmarkClassName="text-[17px] font-medium tracking-tight"
+          />
         </a>
         <nav className="hidden items-center gap-1 text-[15.5px] text-oa-muted-fg sm:flex" aria-label="Site">
           <a href="/pulse" className="rounded-full px-3 py-1.5 transition-colors hover:bg-oa-accent hover:text-oa-fg">

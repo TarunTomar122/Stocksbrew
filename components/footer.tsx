@@ -4,6 +4,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { StartFreeButton } from "@/components/oa/start-free-button";
 import { interTight } from "@/components/oa/font";
 import { SHORT_DESCRIPTION } from "@/lib/brand-copy";
+import { StocksbrewLogo } from "@/components/stocksbrew-logo";
 
 const FRAME = "mx-auto w-full max-w-[76rem] px-4 sm:px-6";
 
@@ -94,8 +95,11 @@ export function Footer({ isSubscribed = false }: { isSubscribed?: boolean }) {
         {/* brand + navigation */}
         <div className="mt-12 grid grid-cols-2 gap-x-8 gap-y-10 sm:grid-cols-3 lg:grid-cols-6">
           <div className="col-span-2 flex flex-col gap-4">
-            <Link href="/" className="w-fit text-[19px] font-medium tracking-tight text-oa-fg">
-              stocksbrew<span aria-hidden className="text-oa-primary">.</span>
+            <Link href="/" className="w-fit text-oa-fg">
+              <StocksbrewLogo
+                markSize={24}
+                wordmarkClassName="text-[19px] font-medium tracking-tight"
+              />
             </Link>
             <p className="max-w-[320px] text-[15px] leading-7 text-oa-muted-fg">{SHORT_DESCRIPTION}</p>
             <div className="mt-2 flex w-fit items-center gap-3">
