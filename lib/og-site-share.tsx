@@ -9,10 +9,10 @@ import { TAGLINE } from "@/lib/brand-copy";
 export const OG_SIZE = { width: 1200, height: 630 } as const;
 
 // Hardcoded oa-design tokens - Satori doesn't support CSS custom properties.
-const INK = "#292929";
+const INK = "#111215";
 const MUTED = "#6d6d6d";
 const BORDER = "#e3e3e3";
-const BG = "#f6f6f6";
+const BG = "#ffffff";
 const CARD = "#ffffff";
 const PRIMARY = "#305dde";
 const PRIMARY_TINT = "#eaf0fd";
@@ -38,6 +38,33 @@ function loadOgFonts() {
     { name: "Inter", data: readFont(boldPath), weight: 700, style: "normal" },
   ];
   return fontCache;
+}
+
+function StocksbrewMark({ size = 30 }: { size?: number }) {
+  return (
+    <svg
+      aria-hidden="true"
+      width={size}
+      height={size}
+      viewBox="0 0 56 56"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      style={{ display: "flex" }}
+    >
+      <path
+        d="M38 10C26.5 10 17.4 14.8 15.6 23.3C14.1 30.1 16.8 35.8 22.2 38.2"
+        stroke={INK}
+        strokeWidth="7.5"
+        strokeLinecap="round"
+      />
+      <path
+        d="M27.3 22.4C31.2 18.2 36.9 20.8 39 26.2C42.8 36.1 35.5 45.2 24.3 46C21 46.2 18 46 14.8 45.5"
+        stroke={INK}
+        strokeWidth="7.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
 }
 
 export type OgShareCard = {
@@ -138,8 +165,9 @@ export async function renderSiteShareImage() {
         }}
       >
         {/* wordmark */}
-        <div style={{ display: "flex", alignItems: "center", marginBottom: 40 }}>
-          <span style={{ fontSize: 24, fontWeight: 700, color: PRIMARY, letterSpacing: "-0.02em" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 40 }}>
+          <StocksbrewMark />
+          <span style={{ fontSize: 24, fontWeight: 700, color: INK, letterSpacing: "-0.02em" }}>
             stocksbrew
           </span>
         </div>
@@ -165,7 +193,7 @@ export async function renderSiteShareImage() {
               border: `1px solid ${BORDER}`,
               borderRadius: 28,
               padding: "32px",
-              boxShadow: "0 24px 60px rgba(41,41,41,0.12)",
+              boxShadow: "0 16px 40px rgba(17,18,21,0.08)",
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 18 }}>
