@@ -1,3 +1,5 @@
+import { unstable_cache } from "next/cache";
+
 import { adminFirestore } from "@/lib/firebase-admin";
 
 export interface PowerTrade {
@@ -55,3 +57,10 @@ export async function getPowerTrades(days = 30): Promise<PowerTradesResult> {
     trades,
   };
 }
+
+// Uncached, every US stock page render re-queried tm_power_trades (500 rows).
+// Data only changes when the sync job runs, so 5 minutes is plenty fresh.
+export const getPowerTradesCached = (days: number) =>
+  unstable_cache(async () => getPowerTrades(days), ["power-trades", String(days)], {
+    revalidate: 300,
+  })();

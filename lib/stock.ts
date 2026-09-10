@@ -6,9 +6,10 @@ import {
   getLatestPrices,
   getLatestPriceFundamentals,
   getLatestPriceHistory,
+  getPriceUniverse,
   type LatestPriceCore,
 } from "@/lib/firestore";
-import { getAiUniverse, getInstrument, getPriceUniverse } from "@/lib/firestore";
+import { getAiUniverse, getInstrument } from "@/lib/firestore";
 import { hasSufficientOverallData } from "@/lib/fundamentals-coverage";
 import { buildPriceHistorySeries } from "@/lib/price-history-series";
 import type { PriceHistoryPoint } from "@/lib/price-history-chart";
@@ -16,6 +17,10 @@ import { resolveSectorSlug, sectorSlugForIntel } from "@/lib/sector-slugs";
 import type { Instrument, LatestPrice, StockIntelPro } from "@/lib/types";
 import { listCatalogInstruments } from "@/lib/universe-catalog";
 import { getCoverageUniverse, getIntelUniverseIds } from "@/lib/universe-tiers";
+import type { EarningsIntelDoc } from "@/lib/earnings-intel";
+import type { PreEarningsIntelDoc } from "@/lib/pre-earnings-intel-shared";
+import type { StockTechnicals } from "@/lib/technicals";
+import { unstable_cache } from "next/cache";
 
 export type { PriceHistoryPoint } from "@/lib/price-history-chart";
 export { PRICE_HISTORY_CHART_MIN } from "@/lib/price-history-chart";
@@ -280,6 +285,51 @@ export type StockSummary = {
 };
 
 const PRICE_HISTORY_CHART_MAX = 252;
+
+// ─── Batched stock-page reads ─────────────────────────────────────────────────
+// The stock page needs ~12 single Firestore docs per render. Reading them one
+// by one costs one HTTPS round trip each against LocalDB. This loader packs
+// every known-path doc into one getAll (LocalDB turns that into a single
+// batchGet) and slices the result per getter.
+
+export type StockPageDocBundle = {
+  facts: StockFacts | null;
+  technicals: StockTechnicals | null;
+  onDemandJob: OnDemandNewsJobDoc | null;
+  earningsIntel: EarningsIntelDoc | null;
+  preEarnings: PreEarningsIntelDoc | null;
+};
+
+export async function getStockPageDocBundle(
+  market: "US" | "IN",
+  instrumentId: string,
+  ticker: string,
+): Promise<StockPageDocBundle> {
+  const refs = {
+    facts: adminFirestore.collection("tm_stock_facts").doc(instrumentId),
+    technicals: adminFirestore.collection("tm_stock_technicals_latest").doc(instrumentId),
+    onDemandJob: adminFirestore.collection("tm_on_demand_news_jobs").doc(instrumentId),
+    earningsIntel: adminFirestore.collection("tm_earnings_intel").doc(`${market}__${instrumentId}__latest`),
+    preEarnings: adminFirestore.collection("tm_pre_earnings_intel").doc(`${market}__${instrumentId}__upcoming`),
+  };
+  const docs = await adminFirestore.getAll(...Object.values(refs));
+  const byPath = new Map(docs.map((doc) => [doc.ref.path, doc.exists ? doc.data() : null]));
+  const pick = <T,>(ref: { path: string }): T | null => (byPath.get(ref.path) as T | null) ?? null;
+
+  const preEarningsRaw = pick<PreEarningsIntelDoc>(refs.preEarnings);
+  const preEarnings =
+    preEarningsRaw?.instrument_id && preEarningsRaw?.ticker && preEarningsRaw?.event_date
+      ? { ...preEarningsRaw, doc_id: `${market}__${instrumentId}__upcoming` }
+      : null;
+
+  return {
+    facts: pick<StockFacts>(refs.facts),
+    technicals: pick<StockTechnicals>(refs.technicals),
+    onDemandJob: pick<OnDemandNewsJobDoc>(refs.onDemandJob),
+    earningsIntel: pick<EarningsIntelDoc>(refs.earningsIntel),
+    preEarnings,
+  };
+}
 
 /** Daily closes for the Returns chart. Capped to ~1Y of sessions. */
 export async function getStockPriceHistory(

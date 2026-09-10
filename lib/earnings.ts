@@ -1,3 +1,5 @@
+import { unstable_cache } from "next/cache";
+
 import { adminFirestore } from "@/lib/firebase-admin";
 
 export interface EarningsEvent {
@@ -53,3 +55,10 @@ export async function getNextEarningsCalendarEvent(
       .sort((a, b) => a.event_date.localeCompare(b.event_date))[0] ?? null
   );
 }
+
+export const getNextEarningsCalendarEventCached = (market: string, ticker: string) =>
+  unstable_cache(
+    async () => getNextEarningsCalendarEvent(market, ticker),
+    ["next-earnings-event", market, ticker],
+    { revalidate: 300 },
+  )();

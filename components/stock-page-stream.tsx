@@ -31,13 +31,13 @@ import { getSessionUser } from "@/lib/auth-server";
 import { getInstrument, getMarketMovers, getPriceCoreOverrides } from "@/lib/firestore";
 import {
   getInstrumentViewDoc,
-  getOnDemandNewsJob,
-  getStockFacts,
   getStockIntelPro,
   getBetterSectorPeers,
   getSectorPeersForStock,
   enrichRelatedTickersForComparison,
+  getStockPageDocBundle,
   type SectorPeerRow,
+  type SectorPeerPick,
   getStockIntelligenceDoc,
   getStockBusinessQuestions,
   getStockPriceHistory,
@@ -57,15 +57,13 @@ import {
   mergeAnomalyWithLatestPrice,
 } from "@/lib/daily-anomalies";
 import { anomalyHeadline, anomalyDetail } from "@/components/daily-anomalies-shared";
-import { getLatestEarningsIntelByTicker } from "@/lib/earnings-intel";
-import { getNextEarningsCalendarEvent } from "@/lib/earnings";
-import { getPreEarningsIntelDoc } from "@/lib/pre-earnings-intel";
+import { getNextEarningsCalendarEventCached } from "@/lib/earnings";
 import { isWithinPreEarningsWindow, shouldShowPreEarningsIntel } from "@/lib/pre-earnings-intel-shared";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { normalizeDirectiveForUi } from "@/lib/directive-ui";
 import { getLivePremarketQuote, getPremarketMovers } from "@/lib/premarket";
 import { isFeaturedStockTicker } from "@/lib/seo/stock-pages";
-import { getPowerTrades, type PowerTrade } from "@/lib/power-trades";
+import { getPowerTradesCached, type PowerTrade } from "@/lib/power-trades";
 
 export const revalidate = 60;
 
@@ -204,22 +202,21 @@ export async function StockPageStream({ params }: Props) {
   // no extra Firestore read needed.
   const fundamentals = stock.fundamentals ?? null;
 
+  // Single-doc reads (facts, technicals, on-demand job, earnings intel,
+  // pre-earnings intel) are packed into one batched getAll instead of five
+  // separate round trips. Everything else stays parallel.
   const [
     intelligence,
     businessQuestions,
     instrumentView,
-    technicals,
     intelPro,
     instrumentMeta,
     priceHistory,
-    stockFacts,
     marketMovers,
     priceCoreOverrides,
     anomaly,
     redditTickerContext,
-    onDemandJob,
-    earningsIntel,
-    preEarningsDoc,
+    docBundle,
     calendarEarnings,
     recentNews,
     premarketDoc,
@@ -232,31 +229,29 @@ export async function StockPageStream({ params }: Props) {
     shouldLoadAI
       ? getInstrumentViewDoc(stock.instrument_id, market).catch(() => null)
       : Promise.resolve(null),
-    getLatestTechnicals(stock.instrument_id).catch(() => null),
     getStockIntelPro(stock.instrument_id, market).catch(() => null),
     getInstrument(stock.instrument_id).catch(() => null),
     getStockPriceHistory(stock.instrument_id).catch(() => []),
-    getStockFacts(stock.instrument_id).catch(() => null),
     getMarketMovers(market).catch(() => null),
     getPriceCoreOverrides(market).catch(() => [] as string[]),
     getDailyAnomalyForTicker(market, stock.ticker).catch(() => null),
     getRedditContextForTicker(market, stock.ticker).catch(() => null),
-    getOnDemandNewsJob(stock.instrument_id).catch(() => null),
-    hasFullAnalysisAccess
-      ? getLatestEarningsIntelByTicker(market, stock.ticker).catch(() => null)
-      : Promise.resolve(null),
-    hasFullAnalysisAccess
-      ? getPreEarningsIntelDoc(market, stock.instrument_id).catch(() => null)
-      : Promise.resolve(null),
-    getNextEarningsCalendarEvent(market, stock.ticker).catch(() => null),
+    getStockPageDocBundle(market, stock.instrument_id, stock.ticker).catch(() => null),
+    getNextEarningsCalendarEventCached(market, stock.ticker).catch(() => null),
     getNewsForTicker(market, stock.ticker, { days: 7, limit: 7 }).catch(() => []),
     market === "US"
       ? getPremarketMovers(market).catch(() => null)
       : Promise.resolve(null),
     market === "US"
-      ? getPowerTrades(7).catch(() => null)
+      ? getPowerTradesCached(7).catch(() => null)
       : Promise.resolve(null),
   ]);
+
+  const technicals = docBundle?.technicals ?? (await getLatestTechnicals(stock.instrument_id).catch(() => null));
+  const stockFacts = docBundle?.facts ?? null;
+  const onDemandJob = docBundle?.onDemandJob ?? null;
+  const earningsIntel = docBundle?.earningsIntel ?? null;
+  const preEarningsDoc = hasFullAnalysisAccess ? (docBundle?.preEarnings ?? null) : null;
   const premarketQuote = getLivePremarketQuote(
     premarketDoc,
     stock.ticker,
@@ -290,16 +285,25 @@ export async function StockPageStream({ params }: Props) {
     sector: decodeTextEntities(sectorLabel || stock.sector || ""),
     industry: decodeTextEntities(industryLabel || stock.industry || ""),
   };
-  const betterSectorPeers =
-    sectorSlug && typeof intelPro?.overall?.score === "number"
-      ? await getBetterSectorPeers(stock.instrument_id, market, sectorSlug, intelPro.overall.score).catch(() => [])
-      : [];
-  const sectorPeersRaw = await getSectorPeersForStock(
+  // Peers depend on intelPro's sector slug, but loadSectorIntelPeers used to
+  // run twice (once per getter) sequentially. One shared call feeds both the
+  // "better peers" picks and the peer rows.
+  const sectorPeersPromise = getSectorPeersForStock(
     stock.instrument_id,
     market,
     intelPro,
     instrumentMeta,
   ).catch(() => [] as SectorPeerRow[]);
+
+  const [
+    betterSectorPeers,
+    sectorPeersRaw,
+  ] = await Promise.all([
+    sectorSlug && typeof intelPro?.overall?.score === "number"
+      ? getBetterSectorPeers(stock.instrument_id, market, sectorSlug, intelPro.overall.score).catch(() => [])
+      : Promise.resolve([] as SectorPeerPick[]),
+    sectorPeersPromise,
+  ]);
   const sectorPeers =
     sectorPeersRaw.length > 0
       ? sectorPeersRaw
@@ -404,7 +408,7 @@ export async function StockPageStream({ params }: Props) {
         rsiState={technicals?.rsi_14?.state}
         technicalLevels={technicals?.levels}
         priceHistory={priceHistory}
-        earnings={earningsIntel}
+        earnings={hasFullAnalysisAccess ? earningsIntel : null}
         cards={hasFullAnalysisAccess ? intelligence?.visual_cards : null}
         sentiment={instrumentView?.sentiment_breakdown}
         peers={instrumentView?.related_tickers}
