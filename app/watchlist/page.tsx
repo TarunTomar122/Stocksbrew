@@ -11,7 +11,7 @@ import {
   buildHoldingsDiagnosis,
   type WatchlistRow,
 } from "@/lib/watchlist-view";
-import { getDailyAnomalies } from "@/lib/daily-anomalies";
+import { getDailyAnomalyTickers, type AnomalyItem } from "@/lib/daily-anomalies";
 import { getPremarketMovers } from "@/lib/premarket";
 import { getLatestEarningsIntelForInstruments } from "@/lib/earnings-intel";
 import { getPreEarningsIntelForInstruments } from "@/lib/pre-earnings-intel";
@@ -56,7 +56,10 @@ async function WatchlistStream() {
     );
   }
 
-  const userDoc = await getUserDoc(session.uid);
+  const [userDoc, watchlistView] = await Promise.all([
+    getUserDoc(session.uid),
+    getWatchlistView(session.uid).catch(() => null),
+  ]);
   const tracked = Array.isArray(userDoc?.tracked_stocks) ? userDoc!.tracked_stocks! : [];
   const isSubscribed = resolveIsSubscribed(userDoc);
 
@@ -71,9 +74,7 @@ async function WatchlistStream() {
 
   const now = new Date();
 
-  const [watchlistView, anomaliesDoc, premarketDoc] = await Promise.all([
-    getWatchlistView(session.uid).catch(() => null),
-    getDailyAnomalies("US").catch(() => null),
+  const [premarketDoc] = await Promise.all([
     getPremarketMovers("US").catch(() => null),
   ]);
 
@@ -91,31 +92,38 @@ async function WatchlistStream() {
       position_type: positions[row.instrument_id] === "holding" ? "holding" : "watchlist",
     })) as WatchlistRow[];
 
-  const [rowsPriced, labelsById] = await Promise.all([
-    overlayLatestPrices(rowsBase).catch(() => rowsBase),
-    getInstrumentLabels(rowsBase.map((row) => row.instrument_id)).catch(() => new Map()),
-  ]);
+  const instrumentIds = rowsBase.map((row) => row.instrument_id);
+  const holdings = rowsBase.filter((row) => row.position_type === "holding");
+  const diagnosis = buildHoldingsDiagnosis(holdings);
+
+  const ideasBase = buildIdeas(watchlistView?.suggestions);
+  const ideaIds = collectIdeaInstrumentIds(ideasBase);
+  // Everything below only needs the tracked ids (known now), so one parallel
+  // wave replaces the old serial overlay -> states -> ideas chain.
+  const [rowsPriced, labelsById, radarStockStates, earningsDocs, preEarnings, anomaliesByTicker, ideaMarket] =
+    await Promise.all([
+      overlayLatestPrices(rowsBase).catch(() => rowsBase),
+      getInstrumentLabels(instrumentIds).catch(() => new Map()),
+      getRadarStockStates(instrumentIds).catch(() => ({})),
+      getLatestEarningsIntelForInstruments("US", instrumentIds).catch(() => []),
+      getPreEarningsIntelForInstruments("US", instrumentIds).catch(() => []),
+      // Compact per-ticker anomaly docs: one batched read for the tracked
+      // list instead of the full market anomaly feed plus its price overlay.
+      getDailyAnomalyTickers("US", tracked).catch(() => new Map()),
+      getIdeaMarketData(ideaIds).catch(() => new Map()),
+    ]);
   const rows = rowsPriced.map((row) => {
     const label = labelsById.get(row.instrument_id);
     return label ? { ...row, ticker: label.ticker || row.ticker, instrument_name: label.name } : row;
   });
 
-  const instrumentIds = rows.map((row) => row.instrument_id);
-  const holdings = rows.filter((row) => row.position_type === "holding");
-  const diagnosis = buildHoldingsDiagnosis(holdings);
-
-  const [radarStockStates, earningsDocs, preEarnings] = await Promise.all([
-    getRadarStockStates(instrumentIds).catch(() => ({})),
-    getLatestEarningsIntelForInstruments("US", instrumentIds).catch(() => []),
-    getPreEarningsIntelForInstruments("US", instrumentIds).catch(() => []),
-  ]);
-
-  // Cross-reference feeds by instrument id; both are keyed by ticker in Firestore.
-  const anomaliesByInstrumentId = new Map(
-    (anomaliesDoc?.anomalies ?? [])
-      .filter((item) => trackedSet.has(item.instrument_id))
-      .map((item) => [item.instrument_id, item]),
-  );
+  // Compact anomaly docs are keyed by ticker.
+  const anomaliesByInstrumentId = new Map<string, AnomalyItem>();
+  for (const [ticker, anomaly] of anomaliesByTicker) {
+    if (trackedSet.has(anomaly.instrument_id)) {
+      anomaliesByInstrumentId.set(anomaly.instrument_id, anomaly);
+    }
+  }
   const gappersByInstrumentId = new Map<string, number>();
   for (const gapper of [...(premarketDoc?.gappers_up ?? []), ...(premarketDoc?.gappers_down ?? [])]) {
     gappersByInstrumentId.set(gapper.instrument_id, gapper.pre_market_change_pct);
@@ -132,8 +140,6 @@ async function WatchlistStream() {
   });
   const earningsCards = buildEarningsCards(hubRows, preEarnings, now);
   const health = buildHealthProps(diagnosis, holdings.length);
-  const ideasBase = buildIdeas(watchlistView?.suggestions);
-  const ideaMarket = await getIdeaMarketData(collectIdeaInstrumentIds(ideasBase)).catch(() => new Map());
   const ideas = enrichIdeas(ideasBase, ideaMarket);
 
   return (

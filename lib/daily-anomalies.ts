@@ -326,3 +326,23 @@ export const getDailyAnomalyForTicker = unstable_cache(
   ["daily-anomaly-for-ticker-v3"],
   { revalidate: 120 },
 );
+
+/** Compact per-ticker anomaly docs for a tracked list (one batched read). */
+export async function getDailyAnomalyTickers(
+  market: "US" | "IN" = "US",
+  tickers: string[],
+): Promise<Map<string, AnomalyItem>> {
+  const normalized = [...new Set(tickers.map(normalizeAnomalyTicker).filter(Boolean))];
+  const out = new Map<string, AnomalyItem>();
+  if (!normalized.length) return out;
+  const refs = normalized.map((ticker) =>
+    adminFirestore.collection("tm_daily_anomaly_tickers").doc(`${market}__${ticker}`),
+  );
+  const docs = await adminFirestore.getAll(...refs);
+  for (const doc of docs) {
+    if (!doc.exists) continue;
+    const data = doc.data() as DailyAnomalyTickerDoc;
+    if (data?.anomaly) out.set(data.ticker || data.anomaly.instrument_id || doc.id.split("__")[1], data.anomaly);
+  }
+  return out;
+}

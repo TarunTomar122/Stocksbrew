@@ -1,5 +1,6 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { adminFirestore } from "@/lib/firebase-admin";
+import { localFirestoreFromEnv } from "@/lib/local-firestore";
 import { getLatestPriceQuotes, getMarketMovers, getMarketSnapshot } from "@/lib/firestore";
 import { INVESTMENT_THEMES } from "@/lib/investment-themes";
 import { LLM_BRIEF_SOURCE, type BriefSource, isLlmBriefSource } from "@/lib/brief-source";
@@ -413,7 +414,13 @@ export async function getIdeaMarketData(
 
   const [pricesById, factsById] = await Promise.all([
     getLatestPriceQuotes(ids),
-    getDocsById<Record<string, unknown>>(adminFirestore.collection("tm_stock_facts"), ids),
+    // Idea cards only need the analyst block; field-select it so LocalDB does
+    // not ship the full facts doc (financial history, holders, events) per idea.
+    getDocsByIdSelected<Record<string, unknown>>(
+      adminFirestore.collection("tm_stock_facts"),
+      ids,
+      ["analyst"],
+    ),
   ]);
 
   for (const id of ids) {
@@ -504,8 +511,36 @@ async function getDocsById<T>(
   return out;
 }
 
-function metricValue(intel: Record<string, unknown>, pillar: string, label: string): number | null {
-  const pillars = (intel.pillars as Record<string, unknown>) || {};
+async function getDocsByIdSelected<T>(
+  collection: FirebaseFirestore.CollectionReference,
+  ids: string[],
+  fields: string[],
+): Promise<Map<string, T>> {
+  if (ids.length === 0) return new Map();
+  const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
+  const out = new Map<string, T>();
+  const local = localFirestoreFromEnv();
+  if (local) {
+    const snaps = await local.getAllSelected(
+      uniqueIds.map((id) => local.collection(collection.path).doc(id)),
+      fields,
+    );
+    for (const snap of snaps) {
+      if (snap.exists) out.set(snap.id, snap.data() as T);
+    }
+    return out;
+  }
+  for (let start = 0; start < uniqueIds.length; start += 100) {
+    const refs = uniqueIds.slice(start, start + 100).map((id) => collection.doc(id));
+    const snaps = await adminFirestore.getAll(...refs);
+    for (const snap of snaps) {
+      if (snap.exists) out.set(snap.id, snap.data() as T);
+    }
+  }
+  return out;
+}
+
+function metricValue(intel: Record<string, unknown>, pillar: string, label: string): number | null {  const pillars = (intel.pillars as Record<string, unknown>) || {};
   const pillarDoc = (pillars[pillar] as Record<string, unknown>) || {};
   const metrics = Array.isArray(pillarDoc.metrics) ? pillarDoc.metrics : [];
   for (const metric of metrics) {
