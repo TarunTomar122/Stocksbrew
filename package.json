@@ -17,6 +17,7 @@
     "backend:build-news-intel:in": "python3 -m backend.scripts.build_news_intelligence --market IN --universe in_ai_launch --max-articles 36 --skip-materialize",
     "backend:backfill-watchlist-versions": "python3 -m backend.scripts.backfill_watchlist_versions",
     "backend:build-stock-intel": "python3 -m backend.scripts.build_stock_intelligence --market US --universe us_core_155",
+    "backend:build-stock-page-views:us": "python3 -m backend.scripts.build_stock_page_views --market US",
     "backend:build-thematic-screens:us": "python3 -m backend.scripts.build_thematic_screens --market US --universe us_core_100",
     "backend:build-thematic-screens:in": "python3 -m backend.scripts.build_thematic_screens --market IN --universe in_core_150",
     "backend:build:in": "python3 -m backend.scripts.build_snapshot --market IN",
