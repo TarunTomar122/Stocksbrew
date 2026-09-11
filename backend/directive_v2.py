@@ -3,7 +3,13 @@ from __future__ import annotations
 from typing import Any
 
 
-VERSION = "v2-shadow-1"
+VERSION = "v2-shadow-2"
+
+# Extension guard: never say "accumulate now" after a hot run. Our monthly
+# audits showed extended, fast-rising names underperform, while pullback
+# entries age better. Deterministic and closes-based; no model input needed.
+EXTENSION_FROM_LOW_PCT = 12.0
+EXTENSION_RUNUP_PCT = 6.0
 
 
 def _num(value: Any) -> float | None:
@@ -227,6 +233,23 @@ def _analyst_target(doc: dict[str, Any]) -> float | None:
     return None
 
 
+def _extension_metrics(doc: dict[str, Any], current: float) -> dict[str, Any] | None:
+    """How far and how fast the stock has run, from recent closes only."""
+    closes = [value for value in _recent_closes(doc) if value > 0]
+    if not closes or current <= 0:
+        return None
+    window = closes[-21:]
+    low = min(window)
+    from_low_pct = (current / low - 1) * 100 if low > 0 else 0.0
+    anchor = closes[-5] if len(closes) >= 5 else closes[0]
+    runup_pct = (current / anchor - 1) * 100 if anchor > 0 else 0.0
+    return {
+        "from_low_pct": from_low_pct,
+        "runup_pct": runup_pct,
+        "extended": from_low_pct >= EXTENSION_FROM_LOW_PCT or runup_pct >= EXTENSION_RUNUP_PCT,
+    }
+
+
 def _recent_closes(doc: dict[str, Any]) -> list[float]:
     price_context = doc.get("price_context") if isinstance(doc.get("price_context"), dict) else {}
     closes = []
@@ -378,12 +401,30 @@ def build_directive_v2(doc: dict[str, Any], previous_v2: dict[str, Any] | None =
         execution = "pullback"
         confidence = "medium"
 
+    extension_note = ""
+    extension = _extension_metrics(doc, current)
+    if stance == "accumulate" and execution == "now" and extension and extension["extended"]:
+        execution = "pullback"
+        confidence = "medium"
+        if extension["from_low_pct"] >= EXTENSION_FROM_LOW_PCT:
+            extension_note = (
+                f"price is up {extension['from_low_pct']:.0f}% from its recent low, "
+                "so the first pullback is the better entry"
+            )
+        else:
+            extension_note = (
+                f"price is up {extension['runup_pct']:.0f}% in a handful of sessions, "
+                "so wait for the move to settle"
+            )
+
     if stance == "accumulate" and execution == "now":
         label = "Accumulate now"
         summary = "The setup is attractive at the current price; use pullbacks to add rather than waiting for a perfect entry."
     elif stance == "accumulate":
         label = "Accumulate on pullbacks"
         summary = "The setup is constructive, but the cleaner entry is a pullback into support."
+        if extension_note:
+            summary = f"Still constructive, but {extension_note}."
     elif execution == "breakout":
         label = "Watch breakout"
         summary = "Wait for price confirmation before adding; the evidence is not strong enough for an add-now call."

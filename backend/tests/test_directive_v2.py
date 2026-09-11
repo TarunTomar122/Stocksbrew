@@ -153,6 +153,61 @@ class DirectiveV2Test(unittest.TestCase):
 
         self.assertIn(out["stance"], {"hold", "trim", "avoid"})
 
+    def test_extended_accumulate_prefers_pullback_with_reason(self) -> None:
+        doc = {
+            "current_price": 120,
+            "overall_label": "constructive",
+            "overall_score": 78,
+            "setup_state": "trend",
+            "visual_summary": {
+                "drivers": [{"direction": "up", "strength": 5, "detail": "Demand is accelerating."}],
+                "risk_cards": [],
+            },
+            "price_context": {"recent_sessions": [{"close": 96}, {"close": 100}, {"close": 104}]},
+            "comparative_context": {"vs_market_day_change_pct": 1.0, "vs_sector_day_change_pct": 0.5},
+        }
+
+        out = build_directive_v2(doc)
+
+        self.assertEqual(out["stance"], "accumulate")
+        self.assertEqual(out["execution"], "pullback")
+        self.assertEqual(out["confidence"], "medium")
+        self.assertEqual(out["action"]["label"], "Accumulate on pullbacks")
+        self.assertIn("recent low", out["action"]["summary"])
+
+    def test_fast_runup_without_big_low_gap_also_prefers_pullback(self) -> None:
+        doc = {
+            "current_price": 115,
+            "overall_label": "constructive",
+            "overall_score": 78,
+            "setup_state": "trend",
+            "visual_summary": {
+                "drivers": [{"direction": "up", "strength": 5, "detail": "Demand is accelerating."}],
+                "risk_cards": [],
+            },
+            "price_context": {
+                "recent_sessions": [
+                    {"close": 108},
+                    {"close": 109},
+                    {"close": 108},
+                    {"close": 109},
+                    {"close": 107},
+                    {"close": 108},
+                    {"close": 109},
+                    {"close": 110},
+                    {"close": 111},
+                    {"close": 106},
+                ]
+            },
+            "comparative_context": {"vs_market_day_change_pct": 1.0, "vs_sector_day_change_pct": 0.5},
+        }
+
+        out = build_directive_v2(doc)
+
+        self.assertEqual(out["stance"], "accumulate")
+        self.assertEqual(out["execution"], "pullback")
+        self.assertIn("sessions", out["action"]["summary"])
+
     def test_options_digest_moderates_zones_without_overriding_thesis(self) -> None:
         doc = {
             "current_price": 100,
