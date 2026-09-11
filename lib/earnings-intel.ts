@@ -1,3 +1,5 @@
+import { unstable_cache } from "next/cache";
+
 import { adminFirestore } from "@/lib/firebase-admin";
 
 export type EarningsIntelScenario = {
@@ -149,7 +151,7 @@ function docGeneratedMs(doc: EarningsIntelDoc): number {
 }
 
 /** Every published post-earnings report (one row per ticker, newest wins). */
-export async function listAllEarningsIntelDocs(): Promise<EarningsIntelDoc[]> {
+async function listAllEarningsIntelDocsUncached(): Promise<EarningsIntelDoc[]> {
   const snaps = await adminFirestore.collection("tm_earnings_intel").get();
   const byTicker = new Map<string, EarningsIntelDoc>();
 
@@ -171,6 +173,16 @@ export async function listAllEarningsIntelDocs(): Promise<EarningsIntelDoc[]> {
   return filterEarningsIntelRecent(
     [...byTicker.values()].sort((a, b) => docGeneratedMs(b) - docGeneratedMs(a)),
   );
+}
+
+// Full-collection scan (~2MB). Reports only change when the earnings job runs,
+// so a 5 minute cache removes the scan from every render without going stale.
+const listAllEarningsIntelDocsCached = unstable_cache(listAllEarningsIntelDocsUncached, ["earnings-intel-all-v1"], {
+  revalidate: 300,
+});
+
+export async function listAllEarningsIntelDocs(): Promise<EarningsIntelDoc[]> {
+  return listAllEarningsIntelDocsCached();
 }
 
 /** All published earnings intel reports for sitemap generation. */
