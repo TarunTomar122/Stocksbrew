@@ -261,6 +261,21 @@ def build_view_rows(
         for instrument_id, payload in store.get_stock_facts_batch(extra_ids).items():
             facts_by_id.setdefault(instrument_id, payload)
 
+    # Display names come from the tm_instruments docs (same source the direct
+    # reader used), falling back to the universe catalog entry.
+    all_ids = list(dict.fromkeys(instrument_ids + list(seen_ids)))
+    for start in range(0, len(all_ids), 500):
+        chunk = all_ids[start : start + 500]
+        refs = [store.db.collection("tm_instruments").document(iid) for iid in chunk]
+        for doc in store.db.get_all(refs):
+            if not doc.exists:
+                continue
+            data = _serialize(doc.to_dict()) or {}
+            instrument_id = str(data.get("instrument_id") or doc.id)
+            instrument_by_id.setdefault(instrument_id, {})
+            merged = {**instrument_by_id.get(instrument_id, {}), **data}
+            instrument_by_id[instrument_id] = merged
+
     peers_by_id = compute_peers_for_market(all_intel_docs, instrument_by_id, prices_by_id, facts_by_id)
 
     now_iso = datetime.now(timezone.utc).isoformat()
