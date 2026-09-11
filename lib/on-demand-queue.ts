@@ -9,7 +9,6 @@ const DEFAULT_PUBLIC_DAILY_CAP = 20;
 export type OnDemandTriggerSource =
   | "radar_track"
   | "watchlist_batch"
-  | "stock_page_view"
   | "search_selection"
   | "backfill";
 

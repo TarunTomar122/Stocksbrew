@@ -13,6 +13,7 @@ from urllib.request import Request, urlopen
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from backend.localdb import LocalDocumentStore, canonical_json, normalise_value, stable_document_hash
+from backend.localdb.firestore import LocalFirestoreClient
 from backend.localdb.server import make_server
 from backend.scripts.migrate_firestore_to_local import (
     _migrate_archive,
@@ -51,6 +52,38 @@ class _FakeFirestoreClient:
     def collection_group(self, name: str) -> _FakeQuery:
         self.collection_group_calls.append(name)
         return _FakeQuery(self.snapshots)
+
+
+class Increment:
+    def __init__(self, value: int):
+        self._value = value
+
+
+class _ReadGate:
+    def __init__(self, path: str):
+        self.path = path
+        self.barrier = threading.Barrier(2)
+        self.lock = threading.Lock()
+        self.remaining = 2
+
+    def before_get(self, path: str) -> None:
+        if path != self.path:
+            return
+        with self.lock:
+            if self.remaining == 0:
+                return
+            self.remaining -= 1
+        self.barrier.wait(timeout=5)
+
+
+class _GatedStore(LocalDocumentStore):
+    def __init__(self, db_path: Path, gate: _ReadGate):
+        self.gate = gate
+        super().__init__(db_path)
+
+    def get(self, path: str) -> dict | None:
+        self.gate.before_get(path)
+        return super().get(path)
 
 
 class LocalDBTest(unittest.TestCase):
@@ -208,6 +241,167 @@ class LocalDBTest(unittest.TestCase):
                 server.shutdown()
                 thread.join(timeout=2)
                 server.server_close()
+
+    def test_parallel_clients_merge_sections_and_transforms_atomically(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            db_path = Path(temporary) / "documents.sqlite3"
+            view_path = "tm_stock_page_views/US__AAPL"
+            LocalDocumentStore(db_path).upsert(
+                view_path,
+                {
+                    "seed": True,
+                    "facts": {"old": "remove"},
+                    "technicals": {"old": "remove"},
+                    "revision": 0,
+                },
+            )
+            gate = _ReadGate(view_path)
+            clients = [
+                LocalFirestoreClient(_GatedStore(db_path, gate)),
+                LocalFirestoreClient(_GatedStore(db_path, gate)),
+            ]
+            start = threading.Barrier(2)
+            errors: list[BaseException] = []
+
+            def writer(client: LocalFirestoreClient, data: dict) -> None:
+                try:
+                    start.wait(timeout=5)
+                    client.collection("tm_stock_page_views").document("US__AAPL").set(data, merge=True)
+                except BaseException as error:
+                    errors.append(error)
+
+            threads = [
+                threading.Thread(
+                    target=writer,
+                    args=(clients[0], {"facts": {"fresh": "facts"}, "revision": Increment(1)}),
+                ),
+                threading.Thread(
+                    target=writer,
+                    args=(clients[1], {"technicals": {"fresh": "technicals"}, "revision": Increment(1)}),
+                ),
+            ]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join(timeout=10)
+
+            self.assertFalse(any(thread.is_alive() for thread in threads))
+            self.assertEqual(errors, [])
+            data = LocalDocumentStore(db_path).get(view_path)["data"]
+            self.assertEqual(
+                data,
+                {
+                    "seed": True,
+                    "facts": {"fresh": "facts"},
+                    "technicals": {"fresh": "technicals"},
+                    "revision": 2,
+                },
+            )
+
+    def test_merge_replaces_map_fields_and_preserves_dotted_field_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            client = LocalFirestoreClient(Path(temporary) / "documents.sqlite3")
+            reference = client.collection("tm_stock_page_views").document("US__AAPL")
+            reference.set(
+                {
+                    "facts": {"old": "remove"},
+                    "technicals": {"old": "keep"},
+                    "revision": 1,
+                }
+            )
+            reference.set(
+                {
+                    "facts": {"fresh": "replace"},
+                    "technicals.current": 2,
+                    "revision": Increment(1),
+                },
+                merge=True,
+            )
+
+            self.assertEqual(
+                reference.get().to_dict(),
+                {
+                    "facts": {"fresh": "replace"},
+                    "technicals": {"old": "keep", "current": 2},
+                    "revision": 2,
+                },
+            )
+
+    def test_parallel_http_writers_merge_sections_and_transforms_atomically(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            db_path = Path(temporary) / "documents.sqlite3"
+            view_path = "tm_stock_page_views/US__AAPL"
+            gate = _ReadGate(view_path)
+            store = _GatedStore(db_path, gate)
+            store.upsert(
+                view_path,
+                {
+                    "seed": True,
+                    "facts": {"old": "remove"},
+                    "technicals": {"old": "remove"},
+                    "revision": 0,
+                },
+            )
+            server = make_server("127.0.0.1", 0, store, "test-token", {"tm_stock_page_views"})
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            base_url = f"http://127.0.0.1:{server.server_port}"
+            start = threading.Barrier(2)
+            errors: list[BaseException] = []
+
+            def writer(data: dict) -> None:
+                try:
+                    start.wait(timeout=5)
+                    request = Request(
+                        f"{base_url}/documents/{view_path}",
+                        data=json.dumps({"data": data, "merge": True}).encode(),
+                        method="PUT",
+                        headers={"Authorization": "Bearer test-token", "Content-Type": "application/json"},
+                    )
+                    with urlopen(request, timeout=10) as response:
+                        self.assertEqual(response.status, 200)
+                        json.load(response)
+                except BaseException as error:
+                    errors.append(error)
+
+            threads = [
+                threading.Thread(
+                    target=writer,
+                    args=({
+                        "facts": {"fresh": "facts"},
+                        "revision": {"__localdb_transform__": "increment", "value": 1},
+                    },),
+                ),
+                threading.Thread(
+                    target=writer,
+                    args=({
+                        "technicals": {"fresh": "technicals"},
+                        "revision": {"__localdb_transform__": "increment", "value": 1},
+                    },),
+                ),
+            ]
+            try:
+                for worker in threads:
+                    worker.start()
+                for worker in threads:
+                    worker.join(timeout=10)
+            finally:
+                server.shutdown()
+                thread.join(timeout=2)
+                server.server_close()
+
+            self.assertFalse(any(worker.is_alive() for worker in threads))
+            self.assertEqual(errors, [])
+            data = LocalDocumentStore(db_path).get(view_path)["data"]
+            self.assertEqual(
+                data,
+                {
+                    "seed": True,
+                    "facts": {"fresh": "facts"},
+                    "technicals": {"fresh": "technicals"},
+                    "revision": 2,
+                },
+            )
 
 
 if __name__ == "__main__":

@@ -26,7 +26,6 @@ from backend.llm_client import (
     schema_system_prompt,
 )
 from backend.instrument_universe import list_instruments
-from backend.stock_page_view import merge_stock_view_sections
 from backend.storage import TraceMoneyStore
 
 
@@ -835,7 +834,6 @@ def main() -> None:
             batch = store.db.batch()
             batch.set(store.db.collection("tm_earnings_intel").document(doc_id), report)
             batch.set(store.db.collection("tm_earnings_intel").document(f"{args.market.upper()}__{instrument_id}__latest"), report)
-            merge_stock_view_sections(store.db, args.market, instrument_id, {"earnings_intel": report}, batch=batch)
             batch.commit()
         results.append(report)
 

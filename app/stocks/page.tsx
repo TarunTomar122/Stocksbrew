@@ -150,7 +150,6 @@ export default async function StocksDirectoryPage() {
                         href={`/stock/${stock.ticker}`}
                         className="group flex items-center gap-2.5 rounded-[14px] px-2.5 py-2.5 transition-colors hover:bg-oa-accent"
                       >
-                        <StockLogo ticker={stock.ticker} size={26} circle className="shrink-0" />
                         <span className="min-w-0">
                           <span className="flex items-center gap-1.5">
                             <span className="oa-mono text-[12px] font-medium text-oa-primary">{stock.ticker}</span>

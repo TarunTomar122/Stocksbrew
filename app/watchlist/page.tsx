@@ -74,10 +74,6 @@ async function WatchlistStream() {
 
   const now = new Date();
 
-  const [premarketDoc] = await Promise.all([
-    getPremarketMovers("US").catch(() => null),
-  ]);
-
   const trackedSet = new Set(tracked);
   const positions =
     userDoc?.watchlist_positions && typeof userDoc.watchlist_positions === "object"
@@ -93,6 +89,7 @@ async function WatchlistStream() {
     })) as WatchlistRow[];
 
   const instrumentIds = rowsBase.map((row) => row.instrument_id);
+  const anomalyTickers = rowsBase.map((row) => row.ticker).filter(Boolean);
   const holdings = rowsBase.filter((row) => row.position_type === "holding");
   const diagnosis = buildHoldingsDiagnosis(holdings);
 
@@ -100,7 +97,7 @@ async function WatchlistStream() {
   const ideaIds = collectIdeaInstrumentIds(ideasBase);
   // Everything below only needs the tracked ids (known now), so one parallel
   // wave replaces the old serial overlay -> states -> ideas chain.
-  const [rowsPriced, labelsById, radarStockStates, earningsDocs, preEarnings, anomaliesByTicker, ideaMarket] =
+  const [rowsPriced, labelsById, radarStockStates, earningsDocs, preEarnings, anomaliesByTicker, ideaMarket, premarketDoc] =
     await Promise.all([
       overlayLatestPrices(rowsBase).catch(() => rowsBase),
       getInstrumentLabels(instrumentIds).catch(() => new Map()),
@@ -109,8 +106,9 @@ async function WatchlistStream() {
       getPreEarningsIntelForInstruments("US", instrumentIds).catch(() => []),
       // Compact per-ticker anomaly docs: one batched read for the tracked
       // list instead of the full market anomaly feed plus its price overlay.
-      getDailyAnomalyTickers("US", tracked).catch(() => new Map()),
+      getDailyAnomalyTickers("US", anomalyTickers).catch(() => new Map()),
       getIdeaMarketData(ideaIds).catch(() => new Map()),
+      getPremarketMovers("US").catch(() => null),
     ]);
   const rows = rowsPriced.map((row) => {
     const label = labelsById.get(row.instrument_id);

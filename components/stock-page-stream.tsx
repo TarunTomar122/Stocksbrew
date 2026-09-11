@@ -30,25 +30,17 @@ import { resolveStockTier } from "@/lib/ai-launch-tier";
 import { getSessionUser } from "@/lib/auth-server";
 import { getInstrument, getMarketMovers, getPriceCoreOverrides } from "@/lib/firestore";
 import {
-  getInstrumentViewDoc,
-  getStockIntelPro,
-  getBetterSectorPeers,
+  getStockPageResearch,
   getSectorPeersForStock,
   enrichRelatedTickersForComparison,
-  getStockPageDocBundle,
-  getStockPageView,
-  resolveStockPageViewSections,
   type SectorPeerRow,
   type SectorPeerPick,
-  getStockIntelligenceDoc,
-  getStockBusinessQuestions,
   getStockPriceHistory,
   getStockSummary,
   normalizeStockSymbolParam,
   type SentimentBreakdown,
   type StockIntelligenceDoc,
 } from "@/lib/stock";
-import { sectorSlugForIntel } from "@/lib/sector-slugs";
 import { getCurrentMarket } from "@/lib/market";
 import { getRedditContextForTicker, getRedditCues, resolveRedditContextForSymbol } from "@/lib/reddit-cues";
 import { getNewsForTicker } from "@/lib/news";
@@ -204,61 +196,33 @@ export async function StockPageStream({ params }: Props) {
   // no extra Firestore read needed.
   const fundamentals = stock.fundamentals ?? null;
 
-  // The materialized view doc holds the slow sections (intel, facts,
-  // technicals, earnings, peers). Stale/missing sections fall back to direct
-  // reads below; stamps decide, per section (backend/stock_page_view.py owns
-  // the write-through).
-  const view = await getStockPageView(market, stock.instrument_id).catch(() => null);
-  const { sections: viewSections, directNeeded } = resolveStockPageViewSections(view);
-
-  // Single-doc reads (facts, technicals, on-demand job, earnings intel,
-  // pre-earnings intel) are packed into one batched getAll instead of five
-  // separate round trips. Everything else stays parallel.
+  // Cache the canonical source reads together for one short request window.
   const [
-    intelligenceDirect,
-    businessQuestionsDirect,
-    instrumentViewDirect,
-    intelProDirect,
+    research,
     instrumentMeta,
     priceHistory,
     marketMovers,
     priceCoreOverrides,
     anomaly,
     redditTickerContext,
-    docBundle,
     calendarEarnings,
     recentNews,
     premarketDoc,
     powerTradesRecent,
   ] = await Promise.all([
-    directNeeded.intelligence
-      ? getStockIntelligenceDoc(stock.instrument_id, market).catch(() => null)
-      : Promise.resolve(null),
-    shouldLoadAI
-      ? (directNeeded.business_questions
-          ? getStockBusinessQuestions(stock.instrument_id, market).catch(() => null)
-          : Promise.resolve(null))
-      : Promise.resolve(null),
-    shouldLoadAI
-      ? (directNeeded.instrument_view
-          ? getInstrumentViewDoc(stock.instrument_id, market).catch(() => null)
-          : Promise.resolve(null))
-      : Promise.resolve(null),
-    directNeeded.intel_pro
-      ? getStockIntelPro(stock.instrument_id, market).catch(() => null)
-      : Promise.resolve(null),
+    getStockPageResearch(
+      market,
+      stock.instrument_id,
+      stock.ticker,
+      shouldLoadAI,
+      hasFullAnalysisAccess,
+    ).catch(() => null),
     getInstrument(stock.instrument_id).catch(() => null),
     getStockPriceHistory(stock.instrument_id).catch(() => []),
     getMarketMovers(market).catch(() => null),
     getPriceCoreOverrides(market).catch(() => [] as string[]),
     getDailyAnomalyForTicker(market, stock.ticker).catch(() => null),
     getRedditContextForTicker(market, stock.ticker).catch(() => null),
-    getStockPageDocBundle(market, stock.instrument_id, stock.ticker, {
-      facts: directNeeded.facts,
-      technicals: directNeeded.technicals,
-      earningsIntel: directNeeded.earnings_intel,
-      preEarnings: hasFullAnalysisAccess && directNeeded.pre_earnings,
-    }).catch(() => null),
     getNextEarningsCalendarEventCached(market, stock.ticker).catch(() => null),
     getNewsForTicker(market, stock.ticker, { days: 7, limit: 7 }).catch(() => []),
     market === "US"
@@ -269,17 +233,16 @@ export async function StockPageStream({ params }: Props) {
       : Promise.resolve(null),
   ]);
 
-  const intelligence = viewSections.intelligence ?? intelligenceDirect;
-  const businessQuestions = viewSections.business_questions ?? businessQuestionsDirect;
-  const instrumentView = viewSections.instrument_view ?? instrumentViewDirect;
-  const intelPro = viewSections.intel_pro ?? intelProDirect;
-  const technicals =
-    viewSections.technicals ?? docBundle?.technicals ?? (await getLatestTechnicals(stock.instrument_id).catch(() => null));
-  const stockFacts = viewSections.facts ?? docBundle?.facts ?? null;
-  const onDemandJob = docBundle?.onDemandJob ?? null;
-  const earningsIntel = viewSections.earnings_intel ?? docBundle?.earningsIntel ?? null;
+  const intelligence = research?.intelligence ?? null;
+  const businessQuestions = shouldLoadAI ? research?.businessQuestions ?? null : null;
+  const instrumentView = shouldLoadAI ? research?.instrumentView ?? null : null;
+  const intelPro = research?.intelPro ?? null;
+  const technicals = research?.docBundle.technicals ?? (await getLatestTechnicals(stock.instrument_id).catch(() => null));
+  const stockFacts = research?.docBundle.facts ?? null;
+  const onDemandJob = research?.docBundle.onDemandJob ?? null;
+  const earningsIntel = research?.docBundle.earningsIntel ?? null;
   const preEarningsDoc = hasFullAnalysisAccess
-    ? (viewSections.pre_earnings ?? docBundle?.preEarnings ?? null)
+    ? research?.docBundle.preEarnings ?? null
     : null;
   const premarketQuote = getLivePremarketQuote(
     premarketDoc,
@@ -297,7 +260,6 @@ export async function StockPageStream({ params }: Props) {
     shouldShowPreEarningsIntel(preEarningsDoc, earningsIntel)
       ? preEarningsDoc
       : null;
-  const sectorSlug = sectorSlugForIntel(intelPro, instrumentMeta);
   const sectorLabel =
     intelPro?.sector_label ||
     instrumentMeta?.sector ||
@@ -314,35 +276,36 @@ export async function StockPageStream({ params }: Props) {
     sector: decodeTextEntities(sectorLabel || stock.sector || ""),
     industry: decodeTextEntities(industryLabel || stock.industry || ""),
   };
-  // Peers come from the materialized view when fresh; otherwise the direct
-  // path loads them (one shared sector scan feeding both picks and rows). An
-  // empty materialized peers section still falls back so stocks without intel
-  // keep the related-tickers row.
-  const viewPeers = viewSections.peers;
-  let betterSectorPeers: SectorPeerPick[] = viewPeers?.rows?.length ? (viewPeers.better ?? []) : [];
-  let sectorPeers: SectorPeerRow[] = viewPeers?.rows ?? [];
-  if (!sectorPeers.length) {
-    const sectorPeersPromise = getSectorPeersForStock(
+  // Ranking is cached; quote and comparison fields are enriched from the
+  // latest price/facts docs on each render. Never trust backfilled peer rows.
+  const sectorPeersRaw = await getSectorPeersForStock(
+    stock.instrument_id,
+    market,
+    intelPro,
+    instrumentMeta,
+    12,
+  ).catch(() => [] as SectorPeerRow[]);
+  let betterSectorPeers: SectorPeerPick[] = [];
+  let sectorPeers: SectorPeerRow[] = sectorPeersRaw.slice(0, 6);
+  if (sectorPeersRaw.length > 0) {
+    const currentScore = intelPro?.overall?.score;
+    if (typeof currentScore === "number") {
+      betterSectorPeers = sectorPeersRaw
+        .filter((row) => typeof row.score === "number" && row.score > currentScore)
+        .slice(0, 4)
+        .map((row) => ({
+          instrument_id: row.instrument_id,
+          ticker: row.ticker,
+          score: row.score!,
+          verdict: row.verdict,
+        }));
+    }
+  } else {
+    sectorPeers = await enrichRelatedTickersForComparison(
       stock.instrument_id,
       market,
-      intelPro,
-      instrumentMeta,
-    ).catch(() => [] as SectorPeerRow[]);
-    const [fallbackBetter, sectorPeersRaw] = await Promise.all([
-      sectorSlug && typeof intelPro?.overall?.score === "number"
-        ? getBetterSectorPeers(stock.instrument_id, market, sectorSlug, intelPro.overall.score).catch(() => [])
-        : Promise.resolve([] as SectorPeerPick[]),
-      sectorPeersPromise,
-    ]);
-    betterSectorPeers = fallbackBetter;
-    sectorPeers =
-      sectorPeersRaw.length > 0
-        ? sectorPeersRaw
-        : await enrichRelatedTickersForComparison(
-            stock.instrument_id,
-            market,
-            instrumentView?.related_tickers ?? [],
-          ).catch(() => []);
+      instrumentView?.related_tickers ?? [],
+    ).catch(() => []);
   }
   const priorityIds = marketMovers?.priority_instrument_ids ?? [];
   const inPriorityCohort = priorityIds.includes(stock.instrument_id);

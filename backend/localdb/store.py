@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import copy
 import hmac
 import json
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable, Iterator
+from typing import Any, Callable, Iterable, Iterator
 
 from .codec import canonical_json, denormalise_value, stable_document_hash
 from .paths import validate_collection_name, validate_document_path, validate_local_file_path, validate_path_prefix
@@ -246,32 +247,31 @@ class LocalDocumentStore:
             connection.close()
 
     @staticmethod
-    def _merge_data(existing: dict[str, Any], updates: dict[str, Any]) -> dict[str, Any]:
-        result = dict(existing)
-        for key, value in updates.items():
-            if "." not in key:
-                if isinstance(result.get(key), dict) and isinstance(value, dict):
-                    result[key] = LocalDocumentStore._merge_data(result[key], value)
-                else:
-                    result[key] = value
-                continue
+    def _apply_fields(existing: dict[str, Any], data: dict[str, Any], merge: bool) -> dict[str, Any]:
+        """Apply field-path assignments without recursively merging map values."""
+
+        result = copy.deepcopy(existing) if merge else {}
+        for field_path, value in data.items():
+            if not isinstance(field_path, str):
+                raise ValueError("document field paths must be strings")
             target = result
-            pieces = key.split(".")
+            pieces = field_path.split(".")
             for piece in pieces[:-1]:
                 child = target.get(piece)
                 if not isinstance(child, dict):
                     child = {}
                     target[piece] = child
                 target = child
-            target[pieces[-1]] = value
+            target[pieces[-1]] = copy.deepcopy(value)
         return result
 
     def apply_operations(
         self,
         operations: Iterable[dict[str, Any]],
         expected_hashes: dict[str, str | None] | None = None,
+        resolve_operation: Callable[[dict[str, Any], dict[str, Any]], dict[str, Any]] | None = None,
     ) -> list[dict[str, Any] | None]:
-        """Apply resolved writes atomically, optionally checking read versions."""
+        """Apply writes atomically, resolving each operation after its lock is held."""
 
         prepared = list(operations)
         if not prepared:
@@ -301,14 +301,19 @@ class LocalDocumentStore:
                     "SELECT 1 FROM documents WHERE path = ?", (path,)
                 ).fetchone():
                     raise ValueError(f"document already exists: {path}")
-                data = operation.get("data")
-                if not isinstance(data, dict):
-                    raise ValueError("document data must be an object")
                 existing_row = connection.execute(
                     "SELECT data_json FROM documents WHERE path = ?", (path,)
                 ).fetchone()
                 existing = denormalise_value(json.loads(existing_row["data_json"])) if existing_row else {}
-                merged = self._merge_data(existing, data) if operation.get("merge") else data
+                if resolve_operation is None:
+                    data = operation.get("data")
+                    if not isinstance(data, dict):
+                        raise ValueError("document data must be an object")
+                    merged = self._apply_fields(existing, data, bool(operation.get("merge")))
+                else:
+                    merged = resolve_operation(existing, operation)
+                    if not isinstance(merged, dict):
+                        raise ValueError("resolved document data must be an object")
                 _, data_json, document_hash, identity = self._prepare(path, merged)
                 collection, document_id = identity.split("\x00", 1)
                 connection.execute(

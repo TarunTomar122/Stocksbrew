@@ -12,7 +12,7 @@ import math
 import os
 import secrets
 from datetime import datetime, timezone
-from typing import Any, Iterable, Iterator
+from typing import Any, Callable, Iterable, Iterator
 
 from .codec import denormalise_value
 from .store import LocalDocumentStore
@@ -97,6 +97,32 @@ def _resolve_value(value: Any, existing: Any = _MISSING) -> Any:
 
 def _stable_value(value: Any) -> str:
     return repr(value)
+
+
+def _apply_operation(
+    existing: dict[str, Any],
+    operation: dict[str, Any],
+    resolve_value: Callable[[Any, Any], Any],
+    delete_marker: Any,
+) -> dict[str, Any]:
+    data = operation.get("data")
+    if not isinstance(data, dict):
+        raise ValueError("document data must be an object")
+    kind = operation.get("op", "set")
+    merge = bool(operation.get("merge") or kind == "update")
+    current = copy.deepcopy(existing) if merge else {}
+    for field_path, value in data.items():
+        previous = _field_value(existing, field_path)
+        resolved_value = resolve_value(value, previous)
+        if resolved_value is delete_marker:
+            _delete_field(current, field_path)
+        else:
+            _set_field(current, field_path, resolved_value)
+    return current
+
+
+def _resolve_operation(existing: dict[str, Any], operation: dict[str, Any]) -> dict[str, Any]:
+    return _apply_operation(existing, operation, _resolve_value, _DELETE)
 
 
 def _compare(value: Any, operator: str, expected: Any) -> bool:
@@ -393,34 +419,15 @@ class LocalFirestoreClient:
         self._write_many([operation])
 
     def _write_many(self, operations: list[dict[str, Any]], expected_hashes: dict[str, str | None] | None = None) -> list[Any]:
-        resolved: list[dict[str, Any]] = []
-        working: dict[str, dict[str, Any]] = {}
+        prepared: list[dict[str, Any]] = []
         for operation in operations:
             path = validate_document_path(operation["path"])
-            existing = working.get(path)
-            if existing is None:
-                row = self._store.get(path)
-                existing = row["data"] if row else {}
-            kind = operation.get("op", "set")
-            if kind == "delete":
-                resolved.append({"op": "delete", "path": path})
-                working.pop(path, None)
-                continue
-            data = operation.get("data")
-            if not isinstance(data, dict):
-                raise ValueError("document data must be an object")
-            merge = bool(operation.get("merge") or kind == "update")
-            current = copy.deepcopy(existing) if merge else {}
-            for field_path, value in data.items():
-                previous = _field_value(existing, field_path)
-                resolved_value = _resolve_value(value, previous)
-                if resolved_value is _DELETE:
-                    _delete_field(current, field_path)
-                else:
-                    _set_field(current, field_path, resolved_value)
-            resolved.append({"op": "create" if kind == "create" else "set", "path": path, "data": current, "merge": False})
-            working[path] = current
-        return self._store.apply_operations(resolved, expected_hashes)
+            prepared.append({**operation, "path": path})
+        return self._store.apply_operations(
+            prepared,
+            expected_hashes,
+            resolve_operation=_resolve_operation,
+        )
 
 
 def local_firestore_path() -> str | None:

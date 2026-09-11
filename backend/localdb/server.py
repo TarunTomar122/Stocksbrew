@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import copy
 import hmac
 import json
 import os
@@ -12,7 +11,15 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 from urllib.parse import parse_qs, unquote, urlsplit
 
-from .firestore import LocalFirestoreClient, _MISSING, _delete_field, _field_value, _select_data, _set_field
+from .firestore import (
+    LocalFirestoreClient,
+    _MISSING,
+    _apply_operation,
+    _delete_field,
+    _field_value,
+    _select_data,
+    _set_field,
+)
 from .paths import validate_collection_name, validate_document_path, validate_path_prefix
 from .store import LocalDocumentStore
 
@@ -48,33 +55,8 @@ def _resolve_value(value: Any, existing: Any = _MISSING) -> Any:
     return value
 
 
-def _resolve_operations(store: LocalDocumentStore, operations: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    resolved: list[dict[str, Any]] = []
-    working: dict[str, dict[str, Any]] = {}
-    for operation in operations:
-        path = validate_document_path(operation.get("path"))
-        if operation.get("op") == "delete":
-            resolved.append({"op": "delete", "path": path})
-            working.pop(path, None)
-            continue
-        data = operation.get("data")
-        if not isinstance(data, dict):
-            raise ValueError("document data must be an object")
-        existing = working.get(path)
-        if existing is None:
-            row = store.get(path)
-            existing = row["data"] if row else {}
-        merge = bool(operation.get("merge") or operation.get("op") == "update")
-        current = copy.deepcopy(existing) if merge else {}
-        for field_path, value in data.items():
-            resolved_value = _resolve_value(value, _field_value(existing, field_path))
-            if resolved_value is _MISSING:
-                _delete_field(current, field_path)
-            else:
-                _set_field(current, field_path, resolved_value)
-        resolved.append({"op": "create" if operation.get("op") == "create" else "set", "path": path, "data": current, "merge": False})
-        working[path] = current
-    return resolved
+def _resolve_operation(existing: dict[str, Any], operation: dict[str, Any]) -> dict[str, Any]:
+    return _apply_operation(existing, operation, _resolve_value, _MISSING)
 
 
 class _HTTPServer(ThreadingHTTPServer):
@@ -187,11 +169,16 @@ class LocalDBRequestHandler(BaseHTTPRequestHandler):
             body = self._read_json()
             if not isinstance(body, dict) or "data" not in body:
                 raise ValueError("body must contain data")
-            operations = _resolve_operations(
-                self.server.store,
-                [{"op": "create" if body.get("create") else "set", "path": path, "data": body["data"], "merge": bool(body.get("merge"))}],
-            )
-            document = self.server.store.apply_operations(operations)[0]
+            operation = {
+                "op": "create" if body.get("create") else "set",
+                "path": path,
+                "data": body["data"],
+                "merge": bool(body.get("merge")),
+            }
+            document = self.server.store.apply_operations(
+                [operation],
+                resolve_operation=_resolve_operation,
+            )[0]
             self._send_json({"document": document})
         except ValueError as error:
             self._error(str(error), 400)
@@ -282,9 +269,12 @@ class LocalDBRequestHandler(BaseHTTPRequestHandler):
                     if not self._allowed(valid_path):
                         self._error("collection is not allowed", 403)
                         return
-                resolved = _resolve_operations(self.server.store, operations)
                 expected = {validate_document_path(path): value for path, value in reads.items()}
-                result = self.server.store.apply_operations(resolved, expected)
+                result = self.server.store.apply_operations(
+                    operations,
+                    expected,
+                    resolve_operation=_resolve_operation,
+                )
                 self._send_json({"count": len(result), "documents": [item for item in result if item]})
                 return
             if endpoint == "/documents:batchWrite":
@@ -296,7 +286,10 @@ class LocalDBRequestHandler(BaseHTTPRequestHandler):
                     if not self._allowed(path):
                         self._error("collection is not allowed", 403)
                         return
-                result = self.server.store.apply_operations(_resolve_operations(self.server.store, operations))
+                result = self.server.store.apply_operations(
+                    operations,
+                    resolve_operation=_resolve_operation,
+                )
                 self._send_json({"count": len(result), "documents": [item for item in result if item]})
                 return
             documents = body.get("documents") if isinstance(body, dict) else None
