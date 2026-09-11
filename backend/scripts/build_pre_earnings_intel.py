@@ -33,6 +33,7 @@ from backend.scripts.build_earnings_intel import (
     _universe_instruments_by_ticker,
     _utc_now,
 )
+from backend.stock_page_view import merge_stock_view_sections
 from backend.storage import TraceMoneyStore
 
 
@@ -333,10 +334,13 @@ def _process_one_event(
         "report": synthesis,
     }
     if write and not dry_run:
-        store.db.collection("tm_pre_earnings_intel").document(doc_id).set(report, merge=True)
-        store.db.collection("tm_pre_earnings_intel").document(
+        batch = store.db.batch()
+        batch.set(store.db.collection("tm_pre_earnings_intel").document(doc_id), report, merge=True)
+        batch.set(store.db.collection("tm_pre_earnings_intel").document(
             f"{market.upper()}__{instrument_id}__upcoming"
-        ).set(report, merge=True)
+        ), report, merge=True)
+        merge_stock_view_sections(store.db, market, instrument_id, {"pre_earnings": report}, batch=batch)
+        batch.commit()
     return report
 
 

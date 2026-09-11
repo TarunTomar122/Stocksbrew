@@ -1,4 +1,5 @@
 import { adminFirestore } from "@/lib/firebase-admin";
+import type { DocumentReference, DocumentData } from "firebase-admin/firestore";
 import {
   batchGetRefs,
   getLatestPriceCore,
@@ -300,36 +301,188 @@ export type StockPageDocBundle = {
   preEarnings: PreEarningsIntelDoc | null;
 };
 
+export type StockPageDocBundleSections = {
+  facts?: boolean;
+  technicals?: boolean;
+  onDemandJob?: boolean;
+  earningsIntel?: boolean;
+  preEarnings?: boolean;
+};
+
 export async function getStockPageDocBundle(
   market: "US" | "IN",
   instrumentId: string,
   ticker: string,
+  sections: StockPageDocBundleSections = {},
 ): Promise<StockPageDocBundle> {
-  const refs = {
-    facts: adminFirestore.collection("tm_stock_facts").doc(instrumentId),
-    technicals: adminFirestore.collection("tm_stock_technicals_latest").doc(instrumentId),
-    onDemandJob: adminFirestore.collection("tm_on_demand_news_jobs").doc(instrumentId),
-    earningsIntel: adminFirestore.collection("tm_earnings_intel").doc(`${market}__${instrumentId}__latest`),
-    preEarnings: adminFirestore.collection("tm_pre_earnings_intel").doc(`${market}__${instrumentId}__upcoming`),
+  const want = {
+    facts: sections.facts ?? false,
+    technicals: sections.technicals ?? false,
+    onDemandJob: sections.onDemandJob ?? true,
+    earningsIntel: sections.earningsIntel ?? false,
+    preEarnings: sections.preEarnings ?? false,
   };
-  const docs = await adminFirestore.getAll(...Object.values(refs));
+  const refMap: Record<string, DocumentReference<DocumentData> | null> = {
+    facts: want.facts ? adminFirestore.collection("tm_stock_facts").doc(instrumentId) : null,
+    technicals: want.technicals ? adminFirestore.collection("tm_stock_technicals_latest").doc(instrumentId) : null,
+    onDemandJob: adminFirestore.collection("tm_on_demand_news_jobs").doc(instrumentId),
+    earningsIntel: want.earningsIntel ? adminFirestore.collection("tm_earnings_intel").doc(`${market}__${instrumentId}__latest`) : null,
+    preEarnings: want.preEarnings ? adminFirestore.collection("tm_pre_earnings_intel").doc(`${market}__${instrumentId}__upcoming`) : null,
+  };
+  const activeRefs = Object.values(refMap).filter((ref): ref is DocumentReference<DocumentData> => ref !== null);
+  const docs = activeRefs.length ? await adminFirestore.getAll(...activeRefs) : [];
   const byPath = new Map(docs.map((doc) => [doc.ref.path, doc.exists ? doc.data() : null]));
-  const pick = <T,>(ref: { path: string }): T | null => (byPath.get(ref.path) as T | null) ?? null;
+  const pick = <T,>(ref: { path: string } | null): T | null =>
+    ref ? (byPath.get(ref.path) as T | null) ?? null : null;
 
-  const preEarningsRaw = pick<PreEarningsIntelDoc>(refs.preEarnings);
+  const preEarningsRaw = pick<PreEarningsIntelDoc>(refMap.preEarnings);
   const preEarnings =
     preEarningsRaw?.instrument_id && preEarningsRaw?.ticker && preEarningsRaw?.event_date
       ? { ...preEarningsRaw, doc_id: `${market}__${instrumentId}__upcoming` }
       : null;
 
   return {
-    facts: pick<StockFacts>(refs.facts),
-    technicals: pick<StockTechnicals>(refs.technicals),
-    onDemandJob: pick<OnDemandNewsJobDoc>(refs.onDemandJob),
-    earningsIntel: pick<EarningsIntelDoc>(refs.earningsIntel),
+    facts: pick<StockFacts>(refMap.facts),
+    technicals: pick<StockTechnicals>(refMap.technicals),
+    onDemandJob: pick<OnDemandNewsJobDoc>(refMap.onDemandJob),
+    earningsIntel: pick<EarningsIntelDoc>(refMap.earningsIntel),
     preEarnings,
   };
 }
+
+// ─── Materialized stock page view ─────────────────────────────────────────────
+// One doc per stock, assembled by the pipeline writers at the same moment the
+// source doc is written (same batch, see backend/stock_page_view.py). The
+// reader trusts a section when its stamp is fresh and falls back to a direct
+// read only when the stamp is missing, too old, or the view doc is absent.
+
+export type StockPageViewPeers = {
+  better: SectorPeerPick[];
+  rows: SectorPeerRow[];
+};
+
+export type StockPageViewDoc = {
+  instrument_id: string;
+  ticker?: string;
+  market?: string;
+  built_at?: string;
+  intelligence?: StockIntelligenceDoc | null;
+  intelligence_stamp?: string | null;
+  business_questions?: StockBusinessQuestionsDoc | null;
+  business_questions_stamp?: string | null;
+  instrument_view?: InstrumentViewDoc | null;
+  instrument_view_stamp?: string | null;
+  intel_pro?: StockIntelPro | null;
+  intel_pro_stamp?: string | null;
+  facts?: StockFacts | null;
+  facts_stamp?: string | null;
+  technicals?: StockTechnicals | null;
+  technicals_stamp?: string | null;
+  earnings_intel?: EarningsIntelDoc | null;
+  earnings_intel_stamp?: string | null;
+  pre_earnings?: PreEarningsIntelDoc | null;
+  pre_earnings_stamp?: string | null;
+  peers?: StockPageViewPeers | null;
+  peers_stamp?: string | null;
+};
+
+export type StockPageSections = {
+  intelligence: StockIntelligenceDoc | null;
+  business_questions: StockBusinessQuestionsDoc | null;
+  instrument_view: InstrumentViewDoc | null;
+  intel_pro: StockIntelPro | null;
+  facts: StockFacts | null;
+  technicals: StockTechnicals | null;
+  earnings_intel: EarningsIntelDoc | null;
+  pre_earnings: PreEarningsIntelDoc | null;
+  peers: StockPageViewPeers | null;
+};
+
+export type StockPageSectionKey = keyof StockPageSections;
+
+// Drift insurance only. With write-through the view can only trail its source
+// via a manual/bypassed edit, so thresholds mirror the real refresh cadences
+// (briefs 2x daily, facts/intel_pro/technicals weekly, event-driven docs
+// effectively never change without a write).
+export const STOCK_PAGE_VIEW_MAX_AGE_MS: Record<StockPageSectionKey, number> = {
+  intelligence: 24 * 3600_000,
+  business_questions: 14 * 86400_000,
+  instrument_view: 14 * 86400_000,
+  intel_pro: 14 * 86400_000,
+  facts: 14 * 86400_000,
+  technicals: 14 * 86400_000,
+  earnings_intel: 90 * 86400_000,
+  pre_earnings: 14 * 86400_000,
+  peers: 14 * 86400_000,
+};
+
+export function stockPageViewDocId(market: "US" | "IN", instrumentId: string): string {
+  return `${market}__${instrumentId.toUpperCase()}`;
+}
+
+function sectionFresh(
+  view: StockPageViewDoc | null,
+  key: StockPageSectionKey,
+  nowMs: number,
+): boolean {
+  const stamp = view?.[`${key}_stamp` as keyof StockPageViewDoc];
+  if (typeof stamp !== "string" || !stamp.trim()) return false;
+  const stampMs = new Date(stamp).getTime();
+  if (!Number.isFinite(stampMs)) return false;
+  return nowMs - stampMs <= STOCK_PAGE_VIEW_MAX_AGE_MS[key];
+}
+
+export type StockPageViewResolution = {
+  view: StockPageViewDoc | null;
+  sections: StockPageSections;
+  directNeeded: Record<StockPageSectionKey, boolean>;
+};
+
+export function resolveStockPageViewSections(
+  view: StockPageViewDoc | null,
+  nowMs: number = Date.now(),
+  instrumentId?: string,
+): StockPageViewResolution {
+  if (view && instrumentId && view.instrument_id !== instrumentId) {
+    view = null;
+  }
+  const sections = {
+    intelligence: (view?.intelligence ?? null) as StockIntelligenceDoc | null,
+    business_questions: (view?.business_questions ?? null) as StockBusinessQuestionsDoc | null,
+    instrument_view: (view?.instrument_view ?? null) as InstrumentViewDoc | null,
+    intel_pro: (view?.intel_pro ?? null) as StockIntelPro | null,
+    facts: (view?.facts ?? null) as StockFacts | null,
+    technicals: (view?.technicals ?? null) as StockTechnicals | null,
+    earnings_intel: (view?.earnings_intel ?? null) as EarningsIntelDoc | null,
+    pre_earnings: (view?.pre_earnings ?? null) as PreEarningsIntelDoc | null,
+    peers: (view?.peers ?? null) as StockPageViewPeers | null,
+  };
+  const directNeeded = {} as Record<StockPageSectionKey, boolean>;
+  for (const key of Object.keys(sections) as StockPageSectionKey[]) {
+    directNeeded[key] = !sectionFresh(view, key, nowMs);
+  }
+  return { view, sections, directNeeded };
+}
+
+const getStockPageViewUncached = async (
+  market: "US" | "IN",
+  instrumentId: string,
+): Promise<StockPageViewDoc | null> => {
+  const doc = await adminFirestore
+    .collection("tm_stock_page_views")
+    .doc(stockPageViewDocId(market, instrumentId))
+    .get();
+  if (!doc.exists) return null;
+  const data = doc.data() as StockPageViewDoc | undefined;
+  if (!data || data.instrument_id !== instrumentId) return null;
+  return data;
+};
+
+export const getStockPageView = unstable_cache(
+  getStockPageViewUncached,
+  ["stock-page-view-v1"],
+  { revalidate: 60 },
+);
 
 /** Daily closes for the Returns chart. Capped to ~1Y of sessions. */
 export async function getStockPriceHistory(

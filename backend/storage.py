@@ -9,6 +9,7 @@ from typing import Any
 from backend.env import load_backend_env, resolve_backend_path
 from backend.localdb.firestore import LocalFirestoreClient
 from backend.price_history import latest_price_history
+from backend.stock_page_view import merge_stock_view_sections
 
 load_backend_env()
 
@@ -748,10 +749,15 @@ class TraceMoneyStore:
     def save_stock_facts(self, payload: dict[str, Any]) -> None:
         instrument_id = payload["instrument_id"]
         updated_at = datetime.now(timezone.utc).isoformat()
-        self.db.collection("tm_stock_facts").document(instrument_id).set(
-            _stock_facts_write_payload(payload, updated_at=updated_at),
+        write_payload = _stock_facts_write_payload(payload, updated_at=updated_at)
+        batch = self.db.batch()
+        batch.set(
+            self.db.collection("tm_stock_facts").document(instrument_id),
+            write_payload,
             merge=True,
         )
+        merge_stock_view_sections(self.db, "", instrument_id, {"facts": write_payload}, batch=batch)
+        batch.commit()
 
     def get_stock_facts_batch(self, instrument_ids: list[str]) -> dict[str, dict[str, Any]]:
         rows: dict[str, dict[str, Any]] = {}
@@ -965,8 +971,14 @@ class TraceMoneyStore:
         self, market: str, universe_id: str, instrument_id: str, payload: dict[str, Any]
     ) -> None:
         """Write the scored four-pillar doc for a stock."""
-        self.db.collection("tm_stock_intel_pro").document(f"{market}__{universe_id}") \
-            .collection("stocks").document(instrument_id).set(payload)
+        batch = self.db.batch()
+        batch.set(
+            self.db.collection("tm_stock_intel_pro").document(f"{market}__{universe_id}")
+            .collection("stocks").document(instrument_id),
+            payload,
+        )
+        merge_stock_view_sections(self.db, market, instrument_id, {"intel_pro": payload}, batch=batch)
+        batch.commit()
 
     def get_stock_intel_pro(
         self, market: str, universe_id: str, instrument_id: str
@@ -1188,20 +1200,24 @@ class TraceMoneyStore:
 
     def save_instrument_view(self, instrument_id: str, universe_id: str, payload: dict[str, Any]) -> None:
         doc_id = f"{instrument_id}__{universe_id}"
-        self.db.collection("tm_views_instrument").document(doc_id).set(payload)
+        batch = self.db.batch()
+        batch.set(self.db.collection("tm_views_instrument").document(doc_id), payload)
+        merge_stock_view_sections(self.db, "", instrument_id, {"instrument_view": payload}, batch=batch)
+        batch.commit()
 
     def save_instrument_views_bulk(self, universe_id: str, payloads: list[dict[str, Any]]) -> int:
         if not payloads:
             return 0
         collection = self.db.collection("tm_views_instrument")
         saved = 0
-        for start in range(0, len(payloads), 450):
+        for start in range(0, len(payloads), 200):
             batch = self.db.batch()
-            for payload in payloads[start:start + 450]:
+            for payload in payloads[start:start + 200]:
                 instrument_id = str(payload.get("instrument_id") or "").strip()
                 if not instrument_id:
                     continue
                 batch.set(collection.document(f"{instrument_id}__{universe_id}"), payload)
+                merge_stock_view_sections(self.db, "", instrument_id, {"instrument_view": payload}, batch=batch)
                 saved += 1
             batch.commit()
         return saved
@@ -1448,6 +1464,13 @@ class TraceMoneyStore:
         namespace = self._news_namespace(market, universe_id)
         self._replace_subcollection(namespace, "stock_intelligence", docs_payload, "instrument_id")
         self.append_directive_history(market, docs_payload)
+        for start in range(0, len(docs_payload), 200):
+            batch = self.db.batch()
+            for payload in docs_payload[start : start + 200]:
+                instrument_id = str(payload.get("instrument_id") or "")
+                if instrument_id:
+                    merge_stock_view_sections(self.db, market, instrument_id, {"intelligence": payload}, batch=batch)
+            batch.commit()
         namespace.set({
             "market": market,
             "universe_id": universe_id,
@@ -1460,7 +1483,10 @@ class TraceMoneyStore:
         for payload in docs_payload:
             instrument_id = str(payload.get("instrument_id") or "")
             if instrument_id:
-                namespace.collection("stock_intelligence").document(instrument_id).set(payload, merge=True)
+                batch = self.db.batch()
+                batch.set(namespace.collection("stock_intelligence").document(instrument_id), payload, merge=True)
+                merge_stock_view_sections(self.db, market, instrument_id, {"intelligence": payload}, batch=batch)
+                batch.commit()
         self.append_directive_history(market, docs_payload)
         namespace.set({
             "market": market,
@@ -1517,13 +1543,14 @@ class TraceMoneyStore:
         namespace = self._news_namespace(market, universe_id)
         collection = namespace.collection("business_questions")
         saved = 0
-        for start in range(0, len(docs_payload), 450):
+        for start in range(0, len(docs_payload), 200):
             batch = self.db.batch()
-            for payload in docs_payload[start : start + 450]:
+            for payload in docs_payload[start : start + 200]:
                 instrument_id = str(payload.get("instrument_id") or "").strip().upper()
                 if not instrument_id:
                     continue
                 batch.set(collection.document(instrument_id), payload)
+                merge_stock_view_sections(self.db, market, instrument_id, {"business_questions": payload}, batch=batch)
                 saved += 1
             batch.commit()
         namespace.set(
@@ -1638,6 +1665,7 @@ class TraceMoneyStore:
     def save_stock_technical_docs(self, docs_payload: list[dict[str, Any]]) -> None:
         if not docs_payload:
             return
+        saved_in_batch = 0
         batch = self.db.batch()
         for payload in docs_payload:
             instrument_id = str(payload.get("instrument_id", "")).strip()
@@ -1647,6 +1675,12 @@ class TraceMoneyStore:
             doc_id = f"{instrument_id}_{as_of_date}"
             batch.set(self.db.collection("tm_stock_technicals").document(doc_id), payload, merge=True)
             batch.set(self.db.collection("tm_stock_technicals_latest").document(instrument_id), payload, merge=True)
+            merge_stock_view_sections(self.db, "", instrument_id, {"technicals": payload}, batch=batch)
+            saved_in_batch += 3
+            if saved_in_batch >= 450:
+                batch.commit()
+                batch = self.db.batch()
+                saved_in_batch = 0
         batch.commit()
 
     def get_latest_stock_technical_doc(

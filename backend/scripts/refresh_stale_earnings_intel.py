@@ -36,6 +36,7 @@ from backend.scripts.build_earnings_intel import (
     _utc_now,
 )
 from backend.scripts.build_market_events import build_for_market
+from backend.stock_page_view import merge_stock_view_sections
 from backend.storage import TraceMoneyStore
 
 
@@ -171,8 +172,11 @@ def _rebuild_intel_for_ticker(
         "report": synthesis,
     }
     if write:
-        store.db.collection("tm_earnings_intel").document(doc_id).set(report)
-        store.db.collection("tm_earnings_intel").document(f"{market.upper()}__{instrument_id}__latest").set(report)
+        batch = store.db.batch()
+        batch.set(store.db.collection("tm_earnings_intel").document(doc_id), report)
+        batch.set(store.db.collection("tm_earnings_intel").document(f"{market.upper()}__{instrument_id}__latest"), report)
+        merge_stock_view_sections(store.db, market, instrument_id, {"earnings_intel": report}, batch=batch)
+        batch.commit()
     facts = synthesis.get("facts") if isinstance(synthesis.get("facts"), dict) else {}
     return {
         "status": "rebuilt",

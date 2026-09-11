@@ -36,6 +36,8 @@ import {
   getSectorPeersForStock,
   enrichRelatedTickersForComparison,
   getStockPageDocBundle,
+  getStockPageView,
+  resolveStockPageViewSections,
   type SectorPeerRow,
   type SectorPeerPick,
   getStockIntelligenceDoc,
@@ -202,14 +204,21 @@ export async function StockPageStream({ params }: Props) {
   // no extra Firestore read needed.
   const fundamentals = stock.fundamentals ?? null;
 
+  // The materialized view doc holds the slow sections (intel, facts,
+  // technicals, earnings, peers). Stale/missing sections fall back to direct
+  // reads below; stamps decide, per section (backend/stock_page_view.py owns
+  // the write-through).
+  const view = await getStockPageView(market, stock.instrument_id).catch(() => null);
+  const { sections: viewSections, directNeeded } = resolveStockPageViewSections(view);
+
   // Single-doc reads (facts, technicals, on-demand job, earnings intel,
   // pre-earnings intel) are packed into one batched getAll instead of five
   // separate round trips. Everything else stays parallel.
   const [
-    intelligence,
-    businessQuestions,
-    instrumentView,
-    intelPro,
+    intelligenceDirect,
+    businessQuestionsDirect,
+    instrumentViewDirect,
+    intelProDirect,
     instrumentMeta,
     priceHistory,
     marketMovers,
@@ -222,21 +231,34 @@ export async function StockPageStream({ params }: Props) {
     premarketDoc,
     powerTradesRecent,
   ] = await Promise.all([
-    getStockIntelligenceDoc(stock.instrument_id, market).catch(() => null),
-    shouldLoadAI
-      ? getStockBusinessQuestions(stock.instrument_id, market).catch(() => null)
+    directNeeded.intelligence
+      ? getStockIntelligenceDoc(stock.instrument_id, market).catch(() => null)
       : Promise.resolve(null),
     shouldLoadAI
-      ? getInstrumentViewDoc(stock.instrument_id, market).catch(() => null)
+      ? (directNeeded.business_questions
+          ? getStockBusinessQuestions(stock.instrument_id, market).catch(() => null)
+          : Promise.resolve(null))
       : Promise.resolve(null),
-    getStockIntelPro(stock.instrument_id, market).catch(() => null),
+    shouldLoadAI
+      ? (directNeeded.instrument_view
+          ? getInstrumentViewDoc(stock.instrument_id, market).catch(() => null)
+          : Promise.resolve(null))
+      : Promise.resolve(null),
+    directNeeded.intel_pro
+      ? getStockIntelPro(stock.instrument_id, market).catch(() => null)
+      : Promise.resolve(null),
     getInstrument(stock.instrument_id).catch(() => null),
     getStockPriceHistory(stock.instrument_id).catch(() => []),
     getMarketMovers(market).catch(() => null),
     getPriceCoreOverrides(market).catch(() => [] as string[]),
     getDailyAnomalyForTicker(market, stock.ticker).catch(() => null),
     getRedditContextForTicker(market, stock.ticker).catch(() => null),
-    getStockPageDocBundle(market, stock.instrument_id, stock.ticker).catch(() => null),
+    getStockPageDocBundle(market, stock.instrument_id, stock.ticker, {
+      facts: directNeeded.facts,
+      technicals: directNeeded.technicals,
+      earningsIntel: directNeeded.earnings_intel,
+      preEarnings: hasFullAnalysisAccess && directNeeded.pre_earnings,
+    }).catch(() => null),
     getNextEarningsCalendarEventCached(market, stock.ticker).catch(() => null),
     getNewsForTicker(market, stock.ticker, { days: 7, limit: 7 }).catch(() => []),
     market === "US"
@@ -247,11 +269,18 @@ export async function StockPageStream({ params }: Props) {
       : Promise.resolve(null),
   ]);
 
-  const technicals = docBundle?.technicals ?? (await getLatestTechnicals(stock.instrument_id).catch(() => null));
-  const stockFacts = docBundle?.facts ?? null;
+  const intelligence = viewSections.intelligence ?? intelligenceDirect;
+  const businessQuestions = viewSections.business_questions ?? businessQuestionsDirect;
+  const instrumentView = viewSections.instrument_view ?? instrumentViewDirect;
+  const intelPro = viewSections.intel_pro ?? intelProDirect;
+  const technicals =
+    viewSections.technicals ?? docBundle?.technicals ?? (await getLatestTechnicals(stock.instrument_id).catch(() => null));
+  const stockFacts = viewSections.facts ?? docBundle?.facts ?? null;
   const onDemandJob = docBundle?.onDemandJob ?? null;
-  const earningsIntel = docBundle?.earningsIntel ?? null;
-  const preEarningsDoc = hasFullAnalysisAccess ? (docBundle?.preEarnings ?? null) : null;
+  const earningsIntel = viewSections.earnings_intel ?? docBundle?.earningsIntel ?? null;
+  const preEarningsDoc = hasFullAnalysisAccess
+    ? (viewSections.pre_earnings ?? docBundle?.preEarnings ?? null)
+    : null;
   const premarketQuote = getLivePremarketQuote(
     premarketDoc,
     stock.ticker,
@@ -285,33 +314,36 @@ export async function StockPageStream({ params }: Props) {
     sector: decodeTextEntities(sectorLabel || stock.sector || ""),
     industry: decodeTextEntities(industryLabel || stock.industry || ""),
   };
-  // Peers depend on intelPro's sector slug, but loadSectorIntelPeers used to
-  // run twice (once per getter) sequentially. One shared call feeds both the
-  // "better peers" picks and the peer rows.
-  const sectorPeersPromise = getSectorPeersForStock(
-    stock.instrument_id,
-    market,
-    intelPro,
-    instrumentMeta,
-  ).catch(() => [] as SectorPeerRow[]);
-
-  const [
-    betterSectorPeers,
-    sectorPeersRaw,
-  ] = await Promise.all([
-    sectorSlug && typeof intelPro?.overall?.score === "number"
-      ? getBetterSectorPeers(stock.instrument_id, market, sectorSlug, intelPro.overall.score).catch(() => [])
-      : Promise.resolve([] as SectorPeerPick[]),
-    sectorPeersPromise,
-  ]);
-  const sectorPeers =
-    sectorPeersRaw.length > 0
-      ? sectorPeersRaw
-      : await enrichRelatedTickersForComparison(
-          stock.instrument_id,
-          market,
-          instrumentView?.related_tickers ?? [],
-        ).catch(() => []);
+  // Peers come from the materialized view when fresh; otherwise the direct
+  // path loads them (one shared sector scan feeding both picks and rows). An
+  // empty materialized peers section still falls back so stocks without intel
+  // keep the related-tickers row.
+  const viewPeers = viewSections.peers;
+  let betterSectorPeers: SectorPeerPick[] = viewPeers?.rows?.length ? (viewPeers.better ?? []) : [];
+  let sectorPeers: SectorPeerRow[] = viewPeers?.rows ?? [];
+  if (!sectorPeers.length) {
+    const sectorPeersPromise = getSectorPeersForStock(
+      stock.instrument_id,
+      market,
+      intelPro,
+      instrumentMeta,
+    ).catch(() => [] as SectorPeerRow[]);
+    const [fallbackBetter, sectorPeersRaw] = await Promise.all([
+      sectorSlug && typeof intelPro?.overall?.score === "number"
+        ? getBetterSectorPeers(stock.instrument_id, market, sectorSlug, intelPro.overall.score).catch(() => [])
+        : Promise.resolve([] as SectorPeerPick[]),
+      sectorPeersPromise,
+    ]);
+    betterSectorPeers = fallbackBetter;
+    sectorPeers =
+      sectorPeersRaw.length > 0
+        ? sectorPeersRaw
+        : await enrichRelatedTickersForComparison(
+            stock.instrument_id,
+            market,
+            instrumentView?.related_tickers ?? [],
+          ).catch(() => []);
+  }
   const priorityIds = marketMovers?.priority_instrument_ids ?? [];
   const inPriorityCohort = priorityIds.includes(stock.instrument_id);
   const inExtendedOverrides = (priceCoreOverrides || []).includes(stock.instrument_id);
