@@ -352,32 +352,113 @@ export async function getStockPageDocBundle(
   };
 }
 
-// Cache canonical source reads together. This preserves namespace selection and
-// partial-source updates without maintaining another copy in the pipeline.
-export const getStockPageResearch = unstable_cache(
-  async (
-    market: "US" | "IN",
-    instrumentId: string,
-    ticker: string,
-    loadAI: boolean,
-    loadPreEarnings: boolean,
-  ) => {
-    const [intelligence, businessQuestions, instrumentView, intelPro, docBundle] = await Promise.all([
-      getStockIntelligenceDoc(instrumentId, market),
-      loadAI ? getStockBusinessQuestions(instrumentId, market) : Promise.resolve(null),
-      loadAI ? getInstrumentViewDoc(instrumentId, market) : Promise.resolve(null),
-      getStockIntelPro(instrumentId, market),
-      getStockPageDocBundle(market, instrumentId, ticker, {
-        facts: true,
-        technicals: true,
-        onDemandJob: true,
-        earningsIntel: true,
-        preEarnings: loadPreEarnings,
-      }),
-    ]);
-    return { intelligence, businessQuestions, instrumentView, intelPro, docBundle };
-  },
-  ["stock-page-research-v2"],
+// The view is an opportunistic read cache. Its stamps only authorize use of a
+// section; stale or missing sections are fetched from their canonical sources.
+export type StockPageViewPeers = {
+  better: SectorPeerPick[];
+  rows: SectorPeerRow[];
+};
+
+export type StockPageViewDoc = {
+  instrument_id: string;
+  ticker?: string;
+  intelligence?: StockIntelligenceDoc | null;
+  intelligence_stamp?: string | null;
+  business_questions?: StockBusinessQuestionsDoc | null;
+  business_questions_stamp?: string | null;
+  instrument_view?: InstrumentViewDoc | null;
+  instrument_view_stamp?: string | null;
+  intel_pro?: StockIntelPro | null;
+  intel_pro_stamp?: string | null;
+  facts?: StockFacts | null;
+  facts_stamp?: string | null;
+  technicals?: StockTechnicals | null;
+  technicals_stamp?: string | null;
+  earnings_intel?: EarningsIntelDoc | null;
+  earnings_intel_stamp?: string | null;
+  pre_earnings?: PreEarningsIntelDoc | null;
+  pre_earnings_stamp?: string | null;
+  peers?: StockPageViewPeers | null;
+  peers_stamp?: string | null;
+};
+
+export type StockPageSections = {
+  intelligence: StockIntelligenceDoc | null;
+  business_questions: StockBusinessQuestionsDoc | null;
+  instrument_view: InstrumentViewDoc | null;
+  intel_pro: StockIntelPro | null;
+  facts: StockFacts | null;
+  technicals: StockTechnicals | null;
+  earnings_intel: EarningsIntelDoc | null;
+  pre_earnings: PreEarningsIntelDoc | null;
+  peers: StockPageViewPeers | null;
+};
+
+export type StockPageSectionKey = keyof StockPageSections;
+
+const STOCK_PAGE_VIEW_MAX_AGE_MS: Record<StockPageSectionKey, number> = {
+  intelligence: 24 * 3600_000,
+  business_questions: 14 * 86400_000,
+  instrument_view: 14 * 86400_000,
+  intel_pro: 14 * 86400_000,
+  facts: 14 * 86400_000,
+  technicals: 14 * 86400_000,
+  earnings_intel: 90 * 86400_000,
+  pre_earnings: 14 * 86400_000,
+  peers: 14 * 86400_000,
+};
+
+export function stockPageViewDocId(market: "US" | "IN", instrumentId: string): string {
+  return `${market}__${instrumentId.toUpperCase()}`;
+}
+
+function sectionFresh(view: StockPageViewDoc | null, key: StockPageSectionKey, nowMs: number): boolean {
+  const stamp = view?.[`${key}_stamp` as keyof StockPageViewDoc];
+  const stampMs = typeof stamp === "string" ? new Date(stamp).getTime() : Number.NaN;
+  return Number.isFinite(stampMs) && nowMs - stampMs <= STOCK_PAGE_VIEW_MAX_AGE_MS[key];
+}
+
+export type StockPageViewResolution = {
+  view: StockPageViewDoc | null;
+  sections: StockPageSections;
+  directNeeded: Record<StockPageSectionKey, boolean>;
+};
+
+export function resolveStockPageViewSections(
+  view: StockPageViewDoc | null,
+  nowMs: number = Date.now(),
+  instrumentId?: string,
+): StockPageViewResolution {
+  if (view && instrumentId && view.instrument_id !== instrumentId) view = null;
+  const sections = {
+    intelligence: view?.intelligence ?? null,
+    business_questions: view?.business_questions ?? null,
+    instrument_view: view?.instrument_view ?? null,
+    intel_pro: view?.intel_pro ?? null,
+    facts: view?.facts ?? null,
+    technicals: view?.technicals ?? null,
+    earnings_intel: view?.earnings_intel ?? null,
+    pre_earnings: view?.pre_earnings ?? null,
+    peers: view?.peers ?? null,
+  };
+  const directNeeded = {} as Record<StockPageSectionKey, boolean>;
+  for (const key of Object.keys(sections) as StockPageSectionKey[]) {
+    directNeeded[key] = !sectionFresh(view, key, nowMs);
+    if (directNeeded[key]) sections[key] = null;
+  }
+  return { view, sections, directNeeded };
+}
+
+const getStockPageViewUncached = async (market: "US" | "IN", instrumentId: string): Promise<StockPageViewDoc | null> => {
+  const doc = await adminFirestore.collection("tm_stock_page_views").doc(stockPageViewDocId(market, instrumentId)).get();
+  if (!doc.exists) return null;
+  const data = doc.data() as StockPageViewDoc | undefined;
+  return data?.instrument_id === instrumentId ? data : null;
+};
+
+export const getStockPageView = unstable_cache(
+  getStockPageViewUncached,
+  ["stock-page-view-v2"],
   { revalidate: 60 },
 );
 

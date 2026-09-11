@@ -30,9 +30,15 @@ import { resolveStockTier } from "@/lib/ai-launch-tier";
 import { getSessionUser } from "@/lib/auth-server";
 import { getInstrument, getMarketMovers, getPriceCoreOverrides } from "@/lib/firestore";
 import {
-  getStockPageResearch,
+  getInstrumentViewDoc,
+  getStockIntelPro,
+  getStockPageDocBundle,
+  getStockPageView,
+  resolveStockPageViewSections,
   getSectorPeersForStock,
   enrichRelatedTickersForComparison,
+  getStockIntelligenceDoc,
+  getStockBusinessQuestions,
   type SectorPeerRow,
   type SectorPeerPick,
   getStockPriceHistory,
@@ -198,7 +204,7 @@ export async function StockPageStream({ params }: Props) {
 
   // Cache the canonical source reads together for one short request window.
   const [
-    research,
+    view,
     instrumentMeta,
     priceHistory,
     marketMovers,
@@ -210,13 +216,7 @@ export async function StockPageStream({ params }: Props) {
     premarketDoc,
     powerTradesRecent,
   ] = await Promise.all([
-    getStockPageResearch(
-      market,
-      stock.instrument_id,
-      stock.ticker,
-      shouldLoadAI,
-      hasFullAnalysisAccess,
-    ).catch(() => null),
+    getStockPageView(market, stock.instrument_id).catch(() => null),
     getInstrument(stock.instrument_id).catch(() => null),
     getStockPriceHistory(stock.instrument_id).catch(() => []),
     getMarketMovers(market).catch(() => null),
@@ -233,16 +233,54 @@ export async function StockPageStream({ params }: Props) {
       : Promise.resolve(null),
   ]);
 
-  const intelligence = research?.intelligence ?? null;
-  const businessQuestions = shouldLoadAI ? research?.businessQuestions ?? null : null;
-  const instrumentView = shouldLoadAI ? research?.instrumentView ?? null : null;
-  const intelPro = research?.intelPro ?? null;
-  const technicals = research?.docBundle.technicals ?? (await getLatestTechnicals(stock.instrument_id).catch(() => null));
-  const stockFacts = research?.docBundle.facts ?? null;
-  const onDemandJob = research?.docBundle.onDemandJob ?? null;
-  const earningsIntel = research?.docBundle.earningsIntel ?? null;
+  const { sections: viewSections, directNeeded } = resolveStockPageViewSections(
+    view,
+    Date.now(),
+    stock.instrument_id,
+  );
+  const [
+    intelligenceDirect,
+    businessQuestionsDirect,
+    instrumentViewDirect,
+    intelProDirect,
+    docBundle,
+  ] = await Promise.all([
+    directNeeded.intelligence
+      ? getStockIntelligenceDoc(stock.instrument_id, market).catch(() => null)
+      : Promise.resolve(null),
+    shouldLoadAI && directNeeded.business_questions
+      ? getStockBusinessQuestions(stock.instrument_id, market).catch(() => null)
+      : Promise.resolve(null),
+    shouldLoadAI && directNeeded.instrument_view
+      ? getInstrumentViewDoc(stock.instrument_id, market).catch(() => null)
+      : Promise.resolve(null),
+    directNeeded.intel_pro
+      ? getStockIntelPro(stock.instrument_id, market).catch(() => null)
+      : Promise.resolve(null),
+    getStockPageDocBundle(market, stock.instrument_id, stock.ticker, {
+      facts: directNeeded.facts,
+      technicals: directNeeded.technicals,
+      onDemandJob: true,
+      earningsIntel: directNeeded.earnings_intel,
+      preEarnings: hasFullAnalysisAccess && directNeeded.pre_earnings,
+    }).catch(() => null),
+  ]);
+
+  const intelligence = viewSections.intelligence ?? intelligenceDirect;
+  const businessQuestions = shouldLoadAI
+    ? viewSections.business_questions ?? businessQuestionsDirect
+    : null;
+  const instrumentView = shouldLoadAI
+    ? viewSections.instrument_view ?? instrumentViewDirect
+    : null;
+  const intelPro = viewSections.intel_pro ?? intelProDirect;
+  const technicals =
+    viewSections.technicals ?? docBundle?.technicals ?? (await getLatestTechnicals(stock.instrument_id).catch(() => null));
+  const stockFacts = viewSections.facts ?? docBundle?.facts ?? null;
+  const onDemandJob = docBundle?.onDemandJob ?? null;
+  const earningsIntel = viewSections.earnings_intel ?? docBundle?.earningsIntel ?? null;
   const preEarningsDoc = hasFullAnalysisAccess
-    ? research?.docBundle.preEarnings ?? null
+    ? viewSections.pre_earnings ?? docBundle?.preEarnings ?? null
     : null;
   const premarketQuote = getLivePremarketQuote(
     premarketDoc,
