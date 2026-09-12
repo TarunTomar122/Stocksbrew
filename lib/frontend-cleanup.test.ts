@@ -267,9 +267,9 @@ describe("Pulse, Social, Watchlist, and home cleanup", () => {
 
     expect(lockedBrief).toContain("if (user)");
     expect(lockedBrief).not.toContain("Start your 3-day free trial");
-    expect(lockedBrief).toContain("Generate AI analysis for {ticker}");
-    expect(detail).toContain("Get the AI take on ${ticker}");
-    expect(detail).toContain('untrackedLabel="Generate analysis"');
+    expect(lockedBrief).toContain("Generate the AI brief for {ticker}");
+    expect(detail).toContain("Get the full brief on {ticker}");
+    expect(detail).toContain('untrackedLabel={`Track ${ticker} to generate`}');
   });
 
   it("only shows provider-backed support and resistance beside returns", () => {

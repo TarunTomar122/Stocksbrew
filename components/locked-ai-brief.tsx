@@ -16,7 +16,6 @@ type Props = {
   isSubscribed: boolean;
   isTracked?: boolean;
   onDemandStatus?: string;
-  onDemandError?: string;
 };
 
 export function LockedAiBrief({
@@ -25,7 +24,6 @@ export function LockedAiBrief({
   isSubscribed,
   isTracked = false,
   onDemandStatus = "",
-  onDemandError = "",
 }: Props) {
   const { user, loading } = useUser();
 
@@ -38,7 +36,6 @@ export function LockedAiBrief({
         isSubscribed={isSubscribed}
         isTracked={isTracked}
         onDemandStatus={onDemandStatus}
-        onDemandError={onDemandError}
       />
     );
   }
@@ -53,7 +50,7 @@ export function LockedAiBrief({
           tier="free"
           isSubscribed={false}
           isTracked={false}
-          untrackedLabel="Generate analysis"
+          untrackedLabel={`Track ${ticker} to generate`}
           signedOutLabel="Sign in to generate"
         />
       }
@@ -67,14 +64,12 @@ function ProBriefPreparingState({
   isSubscribed,
   isTracked,
   onDemandStatus,
-  onDemandError,
 }: {
   ticker: string;
   instrumentId: string;
   isSubscribed: boolean;
   isTracked: boolean;
   onDemandStatus: string;
-  onDemandError: string;
 }) {
   const normalizedStatus = String(onDemandStatus || "").toLowerCase();
   const isTerminalNoNews = normalizedStatus === "no_articles" || normalizedStatus === "no_brief";
@@ -95,7 +90,7 @@ function ProBriefPreparingState({
             tier="free"
             isSubscribed={isSubscribed}
             isTracked={false}
-            untrackedLabel={`Track ${ticker}`}
+            untrackedLabel={`Track ${ticker} to generate`}
             accent
           />
         }
@@ -113,7 +108,7 @@ function ProBriefPreparingState({
         tone="failed"
         badge="Retry queued"
         title={`${ticker} brief hit a snag`}
-        body={`Synthesis did not finish cleanly${onDemandError ? `: ${onDemandError}` : ""}. stocksbrew will retry on the next pass.`}
+        body="The last synthesis pass did not finish cleanly. stocksbrew will retry automatically and publish the brief here."
         steps={[
           { done: true, label: "In your Watchlist" },
           { done: true, label: "Sources fetched" },
@@ -130,7 +125,7 @@ function ProBriefPreparingState({
         tone="ready"
         badge="Brief ready"
         title={`${ticker} brief is ready`}
-        body="Synthesis finished. Refresh this tab if you still see the preparing state."
+        body="Synthesis finished. The brief will appear here automatically in a moment."
         steps={[
           { done: true, label: "In your Watchlist" },
           { done: true, label: "Sources analyzed" },
@@ -258,7 +253,7 @@ function RadarBriefInvitation({
       <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-[22px] font-medium tracking-tight text-on-surface sm:text-[24px]">
-            Generate AI analysis for {ticker}
+            Generate the AI brief for {ticker}
           </h3>
           <p className="mt-2 max-w-[50ch] text-[13.5px] leading-relaxed text-on-surface-variant">
             Add it to your Watchlist. We’ll read the latest filings, earnings and news, then build the brief here.
@@ -286,10 +281,10 @@ function CoveragePausedBrief({
     <BriefPreparingPanel
       tone="paused"
       badge="Expanding coverage"
-      title={`${ticker} is in your Watchlist. Research is underway.`}
+      title={`${ticker} is in your Watchlist. The brief is underway.`}
       body={
         usedFallbackSources
-          ? "We found some sources, but not enough high-confidence material for a full brief yet. stocksbrew will keep scanning and publish here automatically."
+          ? "We found some sources, but not enough high-confidence material for a full brief yet. stocksbrew will keep scanning and publish the brief here automatically."
           : "We checked for fresh stock-specific news and did not find enough yet. stocksbrew will keep scanning on the next passes and publish here automatically."
       }
       steps={[

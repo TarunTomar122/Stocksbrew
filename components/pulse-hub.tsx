@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { PriceChart } from "@/components/price-chart";
 import { RangeBar, RsiStrength } from "@/components/range-bar";
 import { RedditBuzzCard } from "@/components/reddit-buzz-card";
+import { confidenceLabel } from "@/lib/directive-ui";
 import { StockLogo } from "@/components/stock-logo";
 import { SquircleSurface } from "@/components/oa/squircle";
 import { AnimatedIcon } from "@/components/animated-icon";
@@ -256,17 +257,6 @@ const SECTOR_BUCKET: Record<string, string> = {
   "consumer defensive": "Consumers",
 };
 
-// Bellwethers pad a sector's logo row out to 3 distinct companies when fewer
-// than 3 stocks in that sector are actually gapping today.
-const SECTOR_BELLWETHERS: Record<string, string[]> = {
-  Tech: ["AAPL", "MSFT", "NVDA"],
-  IT: ["ORCL", "CRM", "ADBE"],
-  Energy: ["XOM", "CVX", "COP"],
-  Materials: ["LIN", "SHW", "FCX"],
-  Healthcare: ["UNH", "JNJ", "PFE"],
-  Consumers: ["AMZN", "WMT", "PG"],
-};
-
 function SectorPulse({ movers }: { movers: PremarketMovers }) {
   const rows = [...(movers.gappers_up ?? []), ...(movers.gappers_down ?? [])];
   const bySector = new Map<
@@ -325,12 +315,8 @@ function SectorPulse({ movers }: { movers: PremarketMovers }) {
         const up = s.avg >= 0;
         const tone = up ? "var(--signal-bullish)" : "var(--signal-bearish)";
         const intensity = Math.min(1, Math.abs(s.avg) / maxAbs);
-        const logoTickers = [
-          ...new Set([
-            ...s.topTickers.map((t) => t.ticker),
-            ...(SECTOR_BELLWETHERS[s.sector] ?? []),
-          ]),
-        ].slice(0, 3);
+        // Only stocks actually moving in this sector; no static padding.
+        const logoTickers = [...new Set(s.topTickers.map((t) => t.ticker))].slice(0, 3);
         return (
           <div
             key={s.sector}
@@ -769,8 +755,8 @@ function MoversBoard({
                           </span>
                         ) : null}
                         {selected.confidence ? (
-                          <span className="rounded-full bg-oa-secondary px-2.5 py-1 text-base font-medium capitalize text-oa-muted-fg">
-                            {selected.confidence} confidence
+                          <span className="rounded-full bg-oa-secondary px-2.5 py-1 text-base font-medium text-oa-muted-fg">
+                            {confidenceLabel(selected.confidence) ?? selected.confidence}
                           </span>
                         ) : null}
                         {selected.buzz ? (

@@ -1,27 +1,8 @@
 import { notFound } from "next/navigation";
 
-import { AnomalyBanner } from "@/components/anomaly-banner";
 import { AiSynthesis } from "@/components/ai-synthesis";
-import { AiBriefStatus } from "@/components/ai-brief-status";
-import { AnalystConsensus } from "@/components/analyst-consensus";
-import { CatalystsDriversRisks } from "@/components/catalysts-drivers-risks";
-import { ComparativeContextRow } from "@/components/comparative-context";
-import { DataQualityStrip } from "@/components/data-quality-strip";
-import { PeersRow } from "@/components/peers-row";
-import { SentimentLanes } from "@/components/sentiment-lanes";
-import { StockFactsPanel } from "@/components/stock-facts-panel";
-import { PreEarningsSetupCard } from "@/components/pre-earnings-setup-card";
-import { StockEarningsTab } from "@/components/stock-earnings-tab";
-import { TrackButton } from "@/components/track-button";
 import { LockedAiBrief } from "@/components/locked-ai-brief";
-import { ProLockCard } from "@/components/pro-lock-overlay";
-import { RangeBar, RsiStrength } from "@/components/range-bar";
-import { SignalDeck } from "@/components/signal-deck";
-import { StockScorecard } from "@/components/stock-scorecard";
-import { StockLogo } from "@/components/stock-logo";
 import { StockDetail } from "@/components/stock-detail";
-import { StrategicDirective } from "@/components/strategic-directive";
-import { TierCTA } from "@/components/tier-cta";
 import { StockViewTracker } from "@/components/stock-view-tracker";
 import { UnlistedStockShell } from "@/components/unlisted-stock-shell";
 import { PriorityStockModal } from "@/components/priority-stock-modal";
@@ -83,19 +64,6 @@ function hasBriefText(intelligence: StockIntelligenceDoc | null): boolean {
       String(intelligence.thesis ?? "").trim() ||
       String(intelligence.headline ?? "").trim(),
   );
-}
-
-function hasVisualCards(intelligence: StockIntelligenceDoc | null): boolean {
-  const cards = intelligence?.visual_cards;
-  return Boolean(
-    (cards?.catalyst_cards?.length ?? 0) > 0 ||
-      (cards?.drivers?.length ?? 0) > 0 ||
-      (cards?.risk_cards?.length ?? 0) > 0,
-  );
-}
-
-function hasSentimentBreakdown(sentiment: SentimentBreakdown | null | undefined): boolean {
-  return Boolean((sentiment?.lanes?.length ?? 0) > 0 || (sentiment?.sources_breakdown?.length ?? 0) > 0);
 }
 
 function hasDirectiveBrief(intelligence: StockIntelligenceDoc | null): boolean {
@@ -368,12 +336,6 @@ export async function StockPageStream({ params }: Props) {
     : null;
 
   const resolvedOnDemandStatus = onDemandJob?.status;
-  const publicResearchText = String(
-    intelligence?.visual_summary?.what_changed ||
-      intelligence?.today_brief ||
-      intelligence?.headline ||
-      "",
-  ).trim();
   const showAiPreparationState =
     hasFullAnalysisAccess &&
     isTracked &&
@@ -393,24 +355,6 @@ export async function StockPageStream({ params }: Props) {
   const aiCoverageType = intelligence?.coverage_type ?? "";
   const isPriceStaleBrief = hasAI && isSplitScaleStaleBrief(intelligence, stock.price, stock.captured_at);
   const isNoMajorNewsTagged = aiCoverageType === "on_demand_no_news";
-  const hasNewsBackedBrief = hasDirectiveBrief(intelligence);
-  const isFallbackBrief =
-    isNoMajorNewsTagged ||
-    aiSource === "rules" ||
-    aiCoverageType === "on_demand_fallback" ||
-    intelligence?.data_quality?.freshness_status === "pending";
-  const showBriefStatus =
-    hasAI && !isPriceStaleBrief && (!hasBriefText(intelligence) || (isFallbackBrief && !isNoMajorNewsTagged));
-  // Prefer full AI brief when directive/synthesis exists, even if coverage is tagged no-news.
-  const showNoMajorNewsPanel = hasAI && !isPriceStaleBrief && isNoMajorNewsTagged && !hasNewsBackedBrief;
-  const showFullNewsBrief =
-    hasAI &&
-    !isPriceStaleBrief &&
-    !showBriefStatus &&
-    (hasNewsBackedBrief || (hasBriefText(intelligence) && !isNoMajorNewsTagged));
-  void showBriefStatus;
-  void showNoMajorNewsPanel;
-  void showFullNewsBrief;
 
   return (
     <main className="flex min-w-0 w-full flex-grow flex-col">
@@ -425,8 +369,8 @@ export async function StockPageStream({ params }: Props) {
         stock={displayStock}
         market={market}
         currency={currency}
-        directive={hasFullAnalysisAccess ? normalizedDirective : null}
-        visual={hasFullAnalysisAccess ? intelligence?.visual_summary : null}
+        directive={hasFullAnalysisAccess && !isPriceStaleBrief ? normalizedDirective : null}
+        visual={hasFullAnalysisAccess && !isPriceStaleBrief ? intelligence?.visual_summary : null}
         businessQuestions={businessQuestions}
         overview={displayAnomaly ? (anomalyDetail(displayAnomaly) ?? undefined) : undefined}
         overviewHeadline={displayAnomaly ? anomalyHeadline(displayAnomaly) : undefined}
@@ -442,7 +386,7 @@ export async function StockPageStream({ params }: Props) {
         technicalLevels={technicals?.levels}
         priceHistory={priceHistory}
         earnings={hasFullAnalysisAccess ? earningsIntel : null}
-        cards={hasFullAnalysisAccess ? intelligence?.visual_cards : null}
+        cards={hasFullAnalysisAccess && !isPriceStaleBrief ? intelligence?.visual_cards : null}
         sentiment={instrumentView?.sentiment_breakdown}
         peers={instrumentView?.related_tickers}
         betterPeers={betterSectorPeers}
@@ -464,7 +408,20 @@ export async function StockPageStream({ params }: Props) {
         tier={tier}
         premarketQuote={premarketQuote}
         lockedCall={
-          hasBriefText(intelligence) ? (
+          isPriceStaleBrief ? (
+            <section className="rounded-2xl border border-outline-variant bg-surface px-5 py-6 sm:px-7 sm:py-7">
+              <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.15em] text-on-surface-variant">
+                Brief being refreshed
+              </p>
+              <h3 className="mt-3 text-[22px] font-medium tracking-tight text-on-surface sm:text-[24px]">
+                We&apos;re holding back the {stock.ticker} brief
+              </h3>
+              <p className="mt-2 max-w-[62ch] text-[13.5px] leading-relaxed text-on-surface-variant">
+                The last brief was written before a large price change, so its levels may not line up with today&apos;s
+                chart. A fresh brief is being prepared and will publish here automatically.
+              </p>
+            </section>
+          ) : hasBriefText(intelligence) ? (
             <AiSynthesis intelligence={intelligence} />
           ) : showAiPreparationState || showAiStartCoverageState ? (
             <LockedAiBrief
@@ -475,7 +432,6 @@ export async function StockPageStream({ params }: Props) {
               isSubscribed={subscribed}
               isTracked={isTracked}
               onDemandStatus={resolvedOnDemandStatus}
-              onDemandError={onDemandJob?.error}
             />
           ) : null
         }

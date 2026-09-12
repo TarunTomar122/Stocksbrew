@@ -1,3 +1,4 @@
+import { SCORE_BULLISH_MIN, SCORE_NEUTRAL_MIN } from "@/lib/score-display";
 import Link from "next/link";
 import { AnimatedIcon } from "@/components/animated-icon";
 import { ProCtaLink } from "@/components/pro-cta";
@@ -110,17 +111,17 @@ export function todayMasthead(): string {
 
 export function scoreToneText(score: number | null): string {
   if (score === null) return "text-[var(--oa-muted-fg)]";
-  if (score >= 80) return "text-[var(--signal-bullish)]";
-  if (score >= 60) return "text-[var(--oa-fg)]";
-  if (score >= 40) return "text-[var(--oa-muted-fg)]";
+  if (score >= SCORE_BULLISH_MIN) return "text-[var(--signal-bullish)]";
+  if (score >= SCORE_NEUTRAL_MIN) return "text-[var(--oa-fg)]";
+  return "text-[var(--signal-bearish)]";
   return "text-[var(--signal-bearish)]";
 }
 
 export function scoreToneFill(score: number | null): string {
   if (score === null) return "bg-[var(--oa-border)]";
-  if (score >= 80) return "bg-[var(--signal-bullish)]";
-  if (score >= 60) return "bg-[var(--oa-primary)]";
-  if (score >= 40) return "bg-[var(--signal-neutral)]";
+  if (score >= SCORE_BULLISH_MIN) return "bg-[var(--signal-bullish)]";
+  if (score >= SCORE_NEUTRAL_MIN) return "bg-[var(--oa-primary)]";
+  return "bg-[var(--signal-bearish)]";
   return "bg-[var(--signal-bearish)]";
 }
 

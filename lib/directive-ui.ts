@@ -10,6 +10,32 @@ export const SETUP_STATE_LABELS: Record<string, string> = {
   unclear: "Setup",
 };
 
+/** One wording for the directive confidence scale everywhere in the UI. */
+export const CONFIDENCE_LABELS: Record<"high" | "med" | "low", string> = {
+  high: "High confidence",
+  med: "Medium confidence",
+  low: "Low confidence",
+};
+
+export const CONFIDENCE_HINTS: Record<"high" | "med" | "low", string> = {
+  high: "Strong evidence and a clean setup.",
+  med: "Constructive, with some uncertainty.",
+  low: "Weak or incomplete evidence.",
+};
+
+export function normalizeConfidence(value?: string | null): "high" | "med" | "low" | null {
+  const raw = (value ?? "").trim().toLowerCase();
+  if (raw === "high") return "high";
+  if (raw === "medium" || raw === "med") return "med";
+  if (raw === "low") return "low";
+  return null;
+}
+
+export function confidenceLabel(value?: string | null): string | null {
+  const level = normalizeConfidence(value);
+  return level ? CONFIDENCE_LABELS[level] : null;
+}
+
 function normalizeCallPhrase(value: string): string {
   return value.toLowerCase().replace(/[^\w\s]/g, " ").replace(/\s+/g, " ").trim();
 }
@@ -75,7 +101,13 @@ export function normalizeDirectiveForUi(
   const stance = ((raw.stance ?? "watch").trim().toLowerCase() || "watch") as Directive["stance"];
   const confidenceRaw = (raw.confidence ?? "").trim().toLowerCase();
   const confidence: Directive["confidence"] =
-    confidenceRaw === "high" ? "high" : confidenceRaw === "medium" ? "med" : confidenceRaw === "med" ? "med" : "low";
+    confidenceRaw === "high"
+      ? "high"
+      : confidenceRaw === "medium" || confidenceRaw === "med"
+        ? "med"
+        : confidenceRaw === "low"
+          ? "low"
+          : undefined;
   const zones = raw.zones ?? {};
   const add_on =
     zoneFromPrice(zones.accumulate_below, "price_below", "Add below") ??

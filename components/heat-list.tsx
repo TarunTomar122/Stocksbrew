@@ -428,21 +428,40 @@ export function HeatListView({ data, divergence, trackedIds = [], isSubscribed =
             <span className="text-[10px] font-medium uppercase tracking-[0.1em] text-[var(--oa-muted-fg)]">RSI</span>
           </div>
           <div className={`${COL_HEAT} hidden sm:flex shrink-0 justify-end`}>
-            <span className="text-[10px] font-medium uppercase tracking-[0.1em] text-[var(--oa-muted-fg)]">Heat</span>
+            <span
+              className="text-[10px] font-medium uppercase tracking-[0.1em] text-[var(--oa-muted-fg)]"
+              title="Heat score 0-100. Higher means more stretched by volume, momentum or news, not more attractive."
+            >
+              Heat
+            </span>
           </div>
           <div className={`${COL_TRACK} shrink-0`} />
         </div>
 
         <div className="flex flex-col">
-          {tabRows.map((r) => (
-            <TableRow
-              key={r.instrument_id}
-              row={r}
-              trackedIds={trackedIds}
-              isSubscribed={isSubscribed}
-              showReason={activeTab === "catalyst_watch"}
-            />
-          ))}
+          {tabRows.length > 0 ? (
+            tabRows.map((r) => (
+              <TableRow
+                key={r.instrument_id}
+                row={r}
+                trackedIds={trackedIds}
+                isSubscribed={isSubscribed}
+                showReason={activeTab === "catalyst_watch"}
+              />
+            ))
+          ) : (
+            <div
+              role="status"
+              className="rounded-[14px] border border-[var(--oa-bg)] px-4 py-8 text-center"
+            >
+              <p className="text-[14px] font-medium text-[var(--oa-fg)]">
+                No {(SETUP_META[activeTab]?.label ?? "setups").toLowerCase()} names today.
+              </p>
+              <p className="mx-auto mt-1.5 max-w-sm text-[13px] leading-relaxed text-[var(--oa-muted-fg)]">
+                This list refreshes after the next market scan. Other tabs may still have names.
+              </p>
+            </div>
+          )}
         </div>
       </section>
     </div>

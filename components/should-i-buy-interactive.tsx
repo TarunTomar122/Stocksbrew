@@ -106,10 +106,10 @@ function DemoPanel() {
           <SampleCard ticker="TSLA" name="Tesla, Inc." verdict="Hold / watch" score={51} bg="#fef3c7" textColor="#92400e" color="#f59e0b" pillarScores={[38, 52, 58, 44]} />
         </div>
         <div className="absolute inset-0 flex items-center justify-center" style={{ transform: "rotate(3deg) translateY(8px)", opacity: 0.75 }}>
-          <SampleCard ticker="META" name="Meta Platforms" verdict="Buy signal" score={68} bg="#d1fae5" textColor="#065f46" color="#10b981" pillarScores={[55, 68, 74, 65]} />
+          <SampleCard ticker="META" name="Meta Platforms" verdict="Accumulate on pullbacks" score={68} bg="#d1fae5" textColor="#065f46" color="#10b981" pillarScores={[55, 68, 74, 65]} />
         </div>
         <div className="absolute inset-0 flex items-center justify-center" style={{ transform: "rotate(-1deg)" }}>
-          <SampleCard ticker="NVDA" name="NVIDIA Corp." verdict="Strong buy signal" score={84} bg="#ecfdf5" textColor="#065f46" color="#10b981" pillarScores={[48, 78, 83, 91]} />
+          <SampleCard ticker="NVDA" name="NVIDIA Corp." verdict="Accumulate now" score={84} bg="#ecfdf5" textColor="#065f46" color="#10b981" pillarScores={[48, 78, 83, 91]} />
         </div>
       </div>
     </div>
@@ -345,7 +345,7 @@ function FullVerdictPanel({
 
       {/* Share */}
       <div className="flex flex-col gap-2">
-        <p className="oa-mono text-center text-[10px] uppercase tracking-[0.12em] text-oa-muted-fg">Share this signal</p>
+        <p className="oa-mono text-center text-[10px] uppercase tracking-[0.12em] text-oa-muted-fg">Share this view</p>
         <ShouldIBuyShare ticker={ticker} />
       </div>
     </div>
@@ -416,14 +416,14 @@ export function ShouldIBuyInteractive({ searchIndex, isSubscribed }: { searchInd
 
           {/* Verdict legend */}
           <div className="flex flex-col gap-2">
-            <p className="oa-mono text-[10px] uppercase tracking-[0.12em] text-oa-muted-fg">Possible signals</p>
+            <p className="oa-mono text-[10px] uppercase tracking-[0.12em] text-oa-muted-fg">Possible verdicts</p>
             <div className="flex flex-wrap gap-2">
               {[
-                { label: "Strong buy", dot: "#10b981" },
-                { label: "Buy signal", dot: "#34d399" },
-                { label: "Hold",       dot: "#f59e0b" },
+                { label: "Accumulate now", dot: "#10b981" },
+                { label: "Accumulate on pullbacks", dot: "#34d399" },
+                { label: "Hold / watch", dot: "#f59e0b" },
                 { label: "Cautious",   dot: "#f97316" },
-                { label: "Avoid",      dot: "#ef4444" },
+                { label: "Avoid for now", dot: "#ef4444" },
               ].map(({ label, dot }) => (
                 <span key={label} className="inline-flex items-center gap-1.5 rounded-full bg-oa-accent px-3 py-1 text-[11px] font-medium text-oa-fg">
                   <span className="size-1.5 shrink-0 rounded-full" style={{ background: dot }} aria-hidden />

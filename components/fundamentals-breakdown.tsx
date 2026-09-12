@@ -1,5 +1,6 @@
 "use client";
 
+import { scoreColorVar } from "@/lib/score-display";
 import { useState } from "react";
 import { FeedUnlockBar } from "@/components/feed-row-lock-teaser";
 import { metricRelativeTier } from "@/components/percentile-rail";
@@ -16,10 +17,6 @@ const LABEL: Record<Key, string> = {
   quality: "Quality",
 };
 
-function scoreColor(v: number, sufficient = true) {
-  if (!sufficient) return "var(--outline)";
-  return v >= 85 ? "var(--signal-bullish)" : v >= 60 ? "var(--signal-neutral)" : "var(--signal-bearish)";
-}
 
 function metricTone(signal?: string, score?: number | null): string {
   if (signal === "green") return "var(--signal-bullish)";
@@ -274,11 +271,11 @@ export function FundamentalsBreakdown({
     <div className={isSubscribed ? "" : "flex h-full min-h-[32rem] flex-col"}>
       <div className={isSubscribed ? "" : "sm:p-0"}>
         <div>
-          <p className="text-[13px] font-medium text-on-surface-variant">Overall score</p>
+          <p className="text-[13px] font-medium text-on-surface-variant" title="0-100 quality blend of valuation, growth, quality and momentum">Stocksbrew score</p>
           <p className="mt-1.5 flex items-baseline gap-1.5">
             <span
               className="font-mono text-[36px] font-medium leading-none tabular-nums"
-              style={{ color: scoreColor(hasOverall ? overallScore! : 0, hasOverall) }}
+              style={{ color: scoreColorVar(hasOverall ? overallScore! : 0, { insufficient: !hasOverall }) }}
             >
               {hasOverall ? Math.round(overallScore!) : "N/A"}
             </span>
@@ -300,7 +297,7 @@ export function FundamentalsBreakdown({
                 key={key}
                 score={pl.score}
                 coverage={pillarCov}
-                color={scoreColor(pl.score, pillarCov >= 0.5)}
+                color={scoreColorVar(pl.score, { insufficient: pillarCov < 0.5 })}
                 label={LABEL[key]}
                 active={key === active}
                 onClick={() => setActive(key)}

@@ -1,3 +1,4 @@
+import { confidenceLabel } from "@/lib/directive-ui";
 import type { Directive } from "@/lib/stock";
 import { AlertButton } from "@/components/alert-button";
 
@@ -68,7 +69,7 @@ function StrategicDirectiveCard({ ticker, directive, instrumentId }: { ticker: s
           <span className="ml-auto flex items-center gap-3 text-on-surface-variant">
             {directive.confidence && (
               <span>
-                conviction: <span style={{ color: meta.accent }}>{directive.confidence}</span>
+                confidence: <span style={{ color: meta.accent }}>{confidenceLabel(directive.confidence)?.replace(" confidence", "") ?? directive.confidence}</span>
               </span>
             )}
             {showAlert && (

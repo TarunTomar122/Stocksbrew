@@ -1,5 +1,6 @@
 "use client";
 
+import { scoreColorVar } from "@/lib/score-display";
 import Link from "next/link";
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
@@ -317,10 +318,9 @@ function BookPlate({
             >
               <p className="text-[15px] leading-6 text-oa-muted-fg">
                 <span className="font-medium text-oa-fg">
-                  {hiddenCount} more stock{hiddenCount === 1 ? "" : "s"} in your book,
-                  each with its answer line.
+                  Your free plan shows the first {FREE_BOOK_ROWS} stocks in each list. {hiddenCount} more are hidden here.
                 </span>{" "}
-                Pro removes the cap.
+                Pro shows everything you track.
               </p>
               <ProCheckoutButton size="sm" className="h-10 w-full shrink-0 whitespace-nowrap px-5 text-[15px] sm:w-auto">
                 Try Pro
@@ -401,17 +401,23 @@ function ReportingSoon({ cards }: { cards: EarningsCard[] }) {
 
 function ScoreDial({ gradePct }: { gradePct: number }) {
   const bounded = Math.max(0, Math.min(100, gradePct));
-  const color =
-    bounded >= 66 ? "var(--signal-bullish)" : bounded >= 40 ? "var(--on-surface-variant)" : "var(--signal-bearish)";
+  const color = scoreColorVar(bounded);
   return (
     <div
-      aria-hidden="true"
-      className="grid size-20 shrink-0 place-items-center rounded-full"
-      style={{ background: `conic-gradient(${color} 0 ${bounded}%, var(--oa-secondary) ${bounded}% 100%)` }}
+      className="flex shrink-0 flex-col items-center gap-1.5"
+      title="Average Stocksbrew score across your holdings (0-100)"
     >
-      <span className="grid size-[62px] place-items-center rounded-full bg-oa-bg text-center">
-        <strong className="text-[20px] font-medium tabular-nums leading-none text-oa-fg">{Math.round(bounded)}</strong>
-      </span>
+      <div
+        role="img"
+        aria-label={`Portfolio score ${Math.round(bounded)} out of 100`}
+        className="grid size-20 place-items-center rounded-full"
+        style={{ background: `conic-gradient(${color} 0 ${bounded}%, var(--oa-secondary) ${bounded}% 100%)` }}
+      >
+        <span className="grid size-[62px] place-items-center rounded-full bg-oa-bg text-center">
+          <strong className="text-[20px] font-medium tabular-nums leading-none text-oa-fg">{Math.round(bounded)}</strong>
+        </span>
+      </div>
+      <span className="text-[11px] font-medium text-oa-muted-fg">Portfolio score /100</span>
     </div>
   );
 }
@@ -681,8 +687,8 @@ export function WatchlistHub({
 
       <section aria-label="Your book">
         <SectionHead
-          title="The book"
-          sub="Prices, reasons, earnings and buzz on one line each."
+          title="Your Watchlist"
+          sub="Prices, reasons, earnings and buzz on one line each. The chip is our current call: Accumulate, Hold, Watch, Trim or Avoid."
           action={
             <RadarBatchEditModal
               initialItems={rows.map((row) => ({

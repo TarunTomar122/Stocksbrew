@@ -40,8 +40,10 @@ import {
   directiveZonePrice,
   filterChartZones,
   prepareChartZonesForDisplay,
+  resolveCallHeadline,
   resolvePriceAwareCall,
 } from "@/lib/directive-ui";
+import { scoreColorVar } from "@/lib/score-display";
 import { hasRedditBuzzData, StockRedditBuzzRailCard } from "@/components/stock-social-proof-card";
 import { StockPowerTradesCard } from "@/components/stock-power-trades-card";
 import type { PowerTrade } from "@/lib/power-trades";
@@ -210,12 +212,6 @@ function formatEarningsWhen(eventDate: string, time?: string): string {
   return d;
 }
 
-function scoreToneColor(score: number | null): string {
-  if (score == null) return "var(--oa-muted-fg)";
-  if (score >= 80) return "var(--signal-bullish)";
-  if (score >= 60) return "var(--signal-neutral)";
-  return "var(--signal-bearish)";
-}
 
 const SCENARIO_META: Record<EarningsIntelScenario["case"], { label: string; color: string }> = {
   bull: { label: "Bull", color: "var(--signal-bullish)" },
@@ -345,7 +341,7 @@ function LongTailResearchCard({
         </div>
         <div className="absolute inset-0 z-10 flex w-full items-center bg-[color-mix(in_srgb,var(--oa-bg)_72%,transparent)] px-6 py-8 backdrop-blur-[3px] sm:px-10">
           <div className="w-full max-w-xl">
-            <p className={EYEBROW} style={{ color: "var(--oa-primary)" }}>Free research brief</p>
+            <p className={EYEBROW} style={{ color: "var(--oa-primary)" }}>Free AI brief</p>
             <h2 className={H2}>Get the full brief on {ticker}</h2>
             <div className="mt-6 inline-block">
               <TrackButton
@@ -354,13 +350,13 @@ function LongTailResearchCard({
                 tier="free"
                 isSubscribed={isSubscribed}
                 isTracked={isTracked}
-                untrackedLabel="Generate analysis"
+                untrackedLabel={`Track ${ticker} to generate`}
                 signedOutLabel="Sign in to generate"
                 variant="pill"
                 accent
               />
             </div>
-            <p className="mt-3 text-xs text-oa-muted-fg">Free to track. No card required.</p>
+            <p className="mt-3 text-xs text-oa-muted-fg">Free to track. No card required. Usually ready in 10-15 minutes.</p>
           </div>
         </div>
       </div>
@@ -455,6 +451,15 @@ export function StockDetail(props: Props) {
   const headlineBullets = isTrimLikeCall ? flipBullets : whyBullets;
 
   const stanceLabel = stance.charAt(0).toUpperCase() + stance.slice(1);
+  // Show the full call phrasing ("Accumulate on pullbacks") instead of only the
+  // bare stance, and keep the one-line reason ("...price is up 25% from its
+  // recent low, so the first pullback is the better entry") visible.
+  const callHeadline = directive ? resolveCallHeadline(directive) : stanceLabel;
+  const callSummaryRaw = directive?.rationale?.trim() || "";
+  const callSummary =
+    callSummaryRaw && callSummaryRaw.toLowerCase() !== callHeadline.trim().toLowerCase()
+      ? callSummaryRaw
+      : "";
 
   const hist = (priceHistory ?? []).filter((p) => n(p.close));
   const showLongTailResearch = !subscribed && tier === "free";
@@ -494,27 +499,24 @@ export function StockDetail(props: Props) {
   const showWhereItSits = has52WeekRange || hasRsiSlider;
   const pricePositionItemCount = Number(has52WeekRange) + Number(hasRsiSlider);
 
-  const crowdScore = n(sentiment?.overall_score)
-    ? Math.round(sentiment!.overall_score!)
-    : reddit?.sentiment === "bullish"
-      ? 73
-      : reddit?.sentiment === "bearish"
-        ? 35
-        : 50;
+  const hasRealCrowdScore = n(sentiment?.overall_score);
+  const crowdScore = hasRealCrowdScore ? Math.round(sentiment!.overall_score!) : null;
   const crowdLabel =
     sentiment?.overall_label ||
     (reddit?.sentiment ? reddit.sentiment.charAt(0).toUpperCase() + reddit.sentiment.slice(1) : "Mixed");
-  const crowdColor = crowdScore >= 50 ? "var(--signal-bullish)" : "var(--signal-bearish)";
+  const crowdColor =
+    crowdScore != null
+      ? crowdScore >= 50
+        ? "var(--signal-bullish)"
+        : "var(--signal-bearish)"
+      : reddit?.sentiment === "bearish"
+        ? "var(--signal-bearish)"
+        : reddit?.sentiment === "bullish"
+          ? "var(--signal-bullish)"
+          : "var(--oa-muted-fg)";
   const hasCrowdSignal = Boolean(reddit || n(sentiment?.overall_score));
   const hasMarketReddit = Boolean(hasRedditBuzz && reddit);
   const hasPowerTrades = market === "US" && !!powerTrades?.length;
-
-  const analystBarPct =
-    n(target) && target! > 0
-      ? aboveTarget
-        ? 100
-        : Math.min(95, Math.max(8, (stock.price / target!) * 100))
-      : 50;
 
   const epsOutlook = preEarnings ? normalizeEpsOutlook(preEarnings.report?.call?.eps_outlook) : null;
   const postMove = preEarnings ? normalizePostPrintMove(preEarnings.report?.call?.post_print_move) : null;
@@ -720,10 +722,13 @@ export function StockDetail(props: Props) {
                     className="font-medium leading-none tracking-tight text-[2.75rem] sm:text-[4rem]"
                     style={{ color: accent }}
                   >
-                    {stanceLabel}
+                    {callHeadline}
                   </h2>
                   {directive.confidence && <ConvictionDotsInline confidence={directive.confidence} />}
                 </div>
+                {callSummary ? (
+                  <p className="mt-4 max-w-2xl text-[15px] leading-7 text-oa-fg/80">{callSummary}</p>
+                ) : null}
 
                 <div className="mt-8">
                   <VerdictCallChart
@@ -921,12 +926,20 @@ export function StockDetail(props: Props) {
               <div className="min-w-0">
                 <p className={`${EYEBROW} mb-3`}>Analyst consensus</p>
                 {ratingTotal > 0 && (
-                  <p className="text-sm text-oa-muted-fg">
-                    {analyst?.analyst_count ?? ratingTotal} analysts ·{" "}
-                    <span className="font-medium" style={{ color: "var(--signal-bullish)" }}>
-                      {buyPct}% Buy
-                    </span>
-                  </p>
+                  <>
+                    <p className="text-sm text-oa-muted-fg">
+                      {analyst?.analyst_count ?? ratingTotal} analysts ·{" "}
+                      <span className="font-medium" style={{ color: "var(--signal-bullish)" }}>
+                        {buyPct}% Buy
+                      </span>
+                    </p>
+                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-oa-secondary" title={`${buyPct}% of rated analysts say buy`}>
+                      <span
+                        className="block h-full rounded-full"
+                        style={{ width: `${buyPct}%`, background: "var(--signal-bullish)" }}
+                      />
+                    </div>
+                  </>
                 )}
                 {n(target) && (
                   <>
@@ -935,19 +948,7 @@ export function StockDetail(props: Props) {
                         <p className="oa-mono text-[10px] uppercase tracking-[0.08em] text-oa-muted-fg">Now</p>
                         <p className="text-lg font-medium tabular-nums text-oa-fg">{money(stock.price)}</p>
                       </div>
-                      <div className="flex-1 pb-1.5">
-                        <div className="h-2 overflow-hidden rounded-full bg-oa-secondary">
-                          <span
-                            className="block h-full rounded-full"
-                            style={{
-                              width: `${analystBarPct}%`,
-                              background: aboveTarget
-                                ? "linear-gradient(90deg, color-mix(in srgb, var(--signal-bearish) 30%, transparent), var(--signal-bearish))"
-                                : "linear-gradient(90deg, color-mix(in srgb, var(--signal-bullish) 30%, transparent), var(--signal-bullish))",
-                            }}
-                          />
-                        </div>
-                      </div>
+                      <div className="flex-1 pb-1.5" />
                       <div className="text-right">
                         <p className="oa-mono text-[10px] uppercase tracking-[0.08em] text-oa-muted-fg">Target</p>
                         <p
@@ -981,37 +982,45 @@ export function StockDetail(props: Props) {
                     className="grid size-20 shrink-0 place-items-center rounded-full text-center"
                     style={{ background: `color-mix(in srgb, ${crowdColor} 12%, var(--oa-card))`, color: crowdColor }}
                   >
-                    <span className="text-2xl font-medium tabular-nums">{crowdScore}</span>
+                    {crowdScore != null ? (
+                      <span className="text-2xl font-medium tabular-nums">{crowdScore}</span>
+                    ) : (
+                      <span className="px-2 text-sm font-medium capitalize leading-5">{crowdLabel}</span>
+                    )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-3">
-                      <span className="w-14 shrink-0 text-xs font-medium" style={{ color: "var(--signal-bullish)" }}>
-                        Bullish
-                      </span>
-                      <div className="h-2 flex-1 overflow-hidden rounded-full bg-oa-secondary">
-                        <div className="h-full rounded-full" style={{ width: `${crowdScore}%`, background: "var(--signal-bullish)" }} />
-                      </div>
-                      <span className="w-12 shrink-0 text-right text-xs font-medium tabular-nums text-oa-muted-fg">
-                        {crowdScore}%
-                      </span>
-                    </div>
-                    <div className="mt-2 flex items-center gap-3">
-                      <span className="w-14 shrink-0 text-xs font-medium" style={{ color: "var(--signal-bearish)" }}>
-                        Bearish
-                      </span>
-                      <div className="h-2 flex-1 overflow-hidden rounded-full bg-oa-secondary">
-                        <div className="h-full rounded-full" style={{ width: `${100 - crowdScore}%`, background: "var(--signal-bearish)" }} />
-                      </div>
-                      <span className="w-12 shrink-0 text-right text-xs font-medium tabular-nums text-oa-muted-fg">
-                        {100 - crowdScore}%
-                      </span>
-                    </div>
+                    {crowdScore != null ? (
+                      <>
+                        <div className="flex items-center gap-3">
+                          <span className="w-14 shrink-0 text-xs font-medium" style={{ color: "var(--signal-bullish)" }}>
+                            Bullish
+                          </span>
+                          <div className="h-2 flex-1 overflow-hidden rounded-full bg-oa-secondary">
+                            <div className="h-full rounded-full" style={{ width: `${crowdScore}%`, background: "var(--signal-bullish)" }} />
+                          </div>
+                          <span className="w-12 shrink-0 text-right text-xs font-medium tabular-nums text-oa-muted-fg">
+                            {crowdScore}%
+                          </span>
+                        </div>
+                        <div className="mt-2 flex items-center gap-3">
+                          <span className="w-14 shrink-0 text-xs font-medium" style={{ color: "var(--signal-bearish)" }}>
+                            Bearish
+                          </span>
+                          <div className="h-2 flex-1 overflow-hidden rounded-full bg-oa-secondary">
+                            <div className="h-full rounded-full" style={{ width: `${100 - crowdScore}%`, background: "var(--signal-bearish)" }} />
+                          </div>
+                          <span className="w-12 shrink-0 text-right text-xs font-medium tabular-nums text-oa-muted-fg">
+                            {100 - crowdScore}%
+                          </span>
+                        </div>
+                      </>
+                    ) : null}
                     <p className="mt-3 text-sm leading-6 text-oa-muted-fg">
                       Crowd sentiment leans{" "}
                       <span className="font-medium capitalize" style={{ color: crowdColor }}>
                         {crowdLabel.toLowerCase()}
                       </span>
-                      , scoring {crowdScore}/100.
+                      {crowdScore != null ? `, scoring ${crowdScore}/100.` : "."}
                     </p>
                   </div>
                 </div>
@@ -1023,7 +1032,7 @@ export function StockDetail(props: Props) {
                   ticker={stock.ticker}
                   reddit={reddit}
                   isSubscribed={subscribed}
-                  crowdScore={hasCrowdSignal ? crowdScore : null}
+                  crowdScore={crowdScore}
                   crowdLabel={hasCrowdSignal ? crowdLabel : null}
                   crowdColor={crowdColor}
                 />
@@ -1102,11 +1111,11 @@ export function StockDetail(props: Props) {
                     <>
                       {" "}
                       <span className="oa-mono text-xs text-oa-muted-fg">
-                        confidence:{" "}
+                        report confidence:{" "}
                         {preEarnings.report.confidence.score_0_100 >= 70
                           ? "high"
                           : preEarnings.report.confidence.score_0_100 >= 40
-                            ? "med"
+                            ? "medium"
                             : "low"}
                       </span>
                     </>
@@ -1213,7 +1222,7 @@ export function StockDetail(props: Props) {
                     <th className="px-4 py-3 text-right font-medium">
                       {showPeerRevenueGrowth ? "Rev growth" : "Price"}
                     </th>
-                    <th className="px-4 py-3 text-right font-medium">Score</th>
+                    <th className="px-4 py-3 text-right font-medium" title="Stocksbrew score (0-100)">Score</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1259,7 +1268,7 @@ export function StockDetail(props: Props) {
                         </td>
                         <td className="px-4 py-3.5 text-right">
                           {peer.score != null ? (
-                            <span className="oa-mono font-medium tabular-nums" style={{ color: scoreToneColor(peer.score) }}>
+                            <span className="oa-mono font-medium tabular-nums" style={{ color: scoreColorVar(peer.score) }}>
                               {peer.score}
                             </span>
                           ) : (

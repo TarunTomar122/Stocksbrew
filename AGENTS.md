@@ -96,6 +96,18 @@ Do not save secrets, credentials, private keys, raw environment values, personal
 
 For every task that writes, edits, refactors, fixes, or generates code in this project, delegate all code-writing work to a subagent using `gpt-5.6-luna` with `max` reasoning effort, unless the user explicitly asks for a different model or reasoning effort. The primary agent may inspect, plan, review, test, and integrate the work. If Luna Max is unavailable, tell the user instead of silently substituting another model.
 
+## Mandatory quality pass before completion
+
+This is a standing user rule. Upon completing any work, spawn a subagent to do a full and thorough quality pass through it for any remaining bugs, issues, or quality-of-life improvements. Do this before the final response, without waiting to be asked. The quality pass must cover:
+
+1. Correctness: edge cases, off-by-one errors, null/empty handling, concurrency, and error paths in the changed code.
+2. Regressions: anything the change could break elsewhere (callers, tests, jobs, UI states).
+3. Data safety: no stale, partial, or inconsistent writes; no secrets or tokens printed or committed.
+4. Quality of life: naming, comments, dead code, inconsistent copy, unclear UX, and small improvements worth proposing.
+5. Verification: run the relevant tests, typecheck, and lint where available, and report anything that was not run.
+
+Report the subagent's findings to the user, fix confirmed issues before finishing, and list anything intentionally left open. If a subagent cannot be spawned for some reason, say so explicitly and do the pass directly instead of skipping it.
+
 ## Vercel commit identity
 
 Commits deployed to the `yourtraceonline-5491s-projects` Vercel team must use `Tarun Tomar <yourtrace.online@gmail.com>` as the Git author. The `ttomar@adobe.com` identity is not a member of that team and causes Vercel deployments to be blocked.

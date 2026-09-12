@@ -63,7 +63,7 @@ function MaskedCall() {
       <div className="mt-2 flex items-end gap-3">
         <span className="h-[2.1rem] w-[8.5rem] rounded-md bg-[repeating-linear-gradient(-45deg,var(--oa-secondary),var(--oa-secondary)_6px,var(--oa-bg)_6px,var(--oa-bg)_12px)]" />
         <span className="mb-1 flex gap-1">
-          {[0, 1, 2, 3, 4].map((i) => (
+          {[0, 1, 2].map((i) => (
             <span key={i} className="h-1.5 w-1.5 rounded-full bg-oa-secondary" />
           ))}
         </span>
@@ -97,7 +97,7 @@ function VerdictUnlockCard({
   error: string | null;
 }) {
   const onClick = signedIn ? onGetPro : onSignIn;
-  const label = signedIn ? "Unlock full research" : "See the full research";
+  const label = signedIn ? "Unlock the full brief" : "See the full brief";
   const subtext = hasTrial
     ? `Free for 3 days, then ${US_PRO_MONTHLY_MO}. Cancel anytime.`
     : signedIn
@@ -108,10 +108,10 @@ function VerdictUnlockCard({
     <div className="mx-auto w-full max-w-[24rem] text-left">
       <div className="flex items-center gap-2.5">
         <span className="grid size-8 place-items-center rounded-full border border-oa-border bg-oa-bg"><LockIcon /></span>
-        <p className="text-[17px] font-medium tracking-tight text-oa-fg">See the full {ticker} research</p>
+        <p className="text-[17px] font-medium tracking-tight text-oa-fg">See the full {ticker} brief</p>
       </div>
       <ul className="mt-4 space-y-2 text-sm leading-6 text-oa-muted-fg">
-        {["Buy, hold or avoid view", "Entry, target and exit prices", "News, earnings and price alerts"].map((item) => (
+        {["Our call: accumulate, hold, trim or avoid", "Add zone, target and trim zone levels", "News, earnings and price alerts"].map((item) => (
           <li key={item} className="flex items-start gap-2">
             <span className="mt-[9px] size-1.5 shrink-0 rounded-full" style={{ background: "var(--signal-bullish)" }} aria-hidden />
             {item}

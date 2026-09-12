@@ -1,30 +1,34 @@
 import type { ReactNode } from "react";
 
+import { CONFIDENCE_HINTS, CONFIDENCE_LABELS, normalizeConfidence } from "@/lib/directive-ui";
+
 function convictionDots(confidence: string) {
-  const level = confidence.toLowerCase();
-  if (level === "high") return { filled: 3, color: "var(--signal-bullish)", label: "HIGH CONVICTION" };
-  if (level === "med" || level === "medium") return { filled: 2, color: "var(--accent-terminal)", label: "MED CONVICTION" };
-  return { filled: 1, color: "var(--on-surface-variant)", label: "LOW CONVICTION" };
+  const level = normalizeConfidence(confidence);
+  if (level === "high") return { filled: 3, color: "var(--signal-bullish)", label: CONFIDENCE_LABELS.high, hint: CONFIDENCE_HINTS.high };
+  if (level === "med") return { filled: 2, color: "var(--accent-terminal)", label: CONFIDENCE_LABELS.med, hint: CONFIDENCE_HINTS.med };
+  if (level === "low") return { filled: 1, color: "var(--on-surface-variant)", label: CONFIDENCE_LABELS.low, hint: CONFIDENCE_HINTS.low };
+  return null;
 }
 
-export function ConvictionDotsInline({ confidence }: { confidence: string }) {
-  const { filled, color, label } = convictionDots(confidence);
+export function ConvictionDotsInline({ confidence }: { confidence?: string | null }) {
+  const dots = confidence ? convictionDots(confidence) : null;
+  if (!dots) return null;
   return (
-    <div className="flex flex-col gap-1 pt-1">
-      <div className="flex gap-1" role="img" aria-label={label}>
+    <div className="flex flex-col gap-1 pt-1" title={dots.hint}>
+      <div className="flex gap-1" role="img" aria-label={`${dots.label}. ${dots.hint}`}>
         {[1, 2, 3].map((i) => (
           <span
             key={i}
             aria-hidden
             className="h-2.5 w-2.5 rounded-full"
             style={{
-              background: i <= filled ? color : "transparent",
-              boxShadow: i <= filled ? undefined : "inset 0 0 0 1px var(--outline-variant)",
+              background: i <= dots.filled ? dots.color : "transparent",
+              boxShadow: i <= dots.filled ? undefined : "inset 0 0 0 1px var(--outline-variant)",
             }}
           />
         ))}
       </div>
-      <span className="font-mono text-[10px] uppercase text-on-surface-variant">{label}</span>
+      <span className="font-mono text-[10px] uppercase text-on-surface-variant">{dots.label}</span>
     </div>
   );
 }
