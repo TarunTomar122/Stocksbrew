@@ -372,7 +372,20 @@ export function TrackButton({
           }`}
           title={label}
         >
-          <RadarTrackIcon tracked={localTracked} />
+          <span className="t-icon-swap" data-state={localTracked ? "b" : "a"} aria-hidden>
+            <span className="t-icon" data-icon="a">
+              <svg width={18} height={18} viewBox="0 0 20 20" fill="none">
+                <circle cx="10" cy="10" r="8.25" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M10 6.5v7M6.5 10h7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </span>
+            <span className="t-icon" data-icon="b">
+              <svg width={18} height={18} viewBox="0 0 20 20" fill="none">
+                <circle cx="10" cy="10" r="9" fill="currentColor" />
+                <path d="M6.5 10.5 9 13l4.5-5.5" stroke="white" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+          </span>
         </button>
       ) : (
         <div className="flex flex-col gap-1.5">

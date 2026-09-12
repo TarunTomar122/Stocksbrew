@@ -54,6 +54,8 @@ import type { LivePremarketQuote } from "@/lib/premarket-shared";
 import type { StockIntelPro } from "@/lib/types";
 import type { StockTechnicalLevels } from "@/lib/technicals";
 import type { StockBusinessQuestionsDoc } from "@/lib/stock";
+import { AnimatedNumber } from "@/components/animated-number";
+import { AnimatedAccordion } from "@/components/animated-accordion";
 
 type RedditCtx = { sentiment?: string; summary?: string; mention_count?: number; catalysts?: string[] } | null;
 
@@ -676,7 +678,7 @@ export function StockDetail(props: Props) {
           </div>
           <div className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <span className="text-3xl font-medium tabular-nums tracking-tight text-oa-fg sm:text-4xl">
-              {money(stock.price)}
+              <AnimatedNumber text={money(stock.price)} />
             </span>
             <span
               className="oa-mono text-[15px] font-medium tabular-nums"
@@ -838,30 +840,13 @@ export function StockDetail(props: Props) {
             title={<>Understand {stock.ticker} in plain English</>}
             sub="Plain-English answers to the questions that actually matter before you put money in."
           />
-          <div>
-            {businessQuestions.questions.map(({ question, answer }, index) => (
-              <details
-                name={`${stock.instrument_id}-business-questions`}
-                key={question}
-                open={index === 0}
-                className="group border-b border-oa-border last:border-b-0"
-              >
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-5 marker:content-none">
-                  <span className="flex items-baseline gap-3 text-[18px] font-medium leading-snug text-oa-fg">
-                    <span className="oa-mono tabular-nums text-base text-oa-muted-fg">{String(index + 1).padStart(2, "0")}</span>
-                    {question}
-                  </span>
-                  <span
-                    aria-hidden
-                    className="shrink-0 text-lg text-oa-muted-fg transition-transform duration-200 ease-out group-hover:text-oa-fg group-open:rotate-45"
-                  >
-                    +
-                  </span>
-                </summary>
-                <p className="max-w-3xl pb-6 pr-8 text-[17px] leading-8 text-oa-muted-fg group-open:block">{answer}</p>
-              </details>
-            ))}
-          </div>
+          <AnimatedAccordion
+            items={businessQuestions.questions.map(({ question, answer }, index) => ({
+              id: `${stock.instrument_id}-q${index}`,
+              question,
+              answer,
+            }))}
+          />
         </section>
       ) : null}
 

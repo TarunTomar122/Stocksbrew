@@ -17,6 +17,7 @@ import {
 } from "@/lib/brand-copy";
 import { Providers } from "./providers";
 import "./globals.css";
+import "./styles/transitions.css";
 
 const SESSION_COOKIE_NAME = "tikrr_session";
 const GA_MEASUREMENT_ID =

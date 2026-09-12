@@ -202,17 +202,21 @@ function BriefReadyAlertButton({ ticker, instrumentId }: { ticker: string; instr
   if (!user) return null;
 
   async function toggle() {
-    if (state === "on") {
+    try {
+      if (state === "on") {
+        setState("loading");
+        const rows = await fetchStockAlerts(instrumentId);
+        const row = rows.find((r) => r.kind === briefReadyAlertKey());
+        if (row?.id) await deleteStockAlert(row.id);
+        setState("idle");
+        return;
+      }
       setState("loading");
-      const rows = await fetchStockAlerts(instrumentId);
-      const row = rows.find((r) => r.kind === briefReadyAlertKey());
-      if (row?.id) await deleteStockAlert(row.id);
-      setState("idle");
-      return;
+      const result = await createStockAlert({ instrument_id: instrumentId, ticker, kind: "brief_ready" });
+      setState(result.ok ? "on" : "error");
+    } catch {
+      setState("error");
     }
-    setState("loading");
-    const result = await createStockAlert({ instrument_id: instrumentId, ticker, kind: "brief_ready" });
-    setState(result.ok ? "on" : "error");
   }
 
   return (
@@ -220,7 +224,9 @@ function BriefReadyAlertButton({ ticker, instrumentId }: { ticker: string; instr
       type="button"
       onClick={toggle}
       disabled={state === "loading"}
-      className="inline-flex items-center gap-2 rounded-full border px-4 py-2.5 text-[13px] font-medium transition-colors disabled:cursor-default disabled:opacity-60"
+      className={`inline-flex items-center gap-2 rounded-full border px-4 py-2.5 text-[13px] font-medium transition-colors disabled:cursor-default disabled:opacity-60 ${
+        state === "error" ? "t-shake" : ""
+      }`}
       style={
         state === "on"
           ? {
@@ -235,7 +241,22 @@ function BriefReadyAlertButton({ ticker, instrumentId }: { ticker: string; instr
             }
       }
     >
-      <AnimatedIcon name="bell" size={14} aria-hidden />
+      {state === "on" ? (
+        <span className="t-success-check t-success-check--mini" data-state="in" aria-hidden>
+          <svg width={14} height={14} viewBox="0 0 20 20" fill="none">
+            <circle cx="10" cy="10" r="8.25" stroke="currentColor" strokeWidth="1.5" />
+            <path
+              d="M6.5 10.5 9 13l4.5-5.5"
+              stroke="currentColor"
+              strokeWidth="1.75"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </span>
+      ) : (
+        <AnimatedIcon name="bell" size={14} aria-hidden />
+      )}
       {state === "on" ? "We'll email you" : state === "error" ? "Could not set alert" : "Email me when ready"}
     </button>
   );
