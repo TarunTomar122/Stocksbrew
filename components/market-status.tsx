@@ -6,7 +6,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { AnimatedIcon } from "@/components/animated-icon";
 import { CountdownClock } from "@/components/countdown-clock";
-import { countdownTickMs, formatNextOpenLabel, getMarketSessionState } from "@/lib/market-session";
+import {
+  countdownTickMs,
+  formatNextOpenLabel,
+  formatNextOpenPhrase,
+  getMarketSessionState,
+} from "@/lib/market-session";
 import {
   getMarketStatusBannerCopy,
   marketStatusStateLabel,
@@ -108,7 +113,33 @@ export function MarketStatusTab({ nowIso }: { nowIso: string }) {
   const headline = poked && copy.quip ? copy.quip : copy.headline;
 
   const ctaClass =
-    "group inline-flex h-10 shrink-0 items-center gap-2 rounded-full bg-oa-primary px-4 text-[13px] font-medium text-oa-primary-fg transition-transform duration-200 hover:-translate-y-0.5 motion-reduce:transform-none active:translate-y-0";
+    "group inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full bg-oa-primary px-4 text-[13px] font-medium text-oa-primary-fg transition-transform duration-200 hover:-translate-y-0.5 motion-reduce:transform-none active:translate-y-0";
+  const cta = copy.cta.external ? (
+    <a
+      href={copy.cta.href}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={() => trackCta("floating", copy.state, destination)}
+      className={`${ctaClass} w-full sm:w-auto`}
+    >
+      {copy.cta.label}
+      <span className="transition-transform duration-200 group-hover:translate-x-0.5" aria-hidden>
+        →
+      </span>
+      <span className="sr-only"> (opens in a new tab)</span>
+    </a>
+  ) : (
+    <Link
+      href={copy.cta.href}
+      onClick={() => trackCta("floating", copy.state, destination)}
+      className={`${ctaClass} w-full sm:w-auto`}
+    >
+      {copy.cta.label}
+      <span className="transition-transform duration-200 group-hover:translate-x-0.5" aria-hidden>
+        →
+      </span>
+    </Link>
+  );
 
   return (
     <div
@@ -120,8 +151,8 @@ export function MarketStatusTab({ nowIso }: { nowIso: string }) {
       <div className="t-acc" data-open={open ? "true" : "false"}>
         <div id="market-status-panel" className="t-acc-panel" role="region" aria-label="Market status">
           <div className="t-acc-panel-inner">
-            <div className="mb-2.5 rounded-[20px] border border-oa-border bg-oa-card p-4 shadow-[0_16px_44px_rgba(15,23,42,0.16)] sm:p-5">
-              <div className="flex items-start gap-3.5">
+            <div className="mb-2.5 w-[min(34rem,calc(100vw-2rem))] rounded-[22px] border border-oa-border bg-oa-card p-4 shadow-[0_18px_50px_rgba(15,23,42,0.18)] sm:p-5">
+              <div className="flex items-start gap-4">
                 {copy.quip ? (
                   <button
                     type="button"
@@ -139,46 +170,27 @@ export function MarketStatusTab({ nowIso }: { nowIso: string }) {
                     <AnimatedIcon name={iconName} size={22} />
                   </div>
                 )}
-                <div className="min-w-0">
-                  <p className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-                    <span className="rounded-full bg-oa-accent px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-oa-muted-fg">
-                      {copy.badge}
-                    </span>
-                    <span className="text-[15px] font-medium text-oa-fg">{headline}</span>
+
+                <div className="min-w-0 flex-1">
+                  <span className="rounded-full bg-oa-accent px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-oa-muted-fg">
+                    {copy.badge}
+                  </span>
+                  <p className="mt-2 text-[16px] font-medium leading-snug text-oa-fg sm:text-[17px]">
+                    {headline}
                   </p>
+
                   {showClock ? (
-                    <div className="mt-3 flex flex-wrap items-center gap-3">
+                    <div className="mt-4">
                       <CountdownClock msLeft={session.msToOpen} />
-                      <span className="text-[12px] text-oa-muted-fg">
-                        Next open: {formatNextOpenLabel(new Date(nowMs))}
-                      </span>
+                      <p className="mt-2.5 text-[12.5px] text-oa-muted-fg">
+                        Market opens {formatNextOpenPhrase(new Date(nowMs))}
+                      </p>
                     </div>
                   ) : null}
+
+                  <div className="mt-5">{cta}</div>
                 </div>
-              </div>
-              <div className="mt-4 flex justify-end">
-                {copy.cta.external ? (
-                  <a
-                    href={copy.cta.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => trackCta("floating", copy.state, destination)}
-                    className={ctaClass}
-                  >
-                    {copy.cta.label}
-                    <span className="transition-transform duration-200 group-hover:translate-x-0.5" aria-hidden>
-                      →
-                    </span>
-                    <span className="sr-only"> (opens in a new tab)</span>
-                  </a>
-                ) : (
-                  <Link href={copy.cta.href} onClick={() => trackCta("floating", copy.state, destination)} className={ctaClass}>
-                    {copy.cta.label}
-                    <span className="transition-transform duration-200 group-hover:translate-x-0.5" aria-hidden>
-                      →
-                    </span>
-                  </Link>
-                )}
+                </div>
               </div>
             </div>
           </div>
@@ -190,24 +202,28 @@ export function MarketStatusTab({ nowIso }: { nowIso: string }) {
           onClick={() => setOpen((current) => !current)}
           aria-expanded={open}
           aria-controls="market-status-panel"
-          className="mx-auto flex h-11 cursor-pointer items-center gap-2.5 rounded-full border border-oa-border bg-oa-card px-3.5 text-[12px] font-medium text-oa-fg shadow-[0_10px_30px_rgba(15,23,42,0.16)] transition-transform duration-200 hover:-translate-y-0.5 motion-reduce:transform-none active:translate-y-0"
+          className="mx-auto flex h-11 cursor-pointer items-center gap-2.5 rounded-full border border-oa-border bg-oa-card px-3.5 text-[12.5px] font-medium text-oa-fg shadow-[0_10px_30px_rgba(15,23,42,0.16)] transition-transform duration-200 hover:-translate-y-0.5 motion-reduce:transform-none active:translate-y-0"
         >
           <AnimatedIcon name={iconName} size={15} />
-          <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-oa-muted-fg">
-            {copy.badge}
+          <span>
+            Market opens in <span className="oa-mono tabular-nums">{session.countdown}</span>
           </span>
-          <span className="oa-mono tabular-nums text-oa-muted-fg">opens in {session.countdown}</span>
           <span
             aria-hidden
             className={`text-oa-muted-fg transition-transform duration-200 ${open ? "" : "rotate-180"}`}
           >
             <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-              <path d="M3.5 6 8 10.5 12.5 6" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+              <path
+                d="M3.5 6 8 10.5 12.5 6"
+                stroke="currentColor"
+                strokeWidth="1.75"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </svg>
           </span>
         </button>
       </div>
-    </div>
   );
 }
 

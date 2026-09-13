@@ -6,6 +6,7 @@ import {
   etWallTimeToUtcMs,
   formatCountdown,
   formatNextOpenLabel,
+  formatNextOpenPhrase,
   getMarketSessionState,
 } from "@/lib/market-session";
 import { getMarketStatusBannerCopy } from "@/lib/market-status-copy";
@@ -132,6 +133,11 @@ describe("countdown clock helpers", () => {
     const ms = ((2 * 24 + 14) * 3600 + 3 * 60 + 9) * 1000;
     expect(countdownParts(ms)).toEqual({ days: 2, hours: 14, minutes: 3, seconds: 9 });
     expect(countdownParts(-500)).toEqual({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+  });
+
+  it("phrases the next open as a sentence tail", () => {
+    expect(formatNextOpenPhrase(et(2026, 9, 9, 8, 0))).toBe("at 9:30 AM ET");
+    expect(formatNextOpenPhrase(et(2026, 9, 13, 12, 0))).toBe("Monday, Sep 14 at 9:30 AM ET");
   });
 
   it("labels the next open in ET", () => {

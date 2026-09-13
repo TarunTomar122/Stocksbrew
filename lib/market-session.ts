@@ -237,6 +237,24 @@ export function formatNextOpenLabel(ref = new Date()): string {
   return `${day}, ${time} ET`;
 }
 
+/** Sentence phrase for the next open: "today at 9:30 AM ET" / "Monday, Sep 14 at 9:30 AM ET". */
+export function formatNextOpenPhrase(ref = new Date()): string {
+  const target = nextOpenAt(ref);
+  const time = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(target);
+  if (marketDateIso("US", target) === marketDateIso("US", ref)) return `at ${time} ET`;
+  const day = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+  }).format(target);
+  return `${day} at ${time} ET`;
+}
+
 /** How often the UI needs to re-render to keep the countdown honest. */
 export function countdownTickMs(msToOpen: number): number {
   if (msToOpen < 3_600_000) return 1_000;
