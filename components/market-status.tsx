@@ -113,7 +113,7 @@ export function MarketStatusTab({ nowIso }: { nowIso: string }) {
   return (
     <div
       ref={paneRef}
-      className={`fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] left-1/2 z-[60] w-max max-w-[calc(100vw-1.5rem)] -translate-x-1/2 ${
+      className={`oa-app fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] left-1/2 z-[60] w-max max-w-[calc(100vw-1.5rem)] -translate-x-1/2 ${
         requiresLift ? "sm:bottom-24" : "sm:bottom-6"
       }`}
     >
@@ -247,11 +247,11 @@ export function MarketStatusInline({
   } else if (session.kind === "premarket") {
     text = `Opens in ${session.countdown}`;
   } else if (session.kind === "afterhours") {
-    text = "After hours";
+    text = `After hours · opens in ${session.countdown}`;
   } else if (session.kind === "holiday") {
-    text = `Closed for ${session.holidayName ?? "the holiday"}`;
+    text = `Closed for ${session.holidayName ?? "the holiday"} · opens in ${session.countdown}`;
   } else {
-    text = "Market closed";
+    text = `Market closed · opens in ${session.countdown}`;
   }
 
   const open = session.kind === "open";
@@ -261,7 +261,7 @@ export function MarketStatusInline({
       <span
         tabIndex={0}
         aria-describedby={`market-status-tip-${surface}`}
-        className="t-tt-trigger inline-flex cursor-default items-center gap-1.5 rounded-full border border-oa-border bg-oa-card px-2.5 py-1 text-[11px] font-medium text-oa-muted-fg"
+        className="t-tt-trigger inline-flex cursor-default items-center gap-1.5 rounded-full border border-oa-border bg-oa-card px-2.5 py-1 text-[11px] font-medium text-oa-fg/75"
       >
         <span aria-hidden className="relative flex size-2 shrink-0">
           {open ? (
@@ -270,7 +270,7 @@ export function MarketStatusInline({
               <span className="relative inline-flex size-2 rounded-full" style={{ background: "var(--signal-bullish)" }} />
             </>
           ) : (
-            <span className="relative inline-flex size-2 rounded-full bg-oa-muted-fg/60" />
+            <span className="relative inline-flex size-2 rounded-full bg-oa-muted-fg" />
           )}
         </span>
         <AnimatedIcon name={open ? "sun" : "sun-moon"} size={13} />

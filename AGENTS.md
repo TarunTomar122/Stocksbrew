@@ -96,6 +96,17 @@ Do not save secrets, credentials, private keys, raw environment values, personal
 
 For every task that writes, edits, refactors, fixes, or generates code in this project, delegate all code-writing work to a subagent using `gpt-5.6-luna` with `max` reasoning effort, unless the user explicitly asks for a different model or reasoning effort. The primary agent may inspect, plan, review, test, and integrate the work. If Luna Max is unavailable, tell the user instead of silently substituting another model.
 
+## Mandatory frontend visual verification
+
+This is a standing user rule. Never approve or ship a frontend change based on typecheck, lint, tests, or SSR HTML alone. Before the final response, look at the actual rendered UI:
+
+1. Capture screenshots of every affected page or component, on **desktop and mobile viewports** (for example 1280x900 and 390x844).
+2. Exercise the interactive states that matter: expanded/collapsed, hover, open menu, empty state, dark mode, error state.
+3. Check for overlap and stacking problems against existing fixed/sticky elements (mobile nav, chat composer, modals, banners), transparent backgrounds from scoped design tokens (the `--oa-*` tokens only exist under `.oa-landing` / `.oa-app`), clipped text, and contrast.
+4. Report what was verified and paste or attach the screenshots when anything visual changed.
+
+A working setup in this environment: Chrome for Testing from `~/Library/Caches/ms-playwright/chromium-1234/chrome-mac-arm64/..."` driven via CDP (see the throwaway helper at `/var/folders/.../T/opencode/shot.mjs`), or `--headless=new --screenshot=... --window-size=W,H`. Read the PNG back with the Read tool and inspect it before approving.
+
 ## Mandatory quality pass before completion
 
 This is a standing user rule. Upon completing any work, spawn a subagent to do a full and thorough quality pass through it for any remaining bugs, issues, or quality-of-life improvements. Do this before the final response, without waiting to be asked. The quality pass must cover:
