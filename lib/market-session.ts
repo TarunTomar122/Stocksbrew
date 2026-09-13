@@ -1,4 +1,4 @@
-import { marketClockParts } from "@/lib/premarket-shared";
+import { marketClockParts, marketDateIso } from "@/lib/premarket-shared";
 
 /**
  * US equity market session state for the web UI: open / premarket /
@@ -195,6 +195,46 @@ export function millisecondsUntilNextOpen(ref = new Date()): number {
   }
   const openMs = etWallTimeToUtcMs(Number(target.year), Number(target.month), Number(target.day), 9, 30);
   return Math.max(0, openMs - ref.getTime());
+}
+
+export type CountdownParts = {
+  days: number;
+  hours: number;
+  minutes: number;
+  seconds: number;
+};
+
+export function countdownParts(ms: number): CountdownParts {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  return {
+    days: Math.floor(totalSeconds / 86_400),
+    hours: Math.floor((totalSeconds % 86_400) / 3_600),
+    minutes: Math.floor((totalSeconds % 3_600) / 60),
+    seconds: totalSeconds % 60,
+  };
+}
+
+/** When the next opening bell rings, as a Date. */
+export function nextOpenAt(ref = new Date()): Date {
+  return new Date(ref.getTime() + millisecondsUntilNextOpen(ref));
+}
+
+/** Human label for the next open in ET, e.g. "9:30 AM ET" or "Monday, Sep 14, 9:30 AM ET". */
+export function formatNextOpenLabel(ref = new Date()): string {
+  const target = nextOpenAt(ref);
+  const time = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(target);
+  if (marketDateIso("US", target) === marketDateIso("US", ref)) return `${time} ET`;
+  const day = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+  }).format(target);
+  return `${day}, ${time} ET`;
 }
 
 export function formatCountdown(ms: number): string {

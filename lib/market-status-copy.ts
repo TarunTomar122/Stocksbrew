@@ -7,6 +7,8 @@ export type MarketStatusSurface = "home" | "pulse" | "watchlist" | "stock";
 export type MarketStatusBannerCopy = {
   badge: string;
   headline: string;
+  /** Swapped in for a few seconds when the icon disc is poked. */
+  quip?: string;
   cta: { label: string; href: string; external?: boolean };
   state: string;
 };
@@ -27,6 +29,7 @@ export function getMarketStatusBannerCopy(session: MarketSessionState): MarketSt
         return {
           badge: "Weekend",
           headline: "Markets are closed. Go touch some grass.",
+          quip: "Ok. One more chart. Then grass.",
           cta: {
             label: "Want to be ready for Monday? Catch up on the news",
             href: yourtraceUrl("weekend"),
@@ -39,6 +42,7 @@ export function getMarketStatusBannerCopy(session: MarketSessionState): MarketSt
         return {
           badge: "Weekend",
           headline: "Still Sunday. Nothing's moving except the clock.",
+          quip: "Still here? Respect. The market isn't.",
           cta: {
             label: "Monday prep: catch up on the news",
             href: yourtraceUrl("weekend"),
@@ -50,6 +54,7 @@ export function getMarketStatusBannerCopy(session: MarketSessionState): MarketSt
       return {
         badge: "Weekend",
         headline: "Markets are closed for the weekend.",
+        quip: "Logging off is a valid strategy.",
         cta: {
           label: "Want to be ready for Monday? Catch up on the news",
           href: yourtraceUrl("weekend"),
@@ -61,6 +66,7 @@ export function getMarketStatusBannerCopy(session: MarketSessionState): MarketSt
       return {
         badge: "Market holiday",
         headline: `U.S. markets are closed for ${session.holidayName ?? "the holiday"}.`,
+        quip: "Even the market takes the day off.",
         cta: {
           label: "Catch up on the news before the next session",
           href: yourtraceUrl("holiday"),
@@ -79,6 +85,7 @@ export function getMarketStatusBannerCopy(session: MarketSessionState): MarketSt
       return {
         badge: "After hours",
         headline: "That's a wrap.",
+        quip: "Log off. The news will keep.",
         cta: { label: "Catch up on what moved today", href: "/pulse" },
         state: "afterhours",
       };
