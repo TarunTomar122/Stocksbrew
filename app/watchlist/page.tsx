@@ -144,6 +144,7 @@ async function WatchlistStream() {
     <>
       <RadarPageAnalytics state="active" trackedCount={hubRows.length} isSubscribed={isSubscribed} />
       <WatchlistHub
+        nowIso={new Date().toISOString()}
         rows={hubRows}
         earningsCards={earningsCards}
         health={health}

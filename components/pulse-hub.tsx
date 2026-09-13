@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 
 import { PriceChart } from "@/components/price-chart";
+import { MarketStatusBanner } from "@/components/market-status";
 import { RangeBar, RsiStrength } from "@/components/range-bar";
 import { RedditBuzzCard } from "@/components/reddit-buzz-card";
 import { confidenceLabel } from "@/lib/directive-ui";
@@ -1066,6 +1067,7 @@ function ProPlate() {
 
 /* ── page ───────────────────────────────────────────────────────────────── */
 export function PulseHub({
+  nowIso,
   items,
   premarketMovers,
   premarketReport,
@@ -1074,6 +1076,7 @@ export function PulseHub({
   redditTickers = [],
   redditPostCount,
 }: {
+  nowIso: string;
   items: ScannerItem[];
   premarketMovers?: PremarketMovers | null;
   premarketReport?: OpeningReport | null;
@@ -1096,6 +1099,7 @@ export function PulseHub({
     <div
       className={`mx-auto w-full max-w-[76rem] flex flex-col gap-12 px-0 py-8 sm:gap-16 sm:px-6 sm:py-12`}
     >
+      <MarketStatusBanner nowIso={nowIso} surface="pulse" />
       <OpensPlate
         movers={premarketMovers ?? null}
         report={premarketReport ?? null}

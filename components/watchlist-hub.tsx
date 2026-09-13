@@ -1,6 +1,7 @@
 "use client";
 
 import { scoreColorVar } from "@/lib/score-display";
+import { MarketStatusBanner } from "@/components/market-status";
 import Link from "next/link";
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
@@ -674,15 +675,17 @@ export type WatchlistHubProps = {
 };
 
 export function WatchlistHub({
+  nowIso,
   rows,
   earningsCards,
   health,
   ideas,
   isSubscribed,
   freeLimit,
-}: WatchlistHubProps) {
+}: WatchlistHubProps & { nowIso: string }) {
   return (
     <div className={`mx-auto w-full max-w-[76rem] flex flex-col gap-10 px-0 pb-36 pt-8 sm:gap-12 sm:pb-36 sm:px-6 sm:pt-10`}>
+      <MarketStatusBanner nowIso={nowIso} surface="watchlist" />
       <ReportingSoon cards={earningsCards} />
 
       <section aria-label="Your book">

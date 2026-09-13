@@ -55,6 +55,7 @@ import type { StockIntelPro } from "@/lib/types";
 import type { StockTechnicalLevels } from "@/lib/technicals";
 import type { StockBusinessQuestionsDoc } from "@/lib/stock";
 import { AnimatedNumber } from "@/components/animated-number";
+import { MarketStatusInline } from "@/components/market-status";
 import { AnimatedAccordion } from "@/components/animated-accordion";
 
 type RedditCtx = { sentiment?: string; summary?: string; mention_count?: number; catalysts?: string[] } | null;
@@ -697,6 +698,7 @@ export function StockDetail(props: Props) {
               </a>
             ) : null}
           </div>
+          <MarketStatusInline nowIso={new Date().toISOString()} surface="stock" className="mt-2" />
           {premarketQuote ? (
             <div className="mt-3">
               <StockPremarketQuote currency={currency} market={market} quote={premarketQuote} />

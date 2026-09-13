@@ -28,7 +28,7 @@ type MarketClockParts = {
   second: string;
 };
 
-function marketClockParts(
+export function marketClockParts(
   market: "US" | "IN",
   ref = new Date(),
 ): MarketClockParts {
