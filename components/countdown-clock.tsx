@@ -17,7 +17,7 @@ export function CountdownClock({ msLeft }: { msLeft: number }) {
       {cells.map((cell) => (
         <span key={cell.key} className="t-clock-cell">
           <span className="oa-mono text-[20px] font-semibold leading-6 tabular-nums text-oa-fg">
-            <AnimatedNumber text={cell.value} />
+            {cell.key === "s" ? cell.value : <AnimatedNumber text={cell.value} />}
           </span>
           <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-oa-muted-fg">{cell.label}</span>
         </span>

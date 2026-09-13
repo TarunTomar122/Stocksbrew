@@ -153,7 +153,12 @@ describe("countdown clock helpers", () => {
 describe("countdown cadence", () => {
   it("ticks fast under an hour, slower beyond", () => {
     expect(countdownTickMs(30 * 60_000)).toBe(1_000);
-    expect(countdownTickMs(9 * 3_600_000)).toBe(30_000);
+    expect(countdownTickMs(9 * 3_600_000)).toBe(15_000);
     expect(countdownTickMs(2 * 86_400_000)).toBe(300_000);
+  });
+
+  it("always ticks every second when a seconds cell is visible", () => {
+    expect(countdownTickMs(2 * 86_400_000, true)).toBe(1_000);
+    expect(countdownTickMs(9 * 3_600_000, true)).toBe(1_000);
   });
 });

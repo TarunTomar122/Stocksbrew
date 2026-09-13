@@ -66,7 +66,7 @@ export function MarketStatusTab({ nowIso }: { nowIso: string }) {
   const session = getMarketSessionState(new Date(nowMs));
   const copy = getMarketStatusBannerCopy(session);
   const needsTick = Boolean(copy) && session.kind !== "open";
-  const tickMs = countdownTickMs(session.msToOpen);
+  const tickMs = countdownTickMs(session.msToOpen, open);
   const requiresLift = Boolean(pathname?.startsWith("/watchlist"));
   const { poked, poke } = usePokeQuip(copy?.quip);
 

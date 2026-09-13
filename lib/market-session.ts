@@ -255,10 +255,13 @@ export function formatNextOpenPhrase(ref = new Date()): string {
   return `${day} at ${time} ET`;
 }
 
-/** How often the UI needs to re-render to keep the countdown honest. */
-export function countdownTickMs(msToOpen: number): number {
-  if (msToOpen < 3_600_000) return 1_000;
-  if (msToOpen < 86_400_000) return 30_000;
+/**
+ * How often the UI needs to re-render to keep the countdown honest.
+ * Pass `showSeconds` when a seconds cell is on screen.
+ */
+export function countdownTickMs(msToOpen: number, showSeconds = false): number {
+  if (showSeconds || msToOpen < 3_600_000) return 1_000;
+  if (msToOpen < 86_400_000) return 15_000;
   return 300_000;
 }
 

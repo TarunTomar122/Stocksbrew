@@ -15,6 +15,7 @@ export type MarketStatusBannerCopy = {
 
 function yourtraceUrl(campaign: "weekend" | "holiday") {
   const params = new URLSearchParams({
+    q: "markets",
     utm_source: "stocksbrew",
     utm_medium: "market_status",
     utm_campaign: campaign,
