@@ -2,7 +2,7 @@ import type { MarketSessionState } from "@/lib/market-session";
 
 export const YOURTRACE_FEED = "https://yourtrace.online/feed";
 
-export type MarketStatusSurface = "home" | "pulse" | "watchlist" | "stock";
+export type MarketStatusSurface = "home" | "pulse" | "watchlist" | "stock" | "floating";
 
 export type MarketStatusBannerCopy = {
   badge: string;

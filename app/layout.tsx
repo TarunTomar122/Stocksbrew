@@ -8,6 +8,7 @@ import { GeistMono } from "geist/font/mono";
 import { Analytics } from "@vercel/analytics/next";
 
 import { Footer } from "@/components/footer";
+import { MarketStatusTab } from "@/components/market-status";
 import { getSessionUser } from "@/lib/auth-server";
 import { getCurrentMarket } from "@/lib/market";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
@@ -231,6 +232,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             <FooterData />
           </Suspense>
         </Providers>
+        <MarketStatusTab nowIso={new Date().toISOString()} />
         <Analytics />
       </body>
     </html>

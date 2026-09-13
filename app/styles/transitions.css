@@ -267,61 +267,6 @@
   }
 }
 
-/* ── card tilt (market status card) ────────────────────────────────────────── */
-
-:root {
-  --tilt-perspective: 900px;
-  --tilt-return: 500ms;
-  --tilt-return-ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --tilt-follow: 120ms;
-  --tilt-follow-ease: linear;
-  --tilt-glare-opacity: 0.28;
-  --tilt-glare-fade: 300ms;
-  --tilt-glare-ease: cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.t-tilt {
-  touch-action: pan-y;
-}
-.t-tilt-card {
-  position: relative;
-  transform:
-    perspective(var(--tilt-perspective))
-    rotateX(var(--tilt-rx, 0deg))
-    rotateY(var(--tilt-ry, 0deg));
-  transform-style: preserve-3d;
-  transition: transform var(--tilt-return) var(--tilt-return-ease);
-}
-.t-tilt-card.is-tilting {
-  transition: transform var(--tilt-follow) var(--tilt-follow-ease);
-}
-.t-tilt-glare {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0;
-  border-radius: inherit;
-  background:
-    radial-gradient(circle 110px at var(--tilt-gx, 50%) var(--tilt-gy, 50%),
-      color-mix(in srgb, var(--oa-primary) 16%, transparent), transparent 82%),
-    radial-gradient(circle 260px at var(--tilt-gx, 50%) var(--tilt-gy, 50%),
-      color-mix(in srgb, var(--oa-primary) 7%, transparent), transparent 88%);
-  transition: opacity var(--tilt-glare-fade) var(--tilt-glare-ease);
-}
-.t-tilt.is-hover .t-tilt-glare {
-  opacity: var(--tilt-glare-opacity);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .t-tilt-card {
-    transform: none !important;
-    transition: none !important;
-  }
-  .t-tilt.is-hover .t-tilt-glare {
-    opacity: 0;
-  }
-}
-
 /* ── tooltip (stock status chip) ───────────────────────────────────────────── */
 
 :root {

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   countdownParts,
+  countdownTickMs,
   etWallTimeToUtcMs,
   formatCountdown,
   formatNextOpenLabel,
@@ -140,5 +141,13 @@ describe("countdown clock helpers", () => {
     expect(formatNextOpenLabel(et(2026, 9, 9, 8, 0))).toBe("9:30 AM ET");
     // Friday night -> Monday with the date.
     expect(formatNextOpenLabel(et(2026, 9, 11, 21, 0))).toBe("Monday, Sep 14, 9:30 AM ET");
+  });
+});
+
+describe("countdown cadence", () => {
+  it("ticks fast under an hour, slower beyond", () => {
+    expect(countdownTickMs(30 * 60_000)).toBe(1_000);
+    expect(countdownTickMs(9 * 3_600_000)).toBe(30_000);
+    expect(countdownTickMs(2 * 86_400_000)).toBe(300_000);
   });
 });

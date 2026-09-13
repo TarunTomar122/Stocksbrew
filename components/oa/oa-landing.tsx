@@ -2,7 +2,6 @@ import { Inter_Tight } from "next/font/google";
 
 import { Disclosure } from "@/components/oa/disclosure";
 import { OaSiteHeader } from "@/components/oa/oa-site-header";
-import { MarketStatusBanner } from "@/components/market-status";
 import { OaHeroSearch } from "@/components/oa/oa-hero-search";
 import { OaButton } from "@/components/oa/button";
 import { StartFreeButton } from "@/components/oa/start-free-button";
@@ -398,14 +397,11 @@ export async function OaLanding() {
     listMarketDailyEditions(3).catch(() => []),
   ]);
 
-  const marketNowIso = new Date().toISOString();
-
   return (
     <main className={`oa-landing ${interTight.variable} min-w-0 flex-grow overflow-x-clip`}>
       <OaSiteHeader />
 
       <div className={FRAME}>
-        <MarketStatusBanner nowIso={marketNowIso} surface="home" className="mt-8" />
         {/* hero */}
         <section className="grid grid-cols-1 items-center gap-10 pb-4 pt-10 sm:gap-14 sm:pt-16 lg:grid-cols-[1.05fr_0.95fr]">
           <div>

@@ -237,6 +237,13 @@ export function formatNextOpenLabel(ref = new Date()): string {
   return `${day}, ${time} ET`;
 }
 
+/** How often the UI needs to re-render to keep the countdown honest. */
+export function countdownTickMs(msToOpen: number): number {
+  if (msToOpen < 3_600_000) return 1_000;
+  if (msToOpen < 86_400_000) return 30_000;
+  return 300_000;
+}
+
 export function formatCountdown(ms: number): string {
   const totalSeconds = Math.max(0, Math.round(ms / 1000));
   const days = Math.floor(totalSeconds / 86_400);

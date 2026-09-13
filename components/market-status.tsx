@@ -1,19 +1,18 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { AnimatedIcon } from "@/components/animated-icon";
 import { CountdownClock } from "@/components/countdown-clock";
-import { formatNextOpenLabel, getMarketSessionState } from "@/lib/market-session";
+import { countdownTickMs, formatNextOpenLabel, getMarketSessionState } from "@/lib/market-session";
 import {
   getMarketStatusBannerCopy,
   marketStatusStateLabel,
   type MarketStatusSurface,
 } from "@/lib/market-status-copy";
 import { captureEvent } from "@/lib/posthog";
-
-const TILT_MAX_DEG = 3.5;
 
 function parseNowMs(nowIso: string): number {
   const parsed = new Date(nowIso).getTime();
@@ -48,168 +47,171 @@ function usePokeQuip(quip?: string) {
   return { poked, poke };
 }
 
-export function MarketStatusBanner({
-  nowIso,
-  surface,
-  className,
-}: {
-  nowIso: string;
-  surface: MarketStatusSurface;
-  className?: string;
-}) {
+/**
+ * Floating bottom tab: collapsed pill on every page, expands into the full
+ * market-status card. Hidden entirely while the regular session is live.
+ */
+export function MarketStatusTab({ nowIso }: { nowIso: string }) {
   const [nowMs, setNowMs] = useState(() => parseNowMs(nowIso));
-  const [tiltEnabled, setTiltEnabled] = useState(false);
-  const [hovering, setHovering] = useState(false);
-  const cardRef = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const paneRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const pathname = usePathname();
 
   const session = getMarketSessionState(new Date(nowMs));
   const copy = getMarketStatusBannerCopy(session);
   const needsTick = Boolean(copy) && session.kind !== "open";
+  const tickMs = countdownTickMs(session.msToOpen);
+  const requiresLift = Boolean(pathname?.startsWith("/watchlist"));
   const { poked, poke } = usePokeQuip(copy?.quip);
 
   useEffect(() => {
     setNowMs(Date.now());
-    const hoverFine = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    setTiltEnabled(hoverFine && !reduced);
   }, []);
 
   useEffect(() => {
     if (!needsTick) return;
-    const id = window.setInterval(() => setNowMs(Date.now()), 1000);
+    const id = window.setInterval(() => setNowMs(Date.now()), tickMs);
     return () => window.clearInterval(id);
-  }, [needsTick]);
+  }, [needsTick, tickMs]);
 
   useEffect(() => {
     if (!copy) return;
-    trackImpression(surface, copy.state);
+    trackImpression("floating", copy.state);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [copy?.state, surface]);
+  }, [copy?.state]);
 
-  const handleMove = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      if (!tiltEnabled) return;
-      const card = cardRef.current;
-      if (!card) return;
-      const rect = card.getBoundingClientRect();
-      const px = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
-      const py = Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height));
-      card.style.setProperty("--tilt-ry", `${(px - 0.5) * 2 * TILT_MAX_DEG}deg`);
-      card.style.setProperty("--tilt-rx", `${(0.5 - py) * 2 * TILT_MAX_DEG}deg`);
-      card.style.setProperty("--tilt-gx", `${px * 100}%`);
-      card.style.setProperty("--tilt-gy", `${py * 100}%`);
-    },
-    [tiltEnabled],
-  );
-
-  const resetTilt = useCallback(() => {
-    setHovering(false);
-    const card = cardRef.current;
-    if (!card) return;
-    card.classList.remove("is-tilting");
-    card.style.setProperty("--tilt-rx", "0deg");
-    card.style.setProperty("--tilt-ry", "0deg");
-  }, []);
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
+    };
+    const onPointerDown = (event: PointerEvent) => {
+      if (paneRef.current && !paneRef.current.contains(event.target as Node)) setOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("pointerdown", onPointerDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("pointerdown", onPointerDown);
+    };
+  }, [open]);
 
   if (!copy) return null;
 
   const destination = copy.cta.external ? "yourtrace_feed" : copy.cta.href;
   const iconName = session.kind === "premarket" ? "sun" : "sun-moon";
-  const countdownMs = session.msToOpen;
   const showClock = session.kind === "weekend" || session.kind === "holiday" || session.kind === "afterhours";
   const headline = poked && copy.quip ? copy.quip : copy.headline;
 
+  const ctaClass =
+    "group inline-flex h-10 shrink-0 items-center gap-2 rounded-full bg-oa-primary px-4 text-[13px] font-medium text-oa-primary-fg transition-transform duration-200 hover:-translate-y-0.5 motion-reduce:transform-none active:translate-y-0";
+
   return (
     <div
-      className={`t-tilt ${hovering ? "is-hover" : ""} ${className ?? ""}`}
-      onPointerMove={handleMove}
-      onPointerEnter={() => {
-        setHovering(true);
-        if (tiltEnabled) cardRef.current?.classList.add("is-tilting");
-      }}
-      onPointerLeave={resetTilt}
-      onPointerCancel={resetTilt}
+      ref={paneRef}
+      className={`fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] left-1/2 z-[60] w-max max-w-[calc(100vw-1.5rem)] -translate-x-1/2 ${
+        requiresLift ? "sm:bottom-24" : "sm:bottom-6"
+      }`}
     >
-      <div
-        ref={cardRef}
-        className="t-tilt-card flex flex-col gap-4 rounded-[18px] border border-oa-border bg-oa-card px-4 py-4 sm:flex-row sm:items-center sm:gap-6 sm:px-6 sm:py-5"
-      >
-        <div className="t-tilt-glare" aria-hidden />
-
-        {copy.quip ? (
-          <button
-            type="button"
-            onClick={poke}
-            aria-label="One more thing"
-            className="grid size-12 shrink-0 cursor-pointer place-items-center rounded-full border border-oa-border bg-oa-bg text-oa-fg transition-transform duration-200 hover:-translate-y-0.5 motion-reduce:transform-none active:translate-y-0"
-          >
-            <AnimatedIcon name={iconName} size={24} />
-          </button>
-        ) : (
-          <div
-            aria-hidden
-            className="grid size-12 shrink-0 place-items-center rounded-full border border-oa-border bg-oa-bg text-oa-fg"
-          >
-            <AnimatedIcon name={iconName} size={24} />
+      <div className="t-acc" data-open={open ? "true" : "false"}>
+        <div id="market-status-panel" className="t-acc-panel" role="region" aria-label="Market status">
+          <div className="t-acc-panel-inner">
+            <div className="mb-2.5 rounded-[20px] border border-oa-border bg-oa-card p-4 shadow-[0_16px_44px_rgba(15,23,42,0.16)] sm:p-5">
+              <div className="flex items-start gap-3.5">
+                {copy.quip ? (
+                  <button
+                    type="button"
+                    onClick={poke}
+                    aria-label="One more thing"
+                    className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-full border border-oa-border bg-oa-bg text-oa-fg transition-transform duration-200 hover:-translate-y-0.5 motion-reduce:transform-none active:translate-y-0"
+                  >
+                    <AnimatedIcon name={iconName} size={22} />
+                  </button>
+                ) : (
+                  <div
+                    aria-hidden
+                    className="grid size-11 shrink-0 place-items-center rounded-full border border-oa-border bg-oa-bg text-oa-fg"
+                  >
+                    <AnimatedIcon name={iconName} size={22} />
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <p className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+                    <span className="rounded-full bg-oa-accent px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-oa-muted-fg">
+                      {copy.badge}
+                    </span>
+                    <span className="text-[15px] font-medium text-oa-fg">{headline}</span>
+                  </p>
+                  {showClock ? (
+                    <div className="mt-3 flex flex-wrap items-center gap-3">
+                      <CountdownClock msLeft={session.msToOpen} />
+                      <span className="text-[12px] text-oa-muted-fg">
+                        Next open: {formatNextOpenLabel(new Date(nowMs))}
+                      </span>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+              <div className="mt-4 flex justify-end">
+                {copy.cta.external ? (
+                  <a
+                    href={copy.cta.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => trackCta("floating", copy.state, destination)}
+                    className={ctaClass}
+                  >
+                    {copy.cta.label}
+                    <span className="transition-transform duration-200 group-hover:translate-x-0.5" aria-hidden>
+                      →
+                    </span>
+                    <span className="sr-only"> (opens in a new tab)</span>
+                  </a>
+                ) : (
+                  <Link href={copy.cta.href} onClick={() => trackCta("floating", copy.state, destination)} className={ctaClass}>
+                    {copy.cta.label}
+                    <span className="transition-transform duration-200 group-hover:translate-x-0.5" aria-hidden>
+                      →
+                    </span>
+                  </Link>
+                )}
+              </div>
+            </div>
           </div>
-        )}
+        </div>
 
-        <div className="min-w-0 flex-1">
-          <span className="t-stagger t-stagger-enter">
-            <span className="t-stagger-line">
-              <span className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-                <span className="rounded-full bg-oa-accent px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-oa-muted-fg">
-                  {copy.badge}
-                </span>
-                <span className="text-[16px] font-medium text-oa-fg sm:text-[17px]">{headline}</span>
-              </span>
-            </span>
-            {showClock ? (
-              <span className="t-stagger-line t-stagger-line--2 mt-3">
-                <span className="flex flex-wrap items-center gap-3">
-                  <CountdownClock msLeft={countdownMs} />
-                  <span className="hidden text-[12px] text-oa-muted-fg sm:inline">
-                    Next open: {formatNextOpenLabel(new Date(nowMs))}
-                  </span>
-                </span>
-              </span>
-            ) : null}
+        <button
+          ref={triggerRef}
+          type="button"
+          onClick={() => setOpen((current) => !current)}
+          aria-expanded={open}
+          aria-controls="market-status-panel"
+          className="mx-auto flex h-11 cursor-pointer items-center gap-2.5 rounded-full border border-oa-border bg-oa-card px-3.5 text-[12px] font-medium text-oa-fg shadow-[0_10px_30px_rgba(15,23,42,0.16)] transition-transform duration-200 hover:-translate-y-0.5 motion-reduce:transform-none active:translate-y-0"
+        >
+          <AnimatedIcon name={iconName} size={15} />
+          <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-oa-muted-fg">
+            {copy.badge}
           </span>
-        </div>
-
-        <div className="flex shrink-0 flex-wrap items-center gap-3">
-          {copy.cta.external ? (
-            <a
-              href={copy.cta.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => trackCta(surface, copy.state, destination)}
-              className="group inline-flex h-10 items-center gap-2 rounded-full bg-oa-primary px-4 text-[13px] font-medium text-oa-primary-fg transition-transform duration-200 hover:-translate-y-0.5 motion-reduce:transform-none active:translate-y-0"
-            >
-              {copy.cta.label}
-              <span className="transition-transform duration-200 group-hover:translate-x-0.5" aria-hidden>
-                →
-              </span>
-              <span className="sr-only"> (opens in a new tab)</span>
-            </a>
-          ) : (
-            <Link
-              href={copy.cta.href}
-              onClick={() => trackCta(surface, copy.state, destination)}
-              className="group inline-flex h-10 items-center gap-2 rounded-full bg-oa-primary px-4 text-[13px] font-medium text-oa-primary-fg transition-transform duration-200 hover:-translate-y-0.5 motion-reduce:transform-none active:translate-y-0"
-            >
-              {copy.cta.label}
-              <span className="transition-transform duration-200 group-hover:translate-x-0.5" aria-hidden>
-                →
-              </span>
-            </Link>
-          )}
-        </div>
+          <span className="oa-mono tabular-nums text-oa-muted-fg">opens in {session.countdown}</span>
+          <span
+            aria-hidden
+            className={`text-oa-muted-fg transition-transform duration-200 ${open ? "" : "rotate-180"}`}
+          >
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+              <path d="M3.5 6 8 10.5 12.5 6" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </span>
+        </button>
       </div>
     </div>
   );
 }
 
+/** Compact chip for stock headers: pulsing dot + tooltip with the next open. */
 export function MarketStatusInline({
   nowIso,
   surface,
@@ -222,6 +224,7 @@ export function MarketStatusInline({
   const [nowMs, setNowMs] = useState(() => parseNowMs(nowIso));
   const session = getMarketSessionState(new Date(nowMs));
   const needsTick = session.kind !== "open";
+  const tickMs = countdownTickMs(session.msToOpen);
 
   useEffect(() => {
     setNowMs(Date.now());
@@ -229,9 +232,9 @@ export function MarketStatusInline({
 
   useEffect(() => {
     if (!needsTick) return;
-    const id = window.setInterval(() => setNowMs(Date.now()), 1000);
+    const id = window.setInterval(() => setNowMs(Date.now()), tickMs);
     return () => window.clearInterval(id);
-  }, [needsTick]);
+  }, [needsTick, tickMs]);
 
   useEffect(() => {
     trackImpression(surface, marketStatusStateLabel(session));

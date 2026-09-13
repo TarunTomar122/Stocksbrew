@@ -65,7 +65,6 @@ export async function PulseHubStream() {
   return (
     <div className="landing-stream-in">
       <PulseHub
-        nowIso={new Date().toISOString()}
         items={data.items}
         premarketMovers={premarketLive ? premarketDoc : null}
         premarketReport={premarketLive ? premarketReport : null}
