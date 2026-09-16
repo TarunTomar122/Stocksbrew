@@ -53,7 +53,7 @@ def build_brief_state(payload: dict[str, Any]) -> dict[str, Any]:
     ticker = str(payload.get("ticker") or (instrument_id.split("_", 1)[-1] if "_" in instrument_id else ""))
     return {
         "ticker": ticker,
-        "current_price": payload.get("current_price") or directive.get("price_at_call"),
+        "current_price": payload.get("current_price"),
         "headline": str(payload.get("headline") or ""),
         "thesis": str(payload.get("thesis") or ""),
         "what_changed": str((payload.get("visual_summary") or {}).get("what_changed") or ""),

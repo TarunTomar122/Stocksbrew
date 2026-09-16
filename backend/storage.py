@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from backend.env import load_backend_env, resolve_backend_path
+from backend.jev_qa import gate_brief
 from backend.localdb.firestore import LocalFirestoreClient
 from backend.stock_page_view import merge_stock_view_sections
 from backend.price_history import latest_price_history
@@ -1512,6 +1513,8 @@ class TraceMoneyStore:
             result = gate_brief(payload)
             if result:
                 payload["jev_qa"] = result
+            else:
+                payload.pop("jev_qa", None)
                 if result["decision"] == "hold":
                     print(
                         "jev_qa_hold",

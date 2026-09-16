@@ -66,3 +66,38 @@ class JevQaTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+    def test_storage_wiring_calls_gate(self) -> None:
+        from backend import storage as storage_module
+
+        captured: list[dict] = []
+        with patch.object(storage_module, "gate_brief", side_effect=lambda payload: {"decision": "publish", "input_tokens": 1, "evaluated_at": "x", **{"correct_company": 0.9, "prices_sane": 0.9, "evidence_supported": 0.9}}):
+            class BareStore:
+                _attach_jev_qa = storage_module.TraceMoneyStore._attach_jev_qa
+
+            bare = BareStore()
+            payload = {"instrument_id": "US_KO", "ticker": "KO"}
+            BareStore._attach_jev_qa(bare, [payload])
+        self.assertEqual(captured, [])
+        # gate_brief was stubbed at module level, so the payload gets the field.
+
+
+    def test_storage_wiring_fail_open(self) -> None:
+        """The storage wiring must import gate_brief and survive its failure."""
+        from backend import storage as storage_module
+
+        class BareStore:
+            _attach_jev_qa = storage_module.TraceMoneyStore._attach_jev_qa
+
+        payload = {"instrument_id": "US_KO", "ticker": "KO"}
+        with patch.object(storage_module, "gate_brief", side_effect=TimeoutError("boom")):
+            bare = BareStore()
+            bare._attach_jev_qa([payload])  # must not raise
+            self.assertNotIn("jev_qa", payload)
+
+        payload_ok = {"instrument_id": "US_KO", "ticker": "KO"}
+        fake = {"decision": "publish", "correct_company": 0.9, "prices_sane": 0.9, "evidence_supported": 0.9, "input_tokens": 10, "evaluated_at": "now"}
+        with patch.object(storage_module, "gate_brief", return_value=fake):
+            BareStore()._attach_jev_qa([payload_ok])
+        self.assertEqual(payload_ok.get("jev_qa", {}).get("decision"), "publish")
