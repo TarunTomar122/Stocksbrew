@@ -1007,7 +1007,7 @@ export function StockDetail(props: Props) {
                       <span className="font-medium capitalize" style={{ color: crowdColor }}>
                         {crowdLabel.toLowerCase()}
                       </span>
-                      {crowdScore != null ? `, scoring ${crowdScore}/100.` : "."}
+                      .
                     </p>
                   </div>
                 </div>
