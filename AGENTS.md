@@ -92,10 +92,6 @@ For any task that changes code, data, infrastructure, deployment, product behavi
 
 Do not save secrets, credentials, private keys, raw environment values, personal data, or unnecessarily large command output. Routine read-only answers do not require a manual handoff when hooks are healthy.
 
-## Coding model
-
-For every task that writes, edits, refactors, fixes, or generates code in this project, delegate all code-writing work to a subagent using `gpt-5.6-luna` with `max` reasoning effort, unless the user explicitly asks for a different model or reasoning effort. The primary agent may inspect, plan, review, test, and integrate the work. If Luna Max is unavailable, tell the user instead of silently substituting another model.
-
 ## Mandatory frontend visual verification
 
 This is a standing user rule. Never approve or ship a frontend change based on typecheck, lint, tests, or SSR HTML alone. Before the final response, look at the actual rendered UI:
