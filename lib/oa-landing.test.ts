@@ -8,12 +8,13 @@ function source(path: string): string {
 }
 
 describe("homepage live proof movers", () => {
-  it("passes every anomaly through without narrative or row-count filtering", () => {
+  it("only shows movers with a research-backed narrative", () => {
     const landing = source("components/oa/oa-landing.tsx");
 
-    expect(landing).toContain("const movers = anomaliesDoc?.anomalies ?? [];");
+    expect(landing).toContain("(anomaliesDoc?.anomalies ?? []).filter(");
+    expect(landing).toContain("hasResearchBackedNarrative");
     expect(landing).not.toContain(
-      "const movers = (anomaliesDoc?.anomalies ?? [])\n    .filter((a) => !isWeakMoveExplanation(a) && !hasUnverifiedNarrative(a))\n    .slice(0, 5);",
+      "const movers = anomaliesDoc?.anomalies ?? [];",
     );
   });
 });
