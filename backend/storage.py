@@ -1462,6 +1462,7 @@ class TraceMoneyStore:
 
     def save_stock_intelligence_docs(self, market: str, universe_id: str, docs_payload: list[dict[str, Any]]) -> None:
         namespace = self._news_namespace(market, universe_id)
+        self._attach_jev_qa(docs_payload)
         self._replace_subcollection(namespace, "stock_intelligence", docs_payload, "instrument_id")
         self.append_directive_history(market, docs_payload)
         for start in range(0, len(docs_payload), 200):
@@ -1480,6 +1481,7 @@ class TraceMoneyStore:
 
     def upsert_stock_intelligence_docs(self, market: str, universe_id: str, docs_payload: list[dict[str, Any]]) -> None:
         namespace = self._news_namespace(market, universe_id)
+        self._attach_jev_qa(docs_payload)
         for payload in docs_payload:
             instrument_id = str(payload.get("instrument_id") or "")
             if instrument_id:
@@ -1494,6 +1496,30 @@ class TraceMoneyStore:
             "last_on_demand_stock_intelligence_at": datetime.now(timezone.utc).isoformat(),
             "last_on_demand_stock_intelligence_count": len(docs_payload),
         }, merge=True)
+
+    def _attach_jev_qa(self, docs_payload: list[dict[str, Any]]) -> None:
+        """Shadow QA gate: attach `jev_qa` to each brief before it is written.
+
+        Fail-open: without TYPESAFE_API_KEY, or on any error, briefs publish
+        exactly as before. The result travels with the doc so the UI can later
+        surface holds without re-querying.
+        """
+        if not docs_payload:
+            return
+        from concurrent.futures import ThreadPoolExecutor
+
+        def run(payload: dict[str, Any]) -> None:
+            result = gate_brief(payload)
+            if result:
+                payload["jev_qa"] = result
+                if result["decision"] == "hold":
+                    print(
+                        "jev_qa_hold",
+                        {"instrument_id": payload.get("instrument_id"), "correct_company": result["correct_company"], "prices_sane": result["prices_sane"], "evidence_supported": result["evidence_supported"]},
+                    )
+
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            list(pool.map(run, docs_payload))
 
     def list_stock_intelligence_docs(self, market: str, universe_id: str) -> list[dict[str, Any]]:
         docs = self._news_namespace(market, universe_id).collection("stock_intelligence").stream()
