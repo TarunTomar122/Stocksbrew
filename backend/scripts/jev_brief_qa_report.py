@@ -42,7 +42,7 @@ def main() -> None:
         return result
 
     with ThreadPoolExecutor(max_workers=8) as pool:
-        results = list(pool.map(run, docs[: max(len(docs), 1)]))
+        results = list(pool.map(run, docs))
 
     scored = [r for r in results if r]
     held = [r for r in scored if r["decision"] == "hold"]
