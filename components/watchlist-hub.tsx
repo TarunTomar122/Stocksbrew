@@ -20,6 +20,7 @@ import {
 } from "@/lib/product-analytics";
 import { US_PRO_MONTHLY } from "@/lib/pricing";
 import { PRO_POINTS } from "@/lib/subscribe-benefits";
+import { firstSentence } from "@/lib/earnings-facts";
 import type { IdeaCard } from "@/components/radar-next/types";
 import type { HealthProps } from "@/lib/radar-next-data";
 import type { EarningsCard, HubRow } from "@/lib/watchlist-hub-data";
@@ -33,10 +34,6 @@ const FREE_BOOK_ROWS = 4;
 
 function money(v: number) {
   return v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function firstSentence(value: string): string {
-  return value.trim().match(/^.*?[.!?](?:\s|$)/)?.[0].trim() || value.trim();
 }
 
 function reasonText(value: string, ticker: string, name: string): string {
@@ -179,7 +176,7 @@ function BookRow({ row }: { row: HubRow }) {
           {row.stance ? <StanceChip stance={row.stance} accent={row.needs_attention} /> : null}
         </div>
         {row.reason_line ? (
-          <p className="mt-0.5 truncate text-[14px] leading-5 text-oa-fg sm:text-[13.5px]">
+          <p className="mt-0.5 whitespace-normal break-words text-[14px] leading-5 text-oa-fg sm:text-[13.5px]">
             {reasonText(row.reason_line, row.ticker, row.name)}
           </p>
         ) : null}

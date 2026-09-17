@@ -28,6 +28,7 @@ export function isDisplayableMove(item: AnomalyItem): boolean {
 }
 
 const WEAK_MOVE_HEADLINE = "No clear company-specific driver surfaced yet.";
+const PLACEHOLDER_ONLY = /^[-—]+$/;
 const GENERIC_HEADLINE_PATTERNS = [
   /\bis a top (?:up|down) mover\b/i,
   /\bis moving (?:higher|lower)\b/i,
@@ -65,6 +66,7 @@ export function isWeakMoveExplanation(item: AnomalyItem): boolean {
   if (!explanation) return false;
   if (["unclear", "price_context", "no_verified_catalyst"].includes(String(explanation.cause_type || "").toLowerCase())) return true;
   const headline = String(explanation.headline || "").trim();
+  if (PLACEHOLDER_ONLY.test(headline)) return true;
   if (headline === WEAK_MOVE_HEADLINE || headline.startsWith("No clear company-specific")) return true;
   const why = String(explanation.why_it_matters || "").trim();
   return why.startsWith("The move is large, but current internal");

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   anomalyDetail,
   anomalyHeadline,
+  hasResearchBackedNarrative,
   hasUnverifiedNarrative,
   isWeakMoveExplanation,
   splitDisplayableMoves,
@@ -87,6 +88,18 @@ describe("anomalyDetail", () => {
     expect(topMoverHeadline(row)).toBe("SMR is a top up mover in Utilities.");
     expect(anomalyHeadline(row)).toBe("--");
     expect(anomalyDetail(row)).toBeNull();
+  });
+
+  it("does not treat a placeholder headline as a researched reason", () => {
+    const row = item({
+      narrative_status: "verified",
+      move_explanation: {
+        headline: "--",
+        why_it_matters: "No company-specific reason was found.",
+      },
+    });
+
+    expect(hasResearchBackedNarrative(row)).toBe(false);
   });
 
   it("keeps materialized post-close research when the expensive move explainer was skipped", () => {
