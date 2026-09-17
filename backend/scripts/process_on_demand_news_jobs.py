@@ -176,7 +176,6 @@ def _claim_job(store: TraceMoneyStore, ref: Any, claim_id: str) -> dict[str, Any
     """Atomically claim an on-demand job so overlapping scheduler/manual
     executions do not fetch and enrich the same ticker twice."""
 
-    @firestore.transactional
     def _txn(tx: Any) -> dict[str, Any] | None:
         snap = ref.get(transaction=tx)
         if not snap.exists:
