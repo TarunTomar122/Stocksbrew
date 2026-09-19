@@ -6,6 +6,8 @@ import argparse
 import hmac
 import json
 import os
+import threading
+import time
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
@@ -27,6 +29,8 @@ MAX_BODY_BYTES = 16 * 1024 * 1024
 MAX_BATCH_DOCUMENTS = 500
 MAX_BATCH_GET_DOCUMENTS = 500
 MAX_LIST_DOCUMENTS = 5_000
+MAX_QUERY_DOCUMENTS = 10_000
+QUERY_CONCURRENCY = 4
 
 
 def _resolve_value(value: Any, existing: Any = _MISSING) -> Any:
@@ -222,6 +226,7 @@ class LocalDBRequestHandler(BaseHTTPRequestHandler):
                 self._error("internal error", 500)
             return
         if endpoint == "/query":
+            acquired = False
             try:
                 body = self._read_json()
                 collection = body.get("collection") if isinstance(body, dict) else None
@@ -232,27 +237,52 @@ class LocalDBRequestHandler(BaseHTTPRequestHandler):
                     return
                 client = LocalFirestoreClient(self.server.store)
                 query = client.collection_group(collection) if body.get("collection_group") else client.collection(collection)
-                for item in body.get("filters", []):
+                filters = body.get("filters") or []
+                orders = body.get("orders") or []
+                if not isinstance(filters, list) or not isinstance(orders, list):
+                    raise ValueError("filters and orders must be lists")
+                for item in filters:
                     if not isinstance(item, dict):
                         raise ValueError("invalid query filter")
                     query = query.where(item.get("field"), item.get("op"), item.get("value"))
-                for item in body.get("orders", []):
+                for item in orders:
                     if not isinstance(item, dict):
                         raise ValueError("invalid query order")
                     query = query.order_by(item.get("field"), item.get("direction", "ASCENDING"))
                 if body.get("select") is not None:
                     query = query.select(body["select"])
                 if body.get("limit") is not None:
-                    query = query.limit(int(body["limit"]))
+                    limit = int(body["limit"])
+                    if limit < 0 or limit > MAX_QUERY_DOCUMENTS:
+                        raise ValueError("limit is out of range")
+                    query = query.limit(limit)
+                else:
+                    query = query.limit(MAX_QUERY_DOCUMENTS)
+                if not self.server.query_gate.acquire(timeout=30):
+                    self._error("query backlog", 503)
+                    return
+                acquired = True
+                started = time.monotonic()
                 documents = [
                     {"path": snap.reference.path, "data": snap.to_dict() or {}}
                     for snap in query.stream()
                 ]
+                elapsed_ms = int((time.monotonic() - started) * 1000)
+                print(
+                    "localdb query "
+                    f"collection={collection} group={bool(body.get('collection_group'))} "
+                    f"filters={len(filters)} orders={len(orders)} limit={query._limit_count} "
+                    f"rows={len(documents)} ms={elapsed_ms}",
+                    flush=True,
+                )
                 self._send_json({"documents": documents, "count": len(documents)})
             except ValueError as error:
                 self._error(str(error), 400)
             except Exception:
                 self._error("internal error", 500)
+            finally:
+                if acquired:
+                    self.server.query_gate.release()
             return
         if endpoint not in {"/documents:batchUpsert", "/documents:batchWrite", "/transactions:commit"}:
             self._error("not found", 404)
@@ -344,6 +374,7 @@ def make_server(
     server.store = store
     server.api_token = token
     server.allowed_collections = allowed_collections or set()
+    server.query_gate = threading.Semaphore(QUERY_CONCURRENCY)
     return server
 
 

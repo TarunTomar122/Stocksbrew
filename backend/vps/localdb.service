@@ -12,6 +12,9 @@ EnvironmentFile=/etc/tikrr/localdb.env
 ExecStart=/opt/tikrr/.venv/bin/python -m backend.localdb.server --db /srv/tikrr-data/localdb/documents.sqlite3 --host 127.0.0.1 --port 8500
 Restart=on-failure
 RestartSec=5s
+# 3G leaves headroom for the one-time schema/index backfill on the 1.4G file.
+MemoryHigh=1.5G
+MemoryMax=3G
 
 # Keep the service read-only everywhere except its data directory.
 NoNewPrivileges=true

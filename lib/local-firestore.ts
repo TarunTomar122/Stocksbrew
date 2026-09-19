@@ -74,6 +74,26 @@ export class LocalQuerySnapshot {
 type QueryFilter = { field: string; op: string; value: unknown };
 type QueryOrder = { field: string; direction: string };
 
+const QUERY_OPERATORS: Record<string, string> = {
+  "==": "==",
+  "!=": "!=",
+  "<": "<",
+  "<=": "<=",
+  ">": ">",
+  ">=": ">=",
+  in: "in",
+  "not-in": "not-in",
+  not_in: "not-in",
+  "array-contains": "array-contains",
+  array_contains: "array-contains",
+  "array-contains-any": "array-contains-any",
+  array_contains_any: "array-contains-any",
+};
+
+function normalizeQueryOperator(op: string): string {
+  return QUERY_OPERATORS[op] || op;
+}
+
 export class LocalDocumentReference {
   readonly id: string;
 
@@ -127,7 +147,15 @@ export class LocalQuery {
   ) {}
 
   where(field: string, op: string, value: unknown): LocalQuery {
-    return new LocalQuery(this.client, this.collectionPath, [...this.filters, { field, op, value: transformValue(value) }], this.orders, this.limitCount, this.selected, this.group);
+    return new LocalQuery(
+      this.client,
+      this.collectionPath,
+      [...this.filters, { field, op: normalizeQueryOperator(op), value: transformValue(value) }],
+      this.orders,
+      this.limitCount,
+      this.selected,
+      this.group,
+    );
   }
 
   orderBy(field: string, direction = "ASCENDING"): LocalQuery {
@@ -154,6 +182,7 @@ export class LocalQuery {
         select: this.selected,
       },
     });
+    if (!response.ok) throw new Error(`LocalDB query failed (${response.status})`);
     const body = await response.json() as { documents?: LocalDocumentPayload[] };
     return new LocalQuerySnapshot((body.documents || []).map((document) => new LocalDocumentSnapshot(
       new LocalDocumentReference(this.client, document.path),

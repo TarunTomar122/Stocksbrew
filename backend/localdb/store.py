@@ -8,10 +8,31 @@ import json
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Iterable, Iterator
+from typing import Any, Callable, Iterable, Iterator, NamedTuple
 
 from .codec import canonical_json, denormalise_value, stable_document_hash
 from .paths import validate_collection_name, validate_document_path, validate_local_file_path, validate_path_prefix
+from .query import (
+    QuerySpec,
+    array_index_rows,
+    compile_query,
+    decode_query_row,
+    document_path_meta,
+)
+
+
+SCHEMA_VERSION = 2
+
+
+class PreparedDocument(NamedTuple):
+    path: str
+    collection: str
+    parent_collection: str
+    collection_id: str
+    document_id: str
+    depth: int
+    data_json: str
+    document_hash: str
 
 
 class LocalDocumentStore:
@@ -27,6 +48,7 @@ class LocalDocumentStore:
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA busy_timeout=30000")
         connection.execute("PRAGMA foreign_keys=ON")
+        connection.execute("PRAGMA cache_size=-65536")
         return connection
 
     def _initialise(self) -> None:
@@ -42,18 +64,148 @@ class LocalDocumentStore:
                     document_id TEXT NOT NULL,
                     data_json TEXT NOT NULL,
                     document_hash TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
+                    updated_at TEXT NOT NULL,
+                    parent_collection TEXT NOT NULL DEFAULT '',
+                    collection_id TEXT NOT NULL DEFAULT '',
+                    depth INTEGER NOT NULL DEFAULT 0
+                )
+                """
+            )
+            self._ensure_document_columns(connection)
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS document_array_values (
+                    path TEXT NOT NULL,
+                    field TEXT NOT NULL,
+                    value TEXT NOT NULL,
+                    PRIMARY KEY (field, value, path)
                 )
                 """
             )
             connection.execute(
-                "CREATE INDEX IF NOT EXISTS documents_collection_path ON documents(collection, path)"
+                """
+                CREATE TABLE IF NOT EXISTS localdb_meta (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL
+                )
+                """
             )
+            connection.execute("BEGIN IMMEDIATE")
+            current = self._schema_version(connection)
+            if current < SCHEMA_VERSION:
+                self._backfill_path_meta(connection)
+                self._rebuild_array_index(connection)
+                self._create_indexes(connection)
+                connection.execute(
+                    "INSERT INTO localdb_meta(key, value) VALUES ('schema_version', ?) "
+                    "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                    (str(SCHEMA_VERSION),),
+                )
+            else:
+                self._create_indexes(connection)
+            connection.commit()
+        except Exception:
+            try:
+                connection.rollback()
+            except sqlite3.Error:
+                pass
+            raise
         finally:
             connection.close()
 
     @staticmethod
-    def _prepare(path: str, data: dict[str, Any], document_hash: str | None = None) -> tuple[str, str, str, str]:
+    def _schema_version(connection: sqlite3.Connection) -> int:
+        row = connection.execute(
+            "SELECT value FROM localdb_meta WHERE key = 'schema_version'"
+        ).fetchone()
+        if row is None:
+            return 1
+        try:
+            return int(row["value"])
+        except (TypeError, ValueError):
+            return 1
+
+    @staticmethod
+    def _ensure_document_columns(connection: sqlite3.Connection) -> None:
+        columns = {row["name"] for row in connection.execute("PRAGMA table_info(documents)")}
+        required = {
+            "parent_collection": "TEXT NOT NULL DEFAULT ''",
+            "collection_id": "TEXT NOT NULL DEFAULT ''",
+            "depth": "INTEGER NOT NULL DEFAULT 0",
+        }
+        for name, definition in required.items():
+            if name not in columns:
+                connection.execute(f"ALTER TABLE documents ADD COLUMN {name} {definition}")
+
+    @staticmethod
+    def _backfill_path_meta(connection: sqlite3.Connection) -> None:
+        updates: list[tuple[Any, ...]] = []
+        for row in connection.execute("SELECT path FROM documents"):
+            collection, parent_collection, collection_id, document_id, depth = document_path_meta(row["path"])
+            updates.append((collection, document_id, parent_collection, collection_id, depth, row["path"]))
+            if len(updates) >= 500:
+                connection.executemany(
+                    "UPDATE documents SET collection=?, document_id=?, parent_collection=?, "
+                    "collection_id=?, depth=? WHERE path=?",
+                    updates,
+                )
+                updates = []
+        if updates:
+            connection.executemany(
+                "UPDATE documents SET collection=?, document_id=?, parent_collection=?, "
+                "collection_id=?, depth=? WHERE path=?",
+                updates,
+            )
+
+    @staticmethod
+    def _rebuild_array_index(connection: sqlite3.Connection) -> None:
+        connection.execute("DELETE FROM document_array_values")
+        pending: list[tuple[str, str, str]] = []
+        for row in connection.execute("SELECT path, data_json FROM documents"):
+            pending.extend(array_index_rows(row["path"], json.loads(row["data_json"])))
+            if len(pending) >= 500:
+                connection.executemany(
+                    "INSERT OR IGNORE INTO document_array_values(path, field, value) VALUES (?, ?, ?)",
+                    pending,
+                )
+                pending = []
+        if pending:
+            connection.executemany(
+                "INSERT OR IGNORE INTO document_array_values(path, field, value) VALUES (?, ?, ?)",
+                pending,
+            )
+
+    @staticmethod
+    def _create_indexes(connection: sqlite3.Connection) -> None:
+        statements = (
+            "CREATE INDEX IF NOT EXISTS documents_collection_path ON documents(collection, path)",
+            "CREATE INDEX IF NOT EXISTS documents_parent_path ON documents(parent_collection, path)",
+            "CREATE INDEX IF NOT EXISTS documents_group ON documents(collection_id, path)",
+            "CREATE INDEX IF NOT EXISTS documents_parent_market_ticker ON documents("
+            "parent_collection, json_extract(data_json, '$.market'), json_extract(data_json, '$.ticker'))",
+            "CREATE INDEX IF NOT EXISTS documents_parent_market_symbol ON documents("
+            "parent_collection, json_extract(data_json, '$.market'), json_extract(data_json, '$.symbol'))",
+            "CREATE INDEX IF NOT EXISTS documents_parent_market_event ON documents("
+            "parent_collection, json_extract(data_json, '$.market'), json_extract(data_json, '$.event_date'))",
+            "CREATE INDEX IF NOT EXISTS documents_parent_published ON documents("
+            "parent_collection, json_extract(data_json, '$.published_at'))",
+            "CREATE INDEX IF NOT EXISTS documents_parent_uid ON documents("
+            "parent_collection, json_extract(data_json, '$.uid'))",
+            "CREATE INDEX IF NOT EXISTS documents_parent_user_id ON documents("
+            "parent_collection, json_extract(data_json, '$.user_id'))",
+            "CREATE INDEX IF NOT EXISTS documents_parent_status ON documents("
+            "parent_collection, json_extract(data_json, '$.status'))",
+            "CREATE INDEX IF NOT EXISTS documents_parent_instrument ON documents("
+            "parent_collection, json_extract(data_json, '$.instrument_id'))",
+            "CREATE INDEX IF NOT EXISTS documents_parent_email ON documents("
+            "parent_collection, json_extract(data_json, '$.email_lower'))",
+            "CREATE INDEX IF NOT EXISTS document_array_values_path ON document_array_values(path)",
+        )
+        for statement in statements:
+            connection.execute(statement)
+
+    @staticmethod
+    def _prepare(path: str, data: dict[str, Any], document_hash: str | None = None) -> PreparedDocument:
         valid_path = validate_document_path(path)
         if not isinstance(data, dict):
             raise ValueError("document data must be an object")
@@ -62,9 +214,17 @@ class LocalDocumentStore:
         if document_hash is not None:
             if not isinstance(document_hash, str) or not hmac.compare_digest(document_hash, computed_hash):
                 raise ValueError("document hash does not match document data")
-        collection = valid_path.split("/", 1)[0]
-        document_id = valid_path.rsplit("/", 1)[1]
-        return valid_path, data_json, computed_hash, collection + "\x00" + document_id
+        collection, parent_collection, collection_id, document_id, depth = document_path_meta(valid_path)
+        return PreparedDocument(
+            path=valid_path,
+            collection=collection,
+            parent_collection=parent_collection,
+            collection_id=collection_id,
+            document_id=document_id,
+            depth=depth,
+            data_json=data_json,
+            document_hash=computed_hash,
+        )
 
     @staticmethod
     def _row(row: sqlite3.Row) -> dict[str, Any]:
@@ -75,6 +235,49 @@ class LocalDocumentStore:
             "updated_at": row["updated_at"],
         }
 
+    @staticmethod
+    def _replace_array_index(connection: sqlite3.Connection, path: str, data_json: str) -> None:
+        connection.execute("DELETE FROM document_array_values WHERE path = ?", (path,))
+        rows = array_index_rows(path, json.loads(data_json))
+        if rows:
+            connection.executemany(
+                "INSERT OR IGNORE INTO document_array_values(path, field, value) VALUES (?, ?, ?)",
+                rows,
+            )
+
+    @staticmethod
+    def _insert_sql() -> str:
+        return """
+            INSERT INTO documents(
+                path, collection, document_id, data_json, document_hash, updated_at,
+                parent_collection, collection_id, depth
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(path) DO UPDATE SET
+                collection=excluded.collection,
+                document_id=excluded.document_id,
+                data_json=excluded.data_json,
+                document_hash=excluded.document_hash,
+                updated_at=excluded.updated_at,
+                parent_collection=excluded.parent_collection,
+                collection_id=excluded.collection_id,
+                depth=excluded.depth
+        """
+
+    @staticmethod
+    def _insert_params(item: PreparedDocument, updated_at: str) -> tuple[Any, ...]:
+        return (
+            item.path,
+            item.collection,
+            item.document_id,
+            item.data_json,
+            item.document_hash,
+            updated_at,
+            item.parent_collection,
+            item.collection_id,
+            item.depth,
+        )
+
     def upsert(self, path: str, data: dict[str, Any], document_hash: str | None = None) -> dict[str, Any]:
         return self.batch_upsert([{"path": path, "data": data, "hash": document_hash}])[0]
 
@@ -83,11 +286,7 @@ class LocalDocumentStore:
         for document in documents:
             if not isinstance(document, dict):
                 raise ValueError("each document must be an object")
-            path, data_json, computed_hash, identity = self._prepare(
-                document.get("path"), document.get("data"), document.get("hash")
-            )
-            collection, document_id = identity.split("\x00", 1)
-            prepared.append((path, collection, document_id, data_json, computed_hash))
+            prepared.append(self._prepare(document.get("path"), document.get("data"), document.get("hash")))
         if not prepared:
             return []
 
@@ -95,19 +294,9 @@ class LocalDocumentStore:
         connection = self._connect()
         try:
             connection.execute("BEGIN IMMEDIATE")
-            connection.executemany(
-                """
-                INSERT INTO documents(path, collection, document_id, data_json, document_hash, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?)
-                ON CONFLICT(path) DO UPDATE SET
-                    collection=excluded.collection,
-                    document_id=excluded.document_id,
-                    data_json=excluded.data_json,
-                    document_hash=excluded.document_hash,
-                    updated_at=excluded.updated_at
-                """,
-                [(*item, updated_at) for item in prepared],
-            )
+            connection.executemany(self._insert_sql(), [self._insert_params(item, updated_at) for item in prepared])
+            for item in prepared:
+                self._replace_array_index(connection, item.path, item.data_json)
             connection.commit()
         except Exception:
             connection.rollback()
@@ -116,8 +305,8 @@ class LocalDocumentStore:
             connection.close()
 
         return [
-            {"path": path, "data": json.loads(data_json), "hash": document_hash, "updated_at": updated_at}
-            for path, _, _, data_json, document_hash in prepared
+            {"path": item.path, "data": json.loads(item.data_json), "hash": item.document_hash, "updated_at": updated_at}
+            for item in prepared
         ]
 
     def get(self, path: str) -> dict[str, Any] | None:
@@ -145,6 +334,15 @@ class LocalDocumentStore:
             ).fetchall()
             by_path = {row["path"]: self._row(row) for row in rows}
             return [by_path[path] for path in valid_paths if path in by_path]
+        finally:
+            connection.close()
+
+    def execute_query(self, spec: QuerySpec) -> Iterator[dict[str, Any]]:
+        compiled = compile_query(spec)
+        connection = self._connect()
+        try:
+            for row in connection.execute(compiled.sql, compiled.params):
+                yield decode_query_row(row, compiled.selected)
         finally:
             connection.close()
 
@@ -205,21 +403,17 @@ class LocalDocumentStore:
             raise ValueError("collection path must end at a collection")
         if limit is not None and (not isinstance(limit, int) or limit < 0):
             raise ValueError("limit must be a non-negative integer")
-        root = parts[0]
-        prefix = valid_path + "/"
         connection = self._connect()
         try:
-            rows = connection.execute(
+            query = (
                 "SELECT path, data_json, document_hash, updated_at FROM documents "
-                "WHERE collection = ? AND path LIKE ? ESCAPE '\\' ORDER BY path",
-                (root, prefix.replace("%", "\\%").replace("_", "\\_") + "%"),
+                "WHERE parent_collection = ? ORDER BY path"
             )
-            documents = [
-                self._row(row)
-                for row in rows
-                if len(row["path"].split("/")) == len(parts) + 1
-            ]
-            return documents[:limit] if limit is not None else documents
+            params: list[Any] = [valid_path]
+            if limit is not None:
+                query += " LIMIT ?"
+                params.append(limit)
+            return [self._row(row) for row in connection.execute(query, params)]
         finally:
             connection.close()
 
@@ -238,11 +432,38 @@ class LocalDocumentStore:
         connection = self._connect()
         try:
             for row in connection.execute(
-                "SELECT path, data_json, document_hash, updated_at FROM documents WHERE path LIKE ? ORDER BY path",
-                (f"%/{valid_collection}/%",),
+                "SELECT path, data_json, document_hash, updated_at FROM documents "
+                "WHERE collection_id = ? ORDER BY path",
+                (valid_collection,),
             ):
-                if len(row["path"].split("/")) >= 2 and row["path"].split("/")[-2] == valid_collection:
-                    yield self._row(row)
+                yield self._row(row)
+        finally:
+            connection.close()
+
+    def delete_collection(self, collection_path: str) -> int:
+        """Delete every direct document in a collection without loading JSON."""
+
+        valid_path = validate_path_prefix(collection_path)
+        parts = valid_path.split("/")
+        if len(parts) % 2 == 0:
+            raise ValueError("collection path must end at a collection")
+        connection = self._connect()
+        try:
+            connection.execute("BEGIN IMMEDIATE")
+            connection.execute(
+                "DELETE FROM document_array_values WHERE path IN "
+                "(SELECT path FROM documents WHERE parent_collection = ?)",
+                (valid_path,),
+            )
+            cursor = connection.execute(
+                "DELETE FROM documents WHERE parent_collection = ?",
+                (valid_path,),
+            )
+            connection.commit()
+            return int(cursor.rowcount or 0)
+        except Exception:
+            connection.rollback()
+            raise
         finally:
             connection.close()
 
@@ -294,6 +515,7 @@ class LocalDocumentStore:
                 path = validate_document_path(operation.get("path"))
                 kind = operation.get("op", "set")
                 if kind == "delete":
+                    connection.execute("DELETE FROM document_array_values WHERE path = ?", (path,))
                     connection.execute("DELETE FROM documents WHERE path = ?", (path,))
                     results.append(None)
                     continue
@@ -314,25 +536,13 @@ class LocalDocumentStore:
                     merged = resolve_operation(existing, operation)
                     if not isinstance(merged, dict):
                         raise ValueError("resolved document data must be an object")
-                _, data_json, document_hash, identity = self._prepare(path, merged)
-                collection, document_id = identity.split("\x00", 1)
-                connection.execute(
-                    """
-                    INSERT INTO documents(path, collection, document_id, data_json, document_hash, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(path) DO UPDATE SET
-                        collection=excluded.collection,
-                        document_id=excluded.document_id,
-                        data_json=excluded.data_json,
-                        document_hash=excluded.document_hash,
-                        updated_at=excluded.updated_at
-                    """,
-                    (path, collection, document_id, data_json, document_hash, updated_at),
-                )
+                item = self._prepare(path, merged)
+                connection.execute(self._insert_sql(), self._insert_params(item, updated_at))
+                self._replace_array_index(connection, item.path, item.data_json)
                 results.append({
                     "path": path,
-                    "data": denormalise_value(json.loads(data_json)),
-                    "hash": document_hash,
+                    "data": denormalise_value(json.loads(item.data_json)),
+                    "hash": item.document_hash,
                     "updated_at": updated_at,
                 })
             connection.commit()

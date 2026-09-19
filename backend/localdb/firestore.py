@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from typing import Any, Callable, Iterable, Iterator
 
 from .codec import denormalise_value
+from .query import QuerySpec
 from .store import LocalDocumentStore
 from .paths import validate_document_path, validate_path_prefix
 
@@ -125,43 +126,15 @@ def _resolve_operation(existing: dict[str, Any], operation: dict[str, Any]) -> d
     return _apply_operation(existing, operation, _resolve_value, _DELETE)
 
 
-def _compare(value: Any, operator: str, expected: Any) -> bool:
-    if value is _MISSING:
-        return operator in {"!=", "not-in"} and expected is not None
-    try:
-        if operator == "==":
-            return value == expected
-        if operator == "!=":
-            return value != expected
-        if operator == "<":
-            return value < expected
-        if operator == "<=":
-            return value <= expected
-        if operator == ">":
-            return value > expected
-        if operator == ">=":
-            return value >= expected
-        if operator in {"in", "not-in"}:
-            result = value in expected
-            return not result if operator == "not-in" else result
-        if operator == "array_contains":
-            return isinstance(value, list) and expected in value
-        if operator == "array_contains_any":
-            return isinstance(value, list) and any(item in value for item in expected)
-    except (TypeError, ValueError):
-        return False
-    raise ValueError(f"unsupported query operator: {operator}")
-
-
 class DocumentSnapshot:
     def __init__(self, reference: "DocumentReference", data: dict[str, Any] | None):
         self.reference = reference
         self.id = reference.id
         self.exists = data is not None
-        self._data = copy.deepcopy(data) if data is not None else None
+        self._data = data
 
     def to_dict(self) -> dict[str, Any] | None:
-        return copy.deepcopy(self._data) if self._data is not None else None
+        return self._data
 
     def get(self, field_path: str) -> Any:
         if self._data is None:
@@ -222,6 +195,7 @@ class Query:
         filters: list[tuple[str, str, Any]] | None = None,
         orders: list[tuple[str, str]] | None = None,
         limit_count: int | None = None,
+        offset_count: int = 0,
         selected: list[str] | None = None,
     ):
         self._client = client
@@ -230,6 +204,7 @@ class Query:
         self._filters = list(filters or [])
         self._orders = list(orders or [])
         self._limit_count = limit_count
+        self._offset_count = offset_count
         self._selected = selected
 
     def _clone(self, **changes: Any) -> "Query":
@@ -240,6 +215,7 @@ class Query:
             "filters": self._filters,
             "orders": self._orders,
             "limit_count": self._limit_count,
+            "offset_count": self._offset_count,
             "selected": self._selected,
         }
         values.update(changes)
@@ -264,48 +240,23 @@ class Query:
         return self._clone(selected=list(field_paths))
 
     def offset(self, count: int) -> "Query":
-        # Offset is uncommon in this app; applying it after ordering preserves
-        # Firestore's observable result without adding another storage index.
-        clone = self._clone()
-        clone._offset_count = count
-        return clone
+        return self._clone(offset_count=count)
 
     def stream(self, **_kwargs: Any) -> Iterator[DocumentSnapshot]:
-        documents = self._client._documents_for_query(self._collection_path, self._collection_group)
-        for field_path, operator, expected in self._filters:
-            documents = [
-                document
-                for document in documents
-                if _compare(
-                    document["id"] if field_path == "__name__" else _field_value(document["data"], field_path),
-                    operator,
-                    expected,
-                )
-            ]
-        for field_path, direction in reversed(self._orders):
-            reverse = str(direction).upper() in {"DESC", "DESCENDING"}
-            documents.sort(
-                key=lambda item: _sortable(item["id"] if field_path == "__name__" else _field_value(item["data"], field_path)),
-                reverse=reverse,
-            )
-        offset = getattr(self, "_offset_count", 0)
-        documents = documents[offset:]
-        if self._limit_count is not None:
-            documents = documents[: self._limit_count]
-        for document in documents:
-            data = document["data"]
-            if self._selected is not None:
-                data = _select_data(data, self._selected)
-            yield DocumentSnapshot(DocumentReference(self._client, document["path"]), data)
+        spec = QuerySpec(
+            collection_path=self._collection_path,
+            collection_group=self._collection_group,
+            filters=self._filters,
+            orders=self._orders,
+            limit_count=self._limit_count,
+            offset_count=self._offset_count,
+            selected=self._selected,
+        )
+        for document in self._client._store.execute_query(spec):
+            yield DocumentSnapshot(DocumentReference(self._client, document["path"]), document["data"])
 
     def get(self, **kwargs: Any) -> QuerySnapshot:
         return QuerySnapshot(self.stream(**kwargs))
-
-
-def _sortable(value: Any) -> tuple[int, str]:
-    if value is _MISSING or value is None:
-        return (0, "")
-    return (1, str(value))
 
 
 def _select_data(data: dict[str, Any], fields: list[str]) -> dict[str, Any]:
@@ -404,16 +355,8 @@ class LocalFirestoreClient:
         row = self._store.get(reference.path)
         return DocumentSnapshot(reference, row["data"] if row else None)
 
-    def _documents_for_query(self, collection_path: str, collection_group: bool) -> list[dict[str, Any]]:
-        if collection_group:
-            return [
-                {"path": row["path"], "id": row["path"].rsplit("/", 1)[-1], "data": row["data"]}
-                for row in self._store.iter_collection_group_documents(collection_path)
-            ]
-        return [
-            {"path": row["path"], "id": row["path"].rsplit("/", 1)[-1], "data": row["data"]}
-            for row in self._store.list_collection_documents(collection_path)
-        ]
+    def delete_collection(self, collection_path: str) -> int:
+        return self._store.delete_collection(collection_path)
 
     def _write(self, operation: dict[str, Any]) -> None:
         self._write_many([operation])

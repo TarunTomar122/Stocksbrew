@@ -84,6 +84,8 @@ POST /documents:batchUpsert            body: {"documents": [{"path": "...", "dat
 
 The API supports the application-required document reads, collection queries, selected-field reads, batches, transactions, and transforms. It has no listeners or Firestore security rules; the service is authenticated by `LOCALDB_API_TOKEN` and restricted by `LOCALDB_ALLOWED_COLLECTIONS` when configured.
 
+`POST /query` is compiled to SQLite. Collection scope uses `parent_collection` / `collection_id`, filters and `order_by`/`limit` run in SQL (`json_extract` plus an array-membership side table), and Python only decodes the surviving rows. Unbounded HTTP queries are capped at 10,000 documents. The first process to open an older database backfills the new columns and indexes; backup the sqlite file before that restart, which can take a few minutes on the production file.
+
 ## current production wiring
 
 - VPS checkout: `/opt/tikrr`, tracking `origin/main`.

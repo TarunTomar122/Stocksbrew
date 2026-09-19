@@ -1249,13 +1249,18 @@ class TraceMoneyStore:
                     batch.set(ref, payload or {})
             batch.commit()
 
-        pending: list[tuple[str, Any, dict[str, Any] | None]] = []
-        for doc in parent_ref.collection(name).stream():
-            pending.append(("delete", doc.reference, None))
-            if len(pending) >= 450:
-                commit_batch(pending)
-                pending = []
-        commit_batch(pending)
+        parent_path = getattr(parent_ref, "path", "")
+        deleter = getattr(self.db, "delete_collection", None)
+        if parent_path and callable(deleter):
+            deleter(f"{parent_path}/{name}")
+        else:
+            pending: list[tuple[str, Any, dict[str, Any] | None]] = []
+            for doc in parent_ref.collection(name).stream():
+                pending.append(("delete", doc.reference, None))
+                if len(pending) >= 450:
+                    commit_batch(pending)
+                    pending = []
+            commit_batch(pending)
 
         if not docs_payload:
             return
