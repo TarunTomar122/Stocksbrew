@@ -197,6 +197,7 @@ class Query:
         limit_count: int | None = None,
         offset_count: int = 0,
         selected: list[str] | None = None,
+        limit_to_last: bool = False,
     ):
         self._client = client
         self._collection_path = validate_path_prefix(collection_path)
@@ -206,6 +207,7 @@ class Query:
         self._limit_count = limit_count
         self._offset_count = offset_count
         self._selected = selected
+        self._limit_to_last = limit_to_last
 
     def _clone(self, **changes: Any) -> "Query":
         values = {
@@ -217,24 +219,41 @@ class Query:
             "limit_count": self._limit_count,
             "offset_count": self._offset_count,
             "selected": self._selected,
+            "limit_to_last": self._limit_to_last,
         }
         values.update(changes)
         return Query(**values)
 
     def where(self, field_path: str | None = None, op_string: str | None = None, value: Any = _MISSING, *, filter: Any = None) -> "Query":
         if filter is not None:
-            field_path = getattr(filter, "field_path", getattr(filter, "field", None))
-            op_string = getattr(filter, "op_string", getattr(filter, "op", None))
-            value = getattr(filter, "value", _MISSING)
-        if not isinstance(field_path, str) or not isinstance(op_string, str) or value is _MISSING:
+            field_path = (
+                getattr(filter, "field_path", None)
+                or getattr(filter, "_field_path", None)
+                or getattr(filter, "field", None)
+            )
+            op_string = (
+                getattr(filter, "op_string", None)
+                or getattr(filter, "_op_string", None)
+                or getattr(filter, "op", None)
+            )
+            if hasattr(filter, "_value"):
+                value = getattr(filter, "value", getattr(filter, "_value"))
+            else:
+                value = getattr(filter, "value", _MISSING)
+        if not isinstance(field_path, str) or op_string is None or value is _MISSING:
             raise ValueError("where requires field, operator, and value")
+        if not isinstance(op_string, str):
+            op_string = getattr(op_string, "value", None) or str(op_string)
         return self._clone(filters=[*self._filters, (field_path, op_string, value)])
 
     def order_by(self, field_path: str, direction: str = "ASCENDING") -> "Query":
         return self._clone(orders=[*self._orders, (field_path, direction)])
 
     def limit(self, count: int) -> "Query":
-        return self._clone(limit_count=count)
+        return self._clone(limit_count=count, limit_to_last=False)
+
+    def limit_to_last(self, count: int) -> "Query":
+        return self._clone(limit_count=count, limit_to_last=True)
 
     def select(self, field_paths: Iterable[str]) -> "Query":
         return self._clone(selected=list(field_paths))
@@ -251,6 +270,7 @@ class Query:
             limit_count=self._limit_count,
             offset_count=self._offset_count,
             selected=self._selected,
+            limit_to_last=self._limit_to_last,
         )
         for document in self._client._store.execute_query(spec):
             yield DocumentSnapshot(DocumentReference(self._client, document["path"]), document["data"])

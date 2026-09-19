@@ -59,6 +59,7 @@ class QuerySpec:
     limit_count: int | None = None
     offset_count: int = 0
     selected: list[str] | None = None
+    limit_to_last: bool = False
 
 
 @dataclass(frozen=True)
@@ -66,6 +67,7 @@ class CompiledQuery:
     sql: str
     params: list[Any]
     selected: list[str] | None
+    reverse: bool = False
 
 
 def normalize_operator(operator: Any) -> str:
@@ -81,6 +83,12 @@ def normalize_operator(operator: Any) -> str:
     if mapped is None:
         raise ValueError(f"unsupported query operator: {operator}")
     return mapped
+
+
+def descending_order(direction: Any) -> bool:
+    name = getattr(direction, "name", None)
+    token = str(name if name is not None else direction).upper()
+    return token in {"DESC", "DESCENDING"} or token.endswith(".DESCENDING")
 
 
 def encode_array_value(value: Any) -> str | None:
@@ -149,6 +157,11 @@ def _bind_scalar(value: Any) -> Any:
     return str(value)
 
 
+def _bind_json(value: Any) -> str:
+    payload = list(value) if isinstance(value, tuple) else value
+    return json.dumps(payload, ensure_ascii=True, allow_nan=False, separators=(",", ":"), sort_keys=True)
+
+
 def _present_sql(field_path: str) -> str:
     type_sql = _type_sql(field_path)
     return f"({type_sql} IS NOT NULL AND {type_sql} != 'null')"
@@ -186,7 +199,23 @@ def compile_query(spec: QuerySpec) -> CompiledQuery:
     else:
         select_sql = "path, data_json, document_hash, updated_at"
 
-    order_sql = _order_sql(spec.orders)
+    reverse = False
+    orders = spec.orders
+    if spec.limit_to_last:
+        if spec.limit_count is None:
+            raise ValueError("limit_to_last requires a limit")
+        reverse = True
+        if orders:
+            orders = [
+                (field_path, "ASCENDING" if descending_order(direction) else "DESCENDING")
+                for field_path, direction in orders
+            ]
+            order_sql = _order_sql(orders)
+        else:
+            order_sql = "path DESC"
+    else:
+        order_sql = _order_sql(orders)
+
     sql = f"SELECT {select_sql} FROM documents WHERE " + " AND ".join(where_parts)
     if order_sql:
         sql += " ORDER BY " + order_sql
@@ -208,7 +237,7 @@ def compile_query(spec: QuerySpec) -> CompiledQuery:
         sql += " LIMIT -1 OFFSET ?"
         params.append(spec.offset_count)
 
-    return CompiledQuery(sql=sql, params=params, selected=selected)
+    return CompiledQuery(sql=sql, params=params, selected=selected, reverse=reverse)
 
 
 def _filter_sql(field_path: str, operator: str, expected: Any) -> tuple[str, list[Any]]:
@@ -231,19 +260,32 @@ def _filter_sql(field_path: str, operator: str, expected: Any) -> tuple[str, lis
             raise ValueError("not-in requires a non-empty list")
         return _in_sql(field_path, list(expected), negate=True)
 
-    unwrap = _unwrap_sql(field_path)
-    present = _present_sql(field_path)
-    if op == "==":
-        if expected is None:
-            return f"{_type_sql(field_path)} = 'null'", []
-        return f"{present} AND {unwrap} = ?", [_bind_scalar(expected)]
-    if op == "!=":
-        if expected is None:
-            return f"{_type_sql(field_path)} IS NOT NULL AND {_type_sql(field_path)} != 'null'", []
-        return f"(NOT {present} OR {unwrap} != ?)", [_bind_scalar(expected)]
+    if op in {"==", "!="}:
+        return _equality_sql(field_path, op, expected)
     if op in {"<", "<=", ">", ">="}:
+        unwrap = _unwrap_sql(field_path)
+        present = _present_sql(field_path)
         return f"{present} AND {unwrap} {op} ?", [_bind_scalar(expected)]
     raise ValueError(f"unsupported query operator: {operator}")
+
+
+def _equality_sql(field_path: str, op: str, expected: Any) -> tuple[str, list[Any]]:
+    unwrap = _unwrap_sql(field_path)
+    present = _present_sql(field_path)
+    if expected is None:
+        if op == "==":
+            return f"{_type_sql(field_path)} = 'null'", []
+        return f"{_type_sql(field_path)} IS NOT NULL AND {_type_sql(field_path)} != 'null'", []
+    if isinstance(expected, (list, tuple, dict)):
+        json_kind = "object" if isinstance(expected, dict) else "array"
+        type_sql = _type_sql(field_path)
+        bound = _bind_json(expected)
+        if op == "==":
+            return f"{type_sql} = '{json_kind}' AND {unwrap} = ?", [bound]
+        return f"(NOT {present} OR {type_sql} != '{json_kind}' OR {unwrap} != ?)", [bound]
+    if op == "==":
+        return f"{present} AND {unwrap} = ?", [_bind_scalar(expected)]
+    return f"(NOT {present} OR {unwrap} != ?)", [_bind_scalar(expected)]
 
 
 def _name_filter_sql(op: str, expected: Any) -> tuple[str, list[Any]]:
@@ -308,7 +350,7 @@ def _order_sql(orders: list[tuple[str, str]]) -> str:
     for field_path, direction in orders:
         if not isinstance(field_path, str):
             raise ValueError("order field must be a string")
-        reverse = str(direction).upper() in {"DESC", "DESCENDING"}
+        reverse = descending_order(direction)
         suffix = "DESC" if reverse else "ASC"
         if field_path == "__name__":
             parts.append(f"document_id {suffix}")
@@ -316,7 +358,7 @@ def _order_sql(orders: list[tuple[str, str]]) -> str:
         present = _present_sql(field_path)
         unwrap = _unwrap_sql(field_path)
         parts.append(f"{present} {suffix}")
-        parts.append(f"CAST({unwrap} AS TEXT) {suffix}")
+        parts.append(f"{unwrap} {suffix}")
     return ", ".join(parts)
 
 

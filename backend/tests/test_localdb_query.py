@@ -295,6 +295,64 @@ class LocalDBQueryTest(unittest.TestCase):
         rows = list(alerts.where("active", "==", True).where("triggered", "==", False).stream())
         self.assertEqual([doc.id for doc in rows], ["on"])
 
+    def test_not_equal_empty_array_includes_missing(self) -> None:
+        users = self.client.collection("users")
+        users.document("empty").set({"tracked_stocks": []})
+        users.document("full").set({"tracked_stocks": ["US_AAPL"]})
+        users.document("missing").set({"email": "ada@example.com"})
+        rows = list(users.where("tracked_stocks", "!=", []).select(["tracked_stocks", "email"]).stream())
+        self.assertEqual(sorted(doc.id for doc in rows), ["full", "missing"])
+        by_id = {doc.id: doc.to_dict() for doc in rows}
+        self.assertEqual(by_id["full"]["tracked_stocks"], ["US_AAPL"])
+        self.assertNotIn("tracked_stocks", by_id["missing"])
+
+    def test_numeric_order_by_is_not_lexicographic(self) -> None:
+        stocks = self.client.collection("tm_stock_intel_pro")
+        stocks.document("a").set({"overall": {"score": 9}})
+        stocks.document("b").set({"overall": {"score": 80}})
+        stocks.document("c").set({"overall": {"score": 10}})
+        compiled = compile_query(QuerySpec(
+            collection_path="tm_stock_intel_pro",
+            orders=[("overall.score", "DESCENDING")],
+        ))
+        self.assertNotIn("CAST(", compiled.sql)
+        ids = [doc.id for doc in stocks.order_by("overall.score", "DESCENDING").stream()]
+        self.assertEqual(ids, ["b", "c", "a"])
+
+    def test_limit_to_last_returns_tail_in_original_order(self) -> None:
+        events = self.client.collection("market_run_summaries")
+        events.document("a").set({"date": "2024-01-01"})
+        events.document("b").set({"date": "2024-02-01"})
+        events.document("c").set({"date": "2024-03-01"})
+        rows = list(events.order_by("date").limit_to_last(2).get())
+        self.assertEqual([doc.id for doc in rows], ["b", "c"])
+        self.assertEqual([doc.to_dict()["date"] for doc in rows], ["2024-02-01", "2024-03-01"])
+
+    def test_field_filter_public_and_private_attrs(self) -> None:
+        class PublicFilter:
+            def __init__(self, field_path: str, op_string: str, value: object) -> None:
+                self.field_path = field_path
+                self.op_string = op_string
+                self.value = value
+
+        class PrivateFilter:
+            def __init__(self, field_path: str, op_string: str, value: object) -> None:
+                self._field_path = field_path
+                self._op_string = op_string
+                self._value = value
+
+        alerts = self.client.collection("tm_alerts")
+        alerts.document("on").set({"active": True})
+        alerts.document("off").set({"active": False})
+        self.assertEqual(
+            [doc.id for doc in alerts.where(filter=PublicFilter("active", "==", True)).stream()],
+            ["on"],
+        )
+        self.assertEqual(
+            [doc.id for doc in alerts.where(filter=PrivateFilter("active", "==", True)).stream()],
+            ["on"],
+        )
+
     def test_http_query_works_and_rejects_bad_requests(self) -> None:
         self._seed_articles()
         server = make_server("127.0.0.1", 0, self.store, "test-token")

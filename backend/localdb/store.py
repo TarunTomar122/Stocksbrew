@@ -341,8 +341,14 @@ class LocalDocumentStore:
         compiled = compile_query(spec)
         connection = self._connect()
         try:
-            for row in connection.execute(compiled.sql, compiled.params):
-                yield decode_query_row(row, compiled.selected)
+            rows = connection.execute(compiled.sql, compiled.params)
+            if not compiled.reverse:
+                for row in rows:
+                    yield decode_query_row(row, compiled.selected)
+                return
+            documents = [decode_query_row(row, compiled.selected) for row in rows]
+            documents.reverse()
+            yield from documents
         finally:
             connection.close()
 
