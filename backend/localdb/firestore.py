@@ -298,6 +298,20 @@ class CollectionReference(Query):
     def doc(self, document_id: str) -> DocumentReference:
         return self.document(document_id)
 
+    def list_documents(
+        self, page_size: int | None = None, **_kwargs: Any
+    ) -> Iterator[DocumentReference]:
+        """Yield a reference per stored document.
+
+        Firestore exposes this on CollectionReference and the radar outcome
+        scorer enumerates directive history through it; without it every
+        nightly run died on AttributeError.
+        """
+        for document in self._client._store.list_collection_documents(
+            self._collection_path, limit=page_size
+        ):
+            yield DocumentReference(self._client, document["path"])
+
     def add(self, data: dict[str, Any], **_kwargs: Any) -> tuple[Any, DocumentReference]:
         document_id = secrets.token_urlsafe(16).replace("-", "").replace("_", "")[:20]
         ref = self.document(document_id)
@@ -356,6 +370,13 @@ class LocalFirestoreClient:
 
     def collection_group(self, collection_id: str) -> Query:
         return Query(self, collection_id, collection_group=True)
+
+    def document(self, document_path: str) -> DocumentReference:
+        """Reference a document by full path, as Firestore's client.document does.
+
+        data_health reaches for a document without naming its collection first.
+        """
+        return DocumentReference(self, document_path)
 
     def get_all(self, references: Iterable[DocumentReference], **_kwargs: Any) -> Iterator[DocumentSnapshot]:
         refs = list(references)

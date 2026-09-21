@@ -404,5 +404,30 @@ class LocalDBTest(unittest.TestCase):
             )
 
 
+    def test_document_by_path_and_list_documents_complete_the_firestore_surface(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            client = LocalFirestoreClient(Path(temporary) / "documents.sqlite3")
+            history = client.collection("tm_directive_history")
+            history.document("AAPL").set({"directive": "buy"})
+            history.document("MSFT").set({"directive": "hold"})
+
+            # The radar outcome scorer enumerates directive history this way.
+            self.assertEqual(
+                sorted(reference.id for reference in history.list_documents()),
+                ["AAPL", "MSFT"],
+            )
+            self.assertEqual(
+                [reference.id for reference in history.list_documents(page_size=1)],
+                ["AAPL"],
+            )
+
+            # data_health reaches for a document by full path, with no
+            # collection() call in front of it.
+            snapshot = client.document("tm_directive_history/AAPL").get()
+            self.assertTrue(snapshot.exists)
+            self.assertEqual(snapshot.to_dict(), {"directive": "buy"})
+            self.assertFalse(client.document("tm_directive_history/ZZZ").get().exists)
+
+
 if __name__ == "__main__":
     unittest.main()
