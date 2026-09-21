@@ -240,11 +240,11 @@ export function RadarBatchEditModal({
       if (addedCount > 0) {
         dispatchRadarTrackChanged({ action: "add", count: addedCount });
       }
-      // Keep the status modal open through the whole rebuild + refresh cycle so
-      // the destination page never appears to "suddenly" swap with no feedback.
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      await flushWatchlistRebuild(router, 500);
-      await new Promise((resolve) => setTimeout(resolve, 400));
+      // The saved positions are already durable. Let the expensive view rebuild
+      // continue in the background so the user is not blocked by the spinner.
+      setModalStatus("success");
+      void flushWatchlistRebuild(router, 500);
+      await new Promise((resolve) => setTimeout(resolve, 350));
       setModalOpen(false);
       setOpen(false);
     } catch (e) {
