@@ -92,7 +92,7 @@ write_service open-briefs tracked_open_briefs "--session-phase open_check --shar
 write_pair open-movers-price "Mon..Fri *-*-* 09:50:00 America/New_York" price_core_open "--session-phase open_check --limit 500 --max-parallel 1 --max-workers 2 --shard-size 700" "tikrr-open-anomalies.service" "1min"
 write_service open-anomalies open_anomalies "--price-session-phase open_check" "" "5min"
 write_pair reddit-buzz "Mon..Fri *-*-* 12,15,18,21:20:00" reddit_buzz
-write_pair zone-briefs "Mon..Fri *-*-* 14:00:00" zone_briefs
+write_pair zone-briefs "Mon..Fri *-*-* 14:25:00" zone_briefs
 write_pair market-events-open "Mon..Fri *-*-* 14:10:00" market_events "--skip-if-fresh-hours 20"
 write_pair data-health-open "Mon..Fri *-*-* 14:20:00" data_health
 write_pair market-events-close "Mon..Fri *-*-* 22:30:00" market_events
