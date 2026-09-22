@@ -10,7 +10,6 @@ from typing import Any
 
 from backend.instrument_universe import (
     get_coverage_universe_id,
-    get_default_universe_id,
     list_instruments,
 )
 from backend.market_session_state import MarketSessionState
@@ -195,7 +194,7 @@ def _brief_base_universe_id(
     """Use the small runtime cohort unless a brief run explicitly overrides it."""
     if explicit_universe or market.upper() != "US":
         return configured_universe
-    return get_default_universe_id(market) or configured_universe
+    return "us_core_100"
 
 
 def _price_core_ids(store: TraceMoneyStore, market: str, universe_id: str, limit: int) -> list[str]:
