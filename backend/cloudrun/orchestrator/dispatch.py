@@ -8,7 +8,11 @@ import subprocess
 import sys
 from typing import Any
 
-from backend.instrument_universe import get_coverage_universe_id, list_instruments
+from backend.instrument_universe import (
+    get_coverage_universe_id,
+    get_default_universe_id,
+    list_instruments,
+)
 from backend.market_session_state import MarketSessionState
 from backend.price_pipeline_contract import (
     PriceFreshnessPolicy,
@@ -181,6 +185,17 @@ def _lane_universe_id(
     if lane == "pre_earnings_intel":
         return str(explicit or "").strip()
     return _resolve_universe(store, market, explicit)
+
+
+def _brief_base_universe_id(
+    market: str,
+    configured_universe: str,
+    explicit_universe: str | None,
+) -> str:
+    """Use the small runtime cohort unless a brief run explicitly overrides it."""
+    if explicit_universe or market.upper() != "US":
+        return configured_universe
+    return get_default_universe_id(market) or configured_universe
 
 
 def _price_core_ids(store: TraceMoneyStore, market: str, universe_id: str, limit: int) -> list[str]:
@@ -681,7 +696,12 @@ def main() -> None:
                 subscribed_only=False,
             )
     elif args.lane in {"tracked_news_prep", "tracked_open_briefs"}:
-        instrument_ids = _ai_brief_ids(store, args.market, universe_id)
+        brief_base_universe = _brief_base_universe_id(
+            args.market,
+            universe_id,
+            args.universe or None,
+        )
+        instrument_ids = _ai_brief_ids(store, args.market, brief_base_universe)
         if args.dry_run:
             print(
                 {

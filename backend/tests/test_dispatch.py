@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 from backend.cloudrun.orchestrator.dispatch import (
     _ai_brief_ids,
+    _brief_base_universe_id,
     _fresh_open_brief_ids,
     _lane_universe_id,
     _price_core_ids,
@@ -97,6 +98,18 @@ class DispatchUniverseScopeTest(unittest.TestCase):
     def test_other_lanes_keep_runtime_universe_default(self) -> None:
         store = _StubStore("us_core_100")
         self.assertEqual(_lane_universe_id(store, "US", "earnings_intel", None), "us_core_100")
+
+    def test_brief_lanes_use_runtime_base_when_price_namespace_is_broad(self) -> None:
+        self.assertEqual(
+            _brief_base_universe_id("US", "us_core_155", None),
+            "us_core_100",
+        )
+
+    def test_brief_lanes_honor_explicit_base_override(self) -> None:
+        self.assertEqual(
+            _brief_base_universe_id("US", "us_core_155", "us_core_155"),
+            "us_core_155",
+        )
 
     def test_ai_brief_cohort_is_active_ai_universe_plus_pro_tracked(self) -> None:
         store = object()
