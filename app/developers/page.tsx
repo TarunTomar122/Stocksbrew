@@ -7,7 +7,7 @@ import { AGENT_DAILY_CALL_LIMIT, AGENT_PER_MINUTE_CALL_LIMIT, publicAppUrl } fro
 
 export const metadata: Metadata = {
   title: "Stocksbrew MCP Server and Stock API for AI Agents",
-  description: "Connect Claude Code, Hermes, OpenClaw or your own agent to Stocksbrew stock detail, Explore, Market Daily history, screens, Watchlist changes and alerts through MCP or REST.",
+  description: "Connect Claude Code, Hermes, OpenClaw or your own agent to Stocksbrew stock detail, Explore, screens, Watchlist changes and alerts through MCP or REST.",
   keywords: ["stock market MCP server", "Hermes stock market data", "OpenClaw stock alerts", "AI agent stock API", "MCP finance"],
   alternates: { canonical: "/developers" },
 };
@@ -23,7 +23,7 @@ const TOOLS = [
   ["get_stock_detail", "stocks:read", "Read the full materialized stock page, including facts, history, business questions, earnings, news and Reddit context."],
   ["compare_stocks", "stocks:read", "Compare two to five stocks."],
   ["get_market_brief", "market:read", "Read the current market, sectors, and movers."],
-  ["get_market_history", "market:read", "Read the last seven published Market Daily editions."],
+  ["get_market_history", "market:read", "Read archived Market Daily editions. Publication is paused."],
   ["get_explore", "market:read", "Read the Explore page sections and current discovery data."],
   ["get_screens", "market:read", "Read curated screens and every current match."],
   ["get_my_radar", "radar:read", "Read the authorized member's Watchlist."],
@@ -41,7 +41,7 @@ const ENDPOINTS = [
   ["GET", "/stocks/CCL/detail", "Read full stock-page detail"],
   ["POST", "/compare", "Compare stocks"],
   ["GET", "/market", "Read market context"],
-  ["GET", "/market/history?days=7", "Read Market Daily history"],
+  ["GET", "/market/history?days=7", "Read archived Market Daily history"],
   ["GET", "/explore", "Read Explore sections"],
   ["GET", "/screens", "Read curated screens"],
   ["GET", "/radar?limit=50&offset=0", "Read Watchlist"],
@@ -193,7 +193,7 @@ stocksbrew search "semiconductor"`}</Code>
             {[
               ["Answer about any covered stock.", "Call get_stock_intelligence. Baseline data remains available when the detailed brief is missing."],
               ["Read full stock evidence.", "Call get_stock_detail for the stock page's financial history, business questions, price history, technicals, earnings, news, Reddit context and materialized source documents."],
-              ["Understand the broader market.", "Call get_explore, get_market_history and get_screens. Market history returns seven published US editions by default and marks shorter history as not enough current evidence."],
+              ["Understand the broader market.", "Call get_market_brief, get_explore and get_screens for current market context."],
               ["Queue missing research.", "Read coverage.next_action, ask the user, then call add_to_radar. Recheck the same stock later."],
               ["Report only new Watchlist changes.", "Call get_radar_changes with the last cursor. Save the returned cursor only after delivery succeeds."],
               ["Create or review price alerts.", "Ask before any write, then use the alert tools. Earnings, RSI, call, anomaly and news updates come through Watchlist changes."],

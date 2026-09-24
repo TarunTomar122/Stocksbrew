@@ -3,7 +3,6 @@ import { COMPARISON_PAGES } from "@/lib/compare-data";
 import { USE_CASES } from "@/lib/use-cases-data";
 import { FEATURED_STOCK_TICKERS, getSeoStockPage } from "@/lib/seo/stock-pages";
 import { SEO_SECTOR_PAGES } from "@/lib/seo/sector-pages";
-import { listMarketDailyEditions } from "@/lib/market-daily";
 import { INVESTMENT_THEMES } from "@/lib/investment-themes";
 
 export const revalidate = 86400; // ISR once a day
@@ -24,7 +23,6 @@ export async function GET() {
     "/pulse",
     "/explore",
     "/premarket",
-    "/market-daily",
     "/events",
     "/news",
     "/stocks",
@@ -68,16 +66,6 @@ export async function GET() {
   // Blog posts
   for (const p of indexableBlogPosts) {
     entries.push(url(`/blog/${p.slug}`, p.updated ?? p.date));
-  }
-
-  const marketDailyEditions = await listMarketDailyEditions(365).catch(() => []);
-  for (const edition of marketDailyEditions) {
-    entries.push(
-      url(
-        `/market-daily/${edition.edition_date}`,
-        edition.updated_at || edition.published_at,
-      ),
-    );
   }
 
   for (const ticker of FEATURED_STOCK_TICKERS) {

@@ -9,8 +9,6 @@ import { ProCheckoutButton } from "@/components/oa/pro-checkout-button";
 import { SquircleCard, SquircleSurface } from "@/components/oa/squircle";
 import { AnimatedIcon } from "@/components/animated-icon";
 import { Reveal } from "@/components/reveal";
-import { allBlogPosts } from "@/lib/blog-data";
-import { listMarketDailyEditions } from "@/lib/market-daily";
 import { PRO_POINTS } from "@/lib/subscribe-benefits";
 import {
   HERO_HEADLINE_EMPHASIS,
@@ -395,10 +393,7 @@ const FAQS = [
 ];
 
 export async function OaLanding() {
-  const [user, marketDailyEditions] = await Promise.all([
-    getLandingUserContext(),
-    listMarketDailyEditions(3).catch(() => []),
-  ]);
+  const user = await getLandingUserContext();
 
   return (
     <main className={`oa-landing ${interTight.variable} min-w-0 flex-grow overflow-x-clip`}>
@@ -522,49 +517,6 @@ export async function OaLanding() {
                 ))}
               </div>
             </Reveal>
-          </section>
-
-          {/* daily dispatch section */}
-          <section>
-            <Reveal>
-              <div className="mb-6 flex items-center justify-between">
-                <h2 className={H2}>Daily dispatch</h2>
-                <a href="/market-daily" className="text-base font-medium text-oa-primary hover:underline">View all →</a>
-              </div>
-            </Reveal>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              {marketDailyEditions.length > 0 ? (
-                marketDailyEditions.map((edition, i) => (
-                  <Reveal key={edition.edition_date} delay={80 * (i + 1)}>
-                    <a href={`/market-daily/${edition.edition_date}`}>
-                      <SquircleSurface className="group h-full border border-oa-border shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition-colors hover:border-oa-accent">
-                        <div className="flex h-full flex-col bg-oa-bg px-5 py-6 text-left sm:px-6 sm:py-7">
-                          <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-oa-muted-fg">Market Daily</span>
-                          <h3 className="mt-3 text-[17px] font-medium tracking-tight text-oa-fg">{edition.headline}</h3>
-                          <p className="mt-2 flex-grow text-base leading-5 text-oa-muted-fg">{edition.dek}</p>
-                          <p className="mt-3 text-[13px] text-oa-muted-fg">{edition.edition_date}</p>
-                        </div>
-                      </SquircleSurface>
-                    </a>
-                  </Reveal>
-                ))
-              ) : (
-                allBlogPosts.slice(0, 3).map((post, i) => (
-                  <Reveal key={post.slug} delay={80 * (i + 1)}>
-                    <a href={`/blog/${post.slug}`}>
-                      <SquircleSurface className="group h-full border border-oa-border shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition-colors hover:border-oa-accent">
-                        <div className="flex h-full flex-col bg-oa-bg px-5 py-6 text-left sm:px-6 sm:py-7">
-                          <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-oa-muted-fg">{post.category}</span>
-                          <h3 className="mt-3 text-[17px] font-medium tracking-tight text-oa-fg">{post.title}</h3>
-                          <p className="mt-2 flex-grow text-base leading-5 text-oa-muted-fg">{post.description}</p>
-                          <p className="mt-3 text-[13px] text-oa-muted-fg">{post.date}</p>
-                        </div>
-                      </SquircleSurface>
-                    </a>
-                  </Reveal>
-                ))
-              )}
-            </div>
           </section>
 
           {/* footer */}

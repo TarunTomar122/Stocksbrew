@@ -244,7 +244,7 @@ export const productIntentBlogContent: Record<string, string> = {
 
 <h2>7. stocksbrew: best for interpreted watchlist news</h2>
 
-<p><a href="/news">stocksbrew</a> connects news with price movement, fundamentals, analyst context, market conditions, and social conversation for US stocks. Watchlist tracks followed names; Pulse and Market Daily explain broader moves; anomaly views surface unusual sector and company behavior.</p>
+<p><a href="/news">stocksbrew</a> connects news with price movement, fundamentals, analyst context, market conditions, and social conversation for US stocks. Watchlist tracks followed names; Pulse explains broader moves; anomaly views surface unusual sector and company behavior.</p>
 
 <p>The product is useful when you care about “why does this matter to my stock?” more than reading every article. It is not a substitute for Reuters or another primary newsroom, and every meaningful claim should remain traceable to the source.</p>
 

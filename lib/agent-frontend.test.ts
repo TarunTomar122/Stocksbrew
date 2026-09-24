@@ -41,7 +41,7 @@ describe("agent access frontend launch surfaces", () => {
     expect(source("components/agent-access-marketing.tsx")).not.toContain('bg-[#07110c]');
     expect(source("components/agent-access-marketing.tsx")).toContain("Let your agent keep up with your stocks");
     expect(source("app/agents/page.tsx")).toContain("Research any stock");
-    expect(source("app/developers/page.tsx")).toContain("Stock detail, market context, Watchlist and alerts for your agent");
+    expect(source("app/developers/page.tsx")).toContain("Plug stocksbrew into your agent");
     expect(source("app/developers/page.tsx")).toContain("Connect with one prompt");
     expect(source("components/agent-access-card.tsx")).toContain("Connect Stocksbrew");
   });
@@ -58,7 +58,7 @@ describe("agent access frontend launch surfaces", () => {
     expect(prompt).toContain("https://www.stocksbrew.online/api/mcp");
     expect(prompt).toContain("Use OAuth");
     expect(prompt).toContain("get_explore");
-    expect(prompt).toContain("get_market_history");
+    expect(prompt).not.toContain("get_market_history");
     expect(prompt).toContain("get_stock_detail");
     expect(prompt).toContain("get_screens");
     expect(prompt).toContain("not enough current evidence");

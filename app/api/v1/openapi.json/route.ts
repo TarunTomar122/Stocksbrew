@@ -7,7 +7,7 @@ export async function GET() {
     info: {
       title: "Stocksbrew Agent API",
       version: "1.2.0",
-      description: "Stock research, full stock detail, Explore, Screens, Market Daily history, Watchlist tracking and alert tools for Stocksbrew Pro members. No trading or brokerage access.",
+      description: "Stock research, full stock detail, Explore, Screens, Watchlist tracking and alert tools for Stocksbrew Pro members. No trading or brokerage access.",
     },
     servers: [{ url: `${base}/api/v1` }],
     security: [{ bearerAuth: [] }],
@@ -68,7 +68,7 @@ export async function GET() {
       "/market/history": {
         get: {
           operationId: "getMarketHistory",
-          summary: "Get the last seven published US Market Daily editions",
+          summary: "Get archived US Market Daily editions (publication paused)",
           parameters: [
             { name: "market", in: "query", schema: { type: "string", enum: ["US", "IN"], default: "US" } },
             { name: "days", in: "query", schema: { type: "integer", minimum: 1, maximum: 30, default: 7 } },

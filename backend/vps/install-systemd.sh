@@ -116,10 +116,9 @@ write_pair stock-facts "Sun *-*-* 08:00:00" stock_facts "--universe us_core_155 
 write_pair research-themes "Sun *-*-* 10:00:00 America/New_York" research_themes
 write_pair trump-logic "*-*-* 12:30:00" trump_logic
 # One pre-market pipeline for the opening report and subscriber email.
-# Market Daily starts only after that fresh evidence is ready. Both services
-# retry transient failures, and the publisher skips duplicate market sessions.
+# Market Daily is paused; keep the service available for a future relaunch.
 # 08:30 UTC is 2:00 PM IST year-round.
-write_pair premarket "Mon..Fri *-*-* 08:30:00" premarket_pipeline "" "tikrr-market-daily.service" "5min"
+write_pair premarket "Mon..Fri *-*-* 08:30:00" premarket_pipeline "" "" "5min"
 write_service market-daily market_daily "" "" "10min"
 # The opening email is sent inside the anomaly worker immediately after the
 # mover snapshot and its evidence-backed reasons have been written. It must
@@ -150,8 +149,8 @@ for name in open-briefs open-anomalies open-email; do
   systemctl disable --now "tikrr-${name}.timer" >/dev/null 2>&1 || true
   rm -f "${UNIT_DIR}/tikrr-${name}.timer"
 done
-# Market Daily is chained to the premarket service, so remove any independent
-# timer left by an older installer to prevent duplicate publication attempts.
+# Market Daily is paused. Remove any independent timer left by an older
+# installer so it cannot publish on its own.
 systemctl disable --now tikrr-market-daily.timer >/dev/null 2>&1 || true
 rm -f "${UNIT_DIR}/tikrr-market-daily.timer"
 # Retired: intraday tracked-news polling repeatedly regenerated AI

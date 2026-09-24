@@ -1,5 +1,4 @@
 import { indexableBlogPosts } from "@/lib/blog-data";
-import { listMarketDailyEditions } from "@/lib/market-daily";
 
 export const revalidate = 300;
 
@@ -23,15 +22,7 @@ type FeedItem = {
 };
 
 export async function GET() {
-  const dailyEditions = await listMarketDailyEditions(30).catch(() => []);
   const feedItems: FeedItem[] = [
-    ...dailyEditions.map((edition) => ({
-      title: edition.headline,
-      link: `${BASE}/market-daily/${edition.edition_date}`,
-      description: edition.dek,
-      publishedAt: edition.published_at || `${edition.edition_date}T12:00:00Z`,
-      category: "Market Daily",
-    })),
     ...indexableBlogPosts.map((post) => ({
       title: post.title,
       link: `${BASE}/blog/${post.slug}`,
@@ -60,7 +51,7 @@ export async function GET() {
 <channel>
   <title>stocksbrew research</title>
   <link>${BASE}</link>
-  <description>Source-linked US market analysis, stock research, and evidence-first investing guides.</description>
+  <description>Stock research and evidence-first investing guides.</description>
   <language>en-us</language>
 ${items}
 </channel>

@@ -2,6 +2,7 @@
 const nextConfig = {
   async redirects() {
     return [
+      { source: "/market-daily/:path*", destination: "/pulse", permanent: false },
       {
         source: "/blog/stock-research-guide-hub",
         destination: "/guides",
@@ -79,7 +80,7 @@ const nextConfig = {
       { source: "/blog/earnings-predictions-ai-vs-analyst", destination: "/blog/analyst-ratings-price-targets-explained", permanent: true },
       { source: "/blog/ai-stock-sentiment-analysis-tools", destination: "/social", permanent: true },
       { source: "/blog/track-insider-trading-free", destination: "/blog/stock-news-catalyst-analysis", permanent: true },
-      { source: "/blog/stock-market-daily-newsletter-free", destination: "/market-daily", permanent: true },
+      { source: "/blog/stock-market-daily-newsletter-free", destination: "/pulse", permanent: true },
       { source: "/blog/market-breadth-analysis-guide", destination: "/pulse", permanent: true },
       { source: "/blog/how-to-read-stock-heat-map", destination: "/heat", permanent: true },
       { source: "/blog/stock-analysis-beginners-technical-vs-fundamental", destination: "/blog/fundamental-stock-analysis-framework", permanent: true },

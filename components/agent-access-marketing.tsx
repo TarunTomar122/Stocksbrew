@@ -14,7 +14,7 @@ export function AgentAccessLandingSection() {
               Let your agent keep up with your stocks.
             </h2>
             <p className="mt-4 max-w-xl text-[15px] leading-relaxed text-on-surface-variant">
-              Give your agent your Watchlist, Explore data, Market Daily history, full stock detail and curated screens.
+              Give your agent your Watchlist, Explore data, full stock detail and curated screens.
             </p>
             <AgentClientLogos compact className="mt-5" />
             <p className="mt-6 font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">Works wherever your agent talks to you</p>
@@ -29,7 +29,7 @@ export function AgentAccessLandingSection() {
             <div className="divide-y divide-outline-variant border-y border-outline-variant">
               {[
                 ["Research any stock", "Get the full materialized stock-page detail: facts, financial history, business questions, price history, earnings, news and Reddit context. Missing evidence stays visible."],
-                ["Read the market", "Use Explore, seven Market Daily editions and Stocksbrew's curated screens for broader context."],
+                ["Read the market", "Use Explore and Stocksbrew's curated screens for broader context."],
                 ["Check what changed", "Read your Watchlist, find new price levels or events since the last run, and revisit queued research."],
                 ["Manage alerts", "Create or remove price alerts, and ask what changed across earnings, RSI, calls, anomalies, and news."],
               ].map(([title, body]) => (

@@ -53,7 +53,7 @@ export function createStocksbrewMcpServer(principal: AgentPrincipal): McpServer 
     name: AGENT_MCP_SERVER_NAME,
     version: AGENT_MCP_SERVER_VERSION,
     title: "Stocksbrew for Agents",
-    description: "Full stock detail, Explore, Market Daily history, curated screens, Watchlist tracking and alert tools for Stocksbrew Pro members.",
+    description: "Full stock detail, Explore, curated screens, Watchlist tracking and alert tools for Stocksbrew Pro members.",
   });
 
   const readOnly = {
@@ -120,7 +120,7 @@ export function createStocksbrewMcpServer(principal: AgentPrincipal): McpServer 
 
   server.registerTool("get_market_history", {
     title: "Get Market Daily history",
-    description: "Get the last seven published US Stocksbrew Market Daily editions, including each edition's article, tape, premarket view, anomalies and sources. Use days to request up to 30 editions. If fewer editions exist, the response marks that as not enough current evidence.",
+    description: "Read archived US Market Daily editions. Publication is paused, so do not use this history as current market context. Use days to request up to 30 editions.",
     inputSchema: {
       market: z.enum(["US", "IN"]).default("US"),
       days: z.number().int().min(1).max(30).default(7).describe("Number of published editions to return"),
