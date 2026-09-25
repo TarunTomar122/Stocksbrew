@@ -1518,13 +1518,13 @@ class TraceMoneyStore:
             result = gate_brief(payload)
             if result:
                 payload["jev_qa"] = result
-            else:
-                payload.pop("jev_qa", None)
                 if result["decision"] == "hold":
                     print(
                         "jev_qa_hold",
                         {"instrument_id": payload.get("instrument_id"), "correct_company": result["correct_company"], "prices_sane": result["prices_sane"], "evidence_supported": result["evidence_supported"]},
                     )
+            else:
+                payload.pop("jev_qa", None)
 
         with ThreadPoolExecutor(max_workers=8) as pool:
             list(pool.map(run, docs_payload))
