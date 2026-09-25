@@ -54,7 +54,7 @@ class PremarketBriefTemplateTests(unittest.TestCase):
         self.assertIn("NVDA", subject)
         self.assertIn("Before the bell", subject)
         self.assertTrue(subject.startswith(("☀️", "👀", "☕")))
-        self.assertIn("/stocksbrew-email-mark.png", html)
+        self.assertIn("/icon.svg", html)
         self.assertIn("News on your book", html)
         self.assertNotIn("Your book gapping", html)
         self.assertIn("Biggest pre-market movers", html)

@@ -65,7 +65,7 @@ class OpenBriefTemplateTests(unittest.TestCase):
         self.assertIn("NVDA", subject)
         self.assertIn("At the open", subject)
         self.assertTrue(subject.startswith(("⚡", "👀", "📣")))
-        self.assertIn("/stocksbrew-email-mark.png", html)
+        self.assertIn("/icon.svg", html)
         self.assertIn("Moves on your book", html)
         self.assertIn("Biggest open movers", html)
         self.assertIn("Top gainers", html)

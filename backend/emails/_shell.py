@@ -36,7 +36,7 @@ def email_shell(
     <table width="100%" cellpadding="0" cellspacing="0" style="max-width:{width}px">
       <tr><td style="padding:0 20px 18px">
         <table cellpadding="0" cellspacing="0" role="presentation"><tr>
-          <td width="32"><img src="{html.escape(APP_URL)}/stocksbrew-email-mark.png" width="24" height="24" alt="" style="display:block;width:24px;height:24px" /></td>
+          <td width="32"><img src="{html.escape(APP_URL)}/icon.svg" width="24" height="24" alt="" style="display:block;width:24px;height:24px" /></td>
           <td style="font-size:20px;font-weight:700;color:{PRIMARY};letter-spacing:-0.02em">stocksbrew</td>
         </tr></table>
       </td></tr>

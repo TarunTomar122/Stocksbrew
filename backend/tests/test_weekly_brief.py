@@ -63,7 +63,7 @@ class WeeklyBriefTemplateTests(unittest.TestCase):
         self.assertIn("NVDA", subject)
         self.assertIn("Your week in stocks", subject)
         self.assertTrue(subject.startswith(("🗞️", "📊", "🧭")))
-        self.assertIn("/stocksbrew-email-mark.png", html)
+        self.assertIn("/icon.svg", html)
         self.assertIn("Stories of the week", html)
         self.assertIn("Micron earnings lifted the chip complex", html)
         self.assertIn("Orders improved.", html)
