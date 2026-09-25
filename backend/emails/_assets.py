@@ -50,6 +50,6 @@ def logo_img(*, ticker: str, logo_url: str | None = None, size: int = 44) -> str
 def ticker_with_logo(*, ticker: str, logo_url: str | None = None) -> str:
     return (
         "<table cellpadding='0' cellspacing='0' role='presentation'><tr>"
-        f"<td width='34'>{logo_img(ticker=ticker, logo_url=logo_url, size=24)}</td>"
+        f"<td width='28'>{logo_img(ticker=ticker, logo_url=logo_url, size=18)}</td>"
         f"<td>{html.escape(ticker)}</td></tr></table>"
     )
