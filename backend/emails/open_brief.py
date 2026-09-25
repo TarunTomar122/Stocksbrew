@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import html
+from datetime import date
 from typing import Any
 from zoneinfo import ZoneInfo
 
 from backend.email import APP_URL, first_name_from_profile
-from backend.email_content import clean_optional_email_text
+from backend.email_content import clean_optional_email_text, limit_optional_email_sentences
+from backend.emails._assets import logo_img, ticker_with_logo
 from backend.emails._shell import email_shell
 from backend.emails._theme import BEARISH, BODY, BULLISH, DIVIDER, INK, MUTED, PRIMARY
 from backend.emails.price_alert import _fmt_price
@@ -13,6 +15,7 @@ from backend.open_email_intel import (
     OPEN_BOOK_MOVE_THRESHOLD,
     anomaly_tape_line,
     fresh_anomaly_rows,
+    is_weak_move_explanation,
     parse_iso_datetime,
 )
 
@@ -51,7 +54,7 @@ def _market_table_rows(movers: list[dict[str, Any]], *, limit: int = 5) -> str:
         price = _fmt_price(row.get("price")) or "—"
         rows.append(
             "<tr>"
-            f"<td style='padding:9px 6px;border-top:1px solid {DIVIDER};font-size:14px;font-weight:700;color:{INK}'>{html.escape(ticker)}</td>"
+            f"<td style='padding:9px 6px;border-top:1px solid {DIVIDER};font-size:14px;font-weight:700;color:{INK}'>{ticker_with_logo(ticker=ticker, logo_url=row.get('logo_url'))}</td>"
             f"<td align='right' style='padding:9px 6px;border-top:1px solid {DIVIDER};font-size:13px;font-weight:700;color:{_move_color(move)}'>{_move_arrow(move)} {abs(move):.1f}%</td>"
             f"<td align='right' style='padding:9px 6px;border-top:1px solid {DIVIDER};font-size:13px;color:{BODY}'>{html.escape(price)}</td>"
             "</tr>"
@@ -89,17 +92,39 @@ def _movers_section(gainers: list[dict[str, Any]], losers: list[dict[str, Any]])
 
 def _news_section_rows(book_hits: list[tuple[dict[str, Any], dict[str, Any], float]]) -> str:
     items: list[str] = []
-    for row, anomaly, _move in book_hits[:6]:
+    for row, anomaly, move in book_hits[:6]:
         ticker = str(row.get("ticker") or anomaly.get("ticker") or "").strip().upper()
         if not ticker:
             continue
-        tape = anomaly_tape_line(anomaly)
+        tape = limit_optional_email_sentences(anomaly_tape_line(anomaly))
         if not tape:
             continue
+        logo_url = row.get("logo_url") or anomaly.get("logo_url")
+        explanation = anomaly.get("move_explanation")
+        cause_type = str(explanation.get("cause_type") or "").lower() if isinstance(explanation, dict) else ""
+        has_catalyst = (
+            isinstance(explanation, dict)
+            and not is_weak_move_explanation(anomaly)
+            and bool(cause_type)
+            and cause_type not in {"internal_context", "no_verified_catalyst", "price_context", "price_action", "unresolved"}
+            and isinstance(explanation.get("evidence"), list)
+            and bool(explanation["evidence"])
+            and str(explanation.get("confidence") or "medium").lower() != "low"
+            and bool(clean_optional_email_text(explanation.get("why_it_matters") or explanation.get("headline")))
+        )
+        catalyst = (
+            f" <span style='display:inline-block;margin-left:7px;font-size:10px;font-weight:700;"
+            f"color:{_move_color(move)}'>{'Positive' if move > 0 else 'Negative'} catalyst</span>"
+            if has_catalyst else ""
+        )
         items.append(
             f"<tr><td style='padding:8px 0;border-top:1px solid {DIVIDER}'>"
-            f"<span style='font-size:14px;font-weight:800;color:{INK}'>{html.escape(ticker)}</span>"
-            f"<span style='font-size:13px;color:{BODY}'> — {html.escape(tape)}</span>"
+            "<table cellpadding='0' cellspacing='0'><tr>"
+            f"<td width='30'>{logo_img(ticker=ticker, logo_url=logo_url, size=20)}</td>"
+            f"<td style='font-size:14px;font-weight:800;color:{INK}'>"
+            f"<span style='font-size:14px;font-weight:800;color:{INK}'>{html.escape(ticker)}</span>{catalyst}"
+            "</td></tr></table>"
+            f"<div style='margin-top:6px;font-size:13px;line-height:1.55;color:{BODY}'>{html.escape(tape)}</div>"
             "</td></tr>"
         )
     return "".join(items)
@@ -182,18 +207,20 @@ def build_open_brief_email(
 
     news_rows = _news_section_rows(book_hits)
 
+    emoji = ("⚡", "👀", "📣")[date.today().toordinal() % 3]
     if book_hits:
         top_ticker, _top_anomaly, top_move = book_hits[0]
         sym = str(top_ticker.get("ticker") or "").upper()
-        subject = f"{sym} {_move_arrow(top_move)} {abs(top_move):.1f}% after the open"
+        subject = f"{emoji} At the open: {sym} {_move_arrow(top_move)} {abs(top_move):.1f}%"
         if len(book_hits) > 1:
             subject += f" · {len(book_hits)} on your book"
     else:
-        subject = "Big movers after the open"
+        subject = f"{emoji} The biggest moves at the open"
 
     hi = f"{first_name}, " if first_name and first_name != "there" else ""
     if book_hits:
-        intro = f"{hi}{len(book_hits)} names on your book are moving sharply after the open."
+        count = len(book_hits)
+        intro = f"{hi}{count} {'name is' if count == 1 else 'names are'} moving sharply after the open."
     else:
         intro = f"{hi}here are the biggest movers in the first hour of trading."
 

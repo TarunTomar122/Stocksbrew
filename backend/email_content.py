@@ -19,6 +19,10 @@ _MISSING_INFORMATION_PATTERNS = (
     re.compile(r"\bstill (?:updating|loading)\b", re.I),
 )
 _EMPTY_MARKERS = frozenset({"", "none", "n/a", "na", "unknown", "unavailable", "not available"})
+_NON_TERMINAL_ABBREVIATIONS = frozenset({
+    "u.s.", "u.k.", "mr.", "mrs.", "dr.", "inc.", "corp.", "co.",
+    "ltd.", "vs.", "e.g.", "i.e.", "a.m.", "p.m.",
+})
 
 
 def is_missing_information_statement(value: Any) -> bool:
@@ -50,3 +54,21 @@ def clean_optional_email_text(value: Any) -> str:
         if cleaned_paragraph:
             paragraphs.append(cleaned_paragraph)
     return "\n\n".join(paragraphs)
+
+
+def limit_optional_email_sentences(value: Any, *, max_sentences: int = 3) -> str:
+    """Keep complete stock-story sentences, with no character cutoff or ellipsis."""
+    text = clean_optional_email_text(value)
+    if max_sentences < 1:
+        return ""
+    boundaries = 0
+    for match in re.finditer(r"[.!?][\"'”’)]*\s+(?=\S)", text):
+        preceding_word = text[:match.start() + 1].rsplit(maxsplit=1)[-1].lower()
+        if preceding_word in _NON_TERMINAL_ABBREVIATIONS and (
+            preceding_word in {"mr.", "mrs.", "dr."} or text[match.end()].islower()
+        ):
+            continue
+        boundaries += 1
+        if boundaries == max_sentences:
+            return text[:match.end()].rstrip()
+    return text

@@ -8,12 +8,14 @@ import { NextRequest, NextResponse } from "next/server";
  */
 const ALLOWED_HOSTS = [
   "static2.finnhub.io",
+  "static9.finnhub.io",
   "logo.clearbit.com",
   "www.google.com",
   "financialmodelingprep.com",
   "cdn.brandfetch.io",
   "storage.googleapis.com",
   "s3.amazonaws.com",
+  "companiesmarketcap.com",
 ];
 
 const US_DOMAIN: Record<string, string> = {
@@ -89,7 +91,7 @@ function logoCandidates(ticker: string, preferredUrl?: string | null): string[] 
   if (preferredUrl) {
     try {
       const parsed = new URL(preferredUrl);
-      if (hostAllowed(parsed.hostname)) out.push(preferredUrl);
+      if (parsed.protocol === "https:" && hostAllowed(parsed.hostname)) out.push(preferredUrl);
     } catch {
       // ignore invalid preferred url
     }
@@ -100,19 +102,32 @@ function logoCandidates(ticker: string, preferredUrl?: string | null): string[] 
   return [...new Set(out)];
 }
 
-async function fetchLogoBytes(url: string): Promise<ArrayBuffer | null> {
+async function fetchLogoBytes(url: string): Promise<{ buffer: ArrayBuffer; contentType: string } | null> {
   try {
-    const upstream = await fetch(url, {
-      headers: { "User-Agent": "stocksbrew-logo-proxy/1.0" },
-      signal: AbortSignal.timeout(3000),
-    });
-    if (!upstream.ok) return null;
-    const contentType = upstream.headers.get("content-type") ?? "";
-    if (!contentType.startsWith("image/")) return null;
-    const buffer = await upstream.arrayBuffer();
-    // Reject favicons / blank placeholders.
-    if (buffer.byteLength < 220) return null;
-    return buffer;
+    let current = url;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const parsed = new URL(current);
+      if (parsed.protocol !== "https:" || !hostAllowed(parsed.hostname)) return null;
+      const upstream = await fetch(current, {
+        headers: { "User-Agent": "stocksbrew-logo-proxy/1.0" },
+        signal: AbortSignal.timeout(3000),
+        redirect: "manual",
+      });
+      if ([301, 302, 303, 307, 308].includes(upstream.status)) {
+        const location = upstream.headers.get("location");
+        if (!location) return null;
+        current = new URL(location, current).toString();
+        continue;
+      }
+      if (!upstream.ok) return null;
+      const contentType = upstream.headers.get("content-type") ?? "";
+      if (!/^(image\/png|image\/jpeg|image\/webp)(;|$)/i.test(contentType)) return null;
+      const buffer = await upstream.arrayBuffer();
+      // Reject favicons / blank placeholders.
+      if (buffer.byteLength < 220) return null;
+      return { buffer, contentType: contentType.split(";")[0] };
+    }
+    return null;
   } catch {
     return null;
   }
@@ -135,9 +150,9 @@ export async function GET(req: NextRequest) {
 
   if (ticker) {
     for (const candidate of logoCandidates(ticker, preferredUrl)) {
-      const buffer = await fetchLogoBytes(candidate);
-      if (buffer) {
-        return imageResponse(buffer, "image/png");
+      const image = await fetchLogoBytes(candidate);
+      if (image) {
+        return imageResponse(image.buffer, image.contentType);
       }
     }
     if (useFallback) {
@@ -165,15 +180,14 @@ export async function GET(req: NextRequest) {
     return new NextResponse("Invalid url", { status: 400 });
   }
 
-  if (!hostAllowed(parsed.hostname)) {
+  if (parsed.protocol !== "https:" || !hostAllowed(parsed.hostname)) {
     return new NextResponse("Host not allowed", { status: 403 });
   }
 
-  const buffer = await fetchLogoBytes(url);
-  if (!buffer) {
+  const image = await fetchLogoBytes(url);
+  if (!image) {
     return new NextResponse("Upstream error", { status: 502 });
   }
 
-  const contentType = "image/png";
-  return imageResponse(buffer, contentType);
+  return imageResponse(image.buffer, image.contentType);
 }

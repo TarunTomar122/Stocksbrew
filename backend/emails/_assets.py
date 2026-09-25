@@ -30,23 +30,26 @@ def logo_src(*, ticker: str, logo_url: str | None = None) -> str:
     candidate = str(logo_url or "").strip()
     if not candidate:
         candidate = LOGO_SOURCE_OVERRIDES.get(symbol, "")
-    if candidate and not _is_bad_logo_url(candidate):
-        return f"{APP_URL}/api/logo-proxy?url={quote(candidate, safe='')}"
     if symbol:
-        finnhub = (
-            "https://static2.finnhub.io/file/publicdatany/finnhubimage/"
-            f"stock_logo/{quote(symbol.replace('.', '-'))}.png"
-        )
-        return f"{APP_URL}/api/logo-proxy?url={quote(finnhub, safe='')}"
-    fmp = f"https://financialmodelingprep.com/image-stock/{quote(symbol)}.png"
-    return f"{APP_URL}/api/logo-proxy?url={quote(fmp, safe='')}"
+        src = f"{APP_URL}/api/logo-proxy?ticker={quote(symbol, safe='')}&fallback=1"
+        if candidate and not _is_bad_logo_url(candidate):
+            src += f"&url={quote(candidate, safe='')}"
+        return src
+    return ""
 
 
 def logo_img(*, ticker: str, logo_url: str | None = None, size: int = 44) -> str:
     src = logo_src(ticker=ticker, logo_url=logo_url)
-    radius = max(8, size // 5)
     return (
         f"<img src='{html.escape(src)}' width='{size}' height='{size}' alt='' "
-        f"style='border-radius:{radius}px;object-fit:contain;background:#fff;"
+        "style='border-radius:50%;object-fit:cover;background:#fff;"
         f"border:1px solid {BORDER};padding:2px;display:block' />"
+    )
+
+
+def ticker_with_logo(*, ticker: str, logo_url: str | None = None) -> str:
+    return (
+        "<table cellpadding='0' cellspacing='0' role='presentation'><tr>"
+        f"<td width='34'>{logo_img(ticker=ticker, logo_url=logo_url, size=24)}</td>"
+        f"<td>{html.escape(ticker)}</td></tr></table>"
     )

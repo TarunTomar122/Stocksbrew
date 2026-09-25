@@ -46,7 +46,7 @@ class WeeklyBriefTemplateTests(unittest.TestCase):
                 {
                     "ticker": "NVDA",
                     "headline": "Micron earnings lifted the chip complex",
-                    "story": "Memory names rallied after Micron posted strong results. Nvidia rode the read-through as investors repriced AI infrastructure demand.",
+                    "story": "Memory names rallied after Micron posted strong results. Nvidia rode the read-through as investors repriced AI infrastructure demand. Orders improved. Shares gained.",
                     "week_change_pct": 5.4,
                     "on_book": True,
                 }
@@ -61,8 +61,15 @@ class WeeklyBriefTemplateTests(unittest.TestCase):
             weekly_stories=weekly_stories,
         )
         self.assertIn("NVDA", subject)
+        self.assertIn("Your week in stocks", subject)
+        self.assertTrue(subject.startswith(("🗞️", "📊", "🧭")))
+        self.assertIn("/stocksbrew-email-mark.png", html)
         self.assertIn("Stories of the week", html)
         self.assertIn("Micron earnings lifted the chip complex", html)
+        self.assertIn("Orders improved.", html)
+        self.assertNotIn("Shares gained.", html)
+        self.assertIn("/api/logo-proxy?ticker=NVDA&amp;fallback=1", html)
+        self.assertIn("/api/logo-proxy?ticker=INTC&amp;fallback=1", html)
         self.assertIn("On your book", html)
         self.assertIn("Your book this week", html)
         self.assertIn("Biggest weekly movers", html)

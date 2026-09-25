@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import html
+from datetime import date
 from typing import Any
 
 from backend.email import APP_URL, first_name_from_profile
-from backend.email_content import clean_optional_email_text
-from backend.emails._assets import logo_img
+from backend.email_content import clean_optional_email_text, limit_optional_email_sentences
+from backend.emails._assets import logo_img, ticker_with_logo
 from backend.emails._shell import email_shell
 from backend.emails._theme import BEARISH, BODY, BULLISH, DIVIDER, INK, MUTED, PRIMARY
 from backend.emails.price_alert import _fmt_price, quote_ticker
@@ -29,7 +30,7 @@ def _gap_arrow(gap: float) -> str:
 
 
 def _context_tape_line(ctx: dict[str, Any]) -> str:
-    return clean_optional_email_text(ctx.get("tape_line"))
+    return limit_optional_email_sentences(ctx.get("tape_line"))
 
 
 def _table_header(cells: list[tuple[str, str]]) -> str:
@@ -50,7 +51,7 @@ def _market_table_rows(gappers: list[dict[str, Any]], *, limit: int = 5) -> str:
         pre = _fmt_price(row.get("pre_market_price")) or "—"
         rows.append(
             "<tr>"
-            f"<td style='padding:9px 6px;border-top:1px solid {DIVIDER};font-size:14px;font-weight:700;color:{INK}'>{html.escape(ticker)}</td>"
+            f"<td style='padding:9px 6px;border-top:1px solid {DIVIDER};font-size:14px;font-weight:700;color:{INK}'>{ticker_with_logo(ticker=ticker, logo_url=row.get('logo_url'))}</td>"
             f"<td align='right' style='padding:9px 6px;border-top:1px solid {DIVIDER};font-size:13px;font-weight:700;color:{_gap_color(gap)}'>{_gap_arrow(gap)} {abs(gap):.1f}%</td>"
             f"<td align='right' style='padding:9px 6px;border-top:1px solid {DIVIDER};font-size:13px;color:{BODY}'>{html.escape(pre)}</td>"
             "</tr>"
@@ -91,6 +92,7 @@ def _news_section_rows(
     context_by_ticker: dict[str, dict[str, Any]],
     overnight_by_ticker: dict[str, dict[str, Any]],
     company_by_ticker: dict[str, str],
+    logo_by_ticker: dict[str, str],
 ) -> str:
     items: list[str] = []
     seen: set[str] = set()
@@ -115,8 +117,11 @@ def _news_section_rows(
         seen.add(sym)
         items.append(
             f"<tr><td style='padding:8px 0;border-top:1px solid {DIVIDER}'>"
-            f"<span style='font-size:14px;font-weight:800;color:{INK}'>{html.escape(sym)}</span>"
-            f"<span style='font-size:13px;color:{BODY}'> — {html.escape(tape_line)}</span>"
+            "<table cellpadding='0' cellspacing='0'><tr>"
+            f"<td width='30'>{logo_img(ticker=sym, logo_url=logo_by_ticker.get(sym), size=20)}</td>"
+            f"<td style='font-size:14px;font-weight:800;color:{INK}'>{html.escape(sym)}</td>"
+            "</tr></table>"
+            f"<div style='margin-top:6px;font-size:13px;line-height:1.55;color:{BODY}'>{html.escape(tape_line)}</div>"
             "</td></tr>"
         )
         if len(items) >= 6:
@@ -194,25 +199,33 @@ def build_premarket_brief_email(
         for row in rows
         if str(row.get("ticker") or "").strip()
     }
+    logo_by_ticker = {
+        str(row.get("ticker") or "").strip().upper(): str(row.get("logo_url") or "").strip()
+        for row in rows
+        if str(row.get("ticker") or "").strip()
+    }
     news_rows = _news_section_rows(
         news_tickers,
         context_by_ticker,
         overnight_by_ticker,
         company_by_ticker,
+        logo_by_ticker,
     )
 
+    emoji = ("☀️", "👀", "☕")[date.today().toordinal() % 3]
     if book_hits:
         top_ticker, _top_hit, top_gap = book_hits[0]
         sym = str(top_ticker.get("ticker") or "").upper()
-        subject = f"{sym} {_gap_arrow(top_gap)} {abs(top_gap):.1f}% pre-market"
+        subject = f"{emoji} Before the bell: {sym} {_gap_arrow(top_gap)} {abs(top_gap):.1f}%"
         if len(book_hits) > 1:
             subject += f" · {len(book_hits)} on your book"
     else:
-        subject = "Pre-market movers before the open"
+        subject = f"{emoji} What's moving before the bell"
 
     hi = f"{first_name}, " if first_name and first_name != "there" else ""
     if book_hits:
-        intro = f"{hi}{len(book_hits)} names on your book are gapping pre-market."
+        count = len(book_hits)
+        intro = f"{hi}{count} {'name is' if count == 1 else 'names are'} gapping pre-market."
     else:
         intro = f"{hi}here are the biggest pre-market movers before the open."
 

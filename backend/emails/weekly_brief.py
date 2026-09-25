@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import html
+from datetime import date
 from typing import Any
 
 from backend.email import APP_URL, first_name_from_profile
-from backend.email_content import clean_optional_email_text
+from backend.email_content import clean_optional_email_text, limit_optional_email_sentences
+from backend.emails._assets import logo_img, ticker_with_logo
 from backend.emails._shell import email_shell
 from backend.emails._theme import BEARISH, BODY, BULLISH, DIVIDER, INK, INSET, MUTED, PRIMARY, RADIUS_INNER
 from backend.emails.price_alert import _fmt_price
@@ -48,7 +50,7 @@ def _market_table_rows(movers: list[dict[str, Any]], *, limit: int = 5) -> str:
         price = _fmt_price(row.get("price")) or "—"
         rows.append(
             "<tr>"
-            f"<td style='padding:9px 6px;border-top:1px solid {DIVIDER};font-size:14px;font-weight:700;color:{INK}'>{html.escape(ticker)}</td>"
+            f"<td style='padding:9px 6px;border-top:1px solid {DIVIDER};font-size:14px;font-weight:700;color:{INK}'>{ticker_with_logo(ticker=ticker, logo_url=row.get('logo_url'))}</td>"
             f"<td align='right' style='padding:9px 6px;border-top:1px solid {DIVIDER};font-size:13px;font-weight:700;color:{_move_color(move)}'>{_move_arrow(move)} {abs(move):.1f}%</td>"
             f"<td align='right' style='padding:9px 6px;border-top:1px solid {DIVIDER};font-size:13px;color:{BODY}'>{html.escape(price)}</td>"
             "</tr>"
@@ -110,14 +112,14 @@ def _movers_section(gainers: list[dict[str, Any]], losers: list[dict[str, Any]])
     return "".join(parts)
 
 
-def _weekly_stories_section(stories: list[dict[str, Any]]) -> str:
+def _weekly_stories_section(stories: list[dict[str, Any]], logo_by_ticker: dict[str, str]) -> str:
     if not stories:
         return ""
     cards: list[str] = []
     for item in stories[:5]:
         ticker = str(item.get("ticker") or "").strip().upper()
         headline = clean_optional_email_text(item.get("headline"))
-        story = clean_optional_email_text(item.get("story"))
+        story = limit_optional_email_sentences(item.get("story"))
         if not ticker or not story:
             continue
         move = float(item.get("week_change_pct") or 0)
@@ -130,9 +132,13 @@ def _weekly_stories_section(stories: list[dict[str, Any]]) -> str:
         )
         cards.append(
             f"<tr><td style='padding:14px 0;border-top:1px solid {DIVIDER}'>"
+            "<table cellpadding='0' cellspacing='0'><tr>"
+            f"<td width='30'>{logo_img(ticker=ticker, logo_url=logo_by_ticker.get(ticker), size=20)}</td>"
+            "<td>"
             f"<div style='font-size:14px;font-weight:800;color:{INK}'>{html.escape(ticker)}"
             f"<span style='margin-left:8px;font-size:13px;font-weight:700;color:{_move_color(move)}'>"
             f"{_move_arrow(move)} {abs(move):.1f}%</span>{book_badge}</div>"
+            "</td></tr></table>"
             f"<div style='margin-top:4px;font-size:14px;font-weight:700;color:{INK}'>{html.escape(headline)}</div>"
             f"<p style='margin:6px 0 0;font-size:13px;line-height:1.55;color:{BODY}'>{html.escape(story)}</p>"
             "</td></tr>"
@@ -156,7 +162,7 @@ def _book_movers_table(book_hits: list[tuple[dict[str, Any], dict[str, Any], flo
         price = _fmt_price(hit.get("price") or row.get("price")) or "—"
         rows.append(
             "<tr>"
-            f"<td style='padding:9px 6px;border-top:1px solid {DIVIDER};font-size:14px;font-weight:700;color:{INK}'>{html.escape(ticker)}</td>"
+            f"<td style='padding:9px 6px;border-top:1px solid {DIVIDER};font-size:14px;font-weight:700;color:{INK}'>{ticker_with_logo(ticker=ticker, logo_url=row.get('logo_url') or hit.get('logo_url'))}</td>"
             f"<td align='right' style='padding:9px 6px;border-top:1px solid {DIVIDER};font-size:13px;font-weight:700;color:{_move_color(move)}'>{_move_arrow(move)} {abs(move):.1f}%</td>"
             f"<td align='right' style='padding:9px 6px;border-top:1px solid {DIVIDER};font-size:13px;color:{BODY}'>{html.escape(price)}</td>"
             "</tr>"
@@ -279,25 +285,27 @@ def build_weekly_brief_email(
     ]
     week_lede = clean_optional_email_text(stories_payload.get("week_lede"))
 
+    emoji = ("🗞️", "📊", "🧭")[date.today().toordinal() % 3]
     if stories:
         top = stories[0]
         sym = str(top.get("ticker") or "").upper()
         top_move = float(top.get("week_change_pct") or 0)
-        subject = f"{sym} {_move_arrow(top_move)} {abs(top_move):.1f}% · stories of the week"
+        subject = f"{emoji} Your week in stocks: {sym} {_move_arrow(top_move)} {abs(top_move):.1f}%"
     elif book_hits:
         top_ticker, _top_hit, top_move = book_hits[0]
         sym = str(top_ticker.get("ticker") or "").upper()
-        subject = f"{sym} {_move_arrow(top_move)} {abs(top_move):.1f}% this week"
+        subject = f"{emoji} Your week in stocks: {sym} {_move_arrow(top_move)} {abs(top_move):.1f}%"
         if len(book_hits) > 1:
             subject += f" · {len(book_hits)} on your book"
     else:
-        subject = f"Weekly market report · {week_label}"
+        subject = f"{emoji} Your week in stocks · {week_label}"
 
     hi = f"{first_name}, " if first_name and first_name != "there" else ""
     if week_lede:
         intro = f"{hi}{week_lede}"
     elif book_hits:
-        intro = f"{hi}{len(book_hits)} names on your book had a big week."
+        count = len(book_hits)
+        intro = f"{hi}{count} {'name' if count == 1 else 'names'} on your book had a big week."
     else:
         intro = f"{hi}here's how the week wrapped up."
 
@@ -314,7 +322,12 @@ def build_weekly_brief_email(
     if indices_block:
         sections.append(indices_block)
 
-    stories_block = _weekly_stories_section(stories)
+    logo_by_ticker = {
+        str(row.get("ticker") or "").strip().upper(): str(row.get("logo_url") or "").strip()
+        for row in rows
+        if str(row.get("ticker") or "").strip()
+    }
+    stories_block = _weekly_stories_section(stories, logo_by_ticker)
     if stories_block:
         sections.append(stories_block)
 

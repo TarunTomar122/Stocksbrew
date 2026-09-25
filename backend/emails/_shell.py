@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import html
 
+from backend.email import APP_URL
 from backend.emails._theme import BG, BORDER, CARD, DIVIDER, MUTED, PRIMARY, RADIUS_CARD
 
 
@@ -25,15 +26,22 @@ def email_shell(
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{html.escape(title)}</title>
+  <style>@media only screen and (max-width:600px) {{
+    .sb-email-outer {{ padding:0 !important; }}
+    .sb-email-card {{ border:0 !important; border-radius:0 !important; }}
+  }}</style>
 </head>
 <body style="margin:0;padding:0;background:{BG};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
-  <table width="100%" cellpadding="0" cellspacing="0" style="padding:28px 12px"><tr><td align="center">
+  <table width="100%" cellpadding="0" cellspacing="0"><tr><td class="sb-email-outer" align="center" style="padding:28px 0">
     <table width="100%" cellpadding="0" cellspacing="0" style="max-width:{width}px">
-      <tr><td style="padding-bottom:18px">
-        <span style="font-size:20px;font-weight:700;color:{PRIMARY};letter-spacing:-0.02em">stocksbrew</span>
+      <tr><td style="padding:0 20px 18px">
+        <table cellpadding="0" cellspacing="0" role="presentation"><tr>
+          <td width="32"><img src="{html.escape(APP_URL)}/stocksbrew-email-mark.png" width="24" height="24" alt="" style="display:block;width:24px;height:24px" /></td>
+          <td style="font-size:20px;font-weight:700;color:{PRIMARY};letter-spacing:-0.02em">stocksbrew</td>
+        </tr></table>
       </td></tr>
     </table>
-    <table width="100%" cellpadding="0" cellspacing="0" style="max-width:{width}px;background:{CARD};border:1px solid {BORDER};border-radius:{RADIUS_CARD}px;overflow:hidden">
+    <table class="sb-email-card" width="100%" cellpadding="0" cellspacing="0" style="max-width:{width}px;background:{CARD};border:1px solid {BORDER};border-radius:{RADIUS_CARD}px;overflow:hidden">
       {body_html}
       <tr><td style="padding:18px 24px 24px 24px;border-top:1px solid {DIVIDER}">
         <p style="margin:0;font-size:11px;line-height:1.6;color:{MUTED}">{foot}</p>

@@ -36,13 +36,13 @@ class PremarketBriefTemplateTests(unittest.TestCase):
         subject, html = build_premarket_brief_email(
             first_name="Arun",
             premarket=premarket,
-            rows=[{"ticker": "NVDA", "name": "NVIDIA"}],
+            rows=[{"ticker": "NVDA", "name": "NVIDIA", "logo_url": "https://static2.finnhub.io/nvda.png"}],
             premarket_context={
                 "by_ticker": {
                     "NVDA": {
                         "headline": "Nvidia launches its next data-center platform",
                         "why": "Nvidia's new platform expands its enterprise AI offering.",
-                        "tape_line": "Nvidia launched a new data-center platform aimed at expanding enterprise AI demand.",
+                        "tape_line": "Nvidia launched a new data-center platform aimed at expanding enterprise AI demand. Orders rose. Supply improved. Shares gained.",
                         "source": "IBD",
                     },
                 }
@@ -52,6 +52,9 @@ class PremarketBriefTemplateTests(unittest.TestCase):
             },
         )
         self.assertIn("NVDA", subject)
+        self.assertIn("Before the bell", subject)
+        self.assertTrue(subject.startswith(("☀️", "👀", "☕")))
+        self.assertIn("/stocksbrew-email-mark.png", html)
         self.assertIn("News on your book", html)
         self.assertNotIn("Your book gapping", html)
         self.assertIn("Biggest pre-market movers", html)
@@ -61,6 +64,10 @@ class PremarketBriefTemplateTests(unittest.TestCase):
         self.assertIn("https://www.stocksbrew.online/pulse", html)
         self.assertNotIn("https://www.stocksbrew.online/premarket", html)
         self.assertIn("Nvidia launched a new data-center platform", html)
+        self.assertIn("Orders rose. Supply improved.", html)
+        self.assertNotIn("Shares gained.", html)
+        self.assertIn("/api/logo-proxy?ticker=NVDA&amp;fallback=1&amp;url=", html)
+        self.assertGreaterEqual(html.count("/api/logo-proxy?ticker=NVDA"), 2)
         self.assertNotIn("action_now", html.lower())
         self.assertNotIn("trim", html.lower())
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 from datetime import datetime, timezone
 
-from backend.email_content import clean_optional_email_text
+from backend.email_content import clean_optional_email_text, limit_optional_email_sentences
 from backend.emails.newsletter_brief import build_newsletter_brief_email
 from backend.emails.open_brief import build_open_brief_email
 from backend.emails.premarket_brief import build_premarket_brief_email
@@ -16,6 +16,23 @@ MISSING_CATALYST = "No clear overnight catalyst surfaced."
 
 
 class EmailContentSafetyTests(unittest.TestCase):
+    def test_stock_copy_keeps_three_complete_sentences(self) -> None:
+        text = "U.S. demand grew through the quarter. Revenue rose. Margins improved. Shares gained."
+        self.assertEqual(
+            limit_optional_email_sentences(text),
+            "U.S. demand grew through the quarter. Revenue rose. Margins improved.",
+        )
+        long_sentence = "Revenue " + ("grew steadily " * 60).strip() + "."
+        self.assertEqual(limit_optional_email_sentences(long_sentence), long_sentence)
+        self.assertEqual(
+            limit_optional_email_sentences('"Revenue rose." Margins improved. Orders grew. Shares gained.'),
+            '"Revenue rose." Margins improved. Orders grew.',
+        )
+        self.assertEqual(
+            limit_optional_email_sentences("Foo Inc. Revenue rose. Margins improved. Shares gained."),
+            "Foo Inc. Revenue rose. Margins improved.",
+        )
+
     def test_cleaner_removes_only_the_missing_information_sentence(self) -> None:
         text = clean_optional_email_text(
             "Revenue guidance increased. No clear overnight catalyst surfaced. Margins also improved."
