@@ -1,16 +1,16 @@
 """Shared color/radius tokens for transactional and digest emails.
 
-Mirrors the web app's design tokens (see app/globals.css, light mode):
---oa-bg, --oa-card, --ink, --oa-border, --oa-muted-fg, --oa-primary,
+Based on the web app's design tokens (see app/globals.css, light mode):
+--oa-card, --ink, --oa-border, --oa-muted-fg, --oa-primary,
 --signal-bullish, --signal-bearish, --signal-neutral.
 
-Email clients can't read CSS custom properties, so these are the same
-values baked in as plain hex for inline styles.
+The email background is white. Email clients can't read CSS custom
+properties, so these values are baked in as plain hex for inline styles.
 """
 from __future__ import annotations
 
 # surfaces
-BG = "#f6f6f6"
+BG = "#ffffff"
 CARD = "#ffffff"
 INSET = "#f7f7f7"  # nested panel background (was #f9fafb/#fafafa)
 
