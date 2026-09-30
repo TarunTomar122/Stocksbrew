@@ -217,7 +217,9 @@ function BookPlate({
   isSubscribed: boolean;
 }) {
   const [tab, setTab] = useState<"holding" | "watchlist">("holding");
-  const scoped = rows.filter((row) => row.position_type === tab);
+  const scoped = rows
+    .filter((row) => row.position_type === tab)
+    .sort((a, b) => Number(b.needs_attention) - Number(a.needs_attention));
   const visible = isSubscribed ? scoped : scoped.slice(0, FREE_BOOK_ROWS);
   const hiddenCount = scoped.length - visible.length;
 

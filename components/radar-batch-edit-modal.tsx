@@ -42,6 +42,30 @@ type Props = {
   triggerClassName?: string;
 };
 
+function PositionSwitch({
+  value,
+  onChange,
+}: {
+  value?: PositionType;
+  onChange: (positionType: PositionType) => void;
+}) {
+  return (
+    <div className="shrink-0 flex items-center rounded-full border border-outline-variant bg-surface-container-low p-0.5">
+      {(["holding", "watchlist"] as const).map((positionType) => (
+        <button
+          key={positionType}
+          type="button"
+          aria-pressed={value === positionType}
+          onClick={() => onChange(positionType)}
+          className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors ${value === positionType ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant hover:text-on-surface"}`}
+        >
+          {positionType === "holding" ? "Hold" : "Watch"}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function RadarBatchEditModal({
   initialSearchIndex = [],
   initialItems,
@@ -137,8 +161,6 @@ export function RadarBatchEditModal({
       window.clearTimeout(timer);
     };
   }, [query, searchIndex.length]);
-
-  const existingIds = useMemo(() => new Set(items.map((i) => i.instrument_id)), [items]);
 
   // New items float to the top, existing ones stay in original order
   const sortedItems = useMemo(() => {
@@ -312,7 +334,7 @@ export function RadarBatchEditModal({
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search ticker or company to add…"
+                  placeholder="Search ticker or company…"
                   className="w-full bg-transparent text-[13px] text-on-surface placeholder:text-on-surface-variant outline-none focus:outline-none focus:ring-0"
                 />
                 {query && (
@@ -329,7 +351,7 @@ export function RadarBatchEditModal({
 
               {/* Stock list — always rendered, dimmed while searching */}
               <div className={`flex flex-col h-full transition-opacity duration-150 ${query.trim() ? "opacity-0 pointer-events-none" : "opacity-100"}`}>
-                <ul className="no-scrollbar flex-1 h-full overflow-y-auto divide-y divide-[#f3f4f6]">
+                <ul className="no-scrollbar flex-1 h-full overflow-y-auto divide-y divide-outline-variant">
                   {sortedItems.map((item) => {
                     const isNew = !originalIds.current.has(item.instrument_id);
                     return (
@@ -344,18 +366,10 @@ export function RadarBatchEditModal({
                           </div>
                           <p className="truncate text-[11px] text-on-surface-variant">{item.name}</p>
                         </div>
-                        <div className="shrink-0 flex items-center rounded-full border border-outline-variant bg-surface-container-low p-0.5">
-                          <button
-                            type="button"
-                            onClick={() => setPosition(item.instrument_id, "holding")}
-                            className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors ${item.position_type === "holding" ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant hover:text-on-surface"}`}
-                          >Hold</button>
-                          <button
-                            type="button"
-                            onClick={() => setPosition(item.instrument_id, "watchlist")}
-                            className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors ${item.position_type === "watchlist" ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant hover:text-on-surface"}`}
-                          >Watch</button>
-                        </div>
+                        <PositionSwitch
+                          value={item.position_type}
+                          onChange={(positionType) => setPosition(item.instrument_id, positionType)}
+                        />
                         <button
                           type="button"
                           onClick={() => remove(item.instrument_id)}
@@ -379,7 +393,7 @@ export function RadarBatchEditModal({
               {/* Search results — overlays the list while typing */}
               {query.trim().length > 0 && (
                 <div className="absolute inset-0 bg-surface overflow-y-auto no-scrollbar">
-                  <ul className="divide-y divide-[#f3f4f6]">
+                  <ul className="divide-y divide-outline-variant">
                     {searchLoading && results.length === 0 ? (
                       <li className="px-4 py-8 text-[13px] text-on-surface-variant text-center">
                         Searching…
@@ -393,7 +407,7 @@ export function RadarBatchEditModal({
                         No matches for <span className="font-semibold text-on-surface">{query.trim().toUpperCase()}</span>
                       </li>
                     ) : results.map((entry) => {
-                      const isAdded = existingIds.has(entry.instrument_id);
+                      const addedItem = items.find((item) => item.instrument_id === entry.instrument_id);
                       return (
                         <li key={entry.instrument_id} className="flex items-center gap-3 px-4 py-3">
                           <StockLogo ticker={entry.ticker} market={entry.instrument_id.startsWith("IN_") ? "IN" : "US"} size={30} />
@@ -401,22 +415,17 @@ export function RadarBatchEditModal({
                             <p className="truncate text-[13px] font-semibold text-on-surface">{entry.ticker}</p>
                             <p className="truncate text-[11px] text-on-surface-variant">{entry.name}</p>
                           </div>
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            {isAdded ? (
-                              <span className="rounded-full bg-surface-container px-2.5 py-1 text-[10px] font-semibold text-on-surface-variant">Added ✓</span>
-                            ) : (
-                              <>
-                                <button type="button" onClick={() => { upsert(entry, "holding"); setQuery(""); }}
-                                  className="rounded-full border border-outline-variant px-2.5 py-1 text-[10px] font-semibold text-on-surface hover:border-on-surface hover:bg-surface-container-low transition-colors">
-                                  Hold
-                                </button>
-                                <button type="button" onClick={() => { upsert(entry, "watchlist"); setQuery(""); }}
-                                  className="rounded-full border border-outline-variant px-2.5 py-1 text-[10px] font-semibold text-on-surface hover:border-on-surface hover:bg-surface-container-low transition-colors">
-                                  Watch
-                                </button>
-                              </>
-                            )}
-                          </div>
+                          <PositionSwitch
+                            value={addedItem?.position_type}
+                            onChange={(positionType) => {
+                              if (addedItem) {
+                                setPosition(entry.instrument_id, positionType);
+                              } else {
+                                upsert(entry, positionType);
+                                setQuery("");
+                              }
+                            }}
+                          />
                         </li>
                       );
                     })}
@@ -445,7 +454,7 @@ export function RadarBatchEditModal({
                   type="button"
                   onClick={() => void onSubmit()}
                   disabled={submitting}
-                  className="rounded-full bg-on-surface px-4 py-2 text-[12px] font-semibold text-white disabled:opacity-60 hover:bg-on-surface transition-colors"
+                  className="rounded-full bg-on-surface px-4 py-2 text-[12px] font-semibold text-surface disabled:opacity-60 hover:bg-on-surface transition-colors"
                 >
                   {submitting ? "Saving…" : "Save & rebuild"}
                 </button>
