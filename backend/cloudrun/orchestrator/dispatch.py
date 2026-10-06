@@ -35,7 +35,17 @@ def _utc_run_id(lane: str, market: str) -> str:
 
 def _chunk(values: list[str], size: int) -> list[list[str]]:
     size = max(1, size)
-    return [values[i : i + size] for i in range(0, len(values), size)]
+    if not values:
+        return []
+    shard_count = (len(values) + size - 1) // size
+    base_size, larger_shards = divmod(len(values), shard_count)
+    chunks: list[list[str]] = []
+    start = 0
+    for index in range(shard_count):
+        chunk_size = base_size + int(index < larger_shards)
+        chunks.append(values[start : start + chunk_size])
+        start += chunk_size
+    return chunks
 
 
 def _successful_execution(payload: dict[str, Any]) -> bool:

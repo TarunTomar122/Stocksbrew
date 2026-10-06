@@ -9,6 +9,7 @@ from unittest.mock import patch
 from backend.cloudrun.orchestrator.dispatch import (
     _ai_brief_ids,
     _brief_base_universe_id,
+    _chunk,
     _fresh_open_brief_ids,
     _lane_universe_id,
     _price_core_ids,
@@ -243,6 +244,22 @@ class _FakeState:
 
 
 class DispatchAsyncTest(unittest.TestCase):
+    def test_sharding_rebalances_small_tail_without_exceeding_limit(self) -> None:
+        instrument_ids = [f"US_{index}" for index in range(714)]
+
+        shards = _chunk(instrument_ids, 700)
+
+        self.assertEqual([len(shard) for shard in shards], [357, 357])
+        self.assertEqual(
+            [instrument_id for shard in shards for instrument_id in shard],
+            instrument_ids,
+        )
+        self.assertLessEqual(max(map(len, shards)), 700)
+
+    def test_sharding_handles_empty_input_and_nonpositive_size(self) -> None:
+        self.assertEqual(_chunk([], 700), [])
+        self.assertEqual(_chunk(["US_AAPL", "US_MSFT"], 0), [["US_AAPL"], ["US_MSFT"]])
+
     def test_single_job_dispatch_does_not_wait_by_default(self) -> None:
         client = _FakeClient()
         out = _run_single_job_lane(
