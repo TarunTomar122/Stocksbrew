@@ -8,7 +8,7 @@ function source(path: string): string {
 }
 
 describe("homepage live proof movers", () => {
-  it("only shows movers with a research-backed narrative", () => {
+  it("filters researched anomalies before considering the labelled price fallback", () => {
     const landing = source("components/oa/oa-landing.tsx");
 
     expect(landing).toContain("(anomaliesDoc?.anomalies ?? []).filter(");

@@ -4,6 +4,25 @@ import { anomalyHeadline } from "@/components/daily-anomalies-shared";
 
 const n = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 
+/** Keep the opening research gap useful without reusing yesterday's moves. */
+export function buildLandingPriceMovers(
+  rows: SnapshotRow[],
+  market: "US" | "IN",
+  now = new Date(),
+): SnapshotRow[] {
+  const day = new Intl.DateTimeFormat("en-CA", {
+    timeZone: market === "IN" ? "Asia/Kolkata" : "America/New_York",
+  });
+  return rows.filter((row) => {
+    const timestamp = Date.parse(row.lastUpdated || "");
+    return row.market === market && Boolean(row.symbol && row.instrumentId) &&
+      n(row.price?.current) && row.price.current > 0 &&
+      n(row.price?.changePct) && Math.abs(row.price.changePct) >= 1 &&
+      Math.abs(row.price.changePct) <= 100 && Number.isFinite(timestamp) &&
+      timestamp <= now.getTime() && day.format(timestamp) === day.format(now);
+  }).sort((a, b) => Math.abs(b.price.changePct!) - Math.abs(a.price.changePct!)).slice(0, 8);
+}
+
 export const LANDING_SECTORS: { label: string; tickers: string[] }[] = [
   { label: "Tech", tickers: ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "NFLX", "ADBE", "CRM"] },
   { label: "Semis", tickers: ["NVDA", "AMD", "AVGO", "TSM", "MU", "INTC", "QCOM", "ARM", "SMCI", "MRVL"] },

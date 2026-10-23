@@ -18,7 +18,7 @@ import {
 import { US_PRO_MONTHLY, US_PRO_YEARLY } from "@/lib/pricing";
 import { getCurrentMarket } from "@/lib/market";
 import { getDailyAnomalies, type AnomalyItem } from "@/lib/daily-anomalies";
-import { anomalyTag, buildLandingSectorCards } from "@/lib/landing-sector-data";
+import { anomalyTag, buildLandingPriceMovers, buildLandingSectorCards } from "@/lib/landing-sector-data";
 import { getMarketSnapshot } from "@/lib/firestore";
 import { getRedditCues } from "@/lib/reddit-cues";
 import { getStockFacts, getStockIntelligenceDoc } from "@/lib/stock";
@@ -263,6 +263,9 @@ async function LiveProofCards() {
   const movers = (anomaliesDoc?.anomalies ?? []).filter(
     hasResearchBackedNarrative,
   );
+  const priceMovers = movers.length === 0
+    ? buildLandingPriceMovers(snapshotRows, market)
+    : [];
   const sectors = buildLandingSectorCards(snapshotRows)
     .slice()
     .sort((a, b) => b.avg - a.avg)
@@ -275,8 +278,31 @@ async function LiveProofCards() {
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:auto-rows-fr">
       <Reveal delay={80}>
         <SquircleCard title="What moved and why" seeAllHref="/pulse" contentClassName="h-80 overflow-y-auto">
-          {movers.length === 0 ? (
-            <EmptyRow>Warming up. Check back in a few minutes.</EmptyRow>
+          {movers.length === 0 && priceMovers.length > 0 ? (
+            <>
+              <p className="px-3.5 py-3 text-base text-oa-muted-fg">
+                Live price moves. Explanations are pending research.
+              </p>
+              {priceMovers.map((row) => (
+                <RowLink
+                  key={row.instrumentId}
+                  href={`/stock/${row.symbol}`}
+                  label={<>
+                    <div className="flex items-center gap-2">
+                      <StockLogo ticker={row.symbol} market={market} size={18} circle />
+                      <span className="oa-mono text-base text-oa-fg">{row.symbol}</span>
+                    </div>
+                    <span className="text-oa-muted-fg">{row.name}</span>
+                  </>}
+                  value={<>
+                    <span className="tabular-nums text-oa-fg">${row.price.current.toFixed(2)}</span>
+                    <ChangeText pct={row.price.changePct!} />
+                  </>}
+                />
+              ))}
+            </>
+          ) : movers.length === 0 ? (
+            <EmptyRow>Waiting for the next market update.</EmptyRow>
           ) : (
             movers.map((a: AnomalyItem) => (
               <RowLink
