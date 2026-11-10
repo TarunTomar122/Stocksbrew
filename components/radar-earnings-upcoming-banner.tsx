@@ -56,7 +56,7 @@ export function RadarEarningsUpcomingBanner({ docs }: Props) {
           return (
             <li key={doc.doc_id}>
               <Link
-                href={`/stock/${encodeURIComponent(doc.ticker)}#stock-section-earnings`}
+                href={`/stock/${encodeURIComponent(doc.ticker)}#earnings`}
                 className="group flex items-start gap-2.5 py-3 transition-colors first:pt-0 last:pb-0 hover:bg-surface-container-low -mx-1 px-1 rounded-lg"
               >
                 <StockLogo

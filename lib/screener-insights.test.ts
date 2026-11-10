@@ -14,14 +14,14 @@ describe("screener read", () => {
   it("describes the set against everything we cover", () => {
     const matched = [...universe.slice(0, 6), universe[6]!];
     const read = buildScreenerRead({ matched, universe, narrowed: true, priceDay: "2026-11-09", spy: SPY });
-    expect(read?.headline).toBe("7 stocks match; 86% are Technology; the median one rose 4.0% on Nov 9 against +0.5% for all 12 stocks we cover.");
+    expect(read?.headline).toBe("7 stocks match; 86% are Technology; the typical one rose 4.0% on Nov 9, against +0.5% for all 12 stocks we cover.");
     expect(read?.insights.map((item) => item.id)).toContain("tilt");
   });
 
   it("counts covered stocks near an add zone, never stripped ones", () => {
     const matched = [{ ...universe[0]!, zone: "add" as const }, { ...universe[1]!, to_add_pct: 2 }, universe[2]!];
     const read = buildScreenerRead({ matched, universe, narrowed: true, priceDay: null });
-    expect(read?.insights.find((item) => item.id === "zones")?.text).toBe("2 stocks are inside or within 3% of our add zone: T0 and T1.");
+    expect(read?.insights.find((item) => item.id === "zones")?.text).toBe("2 stocks are at or within 3% of the price where we'd buy more: T0 and T1.");
   });
 
   it("is null for an empty set", () => {

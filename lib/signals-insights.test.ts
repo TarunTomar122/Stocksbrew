@@ -73,9 +73,9 @@ describe("reddit", () => {
 
   it("skips funds when naming the loudest stock and flags crowd-vs-price splits", () => {
     const read = buildRedditRead(names)!;
-    expect(read.headline).toMatch(/^Reddit leans bearish/);
+    expect(read.headline).toMatch(/^Reddit leans worried/);
     expect(read.headline).toContain("NVDA");
-    expect(read.insights[0]!.text).toMatch(/^NVDA is Reddit's loudest stock: 11 of 31 mentions \(35%\), 3\.4x/);
+    expect(read.insights[0]!.text).toMatch(/^NVDA is the stock Reddit talks about most: 11 of 31 mentions \(35%\), 3\.4x/);
     expect(read.insights[1]!.text).toContain("AMD");
   });
 

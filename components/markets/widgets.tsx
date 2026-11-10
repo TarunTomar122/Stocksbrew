@@ -605,6 +605,18 @@ export function shownOutcomes(market: PredictionMarket, limit: number): Predicti
 }
 
 /** One prediction market: the question, outcomes with probability bars, volume, close date, venue. */
+
+// Captions are no longer forced to upper case, so raw topic slugs ("fed", "economy") need a readable label.
+const TOPIC_WORDS: Record<string, string> = { fed: "Fed", gdp: "GDP", cpi: "CPI", pce: "PCE", ai: "AI", ipo: "IPO", etf: "ETF" };
+function topicLabel(topic: string | null | undefined): string {
+  const value = (topic ?? "").trim().replace(/[_-]+/g, " ");
+  if (!value) return "";
+  return value
+    .split(" ")
+    .map((word, index) => TOPIC_WORDS[word.toLowerCase()] ?? (index === 0 ? `${word.charAt(0).toUpperCase()}${word.slice(1)}` : word))
+    .join(" ");
+}
+
 export function PredictionCard({
   market,
   limit = 4,
@@ -631,7 +643,7 @@ export function PredictionCard({
     <section className={`${CARD} flex flex-col ${className}`}>
       <a href={predictionHref(market)} className="flex flex-col gap-2.5 px-3.5 py-3 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent">
         <span className="flex items-center justify-between gap-2">
-          <span className="oa-caption">{market.topic}</span>
+          <span className="oa-caption">{topicLabel(market.topic)}</span>
           <span className={`${MONO} text-[12.5px] text-oa-muted-fg`}>{market.source_name}</span>
         </span>
         <span className="text-[15px] font-medium leading-5 text-oa-fg">{market.question}</span>

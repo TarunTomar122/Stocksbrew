@@ -1,6 +1,7 @@
 import { unstable_cache } from "next/cache";
 
 import type { TheRead } from "@/lib/insights";
+import { asSentence, firstFullSentence } from "@/lib/plain-copy";
 import { getDailyAnomalies } from "@/lib/daily-anomalies";
 import { getEarnings, type EarningsEvent } from "@/lib/earnings";
 import { getFollowActivity, type FollowActivity } from "@/lib/follow";
@@ -124,10 +125,14 @@ function shiftDay(day: string, days: number): string {
   return date.toISOString().slice(0, 10);
 }
 
-function clip(text: string | null | undefined, max: number): string | null {
+/**
+ * A summary the reader can finish: the complete first sentence (never cut
+ * mid-word with an ellipsis), Title Case headlines written as sentences.
+ */
+function clip(text: string | null | undefined): string | null {
   const value = (text ?? "").replace(/\s+/g, " ").trim();
   if (!value || !/[a-z]{3}/i.test(value)) return null;
-  return value.length > max ? `${value.slice(0, max - 1).trimEnd()}…` : value;
+  return asSentence(firstFullSentence(value));
 }
 
 /**
@@ -191,7 +196,7 @@ export const loadDeskMovers = section<DeskData["movers"]>(
       name: row.name,
       price: Number.isFinite(row.price) && row.price > 0 ? row.price : null,
       changePct: row.day_change_pct,
-      reason: row.narrative_status === "unverified" ? null : clip(row.move_explanation?.headline ?? row.headline, 150),
+      reason: row.narrative_status === "unverified" ? null : clip(row.move_explanation?.headline ?? row.headline),
     });
     return {
       up: rows.filter((row) => row.day_change_pct > 0).sort((a, b) => b.day_change_pct - a.day_change_pct).slice(0, 5).map(toMover),
@@ -300,14 +305,14 @@ export const loadDeskSignals = section<Pick<DeskData, "reddit" | "posts">>(
           .filter(hasRedditBrief)
           .sort((a, b) => (b.mention_count ?? 0) - (a.mention_count ?? 0))
           .slice(0, 4)
-          .map((row) => ({ ticker: row.ticker, mentions: row.mention_count, sentiment: row.sentiment, summary: clip(row.summary, 120) ?? "" })),
+          .map((row) => ({ ticker: row.ticker, mentions: row.mention_count, sentiment: row.sentiment, summary: clip(row.summary) ?? "" })),
         asOf: reddit?.generated_at ?? null,
-        mood: clip(reddit?.market_mood, 140),
+        mood: clip(reddit?.market_mood),
       },
       posts: {
         items: recentPosts.map((mention) => ({
           ticker: mention.tickers[0]!,
-          said: clip(mention.said, 130) ?? "",
+          said: clip(mention.said) ?? "",
           publishedAt: mention.published_at,
           url: mention.truth_url,
           sinceChangePct: mention.ticker_moves?.[0]?.change_since_pct ?? null,

@@ -84,7 +84,7 @@ describe("briefingRead", () => {
   it("reads the market view from its explained moves", () => {
     const lead = { ...cbrs, relation: "market" as const, needs_you: true };
     const read = briefingRead({ ...base, mode: "market" }, groupBriefingSections({ ...sections([]), needs_you: [lead] }, "market"));
-    expect(read?.headline).toBe("The S&P 500 is up 2.33%; CBRS made the biggest move we could explain.");
+    expect(read?.headline).toBe("The S&P 500 is up 2.33%. CBRS made the biggest move with a known reason.");
     expect(read?.insights).toHaveLength(1);
   });
   it("folds stocks you watch sitting in their add zone into one line read against the index", () => {
@@ -106,14 +106,15 @@ describe("briefingRead", () => {
       { ...base, mode: "market", date: "2026-11-10" },
       groupBriefingSections({ ...sections([]), needs_you: [lead] }, "market"),
     );
-    expect(read?.headline).toBe("The S&P 500 is up 2.33%; CBRS made the biggest move we could explain on Monday.");
+    expect(read?.headline).toBe("The S&P 500 is up 2.33%. CBRS made the biggest move with a known reason on Monday.");
     expect(read?.insights[0].text).toBe("CBRS rose 7.9% on Monday: Cerebras signed a cloud deal.");
   });
 });
 
 describe("firstSentence", () => {
-  it("keeps the first sentence and trims long ones", () => {
+  it("keeps the whole first sentence, never an ellipsis, in sentence case", () => {
     expect(firstSentence("One. Two.")).toBe("One");
-    expect(firstSentence("a ".repeat(100), 20).endsWith("…")).toBe(true);
+    expect(firstSentence("a ".repeat(100)).endsWith("…")).toBe(false);
+    expect(firstSentence("Zeta Raises Outlook After Strong Q3 Earnings Beat. More.")).toBe("Zeta raises outlook after strong Q3 earnings beat");
   });
 });

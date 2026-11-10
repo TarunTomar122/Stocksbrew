@@ -445,8 +445,8 @@ export function PortfolioView({
           label={
             tab === "positions"
               ? example
-                ? "The book today"
-                : "Your book today"
+                ? "How these stocks did today"
+                : "How your stocks did today"
               : tab === "watching"
                 ? "What you are watching"
                 : tab === "analytics"

@@ -8,6 +8,7 @@ import {
 import { normalizeDirectiveForUi } from "@/lib/directive-ui";
 import { buildLandingHeroMetrics } from "@/lib/landing-hero-metrics";
 import { getCurrentMarket } from "@/lib/market";
+import { plainAction } from "@/lib/plain-copy";
 import { getPowerTradesCached, type PowerTrade } from "@/lib/power-trades";
 import { getRedditCues, hasRedditBrief } from "@/lib/reddit-cues";
 import { isFeaturedStockTicker } from "@/lib/seo/stock-pages";
@@ -171,7 +172,8 @@ export async function HeroBriefing() {
     anomaly.headline?.trim() ||
     anomaly.catalyst?.trim() ||
     null;
-  const callText = directive?.text?.trim() || null;
+  // The engine's label in plain words ("Accumulate on pullbacks" -> "Buy more on a dip, not here"), as on the stock page.
+  const callText = plainAction(directive?.text, null);
   // Only call it "why it moved" when we actually researched a reason.
   const leadLabel = moveReason ? "Why it moved" : callText ? "Today's call" : "Today";
   const why =
@@ -183,10 +185,10 @@ export async function HeroBriefing() {
   // they come with covering it, so the landing page must not hand them out.
   const showcase = isFeaturedStockTicker(anomaly.ticker);
   if (showcase && metrics.accumulate_below != null) {
-    stats.push({ label: "Add zone", value: `Below $${metrics.accumulate_below.toFixed(0)}` });
+    stats.push({ label: "Buy more below", value: `$${metrics.accumulate_below.toFixed(0)}` });
   }
   if (showcase && metrics.trim_above != null) {
-    stats.push({ label: "Trim zone", value: `Above $${metrics.trim_above.toFixed(0)}` });
+    stats.push({ label: "Sell some above", value: `$${metrics.trim_above.toFixed(0)}` });
   }
   if (typeof analystTarget === "number" && analystTarget > 0 && anomaly.price > 0) {
     const roomPct = ((analystTarget - anomaly.price) / anomaly.price) * 100;

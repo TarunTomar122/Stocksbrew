@@ -70,10 +70,14 @@ leaves the browser. Remove the key to stop.
 |---|---|---|---|
 | `signin_started` | `surface`, `page` | `lib/sign-in.ts` | Which buttons start sign-in |
 | `signin_failed` | `surface`, `reason` (Firebase code, e.g. `auth/popup-closed-by-user`) | `lib/sign-in.ts` | Where sign-in breaks or is abandoned |
-| `user_signed_up` / `user_signed_in` | `surface`, `method`, `page` | `lib/sign-in.ts` | Signups by entry point |
+| `user_signed_up` / `user_signed_in` | `surface`, `method`, `page` | `lib/sign-in.ts` | Signups by entry point (`import_try` is "Save this portfolio" on `/import`) |
 | `stock_track_clicked` | `ticker`, `signed_in`, `surface` | `components/track-button.tsx` | Intent to follow, including signed-out |
-| `stock_tracked` | `ticker`, `tracked_count`, `first`, `covered`, `position_type`, `via` (`single`/`batch`), `added_count` | **server**: `app/api/track/route.ts`, `app/api/watchlist/batch/route.ts` | First stock, 3+ stocks (funnel steps) |
+| `stock_tracked` | `ticker`, `tracked_count`, `first`, `covered`, `position_type`, `via` (`single`/`batch`/`import`), `added_count`, `updated_count` (import) | **server**: `app/api/track/route.ts`, `app/api/watchlist/batch/route.ts`, `app/api/import/save/route.ts` | First stock, 3+ stocks (funnel steps) |
 | `stock_untracked` | `ticker`, `via` | **server**, same routes | Churn from the portfolio |
+| `import_started` | `surface` (`watchlist`/`try`), `input` (`image`/`text`), `images` (count), `page` | `components/import/import-button.tsx` (Portfolio), `components/import/import-workspace.tsx` (`/import`) | Who tries the screenshot import, and from where |
+| `import_parsed` | `surface`, `input` (`image`/`text`/`csv`), `ok`, `via` (`rules`/`model`), `rows`, `matched`, `unknown`, `error_code` | same | Does reading work, how many rows are stocks we cover, which errors (`limit`, `model_failed`, `not_an_image`) |
+| `import_saved` | `surface`, `added`, `updated`, `with_shares` (counts), `pending` (saved after signing in from `/import`) | same, after `/api/import/save` succeeds | Imports that became portfolios; how many `/import` visitors sign in to save |
+| `thesis_saved` | `count`, `kinds` (comma list of reason kinds, `text` for typed only), `with_text`, `asked` | `components/thesis/thesis-step.tsx` | How many people answer "Why do you own this?" (never the typed text) |
 | `portfolio_viewed` | `state` (`signed_out`/`empty`/`active`), `tracked_count`, `subscribed` | `components/radar-page-analytics.tsx` on `/watchlist` | Empty vs active portfolios |
 | `agent_previewed` | `template`, `ok` | `components/agents-jobs/jobs-workspace.tsx` | Agent interest |
 | `agent_switched_on` / `agent_paused` | `template`, `via` (`create`/`quick_start`/`toggle`) | same | Agents activation |
@@ -126,7 +130,7 @@ look at history include both names.
 | `compare_run` | `tickers` (≤6), `count` | `components/compare-desk/picker.tsx` | Compares |
 | `search_performed` | `surface`, `query`, `results_count`, `found`, `ticker` | header and hero search (`components/oa/oa-header-search-button.tsx`, `oa-hero-search.tsx`); no-result queries after a 1.2s pause | What people look for, and what we lack |
 | `stock_search_selected`, `stock_request_clicked`, `stock_request_*` | ticker / query | search components, request modal | Kept from before |
-| `market_status_cta_clicked`, `attribution_submitted`, `agent_access_action`, `landing_cta_clicked` | as before | as before | Kept |
+| `market_status_cta_clicked`, `attribution_submitted`, `agent_access_action`, `landing_cta_clicked` | as before (`landing_cta_clicked` with `surface=hero_import` is the "See what we think of yours" link under the hero card, declared) | as before | Kept |
 
 ### Removed in this release
 

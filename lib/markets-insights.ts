@@ -241,14 +241,25 @@ export function buildMarketsRead(data: MarketsData, now: Date = new Date()): The
   const breadth = sectorBreadth(data.assets);
   const regime = marketRegime(spxDay, breadth);
   const when = sessionName(spx.as_of, now);
-  const label = regime === "risk-on" ? "Risk-on" : regime === "risk-off" ? "Risk-off" : "Mixed";
+  // Said the way a person would: "Most stocks fell today", not trader shorthand like "risk-off".
+  // A small S&P move with every sector the same way is not "mixed".
+  const label =
+    regime === "risk-on"
+      ? "Most stocks rose"
+      : regime === "risk-off"
+        ? "Most stocks fell"
+        : breadth.total > 0 && breadth.up === breadth.total
+          ? "Stocks edged up"
+          : breadth.total > 0 && breadth.down === breadth.total
+            ? "Stocks edged down"
+            : "Stocks were mixed";
   const sectorsText =
     breadth.total > 0
       ? breadth.up === breadth.total
         ? `all ${breadth.total} sectors rose`
         : breadth.down === breadth.total
           ? `all ${breadth.total} sectors fell`
-          : `${breadth.up} of ${breadth.total} sectors rose`
+          : `${regime === "risk-off" ? "only " : ""}${breadth.up} of ${breadth.total} sectors rose`
       : null;
   const spxText = `the S&P 500 ${spxDay >= 0 ? "gained" : "lost"} ${absPct(spxDay, 2)}`;
   const odd = regime === "mixed" ? null : outlier(data.assets, spxDay);

@@ -87,8 +87,8 @@ export function winnerClauses(rows: ScreenerRow[]): Array<{ id: string; text: st
       id: "margin",
       text:
         margin.bottom.value < 0
-          ? `${margin.bottom.symbol} loses money at the operating line`
-          : `${margin.bottom.symbol} has the weakest margins (${pct(margin.bottom.value, 0)} operating against ${pct(margin.top.value, 0)})`,
+          ? `${margin.bottom.symbol} loses money on its day-to-day business`
+          : `${margin.bottom.symbol} keeps less of each sales dollar as profit (${pct(margin.bottom.value, 0)} against ${pct(margin.top.value, 0)})`,
       symbols: [margin.bottom.symbol, margin.top.symbol],
       strength: Math.min(3, (margin.top.value - margin.bottom.value) / 12),
     });

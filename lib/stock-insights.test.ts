@@ -88,7 +88,7 @@ describe("buildStockRead", () => {
       group: { label: "Semiconductors", medianPct: 1.2, count: 20 },
       call: { word: "Hold", writtenAt: "2026-11-09T21:00:00Z" },
     });
-    expect(read?.headline).toBe("NVDA fell 4.3% today while Semiconductors rose 1.2%. Our call: Hold.");
+    expect(read?.headline).toBe("NVDA fell 4.3% today while Semiconductors rose 1.2%. Our call: Hold (we'd keep it, not add).");
   });
 
   it("says 'on Nov 9' when the quote is not from today", () => {
@@ -127,8 +127,8 @@ describe("buildStockRead", () => {
       lastChange: { date: "2026-10-01", from: "Add", to: "Hold", priceAtCall: 100 },
     });
     const call = read?.insights.find((item) => item.id === "call");
-    expect(call?.text).toBe("NVDA sits 10% above our add level ($100); the trim level ($132) is 20% higher.");
-    expect(call?.soWhat).toBe("We moved to Hold on Oct 1 at $100; it is up 10% since.");
+    expect(call?.text).toBe("NVDA is 10% above our buy-more price ($100), and 20% below the price where we'd sell some ($132).");
+    expect(call?.soWhat).toBe("We changed our call to Hold on Oct 1 at $100, and it is up 10% since.");
   });
 
   it("caps the read at three insights", () => {

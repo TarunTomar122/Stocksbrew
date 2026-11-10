@@ -78,3 +78,39 @@ export async function StockFamilyLinks({ ticker }: { ticker: string }) {
     </section>
   );
 }
+
+/**
+ * The same family of pages as a short row near the top of the stock page, so
+ * the way to its sector, rivals, insiders, earnings and latest explained move
+ * is visible before the reader scrolls. Only links to pages that exist.
+ */
+export async function StockRelatedRow({ ticker }: { ticker: string }) {
+  const upper = ticker.toUpperCase();
+  const coverage = await getCoverage().catch(() => null);
+  const row = coverage?.bySymbol.get(upper);
+  if (!coverage || !row) return null;
+  const moves = await getRecentMoves().catch(() => []);
+  const move = moves.find((item) => item.ticker === upper);
+  const pair = pairsFor(stockPairs(coverage), upper)[0];
+  const other = pair ? (pair.a === upper ? pair.b : pair.a) : null;
+  const links: Item[] = [];
+  if (move) links.push({ href: moveHref(upper, move.day), label: `Why it moved ${fmtDay(move.day)}` });
+  if (row.sector) links.push({ href: sectorHref(sectorSlug(row.sector)), label: `${row.sector} stocks` });
+  if (pair && other) links.push({ href: pairHref(pair.a, pair.b), label: `${upper} vs ${other}` });
+  links.push({ href: insiderHref(upper), label: "Insider trades" });
+  links.push({ href: `/calendar/earnings/${encodeURIComponent(upper)}`, label: "Earnings history" });
+  return (
+    <nav aria-label={`Related to ${upper}`} className="flex flex-wrap items-center gap-x-1.5 gap-y-1.5 border-t border-oa-border px-3.5 py-2.5 sm:px-4">
+      <span className="mr-1 text-[13px] leading-5 text-oa-muted-fg">Related</span>
+      {links.map((item) => (
+        <a
+          key={item.href}
+          href={item.href}
+          className="inline-flex h-8 items-center rounded-full border border-oa-border bg-oa-card px-3 text-[13px] font-medium leading-5 text-oa-fg outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent"
+        >
+          {item.label}
+        </a>
+      ))}
+    </nav>
+  );
+}

@@ -47,12 +47,13 @@ export function buildScreenerRead(input: {
   const topShare = top ? Math.round((top.count / matched.length) * 100) : 0;
   const base = input.narrowed && allMid !== null ? { label: `all ${universe.length.toLocaleString("en-US")} stocks we cover`, value: allMid } : spy !== null ? { label: "the S&P 500", value: spy } : null;
   const parts: string[] = [];
-  parts.push(input.narrowed ? `${matched.length.toLocaleString("en-US")} ${matched.length === 1 ? "stock matches" : "stocks match"}` : `We cover ${matched.length.toLocaleString("en-US")} stocks`);
+  parts.push(input.narrowed ? `${matched.length.toLocaleString("en-US")} ${matched.length === 1 ? "stock matches" : "stocks match"}` : `Across the ${matched.length.toLocaleString("en-US")} stocks we follow`);
   if (top && matched.length >= 3 && topShare >= 30 && topShare < 100) parts.push(`${topShare}% are ${top.sector}`);
   if (mid !== null && moves.length >= 3) {
-    parts.push(`the median one ${mid >= 0 ? "rose" : "fell"} ${pct(mid)} ${on}${base ? ` against ${signedPct(base.value)} for ${base.label}` : ""}`);
+    parts.push(`the typical one ${mid >= 0 ? "rose" : "fell"} ${pct(mid)} ${on}${base ? `, against ${signedPct(base.value)} for ${base.label}` : ""}`);
   }
-  const headline = `${parts.join("; ")}.`;
+  // "Across the 781 stocks we follow, the typical one rose 2.4% ..." reads as one sentence; a match count stands alone.
+  const headline = input.narrowed ? `${parts.join("; ")}.` : `${parts[0]}${parts.length > 1 ? `, ${parts.slice(1).join("; ")}` : ""}.`;
 
   // Breadth and the outliers.
   let movers: Insight | null = null;
@@ -97,7 +98,7 @@ export function buildScreenerRead(input: {
     zones = {
       id: "zones",
       tone: "up",
-      text: `${plural(total, "stock")} ${total === 1 ? "is" : "are"} inside or within 3% of our add zone: ${listed}.`,
+      text: `${plural(total, "stock")} ${total === 1 ? "is" : "are"} at or within 3% of the price where we'd buy more: ${listed}.`,
       tickers: names,
       action: { label: `See ${names[0]}`, href: `/stock/${names[0]}` },
     };

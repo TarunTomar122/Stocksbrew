@@ -4,6 +4,7 @@ import * as React from "react";
 import { interTight } from "@/components/oa/font";
 import { OaSiteHeader } from "@/components/oa/oa-site-header";
 import { StockLogo } from "@/components/stock-logo";
+import { shortCompanyName } from "@/lib/plain-copy";
 
 import { PAGE_PAD, PAGE_PAD_PROSE } from "./skeleton";
 
@@ -470,7 +471,8 @@ export function Delta({
 }
 
 // The good-or-bad marks live in ./tone (no server imports) so client components can import them directly.
-export { MarkSlot, ToneGlyph, Verdict } from "./tone";
+export { MarkSlot, MoveBar, ToneGlyph, Verdict } from "./tone";
+export { ShowMore } from "./more";
 
 export type TagTone = "neutral" | "up" | "down" | "primary" | "warn";
 
@@ -512,7 +514,7 @@ export function Ticker({
     <>
       <StockLogo ticker={symbol} size={size} />
       <span className={`${NUM} text-[14px] font-medium text-oa-fg`}>{symbol}</span>
-      {name ? <span className="min-w-0 truncate text-[14px] text-oa-muted-fg">{name}</span> : null}
+      {name ? <span className="min-w-0 truncate text-[14px] text-oa-muted-fg">{shortCompanyName(name)}</span> : null}
     </>
   );
   const cls = `inline-flex min-w-0 items-center gap-2 ${className}`;
@@ -521,6 +523,43 @@ export function Ticker({
     <Link href={href ?? `/stock/${encodeURIComponent(symbol)}`} prefetch={false} className={`${cls} rounded hover:underline ${FOCUS}`}>
       {body}
     </Link>
+  );
+}
+
+/**
+ * Where a value sits between a low and a high (a day's or a year's range):
+ * a hairline track with a dot, the two ends printed under it.
+ */
+export function RangeBar({
+  low,
+  high,
+  value,
+  format = (n: number) => n.toFixed(2),
+  className = "",
+}: {
+  low: number;
+  high: number;
+  value: number | null | undefined;
+  format?: (n: number) => string;
+  className?: string;
+}) {
+  if (!Number.isFinite(low) || !Number.isFinite(high) || high <= low) return null;
+  const at = value != null && Number.isFinite(value) ? Math.min(1, Math.max(0, (value - low) / (high - low))) : null;
+  return (
+    <span className={`block min-w-0 ${className}`}>
+      <span aria-hidden="true" className="relative block h-1.5 rounded-full bg-oa-bg">
+        {at != null ? (
+          <span
+            className="absolute top-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-oa-card bg-oa-fg"
+            style={{ left: `${at * 100}%` }}
+          />
+        ) : null}
+      </span>
+      <span className={`${NUM} mt-1 flex justify-between text-[12px] leading-4 text-oa-muted-fg`}>
+        <span>{format(low)}</span>
+        <span>{format(high)}</span>
+      </span>
+    </span>
   );
 }
 

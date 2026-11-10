@@ -39,7 +39,7 @@ describe("buildPortfolioReads", () => {
     );
     expect(reads.positions?.headline).toBe("Your 4 holdings rose 2.8% on average today, against +0.6% for the S&P 500.");
     const contributors = reads.positions?.insights.find((item) => item.id === "contributors");
-    expect(contributors?.text).toBe("ASTS (+8.0%) and CBRS (+4.0%) led the move; the rest of the book held it back.");
+    expect(contributors?.text).toBe("ASTS (+8.0%) and CBRS (+4.0%) led the move; the rest of your stocks held it back.");
     expect(contributors?.soWhat).toBe("NVDA pulled the other way, −1.0%.");
   });
 
@@ -93,7 +93,7 @@ describe("buildPortfolioReads", () => {
   it("compares the biggest sector with the S&P 500", () => {
     const rows = [row("A", "holding", 1), row("B", "holding", 1), row("C", "holding", 1), row("D", "holding", 1, { sector: "Energy" })];
     const reads = buildPortfolioReads(input(rows));
-    expect(reads.analytics?.headline).toBe("Your book leans Technology: 75% of it, against 33% of the S&P 500.");
+    expect(reads.analytics?.headline).toBe("75% of your money is in Technology, against 33% of the S&P 500.");
     expect(reads.analytics?.insights.find((item) => item.id === "missing")?.text).toBe(
       "You own nothing in Financials and Health Care, 23% of the S&P 500 between them.",
     );

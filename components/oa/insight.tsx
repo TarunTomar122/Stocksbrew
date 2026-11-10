@@ -28,7 +28,7 @@ export function TheRead({ read, label = "The read", className = "" }: { read: Th
       ) : null}
       {read.source || read.asOf ? (
         <p className={`text-[12.5px] leading-[18px] text-oa-muted-fg ${read.insights.length > 0 ? "border-t border-oa-border pt-2.5" : "mt-2"}`}>
-          {[read.source, read.asOf ? `as of ${fmtReadTime(read.asOf)}` : null].filter(Boolean).join(" · ")}
+          {[read.source, read.asOf ? `${read.source ? "as of" : "As of"} ${fmtReadTime(read.asOf)}` : null].filter(Boolean).join(" · ")}
         </p>
       ) : null}
     </section>

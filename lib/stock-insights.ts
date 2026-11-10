@@ -11,6 +11,7 @@
  * covers. For anyone else they are null and no level is ever written here.
  */
 
+import { CALL_MEANING } from "@/lib/plain-copy";
 import { pickInsights, type Insight, type TheRead } from "@/lib/insights";
 import { dayGap, dayWord, fin, inDays, median, money, movedWord, pct, shortDay, signedPct } from "@/lib/insight-format";
 
@@ -141,7 +142,9 @@ export function buildStockRead(input: StockInsightInput): TheRead | null {
   const { ticker } = input;
   const when = dayWord(input.quoteDay, input.today);
   const day = fin(input.dayPct) ? input.dayPct : null;
-  const callPart = input.call ? ` Our call: ${input.call.word}.` : "";
+  // Defensive lookup: a call word outside Add/Hold/Trim keeps the plain "Our call: X." line instead of throwing.
+  const meaning = input.call ? (CALL_MEANING as Record<string, string | undefined>)[input.call.word] : undefined;
+  const callPart = input.call ? ` Our call: ${input.call.word}${meaning ? ` (${meaning.charAt(0).toLowerCase()}${meaning.slice(1)})` : ""}.` : "";
 
   // ── headline: today's move against its group (or the market), then the call ──
   let headline = "";
@@ -178,7 +181,7 @@ export function buildStockRead(input: StockInsightInput): TheRead | null {
         : `in at least ${Math.max(3, Math.round(rank.window / 21))} months`;
       text = `${ticker} ${rank.rel < 0 ? "trailed" : "beat"} the S&P 500 by ${Math.abs(rank.rel).toFixed(1)} points ${when}, its ${side} day against the market ${span}.`;
     } else if (usual !== null && usual > 0 && Math.abs(day) / usual >= 2 && Math.abs(day) >= 1) {
-      text = `A ${pct(day)} move is ${(Math.abs(day) / usual).toFixed(1)} times ${ticker}'s usual daily swing of ${pct(usual)} over the last three months.`;
+      text = `Today's ${pct(day)} move is ${(Math.abs(day) / usual).toFixed(1)} times bigger than a normal day for ${ticker}, which moves about ${pct(usual)} a day.`;
     }
     const reason = input.moveReason ? input.moveReason.replace(/\s+/g, " ").trim().replace(/\.$/, "") : "";
     if (text || reason) {
@@ -228,24 +231,24 @@ export function buildStockRead(input: StockInsightInput): TheRead | null {
     let text = "";
     let tone: Insight["tone"] = "flat";
     if (add !== null && price <= add) {
-      text = `${ticker} is inside our add zone: ${money(price)} against an add level of ${money(add)}.`;
+      text = `At ${money(price)}, ${ticker} is below ${money(add)}, the price where we'd buy more.`;
       tone = "up";
     } else if (trim !== null && price >= trim) {
-      text = `${ticker} is inside our trim zone: ${money(price)} against a trim level of ${money(trim)}.`;
+      text = `At ${money(price)}, ${ticker} is above ${money(trim)}, the price where we'd sell some.`;
       tone = "down";
     } else if (add !== null) {
       const above = ((price - add) / add) * 100;
-      const addPart = above < 0.5 ? `${ticker} sits right on our add level (${money(add)})` : `${ticker} sits ${pct(above)} above our add level (${money(add)})`;
-      text = trim !== null ? `${addPart}; the trim level (${money(trim)}) is ${pct(((trim - price) / price) * 100)} higher.` : `${addPart}.`;
+      const addPart = above < 0.5 ? `${ticker} is right at our buy-more price (${money(add)})` : `${ticker} is ${pct(above)} above our buy-more price (${money(add)})`;
+      text = trim !== null ? `${addPart}, and ${pct(((trim - price) / price) * 100)} below the price where we'd sell some (${money(trim)}).` : `${addPart}.`;
     } else if (trim !== null) {
-      text = `${ticker} would need to rise ${pct(((trim - price) / price) * 100)} to reach our trim level (${money(trim)}).`;
+      text = `${ticker} would need to rise ${pct(((trim - price) / price) * 100)} to reach the price where we'd sell some (${money(trim)}).`;
     }
     const change = input.lastChange;
     let since: string | undefined;
     if (change && change.from && fin(change.priceAtCall) && change.priceAtCall > 0) {
       const sinceMove = ((price - change.priceAtCall) / change.priceAtCall) * 100;
       const how = Math.abs(sinceMove) < 0.1 ? "it is about where it was" : `it ${sinceMove >= 0 ? "is up" : "is down"} ${pct(sinceMove)} since`;
-      since = `We moved to ${change.to} on ${shortDay(change.date)} at ${money(change.priceAtCall)}; ${how}.`;
+      since = `We changed our call to ${change.to} on ${shortDay(change.date)} at ${money(change.priceAtCall)}, and ${how}.`;
     }
     if (text) callInsight = { id: "call", tone, text, soWhat: since, action: { label: "The reasoning", href: "#read" } };
     else if (since) callInsight = { id: "call", tone: "flat", text: since };

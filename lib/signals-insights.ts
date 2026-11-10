@@ -5,7 +5,7 @@
  * cannot carry it.
  */
 import { pickInsights, sharePct, type Insight, type TheRead } from "@/lib/insights";
-import { absPct, countWord, isNum, listNames, plural, shortDay, signedPct } from "@/lib/read-format";
+import { absPct, cap, countWord, isNum, listNames, plural, shortDay, signedPct } from "@/lib/read-format";
 import { rankReddit, type Mover, type PolicyPost, type RedditName } from "@/lib/signals-shared";
 
 /* ── movers ─────────────────────────────────────────────────────────────── */
@@ -220,11 +220,11 @@ function loudestInsight(names: RedditName[]): Insight | null {
   const ratio = top.velocity.ratio;
   const pace = ratio !== null && ratio >= 1.5 && top.velocity.last24h >= 2 ? `, ${ratio.toFixed(1)}x its usual daily pace` : "";
   const price = isNum(top.dayPct) ? ` The stock ${top.dayPct >= 0 ? "rose" : "fell"} ${absPct(top.dayPct)}.` : "";
-  const stance = top.stanceRead && top.stance !== "neutral" ? ` The talk is ${top.stance}.` : "";
+  const stance = top.stanceRead && top.stance !== "neutral" ? ` The talk leans ${top.stance === "bullish" ? "hopeful" : top.stance === "bearish" ? "worried" : top.stance}.` : "";
   return {
     id: "loudest",
     tone: top.stance === "bullish" ? "up" : top.stance === "bearish" ? "down" : "flat",
-    text: `${top.ticker} is Reddit's loudest stock: ${top.mentions} of ${total} mentions (${share}%)${pace}.${price}${stance}`,
+    text: `${top.ticker} is the stock Reddit talks about most: ${top.mentions} of ${total} mentions (${share}%)${pace}.${price}${stance}`,
     tickers: [top.ticker],
     action: { label: "Read the threads", href: "/signals?tab=reddit" },
   };
@@ -255,7 +255,7 @@ function againstInsight(names: RedditName[]): Insight | null {
   return {
     id: "against",
     tone: stance === "bearish" ? "up" : "down",
-    text: `The crowd and the price disagree: Reddit reads ${listNames(same.map((name) => name.ticker))} as ${stance}, but ${same.length === 1 ? "it" : "they"} ${stance === "bearish" ? "rallied" : "fell"} (${moves.join(", ")}).`,
+    text: `Reddit and the price disagree: people expected ${listNames(same.map((name) => name.ticker))} to ${stance === "bearish" ? "fall" : "rise"}, but ${same.length === 1 ? "it" : "they"} ${stance === "bearish" ? "rose" : "fell"} (${moves.join(", ")}).`,
     tickers: same.map((name) => name.ticker),
     action: { label: "Read the threads", href: "/signals?tab=reddit" },
   };
@@ -298,11 +298,14 @@ export function buildRedditRead(names: RedditName[], asOf: string | null = null)
   const bearShare = sharePct(mood.bearish, mood.total) ?? 0;
   const bullShare = sharePct(mood.bullish, mood.total) ?? 0;
   const lean = bearShare >= bullShare + 15 ? "bearish" : bullShare >= bearShare + 15 ? "bullish" : "split";
+  // Bullish and bearish said plainly: people expect prices to rise, or to fall.
   const leanText =
     lean === "split"
-      ? `Reddit is split (${bullShare}% of mentions bullish, ${bearShare}% bearish)`
-      : `Reddit leans ${lean}: ${lean === "bearish" ? bearShare : bullShare}% of mentions are ${lean}, ${lean === "bearish" ? bullShare : bearShare}% ${lean === "bearish" ? "bullish" : "bearish"}`;
-  const headline = loud ? `${leanText}, and ${loud.ticker} is the stock everyone is talking about.` : `${leanText}.`;
+      ? `Reddit is split: ${bullShare}% of mentions expect prices to rise and ${bearShare}% expect them to fall`
+      : lean === "bearish"
+        ? `Reddit leans worried: ${bearShare}% of mentions expect prices to fall and ${bullShare}% expect a rise`
+        : `Reddit leans hopeful: ${bullShare}% of mentions expect prices to rise and ${bearShare}% expect a fall`;
+  const headline = loud ? `${leanText}. ${loud.ticker} is the stock everyone is talking about.` : `${leanText}.`;
   const loudest = loudestInsight(names);
   const against = againstInsight(names);
   const skip = new Set([...(loudest?.tickers ?? []), ...(against?.tickers ?? [])]);
@@ -361,9 +364,9 @@ function recentInsight(posts: PolicyPost[], now: number): Insight | null {
   return {
     id: "recent",
     tone: bull > bear ? "up" : bear > bull ? "down" : "flat",
-    text: `${plural(week.length, "market post")} in the last 7 days, ${bull} upbeat and ${bear} gloomy; ${named.length === 0 ? "none named a listed company" : `${plural(named.length, "post")} named ${listNames(tickers)}`}.`,
+    text: `${plural(week.length, "post")} about the market in the last 7 days: ${bull} positive and ${bear} negative. ${named.length === 0 ? "None named a listed company." : `${cap(plural(named.length, "post"))} named ${listNames(tickers)}.`}`,
     tickers,
-    action: { label: "Read them", href: "/signals?tab=policy" },
+    action: { label: "Read the posts", href: "/signals?tab=policy" },
   };
 }
 

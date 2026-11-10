@@ -103,11 +103,12 @@ export function sourceName(raw: string | null | undefined): string {
 
 export function capTier(marketCap: number | null | undefined): string | null {
   if (!fin(marketCap)) return null;
-  if (marketCap >= 200e9) return "Mega cap";
-  if (marketCap >= 10e9) return "Large cap";
-  if (marketCap >= 2e9) return "Mid cap";
-  if (marketCap >= 300e6) return "Small cap";
-  return "Micro cap";
+  // Plain words for the size bands (mega, large, mid, small, micro cap).
+  if (marketCap >= 200e9) return "Very large company";
+  if (marketCap >= 10e9) return "Large company";
+  if (marketCap >= 2e9) return "Mid-size company";
+  if (marketCap >= 300e6) return "Small company";
+  return "Very small company";
 }
 
 /** "FY 2026" to "FY26"; "TTM" stays. Keeps six bars' worth of labels on a phone. */

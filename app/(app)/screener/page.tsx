@@ -120,14 +120,14 @@ export async function generateMetadata({ searchParams }: { searchParams: SearchP
 function SortLabel({ view, id, numeric, locked = false, children }: { view: ScreenerView; id: string; numeric: boolean; locked?: boolean; children: React.ReactNode }) {
   const active = view.sort.id === id && !locked;
   // Sorting the market by our call is the same list as filtering by it, so it follows the same rule.
-  if (locked) return <span className="uppercase tracking-[inherit]">{children}</span>;
+  if (locked) return <span className="tracking-[inherit]">{children}</span>;
   return (
     <Link
       href={sortHref(view, id, numeric)}
       scroll={false}
       prefetch={false}
       aria-label={`Sort by this column${active ? (view.sort.dir === "desc" ? ", now highest first" : ", now lowest first") : ""}`}
-      className={`inline-flex items-center gap-1 rounded uppercase tracking-[inherit] outline-none hover:text-oa-fg focus-visible:underline ${active ? "text-oa-fg" : ""}`}
+      className={`inline-flex items-center gap-1 rounded tracking-[inherit] outline-none hover:text-oa-fg focus-visible:underline ${active ? "text-oa-fg" : ""}`}
     >
       {children}
       <span aria-hidden="true" className={active ? "text-oa-primary" : "opacity-0"}>

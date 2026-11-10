@@ -31,6 +31,7 @@ export type AuthSurface =
   | "demo_radar"
   | "home_content"
   | "agent_oauth"
+  | "import_try"
   | "unknown";
 
 export type PaywallSurface =
@@ -386,4 +387,38 @@ export function trackAgentAccessAction(props: {
     | "config_copied";
 }) {
   captureEvent("agent_access_action", props);
+}
+
+/* ── holdings import and reasons (components/import, components/thesis) ── */
+
+export type ImportSurface = "watchlist" | "try";
+export type ImportInputKind = "image" | "text" | "csv";
+
+/** Someone sent screenshots or text to be read. Counts only, never the content. */
+export function trackImportStarted(props: { surface: ImportSurface; input: ImportInputKind; images: number }) {
+  captureEvent("import_started", { ...props, page: currentArea() });
+}
+
+/** The read came back (or failed). `matched` are rows we cover; `unknown` are tickers we do not. */
+export function trackImportParsed(props: {
+  surface: ImportSurface;
+  input: ImportInputKind;
+  ok: boolean;
+  via?: "rules" | "model" | null;
+  rows?: number;
+  matched?: number;
+  unknown?: number;
+  error_code?: string | null;
+}) {
+  captureEvent("import_parsed", { ...props, error_code: props.error_code?.slice(0, 40) ?? null, page: currentArea() });
+}
+
+/** Reviewed rows were saved as holdings. Counts only: no share counts or costs. */
+export function trackImportSaved(props: { surface: ImportSurface; added: number; updated: number; with_shares: number; pending: boolean }) {
+  captureEvent("import_saved", { ...props, page: currentArea() });
+}
+
+/** Reasons were saved on the "Why do you own this?" step. Kinds only, never the typed text. */
+export function trackThesisSaved(props: { count: number; kinds: string[]; with_text: number; asked: number }) {
+  captureEvent("thesis_saved", { count: props.count, kinds: props.kinds.slice(0, 12).join(","), with_text: props.with_text, asked: props.asked });
 }

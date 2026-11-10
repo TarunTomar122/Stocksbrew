@@ -7,7 +7,9 @@ import { StockPageSchema } from "@/components/seo/stock-page-schema";
 import { StockPageAnalytics } from "@/components/stock-page-analytics";
 import { StockReport } from "@/components/stock-report/report";
 import { dayInET, fmtDate } from "@/components/stock-report/format";
+import { Suspense } from "react";
 import type { ReportData } from "@/components/stock-report/types";
+import { StockRelatedRow } from "@/components/seo/stock-family-links";
 import { StockViewTracker } from "@/components/stock-view-tracker";
 import { UnlistedStockShell } from "@/components/unlisted-stock-shell";
 import { PriorityStockModal } from "@/components/priority-stock-modal";
@@ -603,7 +605,16 @@ export async function StockPageStream({ params }: Props) {
         instrumentId={displayStock.instrument_id}
         ticker={displayStock.ticker}
       />
-      <StockReport data={data} />
+      <StockReport
+        data={data}
+        related={
+          market === "US" ? (
+            <Suspense fallback={null}>
+              <StockRelatedRow ticker={displayStock.ticker} />
+            </Suspense>
+          ) : null
+        }
+      />
     </>
   );
 }

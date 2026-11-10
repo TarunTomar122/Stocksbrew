@@ -88,7 +88,7 @@ function sectorFor(position: PortfolioPosition, sectorOf: Record<string, string>
 
 /** "9% of your book" with value weights, "1 of your 11 holdings" without. */
 function shareOfBook(names: Weighted[], all: Weighted[], byValue: boolean): string {
-  if (byValue) return `${pct(names.reduce((sum, item) => sum + item.weight, 0), 0)} of your book`;
+  if (byValue) return `${pct(names.reduce((sum, item) => sum + item.weight, 0), 0)} of your portfolio`;
   return `${names.length} of your ${all.length} holdings`;
 }
 
@@ -153,7 +153,7 @@ function positionsRead(input: PortfolioInsightInput): TheRead | null {
       const text =
         share >= 35 && share <= 100
           ? `${joinNames(names)} did ${pct(share, 0)} of that move.`
-          : `${joinNames(names)} led the move${share > 100 ? `; the rest of the book ${sign > 0 ? "held it back" : "softened it"}` : ""}.`;
+          : `${joinNames(names)} led the move${share > 100 ? `; the rest of your stocks ${sign > 0 ? "held it back" : "softened the fall"}` : ""}.`;
       contributors = {
         id: "contributors",
         tone: sign > 0 ? "up" : "down",
@@ -438,9 +438,9 @@ function analyticsRead(input: PortfolioInsightInput): TheRead | null {
 
   let headline = "";
   if (over && over.gap >= 10) {
-    headline = `Your book leans ${over.sector}: ${pct(over.weight, 0)} of it, against ${pct(over.sp, 0)} of the S&P 500.`;
+    headline = `${pct(over.weight, 0)} of your money is in ${over.sector}, against ${pct(over.sp, 0)} of the S&P 500.`;
   } else if (byValue && fin(analytics.top3) && portfolio.positions.length > 3) {
-    headline = `Your three largest positions are ${pct(analytics.top3, 0)} of the book.`;
+    headline = `Your three biggest holdings are ${pct(analytics.top3, 0)} of your portfolio.`;
   } else if (rows.length > 0) {
     headline = `Your ${plural(rows.length, "holding")} spread across ${plural(mine.size, "sector")}.`;
   }
@@ -460,7 +460,7 @@ function analyticsRead(input: PortfolioInsightInput): TheRead | null {
       ? {
           id: "top",
           tone: analytics.top1 >= 25 ? "down" : "flat",
-          text: `${analytics.byPosition[0].label} alone is ${pct(analytics.top1, 0)} of the book${fin(analytics.top3) ? `; the top three are ${pct(analytics.top3, 0)}` : ""}.`,
+          text: `${analytics.byPosition[0].label} alone is ${pct(analytics.top1, 0)} of your portfolio${fin(analytics.top3) ? `; the top three are ${pct(analytics.top3, 0)}` : ""}.`,
           soWhat: fin(analytics.effectivePositions) ? `It behaves like ${analytics.effectivePositions.toFixed(1)} equal-sized positions.` : undefined,
           tickers: analytics.byPosition.slice(0, 3).map((slice) => slice.label),
         }
@@ -468,12 +468,12 @@ function analyticsRead(input: PortfolioInsightInput): TheRead | null {
 
   let risk: Insight | null = null;
   if (fin(analytics.beta)) {
-    const vol = fin(analytics.volatility) && fin(analytics.benchmarkVolatility) ? ` It swings ${pct(analytics.volatility, 0)} a year against ${pct(analytics.benchmarkVolatility, 0)} for the S&P 500.` : "";
+    const vol = fin(analytics.volatility) && fin(analytics.benchmarkVolatility) ? ` Its ups and downs over a year are ${pct(analytics.volatility, 0)}, against ${pct(analytics.benchmarkVolatility, 0)} for the S&P 500.` : "";
     const high = [...rows].filter((row) => fin(row.position.beta)).sort((a, b) => b.position.beta! - a.position.beta!).slice(0, 2);
     risk = {
       id: "risk",
       tone: analytics.beta > 1.2 ? "down" : analytics.beta < 0.8 ? "up" : "flat",
-      text: `Your book's beta is ${analytics.beta.toFixed(2)}: on a day the S&P 500 moves 1%, it has tended to move ${analytics.beta.toFixed(1)}%.${vol}`,
+      text: `When the S&P 500 moves 1%, your portfolio has tended to move ${analytics.beta.toFixed(1)}%.${vol}`,
       soWhat: high.length ? `${joinNames(high.map((row) => `${row.position.ticker} (${row.position.beta!.toFixed(1)})`))} swing the most.` : undefined,
       tickers: high.map((row) => row.position.ticker),
     };
@@ -575,7 +575,7 @@ function alertsRead(input: PortfolioInsightInput): TheRead | null {
 /** The example is nobody's book: "your book" reads as "the book". */
 function impersonal(read: TheRead | null): TheRead | null {
   if (!read) return read;
-  const fix = (text: string) => text.replace(/\byour (book|money|holdings|watched names)\b/g, "the $1").replace(/\bYour (book|holdings)\b/g, "The $1");
+  const fix = (text: string) => text.replace(/\byour (book|portfolio|money|holdings|watched names|stocks)\b/g, "the $1").replace(/\bYour (book|portfolio|holdings|three biggest holdings)\b/g, "The $1");
   return {
     ...read,
     headline: fix(read.headline),

@@ -63,7 +63,7 @@ describe("buildCalendarRead", () => {
     expect(read.headline).toBe("CPI is out today at 8:30 AM; 3 companies still to report this week, led by CSCO and AMAT on Thursday.");
     expect(read.insights[0]!.id).toBe("biggest");
     expect(read.insights[0]!.text).toContain("about 3x a normal day");
-    expect(read.insights[1]!.text).toBe("So far 3 of 3 reports with an estimate beat it (100%), 0 misses. Biggest moves after: CNH +13.5% and CEG +9.5%.");
+    expect(read.insights[1]!.text).toBe("So far 3 of 3 companies beat what analysts expected (100%), and none fell short. Biggest moves after: CNH +13.5% and CEG +9.5%.");
   });
 
   it("puts the person's own stocks first, in date order", () => {

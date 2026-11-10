@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 
 import { MarketStatusInline } from "@/components/market-status";
+import { RangeBar } from "@/components/oa/kit";
+import { callMetaLine, plainAction } from "@/lib/plain-copy";
 import { CoverButton, LockCard } from "@/components/oa/gate";
 import { ProCheckoutButton } from "@/components/oa/pro-checkout-button";
 import { StockLogo } from "@/components/stock-logo";
@@ -16,7 +18,7 @@ import { AlertControls, type SuggestedAlert } from "./alert-controls";
 import { capTier, compactMoney, daysBetween, fin, fmtDate, fmtStamp, levelFormatter, moneyFormatter, relativeDays, signedPct } from "./format";
 import { PricePanel, type PanelZone } from "./price-panel";
 import { Details, LockIcon, Missing, MoreLink, NUM, Panel, PROSE, SECTION_LABELS, Tag, TONE_COLOR, ToneGlyph, type SectionId, type Tone } from "./primitives";
-import { SectionRail } from "./section-rail";
+import { SectionTabs } from "./section-tabs";
 import {
   EarningsSection,
   FinancialsSection,
@@ -176,15 +178,15 @@ function CallTrack({ price, add, trim, level }: { price: number; add: number; tr
   const toTrim = ((trim - price) / price) * 100;
   const where =
     price <= add
-      ? { text: "In the add zone", color: TONE_COLOR.up }
+      ? { text: "At a price where we'd buy more", color: TONE_COLOR.up }
       : price >= trim
-        ? { text: "In the trim zone", color: TONE_COLOR.down }
+        ? { text: "At a price where we'd sell some", color: TONE_COLOR.down }
         : aboveAdd < 0.5
-          ? { text: "Sitting on the add level", color: TONE_COLOR.up }
-          : { text: `${aboveAdd.toFixed(aboveAdd < 10 ? 1 : 0)}% above the add level, ${toTrim.toFixed(toTrim < 10 ? 1 : 0)}% below trim`, color: undefined };
+          ? { text: "Right at our buy-more price", color: TONE_COLOR.up }
+          : { text: `${aboveAdd.toFixed(aboveAdd < 10 ? 1 : 0)}% above our buy-more price, ${toTrim.toFixed(toTrim < 10 ? 1 : 0)}% below our sell-some price`, color: undefined };
   return (
     <div className="mt-3">
-      <div className="relative h-2.5 rounded-full bg-oa-bg" role="img" aria-label={`${where.text}. Add below ${level(add)}, trim above ${level(trim)}.`}>
+      <div className="relative h-2.5 rounded-full bg-oa-bg" role="img" aria-label={`${where.text}. We would buy more below ${level(add)} and sell some above ${level(trim)}.`}>
         <span className="absolute inset-y-0 left-0 rounded-l-full" style={{ width: `${ZONE}%`, background: `color-mix(in srgb, ${TONE_COLOR.up} 35%, transparent)` }} />
         <span className="absolute inset-y-0 right-0 rounded-r-full" style={{ width: `${ZONE}%`, background: `color-mix(in srgb, ${TONE_COLOR.down} 35%, transparent)` }} />
         <span
@@ -194,11 +196,11 @@ function CallTrack({ price, add, trim, level }: { price: number; add: number; tr
       </div>
       <dl className="mt-2 grid grid-cols-2 gap-x-4">
         <div className="min-w-0">
-          <dt className="text-[13px] leading-[18px] text-oa-muted-fg">Add zone, below</dt>
+          <dt className="text-[13px] leading-[18px] text-oa-muted-fg">Buy more below</dt>
           <dd className={`${NUM} text-[15px] font-medium leading-[22px] text-oa-fg`}>{level(add)}</dd>
         </div>
         <div className="min-w-0 text-right">
-          <dt className="text-[13px] leading-[18px] text-oa-muted-fg">Trim zone, above</dt>
+          <dt className="text-[13px] leading-[18px] text-oa-muted-fg">Sell some above</dt>
           <dd className={`${NUM} text-[15px] font-medium leading-[22px] text-oa-fg`}>{level(trim)}</dd>
         </div>
       </dl>
@@ -213,6 +215,7 @@ function CallTrack({ price, add, trim, level }: { price: number; add: number; tr
  * fact sheet rather than a strip of captions.
  */
 function KeyStats({ items }: { items: Array<{ label: string; value: ReactNode; sub?: ReactNode }> }) {
+  // Labels are plain words ("Company value", "Today's range"), so they wrap rather than cut off.
   if (!items.length) return null;
   const half = Math.ceil(items.length / 2);
   const columns = [items.slice(0, half), items.slice(half)].filter((column) => column.length);
@@ -222,7 +225,7 @@ function KeyStats({ items }: { items: Array<{ label: string; value: ReactNode; s
         <dl key={index} className={index > 0 ? "max-md:border-t max-md:border-oa-border" : ""}>
           {column.map((item) => (
             <div key={item.label} className="flex min-h-[38px] items-center justify-between gap-4 border-b border-oa-border py-1.5 last:border-b-0">
-              <dt className="min-w-0 truncate text-[15px] leading-[22px] text-oa-muted-fg">{item.label}</dt>
+              <dt className="min-w-0 text-pretty text-[15px] leading-[22px] text-oa-muted-fg">{item.label}</dt>
               <dd className={`${NUM} shrink-0 text-right text-[15px] font-medium leading-[22px] text-oa-fg`}>
                 {item.value}
                 {item.sub ? <span className="ml-1.5 text-[13px] font-normal text-oa-muted-fg">{item.sub}</span> : null}
@@ -235,7 +238,7 @@ function KeyStats({ items }: { items: Array<{ label: string; value: ReactNode; s
   );
 }
 
-export function StockReport({ data }: { data: ReportData }) {
+export function StockReport({ data, related }: { data: ReportData; /** Links to the stock's sector, rivals, insiders and earnings pages, streamed in under the head. */ related?: ReactNode }) {
   const { stock, market, currency, nowIso, read, readState, facts, fundamentals } = data;
   const today = nowIso.slice(0, 10);
   const money = moneyFormatter(currency);
@@ -279,16 +282,18 @@ export function StockReport({ data }: { data: ReportData }) {
   const high52 = fundamentals?.week_52_high;
   const low52 = fundamentals?.week_52_low;
   const headerStats = [
-    fin(marketCap) && marketCap > 0 ? { label: "Market cap", value: compactMoney(marketCap, currency) } : null,
-    fin(pe) && pe > 0 ? { label: "P/E, trailing", value: pe.toFixed(1) } : null,
-    fin(stock.day_low) && fin(stock.day_high) && stock.day_high > 0
-      ? { label: "Day range", value: `${stock.day_low.toFixed(2)} – ${stock.day_high.toFixed(2)}` }
+    fin(marketCap) && marketCap > 0 ? { label: "Company value", value: compactMoney(marketCap, currency) } : null,
+    fin(pe) && pe > 0 ? { label: "Price / last year's earnings", value: `${pe.toFixed(1)}×` } : null,
+    fin(stock.day_low) && fin(stock.day_high) && stock.day_high > stock.day_low
+      ? { label: "Today's range", value: <RangeBar low={stock.day_low} high={stock.day_high} value={stock.price} className="w-36 sm:w-44" /> }
       : null,
-    fin(low52) && fin(high52) && high52 > 0 ? { label: "52-week range", value: `${low52.toFixed(2)} – ${high52.toFixed(2)}` } : null,
-    fin(stock.previous_close) && stock.previous_close > 0 ? { label: "Prev close", value: money(stock.previous_close) } : null,
-    fin(fundamentals?.beta) ? { label: "Beta", value: fundamentals.beta.toFixed(2) } : null,
+    fin(low52) && fin(high52) && high52 > low52 ? { label: "Past year's range", value: <RangeBar low={low52} high={high52} value={stock.price} className="w-36 sm:w-44" /> } : null,
+    fin(stock.previous_close) && stock.previous_close > 0 ? { label: "Yesterday's close", value: money(stock.previous_close) } : null,
+    fin(fundamentals?.beta)
+      ? { label: "Swings vs the market", value: `${fundamentals.beta.toFixed(1)}×`, sub: fundamentals.beta >= 1.3 ? "bigger" : fundamentals.beta <= 0.8 ? "smaller" : "about the same" }
+      : null,
     fin(fundamentals?.dividend_yield) && fundamentals.dividend_yield > 0
-      ? { label: "Div yield", value: `${fundamentals.dividend_yield.toFixed(2)}%` }
+      ? { label: "Dividend a year", value: `${fundamentals.dividend_yield.toFixed(2)}%` }
       : null,
     earningsLabel && earningsIn != null && earningsIn >= 0
       ? {
@@ -323,16 +328,14 @@ export function StockReport({ data }: { data: ReportData }) {
   const callLevels = ready
     ? [
         ready.zones.addBelow
-          ? { label: "Add below", price: ready.zones.addBelow, tone: "up" as const }
+          ? { label: "Buy more below", price: ready.zones.addBelow, tone: "up" as const }
           : ready.zones.addAbove
-            ? { label: "Add above", price: ready.zones.addAbove, tone: "up" as const }
+            ? { label: "Buy more above", price: ready.zones.addAbove, tone: "up" as const }
             : null,
-        ready.zones.trimAbove ? { label: "Trim above", price: ready.zones.trimAbove, tone: "down" as const } : null,
+        ready.zones.trimAbove ? { label: "Sell some above", price: ready.zones.trimAbove, tone: "down" as const } : null,
       ].filter((item): item is NonNullable<typeof item> => Boolean(item))
     : [];
-  const callMeta = ready
-    ? [ready.confidence ? `Confidence: ${ready.confidence}` : null, ready.horizon ? `Horizon: ${ready.horizon}` : null].filter(Boolean).join(" · ")
-    : "";
+  const callMeta = ready ? callMetaLine(ready.confidence, ready.horizon) : "";
 
   const stats = headerStats.length ? <KeyStats items={headerStats} /> : null;
 
@@ -407,9 +410,9 @@ export function StockReport({ data }: { data: ReportData }) {
                             {ready.call}
                           </span>
                         ) : null}
-                        {/* The label often restates the call word ("HOLD" then "Hold here"); show it only when it adds something. */}
-                        {ready.actionLabel && !(ready.call && ready.actionLabel.toLowerCase().includes(ready.call.toLowerCase())) ? (
-                          <span className="text-[17px] font-medium leading-6 tracking-tight text-oa-fg">{ready.actionLabel}</span>
+                        {/* The call word, then what it means in plain words ("TRIM" then "We'd sell some, not buy more"). */}
+                        {plainAction(ready.actionLabel, ready.call) ? (
+                          <span className="text-[17px] font-medium leading-6 tracking-tight text-oa-fg">{plainAction(ready.actionLabel, ready.call)}</span>
                         ) : null}
                       </p>
                       {ready.actionSummary ? <p className="mt-2 max-w-[62ch] text-pretty text-[15px] leading-[22px] text-oa-fg">{ready.actionSummary}</p> : null}
@@ -438,7 +441,7 @@ export function StockReport({ data }: { data: ReportData }) {
                             <LockIcon />
                           </span>
                           <span>
-                            The add and trim levels come with covering {stock.ticker}.{" "}
+                            The prices where we&apos;d buy more or sell some show once {stock.ticker} is one of your covered stocks.{" "}
                             <a href="#call" className="font-medium text-oa-primary hover:underline">
                               See how
                             </a>
@@ -446,7 +449,7 @@ export function StockReport({ data }: { data: ReportData }) {
                         </p>
                       ) : null}
                       <p className="mt-2 text-[13px] leading-[18px] text-oa-muted-fg">
-                        {callMeta ? `${callMeta} · ` : null}A view, not advice.{" "}
+                        {callMeta ? `${callMeta} ` : null}Our view, not advice.{" "}
                         {data.gate.levels ? (
                           <a href="#read" className="text-oa-primary hover:underline">
                             Read the reasoning
@@ -470,6 +473,8 @@ export function StockReport({ data }: { data: ReportData }) {
                 </section>
               </div>
             </header>
+
+            {related}
 
             {data.chart ? (
               <PricePanel
@@ -687,18 +692,19 @@ export function StockReport({ data }: { data: ReportData }) {
             )}
           </Panel>
 
-          {railSections.length ? <SectionRail sections={railSections} /> : null}
-
-          <div className="flex flex-col gap-8 pt-1">
-            {available.overview ? <OverviewSection data={data} /> : null}
-            {available.financials ? <FinancialsSection data={data} /> : null}
-            {available.valuation ? <ValuationSection data={data} /> : null}
-            {available.earnings ? <EarningsSection data={data} /> : null}
-            {available.ownership ? <OwnershipSection data={data} /> : null}
-            {available.news ? <NewsSection data={data} /> : null}
-            {available.technicals ? <TechnicalsSection data={data} /> : null}
-            {available.peers ? <PeersSection data={data} /> : null}
-          </div>
+          {/* The deeper report, one part at a time: the order matches SECTION_LABELS, which is the order of railSections. */}
+          {railSections.length ? (
+            <SectionTabs sections={railSections}>
+              {available.overview ? <OverviewSection data={data} /> : null}
+              {available.financials ? <FinancialsSection data={data} /> : null}
+              {available.valuation ? <ValuationSection data={data} /> : null}
+              {available.earnings ? <EarningsSection data={data} /> : null}
+              {available.ownership ? <OwnershipSection data={data} /> : null}
+              {available.news ? <NewsSection data={data} /> : null}
+              {available.technicals ? <TechnicalsSection data={data} /> : null}
+              {available.peers ? <PeersSection data={data} /> : null}
+            </SectionTabs>
+          ) : null}
 
           <p className="px-2 text-[12px] leading-5 text-oa-muted-fg sm:px-0">
             Research, not investment advice. Prices can be delayed.

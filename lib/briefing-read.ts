@@ -1,5 +1,6 @@
 import { marketDay, type Briefing, type BriefingItem } from "@/lib/briefing";
 import { MARKET_GROUP_KEY, type BriefingGroup, type GroupedSections } from "@/lib/briefing-groups";
+import { firstFullSentence, sentenceCase } from "@/lib/plain-copy";
 import { pickInsights, toneOfChange, type Insight, type TheRead } from "@/lib/insights";
 
 /**
@@ -23,11 +24,9 @@ function joinAnd(parts: string[]): string {
 }
 
 /** The first sentence of a reason, without its period, short enough for one line. */
-export function firstSentence(text: string, max = 140): string {
-  const clean = text.trim().replace(/\s+/g, " ");
-  const match = /^(.+?[.!?])(\s|$)/.exec(clean);
-  const lead = (match ? match[1] : clean).replace(/[.!?]$/, "");
-  return lead.length > max ? `${lead.slice(0, max - 1).replace(/\s+\S*$/, "")}…` : lead;
+export function firstSentence(text: string): string {
+  // The whole first sentence, never cut with an ellipsis; Title Case headlines read as sentences.
+  return sentenceCase(firstFullSentence(text)).replace(/[.!?]$/, "");
 }
 
 const stockHref = (ticker: string) => `/stock/${encodeURIComponent(ticker)}`;
@@ -167,10 +166,10 @@ export function briefingRead(
     const leads = stockGroups(grouped.needs_you);
     const names = leads.slice(0, 3).map((group) => group.ticker as string);
     const earlier = earlierSession(briefing.market.as_of, briefing.date);
-    const leaders = names.length ? `${joinAnd(names)} made the biggest ${names.length === 1 ? "move" : "moves"} we could explain${earlier}.` : "";
-    const headline = index
-      ? `The ${index.name} is ${index.change_pct >= 0 ? "up" : "down"} ${pct(index.change_pct, 2)}${leaders ? `; ${leaders}` : "."}`
-      : leaders;
+    const leaders = names.length
+      ? `${joinAnd(names)} made the biggest ${names.length === 1 ? "move" : "moves"} with a known reason${earlier}.`
+      : "";
+    const headline = index ? `The ${index.name} is ${index.change_pct >= 0 ? "up" : "down"} ${pct(index.change_pct, 2)}.${leaders ? ` ${leaders}` : ""}` : leaders;
     const insights = pickInsights(
       leads.map((group) => group.items.map((item) => explainedMoveInsight(item, briefing.date)).find(Boolean) ?? null),
     );

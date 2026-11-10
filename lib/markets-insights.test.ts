@@ -58,7 +58,7 @@ describe("buildMarketsRead", () => {
       asset("uso", -3.87, { group: "commodity" }),
     ];
     const read = buildMarketsRead(data(assets), NOW)!;
-    expect(read.headline).toBe("Risk-on Monday: all 11 sectors rose and the S&P 500 gained 2.35%. Oil's 3.9% drop was the outlier.");
+    expect(read.headline).toBe("Most stocks rose Monday: all 11 sectors rose and the S&P 500 gained 2.35%. Oil's 3.9% drop was the outlier.");
     expect(read.insights.map((insight) => insight.id)).toEqual(["leader", "outlier", "size"]);
     expect(read.insights[0]!.text).toContain("SOXX rose 7.49%, 5.1 pts more than the S&P 500");
     expect(read.insights[0]!.soWhat).toContain("bounce");
@@ -67,7 +67,7 @@ describe("buildMarketsRead", () => {
 
   it("calls a quiet day mixed and leaves out what the data cannot carry", () => {
     const read = buildMarketsRead(data([asset("sp500", 0.1, { class: "index" }), ...sectors([0.2, -0.1, 0.3, 0, 0.1, -0.2, 0.1, 0.1, 0, 0.2, -0.3])]), NOW)!;
-    expect(read.headline.startsWith("Mixed Monday: 6 of 11 sectors rose")).toBe(true);
+    expect(read.headline.startsWith("Stocks were mixed Monday: 6 of 11 sectors rose")).toBe(true);
     expect(read.insights).toEqual([]);
   });
 });

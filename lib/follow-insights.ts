@@ -322,8 +322,8 @@ export function fundCrowdInsight(tallies: StockTally[], fundsInPeriod: number, p
   const sell = mostSold(tallies.filter((row) => row.ticker !== buy.ticker), 1)[0];
   const quarter = quarterLabel(period);
   const text =
-    `In their ${quarter} filings, ${buy.buyers.length} of ${fundsInPeriod} funds bought or added to ${buy.ticker}, the most crowded buy` +
-    (sell && sell.sellers.length >= 3 ? `; ${sell.sellers.length} trimmed or sold ${sell.ticker}, the most crowded sale.` : ".");
+    `In their ${quarter} reports, ${buy.buyers.length} of ${fundsInPeriod} funds bought or added to ${buy.ticker}, more than any other stock` +
+    (sell && sell.sellers.length >= 3 ? `. ${sell.sellers.length} cut or sold ${sell.ticker}, the most sold.` : ".");
   const others = mostBought(tallies, 3)
     .slice(1)
     .filter((row) => row.buyers.length >= 3);
@@ -351,10 +351,10 @@ export function congressInsight(tallies: StockTally[], sectors: SectorMap, days:
   const sector = congressSectorBuys(tallies, sectors);
   const balance =
     sells > buys * 1.5
-      ? `Sellers outnumbered buyers ${sells} to ${buys}`
+      ? `Across all stocks they reported ${sells} sales and ${buys} buys`
       : buys > sells * 1.5
-        ? `Buyers outnumbered sellers ${buys} to ${sells}`
-        : `Buyers and sellers were close, ${buys} to ${sells}`;
+        ? `Across all stocks they reported ${buys} buys and ${sells} sales`
+        : `Across all stocks buys and sales were close, ${buys} to ${sells}`;
   // Counts are member-and-stock pairs, so one member buying three stocks counts three times.
   const lead =
     sector && sector.members >= 3
@@ -368,7 +368,7 @@ export function congressInsight(tallies: StockTally[], sectors: SectorMap, days:
     id: "congress",
     tone: "up",
     text: `${lead}${tickers.length > 1 ? ` (${listWords(tickers.slice(0, 3))})` : ""}.`,
-    soWhat: `${balance} across all stocks.`,
+    soWhat: `${balance}.`,
     tickers,
     action: { label: "Congress trades", href: "/follow?tab=congress" },
   };
@@ -471,15 +471,15 @@ export function buildFollowRead(input: FollowReadInput): FollowRead {
   const top = mostBought(fundTallies, 2).filter((row) => row.buyers.length >= 3);
   let headline = "";
   if (top.length > 0) {
-    headline = `Funds piled into ${listWords(top.map((row) => row.ticker))} in their ${quarterLabel(period)} filings`;
+    headline = `Funds bought ${listWords(top.map((row) => row.ticker))} more than any other stocks in ${quarterLabel(period)}`;
     let buys = 0;
     let sells = 0;
     for (const row of congressTallies) {
       buys += row.buyers.length;
       sells += row.sellers.length;
     }
-    if (congress && sells > buys * 1.5) headline += "; Congress sold more than it bought";
-    else if (congress && buys > sells * 1.5) headline += "; Congress was buying too";
+    if (congress && sells > buys * 1.5) headline += ", while members of Congress sold more than they bought";
+    else if (congress && buys > sells * 1.5) headline += ", and members of Congress were buying too";
     headline += ".";
   } else if (insider) {
     headline = insider.text.split(":")[0] + ".";
@@ -628,8 +628,8 @@ export function buildFundRead(profile: FundProfile): TheRead {
             topWeight >= 0.4
               ? `${short} is ${pct(topWeight)} in three stocks: ${listWords(top3.map((position) => `${position.ticker} ${pct(position.weight ?? 0)}`))}.`
               : profile.latest.stock_positions >= 50 && topWeight < 0.2
-                ? `${short} spreads its money: the top three stocks (${listWords(top3.map((position) => position.ticker!))}) are ${pct(topWeight)} of ${plural(profile.latest.stock_positions, "position")}.`
-                : `Its three biggest bets, ${listWords(top3.map((position) => `${position.ticker} ${pct(position.weight ?? 0)}`))}, make up ${pct(topWeight)} of the stock book.`,
+                ? `${short} spreads its money widely: its top three stocks (${listWords(top3.map((position) => position.ticker!))}) are only ${pct(topWeight)} of ${plural(profile.latest.stock_positions, "holding")}.`
+                : `Its three biggest holdings, ${listWords(top3.map((position) => `${position.ticker} ${pct(position.weight ?? 0)}`))}, make up ${pct(topWeight)} of the stocks it owns.`,
           tickers: top3.map((position) => position.ticker!),
           action: { label: "Full portfolio", href: "#portfolio" },
         }
@@ -670,7 +670,7 @@ export function buildFundRead(profile: FundProfile): TheRead {
         id: "moves",
         tone: buys > sells ? "up" : sells > buys ? "down" : "flat",
         text: `In ${profile.latest.quarter} it ${listWords(parts)}.`,
-        soWhat: `${plural(buys, "line")} bought or added, ${sells} trimmed or sold.`,
+        soWhat: `In all it bought or added to ${plural(buys, "stock")} and cut or sold ${sells}.`,
         tickers: [...bought, ...sold].filter((ticker, index, all) => all.indexOf(ticker) === index),
         action: { label: "What changed", href: "#changes" },
       };
@@ -682,7 +682,7 @@ export function buildFundRead(profile: FundProfile): TheRead {
   return {
     headline,
     insights: pickInsights([concentration, moves, record]),
-    source: `13F filed ${fmtDate(profile.latest.filed_at)} for holdings on ${fmtDate(profile.latest.period)}`,
+    source: `From its quarterly report (13F), filed ${fmtDate(profile.latest.filed_at)}, showing holdings on ${fmtDate(profile.latest.period)}`,
   };
 }
 

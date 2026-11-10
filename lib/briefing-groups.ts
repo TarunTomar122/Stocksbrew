@@ -1,4 +1,5 @@
 import type { BriefingEvidence, BriefingItem, BriefingKind, BriefingRelation, BriefingSections } from "@/lib/briefing";
+import { asSentence, firstFullSentence } from "@/lib/plain-copy";
 
 /**
  * The briefing grouped by stock. The builder makes one item per event, so a
@@ -165,8 +166,9 @@ export function lineText(item: BriefingItem): string {
   const ticker = item.ticker;
   const headline = item.headline.trim();
   if (item.kind === "price_move") {
-    if (item.reason_status !== "confirmed") return "No confirmed reason for the move yet.";
-    return item.why.trim() || headline;
+    if (item.reason_status !== "confirmed") return "We haven't found a confirmed reason for this move yet.";
+    // One complete sentence on the row; the rest of the reason opens with it.
+    return asSentence(firstFullSentence(item.why)) || headline;
   }
   if (item.kind === "news" && ticker) {
     const stripped = headline.replace(new RegExp(`^News on ${escapeRe(ticker)}:\\s*`), "");

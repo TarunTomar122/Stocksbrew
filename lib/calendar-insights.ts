@@ -185,7 +185,7 @@ function resultsInsight(input: CalendarReadInput): Insight | null {
   return {
     id: "results",
     tone: beats > misses ? "up" : misses > beats ? "down" : "flat",
-    text: `So far ${beats} of ${reported.length} reports with an estimate beat it (${share}%), ${plural(misses, "miss", "misses")}.${moves}`,
+    text: `So far ${beats} of ${reported.length} companies beat what analysts expected (${share}%), and ${misses === 0 ? "none" : misses} fell short.${moves}`,
     tickers: moved.map((item) => item.ticker),
     action: { label: "See results", href: "/calendar?view=list&type=earnings" },
   };
@@ -205,7 +205,7 @@ function economicInsight(input: CalendarReadInput): Insight | null {
     id: "economic",
     tone: "flat",
     text: `${big.length === 1 ? "One big data release" : `${countWord(big.length)} big data releases`} ${input.period}: ${listNames(list)}.`,
-    soWhat: big.some((item) => /cpi|ppi|pce|inflation/i.test(item.title)) ? "Inflation prints move rate odds, and rate odds move growth stocks." : undefined,
+    soWhat: big.some((item) => /cpi|ppi|pce|inflation/i.test(item.title)) ? "Inflation numbers change what people expect from interest rates, and that tends to move growth stocks most." : undefined,
     action: { label: "Economic calendar", href: "/calendar?type=economic" },
   };
 }

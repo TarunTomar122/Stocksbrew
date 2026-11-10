@@ -23,6 +23,7 @@ import {
 } from "@/lib/signals-shared";
 import { buildRedditRead, policyTakeaway } from "@/lib/signals-insights";
 import { moodWord } from "@/lib/tone";
+import { sentenceCase } from "@/lib/plain-copy";
 
 const CHIP = "inline-flex h-10 shrink-0 items-center gap-1.5 rounded-md border px-3 text-[14px] transition-colors sm:h-8 " + FOCUS;
 const CHIP_ON = "border-[color-mix(in_srgb,var(--ink)_55%,transparent)] bg-oa-card font-medium text-oa-fg";
@@ -151,8 +152,8 @@ function MoverLine({ mover, rank, max }: { mover: Mover; rank: number; max: numb
         <span aria-hidden="true" className={`size-1.5 shrink-0 rounded-full ${mover.explained ? "bg-oa-primary" : "bg-oa-border"}`} />
         <span className="truncate">{cause}</span>
       </p>
-      <p className={`mt-0.5 line-clamp-2 min-w-0 pl-7 text-[14px] leading-[21px] lg:mt-0 lg:pl-0 ${mover.explained ? "font-medium text-oa-fg" : "text-oa-muted-fg"}`}>
-        {headline}
+      <p className={`mt-0.5 min-w-0 pl-7 text-[14px] leading-[21px] lg:mt-0 lg:pl-0 ${mover.explained ? "font-medium text-oa-fg" : "text-oa-muted-fg"}`}>
+        {sentenceCase(headline)}
       </p>
       <span className="hidden lg:block">{mover.explained ? <Chevron /> : null}</span>
     </div>
@@ -181,9 +182,9 @@ function MoverDetail({ mover }: { mover: Mover }) {
                   href={source.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={`line-clamp-2 text-[13px] leading-5 text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-primary ${FOCUS}`}
+                  className={`text-[13px] leading-5 text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-primary ${FOCUS}`}
                 >
-                  {source.title}
+                  {sentenceCase(source.title)}
                 </a>
               </li>
             ))}
@@ -391,8 +392,8 @@ function ThreadList({ threads }: { threads: RedditThread[] }) {
       <ul className="grid lg:grid-cols-2 lg:gap-x-px lg:bg-oa-border">
         {threads.map((thread) => (
           <li key={thread.url} className="border-b border-oa-border bg-oa-card px-4 py-2 hover:bg-oa-accent">
-            <a href={thread.url} target="_blank" rel="noopener noreferrer" className={`line-clamp-1 rounded text-[14px] font-medium leading-5 text-oa-fg hover:underline ${FOCUS}`}>
-              {thread.title}
+            <a href={thread.url} target="_blank" rel="noopener noreferrer" className={`rounded text-[14px] font-medium leading-5 text-oa-fg hover:underline ${FOCUS}`}>
+              {sentenceCase(thread.title)}
             </a>
             <p className="mt-0.5 flex flex-wrap gap-x-2 text-[12.5px] leading-[18px] text-oa-muted-fg">
               <span>r/{thread.subreddit}</span>
@@ -451,7 +452,7 @@ function PolicyLine({ post, compact }: { post: PolicyPost; compact: boolean }) {
           ) : null}
         </span>
       </div>
-      <p className="mt-0.5 line-clamp-2 min-w-0 text-pretty text-[14px] leading-5 text-oa-fg lg:mt-0 lg:line-clamp-1 group-open:lg:text-oa-muted-fg">
+      <p className="mt-0.5 min-w-0 text-pretty text-[14px] leading-5 text-oa-fg lg:mt-0 group-open:lg:text-oa-muted-fg">
         {post.stance !== "neutral" ? (
           <>
             <StanceWord stance={post.stance} className="mr-1.5 align-[-3px]" />
@@ -624,8 +625,8 @@ function TodayMovers({ movers }: { movers: Mover[] }) {
                   {index + 1}
                 </span>
                 <Ticker symbol={mover.ticker} size={20} className="min-w-0" />
-                <p className="col-span-3 col-start-2 row-start-2 mt-0.5 line-clamp-2 min-w-0 text-pretty text-[14px] leading-5 text-oa-fg lg:col-span-1 lg:col-start-3 lg:row-start-1 lg:mt-0 lg:line-clamp-1 lg:font-medium">
-                  {mover.headline}
+                <p className="col-span-3 col-start-2 row-start-2 mt-0.5 min-w-0 text-pretty text-[14px] leading-5 text-oa-fg lg:col-span-1 lg:col-start-3 lg:row-start-1 lg:mt-0 lg:font-medium">
+                  {sentenceCase(mover.headline)}
                 </p>
                 <Delta value={mover.pct} className="text-right text-[15px] font-semibold" />
                 <Chevron />
@@ -665,7 +666,7 @@ export function TodayTab({
       <Panel
         label={
           <>
-            Moved, and we know why <span className={`${NUM} ml-1.5 hidden font-normal text-oa-muted-fg sm:inline`}>{counts.explained} of {counts.all}</span>
+            Big moves with a known reason <span className={`${NUM} ml-1.5 hidden font-normal text-oa-muted-fg sm:inline`}>{counts.explained} of {counts.all}</span>
           </>
         }
         right={<SeeAll href={moversHref}>All {counts.all} moves</SeeAll>}
@@ -680,7 +681,7 @@ export function TodayTab({
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-t border-oa-border bg-oa-bg px-4 py-2 text-[12.5px] leading-5 text-oa-muted-fg">
           {counts.all ? (
             <span>
-              {counts.all} unusual moves{movers.thresholdPct ? ` of ${movers.thresholdPct}% or more` : ""}: <span className="text-signal-bullish">{counts.up} up</span>,{" "}
+              {counts.all} stocks moved{movers.thresholdPct ? ` ${movers.thresholdPct}% or more` : " a lot"}: <span className="text-signal-bullish">{counts.up} up</span>,{" "}
               <span className="text-signal-bearish">{counts.down} down</span>.
             </span>
           ) : (
@@ -688,7 +689,7 @@ export function TodayTab({
           )}
           {pick.unexplained.length ? (
             <span className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
-              <SeeAll href={`${moversHref}&show=unexplained`}>{counts.unexplained} with no confirmed reason</SeeAll>
+              <SeeAll href={`${moversHref}&show=unexplained`}>{counts.unexplained} with no reason found yet</SeeAll>
               {pick.unexplained.map((mover) => (
                 <a key={mover.ticker} href={`/stock/${encodeURIComponent(mover.ticker)}`} data-track="mover_opened" data-track-list="unexplained" className={`inline-flex items-baseline gap-1.5 rounded hover:underline ${FOCUS}`}>
                   <span className={`${NUM} font-medium text-oa-fg`}>{mover.ticker}</span>

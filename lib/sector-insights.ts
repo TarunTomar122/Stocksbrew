@@ -76,8 +76,8 @@ export function buildSectorRead(input: SectorReadInput): TheRead | null {
   let headline = "";
   if (day !== null) {
     const moved = Math.abs(day) < 0.05 ? "were flat" : `${day > 0 ? "rose" : "fell"} ${Math.abs(day).toFixed(1)}%`;
-    headline = `${name} stocks ${moved} on the last session${against(day, spy?.day_pct)}`;
-    if (breadth !== null) headline += `; ${breadth}% of its ${withDay.length} stocks rose`;
+    headline = `${name} stocks ${moved} in the latest trading day${against(day, spy?.day_pct)}`;
+    if (breadth !== null) headline += `, and ${breadth}% of its ${withDay.length} stocks rose`;
     headline += ".";
   }
 
@@ -91,7 +91,7 @@ export function buildSectorRead(input: SectorReadInput): TheRead | null {
     movers = {
       id: "movers",
       tone: toneOfChange(day, 0.05),
-      text: `${list(leaders, "day_pct")} led; ${list(laggards, "day_pct")} were the weakest.`,
+      text: `${list(leaders, "day_pct")} rose the most, while ${list(laggards, "day_pct")} fell the most.`,
       tickers: [...leaders, ...laggards].map((row) => row.symbol),
       action: explained ? { label: `Why ${explained.symbol} moved`, href: input.moveHrefs!.get(explained.symbol)! } : undefined,
     };
@@ -123,8 +123,8 @@ export function buildSectorRead(input: SectorReadInput): TheRead | null {
     callsInsight = {
       id: "calls",
       tone: addShare > allAdd + 5 ? "up" : addShare < allAdd - 5 ? "down" : "flat",
-      text: `Our calls on its ${calls.total} stocks: ${calls.Add} Add, ${calls.Hold} Hold, ${calls.Trim} Trim.`,
-      soWhat: `That is ${addShare}% Add, against ${allAdd}% across every stock we cover.`,
+      text: `Of the ${calls.total} we have a call on, we'd buy more of ${calls.Add}, keep ${calls.Hold} and sell some of ${calls.Trim}.`,
+      soWhat: `That is ${addShare}% worth buying more, against ${allAdd}% across every stock we follow.`,
     };
   }
 

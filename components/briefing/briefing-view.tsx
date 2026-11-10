@@ -13,6 +13,7 @@ import {
 } from "@/lib/briefing";
 
 import { TheRead } from "@/components/oa/insight";
+import { MoveBar } from "@/components/oa/kit/tone";
 import {
   COMPACT_VISIBLE_LINES,
   GROUP_VISIBLE_LINES,
@@ -78,7 +79,7 @@ function EmptyLine({ children }: { children: React.ReactNode }) {
  * the rest are a ticker and a number, and the panel says once that no reason
  * was found for them.
  */
-function MoverRows({ title, rows, asOf }: { title: string; rows: BriefingMarketMover[]; asOf?: string | null }) {
+function MoverRows({ title, rows, asOf, max }: { title: string; rows: BriefingMarketMover[]; asOf?: string | null; max: number }) {
   if (rows.length === 0) return null;
   return (
     <div className="pb-1">
@@ -97,14 +98,16 @@ function MoverRows({ title, rows, asOf }: { title: string; rows: BriefingMarketM
               >
                 <span className="flex min-w-0 items-baseline gap-2">
                   <span className="oa-mono font-semibold text-oa-fg">{row.ticker}</span>
-                  {confirmed ? null : <span className="truncate text-[12.5px] text-oa-muted-fg">{row.name !== row.ticker ? row.name : ""}</span>}
+
                 </span>
-                <span className={`oa-mono tabular-nums ${row.day_change_pct >= 0 ? "text-signal-bullish" : "text-signal-bearish"}`}>
-                  {signedPct(row.day_change_pct)}
+                <span className="flex items-center gap-2">
+                  <MoveBar value={row.day_change_pct} max={max} width={40} />
+                  <span className={`oa-mono w-[4.25rem] text-right tabular-nums ${row.day_change_pct >= 0 ? "text-signal-bullish" : "text-signal-bearish"}`}>
+                    {signedPct(row.day_change_pct)}
+                  </span>
                 </span>
-                {confirmed ? (
-                  <span className="col-span-2 line-clamp-2 text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg">{row.reason}</span>
-                ) : null}
+                {/* The reasons are in the main column; here a short marker says whether one exists. */}
+                {confirmed ? null : <span className="col-span-2 text-[12.5px] leading-[18px] text-oa-muted-fg">No confirmed reason yet</span>}
               </a>
             </li>
           );
@@ -202,6 +205,7 @@ export function BriefingView({
 
   const index = briefing.market.indices;
   const movers = [...briefing.market.gainers, ...briefing.market.losers];
+  const moverMax = Math.max(0, ...movers.map((row) => Math.abs(row.day_change_pct)));
   const prices = pricesLine(briefing.stale_note);
   // The market view's read already tells the biggest explained moves; the ones it left out lead the list below.
   const inRead = new Set((read?.insights ?? []).flatMap((insight) => insight.tickers ?? []));
@@ -246,14 +250,14 @@ export function BriefingView({
             {!personal ? (
               viewer === "signed_out" ? (
                 <>
-                  <span>Market view.</span>
+                  <span>This is the whole market.</span>
                   <SignInButton
                     label="Sign in"
                     variant="ghost"
                     size="xs"
                     className="!h-10 -my-2.5 !px-0 !text-[length:inherit] !text-oa-primary underline decoration-[color-mix(in_srgb,var(--oa-primary)_40%,transparent)] underline-offset-2 sm:my-0 sm:!h-5"
                   />
-                  <span>for a briefing on your own stocks.</span>
+                  <span>to see one about your own stocks.</span>
                 </>
               ) : viewer === "pending" ? (
                 <span>
@@ -416,8 +420,8 @@ export function BriefingView({
             </ul>
           ) : null}
           {/* The index is a live quote; the movers come from the last full run, so their time sits with them. */}
-          <MoverRows title="Up most" rows={briefing.market.gainers} asOf={sourceTime(briefing.market.as_of)} />
-          <MoverRows title="Down most" rows={briefing.market.losers} asOf={briefing.market.gainers.length > 0 ? null : sourceTime(briefing.market.as_of)} />
+          <MoverRows title="Biggest gains" rows={briefing.market.gainers} max={moverMax} asOf={sourceTime(briefing.market.as_of)} />
+          <MoverRows title="Biggest drops" rows={briefing.market.losers} max={moverMax} asOf={briefing.market.gainers.length > 0 ? null : sourceTime(briefing.market.as_of)} />
           {index.length === 0 && movers.length === 0 ? (
             <p className="px-4 py-3 text-[14px] leading-5 text-oa-muted-fg">Market data is not available right now.</p>
           ) : null}
@@ -429,10 +433,11 @@ export function BriefingView({
         </section>
 
         <p className="px-2 text-[12.5px] leading-5 text-oa-muted-fg sm:px-1">
+          Want a heads-up when a stock hits a price, files a report or nears earnings?{" "}
           <a href="/agents" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
-            Set up a job
+            Set up an agent
           </a>{" "}
-          to have a price level, a filing or an earnings date watched for you. It reports here every market day.
+          and it will report here every market day.
         </p>
       </aside>
     </div>

@@ -177,9 +177,7 @@ function LineRow({ line, group, actions }: { line: BriefingLine; group: Briefing
           line.decision ? "font-medium text-oa-fg" : SOFT
         }`}
       >
-        <span className={open ? "" : "line-clamp-2"}>
-          {line.text}
-        </span>
+        <span className="text-pretty">{line.text}</span>
       </button>
       {open ? <LinePanel id={panelId} line={line} group={group} actions={actions} /> : null}
     </li>

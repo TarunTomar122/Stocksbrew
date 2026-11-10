@@ -50,9 +50,9 @@ export const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     items: [
       { label: "The wire", href: "/news", match: [], icon: "news" },
       { label: "Calendar", href: "/calendar", match: [], icon: "calendar" },
-      { label: "Screener", href: "/screener", match: [], icon: "screener" },
+      { label: "Screener", href: "/screener", match: ["/sectors"], icon: "screener" },
       { label: "Themes", href: "/themes", match: [], icon: "themes" },
-      { label: "Signals", href: "/signals", match: [], icon: "signals" },
+      { label: "Signals", href: "/signals", match: ["/movers"], icon: "signals" },
       { label: "Markets", href: "/markets", match: [], icon: "markets" },
       { label: "Filings", href: "/filings", match: [], icon: "filings" },
       { label: "Compare", href: "/compare", match: [], icon: "compare" },

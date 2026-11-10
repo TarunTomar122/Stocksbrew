@@ -120,7 +120,7 @@ describe("groupBriefingItems", () => {
     const [group] = groupBriefingItems([move("MRVL", -5.1)]);
     expect(group.headerMove).toBeNull();
     expect(group.lines).toHaveLength(1);
-    expect(group.lines[0].text).toBe("No confirmed reason for the move yet.");
+    expect(group.lines[0].text).toBe("We haven't found a confirmed reason for this move yet.");
     expect(group.lines[0].item.why).toBe(NO_CONFIRMED_REASON);
     expect(group.day_change_pct).toBe(-5.1);
   });

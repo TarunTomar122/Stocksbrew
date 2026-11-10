@@ -37,10 +37,10 @@ export const SECTION_LABELS: Record<SectionId, string> = {
   financials: "Financials",
   valuation: "Valuation",
   earnings: "Earnings",
-  ownership: "Ownership",
+  ownership: "Who owns it",
   news: "News",
-  technicals: "Technicals",
-  peers: "Peers",
+  technicals: "Price trend",
+  peers: "Rivals",
 };
 
 /** One card: a header strip with the label and an optional short note on the right. */

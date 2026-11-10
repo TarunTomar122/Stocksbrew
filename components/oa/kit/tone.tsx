@@ -69,3 +69,31 @@ export function Verdict({ tone, children, className = "" }: { tone: "up" | "down
 export function MarkSlot({ tone, className = "" }: { tone: "up" | "down" | "flat" | null | undefined; className?: string }) {
   return <span className={`inline-flex w-2.5 shrink-0 justify-center ${className}`}>{tone === "up" || tone === "down" ? <ToneGlyph tone={tone} /> : null}</span>;
 }
+
+/**
+ * The size of a move as a short bar, scaled to the biggest move in its list
+ * (pass that as `max`), green up and red down. Reads faster than a column of
+ * percentages; the number stays beside it.
+ */
+export function MoveBar({
+  value,
+  max,
+  width = 56,
+  className = "",
+}: {
+  value: number | null | undefined;
+  max: number;
+  width?: number;
+  className?: string;
+}) {
+  if (value == null || !Number.isFinite(value) || !(max > 0)) return null;
+  const share = Math.min(1, Math.abs(value) / max);
+  return (
+    <span aria-hidden="true" className={`relative inline-block h-1.5 shrink-0 overflow-hidden rounded-full bg-oa-bg ${className}`} style={{ width }}>
+      <span
+        className="absolute inset-y-0 left-0 rounded-full"
+        style={{ width: `${Math.max(8, share * 100)}%`, background: value >= 0 ? "var(--signal-bullish)" : "var(--signal-bearish)", opacity: 0.8 }}
+      />
+    </span>
+  );
+}

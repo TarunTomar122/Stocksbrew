@@ -26,9 +26,11 @@ import {
   Delta,
   Empty,
   FOCUS,
+  MoveBar,
   NUM,
   PageHead,
   Panel,
+  ShowMore,
   SourceLine,
   Sparkline,
   TabBar,
@@ -48,6 +50,7 @@ import { followTakeaway, mergeDeskRead, strategiesTakeaway } from "@/lib/explore
 import { fmtFrac, type ActivityItem } from "@/lib/follow-shared";
 import { moodWord, netSide, type ToneWord } from "@/lib/tone";
 import { ogImage } from "@/lib/og/url";
+import { sentenceCase } from "@/lib/plain-copy";
 
 export const dynamic = "force-dynamic";
 
@@ -196,6 +199,7 @@ function Takeaway({ text }: { text: string | null | undefined }) {
  * under it has none yet, and the panel says so once.
  */
 function MoverRows({ title, rows }: { title: string; rows: DeskMover[] }) {
+  const max = Math.max(0, ...rows.map((row) => Math.abs(row.changePct ?? 0)));
   return (
     <div className="min-w-0">
       <p className="oa-caption border-b border-oa-border bg-oa-bg px-4 py-1.5">{title}</p>
@@ -207,11 +211,12 @@ function MoverRows({ title, rows }: { title: string; rows: DeskMover[] }) {
               <span className="flex shrink-0 items-center gap-3">
                 <AskLink quiet question={`Why did ${row.ticker} move today, and what does it change?`}>Ask why</AskLink>
                 {row.price !== null ? <span className={`${NUM} hidden text-[12.5px] text-oa-muted-fg sm:inline`}>{fmtMoney(row.price)}</span> : null}
+                <MoveBar value={row.changePct} max={max} width={48} className="max-sm:hidden" />
                 <Delta value={row.changePct} className="w-[4.5rem] text-right text-[15px] font-medium" />
               </span>
             </div>
             {row.reason ? (
-              <p className="mt-0.5 line-clamp-2 max-w-[68ch] text-pretty pl-7 text-[14px] leading-5 text-oa-muted-fg">{row.reason}</p>
+              <p className="mt-0.5 max-w-[68ch] text-pretty pl-7 text-[14px] leading-5 text-oa-muted-fg">{row.reason}</p>
             ) : null}
           </li>
         ))}
@@ -245,9 +250,9 @@ async function StoriesPanel({ wire, nowMs }: { wire: Promise<DeskData["wire"]>; 
                 href={stock.lead.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`mt-1 line-clamp-2 max-w-[72ch] text-pretty pl-[26px] text-[14px] leading-5 text-oa-fg hover:underline ${FOCUS}`}
+                className={`mt-1 block max-w-[72ch] text-pretty pl-[26px] text-[14px] leading-5 text-oa-fg hover:underline ${FOCUS}`}
               >
-                {stock.lead.title}
+                {sentenceCase(stock.lead.title)}
               </a>
               <p className={`${NUM} mt-0.5 flex flex-wrap items-center gap-x-2 pl-[26px] text-[12.5px] leading-[18px] text-oa-muted-fg`}>
                 <span className="min-w-0 truncate">{stock.lead.source || "Unknown source"}</span>
@@ -288,8 +293,8 @@ async function MoversPanel({ movers: pending }: { movers: Promise<DeskData["move
         <>
           <Takeaway text={movers.takeaway} />
           <div className={`grid ${movers.up.length > 0 && movers.down.length > 0 ? "lg:grid-cols-2" : ""} lg:divide-x lg:divide-oa-border max-lg:[&>*+*]:border-t max-lg:[&>*+*]:border-oa-border`}>
-            {movers.up.length > 0 ? <MoverRows title="Up most" rows={movers.up} /> : null}
-            {movers.down.length > 0 ? <MoverRows title="Down most" rows={movers.down} /> : null}
+            {movers.up.length > 0 ? <MoverRows title="Biggest gains" rows={movers.up} /> : null}
+            {movers.down.length > 0 ? <MoverRows title="Biggest drops" rows={movers.down} /> : null}
           </div>
           {asOf ? (
             <p className="border-t border-oa-border bg-oa-bg px-4 py-1.5 text-[12.5px] leading-[18px] text-oa-muted-fg sm:hidden">
@@ -448,7 +453,7 @@ async function SignalsPanel({ signals, brief, nowMs }: { signals: Promise<Pick<D
                   </span>
                   <span className={`${NUM} shrink-0 text-[12.5px] text-oa-muted-fg`}>{row.mentions} mentions</span>
                 </div>
-                {row.summary ? <p className="mt-0.5 line-clamp-2 text-[12.5px] leading-[18px] text-oa-muted-fg">{row.summary}</p> : null}
+                {row.summary ? <p className="mt-0.5 text-[12.5px] leading-[18px] text-oa-muted-fg">{row.summary}</p> : null}
               </li>
             ))}
             {posts.items.slice(0, DESK_ROWS - Math.min(reddit.items.length, DESK_ROWS / 2)).map((post) => (
@@ -463,7 +468,7 @@ async function SignalsPanel({ signals, brief, nowMs }: { signals: Promise<Pick<D
                   </span>
                   <span className={`${NUM} shrink-0 text-[12.5px] text-oa-muted-fg`}>{fmtAgo(post.publishedAt, nowMs)}</span>
                 </div>
-                <p className="mt-0.5 line-clamp-2 text-[12.5px] leading-[18px] text-oa-muted-fg">
+                <p className="mt-0.5 text-[12.5px] leading-[18px] text-oa-muted-fg">
                   <a href={post.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
                     “{post.said}”
                   </a>
@@ -499,9 +504,9 @@ async function FollowPanel({ follow: pending }: { follow: Promise<DeskData["foll
                       <a href={`/follow/${item.source_id}`} className={`min-w-0 truncate text-[14px] font-medium text-oa-fg hover:underline ${FOCUS}`}>
                         {item.name}
                       </a>
-                      <span className="shrink-0 text-[12.5px] text-oa-muted-fg">{item.kind === "fund" ? "13F" : "Congress"}</span>
+                      <span className="shrink-0 text-[12.5px] text-oa-muted-fg">{item.kind === "fund" ? "Fund" : "Congress"}</span>
                     </span>
-                    <span className="mt-0.5 line-clamp-2 block text-[12.5px] leading-[18px] text-oa-muted-fg">
+                    <span className="mt-0.5 block text-[12.5px] leading-[18px] text-oa-muted-fg">
                       {lean && lean.tone !== "flat" ? (
                         <Verdict tone={lean.tone} className="mr-1.5 align-[-5px]">
                           {lean.word}
@@ -586,7 +591,7 @@ async function MarketsPanel({ markets: pending, brief }: { markets: Promise<Desk
                     {reading.label}
                     {reading.verdict && reading.verdict.tone !== "flat" ? <Verdict tone={reading.verdict.tone}>{reading.verdict.word}</Verdict> : null}
                   </span>
-                  <span className="mt-0.5 line-clamp-2 block text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg">{reading.text}</span>
+                  <span className="mt-0.5 block text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg">{reading.text}</span>
                 </a>
               </li>
             ))}
@@ -677,8 +682,10 @@ export default function ExplorePage() {
         </div>
       </div>
 
-      <h2 className="oa-label mb-2 mt-8">More to read</h2>
-      <div className="grid items-stretch gap-5 md:grid-cols-2 xl:grid-cols-3">
+      <h2 className="oa-label mb-2 mt-8">More to explore</h2>
+      {/* On a phone the six previews wait behind one button; the lead above is the point of the page. */}
+      <ShowMore label="Show the screener, themes and 4 more">
+        <div className="grid items-stretch gap-5 md:grid-cols-2 xl:grid-cols-3">
         <Suspense fallback={<PanelGhost rows={4} lines={2} />}>
           <ScreensPanel screens={loadDeskScreens(today)} />
         </Suspense>
@@ -697,7 +704,8 @@ export default function ExplorePage() {
         <Suspense fallback={<PanelGhost rows={4} lines={2} />}>
           <MarketsPanel markets={markets} brief={brief} />
         </Suspense>
-      </div>
+        </div>
+      </ShowMore>
     </AppPage>
   );
 }

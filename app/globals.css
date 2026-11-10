@@ -485,8 +485,8 @@ table tbody tr:hover > * {
 /* The data face. Prices, changes, counts and tickers are set in the interface
    sans with tabular lining figures and no extra tracking, so "$178.60" reads
    as one figure and columns still line up. (The class name is historical: it
-   used to switch to Geist Mono.) Mono is kept for three things only: code,
-   the uppercase .oa-caption, and anything marked .oa-code. */
+   used to switch to Geist Mono.) Mono is kept for code and anything marked
+   .oa-code. */
 .oa-mono {
   font-family: var(--font-inter-tight), ui-sans-serif, system-ui, sans-serif;
   font-variant-numeric: tabular-nums lining-nums;
@@ -526,15 +526,15 @@ table tbody tr:hover > * {
   letter-spacing: -0.003em;
   color: var(--oa-fg);
 }
-/* The one quiet uppercase mono style: table column heads, stat captions and
-   field captions. Muted ink, never copper. */
+/* Captions read as plain words in sentence case (table heads, stat labels,
+   group names), muted ink, never copper. Write the text in sentence case: it
+   is no longer upper-cased for you. */
 .oa-caption {
-  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-family: var(--font-inter-tight), ui-sans-serif, system-ui, sans-serif;
   font-size: 13px;
   line-height: 16px;
   font-weight: 500;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0;
   color: var(--oa-muted-fg);
 }
 /* Type scale: 13 label, caption and meta; 14 body and table; 15 values and

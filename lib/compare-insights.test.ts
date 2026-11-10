@@ -10,7 +10,7 @@ const SPY: ScreenerRow = { symbol: "SPY", ret_1y: 14, day_pct: 1, benchmark: tru
 describe("compare read", () => {
   it("says who wins on what, folding a repeated subject", () => {
     const read = buildCompareRead({ rows: [NVDA, AMD], benchmark: SPY });
-    expect(read?.headline).toBe("AMD has the weakest margins (18% operating against 65%); NVDA grows revenue 2x faster (+83% a year) and is cheaper on earnings (15x against 30x).");
+    expect(read?.headline).toBe("AMD keeps less of each sales dollar as profit (18% against 65%); NVDA grows revenue 2x faster (+83% a year) and is cheaper on earnings (15x against 30x).");
   });
 
   it("puts the year against the S&P 500 and the calls underneath", () => {
