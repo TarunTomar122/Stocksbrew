@@ -108,7 +108,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     alternates: { canonical: `/stock/${upper}` },
     // The index rule lives in lib/seo/stock-pages.ts (stockHasCurrentRead); the stocks sitemap applies the same rule to the same row.
     robots: {
-      index: Boolean(identity) && stockHasCurrentRead((await getCoverage()).bySymbol.get(upper), todayET()),
+      // If the coverage read fails, keep the page indexable rather than noindex it during an outage.
+      index: Boolean(identity) && (await getCoverage().then((coverage) => stockHasCurrentRead(coverage.bySymbol.get(upper), todayET()), () => true)),
       follow: true,
     },
     openGraph: {

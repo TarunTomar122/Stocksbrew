@@ -36,7 +36,7 @@ export async function generateMetadata({ searchParams }: { searchParams: SearchP
     const description = `${names} side by side: returns, valuation, growth, margins, balance sheet, analyst targets and our read on each.`;
     // Two rivals with a page of their own (/compare/a-vs-b) point search engines there.
     const pairPage =
-      symbols.length === 2 && stockPairs(await getCoverage()).some((pair) => pair.slug === pairSlug(symbols[0]!, symbols[1]!))
+      symbols.length === 2 && (await getCoverage().then((coverage) => stockPairs(coverage).some((pair) => pair.slug === pairSlug(symbols[0]!, symbols[1]!)), () => false))
         ? `/compare/${pairSlug(symbols[0]!, symbols[1]!)}`
         : null;
     const canonical = pairPage ?? compareHref(symbols);

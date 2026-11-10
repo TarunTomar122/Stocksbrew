@@ -37,8 +37,12 @@ export type Coverage = {
 };
 
 export async function getCoverage(): Promise<Coverage> {
-  const snapshot = await getScreenerSnapshot().catch(() => null);
+  // A failed or empty read must not look like "this page does not exist": the
+  // pages would answer 404 and search engines would drop them. Throwing gives a
+  // 500 instead, which crawlers retry; sitemap callers already catch it.
+  const snapshot = await getScreenerSnapshot();
   const rows = (snapshot?.rows ?? []).filter((row) => !row.benchmark && !row.uncovered);
+  if (rows.length === 0) throw new Error("coverage_unavailable");
   return {
     rows,
     bySymbol: new Map(rows.map((row) => [row.symbol.toUpperCase(), row])),
