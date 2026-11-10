@@ -397,6 +397,11 @@ export function PositionsTable({
     }
   };
   const columns = (kind === "holding" ? HOLDING_COLUMNS : WATCH_COLUMNS).filter(filled);
+  // The phone rows follow the same rule: say nothing about cost or shares until at least one row has them.
+  const anyGain = positions.some((position) => position.gain !== null);
+  const anyShares = positions.some((position) => position.shares !== null);
+  // With no shares entered anywhere there is no value to lead with, so a holding row reads like a watch row: price and today's move.
+  const anyValue = positions.some((position) => position.value !== null);
   const sortable = columns.filter((column): column is Column & { key: SortKey } => column.key !== "avgCost");
   const [sort, setSort] = useState(defaultSort);
   const [editing, setEditing] = useState<string | null>(null);
@@ -585,7 +590,7 @@ export function PositionsTable({
                 >
                   <div className="flex items-center justify-between gap-3">
                     <StockCell position={position} />
-                    {kind === "holding" ? (
+                    {kind === "holding" && anyValue ? (
                       <div className="shrink-0 text-right">
                         <div className="text-[15px] font-medium leading-5">
                           <ValueCell position={position} />
@@ -596,9 +601,9 @@ export function PositionsTable({
                               {fmtSignedMoney(position.gain, 0)}
                               {position.gainPct !== null ? ` ${position.gainPct >= 0 ? "+" : "−"}${Math.abs(position.gainPct).toFixed(1)}%` : ""}
                             </span>
-                          ) : (
-                            <span className="text-oa-muted-fg">no cost entered</span>
-                          )}
+                          ) : anyGain ? (
+                            <Dash />
+                          ) : null}
                         </div>
                       </div>
                     ) : (
@@ -612,11 +617,12 @@ export function PositionsTable({
                       </div>
                     )}
                   </div>
-                  {kind === "holding" ? (
+                  {kind === "holding" && anyValue ? (
                     <div className="flex items-baseline justify-between gap-3 pl-[2.125rem] text-[13px] leading-[18px] text-oa-muted-fg">
                       <span className={NUM}>
-                        {position.shares !== null ? `${fmtShares(position.shares)} sh` : "no shares entered"}
-                        {position.weight !== null ? ` · ${position.weight.toFixed(1)}%` : ""}
+                        {[position.shares !== null ? `${fmtShares(position.shares)} sh` : anyShares ? "–" : null, position.weight !== null ? `${position.weight.toFixed(1)}%` : null]
+                          .filter(Boolean)
+                          .join(" · ")}
                       </span>
                       <span className={`${NUM} flex items-baseline gap-2`}>
                         {position.price !== null ? <span>{fmtMoney(position.price)}</span> : null}
