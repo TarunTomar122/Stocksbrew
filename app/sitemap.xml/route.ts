@@ -1,6 +1,8 @@
 import { SITEMAP_FAMILIES, sitemapEntries, sitemapIndexXml, type SitemapFamily } from "@/lib/seo/sitemap";
 
-export const revalidate = 86400; // ISR once a day
+// Rendered on request and cached at the CDN for a day (see Cache-Control).
+// Building it at deploy time reads every family from the store and times out.
+export const dynamic = "force-dynamic";
 
 /**
  * The sitemap index. Each family of pages has its own file under
