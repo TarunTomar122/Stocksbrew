@@ -172,7 +172,7 @@ export default async function SectorPage({ params }: Props) {
         note={false}
       />
 
-      <TheRead read={read} label={`${group.name}, in short`} fold="phone" className="mb-4" />
+      <TheRead read={read} label={`${group.name}, in short`} fold="phone" foldLabel={`Show more on ${group.name.toLowerCase()} stocks`} className="mb-4" />
 
       <StatStrip
         className="mb-4"

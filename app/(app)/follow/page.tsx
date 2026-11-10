@@ -235,19 +235,20 @@ async function LatestMoves({
     ...mine,
     ...events.filter((event) => !followedSet.has(event.source_id)),
   ].slice(0, 24);
-  return (
-    <ShowMore label={`Show the latest ${stream.length} filings`}>
-      <Panel
-        title={mine.length > 0 ? "Latest moves, yours first" : "Latest moves"}
-        right={<span>Newest filing first</span>}
-      >
-        <MovesStream
-          events={stream}
-          emptyText="No filings yet."
-        />
-      </Panel>
-    </ShowMore>
+  const panel = (
+    <Panel
+      title={mine.length > 0 ? "Latest moves, yours first" : "Latest moves"}
+      right={<span>Newest filing first</span>}
+    >
+      <MovesStream
+        events={stream}
+        emptyText="No filings yet."
+      />
+    </Panel>
   );
+  // Nothing to fold when there is nothing yet: the empty panel says so.
+  if (stream.length === 0) return panel;
+  return <ShowMore label={`Show the latest ${stream.length} ${stream.length === 1 ? "filing" : "filings"}`}>{panel}</ShowMore>;
 }
 
 /** The read for the whole surface, then the tab's stocks grouped by who bought and sold them. */
@@ -270,7 +271,7 @@ async function ReadBlock({ read, tab }: { read: Promise<FollowRead | null>; tab:
           rows={bought}
           empty="No fund filings to count yet."
           takeaway={
-            top ? `${top.buyers.length} of ${data.fundsInPeriod} funds bought or added to ${top.ticker}${top.opened ? `, ${top.opened} of them as a new position` : ""}.` : undefined
+            top ? `${top.buyers.length} of ${data.fundsInPeriod} funds bought or added to ${top.ticker}${top.opened ? `, ${top.opened} of them for the first time` : ""}.` : undefined
           }
         />
         <ShowMore fill label="Show the stocks funds sold most">
@@ -280,7 +281,7 @@ async function ReadBlock({ read, tab }: { read: Promise<FollowRead | null>; tab:
             unit="fund"
             rows={sold}
             empty="No fund filings to count yet."
-            takeaway={cut ? `${cut.sellers.length} funds cut or sold ${cut.ticker}; ${cut.buyers.length} bought it.` : undefined}
+            takeaway={cut ? `${cut.sellers.length} funds sold some or all of their ${cut.ticker}; ${cut.buyers.length} bought it.` : undefined}
           />
         </ShowMore>
       </>

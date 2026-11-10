@@ -82,33 +82,39 @@ function measuredAt(move: MoveRef): string | null {
 }
 
 function firstSentence(text: string | null | undefined): string {
-  return plainFinance(sentenceCase(firstFullSentence(text))).replace(/[.!?]$/, "");
+  // A reason the feed clipped ("...") ends where the words end; no ellipsis on screen.
+  return plainFinance(sentenceCase(firstFullSentence(text)))
+    .replace(/\s*(?:…|\.{2,})$/, "")
+    .replace(/[.!?]$/, "");
 }
 
 // A phone shows the first few of each side; the rest wait behind one button.
-const PHONE_ROWS = 5;
+const PHONE_ROWS = 3;
 
 /** One move: the stock, a bar for its size, the number, and the reason in a sentence. */
-function MoveRow({ move, max, showTime }: { move: MoveRef; max: number; showTime: boolean }) {
+function MoveRow({ move, max, headerTime }: { move: MoveRef; max: number; headerTime: string | null }) {
   const reason = firstSentence(move.headline);
-  const at = showTime ? measuredAt(move) : null;
+  const own = measuredAt(move);
+  const at = own && own !== headerTime ? own : null;
   return (
-    <li className="border-b border-oa-border last:border-b-0">
-      <a href={moveHref(move.ticker, move.day)} className="block px-4 py-2.5 outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
-        <span className="flex items-center justify-between gap-3">
-          <Ticker symbol={move.ticker} name={move.name} href={null} wrap className="min-w-0" />
-          <span className="flex shrink-0 items-center gap-2.5">
-            <MoveBar value={move.pct} max={max} width={56} />
-            <Delta value={move.pct} digits={1} className="w-[4.25rem] text-right text-[15px] font-medium" />
-          </span>
+    <li className="border-b border-oa-border px-4 py-2.5 last:border-b-0">
+      {/* Two places to go: the stock itself (its name) and the explanation (the reason). */}
+      <span className="flex items-center justify-between gap-3">
+        <Ticker symbol={move.ticker} name={move.name} wrap className="min-w-0" />
+        <span className="flex shrink-0 items-center gap-2.5">
+          <MoveBar value={move.pct} max={max} width={56} />
+          <Delta value={move.pct} digits={1} className="w-[4.25rem] text-right text-[15px] font-medium" />
         </span>
-        {at ? <span className={`${NUM} block text-right text-[11.5px] leading-4 text-oa-muted-fg`}>{at}</span> : null}
-        {reason ? (
-          <span className="mt-0.5 block max-w-[68ch] text-pretty pl-7 text-[14px] leading-5 text-oa-muted-fg">
-            {reason}. <span className="whitespace-nowrap font-medium text-oa-primary">Why it moved →</span>
-          </span>
-        ) : null}
-      </a>
+      </span>
+      {at ? <span className={`${NUM} block text-right text-[11.5px] leading-4 text-oa-muted-fg`}>{at}</span> : null}
+      {reason ? (
+        <a
+          href={moveHref(move.ticker, move.day)}
+          className="group mt-0.5 block max-w-[68ch] text-pretty rounded pl-7 text-[14px] leading-5 text-oa-muted-fg outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
+        >
+          {reason}. <span className="whitespace-nowrap font-medium text-oa-primary group-hover:underline">Why it moved →</span>
+        </a>
+      ) : null}
     </li>
   );
 }
@@ -125,8 +131,13 @@ export default async function MoversPage() {
   const drops = latestMoves.filter((move) => move.pct < 0).sort((a, b) => a.pct - b.pct);
   // The researcher measures a day's moves in one pass, so they usually share a
   // time: say it once in the header. Rows carry their own only when they differ.
-  const times = new Set(latestMoves.map((move) => measuredAt(move) ?? ""));
-  const sharedTime = times.size === 1 ? [...times][0] || null : null;
+  // The most common time goes in the header; only a row measured at another time carries its own.
+  const timeCounts = new Map<string, number>();
+  for (const move of latestMoves) {
+    const at = measuredAt(move);
+    if (at) timeCounts.set(at, (timeCounts.get(at) ?? 0) + 1);
+  }
+  const sharedTime = [...timeCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
 
   return (
     <AppPage>
@@ -150,14 +161,14 @@ export default async function MoversPage() {
                 <>
                   <ul>
                     {side.rows.slice(0, PHONE_ROWS).map((move) => (
-                      <MoveRow key={`${move.ticker}-${move.day}`} move={move} max={max} showTime={!sharedTime} />
+                      <MoveRow key={`${move.ticker}-${move.day}`} move={move} max={max} headerTime={sharedTime} />
                     ))}
                   </ul>
                   {side.rows.length > PHONE_ROWS ? (
                     <ShowMore label={`Show ${side.rows.length - PHONE_ROWS} more ${side.label === "Biggest gains" ? "gain" : "drop"}${side.rows.length - PHONE_ROWS === 1 ? "" : "s"}`} className="max-lg:px-4 max-lg:pb-3">
                       <ul className="border-t border-oa-border">
                         {side.rows.slice(PHONE_ROWS).map((move) => (
-                          <MoveRow key={`${move.ticker}-${move.day}`} move={move} max={max} showTime={!sharedTime} />
+                          <MoveRow key={`${move.ticker}-${move.day}`} move={move} max={max} headerTime={sharedTime} />
                         ))}
                       </ul>
                     </ShowMore>

@@ -17,6 +17,7 @@ export function TheRead({
   label = "The read",
   className = "",
   fold,
+  foldLabel,
 }: {
   read: TheReadData | null | undefined;
   label?: string;
@@ -27,6 +28,8 @@ export function TheRead({
    * tool, like the screener). Without it every point shows.
    */
   fold?: "phone" | "always";
+  /** What the fold button says, naming what is inside ("Show more on technology"). */
+  foldLabel?: string;
 }) {
   if (!read || (!read.headline && read.insights.length === 0)) return null;
   const points =
@@ -44,7 +47,7 @@ export function TheRead({
         <h2 className="mt-1 max-w-[46rem] text-pretty text-[19px] font-semibold leading-[26px] tracking-[-0.01em] text-oa-fg sm:text-[21px] sm:leading-[28px]">{read.headline}</h2>
       ) : null}
       {points && fold && read.headline ? (
-        <ShowMore always={fold === "always"} label={`Show ${read.insights.length === 1 ? "the detail" : `${read.insights.length} more points`}`} className="[&>button]:mb-1">
+        <ShowMore always={fold === "always"} label={foldLabel ?? `Show ${read.insights.length === 1 ? "the detail" : `${read.insights.length} more points`}`} className="[&>button]:mb-1">
           {points}
         </ShowMore>
       ) : (

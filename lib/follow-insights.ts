@@ -324,7 +324,7 @@ export function fundCrowdInsight(tallies: StockTally[], fundsInPeriod: number, p
   const quarter = quarterLabel(period);
   const text =
     `In their ${quarter} reports, ${buy.buyers.length} of ${fundsInPeriod} funds bought or added to ${buy.ticker}, more than any other stock` +
-    (sell && sell.sellers.length >= 3 ? `. ${sell.sellers.length} cut or sold ${sell.ticker}, the most sold.` : ".");
+    (sell && sell.sellers.length >= 3 ? `. ${sell.sellers.length} sold some or all of their ${sell.ticker}, more than any other stock.` : ".");
   const others = mostBought(tallies, 3)
     .slice(1)
     .filter((row) => row.buyers.length >= 3);
@@ -359,7 +359,7 @@ export function congressInsight(tallies: StockTally[], sectors: SectorMap, days:
   // Counts are member-and-stock pairs, so one member buying three stocks counts three times.
   const lead =
     sector && sector.members >= 3
-      ? `${plural(sector.members, "member")} of Congress disclosed buys of ${sectorWord(sector.sector)} stocks in ${days} days, the most of any sector`
+      ? `${plural(sector.members, "member")} of Congress reported buying ${sectorWord(sector.sector)} stocks in the last ${days} days, more than any other sector`
       : top && top.buyers.length >= 2
         ? `${plural(top.buyers.length, "member")} of Congress disclosed buying ${top.ticker} in ${days} days, the most bought stock`
         : null;

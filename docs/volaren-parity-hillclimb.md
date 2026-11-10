@@ -172,6 +172,13 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-10 night, UI rounds 2-3 live; earnings day agent shipped dark (lead)
+
+- Council means (16 pages, 7 dims): Codex r1 5.31 → r2 5.96 → r3 6.22; Cursor 4.66 → 4.81 → 4.93. Details in council/ux-status.md.
+- LIVE `31c1d63`: plainCallReason rewrites stored call reasons in plain words, names over tickers, clickable rows, plain labels, show-more on phones, earnings marker labelled; earnings day agent (tm_earnings_day job + report pages + stock strip + briefing slot) shipped dark: VPS job off and the "Earnings came out" template hidden until EARNINGS_DAY_ENABLED=1 (Vercel and VPS). Quality pass SHIP WITH FIXES (template gating, quoted posts not reworded). The exact commit was verified in a clean worktree: tsc 0, vitest 1085/1085 (needs .env.local and .env.vps.local there). All 15 important pages 200 live.
+- Still uncommitted for owner review: import/thesis (entry lines held back), deep research (in progress).
+- Running: council round 4+, deep research builder. The agentdata after-close timer fires for the first time at 22:30 UTC tonight.
+
 ### 2026-11-10 night, UI council round 1 live; import + thesis built (lead)
 
 - Owner priorities for the night: UI/UX hill climb with the Codex + Cursor council until 10/10 from both, on focus, navigation, plain language, progressive disclosure, human writing (full sentences, no truncation, no AI-slop phrasing), visuals; ideas from docs/ideas.md built one by one in parallel.

@@ -77,7 +77,7 @@ describe("fund tallies", () => {
     const read = buildFollowRead({ digests, totalFunds: 4, congress: [], insiderBuys: [], sectors: {}, today: "2026-11-10" });
     expect(read.headline).toContain("AMZN");
     expect(read.insights[0].text).toBe(
-      "In their Q2 2026 reports, 3 of 3 funds bought or added to AMZN, more than any other stock. 3 cut or sold AAPL, the most sold.",
+      "In their Q2 2026 reports, 3 of 3 funds bought or added to AMZN, more than any other stock. 3 sold some or all of their AAPL, more than any other stock.",
     );
     expect(read.fundsInPeriod).toBe(3);
   });
@@ -116,7 +116,7 @@ describe("Congress", () => {
       today: "2026-11-10",
     });
     const insight = read.insights.find((item) => item.id === "congress");
-    expect(insight?.text).toBe("3 members of Congress disclosed buys of tech stocks in 30 days, the most of any sector (NVDA and AVGO).");
+    expect(insight?.text).toBe("3 members of Congress reported buying tech stocks in the last 30 days, more than any other sector (NVDA and AVGO).");
     expect(insight?.soWhat).toBe("Across all stocks they reported 4 buys and 2 sales.");
   });
 });

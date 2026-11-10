@@ -334,8 +334,8 @@ function EarningsLine({
           </>
         ) : item.epsEstimate !== null ? (
           <span className={`${NUM} text-oa-muted-fg`}>
-            <span className={`text-[12.5px] ${narrow ? "lg:hidden" : ""}`}>expected</span>
-            {narrow ? <span className="text-[12.5px] max-lg:hidden">est</span> : null} {fmtEps(item.epsEstimate)}
+            {/* One word for the estimate everywhere; "a share" only where there is room. */}
+            <span className="text-[12.5px]">expected</span> {fmtEps(item.epsEstimate)}
             <span className={`text-[12.5px] ${narrow ? "lg:hidden" : ""}`}> a share</span>
           </span>
         ) : null}
@@ -449,7 +449,19 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
           </span>
         </span>
         <span className={`${NUM} whitespace-nowrap text-[12.5px] text-oa-muted-fg`}>
-          {reports ? `${reports} report${reports === 1 ? "" : "s"}` : ""}
+          {/* A day that has passed says so, so its % moves never read as a forecast. */}
+          {/* Desktop week columns are narrow: "23 reported" there, "23 already reported" on a phone row. */}
+          {reports ? (
+            past ? (
+              <>
+                {reports} <span className="lg:hidden">already </span>reported
+              </>
+            ) : (
+              `${reports} report${reports === 1 ? "" : "s"}`
+            )
+          ) : (
+            ""
+          )}
           {/* Phone: a day that has passed is one line. Its results open from here. */}
           {past && reports ? (
             <span className="lg:hidden">

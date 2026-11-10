@@ -461,7 +461,7 @@ export function JobsWorkspace({
                 An example: this agent watching Nvidia, Apple, Microsoft, Amazon and Tesla over the last four weeks of real prices. Change anything, or pick a different agent below.
               </p>
             ) : null}
-            <div className={`grid gap-3 sm:grid-cols-2 xl:grid-cols-4 ${replayShown ? "order-4 border-t border-oa-border pt-3.5" : "order-1"}`}>
+            <div className={`grid gap-3 sm:grid-cols-2 xl:grid-cols-4 ${replayShown ? "order-2" : "order-1"}`}>
               {template.id !== "price-level" ? (
                 <label className="grid gap-1 text-[12.5px] font-medium text-oa-muted-fg">
                   Which stocks
@@ -534,14 +534,14 @@ export function JobsWorkspace({
             </div>
 
             <div className={`rounded-xl border border-oa-border bg-oa-bg px-3.5 py-3 ${replayShown ? "order-1" : "order-2"}`}>
-              <p className="oa-caption">This agent will tell you</p>
+              <p className="oa-caption">What it watches</p>
               <p className="mt-1 max-w-[70ch] text-pretty text-[16px] leading-6 text-oa-fg">&ldquo;{describeJob(draftPreview)}&rdquo;</p>
               {sourceNote(template, available) ? (
                 <p className="mt-1.5 text-[12.5px] leading-5 text-[color:color-mix(in_srgb,var(--oa-fg)_80%,transparent)]">{sourceNote(template, available)}</p>
               ) : null}
             </div>
 
-            <div className="order-3 flex flex-wrap items-center gap-2">
+            <div className="order-4 flex flex-wrap items-center gap-2">
               {signedIn ? (
                 <OaButton loading={busy === "create"} onClick={turnOn} className="max-sm:!h-10">
                   Switch it on
@@ -550,13 +550,13 @@ export function JobsWorkspace({
                 <SignInButton label="Sign in to switch it on" size="md" className="max-sm:!h-10" />
               )}
               <OaButton variant="secondary" data-action="replay" loading={busy === "replay"} onClick={runReplay} className="max-sm:!h-10">
-                {replay && replayIsCurrent ? "Replay with these settings" : "Replay the last 4 weeks"}
+                {replay && replayIsCurrent ? "Update preview" : "Preview the last 4 weeks"}
               </OaButton>
-              {replay && !replayIsCurrent ? <span className="text-[12.5px] text-oa-muted-fg">You changed it. Replay again to see the new result.</span> : null}
+              {replay && !replayIsCurrent ? <span className="text-[12.5px] text-oa-muted-fg">You changed it. Update the preview to see the new result.</span> : null}
             </div>
 
             {replayShown && replay ? (
-              <div className="order-2">
+              <div className="order-3">
                 <ReplayPanel replay={replay} job={draftPreview} />
               </div>
             ) : null}

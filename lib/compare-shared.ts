@@ -240,19 +240,20 @@ export function describeDifferences(input: ReadonlyArray<ScreenerRow | null>): D
   const multiple = forward ? { ...forward, id: "fwd_pe", name: "next year's expected earnings" } : trailing ? { ...trailing, id: "pe", name: "the last 12 months of earnings" } : null;
   if (multiple && multiple.top.value / multiple.bottom.value >= 1.15) {
     out.push({
-      topic: "Valuation",
-      text: `${multiple.bottom.symbol} is the cheapest on ${multiple.name} at ${fmt(multiple.id, multiple.bottom.value)}; ${multiple.top.symbol} trades at ${fmt(multiple.id, multiple.top.value)}.`,
+      topic: "Price",
+      // "15.4x" said as what you pay for each dollar of profit.
+      text: `For each $1 of ${multiple.name}, you pay about $${multiple.bottom.value.toFixed(0)} for ${multiple.bottom.symbol} and $${multiple.top.value.toFixed(0)} for ${multiple.top.symbol}.`,
     });
   }
 
   const margin = extremes(known(rows, "op_margin"));
   if (margin && margin.top.value - margin.bottom.value >= 3) {
     out.push({
-      topic: "Profitability",
+      topic: "Profit",
       text:
         margin.bottom.value < 0
-          ? `${margin.top.symbol} earns a ${fmt("op_margin", margin.top.value)} operating margin; ${margin.bottom.symbol} loses money at the operating line (${fmt("op_margin", margin.bottom.value)}).`
-          : `${margin.top.symbol} keeps the most of each dollar of sales, a ${fmt("op_margin", margin.top.value)} operating margin against ${fmt("op_margin", margin.bottom.value)} for ${margin.bottom.symbol}.`,
+          ? `${margin.top.symbol} keeps ${Math.round(margin.top.value)} cents of each sales dollar as operating profit; ${margin.bottom.symbol} loses money running its business (${fmt("op_margin", margin.bottom.value)}).`
+          : `${margin.top.symbol} keeps ${Math.round(margin.top.value)} cents of each sales dollar as operating profit; ${margin.bottom.symbol} keeps ${Math.round(margin.bottom.value)} cents.`,
     });
   }
 
@@ -283,16 +284,17 @@ export function describeDifferences(input: ReadonlyArray<ScreenerRow | null>): D
   if (swing && swing.top.value - swing.bottom.value >= 5) {
     out.push({
       topic: "Risk",
-      text: `${swing.top.symbol} swings the most, ${fmt("vol_90d", swing.top.value)} annualised volatility over the last 90 sessions against ${fmt("vol_90d", swing.bottom.value)} for ${swing.bottom.symbol}.`,
+      text: `${swing.top.symbol}'s price jumps around more: over the last 90 trading days its swings ran at ${fmt("vol_90d", swing.top.value)} a year, against ${fmt("vol_90d", swing.bottom.value)} for ${swing.bottom.symbol}.`,
     });
   }
 
   const target = extremes(known(rows, "upside"));
   if (target && target.top.value - target.bottom.value >= 5) {
-    const below = (value: number) => (value >= 0 ? `${fmt("upside", value).replace("+", "")} below` : `${fmt("upside", Math.abs(value)).replace("+", "")} above`);
+    // How far the analysts' target sits from today's price, said from the price's side: "81% above".
+    const upside = (value: number) => (value >= 0 ? `${fmt("upside", value).replace("+", "")} above` : `${fmt("upside", Math.abs(value)).replace("+", "").replace("−", "")} below`);
     out.push({
       topic: "Analysts",
-      text: `${target.top.symbol} trades ${below(target.top.value)} the average analyst target; ${target.bottom.symbol} trades ${below(target.bottom.value)} its own.`,
+      text: `Analysts' average price target is ${upside(target.top.value)} ${target.top.symbol}'s price and ${upside(target.bottom.value)} ${target.bottom.symbol}'s.`,
     });
   }
 

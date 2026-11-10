@@ -255,8 +255,10 @@ export function RunList({
 export function SessionStrip({ runs, job }: { runs: RunRow[]; job: (Pick<AgentJob, "trigger"> & Partial<Pick<AgentJob, "scope">>) | null }) {
   const ordered = [...runs].reverse();
   if (ordered.length === 0) return null;
+  // A tall bar is a day it would have told you; a short one a quiet day. Said under the strip, not in a legend box.
   return (
-    <div className="flex items-end gap-[3px]" role="img" aria-label={`${ordered.length} checks, oldest first`}>
+    <div className="flex flex-col items-end gap-1">
+    <div className="flex items-end gap-[3px]" role="img" aria-label={`${ordered.length} market days, oldest first`}>
       {ordered.map((run) => {
         const verdict = presentRun(run, job, { replay: true }).verdict;
         return (
@@ -273,6 +275,8 @@ export function SessionStrip({ runs, job }: { runs: RunRow[]; job: (Pick<AgentJo
           />
         );
       })}
+    </div>
+    <span className="text-[11.5px] leading-4 text-oa-muted-fg">One bar a market day, tall when it would have told you</span>
     </div>
   );
 }

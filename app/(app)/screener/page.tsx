@@ -553,7 +553,7 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
       ) : null}
 
       {/* The screener's job is the tool: the read keeps its headline and folds its points. */}
-      <TheRead read={screenRead} label={hasScreen ? "What this screen says" : "The market we cover"} fold="always" className="mb-4" />
+      <TheRead read={screenRead} label={hasScreen ? "What this screen says" : "The market we cover"} fold="always" foldLabel={hasScreen ? "Show what else this screen says" : "Show what else stands out today"} className="mb-4" />
 
       {onlySector ? <SectorStrip stat={onlySector} /> : null}
 

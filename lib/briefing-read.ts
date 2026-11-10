@@ -26,7 +26,10 @@ function joinAnd(parts: string[]): string {
 /** The first sentence of a reason, without its period, short enough for one line. */
 export function firstSentence(text: string): string {
   // The whole first sentence, never cut with an ellipsis; Title Case headlines read as sentences.
-  return plainFinance(sentenceCase(firstFullSentence(text))).replace(/[.!?]$/, "");
+  // A reason the feed clipped ("...") ends where the words end; no ellipsis on screen.
+  return plainFinance(sentenceCase(firstFullSentence(text)))
+    .replace(/\s*(?:…|\.{2,})$/, "")
+    .replace(/[.!?]$/, "");
 }
 
 const stockHref = (ticker: string) => `/stock/${encodeURIComponent(ticker)}`;

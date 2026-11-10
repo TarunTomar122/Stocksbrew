@@ -129,7 +129,7 @@ export function PricingGrid({
         <div className="mb-3 px-2 sm:hidden">{periodSwitch}</div>
       ) : null}
       <section className="oa-surface overflow-clip border border-oa-border bg-oa-card">
-        <table className={`w-full table-fixed border-collapse ${allRows ? "" : "max-lg:[&>tbody:nth-of-type(n+2)]:hidden"}`}>
+        <table className={`w-full table-fixed border-collapse ${allRows ? "" : "max-sm:[&>tbody:nth-of-type(n+2)]:hidden"}`}>
           <colgroup>
             <col />
             <col className="w-[7.25rem] sm:w-[14rem] lg:w-[17rem]" />
@@ -244,9 +244,9 @@ export function PricingGrid({
           type="button"
           aria-expanded={allRows}
           onClick={() => setAllRows((value) => !value)}
-          className="flex min-h-11 w-full items-center justify-center gap-2 border-t border-oa-border text-[14px] font-medium text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent lg:hidden"
+          className="flex min-h-11 w-full items-center justify-center gap-2 border-t border-oa-border text-[14px] font-medium text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent sm:hidden"
         >
-          {allRows ? "Show less" : "Show everything in each plan"}
+          {allRows ? "Show less" : "Show everything both plans include"}
           <span aria-hidden="true" className={`text-oa-muted-fg transition-transform ${allRows ? "rotate-180" : ""}`}>
             ▾
           </span>

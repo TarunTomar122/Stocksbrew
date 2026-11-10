@@ -123,11 +123,11 @@ describe("what separates them", () => {
     const text = describeDifferences([NVDA, AMD]).map((item) => item.text);
     expect(text).toContain("NVDA is worth $4.60T, 14 times AMD at $340B.");
     expect(text).toContain("NVDA is growing revenue fastest, +83.4% over the last year against +21.0% for AMD.");
-    expect(text).toContain("NVDA is the cheapest on next year's expected earnings at 15.4×; AMD trades at 31.0×.");
-    expect(text).toContain("NVDA keeps the most of each dollar of sales, a 65.2% operating margin against 9.5% for AMD.");
+    expect(text).toContain("For each $1 of next year's expected earnings, you pay about $15 for NVDA and $31 for AMD.");
+    expect(text).toContain("NVDA keeps 65 cents of each sales dollar as operating profit; AMD keeps 10 cents.");
     expect(text).toContain("NVDA holds $23.6B more cash than debt; AMD owes $1.20B more than it holds.");
     expect(text).toContain("AMD is up 40.00% over the last year; NVDA is down 0.80%.");
-    expect(text).toContain("AMD swings the most, 58% annualised volatility over the last 90 sessions against 46% for NVDA.");
+    expect(text).toContain("AMD's price jumps around more: over the last 90 trading days its swings ran at 58% a year, against 46% for NVDA.");
   });
 
   it("stays silent when a number is missing or the gap is small", () => {
@@ -143,6 +143,6 @@ describe("what separates them", () => {
     const shrinker: ScreenerRow = { symbol: "DOWN", rev_growth: -6, op_margin: -8 };
     const text = describeDifferences([grower, shrinker]).map((item) => item.text);
     expect(text).toContain("UP grew revenue +12.0% over the last year while DOWN's revenue shrank 6.0%.");
-    expect(text).toContain("UP earns a 20.0% operating margin; DOWN loses money at the operating line (−8.0%).");
+    expect(text).toContain("UP keeps 20 cents of each sales dollar as operating profit; DOWN loses money running its business (−8.0%).");
   });
 });

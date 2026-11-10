@@ -270,10 +270,15 @@ const FINANCE_PHRASES: Array<[RegExp, string]> = [
  * headline, which is quoted as written.
  */
 export function plainFinance(text: string | null | undefined): string {
-  let value = (text ?? "").trim();
+  const original = (text ?? "").trim();
+  let value = original;
   for (const [pattern, replacement] of FINANCE_PHRASES) value = value.replace(pattern, replacement);
   // "that beat expectations" leaves "Q3 earnings" with a doubled space when the quarter is missing.
-  return value.replace(/\s{2,}/g, " ").replace(/^./, (first) => first.toUpperCase());
+  value = value.replace(/\s{2,}/g, " ");
+  // Re-capitalise only when a rewrite started the text with a small letter ("Guidance cut" -> "a lower forecast");
+  // a name that starts small ("eBay") stays as written.
+  // Leading punctuation ("\"Guidance cut\" ...") is stepped over.
+  return /^[^A-Za-z]*[A-Z]/.test(original) ? value.replace(/^([^A-Za-z]*)([a-z])/, (_, lead: string, first: string) => lead + first.toUpperCase()) : value;
 }
 
 /**
@@ -291,8 +296,9 @@ export function wholeSentences(text: string | null | undefined, max = 2): string
   while (rest && sentences.length < max) {
     const first = firstFullSentence(rest);
     if (first === rest) {
-      // The last piece: keep it only if it really ends a sentence.
-      if (!cut && /[.!?]["”)]?$/.test(first)) sentences.push(first);
+      // The last piece: keep it unless a feed cut it off with "...". A complete
+      // line with no full stop (many feed headlines) still counts.
+      if (!cut) sentences.push(first);
       break;
     }
     sentences.push(first);

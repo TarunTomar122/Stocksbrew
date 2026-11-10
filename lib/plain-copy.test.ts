@@ -112,6 +112,9 @@ describe("plainFinance", () => {
     expect(plainFinance("On Holding drops as guidance disappoints despite earnings beat")).toBe("On Holding drops as its forecast disappoints despite earnings that beat expectations");
     expect(plainFinance("Revenue beat and patent defense support Acadia shares")).toBe("Revenue that beat expectations and patent defense support Acadia shares");
     expect(plainFinance("Apple unveils a new phone")).toBe("Apple unveils a new phone");
+    expect(plainFinance("eBay raises guidance")).toBe("eBay raises its forecast");
+    expect(plainFinance("Guidance cut sinks the stock")).toBe("A lower forecast sinks the stock");
+    expect(plainFinance("\"Guidance cut\" sinks the stock")).toBe("\"A lower forecast\" sinks the stock");
     // Already a sentence with its own object: left alone.
     expect(plainFinance("Nvidia earnings beat estimates")).toBe("Nvidia earnings beat estimates");
   });
@@ -124,5 +127,6 @@ describe("wholeSentences", () => {
     expect(wholeSentences("W.H. Teh brings 20+ years of global leadership across AI…")).toBe("");
     expect(wholeSentences("One. Two. Three.")).toBe("One. Two.");
     expect(wholeSentences("A complete line.")).toBe("A complete line.");
+    expect(wholeSentences("A headline with no full stop")).toBe("A headline with no full stop");
   });
 });

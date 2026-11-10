@@ -176,6 +176,33 @@ export default async function PricingPage({ searchParams }: Props) {
       ) : null}
 
       <PricingGrid plan={viewer.plan} market={market} prices={prices} trialEligible={viewer.trialEligible}>
+        {/* Phone: only what differs between the plans first; every row is one tap away. */}
+        <tbody className="sm:hidden">
+          <tr>
+            <th scope="colgroup" colSpan={3} className="border-y border-oa-border bg-oa-bg px-3 py-2 text-left text-[14px] font-semibold text-oa-fg">
+              What Pro adds
+            </th>
+          </tr>
+          {ids
+            .filter((id) => describeRule(ruleFor(id, "free")) !== describeRule(ruleFor(id, "pro")))
+            .map((id) => (
+              <tr key={`diff-${id}`} className="border-b border-oa-border last:border-b-0">
+                <th scope="row" colSpan={3} className="px-3 py-2.5 text-left align-top text-[14px] font-normal leading-5 text-oa-fg">
+                  <span className="block text-pretty">{nameOf(id)}</span>
+                  <span className="mt-1.5 grid grid-cols-2 gap-x-3 text-[13px]">
+                    <span className="flex items-baseline gap-1.5">
+                      <span className="text-oa-muted-fg">Free</span>
+                      <Cell rule={ruleFor(id, "free")} />
+                    </span>
+                    <span className="flex items-baseline gap-1.5">
+                      <span className="text-oa-muted-fg">Pro</span>
+                      <Cell rule={ruleFor(id, "pro")} strong />
+                    </span>
+                  </span>
+                </th>
+              </tr>
+            ))}
+        </tbody>
         {FEATURE_GROUPS.map((group) => {
           const rows = ids.filter((id) => (FEATURES[id] as Feature).group === group);
           if (rows.length === 0) return null;

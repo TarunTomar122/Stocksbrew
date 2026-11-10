@@ -558,7 +558,7 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
 
         {/* ── the read: what today means, what is coming, then our brief ──── */}
         <div className="order-2 flex min-w-0 flex-col gap-4 xl:col-start-1 xl:row-start-2">
-          <TheRead read={data.insightRead} label={`The read on ${stock.ticker}`} fold="phone" />
+          <TheRead read={data.insightRead} label={`The read on ${stock.ticker}`} fold="phone" foldLabel={`Show more on ${stock.ticker} today`} />
           <Panel
             id="read"
             label="Our brief"
