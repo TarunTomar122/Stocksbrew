@@ -172,6 +172,11 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-10, morning briefs follow the movers (lead)
+
+- `e7e5a0d` on the VPS: morning brief run chained after the 09:50 ET price batch (OnSuccess open-anomalies + open-briefs, 3 min retry), selection in backend/morning_brief_selection.py (news, 3%+ or 2x usual move, Pro earnings, anomaly/Reddit zone; cap 160). zone-briefs removed; 15 timers pinned to America/New_York with a reset so the reload fired nothing. Premarket now 07:30 ET (was 03:30 ET / 2 PM IST). Evening run unchanged. Dry run on the VPS: 163 candidates, 73 selected (68 move, 14 zone, 2 earnings), HIMS and ASTS included. Unit backup: /root/tikrr-units-pre-20261110.tgz; rollback steps in the review (checkout 8a6bb35, restore units, daemon-reload, re-enable zone-briefs).
+- Check tomorrow: open-movers-price 14:50 UTC → open-briefs rewrote the selected stocks.
+
 ### 2026-11-10, SEO page families live, PostHog rebuilt, VPS on the new backend (lead)
 
 - PostHog (`890a60b`): typed event plan in docs/analytics.md, production-only sends, uid-only identify, no reset on anonymous loads, server-side checkout/subscription events, replay masking on portfolio/account/Ask. Dashboard "stocksbrew: growth" (29 tiles): https://us.posthog.com/project/303737/dashboard/2331690. Baseline 30 days: ~544 visitors, 576 sessions, blog 242 views, landing 167, stock 101; 5 identified people. Verified a live pageview lands with $environment=production and utm.
