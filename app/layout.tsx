@@ -103,6 +103,9 @@ const siteVerification: Metadata["verification"] = {
 };
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.stocksbrew.online"),
+  // viewport-fit=cover lets the phone tab bar run under the home indicator
+  // (its padding uses env(safe-area-inset-bottom)) instead of leaving a gap.
+  viewport: { width: "device-width", initialScale: 1, viewportFit: "cover" },
   title: {
     default: SITE_TITLE_DEFAULT,
     template: "%s · stocksbrew",
