@@ -66,7 +66,13 @@ export function AuthProvider({ children, initialAuthed = false }: AuthProviderPr
             // (e.g. subscribed/unsubscribed locks). Refresh once after cookie sync.
             if (!refreshedAfterSignInRef.current) {
               refreshedAfterSignInRef.current = true;
-              router.refresh();
+              // Signed in on the landing page: go straight to the portfolio,
+              // the same place middleware sends signed-in visitors to "/".
+              if (window.location.pathname === "/" && !new URLSearchParams(window.location.search).has("home")) {
+                window.location.assign("/watchlist");
+              } else {
+                router.refresh();
+              }
             }
           }
         } catch {
