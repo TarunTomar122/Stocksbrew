@@ -172,6 +172,14 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-10, released: rework live on stocksbrew.online (lead)
+
+- Open-source cleanup: 381 tracked files removed (legacy routes behind redirects, 157 unreachable components, 37 lib files, junk incl. the waitlist CSV from the tree), private hosts/IPs/project ids moved to env, new README with 12 screenshots (`docs/screenshots/`), CONTRIBUTING, `docs/architecture.md`, `docs/data-jobs.md`, `.env.example`. Repo stays PRIVATE: 6 keys and the waitlist CSV are still in git history (rotate keys, publish a fresh-history repo via `scripts/oss/make-snapshot.mjs`).
+- Insight rows redone after owner feedback (link on the sentence line, chips under the text; `components/oa/insight.tsx`).
+- Production build fixed: `/sitemap.xml` timed out as a static page, now rendered on request. Store requests time out after 25s (`LOCALDB_TIMEOUT_MS`), from the release quality pass (verdict SHIP: gating holds signed out, user APIs 401, no secrets in the client bundle, 38 redirects one hop, vitest 989/989, tsc 0).
+- Pushed `5cb0072`, `3aa627e`, `dda7db3` to origin/main (author Tarun Tomar <yourtrace.online@gmail.com>), rebased on the P0 commit. `vercel --prod` from a clean worktree: live on https://www.stocksbrew.online (tikrr.online 308s to it). Live smoke: key pages 200, no console errors on /stock/NVDA and phone /briefing.
+- NOT done (needs owner): VPS backend update (news tone job, email v2 jobs, SEC/insider fetchers, call engine stay off), email v2 cutover, Vercel env additions (EMAIL_UNSUBSCRIBE_SECRET before cutover; optional ANTHROPIC_API_KEY; STOCKSBREW_FROM_EMAIL after Brevo domain auth). Next: launch video with the owner.
+
 ### 2026-11-10, finishers landed, email v2 ready, open-source cleanup running (lead)
 
 - Briefing + insights B finished: read on top ("3 stocks need a decision today: CBRS, ASTS and SMR."), "Needs you" only for holdings that hit a level today, wrong as-of labels fixed, reads on stock/portfolio/tax/compare/screener. Insights A + share previews finished: reads on explore (one merged read), markets and every class page, signals tabs, calendar, filings; 56 OG cards opened; `lib/og/metadata.test.ts` fixed (geist mocked). vitest 1042/1042, tsc 0.
