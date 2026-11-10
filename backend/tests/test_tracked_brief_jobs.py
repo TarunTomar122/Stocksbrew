@@ -11,7 +11,7 @@ from backend.cloudrun.jobs import tracked_news_prep_job, tracked_open_briefs_job
 
 
 class TrackedBriefJobsTest(unittest.TestCase):
-    def _run_job(self, module) -> tuple[list[str], dict]:
+    def _run_job(self, module, *extra: str) -> tuple[list[str], dict]:
         argv = [
             module.__name__,
             "--run-id", "test-run",
@@ -19,6 +19,7 @@ class TrackedBriefJobsTest(unittest.TestCase):
             "--universe", "us_core_100",
             "--shard-id", "001",
             "--instrument-ids", "US_AAPL",
+            *extra,
         ]
         patches = [patch.object(sys, "argv", argv), patch.object(module.subprocess, "run")]
         if module is tracked_open_briefs_job:
@@ -56,6 +57,21 @@ class TrackedBriefJobsTest(unittest.TestCase):
         self.assertIn("--include-no-news", command)
         self.assertIn("--require-complete", command)
         self.assertEqual(kwargs["timeout"], 2400)
+
+    def test_evening_default_keeps_incremental_narrowing_and_a_day_of_news(self) -> None:
+        command, _kwargs = self._run_job(tracked_open_briefs_job)
+        self.assertNotIn("--refresh-selected", command)
+        self.assertEqual(command[command.index("--synthesis-lookback-hours") + 1], "24")
+
+    def test_morning_selected_mode_rewrites_every_dispatched_stock(self) -> None:
+        command, _kwargs = self._run_job(
+            tracked_open_briefs_job,
+            "--refresh-mode", "selected",
+            "--synthesis-lookback-hours", "73",
+        )
+        self.assertIn("--refresh-selected", command)
+        self.assertIn("--incremental", command)
+        self.assertEqual(command[command.index("--synthesis-lookback-hours") + 1], "73")
 
     def test_open_refreshes_stale_news_before_synthesis(self) -> None:
         argv = [

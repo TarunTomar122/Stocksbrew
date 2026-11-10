@@ -13,6 +13,14 @@ from backend.instrument_universe import (
     list_instruments,
 )
 from backend.market_session_state import MarketSessionState
+from backend.morning_brief_selection import (
+    DEFAULT_BRIEF_CAP,
+    load_recent_earnings,
+    load_typical_moves,
+    previous_session_lookback_hours,
+    select_morning_briefs,
+    session_dates_from_prices,
+)
 from backend.price_pipeline_contract import (
     PriceFreshnessPolicy,
     partition_fresh_price_documents,
@@ -78,6 +86,8 @@ def _ai_brief_ids(
     store: TraceMoneyStore,
     market: str,
     universe_id: str,
+    *,
+    persist: bool = True,
 ) -> list[str]:
     """Runtime core plus active-Pro Radar and genuine search demand."""
     ids: list[str] = []
@@ -91,7 +101,7 @@ def _ai_brief_ids(
         if instrument_id not in seen:
             seen.add(instrument_id)
             ids.append(instrument_id)
-    for instrument_id in _search_heat_ids(store, market):
+    for instrument_id in _search_heat_ids(store, market, persist=persist):
         if instrument_id not in seen:
             seen.add(instrument_id)
             ids.append(instrument_id)
@@ -140,6 +150,7 @@ def _search_heat_ids(
     *,
     now: datetime | None = None,
     cap: int = 20,
+    persist: bool = True,
 ) -> list[str]:
     current = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
     cutoff = (current - timedelta(hours=72)).isoformat()
@@ -158,12 +169,115 @@ def _search_heat_ids(
         now=current,
         cap=cap,
     )
-    try:
-        store.save_search_heat_cohort(market, ranked)
-    except Exception:
-        # Cohort persistence is observability only; selection remains usable.
-        pass
+    if persist:
+        try:
+            store.save_search_heat_cohort(market, ranked)
+        except Exception:
+            # Cohort persistence is observability only; selection remains usable.
+            pass
     return [str(row["instrument_id"]) for row in ranked]
+
+
+def _zone_brief_ids(store: TraceMoneyStore, market: str) -> list[str]:
+    """Today's anomaly movers plus Reddit-buzz names (formerly zone-briefs).
+
+    Many of these sit outside the brief cohort, so without this a stock that
+    just moved 9% or lit up Reddit could keep a weeks-old brief.
+    """
+    from backend.scripts.build_zone_briefs import (
+        _anomaly_instrument_ids,
+        _reddit_instrument_ids,
+    )
+
+    ids: list[str] = []
+    seen: set[str] = set()
+    try:
+        anomaly_ids = _anomaly_instrument_ids(store, market)
+    except Exception as exc:
+        print({"stage": "morning_zone_ids", "source": "anomaly", "error": str(exc)[:200]})
+        anomaly_ids = []
+    try:
+        reddit_ids = _reddit_instrument_ids(
+            store,
+            market,
+            min_mentions=1,
+            min_confidence=0.55,
+            llm_fallback=False,
+        )
+    except Exception as exc:
+        print({"stage": "morning_zone_ids", "source": "reddit", "error": str(exc)[:200]})
+        reddit_ids = []
+    for instrument_id in [*anomaly_ids, *reddit_ids]:
+        iid = str(instrument_id or "").strip().upper()
+        if iid and iid.startswith(f"{market.upper()}_") and iid not in seen:
+            seen.add(iid)
+            ids.append(iid)
+    return ids
+
+
+def _wait_for_open_anomalies(store: TraceMoneyStore, market: str, timeout_minutes: int) -> bool:
+    """Let the opening anomaly reasons land first so briefs can cite them.
+
+    The anomaly run is a sibling of this one (both start when the 09:50 price
+    batch succeeds), not a hard dependency: if it is slow or failed, the
+    briefs still go out after the timeout, just without today's move reasons.
+    """
+    if timeout_minutes <= 0:
+        return False
+    try:
+        MarketSessionState(store).wait_for_stages(
+            market=market,
+            phase="open_check",
+            stages=["anomalies"],
+            timeout_seconds=timeout_minutes * 60,
+            poll_seconds=15,
+        )
+        return True
+    except RuntimeError as exc:
+        print({"stage": "morning_brief_anomaly_wait", "status": "timeout", "error": str(exc)[:300]})
+        return False
+
+
+def _select_morning_brief_ids(
+    store: TraceMoneyStore,
+    *,
+    market: str,
+    universe_id: str,
+    candidate_ids: list[str],
+    zone_ids: list[str],
+    cap: int,
+    now: datetime | None = None,
+) -> tuple[list[str], dict[str, Any], int]:
+    """Morning rule: changed news + material moves + held earnings + stale zone names."""
+    current = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    prices = store.get_latest_prices(candidate_ids)
+    held_ids = _tracked_ids(store, market)
+    held_set = set(held_ids)
+    selection = select_morning_briefs(
+        candidate_ids,
+        prices=prices,
+        freshness=store.get_news_freshness_docs(market, candidate_ids),
+        briefs=store.get_stock_intelligence_docs_batch(market, universe_id, candidate_ids),
+        typical_moves=load_typical_moves(store, candidate_ids, prices, now=current),
+        earnings_by_id=load_recent_earnings(
+            store,
+            market,
+            [iid for iid in candidate_ids if iid in held_set],
+            prices,
+            now=current,
+        ),
+        held_ids=held_ids,
+        zone_ids=zone_ids,
+        now=current,
+        cap=cap,
+    )
+    lookback = previous_session_lookback_hours(session_dates_from_prices(prices), now=current)
+    summary = {
+        "stage": "morning_brief_selection",
+        **selection.summary(sample=max(1, len(candidate_ids))),
+        "synthesis_lookback_hours": lookback,
+    }
+    return selection.selected, summary, lookback
 
 
 def _search_heat_valid_ids(store: TraceMoneyStore, market: str) -> set[str]:
@@ -559,6 +673,18 @@ def main() -> None:
     parser.add_argument("--wait-for-completion", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--seed-only", action="store_true")
+    parser.add_argument(
+        "--brief-cap",
+        type=int,
+        default=DEFAULT_BRIEF_CAP,
+        help="Morning (open_check) brief run: most stocks to rewrite; 0 = no cap.",
+    )
+    parser.add_argument(
+        "--anomaly-wait-minutes",
+        type=int,
+        default=20,
+        help="Morning brief run: wait this long for the opening anomaly stage before writing.",
+    )
     args = parser.parse_args()
 
     # Cost guardrails: cap intraday fanout server-side so a stale scheduler payload
@@ -710,7 +836,49 @@ def main() -> None:
             universe_id,
             args.universe or None,
         )
-        instrument_ids = _ai_brief_ids(store, args.market, brief_base_universe)
+        morning = args.lane == "tracked_open_briefs" and args.session_phase == "open_check"
+        instrument_ids = _ai_brief_ids(
+            store,
+            args.market,
+            brief_base_universe,
+            persist=not args.dry_run,
+        )
+        morning_extra_args: list[str] = []
+        selection_summary: dict[str, Any] = {}
+        if morning:
+            if not args.dry_run:
+                _wait_for_open_anomalies(store, args.market, args.anomaly_wait_minutes)
+            zone_ids = _zone_brief_ids(store, args.market)
+            known = set(instrument_ids)
+            instrument_ids = instrument_ids + [iid for iid in zone_ids if iid not in known]
+            try:
+                instrument_ids = _fresh_open_brief_ids(
+                    store,
+                    instrument_ids,
+                    market=args.market,
+                    session_phase=args.session_phase,
+                )
+            except RuntimeError:
+                # A dry run outside market hours still shows what the rule
+                # would pick from the stored quotes; a real run fails closed.
+                if not args.dry_run:
+                    raise
+                print({"stage": "morning_brief_selection", "warning": "no session-fresh prices; dry run uses stored quotes"})
+            instrument_ids, selection_summary, lookback_hours = _select_morning_brief_ids(
+                store,
+                market=args.market,
+                universe_id=universe_id,
+                candidate_ids=instrument_ids,
+                zone_ids=zone_ids,
+                cap=args.brief_cap,
+            )
+            print(selection_summary, flush=True)
+            morning_extra_args = [
+                "--refresh-mode",
+                "selected",
+                "--synthesis-lookback-hours",
+                str(lookback_hours),
+            ]
         if args.dry_run:
             print(
                 {
@@ -723,7 +891,7 @@ def main() -> None:
                 }
             )
             return
-        if args.lane == "tracked_open_briefs":
+        if args.lane == "tracked_open_briefs" and not morning:
             instrument_ids = _fresh_open_brief_ids(
                 store,
                 instrument_ids,
@@ -739,9 +907,20 @@ def main() -> None:
                 "per_stock_cap": args.per_stock_cap,
                 "chunk_workers": args.chunk_workers,
                 "shard_size": args.shard_size,
+                **(
+                    {
+                        "morning_selection": {
+                            key: value
+                            for key, value in selection_summary.items()
+                            if key not in {"stage", "selected_ids", "dropped_ids"}
+                        }
+                    }
+                    if morning
+                    else {}
+                ),
             },
         )
-        tracked_extra_args = _tracked_lane_extra_args(args)
+        tracked_extra_args = _tracked_lane_extra_args(args) + morning_extra_args
         summary = _run_sharded_lane(
             lane=args.lane,
             market=args.market,

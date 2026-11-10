@@ -520,6 +520,14 @@ def main() -> None:
         help="When --synthesis-only, include only enrichments newer than this many hours (default 24). Set 0 to disable.",
     )
     parser.add_argument(
+        "--refresh-selected",
+        action="store_true",
+        help=(
+            "With --synthesis-only --incremental: rewrite every requested instrument instead of "
+            "narrowing to changed news/tape. The morning dispatcher already selected them."
+        ),
+    )
+    parser.add_argument(
         "--price-trigger-phase",
         default="scheduled",
         help="Session label used to dedupe material price-triggered briefs.",
@@ -529,6 +537,8 @@ def main() -> None:
         raise ValueError("--enrich-only and --synthesis-only cannot be combined")
     if args.discovery_only and (args.enrich_only or args.synthesis_only):
         raise ValueError("--discovery-only cannot be combined with --enrich-only or --synthesis-only")
+    if args.refresh_selected and not (args.synthesis_only and args.incremental and args.instrument_ids):
+        raise ValueError("--refresh-selected needs --synthesis-only --incremental --instrument-ids")
     configure_pipeline_logging()
     store = TraceMoneyStore()
     universe_id = str(args.universe or store.get_active_ai_universe(args.market) or "").strip()
@@ -627,13 +637,17 @@ def main() -> None:
                 for instrument_id, payload in prior_freshness.items()
                 if bool(payload.get("needs_brief_refresh"))
             }
+            if args.refresh_selected:
+                changed_instrument_set = set(selected_instrument_ids)
             latest_prices = store.get_latest_prices(selected_instrument_ids)
             for instrument_id, latest_price in latest_prices.items():
                 signal = _material_price_signal(latest_price, phase=str(args.price_trigger_phase))
                 if not signal:
                     continue
                 previous = prior_freshness.get(instrument_id) or {}
-                if not _price_signal_changed_materially(signal, previous):
+                # A dispatcher-selected rewrite always carries today's tape
+                # facts; only the incremental path dedupes on them.
+                if not args.refresh_selected and not _price_signal_changed_materially(signal, previous):
                     continue
                 price_signals[instrument_id] = signal
                 changed_instrument_set.add(instrument_id)
@@ -645,9 +659,12 @@ def main() -> None:
                     for instrument in instruments
                     if str(instrument.get("instrument_id") or "").strip().upper() in changed_instrument_set
                 ]
-                print(
-                    f"[per-stock] synthesis-only incremental narrowed to {len(instruments)} changed instruments"
-                )
+                if args.refresh_selected:
+                    print(f"[per-stock] synthesis-only selected refresh of {len(instruments)} instruments")
+                else:
+                    print(
+                        f"[per-stock] synthesis-only incremental narrowed to {len(instruments)} changed instruments"
+                    )
             else:
                 if args.emit_changed_instrument_ids_path:
                     with open(args.emit_changed_instrument_ids_path, "w", encoding="utf-8") as handle:

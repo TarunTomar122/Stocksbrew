@@ -95,6 +95,21 @@ def main() -> None:
         help="Exclude latest-price documents that were not written by the current session run.",
     )
     parser.add_argument(
+        "--refresh-mode",
+        choices=["incremental", "selected"],
+        default="incremental",
+        help=(
+            "incremental: rewrite only stocks whose news or tape changed (evening run). "
+            "selected: the dispatcher already chose these stocks; rewrite every one (morning run)."
+        ),
+    )
+    parser.add_argument(
+        "--synthesis-lookback-hours",
+        type=int,
+        default=24,
+        help="News window for the brief; the morning run passes 'since the previous session opened'.",
+    )
+    parser.add_argument(
         "--brief-timeout-seconds",
         type=int,
         default=2400,
@@ -204,7 +219,7 @@ def main() -> None:
         "--price-trigger-phase",
         args.session_phase,
         "--synthesis-lookback-hours",
-        "24",
+        str(max(1, args.synthesis_lookback_hours)),
         "--per-stock-cap",
         str(args.per_stock_cap),
         "--broad-cap",
@@ -216,6 +231,8 @@ def main() -> None:
         "--skip-context",
         "--skip-materialize",
     ]
+    if args.refresh_mode == "selected":
+        cmd.append("--refresh-selected")
     print({"run_id": args.run_id, "lane": args.lane, "shard_id": args.shard_id, "cmd": " ".join(cmd)})
     subprocess.run(cmd, check=True, timeout=max(60, args.brief_timeout_seconds))
 

@@ -172,6 +172,13 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-10, SEO page families live, PostHog rebuilt, VPS on the new backend (lead)
+
+- PostHog (`890a60b`): typed event plan in docs/analytics.md, production-only sends, uid-only identify, no reset on anonymous loads, server-side checkout/subscription events, replay masking on portfolio/account/Ask. Dashboard "stocksbrew: growth" (29 tiles): https://us.posthog.com/project/303737/dashboard/2331690. Baseline 30 days: ~544 visitors, 576 sessions, blog 242 views, landing 167, stock 101; 5 identified people. Verified a live pageview lands with $environment=production and utm.
+- SEO (`608800f`, `8a6bb35`): /compare/[a]-vs-[b] (107 in sitemap), /stock/[T]/moves/[date] + /movers (dated archive in tm_daily_anomalies/US__{day}), /sectors(/[slug]) (old /sector/* 308 there), /insiders/[T] (197), 678 indexable stock pages, real 404s for unknown tickers. Sectors now from backend/config/industry_sectors.json (the keyword guesser filed utilities/REITs/biotech under Technology). A failed snapshot read now answers 500, not 404. Live checks: all families 200, sitemaps listed; IndexNow accepted 20 move URLs for Nov 10.
+- VPS: /opt/tikrr pulled to 8a6bb35 (remote now TarunTomar122/Stocksbrew), tikrr-localdb restarted (health 200), FINNHUB/MARKETAUX keys moved from old code into /etc/tikrr/backend.env (backup kept). Today's 18 explained moves archived by hand.
+- Running: brief schedule fix (morning run after the 09:50 ET price batch for movers + news, evening run unchanged, stray 14:25 UTC zone run removed, timers pinned to New York time).
+
 ### 2026-11-10, signed-in home goes to the portfolio; agent promo (lead)
 
 - Live (`9c0116b`, `vercel --prod`): middleware sends `/` to `/watchlist` when the `tikrr_session` cookie is present (`/?home=1` keeps the landing; query params kept), and signing in on the landing navigates to `/watchlist`. Portfolio header Today/Total gain wrap as one group. Verified live: signed out 200, signed in 307 to /watchlist.

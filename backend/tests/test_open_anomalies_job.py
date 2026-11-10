@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from backend.cloudrun.jobs import open_anomalies_job
 
@@ -76,3 +76,31 @@ def test_open_anomalies_runs_dedicated_mover_research() -> None:
     assert "--require-complete" in research_pass
     assert "backend.scripts.send_open_briefs" in email_pass
     assert email_pass[email_pass.index("--market") + 1] == "US"
+
+
+def test_open_barrier_does_not_wait_for_briefs_that_now_wait_for_it() -> None:
+    assert open_anomalies_job.barrier_stages("open_check") == ["price"]
+    assert open_anomalies_job.barrier_stages("post_close") == ["price", "briefs"]
+
+
+def test_open_email_waits_for_prices_and_anomalies_only() -> None:
+    barrier = MagicMock()
+    argv = [
+        "open_anomalies_job",
+        "--run-id",
+        "test-run",
+        "--market",
+        "US",
+        "--universe",
+        "us_core_100",
+        "--price-session-phase",
+        "open_check",
+    ]
+    with patch("sys.argv", argv), patch.object(
+        open_anomalies_job, "MarketSessionState", return_value=barrier
+    ), patch.object(open_anomalies_job, "_run"):
+        open_anomalies_job.main()
+
+    waited = [call.kwargs["stages"] for call in barrier.wait_for_stages.call_args_list]
+    assert waited == [["price"], ["price", "anomalies"]]
+    barrier.record_stage.assert_called_once()

@@ -11,7 +11,7 @@ def test_open_session_health_fails_closed_when_publish_stages_are_missing() -> N
                 "price": {"status": "success"},
             }
         },
-        now=datetime(2026, 7, 31, 14, 20, tzinfo=timezone.utc),
+        now=datetime(2026, 7, 31, 14, 45, tzinfo=timezone.utc),
     )
 
     assert item["due"] is True
@@ -29,7 +29,7 @@ def test_open_session_health_is_fresh_only_after_all_publish_stages_complete() -
                 "anomalies": {"status": "success"},
             }
         },
-        now=datetime(2026, 7, 31, 14, 20, tzinfo=timezone.utc),
+        now=datetime(2026, 7, 31, 14, 45, tzinfo=timezone.utc),
     )
 
     assert item["due"] is True

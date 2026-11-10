@@ -160,3 +160,71 @@ class TrackedBriefPriceTriggerTest(unittest.TestCase):
                 {"price_brief_signal": previous_signal},
             )
         )
+
+
+class RefreshSelectedTest(unittest.TestCase):
+    """The morning dispatcher picks stocks; the synthesis must not re-narrow them."""
+
+    def _run(self, *extra: str):
+        import sys
+        from unittest.mock import MagicMock, patch
+
+        from backend.scripts import build_per_stock_intelligence as script
+
+        store = MagicMock()
+        store.list_subscribed_users.return_value = []
+        store.list_instruments.return_value = [
+            {"instrument_id": "US_ASTS", "ticker": "ASTS"},
+            {"instrument_id": "US_KO", "ticker": "KO"},
+        ]
+        store.get_news_freshness_docs.return_value = {}
+        store.get_stock_intelligence_docs_batch.return_value = {
+            "US_ASTS": {"generated_at": "2026-11-09T21:25:00+00:00"},
+            "US_KO": {"generated_at": "2026-11-09T21:25:00+00:00"},
+        }
+        store.get_latest_prices.return_value = {}
+        store.list_article_enrichments_for_tickers.return_value = []
+        argv = [
+            "build_per_stock_intelligence",
+            "--market", "US",
+            "--universe", "us_core_155",
+            "--instrument-ids", "US_ASTS,US_KO",
+            "--upsert", "--synthesis-only", "--incremental", "--include-no-news",
+            "--require-complete", "--skip-context", "--skip-materialize",
+            *extra,
+        ]
+
+        def build_docs(_market, _universe, instruments, _articles, **_kwargs):
+            return [{"instrument_id": row["instrument_id"]} for row in instruments]
+
+        with patch.object(sys, "argv", argv), patch.object(
+            script, "TraceMoneyStore", return_value=store
+        ), patch.object(script, "list_instruments", return_value=[]), patch.object(
+            script, "configure_pipeline_logging"
+        ), patch.object(
+            script, "build_stock_intelligence_docs", side_effect=build_docs
+        ) as build:
+            script.main()
+        return build, store
+
+    def test_selected_mode_rewrites_every_requested_stock(self) -> None:
+        build, store = self._run("--refresh-selected")
+        built = [row["instrument_id"] for row in build.call_args.args[2]]
+        self.assertEqual(sorted(built), ["US_ASTS", "US_KO"])
+        saved = store.save_news_freshness_docs.call_args.args[0]
+        self.assertEqual({row["instrument_id"] for row in saved}, {"US_ASTS", "US_KO"})
+        self.assertTrue(all(row["needs_brief_refresh"] is False and row["latest_brief_at"] for row in saved))
+
+    def test_incremental_mode_still_skips_unchanged_stocks(self) -> None:
+        build, _store = self._run()
+        build.assert_not_called()
+
+    def test_selected_mode_requires_the_incremental_synthesis_path(self) -> None:
+        import sys
+        from unittest.mock import patch
+
+        from backend.scripts import build_per_stock_intelligence as script
+
+        with patch.object(sys, "argv", ["x", "--refresh-selected", "--synthesis-only"]):
+            with self.assertRaises(ValueError):
+                script.main()

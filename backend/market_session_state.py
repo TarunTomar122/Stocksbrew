@@ -8,6 +8,9 @@ from zoneinfo import ZoneInfo
 from backend.storage import TraceMoneyStore
 
 
+# Every published session needs prices, the stock briefs and the anomaly feed.
+SESSION_STAGES = frozenset({"price", "briefs", "anomalies"})
+
 MARKET_TIMEZONES = {
     "US": ZoneInfo("America/New_York"),
     "IN": ZoneInfo("Asia/Kolkata"),
@@ -49,7 +52,6 @@ class MarketSessionState:
                 "market": market.upper(),
                 "phase": phase,
                 "session_date": market_session_date(market),
-                "status": "running" if stage != "anomalies" else "complete",
                 "updated_at": now,
             },
             merge=True,
@@ -64,6 +66,16 @@ class MarketSessionState:
                 }
             }
         )
+        # The open session now finishes with briefs, not anomalies, so the
+        # overall status follows the recorded stages rather than the last one.
+        snap = ref.get()
+        stages = (snap.to_dict() or {}).get("stages") if snap.exists else None
+        done = {
+            name
+            for name, row in (stages or {}).items()
+            if isinstance(row, dict) and row.get("status") == "success"
+        }
+        ref.set({"status": "complete" if SESSION_STAGES <= done else "running"}, merge=True)
 
     def require_stages(
         self,

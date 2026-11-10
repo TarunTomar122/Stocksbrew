@@ -185,8 +185,10 @@ def _open_session_item(
     zone = MARKET_TIMEZONES.get(market, timezone.utc)
     local = current.astimezone(zone)
     open_hour, open_minute = (9, 30) if market == "US" else (9, 15)
+    # The opening chain starts with the 09:50 price batch; anomalies land a
+    # few minutes later and the selected morning briefs by about 10:20.
     due_at = local.replace(hour=open_hour, minute=open_minute, second=0, microsecond=0) + timedelta(
-        minutes=45
+        minutes=60
     )
     due = local.weekday() < 5 and local >= due_at
     required = ["price", "briefs", "anomalies"]

@@ -23,13 +23,22 @@ No job rewrite. The dispatcher still owns lane selection, sharding, Firestore ru
 
 The market-session chains are dependency-driven:
 
-- 09:30 ET price → changed opening briefs
-- 09:50 ET settled mover price → anomaly research → opening email
+- 09:30 ET price → quotes and home dashboard only
+- 09:50 ET settled price → anomaly research → opening email, and alongside it
+  the morning briefs, which wait (up to 20 min) for the anomaly stage so they
+  can cite today's move reasons, then rewrite only the selected stocks
+  (`backend/morning_brief_selection.py`: changed news, |move| ≥ 3% or ≥ 2× the
+  3-month typical daily move, a Pro-held stock's fresh earnings, and today's
+  anomaly/Reddit names with a brief older than a day; capped at 160)
 - 16:10 ET post-close prices/read models → changed closing briefs → anomalies
 
-There are no independent brief or close-anomaly timers. The 09:50 anomaly
-worker also checks the session record and waits up to 15 minutes for a slow
-opening brief stage before failing closed.
+There are no independent brief, zone-brief or close-anomaly timers. Every
+market-tied timer names `America/New_York`; `backend/tests/test_install_systemd.py`
+pins the schedule. Preview the morning selection without writing anything:
+
+```bash
+sudo -u ubuntu /opt/tikrr/backend/vps/run-dispatch.sh tracked_open_briefs --session-phase open_check --dry-run
+```
 
 ## One-time VPS setup
 

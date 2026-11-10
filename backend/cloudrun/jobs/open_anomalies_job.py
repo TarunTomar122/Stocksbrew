@@ -39,6 +39,17 @@ def _wait_until_after_open(market: str, minutes: int) -> None:
         time.sleep(wait_seconds)
 
 
+def barrier_stages(phase: str) -> list[str]:
+    """Stages that must be done before this anomaly pass may select movers.
+
+    Close: post-close prices -> closing briefs -> anomalies, one chain.
+    Open: the 09:50 price batch starts anomalies and the morning briefs side
+    by side, and the briefs wait for these reasons so they can cite them.
+    Waiting on briefs here would deadlock that order.
+    """
+    return ["price"] if phase == "open_check" else ["price", "briefs"]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Open-session anomaly worker")
     parser.add_argument("--run-id", required=True)
@@ -65,7 +76,7 @@ def main() -> None:
         "--barrier-timeout-seconds",
         type=int,
         default=3600,
-        help="Wait up to one hour for the sequential price/brief dependency before failing closed.",
+        help="Wait up to one hour for the sequential price (and, after the close, brief) dependency before failing closed.",
     )
     parser.add_argument(
         "--price-session-phase",
@@ -80,7 +91,7 @@ def main() -> None:
         barrier.wait_for_stages(
             market=args.market,
             phase=args.price_session_phase,
-            stages=["price", "briefs"],
+            stages=barrier_stages(args.price_session_phase),
             timeout_seconds=max(0, args.barrier_timeout_seconds),
         )
 
@@ -147,7 +158,7 @@ def main() -> None:
             barrier.wait_for_stages(
                 market=args.market,
                 phase=args.price_session_phase,
-                stages=["price", "briefs", "anomalies"],
+                stages=["price", "anomalies"],
                 timeout_seconds=max(0, args.barrier_timeout_seconds),
             )
         _run(

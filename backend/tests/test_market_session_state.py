@@ -111,3 +111,13 @@ def test_waiting_barrier_still_fails_closed_after_timeout() -> None:
             stages=["price", "briefs"],
             timeout_seconds=0,
         )
+
+
+def test_open_session_is_complete_when_briefs_land_after_anomalies() -> None:
+    ref = _Ref()
+    state = MarketSessionState(_Store(ref))
+    for stage in ("price", "anomalies"):
+        state.record_stage(market="US", phase="open_check", stage=stage, run_id=f"run-{stage}")
+    assert ref.payload["status"] == "running"
+    state.record_stage(market="US", phase="open_check", stage="briefs", run_id="run-briefs")
+    assert ref.payload["status"] == "complete"

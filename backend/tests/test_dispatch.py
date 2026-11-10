@@ -310,5 +310,117 @@ class LocalJobsClientTest(unittest.TestCase):
         self.assertEqual(payload["failedCount"], 0)
 
 
+class _Snap:
+    def __init__(self, doc_id: str, data: dict | None) -> None:
+        self.id = doc_id
+        self._data = data
+        self.exists = data is not None
+
+    def to_dict(self) -> dict | None:
+        return self._data
+
+
+class _Ref:
+    def __init__(self, collection: str, doc_id: str) -> None:
+        self.collection = collection
+        self.id = doc_id
+
+
+class _Query:
+    def __init__(self, rows: list[dict]) -> None:
+        self.rows = rows
+
+    def where(self, field: str, op: str, value):
+        def keep(row: dict) -> bool:
+            actual = row.get(field)
+            return {"==": actual == value, ">=": str(actual) >= str(value), "<=": str(actual) <= str(value)}[op]
+
+        return _Query([row for row in self.rows if keep(row)])
+
+    def stream(self):
+        return [_Snap(str(index), row) for index, row in enumerate(self.rows)]
+
+
+class _Collection(_Query):
+    def __init__(self, name: str, docs: dict[str, dict]) -> None:
+        super().__init__(list(docs.values()))
+        self.name = name
+
+    def document(self, doc_id: str) -> _Ref:
+        return _Ref(self.name, doc_id)
+
+
+class _FakeDb:
+    def __init__(self, collections: dict[str, dict[str, dict]]) -> None:
+        self.collections = collections
+
+    def collection(self, name: str) -> _Collection:
+        return _Collection(name, self.collections.get(name, {}))
+
+    def get_all(self, refs):
+        return [_Snap(ref.id, self.collections.get(ref.collection, {}).get(ref.id)) for ref in refs]
+
+
+class MorningBriefSelectionDispatchTest(unittest.TestCase):
+    def test_selection_reads_the_store_and_reports_reasons(self) -> None:
+        from backend.cloudrun.orchestrator import dispatch
+
+        now = datetime(2026, 11, 10, 15, 0, tzinfo=timezone.utc)
+        quote_at = "2026-11-10T14:50:00+00:00"
+        evening = "2026-11-09T21:25:00+00:00"
+        daily = {"dates": [f"2026-08-{day:02d}" for day in range(1, 31)], "closes": [100 + (day % 2) for day in range(30)]}
+
+        class Store:
+            db = _FakeDb(
+                {
+                    "tm_price_history_daily": {"KO": daily},
+                    "tm_earnings_events": {
+                        "e1": {"market": "US", "ticker": "NVDA", "event_date": "2026-11-09", "time": "amc"},
+                        "e2": {"market": "US", "ticker": "ASTS", "event_date": "2026-11-09", "time": "amc"},
+                    },
+                }
+            )
+
+            def get_latest_prices(self, ids):
+                moves = {"US_ASTS": -11.4, "US_KO": 0.4, "US_NVDA": 0.2, "US_AAPL": 0.1}
+                return {
+                    iid: {
+                        "ticker": iid[3:],
+                        "quote": {"day_change_pct": moves[iid], "captured_at": quote_at},
+                        "recent_sessions": [{"date": "2026-11-09"}, {"date": "2026-11-10"}],
+                    }
+                    for iid in ids
+                }
+
+            def get_news_freshness_docs(self, market, ids):
+                return {
+                    "US_AAPL": {"needs_brief_refresh": True},
+                    "US_NVDA": {"latest_brief_at": evening, "latest_article_at": "2026-11-09T19:00:00+00:00"},
+                }
+
+            def get_stock_intelligence_docs_batch(self, market, universe, ids):
+                return {iid: {"generated_at": evening} for iid in ids}
+
+        with patch.object(dispatch, "_tracked_ids", return_value=["US_NVDA"]):
+            selected, summary, lookback = dispatch._select_morning_brief_ids(
+                Store(),
+                market="US",
+                universe_id="us_core_155",
+                candidate_ids=["US_ASTS", "US_KO", "US_NVDA", "US_AAPL"],
+                zone_ids=[],
+                cap=160,
+                now=now,
+            )
+
+        self.assertEqual(selected, ["US_NVDA", "US_ASTS", "US_AAPL"])
+        self.assertEqual(summary["selected_by_reason"]["earnings"], 1)
+        self.assertEqual(summary["selected_by_reason"]["move"], 1)
+        self.assertEqual(summary["selected_by_reason"]["news"], 1)
+        self.assertEqual(summary["skipped_fresh"], 1)
+        typical = {row["id"]: row["typical_pct"] for row in summary["selected_ids"]}
+        self.assertIsNone(typical["US_ASTS"])  # no daily history -> absolute rule only
+        self.assertEqual(lookback, 25)
+
+
 if __name__ == "__main__":
     unittest.main()
