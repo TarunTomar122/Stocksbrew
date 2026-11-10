@@ -4,7 +4,7 @@ import { FieldValue } from "firebase-admin/firestore";
 
 import { getSessionUser } from "@/lib/auth-server";
 import { adminFirestore } from "@/lib/firebase-admin";
-import { FREE_RADAR_TRACK_LIMIT } from "@/lib/pro-features";
+import { coverageAfterTrackChange, effectiveCovered, type CoverageWrite } from "@/lib/entitlements-coverage";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { maybeQueueOnDemandNews } from "@/lib/on-demand-queue";
 
@@ -134,13 +134,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "profile_not_ready" }, { status: 409 });
   }
   const isSubscribed = resolveIsSubscribed(existing);
-  if (!isSubscribed && items.length > FREE_RADAR_TRACK_LIMIT) {
-    return NextResponse.json(
-      { error: "free_tier_limit_reached", limit: FREE_RADAR_TRACK_LIMIT, reason: "Free Watchlist supports up to 3 stocks." },
-      { status: 409 },
-    );
-  }
-
+  // Tracking is unlimited on every plan. Coverage is recomputed inside the transaction below.
   const clientMutationId = req.headers.get("x-client-mutation-id") || randomUUID();
   const mutationToken = new Date().toISOString();
   const userRef = adminFirestore.collection("users").doc(session.uid);
@@ -167,6 +161,7 @@ export async function POST(req: NextRequest) {
   let sourceVersion = Number(existing.watchlist_version ?? 0);
   let addedIds: string[] = [];
   let removedIds: string[] = [];
+  let coveredAfter: string[] = [];
 
   await adminFirestore.runTransaction(async (tx) => {
     const userSnap = await tx.get(userRef);
@@ -183,10 +178,16 @@ export async function POST(req: NextRequest) {
     addedIds = nextTracked.filter((id) => !currentSet.has(id));
     removedIds = currentTracked.filter((id) => !nextSet.has(id));
 
+    // Removed stocks leave coverage; added ones fill empty covered slots while free fills last (never a swap).
+    const txPro = resolveIsSubscribed(userData as Parameters<typeof resolveIsSubscribed>[0]);
+    const coverage: CoverageWrite | null = coverageAfterTrackChange(userData, txPro, nextTracked);
+    coveredAfter = txPro ? nextTracked : coverage?.covered_stocks ?? effectiveCovered({ ...userData, tracked_stocks: nextTracked }, false);
+
     sourceVersion = Number(userData?.watchlist_version ?? 0) + 1;
     tx.set(
       userRef,
       {
+        ...(coverage ?? {}),
         tracked_stocks: nextTracked,
         watchlist_positions: nextPositions,
         watchlist_holdings: nextHoldings,
@@ -243,7 +244,8 @@ export async function POST(req: NextRequest) {
   });
 
   let queuedOnDemandCount = 0;
-  for (const instrumentId of addedIds) {
+  // Research is queued for covered stocks only, so unlimited tracking on Free never means unlimited research.
+  for (const instrumentId of addedIds.filter((id) => isSubscribed || coveredAfter.includes(id))) {
     const queued = await maybeQueueOnDemandNews(session.uid, instrumentId, {
       source: "watchlist_batch",
     }).catch(() => false);
@@ -283,6 +285,7 @@ export async function POST(req: NextRequest) {
     ok: true,
     source_version: sourceVersion,
     tracked_count: nextTracked.length,
+    covered: coveredAfter,
     added_count: addedIds.length,
     removed_count: removedIds.length,
     on_demand_news_queued_count: queuedOnDemandCount,

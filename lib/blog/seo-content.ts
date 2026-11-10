@@ -1052,7 +1052,7 @@ export const seoBlogContent: Record<string, string> = {
 
 <p>Monday: scan Watchlist or your brief for stance changes on holdings. Wednesday: check earnings dates for the next two weeks. Friday: note any sell trims needed for oversized winners. Total time: under 15 minutes if tools filter to your list.</p>
 
-<p>For a deeper comparison of tools that generate these calls, see our <a href="/compare/stocksbrew-vs-tipranks">stocksbrew vs TipRanks</a> page and our <a href="/blog/best-stock-watchlist-apps-2026">stock watchlist app comparison</a>.</p>
+<p>For a deeper comparison of tools that generate these calls, see our <a href="/docs/compare/stocksbrew-vs-tipranks">stocksbrew vs TipRanks</a> page and our <a href="/blog/best-stock-watchlist-apps-2026">stock watchlist app comparison</a>.</p>
 
 <div class="cta-section">
   <h3>Get Buy, Hold, Sell Calls on Your Watchlist</h3>
@@ -1091,7 +1091,7 @@ export const seoBlogContent: Record<string, string> = {
 <h2 id="build-watchlist">How to Build a Watchlist That Works</h2>
 
 <ol>
-  <li><strong>Start from a screen, not a headline</strong> — Use <a href="/screens">thematic screens</a> or Finviz filters; add only names that pass your criteria.</li>
+  <li><strong>Start from a screen, not a headline</strong> — Use <a href="/screener">thematic screens</a> or Finviz filters; add only names that pass your criteria.</li>
   <li><strong>One-line thesis per ticker</strong> — “Cloud infra, 25% growth, buy below 28x earnings.”</li>
   <li><strong>Tier your list</strong> — Tier 1: ready to buy at price. Tier 2: needs more research. Tier 3: monitor only.</li>
   <li><strong>Set alerts at your levels</strong> — Entry zone, not every 1% wiggle.</li>
@@ -1171,11 +1171,11 @@ export const seoBlogContent: Record<string, string> = {
 
 <p>Market-wide calendars list 500 reports per week. You need <em>your</em> calendar — filtered to Watchlist holdings and watchlist. stocksbrew surfaces upcoming earnings on tracked tickers so you are not scrolling irrelevant names.</p>
 
-<p>Pair this with our <a href="/blog/earnings-calendar-for-my-watchlist">earnings calendar for your watchlist</a> guide, the <a href="/blog/how-to-analyze-earnings-report">post-earnings analysis checklist</a>, and the free <a href="/earnings-intel">Earnings Intel</a> pages for individual names.</p>
+<p>Pair this with our <a href="/blog/earnings-calendar-for-my-watchlist">earnings calendar for your watchlist</a> guide, the <a href="/blog/how-to-analyze-earnings-report">post-earnings analysis checklist</a>, and the free <a href="/calendar?type=earnings">Earnings Intel</a> pages for individual names.</p>
 
 <h2 id="sectors">Sector Rotation During Earnings</h2>
 
-<p>Banks kick off season; tech dominates mindshare; retailers matter for consumer health. Watch sector ETFs during the cluster that matters to your book — financials (XLF), tech (XLK), consumer (XLY) — using the <a href="/heat">market heatmap</a> for quick context.</p>
+<p>Banks kick off season; tech dominates mindshare; retailers matter for consumer health. Watch sector ETFs during the cluster that matters to your book — financials (XLF), tech (XLK), consumer (XLY) — using the <a href="/screener?tab=sectors">market heatmap</a> for quick context.</p>
 
 <h2 id="mistakes">Earnings Season Mistakes</h2>
 
@@ -1189,7 +1189,7 @@ export const seoBlogContent: Record<string, string> = {
 <div class="cta-section">
   <h3>Never Miss a Report on Your List</h3>
   <p>Add holdings and watchlist names to Watchlist. Earnings dates, directives, and post-print stance updates — free for 3 stocks.</p>
-  <a href="/radar" class="cta-button">Open Watchlist →</a>
+  <a href="/watchlist" class="cta-button">Open Watchlist →</a>
 </div>
 `,
   "stock-market-information-overload": `
@@ -1282,7 +1282,7 @@ export const seoBlogContent: Record<string, string> = {
 <p>List holdings by % of portfolio. Flag anything above 10%. Plan a trim on winners, not losers, to rebalance.</p>
 
 <h3>Step 2: Sector map (5 min)</h3>
-<p>Group by sector. If technology + communication services exceed 40%, you are making one macro bet. Use the <a href="/heat">sector heatmap</a> to see if that bet is crowded.</p>
+<p>Group by sector. If technology + communication services exceed 40%, you are making one macro bet. Use the <a href="/screener?tab=sectors">sector heatmap</a> to see if that bet is crowded.</p>
 
 <h3>Step 3: Stance review (5 min)</h3>
 <p>For each holding, note current buy/hold/sell stance. Three sells in a row? Your basket may be worse than the index — consider simplifying.</p>

@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Tikrr agent data: 13F funds, fund holders and House reports, weekly
+
+[Timer]
+OnCalendar=Sun *-*-* 06:00:00 UTC
+Persistent=true
+AccuracySec=30min
+Unit=tikrr-agentdata-weekly.service
+
+[Install]
+WantedBy=timers.target

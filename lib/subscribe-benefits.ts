@@ -52,7 +52,7 @@ export const PRO_VALUE_PILLARS: ProValuePillar[] = [
   },
 ];
 
-/** Four reasons to upgrade — shown consistently across Pulse, Explore, and Watchlist. */
+/** Four reasons to upgrade, shown consistently across Pulse, Explore, and Watchlist. */
 export const PRO_POINTS: ProPoint[] = [
   {
     icon: "layout-grid",

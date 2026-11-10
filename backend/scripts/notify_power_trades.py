@@ -16,6 +16,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from backend.subscription_entitlement import is_pro_user
 from backend.email import emails_enabled, send_email
 from backend.emails.power_trade_alert import build_power_trade_email
 from backend.env import load_backend_env
@@ -150,7 +151,7 @@ def main() -> None:
             continue
         if not bool(user.get("email_alerts_enabled", True)):
             continue
-        if not bool(user.get("is_subscribed")):
+        if not is_pro_user(user):
             continue  # power-trade emails are a Pro perk; widen later if wanted
 
         holdings = _holding_tickers(user.get("watchlist_positions"))

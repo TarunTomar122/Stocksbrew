@@ -88,7 +88,7 @@ export const editorialRefreshBlogContent: Record<string, string> = {
 <div class="cta-section">
   <h3>Turn the AI story into a stock question</h3>
   <p>Compare the names you are following, then keep the unresolved questions in Watchlist.</p>
-  <a href="/compare-stocks" class="cta-button">Compare stocks →</a>
+  <a href="/compare" class="cta-button">Compare stocks →</a>
 </div>
 
 <div class="source-note"><strong>Sources and method.</strong> Research checked August 12, 2026 against the <a href="https://www.iea.org/reports/energy-and-ai/executive-summary" rel="nofollow">International Energy Agency’s Energy and AI report</a>, its <a href="https://www.iea.org/reports/key-questions-on-energy-and-ai" rel="nofollow">Key Questions on Energy and AI follow-up</a>, <a href="https://www.microsoft.com/en-us/investor/events/fy-2026/earnings-fy-2026-q3" rel="nofollow">Microsoft’s FY2026 Q3 investor materials</a>, and <a href="https://abc.xyz/investor/events/event-details/default.aspx" rel="nofollow">Alphabet’s investor events and filings</a>. This is research context, not financial advice. Check the original filings before making an investment decision.</div>
@@ -147,12 +147,12 @@ export const editorialRefreshBlogContent: Record<string, string> = {
   <li><strong>Delete freely.</strong> A shorter watchlist makes the remaining alerts more useful.</li>
 </ol>
 
-<p>Stocksbrew’s <a href="/radar">Watchlist</a> is built for the monitoring side of that workflow. Search a US stock, review its financials and market context, then add it to Watchlist if you want ongoing research. Keep your broker or portfolio tracker for the transaction record.</p>
+<p>Stocksbrew’s <a href="/watchlist">Watchlist</a> is built for the monitoring side of that workflow. Search a US stock, review its financials and market context, then add it to Watchlist if you want ongoing research. Keep your broker or portfolio tracker for the transaction record.</p>
 
 <div class="cta-section">
   <h3>Track the stocks you still have questions about</h3>
   <p>Search any US stock, then add the ones you care about to Watchlist.</p>
-  <a href="/stocks" class="cta-button">Search a stock →</a>
+  <a href="/screener" class="cta-button">Search a stock →</a>
 </div>
 
 <div class="source-note"><strong>Sources and method.</strong> This guide separates research monitoring from holdings accounting using the product capabilities reviewed on August 4, 2026. Portfolio-risk guidance was checked against <a href="https://www.investor.gov/introduction-investing/getting-started/asset-allocation" rel="nofollow">Investor.gov’s asset allocation and diversification guide</a> and <a href="https://www.finra.org/investors/investing/investing-basics/evaluating-performance" rel="nofollow">FINRA’s guide to evaluating investment performance</a>. Product features can change; verify current capabilities before relying on any tool as a financial record.</div>
@@ -215,12 +215,12 @@ export const editorialRefreshBlogContent: Record<string, string> = {
 
 <p>For holdings, also check whether the position still fits the portfolio’s risk. For candidates, decide whether the report answered the open question. Remove a ticker when the reason for watching it is gone; a watchlist is not an archive.</p>
 
-<p>Stocksbrew’s <a href="/earnings">earnings calendar</a> and <a href="/radar">Watchlist</a> can keep the relevant dates and subsequent research with the stocks you follow. For a deeper financial review, use the <a href="/blog/earnings-report-analysis-template">earnings report analysis template</a>.</p>
+<p>Stocksbrew’s <a href="/calendar?type=earnings">earnings calendar</a> and <a href="/watchlist">Watchlist</a> can keep the relevant dates and subsequent research with the stocks you follow. For a deeper financial review, use the <a href="/blog/earnings-report-analysis-template">earnings report analysis template</a>.</p>
 
 <div class="cta-section">
   <h3>Keep earnings research with the stock</h3>
   <p>Add a US stock to Watchlist and follow what changes around its next report.</p>
-  <a href="/radar" class="cta-button">Open Watchlist →</a>
+  <a href="/watchlist" class="cta-button">Open Watchlist →</a>
 </div>
 
 <div class="source-note"><strong>Sources and method.</strong> Filing guidance was checked on August 4, 2026 against Investor.gov’s explainers on <a href="https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins/how-read-8" rel="nofollow">reading an 8-K</a> and <a href="https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins/how-read" rel="nofollow">reading 10-K and 10-Q reports</a>. Verify report dates and company guidance on the issuer’s investor-relations site and SEC EDGAR. This is a research workflow, not investment advice.</div>
@@ -280,12 +280,12 @@ export const editorialRefreshBlogContent: Record<string, string> = {
   <li><strong>Remove stale names.</strong> If you would not spend ten minutes researching it today, it probably does not need alerts.</li>
 </ol>
 
-<p>Stocksbrew’s <a href="/radar">Watchlist</a> follows the US stocks you choose and keeps their financials, news, market context, and AI research together. It is useful as the interpretation layer; the linked filing or original report remains the evidence.</p>
+<p>Stocksbrew’s <a href="/watchlist">Watchlist</a> follows the US stocks you choose and keeps their financials, news, market context, and AI research together. It is useful as the interpretation layer; the linked filing or original report remains the evidence.</p>
 
 <div class="cta-section">
   <h3>Follow the stocks you actually care about</h3>
   <p>Search a US stock and add it to Watchlist for ongoing research.</p>
-  <a href="/stocks" class="cta-button">Search a stock →</a>
+  <a href="/screener" class="cta-button">Search a stock →</a>
 </div>
 
 <div class="source-note"><strong>Sources and method.</strong> Filing-monitoring details were checked on August 4, 2026 against the SEC’s <a href="https://www.sec.gov/search-filings/edgar-application-programming-interfaces" rel="nofollow">EDGAR API documentation</a> and <a href="https://www.sec.gov/data-research/structured-data/structured-disclosure-rss-feeds" rel="nofollow">structured-disclosure RSS feed documentation</a>. The event hierarchy reflects an editorial review of the disclosures described in Investor.gov’s <a href="https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins/how-read-8" rel="nofollow">Form 8-K guide</a>. Always check the original filing or company statement before acting on a summary.</div>

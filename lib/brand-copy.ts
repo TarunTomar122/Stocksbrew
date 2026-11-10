@@ -10,20 +10,22 @@ export const SITE_TITLE_DEFAULT =
   "US Stock Analysis & Watchlist | stocksbrew";
 
 export const SHORT_DESCRIPTION =
-  "Analyse any US stock, then track the ones you care about.";
+  "An investing agent that reads for you. It never touches your money.";
 
 export const MEDIUM_DESCRIPTION =
-  "Search any US stock for financials, valuation, filings, earnings, analyst targets and news. Track up to three stocks free in your Watchlist.";
+  "Search any US stock for financials, valuation, filings, earnings, analyst targets and news. Follow up to five stocks free in your Watchlist.";
 
 export const LONG_DESCRIPTION =
   "Search any US stock for financials, valuation, filings, earnings, analyst targets and news. Add the stocks you care about to your Watchlist and we’ll keep checking new filings, earnings reports and news. Pro adds detailed calls, price zones, targets and unlimited tracking. Research only, not investment advice.";
 
-export const HERO_HEADLINE = "Understand any stock in minutes.";
-export const HERO_HEADLINE_LEAD = "Understand any stock";
-export const HERO_HEADLINE_EMPHASIS = "in minutes.";
+export const HERO_HEADLINE = "The investing platform that tells you what to buy and why.";
+export const HERO_HEADLINE_LEAD = "The investing platform";
+export const HERO_HEADLINE_EMPHASIS = "that tells you what to buy and why.";
 
 export const HERO_SUBHEAD =
-  "We read the filings, earnings and news for you, then tell you what changed, why it matters, and when to look again.";
+  "It goes through the filings, earnings and news, then tells you why each stock moved, what changed, and what is worth a look next.";
+
+export const HERO_FOOTNOTE = "Free to read every stock. No card and no broker login.";
 
 /** Homepage block above live movers / Reddit / sectors (Finviz-style labels, not manifesto). */
 export const HOME_LIVE_FEED_EYEBROW = "Market today";

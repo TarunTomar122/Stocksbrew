@@ -42,7 +42,7 @@ export const analysisAppBlogContent: Record<string, string> = {
 <div class="table-scroll"><table>
   <thead><tr><th>App</th><th>Best for</th><th>Free access</th><th>Representative paid price</th><th>Main limitation</th></tr></thead>
   <tbody>
-    <tr><td><strong>Stocksbrew</strong></td><td>Interpreted US-stock calls, targets, risks, Watchlist monitoring</td><td>Market pages and up to 3 Watchlist names</td><td>$9/month</td><td>US-focused; not a trading terminal or deep charting suite</td></tr>
+    <tr><td><strong>Stocksbrew</strong></td><td>Interpreted US-stock calls, targets, risks, Watchlist monitoring</td><td>Market pages and up to 3 Watchlist names</td><td>$19/month</td><td>US-focused; not a trading terminal or deep charting suite</td></tr>
     <tr><td><strong>Stock Analysis</strong></td><td>Clean financial data, screeners, broad coverage</td><td>Substantial free tier</td><td>$9.99/month or $79/year for Pro</td><td>Primarily a data and research interface, not a thesis monitor</td></tr>
     <tr><td><strong>Finviz</strong></td><td>US screening, heat maps, idea generation</td><td>Useful free screener and market maps</td><td>$39.50/month or $299.50/year for Elite</td><td>Better at finding candidates than developing a full company thesis</td></tr>
     <tr><td><strong>TradingView</strong></td><td>Technical analysis, charts, alerts, community scripts</td><td>Free plan</td><td>Paid plans start at $12.95/month billed annually</td><td>Extra exchange data may cost more; fundamentals are not its central strength</td></tr>
@@ -59,7 +59,7 @@ export const analysisAppBlogContent: Record<string, string> = {
 
 <p><a href="/">Stocksbrew</a> is designed around a different question from a traditional screener: once you start researching a US stock, what is the current setup, what supports it, what threatens it, and when should you look again?</p>
 
-<p>A stock page combines price context, fundamentals, analyst consensus, valuation, growth, quality, momentum, ownership, earnings context, and a structured call. <a href="/radar">Watchlist</a> turns selected names into a monitored list with earnings and price-zone alerts. Pro adds the detailed call, Stocksbrew target, unlimited tracked names, and agent access for $9 per month.</p>
+<p>A stock page combines price context, fundamentals, analyst consensus, valuation, growth, quality, momentum, ownership, earnings context, and a structured call. <a href="/watchlist">Watchlist</a> turns selected names into a monitored list with earnings and price-zone alerts. Pro adds the detailed call, Stocksbrew target, unlimited tracked names, and agent access for $9 per month.</p>
 
 <p><strong>Where it is strongest:</strong> moving from scattered data to an interpretable watchlist workflow. The product exposes freshness and keeps the call, drivers, risks, target context, and alerts near the stock.</p>
 
@@ -164,7 +164,7 @@ export const analysisAppBlogContent: Record<string, string> = {
 <div class="cta-section">
   <h3>See the Stocksbrew workflow on your own ticker</h3>
   <p>Start with the free stock pages and three Watchlist names. Upgrade only if the detailed call, target, and alerts remove a real research bottleneck.</p>
-  <a class="cta-button" href="/radar">Try Stocksbrew Watchlist →</a>
+  <a class="cta-button" href="/watchlist">Try Stocksbrew Watchlist →</a>
 </div>
 `,
 
@@ -194,12 +194,12 @@ export const analysisAppBlogContent: Record<string, string> = {
 <h3>2. Sector participation and breadth</h3>
 <p>An index can rise because a handful of mega-cap constituents rose. Sector performance and breadth tell you whether the move is broad. Check which sectors lead, how many stocks participate, and whether defensives or cyclicals confirm the economic story.</p>
 
-<p>A <a href="/heat">market heat map</a> is useful here, but do not stop at color. Ask whether the largest rectangles are dominating the result and whether the median stock tells the same story as the index.</p>
+<p>A <a href="/screener?tab=sectors">market heat map</a> is useful here, but do not stop at color. Ask whether the largest rectangles are dominating the result and whether the median stock tells the same story as the index.</p>
 
 <h3>3. Movers with a reason</h3>
 <p>A list of gainers and losers is not analysis. A mover becomes useful when you can attach a catalyst, a baseline expectation, and a relevant comparison. Earnings, guidance, an 8-K, an analyst change, a regulatory event, a product announcement, or a sector-wide move can all matter differently.</p>
 
-<p>Use a <a href="/pulse">market-mover feed</a> to find candidates, then verify material company claims through the issuer and the SEC. If the reason remains unknown, label it unknown. Do not convert price action into a fake narrative.</p>
+<p>Use a <a href="/briefing">market-mover feed</a> to find candidates, then verify material company claims through the issuer and the SEC. If the reason remains unknown, label it unknown. Do not convert price action into a fake narrative.</p>
 
 <h3>4. Company evidence</h3>
 <p>For a stock you own or might buy, the company layer should include:</p>
@@ -233,7 +233,7 @@ export const analysisAppBlogContent: Record<string, string> = {
   <li><strong>Your list:</strong> write the two or three names that deserve attention after the open.</li>
 </ol>
 
-<p><a href="/premarket">Stocksbrew Pre-market</a> is organized around this checkpoint: the likely opening setup, live pre-market movers when available, and the reasons behind notable moves. It should complement, not replace, the official release behind a catalyst.</p>
+<p><a href="/briefing">Stocksbrew Pre-market</a> is organized around this checkpoint: the likely opening setup, live pre-market movers when available, and the reasons behind notable moves. It should complement, not replace, the official release behind a catalyst.</p>
 
 <h2 id="after-open">Checkpoint 2: after the first hour</h2>
 
@@ -261,7 +261,7 @@ export const analysisAppBlogContent: Record<string, string> = {
   <li>Update the call, risk, target assumption, or next review date only when evidence warrants it.</li>
 </ol>
 
-<p>A monitoring app should make this step easier by carrying timestamps and identifying which tracked names actually changed. In <a href="/radar">Stocksbrew Watchlist</a>, the goal is not to make you check more often; it is to bring you back for earnings, price zones, and setup changes.</p>
+<p>A monitoring app should make this step easier by carrying timestamps and identifying which tracked names actually changed. In <a href="/watchlist">Stocksbrew Watchlist</a>, the goal is not to make you check more often; it is to bring you back for earnings, price zones, and setup changes.</p>
 
 <h2 id="template">A 15-minute daily analysis template</h2>
 
@@ -383,7 +383,7 @@ export const analysisAppBlogContent: Record<string, string> = {
 
 <p><a href="/agents">Stocksbrew for Agents</a> exposes research, Watchlist, and alert tools through MCP and a REST API. A compatible agent can search for a ticker, retrieve current intelligence, track a stock with permission, read changes, and manage alert rules. The response includes a schema version, as-of timestamp, freshness status, and usage information.</p>
 
-<p>The consumer product uses the same overall research shape: calls, targets, valuation, growth, quality, momentum, catalysts, and risks, with <a href="/radar">Watchlist</a> monitoring selected names. Pro is $9 per month and includes 200 combined agent calls per day.</p>
+<p>The consumer product uses the same overall research shape: calls, targets, valuation, growth, quality, momentum, catalysts, and risks, with <a href="/watchlist">Watchlist</a> monitoring selected names. Pro is $19 per month and includes 200 combined agent calls per day.</p>
 
 <p><strong>Best fit:</strong> someone who already uses an AI agent or wants a focused web workflow for US stocks and does not want to paste screenshots or manually restate current context.</p>
 
@@ -560,7 +560,7 @@ export const analysisAppBlogContent: Record<string, string> = {
 
 <h2 id="stocksbrew-free">7. Stocksbrew: best free interpreted US-stock watchlist layer</h2>
 
-<p><a href="/">Stocksbrew</a> provides public market pages for movers, heat, events, earnings, screens, and stock research. Free users can track up to three stocks on <a href="/radar">Watchlist</a> and preview the research workflow.</p>
+<p><a href="/">Stocksbrew</a> provides public market pages for movers, heat, events, earnings, screens, and stock research. Free users can track up to three stocks on <a href="/watchlist">Watchlist</a> and preview the research workflow.</p>
 
 <p><strong>Use it for:</strong> understanding what moved, seeing a stock's key data in one view, and keeping a small decision list instead of scanning a raw feed.</p>
 
@@ -611,7 +611,7 @@ export const analysisAppBlogContent: Record<string, string> = {
 <div class="cta-section">
   <h3>Start with three stocks, not another subscription</h3>
   <p>Build a free Watchlist, use the public market tools, and upgrade only when detailed calls and monitoring save you recurring work.</p>
-  <a class="cta-button" href="/radar">Start a free Watchlist →</a>
+  <a class="cta-button" href="/watchlist">Start a free Watchlist →</a>
 </div>
 `,
 
@@ -763,7 +763,7 @@ export const analysisAppBlogContent: Record<string, string> = {
 <div class="cta-section">
   <h3>Run the test before you pay</h3>
   <p>Use a free Stocksbrew stock page and Watchlist alongside any other app you are considering. Keep the one that makes the evidence clearer.</p>
-  <a class="cta-button" href="/should-i-buy">Test a ticker →</a>
+  <a class="cta-button" href="/screener">Test a ticker →</a>
 </div>
 `,
 };

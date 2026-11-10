@@ -521,7 +521,7 @@ Track:
 ## Immediate Next Steps
 
 1. create the canonical `instrument_universe.json`
-2. use the contracts defined in [contracts-v1.md](/Users/ttomar/Documents/personal/claudia/trace-money/docs/contracts-v1.md) and `backend/config/schemas/*`
+2. use the contracts defined in [contracts-v1.md](docs/contracts-v1.md) and `backend/config/schemas/*`
 3. implement `us_test_5`
 4. implement price snapshot and article enrichment around that small universe
 5. build low-fidelity dashboard and instrument pages against the materialized views

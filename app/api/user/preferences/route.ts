@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { getSessionUser } from "@/lib/auth-server";
 
-const ALLOWED_KEYS = new Set(["email_alerts_enabled", "email_digest_enabled"]);
+const ALLOWED_KEYS = new Set(["email_alerts_enabled", "email_digest_enabled", "email_weekly_enabled", "email_product_enabled"]);
 
 export async function PATCH(req: NextRequest) {
   const session = await getSessionUser();

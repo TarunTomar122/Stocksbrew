@@ -1,6 +1,6 @@
 # Firebase + Frontend Read Audit
 
-Current as of 2026-05-31. Firestore project: `trace-money-72276`. Compute project: `tikrr-496409`.
+Current as of 2026-05-31. Firestore project: `<firebase-project-id>`. Compute project: `<gcp-project>`.
 
 > Historical point-in-time read audit. Production compute moved to the
 > Stocksbrew VPS after this snapshot. The three GitHub market workflows and

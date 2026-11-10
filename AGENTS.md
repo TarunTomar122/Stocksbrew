@@ -1,7 +1,7 @@
 ## StocksBrew LocalDB/VPS runtime
 
 - The web app and pipeline jobs use the VPS SQLite document store through the Firestore-shaped adapter in `lib/local-firestore.ts`. `lib/firebase-admin.ts` selects LocalDB when `LOCALDB_URL` and `LOCALDB_API_TOKEN` are present; Firebase Admin remains for Auth and explicit rollback only.
-- The production LocalDB service runs from `/opt/tikrr` as `tikrr-localdb.service`, backed by `/srv/tikrr-data/localdb/documents.sqlite3`, bound to `127.0.0.1:8500`, and exposed to Vercel through Caddy at `https://db.stocksbrew.online`. The Tailscale Funnel URL is an emergency fallback only.
+- The production LocalDB service runs from `/opt/tikrr` as `tikrr-localdb.service`, backed by `/srv/tikrr-data/localdb/documents.sqlite3`, bound to `127.0.0.1:8500`, and exposed to Vercel through Caddy at the host in `LOCALDB_URL` (kept out of the repo). The Tailscale Funnel URL is an emergency fallback only.
 - Vercel must define `LOCALDB_URL` and `LOCALDB_API_TOKEN` in the environment used by the deployment. Local builds use the ignored, permission-600 `.env.vps.local`; never commit or print its token.
 - After backend changes, update the VPS checkout with `git pull --ff-only origin main` and restart `tikrr-localdb.service`. Check the deployed revision before debugging frontend data.
 - A `LocalDB batch read failed (404)` with `/health` still returning `200` means the VPS service is running stale server code, not that Vercel cannot reach the VPS. Verify `/documents:batchGet`, update `/opt/tikrr`, restart the service, and retest before changing app callers.

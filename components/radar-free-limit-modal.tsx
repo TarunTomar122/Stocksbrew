@@ -51,7 +51,7 @@ export function RadarFreeLimitModal({
             You&apos;ve hit the free Watchlist limit
           </h2>
           <p className="text-[14px] leading-relaxed text-on-surface-variant">
-            Free tracks up to {limit} stocks. Remove one to swap, or upgrade to Pro for unlimited names and a morning call on each.
+            Free follows up to {limit} stocks and swaps one a week. Remove one to make room, or go Pro and follow every stock you own.
           </p>
         </div>
 

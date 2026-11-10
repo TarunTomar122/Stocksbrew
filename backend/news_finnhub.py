@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import os
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -28,10 +29,14 @@ logger = logging.getLogger(__name__)
 
 FINNHUB_URL = "https://finnhub.io/api/v1/company-news"
 SOURCE_ID = "finnhub"
-_API_KEY = "d8be7jpr01qhrj7r8mi0d8be7jpr01qhrj7r8mig"
 
 # Free tier: 60 req/min.  Sleep this many seconds between per-ticker calls.
 _SLEEP_BETWEEN_CALLS = 1.1
+
+
+def _api_key() -> str:
+    """Read the finnhub key from the environment (FINNHUB_API_KEY); empty when unset."""
+    return os.environ.get("FINNHUB_API_KEY", "").strip()
 
 
 def _article_id(url: str) -> str:
@@ -143,7 +148,10 @@ def fetch_finnhub_news_for_tickers(
     (30-40 tickers) to respect the 60 req/min free-tier limit.
     Returns deduplicated Article list.
     """
-    key = api_key or _API_KEY
+    key = api_key or _api_key()
+    if not key:
+        logger.warning("finnhub_skipped reason=missing_api_key env=FINNHUB_API_KEY")
+        return []
     today = datetime.now(timezone.utc)
     to_date = today.strftime("%Y-%m-%d")
     from_date = (today - timedelta(days=lookback_days)).strftime("%Y-%m-%d")

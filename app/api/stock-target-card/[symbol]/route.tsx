@@ -174,19 +174,17 @@ export async function GET(
 
   const directive: Directive | null = normalizeDirectiveForUi(intel?.directive_v2 ?? null);
   const stance = directive?.stance;
-  const accPrice = directiveZonePrice(directive?.add_on);
-  const trimPrice = directiveZonePrice(directive?.trim_on);
+  // This image is public and unauthenticated, so it never carries our price
+  // zones (those come with covering a stock: lib/entitlements.ts). It shows
+  // the call and the analyst consensus target only.
+  const accPrice: number | null = null;
+  const trimPrice: number | null = null;
   const isTrimStance = stance === "trim" || stance === "avoid";
   const isTrimLikeCall = isTrimStance;
 
   const analystTarget = facts?.analyst?.target_price ?? null;
-  // Match stock page: directive trim_above first, analyst consensus as fallback.
   const profitTarget =
-    trimPrice !== null && directive?.trim_on?.trigger_type === "price_above"
-      ? trimPrice
-      : typeof analystTarget === "number" && Number.isFinite(analystTarget) && analystTarget > 0
-        ? analystTarget
-        : null;
+    typeof analystTarget === "number" && Number.isFinite(analystTarget) && analystTarget > 0 ? analystTarget : null;
   const target = profitTarget;
   const hasTarget = target !== null;
   const upsidePct = hasTarget ? ((target - price) / price) * 100 : null;
@@ -367,7 +365,7 @@ export async function GET(
           >
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <span style={{ fontSize: 18, fontWeight: 700, color: MUTED, letterSpacing: "0.09em" }}>
-                {isTrimLikeCall ? "TRIM ABOVE" : "OUR TARGET"}
+                ANALYST TARGET
               </span>
               <span style={{ fontSize: 50, fontWeight: 800, color: INK, letterSpacing: "-0.025em" }}>
                 {fmtMoney(target, sym)}

@@ -121,7 +121,7 @@ export const marketSeoBlogContent: Record<string, string> = {
 <div class="cta-section">
   <h3>Open the live semiconductor brief</h3>
   <p>See current sector drivers, tracked chip stocks, and the latest available company data.</p>
-  <a class="cta-button" href="/sector/semiconductors">Analyze semiconductor stocks →</a>
+  <a class="cta-button" href="/screener?sector=technology">Analyze semiconductor stocks →</a>
 </div>
 `,
 
@@ -261,13 +261,13 @@ export const marketSeoBlogContent: Record<string, string> = {
 <p>Only then revisit valuation. Changing the target first encourages the model to follow the share price instead of the business.</p>
 
 <div class="source-note">
-  <strong>Verify the report:</strong> use <a href="https://www.sec.gov/search-filings">SEC EDGAR</a>, the company investor-relations page, and <a href="https://www.investor.gov/introduction-investing/getting-started/researching-investments/using-edgar-research-investments">Investor.gov’s EDGAR research guide</a>. Stocksbrew’s <a href="/earnings">US earnings calendar</a> helps locate the date; the filing remains the primary evidence.
+  <strong>Verify the report:</strong> use <a href="https://www.sec.gov/search-filings">SEC EDGAR</a>, the company investor-relations page, and <a href="https://www.investor.gov/introduction-investing/getting-started/researching-investments/using-edgar-research-investments">Investor.gov’s EDGAR research guide</a>. Stocksbrew’s <a href="/calendar?type=earnings">US earnings calendar</a> helps locate the date; the filing remains the primary evidence.
 </div>
 
 <div class="cta-section">
   <h3>Find the next US earnings report</h3>
   <p>Open the calendar, choose a company, and run this template before and after the release.</p>
-  <a class="cta-button" href="/earnings">Open the earnings calendar →</a>
+  <a class="cta-button" href="/calendar?type=earnings">Open the earnings calendar →</a>
 </div>
 `,
 
@@ -380,7 +380,7 @@ export const marketSeoBlogContent: Record<string, string> = {
 <div class="cta-section">
   <h3>Apply the framework to a US stock</h3>
   <p>Choose a ticker, check the latest data timestamp, and work from business quality through valuation and risk.</p>
-  <a class="cta-button" href="/stocks">Browse 100 US stock pages →</a>
+  <a class="cta-button" href="/screener">Browse 100 US stock pages →</a>
 </div>
 `,
 
@@ -499,7 +499,7 @@ export const marketSeoBlogContent: Record<string, string> = {
 <div class="cta-section">
   <h3>Inspect analyst context beside the fundamentals</h3>
   <p>Open a US ticker and compare the consensus view with price, growth, valuation, earnings, and risk.</p>
-  <a class="cta-button" href="/stocks">Browse US stock analysis →</a>
+  <a class="cta-button" href="/screener">Browse US stock analysis →</a>
 </div>
 `,
 

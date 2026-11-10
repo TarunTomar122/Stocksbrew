@@ -15,13 +15,6 @@ describe("first Watchlist activation flow", () => {
     );
   });
 
-  it("uses a real sign-in action on the signed-out Watchlist instead of linking to itself", () => {
-    const states = source("components/radar-next/states.tsx");
-    expect(states).toContain("StartRadarButton");
-    expect(states).toContain('surface="radar_page"');
-    expect(states).not.toContain('href="/watchlist"');
-  });
-
   it("delivers free feed value after sign-in instead of redirecting immediately to checkout", () => {
     const unlock = source("components/feed-row-lock-teaser.tsx");
     expect(unlock).toContain('captureEvent("free_feed_unlocked"');
@@ -42,20 +35,30 @@ describe("first Watchlist activation flow", () => {
     expect(checkout).not.toContain('effectivePeriod === "yearly" && isTrialEligible(userDoc)');
   });
 
-  it("keeps the Pro intelligence masked on non-Pro stock pages", () => {
+  // The call and the written read are open to everyone. What a plan gates is
+  // the levels (zones, what would change the call, the pre-earnings read), and
+  // they are removed on the server, never hidden in the browser.
+  it("strips the price levels on the server for stocks the viewer's plan does not cover", () => {
     const stockPage = source("components/stock-page-stream.tsx");
-    const stockDetail = source("components/stock-detail.tsx");
-    expect(stockPage).toContain("const shouldLoadAI = subscribed");
-    expect(stockDetail).toContain("const showLockedVerdict = !subscribed");
-    expect(stockDetail).toContain("<LockedVerdictCall");
+    const report = source("components/stock-report/report.tsx");
+    expect(stockPage).toContain("const hasLevels = canSeeLevels(viewer, stock.instrument_id)");
+    expect(stockPage).toContain("fullRead && !hasLevels");
+    expect(stockPage).toContain("zones: { addBelow: null, addAbove: null, trimAbove: null },");
+    // The reasoning goes with the levels: an uncovered stock keeps only the call, its headline and the date.
+    expect(stockPage).toContain("reasons: [],");
+    expect(stockPage).toContain("changers: [],");
+    expect(stockPage).toContain("const preEarningsDoc = hasLevels");
+    expect(stockPage).toContain("levels: hasLevels");
+    expect(stockPage).not.toContain("StockDetail");
+    expect(report).toContain("!data.gate.levels");
+    expect(report).toContain("<LevelsLock");
   });
 
-  it("keeps every stock unlock CTA at a mobile-safe tap height", () => {
-    const trialGate = source("components/stock-trial-gate.tsx");
-    const legacyGate = source("components/locked-verdict-call.tsx");
-    expect(trialGate).toContain("min-h-14");
-    expect(legacyGate).toContain("min-h-14");
-    expect(legacyGate).not.toContain("inline-flex h-10");
+  it("keeps the stock unlock CTA at a mobile-safe tap height", () => {
+    const report = source("components/stock-report/report.tsx");
+    const gate = source("components/oa/gate.tsx");
+    expect(report).toContain('<LockCard feature="stock_zones"');
+    expect(gate).toContain('<OaButton size="sm" loading={busy} onClick={act} className="max-sm:min-h-11');
   });
 
   it("shows the bulk Watchlist action after signed-out auth resolution", () => {

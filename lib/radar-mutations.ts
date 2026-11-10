@@ -3,9 +3,27 @@ import { randomUUID } from "node:crypto";
 import { FieldValue } from "firebase-admin/firestore";
 
 import { adminFirestore } from "@/lib/firebase-admin";
+import { coverageAfterTrackChange, effectiveCovered, type CoverageWrite } from "@/lib/entitlements-coverage";
 import { maybeQueueOnDemandNews } from "@/lib/on-demand-queue";
+import { resolveIsSubscribed } from "@/lib/watchlist";
 
 export type RadarPositionType = "holding" | "watchlist";
+
+/**
+ * Kept for callers that still catch it. Tracking is unlimited on every plan
+ * (lib/entitlements.ts: tracked_stocks), so nothing throws this any more; the
+ * limit that remains is coverage (lib/entitlements-coverage.ts).
+ */
+export class FollowLimitError extends Error {
+  constructor(
+    public readonly code: "free_tier_limit_reached" | "swap_limit_reached",
+    public readonly reason: string,
+    public readonly nextAt: string | null = null,
+  ) {
+    super(code);
+    this.name = "FollowLimitError";
+  }
+}
 
 function marketFromInstrumentId(instrumentId: string): "US" | "IN" {
   return instrumentId.startsWith("IN_") ? "IN" : "US";
@@ -39,6 +57,7 @@ export async function addRadarStock(input: {
   const trackedRef = adminFirestore.collection("tm_tracked_instruments").doc(input.instrumentId);
   let sourceVersion = 0;
   let alreadyTracked = false;
+  let newlyCovered = false;
 
   await adminFirestore.runTransaction(async (tx) => {
     const [userSnap, eventSnap] = await Promise.all([tx.get(userRef), tx.get(eventRef)]);
@@ -50,6 +69,13 @@ export async function addRadarStock(input: {
       sourceVersion = Number(eventSnap.data()?.version ?? userData.watchlist_version ?? 0);
       return;
     }
+    // Tracking is unlimited. Coverage follows on the same read the write is based on: a new stock fills an empty
+    // covered slot while the account has free fills, and never spends the weekly swap (lib/entitlements-coverage.ts).
+    const isPro = resolveIsSubscribed(userData as Parameters<typeof resolveIsSubscribed>[0]);
+    const coverage: CoverageWrite | null = alreadyTracked
+      ? null
+      : coverageAfterTrackChange(userData, isPro, [...tracked, input.instrumentId]);
+    newlyCovered = isPro || (coverage?.covered_stocks.includes(input.instrumentId) ?? effectiveCovered(userData, false).includes(input.instrumentId));
     const positions = userData.watchlist_positions && typeof userData.watchlist_positions === "object" && !Array.isArray(userData.watchlist_positions)
       ? { ...userData.watchlist_positions as Record<string, RadarPositionType> }
       : {};
@@ -74,6 +100,7 @@ export async function addRadarStock(input: {
       watchlist_updated_at: now,
       watchlist_version: sourceVersion,
       last_tracked_at: now,
+      ...(coverage ?? {}),
     }, { merge: true });
     if (!alreadyTracked) tx.set(trackedRef, {
       instrument_id: input.instrumentId,
@@ -90,11 +117,13 @@ export async function addRadarStock(input: {
     });
   });
 
-  const researchQueued = await maybeQueueOnDemandNews(input.uid, input.instrumentId, {
-    source: "radar_track",
-  }).catch(() => false);
+  // Research is written for covered stocks. On Free an uncovered stock still gets prices, the call and the
+  // earnings date from the shared pipeline, without queueing new research for one account.
+  const researchQueued = newlyCovered
+    ? await maybeQueueOnDemandNews(input.uid, input.instrumentId, { source: "radar_track" }).catch(() => false)
+    : false;
   await queueWatchlistRefresh(input.uid, sourceVersion, input.requestedBy || "agent").catch(() => undefined);
-  return { already_tracked: alreadyTracked, research_queued: researchQueued, source_version: sourceVersion };
+  return { already_tracked: alreadyTracked, research_queued: researchQueued, source_version: sourceVersion, covered: newlyCovered };
 }
 
 export async function removeRadarStock(input: {
@@ -128,8 +157,17 @@ export async function removeRadarStock(input: {
       : {};
     delete positions[input.instrumentId];
     delete holdings[input.instrumentId];
+    // A stock that is no longer tracked is no longer covered, which frees its slot (uncovering is always free).
+    const coverage = wasTracked
+      ? coverageAfterTrackChange(
+          userData,
+          resolveIsSubscribed(userData as Parameters<typeof resolveIsSubscribed>[0]),
+          tracked.filter((id) => id !== input.instrumentId),
+        )
+      : null;
     sourceVersion = Number(userData.watchlist_version ?? 0) + 1;
     tx.set(userRef, {
+      ...(coverage ?? {}),
       tracked_stocks: FieldValue.arrayRemove(input.instrumentId),
       watchlist_positions: positions,
       watchlist_holdings: holdings,

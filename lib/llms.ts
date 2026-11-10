@@ -18,12 +18,14 @@ Market coverage: US-listed stocks and US market context
 
 ## Start here
 
-- [US stock directory](${BASE}/stocks): Index of supported stock research pages.
-- [Editorial policy](${BASE}/editorial-policy): Sourcing, review, AI-assistance, corrections, and update standards.
+- [Screener](${BASE}/screener): Every US stock we cover, filterable, with a link to each research page.
+- [Docs](${BASE}/docs): How each part of the product works, with methodology and a glossary.
+- [Methodology](${BASE}/docs/methodology): Sources, how calls are produced, what is written by a model, corrections.
 - [About stocksbrew](${BASE}/about): Product purpose and ownership.
-- [Author: Tarun Tomar](${BASE}/authors/tarun-tomar): Author and reviewer profile.
-- [Developer reference](${BASE}/developers): Stocksbrew MCP and REST behavior.
-- [AI agent access](${BASE}/agents): Connect Claude, ChatGPT, Codex and other OAuth-capable agents to current Stocksbrew context.
+- [Developer reference](${BASE}/developers): Stocksbrew MCP and REST behavior, and how to connect Claude, ChatGPT, Codex and other agents.
+- [Follow](${BASE}/follow): 13F fund portfolios, congressional trade disclosures and Form 4 insider trades, each with its filing date.
+- [Markets](${BASE}/markets): Indices, ETFs, Treasury yields, commodities, currencies, crypto and prediction markets, each with source and as-of time.
+- [Strategies](${BASE}/strategies): Rule-based baskets with their backtests, labelled as backtested and not traded.
 - [OpenAPI document](${BASE}/api/v1/openapi.json): Machine-readable REST contract.
 
 ## Stock research

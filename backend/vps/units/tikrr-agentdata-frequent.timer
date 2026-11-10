@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Tikrr agent data: the wire and markets, every 30 minutes
+
+[Timer]
+OnCalendar=*:07,37
+Persistent=true
+AccuracySec=5min
+Unit=tikrr-agentdata-frequent.service
+
+[Install]
+WantedBy=timers.target

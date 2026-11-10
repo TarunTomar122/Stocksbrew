@@ -11,9 +11,9 @@ Firestore data exist so IN can be reactivated later, but `getCurrentMarket()`
 currently returns `US`.
 
 Production compute runs on the Stocksbrew VPS under systemd. Firebase/Firestore
-data remains in project `trace-money-72276`; the VPS service environment uses
+data remains in project `<firebase-project-id>`; the VPS service environment uses
 the Firebase service account to write there. Google Cloud project
-`tikrr-496409` retains compatibility job definitions, but its schedulers are
+`<gcp-project>` retains compatibility job definitions, but its schedulers are
 paused and are not the production owner.
 
 ## Canonical Tiers

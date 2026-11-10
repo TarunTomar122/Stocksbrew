@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 
 type Props = {
-  field: "email_alerts_enabled" | "email_digest_enabled";
+  field: "email_alerts_enabled" | "email_digest_enabled" | "email_weekly_enabled" | "email_product_enabled";
   label: string;
   description: string;
   initialValue: boolean;

@@ -7,7 +7,7 @@ import * as React from "react";
  * and gains a ring spinner beside it, so its width never jumps.
  */
 
-type Variant = "primary" | "secondary" | "ghost";
+type Variant = "primary" | "outline" | "secondary" | "ghost";
 type Size = "md" | "sm" | "xs";
 
 const RING =
@@ -25,8 +25,10 @@ const VARIANTS: Record<Variant, string> = {
     "bg-[color-mix(in_srgb,var(--oa-primary)_90%,#3a3480)] text-oa-primary-fg " +
     "shadow-[inset_0_1px_0_rgba(255,255,255,0.22),inset_0_-1px_0_rgba(58,52,128,0.30)] " +
     "hover:bg-oa-primary hover:border-[color-mix(in_srgb,var(--oa-primary)_70%,#3a3480)]",
+  // The stand-in for a filled button when the view already has its one filled copper element.
+  outline: "oa-btn-outline",
   secondary:
-    "border border-transparent bg-oa-secondary text-oa-secondary-fg " +
+    "border border-oa-border bg-oa-secondary text-oa-secondary-fg " +
     "hover:bg-[color-mix(in_srgb,var(--oa-secondary)_95%,var(--ink))]",
   ghost: "text-oa-muted-fg hover:text-oa-fg",
 };
@@ -34,7 +36,7 @@ const VARIANTS: Record<Variant, string> = {
 const SIZES: Record<Size, string> = {
   md: "h-9 rounded-lg px-3 py-1.5 text-sm",
   sm: "h-8 rounded-lg gap-1.5 px-3 text-sm",
-  xs: "h-7 rounded-lg px-2 text-xs",
+  xs: "h-7 rounded-lg px-2 text-[13px]",
 };
 
 export function Spinner({ className }: { className?: string }) {

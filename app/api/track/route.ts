@@ -1,10 +1,9 @@
 import { randomUUID } from "node:crypto";
+import { adminFirestore } from "@/lib/firebase-admin";
 import { NextRequest, NextResponse } from "next/server";
 
 import { getSessionUser } from "@/lib/auth-server";
-import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
-import { FREE_RADAR_TRACK_LIMIT, canTrackMore } from "@/lib/pro-features";
-import { recordLifecycleEvent } from "@/lib/lifecycle-events";
+import { getUserDoc } from "@/lib/watchlist";
 import { addRadarStock, removeRadarStock } from "@/lib/radar-mutations";
 
 const INSTRUMENT_ID_RE = /^(US|IN)_[A-Z0-9_]+$/;
@@ -71,35 +70,14 @@ export async function POST(req: NextRequest) {
   });
 
   const existing = await getUserDoc(session.uid);
-  const isSubscribed = existing ? resolveIsSubscribed(existing) : false;
   if (!existing) {
     trackApiLog(traceId, "warn", "post_user_missing", { uid: session.uid, instrument_id: instrumentId });
     return NextResponse.json({ error: "profile_not_ready" }, { status: 409 });
   }
-
   const current = Array.isArray(existing.tracked_stocks) ? existing.tracked_stocks : [];
-  if (!current.includes(instrumentId) && !canTrackMore(isSubscribed, current.length)) {
-      await recordLifecycleEvent({
-        uid: session.uid,
-        email: session.email ?? null,
-        type: "track_blocked_subscription_required",
-        payload: {
-          instrument_id: instrumentId,
-          position_type: positionType,
-          free_tier_limit: FREE_RADAR_TRACK_LIMIT,
-        },
-      }).catch(() => undefined);
-      trackApiLog(traceId, "warn", "post_free_tier_limit", {
-        uid: session.uid,
-        instrument_id: instrumentId,
-        limit: FREE_RADAR_TRACK_LIMIT,
-      });
-      return NextResponse.json(
-        { error: "free_tier_limit_reached", limit: FREE_RADAR_TRACK_LIMIT, reason: "Free Watchlist supports up to 3 stocks." },
-        { status: 409 },
-      );
-  }
 
+  // Tracking is unlimited on every plan. Coverage (zones, the full read) is set inside the add transaction
+  // (lib/radar-mutations.ts) and changed through /api/coverage.
   const result = await addRadarStock({
     uid: session.uid,
     instrumentId,
@@ -122,6 +100,8 @@ export async function POST(req: NextRequest) {
     ok: true,
     refresh_queued: true,
     first_stock: !result.already_tracked && current.length === 0,
+    /** Whether the agent covers this stock in full (zones, the full read). */
+    covered: result.covered,
   });
 }
 

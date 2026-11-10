@@ -7,6 +7,7 @@ import type {
 import { resolveBookCallHint } from "@/lib/radar-hub-data";
 import { normalizeDirectiveForUi } from "@/lib/directive-ui";
 import type { Directive } from "@/lib/stock";
+import { THRESHOLDS } from "@/lib/tone";
 import type {
   BookFlag,
   BookRow,
@@ -500,12 +501,16 @@ export function buildHealthProps(
 
   const pct = Math.round(tilt.overall);
   const grade = gradeLetter(pct);
+  // The scoring model's own bands (strong 75, solid 55, mixed 35), the same ones lib/tone colours the ring
+  // and the pillar marks with, so a green ring never sits under a worried headline.
   const headline =
     pct >= 75
       ? "Your book is in good shape."
-      : pct >= 60
+      : pct >= THRESHOLDS.score.good
         ? "Solid book with a few soft spots."
-        : "Your book needs some attention.";
+        : pct >= THRESHOLDS.score.bad
+          ? "A mixed book with some weak spots."
+          : "Your book needs some attention.";
   const fixes = diagnosis.risk_flags
     .map((flag) => String((flag as Record<string, unknown>).headline || "").trim())
     .filter(Boolean);

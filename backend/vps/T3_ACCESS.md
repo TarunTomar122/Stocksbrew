@@ -6,16 +6,16 @@ How to reach the **one** always-on T3 server on the VPS without spawning duplica
 
 | What | Value |
 |------|--------|
-| Public IPv4 | `144.217.6.112` |
+| Public IPv4 | `<vps-ip>` |
 | SSH user | `ubuntu` |
 | SSH host alias (Mac) | `vps` |
-| Tailscale IP (VPS) | `100.127.22.69` |
+| Tailscale IP (VPS) | `<vps-tailscale-ip>` |
 | T3 port | `3773` |
 | Tikrr project path | `/opt/tikrr` |
 | T3 state dir | `~/.t3` on VPS |
 | systemd unit | `t3code.service` (user) |
 
-T3 is started by systemd and binds to the **Tailscale IP** (`100.127.22.69:3773`). It keeps running when you close SSH or sleep your Mac.
+T3 is started by systemd and binds to the **Tailscale IP** (`<vps-tailscale-ip>:3773`). It keeps running when you close SSH or sleep your Mac.
 
 ## Pairing (first time or after T3 restart)
 
@@ -30,7 +30,7 @@ journalctl --user -u t3code.service -n 25 | rg -i 'Pairing URL|Token:'
 Example:
 
 ```text
-http://100.127.22.69:3773/pair#token=XXXXXXXXXXXX
+http://<vps-tailscale-ip>:3773/pair#token=XXXXXXXXXXXX
 ```
 
 Paste the token in the T3 app or open the full pairing URL in a browser.
@@ -38,7 +38,7 @@ Paste the token in the T3 app or open the full pairing URL in a browser.
 ## Phone (Tailscale)
 
 1. Tailscale app on — **same account** as the VPS.
-2. Open `http://100.127.22.69:3773` (or the pairing URL above).
+2. Open `http://<vps-tailscale-ip>:3773` (or the pairing URL above).
 3. Add project `/opt/tikrr`.
 
 No SSH tunnel needed.
@@ -47,7 +47,7 @@ No SSH tunnel needed.
 
 Office WiFi often breaks **Tailscale** (UDP / WireGuard blocked or flaky). **SSH over TCP (port 22) usually still works.** You do not need Tailscale on the laptop for this path.
 
-Your Mac cannot reach `100.127.22.69` without Tailscale. Use an SSH port forward to the systemd T3 instance instead.
+Your Mac cannot reach `<vps-tailscale-ip>` without Tailscale. Use an SSH port forward to the systemd T3 instance instead.
 
 ### One command (recommended)
 
@@ -66,13 +66,13 @@ Optional (flaky WiFi): `brew install autossh` — `t3vps` will use it to auto-re
 
 ```sshconfig
 Host vps tikrr-vps
-  HostName 144.217.6.112
+  HostName <vps-ip>
   User ubuntu
   IdentityFile ~/.ssh/id_ed25519
   IdentitiesOnly yes
   AddKeysToAgent yes
   UseKeychain yes
-  LocalForward 3773 100.127.22.69:3773
+  LocalForward 3773 <vps-tailscale-ip>:3773
   ServerAliveInterval 30
   ServerAliveCountMax 4
   TCPKeepAlive yes
@@ -104,7 +104,7 @@ pkill -f 'ssh.*-L 3773.* vps'
 Install Tailscale on the Mac (same account). No SSH tunnel:
 
 ```text
-http://100.127.22.69:3773
+http://<vps-tailscale-ip>:3773
 ```
 
 Same experience as the phone.
@@ -149,7 +149,7 @@ Heavy consumers on the VPS:
 Current production bind (manual override on VPS):
 
 ```bash
-t3 serve --host 100.127.22.69 --port 3773 --base-dir ~/.t3
+t3 serve --host <vps-tailscale-ip> --port 3773 --base-dir ~/.t3
 ```
 
 Check status:
@@ -160,7 +160,7 @@ ss -tlnp | grep 3773
 ps aux | grep 't3 serve'
 ```
 
-You want **one** `t3 serve` process (the systemd one on `100.127.22.69:3773`).
+You want **one** `t3 serve` process (the systemd one on `<vps-tailscale-ip>:3773`).
 
 ## Hermes / agents (separate)
 

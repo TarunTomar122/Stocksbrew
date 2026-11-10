@@ -1,6 +1,6 @@
 /** Display pricing for US Pro (checkout amounts live in Dodo). */
-export const US_PRO_MONTHLY = 9;
-export const US_PRO_YEARLY = 99;
+export const US_PRO_MONTHLY = 19;
+export const US_PRO_YEARLY = 190;
 
 export const US_PRO_MONTHLY_LABEL = `$${US_PRO_MONTHLY}`;
 export const US_PRO_YEARLY_LABEL = `$${US_PRO_YEARLY}`;

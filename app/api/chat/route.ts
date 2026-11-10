@@ -3,7 +3,11 @@ import { adminAuth } from "@/lib/firebase-admin";
 import { createOpenAI } from "@ai-sdk/openai";
 import { convertToModelMessages, streamText, type UIMessage } from "ai";
 import { tavily } from "@tavily/core";
-import { getUserDoc } from "@/lib/watchlist";
+import { askUsageStore } from "@/lib/ask-data";
+import { askPlanFor, consumeAskQuota } from "@/lib/ask-limits";
+import { redactLevels, redactLevelsDeep } from "@/lib/entitlements";
+import { canSeeLevels, getViewer } from "@/lib/entitlements-server";
+import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { getWatchlistView, type WatchlistRow } from "@/lib/watchlist-view";
 import { getInstrumentLabels, resolveInstrumentByTicker } from "@/lib/instrument-resolver";
 import { getStockIntelligenceDoc, getStockIntelPro } from "@/lib/stock";
@@ -158,6 +162,8 @@ function buildNvdaImpactMap(rows: SpilloverRow[]) {
 }
 
 function compactRowsForPrompt(
+  /** Whether the viewer's plan covers this ticker. The directive text and triggers are the full read. */
+  covered: (ticker: string) => boolean,
   rows: Array<{
     ticker: string;
     position_type: string;
@@ -179,7 +185,9 @@ function compactRowsForPrompt(
     };
   }>,
 ) {
-  return rows.map((r) => ({
+  return rows.map((r) => {
+    const full = covered(r.ticker);
+    return {
     t: r.ticker,
     pos: r.position_type === "holding" ? "H" : "W",
     sector: r.sector_label || undefined,
@@ -187,14 +195,15 @@ function compactRowsForPrompt(
     chg: r.day_change_pct,
     score: r.scores?.overall,
     stance: r.ai_directive?.stance,
-    directive: r.ai_directive?.text?.slice(0, 120),
-    trigger: r.ai_directive?.trigger,
-    micro: r.brief_tile?.micro?.slice(0, 80),
+    directive: full ? r.ai_directive?.text?.slice(0, 120) : undefined,
+    trigger: full ? r.ai_directive?.trigger : undefined,
+    // The tile line can quote a level ("near the $182 add zone"); uncovered stocks get it without.
+    micro: (full ? r.brief_tile?.micro : redactLevels(r.brief_tile?.micro) ?? undefined)?.slice(0, 80),
     d2: r.directive_v2
       ? {
-          t: r.directive_v2.title?.slice(0, 80),
+          t: full ? r.directive_v2.title?.slice(0, 80) : undefined,
           p: r.directive_v2.priority,
-          tr: r.directive_v2.trigger,
+          tr: full ? r.directive_v2.trigger : undefined,
           hs: r.directive_v2.holding_status,
         }
       : undefined,
@@ -209,7 +218,8 @@ function compactRowsForPrompt(
           src: r.holding.source ?? null,
         }
       : undefined,
-  }));
+    };
+  });
 }
 
 async function tavilySearch(query: string) {
@@ -368,6 +378,18 @@ export async function POST(req: NextRequest) {
   }
 
   const uid = decoded.uid;
+  // The old chat spends the same daily allowance as Ask, from the same counter, so the two never add up to more.
+  const plan = askPlanFor({ uid, isPro: resolveIsSubscribed(await getUserDoc(uid).catch(() => null)) });
+  // The same rule as /api/ask: a signed-in person is not locked out because the counter is down.
+  const quota = await consumeAskQuota(askUsageStore, { key: uid, plan }).catch((error) => {
+    console.error("chat_quota_failed", error);
+    return null;
+  });
+  // Who is asking, once: it decides which stocks' full read the model may see.
+  const chatViewer = await getViewer();
+  if (quota && !quota.ok) {
+    return NextResponse.json({ error: "limit_reached", limit: quota.limit, message: quota.message }, { status: 429 });
+  }
   const body = await req.json();
   const { messages } = body as { messages: UIMessage[] };
   const latestUserMessage = [...messages].reverse().find((m) => m.role === "user");
@@ -397,7 +419,19 @@ export async function POST(req: NextRequest) {
       getStockIntelligenceDoc(instrumentId, market),
       getStockIntelPro(instrumentId, market),
     ]);
-    stockIntelPayload = {
+    // The reasoning and the zones are the full read, which comes with covering the stock (lib/entitlements.ts:
+    // stock_zones). An uncovered stock gets the call, its headline and the score, nothing the model could explain.
+    const covered = canSeeLevels(chatViewer, instrumentId);
+    stockIntelPayload = !covered
+      ? {
+          instrument_id: instrumentId,
+          headline: redactLevels(intel?.headline),
+          call: intel?.directive_v2?.action?.label ?? null,
+          overall_score: intel?.overall_score ?? pro?.overall?.score,
+          overall_label: intel?.overall_label ?? pro?.overall?.verdict,
+          full_read: "The reasons, zones and risks on this stock come with covering it. Say so; do not invent reasons.",
+        }
+      : {
       instrument_id: instrumentId,
       headline: intel?.headline,
       body: intel?.body ?? intel?.today_brief,
@@ -440,10 +474,17 @@ ${JSON.stringify({
   watchlist_count: radarContext.watchlist_count,
   tracked_tickers: trackedTickers,
   add_candidates_not_on_radar: radarContext.add_candidates_not_on_radar,
-  rows_compact: compactRowsForPrompt(radarContext.rows),
-  portfolio_meta: radarContext.portfolio,
-  pulse: radarContext.pulse,
-  brief: radarContext.brief,
+  rows_compact: compactRowsForPrompt((ticker) => canSeeLevels(chatViewer, ticker), radarContext.rows),
+  // The portfolio notes, pulse and brief are written across every row, so on any plan short of Pro a sentence
+  // that pairs a price with a level is dropped: the model never holds zones for a stock the viewer does not cover.
+  ...(chatViewer.plan === "pro"
+    ? { portfolio_meta: radarContext.portfolio, pulse: radarContext.pulse, brief: radarContext.brief }
+    : {
+        portfolio_meta: redactLevelsDeep(radarContext.portfolio),
+        pulse: redactLevelsDeep(radarContext.pulse),
+        brief: redactLevelsDeep(radarContext.brief),
+        add_candidates_not_on_radar: redactLevelsDeep(radarContext.add_candidates_not_on_radar),
+      }),
 })}
 
 research_payload:

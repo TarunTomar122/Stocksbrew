@@ -1,0 +1,97 @@
+{
+  "_comment": "Plain-word caveats attached to every backtest. One source for both engines: backend/agentdata/backtest.py and lib/backtest/engine.ts read this file. Placeholders in {braces} are filled by the engine.",
+  "order": [
+    "backtest_label",
+    "live_only",
+    "hindsight_picks",
+    "survivorship",
+    "partial_index",
+    "fixed_funds",
+    "fund_start_dates",
+    "estimated_size",
+    "congress_filings",
+    "late_start",
+    "short_record",
+    "timing",
+    "weights_timing",
+    "costs",
+    "no_costs",
+    "cash",
+    "benchmark",
+    "definitions"
+  ],
+  "items": {
+    "backtest_label": {
+      "title": "This is a backtest, not a track record",
+      "text": "These numbers come from applying the rules to past prices from {start} to {end}. Nobody held this portfolio. A real one would have done differently, and the next ten years will not look like the last ten."
+    },
+    "survivorship": {
+      "title": "The stock list is today's list",
+      "text": "We test on the {candidates} companies we cover today. Companies that went bankrupt, were bought out or shrank out of the index along the way are missing, and today's winners sit in the pool from the first day. That flatters every number here, the return most of all. Read the lead over the S&P 500 as a ceiling, not an estimate."
+    },
+    "partial_index": {
+      "title": "We cover part of the index",
+      "text": "The pool is the {candidates} {universe_label} we track, not the full index."
+    },
+    "fixed_funds": {
+      "title": "The pool is a fixed list of funds",
+      "text": "This test picks from {candidates} index and sector funds. Funds do not go bankrupt the way companies do, so the missing-companies problem that affects our stock backtests is much smaller here."
+    },
+    "fund_start_dates": {
+      "title": "Some funds started later",
+      "text": "The real estate fund (XLRE) began trading in October 2015 and the communication services fund (XLC) in June 2018. Each joins the pool once it has enough price history for the rules."
+    },
+    "estimated_size": {
+      "title": "Company size in the past is estimated",
+      "text": "We do not have historical share counts. Size at each rebalance is today's share count times the price back then, so buybacks and new share issues make the older rankings rough."
+    },
+    "congress_filings": {
+      "title": "Our Congress filings start on {events_start}",
+      "text": "We only hold congressional trade filings from {events_start} onward, so this test starts there. Members report up to 45 days after they trade. We use the filing date, the first day the public could have known."
+    },
+    "short_record": {
+      "title": "The record is short",
+      "text": "This covers {period_words}. That is too short to tell a good rule from a lucky stretch. Read it as a description of what happened."
+    },
+    "timing": {
+      "title": "How trades are timed",
+      "text": "Stocks are picked with closing prices from the last session of each {rebalance_period}. Trades fill at the next session's close. No pick uses a price it could not have known."
+    },
+    "costs": {
+      "title": "Costs are counted, taxes are not",
+      "text": "Every trade pays {cost_bps} basis points, which is {cost_pct}% of the amount bought or sold. Over the test that added up to about {cost_drag_pct}% of the portfolio. Not counted: taxes, wider bid-ask spreads on small stocks, and the price impact of large orders."
+    },
+    "no_costs": {
+      "title": "Trading costs are switched off",
+      "text": "This run assumes trades are free. Real trading costs lower the result, more so for rules that trade often."
+    },
+    "cash": {
+      "title": "Idle cash earns nothing",
+      "text": "When fewer than {holdings} names pass the rules, the empty slots stay in cash at 0% interest. Real cash would have earned a little."
+    },
+    "benchmark": {
+      "title": "What the comparison line is",
+      "text": "The comparison line is {benchmark}, bought on the first day and held, with dividends reinvested and its fee already in the price. Strategy prices include dividends too. The comparison line pays no trading costs because buying and holding needs almost no trades."
+    },
+    "definitions": {
+      "title": "How the numbers are defined",
+      "text": "Prices are daily closes adjusted for splits and dividends, from Yahoo Finance. Volatility is the yearly-scaled standard deviation of daily returns. Sharpe is return divided by volatility with a 0% risk-free rate. Drawdown is the fall from the highest point reached so far."
+    },
+    "live_only": {
+      "title": "There is no backtest for this one",
+      "text": "These rules read company financials such as return on capital and dividend history. We only hold today's figures, so testing the rules on the past would use numbers nobody had at the time. The record for this strategy starts on {live_since} and only counts what happens after that."
+    },
+    "hindsight_picks": {
+      "title": "You chose these tickers today",
+      "text": "Picking tickers after seeing how they did is the strongest bias a backtest can have. A list written in {start_year} would have looked different, and some of its names would have gone on to fail. Read the result as a description of the past."
+    },
+    "late_start": {
+      "title": "The test starts later than you asked",
+      "text": "{limited_symbol} has no price before {limited_date}, so the test starts there instead of {asked_start}. We do not invent prices for the missing stretch."
+    },
+    "weights_timing": {
+      "title": "How trades are timed",
+      "text": "The portfolio is bought at the close on {start}. {rebalance_sentence} No trade uses a price from a later day."
+    }
+  }
+}

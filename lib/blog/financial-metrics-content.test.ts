@@ -36,7 +36,7 @@ describe("financial metrics SEO cluster", () => {
 
   it("cross-links the topic cluster and stock catalogue", () => {
     expect(financialMetricsBlogContent["what-is-a-good-pe-ratio"]).toContain('/blog/free-cash-flow-vs-net-income');
-    expect(financialMetricsBlogContent["free-cash-flow-vs-net-income"]).toContain('href="/stocks"');
+    expect(financialMetricsBlogContent["free-cash-flow-vs-net-income"]).toContain('href="/screener"');
     expect(financialMetricsBlogContent["gross-margin-vs-operating-margin-vs-net-margin"]).toContain('/blog/what-is-a-good-pe-ratio');
     expect(financialMetricsBlogContent["gross-margin-vs-operating-margin-vs-net-margin"]).toContain('/blog/free-cash-flow-vs-net-income');
   });

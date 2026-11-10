@@ -5,6 +5,7 @@ from typing import Any
 
 from google.cloud.firestore_v1.base_query import FieldFilter
 
+from backend.subscription_entitlement import is_pro_user
 from backend.email import send_email
 from backend.email_runtime import log_email_send
 from backend.emails.radar_alert import build_radar_alert_email
@@ -59,7 +60,7 @@ def process_automatic_radar_alerts(
             user = user or {}
             email = str(user.get("email") or user.get("email_lower") or "").strip().lower()
 
-            eligible = uid and email and bool(user.get("is_subscribed")) and user.get("email_alerts_enabled") is not False
+            eligible = uid and email and is_pro_user(user) and user.get("email_alerts_enabled") is not False
             fresh = _event_is_fresh(event_type, event, payload)
             if not eligible or not fresh:
                 stats["skipped"] += 1

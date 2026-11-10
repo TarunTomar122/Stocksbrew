@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { StockLogo } from "@/components/stock-logo";
 import { RadarAsyncModal } from "@/components/radar-async-modal";
 import { RadarFreeLimitModal } from "@/components/radar-free-limit-modal";
+import { FREE_COVERED_STOCKS } from "@/lib/entitlements";
 import { flushWatchlistRebuild } from "@/lib/radar-client-refresh";
 import { dispatchRadarTrackChanged } from "@/lib/radar-track-events";
 import {
@@ -215,7 +216,7 @@ export function RadarBatchEditModal({
 
   async function onSubmit() {
     setError(null);
-    if (!isSubscribed && items.length > freeLimit) {
+    if (!isSubscribed && Number.isFinite(freeLimit) && items.length > freeLimit) {
       setLimitModalOpen(true);
       return;
     }
@@ -254,7 +255,7 @@ export function RadarBatchEditModal({
           setLimitModalOpen(true);
           return;
         }
-        throw new Error(data?.error || "batch_update_failed");
+        throw new Error((data?.error === "swap_limit_reached" && data?.reason) || data?.error || "batch_update_failed");
       }
 
       const initialIds = new Set(initialItems.map((i) => i.instrument_id));
@@ -309,7 +310,7 @@ export function RadarBatchEditModal({
               <div className="flex items-center gap-3">
                 <h3 className="text-[18px] font-semibold text-on-surface tracking-[-0.01em]">Edit your Watchlist</h3>
                 <span className="rounded-full bg-surface-container px-2.5 py-0.5 text-[11px] font-semibold text-on-surface-variant tabular-nums">
-                  {items.length}{!isSubscribed ? `/${freeLimit}` : ""}
+                  {items.length}{!isSubscribed && Number.isFinite(freeLimit) ? `/${freeLimit}` : ""}
                 </span>
               </div>
               <button
@@ -439,7 +440,9 @@ export function RadarBatchEditModal({
               {error ? (
                 <p className="text-[12px] text-[#ef4444] font-medium">{error}</p>
               ) : !isSubscribed ? (
-                <p className="text-[11px] text-[#f59e0b]">Free plan · {freeLimit} stocks max</p>
+                <p className="text-[11px] text-on-surface-variant">
+                  {Number.isFinite(freeLimit) ? `Free plan · ${freeLimit} stocks max` : `Track as many as you like. Free covers ${FREE_COVERED_STOCKS} in full.`}
+                </p>
               ) : <span />}
               <div className="flex items-center gap-2">
                 <button

@@ -6,6 +6,7 @@ import os
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from backend.subscription_entitlement import is_pro_user
 from backend.env import load_backend_env, resolve_backend_path
 from backend.jev_qa import gate_brief
 from backend.localdb.firestore import LocalFirestoreClient
@@ -1452,7 +1453,30 @@ class TraceMoneyStore:
                 trigger_type, trigger_value = "price_above", zones["trim_above"]
             generated_at = str(payload.get("generated_at") or datetime.now(timezone.utc).isoformat())
             date_key = generated_at[:10]  # YYYY-MM-DD
+            # When the call engine decided this directive, record why. Additive:
+            # nothing is added for directives from the old rule.
+            engine = payload.get("call_engine") if isinstance(payload.get("call_engine"), dict) else None
+            engine_fields: dict[str, Any] = {}
+            if engine and str(directive.get("version") or "").startswith("call-engine"):
+                change = engine.get("change") if isinstance(engine.get("change"), dict) else {}
+                engine_zones = engine.get("zones") if isinstance(engine.get("zones"), dict) else {}
+                engine_fields = {
+                    "engine_call": engine.get("call"),
+                    "engine_rank_pct": engine.get("rank_pct"),  # v2 only; None from v3
+                    "engine_score": engine.get("score"),
+                    "engine_votes": engine.get("votes"),  # v3: families for / against / scored
+                    "engine_coverage": engine.get("coverage"),
+                    "engine_since": engine.get("since"),
+                    "engine_changed": bool(engine.get("changed")),
+                    "engine_trigger": change.get("trigger") if engine.get("changed") else None,
+                    "engine_reason": change.get("reason") if engine.get("changed") else None,
+                    "add_below": engine_zones.get("accumulate_below"),
+                    "trim_above": engine_zones.get("trim_above"),
+                    "levels_anchored_on": engine_zones.get("anchored_on"),
+                    "review_on": engine.get("review_on"),
+                }
             self.db.collection("tm_directive_history").document(instrument_id).collection("calls").document(date_key).set({
+                **engine_fields,
                 "instrument_id": instrument_id,
                 "market": market_up,
                 "stance": stance,
@@ -1465,6 +1489,85 @@ class TraceMoneyStore:
                 "price_at_call": float(price_at_call),
                 "generated_at": generated_at,
             }, merge=True)
+
+    # ── rolling evidence history (tm_evidence_history) ─────────────────────
+    # One document per stock or sector holding its recent daily evidence rows.
+    # Before these existed the brief builder looked the loaders up with
+    # getattr(), found nothing, and every run started from a cold history.
+
+    @staticmethod
+    def _evidence_history_doc_id(market: str, kind: str, subject_id: str) -> str:
+        safe = str(subject_id or "").strip().replace("/", "-")
+        return f"{str(market or '').strip().upper()}__{kind}__{safe}"
+
+    def _get_evidence_history(self, market: str, kind: str, subject_ids: list[str], days: int) -> dict[str, list[dict[str, Any]]]:
+        subject_ids = [str(item) for item in subject_ids if str(item or "").strip()]
+        cutoff = (datetime.now(timezone.utc).date() - timedelta(days=max(1, int(days)))).isoformat()
+        collection = self.db.collection("tm_evidence_history")
+        out: dict[str, list[dict[str, Any]]] = {}
+        for start in range(0, len(subject_ids), 300):
+            chunk = subject_ids[start : start + 300]
+            by_doc_id = {self._evidence_history_doc_id(market, kind, item): item for item in chunk}
+            for doc in self.db.get_all([collection.document(doc_id) for doc_id in by_doc_id]):
+                if not doc.exists:
+                    continue
+                rows = (_serialize(doc.to_dict()) or {}).get("rows") or []
+                kept = [row for row in rows if isinstance(row, dict) and str(row.get("day") or "") >= cutoff]
+                if kept:
+                    out[by_doc_id[doc.id]] = kept
+        return out
+
+    def get_stock_evidence_history(self, market: str, instrument_ids: list[str], days: int = 14) -> dict[str, list[dict[str, Any]]]:
+        """Stored daily evidence rows per instrument_id for the last ``days`` days."""
+        return self._get_evidence_history(market, "stock", instrument_ids, days)
+
+    def get_sector_evidence_history(self, market: str, sector_slugs: list[str], days: int = 14) -> dict[str, list[dict[str, Any]]]:
+        """Stored daily evidence rows per sector slug for the last ``days`` days."""
+        return self._get_evidence_history(market, "sector", sector_slugs, days)
+
+    def save_evidence_history_rows(
+        self,
+        market: str,
+        stock_rows: dict[str, list[dict[str, Any]]] | None = None,
+        sector_rows: dict[str, list[dict[str, Any]]] | None = None,
+    ) -> int:
+        """Persist the merged daily rows (see merge_evidence_history_for_storage)."""
+        now = datetime.now(timezone.utc).isoformat()
+        market_up = str(market or "").strip().upper()
+        writes: list[tuple[str, dict[str, Any]]] = []
+        for kind, mapping in (("stock", stock_rows or {}), ("sector", sector_rows or {})):
+            for subject_id, rows in mapping.items():
+                rows = [row for row in rows or [] if isinstance(row, dict) and row.get("day")]
+                if not subject_id or not rows:
+                    continue
+                writes.append((
+                    self._evidence_history_doc_id(market_up, kind, subject_id),
+                    {
+                        "market": market_up,
+                        "subject_kind": kind,
+                        "subject_id": str(subject_id),
+                        "rows": rows,
+                        "latest_day": str(rows[-1].get("day")),
+                        "updated_at": now,
+                    },
+                ))
+        collection = self.db.collection("tm_evidence_history")
+        for start in range(0, len(writes), 100):
+            batch = self.db.batch()
+            for doc_id, payload in writes[start : start + 100]:
+                batch.set(collection.document(doc_id), payload)
+            batch.commit()
+        return len(writes)
+
+    # ── call engine ────────────────────────────────────────────────────────
+
+    def get_call_engine_state(self, symbol: str) -> dict[str, Any] | None:
+        """The call the daily scoring job (agentdata/call_scores.py) stored for a ticker."""
+        doc_id = str(symbol or "").strip().upper().replace("/", "-")
+        if not doc_id:
+            return None
+        doc = self.db.collection("tm_call_engine_state").document(doc_id).get()
+        return _serialize(doc.to_dict()) if doc.exists else None
 
     def save_stock_intelligence_docs(self, market: str, universe_id: str, docs_payload: list[dict[str, Any]]) -> None:
         namespace = self._news_namespace(market, universe_id)
@@ -2004,6 +2107,10 @@ class TraceMoneyStore:
                 "subscriptionId",
                 "subscriptionStatus",
                 "cancelAtPeriodEnd",
+                # The app's Pro rule (is_pro_user) and coverage (covered_instrument_ids) read these too.
+                "proGifted",
+                "proGiftExpiresAt",
+                "covered_stocks",
             ])
             .stream()
         )
@@ -2047,7 +2154,7 @@ class TraceMoneyStore:
             return []
         matched: list[str] = []
         for user in self.list_subscribed_users():
-            if subscribed_only and not bool(user.get("is_subscribed")):
+            if subscribed_only and not is_pro_user(user):
                 continue
             tracked = user.get("tracked_stocks") or []
             if not isinstance(tracked, list):

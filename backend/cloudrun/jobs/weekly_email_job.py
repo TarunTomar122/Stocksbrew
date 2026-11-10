@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
 
@@ -13,6 +14,9 @@ def main() -> None:
     parser.add_argument("--universe", default="")
     parser.add_argument("--limit", type=int, default=0)
     args = parser.parse_args()
+    if os.environ.get("MAIL_V2_ACTIVE") == "1":
+        print("[legacy email] MAIL_V2_ACTIVE=1: backend/mail sends the daily and weekly now; skipping")
+        return
 
     build_cmd = [
         sys.executable,

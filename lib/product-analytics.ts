@@ -35,7 +35,9 @@ export type PaywallSurface =
   | "interesting_stocks"
   | "locked_ai_brief"
   | "locked_verdict_call"
-  | "locked_room_to_target";
+  | "locked_room_to_target"
+  /** The shared gate (components/oa/gate.tsx); the feature id goes in `feature`. */
+  | "entitlement";
 
 function dedupeSession(key: string): boolean {
   try {
@@ -69,9 +71,10 @@ export function trackLandingCtaClicked(props: {
 export function trackPaywallShown(props: {
   surface: PaywallSurface;
   ticker?: string;
+  feature?: string;
   signedIn?: boolean;
 }) {
-  const key = `paywall_shown:${props.surface}:${props.ticker ?? "none"}`;
+  const key = `paywall_shown:${props.surface}:${props.feature ?? ""}:${props.ticker ?? "none"}`;
   if (!dedupeSession(key)) return;
   captureEvent("paywall_shown", props);
 }
@@ -79,6 +82,7 @@ export function trackPaywallShown(props: {
 export function trackPaywallUnlockClicked(props: {
   surface: PaywallSurface;
   ticker?: string;
+  feature?: string;
   signedIn: boolean;
 }) {
   captureEvent("paywall_unlock_clicked", props);

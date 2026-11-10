@@ -16,7 +16,7 @@ export function StartFreeButton({
 }: {
   surface: AuthSurface;
   size?: "md" | "sm" | "xs";
-  variant?: "primary" | "secondary" | "ghost";
+  variant?: "primary" | "outline" | "secondary" | "ghost";
   label?: string;
   className?: string;
 }) {

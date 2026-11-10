@@ -1,0 +1,200 @@
+import { indexableBlogPosts } from "@/lib/blog-data";
+import { CALENDAR_TYPES, todayET } from "@/lib/calendar-shared";
+import { GUIDES, SECTIONS, guideHref } from "@/lib/docs";
+import { LEGAL_DOCS } from "@/lib/docs/company";
+import { DOC_COMPARISONS, docCompareHref } from "@/lib/docs/compare";
+import { adminFirestore } from "@/lib/firebase-admin";
+import { getFollowSources } from "@/lib/follow";
+import { INVESTMENT_THEMES } from "@/lib/investment-themes";
+import { getMarketsData } from "@/lib/markets";
+import { assetHref } from "@/lib/markets-shared";
+import { INDEXED_STOCK_TICKERS } from "@/lib/seo/stock-pages";
+import { listStrategies } from "@/lib/strategies";
+
+export const SITE_BASE = "https://www.stocksbrew.online";
+
+/**
+ * The sitemap is split by kind of page so Search Console reports indexing per
+ * family. /sitemap.xml is the index; each family is /sitemaps/<family>.xml.
+ *
+ * Two rules hold for every family:
+ * - only addresses that render an indexable page themselves (no redirects, no noindex);
+ * - `lastmod` only when we hold a real date for the content. No date is better than today's date.
+ */
+export const SITEMAP_FAMILIES = [
+  "pages",
+  "docs",
+  "blog",
+  "stocks",
+  "earnings",
+  "themes",
+  "strategies",
+  "funds",
+  "congress",
+  "markets",
+] as const;
+
+export type SitemapFamily = (typeof SITEMAP_FAMILIES)[number];
+
+export type SitemapEntry = { path: string; lastmod?: string };
+
+export function isSitemapFamily(value: string): value is SitemapFamily {
+  return (SITEMAP_FAMILIES as readonly string[]).includes(value);
+}
+
+/** The product surfaces. Tab and type views are listed where they carry their own title and canonical. */
+const PAGES = [
+  "/",
+  "/briefing",
+  "/explore",
+  "/ask",
+  "/news",
+  "/calendar",
+  ...CALENDAR_TYPES.map((type) => `/calendar?type=${type.id}`),
+  "/signals",
+  "/signals?tab=movers",
+  "/signals?tab=reddit",
+  "/signals?tab=policy",
+  "/screener",
+  "/screener?tab=sectors",
+  "/compare",
+  "/filings",
+  "/backtest",
+  "/practice",
+  "/insiders",
+  "/portfolio",
+  "/agents",
+  "/pricing",
+  "/developers",
+  "/security",
+  "/about",
+] as const;
+
+const MARKET_CLASSES = ["indices", "etfs", "rates", "commodities", "fx", "crypto", "options", "predictions"] as const;
+
+/** A day (YYYY-MM-DD) from a stored timestamp, or nothing when it is not a usable date. */
+function day(value: unknown): string | undefined {
+  const text = typeof value === "string" ? value.slice(0, 10) : "";
+  return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : undefined;
+}
+
+/** When each indexed stock page was last rebuilt from the store. Empty when the store cannot be read. */
+async function stockBuiltDates(): Promise<Map<string, string>> {
+  const dates = new Map<string, string>();
+  try {
+    // The page documents are large; read only two fields. The LocalDB adapter
+    // (lib/local-firestore.ts) takes the field list as one array, unlike
+    // Firebase's spread arguments. On a Firebase rollback this throws, the catch
+    // below runs and stock pages are listed without dates.
+    const query = adminFirestore.collection("tm_stock_page_views").where("market", "==", "US") as unknown as {
+      select(fields: string[]): { get(): Promise<{ docs: Array<{ data(): unknown }> }> };
+    };
+    const snap = await query.select(["ticker", "built_at"]).get();
+    for (const doc of snap.docs) {
+      const data = doc.data() as { ticker?: unknown; built_at?: unknown };
+      const built = day(data.built_at);
+      if (typeof data.ticker === "string" && built) dates.set(data.ticker.toUpperCase(), built);
+    }
+  } catch {
+    // No dates is fine: the addresses are still listed.
+  }
+  return dates;
+}
+
+/** Indexed stocks with an earnings report still ahead. Those are the per-ticker earnings pages that are indexable for certain. */
+async function upcomingEarningsTickers(): Promise<string[]> {
+  const today = todayET();
+  const until = new Date(`${today}T00:00:00Z`);
+  until.setUTCDate(until.getUTCDate() + 120);
+  const upcoming = new Set<string>();
+  try {
+    // Loaded here, not at the top: the calendar reader only works inside a server render.
+    const { loadCalendarRange } = await import("@/lib/calendar");
+    const range = await loadCalendarRange(today, until.toISOString().slice(0, 10), today);
+    for (const item of range.items) {
+      if (item.kind === "earnings" && item.epsActual === null) upcoming.add(item.ticker.toUpperCase());
+    }
+  } catch {
+    // No calendar, no earnings pages listed for this build.
+  }
+  return INDEXED_STOCK_TICKERS.filter((ticker) => upcoming.has(ticker));
+}
+
+export async function sitemapEntries(family: SitemapFamily): Promise<SitemapEntry[]> {
+  const entries: SitemapEntry[] = [];
+  switch (family) {
+    case "pages":
+      for (const path of PAGES) entries.push({ path });
+      for (const doc of LEGAL_DOCS) entries.push({ path: `/legal/${doc.slug}`, lastmod: day(doc.updated) });
+      break;
+    case "docs":
+      entries.push({ path: "/docs" }, { path: "/docs/glossary" }, { path: "/docs/compare" });
+      for (const section of SECTIONS) entries.push({ path: `/docs/${section.id}` });
+      for (const guide of GUIDES) entries.push({ path: guideHref(guide), lastmod: day(guide.updated) });
+      for (const comparison of DOC_COMPARISONS) entries.push({ path: docCompareHref(comparison.slug) });
+      break;
+    case "blog":
+      entries.push({ path: "/blog" });
+      for (const post of indexableBlogPosts) entries.push({ path: `/blog/${post.slug}`, lastmod: day(post.updated ?? post.date) });
+      break;
+    case "stocks": {
+      const built = await stockBuiltDates();
+      for (const ticker of INDEXED_STOCK_TICKERS) entries.push({ path: `/stock/${ticker}`, lastmod: built.get(ticker) });
+      break;
+    }
+    case "earnings":
+      for (const ticker of await upcomingEarningsTickers()) entries.push({ path: `/calendar/earnings/${ticker}` });
+      break;
+    case "themes":
+      entries.push({ path: "/themes" });
+      for (const theme of INVESTMENT_THEMES) entries.push({ path: `/themes/${theme.slug}` });
+      break;
+    case "strategies": {
+      entries.push({ path: "/strategies" });
+      // If the store cannot be read, leave the detail pages out for this build rather than fail the sitemap.
+      const strategies = await listStrategies().catch(() => []);
+      for (const strategy of strategies) entries.push({ path: `/strategies/${strategy.slug}` });
+      break;
+    }
+    case "funds":
+    case "congress": {
+      if (family === "funds") entries.push({ path: "/follow" });
+      const kind = family === "funds" ? "fund" : "congress";
+      const sources = await getFollowSources().catch(() => []);
+      for (const source of sources) {
+        if (source.kind !== kind) continue;
+        // A lawmaker with no reported trades has an empty page: leave it out.
+        if (kind === "congress" && !(source.stats && source.stats.trades > 0)) continue;
+        entries.push({ path: `/follow/${source.slug}`, lastmod: day(source.latest_date) });
+      }
+      break;
+    }
+    case "markets": {
+      entries.push({ path: "/markets" });
+      for (const slug of MARKET_CLASSES) entries.push({ path: `/markets/${slug}` });
+      const data = await getMarketsData().catch(() => null);
+      for (const asset of data?.assets ?? []) entries.push({ path: assetHref(asset), lastmod: day(asset.as_of) });
+      break;
+    }
+  }
+  // Never list an address twice.
+  const seen = new Set<string>();
+  return entries.filter((entry) => (seen.has(entry.path) ? false : (seen.add(entry.path), true)));
+}
+
+function escapeXml(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+export function urlsetXml(entries: SitemapEntry[]): string {
+  const rows = entries.map((entry) => {
+    const modified = entry.lastmod ? `<lastmod>${entry.lastmod}</lastmod>` : "";
+    return `  <url><loc>${escapeXml(`${SITE_BASE}${entry.path}`)}</loc>${modified}</url>`;
+  });
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${rows.join("\n")}\n</urlset>`;
+}
+
+export function sitemapIndexXml(families: readonly SitemapFamily[]): string {
+  const rows = families.map((family) => `  <sitemap><loc>${SITE_BASE}/sitemaps/${family}.xml</loc></sitemap>`);
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${rows.join("\n")}\n</sitemapindex>`;
+}

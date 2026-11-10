@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Tikrr agent data: SEC filings, insiders and calendar events, hourly
+
+[Timer]
+OnCalendar=*:20
+Persistent=true
+AccuracySec=10min
+Unit=tikrr-agentdata-hourly.service
+
+[Install]
+WantedBy=timers.target

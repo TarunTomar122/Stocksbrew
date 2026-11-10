@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from backend.subscription_entitlement import is_pro_user
 from backend.email import send_email
 from backend.email_content import clean_optional_email_text
 from backend.email_runtime import load_recent_send_index, log_email_send
@@ -100,7 +101,8 @@ def user_digest_enabled(user: dict[str, Any]) -> bool:
 
 
 def is_pro_subscriber(user: dict[str, Any]) -> bool:
-    return bool(user.get("is_subscribed"))
+    """Who gets a Pro email: the same rule the app uses (lib/watchlist.ts resolveIsSubscribed)."""
+    return is_pro_user(user)
 
 
 def _company_by_ticker(rows: list[dict[str, Any]]) -> dict[str, str]:
@@ -304,7 +306,7 @@ def process_premarket_briefs(
         return stats
 
     users = store.db.collection("users").select(
-        ["email", "email_lower", "is_subscribed", "email_digest_enabled", "display_name"]
+        ["email", "email_lower", "is_subscribed", "subscriptionStatus", "proGifted", "proGiftExpiresAt", "email_digest_enabled", "display_name"]
     ).stream()
 
     for doc in users:

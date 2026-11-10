@@ -4,8 +4,8 @@
 > systemd pipeline and July 2026 live benchmarks, use
 > `docs/production-data-pipeline-2026-07.md`.
 
-Verified on 2026-05-31 against Cloud Run/Scheduler project `tikrr-496409` and
-Firestore project `trace-money-72276`.
+Verified on 2026-05-31 against Cloud Run/Scheduler project `<gcp-project>` and
+Firestore project `<firebase-project-id>`.
 
 ## Non-Negotiables
 

@@ -57,7 +57,7 @@ async function trackAll(ids: string[], positionType: "holding" | "watchlist"): P
   const added: string[] = [];
   const skipped: string[] = [];
   let limitReached = false;
-  let limitAt = 3;
+  let limitAt = 5;
 
   for (let i = 0; i < ids.length; i++) {
     const settlement = settlements[i];
@@ -71,9 +71,10 @@ async function trackAll(ids: string[], positionType: "holding" | "watchlist"): P
       added.push(instrumentId);
     } else {
       const data = await res.json().catch(() => ({}));
-      if (data?.error === "free_tier_limit_reached") {
+      // Both the follow limit and the weekly swap budget stop the add; show the limit either way.
+      if (data?.error === "free_tier_limit_reached" || data?.error === "swap_limit_reached") {
         limitReached = true;
-        limitAt = data?.limit ?? 3;
+        limitAt = data?.limit ?? 5;
       }
       skipped.push(instrumentId);
     }

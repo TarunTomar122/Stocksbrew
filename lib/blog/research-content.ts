@@ -79,7 +79,7 @@ export const researchBlogContent: Record<string, string> = {
 <div class="cta-section">
   <h3>See What Changed After Earnings</h3>
   <p>Browse free Earnings Intel reports for a plain-English post-results read, then add the names you follow to Watchlist for ongoing context.</p>
-  <a href="/earnings-intel" class="cta-button">Browse Earnings Intel →</a>
+  <a href="/calendar?type=earnings" class="cta-button">Browse Earnings Intel →</a>
 </div>
 `,
 
@@ -180,7 +180,7 @@ export const researchBlogContent: Record<string, string> = {
   <li>the explicit invalidation condition.</li>
 </ul>
 
-<p>Use <a href="/earnings">Earnings</a> for dates, <a href="/news">News</a> for ticker-specific developments, and <a href="/radar">Watchlist</a> to monitor calls and risk flags. These tools reduce the scanning burden; they do not change the underlying evidence standard.</p>
+<p>Use <a href="/calendar?type=earnings">Earnings</a> for dates, <a href="/news">News</a> for ticker-specific developments, and <a href="/watchlist">Watchlist</a> to monitor calls and risk flags. These tools reduce the scanning burden; they do not change the underlying evidence standard.</p>
 
 <h2 id="ai-boundary">Where AI helps—and where it should stop</h2>
 
@@ -211,7 +211,7 @@ export const researchBlogContent: Record<string, string> = {
 <div class="cta-section">
   <h3>Turn the checklist into a live watch list</h3>
   <p>Use Should I Buy for a structured first pass, then monitor the names that survive your research on Watchlist. Free for three stocks.</p>
-  <a href="/should-i-buy" class="cta-button">Run a structured check →</a>
+  <a href="/screener" class="cta-button">Run a structured check →</a>
 </div>
 `,
 
@@ -238,7 +238,7 @@ export const researchBlogContent: Record<string, string> = {
   <li><strong>Time cost:</strong> how much manual filtering remains after setup.</li>
 </ol>
 
-<p>We verified Finviz against its <a href="https://finviz.com/elite" rel="noopener noreferrer">official Elite page</a> and TradingView against its <a href="https://www.tradingview.com/features/" rel="noopener noreferrer">official feature overview</a>. stocksbrew details reflect the live product and <a href="/subscribe">current pricing page</a>. Plans change, so use those linked pages for the final purchase decision.</p>
+<p>We verified Finviz against its <a href="https://finviz.com/elite" rel="noopener noreferrer">official Elite page</a> and TradingView against its <a href="https://www.tradingview.com/features/" rel="noopener noreferrer">official feature overview</a>. stocksbrew details reflect the live product and <a href="/pricing">current pricing page</a>. Plans change, so use those linked pages for the final purchase decision.</p>
 
 <h2 id="matrix">Decision matrix</h2>
 
@@ -319,12 +319,12 @@ export const researchBlogContent: Record<string, string> = {
 
 <p>Pick <strong>Finviz</strong> if you need to find stocks. Pick <strong>TradingView</strong> if you need to analyze and automate charts. Pick <strong>stocksbrew</strong> if you need to maintain a small watchlist with written context. If you actively research individual US stocks, the most coherent stack is often Finviz for discovery, TradingView for charts, and stocksbrew for ongoing monitoring—using primary filings as the source of truth throughout.</p>
 
-<p>Read our <a href="/editorial-policy">editorial and comparison methodology</a> for sourcing, corrections, and conflicts. You can also compare <a href="/compare/stocksbrew-vs-finviz">stocksbrew vs Finviz</a> and <a href="/compare/stocksbrew-vs-tradingview">stocksbrew vs TradingView</a> in more detail.</p>
+<p>Read our <a href="/docs/methodology">editorial and comparison methodology</a> for sourcing, corrections, and conflicts. You can also compare <a href="/docs/compare/stocksbrew-vs-finviz">stocksbrew vs Finviz</a> and <a href="/docs/compare/stocksbrew-vs-tradingview">stocksbrew vs TradingView</a> in more detail.</p>
 
 <div class="cta-section">
   <h3>Try the monitoring layer</h3>
   <p>Add three US stocks to Watchlist free. Keep your screener and charting workflow; use stocksbrew to track what changes afterward.</p>
-  <a href="/radar" class="cta-button">Open Watchlist →</a>
+  <a href="/watchlist" class="cta-button">Open Watchlist →</a>
 </div>
 `,
 };

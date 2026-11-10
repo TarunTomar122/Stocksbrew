@@ -1,0 +1,128 @@
+"""Run the agent data jobs in groups, on a schedule.
+
+Each group is a list of the modules in this package with the arguments a
+routine refresh needs. The runner starts them one after another (several talk
+to SEC EDGAR, which rate-limits by address, so they must not overlap), keeps
+going when one fails, and exits non-zero if any did so the timer shows red.
+
+Run it::
+
+    python3 -m backend.agentdata.schedule --group frequent
+    python3 -m backend.agentdata.schedule --group after_close --dry-run   # print the plan, run nothing
+    python3 -m backend.agentdata.schedule --list
+
+Groups and what they keep fresh:
+
+* ``frequent``     the wire (headlines, then their tone and themes) and the markets page (every 30 minutes)
+* ``hourly``       SEC filings, Form 4 insiders, the calendar's releases, IPOs and dividends
+* ``after_close``  daily prices, strategy baskets and their live record, earnings
+                   dates and reactions, the screener snapshot, then the standing agents
+* ``weekly``       13F fund portfolios, who holds each stock, House trade reports
+
+Nothing here is installed by importing it. The systemd units that call it are
+in ``backend/vps/units/tikrr-agentdata-*.{service,timer}``.
+
+Standard library only.
+"""
+
+from __future__ import annotations
+
+import argparse
+import shutil
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+_ROOT = Path(__file__).resolve().parents[2]
+
+# (label, argv). A plain list is a Python module run as ``python -m``.
+# A list starting with "node:" is the TypeScript agent runner.
+GROUPS: dict[str, list[tuple[str, list[str]]]] = {
+    "frequent": [
+        ("news", ["backend.agentdata.news_feed", "--days", "3"]),
+        # Tone and theme for each new headline; skips itself without ANTHROPIC_API_KEY.
+        ("news tone", ["backend.agentdata.news_tone", "--hours", "50"]),
+        ("markets", ["backend.agentdata.markets"]),
+    ],
+    "hourly": [
+        ("sec filings", ["backend.agentdata.sec_filings", "--days", "7"]),
+        ("insider trades", ["backend.agentdata.insiders_form4", "--days", "7"]),
+        ("calendar events", ["backend.agentdata.calendar_events"]),
+    ],
+    "after_close": [
+        ("prices and strategies", ["backend.agentdata.backtest_strategies"]),
+        ("earnings calendar", ["backend.agentdata.earnings_calendar"]),
+        ("earnings reactions", ["backend.agentdata.earnings_reactions"]),
+        ("screener snapshot", ["backend.agentdata.screener"]),
+        ("standing agents", ["node:scripts/run-agent-jobs.ts"]),
+    ],
+    "weekly": [
+        ("13F funds", ["backend.agentdata.funds_13f"]),
+        ("fund holders", ["backend.agentdata.fund_holders"]),
+        # No --years: the job replaces each member's whole profile, so a run
+        # limited to one year would shrink every record to that year.
+        ("house trade reports", ["backend.agentdata.house_ptr"]),
+    ],
+}
+
+# A job that hangs must not hold the group, and the next timer run, forever.
+TIMEOUT_SECONDS = {"frequent": 20 * 60, "hourly": 40 * 60, "after_close": 90 * 60, "weekly": 4 * 60 * 60}
+
+
+def command_for(argv: list[str]) -> list[str] | None:
+    """The process to start for one job, or None when it cannot run on this machine."""
+    head = argv[0]
+    if head.startswith("node:"):
+        runner = _ROOT / "node_modules" / ".bin" / "vite-node"
+        if not runner.exists() or shutil.which("node") is None:
+            return None
+        return [str(runner), "-c", "vitest.config.ts", head.split(":", 1)[1], *argv[1:]]
+    return [sys.executable, "-m", head, *argv[1:]]
+
+
+def plan(group: str) -> list[tuple[str, list[str] | None]]:
+    if group not in GROUPS:
+        raise KeyError(group)
+    return [(label, command_for(argv)) for label, argv in GROUPS[group]]
+
+
+def run_group(group: str, *, dry_run: bool = False, out=sys.stdout) -> int:
+    failures = 0
+    for label, command in plan(group):
+        if command is None:
+            print(f"[{group}] skip  {label}: needs node and node_modules on this machine", file=out, flush=True)
+            continue
+        if dry_run:
+            print(f"[{group}] would run {label}: {' '.join(command)}", file=out, flush=True)
+            continue
+        started = time.monotonic()
+        try:
+            code = subprocess.run(command, cwd=_ROOT, timeout=TIMEOUT_SECONDS[group], check=False).returncode
+        except subprocess.TimeoutExpired:
+            code = 124
+        seconds = time.monotonic() - started
+        status = "ok" if code == 0 else f"FAILED ({code})"
+        print(f"[{group}] {status:12s} {label} in {seconds:.0f}s", file=out, flush=True)
+        if code != 0:
+            failures += 1
+    return 1 if failures else 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Run one group of the agent data jobs.")
+    parser.add_argument("--group", choices=sorted(GROUPS))
+    parser.add_argument("--dry-run", action="store_true", help="print the plan and run nothing")
+    parser.add_argument("--list", action="store_true", help="print every group and its jobs")
+    args = parser.parse_args(argv)
+    if args.list:
+        for group, jobs in GROUPS.items():
+            print(f"{group}: {', '.join(label for label, _ in jobs)}")
+        return 0
+    if not args.group:
+        parser.error("--group is required (or --list)")
+    return run_group(args.group, dry_run=args.dry_run)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

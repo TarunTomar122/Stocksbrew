@@ -1,0 +1,277 @@
+/*
+ * Reading styles for blog posts. The posts are stored as HTML strings
+ * (lib/blog/*), so the styling has to reach plain tags and the handful of
+ * classes those strings use. Colours come from the --oa-* tokens, which
+ * already switch for dark mode, so there are no dark overrides here.
+ */
+
+.prose {
+  color: color-mix(in srgb, var(--oa-fg) 90%, transparent);
+  font-size: 17px;
+  line-height: 1.75;
+  overflow-wrap: break-word;
+}
+
+.prose :where(p, ul, ol, blockquote, figure, pre, table) {
+  margin: 1.15em 0;
+}
+
+.prose > :first-child {
+  margin-top: 0;
+}
+
+.prose :where(h2) {
+  margin: 2.2em 0 0.6em;
+  padding-top: 1.4em;
+  border-top: 1px solid var(--oa-border);
+  color: var(--oa-fg);
+  font-size: 23px;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  scroll-margin-top: 6rem;
+}
+
+.prose :where(h3) {
+  margin: 1.8em 0 0.5em;
+  color: var(--oa-fg);
+  font-size: 19px;
+  font-weight: 500;
+  line-height: 1.35;
+  scroll-margin-top: 6rem;
+}
+
+.prose :where(h4) {
+  margin: 1.4em 0 0.4em;
+  color: var(--oa-fg);
+  font-size: 16.5px;
+  font-weight: 500;
+}
+
+.prose :where(strong) {
+  color: var(--oa-fg);
+  font-weight: 600;
+}
+
+.prose :where(a) {
+  color: var(--oa-fg);
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--oa-primary) 55%, transparent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.prose :where(a):hover {
+  text-decoration-color: var(--oa-primary);
+}
+
+.prose :where(ul) {
+  list-style: none;
+  padding-left: 0;
+}
+
+.prose :where(ul > li) {
+  position: relative;
+  margin: 0.45em 0;
+  padding-left: 1.25rem;
+}
+
+.prose :where(ul > li)::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.72em;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--oa-primary);
+}
+
+.prose :where(ol) {
+  padding-left: 1.5rem;
+  list-style: decimal;
+}
+
+.prose :where(ol > li) {
+  margin: 0.45em 0;
+  padding-left: 0.25rem;
+}
+
+.prose :where(ol > li)::marker {
+  color: var(--oa-label);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.85em;
+}
+
+.prose :where(blockquote) {
+  margin-left: 0;
+  margin-right: 0;
+  padding: 0.2em 0 0.2em 1rem;
+  border-left: 2px solid var(--oa-primary);
+  color: var(--oa-fg);
+}
+
+.prose :where(hr) {
+  display: none;
+}
+
+.prose :where(img) {
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--oa-border);
+  border-radius: 10px;
+}
+
+.prose :where(code) {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--oa-bg);
+  color: var(--oa-fg);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.88em;
+}
+
+.prose :where(pre) {
+  overflow-x: auto;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--oa-border);
+  border-radius: 10px;
+  background: var(--oa-bg);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.prose :where(pre code) {
+  padding: 0;
+  background: none;
+}
+
+/* Tables: bare ones and the ones wrapped in .table-scroll both scroll sideways on a phone. */
+.prose :where(table) {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 14.5px;
+  line-height: 1.5;
+}
+
+.prose :global(.table-scroll) {
+  margin: 1.6em 0;
+  overflow-x: auto;
+  border: 1px solid var(--oa-border);
+  border-radius: 10px;
+  background: var(--oa-card);
+}
+
+.prose :global(.table-scroll) table {
+  display: table;
+  min-width: 640px;
+  margin: 0;
+}
+
+.prose :where(th) {
+  padding: 0.55rem 0.85rem;
+  border-bottom: 1px solid var(--oa-border);
+  background: var(--oa-bg);
+  color: var(--oa-label);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.prose :where(td) {
+  padding: 0.6rem 0.85rem;
+  border-bottom: 1px solid var(--oa-border);
+  vertical-align: top;
+}
+
+.prose :where(tr:last-child td) {
+  border-bottom: 0;
+}
+
+/* Boxes the post HTML uses. */
+.prose :global(.article-summary),
+.prose :global(.sample-brief),
+.prose :global(.source-note) {
+  margin: 1.6em 0;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--oa-border);
+  border-radius: 10px;
+  background: var(--oa-card);
+}
+
+.prose :global(.article-summary) {
+  border-color: color-mix(in srgb, var(--oa-primary) 40%, transparent);
+}
+
+.prose :global(.article-summary) :where(h2, h3, h4),
+.prose :global(.sample-brief) :where(h2, h3, h4) {
+  margin: 0 0 0.5em;
+  padding: 0;
+  border: 0;
+  font-size: 17px;
+}
+
+.prose :global(.article-summary) > :last-child,
+.prose :global(.sample-brief) > :last-child,
+.prose :global(.source-note) > :last-child {
+  margin-bottom: 0;
+}
+
+.prose :global(.source-note) {
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--oa-muted-fg);
+}
+
+.prose :global(.cta-section) {
+  margin: 2.2em 0 0;
+  padding: 1.1rem 1.2rem;
+  border: 1px solid var(--oa-border);
+  border-radius: 10px;
+  background: var(--oa-bg);
+}
+
+.prose :global(.cta-section) :where(h3) {
+  margin: 0 0 0.3em;
+  font-size: 18px;
+}
+
+.prose :global(.cta-section) :where(p) {
+  margin: 0 0 0.9em;
+  font-size: 15px;
+  color: var(--oa-muted-fg);
+}
+
+.prose :global(.cta-button) {
+  display: inline-flex;
+  align-items: center;
+  height: 2.25rem;
+  padding: 0 0.9rem;
+  border-radius: 8px;
+  background: var(--oa-fg);
+  color: var(--oa-page);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.prose :global(.cta-button):hover {
+  opacity: 0.9;
+}
+
+@media (max-width: 640px) {
+  .prose {
+    font-size: 16.5px;
+    line-height: 1.7;
+  }
+  .prose :where(h2) {
+    font-size: 21px;
+  }
+}

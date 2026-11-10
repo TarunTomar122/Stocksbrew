@@ -14,25 +14,25 @@ table tbody tr:hover > * {
 :root {
   color-scheme: light;
   /* Brand / primary - matches --oa-primary, the one accent */
-  --primary:                   #305dde;
-  --primary-container:         #4a72e8;
-  --primary-fixed:             #dce6fb;
-  --primary-fixed-dim:         #a9c0f5;
-  --on-primary:                #ffffff;
-  --on-primary-container:      #ffffff;
-  --on-primary-fixed:          #0a1a3d;
-  --on-primary-fixed-variant:  #1f3f99;
-  --inverse-primary:           #a9c0f5;
+  --primary:                   #a34f1a;
+  --primary-container:         #b9652c;
+  --primary-fixed:             #f3dfcb;
+  --primary-fixed-dim:         #e3b78f;
+  --on-primary:                #fffaf2;
+  --on-primary-container:      #fffaf2;
+  --on-primary-fixed:          #3a1a05;
+  --on-primary-fixed-variant:  #7a3a10;
+  --inverse-primary:           #e3b78f;
 
   /* Secondary - collapsed to neutral (was amber). Decorative accents go grayscale. */
-  --secondary:                   #475569;
-  --secondary-container:         #eef0f3;
-  --secondary-fixed:             #eef0f3;
-  --secondary-fixed-dim:         #dfe3e8;
+  --secondary:                   #5f574b;
+  --secondary-container:         #ece5d6;
+  --secondary-fixed:             #ece5d6;
+  --secondary-fixed-dim:         #ddd4c2;
   --on-secondary:                #ffffff;
-  --on-secondary-container:      #1f242b;
-  --on-secondary-fixed:          #111215;
-  --on-secondary-fixed-variant:  #3b4048;
+  --on-secondary-container:      #2a251d;
+  --on-secondary-fixed:          #1d1a15;
+  --on-secondary-fixed-variant:  #453e33;
 
   /* Tertiary - unused; aliased to brand so any stray use stays on-palette */
   --tertiary:                    var(--primary);
@@ -52,47 +52,47 @@ table tbody tr:hover > * {
 
   /* Surfaces - the light canvas matches the header; hierarchy comes from
      spacing, dividers, and intentional grouped surfaces rather than gutters. */
-  --background:                    #ffffff;
-  --surface:                       #ffffff;
-  --surface-bright:                #ffffff;
-  --surface-dim:                   #e4e5e7;
-  --surface-tint:                  #6d3bd7;
-  --surface-variant:               #ebecef;
-  --surface-container-lowest:      #ffffff;
-  --surface-container-low:         #f6f7f9;
-  --surface-container:             #f0f1f3;
-  --surface-container-high:        #eaebed;
-  --surface-container-highest:     #e4e5e7;
-  --inverse-surface:               #2e3132;
-  --inverse-on-surface:            #f0f1f3;
+  --background:                    #f0eadd;
+  --surface:                       #fbf8f1;
+  --surface-bright:                #fdfbf6;
+  --surface-dim:                   #e2dac9;
+  --surface-tint:                  #a34f1a;
+  --surface-variant:               #ebe4d5;
+  --surface-container-lowest:      #fdfbf6;
+  --surface-container-low:         #f7f2e8;
+  --surface-container:             #f0e9dc;
+  --surface-container-high:        #eae2d3;
+  --surface-container-highest:     #e3dac9;
+  --inverse-surface:               #2a251d;
+  --inverse-on-surface:            #f4efe4;
 
   /* On-surface / text */
-  --on-background:       #111215;
-  --on-surface:          #111215;
-  --on-surface-variant:  #2c3138;
+  --on-background:       #1d1a15;
+  --on-surface:          #1d1a15;
+  --on-surface-variant:  #3d372d;
 
   /* Outlines - darkened so card/section borders actually read as borders on
      a pure white background, not just a shadow away from invisible. */
-  --outline:          #a7acb6;
-  --outline-variant:  #c2c7d1;
+  --outline:          #a89e8c;
+  --outline-variant:  #d6cdbb;
 
   /* Chart neutrals need their own theme-aware colors. */
-  --chart-grid:   #d5d9e0;
-  --chart-axis:   #6b7280;
-  --chart-trend:  #111827;
-  --chart-geo:    #374151;
-  --chart-track:  #eef0f3;
-  --chart-tooltip-bg:     #202427;
-  --chart-tooltip-text:   #f8fafc;
-  --chart-tooltip-border: #343a40;
+  --chart-grid:   #ddd5c4;
+  --chart-axis:   #6f675a;
+  --chart-trend:  #1d1a15;
+  --chart-geo:    #453e33;
+  --chart-track:  #ece5d6;
+  --chart-tooltip-bg:     #231f19;
+  --chart-tooltip-text:   #f7f2e8;
+  --chart-tooltip-border: #3d372d;
 
   /* Semantic status colors — darker for WCAG AA text on white/light panels */
-  --signal-bullish:  #047857;
-  --signal-bearish:  #b91c1c;
-  --signal-neutral:  #475569;   /* hold/neutral is a gray, not a hue */
+  --signal-bullish:  #1f6b45;
+  --signal-bearish:  #b3261e;
+  --signal-neutral:  #5f574b;   /* hold/neutral is a gray, not a hue */
 
   /* Terminal accent (section labels, hold/watch) — neutralized from cyan */
-  --accent-terminal: #475569;
+  --accent-terminal: #8a5a2b;
 
   /* Landing aliases (overridden on .landing-page) — brand is purple, not green */
   --landing-brand: var(--primary);
@@ -109,7 +109,7 @@ table tbody tr:hover > * {
   --landing-glow-cyan: var(--primary);
   --landing-glow-mint-opacity: 16%;
   --landing-glow-cyan-opacity: 8%;
-  --landing-reddit: #2563eb;
+  --landing-reddit: #a34f1a;
 
   /* Shadows as CSS vars for consistency */
   --shadow-card: 0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.05);
@@ -121,15 +121,15 @@ table tbody tr:hover > * {
 /* ── Theme tokens: dark ─────────────────────────────────────────────────── */
 .dark {
   color-scheme: dark;
-  --primary:                   #a9c0f5;
-  --primary-container:         #1f3f99;
-  --primary-fixed:             #dce6fb;
-  --primary-fixed-dim:         #a9c0f5;
-  --on-primary:                #0a1a3d;
-  --on-primary-container:      #dce6fb;
-  --on-primary-fixed:          #0a1a3d;
-  --on-primary-fixed-variant:  #1f3f99;
-  --inverse-primary:           #305dde;
+  --primary:                   #e09a5c;
+  --primary-container:         #7a3a10;
+  --primary-fixed:             #f3dfcb;
+  --primary-fixed-dim:         #e09a5c;
+  --on-primary:                #2a1405;
+  --on-primary-container:      #f3dfcb;
+  --on-primary-fixed:          #2a1405;
+  --on-primary-fixed-variant:  #7a3a10;
+  --inverse-primary:           #a34f1a;
 
   --secondary:                   #94a3b8;
   --secondary-container:         #1e2530;
@@ -156,31 +156,31 @@ table tbody tr:hover > * {
 
   /* Neutral graphite surfaces. The page canvas and main surface deliberately
      match so full-width layouts do not leave darker gutters behind. */
-  --background:                    #121513;
-  --surface:                       #121513;
-  --surface-bright:                #29302d;
-  --surface-dim:                   #0d100f;
-  --surface-tint:                  #cbb5ff;
-  --surface-variant:               #29302d;
-  --surface-container-lowest:      #0d100f;
-  --surface-container-low:         #171b19;
-  --surface-container:             #1c221f;
-  --surface-container-high:        #222925;
-  --surface-container-highest:     #2a322e;
-  --inverse-surface:               #e1e2e4;
-  --inverse-on-surface:            #2e3132;
+  --background:                    #12100d;
+  --surface:                       #12100d;
+  --surface-bright:                #2e2921;
+  --surface-dim:                   #0c0b09;
+  --surface-tint:                  #e09a5c;
+  --surface-variant:               #2e2921;
+  --surface-container-lowest:      #0c0b09;
+  --surface-container-low:         #1a1713;
+  --surface-container:             #201c17;
+  --surface-container-high:        #27221c;
+  --surface-container-highest:     #302a22;
+  --inverse-surface:               #ebe4d5;
+  --inverse-on-surface:            #2a251d;
 
-  --on-background:       #f4f7f5;
-  --on-surface:          #f4f7f5;
-  --on-surface-variant:  #c7cec9;
+  --on-background:       #f2ecdf;
+  --on-surface:          #f2ecdf;
+  --on-surface-variant:  #cbc2b0;
 
   /* `outline` is for controls/focus. `outline-variant` is a deliberately
      quiet divider so dense finance screens do not look like high-contrast UI. */
-  --outline:          #76817a;
-  --outline-variant:  #343d38;
+  --outline:          #857b69;
+  --outline-variant:  #3a342a;
 
-  --chart-grid:   #323b36;
-  --chart-axis:   #aeb8b2;
+  --chart-grid:   #352f26;
+  --chart-axis:   #b0a694;
   --chart-trend:  #e5ebe7;
   --chart-geo:    #8ea49a;
   --chart-track:  #252d29;
@@ -190,9 +190,9 @@ table tbody tr:hover > * {
 
   --landing-card-border: var(--outline-variant);
 
-  --signal-bullish:  #4ade80;
-  --signal-bearish:  #fb7185;
-  --signal-neutral:  #94a3b8;   /* hold/neutral is a gray, not amber */
+  --signal-bullish:  #58c98a;
+  --signal-bearish:  #f0796b;
+  --signal-neutral:  #a39a8b;   /* hold/neutral is a gray, not amber */
 
   --accent-terminal: #bdc8c1;   /* neutralized from cyan */
 
@@ -423,39 +423,49 @@ table tbody tr:hover > * {
    site-wide header; only .oa-landing hides it. */
 .oa-landing,
 .oa-app {
-  --ink: #292929;
-  --oa-bg: #f6f6f6;            /* the grey stage between plates */
-  --oa-card: #ffffff;
+  /* The "brew" system: cream paper, espresso ink, one copper accent. Cards are
+     a warm near-white that lifts off a deeper cream page; wells and table head
+     rows inside a card drop back to the page tone. Copper is rationed: primary
+     button, active nav and tab, links, one key tag. Every text colour is AA
+     (4.5:1) or better on every surface it is used on, in both themes. */
+  --ink: #1c1915;
+  --oa-page: #f0eadd;          /* the paper everything sits on */
+  --oa-bg: #f4efe4;            /* wells and table head rows inside a card: the page tone */
+  --oa-card: #fffdf9;          /* warm near-white, the one raised surface */
   --oa-fg: var(--ink);
-  --oa-border: color-mix(in srgb, var(--ink) 12%, transparent);
+  --oa-border: color-mix(in srgb, var(--ink) 11%, transparent);
   --oa-accent: color-mix(in srgb, var(--ink) 5%, transparent); /* hover wash */
-  --oa-muted-fg: #6d6d6d;
-  --oa-primary: #305dde;       /* the one accent */
-  --oa-primary-fg: #ffffff;
-  --oa-ring: #3ba6f1;
-  --oa-secondary: #e9e9e9;     /* flat grey controls, no border */
+  --oa-muted-fg: #564f44;
+  --oa-primary: #9a4816;       /* copper: the one accent */
+  --oa-primary-fg: #fffaf2;
+  --oa-ring: #d08a4f;
+  --oa-secondary: #ebe4d6;     /* flat controls */
   --oa-secondary-fg: var(--ink);
+  --oa-label: #6f5210;         /* caution ochre (warn tags, step numbers); not a label colour any more */
+  --oa-shadow: 0 1px 2px rgba(58, 42, 16, 0.06), 0 1px 1px rgba(58, 42, 16, 0.04);
   font-family: var(--font-inter-tight), ui-sans-serif, system-ui, sans-serif;
   color: var(--oa-fg);
 }
 .oa-landing {
-  background: var(--oa-card);
-}
-.dark .oa-landing {
-  background: var(--oa-bg);
+  background: var(--oa-page);
 }
 .dark .oa-landing,
 .dark .oa-app {
-  /* Dark mode rides the app's graphite-green Material palette so OA pages
-     sit seamlessly on the body background instead of floating on grey. */
-  --ink: #ededed;
-  --oa-bg: var(--background);                  /* #121513 */
-  --oa-card: var(--surface-container-low);     /* #171b19 */
+  /* Dark roast: the same system with the lights off. */
+  --ink: #f2ecdf;
+  --oa-page: var(--background);                /* #12100d */
+  --oa-bg: #171410;                            /* wells inside a card: close to the page */
+  --oa-card: #1f1b16;                          /* a clear step up from the page */
   --oa-border: color-mix(in srgb, var(--ink) 14%, transparent);
-  --oa-muted-fg: #969696;
-  --oa-primary: #296ff0;       /* one notch brighter than light's */
-  --oa-secondary: var(--surface-container-high); /* #222925 */
+  --oa-accent: color-mix(in srgb, var(--ink) 7%, transparent);
+  --oa-muted-fg: #beb5a6;
+  --oa-primary: #d9843f;
+  --oa-primary-fg: #1f1206;
+  --oa-ring: #e09a5c;
+  --oa-secondary: #2a251e;
   --oa-secondary-fg: var(--ink);
+  --oa-label: #d6b26a;
+  --oa-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 .oa-landing ::selection,
 .oa-app ::selection {
@@ -472,8 +482,271 @@ table tbody tr:hover > * {
 .oa-stock-request input:focus {
   outline: none;
 }
+/* The data face. Prices, changes, counts and tickers are set in the interface
+   sans with tabular lining figures and no extra tracking, so "$178.60" reads
+   as one figure and columns still line up. (The class name is historical: it
+   used to switch to Geist Mono.) Mono is kept for three things only: code,
+   the uppercase .oa-caption, and anything marked .oa-code. */
 .oa-mono {
+  font-family: var(--font-inter-tight), ui-sans-serif, system-ui, sans-serif;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+}
+:is(code, pre, kbd, samp).oa-mono,
+.oa-code {
   font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-variant-numeric: normal;
+  font-feature-settings: normal;
+}
+/* Card shape: one definition. A surface nested inside another steps its
+   radius down so the corners stay concentric. A top-level card carries the
+   one soft shadow; nested ones are flat. :where keeps specificity at zero so
+   any shadow-* utility on the element still wins. */
+.oa-surface {
+  border-radius: 12px;
+}
+.oa-surface .oa-surface {
+  border-radius: 8px;
+}
+.oa-surface .oa-surface .oa-surface {
+  border-radius: 6px;
+}
+:where(.oa-surface.bg-oa-card) {
+  box-shadow: var(--oa-shadow);
+}
+:where(.oa-surface .oa-surface) {
+  box-shadow: none;
+}
+/* Panel and section title: sentence case, sans, ink. The name is historical
+   (it used to be the copper uppercase label). */
+.oa-label {
+  font-size: 13.5px;
+  line-height: 20px;
+  font-weight: 600;
+  letter-spacing: -0.003em;
+  color: var(--oa-fg);
+}
+/* The one quiet uppercase mono style: table column heads, stat captions and
+   field captions. Muted ink, never copper. */
+.oa-caption {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 13px;
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--oa-muted-fg);
+}
+/* Type scale: 13 label, caption and meta; 14 body and table; 15 values and
+   emphasis; 17 panel lead; 22 page title; 34 to 40 for the one hero number.
+   Type floor. Pages still set sizes with arbitrary utilities (text-[11px] and
+   so on); this is the one place that says how small text may get: nothing
+   renders under 13px, on any screen. On a phone anything that reads as body
+   or table text is 14px. Elements that also set a responsive size
+   (sm:text-[..]) keep it, and the small responsive sizes are floored at
+   their own breakpoint below. Anything under 10px is left alone: those are
+   initials inside a logo disc, not text anyone reads. */
+:is(.oa-landing, .oa-app) :is(.text-xs, .text-\[10px\], .text-\[10\.5px\], .text-\[11px\], .text-\[11\.5px\], .text-\[12px\], .text-\[12\.5px\]):not([class*=":text-["]) {
+  font-size: 13px;
+}
+:is(.oa-landing, .oa-app) :is(.\!text-xs, .\!text-\[10px\], .\!text-\[10\.5px\], .\!text-\[11px\], .\!text-\[11\.5px\], .\!text-\[12px\], .\!text-\[12\.5px\]) {
+  font-size: 13px !important;
+}
+@media (min-width: 640px) {
+  :is(.oa-landing, .oa-app) :is(.sm\:text-\[11px\], .sm\:text-\[12px\], .sm\:text-\[12\.5px\]) {
+    font-size: 13px;
+  }
+}
+@media (min-width: 768px) {
+  :is(.oa-landing, .oa-app) .md\:text-\[12px\] {
+    font-size: 13px;
+  }
+}
+@media (min-width: 1024px) {
+  :is(.oa-landing, .oa-app) .lg\:text-\[12px\] {
+    font-size: 13px;
+  }
+}
+/* Secondary text is never fainter than the muted ink (7:1 on cream, 8:1 in
+   the dark). Faded variants of it were the small grey print the reviewers
+   could not read. */
+:is(.oa-landing, .oa-app) :is(.text-oa-muted-fg\/50, .text-oa-muted-fg\/60, .text-oa-muted-fg\/70, .text-oa-muted-fg\/75, .text-oa-fg\/70, .text-oa-fg\/75) {
+  color: var(--oa-muted-fg);
+}
+@media (max-width: 639.98px) {
+  :is(.oa-landing, .oa-app) :is(.text-\[13px\], .text-\[13\.5px\]):not([class*=":text-["]) {
+    font-size: 14px;
+  }
+  .oa-label {
+    font-size: 14px;
+  }
+}
+/* PageHead. When the page frame prints the page note at the bottom (AppPage
+   does, and marks itself .oa-has-note), the head is compact: the lede is one
+   clipped line on desktop and gone on a phone, the source shrinks to its
+   as-of time on the title row. Without a note the head keeps the full lede
+   and the full source line, so neither is ever lost. */
+.oa-head-compact {
+  display: none;
+}
+.oa-has-note .oa-head-compact {
+  display: block;
+}
+.oa-has-note .oa-head-fallback {
+  display: none;
+}
+.oa-has-note .oa-head-lede {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 639.98px) {
+  .oa-has-note .oa-head-lede {
+    display: none;
+  }
+}
+/* Phone gutters. The page frame (.oa-page-frame: AppPage and the frames that
+   stand in for it) pads 8px so cards run close to the edge. Loose text that
+   sits straight on the page, outside any card, gets 8px more so it reads at
+   16px. Zero specificity: an element's own px-* utility always wins. */
+@media (max-width: 639.98px) {
+  :where(.oa-page-frame > :is(p, h2, h3, h4, header):not(.oa-surface)) {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+}
+/* A prose page (.oa-page-prose) already pads 16px, so the page head and the
+   page note drop the 8px they add for the card frame. */
+@media (max-width: 639.98px) {
+  .oa-page-prose > :is(header, aside) {
+    padding-left: 0;
+    padding-right: 0;
+  }
+  /* The tab bar bleeds to the screen edge; here the gutter it crosses is 16px, not 8px. */
+  .oa-page-prose .oa-tabbar {
+    margin-left: -16px;
+    margin-right: -16px;
+  }
+}
+/* Scroll cues. Anything that scrolls sideways (a tab bar, a chip row, a wide
+   table) fades at the edge that has more content behind it, and only while
+   it does: the fade is driven by the element's own scroll position, so a row
+   that fits gets no fade and a row scrolled to its end fades only on the left.
+   Browsers without scroll-driven animations get no fade (the content is
+   still reachable). The two classes are kept for older callers. */
+@property --oa-fade-l {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+@property --oa-fade-r {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+@keyframes oa-scroll-cue {
+  0% {
+    --oa-fade-l: 0px;
+    --oa-fade-r: 32px;
+  }
+  6% {
+    --oa-fade-l: 32px;
+  }
+  94% {
+    --oa-fade-r: 32px;
+  }
+  100% {
+    --oa-fade-l: 32px;
+    --oa-fade-r: 0px;
+  }
+}
+@supports (animation-timeline: scroll()) {
+  .oa-scroll-fade,
+  .oa-scroll-fade-x,
+  :is(.oa-landing, .oa-app) :is(.overflow-x-auto, .overflow-x-scroll) {
+    animation: oa-scroll-cue linear both;
+    animation-timeline: scroll(self inline);
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 var(--oa-fade-l), #000 calc(100% - var(--oa-fade-r)), transparent);
+    mask-image: linear-gradient(to right, transparent, #000 var(--oa-fade-l), #000 calc(100% - var(--oa-fade-r)), transparent);
+  }
+}
+/* Numbers read as data: the interface sans with tabular lining figures, no
+   tracking either way, so a price is one word and a column of them aligns. */
+.oa-landing .tabular-nums,
+.oa-app .tabular-nums {
+  font-family: var(--font-inter-tight), ui-sans-serif, system-ui, sans-serif;
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: 0;
+}
+:is(.oa-landing, .oa-app) :is(code, pre, kbd, samp).tabular-nums {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+}
+/* App shell: the sidebar is fixed, so the page makes room for it. */
+@media (min-width: 1024px) {
+  body:has(.oa-sidebar) {
+    padding-left: 15rem;
+  }
+}
+/* App pages bring their own frame (AppPage); the layout's side gutters are
+   for the old marketing pages only and would squeeze a page with a sidebar. */
+body:has(.oa-sidebar) .oa-shell-frame,
+body:has(.oa-topbar) .oa-shell-frame {
+  /* The marketing top bar runs edge to edge too; its pages centre their own frame. */
+  padding-left: 0;
+  padding-right: 0;
+}
+/* The floating market-status pill belongs to the old marketing pages. Inside
+   the app the briefing and the stock page say the same thing in place, and
+   the pill sat on top of content. */
+body:has(.oa-sidebar) .oa-market-tab,
+body:has(.oa-landing) .oa-market-tab {
+  /* On the landing and the marketing pages it covered the hero on both
+     sizes; the hero card and the stock page carry the market state. */
+  display: none;
+}
+/* Below lg a tab bar is fixed to the bottom of the screen. Every page clears
+   it: the body reserves the bar's height (and the home indicator), so the
+   footer or a form button is never under it, and page frames add 72px of
+   their own (PAGE_PAD) so the last row sits well clear of the bar. */
+@media (max-width: 1023.98px) {
+  body:has(.oa-mobile-nav) {
+    padding-bottom: calc(60px + env(safe-area-inset-bottom));
+  }
+}
+/* An outline button that stands in for a filled one, so a view has exactly
+   one filled copper element. */
+.oa-btn-outline {
+  border: 1px solid color-mix(in srgb, var(--oa-primary) 55%, transparent);
+  background: transparent;
+  color: var(--oa-primary);
+}
+.oa-btn-outline:hover {
+  background: color-mix(in srgb, var(--oa-primary) 8%, transparent);
+}
+/* The follow button on the stock page, demoted to an outline: the call is the
+   one coloured thing at the top, not the call to action. Restyles
+   TrackButton's pill from the outside. */
+.oa-track-outline > div.flex-col > button {
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--oa-fg) 22%, transparent);
+  background: var(--oa-card);
+  color: var(--oa-fg);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0;
+  padding: 0 14px;
+}
+.oa-track-outline > div.flex-col > button:hover {
+  background: var(--oa-accent);
+  transform: none;
+}
+/* The footer's sign-up strip is for the landing. Inside the app it is noise. */
+body:has(.oa-sidebar) .oa-footer-sell,
+body:has(.oa-app > .oa-topbar) .oa-footer-sell {
+  /* Pricing, docs and the company pages already have their own call to
+     action; a second filled button in the footer competes with it. */
+  display: none;
 }
 /* ── Homepage landing theme ─────────────────────────────────────────────── */
 .landing-page {
@@ -2197,13 +2470,15 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-  overflow-x: hidden;
+  /* clip, not hidden: hidden makes this a scroll container and breaks position: sticky everywhere. */
+  overflow-x: clip;
 }
 
 body {
   background-color: var(--background);
   color: var(--on-background);
-  overflow-x: hidden;
+  /* clip, not hidden: hidden makes this a scroll container and breaks position: sticky everywhere. */
+  overflow-x: clip;
 }
 
 /* ── Scrollbars ──────────────────────────────────────────────────────────── */
@@ -2248,4 +2523,42 @@ input:-webkit-autofill:focus {
   -webkit-box-shadow: 0 0 0px 1000px var(--surface-container-low) inset;
   -webkit-text-fill-color: var(--on-surface);
   transition: background-color 5000s ease-in-out 0s;
+}
+
+/* ── Cards side by side (kit CardGrid) ───────────────────────────────────
+   One rule everywhere: cards in a row are the same height, and a card's
+   footer sits on its bottom edge. A grid item stretches to the row by
+   default; these rules make the card inside it do the same when it is
+   wrapped (a Reveal, an <li>), and turn the card into a column so the
+   footer can be pushed down. The same holds for any SquircleCard placed in
+   a grid without CardGrid. */
+.oa-card-grid {
+  align-items: stretch;
+}
+.oa-card-grid > *,
+.oa-card-grid > * > :only-child {
+  min-width: 0;
+}
+.oa-card-grid > :is(.oa-surface, [data-slot="oa-card"]),
+.oa-card-grid > * > :is(.oa-surface, [data-slot="oa-card"]):only-child,
+:is(.oa-landing, .oa-app) .grid > * > [data-slot="oa-card"]:only-child {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+/* The card body grows, so whatever follows it (a footer) lands on the bottom. */
+.oa-card-grid [data-slot="oa-card"] > :last-child,
+:is(.oa-landing, .oa-app) .grid > * > [data-slot="oa-card"]:only-child > :last-child {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+.oa-card-foot {
+  margin-top: auto;
+}
+
+/* Marketing pages share the landing's measure (76rem, see landing FRAME), so
+   their content lines up with the top bar's logo and links. */
+body:has(.oa-topbar) :is(.oa-page-frame, .oa-page-prose).max-w-\[84rem\] {
+  max-width: 76rem;
 }

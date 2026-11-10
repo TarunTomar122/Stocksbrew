@@ -4,15 +4,14 @@ This moves job execution off Cloud Run while keeping Firestore/Firebase and the 
 
 Current VPS:
 
-- Host: `vps-148f55ad.vps.ovh.ca`
-- IPv4: `144.217.6.112`
+- Host: the `vps` alias in `~/.ssh/config` (the address is not kept in the repo)
 - User: `ubuntu`
 - Repo dir: `/opt/tikrr`
 - Env file: `/etc/tikrr/backend.env`
 - Firebase credential path: `/etc/tikrr/firebase-service-account.json`
 - Timers installed: yes
 - Timers enabled: yes
-- Cloud Scheduler: all `tikrr-*` jobs paused in `tikrr-496409/us-central1`
+- Cloud Scheduler: all `tikrr-*` jobs paused in `<gcp-project>/us-central1`
 - Service memory cap: `MemoryMax=6G`, `MemorySwapMax=2G`
 - Current smoke status: `data_health` and limited `reddit_buzz` succeeded on VPS
 
@@ -56,7 +55,7 @@ Create `/etc/tikrr/backend.env`:
 ```bash
 TIKRR_REPO_DIR=/opt/tikrr
 TIKRR_LOCK_DIR=/tmp/tikrr-locks
-GOOGLE_CLOUD_PROJECT=tikrr-496409
+GOOGLE_CLOUD_PROJECT=<gcp-project>
 GOOGLE_APPLICATION_CREDENTIALS=/etc/tikrr/firebase-service-account.json
 LLM_PROVIDER=openai
 OPENAI_API_KEY=...
@@ -99,9 +98,9 @@ For this VPS user, use `ubuntu` instead of `tikrr`.
 Manual secret install:
 
 ```bash
-scp backend/trace-money-72276-firebase-adminsdk-fbsvc-87d8bdd9a5.json ubuntu@144.217.6.112:/tmp/firebase-service-account.json
-ssh ubuntu@144.217.6.112 'sudo mv /tmp/firebase-service-account.json /etc/tikrr/firebase-service-account.json && sudo chown ubuntu:ubuntu /etc/tikrr/firebase-service-account.json && chmod 600 /etc/tikrr/firebase-service-account.json'
-ssh ubuntu@144.217.6.112 'nano /etc/tikrr/backend.env'
+scp backend/firebase-service-account.json vps:/tmp/firebase-service-account.json
+ssh vps 'sudo mv /tmp/firebase-service-account.json /etc/tikrr/firebase-service-account.json && sudo chown ubuntu:ubuntu /etc/tikrr/firebase-service-account.json && chmod 600 /etc/tikrr/firebase-service-account.json'
+ssh vps 'nano /etc/tikrr/backend.env'
 ```
 
 Fill:
@@ -153,10 +152,10 @@ For a real smoke write, start with `reddit_buzz` or `data_health`; do not run em
 Smoke commands already run successfully on `2026-07-01`:
 
 ```bash
-ssh ubuntu@144.217.6.112 'TIKRR_ENV_FILE=/etc/tikrr/backend.env /opt/tikrr/backend/vps/run-dispatch.sh reddit_buzz --dry-run'
-ssh ubuntu@144.217.6.112 'TIKRR_ENV_FILE=/etc/tikrr/backend.env /opt/tikrr/backend/vps/run-dispatch.sh price_core_open --dry-run --limit 5 --shard-size 2'
-ssh ubuntu@144.217.6.112 'sudo systemctl start tikrr-data-health-open.service'
-ssh ubuntu@144.217.6.112 'TIKRR_ENV_FILE=/etc/tikrr/backend.env /opt/tikrr/backend/vps/run-dispatch.sh reddit_buzz --reddit-subreddit-batch-size 1 --reddit-cache-hours 120'
+ssh vps 'TIKRR_ENV_FILE=/etc/tikrr/backend.env /opt/tikrr/backend/vps/run-dispatch.sh reddit_buzz --dry-run'
+ssh vps 'TIKRR_ENV_FILE=/etc/tikrr/backend.env /opt/tikrr/backend/vps/run-dispatch.sh price_core_open --dry-run --limit 5 --shard-size 2'
+ssh vps 'sudo systemctl start tikrr-data-health-open.service'
+ssh vps 'TIKRR_ENV_FILE=/etc/tikrr/backend.env /opt/tikrr/backend/vps/run-dispatch.sh reddit_buzz --reddit-subreddit-batch-size 1 --reddit-cache-hours 120'
 ```
 
 Observed successful write jobs:
@@ -182,7 +181,7 @@ rsync source files into production.
 From local after pushing:
 
 ```bash
-TIKRR_VPS_HOST=144.217.6.112 bash backend/vps/deploy-code.sh
+bash backend/vps/deploy-code.sh   # uses the `vps` alias from ~/.ssh/config, or set TIKRR_VPS_HOST
 ```
 
 Or directly on the VPS:

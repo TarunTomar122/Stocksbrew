@@ -4,12 +4,12 @@ These are the canonical JSON contracts for the first rebuild pass.
 
 The authoritative schema files live in:
 
-- [instrument.schema.json](/Users/ttomar/Documents/personal/claudia/trace-money/backend/config/schemas/instrument.schema.json)
-- [latest_price.schema.json](/Users/ttomar/Documents/personal/claudia/trace-money/backend/config/schemas/latest_price.schema.json)
-- [article_enrichment.schema.json](/Users/ttomar/Documents/personal/claudia/trace-money/backend/config/schemas/article_enrichment.schema.json)
-- [stock_intelligence.schema.json](/Users/ttomar/Documents/personal/claudia/trace-money/backend/config/schemas/stock_intelligence.schema.json)
-- [dashboard_view.schema.json](/Users/ttomar/Documents/personal/claudia/trace-money/backend/config/schemas/dashboard_view.schema.json)
-- [instrument_view.schema.json](/Users/ttomar/Documents/personal/claudia/trace-money/backend/config/schemas/instrument_view.schema.json)
+- [instrument.schema.json](backend/config/schemas/instrument.schema.json)
+- [latest_price.schema.json](backend/config/schemas/latest_price.schema.json)
+- [article_enrichment.schema.json](backend/config/schemas/article_enrichment.schema.json)
+- [stock_intelligence.schema.json](backend/config/schemas/stock_intelligence.schema.json)
+- [dashboard_view.schema.json](backend/config/schemas/dashboard_view.schema.json)
+- [instrument_view.schema.json](backend/config/schemas/instrument_view.schema.json)
 
 ## Collection Mapping
 

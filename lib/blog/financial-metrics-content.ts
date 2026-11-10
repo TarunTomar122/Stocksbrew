@@ -149,7 +149,7 @@ export const financialMetricsBlogContent: Record<string, string> = {
 <div class="cta-section">
   <h3>Check the multiple in context</h3>
   <p>Open a US stock page to see forward P/E beside growth, margins, cash, debt, free cash flow, and return on capital.</p>
-  <a class="cta-button" href="/stocks">Browse US stock fundamentals →</a>
+  <a class="cta-button" href="/screener">Browse US stock fundamentals →</a>
 </div>
 `,
 
@@ -307,7 +307,7 @@ export const financialMetricsBlogContent: Record<string, string> = {
 <div class="cta-section">
   <h3>See profit and free cash flow together</h3>
   <p>Open any covered US stock to compare five-year revenue, profit, free cash flow, margins, cash, and debt on one page.</p>
-  <a class="cta-button" href="/stocks">Explore stock financials →</a>
+  <a class="cta-button" href="/screener">Explore stock financials →</a>
 </div>
 `,
 
@@ -504,7 +504,7 @@ export const financialMetricsBlogContent: Record<string, string> = {
 <div class="cta-section">
   <h3>Follow the margin trend</h3>
   <p>Open a covered US stock to compare gross, operating, and profit margins across five years and the latest trailing period.</p>
-  <a class="cta-button" href="/stocks">Browse margin charts →</a>
+  <a class="cta-button" href="/screener">Browse margin charts →</a>
 </div>
 `,
 };

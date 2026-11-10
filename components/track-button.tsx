@@ -114,6 +114,7 @@ export function TrackButton({
     !isSubscribed &&
     !localTracked &&
     typeof trackedCount === "number" &&
+    Number.isFinite(freeLimit) &&
     trackedCount >= freeLimit;
 
   function showFreeLimitModal() {
@@ -201,7 +202,7 @@ export function TrackButton({
           if (!res.ok) {
             setError("Could not remove - try again.");
             setModalStatus("error");
-            setTimeout(() => setModalOpen(false), 1200);
+            setTimeout(() => setModalOpen(false), 4000);
             return;
           }
           setLocalTracked(false);
@@ -264,7 +265,11 @@ export function TrackButton({
               showFreeLimitModal();
               return;
             }
-            setError("Your Watchlist is full. Remove one, or go Pro to track every stock you hold.");
+            setError(
+              data?.error === "swap_limit_reached" && typeof data?.reason === "string"
+                ? data.reason
+                : "You are following all the stocks your plan covers. Remove one, or go Pro to follow every stock you hold.",
+            );
           } else {
             setError("Could not add - try again.");
           }

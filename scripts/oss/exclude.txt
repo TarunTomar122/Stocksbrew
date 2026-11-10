@@ -1,0 +1,65 @@
+# Paths left out of the public snapshot by scripts/oss/make-snapshot.mjs.
+# One path per line. A trailing "/" means a whole directory. Lines starting
+# with "#" are comments. Most of these were deleted from the working tree in
+# the 2026-11-10 cleanup; they stay listed so a snapshot built from an older
+# ref still leaves them out. What remains in the tree (the maintainer's VPS
+# dev-box tooling, internal planning notes) is still excluded from a snapshot.
+
+# --- personal data -----------------------------------------------------------
+backend/waitlist_emails_2026-05-05.csv
+
+# --- unrelated or scratch files at the root -----------------------------------
+xyz.html
+test.html
+nitin_ppt.js
+infobay-eval-report.csv
+pipelineaudit.txt
+automated-youtube/
+output/
+.commandcode/
+
+# --- design explorations and old mockups ---------------------------------------
+explorations/
+zexp/
+gallery/
+
+# --- hackathon prototype (its API route imports it, so both go together) -------
+hackathon/
+app/api/hackathon/
+
+# --- owner's personal VPS tooling: dev box, T3, OpenClaw/Hermes agents ---------
+backend/vps/T3_ACCESS.md
+backend/vps/GITHUB.md
+backend/vps/MIGRATION_PLAN.md
+backend/vps/migrate-steve-to-hermes.py
+backend/vps/setup-gh-token.sh
+backend/vps/setup-opencode-auth.sh
+backend/vps/setup-t3-mobile.sh
+backend/vps/setup-t3code.sh
+backend/vps/t3-dedupe.sh
+backend/vps/t3vps
+backend/vps/tattach
+backend/vps/occ
+scripts/vps-setup-openclaw.sh
+docs/tikrr-openclaw-spec.md
+
+# --- retired OpenClaw-era weekly report cron (hard-coded /mnt paths) ------------
+scripts/weekly-report-cron.sh
+scripts/send-weekly-broadcast.py
+scripts/weekly-report-generator.js
+scripts/generate-report-json.js
+scripts/daily-anomaly-scanner.js
+
+# --- internal planning notes that name a competitor or private ops ---------------
+docs/volaren-parity-hillclimb.md
+docs/editorial-audit-2026-08-04.md
+docs/pro-trial-email-preview.html
+docs/firebase-migration-core.txt
+docs/firebase-migration-critical.txt
+
+# --- agent instruction files: rewrite for contributors before publishing ---------
+# AGENTS.md and backend/AGENTS.md are kept but must be rewritten first (they
+# hold the Vercel team slug, private emails and the VPS address).
+
+# --- this readiness report (private notes about the private history) ---
+docs/open-source/readiness.md

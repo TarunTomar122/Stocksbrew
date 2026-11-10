@@ -27,7 +27,7 @@ import { getNextEarningsCalendarEvent } from "@/lib/earnings";
 import { getPreEarningsIntelDoc } from "@/lib/pre-earnings-intel";
 import { getDailyAnomalyForTicker } from "@/lib/daily-anomalies";
 import { getPremarketMovers } from "@/lib/premarket";
-import { addRadarStock, removeRadarStock } from "@/lib/radar-mutations";
+import { FollowLimitError, addRadarStock, removeRadarStock } from "@/lib/radar-mutations";
 import {
   createStockAlert,
   deleteStockAlert,
@@ -45,7 +45,7 @@ import {
   getStockSummary,
 } from "@/lib/stock";
 import { getRadarUserView, getWatchlistView } from "@/lib/watchlist-view";
-import { getUserDoc } from "@/lib/watchlist";
+import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 
 export type AgentMarket = "US" | "IN";
 export type AgentToolName =
@@ -704,6 +704,7 @@ export async function addAgentStockToRadar(uid: string, input: { ticker: string;
     if (error instanceof Error && error.message === "profile_not_ready") {
       throw new AgentDataError("The Stocksbrew profile is not ready.", "profile_not_ready", 409);
     }
+    if (error instanceof FollowLimitError) throw new AgentDataError(error.reason, error.code, 409);
     throw error;
   }
 }
@@ -760,6 +761,7 @@ export async function createAgentAlert(uid: string, input: {
       condition: input.condition === "above" ? "above" : input.condition === "below" ? "below" : undefined,
       targetPrice: input.targetPrice,
       note: input.note,
+      plan: resolveIsSubscribed(user) ? "pro" : "free",
     });
     return envelope({ instrument: stock, ...created, delivery: "email" }, new Date().toISOString());
   } catch (error) {

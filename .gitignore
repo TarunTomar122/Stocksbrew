@@ -10,9 +10,9 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Env
+# Env (every variant; only the documented template is tracked)
 .env
-.env.*
+.env*
 !.env.example
 backend/.env
 
@@ -55,3 +55,30 @@ backend/firebase-service-account.json
 backend/vps/LOCAL_SECRETS.md
 openclaw-migration.tar.gz
 .env*.local
+
+# agent data job cache (price history etc.)
+backend/.cache/
+
+# open-source hygiene: local data, exports and scratch output never ship
+/output/
+/infobay-eval-report.csv
+*waitlist*.csv
+*.sqlite3
+*.sqlite3-*
+.localdb/
+*.pem
+*-service-account*.json
+
+# local AI/dev tooling and scratch
+.agents/
+.ai-memory.toml
+.commandcode/
+.claude/worktrees/
+.t3/
+*.local
+*.log
+/scratch/
+/tmp/
+
+# Firebase CLI project alias (each fork points at its own project: firebase use --add)
+.firebaserc

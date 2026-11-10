@@ -1,6 +1,7 @@
 export function GET() {
   const rules = `Allow: /
 Allow: /api/v1/openapi.json
+Allow: /api/og
 Disallow: /api/
 Disallow: /profile
 Disallow: /watchlist
@@ -17,6 +18,7 @@ ${rules}
 User-agent: *
 Allow: /
 Allow: /api/v1/openapi.json
+Allow: /api/og
 Disallow: /api/
 Disallow: /profile
 Disallow: /watchlist

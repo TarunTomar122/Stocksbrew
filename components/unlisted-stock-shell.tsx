@@ -61,15 +61,14 @@ export function UnlistedStockShell({ ticker, market, redditTickerContext, isSubs
               <p className="text-[15px] text-on-surface leading-relaxed">
                 {redditTickerContext ? (
                   <>
-                    You landed on a symbol we don&apos;t fully cover yet. On the left is{" "}
-                    <strong className="text-on-surface">Reddit Buzz</strong> from our latest scan (when this ticker
-                    showed up in threads). Price history, fundamentals, and the AI brief will unlock once this name
-                    is in the library.
+                    We don&apos;t fully cover this symbol yet. On the left is recent{" "}
+                    <strong className="text-on-surface">Reddit Buzz</strong> about it. Prices, fundamentals and the
+                    brief unlock once it is added.
                   </>
                 ) : (
                   <>
-                    We don&apos;t have Reddit scan hits for <strong className="text-on-surface">{ticker}</strong> right
-                    now, and it isn&apos;t in our price universe yet. Your visit still helps us prioritize adding it.
+                    We don&apos;t cover <strong className="text-on-surface">{ticker}</strong> yet. Your visit helps us
+                    prioritize adding it.
                   </>
                 )}
               </p>

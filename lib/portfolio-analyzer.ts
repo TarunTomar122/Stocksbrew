@@ -223,7 +223,8 @@ export async function analyzePortfolio(tickers: string[]): Promise<PortfolioAnal
   if (clusters[0]) summaryParts.push(`${clusters[0].sector} is the largest cluster at ${Math.round(clusters[0].weight_pct)}%.`);
   const avgOverall = averageScores(stocks, "overall");
   if (avgOverall !== null) {
-    const label = avgOverall >= 75 ? "Solid" : avgOverall >= 55 ? "Average" : avgOverall >= 35 ? "Mixed" : "Weak";
+    // The scoring model's bands (strong 75, solid 55, mixed 35), the same words as the chip beside this sentence.
+    const label = avgOverall >= 75 ? "Strong" : avgOverall >= 55 ? "Solid" : avgOverall >= 35 ? "Mixed" : "Weak";
     summaryParts.push(`Average stocksbrew score is ${avgOverall} (${label}).`);
   }
   if (stocks.length === unique.length) summaryParts.push(`All ${stocks.length} stocks resolved.`);

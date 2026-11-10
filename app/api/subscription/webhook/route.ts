@@ -182,7 +182,9 @@ async function handleEvent(
 
       // Best-effort welcome email for genuinely new Pro subscribers only.
       // Never allowed to affect the webhook response either way.
-      if (type === "subscription.active" && !wasAlreadySubscribed) {
+      // With MAIL_V2_ACTIVE=1 the lifecycle job (backend/mail) sends the Pro
+      // welcome from the subscription_converted event above, so skip this one.
+      if (type === "subscription.active" && !wasAlreadySubscribed && process.env.MAIL_V2_ACTIVE !== "1") {
         try {
           const profile = beforeSnap?.data() as { email?: string; display_name?: string } | undefined;
           const recipient = profile?.email;

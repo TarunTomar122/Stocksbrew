@@ -17,6 +17,7 @@ import os
 from datetime import date, datetime, timezone
 
 from backend.storage import TraceMoneyStore
+from backend.subscription_entitlement import covered_instrument_ids, is_pro_user
 from backend.watchlist_view import (
     _active_universe_cache,
     build_watchlist_view,
@@ -241,7 +242,7 @@ def main() -> None:
     else:
         users = store.list_subscribed_users()
         if args.subscribed_only:
-            users = [u for u in users if bool(u.get("is_subscribed"))]
+            users = [u for u in users if is_pro_user(u)]
 
     if not users:
         print("No subscribed users to build.")
@@ -269,7 +270,8 @@ def main() -> None:
             store,
             uid,
             [str(t) for t in tracked],
-            is_subscribed=bool(user.get("is_subscribed")),
+            is_subscribed=is_pro_user(user),
+            covered_ids=covered_instrument_ids(user),
             positions=user.get("watchlist_positions") or {},
             holdings=user.get("watchlist_holdings") or {},
             active_universes=active_universes,
@@ -301,7 +303,7 @@ def main() -> None:
             queued = _queue_directive_change_events(
                 store,
                 uid=uid,
-                is_subscribed=bool(user.get("is_subscribed")),
+                is_subscribed=is_pro_user(user),
                 previous_rows=existing.get("rows") or [],
                 current_rows=payload.get("rows") or [],
             )

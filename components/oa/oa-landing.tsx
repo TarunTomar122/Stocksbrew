@@ -1,412 +1,99 @@
-import { Inter_Tight } from "next/font/google";
+import { Suspense } from "react";
 
 import { Disclosure } from "@/components/oa/disclosure";
+import { Bar } from "@/components/oa/kit/skeleton";
 import { OaSiteHeader } from "@/components/oa/oa-site-header";
 import { OaHeroSearch } from "@/components/oa/oa-hero-search";
-import { OaButton } from "@/components/oa/button";
-import { StartFreeButton } from "@/components/oa/start-free-button";
-import { ProCheckoutButton } from "@/components/oa/pro-checkout-button";
-import { SquircleCard, SquircleSurface } from "@/components/oa/squircle";
-import { AnimatedIcon } from "@/components/animated-icon";
+import { SquircleSurface } from "@/components/oa/squircle";
+import { interTight } from "@/components/oa/font";
 import { Reveal } from "@/components/reveal";
-import { PRO_POINTS } from "@/lib/subscribe-benefits";
 import {
+  HERO_FOOTNOTE,
   HERO_HEADLINE_EMPHASIS,
   HERO_HEADLINE_LEAD,
   HERO_SUBHEAD,
 } from "@/lib/brand-copy";
 import { US_PRO_MONTHLY, US_PRO_YEARLY } from "@/lib/pricing";
-import { getCurrentMarket } from "@/lib/market";
-import { getDailyAnomalies, type AnomalyItem } from "@/lib/daily-anomalies";
-import { anomalyTag, buildLandingPriceMovers, buildLandingSectorCards } from "@/lib/landing-sector-data";
-import { getMarketSnapshot } from "@/lib/firestore";
-import { getRedditCues } from "@/lib/reddit-cues";
-import { getStockFacts, getStockIntelligenceDoc } from "@/lib/stock";
-import { normalizeDirectiveForUi } from "@/lib/directive-ui";
-import { buildLandingHeroMetrics } from "@/lib/landing-hero-metrics";
-import {
-  anomalyHeadline,
-  hasResearchBackedNarrative,
-} from "@/components/daily-anomalies-shared";
-import { StockLogo } from "@/components/stock-logo";
-import {
-  getLandingAnomalies,
-  getLandingUserContext,
-  resolveLandingHeroFeatured,
-} from "@/components/terminal-landing-streams";
+import { getLiveInvestmentThemes } from "@/lib/research-themes";
+import { getViewer } from "@/lib/entitlements-server";
+import { getLandingUserContext } from "@/components/terminal-landing-streams";
 
-const interTight = Inter_Tight({
-  subsets: ["latin"],
-  weight: ["300", "400", "500"],
-  variable: "--font-inter-tight",
-});
+import { AgentsSection } from "./landing/agents-section";
+import { FollowSection } from "./landing/follow-section";
+import { HeroBriefing } from "./landing/hero-briefing";
+import { IdeaBook, type IdeaBookTheme } from "./landing/idea-book";
+import { MarketsSection } from "./landing/markets-section";
+import { OnePlace } from "./landing/one-place";
+import { PlansSection } from "./landing/plans-section";
+import { FRAME, H2, LABEL, LEDE, SectionHead } from "./landing/shared";
+import { TrackGrid } from "./landing/track-grid";
 
-const FRAME = "mx-auto w-full max-w-[76rem] px-4 sm:px-6";
-const EYEBROW =
-  "text-base uppercase tracking-[0.12em] text-oa-muted-fg";
-const H2 =
-  "text-balance font-medium tracking-tight text-oa-fg text-[28px] leading-tight sm:text-4xl sm:leading-tight";
+const IDEA_THEME_COUNT = 6;
+const IDEA_LINES_PER_THEME = 5;
 
-function fmtPct(pct: number): string {
-  const sign = pct >= 0 ? "+" : "";
-  return `${sign}${pct.toFixed(2)}%`;
-}
-
-function ChangeText({ pct, className = "" }: { pct: number; className?: string }) {
-  const tone =
-    pct >= 0
-      ? "text-emerald-700 dark:text-emerald-400"
-      : "text-red-700 dark:text-red-400";
+async function IdeaToWatchlist() {
+  const themes = await getLiveInvestmentThemes().catch(() => []);
+  const slim: IdeaBookTheme[] = themes.slice(0, IDEA_THEME_COUNT).map((theme) => ({
+    slug: theme.slug,
+    name: theme.name,
+    description: theme.cardDescription,
+    total: theme.candidates.length,
+    lines: theme.candidates.slice(0, IDEA_LINES_PER_THEME).map((candidate) => ({
+      ticker: candidate.ticker,
+      company: candidate.company,
+      role: candidate.role,
+      why: candidate.benefitMechanism,
+      breaks: candidate.failureCase,
+      label: candidate.stocksbrewLabel,
+    })),
+  }));
+  if (slim.length === 0) return null;
   return (
-    <span className={`tabular-nums ${tone} ${className}`}>{fmtPct(pct)}</span>
+    <Reveal delay={80}>
+      <IdeaBook themes={slim} />
+    </Reveal>
   );
 }
 
-function RowLink({
-  href,
-  label,
-  value,
-  fullText = false,
-}: {
-  href: string;
-  label: React.ReactNode;
-  value?: React.ReactNode;
-  fullText?: boolean;
-}) {
-  return (
-    <a
-      href={href}
-      className="grid grid-cols-[1fr_auto] gap-3 px-3.5 py-5 text-base outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent"
-    >
-      <span className="flex min-w-0 flex-col gap-1">{label}</span>
-      {value !== undefined ? (
-        <div className="flex flex-col items-end justify-start gap-0.5 tabular-nums text-oa-muted-fg">
-          {value}
-        </div>
-      ) : null}
-    </a>
-  );
-}
-
-function EmptyRow({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="flex h-8 items-center px-3.5 text-base text-oa-muted-fg">
-      {children}
-    </p>
-  );
-}
-
-function Sparkline({ closes }: { closes: number[] }) {
-  if (closes.length < 2) return null;
-  const min = Math.min(...closes);
-  const max = Math.max(...closes);
-  const range = max - min || 1;
-  const pts = closes
-    .map(
-      (c, i) =>
-        `${((i / (closes.length - 1)) * 100).toFixed(2)},${(30 - ((c - min) / range) * 26).toFixed(2)}`,
-    )
-    .join(" ");
-  return (
-    <svg
-      viewBox="0 0 100 32"
-      preserveAspectRatio="none"
-      aria-hidden="true"
-      className="h-16 w-full"
-    >
-      <polyline
-        points={pts}
-        fill="none"
-        stroke="var(--oa-primary)"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-        strokeLinecap="round"
-        vectorEffect="non-scaling-stroke"
-      />
-    </svg>
-  );
-}
-
-function BriefStat({
-  label,
-  value,
-  sub,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-}) {
-  return (
-    <div className="min-w-0">
-      <p className="text-[14px] leading-4 text-oa-muted-fg">{label}</p>
-      <p className="truncate text-base font-medium tabular-nums text-oa-fg">
-        {value}
-        {sub ? <span className="ml-1.5 text-base font-normal text-oa-muted-fg">{sub}</span> : null}
-      </p>
-    </div>
-  );
-}
-
-async function HeroBriefCard() {
-  const market = getCurrentMarket();
-  const anomalies = await getLandingAnomalies();
-  const featured = await resolveLandingHeroFeatured(anomalies);
-
-  if (!featured) {
-    return (
-      <SquircleSurface className="border border-oa-border p-1 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
-        <div className="flex h-72 items-center justify-center rounded-[22px] bg-oa-bg text-base text-oa-muted-fg sm:h-80">
-          Warming up. The first brief lands in a few minutes.
-        </div>
-      </SquircleSurface>
-    );
-  }
-
-  const { anomaly, priceHistory } = featured;
-  const [intelligence, stockFacts] = await Promise.all([
-    getStockIntelligenceDoc(featured.anomaly.instrument_id, market).catch(() => null),
-    getStockFacts(featured.anomaly.instrument_id).catch(() => null),
-  ]);
-  const directive = normalizeDirectiveForUi(intelligence?.directive_v2 ?? null);
-  const analystTarget = stockFacts?.analyst?.target_price ?? null;
-  const metrics = buildLandingHeroMetrics(directive, anomaly.price, analystTarget);
-
-  const why =
-    anomaly.move_explanation?.headline?.trim() ||
-    anomaly.headline?.trim() ||
-    anomaly.catalyst?.trim() ||
-    directive?.text?.trim() ||
-    "Tracking. We will explain the next move.";
-  const closes = priceHistory.slice(-90).map((p) => p.close);
-
-  const stats: { label: string; value: string; sub?: string }[] = [];
-  if (typeof analystTarget === "number" && analystTarget > 0) {
-    const roomPct = ((analystTarget - anomaly.price) / anomaly.price) * 100;
-    stats.push({
-      label: "Analyst target",
-      value: `$${analystTarget.toFixed(0)}`,
-      sub: `${roomPct >= 0 ? "+" : ""}${roomPct.toFixed(0)}% room`,
-    });
-  }
-  if (metrics.accumulate_below != null) {
-    stats.push({ label: "Add zone", value: `below $${metrics.accumulate_below.toFixed(0)}` });
-  }
-  if (metrics.trim_above != null) {
-    stats.push({ label: "Trim zone", value: `above $${metrics.trim_above.toFixed(0)}` });
-  }
-  if (metrics.risk_reward_ratio != null && metrics.risk_reward_hint) {
-    stats.push({
-      label: "Risk / reward",
-      value: `${metrics.risk_reward_ratio.toFixed(1)}x`,
-      sub: metrics.risk_reward_hint.toLowerCase(),
-    });
-  }
-
-  return (
-    <a href={`/stock/${anomaly.ticker}`} className="group w-full block">
-      <figure className="w-full">
-        <SquircleSurface className="border border-oa-border p-1 shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition-colors group-hover:border-oa-accent">
-          <div className="flex items-center justify-between gap-2 pb-2 pl-3.5 pr-2 pt-1.5">
-            <h2 className="ml-1 flex items-center gap-2 text-base font-medium text-oa-fg/80">
-              <span className="relative flex size-2" aria-hidden="true">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-60" />
-                <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
-              </span>
-              Live brief
-            </h2>
-            <span className="oa-mono rounded-full bg-oa-accent px-2 py-1 text-base text-oa-muted-fg">
-              {anomaly.ticker}
-            </span>
-          </div>
-          <SquircleSurface
-            className="rounded-[22px] border border-oa-border bg-oa-bg p-4 shadow-[0_1px_2px_rgba(0,0,0,0.06)] [--card-clip-radius:12px] sm:p-5 sm:rounded-[44px] sm:[--card-clip-radius:17px]"
-          >
-            <div className="flex items-center gap-2.5">
-              <StockLogo ticker={anomaly.ticker} market={market === "IN" ? "IN" : "US"} size={26} circle eager />
-              <p className="min-w-0 truncate text-base text-oa-muted-fg">{anomaly.name}</p>
-            </div>
-            <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-              <span className="text-3xl font-medium tabular-nums tracking-tight text-oa-fg sm:text-4xl">
-                ${anomaly.price?.toFixed(2)}
-              </span>
-              <ChangeText pct={anomaly.day_change_pct ?? 0} className="text-base font-medium" />
-            </div>
-            <p className="mt-3 text-base leading-6 text-oa-fg/80">{why}</p>
-            {stats.length > 0 ? (
-              <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-oa-border pt-3 sm:grid-cols-4">
-                {stats.map((s) => (
-                  <BriefStat key={s.label} {...s} />
-                ))}
-              </div>
-            ) : null}
-            <div className="mt-3">
-              <Sparkline closes={closes} />
-            </div>
-          </SquircleSurface>
-        </SquircleSurface>
-        <figcaption className="mt-3 text-center text-base text-oa-muted-fg">
-          A real brief from today&apos;s market. Every stock gets one.
-        </figcaption>
-      </figure>
-    </a>
-  );
-}
-
-async function LiveProofCards() {
-  const market = getCurrentMarket();
-  const [anomaliesDoc, snapshotRows, reddit] = await Promise.all([
-    getDailyAnomalies(market).catch(() => null),
-    getMarketSnapshot(market).catch(() => []),
-    getRedditCues(market).catch(() => null),
-  ]);
-
-  const movers = (anomaliesDoc?.anomalies ?? []).filter(
-    hasResearchBackedNarrative,
-  );
-  const priceMovers = movers.length === 0
-    ? buildLandingPriceMovers(snapshotRows, market)
-    : [];
-  const sectors = buildLandingSectorCards(snapshotRows)
-    .slice()
-    .sort((a, b) => b.avg - a.avg)
-    .slice(0, 5);
-  const buzz = (reddit?.tickers ?? [])
-    .filter((t) => t.summary?.trim())
-    .slice(0, 4);
-
-  return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:auto-rows-fr">
-      <Reveal delay={80}>
-        <SquircleCard title="What moved and why" seeAllHref="/pulse" contentClassName="h-80 overflow-y-auto">
-          {movers.length === 0 && priceMovers.length > 0 ? (
-            <>
-              <p className="px-3.5 py-3 text-base text-oa-muted-fg">
-                Live price moves. Explanations are pending research.
-              </p>
-              {priceMovers.map((row) => (
-                <RowLink
-                  key={row.instrumentId}
-                  href={`/stock/${row.symbol}`}
-                  label={<>
-                    <div className="flex items-center gap-2">
-                      <StockLogo ticker={row.symbol} market={market} size={18} circle />
-                      <span className="oa-mono text-base text-oa-fg">{row.symbol}</span>
-                    </div>
-                    <span className="text-oa-muted-fg">{row.name}</span>
-                  </>}
-                  value={<>
-                    <span className="tabular-nums text-oa-fg">${row.price.current.toFixed(2)}</span>
-                    <ChangeText pct={row.price.changePct!} />
-                  </>}
-                />
-              ))}
-            </>
-          ) : movers.length === 0 ? (
-            <EmptyRow>Waiting for the next market update.</EmptyRow>
-          ) : (
-            movers.map((a: AnomalyItem) => (
-              <RowLink
-                key={a.instrument_id}
-                href={`/stock/${a.ticker}`}
-                label={
-                  <>
-                    <div className="flex items-center gap-2">
-                      <StockLogo ticker={a.ticker} size={18} circle />
-                      <span className="oa-mono text-base text-oa-fg">{a.ticker}</span>
-                    </div>
-                    <span className="min-w-0 text-oa-muted-fg">
-                      {anomalyTag(a)}
-                    </span>
-                  </>
-                }
-                value={
-                  <>
-                    <span className="tabular-nums text-oa-fg">${a.price.toFixed(2)}</span>
-                    <ChangeText pct={a.day_change_pct ?? 0} />
-                  </>
-                }
-              />
-            ))
-          )}
-        </SquircleCard>
-      </Reveal>
-
-      <Reveal delay={160}>
-        <SquircleCard title="Reddit buzz" seeAllHref="/reddit-buzz" contentClassName="h-80 overflow-y-auto">
-          {buzz.length === 0 ? (
-            <EmptyRow>Buzz refreshes through the day.</EmptyRow>
-          ) : (
-            buzz.map((t) => (
-              <RowLink
-                key={t.ticker}
-                href={`/stock/${t.ticker}`}
-                label={
-                  <>
-                    <div className="flex items-center gap-2">
-                      <StockLogo ticker={t.ticker} size={18} circle />
-                      <span className="oa-mono text-base text-oa-fg">{t.ticker}</span>
-                    </div>
-                    <span className="min-w-0 text-oa-muted-fg">
-                      {t.summary}
-                    </span>
-                  </>
-                }
-                value={
-                  <span
-                    className={`capitalize font-medium ${
-                      t.sentiment === "bullish"
-                        ? "text-emerald-700 dark:text-emerald-400"
-                        : t.sentiment === "bearish"
-                          ? "text-red-700 dark:text-red-400"
-                          : "text-slate-600 dark:text-slate-400"
-                    }`}
-                  >
-                    {t.sentiment || "neutral"}
-                  </span>
-                }
-              />
-            ))
-          )}
-        </SquircleCard>
-      </Reveal>
-    </div>
-  );
-}
-
-const STEPS = [
-  {
-    n: "01",
-    title: "Look up any stock",
-    body: "Financials, valuation, earnings and news on one page, in plain English.",
-  },
-  {
-    n: "02",
-    title: "Track what you own",
-    body: "We keep watching after you close the tab. You hear only when something changes.",
-  },
-  {
-    n: "03",
-    title: "Ask your AI",
-    body: "Connect Claude or ChatGPT and question your watchlist in plain English.",
-  },
+const ASK_EXAMPLES = [
+  "Which of my stocks report earnings this week, and what would change the call?",
+  "Why is NVDA down today? Show me the sources.",
+  "Add the top three names from the AI capex idea to my watchlist.",
+  "Tell me when AAPL drops into its add zone.",
 ];
 
 const FAQS = [
   {
-    q: "What do I get for free?",
-    a: "Search any US stock and track up to three names in your Watchlist. Pro adds detailed calls, price zones, targets, unlimited tracking and alerts.",
+    q: "What is stocksbrew?",
+    a: "An agent that follows your stocks. It reads the filings, earnings reports and news on what you own, explains what moved and why, shows you what funds, members of Congress and insiders are doing, and tells you when something needs a look.",
   },
   {
-    q: "What does Pro actually add?",
-    a: "Detailed calls, price zones and targets, unlimited Watchlist stocks, alerts, and access from compatible AI agents.",
+    q: "Does it trade for me or hold my money?",
+    a: "No. stocksbrew never connects to a brokerage, and it cannot place trades or move money. You read the research and act wherever you already invest.",
   },
   {
-    q: "Can I use Stocksbrew in Claude Code, Cursor, or Codex?",
-    a: "Yes. Pro includes MCP and REST access for current stock research, your Watchlist, changes and alerts. You choose narrow read and write scopes. Stocksbrew cannot place trades or move money.",
+    q: "How much does it cost?",
+    a: `Reading is free on every stock, including our call. On Free your agent covers five stocks in full. Pro is $${US_PRO_MONTHLY} a month or $${US_PRO_YEARLY} a year and covers everything you own, with more agents, alerts and questions.`,
   },
   {
-    q: "Is there a free trial?",
-    a: "Yes. Pro includes 3 days of full access free. Then $9/month. Cancel anytime.",
+    q: "Where does the information come from?",
+    a: "Public filings, earnings reports, market prices, analyst targets and the news. Headlines and filings link to the original.",
+  },
+  {
+    q: "Is the research written by AI?",
+    a: "The explanations and calls are AI-written from filings, numbers and news. Prices and financials are not. When there is no confirmed reason for a move, we say so.",
+  },
+  {
+    q: "Which stocks does it cover?",
+    a: "US-listed stocks. Around 500 are searchable today. If the one you want is missing, request it from the search box and we add it.",
+  },
+  {
+    q: "Can I use it inside Claude, ChatGPT or Cursor?",
+    a: "Yes. Pro includes MCP and REST access to current research, your portfolio, recent changes and alerts. You choose narrow read and write scopes. There is no trading tool.",
+  },
+  {
+    q: "How do I hear about changes?",
+    a: "In your briefing every day, and by email. Agents you set up tell you when a filing lands, a price is crossed or a call changes, and every run is logged, including the ones that found nothing.",
   },
   {
     q: "Can I cancel anytime?",
@@ -414,148 +101,261 @@ const FAQS = [
   },
   {
     q: "Is this investment advice?",
-    a: "No. Stocksbrew provides research for your own decisions. It is not a broker and cannot place trades or move money.",
+    a: "No. stocksbrew provides research for your own decisions. It is not a broker or an adviser.",
   },
 ];
 
 export async function OaLanding() {
   const user = await getLandingUserContext();
+  const half = Math.ceil(FAQS.length / 2);
+  const faqColumns = [FAQS.slice(0, half), FAQS.slice(half)];
 
   return (
     <main className={`oa-landing ${interTight.variable} min-w-0 flex-grow overflow-x-clip`}>
-      <OaSiteHeader />
+      <OaSiteHeader variant="marketing" />
 
       <div className={FRAME}>
         {/* hero */}
-        <section className="grid grid-cols-1 items-center gap-10 pb-4 pt-10 sm:gap-14 sm:pt-16 lg:grid-cols-[1.05fr_0.95fr]">
+        <section className="grid grid-cols-1 items-center gap-8 pb-4 pt-10 sm:gap-14 sm:pt-16 lg:pt-20 lg:grid-cols-[1fr_1fr]">
           <div>
-            <h1 className="text-balance font-medium tracking-tight text-oa-fg text-[2.5rem] leading-[1.06] sm:text-6xl sm:leading-[1.04]">
+            <h1 className="text-balance font-medium tracking-tight text-oa-fg text-[2.25rem] leading-[1.08] sm:text-[3.5rem] sm:leading-[1.05]">
               {HERO_HEADLINE_LEAD}{" "}
               <span className="text-oa-muted-fg">{HERO_HEADLINE_EMPHASIS}</span>
             </h1>
-            <p className="text-pretty mt-5 max-w-lg text-base leading-7 text-oa-muted-fg">
+            <p className="text-pretty mt-4 max-w-lg text-[16px] leading-[26px] text-oa-fg/85 sm:mt-5 sm:text-[17px] sm:leading-7">
               {HERO_SUBHEAD}
             </p>
-            <div className="mt-8">
+            <div className="mt-6 sm:mt-8">
               <OaHeroSearch source="hero" />
             </div>
-            {user.signedIn ? (
-              <p className="mt-3 text-base text-oa-muted-fg">
-                {user.isSubscribed
-                  ? "Pro is active. Every stock you follow stays current."
-                  : `Tracking ${user.trackedIds.length} of 3 free stocks.`}
-              </p>
-            ) : (
-              <p className="mt-3 text-base text-oa-muted-fg">
-                Free forever for 3 stocks. No card required.
-              </p>
-            )}
+            {user.signedIn ? null : <p className="mt-3 text-base text-oa-muted-fg">{HERO_FOOTNOTE}</p>}
           </div>
           <div className="flex justify-center lg:justify-end">
-            <HeroBriefCard />
+            <Suspense fallback={<HeroBriefingGhost />}>
+              <HeroBriefing />
+            </Suspense>
           </div>
         </section>
 
         {/* everything below stacks as plates; the page background between them is the only divider */}
-        <div className="flex flex-col gap-12 pb-12 pt-8 sm:gap-20 sm:pb-20 sm:pt-12">
-          {/* product proof */}
+        <div className="flex flex-col gap-14 pb-12 pt-10 sm:gap-20 sm:pb-20 sm:pt-14">
+          {/* one place */}
+          <section id="portfolio" className="scroll-mt-24">
+            <SectionHead
+              title="Everything you own and follow, in one place."
+              lede="Add your stocks one at a time or in a batch. There is no broker login and nothing to connect, so nothing here can touch your money."
+              href="/watchlist"
+              hrefLabel="Open your portfolio"
+            />
+            <Suspense fallback={<div className="oa-surface h-[22rem] animate-pulse border border-oa-border bg-oa-card motion-reduce:animate-none" aria-hidden="true" />}>
+              <OnePlace />
+            </Suspense>
+          </section>
+
+          {/* track everything */}
           <section id="live" className="scroll-mt-24">
-            <Reveal>
-              <div className="mb-6 max-w-2xl">
-                <h2 className={H2}>What moved and why</h2>
-              </div>
-            </Reveal>
-            <LiveProofCards />
+            <SectionHead
+              title="Track everything that moves your stocks."
+              lede="Six feeds we check through the day, each tied back to the stocks you follow."
+              href="/briefing"
+              hrefLabel="See today's briefing"
+            />
+            <Suspense fallback={<div className="oa-surface h-[44rem] animate-pulse border border-oa-border bg-oa-card motion-reduce:animate-none" aria-hidden="true" />}>
+              <TrackGrid />
+            </Suspense>
           </section>
 
-          {/* how it works */}
-          <section>
-            <Reveal>
-              <div className="mb-6 max-w-2xl">
-                <h2 className={H2}>Three steps, then get on with your day.</h2>
-              </div>
-            </Reveal>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              {STEPS.map((step, i) => (
-                <Reveal key={step.n} delay={80 * (i + 1)}>
-                  <SquircleSurface className="h-full border border-oa-border p-5 shadow-[0_1px_2px_rgba(0,0,0,0.06)] sm:p-6">
-                    <p className="oa-mono text-base text-oa-muted-fg">{step.n}</p>
-                    <h3 className="mt-4 text-[20px] font-medium tracking-tight text-oa-fg">
-                      {step.title}
-                    </h3>
-                    <p className="mt-2 text-base leading-6 text-oa-muted-fg">{step.body}</p>
-                  </SquircleSurface>
-                </Reveal>
-              ))}
-            </div>
+          {/* beyond stocks */}
+          <section id="markets" className="scroll-mt-24">
+            <SectionHead
+              title="Not only stocks."
+              lede="Funds, rates, commodities, currencies, crypto and the odds people are trading on the Fed and the economy, read in the same plain words."
+              href="/markets"
+              hrefLabel="Open markets"
+            />
+            <Suspense fallback={<div className="oa-surface h-[30rem] animate-pulse border border-oa-border bg-oa-card motion-reduce:animate-none" aria-hidden="true" />}>
+              <MarketsSection />
+            </Suspense>
           </section>
 
-          {/* pricing: hidden once you already subscribe */}
-          {!user.isSubscribed ? (
-            <section id="pricing" className="scroll-mt-24">
+          {/* idea to watchlist */}
+          <section id="ideas" className="scroll-mt-24">
+            <SectionHead
+              title="Turn an idea into a watchlist."
+              lede="Start from a theme you believe in. Every name comes with what it does in that idea, why it fits, and what would break the case."
+              href="/explore"
+              hrefLabel="Explore all ideas"
+            />
+            <Suspense fallback={<div className="oa-surface h-[30rem] animate-pulse border border-oa-border bg-oa-card motion-reduce:animate-none" aria-hidden="true" />}>
+              <IdeaToWatchlist />
+            </Suspense>
+          </section>
+
+          {/* follow rules, follow people */}
+          <section id="follow" className="scroll-mt-24">
+            <Suspense fallback={<div className="oa-surface h-[40rem] animate-pulse border border-oa-border bg-oa-card motion-reduce:animate-none" aria-hidden="true" />}>
+              <FollowSection />
+            </Suspense>
+          </section>
+
+          {/* agents */}
+          <section id="agents" className="scroll-mt-24">
             <Reveal>
-              <SquircleSurface className="bg-oa-bg px-6 py-10 sm:px-10 sm:py-14">
-                <div className="mx-auto max-w-xl text-center">
-                  <h2 className="text-balance font-medium tracking-tight text-oa-fg text-[28px] leading-tight sm:text-4xl">
-                    Pro when you're ready to follow more names.
-                  </h2>
-                </div>
-                <ul className="mx-auto mt-10 grid max-w-3xl gap-x-8 gap-y-8 sm:grid-cols-2">
-                  {PRO_POINTS.map((point) => (
-                    <li key={point.icon} className="flex items-start gap-3.5">
-                      <span
-                        aria-hidden="true"
-                        className="flex size-9 shrink-0 items-center justify-center rounded-full bg-oa-card text-oa-fg/70 shadow-[0_1px_2px_rgba(0,0,0,0.06)] [&_svg]:size-[18px]"
+              <AgentsSection />
+            </Reveal>
+          </section>
+
+          {/* ask from your own AI */}
+          <section id="ask" className="scroll-mt-24">
+            <Reveal>
+              <SquircleSurface className="border border-oa-border p-1 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
+                <div className="grid grid-cols-1 gap-1 lg:grid-cols-[1fr_1fr]">
+                  <div className="flex flex-col justify-center p-5 sm:p-8">
+                    <h2 className={H2}>Ask it from the AI you already use.</h2>
+                    <p className={LEDE}>
+                      Connect Claude, ChatGPT or Cursor and ask about your stocks in plain English.
+                      It can read your watchlist and set alerts. It cannot place trades or move
+                      money.
+                    </p>
+                    <div className="mt-6 flex flex-wrap items-center gap-3">
+                      <a
+                        href="/developers"
+                        className="inline-flex h-11 items-center rounded-full border border-[color-mix(in_srgb,var(--ink)_55%,transparent)] bg-oa-card px-5 text-base font-medium text-oa-fg transition-colors hover:bg-oa-accent active:translate-y-px"
                       >
-                        <AnimatedIcon name={point.icon} size={18} />
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block text-[17px] font-medium leading-6 text-oa-fg">{point.title}</span>
-                        <span className="mt-0.5 block text-[16px] leading-6 text-oa-muted-fg">{point.body}</span>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-                  <ProCheckoutButton size="md" className="h-11 px-6 text-base">Try Pro</ProCheckoutButton>
-                  <p className="text-[16.5px] text-oa-muted-fg">
-                    <span className="font-medium tabular-nums text-oa-fg">${US_PRO_MONTHLY}/mo</span> · 3-day full trial · cancel anytime
-                  </p>
+                        Connect your AI
+                      </a>
+                      <a
+                        href="/ask"
+                        className="inline-flex h-11 items-center rounded-full border border-oa-border bg-oa-card px-5 text-base font-medium text-oa-fg transition-colors hover:border-oa-fg/30"
+                      >
+                        Or ask it here
+                      </a>
+                    </div>
+                  </div>
+                  <SquircleSurface className="gap-2 rounded-[22px] bg-oa-bg p-4 [--card-clip-radius:12px] sm:rounded-[44px] sm:p-6 sm:[--card-clip-radius:17px]">
+                    <p className={LABEL}>Things people ask</p>
+                    <ul className="mt-1 flex flex-col gap-2">
+                      {ASK_EXAMPLES.map((example) => (
+                        <li
+                          key={example}
+                          className="w-fit max-w-full rounded-[18px] rounded-br-[6px] border border-oa-border bg-oa-card px-4 py-2.5 text-[15px] leading-6 text-oa-fg"
+                        >
+                          {example}
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="oa-mono mt-3 break-all rounded-[12px] border border-oa-border bg-oa-card px-3 py-2 text-[13px] text-oa-muted-fg">
+                      https://www.stocksbrew.online/api/mcp
+                    </p>
+                  </SquircleSurface>
                 </div>
-                <p className="mt-6 text-center text-[13px] text-oa-muted-fg">
-                  Free forever: search any US stock, plain-English briefs, track 3 stocks.{" "}
-                  <StartFreeButton surface="landing_pro_preview" size="sm" variant="secondary" label="Start free" className="ml-1 h-8 px-3 text-[13px] align-middle" />
-                </p>
               </SquircleSurface>
             </Reveal>
           </section>
+
+          {/* plans: hidden once you already subscribe */}
+          {!user.isSubscribed ? (
+            <section id="pricing" className="scroll-mt-24">
+              <Reveal>
+                <PlansSection trialEligible={(await getViewer()).trialEligible} />
+              </Reveal>
+            </section>
           ) : null}
 
-          {/* faq */}
+          {/* questions */}
           <section id="faq" className="scroll-mt-24">
+            <SectionHead title="Questions" align="center" />
             <Reveal>
-              <div className="mx-auto max-w-3xl">
-                <h2 className={`${H2} mb-4`}>Questions, answered</h2>
-                {FAQS.map((item) => (
-                  <Disclosure key={item.q} question={item.q}>
-                    {item.a}
-                  </Disclosure>
+              <div className="mx-auto grid max-w-5xl grid-cols-1 gap-x-12 md:grid-cols-2">
+                {faqColumns.map((column, index) => (
+                  <div key={index}>
+                    {column.map((item) => (
+                      <Disclosure key={item.q} question={item.q}>
+                        {item.a}
+                      </Disclosure>
+                    ))}
+                  </div>
                 ))}
               </div>
             </Reveal>
           </section>
 
-          {/* footer */}
-          <footer className="flex flex-col items-center justify-between gap-3 text-base text-oa-muted-fg sm:flex-row">
-            <p>Research for your own decisions. Not financial advice.</p>
-            <nav className="flex items-center gap-4" aria-label="Footer">
-              <a href="/about" className="transition-colors hover:text-oa-fg">About</a>
-              <a href="/blog" className="transition-colors hover:text-oa-fg">Blog</a>
-              <a href="/developers" className="transition-colors hover:text-oa-fg">Developers</a>
-            </nav>
-          </footer>
+          {/* why */}
+          <section id="why" className="scroll-mt-24">
+            <Reveal>
+              <div className="mx-auto max-w-3xl">
+                <h2 className={H2}>Why I built stocksbrew.</h2>
+                <div className="mt-5 flex flex-col gap-4 text-[17px] leading-8 text-oa-fg/80">
+                  <p>
+                    Following a company meant reopening the same tabs every day: the filing, the
+                    earnings call, the chart, the news, the forum thread. Most days nothing had
+                    changed. The day something did was easy to miss.
+                  </p>
+                  <p>
+                    So I built the thing I wanted. It does the reading every day and speaks up only
+                    when it has something to say, with the source next to it. It never touches your
+                    money. You stay the one who decides.
+                  </p>
+                  <p>
+                    stocksbrew is a small, independent product. If a page is confusing or a fact
+                    looks wrong, tell me. I read every message.
+                  </p>
+                </div>
+                <div className="mt-6 flex flex-wrap items-center gap-3 text-[15px]">
+                  <a
+                    href="/about"
+                    className="inline-flex h-10 items-center rounded-full border border-oa-border bg-oa-card px-4 font-medium text-oa-fg transition-colors hover:border-oa-fg/30"
+                  >
+                    Who is behind this
+                  </a>
+                  <a
+                    href="/docs"
+                    className="inline-flex h-10 items-center rounded-full border border-oa-border bg-oa-card px-4 font-medium text-oa-fg transition-colors hover:border-oa-fg/30"
+                  >
+                    How the research is made
+                  </a>
+                </div>
+              </div>
+            </Reveal>
+          </section>
         </div>
       </div>
     </main>
+  );
+}
+
+
+/** The hero card's shape while today's briefing loads: same frame and rows, so nothing jumps when it arrives. */
+function HeroBriefingGhost() {
+  return (
+    <div className="w-full" aria-hidden="true">
+      <SquircleSurface className="border border-oa-border p-1">
+        <div className="flex items-center justify-between gap-2 px-4 pb-2 pt-2.5">
+          <Bar className="h-4 w-36" />
+          <Bar className="h-6 w-20 rounded-full" />
+        </div>
+        <div className="oa-surface border border-oa-border bg-oa-card p-4">
+          <div className="flex items-center gap-2">
+            <Bar className="size-7 rounded-full" />
+            <Bar className="h-4 w-40" />
+          </div>
+          <Bar className="mt-4 h-9 w-44" />
+          <Bar className="mt-3 h-4 w-32" />
+          <div className="mt-5 grid grid-cols-2 gap-4 border-t border-oa-border pt-4">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i}>
+                <Bar className="h-3.5 w-20" />
+                <Bar className="mt-2 h-4 w-24" />
+              </div>
+            ))}
+          </div>
+          <Bar className="mt-5 h-14 w-full" />
+        </div>
+        <div className="oa-surface mt-1 border border-oa-border bg-oa-card p-4">
+          <Bar className="h-3.5 w-24" />
+          <Bar className="mt-2 h-4 w-3/4" />
+        </div>
+      </SquircleSurface>
+    </div>
   );
 }

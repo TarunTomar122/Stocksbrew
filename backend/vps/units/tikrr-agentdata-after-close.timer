@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Tikrr agent data: prices, strategies, earnings, screener and agents after the US close
+
+[Timer]
+OnCalendar=Mon..Fri *-*-* 22:30:00 UTC
+Persistent=true
+AccuracySec=10min
+Unit=tikrr-agentdata-after-close.service
+
+[Install]
+WantedBy=timers.target

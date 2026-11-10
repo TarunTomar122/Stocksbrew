@@ -7,7 +7,7 @@ import type { SearchEntry } from "@/lib/search";
 import { formatSearchPct, scoreSearchEntry } from "@/lib/ticker-search-utils";
 import { StockRequestModal } from "@/components/stock-request-modal";
 
-export function OaHeaderSearchButton() {
+export function OaHeaderSearchButton({ trigger = "icon" }: { trigger?: "icon" | "row" } = {}) {
   const router = useRouter();
   const [searchIndex, setSearchIndex] = useState<SearchEntry[]>([]);
   const [query, setQuery] = useState("");
@@ -66,6 +66,22 @@ export function OaHeaderSearchButton() {
   }, [open]);
 
   useEffect(() => {
+    // Cmd/Ctrl+K opens search from anywhere. Only the sidebar row listens, so
+    // two mounted triggers never open two dialogs.
+    if (trigger !== "row") return;
+    function onShortcut(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        if (window.matchMedia("(min-width: 1024px)").matches) {
+          e.preventDefault();
+          setOpen(true);
+        }
+      }
+    }
+    document.addEventListener("keydown", onShortcut);
+    return () => document.removeEventListener("keydown", onShortcut);
+  }, [trigger]);
+
+  useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") setOpen(false);
     }
@@ -106,17 +122,32 @@ export function OaHeaderSearchButton() {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label="Search stocks"
-        className="inline-flex h-9 w-9 items-center justify-center rounded-full text-oa-muted-fg transition-colors hover:bg-oa-accent hover:text-oa-fg"
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true" className="size-5">
-          <circle cx="11" cy="11" r="7" />
-          <path d="m20 20-3.5-3.5" />
-        </svg>
-      </button>
+      {trigger === "row" ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="flex h-9 w-full items-center gap-2.5 rounded-lg border border-oa-border bg-oa-card px-3 text-left text-[14px] text-oa-muted-fg transition-colors hover:text-oa-fg"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true" className="size-4 shrink-0">
+            <circle cx="11" cy="11" r="7" />
+            <path d="m20 20-3.5-3.5" />
+          </svg>
+          <span className="flex-1 truncate">Search a stock</span>
+          <kbd className="oa-mono rounded border border-oa-border px-1 text-[11px]">⌘K</kbd>
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label="Search stocks"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-full text-oa-muted-fg transition-colors hover:bg-oa-accent hover:text-oa-fg"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true" className="size-5">
+            <circle cx="11" cy="11" r="7" />
+            <path d="m20 20-3.5-3.5" />
+          </svg>
+        </button>
+      )}
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-start justify-center pt-20">

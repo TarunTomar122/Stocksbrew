@@ -1,0 +1,70 @@
+PROPOSED LICENSE FOR STOCKSBREW (decision for the owner; not yet in force)
+=========================================================================
+
+Recommendation: GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later)
+for the repository, with packages/stocksbrew-cli optionally under MIT.
+
+How to adopt it
+---------------
+1. Copy the canonical license text verbatim from
+   https://www.gnu.org/licenses/agpl-3.0.txt into a file named LICENSE.
+   (Do not retype it; use the official text unchanged.)
+2. Delete this file.
+3. Add to package.json: "license": "AGPL-3.0-or-later" (and remove "private": true
+   only if you intend to publish to npm; keeping it is fine for a web app).
+4. Optional: put MIT text in packages/stocksbrew-cli/LICENSE and set its
+   package.json "license": "MIT" so anyone can embed the client freely.
+5. Optional: a short header in new source files:
+   SPDX-License-Identifier: AGPL-3.0-or-later
+
+Comparison for this project
+---------------------------
+stocksbrew is a hosted web app plus server-side jobs. The interesting question
+is what happens when someone runs a modified copy as a service.
+
+MIT
+  + Shortest, most familiar, maximum adoption and reuse.
+  - Anyone can take the whole product, run a closed hosted fork, and never
+    share changes. No patent grant.
+  Fit: good for the CLI/client package; weak for the app if you care about
+  improvements coming back.
+
+Apache-2.0
+  + Permissive like MIT, plus an explicit patent grant and patent-retaliation
+    clause, and a NOTICE mechanism for attribution.
+  - Same closed-SaaS-fork outcome as MIT. Slightly more ceremony.
+  Fit: the better permissive choice if you want companies to build on it.
+
+AGPL-3.0
+  + Copyleft that also covers network use: anyone who runs a modified
+    stocksbrew for users must offer those users the source of their version.
+    Keeps the project and its forks open. Common for self-hostable apps,
+    including open-source finance trackers.
+  - Some companies forbid AGPL code, so fewer corporate contributors or
+    embedders. Contributors need to accept that their work stays AGPL.
+  Fit: best match for "free and open source, and it stays that way".
+
+Why AGPL here: the value is the whole running product, not a library. A
+permissive license lets a well-funded clone take it closed overnight; AGPL
+keeps forks honest without stopping anyone from self-hosting or contributing.
+If you later want to dual-license or relicense, accept outside contributions
+under a simple CLA or DCO sign-off (CONTRIBUTING.md asks for DCO sign-off).
+
+What no code license covers: the data
+-------------------------------------
+The license applies to the code in this repository only. Data fetched from
+providers (SEC EDGAR, House Clerk, Yahoo Finance, Alpha Vantage, Finnhub,
+Marketaux, Twelve Data, OpenFIGI, scraped pages such as Finviz, Zacks,
+StockAnalysis, Nasdaq, TradingView, CNN, Tickertape, Screener.in, and the
+Reddit/Truth Social/Polymarket/Kalshi/CoinGecko APIs) stays under each
+provider's terms. Many of those terms forbid redistribution, commercial use or
+automated access. So:
+  - ship no fetched data, caches, fixtures copied from providers, or database
+    files in the repo;
+  - say in the README that operators need their own keys and must follow each
+    provider's terms;
+  - consider disabling the scraping providers by default in the public build.
+Third-party assets also keep their own licenses: fonts in assets/og (Instrument
+Sans, Geist Mono, Inter: SIL Open Font License, include the OFL notices).
+(public/agent-logos and public/trump-avatar.png were unused and have been
+removed from the tree.)

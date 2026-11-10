@@ -76,7 +76,12 @@ export function getSeoStockPage(ticker: string): SeoStockPage | null {
 
 export function stockSeoDescription(stock: Pick<SeoStockPage, "name" | "ticker" | "sector" | "industry">): string {
   const category = stock.industry || stock.sector || "US stock";
-  return `${stock.name} (${stock.ticker}) stock analysis with current price, valuation, growth, analyst context, earnings, risks, and recent news. ${category} research, updated with the latest available data.`;
+  return `${stock.name} (${stock.ticker}) stock on one page: the price, our current call and the reasoning behind it, financials, valuation against its own history, analyst price targets, earnings dates and results, who owns it and recent news. ${category}.`;
+}
+
+/** The page title, written from what the stock page shows. */
+export function stockSeoTitle(stock: Pick<SeoStockPage, "name" | "ticker">): string {
+  return `${stock.name} (${stock.ticker}) Stock: Our Call, Valuation and Earnings`;
 }
 
 export const FEATURED_STOCK_TICKERS = [
@@ -93,6 +98,35 @@ export const FEATURED_STOCK_TICKERS = [
 ] as const;
 
 const FEATURED_STOCKS = new Set<string>(FEATURED_STOCK_TICKERS);
+
+/**
+ * The stock pages search engines may index, and the ones the sitemap lists.
+ * Picked on 2026-11-10: the ten flagship pages, then the most viewed pages of
+ * the last 90 days, then the largest companies by market value. Every one is
+ * in the catalogue above and had a written read in the store on that day. The
+ * rest of the catalogue stays noindex until the owner widens this list.
+ *
+ * This is separate from FEATURED_STOCK_TICKERS on purpose: that list also
+ * decides which pages show price levels to everyone (lib/entitlements-server.ts).
+ */
+export const INDEXED_STOCK_TICKERS = [
+  "NVDA", "MSFT", "AAPL", "AMZN", "GOOGL", "META", "TSLA", "AVGO", "AMD", "PLTR",
+  "MU", "COHR", "COIN", "SPCX", "SMCI", "MRVL", "WMT", "TSM", "UBER", "INTC",
+  "NOW", "VRT", "RKLB", "APP", "LLY", "INTU", "VST", "AAP", "JPM", "V",
+  "XOM", "JNJ", "MA", "ASML", "ABBV", "COST", "CVX", "KO", "PG", "CSCO",
+  "MRK", "UNH", "ORCL", "HD", "BAC", "GE", "PM", "MS", "AMAT", "NFLX",
+  "TMO", "PANW", "RTX", "CAT", "TXN", "WFC", "LRCX", "GS", "AMGN", "LIN",
+  "CRWD", "ANET", "AXP", "DELL", "GILD", "GEV", "DIS", "C", "PEP", "SHOP",
+  "BLK", "ABT", "VZ", "ARM", "APH", "NEE", "DE", "KLAC", "QCOM", "ADI",
+  "CRM", "TMUS", "PFE", "DHR", "COP", "SCHW", "ISRG", "ACN", "BX", "T",
+  "SCCO", "CB", "VRTX", "BA", "SPGI", "NVO", "ETN", "LMT", "MDT", "HDB",
+] as const;
+
+const INDEXED_STOCKS = new Set<string>(INDEXED_STOCK_TICKERS);
+
+export function isIndexedStockTicker(ticker: string): boolean {
+  return INDEXED_STOCKS.has(String(ticker || "").trim().toUpperCase());
+}
 
 export function isFeaturedStockTicker(ticker: string): boolean {
   return FEATURED_STOCKS.has(String(ticker || "").trim().toUpperCase());

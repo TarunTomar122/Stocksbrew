@@ -2698,8 +2698,6 @@ function fallbackBriefFromRows(rows: WatchlistRow[], pulse: WatchlistPulse): Wat
   };
 }
 
-const FREE_WATCHLIST_ROW_CAP = 3;
-
 export async function buildWatchlistView(
   uid: string,
   trackedStocks: string[],
@@ -2714,7 +2712,9 @@ export async function buildWatchlistView(
   const userSnap = await adminFirestore.collection("users").doc(uid).get();
   const holdingsMap = (userSnap.exists ? (userSnap.data()?.watchlist_holdings as Record<string, Record<string, unknown>> | null) : null) ?? {};
 
-  const ids = isSubscribed ? (trackedStocks || []) : (trackedStocks || []).slice(0, FREE_WATCHLIST_ROW_CAP);
+  // Every tracked stock gets a row on every plan: tracking is unlimited and these are the person's own stocks.
+  // What a plan changes is coverage, which the pages apply when they read the rows (canSeeLevels).
+  const ids = trackedStocks || [];
   const rows = applyRowDeltas(await buildRows(ids, positions, holdingsMap, universes, alertsByInstrument), previous);
   rows.sort((a, b) => (b.attention_score ?? 0) - (a.attention_score ?? 0));
   const pulse = pulseFromRows(rows);

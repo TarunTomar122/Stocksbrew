@@ -114,7 +114,7 @@ def process_open_briefs(
         return stats
 
     users = store.db.collection("users").select(
-        ["email", "email_lower", "is_subscribed", "email_digest_enabled", "display_name"]
+        ["email", "email_lower", "is_subscribed", "subscriptionStatus", "proGifted", "proGiftExpiresAt", "email_digest_enabled", "display_name"]
     ).stream()
 
     for doc in users:

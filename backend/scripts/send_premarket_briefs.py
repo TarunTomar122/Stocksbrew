@@ -21,6 +21,9 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=0, help="Max subscribers to scan (0 = all)")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
+    if os.environ.get("MAIL_V2_ACTIVE") == "1":
+        print("[legacy email] MAIL_V2_ACTIVE=1: backend/mail sends the daily and weekly now; skipping")
+        return
 
     store = TraceMoneyStore()
     stats = process_premarket_briefs(

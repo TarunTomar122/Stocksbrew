@@ -7,11 +7,12 @@ import {
   HERO_SUBHEAD,
 } from "@/lib/brand-copy";
 import type { Market } from "@/lib/types";
+import { FREE_COVERED_STOCKS } from "@/lib/entitlements";
 
 const FEATURES = [
   { label: "Plain-English briefs on any stock", icon: "verified" },
   { label: "Alerts when something changes", icon: "notifications_active" },
-  { label: "Track 3 stocks free", icon: "flag" },
+  { label: `${FREE_COVERED_STOCKS} stocks covered free`, icon: "flag" },
 ] as const;
 
 export function TerminalLandingHeroCopy({

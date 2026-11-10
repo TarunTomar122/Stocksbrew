@@ -9,18 +9,13 @@ import { PortfolioSearch } from "@/components/portfolio-search";
 import { TrackInRadarButton } from "@/components/track-in-radar-button";
 import type { SearchEntry } from "@/lib/search";
 import type { PortfolioAnalysis, PortfolioStock, RiskFlag, Opportunity } from "@/lib/portfolio-analyzer";
+import { ToneGlyph, Verdict } from "@/components/oa/kit/tone";
+import { scoreVerdict, spreadWord } from "@/lib/tone";
+import { FREE_COVERED_STOCKS } from "@/lib/entitlements";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function scoreColor(s: number | null): string {
-  if (s === null) return "var(--oa-muted-fg)";
-  if (s >= 80) return "var(--signal-bullish)";
-  if (s >= 60) return "var(--oa-fg)";
-  if (s >= 40) return "var(--oa-muted-fg)";
-  return "var(--signal-bearish)";
-}
 
 function scoreLabel(s: number | null): string {
   if (s === null) return "—";
@@ -51,12 +46,6 @@ const SECTOR_COLORS = [
   "#06b6d4", "#d946ef", "#0ea5e9", "#a855f7", "#22c55e",
 ];
 
-const VERDICT_META: Record<string, { bg: string; text: string; label: string }> = {
-  strong: { bg: "var(--oa-bg)", text: "var(--signal-bullish)", label: "Strong" },
-  solid:  { bg: "var(--oa-bg)", text: "var(--signal-bullish)", label: "Solid" },
-  mixed:  { bg: "var(--oa-bg)", text: "var(--signal-neutral)", label: "Mixed" },
-  weak:   { bg: "var(--oa-bg)", text: "var(--signal-bearish)", label: "Weak" },
-};
 
 const RISK_META: Record<string, { icon: string; bg: string }> = {
   sector_concentration: { icon: "📊", bg: "var(--oa-bg)" },
@@ -91,18 +80,26 @@ function ScoreBar({ score }: { score: number | null }) {
   const clamped = Math.min(Math.max(score, 0), 100);
   return (
     <div className="relative h-1.5 rounded-full bg-[var(--oa-bg)] overflow-hidden w-16">
-      <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${clamped}%`, background: scoreColor(score) }} />
+      <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${clamped}%`, background: "color-mix(in srgb, var(--oa-fg) 45%, transparent)" }} />
     </div>
   );
 }
 
-function VerdictBadge({ verdict }: { verdict: string | null }) {
-  const m = VERDICT_META[verdict ?? ""] ?? { bg: "var(--oa-bg)", text: "var(--oa-muted-fg)", label: verdict ?? "—" };
-  return (
-    <span className="inline-block rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: m.bg, color: m.text }}>
-      {m.label}
-    </span>
-  );
+/**
+ * Good or bad beside a 0 to 100 score; nothing in between, since a gray mark
+ * reads as a minus sign. Judged on the same bands as the Strong/Solid/Mixed/Weak
+ * chips on this page, so a figure and a chip never disagree.
+ */
+function ScoreMark({ score }: { score: number | null }) {
+  const tone = score === null ? null : scoreVerdict(scoreLabel(score));
+  return tone === "up" || tone === "down" ? <ToneGlyph tone={tone} /> : null;
+}
+
+/** The scoring model's word (Strong, Solid, Mixed, Weak) as a good-or-bad chip. */
+function VerdictBadge({ verdict, className }: { verdict: string | null; className?: string }) {
+  const tone = scoreVerdict(verdict);
+  if (!verdict || !tone) return null;
+  return <Verdict tone={tone} className={className}>{verdict.charAt(0).toUpperCase() + verdict.slice(1).toLowerCase()}</Verdict>;
 }
 
 // ---------------------------------------------------------------------------
@@ -274,35 +271,29 @@ function SummaryCard({ analysis }: { analysis: PortfolioAnalysis }) {
   const { factor_tilt, diversification_score, total_market_cap, total_stocks, stocks_with_scores, summary } = analysis;
   const avgScore = factor_tilt.overall;
   const verdict = scoreLabel(avgScore);
-  const vm = VERDICT_META[verdict] ?? { bg: "var(--oa-bg)", text: "var(--oa-muted-fg)" };
+  const spread = spreadWord(diversification_score);
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
       <div className="col-span-2 md:col-span-1 rounded-2xl border border-[var(--oa-border)] bg-oa-card p-5 flex flex-col gap-2">
         <span className="text-[10px] font-medium tracking-[0.08em] uppercase text-[var(--oa-muted-fg)]">Portfolio score</span>
         <div className="flex items-baseline gap-2">
-          <span className="text-[48px] font-medium tracking-[-0.03em] leading-none" style={{ color: scoreColor(avgScore) }}>
+          <span className="text-[48px] font-medium tracking-[-0.03em] leading-none text-[var(--oa-fg)]">
             {avgScore ?? "—"}
           </span>
           {avgScore !== null && <span className="text-[13px] font-medium text-[var(--oa-muted-fg)]">/ 100</span>}
         </div>
-        <span className="inline-block self-start rounded-full px-2.5 py-0.5 text-[11px] font-medium" style={{ background: vm.bg, color: vm.text }}>
-          {verdict}
-        </span>
+        {avgScore !== null ? <VerdictBadge verdict={verdict} className="self-start" /> : null}
         {summary && <p className="text-[12px] text-[var(--oa-muted-fg)] leading-[1.5] mt-1">{summary}</p>}
       </div>
 
       <div className="rounded-2xl border border-[var(--oa-border)] bg-oa-card p-5 flex flex-col gap-2">
         <span className="text-[10px] font-medium tracking-[0.08em] uppercase text-[var(--oa-muted-fg)]">Diversification</span>
-        <span className="text-[40px] font-medium tracking-[-0.03em] leading-none" style={{ color: scoreColor(diversification_score) }}>
+        <span className="text-[40px] font-medium tracking-[-0.03em] leading-none text-[var(--oa-fg)]">
           {diversification_score}
         </span>
         <span className="text-[11px] text-[var(--oa-muted-fg)]">/ 100</span>
-        <p className="text-[12px] text-[var(--oa-muted-fg)] leading-snug mt-1">
-          {diversification_score >= 70 ? "Well spread across sectors." :
-           diversification_score >= 40 ? "Moderate diversification." :
-           "Highly concentrated."}
-        </p>
+        {spread ? <Verdict tone={spread.tone} className="mt-1 self-start">{spread.word}</Verdict> : null}
       </div>
 
       <div className="rounded-2xl border border-[var(--oa-border)] bg-oa-card p-5 flex flex-col gap-2">
@@ -386,7 +377,11 @@ function FactorRadar({ tilt }: { tilt: PortfolioAnalysis["factor_tilt"] }) {
         {data.map((d) => (
           <div key={d.factor} className="flex items-center justify-between gap-2 rounded-lg bg-[var(--oa-bg)] px-3 py-1.5">
             <span className="text-[11px] text-[var(--oa-muted-fg)]">{d.factor}</span>
-            <span className="text-[13px] font-medium tabular-nums" style={{ color: scoreColor(d.score || null) }}>{d.score}</span>
+            <span className="inline-flex items-center gap-1.5 text-[13px] font-medium tabular-nums text-[var(--oa-fg)]">
+              {/* A pillar with no data is plotted at 0 but printed as a dash. */}
+              {d.score > 0 ? d.score : "—"}
+              {d.score > 0 ? <ScoreMark score={d.score} /> : null}
+            </span>
           </div>
         ))}
       </div>
@@ -396,7 +391,6 @@ function FactorRadar({ tilt }: { tilt: PortfolioAnalysis["factor_tilt"] }) {
 
 function HoldingCard({ stock, index }: { stock: PortfolioStock; index: number }) {
   const positive = (stock.day_change_pct ?? 0) >= 0;
-  const vm = VERDICT_META[stock.verdict ?? ""] ?? { bg: "var(--oa-bg)", text: "var(--oa-muted-fg)", label: "—" };
   return (
     <Link
       href={`/stock/${stock.ticker}`}
@@ -433,7 +427,7 @@ function HoldingCard({ stock, index }: { stock: PortfolioStock; index: number })
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between gap-2">
           <span className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--oa-muted-fg)]">Score</span>
-          <span className="text-[13px] font-medium tabular-nums" style={{ color: scoreColor(stock.scores.overall) }}>
+          <span className="text-[13px] font-medium tabular-nums text-[var(--oa-fg)]">
             {stock.scores.overall ?? "—"}
           </span>
         </div>
@@ -444,14 +438,9 @@ function HoldingCard({ stock, index }: { stock: PortfolioStock; index: number })
       <div className="flex items-center justify-between gap-2 pt-1 border-t border-[var(--oa-bg)]">
         <span className="text-[11px] text-[var(--oa-muted-fg)] truncate">{stock.sector}</span>
         <div className="flex items-center gap-2 shrink-0">
+          {/* Overbought or oversold is a stretched move, not good or bad for the company, so RSI stays neutral. */}
           {stock.rsi !== null && (
-            <span
-              className="text-[10px] font-medium tabular-nums rounded-md px-1.5 py-0.5"
-              style={{
-                background: "var(--oa-bg)",
-                color: stock.rsi >= 70 ? "var(--signal-bearish)" : stock.rsi <= 30 ? "var(--signal-bullish)" : "var(--oa-muted-fg)",
-              }}
-            >
+            <span className="text-[10px] font-medium tabular-nums rounded-md px-1.5 py-0.5 bg-[var(--oa-bg)] text-[var(--oa-muted-fg)]">
               RSI {stock.rsi.toFixed(0)}
             </span>
           )}
@@ -607,7 +596,7 @@ function ProCTA() {
         >
           See a demo first
         </Link>
-        <p className="text-[11px] text-[var(--oa-muted-fg)]">Free for 3 stocks · No credit card</p>
+        <p className="text-[11px] text-[var(--oa-muted-fg)]">Free for {FREE_COVERED_STOCKS} stocks · No credit card</p>
       </div>
     </div>
   );

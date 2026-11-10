@@ -305,8 +305,8 @@ function CoveragePausedBrief({
       title={`${ticker} is in your Watchlist. The brief is underway.`}
       body={
         usedFallbackSources
-          ? "We found some sources, but not enough high-confidence material for a full brief yet. stocksbrew will keep scanning and publish the brief here automatically."
-          : "We checked for fresh stock-specific news and did not find enough yet. stocksbrew will keep scanning on the next passes and publish here automatically."
+          ? "Not enough solid material for a full brief yet. It will show up here when there is."
+          : "Not enough fresh news on this stock yet. The brief will show up here when there is."
       }
       steps={[
         { done: true, label: "In your Watchlist" },

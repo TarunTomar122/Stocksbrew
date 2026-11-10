@@ -257,6 +257,31 @@ def merge_evidence_history_rows(
     return [by_day[day] for day in sorted(by_day)]
 
 
+def merge_evidence_history_for_storage(
+    stored_rows: Iterable[dict[str, Any]] | None,
+    current_rows: Iterable[dict[str, Any]] | None,
+    *,
+    keep_days: int = 30,
+) -> list[dict[str, Any]]:
+    """Rows to persist: one per day, newest ``keep_days`` days.
+
+    Unlike ``merge_evidence_history_rows`` the fresh row does not always win.
+    A single-stock on-demand run sees far fewer articles than the full run, so
+    for the same day the row built from more articles is kept.
+    """
+    by_day: dict[str, dict[str, Any]] = {}
+    for row in list(stored_rows or []) + list(current_rows or []):
+        if not isinstance(row, dict):
+            continue
+        day = _day_key(row.get("day") or row.get("date"))
+        if not day:
+            continue
+        existing = by_day.get(day)
+        if existing is None or int(row.get("article_count") or 0) >= int(existing.get("article_count") or 0):
+            by_day[day] = {**row, "day": day}
+    return [by_day[day] for day in sorted(by_day)][-max(1, keep_days):]
+
+
 def summarize_evidence_history(
     rows: Iterable[dict[str, Any]] | None,
     *,

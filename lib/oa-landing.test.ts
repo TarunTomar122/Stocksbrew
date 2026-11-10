@@ -9,12 +9,15 @@ function source(path: string): string {
 
 describe("homepage live proof movers", () => {
   it("filters researched anomalies before considering the labelled price fallback", () => {
-    const landing = source("components/oa/oa-landing.tsx");
+    // The movers card moved from oa-landing.tsx into the landing sections.
+    const grid = source("components/oa/landing/track-grid.tsx");
+    const hero = source("components/oa/landing/hero-briefing.tsx");
 
-    expect(landing).toContain("(anomaliesDoc?.anomalies ?? []).filter(");
-    expect(landing).toContain("hasResearchBackedNarrative");
-    expect(landing).not.toContain(
-      "const movers = anomaliesDoc?.anomalies ?? [];",
-    );
+    expect(grid).toContain("(anomaliesDoc?.anomalies ?? []).filter(hasResearchBackedNarrative)");
+    expect(grid).toContain("explained.length === 0 ? buildLandingPriceMovers(");
+    expect(hero).toContain("resolveLandingHeroFeatured(anomalies)");
+    for (const file of [grid, hero, source("components/oa/oa-landing.tsx")]) {
+      expect(file).not.toContain("const movers = anomaliesDoc?.anomalies ?? [];");
+    }
   });
 });

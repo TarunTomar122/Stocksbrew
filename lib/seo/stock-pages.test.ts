@@ -2,16 +2,23 @@ import { describe, expect, it } from "vitest";
 
 import {
   FEATURED_STOCK_TICKERS,
+  INDEXED_STOCK_TICKERS,
   SEO_STOCK_PAGES,
   getSeoStockPage,
   isFeaturedStockTicker,
+  isIndexedStockTicker,
   stockSeoDescription,
+  stockSeoTitle,
 } from "@/lib/seo/stock-pages";
 
 describe("indexable US stock pages", () => {
   it("covers the broad US company catalogue without duplicate tickers", () => {
-    expect(SEO_STOCK_PAGES).toHaveLength(501);
-    expect(new Set(SEO_STOCK_PAGES.map((stock) => stock.ticker)).size).toBe(501);
+    // 501 when the index was curated, 544 after the research themes added names
+    // (August and September 2026). The catalogue may grow; it must not shrink.
+    expect(SEO_STOCK_PAGES.length).toBeGreaterThanOrEqual(544);
+    expect(new Set(SEO_STOCK_PAGES.map((stock) => stock.ticker)).size).toBe(SEO_STOCK_PAGES.length);
+    expect(new Set(SEO_STOCK_PAGES.map((stock) => stock.instrumentId)).size).toBe(SEO_STOCK_PAGES.length);
+    expect(SEO_STOCK_PAGES.every((stock) => stock.name && stock.sector && stock.description)).toBe(true);
     expect(SEO_STOCK_PAGES.every((stock) => stock.instrumentId.startsWith("US_"))).toBe(true);
   });
 
@@ -36,6 +43,18 @@ describe("indexable US stock pages", () => {
       expect(isFeaturedStockTicker(ticker)).toBe(true);
     }
     expect(isFeaturedStockTicker("JPM")).toBe(false);
+  });
+
+  it("indexes a tier of one hundred catalogue stocks that includes the featured ten", () => {
+    expect(INDEXED_STOCK_TICKERS.length).toBe(100);
+    expect(new Set(INDEXED_STOCK_TICKERS).size).toBe(100);
+    for (const ticker of INDEXED_STOCK_TICKERS) {
+      expect(getSeoStockPage(ticker), ticker).not.toBeNull();
+      expect(isIndexedStockTicker(ticker)).toBe(true);
+    }
+    for (const ticker of FEATURED_STOCK_TICKERS) expect(isIndexedStockTicker(ticker), ticker).toBe(true);
+    expect(isIndexedStockTicker("NOTAREALTICKER")).toBe(false);
+    expect(stockSeoTitle({ name: "Apple Inc.", ticker: "AAPL" })).toBe("Apple Inc. (AAPL) Stock: Our Call, Valuation and Earnings");
   });
 
   it("does not treat an arbitrary ticker route as indexable", () => {

@@ -15,6 +15,9 @@ import { getAiUniverse } from "@/lib/firestore";
 // can swap this for a paginated or cursor-based loader.
 
 const DEFAULT_LIMIT = 150;
+const TICKER_NEWS_SCAN_LIMIT = 500;
+const TICKER_NEWS_TARGET_LIMIT = 50;
+const TICKER_NEWS_DEFAULT_LIMIT = 7;
 
 export type NewsArticle = {
   id: string;
@@ -106,7 +109,80 @@ function normalizeArticle(raw: RawEnrichedArticle, marketFallback: "US" | "IN"):
   };
 }
 
+// ─── Fresh headlines (tm_agent_news) ─────────────────────────────────────────
+//
+// `backend/agentdata/news_feed.py` writes publisher and official RSS headlines
+// with the same field names as the pipeline's articles. They carry no
+// sentiment (nothing here is model-written), so the label stays empty and the
+// UI shows no tone for them. Both sources are merged newest first.
+
+function normalizeAgentArticle(raw: RawEnrichedArticle, marketFallback: "US" | "IN"): NewsArticle | null {
+  const article = normalizeArticle(raw, marketFallback);
+  if (!article) return null;
+  return { ...article, sentiment_label: "", sentiment_score: 0, coverage_mode: "headline_feed" };
+}
+
+async function loadAgentNewsFeed(market: "US" | "IN", limit: number): Promise<NewsArticle[]> {
+  if (market !== "US") return [];
+  try {
+    const snap = await adminFirestore
+      .collection("tm_agent_news")
+      .orderBy("published_at", "desc")
+      .limit(limit)
+      .get();
+    return snap.docs
+      .map((doc) => normalizeAgentArticle(doc.data() as RawEnrichedArticle, market))
+      .filter((article): article is NewsArticle => article !== null);
+  } catch (err) {
+    console.warn("[news] tm_agent_news feed read failed:", err);
+    return [];
+  }
+}
+
+async function loadAgentNewsForTicker(market: "US" | "IN", ticker: string): Promise<NewsArticle[]> {
+  if (market !== "US") return [];
+  try {
+    const scoped = adminFirestore.collection("tm_agent_news").where("stock_tickers", "array-contains", ticker);
+    let snap;
+    try {
+      // Newest first, so the cap keeps the recent headlines as the collection grows.
+      snap = await scoped.orderBy("published_at", "desc").limit(TICKER_NEWS_TARGET_LIMIT).get();
+    } catch {
+      snap = await scoped.limit(TICKER_NEWS_TARGET_LIMIT).get();
+    }
+    return snap.docs
+      .map((doc) => normalizeAgentArticle(doc.data() as RawEnrichedArticle, market))
+      .filter((article): article is NewsArticle => article !== null);
+  } catch (err) {
+    console.warn("[news] tm_agent_news ticker read failed:", err);
+    return [];
+  }
+}
+
+function mergeNewestFirst(groups: NewsArticle[][], limit: number): NewsArticle[] {
+  const seen = new Set<string>();
+  const out: NewsArticle[] = [];
+  for (const article of groups.flat().sort((a, b) => (a.published_at < b.published_at ? 1 : -1))) {
+    const key = article.url.trim().toLowerCase() || article.title.trim().toLowerCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(article);
+  }
+  return out.slice(0, limit);
+}
+
 async function getNewsFeedUncached(
+  market: "US" | "IN",
+  limit: number = DEFAULT_LIMIT,
+): Promise<NewsArticle[]> {
+  const [pipeline, fresh] = await Promise.all([
+    getPipelineNewsFeed(market, limit),
+    loadAgentNewsFeed(market, limit),
+  ]);
+  return mergeNewestFirst([fresh, pipeline], limit);
+}
+
+async function getPipelineNewsFeed(
   market: "US" | "IN",
   limit: number = DEFAULT_LIMIT,
 ): Promise<NewsArticle[]> {
@@ -160,7 +236,7 @@ async function getNewsFeedUncached(
 
 const getNewsFeedCached = unstable_cache(
   getNewsFeedUncached,
-  ["news-feed"],
+  ["news-feed-v2"],
   { revalidate: 120 },
 );
 
@@ -171,9 +247,6 @@ export async function getNewsFeed(
   return getNewsFeedCached(market, limit);
 }
 
-const TICKER_NEWS_SCAN_LIMIT = 500;
-const TICKER_NEWS_TARGET_LIMIT = 50;
-const TICKER_NEWS_DEFAULT_LIMIT = 7;
 
 /** Ticker pages need a deep scan — not the 30-row home feed snapshot. */
 async function loadEnrichedArticlesForTicker(
@@ -258,13 +331,20 @@ async function getNewsForTickerUncached(
 ): Promise<NewsArticle[]> {
   const upper = ticker.toUpperCase();
   const cutoffMs = Date.now() - days * 86_400_000;
-  const rows = await loadEnrichedArticlesForTicker(market, upper, TICKER_NEWS_SCAN_LIMIT);
-  return filterTickerNews(rows, market, upper, cutoffMs, limit);
+  const [rows, fresh] = await Promise.all([
+    loadEnrichedArticlesForTicker(market, upper, TICKER_NEWS_SCAN_LIMIT),
+    loadAgentNewsForTicker(market, upper),
+  ]);
+  const freshInWindow = fresh.filter((article) => {
+    const publishedMs = new Date(article.published_at).getTime();
+    return Number.isFinite(publishedMs) && publishedMs >= cutoffMs;
+  });
+  return mergeNewestFirst([freshInWindow, filterTickerNews(rows, market, upper, cutoffMs, limit)], limit);
 }
 
 const getNewsForTickerCached = unstable_cache(
   getNewsForTickerUncached,
-  ["news-for-ticker-v2"],
+  ["news-for-ticker-v3"],
   { revalidate: 120 },
 );
 

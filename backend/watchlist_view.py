@@ -19,7 +19,9 @@ from backend.storage import TraceMoneyStore
 from backend.llm_client import LLM_BRIEF_SOURCE
 from backend.stock_intelligence import generate_portfolio_brief
 
-FREE_WATCHLIST_ROW_CAP = 3
+# Tracking is unlimited on every plan (lib/entitlements.ts: tracked_stocks), so
+# every tracked stock gets a row. Free changes what the agent writes about:
+# the portfolio brief covers the covered stocks only (``covered_ids``).
 MONTHS = {
     "jan": 1,
     "feb": 2,
@@ -3103,8 +3105,14 @@ def build_watchlist_view(
     holdings: dict[str, Any] | None = None,
     active_universes: dict[str, str] | None = None,
     include_llm_brief: bool = True,
+    covered_ids: list[str] | None = None,
 ) -> dict[str, Any]:
     """Produce the materialized payload for `tm_watchlist_views/{uid}`.
+
+    ``covered_ids`` (Free only): the stocks the agent covers in full. The
+    written portfolio brief is built from those rows, so it never explains a
+    stock the account does not cover. None means every row (Pro, or a caller
+    that predates coverage).
 
     Does not write - caller is responsible for calling
     `store.save_watchlist_view(uid, payload)`.
@@ -3113,10 +3121,7 @@ def build_watchlist_view(
     alerts_by_instrument = _load_user_alerts(store, uid)
     previous_view = store.get_watchlist_view(uid)
 
-    max_rows = FREE_WATCHLIST_ROW_CAP if not is_subscribed else None
     source_ids = tracked_stocks or []
-    if max_rows is not None:
-        source_ids = source_ids[:max_rows]
     ids = [str(instrument_id) for instrument_id in source_ids]
     latest_by_id = store.get_latest_prices(ids)
     facts_by_id = store.get_stock_facts_batch(ids)
@@ -3197,7 +3202,14 @@ def build_watchlist_view(
         "tracked_ids": [r["instrument_id"] for r in rows],
         "rows": rows,
         "pulse": pulse,
-        "brief": _build_portfolio_brief(rows, pulse, store, include_llm=include_llm_brief),
+        "brief": _build_portfolio_brief(
+            rows
+            if is_subscribed or covered_ids is None
+            else [row for row in rows if str(row.get("instrument_id") or "") in set(covered_ids)],
+            pulse,
+            store,
+            include_llm=include_llm_brief,
+        ),
         "portfolio": portfolio,
         "attention_items": _attention_items(rows),
         "suggestions": suggestions,

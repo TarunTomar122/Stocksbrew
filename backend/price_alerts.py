@@ -10,6 +10,7 @@ from backend.email import send_email
 from backend.email_runtime import log_email_send
 from backend.emails.price_alert import build_price_alert_email
 from backend.storage import TraceMoneyStore
+from backend.subscription_entitlement import covered_instrument_ids, is_pro_user
 
 logger = logging.getLogger(__name__)
 
@@ -152,14 +153,39 @@ def find_watchlist_row(
     return None
 
 
+def _load_user(store: TraceMoneyStore, uid: str) -> dict[str, Any] | None:
+    doc = store.db.collection("users").document(uid).get()
+    if not doc.exists:
+        return None
+    return doc.to_dict() or {}
+
+
+def price_alert_recipient_ok(user: dict[str, Any] | None) -> bool:
+    """Price alerts email any signed-in account that has not turned alert emails off.
+
+    Free keeps five price alerts (lib/entitlements.ts: price_alerts, enforced
+    when one is created), so the job no longer checks the plan. It only runs
+    ``price_threshold`` alerts; the other kinds stay Pro at creation.
+    """
+    if user is None:
+        return False
+    return bool(user.get("email_alerts_enabled", True))
+
+
+def row_for_email(user: dict[str, Any] | None, instrument_id: str, row: dict[str, Any] | None) -> dict[str, Any] | None:
+    """The watchlist row carries our call's zones. Only a covered stock (every stock on Pro) sends them."""
+    if row is None or user is None:
+        return None
+    iid = str(instrument_id or row.get("instrument_id") or "").strip()
+    if is_pro_user(user) or (iid and iid in covered_instrument_ids(user)):
+        return row
+    return None
+
+
 def user_alerts_enabled(store: TraceMoneyStore, uid: str) -> bool:
     if not uid:
         return True
-    doc = store.db.collection("users").document(uid).get()
-    if not doc.exists:
-        return False
-    data = doc.to_dict() or {}
-    return bool(data.get("is_subscribed")) and bool(data.get("email_alerts_enabled", True))
+    return price_alert_recipient_ok(_load_user(store, uid))
 
 
 def is_price_alert_triggered(*, condition: str, current: float, target: float) -> bool:
@@ -250,6 +276,7 @@ def process_price_alerts(
 
     prices = fetch_prices_for_alerts(store, alerts)
     row_cache: dict[tuple[str, str, str], dict[str, Any] | None] = {}
+    user_cache: dict[str, dict[str, Any] | None] = {}
 
     for alert in alerts:
         stats["checked"] += 1
@@ -278,11 +305,17 @@ def process_price_alerts(
             iid = str(alert.get("instrument_id") or "")
             cache_key = (uid, iid, ticker)
             if cache_key not in row_cache:
-                row_cache[cache_key] = find_watchlist_row(
-                    store,
-                    uid=uid,
-                    instrument_id=iid or None,
-                    ticker=ticker,
+                if uid not in user_cache:
+                    user_cache[uid] = _load_user(store, uid)
+                row_cache[cache_key] = row_for_email(
+                    user_cache[uid],
+                    iid or "",
+                    find_watchlist_row(
+                        store,
+                        uid=uid,
+                        instrument_id=iid or None,
+                        ticker=ticker,
+                    ),
                 )
             row = row_cache[cache_key]
 

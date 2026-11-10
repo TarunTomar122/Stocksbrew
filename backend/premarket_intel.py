@@ -6,6 +6,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from backend.subscription_entitlement import is_pro_user
 from backend.models import Article
 from backend.storage import TraceMoneyStore
 
@@ -140,7 +141,7 @@ def subscriber_book_mover_tickers(
 
     ranked: dict[str, float] = {}
     for user in store.list_subscribed_users():
-        if not bool(user.get("is_subscribed")) or user.get("email_digest_enabled") is False:
+        if not is_pro_user(user) or user.get("email_digest_enabled") is False:
             continue
         uid = str(user.get("uid") or "").strip()
         if not uid:
@@ -452,7 +453,7 @@ def tracked_instrument_ids(store: TraceMoneyStore, market: str) -> list[str]:
     seen: set[str] = set()
     out: list[str] = []
     for user in store.list_subscribed_users():
-        if not bool(user.get("is_subscribed")):
+        if not is_pro_user(user):
             continue
         for raw in user.get("tracked_stocks") or []:
             iid = str(raw or "").strip().upper()

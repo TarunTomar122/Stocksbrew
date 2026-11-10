@@ -1,43 +1,31 @@
-import { HeaderMorph } from "@/components/oa/header-morph";
-import { StartFreeButton } from "@/components/oa/start-free-button";
-import { OaProfileButton } from "@/components/oa/oa-profile-button";
-import { OaHeaderSearchButton } from "@/components/oa/oa-header-search-button";
+import { Suspense } from "react";
+
+import { MarketingAccount } from "@/components/oa/app-chrome";
+import { MarketingBar } from "@/components/oa/marketing-bar";
 import { MobileNav } from "@/components/oa/mobile-nav";
-import { getLandingUserContext } from "@/components/terminal-landing-streams";
-import { StocksbrewLogo } from "@/components/stocksbrew-logo";
 
-export async function OaSiteHeader() {
-  const user = await getLandingUserContext();
-
+/**
+ * The site chrome. Two shapes:
+ *
+ * - "app" (default): nothing. The app's sidebar and tab bar come from the
+ *   shared layout, app/(app)/layout.tsx, so they persist across navigation.
+ * - "marketing": the plain top bar the marketing pages share (pricing, docs
+ *   and the rest get it from the same layout), used here by the landing,
+ *   which lives outside the app group.
+ */
+export function OaSiteHeader({ variant = "app" }: { variant?: "app" | "marketing" } = {}) {
+  // Inside the app the chrome belongs to app/(app)/layout.tsx (AppChrome),
+  // which stays mounted between pages. Pages that still call this get nothing.
+  if (variant !== "marketing") return null;
   return (
     <>
-      <HeaderMorph>
-        <a href="/" className="pl-3 text-oa-fg sm:pl-0">
-          <StocksbrewLogo
-            markSize={24}
-            wordmarkClassName="text-[17px] font-medium tracking-tight"
-          />
-        </a>
-        <nav className="hidden items-center gap-1 text-[15.5px] text-oa-muted-fg sm:flex" aria-label="Site">
-          <a href="/pulse" className="rounded-full px-3 py-1.5 transition-colors hover:bg-oa-accent hover:text-oa-fg">
-            Market
-          </a>
-          <a href="/explore" className="rounded-full px-3 py-1.5 transition-colors hover:bg-oa-accent hover:text-oa-fg">
-            Explore
-          </a>
-          <a href="/watchlist" className="rounded-full px-3 py-1.5 transition-colors hover:bg-oa-accent hover:text-oa-fg">
-            Watchlist
-          </a>
-        </nav>
-        <div className="flex items-center gap-2 pr-3 sm:gap-3 sm:pr-0">
-          <OaHeaderSearchButton />
-          {user.signedIn ? (
-            <OaProfileButton />
-          ) : (
-            <StartFreeButton surface="header" size="sm" label="Start free" />
-          )}
-        </div>
-      </HeaderMorph>
+      <MarketingBar
+        account={
+          <Suspense fallback={<div className="h-8 w-[5.5rem] animate-pulse rounded-lg bg-oa-secondary motion-reduce:animate-none" />}>
+            <MarketingAccount />
+          </Suspense>
+        }
+      />
       <MobileNav />
     </>
   );

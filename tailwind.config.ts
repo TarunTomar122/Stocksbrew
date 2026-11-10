@@ -104,8 +104,10 @@ const config: Config = {
 
         /* oa-design landing palette (scoped to .oa-landing, see globals.css) */
         oa: {
+          page: "var(--oa-page)",
           bg: "var(--oa-bg)",
           card: "var(--oa-card)",
+          label: "var(--oa-label)",
           fg: "var(--oa-fg)",
           border: "var(--oa-border)",
           accent: "var(--oa-accent)",

@@ -1,4 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// The functions under test are pure. Their module also loads the server data
+// layer (React cache, Firebase Admin), which does not exist under vitest.
+vi.mock("next/cache", () => ({ unstable_cache: (fn: unknown) => fn }));
+vi.mock("@/lib/firebase-admin", () => ({ adminFirestore: {} }));
+vi.mock("@/lib/firestore", () => ({ getLatestPriceQuotes: vi.fn() }));
 
 import { anomalyHeadline } from "@/components/daily-anomalies-shared";
 import {

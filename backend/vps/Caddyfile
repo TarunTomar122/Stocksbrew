@@ -1,6 +1,10 @@
 # Stable public endpoint for Vercel -> VPS LocalDB traffic.
 # Keep LocalDB itself bound to 127.0.0.1:8500.
-db.stocksbrew.online {
-	bind 144.217.6.112
+#
+# Set these in the Caddy service environment (never commit real values):
+#   LOCALDB_HOST     public DNS name that points at this server, e.g. db.example.com
+#   LOCALDB_BIND_IP  public IPv4 of this server
+{$LOCALDB_HOST} {
+	bind {$LOCALDB_BIND_IP}
 	reverse_proxy 127.0.0.1:8500
 }

@@ -11,9 +11,16 @@ import os
 import re
 from typing import Any
 
+from backend.call_engine_pipeline import (
+    compute_engine_call,
+    engine_brief_for_prompt,
+    engine_context_for,
+    resolve_directive,
+)
 from backend.directive_v2 import build_directive_v2
 from backend.evidence_history import (
     build_daily_evidence_snapshots,
+    merge_evidence_history_for_storage,
     merge_evidence_history_rows,
     normalise_sector_slug,
     summarize_evidence_history,
@@ -37,6 +44,14 @@ logger = logging.getLogger(__name__)
 STOCK_BRIEF_CACHE_VERSION = "2026-08-26-stock-brief-v22-rolling-evidence"
 DEFAULT_STOCK_BRIEF_MODEL = "gpt-5.6-luna"
 
+
+
+EVIDENCE_HISTORY_ENV = "EVIDENCE_HISTORY_MODE"
+
+
+def evidence_history_enabled() -> bool:
+    """True only when EVIDENCE_HISTORY_MODE=on. Off by default."""
+    return os.getenv(EVIDENCE_HISTORY_ENV, "").strip().lower() == "on"
 
 def stock_brief_model() -> str:
     return os.getenv("STOCK_BRIEF_MODEL", "").strip() or llm_model(DEFAULT_STOCK_BRIEF_MODEL)
@@ -555,6 +570,53 @@ EVIDENCE DISCIPLINE - THIS IS CRITICAL:
 - NEVER output a catalyst_card with empty detail. If you can't explain why it matters in one sentence, drop the card.
 """
 
+# CALL_ENGINE_MODE=on only. The call is decided by backend/call_engine.py before
+# the model runs; these two sections replace "DIRECTIVE REASONS" and "BRIEF
+# STABILITY" so the model explains the call it is handed and cannot move it.
+_ENGINE_REASONS_SECTION = """THE CALL IS ALREADY DECIDED - YOU EXPLAIN IT:
+- The payload includes `call`: ADD, HOLD or TRIM. It comes from a rules-based scorecard (`call.rule`): the stock is compared with similar companies on several families (`call.scorecard`), and the call follows only when most of them agree and the price trend (`call.trend`) does not contradict them. You cannot change it, soften it, or argue against it, and nothing you write feeds back into it.
+- The stock page shows `drivers[0:2]` beneath ADD and HOLD calls and `risk_cards[0:2]` beneath TRIM calls. Write and rank those cards as the plain-English explanation of `call.reasons`, using the company's actual business facts from the evidence and fundamentals.
+- `call.reasons` and `call.scorecard` are measurements of where the company stands against its peers (a percentile), not predictions. Describe what the numbers show. Never say the stock will rise or fall, never call the scorecard a forecast, and never state or imply a success rate.
+- `call.not_in_the_call` lists families that were not scored for this company and why. Never fill them in or guess them.
+- Use `call.what_would_change_it` for the catalyst and risk sentences where it fits. Never state a price level that is not in `call`.
+- If `call.changed_today` is true, the body may say the call changed and give `call.change_reason` in plain words. If it is false, do not imply anything changed.
+- If the news disagrees with the call, say so plainly as tension. Do not resolve it by restating the call differently.
+- `call.limits` says what may not be claimed about this ranking. Follow it.
+- Quick read test: each top-two detail should make sense immediately after “The call is {call} because ...”.
+
+"""
+
+_ENGINE_STABILITY_SECTION = """BRIEF STABILITY:
+- The payload may include `previous_brief_summary`. Treat it as continuity context, not as fresh evidence.
+- The call only changes when its rules say so. When `call.changed_today` is false, keep the prior thesis, drivers and risks unless the dated evidence itself changed.
+- Do not copy stale facts blindly; if prior content conflicts with dated `recent_news` or `price_context`, trust the fresh payload.
+
+"""
+
+
+def _engine_stock_brief_prompt(base: str) -> str:
+    """The stock brief prompt with the two decision sections swapped out."""
+    out = base
+    for start, end, replacement in (
+        ("DIRECTIVE REASONS - THE FIRST TWO CARDS ARE USER-FACING:", "PLAIN LANGUAGE - WRITE FOR A NORMAL STOCK OWNER:", _ENGINE_REASONS_SECTION),
+        ("BRIEF STABILITY:", "MARKET REGIME - USE IT:", _ENGINE_STABILITY_SECTION),
+    ):
+        begin = out.find(start)
+        finish = out.find(end)
+        if begin < 0 or finish <= begin:
+            raise ValueError(f"stock brief prompt section not found: {start}")
+        out = out[:begin] + replacement + out[finish:]
+    return out
+
+
+try:
+    STOCK_BRIEF_ENGINE_SYSTEM_PROMPT = _engine_stock_brief_prompt(STOCK_BRIEF_SYSTEM_PROMPT)
+except ValueError as _exc:  # an edit to the base prompt moved a section marker
+    # Never take the whole module (and every brief, flag off included) down at
+    # import. Without the explain-only prompt the model is not handed the call.
+    logger.error("call engine prompt disabled: %s", _exc)
+    STOCK_BRIEF_ENGINE_SYSTEM_PROMPT = ""
+
 STOCK_BRIEF_SCHEMA = {
     "name": "stock_brief",
     "strict": True,
@@ -790,8 +852,16 @@ def _llm_synthesize_brief(
     evidence_history: dict[str, Any] | None = None,
     sector_evidence_history: dict[str, Any] | None = None,
     store: Any | None = None,
+    engine_call: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
-    """Call OpenAI to generate a synthesized stock brief. Returns None on failure."""
+    """Call OpenAI to generate a synthesized stock brief. Returns None on failure.
+
+    ``engine_call`` is only passed when CALL_ENGINE_MODE=on. The model is then
+    handed the decided call and the explain-only prompt; without it the payload
+    and prompt are exactly what they were before the engine existed.
+    """
+    if engine_call and not STOCK_BRIEF_ENGINE_SYSTEM_PROMPT:
+        engine_call = None
     provider = stock_brief_provider()
     api_key = llm_api_key(provider)
     if not api_key:
@@ -825,7 +895,9 @@ def _llm_synthesize_brief(
         payload["anomaly_digest"] = anomaly_digest
     if previous_brief_summary:
         payload["previous_brief_summary"] = previous_brief_summary
-    if previous_directive:
+    if engine_call:
+        payload["call"] = engine_brief_for_prompt(engine_call)
+    elif previous_directive:
         payload["previous_directive"] = {
             "stance": previous_directive.get("stance"),
             "execution": previous_directive.get("execution"),
@@ -873,7 +945,13 @@ def _llm_synthesize_brief(
 
     try:
         messages = [
-            {"role": "system", "content": schema_system_prompt(STOCK_BRIEF_SYSTEM_PROMPT, STOCK_BRIEF_SCHEMA)},
+            {
+                "role": "system",
+                "content": schema_system_prompt(
+                    STOCK_BRIEF_ENGINE_SYSTEM_PROMPT if engine_call else STOCK_BRIEF_SYSTEM_PROMPT,
+                    STOCK_BRIEF_SCHEMA,
+                ),
+            },
             {"role": "user", "content": json.dumps(payload, ensure_ascii=True)},
         ]
         result: dict[str, Any] | None = None
@@ -1385,7 +1463,22 @@ def build_no_news_intelligence_doc(
             "no_news_fallback": True,
         },
     }
-    doc["directive_v2"] = build_directive_v2(doc, previous_v2=previous_v2)
+    legacy_directive = build_directive_v2(doc, previous_v2=previous_v2)
+    engine_context = engine_context_for(store, market)
+    if not engine_context.active:
+        doc["directive_v2"] = legacy_directive
+        return doc
+    # Shadow or on. The no-news brief is written before the call is known, so
+    # in "on" mode its text is not an explanation of the call; only the
+    # directive fields come from the engine.
+    doc.update(
+        resolve_directive(
+            engine_context.mode,
+            legacy_directive=legacy_directive,
+            engine_call=compute_engine_call(engine_context, instrument),
+            live_price=current_price,
+        )
+    )
     return doc
 
 
@@ -3592,7 +3685,10 @@ def build_stock_intelligence_docs(
 
     stored_stock_history: dict[str, list[dict[str, Any]]] = {}
     stored_sector_history: dict[str, list[dict[str, Any]]] = {}
-    if store is not None:
+    # Stored multi-day evidence history feeds the live directive score
+    # (directive_v2 coverage_days), so reading/writing it changes published
+    # calls. Kept behind its own flag until it is rolled out on purpose.
+    if store is not None and evidence_history_enabled():
         try:
             loader = getattr(store, "get_stock_evidence_history", None)
             if callable(loader):
@@ -3605,6 +3701,26 @@ def build_stock_intelligence_docs(
                 stored_sector_history = loader(market, sorted(sector_slugs), 14) or {}
         except Exception:
             stored_sector_history = {}
+        # Persist today's rows merged onto the stored ones, so the next run
+        # sees a real multi-day history instead of starting cold again.
+        try:
+            saver = getattr(store, "save_evidence_history_rows", None)
+            if callable(saver) and (stock_history_snapshots or sector_history_snapshots):
+                saver(
+                    market,
+                    {
+                        key: merge_evidence_history_for_storage(stored_stock_history.get(key), rows)
+                        for key, rows in stock_history_snapshots.items()
+                    },
+                    {
+                        key: merge_evidence_history_for_storage(stored_sector_history.get(key), rows)
+                        for key, rows in sector_history_snapshots.items()
+                    },
+                )
+        except Exception as exc:
+            logger.info("evidence history save failed market=%s: %s", market, exc)
+
+    engine_context = engine_context_for(store, market)
 
     docs: list[dict[str, Any]] = []
     for instrument in instruments:
@@ -3865,6 +3981,11 @@ def build_stock_intelligence_docs(
         if not isinstance(previous_v2, dict):
             previous_v2 = None
 
+        # CALL_ENGINE_MODE shadow/on: read the stock's stored engine call
+        # before the model runs. With the flag off this is None and nothing
+        # below changes.
+        engine_call = compute_engine_call(engine_context, instrument) if engine_context.active else None
+
         # Try LLM synthesis first - falls back to deterministic if unavailable
         fundamentals_block = _summarize_intel_pro(intel_pro_by_id.get(instrument_id))
         market_regime = _stock_market_regime(instrument, fundamentals_block, sector_regimes)
@@ -3893,6 +4014,7 @@ def build_stock_intelligence_docs(
             evidence_history=evidence_history,
             sector_evidence_history=sector_evidence_history,
             store=store,
+            **({"engine_call": engine_call} if engine_context.mode == "on" and engine_call else {}),
         )
 
         thesis = ""
@@ -4152,7 +4274,12 @@ def build_stock_intelligence_docs(
             **directive_v2_input,
             "source": LLM_BRIEF_SOURCE,
             "coverage_type": "on_demand_news",
-            "directive_v2": build_directive_v2(directive_v2_input, previous_v2=previous_v2),
+            **resolve_directive(
+                engine_context.mode if engine_context.active else "off",
+                legacy_directive=build_directive_v2(directive_v2_input, previous_v2=previous_v2),
+                engine_call=engine_call,
+                live_price=current_price,
+            ),
             "lanes": [
                 {"label": "Positive Mentions", "positive_pct": positive_pct},
                 {"label": "Source Agreement", "positive_pct": source_agreement_pct},

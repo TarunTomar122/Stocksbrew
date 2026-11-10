@@ -2,7 +2,8 @@ import type { AnomalyItem } from "@/lib/daily-anomalies";
 import type { StockSummary } from "@/lib/stock";
 
 /** Homepage live-brew demo pool — one picked at random per render. */
-export const LANDING_HERO_BREW_TICKERS = ["NVDA", "MU", "MSFT", "PLTR", "AMZN"] as const;
+// Only showcase stocks (lib/seo/stock-pages.ts), whose zones are public, so the hero card is always complete.
+export const LANDING_HERO_BREW_TICKERS = ["NVDA", "AAPL", "MSFT", "PLTR", "AMZN"] as const;
 
 export type LandingHeroBrewTicker = (typeof LANDING_HERO_BREW_TICKERS)[number];
 

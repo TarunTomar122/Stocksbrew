@@ -58,6 +58,7 @@
     "seo:audit": "node scripts/audit-seo.mjs"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "3.0.135",
     "@ai-sdk/openai": "^3.0.64",
     "@ai-sdk/react": "^3.0.187",
     "@modelcontextprotocol/sdk": "^1.29.0",

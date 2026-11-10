@@ -139,7 +139,7 @@ export function OaHeroSearch({ source = "hero" }: { source?: string }) {
           autoComplete="off"
           spellCheck={false}
           aria-label="Search for a stock"
-          className="h-full min-w-0 flex-1 bg-transparent text-base text-oa-fg outline-none placeholder:text-oa-muted-fg"
+          className="h-full min-w-0 flex-1 bg-transparent text-base text-oa-fg outline-none placeholder:text-oa-muted-fg max-sm:placeholder:text-[15px] max-sm:placeholder:tracking-tight"
         />
         <button type="submit" className={ANALYZE_PILL}>
           Analyze

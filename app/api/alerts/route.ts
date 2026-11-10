@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth } from "@/lib/firebase-admin";
+import { limitFor, planOf } from "@/lib/entitlements";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import {
   createStockAlert,
@@ -28,12 +29,8 @@ export async function POST(req: NextRequest) {
   if (!email) return NextResponse.json({ error: "No email on account - add one in your profile" }, { status: 400 });
 
   const userDoc = await getUserDoc(uid).catch(() => null);
-  if (!resolveIsSubscribed(userDoc)) {
-    return NextResponse.json(
-      { error: "pro_required", message: "Pro is required to create stock alerts." },
-      { status: 403 },
-    );
-  }
+  // Free keeps a few price alerts; every other kind is Pro. Both are checked in createStockAlert with the plan.
+  const plan = planOf({ signedIn: true, isSubscribed: resolveIsSubscribed(userDoc) });
 
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch {
@@ -62,10 +59,16 @@ export async function POST(req: NextRequest) {
       directiveText,
       note,
       metadata: metadata as Record<string, unknown>,
+      plan,
     });
     return NextResponse.json({ ok: true, ...created });
   } catch (error) {
-    if (error instanceof StockAlertError) return NextResponse.json({ error: error.message }, { status: error.status });
+    if (error instanceof StockAlertError) {
+      return NextResponse.json(
+        { error: error.message, code: error.code, ...(error.code === "plan_limit" ? { feature: "price_alerts", limit: limitFor("price_alerts", plan) } : {}) },
+        { status: error.status },
+      );
+    }
     throw error;
   }
 }

@@ -10,12 +10,14 @@ import { Analytics } from "@vercel/analytics/next";
 import { Footer } from "@/components/footer";
 import { MarketStatusTab } from "@/components/market-status";
 import { getSessionUser } from "@/lib/auth-server";
+import { CONTACT_EMAIL } from "@/lib/docs/site";
 import { getCurrentMarket } from "@/lib/market";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import {
   MEDIUM_DESCRIPTION,
   SITE_TITLE_DEFAULT,
 } from "@/lib/brand-copy";
+import { ogImage } from "@/lib/og/url";
 import { Providers } from "./providers";
 import "./globals.css";
 import "./styles/transitions.css";
@@ -35,10 +37,12 @@ const jsonLd = {
       url: "https://www.stocksbrew.online",
       description: MEDIUM_DESCRIPTION,
       logo: "https://www.stocksbrew.online/icon.svg",
+      email: CONTACT_EMAIL,
       contactPoint: {
         "@type": "ContactPoint",
-        email: "tomartarun2001@gmail.com",
         contactType: "customer support",
+        email: CONTACT_EMAIL,
+        availableLanguage: "en",
       },
     },
     {
@@ -49,6 +53,15 @@ const jsonLd = {
       description: MEDIUM_DESCRIPTION,
       inLanguage: "en-US",
       publisher: { "@id": "https://www.stocksbrew.online/#organization" },
+      // /ask takes a typed question in `q`, so it is the site's search address.
+      potentialAction: {
+        "@type": "SearchAction",
+        target: {
+          "@type": "EntryPoint",
+          urlTemplate: "https://www.stocksbrew.online/ask?q={search_term_string}",
+        },
+        "query-input": "required name=search_term_string",
+      },
     },
     {
       "@type": "WebApplication",
@@ -74,6 +87,9 @@ const jsonLd = {
     },
   ],
 };
+// The default share card: the headline and today's call on a real stock. Pages with their own card replace it.
+const DEFAULT_SHARE_IMAGE = ogImage([], "stocksbrew: the investing platform that tells you what to buy and why", { daily: true });
+
 const siteVerification: Metadata["verification"] = {
   ...(process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
     ? { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION }
@@ -114,8 +130,9 @@ export const metadata: Metadata = {
   creator: "stocksbrew",
   publisher: "stocksbrew",
   formatDetection: { email: false, address: false, telephone: false },
+  // No canonical here: a default would make every page that forgets its own
+  // point at the home page. Each page sets its own address.
   alternates: {
-    canonical: "/",
     types: {
       "application/rss+xml": "/feed.xml",
     },
@@ -127,12 +144,14 @@ export const metadata: Metadata = {
     description: MEDIUM_DESCRIPTION,
     url: "https://www.stocksbrew.online",
     locale: "en_US",
+    images: [DEFAULT_SHARE_IMAGE],
   },
   twitter: {
     card: "summary_large_image",
     title: SITE_TITLE_DEFAULT,
     description: MEDIUM_DESCRIPTION,
     creator: "@stocksbrew",
+    images: [DEFAULT_SHARE_IMAGE],
   },
   robots: {
     index: true,
@@ -171,12 +190,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`} suppressHydrationWarning>
       <head>
-        <meta property="og:image" content="https://www.stocksbrew.online/api/og" />
-        <meta property="og:image:width" content="1200" />
-        <meta property="og:image:height" content="630" />
-        <meta property="og:image:alt" content="stocksbrew — analyse and track US stocks" />
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:image" content="https://www.stocksbrew.online/api/og" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://api.fontshare.com" crossOrigin="" />
         <link
@@ -225,14 +238,16 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       </head>
       <body className="bg-background font-body text-on-background antialiased min-h-screen flex flex-col">
         <Providers initialAuthed={hasSessionCookie}>
-          <div className="flex min-h-0 w-full flex-1 flex-col px-0 md:px-8 lg:px-12 xl:px-32">
+          <div className="oa-shell-frame flex min-h-0 w-full flex-1 flex-col px-0 md:px-8 lg:px-12 xl:px-32">
             {children}
           </div>
           <Suspense fallback={null}>
             <FooterData />
           </Suspense>
         </Providers>
-        <MarketStatusTab nowIso={new Date().toISOString()} />
+        <div className="oa-market-tab">
+          <MarketStatusTab nowIso={new Date().toISOString()} />
+        </div>
         <Analytics />
       </body>
     </html>

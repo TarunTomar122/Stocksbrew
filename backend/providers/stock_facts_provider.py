@@ -23,7 +23,7 @@ USER_AGENT = (
 )
 STOCKANALYSIS_USER_AGENT = os.getenv(
     "STOCKANALYSIS_USER_AGENT",
-    "Stocksbrew/1.0 contact@stocksbrew.online",
+    "Stocksbrew/1.0 tomartarun2001@gmail.com",
 )
 STOCKANALYSIS_MIN_INTERVAL_SECONDS = max(
     0.0,

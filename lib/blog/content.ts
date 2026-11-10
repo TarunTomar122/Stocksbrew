@@ -1086,7 +1086,7 @@ export const blogContent: Record<string, string> = {
           </ul>
         </div>
       </div>
-      <p>Finviz is the best free stock screener available. The heat maps are addictive and genuinely useful for spotting sector trends. But it's a screening and visualization tool, not an intelligence tool. It shows you data but doesn't analyze it for you. For a detailed comparison, see our <a href="/compare/stocksbrew-vs-finviz">stocksbrew vs Finviz breakdown</a>.</p>
+      <p>Finviz is the best free stock screener available. The heat maps are addictive and genuinely useful for spotting sector trends. But it's a screening and visualization tool, not an intelligence tool. It shows you data but doesn't analyze it for you. For a detailed comparison, see our <a href="/docs/compare/stocksbrew-vs-finviz">stocksbrew vs Finviz breakdown</a>.</p>
     </div>
 
     <div class="tool-card" id="stocktwits">
@@ -1537,7 +1537,7 @@ export const blogContent: Record<string, string> = {
         <p style="margin-top:12px; color:var(--text-dim);">At $9/mo vs $39.50/mo, stocksbrew is also the clear value play. You get AI-powered intelligence for less than a quarter of Finviz's price.</p>
       </div>
 
-      <p>Also see: <a href="/compare/stocksbrew-vs-tickertape">stocksbrew vs Tickertape</a> (US Watchlist vs Indian screeners) and the <a href="/guides">stock research guide</a>.</p>
+      <p>Also see: <a href="/docs/compare/stocksbrew-vs-tickertape">stocksbrew vs Tickertape</a> (US Watchlist vs Indian screeners) and the <a href="/blog">stock research guide</a>.</p>
 
       <div class="cta-section">
         <h3>Try stocksbrew Free</h3>
@@ -1960,7 +1960,7 @@ export const blogContent: Record<string, string> = {
 
 <h2 id="market-heat">Our Approach vs Traditional Heat Maps</h2>
 
-<p>Most heat maps show <em>every</em> stock equally — including the 99% that aren't moving. Our <a href="/heat">Market Heat</a> at stocksbrew is different: it shows stocks getting <strong>unusual attention</strong> based on price action, volume, and news activity. Fewer boxes, higher signal.</p>
+<p>Most heat maps show <em>every</em> stock equally — including the 99% that aren't moving. Our <a href="/screener?tab=sectors">Market Heat</a> at stocksbrew is different: it shows stocks getting <strong>unusual attention</strong> based on price action, volume, and news activity. Fewer boxes, higher signal.</p>
 
 <h2 id="common-patterns">Common Patterns to Spot</h2>
 
@@ -2259,7 +2259,7 @@ export const blogContent: Record<string, string> = {
 <div class="cta-section">
   <h3>Build a Watchlist Around Real Decisions</h3>
   <p>Track three US stocks free, then use calls, earnings context, and alerts to keep the research current.</p>
-  <a href="/radar" class="cta-button">Open Watchlist →</a>
+  <a href="/watchlist" class="cta-button">Open Watchlist →</a>
 </div>
 
 <p>Related: <a href="/blog/earnings-season-watchlist-playbook">Earnings Watchlist Workflow</a> and <a href="/blog/stock-research-checklist-evidence-first">How to Research a Stock</a>.</p>

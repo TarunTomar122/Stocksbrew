@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import os
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -25,8 +26,12 @@ logger = logging.getLogger(__name__)
 
 MARKETAUX_URL = "https://api.marketaux.com/v1/news/all"
 SOURCE_ID = "marketaux"
-_API_KEY = "rY0pNf5KxsSDPsDqctXSxzmPJw4lEaXBCI98U6Hm"
 DEFAULT_BATCH_SIZE = 50
+
+
+def _api_key() -> str:
+    """Read the marketaux key from the environment (MARKETAUX_API_KEY); empty when unset."""
+    return os.environ.get("MARKETAUX_API_KEY", "").strip()
 
 
 def _article_id(url: str) -> str:
@@ -187,7 +192,10 @@ def fetch_marketaux_news_for_tickers(
     sharing a 3-article pool across the entire batch.
     Uses ~1 req/ticker of the 100 req/day quota.
     """
-    key = api_key or _API_KEY
+    key = api_key or _api_key()
+    if not key:
+        logger.warning("marketaux_skipped reason=missing_api_key env=MARKETAUX_API_KEY")
+        return []
     published_after = (
         datetime.now(timezone.utc) - timedelta(hours=lookback_hours)
     ).strftime("%Y-%m-%dT%H:%M")

@@ -7,6 +7,7 @@ import { signInWithGoogle } from "@/lib/sign-in";
 import { getFirebaseAuth } from "@/lib/firebase-client";
 import { StockLogo } from "@/components/stock-logo";
 import { ConnectedReadCard } from "@/components/connected-read-card";
+import { FREE_COVERED_STOCKS } from "@/lib/entitlements";
 
 type DemoRow = {
   ticker: string;
@@ -207,7 +208,7 @@ export function DemoRadar({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
               disabled={busy}
               className="self-start inline-flex items-center justify-center h-11 px-6 rounded-full bg-oa-fg text-oa-card text-[13px] font-medium hover:bg-oa-fg transition-colors disabled:opacity-60 shadow-[0_2px_16px_rgba(0,0,0,0.15)]"
             >
-              {busy ? "Signing you in…" : "Start your 3-day free trial"}
+              {busy ? "Signing you in…" : "Start free"}
             </button>
           </div>
 
@@ -300,7 +301,7 @@ export function DemoRadar({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
             <p className="text-[14px] text-oa-muted-fg leading-[1.6]">
               Add the stocks you own and follow. stocksbrew keeps their research current with
               a full directive on every holding, risk flags, and opportunities, waiting for you
-              each morning. Free for 3 stocks, no credit card.
+              each morning. Track as many as you like free, with {FREE_COVERED_STOCKS} covered in full. No credit card.
             </p>
           </div>
 
@@ -313,10 +314,10 @@ export function DemoRadar({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
               className="w-full inline-flex items-center justify-center h-13 px-8 rounded-full bg-oa-fg text-oa-card text-[15px] font-medium hover:bg-oa-fg transition-colors disabled:opacity-60 shadow-[0_4px_24px_rgba(0,0,0,0.18)]"
               style={{ height: "52px" }}
             >
-              {busy ? "Signing you in…" : "Start your 3-day free trial"}
+              {busy ? "Signing you in…" : "Start free"}
             </button>
             <p className="text-[12px] text-oa-muted-fg">
-              Free for 3 stocks &nbsp;·&nbsp; No credit card &nbsp;·&nbsp; Cancel anytime
+              Free to track &nbsp;·&nbsp; {FREE_COVERED_STOCKS} covered in full &nbsp;·&nbsp; No credit card
             </p>
           </div>
 

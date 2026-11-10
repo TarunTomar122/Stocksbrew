@@ -1,0 +1,11 @@
+{
+  "_comment": "Findings reviewed and accepted as safe to publish. Key is the sha256 fingerprint prefix printed by scan.mjs (fp=...). Keep a reason for every entry.",
+  "fingerprints": {
+    "449cb1276b": "lib/email-unsubscribe.test.ts: HMAC fixture produced from the literal test secret 'test-secret', not a real key",
+    "cc1580594a": "backend/mail/jobs.py docstring: you@x.com placeholder in --to usage text",
+    "129ecf158a": "backend/tests/test_mail_send.py: made-up test recipient; the test stubs the sender, nothing is sent",
+    "cb1d23726a": "backend/tests/test_mail_send.py: made-up test recipient; the test stubs the sender, nothing is sent",
+    "d2e87fa970": "backend/tests/test_mail_send.py: made-up test recipient; the test stubs the sender, nothing is sent",
+    "ed6800f30c": "backend/tests/test_mail_send.py: made-up test recipient; the test stubs the sender, nothing is sent"
+  }
+}

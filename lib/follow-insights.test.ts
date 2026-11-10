@@ -1,0 +1,213 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  buildCongressMemberRead,
+  buildFollowRead,
+  buildFundRead,
+  buildInsiderRead,
+  dominantPeriod,
+  insiderPace,
+  mostBought,
+  mostSold,
+  tallyCongress,
+  tallyFundMoves,
+  type CongressTradeLite,
+  type FundDigest,
+} from "@/lib/follow-insights";
+import type { CongressProfile, FundProfile, InsiderTrade } from "@/lib/follow-shared";
+
+function digest(slug: string, period: string, moves: Partial<Record<"opened" | "added" | "reduced" | "exited", string[]>>): FundDigest {
+  const lines = (list?: string[]) => (list ?? []).map((ticker) => ({ ticker, name: `${ticker} Inc`, weight: 0.05 }));
+  return { slug, name: slug.toUpperCase(), period, filed_at: "2026-08-14", opened: lines(moves.opened), added: lines(moves.added), reduced: lines(moves.reduced), exited: lines(moves.exited) };
+}
+
+function buy(symbol: string, filed: string, insider: string, extra: Partial<InsiderTrade> = {}): InsiderTrade {
+  return {
+    id: `${symbol}-${filed}-${insider}`,
+    symbol,
+    company: `${symbol} Corp`,
+    insider,
+    insider_id: insider,
+    role: "Director",
+    tx_type: "buy",
+    shares: 100,
+    price: 10,
+    value: 1000,
+    transaction_date: filed,
+    filing_date: filed,
+    filed_at: `${filed}T10:00:00`,
+    lag_days: 1,
+    shares_after: null,
+    ownership: "D",
+    plan_10b5_1: false,
+    url: "",
+    ...extra,
+  };
+}
+
+function trade(ticker: string, person: string, side: "buy" | "sell", date = "2026-11-01"): CongressTradeLite {
+  return { ticker, company: `${ticker} Inc`, person_id: person, person_name: person, tx_type: side, disclosure_date: date };
+}
+
+describe("fund tallies", () => {
+  const digests = [
+    digest("a", "2026-06-30", { opened: ["AMZN"], reduced: ["AAPL"] }),
+    digest("b", "2026-06-30", { added: ["AMZN", "SPY"], exited: ["AAPL"] }),
+    digest("c", "2026-06-30", { added: ["AMZN"], reduced: ["AAPL", "MSFT"] }),
+    digest("d", "2026-09-30", { added: ["NVDA"] }),
+  ];
+
+  it("picks the quarter most funds filed for", () => {
+    expect(dominantPeriod(digests)).toBe("2026-06-30");
+    expect(dominantPeriod([])).toBeNull();
+  });
+
+  it("counts each fund once per side and leaves index funds out", () => {
+    const tallies = tallyFundMoves(digests, "2026-06-30");
+    const amzn = tallies.find((row) => row.ticker === "AMZN");
+    expect(amzn?.buyers.map((buyer) => buyer.id)).toEqual(["a", "b", "c"]);
+    expect(amzn?.opened).toBe(1);
+    expect(tallies.some((row) => row.ticker === "SPY")).toBe(false);
+    expect(tallies.some((row) => row.ticker === "NVDA")).toBe(false);
+    expect(mostBought(tallies, 1)[0].ticker).toBe("AMZN");
+    expect(mostSold(tallies, 1)[0].ticker).toBe("AAPL");
+  });
+
+  it("writes the crowd insight with counts out of the funds that filed", () => {
+    const read = buildFollowRead({ digests, totalFunds: 4, congress: [], insiderBuys: [], sectors: {}, today: "2026-11-10" });
+    expect(read.headline).toContain("AMZN");
+    expect(read.insights[0].text).toBe(
+      "In their Q2 2026 filings, 3 of 3 funds bought or added to AMZN, the most crowded buy; 3 trimmed or sold AAPL, the most crowded sale.",
+    );
+    expect(read.fundsInPeriod).toBe(3);
+  });
+
+  it("leaves the crowd insight out when fewer than three funds agree", () => {
+    const read = buildFollowRead({ digests: digests.slice(0, 2), totalFunds: 2, congress: [], insiderBuys: [], sectors: {}, today: "2026-11-10" });
+    expect(read.insights.find((insight) => insight.id === "fund-crowd")).toBeUndefined();
+    expect(read.headline).toBe("");
+  });
+
+  it("puts the reader's own stocks first when funds moved them", () => {
+    const read = buildFollowRead({ digests, totalFunds: 4, congress: [], insiderBuys: [], sectors: {}, today: "2026-11-10", mine: ["AMZN", "AAPL"] });
+    expect(read.insights[0].id).toBe("your-stocks");
+    expect(read.insights[0].text).toContain("net buyers of AMZN (3 bought, 0 cut)");
+    expect(read.insights[0].text).toContain("net sellers of AAPL (0 bought, 3 cut)");
+  });
+});
+
+describe("Congress", () => {
+  it("counts distinct members and drops trades before the window", () => {
+    const tallies = tallyCongress(
+      [trade("NVDA", "x", "buy"), trade("NVDA", "x", "buy"), trade("NVDA", "y", "buy"), trade("NVDA", "z", "buy", "2026-09-01")],
+      "2026-10-11",
+    );
+    expect(tallies[0].buyers).toHaveLength(2);
+  });
+
+  it("names the sector most members bought into", () => {
+    const congress = [trade("NVDA", "a", "buy"), trade("AVGO", "b", "buy"), trade("NVDA", "c", "buy"), trade("JPM", "d", "buy"), trade("XOM", "e", "sell"), trade("XOM", "f", "sell")];
+    const read = buildFollowRead({
+      digests: [],
+      totalFunds: 0,
+      congress,
+      insiderBuys: [],
+      sectors: { NVDA: "Technology", AVGO: "Technology", JPM: "Financials" },
+      today: "2026-11-10",
+    });
+    const insight = read.insights.find((item) => item.id === "congress");
+    expect(insight?.text).toBe("3 members of Congress disclosed buys of tech stocks in 30 days, the most of any sector (NVDA and AVGO).");
+    expect(insight?.soWhat).toBe("Buyers outnumbered sellers 4 to 2 across all stocks.");
+  });
+});
+
+describe("insiders", () => {
+  it("compares the last two weeks with the normal pace and finds a hot sector", () => {
+    const buys = [
+      buy("XOM", "2026-11-05", "a"),
+      buy("CVX", "2026-11-04", "b"),
+      buy("XOM", "2026-11-03", "c"),
+      buy("SLB", "2026-11-02", "d"),
+      buy("JPM", "2026-09-15", "e"),
+      buy("JPM", "2026-10-01", "f"),
+    ];
+    const pace = insiderPace(buys, "2026-11-10", { XOM: "Energy", CVX: "Energy", SLB: "Energy", JPM: "Financials" });
+    expect(pace?.recent).toBe(4);
+    expect(pace?.hotSector?.sector).toBe("Energy");
+    expect(pace?.hotSector?.tickers[0]).toBe("XOM");
+  });
+
+  it("needs two windows of history before calling anything unusual", () => {
+    expect(insiderPace([buy("XOM", "2026-11-05", "a")], "2026-11-10", {})).toBeNull();
+  });
+
+  it("calls out several insiders buying one stock, and the dollar balance", () => {
+    const buys = [buy("LKQ", "2026-11-05", "a"), buy("LKQ", "2026-11-04", "b"), buy("ACN", "2026-11-04", "c", { value: 500_000, role: "Chief Executive Officer" })];
+    const sale = { ...buy("AAPL", "2026-11-05", "z"), id: "s", tx_type: "sell" as const, value: 10_000_000 };
+    const read = buildInsiderRead({ buys, recent: [sale, ...buys], sectors: {}, today: "2026-11-10" });
+    const multi = read.insights.find((insight) => insight.id === "insider-multi" || insight.id === "insider-conviction");
+    expect(multi?.tickers?.[0]).toBe("LKQ");
+    const balance = read.insights.find((insight) => insight.id === "insider-balance");
+    expect(balance?.text).toBe("Insiders sold $10M outside pre-set plans in two weeks and bought $502K, 20 dollars sold for every one bought.");
+  });
+});
+
+describe("one fund, one member", () => {
+  const perf = {
+    start_date: "2013-08-14",
+    end_date: "2026-11-09",
+    ended: false,
+    fund: { r_1m: null, r_3m: null, r_ytd: null, r_1y: null, r_since: 3, annualized: 0.173, max_drawdown: -0.45 },
+    spy: { r_1m: null, r_3m: null, r_ytd: null, r_1y: null, r_since: 2, annualized: 0.139, max_drawdown: -0.34 },
+    covered_weight_latest: 1,
+    covered_weight_avg: 1,
+  };
+
+  it("reads a fund's concentration, moves and record", () => {
+    const profile = {
+      fund: "Pershing Square",
+      latest: { quarter: "Q2 2026", filed_at: "2026-08-14", period: "2026-06-30", stock_positions: 14 },
+      portfolio: [
+        { ticker: "UBER", weight: 0.3 },
+        { ticker: "BN", weight: 0.2 },
+        { ticker: "MSFT", weight: 0.12 },
+      ],
+      changes: {
+        counts: { new: 1, added: 1, reduced: 1, sold: 1, held: 0 },
+        new: [{ ticker: "V", weight: 0.058 }],
+        added: [{ ticker: "UBER", weight: 0.3, prev_weight: 0.2 }],
+        reduced: [{ ticker: "AMZN", weight: 0.104, prev_weight: 0.17 }],
+        sold: [{ ticker: "GOOG", prev_weight: 0.006 }],
+      },
+      performance: perf,
+    } as unknown as FundProfile;
+    const read = buildFundRead(profile);
+    expect(read.headline).toBe("Pershing Square bought V and UBER and cut AMZN and GOOG in Q2 2026.");
+    expect(read.insights[0].text).toBe("Pershing Square is 62% in three stocks: UBER 30%, BN 20% and MSFT 12%.");
+    expect(read.insights[1].text).toBe("In Q2 2026 it opened V (5.8%), added to UBER (now 30%), cut AMZN to 10.4% and sold out of GOOG.");
+    expect(read.insights[2].text).toBe(
+      "Since Aug 14, 2013, copying Pershing Square's stock picks from each filing date beat the S&P 500 by 3.4 pts a year (+17.3% against +13.9%).",
+    );
+  });
+
+  it("reads a member's favourite stock and lean", () => {
+    const profile = {
+      name: "Jane Doe",
+      first_report: "2023-01-12",
+      latest_date: "2026-11-01",
+      stats: { trades: 5, buys: 4, sells: 1, est_volume: 0, median_lag_days: 20, late_trades: 1, top_bought: [{ ticker: "NVDA", name: null, weight: null }] },
+      trades: [
+        { ticker: "NVDA", company: "Nvidia", tx_type: "buy" },
+        { ticker: "NVDA", company: "Nvidia", tx_type: "buy" },
+        { ticker: "NVDA", company: "Nvidia", tx_type: "sell" },
+        { ticker: "AAPL", company: "Apple", tx_type: "buy" },
+        { ticker: "MSFT", company: "Microsoft", tx_type: "buy" },
+      ],
+      performance: perf,
+    } as unknown as CongressProfile;
+    const read = buildCongressMemberRead(profile);
+    expect(read.headline).toBe("Copying Jane Doe's buys beat the S&P 500 by 3.4 pts a year since Aug 2013.");
+    expect(read.insights[0].text).toBe("NVDA is the stock Jane Doe trades most: 2 buys and 1 sale in the latest 5 reported trades.");
+    expect(read.insights[1].soWhat).toBe("A typical trade reaches the public 20 days after it happens; 1 came in past the 45-day limit.");
+  });
+});

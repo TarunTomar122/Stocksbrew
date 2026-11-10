@@ -53,14 +53,14 @@ curl "http://localhost:8888/search?q=AAPL+stock+news&format=json"
 ## Dry Run
 
 ```bash
-cd /Users/ttomar/Documents/personal/claudia/trace-money
+# from the repo root
 npm run backend:test-tikrr-stock -- --market US --symbol AAPL --name "Apple Inc." --output /tmp/aapl_tikrr.json
 ```
 
 ## Push To Tikrr
 
 ```bash
-cd /Users/ttomar/Documents/personal/claudia/trace-money
+# from the repo root
 npm run backend:test-tikrr-stock -- --market US --symbol AAPL --name "Apple Inc." --push
 ```
 

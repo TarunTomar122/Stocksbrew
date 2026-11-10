@@ -1,3 +1,4 @@
+import { can, limitFor, lockCopy, type Plan } from "@/lib/entitlements";
 import { adminFirestore } from "@/lib/firebase-admin";
 
 export const ALERT_KINDS = [
@@ -49,8 +50,21 @@ export async function createStockAlert(input: {
   directiveText?: string;
   note?: string;
   metadata?: Record<string, unknown>;
+  /**
+   * The account's plan. Price alerts are counted against `price_alerts` and
+   * every other kind (earnings, call change, zones, moves) needs `zone_alerts`
+   * (lib/entitlements.ts). Omitted only by callers that already checked.
+   */
+  plan?: Plan;
 }) {
   if (!input.instrumentId || !input.ticker) throw new StockAlertError("A stock is required.", "invalid_stock");
+  if (input.plan && input.kind !== "price_threshold" && !can("zone_alerts", input.plan)) {
+    throw new StockAlertError(
+      "Earnings, call-change and zone alerts are part of Pro. Free keeps price alerts, and the same events show up in your briefing.",
+      "pro_required",
+      403,
+    );
+  }
   if (input.kind === "price_threshold") {
     if (input.condition !== "below" && input.condition !== "above") {
       throw new StockAlertError("condition must be below or above.", "invalid_condition");
@@ -67,6 +81,20 @@ export async function createStockAlert(input: {
     return row.condition === input.condition && Number(row.target_price) === Number(input.targetPrice);
   });
   if (duplicate) throw new StockAlertError("This alert already exists.", "alert_exists", 409);
+  if (input.plan && input.kind === "price_threshold") {
+    const limit = limitFor("price_alerts", input.plan);
+    if (limit <= 0) throw new StockAlertError(lockCopy("price_alerts").body, "pro_required", 403);
+    const active = (await loadUserAlerts(input.uid)).filter(
+      (row) => row.active !== false && (row.kind === "price_threshold" || row.kind === undefined || row.kind === ""),
+    ).length;
+    if (active >= limit) {
+      throw new StockAlertError(
+        `Free keeps ${limit} price alerts and all ${limit} are set. Remove one you no longer need, or wait for one to fire: a fired alert frees its slot. Pro keeps as many as you like.`,
+        "plan_limit",
+        409,
+      );
+    }
+  }
 
   const now = new Date().toISOString();
   const payload: Record<string, unknown> = {

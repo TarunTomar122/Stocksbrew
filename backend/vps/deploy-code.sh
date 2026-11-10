@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-HOST="${TIKRR_VPS_HOST:-144.217.6.112}"
+# TIKRR_VPS_HOST is the VPS address. The default is the `vps` alias from
+# ~/.ssh/config (Host vps / HostName <your server>), so no address lives here.
+HOST="${TIKRR_VPS_HOST:-vps}"
 REMOTE="${TIKRR_VPS_REMOTE:-ubuntu@${HOST}}"
 REMOTE_DIR="${TIKRR_REPO_DIR:-/opt/tikrr}"
 

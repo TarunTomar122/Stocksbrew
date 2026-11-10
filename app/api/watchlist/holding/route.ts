@@ -47,25 +47,38 @@ export async function PATCH(req: NextRequest) {
   const sourceRaw = typeof body?.source === "string" ? body.source.trim().toLowerCase() : "";
   const source = sourceRaw === "manual" || sourceRaw === "screenshot" || sourceRaw === "unknown" ? sourceRaw : "manual";
   const now = new Date().toISOString();
-  const nextVersion = Number(userDoc.watchlist_version || 0) + 1;
+  const holding = {
+    quantity: quantity ?? null,
+    market_value: marketValue ?? null,
+    average_cost: averageCost ?? null,
+    currency,
+    source,
+    updated_at: now,
+  };
 
-  await adminFirestore.collection("users").doc(session.uid).set(
-    {
-      watchlist_holdings: {
-        [instrumentId]: {
-          quantity: quantity ?? null,
-          market_value: marketValue ?? null,
-          average_cost: averageCost ?? null,
-          currency,
-          source,
-          updated_at: now,
-        },
+  // LocalDB's merge replaces top-level maps instead of deep-merging them, so
+  // writing { watchlist_holdings: { [id]: ... } } with merge would drop every
+  // other holding. Read the whole map and write it back in one transaction.
+  const userRef = adminFirestore.collection("users").doc(session.uid);
+  const nextVersion = await adminFirestore.runTransaction(async (tx) => {
+    const snap = await tx.get(userRef);
+    const data = (snap.data() ?? {}) as Record<string, unknown>;
+    const current =
+      data.watchlist_holdings && typeof data.watchlist_holdings === "object" && !Array.isArray(data.watchlist_holdings)
+        ? (data.watchlist_holdings as Record<string, unknown>)
+        : {};
+    const version = Number(data.watchlist_version || 0) + 1;
+    tx.set(
+      userRef,
+      {
+        watchlist_holdings: { ...current, [instrumentId]: holding },
+        watchlist_version: version,
+        watchlist_updated_at: now,
       },
-      watchlist_version: nextVersion,
-      watchlist_updated_at: now,
-    },
-    { merge: true },
-  );
+      { merge: true },
+    );
+    return version;
+  });
 
   await adminFirestore.collection("tm_watchlist_view_refresh_control").doc(session.uid).set(
     {
