@@ -1,3 +1,6 @@
+/** How long one store call may take before it fails. Override with LOCALDB_TIMEOUT_MS. */
+const REQUEST_TIMEOUT_MS = Math.max(1000, Number(process.env.LOCALDB_TIMEOUT_MS) || 25_000);
+
 type LocalDocumentPayload = {
   path: string;
   data?: Record<string, unknown>;
@@ -416,6 +419,9 @@ export class LocalFirestore {
         ...(init.body ? { "Content-Type": "application/json" } : {}),
       },
       body: init.body ? JSON.stringify(init.body) : undefined,
+      // A stalled store must not hold this request (and every one queued
+      // behind it for a slot) until the serverless function times out.
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     }));
     if (!TIMING_ON) return send();
     const startedAt = performance.now();
