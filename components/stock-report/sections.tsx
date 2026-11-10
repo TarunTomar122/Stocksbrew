@@ -968,7 +968,7 @@ export function NewsSection({ data }: SectionProps) {
             <NewsRow key={article.id || article.url} article={article} />
           ))}
           {news.length > 8 ? (
-            <Details summary={`${news.length - 8} more`}>
+            <Details summary={`${news.length - 8} more`} track={{ section: "news", ticker: stock.ticker }}>
               {news.slice(8).map((article) => (
                 <NewsRow key={article.id || article.url} article={article} />
               ))}

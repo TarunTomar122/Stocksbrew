@@ -16,7 +16,7 @@ export function RadarPageAnalytics({
   isSubscribed: boolean;
 }) {
   useEffect(() => {
-    captureEvent("radar_viewed", {
+    captureEvent("portfolio_viewed", {
       state,
       signed_in: state !== "signed_out",
       tracked_count: trackedCount,

@@ -212,7 +212,7 @@ export async function loadPostHogAnalytics(days = 7): Promise<PostHogAnalyticsSn
       FROM events
       WHERE timestamp > now() - interval ${periodDays * 2} day
         AND timestamp <= now() - ${interval}
-        AND event = 'radar_first_stock_added'
+        AND (event = 'radar_first_stock_added' OR (event = 'stock_tracked' AND toString(properties.first) = 'true'))
         AND ${domain}
       LIMIT 1
     `),
@@ -226,7 +226,7 @@ export async function loadPostHogAnalytics(days = 7): Promise<PostHogAnalyticsSn
           FROM events
           WHERE timestamp > now() - interval ${periodDays * 2} day
             AND timestamp <= now() - ${interval}
-            AND event = 'radar_first_stock_added'
+            AND (event = 'radar_first_stock_added' OR (event = 'stock_tracked' AND toString(properties.first) = 'true'))
             AND ${domain}
         )
       LIMIT 1
@@ -291,7 +291,7 @@ export async function loadPostHogAnalytics(days = 7): Promise<PostHogAnalyticsSn
       SELECT count(DISTINCT person_id) AS c
       FROM events
       WHERE timestamp > now() - ${interval}
-        AND event = 'radar_first_stock_added'
+        AND (event = 'radar_first_stock_added' OR (event = 'stock_tracked' AND toString(properties.first) = 'true'))
         AND ${domain}
       LIMIT 1
     `),
@@ -307,7 +307,7 @@ export async function loadPostHogAnalytics(days = 7): Promise<PostHogAnalyticsSn
       SELECT count(DISTINCT person_id) AS c
       FROM events
       WHERE timestamp > now() - ${interval}
-        AND event = 'subscription_converted'
+        AND event IN ('subscription_activated', 'subscription_converted')
         AND ${domain}
       LIMIT 1
     `),

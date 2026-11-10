@@ -21,6 +21,7 @@ import { TheRead } from "@/components/oa/insight";
 import { buildBacktestRead } from "@/lib/backtest-insights";
 
 import { CaveatLine, Panel, ResultLead, StatGrid, YearTable } from "./results";
+import { trackBacktestRun, trackLimitHit } from "@/lib/product-analytics";
 
 type Row = { id: number; symbol: string; weight: string };
 export type Preset = { href: string; label: string; group: string };
@@ -209,6 +210,16 @@ export function BacktestWorkbench({
         body: JSON.stringify(setup),
       });
       const body = (await reply.json()) as GatedBacktestResponse;
+      trackBacktestRun({
+        ok: body.ok,
+        holdings: holdings.length,
+        tickers: holdings.map((item) => item.symbol),
+        rebalance,
+        benchmark,
+        error_code: body.ok ? null : body.error.code,
+        origin: override ? "preset" : "form",
+      });
+      if (!body.ok && body.error.code === "limit_reached") trackLimitHit({ feature: "backtest", plan: body.gate.plan, limit: body.gate.meter?.limit ?? null, code: "limit_reached" });
       setResponse(body);
       const href = setupHref(setup);
       setShareHref(href);

@@ -8,7 +8,6 @@ import { useUser } from "@/lib/auth-context";
 import {
   type PaywallSurface,
   trackCheckoutClicked,
-  trackCheckoutStarted,
   trackPaywallShown,
   trackPaywallUnlockClicked,
 } from "@/lib/product-analytics";
@@ -139,7 +138,6 @@ function useFeedUnlockCta(surface: PaywallSurface) {
     trackCheckoutClicked({ period: "monthly", market: "US", signedIn: true });
     try {
       const checkoutUrl = await startDodoCheckout();
-      trackCheckoutStarted({ period: "monthly", market: "US" });
       window.location.assign(checkoutUrl);
     } catch (err) {
       console.error("direct checkout failed", err);

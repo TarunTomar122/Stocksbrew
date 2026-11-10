@@ -20,7 +20,7 @@ export type StoredAlert = {
 
 export type CreateAlertResult =
   | { ok: true; alreadyExists?: boolean; alertId?: string }
-  | { ok: false; error: string; unauthorized?: boolean };
+  | { ok: false; error: string; unauthorized?: boolean; code?: string };
 
 export type DeleteAlertResult = { ok: true } | { ok: false; error: string; unauthorized?: boolean };
 
@@ -39,7 +39,7 @@ export async function createStockAlert(payload: CreateAlertPayload): Promise<Cre
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string; alert_id?: string };
+  const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string; alert_id?: string; code?: string };
 
   if (res.status === 401) {
     return { ok: false, error: "Sign in to get email alerts.", unauthorized: true };
@@ -51,7 +51,7 @@ export async function createStockAlert(payload: CreateAlertPayload): Promise<Cre
     return { ok: false, error: data.message || "Pro is required to create stock alerts." };
   }
   if (!res.ok) {
-    return { ok: false, error: data.error || "Could not set alert." };
+    return { ok: false, error: data.error || "Could not set alert.", code: typeof data.code === "string" ? data.code : undefined };
   }
   return { ok: true, alertId: data.alert_id };
 }

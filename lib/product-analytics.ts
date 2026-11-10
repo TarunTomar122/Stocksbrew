@@ -1,6 +1,15 @@
 "use client";
 
-import { captureEvent } from "@/lib/posthog";
+import { captureEvent, registerSuperProperties } from "@/lib/posthog";
+
+/**
+ * Typed product events. docs/analytics.md is the tracking plan: every event
+ * here is listed there with the question it answers. Names are object_action.
+ *
+ * Rules: tickers, feature ids, surfaces and counts are fine; never emails,
+ * names, free-text questions, portfolio values or share counts. Every helper
+ * is fire-and-forget and never throws (lib/posthog.ts).
+ */
 
 export type AuthSurface =
   | "header"
@@ -39,6 +48,8 @@ export type PaywallSurface =
   /** The shared gate (components/oa/gate.tsx); the feature id goes in `feature`. */
   | "entitlement";
 
+export type PlanName = "anon" | "free" | "pro";
+
 function dedupeSession(key: string): boolean {
   try {
     if (sessionStorage.getItem(key) === "1") return false;
@@ -49,6 +60,50 @@ function dedupeSession(key: string): boolean {
   }
 }
 
+/** The app area a path belongs to: "/stock/NVDA" -> "stock", "/" -> "landing". */
+export function pageArea(pathname: string | null | undefined): string {
+  const first = (pathname ?? "").split("?")[0]!.split("/").filter(Boolean)[0];
+  return first ? first.toLowerCase().slice(0, 32) : "landing";
+}
+
+function currentArea(): string {
+  try {
+    return pageArea(window.location.pathname);
+  } catch {
+    return "unknown";
+  }
+}
+
+/** Uppercase, trimmed, capped: what someone typed into a stock search. */
+export function cleanSearchQuery(query: string): string {
+  return query.trim().replace(/\s+/g, " ").slice(0, 40).toUpperCase();
+}
+
+/** Text length as a coarse bucket, so free-text questions are never sent. */
+export function lengthBucket(text: string): "short" | "medium" | "long" {
+  const n = text.trim().length;
+  if (n < 40) return "short";
+  if (n < 140) return "medium";
+  return "long";
+}
+
+/* ── identity and super properties ─────────────────────────────────────── */
+
+/** Sent with every later event: who is looking, by plan. */
+export function setAnalyticsPlan(plan: PlanName) {
+  registerSuperProperties({ plan, signed_in: plan !== "anon" });
+}
+
+/* ── acquisition and activation ────────────────────────────────────────── */
+
+export function trackSigninStarted(props: { surface: AuthSurface }) {
+  captureEvent("signin_started", { surface: props.surface, page: currentArea() });
+}
+
+export function trackSigninFailed(props: { surface: AuthSurface; reason: string }) {
+  captureEvent("signin_failed", { surface: props.surface, reason: props.reason.slice(0, 60), page: currentArea() });
+}
+
 export function trackUserSignedIn(props: {
   surface: AuthSurface;
   isNewUser?: boolean;
@@ -57,7 +112,12 @@ export function trackUserSignedIn(props: {
   captureEvent(event, {
     surface: props.surface,
     method: "google",
+    page: currentArea(),
   });
+}
+
+export function trackUserReturned(props: { days_since_first: number; days_since_last: number }) {
+  captureEvent("user_returned", props);
 }
 
 export function trackLandingCtaClicked(props: {
@@ -68,26 +128,6 @@ export function trackLandingCtaClicked(props: {
   captureEvent("landing_cta_clicked", props);
 }
 
-export function trackPaywallShown(props: {
-  surface: PaywallSurface;
-  ticker?: string;
-  feature?: string;
-  signedIn?: boolean;
-}) {
-  const key = `paywall_shown:${props.surface}:${props.feature ?? ""}:${props.ticker ?? "none"}`;
-  if (!dedupeSession(key)) return;
-  captureEvent("paywall_shown", props);
-}
-
-export function trackPaywallUnlockClicked(props: {
-  surface: PaywallSurface;
-  ticker?: string;
-  feature?: string;
-  signedIn: boolean;
-}) {
-  captureEvent("paywall_unlock_clicked", props);
-}
-
 export function trackAttributionSubmitted(props: {
   source?: string;
   other?: string;
@@ -96,71 +136,246 @@ export function trackAttributionSubmitted(props: {
   captureEvent("attribution_submitted", props);
 }
 
+/** The follow/track button was pressed (signed in or not). The add itself is `stock_tracked`, sent by the server. */
+export function trackStockTrackClicked(props: {
+  ticker: string;
+  signed_in: boolean;
+  surface?: string;
+}) {
+  captureEvent("stock_track_clicked", { ...props, page: currentArea() });
+}
+
+/* ── conversion ────────────────────────────────────────────────────────── */
+
+export function trackPaywallShown(props: {
+  surface: PaywallSurface;
+  ticker?: string;
+  feature?: string;
+  signedIn?: boolean;
+  step?: "sign_in" | "upgrade";
+}) {
+  const key = `paywall_shown:${props.surface}:${props.feature ?? ""}:${props.ticker ?? "none"}`;
+  if (!dedupeSession(key)) return;
+  captureEvent("paywall_shown", { ...props, page: currentArea() });
+}
+
+export function trackPaywallUnlockClicked(props: {
+  surface: PaywallSurface;
+  ticker?: string;
+  feature?: string;
+  signedIn: boolean;
+  step?: "sign_in" | "upgrade";
+}) {
+  captureEvent("paywall_unlock_clicked", { ...props, page: currentArea() });
+}
+
+/**
+ * A plan limit stopped something the person tried to do (a meter, a count, a
+ * Pro-only kind). `feature` is the lib/entitlements.ts id.
+ */
+export function trackLimitHit(props: {
+  feature: string;
+  plan?: string;
+  limit?: number | null;
+  code?: string;
+}) {
+  // Same words as the `plan` super property ("anon", not Ask's "anonymous"), since this one overrides it.
+  captureEvent("limit_hit", { ...props, plan: props.plan === "anonymous" ? "anon" : props.plan, page: currentArea() });
+}
+
+export type CheckoutSource = { surface?: string; feature?: string };
+
+let lastCheckoutSource: CheckoutSource = {};
+
+/** Where the last checkout click came from, sent to /api/subscription/create-checkout. */
+export function checkoutSource(): CheckoutSource {
+  return lastCheckoutSource;
+}
+
 export function trackCheckoutClicked(props: {
   period: "monthly" | "yearly";
   market: "US" | "IN";
   signedIn: boolean;
+  surface?: string;
+  feature?: string;
 }) {
-  captureEvent("checkout_clicked", props);
-  captureEvent("subscription_plan_clicked", props);
+  const surface = props.surface ?? currentArea();
+  lastCheckoutSource = { surface, feature: props.feature };
+  captureEvent("checkout_clicked", {
+    period: props.period,
+    market: props.market,
+    signed_in: props.signedIn,
+    surface,
+    feature: props.feature,
+    page: currentArea(),
+  });
 }
 
-export function trackCheckoutStarted(props: {
-  period: "monthly" | "yearly";
-  market: "US" | "IN";
-}) {
-  captureEvent("checkout_started", props);
+export function trackCheckoutFailed(props: { reason: string; surface?: string }) {
+  captureEvent("checkout_failed", { reason: props.reason.slice(0, 80), surface: props.surface ?? currentArea() });
 }
 
-export function trackSubscribeSigninStarted(props: {
-  period: "monthly" | "yearly";
-  market: "US" | "IN";
-}) {
-  captureEvent("subscribe_signin_started", props);
-}
-
-export function trackSubscribeSigninSucceeded(props: {
-  period: "monthly" | "yearly";
-  market: "US" | "IN";
-}) {
-  captureEvent("subscribe_signin_succeeded", props);
-}
-
-export function trackSubscriptionConverted(props: {
+/**
+ * Back from Dodo on the success URL. The paid conversion itself is
+ * `subscription_activated`, sent by the webhook; this is the browser's view.
+ */
+export function trackCheckoutReturned(props: {
   subscription_id?: string | null;
   source?: "success_modal" | "activator_sync" | "dev_activate";
 }) {
   const id = props.subscription_id ?? "latest";
-  const key = `subscription_converted:${id}`;
+  const key = `checkout_returned:${id}`;
+  setAnalyticsPlan("pro");
+  // components/posthog-pageview.tsx caches the plan per tab session; a stale "free"
+  // there would undo this on the next full page load.
+  try {
+    for (let index = 0; index < sessionStorage.length; index += 1) {
+      const cacheKey = sessionStorage.key(index);
+      if (cacheKey?.startsWith("sb_plan:")) sessionStorage.setItem(cacheKey, "pro");
+    }
+  } catch {
+    // storage can be blocked
+  }
   if (!dedupeSession(key)) return;
-  captureEvent("subscription_converted", props);
+  captureEvent("checkout_returned", { source: props.source });
 }
 
-export function trackRadarAddIntent(props: {
-  ticker: string;
-  instrument_id: string;
-  signed_in: boolean;
-  surface?: string;
+/* ── engagement: what people do on each surface ────────────────────────── */
+
+/** The plan rides on the `plan` super property; only the shape of the question is sent, never its text. */
+export function trackAskQuestionAsked(props: {
+  origin: "typed" | "link" | "suggestion";
+  turn: number;
+  question: string;
 }) {
-  captureEvent("radar_add_intent", props);
+  captureEvent("ask_question_asked", {
+    origin: props.origin,
+    turn: props.turn,
+    length: lengthBucket(props.question),
+  });
 }
 
-export function trackRadarPickerOpened(props: {
-  ticker: string;
-  instrument_id: string;
-  resumed_after_signin: boolean;
-}) {
-  captureEvent("radar_add_picker_opened", props);
+export function trackAskAnswerReceived(props: { latency_ms: number | null; turn: number }) {
+  captureEvent("ask_answer_received", props);
 }
 
-export function trackRadarStockAdded(props: {
-  ticker: string;
-  instrument_id: string;
-  position_type: "watchlist" | "holding";
-  first_stock: boolean;
+export function trackAskAnswerFailed(props: { reason: "limit" | "error" | "aborted"; status?: number | null; message?: string }) {
+  captureEvent("ask_answer_failed", { reason: props.reason, status: props.status ?? null, message: props.message?.slice(0, 80) });
+}
+
+export function trackAskAiClicked(props: {
+  surface: "watchlist" | "stock" | "radar_row";
+  ticker?: string;
 }) {
-  captureEvent("radar_stock_added", props);
-  if (props.first_stock) captureEvent("radar_first_stock_added", props);
+  captureEvent("ask_ai_clicked", props);
+}
+
+export function trackSearchPerformed(props: {
+  surface: string;
+  query: string;
+  results_count: number;
+  found: boolean;
+  ticker?: string | null;
+}) {
+  const query = cleanSearchQuery(props.query);
+  if (!query) return;
+  captureEvent("search_performed", { ...props, query, page: currentArea() });
+}
+
+const noResultTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const lastNoResult = new Map<string, string>();
+
+/**
+ * A query that matched nothing, once the person stops typing for a moment.
+ * Tells us which stocks people look for and we do not have.
+ */
+export function trackSearchNoResults(surface: string, query: string, delayMs = 1200) {
+  if (typeof window === "undefined") return;
+  const existing = noResultTimers.get(surface);
+  if (existing) clearTimeout(existing);
+  const clean = cleanSearchQuery(query);
+  if (!clean || clean.length < 2) return;
+  noResultTimers.set(
+    surface,
+    setTimeout(() => {
+      noResultTimers.delete(surface);
+      if (lastNoResult.get(surface) === clean) return;
+      lastNoResult.set(surface, clean);
+      trackSearchPerformed({ surface, query: clean, results_count: 0, found: false });
+    }, delayMs),
+  );
+}
+
+/** Cancel a pending no-results event (the person picked something or kept typing). */
+export function cancelSearchNoResults(surface: string) {
+  const existing = noResultTimers.get(surface);
+  if (existing) clearTimeout(existing);
+  noResultTimers.delete(surface);
+}
+
+export function trackBriefingItemOpened(props: {
+  kind: string;
+  ticker?: string | null;
+  relation?: string | null;
+  decision: boolean;
+}) {
+  captureEvent("briefing_item_opened", props);
+}
+
+export function trackScreenerFilterApplied(props: { fields: string[]; active_count: number; preset?: string | null }) {
+  captureEvent("screener_filter_applied", {
+    fields: props.fields.slice(0, 12).join(","),
+    active_count: props.active_count,
+    preset: props.preset ?? null,
+  });
+}
+
+export function trackScreenSaved(props: { ok: boolean; reason?: string }) {
+  captureEvent("screen_saved", props);
+}
+
+export function trackFollowClicked(props: { slug: string; followed: boolean; signed_in: boolean; outcome: "ok" | "limit" | "error" }) {
+  captureEvent("follow_clicked", { ...props, page: currentArea() });
+}
+
+export function trackAgentPreviewed(props: { template: string; ok: boolean }) {
+  captureEvent("agent_previewed", props);
+}
+
+export function trackAgentSwitchedOn(props: { template: string; via: "create" | "quick_start" | "toggle"; enabled: boolean }) {
+  captureEvent(props.enabled ? "agent_switched_on" : "agent_paused", { template: props.template, via: props.via });
+}
+
+export function trackAgentReportOpened(props: { template: string; has_report: boolean }) {
+  captureEvent("agent_report_opened", props);
+}
+
+export function trackBacktestRun(props: {
+  ok: boolean;
+  holdings: number;
+  tickers: string[];
+  rebalance?: string | null;
+  benchmark?: string | null;
+  error_code?: string | null;
+  origin: "form" | "preset";
+}) {
+  captureEvent("backtest_run", {
+    ok: props.ok,
+    holdings: props.holdings,
+    tickers: props.tickers.slice(0, 10).join(","),
+    rebalance: props.rebalance ?? null,
+    benchmark: props.benchmark ?? null,
+    error_code: props.error_code ?? null,
+    origin: props.origin,
+  });
+}
+
+export function trackCompareRun(props: { tickers: string[] }) {
+  captureEvent("compare_run", { tickers: props.tickers.slice(0, 6).join(","), count: props.tickers.length });
+}
+
+export function trackAlertCreated(props: { ticker: string; kind: string }) {
+  captureEvent("alert_created", props);
 }
 
 export function trackAgentAccessAction(props: {
@@ -171,11 +386,4 @@ export function trackAgentAccessAction(props: {
     | "config_copied";
 }) {
   captureEvent("agent_access_action", props);
-}
-
-export function trackAskAiClicked(props: {
-  surface: "watchlist" | "stock" | "radar_row";
-  ticker?: string;
-}) {
-  captureEvent("ask_ai_clicked", props);
 }

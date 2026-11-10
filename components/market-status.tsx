@@ -14,7 +14,6 @@ import {
 } from "@/lib/market-session";
 import {
   getMarketStatusBannerCopy,
-  marketStatusStateLabel,
   type MarketStatusSurface,
 } from "@/lib/market-status-copy";
 import { captureEvent } from "@/lib/posthog";
@@ -26,10 +25,6 @@ function parseNowMs(nowIso: string): number {
 
 function trackCta(surface: MarketStatusSurface, state: string, destination: string) {
   captureEvent("market_status_cta_clicked", { surface, state, destination });
-}
-
-function trackImpression(surface: MarketStatusSurface, state: string) {
-  captureEvent("market_status_impression", { surface, state });
 }
 
 function usePokeQuip(quip?: string) {
@@ -79,12 +74,6 @@ export function MarketStatusTab({ nowIso }: { nowIso: string }) {
     const id = window.setInterval(() => setNowMs(Date.now()), tickMs);
     return () => window.clearInterval(id);
   }, [needsTick, tickMs]);
-
-  useEffect(() => {
-    if (!copy) return;
-    trackImpression("floating", copy.state);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [copy?.state]);
 
   useEffect(() => {
     if (!open) return;
@@ -251,11 +240,6 @@ export function MarketStatusInline({
     const id = window.setInterval(() => setNowMs(Date.now()), tickMs);
     return () => window.clearInterval(id);
   }, [needsTick, tickMs]);
-
-  useEffect(() => {
-    trackImpression(surface, marketStatusStateLabel(session));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session.kind, surface]);
 
   let text: string;
   if (session.kind === "open") {

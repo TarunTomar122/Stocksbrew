@@ -20,6 +20,7 @@ import {
 import { agentsRead, orderJobs, presentRun, type JobStatus } from "@/lib/agent-jobs-present";
 
 import { RunList, RunReport, SessionStrip, VerdictChip, type RunRow } from "./run-list";
+import { trackAgentPreviewed, trackAgentReportOpened, trackAgentSwitchedOn, trackLimitHit } from "@/lib/product-analytics";
 
 type Replay = AgentReplay & { tickers: string[]; available: AgentFacts["available"]; replayed_at: string };
 
@@ -312,6 +313,7 @@ export function JobsWorkspace({
   async function runReplay() {
     if (!payload) return;
     const body = await call<{ replay: Replay }>("replay", "/api/agent-jobs/replay", { method: "POST", body: payloadKey });
+    if (template) trackAgentPreviewed({ template: template.id, ok: Boolean(body) });
     if (body) {
       setReplay(body.replay);
       setReplayFor(payloadKey);
@@ -321,6 +323,9 @@ export function JobsWorkspace({
   async function create(body: string, key: string) {
     const result = await call<{ job: AgentJob; paused?: { message?: string } | null }>(key, "/api/agent-jobs", { method: "POST", body });
     if (!result) return;
+    trackAgentSwitchedOn({ template: result.job.template, via: key === "create" ? "create" : "quick_start", enabled: result.job.enabled });
+    // Saved but switched off: the plan's agent limit (lib/entitlements.ts `agents`).
+    if (!result.job.enabled && result.paused) trackLimitHit({ feature: "agents", code: "paused_at_limit" });
     setJobs((current) => [...current, result.job]);
     setOpenJob(result.job.id);
     setTemplateId(null);
@@ -347,7 +352,10 @@ export function JobsWorkspace({
       method: "PATCH",
       body: JSON.stringify({ enabled: !job.enabled }),
     });
-    if (body?.job) setJobs((current) => current.map((entry) => (entry.id === job.id ? body.job : entry)));
+    if (body?.job) {
+      trackAgentSwitchedOn({ template: body.job.template, via: "toggle", enabled: body.job.enabled });
+      setJobs((current) => current.map((entry) => (entry.id === job.id ? body.job : entry)));
+    }
   }
 
   async function remove(job: AgentJob) {
@@ -412,7 +420,10 @@ export function JobsWorkspace({
                 open={openJob === status.job.id}
                 tracked={tracked}
                 busy={busy}
-                onOpen={() => setOpenJob(openJob === status.job.id ? null : status.job.id)}
+                onOpen={() => {
+                  if (openJob !== status.job.id) trackAgentReportOpened({ template: status.job.template, has_report: Boolean(status.view) });
+                  setOpenJob(openJob === status.job.id ? null : status.job.id);
+                }}
                 onToggle={() => toggle(status.job)}
                 onRun={() => runNow(status.job)}
                 onRemove={() => remove(status.job)}

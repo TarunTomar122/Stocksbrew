@@ -6,7 +6,7 @@ import { OaButton } from "@/components/oa/button";
 import { useUser } from "@/lib/auth-context";
 import { lockCopy, nextStep, type FeatureId, type Plan } from "@/lib/entitlements";
 import { US_PRO_MONTHLY } from "@/lib/pricing";
-import { trackPaywallShown, trackPaywallUnlockClicked } from "@/lib/product-analytics";
+import { trackLimitHit, trackPaywallShown, trackPaywallUnlockClicked } from "@/lib/product-analytics";
 import { signInWithGoogle } from "@/lib/sign-in";
 import { useProCheckout } from "@/lib/use-pro-checkout";
 
@@ -44,11 +44,11 @@ function useGate(feature: FeatureId, plan: Plan, ticker?: string) {
 
   React.useEffect(() => {
     if (step === null) return;
-    trackPaywallShown({ surface: "entitlement", feature, ticker, signedIn: plan !== "anon" });
+    trackPaywallShown({ surface: "entitlement", feature, ticker, signedIn: plan !== "anon", step });
   }, [feature, plan, ticker, step]);
 
   async function act() {
-    trackPaywallUnlockClicked({ surface: "entitlement", feature, ticker, signedIn: Boolean(user) });
+    trackPaywallUnlockClicked({ surface: "entitlement", feature, ticker, signedIn: Boolean(user), step: step ?? undefined });
     if (step === "sign_in" && !user) {
       setSigningIn(true);
       try {
@@ -61,7 +61,7 @@ function useGate(feature: FeatureId, plan: Plan, ticker?: string) {
       }
       return;
     }
-    await openCheckout();
+    await openCheckout({ feature });
   }
 
   return { step, act, busy: busy || signingIn };
@@ -222,11 +222,12 @@ export function CoverButton({ instrumentId, ticker, className = "" }: { instrume
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ instrument_id: instrumentId, covered: true }),
       });
-      const data = (await res.json().catch(() => ({}))) as { message?: string };
+      const data = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
       if (res.ok) {
         window.location.reload();
         return;
       }
+      if (data.error === "over_limit" || data.error === "swap_used") trackLimitHit({ feature: "covered_stocks", plan: "free", code: data.error });
       setMessage(data.message || `Could not cover ${ticker}. Try again.`);
     } catch {
       setMessage("That did not save. Check your connection and try again.");

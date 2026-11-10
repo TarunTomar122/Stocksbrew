@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { useUser } from "@/lib/auth-context";
+import { trackFollowClicked, trackLimitHit } from "@/lib/product-analytics";
 import { signInWithGoogle } from "@/lib/sign-in";
 
 /**
@@ -66,6 +67,8 @@ export function FollowButton({
         result = await save(next);
       }
       if (!result.ok && result.code === "plan_limit") {
+        trackFollowClicked({ slug, followed: next, signed_in: Boolean(user || initialAuthed), outcome: "limit" });
+        trackLimitHit({ feature: "followed_sources", code: "plan_limit" });
         const text =
           result.message ||
           "Your plan's follow limit is reached. Unfollow one to follow this one.";
@@ -74,6 +77,7 @@ export function FollowButton({
         return;
       }
       if (!result.ok) throw new Error("follow failed");
+      trackFollowClicked({ slug, followed: next, signed_in: Boolean(user || initialAuthed), outcome: "ok" });
       setLocal(next);
       onChange?.(slug, next);
     } catch {

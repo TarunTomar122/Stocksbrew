@@ -593,6 +593,9 @@ export async function StockPageStream({ params }: Props) {
         isTracked={isTracked}
         hasAiBrief={readState === "ready"}
         hasCrowdSignal={Boolean(data.reddit)}
+        call={data.read?.call ?? null}
+        plan={data.gate.plan}
+        levels={data.gate.levels}
       />
       <OnDemandResearchRefresh status={resolvedOnDemandStatus} />
       <PriorityStockModal

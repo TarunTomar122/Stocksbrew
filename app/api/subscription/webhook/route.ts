@@ -172,9 +172,18 @@ async function handleEvent(
         type: conversionEvent,
         payload: { source_event: type, plan },
       }).catch(() => undefined);
-      await captureServerEvent(uid, conversionEvent, {
+      // PostHog names the paid conversion `subscription_activated` (docs/analytics.md);
+      // the lifecycle record above keeps its own name for the mail job.
+      const before = beforeSnap?.data() as Record<string, unknown> | undefined;
+      const lastSource = (before?.lastCheckoutSource ?? null) as { surface?: unknown; feature?: unknown } | null;
+      await captureServerEvent(uid, type === "subscription.active" ? "subscription_activated" : "subscription_renewed", {
         source_event: type,
-        plan,
+        plan: "pro",
+        period: plan,
+        market: before?.lastCheckoutMarket === "IN" ? "IN" : "US",
+        first_time: !wasAlreadySubscribed,
+        checkout_surface: typeof lastSource?.surface === "string" ? lastSource.surface : null,
+        checkout_feature: typeof lastSource?.feature === "string" ? lastSource.feature : null,
         subscription_id: subId ?? null,
         $insert_id: `dodo:${deliveryId}:${type}`,
       }).catch(() => undefined);
@@ -229,7 +238,9 @@ async function handleEvent(
       }).catch(() => undefined);
       await captureServerEvent(uid, "subscription_payment_succeeded", {
         source_event: type,
-        plan,
+        // Same shape as subscription_activated: `plan` is the tier, `period` the billing cycle.
+        plan: "pro",
+        period: plan,
         subscription_id: paymentSubId,
         $insert_id: `dodo:${deliveryId}:${type}`,
       }).catch(() => undefined);

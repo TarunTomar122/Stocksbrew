@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { TickerSearchField } from "@/components/ticker-search-field";
 import { useUser } from "@/lib/auth-context";
 import { captureEvent } from "@/lib/posthog";
-import { trackRadarStockAdded } from "@/lib/product-analytics";
 import type { SearchEntry } from "@/lib/search";
 import { POST_SIGNUP_ONBOARDING_PENDING } from "@/lib/sign-in";
 
@@ -93,12 +92,6 @@ export function PostSignupOnboarding() {
       });
       const result = await response.json() as { first_stock?: boolean; error?: string };
       if (!response.ok) throw new Error(result.error || "Could not add this stock");
-      trackRadarStockAdded({
-        ticker: entry.ticker,
-        instrument_id: entry.instrument_id,
-        position_type: positionType,
-        first_stock: Boolean(result.first_stock),
-      });
       captureEvent("onboarding_stock_added", {
         path,
         ticker: entry.ticker,

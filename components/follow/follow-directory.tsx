@@ -251,6 +251,9 @@ export function FollowDirectory({
                     <div className="min-w-0">
                       <a
                         href={sourceHref(source.slug)}
+                        data-track="fund_opened"
+                        data-track-slug={source.slug}
+                        data-track-list="directory"
                         className="flex min-w-0 items-center gap-1.5 text-[14px] font-medium leading-5 text-oa-fg outline-none hover:text-oa-primary focus-visible:text-oa-primary"
                       >
                         <PartyDot party={source.party} />

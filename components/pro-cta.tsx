@@ -7,7 +7,7 @@ import { useState } from "react";
 import { useUser } from "@/lib/auth-context";
 import { startDodoCheckout } from "@/lib/dodo-checkout-client";
 import { signInWithGoogle } from "@/lib/sign-in";
-import { trackCheckoutClicked, trackCheckoutStarted } from "@/lib/product-analytics";
+import { trackCheckoutClicked } from "@/lib/product-analytics";
 
 export type ProCtaSize = "sm" | "md" | "lg";
 
@@ -91,7 +91,6 @@ export function ProCtaLink({
       try {
         if (!user) await signInWithGoogle({ surface: "paywall" });
         const checkoutUrl = await startDodoCheckout();
-        trackCheckoutStarted({ period: "monthly", market: "US" });
         window.location.assign(checkoutUrl);
       } catch (err) {
         console.error("direct checkout failed", err);

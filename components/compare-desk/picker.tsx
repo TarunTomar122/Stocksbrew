@@ -5,6 +5,7 @@ import * as React from "react";
 
 import { ProMark } from "@/components/oa/gate";
 import { compareHref } from "@/lib/compare-shared";
+import { trackCompareRun } from "@/lib/product-analytics";
 
 /**
  * The compare desk's ticker box. Type a ticker or a company, pick one, and it
@@ -78,6 +79,8 @@ export function ComparePicker({
     if (full || symbols.includes(symbol)) return;
     setQuery("");
     setOpen(false);
+    // A comparison runs once there are two names; each added name after that is another run.
+    if (symbols.length + 1 >= 2) trackCompareRun({ tickers: [...symbols, symbol] });
     go([...symbols, symbol]);
     inputRef.current?.focus();
   }

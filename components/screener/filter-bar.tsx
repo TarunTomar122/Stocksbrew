@@ -7,6 +7,7 @@ import { LockCard, ProMark } from "@/components/oa/gate";
 import { Menu, MenuCheck, MenuLabel } from "@/components/screener/menu";
 import { CONTROL } from "@/components/screener/controls";
 import type { Plan } from "@/lib/entitlements";
+import { trackScreenerFilterApplied } from "@/lib/product-analytics";
 import {
   ALL_COLUMN_IDS,
   ZONE_COLUMN_IDS,
@@ -187,7 +188,13 @@ export function FilterBar({ view, sectors, availableFields, capCounts, plan, can
 
   const setFilters = React.useCallback(
     (patch: Partial<ScreenerFilters>) => {
-      go({ ...view, preset: null, filters: { ...filters, ...patch } });
+      const next = { ...filters, ...patch };
+      // Which kinds of filter changed (range fields by id), never the typed search text.
+      const fields = Object.keys(patch).flatMap((key) =>
+        key === "ranges" && patch.ranges ? Object.keys(patch.ranges).map((id) => `range:${id}`) : key === "q" ? ["search"] : [key],
+      );
+      trackScreenerFilterApplied({ fields, active_count: countActiveFilters(next), preset: view.preset ?? null });
+      go({ ...view, preset: null, filters: next });
     },
     [go, view, filters],
   );

@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth-server";
 import { getUserDoc } from "@/lib/watchlist";
 import { addRadarStock, removeRadarStock } from "@/lib/radar-mutations";
+import { captureServerEventSafe } from "@/lib/posthog-server-capture";
 
 const INSTRUMENT_ID_RE = /^(US|IN)_[A-Z0-9_]+$/;
 
@@ -45,6 +46,11 @@ async function parseTrackPayload(req: NextRequest): Promise<{
   } catch {
     return null;
   }
+}
+
+/** "US_NVDA" -> "NVDA" for analytics. */
+function tickerOf(instrumentId: string): string {
+  return instrumentId.replace(/^(US|IN)_/, "").replace(/_/g, ".").slice(0, 16);
 }
 
 export async function POST(req: NextRequest) {
@@ -96,6 +102,18 @@ export async function POST(req: NextRequest) {
   });
 
   trackApiLog(traceId, "info", "post_track_ok", { uid: session.uid, instrument_id: instrumentId });
+  if (!result.already_tracked) {
+    // Activation: first stock, then 3+ (docs/analytics.md). A count, never positions or values.
+    await captureServerEventSafe(session.uid, "stock_tracked", {
+      ticker: tickerOf(instrumentId),
+      position_type: positionType,
+      tracked_count: current.length + 1,
+      first: current.length === 0,
+      covered: Boolean(result.covered),
+      via: "single",
+      $insert_id: `track:${session.uid}:${clientMutationId}`,
+    });
+  }
   return NextResponse.json({
     ok: true,
     refresh_queued: true,
@@ -140,5 +158,12 @@ export async function DELETE(req: NextRequest) {
   });
 
   trackApiLog(traceId, "info", "delete_untrack_ok", { uid: session.uid, instrument_id: instrumentId });
+  if (result.was_tracked) {
+    await captureServerEventSafe(session.uid, "stock_untracked", {
+      ticker: tickerOf(instrumentId),
+      via: "single",
+      $insert_id: `untrack:${session.uid}:${clientMutationId}`,
+    });
+  }
   return NextResponse.json({ ok: true, refresh_queued: true });
 }

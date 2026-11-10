@@ -9,6 +9,7 @@ import { visibleLines, type BriefingGroup, type BriefingLine } from "@/lib/brief
 
 import { compactTime, signedPct, sourceTime } from "./format";
 import { verdictFor } from "./item-metric";
+import { trackBriefingItemOpened } from "@/lib/product-analytics";
 
 const ACTION =
   "inline-flex h-10 cursor-pointer items-center rounded-md border border-oa-border bg-oa-card px-2.5 text-[13px] font-medium text-oa-fg outline-none transition-colors hover:bg-oa-accent focus-visible:ring-[3px] focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)] disabled:opacity-50 sm:h-7";
@@ -168,7 +169,10 @@ function LineRow({ line, group, actions }: { line: BriefingLine; group: Briefing
         type="button"
         aria-expanded={open}
         aria-controls={panelId}
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => {
+          if (!open) trackBriefingItemOpened({ kind: line.item.kind, ticker: group.ticker ?? line.item.ticker, relation: line.item.relation, decision: line.decision });
+          setOpen((value) => !value);
+        }}
         className={`-mx-1.5 block w-[calc(100%+0.75rem)] cursor-pointer rounded px-1.5 py-0.5 text-left text-[14px] leading-5 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent ${
           line.decision ? "font-medium text-oa-fg" : SOFT
         }`}

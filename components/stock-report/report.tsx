@@ -6,6 +6,7 @@ import { ProCheckoutButton } from "@/components/oa/pro-checkout-button";
 import { StockLogo } from "@/components/stock-logo";
 import { StockPremarketQuote } from "@/components/stock-premarket-quote";
 import { TrackButton } from "@/components/track-button";
+import { TrackView } from "@/components/track-view";
 import { WatchlistAiPromptButton } from "@/components/watchlist-ai-prompt-button";
 import { TheRead } from "@/components/oa/insight";
 import type { CallWord } from "@/lib/stock-chart";
@@ -579,6 +580,8 @@ export function StockReport({ data }: { data: ReportData }) {
                       {ready.changed.reason}
                     </p>
                   ) : null}
+                  {/* Zero-size marker: `read_viewed` once the end of the brief is on screen. */}
+                  <TrackView event="read_viewed" properties={{ ticker: stock.ticker, full_read: data.gate.levels, call: ready.call ?? null }} />
                 </div>
                 {!data.gate.levels ? (
                   <div id="call" className="scroll-mt-16 border-t border-oa-border p-3 lg:scroll-mt-4">
@@ -670,7 +673,7 @@ export function StockReport({ data }: { data: ReportData }) {
                   ))}
                 </ol>
                 {restItems.length ? (
-                  <Details className="border-t border-oa-border" summary={`${restItems.length} earlier ${restItems.length === 1 ? "entry" : "entries"}`}>
+                  <Details className="border-t border-oa-border" track={{ section: "timeline", ticker: stock.ticker }} summary={`${restItems.length} earlier ${restItems.length === 1 ? "entry" : "entries"}`}>
                     <ol>
                       {restItems.map((item) => (
                         <TimelineRow key={item.id} item={item} nowIso={nowIso} />

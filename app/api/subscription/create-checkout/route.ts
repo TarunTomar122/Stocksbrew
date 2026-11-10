@@ -3,7 +3,7 @@ import { adminAuth, adminFirestore } from "@/lib/firebase-admin";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { isDodoConfigured, DODO_BASE, dodoHeaders, productIdFor } from "@/lib/dodo";
 import { recordLifecycleEvent } from "@/lib/lifecycle-events";
-import { captureServerEvent } from "@/lib/posthog-server-capture";
+import { captureServerEventSafe } from "@/lib/posthog-server-capture";
 import { isTrialEligible } from "@/lib/trial-eligibility";
 
 export async function POST(req: NextRequest) {
@@ -33,6 +33,11 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const period: "monthly" | "yearly" = body.period === "yearly" ? "yearly" : "monthly";
   const market: "US" | "IN" = body.market === "IN" ? "IN" : "US";
+  // Which page or lock sent them (analytics only): short slugs, anything else dropped.
+  const sourceSlug = (value: unknown): string | null =>
+    typeof value === "string" && /^[a-z0-9_:-]{1,40}$/i.test(value) ? value : null;
+  const checkoutSurface = sourceSlug(body?.source?.surface);
+  const checkoutFeature = sourceSlug(body?.source?.feature);
   // India doesn't offer yearly, so fall back to monthly silently.
   const effectivePeriod: "monthly" | "yearly" = market === "IN" ? "monthly" : period;
   const productId = productIdFor(effectivePeriod, market);
@@ -129,6 +134,7 @@ export async function POST(req: NextRequest) {
         lastCheckoutCreatedAt: new Date().toISOString(),
         lastCheckoutPlan: effectivePeriod,
         lastCheckoutMarket: market,
+        lastCheckoutSource: { surface: checkoutSurface, feature: checkoutFeature },
       },
       { merge: true },
     );
@@ -146,15 +152,18 @@ export async function POST(req: NextRequest) {
 
   // Capture on the server before the browser leaves for Dodo. Client-side
   // checkout events can be dropped during the immediate cross-origin redirect.
-  await captureServerEvent(uid, "checkout_started", {
+  // The safe variant waits at most 1.5s and never throws, so it cannot hold up the redirect for long.
+  await captureServerEventSafe(uid, "checkout_started", {
     period: effectivePeriod,
     market,
     trial_eligible: trialEligible,
     checkout_session_id: session.id ?? null,
+    surface: checkoutSurface,
+    feature: checkoutFeature,
     $insert_id: session.id
       ? `checkout:${session.id}`
       : `checkout:${uid}:${effectivePeriod}:${market}:${Date.now()}`,
-  }).catch(() => undefined);
+  });
 
   return NextResponse.json({ checkoutUrl });
 }

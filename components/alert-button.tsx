@@ -123,12 +123,7 @@ export function AlertButton({
     }
 
     setDone(true);
-    captureEvent("alert_set_clicked", {
-      instrument_id: instrumentId,
-      ticker,
-      condition,
-      target_price: targetPrice,
-    });
+    captureEvent("alert_created", { ticker, kind: "price_threshold", condition });
 
     setModal({
       open: true,

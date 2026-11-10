@@ -216,7 +216,7 @@ export function MoversTab({ data, filters }: { data: MoversData; filters: Signal
                 <li key={mover.ticker} className="border-b border-oa-border last:border-b-0">
                   {mover.explained ? (
                     <details className="group">
-                      <summary className={`cursor-pointer list-none hover:bg-oa-accent [&::-webkit-details-marker]:hidden ${FOCUS}`}>
+                      <summary data-track="mover_opened" data-track-ticker={mover.ticker} data-track-list="movers" className={`cursor-pointer list-none hover:bg-oa-accent [&::-webkit-details-marker]:hidden ${FOCUS}`}>
                         <MoverLine mover={mover} rank={index + 1} max={max} />
                       </summary>
                       <MoverDetail mover={mover} />
@@ -372,7 +372,7 @@ function RedditList({ names, compact = false }: { names: RedditName[]; compact?:
         {names.map((name, index) => (
           <li key={name.ticker} className="border-b border-oa-border last:border-b-0">
             <details className="group">
-              <summary className={`cursor-pointer list-none hover:bg-oa-accent [&::-webkit-details-marker]:hidden ${FOCUS}`}>
+              <summary data-track="signal_opened" data-track-kind="reddit" data-track-ticker={name.ticker} className={`cursor-pointer list-none hover:bg-oa-accent [&::-webkit-details-marker]:hidden ${FOCUS}`}>
                 <RedditLine name={name} rank={index + 1} compact={compact} />
               </summary>
               <RedditDetail name={name} />
@@ -540,7 +540,7 @@ function PolicyList({ posts, compact = false }: { posts: PolicyPost[]; compact?:
         {posts.map((post) => (
           <li key={post.id} className="border-b border-oa-border last:border-b-0">
             <details className="group">
-              <summary className={`cursor-pointer list-none hover:bg-oa-accent [&::-webkit-details-marker]:hidden ${FOCUS}`}>
+              <summary data-track="signal_opened" data-track-kind="policy" className={`cursor-pointer list-none hover:bg-oa-accent [&::-webkit-details-marker]:hidden ${FOCUS}`}>
                 <PolicyLine post={post} compact={compact} />
               </summary>
               <PolicyDetail post={post} compact={compact} />
@@ -618,7 +618,7 @@ function TodayMovers({ movers }: { movers: Mover[] }) {
       {movers.map((mover, index) => (
         <li key={mover.ticker} className="border-b border-oa-border last:border-b-0">
           <details className="group">
-            <summary className={`cursor-pointer list-none px-4 py-2.5 hover:bg-oa-accent [&::-webkit-details-marker]:hidden ${FOCUS}`}>
+            <summary data-track="mover_opened" data-track-ticker={mover.ticker} data-track-list="today" className={`cursor-pointer list-none px-4 py-2.5 hover:bg-oa-accent [&::-webkit-details-marker]:hidden ${FOCUS}`}>
               <div className={TODAY_MOVER_COLS}>
                 <span aria-label={`Rank ${index + 1}`} className={`${NUM} text-[12.5px] text-oa-muted-fg`}>
                   {index + 1}
@@ -690,7 +690,7 @@ export function TodayTab({
             <span className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
               <SeeAll href={`${moversHref}&show=unexplained`}>{counts.unexplained} with no confirmed reason</SeeAll>
               {pick.unexplained.map((mover) => (
-                <a key={mover.ticker} href={`/stock/${encodeURIComponent(mover.ticker)}`} className={`inline-flex items-baseline gap-1.5 rounded hover:underline ${FOCUS}`}>
+                <a key={mover.ticker} href={`/stock/${encodeURIComponent(mover.ticker)}`} data-track="mover_opened" data-track-list="unexplained" className={`inline-flex items-baseline gap-1.5 rounded hover:underline ${FOCUS}`}>
                   <span className={`${NUM} font-medium text-oa-fg`}>{mover.ticker}</span>
                   <Delta value={mover.pct} className="text-[12.5px]" />
                 </a>

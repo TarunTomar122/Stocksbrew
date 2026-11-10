@@ -1,6 +1,7 @@
 "use client";
 
 import { getFirebaseAuth } from "@/lib/firebase-client";
+import { checkoutSource } from "@/lib/product-analytics";
 
 export async function startDodoCheckout(
   period: "monthly" | "yearly" = "monthly",
@@ -16,7 +17,8 @@ export async function startDodoCheckout(
       "Content-Type": "application/json",
       Authorization: `Bearer ${idToken}`,
     },
-    body: JSON.stringify({ period, market }),
+    // `source` is the page or lock behind the last checkout click, for analytics only.
+    body: JSON.stringify({ period, market, source: checkoutSource() }),
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(payload.error ?? "Checkout failed");

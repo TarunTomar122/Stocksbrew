@@ -586,7 +586,7 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
                 suggestedName={activePreset?.name ?? description.slice(0, 2).join(", ").slice(0, 60)}
               />
               {can("export_data", plan) ? (
-                <a href={`/api/screener/export${currentQuery ? `?${currentQuery}` : ""}`} className={`${CONTROL} max-sm:h-10`} download>
+                <a href={`/api/screener/export${currentQuery ? `?${currentQuery}` : ""}`} data-track="screener_exported" data-track-format="csv" className={`${CONTROL} max-sm:h-10`} download>
                   <span className="max-sm:hidden">Export CSV</span>
                   <span className="sm:hidden">CSV</span>
                 </a>

@@ -13,7 +13,8 @@ import {
 import { useRouter } from "next/navigation";
 
 import { getFirebaseAuth } from "@/lib/firebase-client";
-import { identifyUser, initPostHog, posthog } from "@/lib/posthog";
+import { identifyUser, initPostHog, resetAnalyticsIfIdentified } from "@/lib/posthog";
+import { setAnalyticsPlan } from "@/lib/product-analytics";
 
 type AuthState = {
   user: User | null;
@@ -46,10 +47,8 @@ export function AuthProvider({ children, initialAuthed = false }: AuthProviderPr
       setUser(nextUser);
       if (loading) setLoading(false);
       if (nextUser) {
-        identifyUser(nextUser.uid, {
-          email: nextUser.email ?? undefined,
-          name: nextUser.displayName ?? undefined,
-        });
+        // Only the uid: no email or name in analytics. The plan is added by components/posthog-pageview.tsx.
+        identifyUser(nextUser.uid);
         try {
           const idToken = await nextUser.getIdToken();
           const res = await fetch("/api/auth/session", {
@@ -79,7 +78,11 @@ export function AuthProvider({ children, initialAuthed = false }: AuthProviderPr
           // server-side session sync is best-effort
         }
       } else {
-        posthog.reset();
+        // Signed out. Forget the person only if this browser was identified:
+        // an anonymous visitor's first auth callback is also null, and
+        // resetting then would give them a new id on every page load.
+        resetAnalyticsIfIdentified();
+        setAnalyticsPlan("anon");
         refreshedAfterSignInRef.current = false;
         try {
           await fetch("/api/auth/session", { method: "DELETE" });

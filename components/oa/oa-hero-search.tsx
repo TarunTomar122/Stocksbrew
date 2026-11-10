@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { captureEvent } from "@/lib/posthog";
+import { cancelSearchNoResults, trackSearchNoResults, trackSearchPerformed } from "@/lib/product-analytics";
 import type { SearchEntry } from "@/lib/search";
 import { formatSearchPct, scoreSearchEntry } from "@/lib/ticker-search-utils";
 import { StockRequestModal } from "@/components/stock-request-modal";
@@ -72,7 +73,15 @@ export function OaHeroSearch({ source = "hero" }: { source?: string }) {
     return () => document.removeEventListener("mousedown", onDocClick);
   }, []);
 
+  // Queries that match nothing, once typing pauses: which stocks people want that we lack.
+  useEffect(() => {
+    if (query.trim() && searchIndex.length > 0 && results.length === 0) trackSearchNoResults(source, query);
+    else cancelSearchNoResults(source);
+  }, [query, results.length, searchIndex.length, source]);
+
   function go(ticker: string, instrumentId: string | null) {
+    cancelSearchNoResults(source);
+    trackSearchPerformed({ surface: source, query: query || ticker, results_count: results.length, found: instrumentId !== null, ticker });
     captureEvent("stock_search_selected", {
       ticker,
       instrument_id: instrumentId,

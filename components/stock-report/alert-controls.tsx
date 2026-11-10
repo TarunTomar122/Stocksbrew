@@ -13,6 +13,7 @@ import {
   type StoredAlert,
 } from "@/lib/create-alert";
 import { captureEvent } from "@/lib/posthog";
+import { trackAlertCreated, trackLimitHit } from "@/lib/product-analytics";
 import { signInWithGoogle } from "@/lib/sign-in";
 import { limitFor } from "@/lib/entitlements";
 
@@ -126,10 +127,13 @@ export function AlertControls({
       } else {
         const result = await createStockAlert(payload);
         if (!result.ok) {
+          if (result.code === "plan_limit" || result.code === "pro_required") {
+            trackLimitHit({ feature: result.code === "plan_limit" ? "price_alerts" : "zone_alerts", code: result.code });
+          }
           setStatus({ tone: "error", text: result.error });
           return;
         }
-        captureEvent("alert_set_clicked", { instrument_id: instrumentId, ticker, kind: payload.kind ?? "price_threshold" });
+        trackAlertCreated({ ticker, kind: payload.kind ?? "price_threshold" });
         setStatus({ tone: "ok", text: onText });
       }
       await sync();

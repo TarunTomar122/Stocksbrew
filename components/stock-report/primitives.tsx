@@ -222,10 +222,25 @@ export function MoreLink({ href, children, external = false, className = "" }: {
 }
 
 /** Native disclosure, styled. No client JavaScript. */
-export function Details({ summary, children, className = "" }: { summary: ReactNode; children: ReactNode; className?: string }) {
+export function Details({
+  summary,
+  children,
+  className = "",
+  track,
+}: {
+  summary: ReactNode;
+  children: ReactNode;
+  className?: string;
+  /** Sends `read_expanded` with this section when opened (lib/analytics-dom.ts). */
+  track?: { section: string; ticker?: string };
+}) {
   return (
     <details className={`group/details ${className}`}>
-      <summary className="flex min-h-10 cursor-pointer list-none items-center gap-2 px-3.5 py-1.5 text-[14px] font-medium text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent sm:min-h-9 sm:px-4 [&::-webkit-details-marker]:hidden">
+      <summary
+        data-track={track ? "read_expanded" : undefined}
+        data-track-section={track?.section}
+        data-track-ticker={track?.ticker}
+        className="flex min-h-10 cursor-pointer list-none items-center gap-2 px-3.5 py-1.5 text-[14px] font-medium text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent sm:min-h-9 sm:px-4 [&::-webkit-details-marker]:hidden">
         <span
           aria-hidden="true"
           className="oa-mono grid size-4 place-items-center text-[13px] leading-none text-oa-primary transition-transform duration-200 group-open/details:rotate-45"

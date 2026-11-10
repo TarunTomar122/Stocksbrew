@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { captureEvent } from "@/lib/posthog";
+import { cancelSearchNoResults, trackSearchNoResults, trackSearchPerformed } from "@/lib/product-analytics";
 import type { SearchEntry } from "@/lib/search";
 import { formatSearchPct, scoreSearchEntry } from "@/lib/ticker-search-utils";
 import { StockRequestModal } from "@/components/stock-request-modal";
@@ -91,7 +92,15 @@ export function OaHeaderSearchButton({ trigger = "icon" }: { trigger?: "icon" | 
     }
   }, [open]);
 
+  // Queries that match nothing, once typing pauses: which stocks people want that we lack.
+  useEffect(() => {
+    if (query.trim() && searchIndex.length > 0 && results.length === 0) trackSearchNoResults("header", query);
+    else cancelSearchNoResults("header");
+  }, [query, results.length, searchIndex.length]);
+
   function go(ticker: string, instrumentId: string | null) {
+    cancelSearchNoResults("header");
+    trackSearchPerformed({ surface: "header", query: query || ticker, results_count: results.length, found: instrumentId !== null, ticker });
     captureEvent("stock_search_selected", {
       ticker,
       instrument_id: instrumentId,

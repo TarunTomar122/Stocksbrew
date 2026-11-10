@@ -48,7 +48,14 @@ export function InsightRow({ insight }: { insight: Insight }) {
   // extra stocks under it), and the link to act, level with the first line.
   // On a phone the link drops under the sentence.
   return (
-    <li className="grid grid-cols-[12px_minmax(0,1fr)] gap-x-3 py-3 sm:grid-cols-[12px_minmax(0,1fr)_auto] sm:gap-x-4">
+    <li
+      // Any link in the row sends `insight_clicked` (lib/analytics-dom.ts), so we learn which reads people act on.
+      data-track-links="insight_clicked"
+      data-track-insight-id={insight.id.slice(0, 80)}
+      data-track-insight-kind={insightKind(insight.id)}
+      data-track-tone={insight.tone}
+      className="grid grid-cols-[12px_minmax(0,1fr)] gap-x-3 py-3 sm:grid-cols-[12px_minmax(0,1fr)_auto] sm:gap-x-4"
+    >
       <ToneGlyph tone={insight.tone} className="mt-[7px]" />
       <div className="min-w-0 max-w-[60rem]">
         <div className="text-pretty text-[15px] leading-[22px] text-oa-fg">
@@ -56,6 +63,7 @@ export function InsightRow({ insight }: { insight: Insight }) {
             <Link
               href={`/stock/${encodeURIComponent(lead)}`}
               prefetch={false}
+              data-track-target="stock"
               className="mr-1.5 inline-flex items-center gap-1.5 rounded align-[-4px] font-medium text-oa-fg hover:underline"
             >
               <StockLogo ticker={lead} size={18} />
@@ -72,6 +80,7 @@ export function InsightRow({ insight }: { insight: Insight }) {
                 key={ticker}
                 href={`/stock/${encodeURIComponent(ticker)}`}
                 prefetch={false}
+                data-track-target="stock"
                 className="inline-flex items-center gap-1.5 rounded text-[13px] font-medium leading-5 text-oa-fg hover:underline"
               >
                 <StockLogo ticker={ticker} size={16} />
@@ -85,6 +94,7 @@ export function InsightRow({ insight }: { insight: Insight }) {
         <Link
           href={insight.action.href}
           prefetch={false}
+          data-track-target="action"
           className="col-start-2 mt-1.5 justify-self-start whitespace-nowrap rounded text-[13px] font-medium leading-[22px] text-oa-primary hover:underline sm:col-start-3 sm:row-start-1 sm:mt-0 sm:justify-self-end"
         >
           {insight.action.label} →
@@ -92,6 +102,11 @@ export function InsightRow({ insight }: { insight: Insight }) {
       ) : null}
     </li>
   );
+}
+
+/** "mover-NVDA" -> "mover", "decisions" -> "decisions": the insight's kind without the stock in it. */
+export function insightKind(id: string): string {
+  return id.split(/[-:]/)[0]!.toLowerCase().slice(0, 32) || "insight";
 }
 
 function escapeRe(value: string): string {

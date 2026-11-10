@@ -6,7 +6,7 @@ import { OaButton } from "@/components/oa/button";
 import { useUser } from "@/lib/auth-context";
 import { signInWithGoogle } from "@/lib/sign-in";
 import { startDodoCheckout } from "@/lib/dodo-checkout-client";
-import { trackCheckoutClicked, trackCheckoutStarted } from "@/lib/product-analytics";
+import { trackCheckoutClicked, trackCheckoutFailed } from "@/lib/product-analytics";
 
 /**
  * Signed-in users skip /subscribe entirely and go straight to Dodo checkout.
@@ -31,10 +31,10 @@ export function ProCheckoutButton({
     try {
       if (!user) await signInWithGoogle({ surface: "paywall" });
       const checkoutUrl = await startDodoCheckout();
-      trackCheckoutStarted({ period: "monthly", market: "US" });
       window.location.assign(checkoutUrl);
     } catch (err) {
       console.error("direct checkout failed", err);
+      trackCheckoutFailed({ reason: err instanceof Error ? err.message : "unknown" });
     } finally {
       setBusy(false);
     }

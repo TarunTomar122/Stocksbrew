@@ -13,6 +13,7 @@ import { ASK_LIMITS, ASK_MAX_QUESTION_CHARS, ASK_SUGGESTIONS, ASK_TOOL_DONE, ASK
 import type { AskLimitReached } from "@/lib/ask-limits";
 import { getFirebaseAuth } from "@/lib/firebase-client";
 import { signInWithGoogle, syncServerSession } from "@/lib/sign-in";
+import { trackAskAnswerFailed, trackAskAnswerReceived, trackAskQuestionAsked, trackLimitHit } from "@/lib/product-analytics";
 
 /**
  * The Ask copilot: a conversation where every tool result is drawn as a card
@@ -351,6 +352,8 @@ export function AskWorkspace({
             const data = (await response.clone().json().catch(() => null)) as AskLimitReached | null;
             if (data?.error === "limit_reached") {
               limitRef.current = true;
+              trackLimitHit({ feature: "ask", plan: data.plan, limit: data.limit, code: "limit_reached" });
+              trackAskAnswerFailed({ reason: "limit", status: 429 });
               setLimit(data);
               setAllowance({ limit: data.limit, remaining: 0 });
             }
@@ -371,15 +374,25 @@ export function AskWorkspace({
     onError: (error) => {
       if (limitRef.current) return;
       let message = "The copilot could not answer that. Nothing was changed. Try again.";
+      let code: string | undefined;
       try {
-        const parsed = JSON.parse(error.message) as { message?: string };
+        const parsed = JSON.parse(error.message) as { message?: string; error?: string };
         if (parsed.message) message = parsed.message;
+        if (typeof parsed.error === "string") code = parsed.error;
       } catch {
         // Not a JSON body: keep the plain sentence.
       }
+      trackAskAnswerFailed({ reason: "error", message: code ?? error.name });
       setProblem(message);
     },
     onFinish: ({ messages: finished, isError, isAbort }) => {
+      if (isAbort) trackAskAnswerFailed({ reason: "aborted" });
+      else if (!isError) {
+        trackAskAnswerReceived({
+          latency_ms: sentAt.current ? Date.now() - sentAt.current : null,
+          turn: finished.filter((message) => message.role === "user").length,
+        });
+      }
       if (!signedIn || isError || isAbort) return;
       const id = conversationRef.current;
       window.history.replaceState(null, "", `/ask?c=${id}`);
@@ -394,6 +407,9 @@ export function AskWorkspace({
   });
 
   const busy = status === "submitted" || status === "streaming";
+  /** Questions already in this conversation, read by `ask` for analytics without re-creating it on every streamed token. */
+  const userTurns = React.useRef(0);
+  userTurns.current = messages.filter((message) => message.role === "user").length;
 
   // The box grows with what is typed and shrinks back when it is sent, whichever way it was sent.
   React.useLayoutEffect(() => {
@@ -404,9 +420,10 @@ export function AskWorkspace({
   }, [input]);
 
   const ask = React.useCallback(
-    (question: string) => {
+    (question: string, origin: "typed" | "link" | "suggestion" = "suggestion") => {
       const text = question.trim().slice(0, ASK_MAX_QUESTION_CHARS);
       if (!text || busy) return;
+      trackAskQuestionAsked({ origin, turn: userTurns.current + 1, question: text });
       // Signed out has no allowance: ask them to sign in here instead of a round trip that can only say no.
       if (plan === "anonymous") {
         setLimit({
@@ -421,6 +438,7 @@ export function AskWorkspace({
           message: "Asking takes a free account.",
         });
         setInput(text);
+        trackLimitHit({ feature: "ask", plan: "anonymous", limit: 0, code: "sign_in" });
         return;
       }
       limitRef.current = false;
@@ -456,7 +474,7 @@ export function AskWorkspace({
     asked.current = true;
     // Signed out, keep ?q= in the address so the reload after sign-in asks it.
     if (plan !== "anonymous") window.history.replaceState(null, "", "/ask");
-    ask(initialQuestion);
+    ask(initialQuestion, "link");
   }, [initialQuestion, initialConversation, ask, plan]);
 
   // A new question goes to the top of the view, and its exchange is tall enough to fill the
@@ -509,7 +527,7 @@ export function AskWorkspace({
     <form
       onSubmit={(event) => {
         event.preventDefault();
-        ask(input);
+        ask(input, "typed");
       }}
       className="flex items-end gap-2 rounded-[22px] border border-oa-border bg-oa-card p-2 pl-4 shadow-[0_1px_0_rgba(0,0,0,0.02),0_8px_24px_-12px_rgba(60,40,20,0.25)] focus-within:border-[color-mix(in_srgb,var(--oa-ring)_70%,transparent)]"
     >
@@ -526,7 +544,7 @@ export function AskWorkspace({
         onKeyDown={(event) => {
           if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
             event.preventDefault();
-            ask(input);
+            ask(input, "typed");
           }
         }}
         placeholder={empty ? "Ask about a stock or an idea" : "Ask a follow-up"}
@@ -656,7 +674,8 @@ export function AskWorkspace({
                     ref={latest ? lastRef : undefined}
                     className={`scroll-mt-16 py-6 first:pt-1 lg:scroll-mt-6 ${latest ? "min-h-[calc(100dvh-17rem)] lg:min-h-[calc(100dvh-13rem)]" : ""}`}
                   >
-                    <h2 className="mb-4 line-clamp-4 whitespace-pre-wrap text-pretty text-[20px] font-medium leading-7 tracking-tight text-oa-fg sm:text-[22px]">
+                    {/* ph-no-capture keeps the question text out of session replay and autocapture. */}
+                    <h2 className="ph-no-capture mb-4 line-clamp-4 whitespace-pre-wrap text-pretty text-[20px] font-medium leading-7 tracking-tight text-oa-fg sm:text-[22px]">
                       {textOf(exchange.question)}
                     </h2>
                     <Answer message={exchange.answer} actions={actions} streaming={busy && latest} />

@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useUser } from "@/lib/auth-context";
 import { startDodoCheckout } from "@/lib/dodo-checkout-client";
 import { signInWithGoogle } from "@/lib/sign-in";
-import { trackCheckoutClicked, trackCheckoutStarted } from "@/lib/product-analytics";
+import { trackCheckoutClicked, trackCheckoutFailed } from "@/lib/product-analytics";
 import type { AuthSurface } from "@/lib/product-analytics";
 
 /**
@@ -17,17 +17,18 @@ export function useProCheckout(surface: AuthSurface = "paywall") {
   const { user } = useUser();
   const [busy, setBusy] = useState(false);
 
-  async function openCheckout() {
+  /** `feature` is the lib/entitlements.ts id of the lock that was clicked, for analytics. */
+  async function openCheckout(source: { feature?: string } = {}) {
     if (busy) return;
     setBusy(true);
-    trackCheckoutClicked({ period: "monthly", market: "US", signedIn: Boolean(user) });
+    trackCheckoutClicked({ period: "monthly", market: "US", signedIn: Boolean(user), feature: source.feature });
     try {
       if (!user) await signInWithGoogle({ surface });
       const checkoutUrl = await startDodoCheckout();
-      trackCheckoutStarted({ period: "monthly", market: "US" });
       window.location.assign(checkoutUrl);
     } catch (err) {
       console.error("direct checkout failed", err);
+      trackCheckoutFailed({ reason: err instanceof Error ? err.message : "unknown" });
     } finally {
       setBusy(false);
     }

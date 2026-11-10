@@ -3,7 +3,7 @@
 import { AnimatedIcon } from "@/components/animated-icon";
 
 import { useEffect, useMemo, useState } from "react";
-import { trackSubscriptionConverted } from "@/lib/product-analytics";
+import { trackCheckoutReturned } from "@/lib/product-analytics";
 import { ProWelcomePanel } from "@/components/pro-welcome-panel";
 
 type Props = {
@@ -32,7 +32,7 @@ export function SubscriptionSuccessModal({ open, subscriptionId }: Props) {
     } catch {
       // Session storage may be unavailable; still show the modal once.
     }
-    trackSubscriptionConverted({
+    trackCheckoutReturned({
       subscription_id: subscriptionId ?? null,
       source: "success_modal",
     });

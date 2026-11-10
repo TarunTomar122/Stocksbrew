@@ -7,6 +7,7 @@ import { LockCard } from "@/components/oa/gate";
 import { Menu } from "@/components/screener/menu";
 import type { Plan } from "@/lib/entitlements";
 import { savedScreenHref, SAVED_SCREEN_NAME_MAX, type SavedScreen } from "@/lib/screener-saved";
+import { trackLimitHit, trackScreenSaved } from "@/lib/product-analytics";
 
 /** "Save screen": names the screen in the address bar and keeps it on the person's account. */
 export function SaveScreen({
@@ -50,6 +51,9 @@ export function SaveScreen({
         body: JSON.stringify({ name, query }),
       });
       const body = (await response.json().catch(() => ({}))) as { error?: string };
+      trackScreenSaved({ ok: response.ok, reason: response.ok ? undefined : body.error ?? `status_${response.status}` });
+      if (body.error === "limit_reached") trackLimitHit({ feature: "saved_screens", plan, limit: Number.isFinite(limit) ? limit : null });
+      if (body.error === "call_filters_locked") trackLimitHit({ feature: "screener_call_filters", plan });
       if (response.ok) {
         setMessage({ tone: "ok", text: "Saved. It is in your saved screens." });
         router.refresh();

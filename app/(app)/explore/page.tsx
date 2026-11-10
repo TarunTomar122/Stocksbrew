@@ -199,7 +199,7 @@ function MoverRows({ title, rows }: { title: string; rows: DeskMover[] }) {
   return (
     <div className="min-w-0">
       <p className="oa-caption border-b border-oa-border bg-oa-bg px-4 py-1.5">{title}</p>
-      <ul className="max-sm:[&>li:nth-child(n+4)]:hidden">
+      <ul data-track-links="mover_opened" data-track-list={title.toLowerCase().slice(0, 30)} className="max-sm:[&>li:nth-child(n+4)]:hidden">
         {rows.map((row) => (
           <li key={row.ticker} className="group border-b border-oa-border px-4 py-2 last:border-b-0 hover:bg-oa-accent">
             <div className="flex items-center justify-between gap-3">

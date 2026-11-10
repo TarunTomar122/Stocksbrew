@@ -7,6 +7,7 @@ import { adminFirestore } from "@/lib/firebase-admin";
 import { coverageAfterTrackChange, effectiveCovered, type CoverageWrite } from "@/lib/entitlements-coverage";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { maybeQueueOnDemandNews } from "@/lib/on-demand-queue";
+import { captureServerEventSafe } from "@/lib/posthog-server-capture";
 
 const INSTRUMENT_ID_RE = /^(US|IN)_[A-Z0-9_]+$/;
 
@@ -280,6 +281,20 @@ export async function POST(req: NextRequest) {
     removed_count: removedIds.length,
     on_demand_news_queued_count: queuedOnDemandCount,
   });
+
+  if (addedIds.length > 0 || removedIds.length > 0) {
+    // One event per batch: the activation funnel reads tracked_count (docs/analytics.md).
+    const before = nextTracked.length - addedIds.length + removedIds.length;
+    await captureServerEventSafe(session.uid, addedIds.length > 0 ? "stock_tracked" : "stock_untracked", {
+      via: "batch",
+      added_count: addedIds.length,
+      removed_count: removedIds.length,
+      tracked_count: nextTracked.length,
+      first: addedIds.length > 0 && before === 0,
+      ticker: addedIds.length === 1 ? addedIds[0]!.replace(/^(US|IN)_/, "").replace(/_/g, ".") : undefined,
+      $insert_id: `batch:${session.uid}:${clientMutationId}`,
+    });
+  }
 
   return NextResponse.json({
     ok: true,

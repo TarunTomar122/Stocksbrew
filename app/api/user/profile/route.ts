@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { getSessionUser } from "@/lib/auth-server";
 import { adminFirestore } from "@/lib/firebase-admin";
+import { resolveIsSubscribed, type UserDoc } from "@/lib/watchlist";
 
 function attributionSubmitted(data: Record<string, unknown>): boolean {
   return Boolean(
@@ -19,6 +20,7 @@ export async function GET() {
       exists: false,
       attribution_submitted: false,
       tracked_count: 0,
+      plan: "free",
     });
   }
 
@@ -28,5 +30,7 @@ export async function GET() {
     attribution_submitted: attributionSubmitted(data),
     tracked_count: Array.isArray(data.tracked_stocks) ? data.tracked_stocks.length : 0,
     heard_about_us: typeof data.heard_about_us === "string" ? data.heard_about_us : null,
+    /** For the analytics `plan` super property (components/posthog-pageview.tsx). */
+    plan: resolveIsSubscribed({ uid: session.uid, ...data } as UserDoc) ? "pro" : "free",
   });
 }

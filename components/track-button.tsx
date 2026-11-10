@@ -8,17 +8,12 @@ import { useRouter } from "next/navigation";
 
 import { useUser } from "@/lib/auth-context";
 import { signInWithGoogle } from "@/lib/sign-in";
-import { captureEvent } from "@/lib/posthog";
 import { flushWatchlistRebuild } from "@/lib/radar-client-refresh";
 import { dispatchRadarTrackChanged } from "@/lib/radar-track-events";
 import { RadarAsyncModal } from "@/components/radar-async-modal";
 import { RadarFreeLimitModal } from "@/components/radar-free-limit-modal";
 import { FREE_RADAR_TRACK_LIMIT } from "@/lib/pro-features";
-import {
-  trackRadarAddIntent,
-  trackRadarPickerOpened,
-  trackRadarStockAdded,
-} from "@/lib/product-analytics";
+import { trackLimitHit, trackStockTrackClicked } from "@/lib/product-analytics";
 
 type Variant = "pill" | "compact" | "icon";
 type PositionType = "watchlist" | "holding";
@@ -83,7 +78,6 @@ type Props = {
 export function TrackButton({
   ticker,
   instrumentId,
-  tier,
   isSubscribed,
   isTracked,
   trackedCount,
@@ -120,12 +114,7 @@ export function TrackButton({
   function showFreeLimitModal() {
     setOpen(false);
     setLimitModalOpen(true);
-    captureEvent("radar_free_limit_blocked", {
-      ticker,
-      instrument_id: instrumentId,
-      tracked_count: trackedCount ?? null,
-      limit: freeLimit,
-    });
+    trackLimitHit({ feature: "tracked_stocks", plan: isSubscribed ? "pro" : "free", limit: freeLimit, code: "free_tier_limit_reached" });
   }
 
   async function triggerBackgroundRefresh(action: "add" | "remove", count = 1) {
@@ -143,9 +132,8 @@ export function TrackButton({
     setError(null);
 
     if (!localTracked) {
-      trackRadarAddIntent({
+      trackStockTrackClicked({
         ticker,
-        instrument_id: instrumentId,
         signed_in: Boolean(user),
         surface: variant === "icon" ? "icon" : "button",
       });
@@ -157,29 +145,11 @@ export function TrackButton({
       setSigningIn(true);
       try {
         await signInWithGoogle({ surface: "radar_track" });
-        captureEvent("radar_signin_succeeded", {
-          ticker,
-          instrument_id: instrumentId,
-          tier: tier ?? null,
-          subscribed: Boolean(isSubscribed),
-        });
         setPositionType("watchlist");
         setOpen(true);
-        trackRadarPickerOpened({
-          ticker,
-          instrument_id: instrumentId,
-          resumed_after_signin: true,
-        });
       } catch (err) {
         console.error(err);
         setError("Could not sign in. Please try again.");
-        captureEvent("radar_signin_failed", {
-          ticker,
-          instrument_id: instrumentId,
-          tier: tier ?? null,
-          subscribed: Boolean(isSubscribed),
-          error: err instanceof Error ? err.message : "unknown",
-        });
       } finally {
         setSigningIn(false);
       }
@@ -207,7 +177,6 @@ export function TrackButton({
           }
           setLocalTracked(false);
           setModalStatus("success");
-          captureEvent("radar_remove_clicked", { instrument_id: instrumentId, ticker });
           await triggerBackgroundRefresh("remove");
         } finally {
           setPendingOp(null);
@@ -225,11 +194,6 @@ export function TrackButton({
     // Otherwise open the picker modal (Watching by default).
     setPositionType("watchlist");
     setOpen(true);
-    trackRadarPickerOpened({
-      ticker,
-      instrument_id: instrumentId,
-      resumed_after_signin: false,
-    });
   }
 
   const handleModalCancel = useCallback(() => {
@@ -265,6 +229,7 @@ export function TrackButton({
               showFreeLimitModal();
               return;
             }
+            trackLimitHit({ feature: "covered_stocks", plan: isSubscribed ? "pro" : "free", code: typeof data?.error === "string" ? data.error : "conflict" });
             setError(
               data?.error === "swap_limit_reached" && typeof data?.reason === "string"
                 ? data.reason
@@ -280,17 +245,6 @@ export function TrackButton({
         const data = (await res.json().catch(() => ({}))) as { first_stock?: boolean };
         setLocalTracked(true);
         setModalStatus("success");
-        captureEvent("radar_add_clicked", {
-          instrument_id: instrumentId,
-          ticker,
-          position_type: positionType,
-        });
-        trackRadarStockAdded({
-          instrument_id: instrumentId,
-          ticker,
-          position_type: positionType,
-          first_stock: Boolean(data.first_stock),
-        });
         setOpen(false);
         await triggerBackgroundRefresh("add");
         if (data.first_stock) {

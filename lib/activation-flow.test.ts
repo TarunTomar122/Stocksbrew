@@ -23,8 +23,8 @@ describe("first Watchlist activation flow", () => {
 
   it("captures checkout on the server before the browser leaves for the payment provider", () => {
     const checkout = source("app/api/subscription/create-checkout/route.ts");
-    expect(checkout).toContain('captureServerEvent(uid, "checkout_started"');
-    expect(checkout.indexOf('captureServerEvent(uid, "checkout_started"')).toBeLessThan(
+    expect(checkout).toContain('captureServerEventSafe(uid, "checkout_started"');
+    expect(checkout.indexOf('captureServerEventSafe(uid, "checkout_started"')).toBeLessThan(
       checkout.indexOf("return NextResponse.json({ checkoutUrl })"),
     );
   });

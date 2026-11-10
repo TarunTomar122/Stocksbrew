@@ -5,13 +5,7 @@ import * as React from "react";
 import { OaButton } from "@/components/oa/button";
 import { useUser } from "@/lib/auth-context";
 import { startDodoCheckout } from "@/lib/dodo-checkout-client";
-import { captureEvent } from "@/lib/posthog";
-import {
-  trackCheckoutClicked,
-  trackCheckoutStarted,
-  trackSubscribeSigninStarted,
-  trackSubscribeSigninSucceeded,
-} from "@/lib/product-analytics";
+import { trackCheckoutClicked, trackCheckoutFailed } from "@/lib/product-analytics";
 import { signInWithGoogle } from "@/lib/sign-in";
 
 export type PricingPeriod = "monthly" | "yearly";
@@ -80,25 +74,17 @@ export function PricingGrid({
       period: active.period,
       market,
       signedIn: Boolean(user),
+      surface: "pricing",
     });
     try {
-      if (!user) {
-        trackSubscribeSigninStarted({ period: active.period, market });
-        await signInWithGoogle({ surface: "subscribe_pricing" });
-        trackSubscribeSigninSucceeded({ period: active.period, market });
-      }
+      if (!user) await signInWithGoogle({ surface: "subscribe_pricing" });
       const url = await startDodoCheckout(active.period, market);
-      trackCheckoutStarted({ period: active.period, market });
       window.location.assign(url);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Something went wrong";
       setError(message);
-      captureEvent("subscribe_signin_failed", {
-        period: active.period,
-        market,
-        error: message,
-      });
+      trackCheckoutFailed({ reason: message, surface: "pricing" });
     } finally {
       setBusy(null);
     }
