@@ -4,7 +4,7 @@ import { GET } from "@/app/sitemap.xml/route";
 import { GET as GET_FAMILY } from "@/app/sitemaps/[family]/route";
 import { isIndexableBlogPost } from "@/lib/blog-data";
 import { SITEMAP_FAMILIES, sitemapEntries } from "@/lib/seo/sitemap";
-import { INDEXED_STOCK_TICKERS } from "@/lib/seo/stock-pages";
+import { getCoverage, indexableStockSymbols } from "@/lib/seo/family-data";
 
 type Redirect = { source: string; destination: string; permanent: boolean };
 
@@ -34,8 +34,9 @@ describe("public sitemap", { timeout: 90_000 }, () => {
     const files = [...xml.matchAll(/<loc>(.*?)<\/loc>/g)].map((match) => match[1]);
     expect(xml).toContain("<sitemapindex");
     expect(new Set(files).size).toBe(files.length);
-    // Families that do not depend on the store are always present.
-    for (const family of ["pages", "docs", "blog", "stocks", "themes"]) {
+    // Families that do not depend on the store are always present. Stocks now follow the
+    // stored reads (stockHasCurrentRead), so that family can be empty when the store cannot be read.
+    for (const family of ["pages", "docs", "blog", "themes"]) {
       expect(files).toContain(`https://www.stocksbrew.online/sitemaps/${family}.xml`);
     }
     for (const file of files) {
@@ -55,12 +56,13 @@ describe("public sitemap", { timeout: 90_000 }, () => {
     }
   });
 
-  it("stays curated, lists each address once and lists exactly the indexed stock pages", async () => {
+  it("lists each address once, stays under the per-file limit and lists exactly the indexable stock pages", async () => {
     const paths = await allPaths();
-    expect(paths.length).toBeLessThanOrEqual(1000);
     expect(new Set(paths).size).toBe(paths.length);
+    for (const family of SITEMAP_FAMILIES) expect((await sitemapEntries(family)).length, family).toBeLessThanOrEqual(50_000);
+    // The stocks family and the stock page's robots tag apply the same rule (stockHasCurrentRead) to the same snapshot.
     expect((await sitemapEntries("stocks")).map((entry) => entry.path)).toEqual(
-      INDEXED_STOCK_TICKERS.map((ticker) => `/stock/${ticker}`),
+      indexableStockSymbols(await getCoverage()).map((ticker) => `/stock/${ticker}`),
     );
     for (const place of ["/", "/briefing", "/calendar", "/screener", "/follow", "/agents", "/pricing", "/docs", "/blog", "/themes", "/strategies", "/markets"]) {
       expect(paths).toContain(place);

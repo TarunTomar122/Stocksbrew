@@ -172,6 +172,16 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-10, signed-in home goes to the portfolio; agent promo (lead)
+
+- Live (`9c0116b`, `vercel --prod`): middleware sends `/` to `/watchlist` when the `tikrr_session` cookie is present (`/?home=1` keeps the landing; query params kept), and signing in on the landing navigates to `/watchlist`. Portfolio header Today/Total gain wrap as one group. Verified live: signed out 200, signed in 307 to /watchlist.
+- Agent-first promo with an original synthesised score and sound effects: `remotion/XPromo2.tsx` + `public/promo/track.wav` (made by scratchpad `promo/synth.py`), rendered to `out/stocksbrew-agent-promo.mp4` and `-square.mp4`. Not committed.
+
+### 2026-11-10, launch promo rendered; public repo exposure flagged (lead)
+
+- 30s X promo in Remotion (`remotion/XPromo.tsx`, compositions `XPromo` 1920x1080 and `XPromoSquare` 1080x1080), real 2x screens of the live site in `public/promo/`, rendered to `out/stocksbrew-x-promo.mp4` and `out/stocksbrew-x-promo-square.mp4`. Render with `--browser-executable` pointing at the Playwright headless shell (Remotion's own download exits early here). Not committed.
+- The GitHub repo was renamed to TarunTomar122/Stocksbrew and is PUBLIC; history still holds 6 API keys and the waitlist CSV. Owner asked to approve making it private, rotating keys and publishing the fresh-history snapshot (built and scanned clean at scratchpad `stocksbrew-public/`). Waiting on the owner.
+
 ### 2026-11-10, released: rework live on stocksbrew.online (lead)
 
 - Open-source cleanup: 381 tracked files removed (legacy routes behind redirects, 157 unreachable components, 37 lib files, junk incl. the waitlist CSV from the tree), private hosts/IPs/project ids moved to env, new README with 12 screenshots (`docs/screenshots/`), CONTRIBUTING, `docs/architecture.md`, `docs/data-jobs.md`, `.env.example`. Repo stays PRIVATE: 6 keys and the waitlist CSV are still in git history (rotate keys, publish a fresh-history repo via `scripts/oss/make-snapshot.mjs`).

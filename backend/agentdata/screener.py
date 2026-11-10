@@ -32,6 +32,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import re
 import statistics
 import sys
 from datetime import date, datetime, timedelta, timezone
@@ -102,6 +103,30 @@ def normalize_sector(*candidates: Any) -> str | None:
         key = str(raw or "").strip().lower()
         if key in SECTOR_ALIASES:
             return SECTOR_ALIASES[key]
+    return None
+
+
+# Industry label -> GICS sector, shared with lib/gics-sector.ts. The stored
+# sector is unreliable (an old seeding script filed Amgen, NextEra and
+# Prologis under Technology) while the industry labels are right.
+INDUSTRY_SECTORS: dict[str, str] = json.loads(
+    (_ROOT / "backend" / "config" / "industry_sectors.json").read_text()
+)["industries"]
+
+
+def sector_for_industry(industry: Any) -> str | None:
+    """The sector an industry label belongs to, or None when it is unknown or ambiguous."""
+    label = " ".join(str(industry or "").lower().split())
+    if not label:
+        return None
+    if label in INDUSTRY_SECTORS:
+        return INDUSTRY_SECTORS[label]
+    if re.search(r"\breits?\b", label):
+        return "Financials" if "mortgage" in label else "Real Estate"
+    if re.search(r"^utilities\b|\butilities$", label):
+        return "Utilities"
+    if label.startswith("oil & gas"):
+        return "Energy"
     return None
 
 
@@ -495,8 +520,10 @@ def build_row(
 
     row: dict[str, Any] = {"symbol": ticker, "instrument_id": str(instrument.get("instrument_id") or f"US_{ticker}")}
     put(row, "name", str(instrument.get("name") or (latest.get("provider_metadata") or {}).get("name") or ticker).strip())
-    put(row, "sector", normalize_sector(instrument.get("sector"), (intel_pro or {}).get("sector_label")))
-    put(row, "industry", str(instrument.get("industry") or (intel_pro or {}).get("industry_label") or "").strip())
+    industry = str(instrument.get("industry") or (intel_pro or {}).get("industry_label") or "").strip()
+    sector = sector_for_industry(industry) or normalize_sector(instrument.get("sector"), (intel_pro or {}).get("sector_label"))
+    put(row, "sector", sector)
+    put(row, "industry", industry)
     put(row, "exchange", str(instrument.get("exchange") or "").strip())
     memberships = instrument.get("index_memberships")
     if isinstance(memberships, list) and memberships:

@@ -317,20 +317,14 @@ def make_in_instrument(ticker: str, name: str, industry: str,
 
 
 def _us_sector(industry: str) -> str:
-    industry_lower = industry.lower()
-    if any(x in industry_lower for x in ["software", "semiconductor", "it", "tech", "computing", "quantum", "cyber", "server"]):
-        return "Technology"
-    if any(x in industry_lower for x in ["pharma", "biotech", "medical", "life sci", "health"]):
-        return "Healthcare"
-    if any(x in industry_lower for x in ["bank", "finance", "insurance", "reit", "exchange", "fintech"]):
-        return "Financials"
-    if any(x in industry_lower for x in ["energy", "oil", "gas", "mining", "utilities", "power", "renewabl"]):
-        return "Energy"
-    if any(x in industry_lower for x in ["consumer", "beverage", "tobacco", "fmcg", "restaurant", "retail"]):
-        return "Consumer"
-    if any(x in industry_lower for x in ["industrial", "aerospace", "defense", "auto", "chemical", "material", "metal"]):
-        return "Industrials"
-    return "Technology"
+    """The GICS sector for an industry label, from the shared map (backend/config/industry_sectors.json).
+
+    The old keyword guess matched "it" inside "Utilities" and "REITs" and fell back
+    to Technology, which filed Amgen, NextEra and Prologis under Technology. An
+    unknown label now stays blank rather than guessed.
+    """
+    industries = json.loads((ROOT / "backend" / "config" / "industry_sectors.json").read_text())["industries"]
+    return industries.get(" ".join(str(industry or "").lower().split()), "")
 
 
 def _in_sector(industry: str) -> str:

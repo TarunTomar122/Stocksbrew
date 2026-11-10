@@ -1,16 +1,21 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
+import { notFound } from "next/navigation";
+import { Suspense, cache } from "react";
 
 import { StockPageStream } from "@/components/stock-page-stream";
 import { StockReportSkeleton } from "@/components/stock-report/skeleton";
+import { StockFamilyLinks } from "@/components/seo/stock-family-links";
 import { interTight } from "@/components/oa/font";
 import { OaSiteHeader } from "@/components/oa/oa-site-header";
+import { todayET } from "@/lib/calendar-shared";
+import { getCurrentMarket } from "@/lib/market";
 import { getStockSummary, normalizeStockSymbolParam } from "@/lib/stock";
 import { stockShareLine } from "@/lib/og/data";
 import { ogImage } from "@/lib/og/url";
+import { getCoverage } from "@/lib/seo/family-data";
 import {
   getSeoStockPage,
-  isIndexedStockTicker,
+  stockHasCurrentRead,
   stockSeoDescription,
   stockSeoTitle,
 } from "@/lib/seo/stock-pages";
@@ -32,8 +37,34 @@ type Props = {
   params: Promise<{ symbol: string }>;
 };
 
+/**
+ * Whether we hold a stock at this address: "yes", "no", or "unknown" when the
+ * store could not be read (then the page renders and the report handles it).
+ * Same lookup as the report (the reader's market first, then the other one),
+ * deduped per request.
+ *
+ * This runs in the page itself, before anything streams, and this segment has
+ * no loading.tsx. In Next 13.5 a loading boundary flushes a 200 shell first,
+ * which turned every unknown ticker into a soft 404; checked here, an unknown
+ * ticker gets a real 404 status and the segment's not-found.tsx, which keeps
+ * the "ask us to add it" request one click away.
+ */
+const stockExists = cache(async (symbol: string): Promise<"yes" | "no" | "unknown"> => {
+  const normalized = normalizeStockSymbolParam(symbol);
+  if (!normalized) return "no";
+  try {
+    const cookieMarket = getCurrentMarket();
+    const otherMarket: "US" | "IN" = cookieMarket === "IN" ? "US" : "IN";
+    const found = (await getStockSummary(normalized, cookieMarket)) ?? (await getStockSummary(normalized, otherMarket));
+    return found ? "yes" : "no";
+  } catch {
+    return "unknown";
+  }
+});
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { symbol } = await params;
+  if ((await stockExists(symbol)) === "no") return { title: "Stock not found", robots: { index: false, follow: true } };
   const normalized = normalizeStockSymbolParam(symbol);
   const label =
     normalized ?? (symbol.trim().toUpperCase().slice(0, 16) || symbol.toUpperCase());
@@ -75,8 +106,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         ].filter((value): value is string => Boolean(value))
       : undefined,
     alternates: { canonical: `/stock/${upper}` },
+    // The index rule lives in lib/seo/stock-pages.ts (stockHasCurrentRead); the stocks sitemap applies the same rule to the same row.
     robots: {
-      index: Boolean(identity) && isIndexedStockTicker(upper),
+      index: Boolean(identity) && stockHasCurrentRead((await getCoverage()).bySymbol.get(upper), todayET()),
       follow: true,
     },
     openGraph: {
@@ -94,13 +126,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default function StockPage({ params }: Props) {
+export default async function StockPage({ params }: Props) {
+  const { symbol } = await params;
+  if ((await stockExists(symbol)) === "no") notFound();
+  const ticker = normalizeStockSymbolParam(symbol) ?? symbol.toUpperCase();
   return (
     <main className={`oa-landing stock-report-page ${interTight.variable} min-w-0 flex-grow overflow-x-clip`}>
       <style>{STICKY_FIX}</style>
       <OaSiteHeader />
       <Suspense fallback={<StockReportSkeleton />}>
         <StockPageStream params={params} />
+      </Suspense>
+      <Suspense fallback={null}>
+        <StockFamilyLinks ticker={ticker} />
       </Suspense>
     </main>
   );

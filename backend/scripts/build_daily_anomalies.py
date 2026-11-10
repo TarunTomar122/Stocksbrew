@@ -294,6 +294,92 @@ def _context_brief(doc: dict[str, Any] | None) -> str:
     return ""
 
 
+def _has_sourced_explanation(row: dict[str, Any]) -> bool:
+    explanation = row.get("move_explanation")
+    if not isinstance(explanation, dict):
+        return False
+    evidence = explanation.get("evidence") or []
+    return bool(
+        str(row.get("ticker") or "").strip()
+        and str(explanation.get("headline") or "").strip()
+        and any(isinstance(item, dict) and str(item.get("url") or "").startswith(("http://", "https://")) for item in evidence)
+    )
+
+
+_UNEXPLAINED_CAUSES = {"price_action", "no_verified_catalyst", "unknown", "none"}
+
+
+def is_confirmed_move(row: dict[str, Any]) -> bool:
+    """Mirror of isConfirmedMove (lib/seo/families.ts): whether the web gives this move a page."""
+    if not isinstance(row, dict) or row.get("narrative_status") != "verified" or not _has_sourced_explanation(row):
+        return False
+    explanation = row["move_explanation"]
+    if str(explanation.get("confidence") or "").lower() not in {"high", "medium"}:
+        return False
+    cause = str(explanation.get("cause_type") or "").strip().lower()
+    if not cause or cause in _UNEXPLAINED_CAUSES:
+        return False
+    return not str(explanation.get("external_source") or "").startswith("internal_tape")
+
+
+def merge_explained_day(existing: list[dict[str, Any]], current: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[str]]:
+    """Merge one day's explained movers into what the day's archive already holds.
+
+    A ticker researched again replaces its earlier row; a ticker that dropped
+    out of the live mover list keeps the row it had, so a published "why it
+    moved" page never disappears later the same day. Returns the merged rows
+    (largest move first) and the tickers that are new to the day.
+    """
+    merged: dict[str, dict[str, Any]] = {}
+    for row in existing:
+        if isinstance(row, dict) and _has_sourced_explanation(row):
+            merged[str(row["ticker"]).strip().upper()] = row
+    added: list[str] = []
+    for row in current:
+        if not isinstance(row, dict) or not _has_sourced_explanation(row):
+            continue
+        ticker = str(row["ticker"]).strip().upper()
+        if ticker not in merged:
+            added.append(ticker)
+        merged[ticker] = row
+    rows = sorted(merged.values(), key=lambda row: -abs(float(row.get("day_change_pct") or 0)))
+    return rows, sorted(added)
+
+
+def archive_explained_day(store: TraceMoneyStore, market: str, payload: dict[str, Any]) -> list[str]:
+    """Keep the day's explained movers at tm_daily_anomalies/{MARKET}__{YYYY-MM-DD}.
+
+    `{MARKET}__latest` is replaced every run; the dated copy is what the
+    /stock/[T]/moves/[day] and /movers/[day] pages read once the day is over.
+    Only rows with a sourced explanation are kept. Returns the tickers new to
+    the day that get a page (is_confirmed_move), so only live pages are pinged.
+    """
+    day = str(payload.get("date") or "")[:10]
+    if len(day) != 10 or day[4] != "-" or day[7] != "-":
+        return []
+    market_key = market.upper()
+    ref = store.db.collection("tm_daily_anomalies").document(f"{market_key}__{day}")
+    snapshot = ref.get()
+    existing = (snapshot.to_dict() or {}).get("anomalies") or [] if snapshot.exists else []
+    current = [row for row in (payload.get("anomalies") or []) if isinstance(row, dict)]
+    rows, added = merge_explained_day(existing, current)
+    if not rows:
+        return []
+    ref.set(
+        {
+            "market": market_key,
+            "date": day,
+            "archived": True,
+            "generated_at": payload.get("generated_at"),
+            "reasoned_at": payload.get("reasoned_at"),
+            "anomalies": rows,
+            "anomaly_count": len(rows),
+        }
+    )
+    confirmed = {str(row.get("ticker") or "").strip().upper() for row in rows if is_confirmed_move(row)}
+    return [ticker for ticker in added if ticker in confirmed]
+
+
 def _write_ticker_read_models(store: TraceMoneyStore, market: str, payload: dict[str, Any]) -> None:
     """Write per-ticker anomaly docs so stock pages avoid the full anomalies feed."""
     market_key = market.upper()

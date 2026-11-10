@@ -88,4 +88,21 @@ export const SEO_PRIORITY_URLS = [
   "/blog/earnings-season-watchlist-playbook",
   "/blog/finviz-vs-tradingview-vs-stocksbrew",
   "/signals",
+  // Page families built from stored data (lib/seo/families.ts). Move pages are pinged by the
+  // mover research job as they are published (backend/scripts/research_daily_anomaly_reasons.py).
+  "/sectors",
+  "/sectors/technology",
+  "/sectors/financials",
+  "/sectors/health-care",
+  "/sectors/consumer-discretionary",
+  "/sectors/industrials",
+  "/sectors/communication-services",
+  "/sectors/energy",
+  "/movers",
+  "/insiders",
+  "/compare/amd-vs-nvda",
+  "/compare/ko-vs-pep",
+  "/compare/cvx-vs-xom",
+  "/compare/bac-vs-jpm",
+  "/compare/lly-vs-nvo",
 ];

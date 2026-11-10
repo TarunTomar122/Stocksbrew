@@ -35,6 +35,7 @@ from backend.scripts.build_daily_anomalies import (
     _parse_timestamp,
     _sanitize_move_explanation,
     _write_ticker_read_models,
+    archive_explained_day,
 )
 from backend.scripts.trigger_web_revalidate import trigger_web_revalidate
 from backend.storage import TraceMoneyStore
@@ -942,6 +943,12 @@ def main() -> None:
     updated["reasoned_count"] = reasoned
     feed_ref.set(updated)
     _write_ticker_read_models(store, args.market, updated)
+    # The dated archive behind the "why it moved" pages. Never fail the job over it.
+    try:
+        archived_new = archive_explained_day(store, args.market, updated)
+    except Exception as exc:  # noqa: BLE001
+        print(f"[warn] explained-move archive failed: {exc}")
+        archived_new = []
     store.save_stage_watermark(
         market=args.market,
         stage_key="research_daily_anomaly_reasons",
@@ -960,6 +967,17 @@ def main() -> None:
         },
     )
     revalidated = trigger_web_revalidate(ANOMALY_REVALIDATE_PATHS, force=True)
+    if archived_new and args.market.upper() == "US":
+        # New "why it moved" pages: refresh them and tell IndexNow. Best effort.
+        day = str(updated.get("date") or "")[:10]
+        try:
+            trigger_web_revalidate(
+                [f"/movers/{day}", "/movers", *[f"/stock/{ticker}/moves/{day}" for ticker in archived_new]],
+                force=True,
+                notify_indexnow=True,
+            )
+        except Exception as exc:  # noqa: BLE001
+            print(f"[warn] move page refresh failed: {exc}")
     if args.require_web_revalidate and not revalidated:
         raise RuntimeError("anomaly reasons were saved, but the web refresh failed")
     result = {

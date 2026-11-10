@@ -2,6 +2,7 @@ import { unstable_cache } from "next/cache";
 import { cache } from "react";
 
 import { adminFirestore } from "@/lib/firebase-admin";
+import { resolveSector } from "@/lib/gics-sector";
 import type { ScreenerMeta, ScreenerRow } from "@/lib/screener-shared";
 
 /**
@@ -57,15 +58,32 @@ const getMetaCached = unstable_cache(readMeta, ["screener-meta-v1"], { revalidat
 // Keyed by shard id and generated_at, so an entry never goes stale: a new snapshot is a new key.
 const getShardCached = unstable_cache(readShard, ["screener-shard-v1"], { revalidate: 24 * 3600 });
 
+/**
+ * The stored sector is wrong for some stocks (Amgen filed as Technology); the
+ * industry label is right, so the sector is derived from it (lib/gics-sector.ts).
+ * Done after the cache read so snapshots cached before the fix are corrected too.
+ */
+export function withResolvedSector(row: ScreenerRow): ScreenerRow {
+  const sector = resolveSector(row) ?? undefined;
+  if (sector === row.sector) return row;
+  const next = { ...row, sector };
+  if (sector === undefined) delete next.sector;
+  return next;
+}
+
+// React's request cache only exists in the server-components build. Outside it
+// (route handlers under test, scripts) the snapshot is simply read each time.
+const perRequest: typeof cache = typeof cache === "function" ? cache : (fn) => fn;
+
 /** The whole snapshot, or null when the job has never run. Deduped per request. */
-export const getScreenerSnapshot = cache(async (market: "US" = "US"): Promise<ScreenerSnapshot | null> => {
+export const getScreenerSnapshot = perRequest(async (market: "US" = "US"): Promise<ScreenerSnapshot | null> => {
   const meta = await getMetaCached(market).catch(() => null);
   if (!meta || meta.shards.length === 0) return null;
   const [shards, extras] = await Promise.all([
     Promise.all(meta.shards.map((id) => getShardCached(id, meta.generated_at).catch(() => [] as ScreenerRow[]))),
     meta.extra_shard ? getShardCached(meta.extra_shard, meta.generated_at).catch(() => [] as ScreenerRow[]) : Promise.resolve([]),
   ]);
-  const rows = shards.flat();
+  const rows = shards.flat().map(withResolvedSector);
   if (rows.length === 0) return null;
   return { meta, rows, extras };
 });

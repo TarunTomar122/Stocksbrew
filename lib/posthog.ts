@@ -110,7 +110,8 @@ export function initPostHog() {
     const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
     const base = {
       $environment: environment === "production" ? "production" : "dev",
-      app_version: appVersion(process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA),
+      // CLI deploys carry no git metadata, so the deploy passes NEXT_PUBLIC_APP_VERSION (the commit) as a build env.
+      app_version: appVersion(process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA || process.env.NEXT_PUBLIC_APP_VERSION),
     };
     Object.assign(superProps, base);
     if (shouldSendClientEvents(environment, key)) {

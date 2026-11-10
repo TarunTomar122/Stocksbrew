@@ -28,6 +28,19 @@ class HelpersTest(unittest.TestCase):
         self.assertEqual(screener.normalize_sector("Consumer Cyclical"), "Consumer Discretionary")
         self.assertIsNone(screener.normalize_sector("", "Macro", None))
 
+    def test_sector_comes_from_the_industry_when_known(self):
+        self.assertEqual(screener.sector_for_industry("Biotechnology"), "Health Care")
+        self.assertEqual(screener.sector_for_industry("REITs"), "Real Estate")
+        self.assertEqual(screener.sector_for_industry("Utilities"), "Utilities")
+        self.assertEqual(screener.sector_for_industry("Financial Data"), "Financials")
+        self.assertEqual(screener.sector_for_industry("  Office  REITs "), "Real Estate")
+        self.assertEqual(screener.sector_for_industry("Mortgage REITs"), "Financials")
+        self.assertEqual(screener.sector_for_industry("Semiconductors"), "Technology")
+        self.assertIsNone(screener.sector_for_industry("Consumer Electronics"))
+        self.assertIsNone(screener.sector_for_industry(""))
+        allowed = set(screener.SECTOR_ALIASES.values())
+        self.assertTrue(set(screener.INDUSTRY_SECTORS.values()) <= allowed)
+
     def test_cap_tiers(self):
         self.assertEqual(screener.cap_tier(4.6e12), "mega")
         self.assertEqual(screener.cap_tier(200e9), "mega")
@@ -251,6 +264,13 @@ class RowTest(unittest.TestCase):
         for value in row.values():
             if isinstance(value, float):
                 self.assertTrue(math.isfinite(value))
+
+    def test_row_sector_follows_the_industry_over_a_wrong_stored_sector(self):
+        row = self.build(instrument={"ticker": "AMGN", "sector": "Technology", "industry": "Biotechnology"})
+        self.assertEqual(row["sector"], "Health Care")
+        self.assertEqual(row["industry"], "Biotechnology")
+        unknown = self.build(instrument={"ticker": "IBM", "sector": "", "industry": ""}, intel_pro={"sector_label": "Technology"})
+        self.assertEqual(unknown["sector"], "Technology")
 
     def test_no_price_means_no_row(self):
         self.assertIsNone(self.build(latest={}, series=[]))

@@ -8,7 +8,20 @@ import { getFollowSources } from "@/lib/follow";
 import { INVESTMENT_THEMES } from "@/lib/investment-themes";
 import { getMarketsData } from "@/lib/markets";
 import { assetHref } from "@/lib/markets-shared";
-import { INDEXED_STOCK_TICKERS } from "@/lib/seo/stock-pages";
+import {
+  MOVE_SITEMAP_DAYS,
+  MOVERS_DAY_MIN_MOVES,
+  dayMinus,
+  insiderHref,
+  insiderIsIndexable,
+  moveHref,
+  moversDayHref,
+  pairHref,
+  pairIsIndexable,
+  sectorHref,
+  sectorIsIndexable,
+} from "@/lib/seo/families";
+import { getCoverage, getInsiderCounts, getRecentMoves, indexableStockSymbols, sectorGroups, stockPairs } from "@/lib/seo/family-data";
 import { listStrategies } from "@/lib/strategies";
 
 export const SITE_BASE = "https://www.stocksbrew.online";
@@ -26,6 +39,10 @@ export const SITEMAP_FAMILIES = [
   "docs",
   "blog",
   "stocks",
+  "compare",
+  "movers",
+  "sectors",
+  "insiders",
   "earnings",
   "themes",
   "strategies",
@@ -101,8 +118,8 @@ async function stockBuiltDates(): Promise<Map<string, string>> {
   return dates;
 }
 
-/** Indexed stocks with an earnings report still ahead. Those are the per-ticker earnings pages that are indexable for certain. */
-async function upcomingEarningsTickers(): Promise<string[]> {
+/** Indexable stocks with an earnings report still ahead. Those are the per-ticker earnings pages that are indexable for certain. */
+async function upcomingEarningsTickers(indexable: readonly string[]): Promise<string[]> {
   const today = todayET();
   const until = new Date(`${today}T00:00:00Z`);
   until.setUTCDate(until.getUTCDate() + 120);
@@ -117,10 +134,10 @@ async function upcomingEarningsTickers(): Promise<string[]> {
   } catch {
     // No calendar, no earnings pages listed for this build.
   }
-  return INDEXED_STOCK_TICKERS.filter((ticker) => upcoming.has(ticker));
+  return indexable.filter((ticker) => upcoming.has(ticker));
 }
 
-export async function sitemapEntries(family: SitemapFamily): Promise<SitemapEntry[]> {
+export async function sitemapEntries(family: SitemapFamily, today: string = todayET()): Promise<SitemapEntry[]> {
   const entries: SitemapEntry[] = [];
   switch (family) {
     case "pages":
@@ -138,13 +155,65 @@ export async function sitemapEntries(family: SitemapFamily): Promise<SitemapEntr
       for (const post of indexableBlogPosts) entries.push({ path: `/blog/${post.slug}`, lastmod: day(post.updated ?? post.date) });
       break;
     case "stocks": {
-      const built = await stockBuiltDates();
-      for (const ticker of INDEXED_STOCK_TICKERS) entries.push({ path: `/stock/${ticker}`, lastmod: built.get(ticker) });
+      // The same rule as the page's robots tag: stockHasCurrentRead (lib/seo/stock-pages.ts) on the same snapshot row.
+      const [coverage, built] = await Promise.all([getCoverage(), stockBuiltDates()]);
+      for (const ticker of indexableStockSymbols(coverage, today)) entries.push({ path: `/stock/${ticker}`, lastmod: built.get(ticker) });
       break;
     }
-    case "earnings":
-      for (const ticker of await upcomingEarningsTickers()) entries.push({ path: `/calendar/earnings/${ticker}` });
+    case "compare": {
+      const coverage = await getCoverage();
+      for (const pair of stockPairs(coverage)) {
+        const first = coverage.bySymbol.get(pair.a);
+        const second = coverage.bySymbol.get(pair.b);
+        if (!pairIsIndexable(first, second, today)) continue;
+        // The written part of the page is the two calls; it last changed with the later of them.
+        const dates = [day(first?.call_at), day(second?.call_at)].filter((value): value is string => Boolean(value)).sort();
+        entries.push({ path: pairHref(pair.a, pair.b), lastmod: dates[dates.length - 1] });
+      }
       break;
+    }
+    case "movers": {
+      // Archived days only, so a listed page never disappears when the live feed rolls over.
+      const [coverage, moves] = await Promise.all([getCoverage(), getRecentMoves(today, { archivedOnly: true })]);
+      const indexable = new Set(indexableStockSymbols(coverage, today));
+      const since = dayMinus(today, MOVE_SITEMAP_DAYS);
+      const recent = moves.filter((move) => move.day >= since);
+      if (recent.length) entries.push({ path: "/movers", lastmod: day(recent[0]!.researchedAt) ?? recent[0]!.day });
+      const perDay = new Map<string, typeof recent>();
+      for (const move of recent) perDay.set(move.day, [...(perDay.get(move.day) ?? []), move]);
+      for (const [moveDay, list] of [...perDay.entries()].sort((a, b) => b[0].localeCompare(a[0]))) {
+        if (list.length < MOVERS_DAY_MIN_MOVES) continue;
+        const researched = list.map((move) => day(move.researchedAt) ?? move.day).sort();
+        entries.push({ path: moversDayHref(moveDay), lastmod: researched[researched.length - 1] });
+      }
+      for (const move of recent) {
+        if (!indexable.has(move.ticker)) continue;
+        entries.push({ path: moveHref(move.ticker, move.day), lastmod: day(move.researchedAt) ?? move.day });
+      }
+      break;
+    }
+    case "sectors": {
+      const coverage = await getCoverage();
+      const groups = sectorGroups(coverage);
+      if (groups.length) entries.push({ path: "/sectors", lastmod: day(coverage.priceDay) });
+      for (const group of groups) {
+        if (sectorIsIndexable(group.rows.length)) entries.push({ path: sectorHref(group.slug), lastmod: day(coverage.priceDay) });
+      }
+      break;
+    }
+    case "insiders": {
+      const [coverage, counts] = await Promise.all([getCoverage(), getInsiderCounts(today)]);
+      for (const count of counts) {
+        if (!coverage.bySymbol.has(count.symbol) || !insiderIsIndexable(count.trades)) continue;
+        entries.push({ path: insiderHref(count.symbol), lastmod: count.lastFiled });
+      }
+      break;
+    }
+    case "earnings": {
+      const coverage = await getCoverage();
+      for (const ticker of await upcomingEarningsTickers(indexableStockSymbols(coverage, today))) entries.push({ path: `/calendar/earnings/${ticker}` });
+      break;
+    }
     case "themes":
       entries.push({ path: "/themes" });
       for (const theme of INVESTMENT_THEMES) entries.push({ path: `/themes/${theme.slug}` });

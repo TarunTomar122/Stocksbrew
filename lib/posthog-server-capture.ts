@@ -32,7 +32,7 @@ export async function captureServerEvent(
         distinct_id: distinctId,
         $host: "stocksbrew.online",
         $environment: "production",
-        app_version: appVersion(process.env.VERCEL_GIT_COMMIT_SHA),
+        app_version: appVersion(process.env.VERCEL_GIT_COMMIT_SHA || process.env.NEXT_PUBLIC_APP_VERSION),
         source: "server",
         ...clean,
       },

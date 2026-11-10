@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { appendVaryAccept, preferredType } from "@/lib/accept";
+import { parsePairSlug } from "@/lib/seo/pair-slug";
 
 /** Same name as app/api/auth/session/route.ts and lib/auth-server.ts. */
 const SESSION_COOKIE_NAME = "tikrr_session";
@@ -12,6 +13,21 @@ export function middleware(request: NextRequest) {
     canonicalUrl.hostname = "www.stocksbrew.online";
     canonicalUrl.port = "";
     return NextResponse.redirect(canonicalUrl, 308);
+  }
+
+  // Stock-against-stock pages live at one address: lower case, tickers in
+  // alphabetical order. /compare/NVDA-vs-AMD and /compare/nvda-vs-amd go to
+  // /compare/amd-vs-nvda in one hop. Whether the pair has a page is the page's call.
+  const pairMatch = /^\/compare\/([^/]+)$/.exec(request.nextUrl.pathname);
+  if (pairMatch) {
+    const parsed = parsePairSlug(pairMatch[1]);
+    if (parsed && !parsed.isCanonical) {
+      const pairUrl = request.nextUrl.clone();
+      pairUrl.pathname = `/compare/${parsed.slug}`;
+      const response = NextResponse.redirect(pairUrl, 308);
+      appendVaryAccept(response.headers);
+      return response;
+    }
   }
 
   const acceptHeader = request.headers.get("accept");

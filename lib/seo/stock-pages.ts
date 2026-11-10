@@ -1,4 +1,5 @@
 import universeCatalog from "@/backend/config/instrument_universe.json";
+import { resolveSector } from "@/lib/gics-sector";
 
 export type SeoStockPage = {
   instrumentId: string;
@@ -61,7 +62,8 @@ export const SEO_STOCK_PAGES: SeoStockPage[] = (usCatalog?.instruments ?? [])
     ticker: String(row.ticker).toUpperCase(),
     name: String(row.name).trim(),
     exchange: String(row.exchange || "").trim(),
-    sector: String(row.sector || "").trim(),
+    // The catalogue's sector field is wrong for some stocks (Amgen as Technology); derive it from the industry.
+    sector: resolveSector(row) ?? String(row.sector || "").trim(),
     industry: String(row.industry || "").trim(),
     description: String(row.description || "").trim(),
     updatedAt: row.updated_at,
@@ -74,14 +76,20 @@ export function getSeoStockPage(ticker: string): SeoStockPage | null {
   return STOCK_BY_TICKER.get(String(ticker || "").trim().toUpperCase()) ?? null;
 }
 
+/** "Apple Inc. (AAPL)", or just "ZETA" when the only name we hold is the ticker. */
+function nameAndTicker(stock: Pick<SeoStockPage, "name" | "ticker">): string {
+  const name = String(stock.name ?? "").trim();
+  return name && name.toUpperCase() !== stock.ticker.toUpperCase() ? `${name} (${stock.ticker})` : stock.ticker;
+}
+
 export function stockSeoDescription(stock: Pick<SeoStockPage, "name" | "ticker" | "sector" | "industry">): string {
   const category = stock.industry || stock.sector || "US stock";
-  return `${stock.name} (${stock.ticker}) stock on one page: the price, our current call and the reasoning behind it, financials, valuation against its own history, analyst price targets, earnings dates and results, who owns it and recent news. ${category}.`;
+  return `${nameAndTicker(stock)} stock on one page: the price, our current call and the reasoning behind it, financials, valuation against its own history, analyst price targets, earnings dates and results, who owns it and recent news. ${category}.`;
 }
 
 /** The page title, written from what the stock page shows. */
 export function stockSeoTitle(stock: Pick<SeoStockPage, "name" | "ticker">): string {
-  return `${stock.name} (${stock.ticker}) Stock: Our Call, Valuation and Earnings`;
+  return `${nameAndTicker(stock)} Stock: Our Call, Valuation and Earnings`;
 }
 
 export const FEATURED_STOCK_TICKERS = [
@@ -100,16 +108,16 @@ export const FEATURED_STOCK_TICKERS = [
 const FEATURED_STOCKS = new Set<string>(FEATURED_STOCK_TICKERS);
 
 /**
- * The stock pages search engines may index, and the ones the sitemap lists.
- * Picked on 2026-11-10: the ten flagship pages, then the most viewed pages of
- * the last 90 days, then the largest companies by market value. Every one is
- * in the catalogue above and had a written read in the store on that day. The
- * rest of the catalogue stays noindex until the owner widens this list.
+ * The most viewed stock pages of the last 90 days, then the largest
+ * companies by market value, as picked on 2026-11-10 (first-party views from
+ * `tm_stock_views`, market values from the screener). This list no longer
+ * decides indexing (see `stockHasCurrentRead` below); it ranks names where a
+ * page has to choose a few, such as which pairs of rivals get a compare page.
  *
  * This is separate from FEATURED_STOCK_TICKERS on purpose: that list also
  * decides which pages show price levels to everyone (lib/entitlements-server.ts).
  */
-export const INDEXED_STOCK_TICKERS = [
+export const TOP_STOCK_TICKERS = [
   "NVDA", "MSFT", "AAPL", "AMZN", "GOOGL", "META", "TSLA", "AVGO", "AMD", "PLTR",
   "MU", "COHR", "COIN", "SPCX", "SMCI", "MRVL", "WMT", "TSM", "UBER", "INTC",
   "NOW", "VRT", "RKLB", "APP", "LLY", "INTU", "VST", "AAP", "JPM", "V",
@@ -122,10 +130,46 @@ export const INDEXED_STOCK_TICKERS = [
   "SCCO", "CB", "VRTX", "BA", "SPGI", "NVO", "ETN", "LMT", "MDT", "HDB",
 ] as const;
 
-const INDEXED_STOCKS = new Set<string>(INDEXED_STOCK_TICKERS);
+/** A stock page is indexable while its written read is at most this many days old... */
+export const STOCK_READ_MAX_AGE_DAYS = 60;
+/** ...and its last price is at most this many days old. */
+export const STOCK_PRICE_MAX_AGE_DAYS = 10;
 
-export function isIndexedStockTicker(ticker: string): boolean {
-  return INDEXED_STOCKS.has(String(ticker || "").trim().toUpperCase());
+function dayNumber(stamp: string): number {
+  return Date.parse(`${stamp.slice(0, 10)}T00:00:00Z`);
+}
+
+/** True when `stamp` is a date at most `maxDays` before `today` (a day ahead is allowed for time zones). */
+export function isFresh(stamp: string | null | undefined, today: string, maxDays: number): boolean {
+  if (!stamp || !/^\d{4}-\d{2}-\d{2}/.test(stamp)) return false;
+  const age = Math.round((dayNumber(today) - dayNumber(stamp)) / 86_400_000);
+  return Number.isFinite(age) && age >= -1 && age <= maxDays;
+}
+
+/** The fields of a screener row the stock index rule reads. */
+export type StockReadFacts = {
+  call?: string | null;
+  thesis?: string | null;
+  call_at?: string | null;
+  price?: number | null;
+  price_at?: string | null;
+};
+
+/**
+ * The stock index rule. A stock page is open to search engines when it
+ * carries a current written read (our call and the thesis from a brief
+ * written in the last STOCK_READ_MAX_AGE_DAYS days) and a price from the last
+ * STOCK_PRICE_MAX_AGE_DAYS days. Every other stock page stays noindex.
+ *
+ * The page metadata (app/(app)/stock/[symbol]/page.tsx) and the stocks
+ * sitemap (lib/seo/sitemap.ts) both apply this function to the same screener
+ * snapshot row, so the two cannot disagree.
+ */
+export function stockHasCurrentRead(row: StockReadFacts | null | undefined, today: string): boolean {
+  if (!row) return false;
+  if (!String(row.call ?? "").trim() || !String(row.thesis ?? "").trim()) return false;
+  if (typeof row.price !== "number" || !Number.isFinite(row.price) || row.price <= 0) return false;
+  return isFresh(row.call_at, today, STOCK_READ_MAX_AGE_DAYS) && isFresh(row.price_at, today, STOCK_PRICE_MAX_AGE_DAYS);
 }
 
 export function isFeaturedStockTicker(ticker: string): boolean {

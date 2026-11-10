@@ -15,7 +15,8 @@ vi.mock("geist/font/mono", () => ({ GeistMono: { variable: "", className: "" } }
 vi.mock("@/lib/og/data", () => ({ stockShareLine: async () => "Our call on NVDA: Hold. AI growth remains powerful." }));
 vi.mock("@/lib/stock", async (original) => ({
   ...(await original<typeof import("@/lib/stock")>()),
-  getStockSummary: async () => null,
+  // The stock page 404s a ticker we hold nothing for, so NVDA has to exist here.
+  getStockSummary: async (symbol: string) => (symbol.toUpperCase() === "NVDA" ? { ticker: "NVDA", name: "NVIDIA Corporation", instrument_id: "US_NVDA" } : null),
 }));
 vi.mock("@/lib/strategies", async (original) => ({
   ...(await original<typeof import("@/lib/strategies")>()),
