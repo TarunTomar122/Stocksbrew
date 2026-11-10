@@ -1,0 +1,17 @@
+[Unit]
+Description=Run Tikrr earnings day reports every 10 minutes on weekdays, 06:00 to 20:59 New York
+
+[Timer]
+# Releases land before the open (6 to 9:30 New York) and after the close (16:00 to 18:00).
+# The last runs of the evening also pick up the after-hours move.
+OnCalendar=Mon..Fri *-*-* 06..20:02/10:00 America/New_York
+Persistent=false
+AccuracySec=1min
+Unit=tikrr-agentdata-earnings-day.service
+
+[Install]
+WantedBy=timers.target
+# Not installed by default. To enable on the VPS (after the owner approves):
+#   echo EARNINGS_DAY_ENABLED=1 | sudo tee -a /etc/tikrr/backend.env
+#   sudo cp backend/vps/units/tikrr-agentdata-earnings-day.* /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now tikrr-agentdata-earnings-day.timer

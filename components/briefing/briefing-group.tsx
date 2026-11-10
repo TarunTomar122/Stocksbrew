@@ -239,7 +239,7 @@ export function BriefingGroupCard({ group, actions, limit }: { group: BriefingGr
               onClick={() => setExpanded((value) => !value)}
               className="-ml-1.5 inline-flex h-9 cursor-pointer items-center rounded px-1.5 text-[12.5px] font-medium text-oa-muted-fg outline-none hover:text-oa-fg focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)] sm:h-6"
             >
-              {expanded ? "Show less" : `+${hidden} more`}
+              {expanded ? "Show less" : `${hidden} more ${hidden === 1 ? "update" : "updates"}`}
             </button>
           </li>
         ) : null}

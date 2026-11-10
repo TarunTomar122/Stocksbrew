@@ -3,7 +3,8 @@ import { notFound, permanentRedirect } from "next/navigation";
 
 import { JsonLd, breadcrumbLd } from "@/components/docs/json-ld";
 import { TheRead } from "@/components/oa/insight";
-import { AppPage, CardGrid, Delta, NUM, PageHead, Panel, SourceLine, StatStrip, Ticker, fmtCompact, fmtDay, fmtMoney } from "@/components/oa/kit";
+import { AppPage, CardGrid, Delta, MoveBar, NUM, PageHead, Panel, ShowMore, SourceLine, StatStrip, Ticker, fmtCompact, fmtDay, fmtMoney } from "@/components/oa/kit";
+import { asSentence } from "@/lib/plain-copy";
 import { DataTable, type DataColumn, type DataRow } from "@/components/oa/kit/data-table";
 import { CallTag } from "@/components/screener/shared";
 import { todayET } from "@/lib/calendar-shared";
@@ -64,17 +65,22 @@ function MoverList({ rows, period }: { rows: ScreenerRow[]; period: Period }) {
   if (list.length < 2) return <p className="px-4 py-3 text-[14px] text-oa-muted-fg">Not enough prices for this period.</p>;
   const top = list.slice(0, 3);
   const bottom = list.slice(-3).reverse().filter((row) => !top.includes(row));
+  // Bars share one scale per card, so the biggest move in it fills its bar.
+  const max = Math.max(...[...top, ...bottom].map((row) => Math.abs(Number(row[period]) || 0)));
   const item = (row: ScreenerRow) => (
     <li key={row.symbol} className="flex items-center justify-between gap-3 border-b border-oa-border px-4 py-2 last:border-b-0">
-      <Ticker symbol={row.symbol} name={row.name} size={18} className="min-w-0" />
-      <Delta value={row[period]} digits={1} className="shrink-0 text-[13.5px]" />
+      <Ticker symbol={row.symbol} name={row.name} size={18} wrap className="min-w-0" />
+      <span className="flex shrink-0 items-center gap-2">
+        <MoveBar value={row[period]} max={max} width={40} />
+        <Delta value={row[period]} digits={1} className="w-16 text-right text-[13.5px]" />
+      </span>
     </li>
   );
   return (
     <div>
-      <p className="oa-caption border-b border-oa-border bg-oa-bg px-4 py-1.5">Leading</p>
+      <p className="oa-caption border-b border-oa-border bg-oa-bg px-4 py-1.5">Did best</p>
       <ul>{top.map(item)}</ul>
-      <p className="oa-caption border-y border-oa-border bg-oa-bg px-4 py-1.5">Lagging</p>
+      <p className="oa-caption border-y border-oa-border bg-oa-bg px-4 py-1.5">Did worst</p>
       <ul>{bottom.map(item)}</ul>
     </div>
   );
@@ -162,47 +168,49 @@ export default async function SectorPage({ params }: Props) {
       <PageHead
         crumb={<a href="/sectors">Sectors</a>}
         title={`${group.name} stocks`}
-        meta={<SourceLine source="Screener snapshot" asOf={coverage.priceDay ? `the ${fmtDay(coverage.priceDay, true)} close` : undefined} />}
+        meta={<SourceLine source="Prices and company data" asOf={coverage.priceDay ? `the ${fmtDay(coverage.priceDay, true)} close` : undefined} />}
         note={false}
       />
 
-      <TheRead read={read} label={`${group.name}, in short`} className="mb-4" />
+      <TheRead read={read} label={`${group.name}, in short`} fold="phone" className="mb-4" />
 
       <StatStrip
         className="mb-4"
         stats={[
-          { label: "Last session", value: <Delta value={sectorDay} digits={1} />, sub: spyNote(spy?.day_pct) },
+          { label: "Last trading day", value: <Delta value={sectorDay} digits={1} />, sub: spyNote(spy?.day_pct) },
           { label: "1 month", value: <Delta value={sectorMonth} digits={1} />, sub: spyNote(spy?.ret_1m) },
           { label: "This year", value: <Delta value={sectorYear} digits={1} />, sub: spyNote(spy?.ret_ytd) },
           {
-            label: "Median P/E",
+            label: "Typical price vs earnings",
             value: pe ? <span className={NUM}>{pe.value.toFixed(1)}x</span> : <span className={NUM}>n/a</span>,
-            sub: allPe ? `All covered stocks ${allPe.value.toFixed(1)}x` : undefined,
+            sub: allPe ? `${allPe.value.toFixed(1)}x for all stocks we cover` : undefined,
           },
         ]}
       />
 
       <CardGrid cols={3} className="mb-4">
-        <Panel flush fill label="Last session">
+        <Panel flush fill label="Last trading day">
           <MoverList rows={group.rows} period="day_pct" />
         </Panel>
-        <Panel flush fill label="1 month">
-          <MoverList rows={group.rows} period="ret_1m" />
-        </Panel>
-        <Panel flush fill label="This year">
-          <MoverList rows={group.rows} period="ret_ytd" />
-        </Panel>
+        <ShowMore contents label="Show the best and worst over a month and this year">
+          <Panel flush fill label="1 month" className="max-lg:mb-3">
+            <MoverList rows={group.rows} period="ret_1m" />
+          </Panel>
+          <Panel flush fill label="This year">
+            <MoverList rows={group.rows} period="ret_ytd" />
+          </Panel>
+        </ShowMore>
       </CardGrid>
 
       {explained.length > 0 ? (
-        <Panel flush className="mb-4" label={`Why they moved, ${fmtDay(explained[0]!.day)}`}>
+        <Panel flush className="mb-4" label={`Why they moved on ${fmtDay(explained[0]!.day)}`}>
           <ul>
             {explained.slice(0, 6).map((move) => (
               <li key={move.ticker} className="border-b border-oa-border last:border-b-0">
-                <a href={moveHref(move.ticker, move.day)} className="flex items-center gap-3 px-4 py-2.5 outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
-                  <span className={`${NUM} w-14 shrink-0 text-[14px] font-medium text-oa-fg`}>{move.ticker}</span>
-                  <Delta value={move.pct} digits={1} className="w-16 shrink-0 text-[13.5px]" />
-                  <span className="min-w-0 truncate text-[14px] text-oa-fg">{move.headline}</span>
+                <a href={moveHref(move.ticker, move.day)} className="flex items-start gap-3 px-4 py-2.5 outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
+                  <span className={`${NUM} w-14 shrink-0 text-[14px] font-medium leading-5 text-oa-fg`}>{move.ticker}</span>
+                  <Delta value={move.pct} digits={1} className="w-16 shrink-0 text-[13.5px] leading-5" />
+                  <span className="min-w-0 text-pretty text-[14px] leading-5 text-oa-fg">{asSentence(move.headline)}</span>
                 </a>
               </li>
             ))}
@@ -210,25 +218,23 @@ export default async function SectorPage({ params }: Props) {
         </Panel>
       ) : null}
 
-      <Panel
-        flush
-        className="mb-4"
-        label={
-          <>
-            Every {group.name.toLowerCase()} stock we cover <span className={`${NUM} ml-1 font-normal text-oa-muted-fg`}>{group.rows.length}</span>
-          </>
-        }
-        right={
-          <a href={`/screener?sector=${group.slug}`} className="text-oa-primary hover:underline">
-            Screen these stocks →
-          </a>
-        }
-      >
-        <DataTable columns={columns} rows={tableRows} initialSort={{ id: "cap", dir: "desc" }} pageSize={50} stickyHeader={false} />
-      </Panel>
+      <ShowMore label={`Show all ${group.rows.length} ${group.name.toLowerCase()} stocks`} className="mb-4">
+        <Panel
+          flush
+          label={`All ${group.rows.length} stocks, biggest first`}
+          right={
+            <a href={`/screener?sector=${group.slug}`} className="text-oa-primary hover:underline">
+              Filter them →
+            </a>
+          }
+        >
+          <DataTable columns={columns} rows={tableRows} initialSort={{ id: "cap", dir: "desc" }} pageSize={50} stickyHeader={false} />
+        </Panel>
+      </ShowMore>
 
       <CardGrid cols={3}>
-        <Panel flush fill label="Rivals side by side">
+        <ShowMore contents label="Show rival comparisons and themes">
+        <Panel flush fill label="Rivals side by side" className="max-lg:mb-3">
           {pairs.length ? (
             <ul>
               {pairs.map((pair) => (
@@ -237,7 +243,7 @@ export default async function SectorPage({ params }: Props) {
                     <span className={NUM}>
                       {pair.a} vs {pair.b}
                     </span>
-                    <span className="min-w-0 truncate text-[12.5px] text-oa-muted-fg">{pair.group}</span>
+                    <span className="min-w-0 text-pretty text-right text-[12.5px] text-oa-muted-fg">{pair.group}</span>
                   </a>
                 </li>
               ))}
@@ -252,7 +258,7 @@ export default async function SectorPage({ params }: Props) {
               {themes.map(({ theme, members }) => (
                 <li key={theme.slug} className="border-b border-oa-border last:border-b-0">
                   <a href={`/themes/${theme.slug}`} className="flex items-center justify-between gap-3 px-4 py-2.5 text-[14px] text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
-                    <span className="min-w-0 truncate">{theme.name}</span>
+                    <span className="min-w-0 text-pretty">{theme.name}</span>
                     <span className={`${NUM} shrink-0 text-[12.5px] text-oa-muted-fg`}>{members.slice(0, 3).join(", ")}</span>
                   </a>
                 </li>
@@ -262,6 +268,7 @@ export default async function SectorPage({ params }: Props) {
             <p className="px-4 py-3 text-[14px] text-oa-muted-fg">No theme holds two or more of these stocks.</p>
           )}
         </Panel>
+        </ShowMore>
         <Panel flush fill label="Other sectors">
           <ul>
             {groups

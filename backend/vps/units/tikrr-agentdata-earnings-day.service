@@ -1,0 +1,14 @@
+[Unit]
+Description=Tikrr agent data: earnings day reports for stocks that filed earnings today
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/opt/tikrr
+Environment=TIKRR_REPO_DIR=/opt/tikrr
+Environment=TIKRR_ENV_FILE=/etc/tikrr/backend.env
+# The group shares the machine-wide agentdata lock; a run waits for an hourly or
+# after-close group to finish rather than overlapping SEC EDGAR traffic.
+TimeoutStartSec=75min
+MemoryMax=512M
+ExecStart=/opt/tikrr/backend/vps/run-agentdata.sh earnings_day

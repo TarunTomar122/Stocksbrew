@@ -1,0 +1,243 @@
+# Source: https://www.sec.gov/Archives/edgar/data/1107843/000110784326000043/qlys-20261109xex991.htm (SEC EDGAR, EX-99.1), converted with earnings_day_extract.html_to_text
+EX-99.1
+2
+qlys-20261109xex991.htm
+EX-99.1
+Exhibit 99.1
+Qualys Announces Third Quarter 2026 Financial Results
+Q3 Revenue Growth of 11% Year-Over-Year
+Raises 2026 Revenue Guidance to $736.9-$738.9 million
+FOSTER CITY, Calif., – November 9, 2026 – Qualys, Inc. (NASDAQ: QLYS), a leader in cloud-native cyber risk management, today announced financial results for the third quarter ended September 30, 2026. For the quarter, the Company reported revenues of $188.0 million, net income under United States Generally Accepted Accounting Principles (“GAAP”) of $57.2 million, non-GAAP net income of $74.8 million, Adjusted EBITDA of $89.9 million, GAAP net income per diluted share of $1.62, and non-GAAP net income per diluted share of $2.12.
+“In Q3, we delivered another quarter of strong revenue growth and profitability,” said Sumedh Thakar, Qualys president and CEO. “Increasing adoption of our AI-native Risk Operations Center, driven by our partner-first strategy, reflects accelerating demand for a vendor-neutral platform that actually fixes security issues rather than just reporting them. These results distinguish our competitive position in pre-breach risk management and reinforce our confidence in long-term growth."
+Third Quarter 2026 Financial Highlights
+Revenues: Revenues for the third quarter of 2026 increased by 11% to $188.0 million compared to $169.9 million for the same quarter in 2025.
+Gross Profit: GAAP gross profit for the third quarter of 2026 increased by 10% to $156.7 million compared to $142.1 million for the same quarter in 2025. GAAP gross margin was 83% for the third quarter of 2026 compared to 84% for the same quarter in 2025. Non-GAAP gross profit for the third quarter of 2026 increased by 10% to $159.3 million compared to $144.9 million for the same quarter in 2025. Non-GAAP gross margin was 85% for both the third quarter of 2026 and for the same quarter in 2025.
+Operating Income: GAAP operating income for the third quarter of 2026 increased by 11% to $66.3 million compared to $60.0 million for the same quarter in 2025. As a percentage of revenues, GAAP operating income was 35% for both the third quarter of 2026 and for the same quarter in 2025. Non-GAAP operating income for the third quarter of 2026 increased by 9% to $87.1 million compared to $80.0 million for the same quarter in 2025. As a percentage of revenues, non-GAAP operating income was 46% for the third quarter of 2026 compared to 47% for the same quarter in 2025.
+Net Income: GAAP net income for the third quarter of 2026 increased by 14% to $57.2 million, or $1.62 per diluted share, compared to $50.3 million, or $1.39 per diluted share, for the same quarter in 2025. As a percentage of revenues, GAAP net income was 30% for both the third quarter of 2026 and for the same quarter in 2025. Non-GAAP net income for the third quarter of 2026 increased by 11% to $74.8 million, or $2.12 per diluted share, compared to $67.4 million, or $1.86 per diluted share, for the same quarter in 2025. As a percentage of revenues, non-GAAP net income was 40% for both the third quarter of 2026 and for the same quarter in 2025.
+Adjusted EBITDA: Adjusted EBITDA (a non-GAAP financial measure) for the third quarter of 2026 increased by 9% to $89.9 million compared to $82.6 million for the same quarter in 2025. As a percentage of revenues, Adjusted EBITDA was 48% for the third quarter of 2026 compared to 49% for the same quarter in 2025.
+Operating Cash Flow: Operating cash flow for the third quarter of 2026 increased by 13% to $101.8 million compared to $90.4 million for the same quarter in 2025. As a percentage of revenues, operating cash flow was 54% for the third quarter of 2026 compared to 53% for the same quarter in 2025.
+Third Quarter 2026 Business Highlights
+•Qualys introduced InstaScan, powered by Agent Insta in Enterprise TruRisk Management, delivering scanless vulnerability detection within minutes of advisory disclosure. By continuously correlating new advisories with existing asset, exposure, and threat telemetry, InstaScan eliminates the multi-day detection gap created by traditional scan cycles, enabling customers to begin validation and remediation before adversaries can act.
+•Qualys advanced its TruRisk Eliminate capabilities with AI-powered Patch Reliability Scoring, wave-based autonomous remediation, and peer-to-peer patching, enabling organizations to rapidly remediate zero-day vulnerabilities and misconfigurations while maintaining operational stability with reduced dependency on centralized infrastructure.
+•Qualys expanded TotalAI with governance capabilities that help CISOs reduce shadow AI, flag abnormal model behavior, and demonstrate that controls are working across development and runtime environments. Enhancements include discovery of AI agents and MCP servers, red-team testing against OWASP Top 10 and EU AI Act standards, and audit-ready evidence generation.
+•Leading independent analysts recognized Qualys across multiple categories. Qualys received the highest score for best current offering in the 2026 Forrester Wave for Proactive Security Platforms, was named a Leader in the IDC MarketScape for Worldwide DAST, earned the highest-rated Champion designation in the Info-Tech Research Group Emotional Footprint for Vulnerability Management, and was named a Leader in the Frost and Sullivan Radar for Cloud Workload Protection Platforms.
+Financial Performance Outlook
+Based on information as of today, November 9, 2026, Qualys is issuing the following financial guidance for the fourth quarter and full year fiscal 2026. The Company emphasizes that the guidance is subject to various important cautionary factors referenced in the sections entitled “Legal Notice Regarding Forward-Looking Statements” and “Non-GAAP Financial Measures” below.
+Fourth Quarter 2026 Guidance: Management expects revenues for the fourth quarter of 2026 to be in the range of $191.0 million to $193.0 million, representing 9% to 10% growth over the same quarter in 2025. GAAP net income per diluted share is expected to be in the range of $1.57 to $1.64, which assumes an effective income tax rate of 21%. Non-GAAP net income per diluted share is expected to be in the range of $2.05 to $2.12, which assumes a non-GAAP effective income tax rate of 20%. Fourth quarter 2026 net income per diluted share estimates are based on approximately 35.5 million weighted average diluted shares outstanding for the quarter.
+Full Year 2026 Guidance: Management now expects revenues for the full year of 2026 to be in the range of $736.9 million to $738.9 million, representing 10% growth over 2025. This compares to the previous guidance range of $732.0 million to $738.0 million. GAAP net income per diluted share is now expected to be in the range of $6.08 to $6.15, up from the previous guidance range of $5.76 to $5.90. This assumes an effective income tax rate of 22%. Non-GAAP net income per diluted share is now expected to be in the range of $8.07 to $8.14, up from the previous guidance range of $7.74 to $7.88. This assumes a non-GAAP effective income tax rate of 20%. Full year 2026 net income per diluted share estimates are based on approximately 35.5 million weighted average diluted shares outstanding.
+Qualys has not reconciled non-GAAP net income per diluted share guidance to GAAP net income per diluted share guidance because Qualys does not provide guidance on the various reconciling cash and non-cash items between GAAP net income and non-GAAP net income (i.e., stock-based compensation, amortization of intangible assets from acquisitions and non-recurring items). The actual dollar amount of reconciling items in the fourth quarter and full year 2026 is likely to have a significant impact on the Company’s GAAP net income per diluted share in the fourth quarter and full year 2026. A reconciliation of the non-GAAP net income per diluted share guidance to the GAAP net income per diluted share guidance is not available without unreasonable effort.
+Investor Conference Call
+Qualys will host a conference call and live webcast to discuss its third quarter financial results at 5:00 p.m. Eastern Time (2:00 p.m. Pacific Time) on Monday, November 9, 2026. To access the conference call by phone, please register here. A live webcast of the earnings conference call, investor presentation and prepared remarks can be accessed at https://investor.qualys.com/events-presentations. A replay of the conference call will be available through the same webcast link following the end of the call.
+Investor Contact
+Blair King
+Senior Vice President, Investor Relations and Financial Planning & Analysis
+(650) 538-2088
+ir@qualys.com
+About Qualys
+Qualys, Inc. (NASDAQ: QLYS) is a leader in cloud-native cyber risk management, helping organizations measure, communicate, and eliminate cyber risk. The Qualys platform and its solutions power the Risk Operations Center (ROC), unifying asset visibility, exposure management, risk prioritization, and remediation to help organizations continuously reduce risk across hybrid, multi-cloud, endpoint, and AI environments. Qualys equips security and IT teams for the Frontier AI Era with AI-speed detection, hyper-prioritization, and autonomous remediation. Trusted by more than 10,000 organizations globally, including most of the Fortune 100, Qualys helps customers transform cybersecurity into a measurable business function that strengthens resilience and drives business outcomes. For more information, please visit www.qualys.com.
+Qualys, Qualys VMDR® and the Qualys logo are proprietary trademarks of Qualys, Inc. All other products or names may be trademarks of their respective companies.
+Legal Notice Regarding Forward-Looking Statements
+This press release contains forward-looking statements within the meaning of Section 27A of the Securities Act of 1933 and Section 21E of the Securities Exchange Act of 1934. Forward-looking statements generally relate to future events or our future financial or operating performance. Forward-looking statements in this press release include, but are not limited to, quotations of management and statements related to: the benefits of our existing, new and upcoming products, features, integrations, collaborations and joint solutions, and their impact upon our long-term growth; our expectations regarding AI for security and security for AI; our expectations regarding business opportunities with the federal government; our expectations regarding our business partners; our ability to advance our value proposition and competitive differentiation in the market; our ability to address demand trends; our ability to maintain and strengthen our category leadership; our ability to solve modern security challenges at scale; our strategies and ability to achieve and maintain durable profitable growth; our guidance for revenues, GAAP EPS and non-GAAP EPS for the fourth quarter and full year 2026; and our expectations for the number of weighted average diluted shares outstanding and the GAAP and non-GAAP effective income tax rate for the fourth quarter and full year 2026. Our expectations and beliefs regarding these matters may not materialize, and actual results in future periods are subject to risks and uncertainties that could cause actual results to differ materially from those projected. These risks include our ability to continue to develop platform capabilities and solutions; the ability of our platform and solutions to perform as intended; customer acceptance and purchase of our existing solutions and new solutions; real or perceived defects, errors or vulnerabilities in our products or services; our ability to retain existing customers and generate new customers; the budgeting cycles and seasonal buying patterns of our customers; our ability to maintain government authorizations applicable to our platform; general market, political, economic and business conditions in the United States as well as globally; our ability to manage costs as we increase our customer base and the number of our platform solutions; the market for cloud solutions for IT security and compliance not increasing at the rate we expect; competition from other products and services; fluctuations in currency exchange rates; unexpected fluctuations in our effective income tax rate on a GAAP and non-GAAP basis; our ability to effectively manage our rapid growth and our ability to anticipate future market needs and opportunities; and any unanticipated accounting charges. The forward-looking statements contained in this press release are also subject to other risks and uncertainties, including those more fully described in our filings with the Securities and Exchange Commission, including our Annual Report on Form 10-K and Quarterly Reports on Form 10-Q.
+The forward-looking statements in this press release are based on information available to Qualys as of the date hereof, and Qualys disclaims any obligation to update any forward-looking statements, except as required by law.
+Non-GAAP Financial Measures
+In addition to reporting financial results in accordance with GAAP, Qualys provides investors with certain non-GAAP financial measures, including non-GAAP gross profit, non-GAAP gross margin, non-GAAP operating expenses, non-GAAP operating income, non-GAAP net income, non-GAAP net income per diluted share, Adjusted EBITDA (defined as earnings before interest expense, interest income and other income (expense), net, income taxes, depreciation, amortization, and stock-based compensation) and non-GAAP free cash flows (defined as cash provided by operating activities less purchases of property and equipment, net of proceeds from disposal).
+In computing non-GAAP financial measures, Qualys excludes the effects of stock-based compensation expense, amortization of intangible assets from acquisitions, non-recurring items and for non-GAAP net income, impairment of non-marketable securities and certain tax effects. Qualys believes that these non-GAAP financial measures help illustrate underlying trends in its business that could otherwise be masked by the effect of the income or expenses that are excluded in non-GAAP gross profit, non-GAAP gross margin, non-GAAP operating expenses, non-GAAP operating income, non-GAAP net income, non-GAAP net income per diluted share, Adjusted EBITDA and non-GAAP free cash flows.
+Furthermore, Qualys uses some of these non-GAAP financial measures to establish budgets and operational goals for managing its business and evaluating its performance. Qualys believes that non-GAAP gross profit, non-GAAP gross margin, non-GAAP operating expenses, non-GAAP operating income, non-GAAP net income, non-GAAP net income per diluted share, Adjusted EBITDA and non-GAAP free cash flows provide additional tools for investors to use in comparing its recurring core business operating results over multiple periods with other companies in its industry.
+Although Qualys does not focus on or use quarterly billings in managing or monitoring the performance of its business, Qualys provides calculated current billings (defined as total revenues recognized in a period plus the sequential change in current deferred revenue in the corresponding period) for the convenience of investors and analysts in building their own financial models.
+In order to provide a more complete picture of recurring core operating business results, the Company’s non-GAAP net income and non-GAAP net income per diluted share include adjustments for non-recurring income tax items and certain tax effects of non-GAAP adjustments to achieve the effective income tax rate on a non-GAAP basis. The Company’s non-GAAP effective tax rate may differ from the GAAP effective income tax rate as a result of these income tax adjustments. The Company believes its estimated non-GAAP effective income tax rate of 20% in 2026 is a reasonable estimate under its current global operating structure and core business operations. The Company may adjust this rate during the year to take into account events or trends that it believes materially impact the estimated annual rate. The non-GAAP effective income tax rate could be subject to change for a number of reasons, including but not limited to, significant changes resulting from tax legislation, material changes in geographic mix of revenues and expenses and other significant events.
+The presentation of this non-GAAP financial information is not intended to be considered in isolation or as a substitute for results prepared in accordance with GAAP. A reconciliation of the non-GAAP financial measures discussed in this press release to the most directly comparable GAAP financial measures is included with the financial statements contained in this press release. Management uses both GAAP and non-GAAP information in evaluating and operating its business internally and as such has determined that it is important to provide this information to investors.
+Qualys, Inc.
+CONDENSED CONSOLIDATED STATEMENTS OF OPERATIONS
+(unaudited)
+(in thousands, except per share data)
+Three Months Ended September 30, | Nine Months Ended September 30,
+2026 | 2025 | 2026 | 2025
+Revenues | $188,049 | $169,882 | $545,862 | $493,843
+Cost of revenues (1) | 31,362 | 27,798 | 91,596 | 85,601
+Gross profit | 156,687 | 142,084 | 454,266 | 408,242
+Operating expenses:
+Research and development (1) | 30,222 | 28,927 | 89,927 | 88,330
+Sales and marketing (1) | 40,948 | 35,280 | 120,732 | 103,750
+General and administrative (1) | 19,227 | 17,922 | 54,530 | 53,045
+Total operating expenses | 90,397 | 82,129 | 265,189 | 245,125
+Income from operations | 66,290 | 59,955 | 189,077 | 163,117
+Other income (expense), net:
+Interest income | 6,769 | 6,264 | 19,186 | 18,906
+Other income (expense), net | (409) | (937) | (3,560) | 379
+Total other income, net | 6,360 | 5,327 | 15,626 | 19,285
+Income before income taxes | 72,650 | 65,282 | 204,703 | 182,402
+Income tax provision | 15,476 | 14,936 | 44,481 | 37,232
+Net income | $57,174 | $50,346 | $160,222 | $145,170
+Net income per share:
+Basic | $1.64 | $1.40 | $4.56 | $4.00
+Diluted | $1.62 | $1.39 | $4.53 | $3.97
+Weighted average shares used in computing net income per share:
+Basic | 34,817 | 36,037 | 35,135 | 36,250
+Diluted | 35,321 | 36,293 | 35,347 | 36,530
+(1) Includes stock-based compensation as follows:
+Cost of revenues | $2,038 | $2,172 | $6,040 | $6,242
+Research and development | 4,879 | 5,207 | 13,998 | 15,274
+Sales and marketing | 3,887 | 3,490 | 11,788 | 9,773
+General and administrative | 9,416 | 8,578 | 26,547 | 25,024
+Total stock-based compensation, net of amounts capitalized | $20,220 | $19,447 | $58,373 | $56,313
+Qualys, Inc.
+CONDENSED CONSOLIDATED BALANCE SHEETS
+(unaudited)
+(in thousands)
+September 30, 2026 | December 31, 2025
+Assets
+Current assets:
+Cash and cash equivalents | $357,191 | $250,258
+Short-term marketable securities | 163,552 | 195,681
+Accounts receivable, net | 148,863 | 170,991
+Prepaid expenses and other current assets | 53,413 | 40,686
+Total current assets | 723,019 | 657,616
+Long-term marketable securities | 287,296 | 250,868
+Property and equipment, net | 21,873 | 23,166
+Operating leases - right of use asset | 45,762 | 46,001
+Deferred tax assets, net | 66,404 | 74,518
+Intangible assets, net | 2,357 | 4,255
+Goodwill | 7,447 | 7,447
+Noncurrent restricted cash | 1,200 | 1,200
+Other noncurrent assets | 27,748 | 30,010
+Total assets | $1,183,106 | $1,095,081
+Liabilities and Stockholders’ Equity
+Current liabilities:
+Accounts payable | $3,568 | $1,202
+Accrued liabilities | 49,013 | 57,694
+Deferred revenues, current | 411,958 | 401,127
+Operating lease liabilities, current | 9,213 | 7,315
+Total current liabilities | 473,752 | 467,338
+Deferred revenues, noncurrent | 14,432 | 16,285
+Operating lease liabilities, noncurrent | 42,028 | 44,959
+Other noncurrent liabilities | 6,115 | 5,346
+Total liabilities | 536,327 | 533,928
+Stockholders’ equity:
+Common stock | 35 | 36
+Additional paid-in capital | 833,149 | 731,788
+Accumulated other comprehensive loss | (4,873) | (4,012)
+Accumulated deficit | (181,532) | (166,659)
+Total stockholders’ equity | 646,779 | 561,153
+Total liabilities and stockholders’ equity | $1,183,106 | $1,095,081
+Qualys, Inc.
+CONDENSED CONSOLIDATED STATEMENTS OF CASH FLOWS
+(unaudited)
+(in thousands)
+Nine Months Ended September 30,
+2026 | 2025
+Cash flow from operating activities:
+Net income | $160,222 | $145,170
+Adjustments to reconcile net income to net cash provided by operating activities:
+Depreciation and amortization expense | 9,522 | 11,353
+Provision for credit losses | 536 | 1,110
+Impairment of property and equipment | 624 | —
+Impairment of non-marketable securities | 1,967 | —
+Stock-based compensation, net of amounts capitalized | 58,373 | 56,313
+Accretion of discount on marketable securities, net | (1,117) | (2,799)
+Deferred income taxes | 6,989 | 6,724
+Changes in operating assets and liabilities:
+Accounts receivable | 21,592 | 35,023
+Prepaid expenses and other assets | (8,563) | (13,402)
+Accounts payable | 2,102 | 591
+Accrued liabilities and other noncurrent liabilities | (4,541) | 1,568
+Deferred revenues | 8,978 | (7,910)
+Net cash provided by operating activities | 256,684 | 233,741
+Cash flow from investing activities:
+Purchases of marketable securities | (203,815) | (275,379)
+Sales and maturities of marketable securities | 194,114 | 182,322
+Purchases of property and equipment | (7,182) | (4,266)
+Net cash used in investing activities | (16,883) | (97,323)
+Cash flow from financing activities:
+Repurchase of common stock | (185,628) | (138,754)
+Proceeds from exercise of stock options | 65,615 | 8,856
+Payments for taxes related to net share settlement of equity awards | (19,506) | (20,200)
+Proceeds from issuance of common stock through employee stock purchase plan | 6,651 | 6,751
+Net cash used in financing activities | (132,868) | (143,347)
+Net increase (decrease) in cash, cash equivalents and restricted cash | 106,933 | (6,929)
+Cash, cash equivalents and restricted cash at beginning of period | 251,458 | 233,382
+Cash, cash equivalents and restricted cash at end of period | $358,391 | $226,453
+Qualys, Inc.
+RECONCILIATION OF NON-GAAP DISCLOSURES
+ADJUSTED EBITDA
+(unaudited)
+(in thousands, except percentages)
+Three Months Ended September 30, | Nine Months Ended September 30,
+2026 | 2025 | 2026 | 2025
+Net income | $57,174 | $50,346 | $160,222 | $145,170
+Net income as a percentage of revenues | 30% | 30% | 29% | 29%
+Depreciation and amortization of property and equipment | 2,798 | 2,559 | 7,624 | 9,435
+Amortization of intangible assets | 619 | 639 | 1,898 | 1,918
+Income tax provision | 15,476 | 14,936 | 44,481 | 37,232
+Stock-based compensation | 20,220 | 19,447 | 58,373 | 56,313
+Total other income, net | (6,360) | (5,327) | (15,626) | (19,285)
+Adjusted EBITDA | $89,927 | $82,600 | $256,972 | $230,783
+Adjusted EBITDA as a percentage of revenues | 48% | 49% | 47% | 47%
+Qualys, Inc.
+RECONCILIATION OF NON-GAAP DISCLOSURES
+(unaudited)
+(in thousands, except per share data)
+Three Months Ended September 30, | Nine Months Ended September 30,
+2026 | 2025 | 2026 | 2025
+GAAP Cost of revenues | $31,362 | $27,798 | $91,596 | $85,601
+Less: Stock-based compensation | (2,038) | (2,172) | (6,040) | (6,242)
+Less: Amortization of intangible assets | (619) | (639) | (1,898) | (1,918)
+Non-GAAP Cost of revenues | $28,705 | $24,987 | $83,658 | $77,441
+GAAP Gross profit | $156,687 | $142,084 | $454,266 | $408,242
+Plus: Stock-based compensation | 2,038 | 2,172 | 6,040 | 6,242
+Plus: Amortization of intangible assets | 619 | 639 | 1,898 | 1,918
+Non-GAAP Gross Profit | $159,344 | $144,895 | $462,204 | $416,402
+GAAP Research and development | $30,222 | $28,927 | $89,927 | $88,330
+Less: Stock-based compensation | (4,879) | (5,207) | (13,998) | (15,274)
+Non-GAAP Research and development | $25,343 | $23,720 | $75,929 | $73,056
+GAAP Sales and marketing | $40,948 | $35,280 | $120,732 | $103,750
+Less: Stock-based compensation | (3,887) | (3,490) | (11,788) | (9,773)
+Non-GAAP Sales and marketing | $37,061 | $31,790 | $108,944 | $93,977
+GAAP General and administrative | $19,227 | $17,922 | $54,530 | $53,045
+Less: Stock-based compensation | (9,416) | (8,578) | (26,547) | (25,024)
+Non-GAAP General and administrative | $9,811 | $9,344 | $27,983 | $28,021
+GAAP Operating expenses | $90,397 | $82,129 | $265,189 | $245,125
+Less: Stock-based compensation | (18,182) | (17,275) | (52,333) | (50,071)
+Non-GAAP Operating expenses | $72,215 | $64,854 | $212,856 | $195,054
+GAAP Income from operations | $66,290 | $59,955 | $189,077 | $163,117
+Plus: Stock-based compensation | 20,220 | 19,447 | 58,373 | 56,313
+Plus: Amortization of intangible assets | 619 | 639 | 1,898 | 1,918
+Non-GAAP Income from operations | $87,129 | $80,041 | $249,348 | $221,348
+GAAP Net income | $57,174 | $50,346 | $160,222 | $145,170
+Plus: Stock-based compensation | 20,220 | 19,447 | 58,373 | 56,313
+Plus: Amortization of intangible assets | 619 | 639 | 1,898 | 1,918
+Plus: Impairment of non-marketable securities | — | — | 1,967 | —
+Less: Tax adjustment | (3,221) | (2,991) | (8,908) | (13,301)
+Non-GAAP Net income | $74,792 | $67,441 | $213,552 | $190,100
+GAAP Net income per share:
+Basic | $1.64 | $1.40 | $4.56 | $4.00
+Diluted | $1.62 | $1.39 | $4.53 | $3.97
+Non-GAAP Net income per share:
+Basic | $2.15 | $1.87 | $6.08 | $5.24
+Diluted | $2.12 | $1.86 | $6.04 | $5.20
+Weighted average shares used in GAAP and non-GAAP net income per share:
+Basic | 34,817 | 36,037 | 35,135 | 36,250
+Diluted | 35,321 | 36,293 | 35,347 | 36,530
+Qualys, Inc.
+RECONCILIATION OF NON-GAAP DISCLOSURES
+FREE CASH FLOWS
+(unaudited)
+(in thousands)
+Nine Months Ended September 30,
+2026 | 2025
+GAAP Cash flows provided by operating activities | $256,684 | $233,741
+Less:
+Purchases of property and equipment, net of proceeds from disposal | (7,182) | (4,266)
+Non-GAAP Free cash flows | $249,502 | $229,475
+Qualys, Inc.
+RECONCILIATION OF NON-GAAP DISCLOSURES
+CALCULATED CURRENT BILLINGS
+(unaudited)
+(in thousands, except percentages)
+Three Months Ended September 30,
+2026 | 2025
+GAAP Revenue | $188,049 | $169,882
+GAAP Revenue growth compared to same quarter of prior year | 11% | 10%
+Plus: Current deferred revenue at September 30 | 411,958 | 371,476
+Less: Current deferred revenue at June 30 | (388,075) | (354,971)
+Non-GAAP Calculated current billings | $211,932 | $186,387
+Calculated current billings growth compared to same quarter of prior year | 14% | 11%

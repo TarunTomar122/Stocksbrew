@@ -18,6 +18,9 @@ Groups and what they keep fresh:
 * ``after_close``  daily prices, strategy baskets and their live record, earnings
                    dates and reactions, the screener snapshot, then the standing agents
 * ``weekly``       13F fund portfolios, who holds each stock, House trade reports
+* ``earnings_day`` the report on each covered stock that filed earnings today
+                   (every 10 minutes on weekdays; the job itself stays off until
+                   ``EARNINGS_DAY_ENABLED=1``)
 
 Nothing here is installed by importing it. The systemd units that call it are
 in ``backend/vps/units/tikrr-agentdata-*.{service,timer}``.
@@ -64,10 +67,16 @@ GROUPS: dict[str, list[tuple[str, list[str]]]] = {
         # limited to one year would shrink every record to that year.
         ("house trade reports", ["backend.agentdata.house_ptr"]),
     ],
+    # Minutes after a company files its earnings release (8-K Item 2.02). Cheap when
+    # nobody reports: one store read. Today and yesterday, so an evening release
+    # still gets its next-session reaction.
+    "earnings_day": [
+        ("earnings day reports", ["backend.agentdata.earnings_day", "--days", "1"]),
+    ],
 }
 
 # A job that hangs must not hold the group, and the next timer run, forever.
-TIMEOUT_SECONDS = {"frequent": 20 * 60, "hourly": 40 * 60, "after_close": 90 * 60, "weekly": 4 * 60 * 60}
+TIMEOUT_SECONDS = {"frequent": 20 * 60, "hourly": 40 * 60, "after_close": 90 * 60, "weekly": 4 * 60 * 60, "earnings_day": 9 * 60}
 
 
 def command_for(argv: list[str]) -> list[str] | None:

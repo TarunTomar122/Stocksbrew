@@ -27,7 +27,7 @@ describe("whenWord", () => {
 describe("pastMoveText", () => {
   it("compares the last report move with a normal day", () => {
     expect(pastMoveText({ last: { pct: -5.8, basis: "2d", toDate: "2026-08-13", eventDate: "2026-08-12" }, typicalDayPct: 1.75 })).toBe(
-      "fell 5.8% over two sessions after its Aug 12 report, about 3x a normal day for it",
+      "fell 5.8% over the two days after its Aug 12 report, about 3 times its normal daily move",
     );
     expect(pastMoveText({ last: null, typicalDayPct: 2 })).toBeNull();
     expect(pastMoveText(undefined)).toBeNull();
@@ -60,9 +60,9 @@ describe("buildCalendarRead", () => {
       items, today: TODAY, period: "this week", mine: null,
       context: { CSCO: { last: { pct: -5.8, basis: "2d", toDate: "2026-08-13", eventDate: "2026-08-12" }, typicalDayPct: 1.75 } },
     })!;
-    expect(read.headline).toBe("CPI is out today at 8:30 AM; 3 companies still to report this week, led by CSCO and AMAT on Thursday.");
+    expect(read.headline).toBe("CPI inflation numbers come out today at 8:30 AM. 3 companies still report this week. The biggest are CSCO and AMAT on Thursday.");
     expect(read.insights[0]!.id).toBe("biggest");
-    expect(read.insights[0]!.text).toContain("about 3x a normal day");
+    expect(read.insights[0]!.text).toContain("about 3 times its normal daily move");
     expect(read.insights[1]!.text).toBe("So far 3 of 3 companies beat what analysts expected (100%), and none fell short. Biggest moves after: CNH +13.5% and CEG +9.5%.");
   });
 
@@ -102,9 +102,9 @@ describe("buildEarningsDetailRead", () => {
     const read = buildEarningsDetailRead({ ticker: "CSCO", name: "Cisco", events, today: TODAY, context: { last: { pct: -5.8, basis: "2d", toDate: "2026-08-13", eventDate: "2026-08-12" }, typicalDayPct: 1.75 } })!;
     expect(read.headline).toBe("CSCO reports Thursday after the close, with EPS expected at $1.15.");
     expect(read.insights.map((insight) => insight.text)).toEqual([
-      "The stock fell 5.8% over two sessions after its Aug 12 report, about 3x a normal day for it.",
+      "The stock fell 5.8% over the two days after its Aug 12 report, about 3 times its normal daily move.",
       // The stored label says beat, but $1.08 against $1.17 is a miss: the numbers decide.
-      "Last quarter's EPS missed the estimate by 8% and the stock fell.",
+      "Last quarter's earnings per share missed the estimate by 8% and the stock fell.",
     ]);
   });
   it("is null with no reports", () => {

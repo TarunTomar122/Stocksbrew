@@ -27,11 +27,11 @@ type Column = { key: ColumnKey; label: string; align: "left" | "right"; first: D
 const HOLDING_COLUMNS: Column[] = [
   { key: "ticker", label: "Stock", align: "left", first: "asc" },
   { key: "shares", label: "Shares", align: "right", first: "desc", hideBelow: "lg" },
-  { key: "avgCost", label: "Avg cost", align: "right", first: "desc", hideBelow: "xl" },
+  { key: "avgCost", label: "Paid per share", align: "right", first: "desc", hideBelow: "xl" },
   { key: "price", label: "Price", align: "right", first: "desc" },
   { key: "dayPct", label: "Day", align: "right", first: "desc" },
   { key: "value", label: "Value", align: "right", first: "desc" },
-  { key: "weight", label: "Weight", align: "left", first: "desc", hideBelow: "lg" },
+  { key: "weight", label: "Share of total", align: "left", first: "desc", hideBelow: "lg" },
   { key: "gain", label: "Gain", align: "right", first: "desc" },
   { key: "gainPct", label: "Gain %", align: "right", first: "desc" },
   { key: "stance", label: "Our call", align: "left", first: "asc" },

@@ -113,6 +113,7 @@ look at history include both names.
 | `read_expanded` | `section` (`news`, `timeline`), `ticker` | `Details` in `components/stock-report/primitives.tsx` | Depth of reading |
 | `alert_created` | `ticker`, `kind` | `components/stock-report/alert-controls.tsx` | Alerts set |
 | `insight_clicked` | `insight_id`, `insight_kind`, `tone`, `target` (`stock`/`action`), `ticker`, `href`, `page` | `components/oa/insight.tsx` (every The read row, declared) | Which reads people act on, per page |
+| `earnings_report_opened` | `surface` (`stock_page`) | `components/earnings-day/stock-entry.tsx` (declared) | Do people open the earnings day report from the stock page (the briefing list sends `briefing_item_opened` with `kind=earnings_report`) |
 | `briefing_item_opened` | `kind`, `ticker`, `relation`, `decision` | `components/briefing/briefing-group.tsx` | What in the briefing gets opened |
 | `mover_opened` | `ticker`, `list` | Explore movers (`app/(app)/explore/page.tsx`), Signals movers (`components/signals/signals-view.tsx`) | Movers interest |
 | `signal_opened` | `kind` (`reddit`/`policy`), `ticker` | Signals tabs | Which signals get opened |

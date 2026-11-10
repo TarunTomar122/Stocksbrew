@@ -65,6 +65,7 @@ import { TheRead } from "@/components/oa/insight";
 import { buildScreenerRead, buildSectorsRead } from "@/lib/screener-insights";
 import { getUserDoc } from "@/lib/watchlist";
 import { ogImage } from "@/lib/og/url";
+import { shortCompanyName } from "@/lib/plain-copy";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -434,7 +435,7 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
     cells: [
       <RowCheck key="_select" symbol={row.symbol} />,
       <div key="symbol" className="sm:max-w-[11.5rem] xl:max-w-[13rem]">
-        <Ticker symbol={row.symbol} name={row.name} className="max-w-full" />
+        <Ticker symbol={row.symbol} name={row.name} wrap className="max-w-full" />
       </div>,
       ...view.columns.map((id) => <React.Fragment key={id}>{cellFor(id, row)}</React.Fragment>),
     ],
@@ -490,8 +491,8 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
               <StockLogo ticker={row.symbol} size={28} />
               <span className="min-w-0 flex-1">
                 <span className={`${NUM} block text-[15px] font-semibold leading-5 text-oa-fg`}>{row.symbol}</span>
-                <span className="flex gap-1.5 text-[12.5px] leading-[18px] text-oa-muted-fg">
-                  <span className="min-w-0 truncate">{row.name}</span>
+                <span className="flex flex-wrap gap-x-1.5 text-[12.5px] leading-[18px] text-oa-muted-fg">
+                  <span className="min-w-0 text-pretty">{shortCompanyName(row.name)}</span>
                   {phoneExtra ? <span className="shrink-0 [&_*]:!text-[12.5px]">· {cellFor(phoneExtra, row)}</span> : null}
                 </span>
               </span>
@@ -551,7 +552,8 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
         </p>
       ) : null}
 
-      <TheRead read={screenRead} label={hasScreen ? "What this screen says" : "The market we cover"} className="mb-4" />
+      {/* The screener's job is the tool: the read keeps its headline and folds its points. */}
+      <TheRead read={screenRead} label={hasScreen ? "What this screen says" : "The market we cover"} fold="always" className="mb-4" />
 
       {onlySector ? <SectorStrip stat={onlySector} /> : null}
 

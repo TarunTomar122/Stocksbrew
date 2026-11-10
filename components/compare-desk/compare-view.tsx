@@ -2,7 +2,7 @@ import * as React from "react";
 
 import { LockCard, ProMark } from "@/components/oa/gate";
 import { TheRead } from "@/components/oa/insight";
-import { NUM, Panel, Ticker, ToneGlyph, fmtMoney } from "@/components/oa/kit";
+import { NUM, Panel, ShowMore, Ticker, ToneGlyph, fmtMoney } from "@/components/oa/kit";
 import { BasketActions } from "@/components/screener/basket-actions";
 import { LINE_COLORS } from "@/components/screener/controls";
 import { OverlayChart, type OverlayRange } from "@/components/screener/overlay-chart";
@@ -14,6 +14,7 @@ import { buildCompareTable, describeDifferences, tallyWins, type CompareTableGro
 import { canSeeLevels, type Viewer } from "@/lib/entitlements-server";
 import { getScreenerRows } from "@/lib/screener";
 import { withoutZones, type ScreenerRow } from "@/lib/screener-shared";
+import { plainCallReason, shortCompanyName } from "@/lib/plain-copy";
 
 /**
  * The compare desk's body for two to four stocks: the read, the rebased price
@@ -147,7 +148,7 @@ export async function CompareView({
       {/* Two names read best as two columns: chart and table on the left, the words on the right. */}
       {(() => {
         const chartPanel = (
-        <Panel flush label="Price, rebased to the same start">
+        <Panel flush label="Price, both starting at 0%">
           <OverlayChart
             ranges={ranges}
             initialRange={range ?? "1Y"}
@@ -157,7 +158,7 @@ export async function CompareView({
         </Panel>
         );
         const separatesPanel = (
-        <Panel label="Every difference">
+        <Panel label="Where they differ">
           {differences.length === 0 ? (
             <p className="text-[14px] leading-6 text-oa-muted-fg">These names are close on every measure here.</p>
           ) : (
@@ -173,7 +174,7 @@ export async function CompareView({
         </Panel>
         );
         const briefsPanel = (
-      <Panel flush label="From our briefs">
+      <Panel flush label="What our research says">
         <div className="overflow-hidden">
           <div className={`grid ${pair ? "md:grid-cols-2 xl:grid-cols-1" : symbols.length === 3 ? "md:grid-cols-3" : "md:grid-cols-2 xl:grid-cols-4"}`}>
             {symbols.map((symbol, index) => {
@@ -225,9 +226,9 @@ export async function CompareView({
         const tablePanel = (
       <Panel
         flush
-        label="Side by side"
+        label="All the numbers"
         right={
-          <span className="inline-flex items-center gap-3">
+          <span className="inline-flex items-center gap-3 max-sm:hidden">
             <span className="inline-flex items-center gap-1.5">
               <span className="size-1.5 rounded-full bg-oa-primary" /> best in the row
             </span>
@@ -256,7 +257,7 @@ export async function CompareView({
                           <span className="max-sm:hidden"><StockLogo ticker={symbol} size={22} /></span>
                           <span className={`${NUM} text-[15px] font-medium text-oa-fg group-hover:underline group-focus-visible:underline`}>{symbol}</span>
                         </span>
-                        <span className="max-w-[5.75rem] truncate text-[12.5px] text-oa-muted-fg sm:max-w-[11rem]">{row?.name ?? "Not covered"}</span>
+                        <span className="max-w-[5.75rem] text-pretty text-right text-[12.5px] leading-4 text-oa-muted-fg sm:max-w-[11rem]">{row?.name ? shortCompanyName(row.name) : "Not covered"}</span>
                       </a>
                       <div className={`${NUM} mt-1 text-[11px] text-oa-muted-fg`}>
                         {row ? `${wins[index]} ${wins[index] === 1 ? "row" : "rows"} won` : ""}
@@ -288,11 +289,11 @@ export async function CompareView({
                         ))}
                       </tr>
                       <tr className="border-b border-oa-border">
-                        <th scope="row" className={LABEL_CELL}>The reason, in one line</th>
+                        <th scope="row" className={LABEL_CELL}>Why</th>
                         {rows.map((row, index) => (
                           <td key={index} className={`${CELL} w-[7.25rem] max-w-[7.25rem] sm:w-[10.5rem] sm:max-w-[10.5rem]`}>
                             {row?.call_reason ? (
-                              <span className="block text-pretty text-right text-[12.5px] leading-[1.15rem] text-oa-fg">{row.call_reason}</span>
+                              <span className="block text-pretty text-right text-[12.5px] leading-[1.15rem] text-oa-fg">{plainCallReason(row.call_reason)}</span>
                             ) : (
                               <Unknown />
                             )}
@@ -300,7 +301,7 @@ export async function CompareView({
                         ))}
                       </tr>
                       <tr className="border-b border-oa-border">
-                        <th scope="row" className={LABEL_CELL}>Price against our zones</th>
+                        <th scope="row" className={LABEL_CELL}>Where the price sits</th>
                         {rows.map((row, index) => (
                           <td key={index} className={CELL}>
                             {row?.zone ? (
@@ -308,8 +309,8 @@ export async function CompareView({
                                 <ZoneTag zone={row.zone} />
                                 {/* Phones get fixed 6.5rem columns, too narrow for "add under $535.93" on one line, so it wraps there instead of running into the next column. */}
                                 <span className={`${NUM} flex flex-col items-end text-right text-[11.5px] leading-4 text-oa-muted-fg sm:whitespace-nowrap`}>
-                                  {row.add_below !== undefined ? <span>add under {fmtMoney(row.add_below)}</span> : null}
-                                  {row.trim_above !== undefined ? <span>trim over {fmtMoney(row.trim_above)}</span> : null}
+                                  {row.add_below !== undefined ? <span>buy more under {fmtMoney(row.add_below)}</span> : null}
+                                  {row.trim_above !== undefined ? <span>sell some over {fmtMoney(row.trim_above)}</span> : null}
                                 </span>
                               </span>
                             ) : data.rows[index]?.zone ? (
@@ -368,11 +369,15 @@ export async function CompareView({
           <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.75fr)_minmax(0,1fr)] xl:gap-5">
             <div className="flex min-w-0 flex-col gap-4 max-xl:contents xl:gap-5">
               <div className="min-w-0 max-xl:order-1">{chartPanel}</div>
-              <div className="min-w-0 max-xl:order-3">{tablePanel}</div>
+              <div className="min-w-0 max-xl:order-3">
+                <ShowMore label="Show all the numbers side by side">{tablePanel}</ShowMore>
+              </div>
             </div>
             <div className="flex min-w-0 flex-col gap-4 max-xl:contents xl:gap-5">
               <div className="min-w-0 max-xl:order-2">{separatesPanel}</div>
-              <div className="min-w-0 max-xl:order-4">{briefsPanel}</div>
+              <div className="min-w-0 max-xl:order-4">
+                <ShowMore label="Show what our research says about each">{briefsPanel}</ShowMore>
+              </div>
             </div>
           </div>
         ) : (

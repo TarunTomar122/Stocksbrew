@@ -14,6 +14,7 @@ Standard library only. Each module is runnable on its own with `python3 -m backe
 | `hourly` | `:20` every hour | `sec_filings`, `insiders_form4`, `calendar_events` (economic releases, IPOs, dividends) |
 | `after_close` | Mon to Fri 22:30 | `backtest_strategies` (daily prices, strategy baskets, live record), `earnings_calendar`, `earnings_reactions`, `screener`, then the standing agents (`scripts/run-agent-jobs.ts`) |
 | `weekly` | Sun 06:00 | `funds_13f`, `fund_holders`, `house_ptr` |
+| `earnings_day` | every 10 min, Mon to Fri 06:00 to 20:59 New York (not installed yet) | `earnings_day`: a report per covered stock that filed earnings today (8-K Item 2.02 on EDGAR, Nasdaq EPS estimate and actual, Yahoo prices) into `tm_earnings_day`; off unless `EARNINGS_DAY_ENABLED=1` |
 
 ```sh
 python3 -m backend.agentdata.schedule --list

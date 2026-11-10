@@ -13,6 +13,7 @@ import { sectorSlug } from "@/lib/screener-shared";
 import { causeWords, cleanTicker, insiderHref, isIsoDay, longDay, moveHref, moveTitle, moversDayHref, sectorHref, stockLabel } from "@/lib/seo/families";
 import { getCoverage, getMovesDay, getRecentMoves } from "@/lib/seo/family-data";
 import { getSeoStockPage, stockHasCurrentRead } from "@/lib/seo/stock-pages";
+import { plainCallReason } from "@/lib/plain-copy";
 
 /**
  * Why a stock moved on one day (/stock/LCID/moves/2026-11-10). A page exists
@@ -161,7 +162,7 @@ export default async function MovePage({ params }: Props) {
                 <CallTag call={row.call} />
                 {row.call_at ? <span className={`${NUM} text-[12.5px] text-oa-muted-fg`}>dated {fmtDay(row.call_at, true)}</span> : null}
               </div>
-              {row.call_reason ? <p className="mt-2 text-pretty text-[14px] leading-[1.45rem] text-oa-fg">{row.call_reason}</p> : null}
+              {row.call_reason ? <p className="mt-2 text-pretty text-[14px] leading-[1.45rem] text-oa-fg">{plainCallReason(row.call_reason)}</p> : null}
             </>
           ) : (
             <p className="text-[14px] leading-5 text-oa-muted-fg">We do not have a call on {ticker} yet.</p>

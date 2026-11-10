@@ -172,6 +172,14 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-10 night, UI council round 1 live; import + thesis built (lead)
+
+- Owner priorities for the night: UI/UX hill climb with the Codex + Cursor council until 10/10 from both, on focus, navigation, plain language, progressive disclosure, human writing (full sentences, no truncation, no AI-slop phrasing), visuals; ideas from docs/ideas.md built one by one in parallel.
+- Round 1 baseline (council/ux1.md, 16 pages, 7 dims): Codex mean 5.31, Cursor 4.66; worst: movers, follow, agents.
+- Round 1 fixes LIVE (`1e2afa2`): plain-copy helpers, MoveBar/RangeBar/ShowMore, stock page tabs + Related row + plain call meaning, /movers ranked lists, no ellipsis cuts, plain read builders, captions as sans text, nav matches. Quality pass: SHIP WITH FIXES (tab history state, dead anchor, overstated wording), all fixed; tsc 0, vitest 1176/1176, eslint clean.
+- Built, NOT shipped (owner reviews in the morning): screenshot/paste import on /watchlist, /import no-signup portfolio read from the landing, "why do you own this" step with reasons on rows (users/{uid}.theses). OpenAI vision path untested live (no local key). Entry lines in portfolio-view, positions-table and hero-briefing are uncommitted.
+- Running: council loop round 2+ (status in council/ux-status.md, ship per round after a quality pass); earnings day agent (built, not switched on).
+
 ### 2026-11-10, morning briefs follow the movers (lead)
 
 - `e7e5a0d` on the VPS: morning brief run chained after the 09:50 ET price batch (OnSuccess open-anomalies + open-briefs, 3 min retry), selection in backend/morning_brief_selection.py (news, 3%+ or 2x usual move, Pro earnings, anomaly/Reddit zone; cap 160). zone-briefs removed; 15 timers pinned to America/New_York with a reset so the reload fired nothing. Premarket now 07:30 ET (was 03:30 ET / 2 PM IST). Evening run unchanged. Dry run on the VPS: 163 candidates, 73 selected (68 move, 14 zone, 2 earnings), HIMS and ASTS included. Unit backup: /root/tikrr-units-pre-20261110.tgz; rollback steps in the review (checkout 8a6bb35, restore units, daemon-reload, re-enable zone-briefs).

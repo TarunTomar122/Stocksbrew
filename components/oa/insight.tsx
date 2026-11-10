@@ -1,6 +1,7 @@
 import * as React from "react";
 import Link from "next/link";
 
+import { ShowMore } from "@/components/oa/kit/more";
 import { ToneGlyph } from "@/components/oa/kit/tone";
 import { StockLogo } from "@/components/stock-logo";
 import type { Insight, TheRead as TheReadData } from "@/lib/insights";
@@ -11,21 +12,44 @@ import type { Insight, TheRead as TheReadData } from "@/lib/insights";
  * the top of a page or panel, above the data it was drawn from. Renders
  * nothing when there is no insight, so a page never shows an empty box.
  */
-export function TheRead({ read, label = "The read", className = "" }: { read: TheReadData | null | undefined; label?: string; className?: string }) {
+export function TheRead({
+  read,
+  label = "The read",
+  className = "",
+  fold,
+}: {
+  read: TheReadData | null | undefined;
+  label?: string;
+  className?: string;
+  /**
+   * Where the supporting points wait behind one button, leaving the headline:
+   * "phone" below `lg`, "always" on every screen (pages whose main job is a
+   * tool, like the screener). Without it every point shows.
+   */
+  fold?: "phone" | "always";
+}) {
   if (!read || (!read.headline && read.insights.length === 0)) return null;
+  const points =
+    read.insights.length > 0 ? (
+      <ul className="mt-3 divide-y divide-oa-border border-t border-oa-border">
+        {read.insights.map((insight) => (
+          <InsightRow key={insight.id} insight={insight} />
+        ))}
+      </ul>
+    ) : null;
   return (
     <section aria-label={label} className={`oa-surface border border-oa-border bg-oa-card px-4 pb-3 pt-3.5 sm:px-5 sm:pb-3.5 sm:pt-4 ${className}`}>
       <p className="oa-label">{label}</p>
       {read.headline ? (
         <h2 className="mt-1 max-w-[46rem] text-pretty text-[19px] font-semibold leading-[26px] tracking-[-0.01em] text-oa-fg sm:text-[21px] sm:leading-[28px]">{read.headline}</h2>
       ) : null}
-      {read.insights.length > 0 ? (
-        <ul className="mt-3 divide-y divide-oa-border border-t border-oa-border">
-          {read.insights.map((insight) => (
-            <InsightRow key={insight.id} insight={insight} />
-          ))}
-        </ul>
-      ) : null}
+      {points && fold && read.headline ? (
+        <ShowMore always={fold === "always"} label={`Show ${read.insights.length === 1 ? "the detail" : `${read.insights.length} more points`}`} className="[&>button]:mb-1">
+          {points}
+        </ShowMore>
+      ) : (
+        points
+      )}
       {read.source || read.asOf ? (
         <p className={`text-[12.5px] leading-[18px] text-oa-muted-fg ${read.insights.length > 0 ? "border-t border-oa-border pt-2.5" : "mt-2"}`}>
           {[read.source, read.asOf ? `${read.source ? "as of" : "As of"} ${fmtReadTime(read.asOf)}` : null].filter(Boolean).join(" · ")}
@@ -39,11 +63,15 @@ export function InsightRow({ insight }: { insight: Insight }) {
   const tickers = insight.tickers ?? [];
   // One stock: its logo and ticker lead the row once, and a leading "SMR:" in
   // the sentence is dropped so the name never shows twice.
-  const lead = tickers.length === 1 ? tickers[0]! : null;
+  // Only when the sentence is about that stock (it starts with it); otherwise
+  // a logo in front of "Over the past month the group..." reads as its subject.
+  const lead = tickers.length === 1 && startsWithTicker(insight.text, tickers[0]!) ? tickers[0]! : null;
   const text = lead ? stripLeadingTicker(insight.text, lead) : insight.text;
   // Several stocks: chips only for the ones the sentence (or its second clause) does not already name.
   const said = insight.soWhat ? `${text} ${insight.soWhat}` : text;
-  const extra = lead ? [] : tickers.filter((ticker) => !mentions(said, ticker)).slice(0, 6);
+  // A sentence that names its stocks needs no chips; extra chips under "BHE, NVDA and TSM" read as a mismatch.
+  const namesAny = tickers.some((ticker) => mentions(said, ticker));
+  const extra = lead || namesAny ? [] : tickers.slice(0, 6);
   // Three columns on a wide screen: the tone mark, the sentence (with any
   // extra stocks under it), and the link to act, level with the first line.
   // On a phone the link drops under the sentence.
@@ -123,6 +151,10 @@ export function stripLeadingTicker(text: string, ticker: string): string {
   const rest = text.slice(match[0].length);
   if (!rest) return text;
   return match[1] ? rest.charAt(0).toUpperCase() + rest.slice(1) : rest;
+}
+
+function startsWithTicker(text: string, ticker: string): boolean {
+  return new RegExp(`^\\s*\\$?${escapeRe(ticker)}(?![A-Za-z0-9])`).test(text);
 }
 
 function mentions(text: string, ticker: string): boolean {

@@ -3,6 +3,7 @@ import { CALENDAR_TYPES, todayET } from "@/lib/calendar-shared";
 import { GUIDES, SECTIONS, guideHref } from "@/lib/docs";
 import { LEGAL_DOCS } from "@/lib/docs/company";
 import { DOC_COMPARISONS, docCompareHref } from "@/lib/docs/compare";
+import { earningsDayHref } from "@/lib/earnings-day-shared";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { getFollowSources } from "@/lib/follow";
 import { INVESTMENT_THEMES } from "@/lib/investment-themes";
@@ -44,6 +45,7 @@ export const SITEMAP_FAMILIES = [
   "sectors",
   "insiders",
   "earnings",
+  "reports",
   "themes",
   "strategies",
   "funds",
@@ -213,6 +215,15 @@ export async function sitemapEntries(family: SitemapFamily, today: string = toda
       const coverage = await getCoverage();
       for (const ticker of await upcomingEarningsTickers(indexableStockSymbols(coverage, today))) entries.push({ path: `/calendar/earnings/${ticker}` });
       break;
+    }
+    case "reports": {
+      // One page per company report, once the release is read (lib/earnings-day-shared.ts isIndexable).
+      try {
+        const { sitemapReports } = await import("@/lib/earnings-day");
+        return (await sitemapReports(today)).map((row) => ({ path: earningsDayHref(row.ticker, row.day), ...(row.lastmod ? { lastmod: row.lastmod } : {}) }));
+      } catch {
+        return [];
+      }
     }
     case "themes":
       entries.push({ path: "/themes" });

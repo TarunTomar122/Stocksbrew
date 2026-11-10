@@ -40,8 +40,8 @@ export function StockTallyPanel({
             return (
               <li key={row.ticker} className="grid min-h-11 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 px-4 py-1.5">
                 <div className="min-w-0">
-                  <Ticker symbol={row.ticker} name={row.name} size={18} className="max-w-full" />
-                  <p className="mt-0.5 truncate text-[12.5px] leading-[18px] text-oa-muted-fg">
+                  <Ticker symbol={row.ticker} name={row.name} size={18} wrap className="max-w-full" />
+                  <p className="mt-0.5 text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg">
                     {names.join(", ")}
                     {more > 0 ? ` +${more}` : ""}
                   </p>

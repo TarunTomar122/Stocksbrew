@@ -40,6 +40,8 @@ export type JobsWorkspaceProps = {
   focusJobId?: string | null;
   /** A replay computed on the server for the signed-out example. */
   sample?: { draft: AgentJobDraft; replay: Replay } | null;
+  /** Template ids not offered right now (server flags, lib/agent-jobs.ts hiddenTemplateIds). */
+  hiddenTemplates?: string[];
 };
 
 const CARD = "oa-surface overflow-hidden border border-oa-border bg-oa-card";
@@ -128,8 +130,8 @@ function ReplayPanel({ replay, job }: { replay: Replay; job: Pick<AgentJob, "tri
             {rows.length === 0
               ? "There was nothing to check in the last four weeks."
               : told === 0
-                ? `All quiet: it would not have told you anything in ${rows.length} checks.`
-                : `It would have spoken up ${told} ${told === 1 ? "time" : "times"} in ${rows.length} checks.`}
+                ? `All quiet: it would not have told you anything in the last ${rows.length} market days.`
+                : `It would have told you on ${told} of the last ${rows.length} market days.`}
           </p>
           {replay.tickers.length > 0 ? (
             <p className="mt-0.5 text-[13px] leading-5 text-oa-muted-fg">
@@ -149,7 +151,7 @@ function ReplayPanel({ replay, job }: { replay: Replay; job: Pick<AgentJob, "tri
       {rows.length > 0 ? (
         <details className="group border-t border-oa-border bg-oa-card">
           <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between px-3.5 text-[13px] font-medium text-oa-muted-fg hover:text-oa-fg sm:px-4">
-            Every check in the replay ({rows.length})
+            See all {rows.length} days
             <span aria-hidden="true" className="transition-transform group-open:rotate-90">›</span>
           </summary>
           <div className="border-t border-oa-border">
@@ -174,6 +176,8 @@ const GROUP_LABEL: Record<AgentTemplate["group"], string> = {
   Price: "When a price moves",
 };
 const GROUPS: AgentTemplate["group"][] = ["Schedule", "Event", "Price"];
+// A phone shows the first few agents; the rest wait behind one button.
+const PHONE_TEMPLATES = 4;
 
 /** Templates that start in one click: nothing to type, and they watch the names you track. */
 function oneClick(template: AgentTemplate, tracked: number): boolean {
@@ -209,7 +213,12 @@ export function JobsWorkspace({
   today,
   focusJobId,
   sample,
+  hiddenTemplates,
 }: JobsWorkspaceProps) {
+  const offered = React.useMemo(
+    () => (hiddenTemplates?.length ? AGENT_TEMPLATES.filter((entry) => !hiddenTemplates.includes(entry.id)) : AGENT_TEMPLATES),
+    [hiddenTemplates],
+  );
   const [jobs, setJobs] = React.useState(initialJobs);
   const [runs, setRuns] = React.useState(initialRuns);
   // A server refresh (signing in or out, say) replaces what this page holds.
@@ -225,6 +234,7 @@ export function JobsWorkspace({
   const [busy, setBusy] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [notice, setNotice] = React.useState<string | null>(null);
+  const [allTemplates, setAllTemplates] = React.useState(false);
   const [adding, setAdding] = React.useState(false);
   const builderRef = React.useRef<HTMLDivElement>(null);
 
@@ -232,6 +242,7 @@ export function JobsWorkspace({
   const payload = template ? payloadFor(template, form, signedIn) : null;
   const payloadKey = payload ? JSON.stringify(payload) : "";
   const replayIsCurrent = replay != null && replayFor === payloadKey;
+  const replayShown = Boolean(replay && replayIsCurrent);
 
   const draftPreview: Pick<AgentJobDraft, "trigger" | "scope"> | null = React.useMemo(() => {
     if (!template) return null;
@@ -385,8 +396,11 @@ export function JobsWorkspace({
     <div className="flex min-w-0 flex-col gap-3 sm:gap-4">
       <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 px-2 sm:px-0">
         <h1 className="text-balance text-[19px] font-semibold leading-6 tracking-[-0.01em] text-oa-fg sm:text-[22px] sm:leading-7">Agents</h1>
-        <p className="text-[12.5px] leading-5 text-oa-muted-fg">They watch your stocks and report back. They never trade.</p>
       </header>
+      <p className="-mt-1 max-w-[62ch] text-pretty px-2 text-[15px] leading-[22px] text-oa-muted-fg sm:-mt-2 sm:px-0">
+        An agent watches your stocks for one thing you pick, like a big daily move or an earnings date, and reports here and by email when it
+        happens. Agents never trade.
+      </p>
 
       {error ? (
         <p role="alert" className="rounded-lg border border-[color:color-mix(in_srgb,var(--signal-bearish)_40%,transparent)] bg-oa-card px-3.5 py-2 text-[13px] text-signal-bearish">
@@ -433,56 +447,6 @@ export function JobsWorkspace({
         </section>
       ) : null}
 
-      {showTemplates ? (
-        <section aria-labelledby="templates-label" className="flex min-w-0 flex-col gap-2">
-          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 px-2 sm:px-0">
-            <h2 id="templates-label" className="oa-label">
-              {hasJobs ? "Add an agent" : "Pick an agent to start"}
-            </h2>
-            <p className="text-[12.5px] leading-5 text-oa-muted-fg">
-              {signedIn
-                ? tracked > 0
-                  ? `Start watches your ${tracked} tracked names. Preview shows the last 4 weeks first.`
-                  : "Track a few stocks first, or pick tickers in Preview."
-                : "Preview any of them on real prices. Sign in to switch one on."}
-            </p>
-          </div>
-          <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {GROUPS.flatMap((group) => AGENT_TEMPLATES.filter((entry) => entry.group === group)).map((entry) => {
-              const active = entry.id === templateId;
-              const unavailable = Boolean(entry.needs && !available[entry.needs]);
-              const taken = jobs.some((job) => job.template === entry.id && entry.id !== "price-level");
-              return (
-                <li
-                  key={entry.id}
-                  className={`${CARD} flex flex-col gap-2 px-3.5 py-3 ${active ? "shadow-[inset_0_0_0_1px_var(--oa-primary)]" : ""}`}
-                >
-                  <div className="min-w-0">
-                    <p className="oa-caption">{GROUP_LABEL[entry.group]}</p>
-                    <p className="mt-1 flex flex-wrap items-baseline gap-x-2 text-[14.5px] font-medium leading-5 text-oa-fg">
-                      {entry.title}
-                      {unavailable ? <span className="text-[12px] font-normal text-oa-muted-fg">no data yet</span> : null}
-                      {taken ? <span className="text-[12px] font-normal text-oa-muted-fg">already running</span> : null}
-                    </p>
-                    <p className="mt-0.5 text-pretty text-[13px] leading-[18px] text-oa-muted-fg">{entry.tells}</p>
-                  </div>
-                  <div className="mt-auto flex items-center gap-2 pt-1">
-                    {signedIn && oneClick(entry, tracked) && !taken ? (
-                      <OaButton size="xs" loading={busy === `start-${entry.id}`} onClick={() => quickStart(entry)} data-template-start={entry.id}>
-                        Start
-                      </OaButton>
-                    ) : null}
-                    <OaButton size="xs" variant="secondary" aria-pressed={active} data-template={entry.id} onClick={() => pick(entry)}>
-                      {entry.id === "price-level" ? "Set up" : "Preview"}
-                    </OaButton>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      ) : null}
-
       {template && draftPreview ? (
         <section aria-label="Set up an agent" className={CARD}>
           <header className="flex min-h-11 items-center justify-between gap-3 border-b border-oa-border px-3.5 py-2 sm:px-4">
@@ -493,19 +457,21 @@ export function JobsWorkspace({
           </header>
           <div ref={builderRef} className="grid min-w-0 content-start gap-3.5 px-3.5 py-3.5 sm:px-4">
             {starter && replayFor === starter.key && replayIsCurrent ? (
-              <p className="text-[13px] leading-5 text-oa-muted-fg">An example on five big names, already replayed on real closes. Change anything, or pick another agent above.</p>
+              <p className="text-pretty text-[14px] leading-5 text-oa-fg">
+                An example: this agent watching Nvidia, Apple, Microsoft, Amazon and Tesla over the last four weeks of real prices. Change anything, or pick a different agent below.
+              </p>
             ) : null}
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className={`grid gap-3 sm:grid-cols-2 xl:grid-cols-4 ${replayShown ? "order-4 border-t border-oa-border pt-3.5" : "order-1"}`}>
               {template.id !== "price-level" ? (
                 <label className="grid gap-1 text-[12.5px] font-medium text-oa-muted-fg">
-                  Which names
+                  Which stocks
                   <select
                     className={INPUT}
                     value={!signedIn && form.scope === "watchlist" ? "tickers" : form.scope}
                     onChange={(event) => setForm({ ...form, scope: event.target.value as Form["scope"] })}
                   >
-                    {signedIn ? <option value="watchlist">The names I track ({tracked})</option> : null}
-                    <option value="tickers">Tickers I choose</option>
+                    {signedIn ? <option value="watchlist">The stocks I track ({tracked})</option> : null}
+                    <option value="tickers">Stocks I choose</option>
                     {template.defaults.trigger.type === "event" &&
                     ["fund_13f", "congress_trade", "insider_trade"].includes(template.defaults.trigger.event) ? (
                       <option value="any">Any stock</option>
@@ -514,7 +480,7 @@ export function JobsWorkspace({
                 </label>
               ) : null}
               {needsTickers ? (
-                <label className="grid gap-1 text-[12.5px] font-medium text-oa-muted-fg">
+                <label className={`grid gap-1 text-[12.5px] font-medium text-oa-muted-fg ${template.id === "price-level" ? "" : "xl:col-span-2"}`}>
                   {template.id === "price-level" ? "Ticker" : "Tickers"}
                   <input
                     className={`${INPUT} oa-mono uppercase`}
@@ -543,7 +509,7 @@ export function JobsWorkspace({
               ) : null}
               {template.fields.includes("pct") ? (
                 <label className="grid gap-1 text-[12.5px] font-medium text-oa-muted-fg">
-                  Move in a day (%)
+                  Smallest daily move (%)
                   <input className={`${INPUT} oa-mono`} inputMode="decimal" value={form.pct} onChange={(event) => setForm({ ...form, pct: event.target.value })} />
                 </label>
               ) : null}
@@ -567,15 +533,15 @@ export function JobsWorkspace({
               ) : null}
             </div>
 
-            <div className="rounded-xl border border-oa-border bg-oa-bg px-3.5 py-3">
-              <p className="oa-caption">What you are asking for</p>
+            <div className={`rounded-xl border border-oa-border bg-oa-bg px-3.5 py-3 ${replayShown ? "order-1" : "order-2"}`}>
+              <p className="oa-caption">This agent will tell you</p>
               <p className="mt-1 max-w-[70ch] text-pretty text-[16px] leading-6 text-oa-fg">&ldquo;{describeJob(draftPreview)}&rdquo;</p>
               {sourceNote(template, available) ? (
                 <p className="mt-1.5 text-[12.5px] leading-5 text-[color:color-mix(in_srgb,var(--oa-fg)_80%,transparent)]">{sourceNote(template, available)}</p>
               ) : null}
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="order-3 flex flex-wrap items-center gap-2">
               {signedIn ? (
                 <OaButton loading={busy === "create"} onClick={turnOn} className="max-sm:!h-10">
                   Switch it on
@@ -584,15 +550,85 @@ export function JobsWorkspace({
                 <SignInButton label="Sign in to switch it on" size="md" className="max-sm:!h-10" />
               )}
               <OaButton variant="secondary" data-action="replay" loading={busy === "replay"} onClick={runReplay} className="max-sm:!h-10">
-                {replay && replayIsCurrent ? "Replay again" : "Replay the last 4 weeks"}
+                {replay && replayIsCurrent ? "Replay with these settings" : "Replay the last 4 weeks"}
               </OaButton>
               {replay && !replayIsCurrent ? <span className="text-[12.5px] text-oa-muted-fg">You changed it. Replay again to see the new result.</span> : null}
             </div>
 
-            {replay && replayIsCurrent ? <ReplayPanel replay={replay} job={draftPreview} /> : null}
+            {replayShown && replay ? (
+              <div className="order-2">
+                <ReplayPanel replay={replay} job={draftPreview} />
+              </div>
+            ) : null}
           </div>
         </section>
       ) : null}
+
+      {showTemplates ? (
+        <section aria-labelledby="templates-label" className="flex min-w-0 flex-col gap-2">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 px-2 sm:px-0">
+            <h2 id="templates-label" className="oa-label">
+              {hasJobs ? "Add an agent" : template && draftPreview ? "Other agents you can set up" : "Pick an agent to start"}
+            </h2>
+            <p className="text-[12.5px] leading-5 text-oa-muted-fg">
+              {signedIn
+                ? tracked > 0
+                  ? `Start watches your ${tracked} tracked names. Preview shows the last 4 weeks first.`
+                  : "Track a few stocks first, or pick tickers in Preview."
+                : "Try any of them on the last four weeks of prices. Sign in to switch one on."}
+            </p>
+          </div>
+          <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {GROUPS.flatMap((group) => offered.filter((entry) => entry.group === group)).map((entry, index) => {
+              const active = entry.id === templateId;
+              const unavailable = Boolean(entry.needs && !available[entry.needs]);
+              const taken = jobs.some((job) => job.template === entry.id && entry.id !== "price-level");
+              return (
+                <li
+                  key={entry.id}
+                  className={`${CARD} flex flex-col gap-2 px-3.5 py-3 ${active ? "shadow-[inset_0_0_0_1px_var(--oa-primary)]" : ""} ${
+                    !allTemplates && index >= PHONE_TEMPLATES ? "max-lg:hidden" : ""
+                  }`}
+                >
+                  <div className="min-w-0">
+                    <p className="oa-caption">{GROUP_LABEL[entry.group]}</p>
+                    <p className="mt-1 flex flex-wrap items-baseline gap-x-2 text-[14.5px] font-medium leading-5 text-oa-fg">
+                      {entry.title}
+                      {unavailable ? <span className="text-[12px] font-normal text-oa-muted-fg">no data yet</span> : null}
+                      {taken ? <span className="text-[12px] font-normal text-oa-muted-fg">already running</span> : null}
+                    </p>
+                    <p className="mt-0.5 text-pretty text-[13px] leading-[18px] text-oa-muted-fg">{entry.tells}</p>
+                  </div>
+                  <div className="mt-auto flex items-center gap-2 pt-1">
+                    {signedIn && oneClick(entry, tracked) && !taken ? (
+                      <OaButton size="xs" loading={busy === `start-${entry.id}`} onClick={() => quickStart(entry)} data-template-start={entry.id}>
+                        Start
+                      </OaButton>
+                    ) : null}
+                    <OaButton size="xs" variant="secondary" aria-pressed={active} data-template={entry.id} onClick={() => pick(entry)}>
+                      {entry.id === "price-level" ? "Set up" : "Preview"}
+                    </OaButton>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          {offered.length > PHONE_TEMPLATES ? (
+            <button
+              type="button"
+              aria-expanded={allTemplates}
+              onClick={() => setAllTemplates((value) => !value)}
+              className="flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-oa-border bg-oa-card px-4 text-[14px] font-medium text-oa-fg outline-none transition-colors hover:bg-oa-accent focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)] lg:hidden"
+            >
+              {allTemplates ? "Show fewer" : `Show all ${offered.length} agents`}
+              <span aria-hidden="true" className={`text-oa-muted-fg transition-transform ${allTemplates ? "rotate-180" : ""}`}>
+                ▾
+              </span>
+            </button>
+          ) : null}
+        </section>
+      ) : null}
+
     </div>
   );
 }

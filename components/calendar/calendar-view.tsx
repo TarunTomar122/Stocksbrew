@@ -1,7 +1,8 @@
 import * as React from "react";
 
 import { DataTable, type DataColumn, type DataRow } from "@/components/oa/kit/data-table";
-import { Delta, Empty, FOCUS, NUM, Panel, Tag, Ticker, ToneGlyph, Verdict, fmtCompact } from "@/components/oa/kit";
+import { Delta, Empty, FOCUS, NUM, Panel, ShowMore, Tag, Ticker, ToneGlyph, Verdict, fmtCompact } from "@/components/oa/kit";
+import { shortCompanyName } from "@/lib/plain-copy";
 import {
   CALENDAR_TYPES,
   LIST_SPAN_DAYS,
@@ -318,7 +319,8 @@ function EarningsLine({
     >
       <span className={`${NUM} shrink-0 text-[14px] ${quiet ? "font-medium text-oa-fg" : "font-semibold text-oa-fg"} ${compact ? "" : narrow && reported ? "min-w-[3.25rem] lg:min-w-0" : "min-w-[3.25rem]"}`}>{item.ticker}</span>
       {narrow && reported ? <ResultMark item={item} /> : null}
-      <span className={`min-w-0 flex-1 truncate text-[14px] text-oa-muted-fg ${detail} ${narrow && reported ? "lg:hidden" : ""}`}>{item.company}</span>
+      {/* Wraps on a phone rather than cutting the name; the narrow desktop columns still clip. */}
+      <span className={`min-w-0 flex-1 text-pretty text-[14px] leading-5 text-oa-muted-fg ${narrow ? "lg:truncate" : ""} ${detail} ${narrow && reported ? "lg:hidden" : ""}`}>{shortCompanyName(item.company)}</span>
       <span className="ml-auto flex shrink-0 items-baseline gap-2 text-[14px]">
         {mark && !reported && item.hasPreRead ? <PreReadMark className="self-center" /> : null}
         {reported ? (
@@ -332,7 +334,9 @@ function EarningsLine({
           </>
         ) : item.epsEstimate !== null ? (
           <span className={`${NUM} text-oa-muted-fg`}>
-            <span className="text-[12.5px]">est</span> {fmtEps(item.epsEstimate)}
+            <span className={`text-[12.5px] ${narrow ? "lg:hidden" : ""}`}>expected</span>
+            {narrow ? <span className="text-[12.5px] max-lg:hidden">est</span> : null} {fmtEps(item.epsEstimate)}
+            <span className={`text-[12.5px] ${narrow ? "lg:hidden" : ""}`}> a share</span>
           </span>
         ) : null}
       </span>
@@ -367,13 +371,13 @@ function IpoLine({ item }: { item: IpoItem }) {
   return (
     <div className="px-3 py-1.5">
       <span className="flex items-center justify-between gap-2">
-        <span className="min-w-0 truncate text-[14px] font-medium text-oa-fg">{item.company}</span>
+        <span className="min-w-0 text-pretty text-[14px] font-medium leading-5 text-oa-fg">{item.company}</span>
         {item.ticker ? <span className={`${NUM} shrink-0 text-[12.5px] text-oa-muted-fg`}>{item.ticker}</span> : null}
       </span>
-      <span className={`${NUM} mt-0.5 block truncate text-[12.5px] leading-4 text-oa-muted-fg`}>
+      <span className={`${NUM} mt-0.5 block text-pretty text-[12.5px] leading-4 text-oa-muted-fg`}>
         {[
           item.status === "priced" ? (price ? `priced at ${price}` : "priced") : price ? `${price} range` : "price not set",
-          item.offerAmount ? `${fmtCompact(item.offerAmount, "$")} raise` : "",
+          item.offerAmount ? `raising ${fmtCompact(item.offerAmount, "$")}` : "",
           item.exchange,
         ]
           .filter(Boolean)
@@ -456,7 +460,7 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
         </span>
       </a>
 
-      <div className={past ? "max-lg:hidden" : ""}>
+      <DayBody fold={!isToday && !past && bucket.total > 0} past={past} label={`Show ${dayCount(bucket)}`}>
         {bucket.total === 0 ? <p className="px-3 py-4 text-[14px] text-oa-muted-fg">Nothing scheduled.</p> : null}
 
         {bucket.economic.length ? (
@@ -472,7 +476,7 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
           const rows = bucket.earnings[session];
           return (
             <div key={session}>
-              <h3 className={`${SECTION} flex items-center justify-between`}>
+              <h3 className={`${SECTION} flex items-baseline justify-between gap-2`}>
                 <span>{SESSION_LABEL[session]}</span>
                 <span className={NUM}>{rows.length}</span>
               </h3>
@@ -497,7 +501,7 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
         {bucket.dividends.length ? (
           <div>
             <h3 className={`${SECTION} flex items-center justify-between`}>
-              <span>Ex-dividend</span>
+              <span>Own it before this day for the dividend</span>
               <span className={NUM}>{bucket.dividends.length}</span>
             </h3>
             {bucket.dividends.slice(0, WEEK_OTHER_ROWS).map((item) => (
@@ -507,9 +511,37 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
           </div>
         ) : null}
         <div className="h-2" />
-      </div>
+      </DayBody>
     </section>
   );
+}
+
+/** "12 reports, 1 IPO and 4 dividends": what a folded day holds, for its button. */
+function dayCount(bucket: DayBuckets): string {
+  const reports = earningsCount(bucket);
+  const parts = [
+    bucket.economic.length ? `${bucket.economic.length} economic release${bucket.economic.length === 1 ? "" : "s"}` : "",
+    reports ? `${reports} report${reports === 1 ? "" : "s"}` : "",
+    bucket.ipos.length ? `${bucket.ipos.length} IPO${bucket.ipos.length === 1 ? "" : "s"}` : "",
+    bucket.dividends.length ? `${bucket.dividends.length} dividend${bucket.dividends.length === 1 ? "" : "s"}` : "",
+  ].filter(Boolean);
+  return parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}` : parts[0] ?? "nothing scheduled";
+}
+
+/**
+ * A day's events. On a phone, a day still to come waits behind one button so
+ * today stays the first thing to read; a day that has passed stays a one-line
+ * header (its results open from there). From `lg` up every day shows.
+ */
+function DayBody({ fold, past, label, children }: { fold: boolean; past: boolean; label: string; children: React.ReactNode }) {
+  if (fold) {
+    return (
+      <ShowMore label={label} className="max-lg:px-3 max-lg:pb-3">
+        {children}
+      </ShowMore>
+    );
+  }
+  return <div className={past ? "max-lg:hidden" : ""}>{children}</div>;
 }
 
 /**
@@ -766,7 +798,7 @@ function ListDay({ bucket, today, single, filters, mark }: { bucket: DayBuckets;
           ) : null}
           {bucket.dividends.length ? (
             <div className="min-w-0 pb-1.5">
-              <h3 className={SECTION}>Ex-dividend</h3>
+              <h3 className={SECTION}>Own it before this day for the dividend</h3>
               {(single ? bucket.dividends : bucket.dividends.slice(0, 6)).map((item) => (
                 <DividendLine key={item.id} item={item} />
               ))}

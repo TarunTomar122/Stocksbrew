@@ -13,6 +13,8 @@ export function ShowMore({
   label,
   less = "Show less",
   always = false,
+  fill = false,
+  contents = false,
   children,
   className = "",
 }: {
@@ -20,6 +22,13 @@ export function ShowMore({
   label: React.ReactNode;
   less?: React.ReactNode;
   always?: boolean;
+  /** Inside a CardGrid: stretch to the row's height so cards side by side end at the same line. */
+  fill?: boolean;
+  /**
+   * From `lg` up, its children take part in the parent grid as if the wrapper
+   * were not there: one button on a phone for several cards side by side.
+   */
+  contents?: boolean;
   children: React.ReactNode;
   className?: string;
 }) {
@@ -27,8 +36,8 @@ export function ShowMore({
   const id = React.useId();
   const hide = open ? "" : always ? "hidden" : "max-lg:hidden";
   return (
-    <div className={className}>
-      <div id={id} className={hide}>
+    <div className={`${fill ? "lg:h-full" : ""} ${contents && !always ? "lg:contents" : ""} ${className}`}>
+      <div id={id} className={`${hide} ${fill && !always ? "lg:h-full" : ""} ${contents && !always ? "lg:contents" : ""}`}>
         {children}
       </div>
       <button

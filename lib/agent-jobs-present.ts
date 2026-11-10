@@ -407,10 +407,10 @@ export function presentRun(
       headline = extra.shift() ?? headline;
     }
   }
-  if (!todo) todo = zoneLine || "Nothing to act on.";
+  if (!todo) todo = zoneLine || "Nothing needs you.";
   else if (zoneLine) todo = `${zoneLine} ${todo}`;
   if (extra.length) todo = `${todo} ${extra.join(" ")}`;
-  if (!act && (trigger?.type === "event" && trigger.event !== "earnings_approaching") && todo === "Nothing to act on.") {
+  if (!act && (trigger?.type === "event" && trigger.event !== "earnings_approaching") && todo === "Nothing needs you.") {
     todo = "Worth a look.";
   }
 

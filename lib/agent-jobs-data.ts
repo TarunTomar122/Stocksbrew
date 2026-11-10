@@ -10,6 +10,9 @@
 
 import { randomBytes } from "node:crypto";
 
+import { listEarningsDayReports } from "@/lib/earnings-day";
+import type { EarningsReportFact } from "@/lib/earnings-day-agent";
+import { earningsDayHref, toneOfGuidance, toneOfVerdict } from "@/lib/earnings-day-shared";
 import { limitFor } from "@/lib/entitlements";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
@@ -318,6 +321,34 @@ async function loadEarnings(tickers: string[], from: string, to: string): Promis
   }
 }
 
+/** Earnings reports for these tickers (tm_earnings_day), as the "Earnings came out" agent reads them. */
+async function loadEarningsReports(tickers: string[], from: string): Promise<EarningsReportFact[] | null> {
+  try {
+    const wanted = new Set(tickers.map((ticker) => ticker.toUpperCase()));
+    const reports = await listEarningsDayReports(from);
+    return reports
+      .filter((report) => wanted.has(report.ticker))
+      .map((report) => {
+        const filedDay = report.filing?.filed_at
+          ? new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(report.filing.filed_at))
+          : report.event_date;
+        const verdictTone = toneOfVerdict(report.eps?.verdict);
+        return {
+          ticker: report.ticker,
+          date: report.event_date,
+          filed_day: filedDay,
+          title: report.read?.title ?? `${report.company} earnings`,
+          headline: report.read?.headline ?? `${report.ticker} reported earnings.`,
+          href: earningsDayHref(report.ticker, report.event_date),
+          url: report.filing?.url ?? null,
+          tone: verdictTone !== "flat" ? verdictTone : toneOfGuidance(report.guidance?.change),
+        };
+      });
+  } catch {
+    return null;
+  }
+}
+
 async function loadMovers(): Promise<{ movers: AgentFacts["movers"]; days: string[] } | null> {
   try {
     const snap = await adminFirestore.collection("tm_daily_anomalies").doc("US__latest").get();
@@ -354,13 +385,14 @@ export async function loadFacts(
 ): Promise<{ facts: AgentFacts; calendar: string[] }> {
   const from = addDays(options.end, -EVENT_LOOKBACK_DAYS);
   const settled = lastSettledDay(options.now ?? new Date());
-  const [{ prices, calendar }, congressDocs, fundDocs, insiderDocs, earnings, movers] = await Promise.all([
+  const [{ prices, calendar }, congressDocs, fundDocs, insiderDocs, earnings, movers, earningsReports] = await Promise.all([
     loadPrices(tickers, options.end < settled ? options.end : settled),
     loadCollection("tm_power_trades"),
     loadCollection("tm_follow_activity"),
     loadCollection("tm_insider_trades"),
     loadEarnings(tickers, from, addDays(options.end, 21)),
     loadMovers(),
+    loadEarningsReports(tickers, from),
   ]);
 
   const facts: AgentFacts = {
@@ -407,12 +439,14 @@ export async function loadFacts(
       .filter((trade) => trade.id && trade.ticker && trade.person && trade.filed >= from),
     movers: movers?.movers ?? [],
     mover_days: movers?.days ?? [],
+    earnings_reports: earningsReports ?? [],
     available: {
       congress: congressDocs != null && congressDocs.length > 0,
       fund_filings: (fundDocs ?? []).length > 0,
       insiders: (insiderDocs ?? []).length > 0,
       earnings: earnings != null,
       movers: movers != null,
+      earnings_reports: earningsReports != null,
     },
   };
   return { facts, calendar };

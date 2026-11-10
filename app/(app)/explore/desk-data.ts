@@ -129,10 +129,10 @@ function shiftDay(day: string, days: number): string {
  * A summary the reader can finish: the complete first sentence (never cut
  * mid-word with an ellipsis), Title Case headlines written as sentences.
  */
-function clip(text: string | null | undefined): string | null {
+function clip(text: string | null | undefined, options: { quote?: boolean } = {}): string | null {
   const value = (text ?? "").replace(/\s+/g, " ").trim();
   if (!value || !/[a-z]{3}/i.test(value)) return null;
-  return asSentence(firstFullSentence(value));
+  return asSentence(firstFullSentence(value), options);
 }
 
 /**
@@ -312,7 +312,7 @@ export const loadDeskSignals = section<Pick<DeskData, "reddit" | "posts">>(
       posts: {
         items: recentPosts.map((mention) => ({
           ticker: mention.tickers[0]!,
-          said: clip(mention.said) ?? "",
+          said: clip(mention.said, { quote: true }) ?? "",
           publishedAt: mention.published_at,
           url: mention.truth_url,
           sinceChangePct: mention.ticker_moves?.[0]?.change_since_pct ?? null,

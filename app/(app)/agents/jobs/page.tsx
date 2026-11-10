@@ -3,7 +3,7 @@ import { unstable_cache } from "next/cache";
 
 import { JobsWorkspace } from "@/components/agents-jobs/jobs-workspace";
 import { AppPage } from "@/components/oa/kit";
-import { parseJobDraft } from "@/lib/agent-jobs";
+import { hiddenTemplateIds, parseJobDraft } from "@/lib/agent-jobs";
 import { agentMarketDay, listJobs, listRuns, loadFacts, replayDraft, resolveScope } from "@/lib/agent-jobs-data";
 import { getSessionUser } from "@/lib/auth-server";
 
@@ -72,6 +72,7 @@ export default async function AgentJobsPage({ searchParams }: { searchParams?: {
           today={agentMarketDay()}
           focusJobId={focus}
           sample={sample}
+          hiddenTemplates={hiddenTemplateIds()}
         />
     </AppPage>
   );

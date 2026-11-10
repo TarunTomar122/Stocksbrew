@@ -35,6 +35,8 @@ WRITABLE_PREFIXES = (
     # Earnings calendar gap fill (earnings_calendar.py); it only touches events
     # dated 2026-08-14 or later.
     "tm_earnings_events",
+    # Earnings day reports (earnings_day.py): one per stock per report.
+    "tm_earnings_day",
     "tm_strategy_",
     "tm_strategies",
     "tm_backtest_",

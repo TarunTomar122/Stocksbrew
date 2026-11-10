@@ -11,6 +11,7 @@ import { ogImage } from "@/lib/og/url";
 import { sectorSlug, type ScreenerRow } from "@/lib/screener-shared";
 import { insiderHref, pairHref, pairIsIndexable, parsePairSlug, sectorHref, stockLabel, type StockPair } from "@/lib/seo/families";
 import { getCoverage, pairsFor, stockPairs, type Coverage } from "@/lib/seo/family-data";
+import { plainCallReason, shortCompanyName } from "@/lib/plain-copy";
 
 /**
  * Stock against stock: /compare/amd-vs-nvda. One page per pair of rivals in
@@ -80,7 +81,7 @@ function CallCard({ row }: { row: ScreenerRow }) {
       </div>
       {row.call ? (
         <>
-          {row.call_reason ? <p className="mt-2 text-pretty text-[14px] leading-[1.45rem] text-oa-fg">{row.call_reason}</p> : null}
+          {row.call_reason ? <p className="mt-2 text-pretty text-[14px] leading-[1.45rem] text-oa-fg">{plainCallReason(row.call_reason)}</p> : null}
           <p className={`${NUM} mt-2 text-[12px] text-oa-muted-fg`}>
             {row.call_at ? `Call dated ${fmtDay(row.call_at, true)}` : "Call date not on file"}
             {" · "}
@@ -152,9 +153,11 @@ export default async function PairPage({ params, searchParams }: Props) {
             <span>{pair.group}</span>
           </>
         }
-        title={`${name(first)} vs ${name(second)}`}
-        meta={<SourceLine source="Screener snapshot" asOf={coverage.priceDay ? `the ${fmtDay(coverage.priceDay, true)} close` : undefined} />}
-        note={false}
+        // Tickers keep the title on one line on a phone; the names follow underneath.
+        title={`${first.symbol} vs ${second.symbol}`}
+        lede={`${shortCompanyName(name(first))} and ${shortCompanyName(name(second))}, side by side.`}
+        meta={<SourceLine source="Prices and company data" asOf={coverage.priceDay ? `the ${fmtDay(coverage.priceDay, true)} close` : undefined} />}
+        full
       />
 
       <CompareView

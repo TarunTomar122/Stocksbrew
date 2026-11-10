@@ -51,6 +51,9 @@ export function PricingGrid({
   );
   const [busy, setBusy] = React.useState<"free" | "pro" | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  // On a phone only the first group of rows shows until asked: the plan
+  // differences that matter most, then everything on tap.
+  const [allRows, setAllRows] = React.useState(false);
   const active = prices.find((price) => price.period === period) ?? prices[0];
 
   async function startFree() {
@@ -126,7 +129,7 @@ export function PricingGrid({
         <div className="mb-3 px-2 sm:hidden">{periodSwitch}</div>
       ) : null}
       <section className="oa-surface overflow-clip border border-oa-border bg-oa-card">
-        <table className="w-full table-fixed border-collapse">
+        <table className={`w-full table-fixed border-collapse ${allRows ? "" : "max-lg:[&>tbody:nth-of-type(n+2)]:hidden"}`}>
           <colgroup>
             <col />
             <col className="w-[7.25rem] sm:w-[14rem] lg:w-[17rem]" />
@@ -141,7 +144,7 @@ export function PricingGrid({
                 <span className="max-sm:hidden">{periodSwitch}</span>
                 <p className="mt-3 max-w-[22rem] text-pretty text-[14px] leading-[22px] text-oa-muted-fg max-sm:hidden">
                   {active?.note ??
-                    "Reading is free on both plans. The difference is how much your agent covers for you."}
+                    "Both plans read every stock. Pro covers every stock you own in full, not just five."}
                 </p>
               </td>
 
@@ -211,16 +214,16 @@ export function PricingGrid({
                       onClick={() => void startPro()}
                     >
                       <span className="sm:hidden">
-                        {trial ? "Try free" : "Get Pro"}
+                        {trial ? "Try 3 days free" : "Get Pro"}
                       </span>
                       <span className="max-sm:hidden">{proCta}</span>
                     </OaButton>
                   )}
                 </span>
                 {plan !== "pro" ? (
-                  <span className="mt-2 block text-pretty text-[13px] leading-[18px] text-oa-muted-fg max-sm:hidden">
+                  <span className="mt-2 block text-pretty text-[13px] leading-[18px] text-oa-muted-fg">
                     {trial
-                      ? "Card needed. Nothing is charged for three days."
+                      ? `3 days free, then ${active?.price ?? ""} ${active?.per ?? ""}. Card needed.`.replace(/\s+/g, " ")
                       : "Cancel in one click. Refund in the first seven days."}
                   </span>
                 ) : null}
@@ -237,15 +240,22 @@ export function PricingGrid({
           </thead>
           {children}
         </table>
+        <button
+          type="button"
+          aria-expanded={allRows}
+          onClick={() => setAllRows((value) => !value)}
+          className="flex min-h-11 w-full items-center justify-center gap-2 border-t border-oa-border text-[14px] font-medium text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent lg:hidden"
+        >
+          {allRows ? "Show less" : "Show everything in each plan"}
+          <span aria-hidden="true" className={`text-oa-muted-fg transition-transform ${allRows ? "rotate-180" : ""}`}>
+            ▾
+          </span>
+        </button>
         {plan !== "pro" || active?.note ? (
           <p className="border-t border-oa-border px-3 py-3 text-[14px] leading-5 text-oa-muted-fg sm:hidden">
             {[
               active?.note,
-              plan !== "pro"
-                ? trial
-                  ? "Pro trial: card needed, nothing is charged for three days."
-                  : "Cancel Pro in one click; refund in the first seven days."
-                : null,
+              plan !== "pro" && !trial ? "Cancel Pro in one click; refund in the first seven days." : null,
             ]
               .filter(Boolean)
               .join(" ")}

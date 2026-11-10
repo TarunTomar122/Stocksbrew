@@ -252,7 +252,7 @@ export function PortfolioView({
 
   const missingShares = totals.holdings - totals.valued;
   const tabs: Array<{ key: PortfolioTab; label: string; count?: number }> = [
-    { key: "positions", label: "Positions", count: totals.holdings },
+    { key: "positions", label: "You own", count: totals.holdings },
     { key: "watching", label: "Watching", count: totals.watching },
     { key: "analytics", label: "Analytics" },
     {
@@ -276,8 +276,8 @@ export function PortfolioView({
                 {example ? "Example portfolio" : "Portfolio"}
               </h1>
               {example ? (
-                <span className="oa-mono inline-flex h-[22px] items-center rounded border border-[color-mix(in_srgb,var(--oa-primary)_45%,transparent)] bg-[color-mix(in_srgb,var(--oa-primary)_7%,transparent)] px-2 text-[12.5px] font-medium uppercase tracking-[0.04em] text-oa-primary">
-                  Not real positions
+                <span className="inline-flex h-[22px] items-center rounded border border-[color-mix(in_srgb,var(--oa-primary)_45%,transparent)] bg-[color-mix(in_srgb,var(--oa-primary)_7%,transparent)] px-2 text-[12.5px] font-medium text-oa-primary">
+                  Example, not real money
                 </span>
               ) : null}
             </div>
@@ -308,7 +308,7 @@ export function PortfolioView({
               {/* Today and total gain wrap as one group, so they never split across rows. */}
               <div className="col-span-2 flex gap-x-8">
                 <HeaderFigure
-                  label="Today"
+                  label={pricesAsOf ? `Change on ${fmtDay(pricesAsOf)}` : "Today"}
                   note={
                     totals.dayPct !== null ? (
                       <Pct value={totals.dayPct} />
@@ -324,7 +324,7 @@ export function PortfolioView({
                   )}
                 </HeaderFigure>
                 <HeaderFigure
-                  label="Total gain"
+                  label="Gain since bought"
                   note={
                     totals.gain !== null && totals.gainPct !== null ? (
                       <>
@@ -369,7 +369,7 @@ export function PortfolioView({
             )}
             <p className="text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg lg:text-right">
               {example
-                ? `Shares and costs are made up, prices are real${pricesAsOf ? ` (${fmtDay(pricesAsOf)} close)` : ""}.`
+                ? `Made-up shares and costs, real ${pricesAsOf ? `closing prices from ${fmtDay(pricesAsOf)}` : "prices"}.`
                 : asOf
                   ? `Prices as of ${fmtClock(asOf)}.`
                   : "Prices are the latest quote."}
@@ -445,12 +445,12 @@ export function PortfolioView({
           label={
             tab === "positions"
               ? example
-                ? "How these stocks did today"
-                : "How your stocks did today"
+                ? "How these stocks did"
+                : "How your stocks did"
               : tab === "watching"
                 ? "What you are watching"
                 : tab === "analytics"
-                  ? "How your book is built"
+                  ? "How your money is spread"
                   : "Your alerts"
           }
         />
@@ -571,11 +571,11 @@ export function PortfolioIntro({
         <span className="font-medium text-oa-fg">
           {signedIn
             ? "Your portfolio is empty."
-            : "Track what you own and what you are watching."}
+            : "Track the stocks you own and the ones you're watching, free."}
         </span>{" "}
         {signedIn
           ? "Add your first stocks and this page fills in around them."
-          : `Free tracks every stock you own or watch and covers ${freeLimit} in full. The portfolio below is an example.`}
+          : `We cover ${freeLimit} of them in full at no cost. Below is an example portfolio: made-up shares, real prices.`}
       </p>
       <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 sm:shrink-0">
         {signedIn ? (
@@ -609,7 +609,7 @@ export function PortfolioIntro({
           href="/portfolio"
           className={`inline-flex h-10 items-center text-[14px] text-oa-muted-fg underline decoration-oa-border underline-offset-4 hover:text-oa-fg sm:h-9 ${FOCUS}`}
         >
-          Analyze a list without signing in
+          Check a list of stocks without signing in
         </Link>
       </div>
     </section>

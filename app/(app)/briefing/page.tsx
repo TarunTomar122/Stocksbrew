@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
 import { BriefingView } from "@/components/briefing/briefing-view";
+import { EarningsDayBriefing } from "@/components/earnings-day/briefing-reports";
 import { AppPage } from "@/components/oa/kit";
 import { MarketingSchema } from "@/components/seo/marketing-schema";
 import { loadBriefingPage } from "@/lib/briefing-data";
@@ -47,6 +49,13 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
           archived={data.archived}
           degraded={data.degraded}
           marketState={marketStateLabel(new Date())}
+          earnings={
+            day || data.archived ? null : (
+              <Suspense fallback={null}>
+                <EarningsDayBriefing />
+              </Suspense>
+            )
+          }
         />
     </AppPage>
   );

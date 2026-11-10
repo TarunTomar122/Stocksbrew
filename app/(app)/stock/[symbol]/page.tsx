@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense, cache } from "react";
 
+import { EarningsDayStockEntry } from "@/components/earnings-day/stock-entry";
 import { StockPageStream } from "@/components/stock-page-stream";
 import { StockReportSkeleton } from "@/components/stock-report/skeleton";
 import { StockFamilyLinks } from "@/components/seo/stock-family-links";
@@ -135,6 +136,10 @@ export default async function StockPage({ params }: Props) {
     <main className={`oa-landing stock-report-page ${interTight.variable} min-w-0 flex-grow overflow-x-clip`}>
       <style>{STICKY_FIX}</style>
       <OaSiteHeader />
+      {/* The latest earnings report, when there is one (components/earnings-day). */}
+      <Suspense fallback={null}>
+        <EarningsDayStockEntry ticker={ticker} />
+      </Suspense>
       <Suspense fallback={<StockReportSkeleton />}>
         <StockPageStream params={params} />
       </Suspense>

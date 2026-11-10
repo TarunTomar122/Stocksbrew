@@ -80,7 +80,7 @@ export function EarningsCell({ next, today }: { next: EarningsDate | null; today
   if (!next) return <Dash />;
   const days = Math.round((Date.parse(`${next.date}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000);
   const soon = days >= 0 && days <= 7;
-  const when = days === 0 ? "today" : days === 1 ? "tomorrow" : `${days}d`;
+  const when = days === 0 ? "today" : days === 1 ? "tomorrow" : `in ${days} days`;
   const time = next.time ? TIME_LABEL[next.time] : "";
   return (
     <span className={`${NUM} text-[12px] ${soon ? "text-oa-primary" : "text-oa-fg"}`} title={time ? `Reports ${time}` : undefined}>

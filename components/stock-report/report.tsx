@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 import { MarketStatusInline } from "@/components/market-status";
 import { RangeBar } from "@/components/oa/kit";
-import { callMetaLine, plainAction } from "@/lib/plain-copy";
+import { callMetaLine, plainAction, plainCallReason, wholeSentences } from "@/lib/plain-copy";
 import { CoverButton, LockCard } from "@/components/oa/gate";
 import { ProCheckoutButton } from "@/components/oa/pro-checkout-button";
 import { StockLogo } from "@/components/stock-logo";
@@ -95,7 +95,8 @@ function TimelineRow({ item, nowIso }: { item: StockTimelineItem; nowIso: string
             </span>
           ) : null}
         </p>
-        {item.detail ? <p className="mt-0.5 line-clamp-3 text-[13px] leading-5 text-oa-muted-fg">{item.detail}</p> : null}
+        {/* Complete sentences only: a feed excerpt cut off with "..." loses its broken last clause. */}
+        {wholeSentences(item.detail) ? <p className="mt-0.5 text-pretty text-[13px] leading-5 text-oa-muted-fg">{wholeSentences(item.detail)}</p> : null}
         {meta.length || (item.href && item.sourceUrl) ? (
           <p className="oa-mono mt-0.5 text-[11px] leading-4 text-oa-muted-fg">
             {meta.join(" · ")}
@@ -259,14 +260,14 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
   if (read && readState === "ready") {
     const { addBelow, addAbove, trimAbove } = read.zones;
     if (addBelow) {
-      zones.push({ key: "add", price: addBelow, side: "below", tone: "up", label: `Add below ${level(addBelow)}` });
-      suggested.push({ id: "add", label: "Add zone", condition: "below", price: addBelow, note: `Add below ${level(addBelow)}` });
+      zones.push({ key: "add", price: addBelow, side: "below", tone: "up", label: `Buy more below ${level(addBelow)}` });
+      suggested.push({ id: "add", label: "Buy-more price", condition: "below", price: addBelow, note: `Buy more below ${level(addBelow)}` });
     } else if (addAbove) {
-      suggested.push({ id: "add", label: "Add on a break", condition: "above", price: addAbove, note: `Add above ${level(addAbove)}` });
+      suggested.push({ id: "add", label: "Buy if it breaks higher", condition: "above", price: addAbove, note: `Buy more above ${level(addAbove)}` });
     }
     if (trimAbove && (!addBelow || trimAbove > addBelow)) {
-      zones.push({ key: "trim", price: trimAbove, side: "above", tone: "down", label: `Trim above ${level(trimAbove)}` });
-      suggested.push({ id: "trim", label: "Trim zone", condition: "above", price: trimAbove, note: `Trim above ${level(trimAbove)}` });
+      zones.push({ key: "trim", price: trimAbove, side: "above", tone: "down", label: `Sell some above ${level(trimAbove)}` });
+      suggested.push({ id: "trim", label: "Sell-some price", condition: "above", price: trimAbove, note: `Sell some above ${level(trimAbove)}` });
     }
   }
   // Support and resistance stay in Technicals: the chart carries at most two labels.
@@ -415,7 +416,13 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
                           <span className="text-[17px] font-medium leading-6 tracking-tight text-oa-fg">{plainAction(ready.actionLabel, ready.call)}</span>
                         ) : null}
                       </p>
-                      {ready.actionSummary ? <p className="mt-2 max-w-[62ch] text-pretty text-[15px] leading-[22px] text-oa-fg">{ready.actionSummary}</p> : null}
+                      {/* The stored reason, in plain words with the same meaning, after what the call means. */}
+                      {plainCallReason(ready.actionSummary) ? (
+                        <p className="mt-2 max-w-[62ch] text-pretty text-[15px] leading-[22px] text-oa-fg">
+                          <span className="font-medium">Why: </span>
+                          {plainCallReason(ready.actionSummary)}
+                        </p>
+                      ) : null}
                       {hasPrice && ready.zones.addBelow && ready.zones.addBelow > 0 && ready.zones.trimAbove && ready.zones.trimAbove > ready.zones.addBelow ? (
                         <CallTrack price={stock.price} add={ready.zones.addBelow} trim={ready.zones.trimAbove} level={level} />
                       ) : callLevels.length ? (
@@ -441,9 +448,9 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
                             <LockIcon />
                           </span>
                           <span>
-                            The prices where we&apos;d buy more or sell some show once {stock.ticker} is one of your covered stocks.{" "}
+                            Make {stock.ticker} one of your five covered stocks to see the prices where we&apos;d buy more or sell some.{" "}
                             <a href="#call" className="font-medium text-oa-primary hover:underline">
-                              See how
+                              How covering works
                             </a>
                           </span>
                         </p>
@@ -551,7 +558,7 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
 
         {/* ── the read: what today means, what is coming, then our brief ──── */}
         <div className="order-2 flex min-w-0 flex-col gap-4 xl:col-start-1 xl:row-start-2">
-          <TheRead read={data.insightRead} label={`The read on ${stock.ticker}`} />
+          <TheRead read={data.insightRead} label={`The read on ${stock.ticker}`} fold="phone" />
           <Panel
             id="read"
             label="Our brief"

@@ -1,6 +1,6 @@
 import { marketDay, type Briefing, type BriefingItem } from "@/lib/briefing";
 import { MARKET_GROUP_KEY, type BriefingGroup, type GroupedSections } from "@/lib/briefing-groups";
-import { firstFullSentence, sentenceCase } from "@/lib/plain-copy";
+import { firstFullSentence, plainFinance, sentenceCase } from "@/lib/plain-copy";
 import { pickInsights, toneOfChange, type Insight, type TheRead } from "@/lib/insights";
 
 /**
@@ -26,7 +26,7 @@ function joinAnd(parts: string[]): string {
 /** The first sentence of a reason, without its period, short enough for one line. */
 export function firstSentence(text: string): string {
   // The whole first sentence, never cut with an ellipsis; Title Case headlines read as sentences.
-  return sentenceCase(firstFullSentence(text)).replace(/[.!?]$/, "");
+  return plainFinance(sentenceCase(firstFullSentence(text))).replace(/[.!?]$/, "");
 }
 
 const stockHref = (ticker: string) => `/stock/${encodeURIComponent(ticker)}`;
@@ -43,6 +43,28 @@ export function earlierSession(asOf: string | null | undefined, date: string | n
   return ` on ${name}`;
 }
 
+/**
+ * How the index line should say when its price is from: "closed" once the
+ * snapshot is from 4 PM ET or later that day, "As of 9:56 AM ET" while it is
+ * from inside the session. Other days are covered by `earlierSession`. Keeps a
+ * morning number from reading as the day's result after the close.
+ */
+export function indexClock(asOf: string | null | undefined, date: string | null | undefined): { kind: "closed" } | { kind: "intraday"; clock: string } | null {
+  if (!asOf || !date) return null;
+  const at = new Date(asOf);
+  if (Number.isNaN(at.getTime()) || marketDay(asOf) !== date) return null;
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit", hourCycle: "h23" })
+      .formatToParts(at)
+      .map((part) => [part.type, part.value]),
+  );
+  const minutes = Number(parts.hour) * 60 + Number(parts.minute);
+  if (!Number.isFinite(minutes)) return null;
+  if (minutes >= 16 * 60) return { kind: "closed" };
+  if (minutes < 9 * 60 + 30) return null;
+  return { kind: "intraday", clock: `${at.toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" })} ET` };
+}
+
 /** A move with a confirmed reason: the number and the reason in one sentence. */
 function explainedMoveInsight(item: BriefingItem, date?: string): Insight | null {
   if (item.kind !== "price_move" || item.reason_status !== "confirmed" || item.day_change_pct == null || !item.ticker) return null;
@@ -57,7 +79,7 @@ function explainedMoveInsight(item: BriefingItem, date?: string): Insight | null
       ? `${item.ticker} ${up ? "rose" : "fell"} ${pct(item.day_change_pct)}${earlier}: ${reason}.`
       : `${item.ticker} is ${up ? "up" : "down"} ${pct(item.day_change_pct)}: ${reason}.`,
     tickers: [item.ticker],
-    action: { label: `Open ${item.ticker}`, href: stockHref(item.ticker) },
+    action: { label: `${item.ticker} report`, href: stockHref(item.ticker) },
   };
 }
 
@@ -98,7 +120,7 @@ function moverInsight(group: BriefingGroup, index: IndexMove, date?: string): In
     text: why ? `${base}${why.startsWith("after") ? ` ${why}` : `: ${why}`}.` : `${base}${earlier ? "" : versusIndex(index)}.`,
     soWhat: why ? undefined : "No confirmed reason yet.",
     tickers: [group.ticker],
-    action: { label: `Open ${group.ticker}`, href: stockHref(group.ticker) },
+    action: { label: `${group.ticker} report`, href: stockHref(group.ticker) },
   };
 }
 
@@ -169,7 +191,16 @@ export function briefingRead(
     const leaders = names.length
       ? `${joinAnd(names)} made the biggest ${names.length === 1 ? "move" : "moves"} with a known reason${earlier}.`
       : "";
-    const headline = index ? `The ${index.name} is ${index.change_pct >= 0 ? "up" : "down"} ${pct(index.change_pct, 2)}.${leaders ? ` ${leaders}` : ""}` : leaders;
+    const clock = indexClock(briefing.market.as_of, briefing.date);
+    const direction = index ? `${index.change_pct >= 0 ? "up" : "down"} ${pct(index.change_pct, 2)}` : "";
+    const indexLine = !index
+      ? ""
+      : clock?.kind === "closed"
+        ? `The ${index.name} closed ${direction}.`
+        : clock?.kind === "intraday"
+          ? `As of ${clock.clock}, the ${index.name} is ${direction}.`
+          : `The ${index.name} is ${direction}.`;
+    const headline = index ? `${indexLine}${leaders ? ` ${leaders}` : ""}` : leaders;
     const insights = pickInsights(
       leads.map((group) => group.items.map((item) => explainedMoveInsight(item, briefing.date)).find(Boolean) ?? null),
     );

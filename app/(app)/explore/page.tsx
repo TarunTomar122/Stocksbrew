@@ -207,7 +207,7 @@ function MoverRows({ title, rows }: { title: string; rows: DeskMover[] }) {
         {rows.map((row) => (
           <li key={row.ticker} className="group border-b border-oa-border px-4 py-2 last:border-b-0 hover:bg-oa-accent">
             <div className="flex items-center justify-between gap-3">
-              <Ticker symbol={row.ticker} name={row.name && row.name.toUpperCase() !== row.ticker.toUpperCase() ? row.name : null} className="min-w-0" />
+              <Ticker symbol={row.ticker} name={row.name && row.name.toUpperCase() !== row.ticker.toUpperCase() ? row.name : null} wrap className="min-w-0" />
               <span className="flex shrink-0 items-center gap-3">
                 <AskLink quiet question={`Why did ${row.ticker} move today, and what does it change?`}>Ask why</AskLink>
                 {row.price !== null ? <span className={`${NUM} hidden text-[12.5px] text-oa-muted-fg sm:inline`}>{fmtMoney(row.price)}</span> : null}
@@ -240,7 +240,7 @@ async function StoriesPanel({ wire, nowMs }: { wire: Promise<DeskData["wire"]>; 
           {stocks.map((stock) => (
             <li key={stock.ticker} className="border-b border-oa-border px-4 py-2.5 last:border-b-0 hover:bg-oa-accent">
               <div className="flex items-center justify-between gap-3">
-                <Ticker symbol={stock.ticker} name={stock.name} size={18} className="min-w-0" />
+                <Ticker symbol={stock.ticker} name={stock.name} size={18} wrap className="min-w-0" />
                 <span className="flex shrink-0 items-center gap-3">
                   <ToneBar counts={stock.tones} className="max-sm:hidden" />
                   {stock.pct !== null ? <Delta value={stock.pct} digits={1} className="w-[4.25rem] text-right text-[14px] font-medium" /> : null}
@@ -322,7 +322,7 @@ async function CalendarPanel({ calendar, brief, today }: { calendar: Promise<Pic
             <ul>
               {earnings.today.map((event) => (
                 <li key={`${event.ticker}-today`} className="flex items-center justify-between gap-3 border-b border-oa-border px-4 py-2 last:border-b-0">
-                  <Ticker symbol={event.ticker} name={event.company} className="min-w-0" />
+                  <Ticker symbol={event.ticker} name={event.company} wrap className="min-w-0" />
                   <span className="flex shrink-0 items-center gap-2">
                     {event.eps_estimate !== null ? (
                       <span className={`${NUM} hidden text-[12.5px] text-oa-muted-fg sm:inline lg:hidden xl:inline`}>EPS est. {signedMoney(event.eps_estimate)}</span>

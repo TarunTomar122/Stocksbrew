@@ -14,9 +14,9 @@ export function CallTag({ call }: { call: CallWord | null | undefined }) {
 }
 
 const ZONE_LABELS: Record<Zone, { text: string; tone: TagTone }> = {
-  add: { text: "Add zone", tone: "up" },
-  between: { text: "Between", tone: "neutral" },
-  trim: { text: "Trim zone", tone: "down" },
+  add: { text: "Buy range", tone: "up" },
+  between: { text: "In between", tone: "neutral" },
+  trim: { text: "Sell range", tone: "down" },
 };
 
 export function ZoneTag({ zone }: { zone: Zone | null | undefined }) {

@@ -501,10 +501,13 @@ export function Ticker({
   name,
   href,
   size = 20,
+  wrap = false,
   className = "",
 }: {
   symbol: string;
   name?: string | null;
+  /** Let a long name wrap to a second line instead of clipping it (lists with room to grow). */
+  wrap?: boolean;
   /** Defaults to the stock page; pass `null` for no link. */
   href?: string | null;
   size?: number;
@@ -514,7 +517,7 @@ export function Ticker({
     <>
       <StockLogo ticker={symbol} size={size} />
       <span className={`${NUM} text-[14px] font-medium text-oa-fg`}>{symbol}</span>
-      {name ? <span className="min-w-0 truncate text-[14px] text-oa-muted-fg">{shortCompanyName(name)}</span> : null}
+      {name ? <span className={`min-w-0 text-[14px] text-oa-muted-fg ${wrap ? "text-pretty leading-5" : "truncate"}`}>{shortCompanyName(name)}</span> : null}
     </>
   );
   const cls = `inline-flex min-w-0 items-center gap-2 ${className}`;

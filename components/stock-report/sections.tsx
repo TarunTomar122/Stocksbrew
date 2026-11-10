@@ -556,7 +556,7 @@ export function EarningsSection({ data }: SectionProps) {
             columns="grid-cols-2 sm:grid-cols-4"
             items={[
               { label: "Date", value: fmtDate(next.event_date), sub: relativeDays(nextIn) },
-              { label: "When", value: next.time === "bmo" ? "Before open" : next.time === "amc" ? "After close" : "During hours" },
+              { label: "When", value: next.time === "bmo" ? "Before the market opens" : next.time === "amc" ? "After the market closes" : "During market hours" },
               ...(fin(next.eps_estimate) ? [{ label: "EPS estimate", value: perShare(next.eps_estimate, currency) }] : []),
               ...(next.fiscal_date_ending ? [{ label: "Quarter ending", value: fmtDate(next.fiscal_date_ending) }] : []),
             ]}

@@ -69,7 +69,7 @@ describe("presentRun", () => {
     expect(view.verdict).toBe("look");
     expect(view.label).toBe("Heads-up");
     expect(view.headline).toBe("22 of your 35 names moved 3% or more on Friday, led by IREN at +20.0%.");
-    expect(view.todo).toBe("Nothing to act on. 6 of your names report this week.");
+    expect(view.todo).toBe("Nothing needs you. 6 of your names report this week.");
     expect(view.moves.map((row) => row.ticker)).toEqual(["IREN", "COHR"]);
     expect(view.movesTotal).toBe(22);
     expect(view.asOf).toBe("Friday's close (Nov 6) · checked Mon Nov 9, 3:34 PM ET");

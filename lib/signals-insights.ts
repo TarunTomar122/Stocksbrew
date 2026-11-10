@@ -167,20 +167,26 @@ export function moversHeadline(movers: MoverForRead[]): string | null {
     parts.push(`${label} stocks led the ${cluster.side.label}${cause ? ` on ${CAUSE_SHORT[cause.kind]}` : ""} (${listNames(cluster.rows.map((mover) => mover.ticker), 3)})`);
     used = cluster.side.label;
   }
+  const earnings: Partial<Record<Side["label"], string>> = {};
   for (const side of sides(movers)) {
     if (side.label === used || parts.length >= 2) continue;
     const cause = causeCluster(side.rows.slice(0, 10));
     if (!cause) continue;
     const names = listNames(cause.rows.map((mover) => mover.ticker), 3);
+    if (cause.kind === "earnings") earnings[side.label] = names;
     const phrase =
       cause.kind === "earnings"
         ? side.label === "decliners"
-          ? `earnings sank ${names}`
-          : `earnings lifted ${names}`
+          ? `earnings reports sent ${names} down`
+          : `earnings reports lifted ${names}`
         : `${CAUSE_SHORT[cause.kind]} moved the ${side.label} (${names})`;
-    parts.push(parts.length ? phrase : phrase.charAt(0).toUpperCase() + phrase.slice(1));
+    parts.push(phrase.charAt(0).toUpperCase() + phrase.slice(1));
   }
-  if (parts.length) return `${parts.join("; ")}.`;
+  // Both sides on earnings: say the one thing that explains the day, then the names.
+  if (!used && earnings.gainers && earnings.decliners) {
+    return `Earnings reports drove the day's biggest moves: up for ${earnings.gainers}, down for ${earnings.decliners}.`;
+  }
+  if (parts.length) return parts.map((part) => `${part}.`).join(" ");
   const top = [...movers].sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct) || a.ticker.localeCompare(b.ticker))[0]!;
   return `${top.ticker} moved most, ${signedPct(top.pct)}${top.explained && top.headline ? `: ${top.headline.replace(/\.$/, "")}` : ", with no confirmed reason yet"}.`;
 }
@@ -220,7 +226,10 @@ function loudestInsight(names: RedditName[]): Insight | null {
   const ratio = top.velocity.ratio;
   const pace = ratio !== null && ratio >= 1.5 && top.velocity.last24h >= 2 ? `, ${ratio.toFixed(1)}x its usual daily pace` : "";
   const price = isNum(top.dayPct) ? ` The stock ${top.dayPct >= 0 ? "rose" : "fell"} ${absPct(top.dayPct)}.` : "";
-  const stance = top.stanceRead && top.stance !== "neutral" ? ` The talk leans ${top.stance === "bullish" ? "hopeful" : top.stance === "bearish" ? "worried" : top.stance}.` : "";
+  const stance =
+    top.stanceRead && (top.stance === "bullish" || top.stance === "bearish")
+      ? ` More of those posts expect it to ${top.stance === "bullish" ? "rise than fall" : "fall than rise"}.`
+      : "";
   return {
     id: "loudest",
     tone: top.stance === "bullish" ? "up" : top.stance === "bearish" ? "down" : "flat",
@@ -303,8 +312,8 @@ export function buildRedditRead(names: RedditName[], asOf: string | null = null)
     lean === "split"
       ? `Reddit is split: ${bullShare}% of mentions expect prices to rise and ${bearShare}% expect them to fall`
       : lean === "bearish"
-        ? `Reddit leans worried: ${bearShare}% of mentions expect prices to fall and ${bullShare}% expect a rise`
-        : `Reddit leans hopeful: ${bullShare}% of mentions expect prices to rise and ${bearShare}% expect a fall`;
+        ? `More Reddit posts expect a fall than a rise: ${bearShare}% of mentions expect prices to fall and ${bullShare}% expect a rise`
+        : `More Reddit posts expect a rise than a fall: ${bullShare}% of mentions expect prices to rise and ${bearShare}% expect a fall`;
   const headline = loud ? `${leanText}. ${loud.ticker} is the stock everyone is talking about.` : `${leanText}.`;
   const loudest = loudestInsight(names);
   const against = againstInsight(names);

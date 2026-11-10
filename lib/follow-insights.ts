@@ -19,6 +19,7 @@ import {
   type InsiderTrade,
   type PerfCard,
 } from "@/lib/follow-shared";
+import { shortCompanyName } from "@/lib/plain-copy";
 
 // ── shapes the loaders produce ─────────────────────────────────────────────
 
@@ -471,16 +472,20 @@ export function buildFollowRead(input: FollowReadInput): FollowRead {
   const top = mostBought(fundTallies, 2).filter((row) => row.buyers.length >= 3);
   let headline = "";
   if (top.length > 0) {
-    headline = `Funds bought ${listWords(top.map((row) => row.ticker))} more than any other stocks in ${quarterLabel(period)}`;
+    // One stock leads; a runner-up is named as second, so the counts below never contradict the headline.
+    const tied = top[1] !== undefined && top[1].buyers.length === top[0]!.buyers.length;
+    headline = tied
+      ? `More funds bought ${top[0]!.ticker} and ${top[1]!.ticker} than any other stock in ${quarterLabel(period)}`
+      : `More funds bought ${top[0]!.ticker} than any other stock in ${quarterLabel(period)}${top[1] ? `, with ${top[1].ticker} second` : ""}`;
     let buys = 0;
     let sells = 0;
     for (const row of congressTallies) {
       buys += row.buyers.length;
       sells += row.sellers.length;
     }
-    if (congress && sells > buys * 1.5) headline += ", while members of Congress sold more than they bought";
-    else if (congress && buys > sells * 1.5) headline += ", and members of Congress were buying too";
     headline += ".";
+    if (congress && sells > buys * 1.5) headline += " Members of Congress sold more than they bought.";
+    else if (congress && buys > sells * 1.5) headline += " Members of Congress were buying too.";
   } else if (insider) {
     headline = insider.text.split(":")[0] + ".";
   }
@@ -639,11 +644,11 @@ export function buildFundRead(profile: FundProfile): TheRead {
   let moves: Insight | null = null;
   let movesShort = "";
   if (changes) {
-    type Line = { ticker: string; weight: number | null; prev: number | null };
+    type Line = { ticker: string; name: string; weight: number | null; prev: number | null };
     const lines = (list: FundChanges[keyof Omit<FundChanges, "counts">]): Line[] =>
       list
         .filter((row) => isStock(row.ticker))
-        .map((row) => ({ ticker: row.ticker as string, weight: row.weight ?? null, prev: row.prev_weight ?? null }));
+        .map((row) => ({ ticker: row.ticker as string, name: shortCompanyName(row.name) || (row.ticker as string), weight: row.weight ?? null, prev: row.prev_weight ?? null }));
     const byNow = (a: Line, b: Line) => (b.weight ?? 0) - (a.weight ?? 0);
     const byBefore = (a: Line, b: Line) => (b.prev ?? 0) - (a.prev ?? 0);
     // A cut matters by how much weight it took off, not by how big the line was.
@@ -660,8 +665,8 @@ export function buildFundRead(profile: FundProfile): TheRead {
     const shortParts: string[] = [];
     const bought = [...opened, ...added].map((row) => row.ticker);
     const sold = [...reduced, ...exited].map((row) => row.ticker);
-    if (bought.length > 0) shortParts.push(`bought ${listWords(bought)}`);
-    if (sold.length > 0) shortParts.push(`cut ${listWords(sold)}`);
+    if (bought.length > 0) shortParts.push(`bought ${listWords([...opened, ...added].map((row) => row.name))}`);
+    if (sold.length > 0) shortParts.push(`cut ${listWords([...reduced, ...exited].map((row) => row.name))}`);
     movesShort = shortParts.join(" and ");
     if (parts.length > 0) {
       const buys = changes.counts.new + changes.counts.added;

@@ -10,29 +10,39 @@ const SPY: ScreenerRow = { symbol: "SPY", ret_1y: 14, day_pct: 1, benchmark: tru
 describe("compare read", () => {
   it("says who wins on what, folding a repeated subject", () => {
     const read = buildCompareRead({ rows: [NVDA, AMD], benchmark: SPY });
-    expect(read?.headline).toBe("AMD keeps less of each sales dollar as profit (18% against 65%); NVDA grows revenue 2x faster (+83% a year) and is cheaper on earnings (15x against 30x).");
+    expect(read?.headline).toBe("NVDA keeps more of each sale as profit, grows faster and costs less for its profit.");
+    expect(read?.insights.slice(0, 3).map((item) => item.text)).toEqual([
+      "AMD keeps less of each sales dollar as profit than NVDA (18% against 65%).",
+      "NVDA grows revenue 2x faster than AMD (+83% a year against +40%).",
+      "NVDA costs less than AMD for each $1 of next year's expected profit ($15 against $30).",
+    ]);
   });
 
-  it("puts the year against the S&P 500 and the calls underneath", () => {
+  it("puts the call and the year against the S&P 500 under the differences", () => {
     const read = buildCompareRead({ rows: [NVDA, AMD], benchmark: SPY });
-    const ids = read?.insights.map((item) => item.id);
-    expect(ids).toEqual(["calls", "year", "highs"]);
-    expect(read?.insights[1]?.text).toBe("Over the past year AMD +118% and NVDA −4.8%, against +14% for the S&P 500.");
-    expect(read?.insights[1]?.soWhat).toBe("Only AMD beat the index.");
+    expect(read?.insights.map((item) => item.id)).toEqual(["diff-margin", "diff-growth", "diff-cheap"]);
+    // With no big differences the year has room.
+    const close = buildCompareRead({ rows: [{ ...NVDA, fwd_pe: 20, rev_growth: 40, op_margin: 30 }, { ...AMD, fwd_pe: 20, rev_growth: 40, op_margin: 30 }], benchmark: SPY });
+    expect(close?.headline).toBe("We'd keep NVDA without adding and buy more AMD.");
+    expect(close?.insights.map((item) => item.id)).toEqual(["year", "highs", "earnings"]);
+    expect(close?.insights[0]?.text).toBe("Over the past year AMD +118% and NVDA −4.8%, against +14% for the S&P 500.");
+    expect(close?.insights[0]?.soWhat).toBe("Only AMD beat the index.");
     // One beat the index and one did not: no green mark on a split.
-    expect(read?.insights[1]?.tone).toBe("flat");
+    expect(close?.insights[0]?.tone).toBe("flat");
   });
 
   it("marks the year down when none kept up with the index, even if all rose", () => {
-    const read = buildCompareRead({ rows: [{ ...NVDA, ret_1y: 3 }, { ...AMD, ret_1y: 5 }], benchmark: SPY });
+    const flat = { fwd_pe: 20, rev_growth: 40, op_margin: 30 };
+    const read = buildCompareRead({ rows: [{ ...NVDA, ...flat, ret_1y: 3 }, { ...AMD, ...flat, ret_1y: 5 }], benchmark: SPY });
     const year = read?.insights.find((item) => item.id === "year");
     expect(year?.soWhat).toBe("None of them kept up with the index.");
     expect(year?.tone).toBe("down");
   });
 
   it("mentions a zone only when the row still has one", () => {
-    const covered = buildCompareRead({ rows: [{ ...NVDA, zone: "add" }, AMD] });
-    expect(JSON.stringify(covered)).toContain("NVDA is inside the add zone");
+    const flat = { fwd_pe: 20, rev_growth: 40, op_margin: 30 };
+    const covered = buildCompareRead({ rows: [{ ...NVDA, ...flat, zone: "add" }, { ...AMD, ...flat }] });
+    expect(JSON.stringify(covered)).toContain("NVDA is at a price where we'd buy more");
     const stripped = buildCompareRead({ rows: [NVDA, AMD] });
     expect(JSON.stringify(stripped)).not.toContain("zone");
   });

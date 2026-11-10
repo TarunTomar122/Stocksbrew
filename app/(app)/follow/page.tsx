@@ -6,7 +6,7 @@ import {
   FollowDirectory,
   type DirectoryTab,
 } from "@/components/follow/follow-directory";
-import { AppPage, CardGrid, PageHead, PageNote, TabBar, type TabItem } from "@/components/oa/kit";
+import { AppPage, CardGrid, PageHead, PageNote, ShowMore, TabBar, type TabItem } from "@/components/oa/kit";
 import { TheRead } from "@/components/oa/insight";
 import { StockTallyPanel } from "@/components/follow/stock-tally";
 import { MarketingSchema } from "@/components/seo/marketing-schema";
@@ -236,15 +236,17 @@ async function LatestMoves({
     ...events.filter((event) => !followedSet.has(event.source_id)),
   ].slice(0, 24);
   return (
-    <Panel
-      title={mine.length > 0 ? "Latest moves, yours first" : "Latest moves"}
-      right={<span>Newest filing first</span>}
-    >
-      <MovesStream
-        events={stream}
-        emptyText="No filings yet."
-      />
-    </Panel>
+    <ShowMore label={`Show the latest ${stream.length} filings`}>
+      <Panel
+        title={mine.length > 0 ? "Latest moves, yours first" : "Latest moves"}
+        right={<span>Newest filing first</span>}
+      >
+        <MovesStream
+          events={stream}
+          emptyText="No filings yet."
+        />
+      </Panel>
+    </ShowMore>
   );
 }
 
@@ -271,14 +273,16 @@ async function ReadBlock({ read, tab }: { read: Promise<FollowRead | null>; tab:
             top ? `${top.buyers.length} of ${data.fundsInPeriod} funds bought or added to ${top.ticker}${top.opened ? `, ${top.opened} of them as a new position` : ""}.` : undefined
           }
         />
-        <StockTallyPanel
-          label={`Most sold by funds · ${quarter}`}
-          side="sell"
-          unit="fund"
-          rows={sold}
-          empty="No fund filings to count yet."
-          takeaway={cut ? `${cut.sellers.length} funds trimmed or sold ${cut.ticker}; ${cut.buyers.length} bought it.` : undefined}
-        />
+        <ShowMore fill label="Show the stocks funds sold most">
+          <StockTallyPanel
+            label={`Most sold by funds · ${quarter}`}
+            side="sell"
+            unit="fund"
+            rows={sold}
+            empty="No fund filings to count yet."
+            takeaway={cut ? `${cut.sellers.length} funds cut or sold ${cut.ticker}; ${cut.buyers.length} bought it.` : undefined}
+          />
+        </ShowMore>
       </>
     );
   } else if (tab === "congress") {
@@ -296,14 +300,16 @@ async function ReadBlock({ read, tab }: { read: Promise<FollowRead | null>; tab:
           empty="No buys reported in the last 30 days."
           takeaway={top ? `${top.buyers.length} ${top.buyers.length === 1 ? "member" : "members"} reported buying ${top.ticker}, more than any other stock.` : undefined}
         />
-        <StockTallyPanel
-          label="Most sold by Congress · 30 days"
-          side="sell"
-          unit="member"
-          rows={sold}
-          empty="No sales reported in the last 30 days."
-          takeaway={cut ? `${cut.sellers.length} ${cut.sellers.length === 1 ? "member" : "members"} reported selling ${cut.ticker}.` : undefined}
-        />
+        <ShowMore fill label="Show the stocks Congress sold most">
+          <StockTallyPanel
+            label="Most sold by Congress · 30 days"
+            side="sell"
+            unit="member"
+            rows={sold}
+            empty="No sales reported in the last 30 days."
+            takeaway={cut ? `${cut.sellers.length} ${cut.sellers.length === 1 ? "member" : "members"} reported selling ${cut.ticker}.` : undefined}
+          />
+        </ShowMore>
       </>
     );
   } else {
@@ -364,7 +370,11 @@ export default function FollowPage({
   return (
     <AppPage>
       <MarketingSchema path="/follow" name="13F Fund Holdings, Congress Stock Trades and Insider Buying" description="What well-known funds, members of Congress and company insiders bought and sold, from 13F filings, House trade reports and SEC Form 4." breadcrumbLabel="Follow" />
-      <PageHead title="What funds, lawmakers and insiders just filed" note={false} />
+      <PageHead
+        title="What funds, Congress and insiders bought and sold"
+        lede="Funds report what they own once a quarter, about six weeks after it ends. Members of Congress and company insiders report their trades within weeks."
+        full
+      />
       <Suspense fallback={<div aria-busy="true" className="mb-4"><PanelGhost rows={4} /></div>}>
         <ReadBlock read={read} tab={tab} />
       </Suspense>

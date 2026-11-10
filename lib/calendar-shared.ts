@@ -143,7 +143,7 @@ export type CalendarType = "earnings" | "ipo" | "economic" | "dividend";
 
 export const CALENDAR_TYPES: Array<{ id: CalendarType; label: string }> = [
   { id: "earnings", label: "Earnings" },
-  { id: "economic", label: "Economic releases" },
+  { id: "economic", label: "Economy" },
   { id: "ipo", label: "IPOs" },
   { id: "dividend", label: "Dividends" },
 ];
@@ -151,8 +151,8 @@ export const CALENDAR_TYPES: Array<{ id: CalendarType; label: string }> = [
 export type Session = "bmo" | "amc" | "unknown";
 
 export const SESSION_LABEL: Record<Session, string> = {
-  bmo: "Before open",
-  amc: "After close",
+  bmo: "Before the market opens",
+  amc: "After the market closes",
   unknown: "Time not confirmed",
 };
 

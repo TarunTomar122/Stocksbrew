@@ -87,7 +87,7 @@ export default async function SectorsPage() {
       <PageHead
         crumb={<a href="/screener">Screener</a>}
         title="Stock market sectors"
-        meta={<SourceLine source="Screener snapshot" asOf={coverage.priceDay ? `the ${fmtDay(coverage.priceDay, true)} close` : undefined} />}
+        meta={<SourceLine source="Prices and company data" asOf={coverage.priceDay ? `the ${fmtDay(coverage.priceDay, true)} close` : undefined} />}
         actions={
           <a href="/screener?tab=sectors" className="text-[13px] font-medium text-oa-primary hover:underline">
             Heat map →

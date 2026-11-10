@@ -359,8 +359,9 @@ export function marketRead(input: MarketReadInput): TheRead | null {
     insights.push({
       id: "disagree",
       tone: disagreement.pct > 0 ? "up" : "down",
-      text: `${disagreement.ticker}: its news reads ${rowLean === "positive" ? `${pctTones.positive}% positive` : `${pctTones.negative}% negative`}, yet the stock is ${signed(disagreement.pct)} today.`,
-      soWhat: "The price is following something other than the headlines; worth a look.",
+      text: `${disagreement.ticker}: ${rowLean === "positive" ? `${pctTones.positive}% of today's headlines about it read as good news` : `${pctTones.negative}% of today's headlines about it read as bad news`}, yet the stock is ${signed(disagreement.pct)} today.`,
+      // Say what we see, not why: the headlines alone do not explain this move.
+      soWhat: "The headlines alone don't explain the move.",
       tickers: [disagreement.ticker],
       action: { label: "Its headlines", href: wireHref({ ...filters, limit: WIRE_PAGE_SIZE }, { ticker: disagreement.ticker }) },
     });

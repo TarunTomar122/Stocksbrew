@@ -75,12 +75,24 @@ export function firstFullSentence(text: string | null | undefined): string {
   return value;
 }
 
-/** A headline or reason ready to read: Title Case undone and a closing full stop. */
-export function asSentence(text: string | null | undefined): string {
-  const value = sentenceCase(text).replace(/\s*[.…]+$/, "");
+/**
+ * A reason ready to read: Title Case undone, trader shorthand spelled out, and a
+ * closing full stop. Pass `{ quote: true }` for someone's own words, which keep
+ * their wording (no plainFinance rewrite).
+ */
+export function asSentence(text: string | null | undefined, options: { quote?: boolean } = {}): string {
+  const cased = sentenceCase(text);
+  const value = (options.quote ? cased : plainFinance(cased)).replace(/\s*[.…]+$/, "");
   if (!value) return "";
   return /[!?]$/.test(value) ? value : `${value}.`;
 }
+
+// Names some filings feeds clip to a fixed width, mapped to the name people use.
+const CLIPPED_NAMES: Array<[RegExp, string]> = [
+  [/^space exploration techn\w*$/i, "SpaceX"],
+  // Long official names with a short form everyone uses.
+  [/^taiwan semiconductor manufactur\w*(?: co(?:mpany)?)?$/i, "Taiwan Semiconductor"],
+];
 
 /**
  * A company name without its legal suffix, so it fits a row without being cut:
@@ -95,6 +107,9 @@ export function shortCompanyName(name: string | null | undefined): string {
     .replace(/,?\s+(?:Inc|Incorporated|Corp|Corporation|Co|Company|Ltd|Limited|plc|PLC|N\.V|S\.A|SE|AG|L\.P|LP|LLC|Holdings?|Group|Class [A-C])\.?$/i, "")
     .replace(/,?\s+(?:Inc|Corp|Co|Ltd|plc|Holdings?)\.?$/i, "")
     .replace(/[,\s]+$/, "");
+  // Feeds that cut a name short: say the name people use.
+  const known = CLIPPED_NAMES.find(([pattern]) => pattern.test(short));
+  if (known) return known[1];
   return short || value;
 }
 
@@ -148,4 +163,140 @@ export function callMetaLine(confidence: string | null | undefined, horizon: str
   if (conf) return `${conf.charAt(0).toUpperCase()}${conf.slice(1)} confidence.`;
   if (when) return `For ${when}.`;
   return "";
+}
+
+// The call pipeline writes its one-line reason from a short, fixed set of
+// templates (backend/directive_v2.py and backend/call_engine.py). Each one in
+// the same meaning, said plainly. Anything else passes through untouched.
+const CALL_REASONS: Array<[RegExp, (match: RegExpExecArray) => string]> = [
+  [
+    /^the setup is attractive at the current price; use pullbacks to add rather than waiting for a perfect entry\.?$/i,
+    () => "The evidence looks good at today's price. We'd buy now and add more on any dip, rather than wait for a perfect price.",
+  ],
+  [
+    /^the setup is constructive, but the cleaner entry is a pullback into support\.?$/i,
+    () => "The evidence looks good, but we'd wait for the price to dip back toward a level where buyers stepped in before.",
+  ],
+  [
+    /^still constructive, but price is up (\d+(?:\.\d+)?)% from its recent low, so the first pullback is the better entry\.?$/i,
+    (m) => `We still like it, but the price is up ${m[1]}% from its recent low, so we'd wait for the first dip to buy.`,
+  ],
+  [
+    /^still constructive, but price is up (\d+(?:\.\d+)?)% in a handful of sessions, so wait for the move to settle\.?$/i,
+    (m) => `We still like it, but the price is up ${m[1]}% in a few days, so we'd wait for it to settle before buying.`,
+  ],
+  [
+    /^wait for price confirmation before adding; the evidence is not strong enough for an add-now call\.?$/i,
+    () => "We'd wait for the price to keep climbing before buying more. The evidence isn't strong enough to buy now.",
+  ],
+  [
+    /^risk\/reward has weakened; avoid adding and use any bounce to reduce exposure\.?$/i,
+    () => "The possible gain no longer looks worth the risk. We wouldn't buy more, and if the price bounces we'd sell some.",
+  ],
+  [/^the setup is not paying enough for the risk right now\.?$/i, () => "Right now the possible gain isn't worth the risk."],
+  [
+    /^upside and downside look balanced; keep the position but do not force a new add\.?$/i,
+    () => "The chances of a rise and a fall look about even. If you own it, we'd keep it, but we wouldn't buy more now.",
+  ],
+  [/^no reliable current price is available, so this stays on watch\.?$/i, () => "We don't have a reliable price right now, so we're only watching it."],
+  [/^revisit only if fresh evidence improves the setup\.?$/i, () => "We'd look again only if new evidence makes the case better."],
+  [/^revisit if the stock resets and the next catalyst improves risk\/reward\.?$/i, () => "We'd look again after the price settles lower and the next piece of news makes it worth the risk."],
+  [/^revisit if price confirms the breakout with stronger participation\.?$/i, () => "We'd look again if the price keeps climbing and more buyers join in."],
+  [/^revisit if momentum breaks or fresh evidence weakens\.?$/i, () => "We'd look again if the price trend turns or new evidence weakens the case."],
+];
+
+// The call engine's scorecard sentence: "<why> 5 of 7 families point up, 1 point down." plus an optional level sentence.
+const ENGINE_LEAD: Array<[RegExp, string]> = [
+  [/^most of its measured families rank in the top third of similar companies and the price trend agrees\.\s*/i, "Most of what we measure ranks in the top third of similar companies, and the price trend agrees"],
+  [/^most of its measured families rank in the bottom third of similar companies and the price trend agrees\.\s*/i, "Most of what we measure ranks in the bottom third of similar companies, and the price trend agrees"],
+  [/^its measured families do not agree enough for add or trim\.\s*/i, "What we measure is split, so we'd neither buy more nor sell"],
+];
+
+function plainEngineReason(text: string): string | null {
+  const lead = ENGINE_LEAD.find(([pattern]) => pattern.test(text));
+  if (!lead) return null;
+  const rest = text.replace(lead[0], "");
+  const votes = /^(\d+) of (\d+) families point up, (\d+) points? down\.\s*/i.exec(rest);
+  let out = lead[1];
+  let tail = rest;
+  if (votes) {
+    out += `: ${votes[1]} of ${votes[2]} measures point up and ${votes[3]} point down.`;
+    tail = rest.slice(votes[0].length);
+  } else {
+    out += ".";
+  }
+  tail = tail
+    .replace(/^the add level is (\S+)/i, "We'd buy more below $1")
+    .replace(/^the level to reduce into is (\S+)/i, "We'd sell some above $1");
+  return `${out} ${tail}`.trim();
+}
+
+/**
+ * The stored one-line reason behind a call, in plain words with the same
+ * meaning: "Risk/reward has weakened; avoid adding and use any bounce to
+ * reduce exposure." becomes "The possible gain no longer looks worth the risk.
+ * We wouldn't buy more, and if the price bounces we'd sell some." Text that is
+ * not one of the pipeline's templates comes back as it was.
+ */
+export function plainCallReason(text: string | null | undefined): string {
+  const value = (text ?? "").trim().replace(/\s+/g, " ");
+  if (!value) return "";
+  for (const [pattern, write] of CALL_REASONS) {
+    const match = pattern.exec(value);
+    if (match) return write(match);
+  }
+  return plainEngineReason(value) ?? value;
+}
+
+// Wall Street shorthand in our move reasons, said the long way with the same
+// meaning. Ordered: the longer phrases first so "Q3 earnings beat" is not
+// half-rewritten by the plain "earnings beat" rule.
+const FINANCE_PHRASES: Array<[RegExp, string]> = [
+  [/\b(?:strong |solid |big )?(Q[1-4] |(?:first|second|third|fourth)-quarter )?(earnings|revenue|sales|profit) beats?\b(?!\s+(?:the\s+)?(?:analysts?'?\s+)?(?:estimates?|expectations|forecasts?|views|consensus))/gi, "$1$2 that beat expectations"],
+  [/\b(?:weak )?(Q[1-4] |(?:first|second|third|fourth)-quarter )?(earnings|revenue|sales|profit) miss(?:es)?\b(?!\s+(?:the\s+)?(?:analysts?'?\s+)?(?:estimates?|expectations|forecasts?|views|consensus))/gi, "$1$2 that missed expectations"],
+  [/\bguidance (?:cut|reduction)\b/gi, "a lower forecast"],
+  [/\bguidance (?:increase|raise|hike)\b/gi, "a raised forecast"],
+  [/\b(raises|raised|lifts|lifted|boosts|boosted|cuts|cut|lowers|lowered|reaffirms|reaffirmed) (?:its |full-year |annual )?(?:guidance|outlook)\b/gi, "$1 its forecast"],
+  [/\bas guidance\b/gi, "as its forecast"],
+  [/\bguidance\b/gi, "forecast"],
+  [/\bconvertible (?:debt|notes?|bond) offering\b/gi, "sale of bonds that can turn into shares"],
+  [/\bprior-window\b/gi, "earlier"],
+];
+
+/**
+ * A move reason with trader shorthand spelled out: "Hims & Hers plunges after
+ * earnings miss and guidance cut" -> "... after earnings that missed expectations
+ * and a lower forecast". For our own reasons only; never for a publisher's
+ * headline, which is quoted as written.
+ */
+export function plainFinance(text: string | null | undefined): string {
+  let value = (text ?? "").trim();
+  for (const [pattern, replacement] of FINANCE_PHRASES) value = value.replace(pattern, replacement);
+  // "that beat expectations" leaves "Q3 earnings" with a doubled space when the quarter is missing.
+  return value.replace(/\s{2,}/g, " ").replace(/^./, (first) => first.toUpperCase());
+}
+
+/**
+ * The complete sentences of a feed excerpt, never one that a feed cut off
+ * with "..." partway through: "A did X. B said Y, and the…" -> "A did X.".
+ * An excerpt with no complete sentence comes back empty, so the caller shows
+ * nothing rather than a broken clause. Keeps at most `max` sentences.
+ */
+export function wholeSentences(text: string | null | undefined, max = 2): string {
+  const value = (text ?? "").trim().replace(/\s+/g, " ");
+  if (!value) return "";
+  const cut = /(?:…|\.\.\.)\s*$/.test(value);
+  const sentences: string[] = [];
+  let rest = value;
+  while (rest && sentences.length < max) {
+    const first = firstFullSentence(rest);
+    if (first === rest) {
+      // The last piece: keep it only if it really ends a sentence.
+      if (!cut && /[.!?]["”)]?$/.test(first)) sentences.push(first);
+      break;
+    }
+    sentences.push(first);
+    rest = rest.slice(first.length).trim();
+  }
+  return sentences.join(" ");
 }

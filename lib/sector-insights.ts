@@ -1,4 +1,4 @@
-import { fin, median, signedPct } from "@/lib/insight-format";
+import { fin, median, movedWord, signedPct, upDown } from "@/lib/insight-format";
 import { pickInsights, sharePct, toneOfChange, type Insight, type TheRead } from "@/lib/insights";
 import type { ScreenerRow } from "@/lib/screener-shared";
 
@@ -107,8 +107,8 @@ export function buildSectorRead(input: SectorReadInput): TheRead | null {
     trend = {
       id: "trend",
       tone: fin(spyYear) ? toneOfChange(year - spyYear, 0.5) : toneOfChange(year, 0.5),
-      text: `Over a month the group is ${signedPct(month)}${fin(spy?.ret_1m) ? ` (S&P 500 ${signedPct(spy!.ret_1m!)})` : ""}; this year ${signedPct(year)}${fin(spyYear) ? ` against ${signedPct(spyYear)}` : ""}.`,
-      soWhat: yearLead ? `${yearLead.symbol} leads the year at ${signedPct(yearLead.ret_ytd!)}.` : undefined,
+      text: `Over the past month these stocks ${movedWord(month)}${fin(spy?.ret_1m) ? ` (S&P 500 ${signedPct(spy!.ret_1m!)})` : ""}. This year the group ${upDown(year)}${fin(spyYear) ? `, against ${signedPct(spyYear)} for the S&P 500` : ""}.`,
+      soWhat: yearLead ? `${yearLead.symbol} has done best this year, ${signedPct(yearLead.ret_ytd!)}.` : undefined,
       tickers: yearLead ? [yearLead.symbol] : undefined,
     };
   }

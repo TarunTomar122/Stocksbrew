@@ -23,7 +23,7 @@ import {
 } from "@/lib/signals-shared";
 import { buildRedditRead, policyTakeaway } from "@/lib/signals-insights";
 import { moodWord } from "@/lib/tone";
-import { sentenceCase } from "@/lib/plain-copy";
+import { plainFinance, sentenceCase } from "@/lib/plain-copy";
 
 const CHIP = "inline-flex h-10 shrink-0 items-center gap-1.5 rounded-md border px-3 text-[14px] transition-colors sm:h-8 " + FOCUS;
 const CHIP_ON = "border-[color-mix(in_srgb,var(--ink)_55%,transparent)] bg-oa-card font-medium text-oa-fg";
@@ -153,7 +153,7 @@ function MoverLine({ mover, rank, max }: { mover: Mover; rank: number; max: numb
         <span className="truncate">{cause}</span>
       </p>
       <p className={`mt-0.5 min-w-0 pl-7 text-[14px] leading-[21px] lg:mt-0 lg:pl-0 ${mover.explained ? "font-medium text-oa-fg" : "text-oa-muted-fg"}`}>
-        {sentenceCase(headline)}
+        {plainFinance(sentenceCase(headline))}
       </p>
       <span className="hidden lg:block">{mover.explained ? <Chevron /> : null}</span>
     </div>
@@ -626,7 +626,7 @@ function TodayMovers({ movers }: { movers: Mover[] }) {
                 </span>
                 <Ticker symbol={mover.ticker} size={20} className="min-w-0" />
                 <p className="col-span-3 col-start-2 row-start-2 mt-0.5 min-w-0 text-pretty text-[14px] leading-5 text-oa-fg lg:col-span-1 lg:col-start-3 lg:row-start-1 lg:mt-0 lg:font-medium">
-                  {sentenceCase(mover.headline)}
+                  {plainFinance(sentenceCase(mover.headline))}
                 </p>
                 <Delta value={mover.pct} className="text-right text-[15px] font-semibold" />
                 <Chevron />

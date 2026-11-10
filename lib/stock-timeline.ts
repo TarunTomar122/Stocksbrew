@@ -14,6 +14,7 @@ import type { EarningsIntelDoc } from "@/lib/earnings-intel";
 import type { NewsArticle } from "@/lib/news";
 import type { PowerTrade } from "@/lib/power-trades";
 import type { StockFacts, TimelineEvent } from "@/lib/stock";
+import { plainAction } from "@/lib/plain-copy";
 
 export type StockTimelineKind =
   | "move"
@@ -259,7 +260,7 @@ export function buildStockTimeline(input: StockTimelineInput): {
       kind: "call",
       at: input.callChange.at,
       precision: "time",
-      title: input.callChange.headline ? `We changed our call to "${input.callChange.headline}"` : "We changed our call",
+      title: input.callChange.headline ? `We changed our call to "${plainAction(input.callChange.headline, null) ?? input.callChange.headline}"` : "We changed our call",
       detail: input.callChange.reason ?? undefined,
       source: "stocksbrew brief",
       href: "#read",

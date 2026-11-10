@@ -40,6 +40,8 @@ export type BriefingViewProps = {
   degraded: string[];
   /** "Market is open", worked out on the server from the exchange clock. */
   marketState: string;
+  /** Earnings reports for the person's stocks, rendered on the server (components/earnings-day). */
+  earnings?: React.ReactNode;
 };
 
 const CARD = "oa-surface overflow-hidden border border-oa-border bg-oa-card";
@@ -126,6 +128,7 @@ export function BriefingView({
   archived,
   degraded,
   marketState,
+  earnings = null,
 }: BriefingViewProps) {
   const [state, setState] = React.useState<BriefingStateMap>(initialState);
   const [busy, setBusy] = React.useState<string | null>(null);
@@ -292,6 +295,7 @@ export function BriefingView({
 
       <div className="flex min-w-0 flex-col gap-4">
         <TheRead read={read} label={personal ? "Today for you" : "Today in the market"} />
+        {earnings}
 
         {error ? (
           <p role="alert" className="rounded-lg border border-[color:color-mix(in_srgb,var(--signal-bearish)_40%,transparent)] bg-oa-card px-3.5 py-2 text-[13px] text-signal-bearish">
@@ -419,15 +423,20 @@ export function BriefingView({
               ))}
             </ul>
           ) : null}
-          {/* The index is a live quote; the movers come from the last full run, so their time sits with them. */}
-          <MoverRows title="Biggest gains" rows={briefing.market.gainers} max={moverMax} asOf={sourceTime(briefing.market.as_of)} />
-          <MoverRows title="Biggest drops" rows={briefing.market.losers} max={moverMax} asOf={briefing.market.gainers.length > 0 ? null : sourceTime(briefing.market.as_of)} />
+          {/* The index is a live quote; the movers come from the last full run, so their time sits with them.
+              The market view already leads with these same moves, so there it shows only the index. */}
+          {briefing.mode !== "market" ? (
+            <>
+              <MoverRows title="Biggest gains" rows={briefing.market.gainers} max={moverMax} asOf={sourceTime(briefing.market.as_of)} />
+              <MoverRows title="Biggest drops" rows={briefing.market.losers} max={moverMax} asOf={briefing.market.gainers.length > 0 ? null : sourceTime(briefing.market.as_of)} />
+            </>
+          ) : null}
           {index.length === 0 && movers.length === 0 ? (
             <p className="px-4 py-3 text-[14px] leading-5 text-oa-muted-fg">Market data is not available right now.</p>
           ) : null}
           <div className="flex min-h-10 items-center justify-end px-4 py-1">
             <a href="/signals?tab=movers" className="-my-2 inline-flex min-h-10 items-center text-[13px] font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
-              All movers
+              See all stock moves
             </a>
           </div>
         </section>

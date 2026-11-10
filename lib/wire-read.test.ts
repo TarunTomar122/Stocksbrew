@@ -162,6 +162,6 @@ describe("the read", () => {
       { nowMs: NOW, filters },
     );
     const disagree = reading.read!.insights.find((insight) => insight.id === "disagree");
-    expect(disagree?.text).toBe("AAPL: its news reads 100% positive, yet the stock is −3.5% today.");
+    expect(disagree?.text).toBe("AAPL: 100% of today's headlines about it read as good news, yet the stock is −3.5% today.");
   });
 });

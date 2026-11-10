@@ -10,6 +10,8 @@
  * There is one mode: tell me. A job never places a trade.
  */
 
+import { evaluateEarningsReported, type EarningsReportFact } from "@/lib/earnings-day-agent";
+
 /* ── types ──────────────────────────────────────────────────────────────── */
 
 export type AgentScheduleCadence = "daily_open" | "weekly";
@@ -18,6 +20,7 @@ export type AgentEventKind =
   | "congress_trade"
   | "insider_trade"
   | "earnings_approaching"
+  | "earnings_reported"
   | "mover";
 export type AgentPriceRule = "crosses_above" | "crosses_below" | "moves_pct" | "enters_buy_zone";
 
@@ -152,13 +155,15 @@ export type AgentFacts = {
     url: string | null;
   }>;
   movers: Array<{ ticker: string; date: string; day_change_pct: number; reason: string | null }>;
+  /** Earnings reports written from the company's own release (lib/earnings-day-agent.ts). */
+  earnings_reports?: EarningsReportFact[];
   /** The days we kept a movers list for. A day outside it cannot be checked. */
   mover_days: string[];
   /**
    * Whether each source has been collected at all. A source we do not have is
    * reported as "could not check", never as "nothing happened".
    */
-  available: { fund_filings: boolean; congress: boolean; insiders: boolean; earnings: boolean; movers: boolean };
+  available: { fund_filings: boolean; congress: boolean; insiders: boolean; earnings: boolean; movers: boolean; earnings_reports?: boolean };
 };
 
 export const EMPTY_FACTS: AgentFacts = {
@@ -326,7 +331,7 @@ export const AGENT_TEMPLATES: AgentTemplate[] = [
     group: "Schedule",
     title: "Morning check",
     ask: "Every market day, check my names and tell me what moved, what reports soon and who disclosed a trade.",
-    tells: "Which of your names moved 3% or more, who reports this week, and any Congress trades in them.",
+    tells: "Each morning: which of your stocks moved 3% or more, which report earnings this week, and any trades in them by members of Congress.",
     fields: [],
     defaults: {
       template: "morning-check",
@@ -340,7 +345,7 @@ export const AGENT_TEMPLATES: AgentTemplate[] = [
     group: "Schedule",
     title: "Weekly review",
     ask: "Once a week, sum up the week for my names.",
-    tells: "Your names that moved 5% or more over the week, and who reports in the week ahead.",
+    tells: "Once a week: your stocks that moved 5% or more, and which report earnings in the week ahead.",
     fields: ["weekday"],
     defaults: {
       template: "weekly-review",
@@ -352,9 +357,9 @@ export const AGENT_TEMPLATES: AgentTemplate[] = [
   {
     id: "fund-filing",
     group: "Event",
-    title: "A fund files a 13F",
+    title: "A fund reports its holdings",
     ask: "Tell me when a fund we track files a new 13F, and whether it touched my names.",
-    tells: "When a fund we follow files a new 13F, and whether your names are in it.",
+    tells: "When a fund we follow reports what it owns (its quarterly 13F), and whether your stocks are in it.",
     fields: [],
     needs: "fund_filings",
     defaults: {
@@ -369,7 +374,7 @@ export const AGENT_TEMPLATES: AgentTemplate[] = [
     group: "Event",
     title: "Congress discloses a trade",
     ask: "Tell me when a member of Congress discloses a trade in one of my names.",
-    tells: "When a member of Congress discloses a trade in one of your names.",
+    tells: "When a member of Congress reports buying or selling one of your stocks.",
     fields: [],
     needs: "congress",
     defaults: {
@@ -384,7 +389,7 @@ export const AGENT_TEMPLATES: AgentTemplate[] = [
     group: "Event",
     title: "An insider trades",
     ask: "Tell me when an executive or director buys or sells one of my names.",
-    tells: "When an executive or director buys or sells one of your names.",
+    tells: "When an executive or board member buys or sells shares of one of your stocks.",
     fields: [],
     needs: "insiders",
     defaults: {
@@ -399,7 +404,7 @@ export const AGENT_TEMPLATES: AgentTemplate[] = [
     group: "Event",
     title: "Earnings are coming",
     ask: "Tell me a few days before one of my names reports earnings.",
-    tells: "Three days before one of your names reports earnings.",
+    tells: "Three days before one of your stocks reports earnings.",
     fields: ["days_before"],
     needs: "earnings",
     defaults: {
@@ -410,11 +415,26 @@ export const AGENT_TEMPLATES: AgentTemplate[] = [
     },
   },
   {
+    id: "earnings-out",
+    group: "Event",
+    title: "Earnings came out",
+    ask: "Tell me when one of my names reports earnings: the numbers against expectations, the outlook and how the stock reacted.",
+    tells: "The report on one of your names minutes after it files its results, with a link to the full read.",
+    fields: [],
+    needs: "earnings_reports",
+    defaults: {
+      template: "earnings-out",
+      name: "Earnings reports on my names",
+      trigger: { type: "event", event: "earnings_reported" },
+      scope: { kind: "watchlist" },
+    },
+  },
+  {
     id: "mover",
     group: "Event",
-    title: "One of my names is a mover",
+    title: "One of my stocks moves a lot",
     ask: "Tell me when one of my names lands on the day's movers list, with the reason if we found one.",
-    tells: "When one of your names makes the day's movers list, with the reason when we found one.",
+    tells: "When one of your stocks is among the day's biggest moves, with the reason when we found one.",
     fields: [],
     needs: "movers",
     defaults: {
@@ -441,9 +461,9 @@ export const AGENT_TEMPLATES: AgentTemplate[] = [
   {
     id: "big-move",
     group: "Price",
-    title: "Moves a lot in a day",
+    title: "A big move in one day",
     ask: "Tell me when one of my names moves more than a set percent in a day.",
-    tells: "When one of your names closes 5% or more away from the day before.",
+    tells: "When one of your stocks closes 5% or more up or down on the day.",
     fields: ["pct"],
     defaults: {
       template: "big-move",
@@ -455,9 +475,9 @@ export const AGENT_TEMPLATES: AgentTemplate[] = [
   {
     id: "buy-zone",
     group: "Price",
-    title: "Drops into its add zone",
+    title: "Reaches our buy price",
     ask: "Tell me when one of my names closes at or below the add level from its research call.",
-    tells: "When one of your names closes in the add zone from its research call.",
+    tells: "When one of your stocks closes at or below the price where our call says we'd buy more.",
     fields: [],
     defaults: {
       template: "buy-zone",
@@ -470,6 +490,21 @@ export const AGENT_TEMPLATES: AgentTemplate[] = [
 
 export function templateById(id: string): AgentTemplate | null {
   return AGENT_TEMPLATES.find((template) => template.id === id) ?? null;
+}
+
+/**
+ * The "Earnings came out" agent reads tm_earnings_day, which only the VPS
+ * earnings_day job writes. Until that job is on, the template is not offered
+ * and the server refuses it, so nobody switches on an agent that never fires.
+ * Read on the server only: the browser never sees this env var.
+ */
+export function earningsDayEnabled(): boolean {
+  return typeof process !== "undefined" && process.env.EARNINGS_DAY_ENABLED === "1";
+}
+
+/** Template ids that are not offered right now (pass the result to the client). */
+export function hiddenTemplateIds(earningsDay: boolean = earningsDayEnabled()): string[] {
+  return earningsDay ? [] : ["earnings-out"];
 }
 
 /* ── describing a job ───────────────────────────────────────────────────── */
@@ -497,6 +532,7 @@ export function triggerLabel(trigger: AgentTrigger): string {
   if (trigger.event === "congress_trade") return "Congressional disclosure";
   if (trigger.event === "insider_trade") return "Insider trade";
   if (trigger.event === "earnings_approaching") return `${trigger.days_before ?? 3} days before earnings`;
+  if (trigger.event === "earnings_reported") return "Earnings came out";
   return "On the movers list";
 }
 
@@ -531,6 +567,9 @@ export function describeJob(job: Pick<AgentJobDraft, "trigger" | "scope">): stri
   if (trigger.event === "earnings_approaching") {
     return `Tell me ${trigger.days_before ?? 3} days before any of ${who} reports earnings.`;
   }
+  if (trigger.event === "earnings_reported") {
+    return `Tell me when any of ${who} reports earnings, with the numbers against expectations and how the stock reacted.`;
+  }
   return `Tell me when any of ${who} lands on the day's movers list.`;
 }
 
@@ -550,11 +589,14 @@ export function cleanTickers(raw: unknown, max = MAX_SCOPE_TICKERS): string[] {
 export type DraftResult = { ok: true; draft: AgentJobDraft } | { ok: false; error: string };
 
 /** Turn untrusted input into a job draft, or say what is wrong with it in plain words. */
-export function parseJobDraft(raw: unknown): DraftResult {
+export function parseJobDraft(raw: unknown, options: { hidden?: string[] } = {}): DraftResult {
   if (!raw || typeof raw !== "object") return { ok: false, error: "Pick a template to start." };
   const input = raw as Record<string, unknown>;
   const template = templateById(String(input.template ?? ""));
   if (!template) return { ok: false, error: "Pick a template to start." };
+  if ((options.hidden ?? hiddenTemplateIds()).includes(template.id)) {
+    return { ok: false, error: "This agent is not available yet. Pick another one." };
+  }
 
   const rawTrigger = (input.trigger ?? {}) as Record<string, unknown>;
   const rawScope = (input.scope ?? {}) as Record<string, unknown>;
@@ -615,7 +657,7 @@ export function parseJobDraft(raw: unknown): DraftResult {
       trigger = { type: "event", event };
     }
     // Earnings and movers are about names the person follows; "any" would be the whole market.
-    if (scope.kind === "any" && (event === "earnings_approaching" || event === "mover")) scope = { kind: "watchlist" };
+    if (scope.kind === "any" && (event === "earnings_approaching" || event === "earnings_reported" || event === "mover")) scope = { kind: "watchlist" };
   }
 
   const typed = typeof input.name === "string" ? input.name.replace(/\s+/g, " ").trim().slice(0, 80) : "";
@@ -924,6 +966,7 @@ function evaluateEvent(
     );
   }
 
+  if (trigger.event === "earnings_reported") return evaluateEarningsReported(facts, { day, since, tickers }, MAX_FINDINGS);
   if (trigger.event === "earnings_approaching") {
     if (!facts.available.earnings) {
       return couldNot("Could not check: the earnings calendar was not available.", ["Earnings calendar: unavailable"]);

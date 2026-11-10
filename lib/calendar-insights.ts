@@ -90,9 +90,14 @@ export function readTickers(items: CalendarItem[], today: string, mine: Set<stri
 export function pastMoveText(context: ReportContext | undefined): string | null {
   const last = context?.last;
   if (!last) return null;
-  const span = last.basis === "2d" ? " over two sessions" : " the next day";
+  const span = last.basis === "2d" ? " over the two days" : " the day";
   const multiple = isNum(context.typicalDayPct) && context.typicalDayPct > 0 ? Math.abs(last.pct) / context.typicalDayPct : null;
-  const normal = multiple !== null && multiple >= 1.5 ? `, about ${Math.round(multiple)}x a normal day for it` : multiple !== null && multiple < 0.8 ? ", smaller than a normal day for it" : "";
+  const normal =
+    multiple !== null && multiple >= 1.5
+      ? `, about ${Math.round(multiple)} times its normal daily move`
+      : multiple !== null && multiple < 0.8
+        ? ", less than it moves on a normal day"
+        : "";
   return `${last.pct >= 0 ? "rose" : "fell"} ${absPct(last.pct)}${span} after its ${shortDay(last.eventDate)} report${normal}`;
 }
 
@@ -161,11 +166,11 @@ function biggestInsight(input: CalendarReadInput, skip: Set<string>): Insight | 
   const move = pastMoveText(input.context?.[lead.ticker]);
   const when = [whenWord(lead.date, input.today), timeWord(lead)].filter(Boolean).join(" ");
   const runner = next[1];
-  const runnerText = runner ? ` Next biggest: ${runner.ticker} ${whenWord(runner.date, input.today)}.` : "";
+  const runnerText = runner ? ` The next biggest is ${runner.ticker}, ${whenWord(runner.date, input.today)}.` : "";
   return {
     id: "biggest",
     tone: "flat",
-    text: `${displayName(lead)}${capWord(lead)} is the biggest report left ${input.period}, ${when}.${move ? ` It ${move}.` : ""}${runnerText}`,
+    text: `${displayName(lead)}${capWord(lead)} is the biggest company still to report ${input.period}, ${when}.${move ? ` Last time it ${move}.` : ""}${runnerText}`,
     tickers: [lead.ticker, ...(runner ? [runner.ticker] : [])],
     action: { label: `${lead.ticker} earnings`, href: `/calendar/earnings/${encodeURIComponent(lead.ticker)}` },
   };
@@ -241,20 +246,23 @@ export function buildCalendarRead(input: CalendarReadInput): TheRead | null {
   if (upcoming.length === 0 && reported.length === 0 && !econToday) return null;
 
   const parts: string[] = [];
-  if (econToday) parts.push(`${shortTitle(econToday.title)} is out today${econToday.timeEt ? ` at ${fmtClock(econToday.timeEt)}` : ""}`);
+  if (econToday) parts.push(`${econToday.title.trim()} numbers come out today${econToday.timeEt ? ` at ${fmtClock(econToday.timeEt)}` : ""}`);
   if (upcoming.length) {
     const leaders = upcoming.slice(0, 2);
     const sameDay = leaders.length === 2 && leaders[0]!.date === leaders[1]!.date;
     const leadText = sameDay
       ? `${listNames(leaders.map(displayName))} on ${whenWord(leaders[0]!.date, input.today)}`
       : listNames(leaders.map((item) => `${displayName(item)} ${whenWord(item.date, input.today)}`));
-    const still = reported.length > 0 ? " still to report" : "";
-    parts.push(`${upcoming.length} ${upcoming.length === 1 ? `company${still || " reports"}` : `companies${still || " report"}`} ${input.period}, led by ${leadText}`);
+    const still = reported.length > 0 ? " still" : "";
+    parts.push(
+      `${upcoming.length} ${upcoming.length === 1 ? `company${still} reports` : `companies${still} report`} ${input.period}. The biggest ${leaders.length === 1 ? "is" : "are"} ${leadText}`,
+    );
   } else if (reported.length) {
     const beats = reported.filter((item) => surpriseOf(item)?.label === "beat").length;
     parts.push(`${reported.length} companies reported, ${beats} beat estimates`);
   }
-  const headline = parts.length ? `${parts[0]!.charAt(0).toUpperCase()}${parts[0]!.slice(1)}${parts[1] ? `; ${parts[1]}` : ""}.` : "";
+  // One sentence per fact, never two facts glued with a semicolon.
+  const headline = parts.map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}.`).join(" ");
 
   const mine = mineInsight(input);
   const skip = new Set(mine?.tickers ?? []);
@@ -306,7 +314,7 @@ export function buildEarningsDetailRead(input: {
     insights.push({
       id: "surprise",
       tone: surprise.label === "beat" ? "up" : surprise.label === "miss" ? "down" : "flat",
-      text: `Last quarter's EPS ${verb} the estimate${size}${
+      text: `Last quarter's earnings per share ${verb} the estimate${size}${
         reaction ? `${disagree ? ", yet" : " and"} the stock ${reaction.pct >= 0 ? "rose" : "fell"}${move ? "" : ` ${absPct(reaction.pct)}`}` : ""
       }.`,
       soWhat: disagree ? "The headline number was not what the market traded on." : undefined,

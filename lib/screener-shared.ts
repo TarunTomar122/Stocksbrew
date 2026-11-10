@@ -178,15 +178,15 @@ export const NUMERIC_FIELDS: NumericField[] = [
   { id: "price", short: "Price", label: "Share price", group: "Price and returns", unit: "price" },
   { id: "day_pct", short: "Day", label: "Change today", group: "Price and returns", unit: "signed_pct", better: "high" },
   { id: "ret_1w", short: "1W", label: "Return over 1 week", group: "Price and returns", unit: "signed_pct", better: "high" },
-  { id: "ret_1m", short: "1M", label: "Return over 1 month", group: "Price and returns", unit: "signed_pct", better: "high" },
-  { id: "ret_3m", short: "3M", label: "Return over 3 months", group: "Price and returns", unit: "signed_pct", better: "high" },
+  { id: "ret_1m", short: "1 month", label: "Return over 1 month", group: "Price and returns", unit: "signed_pct", better: "high" },
+  { id: "ret_3m", short: "3 months", label: "Return over 3 months", group: "Price and returns", unit: "signed_pct", better: "high" },
   { id: "ret_6m", short: "6M", label: "Return over 6 months", group: "Price and returns", unit: "signed_pct", better: "high" },
-  { id: "ret_ytd", short: "YTD", label: "Return this year", group: "Price and returns", unit: "signed_pct", better: "high" },
+  { id: "ret_ytd", short: "This year", label: "Return this year", group: "Price and returns", unit: "signed_pct", better: "high" },
   { id: "ret_1y", short: "1Y", label: "Return over 1 year", group: "Price and returns", unit: "signed_pct", better: "high" },
   { id: "ret_3y", short: "3Y", label: "Return over 3 years", group: "Price and returns", unit: "signed_pct", better: "high" },
   { id: "ret_5y", short: "5Y", label: "Return over 5 years", group: "Price and returns", unit: "signed_pct", better: "high" },
 
-  { id: "market_cap", short: "Mkt cap", label: "Market value", group: "Size", unit: "money" },
+  { id: "market_cap", short: "Value", label: "Market value", group: "Size", unit: "money" },
 
   { id: "pe", short: "P/E", label: "Price to earnings, last 12 months", group: "Valuation", unit: "multiple", digits: 1, better: "low" },
   { id: "fwd_pe", short: "Fwd P/E", label: "Price to next year's expected earnings", group: "Valuation", unit: "multiple", digits: 1, better: "low" },
@@ -196,7 +196,7 @@ export const NUMERIC_FIELDS: NumericField[] = [
   { id: "ev_ebitda", short: "EV/EBITDA", label: "Enterprise value to EBITDA", group: "Valuation", unit: "multiple", digits: 1, better: "low" },
   { id: "pe_hist_pctile", short: "P/E vs own", label: "Today's P/E against the daily P/Es we have on file for the stock (0 is below all of them, 100 above all)", group: "Valuation", unit: "number", digits: 0, better: "low" },
 
-  { id: "rev_growth", short: "Rev growth", label: "Revenue growth, year over year", group: "Growth", unit: "signed_pct", digits: 1, better: "high" },
+  { id: "rev_growth", short: "Sales growth", label: "Revenue growth, year over year", group: "Growth", unit: "signed_pct", digits: 1, better: "high" },
   { id: "rev_cagr_3y", short: "Rev 3Y", label: "Revenue growth per year over 3 fiscal years", group: "Growth", unit: "signed_pct", digits: 1, better: "high" },
   { id: "eps_growth", short: "EPS growth", label: "Earnings per share growth, last 12 months", group: "Growth", unit: "signed_pct", digits: 1, better: "high" },
   { id: "eps_next_y", short: "EPS next Y", label: "Expected earnings growth next year", group: "Growth", unit: "signed_pct", digits: 1, better: "high" },

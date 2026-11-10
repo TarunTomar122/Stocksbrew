@@ -4,6 +4,7 @@ import { Delta, NUM, Ticker, fmtMoney } from "@/components/oa/kit";
 import { CallTag, Unknown, ZoneTag } from "@/components/screener/shared";
 import type { BasketLine, BasketPerf, BasketWindow } from "@/lib/screener-themes";
 import { BASKET_WINDOWS } from "@/lib/screener-themes";
+import { plainCallReason } from "@/lib/plain-copy";
 
 /** Server-rendered pieces of an idea basket: the performance strip and the book's lines. */
 
@@ -119,7 +120,7 @@ export function BookLine({ line, index, weight }: { line: BasketLine; index: num
         <p className="text-pretty text-[14px] leading-[1.45rem] text-oa-fg">{line.breaks}</p>
         {row?.call_reason ? (
           <p className="mt-1.5 text-pretty text-[14px] leading-5 text-oa-muted-fg">
-            <span className="text-oa-fg">Our read:</span> {row.call_reason}
+            <span className="text-oa-fg">Our read:</span> {plainCallReason(row.call_reason)}
           </p>
         ) : null}
       </div>

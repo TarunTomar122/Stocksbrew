@@ -27,6 +27,8 @@ export type DirectoryTab = "funds" | "congress" | "insiders";
 const GRID =
   "lg:grid-cols-[minmax(160px,1.5fr)_56px_repeat(6,minmax(62px,76px))_minmax(118px,1fr)_50px_72px]";
 const PAGE = 40;
+// A phone shows the first few; the rest wait behind the same "Show all" button.
+const PHONE_PAGE = 10;
 
 function SortHeader({
   label,
@@ -236,13 +238,15 @@ export function FollowDirectory({
             </p>
           ) : (
             <ul className="divide-y divide-oa-border">
-              {visible.map((source) => {
+              {visible.map((source, rowIndex) => {
                 const isFollowed = followed.has(source.slug);
                 const card = source.performance;
                 return (
                   <li
                     key={source.slug}
                     className={`grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 px-4 py-2 lg:min-h-[48px] lg:gap-x-2 lg:py-1.5 ${GRID} ${
+                      !showAll && !needle && rowIndex >= PHONE_PAGE ? "max-lg:hidden" : ""
+                    } ${
                       isFollowed
                         ? "bg-[color-mix(in_srgb,var(--oa-primary)_5%,transparent)]"
                         : ""
@@ -257,9 +261,9 @@ export function FollowDirectory({
                         className="flex min-w-0 items-center gap-1.5 text-[14px] font-medium leading-5 text-oa-fg outline-none hover:text-oa-primary focus-visible:text-oa-primary"
                       >
                         <PartyDot party={source.party} />
-                        <span className="truncate">{source.name}</span>
+                        <span className="text-pretty">{source.name}</span>
                       </a>
-                      <p className="truncate text-[12px] leading-4 text-oa-muted-fg">
+                      <p className="text-pretty text-[12px] leading-4 text-oa-muted-fg">
                         {source.person}
                         {!source.active
                           ? ` · last filed ${fmtMonthYear(source.latest_date)}`
@@ -339,11 +343,11 @@ export function FollowDirectory({
             </ul>
           )}
 
-          {!showAll && !needle && sorted.length > PAGE ? (
+          {!showAll && !needle && sorted.length > PHONE_PAGE ? (
             <button
               type="button"
               onClick={() => setShowAll(true)}
-              className="flex h-10 w-full items-center justify-center border-t border-oa-border text-[13px] font-medium text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent"
+              className={`${sorted.length > PAGE ? "" : "lg:hidden"} flex h-11 w-full items-center justify-center border-t border-oa-border text-[13px] font-medium text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent`}
             >
               Show all {sorted.length}
             </button>

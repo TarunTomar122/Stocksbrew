@@ -158,6 +158,18 @@ export function PricePanel({
   const range = ranges.find((item) => item.key === activeKey) ?? ranges[ranges.length - 1];
   const points = useMemo(() => range?.points ?? [], [range]);
   const markers = useMemo(() => placeMarkers(points, events), [points, events]);
+  // One legend entry per letter: Congress and insider trades share "T".
+  const markerKinds = useMemo(() => {
+    const seen = new Set<string>();
+    const kinds: ChartEventKind[] = [];
+    for (const marker of markers) {
+      const letter = MARKER_LETTER[marker.kind];
+      if (seen.has(letter)) continue;
+      seen.add(letter);
+      kinds.push(marker.kind);
+    }
+    return kinds;
+  }, [markers]);
 
   if (!range || points.length < 5) return null;
 
@@ -484,6 +496,24 @@ export function PricePanel({
         </div>
       </div>
 
+      {/* What the letters in the marker lane stand for, only for the kinds this chart shows. */}
+      {markerKinds.length ? (
+        <figcaption className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3.5 pb-2 pt-1 text-[12.5px] leading-5 text-oa-muted-fg sm:px-4">
+          {markerKinds.map((kind) => (
+            <span key={kind} className="inline-flex items-center gap-1.5">
+              <span
+                aria-hidden="true"
+                className={`oa-mono grid size-4 place-items-center rounded-[3px] text-[9.5px] font-medium leading-none ${
+                  kind === "call" ? "bg-oa-primary text-oa-primary-fg" : kind === "earnings" ? "border border-oa-fg/50 bg-oa-card text-oa-fg" : "bg-oa-secondary text-oa-fg"
+                }`}
+              >
+                {MARKER_LETTER[kind]}
+              </span>
+              {kind === "earnings" ? "Earnings report" : MARKER_NAME[kind]}
+            </span>
+          ))}
+        </figcaption>
+      ) : null}
     </figure>
   );
 }

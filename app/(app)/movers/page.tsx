@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 
 import { JsonLd, breadcrumbLd } from "@/components/docs/json-ld";
 import { TheRead } from "@/components/oa/insight";
-import { AppPage, CardGrid, Delta, MoveBar, NUM, PageHead, Panel, Ticker } from "@/components/oa/kit";
+import { AppPage, CardGrid, Delta, MoveBar, NUM, PageHead, Panel, ShowMore, Ticker, fmtDay } from "@/components/oa/kit";
 import { pickInsights, type TheRead as TheReadData } from "@/lib/insights";
 import { ogImage } from "@/lib/og/url";
-import { firstFullSentence, sentenceCase } from "@/lib/plain-copy";
+import { firstFullSentence, plainFinance, sentenceCase } from "@/lib/plain-copy";
 import { longDay, moveHref, moversDayHref } from "@/lib/seo/families";
 import { getRecentMoves, type MoveRef } from "@/lib/seo/family-data";
 
@@ -37,15 +37,18 @@ function hubRead(moves: readonly MoveRef[], latest: string | null): TheReadData 
   for (const move of moves) counts.set(move.ticker, (counts.get(move.ticker) ?? 0) + 1);
   const repeat = [...counts.entries()].filter(([, count]) => count >= 2).sort((a, b) => b[1] - a[1]);
   const biggest = [...today].sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct))[0];
+  // The story first (the day's biggest move, in a sentence), then the count.
+  const count = `${today.length} ${today.length === 1 ? "stock" : "stocks"} made a big move with a confirmed reason on ${longDay(latest)}: ${up} rose and ${today.length - up} fell.`;
   return {
-    headline: `${today.length} ${today.length === 1 ? "stock" : "stocks"} made a big move with a confirmed reason on ${longDay(latest)}: ${up} rose and ${today.length - up} fell.`,
+    headline: biggest
+      ? `The biggest move on ${fmtDay(latest)}: ${firstSentence(biggest.headline)} (${biggest.ticker} ${biggest.pct >= 0 ? "+" : "−"}${Math.abs(biggest.pct).toFixed(1)}%).`
+      : count,
     insights: pickInsights([
       biggest
         ? {
-            id: "biggest",
-            tone: biggest.pct >= 0 ? "up" : "down",
-            text: `${biggest.ticker} made the biggest move, ${biggest.pct >= 0 ? "up" : "down"} ${Math.abs(biggest.pct).toFixed(1)}%: ${firstSentence(biggest.headline)}.`,
-            tickers: [biggest.ticker],
+            id: "count",
+            tone: "flat",
+            text: count,
             action: { label: `Why ${biggest.ticker} moved`, href: moveHref(biggest.ticker, biggest.day) },
           }
         : null,
@@ -64,24 +67,47 @@ function hubRead(moves: readonly MoveRef[], latest: string | null): TheReadData 
   };
 }
 
-function firstSentence(text: string | null | undefined): string {
-  return sentenceCase(firstFullSentence(text)).replace(/[.!?]$/, "");
+/**
+ * "at 9:41 AM ET": when a move was measured, if that was during its own day.
+ * The briefing shows the live change, so the same stock can read -16.5% there
+ * and -11.1% here; the time keeps the two from looking like a contradiction.
+ */
+function measuredAt(move: MoveRef): string | null {
+  if (!move.researchedAt) return null;
+  const date = new Date(move.researchedAt);
+  if (Number.isNaN(date.getTime())) return null;
+  const day = date.toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+  if (day !== move.day) return null;
+  return `at ${date.toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" })} ET`;
 }
 
+function firstSentence(text: string | null | undefined): string {
+  return plainFinance(sentenceCase(firstFullSentence(text))).replace(/[.!?]$/, "");
+}
+
+// A phone shows the first few of each side; the rest wait behind one button.
+const PHONE_ROWS = 5;
+
 /** One move: the stock, a bar for its size, the number, and the reason in a sentence. */
-function MoveRow({ move, max }: { move: MoveRef; max: number }) {
+function MoveRow({ move, max, showTime }: { move: MoveRef; max: number; showTime: boolean }) {
   const reason = firstSentence(move.headline);
+  const at = showTime ? measuredAt(move) : null;
   return (
     <li className="border-b border-oa-border last:border-b-0">
       <a href={moveHref(move.ticker, move.day)} className="block px-4 py-2.5 outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
         <span className="flex items-center justify-between gap-3">
-          <Ticker symbol={move.ticker} name={move.name} href={null} className="min-w-0" />
+          <Ticker symbol={move.ticker} name={move.name} href={null} wrap className="min-w-0" />
           <span className="flex shrink-0 items-center gap-2.5">
             <MoveBar value={move.pct} max={max} width={56} />
             <Delta value={move.pct} digits={1} className="w-[4.25rem] text-right text-[15px] font-medium" />
           </span>
         </span>
-        {reason ? <span className="mt-0.5 block max-w-[68ch] text-pretty pl-7 text-[14px] leading-5 text-oa-muted-fg">{reason}.</span> : null}
+        {at ? <span className={`${NUM} block text-right text-[11.5px] leading-4 text-oa-muted-fg`}>{at}</span> : null}
+        {reason ? (
+          <span className="mt-0.5 block max-w-[68ch] text-pretty pl-7 text-[14px] leading-5 text-oa-muted-fg">
+            {reason}. <span className="whitespace-nowrap font-medium text-oa-primary">Why it moved →</span>
+          </span>
+        ) : null}
       </a>
     </li>
   );
@@ -97,6 +123,10 @@ export default async function MoversPage() {
   const max = Math.max(0, ...latestMoves.map((move) => Math.abs(move.pct)));
   const gains = latestMoves.filter((move) => move.pct >= 0).sort((a, b) => b.pct - a.pct);
   const drops = latestMoves.filter((move) => move.pct < 0).sort((a, b) => a.pct - b.pct);
+  // The researcher measures a day's moves in one pass, so they usually share a
+  // time: say it once in the header. Rows carry their own only when they differ.
+  const times = new Set(latestMoves.map((move) => measuredAt(move) ?? ""));
+  const sharedTime = times.size === 1 ? [...times][0] || null : null;
 
   return (
     <AppPage>
@@ -109,13 +139,30 @@ export default async function MoversPage() {
             { label: "Biggest gains", rows: gains },
             { label: "Biggest drops", rows: drops },
           ].map((side) => (
-            <Panel key={side.label} flush fill label={`${side.label} · ${longDay(latest[0])}`}>
+            <Panel
+              key={side.label}
+              flush
+              fill
+              label={side.label}
+              right={<span className={NUM}>{`${fmtDay(latest[0])}${sharedTime ? `, ${sharedTime.replace(/^at /, "")}` : ""}`}</span>}
+            >
               {side.rows.length ? (
-                <ul>
-                  {side.rows.map((move) => (
-                    <MoveRow key={`${move.ticker}-${move.day}`} move={move} max={max} />
-                  ))}
-                </ul>
+                <>
+                  <ul>
+                    {side.rows.slice(0, PHONE_ROWS).map((move) => (
+                      <MoveRow key={`${move.ticker}-${move.day}`} move={move} max={max} showTime={!sharedTime} />
+                    ))}
+                  </ul>
+                  {side.rows.length > PHONE_ROWS ? (
+                    <ShowMore label={`Show ${side.rows.length - PHONE_ROWS} more ${side.label === "Biggest gains" ? "gain" : "drop"}${side.rows.length - PHONE_ROWS === 1 ? "" : "s"}`} className="max-lg:px-4 max-lg:pb-3">
+                      <ul className="border-t border-oa-border">
+                        {side.rows.slice(PHONE_ROWS).map((move) => (
+                          <MoveRow key={`${move.ticker}-${move.day}`} move={move} max={max} showTime={!sharedTime} />
+                        ))}
+                      </ul>
+                    </ShowMore>
+                  ) : null}
+                </>
               ) : (
                 <p className="px-4 py-6 text-center text-[14px] text-oa-muted-fg">None on this day.</p>
               )}

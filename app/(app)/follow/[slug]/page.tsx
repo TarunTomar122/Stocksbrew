@@ -13,7 +13,8 @@ import { MovesStream } from "@/components/follow/moves-stream";
 import { Panel, PerfTiles, Stat } from "@/components/follow/panel";
 import { RecordChart } from "@/components/follow/record-chart";
 import { JsonLd, breadcrumbLd } from "@/components/docs/json-ld";
-import { AppPage, Verdict } from "@/components/oa/kit";
+import { AppPage, ShowMore, Verdict } from "@/components/oa/kit";
+import { shortCompanyName } from "@/lib/plain-copy";
 import { TheRead } from "@/components/oa/insight";
 import { buildCongressMemberRead, buildFundRead } from "@/lib/follow-insights";
 import { getSessionUser } from "@/lib/auth-server";
@@ -184,10 +185,10 @@ function PortfolioRows({
                 <Ticker ticker={position.ticker} className="text-[13px]" />
               ) : null}
               <span
-                className={`truncate text-[13px] ${position.ticker ? "text-oa-muted-fg" : "text-oa-fg"}`}
+                className={`text-pretty text-[13px] ${position.ticker ? "text-oa-muted-fg" : "text-oa-fg"}`}
                 title={position.issuer}
               >
-                {position.name}
+                {shortCompanyName(position.name)}
               </span>
             </div>
             {position.change && position.change !== "held" ? (
@@ -295,9 +296,9 @@ function ChangeList({
               <span className="flex min-w-0 items-baseline gap-1.5">
                 {row.ticker ? <Ticker ticker={row.ticker} /> : null}
                 <span
-                  className={`truncate ${row.ticker ? "text-[12px] text-oa-muted-fg" : "text-oa-fg"}`}
+                  className={`text-pretty ${row.ticker ? "text-[12px] text-oa-muted-fg" : "text-oa-fg"}`}
                 >
-                  {row.name}
+                  {shortCompanyName(row.name)}
                 </span>
               </span>
               <span className="oa-mono shrink-0 text-[12px] text-oa-muted-fg">
@@ -327,7 +328,7 @@ function RecordPanel({
 }) {
   if (!performance) {
     return (
-      <Panel title="Record from filing dates">
+      <Panel title="If you had copied each filing">
         <p className="px-4 py-5 text-[14px] leading-6 text-oa-muted-fg">
           No record for {name} yet: none of the {what} matched a stock with
           a price history. The filings are below.
@@ -337,9 +338,9 @@ function RecordPanel({
   }
   return (
     <Panel
-      title="Record from filing dates"
+      title="If you had copied each filing"
       right={
-        <span>Hypothetical · prices to {fmtDate(performance.end_date)}</span>
+        <span>Prices to {fmtDate(performance.end_date)}</span>
       }
     >
       <PerfTiles card={performance} />
@@ -351,8 +352,8 @@ function RecordPanel({
         />
       </div>
       <p className="border-t border-oa-border px-4 py-3 text-[12.5px] leading-5 text-oa-muted-fg">
-        Hypothetical: following the {what} from each filing date, before costs
-        and taxes.
+        What you would have made buying the {what} on each filing date, before
+        costs and taxes. Not a real account.
         {performance.fund.annualized != null &&
         performance.spy.annualized != null
           ? ` That is ${fmtFrac(performance.fund.annualized)} a year against ${fmtFrac(performance.spy.annualized)} for the S&P 500.`
@@ -414,7 +415,7 @@ function FundView({
         </div>
       </div>
 
-      <TheRead read={buildFundRead(profile)} className="mt-3" />
+      <TheRead read={buildFundRead(profile)} fold="phone" className="mt-3" />
 
       <div className="mt-4">
         <Panel
@@ -444,7 +445,7 @@ function FundView({
           </div>
           <div className="grid grid-cols-2 border-t border-oa-border sm:grid-cols-4 [&>*+*]:border-l [&>*:nth-child(3)]:border-l-0 [&>*:nth-child(n+3)]:border-t sm:[&>*:nth-child(3)]:border-l sm:[&>*:nth-child(n+3)]:border-t-0 [&>*]:border-oa-border">
             <Stat
-              label="Stocks disclosed"
+              label="Stocks reported"
               value={fmtUsd(latest.stock_value)}
               hint={`as of ${fmtDate(latest.period)}`}
             />
@@ -458,9 +459,9 @@ function FundView({
               }
             />
             <Stat
-              label="Top 10 weight"
+              label="Top 10 stocks"
               value={fmtWeight(latest.top10_weight)}
-              hint="of the stock book"
+              hint="of the money in stocks"
             />
             <Stat
               label="Options"
@@ -472,19 +473,11 @@ function FundView({
               hint={
                 optionShare != null
                   ? `on ${fmtUsd(latest.options_underlying_value)} of stock`
-                  : "puts and calls"
+                  : "rights to buy or sell later"
               }
             />
           </div>
         </Panel>
-      </div>
-
-      <div className="mt-4">
-        <RecordPanel
-          performance={profile.performance}
-          name={profile.fund}
-          what="stock book"
-        />
       </div>
 
       {changes ? (
@@ -589,6 +582,15 @@ function FundView({
         </Panel>
       </div>
 
+      {/* The hypothetical record comes after what the fund owns: holdings first, the backtest second. */}
+      <div className="mt-4">
+        <RecordPanel
+          performance={profile.performance}
+          name={profile.fund}
+          what="reported stocks"
+        />
+      </div>
+
       {profile.options.length > 0 ? (
         <div className="mt-4">
           <Panel
@@ -608,8 +610,8 @@ function FundView({
                       {option.put_call}
                     </span>
                     {option.ticker ? <Ticker ticker={option.ticker} /> : null}
-                    <span className="truncate text-oa-muted-fg">
-                      {option.name}
+                    <span className="text-pretty text-oa-muted-fg">
+                      {shortCompanyName(option.name)}
                     </span>
                   </span>
                   <span className="oa-mono shrink-0 text-[12px] text-oa-muted-fg">
@@ -622,7 +624,7 @@ function FundView({
         </div>
       ) : null}
 
-      <div className="mt-4">
+      <ShowMore label="Show every filing since the first one" className="mt-4">
         <Panel
           title="Filing history"
           right={
@@ -702,15 +704,14 @@ function FundView({
           </p>
         </Panel>
 
-      </div>
-
-      {activity.length > 1 ? (
-        <div className="mt-4">
-          <Panel title="Earlier filings, quarter by quarter">
-            <MovesStream events={activity} emptyText="" showName={false} />
-          </Panel>
-        </div>
-      ) : null}
+        {activity.length > 1 ? (
+          <div className="mt-4">
+            <Panel title="Earlier filings, quarter by quarter">
+              <MovesStream events={activity} emptyText="" showName={false} />
+            </Panel>
+          </div>
+        ) : null}
+      </ShowMore>
 
       <p className="mt-4 max-w-[78ch] text-[12.5px] leading-5 text-oa-muted-fg">
         {profile.style ? `About ${profile.fund}: ${profile.style} ` : ""}
@@ -760,10 +761,10 @@ function CongressView({
                 <Ticker ticker={trade.ticker} className="text-[13px]" />
               ) : null}
               <span
-                className={`truncate text-[13px] ${trade.ticker ? "text-oa-muted-fg" : "text-oa-fg"}`}
+                className={`text-pretty text-[13px] ${trade.ticker ? "text-oa-muted-fg" : "text-oa-fg"}`}
                 title={trade.company}
               >
-                {trade.company}
+                {shortCompanyName(trade.company)}
               </span>
               {trade.asset_type === "OP" ? (
                 <span

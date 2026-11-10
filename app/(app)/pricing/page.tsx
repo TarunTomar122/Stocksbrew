@@ -48,6 +48,24 @@ type Props = {
 
 const ids = Object.keys(FEATURES) as FeatureId[];
 
+// Row names said plainly where the entitlements table uses our own shorthand.
+// Display only: the rules themselves still come from lib/entitlements.
+const PLAIN_NAMES: Partial<Record<FeatureId, string>> = {
+  tracked_stocks: "Stocks you track, with prices, our call and the next earnings date",
+  covered_stocks: "Stocks we cover in full for you",
+  stock_call: "Our call on every stock (buy more, keep, or sell some), with the date",
+  stock_zones: "The full read: the prices where we'd buy more or sell some, why, what would change our mind, and past calls",
+  portfolio_analytics: "Portfolio analytics: how your money is spread, how risky it is, and how you did against the S&P 500",
+  practice_account: "Practice account with $100,000 of pretend money",
+  wire: "News, the calendar, company filings and every market",
+  signals: "Signals: unusual moves with the reason, Reddit talk and the President's posts",
+  screener_call_filters: "Screen the whole market by our call and our buy or sell prices",
+  zone_alerts: "Email when a stock reaches our buy or sell price, reports earnings, or our call changes",
+  agent_api: "Connect your own AI agent (API, MCP server, command line)",
+};
+
+const nameOf = (id: FeatureId) => PLAIN_NAMES[id] ?? (FEATURES[id] as Feature).name;
+
 /** One cell of the comparison table. */
 function Cell({ rule, strong = false }: { rule: Rule; strong?: boolean }) {
   if (rule.kind === "locked") {
@@ -66,13 +84,15 @@ function Cell({ rule, strong = false }: { rule: Rule; strong?: boolean }) {
       </span>
     );
   }
-  return <span className={`text-[14px] leading-5 sm:text-[15px] ${strong ? "font-medium text-oa-fg" : "text-oa-fg"}`}>{describeRule(rule)}</span>;
+  // "Covered stocks" is our word; say which stocks that is on each plan.
+  const text = describeRule(rule) === "Covered stocks" ? (strong ? "Every stock you own" : "Your 5 covered stocks") : describeRule(rule);
+  return <span className={`text-[14px] leading-5 sm:text-[15px] ${strong ? "font-medium text-oa-fg" : "text-oa-fg"}`}>{text}</span>;
 }
 
 const FAQS: Array<{ q: string; a: string }> = [
   {
     q: "What do I actually get for free?",
-    a: "You can read everything: our call and the full report on every stock, the wire, the calendar, filings, markets, strategies with their backtests, and what every fund, member of Congress and insider filed. You track as many stocks as you like, and your agent covers five of them in full, which means price zones, an explanation every time one moves, and a read before each earnings report. You choose the five and can swap one a week.",
+    a: "You can read everything: our call and the full report on every stock, the wire, the calendar, filings, markets, strategies with their backtests, and what every fund, member of Congress and insider filed. You track as many stocks as you like, and your agent covers five of them in full, which means the prices where we'd buy more or sell some, an explanation every time one moves, and a read before each earnings report. You choose the five and can swap one a week.",
   },
   {
     q: "So what am I paying for with Pro?",
@@ -125,7 +145,7 @@ export default async function PricingPage({ searchParams }: Props) {
       <header className="mb-6 px-2 pt-2 sm:mb-8 sm:px-0 sm:pt-6">
         <h1 className="text-[34px] font-semibold leading-[40px] tracking-[-0.02em] text-oa-fg sm:text-[48px] sm:leading-[56px]">Pricing</h1>
         <p className="mt-2 max-w-[44rem] text-pretty text-[16px] leading-6 text-oa-muted-fg sm:text-[17px] sm:leading-[26px]">
-          Reading is free on every stock, including our call. Pro puts your agent to work on everything you own instead of five stocks.
+          Every stock&apos;s research is free to read, our call included. Free covers five of your stocks in full; Pro covers every stock you own.
         </p>
       </header>
 
@@ -168,13 +188,27 @@ export default async function PricingPage({ searchParams }: Props) {
               </tr>
               {rows.map((id) => (
                 <tr key={id} id={id} className="scroll-mt-24 border-b border-oa-border last:border-b-0 target:bg-[color-mix(in_srgb,var(--oa-primary)_9%,transparent)]">
-                  <th scope="row" className="px-3 py-2.5 text-left align-top text-[14px] font-normal leading-5 text-oa-fg sm:px-5 sm:text-[15px] sm:leading-[22px]">
-                    {(FEATURES[id] as Feature).name}
+                  {/* Phone: the feature across the full width, then what each plan gets under it. */}
+                  <th scope="row" colSpan={3} className="px-3 py-2.5 text-left align-top text-[14px] font-normal leading-5 text-oa-fg sm:hidden">
+                    <span className="block text-pretty">{nameOf(id)}</span>
+                    <span className="mt-1.5 grid grid-cols-2 gap-x-3 text-[13px]">
+                      <span className="flex items-baseline gap-1.5">
+                        <span className="text-oa-muted-fg">Free</span>
+                        <Cell rule={ruleFor(id, "free")} />
+                      </span>
+                      <span className="flex items-baseline gap-1.5">
+                        <span className="text-oa-muted-fg">Pro</span>
+                        <Cell rule={ruleFor(id, "pro")} strong />
+                      </span>
+                    </span>
                   </th>
-                  <td className="px-2 py-2.5 align-top sm:px-5">
+                  <th scope="row" className="px-5 py-2.5 text-left align-top text-[15px] font-normal leading-[22px] text-oa-fg max-sm:hidden">
+                    {nameOf(id)}
+                  </th>
+                  <td className="px-5 py-2.5 align-top max-sm:hidden">
                     <Cell rule={ruleFor(id, "free")} />
                   </td>
-                  <td className="px-2 py-2.5 align-top sm:px-5">
+                  <td className="px-5 py-2.5 align-top max-sm:hidden">
                     <Cell rule={ruleFor(id, "pro")} strong />
                   </td>
                 </tr>

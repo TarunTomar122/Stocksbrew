@@ -55,7 +55,7 @@ describe("briefingRead", () => {
       "CBRS is up 7.9%: Cerebras signed a cloud deal.",
     ]);
     expect(read?.insights[1].soWhat).toBe("No confirmed reason yet.");
-    expect(read?.insights[2].action).toEqual({ label: "Open CBRS", href: "/stock/CBRS" });
+    expect(read?.insights[2].action).toEqual({ label: "CBRS report", href: "/stock/CBRS" });
   });
 
   it("names the decisions when there is no holdings figure", () => {
@@ -115,6 +115,16 @@ describe("firstSentence", () => {
   it("keeps the whole first sentence, never an ellipsis, in sentence case", () => {
     expect(firstSentence("One. Two.")).toBe("One");
     expect(firstSentence("a ".repeat(100)).endsWith("…")).toBe(false);
-    expect(firstSentence("Zeta Raises Outlook After Strong Q3 Earnings Beat. More.")).toBe("Zeta raises outlook after strong Q3 earnings beat");
+    expect(firstSentence("Zeta Raises Outlook After Strong Q3 Earnings Beat. More.")).toBe("Zeta raises its forecast after Q3 earnings that beat expectations");
+  });
+});
+
+describe("indexClock", () => {
+  it("says closed after 4 PM ET, the time inside the session, and nothing for other days", async () => {
+    const { indexClock } = await import("./briefing-read");
+    expect(indexClock("2026-11-10T21:05:00.000Z", "2026-11-10")).toEqual({ kind: "closed" });
+    expect(indexClock("2026-11-10T14:56:00.000Z", "2026-11-10")).toEqual({ kind: "intraday", clock: "9:56 AM ET" });
+    expect(indexClock("2026-11-09T21:05:00.000Z", "2026-11-10")).toBeNull();
+    expect(indexClock(null, "2026-11-10")).toBeNull();
   });
 });

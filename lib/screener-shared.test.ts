@@ -312,7 +312,7 @@ describe("formatting", () => {
 
   it("describes a range in words", () => {
     expect(describeRange(FIELD_BY_ID.get("pe")!, { max: 25 })).toBe("P/E 25.0× or less");
-    expect(describeRange(FIELD_BY_ID.get("rev_growth")!, { min: 10 })).toBe("Rev growth 10.0% or more");
+    expect(describeRange(FIELD_BY_ID.get("rev_growth")!, { min: 10 })).toBe("Sales growth 10.0% or more");
     expect(describeRange(FIELD_BY_ID.get("div_yield")!, { min: 1.5, max: 6 })).toBe("Yield 1.50% to 6.00%");
   });
 });

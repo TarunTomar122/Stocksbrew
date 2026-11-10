@@ -168,7 +168,7 @@ export default async function CalendarPage({ searchParams }: { searchParams?: Se
         }
       />
       <CalendarControls filters={effective} today={today} counts={counts} mineAvailable={mineSet !== null} days={days} />
-      <TheRead read={read} className="mb-4" />
+      <TheRead read={read} label="This week, in short" fold="phone" className="mb-4" />
 
       {data.failed ? (
         <Panel>

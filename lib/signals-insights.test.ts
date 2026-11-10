@@ -43,7 +43,7 @@ describe("movers", () => {
   });
 
   it("writes the headline from both sides", () => {
-    expect(moversHeadline([...SPACE, ...DROPS])).toBe("Space stocks led the gainers on contracts and deals (FLY, VSAT, LUNR and 1 more); earnings sank IBRX, HIMS and CEVA.");
+    expect(moversHeadline([...SPACE, ...DROPS])).toBe("Space stocks led the gainers on contracts and deals (FLY, VSAT, LUNR and 1 more). Earnings reports sent IBRX, HIMS and CEVA down.");
   });
 
   it("falls back to the single biggest move and is null when empty", () => {
@@ -73,7 +73,7 @@ describe("reddit", () => {
 
   it("skips funds when naming the loudest stock and flags crowd-vs-price splits", () => {
     const read = buildRedditRead(names)!;
-    expect(read.headline).toMatch(/^Reddit leans worried/);
+    expect(read.headline).toMatch(/^More Reddit posts expect a fall than a rise/);
     expect(read.headline).toContain("NVDA");
     expect(read.insights[0]!.text).toMatch(/^NVDA is the stock Reddit talks about most: 11 of 31 mentions \(35%\), 3\.4x/);
     expect(read.insights[1]!.text).toContain("AMD");
