@@ -2,6 +2,7 @@ import { SquircleCard } from "@/components/oa/squircle";
 import { Reveal } from "@/components/reveal";
 import { StockLogo } from "@/components/stock-logo";
 import { normalizeDirectiveForUi } from "@/lib/directive-ui";
+import { plainAction } from "@/lib/plain-copy";
 import { getLatestPriceQuotes } from "@/lib/firestore";
 import { getCurrentMarket } from "@/lib/market";
 import { getStockIntelligenceDoc } from "@/lib/stock";
@@ -29,10 +30,10 @@ const RING = [
 ];
 
 const STANCE: Record<string, { label: string; className: string }> = {
-  accumulate: { label: "Add", className: "bg-emerald-600/10 text-emerald-800 dark:text-emerald-300" },
+  accumulate: { label: "Buy more", className: "bg-emerald-600/10 text-emerald-800 dark:text-emerald-300" },
   hold: { label: "Hold", className: "bg-oa-accent text-oa-fg" },
   watch: { label: "Watch", className: "bg-oa-accent text-oa-fg" },
-  trim: { label: "Trim", className: "bg-amber-500/15 text-amber-900 dark:text-amber-300" },
+  trim: { label: "Sell some", className: "bg-amber-500/15 text-amber-900 dark:text-amber-300" },
   avoid: { label: "Avoid", className: "bg-red-600/10 text-red-800 dark:text-red-300" },
 };
 
@@ -93,7 +94,8 @@ const loadExampleBook = sharedCache(
         changePct,
         value: price != null ? price * row.shares : 0,
         stance: directive?.stance ?? null,
-        call: directive?.text?.trim() || null,
+        // The engine label in plain words ("Accumulate now" -> what we would do), as on the stock page.
+        call: plainAction(directive?.text?.trim() || null, null) || null,
       };
     }).filter((row) => row.price != null);
     if (rows.length === 0) throw new Error("example_book_empty");
@@ -192,7 +194,7 @@ export async function OnePlace() {
                       </span>
                     ) : null}
                   </span>
-                  <span className="mt-0.5 line-clamp-1 block text-[15px] leading-6 text-oa-muted-fg">
+                  <span className="mt-0.5 block text-[15px] leading-6 text-oa-muted-fg">
                     {row.call ?? "We are still researching this one."}
                   </span>
                 </span>

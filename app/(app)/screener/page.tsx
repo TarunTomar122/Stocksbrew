@@ -282,7 +282,7 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
   // The lede and the as-of time are printed in full in the page note; the title row carries the view switch.
   const head = (
     <PageHead
-      title={view.tab === "sectors" ? "Stock sectors" : "Stock screener"}
+      title={view.tab === "sectors" ? "Stock sectors" : "Find stocks"}
       lede={
         view.tab === "sectors"
           ? "Sized by market value, coloured by the move. Pick a sector to screen it."

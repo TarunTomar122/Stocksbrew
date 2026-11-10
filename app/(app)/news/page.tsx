@@ -116,7 +116,7 @@ export default async function NewsPage({ searchParams }: { searchParams?: Search
         breadcrumbLabel="US Stock Market News"
       />
       <PageHead
-        title="The wire"
+        title="News"
         lede="Which companies are in the news today, how they are moving, and the headlines worth reading."
         inline
         className="[&_.oa-head-lede]:hidden"

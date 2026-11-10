@@ -16,38 +16,41 @@ type Column = {
   links: { label: string; href: string; external?: boolean }[];
 };
 
-/** The product map, as links. Keep in step with components/oa/nav-items.ts. */
+/** The product map, as links, by the same names as the sidebar. Keep in step with components/oa/nav-items.ts. */
 const COLUMNS: Column[] = [
   {
-    title: "The app",
+    title: "Today",
     links: [
       { label: "Briefing", href: "/briefing" },
-      { label: "Portfolio", href: "/watchlist" },
-      { label: "Explore", href: "/explore" },
-      { label: "Follow", href: "/follow" },
-      { label: "Agents", href: "/agents" },
-      { label: "Ask", href: "/ask" },
+      { label: "Market today", href: "/explore" },
+      { label: "Why stocks moved", href: "/movers" },
+      { label: "Signals", href: "/signals" },
+      { label: "News", href: "/news" },
+      { label: "Calendar", href: "/calendar" },
     ],
   },
   {
     title: "Research",
     links: [
-      { label: "The wire", href: "/news" },
-      { label: "Calendar", href: "/calendar" },
-      { label: "Screener", href: "/screener" },
-      { label: "Themes", href: "/themes" },
-      { label: "Signals", href: "/signals" },
+      { label: "Find stocks", href: "/screener" },
+      { label: "Sectors", href: "/sectors" },
+      { label: "Compare", href: "/compare" },
       { label: "Markets", href: "/markets" },
       { label: "Filings", href: "/filings" },
+      { label: "Ask", href: "/ask" },
+      { label: "Themes", href: "/themes" },
+      { label: "Strategies", href: "/strategies" },
+      { label: "Backtest", href: "/backtest" },
     ],
   },
   {
-    title: "Test ideas",
+    title: "Yours",
     links: [
-      { label: "Strategies", href: "/strategies" },
-      { label: "Backtest", href: "/backtest" },
+      { label: "My stocks", href: "/watchlist" },
       { label: "Practice account", href: "/practice" },
-      { label: "Compare", href: "/compare" },
+      { label: "Follow investors", href: "/follow" },
+      { label: "Insiders", href: "/insiders" },
+      { label: "Alerts & agents", href: "/agents" },
     ],
   },
   {

@@ -20,19 +20,20 @@ import {
 type Direction = "asc" | "desc";
 /** "avgCost" is shown but not sortable: the sort lives in portfolio-shared and has no key for it. */
 type ColumnKey = SortKey | "avgCost";
-type Column = { key: ColumnKey; label: string; align: "left" | "right"; first: Direction; hideBelow?: "lg" | "xl" };
+type Column = { key: ColumnKey; label: string; align: "left" | "right"; first: Direction; hideBelow?: "lg" | "xl" | "2xl" };
 
 // The order a brokerage statement uses: what you hold, what it cost, what it is
 // worth now, what it has made. The total sits under the same columns.
 const HOLDING_COLUMNS: Column[] = [
   { key: "ticker", label: "Stock", align: "left", first: "asc" },
   { key: "shares", label: "Shares", align: "right", first: "desc", hideBelow: "lg" },
-  { key: "avgCost", label: "Paid per share", align: "right", first: "desc", hideBelow: "xl" },
+  { key: "avgCost", label: "Paid per share", align: "right", first: "desc", hideBelow: "2xl" },
   { key: "price", label: "Price", align: "right", first: "desc" },
   { key: "dayPct", label: "Day", align: "right", first: "desc" },
   { key: "value", label: "Value", align: "right", first: "desc" },
   { key: "weight", label: "Share of total", align: "left", first: "desc", hideBelow: "lg" },
-  { key: "gain", label: "Gain", align: "right", first: "desc" },
+  // Below 2xl the sidebar leaves no room for both gains; the percentage stays, the dollar gain is in the total.
+  { key: "gain", label: "Gain", align: "right", first: "desc", hideBelow: "2xl" },
   { key: "gainPct", label: "Gain %", align: "right", first: "desc" },
   { key: "stance", label: "Our call", align: "left", first: "asc" },
   { key: "earnings", label: "Earnings", align: "left", first: "asc", hideBelow: "xl" },
@@ -49,6 +50,7 @@ const WATCH_COLUMNS: Column[] = [
 const HIDE: Record<NonNullable<Column["hideBelow"]>, string> = {
   lg: "hidden lg:table-cell",
   xl: "hidden xl:table-cell",
+  "2xl": "hidden 2xl:table-cell",
 };
 
 function colClass(column: Column): string {

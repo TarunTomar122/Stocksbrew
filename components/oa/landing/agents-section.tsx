@@ -20,10 +20,11 @@ export function AgentsSection() {
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:items-center">
       <div>
-        <h2 className={H2}>Set it once. It checks every market day.</h2>
+        <h2 className={H2}>Tell it what to watch. It emails you when it happens.</h2>
         <p className={LEDE}>
-          An agent watches a schedule, a filing or a price for you. Every run ends in a line in its log: told you, or
-          checked and found nothing, with what it looked at. Replay one on the last four weeks before you turn it on.
+          Pick a price, a new filing or an earnings day on the stocks you care about. An agent checks every market day
+          and writes to you only when it finds something. You can see what it would have sent over the last four weeks
+          before you switch it on.
         </p>
         <div className="mt-6 flex flex-wrap items-center gap-3">
           <a

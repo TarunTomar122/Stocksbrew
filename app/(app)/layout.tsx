@@ -10,7 +10,9 @@ import { interTight } from "@/components/oa/font";
 export default function AppLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <>
-      <div className={`oa-app ${interTight.variable}`}>
+      {/* `contents`: the wrapper only carries the tokens and the font. Without it the phone top bar
+          could only stick inside this wrapper, so it scrolled away with the first screen. */}
+      <div className={`oa-app contents ${interTight.variable}`}>
         <AppChrome />
       </div>
       {children}

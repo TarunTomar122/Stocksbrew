@@ -395,7 +395,7 @@ export function JobsWorkspace({
   return (
     <div className="flex min-w-0 flex-col gap-3 sm:gap-4">
       <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 px-2 sm:px-0">
-        <h1 className="text-balance text-[19px] font-semibold leading-6 tracking-[-0.01em] text-oa-fg sm:text-[22px] sm:leading-7">Agents</h1>
+        <h1 className="text-balance text-[19px] font-semibold leading-6 tracking-[-0.01em] text-oa-fg sm:text-[22px] sm:leading-7">Alerts &amp; agents</h1>
       </header>
       <p className="-mt-1 max-w-[62ch] text-pretty px-2 text-[15px] leading-[22px] text-oa-muted-fg sm:-mt-2 sm:px-0">
         An agent watches your stocks for one thing you pick, like a big daily move or an earnings date, and reports here and by email when it

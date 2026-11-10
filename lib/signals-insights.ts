@@ -5,6 +5,7 @@
  * cannot carry it.
  */
 import { pickInsights, sharePct, type Insight, type TheRead } from "@/lib/insights";
+import { shortCompanyName } from "@/lib/plain-copy";
 import { absPct, cap, countWord, isNum, listNames, plural, shortDay, signedPct } from "@/lib/read-format";
 import { rankReddit, type Mover, type PolicyPost, type RedditName } from "@/lib/signals-shared";
 
@@ -155,6 +156,17 @@ const CAUSE_SHORT: Record<CauseKind, string> = {
   other: "other news",
 };
 
+/** What a person calls the company: its short name when we have one, else the ticker. */
+function moverName(mover: MoverForRead): string {
+  return (mover.name ? shortCompanyName(mover.name) : "") || mover.ticker;
+}
+
+/** A list of companies by name, or by ticker when any of them has no name (a mixed list reads like a glitch). */
+function listMovers(rows: MoverForRead[], max: number): string {
+  const all = rows.slice(0, max).every((mover) => mover.name && shortCompanyName(mover.name));
+  return listNames(rows.map((mover) => (all ? moverName(mover) : mover.ticker)), max);
+}
+
 /** The headline for the day's movers, also used as the explore movers panel's one-liner. */
 export function moversHeadline(movers: MoverForRead[]): string | null {
   if (movers.length === 0) return null;
@@ -164,7 +176,7 @@ export function moversHeadline(movers: MoverForRead[]): string | null {
   if (cluster) {
     const cause = causeCluster(cluster.rows);
     const label = `${cluster.theme.label.charAt(0).toUpperCase()}${cluster.theme.label.slice(1)}`;
-    parts.push(`${label} stocks led the ${cluster.side.label}${cause ? ` on ${CAUSE_SHORT[cause.kind]}` : ""} (${listNames(cluster.rows.map((mover) => mover.ticker), 3)})`);
+    parts.push(`${label} stocks led the ${cluster.side.label}${cause ? ` on ${CAUSE_SHORT[cause.kind]}` : ""} (${listMovers(cluster.rows, 3)})`);
     used = cluster.side.label;
   }
   const earnings: Partial<Record<Side["label"], string>> = {};
@@ -172,7 +184,7 @@ export function moversHeadline(movers: MoverForRead[]): string | null {
     if (side.label === used || parts.length >= 2) continue;
     const cause = causeCluster(side.rows.slice(0, 10));
     if (!cause) continue;
-    const names = listNames(cause.rows.map((mover) => mover.ticker), 3);
+    const names = listMovers(cause.rows, 3);
     if (cause.kind === "earnings") earnings[side.label] = names;
     const phrase =
       cause.kind === "earnings"
@@ -188,7 +200,7 @@ export function moversHeadline(movers: MoverForRead[]): string | null {
   }
   if (parts.length) return parts.map((part) => `${part}.`).join(" ");
   const top = [...movers].sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct) || a.ticker.localeCompare(b.ticker))[0]!;
-  return `${top.ticker} moved most, ${signedPct(top.pct)}${top.explained && top.headline ? `: ${top.headline.replace(/\.$/, "")}` : ", with no confirmed reason yet"}.`;
+  return `${moverName(top)} moved most, ${signedPct(top.pct)}${top.explained && top.headline ? `: ${top.headline.replace(/\.$/, "")}` : ", with no confirmed reason yet"}.`;
 }
 
 export function buildMoversRead(movers: MoverForRead[], asOf: string | null = null): TheRead | null {

@@ -139,12 +139,12 @@ export function PricingGrid({
             <tr className="border-b border-oa-border">
               <td className="px-3 pb-5 pt-5 align-top sm:px-5 sm:pt-6">
                 <span className="block text-[14px] leading-5 text-oa-muted-fg sm:hidden">
-                  Both plans read every stock.
+                  Both plans show our call on every stock.
                 </span>
                 <span className="max-sm:hidden">{periodSwitch}</span>
                 <p className="mt-3 max-w-[22rem] text-pretty text-[14px] leading-[22px] text-oa-muted-fg max-sm:hidden">
                   {active?.note ??
-                    "Both plans read every stock. Pro covers every stock you own in full, not just five."}
+                    "Both plans show our call on every stock. Pro gives the full report on every stock, not just five."}
                 </p>
               </td>
 

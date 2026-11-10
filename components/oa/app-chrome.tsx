@@ -5,14 +5,15 @@ import { MarketingBar } from "@/components/oa/marketing-bar";
 import { MobileNav } from "@/components/oa/mobile-nav";
 import { OaHeaderSearchButton } from "@/components/oa/oa-header-search-button";
 import { OaProfileButton } from "@/components/oa/oa-profile-button";
+import { PlaceStrip } from "@/components/oa/place-nav";
 import { SidebarNav } from "@/components/oa/sidebar-nav";
 import { StartFreeButton } from "@/components/oa/start-free-button";
 import { getLandingUserContext } from "@/components/terminal-landing-streams";
 import { StocksbrewLogo } from "@/components/stocksbrew-logo";
 
 /**
- * The app's chrome: sidebar at lg and up, a slim top bar and a bottom tab bar
- * below. Pricing, docs, about, security, legal and the blog get the marketing
+ * The app's chrome: sidebar at lg and up; below lg a slim top bar, the strip
+ * of the current place's pages under it, and a bottom tab bar. Pricing, docs, about, security, legal and the blog get the marketing
  * top bar instead of the sidebar (ChromeSwitch picks by route). It is rendered once, by app/(app)/layout.tsx, and stays mounted
  * while pages change underneath it, so a click never redraws the navigation.
  *
@@ -98,6 +99,7 @@ export function AppChrome() {
           </Suspense>
         </div>
       </header>
+      <PlaceStrip />
     </>
   );
   const marketing = (

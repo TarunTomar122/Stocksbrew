@@ -172,6 +172,18 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-11 early, per-stock call reasons live; agentdata path fixed (lead)
+
+- `f57da15` LIVE (Vercel + VPS pull): every call gets its own plain reason (backend/call_reason.py; directive_v2.call_reason + call_reason_source). 716 stocks shared 8 templates before. Review: DEPLOY WITH FIXES (crash-safe reason check, "watch" wording). Fills as the 09:50 ET and ~16:10 ET brief runs rewrite briefs; ~280 September-era docs keep old text until rewritten (backfill not written). Watch the first close run against its 20-min window and the model vs facts ratio in logs ("call reasons rejected").
+- The after-close agentdata group failed its first run (prices and strategies) because /opt/tikrr-agentdata lacked backend/config/instrument_universe.json. All four agentdata units now run from /opt/tikrr (TIKRR_AGENTDATA_DIR=/opt/tikrr, ExecStart under /opt/tikrr), daemon-reload done, after-close re-run started by hand.
+- Running: UI loop round 5 (nav/landing rework, capture in progress).
+
+### 2026-11-11 early, UI round 4 live; deep research built; nav rework started (lead)
+
+- Round 4 LIVE `d10e3e9` (quality pass SHIP WITH FIXES: calendar header collision, capitalisation after a quote). Scores plateaued: Codex 6.18, Cursor 4.98. Navigation is now the weakest dimension for both.
+- Deep research built, NOT shipped: /stock/[T]/research runs 10 reading steps (brief, financials, earnings, 10-K, 10-Q, filings, funds/insiders/Congress, peers, news, Reddit/policy) + one writing call + a numbers check; 44-66 s, ~$0.01 per report; Free 3 / Pro 30 a month; shareable links. Testing wrote 3 reports to the owner's account (tm_research_reports). Owner decisions listed in its report.
+- Running: UI loop round 5+ now owning chrome/nav/landing (structural IA rework first); backend stock-specific call reasons (replace the generic HOLD sentence).
+
 ### 2026-11-10 night, UI rounds 2-3 live; earnings day agent shipped dark (lead)
 
 - Council means (16 pages, 7 dims): Codex r1 5.31 → r2 5.96 → r3 6.22; Cursor 4.66 → 4.81 → 4.93. Details in council/ux-status.md.

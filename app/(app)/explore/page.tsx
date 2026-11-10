@@ -33,7 +33,6 @@ import {
   ShowMore,
   SourceLine,
   Sparkline,
-  TabBar,
   Tag,
   Ticker,
   Verdict,
@@ -42,7 +41,6 @@ import {
   fmtMoney,
   fmtStampET,
   toneText,
-  type TabItem,
 } from "@/components/oa/kit";
 import { Bar, PanelGhost } from "@/components/oa/kit/skeleton";
 import { EXPLORE_SUGGESTIONS } from "@/lib/ask-config";
@@ -76,18 +74,6 @@ export function generateMetadata(): Metadata {
     },
   };
 }
-
-const TABS: TabItem[] = [
-  { id: "today", label: "Today", href: "/explore" },
-  { id: "news", label: "News", href: "/news" },
-  { id: "screener", label: "Screener", href: "/screener" },
-  { id: "themes", label: "Themes", href: "/themes" },
-  { id: "calendar", label: "Calendar", href: "/calendar" },
-  { id: "signals", label: "Signals", href: "/signals" },
-  { id: "markets", label: "Markets", href: "/markets" },
-  { id: "strategies", label: "Strategies", href: "/strategies" },
-  { id: "follow", label: "Follow", href: "/follow" },
-];
 
 /** Each desk preview shows this many rows, so a row of panels carries the same weight. */
 const DESK_ROWS = 4;
@@ -650,10 +636,7 @@ export default function ExplorePage() {
 
   return (
     <AppPage width="wide">
-      <PageHead title="Explore" />
-
-      {/* The sidebar carries these on a desktop; a phone has no other way to them. */}
-      <TabBar tabs={TABS} current="today" className="lg:hidden" />
+      <PageHead title="Market today" />
 
       <Suspense fallback={<div className="mb-4"><PanelGhost rows={3} lines={2} /></div>}>
         <ReadSlot brief={brief} wire={wire} />

@@ -3,6 +3,7 @@ import * as React from "react";
 
 import { interTight } from "@/components/oa/font";
 import { OaSiteHeader } from "@/components/oa/oa-site-header";
+import { PlaceTrail } from "@/components/oa/place-nav";
 import { StockLogo } from "@/components/stock-logo";
 import { shortCompanyName } from "@/lib/plain-copy";
 
@@ -95,9 +96,10 @@ function compactMeta(meta: React.ReactNode): React.ReactNode {
 
 /**
  * Compact page head: one title row with the as-of time on its right, and at
- * most one muted line of what the page is (desktop only). There is no eyebrow:
- * the sidebar already says where you are. Pass `crumb` when the page sits
- * under another one and needs the way back.
+ * most one muted line of what the page is (desktop only). A deep page gets
+ * the way back above its title from the address (PlaceTrail: "Research ›
+ * NVDA"), the same on every page; `crumb` is only shown outside the app's
+ * places (docs, error pages).
  *
  * The full lede and the full source line are never dropped. AppPage prints
  * them in the page note at the bottom of the page; a page with its own frame
@@ -120,7 +122,7 @@ export function PageHead({
   inline?: boolean;
   /** No longer shown. Kept so callers still compile; use `crumb` for a way back. */
   label?: React.ReactNode;
-  /** A short way back, shown muted before the title: <a href="/themes">Idea baskets</a>. */
+  /** A short line above the title on pages outside the app's places ("Part 2 of 6"). Inside them the trail comes from the address. */
   crumb?: React.ReactNode;
   title: React.ReactNode;
   lede?: React.ReactNode;
@@ -138,11 +140,7 @@ export function PageHead({
     <header className={`mb-3 px-2 sm:mb-4 sm:px-0 ${note || full ? "" : "oa-has-note"} ${className}`}>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 sm:flex-nowrap">
         <div className={`min-w-0 flex-1 ${inline ? "basis-0" : "basis-full sm:basis-0"}`}>
-          {crumb ? (
-            <p className="mb-1 flex flex-wrap items-center gap-x-1 text-[12.5px] leading-4 text-oa-muted-fg [&_a:hover]:text-oa-fg [&_a]:underline [&_a]:decoration-oa-border [&_a]:underline-offset-2">
-              {crumb}
-            </p>
-          ) : null}
+          <PlaceTrail crumb={crumb} />
           <h1 className="text-balance text-[19px] font-semibold leading-6 tracking-[-0.01em] text-oa-fg sm:text-[22px] sm:leading-7">{title}</h1>
         </div>
         {compact ? (

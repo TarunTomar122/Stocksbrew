@@ -110,7 +110,8 @@ const cachedFeeds = sharedCache(
   { revalidate: 120 },
 );
 
-export async function TrackGrid() {
+/** `only` picks which feeds show and in what order (all by default); `rows` caps each card. */
+export async function TrackGrid({ only, rows = 8 }: { only?: string[]; rows?: number } = {}) {
   const market = getCurrentMarket();
   const today = new Date().toISOString().slice(0, 10);
   const inThreeWeeks = new Date(Date.now() + 21 * 86400000).toISOString().slice(0, 10);
@@ -126,17 +127,17 @@ export async function TrackGrid() {
   const reddit = feeds?.[3] ?? null;
   const news = [...(feeds?.[4] ?? [])];
 
-  const explained = (anomaliesDoc?.anomalies ?? []).filter(hasResearchBackedNarrative).slice(0, 8);
+  const explained = (anomaliesDoc?.anomalies ?? []).filter(hasResearchBackedNarrative).slice(0, rows);
   const priceMovers = explained.length === 0 ? buildLandingPriceMovers(snapshotRows, market) : [];
 
   const upcoming = [...earnings]
     .sort((a, b) => a.event_date.localeCompare(b.event_date))
-    .slice(0, 8);
+    .slice(0, rows);
 
   const latestTrades = [...(trades?.trades ?? [])]
     .filter((t) => t.ticker && (t.tx_type === "buy" || t.tx_type === "sell"))
     .sort((a, b) => (b.disclosure_date ?? "").localeCompare(a.disclosure_date ?? ""))
-    .slice(0, 8);
+    .slice(0, rows);
 
   const buzz = (reddit?.tickers ?? []).filter(hasRedditBrief).slice(0, 6);
   // A week-old headline is not news. If the feed is stale the card steps aside.
@@ -401,7 +402,8 @@ export async function TrackGrid() {
   ];
 
   // Feeds with nothing fresh step aside so the grid never shows an empty or stale card.
-  const visible = cards.filter((card) => card.hasData).slice(0, CARD_COUNT);
+  const picked = only ? only.map((key) => cards.find((card) => card.key === key)).filter((card): card is (typeof cards)[number] => Boolean(card)) : cards;
+  const visible = picked.filter((card) => card.hasData).slice(0, CARD_COUNT);
 
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">

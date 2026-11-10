@@ -109,10 +109,10 @@ function StanceWord({ stance, className = "" }: { stance: Stance | string | null
  */
 const MOVER_COLS = "lg:grid lg:grid-cols-[1.75rem_minmax(0,13rem)_4.5rem_9rem_minmax(0,11rem)_minmax(0,1fr)_1.25rem] lg:items-center lg:gap-x-4";
 
-function MoveBar({ pct, max }: { pct: number; max: number }) {
+function MoveBar({ pct, max, always = false }: { pct: number; max: number; /** Show on a phone too. */ always?: boolean }) {
   const width = max > 0 ? Math.max(6, Math.round((Math.abs(pct) / max) * 100)) : 0;
   return (
-    <span aria-hidden="true" className="hidden h-1.5 w-12 shrink-0 overflow-hidden rounded-full bg-oa-bg lg:block">
+    <span aria-hidden="true" className={`${always ? "block w-10 lg:w-12" : "hidden w-12 lg:block"} h-1.5 shrink-0 overflow-hidden rounded-full bg-oa-bg`}>
       <span className={`block h-full rounded-full ${pct >= 0 ? "bg-signal-bullish" : "bg-signal-bearish"}`} style={{ width: `${width}%` }} />
     </span>
   );
@@ -610,10 +610,12 @@ function SeeAll({ href, children }: { href: string; children: React.ReactNode })
   );
 }
 
-const TODAY_MOVER_COLS = "grid grid-cols-[1.25rem_minmax(0,1fr)_auto_1rem] items-center gap-x-2 lg:grid-cols-[1.75rem_5.5rem_minmax(0,1fr)_4.75rem_1.25rem] lg:gap-x-3";
+const TODAY_MOVER_COLS = "grid grid-cols-[1.25rem_minmax(0,1fr)_auto_1rem] items-center gap-x-2 lg:grid-cols-[1.75rem_5.5rem_minmax(0,1fr)_8.5rem_1.25rem] lg:gap-x-3";
 
 /** The lead of the Today tab: the moves we can explain, largest first, one line each. */
 function TodayMovers({ movers }: { movers: Mover[] }) {
+  // Bars share one scale, so a 16% drop looks twice the size of an 8% one.
+  const max = Math.max(...movers.map((mover) => Math.abs(mover.pct)), 0);
   return (
     <ol>
       {movers.map((mover, index) => (
@@ -628,7 +630,10 @@ function TodayMovers({ movers }: { movers: Mover[] }) {
                 <p className="col-span-3 col-start-2 row-start-2 mt-0.5 min-w-0 text-pretty text-[14px] leading-5 text-oa-fg lg:col-span-1 lg:col-start-3 lg:row-start-1 lg:mt-0 lg:font-medium">
                   {plainFinance(sentenceCase(mover.headline))}
                 </p>
-                <Delta value={mover.pct} className="text-right text-[15px] font-semibold" />
+                <span className="flex items-center justify-end gap-2">
+                  <MoveBar pct={mover.pct} max={max} always />
+                  <Delta value={mover.pct} className="text-right text-[15px] font-semibold" />
+                </span>
                 <Chevron />
               </div>
             </summary>

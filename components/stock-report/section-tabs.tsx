@@ -53,11 +53,11 @@ export function SectionTabs({ sections, children }: { sections: Tab[]; children:
   };
 
   return (
-    <div ref={root} className="scroll-mt-14 lg:scroll-mt-2">
-      <p className="mb-1.5 px-2 text-[14px] leading-5 text-oa-muted-fg sm:px-0">Dig deeper: pick a part of the report.</p>
+    <div ref={root} className="scroll-mt-[101px] md:scroll-mt-14 lg:scroll-mt-2">
+      <p className="mb-1.5 px-2 text-[14px] leading-5 text-oa-muted-fg sm:px-0">The full report, one part at a time.</p>
       <nav
         aria-label="Report sections"
-        className="sticky top-[52px] z-30 -mx-2 border-b border-oa-border bg-[color-mix(in_srgb,var(--oa-page)_92%,transparent)] backdrop-blur-xl sm:-mx-6 lg:top-0 lg:mx-0"
+        className="sticky top-[101px] z-20 -mx-2 md:top-[52px] md:z-30 border-b border-oa-border bg-[color-mix(in_srgb,var(--oa-page)_92%,transparent)] backdrop-blur-xl sm:-mx-6 lg:top-0 lg:mx-0"
       >
         <div ref={strip} role="tablist" className="oa-scroll-fade flex gap-0.5 overflow-x-auto px-2 [scrollbar-width:none] sm:px-6 lg:px-0 [&::-webkit-scrollbar]:hidden">
           {sections.map((section) => {

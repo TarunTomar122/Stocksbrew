@@ -11,6 +11,8 @@ import { TrackButton } from "@/components/track-button";
 import { TrackView } from "@/components/track-view";
 import { WatchlistAiPromptButton } from "@/components/watchlist-ai-prompt-button";
 import { TheRead } from "@/components/oa/insight";
+import { PlaceTrail } from "@/components/oa/place-nav";
+import { canonicalSectorSlug } from "@/lib/screener-shared";
 import type { CallWord } from "@/lib/stock-chart";
 import type { StockTimelineItem, StockTimelineKind } from "@/lib/stock-timeline";
 
@@ -18,6 +20,7 @@ import { AlertControls, type SuggestedAlert } from "./alert-controls";
 import { capTier, compactMoney, daysBetween, fin, fmtDate, fmtStamp, levelFormatter, moneyFormatter, relativeDays, signedPct } from "./format";
 import { PricePanel, type PanelZone } from "./price-panel";
 import { Details, LockIcon, Missing, MoreLink, NUM, Panel, PROSE, SECTION_LABELS, Tag, TONE_COLOR, ToneGlyph, type SectionId, type Tone } from "./primitives";
+import { PhoneSections } from "./phone-sections";
 import { SectionTabs } from "./section-tabs";
 import {
   EarningsSection,
@@ -339,14 +342,24 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
   const callMeta = ready ? callMetaLine(ready.confidence, ready.horizon) : "";
 
   const stats = headerStats.length ? <KeyStats items={headerStats} /> : null;
+  // On a phone the page below the chart is one part at a time (PhoneSections).
+  const phoneSections = [
+    { id: "view", label: "Our view" },
+    { id: "changed", label: "What changed" },
+    ...(stats ? [{ id: "facts", label: "Key facts" }] : []),
+    ...(railSections.length ? [{ id: "report", label: "Full report" }] : []),
+    { id: "alerts", label: "Alerts" },
+  ];
 
   return (
-    <div className="mx-auto w-full max-w-[84rem] px-2 pb-[72px] pt-3 sm:px-6 sm:pt-6 lg:pb-10">
+    <div data-phone-tab="view" className="mx-auto w-full max-w-[84rem] px-2 pb-[72px] pt-3 sm:px-6 sm:pt-6 lg:pb-10">
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_18rem] xl:gap-x-6">
         {/* ── the lead: price and call, then the chart, across the full width ── */}
         <div className="order-1 min-w-0 xl:col-span-2 xl:row-start-1">
           <Panel>
-            <header className="px-3.5 pt-3.5 sm:px-4 sm:pt-4">
+            <header className="px-3.5 pt-3 sm:px-4 sm:pt-3.5">
+              {/* Where this stock sits: "Research › Technology", the same trail every deep page has. */}
+              <PlaceTrail className="mb-2" tail={stock.sector ? [{ label: stock.sector, href: `/sectors/${canonicalSectorSlug(stock.sector)}` }] : []} />
               <div className="flex min-w-0 items-center gap-3">
                 <StockLogo ticker={stock.ticker} logoUrl={stock.logo_url} market={market} size={36} eager />
                 <div className="min-w-0 flex-1">
@@ -501,8 +514,10 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
           </Panel>
         </div>
 
+        <PhoneSections sections={phoneSections} className="order-1" />
+
         {/* ── follow, alerts and tools: secondary, one primary action ──────── */}
-        <aside className="order-3 min-w-0 xl:col-start-2 xl:row-span-2 xl:row-start-2">
+        <aside data-phone-section="alerts" className="order-3 min-w-0 xl:col-start-2 xl:row-span-2 xl:row-start-2">
           <div className="flex flex-col gap-4 xl:sticky xl:top-4 xl:max-h-[calc(100dvh-2rem)] xl:overflow-y-auto xl:overscroll-contain xl:[scrollbar-width:none] [&>*]:shrink-0 xl:[&::-webkit-scrollbar]:hidden">
             <Panel label={`Follow ${stock.ticker}`}>
               {/* On a phone the header has no room for the button, so it lives here; from sm it sits beside the name. */}
@@ -558,6 +573,7 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
 
         {/* ── the read: what today means, what is coming, then our brief ──── */}
         <div className="order-2 flex min-w-0 flex-col gap-4 xl:col-start-1 xl:row-start-2">
+          <div data-phone-section="view" className="flex min-w-0 flex-col gap-4">
           <TheRead read={data.insightRead} label={`The read on ${stock.ticker}`} fold="phone" foldLabel={`Show more on ${stock.ticker} today`} />
           <Panel
             id="read"
@@ -647,12 +663,18 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
               <div className="px-3.5 py-3.5 sm:px-4">{data.briefFallback ?? <p className="text-[14px] leading-5 text-oa-muted-fg">We have not written a brief on {stock.ticker} yet.</p>}</div>
             )}
           </Panel>
+          </div>
 
-          {stats ? <Panel label="Key facts" className="md:hidden">{stats}</Panel> : null}
+          {stats ? (
+            <div data-phone-section="facts" className="md:hidden">
+              <Panel label="Key facts">{stats}</Panel>
+            </div>
+          ) : null}
         </div>
 
         {/* ── what changed, then the sections ─────────────────────────────── */}
         <div className="order-4 flex min-w-0 flex-col gap-4 xl:col-start-1 xl:row-start-3">
+          <div data-phone-section="changed" className="min-w-0">
           <Panel
             id="changed"
             label="What changed"
@@ -699,8 +721,11 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
             )}
           </Panel>
 
+          </div>
+
           {/* The deeper report, one part at a time: the order matches SECTION_LABELS, which is the order of railSections. */}
           {railSections.length ? (
+            <div data-phone-section="report" className="min-w-0">
             <SectionTabs sections={railSections}>
               {available.overview ? <OverviewSection data={data} /> : null}
               {available.financials ? <FinancialsSection data={data} /> : null}
@@ -711,6 +736,7 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
               {available.technicals ? <TechnicalsSection data={data} /> : null}
               {available.peers ? <PeersSection data={data} /> : null}
             </SectionTabs>
+            </div>
           ) : null}
 
           <p className="px-2 text-[12px] leading-5 text-oa-muted-fg sm:px-0">

@@ -46,6 +46,14 @@ describe("movers", () => {
     expect(moversHeadline([...SPACE, ...DROPS])).toBe("Space stocks led the gainers on contracts and deals (FLY, VSAT, LUNR and 1 more). Earnings reports sent IBRX, HIMS and CEVA down.");
   });
 
+  it("names companies, not tickers, when it knows the name", () => {
+    const named = [
+      { ...m("HIMS", -16, "Earnings miss"), name: "Hims & Hers Health, Inc." },
+      { ...m("LFVN", -13, "Revenue drops"), name: "LifeVantage Corporation" },
+    ];
+    expect(moversHeadline(named)).toBe("Earnings reports sent Hims & Hers Health and LifeVantage down.");
+  });
+
   it("falls back to the single biggest move and is null when empty", () => {
     expect(moversHeadline([])).toBeNull();
     expect(moversHeadline([m("UAMY", 23, null), m("X", -2, null)])).toBe("UAMY moved most, +23.0%, with no confirmed reason yet.");

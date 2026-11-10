@@ -1,6 +1,6 @@
 import { marketDay, type Briefing, type BriefingItem } from "@/lib/briefing";
 import { MARKET_GROUP_KEY, type BriefingGroup, type GroupedSections } from "@/lib/briefing-groups";
-import { firstFullSentence, plainFinance, sentenceCase } from "@/lib/plain-copy";
+import { firstFullSentence, plainFinance, sentenceCase, shortCompanyName } from "@/lib/plain-copy";
 import { pickInsights, toneOfChange, type Insight, type TheRead } from "@/lib/insights";
 
 /**
@@ -189,7 +189,11 @@ export function briefingRead(
   if (briefing.mode === "market") {
     const index = briefing.market.indices[0];
     const leads = stockGroups(grouped.needs_you);
-    const names = leads.slice(0, 3).map((group) => group.ticker as string);
+    // Company names lead, the way a person says it ("Hims & Hers, LifeVantage and Qualys").
+    // Mixing "Hims & Hers, LFVN and Qualys" reads like a glitch, so names only when every one has a name.
+    const top = leads.slice(0, 3);
+    const named = top.map((group) => (group.name && group.name !== group.ticker ? shortCompanyName(group.name) : ""));
+    const names = named.every(Boolean) ? named : top.map((group) => group.ticker as string);
     const earlier = earlierSession(briefing.market.as_of, briefing.date);
     const leaders = names.length
       ? `${joinAnd(names)} made the biggest ${names.length === 1 ? "move" : "moves"} with a known reason${earlier}.`

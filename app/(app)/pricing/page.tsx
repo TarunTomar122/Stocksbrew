@@ -54,14 +54,16 @@ const PLAIN_NAMES: Partial<Record<FeatureId, string>> = {
   tracked_stocks: "Stocks you track, with prices, our call and the next earnings date",
   covered_stocks: "Stocks we cover in full for you",
   stock_call: "Our call on every stock (buy more, keep, or sell some), with the date",
-  stock_zones: "The full read: the prices where we'd buy more or sell some, why, what would change our mind, and past calls",
+  stock_zones: "The full report: the prices where we'd buy more or sell some, the reasons, and what would change our mind",
   portfolio_analytics: "Portfolio analytics: how your money is spread, how risky it is, and how you did against the S&P 500",
   practice_account: "Practice account with $100,000 of pretend money",
   wire: "News, the calendar, company filings and every market",
   signals: "Signals: unusual moves with the reason, Reddit talk and the President's posts",
   screener_call_filters: "Screen the whole market by our call and our buy or sell prices",
   zone_alerts: "Email when a stock reaches our buy or sell price, reports earnings, or our call changes",
-  agent_api: "Connect your own AI agent (API, MCP server, command line)",
+  ask: "Ask questions about any stock or your portfolio and get answers with sources",
+  backtest: "Test how a set of rules would have done in the past",
+  agent_api: "Use stocksbrew from your own AI assistant, like Claude or ChatGPT",
 };
 
 const nameOf = (id: FeatureId) => PLAIN_NAMES[id] ?? (FEATURES[id] as Feature).name;
@@ -145,7 +147,7 @@ export default async function PricingPage({ searchParams }: Props) {
       <header className="mb-6 px-2 pt-2 sm:mb-8 sm:px-0 sm:pt-6">
         <h1 className="text-[34px] font-semibold leading-[40px] tracking-[-0.02em] text-oa-fg sm:text-[48px] sm:leading-[56px]">Pricing</h1>
         <p className="mt-2 max-w-[44rem] text-pretty text-[16px] leading-6 text-oa-muted-fg sm:text-[17px] sm:leading-[26px]">
-          Every stock&apos;s research is free to read, our call included. Free covers five of your stocks in full; Pro covers every stock you own.
+          Anyone can read our call on every stock, free. Free gives you the full report on five stocks you pick; Pro gives it on every stock.
         </p>
       </header>
 

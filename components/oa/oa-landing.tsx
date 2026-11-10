@@ -14,53 +14,15 @@ import {
   HERO_SUBHEAD,
 } from "@/lib/brand-copy";
 import { US_PRO_MONTHLY, US_PRO_YEARLY } from "@/lib/pricing";
-import { getLiveInvestmentThemes } from "@/lib/research-themes";
 import { getViewer } from "@/lib/entitlements-server";
 import { getLandingUserContext } from "@/components/terminal-landing-streams";
 
 import { AgentsSection } from "./landing/agents-section";
-import { FollowSection } from "./landing/follow-section";
 import { HeroBriefing } from "./landing/hero-briefing";
-import { IdeaBook, type IdeaBookTheme } from "./landing/idea-book";
-import { MarketsSection } from "./landing/markets-section";
 import { OnePlace } from "./landing/one-place";
 import { PlansSection } from "./landing/plans-section";
-import { FRAME, H2, LABEL, LEDE, SectionHead } from "./landing/shared";
+import { FRAME, H2, SectionHead } from "./landing/shared";
 import { TrackGrid } from "./landing/track-grid";
-
-const IDEA_THEME_COUNT = 6;
-const IDEA_LINES_PER_THEME = 5;
-
-async function IdeaToWatchlist() {
-  const themes = await getLiveInvestmentThemes().catch(() => []);
-  const slim: IdeaBookTheme[] = themes.slice(0, IDEA_THEME_COUNT).map((theme) => ({
-    slug: theme.slug,
-    name: theme.name,
-    description: theme.cardDescription,
-    total: theme.candidates.length,
-    lines: theme.candidates.slice(0, IDEA_LINES_PER_THEME).map((candidate) => ({
-      ticker: candidate.ticker,
-      company: candidate.company,
-      role: candidate.role,
-      why: candidate.benefitMechanism,
-      breaks: candidate.failureCase,
-      label: candidate.stocksbrewLabel,
-    })),
-  }));
-  if (slim.length === 0) return null;
-  return (
-    <Reveal delay={80}>
-      <IdeaBook themes={slim} />
-    </Reveal>
-  );
-}
-
-const ASK_EXAMPLES = [
-  "Which of my stocks report earnings this week, and what would change the call?",
-  "Why is NVDA down today? Show me the sources.",
-  "Add the top three names from the AI capex idea to my watchlist.",
-  "Tell me when AAPL drops into its add zone.",
-];
 
 const FAQS = [
   {
@@ -82,18 +44,6 @@ const FAQS = [
   {
     q: "Is the research written by AI?",
     a: "The explanations and calls are AI-written from filings, numbers and news. Prices and financials are not. When there is no confirmed reason for a move, we say so.",
-  },
-  {
-    q: "Which stocks does it cover?",
-    a: "US-listed stocks. Around 500 are searchable today. If the one you want is missing, request it from the search box and we add it.",
-  },
-  {
-    q: "Can I use it inside Claude, ChatGPT or Cursor?",
-    a: "Yes. Pro includes MCP and REST access to current research, your portfolio, recent changes and alerts. You choose narrow read and write scopes. There is no trading tool.",
-  },
-  {
-    q: "How do I hear about changes?",
-    a: "In your briefing every day, and by email. Agents you set up tell you when a filing lands, a price is crossed or a call changes, and every run is logged, including the ones that found nothing.",
   },
   {
     q: "Can I cancel anytime?",
@@ -139,117 +89,36 @@ export async function OaLanding() {
 
         {/* everything below stacks as plates; the page background between them is the only divider */}
         <div className="flex flex-col gap-14 pb-12 pt-10 sm:gap-20 sm:pb-20 sm:pt-14">
-          {/* one place */}
+          {/* proof: three live feeds from today, each tied to the page that has the rest */}
+          <section id="live" className="scroll-mt-24">
+            <SectionHead
+              title="Every day, it checks what moves your stocks."
+              lede="Big moves with the reason behind them, earnings coming up, and what members of Congress bought and sold. This is today's real data."
+              href="/briefing"
+              hrefLabel="See today's briefing"
+            />
+            <Suspense fallback={<div className="oa-surface h-[26rem] animate-pulse border border-oa-border bg-oa-card motion-reduce:animate-none" aria-hidden="true" />}>
+              <TrackGrid only={["moves", "earnings", "congress"]} rows={5} />
+            </Suspense>
+          </section>
+
+          {/* proof: your stocks */}
           <section id="portfolio" className="scroll-mt-24">
             <SectionHead
-              title="Everything you own and follow, in one place."
-              lede="Add your stocks one at a time or in a batch. There is no broker login and nothing to connect, so nothing here can touch your money."
+              title="Everything you own, in one place."
+              lede="Add your stocks one at a time or paste a list. There is no broker login, so nothing here can touch your money."
               href="/watchlist"
-              hrefLabel="Open your portfolio"
+              hrefLabel="Open your stocks"
             />
             <Suspense fallback={<div className="oa-surface h-[22rem] animate-pulse border border-oa-border bg-oa-card motion-reduce:animate-none" aria-hidden="true" />}>
               <OnePlace />
             </Suspense>
           </section>
 
-          {/* track everything */}
-          <section id="live" className="scroll-mt-24">
-            <SectionHead
-              title="Track everything that moves your stocks."
-              lede="Six feeds we check through the day, each tied back to the stocks you follow."
-              href="/briefing"
-              hrefLabel="See today's briefing"
-            />
-            <Suspense fallback={<div className="oa-surface h-[44rem] animate-pulse border border-oa-border bg-oa-card motion-reduce:animate-none" aria-hidden="true" />}>
-              <TrackGrid />
-            </Suspense>
-          </section>
-
-          {/* beyond stocks */}
-          <section id="markets" className="scroll-mt-24">
-            <SectionHead
-              title="Not only stocks."
-              lede="Funds, rates, commodities, currencies, crypto and the odds people are trading on the Fed and the economy, read in the same plain words."
-              href="/markets"
-              hrefLabel="Open markets"
-            />
-            <Suspense fallback={<div className="oa-surface h-[30rem] animate-pulse border border-oa-border bg-oa-card motion-reduce:animate-none" aria-hidden="true" />}>
-              <MarketsSection />
-            </Suspense>
-          </section>
-
-          {/* idea to watchlist */}
-          <section id="ideas" className="scroll-mt-24">
-            <SectionHead
-              title="Turn an idea into a watchlist."
-              lede="Start from a theme you believe in. Every name comes with what it does in that idea, why it fits, and what would break the case."
-              href="/explore"
-              hrefLabel="Explore all ideas"
-            />
-            <Suspense fallback={<div className="oa-surface h-[30rem] animate-pulse border border-oa-border bg-oa-card motion-reduce:animate-none" aria-hidden="true" />}>
-              <IdeaToWatchlist />
-            </Suspense>
-          </section>
-
-          {/* follow rules, follow people */}
-          <section id="follow" className="scroll-mt-24">
-            <Suspense fallback={<div className="oa-surface h-[40rem] animate-pulse border border-oa-border bg-oa-card motion-reduce:animate-none" aria-hidden="true" />}>
-              <FollowSection />
-            </Suspense>
-          </section>
-
-          {/* agents */}
+          {/* proof: agents */}
           <section id="agents" className="scroll-mt-24">
             <Reveal>
               <AgentsSection />
-            </Reveal>
-          </section>
-
-          {/* ask from your own AI */}
-          <section id="ask" className="scroll-mt-24">
-            <Reveal>
-              <SquircleSurface className="border border-oa-border p-1 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
-                <div className="grid grid-cols-1 gap-1 lg:grid-cols-[1fr_1fr]">
-                  <div className="flex flex-col justify-center p-5 sm:p-8">
-                    <h2 className={H2}>Ask it from the AI you already use.</h2>
-                    <p className={LEDE}>
-                      Connect Claude, ChatGPT or Cursor and ask about your stocks in plain English.
-                      It can read your watchlist and set alerts. It cannot place trades or move
-                      money.
-                    </p>
-                    <div className="mt-6 flex flex-wrap items-center gap-3">
-                      <a
-                        href="/developers"
-                        className="inline-flex h-11 items-center rounded-full border border-[color-mix(in_srgb,var(--ink)_55%,transparent)] bg-oa-card px-5 text-base font-medium text-oa-fg transition-colors hover:bg-oa-accent active:translate-y-px"
-                      >
-                        Connect your AI
-                      </a>
-                      <a
-                        href="/ask"
-                        className="inline-flex h-11 items-center rounded-full border border-oa-border bg-oa-card px-5 text-base font-medium text-oa-fg transition-colors hover:border-oa-fg/30"
-                      >
-                        Or ask it here
-                      </a>
-                    </div>
-                  </div>
-                  <SquircleSurface className="gap-2 rounded-[22px] bg-oa-bg p-4 [--card-clip-radius:12px] sm:rounded-[44px] sm:p-6 sm:[--card-clip-radius:17px]">
-                    <p className={LABEL}>Things people ask</p>
-                    <ul className="mt-1 flex flex-col gap-2">
-                      {ASK_EXAMPLES.map((example) => (
-                        <li
-                          key={example}
-                          className="w-fit max-w-full rounded-[18px] rounded-br-[6px] border border-oa-border bg-oa-card px-4 py-2.5 text-[15px] leading-6 text-oa-fg"
-                        >
-                          {example}
-                        </li>
-                      ))}
-                    </ul>
-                    <p className="oa-mono mt-3 break-all rounded-[12px] border border-oa-border bg-oa-card px-3 py-2 text-[13px] text-oa-muted-fg">
-                      https://www.stocksbrew.online/api/mcp
-                    </p>
-                  </SquircleSurface>
-                </div>
-              </SquircleSurface>
             </Reveal>
           </section>
 

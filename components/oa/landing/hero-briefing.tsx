@@ -8,7 +8,7 @@ import {
 import { normalizeDirectiveForUi } from "@/lib/directive-ui";
 import { buildLandingHeroMetrics } from "@/lib/landing-hero-metrics";
 import { getCurrentMarket } from "@/lib/market";
-import { plainAction } from "@/lib/plain-copy";
+import { plainAction, plainFinance, shortCompanyName, wholeSentences } from "@/lib/plain-copy";
 import { getPowerTradesCached, type PowerTrade } from "@/lib/power-trades";
 import { getRedditCues, hasRedditBrief } from "@/lib/reddit-cues";
 import { isFeaturedStockTicker } from "@/lib/seo/stock-pages";
@@ -174,28 +174,33 @@ export async function HeroBriefing() {
     null;
   // The engine's label in plain words ("Accumulate on pullbacks" -> "Buy more on a dip, not here"), as on the stock page.
   const callText = plainAction(directive?.text, null);
-  // Only call it "why it moved" when we actually researched a reason.
-  const leadLabel = moveReason ? "Why it moved" : callText ? "Today's call" : "Today";
-  const why =
-    moveReason ?? callText ?? "We have not found a confirmed reason for today's move yet.";
+  // Only say why it moved when we actually researched a reason.
+  const why = moveReason ? wholeSentences(plainFinance(moveReason), 1) || moveReason : null;
   const closes = featured.closes;
+  const name = shortCompanyName(anomaly.name) || anomaly.ticker;
+  const fromHere = (price: number) => {
+    if (!(anomaly.price > 0)) return undefined;
+    const pct = ((price - anomaly.price) / anomaly.price) * 100;
+    return `${Math.abs(pct).toFixed(0)}% ${pct >= 0 ? "above" : "below"} today`;
+  };
+  const mood = (sentiment: string | null | undefined) =>
+    sentiment === "bearish" ? "Mostly worried" : sentiment === "bullish" ? "Mostly hopeful" : sentiment ? "Mixed" : undefined;
 
   const stats: { label: string; value: string; sub?: string }[] = [];
   // Zones are only public on the showcase stocks; on any other stock
   // they come with covering it, so the landing page must not hand them out.
   const showcase = isFeaturedStockTicker(anomaly.ticker);
   if (showcase && metrics.accumulate_below != null) {
-    stats.push({ label: "Buy more below", value: `$${metrics.accumulate_below.toFixed(0)}` });
+    stats.push({ label: "We'd buy more below", value: `$${metrics.accumulate_below.toFixed(0)}`, sub: fromHere(metrics.accumulate_below) });
   }
   if (showcase && metrics.trim_above != null) {
-    stats.push({ label: "Sell some above", value: `$${metrics.trim_above.toFixed(0)}` });
+    stats.push({ label: "We'd sell some above", value: `$${metrics.trim_above.toFixed(0)}`, sub: fromHere(metrics.trim_above) });
   }
   if (typeof analystTarget === "number" && analystTarget > 0 && anomaly.price > 0) {
-    const roomPct = ((analystTarget - anomaly.price) / anomaly.price) * 100;
     stats.push({
-      label: "Analyst target",
+      label: "Analysts' average target",
       value: `$${analystTarget.toFixed(0)}`,
-      sub: `${roomPct >= 0 ? "+" : "−"}${Math.abs(roomPct).toFixed(0)}%`,
+      sub: fromHere(analystTarget),
     });
   }
   // No risk/reward ratio here: it is built from our zones, and the call
@@ -212,11 +217,8 @@ export async function HeroBriefing() {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-60 motion-reduce:hidden" />
               <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
             </span>
-            Today&apos;s briefing
+            One stock from today&apos;s briefing
           </h2>
-          <span className="rounded-full bg-oa-accent px-2.5 py-1 text-[13px] text-oa-muted-fg">
-            Live data
-          </span>
         </div>
 
         <SquircleSurface className="gap-2 rounded-[22px] bg-oa-bg p-2 [--card-clip-radius:12px] sm:rounded-[44px] sm:p-2.5 sm:[--card-clip-radius:17px]">
@@ -234,11 +236,10 @@ export async function HeroBriefing() {
                   circle
                   eager
                 />
-                <p className="min-w-0 truncate text-[15px] text-oa-muted-fg">
-                  <span className="oa-mono text-oa-fg">{anomaly.ticker}</span> {anomaly.name}
+                <p className="min-w-0 text-[15px] leading-5 text-oa-muted-fg">
+                  <span className="font-medium text-oa-fg">{name}</span> <span className="oa-mono">{anomaly.ticker}</span>
                 </p>
               </div>
-              <span className={`${LABEL} shrink-0`}>{leadLabel}</span>
             </div>
             <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <span className="text-3xl font-medium tabular-nums tracking-tight text-oa-fg">
@@ -246,7 +247,19 @@ export async function HeroBriefing() {
               </span>
               <ChangeText pct={anomaly.day_change_pct ?? 0} className="text-base font-medium" />
             </div>
-            <p className="mt-2 text-[15px] leading-6 text-oa-fg/85">{why}</p>
+            {why ? (
+              <p className="mt-2 text-[15px] leading-6 text-oa-fg/85">
+                <span className="font-medium text-oa-fg">Why it moved: </span>
+                {why}
+              </p>
+            ) : null}
+            {callText ? (
+              <p className="mt-2 text-[15px] leading-6 text-oa-fg/85">
+                <span className="font-medium text-oa-fg">Our call: </span>
+                {callText}.
+              </p>
+            ) : null}
+            {!why && !callText ? <p className="mt-2 text-[15px] leading-6 text-oa-fg/85">We have not found a confirmed reason for today&apos;s move yet.</p> : null}
             {stats.length > 0 ? (
               <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2.5 border-t border-oa-border pt-3">
                 {stats.map((s) => (
@@ -254,9 +267,12 @@ export async function HeroBriefing() {
                 ))}
               </div>
             ) : null}
-            <div className="mt-2">
-              <Sparkline closes={closes} />
-            </div>
+            {closes.length > 1 ? (
+              <div className="mt-2">
+                <Sparkline closes={closes} />
+                <p className="text-[13px] leading-5 text-oa-muted-fg">Price over the last {closes.length >= 80 ? "3 months" : `${closes.length} trading days`}</p>
+              </div>
+            ) : null}
           </a>
 
           {trade ? (
@@ -282,11 +298,11 @@ export async function HeroBriefing() {
           {buzz ? (
             <BriefLine
               href={`/stock/${buzz.ticker}`}
-              kind="What Reddit says"
-              meta={buzz.sentiment ? buzz.sentiment.charAt(0).toUpperCase() + buzz.sentiment.slice(1) : undefined}
+              kind="On Reddit"
+              meta={mood(buzz.sentiment)}
               avatar={<StockLogo ticker={buzz.ticker} size={26} circle />}
             >
-              <span className="line-clamp-2">{buzz.summary}</span>
+              {wholeSentences(buzz.summary, 1) || buzz.summary}
             </BriefLine>
           ) : null}
         </SquircleSurface>
