@@ -341,7 +341,11 @@ def call_fields(intel: dict[str, Any] | None, price: float | None) -> dict[str, 
         return out
     out["call"] = word
     action = directive.get("action") if isinstance(directive.get("action"), dict) else {}
-    reason = str(action.get("summary") or "").strip() or str(legacy.get("rationale") or "").strip()
+    reason = (
+        str(directive.get("call_reason") or "").strip()
+        or str(action.get("summary") or "").strip()
+        or str(legacy.get("rationale") or "").strip()
+    )
     if reason:
         out["call_reason"] = reason[:320]
     confidence = str(directive.get("confidence") or legacy.get("confidence") or "").strip().lower()

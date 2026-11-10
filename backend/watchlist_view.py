@@ -686,12 +686,13 @@ def _directive_v2(row: dict[str, Any], directive: dict[str, Any] | None = None) 
     else:
         title = "Keep on watch"
 
-    detail = str(action.get("summary") or ai.get("watch_out") or ai.get("detail") or "").strip() or None
+    detail = str(ai.get("call_reason") or action.get("summary") or ai.get("watch_out") or ai.get("detail") or "").strip() or None
 
     return {
         **ai,
         "title": title[:140],
-        "detail": detail[:180] if detail else None,
+        # call_reason is written to fit in 240 characters; do not cut it mid-sentence.
+        "detail": detail[:240] if detail else None,
         "priority": priority,
         "trigger": trigger,
         "holding_status": holding_status,
@@ -813,7 +814,7 @@ def _row_for_instrument(
     directive = raw_directive if isinstance(raw_directive, dict) else {}
     action = directive.get("action") if isinstance(directive.get("action"), dict) else {}
     directive_text = str(action.get("label") or "").strip()
-    directive_rationale = str(action.get("summary") or directive.get("watch_out") or "").strip()
+    directive_rationale = str(directive.get("call_reason") or action.get("summary") or directive.get("watch_out") or "").strip()
     instrument_peers = [
         str(peer_id).strip()
         for peer_id in (instrument_meta.get("peer_ids") or [])

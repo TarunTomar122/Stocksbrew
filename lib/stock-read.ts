@@ -12,7 +12,7 @@ export type StockRead = {
   call: CallWord | null;
   /** The action in the brief's own words, e.g. "Hold here". */
   actionLabel: string | null;
-  /** One or two sentences on what to do. */
+  /** One or two sentences on what to do: the stock-specific `call_reason` when stored, else the template summary. */
   actionSummary: string | null;
   headline: string | null;
   /** The longer narrative paragraph, when it adds to the headline. */
@@ -31,7 +31,8 @@ export type StockRead = {
 
 type Evidence = { text?: unknown; type?: unknown };
 
-type LooseDirective = NonNullable<StockIntelligenceDoc["directive_v2"]> & { evidence?: Evidence[] };
+/** `call_reason` is the stock-specific line the pipeline writes under the call (backend/call_reason.py). */
+type LooseDirective = NonNullable<StockIntelligenceDoc["directive_v2"]> & { evidence?: Evidence[]; call_reason?: unknown };
 
 type LooseIntelligence = StockIntelligenceDoc & {
   evidence_history?: { article_count?: unknown; source_count?: unknown };
@@ -94,7 +95,8 @@ export function buildStockRead(intelligence: StockIntelligenceDoc | null | undef
   const bodyText = clean(doc.today_brief) || clean(doc.body) || clean(doc.visual_summary?.what_changed);
   const body = bodyText && (!headline || norm(bodyText) !== norm(headline)) ? bodyText : null;
   const actionLabel = clean(directive?.action?.label) || null;
-  const actionSummary = clean(directive?.action?.summary) || null;
+  // Prefer the stock-specific reason; older briefs only have the shared template summary.
+  const actionSummary = clean(directive?.call_reason) || clean(directive?.action?.summary) || null;
 
   if (!headline && !body && !actionLabel && reasons.length === 0) return null;
 

@@ -17,6 +17,7 @@ from backend.call_engine_pipeline import (
     engine_context_for,
     resolve_directive,
 )
+from backend.call_reason import attach_call_reason, coerce_model_reasons, validated_model_reasons
 from backend.directive_v2 import build_directive_v2
 from backend.evidence_history import (
     build_daily_evidence_snapshots,
@@ -41,7 +42,7 @@ from backend.providers.options_scrape import fetch_alphaquery_options_digest
 
 logger = logging.getLogger(__name__)
 
-STOCK_BRIEF_CACHE_VERSION = "2026-08-26-stock-brief-v22-rolling-evidence"
+STOCK_BRIEF_CACHE_VERSION = "2026-11-10-stock-brief-v23-call-reasons"
 DEFAULT_STOCK_BRIEF_MODEL = "gpt-5.6-luna"
 
 
@@ -570,6 +571,25 @@ EVIDENCE DISCIPLINE - THIS IS CRITICAL:
 - NEVER output a catalyst_card with empty detail. If you can't explain why it matters in one sentence, drop the card.
 """
 
+# Appended to both brief prompts. The call (ADD / HOLD / TRIM) is decided after
+# the model writes the brief, so the model writes one reason per possible call
+# and backend/call_reason.py publishes the one that matches, after validation.
+CALL_REASONS_PROMPT_SECTION = """
+CALL REASONS - THE ONE LINE UNDER OUR CALL:
+- After you write this brief, a separate rule decides our call on the stock: ADD (buy more), HOLD (keep it, don't buy more yet) or TRIM (don't buy more, sell some or stay out). You will not know which, so always include `call_reasons` with all three keys: `add`, `hold`, `trim`.
+- Each value is the sentence the stock page prints under that call. One or two full sentences, under 220 characters, saying what about THIS stock right now leads to that call.
+- Name the company (or its ticker) and the specific thing driving it: the news event, the earnings date or result, the recent price move, or how its growth or price compares with similar companies. The same sentence must not fit any other stock.
+- End with what we'd do, spoken plainly: "so we'd buy more", "so we'd hold rather than add before the report", "so we wouldn't buy more and would sell some on a bounce". For `add`, don't say whether to buy today or wait for a dip; the page says that separately.
+- Give the strongest honest case for each call from the evidence. If the evidence barely supports a call, name the one fact that would put us there. Never invent a fact to make a call sound right.
+- Numbers and dates only from the payload. Round percentages to whole numbers ("down 6%"). Write dates like "Nov 17". If you don't have the number, leave it out. Never quote a share price, price target or price level in dollars.
+- Write like a person telling a friend who owns the stock. No jargon, no hedging. Forbidden: "risk/reward", "setup", "constructive", "balanced", "catalyst", "momentum", "sentiment", "signal", "thesis", "conviction", "exposure", "accumulate", "price support", "breakout", "headwind", "tailwind", "consensus", "near-term", "well-positioned", "could potentially", "remains to be seen".
+- Examples of the voice (the facts here are made up; use only the payload's):
+  hold: "Nvidia is down 6% this week on the board investigation, and earnings on Nov 17 will show whether demand is holding, so we'd hold rather than add now."
+  trim: "Qualys beat on earnings but cut its outlook, and the stock already fell 13%; we'd wait for the next report before buying more."
+  add: "Costco's sales keep growing faster than other big retailers and the stock is 9% below its high, so we'd buy more."
+"""
+STOCK_BRIEF_SYSTEM_PROMPT += CALL_REASONS_PROMPT_SECTION
+
 # CALL_ENGINE_MODE=on only. The call is decided by backend/call_engine.py before
 # the model runs; these two sections replace "DIRECTIVE REASONS" and "BRIEF
 # STABILITY" so the model explains the call it is handed and cannot move it.
@@ -695,6 +715,19 @@ STOCK_BRIEF_SCHEMA = {
                     "required": ["risk", "detail", "trigger", "severity"],
                 },
             },
+            # Not in "required": the validator drops a missing or malformed
+            # value instead of rejecting the whole brief (see call_reason.py).
+            "call_reasons": {
+                "type": "object",
+                "additionalProperties": False,
+                "description": "One plain reason per possible call; the published call picks one.",
+                "properties": {
+                    "add": {"type": "string"},
+                    "hold": {"type": "string"},
+                    "trim": {"type": "string"},
+                },
+                "required": ["add", "hold", "trim"],
+            },
         },
         "required": [
             "headline",
@@ -814,6 +847,9 @@ def _validate_stock_brief_payload(payload: Any) -> dict[str, Any]:
         raise ValueError("stock brief response echoed the schema envelope")
 
     payload = _normalize_stock_brief_payload(payload)
+    # The call reasons are optional and checked on their own; a bad value is
+    # dropped here so it can never cost the rest of the brief.
+    call_reasons = coerce_model_reasons(payload.pop("call_reasons", None))
     errors = _json_schema_errors(payload, STOCK_BRIEF_SCHEMA["schema"])
     for field in ("headline", "body", "thesis"):
         if isinstance(payload.get(field), str) and not payload[field].strip():
@@ -824,7 +860,30 @@ def _validate_stock_brief_payload(payload: Any) -> dict[str, Any]:
         if len(errors) > 8:
             preview += f"; and {len(errors) - 8} more"
         raise ValueError(preview)
+    if call_reasons:
+        payload["call_reasons"] = call_reasons
     return payload
+
+
+def _with_valid_call_reasons(brief: dict[str, Any], model_input: dict[str, Any]) -> dict[str, Any]:
+    """Keep only the call reasons that pass validation against the model's input."""
+    raw = brief.pop("call_reasons", None)
+    try:
+        reasons = validated_model_reasons(
+            raw,
+            name=str(model_input.get("company_name") or ""),
+            ticker=str(model_input.get("ticker") or ""),
+            model_input=model_input,
+        )
+    except Exception:  # never let the reason cost (or retry) the brief
+        logger.warning("call reason validation failed ticker=%s", model_input.get("ticker"), exc_info=True)
+        return brief
+    if reasons:
+        brief["call_reasons"] = reasons
+    rejected = sorted(set(coerce_model_reasons(raw) or {}) - set(reasons))
+    if rejected:
+        logger.info("call reasons rejected ticker=%s buckets=%s", model_input.get("ticker"), ",".join(rejected))
+    return brief
 
 
 def _llm_synthesize_brief(
@@ -932,7 +991,7 @@ def _llm_synthesize_brief(
             cached = store.get_llm_enrichment(cache_key)
             if cached and isinstance(cached.get("payload"), dict):
                 try:
-                    return _validate_stock_brief_payload(cached["payload"])
+                    return _with_valid_call_reasons(_validate_stock_brief_payload(cached["payload"]), payload)
                 except ValueError as exc:
                     logger.warning(
                         "Ignoring invalid cached LLM brief for %s cache_key=%s: %s",
@@ -972,7 +1031,7 @@ def _llm_synthesize_brief(
             )
             content = body["choices"][0]["message"]["content"]
             try:
-                result = _validate_stock_brief_payload(parse_json_content(content))
+                result = _with_valid_call_reasons(_validate_stock_brief_payload(parse_json_content(content)), payload)
                 break
             except (KeyError, TypeError, ValueError) as exc:
                 if semantic_attempt >= STOCK_BRIEF_SEMANTIC_ATTEMPTS:
@@ -1076,8 +1135,9 @@ Do not copy the same sentence across fields. Cards may use core thesis evidence 
 
 If `tape_event` is present, it contains factual price-action data that made this brief worth refreshing. You may describe that setup using its exact numbers, but it is NOT a company catalyst. Never say the tape event "caused", "explains", or "continues" the move. State that no company-specific catalyst was verified when relevant.
 """
+NO_NEWS_BRIEF_SYSTEM_PROMPT += CALL_REASONS_PROMPT_SECTION
 
-NO_NEWS_BRIEF_CACHE_VERSION = "2026-08-09-no-news-brief-v8-everyday-reasons"
+NO_NEWS_BRIEF_CACHE_VERSION = "2026-11-10-no-news-brief-v9-call-reasons"
 
 
 def _nn_to_float(value: Any) -> float | None:
@@ -1236,7 +1296,7 @@ def generate_no_news_brief(
         try:
             cached = store.get_llm_enrichment(cache_key)
             if cached and isinstance(cached.get("payload"), dict):
-                return cached["payload"]
+                return _with_valid_call_reasons(dict(cached["payload"]), payload)
         except Exception:
             pass
 
@@ -1260,7 +1320,7 @@ def generate_no_news_brief(
             )
             content = body["choices"][0]["message"]["content"]
             try:
-                result = _validate_stock_brief_payload(parse_json_content(content))
+                result = _with_valid_call_reasons(_validate_stock_brief_payload(parse_json_content(content)), payload)
                 break
             except (KeyError, TypeError, ValueError) as exc:
                 if semantic_attempt >= STOCK_BRIEF_SEMANTIC_ATTEMPTS:
@@ -1465,20 +1525,31 @@ def build_no_news_intelligence_doc(
     }
     legacy_directive = build_directive_v2(doc, previous_v2=previous_v2)
     engine_context = engine_context_for(store, market)
+
+    def _with_reason(directive: dict[str, Any]) -> dict[str, Any]:
+        # Additive: the call is already decided; this only says why, for this stock.
+        return attach_call_reason(
+            directive,
+            doc=doc,
+            name=str(instrument.get("name") or ticker),
+            ticker=ticker,
+            model_reasons=brief.get("call_reasons"),
+        )
+
     if not engine_context.active:
-        doc["directive_v2"] = legacy_directive
+        doc["directive_v2"] = _with_reason(legacy_directive)
         return doc
     # Shadow or on. The no-news brief is written before the call is known, so
     # in "on" mode its text is not an explanation of the call; only the
     # directive fields come from the engine.
-    doc.update(
-        resolve_directive(
-            engine_context.mode,
-            legacy_directive=legacy_directive,
-            engine_call=compute_engine_call(engine_context, instrument),
-            live_price=current_price,
-        )
+    resolved = resolve_directive(
+        engine_context.mode,
+        legacy_directive=legacy_directive,
+        engine_call=compute_engine_call(engine_context, instrument),
+        live_price=current_price,
     )
+    resolved["directive_v2"] = _with_reason(resolved["directive_v2"])
+    doc.update(resolved)
     return doc
 
 
@@ -4270,16 +4341,27 @@ def build_stock_intelligence_docs(
             "comparative_context": comparative_context,
         }
 
+        resolved_directive = resolve_directive(
+            engine_context.mode if engine_context.active else "off",
+            legacy_directive=build_directive_v2(directive_v2_input, previous_v2=previous_v2),
+            engine_call=engine_call,
+            live_price=current_price,
+        )
+        # Additive: the call is already decided above; this only says why, for
+        # this stock, from the model's matching reason or the stock's own facts.
+        resolved_directive["directive_v2"] = attach_call_reason(
+            resolved_directive["directive_v2"],
+            doc=directive_v2_input,
+            name=str(instrument.get("name") or instrument["ticker"]),
+            ticker=str(instrument["ticker"]),
+            model_reasons=(llm_brief or {}).get("call_reasons"),
+            earnings=earnings_ctx,
+        )
         docs.append({
             **directive_v2_input,
             "source": LLM_BRIEF_SOURCE,
             "coverage_type": "on_demand_news",
-            **resolve_directive(
-                engine_context.mode if engine_context.active else "off",
-                legacy_directive=build_directive_v2(directive_v2_input, previous_v2=previous_v2),
-                engine_call=engine_call,
-                live_price=current_price,
-            ),
+            **resolved_directive,
             "lanes": [
                 {"label": "Positive Mentions", "positive_pct": positive_pct},
                 {"label": "Source Agreement", "positive_pct": source_agreement_pct},

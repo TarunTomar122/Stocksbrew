@@ -1481,7 +1481,10 @@ class TraceMoneyStore:
                 "market": market_up,
                 "stance": stance,
                 "text": str(action.get("label") or "").strip(),
-                "rationale": str(action.get("summary") or directive.get("watch_out") or "").strip(),
+                "rationale": (
+                    str(directive.get("call_reason") or "").strip()
+                    or str(action.get("summary") or directive.get("watch_out") or "").strip()
+                ),
                 "confidence": str(directive.get("confidence") or "").strip(),
                 "trigger_type": trigger_type,
                 "trigger_value": trigger_value,

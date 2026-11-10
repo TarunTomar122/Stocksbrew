@@ -32,6 +32,15 @@ describe("buildStockRead", () => {
     expect(buildStockRead({ instrument_id: "US_X" })).toBeNull();
   });
 
+  it("prefers the stock-specific call reason and falls back to the old summary", () => {
+    expect(buildStockRead(base)!.actionSummary).toBe("Keep the position; do not add.");
+    const withReason = {
+      ...base,
+      directive_v2: { ...base.directive_v2, call_reason: "Nvidia is down 6% this week, so we'd hold rather than add." },
+    } as unknown as StockIntelligenceDoc;
+    expect(buildStockRead(withReason)!.actionSummary).toBe("Nvidia is down 6% this week, so we'd hold rather than add.");
+  });
+
   it("splits evidence into reasons and what would change the call", () => {
     const read = buildStockRead(base)!;
     expect(read.call).toBe("Hold");

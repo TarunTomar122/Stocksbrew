@@ -1,0 +1,2391 @@
+{
+ "US_AAPL": {
+  "doc": {
+   "analyst_target": 318.82,
+   "anomaly_digest": null,
+   "as_of": "2026-11-10T21:30:17.370397+00:00",
+   "body": "Apple’s latest coverage combines a new long-dated debt issuance with renewed investor confidence in its growth prospects, while its market value moved above $5 trillion. However, recent earnings evidence is mixed: profit expectations were challenged by weak forward guidance, making execution crucial at today’s elevated valuation.",
+   "catalyst": "Forward growth update",
+   "comparative_context": {
+    "day_change_pct": -0.59,
+    "market_percentile": 75,
+    "vs_market_day_change_pct": 1.145,
+    "vs_sector_day_change_pct": 1.145
+   },
+   "coverage_type": "on_demand_news",
+   "current_price": 348.6300048828125,
+   "evidence_history": {
+    "coverage_days": 1,
+    "repeated_negative_themes": [],
+    "trend": "positive"
+   },
+   "fundamentals": {
+    "pillars": {
+     "growth": {
+      "confidence": "high",
+      "coverage": 1.0,
+      "score": 72.2,
+      "verdict": "solid"
+     },
+     "momentum": {
+      "confidence": "high",
+      "coverage": 1.0,
+      "score": 60.7,
+      "verdict": "solid"
+     },
+     "quality": {
+      "confidence": "high",
+      "coverage": 1.0,
+      "score": 86.9,
+      "verdict": "strong"
+     },
+     "valuation": {
+      "confidence": "high",
+      "coverage": 1.0,
+      "score": 36.2,
+      "verdict": "mixed"
+     }
+    },
+    "standout_metrics": []
+   },
+   "generated_at": "2026-11-10T21:30:17.370397+00:00",
+   "headline": "Apple’s growth optimism now faces a demanding valuation test",
+   "instrument_id": "US_AAPL",
+   "key_points": [
+    "Apple’s quality and profit growth remain strong enough to support an ownership case.",
+    "The average analyst target sits below the current price, signaling limited room for disappointment.",
+    "New debt extending to 2036 gives Apple funding flexibility but adds long-term obligations.",
+    "Technology’s broad weakness makes Apple’s strength more dependent on company-specific execution."
+   ],
+   "market_regime": {
+    "sector": {
+     "conviction": 82,
+     "invalidators": [
+      "If sector breadth rises above 55% advancing and holds there for multiple sessions, the breaking-down regime is invalidated.",
+      "If more than 60% of stocks reclaim their 50-day moving averages while average RSI rises above 50, the regime flips.",
+      "If technology leadership broadens beyond NET, AVGO, and TSM with positive relative strength, the bearish classification is invalidated."
+     ],
+     "leadership_stocks": [
+      "NET",
+      "AVGO",
+      "TSM"
+     ],
+     "narrative": "Technology is breaking down, with only 31.3% of stocks advancing and participation weak above the 20-day and 50-day moving averages. Sub-50 average RSI and a negative average daily move confirm broad downside pressure despite isolated strength in select leaders.",
+     "regime": "breaking_down",
+     "sector": "Technology"
+    }
+   },
+   "news_digest": {
+    "catalyst_type": "none",
+    "changed_setup": true,
+    "direction": "positive",
+    "freshness_hours": 1.37,
+    "hard_catalyst": false,
+    "top_items": [
+     {
+      "date": "2026-11-10",
+      "direction": "positive",
+      "relevance": "company",
+      "source": "",
+      "title": "Apple (AAPL) Faces A 38% Premium Following Fresh Debt Issuance"
+     },
+     {
+      "date": "2026-11-10",
+      "direction": "positive",
+      "relevance": "company",
+      "source": "",
+      "title": "Apple Inc. (AAPL) Rallied 15% as Investors Reassessed Its Growth: What’s Next for the Stock"
+     },
+     {
+      "date": "2026-11-10",
+      "direction": "positive",
+      "relevance": "company",
+      "source": "",
+      "title": "Apple Is Above $5 Trillion After Its First-Ever Close Above $350"
+     },
+     {
+      "date": "2026-11-10",
+      "direction": "positive",
+      "relevance": "company",
+      "source": "Apple Inc. via Yahoo Finance",
+      "title": "Apple (AAPL) Faces A 38% Premium Following Fresh Debt Issuance"
+     }
+    ]
+   },
+   "options_digest": {
+    "put_call_volume_ratio": 1.3895
+   },
+   "overall_label": "mixed",
+   "overall_score": 57,
+   "price_context": {
+    "current_price": 348.6300048828125,
+    "day_change_pct": -0.59,
+    "from_52w_high_pct": 1.18,
+    "from_52w_low_pct": 73.02,
+    "ma_position": {
+     "sma_20": "above",
+     "sma_200": "above",
+     "sma_50": "above"
+    },
+    "recent_sessions": [
+     {
+      "close": 331.9,
+      "date": "2026-11-03",
+      "day_change_pct": -1.9
+     },
+     {
+      "close": 349.51,
+      "date": "2026-11-04",
+      "day_change_pct": 5.31
+     },
+     {
+      "close": 344.17,
+      "date": "2026-11-05",
+      "day_change_pct": -1.53
+     },
+     {
+      "close": 342.37,
+      "date": "2026-11-06",
+      "day_change_pct": -0.52
+     },
+     {
+      "close": 350.69,
+      "date": "2026-11-09",
+      "day_change_pct": 2.43
+     },
+     {
+      "close": 348.63,
+      "date": "2026-11-10",
+      "day_change_pct": -0.59
+     }
+    ],
+    "returns": {
+     "month_1_pct": 2.22,
+     "month_3_pct": 15.35,
+     "week_1_pct": 5.09
+    },
+    "rsi_14": {
+     "state": "neutral",
+     "value": 53.16
+    },
+    "trend": "uptrend",
+    "volume_vs_avg": 0.7,
+    "vs_market_day_change_pct": 1.145,
+    "vs_sector_day_change_pct": 1.145
+   },
+   "risk": "If forward growth weakens again, investors may pay less for Apple’s shares and the recent optimism could reverse quickly.",
+   "sector_evidence_history": {
+    "coverage_days": 2,
+    "repeated_negative_themes": [],
+    "trend": "quiet"
+   },
+   "setup_state": "trend",
+   "thesis": "Apple can keep leading, but growth must catch up with its valuation.",
+   "visual_cards": {
+    "catalyst_cards": [
+     {
+      "detail": "Apple needs its next business update to support renewed growth expectations, because weaker guidance would put pressure on its expensive shares.",
+      "event": "Forward growth update",
+      "priced_in": "high",
+      "window": "quarter"
+     },
+     {
+      "detail": "Apple’s acquisition of PlasmaSolve could strengthen materials research and product development, though its financial contribution remains unproven.",
+      "event": "PlasmaSolve acquisition progress",
+      "priced_in": "low",
+      "window": "quarter"
+     }
+    ],
+    "drivers": [
+     {
+      "detail": "Apple’s recent profit growth gives the company evidence that customers and services can still support higher earnings over time.",
+      "direction": "up",
+      "horizon": "quarter",
+      "label": "Strong profit growth",
+      "strength": 4
+     },
+     {
+      "detail": "Apple’s profitable ecosystem and strong returns provide cash to fund products, services, debt payments, and shareholder returns through technology changes.",
+      "direction": "up",
+      "horizon": "quarter",
+      "label": "Exceptional business quality",
+      "strength": 5
+     },
+     {
+      "detail": "Investors are reconsidering Apple’s growth prospects, which can support further interest if upcoming business updates confirm the improved outlook.",
+      "direction": "up",
+      "horizon": "week",
+      "label": "Fresh growth reassessment",
+      "strength": 3
+     }
+    ],
+    "risk_cards": [
+     {
+      "detail": "Apple’s recent guidance shock suggests future profits may weaken, directly challenging the growth needed to support today’s high valuation.",
+      "risk": "Weak forward guidance",
+      "severity": 5,
+      "trigger": "Another cautious outlook"
+     },
+     {
+      "detail": "Apple’s shares trade well above the average analyst target, leaving less room for missed forecasts or slower growth before investors reassess.",
+      "risk": "Valuation ahead of expectations",
+      "severity": 4,
+      "trigger": "Growth disappoints"
+     }
+    ]
+   }
+  },
+  "earnings": {
+   "days_since_report": 8,
+   "event_date": "2026-11-02",
+   "status": "reported",
+   "surprise_label": "beat"
+  },
+  "expected_directive": {
+   "action": {
+    "label": "Accumulate now",
+    "summary": "The setup is attractive at the current price; use pullbacks to add rather than waiting for a perfect entry."
+   },
+   "confidence": "medium",
+   "execution": "now",
+   "stance": "accumulate",
+   "zones": {
+    "accumulate_below": 348.63,
+    "trim_above": 411.38
+   }
+  },
+  "name": "Apple Inc.",
+  "old_summary": "The setup is attractive at the current price; use pullbacks to add rather than waiting for a perfect entry.",
+  "ticker": "AAPL"
+ },
+ "US_ASTS": {
+  "doc": {
+   "analyst_target": 87.82,
+   "anomaly_digest": null,
+   "as_of": "2026-11-10T21:42:47.619930+00:00",
+   "body": "AST SpaceMobile reported $42.3 million of Q3 revenue, below expectations, as higher costs offset strong year-over-year growth. Management reaffirmed 2026 revenue guidance of $150 million to $200 million and increased liquidity to $3.2 billion, leaving satellite production and commercial scale as the key unresolved questions.",
+   "catalyst": "ASIC satellite production target",
+   "comparative_context": {
+    "day_change_pct": -8.74,
+    "market_percentile": 25,
+    "vs_market_day_change_pct": -8.3725,
+    "vs_sector_day_change_pct": 0.0
+   },
+   "coverage_type": "on_demand_news",
+   "current_price": 33.665000915527344,
+   "evidence_history": {
+    "coverage_days": 1,
+    "repeated_negative_themes": [],
+    "trend": "quiet"
+   },
+   "fundamentals": {
+    "pillars": {
+     "growth": {
+      "confidence": "partial",
+      "coverage": 0.75,
+      "score": 63.1,
+      "verdict": "solid"
+     },
+     "momentum": {
+      "confidence": "high",
+      "coverage": 1.0,
+      "score": 23.3,
+      "verdict": "weak"
+     },
+     "quality": {
+      "confidence": "high",
+      "coverage": 0.85,
+      "score": 22.6,
+      "verdict": "weak"
+     },
+     "valuation": {
+      "confidence": "insufficient",
+      "coverage": 0.3,
+      "score": 50.0,
+      "verdict": "insufficient data"
+     }
+    },
+    "standout_metrics": [
+     {
+      "label": "Analyst target",
+      "pillar": "valuation",
+      "summary": "+22.8% vs target",
+      "value": 87.82
+     }
+    ]
+   },
+   "generated_at": "2026-11-10T21:42:47.619930+00:00",
+   "headline": "ASTS has funding, but execution must catch up",
+   "instrument_id": "US_ASTS",
+   "key_points": [
+    "Liquidity increased to $3.2 billion, reducing near-term financing pressure while ASTS builds its network.",
+    "Revenue grew sharply, but the quarterly miss shows higher sales are not yet translating into improving profits.",
+    "BofA cut its target to $45 from $80, signaling that execution concerns now outweigh the earlier upside case.",
+    "The market is still demanding proof that satellite production can convert funding into dependable commercial revenue."
+   ],
+   "market_regime": {
+    "sector": {
+     "conviction": 68,
+     "invalidators": [
+      "If fewer than 50% of stocks advance over the next two sessions, then the regime flips to choppy.",
+      "If more than 65% of stocks fall below their 20-day SMAs, then the regime flips to breaking_down.",
+      "If at least 50% of stocks reclaim their 200-day SMAs while breadth stays above 65%, then the regime flips to expanding."
+     ],
+     "leadership_stocks": [
+      "CHTR",
+      "IRDM"
+     ],
+     "narrative": "Communication Services is recovering, with 71.4% of stocks advancing and momentum improving. Structural participation remains weak, with only 35.7% above the 200-day SMA, keeping the rebound early-stage.",
+     "regime": "recovering",
+     "sector": "Communication Services"
+    }
+   },
+   "news_digest": {
+    "catalyst_type": "earnings",
+    "changed_setup": true,
+    "direction": "positive",
+    "freshness_hours": 2.64,
+    "hard_catalyst": true,
+    "top_items": [
+     {
+      "date": "2026-11-10",
+      "direction": "positive",
+      "relevance": "company",
+      "source": "",
+      "title": "AST SpaceMobile Inc (ASTS) (Q3 2026) Earnings Call Highlights: $3."
+     },
+     {
+      "date": "2026-11-10",
+      "direction": "positive",
+      "relevance": "company",
+      "source": "",
+      "title": "AST SpaceMobile earnings analysis: questions answered and next catalysts"
+     },
+     {
+      "date": "2026-11-10",
+      "direction": "positive",
+      "relevance": "company",
+      "source": "",
+      "title": "ASTS Q3 Earnings Miss Estimates as Higher Costs Offset Revenue Growth"
+     },
+     {
+      "date": "2026-11-10",
+      "direction": "positive",
+      "relevance": "company",
+      "source": "AST SpaceMobile, Inc. via Yahoo Finance",
+      "title": "AST SpaceMobile Inc (ASTS) (Q3 2026) Earnings Call Highlights: $3. ..."
+     }
+    ]
+   },
+   "options_digest": {
+    "put_call_volume_ratio": 2.0826
+   },
+   "overall_label": "cautious",
+   "overall_score": 43,
+   "price_context": {
+    "current_price": 33.665000915527344,
+    "day_change_pct": -8.74,
+    "from_52w_high_pct": -74.85,
+    "from_52w_low_pct": -6.69,
+    "ma_position": {
+     "sma_20": "below",
+     "sma_200": "below",
+     "sma_50": "below"
+    },
+    "recent_sessions": [
+     {
+      "close": 37.15,
+      "date": "2026-11-03",
+      "day_change_pct": 2.26
+     },
+     {
+      "close": 35.62,
+      "date": "2026-11-04",
+      "day_change_pct": -4.12
+     },
+     {
+      "close": 30.2,
+      "date": "2026-11-05",
+      "day_change_pct": -15.22
+     },
+     {
+      "close": 32.33,
+      "date": "2026-11-06",
+      "day_change_pct": 7.05
+     },
+     {
+      "close": 36.89,
+      "date": "2026-11-09",
+      "day_change_pct": 14.1
+     },
+     {
+      "close": 33.665,
+      "date": "2026-11-10",
+      "day_change_pct": -8.74
+     }
+    ],
+    "returns": {
+     "month_1_pct": -34.59,
+     "month_3_pct": -54.69,
+     "week_1_pct": -9.31
+    },
+    "rsi_14": {
+     "state": "neutral",
+     "value": 38.59
+    },
+    "trend": "downtrend",
+    "volume_vs_avg": 1.9,
+    "vs_market_day_change_pct": -8.3725,
+    "vs_sector_day_change_pct": 0.0
+   },
+   "risk": "Higher costs and delayed satellite production could consume cash without creating enough commercial revenue to support the current investment case.",
+   "sector_evidence_history": {
+    "coverage_days": 1,
+    "repeated_negative_themes": [],
+    "trend": "quiet"
+   },
+   "setup_state": "accumulation",
+   "thesis": "Funding is ample, but ASTS must prove commercial execution.",
+   "visual_cards": {
+    "catalyst_cards": [
+     {
+      "detail": "Reaching six ASIC satellites monthly would increase network capacity and provide stronger evidence that AST SpaceMobile can convert funding into commercial service.",
+      "event": "ASIC satellite production target",
+      "priced_in": "med",
+      "window": "December 2026"
+     },
+     {
+      "detail": "The $100 million contract supports six BlueBird satellites planned for Q1 2027, adding contracted demand and validation for the deployment plan.",
+      "event": "Space Force satellite contract",
+      "priced_in": "low",
+      "window": "near-term"
+     }
+    ],
+    "drivers": [
+     {
+      "detail": "AST SpaceMobile’s liquidity rose to $3.2 billion, giving it more cash to build satellites and fund network deployment without immediate financing pressure.",
+      "direction": "up",
+      "horizon": "quarter",
+      "label": "Stronger funding base",
+      "strength": 4
+     },
+     {
+      "detail": "AST SpaceMobile targets six ASIC satellites monthly by December, which could expand network capacity and support customer service growth.",
+      "direction": "up",
+      "horizon": "quarter",
+      "label": "Satellite output scaling",
+      "strength": 4
+     },
+     {
+      "detail": "AST SpaceMobile’s revenue grew sharply year over year, showing that early customer activity is developing even though profits remain under pressure.",
+      "direction": "up",
+      "horizon": "quarter",
+      "label": "Rapid revenue expansion",
+      "strength": 3
+     }
+    ],
+    "risk_cards": [
+     {
+      "detail": "Higher costs outweighed revenue growth in Q3, showing that expanding sales may not yet translate into improving profits or dependable cash generation.",
+      "risk": "Costs exceed revenue growth",
+      "severity": 4,
+      "trigger": "Another quarterly revenue miss or rising operating costs"
+     },
+     {
+      "detail": "AST SpaceMobile must reach six ASIC satellites monthly by December, or delays could push back capacity, customer service, and commercial scale.",
+      "risk": "Production falls behind schedule",
+      "severity": 4,
+      "trigger": "December production target missed"
+     }
+    ]
+   }
+  },
+  "earnings": {
+   "days_since_report": 1,
+   "event_date": "2026-11-09",
+   "status": "reported",
+   "surprise_label": "miss"
+  },
+  "expected_directive": {
+   "action": {
+    "label": "Hold here",
+    "summary": "Upside and downside look balanced; keep the position but do not force a new add."
+   },
+   "confidence": "medium",
+   "execution": "now",
+   "stance": "hold",
+   "zones": {
+    "accumulate_below": 33.66,
+    "trim_above": 87.82
+   }
+  },
+  "name": "AST SpaceMobile, Inc.",
+  "old_summary": "Upside and downside look balanced; keep the position but do not force a new add.",
+  "ticker": "ASTS"
+ },
+ "US_BAC": {
+  "doc": {
+   "analyst_target": 62.93,
+   "anomaly_digest": null,
+   "as_of": "2026-11-10T21:31:02.541681+00:00",
+   "body": "Bank of America is facing an anti-money-laundering lawsuit that could increase legal costs, invite regulatory scrutiny, and weaken the argument that its shares offer straightforward value. Earnings growth and stronger financial-sector participation provide support, but this is a fresh company-specific issue with no established outcome yet.",
+   "catalyst": "AML lawsuit developments",
+   "comparative_context": {
+    "day_change_pct": 0.29,
+    "market_percentile": 75,
+    "vs_market_day_change_pct": 0.0325,
+    "vs_sector_day_change_pct": 0.0325
+   },
+   "coverage_type": "on_demand_news",
+   "current_price": 50.69499969482422,
+   "evidence_history": {
+    "coverage_days": 1,
+    "repeated_negative_themes": [],
+    "trend": "negative"
+   },
+   "fundamentals": {
+    "pillars": {
+     "growth": {
+      "confidence": "high",
+      "coverage": 1.0,
+      "score": 61.8,
+      "verdict": "solid"
+     },
+     "momentum": {
+      "confidence": "high",
+      "coverage": 1.0,
+      "score": 72.6,
+      "verdict": "solid"
+     },
+     "quality": {
+      "confidence": "high",
+      "coverage": 1.0,
+      "score": 61.2,
+      "verdict": "solid"
+     },
+     "valuation": {
+      "confidence": "high",
+      "coverage": 1.0,
+      "score": 73.9,
+      "verdict": "solid"
+     }
+    },
+    "standout_metrics": []
+   },
+   "generated_at": "2026-11-10T21:31:02.541681+00:00",
+   "headline": "AML lawsuit puts Bank of America’s value case under review",
+   "instrument_id": "US_BAC",
+   "key_points": [
+    "The lawsuit creates a new cost and regulatory overhang that the existing value case does not fully capture.",
+    "Bank of America is still producing solid earnings growth, but slower revenue growth makes legal costs more damaging to future profits.",
+    "Financial stocks are attracting market leadership, giving Bank of America sector support despite its company-specific setback.",
+    "The average analyst target remains above the current share price, but that upside depends on the lawsuit staying contained."
+   ],
+   "market_regime": {
+    "sector": {
+     "conviction": 78,
+     "invalidators": [
+      "If fewer than 7 of 13 stocks remain above their 20-day SMAs, the regime flips to choppy.",
+      "If fewer than 7 of 13 stocks remain above their 50-day SMAs and daily breadth turns negative, the regime flips to breaking_down.",
+      "If breadth narrows to fewer than 8 advancing stocks while the sector loses its 20-day SMA, the regime flips to topping."
+     ],
+     "leadership_stocks": [],
+     "narrative": "Financial Services is expanding, led by broad participation with 11 of 13 stocks advancing and 92.3% above the 20-day SMA. Intermediate and long-term trend participation remains moderate, so the sector is broadening rather than showing fully established momentum.",
+     "regime": "expanding",
+     "sector": "Financial Services"
+    }
+   },
+   "news_digest": {
+    "catalyst_type": "none",
+    "changed_setup": true,
+    "direction": "positive",
+    "freshness_hours": 10.15,
+    "hard_catalyst": false,
+    "top_items": [
+     {
+      "date": "2026-11-10",
+      "direction": "positive",
+      "relevance": "company",
+      "source": "",
+      "title": "Learn Why The Bull Case For Bank of America Stock Could Change Following AML Lawsuit"
+     },
+     {
+      "date": "2026-11-10",
+      "direction": "positive",
+      "relevance": "company",
+      "source": "Simply Wall St",
+      "title": "Learn Why The Bull Case For Bank of America Stock Could Change Following AML Lawsuit - Simply Wall St"
+     }
+    ]
+   },
+   "options_digest": {
+    "put_call_volume_ratio": 0.3531
+   },
+   "overall_label": "bearish",
+   "overall_score": 25,
+   "price_context": {
+    "current_price": 50.69499969482422,
+    "day_change_pct": 0.29,
+    "from_52w_high_pct": -19.52,
+    "from_52w_low_pct": 13.28,
+    "ma_position": {
+     "sma_20": "above",
+     "sma_200": "below",
+     "sma_50": "below"
+    },
+    "recent_sessions": [
+     {
+      "close": 49.66,
+      "date": "2026-11-03",
+      "day_change_pct": 0.18
+     },
+     {
+      "close": 51.63,
+      "date": "2026-11-04",
+      "day_change_pct": 3.97
+     },
+     {
+      "close": 49.76,
+      "date": "2026-11-05",
+      "day_change_pct": -3.62
+     },
+     {
+      "close": 49.42,
+      "date": "2026-11-06",
+      "day_change_pct": -0.68
+     },
+     {
+      "close": 50.55,
+      "date": "2026-11-09",
+      "day_change_pct": 2.29
+     },
+     {
+      "close": 50.695,
+      "date": "2026-11-10",
+      "day_change_pct": 0.29
+     }
+    ],
+    "returns": {
+     "month_1_pct": -7.09,
+     "month_3_pct": -21.79,
+     "week_1_pct": 2.08
+    },
+    "rsi_14": {
+     "state": "neutral",
+     "value": 49.39
+    },
+    "trend": "neutral",
+    "volume_vs_avg": 0.6,
+    "vs_market_day_change_pct": 0.0325,
+    "vs_sector_day_change_pct": 0.0325
+   },
+   "risk": "A broad AML settlement or tougher regulatory response could raise expenses, restrict operations, and undermine the earnings growth supporting the stock.",
+   "sector_evidence_history": {
+    "coverage_days": 2,
+    "repeated_negative_themes": [],
+    "trend": "positive"
+   },
+   "setup_state": "unclear",
+   "thesis": "AML uncertainty now outweighs Bank of America’s otherwise solid earnings support.",
+   "visual_cards": {
+    "catalyst_cards": [
+     {
+      "detail": "New filings, settlement discussions, or regulatory action will show whether the lawsuit creates a limited expense or a larger threat to Bank of America’s profits.",
+      "event": "AML lawsuit developments",
+      "priced_in": "low",
+      "window": "near-term"
+     }
+    ],
+    "drivers": [
+     {
+      "detail": "Bank of America is growing earnings faster than its revenue, which supports current profits while management works through slower business expansion.",
+      "direction": "up",
+      "horizon": "quarter",
+      "label": "Earnings growth remains solid",
+      "strength": 3
+     },
+     {
+      "detail": "Financial stocks are participating broadly while other market groups weaken, giving Bank of America a supportive backdrop if its legal issue stays contained.",
+      "direction": "up",
+      "horizon": "week",
+      "label": "Financial sector is attracting capital",
+      "strength": 3
+     }
+    ],
+    "risk_cards": [
+     {
+      "detail": "A large settlement or tougher regulatory response could reduce Bank of America’s profits and weaken the value argument behind owning shares.",
+      "risk": "AML costs expand",
+      "severity": 5,
+      "trigger": "Settlement or regulatory action"
+     },
+     {
+      "detail": "Bank of America’s revenue is shrinking while earnings grow, leaving less operating support if legal costs or other expenses rise.",
+      "risk": "Revenue growth stays weak",
+      "severity": 4,
+      "trigger": "Further revenue deterioration"
+     }
+    ]
+   }
+  },
+  "earnings": null,
+  "expected_directive": {
+   "action": {
+    "label": "Avoid for now",
+    "summary": "The setup is not paying enough for the risk right now."
+   },
+   "confidence": "medium",
+   "execution": "do_not_chase",
+   "stance": "avoid",
+   "zones": {
+    "accumulate_below": 50.55
+   }
+  },
+  "name": "Bank of America Corporation",
+  "old_summary": "The setup is not paying enough for the risk right now.",
+  "ticker": "BAC"
+ },
+ "US_DUK": {
+  "doc": {
+   "analyst_target": 138.5,
+   "anomaly_digest": null,
+   "as_of": "2026-09-22T13:52:39.854908+00:00",
+   "body": "Duke’s latest news is a $93,000 Foundation and Tampa Bay Rays donation helping 14 Florida agencies cover customers’ energy bills. The gesture supports customer relationships, but coverage remains thin and offers little evidence about earnings, regulation, or demand while utilities face weaker market leadership.",
+   "catalyst": "Next Duke operating update",
+   "comparative_context": {
+    "day_change_pct": -0.39,
+    "market_percentile": 50,
+    "vs_market_day_change_pct": -0.025,
+    "vs_sector_day_change_pct": -0.02
+   },
+   "coverage_type": "on_demand_news",
+   "current_price": 116.27999877929688,
+   "evidence_history": {
+    "coverage_days": 1,
+    "repeated_negative_themes": [],
+    "trend": "quiet"
+   },
+   "fundamentals": {
+    "pillars": {
+     "growth": {
+      "confidence": "high",
+      "coverage": 1.0,
+      "score": 48.4,
+      "verdict": "mixed"
+     },
+     "momentum": {
+      "confidence": "high",
+      "coverage": 1.0,
+      "score": 57.2,
+      "verdict": "solid"
+     },
+     "quality": {
+      "confidence": "high",
+      "coverage": 1.0,
+      "score": 61.3,
+      "verdict": "solid"
+     },
+     "valuation": {
+      "confidence": "high",
+      "coverage": 1.0,
+      "score": 42.9,
+      "verdict": "mixed"
+     }
+    },
+    "standout_metrics": []
+   },
+   "generated_at": "2026-09-22T13:52:39.854908+00:00",
+   "headline": "Duke’s operating strength lacks a fresh company-specific catalyst",
+   "instrument_id": "US_DUK",
+   "key_points": [
+    "Customer assistance strengthens Duke’s local relationships but does not change near-term profits.",
+    "Operating quality is better than the news flow suggests, with solid margins and recent per-share profit growth.",
+    "The average analyst target remains above the current price, leaving room for a catch-up if operating evidence improves.",
+    "Utility-sector leadership is weakening as investors favor technology and growth-oriented communication stocks."
+   ],
+   "market_regime": {
+    "sector": {
+     "conviction": 78,
+     "invalidators": [
+      "If the sector advance ratio falls below 50% for several sessions, the expanding classification flips.",
+      "If fewer than 50% of stocks remain above both the 20-day and 50-day moving averages, the regime flips.",
+      "If the average RSI rises above 70 while short-term breadth narrows materially, the regime flips to topping."
+     ],
+     "leadership_stocks": [
+      "ARM",
+      "AMD",
+      "MSTR"
+     ],
+     "narrative": "Technology is in an expanding regime, with 88.1% of stocks advancing and 72.6% above their 200-day moving averages. Short-term participation is solid but not extreme, while strong upside moves in semiconductor leaders reinforce broadening sector strength.",
+     "regime": "expanding",
+     "sector": "Technology"
+    }
+   },
+   "news_digest": {
+    "catalyst_type": "none",
+    "changed_setup": true,
+    "direction": "positive",
+    "freshness_hours": 23.44,
+    "hard_catalyst": false,
+    "top_items": [
+     {
+      "date": "2026-09-21",
+      "direction": "positive",
+      "relevance": "company",
+      "source": "",
+      "title": "Duke Energy Foundation, Tampa Bay Rays donate $93,000 to help Florida customers pay energy bills"
+     },
+     {
+      "date": "2026-09-21",
+      "direction": "positive",
+      "relevance": "company",
+      "source": "Duke Energy Corporation via Yahoo Finance",
+      "title": "Duke Energy Foundation, Tampa Bay Rays donate $93,000 to help Florida customers pay energy bills"
+     }
+    ]
+   },
+   "options_digest": {
+    "put_call_volume_ratio": 0.2004
+   },
+   "overall_label": "mixed",
+   "overall_score": 50,
+   "price_context": {
+    "current_price": 116.27999877929688,
+    "day_change_pct": -0.39,
+    "from_52w_high_pct": -13.2,
+    "from_52w_low_pct": 2.49,
+    "ma_position": {
+     "sma_20": "below",
+     "sma_200": "below",
+     "sma_50": "below"
+    },
+    "recent_sessions": [
+     {
+      "close": 117.77,
+      "date": "2026-09-15",
+      "day_change_pct": -1.05
+     },
+     {
+      "close": 117.76,
+      "date": "2026-09-16",
+      "day_change_pct": -0.01
+     },
+     {
+      "close": 118.54,
+      "date": "2026-09-17",
+      "day_change_pct": 0.66
+     },
+     {
+      "close": 117.53,
+      "date": "2026-09-18",
+      "day_change_pct": -0.85
+     },
+     {
+      "close": 116.74,
+      "date": "2026-09-21",
+      "day_change_pct": -0.67
+     },
+     {
+      "close": 116.28,
+      "date": "2026-09-22",
+      "day_change_pct": -0.39
+     }
+    ],
+    "returns": {
+     "month_1_pct": -2.98,
+     "month_3_pct": -9.25,
+     "week_1_pct": -1.27
+    },
+    "rsi_14": {
+     "state": "neutral",
+     "value": 34.06
+    },
+    "trend": "downtrend",
+    "volume_vs_avg": 0.03,
+    "vs_market_day_change_pct": -0.025,
+    "vs_sector_day_change_pct": -0.02
+   },
+   "risk": "Continued rotation away from utilities could pressure Duke’s valuation before stronger earnings or regulatory progress gives investors a reason to return.",
+   "sector_evidence_history": {
+    "coverage_days": 2,
+    "repeated_negative_themes": [],
+    "trend": "positive_building"
+   },
+   "setup_state": "unclear",
+   "thesis": "Duke has operating support, but its catalyst gap keeps the stock in limbo.",
+   "visual_cards": {
+    "catalyst_cards": [
+     {
+      "detail": "A stronger operating update could validate Duke’s profit growth and give investors a reason to overlook the current lack of company-specific news.",
+      "event": "Next Duke operating update",
+      "priced_in": "low",
+      "window": "quarter"
+     }
+    ],
+    "drivers": [
+     {
+      "detail": "Duke’s recent per-share profit growth and strong operating margin give the regulated utility more room to absorb costs and support future dividend capacity.",
+      "direction": "up",
+      "horizon": "quarter",
+      "label": "Profit growth supports dividends",
+      "strength": 4
+     },
+     {
+      "detail": "The average analyst target sits meaningfully above Duke’s current price, suggesting investors may recognize more value if operating results provide confirmation.",
+      "direction": "up",
+      "horizon": "quarter",
+      "label": "Analysts see upside",
+      "strength": 3
+     }
+    ],
+    "risk_cards": [
+     {
+      "detail": "Money is moving toward technology and growth-oriented communication stocks, which can keep Duke’s valuation under pressure despite stable regulated operations.",
+      "risk": "Utilities losing investor attention",
+      "severity": 4,
+      "trigger": "Continued utility-sector underperformance"
+     },
+     {
+      "detail": "Duke’s valuation already assumes meaningful growth, so slower profit expansion could leave less room for the stock to hold its analyst-backed upside.",
+      "risk": "Rich growth expectations",
+      "severity": 3,
+      "trigger": "Profit growth slows materially"
+     }
+    ]
+   }
+  },
+  "earnings": null,
+  "expected_directive": {
+   "action": {
+    "label": "Accumulate on pullbacks",
+    "summary": "The setup is constructive, but the cleaner entry is a pullback into support."
+   },
+   "confidence": "medium",
+   "execution": "pullback",
+   "stance": "accumulate",
+   "zones": {
+    "accumulate_below": 112.79,
+    "trim_above": 138.5
+   }
+  },
+  "name": "Duke Energy Corporation",
+  "old_summary": "The setup is constructive, but the cleaner entry is a pullback into support.",
+  "ticker": "DUK"
+ },
+ "US_FSLR": {
+  "doc": {
+   "analyst_target": 253.04,
+   "anomaly_digest": {
+    "confidence": "high",
+    "date": "2026-11-09",
+    "day_change_pct": -4.75,
+    "direction": "down",
+    "dominant_angle": "hard_catalyst",
+    "headline": "First Solar Slides as Post-Election Rally Loses Momentum",
+    "why_it_matters": "The stock’s decline aligns with concerns that its sharp rally after Democratic victories was premature. Analysts questioning whether the political optimism was justified can prompt investors to take profits, outweighing the reported ETF purchases and contributing to the day’s sizable drop."
+   },
+   "as_of": "2026-11-10T14:32:00.263826+00:00",
+   "body": "UBS lowered its price target to $295. First Solar stock was reported as the worst-performing stock in the S&P 500 that day. Watch for policy support follow-through, though if expected political support fails to materialize, investors may reduce the valuation they assign to first solar despite strong earnings growth. remains a factor",
+   "catalyst": "Policy support follow-through",
+   "comparative_context": {
+    "day_change_pct": -4.75,
+    "market_percentile": 26,
+    "vs_market_day_change_pct": -8.0743,
+    "vs_sector_day_change_pct": -0.7
+   },
+   "coverage_type": "on_demand_news",
+   "current_price": 191.58999633789062,
+   "evidence_history": {
+    "coverage_days": 3,
+    "repeated_negative_themes": [
+     "market-news",
+     "price-move",
+     "ratings"
+    ],
+    "trend": "negative"
+   },
+   "fundamentals": {
+    "pillars": {
+     "growth": {
+      "confidence": "high",
+      "coverage": 1.0,
+      "score": 92.5,
+      "verdict": "strong"
+     },
+     "momentum": {
+      "confidence": "high",
+      "coverage": 1.0,
+      "score": 43.4,
+      "verdict": "mixed"
+     },
+     "quality": {
+      "confidence": "high",
+      "coverage": 1.0,
+      "score": 84.6,
+      "verdict": "strong"
+     },
+     "valuation": {
+      "confidence": "high",
+      "coverage": 1.0,
+      "score": 86.2,
+      "verdict": "strong"
+     }
+    },
+    "standout_metrics": []
+   },
+   "generated_at": "2026-11-10T14:32:00.263826+00:00",
+   "headline": "Strong earnings face a credibility test after the election rally",
+   "instrument_id": "US_FSLR",
+   "key_points": [
+    "First Solar’s earnings beat supports the business, but investors are questioning how much policy optimism is already reflected.",
+    "UBS’s valuation-based target cut shows analysts still see upside, while demanding a more reasonable entry after the rally.",
+    "The company’s growth and quality scores remain strong, creating a stronger fundamental case than the recent headlines suggest.",
+    "The stock is recovering within a broader downtrend, so another policy-driven surge needs confirmation rather than assumption."
+   ],
+   "market_regime": {
+    "sector": {
+     "conviction": 72,
+     "invalidators": [
+      "If fewer than 50% of stocks advance across the next two sessions, the regime flips to choppy.",
+      "If sector breadth falls below 40% and fewer than 30% of stocks remain above their 50-day averages, the regime flips to breaking_down.",
+      "If more than 60% of stocks rise above their 50-day averages with positive relative strength, the regime flips to expanding."
+     ],
+     "leadership_stocks": [
+      "COHR",
+      "AEIS",
+      "FLEX"
+     ],
+     "narrative": "Information Technology is recovering, with 83.3% of stocks advancing while moving-average participation remains depressed. Neutral RSI and only 33.3% above the 50-day average indicate an early rebound rather than a confirmed broad uptrend.",
+     "regime": "recovering",
+     "sector": "Information Technology"
+    }
+   },
+   "news_digest": {
+    "catalyst_type": "price target",
+    "changed_setup": true,
+    "direction": "positive",
+    "freshness_hours": 1.95,
+    "hard_catalyst": true,
+    "top_items": [
+     {
+      "date": "2026-11-10",
+      "direction": "positive",
+      "relevance": "company",
+      "source": "",
+      "title": "UBS lowers First Solar stock price target to $295 on valuation"
+     },
+     {
+      "date": "2026-11-09",
+      "direction": "positive",
+      "relevance": "company",
+      "source": "",
+      "title": "First Solar Stock Is the Worst in the S&P 500 Today. Was Blue Wave Optimism Premature"
+     },
+     {
+      "date": "2026-11-10",
+      "direction": "positive",
+      "relevance": "company",
+      "source": "",
+      "title": "US Stock Market Today: S&P 500 Futures Edge Higher On Key CPI Focus"
+     },
+     {
+      "date": "2026-11-10",
+      "direction": "positive",
+      "relevance": "company",
+      "source": "Yahoo",
+      "title": "US Stock Market Today: S&P 500 Futures Edge Higher On Key CPI Focus"
+     }
+    ]
+   },
+   "options_digest": {
+    "put_call_volume_ratio": 0.3827
+   },
+   "overall_label": "mixed",
+   "overall_score": 45,
+   "price_context": {
+    "current_price": 191.58999633789062,
+    "day_change_pct": -4.75,
+    "from_52w_high_pct": -40.31,
+    "from_52w_low_pct": 11.4,
+    "ma_position": {
+     "sma_20": "above",
+     "sma_200": "below",
+     "sma_50": "above"
+    },
+    "recent_sessions": [
+     {
+      "close": 182.05,
+      "date": "2026-11-02",
+      "day_change_pct": 4.39
+     },
+     {
+      "close": 185.9,
+      "date": "2026-11-03",
+      "day_change_pct": 2.11
+     },
+     {
+      "close": 194.51,
+      "date": "2026-11-04",
+      "day_change_pct": 4.63
+     },
+     {
+      "close": 195.76,
+      "date": "2026-11-05",
+      "day_change_pct": 0.64
+     },
+     {
+      "close": 201.14,
+      "date": "2026-11-06",
+      "day_change_pct": 2.75
+     },
+     {
+      "close": 191.59,
+      "date": "2026-11-09",
+      "day_change_pct": -4.75
+     }
+    ],
+    "returns": {
+     "month_1_pct": 7.74,
+     "month_3_pct": -20.44,
+     "week_1_pct": 5.16
+    },
+    "rsi_14": {
+     "state": "neutral",
+     "value": 65.38
+    },
+    "trend": "bounce-in-downtrend",
+    "volume_vs_avg": 1.79,
+    "vs_market_day_change_pct": -8.0743,
+    "vs_sector_day_change_pct": -0.7
+   },
+   "risk": "If expected political support fails to materialize, investors may reduce the valuation they assign to First Solar despite strong earnings growth.",
+   "sector_evidence_history": {
+    "coverage_days": 3,
+    "repeated_negative_themes": [
+     "market-news",
+     "ratings",
+     "price-move"
+    ],
+    "trend": "quiet"
+   },
+   "setup_state": "accumulation",
+   "thesis": "Strong fundamentals are colliding with fading political optimism.",
+   "visual_cards": {
+    "catalyst_cards": [
+     {
+      "detail": "Actual clean-energy policy support would validate the election-driven rally and help investors keep assigning value to First Solar’s growth outlook.",
+      "event": "Policy support follow-through",
+      "priced_in": "med",
+      "window": "near-term"
+     }
+    ],
+    "drivers": [
+     {
+      "detail": "First Solar beat its latest earnings expectation, while revenue and profit are growing quickly enough to support continued factory expansion and higher future earnings.",
+      "direction": "up",
+      "horizon": "quarter",
+      "label": "Strong earnings growth",
+      "strength": 4
+     },
+     {
+      "detail": "First Solar’s strong growth and quality fundamentals give shareholders a concrete reason to hold through short-term political and valuation disappointment.",
+      "direction": "up",
+      "horizon": "quarter",
+      "label": "Clear business quality",
+      "strength": 4
+     }
+    ],
+    "risk_cards": [
+     {
+      "detail": "If the expected policy support does not emerge, investors may reverse the election rally and lower the value assigned to First Solar’s future growth.",
+      "risk": "Political optimism fades",
+      "severity": 4,
+      "trigger": "Policy disappointment"
+     },
+     {
+      "detail": "UBS’s target cut shows valuation is already under debate, so another sharp reversal could pressure the stock even while operating results remain strong.",
+      "risk": "Valuation gets questioned",
+      "severity": 3,
+      "trigger": "Further analyst target cuts"
+     }
+    ]
+   }
+  },
+  "earnings": {
+   "days_since_report": 12,
+   "event_date": "2026-10-29",
+   "status": "reported",
+   "surprise_label": "beat"
+  },
+  "expected_directive": {
+   "action": {
+    "label": "Do not add here",
+    "summary": "Risk/reward has weakened; avoid adding and use any bounce to reduce exposure."
+   },
+   "confidence": "medium",
+   "execution": "do_not_chase",
+   "stance": "trim",
+   "zones": {
+    "accumulate_below": 185.9
+   }
+  },
+  "name": "First Solar",
+  "old_summary": "Risk/reward has weakened; avoid adding and use any bounce to reduce exposure.",
+  "ticker": "FSLR"
+ },
+ "US_GAP": {
+  "doc": {
+   "analyst_target": 27.71,
+   "anomaly_digest": null,
+   "as_of": "2026-11-10T21:41:15.314150+00:00",
+   "body": "Recent company-specific coverage is thin for GAP. Use the current fundamentals, analyst target, and technical context rather than treating stale headlines as a fresh catalyst.",
+   "catalyst": "",
+   "comparative_context": {
+    "day_change_pct": -1.21,
+    "market_percentile": 50,
+    "vs_market_day_change_pct": 0.0,
+    "vs_sector_day_change_pct": 0.0
+   },
+   "coverage_type": "on_demand_no_news",
+   "current_price": 21.959999084472656,
+   "evidence_history": {
+    "coverage_days": 1,
+    "repeated_negative_themes": [],
+    "trend": "quiet"
+   },
+   "fundamentals": {
+    "pillars": {
+     "growth": {
+      "confidence": "high",
+      "coverage": 1.0,
+      "score": 54.4,
+      "verdict": "mixed"
+     },
+     "momentum": {
+      "confidence": "high",
+      "coverage": 1.0,
+      "score": 51.6,
+      "verdict": "mixed"
+     },
+     "quality": {
+      "confidence": "high",
+      "coverage": 1.0,
+      "score": 68.2,
+      "verdict": "solid"
+     },
+     "valuation": {
+      "confidence": "high",
+      "coverage": 1.0,
+      "score": 97.8,
+      "verdict": "strong"
+     }
+    },
+    "standout_metrics": []
+   },
+   "generated_at": "2026-11-10T21:41:15.314150+00:00",
+   "headline": "GAP coverage is quiet",
+   "instrument_id": "US_GAP",
+   "key_points": [
+    "The average analyst target of $27.71 implies 37.11% upside from current levels.",
+    "RSI14 at 45.74 is neutral, showing neither strong buying nor deeply oversold conditions.",
+    "The stock is 25.2% below its 52-week high and remains in a downtrend, indicating weak price momentum."
+   ],
+   "market_regime": {
+    "sector": {
+     "conviction": 87,
+     "invalidators": [
+      "If the advancing share falls below 60% for several sessions, then the regime flips to choppy.",
+      "If less than 45% of stocks remain above their 50-day moving averages, then the regime flips to breaking_down.",
+      "If sector relative strength turns negative while breadth narrows below 50%, then the regime flips to topping."
+     ],
+     "leadership_stocks": [
+      "DAN",
+      "BBY",
+      "BROS"
+     ],
+     "narrative": "Consumer Discretionary is in an expanding regime, with 89% of stocks advancing and strong participation above the 20-day and 50-day moving averages. Momentum is broad, while the 51% above the 200-day average shows the sector is still building longer-term participation.",
+     "regime": "expanding",
+     "sector": "Consumer Discretionary"
+    }
+   },
+   "news_digest": {},
+   "options_digest": {
+    "put_call_volume_ratio": 0.1593
+   },
+   "overall_label": "neutral",
+   "overall_score": 50,
+   "price_context": {
+    "current_price": 21.959999084472656,
+    "day_change_pct": -1.21,
+    "from_52w_high_pct": -25.2,
+    "from_52w_low_pct": 21.26,
+    "ma_position": {
+     "sma_20": "below",
+     "sma_200": "below",
+     "sma_50": "below"
+    },
+    "recent_sessions": [
+     {
+      "close": 21.99,
+      "date": "2026-11-03",
+      "day_change_pct": -1.04
+     },
+     {
+      "close": 23.75,
+      "date": "2026-11-04",
+      "day_change_pct": 8.0
+     },
+     {
+      "close": 22.41,
+      "date": "2026-11-05",
+      "day_change_pct": -5.64
+     },
+     {
+      "close": 21.48,
+      "date": "2026-11-06",
+      "day_change_pct": -4.15
+     },
+     {
+      "close": 22.23,
+      "date": "2026-11-09",
+      "day_change_pct": 3.49
+     },
+     {
+      "close": 21.96,
+      "date": "2026-11-10",
+      "day_change_pct": -1.21
+     }
+    ],
+    "returns": {
+     "month_1_pct": -3.68,
+     "month_3_pct": 8.42,
+     "week_1_pct": -0.2
+    },
+    "rsi_14": {
+     "state": "neutral",
+     "value": 45.74
+    },
+    "trend": "downtrend",
+    "volume_vs_avg": 0.68,
+    "vs_market_day_change_pct": null,
+    "vs_sector_day_change_pct": null
+   },
+   "risk": "The downtrend may reflect business weakness that current analyst targets have not yet captured.",
+   "sector_evidence_history": {
+    "coverage_days": 1,
+    "repeated_negative_themes": [],
+    "trend": "quiet"
+   },
+   "setup_state": "unclear",
+   "thesis": "GAP coverage is quiet",
+   "visual_cards": {
+    "catalyst_cards": [],
+    "drivers": [
+     {
+      "detail": "This call holds because the average analyst target is $27.71, implying meaningful appreciation if Gap delivers enough improvement to justify current expectations.",
+      "direction": "up",
+      "horizon": "quarter",
+      "label": "Analyst upside",
+      "strength": 3
+     },
+     {
+      "detail": "This call holds because the stock remains 25.2% below its yearly high, leaving substantial recovery potential if upcoming results rebuild investor confidence.",
+      "direction": "up",
+      "horizon": "quarter",
+      "label": "Room to recover",
+      "strength": 3
+     }
+    ],
+    "risk_cards": [
+     {
+      "detail": "The stock remains in a downtrend and 25.2% below its yearly high, which can signal continuing business weakness and lead investors to reduce positions.",
+      "risk": "Persistent downtrend",
+      "severity": 4,
+      "trigger": "Another weak earnings report or lower guidance"
+     },
+     {
+      "detail": "The average analyst target assumes substantial recovery, so weaker sales or profits could force analysts lower and remove the expected upside.",
+      "risk": "Analyst target disappointment",
+      "severity": 4,
+      "trigger": "Results fail to support the $27.71 target"
+     }
+    ]
+   }
+  },
+  "earnings": {
+   "days_until": 9,
+   "event_date": "2026-11-19",
+   "status": "upcoming"
+  },
+  "expected_directive": {
+   "action": {
+    "label": "Hold here",
+    "summary": "Upside and downside look balanced; keep the position but do not force a new add."
+   },
+   "confidence": "medium",
+   "execution": "now",
+   "stance": "hold",
+   "zones": {
+    "accumulate_below": 21.48,
+    "trim_above": 27.71
+   }
+  },
+  "name": "Gap Inc.",
+  "old_summary": "Upside and downside look balanced; keep the position but do not force a new add.",
+  "ticker": "GAP"
+ },
+ "US_HIMS": {
+  "doc": {
+   "analyst_target": 28.18,
+   "anomaly_digest": {
+    "confidence": "high",
+    "date": "2026-11-10",
+    "day_change_pct": -11.12,
+    "direction": "down",
+    "dominant_angle": "hard_catalyst",
+    "headline": "Hims & Hers plunges after earnings miss and guidance cut",
+    "why_it_matters": "Hims & Hers reported a surprise third-quarter loss and issued weaker-than-expected revenue and adjusted EBITDA guidance, citing margin pressure and higher costs. The company also warned of subscriber losses, raising concerns that its shift toward branded weight-loss treatments is reducing profitability and near-term growth."
+   },
+   "as_of": "2026-11-10T21:40:14.571245+00:00",
+   "body": "Hims & Hers reported strong Q3 revenue of $890.3 million, but profit fell short of expectations and management cut its outlook as marketing reached $247 million. The company is adding Lilly’s Zepbound and Foundayo alongside Wegovy, while warning that higher costs and subscriber losses are hurting near-term margins.",
+   "catalyst": "Branded treatment rollout",
+   "comparative_context": {
+    "day_change_pct": -16.52,
+    "market_percentile": 25,
+    "vs_market_day_change_pct": -11.2725,
+    "vs_sector_day_change_pct": -7.125
+   },
+   "coverage_type": "on_demand_news",
+   "current_price": 19.14929962158203,
+   "evidence_history": {
+    "coverage_days": 2,
+    "repeated_negative_themes": [
+     "market-news",
+     "ratings",
+     "earnings"
+    ],
+    "trend": "negative_building"
+   },
+   "fundamentals": {
+    "pillars": {
+     "growth": {
+      "confidence": "high",
+      "coverage": 1.0,
+      "score": 54.1,
+      "verdict": "mixed"
+     },
+     "momentum": {
+      "confidence": "high",
+      "coverage": 1.0,
+      "score": 37.0,
+      "verdict": "mixed"
+     },
+     "quality": {
+      "confidence": "high",
+      "coverage": 1.0,
+      "score": 26.3,
+      "verdict": "weak"
+     },
+     "valuation": {
+      "confidence": "partial",
+      "coverage": 0.75,
+      "score": 16.3,
+      "verdict": "weak"
+     }
+    },
+    "standout_metrics": []
+   },
+   "generated_at": "2026-11-10T21:40:14.571245+00:00",
+   "headline": "Profit pressure is overtaking HIMS’s rapid growth story",
+   "instrument_id": "US_HIMS",
+   "key_points": [
+    "Revenue growth remains strong, but heavy marketing spending is failing to convert into expected profit.",
+    "Adding Lilly’s weight-loss drugs broadens HIMS’s offering, yet branded treatments may carry lower near-term profitability.",
+    "Two days of negative coverage now center on earnings, guidance, margins, and possible subscriber losses.",
+    "The stock’s weak fundamentals and heavy short interest make a quick rebound vulnerable to further selling."
+   ],
+   "market_regime": {
+    "sector": {
+     "conviction": 78,
+     "invalidators": [
+      "If up breadth rises above 65% and at least 70% of stocks remain above their 200-day moving averages, the regime flips to expanding.",
+      "If down breadth exceeds 65% and fewer than 50% of stocks remain above their 200-day moving averages, the regime flips to breaking_down."
+     ],
+     "leadership_stocks": [
+      "CVS",
+      "ELV",
+      "CI"
+     ],
+     "narrative": "Healthcare is choppy, with breadth split evenly despite strong participation above the 20-day and 50-day moving averages. Momentum is muted, with a flat average daily move and only 59.1% above the 200-day moving average.",
+     "regime": "choppy",
+     "sector": "Healthcare"
+    }
+   },
+   "news_digest": {
+    "catalyst_type": "earnings",
+    "changed_setup": true,
+    "direction": "positive",
+    "freshness_hours": 1.05,
+    "hard_catalyst": true,
+    "top_items": [
+     {
+      "date": "2026-11-10",
+      "direction": "positive",
+      "relevance": "company",
+      "source": "",
+      "title": "Hims & Hers Health: Don't Nitpick Quarterly Results"
+     },
+     {
+      "date": "2026-11-10",
+      "direction": "positive",
+      "relevance": "company",
+      "source": "",
+      "title": "HIMS Q3 Earnings Call Highlights Marketing Reset and Margin Pressure"
+     },
+     {
+      "date": "2026-11-10",
+      "direction": "positive",
+      "relevance": "company",
+      "source": "",
+      "title": "Hims & Hers Drops 18% as Q3 Loss and Profit Outlook Cut Disappoint; Novo Nordisk Slides 2%, Eli Lilly Holds Steady"
+     },
+     {
+      "date": "2026-11-10",
+      "direction": "positive",
+      "relevance": "company",
+      "source": "Hims & Hers Health, Inc. via Seeking Alpha",
+      "title": "Hims & Hers Health: Don't Nitpick Quarterly Results"
+     }
+    ]
+   },
+   "options_digest": {
+    "put_call_volume_ratio": 0.6817
+   },
+   "overall_label": "cautious",
+   "overall_score": 36,
+   "price_context": {
+    "current_price": 19.14929962158203,
+    "day_change_pct": -16.52,
+    "from_52w_high_pct": -72.81,
+    "from_52w_low_pct": 39.37,
+    "ma_position": {
+     "sma_20": "below",
+     "sma_200": "below",
+     "sma_50": "below"
+    },
+    "recent_sessions": [
+     {
+      "close": 25.7,
+      "date": "2026-11-03",
+      "day_change_pct": 1.82
+     },
+     {
+      "close": 26.66,
+      "date": "2026-11-04",
+      "day_change_pct": 3.74
+     },
+     {
+      "close": 24.06,
+      "date": "2026-11-05",
+      "day_change_pct": -9.75
+     },
+     {
+      "close": 26.0,
+      "date": "2026-11-06",
+      "day_change_pct": 8.06
+     },
+     {
+      "close": 22.94,
+      "date": "2026-11-09",
+      "day_change_pct": -11.77
+     },
+     {
+      "close": 19.1493,
+      "date": "2026-11-10",
+      "day_change_pct": -16.52
+     }
+    ],
+    "returns": {
+     "month_1_pct": -37.52,
+     "month_3_pct": -36.13,
+     "week_1_pct": -25.58
+    },
+    "rsi_14": {
+     "state": "oversold",
+     "value": 26.06
+    },
+    "trend": "downtrend",
+    "volume_vs_avg": 5.09,
+    "vs_market_day_change_pct": -11.2725,
+    "vs_sector_day_change_pct": -7.125
+   },
+   "risk": "HIMS may keep losing subscribers while spending heavily to acquire customers, forcing further profit cuts and undermining the growth valuation.",
+   "sector_evidence_history": {
+    "coverage_days": 0,
+    "repeated_negative_themes": [],
+    "trend": "insufficient_history"
+   },
+   "setup_state": "exhaustion",
+   "thesis": "HIMS needs profitable growth, not merely faster revenue, to regain credibility.",
+   "visual_cards": {
+    "catalyst_cards": [
+     {
+      "detail": "The rollout of Zepbound, Foundayo, and Wegovy will show whether Hims & Hers can grow subscribers without worsening marketing costs and margins.",
+      "event": "Branded treatment rollout",
+      "priced_in": "med",
+      "window": "near-term"
+     }
+    ],
+    "drivers": [
+     {
+      "detail": "Hims & Hers generated $890.3 million in quarterly revenue, giving the company a larger customer base that can support future profits if spending improves.",
+      "direction": "up",
+      "horizon": "quarter",
+      "label": "Revenue still expanding quickly",
+      "strength": 3
+     },
+     {
+      "detail": "Adding Zepbound, Foundayo, and Wegovy gives Hims & Hers more weight-loss treatment choices, which may help retain customers and support future growth.",
+      "direction": "up",
+      "horizon": "quarter",
+      "label": "Broader branded treatment access",
+      "strength": 3
+     }
+    ],
+    "risk_cards": [
+     {
+      "detail": "Hims & Hers cut its outlook after a weak profit result, increasing the chance that analysts lower forecasts and investors demand a cheaper stock price.",
+      "risk": "Lower profit outlook",
+      "severity": 5,
+      "trigger": "Further guidance reductions"
+     },
+     {
+      "detail": "Hims & Hers spent $247 million on marketing while earnings missed expectations, showing that customer acquisition costs may be consuming too much revenue.",
+      "risk": "Marketing efficiency deteriorates",
+      "severity": 5,
+      "trigger": "Higher spending or subscriber losses"
+     },
+     {
+      "detail": "Branded weight-loss treatments may attract customers but generate less profit, weakening the payoff from Hims & Hers’s fastest-growing business.",
+      "risk": "Weight-loss margin pressure",
+      "severity": 4,
+      "trigger": "Branded mix expands without margin recovery"
+     }
+    ]
+   }
+  },
+  "earnings": {
+   "days_since_report": 1,
+   "event_date": "2026-11-09",
+   "status": "reported",
+   "surprise_label": "miss"
+  },
+  "expected_directive": {
+   "action": {
+    "label": "Avoid for now",
+    "summary": "The setup is not paying enough for the risk right now."
+   },
+   "confidence": "high",
+   "execution": "do_not_chase",
+   "stance": "avoid",
+   "zones": {}
+  },
+  "name": "Hims & Hers Health, Inc.",
+  "old_summary": "The setup is not paying enough for the risk right now.",
+  "ticker": "HIMS"
+ },
+ "US_HIVE": {
+  "doc": {
+   "anomaly_digest": null,
+   "as_of": "2026-11-09T22:33:50.263903+00:00",
+   "body": "Recent company-specific coverage is thin for HIVE. Use the current fundamentals, analyst target, and technical context rather than treating stale headlines as a fresh catalyst.",
+   "catalyst": "",
+   "comparative_context": {
+    "day_change_pct": 1.12,
+    "market_percentile": 50,
+    "vs_market_day_change_pct": 0.0,
+    "vs_sector_day_change_pct": 0.0
+   },
+   "coverage_type": "on_demand_no_news",
+   "current_price": 1.7999999523162842,
+   "fundamentals": {
+    "pillars": {
+     "growth": {
+      "confidence": "partial",
+      "coverage": 0.75,
+      "score": 64.5,
+      "verdict": "solid"
+     },
+     "momentum": {
+      "confidence": "high",
+      "coverage": 1.0,
+      "score": 42.7,
+      "verdict": "mixed"
+     },
+     "quality": {
+      "confidence": "high",
+      "coverage": 0.85,
+      "score": 30.1,
+      "verdict": "weak"
+     },
+     "valuation": {
+      "confidence": "insufficient",
+      "coverage": 0.3,
+      "score": 50.0,
+      "verdict": "insufficient data"
+     }
+    },
+    "standout_metrics": []
+   },
+   "generated_at": "2026-11-09T22:33:50.263903+00:00",
+   "headline": "HIVE coverage is quiet",
+   "instrument_id": "US_HIVE",
+   "key_points": [
+    "The average analyst target of $7.07 is well above $1.80, signaling large potential upside but also substantial execution risk.",
+    "RSI14 at 24.79 indicates heavily oversold conditions, though oversold shares can remain weak during a prolonged downtrend.",
+    "HIVE trades 77.04% below its 52-week high, while volume is only 51% of average, showing limited buying confirmation."
+   ],
+   "news_digest": {},
+   "overall_label": "neutral",
+   "overall_score": 50,
+   "price_context": {
+    "current_price": 1.7999999523162842,
+    "day_change_pct": 1.12,
+    "from_52w_high_pct": -77.04,
+    "from_52w_low_pct": 4.05,
+    "ma_position": {
+     "sma_20": "below",
+     "sma_200": "below",
+     "sma_50": "below"
+    },
+    "recent_sessions": [
+     {
+      "close": 1.71,
+      "date": "2026-11-02",
+      "day_change_pct": -10.47
+     },
+     {
+      "close": 1.81,
+      "date": "2026-11-03",
+      "day_change_pct": 5.85
+     },
+     {
+      "close": 1.82,
+      "date": "2026-11-04",
+      "day_change_pct": 0.55
+     },
+     {
+      "close": 1.63,
+      "date": "2026-11-05",
+      "day_change_pct": -10.44
+     },
+     {
+      "close": 1.78,
+      "date": "2026-11-06",
+      "day_change_pct": 9.2
+     },
+     {
+      "close": 1.8,
+      "date": "2026-11-09",
+      "day_change_pct": 1.12
+     }
+    ],
+    "returns": {
+     "month_1_pct": -61.12,
+     "month_3_pct": null,
+     "week_1_pct": -43.84
+    },
+    "rsi_14": {
+     "state": "oversold",
+     "value": 24.79
+    },
+    "trend": "downtrend",
+    "volume_vs_avg": 0.51,
+    "vs_market_day_change_pct": null,
+    "vs_sector_day_change_pct": null
+   },
+   "risk": "The silence may be hiding continued losses, funding needs, or shareholder dilution that would weaken the analyst target case.",
+   "setup_state": "unclear",
+   "thesis": "HIVE coverage is quiet",
+   "visual_cards": {
+    "catalyst_cards": [],
+    "drivers": [
+     {
+      "detail": "This call holds because analysts rate HIVE a strong buy and place the average target at $7.07, leaving meaningful rerating potential.",
+      "direction": "up",
+      "horizon": "quarter",
+      "label": "Analyst upside",
+      "strength": 3
+     },
+     {
+      "detail": "This call holds because an RSI of 24.79 shows unusually heavy selling, creating room for a rebound if operating results stabilize.",
+      "direction": "up",
+      "horizon": "week",
+      "label": "Oversold condition",
+      "strength": 2
+     },
+     {
+      "detail": "HIVE’s large decline from its yearly high leaves substantial recovery room if the company demonstrates stronger production and better cash generation.",
+      "direction": "up",
+      "horizon": "quarter",
+      "label": "Recovery potential",
+      "strength": 2
+     }
+    ],
+    "risk_cards": [
+     {
+      "detail": "If HIVE needs new capital to fund operations or equipment, existing investors will own a smaller part of the company afterward.",
+      "risk": "Funding and dilution",
+      "severity": 5,
+      "trigger": "New share offering or financing announcement"
+     },
+     {
+      "detail": "The downtrend and 77.04% decline from the high suggest investors may already doubt profitability, and disappointing production could drive further selling.",
+      "risk": "Operating weakness",
+      "severity": 5,
+      "trigger": "Weak quarterly production, margins, or cash flow"
+     },
+     {
+      "detail": "The $7.07 target depends on future improvement, so missed forecasts or reduced coverage could make investors pay far less for the stock.",
+      "risk": "Analyst target reliability",
+      "severity": 4,
+      "trigger": "Target cuts, downgrades, or weaker company guidance"
+     }
+    ]
+   }
+  },
+  "earnings": {
+   "days_since_report": 0,
+   "event_date": "2026-11-09",
+   "status": "reported",
+   "surprise_label": "beat"
+  },
+  "expected_directive": {
+   "action": {
+    "label": "Hold here",
+    "summary": "Upside and downside look balanced; keep the position but do not force a new add."
+   },
+   "confidence": "medium",
+   "execution": "now",
+   "stance": "hold",
+   "zones": {
+    "accumulate_below": 1.78,
+    "trim_above": 2.12
+   }
+  },
+  "name": "HIVE Digital Technologies Ltd.",
+  "old_summary": "Upside and downside look balanced; keep the position but do not force a new add.",
+  "ticker": "HIVE"
+ },
+ "US_MU": {
+  "doc": {
+   "analyst_target": 1489.02,
+   "anomaly_digest": null,
+   "as_of": "2026-11-10T21:30:16.001149+00:00",
+   "body": "Fresh coverage highlights Micron’s involvement in a reported $26 billion Anthropic investment and renewed concern that memory profits may be near a cyclical peak. The company’s fundamentals remain unusually strong, but technology-sector weakness and uncertainty over demand durability make the next business update especially important.",
+   "catalyst": "Anthropic investment follow-through",
+   "comparative_context": {
+    "day_change_pct": -1.13,
+    "market_percentile": 25,
+    "vs_market_day_change_pct": -2.4025,
+    "vs_sector_day_change_pct": -1.9867
+   },
+   "coverage_type": "on_demand_news",
+   "current_price": 724.85498046875,
+   "evidence_history": {
+    "coverage_days": 2,
+    "repeated_negative_themes": [],
+    "trend": "negative"
+   },
+   "fundamentals": {
+    "pillars": {
+     "growth": {
+      "confidence": "high",
+      "coverage": 1.0,
+      "score": 100.0,
+      "verdict": "strong"
+     },
+     "momentum": {
+      "confidence": "high",
+      "coverage": 1.0,
+      "score": 77.4,
+      "verdict": "strong"
+     },
+     "quality": {
+      "confidence": "high",
+      "coverage": 1.0,
+      "score": 93.7,
+      "verdict": "strong"
+     },
+     "valuation": {
+      "confidence": "high",
+      "coverage": 1.0,
+      "score": 89.7,
+      "verdict": "strong"
+     }
+    },
+    "standout_metrics": []
+   },
+   "generated_at": "2026-11-10T21:30:16.001149+00:00",
+   "headline": "Micron’s exceptional growth faces a renewed memory-cycle test",
+   "instrument_id": "US_MU",
+   "key_points": [
+    "Micron’s growth and profit expansion remain far stronger than comparable companies, supporting the long-term case if memory demand holds.",
+    "The Anthropic investment links Micron to sustained artificial-intelligence infrastructure spending, but the report does not establish how material the benefit will be.",
+    "Coverage is turning more cautious around a possible memory-cycle peak, challenging the idea that current earnings strength will persist.",
+    "Technology leadership is weakening broadly, so Micron needs company-specific demand support rather than a sector rebound alone."
+   ],
+   "market_regime": {
+    "sector": {
+     "conviction": 82,
+     "invalidators": [
+      "If sector breadth rises above 55% advancing and holds there for multiple sessions, the breaking-down regime is invalidated.",
+      "If more than 60% of stocks reclaim their 50-day moving averages while average RSI rises above 50, the regime flips.",
+      "If technology leadership broadens beyond NET, AVGO, and TSM with positive relative strength, the bearish classification is invalidated."
+     ],
+     "leadership_stocks": [
+      "NET",
+      "AVGO",
+      "TSM"
+     ],
+     "narrative": "Technology is breaking down, with only 31.3% of stocks advancing and participation weak above the 20-day and 50-day moving averages. Sub-50 average RSI and a negative average daily move confirm broad downside pressure despite isolated strength in select leaders.",
+     "regime": "breaking_down",
+     "sector": "Technology"
+    }
+   },
+   "news_digest": {
+    "catalyst_type": "none",
+    "changed_setup": true,
+    "direction": "positive",
+    "freshness_hours": 14.61,
+    "hard_catalyst": false,
+    "top_items": [
+     {
+      "date": "2026-11-10",
+      "direction": "positive",
+      "relevance": "company",
+      "source": "",
+      "title": "Micron (MU) Stock: $733 Tuesday After a 6.25% Chip Rebound, $795 or $656 Next"
+     },
+     {
+      "date": "2026-11-10",
+      "direction": "positive",
+      "relevance": "company",
+      "source": "",
+      "title": "Nvidia, Alphabet, and Micron Just Agreed to Buy $26 Billion of Stock in One of Their Biggest Customers"
+     },
+     {
+      "date": "2026-11-10",
+      "direction": "positive",
+      "relevance": "company",
+      "source": "",
+      "title": "Micron Supposedly Outgrew Its Boom Bust Commodity Pricing, Now It Faces Another Cyclical Cliff"
+     },
+     {
+      "date": "2026-11-10",
+      "direction": "positive",
+      "relevance": "company",
+      "source": "Alphabet Inc. via Nasdaq",
+      "title": "Nvidia, Alphabet, and Micron Just Agreed to Buy $26 Billion of Stock in One of Their Biggest Customers"
+     }
+    ]
+   },
+   "options_digest": {
+    "put_call_volume_ratio": 0.9389
+   },
+   "overall_label": "mixed",
+   "overall_score": 50,
+   "price_context": {
+    "current_price": 724.85498046875,
+    "day_change_pct": -1.13,
+    "from_52w_high_pct": -42.24,
+    "from_52w_low_pct": 538.86,
+    "ma_position": {
+     "sma_20": "below",
+     "sma_200": "above",
+     "sma_50": "below"
+    },
+    "recent_sessions": [
+     {
+      "close": 855.1,
+      "date": "2026-11-03",
+      "day_change_pct": 2.58
+     },
+     {
+      "close": 795.23,
+      "date": "2026-11-04",
+      "day_change_pct": -7.0
+     },
+     {
+      "close": 656.39,
+      "date": "2026-11-05",
+      "day_change_pct": -17.46
+     },
+     {
+      "close": 690.0,
+      "date": "2026-11-06",
+      "day_change_pct": 5.12
+     },
+     {
+      "close": 733.15,
+      "date": "2026-11-09",
+      "day_change_pct": 6.25
+     },
+     {
+      "close": 724.855,
+      "date": "2026-11-10",
+      "day_change_pct": -1.13
+     }
+    ],
+    "returns": {
+     "month_1_pct": -26.71,
+     "month_3_pct": -20.45,
+     "week_1_pct": -15.22
+    },
+    "rsi_14": {
+     "state": "neutral",
+     "value": 35.07
+    },
+    "trend": "pullback-in-uptrend",
+    "volume_vs_avg": 1.02,
+    "vs_market_day_change_pct": -2.4025,
+    "vs_sector_day_change_pct": -1.9867
+   },
+   "risk": "A memory-demand reversal could make Micron’s exceptional recent profits look temporary, damaging both earnings expectations and the argument that the shares are inexpensive.",
+   "sector_evidence_history": {
+    "coverage_days": 2,
+    "repeated_negative_themes": [],
+    "trend": "quiet"
+   },
+   "setup_state": "unclear",
+   "thesis": "Exceptional growth is attractive, but the memory cycle decides whether it lasts.",
+   "visual_cards": {
+    "catalyst_cards": [
+     {
+      "detail": "More evidence that Anthropic and its suppliers are expanding infrastructure would strengthen the case that Micron’s memory demand can remain elevated.",
+      "event": "Anthropic investment follow-through",
+      "priced_in": "med",
+      "window": "near-term"
+     }
+    ],
+    "drivers": [
+     {
+      "detail": "Micron is growing revenue and profit far faster than comparable companies, giving the business substantial earnings upside if memory demand remains firm.",
+      "direction": "up",
+      "horizon": "quarter",
+      "label": "Exceptional operating growth",
+      "strength": 5
+     },
+     {
+      "detail": "Micron’s reported participation in Anthropic’s financing connects it to expanding artificial-intelligence infrastructure, which may sustain demand for advanced memory products.",
+      "direction": "up",
+      "horizon": "quarter",
+      "label": "Artificial-intelligence customer exposure",
+      "strength": 3
+     },
+     {
+      "detail": "Micron’s growth, business quality, and quantitative ranking are unusually strong, supporting ownership when investors can tolerate memory-cycle uncertainty.",
+      "direction": "up",
+      "horizon": "quarter",
+      "label": "Strong underlying ranking",
+      "strength": 4
+     }
+    ],
+    "risk_cards": [
+     {
+      "detail": "If memory demand has peaked, Micron’s unusually rapid profit growth could reverse quickly and weaken the argument that the shares are inexpensive.",
+      "risk": "Memory cycle reversal",
+      "severity": 5,
+      "trigger": "Signs of lower memory demand"
+     },
+     {
+      "detail": "Continued weakness across technology could reduce investor willingness to pay for Micron, even while the company’s own operating results remain strong.",
+      "risk": "Technology sector breakdown",
+      "severity": 4,
+      "trigger": "Broader technology weakness persists"
+     }
+    ]
+   }
+  },
+  "earnings": null,
+  "expected_directive": {
+   "action": {
+    "label": "Hold here",
+    "summary": "Upside and downside look balanced; keep the position but do not force a new add."
+   },
+   "confidence": "medium",
+   "execution": "now",
+   "stance": "hold",
+   "zones": {
+    "accumulate_below": 690.0,
+    "trim_above": 1489.02
+   }
+  },
+  "name": "Micron Technology, Inc.",
+  "old_summary": "Upside and downside look balanced; keep the position but do not force a new add.",
+  "ticker": "MU"
+ },
+ "US_NVDA": {
+  "doc": {
+   "analyst_target": 310.62,
+   "anomaly_digest": null,
+   "as_of": "2026-11-10T21:30:17.370397+00:00",
+   "body": "NVIDIA faces a Nov. 18 congressional briefing involving Jensen Huang, while its planned $10 billion Anthropic investment deepens its role in the AI ecosystem. Strong operating growth supports the long-term story, but mixed coverage and technology-sector weakness make the Nov. 17 earnings report especially important.",
+   "catalyst": "NVIDIA earnings report",
+   "comparative_context": {
+    "day_change_pct": -5.53,
+    "market_percentile": 25,
+    "vs_market_day_change_pct": -3.795,
+    "vs_sector_day_change_pct": -3.795
+   },
+   "coverage_type": "on_demand_news",
+   "current_price": 168.7899932861328,
+   "evidence_history": {
+    "coverage_days": 2,
+    "repeated_negative_themes": [],
+    "trend": "quiet"
+   },
+   "fundamentals": {
+    "pillars": {
+     "growth": {
+      "confidence": "high",
+      "coverage": 1.0,
+      "score": 100.0,
+      "verdict": "strong"
+     },
+     "momentum": {
+      "confidence": "high",
+      "coverage": 1.0,
+      "score": 57.1,
+      "verdict": "solid"
+     },
+     "quality": {
+      "confidence": "high",
+      "coverage": 1.0,
+      "score": 92.7,
+      "verdict": "strong"
+     },
+     "valuation": {
+      "confidence": "high",
+      "coverage": 1.0,
+      "score": 77.2,
+      "verdict": "strong"
+     }
+    },
+    "standout_metrics": []
+   },
+   "generated_at": "2026-11-10T21:30:17.370397+00:00",
+   "headline": "AI growth remains powerful as scrutiny raises the proof required",
+   "instrument_id": "US_NVDA",
+   "key_points": [
+    "NVIDIA’s operating growth remains exceptional, giving earnings a chance to reset confidence if AI demand holds.",
+    "The Anthropic investment strengthens NVIDIA’s connection to a major AI customer, but increases scrutiny around capital allocation and customer concentration.",
+    "Congressional attention adds a governance and policy overhang that the earnings report alone may not resolve.",
+    "The average analyst target sits well above the current price, but falling technology leadership makes that optimism harder to trust immediately."
+   ],
+   "market_regime": {
+    "sector": {
+     "conviction": 82,
+     "invalidators": [
+      "If sector breadth rises above 55% advancing and holds there for multiple sessions, the breaking-down regime is invalidated.",
+      "If more than 60% of stocks reclaim their 50-day moving averages while average RSI rises above 50, the regime flips.",
+      "If technology leadership broadens beyond NET, AVGO, and TSM with positive relative strength, the bearish classification is invalidated."
+     ],
+     "leadership_stocks": [
+      "NET",
+      "AVGO",
+      "TSM"
+     ],
+     "narrative": "Technology is breaking down, with only 31.3% of stocks advancing and participation weak above the 20-day and 50-day moving averages. Sub-50 average RSI and a negative average daily move confirm broad downside pressure despite isolated strength in select leaders.",
+     "regime": "breaking_down",
+     "sector": "Technology"
+    }
+   },
+   "news_digest": {
+    "catalyst_type": "none",
+    "changed_setup": true,
+    "direction": "positive",
+    "freshness_hours": 1.17,
+    "hard_catalyst": false,
+    "top_items": [
+     {
+      "date": "2026-11-10",
+      "direction": "positive",
+      "relevance": "company",
+      "source": "",
+      "title": "Prediction: Nov. 18 Will Be a Huge Day for the Stock Market"
+     },
+     {
+      "date": "2026-11-10",
+      "direction": "positive",
+      "relevance": "company",
+      "source": "",
+      "title": "Nvidia, Alphabet, and Micron Just Agreed to Buy $26 Billion of Stock in One of Their Biggest Customers"
+     },
+     {
+      "date": "2026-11-10",
+      "direction": "positive",
+      "relevance": "company",
+      "source": "",
+      "title": "Investor Cathie Wood Buys The Dip In Nvidia Stock"
+     },
+     {
+      "date": "2026-11-10",
+      "direction": "positive",
+      "relevance": "company",
+      "source": "NVIDIA Corporation via Nasdaq",
+      "title": "Prediction: Nov. 18 Will Be a Huge Day for the Stock Market"
+     }
+    ]
+   },
+   "options_digest": {
+    "put_call_volume_ratio": 0.7299
+   },
+   "overall_label": "mixed",
+   "overall_score": 48,
+   "price_context": {
+    "current_price": 168.7899932861328,
+    "day_change_pct": -5.53,
+    "from_52w_high_pct": -28.64,
+    "from_52w_low_pct": 2.88,
+    "ma_position": {
+     "sma_20": "below",
+     "sma_200": "below",
+     "sma_50": "below"
+    },
+    "recent_sessions": [
+     {
+      "close": 206.69,
+      "date": "2026-11-03",
+      "day_change_pct": 2.29
+     },
+     {
+      "close": 200.13,
+      "date": "2026-11-04",
+      "day_change_pct": -3.17
+     },
+     {
+      "close": 181.6,
+      "date": "2026-11-05",
+      "day_change_pct": -9.26
+     },
+     {
+      "close": 186.64,
+      "date": "2026-11-06",
+      "day_change_pct": 2.78
+     },
+     {
+      "close": 178.67,
+      "date": "2026-11-09",
+      "day_change_pct": -4.27
+     },
+     {
+      "close": 168.79,
+      "date": "2026-11-10",
+      "day_change_pct": -5.53
+     }
+    ],
+    "returns": {
+     "month_1_pct": -25.45,
+     "month_3_pct": -24.69,
+     "week_1_pct": -18.29
+    },
+    "rsi_14": {
+     "state": "oversold",
+     "value": 19.05
+    },
+    "trend": "downtrend",
+    "volume_vs_avg": 3.52,
+    "vs_market_day_change_pct": -3.795,
+    "vs_sector_day_change_pct": -3.795
+   },
+   "risk": "Leadership scrutiny or policy concerns could weaken customer confidence and overshadow NVIDIA’s strong growth, especially while technology stocks are losing market leadership.",
+   "sector_evidence_history": {
+    "coverage_days": 2,
+    "repeated_negative_themes": [],
+    "trend": "quiet"
+   },
+   "setup_state": "unclear",
+   "thesis": "Exceptional AI growth now faces leadership scrutiny and a hostile technology backdrop.",
+   "visual_cards": {
+    "catalyst_cards": [
+     {
+      "detail": "NVIDIA’s Nov. 17 results will show whether AI spending and profit growth remain strong enough to support the market’s ambitious expectations.",
+      "event": "NVIDIA earnings report",
+      "priced_in": "high",
+      "window": "2026-11-17"
+     },
+     {
+      "detail": "The Nov. 18 briefing could clarify whether government scrutiny is routine or likely to create new restrictions affecting NVIDIA’s business.",
+      "event": "Congressional briefing attendance",
+      "priced_in": "med",
+      "window": "Nov. 18"
+     }
+    ],
+    "drivers": [
+     {
+      "detail": "NVIDIA’s revenue and earnings are growing far faster than comparable companies, giving the business financial strength to withstand temporary investor skepticism.",
+      "direction": "up",
+      "horizon": "quarter",
+      "label": "AI demand drives rapid growth",
+      "strength": 5
+     },
+     {
+      "detail": "NVIDIA’s planned Anthropic investment ties the company more closely to a major AI developer, potentially supporting future demand for its computing systems.",
+      "direction": "up",
+      "horizon": "quarter",
+      "label": "Anthropic investment expands reach",
+      "strength": 4
+     },
+     {
+      "detail": "Analysts remain broadly positive on NVIDIA, showing that professional forecasts still expect strong growth despite the current technology-sector breakdown.",
+      "direction": "up",
+      "horizon": "week",
+      "label": "Analysts still expect substantial upside",
+      "strength": 3
+     }
+    ],
+    "risk_cards": [
+     {
+      "detail": "A damaging finding involving Jensen Huang or NVIDIA’s governance could weaken customer trust and distract management from executing its AI strategy.",
+      "risk": "Leadership scrutiny expands",
+      "severity": 5,
+      "trigger": "Congressional briefing or further investigation"
+     },
+     {
+      "detail": "Continued technology-sector deterioration can reduce investor willingness to fund NVIDIA’s growth story even if the company delivers strong results.",
+      "risk": "Technology sector keeps weakening",
+      "severity": 4,
+      "trigger": "Technology breadth remains weak"
+     },
+     {
+      "detail": "If NVIDIA reports weaker demand or outlook than investors expect, analysts may lower profit forecasts and question how long exceptional growth can continue.",
+      "risk": "Earnings miss ambitious expectations",
+      "severity": 5,
+      "trigger": "Nov. 17 earnings report"
+     }
+    ]
+   }
+  },
+  "earnings": {
+   "days_until": 7,
+   "event_date": "2026-11-17",
+   "status": "upcoming"
+  },
+  "expected_directive": {
+   "action": {
+    "label": "Hold here",
+    "summary": "Upside and downside look balanced; keep the position but do not force a new add."
+   },
+   "confidence": "medium",
+   "execution": "now",
+   "stance": "hold",
+   "zones": {
+    "trim_above": 310.62
+   }
+  },
+  "name": "NVIDIA Corporation",
+  "old_summary": "Upside and downside look balanced; keep the position but do not force a new add.",
+  "ticker": "NVDA"
+ }
+}
