@@ -4,6 +4,11 @@ import { adminFirestore } from "@/lib/firebase-admin";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
+  // Returns any user's email and watchlist through the admin SDK. Local only.
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   const userId = request.nextUrl.searchParams.get("userId");
   if (!userId) {
     return NextResponse.json({ error: "userId is required" }, { status: 400 });

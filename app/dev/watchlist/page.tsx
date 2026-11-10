@@ -1,5 +1,6 @@
 import { OaSiteHeader } from "@/components/oa/oa-site-header";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { getWatchlistView } from "@/lib/watchlist-view";
 import { getSearchIndex } from "@/lib/search";
@@ -25,6 +26,9 @@ type Props = {
 };
 
 export default async function DevWatchlistPage({ searchParams }: Props) {
+  // Lists every user and their watchlist through the admin SDK. Local only.
+  if (process.env.NODE_ENV === "production") notFound();
+
   const params = await searchParams;
   const userId = typeof params.userId === "string" ? params.userId : "";
 
