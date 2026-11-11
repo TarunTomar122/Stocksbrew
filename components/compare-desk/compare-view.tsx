@@ -205,7 +205,7 @@ export async function CompareView({
                         </p>
                       ) : null}
                       {brief.locked ? (
-                        <p className="mt-2 text-pretty text-[13px] leading-5 text-oa-muted-fg">The reasons and risks come with covering {symbol}.</p>
+                        <p className="mt-2 text-pretty text-[13px] leading-5 text-oa-muted-fg">The reasons and risks are in the full report on {symbol}, free on five stocks you pick.</p>
                       ) : null}
                       <p className={`${NUM} mt-2.5 text-[11px] text-oa-muted-fg`}>
                         <a href={`/stock/${encodeURIComponent(symbol)}`} className="underline decoration-oa-border underline-offset-2 hover:text-oa-fg">
@@ -314,7 +314,7 @@ export async function CompareView({
                                 </span>
                               </span>
                             ) : data.rows[index]?.zone ? (
-                              <span className="text-[12.5px] text-oa-muted-fg">covered stocks</span>
+                              <span className="text-[12.5px] text-oa-muted-fg">in the full report</span>
                             ) : (
                               <Unknown />
                             )}

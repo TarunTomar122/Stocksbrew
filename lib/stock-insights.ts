@@ -144,7 +144,8 @@ export function buildStockRead(input: StockInsightInput): TheRead | null {
   const day = fin(input.dayPct) ? input.dayPct : null;
   // Defensive lookup: a call word outside Add/Hold/Trim keeps the plain "Our call: X." line instead of throwing.
   const meaning = input.call ? (CALL_MEANING as Record<string, string | undefined>)[input.call.word] : undefined;
-  const callPart = input.call ? ` Our call: ${input.call.word}${meaning ? ` (${meaning.charAt(0).toLowerCase()}${meaning.slice(1)})` : ""}.` : "";
+  // The call said as what we'd do ("We'd keep it, not buy more."), not as a code word with a gloss.
+  const callPart = input.call ? ` ${meaning ?? `Our call: ${input.call.word}`}.` : "";
 
   // ── headline: today's move against its group (or the market), then the call ──
   let headline = "";

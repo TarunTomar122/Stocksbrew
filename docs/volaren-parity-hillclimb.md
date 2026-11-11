@@ -172,6 +172,19 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-11 ~02:00, 27 /best lists live (lead)
+
+- `ff483c0` LIVE: /best hub + 27 data-backed lists (dividends, undervalued, growth, AI, chips, insiders buying, funds bought, under $10/20/50, most shorted, near highs/lows...), each with its exact rule, a read, ranked rows with the qualifying number, BreadcrumbList + ItemList JSON-LD, `best` sitemap family (28 URLs). Quality pass: SHIP after fixes (insurer exclusion, negative equity, "tenfold" wording, junk names). Exact commit verified: tsc 0, vitest 1159/1159. Live 200s (first-hit 404s right after deploy are requests reaching the previous deployment; they clear in seconds).
+- Open: four lists rank by our score ("Best stocks under $10" etc.): disclosed, owner's call; /best not yet in the nav (UI loop adding it); fund list counts Q2 13Fs until Q3 filings land Nov 14.
+- VPS: tonight's after-close rerun is in backtest_strategies (~1h, network-bound full price rebuild) holding the shared agentdata lock, so frequent/hourly wait; check it finished.
+
+### 2026-11-11 ~00:00, five-place navigation live (lead)
+
+- Round 5 LIVE `c421bdd`: navigation rebuilt around five places (Today, My stocks, Research, Follow investors, Alerts & agents), same on desktop and phone with a page strip; sticky phone top bar fixed (display: contents wrapper); stock page phone switcher; landing trimmed 10 → 6 sections; pricing copy matches plan rules. Quality pass SHIP WITH FIXES. Exact commit verified: tsc 0, vitest 1099/1099.
+- Scores: Codex r4 6.18 → r5 6.24 → r6 6.18; Cursor 4.98 → 5.07 → 5.06. Navigation the only dimension that moved (Codex 6.38, Cursor ~5.1).
+- Owner decisions raised by the loop: merge the four Today pages (route change), and the landing headline both reviewers call over-promising (proposal: "Know why your stocks moved, and what we would do.").
+- Running: UI loop round 7+ (phone shots tiled for reviewers, briefing/stock-mu/calendar/pricing, share-class dedupe); "best stocks for X" SEO lists (new /best routes).
+
 ### 2026-11-11 early, per-stock call reasons live; agentdata path fixed (lead)
 
 - `f57da15` LIVE (Vercel + VPS pull): every call gets its own plain reason (backend/call_reason.py; directive_v2.call_reason + call_reason_source). 716 stocks shared 8 templates before. Review: DEPLOY WITH FIXES (crash-safe reason check, "watch" wording). Fills as the 09:50 ET and ~16:10 ET brief runs rewrite briefs; ~280 September-era docs keep old text until rewritten (backfill not written). Watch the first close run against its 20-min window and the model vs facts ratio in logs ("call reasons rejected").

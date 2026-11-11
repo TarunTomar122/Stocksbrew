@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { asSentence, firstFullSentence, isTitleCase, sentenceCase } from "./plain-copy";
+import { asSentence, companyFirstMove, firstFullSentence, isTitleCase, sentenceCase, shortCompanyName, splitMoveReason } from "./plain-copy";
 
 describe("sentenceCase", () => {
   it("undoes Title Case but keeps names and acronyms", () => {
@@ -64,7 +64,7 @@ describe("plainAction and callMetaLine", () => {
     const { plainAction, callMetaLine } = await import("./plain-copy");
     expect(plainAction("Accumulate on pullbacks", "Add")).toBe("Buy more on a dip, not here");
     expect(plainAction("Do not add here", "Trim")).toBe("Don't buy more at this price");
-    expect(plainAction("Hold", "Hold")).toBe("We'd keep it, not add");
+    expect(plainAction("Hold", "Hold")).toBe("We'd keep it, not buy more");
     expect(plainAction(null, "Trim")).toBe("We'd sell some, not buy more");
     expect(plainAction("Wait for earnings", "Hold")).toBe("Wait for earnings");
     expect(callMetaLine("medium", "weeks")).toBe("Medium confidence, for the next few weeks.");
@@ -102,6 +102,13 @@ describe("plainCallReason", () => {
 });
 
 describe("plainFinance", () => {
+  it("says headline shorthand in plain words", async () => {
+    const { plainFinance } = await import("./plain-copy");
+    expect(plainFinance("Qualys falls despite earnings beat on Tepid revenue outlook")).toBe("Qualys falls despite earnings that beat expectations on a weak forecast");
+    expect(plainFinance("Earnings miss and weaker outlook trigger Hims & Hers selloff")).toBe("Earnings that missed expectations and a weaker forecast trigger Hims & Hers drop");
+    expect(plainFinance("Relief rally lifts Acadia")).toBe("Rebound lifts Acadia");
+  });
+
   it("spells out beats, misses and guidance without changing what happened", async () => {
     const { plainFinance } = await import("./plain-copy");
     expect(plainFinance("Hims & Hers plunges after earnings miss and guidance cut")).toBe(
@@ -128,5 +135,85 @@ describe("wholeSentences", () => {
     expect(wholeSentences("One. Two. Three.")).toBe("One. Two.");
     expect(wholeSentences("A complete line.")).toBe("A complete line.");
     expect(wholeSentences("A headline with no full stop")).toBe("A headline with no full stop");
+  });
+});
+
+describe("plainFinance says the researcher's no-reason lines plainly", () => {
+  it("rewrites range breaks and missing catalysts", async () => {
+    const { plainFinance } = await import("./plain-copy");
+    expect(plainFinance("CHTR breaks above recent closing range without verified catalyst")).toBe(
+      "CHTR rises above its recent price range, with no confirmed reason yet",
+    );
+    expect(plainFinance("VCX rebounds sharply despite quiet coverage.")).toBe("VCX rebounds sharply with little news.");
+  });
+});
+
+describe("companyFirstMove", () => {
+  it("puts the company first and the cause after", () => {
+    expect(companyFirstMove("Earnings that missed expectations and a weaker forecast trigger Hims & Hers drop.", -16.5, { withPct: true })).toBe(
+      "Hims & Hers fell 16.5% after earnings that missed expectations and a weaker forecast",
+    );
+    expect(companyFirstMove("Revenue that beat expectations and forecast lift Acadia shares", 10.73)).toBe(
+      "Acadia rose after revenue that beat expectations and forecast",
+    );
+    expect(companyFirstMove("GTA VI preorders spark Take-Two’s rebound", 8.3)).toBe("Take-Two rose after GTA VI preorders");
+  });
+
+  it("keeps a company-first reason's words and puts the size after its verb", () => {
+    expect(companyFirstMove("LifeVantage stock falls after revenue drops 22%", -13.6, { withPct: true })).toBe("LifeVantage falls 13.6% after revenue drops 22%");
+    expect(companyFirstMove("Qualys falls despite earnings that beat expectations on a weak forecast", -13.3)).toBe(
+      "Qualys falls despite earnings that beat expectations on a weak forecast",
+    );
+    expect(companyFirstMove("GTA VI Preorders Spark Take-Two's rebound", 8.3)).toBe("Take-Two rose after GTA VI Preorders");
+    expect(companyFirstMove("LifeVantage stock falls after revenue drops 22%", 4)).toBeNull();
+  });
+
+  it("leaves other shapes alone", () => {
+    expect(companyFirstMove("Analyst lowers Serve Robotics price target, pressuring shares", -8.4)).toBeNull();
+    expect(companyFirstMove("", 3)).toBeNull();
+    expect(companyFirstMove("Earnings trigger Acme rally", null)).toBeNull();
+  });
+
+  it("splits the company from what happened to it", () => {
+    expect(splitMoveReason("AST SpaceMobile slides after earnings that missed expectations", -8.7, { withPct: true })).toEqual({
+      subject: "AST SpaceMobile",
+      predicate: "slides 8.7% after earnings that missed expectations",
+    });
+  });
+
+  it("only turns a reason around when its subject is the company on the row", () => {
+    expect(companyFirstMove("Oil prices jumps after an OPEC cut", 3, { company: { name: "Exxon Mobil Corporation", ticker: "XOM" } })).toBeNull();
+    expect(companyFirstMove("Earnings miss triggers Hims & Hers drop", -16.5, { company: { name: "Hims & Hers Health, Inc.", ticker: "HIMS" } })).toBe(
+      "Hims & Hers fell after earnings miss",
+    );
+    expect(companyFirstMove("GTA VI preorders spark Take-Two's rebound", 8.3, { company: { name: "Take-Two Interactive Software", ticker: "TTWO" } })).toBe(
+      "Take-Two rose after GTA VI preorders",
+    );
+  });
+
+  it("refuses a reason whose words point the other way from the move", () => {
+    expect(companyFirstMove("Strong demand sparks Acme rally", -4)).toBeNull();
+    expect(companyFirstMove("Weak demand triggers Acme selloff", 4)).toBeNull();
+  });
+});
+
+describe("shortCompanyName keeps very short names readable", () => {
+  it("does not cut a name down to one tiny word", () => {
+    expect(shortCompanyName("On Holding AG")).toBe("On Holding");
+    expect(shortCompanyName("Lennar Corp - B Shs")).toBe("Lennar");
+    expect(shortCompanyName("Elmet Group Co. (The)")).toBe("Elmet Group");
+  });
+
+  it("never leaves a dangling 'and' or a filing-style 'The'", () => {
+    expect(shortCompanyName("Eli Lilly and Company")).toBe("Eli Lilly");
+    expect(shortCompanyName("Procter & Gamble Company")).toBe("Procter & Gamble");
+    expect(shortCompanyName("Johnson & Johnson")).toBe("Johnson & Johnson");
+    expect(shortCompanyName("AT&T Inc.")).toBe("AT&T");
+    expect(shortCompanyName("The Coca-Cola Company")).toBe("Coca-Cola");
+    expect(shortCompanyName("The Home Depot, Inc.")).toBe("Home Depot");
+    expect(shortCompanyName("The Trade Desk, Inc.")).toBe("The Trade Desk");
+    expect(shortCompanyName("3M Company")).toBe("3M");
+    expect(shortCompanyName("Marsh & McLennan Companies, Inc.")).toBe("Marsh & McLennan Companies");
+    expect(shortCompanyName("NVIDIA Corporation")).toBe("NVIDIA");
   });
 });

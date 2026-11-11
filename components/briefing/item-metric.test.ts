@@ -22,7 +22,7 @@ describe("verdictFor", () => {
 
   it("judges filings, chart events and single congressional trades only when they lean one way", () => {
     expect(verdictFor(item({ kind: "filing", tone: "down" }))).toEqual({ tone: "down", word: "Negative" });
-    expect(verdictFor(item({ kind: "technical", tone: "up" }))).toEqual({ tone: "up", word: "Bullish" });
+    expect(verdictFor(item({ kind: "technical", tone: "up" }))).toEqual({ tone: "up", word: "Good sign" });
     expect(verdictFor(item({ kind: "congress_trade", tone: "up", metric: "Bought" }))).toEqual({ tone: "up", word: "Bought" });
     expect(verdictFor(item({ kind: "congress_trade", tone: "up", metric: "3 trades" }))).toBeNull();
     expect(verdictFor(item({ kind: "filing", tone: "flat" }))).toBeNull();

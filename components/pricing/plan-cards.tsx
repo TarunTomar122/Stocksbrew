@@ -120,6 +120,8 @@ export function PricingGrid({
         ))}
       </div>
     ) : null;
+  // Under the table on a phone: the yearly note and the refund line, only when there is something to say.
+  const phoneNote = [active?.note, plan !== "pro" && !trial ? "Cancel Pro in one click; refund in the first seven days." : null].filter(Boolean).join(" ");
   const planHead =
     "px-2 pb-5 pt-5 text-left align-top font-normal sm:px-5 sm:pt-6";
 
@@ -138,13 +140,13 @@ export function PricingGrid({
           <thead>
             <tr className="border-b border-oa-border">
               <td className="px-3 pb-5 pt-5 align-top sm:px-5 sm:pt-6">
-                <span className="block text-[14px] leading-5 text-oa-muted-fg sm:hidden">
-                  Both plans show our call on every stock.
+                <span className="block text-pretty text-[13.5px] leading-5 text-oa-muted-fg sm:hidden">
+                  Our call is free on both.
                 </span>
                 <span className="max-sm:hidden">{periodSwitch}</span>
                 <p className="mt-3 max-w-[22rem] text-pretty text-[14px] leading-[22px] text-oa-muted-fg max-sm:hidden">
                   {active?.note ??
-                    "Both plans show our call on every stock. Pro gives the full report on every stock, not just five."}
+                    "Our call is one line: buy more, keep or sell some. The full report says why, gives the prices where we'd act and what would change our mind."}
                 </p>
               </td>
 
@@ -251,16 +253,7 @@ export function PricingGrid({
             ▾
           </span>
         </button>
-        {plan !== "pro" || active?.note ? (
-          <p className="border-t border-oa-border px-3 py-3 text-[14px] leading-5 text-oa-muted-fg sm:hidden">
-            {[
-              active?.note,
-              plan !== "pro" && !trial ? "Cancel Pro in one click; refund in the first seven days." : null,
-            ]
-              .filter(Boolean)
-              .join(" ")}
-          </p>
-        ) : null}
+        {phoneNote ? <p className="border-t border-oa-border px-3 py-3 text-[14px] leading-5 text-oa-muted-fg sm:hidden">{phoneNote}</p> : null}
       </section>
     </>
   );

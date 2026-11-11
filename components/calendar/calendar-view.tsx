@@ -315,12 +315,13 @@ function EarningsLine({
     <a
       href={earningsHref(item.ticker)}
       title={[item.company, result].filter(Boolean).join(": ")}
-      className={`flex min-h-10 items-center gap-2 px-3 py-1 hover:bg-oa-accent lg:min-h-[30px] lg:py-0.5 ${FOCUS}`}
+      className={`flex min-h-10 items-center gap-x-2 px-3 py-1 hover:bg-oa-accent lg:min-h-[30px] lg:py-0.5 ${narrow ? "" : "flex-wrap"} ${FOCUS}`}
     >
       <span className={`${NUM} shrink-0 text-[14px] ${quiet ? "font-medium text-oa-fg" : "font-semibold text-oa-fg"} ${compact ? "" : narrow && reported ? "min-w-[3.25rem] lg:min-w-0" : "min-w-[3.25rem]"}`}>{item.ticker}</span>
       {narrow && reported ? <ResultMark item={item} /> : null}
       {/* Wraps on a phone rather than cutting the name; the narrow desktop columns still clip. */}
-      <span className={`min-w-0 flex-1 text-pretty text-[14px] leading-5 text-oa-muted-fg ${narrow ? "lg:truncate" : ""} ${detail} ${narrow && reported ? "lg:hidden" : ""}`}>{shortCompanyName(item.company)}</span>
+      {/* Wide rows wrap the result under the name rather than letting the two overlap. */}
+      <span className={`min-w-0 flex-1 text-pretty text-[14px] leading-5 text-oa-muted-fg ${narrow ? "lg:truncate" : "min-w-[6rem]"} ${detail} ${narrow && reported ? "lg:hidden" : ""}`}>{shortCompanyName(item.company)}</span>
       <span className="ml-auto flex shrink-0 items-baseline gap-2 text-[14px]">
         {mark && !reported && item.hasPreRead ? <PreReadMark className="self-center" /> : null}
         {reported ? (
@@ -328,7 +329,7 @@ function EarningsLine({
             <ResultWord item={item} compact={narrow} />
             <span className={`${NUM} text-[12.5px] text-oa-muted-fg ${detail} ${item.reaction ? "max-[420px]:hidden" : ""}`}>
               {fmtEps(item.epsActual)}
-              {item.epsEstimate !== null ? <span className={narrow ? "lg:hidden" : ""}> vs {fmtEps(item.epsEstimate)}</span> : null}
+              {item.epsEstimate !== null ? <span className={narrow ? "lg:hidden" : ""}> vs {fmtEps(item.epsEstimate)} expected</span> : null}
             </span>
             <ReactionValue item={item} narrow={narrow} />
           </>
@@ -366,18 +367,29 @@ function EconomicLine({ item }: { item: EconomicItem }) {
   );
 }
 
+/** "WINDWARD BIO GROUP AG" reads as shouting; feeds send some names in capitals. Short tickers-as-names stay. */
+function readableName(name: string): string {
+  const short = shortCompanyName(name) || name;
+  if (short.length <= 5 || short !== short.toUpperCase() || !/[A-Z]{3}/.test(short)) return short;
+  // Word by word: short codes ("AG", "SA") and anything with a symbol in it ("S&P") keep their capitals.
+  return short
+    .split(" ")
+    .map((word) => (word.length <= 2 || /[^A-Za-z]/.test(word) ? word : word.charAt(0) + word.slice(1).toLowerCase()))
+    .join(" ");
+}
+
 function IpoLine({ item }: { item: IpoItem }) {
   const price = fmtIpoPrice(item.priceLow, item.priceHigh);
   return (
     <div className="px-3 py-1.5">
       <span className="flex items-center justify-between gap-2">
-        <span className="min-w-0 text-pretty text-[14px] font-medium leading-5 text-oa-fg">{item.company}</span>
+        <span className="min-w-0 text-pretty text-[14px] font-medium leading-5 text-oa-fg">{readableName(item.company)}</span>
         {item.ticker ? <span className={`${NUM} shrink-0 text-[12.5px] text-oa-muted-fg`}>{item.ticker}</span> : null}
       </span>
       <span className={`${NUM} mt-0.5 block text-pretty text-[12.5px] leading-4 text-oa-muted-fg`}>
         {[
-          item.status === "priced" ? (price ? `priced at ${price}` : "priced") : price ? `${price} range` : "price not set",
-          item.offerAmount ? `raising ${fmtCompact(item.offerAmount, "$")}` : "",
+          item.status === "priced" ? (price ? `New listing, priced at ${price}` : "New listing, priced") : price ? `New listing, aiming for ${price} a share` : "New listing, price not set",
+          item.offerAmount ? `to raise ${fmtCompact(item.offerAmount, "$")}` : "",
           item.exchange,
         ]
           .filter(Boolean)
@@ -457,7 +469,10 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
                 {reports} <span className="lg:hidden">already </span>reported
               </>
             ) : (
-              `${reports} report${reports === 1 ? "" : "s"}`
+              <>
+                {reports} <span className={isToday ? "" : "lg:hidden"}>earnings </span>
+                {reports === 1 ? "report" : "reports"}
+              </>
             )
           ) : (
             ""
@@ -513,7 +528,7 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
         {bucket.dividends.length ? (
           <div>
             <h3 className={`${SECTION} flex items-center justify-between`}>
-              <span>Own it before this day for the dividend</span>
+              <span>Buy before this day to get the dividend</span>
               <span className={NUM}>{bucket.dividends.length}</span>
             </h3>
             {bucket.dividends.slice(0, WEEK_OTHER_ROWS).map((item) => (
@@ -528,12 +543,27 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
   );
 }
 
-/** "12 reports, 1 IPO and 4 dividends": what a folded day holds, for its button. */
+/**
+ * "Cisco Systems, Applied Materials and 16 more reports, 1 IPO and 4 dividends":
+ * what a folded day holds, for its button. The two biggest companies are named,
+ * so a day the read talks about shows those names before it is opened.
+ */
 function dayCount(bucket: DayBuckets): string {
   const reports = earningsCount(bucket);
+  const biggest = [...bucket.earnings.bmo, ...bucket.earnings.amc, ...bucket.earnings.unknown]
+    .filter((item) => item.marketCap != null && item.marketCap > 0)
+    .sort((a, b) => (b.marketCap ?? 0) - (a.marketCap ?? 0))
+    .slice(0, reports > 2 ? 2 : 0)
+    .map((item) => shortCompanyName(item.company) || item.ticker);
+  const rest = reports - biggest.length;
+  const reportPart = !reports
+    ? ""
+    : biggest.length
+      ? `${biggest.join(", ")} and ${rest} more ${rest === 1 ? "report" : "reports"}`
+      : `${reports} earnings ${reports === 1 ? "report" : "reports"}`;
   const parts = [
     bucket.economic.length ? `${bucket.economic.length} economic release${bucket.economic.length === 1 ? "" : "s"}` : "",
-    reports ? `${reports} report${reports === 1 ? "" : "s"}` : "",
+    reportPart,
     bucket.ipos.length ? `${bucket.ipos.length} IPO${bucket.ipos.length === 1 ? "" : "s"}` : "",
     bucket.dividends.length ? `${bucket.dividends.length} dividend${bucket.dividends.length === 1 ? "" : "s"}` : "",
   ].filter(Boolean);
@@ -810,7 +840,7 @@ function ListDay({ bucket, today, single, filters, mark }: { bucket: DayBuckets;
           ) : null}
           {bucket.dividends.length ? (
             <div className="min-w-0 pb-1.5">
-              <h3 className={SECTION}>Own it before this day for the dividend</h3>
+              <h3 className={SECTION}>Buy before this day to get the dividend</h3>
               {(single ? bucket.dividends : bucket.dividends.slice(0, 6)).map((item) => (
                 <DividendLine key={item.id} item={item} />
               ))}

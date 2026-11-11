@@ -40,6 +40,7 @@ import {
   type FundProfile,
   type Performance,
 } from "@/lib/follow";
+import { oneRowPerCompany } from "@/lib/share-class";
 import { netSide, type ToneWord } from "@/lib/tone";
 import { ogImage } from "@/lib/og/url";
 
@@ -288,7 +289,7 @@ function ChangeList({
         <p className="mt-1.5 text-[13px] text-oa-muted-fg">None.</p>
       ) : (
         <ul className="mt-1.5 space-y-1">
-          {rows.slice(0, 8).map((row, index) => (
+          {oneRowPerCompany(rows, (row) => row.ticker).rows.slice(0, 8).map((row, index) => (
             <li
               key={`${row.cusip}-${index}`}
               className="flex items-baseline justify-between gap-2 text-[13px] leading-5"
@@ -404,7 +405,7 @@ function FundView({
             href={profile.source_url}
             className="text-[13px] text-oa-muted-fg"
           >
-            All 13F filings on EDGAR
+            Every quarterly report at the SEC
           </ExternalLink>
           <FollowButton
             slug={profile.slug}
@@ -422,7 +423,7 @@ function FundView({
           title={`Latest filing · ${latest.quarter}`}
           right={
             <ExternalLink href={latest.url}>
-              {latest.form} on EDGAR
+              This report at the SEC
             </ExternalLink>
           }
         >
@@ -473,7 +474,7 @@ function FundView({
               hint={
                 optionShare != null
                   ? `on ${fmtUsd(latest.options_underlying_value)} of stock`
-                  : "rights to buy or sell later"
+                  : "none reported"
               }
             />
           </div>
@@ -487,7 +488,7 @@ function FundView({
             right={
               profile.compared_with ? (
                 <span>
-                  against {quarterLabel(profile.compared_with)}, by share count
+                  compared with {quarterLabel(profile.compared_with)}, by number of shares
                 </span>
               ) : null
             }

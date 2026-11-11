@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 import { MarketStatusInline } from "@/components/market-status";
 import { RangeBar } from "@/components/oa/kit";
-import { callMetaLine, plainAction, plainCallReason, wholeSentences } from "@/lib/plain-copy";
+import { CALL_PLAIN, callMetaLine, plainAction, plainCallReason, wholeSentences } from "@/lib/plain-copy";
 import { CoverButton, LockCard } from "@/components/oa/gate";
 import { ProCheckoutButton } from "@/components/oa/pro-checkout-button";
 import { StockLogo } from "@/components/stock-logo";
@@ -120,17 +120,19 @@ function TimelineRow({ item, nowIso }: { item: StockTimelineItem; nowIso: string
 
 /** Shown where the price zones would be, on a stock the viewer's agent does not cover. */
 function LevelsLock({ ticker, instrumentId, tracked, gate }: { ticker: string; instrumentId: string; tracked: boolean; gate: ReportData["gate"] }) {
-  const title = gate.plan === "anon" ? `Sign in to see the full read on ${ticker}` : `Cover ${ticker} to see the full read`;
+  // "Covering" is our word; readers get "the full report on five stocks you pick".
+  const left = `${gate.slotsLeft} of your five free full reports ${gate.slotsLeft === 1 ? "is" : "are"} left`;
+  const title = gate.plan === "anon" ? `Sign in to read the full report on ${ticker}` : `Get the full report on ${ticker}`;
   const body =
     gate.plan === "anon"
-      ? "The call is free to read. The reasons behind it, the price zones and what would change it come with covering a stock. A free account tracks as many stocks as you like and covers five in full."
+      ? "Our call is free for everyone. A free account also gets the full report on five stocks you pick: why we made the call, the prices where we'd buy more or sell some, and what would change our mind. You can follow as many stocks as you like."
       : !tracked
         ? gate.slotsLeft > 0
-          ? `Add ${ticker} to your portfolio and it takes one of your covered slots (${gate.slotsLeft} open): the reasons, zones, alerts and the read before earnings.`
-          : `Your five covered slots are in use. Add ${ticker} to your portfolio, then swap it in (Free swaps one a week, uncovering is free), or go Pro and cover every stock.`
+          ? `Add ${ticker} to your portfolio and it gets one of your free full reports: why we made the call, the prices where we'd act, alerts and a note before earnings. ${left}.`
+          : `All five of your free full reports are in use. Add ${ticker} to your portfolio and swap it in for one of them (one swap a week on Free), or go Pro for a full report on every stock.`
         : gate.slotsLeft > 0
-          ? `You track ${ticker}. Cover it to get the reasons, zones, alerts and the read before earnings. ${gate.slotsLeft} of your covered slots ${gate.slotsLeft === 1 ? "is" : "are"} open.`
-          : `Your five covered slots are in use. Uncover one in Portfolio (free any time) and swap ${ticker} in, or go Pro and cover every stock.`;
+          ? `You follow ${ticker}. Turn on its full report to see why we made the call, the prices where we'd act, alerts and a note before earnings. ${left}.`
+          : `All five of your free full reports are in use. Swap one out in Portfolio (free any time) to make room for ${ticker}, or go Pro for a full report on every stock.`;
   return (
     <div className="flex flex-col gap-2">
       <LockCard feature="stock_zones" plan={gate.plan} trialEligible={gate.trialEligible} ticker={ticker} title={title} body={body} stacked />
@@ -139,7 +141,7 @@ function LevelsLock({ ticker, instrumentId, tracked, gate }: { ticker: string; i
           <CoverButton instrumentId={instrumentId} ticker={ticker} />
         ) : (
           <a href="/watchlist" className="self-start text-[13px] font-medium text-oa-primary hover:underline">
-            Choose covered stocks in Portfolio
+            Choose your five in Portfolio
           </a>
         )
       ) : null}
@@ -344,10 +346,11 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
   const stats = headerStats.length ? <KeyStats items={headerStats} /> : null;
   // On a phone the page below the chart is one part at a time (PhoneSections).
   const phoneSections = [
+    // Short enough that all five fit across a phone, so none is cut at the edge.
     { id: "view", label: "Our view" },
-    { id: "changed", label: "What changed" },
-    ...(stats ? [{ id: "facts", label: "Key facts" }] : []),
-    ...(railSections.length ? [{ id: "report", label: "Full report" }] : []),
+    { id: "changed", label: "Changes" },
+    ...(stats ? [{ id: "facts", label: "Facts" }] : []),
+    ...(railSections.length ? [{ id: "report", label: "Report" }] : []),
     { id: "alerts", label: "Alerts" },
   ];
 
@@ -394,7 +397,8 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
                     ) : null}
                   </p>
                   <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 md:flex-col md:items-start">
-                    {stock.captured_at ? <p className="oa-mono text-[11px] leading-4 text-oa-muted-fg">{fmtStamp(stock.captured_at)}</p> : null}
+                    {/* Two clocks on one card read as a contradiction; each says what it is the time of. */}
+                    {stock.captured_at ? <p className="text-[12px] leading-4 text-oa-muted-fg">Price at {fmtStamp(stock.captured_at)}</p> : null}
                     <MarketStatusInline nowIso={nowIso} surface="stock" />
                     {data.premarketQuote ? <StockPremarketQuote currency={currency} market={market} quote={data.premarketQuote} /> : null}
                   </div>
@@ -405,7 +409,7 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
                   <div className="flex items-baseline justify-between gap-3">
                     <h2 className="oa-caption">Our call</h2>
                     {ready?.writtenAt ? (
-                      <p className="oa-mono text-[11px] leading-4 text-oa-muted-fg">{fmtStamp(ready.writtenAt)}</p>
+                      <p className="text-[12px] leading-4 text-oa-muted-fg">Written {fmtStamp(ready.writtenAt)}</p>
                     ) : readState === "locked" ? (
                       <Tag tone="primary">Pro</Tag>
                     ) : null}
@@ -415,16 +419,16 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
                       <p className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1">
                         {ready.call ? (
                           <span
-                            className="oa-mono inline-flex h-7 items-center rounded-md px-2.5 text-[13px] font-semibold uppercase tracking-[0.06em]"
+                            className="inline-flex h-7 items-center whitespace-nowrap rounded-md px-2.5 text-[14px] font-semibold"
                             style={{
                               color: callTone ? TONE_COLOR[callTone] : "var(--oa-fg)",
                               background: `color-mix(in srgb, ${callTone ? TONE_COLOR[callTone] : "var(--oa-fg)"} 12%, transparent)`,
                             }}
                           >
-                            {ready.call}
+                            {CALL_PLAIN[ready.call as keyof typeof CALL_PLAIN] ?? ready.call}
                           </span>
                         ) : null}
-                        {/* The call word, then what it means in plain words ("TRIM" then "We'd sell some, not buy more"). */}
+                        {/* The call in a word ("Sell some"), then what it means ("We'd sell some, not buy more"). */}
                         {plainAction(ready.actionLabel, ready.call) ? (
                           <span className="text-[17px] font-medium leading-6 tracking-tight text-oa-fg">{plainAction(ready.actionLabel, ready.call)}</span>
                         ) : null}
@@ -461,9 +465,12 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
                             <LockIcon />
                           </span>
                           <span>
-                            Make {stock.ticker} one of your five covered stocks to see the prices where we&apos;d buy more or sell some.{" "}
+                            {/* Says the next step for this reader: sign in first, or pick the stock if signed in. */}
+                            {data.gate.plan === "anon"
+                              ? `Sign in free to see the prices where we'd buy more ${stock.ticker} or sell some. A free account gets the full report on five stocks you pick.`
+                              : `Pick ${stock.ticker} as one of your five free full reports to see the prices where we'd buy more or sell some.`}{" "}
                             <a href="#call" className="font-medium text-oa-primary hover:underline">
-                              How covering works
+                              How that works
                             </a>
                           </span>
                         </p>
@@ -595,7 +602,7 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
                 <div className="px-3.5 py-4 sm:px-4">
                   {ready.changed ? (
                     <p className="mb-2 flex flex-wrap items-center gap-2">
-                      <Tag tone="primary">Call changed</Tag>
+                      <Tag tone="primary" className="!font-sans !text-[12.5px] !normal-case !tracking-normal">We changed our call</Tag>
                     </p>
                   ) : null}
                   {ready.headline ? (

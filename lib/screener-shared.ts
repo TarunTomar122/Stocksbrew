@@ -186,7 +186,7 @@ export const NUMERIC_FIELDS: NumericField[] = [
   { id: "ret_3y", short: "3Y", label: "Return over 3 years", group: "Price and returns", unit: "signed_pct", better: "high" },
   { id: "ret_5y", short: "5Y", label: "Return over 5 years", group: "Price and returns", unit: "signed_pct", better: "high" },
 
-  { id: "market_cap", short: "Value", label: "Market value", group: "Size", unit: "money" },
+  { id: "market_cap", short: "Company value", label: "Company value (market value)", group: "Size", unit: "money" },
 
   { id: "pe", short: "P/E", label: "Price to earnings, last 12 months", group: "Valuation", unit: "multiple", digits: 1, better: "low" },
   { id: "fwd_pe", short: "Fwd P/E", label: "Price to next year's expected earnings", group: "Valuation", unit: "multiple", digits: 1, better: "low" },
@@ -257,7 +257,7 @@ export const TEXT_COLUMNS = [
   { id: "spark", short: "3M", label: "Price over the last 3 months", group: "Price and returns" as FieldGroup },
   { id: "earnings_date", short: "Earnings", label: "Next earnings date", group: "Earnings" as FieldGroup },
   { id: "analyst_label", short: "Consensus", label: "Analyst consensus", group: "Analysts" as FieldGroup },
-  { id: "call", short: "Our call", label: "Our call: add, hold or trim", group: "Our read" as FieldGroup, call: true },
+  { id: "call", short: "Our call", label: "Our call: buy more, keep or sell some", group: "Our read" as FieldGroup, call: true },
   { id: "zone", short: "Zone", label: "Where the price sits against our zones", group: "Our read" as FieldGroup, call: true },
 ] as const;
 

@@ -88,7 +88,12 @@ export function PhoneSections({ sections, initial, className = "" }: { sections:
   return (
     <div ref={bar} className={`${className} sticky top-[52px] z-30 -mx-2 scroll-mt-[52px] border-b border-oa-border bg-[color-mix(in_srgb,var(--oa-page)_94%,transparent)] backdrop-blur-xl md:hidden`}>
       <style>{css}</style>
-      <div role="tablist" aria-label="Parts of this report" className="oa-scroll-fade flex gap-1 overflow-x-auto px-2 py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div
+        role="tablist"
+        aria-label="Parts of this report"
+        className="grid gap-1 px-2 py-1.5"
+        style={{ gridTemplateColumns: `repeat(${sections.length}, minmax(0, 1fr))` }}
+      >
         {sections.map((section) => {
           const current = section.id === active;
           return (
@@ -98,7 +103,7 @@ export function PhoneSections({ sections, initial, className = "" }: { sections:
               role="tab"
               aria-selected={current}
               onClick={() => choose(section.id)}
-              className={`flex h-9 shrink-0 items-center whitespace-nowrap rounded-full px-3.5 text-[14px] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)] ${
+              className={`flex h-9 min-w-0 items-center justify-center whitespace-nowrap rounded-full px-1 text-[13.5px] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)] ${
                 current ? "bg-oa-fg font-medium text-oa-page" : "text-oa-fg hover:bg-oa-accent"
               }`}
             >

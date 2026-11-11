@@ -341,6 +341,21 @@ async function ReadBlock({ read, tab }: { read: Promise<FollowRead | null>; tab:
   );
 }
 
+const TAB_HEAD: Record<DirectoryTab, { title: string; lede: string }> = {
+  funds: {
+    title: "What big funds bought and sold",
+    lede: "Funds report what they own once a quarter, about six weeks after it ends. Congress and company insiders have their own tabs.",
+  },
+  congress: {
+    title: "What members of Congress bought and sold",
+    lede: "Members of Congress report their trades within about six weeks, as a range of dollar amounts. Funds and company insiders have their own tabs.",
+  },
+  insiders: {
+    title: "What company insiders bought",
+    lede: "Executives and directors report buying their own company's stock within two business days. Funds and Congress have their own tabs.",
+  },
+};
+
 export default function FollowPage({
   searchParams,
 }: {
@@ -371,11 +386,8 @@ export default function FollowPage({
   return (
     <AppPage>
       <MarketingSchema path="/follow" name="13F Fund Holdings, Congress Stock Trades and Insider Buying" description="What well-known funds, members of Congress and company insiders bought and sold, from 13F filings, House trade reports and SEC Form 4." breadcrumbLabel="Follow" />
-      <PageHead
-        title="What funds, Congress and insiders bought and sold"
-        lede="Funds report what they own once a quarter, about six weeks after it ends. Members of Congress and company insiders report their trades within weeks."
-        full
-      />
+      {/* One story per tab: the title says which of the three you are looking at. */}
+      <PageHead title={TAB_HEAD[tab].title} lede={TAB_HEAD[tab].lede} full />
       <Suspense fallback={<div aria-busy="true" className="mb-4"><PanelGhost rows={4} /></div>}>
         <ReadBlock read={read} tab={tab} />
       </Suspense>

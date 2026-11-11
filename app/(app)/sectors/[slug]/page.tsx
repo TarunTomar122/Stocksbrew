@@ -14,6 +14,7 @@ import { canonicalSectorSlug, type ScreenerRow } from "@/lib/screener-shared";
 import { buildSectorRead, medianPe, ranked, weightedChange } from "@/lib/sector-insights";
 import { moveHref, pairHref, sectorHref, sectorIsIndexable, sectorTitle } from "@/lib/seo/families";
 import { getCoverage, getMovesDay, sectorGroups, stockPairs } from "@/lib/seo/family-data";
+import { oneRowPerCompany } from "@/lib/share-class";
 
 /**
  * One page per sector (/sectors/technology): the read, the sector against the
@@ -61,15 +62,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 type Period = "day_pct" | "ret_1m" | "ret_ytd";
 
 function MoverList({ rows, period }: { rows: ScreenerRow[]; period: Period }) {
-  const list = ranked(rows, period);
+  // GOOGL and GOOG move together; one Alphabet row, not two.
+  const list = oneRowPerCompany(ranked(rows, period), (row) => row.symbol).rows;
   if (list.length < 2) return <p className="px-4 py-3 text-[14px] text-oa-muted-fg">Not enough prices for this period.</p>;
   const top = list.slice(0, 3);
   const bottom = list.slice(-3).reverse().filter((row) => !top.includes(row));
   // Bars share one scale per card, so the biggest move in it fills its bar.
   const max = Math.max(...[...top, ...bottom].map((row) => Math.abs(Number(row[period]) || 0)));
   const item = (row: ScreenerRow) => (
-    <li key={row.symbol} className="flex items-center justify-between gap-3 border-b border-oa-border px-4 py-2 last:border-b-0">
-      <Ticker symbol={row.symbol} name={row.name} size={18} wrap className="min-w-0" />
+    <li key={row.symbol} className="relative flex items-center justify-between gap-3 border-b border-oa-border px-4 py-2 transition-colors last:border-b-0 hover:bg-oa-accent">
+      <Ticker symbol={row.symbol} name={row.name} size={18} wrap stretch className="min-w-0" />
       <span className="flex shrink-0 items-center gap-2">
         <MoveBar value={row[period]} max={max} width={40} />
         <Delta value={row[period]} digits={1} className="w-16 text-right text-[13.5px]" />
@@ -130,7 +132,7 @@ export default async function SectorPage({ params }: Props) {
     { id: "pe", label: "P/E", align: "right", hideOnMobile: true },
     { id: "call", label: "Our call", align: "right" },
   ];
-  const tableRows: DataRow[] = group.rows.map((row) => ({
+  const tableRows: DataRow[] = oneRowPerCompany(group.rows, (row) => row.symbol).rows.map((row) => ({
     key: row.symbol,
     href: `/stock/${encodeURIComponent(row.symbol)}`,
     cells: [
@@ -282,6 +284,9 @@ export default async function SectorPage({ params }: Props) {
                 </li>
               ))}
           </ul>
+          <a href="/best" className="oa-card-foot mt-auto block border-t border-oa-border px-4 py-2.5 text-[14px] text-oa-primary outline-none hover:bg-oa-accent hover:underline focus-visible:bg-oa-accent">
+            Best stock lists: dividends, value, growth →
+          </a>
         </Panel>
       </CardGrid>
     </AppPage>

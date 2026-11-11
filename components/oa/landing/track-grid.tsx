@@ -1,4 +1,5 @@
 import { anomalyHeadline, hasResearchBackedNarrative } from "@/components/daily-anomalies-shared";
+import { companyFirstMove, plainFinance } from "@/lib/plain-copy";
 import { sharedCache } from "@/lib/shared-cache";
 import { SquircleCard } from "@/components/oa/squircle";
 import { Reveal } from "@/components/reveal";
@@ -28,10 +29,16 @@ import {
   toneClass,
 } from "./shared";
 
-// Each feed scrolls inside its card; the fade at the bottom says there is more instead of cutting a row in half.
-const INSET =
-  "h-[17rem] overflow-y-auto pb-6 [mask-image:linear-gradient(to_bottom,#000_calc(100%-32px),transparent)] sm:h-[21.5rem]";
+// Each feed shows a whole number of rows and stops; "See all" in the card head goes to the rest. No faded half-row.
+const INSET = "pb-1";
 const NEWS_MAX_AGE_DAYS = 7;
+
+/** A move's reason in plain words, company first when the feed wrote the cause first ("Zeta rose after strong earnings"). */
+function moveLine(item: { ticker: string; name: string; day_change_pct: number } & Parameters<typeof anomalyHeadline>[0]): string {
+  const said = plainFinance(anomalyHeadline(item));
+  const turned = companyFirstMove(said.replace(/\.$/, ""), item.day_change_pct, { company: { name: item.name, ticker: item.ticker } });
+  return turned ? `${turned}.` : said;
+}
 const CARD_COUNT = 6;
 
 function Ticker({ symbol, logo = true }: { symbol: string; logo?: boolean }) {
@@ -164,7 +171,7 @@ export async function TrackGrid({ only, rows = 8 }: { only?: string[]; rows?: nu
                 label={
                   <>
                     <Ticker symbol={item.ticker} />
-                    <Detail>{anomalyHeadline(item)}</Detail>
+                    <Detail>{moveLine(item)}</Detail>
                   </>
                 }
                 value={

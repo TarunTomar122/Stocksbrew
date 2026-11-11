@@ -202,11 +202,14 @@ export function rsiWord(rsi: number | null | undefined): ToneWord | null {
   return { tone: "flat", word: "Normal" };
 }
 
-/** Bullish or bearish chatter, from a sentiment label. */
+/**
+ * Bullish or bearish chatter, from a sentiment label, said in plain words:
+ * "Hopeful" (expects a rise) or "Worried" (expects a fall).
+ */
 export function moodWord(raw: string | null | undefined): ToneWord | null {
   const text = String(raw ?? "").trim().toLowerCase();
-  if (/bull|positive|optimis/.test(text)) return { tone: "up", word: "Bullish" };
-  if (/bear|negative|pessimis/.test(text)) return { tone: "down", word: "Bearish" };
+  if (/bull|positive|optimis/.test(text)) return { tone: "up", word: "Hopeful" };
+  if (/bear|negative|pessimis/.test(text)) return { tone: "down", word: "Worried" };
   if (/neutral|mixed/.test(text)) return { tone: "flat", word: "Mixed" };
   return null;
 }
@@ -263,7 +266,7 @@ export function netSide(bought: number | null | undefined, sold: number | null |
   const total = b + s;
   if (total === 0) return null;
   if (Math.abs(b - s) <= total * 0.1) return { tone: "flat", word: "Mixed" };
-  return b > s ? { tone: "up", word: "Net buyer" } : { tone: "down", word: "Net seller" };
+  return b > s ? { tone: "up", word: "Bought more than sold" } : { tone: "down", word: "Sold more than bought" };
 }
 
 /**

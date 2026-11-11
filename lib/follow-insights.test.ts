@@ -163,6 +163,23 @@ describe("one fund, one member", () => {
     covered_weight_avg: 1,
   };
 
+  it("puts a tiny new stake after the moves that changed the fund", () => {
+    const profile = {
+      fund: "Berkshire Hathaway",
+      latest: { quarter: "Q2 2026", filed_at: "2026-08-14", period: "2026-06-30", stock_positions: 40 },
+      portfolio: [{ ticker: "AAPL", weight: 0.22 }],
+      changes: {
+        counts: { new: 1, added: 1, reduced: 0, sold: 0, held: 0 },
+        new: [{ ticker: "DHI", name: "D.R. Horton, Inc.", weight: 0.0004 }],
+        added: [{ ticker: "GOOGL", name: "Alphabet Inc.", weight: 0.09, prev_weight: 0.02 }],
+        reduced: [],
+        sold: [],
+      },
+      performance: perf,
+    } as unknown as FundProfile;
+    expect(buildFundRead(profile).headline).toBe("Berkshire Hathaway added to Alphabet in Q2 2026, and opened a small new stake in D.R. Horton.");
+  });
+
   it("reads a fund's concentration, moves and record", () => {
     const profile = {
       fund: "Pershing Square",
@@ -182,7 +199,7 @@ describe("one fund, one member", () => {
       performance: perf,
     } as unknown as FundProfile;
     const read = buildFundRead(profile);
-    expect(read.headline).toBe("Pershing Square bought V and UBER and cut AMZN and GOOG in Q2 2026.");
+    expect(read.headline).toBe("Pershing Square bought V, added to UBER, cut AMZN and sold all of GOOG in Q2 2026.");
     expect(read.insights[0].text).toBe("Pershing Square is 62% in three stocks: UBER 30%, BN 20% and MSFT 12%.");
     expect(read.insights[1].text).toBe("In Q2 2026 it opened V (5.8%), added to UBER (now 30%), cut AMZN to 10.4% and sold out of GOOG.");
     expect(read.insights[2].text).toBe(

@@ -220,8 +220,8 @@ export function PreEarningsRead({
       <Panel label={label}>
         {/* The pre-earnings read comes with covering a stock. The text is not sent to this viewer. */}
         <p className="text-[14.5px] leading-6 text-oa-fg">
-          A read is on file for the {fmtDay(forDate, true)} report: what we expect for EPS, how the stock may react and what to watch. It
-          comes with covering the stock: a free account tracks as many stocks as you like and covers five in full, Pro covers everything.{" "}
+          We have a note ready for the {fmtDay(forDate, true)} report: what we expect it to earn per share, how the stock may react and what to
+          watch. It is part of the full report, which a free account gets on five stocks you pick and Pro gets on every stock.{" "}
           <a href="/pricing" className="font-medium text-oa-primary hover:underline">
             See both plans
           </a>

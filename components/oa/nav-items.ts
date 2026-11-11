@@ -97,6 +97,7 @@ export const PLACES: NavPlace[] = [
     blurb: "Find a stock and read everything about it",
     sections: [
       section("Find stocks", "/screener", "screener"),
+      section("Best stock lists", "/best", "screener"),
       section("Sectors", "/sectors", "markets"),
       section("Compare", "/compare", "compare"),
       section("Markets", "/markets", "markets"),

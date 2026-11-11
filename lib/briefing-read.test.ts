@@ -55,7 +55,7 @@ describe("briefingRead", () => {
       "CBRS is up 7.9%: Cerebras signed a cloud deal.",
     ]);
     expect(read?.insights[1].soWhat).toBe("No confirmed reason yet.");
-    expect(read?.insights[2].action).toEqual({ label: "CBRS report", href: "/stock/CBRS" });
+    expect(read?.insights[2].action).toEqual({ label: "Our view on CBRS", href: "/stock/CBRS" });
   });
 
   it("names the decisions when there is no holdings figure", () => {
@@ -84,9 +84,27 @@ describe("briefingRead", () => {
   it("reads the market view from its explained moves", () => {
     const lead = { ...cbrs, relation: "market" as const, needs_you: true };
     const read = briefingRead({ ...base, mode: "market" }, groupBriefingSections({ ...sections([]), needs_you: [lead] }, "market"));
-    expect(read?.headline).toBe("The S&P 500 is up 2.33%. CBRS made the biggest move with a known reason.");
+    expect(read?.headline).toBe("CBRS rose 7.9%, the biggest move we can explain today. The S&P 500 is up 2.33%.");
     expect(read?.insights).toHaveLength(1);
   });
+  it("says a cause-first reason company first, with the name in place of the ticker", () => {
+    const hims = item({
+      id: "h",
+      kind: "price_move",
+      ticker: "HIMS",
+      name: "Hims & Hers Health, Inc.",
+      relation: "market",
+      needs_you: true,
+      reason_status: "confirmed",
+      why: "Earnings miss and guidance cut trigger Hims & Hers selloff.",
+      day_change_pct: -16.5,
+    });
+    const read = briefingRead({ ...base, mode: "market" }, groupBriefingSections({ ...sections([]), needs_you: [hims] }, "market"));
+    expect(read?.headline).toBe("Hims & Hers Health fell 16.5%, the biggest move we can explain today. The S&P 500 is up 2.33%.");
+    expect(read?.insights[0].text).toBe("HIMS fell 16.5% after earnings that missed expectations and a lower forecast.");
+    expect(read?.insights[0].leadName).toBe("Hims & Hers Health");
+  });
+
   it("folds stocks you watch sitting in their add zone into one line read against the index", () => {
     const zone = (ticker: string, pct: number) =>
       item({ id: `z-${ticker}`, kind: "zone_entered", ticker, relation: "watching", headline: `${ticker} is in its add zone: $10.00, below $10.50`, day_change_pct: pct });
@@ -106,7 +124,7 @@ describe("briefingRead", () => {
       { ...base, mode: "market", date: "2026-11-10" },
       groupBriefingSections({ ...sections([]), needs_you: [lead] }, "market"),
     );
-    expect(read?.headline).toBe("The S&P 500 is up 2.33%. CBRS made the biggest move with a known reason on Monday.");
+    expect(read?.headline).toBe("CBRS rose 7.9% on Monday, the biggest move we can explain. The S&P 500 is up 2.33%.");
     expect(read?.insights[0].text).toBe("CBRS rose 7.9% on Monday: Cerebras signed a cloud deal.");
   });
 });

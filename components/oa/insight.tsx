@@ -98,7 +98,7 @@ export function InsightRow({ insight }: { insight: Insight }) {
               className="mr-1.5 inline-flex items-center gap-1.5 rounded align-[-4px] font-medium text-oa-fg hover:underline"
             >
               <StockLogo ticker={lead} size={18} />
-              <span className="tabular-nums">{lead}</span>
+              {insight.leadName ? <span title={lead}>{insight.leadName}</span> : <span className="tabular-nums">{lead}</span>}
             </Link>
           ) : null}
           {text}

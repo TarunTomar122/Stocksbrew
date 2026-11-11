@@ -212,7 +212,7 @@ export function OverlayChart({
                   strokeWidth={tick === 0 ? 1.2 : 1}
                   strokeDasharray={tick === 0 ? undefined : "2 4"}
                 />
-                <text x={pad.left - 7} y={y(tick) + 3.5} textAnchor="end" fontSize="10.5" fill="var(--oa-muted-fg)" style={{ fontFamily: "var(--font-geist-mono), ui-monospace, monospace" }}>
+                <text x={pad.left - 7} y={y(tick) + 3.5} textAnchor="end" fontSize="12" fill="var(--oa-muted-fg)" style={{ fontFamily: "var(--font-geist-mono), ui-monospace, monospace" }}>
                   {tick === 0 ? "0%" : signed(tick, Math.abs(step) < 1 ? 1 : 0)}
                 </text>
               </g>
@@ -223,7 +223,7 @@ export function OverlayChart({
                 x={x(index)}
                 y={H - 7}
                 textAnchor={i === 0 ? "start" : i === xLabels.length - 1 ? "end" : "middle"}
-                fontSize="10.5"
+                fontSize="12"
                 fill="var(--oa-muted-fg)"
                 style={{ fontFamily: "var(--font-geist-mono), ui-monospace, monospace" }}
               >

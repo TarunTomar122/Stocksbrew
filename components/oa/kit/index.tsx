@@ -458,11 +458,13 @@ export function Delta({
   if (value == null || !Number.isFinite(value)) {
     return <span className={`${NUM} text-oa-muted-fg ${className}`}>n/a</span>;
   }
-  const sign = value > 0 ? "+" : value < 0 ? "−" : "";
+  // A move that rounds to zero is flat: "0.0%", never "−0.0%" in red.
+  const shown = Number(value.toFixed(digits));
+  const sign = shown > 0 ? "+" : shown < 0 ? "−" : "";
   return (
-    <span className={`${NUM} ${toneText(toneOf(value))} ${className}`}>
+    <span className={`${NUM} ${toneText(toneOf(shown))} ${className}`}>
       {sign}
-      {Math.abs(value).toFixed(digits)}
+      {Math.abs(shown).toFixed(digits)}
       {suffix}
     </span>
   );
@@ -483,10 +485,21 @@ const TAG_TONES: Record<TagTone, string> = {
 };
 
 /** Small uppercase mono tag: form types, calls, statuses. */
-export function Tag({ children, tone = "neutral", className = "" }: { children: React.ReactNode; tone?: TagTone; className?: string }) {
+export function Tag({
+  children,
+  tone = "neutral",
+  caps = true,
+  className = "",
+}: {
+  children: React.ReactNode;
+  tone?: TagTone;
+  /** Small capitals for codes and states; `false` for words a person reads ("Buy more", "We changed our call"). */
+  caps?: boolean;
+  className?: string;
+}) {
   return (
     <span
-      className={`oa-mono inline-flex h-[22px] shrink-0 items-center rounded border px-2 text-[12.5px] font-medium uppercase tracking-[0.04em] ${TAG_TONES[tone]} ${className}`}
+      className={`inline-flex h-[22px] shrink-0 items-center whitespace-nowrap rounded border px-2 font-medium ${caps ? "oa-mono text-[12.5px] uppercase tracking-[0.04em]" : "text-[13px]"} ${TAG_TONES[tone]} ${className}`}
     >
       {children}
     </span>
@@ -500,10 +513,17 @@ export function Ticker({
   href,
   size = 20,
   wrap = false,
+  stretch = false,
   className = "",
 }: {
   symbol: string;
   name?: string | null;
+  /**
+   * Make the whole row clickable: the link's hit area stretches over the
+   * nearest `relative` ancestor (the row). Other links in that row need
+   * `relative z-[1]` to stay on top.
+   */
+  stretch?: boolean;
   /** Let a long name wrap to a second line instead of clipping it (lists with room to grow). */
   wrap?: boolean;
   /** Defaults to the stock page; pass `null` for no link. */
@@ -521,7 +541,11 @@ export function Ticker({
   const cls = `inline-flex min-w-0 items-center gap-2 ${className}`;
   if (href === null) return <span className={cls}>{body}</span>;
   return (
-    <Link href={href ?? `/stock/${encodeURIComponent(symbol)}`} prefetch={false} className={`${cls} rounded hover:underline ${FOCUS}`}>
+    <Link
+      href={href ?? `/stock/${encodeURIComponent(symbol)}`}
+      prefetch={false}
+      className={`${cls} rounded hover:underline ${FOCUS} ${stretch ? "after:absolute after:inset-0 after:content-['']" : ""}`}
+    >
       {body}
     </Link>
   );

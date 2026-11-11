@@ -21,7 +21,6 @@ import {
   type Stance,
   type TodayPick,
 } from "@/lib/signals-shared";
-import { buildRedditRead, policyTakeaway } from "@/lib/signals-insights";
 import { moodWord } from "@/lib/tone";
 import { plainFinance, sentenceCase } from "@/lib/plain-copy";
 
@@ -286,8 +285,8 @@ function VelocityBars({ velocity }: { velocity: MentionVelocity }) {
 
 /** Only a name running hot is tagged. For the rest the numbers beside it say enough. */
 function Pace({ velocity }: { velocity: MentionVelocity }) {
-  if (velocity.state === "rising" && velocity.ratio !== null) return <Tag tone="primary">{velocity.ratio.toFixed(1)}x usual</Tag>;
-  if (velocity.state === "new") return <Tag tone="primary">New today</Tag>;
+  if (velocity.state === "rising" && velocity.ratio !== null) return <Tag tone="primary" caps={false}>{velocity.ratio.toFixed(1)}× the usual talk</Tag>;
+  if (velocity.state === "new") return <Tag tone="primary" caps={false}>New today</Tag>;
   return null;
 }
 
@@ -596,12 +595,6 @@ export function PolicyTab({
 
 /* ── Today ─────────────────────────────────────────────────────────────── */
 
-/** A panel's first row: what the rows under it add up to, in one sentence. */
-function Takeaway({ text }: { text: string | null }) {
-  if (!text) return null;
-  return <p className="border-b border-oa-border px-4 py-2.5 text-pretty text-[14px] font-medium leading-5 text-oa-fg">{text}</p>;
-}
-
 function SeeAll({ href, children }: { href: string; children: React.ReactNode }) {
   return (
     <a href={href} className={LINK}>
@@ -662,12 +655,37 @@ export function TodayTab({
 }) {
   const counts = moverCounts(movers.movers);
   const newestPost = policy.posts[0];
-  const redditTakeaway = buildRedditRead(reddit.names)?.headline ?? null;
-  const policyLine = policyTakeaway(policy.posts, now);
   const moversHref = signalsHref(filters, { tab: "movers" });
   return (
     <>
-      {/* The lead: what moved and why. The day's counts ride in its header and footer instead of a strip of tiles. */}
+      <div className="mb-5 grid items-stretch gap-5 lg:grid-cols-2">
+        <Panel
+          fill
+          label="What Reddit is talking about"
+          right={
+            <>
+              <SeeAll href={signalsHref(filters, { tab: "reddit" })}>All {reddit.names.length} names</SeeAll>
+            </>
+          }
+          flush
+        >
+          {pick.reddit.length ? <RedditList names={pick.reddit} compact /> : <Empty className="!py-6">Nothing yet.</Empty>}
+        </Panel>
+        <Panel
+          fill
+          label="What the President posted"
+          right={
+            <>
+              {newestPost ? <span className="hidden sm:inline">latest {fmtAgo(newestPost.publishedAt, now)} ago</span> : null}
+              <SeeAll href={signalsHref(filters, { tab: "policy" })}>All {policy.posts.length} posts</SeeAll>
+            </>
+          }
+          flush
+        >
+          {pick.policy.length ? <PolicyList posts={pick.policy} compact /> : <Empty className="!py-6">No market posts yet.</Empty>}
+        </Panel>
+      </div>
+      {/* What moved comes after what people said: the moves have their own page (Why stocks moved). */}
       <Panel
         label={
           <>
@@ -676,7 +694,6 @@ export function TodayTab({
         }
         right={<SeeAll href={moversHref}>All {counts.all} moves</SeeAll>}
         flush
-        className="mb-5"
       >
         {pick.movers.length ? (
           <TodayMovers movers={pick.movers} />
@@ -708,35 +725,6 @@ export function TodayTab({
         </div>
       </Panel>
 
-      <div className="grid items-stretch gap-5 lg:grid-cols-2">
-        <Panel
-          fill
-          label="What Reddit is loudest about"
-          right={
-            <>
-              <SeeAll href={signalsHref(filters, { tab: "reddit" })}>All {reddit.names.length} names</SeeAll>
-            </>
-          }
-          flush
-        >
-          <Takeaway text={redditTakeaway} />
-          {pick.reddit.length ? <RedditList names={pick.reddit} compact /> : <Empty className="!py-6">Nothing yet.</Empty>}
-        </Panel>
-        <Panel
-          fill
-          label="What the President posted"
-          right={
-            <>
-              {newestPost ? <span className="hidden sm:inline">latest {fmtAgo(newestPost.publishedAt, now)} ago</span> : null}
-              <SeeAll href={signalsHref(filters, { tab: "policy" })}>All {policy.posts.length} posts</SeeAll>
-            </>
-          }
-          flush
-        >
-          <Takeaway text={policyLine} />
-          {pick.policy.length ? <PolicyList posts={pick.policy} compact /> : <Empty className="!py-6">No market posts yet.</Empty>}
-        </Panel>
-      </div>
     </>
   );
 }

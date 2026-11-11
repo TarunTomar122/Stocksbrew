@@ -6,6 +6,7 @@ import * as React from "react";
 import { LockCard, ProMark } from "@/components/oa/gate";
 import { Menu, MenuCheck, MenuLabel } from "@/components/screener/menu";
 import { CONTROL } from "@/components/screener/controls";
+import { CALL_PLAIN } from "@/lib/plain-copy";
 import type { Plan } from "@/lib/entitlements";
 import { trackScreenerFilterApplied } from "@/lib/product-analytics";
 import {
@@ -347,7 +348,7 @@ export function FilterBar({ view, sectors, availableFields, capCounts, plan, can
               <MenuLabel>Call</MenuLabel>
               {CALL_WORDS.map((word: CallWord) => (
                 <MenuCheck key={word} checked={filters.calls.includes(word)} onChange={() => setFilters({ calls: toggle(filters.calls, word) })}>
-                  {word}
+                  {CALL_PLAIN[word]}
                 </MenuCheck>
               ))}
               <MenuLabel>Price against our zones</MenuLabel>

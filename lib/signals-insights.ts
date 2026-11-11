@@ -433,14 +433,20 @@ export function policyTakeaway(posts: PolicyPost[], now: number): string | null 
 /* ── the Today tab: one line from each stream ───────────────────────────── */
 
 export function buildSignalsTodayRead(movers: MoverForRead[], names: RedditName[], posts: PolicyPost[], now: number, asOf: string | null): TheRead | null {
+  // Signals is about what people are saying; the day's moves have their own page (Why stocks moved).
+  // So the crowd leads, the President's posts follow, and the moves come last.
   const moverRead = buildMoversRead(movers);
   const redditRead = buildRedditRead(names);
   const policyLine = praisedInsight(posts, now) ?? latestNamedInsight(posts, now) ?? recentInsight(posts, now);
-  const headline = moverRead?.headline ?? redditRead?.headline ?? policyLine?.text;
+  const headline = redditRead?.headline ?? policyLine?.text ?? moverRead?.headline;
   if (!headline) return null;
   return {
     headline,
-    insights: pickInsights([moverRead?.insights[0], redditRead?.insights[0], policyLine && policyLine.text !== headline ? policyLine : null]),
+    insights: pickInsights([
+      redditRead?.insights[0],
+      policyLine && policyLine.text !== headline ? policyLine : null,
+      moverRead && moverRead.headline !== headline ? { id: "movers-line", tone: "flat" as const, text: moverRead.headline, action: { label: "Why stocks moved", href: "/movers" } } : null,
+    ]),
     asOf,
   };
 }

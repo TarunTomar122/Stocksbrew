@@ -277,7 +277,8 @@ export function describeDifferences(input: ReadonlyArray<ScreenerRow | null>): D
   if (year && year.top.value - year.bottom.value >= 5) {
     const bottom = year.bottom.value < 0 ? `is down ${fmt("ret_1y", Math.abs(year.bottom.value)).replace("+", "")}` : `is up ${fmt("ret_1y", year.bottom.value).replace("+", "")}`;
     const top = year.top.value < 0 ? `is down ${fmt("ret_1y", Math.abs(year.top.value)).replace("+", "")}` : `is up ${fmt("ret_1y", year.top.value).replace("+", "")}`;
-    out.push({ topic: "The last year", text: `${year.top.symbol} ${top} over the last year; ${year.bottom.symbol} ${bottom}.` });
+    // The chart runs to the latest price; this line is from the last full day's close, so it says so.
+    out.push({ topic: "The last year", text: `In the year to the last close, ${year.top.symbol} ${top} and ${year.bottom.symbol} ${bottom}. The chart runs to the latest price.` });
   }
 
   const swing = extremes(known(rows, "vol_90d"));

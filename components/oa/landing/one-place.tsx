@@ -31,7 +31,7 @@ const RING = [
 
 const STANCE: Record<string, { label: string; className: string }> = {
   accumulate: { label: "Buy more", className: "bg-emerald-600/10 text-emerald-800 dark:text-emerald-300" },
-  hold: { label: "Hold", className: "bg-oa-accent text-oa-fg" },
+  hold: { label: "Keep", className: "bg-oa-accent text-oa-fg" },
   watch: { label: "Watch", className: "bg-oa-accent text-oa-fg" },
   trim: { label: "Sell some", className: "bg-amber-500/15 text-amber-900 dark:text-amber-300" },
   avoid: { label: "Avoid", className: "bg-red-600/10 text-red-800 dark:text-red-300" },

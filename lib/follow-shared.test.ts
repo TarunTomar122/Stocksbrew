@@ -154,7 +154,7 @@ describe("formatting", () => {
         name: null,
         shares_delta_pct: 45.24,
       }),
-    ).toBe("+45.2% shares");
+    ).toBe("45.2% more shares");
     expect(
       activitySize({
         action: "reduced",
@@ -162,7 +162,7 @@ describe("formatting", () => {
         name: null,
         shares_delta_pct: -5.89,
       }),
-    ).toBe("−5.9% shares");
+    ).toBe("5.9% fewer shares");
     expect(
       activitySize({
         action: "buy",

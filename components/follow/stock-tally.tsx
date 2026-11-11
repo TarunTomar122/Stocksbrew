@@ -2,6 +2,7 @@ import * as React from "react";
 
 import { NUM, Panel, Ticker } from "@/components/oa/kit";
 import type { StockTally } from "@/lib/follow-insights";
+import { alsoClassesLabel, oneRowPerCompany } from "@/lib/share-class";
 
 /**
  * "Most bought by funds" style list: one row per stock, how many of them were
@@ -25,6 +26,8 @@ export function StockTallyPanel({
   empty: string;
   right?: React.ReactNode;
 }) {
+  // One row per company (Alphabet once, not GOOGL and GOOG); the other class is named on the row.
+  const { rows: shown, also } = oneRowPerCompany(rows, (row) => row.ticker);
   return (
     <Panel flush fill label={label} right={right}>
       {takeaway ? <p className="border-b border-oa-border px-4 py-2.5 text-pretty text-[14px] leading-5 text-oa-fg">{takeaway}</p> : null}
@@ -32,18 +35,19 @@ export function StockTallyPanel({
         <p className="px-4 py-4 text-[14px] leading-5 text-oa-muted-fg">{empty}</p>
       ) : (
         <ol className="divide-y divide-oa-border">
-          {rows.map((row) => {
+          {shown.map((row) => {
             const who = side === "buy" ? row.buyers : row.sellers;
             const other = side === "buy" ? row.sellers.length : row.buyers.length;
             const names = who.slice(0, 2).map((entry) => entry.name);
             const more = who.length - names.length;
             return (
-              <li key={row.ticker} className="grid min-h-11 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 px-4 py-1.5">
+              <li key={row.ticker} className="relative grid min-h-11 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 px-4 py-1.5 transition-colors hover:bg-oa-accent">
                 <div className="min-w-0">
-                  <Ticker symbol={row.ticker} name={row.name} size={18} wrap className="max-w-full" />
+                  <Ticker symbol={row.ticker} name={row.name} size={18} wrap stretch className="max-w-full" />
                   <p className="mt-0.5 text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg">
                     {names.join(", ")}
-                    {more > 0 ? ` +${more}` : ""}
+                    {more > 0 ? ` and ${more} more` : ""}
+                    {alsoClassesLabel(also, row.ticker) ? <span className={NUM}> · {alsoClassesLabel(also, row.ticker)}</span> : null}
                   </p>
                 </div>
                 <div className="text-right">

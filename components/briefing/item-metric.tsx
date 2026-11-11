@@ -34,8 +34,10 @@ export function verdictFor(item: BriefingItem): ToneWord | null {
       // One trade: the metric is the verb. Several: the tone is only the newest, so no verdict.
       return item.metric === "Bought" || item.metric === "Sold" ? { tone, word: item.metric } : null;
     case "discussion_spike":
-    case "technical":
       return moodWord(tone === "up" ? "bullish" : "bearish");
+    case "technical":
+      // A chart event is a sign about the price, not a mood.
+      return { tone, word: tone === "up" ? "Good sign" : "Warning sign" };
     case "filing":
       return { tone, word: tone === "up" ? "Positive" : "Negative" };
     case "call_changed":

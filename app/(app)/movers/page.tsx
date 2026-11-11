@@ -5,7 +5,7 @@ import { TheRead } from "@/components/oa/insight";
 import { AppPage, CardGrid, Delta, MoveBar, NUM, PageHead, Panel, ShowMore, Ticker, fmtDay } from "@/components/oa/kit";
 import { pickInsights, type TheRead as TheReadData } from "@/lib/insights";
 import { ogImage } from "@/lib/og/url";
-import { firstFullSentence, plainFinance, sentenceCase } from "@/lib/plain-copy";
+import { companyFirstMove, firstFullSentence, plainFinance, sentenceCase, shortCompanyName } from "@/lib/plain-copy";
 import { longDay, moveHref, moversDayHref } from "@/lib/seo/families";
 import { getRecentMoves, type MoveRef } from "@/lib/seo/family-data";
 
@@ -40,9 +40,7 @@ function hubRead(moves: readonly MoveRef[], latest: string | null): TheReadData 
   // The story first (the day's biggest move, in a sentence), then the count.
   const count = `${today.length} ${today.length === 1 ? "stock" : "stocks"} made a big move with a confirmed reason on ${longDay(latest)}: ${up} rose and ${today.length - up} fell.`;
   return {
-    headline: biggest
-      ? `The biggest move on ${fmtDay(latest)}: ${firstSentence(biggest.headline)} (${biggest.ticker} ${biggest.pct >= 0 ? "+" : "−"}${Math.abs(biggest.pct).toFixed(1)}%).`
-      : count,
+    headline: biggest ? biggestLine(biggest, latest) : count,
     insights: pickInsights([
       biggest
         ? {
@@ -92,8 +90,23 @@ function firstSentence(text: string | null | undefined): string {
 const PHONE_ROWS = 3;
 
 /** One move: the stock, a bar for its size, the number, and the reason in a sentence. */
-function MoveRow({ move, max, headerTime }: { move: MoveRef; max: number; headerTime: string | null }) {
+/**
+ * The day's biggest move as one sentence, company first: "Hims & Hers fell
+ * 16.5% after earnings that missed expectations, the biggest move on Nov 10."
+ * A reason in another shape keeps the old form with the move in brackets.
+ */
+function biggestLine(move: MoveRef, latest: string): string {
   const reason = firstSentence(move.headline);
+  const turned = companyFirstMove(reason, move.pct, { withPct: true, company: { name: move.name, ticker: move.ticker } });
+  if (turned) return `${turned}, the biggest move on ${fmtDay(latest)}.`;
+  const name = (move.name ? shortCompanyName(move.name) : "") || move.ticker;
+  return `The biggest move on ${fmtDay(latest)}: ${name} ${move.pct >= 0 ? "rose" : "fell"} ${Math.abs(move.pct).toFixed(1)}%. ${reason}.`;
+}
+
+function MoveRow({ move, max, headerTime }: { move: MoveRef; max: number; headerTime: string | null }) {
+  // Company first where the feed wrote the cause first; the number is already on the row.
+  const raw = firstSentence(move.headline);
+  const reason = companyFirstMove(raw, move.pct, { company: { name: move.name, ticker: move.ticker } }) ?? raw;
   const own = measuredAt(move);
   const at = own && own !== headerTime ? own : null;
   return (
@@ -112,7 +125,7 @@ function MoveRow({ move, max, headerTime }: { move: MoveRef; max: number; header
           href={moveHref(move.ticker, move.day)}
           className="group mt-0.5 block max-w-[68ch] text-pretty rounded pl-7 text-[14px] leading-5 text-oa-muted-fg outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
         >
-          {reason}. <span className="whitespace-nowrap font-medium text-oa-primary group-hover:underline">Why it moved →</span>
+          {reason}. <span className="whitespace-nowrap font-medium text-oa-fg group-hover:text-oa-primary group-hover:underline">Why it moved →</span>
         </a>
       ) : null}
     </li>
@@ -143,7 +156,7 @@ export default async function MoversPage() {
     <AppPage>
       <JsonLd data={breadcrumbLd([{ name: "Movers", path: "/movers" }])} />
       <PageHead crumb={<a href="/signals?tab=movers">Signals</a>} title="Why stocks moved" note={false} />
-      <TheRead read={hubRead(moves, latest?.[0] ?? null)} label="The latest day, in short" className="mb-4" />
+      <TheRead read={hubRead(moves, latest?.[0] ?? null)} label={latest ? `${fmtDay(latest[0])}, in short` : "In short"} className="mb-4" />
       {latest ? (
         <CardGrid cols={2} className="mb-5">
           {[
@@ -181,6 +194,7 @@ export default async function MoversPage() {
           ))}
         </CardGrid>
       ) : null}
+      {earlier.length || !days.length ? (
       <Panel flush label="Earlier days">
         {earlier.length ? (
           <ul>
@@ -208,9 +222,10 @@ export default async function MoversPage() {
             })}
           </ul>
         ) : (
-          <p className="px-4 py-6 text-center text-[14px] text-oa-muted-fg">{days.length ? "No earlier days on file yet." : "No explained moves on file yet."}</p>
+          <p className="px-4 py-6 text-center text-[14px] text-oa-muted-fg">No explained moves on file yet.</p>
         )}
       </Panel>
+      ) : null}
     </AppPage>
   );
 }

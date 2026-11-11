@@ -200,7 +200,7 @@ export function InsiderRow({ trade }: { trade: InsiderTrade }) {
         {trade.value != null ? (
           fmtUsd(trade.value)
         ) : (
-          <span className="text-oa-muted-fg">{fmtShares(trade.shares)} sh</span>
+          <span className="text-oa-muted-fg">{fmtShares(trade.shares)} shares</span>
         )}
       </span>
       <span className="oa-mono hidden text-right text-[12.5px] text-oa-fg md:block">

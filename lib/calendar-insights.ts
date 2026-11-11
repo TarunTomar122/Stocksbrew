@@ -210,7 +210,7 @@ function economicInsight(input: CalendarReadInput): Insight | null {
     id: "economic",
     tone: "flat",
     text: `${big.length === 1 ? "One big data release" : `${countWord(big.length)} big data releases`} ${input.period}: ${listNames(list)}.`,
-    soWhat: big.some((item) => /cpi|ppi|pce|inflation/i.test(item.title)) ? "Inflation numbers change what people expect from interest rates, and that tends to move growth stocks most." : undefined,
+    soWhat: big.some((item) => /cpi|ppi|pce|inflation/i.test(item.title)) ? "Inflation numbers often move the whole market on the day they come out." : undefined,
     action: { label: "Economic calendar", href: "/calendar?type=economic" },
   };
 }
@@ -246,7 +246,7 @@ export function buildCalendarRead(input: CalendarReadInput): TheRead | null {
   if (upcoming.length === 0 && reported.length === 0 && !econToday) return null;
 
   const parts: string[] = [];
-  if (econToday) parts.push(`${econToday.title.trim()} numbers come out today${econToday.timeEt ? ` at ${fmtClock(econToday.timeEt)}` : ""}`);
+  if (econToday) parts.push(`${econToday.title.trim()} numbers come out today${econToday.timeEt ? ` at ${fmtClock(econToday.timeEt)} ET` : ""}`);
   if (upcoming.length) {
     const leaders = upcoming.slice(0, 2);
     const sameDay = leaders.length === 2 && leaders[0]!.date === leaders[1]!.date;
@@ -255,7 +255,7 @@ export function buildCalendarRead(input: CalendarReadInput): TheRead | null {
       : listNames(leaders.map((item) => `${displayName(item)} ${whenWord(item.date, input.today)}`));
     const still = reported.length > 0 ? " still" : "";
     parts.push(
-      `${upcoming.length} ${upcoming.length === 1 ? `company${still} reports` : `companies${still} report`} ${input.period}. The biggest ${leaders.length === 1 ? "is" : "are"} ${leadText}`,
+      `${upcoming.length} ${upcoming.length === 1 ? `company${still} reports earnings` : `companies${still} report earnings`} ${input.period}. The biggest ${leaders.length === 1 ? "is" : "are"} ${leadText}`,
     );
   } else if (reported.length) {
     const beats = reported.filter((item) => surpriseOf(item)?.label === "beat").length;

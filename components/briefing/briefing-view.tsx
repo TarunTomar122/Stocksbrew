@@ -72,6 +72,23 @@ function Section({
   );
 }
 
+/** A market mover whose only news is the move itself: no confirmed reason, nothing else to say. */
+function isUnexplainedMove(group: BriefingGroup): boolean {
+  return (
+    Boolean(group.ticker) &&
+    group.items.length > 0 &&
+    group.items.every((item) => item.kind === "price_move" && item.reason_status !== "confirmed")
+  );
+}
+
+/** The other Today pages, each said by what it is for, so the briefing is the start and the rest are one tap on. */
+const TODAY_PAGES: Array<{ href: string; title: string; line: string }> = [
+  { href: "/explore", title: "Market today", line: "Every sector, index and market, and how the day went for each." },
+  { href: "/movers", title: "Why stocks moved", line: "Every big move today, each with the reason we confirmed." },
+  { href: "/signals", title: "Signals", line: "What Reddit and the President are saying about stocks." },
+  { href: "/calendar", title: "Calendar", line: "Earnings reports and economic news coming this week." },
+];
+
 function EmptyLine({ children }: { children: React.ReactNode }) {
   return <p className="px-4 pb-2.5 pt-1 text-[14px] leading-6 text-oa-muted-fg">{children}</p>;
 }
@@ -212,10 +229,27 @@ export function BriefingView({
   const prices = pricesLine(briefing.stale_note);
   // The market view's read already tells the biggest explained moves; the ones it left out lead the list below.
   const inRead = new Set((read?.insights ?? []).flatMap((insight) => insight.tickers ?? []));
-  const worthAll = personal
+  const worthListed = personal
     ? grouped.worth_knowing
     : [...grouped.needs_you.filter((group) => !inRead.has(group.key)), ...grouped.worth_knowing];
+  // In the market view a move with no confirmed reason has nothing to say but its number, so those
+  // share one line at the top of the list instead of a row each repeating "no reason yet".
+  const unexplained = personal ? [] : worthListed.filter(isUnexplainedMove);
+  // The market list reads biggest move first; rows with no move today (an earnings report) follow.
+  const worthAll = personal
+    ? worthListed
+    : worthListed
+        .filter((group) => !isUnexplainedMove(group))
+        .map((group, index) => ({ group, index }))
+        .sort((a, b) => {
+          const am = a.group.day_change_pct == null ? -1 : Math.abs(a.group.day_change_pct);
+          const bm = b.group.day_change_pct == null ? -1 : Math.abs(b.group.day_change_pct);
+          return bm - am || a.index - b.index;
+        })
+        .map(({ group }) => group);
   const worth = showAllWorth ? worthAll : worthAll.slice(0, WORTH_KNOWING_FIRST);
+  // One scale for every bar in the list, so a 16% move looks twice a 8% one.
+  const worthMax = Math.max(0, ...worthListed.map((group) => Math.abs(group.day_change_pct ?? 0)));
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start lg:gap-x-5">
@@ -313,9 +347,28 @@ export function BriefingView({
           </Section>
         ) : null}
 
-        {worthAll.length > 0 ? (
-          <Section id="worth-knowing" label={personal ? "Worth knowing" : "Also moving"} count={groupCountLabel(worthAll)}>
-            {groupCards(worth, COMPACT_VISIBLE_LINES)}
+        {worthListed.length > 0 ? (
+          <Section id="worth-knowing" label={personal ? "Worth knowing" : "Also moving"} count={groupCountLabel(worthListed)}>
+            {unexplained.length > 0 ? (
+              <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-oa-border px-4 pb-2.5 pt-1 text-[13px] leading-5 text-oa-muted-fg">
+                <span>Big moves we can&apos;t explain yet:</span>
+                {unexplained.map((group) => (
+                  <a
+                    key={group.key}
+                    href={`/stock/${encodeURIComponent(group.ticker as string)}`}
+                    className="inline-flex min-h-10 items-baseline gap-1.5 rounded hover:underline sm:min-h-0"
+                  >
+                    <span className="oa-mono font-semibold text-oa-fg">{group.ticker}</span>
+                    {group.day_change_pct != null ? (
+                      <span className={`oa-mono tabular-nums ${group.day_change_pct >= 0 ? "text-signal-bullish" : "text-signal-bearish"}`}>{signedPct(group.day_change_pct)}</span>
+                    ) : null}
+                  </a>
+                ))}
+              </p>
+            ) : null}
+            {worth.map((group) => (
+              <BriefingGroupCard key={group.key} group={group} actions={actions} limit={COMPACT_VISIBLE_LINES} moveMax={personal ? undefined : worthMax || undefined} />
+            ))}
             {worthAll.length > WORTH_KNOWING_FIRST ? (
               <button
                 type="button"
@@ -435,11 +488,31 @@ export function BriefingView({
             <p className="px-4 py-3 text-[14px] leading-5 text-oa-muted-fg">Market data is not available right now.</p>
           ) : null}
           <div className="flex min-h-10 items-center justify-end px-4 py-1">
-            <a href="/signals?tab=movers" className="-my-2 inline-flex min-h-10 items-center text-[13px] font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
+            <a href="/movers" className="-my-2 inline-flex min-h-10 items-center text-[13px] font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
               See all stock moves
             </a>
           </div>
         </section>
+
+        {!personal ? (
+          <section aria-labelledby="today-pages-label" className={CARD}>
+            <header className="flex min-h-10 items-center px-4 pb-0.5 pt-2.5">
+              <h2 id="today-pages-label" className="oa-label">
+                More about today
+              </h2>
+            </header>
+            <ul className="pb-1">
+              {TODAY_PAGES.map((page) => (
+                <li key={page.href}>
+                  <a href={page.href} className="group block px-4 py-2 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent">
+                    <span className="block text-[14px] font-medium leading-5 text-oa-fg group-hover:underline">{page.title} →</span>
+                    <span className="block text-pretty text-[13px] leading-[18px] text-oa-muted-fg">{page.line}</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
 
         <p className="px-2 text-[12.5px] leading-5 text-oa-muted-fg sm:px-1">
           Want a heads-up when a stock hits a price, files a report or nears earnings?{" "}

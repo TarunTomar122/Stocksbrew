@@ -92,6 +92,8 @@ const CLIPPED_NAMES: Array<[RegExp, string]> = [
   [/^space exploration techn\w*$/i, "SpaceX"],
   // Long official names with a short form everyone uses.
   [/^taiwan semiconductor manufactur\w*(?: co(?:mpany)?)?$/i, "Taiwan Semiconductor"],
+  // The "The" is part of how people say it.
+  [/^trade desk$/i, "The Trade Desk"],
 ];
 
 /**
@@ -101,24 +103,38 @@ const CLIPPED_NAMES: Array<[RegExp, string]> = [
 export function shortCompanyName(name: string | null | undefined): string {
   const value = (name ?? "").trim().replace(/\s+/g, " ");
   const short = value
+    // "Elmet Group Co. (The)": the feed's way of filing "The Elmet Group".
+    .replace(/\s*\(The\)$/i, "")
     // Feed tails like "Cerebras Systems Inc - a" and "Taiwan Semiconductor-Sp ADR".
-    .replace(/\s+-\s+(?:Class\s+)?[A-C]$/i, "")
+    .replace(/\s+-\s+(?:Class\s+|Cl\s+)?[A-C](?:\s+Shs?)?$/i, "")
     .replace(/[-\s]+(?:Sp(?:on)?\s+)?ADR$/i, "")
     .replace(/,?\s+(?:Inc|Incorporated|Corp|Corporation|Co|Company|Ltd|Limited|plc|PLC|N\.V|S\.A|SE|AG|L\.P|LP|LLC|Holdings?|Group|Class [A-C])\.?$/i, "")
     .replace(/,?\s+(?:Inc|Corp|Co|Ltd|plc|Holdings?)\.?$/i, "")
-    .replace(/[,\s]+$/, "");
+    .replace(/[,\s]+$/, "")
+    // "Eli Lilly and Company" lost its "Company"; the "and" it leaves behind goes too.
+    .replace(/\s+(?:and|&)$/i, "")
+    // "The Coca-Cola Company" -> "Coca-Cola": with the legal tail gone, the leading "The" is filing style.
+    .replace(/^The\s+(?=\S)/, (lead) => (/,?\s+(?:Inc|Incorporated|Corp|Corporation|Co|Company|Ltd|Limited|plc)\.?$/i.test(value) ? "" : lead));
   // Feeds that cut a name short: say the name people use.
   const known = CLIPPED_NAMES.find(([pattern]) => pattern.test(short));
   if (known) return known[1];
+  // "On Holding AG" -> "On" says nothing on its own; keep the word that makes it a name. "3M" and "HP" stay.
+  if (/^[A-Z][a-z]{0,2}$/.test(short) && value.length > short.length) {
+    const kept = value.replace(/,?\s+(?:Inc|Incorporated|Corp|Corporation|Co|Ltd|Limited|plc|PLC|N\.V|S\.A|SE|AG|L\.P|LP|LLC|Class [A-C])\.?$/i, "").replace(/[,\s]+$/, "");
+    return kept || value;
+  }
   return short || value;
 }
 
 type Call = "Add" | "Hold" | "Trim";
 
+/** The call itself in a reader's words: the data keeps Add, Hold and Trim; a person reads these. */
+export const CALL_PLAIN: Record<Call, string> = { Add: "Buy more", Hold: "Keep", Trim: "Sell some" };
+
 /** What each call means, said the way a person would. */
 export const CALL_MEANING: Record<Call, string> = {
   Add: "We'd buy more",
-  Hold: "We'd keep it, not add",
+  Hold: "We'd keep it, not buy more",
   Trim: "We'd sell some, not buy more",
 };
 
@@ -128,8 +144,8 @@ const ACTIONS: Array<[RegExp, string]> = [
   [/^accumulate on (?:pullbacks|dips)$/i, "Buy more on a dip, not here"],
   [/^accumulate$/i, "We'd buy more"],
   [/^add (?:now|here)$/i, "A good price to buy more"],
-  [/^hold here$/i, "Keep it, don't add"],
-  [/^hold$/i, "We'd keep it, not add"],
+  [/^hold here$/i, "Keep what you own, don't buy more now"],
+  [/^hold$/i, "We'd keep it, not buy more"],
   [/^do not add here$/i, "Don't buy more at this price"],
   [/^trim into strength$/i, "Sell some if it rises"],
   [/^trim$/i, "We'd sell some"],
@@ -258,6 +274,17 @@ const FINANCE_PHRASES: Array<[RegExp, string]> = [
   [/\bguidance (?:increase|raise|hike)\b/gi, "a raised forecast"],
   [/\b(raises|raised|lifts|lifted|boosts|boosted|cuts|cut|lowers|lowered|reaffirms|reaffirmed) (?:its |full-year |annual )?(?:guidance|outlook)\b/gi, "$1 its forecast"],
   [/\bas guidance\b/gi, "as its forecast"],
+  [/\btepid\b/gi, "weak"],
+  [/\b(weak|weaker|soft|softer|lower|disappointing) (?:revenue |sales |full-year |annual )?outlook\b/gi, "$1 forecast"],
+  // "on weak forecast" is headline grammar; a sentence needs the article.
+  [/\b(on|and|after|with|despite) (weak|weaker|soft|softer|lower|disappointing|strong|stronger|higher|raised|upbeat) forecast\b/gi, "$1 a $2 forecast"],
+  [/\brelief rally\b/gi, "rebound"],
+  // The researcher's own words for "we found no reason", said the way a reader would.
+  [/\bbreaks above (?:its )?recent (?:closing )?range\b/gi, "rises above its recent price range"],
+  [/\bbreaks below (?:its )?recent (?:closing )?range\b/gi, "falls below its recent price range"],
+  [/,?\s+without (?:a )?(?:verified|confirmed|clear) catalyst\b/gi, ", with no confirmed reason yet"],
+  [/\bdespite quiet coverage\b/gi, "with little news"],
+  [/\bsell-?off\b/gi, "drop"],
   [/\bguidance\b/gi, "forecast"],
   [/\bconvertible (?:debt|notes?|bond) offering\b/gi, "sale of bonds that can turn into shares"],
   [/\bprior-window\b/gi, "earlier"],
@@ -305,4 +332,103 @@ export function wholeSentences(text: string | null | undefined, max = 2): string
     rest = rest.slice(first.length).trim();
   }
   return sentences.join(" ");
+}
+
+// Headline-style move reasons put the cause first and the company last:
+// "Earnings that missed expectations trigger Hims & Hers drop". Turned around,
+// the company leads and the cause follows "after".
+const CAUSE_VERB_UP = ["lift", "lifts", "boost", "boosts", "power", "powers", "propel", "propels"];
+const CAUSE_VERB_DOWN = ["sink", "sinks", "weigh on", "weighs on", "pressure", "pressures", "hit", "hits"];
+const CAUSE_VERB_ANY = ["trigger", "triggers", "spark", "sparks", "drive", "drives", "send", "sends", "push", "pushes", "fuel", "fuels"];
+const MOVE_NOUN_UP = ["rally", "rebound", "surge", "gain", "gains", "jump", "rise", "climb"];
+const MOVE_NOUN_DOWN = ["drop", "decline", "slide", "slump", "plunge", "fall", "selloff", "sell-off"];
+const MOVE_NOUN_ANY = ["shares", "stock"];
+// Company-first headlines: "LifeVantage stock falls after revenue drops 22%".
+const MOVE_VERB_UP = ["rises", "jumps", "climbs", "surges", "soars", "gains", "rallies", "rebounds", "advances", "pops", "spikes"];
+const MOVE_VERB_DOWN = ["falls", "slides", "drops", "plunges", "sinks", "tumbles", "slumps", "declines", "dips", "slips", "retreats", "sheds"];
+/** Either case for the first letter, so a Title Case feed line ("Spark") matches too. */
+const alt = (words: string[]) => words.map((word) => `[${word.charAt(0)}${word.charAt(0).toUpperCase()}]${word.slice(1).replace(/-/g, "\\-")}`).join("|");
+const CAUSE_FIRST = new RegExp(
+  `^(.{6,}?)\\s+(${alt([...CAUSE_VERB_UP, ...CAUSE_VERB_DOWN, ...CAUSE_VERB_ANY])})\\s+(?:a\\s+|an\\s+)?([A-Z][^,;:]{0,38}?)(?:['\u2019]s)?\\s+(${alt([...MOVE_NOUN_UP, ...MOVE_NOUN_DOWN, ...MOVE_NOUN_ANY])})(?:\\s+(?:higher|lower|up|down))?\\.?$`,
+);
+const COMPANY_FIRST = new RegExp(`^([A-Z][^,;:]{1,38}?)(?:['\u2019]s)?(?:\\s+(?:stock|shares))?\\s+(${alt([...MOVE_VERB_UP, ...MOVE_VERB_DOWN])})\\s+(\\S.*?)\\.?$`);
+
+export type MoveSentence = {
+  /** The company as the reason names it: "Hims & Hers", "LifeVantage". */
+  subject: string;
+  /** The rest of the sentence after the company, no full stop: "fell 16.5% after earnings that missed expectations". */
+  predicate: string;
+};
+
+/**
+ * A move reason split into the company and what happened to it, company
+ * first. Cause-first reasons are turned around: "Earnings that missed
+ * expectations trigger Hims & Hers drop" at -16.5 gives "Hims & Hers" + "fell
+ * 16.5% after earnings that missed expectations". Company-first reasons keep
+ * their words and get the size after the verb: "LifeVantage stock falls after
+ * revenue drops 22%" gives "LifeVantage" + "falls 13.6% after revenue drops
+ * 22%". Null when the reason is in neither shape, or when its words point the
+ * other way from the move (a "rally" on a day it fell).
+ */
+export type MoveSentenceOptions = {
+  withPct?: boolean;
+  /**
+   * The company the move belongs to (its name and ticker). When given, the
+   * reason's subject must be that company: "Oil prices jump after an OPEC cut"
+   * on an oil stock's row is about oil, and must not become "XOM jumps 3%".
+   */
+  company?: { name?: string | null; ticker?: string | null };
+};
+
+/** Whether a reason's subject ("Hims & Hers", "Take-Two") is the company named by `company`. */
+function isSameCompany(subject: string, company: NonNullable<MoveSentenceOptions["company"]>): boolean {
+  const first = (text: string) => text.trim().toLowerCase().replace(/['\u2019]s$/, "").split(/\s+/)[0] ?? "";
+  const head = first(subject);
+  if (!head) return false;
+  const ticker = (company.ticker ?? "").trim().toLowerCase();
+  if (ticker && head === ticker) return true;
+  const name = first(company.name ?? "");
+  return Boolean(name) && (head === name || (head.length >= 4 && name.startsWith(head)) || (name.length >= 4 && head.startsWith(name)));
+}
+
+export function splitMoveReason(reason: string | null | undefined, pct: number | null | undefined, options: MoveSentenceOptions = {}): MoveSentence | null {
+  const split = splitMoveReasonLoose(reason, pct, options);
+  if (split && options.company && !isSameCompany(split.subject, options.company)) return null;
+  return split;
+}
+
+function splitMoveReasonLoose(reason: string | null | undefined, pct: number | null | undefined, options: MoveSentenceOptions): MoveSentence | null {
+  const text = (reason ?? "").trim().replace(/\s+/g, " ");
+  if (!text || pct == null || !Number.isFinite(pct) || pct === 0) return null;
+  const up = pct > 0;
+  const size = options.withPct ? ` ${Math.abs(pct).toFixed(1)}%` : "";
+  const cause = CAUSE_FIRST.exec(text);
+  if (cause) {
+    const [, why, verb, subject, noun] = cause as unknown as [string, string, string, string, string];
+    const said = [verb.toLowerCase(), noun.toLowerCase()];
+    if (said.some((word) => (up ? CAUSE_VERB_DOWN.includes(word) || MOVE_NOUN_DOWN.includes(word) : CAUSE_VERB_UP.includes(word) || MOVE_NOUN_UP.includes(word)))) return null;
+    // "Earnings ..." reads mid-sentence as "earnings ..."; an acronym ("GTA VI", "FDA") keeps its capitals.
+    const after = /^[A-Z][a-z]/.test(why) ? why.charAt(0).toLowerCase() + why.slice(1) : why;
+    return { subject: subject.trim(), predicate: `${up ? "rose" : "fell"}${size} after ${after}` };
+  }
+  const first = COMPANY_FIRST.exec(text);
+  if (first) {
+    const [, subject, verb, rest] = first as unknown as [string, string, string, string];
+    const word = verb.toLowerCase();
+    if (up ? MOVE_VERB_DOWN.includes(word) : MOVE_VERB_UP.includes(word)) return null;
+    // A subject with a verb of its own in it is a clause, not a company ("Analyst lowers Serve Robotics ...").
+    if (/\s(?:lowers|raises|cuts|says|warns|reports|beats|misses|announces)\s/i.test(` ${subject} `)) return null;
+    return { subject: subject.trim(), predicate: `${word}${size} ${rest}` };
+  }
+  return null;
+}
+
+/**
+ * The same, as one sentence (no full stop): "Hims & Hers fell 16.5% after
+ * earnings that missed expectations and a weaker forecast". Null when
+ * `splitMoveReason` cannot read the reason.
+ */
+export function companyFirstMove(reason: string | null | undefined, pct: number | null | undefined, options: MoveSentenceOptions = {}): string | null {
+  const split = splitMoveReason(reason, pct, options);
+  return split ? `${split.subject} ${split.predicate}` : null;
 }

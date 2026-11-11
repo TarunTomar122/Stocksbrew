@@ -14,6 +14,7 @@ import {
   SourceLine,
   Sparkline,
   Segmented,
+  ShowMore,
   StatStrip,
   Ticker,
   fmtCompact,
@@ -63,6 +64,7 @@ import {
 import { StockLogo } from "@/components/stock-logo";
 import { TheRead } from "@/components/oa/insight";
 import { buildScreenerRead, buildSectorsRead } from "@/lib/screener-insights";
+import { alsoClassesLabel, oneRowPerCompany } from "@/lib/share-class";
 import { getUserDoc } from "@/lib/watchlist";
 import { ogImage } from "@/lib/og/url";
 import { shortCompanyName } from "@/lib/plain-copy";
@@ -378,8 +380,13 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
   // Rows are rendered on the server, so the page carries only the rows it shows.
   const requested = Number(Array.isArray(searchParams.n) ? searchParams.n[0] : searchParams.n);
   const shownCount = Number.isFinite(requested) ? Math.min(Math.max(PAGE_ROWS, Math.floor(requested)), 1000) : PAGE_ROWS;
-  const shown = matched.slice(0, shownCount);
-  const remaining = matched.length - shown.length;
+  // One row per company: GOOGL and GOOG are one Alphabet row that names the other class. Counts stay per ticker.
+  const page = matched.slice(0, shownCount);
+  // A search shows every class it matched, so someone who typed GOOG sees GOOG.
+  const { rows: shown, also: otherClasses } = view.filters.q
+    ? { rows: page, also: new Map<string, string[]>() }
+    : oneRowPerCompany(page, (row) => row.symbol);
+  const remaining = matched.length - page.length;
   const moreHref = (count: number) => {
     const href = viewHref(view);
     return `${href}${href.includes("?") ? "&" : "?"}n=${count}`;
@@ -436,6 +443,9 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
       <RowCheck key="_select" symbol={row.symbol} />,
       <div key="symbol" className="sm:max-w-[11.5rem] xl:max-w-[13rem]">
         <Ticker symbol={row.symbol} name={row.name} wrap className="max-w-full" />
+        {alsoClassesLabel(otherClasses, row.symbol) ? (
+          <span className={`${NUM} ml-7 block text-[12px] leading-4 text-oa-muted-fg`}>{alsoClassesLabel(otherClasses, row.symbol)}</span>
+        ) : null}
       </div>,
       ...view.columns.map((id) => <React.Fragment key={id}>{cellFor(id, row)}</React.Fragment>),
     ],
@@ -466,6 +476,34 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
   // Phone: a list, not a squeezed table. Ticker and name, price over the day's change, our call.
   const PHONE_FIXED = new Set(["symbol", "price", "day_pct", "call", "spark"]);
   const phoneExtra = PHONE_FIXED.has(sort.id) ? null : sort.id;
+  const PHONE_FIRST = 20;
+  const phoneRow = (row: (typeof shown)[number]) => (
+      <li key={row.symbol} className="flex items-center gap-2 border-b border-oa-border pl-2 pr-3 last:border-b-0">
+        <span className="flex size-10 shrink-0 items-center justify-center">
+          <RowCheck symbol={row.symbol} />
+        </span>
+        <a href={`/stock/${encodeURIComponent(row.symbol)}`} className="flex min-h-14 min-w-0 flex-1 items-center gap-3 py-2 outline-none focus-visible:bg-oa-accent">
+          <StockLogo ticker={row.symbol} size={28} />
+          <span className="min-w-0 flex-1">
+            <span className={`${NUM} block text-[15px] font-semibold leading-5 text-oa-fg`}>{row.symbol}</span>
+            <span className="flex flex-wrap gap-x-1.5 text-[12.5px] leading-[18px] text-oa-muted-fg">
+              <span className="min-w-0 text-pretty">{shortCompanyName(row.name)}</span>
+              {alsoClassesLabel(otherClasses, row.symbol) ? <span className={`${NUM} shrink-0`}>· {alsoClassesLabel(otherClasses, row.symbol)}</span> : null}
+              {phoneExtra ? <span className="shrink-0 [&_*]:!text-[12.5px]">· {cellFor(phoneExtra, row)}</span> : null}
+            </span>
+          </span>
+          <span className="shrink-0 text-right">
+            <span className="block text-[14px] leading-5">
+              <FieldValue id="price" value={row.price} />
+            </span>
+            <span className="block text-[12.5px] leading-[18px]">
+              <FieldValue id="day_pct" value={row.day_pct} />
+            </span>
+          </span>
+          <span className="flex w-[4.75rem] shrink-0 justify-end">{row.call ? <CallTag call={row.call} /> : null}</span>
+        </a>
+      </li>
+  );
   const phoneList = (
     <div className="sm:hidden">
       <div className="oa-caption flex h-9 items-center gap-2 border-b border-oa-border bg-oa-bg pl-2 pr-3">
@@ -479,36 +517,15 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
           <SortLabel view={{ ...view, sort }} id="price" numeric>Price</SortLabel>
           <SortLabel view={{ ...view, sort }} id="day_pct" numeric>Day</SortLabel>
         </span>
-        <span className="w-12 text-right">Call</span>
+        <span className="w-[4.75rem] text-right">Our call</span>
       </div>
-      <ul>
-        {shown.map((row) => (
-          <li key={row.symbol} className="flex items-center gap-2 border-b border-oa-border pl-2 pr-3 last:border-b-0">
-            <span className="flex size-10 shrink-0 items-center justify-center">
-              <RowCheck symbol={row.symbol} />
-            </span>
-            <a href={`/stock/${encodeURIComponent(row.symbol)}`} className="flex min-h-14 min-w-0 flex-1 items-center gap-3 py-2 outline-none focus-visible:bg-oa-accent">
-              <StockLogo ticker={row.symbol} size={28} />
-              <span className="min-w-0 flex-1">
-                <span className={`${NUM} block text-[15px] font-semibold leading-5 text-oa-fg`}>{row.symbol}</span>
-                <span className="flex flex-wrap gap-x-1.5 text-[12.5px] leading-[18px] text-oa-muted-fg">
-                  <span className="min-w-0 text-pretty">{shortCompanyName(row.name)}</span>
-                  {phoneExtra ? <span className="shrink-0 [&_*]:!text-[12.5px]">· {cellFor(phoneExtra, row)}</span> : null}
-                </span>
-              </span>
-              <span className="shrink-0 text-right">
-                <span className="block text-[14px] leading-5">
-                  <FieldValue id="price" value={row.price} />
-                </span>
-                <span className="block text-[12.5px] leading-[18px]">
-                  <FieldValue id="day_pct" value={row.day_pct} />
-                </span>
-              </span>
-              <span className="flex w-12 shrink-0 justify-end">{row.call ? <CallTag call={row.call} /> : null}</span>
-            </a>
-          </li>
-        ))}
-      </ul>
+      <ul>{shown.slice(0, PHONE_FIRST).map(phoneRow)}</ul>
+      {/* Twenty is a screen's worth on a phone; the rest of the page is one tap away, not a long scroll. */}
+      {shown.length > PHONE_FIRST ? (
+        <ShowMore label={`Show ${shown.length - PHONE_FIRST} more stocks`} className="pb-3 [&>button]:mx-3 [&>button]:w-[calc(100%-1.5rem)]">
+          <ul className="border-t border-oa-border">{shown.slice(PHONE_FIRST).map(phoneRow)}</ul>
+        </ShowMore>
+      ) : null}
     </div>
   );
 
@@ -624,9 +641,9 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
               {remaining > 0 ? (
                 <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1 border-t border-oa-border px-4 py-2.5 text-[13px]">
                   <span className={`${NUM} text-oa-muted-fg`}>
-                    Showing {shown.length} of {matched.length.toLocaleString("en-US")}
+                    Showing {page.length} of {matched.length.toLocaleString("en-US")}
                   </span>
-                  <Link href={moreHref(shown.length + PAGE_ROWS)} scroll={false} prefetch={false} className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
+                  <Link href={moreHref(page.length + PAGE_ROWS)} scroll={false} prefetch={false} className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
                     Show {Math.min(PAGE_ROWS, remaining)} more
                   </Link>
                   {remaining > PAGE_ROWS ? (

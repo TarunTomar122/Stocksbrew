@@ -9,6 +9,7 @@ import {
   loadDeskMarkets,
   loadDeskMovers,
   loadDeskScreens,
+  loadDeskSectors,
   loadDeskSignals,
   loadDeskStrategies,
   loadDeskThemes,
@@ -48,7 +49,7 @@ import { followTakeaway, mergeDeskRead, strategiesTakeaway } from "@/lib/explore
 import { fmtFrac, type ActivityItem } from "@/lib/follow-shared";
 import { moodWord, netSide, type ToneWord } from "@/lib/tone";
 import { ogImage } from "@/lib/og/url";
-import { sentenceCase } from "@/lib/plain-copy";
+import { companyFirstMove, sentenceCase } from "@/lib/plain-copy";
 
 export const dynamic = "force-dynamic";
 
@@ -191,18 +192,27 @@ function MoverRows({ title, rows }: { title: string; rows: DeskMover[] }) {
       <p className="oa-caption border-b border-oa-border bg-oa-bg px-4 py-1.5">{title}</p>
       <ul data-track-links="mover_opened" data-track-list={title.toLowerCase().slice(0, 30)} className="max-sm:[&>li:nth-child(n+4)]:hidden">
         {rows.map((row) => (
-          <li key={row.ticker} className="group border-b border-oa-border px-4 py-2 last:border-b-0 hover:bg-oa-accent">
+          <li key={row.ticker} className="group relative border-b border-oa-border px-4 py-2 last:border-b-0 hover:bg-oa-accent">
             <div className="flex items-center justify-between gap-3">
-              <Ticker symbol={row.ticker} name={row.name && row.name.toUpperCase() !== row.ticker.toUpperCase() ? row.name : null} wrap className="min-w-0" />
+              <Ticker symbol={row.ticker} name={row.name && row.name.toUpperCase() !== row.ticker.toUpperCase() ? row.name : null} wrap stretch className="min-w-0" />
               <span className="flex shrink-0 items-center gap-3">
+                {/* Above the row's stretched stock link, so "Ask why" stays its own target. */}
+                <span className="relative z-[1]">
                 <AskLink quiet question={`Why did ${row.ticker} move today, and what does it change?`}>Ask why</AskLink>
+                </span>
                 {row.price !== null ? <span className={`${NUM} hidden text-[12.5px] text-oa-muted-fg sm:inline`}>{fmtMoney(row.price)}</span> : null}
                 <MoveBar value={row.changePct} max={max} width={48} className="max-sm:hidden" />
                 <Delta value={row.changePct} className="w-[4.5rem] text-right text-[15px] font-medium" />
               </span>
             </div>
             {row.reason ? (
-              <p className="mt-0.5 max-w-[68ch] text-pretty pl-7 text-[14px] leading-5 text-oa-muted-fg">{row.reason}</p>
+              <p className="mt-0.5 max-w-[68ch] text-pretty pl-7 text-[14px] leading-5 text-oa-muted-fg">
+                {/* Company first where the feed wrote the cause first ("Acadia rose after ..."). */}
+                {(() => {
+                  const turned = companyFirstMove(row.reason, row.changePct, { company: { name: row.name, ticker: row.ticker } });
+                  return turned ? `${turned}.` : row.reason;
+                })()}
+              </p>
             ) : null}
           </li>
         ))}
@@ -590,6 +600,43 @@ async function MarketsPanel({ markets: pending, brief }: { markets: Promise<Desk
   );
 }
 
+/**
+ * The lead of Market today: the 11 sectors on one scale, best first, each a
+ * link to its sector page. The whole market before single stocks; the day's
+ * biggest single moves follow, and have their own page.
+ */
+async function SectorsPanel({ sectors: pending }: { sectors: ReturnType<typeof loadDeskSectors> }) {
+  const { rows, takeaway } = await pending;
+  if (rows.length === 0) return null;
+  const max = Math.max(...rows.map((row) => Math.abs(row.day)));
+  const half = Math.ceil(rows.length / 2);
+  const column = (list: typeof rows) => (
+    <ul className="min-w-0">
+      {list.map((row) => (
+        <li key={row.id} className="border-b border-oa-border last:border-b-0">
+          <a
+            href={row.slug ? `/sectors/${row.slug}` : "/sectors"}
+            className={`grid min-h-11 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 px-4 py-1.5 transition-colors hover:bg-oa-accent ${FOCUS}`}
+          >
+            <span className="min-w-0 text-pretty text-[14px] leading-5 text-oa-fg">{row.name}</span>
+            <MoveBar value={row.day} max={max} width={64} />
+            <Delta value={row.day} className="w-[4.5rem] text-right text-[14px] font-medium" />
+          </a>
+        </li>
+      ))}
+    </ul>
+  );
+  return (
+    <Panel label="How each sector did today" right={<OpenLink href="/sectors">All sectors</OpenLink>} flush className="mb-5">
+      <Takeaway text={takeaway} />
+      <div className="grid md:grid-cols-2 md:divide-x md:divide-oa-border">
+        {column(rows.slice(0, half))}
+        <div className="max-md:border-t max-md:border-oa-border">{column(rows.slice(half))}</div>
+      </div>
+    </Panel>
+  );
+}
+
 /* ── the page ───────────────────────────────────────────────────────────── */
 
 /** One read for the whole desk: the brief with the news read folded in, stocks first (see `mergeDeskRead`). */
@@ -622,8 +669,8 @@ function MarketsStripGhost() {
  * only for its own source: every loader is started here, side by side, and
  * awaited inside the panel that shows it.
  *
- * Order: the day's read, a slim row of market levels, then the lead (what is
- * moving today and why), then the wire beside Ask and the calendar, then the
+ * Order: the day's read, a slim row of market levels, then the lead (how each
+ * sector did), then what is moving today and why, then the wire beside Ask and the calendar, then the
  * desk previews, each led by its one-line takeaway.
  */
 export default function ExplorePage() {
@@ -644,6 +691,10 @@ export default function ExplorePage() {
 
       <Suspense fallback={<MarketsStripGhost />}>
         <MarketsStripSlot markets={markets} />
+      </Suspense>
+
+      <Suspense fallback={<div className="mb-5"><PanelGhost rows={6} /></div>}>
+        <SectorsPanel sectors={loadDeskSectors(today)} />
       </Suspense>
 
       <Suspense fallback={<div className="mb-5"><PanelGhost rows={5} lines={2} /></div>}>

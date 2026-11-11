@@ -1,6 +1,6 @@
 import { marketDay, type Briefing, type BriefingItem } from "@/lib/briefing";
 import { MARKET_GROUP_KEY, type BriefingGroup, type GroupedSections } from "@/lib/briefing-groups";
-import { firstFullSentence, plainFinance, sentenceCase, shortCompanyName } from "@/lib/plain-copy";
+import { firstFullSentence, splitMoveReason, plainFinance, sentenceCase, shortCompanyName } from "@/lib/plain-copy";
 import { pickInsights, toneOfChange, type Insight, type TheRead } from "@/lib/insights";
 
 /**
@@ -68,21 +68,41 @@ export function indexClock(asOf: string | null | undefined, date: string | null 
   return { kind: "intraday", clock: `${at.toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" })} ET` };
 }
 
-/** A move with a confirmed reason: the number and the reason in one sentence. */
-function explainedMoveInsight(item: BriefingItem, date?: string): Insight | null {
+/** A company's everyday name, or "" when the feed only has its ticker. */
+function nameOf(name: string | null | undefined, ticker: string | null | undefined): string {
+  const short = name && name !== ticker ? shortCompanyName(name) : "";
+  return short && short !== ticker ? short : "";
+}
+
+/**
+ * A move with a confirmed reason: the number and the reason in one sentence,
+ * company first. "Earnings that missed expectations trigger Hims & Hers drop"
+ * reads as "Hims & Hers fell 16.5% after earnings that missed expectations";
+ * a reason in any other shape follows the move after a colon. The sentence
+ * starts with the ticker so the row leads with its logo; `leadName` shows the
+ * company's name there.
+ */
+function explainedMoveInsight(item: BriefingItem, date?: string, name?: string | null): Insight | null {
   if (item.kind !== "price_move" || item.reason_status !== "confirmed" || item.day_change_pct == null || !item.ticker) return null;
   const reason = firstSentence(item.why);
   if (!reason) return null;
   const earlier = earlierSession(item.as_of, date);
   const up = item.day_change_pct >= 0;
+  // Company first ("Hims & Hers fell 16.5% after ..."): the row shows the logo and the name, then the rest.
+  const split = earlier ? null : splitMoveReason(reason, item.day_change_pct, { withPct: true, company: { name: name ?? item.ticker, ticker: item.ticker } });
+  const leadName = nameOf(name, item.ticker) || (split ? split.subject : "") || undefined;
+  const text = split
+    ? `${item.ticker} ${split.predicate}.`
+    : earlier
+      ? `${item.ticker} ${up ? "rose" : "fell"} ${pct(item.day_change_pct)}${earlier}: ${reason}.`
+      : `${item.ticker} is ${up ? "up" : "down"} ${pct(item.day_change_pct)}: ${reason}.`;
   return {
     id: `move-${item.id}`,
     tone: toneOfChange(item.day_change_pct),
-    text: earlier
-      ? `${item.ticker} ${up ? "rose" : "fell"} ${pct(item.day_change_pct)}${earlier}: ${reason}.`
-      : `${item.ticker} is ${up ? "up" : "down"} ${pct(item.day_change_pct)}: ${reason}.`,
+    text,
+    leadName,
     tickers: [item.ticker],
-    action: { label: `${item.ticker} report`, href: stockHref(item.ticker) },
+    action: { label: `Our view on ${item.ticker}`, href: stockHref(item.ticker) },
   };
 }
 
@@ -189,15 +209,18 @@ export function briefingRead(
   if (briefing.mode === "market") {
     const index = briefing.market.indices[0];
     const leads = stockGroups(grouped.needs_you);
-    // Company names lead, the way a person says it ("Hims & Hers, LifeVantage and Qualys").
-    // Mixing "Hims & Hers, LFVN and Qualys" reads like a glitch, so names only when every one has a name.
-    const top = leads.slice(0, 3);
-    const named = top.map((group) => (group.name && group.name !== group.ticker ? shortCompanyName(group.name) : ""));
-    const names = named.every(Boolean) ? named : top.map((group) => group.ticker as string);
+    // One company leads, by name, with its move ("Hims & Hers fell 16.5%, the biggest move we can explain");
+    // the other explained moves are the rows under the read, so the headline does not count them.
+    // "The biggest move" is a claim about size, so the lead is the largest move, not the first by urgency.
+    const lead = [...leads].sort((a, b) => Math.abs(b.day_change_pct ?? 0) - Math.abs(a.day_change_pct ?? 0))[0];
+    const leadName = lead ? nameOf(lead.name, lead.ticker) || (lead.ticker as string) : "";
     const earlier = earlierSession(briefing.market.as_of, briefing.date);
-    const leaders = names.length
-      ? `${joinAnd(names)} made the biggest ${names.length === 1 ? "move" : "moves"} with a known reason${earlier}.`
-      : "";
+    const leadMove = lead?.day_change_pct;
+    const leaders = !leadName
+      ? ""
+      : leadMove != null && Number.isFinite(leadMove) && leadMove !== 0
+        ? `${leadName} ${leadMove > 0 ? "rose" : "fell"} ${pct(leadMove)}${earlier}, the biggest move we can explain${earlier ? "" : " today"}.`
+        : `${leadName} made the biggest move we can explain${earlier}.`;
     const clock = indexClock(briefing.market.as_of, briefing.date);
     const direction = index ? `${index.change_pct >= 0 ? "up" : "down"} ${pct(index.change_pct, 2)}` : "";
     const indexLine = !index
@@ -207,9 +230,10 @@ export function briefingRead(
         : clock?.kind === "intraday"
           ? `As of ${clock.clock}, the ${index.name} is ${direction}.`
           : `The ${index.name} is ${direction}.`;
-    const headline = index ? `${indexLine}${leaders ? ` ${leaders}` : ""}` : leaders;
+    // The story first, the index as its backdrop.
+    const headline = [leaders, indexLine].filter(Boolean).join(" ");
     const insights = pickInsights(
-      leads.map((group) => group.items.map((item) => explainedMoveInsight(item, briefing.date)).find(Boolean) ?? null),
+      leads.map((group) => group.items.map((item) => explainedMoveInsight(item, briefing.date, group.name)).find(Boolean) ?? null),
     );
     if (!headline && insights.length === 0) return null;
     return { headline, insights, asOf };

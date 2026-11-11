@@ -60,7 +60,7 @@ describe("buildCalendarRead", () => {
       items, today: TODAY, period: "this week", mine: null,
       context: { CSCO: { last: { pct: -5.8, basis: "2d", toDate: "2026-08-13", eventDate: "2026-08-12" }, typicalDayPct: 1.75 } },
     })!;
-    expect(read.headline).toBe("CPI inflation numbers come out today at 8:30 AM. 3 companies still report this week. The biggest are CSCO and AMAT on Thursday.");
+    expect(read.headline).toBe("CPI inflation numbers come out today at 8:30 AM ET. 3 companies still report earnings this week. The biggest are CSCO and AMAT on Thursday.");
     expect(read.insights[0]!.id).toBe("biggest");
     expect(read.insights[0]!.text).toContain("about 3 times its normal daily move");
     expect(read.insights[1]!.text).toBe("So far 3 of 3 companies beat what analysts expected (100%), and none fell short. Biggest moves after: CNH +13.5% and CEG +9.5%.");

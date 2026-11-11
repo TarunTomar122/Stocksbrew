@@ -21,6 +21,12 @@ export type Insight = {
   soWhat?: string;
   /** Tickers the insight is about, shown as small logo chips. */
   tickers?: string[];
+  /**
+   * The lead stock's company name, shown in place of its ticker where the row
+   * leads with one stock ("Hims & Hers fell 16.5%..." under the HIMS logo).
+   * The sentence still starts with the ticker so the row knows its subject.
+   */
+  leadName?: string;
   /** Where to go to act or dig in. */
   action?: { label: string; href: string };
 };

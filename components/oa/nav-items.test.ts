@@ -16,7 +16,7 @@ describe("the five places", () => {
   it("lists every app route under exactly one place", () => {
     const hrefs = PLACES.flatMap((item) => item.sections.map((sub) => sub.href));
     expect(new Set(hrefs).size).toBe(hrefs.length);
-    for (const href of ["/briefing", "/explore", "/movers", "/signals", "/news", "/calendar", "/watchlist", "/watchlist/tax", "/practice", "/screener", "/sectors", "/compare", "/markets", "/filings", "/ask", "/themes", "/strategies", "/backtest", "/follow", "/insiders", "/agents"]) {
+    for (const href of ["/briefing", "/explore", "/movers", "/signals", "/news", "/calendar", "/watchlist", "/watchlist/tax", "/practice", "/screener", "/best", "/sectors", "/compare", "/markets", "/filings", "/ask", "/themes", "/strategies", "/backtest", "/follow", "/insiders", "/agents"]) {
       expect(hrefs).toContain(href);
     }
   });
@@ -36,6 +36,7 @@ describe("placeFor and sectionFor", () => {
     expect(place("/stock/NVDA/research")).toBe("Research");
     expect(place("/stock/NVDA/earnings/2026-11-19")).toBe("Research");
     expect(place("/sectors/technology")).toBe("Research");
+    expect(place("/best/dividend-stocks")).toBe("Research");
     expect(place("/compare/amd-vs-nvda")).toBe("Research");
     expect(place("/markets/crypto/BTC")).toBe("Research");
     expect(place("/follow/berkshire-hathaway")).toBe("Follow investors");
@@ -55,6 +56,7 @@ describe("placeFor and sectionFor", () => {
     expect(sectionOf("/watchlist/tax")).toBe("Taxes");
     expect(sectionOf("/movers/2026-11-10")).toBe("Why stocks moved");
     expect(sectionOf("/sectors/technology")).toBe("Sectors");
+    expect(sectionOf("/best/dividend-stocks")).toBe("Best stock lists");
     expect(sectionOf("/stock/NVDA")).toBeNull();
   });
 

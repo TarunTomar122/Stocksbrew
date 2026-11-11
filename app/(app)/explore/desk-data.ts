@@ -18,7 +18,7 @@ import { buildCalendarRead, readTickers } from "@/lib/calendar-insights";
 import { screensTakeaway } from "@/lib/explore-insights";
 import { pickInsights } from "@/lib/insights";
 import { getMarketsData } from "@/lib/markets";
-import { buildMarketsRead, sectorTakeaway } from "@/lib/markets-insights";
+import { buildMarketsRead, FUND_TOPIC, SECTOR_IDS, sectorTakeaway } from "@/lib/markets-insights";
 import { loadReddit } from "@/lib/signals";
 import { buildMoversRead, buildRedditRead, moversHeadline } from "@/lib/signals-insights";
 import { classifyMover } from "@/lib/signals-shared";
@@ -244,6 +244,46 @@ export const loadDeskMarkets = section<DeskData["markets"]>(
   },
   null,
 );
+
+export type DeskSector = { id: string; name: string; slug: string; day: number; month: number | null };
+
+/**
+ * The 11 sectors and how each did on the day, from the sector funds, best
+ * first. Market today leads with this: the whole market before single stocks.
+ */
+export const loadDeskSectors = section<{ rows: DeskSector[]; takeaway: string | null; asOf: string | null }>(
+  "sectors",
+  async () => {
+    const data = await getMarketsData();
+    const rows = SECTOR_IDS.map((id) => data.assets.find((asset) => asset.id === id))
+      .filter((asset): asset is NonNullable<typeof asset> => Boolean(asset) && typeof asset!.change.d1 === "number" && Number.isFinite(asset!.change.d1))
+      .map((asset) => {
+        const name = FUND_TOPIC[asset.id] ?? asset.name;
+        const slug = SECTOR_SLUG[asset.id] ?? "";
+        const month = asset.change.m1;
+        return { id: asset.id, name, slug, day: asset.change.d1 as number, month: typeof month === "number" && Number.isFinite(month) ? month : null };
+      })
+      .sort((a, b) => b.day - a.day || a.name.localeCompare(b.name));
+    if (rows.length < 4) throw new Error("sectors_empty");
+    return { rows, takeaway: sectorTakeaway(data.assets), asOf: data.assets.find((asset) => asset.id === "xlk")?.as_of ?? null };
+  },
+  { rows: [], takeaway: null, asOf: null },
+);
+
+/** Sector fund -> our sector page. */
+const SECTOR_SLUG: Record<string, string> = {
+  xlk: "technology",
+  xlf: "financials",
+  xle: "energy",
+  xlv: "health-care",
+  xli: "industrials",
+  xly: "consumer-discretionary",
+  xlp: "consumer-staples",
+  xlu: "utilities",
+  xlb: "materials",
+  xlre: "real-estate",
+  xlc: "communication-services",
+};
 
 export const loadDeskScreens = section<DeskData["screens"]>(
   "screens",

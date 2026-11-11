@@ -2,10 +2,11 @@
 
 import * as React from "react";
 
-import { Verdict } from "@/components/oa/kit/tone";
+import { MoveBar, Verdict } from "@/components/oa/kit/tone";
 import { StockLogo } from "@/components/stock-logo";
 import { askWhyHref, COPILOT_PATH, type BriefingItem, type BriefingItemStatus } from "@/lib/briefing";
 import { visibleLines, type BriefingGroup, type BriefingLine } from "@/lib/briefing-groups";
+import { companyFirstMove } from "@/lib/plain-copy";
 
 import { compactTime, signedPct, sourceTime } from "./format";
 import { verdictFor } from "./item-metric";
@@ -159,6 +160,18 @@ function LinePanel({ id, line, group, actions }: { id: string; line: BriefingLin
   );
 }
 
+/**
+ * A confirmed move's reason, company first when the feed wrote it cause first:
+ * "Revenue that beat expectations lift Acadia shares" reads "Acadia rose after
+ * revenue that beat expectations." The move itself is in the row's number.
+ */
+function lineText(line: BriefingLine, group: BriefingGroup): string {
+  const { item } = line;
+  if (item.kind !== "price_move" || item.reason_status !== "confirmed") return line.text;
+  const turned = companyFirstMove(line.text.replace(/[.!]$/, ""), item.day_change_pct ?? group.day_change_pct, { company: { name: group.name, ticker: group.ticker } });
+  return turned ? `${turned}.` : line.text;
+}
+
 function LineRow({ line, group, actions }: { line: BriefingLine; group: BriefingGroup; actions: GroupActions }) {
   const [open, setOpen] = React.useState(false);
   const panelId = React.useId();
@@ -177,7 +190,7 @@ function LineRow({ line, group, actions }: { line: BriefingLine; group: Briefing
           line.decision ? "font-medium text-oa-fg" : SOFT
         }`}
       >
-        <span className="text-pretty">{line.text}</span>
+        <span className="text-pretty">{lineText(line, group)}</span>
       </button>
       {open ? <LinePanel id={panelId} line={line} group={group} actions={actions} /> : null}
     </li>
@@ -188,7 +201,18 @@ function LineRow({ line, group, actions }: { line: BriefingLine; group: Briefing
  * One stock, quietly: the logo, the ticker and the day's move, then its most
  * important update in plain words. The rest wait behind "+N".
  */
-export function BriefingGroupCard({ group, actions, limit }: { group: BriefingGroup; actions: GroupActions; limit: number }) {
+export function BriefingGroupCard({
+  group,
+  actions,
+  limit,
+  moveMax,
+}: {
+  group: BriefingGroup;
+  actions: GroupActions;
+  limit: number;
+  /** The largest move in the list: when given, each move gets a bar on that one scale. */
+  moveMax?: number;
+}) {
   const [expanded, setExpanded] = React.useState(false);
   const { shown, hidden } = visibleLines(group.lines, expanded, limit);
   const settled = sharedStatus(group.items, actions) !== "open";
@@ -198,7 +222,7 @@ export function BriefingGroupCard({ group, actions, limit }: { group: BriefingGr
   return (
     <article
       data-briefing-group={group.key}
-      className={`grid grid-cols-[1.25rem_minmax(0,1fr)_auto] gap-x-3 px-4 py-2.5 sm:grid-cols-[1.25rem_3.75rem_minmax(0,1fr)_4.5rem] ${settled ? "opacity-80" : ""}`}
+      className={`grid grid-cols-[1.25rem_minmax(0,1fr)_auto] gap-x-3 px-4 py-2.5 ${moveMax ? "sm:grid-cols-[1.25rem_3.75rem_minmax(0,1fr)_auto]" : "sm:grid-cols-[1.25rem_3.75rem_minmax(0,1fr)_4.5rem]"} ${settled ? "opacity-80" : ""}`}
     >
       <span className="col-start-1 row-start-1 pt-px">
         {ticker ? (
@@ -224,7 +248,10 @@ export function BriefingGroupCard({ group, actions, limit }: { group: BriefingGr
       </span>
       <span className="col-start-3 row-start-1 text-right leading-5 sm:col-start-4">
         {move != null ? (
-          <span className={`oa-mono whitespace-nowrap text-[14px] tabular-nums ${move >= 0 ? "text-signal-bullish" : "text-signal-bearish"}`}>{signedPct(move)}</span>
+          <span className="inline-flex items-center justify-end gap-2">
+            {moveMax ? <MoveBar value={move} max={moveMax} width={44} /> : null}
+            <span className={`oa-mono whitespace-nowrap text-[14px] tabular-nums ${moveMax ? "w-[4.5rem] text-right" : ""} ${move >= 0 ? "text-signal-bullish" : "text-signal-bearish"}`}>{signedPct(move)}</span>
+          </span>
         ) : null}
       </span>
       <ul className="col-span-2 col-start-2 row-start-2 mt-0.5 min-w-0 sm:col-span-1 sm:col-start-3 sm:row-span-2 sm:row-start-1 sm:mt-0">

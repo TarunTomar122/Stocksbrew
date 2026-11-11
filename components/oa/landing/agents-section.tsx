@@ -15,7 +15,8 @@ const GROUP_LABEL: Record<string, string> = {
 export function AgentsSection() {
   const groups = (["Schedule", "Event", "Price"] as const).map((group) => ({
     group,
-    templates: AGENT_TEMPLATES.filter((template) => template.group === group).slice(0, 3),
+    // One example of each kind; the full list is on the agents page.
+    templates: AGENT_TEMPLATES.filter((template) => template.group === group).slice(0, 1),
   }));
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:items-center">
@@ -33,7 +34,7 @@ export function AgentsSection() {
           >
             Set up an agent
           </a>
-          <span className="text-[14px] text-oa-muted-fg">It tells you. It never places a trade.</span>
+          <span className="text-[14px] text-oa-muted-fg">It sends you a note. It never places a trade.</span>
         </div>
       </div>
       <div className="oa-surface grid grid-cols-1 overflow-hidden border border-oa-border bg-oa-card sm:grid-cols-3">

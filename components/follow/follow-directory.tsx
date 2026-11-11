@@ -21,6 +21,7 @@ import {
   type PerfKey,
   type SortKey,
 } from "@/lib/follow-shared";
+import { oneRowPerCompany } from "@/lib/share-class";
 
 export type DirectoryTab = "funds" | "congress" | "insiders";
 
@@ -307,7 +308,7 @@ export function FollowDirectory({
                     ))}
 
                     <div className="hidden min-w-0 flex-wrap gap-1 overflow-hidden lg:flex lg:max-h-6">
-                      {source.top_holdings.slice(0, 3).map((holding, index) => (
+                      {oneRowPerCompany(source.top_holdings, (holding) => holding.ticker).rows.slice(0, 3).map((holding, index) => (
                         <HoldingChip
                           key={`${holding.ticker ?? holding.name}-${index}`}
                           ticker={holding.ticker}

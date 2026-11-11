@@ -206,13 +206,13 @@ describe("portfolio and call helpers", () => {
 
 describe("flow and market words", () => {
   it("reads a filing as net buyer, net seller or mixed", () => {
-    expect(netSide(5_000_000, 1_000_000)).toEqual({ tone: "up", word: "Net buyer" });
-    expect(netSide(1, 4)).toEqual({ tone: "down", word: "Net seller" });
+    expect(netSide(5_000_000, 1_000_000)).toEqual({ tone: "up", word: "Bought more than sold" });
+    expect(netSide(1, 4)).toEqual({ tone: "down", word: "Sold more than bought" });
     expect(netSide(100, 95)).toEqual({ tone: "flat", word: "Mixed" });
-    expect(netSide(1, 0)).toEqual({ tone: "up", word: "Net buyer" });
+    expect(netSide(1, 0)).toEqual({ tone: "up", word: "Bought more than sold" });
     expect(netSide(0, 0)).toBeNull();
     expect(netSide(null, undefined)).toBeNull();
-    expect(netSide(-5, 3)).toEqual({ tone: "down", word: "Net seller" });
+    expect(netSide(-5, 3)).toEqual({ tone: "down", word: "Sold more than bought" });
   });
 
   it("names the yield curve shape on the same cut as the reading", () => {

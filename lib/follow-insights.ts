@@ -662,12 +662,22 @@ export function buildFundRead(profile: FundProfile): TheRead {
     if (added[0]) parts.push(`added to ${added[0].ticker} (now ${pct(added[0].weight ?? 0)})`);
     if (reduced.length > 0) parts.push(`cut ${listWords(reduced.map((row) => `${row.ticker} to ${pct(row.weight ?? 0, 1)}`))}`);
     if (exited[0]) parts.push(`sold out of ${exited[0].ticker}`);
+    // The headline leads with the moves that changed the fund: a new line under half a percent is
+    // real but tiny, so it trails the sentence instead of opening it.
     const shortParts: string[] = [];
     const bought = [...opened, ...added].map((row) => row.ticker);
     const sold = [...reduced, ...exited].map((row) => row.ticker);
-    if (bought.length > 0) shortParts.push(`bought ${listWords([...opened, ...added].map((row) => row.name))}`);
-    if (sold.length > 0) shortParts.push(`cut ${listWords([...reduced, ...exited].map((row) => row.name))}`);
-    movesShort = shortParts.join(" and ");
+    const bigOpened = opened.filter((row) => (row.weight ?? 0) >= 0.005);
+    const tinyOpened = opened.filter((row) => (row.weight ?? 0) < 0.005);
+    if (bigOpened.length > 0) shortParts.push(`bought ${listWords(bigOpened.map((row) => row.name))}`);
+    if (added.length > 0) shortParts.push(`added to ${listWords(added.map((row) => row.name))}`);
+    if (reduced.length > 0) shortParts.push(`cut ${listWords(reduced.map((row) => row.name))}`);
+    if (exited.length > 0) shortParts.push(`sold all of ${listWords(exited.map((row) => row.name))}`);
+    movesShort = listWords(shortParts);
+    if (tinyOpened.length > 0) {
+      const tiny = `a small new stake in ${listWords(tinyOpened.map((row) => row.name))}`;
+      movesShort = movesShort ? `${movesShort} in ${profile.latest.quarter}, and opened ${tiny}` : `opened ${tiny}`;
+    }
     if (parts.length > 0) {
       const buys = changes.counts.new + changes.counts.added;
       const sells = changes.counts.reduced + changes.counts.sold;
@@ -683,7 +693,11 @@ export function buildFundRead(profile: FundProfile): TheRead {
   }
 
   const record = recordInsight(profile.performance, short, "stock picks");
-  const headline = movesShort ? `${short} ${movesShort} in ${profile.latest.quarter}.` : concentration?.text ?? "";
+  const headline = movesShort
+    ? movesShort.includes(` in ${profile.latest.quarter}`)
+      ? `${short} ${movesShort}.`
+      : `${short} ${movesShort} in ${profile.latest.quarter}.`
+    : concentration?.text ?? "";
   return {
     headline,
     insights: pickInsights([concentration, moves, record]),

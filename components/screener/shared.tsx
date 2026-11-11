@@ -1,6 +1,7 @@
 import * as React from "react";
 
 import { Delta, MarkSlot, NUM, Tag, fmtDay, type TagTone } from "@/components/oa/kit";
+import { CALL_PLAIN } from "@/lib/plain-copy";
 import { FIELD_BY_ID, formatField, isFiniteNumber, type CallWord, type ScreenerRow, type Zone } from "@/lib/screener-shared";
 import { historyJudged, markFor, multipleVsHistory, priceVsTarget, type Metric } from "@/lib/tone";
 
@@ -8,9 +9,14 @@ import { historyJudged, markFor, multipleVsHistory, priceVsTarget, type Metric }
 
 const CALL_TONES: Record<CallWord, TagTone> = { Add: "up", Hold: "neutral", Trim: "down" };
 
+
 export function CallTag({ call }: { call: CallWord | null | undefined }) {
   if (!call) return null;
-  return <Tag tone={CALL_TONES[call]}>{call}</Tag>;
+  return (
+    <Tag tone={CALL_TONES[call]} caps={false} className="!h-6">
+      {CALL_PLAIN[call]}
+    </Tag>
+  );
 }
 
 const ZONE_LABELS: Record<Zone, { text: string; tone: TagTone }> = {

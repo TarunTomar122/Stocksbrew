@@ -349,7 +349,7 @@ export const PERF_WINDOWS: { key: PerfKey; label: string; long: string }[] = [
   { key: "r_ytd", label: "YTD", long: "This year" },
   { key: "r_1y", label: "1Y", long: "Past year" },
   { key: "r_since", label: "All", long: "Since first filing" },
-  { key: "max_drawdown", label: "Max DD", long: "Worst drop" },
+  { key: "max_drawdown", label: "Worst drop", long: "Worst drop" },
 ];
 
 const MONTHS = [
@@ -738,7 +738,7 @@ export function activitySize(item: ActivityItem): string {
       pct >= 1000
         ? Math.round(pct).toLocaleString("en-US")
         : pct.toFixed(pct >= 100 ? 0 : 1);
-    return `${item.shares_delta_pct > 0 ? "+" : MINUS}${text}% shares`;
+    return `${text}% ${item.shares_delta_pct > 0 ? "more" : "fewer"} shares`;
   }
   return "";
 }

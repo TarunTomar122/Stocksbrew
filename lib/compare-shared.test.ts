@@ -126,7 +126,7 @@ describe("what separates them", () => {
     expect(text).toContain("For each $1 of next year's expected earnings, you pay about $15 for NVDA and $31 for AMD.");
     expect(text).toContain("NVDA keeps 65 cents of each sales dollar as operating profit; AMD keeps 10 cents.");
     expect(text).toContain("NVDA holds $23.6B more cash than debt; AMD owes $1.20B more than it holds.");
-    expect(text).toContain("AMD is up 40.00% over the last year; NVDA is down 0.80%.");
+    expect(text).toContain("In the year to the last close, AMD is up 40.00% and NVDA is down 0.80%. The chart runs to the latest price.");
     expect(text).toContain("AMD's price jumps around more: over the last 90 trading days its swings ran at 58% a year, against 46% for NVDA.");
   });
 

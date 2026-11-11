@@ -22,9 +22,10 @@ export function PlansSection({ trialEligible }: { trialEligible: boolean }) {
   return (
     <div>
       <div className="mx-auto max-w-2xl text-center">
-        <h2 className={H2}>Reading is free. Pro is the agent on your whole portfolio.</h2>
+        <h2 className={H2}>Our call is free on every stock. Pro gives the full report on all of them.</h2>
         <p className={`${LEDE} mx-auto`}>
-          Our call and the full report are free on every stock. What you pay for is how much the agent does for you.
+          Our call says buy more, keep or sell some. The full report adds why, the prices where we&apos;d act and what would
+          change our mind. Free gives it on five stocks you pick.
         </p>
       </div>
       <div className="mx-auto mt-8 grid max-w-4xl gap-4 md:grid-cols-2">
@@ -32,11 +33,11 @@ export function PlansSection({ trialEligible }: { trialEligible: boolean }) {
           <p className="text-[17px] font-semibold leading-6 text-oa-fg">Free</p>
           <p className="oa-mono mt-3 text-[32px] font-medium leading-none tracking-tight">$0</p>
           <ul className="mt-5 flex flex-col gap-2">
-            <Line>Follow {covered} stocks, each covered in full: price zones, explained moves, the read before earnings</Line>
-            <Line>Every report, filing, market and investor page, signed in or not</Line>
+            <Line>The full report on {covered} stocks you pick: the prices where we&apos;d act, why each move happened, a note before earnings</Line>
+            <Line>Our call on every stock, and every filing, market and investor page</Line>
             <Line>
-              {limitFor("ask", "free")} questions and {limitFor("backtest", "free")} backtests a day, {limitFor("agents", "free")} agents,
-              a practice account
+              {limitFor("ask", "free")} questions a day, {limitFor("backtest", "free")} tests of your own rules a day, {limitFor("agents", "free")} agents that
+              email you, and a practice account
             </Line>
           </ul>
           <div className="mt-auto pt-6">
@@ -50,11 +51,11 @@ export function PlansSection({ trialEligible }: { trialEligible: boolean }) {
             <span className="ml-1.5 font-sans text-[14px] font-normal tracking-normal text-oa-muted-fg">a month</span>
           </p>
           <ul className="mt-5 flex flex-col gap-2">
-            <Line>Your agent covers every stock you own or watch</Line>
-            <Line>Every holding explained in the briefing, in your inbox before the open</Line>
-            <Line>Email alerts on prices, zones and call changes</Line>
+            <Line>The full report on every stock, not just five</Line>
+            <Line>Every holding explained in your briefing, in your inbox before the market opens</Line>
+            <Line>An email when a stock reaches our buy or sell price, or our call changes</Line>
             <Line>
-              Up to {limitFor("agents", "pro")} agents, {limitFor("ask", "pro")} questions a day, backtests over the full history
+              Up to {limitFor("agents", "pro")} agents, {limitFor("ask", "pro")} questions a day, and tests over the full price history
             </Line>
           </ul>
           <div className="mt-auto pt-6">
@@ -65,7 +66,7 @@ export function PlansSection({ trialEligible }: { trialEligible: boolean }) {
         </div>
       </div>
       <p className="mt-5 text-center text-[14px] text-oa-muted-fg">
-        The same call for everyone, paid or not.{" "}
+        Free and Pro readers see the same call on every stock.{" "}
         <a href="/pricing" className="text-oa-fg underline decoration-oa-border underline-offset-2">
           See every line of both plans
         </a>
