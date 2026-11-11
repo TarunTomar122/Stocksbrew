@@ -25,17 +25,63 @@ class ScheduleTest(unittest.TestCase):
         self.assertIn("backend.agentdata.markets", text)
 
     def test_no_job_appears_in_two_groups(self):
+        # The same module may run twice in one group with different flags (prices, then strategies).
         seen = {}
         for group, jobs in schedule.GROUPS.items():
             for _, argv in jobs:
-                self.assertNotIn(argv[0], seen, f"{argv[0]} is in {seen.get(argv[0])} and {group}")
-                seen[argv[0]] = group
+                first = seen.setdefault(argv[0], group)
+                self.assertEqual(first, group, f"{argv[0]} is in {first} and {group}")
+
+    def test_prices_are_stored_before_anything_reads_them(self):
+        labels = [label for label, _ in schedule.GROUPS["after_close"]]
+        jobs = dict(schedule.GROUPS["after_close"])
+        self.assertEqual(labels[:2], ["prices", "strategies"])
+        self.assertIn("--prices-only", jobs["prices"])
+        self.assertIn("--no-price-write", jobs["strategies"])
+
+    def test_every_step_timeout_names_a_real_step_and_stays_under_the_group_limit(self):
+        for (group, label), seconds in schedule.STEP_TIMEOUT_SECONDS.items():
+            self.assertIn(label, [name for name, _ in schedule.GROUPS[group]], f"{group}: {label}")
+            self.assertGreater(seconds, 0)
+            self.assertLessEqual(seconds, schedule.TIMEOUT_SECONDS[group], f"{group}: {label}")
+        self.assertEqual(schedule.timeout_for("after_close", "prices"), 30 * 60)
+        self.assertEqual(schedule.timeout_for("hourly", "sec filings"), schedule.TIMEOUT_SECONDS["hourly"])
+
+    def test_a_step_that_hits_its_limit_fails_alone_and_the_next_one_runs(self):
+        import subprocess
+        from unittest import mock
+
+        calls = []
+
+        def fake_run(command, **kwargs):
+            calls.append((command[2], kwargs["timeout"]))
+            if command[2] == "first":
+                raise subprocess.TimeoutExpired(command, kwargs["timeout"])
+            return subprocess.CompletedProcess(command, 0)
+
+        groups = {"after_close": [("slow", ["first"]), ("next", ["second"])]}
+        with mock.patch.object(schedule, "GROUPS", groups), mock.patch.object(
+            schedule, "STEP_TIMEOUT_SECONDS", {("after_close", "slow"): 120}
+        ), mock.patch.object(schedule.subprocess, "run", side_effect=fake_run):
+            out = io.StringIO()
+            code = schedule.run_group("after_close", out=out, environ={})
+        self.assertEqual(code, 1)
+        self.assertEqual(calls, [("first", 120), ("second", schedule.TIMEOUT_SECONDS["after_close"])])
+        text = out.getvalue()
+        self.assertIn("FAILED (124) slow in", text)
+        self.assertIn("stopped at its 2 min limit", text)
+        self.assertIn("ok           next in", text)
 
     def test_reason_checks_run_after_the_standing_agents(self):
         labels = [label for label, _ in schedule.GROUPS["after_close"]]
         self.assertIn("reason checks", labels)
         self.assertEqual(labels.index("reason checks"), labels.index("standing agents") + 1)
         self.assertEqual(labels[-1], "reason checks")
+
+    def test_senate_reports_run_after_the_house_and_before_the_copy_tests(self):
+        labels = [label for label, _ in schedule.GROUPS["weekly"]]
+        self.assertEqual(labels.index("senate trade reports"), labels.index("house trade reports") + 1)
+        self.assertLess(labels.index("senate trade reports"), labels.index("copy trade tests"))
 
     def test_node_jobs_use_the_jobs_config_not_the_test_config(self):
         self.assertTrue((schedule._ROOT / schedule.NODE_JOBS_CONFIG).exists())

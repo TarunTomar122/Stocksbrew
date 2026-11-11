@@ -18,7 +18,8 @@ Groups and what they keep fresh:
 * ``after_close``  daily prices, strategy baskets and their live record, earnings
                    dates and reactions, the screener snapshot, then the standing agents
                    and the reason checks (both TypeScript, see "Node jobs" below)
-* ``weekly``       13F fund portfolios, who holds each stock, House trade reports,
+* ``weekly``       13F fund portfolios, who holds each stock, House trade reports, Senate
+                   trade reports (off until ``SENATE_PTR_ENABLED=1``),
                    then the copy tests built from them (off until ``COPY_TRADES_ENABLED=1``),
                    ETF holdings and stock logo tiles
 * ``earnings_day`` the report on each covered stock that filed earnings today
@@ -71,7 +72,12 @@ GROUPS: dict[str, list[tuple[str, list[str]]]] = {
         ("calendar events", ["backend.agentdata.calendar_events"]),
     ],
     "after_close": [
-        ("prices and strategies", ["backend.agentdata.backtest_strategies"]),
+        # Prices first and on their own: every later step reads them from the store. Only the
+        # series newer than the stored copy are written (~550 on a market day).
+        ("prices", ["backend.agentdata.backtest_strategies", "--prices-only"]),
+        # The strategies run on the series the step above just cached on disk, so a slow price
+        # write can time out without costing the strategies their nightly update.
+        ("strategies", ["backend.agentdata.backtest_strategies", "--no-price-write"]),
         ("earnings calendar", ["backend.agentdata.earnings_calendar"]),
         # Three years of 8-K earnings release dates and times from EDGAR (about 800 requests, ~2 minutes),
         # read by the reactions step below and the earnings season planner.
@@ -91,6 +97,12 @@ GROUPS: dict[str, list[tuple[str, list[str]]]] = {
         # No --years: the job replaces each member's whole profile, so a run
         # limited to one year would shrink every record to that year.
         ("house trade reports", ["backend.agentdata.house_ptr"]),
+        # Senators' reports from the Senate eFD site: only reports filed since the last run, so a
+        # routine run is a few search pages and a handful of report pages. Off until
+        # SENATE_PTR_ENABLED=1: eFD refuses non-browser clients with a 403 today, and the job stops
+        # on the first 403 (exit 2) rather than retrying. Weekly is enough for a public-interest
+        # page; a more frequent run only pays off once eFD lets the job in.
+        ("senate trade reports", ["backend.agentdata.senate_ptr"]),
         # Copy tests for every fund and member, from the 13F and House jobs above. Off until
         # COPY_TRADES_ENABLED=1; the job itself exits early without it.
         ("copy trade tests", ["backend.agentdata.copy_trades"]),
@@ -112,6 +124,32 @@ GROUPS: dict[str, list[tuple[str, list[str]]]] = {
 
 # A job that hangs must not hold the group, and the next timer run, forever.
 TIMEOUT_SECONDS = {"frequent": 20 * 60, "hourly": 40 * 60, "after_close": 90 * 60, "weekly": 4 * 60 * 60, "earnings_day": 9 * 60}
+
+# Per-step limits where the group's default is far too generous. A step that hits its limit
+# fails on its own and the group moves on, instead of one stuck step eating the group's time
+# and leaving everything after it stale. Each limit is several times the step's usual run on
+# the VPS (in brackets, Nov 2026), and wins over TIMEOUT_SECONDS.
+STEP_TIMEOUT_SECONDS: dict[tuple[str, str], int] = {
+    # [Before Nov 11: 65-90+ min, ~15-20 s per stored series.] Now: fetch ~2 min, then ~550
+    # series written in batches; a timeout keeps what was committed and the next run picks up
+    # the rest.
+    ("after_close", "prices"): 30 * 60,
+    ("after_close", "strategies"): 15 * 60,  # [~1 min on cached prices]
+    ("after_close", "earnings calendar"): 15 * 60,  # [3-4 min]
+    ("after_close", "earnings history"): 15 * 60,  # [~2 min]
+    ("after_close", "earnings reactions"): 10 * 60,  # [1-1.5 min]
+    ("after_close", "dividend history"): 20 * 60,  # [~800 Yahoo requests, ~8 min]
+    ("after_close", "screener snapshot"): 10 * 60,  # [1-1.5 min]
+    # The two node steps have no clean run on the VPS yet (env errors through Nov 11), so these
+    # limits are generous guesses; tighten them once the journal shows a few nights.
+    ("after_close", "standing agents"): 20 * 60,
+    ("after_close", "reason checks"): 15 * 60,
+}
+
+
+def timeout_for(group: str, label: str) -> int:
+    """Seconds one step may run before it is stopped and counted as failed."""
+    return STEP_TIMEOUT_SECONDS.get((group, label), TIMEOUT_SECONDS[group])
 
 
 # The vite-node config for node jobs (aliases plus stand-ins for Next-only APIs).
@@ -191,16 +229,20 @@ def run_group(group: str, *, dry_run: bool = False, out=sys.stdout, environ: dic
                 failures += 1
                 continue
         if dry_run:
-            print(f"[{group}] would run {label}: {' '.join(command)}", file=out, flush=True)
+            print(f"[{group}] would run {label}: {' '.join(command)} (limit {timeout_for(group, label) // 60} min)", file=out, flush=True)
             continue
+        limit = timeout_for(group, label)
         started = time.monotonic()
+        timed_out = False
         try:
-            code = subprocess.run(command, cwd=_ROOT, env=env, timeout=TIMEOUT_SECONDS[group], check=False).returncode
+            code = subprocess.run(command, cwd=_ROOT, env=env, timeout=limit, check=False).returncode
         except subprocess.TimeoutExpired:
             code = 124
+            timed_out = True
         seconds = time.monotonic() - started
         status = "ok" if code == 0 else f"FAILED ({code})"
-        print(f"[{group}] {status:12s} {label} in {seconds:.0f}s", file=out, flush=True)
+        note = f" (stopped at its {limit // 60} min limit)" if timed_out else ""
+        print(f"[{group}] {status:12s} {label} in {seconds:.0f}s{note}", file=out, flush=True)
         if code != 0:
             failures += 1
     return 1 if failures else 0

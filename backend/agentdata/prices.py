@@ -14,11 +14,14 @@ A local file cache under ``backend/.cache/prices`` keeps repeat runs polite.
 
 from __future__ import annotations
 
+import http.client
 import json
+import threading
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -30,6 +33,17 @@ _CACHE_DIR = Path(__file__).resolve().parents[1] / ".cache" / "prices"
 _CACHE_TTL_SECONDS = 20 * 3600
 # Yahoo rate-limits full browser user agents on this endpoint; the short form is accepted.
 _USER_AGENT = "Mozilla/5.0"
+# Parallel chart requests in load_many. Each worker still pauses after every network fetch,
+# so three of them stay near 4 requests a second; a 429 is retried with backoff.
+FETCH_WORKERS = 3
+
+# How often Yahoo answered 429 (slow down) since the process started; load_many reports it.
+_rate_limited = 0
+_rate_limited_lock = threading.Lock()
+
+
+def rate_limited_count() -> int:
+    return _rate_limited
 
 
 # Mirrors SESSION_DONE_UTC in lib/backtest/index.ts.
@@ -75,10 +89,16 @@ def _fetch_chart(symbol: str, years: int) -> dict[str, Any] | None:
             if error.code == 404:
                 return None
             if error.code in (429, 500, 502, 503):
+                if error.code == 429:
+                    global _rate_limited
+                    with _rate_limited_lock:
+                        _rate_limited += 1
                 time.sleep(2.0 * (attempt + 1))
                 continue
             return None
-        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError):
+        # URLError, timeouts and dropped connections (ConnectionResetError, RemoteDisconnected)
+        # are all OSError; a truncated body is an http.client.IncompleteRead.
+        except (OSError, http.client.HTTPException, json.JSONDecodeError):
             time.sleep(1.5 * (attempt + 1))
     return None
 
@@ -103,10 +123,18 @@ def _cache_is_fresh(written: float, now: float) -> bool:
     return written >= last_close.timestamp()
 
 
+def _has_fresh_cache(symbol: str, years: int) -> bool:
+    cache = _cache_path(symbol, years)
+    try:
+        return _cache_is_fresh(cache.stat().st_mtime, time.time())
+    except FileNotFoundError:
+        return False
+
+
 def fetch_daily(symbol: str, years: int = 12, *, use_cache: bool = True) -> dict[str, Any] | None:
     """Adjusted daily closes for ``symbol``. Returns None when Yahoo has no series."""
     cache = _cache_path(symbol, years)
-    if use_cache and cache.exists() and _cache_is_fresh(cache.stat().st_mtime, time.time()):
+    if use_cache and _has_fresh_cache(symbol, years):
         try:
             return json.loads(cache.read_text())
         except json.JSONDecodeError:
@@ -170,15 +198,44 @@ def load_many(
     store: DocStore | None = None,
     pause: float = 0.25,
     log: bool = True,
+    workers: int = FETCH_WORKERS,
 ) -> dict[str, dict[str, Any]]:
-    """Fetch each symbol (cached), optionally writing it to the document store."""
+    """Fetch each symbol (cached), optionally writing it to the document store.
+
+    Up to ``workers`` requests run at once; results come back, and are stored, in
+    the order the symbols were given. A symbol whose fetch raises counts as missing
+    (and is named in the log) instead of failing every other symbol with it.
+    """
     out: dict[str, dict[str, Any]] = {}
     missing: list[str] = []
+    errors: list[str] = []
     pending: list[tuple[str, dict[str, Any]]] = []
     unique = list(dict.fromkeys(symbol.strip().upper() for symbol in symbols if symbol and symbol.strip()))
-    for index, symbol in enumerate(unique, start=1):
-        cached_before = _cache_path(symbol, years).exists()
-        document = fetch_daily(symbol, years)
+    limited_before = rate_limited_count()
+    done = 0
+    done_lock = threading.Lock()
+
+    def fetch(symbol: str) -> dict[str, Any] | None:
+        nonlocal done
+        from_network = not _has_fresh_cache(symbol, years)
+        try:
+            document = fetch_daily(symbol, years)
+        except Exception as error:  # one bad reply must not cost the other symbols
+            with done_lock:
+                errors.append(f"{symbol}: {type(error).__name__}")
+            document = None
+        if from_network:
+            time.sleep(pause)
+        with done_lock:
+            done += 1
+            count = done
+        if log and count % 50 == 0:
+            print(f"[prices] {count}/{len(unique)} fetched", flush=True)
+        return document
+
+    with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
+        results = list(pool.map(fetch, unique))
+    for symbol, document in zip(unique, results):
         if document is None:
             missing.append(symbol)
         else:
@@ -188,12 +245,13 @@ def load_many(
                 if len(pending) >= 25:
                     store.set_many(pending)
                     pending = []
-        if not cached_before:
-            time.sleep(pause)
-        if log and index % 50 == 0:
-            print(f"[prices] {index}/{len(unique)} fetched, {len(missing)} missing", flush=True)
     if store is not None and pending:
         store.set_many(pending)
+    # Always said, even with log=False: dropped symbols and a slow-down from Yahoo are what
+    # explain a thin or late price refresh.
+    limited = rate_limited_count() - limited_before
+    if errors or limited:
+        print(f"[prices] {len(errors)} fetches failed {errors[:12]}, Yahoo asked to slow down {limited} times", flush=True)
     if log:
         print(f"[prices] done: {len(out)} series, {len(missing)} missing {missing[:12]}", flush=True)
     return out

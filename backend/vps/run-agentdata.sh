@@ -38,6 +38,20 @@ done
 
 LOCK_FILE="${TIKRR_AGENTDATA_LOCK:-/tmp/tikrr-agentdata.lock}"
 if command -v flock >/dev/null 2>&1; then
-  exec flock --wait 3600 "${LOCK_FILE}" "${PYTHON_BIN}" -m backend.agentdata.schedule --group "${GROUP}"
+  # Hold the lock on fd 9, which the exec'd runner keeps until it exits. Say when the group had
+  # to queue and for how long, so the journal shows lock waits apart from slow steps.
+  # A read descriptor is enough for flock, and works even when another user owns the file.
+  [[ -e "${LOCK_FILE}" ]] || : >>"${LOCK_FILE}"
+  exec 9<"${LOCK_FILE}"
+  if ! flock --nonblock 9; then
+    echo "[${GROUP}] waiting for another agent data group to finish"
+    WAIT_STARTED=$(date +%s)
+    if ! flock --wait 3600 9; then
+      echo "[${GROUP}] gave up after waiting 60 min for the lock"
+      exit 1
+    fi
+    echo "[${GROUP}] started after waiting $(( $(date +%s) - WAIT_STARTED ))s for the lock"
+  fi
+  exec "${PYTHON_BIN}" -m backend.agentdata.schedule --group "${GROUP}"
 fi
 exec "${PYTHON_BIN}" -m backend.agentdata.schedule --group "${GROUP}"

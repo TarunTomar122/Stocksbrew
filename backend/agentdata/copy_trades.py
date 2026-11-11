@@ -1,7 +1,7 @@
-"""Copy the smart money, tested: what copying each fund and House member would have made.
+"""Copy the smart money, tested: what copying each fund and member of Congress would have made.
 
-For every 13F fund in ``funds_13f.FUNDS`` and every House member with
-reported trades, this replays a copy portfolio over stored daily closes and
+For every 13F fund in ``funds_13f.FUNDS`` and every House member and senator with
+reported trades (house_ptr.py and senate_ptr.py), this replays a copy portfolio over stored daily closes and
 writes one document per source plus a ranked hub:
 
 * ``tm_copy_trades/{slug}``       the record, curve, yearly returns, trades, best and worst positions
@@ -13,7 +13,7 @@ The rules (stated on every page in one sentence):
   largest stock positions at that day's close, sized like the fund's
   portfolio (scaled up over the ones we can price), and sell whatever it
   dropped or cut. From the first filing published in 2020.
-* House members: on the first trading day after each report became public,
+* Members of Congress: on the first trading day after each report became public,
   buy every stock they reported buying, sized by the middle of the reported
   amount bracket, and sell when they report a sale (a partial sale sells that
   amount). From the first purchase reported since 2023.
@@ -591,7 +591,7 @@ def rank_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def hub_row(record: dict[str, Any]) -> dict[str, Any]:
-    row = {key: record.get(key) for key in ("slug", "kind", "name", "person", "party", "state", "district", "active", "start_date", "end_date", "ended", "stopped", "sessions", "eligible", "not_ranked_because", "not_ranked_group", "excess_per_year", "years")}
+    row = {key: record.get(key) for key in ("slug", "kind", "chamber", "name", "person", "party", "state", "district", "active", "start_date", "end_date", "ended", "stopped", "sessions", "eligible", "not_ranked_because", "not_ranked_group", "excess_per_year", "years")}
     copy = record.get("copy") or {}
     spy = record.get("spy") or {}
     row.update(
@@ -672,6 +672,8 @@ def congress_events(trades: list[dict[str, Any]]) -> tuple[list[dict[str, Any]],
         item
         for item in trades
         if item.get("ticker") and item.get("tx_type") in ("buy", "sell") and item.get("disclosure_date") and (item.get("est_amount") or 0) > 0
+        # A Senate report restated by an amendment: its trades are counted once, from the amendment.
+        and not item.get("superseded_by")
     ]
     # Within a report day: by trade date, buys before sales (the order house_ptr uses).
     usable.sort(key=lambda item: (item["disclosure_date"], item.get("transaction_date") or "", 0 if item["tx_type"] == "buy" else 1))
@@ -759,7 +761,7 @@ def load_prices(
         if not fetch_missing:
             continue
         fetched = prices.fetch_daily(ticker, PRICE_YEARS)
-        time.sleep(0.2)  # Yahoo rate-limits bursts; the same pace prices.load_many keeps
+        time.sleep(0.2)  # Yahoo rate-limits bursts; one request at a time, paused like each load_many worker
         if fetched is not None and (ticker not in out or (fetched.get("last_date") or "") > (out[ticker].get("last_date") or "")):
             out[ticker] = fetched
             counts["fetched"] += 1
@@ -810,6 +812,7 @@ def run_member(member: dict[str, Any], trades: list[dict[str, Any]], closes: Clo
         "party": member.get("party") or "",
         "state": member.get("state") or "",
         "district": member.get("district") or "",
+        "chamber": member.get("chamber") or "house",
         "active": bool(member.get("sitting", True)),
         "rule": CONGRESS_RULE,
         "caveat": CONGRESS_CAVEAT,
@@ -819,7 +822,7 @@ def run_member(member: dict[str, Any], trades: list[dict[str, Any]], closes: Clo
     events, names = congress_events(trades)
     if not events:
         return empty_record(source, "no stock purchases we could copy", now_iso)
-    # Someone who has left the House will never report a sale; the record stops at their last report.
+    # Someone who has left Congress will never report a sale; the record stops at their last report.
     ended = not source["active"]
     end_index = None
     if ended:
@@ -841,7 +844,7 @@ def run_member(member: dict[str, Any], trades: list[dict[str, Any]], closes: Clo
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Backtest copying each followed fund and House member.")
+    parser = argparse.ArgumentParser(description="Backtest copying each followed fund and member of Congress.")
     parser.add_argument("--only", default="", help="comma separated slugs (funds or members)")
     parser.add_argument("--dry-run", action="store_true", help="compute everything, write nothing")
     parser.add_argument("--force", action="store_true", help=f"run even without {ENABLE_FLAG}=1")
@@ -860,7 +863,8 @@ def main(argv: list[str] | None = None) -> int:
     funds = [fund for fund in FUNDS if not wanted or fund["slug"] in wanted]
     cusips = CusipMap(store)
     timelines = {fund["slug"]: fund_timeline(fund) for fund in funds}
-    people_rows = [data for _, data in store.list("tm_follow_sources", 1000) if data.get("kind") == "congress"]
+    # House members, senators and funds share the collection; leave room for all of them.
+    people_rows = [data for _, data in store.list("tm_follow_sources", 5000) if data.get("kind") == "congress"]
     people_rows = [row for row in people_rows if not wanted or row.get("slug") in wanted]
     member_docs = store.get_many([f"tm_follow_people/{row['slug']}" for row in people_rows])
     members = []
@@ -868,10 +872,11 @@ def main(argv: list[str] | None = None) -> int:
         profile = member_docs.get(f"tm_follow_people/{row['slug']}") or {}
         members.append({"slug": row["slug"], "name": profile.get("name") or row.get("name"), "party": profile.get("party") or row.get("party"),
                         "state": profile.get("state") or row.get("state"), "district": profile.get("district") or row.get("district"),
-                        "sitting": profile.get("sitting", row.get("active", True))})
+                        "sitting": profile.get("sitting", row.get("active", True)),
+                        "chamber": profile.get("chamber") or row.get("chamber") or "house"})
     trades_by_member = {member["slug"]: query_equal(store, "tm_follow_trades", "person_id", member["slug"]) for member in members}
     log(f"{len(funds)} funds ({sum(1 for t in timelines.values() if t)} with cached filings), {len(members)} members, "
-        f"{sum(len(t) for t in trades_by_member.values())} House trades")
+        f"{sum(len(t) for t in trades_by_member.values())} House and Senate trades")
 
     tickers: set[str] = {"SPY"}
     for slug, timeline in timelines.items():
@@ -935,6 +940,7 @@ def main(argv: list[str] | None = None) -> int:
         "rows": rows,
         "funds": sum(1 for row in rows if row["kind"] == "fund"),
         "members": sum(1 for row in rows if row["kind"] == "congress"),
+        "senators": sum(1 for row in rows if row["kind"] == "congress" and row.get("chamber") == "senate"),
         "ranked_funds": sum(1 for row in rows if row["kind"] == "fund" and row["eligible"]),
         "ranked_members": sum(1 for row in rows if row["kind"] == "congress" and row["eligible"]),
         "fund_rule": FUND_RULE,

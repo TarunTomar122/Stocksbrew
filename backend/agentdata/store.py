@@ -24,6 +24,9 @@ from typing import Any, Iterable
 _ROOT = Path(__file__).resolve().parents[2]
 _MAX_BATCH_DOCS = 200
 _MAX_BATCH_BYTES = 6 * 1024 * 1024
+# Straight to SQLite, one batch is one write transaction, and the web app's writes wait
+# behind it (busy timeout 30s). Keep it to a few seconds of work: about 30 price histories.
+_MAX_SQLITE_BATCH_BYTES = 2 * 1024 * 1024
 
 # Collections the agent jobs may write. Anything else is refused so a typo can
 # never land in user data or in a collection another pipeline owns.
@@ -161,10 +164,13 @@ class DocStore:
     def get_many(self, paths: list[str]) -> dict[str, dict[str, Any]]:
         out: dict[str, dict[str, Any]] = {}
         if self._db is not None:
-            for path in paths:
-                data = self.get(path)
-                if data is not None:
-                    out[path] = data
+            # One query per chunk instead of one connection per document.
+            for start in range(0, len(paths), 400):
+                chunk = paths[start : start + 400]
+                snapshots = self._db.get_all([self._db.document(path) for path in chunk])
+                for path, snapshot in zip(chunk, snapshots):
+                    if snapshot.exists:
+                        out[path] = snapshot.to_dict() or {}
             return out
         for start in range(0, len(paths), 400):
             chunk = paths[start : start + 400]
@@ -202,20 +208,24 @@ class DocStore:
             if not batch:
                 return
             if self._db is not None:
+                # One transaction for the batch: one connection, one lock, a warm page cache.
+                writes = self._db.batch()
                 for operation in batch:
-                    self._db.document(operation["path"]).set(operation["data"], merge=merge)
+                    writes.set(self._db.document(operation["path"]), operation["data"], merge=merge)
+                writes.commit()
             else:
                 self._request("POST", "/documents:batchWrite", {"operations": batch})
             written += len(batch)
             batch = []
             batch_bytes = 0
 
+        max_bytes = _MAX_SQLITE_BATCH_BYTES if self._db is not None else _MAX_BATCH_BYTES
         for path, data in docs:
             _check_writable(path)
             if not isinstance(data, dict):
                 raise ValueError(f"document data must be an object: {path}")
             size = len(json.dumps(data, separators=(",", ":")))
-            if batch and (len(batch) >= _MAX_BATCH_DOCS or batch_bytes + size > _MAX_BATCH_BYTES):
+            if batch and (len(batch) >= _MAX_BATCH_DOCS or batch_bytes + size > max_bytes):
                 flush()
             batch.append({"op": "set", "path": path, "data": data, "merge": merge})
             batch_bytes += size

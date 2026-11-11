@@ -237,12 +237,31 @@ class LocalDocumentStore:
 
     @staticmethod
     def _replace_array_index(connection: sqlite3.Connection, path: str, data_json: str) -> None:
-        connection.execute("DELETE FROM document_array_values WHERE path = ?", (path,))
-        rows = array_index_rows(path, json.loads(data_json))
-        if rows:
+        """Make the array index rows for ``path`` match ``data_json``, touching only what changed.
+
+        Deleting and reinserting every row cost ~20s per price-history document on the VPS:
+        each one carries ~6,000 array values (dates and closes), and every row is a random
+        insert into the (field, value, path) key. A daily refresh adds one date and one
+        close, so the difference is a handful of rows. The end state is the same.
+        """
+        wanted = set(array_index_rows(path, json.loads(data_json)))
+        existing = {
+            (path, row[0], row[1])
+            for row in connection.execute(
+                "SELECT field, value FROM document_array_values WHERE path = ?", (path,)
+            )
+        }
+        stale = existing - wanted
+        if stale:
+            connection.executemany(
+                "DELETE FROM document_array_values WHERE field = ? AND value = ? AND path = ?",
+                [(field, value, row_path) for row_path, field, value in sorted(stale)],
+            )
+        added = wanted - existing
+        if added:
             connection.executemany(
                 "INSERT OR IGNORE INTO document_array_values(path, field, value) VALUES (?, ?, ?)",
-                rows,
+                sorted(added),
             )
 
     @staticmethod

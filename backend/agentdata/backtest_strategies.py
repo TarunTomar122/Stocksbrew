@@ -1,6 +1,8 @@
 """Rule-based strategies: run each over the stored price history and publish it.
 
     python3 -m backend.agentdata.backtest_strategies              # refresh prices, run, write
+    python3 -m backend.agentdata.backtest_strategies --prices-only  # refresh and store prices, nothing else
+    python3 -m backend.agentdata.backtest_strategies --no-price-write  # run on the cached prices, write strategies
     python3 -m backend.agentdata.backtest_strategies --dry-run    # run and print, write nothing
     python3 -m backend.agentdata.backtest_strategies --only momentum-12-1
 
@@ -12,6 +14,13 @@ Writes (additive, through ``DocStore``):
 * ``tm_strategy_runs/{slug}``: the full rebalance history and the frozen
   decisions the live record is valued from.
 * ``tm_backtest_universe/US``: the candidate lists, names and size proxies.
+* ``tm_price_history_daily/{SYMBOL}``: the refreshed price series, only those
+  newer than the stored copy (skipped with ``--no-price-write``).
+
+The after-close schedule runs this twice: ``--prices-only`` first, then
+``--no-price-write``, which reads the same series back from the local price
+cache. Each gets its own timeout, so slow store writes never cost the
+strategies their nightly update.
 
 Two records, kept apart on purpose:
 
@@ -30,6 +39,7 @@ from __future__ import annotations
 import argparse
 import calendar as month_calendar
 import json
+import sqlite3
 import sys
 import time
 from datetime import date, datetime, timedelta, timezone
@@ -339,21 +349,118 @@ def _num(value: Any) -> float | None:
 # -- writes -------------------------------------------------------------------
 
 
-def write_with_retry(store: DocStore, docs: list[tuple[str, dict[str, Any]]], *, batch: int = 4, attempts: int = 8) -> int:
-    """Small batches with backoff. The store is one SQLite file that other jobs write to at the same time."""
+# Price histories per write. Straight to SQLite (the VPS) one batch is one write transaction,
+# and the web app's writes wait behind it (30s busy timeout). What costs time there is the
+# array index: every date or close that changes is a random index write (~3-5 ms cold on the
+# VPS). So a batch is capped by documents and by changed array values: ~30 daily appends
+# (a few seconds), or one series whose whole history Yahoo rescaled after a dividend.
+PRICE_WRITE_BATCH = 30
+PRICE_WRITE_MAX_CHANGES = 1500
+# Yahoo's adjusted closes come back with the 4th decimal jittering between fetches (Nov 2026:
+# 74 of 107 series had ~200 past closes off by 0.0001-0.0002, with no real adjustment). A past
+# close within this of the stored one keeps the stored value, so the jitter is not rewritten
+# into the index every night. A real dividend or split rescale moves far more than this.
+CLOSE_JITTER = 0.0002 + 1e-9
+
+
+def _is_retryable(error: Exception) -> bool:
+    """A busy store, not a broken one: HTTP errors after retries, or SQLite's locked/busy."""
+    if isinstance(error, sqlite3.OperationalError):
+        text = str(error).lower()
+        return "locked" in text or "busy" in text
+    return isinstance(error, RuntimeError)
+
+
+def write_batches(
+    store: DocStore,
+    batches: list[list[tuple[str, dict[str, Any]]]],
+    *,
+    attempts: int = 8,
+    progress: str = "",
+) -> int:
+    """Write each batch with backoff. The store is one SQLite file other jobs write to at the same time.
+
+    A busy store shows up as RuntimeError over HTTP and as sqlite3.OperationalError
+    ("database is locked") straight to the file; both are retried. Any other SQLite
+    error (disk full, I/O) is raised at once.
+    """
+    total = sum(len(batch) for batch in batches)
     written = 0
-    for start in range(0, len(docs), batch):
-        chunk = docs[start : start + batch]
+    started = time.monotonic()
+    next_report = started + 60
+    for chunk in batches:
         for attempt in range(attempts):
             try:
                 written += store.set_many(chunk)
                 break
-            except RuntimeError as error:
-                if attempt == attempts - 1:
+            except (RuntimeError, sqlite3.OperationalError) as error:
+                if attempt == attempts - 1 or not _is_retryable(error):
                     raise
                 log(f"write retry {attempt + 1} after: {str(error)[:120]}")
                 time.sleep(5.0 * (attempt + 1))
+        if progress and time.monotonic() >= next_report and written < total:
+            log(f"{progress}: wrote {written} of {total} in {time.monotonic() - started:.0f}s")
+            next_report = time.monotonic() + 60
+    if progress:
+        log(f"{progress}: wrote {written} in {time.monotonic() - started:.1f}s")
     return written
+
+
+def write_with_retry(
+    store: DocStore,
+    docs: list[tuple[str, dict[str, Any]]],
+    *,
+    batch: int = 4,
+    attempts: int = 8,
+    progress: str = "",
+) -> int:
+    """Fixed-size batches through ``write_batches``."""
+    batches = [docs[start : start + batch] for start in range(0, len(docs), batch)]
+    return write_batches(store, batches, attempts=attempts, progress=progress)
+
+
+def steady_closes(document: dict[str, Any], stored: dict[str, Any] | None) -> tuple[dict[str, Any], int]:
+    """``document`` with past closes that only jittered set back to the stored values.
+
+    Returns the document to write (a copy when anything was kept) and how many array
+    values differ from the stored copy, which is roughly the index writes it will cost.
+    """
+    dates = list(document.get("dates") or [])
+    closes = list(document.get("closes") or [])
+    if not stored:
+        return document, len(dates) + len(closes)
+    before = dict(zip(stored.get("dates") or [], stored.get("closes") or []))
+    kept = 0
+    for index, (day, close) in enumerate(zip(dates, closes)):
+        old = before.get(day)
+        if isinstance(old, (int, float)) and old != close and abs(old - close) <= CLOSE_JITTER:
+            closes[index] = old
+            kept += 1
+    if kept:
+        document = {**document, "closes": closes}
+    changes = len(set(dates) ^ set(stored.get("dates") or [])) + len(set(closes) ^ set(stored.get("closes") or []))
+    return document, changes
+
+
+def batches_by_changes(
+    docs: list[tuple[str, dict[str, Any], int]], *, max_docs: int, max_changes: int
+) -> list[list[tuple[str, dict[str, Any]]]]:
+    """Group (path, data, changes) in order; a batch ends at ``max_docs`` or ``max_changes``.
+
+    A single document over the change cap still gets a batch of its own.
+    """
+    batches: list[list[tuple[str, dict[str, Any]]]] = []
+    current: list[tuple[str, dict[str, Any]]] = []
+    budget = 0
+    for path, data, changes in docs:
+        if current and (len(current) >= max_docs or budget + changes > max_changes):
+            batches.append(current)
+            current, budget = [], 0
+        current.append((path, data))
+        budget += changes
+    if current:
+        batches.append(current)
+    return batches
 
 
 def sync_prices(store: DocStore, series: dict[str, dict[str, Any]]) -> int:
@@ -363,23 +470,33 @@ def sync_prices(store: DocStore, series: dict[str, dict[str, Any]]) -> int:
     # open carries a mid-session price for its last date; the dates match, but
     # it must still be replaced once the close is in.
     stored: dict[str, tuple[str, bool]] = {}
+    stored_docs: dict[str, dict[str, Any]] = {}
     for path, data in store.list(prices.COLLECTION, limit=5000):
         last = str(data.get("last_date") or "")
         fetched = str(data.get("fetched_at") or "")
         closed = not (fetched[:10] == last and fetched[11:16] < "21:10")
-        stored[path.split("/", 1)[1]] = (last, closed)
+        key = path.split("/", 1)[1]
+        stored[key] = (last, closed)
+        stored_docs[key] = data
 
     def is_stale(symbol: str, document: dict[str, Any]) -> bool:
         last, closed = stored.get(prices.doc_id(symbol), ("", True))
         return last < document["last_date"] or (last == document["last_date"] and not closed)
 
-    stale = [
-        (f"{prices.COLLECTION}/{prices.doc_id(symbol)}", document)
-        for symbol, document in sorted(series.items())
-        if is_stale(symbol, document)
-    ]
-    log(f"prices: {len(stale)} of {len(series)} series are newer than the store")
-    return write_with_retry(store, stale)
+    stale: list[tuple[str, dict[str, Any], int]] = []
+    kept_series = 0
+    for symbol, document in sorted(series.items()):
+        if not is_stale(symbol, document):
+            continue
+        steady, changes = steady_closes(document, stored_docs.get(prices.doc_id(symbol)))
+        kept_series += steady is not document
+        stale.append((f"{prices.COLLECTION}/{prices.doc_id(symbol)}", steady, changes))
+    log(
+        f"prices: {len(stale)} of {len(series)} series are newer than the store "
+        f"({kept_series} kept stored closes that only jittered, {sum(c for _, _, c in stale)} changed values)"
+    )
+    batches = batches_by_changes(stale, max_docs=PRICE_WRITE_BATCH, max_changes=PRICE_WRITE_MAX_CHANGES)
+    return write_batches(store, batches, progress="prices")
 
 
 # -- inputs -------------------------------------------------------------------
@@ -963,7 +1080,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--dry-run", action="store_true", help="run everything, write nothing")
     parser.add_argument("--only", action="append", default=[], help="run only this slug (repeatable)")
     parser.add_argument("--no-price-write", action="store_true", help="do not write refreshed prices back to the store")
+    parser.add_argument("--prices-only", action="store_true", help="refresh and store prices, then stop")
     args = parser.parse_args(argv)
+    if args.prices_only and args.no_price_write:
+        parser.error("--prices-only and --no-price-write leave nothing to do")
 
     store = DocStore.from_env()
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -975,7 +1095,9 @@ def main(argv: list[str] | None = None) -> int:
 
     wanted = list(dict.fromkeys([BENCHMARK] + sorted(FUND_NAMES) + tickers))
     log(f"prices: {len(wanted)} symbols")
+    fetch_started = time.monotonic()
     series = prices.load_many(wanted, log=False)
+    log(f"prices: fetched in {time.monotonic() - fetch_started:.0f}s")
     price_data: dict[str, dict[str, Any]] = {}
     for symbol, document in series.items():
         dates, closes = completed_sessions(document)
@@ -988,6 +1110,8 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     if not (args.dry_run or args.no_price_write):
         sync_prices(store, series)
+    if args.prices_only:
+        return 0
 
     facts = load_facts(store, tickers)
     size_factors: dict[str, float] = {}

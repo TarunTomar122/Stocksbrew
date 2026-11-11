@@ -17,11 +17,11 @@ export const AFTER_CLOSE_RUN_ET = { hour: 17, minute: 30 } as const;
 /** ISO weekdays the timer fires on (1 = Monday). */
 export const AFTER_CLOSE_WEEKDAYS: readonly number[] = [1, 2, 3, 4, 5];
 /**
- * Start to finished on a usual night: prices and strategies take about an
- * hour (their cap is 90 minutes), the earnings, dividend and screener steps a
- * few minutes, the agents and reason checks a few more. Not a bound: each step
- * has its own timeout, so a bad night can finish later. Say "usually" or
- * "by about" when showing it.
+ * Start to finished on a usual night. Until Nov 11 2026 the price step alone
+ * took 65-90+ minutes; with the faster price writes it should be minutes (its
+ * cap is 30), but this stays at 120 until a few real runs confirm it. Each
+ * step has its own timeout (backend/agentdata/schedule.py), so a bad night can
+ * finish later. Say "usually" or "by about" when showing it.
  */
 export const AFTER_CLOSE_USUALLY_DONE_MINUTES = 120;
 

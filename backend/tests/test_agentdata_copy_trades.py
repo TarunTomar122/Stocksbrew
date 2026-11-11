@@ -159,6 +159,14 @@ class TradesModeTests(unittest.TestCase):
         # Only the disclosure date is ever used, never the trade date.
         self.assertEqual({event["date"] for event in events}, {"2024-01-04"})
 
+    def test_congress_events_skip_trades_an_amendment_restated(self) -> None:
+        trades = [
+            {"ticker": "A", "tx_type": "buy", "disclosure_date": "2026-06-16", "transaction_date": "2026-05-27", "est_amount": 8000, "superseded_by": "amended"},
+            {"ticker": "A", "tx_type": "buy", "disclosure_date": "2026-06-16", "transaction_date": "2026-05-27", "est_amount": 8000},
+        ]
+        events, _ = ct.congress_events(trades)
+        self.assertEqual(len(events), 1)
+
 
 class StatsTests(unittest.TestCase):
     def test_drawdown_with_its_dates(self) -> None:
