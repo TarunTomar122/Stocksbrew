@@ -4,6 +4,7 @@ import * as React from "react";
 import { NUM, Panel, Ticker, fmtDay } from "@/components/oa/kit";
 import { TheRead } from "@/components/oa/insight";
 import { EpisodeToggle } from "@/components/stress/episode-toggle";
+import { watchMoveHref } from "@/lib/agents-plain/ask-links";
 import type { TheRead as TheReadData } from "@/lib/insights";
 import {
   coveredPct,
@@ -170,6 +171,26 @@ function Detail({ result, subject }: { result: EpisodeResult; subject: string })
   );
 }
 
+/**
+ * The next step beside the read: an alert on the stock that did the most damage in the worst sell-off, so the
+ * next big drop in it is not a surprise. Only when that stock lost money there.
+ */
+function WatchWorst({ result }: { result: StressResult }) {
+  const falls = result.episodes.filter((item) => item.episode.kind === "fall" && item.portfolio !== null && item.portfolio < 0);
+  const lead = [...falls].sort((a, b) => a.portfolio! - b.portfolio!)[0];
+  const stock = lead ? (lead.driver?.fund && lead.stockDriver ? lead.stockDriver : lead.driver) : null;
+  if (!lead || !stock || stock.pct === null || stock.pct >= 0) return null;
+  const href = watchMoveHref(stock.ticker, 5);
+  if (!href) return null;
+  return (
+    <p className="-mt-1 px-2 text-[13.5px] leading-5 sm:px-0">
+      <Link href={href} className="font-medium text-oa-primary underline-offset-2 hover:underline">
+        Tell me when {stock.name} moves 5% in a day →
+      </Link>
+    </p>
+  );
+}
+
 export function StressView({
   result,
   read,
@@ -191,6 +212,7 @@ export function StressView({
         label={example ? "How this portfolio did in past market shocks" : "How your portfolio did in past market shocks"}
         fold="phone"
       />
+      <WatchWorst result={result} />
       <Panel
         flush
         label={`${countWord(result.episodes.length)} real market episodes`}

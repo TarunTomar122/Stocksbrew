@@ -130,4 +130,13 @@ describe("buildStockTimeline", () => {
   it("is empty when nothing is stored", () => {
     expect(buildStockTimeline({ ticker: "X", now })).toEqual({ items: [], upcoming: [] });
   });
+
+  it("names both calls when the ledger confirms the switch", () => {
+    const { items } = buildStockTimeline({
+      ticker: "NVDA",
+      now,
+      callChange: { at: "2026-11-09T15:00:00Z", reason: null, headline: "Hold here", from: "Buy more", to: "Keep" },
+    });
+    expect(items[0]).toMatchObject({ id: "call-change", title: "We changed our call from Buy more to Keep" });
+  });
 });

@@ -139,7 +139,19 @@ describe("buildStockRead", () => {
     });
     const call = read?.insights.find((item) => item.id === "call");
     expect(call?.text).toBe("NVDA is 10% above our buy-more price ($100), and 20% below the price where we'd sell some ($132).");
-    expect(call?.soWhat).toBe("We changed our call to Hold on Oct 1 at $100, and it is up 10% since.");
+    expect(call?.soWhat).toBe("We changed our call from Buy more to Keep on Oct 1 at $100, and it is up 10% since.");
+  });
+
+  it("leaves out a level more than half the price away, as the page header does", () => {
+    const read = buildStockRead({
+      ...base,
+      dayPct: 1,
+      price: 169,
+      call: { word: "Hold", writtenAt: null },
+      levels: { addBelow: null, trimAbove: 311 },
+      lastChange: null,
+    });
+    expect(JSON.stringify(read)).not.toContain("311");
   });
 
   it("caps the read at three insights", () => {

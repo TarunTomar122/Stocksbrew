@@ -63,7 +63,9 @@ function toReaction(raw: RawDoc, today: string): Reaction | null {
   const pct = raw.pct;
   const toDate = String(raw.to_date ?? "");
   if (typeof pct !== "number" || !Number.isFinite(pct) || !toDate || toDate >= today) return null;
-  return { pct, basis: raw.basis === "2d" ? "2d" : "1d", toDate };
+  // Only a time the job took from the company's 8-K; the calendar's own time is on the row already.
+  const session = raw.session_source === "sec_8k" && (raw.session === "bmo" || raw.session === "amc") ? raw.session : undefined;
+  return { pct, basis: raw.basis === "2d" ? "2d" : "1d", toDate, ...(session ? { session } : {}) };
 }
 
 export type CalendarRange = {

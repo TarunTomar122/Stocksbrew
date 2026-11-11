@@ -2,6 +2,7 @@
 
 import * as React from "react";
 
+import { PlainAgentReadContext } from "@/components/agents-plain/plain-agent-box";
 import { SignInButton } from "@/components/briefing/sign-in-button";
 import { OaButton } from "@/components/oa/button";
 import { TheRead } from "@/components/oa/insight";
@@ -100,6 +101,31 @@ function starterFor(sample: JobsWorkspaceProps["sample"], signedIn: boolean): { 
   if (!template || trigger.type !== "price" || trigger.rule !== "moves_pct" || scope.kind !== "tickers") return null;
   const form: Form = { ...BLANK, scope: "tickers", tickers: scope.tickers.join(", "), pct: String(trigger.pct ?? 5) };
   return { templateId: template.id, form, replay: sample.replay, key: JSON.stringify(payloadFor(template, form, signedIn)) };
+}
+
+/**
+ * The builder's form for a draft the plain-English box read, so the builder can preview that agent. Null for a
+ * template the builder does not offer.
+ */
+function formFromDraft(draft: AgentJobDraft, offered: AgentTemplate[]): { template: AgentTemplate; form: Form } | null {
+  const template = offered.find((entry) => entry.id === draft.template);
+  if (!template) return null;
+  const { trigger, scope } = draft;
+  const form: Form = {
+    ...BLANK,
+    scope: scope.kind,
+    tickers: scope.kind === "tickers" ? scope.tickers.join(", ") : "",
+  };
+  if (trigger.type === "price") {
+    if (trigger.rule === "crosses_above" || trigger.rule === "crosses_below") form.direction = trigger.rule;
+    if (trigger.level != null) form.level = String(trigger.level);
+    if (trigger.pct != null) form.pct = String(trigger.pct);
+  } else if (trigger.type === "event" && trigger.days_before != null) {
+    form.days = String(trigger.days_before);
+  } else if (trigger.type === "schedule" && trigger.weekday != null) {
+    form.weekday = trigger.weekday;
+  }
+  return { template, form };
 }
 
 function runRows(runs: AgentRun[]): RunRow[] {
@@ -240,6 +266,8 @@ export function JobsWorkspace({
   const [notice, setNotice] = React.useState<string | null>(null);
   const [allTemplates, setAllTemplates] = React.useState(false);
   const [adding, setAdding] = React.useState(false);
+  /** The payload of an agent loaded into the builder from the plain-English box, while it is unchanged. */
+  const [fromWords, setFromWords] = React.useState<string | null>(null);
   const builderRef = React.useRef<HTMLDivElement>(null);
 
   const template = AGENT_TEMPLATES.find((entry) => entry.id === templateId) ?? null;
@@ -325,15 +353,59 @@ export function JobsWorkspace({
     requestAnimationFrame(() => builderRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
   }
 
-  async function runReplay() {
-    if (!payload) return;
-    const body = await call<{ replay: Replay }>("replay", "/api/agent-jobs/replay", { method: "POST", body: payloadKey });
-    if (template) trackAgentPreviewed({ template: template.id, ok: Boolean(body) });
+  async function replayPayload(key: string, templateForTracking: string) {
+    const body = await call<{ replay: Replay }>("replay", "/api/agent-jobs/replay", { method: "POST", body: key });
+    trackAgentPreviewed({ template: templateForTracking, ok: Boolean(body) });
     if (body) {
       setReplay(body.replay);
-      setReplayFor(payloadKey);
+      setReplayFor(key);
     }
   }
+
+  async function runReplay() {
+    if (!payload || !template) return;
+    await replayPayload(payloadKey, template.id);
+  }
+
+  // The plain-English box read the person's words as an agent. While the builder still shows the untouched
+  // example, that unrelated example gives way: to a preview of the agent they asked for when the builder offers
+  // it, otherwise the builder closes, so two different agents never sit one above the other.
+  // A later read replaces an agent loaded from earlier words too, as long as the person has not changed it here.
+  const wordsShowing = Boolean(fromWords && fromWords === payloadKey);
+  const exampleShowing = Boolean(starter && templateId === starter.templateId && replayFor === starter.key && !fromWords) || wordsShowing;
+  const exampleRef = React.useRef({ replaceable: exampleShowing, words: wordsShowing });
+  exampleRef.current = { replaceable: exampleShowing, words: wordsShowing };
+  const onPlainRead = React.useCallback(
+    (drafts: AgentJobDraft[] | null) => {
+      if (!exampleRef.current.replaceable) return;
+      if (!drafts?.length) {
+        // Saved from the box above, or nothing understood: an agent from those words is no longer "not switched on".
+        if (exampleRef.current.words) {
+          setTemplateId(null);
+          setReplay(null);
+          setFromWords(null);
+        }
+        return;
+      }
+      const next = formFromDraft(drafts[0]!, offered);
+      // Signed out there is no watchlist to replay, so "anything I own" cannot be previewed here.
+      if (!next || (!signedIn && next.form.scope !== "tickers")) {
+        setTemplateId(null);
+        setReplay(null);
+        setFromWords(null);
+        return;
+      }
+      const key = JSON.stringify(payloadFor(next.template, next.form, signedIn));
+      setTemplateId(next.template.id);
+      setForm(next.form);
+      setReplay(null);
+      setFromWords(key);
+      void replayPayload(key, next.template.id);
+    },
+    // replayPayload only uses setters and `call`, which read no changing state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [offered, signedIn],
+  );
 
   async function create(body: string, key: string) {
     const result = await call<{ job: AgentJob; paused?: { message?: string } | null }>(key, "/api/agent-jobs", { method: "POST", body });
@@ -397,6 +469,7 @@ export function JobsWorkspace({
   const showTemplates = !hasJobs || adding;
 
   return (
+    <PlainAgentReadContext.Provider value={onPlainRead}>
     <div className="flex min-w-0 flex-col gap-3 sm:gap-4">
       <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 px-2 sm:px-0">
         <h1 className="text-balance text-[19px] font-semibold leading-6 tracking-[-0.01em] text-oa-fg sm:text-[22px] sm:leading-7">Alerts &amp; agents</h1>
@@ -468,6 +541,13 @@ export function JobsWorkspace({
                 {sample?.draft.scope.kind === "tickers" && sample.draft.scope.tickers.length === 1
                   ? `Here it watches ${sample.draft.scope.tickers[0]} over the last four weeks of real prices, checking each day's close. Change anything, or pick a different agent below.`
                   : "Here it watches Nvidia, Apple, Microsoft, Amazon and Tesla over the last four weeks of real prices, checking each day's close. Change anything, or pick a different agent below."}
+              </p>
+            ) : fromWords && fromWords === payloadKey ? (
+              <p className="text-pretty text-[14px] leading-5 text-oa-fg">
+                <span className="mr-1.5 inline-flex h-[22px] items-center rounded border border-oa-border bg-oa-bg px-2 align-[1px] text-[12.5px] font-medium text-oa-muted-fg">
+                  From your words, not switched on
+                </span>
+                This is the agent you described above, replayed on the last four weeks of real closes. Save it above, or change it here.
               </p>
             ) : null}
             <div className={`grid gap-3 sm:grid-cols-2 xl:grid-cols-4 ${replayShown ? "order-2" : "order-1"}`}>
@@ -639,6 +719,7 @@ export function JobsWorkspace({
       ) : null}
 
     </div>
+    </PlainAgentReadContext.Provider>
   );
 }
 

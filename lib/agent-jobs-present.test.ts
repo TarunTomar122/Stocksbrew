@@ -140,7 +140,7 @@ describe("presentRun", () => {
   it("dates a replayed day absolutely and says it was not sent", () => {
     const view = presentRun({ ...OLD_MORNING, ran_at: undefined }, job("a", "morning-check"), { replay: true });
     expect(view.headline).toContain("on Nov 6");
-    expect(view.asOf).toBe("Close of Nov 6 · replayed, not sent at the time");
+    expect(view.asOf).toBe("Official close of Nov 6 · replayed, not sent at the time");
   });
 
   it("names earnings by weekday", () => {

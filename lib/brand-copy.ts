@@ -25,7 +25,7 @@ export const HERO_HEADLINE_EMPHASIS = "that tells you what to buy and why.";
 export const HERO_SUBHEAD =
   "It goes through the filings, earnings and news, then tells you why each stock moved, what changed, and what is worth a look next.";
 
-export const HERO_FOOTNOTE = "Free to read every stock. No card and no broker login.";
+export const HERO_FOOTNOTE = "Our call on every stock is free, and so is the full report on five you pick. No card, no broker login.";
 
 /** Homepage block above live movers / Reddit / sectors (Finviz-style labels, not manifesto). */
 export const HOME_LIVE_FEED_EYEBROW = "Market today";

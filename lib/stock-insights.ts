@@ -11,7 +11,7 @@
  * covers. For anyone else they are null and no level is ever written here.
  */
 
-import { CALL_MEANING } from "@/lib/plain-copy";
+import { CALL_MEANING, CALL_PLAIN } from "@/lib/plain-copy";
 import { pickInsights, type Insight, type TheRead } from "@/lib/insights";
 import { dayGap, dayWord, fin, inDays, median, money, movedWord, pct, shortDay, signedPct } from "@/lib/insight-format";
 
@@ -229,8 +229,10 @@ export function buildStockRead(input: StockInsightInput): TheRead | null {
   let callInsight: Insight | null = null;
   const price = fin(input.price) && input.price > 0 ? input.price : null;
   if (input.levels && price !== null) {
-    const add = fin(input.levels.addBelow) && input.levels.addBelow > 0 ? input.levels.addBelow : null;
-    const trim = fin(input.levels.trimAbove) && input.levels.trimAbove > 0 ? input.levels.trimAbove : null;
+    // A level more than half the price away says little about today; the page header leaves those out, so the read does too.
+    const near = (level: number) => Math.abs(level - price) / price <= 0.5;
+    const add = fin(input.levels.addBelow) && input.levels.addBelow > 0 && near(input.levels.addBelow) ? input.levels.addBelow : null;
+    const trim = fin(input.levels.trimAbove) && input.levels.trimAbove > 0 && near(input.levels.trimAbove) ? input.levels.trimAbove : null;
     let text = "";
     let tone: Insight["tone"] = "flat";
     if (add !== null && price <= add) {
@@ -251,7 +253,9 @@ export function buildStockRead(input: StockInsightInput): TheRead | null {
     if (change && change.from && fin(change.priceAtCall) && change.priceAtCall > 0) {
       const sinceMove = ((price - change.priceAtCall) / change.priceAtCall) * 100;
       const how = Math.abs(sinceMove) < 0.1 ? "it is about where it was" : `it ${sinceMove >= 0 ? "is up" : "is down"} ${pct(sinceMove)} since`;
-      since = `We changed our call to ${change.to} on ${shortDay(change.date)} at ${money(change.priceAtCall)}, and ${how}.`;
+      // The call words a reader sees on the page ("Keep"), not the data's codes ("Hold").
+      const word = (call: CallWord) => (CALL_PLAIN as Record<string, string | undefined>)[call] ?? call;
+      since = `We changed our call from ${word(change.from)} to ${word(change.to)} on ${shortDay(change.date)} at ${money(change.priceAtCall)}, and ${how}.`;
     }
     if (text) callInsight = { id: "call", tone, text, soWhat: since, action: { label: "The reasoning", href: "#read" } };
     else if (since) callInsight = { id: "call", tone: "flat", text: since };

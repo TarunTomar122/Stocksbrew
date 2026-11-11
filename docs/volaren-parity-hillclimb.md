@@ -172,6 +172,139 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-11 ~05:55 UTC, share cards landed (lead)
+- Shareable portfolio cards built: a Share button on the signed-in portfolio, x-ray, dividends, stress test and memo pages. It opens a dialog with "This is exactly what people will see", choices of which read to share, and "Hide company and fund names". The public page `/s/{id}` (noindex) has an OG image so the link unfurls as the card.
+- Example cards: "Once my funds are counted, Apple is 17% of my portfolio, not the 15% I bought directly." and "In the Covid crash, my portfolio would have fallen 32%, about the same as the S&P 500." (the image carries "History, not a forecast").
+- Privacy: percentages and names only by default; dollars are opt-in, and only on dividend cards. The server rebuilds the card from the loaders and saves only if it matches the hash of the previewed card. Every version is checked for money, share counts and hidden names. The owner uid stays server-side, delete is owner-only (404 otherwise), ids are 12 random characters, and each person can keep 50 live shares.
+- Its quality pass found a real leak (memo cards kept names when "hide names" was on), fixed. vitest 31/31, tsc and eslint clean. Real test snapshots were stored, rendered and then deleted (only the builder's own test docs). Screenshots read: stress OG image, x-ray share dialog.
+- Open:
+  - analytics events (`share_page_viewed`, `share_cta_clicked`...) wait for product-analytics.ts, which is held back;
+  - no focus trap in the dialog;
+  - LocalDB writes sometimes took over 25s during testing.
+
+### 2026-11-11 ~05:45 UTC, builders mid-flight (lead)
+- Working tree at 04:14 UTC (local clock) shows all four running builders active within the last minute:
+  - baskets: app/(app)/baskets, lib/baskets-plain, app/api/baskets;
+  - share cards: components/share, lib/share, app/api/share;
+  - the Codex fixer: lib/stock-header-facts.ts, lib/stock-read.ts, lib/memo, components/memo, lib/agents-plain/ask-links.ts, the stress view;
+  - earnings history: lib/earnings-season*.
+- No new builder this tick, to avoid edit collisions; integration and ship 14 come first when they report.
+
+### 2026-11-11 ~05:35 UTC, council round 18 (lead)
+- UI loop rounds 16-18: Codex 6.72 / 6.66 / 6.66, Cursor 5.30 / 5.39 / 5.56 (Cursor's best).
+- Batch 17:
+  - The stock brief headline opens with the brief's own first sentence.
+  - Every level more than 50% from the price is hidden across the stock page (NVDA's $310.62 is gone).
+  - The call-change line uses the readers' words ("from Buy more to Keep").
+  - The watchlist severity dot is visible in both themes.
+  - The screener says "fell 0.3% ..., while the S&P 500 fell 0.4%".
+  - Checks: vitest 1584, eslint clean.
+- NVDA lost 4 points in round 18: the longer company reason fills the phone's first screen, and the brief headline tells a different story from the call. The fix proposed for next: keep the call as the lead, put the brief under "What we're watching", and fold the Why to one sentence on phones.
+- The landing is still stuck (owner's headline; too many actions). Two S&P figures remain (−0.37% briefing, −0.38% Market today).
+- Note: this session moved accounts and lost the T3 delegate tools, so the lead can no longer message running builders. Builders still running report when done: Codex round 2 fixer, baskets, share cards, earnings history. The queued message to the UI loop (explore, pricing alerts, briefing sources, phone hero) may not have been delivered.
+
+### 2026-11-11 ~05:20 UTC, Codex judge round 2: 7.7 overall (lead)
+- Codex (gpt-6-astra, high) reviewed 15 dev pages signed out at both widths. Columns are UI / UX / usability / wording / volaren similarity, then overall:
+  - briefing 8.5/8.5/8.5/8.5/8, 8.4
+  - x-ray 8.3
+  - agents 8/8/8.5/8/9, 8.2
+  - home 8.1
+  - copy 8.1
+  - stress 8.0
+  - dividends 7.9
+  - earnings 7.9
+  - NVDA 7.8
+  - pricing 7.8
+  - watchlist 7.6
+  - explore 7.4
+  - screener 7.4
+  - memo 7.1
+  - KO 6.2
+  - App: 8.2 / 7.9 / 7.7 / 7.6 / 7.9, **7.7** (was 7.0).
+- Its verdict was to hold shipping over data contradictions:
+  - KO: a call dated Sep 22 citing an Oct 27 report; the dividend shown as 2.2%, 0.03% and 2.22%; a $96.90 price above the "past-year" max of $84.04.
+  - NVIDIA's close $168.89 vs $168.79, and its dividend yield 0.59% vs 0.51%.
+  - "this week" vs "next week", and "in 6 days" vs "in 7".
+- Other findings:
+  - On phones the active portfolio tab sits off-screen.
+  - The memo repeats its opening, and "Eight ... are down 0.1%" reads oddly.
+  - Earnings season says "Not reporting" and "±5.3% usual" (2 reports).
+  - The agents default example competes with the request.
+  - The biggest volaren gap: continuity. A finding should offer "watch this for me" in place.
+- Delegated: a fixer for KO and cross-page data, relative dates, phone nav scroll, the memo, earnings labels, the agents example and contextual watch actions. Explore catalogue, pricing alert wording, briefing sources and the phone hero go to the UI loop (queued).
+
+### 2026-11-11 ~05:00 UTC, baskets in plain English and share cards started; Codex judge round 2 (lead)
+- New builders:
+  - Baskets in plain English: type a theme and get matching stocks, with why each is in, a labelled backtest against the S&P 500, a follow action and a shareable URL. Builds on lib/ask-basket.ts, themes and backtest.
+  - Shareable portfolio cards: a share action on the portfolio pages that snapshots one read, percentages only by default and confirm before sharing. A public /s/{id} page unfurls as the card and has one call to action. Aimed at the 544-visitors / 5-sign-ins problem.
+- Codex judge round 2 started on the dev server (15 pages, including memo, stress, earnings season and agents).
+- Running: UI loop round 18+, deeper earnings history, baskets, share cards, Codex judge. Ship 14 (earnings season, memo, loop work, history) waits for the loop and history builders.
+
+### 2026-11-11 ~04:50 UTC, weekly memo landed (lead)
+- `/portfolio/memo` built. Every Sunday-to-Friday week gets a memo built from facts the app already computes:
+  - the week against the S&P 500 and who drove it;
+  - call changes and their reasons;
+  - explained moves;
+  - earnings reported and coming;
+  - 13F, Form 4 and Congress filings;
+  - concentration and hidden exposure from the x-ray;
+  - dividends;
+  - the closest past shock.
+- Rules pick the facts and write a complete memo. The Ask model may reword it, but every sentence goes through a numbers, names and direction check, and the rules' text is kept if one fails (a test rejects an invented "4.2%").
+- On the example: "Eight of the example portfolio's nine holdings are down 0.1% through Tuesday's close, while the S&P 500 rose 2.0%... The thing to watch is that Technology makes up 56% of the portfolio, compared with 37% of the S&P 500." Past weeks are one tap away.
+- Signed-in memos are stored per week at `tm_portfolio_memos/{uid}__{yyyy-ww}`, written by the web app only; finished weeks are never rewritten. The VPS LocalDB has no collection allowlist set (checked), so the writes are allowed.
+- Gating follows `briefing_personal`; a `portfolio_memo` feature id is suggested for /pricing (owner, entitlements.ts is held back).
+- Its quality pass found 9 bugs, all fixed. vitest 32/32, tsc and eslint clean. Screenshot read: desktop light.
+- Lead fixes:
+  - The memo said "moved to Hold (from Add)"; it now uses the app's words ("Keep", "Buy more", "Sell some").
+  - A "Weekly memo" nav entry first under My stocks, and a sitemap line.
+- Open: the briefing and portfolio links to the memo wait for the loop agent's files. The signed-in path is not run live (no local account with holdings).
+- Ship 14 (earnings season, memo, loop rounds 18+, deeper earnings history) waits for the loop and history builders, which are editing files it would include.
+
+### 2026-11-11 ~04:35 UTC, earnings season landed; council best scores; loop and history relaunched (lead)
+- Earnings season planner built (`/portfolio/earnings`). On the example: "Two stocks in the example portfolio report in the next six weeks, 16% of its value. NVIDIA is the one to watch on Nov 17 after the close: it is 11% of the portfolio and moved 5.3% on average after its last two reports, about three times a normal day."
+- The page shows a six-week strip with each report as a dot sized by portfolio share, report rows with past moves as dots around a "normal day" band, past reports on a tap, and holdings without a date at the bottom. Moves come from stored closes, with the session resolved from 8-K acceptance times.
+- Only 1-3 past reports per stock exist (the calendar and reactions start May 15), and the read says so. Its quality pass found 7 bugs, all fixed. vitest 1579 (38 new), tsc and eslint clean. Screenshots read: desktop light, phone with NVDA opened.
+- Lead: "Earnings season" nav entry and sitemap line. The landing card now prefers a showcase mover with a confirmed reason (of 1% or more), then the biggest move.
+- Council rounds 16-17 (batches 15-16):
+  - Codex 6.72, then 6.66 (best).
+  - Cursor 5.30, then 5.39 (best).
+  - From round 15 to 17: briefing Codex 45→50 and Cursor 32→43; explore 42→48 and 39→44; NVDA 45→48 and 36→42.
+  - The landing is stuck at 44 / 33: the reviewers lead with the owner's "what to buy" headline beside a Keep with no reason, and about seven competing actions.
+- Relaunched: UI loop round 18+, covering:
+  - the landing as one story with one action;
+  - the stock brief headline and "changed from what";
+  - one S&P figure across pages;
+  - the dark-mode dot and the screener's sign style.
+- New builder: deeper earnings history (8+ quarters of 8-K report dates from EDGAR into a new collection, and one-day reaction windows in earnings_reactions.py).
+- Running: weekly memo, UI loop, earnings history.
+
+### 2026-11-11 ~04:20 UTC, company reasons, stress test and MCP tools live; VPS pulled (lead)
+- `1917f95` LIVE:
+  - The stress test.
+  - Company-specific call reasons: 700 of 726 calls now have a reason written from the company's own numbers, against 35 shared templates before. The root cause was that no brief had been regenerated since `f57da15`.
+  - The five MCP tools.
+  - The opacity-class fix.
+  - UI loop work: the briefing leads with the session, the landing shows one agent moment with "Watch X for me", tidier stock page hierarchy.
+- Quality pass found five bugs, all fixed before shipping:
+  - A "Full research report" chip on every stock page linked to the held-back /stock/X/research (404).
+  - The chart's "over the past year" label was clipped on phones (now "in a year").
+  - A null JSON body gave a 500 on /api/v1/agents/parse.
+  - `_month_span` said "since November" for a year-long history.
+  - The SQLite `_matches` let a missing field pass `<`/`<=`.
+- Also fixed:
+  - Dated plans in reasons ("The Nov 17 report decides...") now drop once the date passes (`dropPastDatedSentences`, with tests).
+  - The landing card leads with the showcase stock that moved most (from the screener snapshot) and only says "What stood out today" for a move of 2% or more.
+  - The briefing clock uses `hourCycle: "h23"`.
+- Verified on the exact tree: tsc 0, vitest 1371/1371, eslint clean, Python 29 + 8 + schedule OK. The frozen tree ran on :8001.
+- Screenshots read: briefing desktop, KO phone (its own reason), landing desktop and phone (NVIDIA −5.5% featured), NVDA phone. Live: 10 key pages 200.
+- VPS: `/opt/tikrr` pulled to `1917f95` (owner allowed backend changes in this thread). Tonight's 22:30 UTC after-close run uses the new screener, so the company reasons stay; it also runs the new dividend history step. The 00:56 rerun finished (prices 3929s, screener ok); standing agents still fails (needs Firebase env, known).
+- Open:
+  - Done (council round 19-20): the stock page's brief panel is now "The news behind our call" and leads with the brief's first plain sentence as body text; the engine title ("AI growth remains powerful as scrutiny raises the proof required") is only a fallback.
+  - `radar:read` tokens now read dollar values (scope decision for the owner).
+  - The watchlist severity dot is faint in dark mode after the opacity fix.
+  - The NVDA read still cites an 84%-away sell level.
+
 ### 2026-11-11 ~03:55 UTC, MCP tools landed (lead)
 - Five new read-only tools on /api/mcp (20 in total), each wrapping the page's own loader and read:
   - `what_you_own` (x-ray)

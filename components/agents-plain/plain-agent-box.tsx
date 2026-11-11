@@ -6,7 +6,7 @@ import * as React from "react";
 
 import { SignInButton } from "@/components/briefing/sign-in-button";
 import { OaButton } from "@/components/oa/button";
-import { AGENT_TEMPLATES, type AgentFacts, type AgentJob } from "@/lib/agent-jobs";
+import { AGENT_TEMPLATES, type AgentFacts, type AgentJob, type AgentJobDraft } from "@/lib/agent-jobs";
 import type { PlainCannot, PlainParseResult } from "@/lib/agents-plain/parse";
 import { savedSentence } from "@/lib/agents-plain/save";
 
@@ -24,6 +24,16 @@ const EXAMPLES = [
   "Let me know 3 days before Apple reports earnings",
   "Tell me when a member of Congress trades Microsoft",
 ];
+
+/**
+ * Tells the page around the box what the person's words were read as, so the builder below can swap its
+ * example for a preview of this agent instead of showing an unrelated one next to it. Null when the read-back
+ * is cleared (saved, or nothing understood).
+ */
+export const PlainAgentReadContext = React.createContext<((drafts: AgentJobDraft[] | null) => void) | null>(null);
+
+/** Longest request a link can prefill (`/agents?q=`); the field itself takes 300 characters. */
+const PREFILL_MAX = 300;
 
 const PENDING_KEY = "stocksbrew.plain-agent.pending";
 /** A request stashed for a sign-in that never finished is not picked up much later. */
@@ -125,8 +135,18 @@ function CannotRow({ entry, onTry, busy }: { entry: PlainCannot; onTry: (text: s
   );
 }
 
-export function PlainAgentBox({ signedIn, available }: { signedIn: boolean; available?: AgentFacts["available"] }) {
+export function PlainAgentBox({
+  signedIn,
+  available,
+  prefill,
+}: {
+  signedIn: boolean;
+  available?: AgentFacts["available"];
+  /** A request from a "Watch this for me" link elsewhere (`/agents?q=`): filled in and read back on arrival. */
+  prefill?: string | null;
+}) {
   const router = useRouter();
+  const onRead = React.useContext(PlainAgentReadContext);
   const [text, setText] = React.useState("");
   const [result, setResult] = React.useState<ParseResponse | null>(null);
   const [readFor, setReadFor] = React.useState("");
@@ -155,23 +175,31 @@ export function PlainAgentBox({ signedIn, available }: { signedIn: boolean; avai
       if (!response.ok || !body?.spec) throw new Error(body?.error || "I couldn't read that just now. Try again in a moment.");
       setResult(body);
       setReadFor(request);
+      onRead?.(body.spec.watches.length > 0 ? body.spec.watches.map((watch) => watch.draft) : null);
       requestAnimationFrame(() => previewRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "I couldn't read that just now. Try again in a moment.");
     } finally {
       setBusy(null);
     }
-  }, []);
+  }, [onRead]);
 
-  // Back from signing in: pick up the request that was waiting to be saved.
+  // Back from signing in: pick up the request that was waiting to be saved. Otherwise a request from a
+  // "Watch this for me" link is filled in and read back, so the person sees the agent before saving anything.
+  const prefillUsed = React.useRef<string | null>(null);
   React.useEffect(() => {
-    if (!signedIn) return;
-    const pending = takeStash();
-    if (pending) {
-      setText(pending);
-      void read(pending);
+    const pending = signedIn ? takeStash() : null;
+    // The link's request is read once: signing in later must not overwrite what the person typed since.
+    const fresh = prefill && prefillUsed.current !== prefill ? prefill.replace(/\s+/g, " ").trim().slice(0, PREFILL_MAX) : "";
+    if (prefill) prefillUsed.current = prefill;
+    const asked = pending ?? fresh;
+    if (asked) {
+      setText(asked);
+      void read(asked);
     }
-  }, [signedIn, read]);
+    // Once per arrival: a later change of the read callback must not read the request again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signedIn, prefill]);
 
   function tryText(value: string) {
     setText(value);
@@ -193,6 +221,7 @@ export function PlainAgentBox({ signedIn, available }: { signedIn: boolean; avai
       setSaved(savedSentence({ saved: body.jobs, already: body.already, failed: body.failed, limit: body.paused?.limit ?? result.capacity?.limit ?? null }));
       setResult(null);
       setText("");
+      onRead?.(null);
       // The list of agents below is drawn on the server; fetch it again so the new ones show.
       router.refresh();
     } catch (cause) {

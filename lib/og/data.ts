@@ -177,7 +177,7 @@ export async function landingCard(): Promise<OgCard> {
     rows.filter(usable).sort((a, b) => (b.market_cap ?? 0) - (a.market_cap ?? 0))[0] ??
     null;
   if (!pick) {
-    return { kind: "landing", eyebrow: null, headline: HERO_HEADLINE, sub: HERO_SUBHEAD, row: null, footnote: "Free to read every stock" };
+    return { kind: "landing", eyebrow: null, headline: HERO_HEADLINE, sub: HERO_SUBHEAD, row: null, footnote: "Our call is free on every stock" };
   }
   const [live, logo] = await Promise.all([within(getQuoteCached(pick.symbol), 1500), within(loadLogo(pick.symbol), 1800)]);
   const livePrice = live && finite(live.price) && live.price > 0 ? live : null;
@@ -992,12 +992,12 @@ export async function pageCard(key: OgPageKey): Promise<OgCard> {
   if (text) return text;
   const fallback = PAGE_FALLBACK[key];
   if (fallback) return { kind: "text", eyebrow: fallback.eyebrow, path: `/${key}`, title: fallback.title, sub: fallback.sub, footnote: null };
-  return { kind: "landing", eyebrow: null, headline: HERO_HEADLINE, sub: HERO_SUBHEAD, row: null, footnote: "Free to read every stock" };
+  return { kind: "landing", eyebrow: null, headline: HERO_HEADLINE, sub: HERO_SUBHEAD, row: null, footnote: "Our call is free on every stock" };
 }
 
 /** The card for a stock, compare or other lookup that found nothing: the words-only home card. */
 export function notFoundCard(): OgCard {
-  return { kind: "landing", eyebrow: null, headline: HERO_HEADLINE, sub: HERO_SUBHEAD, row: null, footnote: "Free to read every stock" };
+  return { kind: "landing", eyebrow: null, headline: HERO_HEADLINE, sub: HERO_SUBHEAD, row: null, footnote: "Our call is free on every stock" };
 }
 
 /**

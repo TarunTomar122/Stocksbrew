@@ -59,6 +59,37 @@ export function todayET(now: number | Date = Date.now()): string {
   );
 }
 
+/**
+ * Whole New York calendar days from today to `day` (a YYYY-MM-DD, or an ISO stamp whose first ten characters are
+ * the day). The one count every "in 6 days" on the site uses, so a page read at 10 PM in New York (already
+ * tomorrow in UTC) never says one day less than the page beside it. Null for an unreadable day.
+ */
+export function daysUntilET(day: string | null | undefined, now: number | Date | string = Date.now()): number | null {
+  const at = typeof now === "string" ? Date.parse(now) : now instanceof Date ? now.getTime() : now;
+  if (!Number.isFinite(at)) return null;
+  return dayDiff(todayET(at), day);
+}
+
+/** Whole days from `from` to `to` (both YYYY-MM-DD, or ISO stamps cut to the day); null when either is unreadable. */
+export function dayDiff(from: string | null | undefined, to: string | null | undefined): number | null {
+  const a = parseDay(String(from ?? "").slice(0, 10));
+  const b = parseDay(String(to ?? "").slice(0, 10));
+  return a && b ? Math.round((toMs(b) - toMs(a)) / 86_400_000) : null;
+}
+
+/**
+ * "this week" or "next week" for a day, by the same Monday-to-Sunday weeks the calendar and the earnings season
+ * use; null when the day is further out or already past. `today` is a New York YYYY-MM-DD (`todayET`).
+ */
+export function weekWordFor(day: string, today: string): "this week" | "next week" | null {
+  const target = parseDay(day.slice(0, 10));
+  if (!target || target < today) return null;
+  const monday = weekStart(today);
+  if (target < addDays(monday, 7)) return "this week";
+  if (target < addDays(monday, 14)) return "next week";
+  return null;
+}
+
 export function parseMonth(raw: string | null | undefined): string | null {
   const value = String(raw ?? "").trim();
   if (!MONTH_RE.test(value)) return null;
@@ -156,7 +187,13 @@ export const SESSION_LABEL: Record<Session, string> = {
   unknown: "Time not announced yet",
 };
 
-export type Reaction = { pct: number; basis: "1d" | "2d"; toDate: string };
+export type Reaction = {
+  pct: number;
+  basis: "1d" | "2d";
+  toDate: string;
+  /** Set only when the calendar gave no time and the company's 8-K did: the window was measured on it. */
+  session?: Session;
+};
 
 export type EarningsItem = {
   kind: "earnings";
@@ -506,7 +543,9 @@ export function fmtIpoPrice(low: number | null, high: number | null): string {
 /** "2 sessions" basis explained for a tooltip. */
 export function reactionBasisLabel(reaction: Reaction, session: Session): string {
   if (reaction.basis === "2d") return "Close before the report to the close after it (two sessions; the report time was not given)";
-  return session === "amc" ? "Close on the report day to the next close" : "Prior close to the close on the report day";
+  const fromFiling = session === "unknown" && reaction.session !== undefined && reaction.session !== "unknown";
+  const window = (fromFiling ? reaction.session : session) === "amc" ? "Close on the report day to the next close" : "Prior close to the close on the report day";
+  return fromFiling ? `${window} (the time comes from the company's 8-K filing)` : window;
 }
 
 /* ── One company's reports ─────────────────────────────────────────────── */

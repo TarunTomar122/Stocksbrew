@@ -14,6 +14,7 @@
  * fund carries the as-of date of the filing it came from.
  */
 
+import { watchMoveHref } from "@/lib/agents-plain/ask-links";
 import { normalizeSectorName } from "@/lib/gics-sector";
 import { pickInsights, type Insight, type TheRead } from "@/lib/insights";
 import { shortCompanyName } from "@/lib/plain-copy";
@@ -424,6 +425,12 @@ function voice(example: boolean) {
       };
 }
 
+/** "Watch Apple for me": opens the agent box with "Tell me when AAPL moves 5% in a day" filled in. */
+function watchAction(ticker: string, name: string): Pick<Insight, "action"> {
+  const href = watchMoveHref(ticker, 5);
+  return href ? { action: { label: `Tell me when ${name} moves 5% in a day`, href } } : {};
+}
+
 /** Money in funds we cannot open, above which shares of the whole say more about the gap than about the portfolio. */
 const CLOSED_SHARE_LIMIT = 0.1;
 
@@ -499,6 +506,7 @@ export function buildXrayRead(xray: Xray, context: Pick<XrayContext, "benchmark"
       text: `${doubled.ticker} is ${fmtPct1(doubled.directPct)} of ${v.all} on its own, and ${viaNames(doubled)} ${doubled.via.length === 1 ? "adds" : "add"} another ${fmtPct1(doubled.fundPct)}, so it is really ${fmtPct1(doubled.directPct + doubled.fundPct)}.`,
       tickers: [doubled.ticker],
       leadName: doubled.name,
+      ...watchAction(doubled.ticker, doubled.name),
     });
   }
 
@@ -531,6 +539,8 @@ export function buildXrayRead(xray: Xray, context: Pick<XrayContext, "benchmark"
         text: `${v.ten} ${fmtPct(ours)} of ${v.all}, against ${fmtPct(benchTop)} for the ten biggest in the S&P 500.`,
         soWhat: gap > 0 ? `A bad month for a few of them moves more of ${v.money} than it moves the index.` : `${v.moneyCap} is spread wider than the index.`,
         tickers: placed.slice(0, 3).map((row) => row.ticker),
+        // The next step in place: an agent on the biggest of them (a share-of-portfolio trigger does not exist yet).
+        ...(gap > 0 ? watchAction(placed[0]!.ticker, placed[0]!.name) : {}),
       });
     }
   }

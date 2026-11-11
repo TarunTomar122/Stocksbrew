@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { AppPage, PageHead, SourceLine } from "@/components/oa/kit";
 import { ExampleNote, XrayEmpty, XrayView } from "@/components/xray/xray-view";
+import { ShareButton } from "@/components/share/share-button";
 import { getSessionUser } from "@/lib/auth-server";
 import { pricesWords } from "@/lib/portfolio-prices";
 import { getUserDoc } from "@/lib/watchlist";
@@ -42,7 +43,7 @@ export default async function XrayPage() {
   if (mine && hasFunds) {
     return (
       <AppPage>
-        <PageHead title="What you really own" meta={<Source view={mine} />} />
+        <PageHead title="What you really own" meta={<Source view={mine} />} actions={<ShareButton kind="xray" />} />
         <XrayView xray={mine.xray} read={mine.read} example={false} />
       </AppPage>
     );

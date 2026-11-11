@@ -57,6 +57,9 @@ GROUPS: dict[str, list[tuple[str, list[str]]]] = {
     "after_close": [
         ("prices and strategies", ["backend.agentdata.backtest_strategies"]),
         ("earnings calendar", ["backend.agentdata.earnings_calendar"]),
+        # Three years of 8-K earnings release dates and times from EDGAR (about 800 requests, ~2 minutes),
+        # read by the reactions step below and the earnings season planner.
+        ("earnings history", ["backend.agentdata.earnings_history"]),
         ("earnings reactions", ["backend.agentdata.earnings_reactions"]),
         # Past dividends per stock for the dividend planner; a bad source reply never overwrites a good history.
         ("dividend history", ["backend.agentdata.dividend_history"]),

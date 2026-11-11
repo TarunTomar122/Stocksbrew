@@ -95,7 +95,15 @@ export type StockFundamentals = {
   week_52_low?: number;
   market_cap?: number;
   pe_ttm?: number;
+  /**
+   * Yahoo's yield, stored as a fraction for some stocks and a percent for others (Yahoo changed the field). Do not
+   * show it: use `dividend_yield_pct`, which the stock page works out from the annual dividend and today's price.
+   */
   dividend_yield?: number;
+  /** Dividend per share a year at the current rate. */
+  annual_dividend?: number;
+  /** Set by the stock page (lib/stock-header-facts.ts): the annual dividend over today's price, in percent. */
+  dividend_yield_pct?: number;
   // Yahoo-provided trend + risk metrics. Optional because not every ticker
   // exposes them on `.info` (illiquid / freshly-listed names).
   fifty_day_average?: number;

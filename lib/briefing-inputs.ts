@@ -1,7 +1,9 @@
 /**
  * Converters from the shapes the store already holds into the plain inputs
- * `buildBriefing` takes. Pure: type-only imports, no store, no clock.
+ * `buildBriefing` takes. Pure: no store, no clock.
  */
+
+import { etDayOf } from "@/lib/benchmark-day";
 
 import type { EarningsIntelDoc } from "@/lib/earnings-intel";
 import type { HeroIndex } from "@/lib/hero-indices";
@@ -190,6 +192,29 @@ export function indexFromHero(index: HeroIndex): BriefingIndex | null {
   const raw = text(index.name) ?? text(index.ticker) ?? "";
   if (!raw) return null;
   return { name: INDEX_NAMES[raw.toUpperCase()] ?? raw, price, change_pct: change };
+}
+
+const MARKET_ASSET_FOR_INDEX: Record<string, string> = { "S&P 500": "sp500", "Nasdaq 100": "nasdaq100" };
+
+/**
+ * One figure per index across the site: the markets feed's S&P 500 and Nasdaq 100 (what Market today and the
+ * sector strip read) replace the home snapshot's when the feed has them, so the briefing never says −0.37%
+ * beside Market today's −0.38%. An index the feed lacks keeps the snapshot's figure.
+ */
+export function withMarketIndexFigures(
+  indices: BriefingIndex[],
+  assets: ReadonlyArray<{ id: string; price: number; change: { d1: number | null }; as_of?: string | null }>,
+  day: string | null = null,
+): BriefingIndex[] {
+  const byId = new Map(assets.map((asset) => [asset.id, asset]));
+  return indices.map((index) => {
+    const asset = byId.get(MARKET_ASSET_FOR_INDEX[index.name] ?? "");
+    const price = finite(asset?.price);
+    const change = finite(asset?.change.d1);
+    // With a session day, only a figure from that same New York day replaces the snapshot's (a stale feed never wins).
+    if (day && etDayOf(asset?.as_of ?? null) !== day) return index;
+    return asset && price != null && price > 0 && change != null ? { ...index, price, change_pct: change } : index;
+  });
 }
 
 export function triggeredAlertFromDoc(

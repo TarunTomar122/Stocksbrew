@@ -83,7 +83,8 @@ export type StockTimelineInput = {
   } | null;
   facts?: Pick<StockFacts, "dividends" | "analyst_trend" | "events"> | null;
   /** The call changed since the previous brief. */
-  callChange?: { at?: string | null; reason?: string | null; headline?: string | null } | null;
+  /** `from` / `to` are the call words a reader sees ("Buy more", "Keep"), when the ledger confirms the switch. */
+  callChange?: { at?: string | null; reason?: string | null; headline?: string | null; from?: string | null; to?: string | null } | null;
   /** Days our call switched between add, hold and trim, from the call ledger. */
   callHistory?: Array<{ date: string; from: string | null; to: string; text?: string | null; priceAtCall?: number | null }> | null;
   /** Where a congressional trade row links to. Defaults to the Congress page. */
@@ -260,7 +261,12 @@ export function buildStockTimeline(input: StockTimelineInput): {
       kind: "call",
       at: input.callChange.at,
       precision: "time",
-      title: input.callChange.headline ? `We changed our call to "${plainAction(input.callChange.headline, null) ?? input.callChange.headline}"` : "We changed our call",
+      title:
+        input.callChange.from && input.callChange.to
+          ? `We changed our call from ${input.callChange.from} to ${input.callChange.to}`
+          : input.callChange.headline
+            ? `We changed our call to "${plainAction(input.callChange.headline, null) ?? input.callChange.headline}"`
+            : "We changed our call",
       detail: input.callChange.reason ?? undefined,
       source: "stocksbrew brief",
       href: "#read",

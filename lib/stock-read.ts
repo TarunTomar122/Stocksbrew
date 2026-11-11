@@ -15,7 +15,13 @@ import { todayET } from "@/lib/calendar-shared";
  * `tm_screener_snapshot` row). Used under the call only when it was written
  * for the same call the brief shows now.
  */
-export type CompanyReason = { text: string; call: CallWord | null; source?: string | null };
+export type CompanyReason = {
+  text: string;
+  call: CallWord | null;
+  source?: string | null;
+  /** The last close the screener job wrote this reason from (its snapshot's `price_history_to`), YYYY-MM-DD. */
+  asOf?: string | null;
+};
 
 export type StockRead = {
   call: CallWord | null;
@@ -34,8 +40,10 @@ export type StockRead = {
   writtenAt: string | null;
   articleCount: number | null;
   sourceCount: number | null;
-  /** The brief says its call changed since the previous one. */
-  changed: { reason: string | null } | null;
+  /** When `actionSummary` is the company reason: the day of the data it was written from, which can be newer than the call. */
+  reasonAsOf?: string | null;
+  /** The brief says its call changed since the previous one; `from` is the call before, when the call ledger confirms it. */
+  changed: { reason: string | null; from: CallWord | null } | null;
 };
 
 type Evidence = { text?: unknown; type?: unknown };
@@ -114,9 +122,29 @@ export function matchingCompanyReason(reason: CompanyReason | null | undefined, 
 // engine's shared "Revisit if ..." templates (the company reason already says what would change the call).
 const MARKET_WIDE = /\b(?:breadth|sector|market leadership|the (?:broader |wider )?market|risk appetite|rates? (?:rise|rises|stay high))\b|^revisit (?:only )?if\b/i;
 
+/**
+ * The call before the current one, from the call ledger (lib/stock-chart.ts `callChanges`): the latest switch
+ * into `call`, only when it happened within a week of the brief, so an old switch is never passed off as
+ * the change this brief reports. Null when the ledger does not confirm it.
+ */
+export function previousCall(
+  changes: ReadonlyArray<{ date: string; from: CallWord | null; to: CallWord }>,
+  call: CallWord | null,
+  writtenAt: string | null,
+): CallWord | null {
+  if (!call) return null;
+  const last = [...changes].reverse().find((change) => change.from);
+  if (!last || last.to !== call || !last.from || last.from === call) return null;
+  const written = writtenAt ? Date.parse(writtenAt) : NaN;
+  const switched = Date.parse(`${last.date.slice(0, 10)}T00:00:00Z`);
+  if (!Number.isFinite(written) || !Number.isFinite(switched)) return null;
+  const days = (written - switched) / 86_400_000;
+  return days >= -1 && days <= 7 ? last.from : null;
+}
+
 export function buildStockRead(
   intelligence: StockIntelligenceDoc | null | undefined,
-  options: { companyReason?: CompanyReason | null } = {},
+  options: { companyReason?: CompanyReason | null; callChanges?: ReadonlyArray<{ date: string; from: CallWord | null; to: CallWord }> } = {},
 ): StockRead | null {
   if (!intelligence) return null;
   const doc = intelligence as LooseIntelligence;
@@ -157,6 +185,7 @@ export function buildStockRead(
     call: callWord(directive?.stance),
     actionLabel,
     actionSummary,
+    reasonAsOf: companyReason ? options.companyReason?.asOf ?? null : null,
     headline,
     body,
     reasons: reasons.slice(0, 3),
@@ -172,7 +201,12 @@ export function buildStockRead(
     writtenAt: clean(doc.generated_at) || null,
     articleCount: positive(doc.evidence_history?.article_count) ?? positive(doc.news_count),
     sourceCount: positive(doc.evidence_history?.source_count) ?? positive(doc.source_count),
-    changed: directive?.changed_from_previous ? { reason: readableChangeReason(directive.change_reason) } : null,
+    changed: directive?.changed_from_previous
+      ? {
+          reason: readableChangeReason(directive.change_reason),
+          from: previousCall(options.callChanges ?? [], callWord(directive?.stance), clean(doc.generated_at) || null),
+        }
+      : null,
   };
 }
 

@@ -19,20 +19,55 @@ export function PlaceStrip() {
   const place = placeFor(pathname);
   const current = sectionFor(pathname, place);
   const row = React.useRef<HTMLDivElement>(null);
+  // Which edges have chips hidden past them, so the row can say there are more.
+  const [more, setMore] = React.useState({ left: false, right: false });
 
-  // Keep the current chip in view inside the row without moving the page.
-  React.useEffect(() => {
+  const measure = React.useCallback(() => {
     const container = row.current;
-    const chip = container?.querySelector<HTMLElement>('[aria-current="page"], [aria-current="location"]');
-    if (!container || !chip) return;
-    const right = chip.offsetLeft + chip.offsetWidth + 24;
-    if (right > container.clientWidth) container.scrollLeft = right - container.clientWidth;
-  }, [pathname]);
+    if (!container) return;
+    const left = container.scrollLeft > 4;
+    const right = container.scrollLeft + container.clientWidth < container.scrollWidth - 4;
+    setMore((prev) => (prev.left === left && prev.right === right ? prev : { left, right }));
+  }, []);
+
+  // Centre the current chip inside the row without moving the page: before paint, and again once the web font
+  // has loaded and the chips have their real widths.
+  useIsoLayoutEffect(() => {
+    const container = row.current;
+    if (!container) return;
+    const centre = () => {
+      const chip = container.querySelector<HTMLElement>('[aria-current="page"], [aria-current="location"]');
+      if (chip) {
+        const target = chip.offsetLeft - container.offsetLeft - (container.clientWidth - chip.offsetWidth) / 2;
+        container.scrollLeft = Math.max(0, Math.min(target, container.scrollWidth - container.clientWidth));
+      }
+      measure();
+    };
+    centre();
+    let live = true;
+    document.fonts?.ready.then(() => live && centre()).catch(() => undefined);
+    window.addEventListener("resize", measure);
+    return () => {
+      live = false;
+      window.removeEventListener("resize", measure);
+    };
+  }, [pathname, measure]);
+
+  const nudge = (direction: 1 | -1) => {
+    const container = row.current;
+    container?.scrollBy({ left: direction * container.clientWidth * 0.6, behavior: "smooth" });
+  };
 
   if (!place || place.sections.length < 2) return null;
   return (
-    <nav aria-label={place.label} className="oa-place-strip border-b border-oa-border bg-oa-page lg:hidden">
-      <div ref={row} className="oa-scroll-fade flex items-center gap-1.5 overflow-x-auto px-3 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <nav aria-label={place.label} className="oa-place-strip relative border-b border-oa-border bg-oa-page lg:hidden">
+      <div
+        ref={row}
+        onScroll={measure}
+        className="flex items-center gap-1.5 overflow-x-auto px-3 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        // The edge cues below replace the global scroll fade, which only some browsers can draw.
+        style={{ animation: "none", maskImage: "none", WebkitMaskImage: "none" }}
+      >
         {place.sections.map((item) => {
           const on = item === current;
           const exact = on && pathname === item.href;
@@ -52,7 +87,31 @@ export function PlaceStrip() {
           );
         })}
       </div>
+      {/* The cue that the row goes on: a fade into the page with an arrow that scrolls it. Decorative for screen
+          readers, which get every link in the row anyway. */}
+      {more.left ? <EdgeCue side="left" onClick={() => nudge(-1)} /> : null}
+      {more.right ? <EdgeCue side="right" onClick={() => nudge(1)} /> : null}
     </nav>
+  );
+}
+
+const useIsoLayoutEffect = typeof window === "undefined" ? React.useEffect : React.useLayoutEffect;
+
+function EdgeCue({ side, onClick }: { side: "left" | "right"; onClick: () => void }) {
+  const left = side === "left";
+  return (
+    <button
+      type="button"
+      tabIndex={-1}
+      aria-hidden="true"
+      onClick={onClick}
+      className={`absolute inset-y-0 ${left ? "left-0 justify-start pl-1" : "right-0 justify-end pr-1"} flex w-12 items-center text-oa-muted-fg`}
+      style={{ background: `linear-gradient(to ${left ? "left" : "right"}, transparent, var(--oa-page) 55%)` }}
+    >
+      <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d={left ? "M10 3.5 5.5 8l4.5 4.5" : "M6 3.5 10.5 8 6 12.5"} />
+      </svg>
+    </button>
   );
 }
 

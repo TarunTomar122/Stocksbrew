@@ -243,11 +243,23 @@ const HORIZONS: Record<string, string> = { days: "the next few days", weeks: "th
 
 const SURE: Record<string, string> = { high: "We're quite sure of this", medium: "We're fairly sure of this", med: "We're fairly sure of this", low: "We're not very sure of this" };
 
-/** "We're fairly sure of this for the next few weeks." from the call's confidence and horizon words. */
-export function callMetaLine(confidence: string | null | undefined, horizon: string | null | undefined): string {
+const SURE_THEN: Record<string, string> = { high: "we were quite sure of it", medium: "we were fairly sure of it", med: "we were fairly sure of it", low: "we were not very sure of it" };
+
+/**
+ * "We're fairly sure of this for the next few weeks." from the call's confidence and horizon words. Pass
+ * `writtenOn` ("Sep 22") for a call written weeks ago: "the next few weeks" then dates it instead of promising
+ * weeks from today ("When we wrote this on Sep 22, we were fairly sure of it for the next few weeks.").
+ */
+export function callMetaLine(confidence: string | null | undefined, horizon: string | null | undefined, writtenOn?: string | null): string {
   const conf = (confidence ?? "").trim().toLowerCase();
   const span = (horizon ?? "").trim().toLowerCase();
   const when = span ? HORIZONS[span] ?? span : "";
+  if (writtenOn) {
+    const then = conf ? SURE_THEN[conf] : "";
+    if (then) return `When we wrote this on ${writtenOn}, ${then}${when ? ` for ${when}` : ""}.`;
+    if (when) return `Written on ${writtenOn} for ${when}.`;
+    return "";
+  }
   const sure = conf ? SURE[conf] ?? `${conf.charAt(0).toUpperCase()}${conf.slice(1)} confidence` : "";
   if (sure && when) return `${sure} for ${when}.`;
   if (sure) return `${sure}.`;

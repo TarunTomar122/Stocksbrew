@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { todayET } from "@/lib/calendar-shared";
 
 import { StockLogo } from "@/components/stock-logo";
 import { multiplePercentile } from "@/lib/stock-chart";
@@ -145,6 +146,8 @@ export function sectionAvailability(data: ReportData): Record<SectionId, boolean
 
 export function OverviewSection({ data }: SectionProps) {
   const { stock, facts, currency } = data;
+  // The header's yield (annual dividend over today's price); the stored one was worked out at an older price.
+  const yieldPct = data.fundamentals?.dividend_yield_pct ?? facts?.dividends?.yield_pct;
   const description = realDescription(stock.description) ? clipText(stock.description!, 460) : null;
   const fin0 = facts?.financials;
   const history = chronologicalHistory(facts?.financial_history);
@@ -171,7 +174,7 @@ export function OverviewSection({ data }: SectionProps) {
       ? { label: "Debt / equity", value: facts.quality.debt_to_equity.toFixed(2), tone: markFor("debtToEquity", facts.quality.debt_to_equity) }
       : null,
     fin(facts?.quality?.current_ratio) ? { label: "Current ratio", value: facts.quality.current_ratio.toFixed(2), tone: markFor("currentRatio", facts.quality.current_ratio) } : null,
-    fin(facts?.dividends?.yield_pct) && facts.dividends.yield_pct > 0 ? { label: "Dividend yield", value: plainPct(facts.dividends.yield_pct, 2) } : null,
+    fin(yieldPct) && yieldPct > 0 ? { label: "Dividend yield", value: plainPct(yieldPct, 2) } : null,
     fin(facts?.dividends?.buyback_yield_pct) ? { label: "Buyback yield", value: plainPct(facts.dividends.buyback_yield_pct, 2) } : null,
   ].filter((item): item is NonNullable<typeof item> => Boolean(item));
 
@@ -531,7 +534,7 @@ const MOVE_WORDS: Record<string, string> = { rally: "a rally", fade: "a selloff"
 
 export function EarningsSection({ data }: SectionProps) {
   const { stock, earnings, currency } = data;
-  const today = data.nowIso.slice(0, 10);
+  const today = todayET(Number.isFinite(Date.parse(data.nowIso)) ? Date.parse(data.nowIso) : Date.now());
   const next = earnings.next;
   const nextIn = next ? daysBetween(today, next.event_date) : null;
   const report = earnings.intel?.report;
@@ -670,7 +673,7 @@ const FUND_ACTION: Record<string, { label: string; tone: Tone | "primary" }> = {
 
 export function OwnershipSection({ data }: SectionProps) {
   const { stock, facts, ownership, congress, currency } = data;
-  const today = data.nowIso.slice(0, 10);
+  const today = todayET(Number.isFinite(Date.parse(data.nowIso)) ? Date.parse(data.nowIso) : Date.now());
   const funds = ownership.funds;
   const insiders = ownership.insiders;
   const edgarForm4 = `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${encodeURIComponent(stock.ticker)}&type=4&dateb=&owner=include&count=40`;

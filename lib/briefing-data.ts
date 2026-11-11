@@ -40,6 +40,7 @@ import {
   earningsReportFromDoc,
   indexFromHero,
   newsFromArticle,
+  withMarketIndexFigures,
   positionFromRow,
   triggeredAlertFromDoc,
 } from "@/lib/briefing-inputs";
@@ -49,6 +50,8 @@ import { getEarnings, getNextEarningsCalendarEventCached } from "@/lib/earnings"
 import { getLatestEarningsIntelForInstruments, listAllEarningsIntelDocs } from "@/lib/earnings-intel";
 import { getLatestPriceQuotes } from "@/lib/firestore";
 import { getHeroIndices } from "@/lib/hero-indices";
+import { getMarketsData } from "@/lib/markets";
+import { etDayOf, quoteDay } from "@/lib/benchmark-day";
 import { getInstrumentLabels } from "@/lib/instrument-resolver";
 import { getNewsFeed } from "@/lib/news";
 import { getPowerTradesCached } from "@/lib/power-trades";
@@ -205,23 +208,30 @@ async function loadMarketInputs(): Promise<MarketInputs> {
       return fallback;
     });
 
-  const [feed, indices, trades, reddit] = await Promise.all([
+  const [feed, indices, trades, reddit, markets] = await Promise.all([
     guard("movers", getDailyAnomalies("US"), null),
     guard("indices", getHeroIndices("US"), []),
     guard("congressional trades", getPowerTradesCached(30), null),
     guard("discussion", getRedditCues("US"), null),
+    // Not a degraded source when it fails: the snapshot's index figures still stand.
+    getMarketsData().catch(() => null),
   ]);
 
   return {
     movers: feed?.anomalies ?? [],
     movers_date: feed?.date ?? null,
     movers_as_of: feed?.generated_at ?? null,
-    indices: indices
-      .map(indexFromHero)
-      .filter((index): index is NonNullable<typeof index> => index !== null)
-      // The briefing reads equity indices; volatility and commodities live on the market page.
-      .filter((index) => index.name === "S&P 500" || index.name === "Nasdaq 100")
-      .slice(0, 2),
+    indices: withMarketIndexFigures(
+      indices
+        .map(indexFromHero)
+        .filter((index): index is NonNullable<typeof index> => index !== null)
+        // The briefing reads equity indices; volatility and commodities live on the market page.
+        .filter((index) => index.name === "S&P 500" || index.name === "Nasdaq 100")
+        .slice(0, 2),
+      markets?.assets ?? [],
+      // The New York day the movers are priced on (feed.date is a UTC date, a day ahead after 7 PM New York time).
+      quoteDay((feed?.anomalies ?? []).map((item) => ({ price_at: item.price_as_of ?? undefined })), etDayOf(feed?.generated_at ?? null) ?? etDayOf(new Date().toISOString())),
+    ),
     congress_trades: (trades?.trades ?? [])
       .map(congressTradeFromDoc)
       .filter((trade): trade is NonNullable<typeof trade> => trade !== null),

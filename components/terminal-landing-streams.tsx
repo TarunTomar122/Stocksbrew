@@ -80,7 +80,9 @@ export async function resolveLandingHeroFeatured(
   const rows = await getScreenerRows(shuffled).catch(() => new Map());
   const moveOf = (ticker: string) =>
     Math.abs(rows.get(ticker.toUpperCase())?.day_pct ?? findLandingHeroAnomaly(anomalies, ticker)?.day_change_pct ?? 0);
-  const order = [...shuffled].sort((a, b) => moveOf(b) - moveOf(a));
+  // A move with a confirmed reason makes the better example, so those go first, then the size of the move.
+  const explained = (ticker: string) => (findLandingHeroAnomaly(anomalies, ticker)?.move_explanation?.headline && moveOf(ticker) >= 1 ? 1 : 0);
+  const order = [...shuffled].sort((a, b) => explained(b) - explained(a) || moveOf(b) - moveOf(a));
   for (const ticker of order) {
     const summary = await getStockSummary(ticker, market).catch(() => null);
     if (!summary) continue;

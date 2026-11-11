@@ -45,12 +45,13 @@ export function buildScreenerRead(input: {
   const sectors = sectorCounts(matched);
   const top = sectors[0];
   const topShare = top ? Math.round((top.count / matched.length) * 100) : 0;
-  const base = input.narrowed && allMid !== null ? { label: `all ${universe.length.toLocaleString("en-US")} stocks we cover`, value: allMid } : spy !== null ? { label: "the S&P 500", value: spy } : null;
+  const base = input.narrowed && allMid !== null ? { label: `the typical stock across all ${universe.length.toLocaleString("en-US")} we cover`, value: allMid } : spy !== null ? { label: "the S&P 500", value: spy } : null;
   const parts: string[] = [];
   parts.push(input.narrowed ? `${matched.length.toLocaleString("en-US")} ${matched.length === 1 ? "stock matches" : "stocks match"}` : `Across the ${matched.length.toLocaleString("en-US")} stocks we follow`);
   if (top && matched.length >= 3 && topShare >= 30 && topShare < 100) parts.push(`${topShare}% are ${top.sector}`);
   if (mid !== null && moves.length >= 3) {
-    parts.push(`the typical one ${mid >= 0 ? "rose" : "fell"} ${pct(mid)} ${on}${base ? `, against ${signedPct(base.value)} for ${base.label}` : ""}`);
+    // Both moves in words ("fell 0.3% ..., while the S&P 500 fell 0.4%"), never a word for one and a sign for the other.
+    parts.push(`the typical one ${mid >= 0 ? "rose" : "fell"} ${pct(mid)} ${on}${base ? `, while ${base.label} ${base.value >= 0 ? "rose" : "fell"} ${pct(base.value)}` : ""}`);
   }
   // "Across the 781 stocks we follow, the typical one rose 2.4% ..." reads as one sentence; a match count stands alone.
   const headline = input.narrowed ? `${parts.join("; ")}.` : `${parts[0]}${parts.length > 1 ? `, ${parts.slice(1).join("; ")}` : ""}.`;

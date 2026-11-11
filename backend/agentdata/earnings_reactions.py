@@ -12,6 +12,22 @@ The window depends on when the company reported:
 * time not known: prior close to the next close (two sessions, which covers
   either case, and is labelled as two sessions wherever it is shown)
 
+The calendar leaves the time out of most rows (it says "during"). When it does,
+the company's own results 8-K (item 2.02) accepted on the report day settles it:
+before 9:30 ET is before the open, 4:00 PM ET or later is after the close. That
+is the rule the earnings season planner uses, so both show the same move. The
+8-K comes from ``tm_earnings_history`` (earnings_history.py), else from
+``tm_agent_filings`` (sec_filings.py). An 8-K accepted during the session leaves
+the time unknown. A time the calendar does give is never overridden.
+
+Each reaction records where its time came from: ``calendar_session`` is the
+calendar's own value, ``session`` the one the window was measured on,
+``session_source`` "calendar" or "sec_8k", and with an 8-K its acceptance time
+(``filing_accepted_at``) and link (``filing_url``), both null otherwise. Item
+2.02 8-Ks the history marks as not a release are not used. When either 8-K read
+fails, rows without a calendar time are left as stored rather than rewritten
+as two-session moves.
+
 A reaction is only written once the closing price that ends the window exists.
 Ids are ``{TICKER}_{YYYY-MM-DD}``, the same as the event, so reruns update in
 place. Nothing is deleted.
@@ -28,12 +44,59 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from . import prices
+from .earnings_history import COLLECTION as HISTORY, acceptance_session
 from .feeds_common import WriteLedger, iso_now, load_universe, query, utc_now, write_changed
 from .store import DocStore
 
 COLLECTION = "tm_agent_earnings_reactions"
 EVENTS = "tm_earnings_events"
+FILINGS = "tm_agent_filings"
 SESSIONS = {"bmo", "amc"}
+
+
+def results_filings_by_day(history: dict[str, Any] | None, filings: list[dict[str, Any]]) -> dict[str, dict[str, str]]:
+    """Each New York day's earliest results 8-K: {day: {session, accepted_at, url}}.
+
+    ``history`` is a ``tm_earnings_history`` document, ``filings`` are
+    ``tm_agent_filings`` rows with item 2.02. Amendments restate an old release
+    and are skipped. The earliest acceptance on a day is when the market had the
+    results, the same choice the planner makes.
+    """
+    candidates: list[tuple[str, str]] = []  # (accepted_at, url)
+    # Item 2.02 8-Ks the history found not to be a release (a delivery update, a conference deck).
+    not_releases: set[str] = set()
+    for report in (history or {}).get("reports") or []:
+        if not isinstance(report, dict):
+            continue
+        if report.get("release") is False:
+            not_releases.add(str(report.get("accession") or ""))
+        elif report.get("accepted_at"):
+            candidates.append((str(report["accepted_at"]), str(report.get("url") or "")))
+    for filing in filings:
+        amended = filing.get("is_amendment") is True or str(filing.get("form") or "").upper().endswith("/A")
+        if amended or "2.02" not in (filing.get("item_codes") or []) or not filing.get("filed_at"):
+            continue
+        if str(filing.get("accession") or "") in not_releases:
+            continue
+        candidates.append((str(filing["filed_at"]), str(filing.get("url") or "")))
+    out: dict[str, dict[str, str]] = {}
+    for accepted_at, url in sorted(candidates):
+        when = acceptance_session(accepted_at)
+        if when is None:
+            continue
+        day, session = when
+        if day not in out:
+            out[day] = {"session": session, "accepted_at": accepted_at, "url": url}
+    return out
+
+
+def resolve_session(calendar_session: str, filing: dict[str, str] | None) -> tuple[str, str]:
+    """(session to measure on, where it came from). The calendar wins when it gives a time."""
+    if calendar_session in SESSIONS:
+        return calendar_session, "calendar"
+    if filing and filing.get("session") in SESSIONS:
+        return filing["session"], "sec_8k"
+    return "unknown", "calendar"
 
 
 def reaction(dates: list[str], closes: list[float], event_date: str, session: str) -> dict[str, Any] | None:
@@ -105,36 +168,87 @@ def run(*, weeks_back: int = 30, dry_run: bool = False) -> dict[str, Any]:
             if document and document.get("dates"):
                 series[ticker] = document
 
+    # The company's results 8-Ks, for rows the calendar gives no time. Both reads are optional:
+    # without them a row keeps its two-session window, as before.
+    histories: dict[str, dict[str, Any]] = {}
+    lookups_ok = True
+    try:
+        for offset in range(0, len(tickers), 200):
+            chunk = tickers[offset : offset + 200]
+            found = store.get_many([f"{HISTORY}/{ticker}" for ticker in chunk])
+            for ticker in chunk:
+                if found.get(f"{HISTORY}/{ticker}"):
+                    histories[ticker] = found[f"{HISTORY}/{ticker}"]
+    except RuntimeError as error:
+        lookups_ok = False
+        print(f"[earnings_reactions] earnings history not read: {error}", flush=True)
+    recent_filings: dict[str, list[dict[str, Any]]] = {}
+    try:
+        filing_start = (today - timedelta(weeks=weeks_back) - timedelta(days=3)).isoformat()
+        for _path, data in query(
+            store,
+            FILINGS,
+            filters=[("item_codes", "array-contains", "2.02"), ("filing_date", ">=", filing_start)],
+            limit=10000,
+        ):
+            if data.get("ticker"):
+                recent_filings.setdefault(str(data["ticker"]).upper(), []).append(data)
+    except RuntimeError as error:
+        lookups_ok = False
+        print(f"[earnings_reactions] 8-K filings not read: {error}", flush=True)
+    by_day = {ticker: results_filings_by_day(histories.get(ticker), recent_filings.get(ticker, [])) for ticker in tickers}
+
     writes: list[tuple[str, dict[str, Any]]] = []
-    stats = {"events": len(events), "tickers": len(tickers), "with_prices": len(series), "measured": 0, "waiting": 0}
+    stats = {
+        "events": len(events),
+        "tickers": len(tickers),
+        "with_prices": len(series),
+        "with_8k_history": len(histories),
+        "measured": 0,
+        "waiting": 0,
+        "time_from_8k": 0,
+        "two_sessions": 0,
+        "kept_for_8k_lookup": 0,
+    }
     for event in events:
         ticker = str(event["ticker"]).upper()
         document = series.get(ticker)
         if not document:
             continue
-        session = str(event.get("time") or "").lower()
-        session = session if session in SESSIONS else "unknown"
+        calendar_session = str(event.get("time") or "").strip().lower()
+        calendar_session = calendar_session if calendar_session in SESSIONS else "unknown"
         event_date = str(event.get("event_date") or "")[:10]
+        if calendar_session not in SESSIONS and not lookups_ok:
+            # Without the 8-K lookup this row would fall back to two sessions and overwrite a
+            # stored one-day move; leave it until a run that can read the filings.
+            stats["kept_for_8k_lookup"] += 1
+            continue
+        filing = by_day.get(ticker, {}).get(event_date)
+        session, session_source = resolve_session(calendar_session, filing)
         dates, closes = completed_sessions(document.get("dates") or [], document.get("closes") or [], session_day)
         measured = reaction(dates, closes, event_date, session)
         if measured is None:
             stats["waiting"] += 1
             continue
         stats["measured"] += 1
-        writes.append(
-            (
-                f"{COLLECTION}/{ticker}_{event_date}",
-                {
-                    "ticker": ticker,
-                    "event_date": event_date,
-                    "market": "US",
-                    "session": session,
-                    **measured,
-                    "price_source": "Yahoo Finance adjusted closes (tm_price_history_daily)",
-                    "computed_at": now_iso,
-                },
-            )
-        )
+        stats["time_from_8k"] += session_source == "sec_8k"
+        stats["two_sessions"] += measured["basis"] == "2d"
+        doc: dict[str, Any] = {
+            "ticker": ticker,
+            "event_date": event_date,
+            "market": "US",
+            "session": session,
+            "calendar_session": calendar_session,
+            "session_source": session_source,
+            **measured,
+            "price_source": "Yahoo Finance adjusted closes (tm_price_history_daily)",
+            "computed_at": now_iso,
+        }
+        # Written either way: the doc is merged, so a stale 8-K time must be cleared, not left behind.
+        from_filing = session_source == "sec_8k" and filing is not None
+        doc["filing_accepted_at"] = filing["accepted_at"] if from_filing else None
+        doc["filing_url"] = filing["url"] if from_filing else None
+        writes.append((f"{COLLECTION}/{ticker}_{event_date}", doc))
 
     written = 0
     if not dry_run and writes:

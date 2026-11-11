@@ -54,7 +54,17 @@ function watchParam(value: string | string[] | undefined): string | null {
   return /^[A-Z][A-Z0-9.-]{0,9}$/.test(raw) ? raw : null;
 }
 
-export default async function AgentJobsPage({ searchParams }: { searchParams?: { job?: string | string[]; watch?: string | string[] } }) {
+/** A request from a "Watch this for me" link (`?q=`), as plain text the box reads back; nothing is saved from it. */
+function askParam(value: string | string[] | undefined): string | null {
+  const raw = typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
+  return raw ? raw.slice(0, 300) : null;
+}
+
+export default async function AgentJobsPage({
+  searchParams,
+}: {
+  searchParams?: { job?: string | string[]; watch?: string | string[]; q?: string | string[] };
+}) {
   const session = await getSessionUser().catch(() => null);
   const focus = typeof searchParams?.job === "string" ? searchParams.job : null;
   // Only a stock we follow: an unknown ticker would replay nothing and still be named, and every string would be a cache entry.
@@ -89,7 +99,7 @@ export default async function AgentJobsPage({ searchParams }: { searchParams?: {
           focusJobId={focus}
           sample={sample}
           hiddenTemplates={hiddenTemplateIds()}
-          lead={<PlainAgentBox signedIn={Boolean(session)} available={sources} />}
+          lead={<PlainAgentBox signedIn={Boolean(session)} available={sources} prefill={askParam(searchParams?.q)} />}
         />
     </AppPage>
   );

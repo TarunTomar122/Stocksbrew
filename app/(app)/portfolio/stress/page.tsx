@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { AppPage, PageHead, SourceLine, fmtDay } from "@/components/oa/kit";
 import { StressGhost } from "@/components/stress/ghost";
 import { StressView } from "@/components/stress/stress-view";
+import { ShareButton } from "@/components/share/share-button";
 import { getSessionUser } from "@/lib/auth-server";
 import { loadExampleStress, loadUserStress, type StressView as StressData } from "@/lib/stress-test-data";
 import { getUserDoc } from "@/lib/watchlist";
@@ -21,7 +22,8 @@ export const metadata: Metadata = {
 const LEDE =
   "What today's holdings did in real market shocks of the last decade, from their own daily closes, next to the S&P 500. It is history, not a forecast.";
 
-export default function StressPage() {
+export default async function StressPage() {
+  const session = await getSessionUser();
   return (
     <AppPage>
       <PageHead
@@ -33,6 +35,7 @@ export default function StressPage() {
         }
         lede={LEDE}
         meta={<SourceLine source="Daily closes with dividends, from Yahoo Finance" />}
+        actions={session ? <ShareButton kind="stress" /> : null}
       />
       <Suspense fallback={<StressGhost />}>
         <StressBody />

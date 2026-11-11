@@ -43,6 +43,8 @@ import {
   mergeAnomalyWithLatestPrice,
 } from "@/lib/daily-anomalies";
 import { anomalyHeadline, anomalyDetail } from "@/components/daily-anomalies-shared";
+import { todayET } from "@/lib/calendar-shared";
+import { consistentFundamentals } from "@/lib/stock-header-facts";
 import { getNextEarningsCalendarEventCached } from "@/lib/earnings";
 import { isWithinPreEarningsWindow, shouldShowPreEarningsIntel } from "@/lib/pre-earnings-intel-shared";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
@@ -65,13 +67,14 @@ import {
 } from "@/lib/stock-events";
 import { getFollowSources } from "@/lib/follow";
 import { getStockOwnership } from "@/lib/stock-ownership";
+import { CALL_PLAIN, wholeSentences } from "@/lib/plain-copy";
 import { buildStockRead, readLooksBroken } from "@/lib/stock-read";
 import { buildStockTimeline } from "@/lib/stock-timeline";
 import { buildStockRead as buildStockInsightRead } from "@/lib/stock-insights";
 import { getGroupMove, getMarketDay, getStockGroup } from "@/lib/insight-data";
 import { etDay, fin } from "@/lib/insight-format";
 import { getDailySeries } from "@/lib/screener-series";
-import { getScreenerRows } from "@/lib/screener";
+import { getScreenerRows, getScreenerSnapshot } from "@/lib/screener";
 
 export const revalidate = 60;
 
@@ -130,6 +133,20 @@ function isSplitScaleStaleBrief(
 
   const ratio = Math.max(trigger / currentPrice, currentPrice / trigger);
   return ratio >= 4;
+}
+
+
+/**
+ * The lead line of a locked brief: the body's first sentence when it states what is happening at the company,
+ * never when it carries our view (we'd, our, a multiple of earnings, a level), which is the reasoning the full
+ * read keeps. Null when it does, so the brief's own title shows instead.
+ */
+const OUR_VIEW = /\b(?:we|we'd|we're|our)\b|\d+(?:\.\d+)?\s*(?:x|times)\b|\b(?:buy more|sell some|add|trim|valuation|upside|downside|level|zone|target)\b/i;
+function lockedLead(body: string | null): string | null {
+  const first = body ? wholeSentences(body, 1) : "";
+  if (!first || OUR_VIEW.test(first) || first.length > 260) return null;
+  const kept = redactLevels(first);
+  return kept ? kept.replace(/[;,:]\s*$/, ".") : null;
 }
 
 export async function StockPageStream({ params }: Props) {
@@ -348,10 +365,13 @@ export async function StockPageStream({ params }: Props) {
     hasFullAnalysisAccess && isSplitScaleStaleBrief(intelligence, stock.price, stock.captured_at);
 
   // ── the read ──────────────────────────────────────────────────────────────
+  // The reason is rewritten every night from the latest numbers, so it can be newer than the call; its as-of goes with it.
+  const screenerAsOf = screenerRow?.call_reason ? ((await getScreenerSnapshot().catch(() => null))?.meta.price_history_to ?? null) : null;
   const companyReason = screenerRow?.call_reason
-    ? { text: screenerRow.call_reason, call: screenerRow.call ?? null, source: screenerRow.call_reason_source ?? null }
+    ? { text: screenerRow.call_reason, call: screenerRow.call ?? null, source: screenerRow.call_reason_source ?? null, asOf: screenerAsOf }
     : null;
-  const fullRead = hasFullAnalysisAccess && !isPriceStaleBrief ? buildStockRead(intelligence, { companyReason }) : null;
+  const fullRead =
+    hasFullAnalysisAccess && !isPriceStaleBrief ? buildStockRead(intelligence, { companyReason, callChanges: callChanges(callHistory) }) : null;
   // Strip the levels here so they never reach the browser for an uncovered stock.
   // A brief written from a bot wall or an error page says nothing about the
   // company. Now that the read is open to everyone, hold those back.
@@ -364,13 +384,17 @@ export async function StockPageStream({ params }: Props) {
           // the reasons, what would change the call, why it last changed) and the levels come with covering it.
           ...fullRead,
           // The headline can fall back to the thesis when a brief has none; locked, only a real headline shows.
-          headline: redactLevels(typeof intelligence?.headline === "string" ? intelligence.headline : null),
+          // The brief's first sentence (what is happening at the company, in plain facts) leads, as it does on a covered
+          // stock; the engine's title ("growth faces a renewed memory-cycle test") is only the fallback. The rest of the
+          // body is the reasoning and stays with covering it.
+          headline: lockedLead(fullRead.body) ?? redactLevels(typeof intelligence?.headline === "string" ? intelligence.headline : null),
           // The call engine writes its add or trim level into this sentence ("The add level is $182.40").
           actionSummary: redactLevels(fullRead.actionSummary),
           body: null,
           reasons: [],
           changers: [],
-          changed: fullRead.changed ? { reason: null } : null,
+          // How the call has moved (the call before, and why it changed) is part of the full read (lib/entitlements.ts).
+          changed: fullRead.changed ? { reason: null, from: null } : null,
           zones: { addBelow: null, addAbove: null, trimAbove: null },
         }
       : fullRead;
@@ -387,7 +411,8 @@ export async function StockPageStream({ params }: Props) {
   // ── chart ─────────────────────────────────────────────────────────────────
   const now = new Date();
   const nowIso = now.toISOString();
-  const today = nowIso.slice(0, 10);
+  // New York's day, the same boundary every "in 6 days" on the site counts from (lib/calendar-shared `daysUntilET`).
+  const today = todayET(now);
   const liveDay = dayInET(stock.captured_at);
   const baseRanges = longSeries?.ranges.length ? longSeries.ranges : buildChartRanges(snapshotHistory.closes);
   const ranges = withLivePoint(baseRanges, liveDay, stock.price);
@@ -464,7 +489,13 @@ export async function StockPageStream({ params }: Props) {
     facts: stockFacts,
     callChange:
       read?.changed && read.writtenAt
-        ? { at: read.writtenAt, reason: read.changed.reason, headline: read.actionLabel }
+        ? {
+            at: read.writtenAt,
+            reason: read.changed.reason,
+            headline: read.actionLabel,
+            from: read.changed.from ? CALL_PLAIN[read.changed.from as keyof typeof CALL_PLAIN] ?? null : null,
+            to: read.call ? CALL_PLAIN[read.call as keyof typeof CALL_PLAIN] ?? null : null,
+          }
         : null,
     // The first ledger entry is the day coverage began, not a change. How the call has moved on this stock is
     // part of the full read, so an uncovered viewer gets none of it.
@@ -551,7 +582,15 @@ export async function StockPageStream({ params }: Props) {
     multiple: snapshotHistory.multiple,
     timeline,
     facts: stockFacts,
-    fundamentals: stock.fundamentals ?? null,
+    // The past year's range and the yield worked out from today's price, so neither can contradict the quote.
+    fundamentals: consistentFundamentals(stock.fundamentals ?? null, {
+      closes: dailySeries[stock.ticker] ?? null,
+      price: fin(stock.price) ? stock.price : null,
+      today,
+      annualDividend: stockFacts?.dividends?.annual_dividend ?? stock.fundamentals?.annual_dividend ?? null,
+      dayLow: fin(stock.day_low) ? stock.day_low : null,
+      dayHigh: fin(stock.day_high) ? stock.day_high : null,
+    }),
     // The scorecard (pillars, overall score, sector comparisons) is part of the full read, so an uncovered stock
     // sends null and none of it reaches the browser.
     intelPro: hasLevels ? intelPro : null,

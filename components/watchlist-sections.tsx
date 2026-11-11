@@ -1018,7 +1018,7 @@ function RiskFlagsBlock({ risks }: { risks: Dict[] }) {
                   {severity && (
                     <span className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-medium tracking-[0.1em] uppercase shrink-0"
                       style={{ background: tone.chipBg, color: tone.chipFg }}>
-                      <span aria-hidden className="h-1 w-1 rounded-full bg-oa-card/80" />{severity}
+                      <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-current" />{severity}
                     </span>
                   )}
                 </div>

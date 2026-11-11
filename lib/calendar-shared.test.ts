@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { resultWord, surprisePctOf, summarizeReports, type EarningsItem } from "@/lib/calendar-shared";
+import { reactionBasisLabel, resultWord, surprisePctOf, summarizeReports, type EarningsItem } from "@/lib/calendar-shared";
 import { surpriseOf } from "@/lib/calendar-insights";
 
 type Item = Parameters<typeof resultWord>[0];
@@ -69,5 +69,27 @@ describe("summarizeReports", () => {
     const summary = summarizeReports(rows, "2026-11-10");
     expect(summary.beats).toBe(1);
     expect(summary.misses).toBe(1);
+  });
+});
+
+describe("reactionBasisLabel", () => {
+  const base = { pct: -1.9, basis: "1d" as const, toDate: "2026-11-03" };
+  it("follows the calendar's own time", () => {
+    expect(reactionBasisLabel(base, "amc")).toBe("Close on the report day to the next close");
+    expect(reactionBasisLabel(base, "bmo")).toBe("Prior close to the close on the report day");
+  });
+  it("uses the 8-K's time when the calendar gave none, and says so", () => {
+    expect(reactionBasisLabel({ ...base, session: "amc" }, "unknown")).toBe(
+      "Close on the report day to the next close (the time comes from the company's 8-K filing)",
+    );
+    expect(reactionBasisLabel({ ...base, session: "bmo" }, "unknown")).toBe(
+      "Prior close to the close on the report day (the time comes from the company's 8-K filing)",
+    );
+  });
+  it("keeps the calendar's time when both are given", () => {
+    expect(reactionBasisLabel({ ...base, session: "bmo" }, "amc")).toBe("Close on the report day to the next close");
+  });
+  it("names two sessions whatever the time", () => {
+    expect(reactionBasisLabel({ ...base, basis: "2d" }, "unknown")).toMatch(/two sessions/);
   });
 });

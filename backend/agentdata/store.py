@@ -37,6 +37,8 @@ WRITABLE_PREFIXES = (
     "tm_earnings_events",
     # Earnings day reports (earnings_day.py): one per stock per report.
     "tm_earnings_day",
+    # Past report days from SEC 8-K item 2.02 filings (earnings_history.py): one per stock.
+    "tm_earnings_history",
     "tm_strategy_",
     "tm_strategies",
     "tm_backtest_",

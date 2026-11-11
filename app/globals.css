@@ -741,11 +741,13 @@ body:has(.oa-landing) .oa-market-tab {
   background: var(--oa-accent);
   transform: none;
 }
-/* The footer's sign-up strip is for the landing. Inside the app it is noise. */
+/* The footer's sign-up strip is for pages with no call to action of their own. Inside the app it is noise. */
 body:has(.oa-sidebar) .oa-footer-sell,
-body:has(.oa-app > .oa-topbar) .oa-footer-sell {
+body:has(.oa-app > .oa-topbar) .oa-footer-sell,
+body:has(.oa-landing #pricing) .oa-footer-sell {
   /* Pricing, docs and the company pages already have their own call to
-     action; a second filled button in the footer competes with it. */
+     action, and so does the landing's plans section; a second filled
+     button in the footer competes with it. */
   display: none;
 }
 /* ── Homepage landing theme ─────────────────────────────────────────────── */

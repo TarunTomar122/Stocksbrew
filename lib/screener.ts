@@ -1,6 +1,7 @@
 import { unstable_cache } from "next/cache";
 import { cache } from "react";
 
+import { dayDiff, todayET } from "@/lib/calendar-shared";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { resolveSector } from "@/lib/gics-sector";
 import type { ScreenerMeta, ScreenerRow } from "@/lib/screener-shared";
@@ -71,6 +72,21 @@ export function withResolvedSector(row: ScreenerRow): ScreenerRow {
   return next;
 }
 
+/**
+ * `earnings_in_days` is counted when the job runs (03:30 UTC, still the evening before in New York), so it reads a
+ * day short for the rest of the day. Recount it from the date against New York's today, the boundary the rest of
+ * the site uses, and drop it once the report has passed.
+ */
+export function withFreshEarningsGap(row: ScreenerRow, today: string): ScreenerRow {
+  if (!row.earnings_date) return row;
+  const gap = dayDiff(today, row.earnings_date);
+  if (gap === row.earnings_in_days) return row;
+  const next = { ...row };
+  if (gap === null || gap < 0) delete next.earnings_in_days;
+  else next.earnings_in_days = gap;
+  return next;
+}
+
 // React's request cache only exists in the server-components build. Outside it
 // (route handlers under test, scripts) the snapshot is simply read each time.
 const perRequest: typeof cache = typeof cache === "function" ? cache : (fn) => fn;
@@ -83,9 +99,11 @@ export const getScreenerSnapshot = perRequest(async (market: "US" = "US"): Promi
     Promise.all(meta.shards.map((id) => getShardCached(id, meta.generated_at).catch(() => [] as ScreenerRow[]))),
     meta.extra_shard ? getShardCached(meta.extra_shard, meta.generated_at).catch(() => [] as ScreenerRow[]) : Promise.resolve([]),
   ]);
-  const rows = shards.flat().map(withResolvedSector);
+  const today = todayET();
+  const rows = shards.flat().map((row) => withFreshEarningsGap(withResolvedSector(row), today));
   if (rows.length === 0) return null;
-  return { meta, rows, extras };
+  // Benchmarks and basket lines carry an earnings gap too; recount it the same way.
+  return { meta, rows, extras: extras.map((row) => withFreshEarningsGap(row, today)) };
 });
 
 /** Rows for a set of symbols, covered stocks first, then benchmarks and uncovered basket lines. */

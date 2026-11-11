@@ -303,7 +303,7 @@ export function presentRun(
 
   const ran = ranLabel(run.ran_at);
   const asOf = options.replay
-    ? `${readsPrices && closeDate ? `Close of ${shortDate(closeDate)}` : sourceFor(trigger, findings)} · replayed, not sent at the time`
+    ? `${readsPrices && closeDate ? `Official close of ${shortDate(closeDate)}` : sourceFor(trigger, findings)} · replayed, not sent at the time`
     : [readsPrices && closeDate ? closeLabel(closeDate, run.day) : sourceFor(trigger, findings), ran ? `checked ${ran}` : `checked ${shortDate(run.day)}`].join(" · ");
   const tickers = [...new Set([...zoned.map((row) => row.ticker), ...moves.map((row) => row.ticker), ...dates.map((row) => row.ticker), ...findings.map((f) => f.ticker ?? "")])].filter(Boolean);
 

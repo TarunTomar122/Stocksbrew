@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { todayET } from "@/lib/calendar-shared";
 
 import { MarketStatusInline } from "@/components/market-status";
 import { RangeBar } from "@/components/oa/kit";
@@ -246,7 +247,7 @@ function KeyStats({ items }: { items: Array<{ label: string; value: ReactNode; s
 
 export function StockReport({ data, related }: { data: ReportData; /** Links to the stock's sector, rivals, insiders and earnings pages, streamed in under the head. */ related?: ReactNode }) {
   const { stock, market, currency, nowIso, read, readState, facts, fundamentals } = data;
-  const today = nowIso.slice(0, 10);
+  const today = todayET(Number.isFinite(Date.parse(nowIso)) ? Date.parse(nowIso) : Date.now());
   const money = moneyFormatter(currency);
   const level = levelFormatter(currency);
 
@@ -263,7 +264,12 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
   const zones: PanelZone[] = [];
   const suggested: SuggestedAlert[] = [];
   if (read && readState === "ready") {
-    const { addBelow, addAbove, trimAbove } = read.zones;
+    // Levels more than half the price away are left out everywhere on the page: header, chart, read and alert suggestions.
+    const within = (value: number | null | undefined) =>
+      value && fin(stock.price) && stock.price > 0 && Math.abs(value - stock.price) / stock.price <= 0.5 ? value : null;
+    const addBelow = within(read.zones.addBelow);
+    const addAbove = within(read.zones.addAbove);
+    const trimAbove = within(read.zones.trimAbove);
     if (addBelow) {
       zones.push({ key: "add", price: addBelow, side: "below", tone: "up", label: `Buy more below ${level(addBelow)}` });
       suggested.push({ id: "add", label: "Buy-more price", condition: "below", price: addBelow, note: `Buy more below ${level(addBelow)}` });
@@ -298,8 +304,13 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
     fin(fundamentals?.beta)
       ? { label: "Swings vs the market", value: `${fundamentals.beta.toFixed(1)}×`, sub: fundamentals.beta >= 1.3 ? "bigger" : fundamentals.beta <= 0.8 ? "smaller" : "about the same" }
       : null,
-    fin(fundamentals?.dividend_yield) && fundamentals.dividend_yield > 0
-      ? { label: "Dividend a year", value: `${fundamentals.dividend_yield.toFixed(2)}%` }
+    // One yield on the whole page: the annual dividend at the current rate over today's price (lib/stock-header-facts.ts).
+    fin(fundamentals?.dividend_yield_pct) && fundamentals.dividend_yield_pct > 0
+      ? {
+          label: "Dividend yield",
+          value: `${fundamentals.dividend_yield_pct.toFixed(2)}%`,
+          sub: fin(fundamentals.annual_dividend) && fundamentals.annual_dividend > 0 ? `${money(fundamentals.annual_dividend)} a year` : undefined,
+        }
       : null,
     earningsLabel && earningsIn != null && earningsIn >= 0
       ? {
@@ -341,7 +352,20 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
         ready.zones.trimAbove ? { label: "Sell some above", price: ready.zones.trimAbove, tone: "down" as const } : null,
       ].filter((item): item is NonNullable<typeof item> => Boolean(item))
     : [];
-  const callMeta = ready ? callMetaLine(ready.confidence, ready.horizon) : "";
+  // A call written weeks ago keeps its date in view: its horizon ("the next few weeks") ran from then, and a reason
+  // rewritten from newer numbers says so beside it.
+  const writtenMs = ready?.writtenAt ? Date.parse(ready.writtenAt) : NaN;
+  const callDay = Number.isFinite(writtenMs) ? todayET(writtenMs) : null;
+  const callAge = callDay ? daysBetween(callDay, today) : null;
+  const callIsOld = callAge != null && callAge > 14;
+  const reasonIsNewer = Boolean(callDay && ready?.reasonAsOf && ready.reasonAsOf > callDay);
+  const callMeta = ready ? callMetaLine(ready.confidence, ready.horizon, callIsOld && callDay ? fmtDate(callDay, false) : null) : "";
+  // The brief leads with its own first sentence (what is happening to the company, in plain facts), not the
+  // engine's title ("AI growth remains powerful as scrutiny raises the proof required"); the title is the fallback.
+  const briefBody = (ready?.body ?? "").trim().replace(/\s+/g, " ");
+  const briefFirst = briefBody ? wholeSentences(briefBody, 1) : "";
+  const briefLead = briefFirst || ready?.headline || "";
+  const briefRest = briefFirst && briefBody.startsWith(briefFirst) ? briefBody.slice(briefFirst.length).trim() : briefFirst ? "" : briefBody;
   // A level more than half the price away says little about today (the engine still sets some that far out); the landing card uses the same rule.
   const nearLevel = (value: number) => hasPrice && Math.abs(value - stock.price) / stock.price <= 0.5;
   const nearLevels = callLevels.filter((item) => nearLevel(item.price));
@@ -417,7 +441,9 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
                   <div className="flex items-baseline justify-between gap-3">
                     <h2 className="oa-caption">Our call</h2>
                     {ready?.writtenAt ? (
-                      <p className="text-[12px] leading-4 text-oa-muted-fg">Written {fmtStamp(ready.writtenAt)}</p>
+                      <p className="text-[12px] leading-4 text-oa-muted-fg">
+                        {reasonIsNewer ? "Call written" : "Written"} {fmtStamp(ready.writtenAt)}
+                      </p>
                     ) : readState === "locked" ? (
                       <Tag tone="primary">Pro</Tag>
                     ) : null}
@@ -451,6 +477,9 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
                         <p className="mt-2 max-w-[62ch] text-pretty text-[15px] leading-[22px] text-oa-fg">
                           <span className="font-medium">Why: </span>
                           {plainCallReason(ready.actionSummary)}
+                          {reasonIsNewer && ready.reasonAsOf ? (
+                            <span className="text-[13px] text-oa-muted-fg"> This reason uses data to {fmtDate(ready.reasonAsOf, false)}.</span>
+                          ) : null}
                         </p>
                       ) : null}
                       {hasPrice && ready.zones.addBelow && ready.zones.addBelow > 0 && ready.zones.trimAbove && ready.zones.trimAbove > ready.zones.addBelow && nearLevel(ready.zones.addBelow) && nearLevel(ready.zones.trimAbove) ? (
@@ -596,7 +625,8 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
           <TheRead read={data.insightRead} label={`The read on ${stock.ticker}`} fold="phone" foldLabel={`Show more on ${stock.ticker} today`} />
           <Panel
             id="read"
-            label="Our brief"
+            // The call card above is the one opinion on the page; this panel is the news and the reasons under it.
+            label="The news behind our call"
             className="scroll-mt-16 lg:scroll-mt-4"
             meta={
               ready?.writtenAt ? (
@@ -614,13 +644,18 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
                 <div className="px-3.5 py-4 sm:px-4">
                   {ready.changed ? (
                     <p className="mb-2 flex flex-wrap items-center gap-2">
-                      <Tag tone="primary" className="!font-sans !text-[12.5px] !normal-case !tracking-normal">We changed our call</Tag>
+                      <Tag tone="primary" className="!font-sans !text-[12.5px] !normal-case !tracking-normal">
+                        {ready.changed.from && callWord
+                          ? `We changed our call from ${CALL_PLAIN[ready.changed.from as keyof typeof CALL_PLAIN] ?? ready.changed.from} to ${callWord}`
+                          : "We changed our call"}
+                      </Tag>
                     </p>
                   ) : null}
-                  {ready.headline ? (
-                    <h2 className="max-w-[27em] text-balance text-[21px] font-medium leading-7 tracking-tight text-oa-fg sm:text-[24px] sm:leading-8">{ready.headline}</h2>
+                  {briefLead ? (
+                    // Body text, not a second headline: the call's "Why" leads the page, so the news reads as evidence under it.
+                    <p className="max-w-[66ch] text-pretty text-[16px] font-medium leading-6 text-oa-fg">{briefLead}</p>
                   ) : null}
-                  {ready.body ? <p className={`mt-2.5 max-w-[66ch] ${PROSE}`}>{ready.body}</p> : null}
+                  {briefRest ? <p className={`mt-2.5 max-w-[66ch] ${PROSE}`}>{briefRest}</p> : null}
                   {ready.changed?.reason ? (
                     <p className="mt-2.5 max-w-[66ch] text-[14px] leading-5 text-oa-muted-fg">
                       <span className="font-medium text-oa-fg">Why the call changed: </span>

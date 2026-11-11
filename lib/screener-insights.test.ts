@@ -14,7 +14,7 @@ describe("screener read", () => {
   it("describes the set against everything we cover", () => {
     const matched = [...universe.slice(0, 6), universe[6]!];
     const read = buildScreenerRead({ matched, universe, narrowed: true, priceDay: "2026-11-09", spy: SPY });
-    expect(read?.headline).toBe("7 stocks match; 86% are Technology; the typical one rose 4.0% on Nov 9, against +0.5% for all 12 stocks we cover.");
+    expect(read?.headline).toBe("7 stocks match; 86% are Technology; the typical one rose 4.0% on Nov 9, while the typical stock across all 12 we cover rose 0.5%.");
     expect(read?.insights.map((item) => item.id)).toContain("tilt");
   });
 

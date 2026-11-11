@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildStockRead } from "@/lib/stock-read";
+import { buildStockRead, previousCall } from "@/lib/stock-read";
 import type { StockIntelligenceDoc } from "@/lib/stock";
 
 const base = {
@@ -108,7 +108,7 @@ describe("buildStockRead", () => {
     })!;
     expect(read.body).toBeNull();
     expect(read.call).toBe("Add");
-    expect(read.changed).toEqual({ reason: "Earnings beat." });
+    expect(read.changed).toEqual({ reason: "Earnings beat.", from: null });
     expect(read.zones.addBelow).toBeNull();
     expect(read.confidence).toBeNull();
   });
@@ -127,5 +127,32 @@ describe("dated company reasons expire", () => {
   it("reads a December report named in January as last year's", async () => {
     const { dropPastDatedSentences } = await import("./stock-read");
     expect(dropPastDatedSentences("The Dec 16 report decides what we do.", "2027-01-05")).toBe("");
+  });
+
+  it("names the call before when the ledger switched into this call near the brief", () => {
+    const doc = {
+      instrument_id: "US_X",
+      headline: "Line.",
+      generated_at: "2026-11-10T21:30:00Z",
+      directive_v2: { stance: "hold", changed_from_previous: true, change_reason: "", zones: {} },
+    } as StockIntelligenceDoc;
+    const read = buildStockRead(doc, { callChanges: [{ date: "2026-03-01", from: null, to: "Add" }, { date: "2026-11-09", from: "Add", to: "Hold" }] })!;
+    expect(read.changed).toEqual({ reason: null, from: "Add" });
+  });
+});
+
+describe("previousCall", () => {
+  const changes = [
+    { date: "2026-01-05", from: null, to: "Trim" as const },
+    { date: "2026-11-09", from: "Trim" as const, to: "Add" as const },
+  ];
+  it("gives the call before a recent switch into the current call", () => {
+    expect(previousCall(changes, "Add", "2026-11-10T21:30:00Z")).toBe("Trim");
+  });
+  it("is null when the last switch went somewhere else, is old, or there is no brief time", () => {
+    expect(previousCall(changes, "Hold", "2026-11-10T21:30:00Z")).toBeNull();
+    expect(previousCall(changes, "Add", "2026-12-10T21:30:00Z")).toBeNull();
+    expect(previousCall(changes, "Add", null)).toBeNull();
+    expect(previousCall([{ date: "2026-11-09", from: null, to: "Add" }], "Add", "2026-11-10T21:30:00Z")).toBeNull();
   });
 });

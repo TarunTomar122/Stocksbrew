@@ -8,6 +8,7 @@ import { MonthChart } from "@/components/dividends/month-chart";
 import { StockList } from "@/components/dividends/stock-list";
 import { AppPage, PageHead, SourceLine, fmtDay, fmtStampET } from "@/components/oa/kit";
 import { TheRead } from "@/components/oa/insight";
+import { ShareButton } from "@/components/share/share-button";
 import { getSessionUser } from "@/lib/auth-server";
 import { buildDividendRead } from "@/lib/dividend-plan";
 import { exampleSeeds, holdingSeeds, loadDividendPlan, type HoldingSeed } from "@/lib/dividend-plan-data";
@@ -24,7 +25,8 @@ export const metadata: Metadata = {
 
 const LEDE = "What your holdings should pay over the next twelve months, with announced dividends kept apart from estimates.";
 
-export default function DividendsPage() {
+export default async function DividendsPage() {
+  const session = await getSessionUser();
   return (
     <AppPage>
       <PageHead
@@ -36,6 +38,7 @@ export default function DividendsPage() {
         }
         lede={LEDE}
         meta={<SourceLine source="Yahoo Finance and Nasdaq" />}
+        actions={session ? <ShareButton kind="dividends" /> : null}
       />
       <Suspense fallback={<DividendsGhost />}>
         <Planner />

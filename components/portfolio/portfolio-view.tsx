@@ -26,6 +26,7 @@ import {
   signTone,
 } from "@/components/portfolio/parts";
 import { PositionsTable } from "@/components/portfolio/positions-table";
+import { ShareButton } from "@/components/share/share-button";
 import { RadarBatchEditModal } from "@/components/radar-batch-edit-modal";
 import { StockLogo } from "@/components/stock-logo";
 import { WatchlistAiPromptButton } from "@/components/watchlist-ai-prompt-button";
@@ -366,6 +367,7 @@ export function PortfolioView({
                   ctaLabel="Add or edit stocks"
                   triggerClassName={BTN_PRIMARY}
                 />
+                <ShareButton kind="portfolio" className={BTN_PLAIN} />
                 <Link href="/watchlist/classic" className={BTN_PLAIN}>
                   Chat about it
                 </Link>

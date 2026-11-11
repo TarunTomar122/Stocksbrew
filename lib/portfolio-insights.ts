@@ -15,6 +15,7 @@
  * end up in a sentence.
  */
 
+import { weekWordFor } from "@/lib/calendar-shared";
 import { pickInsights, type Insight, type TheRead } from "@/lib/insights";
 import { dayGap, dayWord, fin, joinNames, money, movedWord, pct, plural, shortDay, signedPct } from "@/lib/insight-format";
 import { FUNDS_SECTOR, type Portfolio, type PortfolioPosition } from "@/lib/portfolio-shared";
@@ -112,6 +113,15 @@ function zoneState(
 
 type Reporting = Weighted & { date: string; time: string | null; inDays: number };
 
+/**
+ * "this week" when every date is in this calendar week, else "in the next seven days". The seven-day window always
+ * holds the rest of this week but only part of next week, so "next week" (and "the only one reporting next week")
+ * could leave out a report on Thursday.
+ */
+function reportingSpan(dates: string[], today: string): string {
+  return dates.length > 0 && dates.every((date) => weekWordFor(date, today) === "this week") ? "this week" : "in the next seven days";
+}
+
 function earningsSoon(rows: Weighted[], today: string, days: number): Reporting[] {
   const out: Reporting[] = [];
   for (const row of rows) {
@@ -174,13 +184,15 @@ function positionsRead(input: PortfolioInsightInput): TheRead | null {
   if (reporting.length > 0) {
     const first = reporting[0]!;
     const list = reporting.slice(0, 4).map((row) => `${row.position.ticker} ${shortDay(row.date)}`);
+    // Seven days from a Tuesday reach next Tuesday, which is not "this week" (the earnings season calls it next week).
+    const span = reportingSpan(reporting.map((row) => row.date), input.today);
     earnings = {
       id: "earnings",
       tone: "flat",
       text:
         reporting.length === 1
-          ? `${first.position.ticker} reports ${shortDay(first.date)}${first.time === "amc" ? " after the close" : first.time === "bmo" ? " before the open" : ""}, the only holding reporting this week; it is ${shareOfBook([first], rows, byValue)}.`
-          : `${plural(reporting.length, "holding")} report this week: ${joinSome(list, reporting.length)}${byValue ? `, ${shareOfBook(reporting, rows, byValue)} between them` : ""}.`,
+          ? `${first.position.ticker} reports ${shortDay(first.date)}${first.time === "amc" ? " after the close" : first.time === "bmo" ? " before the open" : ""}, the only holding reporting ${span}; it is ${shareOfBook([first], rows, byValue)}.`
+          : `${plural(reporting.length, "holding")} report ${span}: ${joinSome(list, reporting.length)}${byValue ? `, ${shareOfBook(reporting, rows, byValue)} between them` : ""}.`,
       tickers: reporting.slice(0, 6).map((row) => row.position.ticker),
       action: { label: `${first.position.ticker} earnings`, href: `/stock/${first.position.ticker}#earnings` },
     };
@@ -393,7 +405,7 @@ function watchingRead(input: PortfolioInsightInput): TheRead | null {
     ? {
         id: "earnings",
         tone: "flat",
-        text: `${plural(reporting.length, "watched name")} report${reporting.length === 1 ? "s" : ""} this week: ${joinSome(reporting.slice(0, 5).map((item) => `${item.position.ticker} ${shortDay(item.position.nextEarnings!.date)}`), reporting.length)}.`,
+        text: `${plural(reporting.length, "watched name")} report${reporting.length === 1 ? "s" : ""} ${reportingSpan(reporting.map((item) => item.position.nextEarnings!.date), input.today)}: ${joinSome(reporting.slice(0, 5).map((item) => `${item.position.ticker} ${shortDay(item.position.nextEarnings!.date)}`), reporting.length)}.`,
         tickers: reporting.slice(0, 5).map((item) => item.position.ticker),
         action: { label: `${reporting[0]!.position.ticker} earnings`, href: `/stock/${reporting[0]!.position.ticker}#earnings` },
       }
