@@ -387,7 +387,21 @@ export default function FollowPage({
     <AppPage>
       <MarketingSchema path="/follow" name="13F Fund Holdings, Congress Stock Trades and Insider Buying" description="What well-known funds, members of Congress and company insiders bought and sold, from 13F filings, House trade reports and SEC Form 4." breadcrumbLabel="Follow" />
       {/* One story per tab: the title says which of the three you are looking at. */}
-      <PageHead title={TAB_HEAD[tab].title} lede={TAB_HEAD[tab].lede} full />
+      <PageHead
+        title={TAB_HEAD[tab].title}
+        lede={TAB_HEAD[tab].lede}
+        full
+        actions={
+          tab === "insiders" ? undefined : (
+            <a
+              href="/follow/copy"
+              className="inline-flex min-h-10 items-center whitespace-nowrap text-[14px] font-medium text-oa-fg underline decoration-oa-border underline-offset-4 hover:decoration-oa-fg sm:min-h-0"
+            >
+              Whose moves were worth copying? →
+            </a>
+          )
+        }
+      />
       <Suspense fallback={<div aria-busy="true" className="mb-4"><PanelGhost rows={4} /></div>}>
         <ReadBlock read={read} tab={tab} />
       </Suspense>

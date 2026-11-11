@@ -39,6 +39,8 @@ export type TheRead = {
   /** Short source and time line, e.g. "412 stories from 38 sources" / an ISO time. */
   source?: string;
   asOf?: string | null;
+  /** Stocks the headline itself tells, so lists under the read can leave them out. */
+  headlineTickers?: string[];
 };
 
 /** Whole-number percentage share, or null when the base is empty. */

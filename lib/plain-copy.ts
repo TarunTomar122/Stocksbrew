@@ -429,8 +429,9 @@ const MOVE_NOUN_UP = ["rally", "rebound", "surge", "gain", "gains", "jump", "ris
 const MOVE_NOUN_DOWN = ["drop", "decline", "slide", "slump", "plunge", "fall", "selloff", "sell-off"];
 const MOVE_NOUN_ANY = ["shares", "stock"];
 // Company-first headlines: "LifeVantage stock falls after revenue drops 22%".
-const MOVE_VERB_UP = ["rises", "jumps", "climbs", "surges", "soars", "gains", "rallies", "rebounds", "advances", "pops", "spikes"];
-const MOVE_VERB_DOWN = ["falls", "slides", "drops", "plunges", "sinks", "tumbles", "slumps", "declines", "dips", "slips", "retreats", "sheds"];
+// Past tense too: our own rewrites ("Acadia rose after ...") come back through here on the briefing.
+const MOVE_VERB_UP = ["rises", "jumps", "climbs", "surges", "soars", "gains", "rallies", "rebounds", "advances", "pops", "spikes", "rose", "jumped", "climbed", "surged", "gained", "rallied", "rebounded"];
+const MOVE_VERB_DOWN = ["falls", "slides", "drops", "plunges", "sinks", "tumbles", "slumps", "declines", "dips", "slips", "retreats", "sheds", "fell", "slid", "dropped", "plunged", "sank", "tumbled", "slumped", "declined", "slipped"];
 /** Either case for the first letter, so a Title Case feed line ("Spark") matches too. */
 const alt = (words: string[]) => words.map((word) => `[${word.charAt(0)}${word.charAt(0).toUpperCase()}]${word.slice(1).replace(/-/g, "\\-")}`).join("|");
 const CAUSE_FIRST = new RegExp(
@@ -503,7 +504,8 @@ function splitMoveReasonLoose(reason: string | null | undefined, pct: number | n
     if (up ? MOVE_VERB_DOWN.includes(word) : MOVE_VERB_UP.includes(word)) return null;
     // A subject with a verb of its own in it is a clause, not a company ("Analyst lowers Serve Robotics ...").
     if (/\s(?:lowers|raises|cuts|says|warns|reports|beats|misses|announces)\s/i.test(` ${subject} `)) return null;
-    return { subject: subject.trim(), predicate: `${word}${size} ${rest}` };
+    // A reason that already gives its size ("rose 8% after ...") keeps it rather than saying two numbers.
+    return { subject: subject.trim(), predicate: `${word}${/^[+−-]?\d/.test(rest) ? "" : size} ${rest}` };
   }
   return null;
 }

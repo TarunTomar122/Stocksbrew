@@ -130,7 +130,8 @@ function leaderInsight(assets: MarketAsset[], spxDay: number, regime: MarketRegi
   return {
     id: "leader",
     tone: move > 0 ? "up" : "down",
-    text: `${topic(leader)} ${move > 0 ? "led" : "fell hardest"}: ${leader.symbol} ${move > 0 ? "rose" : "fell"} ${absPct(move, 2)}, ${pts(Math.abs(gap))} ${gap > 0 ? "more" : "less"} than the S&P 500.`,
+    // "Better" or "worse" than the index: "1.9 pts less" read as the wrong way round on a fall.
+    text: `${topic(leader)} ${move > 0 ? "led" : "fell hardest"}: ${leader.symbol} ${move > 0 ? "rose" : "fell"} ${absPct(move, 2)}, ${Math.abs(gap).toFixed(1)} points ${gap > 0 ? "better" : "worse"} than the S&P 500.`,
     soWhat: reversal
       ? `It is still ${month! < 0 ? "down" : "up"} ${absPct(month!)} over the month, so this is a bounce, not a trend yet.`
       : tickers.length
@@ -264,7 +265,13 @@ export function buildMarketsRead(data: MarketsData, now: Date = new Date()): The
   const spxText = `the S&P 500 ${spxDay >= 0 ? "gained" : "lost"} ${absPct(spxDay, 2)}`;
   const odd = regime === "mixed" ? null : outlier(data.assets, spxDay);
   const oddText = odd ? ` ${topic(odd)}'s ${absPct(odd.change.d1!)} ${odd.change.d1! < 0 ? "drop" : "jump"} was the outlier.` : "";
-  const headline = `${label} ${when}: ${sectorsText ? `${sectorsText} and ${spxText}` : spxText}.${oddText}`;
+  // Every sector one way and the index the other is the story itself: say it straight, never "edged up" on a down day.
+  const against =
+    breadth.total > 0 &&
+    ((breadth.up === breadth.total && spxDay < 0) || (breadth.down === breadth.total && spxDay > 0));
+  const headline = against
+    ? `The S&P 500 ${spxDay >= 0 ? "gained" : "lost"} ${absPct(spxDay, 2)} ${when} even though ${sectorsText}.${oddText}`
+    : `${label} ${when}: ${sectorsText ? `${sectorsText} and ${spxText}` : spxText}.${oddText}`;
 
   const insights = pickInsights([
     leaderInsight(data.assets, spxDay, regime),

@@ -53,6 +53,8 @@ WRITABLE_PREFIXES = (
     # own state and daily log (call_scores.py).
     "tm_fundamentals_pit",
     "tm_call_engine_",
+    # Copy-trade backtests (copy_trades.py): one record per fund or House member, plus the hub.
+    "tm_copy_trades",
 )
 
 

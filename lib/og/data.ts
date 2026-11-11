@@ -40,6 +40,7 @@ import { buildScreenerRead } from "@/lib/screener-insights";
 import { getFollowProfile, getFollowRead, getInsiderBuys, getInsiderTrades, getSectorMap } from "@/lib/follow";
 import { fmtWeight, quarterLabel, type CongressProfile, type FundProfile } from "@/lib/follow-shared";
 import { buildCongressMemberRead, buildFundRead, buildInsiderRead } from "@/lib/follow-insights";
+import { getCopyRecord, isFullRecord, type CopyRecord } from "@/lib/copy-trades";
 import { getFilingsMeta, getFilingsStream } from "@/lib/filings";
 import { buildFilingsRead } from "@/lib/filings-insights";
 import { getStrategy, listStrategies } from "@/lib/strategies";
@@ -621,15 +622,36 @@ function recordRows(perf: FundProfile["performance"], label: string): OgRecordCa
   };
 }
 
-export async function followProfileCard(slug: string): Promise<OgCard | null> {
-  const profile = await within(getFollowProfile(slug), 3500);
-  if (!profile) return null;
-  if (profile.kind === "fund") return fundCard(profile);
-  return congressCard(profile);
+/** The copy test as the card's record, so the card quotes the same numbers as the profile and copy pages. */
+function copyRows(record: CopyRecord | null): OgRecordCard["record"] {
+  if (!isFullRecord(record)) return null;
+  const mine = record.copy.total;
+  const bench = record.spy.total;
+  if (!finite(mine) || !finite(bench)) return null;
+  const step = Math.max(1, Math.ceil(record.curve.length / 60));
+  const points = record.curve.filter((_, index) => index % step === 0 || index === record.curve.length - 1);
+  return {
+    title: "$10,000 copied, against the S&P 500",
+    rows: [
+      { label: "Copying each filing", value: ogSignedPct(mine * 100, 0)!, tone: ogTone(mine), big: true },
+      { label: "S&P 500", value: ogSignedPct(bench * 100, 0)!, tone: ogTone(bench) },
+    ],
+    spark: points.length > 1 ? points.map((row) => row[1]) : null,
+    benchmark: points.length > 1 ? points.map((row) => row[2]) : null,
+    sparkTone: "flat",
+    period: ogFootnote(`${ogMonthLabel(record.start_date) ?? ""} to ${ogDayLabel(record.end_date)}`, "a test, before costs"),
+  };
 }
 
-function fundCard(profile: FundProfile): OgCard {
-  const read = buildFundRead(profile);
+export async function followProfileCard(slug: string): Promise<OgCard | null> {
+  const [profile, copy] = await Promise.all([within(getFollowProfile(slug), 3500), within(getCopyRecord(slug).catch(() => null), 3500)]);
+  if (!profile) return null;
+  if (profile.kind === "fund") return fundCard(profile, copy);
+  return congressCard(profile, copy);
+}
+
+function fundCard(profile: FundProfile, copy: CopyRecord | null): OgCard {
+  const read = buildFundRead(profile, copy);
   const chips = profile.portfolio
     .filter((position) => position.ticker)
     .slice(0, 5)
@@ -643,7 +665,7 @@ function fundCard(profile: FundProfile): OgCard {
     headline: read.headline || null,
     chips,
     chipsLabel: chips.length ? `Top holdings, ${quarterLabel(profile.latest.period)}` : null,
-    record: recordRows(profile.performance, "Record vs the S&P 500"),
+    record: copyRows(copy) ?? recordRows(profile.performance, "Record vs the S&P 500"),
     footnote: ogFootnote(`13F filed ${ogDayLabel(profile.latest.filed_at)}`, "SEC EDGAR"),
   };
 }
@@ -660,8 +682,8 @@ function tradeTally(profile: CongressProfile): OgRecordCard["record"] {
   return { title: "Reported trades", rows, spark: null, benchmark: null, sparkTone: "flat", period: profile.first_report ? `Since ${ogDayLabel(profile.first_report)}` : null };
 }
 
-function congressCard(profile: CongressProfile): OgCard {
-  const read = buildCongressMemberRead(profile);
+function congressCard(profile: CongressProfile, copy: CopyRecord | null): OgCard {
+  const read = buildCongressMemberRead(profile, copy);
   const chips = profile.stats.top_bought
     .filter((chip) => chip.ticker)
     .slice(0, 5)
@@ -676,7 +698,7 @@ function congressCard(profile: CongressProfile): OgCard {
     headline: read.headline || null,
     chips,
     chipsLabel: chips.length ? "Most bought" : null,
-    record: recordRows(profile.performance, "Record vs the S&P 500") ?? tradeTally(profile),
+    record: copyRows(copy) ?? recordRows(profile.performance, "Record vs the S&P 500") ?? tradeTally(profile),
     footnote: ogFootnote(`Latest report ${ogDayLabel(profile.latest_date)}`, "House Clerk"),
   };
 }

@@ -35,13 +35,9 @@ export function ToneBar({ counts, className = "", showWord = false }: { counts: 
       </span>
       <span className={`${NUM} inline-flex items-center gap-1.5 text-[12.5px] leading-[18px] text-oa-muted-fg`}>
         <span className="sr-only">{label}</span>
-        <span aria-hidden="true" className="inline-flex items-center gap-0.5">
-          <ToneGlyph tone="up" decorative />
-          {counts.positive}
-        </span>
-        <span aria-hidden="true" className="inline-flex items-center gap-0.5">
-          <ToneGlyph tone="down" decorative />
-          {counts.negative}
+        {/* Words, not bare triangles: readers could not tell what the counts were. */}
+        <span aria-hidden="true">
+          {counts.positive} good, {counts.negative} bad
         </span>
       </span>
     </span>

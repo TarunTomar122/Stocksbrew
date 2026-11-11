@@ -17,7 +17,8 @@ Groups and what they keep fresh:
 * ``hourly``       SEC filings, Form 4 insiders, the calendar's releases, IPOs and dividends
 * ``after_close``  daily prices, strategy baskets and their live record, earnings
                    dates and reactions, the screener snapshot, then the standing agents
-* ``weekly``       13F fund portfolios, who holds each stock, House trade reports
+* ``weekly``       13F fund portfolios, who holds each stock, House trade reports,
+                   then the copy tests built from them (off until ``COPY_TRADES_ENABLED=1``)
 * ``earnings_day`` the report on each covered stock that filed earnings today
                    (every 10 minutes on weekdays; the job itself stays off until
                    ``EARNINGS_DAY_ENABLED=1``)
@@ -66,6 +67,9 @@ GROUPS: dict[str, list[tuple[str, list[str]]]] = {
         # No --years: the job replaces each member's whole profile, so a run
         # limited to one year would shrink every record to that year.
         ("house trade reports", ["backend.agentdata.house_ptr"]),
+        # Copy tests for every fund and member, from the 13F and House jobs above. Off until
+        # COPY_TRADES_ENABLED=1; the job itself exits early without it.
+        ("copy trade tests", ["backend.agentdata.copy_trades"]),
     ],
     # Minutes after a company files its earnings release (8-K Item 2.02). Cheap when
     # nobody reports: one store read. Today and yesterday, so an evening release

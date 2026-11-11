@@ -12,6 +12,8 @@ import { FollowButton } from "@/components/follow/follow-button";
 import { MovesStream } from "@/components/follow/moves-stream";
 import { Panel, PerfTiles, Stat } from "@/components/follow/panel";
 import { RecordChart } from "@/components/follow/record-chart";
+import { ProfileCopyPanel } from "@/components/copy-trades/profile-panel";
+import { getCopyRecord, type CopyRecord } from "@/lib/copy-trades";
 import { JsonLd, breadcrumbLd } from "@/components/docs/json-ld";
 import { AppPage, ShowMore, Verdict } from "@/components/oa/kit";
 import { shortCompanyName } from "@/lib/plain-copy";
@@ -328,20 +330,17 @@ function RecordPanel({
   performance: Performance | null;
   name: string;
   what: string;
-  /** Links to the full copy test (/follow/<slug>/copy). */
+  /** The copy test (tm_copy_trades) replaces this panel when one exists, so the profile and /follow/<slug>/copy quote one number. */
   slug: string;
 }) {
-  if (!performance) {
-    return (
-      <Panel title="If you had copied each filing">
-        <p className="px-4 py-5 text-[14px] leading-6 text-oa-muted-fg">
-          No record for {name} yet: none of the {what} matched a stock with
-          a price history. The filings are below.
-        </p>
-      </Panel>
-    );
-  }
-  return (
+  const legacy = !performance ? (
+    <Panel title="If you had copied each filing">
+      <p className="px-4 py-5 text-[14px] leading-6 text-oa-muted-fg">
+        No record for {name} yet: none of the {what} matched a stock with
+        a price history. The filings are below.
+      </p>
+    </Panel>
+  ) : (
     <Panel
       title="If you had copied each filing"
       right={
@@ -362,19 +361,24 @@ function RecordPanel({
         {performance.fund.annualized != null &&
         performance.spy.annualized != null
           ? ` That is ${fmtFrac(performance.fund.annualized)} a year against ${fmtFrac(performance.spy.annualized)} for the S&P 500.`
-          : ""}      </p>
+          : ""}
+      </p>
     </Panel>
   );
+  return <ProfileCopyPanel slug={slug} title="If you had copied each filing" fallback={legacy} />;
 }
 
 function FundView({
   profile,
   followed,
   activity,
+  copy,
 }: {
   profile: FundProfile;
   followed: boolean;
   activity: Awaited<ReturnType<typeof getSourceActivity>>;
+  /** The copy test, when there is one: the read quotes its numbers, like the record panel. */
+  copy: CopyRecord | null;
 }) {
   const latest = profile.latest;
   const changes = profile.changes;
@@ -419,7 +423,7 @@ function FundView({
         </div>
       </div>
 
-      <TheRead read={buildFundRead(profile)} fold="phone" className="mt-3" />
+      <TheRead read={buildFundRead(profile, copy)} fold="phone" className="mt-3" />
 
       <div className="mt-4">
         <Panel
@@ -729,9 +733,11 @@ function FundView({
 function CongressView({
   profile,
   followed,
+  copy,
 }: {
   profile: CongressProfile;
   followed: boolean;
+  copy: CopyRecord | null;
 }) {
   const stats = profile.stats;
   const party = partyLabel(profile.party);
@@ -877,7 +883,7 @@ function CongressView({
         </div>
       </div>
 
-      <TheRead read={buildCongressMemberRead(profile)} className="mt-3" />
+      <TheRead read={buildCongressMemberRead(profile, copy)} className="mt-3" />
 
       <div className="mt-4">
         <Panel
@@ -1017,11 +1023,12 @@ export default async function FollowProfilePage({ params }: Props) {
     getSessionUser(),
   ]);
   if (!profile) notFound();
-  const [followed, activity] = await Promise.all([
+  const [followed, activity, copy] = await Promise.all([
     getFollowedSources(session?.uid),
     profile.kind === "fund"
       ? getSourceActivity(profile.slug).catch(() => [])
       : Promise.resolve([]),
+    getCopyRecord(profile.slug).catch(() => null),
   ]);
   const isFollowed = followed.includes(profile.slug);
 
@@ -1052,9 +1059,9 @@ export default async function FollowProfilePage({ params }: Props) {
         ]}
       />
       {profile.kind === "fund" ? (
-        <FundView profile={profile} followed={isFollowed} activity={activity} />
+        <FundView profile={profile} followed={isFollowed} activity={activity} copy={copy} />
       ) : (
-        <CongressView profile={profile} followed={isFollowed} />
+        <CongressView profile={profile} followed={isFollowed} copy={copy} />
       )}
     </AppPage>
   );

@@ -124,7 +124,7 @@ function ReplayPanel({ replay, job }: { replay: Replay; job: Pick<AgentJob, "tri
       <div className="flex flex-wrap items-end justify-between gap-3 px-3.5 py-3 sm:px-4">
         <div className="min-w-0">
           <p className="oa-caption">
-            Replay of {shortDate(replay.from)} to {shortDate(replay.to)}
+            What it would have done, {shortDate(replay.from)} to {shortDate(replay.to)}
           </p>
           <p className="mt-1 text-pretty text-[15px] font-medium leading-snug text-oa-fg">
             {rows.length === 0
@@ -458,7 +458,8 @@ export function JobsWorkspace({
           <div ref={builderRef} className="grid min-w-0 content-start gap-3.5 px-3.5 py-3.5 sm:px-4">
             {starter && replayFor === starter.key && replayIsCurrent ? (
               <p className="text-pretty text-[14px] leading-5 text-oa-fg">
-                An example: this agent watching Nvidia, Apple, Microsoft, Amazon and Tesla over the last four weeks of real prices. Change anything, or pick a different agent below.
+                <span className="mr-1.5 inline-flex h-[22px] items-center rounded border border-oa-border bg-oa-bg px-2 align-[1px] text-[12.5px] font-medium text-oa-muted-fg">Example, not switched on</span>
+                Here it watches Nvidia, Apple, Microsoft, Amazon and Tesla over the last four weeks of real prices, checking each day&apos;s close. Change anything, or pick a different agent below.
               </p>
             ) : null}
             <div className={`grid gap-3 sm:grid-cols-2 xl:grid-cols-4 ${replayShown ? "order-2" : "order-1"}`}>

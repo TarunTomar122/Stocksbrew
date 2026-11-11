@@ -228,7 +228,7 @@ export function BriefingView({
   const moverMax = Math.max(0, ...movers.map((row) => Math.abs(row.day_change_pct)));
   const prices = pricesLine(briefing.stale_note);
   // The market view's read already tells the biggest explained moves; the ones it left out lead the list below.
-  const inRead = new Set((read?.insights ?? []).flatMap((insight) => insight.tickers ?? []));
+  const inRead = new Set([...(read?.headlineTickers ?? []), ...(read?.insights ?? []).flatMap((insight) => insight.tickers ?? [])]);
   const worthListed = personal
     ? grouped.worth_knowing
     : [...grouped.needs_you.filter((group) => !inRead.has(group.key)), ...grouped.worth_knowing];
@@ -366,8 +366,14 @@ export function BriefingView({
                 ))}
               </p>
             ) : null}
-            {worth.map((group) => (
-              <BriefingGroupCard key={group.key} group={group} actions={actions} limit={COMPACT_VISIBLE_LINES} moveMax={personal ? undefined : worthMax || undefined} />
+            {worth.map((group, index) => (
+              <React.Fragment key={group.key}>
+                {/* Rows with no move of their own (an earnings report) are not moves: they get their own small heading. */}
+                {!personal && group.day_change_pct == null && (index === 0 || worth[index - 1]!.day_change_pct != null) ? (
+                  <p className="oa-caption border-b border-oa-border bg-oa-bg px-4 py-1.5">Earnings reports</p>
+                ) : null}
+                <BriefingGroupCard group={group} actions={actions} limit={COMPACT_VISIBLE_LINES} moveMax={personal ? undefined : worthMax || undefined} />
+              </React.Fragment>
             ))}
             {worthAll.length > WORTH_KNOWING_FIRST ? (
               <button

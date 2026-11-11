@@ -172,6 +172,20 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-11 ~02:15 UTC, UI round 10 live (lead)
+- `340850d` + `17b64f0` LIVE: round 10a+10b (screener fits at 1280 and opens on the 20 biggest, one S&P figure per day, company names in their own casing, share classes said out loud, calendar tense, Market today shows the giants, plainer copy across a dozen pages).
+- Quality pass found seven issues; all fixed before shipping. The landing card leaked a call's reason on non-showcase stocks (now gated like the price levels). The screener note promised reasons Free does not get. "20 biggest" counted rows before share classes were folded. The giants read said "moved the other way" against a flat group. Pages said "the Nov 11 close" before 4 PM (new `closeWords`: "Nov 11, during trading"). Past reports said "Time not announced yet". Feed-name casing was wrong in places ("Bank OF", "Bny", "Ebay", "Hldgs", "AI Holdings" -> "AI").
+- Exact tree verified in a worktree: tsc 0, vitest 1195/1195, eslint clean. Live: 13 key pages 200; the screener carries the new copy.
+- Deploy gotcha: `vercel@latest` now writes a `services` vercel.json (backend/ seen as a Python service) and the build fails. Use `vercel@65.14.0`. `.vercelignore` now uploads only `backend/config`.
+- Copy-trades quality pass: math and look-ahead clean. It did find: ended or short records rank #1 with nothing saying so (McGarvey stopped Dec 2024); the follow profile disagrees with the copy page by 10 points; the link 404s without a record; unknown slugs answer 200; and the biases are not stated. Sent back to its builder; it ships after that.
+
+### 2026-11-11 ~01:50 UTC, round 10 candidate ready; x-ray and dividend planner started (lead)
+- Round 10a+10b staged as candidate commit `ac39f7b` (built in the index only, with the import/thesis/research/copy-trades lines and files left out). Exact tree checked in a worktree: tsc 0 errors, vitest 1191/1191, eslint clean on the changed files. The quality-pass agent is still reading it. Ships after that.
+- Council round 10: Codex 6.46 (flat), Cursor 5.20 (+0.39). Round 11 reviews are running. The loop agent is holding app edits until round 10 ships.
+- New capabilities delegated (each owns its own directories, hooks come back to the lead): the ETF x-ray (`tm_etf_holdings` from SEC N-PORT, `lib/xray.ts`, `/portfolio/xray`) and the dividend income planner (`/portfolio/dividends`, 12-month projection with confirmed vs estimated payments).
+- VPS after-close rerun still going at 01:46 UTC. Prices now run through Nov 10, which fixes the stale S&P figure once the snapshot rebuilds.
+- Running: copy-trades builder, UI loop round 11, x-ray, dividend planner.
+
 ### 2026-11-11 ~03:00, UI rounds 6-9 live (lead)
 
 - `8e6b41d` LIVE: plain call words everywhere (Buy more / Keep / Sell some, incl. screener filters), company names in lead sentences, briefing picks the biggest explained move, move bars, clickable rows, share classes shown once (not when searched), each Today page leads with something different, "Best stock lists" in the Research menu. Quality pass found a briefing list nested inside links (rows twice, hydration errors) and pricing copy contradicting plan rules: fixed. Exact commit verified: tsc 0, vitest 1177/1177; all important pages 200 live.

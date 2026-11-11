@@ -280,3 +280,15 @@ describe("feed names from the quality pass", () => {
     expect(shortCompanyName("3M CO")).toBe("3M");
   });
 });
+
+describe("splitMoveReason reads our own past-tense rewrites", () => {
+  it("splits 'X rose after ...' and keeps a size it already has", async () => {
+    const { splitMoveReason } = await import("./plain-copy");
+    expect(splitMoveReason("Acadia rose after revenue that beat expectations", 10.7, { withPct: true, company: { name: "Acadia Pharmaceuticals", ticker: "ACAD" } })).toEqual({
+      subject: "Acadia",
+      predicate: "rose 10.7% after revenue that beat expectations",
+    });
+    expect(splitMoveReason("Zeta rose 8% after strong earnings", 8.2, { withPct: true })?.predicate).toBe("rose 8% after strong earnings");
+    expect(splitMoveReason("Zeta fell after strong earnings", 8.2, { withPct: true })).toBeNull();
+  });
+});

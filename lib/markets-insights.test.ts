@@ -44,6 +44,14 @@ describe("usHoldings", () => {
 });
 
 describe("buildMarketsRead", () => {
+  it("says the index fell even though every sector rose, instead of calling the day up", () => {
+    const asset = (id: string, d1: number, extra: Record<string, unknown> = {}) =>
+      ({ id, class: "etf", group: "sector", name: id, symbol: id.toUpperCase(), price: 100, change: { d1, w1: null, m1: null, ytd: null, y1: null }, as_of: "2026-11-10T21:00:00Z", holdings: [], ...extra }) as never;
+    const sectors = ["xlk", "xlf", "xle", "xlv", "xli", "xly", "xlp", "xlu", "xlb", "xlre", "xlc"].map((id) => asset(id, 0.2));
+    const read = buildMarketsRead({ as_of: null, assets: [asset("sp500", -0.38, { class: "index", group: null }), ...sectors], predictions: [], treasury: null, volCurve: null }, new Date("2026-11-10T22:00:00Z"));
+    expect(read?.headline).toMatch(/^The S&P 500 lost 0\.38% today even though all 11 sectors rose\./);
+  });
+
   it("returns null without a stock price", () => {
     expect(buildMarketsRead(data([]), NOW)).toBeNull();
   });
@@ -60,7 +68,7 @@ describe("buildMarketsRead", () => {
     const read = buildMarketsRead(data(assets), NOW)!;
     expect(read.headline).toBe("Most stocks rose Monday: all 11 sectors rose and the S&P 500 gained 2.35%. Oil's 3.9% drop was the outlier.");
     expect(read.insights.map((insight) => insight.id)).toEqual(["leader", "outlier", "size"]);
-    expect(read.insights[0]!.text).toContain("SOXX rose 7.49%, 5.1 pts more than the S&P 500");
+    expect(read.insights[0]!.text).toContain("SOXX rose 7.49%, 5.1 points better than the S&P 500");
     expect(read.insights[0]!.soWhat).toContain("bounce");
     expect(read.insights[0]!.tickers).toEqual(["AMD"]);
   });

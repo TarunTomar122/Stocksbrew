@@ -52,6 +52,7 @@ export const SITEMAP_FAMILIES = [
   "congress",
   "markets",
   "best",
+  "copy",
 ] as const;
 
 export type SitemapFamily = (typeof SITEMAP_FAMILIES)[number];
@@ -248,6 +249,16 @@ export async function sitemapEntries(family: SitemapFamily, today: string = toda
         if (kind === "congress" && !(source.stats && source.stats.trades > 0)) continue;
         entries.push({ path: `/follow/${source.slug}`, lastmod: day(source.latest_date) });
       }
+      break;
+    }
+    case "copy": {
+      // "What if you had copied them?" (/follow/<slug>/copy), by the same index rule as the pages (copyIsIndexable).
+      const { getCopyHub, copyHref, copyRowIsIndexable, COPY_HUB_PATH } = await import("@/lib/copy-trades");
+      const hub = await getCopyHub().catch(() => null);
+      if (!hub) break;
+      const lastmod = day(hub.price_as_of);
+      entries.push({ path: COPY_HUB_PATH, lastmod });
+      for (const row of hub.rows) if (copyRowIsIndexable(row)) entries.push({ path: copyHref(row.slug), lastmod: day(row.end_date) ?? lastmod });
       break;
     }
     case "best": {

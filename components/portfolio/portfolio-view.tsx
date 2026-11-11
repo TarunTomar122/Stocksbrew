@@ -252,7 +252,7 @@ export function PortfolioView({
 
   const missingShares = totals.holdings - totals.valued;
   const tabs: Array<{ key: PortfolioTab; label: string; count?: number }> = [
-    { key: "positions", label: "You own", count: totals.holdings },
+    { key: "positions", label: example ? "Holdings" : "You own", count: totals.holdings },
     { key: "watching", label: "Watching", count: totals.watching },
     { key: "analytics", label: "Analytics" },
     {
@@ -324,7 +324,7 @@ export function PortfolioView({
                   )}
                 </HeaderFigure>
                 <HeaderFigure
-                  label="Gain since you bought"
+                  label={example ? "Gain so far" : "Gain since you bought"}
                   note={
                     totals.gain !== null && totals.gainPct !== null ? (
                       <>

@@ -225,7 +225,7 @@ export function briefingRead(
     const leaders = !leadName
       ? ""
       : leadWhy
-        ? `${leadWhy} It was the biggest move${earlier ? "" : " today"} with a confirmed reason.`
+        ? `${leadWhy.replace(/\.$/, "")}, the biggest move${earlier ? "" : " today"} with a confirmed reason.`
         : leadMove != null && Number.isFinite(leadMove) && leadMove !== 0
           ? `${leadName} ${leadMove > 0 ? "rose" : "fell"} ${pct(leadMove)}${earlier}, the biggest move${earlier ? "" : " today"} with a confirmed reason.`
           : `${leadName} made the biggest move with a confirmed reason${earlier}.`;
@@ -246,7 +246,7 @@ export function briefingRead(
         .map((group) => group.items.map((item) => explainedMoveInsight(item, briefing.date, group.name)).find(Boolean) ?? null),
     );
     if (!headline && insights.length === 0) return null;
-    return { headline, insights, asOf };
+    return { headline, insights, asOf, headlineTickers: leadWhy && lead?.ticker ? [lead.ticker] : undefined };
   }
 
   const decisions = stockGroups(grouped.needs_you);

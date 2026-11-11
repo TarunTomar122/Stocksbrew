@@ -19,6 +19,7 @@ import {
   type InsiderTrade,
   type PerfCard,
 } from "@/lib/follow-shared";
+import { buildCopyRead, copyHref, fmtPointsWord, isFullRecord, possessive, stoppedMonth, type CopyRecord } from "@/lib/copy-trades-shared";
 import { shortCompanyName } from "@/lib/plain-copy";
 
 // ── shapes the loaders produce ─────────────────────────────────────────────
@@ -593,6 +594,44 @@ function usd(value: number): string {
 
 // ── one fund, one member ────────────────────────────────────────────────────
 
+/**
+ * The copy test (tm_copy_trades) in the read, so the read and the record panel
+ * under it quote the same numbers. Null without a full copy record; the old
+ * filing-date record is used then.
+ */
+function copyTest(record: CopyRecord | null | undefined, who: string, what: string): { headline: string; insight: Insight } | null {
+  if (!isFullRecord(record)) return null;
+  const read = buildCopyRead(record);
+  if (!read) return null;
+  const pace = read.insights.find((insight) => insight.id === "pace");
+  // The panel below opens with the dollar sentence; the read says it as the yearly gap, so the page never repeats itself.
+  const gap = record.excess_per_year;
+  const when = `from ${fmtMonthYear(record.start_date)}${stoppedMonth(record) ? ` until ${fmtMonthYear(record.end_date)}` : ""}`;
+  const headline =
+    gap == null
+      ? read.headline
+      : Math.abs(gap) < 0.0005
+        ? `Copying ${possessive(who)} ${what} kept pace with the S&P 500 ${when}.`
+        : `Copying ${possessive(who)} ${what} ${gap > 0 ? "beat" : "trailed"} the S&P 500 by ${fmtPointsWord(gap)} a year ${when}.`;
+  return {
+    headline,
+    insight: {
+      id: "record",
+      tone: pace?.tone ?? "flat",
+      text: headline,
+      soWhat: [
+        pace?.text,
+        // A short or ended record can show a huge yearly gap; say why it is not ranked.
+        record.stopped || record.years < 2 ? "The record is too short or ended too long ago to rank." : null,
+        "A test, before costs and taxes.",
+      ]
+        .filter(Boolean)
+        .join(" "),
+      action: { label: "The full test", href: copyHref(record.slug) },
+    },
+  };
+}
+
 function recordInsight(card: PerfCard | null, who: string, what: string): Insight | null {
   if (!card) return null;
   const mine = card.fund.annualized;
@@ -624,7 +663,7 @@ function recordInsight(card: PerfCard | null, who: string, what: string): Insigh
   };
 }
 
-export function buildFundRead(profile: FundProfile): TheRead {
+export function buildFundRead(profile: FundProfile, copy?: CopyRecord | null): TheRead {
   const short = profile.fund.replace(/\s+(Capital|Management|Associates|Group|Partners|LP|L\.P\.|Holdings|Investments|Advisors)(\s.*)?$/i, "") || profile.fund;
   const stocks = profile.portfolio.filter((position) => isStock(position.ticker) && position.weight != null);
   const top3 = stocks.slice(0, 3);
@@ -697,7 +736,7 @@ export function buildFundRead(profile: FundProfile): TheRead {
     }
   }
 
-  const record = recordInsight(profile.performance, short, "stock picks");
+  const record = copyTest(copy, short, "13F filings")?.insight ?? recordInsight(profile.performance, short, "stock picks");
   const headline = movesShort
     ? movesShort.includes(` in ${profile.latest.quarter}`)
       ? `${short} ${movesShort}.`
@@ -710,7 +749,7 @@ export function buildFundRead(profile: FundProfile): TheRead {
   };
 }
 
-export function buildCongressMemberRead(profile: CongressProfile): TheRead {
+export function buildCongressMemberRead(profile: CongressProfile, copy?: CopyRecord | null): TheRead {
   const stats = profile.stats;
   const counts = new Map<string, { buys: number; sells: number; company: string }>();
   for (const trade of profile.trades) {
@@ -753,11 +792,13 @@ export function buildCongressMemberRead(profile: CongressProfile): TheRead {
         }
       : null;
 
-  const record = recordInsight(profile.performance, profile.name, "reported buys");
+  const tested = copyTest(copy, profile.name, "reported trades");
+  const record = tested ? { ...tested.insight, text: tested.insight.soWhat ?? tested.insight.text, soWhat: undefined } : recordInsight(profile.performance, profile.name, "reported buys");
   const perf = profile.performance;
   const gap = perf && perf.fund.annualized != null && perf.spy.annualized != null ? perf.fund.annualized - perf.spy.annualized : null;
-  const headline =
-    perf && gap !== null
+  const headline = tested
+    ? tested.headline
+    : perf && gap !== null
       ? `Copying ${profile.name}'s buys ${gap >= 0 ? "beat" : "trailed"} the S&P 500 by ${pts(gap)} a year since ${fmtMonthYear(perf.start_date)}.`
       : favourite?.text ?? lean?.text ?? "";
   return {

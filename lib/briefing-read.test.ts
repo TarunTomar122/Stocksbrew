@@ -101,10 +101,11 @@ describe("briefingRead", () => {
     });
     const read = briefingRead({ ...base, mode: "market" }, groupBriefingSections({ ...sections([]), needs_you: [hims] }, "market"));
     expect(read?.headline).toBe(
-      "Hims & Hers Health fell 16.5% after earnings that missed expectations and a lower forecast. It was the biggest move today with a confirmed reason. The S&P 500 is up 2.33%.",
+      "Hims & Hers Health fell 16.5% after earnings that missed expectations and a lower forecast, the biggest move today with a confirmed reason. The S&P 500 is up 2.33%.",
     );
     // The lead's reason is in the headline, so its row is not repeated below.
     expect(read?.insights.some((insight) => insight.tickers?.includes("HIMS"))).toBe(false);
+    expect(read?.headlineTickers).toEqual(["HIMS"]);
   });
 
   it("folds stocks you watch sitting in their add zone into one line read against the index", () => {

@@ -397,7 +397,12 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
   const firstList = !hasScreen && sort.id === DEFAULT_SORT.id && sort.dir === DEFAULT_SORT.dir && !Number.isFinite(requested);
   const shownCount = Number.isFinite(requested) ? Math.min(Math.max(PAGE_ROWS, Math.floor(requested)), 1000) : firstList ? FIRST_LIST : PAGE_ROWS;
   // One row per company: GOOGL and GOOG are one Alphabet row that names the other class. Counts stay per ticker.
-  const page = matched.slice(0, shownCount);
+  // The short list names twenty companies, so a folded share class (GOOG under GOOGL) does not leave it at nineteen.
+  let take = shownCount;
+  if (firstList) {
+    while (take < matched.length && oneRowPerCompany(matched.slice(0, take), (row) => row.symbol).rows.length < FIRST_LIST) take += 1;
+  }
+  const page = matched.slice(0, take);
   // A search shows every class it matched, so someone who typed GOOG sees GOOG.
   const { rows: shown, also: otherClasses } = view.filters.q
     ? { rows: page, also: new Map<string, string[]>() }
@@ -681,7 +686,7 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
               {phoneList}
               {firstList && remaining > 0 ? (
                 <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1 border-t border-oa-border px-4 py-3 text-[14px]">
-                  <span className="text-oa-muted-fg">The {shown.length} biggest companies we follow.</span>
+                  <span className="text-oa-muted-fg">The {shown.length} biggest companies we follow, by company value.</span>
                   {/* The full list pages in fifties from here, so the first tap does not render all 781 rows at once. */}
                   <Link href={moreHref(PAGE_ROWS)} scroll={false} prefetch={false} className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
                     See all {matched.length.toLocaleString("en-US")} stocks

@@ -230,7 +230,7 @@ async function StoriesPanel({ wire, nowMs }: { wire: Promise<DeskData["wire"]>; 
  * are on Why stocks moved, so this panel never repeats them.
  */
 async function GiantsPanel({ giants: pending }: { giants: ReturnType<typeof loadDeskGiants> }) {
-  const { rows, line, day } = await pending;
+  const { rows, day } = await pending;
   if (rows.length === 0) return null;
   const max = Math.max(...rows.map((row) => Math.abs(row.day)));
   const half = Math.ceil(rows.length / 2);
@@ -254,7 +254,7 @@ async function GiantsPanel({ giants: pending }: { giants: ReturnType<typeof load
       flush
       className="mb-5"
     >
-      <Takeaway text={line} />
+      {/* The read above already says the group's move; the panel shows the rows. */}
       <div className="grid md:grid-cols-2 md:divide-x md:divide-oa-border">
         {column(rows.slice(0, half))}
         <div className="max-md:border-t max-md:border-oa-border">{column(rows.slice(half))}</div>
