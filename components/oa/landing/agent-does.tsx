@@ -25,7 +25,6 @@ type CardDef = {
   id: AgentCardId;
   title: string;
   href: string;
-  cta: string;
   /** Said when the live finding is not in: what the tool does, with no number. */
   plain: string;
 };
@@ -35,63 +34,54 @@ const CARDS: CardDef[] = [
     id: "memo",
     title: "Your week, in one memo",
     href: "/portfolio/memo",
-    cta: "Read the memo",
     plain: "Every week it writes one memo on how your stocks did and what needs a decision.",
   },
   {
     id: "xray",
     title: "What you really own",
     href: "/portfolio/xray",
-    cta: "See what you own",
     plain: "It opens up your funds and adds up how much of each company you really own.",
   },
   {
     id: "earnings",
     title: "Earnings season",
     href: "/portfolio/earnings",
-    cta: "Plan earnings season",
     plain: "It lists who reports in the next six weeks and which report matters most to you.",
   },
   {
     id: "dividends",
     title: "Dividends",
     href: "/portfolio/dividends",
-    cta: "Plan your dividends",
     plain: "It works out what your stocks should pay you each month for the next year.",
   },
   {
     id: "stress",
     title: "Past crashes",
     href: "/portfolio/stress",
-    cta: "Run the stress test",
     plain: "It replays past crashes on what you hold today and compares you with the S&P 500.",
   },
   {
     id: "goal",
     title: "A goal",
     href: "/portfolio/goal",
-    cta: "Plan for a goal",
     plain: "It replays thousands of past stretches to show how likely you are to reach a goal in time.",
   },
   {
     id: "copy",
     title: "Copy the smart money, tested",
     href: "/follow/copy",
-    cta: "See who was worth copying",
     plain: "It tests copying each fund and House member from their public filings against the S&P 500.",
   },
   {
     id: "agents",
     title: "Tell your agent what to watch",
     href: "/agents",
-    cta: "Set up an agent",
     plain: "Write what you want watched in your own words, and an agent emails you when it happens.",
   },
   {
     id: "basket",
     title: "Build a basket in plain words",
     href: "/baskets/new",
-    cta: "Build a basket",
     plain: "Describe a kind of company in your own words and get the stocks that fit, with a test against the S&P 500.",
   },
 ];
@@ -129,7 +119,7 @@ function FindingGhost() {
 }
 
 const CARD_LINK =
-  "group oa-surface flex h-full flex-col border border-oa-border bg-oa-card px-4 py-4 outline-none transition-colors hover:bg-oa-accent focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)] sm:px-5";
+  "oa-surface flex h-full flex-col border border-oa-border bg-oa-card px-4 py-4 outline-none transition-colors hover:bg-oa-accent focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)] sm:px-5";
 
 function CardHead({ id, href, title }: { id: string; href: string; title: string }) {
   const icon = iconFor(href);
@@ -147,17 +137,6 @@ function CardHead({ id, href, title }: { id: string; href: string; title: string
   );
 }
 
-function CardCta({ label }: { label: string }) {
-  return (
-    <span className="mt-auto inline-flex items-center gap-1.5 pt-3 text-[14px] font-medium text-oa-muted-fg transition-colors group-hover:text-oa-fg">
-      {label}
-      <span aria-hidden="true" className="transition-transform duration-200 group-hover:translate-x-0.5">
-        →
-      </span>
-    </span>
-  );
-}
-
 function Card({ card }: { card: CardDef }) {
   return (
     <li className="min-w-0">
@@ -168,7 +147,6 @@ function Card({ card }: { card: CardDef }) {
             <Finding card={card} />
           </Suspense>
         </div>
-        <CardCta label={card.cta} />
       </AppLink>
     </li>
   );
@@ -207,7 +185,6 @@ async function AgentCheckCard() {
           </p>
           {note ? <p className="mt-1.5 text-pretty text-[13.5px] leading-5 text-oa-muted-fg">{note}</p> : null}
         </div>
-        <CardCta label="See the example's agents" />
       </AppLink>
     </li>
   );

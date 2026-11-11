@@ -1,12 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // A second dev server can build into its own folder (NEXT_DIST_DIR=.next-8009) so it never shares .next with another.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   async redirects() {
     return [
       // ── The 2026-11 rebuild: old routes land on the surface that replaced them.
       { source: "/pulse", destination: "/briefing", permanent: true },
       { source: "/pulse/:path*", destination: "/briefing", permanent: true },
-      { source: "/premarket", destination: "/briefing", permanent: true },
-      { source: "/premarket/:path*", destination: "/briefing", permanent: true },
+      // /premarket is a page again (Nov 11); its old sub-pages have none, so they land on it.
+      { source: "/premarket/:path+", destination: "/premarket", permanent: true },
       { source: "/market-daily/:path*", destination: "/briefing", permanent: true },
       // /watchlist is signed-in, noindex and robots-disallowed, so the old public
       // Radar landing page goes to the home page, which carries the same pitch.

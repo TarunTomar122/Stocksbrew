@@ -19,7 +19,7 @@ import { setupHref } from "@/lib/backtest/setup";
 import { can } from "@/lib/entitlements";
 import { getViewer } from "@/lib/entitlements-server";
 import { getScreenerRows } from "@/lib/screener";
-import { getStrategy, readTrackedStrategies } from "@/lib/strategies";
+import { getStrategy, liveHasReturn, readTrackedStrategies } from "@/lib/strategies";
 import { buildStrategyRead, type YtdMap } from "@/lib/strategies-insights";
 import { getLatestRebalance } from "@/lib/strategies-rebalances";
 import { getUserDoc } from "@/lib/watchlist";
@@ -287,14 +287,17 @@ export default async function StrategyPage({ params }: { params: { slug: string 
                 ))}
               </ol>
             </Panel>
-            <Panel title="Live record" aside={`since ${longDay(live.since)}`} bodyClassName="px-3.5 py-3">
-              {live.sessions > 0 && live.strategy_return !== null ? (
+            {/* One date: the line below says when tracking began once it has, so the aside does not give a second one. */}
+            <Panel title="Live record" aside={liveHasReturn(live) || !live.first_fill_date ? `since ${longDay(live.since)}` : undefined} bodyClassName="px-3.5 py-3">
+              {liveHasReturn(live) && live.strategy_return !== null ? (
                 <p className="text-[14px] leading-[22px] text-oa-fg">
                   <span className={`oa-mono tabular-nums ${toneOf(live.strategy_return)}`}>{signedPct(live.strategy_return, 2)}</span> over{" "}
                   {live.sessions} session{live.sessions === 1 ? "" : "s"} since the first fill on {longDay(live.first_fill_date)}, against{" "}
                   <span className="oa-mono tabular-nums">{signedPct(live.benchmark_return, 2)}</span> for the S&amp;P 500 fund. Far too short to mean
                   anything yet.
                 </p>
+              ) : live.first_fill_date ? (
+                <p className="text-[14px] leading-[22px] text-oa-muted-fg">Live tracking began on {longDay(live.first_fill_date)}, and past entries are never revised.</p>
               ) : (
                 <p className="text-[14px] leading-[22px] text-oa-muted-fg">
                   Nothing to show yet. The live record starts at the first close after {longDay(live.since)}, and past entries are never revised.

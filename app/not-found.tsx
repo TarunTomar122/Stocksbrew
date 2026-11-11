@@ -34,12 +34,11 @@ export default function NotFound() {
         <ul>
           {PLACES.map((place) => (
             <li key={place.href} className="border-b border-oa-border last:border-b-0">
-              <AppLink href={place.href} className="group flex items-center justify-between gap-4 px-4 py-3 outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
+              <AppLink href={place.href} className="group flex items-center gap-4 px-4 py-3 outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
                 <span className="min-w-0">
                   <span className="block text-[15px] font-medium leading-[22px] text-oa-fg">{place.label}</span>
                   <span className="mt-0.5 block text-pretty text-[14px] leading-[20px] text-oa-muted-fg">{place.what}</span>
                 </span>
-                <span aria-hidden="true" className="shrink-0 text-[15px] text-oa-muted-fg group-hover:text-oa-primary">→</span>
               </AppLink>
             </li>
           ))}

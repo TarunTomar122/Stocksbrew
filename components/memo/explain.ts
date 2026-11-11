@@ -4,7 +4,7 @@ import { CALL_CHIP } from "@/lib/memo/view";
 import { longDay, shortDay, weekdayName } from "@/lib/memo/week";
 
 /**
- * What opens under a row of the memo's charts and tables: the memo's own
+ * What a row of the memo's charts and tables says under itself: the memo's own
  * sentence about it (why a holding moved, the call's reason), where that came
  * from and when, the page with the evidence, and a question for Ask that starts
  * from the same memo line (lib/ask-context.ts `memo:<item id>`). Built from the
@@ -108,4 +108,37 @@ export function explainDays(memo: Pick<Memo, "changed" | "hurt" | "look" | "subj
     // A day is about the whole memo, not one of its lines.
     return { day: point.day, stories, ask: askLink(question, example ? "ex.memo" : "memo") };
   });
+}
+
+/**
+ * A call line without its opening event sentence ("Our call on Apple moved from Sell some to Buy more on Monday,
+ * Nov 9."), which the row already shows as its chip: just the reason, unquoted. The whole line when it is not in
+ * that shape; null when nothing is left.
+ */
+export function callReasonText(text: string): string | null {
+  const event = /^Our call on .+? moved from .+? to .+? on [A-Z][a-z]+day, [A-Z][a-z]{2} \d{1,2}\.\s*/;
+  if (!event.test(text)) return text.trim() || null;
+  const rest = text.replace(event, "").trim();
+  if (!rest) return null;
+  const quoted = /^["“]([\s\S]*?)["”]$/.exec(rest);
+  return (quoted ? quoted[1]!.trim() : rest) || null;
+}
+
+/**
+ * The note under the week's chart, said as a fact about the comparison rather than how the sum works (owner rule 8):
+ * "Vanguard S&P 500 ETF isn't in this week's line: we have no prices for it after Monday's close." Rewrites the
+ * stored sentence (lib/memo/facts.ts leftOutSentence, also kept on older memos); any other wording is shown as it is.
+ */
+export function plainFootnote(text: string): string {
+  const rules: Array<[RegExp, string]> = [
+    [/^(.+) is left out because its prices stop at (.+) close\.$/, "$1 isn't in this week's line: we have no prices for it after $2 close."],
+    [/^(.+) is left out because it has no share count\.$/, "$1 isn't in this week's line: it has no share count."],
+    [/^(.+) is left out because we have no closes for it this week\.$/, "$1 isn't in this week's line: we have no prices for it this week."],
+    [/^(.+) are left out because they have no share count\.$/, "$1 aren't in this week's line: they have no share count."],
+    [/^(.+) are left out because we do not have all of this week's closes for them\.$/, "$1 aren't in this week's line: we don't have all of this week's prices for them."],
+    [/^(.+) are left out for want of a share count or this week's closes\.$/, "$1 aren't in this week's line: some have no share count and some lack this week's prices."],
+  ];
+  const trimmed = text.trim();
+  for (const [pattern, words] of rules) if (pattern.test(trimmed)) return trimmed.replace(pattern, words);
+  return trimmed;
 }

@@ -76,15 +76,29 @@ export function AppPage({
   const noted = head != null && head.note !== false && !head.full && (head.lede != null || head.meta != null);
   // The head shows the full lede from sm up unless the page hides it there, so the note only repeats it on a phone.
   const ledeInHead = noted && head.lede != null && !String(head.className ?? "").includes("oa-head-lede]:hidden");
+  // A page that hides the title row's as-of time on a phone (the screener) keeps it in the note, or a phone shows it nowhere.
+  const compactShown = !String(head?.className ?? "").includes("oa-head-compact]:hidden");
   return (
     <main className={`oa-landing ${interTight.variable} min-w-0 flex-grow overflow-x-clip`}>
       <OaSiteHeader />
       <div className={`mx-auto w-full ${max} ${prose ? PAGE_PAD_PROSE : PAGE_PAD} ${noted ? "oa-has-note" : ""} ${className}`}>
         {children}
-        {noted ? <PageNote lede={head.lede} source={head.meta} ledeInHead={ledeInHead} /> : null}
+        {noted ? <PageNote lede={head.lede} source={compactShown ? noteMeta(head.meta) : head.meta} ledeInHead={ledeInHead} /> : null}
       </div>
     </main>
   );
+}
+
+/**
+ * The source line for the page note, without the part the title row already shows (`compactMeta`): the head says
+ * "as of 9:10 AM ET", so the note does not say it again (Nov 11). Null when nothing else is left.
+ */
+function noteMeta(meta: React.ReactNode): React.ReactNode {
+  if (!React.isValidElement(meta) || meta.type !== SourceLine) return meta;
+  const props = meta.props as { asOf?: React.ReactNode; source?: React.ReactNode; note?: React.ReactNode };
+  const rest = props.asOf ? { ...props, asOf: undefined } : props.source ? { ...props, source: undefined } : { ...props, note: undefined };
+  if (!rest.asOf && !rest.source && !rest.note) return null;
+  return React.cloneElement(meta as React.ReactElement<typeof props>, rest);
 }
 
 /** The short form of a provenance line for the title row: the as-of time if there is one, else the source. */

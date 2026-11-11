@@ -555,9 +555,23 @@ function sourceName(url: string | null | undefined): string {
   }
 }
 
+/**
+ * The call in a reader's words (owner rule): Buy more, Keep or Sell some, never the pipeline's Accumulate, Hold,
+ * Trim or Avoid. An unknown stance passes through capitalised.
+ */
 function stanceLabel(stance: string | null | undefined): string {
   const value = clean(stance).toLowerCase();
-  return value ? capitalise(value) : "";
+  if (!value) return "";
+  if (value === "accumulate" || value === "buy" || value === "add") return "Buy more";
+  if (value === "hold" || value === "watch") return "Keep";
+  if (value === "trim" || value === "avoid" || value === "sell" || value === "reduce") return "Sell some";
+  return capitalise(value);
+}
+
+/** A sentence that opens with a stance word, opening with the plain call instead: "Accumulate on dips" -> "Buy more on dips". */
+function leadCallWord(text: string): string {
+  // Only where the word is the call ("Accumulate on dips", "Trim above 310"), not "Trim exposure" or "Avoid adding".
+  return text.replace(/^(accumulate|hold|trim|avoid)(?=\s+(?:now|here|on|above|below|into|at|under|over|for now)\b|[.,;:]|$)/i, (word) => stanceLabel(word));
 }
 
 function toneOf(value: number | null | undefined): BriefingTone {
@@ -671,8 +685,8 @@ function callEvidence(position: BriefingPosition): BriefingEvidence[] {
   const stance = stanceLabel(position.stance);
   if (!stance) return [];
   const levels = [
-    position.add_below != null ? `add below ${level(position.add_below)}` : "",
-    position.trim_above != null ? `trim above ${level(position.trim_above)}` : "",
+    position.add_below != null ? `buy more below ${level(position.add_below)}` : "",
+    position.trim_above != null ? `sell some above ${level(position.trim_above)}` : "",
   ].filter(Boolean);
   return [
     {
@@ -693,9 +707,7 @@ function earningsTimePhrase(time: BriefingPosition["earnings_time"]): string {
 function callLine(position: BriefingPosition): string {
   const stance = stanceLabel(position.stance);
   if (!stance) return `Open ${position.ticker} to read the research.`;
-  const watchOut = leadSentences(position.watch_out, 1, 180);
-  if (watchOut) return `The call is ${stance}. What would change it: ${sentence(watchOut)}`;
-  return `The call is ${stance}. Open ${position.ticker} to see what would change it.`;
+  return `Read why our call on ${position.ticker} is ${stance}.`;
 }
 
 function nextStepForMove(position: BriefingPosition, movePct: number, date: string, reason: MoveReason): string {
@@ -711,7 +723,7 @@ function nextStepForMove(position: BriefingPosition, movePct: number, date: stri
   ) {
     const gap = ((price - position.add_below) / price) * 100;
     if (gap <= ZONE_NEAR_PCT) {
-      return `Check the add zone at ${level(position.add_below)}. The price is ${gap.toFixed(1)}% above it.`;
+      return `The buy-more price is ${level(position.add_below)}. The price is ${gap.toFixed(1)}% above it.`;
     }
   }
   if (
@@ -724,13 +736,13 @@ function nextStepForMove(position: BriefingPosition, movePct: number, date: stri
   ) {
     const gap = ((position.trim_above - price) / price) * 100;
     if (gap <= ZONE_NEAR_PCT) {
-      return `Check the trim zone at ${level(position.trim_above)}. The price is ${gap.toFixed(1)}% below it.`;
+      return `The sell-some price is ${level(position.trim_above)}. The price is ${gap.toFixed(1)}% below it.`;
     }
   }
   if (position.earnings_date) {
     const days = daysBetween(date, position.earnings_date);
     if (days != null && days >= 0 && days <= EARNINGS_AHEAD_DAYS) {
-      return `Earnings are ${relativeDay(position.earnings_date, date)}${earningsTimePhrase(position.earnings_time)}. Read what would change the call before then.`;
+      return `Earnings are ${relativeDay(position.earnings_date, date)}${earningsTimePhrase(position.earnings_time)}. Read the call on ${position.ticker} before then.`;
     }
   }
   if (reason.status !== "confirmed" && !stanceLabel(position.stance)) {
@@ -824,16 +836,17 @@ function zoneItem(
   const stance = stanceLabel(position.stance);
   const still = seenBefore.has(`zone_entered:${position.ticker.toUpperCase()}`);
   const verb = still ? "is still" : "is";
-  const zoneName = hit.zone === "add" ? "add zone" : hit.zone === "trim" ? "trim zone" : "add level";
-  const side = hit.zone === "add" ? "below" : "above";
+  // Plain words for the levels (owner rule): the buy-more and sell-some prices, not "add zone" and "trim zone".
+  const zoneName = hit.zone === "add" ? "below its buy-more price" : hit.zone === "trim" ? "above its sell-some price" : "above its buy-more level";
+  const side = hit.zone === "add" ? "under" : "over";
   const headline =
     hit.zone === "breakout"
-      ? `${position.ticker} ${still ? "is still above" : "broke above"} its add level: ${money(price)}, above ${level(hit.threshold)}`
-      : `${position.ticker} ${verb} in its ${zoneName}: ${money(price)}, ${side} ${level(hit.threshold)}`;
+      ? `${position.ticker} ${still ? "is still above" : "broke above"} its buy-more level: ${money(price)}, over ${level(hit.threshold)}`
+      : `${position.ticker} ${verb} ${zoneName}: ${money(price)}, ${side} ${level(hit.threshold)}`;
 
   const callSummary = leadSentences(position.call_summary, 2, 240);
   const whyParts = [
-    callSummary ? `The call is ${stance}. ${sentence(callSummary)}` : `The call is ${stance}, and this is the level it named.`,
+    callSummary ? `Our call is ${stance}. ${sentence(callSummary)}` : `Our call is ${stance}, and this is the price it named.`,
   ];
   const movePct = position.day_change_pct;
   if (movePct != null && Math.abs(movePct) >= MOVE_MIN_WITH_REASON_PCT) {
@@ -846,10 +859,7 @@ function zoneItem(
     );
   }
 
-  const watchOut = leadSentences(position.watch_out, 1, 180);
-  const nextStep = watchOut
-    ? `Reread the call before you act on it. What would break it: ${sentence(watchOut)}`
-    : `Reread the call and what would break it before you act on it.`;
+  const nextStep = `Reread the call on ${position.ticker} before you act on it.`;
 
   return draft({
     id: itemId(date, "zone_entered", position.ticker, hit.zone),
@@ -868,8 +878,8 @@ function zoneItem(
     next_step: nextStep,
     spoken:
       hit.zone === "breakout"
-        ? `${position.ticker} ${still ? "is still above" : "broke above"} its add level`
-        : `${position.ticker} ${verb} in its ${zoneName}`,
+        ? `${position.ticker} ${still ? "is still above" : "broke above"} its buy-more level`
+        : `${position.ticker} ${verb} ${zoneName}`,
     evidence: [...quoteEvidence(price, position.price_as_of), ...callEvidence(position)],
     as_of: position.price_as_of,
     deadline_days: null,
@@ -893,7 +903,7 @@ function earningsAheadItem(position: BriefingPosition, date: string): Draft | nu
   const why = [
     preview ? sentence(preview) : "",
     stance
-      ? `The call going in is ${stance}.`
+      ? `Our call going in is ${stance}.`
       : holding
         ? "You hold it into the report."
         : "You are watching it into the report.",
@@ -901,11 +911,8 @@ function earningsAheadItem(position: BriefingPosition, date: string): Draft | nu
     .filter(Boolean)
     .join(" ");
 
-  const watchOut = leadSentences(position.watch_out, 1, 180);
   const dayName = days <= 1 ? when : weekday(position.earnings_date);
-  const nextStep = watchOut
-    ? `Earnings ${dayName}${time}. Here is what would change the call: ${sentence(watchOut)}`
-    : `Earnings ${dayName}${time}. Read the pre-earnings notes on ${position.ticker} before then.`;
+  const nextStep = `Earnings ${dayName}${time}. Read the pre-earnings notes on ${position.ticker} before then.`;
 
   return draft({
     id: itemId(date, "earnings_upcoming", position.ticker, position.earnings_date),
@@ -1006,7 +1013,8 @@ function callChangeItem(
 ): Draft {
   const from = stanceLabel(change.prev_stance);
   const to = stanceLabel(change.new_stance);
-  const text = leadSentences(change.text ?? position.call_summary, 2, 240);
+  // The research text can open with the pipeline's own word ("Accumulate on dips below 310"): say it plainly.
+  const text = leadCallWord(leadSentences(change.text ?? position.call_summary, 2, 240));
   const holding = position.relation === "holding";
   return draft({
     id: itemId(date, "call_changed", position.ticker, change.new_stance),
@@ -1065,7 +1073,7 @@ function alertItem(alert: BriefingTriggeredAlert, position: BriefingPosition | n
     why: whyParts.join(" "),
     reason_status: "not_applicable",
     next_step: position && stanceLabel(position.stance)
-      ? `Check where ${alert.ticker} trades now, then reread the call. It is ${stanceLabel(position.stance)}.`
+      ? `Check where ${alert.ticker} trades now, then reread our call, which is ${stanceLabel(position.stance)}.`
       : `Check where ${alert.ticker} trades now and whether the reason you set the alert still holds.`,
     spoken: `your alert on ${alert.ticker} triggered`,
     evidence: [
@@ -1173,7 +1181,7 @@ function newsItem(article: BriefingNews, position: BriefingPosition, date: strin
     why: summary || "We have the headline but no summary yet. Open the article to read it.",
     reason_status: "not_applicable",
     next_step: stance
-      ? `Read it, then check whether it changes the call. It is ${stance} today.`
+      ? `Read it, then check whether it changes our call, which is ${stance} today.`
       : `Read it, then open ${position.ticker} for the rest of the research.`,
     spoken: `there is news on ${position.ticker}`,
     evidence: [
@@ -1520,6 +1528,8 @@ function buildPersonalItems(input: BriefingInput, sessionDay: string, lockedMove
     const position = byInstrument.get(change.instrument_id) ?? byTicker.get(clean(change.ticker).toUpperCase());
     if (!position || changedTickers.has(position.ticker)) continue;
     if (clean(change.prev_stance).toLowerCase() === clean(change.new_stance).toLowerCase()) continue;
+    // Trim to Avoid is "Sell some" both times in the words people read: nothing changed for them.
+    if (stanceLabel(change.prev_stance) === stanceLabel(change.new_stance)) continue;
     changedTickers.add(position.ticker);
     out.push(callChangeItem(change, position, date));
   }

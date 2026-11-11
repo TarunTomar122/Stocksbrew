@@ -1,6 +1,6 @@
 import { longDay, signedPct, toneOf } from "@/components/backtest/format";
 import { Verdict } from "@/components/oa/kit/tone";
-import type { StrategyLive } from "@/lib/strategies";
+import { liveHasReturn, type StrategyLive } from "@/lib/strategies";
 
 /** Narrower than the kit frame, same gutters: cards at 8px on a phone, loose text at 16px (.oa-page-frame). */
 export const PAGE_FRAME = "oa-page-frame mx-auto w-full max-w-[76rem] px-2 pb-24 pt-3 sm:px-6 sm:pt-4 lg:pb-10 lg:pt-6";
@@ -32,29 +32,31 @@ export function RiskTag({ level, ratio }: { level: string; ratio: number | null 
   );
 }
 
-/** The live record in one line. Empty until the first session after publication has closed. */
-export function LiveLine({ live, className = "", short = false }: { live: StrategyLive; className?: string; short?: boolean }) {
-  if (live.sessions === 0 || live.strategy_return === null) {
-    if (short) {
-      return (
-        <span className={`text-oa-muted-fg ${className}`} title={`Live since ${longDay(live.since)}. Nothing to show until the next close.`}>
-          <span className="oa-mono tabular-nums">0</span> sessions
-        </span>
-      );
-    }
-    return (
-      <span className={`text-oa-muted-fg ${className}`}>
-        <span className="oa-mono tabular-nums">0</span> sessions since {longDay(live.since)}
-      </span>
-    );
+/** The live record in one line: the day it began until a close after the fill day, then its return. */
+export function LiveLine({
+  live,
+  className = "",
+  bare = false,
+}: {
+  live: StrategyLive;
+  className?: string;
+  /** The figure alone, when the list says the session count once (it is the same on every row). */
+  bare?: boolean;
+}) {
+  // Before a close after the fill day there is no return to show, only the day tracking began.
+  if (!liveHasReturn(live) || live.strategy_return === null) {
+    const began = live.first_fill_date ?? live.since;
+    return <span className={`text-oa-muted-fg ${className}`}>{live.first_fill_date ? `Began ${longDay(began)}` : `Starts after ${longDay(began)}`}</span>;
   }
   return (
     <span className={className}>
       <span className={`oa-mono tabular-nums ${toneOf(live.strategy_return)}`}>{signedPct(live.strategy_return, 2)}</span>
-      <span className="text-oa-muted-fg">
-        {" "}
-        in {live.sessions} session{live.sessions === 1 ? "" : "s"}
-      </span>
+      {bare ? null : (
+        <span className="text-oa-muted-fg">
+          {" "}
+          in {live.sessions} session{live.sessions === 1 ? "" : "s"}
+        </span>
+      )}
     </span>
   );
 }

@@ -79,7 +79,7 @@ describe("briefingRead", () => {
     const watched = ["W", "X", "Y", "Z"].map((ticker) => item({ id: ticker, kind: "call_changed", ticker, relation: "watching", metric: "Accumulate", tone: "up" }));
     const quietDay = briefingRead(base, groupBriefingSections(sections(watched)));
     expect(quietDay?.insights).toHaveLength(3);
-    expect(quietDay?.insights[0].text).toBe("Our call moved to Accumulate.");
+    expect(quietDay?.insights[0].text).toBe("Our call moved to Buy more.");
   });
 
   it("reads the market view from its explained moves", () => {
@@ -120,7 +120,7 @@ describe("briefingRead", () => {
       groupBriefingSections(sections([zone("VRT", -3.4), zone("INTC", -1.8), zone("TSLA", -0.6), zone("LLY", -0.1)])),
     );
     const insight = read?.insights.find((entry) => entry.id === "add-zones");
-    expect(insight?.text).toBe("4 stocks you watch are in their add zone: VRT, INTC, TSLA and 1 more.");
+    expect(insight?.text).toBe("4 stocks you watch are below their buy-more price: VRT, INTC, TSLA and 1 more.");
     expect(insight?.soWhat).toBe("The S&P 500 is down 0.59%, so most got there with the market. Reread a call before adding.");
     expect(insight?.tickers).toEqual(["VRT", "INTC", "TSLA"]);
     expect(read?.headline).toBe("Nothing needs a decision today.");

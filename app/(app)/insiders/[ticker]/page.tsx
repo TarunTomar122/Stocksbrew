@@ -134,9 +134,8 @@ export default async function InsiderStockPage({ params }: Props) {
               ...(row?.sector ? [{ href: sectorHref(sectorSlug(row.sector)), label: `${row.sector} stocks` }] : []),
             ].map((item) => (
               <li key={item.href} className="border-b border-oa-border last:border-b-0">
-                <AppLink href={item.href} className="flex items-center justify-between gap-3 px-4 py-2.5 text-[14px] text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
+                <AppLink href={item.href} className="flex items-center gap-3 px-4 py-2.5 text-[14px] text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
                   <span className="min-w-0 truncate">{item.label}</span>
-                  <span aria-hidden="true" className="text-oa-muted-fg">→</span>
                 </AppLink>
               </li>
             ))}
@@ -147,7 +146,7 @@ export default async function InsiderStockPage({ params }: Props) {
             <ul>
               {pairs.map((pair) => (
                 <li key={pair.slug} className="border-b border-oa-border last:border-b-0">
-                  <Link prefetch={false} href={pairHref(pair.a, pair.b)} className={`${NUM} flex items-center justify-between gap-3 px-4 py-2.5 text-[14px] text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent`}>
+                  <Link prefetch={false} href={pairHref(pair.a, pair.b)} className={`${NUM} flex items-center gap-3 px-4 py-2.5 text-[14px] text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent`}>
                     <span className="inline-flex min-w-0 items-center gap-1.5">
                       <StockLogo ticker={pair.a} size={18} />
                       {pair.a}
@@ -155,7 +154,6 @@ export default async function InsiderStockPage({ params }: Props) {
                       <StockLogo ticker={pair.b} size={18} />
                       {pair.b}
                     </span>
-                    <span aria-hidden="true" className="text-oa-muted-fg">→</span>
                   </Link>
                 </li>
               ))}
@@ -171,9 +169,8 @@ export default async function InsiderStockPage({ params }: Props) {
               { href: "/follow?tab=insiders", label: "Follow insiders" },
             ].map((item) => (
               <li key={item.href} className="border-b border-oa-border last:border-b-0">
-                <AppLink href={item.href} className="flex items-center justify-between gap-3 px-4 py-2.5 text-[14px] text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
+                <AppLink href={item.href} className="flex items-center gap-3 px-4 py-2.5 text-[14px] text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
                   <span className="min-w-0 truncate">{item.label}</span>
-                  <span aria-hidden="true" className="text-oa-muted-fg">→</span>
                 </AppLink>
               </li>
             ))}

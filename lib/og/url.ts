@@ -19,6 +19,7 @@ export const OG_VERSION = "2";
 /** The read-style pages that get a card drawn from their own read. */
 export const OG_PAGE_KEYS = [
   "briefing",
+  "premarket",
   "explore",
   "news",
   "markets",

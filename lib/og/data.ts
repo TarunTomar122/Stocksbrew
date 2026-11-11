@@ -43,7 +43,7 @@ import { buildCongressMemberRead, buildFundRead, buildInsiderRead } from "@/lib/
 import { getCopyRecord, isFullRecord, type CopyRecord } from "@/lib/copy-trades";
 import { getFilingsMeta, getFilingsStream } from "@/lib/filings";
 import { buildFilingsRead } from "@/lib/filings-insights";
-import { getStrategy, listStrategies } from "@/lib/strategies";
+import { getStrategy, listStrategies, liveHasReturn } from "@/lib/strategies";
 import { buildStrategiesRead } from "@/lib/strategies-insights";
 import { FREE_COVERED_STOCKS, can } from "@/lib/entitlements";
 import { getBasket, getBaskets } from "@/lib/screener-themes";
@@ -60,6 +60,9 @@ import { DOC_COMPARISONS, docCompareHref, getDocComparison } from "@/lib/docs/co
 import { getLegalDoc } from "@/lib/docs/company";
 import { GLOSSARY } from "@/lib/docs";
 import { HERO_HEADLINE, HERO_SUBHEAD } from "@/lib/brand-copy";
+import { getPremarketMovers } from "@/lib/premarket";
+import { getPremarketOpeningReport } from "@/lib/premarket-opening";
+import { premarketInputFrom, premarketRead, premarketWhen } from "@/lib/premarket-read";
 import { LANDING_HERO_BREW_TICKERS } from "@/lib/landing-hero-featured";
 import type { TheRead } from "@/lib/insights";
 import { withoutZones, type ScreenerRow } from "@/lib/screener-shared";
@@ -367,6 +370,13 @@ function readCard(key: string, label: string, path: string, read: TheRead | null
     stats: extra.stats,
     footnote: extra.footnote !== undefined ? extra.footnote : ogFootnote(read.source ? read.source : null, read.asOf ? `as of ${ogStamp(read.asOf)}` : null),
   };
+}
+
+async function premarketCard(): Promise<OgCard | null> {
+  // The same read the page leads with (lib/premarket-read.ts), from the same two cached documents.
+  const [report, movers] = await Promise.all([within(getPremarketOpeningReport(), 2500), within(getPremarketMovers("US"), 2500)]);
+  const input = premarketInputFrom(report, movers);
+  return readCard("premarket", "Premarket", "/premarket", premarketRead(input, premarketWhen(input.generatedAt)));
 }
 
 async function exploreCard(): Promise<OgCard | null> {
@@ -720,7 +730,7 @@ export async function strategyCard(slug: string): Promise<OgCard | null> {
     rows.push({ label: perYear ? "S&P 500, a year" : "S&P 500", value: ogSignedPct(bench * 100)!, tone: ogTone(bench) });
     period = `Backtest ${ogMonthLabel(test.period.start)} to ${ogMonthLabel(test.period.end)}, hypothetical`;
   }
-  if (live.sessions > 0 && finite(live.strategy_return)) {
+  if (liveHasReturn(live) && finite(live.strategy_return)) {
     rows.push({ label: `Live since ${ogDayLabel(live.since)}`, value: ogSignedPct(live.strategy_return * 100)!, tone: ogTone(live.strategy_return) });
     period = ogFootnote(period, finite(live.benchmark_return) ? `live S&P 500 ${ogSignedPct(live.benchmark_return * 100)}` : null);
   }
@@ -741,7 +751,7 @@ export async function strategyCard(slug: string): Promise<OgCard | null> {
     chipsLabel: chips.length ? (seesHoldings ? `Holds today, ${ogDayLabel(strategy.basket.as_of)}` : "Sectors it holds today") : null,
     record: rows.length
       ? {
-          title: test && live.sessions > 0 ? "Backtested vs live" : test ? "Backtest vs the S&P 500" : "Live record",
+          title: test && liveHasReturn(live) ? "Backtested vs live" : test ? "Backtest vs the S&P 500" : "Live record",
           rows,
           spark: test?.spark.strategy && test.spark.strategy.length > 1 ? test.spark.strategy : null,
           benchmark: test?.spark.benchmark && test.spark.benchmark.length > 1 ? test.spark.benchmark : null,
@@ -946,6 +956,7 @@ export function blogPostCard(slug: string): OgTextCard | null {
 
 const PAGE_LOADERS: Partial<Record<OgPageKey, () => Promise<OgCard | null>>> = {
   briefing: briefingCard,
+  premarket: premarketCard,
   explore: exploreCard,
   news: newsCard,
   markets: marketsCard,
@@ -962,6 +973,7 @@ const PAGE_LOADERS: Partial<Record<OgPageKey, () => Promise<OgCard | null>>> = {
 /** Words for a data page whose read is not available right now. */
 const PAGE_FALLBACK: Partial<Record<OgPageKey, { eyebrow: string; title: string; sub: string }>> = {
   briefing: { eyebrow: "Briefing", title: "What moved today, and why", sub: "How the market closed, the biggest movers with the reason when we could confirm one, and what to check next." },
+  premarket: { eyebrow: "Premarket", title: "How the open is set up", sub: "US futures, markets abroad, and the stocks gapping up and down before 9:30 ET." },
   explore: { eyebrow: "Explore", title: "The research desk for US stocks", sub: "News, movers, the calendar, signals, themes and markets, each with what it means." },
   news: { eyebrow: "The wire", title: "US stock news, read by company", sub: "Headlines as a dense, time-ordered wire, with what each story means for the stock." },
   markets: { eyebrow: "Markets", title: "Indices, rates, commodities, FX and crypto", sub: "Every asset with its level, its changes and a year of daily closes." },

@@ -240,7 +240,6 @@ function ReplayPanel({ replay, job }: { replay: Replay; job: Pick<AgentJob, "tri
         <details className="group border-t border-oa-border bg-oa-card">
           <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between px-3.5 text-[13px] font-medium text-oa-muted-fg hover:text-oa-fg sm:px-4">
             See all {rows.length} days
-            <span aria-hidden="true" className="transition-transform group-open:rotate-90">›</span>
           </summary>
           {/* What the phone line leaves out: the period, the stocks and the strip of days. */}
           <div className="flex flex-col items-start gap-2 border-t border-oa-border px-3.5 py-2.5 sm:hidden">
@@ -428,6 +427,29 @@ export function JobsWorkspace({
     }
     return { trigger, scope };
   }, [form, template]);
+  // A phone's Save bar sticks above the tab bar only once the draft's title has scrolled off the top, so it never
+  // covers the example while "Build my agent" is still the main thing on screen; before that it sits at the card's foot.
+  const saveSentinel = React.useRef<HTMLDivElement>(null);
+  const [stickSave, setStickSave] = React.useState(false);
+  const draftOpen = Boolean(template && draftPreview);
+  React.useEffect(() => {
+    const node = saveSentinel.current;
+    if (!draftOpen || !node || typeof IntersectionObserver === "undefined") {
+      setStickSave(false);
+      return;
+    }
+    // The phone's top bar is 52px tall, so the title counts as passed once it is behind it.
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry) return;
+        const top = entry.rootBounds?.top ?? 0;
+        setStickSave(!entry.isIntersecting && entry.boundingClientRect.top < top);
+      },
+      { rootMargin: "-52px 0px 0px 0px", threshold: 0 },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [draftOpen, linkedOpen]);
 
   const runsByJob = React.useMemo(() => {
     const map = new Map<string, AgentRun[]>();
@@ -746,6 +768,8 @@ export function JobsWorkspace({
               Close
             </button>
           </div>
+          {/* Where the phone's Save bar starts to stick: the draft's title and its note have been scrolled past. */}
+          <div ref={saveSentinel} aria-hidden="true" className="-mt-3.5 h-0" />
 
           {/* A phone gets the agent in three short lines; the first one opens and closes the fields under it. */}
           <div className="overflow-hidden rounded-xl border border-oa-border bg-oa-bg sm:hidden">
@@ -893,8 +917,9 @@ export function JobsWorkspace({
             </p>
           ) : null}
 
-          {/* On a phone the wrapper steps aside (contents) so the buttons can stick above the tab bar while the card is in
-              view. The offset is the bar's measured height: 57.5px plus its bottom padding, max(safe area, 4px). */}
+          {/* On a phone the wrapper steps aside (contents) so the buttons can stick above the tab bar once the draft's title
+              has been scrolled past (stickSave). The offset is the bar's measured height: 57.5px plus its bottom padding,
+              max(safe area, 4px). */}
           <div className="flex flex-col gap-2 max-sm:contents sm:flex-row sm:flex-wrap sm:items-center">
             {/* The note comes first so a phone reads it above the Save bar; from sm up it sits after the buttons. */}
             {replay && !replayIsCurrent ? (
@@ -912,7 +937,14 @@ export function JobsWorkspace({
             ) : !signedIn && !already ? (
               <span className="text-pretty text-[13px] leading-5 text-oa-muted-fg sm:order-last sm:ml-1">Saving asks you to sign in. It is free, and this agent stays filled in while you do.</span>
             ) : null}
-            <div className="flex items-center gap-2 max-sm:sticky max-sm:bottom-[calc(58px+max(env(safe-area-inset-bottom),4px))] max-sm:z-20 max-sm:-mx-3.5 max-sm:border-t max-sm:border-oa-border max-sm:bg-oa-card max-sm:px-3.5 max-sm:py-2.5 max-sm:shadow-[0_-6px_18px_-12px_rgba(0,0,0,0.35)] sm:contents">
+            <div
+              data-stuck={stickSave ? "" : undefined}
+              className={`flex items-center gap-2 sm:contents ${
+                stickSave
+                  ? "max-sm:sticky max-sm:bottom-[calc(58px+max(env(safe-area-inset-bottom),4px))] max-sm:z-20 max-sm:-mx-3.5 max-sm:border-t max-sm:border-oa-border max-sm:bg-oa-card max-sm:px-3.5 max-sm:py-2.5 max-sm:shadow-[0_-6px_18px_-12px_rgba(0,0,0,0.35)]"
+                  : ""
+              }`}
+            >
               {already ? (
                 <p className="text-pretty text-[14px] font-medium leading-5 text-oa-fg max-sm:flex-1">You already have this agent.</p>
               ) : signedIn ? (
@@ -1008,9 +1040,9 @@ export function JobsWorkspace({
             <p className="text-[12.5px] leading-5 text-oa-muted-fg">
               {signedIn
                 ? tracked > 0
-                  ? `Start watches your ${tracked} tracked names. Preview shows the last four weeks first.`
-                  : "Track a few stocks first, or pick tickers in Preview."
-                : "Try any of them on the last four weeks of prices before you save one."}
+                  ? `Start watches your ${tracked} tracked names. Pick a card to see its last four weeks first.`
+                  : "Track a few stocks first, or pick a card and choose the tickers."
+                : "Pick one to try it on the last four weeks of prices before you save it."}
             </p>
           </div>
           <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -1021,10 +1053,20 @@ export function JobsWorkspace({
               return (
                 <li
                   key={entry.id}
-                  className={`${CARD} flex flex-col gap-2 px-3.5 py-3 ${active ? "shadow-[inset_0_0_0_1px_var(--oa-primary)]" : ""} ${
+                  className={`${CARD} relative flex flex-col gap-2 px-3.5 py-3 transition-colors hover:bg-oa-accent ${active ? "shadow-[inset_0_0_0_1px_var(--oa-primary)]" : ""} ${
                     !allTemplates && index >= PHONE_TEMPLATES ? "max-lg:hidden" : ""
                   }`}
                 >
+                  {/* The whole card tries the agent; no "Preview" button repeated on every card (owner, Nov 11). */}
+                  <button
+                    type="button"
+                    aria-current={active || undefined}
+                    aria-label={`${entry.id === "price-level" ? "Set up" : "Try"}: ${entry.title}`}
+                    data-template={entry.id}
+                    // The card already open goes back to it instead of starting it over, so a stray tap keeps the edits.
+                    onClick={() => (active ? builderRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }) : pick(entry))}
+                    className="absolute inset-0 z-0 cursor-pointer rounded-[inherit] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
+                  />
                   <div className="min-w-0">
                     <p className="oa-caption">{GROUP_LABEL[entry.group]}</p>
                     <p className="mt-1 flex flex-wrap items-baseline gap-x-2 text-[14.5px] font-medium leading-5 text-oa-fg">
@@ -1034,16 +1076,13 @@ export function JobsWorkspace({
                     </p>
                     <p className="mt-0.5 text-pretty text-[13px] leading-[18px] text-oa-muted-fg">{entry.tells}</p>
                   </div>
-                  <div className="mt-auto flex items-center gap-2 pt-1">
-                    {signedIn && oneClick(entry, tracked) && !taken ? (
+                  {signedIn && oneClick(entry, tracked) && !taken ? (
+                    <div className="relative z-10 mt-auto flex items-center gap-2 self-start pt-1">
                       <OaButton size="xs" loading={busy === `start-${entry.id}`} onClick={() => quickStart(entry)} data-template-start={entry.id}>
                         Start
                       </OaButton>
-                    ) : null}
-                    <OaButton size="xs" variant="secondary" aria-pressed={active} data-template={entry.id} onClick={() => pick(entry)}>
-                      {entry.id === "price-level" ? "Set up" : "Preview"}
-                    </OaButton>
-                  </div>
+                    </div>
+                  ) : null}
                 </li>
               );
             })}
@@ -1170,7 +1209,6 @@ function JobRow({
             <details className="group border-t border-oa-border bg-oa-card">
               <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between px-3.5 text-[13px] font-medium text-oa-muted-fg hover:text-oa-fg sm:px-4">
                 Earlier reports ({earlier.length})
-                <span aria-hidden="true" className="transition-transform group-open:rotate-90">›</span>
               </summary>
               <div className="border-t border-oa-border">
                 <RunList runs={runRows(earlier)} job={job} />

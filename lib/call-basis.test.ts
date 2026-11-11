@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { callBasis, factHasDate, lastReportOn } from "@/lib/call-basis";
+import { callBasis, factHasDate, lastReportOn, withoutVagueChange } from "@/lib/call-basis";
 
 describe("callBasis", () => {
   it("splits a hold reason into two dated facts and what would change it", () => {
@@ -83,5 +83,26 @@ describe("factHasDate", () => {
     expect(factHasDate("Its P/E is below the 41 it typically traded at from April to July.")).toBe(true);
     expect(factHasDate("Its sales grew 83% over the past year.")).toBe(false);
     expect(factHasDate("It pays a 2.2% dividend that it has raised for 64 years in a row.")).toBe(false);
+  });
+});
+
+describe("withoutVagueChange", () => {
+  it("drops the old uncheckable conditions and keeps the facts", () => {
+    expect(withoutVagueChange("Its P/E of 40 is above the usual 30, but the stock rose 12% over the past month. We'd stop selling once the price settles back.")).toBe(
+      "Its P/E of 40 is above the usual 30, but the stock rose 12% over the past month.",
+    );
+    expect(withoutVagueChange("ADT rose 54% over the past month. After that rise we'd buy on a dip rather than now, and stop buying if ADT's next report misses forecasts.")).toBe(
+      "ADT rose 54% over the past month.",
+    );
+    expect(withoutVagueChange("Coca-Cola's sales grew 7% over the past year. We'd stop buying if Coca-Cola's next report misses forecasts or the dividend stops growing.")).toBe(
+      "Coca-Cola's sales grew 7% over the past year.",
+    );
+  });
+
+  it("keeps a measured condition, a reason with no condition, and empty input", () => {
+    const measured = "Acme's sales grew 24% over the past year. We'd stop buying if the Dec 3 report shows sales growth below 12% or misses profit forecasts.";
+    expect(withoutVagueChange(measured)).toBe(measured);
+    expect(withoutVagueChange("Sales slowed sharply last quarter.")).toBe("Sales slowed sharply last quarter.");
+    expect(withoutVagueChange(null)).toBe("");
   });
 });

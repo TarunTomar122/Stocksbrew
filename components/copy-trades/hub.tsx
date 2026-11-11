@@ -165,7 +165,7 @@ export function BestCard({ title, row }: { title: string; row: CopyHubRow }) {
   const scale = Math.max(Math.abs(row.copy_annualized ?? 0), Math.abs(row.spy_annualized ?? 0), 0.01);
   const gap = row.excess_per_year ?? 0;
   return (
-    <article className="oa-surface relative flex h-full flex-col border border-oa-border bg-oa-card p-4">
+    <article className="oa-surface relative flex h-full flex-col border border-oa-border bg-oa-card p-4 transition-colors hover:border-[color-mix(in_srgb,var(--oa-fg)_25%,transparent)]">
       <p className="oa-label">{title}</p>
       <h3 className="mt-1.5 text-[17px] font-semibold leading-6 text-oa-fg">
         <Link href={copyHref(row.slug)} prefetch={false} className="after:absolute after:inset-0 after:content-[''] hover:underline">
@@ -186,7 +186,6 @@ export function BestCard({ title, row }: { title: string; row: CopyHubRow }) {
         Copying {row.kind === "fund" ? "it" : "them"} made {gapWords(gap)} than the S&amp;P 500
         {row.max_drawdown != null ? `, with a worst drop of ${fmtFrac(Math.abs(row.max_drawdown), 0, false)} on the way` : ""}.
       </p>
-      <p className="mt-auto pt-3 text-[14px] font-medium text-oa-primary">See the full results →</p>
     </article>
   );
 }

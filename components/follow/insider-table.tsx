@@ -129,7 +129,7 @@ export function InsiderTable({
       </div>
 
       <div className="oa-surface mt-3 overflow-hidden border border-oa-border bg-oa-card">
-        <InsiderTableHead />
+        <InsiderTableHead showSide={side === "all"} />
         {visible.length === 0 ? (
           <p className="px-4 py-6 text-[14px] leading-6 text-oa-muted-fg">
             {trades.length === 0
@@ -139,7 +139,7 @@ export function InsiderTable({
         ) : (
           <ul className="divide-y divide-oa-border">
             {visible.map((trade) => (
-              <InsiderRow key={trade.id} trade={trade} />
+              <InsiderRow key={trade.id} trade={trade} showSide={side === "all"} />
             ))}
           </ul>
         )}

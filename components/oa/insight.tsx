@@ -1,7 +1,6 @@
 import * as React from "react";
 import Link from "next/link";
 
-import { ReadFold } from "@/components/oa/read-fold";
 import { ToneGlyph } from "@/components/oa/kit/tone";
 import { StockLogo } from "@/components/stock-logo";
 import { formatAskContext, parseAskContext } from "@/lib/ask-context";
@@ -18,9 +17,6 @@ export function TheRead({
   read,
   label = "The read",
   className = "",
-  fold,
-  foldLabel,
-  foldKeep = 0,
   visual,
   askContext,
 }: {
@@ -28,14 +24,14 @@ export function TheRead({
   label?: string;
   className?: string;
   /**
-   * Where the cards past `foldKeep` wait behind one button, leaving the
-   * headline: "phone" below `lg`, "always" on every screen (pages whose main
-   * job is a tool, like the screener). Without it every card shows.
+   * @deprecated Ignored. The read used to fold its cards behind a "Show 2 more points" button on phones; the
+   * owner wants every insight in view (rule 2: don't make people click to read), and there are at most three.
+   * Kept so callers that still pass it compile.
    */
   fold?: "phone" | "always";
-  /** What the fold button says, naming what is inside ("Show more on technology"). */
+  /** @deprecated Ignored, see `fold`. */
   foldLabel?: string;
-  /** How many cards stay above the fold (the main driver); the rest wait behind the button. */
+  /** @deprecated Ignored, see `fold`. */
   foldKeep?: number;
   /** A small picture of the headline, drawn right under it (the briefing's sector strip). */
   visual?: React.ReactNode;
@@ -49,11 +45,6 @@ export function TheRead({
 }) {
   if (!read || (!read.headline && read.insights.length === 0)) return null;
   const count = read.insights.length;
-  // Folding needs a headline to leave in view; a read that is only cards shows them all.
-  const keep = fold && read.headline ? Math.max(0, Math.min(foldKeep, count)) : count;
-  const hidden = count - keep;
-  // Below lg ("phone") or everywhere ("always"), the cards past the fold hide until the button opens them.
-  const foldHide = fold === "always" ? "group-data-[open=false]/fold:hidden" : "max-lg:group-data-[open=false]/fold:hidden";
   // One card per row in a narrow read (a phone, a side column), two across from about 540px, three for a
   // read of three once there is room. Widths are the read's own (a container query), not the screen's: the
   // same read sits full width on Market today and in a narrow column on the briefing. Class names stay
@@ -63,7 +54,7 @@ export function TheRead({
   const wide = count === 3 || count >= 5 ? "[@container(min-width:50rem)]:grid-cols-3" : "";
   const cards =
     count > 0 ? (
-      <div className={`mt-3 [container-type:inline-size] ${keep === 0 ? foldHide : ""}`}>
+      <div className="mt-3 [container-type:inline-size]">
         <ul className={`gap-3 ${listLayout} ${wide}`}>
           {read.insights.map((insight, index) => {
             // An odd last card in a two-across row takes the whole row instead of leaving a hole.
@@ -71,11 +62,7 @@ export function TheRead({
             const span = lastOdd
               ? `[@container(min-width:34rem)]:col-span-2 ${count === 3 || count >= 5 ? "[@container(min-width:50rem)]:col-span-1" : ""}`
               : "";
-            // One card kept above a closed fold takes the whole row, so it never sits beside an empty column.
-            const alone = keep === 1 && hidden > 0 && index === 0 ? (fold === "always" ? "group-data-[open=false]/fold:col-span-full" : "max-lg:group-data-[open=false]/fold:col-span-full") : "";
-            return (
-              <InsightCard key={insight.id} insight={insight} className={`${span} ${alone} ${index >= keep ? foldHide : ""}`} />
-            );
+            return <InsightCard key={insight.id} insight={insight} className={span} />;
           })}
         </ul>
       </div>
@@ -102,13 +89,7 @@ export function TheRead({
           ))}
         </div>
       ) : null}
-      {cards && hidden > 0 ? (
-        <ReadFold always={fold === "always"} label={foldLabel ?? `Show ${hidden === 1 ? "1 more point" : `${hidden} more points`}`}>
-          {cards}
-        </ReadFold>
-      ) : (
-        cards
-      )}
+      {cards}
       {read.source || read.asOf ? (
         <p className="mt-3 text-[12.5px] leading-[18px] text-oa-muted-fg">
           {[read.source, read.asOf ? `${read.source ? "as of" : "As of"} ${fmtReadTime(read.asOf)}` : null].filter(Boolean).join(" · ")}
@@ -303,9 +284,10 @@ export function InsightRow({ insight }: { insight: Insight }) {
   // A sentence that names its stocks needs no chips; extra chips under "BHE, NVDA and TSM" read as a mismatch.
   const namesAny = tickers.some((ticker) => mentions(said, ticker));
   const extra = lead || namesAny ? [] : tickers.slice(0, 6);
-  // Three columns on a wide screen: the tone mark, the sentence (with any
-  // extra stocks under it), and the link to act, level with the first line.
-  // On a phone the link drops under the sentence.
+  // The row link's name is its step ("Why did it fall?"); the sentence describes it.
+  const sentenceId = `insight-row-${insight.id.replace(/[^A-Za-z0-9_-]/g, "-").slice(0, 60)}`;
+  // Two columns: the tone mark and the sentence (with any extra stocks under it). The whole row opens its main
+  // step, the way a read card does: no link words repeated on every row (owner, Nov 11). Stock links sit above it.
   return (
     <li
       // Any link in the row sends `insight_clicked` (lib/analytics-dom.ts), so we learn which reads people act on.
@@ -313,17 +295,17 @@ export function InsightRow({ insight }: { insight: Insight }) {
       data-track-insight-id={insight.id.slice(0, 80)}
       data-track-insight-kind={insightKind(insight.id)}
       data-track-tone={insight.tone}
-      className="grid grid-cols-[12px_minmax(0,1fr)] gap-x-3 py-3 sm:grid-cols-[12px_minmax(0,1fr)_auto] sm:gap-x-4"
+      className={`relative grid grid-cols-[12px_minmax(0,1fr)] gap-x-3 py-3 ${insight.action ? "transition-colors hover:bg-oa-accent" : ""}`}
     >
       <ToneGlyph tone={insight.tone} className="mt-[7px]" />
       <div className="min-w-0 max-w-[60rem]">
-        <div className="text-pretty text-[15px] leading-[22px] text-oa-fg">
+        <div id={sentenceId} className="text-pretty text-[15px] leading-[22px] text-oa-fg">
           {lead ? (
             <Link
               href={`/stock/${encodeURIComponent(lead)}`}
               prefetch={false}
               data-track-target="stock"
-              className="mr-1.5 inline-flex items-center gap-1.5 rounded align-[-4px] font-medium text-oa-fg hover:underline"
+              className="relative z-10 mr-1.5 inline-flex items-center gap-1.5 rounded align-[-4px] font-medium text-oa-fg hover:underline"
             >
               <StockLogo ticker={lead} size={18} />
               {insight.leadName ? <span title={lead}>{insight.leadName}</span> : <span className="tabular-nums">{lead}</span>}
@@ -340,7 +322,7 @@ export function InsightRow({ insight }: { insight: Insight }) {
                 href={`/stock/${encodeURIComponent(ticker)}`}
                 prefetch={false}
                 data-track-target="stock"
-                className="inline-flex items-center gap-1.5 rounded text-[13px] font-medium leading-5 text-oa-fg hover:underline"
+                className="relative z-10 inline-flex items-center gap-1.5 rounded text-[13px] font-medium leading-5 text-oa-fg hover:underline"
               >
                 <StockLogo ticker={ticker} size={16} />
                 <span className="tabular-nums">{ticker}</span>
@@ -349,17 +331,14 @@ export function InsightRow({ insight }: { insight: Insight }) {
           </div>
         ) : null}
       </div>
-      {insight.action && insight.secondAction ? (
-        // Two next steps: side by side under the sentence on a phone, stacked in the right column on a wide screen.
-        <div className="col-start-2 mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5 sm:col-start-3 sm:row-start-1 sm:mt-0 sm:flex-col sm:items-end">
-          <ActionLink action={insight.action} target="action" />
-          <ActionLink action={insight.secondAction} target="action_2" />
-        </div>
-      ) : insight.action ? (
-        <ActionLink
-          action={insight.action}
-          target="action"
-          className="col-start-2 mt-1.5 justify-self-start sm:col-start-3 sm:row-start-1 sm:mt-0 sm:justify-self-end"
+      {insight.action ? (
+        <Link
+          href={insight.action.href}
+          prefetch={false}
+          data-track-target="action"
+          aria-label={insight.action.label}
+          aria-describedby={sentenceId}
+          className="absolute inset-0 z-0 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
         />
       ) : null}
     </li>

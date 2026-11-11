@@ -7,21 +7,22 @@ import { totalOf } from "@/lib/wire-read";
 import { WIRE_PAGE_SIZE, wireHref, type WireFilters } from "@/lib/wire-shared";
 
 /**
- * The wire read by company. One card per company in the news: who it is, how
- * the stock is moving, how its news leans, and the few headlines worth
- * opening. The full list for a company is one click away.
+ * The wire read by company, stock first (owner rule 7). One card per company in the news: who it is and how the
+ * stock is moving, how its news leans (said once per card, never as a mark on every headline), and the few
+ * headlines worth opening as the evidence, whole and in sentence case. The whole card opens all its stories.
  */
 
-/** Every card has room for this many headlines, so cards in a row match and their footers line up. */
+/** The headlines a card shows; the rest are one click away. */
 const HEADLINE_SLOTS = 3;
 
 function CompanyCard({ group, filters }: { group: CompanyGroup; filters: WireFilters }) {
   const items = group.items.slice(0, HEADLINE_SLOTS);
-  const more = group.count - items.length;
   return (
-    <article className="oa-surface flex h-full min-w-0 flex-col border border-oa-border bg-oa-card">
+    // The whole card opens the company's stories; the stock and each headline keep their own links above it.
+    // No "see more" arrow repeated on every card (owner, Nov 11).
+    <article className="oa-surface relative flex h-full min-w-0 flex-col border border-oa-border bg-oa-card transition-colors hover:border-[color-mix(in_srgb,var(--oa-fg)_25%,transparent)]">
       <header className="flex items-center justify-between gap-3 border-b border-oa-border px-4 py-2.5">
-        <Ticker symbol={group.ticker} name={group.name} size={22} className="min-w-0" />
+        <Ticker symbol={group.ticker} name={group.name} size={22} className="relative z-10 min-w-0" />
         {group.pct !== null ? <Delta value={group.pct} digits={1} className="shrink-0 text-[14px] font-medium" /> : null}
       </header>
       {totalOf(group.tones) > 0 ? (
@@ -29,25 +30,20 @@ function CompanyCard({ group, filters }: { group: CompanyGroup; filters: WireFil
           <ToneBar counts={group.tones} showWord />
         </div>
       ) : null}
+      {/* No footer count: the tone above is the card's one figure (owner rule 5), and the card itself opens the rest. */}
       <ul className="flex flex-1 flex-col gap-2.5 px-4 py-3">
         {items.map((item) => (
-          // Two lines of headline and one of source each, whatever the text, so cards in a row line up.
-          <li key={item.id} className="min-h-[58px]">
-            <HeadlineLine item={item} />
+          <li key={item.id}>
+            <HeadlineLine item={item} companyName={group.name ?? ""} className="relative z-10" />
           </li>
         ))}
       </ul>
       <Link
         href={wireHref({ ...filters, limit: WIRE_PAGE_SIZE }, { ticker: group.ticker, theme: null })}
         prefetch={false}
-        className={`oa-card-foot mt-auto flex min-h-10 items-center justify-between border-t border-oa-border px-4 py-2 text-[13px] text-oa-muted-fg hover:bg-oa-accent hover:text-oa-fg ${FOCUS}`}
-      >
-        <span>
-          {group.count} {group.count === 1 ? "story" : "stories"} in 24h
-          {more > 0 ? ` · ${more} more` : ""}
-        </span>
-        <span aria-hidden="true">→</span>
-      </Link>
+        aria-label={`All ${group.count} ${group.count === 1 ? "story" : "stories"} about ${group.name || group.ticker}`}
+        className="absolute inset-0 z-0 rounded-[inherit] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
+      />
     </article>
   );
 }

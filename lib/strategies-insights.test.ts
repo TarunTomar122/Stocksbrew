@@ -41,7 +41,7 @@ describe("strategies read", () => {
 
   it("names the best and worst this year and the basket's lean, without holdings below Pro", () => {
     const read = buildStrategiesRead(items, { seesHoldings: false, year: 2026 });
-    expect(read.headline).toBe("2 of 3 rules beat the S&P 500 this year; Momentum leaders leads by 24.3 pts.");
+    expect(read.headline).toBe("2 of 3 rules beat the S&P 500 this year; the best, Momentum leaders, is 24.3 pts ahead.");
     expect(read.insights[0].text).toBe("Best this year: Momentum leaders, +35.5% against +11.2% for the S&P 500 (backtested through Nov 9).");
     expect(read.insights[0].soWhat).toBe("Today's basket is 48% tech.");
     expect(read.insights[0].tickers).toEqual([]);

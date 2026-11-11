@@ -16,7 +16,7 @@ describe("the five places", () => {
   it("lists every app route under exactly one place", () => {
     const hrefs = PLACES.flatMap((item) => item.sections.map((sub) => sub.href));
     expect(new Set(hrefs).size).toBe(hrefs.length);
-    for (const href of ["/briefing", "/explore", "/movers", "/signals", "/news", "/calendar", "/portfolio", "/watchlist", "/watchlist/tax", "/practice", "/screener", "/best", "/sectors", "/compare", "/markets", "/filings", "/ask", "/themes", "/strategies", "/backtest", "/follow", "/insiders", "/agents"]) {
+    for (const href of ["/briefing", "/explore", "/movers", "/signals", "/news", "/calendar", "/portfolio", "/watchlist", "/watchlist/tax", "/practice", "/screener", "/best", "/sectors", "/compare", "/markets", "/filings", "/ask", "/themes", "/strategies", "/backtest", "/follow", "/insiders", "/agents", "/inbox"]) {
       expect(hrefs).toContain(href);
     }
   });
@@ -42,6 +42,7 @@ describe("placeFor and sectionFor", () => {
     expect(place("/follow/berkshire-hathaway")).toBe("Follow investors");
     expect(place("/insiders/NVDA")).toBe("Follow investors");
     expect(place("/agents/jobs")).toBe("Alerts & agents");
+    expect(place("/inbox")).toBe("Alerts & agents");
   });
 
   it("lights nothing outside the app's places", () => {
@@ -164,8 +165,8 @@ describe("stripOrder", () => {
   };
 
   it("puts the page you are on first, then the ones after it, then the ones before", () => {
-    expect(labels("/briefing")).toEqual(["Briefing", "Market today", "Why stocks moved", "Signals", "News", "Calendar"]);
-    expect(labels("/news")).toEqual(["News", "Calendar", "Briefing", "Market today", "Why stocks moved", "Signals"]);
+    expect(labels("/briefing")).toEqual(["Briefing", "Premarket", "Market today", "Why stocks moved", "Signals", "News", "Calendar"]);
+    expect(labels("/news")).toEqual(["News", "Calendar", "Briefing", "Premarket", "Market today", "Why stocks moved", "Signals"]);
     expect(labels("/movers/2026-11-10")[0]).toBe("Why stocks moved");
   });
 

@@ -35,6 +35,8 @@ If the last two ticks were polish, the next one must be a new capability or a st
 
 The user asked for Codex to criticise the work and for a 10/10 from it on: UI, UX, usability, human wording, and similarity to volaren.ai. After each meaningful build, start a fresh `delegate_task` to Codex (provider `codex`, role `review`) with: the pages to open on http://localhost:8000, the screenshot paths, the reference capture of volaren at the scratchpad `ref/volaren-desktop.png`, and this file. Ask for a score out of 10 per dimension with the specific reasons each one is not a 10. Log the scores here, fix what it finds, re-ask with a new delegate. Small findings: fix them directly, no delegate.
 
+Every judge (Codex and Cursor) and every builder gets `docs/owner-design-rules.md`: the owner's own feedback as a rubric. Judges list every break of it (page → element → rule) before suggesting anything, and never suggest what it forbids (per-card Ask icons, accordions, coloured edges).
+
 ## Builder conventions (every agent working on this reads these)
 
 THE RULE (owner, 2026-11-10): insights, not data. "i want insights thats what a user will pay for ... data is already there dont just show data .. show insights". Every page and panel leads with what the numbers mean: the read (a one-line headline plus up to three insights, each a sentence with its number, compared with a baseline such as yesterday, normal or peers, naming the stocks it touches and what to do), then the data underneath as evidence. Use `TheRead` / `InsightRow` from `components/oa/insight.tsx` and the types/helpers in `lib/insights.ts`; compute insights with plain rules in the loader from real data, never model-written numbers, and leave an insight out when the data cannot back it. Stocks first: news, filings and signals attach to stocks. No footnotes that explain our mechanics. Cards side by side are equal height (kit `CardGrid`).
@@ -168,19 +170,52 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 - [x] Open source readiness report done; going public blocked on owner decisions (key rotation, CSV, license): LICENSE, waitlist CSV in history, scrub private infra and personal identities, env example, README.
 - [ ] Share previews (OG cards) for every page family (in progress).
 - [ ] Speed: stock page and briefing fast and snappy (owner's main focus after the Nov 11 UI round). Structural rework in progress (ship 24): stock page 580KB → <200KB, markets 460KB, portfolio loaders.
-- [ ] Short interest (FINRA) as a data source: stock page read, screener/Ask, agent trigger (in progress).
-- [ ] Ship 23: Ask answer shape, Ask in context from every card, LocalDB keep-alive (preview deploy first).
+- [ ] Short interest (FINRA): blocked on terms. FINRA's equity data terms (Dec 2022, 2.2/2.3) allow non-commercial use only; the Reg SHO daily files say "free for non-commercial use". Owner decision: ask FINRA for written consent, or revisit after the free/open-source switch. Notes and PDFs in scratchpad/finra/. Build is ~1 day once cleared.
+- [ ] Inbox: built (bell + /inbox), ships with 24.
+- [ ] Premarket back in Today + briefing stock cards (in progress).
+- [ ] No-repetition sweep across every page (in progress).
+- [ ] Evidence-backed calls: built (lib/call-evidence.ts; stock page, backend what_would_change, Ask agree), ships with 24. Open: no quarterly revenue stored (sec_fundamentals --write), call_reason.py still says "if sales slow sharply" on briefing/compare/landing.
+- [ ] Emails rework: research competitors, council-scored rebuild, examples gallery (in progress).
+- [x] Steady calls in prod: working. Briefs are written by tikrr-open-briefs (after open-movers-price, ~14:57 UTC) and tikrr-close-briefs (~21:30 UTC); the first stabilised writes landed 15:08 UTC Nov 11 (16 state docs moved, history rows for AAOI/DELL/SOXL under tm_call_stability_history/{id}/calls/{day}). Gap: only ~150 of 719 briefs rebuild per day (--incremental, --brief-cap 160), so quiet stocks keep older briefs without the `stability` field until rebuilt; a cheap no-LLM pass could add it (product call).
+- [ ] Site chrome payload trim (~40KB per page) (in progress).
+- [x] Ship 23 + 23.1 live (Nov 11).
 
 ## Log
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
+
+### 2026-11-11 ~15:30 UTC, ship 23.2 live (e1caa22); first judging against the owner rubric (lead)
+
+- Owner asked to compile all their feedback for the judges: docs/owner-design-rules.md (13 sections, quotes; a rule break caps UI at 7; judges list breaks before suggestions). Builders get it too; memory judge-with-owner-rubric.
+- Ship 23.2 live: speed rework (live HTML /stock/NVDA 580 → 315KB, /explore 512 → 257KB, /markets 460 → 283KB, /portfolio signed out from the CDN copy), "More markets" as figure cards (owner hated the chevron rows), memo names the week's biggest driver, duplicate "Chat about it" removed, news themes show more headlines. QA qp232 fix: /markets as-of words pinned to the server's build time (overnight-cache hydration mismatch).
+- Judges on live 23.2 with the rubric (scratchpad/judge232/): Codex UI 6, UX 6, usability 6, wording 6, agent feel 6, similarity 6, overall 6. Cursor UI 5, UX 6, usability 6, wording 7, agent feel 6, similarity 5, overall 5. Lower than the 7.5 before because the rubric caps UI on any break; most breaks they list (chevrons, per-row links, briefing rows, premarket missing, hidden reasons) are fixed in the working tree for ship 24 or in flight.
+- Landed for ship 24: briefing stock cards + premarket page + "Before the open" rail card; app-wide no-repetition sweep (15 pages); inbox; chrome payload trim (17-29KB per page).
+- In flight: evidence-backed calls (+ stock page rubric breaks); rule 2 always-open rows (signals, insiders, portfolio findings, memo rows, earnings rows, memo call chips); rubric round 2 (read fold, explore movers as cards, news stock-first, home empty strip, briefing rail arrows).
+
+### 2026-11-11 ~14:45 UTC, Codex after ship 23.1; evidence-backed calls started (lead)
+
+- Codex judge on live 23.1 (CLI, 16 live screenshots; scratchpad/judge231/verdict.md): overall 7.5 (=), UI 8 (=), UX 7.5 (=), usability 7 (=), wording 7.5 (=), agent feel 7.5 (+0.5), similarity 7.5 (=). Top asks: specific sourced call rationale with measurable change conditions (NVDA: "if sales keep growing this fast" is unverifiable); prefilled portfolio-aware question + alert from each finding; phone agents page: sticky Save only once scrolled into the draft; memo leads with the biggest driver and keeps the data limitation visible; mobile first screens too long; rule breaks left: portfolio overview rows (chevrons, eye icons), movers/market/earnings lists as rows. Its "home says five reports" finding was false (live HTML says three everywhere).
+- Done: memo names the week's biggest driver under the headline (working tree, ship 24).
+- Started: evidence-backed calls (lib/call-evidence.ts: 2-3 sourced numbers per call and measurable conditions tied to the stability rule and next report; stock page, backend what_would_change and Ask agree). Agents phone sticky Save handed to the sweep builder.
+
+### 2026-11-11 ~14:20 UTC, ships 23 (57fdd10) and 23.1 (868c031) live; inbox and speed rework landed (lead)
+
+- Ship 23 live: Ask answers lead with the point + "Keep watching" card; Ask in context; My stocks agent checks open (checked / found / decided / next run); memo rows and chart days open their explanation (nothing written without a confirmed reason; the day panel shows the day's own move); signed-in briefing orders holdings first; LocalDB undici keep-alive (preview deploy first: no ECONNRESET/module errors). VPS pulled, undici 7.30.2 installed.
+- Owner feedback round (live review, Nov 11 ~13:50-14:00) → ship 23.1 live: no coloured top edges on cards; no Ask/chat icon on cards or briefing rows; read cards are whole-card links (no repeated link text); "Your agents" moved to the briefing's right rail; Signals tables 8 rows; memo cards always show their sentence (no "Why" toggle), no row chevrons, week list beside the chart only (scrolls inside its card), sections paired so no empty right column, lone cards fill their row; earnings season shows the last 4 post-report moves as numbers (dot strip removed), no row chevrons, and the "biggest move after a report" card only uses reports from the last 200 days (it led with a Sep 2025 Oracle move). QA qp231 fixes: rail clipping, lone-panel span, earnings screen-reader label.
+- Memory updated: compact-tables-and-rows now says NOTHING repeated per row/card, no top edges, cards over rows, agents in the rail, 8-10 row tables.
+- Short interest (FINRA) stopped before building: non-commercial terms. Owner decision.
+- Landed, not yet shipped (ship 24): Inbox (bell + /inbox; agent runs, call changes, insider buys, fired alerts, memo; read state in `inbox_seen_at` on the user's doc; call news starts at steady-calls switch-on, Nov 11); speed rework (stock page 571KB → 310KB, call in the first chunk ~0.6s cold vs ~1.1s; /markets 447 → 274KB; /explore 491 → 255KB; /portfolio signed out from the CDN copy) and "More markets" as six figure cards. Trade-off logged: non-Overview stock tabs and lower /markets sections now render client-side, so non-JS AI crawlers don't see that text.
+- In flight: briefing stock cards + premarket page in Today (owner: "where is premarket?"); app-wide no-repetition sweep; site chrome payload trim (~40KB per page).
+- Dev servers sharing the main tree's .next caused random 404s/chunk errors; verify ships from their own worktree server.
+- Steady calls: 757 state docs, 0 changes and 0 history rows so far.
 
 ### 2026-11-11 ~13:20 UTC (real clock), ship 23 waiting on Ask-in-context; speed rework and short interest started (lead)
 
 - Ask answer shape landed (short lead, evidence fold, "Keep watching" rule card; next check now says "after today's close"). Keep-alive re-test: Caddy host 0 errors, ~110ms vs ~300ms per round → ship 23 after one Vercel preview deploy.
 - QA on Ask-in-context relayed to its builder: week-chart role, quoted() abbreviation cuts, card Ask as a corner icon and off on simulation/import pages, no personal amounts in URLs, one "Set one up", plain wording for your own checks, chart footnote removed.
 - Live today, logged out: /stock/NVDA 580KB HTML (TTFB 0.1-0.2s), /markets 460KB, /portfolio example TTFB 0.4-0.6s / total 0.8-1.7s, /briefing 164KB.
-- Builders started (2): structural speed rework (stock page, markets, portfolio/briefing loaders: streamed sections, compact props, lazy charts, request-deduped reads; targets <200KB HTML, warm portfolio <0.3s TTFB); short interest from FINRA as a new data source (backend job → tm_short_interest, stock page read, screener or Ask tool).
+- Builders started (2): structural speed rework (stock page, markets, portfolio/briefing loaders: streamed sections, compact props, lazy charts, request-deduped reads; targets <200KB HTML, warm portfolio <0.3s TTFB); short interest from FINRA (stopped before building: non-commercial terms, owner decision). Replaced by an Inbox builder (bell + /inbox).
+- Ship 23 frozen at 2ca6350 (52 files): tsc 0, vitest 2375 with and without PAYWALL_V2, eslint clean. Memo panels no longer say "no confirmed reason" (owner rule). Vercel preview (tikrr-99kmkfiup): all pages 200, logs show no ECONNRESET/undici/module errors; a cold concurrent /portfolio hit timed out its sections at 6s (warm 2.7s, then normal) — handed to the speed rework. Combined QA running.
 - Steady calls: first stabilised brief runs at 13:35 UTC — check tm_call_stability changes/history after.
 
 ### 2026-11-11 ~13:50 UTC, Codex after ship 22; the loop builders started (lead)

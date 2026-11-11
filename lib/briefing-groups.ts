@@ -153,6 +153,22 @@ export function lineLabel(item: BriefingItem): string {
   return KIND_TAG[item.kind];
 }
 
+/**
+ * Call words as a reader sees them (owner rule): Buy more, Keep, Sell some. Briefings saved before the builder
+ * wrote these still carry the pipeline's Accumulate, Hold, Trim or Avoid, so the words are mapped here too.
+ */
+const CALL_WORDS: Record<string, string> = { accumulate: "Buy more", buy: "Buy more", add: "Buy more", hold: "Keep", watch: "Keep", trim: "Sell some", avoid: "Sell some", sell: "Sell some", reduce: "Sell some" };
+
+export function plainCallWord(word: string | null | undefined): string {
+  const value = (word ?? "").trim();
+  return CALL_WORDS[value.toLowerCase()] ?? value;
+}
+
+/** "from Trim to Accumulate" -> "from Sell some to Buy more": only the call words themselves. */
+function plainCallPhrase(text: string): string {
+  return text.replace(/\b(Accumulate|Hold|Trim|Avoid)\b/g, (word) => plainCallWord(word));
+}
+
 function capitalise(value: string): string {
   return value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
 }
@@ -177,7 +193,7 @@ export function lineText(item: BriefingItem): string {
   }
   if (item.kind === "call_changed" && ticker) {
     const match = new RegExp(`^The call on ${escapeRe(ticker)} changed (.+)$`).exec(headline);
-    if (match) return `Our call moved ${match[1]}.`;
+    if (match) return `Our call moved ${plainCallPhrase(match[1]!)}.`;
   }
   if (item.kind === "earnings_reported") {
     // "and is up 14.10% today": the header already shows the move.
@@ -227,6 +243,22 @@ function isQuote(entry: BriefingEvidence): boolean {
   return entry.source === "Market quote";
 }
 
+/** A zone headline saved before the plain words: "in its add zone: $20, below $21" -> "below its buy-more price: $20, under $21". */
+function plainZone(text: string): string {
+  return text
+    .replace(/\b(still )?in its add zone: (\S+), below\b/, (_, still = "", price) => `${still}below its buy-more price: ${price}, under`)
+    .replace(/\b(still )?in its trim zone: (\S+), above\b/, (_, still = "", price) => `${still}above its sell-some price: ${price}, over`)
+    .replace(/\bits add level\b/, "its buy-more level");
+}
+
+/** "below its buy-more price: $20.00, under $21" -> "At $20.00, it is under the buy-more price of $21." */
+function zoneSentence(text: string): string {
+  const match = /^(still )?(below|above) its (buy-more|sell-some) price: (\$[\d,.]+), (?:under|over) (\$[\d,.]+)$/.exec(text);
+  if (!match) return `${capitalise(text)}.`;
+  const [, still = "", side, which, price, level] = match;
+  return `At ${price}, it is ${still}${side === "below" ? "under" : "over"} the ${which} price of ${level}.`;
+}
+
 /** The headline as a predicate of the ticker beside it: "CBRS is in its add zone: $20" -> "In its add zone: $20". */
 function stripTicker(item: BriefingItem): string {
   const headline = item.headline.trim().replace(/\.$/, "");
@@ -234,20 +266,23 @@ function stripTicker(item: BriefingItem): string {
   return rest.replace(/^is (?=\S)/, "");
 }
 
-/** The decision in one plain sentence, ending in what to decide. Null when the item is not a decision. */
+/**
+ * The decision in one plain sentence: what happened and that it is yours. No question at the end (owner, Nov 11):
+ * the card says what changed, the opened card says what to check. Null when the item is not a decision.
+ */
 export function decisionText(item: BriefingItem): string | null {
   if (!isDecision(item)) return null;
   switch (item.kind) {
     case "call_changed": {
-      const to = item.metric?.trim();
-      return to ? `Our call moved to ${to}, and you hold it. Review?` : "Our call changed, and you hold it. Review?";
+      const to = plainCallWord(item.metric);
+      return to ? `Our call moved to ${to}, and you hold it.` : "Our call changed, and you hold it.";
     }
     case "zone_entered":
-      return `${capitalise(stripTicker(item))}. Act on the level?`;
+      return zoneSentence(plainZone(stripTicker(item)));
     case "alert_triggered":
-      return `${capitalise(stripTicker(item))}. Your alert fired; review it?`;
+      return `${capitalise(stripTicker(item))}. Your alert fired.`;
     case "earnings_upcoming":
-      return `${capitalise(stripTicker(item))}, and you hold it. Hold through the report?`;
+      return `${capitalise(stripTicker(item))}, and you hold it.`;
     default:
       return null;
   }

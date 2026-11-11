@@ -37,7 +37,7 @@ const NEWS_MAX_AGE_DAYS = 7;
 /** A move's reason in plain words, company first when the feed wrote the cause first ("Zeta rose after strong earnings"). */
 export function moveLine(item: { ticker: string; name: string; day_change_pct: number } & Parameters<typeof anomalyHeadline>[0]): string {
   // Feeds write some reasons in Title Case ("GTA VI Preorders Spark Take-Two's Rebound"); read them as a sentence.
-  const said = plainFinance(sentenceCase(anomalyHeadline(item)));
+  const said = plainFinance(sentenceCase(anomalyHeadline(item), item.name));
   const turned = companyFirstMove(said.replace(/\.$/, ""), item.day_change_pct, { company: { name: item.name, ticker: item.ticker } });
   const line = turned ? `${turned}.` : said;
   // Still a headline ("Take-Two rose after GTA VI Preorders"): the reason's own first sentence says it whole.

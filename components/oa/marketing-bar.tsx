@@ -1,3 +1,5 @@
+"use client";
+
 import type * as React from "react";
 
 import { MarketingLinks } from "@/components/oa/marketing-links";
@@ -14,6 +16,8 @@ import Link from "next/link";
  *
  * It never carries a filled button: the page under it owns the one filled
  * copper element (the hero search, the Pro plan).
+ *
+ * A client component so the RSC payload carries a reference, not the bar's markup.
  */
 export function MarketingBar({ account }: { account: React.ReactNode }) {
   return (

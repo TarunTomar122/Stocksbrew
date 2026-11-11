@@ -5,7 +5,6 @@ import { fmtDay, fmtStampET } from "@/components/oa/kit";
 import { Bar } from "@/components/oa/kit/skeleton";
 import { ToneGlyph } from "@/components/oa/kit/tone";
 import { findingSlug } from "@/components/portfolio-home/agents-panel";
-import { phoneReason } from "@/components/portfolio-home/phone-reason";
 import { HomeSignIn } from "@/components/portfolio-home/sign-in";
 import { StockLogo } from "@/components/stock-logo";
 import { ASK_MAX_QUESTION_CHARS } from "@/lib/ask-config";
@@ -14,19 +13,20 @@ import { newYorkToday } from "@/lib/portfolio-data";
 import { focusHeadline, focusNoticed, prioritise, type FoldRow, type Lead } from "@/lib/portfolio-home/focus";
 import { buildAgentLog, dataChecks, type LogRow } from "@/lib/portfolio-home/log";
 import { loadExampleAgentsSource } from "@/lib/portfolio-home/example-check-server";
-import { askFor, exampleWatchLine, findingLoop, findingWatchLine, foldedCheckIds, matchAgent, nextWords, stampWords, watchPlan, type FindingLoop, type WatchPlan } from "@/lib/portfolio-home/loop";
+import { askFor, exampleWatchLine, findingLoop, findingWatchLine, matchAgent, stampWords, type FindingLoop } from "@/lib/portfolio-home/loop";
 import type { FindingSource } from "@/lib/portfolio-home/pick";
-import { pickQuestions } from "@/lib/portfolio-home/questions";
+import { MAX_QUESTIONS, pickQuestions } from "@/lib/portfolio-home/questions";
 import { feedSources, type ExampleReason, type HomeLoad } from "@/lib/portfolio-home/server";
 
 /**
  * The My stocks overview, laid out as an agent reporting to the person: the
- * two or three changes that need them, each a compact card with one next step
- * that opens to its loop (the evidence with its source and date, a question
- * for Ask, and the watch: the rule, the last check and the next one), and one
- * fold with everything else; an Ask box with more questions drawn from their
- * holdings; and a short dated log of the other checks and what is coming up.
- * Each part waits only for the sources it reads (lib/portfolio-home/server.ts).
+ * two or three changes that need them, each a card with everything in view
+ * (the headline, why it matters, the evidence with its source and date, and
+ * whether a watch covers it), the card itself opening the page where the
+ * decision is made; then everything else the agent looked at, listed; an Ask
+ * box (the page's one Ask) with questions drawn from the findings and the
+ * holdings; and a short dated log of the checks and what is coming up. Each
+ * part waits only for the sources it reads (lib/portfolio-home/server.ts).
  */
 
 const FOCUS = "outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]";
@@ -76,37 +76,10 @@ export async function ExampleLine({ load }: { load: HomeLoad }) {
 
 /* ── what needs you ────────────────────────────────────────────────────── */
 
-const CHEVRON = (
-  <svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12" className="shrink-0 text-oa-muted-fg transition-transform group-open:rotate-180">
-    <path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
-
-/** One row of a finding's loop: a short word on the left, the line on the right (styled once on the list, LOOP). */
-function LoopRow({ term, children }: { term: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <dt>{term}</dt>
-      <dd>{children}</dd>
-    </div>
-  );
-}
-
-const LOOP =
-  "flex flex-col gap-2 rounded border border-oa-border bg-oa-bg px-3 py-2.5 text-[13px] leading-[18px] [&>div]:grid [&>div]:grid-cols-[4.75rem_minmax(0,1fr)] [&>div]:gap-x-3 [&_dd]:min-w-0 [&_dd]:text-pretty [&_dt]:text-[12.5px] [&_dt]:text-oa-muted-fg";
-
 /** "Earnings calendar, Nov 9 at 3:13 PM ET." */
 function sourceWords(source: FindingSource): string {
   const when = stampWords(source.at, source.day);
   return when ? `${source.label}, ${when}.` : `${source.label}.`;
-}
-
-function ruleLink(plan: Extract<WatchPlan, { kind: "agent" }>, href: string) {
-  return (
-    <Link href={href} prefetch={false} data-track-target="watch" className={LINK}>
-      {plan.request}
-    </Link>
-  );
 }
 
 /** The tickers the person tracks (the watchlist scope of an agent covers these). */
@@ -115,33 +88,9 @@ function trackedTickers(tracked: string[] | undefined): Set<string> {
 }
 
 /**
- * The watch, open: the rule that would keep watching the finding (opening the
- * person's agent when one already has it), then when it is checked next, only
- * when the run log proves the after-close runner is running. Whether it is
- * covered, and what the watch last found, shows on the card closed (FindingWatch).
- */
-async function WatchRows({ plan, ticker, load, today }: { plan: WatchPlan; ticker: string | null; load: HomeLoad; today: string }) {
-  const [{ mode, viewer }, agents] = await Promise.all([load.context, load.agents]);
-  const match = mode === "mine" && agents.state === "ready" ? matchAgent(plan, ticker, agents.value, trackedTickers(viewer.tracked), today) : null;
-  return (
-    <>
-      <LoopRow term="Watch">{plan.kind === "reasons" ? plan.text : ruleLink(plan, match ? `/agents?job=${encodeURIComponent(match.id)}` : plan.href)}</LoopRow>
-      {match?.next ? <LoopRow term="Next check">{nextWords(match.next, today)}</LoopRow> : null}
-    </>
-  );
-}
-
-const EYE = (
-  <svg aria-hidden="true" width="13" height="13" viewBox="0 0 16 16" className="mt-[2px] shrink-0">
-    <path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8Z" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
-    <circle cx="8" cy="8" r="2" fill="currentColor" />
-  </svg>
-);
-
-/**
- * Beside each finding, closed or open: whether a watch covers it and what that
- * watch last found, linking to the run when it fired (lib/portfolio-home/loop.ts
- * findingWatchLine). Waits only for the person's agents.
+ * Under each finding: whether a watch covers it and what that watch last found, linking to the run when it fired
+ * (lib/portfolio-home/loop.ts findingWatchLine). When nothing watches it yet, the rule that would, as the one link
+ * (its words are the finding's own, so no two cards say the same). Waits only for the person's agents.
  */
 async function FindingWatch({ item, loop, load, today }: { item: Lead; loop: FindingLoop; load: HomeLoad; today: string }) {
   const [{ mode, viewer }, agents] = await Promise.all([load.context, load.agents]);
@@ -151,8 +100,9 @@ async function FindingWatch({ item, loop, load, today }: { item: Lead; loop: Fin
   // finding one of them watches says so (with its real last check) instead of "No agent watches this yet".
   const noOwnAgents = !viewer.uid || agents.state === "empty" || (agents.state === "ready" && agents.value.jobs.length === 0);
   const exampleAgents = !mine && noOwnAgents ? await loadExampleAgentsSource() : null;
+  const exampleLine = exampleAgents ? exampleWatchLine({ plan: loop.watch, ticker: item.ticker, agents: exampleAgents, today }) : null;
   const line =
-    (exampleAgents ? exampleWatchLine({ plan: loop.watch, ticker: item.ticker, agents: exampleAgents, today }) : null) ??
+    exampleLine ??
     findingWatchLine({
       plan: loop.watch,
       match,
@@ -162,77 +112,51 @@ async function FindingWatch({ item, loop, load, today }: { item: Lead; loop: Fin
       reasonDay: loop.check?.id === "reasons" ? loop.check.day : null,
       today,
     });
-  if (!line) return null;
+  // Nothing watches it, and an agent could: offer that one rule (it opens the agent box filled in; nothing is saved yet).
+  const setUp = !exampleLine && !match && loop.watch?.kind === "agent" && agents.state !== "slow" && agents.state !== "failed" ? loop.watch : null;
+  if (!line && !setUp) return null;
   return (
-    <p className={`mb-1 flex items-start gap-1.5 text-pretty text-[12.5px] leading-[17px] ${line.fired ? "text-oa-fg" : "text-oa-muted-fg"}`}>
-      <span className={line.fired ? "text-oa-primary" : undefined}>{EYE}</span>
-      <span>
-        {line.text}
-        {line.link ? (
-          <>
-            {" "}
-            <Link href={line.link.href} prefetch={false} data-track-target="agent-run" className={LINK}>
-              {line.link.label}
-            </Link>
-          </>
-        ) : null}
-      </span>
+    // No eye icon in front of every card's watch line (owner rule 1); the words say it.
+    // Only its links sit above the card's link; the words stay part of the card.
+    <p className={`mt-1.5 text-pretty text-[12.5px] leading-[17px] ${line?.fired ? "text-oa-fg" : "text-oa-muted-fg"} [&_a]:relative [&_a]:z-[1]`}>
+      {line ? line.text : null}
+      {line?.link ? (
+        <>
+          {" "}
+          <Link href={line.link.href} prefetch={false} data-track-target="agent-run" className={LINK}>
+            {line.link.label}
+          </Link>
+        </>
+      ) : null}
+      {setUp ? (
+        <>
+          {line ? " " : null}
+          <Link
+            href={setUp.href}
+            prefetch={false}
+            data-track-target="watch"
+            title="We read it back to you on the agents page before anything is saved."
+            className={LINK}
+          >
+            {setUp.request}
+          </Link>
+        </>
+      ) : null}
     </p>
   );
 }
 
-/** The step under a finding; when it would set up an agent the person already has, it opens that agent instead. */
-async function PrimaryStep({ item, load, today }: { item: Lead; load: HomeLoad; today: string }) {
-  let { label, href } = item.action;
-  let watch = item.action.kind === "watch";
-  if (watch) {
-    const [{ mode, viewer }, agents] = await Promise.all([load.context, load.agents]);
-    if (mode === "mine" && agents.state === "ready") {
-      const tracked = trackedTickers(viewer.tracked);
-      const match = matchAgent(watchPlan(item, mode), item.ticker, agents.value, tracked, today);
-      if (match) {
-        label = `Open your agent “${match.name}”`;
-        href = `/agents?job=${encodeURIComponent(match.id)}`;
-        // It opens an agent that exists; nothing is read back or saved.
-        watch = false;
-      }
-    }
-  }
-  return <StepLink label={label} href={href} watch={watch} />;
-}
-
-function StepLink({ label, href, watch }: { label: string; href: string; watch: boolean }) {
-  return (
-    <Link
-      href={href}
-      prefetch={false}
-      data-track-target={watch ? "watch" : "action"}
-      title={watch ? "We read it back to you on the agents page before anything is saved." : undefined}
-      className={`inline-flex min-h-8 max-w-full items-center gap-1 text-pretty text-left text-[14px] font-medium leading-[19px] text-oa-primary hover:underline ${FOCUS} rounded`}
-    >
-      {label}
-      <span aria-hidden="true">→</span>
-    </Link>
-  );
-}
-
 /**
- * One finding, compact: the stock, a short headline and one step. It opens to
- * the loop: the evidence with its source and date, a question for Ask, and the
- * watch. From sm up the explanation and the evidence also show closed, as before.
+ * One finding, everything in view (owner rule 2: nothing to open to read it): the stock, the headline, why it
+ * matters, the evidence with its source and date, and the watch. The card is the link, to the page where the
+ * decision is made; the only other link on it is the watch's, when there is one.
  */
 function FindingCard({ item, loop, load, today }: { item: Lead; loop: FindingLoop; load: HomeLoad; today: string }) {
   const headline = item.headline ?? item.text;
   const why = item.headline ? (item.why ?? null) : null;
-  const reason = phoneReason(item, headline);
   const slug = findingSlug(item.id);
-  const check = loop.check;
   const source = item.source ?? null;
   const sourceLine = source ? sourceWords(source) : null;
-  // The last check already gives the same time (the calendar capture, the close the prices are from).
-  const sourceRow = sourceLine && !(check && stampWords(source!.at, source!.day) === stampWords(check.at, check.day));
-  // When the step sets up an agent, the open card shows that request under Watch; the page with the evidence takes its place.
-  const sameAsWatch = item.action.kind === "watch" && loop.watch?.kind === "agent";
   return (
     <li
       id={`finding-${slug}`}
@@ -240,86 +164,44 @@ function FindingCard({ item, loop, load, today }: { item: Lead; loop: FindingLoo
       data-track-insight-id={item.id.slice(0, 80)}
       data-track-insight-kind={`home-${item.tool}`}
       data-track-tone={item.tone}
-      className="scroll-mt-20 [&:has(>details[open])_[data-open-only]]:inline [&:has(>details[open])_[data-same-as-watch]]:hidden"
+      className="relative scroll-mt-20 px-4 py-3 transition-colors hover:bg-oa-accent target:bg-oa-accent sm:px-5 sm:py-3.5"
     >
-      <details className="group">
-        <summary
-          aria-label={headline}
-          // The name stays short; the explanation and evidence come through as its description.
-          aria-describedby={why || item.evidence || sourceLine ? `finding-${slug}-more` : undefined}
-          className={`grid cursor-pointer list-none grid-cols-[minmax(0,1fr)_12px] gap-x-3 px-4 pt-3 transition-colors hover:bg-oa-accent sm:px-5 sm:pt-3.5 [&::-webkit-details-marker]:hidden ${FOCUS}`}
-        >
-          <span className="min-w-0">
-            <span className="flex min-w-0 items-center gap-1.5 text-[13px] leading-[18px] text-oa-muted-fg">
-              {item.ticker ? (
-                <>
-                  <StockLogo ticker={item.ticker} size={18} eager />
-                  <span className="oa-mono font-medium tabular-nums text-oa-fg">{item.ticker}</span>
-                  <span aria-hidden="true">·</span>
-                </>
-              ) : (
-                <ToneGlyph tone={item.tone} />
-              )}
-              <span className="truncate">{item.caption}</span>
-            </span>
-            <span className="mt-1 block text-pretty text-[15px] font-medium leading-[21px] text-oa-fg">{headline}</span>
-            {/* A phone shows one short reason closed; open, the full explanation below takes its place. */}
-            {reason ? <span className="mt-0.5 block text-pretty text-[13.5px] leading-[18px] text-oa-muted-fg group-open:hidden sm:hidden">{reason}</span> : null}
-            {/* Shown closed from sm up (the desktop density); on a phone they open with the card. */}
-            <span id={`finding-${slug}-more`}>
-              {why ? <span className="mt-1 hidden text-pretty text-[14px] leading-5 text-oa-fg group-open:block sm:block">{why}</span> : null}
-              {item.evidence || sourceLine ? (
-                <span className="mt-1 hidden text-pretty text-[13px] leading-[19px] text-oa-muted-fg group-open:block sm:block">
-                  {item.evidence}
-                  {/* Closed on a desktop, the source and its date sit with the numbers; open, the loop below says them. */}
-                  {sourceLine ? <span className="group-open:hidden"> {sourceLine}</span> : null}
-                </span>
-              ) : null}
-            </span>
-          </span>
-          <span className="mt-[3px] flex h-[14px] items-center">{CHEVRON}</span>
-        </summary>
-        <div className="px-4 pb-1.5 pt-2 sm:px-5" id={`finding-${slug}-loop`}>
-          <dl className={LOOP}>
-            {sourceRow ? <LoopRow term="Source">{sourceLine}</LoopRow> : null}
-            {loop.ask ? (
-              <LoopRow term="Ask">
-                <Link href={loop.ask.href} prefetch={false} data-track-target="ask" className={LINK}>
-                  {loop.ask.question}
-                </Link>
-              </LoopRow>
-            ) : null}
-            {loop.watch ? (
-              <Suspense fallback={<LoopRow term="Watch">{loop.watch.kind === "reasons" ? loop.watch.text : ruleLink(loop.watch, loop.watch.href)}</LoopRow>}>
-                <WatchRows plan={loop.watch} ticker={item.ticker} load={load} today={today} />
-              </Suspense>
-            ) : null}
-            {check ? (
-              <LoopRow term="Last check">
-                <span className="oa-mono whitespace-nowrap text-[12.5px] tabular-nums text-oa-muted-fg">{stampWords(check.at, check.day)}</span> {check.text}
-                {check.changed ? ` ${check.changed}` : ""}
-              </LoopRow>
-            ) : null}
-          </dl>
-        </div>
-      </details>
-      <div className="px-4 pb-2.5 pt-1 sm:px-5">
-        {loop.watch || item.ticker ? (
-          <Suspense fallback={null}>
-            <FindingWatch item={item} loop={loop} load={load} today={today} />
-          </Suspense>
-        ) : null}
-        <span data-same-as-watch={sameAsWatch ? "" : undefined}>
-          <Suspense fallback={<StepLink label={item.action.label} href={item.action.href} watch={item.action.kind === "watch"} />}>
-            <PrimaryStep item={item} load={load} today={today} />
-          </Suspense>
-        </span>
-        {sameAsWatch ? (
-          <span data-open-only="" className="hidden">
-            <StepLink label={item.open.label} href={item.open.href} watch={false} />
+      <span className="flex min-w-0 items-center gap-1.5 text-[13px] leading-[18px] text-oa-muted-fg">
+        {item.ticker ? (
+          <>
+            <StockLogo ticker={item.ticker} size={18} eager />
+            <span className="oa-mono font-medium tabular-nums text-oa-fg">{item.ticker}</span>
+            <span aria-hidden="true">·</span>
+          </>
+        ) : (
+          <ToneGlyph tone={item.tone} />
+        )}
+        <span className="truncate">{item.caption}</span>
+      </span>
+      <Link
+        href={item.open.href}
+        prefetch={false}
+        data-track-target="action"
+        aria-describedby={why || item.evidence || sourceLine ? `finding-${slug}-more` : undefined}
+        className={`mt-1 block w-fit text-pretty text-[15px] font-medium leading-[21px] text-oa-fg after:absolute after:inset-0 after:content-[''] hover:underline ${FOCUS} rounded`}
+      >
+        {headline}
+      </Link>
+      <span id={`finding-${slug}-more`} className="block">
+        {why ? <span className="mt-1 block text-pretty text-[14px] leading-5 text-oa-fg">{why}</span> : null}
+        {item.evidence || sourceLine ? (
+          <span className="mt-1 block text-pretty text-[13px] leading-[19px] text-oa-muted-fg">
+            {item.evidence}
+            {item.evidence && sourceLine ? " " : null}
+            {sourceLine}
           </span>
         ) : null}
-      </div>
+      </span>
+      {loop.watch || item.ticker ? (
+        <Suspense fallback={null}>
+          <FindingWatch item={item} loop={loop} load={load} today={today} />
+        </Suspense>
+      ) : null}
     </li>
   );
 }
@@ -402,24 +284,15 @@ export async function FocusCard({ load }: { load: HomeLoad }) {
         </p>
       )}
       {fold.length > 0 ? (
-        <details className="group border-t border-oa-border">
-          <summary
-            className={`flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-4 py-2 text-[14px] font-medium text-oa-fg transition-colors hover:bg-oa-accent sm:px-5 [&::-webkit-details-marker]:hidden ${FOCUS}`}
-          >
-            <span>
-              <span className="group-open:hidden">Show the other {fold.length} things the agent looked at</span>
-              <span className="hidden group-open:inline">Everything else the agent looked at</span>
-            </span>
-            <svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12" className="shrink-0 text-oa-muted-fg transition-transform group-open:rotate-180">
-              <path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </summary>
-          <ul className="scrollbar-hide max-h-[31rem] divide-y divide-oa-border overflow-y-auto overscroll-contain border-t border-oa-border">
+        <div className="border-t border-oa-border">
+          <h3 className="px-4 pb-1 pt-3 text-[14.5px] font-semibold leading-5 text-oa-fg sm:px-5">Everything else the agent looked at</h3>
+          {/* About eight rows, then it scrolls inside with no bar showing (owner rule 5). */}
+          <ul className="scrollbar-hide max-h-[29rem] divide-y divide-oa-border overflow-y-auto overscroll-contain">
             {fold.map((row) => (
               <FoldItem key={row.key} row={row} />
             ))}
           </ul>
-        </details>
+        </div>
       ) : null}
       {slow + failed > 0 && noticed.length > 0 ? <p className="border-t border-oa-border px-4 py-2.5 text-[12.5px] leading-[18px] text-oa-muted-fg sm:px-5">{leftOutWords(slow, failed)}</p> : null}
     </section>
@@ -454,15 +327,19 @@ async function AskSuggestions({ load }: { load: HomeLoad }) {
   const noticed = focusNoticed(sources, mode);
   const { lead } = prioritise(noticed, sources, mode);
   const leadIds = new Set(lead.map((item) => item.id));
-  // Each lead finding already carries its own question; the box offers the others.
-  const skip = lead.map((item) => askFor(item, mode)?.question).filter((question): question is string => Boolean(question));
-  const questions = pickQuestions({
+  // This box is the page's one Ask (owner rule 1): the lead findings' own questions come first, then the others.
+  const fromLead = lead
+    .map((item) => askFor(item, mode))
+    .filter((ask): ask is NonNullable<typeof ask> => Boolean(ask))
+    .slice(0, 2);
+  const rest = pickQuestions({
     lead: [],
     rest: noticed.filter((item) => !leadIds.has(item.id)),
     sources,
     mode,
-    skip,
+    skip: fromLead.map((ask) => ask.question),
   });
+  const questions = [...fromLead, ...rest].slice(0, MAX_QUESTIONS);
   if (questions.length === 0) return null;
   return (
     <ul aria-label="Questions to ask" className="mt-3 flex flex-col gap-1.5">
@@ -598,9 +475,8 @@ export async function AgentLogPanel({ load }: { load: HomeLoad }) {
   const { memo, reasons, season } = sources;
   const mine = mode === "mine";
   const today = newYorkToday();
-  // A check that explains a lead finding is shown on that finding; the log keeps the rest.
-  const { lead } = prioritise(focusNoticed(sources, mode), { ...sources, goal }, mode);
-  const omit = foldedCheckIds(lead, dataChecks({ ...sources, goal }, mode, today));
+  // Every check is listed here: the finding cards say what was found, the log what was checked and when.
+  const omit = new Set<string>();
   // The agents panel lists the reason watcher with its last check, so the log leaves that row out for a person's own stocks.
   if (mine && reasons?.state === "ready" && reasons.value.checks.length > 0) omit.add("reasons");
   // The person's agents, their runs and their next check are in the agents panel (./agents-panel.tsx), so the log is the data checks and what is coming up.

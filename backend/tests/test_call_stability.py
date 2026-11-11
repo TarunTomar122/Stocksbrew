@@ -194,20 +194,24 @@ class RuleTest(unittest.TestCase):
         earliest = cs.short_day(cs.add_sessions(DAYS[START], cs.DEFAULT_RULES.min_hold_sessions))
         self.assertIn(f"until at least {earliest}", text)
         self.assertIn(f"its {cs.short_day(DAYS[START + 10])} results", text)
-        self.assertIn("a market sell-off", text)
-        self.assertIn("a sharp drop", text)
-        # No mechanics in the copy: no day counts, percentages or rule words.
+        # Measurable: the market drop and this stock's own bar, the numbers the rule uses.
+        self.assertIn("a week in which the S&P 500 falls 4%", text)
+        sigma = cs.daily_swing(facts(upto=DAYS[START]))
+        day_bar = round(cs.DEFAULT_RULES.move_sigma * sigma * 100)
+        week_bar = round(cs.DEFAULT_RULES.move_sigma * sigma * 5 ** 0.5 * 100)
+        # From Buy more only a fall can fast-track a change.
+        self.assertIn(f"a day in which it falls {day_bar}% more than the S&P 500, a week in which it falls {week_bar}% more", text)
+        # No mechanics in the copy: no day counts or rule words.
         self.assertNotIn("trading days", text)
-        self.assertNotIn("%", text)
+        self.assertNotIn("sigma", text)
         self.assertIn("we'd move to Keep", text.replace("We'd", "we'd"))
-        self.assertIn("a sharp drop", text)  # from Buy more only a fall can fast-track a change
         # A Sell some call cannot be lowered by a market drop, so the text does not offer it.
         state, views = run([(DAYS[START], "trim")])
         later = DAYS[START + 30]
         text = cs.what_would_change(state, later, facts(upto=later), "Acme")
-        self.assertNotIn("market sell-off", text)
+        self.assertNotIn("the S&P 500 falls", text)
         self.assertTrue(text.startswith("We'd move to Keep if the case for selling fades for a few days"))
-        self.assertIn("a sharp rise", text)
+        self.assertIn("in which it rises", text)
         self.assertIn("or sooner after", text)
 
     def test_a_hard_reason_moves_only_as_far_as_both_days_agree(self) -> None:

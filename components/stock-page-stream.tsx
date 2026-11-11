@@ -80,6 +80,8 @@ import { getGroupMove, getMarketDay, getStockGroup } from "@/lib/insight-data";
 import { etDay, fin } from "@/lib/insight-format";
 import { getDailySeries } from "@/lib/screener-series";
 import { getScreenerSymbolContext } from "@/lib/screener";
+import { buildCallEvidence, type CalendarReport, type ResultsReport } from "@/lib/call-evidence";
+import { callEvidenceInput, getResultsReports, lastStepOn } from "@/lib/call-evidence-data";
 
 export const revalidate = 60;
 
@@ -255,6 +257,9 @@ export async function StockPageStream({ params }: Props) {
       onDemandJob: true,
       earningsIntel: directNeeded.earnings_intel,
       preEarnings: directNeeded.pre_earnings,
+      // The steady call's state rides in the same batch: most briefs predate the steady call and carry no
+      // `stability`, so this says how long their call has stood (lib/stock-read.ts `stabilityFromState`). US only.
+      callStability: isUS,
     }).catch(() => null),
   );
   const intelProPromise = Promise.all([resolvedViewPromise, intelProDirectPromise]).then(
@@ -282,6 +287,8 @@ export async function StockPageStream({ params }: Props) {
   }).catch(() => [] as SectorPeerRow[]);
   // This company's own slice of the screener snapshot: the reason under the call and its as-of day (US only).
   const screenerContextPromise = isUS ? getScreenerSymbolContext(stock.ticker).catch(() => null) : Promise.resolve(null);
+  // The results reports the call's sales figure is dated by (lib/call-evidence.ts). US only, like the filings.
+  const resultsReportsPromise = isUS ? getResultsReports(stock.ticker).catch(() => [] as ResultsReport[]) : Promise.resolve([] as ResultsReport[]);
   // The read's baselines (stored closes for the stock and SPY, SPY's live move, the stock's group's move).
   // US only: SPY is the wrong yardstick for an Indian stock.
   const quoteDay = etDay(stock.captured_at);
@@ -334,6 +341,7 @@ export async function StockPageStream({ params }: Props) {
     docBundle,
     screenerContext,
     insightBase,
+    resultsReports,
   ] = await Promise.all([
     viewerPromise,
     userDocPromise,
@@ -343,6 +351,7 @@ export async function StockPageStream({ params }: Props) {
     docBundlePromise,
     screenerContextPromise,
     insightBasePromise,
+    resultsReportsPromise,
   ]);
   const tracked = Array.isArray(userDoc?.tracked_stocks)
     ? userDoc.tracked_stocks.filter((id): id is string => typeof id === "string")
@@ -418,7 +427,7 @@ export async function StockPageStream({ params }: Props) {
     ? { text: screenerRow.call_reason, call: screenerRow.call ?? null, source: screenerRow.call_reason_source ?? null, asOf: screenerAsOf }
     : null;
   const fullRead =
-    hasFullAnalysisAccess && !isPriceStaleBrief ? buildStockRead(intelligence, { companyReason, callChanges: callChanges(callHistory) }) : null;
+    hasFullAnalysisAccess && !isPriceStaleBrief ? buildStockRead(intelligence, { companyReason, callChanges: callChanges(callHistory), steadyState: docBundle?.callStability ?? null }) : null;
   // Strip the levels here so they never reach the browser for an uncovered stock.
   // A brief written from a bot wall or an error page says nothing about the
   // company. Now that the read is open to everyone, hold those back.
@@ -597,6 +606,29 @@ export async function StockPageStream({ params }: Props) {
     asOf: stock.captured_at ?? null,
   });
 
+  // The evidence under the call and what would change it, from stored numbers only (lib/call-evidence.ts). The
+  // conditions are "what would change the call", which comes with covering the stock, so nobody else is sent them.
+  const callEvidence =
+    readState === "ready" && read && isUS
+      ? buildCallEvidence(
+          callEvidenceInput({
+            ticker: stock.ticker,
+            call: read.call,
+            today,
+            price: fin(stock.price) && stock.price > 0 ? stock.price : null,
+            facts: stockFacts,
+            reports: resultsReports,
+            calendar: earningsDates as unknown as CalendarReport[],
+            series: insightBase?.[0]?.series ?? null,
+            priceSource: insightBase?.[0]?.source ?? null,
+            row: screenerRow,
+            next: nextEarnings,
+            steady: read.steadySince ? { since: read.steadySince, lastStep: read.steadyStep ?? lastStepOn(changes, read.steadySince) } : null,
+          }),
+        )
+      : null;
+  if (callEvidence && !hasLevels) callEvidence.conditions = [];
+
   const data: ReportData = {
     stock: displayStock,
     market,
@@ -651,6 +683,7 @@ export async function StockPageStream({ params }: Props) {
     },
     premarketQuote,
     insightRead,
+    callEvidence,
   };
 
   // ── the lower half: what changed and the sections, once their own reads are in ──

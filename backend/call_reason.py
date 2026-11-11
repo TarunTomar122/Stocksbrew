@@ -25,6 +25,7 @@ event from the brief.
 from __future__ import annotations
 
 import json
+import math
 import re
 from datetime import date, datetime, timezone
 from typing import Any
@@ -595,7 +596,8 @@ def compose_fallback_reason(
         lead = worry or bad
         if not lead and earn_kind.startswith("reported_miss"):
             lead = "the latest report fell short"
-        tail = "so we'd stay out for now" if stance == "avoid" else "so we wouldn't buy more, and we'd sell some if it bounces"
+        # No "if it bounces": a condition nobody can check (owner, Nov 11). The level that says where lives in the zones.
+        tail = "so we'd stay out for now" if stance == "avoid" else "so we'd sell some rather than buy more"
         if lead and good and with_extras:
             return f"{_cap(lead)}, even though {good}, {tail}."
         if lead:
@@ -680,8 +682,8 @@ def call_reason_text(directive: Any) -> str:
 # call. No model is involved, so every number is one we computed.
 #
 # Share prices never appear: levels are part of the paid report, and the
-# reason is shown to everyone. "A drop into our buy range" says the same thing
-# without the number.
+# reason is shown to everyone. The condition that would change the call is
+# only ever one someone can check after the fact (``_change_sentence``).
 
 COMPANY_REASON_MAX_CHARS = 300
 
@@ -1056,8 +1058,35 @@ def _pick(bucket: str, move: _Fact | None, good: list[_Fact], bad: list[_Fact], 
     return (flat[0] if flat else range_fact), None, ""
 
 
+def growth_bars(growth: float | None, last_year: float | None = None) -> dict[str, float | None]:
+    """The sales growth bars a report is measured against, the same rule as the web stock page
+    (lib/call-evidence.ts ``growthBars``).
+
+    ``up``: holding the pace, the slower of today's growth and last year's (when last year was at least
+    half of today's). ``down``: a sharp slowdown, growth halving; slow growers only count shrinking sales
+    (0). ``recover``: back on track for a sell call, sales growing again (0) or back to last year's faster
+    pace. Each is None when the numbers can't set it.
+    """
+    if growth is None:
+        return {"up": None, "down": None, "recover": None}
+    g0, g1 = growth, last_year
+    up = math.floor(g1 if g1 is not None and g1 < g0 and g1 >= g0 / 2 else g0) if g0 >= 2 else None
+    # Half up, as JavaScript's Math.round does (Python's round(10.5) is 10), so both sides print the same bar.
+    down: float | None = (min(math.floor(g0 / 2 + 0.5), up if up is not None else math.inf) if g0 >= 10 else 0) if g0 >= 2 else None
+    recover = 0 if g0 < 0 else (math.floor(g1) if g1 is not None and g1 - g0 > 2 else None)
+    return {"up": up, "down": down, "recover": recover}
+
+
 def _change_sentence(facts: dict[str, Any], bucket: str, stance: str, used: list[_Fact], today: date, subject: str) -> str:
-    """The event or condition that would change the call."""
+    """What would change the call, as a condition someone can check after the report: a profit beat or miss
+    against forecasts, sales growth against a stated bar, or the P/E against its stated usual level.
+
+    Owner, Nov 11: every condition names something checkable. Nothing vague ("if sales slow sharply", "once
+    the price settles back", "after a lower price") and no review dates that are not conditions ("we'd look
+    again after ..."). The stock's own move and market bars live with the steady call
+    (backend/call_stability.py ``what_would_change``) and the stock page (lib/call-evidence.ts), which
+    have the price history to set them.
+    """
     report_day = _iso_date(facts.get("next_report"))
     dated = report_day is not None and 0 <= (report_day - today).days <= 100
     when = f"the {_say_date(report_day)} report" if dated and report_day else f"{_possessive(subject)} next report"
@@ -1066,54 +1095,40 @@ def _change_sentence(facts: dict[str, Any], bucket: str, stance: str, used: list
     by_key = {fact.key: fact for fact in used}
     growth = by_key.get("growth")
     sales = growth.number if growth is not None else None
+    # Last year's growth, when the facts carry it; without it the bars come from today's pace alone.
+    bars = growth_bars(sales, _num(facts.get("rev_growth_last_year")))
     valuation = by_key.get("valuation")
-    has_zone = bool(facts.get("has_add_level"))
-    event = _clean(facts.get("next_event"))
-    event_day = _iso_date(facts.get("next_event_date"))
-    event_text = f"{event} on {_say_date(event_day)}" if event and event_day and event_day >= today else ""
+    misses = f"{when} misses profit forecasts"
 
     if bucket == "add":
-        execution = str(facts.get("execution") or "").lower()
-        if "move" in by_key and by_key["move"].tone == "up" and execution not in ("now", ""):
-            return f"After that rise we'd buy on a dip rather than now, and stop buying if {when} misses forecasts."
-        if growth is not None and sales is not None and sales >= 15:
-            return f"We'd stop buying if {when} shows sales growth slowing sharply from {_pct(sales)}."
-        if growth is not None and sales is not None and sales >= 3:
-            return f"We'd stop buying if {when} shows sales shrinking or misses forecasts."
+        if growth is not None and bars["down"]:
+            return f"We'd stop buying if {when} shows sales growth below {bars['down']:.0f}% or misses profit forecasts."
+        if growth is not None and bars["down"] == 0:
+            return f"We'd stop buying if {when} shows sales shrinking or misses profit forecasts."
         if valuation is not None and valuation.tone == "good" and median:
-            return f"We'd stop buying if the P/E climbs back above {_times(median)} or {when} misses forecasts."
+            return f"We'd stop buying if the P/E climbs back above {_times(median)} or {misses}."
         if "dividend" in by_key:
-            return f"We'd stop buying if {when} misses forecasts or the dividend stops growing."
-        if "outlook" in by_key:
-            return f"We'd stop buying if analysts start cutting next year's profit forecast or {when} misses."
-        if event_text and not dated:
-            return f"We'd look again after {event_text}."
-        return f"A miss in {when} would make us stop buying."
+            return f"We'd stop buying if {misses} or the dividend is cut."
+        return f"We'd stop buying if {misses}."
     if bucket == "trim":
         out = "look again" if stance == "avoid" else "stop selling"
-        if "move" in by_key and by_key["move"].tone == "up" and not (set(by_key) & {"growth", "valuation", "report", "outlook", "ratings"} and any(f.tone == "bad" for f in used)):
-            return f"We'd {out} once the price settles back, or if {when} beats forecasts by a wide margin."
-        if growth is not None and growth.tone == "bad":
-            again = "sales growing again" if (sales is not None and sales < 0) else "faster sales growth"
+        price_ran = "move" in by_key and by_key["move"].tone == "up" and not (
+            set(by_key) & {"growth", "valuation", "report", "outlook", "ratings"} and any(f.tone == "bad" for f in used)
+        )
+        if not price_ran and growth is not None and growth.tone == "bad" and bars["recover"] is not None:
+            again = "sales growing again" if bars["recover"] == 0 else f"sales growth back above {bars['recover']:.0f}%"
             return f"We'd {out} if {when} shows {again}."
-        if valuation is not None and valuation.tone == "bad" and median:
-            return f"We'd {out} if the P/E falls back toward {_times(median)} or {when} beats forecasts."
-        if event_text and not dated:
-            return f"We'd look again after {event_text}."
-        return f"We'd {out} if {when} beats forecasts."
+        if not price_ran and valuation is not None and valuation.tone == "bad" and median:
+            return f"We'd {out} if the P/E falls back to {_times(median)} or {when} beats profit forecasts."
+        return f"We'd {out} if {when} beats profit forecasts."
     # hold
-    buy = "a drop into our buy range" if has_zone else "a lower price"
-    if growth is not None and growth.tone == "good" and sales is not None and sales >= 40:
-        return f"{when_cap} decides what we do: we'd buy more if sales keep growing this fast, and sell some if they slow sharply."
-    if growth is not None and growth.tone == "good" and sales is not None and sales >= 5:
-        return f"{when_cap} decides what we do: we'd buy more if sales keep growing near {_pct(sales)}, and sell some if they slow sharply."
-    if "report" in by_key or "move" in by_key:
-        return f"{when_cap} decides what we do: a beat would have us buying more, and a miss would have us selling some."
-    if valuation is not None and valuation.tone == "bad" and median:
-        return f"We'd buy more if the P/E falls back toward {_times(median)}, and sell some if {when} misses forecasts."
-    if event_text and not dated:
-        return f"We'd decide after {event_text}, or after {buy}."
-    return f"We'd buy more after {buy} or a beat in {when}, and sell some after a miss."
+    if growth is not None and growth.tone == "good" and bars["up"] is not None and bars["down"] is not None:
+        # Said as raising or lowering this call, never as the other calls (owner: no sale next to a Keep).
+        lower = "sales shrink" if bars["down"] == 0 else f"sales growth falls below {bars['down']:.0f}%"
+        return f"{when_cap} could raise the call if sales growth stays above {bars['up']:.0f}%, and lower it if {lower}."
+    if valuation is not None and valuation.tone == "bad" and median and not ({"report", "move"} & set(by_key)):
+        return f"{when_cap} could lower the call if it misses profit forecasts, and a P/E back at {_times(median)} could raise it."
+    return f"{when_cap} could raise the call with a profit beat, or lower it with a miss."
 
 
 def compose_company_reason(facts: dict[str, Any], *, today: date | None = None) -> dict[str, Any] | None:
@@ -1124,8 +1139,9 @@ def compose_company_reason(facts: dict[str, Any], *, today: date | None = None) 
     pe_hist_from, pe_hist_to, rev_growth, eps_next_y, ret_1w, ret_1m,
     peer_label, peer_ret_1w, peer_ret_1m, last_report {date, label,
     surprise_pct}, next_report (date), buys_chg_3m, div_yield,
-    div_growth_years, from_hi_pct, has_add_level, next_event,
-    next_event_date.
+    div_growth_years, from_hi_pct, and optionally rev_growth_last_year.
+    has_add_level, next_event and next_event_date are still accepted but no
+    longer used: neither names a condition anyone can check.
 
     Returns {"text", "why", "change", "facts"} or None when the numbers say
     nothing about this company, so the brief's own reason stays.

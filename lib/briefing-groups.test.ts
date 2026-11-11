@@ -207,7 +207,7 @@ describe("visibleLines", () => {
 
 describe("line text and labels", () => {
   it("drops the ticker the header already names", () => {
-    expect(lineText(call("CBRS"))).toBe("Our call moved from Trim to Accumulate.");
+    expect(lineText(call("CBRS"))).toBe("Our call moved from Sell some to Buy more.");
     expect(lineText(news("CBRS", "Cerebras files", "https://a.com"))).toBe("Cerebras files");
     expect(lineText(item({ id: "z", kind: "zone_entered", headline: "CBRS is in your add zone" }))).toBe("In your add zone");
     expect(lineText(item({ id: "r", kind: "earnings_reported", headline: "CBRS reported earnings yesterday and is up 14.10% today" }))).toBe(
@@ -252,11 +252,11 @@ describe("decisions", () => {
   });
 
   it("says what to decide in one plain sentence", () => {
-    expect(decisionText(call("ORCL", { relation: "holding", metric: "Trim" }))).toBe("Our call moved to Trim, and you hold it. Review?");
-    expect(decisionText(earnings("CBRS", 2))).toBe("Reports earnings Thursday after the close, and you hold it. Hold through the report?");
+    expect(decisionText(call("ORCL", { relation: "holding", metric: "Trim" }))).toBe("Our call moved to Sell some, and you hold it.");
+    expect(decisionText(earnings("CBRS", 2))).toBe("Reports earnings Thursday after the close, and you hold it.");
     expect(decisionText(move("CBRS", 9))).toBeNull();
     expect(decisionText(item({ id: "z", kind: "zone_entered", ticker: "VST", relation: "holding", needs_you: true, headline: "VST is in its add zone: $133.90, below $133.91" }))).toBe(
-      "In its add zone: $133.90, below $133.91. Act on the level?",
+      "At $133.90, it is under the buy-more price of $133.91.",
     );
   });
 });

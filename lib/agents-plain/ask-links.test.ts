@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { earningsRequest, moveRequest, watchEarningsHref, watchMoveHref } from "./ask-links";
+import { earningsRequest, moveRequest, watchEarningsHref, watchEarningsManyHref, watchMoveHref, watchMovesHref } from "./ask-links";
 import { parseByRules } from "./parse";
 import { buildCatalog } from "./stocks";
 
@@ -37,6 +37,30 @@ describe("watch-this-for-me requests", () => {
     expect(watchMoveHref("not a ticker")).toBeNull();
     expect(watchMoveHref("NVDA", 0)).toBeNull();
     expect(watchEarningsHref("NVDA", 40)).toBeNull();
+  });
+});
+
+describe("one watch for a whole list", () => {
+  const request = (link: string) => decodeURIComponent(link.replace("/agents?q=", ""));
+
+  it("reads several stocks as one agent on all of them", () => {
+    const moves = parseByRules(request(watchMovesHref(["NVDA", "aapl", "NVDA"])!), catalog, { hidden: [] });
+    expect(request(watchMovesHref(["NVDA", "aapl", "BRK.B"])!)).toBe("Tell me when NVDA, AAPL or BRK.B moves 5% in a day");
+    expect(moves.spec.watches).toHaveLength(1);
+    expect(moves.spec.watches[0]!.draft.scope).toEqual({ kind: "tickers", tickers: ["NVDA", "AAPL"] });
+    expect(moves.spec.cannot).toEqual([]);
+    const earnings = parseByRules(request(watchEarningsManyHref(["NVDA", "AAPL"], 3)!), catalog, { hidden: [] });
+    expect(earnings.spec.watches).toHaveLength(1);
+    expect(earnings.spec.watches[0]!.draft.template).toBe("earnings-ahead");
+    expect(earnings.spec.watches[0]!.draft.scope).toEqual({ kind: "tickers", tickers: ["NVDA", "AAPL"] });
+  });
+
+  it("matches the one-stock link for one stock and refuses bad input", () => {
+    expect(watchMovesHref(["NVDA"])).toBe(watchMoveHref("NVDA"));
+    expect(watchEarningsManyHref(["AAPL"], 3)).toBe(watchEarningsHref("AAPL", 3));
+    expect(watchMovesHref([])).toBeNull();
+    expect(watchMovesHref(["NVDA", "not a ticker"])).toBeNull();
+    expect(watchEarningsManyHref(["NVDA"], 40)).toBeNull();
   });
 });
 

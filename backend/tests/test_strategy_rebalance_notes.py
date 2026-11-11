@@ -235,10 +235,10 @@ def test_the_note_reads_plainly_and_follows_the_kit_rules():
 
 
 def test_long_changes_point_at_the_page():
-    added = [{"symbol": f"S{i}", "weight": 0.04, "reason": ""} for i in range(12)]
+    added = [{"symbol": f"S{i}", "weight": 0.04, "reason": ""} for i in range(30)]
     email = rebalance.build_note([_record(added=added)])
-    assert "Plus 4 more on the strategy page." in email.text
-    # the two that left still show next to the twelve that came in
+    assert "Plus 8 more on the strategy page." in email.text
+    # the two that left still show next to the thirty that came in
     assert "Out  AVGO" in email.text and "Out  MU" in email.text
 
 

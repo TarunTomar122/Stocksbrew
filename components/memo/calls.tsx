@@ -1,11 +1,13 @@
+import Link from "next/link";
+
 import { FOCUS, NUM, Panel, Tag } from "@/components/oa/kit";
 import { StockLogo } from "@/components/stock-logo";
 import type { CallWord, Memo, MemoCallChange } from "@/lib/memo/types";
 import { CALL_CHIP } from "@/lib/memo/view";
 import { shortDay, weekdayName } from "@/lib/memo/week";
 
-import { explainCall } from "./explain";
-import { ExplainPanel } from "./explain-panel";
+import { callReasonText, explainCall } from "./explain";
+import { MEMO_LIST, MEMO_ROW } from "./rows";
 
 /** A call in its plain words, coloured by what it asks of you. */
 export function CallChip({ call }: { call: CallWord }) {
@@ -18,9 +20,10 @@ export function CallChip({ call }: { call: CallWord }) {
 }
 
 /**
- * Calls that ended the week different from how they started: the stock, the
- * call before and after, and the day. A row opens under itself to the call's
- * reason as the memo wrote it, its source, the stock page and Ask about it.
+ * Calls that ended the week different from how they started: the call it is
+ * now as the one chip, what it was as quiet words (never a sale chip beside a
+ * Buy more, owner rule 9), and the day. The call's reason, when the memo has
+ * it, is written under the row. The row opens the stock, where the call lives.
  */
 export function CallChanges({ calls, memo, example }: { calls: MemoCallChange[]; memo: Pick<Memo, "changed" | "hurt" | "look">; example: boolean }) {
   return (
@@ -28,39 +31,37 @@ export function CallChanges({ calls, memo, example }: { calls: MemoCallChange[];
       {calls.length === 0 ? (
         <p className="px-4 py-3 text-[14px] leading-5 text-oa-muted-fg">None of our calls on these holdings changed this week.</p>
       ) : (
-        // About eight rows, then it scrolls inside (owner rule for every list).
-        <ul className="max-h-[22rem] divide-y divide-oa-border overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {calls.map((call) => (
-            <li key={`${call.ticker}:${call.date}`}>
-              <details className="group/row">
-                <summary
-                  title={`${call.name}: from ${CALL_CHIP[call.from].label} to ${CALL_CHIP[call.to].label} on ${weekdayName(call.date)}, ${shortDay(call.date)}`}
-                  className={`flex min-h-11 cursor-pointer list-none items-center gap-2 px-4 py-1.5 transition-colors hover:bg-oa-bg group-open/row:bg-oa-bg sm:gap-3 ${FOCUS} [&::-webkit-details-marker]:hidden`}
+        <ul className={MEMO_LIST}>
+          {calls.map((call) => {
+            const explain = explainCall(memo, call, example);
+            const reason = explain.text ? callReasonText(explain.text) : null;
+            return (
+              <li key={`${call.ticker}:${call.date}`}>
+                <Link
+                  href={`/stock/${encodeURIComponent(call.ticker)}`}
+                  prefetch={false}
+                  title={`${call.name}: now ${CALL_CHIP[call.to].label}, was ${CALL_CHIP[call.from].label}, changed ${weekdayName(call.date)}, ${shortDay(call.date)}`}
+                  className={`${MEMO_ROW} ${FOCUS}`}
                 >
-                  <span className="flex w-[4.75rem] shrink-0 items-center gap-2">
-                    <StockLogo ticker={call.ticker} size={20} eager />
-                    <span className={`${NUM} text-[13.5px] font-medium text-oa-fg`}>{call.ticker}</span>
-                  </span>
-                  <span className="flex min-w-0 flex-1 items-center gap-1.5">
-                    <CallChip call={call.from} />
-                    <span aria-hidden="true" className="text-[13px] text-oa-muted-fg">
-                      →
+                  <span className="flex items-center gap-2 sm:gap-3">
+                    <span className="flex w-[4.75rem] shrink-0 items-center gap-2">
+                      <StockLogo ticker={call.ticker} size={20} eager />
+                      <span className={`${NUM} text-[13.5px] font-medium text-oa-fg`}>{call.ticker}</span>
                     </span>
-                    <span className="sr-only">to</span>
-                    <CallChip call={call.to} />
+                    <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5">
+                      <CallChip call={call.to} />
+                      <span className="whitespace-nowrap text-[12.5px] text-oa-muted-fg">was {CALL_CHIP[call.from].label}</span>
+                    </span>
+                    <span className={`${NUM} shrink-0 text-[12.5px] text-oa-muted-fg`}>
+                      <span className="hidden sm:inline">{weekdayName(call.date).slice(0, 3)} </span>
+                      {shortDay(call.date)}
+                    </span>
                   </span>
-                  <span className={`${NUM} shrink-0 text-[12.5px] text-oa-muted-fg`}>
-                    <span className="hidden sm:inline">{weekdayName(call.date).slice(0, 3)} </span>
-                    {shortDay(call.date)}
-                  </span>
-                </summary>
-                <ExplainPanel
-                  explain={explainCall(memo, call, example)}
-                  className="mx-4 mb-2 mt-1"
-                />
-              </details>
-            </li>
-          ))}
+                  {reason ? <span className="mt-1 block text-pretty pl-7 text-[13px] leading-[19px] text-oa-muted-fg">{reason}</span> : null}
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       )}
     </Panel>

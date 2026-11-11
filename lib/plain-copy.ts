@@ -22,8 +22,18 @@ const COMMON = new Set(
     "rally rallies rate rates record report reports results revenue revenues rise rises rival rivals rose sale sales says " +
     "see sees sell sells share shares shows signs slide slides slip slips slump slumps soar soars stake stock stocks strong " +
     "stronger support supports surge surges target targets than that the their this through to top trade trading trim " +
-    "up upgrade upgrades downgrade downgraded upgraded preview expect grow grows growing reveals unveils launches launch hits high highs lows warns warning amid analyst analysts says said could would should after-hours premarket today tomorrow shareholders dividend dividends acquisition acquire acquires buy-out merger split splits  downgrades users view weak weaker week what when while why will with year years yet"
-  ).split(" "),
+    "up upgrade upgrades downgrade downgraded upgraded preview expect grow grows growing reveals unveils launches launch hits high highs lows warns warning amid analyst analysts says said could would should after-hours premarket today tomorrow shareholders dividend dividends acquisition acquire acquires buy-out merger split splits  downgrades users view weak weaker week what when while why will with year years yet " +
+    // Words wire headlines put in Title Case that are rarely part of a name (the news page, Nov 11). Not "holdings",
+    // "ratings", "major", "reduction" or "inflation": Arm Holdings, Fitch Ratings, Major League Baseball, the Inflation Reduction Act.
+    "actually affair again aims alleged approval bought businesswoman complicates concern concerns debate decline driven " +
+    "dropped each every expanded faces facts fallout far fell financing further governance heighten here here's highlights " +
+    "hiding hot important interest invested jumped keeps know lawsuit leans lift margin million " +
+    "much pile placement privacy rebound rebounds reckoning recovery reversal scrutiny selloff " +
+    "shrugs sink sinks sank snapshot sold spy sticky still stir summary surprising test tied transcript trillion " +
+    "underneath valuation went wins worries worth"
+  )
+    .split(" ")
+    .filter(Boolean),
 );
 
 /** True when most words of a headline start with a capital: "Zeta Raises Outlook After Strong Q3 Earnings Beat". */
@@ -34,26 +44,130 @@ export function isTitleCase(text: string): boolean {
   return capped / words.length >= 0.75;
 }
 
+// More headline words that are almost never part of a name (the news page, Nov 11: "IREN stock falls Even as
+// JPMorgan Goes Bullish", "Semiconductor rally Drives SOXL higher", "$450 million Investment").
+for (const word of (
+  "approve approves approved plant plants even go goes going went gone drives drove wind winds pivot pivots bullish bearish investment investments " +
+  "set sets reach reaches weigh weighs lag lags tops tumble tumbles spike spikes extend extends shed sheds add adds eye " +
+  "eyes mull mulls near nears seek seeks spark sparks fuel fuels signals bet bets bid bids hope hopes push " +
+  "pushes pull pulls pressure pressures stay stays remain remains turn turns look looks head heads return returns come " +
+  "comes take takes taking took continue continues ramp ramps shift shifts delay delays hire hires pick picks tap taps " +
+  "join joins leave leaves exit exits enter enters open opens closed recover recovers struggle struggles investor " +
+  "trader traders buyers sellers margins shortage deal talks probe probes charges fine " +
+  "fines ruling tariff tariffs tax taxes jobs layoffs workers spending slowdown recession fear risk risks worry " +
+  "premium discount crash level levels month months days daily weekly session sessions executive executives " +
+  "founder billionaire update updates story stories amid above below again just still soon now yet over under " +
+  "despite since until about against toward towards ahead behind inside outside within without new huge massive " +
+  "sharp sharply steep steeply nearly early likely really very quick quickly slow slowly " +
+  // More from the news page on Nov 11 ("Citi sees over 200% Upside", "chip rally Fades and PC slump Clouds Q4").
+  "upside downside advance advances overnight defend defends fade fades clouds money private achieve achieves peak " +
+  "lease withstand boom number backlog anyway answer load so doing does do did owe owes historic two three " +
+  "models work works finds find helps help known build builds run runs production platform database " +
+  "scales centers processors hours time term long short got dream dreams unit units isn't aren't won't can't don't doesn't there"
+).split(" ")) {
+  if (word) COMMON.add(word);
+}
+
+// Names a headline writes with a capital that the word lists or endings below would otherwise lower: people, brands
+// and places that show up in market news. Lowercase; a word listed here always keeps its capital.
+const KNOWN_NAMES = new Set(
+  (
+    "jensen huang powell waller trump biden musk altman buffett dimon zuckerberg bezos cook nadella pichai xi " +
+    "nvidia tesla apple microsoft amazon google alphabet meta openai anthropic jpmorgan goldman sachs morgan stanley " +
+    "wall street fed treasury cybertruck robotaxi optimus iphone android windows azure aws gemini claude chatgpt " +
+    "boeing corning sterling viking kering united allied constellation guinness beijing nanjing chongqing peking take-two coca-cola rolls-royce " +
+    "kimberly beverly china chinese japan japanese europe european america american congress senate white house"
+  ).split(" "),
+);
+
+// Small words in a company's legal name that are ordinary words in a headline ("Bank of America Corporation").
+const OWN_NAME_SMALL_WORDS = new Set(["a", "an", "and", "of", "the", "for", "in", "on", "inc", "corp", "co", "company", "corporation", "ltd", "plc", "group", "holdings"]);
+
+// Endings of common words ("Following", "Investment", "Slashed", "Sharply"). A word with one of these endings is
+// lowered only when no unknown capitalised word stands beside it, since that pair may be a name ("Constellation
+// Energy", "United Airlines"); a lowercased name reads worse than one capital too many.
+const COMMON_ENDING = /^[a-z]{3,}(?:ing|ments?|tions?|sions?|ness)$|^[a-z]{4,}(?:ed|ly)$/;
+
 /**
- * A Title Case headline written as a sentence. Leaves anything that is not
- * Title Case alone, keeps the first word, acronyms (AI, Q3, GTA), words with
- * inner capitals (iPhone, McDonald's) and every word not in the common list.
+ * A Title Case headline written as a sentence. Leaves anything that is not Title Case alone. Keeps the first word,
+ * the word after a colon, acronyms and tickers (AI, Q3, SOXL), words with inner capitals (iPhone, JPMorgan), the
+ * words of `companyName` (the row's own company) and known names (Powell, Nvidia, Wall Street). Every other word is
+ * lowered when it is on the common-word list, or when it has a common ending and no unknown capitalised word beside it.
  */
-export function sentenceCase(text: string | null | undefined): string {
+export function sentenceCase(text: string | null | undefined, companyName = ""): string {
   const value = (text ?? "").trim().replace(/\s+/g, " ");
   if (!value || !isTitleCase(value)) return value;
-  let first = true;
-  return value.replace(/[A-Za-z][A-Za-z'’]*/g, (word, offset: number) => {
-    const isFirst = first;
-    first = false;
+  // The company's own words keep their capitals, but not its small words: "Bank of America" must not keep "Of".
+  const own = new Set(
+    companyName
+      .toLowerCase()
+      .split(/[^a-z0-9'’&-]+/)
+      .filter((part) => part && !OWN_NAME_SMALL_WORDS.has(part)),
+  );
+  const tokens = [...value.matchAll(/[A-Za-z][A-Za-z'’]*/g)].map((match) => ({ word: match[0], offset: match.index ?? 0 }));
+  const bareOf = (word: string) => word.toLowerCase().replace(/’/g, "'").replace(/'s$/, "");
+  // A capitalised word nothing above knows: possibly a name, so a common-ending word beside it keeps its capital.
+  const unknownName = (word: string | undefined) => {
+    if (!word || !/^[A-Z][a-z'’]+$/.test(word)) return false;
+    const bare = bareOf(word);
+    return !COMMON.has(bare) && !KNOWN_NAMES.has(bare) && !own.has(bare) && !own.has(word.toLowerCase()) && !COMMON_ENDING.test(bare);
+  };
+  // Capitalised words joined by hyphens: lowered together when every part is a common word ("Better-Than-Expected",
+  // "All-Time") or they follow a number ("61-Year-Old"), otherwise kept as written, since such a compound is usually
+  // a name ("Take-Two", "Coca-Cola").
+  const compound: Array<"keep" | "lower" | null> = tokens.map(() => null);
+  for (let start = 0; start < tokens.length; ) {
+    let end = start;
+    while (
+      end + 1 < tokens.length &&
+      value.slice(tokens[end]!.offset + tokens[end]!.word.length, tokens[end + 1]!.offset) === "-" &&
+      /^[A-Z]/.test(tokens[end]!.word) &&
+      /^[A-Z]/.test(tokens[end + 1]!.word)
+    )
+      end += 1;
+    if (end > start) {
+      const parts = tokens.slice(start, end + 1).map((token) => bareOf(token.word));
+      // After a number ("61-Year-Old", "52-Week-High") it is a measure, not a name.
+      const afterNumber = /\d-$/.test(value.slice(0, tokens[start]!.offset));
+      const name = !afterNumber && (KNOWN_NAMES.has(parts.join("-")) || own.has(parts.join("-")) || parts.some((part) => !COMMON.has(part)));
+      for (let index = start; index <= end; index += 1) compound[index] = name ? "keep" : "lower";
+    }
+    start = end + 1;
+  }
+  const out: string[] = [];
+  let cursor = 0;
+  tokens.forEach(({ word, offset }, index) => {
+    out.push(value.slice(cursor, offset));
+    cursor = offset + word.length;
     // After a colon a new clause starts, as it would in a sentence.
     const before = value.slice(0, offset).trimEnd();
-    if (isFirst || /[:.!?]$/.test(before)) return word;
-    if (word.length > 1 && word === word.toUpperCase()) return word;
-    if (/[A-Z]/.test(word.slice(1))) return word;
-    const bare = word.toLowerCase().replace(/['’]s$/, "");
-    return COMMON.has(bare) ? word.toLowerCase() : word;
+    const bare = bareOf(word);
+    const prev = tokens[index - 1];
+    const next = tokens[index + 1];
+    const gapBefore = prev ? value.slice(prev.offset + prev.word.length, offset) : "";
+    const gapAfter = next ? value.slice(cursor, next.offset) : "";
+    // A word glued to digits is a name or a code ("Shift4", "Five9", "4Runner"), never an ordinary word.
+    const glued = /^\d/.test(value.slice(cursor)) || /\d$/.test(value.slice(0, offset));
+    const keep =
+      index === 0 ||
+      glued ||
+      compound[index] === "keep" ||
+      /[:.!?]$/.test(before) ||
+      (word.length > 1 && word === word.toUpperCase()) ||
+      /[A-Z]/.test(word.slice(1)) ||
+      KNOWN_NAMES.has(bare) ||
+      own.has(bare) ||
+      own.has(word.toLowerCase());
+    if (keep) return out.push(word);
+    if (COMMON.has(bare) || compound[index] === "lower") return out.push(word.toLowerCase());
+    // Only neighbours joined by a space or hyphen count: "Following, Apple" is two clauses.
+    const joinedPrev = prev && /^[\s-]+$/.test(gapBefore);
+    const joinedNext = next && /^[\s-]+$/.test(gapAfter);
+    const besideName = (joinedPrev && index - 1 > 0 && unknownName(prev.word)) || (joinedNext && unknownName(next.word));
+    out.push(COMMON_ENDING.test(bare) && !besideName ? word.toLowerCase() : word);
   });
+  out.push(value.slice(cursor));
+  return out.join("");
 }
 
 const ABBREVIATIONS = /(?:^|\s)(?:Inc|Corp|Co|Ltd|LLC|Mr|Mrs|Ms|Dr|St|vs|No|U\.S|U\.K|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec|approx|est|e\.g|i\.e)\.$/i;

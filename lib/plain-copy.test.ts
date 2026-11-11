@@ -14,6 +14,40 @@ describe("sentenceCase", () => {
     expect(isTitleCase(text)).toBe(false);
     expect(sentenceCase(text)).toBe(text);
   });
+  it("lowers the wire's common headline words but keeps names that use them", () => {
+    expect(sentenceCase("Microsoft Stock Fell After Anthropic Launches Claude Sheets to Rival Excel")).toBe("Microsoft stock fell after Anthropic launches Claude Sheets to rival Excel");
+    expect(sentenceCase("Arm Holdings Stock Jumps After Strong Quarter")).toBe("Arm Holdings stock jumps after strong quarter");
+    expect(sentenceCase("Fitch Ratings Downgrades Bank After Weak Quarter")).toBe("Fitch Ratings downgrades Bank after weak quarter");
+    expect(sentenceCase("Apple Wins Major League Baseball Streaming Deal")).toBe("Apple wins Major League Baseball Streaming deal");
+  });
+  it("lowers the stray capitals a half-done pass left (news page, Nov 11)", () => {
+    expect(sentenceCase("Tesla Faces a Valuation Test Following its Cybertruck Wind Down and Robotaxi Pivot")).toBe(
+      "Tesla faces a valuation test following its Cybertruck wind down and Robotaxi pivot",
+    );
+    expect(sentenceCase("IREN Stock Falls Even As JPMorgan Goes Bullish")).toBe("IREN stock falls even as JPMorgan goes bullish");
+    expect(sentenceCase("Semiconductor Rally Drives SOXL Higher")).toBe("Semiconductor rally drives SOXL higher");
+    expect(sentenceCase("Board Approves $450 Million Investment In New Plant")).toBe("Board approves $450 million investment in new plant");
+  });
+  it("keeps known names, the row's own company and words that may be part of a name", () => {
+    expect(sentenceCase("Stocks Slip As Powell And Waller Signal Patience On Wall Street")).toBe("Stocks slip as Powell and Waller Signal Patience on Wall Street");
+    expect(sentenceCase("Shares Of Boeing Climb After Trump Meeting With Jensen Huang")).toBe("Shares of Boeing climb after Trump meeting with Jensen Huang");
+    // An unknown capitalised word beside a common ending may be a name ("Energy Following"), so both keep their capitals.
+    expect(sentenceCase("Investors Pile Into Constellation Energy Following Nuclear Deal")).toBe("Investors pile into Constellation Energy Following Nuclear deal");
+    expect(sentenceCase("Investors Pile Into Constellation Energy After Nuclear Deal", "Constellation Energy Corporation")).toBe(
+      "Investors pile into Constellation Energy after Nuclear deal",
+    );
+    expect(sentenceCase("Why Acadia Healthcare Stock Fell Sharply Today", "Acadia Healthcare Company")).toBe("Why Acadia Healthcare stock fell sharply today");
+    expect(sentenceCase("Fed Holds Rates: Markets Weigh Next Move")).toBe("Fed holds rates: Markets weigh next move");
+    expect(sentenceCase("Intel Stocks Fall 1.82% As Chip Rally Fades And PC Slump Clouds Q4")).toBe("Intel stocks fall 1.82% as chip rally fades and PC slump clouds Q4");
+    // Codes glued to digits, all-common hyphen compounds, names that use common words, a company's small words.
+    expect(sentenceCase("How Much Tax Does A 61-Year-Old Owe On Inherited Apple Stock?")).toBe("How much tax does a 61-year-old owe on inherited Apple stock?");
+    expect(sentenceCase("Shares Of Shift4 Jump After Strong Quarter")).toBe("Shares of Shift4 jump after strong quarter");
+    expect(sentenceCase("Zeta Posts Better-Than-Expected Results And An All-Time High")).toBe("Zeta posts better-than-expected results and an all-time high");
+    expect(sentenceCase("Microsoft Teams Hits Record Users As Tesla Model Y Sales Rise")).toBe("Microsoft Teams hits record users as Tesla Model Y sales rise");
+    expect(sentenceCase("Why Bank Of America Stock Is Rising Today", "Bank of America Corporation")).toBe("Why Bank of America stock is rising today");
+    expect(sentenceCase("Shares Of Take-Two Rise After GTA VI Preorders Beat")).toBe("Shares of Take-Two rise after GTA VI Preorders beat");
+    expect(sentenceCase("SpaceX Supplier Is Doing Just Fine. The Stock Isn’t.")).toBe("SpaceX Supplier is doing just fine. The stock isn’t.");
+  });
   it("starts a new clause after a colon", () => {
     expect(sentenceCase("Earnings Preview: What To Expect From Micron Report")).toBe("Earnings preview: What to expect from Micron report");
   });

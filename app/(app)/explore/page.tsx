@@ -2,18 +2,20 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { loadDeskBrief, loadDeskMarketsData, loadDeskMovers, loadDeskSectors, loadDeskWire, todayET, type DeskBrief, type DeskData, type DeskSector } from "@/app/(app)/explore/desk-data";
-import { MarketsGhost } from "@/app/(app)/explore/ghosts";
+import { MarketCardsGhost, MarketsGhost } from "@/app/(app)/explore/ghosts";
 import { hasMarketsData } from "@/components/markets/overview-sections";
 import { MarketCards } from "@/components/markets/market-cards";
 import { MarketTickerStrip } from "@/components/markets/widgets";
 import { TheRead } from "@/components/oa/insight";
-import { AppPage, CardGrid, Delta, FOCUS, PageHead, Panel, Ticker } from "@/components/oa/kit";
+import { AppPage, Delta, FOCUS, PageHead, Panel } from "@/components/oa/kit";
+import { unTitle } from "@/components/briefing/card-words";
+import { StockCard, StockCardGrid, stockGridFill } from "@/components/briefing/stock-card";
 import { PanelGhost } from "@/components/oa/kit/skeleton";
 import { NavIcon } from "@/components/oa/nav-icon";
 import { iconFor } from "@/components/oa/nav-items";
 import { marketTodayRead } from "@/lib/explore-insights";
 import { marketTodaySteps } from "@/lib/next-steps";
-import { buildMarketsOverview } from "@/lib/markets-shared";
+import { buildMarketsOverview, type MarketsData } from "@/lib/markets-shared";
 import { JsonLd } from "@/components/docs/json-ld";
 import { toolPageLd, toolPageMetadata } from "@/lib/seo/tool-pages";
 import Link from "next/link";
@@ -51,80 +53,31 @@ async function ReadSlot({
   // The top development asks the reader's next question: "Does this affect my stocks?" (lib/next-steps.ts).
   const shown = marketTodaySteps(marketTodayRead(read, news, sectorLine));
   if (!shown) return null;
-  // Below lg the headline and the top point stay, so on a phone the cross-asset strip under the read is on the first screen.
-  const hidden = shown.insights.length - 1;
-  return (
-    <TheRead
-      read={shown}
-      label="Today's read"
-      fold="phone"
-      foldKeep={1}
-      foldLabel={hidden === 1 ? "Show 1 more point" : `Show ${hidden} more points`}
-    />
-  );
-}
-
-/** Every sector's day as a named bar, best first: the picture behind "6 of 11 sectors rose". Each opens its sector. */
-function SectorBars({ rows }: { rows: DeskSector[] }) {
-  const sorted = [...rows].filter((row) => Number.isFinite(row.day)).sort((a, b) => b.day - a.day);
-  if (sorted.length < 4) return null;
-  const max = Math.max(0.5, ...sorted.map((row) => Math.abs(row.day)));
-  return (
-    <Panel fill label="How each sector did today" right={<Link prefetch={false} href="/sectors" className={`text-[13px] font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg ${FOCUS}`}>All sectors</Link>}>
-      {/* Eleven rows: about eight show on a phone and the rest scroll inside; two columns from sm, one again beside the stock moves. */}
-      <ul className="grid gap-x-8 max-sm:max-h-[16.25rem] max-sm:overflow-y-auto max-sm:overscroll-contain scrollbar-hide sm:grid-cols-2 md:grid-cols-1">
-        {sorted.map((row) => {
-          const width = Math.max(3, (Math.abs(row.day) / max) * 100);
-          const up = row.day >= 0;
-          return (
-            <li key={row.id}>
-              <Link prefetch={false}
-                href={row.slug ? `/sectors/${row.slug}` : "/sectors"}
-                className={`grid min-h-8 grid-cols-[minmax(0,7.5rem)_minmax(0,1fr)_4rem] sm:grid-cols-[minmax(0,11rem)_minmax(0,1fr)_4.25rem] items-center gap-x-3 rounded text-[13.5px] leading-5 hover:bg-oa-accent ${FOCUS}`}
-              >
-                <span className="text-pretty text-oa-fg">{row.name}</span>
-                {/* Zero in the middle: gains grow right, losses grow left, so the sign reads at a glance. */}
-                <span className="relative h-2" aria-hidden="true">
-                  <span className="absolute inset-y-0 left-1/2 w-px bg-oa-border" />
-                  <span
-                    className={`absolute inset-y-0 rounded-sm ${up ? "left-1/2 bg-signal-bullish" : "right-1/2 bg-signal-bearish"}`}
-                    style={{ width: `${width / 2}%` }}
-                  />
-                </span>
-                <Delta value={row.day} className="text-right font-medium" />
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </Panel>
-  );
+  // Every point shows, on a phone too: there are at most three, and none waits behind a button (owner rule 2).
+  return <TheRead read={shown} label="Today's read" />;
 }
 
 /**
- * The day's biggest stock moves, largest first, each with its reason when a source confirmed one. Rows are the
- * links; rows with a reason run two or three lines, so about six show and the rest scroll inside. Same cached
- * feed the read above is built from.
+ * Every sector's day, best first: the list behind "6 of 11 sectors rose". The number alone says how far each
+ * moved (no bar beside it: owner rule 5). Each row opens its sector. One column on a phone (about eight rows,
+ * the rest scroll inside), two from sm, three on a wide screen.
  */
-function StockMoves({ movers }: { movers: DeskData["movers"] }) {
-  const rows = [...movers.up, ...movers.down].sort((a, b) => Math.abs(b.changePct) - Math.abs(a.changePct));
-  if (rows.length === 0) return null;
+function SectorList({ rows }: { rows: DeskSector[] }) {
+  const sorted = [...rows].filter((row) => Number.isFinite(row.day)).sort((a, b) => b.day - a.day);
+  if (sorted.length < 4) return null;
   return (
-    <Panel
-      fill
-      flush
-      label="Biggest stock moves"
-      right={<AppLink href="/movers" className={`text-[13px] font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg ${FOCUS}`}>Why stocks moved</AppLink>}
-    >
-      {movers.takeaway ? <p className="text-pretty border-b border-oa-border px-4 py-2.5 text-[14px] leading-5 text-oa-fg">{movers.takeaway}</p> : null}
-      <ul className="max-h-[25rem] divide-y divide-oa-border overflow-y-auto overscroll-contain scrollbar-hide">
-        {rows.map((row) => (
-          <li key={row.ticker} className="relative px-4 py-2 hover:bg-oa-accent">
-            <div className="flex min-w-0 items-center justify-between gap-3">
-              <Ticker symbol={row.ticker} name={row.name} stretch />
-              <Delta value={row.changePct} className="shrink-0 font-medium" />
-            </div>
-            {row.reason ? <p className="mt-0.5 text-pretty pl-7 text-[13.5px] leading-5 text-oa-muted-fg">{row.reason}</p> : null}
+    <Panel label="How each sector did today" right={<Link prefetch={false} href="/sectors" className={`text-[13px] font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg ${FOCUS}`}>All sectors</Link>}>
+      <ul className="gap-x-8 max-sm:max-h-[16.25rem] max-sm:overflow-y-auto max-sm:overscroll-contain scrollbar-hide sm:columns-2 lg:columns-3">
+        {sorted.map((row) => (
+          <li key={row.id} className="break-inside-avoid">
+            <Link
+              prefetch={false}
+              href={row.slug ? `/sectors/${row.slug}` : "/sectors"}
+              className={`flex min-h-8 items-center justify-between gap-3 rounded px-1 text-[13.5px] leading-5 hover:bg-oa-accent ${FOCUS}`}
+            >
+              <span className="min-w-0 text-pretty text-oa-fg">{row.name}</span>
+              <Delta value={row.day} className="shrink-0 text-right font-medium" />
+            </Link>
           </li>
         ))}
       </ul>
@@ -133,26 +86,104 @@ function StockMoves({ movers }: { movers: DeskData["movers"] }) {
 }
 
 /**
- * The lead under the read, in one weight: the cross-asset strip (indices, yields, oil, gold, the dollar, bitcoin),
- * then the biggest stock moves with their reasons beside every sector's day. Everything else the Markets page
- * carries follows in titled sections that open in place, each showing its one-line read while closed.
+ * The day's biggest stock moves as stock cards (owner rule 3): the logo and ticker, the move as
+ * the one big figure, and the reason when a source confirmed one (none is written when it did not). The whole
+ * card opens the stock; the one shared action, Why stocks moved, sits in the header. At most ten (the loader
+ * keeps five up and five down), so every one shows; on a phone the cards scroll inside after about three.
  */
-async function MarketsSlot({ sectors, movers }: { sectors: ReturnType<typeof loadDeskSectors>; movers: Promise<DeskData["movers"]> }) {
+function StockMoves({ movers }: { movers: DeskData["movers"] }) {
+  // Moves with a confirmed reason first, then the ones without (largest first in each), so the cards that only
+  // carry a figure sit together instead of beside a full card and leaving half of it empty.
+  const rows = [...movers.up, ...movers.down].sort((a, b) => Number(Boolean(b.reason)) - Number(Boolean(a.reason)) || Math.abs(b.changePct) - Math.abs(a.changePct));
+  if (rows.length === 0) return null;
+  return (
+    <section aria-labelledby="stock-moves">
+      <div className="flex items-baseline justify-between gap-3 px-2 pb-1 sm:px-3">
+        <h2 id="stock-moves" className="text-[17px] font-medium tracking-tight text-oa-fg">
+          Biggest stock moves
+        </h2>
+        <AppLink href="/movers" className={`shrink-0 text-[13px] font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg ${FOCUS}`}>
+          Why stocks moved
+        </AppLink>
+      </div>
+      {/* With one card the takeaway only repeats it ("AIRJW moved most, −11.8%"); it says something once there are several. */}
+      {movers.takeaway && rows.length > 1 ? <p className="text-pretty px-2 pb-2 text-[14px] leading-5 text-oa-muted-fg sm:px-3">{movers.takeaway}</p> : null}
+      <div className="max-sm:max-h-[30rem] max-sm:overflow-y-auto max-sm:overscroll-contain scrollbar-hide">
+        <StockCardGrid wide>
+          {rows.map((row, index) => (
+            <StockCard
+              key={row.ticker}
+              ticker={row.ticker}
+              name={row.name || row.ticker}
+              figure={signedPct(row.changePct)}
+              tone={row.changePct >= 0 ? "up" : "down"}
+              sentence={row.reason ? unTitle(row.reason, row.name) : null}
+              fill={stockGridFill(index, rows.length, true)}
+              cover={
+                <Link
+                  href={`/stock/${encodeURIComponent(row.ticker)}`}
+                  prefetch={false}
+                  aria-label={`${row.ticker}, ${signedPct(row.changePct)} today`}
+                  className="absolute inset-0 z-0 rounded-[inherit] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
+                />
+              }
+            />
+          ))}
+        </StockCardGrid>
+      </div>
+    </section>
+  );
+}
+
+/** "+16.52%", "−3.10%": the card's figure, with a real minus sign. */
+function signedPct(value: number): string {
+  const shown = Number(value.toFixed(2));
+  return `${shown > 0 ? "+" : shown < 0 ? "\u2212" : ""}${Math.abs(shown).toFixed(2)}%`;
+}
+
+/**
+ * What the read on top already says, as one string, so the cards under it can skip a figure it quotes (the read
+ * leads with "GDX fell 5.43%"; More markets then leads with the next biggest move instead).
+ */
+function readWords(read: DeskBrief["read"]): string {
+  if (!read) return "";
+  return [read.headline, ...read.insights.flatMap((insight) => [insight.text, insight.soWhat, insight.figure?.label, insight.figure?.value])]
+    .filter(Boolean)
+    .join(" \n ");
+}
+
+/**
+ * "More markets": one card per part of the market. Its own async slot, so only these cards wait for the read's
+ * words (to skip a move the read already quotes); the strip, the stock cards and the sectors above never do.
+ */
+async function MoreMarkets({ data, brief }: { data: MarketsData; brief: Promise<DeskBrief> }) {
+  // The brief is the read's own cached loader, already in flight for the slot above; a failure only means no skipping.
+  const said = await brief.then((value) => readWords(value.read)).catch(() => "");
+  // One card per part of the market, each opening its part of /markets (components/markets/market-cards.tsx).
+  return <MarketCards data={data} said={said} className="mt-2" />;
+}
+
+/**
+ * The lead under the read: the cross-asset strip (indices, yields, oil, gold, the dollar, bitcoin), the biggest
+ * stock moves as cards with their reasons, every sector's day, then a card for each other part of the market.
+ */
+async function MarketsSlot({
+  sectors,
+  movers,
+  brief,
+}: {
+  sectors: ReturnType<typeof loadDeskSectors>;
+  movers: Promise<DeskData["movers"]>;
+  brief: Promise<DeskBrief>;
+}) {
   const [data, sectorData, moverData] = await Promise.all([loadDeskMarketsData(), sectors, movers]);
-  // Two cards side by side; when one feed is empty the other takes the full width instead of half a row.
-  const hasMoves = moverData.up.length + moverData.down.length > 0;
-  const hasSectors = sectorData.rows.filter((row) => Number.isFinite(row.day)).length >= 4;
-  const lead =
-    hasMoves && hasSectors ? (
-      <CardGrid className="lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
-        <StockMoves movers={moverData} />
-        <SectorBars rows={sectorData.rows} />
-      </CardGrid>
-    ) : hasMoves ? (
+  // The stock cards, then every sector; each stands alone at full width, so neither leaves half a row empty.
+  const lead = (
+    <>
       <StockMoves movers={moverData} />
-    ) : hasSectors ? (
-      <SectorBars rows={sectorData.rows} />
-    ) : null;
+      <SectorList rows={sectorData.rows} />
+    </>
+  );
   if (!hasMarketsData(data)) {
     return (
       <>
@@ -173,16 +204,17 @@ async function MarketsSlot({ sectors, movers }: { sectors: ReturnType<typeof loa
         <h2 id="more-markets" className="px-2 pb-1 text-[17px] font-medium tracking-tight text-oa-fg sm:px-3">
           More markets
         </h2>
-        {/* One card per part of the market, each opening its part of /markets (components/markets/market-cards.tsx). */}
-        <MarketCards data={data} className="mt-2" />
+        <Suspense fallback={<MarketCardsGhost className="mt-2" />}>
+          <MoreMarkets data={data} brief={brief} />
+        </Suspense>
       </section>
     </>
   );
 }
 
 /** The places that go deeper on today, as one short strip with each place's own icon. */
+// Why stocks moved is left out: the stock moves above carry it as their one header action.
 const MORE_ON_TODAY: { href: string; title: string }[] = [
-  { href: "/movers", title: "Why stocks moved" },
   { href: "/news", title: "News" },
   { href: "/calendar", title: "Calendar" },
   { href: "/signals", title: "Signals" },
@@ -218,8 +250,8 @@ function MoreOnToday() {
 
 /**
  * Market today: how the whole market did. The read in three ranked points leads; then what moved most (the
- * cross-asset strip, the biggest stock moves with their reasons, every sector); then every other market in
- * titled sections that open in place; then a short strip of places that go deeper. The head needs no data, so
+ * cross-asset strip, the biggest stock moves as cards with their reasons, every sector); then a card for every
+ * other part of the market; then a short strip of places that go deeper. The head needs no data, so
  * it is on screen at once; the read and the market sections each wait only for their own loaders.
  */
 export default function ExplorePage() {
@@ -240,7 +272,7 @@ export default function ExplorePage() {
         </Suspense>
 
         <Suspense fallback={<MarketsGhost />}>
-          <MarketsSlot sectors={sectors} movers={movers} />
+          <MarketsSlot sectors={sectors} movers={movers} brief={brief} />
         </Suspense>
 
         <MoreOnToday />

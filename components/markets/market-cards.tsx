@@ -139,15 +139,30 @@ function CurveLines({ curve }: { curve: TreasuryCurve }) {
 
 /* ── the cards ──────────────────────────────────────────────────────────── */
 
-function movedCard(data: MarketsData): Card | null {
+/**
+ * Whether the read above already quotes this asset by its ticker ("GDX fell 5.43%"). Only the ticker, matched
+ * whole and in capitals: a plain name like "Gold" would also match "Gold miners" and skip the wrong move.
+ */
+function quotedIn(said: string, asset: MarketAsset): boolean {
+  const symbol = asset.symbol?.trim();
+  if (!said || !symbol || symbol.length < 2) return false;
+  return new RegExp(`(^|[^A-Za-z0-9])\\$?${symbol.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^A-Za-z0-9]|$)`).test(said);
+}
+
+function movedCard(data: MarketsData, said: string): Card | null {
   const movers = biggestMoves(data.assets, 7);
-  const top = movers[0];
+  // The read on top often leads with the day's biggest move ("GDX fell 5.43%"); this card then leads with the
+  // biggest one the read does not quote, so the same figure is never shown twice on the page.
+  // When the read quotes every one of them, the biggest still leads rather than leaving a hole in the grid.
+  const top = movers.find((asset) => !quotedIn(said, asset)) ?? movers[0];
   if (!top || top.change.d1 == null) return null;
+  const skipped = top !== movers[0];
   const figure = formatChange(top.change.d1, top.change_mode);
   if (!figure) return null;
   const up = movers.filter((asset) => (asset.change.d1 ?? 0) > 0).length;
   const next = movers
-    .slice(1, 3)
+    .filter((asset) => asset !== top && !quotedIn(said, asset))
+    .slice(0, 2)
     .map((asset) => `${name(asset)} (${formatChange(asset.change.d1, asset.change_mode)})`)
     .join(" and ");
   const count =
@@ -165,9 +180,9 @@ function movedCard(data: MarketsData): Card | null {
     linkLabel: "Open all markets",
     figure,
     tone: top.change.d1 > 0 ? "up" : "down",
-    label: `${name(top)}, the biggest move`,
+    label: skipped ? `${name(top)}, the next biggest move` : `${name(top)}, the biggest move`,
     logo: top.class === "etf" ? top.symbol : null,
-    text: count ?? `${name(top)} moved most across markets.`,
+    text: count ?? (skipped ? `${name(top)} was the next biggest move across markets.` : `${name(top)} moved most across markets.`),
     more: next ? `Next were ${next}.` : null,
     visual: <MoveBars values={movers.map((asset) => asset.change.d1 ?? 0)} label={`The ${movers.length} biggest moves across markets`} />,
   };
@@ -357,7 +372,7 @@ function MarketCard({ card }: { card: Card }) {
           </p>
           <p className="text-pretty text-[12.5px] leading-[17px] text-oa-muted-fg">{card.label}</p>
         </div>
-        {card.logo ? <StockLogo ticker={card.logo} size={24} className="mt-1 shrink-0" /> : null}
+        {card.logo ? <StockLogo ticker={card.logo} size={24} eager className="mt-1 shrink-0" /> : null}
       </div>
       <p className="mt-2 text-pretty text-[14.5px] leading-[21px] text-oa-fg">{card.text}</p>
       {card.more ? <p className="mt-1 text-pretty text-[13.5px] leading-[19px] text-oa-muted-fg">{card.more}</p> : null}
@@ -374,8 +389,17 @@ function MarketCard({ card }: { card: Card }) {
 }
 
 /** The six cards that have data, three across on a wide screen, two on a tablet, one on a phone. */
-export function MarketCards({ data, className = "" }: { data: MarketsData; className?: string }) {
-  const cards = [movedCard(data), stocksCard(data), ratesCard(data), commoditiesCard(data), optionsCard(data), predictionsCard(data)].filter(
+export function MarketCards({
+  data,
+  said = "",
+  className = "",
+}: {
+  data: MarketsData;
+  /** What the page's read already says; the What moved card skips a move it quotes. */
+  said?: string;
+  className?: string;
+}) {
+  const cards = [movedCard(data, said), stocksCard(data), ratesCard(data), commoditiesCard(data), optionsCard(data), predictionsCard(data)].filter(
     (card): card is Card => card !== null,
   );
   if (!cards.length) return null;

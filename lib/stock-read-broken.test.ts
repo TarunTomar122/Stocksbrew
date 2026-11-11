@@ -20,6 +20,8 @@ const base: StockRead = {
   since: null,
   whatWouldChange: null,
   heldAgainst: null,
+  steadySince: null,
+  steadyStep: null,
 };
 
 describe("readLooksBroken", () => {

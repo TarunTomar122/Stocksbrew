@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { FOCUS, NUM } from "@/components/oa/kit";
 import { StockLogo } from "@/components/stock-logo";
-import { watchEarningsHref, watchMoveHref } from "@/lib/agents-plain/ask-links";
+import { anyOf, watchEarningsManyHref, watchMovesHref } from "@/lib/agents-plain/ask-links";
 import { pct } from "@/lib/memo/format";
 import type { FactKind, MemoItem, MemoVisual } from "@/lib/memo/types";
 
@@ -13,26 +13,35 @@ import { hasReason } from "./explain";
  * A section of the memo as cards: one figure, a short line that reads on
  * from it, a small picture where one helps, and the memo's full sentence
  * always shown under it (owner, Nov 11: no "Why" toggle). The whole card opens
- * its evidence page, so no link words repeat on every card; a watch, where a
- * card has one, is its only visible action. Memos written before the cards
- * existed show their sentence instead.
+ * its evidence page, so no link words repeat on every card; the watches the
+ * cards suggest are one or two links on the section's heading, not one per
+ * card (owner, Nov 11). Memos written before the cards existed show their
+ * sentence instead.
  */
 
 type LinkTo = { label: string; href: string };
 
 /**
- * The next step for a risk, in place: an agent on the stock it names. An earnings risk gets a reminder before
- * the report; any other risk on one stock gets a big-move alert. Risks about the whole portfolio get none.
+ * The next steps for a section's cards, said once on its heading: a reminder before the report for the earnings
+ * risks, a big-move alert for the other risks on one stock, each one agent on all the stocks it names. Risks about
+ * the whole portfolio get none.
  */
-export function watchFor(item: Pick<MemoItem, "kind" | "tickers">): LinkTo | null {
-  const ticker = item.tickers.length === 1 ? item.tickers[0]! : null;
-  if (!ticker) return null;
-  if (item.kind === "upcoming_risk" || item.kind === "upcoming") {
-    const href = watchEarningsHref(ticker, 3);
-    return href ? { label: `Tell me 3 days before ${ticker} reports`, href } : null;
+export function watchesFor(items: Array<Pick<MemoItem, "kind" | "tickers">>): LinkTo[] {
+  const earnings: string[] = [];
+  const moves: string[] = [];
+  for (const item of items) {
+    const ticker = item.tickers.length === 1 ? item.tickers[0]! : null;
+    if (!ticker) continue;
+    (item.kind === "upcoming_risk" || item.kind === "upcoming" ? earnings : moves).push(ticker);
   }
-  const href = watchMoveHref(ticker, 5);
-  return href ? { label: `Tell me when ${ticker} moves 5% in a day`, href } : null;
+  const out: LinkTo[] = [];
+  // Names the stocks (up to three), since only some cards in a section have one: "NVDA or AAPL", else "any of these".
+  const who = (list: string[]) => (new Set(list).size <= 3 ? anyOf(list) : null) ?? "any of these";
+  const moveHref = moves.length ? watchMovesHref(moves, 5) : null;
+  if (moveHref) out.push({ label: `Tell me when ${who(moves)} moves 5% in a day`, href: moveHref });
+  const earnHref = earnings.length ? watchEarningsManyHref(earnings, 3) : null;
+  if (earnHref) out.push({ label: `Tell me 3 days before ${who(earnings)} reports`, href: earnHref });
+  return out;
 }
 
 function Icon({ kind }: { kind: FactKind }) {
@@ -117,7 +126,7 @@ function Visual({ visual, example }: { visual: MemoVisual; example: boolean }) {
   );
 }
 
-function Card({ item, example, watch }: { item: MemoItem; example: boolean; watch: LinkTo | null }) {
+function Card({ item, example }: { item: MemoItem; example: boolean }) {
   const card = item.card ?? null;
   const single = item.tickers.length === 1 ? item.tickers[0]! : null;
   const figureTone = card?.sign === "up" ? "text-signal-bullish" : card?.sign === "down" ? "text-signal-bearish" : "text-oa-fg";
@@ -145,15 +154,6 @@ function Card({ item, example, watch }: { item: MemoItem; example: boolean; watc
       {card?.visual ? <Visual visual={card.visual} example={example} /> : null}
       {detail ? <p className="mt-2.5 text-pretty text-[13.5px] leading-5 text-oa-muted-fg">{detail}</p> : null}
       <p className="mt-auto pt-2.5 text-[12px] leading-4 text-oa-muted-fg">{item.source}</p>
-      {watch ? (
-        <Link
-          href={watch.href}
-          prefetch={false}
-          className={`relative z-10 mt-1.5 self-start rounded text-[13px] font-medium leading-5 text-oa-primary underline-offset-2 hover:underline ${FOCUS}`}
-        >
-          {watch.label}&nbsp;→
-        </Link>
-      ) : null}
     </li>
   );
 }
@@ -172,9 +172,26 @@ export function MemoCards({
   /** Which items get an agent as their action: every risk, and a report coming up. */
   watchable: (item: MemoItem) => boolean;
 }) {
+  const watches = watchesFor(items.filter(watchable));
   return (
     <section aria-label={title} className="min-w-0">
-      <h2 className="oa-label px-1 pb-2">{title}</h2>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-1 pb-2">
+        <h2 className="oa-label">{title}</h2>
+        {watches.length > 0 ? (
+          <p className="flex flex-wrap gap-x-4 gap-y-0.5">
+            {watches.map((watch) => (
+              <Link
+                key={watch.href}
+                href={watch.href}
+                prefetch={false}
+                className={`rounded text-[13px] font-medium leading-5 text-oa-primary underline-offset-2 hover:underline ${FOCUS}`}
+              >
+                {watch.label}
+              </Link>
+            ))}
+          </p>
+        ) : null}
+      </div>
       {items.length > 0 ? (
         <ul
           // No empty half-rows: a lone or odd last card takes the whole row on tablets, and on wide screens the
@@ -182,7 +199,7 @@ export function MemoCards({
           className="oa-card-grid grid grid-cols-1 gap-3 sm:grid-cols-2 sm:[&>li:last-child:nth-child(odd)]:col-span-2 lg:[grid-template-columns:repeat(auto-fit,minmax(16rem,1fr))] lg:[&>li:last-child:nth-child(odd)]:col-span-1"
         >
           {items.map((item) => (
-            <Card key={item.id} item={item} example={example} watch={watchable(item) ? watchFor(item) : null} />
+            <Card key={item.id} item={item} example={example} />
           ))}
         </ul>
       ) : (

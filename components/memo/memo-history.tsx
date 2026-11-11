@@ -1,41 +1,25 @@
 import Link from "next/link";
 
-import { SERIES_VARS } from "@/components/backtest/format";
 import { FOCUS } from "@/components/oa/kit";
 import { firstFullSentence } from "@/lib/plain-copy";
-import { signedPct } from "@/lib/memo/format";
+import { pct, signedPct } from "@/lib/memo/format";
 import type { MemoHistoryRow } from "@/lib/memo/store";
 import { gapWords } from "@/lib/memo/view";
-import { shortDay, weekTitle } from "@/lib/memo/week";
-
-import { MiniBars } from "./mini-bars";
+import { weekTitle } from "@/lib/memo/week";
 
 /**
- * Every week's memo, newest first, each one tap away: two bars (the portfolio
- * and the S&P 500, on one scale for every week) and the gap in a line. Weeks
- * written before the memo had figures show their first sentence. The one on
- * screen is marked.
+ * Every week's memo, newest first, each one tap away: the portfolio's week as
+ * one figure and the gap to the S&P 500 in a line under it (no bars beside the
+ * numbers, owner rule 5). Weeks written before the memo had figures show their
+ * first sentence. The one on screen is marked.
  */
 export function MemoHistory({ rows, current, latestKey, example }: { rows: MemoHistoryRow[]; current: string; latestKey: string; example: boolean }) {
   if (rows.length <= 1) return null;
-  const scale = Math.max(
-    0.5,
-    ...rows.flatMap((row) => [row.portfolioPct, row.marketPct].filter((value): value is number => typeof value === "number").map(Math.abs)),
-  );
   return (
-    <nav aria-label="Earlier memos" className="oa-surface min-w-0 overflow-hidden border border-oa-border bg-oa-card lg:flex lg:max-h-full lg:flex-col">
+    <nav aria-label={example ? "The example's earlier memos" : "Earlier memos"} className="oa-surface min-w-0 overflow-hidden border border-oa-border bg-oa-card lg:flex lg:max-h-full lg:flex-col">
       <div className="flex min-h-11 items-center justify-between gap-2 border-b border-oa-border px-4 py-2">
         <h2 className="oa-label">Every week</h2>
-        <span aria-hidden="true" className={`${SERIES_VARS} flex items-center gap-3 text-[11.5px] text-oa-muted-fg`}>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="h-1.5 w-3 rounded-full bg-[var(--series-a)]" />
-            {example ? "Example" : "Yours"}
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="h-1.5 w-3 rounded-full bg-[var(--series-b)]" />
-            S&amp;P 500
-          </span>
-        </span>
+        <span className="whitespace-nowrap text-[12px] text-oa-muted-fg">against the S&amp;P 500</span>
       </div>
       {/* About eight weeks in view, then it scrolls inside. */}
       <ol className="max-h-[42rem] divide-y divide-oa-border overflow-y-auto [scrollbar-width:none] lg:min-h-0 lg:flex-1 [&::-webkit-scrollbar]:hidden">
@@ -52,22 +36,18 @@ export function MemoHistory({ rows, current, latestKey, example }: { rows: MemoH
                 className={`block px-4 py-2.5 transition-colors hover:bg-oa-bg ${selected ? "bg-oa-bg" : ""} ${FOCUS}`}
               >
                 <span className="flex items-baseline justify-between gap-2">
-                  <span className={`text-[14px] font-medium ${selected ? "text-oa-primary" : "text-oa-fg"}`}>{weekTitle(row)}</span>
-                  <span className="oa-mono shrink-0 text-[11.5px] tabular-nums text-oa-muted-fg">{row.complete ? `to ${shortDay(row.friday)}` : "so far"}</span>
+                  <span className={`text-[14px] font-medium ${selected ? "text-oa-primary" : "text-oa-fg"}`}>
+                    {weekTitle(row)}
+                    {row.complete ? null : <span className="font-normal text-oa-muted-fg"> so far</span>}
+                  </span>
+                  {mine !== null ? (
+                    <span className={`oa-mono shrink-0 text-[14px] font-medium tabular-nums ${mine > 0 ? "text-signal-bullish" : mine < 0 ? "text-signal-bearish" : "text-oa-fg"}`}>{signedPct(mine)}</span>
+                  ) : null}
                 </span>
                 {mine !== null ? (
-                  <>
-                    <MiniBars
-                      className="mt-1.5"
-                      hideLabels
-                      domain={[-scale, scale]}
-                      bars={[
-                        { label: example ? "Example" : "Yours", value: mine, text: signedPct(mine), series: "a" },
-                        ...(market !== null ? [{ label: "S&P 500", value: market, text: signedPct(market), series: "b" as const }] : []),
-                      ]}
-                    />
-                    {market !== null ? <span className="mt-1 block text-[12.5px] leading-[18px] text-oa-muted-fg">{capital(gapWords(mine, market))}</span> : null}
-                  </>
+                  <span className="mt-0.5 block text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg">
+                    {market !== null ? `${capital(gapWords(mine, market))}, which ${marketWords(market)}.` : "No S&P 500 figure for this week."}
+                  </span>
                 ) : (
                   <span className="mt-0.5 block text-pretty text-[13px] leading-[19px] text-oa-muted-fg">{row.headline || firstFullSentence(row.topLine)}</span>
                 )}
@@ -79,5 +59,8 @@ export function MemoHistory({ rows, current, latestKey, example }: { rows: MemoH
     </nav>
   );
 }
+
+/** "rose 2.0%", "fell 0.6%", "was flat". */
+const marketWords = (value: number) => (Math.abs(value) < 0.05 ? "was flat" : `${value > 0 ? "rose" : "fell"} ${pct(Math.abs(value))}`);
 
 const capital = (text: string) => (text ? text.charAt(0).toUpperCase() + text.slice(1) : text);

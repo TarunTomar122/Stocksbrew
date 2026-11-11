@@ -58,6 +58,14 @@ export type StrategyLive = {
   note: string | null;
 };
 
+/**
+ * True once the live record has a return worth showing: a close after the fill day. The fill day alone holds only
+ * the cost of buying in, so every strategy reads the same −0.10% at 10 bps (Nov 11), which says nothing about the rule.
+ */
+export function liveHasReturn(live: Pick<StrategyLive, "sessions" | "strategy_return">): boolean {
+  return live.sessions >= 2 && typeof live.strategy_return === "number" && Number.isFinite(live.strategy_return);
+}
+
 export type Strategy = {
   slug: string;
   order: number;

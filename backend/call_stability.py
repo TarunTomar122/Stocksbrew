@@ -469,13 +469,29 @@ def what_would_change(state: dict[str, Any], today: str, facts: Facts, name: str
     earliest = add_sessions(today, rules.min_hold_sessions - held) if in_hold else today
     direction = _last_direction(state) if in_hold else 0
 
-    # Plain words only (owner: no mechanics copy): what could move the call, not how the rule counts.
+    # Plain words only (owner: no mechanics copy): what could move the call, not how the rule counts. The web stock page
+    # (lib/call-evidence.ts) words the same bars, with the report's own numbers when it has them.
     results = f"its {short_day(nxt)} results" if nxt else "its next results"
     ways = {d for d in (-1, 1) if (d < 0 and call != TRIM) or (d > 0 and call != ADD)}
     if in_hold and direction:
         ways &= {direction}
-    sharp = "a sharp drop" if ways == {-1} else "a sharp rise" if ways == {1} else "a sharp move"
-    market = " or a market sell-off" if -1 in ways else ""
+    # Measurable, from this stock's own swings (owner, Nov 11: every condition names a number someone can check).
+    # The same bars the rule uses: a move of its own over each window it watches, and the market drop. The web stock
+    # page (lib/call-evidence.ts) words the same bars.
+    verb = "falls" if ways == {-1} else "rises" if ways == {1} else "moves"
+    bars = [(days, round(rules.move_sigma * sigma * math.sqrt(days) * 100)) for days in sorted(rules.move_days)] if sigma else []
+    if bars and bars[0][1] >= 3:
+        def window(days: int) -> str:
+            return "a day" if days == 1 else "a week" if days == 5 else f"{days} trading days"
+        first, *rest = bars
+        parts = [f"{window(first[0])} in which it {verb} {first[1]}% more than the S&P 500"]
+        parts += [f"{window(days)} in which it {verb} {bar}% more" for days, bar in rest]
+        sharp = ", ".join(parts)
+    else:
+        sharp = "a sharp drop" if ways == {-1} else "a sharp rise" if ways == {1} else "a sharp move"
+    drop = abs(rules.market_drop_pct)
+    span = "a week" if rules.market_drop_sessions == 5 else f"{rules.market_drop_sessions} trading days"
+    market = f" or {span} in which the S&P 500 falls {drop:g}%" if -1 in ways else ""
     lean = "buying" if call == ADD else "selling"
     after = (
         f"we'd move to {PLAIN[ADD]} or {PLAIN[TRIM]} once the case holds for a few days"

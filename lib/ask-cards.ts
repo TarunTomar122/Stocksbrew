@@ -44,6 +44,11 @@ export type QuoteCard = CardBase & {
   thesis: string | null;
   what_changed: string | null;
   what_to_watch: string | null;
+  /**
+   * The same evidence and measurable conditions the stock page shows under the call (lib/call-evidence.ts), from
+   * stored numbers only. `what_would_change` is empty unless the viewer covers the stock.
+   */
+  call_evidence?: { evidence: Array<{ text: string; source: string }>; what_would_change: string[] } | null;
   key_points: string[];
   risks: string[];
   /** False when the reasoning above was withheld because the viewer's plan does not cover this stock. */

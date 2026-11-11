@@ -26,3 +26,23 @@ export function watchDropHref(ticker: string, price: number, pct = 5): string | 
   const request = dropRequest(ticker, price, pct);
   return request ? `/agents?q=${encodeURIComponent(request)}` : null;
 }
+
+/**
+ * One request for several holdings, for a list that offers one "watch these" instead of a link on every row:
+ * "Tell me if UNH drops below $480, PYPL drops below $52 or NKE drops below $60". The agent box reads it as one
+ * price agent per stock (lib/agents-plain/parse.ts), shown back before anything is saved.
+ */
+export function watchDropsHref(holdings: Array<{ ticker: string; price: number }>, pct = 5): string | null {
+  const parts: string[] = [];
+  const seen = new Set<string>();
+  for (const holding of holdings) {
+    const request = dropRequest(holding.ticker, holding.price, pct);
+    const symbol = holding.ticker.trim().toUpperCase();
+    if (!request || seen.has(symbol)) continue;
+    seen.add(symbol);
+    parts.push(request.replace(/^Tell me if /, ""));
+  }
+  if (parts.length === 0) return null;
+  const said = parts.length === 1 ? parts[0]! : `${parts.slice(0, -1).join(", ")} or ${parts[parts.length - 1]}`;
+  return `/agents?q=${encodeURIComponent(`Tell me if ${said}`)}`;
+}

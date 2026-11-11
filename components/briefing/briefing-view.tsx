@@ -15,8 +15,6 @@ import {
 import { TheRead } from "@/components/oa/insight";
 import { StockLogo } from "@/components/stock-logo";
 import {
-  COMPACT_VISIBLE_LINES,
-  GROUP_VISIBLE_LINES,
   groupBriefingSections,
   groupCountLabel,
   type BriefingGroup,
@@ -27,6 +25,8 @@ import { briefingLead, briefingSteps } from "@/lib/next-steps";
 
 import { readAskContext } from "./ask";
 import { BriefingGroupCard, type GroupActions } from "./briefing-group";
+import { sectionWords } from "./card-words";
+import { StockCardGrid, stockGridFill } from "./stock-card";
 import { longDay, pricesLine, shortDay, signedPct, sourceTime } from "./format";
 import { SignInButton } from "./sign-in-button";
 import Link from "next/link";
@@ -56,12 +56,15 @@ export type BriefingViewProps = {
   agents?: React.ReactNode;
   /** Signed in: the person's agents and their latest outcomes, at the top of the side rail. */
   rail?: React.ReactNode;
+  /** Before 9:30 ET: the futures and the biggest gaps (components/premarket/before-open.tsx), streamed. */
+  beforeOpen?: React.ReactNode;
   /** The "rest of your stocks moved too" card on Free (./locked-moves.tsx), rendered on the server. */
   locked?: React.ReactNode;
 };
 
 const CARD = "oa-surface overflow-hidden border border-oa-border bg-oa-card";
 
+/** A section of stock cards: its label on the page, then the cards (no panel around them, so no card in a card). */
 function Section({
   id,
   label,
@@ -74,8 +77,8 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section aria-labelledby={`${id}-label`} className={`${CARD} pb-1`}>
-      <header className="flex min-h-10 items-center px-4 pb-0.5 pt-2.5">
+    <section aria-labelledby={`${id}-label`}>
+      <header className="flex min-h-8 items-center px-2 pb-2 sm:px-0">
         <h2 id={`${id}-label`} className="oa-label flex min-w-0 flex-wrap items-baseline gap-x-2">
           {label}
           {count ? <span className="oa-mono whitespace-nowrap text-[11.5px] font-normal normal-case tracking-normal text-oa-muted-fg">{count}</span> : null}
@@ -146,16 +149,61 @@ function SessionStrip({ sectors }: { sectors: BriefingSession["sectors"] }) {
   );
 }
 
-/** The other Today pages, each said by what it is for, so the briefing is the start and the rest are one tap on. */
-const TODAY_PAGES: Array<{ href: string; title: string; line: string }> = [
-  { href: "/explore", title: "Market today", line: "Every sector, index and market, and how the day went for each." },
-  { href: "/movers", title: "Why stocks moved", line: "Every big move today, each with the reason we confirmed." },
-  { href: "/signals", title: "Signals", line: "What Reddit and the President are saying about stocks." },
-  { href: "/calendar", title: "Calendar", line: "Earnings reports and economic news coming this week." },
+/** The other Today pages by name, so the briefing is the start and the rest are one tap on. */
+const TODAY_PAGES: Array<{ href: string; title: string }> = [
+  { href: "/explore", title: "Market today" },
+  { href: "/premarket", title: "Premarket" },
+  { href: "/movers", title: "Why stocks moved" },
+  { href: "/signals", title: "Signals" },
+  { href: "/calendar", title: "Calendar" },
 ];
 
 function EmptyLine({ children }: { children: React.ReactNode }) {
-  return <p className="px-4 pb-2.5 pt-1 text-[14px] leading-6 text-oa-muted-fg">{children}</p>;
+  return <p className={`${CARD} px-4 py-2.5 text-[14px] leading-6 text-oa-muted-fg`}>{children}</p>;
+}
+
+/**
+ * A section's stocks as cards. The words are worked out for the section as a whole (./card-words.ts): an update
+ * several stocks share is said once above the cards, and each card says only what is its own.
+ */
+function GroupCards({
+  groups,
+  actions,
+  anchors,
+  personal,
+}: {
+  groups: BriefingGroup[];
+  actions: GroupActions;
+  anchors?: ReadonlySet<BriefingGroup>;
+  personal: boolean;
+}) {
+  const words = React.useMemo(() => sectionWords(groups, { personal }), [groups, personal]);
+  if (groups.length === 0) return null;
+  return (
+    <>
+      {words.shared.length > 0 ? (
+        <ul className="mb-2.5 grid gap-1 px-2 sm:px-0">
+          {words.shared.map((line) => (
+            <li key={line} className="text-pretty text-[14px] font-medium leading-5 text-oa-fg">
+              {line}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <StockCardGrid>
+        {groups.map((group, index) => (
+          <BriefingGroupCard
+            key={group.key}
+            group={group}
+            words={words.cards.get(group.key)!}
+            actions={actions}
+            anchor={anchors?.has(group) ?? false}
+            fill={stockGridFill(index, groups.length)}
+          />
+        ))}
+      </StockCardGrid>
+    </>
+  );
 }
 
 /** The day's largest moves: a ticker and a number each. The reasons are in the main column. */
@@ -208,6 +256,7 @@ export function BriefingView({
   session = null,
   agents = null,
   rail = null,
+  beforeOpen = null,
   locked = null,
 }: BriefingViewProps) {
   const [state, setState] = React.useState<BriefingStateMap>(initialState);
@@ -321,8 +370,7 @@ export function BriefingView({
   const worth = showAllWorth ? worthAll : worthAll.slice(0, WORTH_KNOWING_FIRST);
   // Only a personal briefing's cards are linked from the agents strip (lib/briefing-anchors.ts); settled ones never.
   const anchors: ReadonlySet<BriefingGroup> = personal ? anchorGroups([...grouped.needs_you, ...worth, ...grouped.coming_up]) : new Set();
-  const groupCards = (groups: BriefingGroup[], limit: number) =>
-    groups.map((group) => <BriefingGroupCard key={group.key} group={group} actions={actions} limit={limit} anchor={anchors.has(group)} />);
+  const groupCards = (groups: BriefingGroup[]) => <GroupCards groups={groups} actions={actions} anchors={anchors} personal={personal} />;
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start lg:gap-x-5">
@@ -419,8 +467,8 @@ export function BriefingView({
         {personal ? (
           <Section id="needs-you" label="Needs you" count={grouped.needs_you.length > 0 ? groupCountLabel(grouped.needs_you) : undefined}>
             {grouped.needs_you.length > 0 ? (
-              // One takeaway per stock; its other updates wait behind "N more".
-              groupCards(grouped.needs_you, COMPACT_VISIBLE_LINES)
+              // One card per stock; its other updates wait behind "N more" and open in place.
+              groupCards(grouped.needs_you)
             ) : (
               <EmptyLine>No decisions today. The rest is below.</EmptyLine>
             )}
@@ -433,22 +481,20 @@ export function BriefingView({
             label={personal ? "Worth knowing" : worthAll.length > 0 ? "Other big moves, with the reason" : "Other big moves"}
             count={personal ? groupCountLabel(worthListed) : worthAll.length > 0 ? `${worthAll.length} ${worthAll.length === 1 ? "stock" : "stocks"}` : undefined}
           >
-            {worth.map((group) => (
-              <BriefingGroupCard key={group.key} group={group} actions={actions} limit={COMPACT_VISIBLE_LINES} anchor={anchors.has(group)} />
-            ))}
+            {groupCards(worth)}
             {worthAll.length > WORTH_KNOWING_FIRST ? (
               <button
                 type="button"
                 aria-expanded={showAllWorth}
                 onClick={() => setShowAllWorth((value) => !value)}
-                className="w-full cursor-pointer px-4 pb-3 pt-1.5 text-left text-[13px] font-medium text-oa-muted-fg outline-none transition-colors hover:text-oa-fg focus-visible:bg-oa-accent"
+                className={`${CARD} mt-3 flex min-h-10 w-full cursor-pointer items-center justify-center px-4 text-[13.5px] font-medium text-oa-fg outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent`}
               >
                 {showAllWorth ? "Show fewer" : `Show all ${worthAll.length}`}
               </button>
             ) : null}
             {/* Moves with no confirmed reason come last as one line of tickers and moves, with nothing said about the missing reason (owner, Nov 11). */}
             {unexplained.length > 0 ? (
-              <p className={`text-pretty px-4 pb-2.5 pt-2 text-[13.5px] leading-6 text-oa-muted-fg ${worth.length > 0 ? "border-t border-oa-border" : ""}`}>
+              <p className={`text-pretty px-2 text-[13.5px] leading-6 text-oa-muted-fg sm:px-0 ${worth.length > 0 ? "mt-3" : ""}`}>
                 Also moved:{" "}
                 {unexplained.map((group, index) => (
                   <React.Fragment key={group.key}>
@@ -465,7 +511,7 @@ export function BriefingView({
               </p>
             ) : null}
             {reportedOnly.length > 0 ? (
-              <p className={`text-pretty px-4 pb-2.5 pt-2 text-[13.5px] leading-6 text-oa-muted-fg ${worth.length > 0 || unexplained.length > 0 ? "border-t border-oa-border" : ""}`}>
+              <p className={`text-pretty px-2 text-[13.5px] leading-6 text-oa-muted-fg sm:px-0 ${worth.length > 0 || unexplained.length > 0 ? "mt-2" : ""}`}>
                 Also reported earnings:{" "}
                 {reportedOnly.map((group, index) => (
                   <React.Fragment key={group.key}>
@@ -485,7 +531,7 @@ export function BriefingView({
 
         <Section id="coming-up" label="Coming up" count={grouped.coming_up.length > 0 ? "next 7 days" : undefined}>
           {grouped.coming_up.length > 0 ? (
-            groupCards(grouped.coming_up, COMPACT_VISIBLE_LINES)
+            groupCards(grouped.coming_up)
           ) : (
             <EmptyLine>
               {personal
@@ -538,28 +584,29 @@ export function BriefingView({
         ) : null}
 
         {settledCount > 0 ? (
-          <section aria-labelledby="settled-label" className={CARD}>
-            <button
-              type="button"
-              aria-expanded={showSettled}
-              onClick={() => setShowSettled((value) => !value)}
-              className="flex min-h-10 w-full cursor-pointer items-center justify-between gap-3 px-4 py-2 text-left outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent"
-            >
-              <span id="settled-label" className="oa-label flex items-center gap-2">
-                Handled today
-                <span className="oa-mono text-[11.5px] font-normal normal-case tracking-normal text-oa-muted-fg">{settledCount}</span>
-              </span>
-              <span className="text-right text-[12.5px] leading-4 text-oa-muted-fg">{showSettled ? "Hide" : "Show"}</span>
-            </button>
+          <section aria-labelledby="settled-label">
+            <div className={CARD}>
+              <button
+                type="button"
+                aria-expanded={showSettled}
+                onClick={() => setShowSettled((value) => !value)}
+                className="flex min-h-10 w-full cursor-pointer items-center justify-between gap-3 px-4 py-2 text-left outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent"
+              >
+                <span id="settled-label" className="oa-label flex items-center gap-2">
+                  Handled today
+                  <span className="oa-mono text-[11.5px] font-normal normal-case tracking-normal text-oa-muted-fg">{settledCount}</span>
+                </span>
+                <span className="text-right text-[12.5px] leading-4 text-oa-muted-fg">{showSettled ? "Hide" : "Show"}</span>
+              </button>
+              {!canSave && !archived ? (
+                <p className="px-4 pb-2.5 text-[12.5px] leading-5 text-oa-muted-fg">Kept for this visit only. Sign in to keep it.</p>
+              ) : null}
+            </div>
+            {/* The cards sit under the bar, not inside it: no card in a card. */}
             {showSettled ? (
-              <div className="pb-1">
-                {grouped.settled.map((group) => (
-                  <BriefingGroupCard key={group.key} group={group} actions={actions} limit={GROUP_VISIBLE_LINES} />
-                ))}
+              <div className="mt-3">
+                <GroupCards groups={grouped.settled} actions={actions} personal={personal} />
               </div>
-            ) : null}
-            {!canSave && !archived ? (
-              <p className="px-4 pb-2.5 text-[12.5px] leading-5 text-oa-muted-fg">Kept for this visit only. Sign in to keep it.</p>
             ) : null}
           </section>
         ) : null}
@@ -569,6 +616,8 @@ export function BriefingView({
 
       {/* Side rail: the market as context, not the lead. */}
       <aside className="flex min-w-0 flex-col gap-4">
+        {/* Before the bell, how the open is set up leads the rail; after 9:30 ET it renders nothing. */}
+        {beforeOpen}
         {/* The market view's read already says how the index did, so this card is for your own briefing. */}
         {personal ? (
         <section aria-label="Market today" className={CARD}>
@@ -620,9 +669,9 @@ export function BriefingView({
             <ul className="pb-1">
               {TODAY_PAGES.map((page) => (
                 <li key={page.href}>
-                  <AppLink href={page.href} className="group block px-4 py-2 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent">
-                    <span className="block text-[14px] font-medium leading-5 text-oa-fg group-hover:underline">{page.title} →</span>
-                    <span className="block text-pretty text-[13px] leading-[18px] text-oa-muted-fg">{page.line}</span>
+                  {/* The row is the link: the title only, no arrow on every line (owner rule 1). */}
+                  <AppLink href={page.href} className="flex min-h-9 items-center px-4 py-1.5 text-[14px] font-medium leading-5 text-oa-fg outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent">
+                    {page.title}
                   </AppLink>
                 </li>
               ))}

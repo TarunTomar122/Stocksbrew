@@ -103,17 +103,10 @@ export async function OaLanding() {
 
         {/* one story below the hero: short proofs with real data, one link each, then the questions folded */}
         <div className="flex flex-col gap-14 pb-12 pt-10 sm:gap-20 sm:pb-20 sm:pt-14">
-          <section id="live" className="scroll-mt-24">
-            <SectionHead
-              title="Why stocks moved today."
-              lede="Every market day we look for the reason behind each big move, and show it only when a source backs it."
-              href="/briefing"
-              hrefLabel="See today's briefing"
-            />
-            <Suspense fallback={<div className="oa-surface h-72 animate-pulse border border-oa-border bg-oa-card motion-reduce:animate-none" aria-hidden="true" />}>
-              <TodayMoves />
-            </Suspense>
-          </section>
+          {/* Renders its own head, and nothing at all on a day with no confirmed reason yet (no empty strip). */}
+          <Suspense fallback={null}>
+            <TodayMoves />
+          </Suspense>
 
           <section id="portfolio" className="scroll-mt-24">
             <SectionHead

@@ -3,7 +3,6 @@ import * as React from "react";
 
 import { NUM, Panel, Ticker, fmtDay } from "@/components/oa/kit";
 import { TheRead } from "@/components/oa/insight";
-import { OpenOnHash } from "@/components/earnings-season/open-on-hash";
 import { watchEarningsHref } from "@/lib/agents-plain/ask-links";
 import { dayDiff, fmtEps, type Session } from "@/lib/calendar-shared";
 import {
@@ -23,7 +22,8 @@ import { isNum, signedPct, weekdayOf } from "@/lib/read-format";
 /**
  * /portfolio/earnings: the read on top, then the six weeks as a strip with
  * each stock on its report day (sized by its share of the portfolio), then
- * every report week by week. A row opens to the stock's past reports.
+ * every report week by week, each row with its last result in view; the row
+ * opens the stock's earnings page with every past report.
  */
 
 const HOLDING_FILL = "bg-[color-mix(in_srgb,var(--oa-primary)_78%,transparent)]";
@@ -165,8 +165,33 @@ function Timeline({ season }: { season: Season }) {
 
 /* ── Report by report ──────────────────────────────────────────────────── */
 
-/** The moves after the last four reports as plain numbers, newest first and in bold (owner, Nov 11: the dot strip was unreadable). */
-function LastMoves({ stock }: { stock: SeasonStock }) {
+const RESULT_WORD: Record<NonNullable<PastReport["result"]>, { text: string; tone: string }> = {
+  beat: { text: "Beat", tone: "text-signal-bullish" },
+  miss: { text: "Missed", tone: "text-signal-bearish" },
+  "in-line": { text: "In line", tone: "text-oa-fg" },
+};
+
+/**
+ * The last report's result against the estimate, in words: "Beat estimates by 6.1%". Nothing when we do not hold
+ * its figures (an older report's result would read as the latest one).
+ */
+function LastResult({ stock }: { stock: SeasonStock }) {
+  const last = stock.past[0];
+  if (!last?.result) return null;
+  const word = RESULT_WORD[last.result];
+  const by = last.result !== "in-line" && isNum(last.surprisePct) ? ` by ${Math.abs(last.surprisePct).toFixed(1)}%` : "";
+  return (
+    <span className={`block text-[12.5px] leading-5 ${word.tone}`}>
+      {last.result === "in-line" ? "In line with estimates" : `${word.text} estimates${by}`}
+    </span>
+  );
+}
+
+/**
+ * The moves after the last four reports as plain numbers, newest first and in bold (owner, Nov 11: the dot strip was
+ * unreadable). When the newest is the last report's, it is dated so it reads as that report's result.
+ */
+function LastMoves({ stock, today }: { stock: SeasonStock; today: string }) {
   const moves = stock.past.filter((report): report is PastReport & { move: number } => isNum(report.move)).slice(0, 4);
   if (moves.length === 0) return <span className="block text-[12.5px] leading-5 text-oa-muted-fg">No past moves on record</span>;
   return (
@@ -182,6 +207,7 @@ function LastMoves({ stock }: { stock: SeasonStock }) {
           title={`${signedPct(report.move)} after the ${fmtDay(report.date, true)} report`}
           className={`${report.move > 0 ? "text-signal-bullish" : report.move < 0 ? "text-signal-bearish" : "text-oa-muted-fg"} ${index === 0 ? "font-semibold" : "opacity-80"}`}
         >
+          {index === 0 && report === stock.past[0] ? <span className="mr-1.5 font-normal text-oa-muted-fg">{fmtDay(report.date, report.date.slice(0, 4) !== today.slice(0, 4))}</span> : null}
           {signedPct(report.move)}
         </span>
       ))}
@@ -206,127 +232,54 @@ function usualText(stock: SeasonStock): { main: string; sub: string[] } {
   return { main, sub };
 }
 
-function moveCell(report: PastReport): React.ReactNode {
-  if (!isNum(report.move)) return <span className="text-oa-muted-fg">n/a</span>;
-  const tone = report.move > 0 ? "text-signal-bullish" : report.move < 0 ? "text-signal-bearish" : "text-oa-muted-fg";
-  return (
-    <span className={tone}>
-      {signedPct(report.move)}
-      {report.basis === "2d" ? <span className="block text-[11.5px] leading-4 text-oa-muted-fg">over two days</span> : null}
-    </span>
-  );
-}
-
-const RESULT_WORD: Record<NonNullable<PastReport["result"]>, { text: string; tone: string }> = {
-  beat: { text: "Beat", tone: "text-signal-bullish" },
-  miss: { text: "Missed", tone: "text-signal-bearish" },
-  "in-line": { text: "In line", tone: "text-oa-fg" },
-};
-
-function PastTable({ stock, today }: { stock: SeasonStock; today: string }) {
-  if (stock.past.length === 0) {
-    return <p className="text-[14px] leading-5 text-oa-muted-fg">We have no past reports for {stock.name} on record yet, so there is nothing to compare this one with.</p>;
-  }
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[19rem] border-collapse text-[13.5px]">
-        <thead>
-          <tr className="text-left">
-            <th scope="col" className="oa-caption pb-1.5 pr-3 font-normal">Report</th>
-            <th scope="col" className="oa-caption pb-1.5 pr-3 text-right font-normal">EPS est.</th>
-            <th scope="col" className="oa-caption pb-1.5 pr-3 text-right font-normal">Actual</th>
-            <th scope="col" className="oa-caption pb-1.5 pr-3 font-normal">Result</th>
-            <th scope="col" className="oa-caption pb-1.5 text-right font-normal">Stock after</th>
-          </tr>
-        </thead>
-        <tbody>
-          {stock.past.map((report) => (
-            <tr key={report.date} className="border-t border-oa-border align-top">
-              <td className="py-1.5 pr-3">
-                <span className={`${NUM} block whitespace-nowrap text-oa-fg`}>{fmtDay(report.date, report.date.slice(0, 4) !== today.slice(0, 4))}</span>
-                <span className="block text-[11.5px] leading-4 text-oa-muted-fg">{report.session === "unknown" ? "time not on record" : TIME_SHORT[report.session]}</span>
-              </td>
-              <td className={`${NUM} py-1.5 pr-3 text-right ${report.epsEstimate === null ? "text-oa-muted-fg" : "text-oa-fg"}`}>{fmtEps(report.epsEstimate) || "n/a"}</td>
-              <td className={`${NUM} py-1.5 pr-3 text-right ${report.epsActual === null ? "text-oa-muted-fg" : "text-oa-fg"}`}>{fmtEps(report.epsActual) || "n/a"}</td>
-              <td className="py-1.5 pr-3">
-                {report.result ? (
-                  <span className={RESULT_WORD[report.result].tone}>
-                    {RESULT_WORD[report.result].text}
-                    {isNum(report.surprisePct) && report.result !== "in-line" ? <span className={`${NUM} ml-1 text-[12px] text-oa-muted-fg`}>{signedPct(report.surprisePct)}</span> : null}
-                  </span>
-                ) : (
-                  <span className="text-oa-muted-fg">{report.from === "filing" ? "No figures on record" : "No result on record"}</span>
-                )}
-              </td>
-              <td className={`${NUM} py-1.5 text-right`}>{moveCell(report)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
+/**
+ * One report coming up, all in view: the day, the share, the estimate, the last result and the moves after past
+ * reports. The row opens the stock's earnings page, which has every past report in full.
+ */
 function StockRow({ stock, today }: { stock: SeasonStock; today: string }) {
   const next = stock.next!;
   const usual = usualText(stock);
   const eps = fmtEps(next.epsEstimate);
   return (
-    <li id={`report-${stock.ticker}`} className="scroll-mt-24">
-      <details className="group/row">
-        <summary
-          className="relative grid cursor-pointer list-none grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 px-4 py-2.5 hover:bg-oa-bg focus-visible:bg-oa-bg focus-visible:outline-none sm:grid-cols-[minmax(0,1.2fr)_7.5rem_5.5rem_5rem_minmax(9rem,1.4fr)_7.5rem] sm:gap-x-4 [&::-webkit-details-marker]:hidden"
-        >
-          <span className="min-w-0 max-sm:order-1">
-            <Ticker symbol={stock.ticker} name={stock.name} href={null} size={20} wrap />
+    <li
+      id={`report-${stock.ticker}`}
+      className={`relative grid scroll-mt-24 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 px-4 py-2.5 transition-colors hover:bg-oa-bg target:bg-oa-bg ${REPORT_COLS}`}
+    >
+      <span className="min-w-0 max-sm:order-1">
+        <Ticker symbol={stock.ticker} name={stock.name} href={`/calendar/earnings/${encodeURIComponent(stock.ticker)}`} stretch size={20} />
+      </span>
+      {/* On a phone these three read as one line; from sm up they are columns. */}
+      <span className="col-span-2 flex flex-wrap items-baseline gap-x-2 text-[12.5px] leading-5 text-oa-muted-fg max-sm:order-3 sm:contents">
+        <span className="sm:block">
+          <span className={`${NUM} font-medium text-oa-fg sm:block sm:text-[13.5px]`}>{dayLabel(next.date, today)}</span>
+          <span className="sm:block sm:text-[12px] sm:leading-4"> {TIME_SHORT[next.session]}</span>
+        </span>
+        <span className={`${NUM} sm:text-right sm:text-[13.5px] ${stock.kind === "watching" ? "" : "sm:text-oa-fg"}`}>
+          <span aria-hidden="true" className="sm:hidden">· </span>
+          {stock.kind === "watching" ? "Watching" : stock.weight !== null ? <>{pctOf(stock.weight)}<span className="sm:hidden"> of portfolio</span></> : "Holding"}
+        </span>
+        <span className={`${NUM} sm:text-right sm:text-[13.5px] ${eps ? "sm:text-oa-fg" : ""}`}>
+          <span aria-hidden="true" className="sm:hidden">· </span>
+          {next.reported ? (next.result ? `Reported: ${RESULT_WORD[next.result].text.toLowerCase()}` : "Reported") : eps ? <><span className="sm:hidden">EPS est. </span>{eps}</> : <span className="text-oa-muted-fg">no estimate</span>}
+        </span>
+      </span>
+      <span className="min-w-0 max-sm:order-4">
+        <LastMoves stock={stock} today={today} />
+        <LastResult stock={stock} />
+      </span>
+      <span className="text-right max-sm:order-5">
+        <span className={`${NUM} block text-[13px] leading-4 ${usual.sub.length ? "text-oa-fg" : "text-oa-muted-fg"}`}>{usual.main}</span>
+        {usual.sub.map((line) => (
+          <span key={line} className="block whitespace-nowrap text-[11.5px] leading-4 text-oa-muted-fg">
+            {line}
           </span>
-          {/* On a phone these three read as one line; from sm up they are columns. */}
-          <span className="col-span-2 flex flex-wrap items-baseline gap-x-2 text-[12.5px] leading-5 text-oa-muted-fg max-sm:order-3 sm:contents">
-            <span className="sm:block">
-              <span className={`${NUM} font-medium text-oa-fg sm:block sm:text-[13.5px]`}>{dayLabel(next.date, today)}</span>
-              <span className="sm:block sm:text-[12px] sm:leading-4"> {TIME_SHORT[next.session]}</span>
-            </span>
-            <span className={`${NUM} sm:text-right sm:text-[13.5px] ${stock.kind === "watching" ? "" : "sm:text-oa-fg"}`}>
-              <span aria-hidden="true" className="sm:hidden">· </span>
-              {stock.kind === "watching" ? "Watching" : stock.weight !== null ? <>{pctOf(stock.weight)}<span className="sm:hidden"> of portfolio</span></> : "Holding"}
-            </span>
-            <span className={`${NUM} sm:text-right sm:text-[13.5px] ${eps ? "sm:text-oa-fg" : ""}`}>
-              <span aria-hidden="true" className="sm:hidden">· </span>
-              {next.reported ? (next.result ? `Reported: ${RESULT_WORD[next.result].text.toLowerCase()}` : "Reported") : eps ? <><span className="sm:hidden">EPS est. </span>{eps}</> : <span className="text-oa-muted-fg">no estimate</span>}
-            </span>
-          </span>
-          <span className="min-w-0 max-sm:order-4">
-            <LastMoves stock={stock} />
-          </span>
-          <span className="text-right max-sm:order-5">
-            <span className={`${NUM} block text-[13px] leading-4 ${usual.sub.length ? "text-oa-fg" : "text-oa-muted-fg"}`}>{usual.main}</span>
-            {usual.sub.map((line) => (
-              <span key={line} className="block whitespace-nowrap text-[11.5px] leading-4 text-oa-muted-fg">
-                {line}
-              </span>
-            ))}
-          </span>
-        </summary>
-        <div className="border-t border-oa-border bg-oa-bg px-4 pb-3 pt-2.5">
-          <PastTable stock={stock} today={today} />
-          <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] leading-5">
-            {isNum(stock.typicalDayPct) ? (
-              <span className="text-oa-muted-fg">
-                A normal day for {stock.name} is a <span className={`${NUM} text-oa-fg`}>{stock.typicalDayPct.toFixed(1)}%</span> move.
-              </span>
-            ) : null}
-            <Link href={`/calendar/earnings/${encodeURIComponent(stock.ticker)}`} prefetch={false} className="font-medium text-oa-primary hover:underline">
-              All of {stock.name}&apos;s reports →
-            </Link>
-            <Link href={`/stock/${encodeURIComponent(stock.ticker)}`} prefetch={false} className="font-medium text-oa-primary hover:underline">
-              {stock.ticker} stock page →
-            </Link>
-          </div>
-        </div>
-      </details>
+        ))}
+      </span>
     </li>
   );
 }
+
+const REPORT_COLS = "sm:grid-cols-[minmax(0,1.2fr)_7.5rem_5.5rem_5rem_minmax(10rem,1.4fr)_7.5rem] sm:gap-x-4";
 
 function Reports({ season }: { season: Season }) {
   const weeks = season.weeks.filter((week) => week.stocks.length > 0);
@@ -335,7 +288,7 @@ function Reports({ season }: { season: Season }) {
       label="Report by report"
       flush
     >
-      <div className="hidden grid-cols-[minmax(0,1.2fr)_7.5rem_5.5rem_5rem_minmax(9rem,1.4fr)_7.5rem] gap-x-4 border-b border-oa-border px-4 py-1.5 sm:grid">
+      <div className={`hidden border-b border-oa-border px-4 py-1.5 sm:grid ${REPORT_COLS}`}>
         <span className="oa-caption">Stock</span>
         <span className="oa-caption">Reports</span>
         <span className="oa-caption text-right">Share</span>
@@ -374,10 +327,12 @@ function Reports({ season }: { season: Season }) {
 
 /* ── Everything else ───────────────────────────────────────────────────── */
 
-function laterWords(stock: SeasonStock, to: string): string | null {
-  if (stock.fund) return "Fund, no earnings of its own";
-  // Unknown is not "not reporting": the company has not set a date we hold yet.
-  if (!stock.next) return "No report date yet";
+function laterWords(stock: SeasonStock, to: string, allFunds: boolean): string | null {
+  // A word, not a sentence repeated on each fund row; none at all when the heading already says "Funds" (owner rule 1).
+  if (stock.fund) return allFunds ? null : "Fund";
+  // No date yet: the heading says it once ("No report date yet", or "N without a date yet" beside a mixed list),
+  // so the row shows only what differs, its weight (owner rule 1).
+  if (!stock.next) return null;
   return `Reports ${fmtDay(stock.next.date, stock.next.date.slice(0, 4) !== to.slice(0, 4))}${stock.next.session !== "unknown" ? `, ${sessionWords(stock.next.session)}` : ""}`;
 }
 
@@ -397,7 +352,7 @@ function Later({ season }: { season: Season }) {
     >
       <ul className="grid grid-cols-1 md:grid-cols-2">
         {season.later.map((stock) => {
-          const words = laterWords(stock, season.to);
+          const words = laterWords(stock, season.to, companies === 0);
           const share = stock.kind === "watching" ? "Watching" : stock.weight !== null ? `${pctOf(stock.weight)} of portfolio` : null;
           return (
             <li key={stock.ticker} className="relative -mb-px flex min-h-11 items-center justify-between gap-3 border-b border-oa-border px-4 py-2 md:odd:border-r">
@@ -459,7 +414,6 @@ export function SeasonView({
       ) : null}
       <Timeline season={season} />
       {season.reporting.length > 0 ? <Reports season={season} /> : null}
-      <OpenOnHash prefix="report-" />
       <Later season={season} />
     </div>
   );

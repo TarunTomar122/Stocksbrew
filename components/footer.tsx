@@ -1,3 +1,5 @@
+"use client";
+
 import { IntentLink } from "@/components/oa/intent-link";
 
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -73,6 +75,10 @@ const COLUMNS: Column[] = [
  * inside the app (where the sidebar is) that strip is hidden in CSS and the
  * footer is just the map and the small print. The body already reserves
  * the phone tab bar's height (globals.css), so no extra padding here.
+ *
+ * A client component on purpose: it is still rendered on the server, but every
+ * page's RSC payload then carries one reference and a flag instead of the whole
+ * link map a second time.
  */
 export function Footer({ isSubscribed = false }: { isSubscribed?: boolean }) {
   const year = new Date().getFullYear();
@@ -131,7 +137,9 @@ export function Footer({ isSubscribed = false }: { isSubscribed?: boolean }) {
         </div>
 
         <div className="mt-10 flex flex-col gap-2 border-t border-oa-border pt-5 sm:flex-row sm:items-start sm:justify-between">
-          <p className="oa-mono text-[11.5px] leading-5 text-oa-muted-fg">
+          {/* The year is worked out on the server (UTC) and again in the browser (local time); for a few hours around
+              New Year they differ, and the server's is fine to keep. */}
+          <p suppressHydrationWarning className="oa-mono text-[11.5px] leading-5 text-oa-muted-fg">
             © {year} stocksbrew ·{" "}
             <IntentLink href="/legal/terms" className="hover:text-oa-fg">
               Terms

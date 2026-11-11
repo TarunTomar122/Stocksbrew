@@ -19,6 +19,7 @@ from backend.call_reason import (
     _PRICE_LEVEL,
     _SENTENCE_SPLIT,
     compose_company_reason,
+    growth_bars,
     numbers_supported,
     peer_label,
     short_name,
@@ -75,6 +76,14 @@ KO = {
 }
 
 
+# The conditions the old templates wrote that nobody could check (owner, Nov 11).
+VAGUE_CONDITION = re.compile(
+    r"sharply|this fast|growing near|on a dip|settles back|wide margin|lower price|buy range|look again after|decide after"
+    r"|stops growing|start cutting|faster sales growth|falls back toward|bounces",
+    re.IGNORECASE,
+)
+
+
 def sentences(text: str) -> list[str]:
     return _SENTENCE_SPLIT.split(text)
 
@@ -103,7 +112,9 @@ class ComposeTest(unittest.TestCase):
         for facts in (NVDA, KO):
             out = compose_company_reason(facts, today=TODAY)
             assert out is not None
-            evidence = json.dumps(facts) + " 2026-11-17 2026-10-27"
+            # The sales bars are set from the facts by a stated rule (growth_bars), so they count as supported.
+            bars = growth_bars(facts.get("rev_growth"))
+            evidence = json.dumps(facts) + " 2026-11-17 2026-10-27 " + json.dumps(bars)
             self.assertTrue(numbers_supported(out["text"], evidence), out["text"])
 
     def test_trim_after_a_miss_says_what_would_stop_the_selling(self):
@@ -142,12 +153,13 @@ class ComposeTest(unittest.TestCase):
         assert out is not None
         self.assertIn("Deere's sales grew 8.3% over the past year, but the stock rose 11% over the past month", out["text"])
 
-    def test_add_on_a_dip_after_a_run_up(self):
+    def test_add_after_a_run_up_names_a_checkable_condition_not_a_dip(self):
         facts = {"name": "ADT Inc.", "symbol": "ADT", "stance": "accumulate", "execution": "pullback", "rev_growth": 2.0, "ret_1m": 54.0, "from_hi_pct": -0.3}
         out = compose_company_reason(facts, today=TODAY)
         assert out is not None
         self.assertTrue(out["text"].startswith("ADT rose 54% over the past month"), out["text"])
-        self.assertIn("buy on a dip rather than now", out["text"])
+        self.assertNotIn("dip", out["text"])
+        self.assertEqual(out["change"], "We'd stop buying if ADT's next report misses profit forecasts.")
 
     def test_a_report_inside_the_week_is_the_cause_of_the_move(self):
         facts = dict(NVDA, last_report={"date": "2026-11-06", "label": "beat", "surprise_pct": 12.0})
@@ -238,6 +250,9 @@ class ComposeTest(unittest.TestCase):
                 self.assertNotIn("stop buying", text)
             if stance == "accumulate":
                 self.assertNotIn("selling", text)
+            # Every condition is one someone can check after the fact.
+            self.assertIsNone(VAGUE_CONDITION.search(out["change"]), out["change"])
+            self.assertTrue(out["change"], text)
         self.assertGreater(seen, 200)
 
 
@@ -265,7 +280,9 @@ class QualityPassRegressionsTest(unittest.TestCase):
         out = compose_company_reason(facts, today=TODAY)
         assert out is not None
         self.assertNotIn("growing again", out["text"])
-        self.assertIn("faster sales growth", out["text"])
+        # "Faster sales growth" names no bar; without last year's growth there is none, so the report decides.
+        self.assertNotIn("faster", out["text"])
+        self.assertIn("We'd stop selling if the Dec 1 report beats profit forecasts.", out["text"])
 
     def test_a_usual_pe_is_not_a_threshold_already_crossed(self):
         facts = {
@@ -319,6 +336,65 @@ class QualityPassRegressionsTest(unittest.TestCase):
         self.assertEqual(facts["name"], "McDonald's Corporation")
         facts = screener.reason_facts({"symbol": "KO", "name": "Coca-Cola Company"}, None, peers=None, report=None, today="2026-11-11", name="Other")
         self.assertEqual(facts["name"], "Coca-Cola Company")
+
+
+class MeasuredConditionTest(unittest.TestCase):
+    def test_growth_bars_match_the_web_rule(self):
+        # The same cases as lib/call-evidence.test.ts `growthBars`.
+        self.assertEqual(growth_bars(83.38, 65.47), {"up": 65, "down": 42, "recover": None})
+        self.assertEqual(growth_bars(83, 114), {"up": 83, "down": 42, "recover": 114})
+        self.assertEqual(growth_bars(14.06, 0.88), {"up": 14, "down": 7, "recover": None})
+        self.assertEqual(growth_bars(4, None), {"up": 4, "down": 0, "recover": None})
+        self.assertEqual(growth_bars(-6, -2), {"up": None, "down": None, "recover": 0})
+        self.assertEqual(growth_bars(None, 10), {"up": None, "down": None, "recover": None})
+        # Half rounds up, as Math.round does on the web (Python's round(10.5) would give 10).
+        self.assertEqual(growth_bars(21)["down"], 11)
+
+    def test_a_keep_call_never_names_a_sale(self):
+        for facts in (NVDA, dict(NVDA, rev_growth=None), dict(NVDA, ret_1w=1.0, ret_1m=1.0, rev_growth=None, pe=45.0, pe_hist_median=30.0)):
+            out = compose_company_reason(facts, today=TODAY)
+            assert out is not None
+            self.assertNotRegex(out["change"], r"sell|buy", out["change"])
+
+    def test_hold_names_both_sales_bars(self):
+        out = compose_company_reason(NVDA, today=TODAY)
+        assert out is not None
+        self.assertEqual(
+            out["change"],
+            "The Nov 17 report could raise the call if sales growth stays above 83%, and lower it if sales growth falls below 42%.",
+        )
+
+    def test_last_years_growth_sets_the_bar_when_the_facts_carry_it(self):
+        out = compose_company_reason(dict(NVDA, rev_growth_last_year=65.47), today=TODAY)
+        assert out is not None
+        self.assertIn("stays above 65%", out["change"])
+        self.assertIn("falls below 42%", out["change"])
+
+    def test_add_names_the_slowdown_bar(self):
+        facts = {"name": "Acme Corp", "symbol": "ACME", "stance": "accumulate", "execution": "now", "rev_growth": 24.0, "next_report": "2026-12-03"}
+        out = compose_company_reason(facts, today=TODAY)
+        assert out is not None
+        self.assertEqual(out["change"], "We'd stop buying if the Dec 3 report shows sales growth below 12% or misses profit forecasts.")
+
+    def test_a_dear_pe_on_a_sell_call_names_the_usual_pe(self):
+        facts = {
+            "name": "Acme Corp", "symbol": "ACME", "stance": "trim", "pe": 40.0, "pe_hist_median": 30.0, "pe_hist_days": 40,
+            "pe_hist_from": "2026-04-23", "pe_hist_to": "2026-07-23", "next_report": "2026-12-03",
+        }
+        out = compose_company_reason(facts, today=TODAY)
+        assert out is not None
+        self.assertEqual(out["change"], "We'd stop selling if the P/E falls back to 30 or the Dec 3 report beats profit forecasts.")
+
+    def test_an_event_without_a_condition_is_not_written(self):
+        facts = {
+            "name": "Acme Corp", "symbol": "ACME", "stance": "accumulate", "eps_next_y": 30.0,
+            "next_event": "the FDA decision", "next_event_date": "2026-12-02",
+        }
+        out = compose_company_reason(facts, today=TODAY)
+        assert out is not None
+        self.assertNotIn("FDA", out["change"])
+        self.assertNotIn("look again", out["change"])
+        self.assertEqual(out["change"], "We'd stop buying if Acme's next report misses profit forecasts.")
 
 
 class NamesTest(unittest.TestCase):

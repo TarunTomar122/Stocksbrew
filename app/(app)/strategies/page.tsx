@@ -12,7 +12,7 @@ import { getSessionUser } from "@/lib/auth-server";
 import { can } from "@/lib/entitlements";
 import { getViewer } from "@/lib/entitlements-server";
 import { getScreenerRows } from "@/lib/screener";
-import { listStrategies, readTrackedStrategies, type StrategySummary } from "@/lib/strategies";
+import { listStrategies, liveHasReturn, readTrackedStrategies, type StrategySummary } from "@/lib/strategies";
 import { buildStrategiesRead, type YtdMap } from "@/lib/strategies-insights";
 import { markFor } from "@/lib/tone";
 import { getUserDoc } from "@/lib/watchlist";
@@ -99,7 +99,7 @@ function Swings({ item }: { item: StrategySummary }) {
 
 const TRACKING = "oa-mono rounded-sm bg-oa-secondary px-1.5 py-px text-[12.5px] uppercase tracking-[0.04em] text-oa-fg";
 
-function DesktopRow({ item, tracked, showLive }: { item: StrategySummary; tracked: boolean; showLive: boolean }) {
+function DesktopRow({ item, tracked, showLive, liveBare }: { item: StrategySummary; tracked: boolean; showLive: boolean; liveBare: boolean }) {
   const test = item.backtest;
   const gap = gapOf(item);
   return (
@@ -141,14 +141,14 @@ function DesktopRow({ item, tracked, showLive }: { item: StrategySummary; tracke
       <td className={`whitespace-nowrap py-2 pl-3 text-right text-[14px] text-oa-muted-fg ${showLive ? "pr-3" : "pr-4"}`}>{holdsText(item)}</td>
       {showLive ? (
         <td className="whitespace-nowrap py-2 pl-3 pr-4 text-right text-[13px]">
-          <LiveLine live={item.live} short />
+          <LiveLine live={item.live} bare={liveBare} />
         </td>
       ) : null}
     </tr>
   );
 }
 
-function MobileCard({ item, tracked, showLive }: { item: StrategySummary; tracked: boolean; showLive: boolean }) {
+function MobileCard({ item, tracked, showLive, liveBare }: { item: StrategySummary; tracked: boolean; showLive: boolean; liveBare: boolean }) {
   const test = item.backtest;
   const gap = gapOf(item);
   return (
@@ -197,7 +197,7 @@ function MobileCard({ item, tracked, showLive }: { item: StrategySummary; tracke
         {showLive ? (
           <>
             {" · Live: "}
-            <LiveLine live={item.live} short />
+            <LiveLine live={item.live} bare={liveBare} />
           </>
         ) : null}
       </p>
@@ -225,7 +225,17 @@ export default async function StrategiesPage() {
   const read = buildStrategiesRead(items, { seesHoldings, ytd });
 
   // The live record is one sentence until a session has closed; after that each row gets its own figure.
-  const showLive = items.some((item) => item.live.sessions > 0 && item.live.strategy_return !== null);
+  // The fill day alone is only the cost of buying in, the same figure on every strategy: not a live return yet.
+  const liveRows = items.filter((item) => liveHasReturn(item.live));
+  const liveBegan = items.map((item) => item.live.first_fill_date).filter((day): day is string => Boolean(day)).sort()[0] ?? null;
+  // The same session count on every row is said once, in the column head, not "in 1 session" on each row; the
+  // same figure on every row too (the first close after a rebalance) is one sentence, not a column of copies.
+  const liveSessions = liveRows.length === items.length && new Set(liveRows.map((item) => item.live.sessions)).size === 1 ? liveRows[0]!.live.sessions : null;
+  const liveFigures = new Set(liveRows.map((item) => signedPct(item.live.strategy_return!, 2)));
+  const liveShared = items.length > 1 && liveSessions !== null && liveFigures.size === 1 ? [...liveFigures][0]! : null;
+  const showLive = liveRows.length > 0 && liveShared === null;
+  const liveBare = liveSessions !== null;
+  const sessionsWord = (count: number) => `${count} session${count === 1 ? "" : "s"}`;
 
   return (
     <main className={`oa-landing ${interTight.variable} min-w-0 flex-grow overflow-x-clip`}>
@@ -270,10 +280,26 @@ export default async function StrategiesPage() {
                     </span>
                   </>
                 ) : null}
-                {showLive ? null : (
+                {liveShared !== null && liveSessions !== null ? (
+                  <>
+                    <span aria-hidden="true">·</span>
+                    <span>
+                      live so far: each one <span className={`oa-mono tabular-nums ${toneOf(liveRows[0]!.live.strategy_return!)}`}>{liveShared}</span> after {sessionsWord(liveSessions)}
+                    </span>
+                  </>
+                ) : showLive ? (
+                  liveSessions !== null ? (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <span>live for {sessionsWord(liveSessions)}{liveSince ? <span className="max-sm:hidden"> since {longDay(liveSince)}</span> : null}</span>
+                    </>
+                  ) : null
+                ) : (
                   <>
                     <span aria-hidden="true" className="max-sm:hidden">·</span>
-                    <span className="max-sm:hidden">live record {liveSince ? `since ${longDay(liveSince)}` : "not started"}, no sessions yet</span>
+                    <span className="max-sm:hidden">
+                      {liveBegan ? `live tracking began on ${longDay(liveBegan)}` : liveSince ? `live tracking starts after ${longDay(liveSince)}` : "live tracking has not started"}
+                    </span>
                   </>
                 )}
                 <a href="#how-to-read" className="ml-auto whitespace-nowrap text-oa-primary underline decoration-[color-mix(in_srgb,var(--oa-primary)_40%,transparent)] underline-offset-2">
@@ -306,14 +332,14 @@ export default async function StrategiesPage() {
                   </thead>
                   <tbody>
                     {items.map((item) => (
-                      <DesktopRow key={item.slug} item={item} tracked={tracked.has(item.slug)} showLive={showLive} />
+                      <DesktopRow key={item.slug} item={item} tracked={tracked.has(item.slug)} showLive={showLive} liveBare={liveBare} />
                     ))}
                   </tbody>
                 </table>
               </div>
               <div className="lg:hidden">
                 {items.map((item) => (
-                  <MobileCard key={item.slug} item={item} tracked={tracked.has(item.slug)} showLive={showLive} />
+                  <MobileCard key={item.slug} item={item} tracked={tracked.has(item.slug)} showLive={showLive} liveBare={liveBare} />
                 ))}
               </div>
             </section>

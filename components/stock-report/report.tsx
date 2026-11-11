@@ -3,7 +3,7 @@ import { todayET } from "@/lib/calendar-shared";
 
 import { MarketStatusInline } from "@/components/market-status";
 import { RangeBar } from "@/components/oa/kit";
-import { CALL_PLAIN, callMetaLine, plainAction, plainCallReason, wholeSentences } from "@/lib/plain-copy";
+import { CALL_PLAIN, plainAction, plainCallReason, wholeSentences } from "@/lib/plain-copy";
 import { callBasis, factHasDate, lastReportOn } from "@/lib/call-basis";
 import { CoverButton, LockCard } from "@/components/oa/gate";
 import { ProCheckoutButton } from "@/components/oa/pro-checkout-button";
@@ -302,7 +302,24 @@ export function StockReport({
   const callAge = callDay ? daysBetween(callDay, today) : null;
   const callIsOld = callAge != null && callAge > 14;
   const reasonIsNewer = Boolean(callDay && ready?.reasonAsOf && ready.reasonAsOf > callDay);
-  const callMeta = ready ? callMetaLine(ready.confidence, ready.horizon, callIsOld && callDay ? fmtDate(callDay, false) : null) : "";
+  const sinceWords = ready?.since ? fmtDate(ready.since, ready.since.slice(0, 4) !== today.slice(0, 4)) : "";
+  const reviewedWords = ready?.writtenAt ? fmtStamp(ready.writtenAt) : "";
+  // "Our call since Nov 9, last reviewed Nov 10, 4:30 PM ET." One sentence instead of two small labels.
+  const callDates = sinceWords
+    ? `Our call since ${sinceWords}${reviewedWords ? `, last reviewed ${reviewedWords}` : ""}.`
+    : reviewedWords
+      ? `${callIsOld || reasonIsNewer ? "Last reviewed" : "Reviewed"} ${reviewedWords}.`
+      : "";
+  // The evidence under the call (each line with its source and date) and the measurable conditions that would change
+  // it (lib/call-evidence.ts). The conditions come with covering the stock; the server sends none otherwise.
+  const evidence = ready ? data.callEvidence?.evidence ?? [] : [];
+  const conditions = ready && data.gate.levels ? data.callEvidence?.conditions ?? [] : [];
+  // Without measured conditions, the steady call's own sentence, when it is published and the viewer covers the stock.
+  const ruleChange = ready && data.gate.levels && !conditions.length ? ready.whatWouldChange : null;
+  // The brief's written "what would change our mind" list, only when the call block has no measured conditions.
+  const showChangers = Boolean(ready?.changers.length) && !conditions.length;
+  const showReasons = Boolean(ready?.reasons.length);
+  const hasChangeBox = conditions.length > 0 || Boolean(ruleChange);
   // The company reason taken apart: the facts the call rests on, each dated, then what would change it (lib/call-basis.ts).
   // Only for the reason written from the company's own numbers; any other reason stays one paragraph.
   const callReason = ready ? plainCallReason(ready.actionSummary) : "";
@@ -345,19 +362,35 @@ export function StockReport({
   // The chip carries the call word; the line says what it means, going on from the chip when the plain action starts
   // with the word ("[Buy more] on a dip, not here"), so the call is never said twice (./call-line.ts).
   const meaning = callMeaning(callWord, callAction);
-  // What would change the call, set apart from the reasons so it reads as the condition to watch.
-  const changeLine = (text: string) => (
-    <p className="mt-2.5 max-w-[62ch] text-pretty rounded-lg border border-oa-border bg-oa-bg px-3 py-2 text-[14px] leading-5 text-oa-fg">
-      <span className="font-medium">What would change it: </span>
-      {text}
-    </p>
+  // What would change the call, set apart from the reasons so it reads as the conditions to watch.
+  const changeBlock = (lines: string[]) => (
+    // Capped on a wide screen so the box never widens the price column at the call's expense.
+    <div className="max-w-[62ch] rounded-lg border border-oa-border bg-oa-bg px-3 py-2 text-[14px] leading-5 text-oa-fg md:max-w-[29rem]">
+      <p className="font-medium">What would change it</p>
+      <div className="mt-0.5 flex flex-col gap-1">
+        {lines.map((line) => (
+          <p key={line} className="text-pretty">
+            {line}
+          </p>
+        ))}
+      </div>
+    </div>
   );
 
   // Under the call: two questions for Ask and one thing to watch (lib/next-steps.ts). Ask and agents cover US stocks.
-  const callSteps =
+  const allSteps =
     ready && market === "US"
       ? stockCallSteps({ ticker: stock.ticker, fullRead: data.gate.levels, dayPct, earningsInDays: earningsIn })
       : null;
+  // One next step under the call (owner rule 1: no stack of identical "… →" lines): the thing to watch when there is
+  // one, else the question about today. "What would change your mind" is never it: the conditions box answers it.
+  const callSteps: CallSteps | null = allSteps
+    ? allSteps.watch
+      ? { ask: [], watch: allSteps.watch }
+      : allSteps.ask.length
+        ? { ask: [allSteps.ask[allSteps.ask.length - 1]!], watch: null }
+        : null
+    : null;
 
   const stats = headerStats.length ? <KeyStats items={headerStats} /> : null;
   // On a phone the page below the chart is one part at a time (PhoneSections).
@@ -402,7 +435,7 @@ export function StockReport({
                 </div>
               </div>
 
-              <div className="mt-3 grid gap-x-6 gap-y-3 md:grid-cols-[minmax(15rem,auto)_minmax(0,1fr)] md:items-start">
+              <div className="mt-3 grid gap-x-6 gap-y-3 md:grid-cols-[minmax(15rem,auto)_minmax(0,1fr)] md:grid-rows-[auto_1fr] md:items-start">
                 <div className="min-w-0 md:col-start-1 md:row-start-1">
                   <p className="flex flex-wrap items-baseline gap-x-2.5">
                     <span className={`${NUM} text-[36px] font-semibold leading-[44px] text-oa-fg sm:text-[42px] sm:leading-[48px]`}>{money(stock.price)}</span>
@@ -422,20 +455,13 @@ export function StockReport({
 
                 {/* The call sits beside the price on a wide screen and right under it on a phone. */}
                 <section aria-label={`Our call on ${stock.ticker}`} className="min-w-0 border-t border-oa-border pt-3 md:col-start-2 md:row-span-2 md:row-start-1 md:border-l md:border-t-0 md:pl-6 md:pt-0">
-                  <div className="flex items-baseline justify-between gap-3">
-                    {/* How long the call has stood: a call that keeps its date is one you can hold us to. */}
-                    <h2 className="oa-caption">
-                      Our call{ready?.since ? ` since ${fmtDate(ready.since, ready.since.slice(0, 4) !== today.slice(0, 4))}` : ""}
-                    </h2>
-                    {/* When we last looked at the call again: the brief is rewritten, and the call decided, at this time. */}
-                    {ready?.writtenAt ? (
-                      <p className="text-[12px] leading-4 text-oa-muted-fg">
-                        {reasonIsNewer ? "Call last reviewed" : callIsOld ? "Last reviewed" : "Reviewed"} {fmtStamp(ready.writtenAt)}
-                      </p>
-                    ) : readState === "locked" ? (
-                      <Tag tone="primary">Pro</Tag>
-                    ) : null}
-                  </div>
+                  {/* With a call, the chip is the heading and its dates are a sentence under it (no small label above it). */}
+                  {!ready ? (
+                    <div className="flex items-baseline justify-between gap-3">
+                      <h2 className="oa-caption">Our call</h2>
+                      {readState === "locked" ? <Tag tone="primary">Pro</Tag> : null}
+                    </div>
+                  ) : null}
                   {ready ? (
                     <>
                       {/* The call in a word ("Sell some"), then what it means ("Don't buy more at this price"). */}
@@ -454,9 +480,26 @@ export function StockReport({
                         {callWord && meaning ? " " : null}
                         {meaning ? <span className="text-pretty text-[17px] font-medium leading-6 tracking-tight text-oa-fg">{meaning}</span> : null}
                       </p>
-                      {/* What the call rests on (each fact with its date), then what would change it, then how sure we are.
+                      {/* How long the call has stood (a call that keeps its date is one you can hold us to) and when we last
+                          looked at it again: the brief is rewritten, and the call decided, at that time. */}
+                      {callDates ? <p className="mt-1.5 text-pretty text-[13px] leading-[18px] text-oa-muted-fg">{callDates}</p> : null}
+                      {/* What the call rests on (each fact with its source and date), then what would change it.
                           All of it comes before any price, so a level never reads as more certain than its reasons. */}
-                      {basis ? (
+                      {evidence.length ? (
+                        <div className="mt-2.5 max-w-[62ch] text-[15px] leading-[21px] text-oa-fg">
+                          <p className="font-medium">Why:</p>
+                          <ul role="list" className="mt-1 flex flex-col gap-1.5">
+                            {evidence.map((line) => (
+                              <li key={line.id} className="flex gap-2.5">
+                                <span aria-hidden="true" className="mt-[8px] size-[5px] shrink-0 rounded-full bg-oa-muted-fg" />
+                                <span className="min-w-0 text-pretty">
+                                  {line.text} <span className="text-[13px] leading-[18px] text-oa-muted-fg">{line.source}.</span>
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : basis ? (
                         <div className="mt-2.5 max-w-[62ch] text-[15px] leading-[21px] text-oa-fg">
                           {/* One date for all the reasons when they share it, instead of "as of Nov 10" on every line. */}
                           <p className="font-medium">
@@ -480,8 +523,6 @@ export function StockReport({
                               </li>
                             ))}
                           </ul>
-                          {/* The steady call's own rule wins: it is what would actually move the call. */}
-                          {ready.whatWouldChange || basis.change ? changeLine(ready.whatWouldChange || basis.change || "") : null}
                         </div>
                       ) : callReason ? (
                         <p className="mt-2.5 max-w-[62ch] text-pretty text-[15px] leading-[21px] text-oa-fg">
@@ -492,26 +533,19 @@ export function StockReport({
                           ) : null}
                         </p>
                       ) : null}
-                      {!basis && ready.whatWouldChange ? changeLine(ready.whatWouldChange) : null}
                       {/* Honest about the day: the latest review pointed elsewhere, and the call held on purpose. */}
                       {ready.heldAgainst ? (
                         <p className="mt-2 max-w-[62ch] text-pretty text-[13px] leading-[18px] text-oa-muted-fg">
                           The latest data leans toward {CALL_PLAIN[ready.heldAgainst as keyof typeof CALL_PLAIN] ?? ready.heldAgainst}. One day isn&apos;t enough to change the call.
                         </p>
                       ) : null}
-                      {/* How sure, in words, and honest about the record: we have no test showing these calls beat the market. */}
-                      <p className="mt-2 text-pretty text-[13px] leading-[18px] text-oa-muted-fg">
-                        {/* Linked to how calls are made, so a crawler reading the first block finds the method behind the call. Same look as the text around it. */}
-                        {callMeta ? `${callMeta} ` : null}
-                        <Link prefetch={false} href="/docs/methodology" className="hover:underline focus-visible:underline focus-visible:outline-none">
-                          Our view, not advice.
-                        </Link>{" "}
-                        {data.gate.levels ? (
-                          <a href="#read" className="text-oa-primary hover:underline">
-                            Read the reasoning
-                          </a>
-                        ) : null}
-                      </p>
+                      {/* With the conditions box under the price, the next steps move here on a wide screen so the two sides
+                          stay even. On a phone they stay after the box, where they were. */}
+                      {callSteps && hasChangeBox ? (
+                        <div className="mt-3 hidden md:block">
+                          <CallNextSteps ticker={stock.ticker} steps={callSteps} stacked />
+                        </div>
+                      ) : null}
                     </>
                   ) : readState === "locked" ? (
                     <div className="-mx-3.5 -mb-3">
@@ -531,6 +565,10 @@ export function StockReport({
                     what to do next. The call column keeps only the call and its reasons (owner, Nov 11: "left empty, right too much text"). */}
                 {ready ? (
                   <div className="flex min-w-0 flex-col gap-3 border-t border-oa-border pt-3 md:col-start-1 md:row-start-2 md:border-t-0 md:pt-0">
+                  {/* What would change the call, under the price where the left side has room: measured conditions first,
+                      the steady call's own sentence when there are none. The company reason's "if sales slow sharply"
+                      line is never shown: it names nothing anyone can check. */}
+                  {conditions.length ? changeBlock(conditions) : ruleChange ? changeBlock([ruleChange]) : null}
                   {nearLevels.length ? (
                     <dl className="flex flex-wrap gap-x-6 gap-y-2">
                       {nearLevels.map((item) => (
@@ -563,7 +601,11 @@ export function StockReport({
                       </span>
                     </p>
                   ) : null}
-                  {callSteps ? <CallNextSteps ticker={stock.ticker} steps={callSteps} stacked /> : null}
+                  {callSteps ? (
+                    <div className={hasChangeBox ? "md:hidden" : undefined}>
+                      <CallNextSteps ticker={stock.ticker} steps={callSteps} stacked />
+                    </div>
+                  ) : null}
                   </div>
                 ) : null}
               </div>
@@ -697,10 +739,10 @@ export function StockReport({
                     <LevelsLock ticker={stock.ticker} instrumentId={stock.instrument_id} tracked={data.isTracked} gate={data.gate} />
                   </div>
                 ) : null}
-                {ready.reasons.length || ready.changers.length ? (
-                  <div className="grid border-t border-oa-border md:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
-                    {ready.reasons.length ? (
-                      <div className="border-b border-oa-border px-3.5 py-3 sm:px-4 md:border-b-0 md:border-r">
+                {showReasons || showChangers ? (
+                  <div className={`grid border-t border-oa-border ${showReasons && showChangers ? "md:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]" : ""}`}>
+                    {showReasons ? (
+                      <div className={`px-3.5 py-3 sm:px-4 ${showChangers ? "border-b border-oa-border md:border-b-0 md:border-r" : ""}`}>
                         <h3 className="oa-label">{ready.reasons.length === 1 ? "The reason" : `The ${["", "", "two", "three"][ready.reasons.length] ?? ready.reasons.length} reasons`}</h3>
                         <ol className="mt-2 flex flex-col gap-2.5">
                           {ready.reasons.map((reason, index) => (
@@ -712,7 +754,9 @@ export function StockReport({
                         </ol>
                       </div>
                     ) : null}
-                    {ready.changers.length ? (
+                    {/* The measured conditions in the call block replace these written ones; two lists of what would
+                        change the call would disagree. */}
+                    {showChangers ? (
                       <div className="px-3.5 py-3 sm:px-4">
                         <h3 className="oa-label">What would change our mind</h3>
                         <ul className="mt-2 flex flex-col gap-2.5">
@@ -758,7 +802,11 @@ export function StockReport({
           {below}
 
           <p className="px-2 text-[12px] leading-5 text-oa-muted-fg sm:px-0">
-            Research, not investment advice. Prices can be delayed.
+            {/* The one legal line, at the foot of the page, linked to how calls are made. */}
+            <Link prefetch={false} href="/docs/methodology" className="hover:underline focus-visible:underline focus-visible:outline-none">
+              Our view, not investment advice.
+            </Link>{" "}
+            Prices can be delayed.
           </p>
         </div>
       </div>

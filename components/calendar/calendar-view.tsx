@@ -343,11 +343,11 @@ function EarningsLine({
           </>
         ) : item.epsEstimate !== null ? (
           <span className={`${NUM} text-oa-muted-fg`}>
-            {/* One word for the estimate, except in the narrow desktop week columns: next to the logo there is
-                no room for it there, so it moves into the row's tooltip. "a share" only where there is room. */}
-            <span className={`text-[12.5px] ${narrow ? "lg:hidden" : ""}`}>expected </span>
+            {/* The number alone: the session heading says once what it is ("Expected profit a share"), so the words
+                are not repeated on every row (owner, Nov 11). Screen readers still get them. */}
+            <span className="sr-only">expected </span>
             {fmtEps(item.epsEstimate)}
-            <span className={`text-[12.5px] ${narrow ? "lg:hidden" : ""}`}> a share</span>
+            <span className="sr-only"> a share</span>
           </span>
         ) : null}
       </span>
@@ -404,14 +404,15 @@ function IpoLine({ item }: { item: IpoItem }) {
 }
 
 /** Ex-dividend rows sit under an "Ex-dividend" heading, so the row says only who, how much and when it pays. */
-function DividendLine({ item, quiet = false }: { item: DividendItem; quiet?: boolean }) {
+function DividendLine({ item }: { item: DividendItem }) {
   return (
-    <Link prefetch={false} href={`/stock/${encodeURIComponent(item.ticker)}`} className={`flex min-h-10 items-center gap-2 px-3 py-1 hover:bg-oa-accent lg:min-h-[30px] lg:py-0.5 ${FOCUS}`}>
+    <Link prefetch={false} href={`/stock/${encodeURIComponent(item.ticker)}`} title={item.paymentDate ? `${item.ticker} pays ${fmtShortDay(item.paymentDate)}` : undefined} className={`flex min-h-10 items-center gap-2 px-3 py-1 hover:bg-oa-accent lg:min-h-[30px] lg:py-0.5 ${FOCUS}`}>
       <span className={`${NUM} inline-flex shrink-0 items-center gap-1.5 text-[14px] font-medium text-oa-fg`}>
         <StockLogo ticker={item.ticker} size={16} />
         {item.ticker}
       </span>
-      {item.paymentDate ? <span className={`min-w-0 truncate text-[12.5px] text-oa-muted-fg ${quiet ? "lg:hidden" : ""}`}>pays {fmtShortDay(item.paymentDate)}</span> : null}
+      {/* The pay date is in the tooltip, not "pays …" written on every row (owner, Nov 11). */}
+      {item.paymentDate ? <span className="sr-only">pays {fmtShortDay(item.paymentDate)}</span> : null}
       <span className={`${NUM} ml-auto shrink-0 text-[14px] text-oa-fg`}>${item.amount.toFixed(item.amount < 0.1 ? 4 : 2)}</span>
     </Link>
   );
@@ -488,7 +489,7 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
           {past && reports ? (
             <span className="lg:hidden">
               {beats ? ` · ${beats} beat` : ""}
-              {misses ? ` · ${misses} missed` : ""} →
+              {misses ? ` · ${misses} missed` : ""}
             </span>
           ) : null}
         </span>
@@ -511,8 +512,14 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
           return (
             <div key={session}>
               <h3 className={`${SECTION} flex items-baseline justify-between gap-2`}>
-                <span>{session === "unknown" && past ? "Time not given" : SESSION_LABEL[session]}</span>
-                <span className={NUM}>{rows.length}</span>
+                <span>
+                  {session === "unknown" && past ? "Time not given" : SESSION_LABEL[session]}
+                  {/* Once per group, for the numbers on its rows, instead of "expected … a share" on every row. */}
+                  {rows.some((item) => item.epsActual === null && item.epsEstimate !== null) ? (
+                    <span className="block font-normal">Expected profit a share</span>
+                  ) : null}
+                </span>
+                <span className={`${NUM} shrink-0`}>{rows.length}</span>
               </h3>
               {rows.slice(0, sessionRows).map((item) => (
                 <EarningsLine key={item.id} item={item} compact={compact} narrow={!isToday} quiet={past} mark={mark} />
@@ -539,7 +546,7 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
               <span className={NUM}>{bucket.dividends.length}</span>
             </h3>
             {bucket.dividends.slice(0, WEEK_OTHER_ROWS).map((item) => (
-              <DividendLine key={item.id} item={item} quiet={past && compact} />
+              <DividendLine key={item.id} item={item} />
             ))}
             <More count={bucket.dividends.length - WEEK_OTHER_ROWS} href={dayHref} />
           </div>

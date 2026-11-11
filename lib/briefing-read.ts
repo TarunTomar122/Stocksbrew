@@ -1,5 +1,5 @@
 import { marketDay, type Briefing, type BriefingItem } from "@/lib/briefing";
-import { MARKET_GROUP_KEY, type BriefingGroup, type GroupedSections } from "@/lib/briefing-groups";
+import { MARKET_GROUP_KEY, plainCallWord, type BriefingGroup, type GroupedSections } from "@/lib/briefing-groups";
 import { firstFullSentence, splitMoveReason, plainFinance, sentenceCase, shortCompanyName } from "@/lib/plain-copy";
 import { pickInsights, toneOfChange, type Insight, type TheRead } from "@/lib/insights";
 
@@ -150,7 +150,8 @@ function moverInsight(group: BriefingGroup, index: IndexMove, date?: string): In
 
 /** Our call moved on something you watch. */
 function callInsight(item: BriefingItem): Insight | null {
-  const to = item.metric?.trim();
+  // Buy more / Keep / Sell some, also on briefings saved with the pipeline's words.
+  const to = plainCallWord(item.metric);
   if (!to || !item.ticker) return null;
   return {
     id: `call-${item.id}`,
@@ -163,14 +164,14 @@ function callInsight(item: BriefingItem): Insight | null {
 }
 
 /**
- * Stocks you watch that sit in their add zone, as one line instead of one
+ * Stocks you watch that sit below their buy-more price, as one line instead of one
  * decision each. On a day the index falls, most of them got there together.
  */
 function addZoneInsight(items: BriefingItem[], index: IndexMove): Insight | null {
   const names = [
     ...new Set(
       items
-        .filter((item) => item.kind === "zone_entered" && item.relation === "watching" && /\badd zone\b/.test(item.headline) && item.ticker)
+        .filter((item) => item.kind === "zone_entered" && item.relation === "watching" && /\b(?:add zone|buy-more price)\b/.test(item.headline) && item.ticker)
         .sort((a, b) => (a.day_change_pct ?? 0) - (b.day_change_pct ?? 0))
         .map((item) => item.ticker),
     ),
@@ -182,8 +183,8 @@ function addZoneInsight(items: BriefingItem[], index: IndexMove): Insight | null
   return {
     id: "add-zones",
     tone: "flat",
-    text: `${names.length} stocks you watch are in their add zone: ${joinAnd(more > 0 ? [...named, `${more} more`] : named)}.`,
-    figure: { value: String(names.length), label: "in their add zone" },
+    text: `${names.length} stocks you watch are below their buy-more price: ${joinAnd(more > 0 ? [...named, `${more} more`] : named)}.`,
+    figure: { value: String(names.length), label: "below their buy-more price" },
     soWhat: fell
       ? `The ${index.name} is down ${pct(index.change_pct, 2)}, so most got there with the market. Reread a call before adding.`
       : "Reread a call before adding.",

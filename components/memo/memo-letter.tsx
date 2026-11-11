@@ -7,7 +7,7 @@ import { cardItems } from "@/lib/memo/view";
 import { shortDay, weekTitle, weekdayName } from "@/lib/memo/week";
 
 import { CallChanges } from "./calls";
-import { explainDays } from "./explain";
+import { explainDays, plainFootnote } from "./explain";
 import { MemoCards } from "./cards";
 import { Movers } from "./movers";
 import { WeekChart } from "./week-chart";
@@ -85,7 +85,7 @@ export function MemoLetter({ memo, example, plan, rail = null }: { memo: Memo; e
               <WeekChart curve={view.curve} subject={memo.subject} days={explainDays(memo, view.curve)} />
             </div>
           ) : null}
-          {view?.footnote ? <p className="mt-2 text-[12px] leading-4 text-oa-muted-fg">{view.footnote}</p> : null}
+          {view?.footnote ? <p className="mt-2 text-[12.5px] leading-[18px] text-oa-muted-fg">{plainFootnote(view.footnote)}</p> : null}
         </div>
       </article>
       {/* On wide screens the week list takes the chart's height and scrolls inside it, so neither leaves a gap. */}

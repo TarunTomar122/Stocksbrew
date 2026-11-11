@@ -8,10 +8,10 @@ import { checkSteps, ranWords, type CheckAudience, type CheckView, type ExampleC
 
 /**
  * One real, dated check by an agent (lib/portfolio-home/example-check.ts): the rule, what it looked at and when,
- * what it found with the evidence and its source, what it decided, and its next check, then a question for Ask
- * about it and a way to change the watch. The example's checks show on My stocks to anyone without agents of
- * their own; a person's own checks open the same way (./agents-panel.tsx). Each check is a <details> row, so it
- * opens without any script. Server-safe: no hooks.
+ * what it found with the evidence and its source, what it decided, and its next check.
+ * The example's checks show on My stocks to anyone without agents of their own; a person's own checks show the same
+ * way (./agents-panel.tsx). Every check is in view, compactly: what it checked, what it found and what it decided,
+ * with nothing to open (owner rule 2). The page's one Ask is the Ask box, so no check carries its own. Server-safe.
  */
 
 const DOT: Record<CheckView["decision"], string> = {
@@ -95,8 +95,8 @@ function Stocks({ tickers }: { tickers: string[] }) {
 }
 
 /**
- * The whole check, open: what it watches, what it checked and when, what it found and why, what it did, what's
- * next. With an `audience`, the two steps follow: a question for Ask about this check, and changing the watch.
+ * The whole check: what it watches, what it checked and when, what it found and why, what it did, what's next.
+ * For a person's own agent, the way to change the watch follows.
  */
 export function CheckDetail({
   view,
@@ -107,7 +107,7 @@ export function CheckDetail({
   view: CheckView;
   today: string;
   audience?: CheckAudience;
-  /** Off under a row that already says the rule (CheckDisclosure). */
+  /** Off under a row that already says the rule (CheckRow). */
   showRule?: boolean;
 }) {
   const steps = audience ? checkSteps(view, audience) : null;
@@ -131,70 +131,76 @@ export function CheckDetail({
         <Row term="Decided">{view.decided}</Row>
         {view.next ? <Row term="Next check">{capital(nextCheckWords(view.next, today))}.</Row> : null}
       </dl>
-      {steps ? (
-        <p className="flex flex-wrap gap-x-4 gap-y-0.5 border-t border-oa-border px-3 py-1.5 text-[13px] leading-[22px]">
-          <Link href={`/ask?q=${encodeURIComponent(steps.ask.question)}&ctx=${encodeURIComponent(steps.ask.context)}`} prefetch={false} data-track-target="ask" className={WATCH_LINK}>
-            Ask about this&nbsp;→
+      {steps?.change ? (
+        <p className="border-t border-oa-border px-3 py-1.5 text-[13px] leading-[22px]">
+          <Link href={steps.change.href} prefetch={false} data-track-target="watch" className={WATCH_LINK}>
+            {steps.change.label}
           </Link>
-          {steps.change ? (
-            <Link href={steps.change.href} prefetch={false} data-track-target="watch" className={WATCH_LINK}>
-              {steps.change.label}&nbsp;→
-            </Link>
-          ) : null}
         </p>
       ) : null}
     </div>
   );
 }
 
-const CHEVRON = (
-  <svg aria-hidden="true" viewBox="0 0 12 12" className="mt-[3px] size-3 shrink-0 text-oa-muted-fg transition-transform group-open/check:rotate-180">
-    <path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
+/** What a check did, in a few words for its row; the full sentence is in CheckDetail. */
+const DECIDED_SHORT: Record<CheckView["decision"], string> = {
+  notify: "Flagged it.",
+  nothing: "Stayed quiet.",
+  could_not_check: "Said it couldn't check.",
+};
+
+const ROW_LIST =
+  "mt-1 flex flex-col gap-1 text-[12.5px] leading-[17px] [&>div]:grid [&>div]:grid-cols-[3.75rem_minmax(0,1fr)] [&>div]:gap-x-2 [&_dd]:min-w-0 [&_dd]:text-pretty [&_dd]:text-oa-fg [&_dt]:text-oa-muted-fg";
 
 /**
- * One check as a row that opens. Closed: the rule, when it ran, what it found and when it checks next. Open: the
- * whole check with its evidence and the two steps. `extra` sits under the row, outside the toggle (a link to the
- * finding on this page).
+ * One check, all in view: the rule, then what it checked and when, what it found (with the evidence when it found
+ * something) and what it decided, one short line each. `extra` sits under it (a link to the finding on this page).
  */
-export function CheckDisclosure({
+export function CheckRow({
   view,
   today,
-  audience,
-  open = false,
   extra = null,
+  showNext = true,
 }: {
   view: CheckView;
   today: string;
-  audience: CheckAudience;
-  open?: boolean;
   extra?: React.ReactNode;
+  /** Off where one line under the list says when they all check next, instead of every row saying it. */
+  showNext?: boolean;
 }) {
   return (
-    <li className="px-4 py-2.5 leading-[18px]">
-      <details open={open} className="group/check">
-        <summary className="grid cursor-pointer list-none grid-cols-[0.5rem_minmax(0,1fr)_12px] gap-x-2.5 rounded outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)] [&::-webkit-details-marker]:hidden">
-          <span role="img" aria-label={DOT_LABEL[view.decision]} className={`mt-[5px] inline-block size-2 shrink-0 rounded-full ${DOT[view.decision]}`} />
-          <span className="min-w-0">
-            <span className="block text-pretty text-[13.5px] leading-[18px] text-oa-fg group-hover/check:underline">{view.ask}</span>
-            {/* Closed, the row says when and what; open, the check below says it in full. */}
-            <span className="mt-0.5 block text-pretty text-[12.5px] leading-[17px] text-oa-muted-fg group-open/check:hidden">
-              <span className="oa-mono whitespace-nowrap text-[12px] tabular-nums">{view.when}</span>
-              {": "}
-              <span className={view.decision === "notify" ? "text-oa-fg" : undefined}>{view.outcome}</span>
-              {view.next ? <> Checks again {nextCheckWords(view.next, today)}.</> : null}
-            </span>
-          </span>
-          {CHEVRON}
-        </summary>
-        <div className="mt-2">
-          <CheckDetail view={view} today={today} audience={audience} showRule={false} />
-        </div>
-      </details>
-      {extra ? <div className="pl-[1.125rem]">{extra}</div> : null}
+    <li className="grid grid-cols-[0.5rem_minmax(0,1fr)] gap-x-2.5 px-4 py-2.5 leading-[18px]">
+      <span role="img" aria-label={DOT_LABEL[view.decision]} className={`mt-[5px] inline-block size-2 shrink-0 rounded-full ${DOT[view.decision]}`} />
+      <div className="min-w-0">
+        <p className="text-pretty text-[13.5px] leading-[18px] text-oa-fg">{view.ask}</p>
+        <dl className={ROW_LIST}>
+          <Row term="Checked">
+            <span className="oa-mono whitespace-nowrap text-[12px] tabular-nums text-oa-muted-fg">{view.when}</span>
+            {". "}
+            {view.checked}
+          </Row>
+          <Row term="Found">
+            <span className={view.decision === "notify" ? "font-medium" : undefined}>{quietOutcome(view.outcome)}</span>
+            {view.decision === "notify" ? <Evidence view={view} /> : null}
+          </Row>
+          <Row term="Decided">
+            {DECIDED_SHORT[view.decision]}
+            {showNext && view.next ? <span className="text-oa-muted-fg"> Checks again {nextCheckWords(view.next, today)}.</span> : null}
+          </Row>
+        </dl>
+        {extra}
+      </div>
     </li>
   );
+}
+
+/**
+ * A row's outcome without a leading "Nothing to report." when a reason follows: the hollow dot already says it
+ * (and is its accessible name), so the words are not repeated on every quiet row (owner, Nov 11).
+ */
+export function quietOutcome(outcome: string): string {
+  const rest = outcome.replace(/^Nothing to report\.\s+/, "");
+  return rest && rest !== outcome ? rest : outcome;
 }
 
 /** "MSFT, AAPL, NVDA, JPM, COST, XOM and UNH". */
@@ -222,11 +228,11 @@ export function ExampleChecks({ checks, today, head }: { checks: ExampleChecksVi
           {n === 1 ? "An agent watches" : `${n === 2 ? "Two" : n === 3 ? "Three" : n} agents watch`} the example&apos;s stocks ({tickerList(checks.tickers)}) and check them after every market close.
         </p>
       </div>
-      {/* The check the heading talks about opens by default; the others open on a tap. */}
+      {/* The check the heading talks about first, then the others; every one in view. */}
       <ul className="divide-y divide-oa-border">
-        <CheckDisclosure view={checks.featured} today={today} audience="example" open />
+        <CheckRow view={checks.featured} today={today} />
         {checks.others.map((view) => (
-          <CheckDisclosure key={view.id} view={view} today={today} audience="example" />
+          <CheckRow key={view.id} view={view} today={today} />
         ))}
       </ul>
     </>

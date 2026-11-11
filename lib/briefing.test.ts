@@ -255,7 +255,7 @@ describe("buildBriefing: price moves", () => {
     expect(item.reason_status).toBe("confirmed");
     expect(item.why).toContain("Nvidia slides as its board opens a probe.");
     expect(item.why).not.toContain("third sentence");
-    expect(item.next_step).toBe("The call is Hold. Open NVDA to see what would change it.");
+    expect(item.next_step).toBe("Read why our call on NVDA is Keep.");
     expect(item.evidence.map((entry) => entry.source)).toEqual(["Market quote", "Reuters"]);
     expect(item.evidence[0].at).toBe("2026-11-09T18:20:00.000Z");
     expect(briefing.summary).toBe(
@@ -328,7 +328,7 @@ describe("buildBriefing: price moves", () => {
         ],
       }),
     ).needs_you[0];
-    expect(down.next_step).toBe("Check the add zone at $470. The price is 2.1% above it.");
+    expect(down.next_step).toBe("The buy-more price is $470. The price is 2.1% above it.");
     expect(down.alert).toMatchObject({ condition: "below", target_price: 470, label: "Alert me below $470" });
 
     const up = buildBriefing(
@@ -336,7 +336,7 @@ describe("buildBriefing: price moves", () => {
         positions: [position({ ticker: "MSFT", price: 510, day_change_pct: 4.4, stance: "hold", trim_above: 520 })],
       }),
     ).needs_you[0];
-    expect(up.next_step).toBe("Check the trim zone at $520. The price is 2.0% below it.");
+    expect(up.next_step).toBe("The sell-some price is $520. The price is 2.0% below it.");
   });
 
   it("never writes a next step that tells the person to trade", () => {
@@ -387,12 +387,12 @@ describe("buildBriefing: zones, calls and alerts", () => {
     expect(briefing.needs_you).toHaveLength(1);
     const item = briefing.needs_you[0];
     expect(item.kind).toBe("zone_entered");
-    expect(item.headline).toBe("AMAT is in its add zone: $462.10, below $470");
+    expect(item.headline).toBe("AMAT is below its buy-more price: $462.10, under $470");
     expect(item.why).toBe(
-      `The call is Accumulate. Demand for etch tools is holding up. It is down 5.10% today. ${NO_CONFIRMED_REASON}`,
+      `Our call is Buy more. Demand for etch tools is holding up. It is down 5.10% today. ${NO_CONFIRMED_REASON}`,
     );
     expect(item.next_step).toBe(
-      "Reread the call before you act on it. What would break it: A cut to the 2027 wafer equipment outlook.",
+      "Reread the call on AMAT before you act on it.",
     );
   });
 
@@ -401,17 +401,17 @@ describe("buildBriefing: zones, calls and alerts", () => {
       positions: [position({ ticker: "AMAT", price: 462.1, stance: "accumulate", add_below: 470 })],
     };
     const fresh = buildBriefing(input(base));
-    expect(fresh.needs_you[0].headline).toContain("AMAT is in its add zone");
+    expect(fresh.needs_you[0].headline).toContain("AMAT is below its buy-more price");
 
     const repeat = buildBriefing(input({ ...base, seen_before: seenKeys(fresh) }));
     expect(repeat.needs_you).toEqual([]);
-    expect(repeat.also_today[0].headline).toBe("AMAT is still in its add zone: $462.10, below $470");
+    expect(repeat.also_today[0].headline).toBe("AMAT is still below its buy-more price: $462.10, under $470");
   });
 
   it("only shows a trim zone to someone who holds the stock", () => {
     const zones = { price: 530, stance: "hold", trim_above: 520 };
     const holder = buildBriefing(input({ positions: [position({ ticker: "MSFT", ...zones })] }));
-    expect(holder.needs_you[0].headline).toBe("MSFT is in its trim zone: $530.00, above $520");
+    expect(holder.needs_you[0].headline).toBe("MSFT is above its sell-some price: $530.00, over $520");
     const watcher = buildBriefing(
       input({ positions: [position({ ticker: "MSFT", relation: "watching", ...zones })] }),
     );
@@ -432,8 +432,8 @@ describe("buildBriefing: zones, calls and alerts", () => {
     expect(briefing.needs_you[0]).toMatchObject({
       kind: "call_changed",
       tone: "up",
-      headline: "The call on LRCX changed from Trim to Accumulate",
-      why: "The new call: Accumulate on dips below 310.",
+      headline: "The call on LRCX changed from Sell some to Buy more",
+      why: "The new call: Buy more on dips below 310.",
     });
 
     const old = buildBriefing(input({ positions, call_changes: [{ ...change, at: "2026-11-01T13:00:00.000Z" }] }));
@@ -492,9 +492,9 @@ describe("buildBriefing: earnings", () => {
     expect(item.headline).toBe("AAPL reports earnings today after the close");
     expect(item.metric).toBe("Today");
     expect(item.deadline_days).toBe(0);
-    expect(item.why).toBe("The call going in is Hold.");
+    expect(item.why).toBe("Our call going in is Keep.");
     expect(item.next_step).toBe(
-      "Earnings today after the close. Here is what would change the call: Services growth falling below 10%.",
+      "Earnings today after the close. Read the pre-earnings notes on AAPL before then.",
     );
   });
 
@@ -614,7 +614,7 @@ describe("buildBriefing: other sources", () => {
     expect(news[0]).toMatchObject({
       ticker: "AAPL",
       headline: "News on AAPL: Apple widens its chip deal",
-      next_step: "Read it, then check whether it changes the call. It is Hold today.",
+      next_step: "Read it, then check whether it changes our call, which is Keep today.",
     });
     expect(news[0].evidence[0]).toMatchObject({ source: "Example Wire", at: "2026-11-09T14:00:00.000Z" });
   });

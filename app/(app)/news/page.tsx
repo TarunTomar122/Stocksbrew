@@ -10,7 +10,7 @@ import { getSessionUser } from "@/lib/auth-server";
 import { getTrackedStocks } from "@/lib/watchlist";
 import { loadWire, modelLabel } from "@/lib/wire";
 import { COMPANY_PAGE, groupByCompany } from "@/lib/wire-companies";
-import { readTheWire } from "@/lib/wire-read";
+import { countTones, readTheWire } from "@/lib/wire-read";
 import {
   WIRE_TOPICS,
   filterWire,
@@ -132,9 +132,10 @@ export default async function NewsPage({ searchParams }: { searchParams?: Search
       {reading?.read ? <TheRead read={reading.read} label="The read" className="mb-4" /> : null}
 
       {reading && (reading.themes.length || reading.buzz.length) ? (
-        <div className="mb-6 grid items-stretch gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,25rem)] lg:gap-5">
+        // Side by side only when both have something; one alone takes the whole row instead of leaving half of it empty.
+        <div className={`mb-6 grid items-stretch gap-4 lg:gap-5 ${reading.themes.length && reading.buzz.length ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,25rem)]" : ""}`}>
           <ThemesPanel themes={reading.themes} filters={effective} />
-          <TalkedAbout rows={reading.buzz} filters={effective} />
+          <TalkedAbout rows={reading.buzz} filters={effective} wide={reading.themes.length === 0} />
         </div>
       ) : null}
 
@@ -147,7 +148,7 @@ export default async function NewsPage({ searchParams }: { searchParams?: Search
       ) : null}
 
       {effective.ticker ? (
-        <TickerStrip ticker={effective.ticker} quote={wire.quotes[effective.ticker]} count={wire.items.length} filters={effective} />
+        <TickerStrip ticker={effective.ticker} quote={wire.quotes[effective.ticker]} count={wire.items.length} tones={countTones(wire.items, wire.labels)} filters={effective} />
       ) : null}
 
       {streamView ? (

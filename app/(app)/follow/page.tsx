@@ -171,10 +171,10 @@ async function InsidersTab({
       >
         {biggestBuys.length > 0 ? (
           <>
-            <InsiderTableHead />
+            <InsiderTableHead showSide={false} />
             <ul className="divide-y divide-oa-border">
               {biggestBuys.map((trade) => (
-                <InsiderRow key={trade.id} trade={trade} />
+                <InsiderRow key={trade.id} trade={trade} showSide={false} />
               ))}
             </ul>
           </>
@@ -344,8 +344,8 @@ async function ReadBlock({ read, tab }: { read: Promise<FollowRead | null>; tab:
       {others.length > 0 ? (
         <section className="oa-surface min-w-0 self-start border border-oa-border bg-oa-card px-4 pt-3 sm:px-5">
           <h2 className="oa-label">Also worth knowing</h2>
-          {/* A narrow column: the link always sits under its sentence, as it does on a phone. */}
-          <ul className="mt-1 divide-y divide-oa-border [&>li>a]:!col-start-2 [&>li>a]:!row-start-auto [&>li>a]:!mt-1.5 [&>li>a]:!justify-self-start [&>li]:!grid-cols-[12px_minmax(0,1fr)] [&>li]:!gap-x-3 [&>li_div]:!text-[14.5px]">
+          {/* Each row opens its own page; no link words under every sentence (owner, Nov 11). */}
+          <ul className="mt-1 divide-y divide-oa-border [&>li_div]:!text-[14.5px]">
             {others.map((insight) => (
               <InsightRow key={insight.id} insight={insight} />
             ))}

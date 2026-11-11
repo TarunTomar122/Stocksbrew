@@ -19,6 +19,8 @@ export type NavIcon =
   | "follow"
   | "agents"
   | "markets"
+  | "premarket"
+  | "inbox"
   | "strategies"
   | "backtest"
   | "calendar"
@@ -70,6 +72,7 @@ export const PLACES: NavPlace[] = [
     blurb: "What moved, why, and what is coming up",
     sections: [
       section("Briefing", "/briefing", "briefing"),
+      section("Premarket", "/premarket", "premarket"),
       section("Market today", "/explore", "explore"),
       section("Why stocks moved", "/movers", "movers"),
       section("Signals", "/signals", "signals"),
@@ -139,7 +142,7 @@ export const PLACES: NavPlace[] = [
     match: [],
     icon: "alerts",
     blurb: "Agents that watch the market and email you",
-    sections: [section("Agents", "/agents", "agents")],
+    sections: [section("Agents", "/agents", "agents"), section("Inbox", "/inbox", "inbox")],
   },
 ];
 
@@ -259,7 +262,7 @@ export function trailFor(pathname: string): Crumb[] | null {
 
 /**
  * Pages a visitor reads before using the product. They get the marketing top
- * bar instead of the app sidebar (components/oa/chrome-switch.tsx).
+ * bar instead of the app sidebar (components/oa/app-chrome-shell.tsx).
  */
 const MARKETING_PREFIXES = ["/pricing", "/docs", "/about", "/security", "/legal", "/blog"];
 

@@ -206,7 +206,7 @@ export default async function MoversPage() {
                       ))}
                     </span>
                     <span className="text-[12.5px] text-oa-muted-fg">
-                      {list.length} stocks, {up} up · see all →
+                      {list.length} stocks, {up} up
                     </span>
                   </Link>
                 </li>

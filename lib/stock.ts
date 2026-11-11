@@ -270,6 +270,24 @@ export type DirectiveStability = {
   vote?: string | null;
 };
 
+/**
+ * The steady call's own state, `tm_call_stability/{instrument_id}` (backend/call_stability.py). Briefs written
+ * before the steady call was published carry no `directive_v2.stability`; the stock page reads this instead
+ * (lib/stock-read.ts `stabilityFromState`). Only the fields the page uses are typed.
+ */
+export type CallStabilityStateDoc = {
+  version?: unknown;
+  /** "Add" | "Hold" | "Trim". */
+  call?: unknown;
+  since?: unknown;
+  since_reason?: unknown;
+  since_trigger?: unknown;
+  /** The kept buy-more and sell-some levels, and the day they were set. */
+  levels?: { accumulate_below?: unknown; trim_above?: unknown; set_on?: unknown } | null;
+  /** The changes the steady call itself made, oldest first: { date, from, to, trigger, reason }. Empty for a seeded state. */
+  changes?: unknown;
+};
+
 export type VisualCards = {
   catalyst_cards?: CatalystCard[];
   drivers?: DriverCard[];
@@ -328,6 +346,7 @@ export type StockPageDocBundle = {
   onDemandJob: OnDemandNewsJobDoc | null;
   earningsIntel: EarningsIntelDoc | null;
   preEarnings: PreEarningsIntelDoc | null;
+  callStability: CallStabilityStateDoc | null;
 };
 
 export type StockPageDocBundleSections = {
@@ -336,6 +355,8 @@ export type StockPageDocBundleSections = {
   onDemandJob?: boolean;
   earningsIntel?: boolean;
   preEarnings?: boolean;
+  /** The steady call's state, for a brief written before the steady call was published. */
+  callStability?: boolean;
 };
 
 export async function getStockPageDocBundle(
@@ -350,6 +371,7 @@ export async function getStockPageDocBundle(
     onDemandJob: sections.onDemandJob ?? false,
     earningsIntel: sections.earningsIntel ?? false,
     preEarnings: sections.preEarnings ?? false,
+    callStability: sections.callStability ?? false,
   };
   const refMap: Record<string, DocumentReference<DocumentData> | null> = {
     facts: want.facts ? adminFirestore.collection("tm_stock_facts").doc(instrumentId) : null,
@@ -359,6 +381,7 @@ export async function getStockPageDocBundle(
       : null,
     earningsIntel: want.earningsIntel ? adminFirestore.collection("tm_earnings_intel").doc(`${market}__${instrumentId}__latest`) : null,
     preEarnings: want.preEarnings ? adminFirestore.collection("tm_pre_earnings_intel").doc(`${market}__${instrumentId}__upcoming`) : null,
+    callStability: want.callStability ? adminFirestore.collection("tm_call_stability").doc(instrumentId) : null,
   };
   const activeRefs = Object.values(refMap).filter((ref): ref is DocumentReference<DocumentData> => ref !== null);
   const docs = activeRefs.length ? await adminFirestore.getAll(...activeRefs) : [];
@@ -378,6 +401,7 @@ export async function getStockPageDocBundle(
     onDemandJob: pick<OnDemandNewsJobDoc>(refMap.onDemandJob),
     earningsIntel: pick<EarningsIntelDoc>(refMap.earningsIntel),
     preEarnings,
+    callStability: pick<CallStabilityStateDoc>(refMap.callStability),
   };
 }
 

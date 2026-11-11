@@ -10,6 +10,10 @@ const PATHS: Record<NavIconName, string[]> = {
   follow: ["M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z", "M2.5 20c.6-3.4 3.2-5.5 6.5-5.5s5.9 2.1 6.5 5.5", "M16 4.4a3.5 3.5 0 0 1 0 6.2", "M18.5 14.9c1.6.8 2.7 2.5 3 5.1"],
   agents: ["M12 3v3", "M6 6h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z", "M9 11v2M15 11v2", "M9 21h6"],
   markets: ["M3 20h18", "M6 16v-5M11 16V6M16 16v-8M21 16v-3"],
+  // A sun on the horizon: the hours before the open (the full sun is Today).
+  premarket: ["M3 18h18", "M7 18a5 5 0 0 1 10 0", "M12 6.5V9", "M5.6 10.6 7 12", "M18.4 10.6 17 12", "M8 21h8"],
+  // A tray: what came in for you (the bell is Alerts).
+  inbox: ["M5.5 5h13L21 13v5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-5l2.5-8Z", "M3 13h5l1.5 2.5h5L16 13h5"],
   strategies: ["M4 6h10M4 12h16M4 18h7", "M17 6h3M14 18h6"],
   backtest: ["M3 12a9 9 0 1 0 3-6.7", "M3 4v4.5h4.5", "M12 7.5V12l3 2"],
   calendar: ["M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z", "M4 10h16M8 3v4M16 3v4"],

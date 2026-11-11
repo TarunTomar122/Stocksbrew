@@ -129,8 +129,8 @@ export function buildStrategiesRead(
       beat === 0
         ? `None of ${ranked.length} rules beat the S&P 500 this year; the closest, ${lead.item.name}, trails by ${pts(lead.mine - lead.bench)}.`
         : beat * 2 < ranked.length
-        ? `Only ${beat} of ${ranked.length} rules beat the S&P 500 this year; ${lead.item.name} leads by ${pts(lead.mine - lead.bench)}.`
-        : `${beat} of ${ranked.length} rules beat the S&P 500 this year; ${lead.item.name} leads by ${pts(lead.mine - lead.bench)}.`;
+        ? `Only ${beat} of ${ranked.length} rules beat the S&P 500 this year; the best, ${lead.item.name}, is ${pts(lead.mine - lead.bench)} ahead.`
+        : `${beat} of ${ranked.length} rules beat the S&P 500 this year; the best, ${lead.item.name}, is ${pts(lead.mine - lead.bench)} ahead.`;
   }
   return {
     headline,

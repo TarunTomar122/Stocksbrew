@@ -11,7 +11,7 @@ import { COMPANY_LINE, TRIM_MIN_POINTS, TRIM_MIN_USD, buildRebalance } from "./r
 import { DEFAULT_RATES, parseRates, saleTax } from "./tax";
 import type { IdeaHolding, IdeasResult, RebalancePlan } from "./types";
 import { fmtPct } from "./words";
-import { dropRequest, levelBelow, watchDropHref } from "./watch";
+import { dropRequest, levelBelow, watchDropHref, watchDropsHref } from "./watch";
 
 const TODAY = "2026-11-11";
 const RATES = DEFAULT_RATES;
@@ -267,6 +267,26 @@ describe("watch link", () => {
     expect(levelBelow(10, 5)).toBe(9.5);
     expect(dropRequest("UNH", 0)).toBeNull();
     expect(watchDropHref("not a ticker", 100)).toBeNull();
+  });
+
+  it("asks for every loss in one request the agents page reads as one agent per stock", () => {
+    const many = buildCatalog([
+      { ticker: "UNH", name: "UnitedHealth Group", aliases: ["UNH", "UnitedHealth"], price: 300 },
+      { ticker: "PYPL", name: "PayPal", aliases: ["PYPL", "PayPal"], price: 60 },
+      { ticker: "NKE", name: "Nike", aliases: ["NKE", "Nike"], price: 70 },
+    ]);
+    const href = watchDropsHref([{ ticker: "UNH", price: 300 }, { ticker: "PYPL", price: 60 }, { ticker: "NKE", price: 70 }, { ticker: "UNH", price: 300 }])!;
+    const request = decodeURIComponent(href.replace("/agents?q=", ""));
+    expect(request).toBe("Tell me if UNH drops below $285, PYPL drops below $57 or NKE drops below $67");
+    const result = parseByRules(request, many, { hidden: [] });
+    expect(result.spec.watches.map((watch) => watch.draft.scope)).toEqual([
+      { kind: "tickers", tickers: ["UNH"] },
+      { kind: "tickers", tickers: ["PYPL"] },
+      { kind: "tickers", tickers: ["NKE"] },
+    ]);
+    expect(result.spec.cannot).toEqual([]);
+    expect(watchDropsHref([{ ticker: "UNH", price: 300 }])).toBe(watchDropHref("UNH", 300));
+    expect(watchDropsHref([])).toBeNull();
   });
 });
 

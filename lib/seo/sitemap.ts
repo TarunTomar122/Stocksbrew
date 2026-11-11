@@ -80,6 +80,7 @@ export function isSitemapFamily(value: string): value is SitemapFamily {
 const PAGES = [
   "/",
   "/briefing",
+  "/premarket",
   "/explore",
   "/ask",
   "/news",

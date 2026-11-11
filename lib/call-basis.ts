@@ -108,3 +108,23 @@ export function lastReportOn(dates: ReadonlyArray<string>, asOf: string | null |
   if (found && Number.isFinite(asOfMs) && asOfMs - Date.parse(`${found}T00:00:00Z`) > 120 * 86_400_000) return null;
   return found;
 }
+
+// What the older company reasons said would change the call without naming anything anyone can check (backend
+// call_reason.py `_change_sentence` before Nov 11). Snapshot rows written before then still carry them.
+const VAGUE_CHANGE =
+  /\b(?:sharply|this fast|growing near|on a dip|settles back|wide margin|a lower price|buy range|look again after|decide after|stops growing|start cutting|faster sales growth|falls back toward)\b/i;
+
+/**
+ * The reason without its last sentence when that sentence is one of the old, uncheckable "what would change the
+ * call" lines ("we'd buy more if sales keep growing this fast, and sell some if they slow sharply"). Anything else
+ * comes back as it was. The facts sentence always stays.
+ */
+export function withoutVagueChange(reason: string | null | undefined): string {
+  const text = (reason ?? "").replace(/\s+/g, " ").trim();
+  if (!text) return "";
+  const sentences = text.split(SENTENCE_END);
+  if (sentences.length < 2) return text;
+  const last = sentences[sentences.length - 1]!;
+  if (!CHANGE_START.test(last) || !VAGUE_CHANGE.test(last)) return text;
+  return sentences.slice(0, -1).join(" ").trim();
+}

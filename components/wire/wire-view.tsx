@@ -2,7 +2,9 @@ import Link from "next/link";
 
 import { Delta, Empty, FOCUS, NUM, Panel, Ticker } from "@/components/oa/kit";
 import { StockLogo } from "@/components/stock-logo";
+import { ToneBar, headlineWords } from "@/components/wire/news-read";
 import type { WireQuote } from "@/lib/wire";
+import type { ToneCounts } from "@/lib/wire-read";
 import {
   WIRE_PAGE_SIZE,
   WIRE_TOPICS,
@@ -116,8 +118,8 @@ function TickerMove({ ticker, quote, filters }: { ticker: string; quote: WireQuo
 
 /**
  * One headline, one line: time, source, headline, the tickers it names with
- * today's move. The excerpt is the link's tooltip; a tone or a press release
- * is said in a word, because most rows have neither.
+ * today's move. The excerpt is the link's tooltip; a press release is said in
+ * a word, because most rows are not one.
  */
 function WireRow({ item, quotes, filters }: { item: WireItem; quotes: Record<string, WireQuote>; filters: WireFilters }) {
   const shown = item.tickers.slice(0, 3);
@@ -133,13 +135,11 @@ function WireRow({ item, quotes, filters }: { item: WireItem; quotes: Record<str
           {item.source || "Source not given"}
         </span>
       </p>
-      <p className="min-w-0 text-pretty text-[15px] font-medium leading-[22px] text-oa-fg lg:line-clamp-2 lg:text-[14px] lg:leading-5">
+      {/* The whole headline in sentence case (owner rule 8); its tone is said once above the stream, not on every row. */}
+      <p className="min-w-0 text-pretty text-[15px] font-medium leading-[22px] text-oa-fg lg:text-[14px] lg:leading-5">
         <a href={item.url} target="_blank" rel="noopener noreferrer" title={item.excerpt || undefined} className={`rounded hover:underline ${FOCUS}`}>
-          {item.title}
+          {headlineWords(item.title)}
         </a>
-        {item.tone ? (
-          <span className={`ml-2 text-[12.5px] font-medium ${item.tone === "bullish" ? "text-signal-bullish" : item.tone === "bearish" ? "text-signal-bearish" : "text-oa-muted-fg"}`}>{item.tone === "bullish" ? "positive" : item.tone === "bearish" ? "negative" : item.tone}</span>
-        ) : null}
         {kind ? <span className="ml-2 whitespace-nowrap text-[12.5px] font-normal text-oa-muted-fg">{kind}</span> : null}
       </p>
       {shown.length ? (
@@ -210,7 +210,20 @@ export function WireStream({
 }
 
 /** Shown above the stream when the wire is filtered to one name. */
-export function TickerStrip({ ticker, quote, count, filters }: { ticker: string; quote: WireQuote | undefined; count: number; filters: WireFilters }) {
+export function TickerStrip({
+  ticker,
+  quote,
+  count,
+  tones,
+  filters,
+}: {
+  ticker: string;
+  quote: WireQuote | undefined;
+  count: number;
+  /** How its headlines lean, said once here instead of on every row below. */
+  tones?: ToneCounts;
+  filters: WireFilters;
+}) {
   return (
     <div className="oa-surface mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 border border-oa-border bg-oa-card px-4 py-3">
       <Ticker symbol={ticker} name={quote?.name && quote.name !== ticker ? quote.name : null} size={22} />
@@ -222,6 +235,7 @@ export function TickerStrip({ ticker, quote, count, filters }: { ticker: string;
       <span className={`${NUM} text-[14px] text-oa-muted-fg`}>
         {count} headline{count === 1 ? "" : "s"} in 14 days
       </span>
+      {tones ? <ToneBar counts={tones} className="[&_span]:text-[14px]" /> : null}
       <span className="ml-auto flex items-center gap-3 text-[14px]">
         <Link prefetch={false} href={`/stock/${encodeURIComponent(ticker)}`} className={`rounded font-medium text-oa-primary hover:underline ${FOCUS}`}>
           Open {ticker}

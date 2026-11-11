@@ -79,6 +79,8 @@ import { getStockIntelPro, getStockSummary } from "@/lib/stock";
 import { redactLevels } from "@/lib/entitlements";
 import type { Viewer } from "@/lib/entitlements-server";
 import { buildMineTools } from "@/lib/ask-tools-mine";
+import { loadCallEvidence } from "@/lib/call-evidence-data";
+import { callWord } from "@/lib/stock-chart";
 import { loadExamplePortfolio } from "@/lib/portfolio-data";
 
 /**
@@ -176,6 +178,19 @@ async function quoteCard(ticker: string, uid: string | null, levels: boolean): P
     getNextEarningsCalendarEventCached("US", ticker).catch(() => null),
   ]);
   const intel = data.stocksbrew_intelligence;
+  // The evidence and the conditions on the call, worded exactly as the stock page words them. US stocks with a call only.
+  const directive = intel.call as { stance?: string; stability?: { since?: string } | null } | null;
+  const call = callWord(directive?.stance ?? null);
+  const evidence =
+    call && data.market === "US"
+      ? await loadCallEvidence({
+          ticker: data.instrument.ticker,
+          instrumentId: data.instrument.instrument_id,
+          call,
+          price: num(data.market_data.price),
+          steadySince: directive?.stability?.since ?? null,
+        }).catch(() => null)
+      : null;
   // GATE: the call's one-line headline, the score and the analyst target go to every viewer. The reasoning (thesis,
   // what changed, key points, what to watch, risks) is the full read, which comes with covering the stock
   // (lib/entitlements.ts: stock_zones). An uncovered viewer gets null, so neither the model nor the card holds it.
@@ -205,7 +220,16 @@ async function quoteCard(ticker: string, uid: string | null, levels: boolean): P
     what_changed: levels ? text(intel.what_changed, 400) : null,
     // "What to watch" and the risks are what the stock page shows as "what would change the call".
     // They come with covering a stock, so an uncovered viewer gets null and the model never holds them.
-    what_to_watch: levels ? text(intel.what_to_watch, 400) : null,
+    // The measured conditions below replace the brief's written "what to watch" when there are any, so Ask and the
+    // stock page say the same thing about what would change the call.
+    what_to_watch: levels && !evidence?.conditions.length ? text(intel.what_to_watch, 400) : null,
+    call_evidence: evidence
+      ? {
+          evidence: evidence.evidence.map((line) => ({ text: line.text, source: line.source })),
+          // What would change the call comes with covering the stock, like the stock page.
+          what_would_change: levels ? evidence.conditions : [],
+        }
+      : null,
     key_points: levels ? texts(intel.key_points, 4, "text", "point", "title") : [],
     risks: levels ? texts(intel.risks, 3, "risk", "title", "label", "detail") : [],
     full_read: levels,

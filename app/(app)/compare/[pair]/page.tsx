@@ -13,6 +13,7 @@ import { sectorSlug, type ScreenerRow } from "@/lib/screener-shared";
 import { insiderHref, pairHref, pairIsIndexable, parsePairSlug, sectorHref, stockLabel, type StockPair } from "@/lib/seo/families";
 import { getCoverage, pairsFor, stockPairs, type Coverage } from "@/lib/seo/family-data";
 import { plainCallReason, shortCompanyName } from "@/lib/plain-copy";
+import { withoutVagueChange } from "@/lib/call-basis";
 import Link from "next/link";
 import { AppLink } from "@/components/oa/app-link";
 
@@ -84,7 +85,7 @@ function CallCard({ row }: { row: ScreenerRow }) {
       </div>
       {row.call ? (
         <>
-          {row.call_reason ? <p className="mt-2 text-pretty text-[14px] leading-[1.45rem] text-oa-fg">{plainCallReason(row.call_reason)}</p> : null}
+          {row.call_reason ? <p className="mt-2 text-pretty text-[14px] leading-[1.45rem] text-oa-fg">{plainCallReason(withoutVagueChange(row.call_reason))}</p> : null}
           <p className={`${NUM} mt-2 text-[12px] text-oa-muted-fg`}>
             {row.call_at ? `Call dated ${fmtDay(row.call_at, true)}` : "Call date not on file"}
             {" · "}
@@ -105,9 +106,8 @@ function LinkList({ items }: { items: Array<{ href: string; label: string }> }) 
     <ul className="flex flex-col">
       {items.map((item) => (
         <li key={item.href} className="border-b border-oa-border last:border-b-0">
-          <AppLink href={item.href} className="flex items-center justify-between gap-3 px-4 py-2.5 text-[14px] text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
+          <AppLink href={item.href} className="flex items-center gap-3 px-4 py-2.5 text-[14px] text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
             <span className="min-w-0 truncate">{item.label}</span>
-            <span aria-hidden="true" className="text-oa-muted-fg">→</span>
           </AppLink>
         </li>
       ))}

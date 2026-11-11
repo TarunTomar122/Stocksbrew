@@ -110,6 +110,16 @@ export async function OnePlace() {
     .filter((item) => item.n > 0)
     .map(({ stance, n }) => `${stance === "accumulate" ? "buy more of" : stance === "hold" ? "keep" : "sell some of"} ${COUNT_WORDS[n] ?? n}`);
   const tallyLine = tally.length ? `We'd ${tally.length > 1 ? `${tally.slice(0, -1).join(", ")} and ${tally[tally.length - 1]}` : tally[0]}.` : "";
+  // Stocks with no call and no reason yet are said once here, not as the same line on each row (owner rule 1).
+  const lineOf = (row: (typeof holdings)[number]) =>
+    row.reason ?? (row.stance && STANCE[row.stance] ? null : row.call ? `${row.call.replace(/[.!]+$/, "")}.` : null);
+  const researching = holdings.filter((row) => !lineOf(row) && !(row.stance && STANCE[row.stance])).map((row) => row.ticker);
+  const researchingLine =
+    researching.length === 0
+      ? ""
+      : researching.length === holdings.length
+        ? `We're still researching ${holdings.length === 1 ? "it" : holdings.length === 2 ? "both" : `all ${COUNT_WORDS[holdings.length] ?? holdings.length}`}.`
+        : `We're still researching ${researching.length > 1 ? `${researching.slice(0, -1).join(", ")} and ${researching[researching.length - 1]}` : researching[0]}.`;
 
   return (
     <Reveal delay={60}>
@@ -118,6 +128,8 @@ export async function OnePlace() {
           <p className="text-[15px] leading-6 text-oa-fg">
             {fmtDollars(total)} across {COUNT_WORDS[holdings.length] ?? holdings.length} {holdings.length === 1 ? "stock" : "stocks"},{" "}
             <ChangeText pct={dayChangePct} className="font-medium" /> today. {tallyLine}
+            {tallyLine && researchingLine ? " " : ""}
+            {researchingLine}
           </p>
           <p className="text-[13px] leading-5 text-oa-muted-fg">Example list: made-up share counts, live prices.</p>
         </div>
@@ -139,10 +151,8 @@ export async function OnePlace() {
                         <span className={`rounded-full px-2 py-0.5 text-[12px] font-medium ${stance.className}`}>{stance.label}</span>
                       ) : null}
                     </span>
-                    <span className="mt-0.5 block text-pretty text-[15px] leading-6 text-oa-muted-fg">
-                      {/* The chip already says the call; the line says why, in the company's own numbers when we have them. */}
-                      {row.reason ?? (stance ? null : row.call ? `${row.call.replace(/[.!]+$/, "")}.` : "We're still researching this one.")}
-                    </span>
+                    {/* The chip already says the call; the line says why, in the company's own numbers when we have them. */}
+                    {lineOf(row) ? <span className="mt-0.5 block text-pretty text-[15px] leading-6 text-oa-muted-fg">{lineOf(row)}</span> : null}
                   </span>
                   <span className="flex flex-col items-end text-[15px] tabular-nums">
                     <span className="text-oa-fg">{fmtPrice(row.price ?? 0)}</span>

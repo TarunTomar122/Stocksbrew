@@ -233,7 +233,8 @@ class FallbackTest(unittest.TestCase):
             "Gap reports earnings on Nov 19. The stock is cheap next to similar companies for what it earns, "
             "but the main worry is persistent downtrend, so we'd hold rather than add before the Nov 19 report.",
         )
-        self.assertIn("so we wouldn't buy more, and we'd sell some if it bounces", reason("US_FSLR"))
+        self.assertIn("so we'd sell some rather than buy more", reason("US_FSLR"))
+        self.assertNotIn("bounces", reason("US_FSLR"))
 
     def test_bare_doc_still_names_the_stock(self) -> None:
         directive = {"stance": "hold", "execution": "now", "action": {"label": "Hold here", "summary": OLD_TEMPLATES[-1]}}

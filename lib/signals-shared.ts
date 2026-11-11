@@ -412,7 +412,7 @@ export function pickToday(movers: Mover[], reddit: RedditName[], policy: PolicyP
   return {
     movers: bySize.filter((mover) => mover.explained).slice(0, 5),
     unexplained: bySize.filter((mover) => !mover.explained).slice(0, 4),
-    reddit: rankReddit(reddit).slice(0, 8),
+    reddit: rankReddit(reddit).slice(0, 20),
     policy: picked.sort((a, b) => (a.publishedAt < b.publishedAt ? 1 : -1)),
   };
 }

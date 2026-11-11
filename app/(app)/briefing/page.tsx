@@ -6,6 +6,7 @@ import { BriefingView } from "@/components/briefing/briefing-view";
 import { BriefingLockedMoves } from "@/components/briefing/locked-moves";
 import { EarningsDayBriefing } from "@/components/earnings-day/briefing-reports";
 import { AppPage } from "@/components/oa/kit";
+import { BeforeOpenCard } from "@/components/premarket/before-open";
 import { MarketingSchema } from "@/components/seo/marketing-schema";
 import { loadWatches } from "@/lib/agent-watch-server";
 import { getSessionUser } from "@/lib/auth-server";
@@ -140,6 +141,13 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
           session={session}
           agents={agentsSlot(data)}
           rail={railSlot(data)}
+          beforeOpen={
+            day || data.archived ? null : (
+              <Suspense fallback={null}>
+                <BeforeOpenCard />
+              </Suspense>
+            )
+          }
           locked={await lockedSlot(data)}
           earnings={
             day || data.archived ? null : (

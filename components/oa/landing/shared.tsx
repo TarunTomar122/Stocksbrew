@@ -85,12 +85,10 @@ export function SectionHead({
         {href && hrefLabel ? (
           <AppLink
             href={href}
-            className="group/more inline-flex h-10 w-fit shrink-0 items-center gap-1.5 rounded-full border border-oa-border bg-oa-card px-4 text-[15px] font-medium text-oa-fg transition-colors hover:border-oa-fg/30"
+            className="inline-flex h-10 w-fit shrink-0 items-center rounded-full border border-oa-border bg-oa-card px-4 text-[15px] font-medium text-oa-fg transition-colors hover:border-oa-fg/30"
           >
+            {/* No arrow: every section head carries one of these, and the same "→" on each read as repeated decoration (owner rule 1). */}
             {hrefLabel}
-            <span aria-hidden="true" className="transition-transform duration-200 group-hover/more:translate-x-0.5">
-              →
-            </span>
           </AppLink>
         ) : null}
       </div>

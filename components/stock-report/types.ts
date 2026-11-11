@@ -15,6 +15,7 @@ import type { StockTimelineItem, StockTimelineUpcoming } from "@/lib/stock-timel
 import type { StockTechnicals } from "@/lib/technicals";
 import type { StockIntelPro } from "@/lib/types";
 import type { TheRead } from "@/lib/insights";
+import type { CallEvidence } from "@/lib/call-evidence";
 
 /**
  * The top of the stock report, assembled in `stock-page-stream.tsx` from the
@@ -77,6 +78,11 @@ export type ReportData = {
   premarketQuote: LivePremarketQuote | null;
   /** The page's read: today's move in context, what is coming, where the price sits against the call. */
   insightRead: TheRead | null;
+  /**
+   * The evidence under the call and what would change it (lib/call-evidence.ts), from stored numbers only. The
+   * conditions are empty unless `gate.levels`. Null when there is no call to show or the stock is not a US stock.
+   */
+  callEvidence?: CallEvidence | null;
 };
 
 /** The rest of the report, read while the top is already on screen: what changed and what only the sections use. */

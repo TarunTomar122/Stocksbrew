@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { buildStockRead, callSince, previousCall } from "@/lib/stock-read";
-import type { StockIntelligenceDoc } from "@/lib/stock";
+import { buildStockRead, callSince, matchingCompanyReason, previousCall, stabilityFromState } from "@/lib/stock-read";
+import type { CallStabilityStateDoc, StockIntelligenceDoc } from "@/lib/stock";
 
 const base = {
   instrument_id: "US_NVDA",
@@ -207,10 +207,120 @@ describe("steady call", () => {
     expect(read.whatWouldChange).toMatch(/^We plan to hold this call until at least Dec 2/);
     expect(read.changers.some((item) => item.startsWith("We plan"))).toBe(false);
     expect(read.heldAgainst).toBe("Trim");
+    expect(read.steadySince).toBe("2026-11-04");
   });
 
   it("is null on a brief without the steady call", () => {
     expect(buildStockRead(base)!.whatWouldChange).toBeNull();
     expect(buildStockRead(base)!.heldAgainst).toBeNull();
+    expect(buildStockRead(base)!.steadySince).toBeNull();
+  });
+});
+
+describe("steady call from its stored state", () => {
+  // tm_call_stability/US_NVDA as the backend stores it (only the fields the page reads, plus a few it ignores).
+  const state: CallStabilityStateDoc & Record<string, unknown> = {
+    version: "stability-1",
+    call: "Hold",
+    since: "2026-11-04",
+    since_reason: "Nvidia reported results on Nov 3, so we moved our call from Buy more to Keep.",
+    since_trigger: "earnings",
+    levels: { accumulate_below: 177.59, set_on: "2026-11-04" },
+    session: "2026-11-10",
+    votes: [{ day: "2026-11-10", call: "Trim" }],
+    rev: 3,
+  };
+
+  it("maps the state to the brief's stability shape when its call is the brief's", () => {
+    expect(stabilityFromState(state, "Hold")).toEqual({
+      version: "stability-1",
+      since: "2026-11-04",
+      since_reason: "Nvidia reported results on Nov 3, so we moved our call from Buy more to Keep.",
+      trigger: "earnings",
+      what_would_change: null,
+      levels_set_on: "2026-11-04",
+      held_against_vote: null,
+      vote: null,
+    });
+  });
+
+  it("is null when the calls differ, the version is unknown, or the date is not a day", () => {
+    expect(stabilityFromState(state, "Add")).toBeNull();
+    expect(stabilityFromState(state, null)).toBeNull();
+    expect(stabilityFromState({ ...state, version: "stability-2" }, "Hold")).toBeNull();
+    expect(stabilityFromState({ ...state, since: "soon" }, "Hold")).toBeNull();
+    expect(stabilityFromState(null, "Hold")).toBeNull();
+    expect(stabilityFromState({ ...state, since_trigger: "whim", levels: null }, "Hold")).toMatchObject({ trigger: null, levels_set_on: null });
+  });
+
+  it("gives a brief without stability the steady call's day", () => {
+    const read = buildStockRead(base, { steadyState: state, callChanges: [{ date: "2026-10-01", from: null, to: "Hold" }] })!;
+    expect(read.steadySince).toBe("2026-11-04");
+    expect(read.since).toBe("2026-11-04");
+    // The state keeps no sentence of what would change the call, and no vote to hold against.
+    expect(read.whatWouldChange).toBeNull();
+    expect(read.heldAgainst).toBeNull();
+    // So the brief's own lines stay in the list, as they did before.
+    expect(read.changers).toContain("Revisit if momentum breaks.");
+  });
+
+  it("leaves the brief as it is when the steady call has moved on", () => {
+    const read = buildStockRead(base, { steadyState: { ...state, call: "Trim" } })!;
+    expect(read.steadySince).toBeNull();
+    expect(read.since).toBeNull();
+  });
+
+  it("never overrides a brief that carries its own stability", () => {
+    const own = {
+      ...base,
+      directive_v2: { ...base.directive_v2, stability: { since: "2026-11-06", trigger: "confirmed", what_would_change: "Rule sentence." } },
+    } as unknown as StockIntelligenceDoc;
+    const read = buildStockRead(own, { steadyState: state })!;
+    expect(read.steadySince).toBe("2026-11-06");
+    expect(read.whatWouldChange).toBe("Rule sentence.");
+  });
+
+  it("takes the step from the state's own changes, not the ledger", () => {
+    // Seeded the day the ledger flipped: the rule made no move that day, so falls still count inside the hold.
+    const seeded = { ...state, since: "2026-11-05", since_trigger: "start", changes: [] };
+    expect(buildStockRead(base, { steadyState: seeded })!.steadyStep).toBe(0);
+    const down = { ...state, changes: [{ date: "2026-11-04", from: "Add", to: "Hold", trigger: "earnings" }] };
+    expect(buildStockRead(base, { steadyState: down })!.steadyStep).toBe(-1);
+    const older = { ...state, changes: [{ date: "2026-10-01", from: "Trim", to: "Hold" }] };
+    expect(buildStockRead(base, { steadyState: older })!.steadyStep).toBe(0);
+    expect(buildStockRead(base, { steadyState: { ...state, changes: [null, "x"] } })!.steadyStep).toBe(0);
+  });
+
+  it("leaves the step to the ledger for a brief's own stability, except a start", () => {
+    const own = (trigger: string) =>
+      ({ ...base, directive_v2: { ...base.directive_v2, stability: { since: "2026-11-06", trigger } } }) as unknown as StockIntelligenceDoc;
+    expect(buildStockRead(own("confirmed"))!.steadyStep).toBeNull();
+    expect(buildStockRead(own("start"))!.steadyStep).toBe(0);
+    expect(buildStockRead(base)!.steadyStep).toBeNull();
+  });
+
+  it("keeps the ledger's longer run when the state only records when the steady call began", () => {
+    const seeded = { ...state, since: "2026-11-09", since_trigger: "start" };
+    const read = buildStockRead(base, { steadyState: seeded, callChanges: [{ date: "2026-10-01", from: null, to: "Hold" }] })!;
+    expect(read.since).toBe("2026-10-01");
+    expect(read.steadySince).toBe("2026-11-09");
+  });
+});
+
+describe("company reason conditions", () => {
+  const reason = (text: string) => ({ text, call: "Hold" as const, source: "company" });
+
+  it("drops an old condition nobody can check and keeps the facts", () => {
+    const text =
+      "NVIDIA fell 18% over the past week, even though its sales grew 83% over the past year. The Nov 17 report decides what we do: we'd buy more if sales keep growing this fast, and sell some if they slow sharply.";
+    expect(matchingCompanyReason(reason(text), "Hold", "2026-11-11")).toBe(
+      "NVIDIA fell 18% over the past week, even though its sales grew 83% over the past year.",
+    );
+  });
+
+  it("keeps a condition with a bar in it", () => {
+    const text =
+      "NVIDIA fell 18% over the past week, even though its sales grew 83% over the past year. The Nov 17 report decides what we do: we'd buy more if sales growth stays above 83%, and sell some if growth falls below 42%.";
+    expect(matchingCompanyReason(reason(text), "Hold", "2026-11-11")).toBe(text);
   });
 });

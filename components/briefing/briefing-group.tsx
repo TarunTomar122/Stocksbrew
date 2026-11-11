@@ -3,15 +3,15 @@
 import * as React from "react";
 
 import { Verdict } from "@/components/oa/kit/tone";
-import { StockLogo } from "@/components/stock-logo";
 import { askWhyQuestion, type BriefingItem, type BriefingItemStatus } from "@/lib/briefing";
-import { moveRowText, reasonSource, visibleLines, type BriefingGroup, type BriefingLine } from "@/lib/briefing-groups";
+import { reasonSource, type BriefingGroup, type BriefingLine } from "@/lib/briefing-groups";
 
 import { briefAskHref, briefContext } from "./ask";
 import { compactTime, signedPct, sourceTime } from "./format";
+import { plainCardText, rowWords, type CardWords } from "./card-words";
 import { verdictFor } from "./item-metric";
+import { StockCard } from "./stock-card";
 import { trackBriefingItemOpened } from "@/lib/product-analytics";
-import Link from "next/link";
 import { AppLink } from "@/components/oa/app-link";
 
 const ACTION =
@@ -31,8 +31,8 @@ export type GroupActions = {
   /** The briefing's day, so a time from that day prints without its date. */
   day: string;
   /**
-   * Your own briefing: each card offers Ask about its first line (the line itself attached), and an opened line
-   * keeps only what to do with it. The market view keeps "Ask why" inside the opened line, about the stock.
+   * Your own briefing: an opened card keeps only what to do with it (the page's one Ask box sits under the read).
+   * The market view keeps "Ask why" inside the opened card, about the stock.
    */
   personal?: boolean;
 };
@@ -84,7 +84,7 @@ function Sources({ items }: { items: BriefingItem[] }) {
 }
 
 /** What opens under a line: where it comes from, the reason, the next step, the sources and the actions. */
-function LinePanel({ id, line, group, actions }: { id: string; line: BriefingLine; group: BriefingGroup; actions: GroupActions }) {
+function LinePanel({ id, line, group, actions, stockLink = false }: { id: string; line: BriefingLine; group: BriefingGroup; actions: GroupActions; stockLink?: boolean }) {
   const { item } = line;
   const members = [item, ...line.folded];
   const status = sharedStatus(members, actions);
@@ -93,7 +93,10 @@ function LinePanel({ id, line, group, actions }: { id: string; line: BriefingLin
   const busyGroup = actions.busy === group.key;
   const when = compactTime(line.source?.at, actions.day);
   const story = line.explainedBy?.evidence[0] ?? null;
-  const showWhy = item.why.trim() && item.why.trim() !== line.text;
+  // The same plain words as the card face: old saved briefings said "The call is Hold" and "What would change it".
+  const why = plainCardText(item.why);
+  const nextStep = plainCardText(item.next_step);
+  const showWhy = why && why !== line.text;
   const subject = group.ticker ?? "these";
   const others = group.items.length > members.length;
   // The good-or-bad word (Upgraded, Bearish) waits here: the collapsed row keeps one accent, the move.
@@ -107,7 +110,7 @@ function LinePanel({ id, line, group, actions }: { id: string; line: BriefingLin
         {[line.label, story ? `via ${story.source}` : line.source?.source, when].filter(Boolean).join(" · ")}
       </p>
       <dl className="mt-1.5 grid max-w-[68ch] gap-1.5 text-[13.5px] leading-5">
-        {showWhy ? <dd className={`text-pretty ${SOFT}`}>{item.why}</dd> : null}
+        {showWhy ? <dd className={`text-pretty ${SOFT}`}>{why}</dd> : null}
         {story ? (
           <div>
             <dt className="oa-caption">The reason</dt>
@@ -128,10 +131,12 @@ function LinePanel({ id, line, group, actions }: { id: string; line: BriefingLin
             <dd className={`mt-0.5 text-pretty ${SOFT}`}>{item.position_note}</dd>
           </div>
         ) : null}
-        <div>
-          <dt className="oa-caption">Next step</dt>
-          <dd className="mt-0.5 text-pretty text-oa-fg">{item.next_step}</dd>
-        </div>
+        {nextStep ? (
+          <div>
+            <dt className="oa-caption">Next step</dt>
+            <dd className="mt-0.5 text-pretty text-oa-fg">{nextStep}</dd>
+          </div>
+        ) : null}
       </dl>
       <Sources items={members} />
       <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
@@ -154,6 +159,12 @@ function LinePanel({ id, line, group, actions }: { id: string; line: BriefingLin
             Ask why
           </AppLink>
         )}
+        {/* Only on an opened card, so the stock's page is one tap away without a link on every card. */}
+        {stockLink && group.ticker ? (
+          <AppLink href={`/stock/${encodeURIComponent(group.ticker)}`} className={QUIET_ACTION}>
+            {group.ticker} research
+          </AppLink>
+        ) : null}
         {!actions.readOnly && others && groupStatus === "open" ? (
           <button type="button" className={QUIET_ACTION} disabled={busyGroup} onClick={() => actions.onStatus(group.items, "dismissed", group.key)}>
             Got it for all {group.items.length} on {subject}
@@ -169,18 +180,12 @@ function LinePanel({ id, line, group, actions }: { id: string; line: BriefingLin
   );
 }
 
-/** A confirmed move's reason, company first, in one whole sentence (lib/briefing-groups.ts `moveRowText`). */
-function lineText(line: BriefingLine, group: BriefingGroup): string {
-  return line.decision ? line.text : moveRowText(line.item, { name: group.name, ticker: group.ticker }, group.day_change_pct);
-}
-
 function LineRow({ line, group, actions }: { line: BriefingLine; group: BriefingGroup; actions: GroupActions }) {
   const [open, setOpen] = React.useState(false);
   const panelId = React.useId();
   const settled = sharedStatus([line.item, ...line.folded], actions) !== "open";
-  // A move with no reason says nothing about the missing reason (owner, Nov 11). On a stock's card it shows its
-  // next step instead, so the row still opens to Got it / Keep watching; in the market list it is left out.
-  const text = lineText(line, group) || (group.ticker ? line.item.next_step.trim() : "");
+  // A move with no reason says nothing about the missing reason (owner, Nov 11): it shows its next step instead.
+  const text = rowWords(line, group);
   if (!text) return null;
   return (
     <li className={settled ? "opacity-70" : ""}>
@@ -192,7 +197,7 @@ function LineRow({ line, group, actions }: { line: BriefingLine; group: Briefing
           if (!open) trackBriefingItemOpened({ kind: line.item.kind, ticker: group.ticker ?? line.item.ticker, relation: line.item.relation, decision: line.decision });
           setOpen((value) => !value);
         }}
-        className={`-mx-1.5 block w-[calc(100%+0.75rem)] cursor-pointer rounded px-1.5 py-0.5 text-left text-[14px] leading-5 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent ${
+        className={`-mx-1.5 block w-[calc(100%+0.75rem)] cursor-pointer rounded px-1.5 py-1 text-left text-[14px] leading-5 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent ${
           line.decision ? "font-medium text-oa-fg" : SOFT
         }`}
       >
@@ -206,85 +211,85 @@ function LineRow({ line, group, actions }: { line: BriefingLine; group: Briefing
 }
 
 /**
- * One stock, quietly: the logo, the ticker and the day's move, then its most
- * important update in plain words. The rest wait behind "+N".
+ * One stock as a small card (owner, Nov 11): the logo, ticker and short name, the day's move as the one big
+ * figure, the one thing to know as a plain sentence, and at most one highlighted fact. The whole card is one
+ * button that opens it in place (it then takes the whole row): the reason, the sources and what to do with it,
+ * then the stock's other updates. The section works out the words (./card-words.ts) so no card repeats another.
  */
 export function BriefingGroupCard({
   group,
+  words,
   actions,
-  limit,
-  moveMax,
   anchor = false,
+  fill = "",
 }: {
   group: BriefingGroup;
+  words: CardWords;
   actions: GroupActions;
-  limit: number;
-  /** The largest move in the list: when given, each move gets a bar on that one scale. */
-  moveMax?: number;
+  /** Spans that let the last card fill its row (./stock-card.tsx `stockGridFill`). */
+  fill?: string;
   /** The first open card of its stock on the page: it carries the `brief-<ticker>` id the agents strip links to. */
   anchor?: boolean;
 }) {
   const [expanded, setExpanded] = React.useState(false);
-  const { shown, hidden } = visibleLines(group.lines, expanded, limit);
+  const panelId = React.useId();
   const settled = sharedStatus(group.items, actions) !== "open";
   const move = group.day_change_pct;
   const ticker = group.ticker;
+  const main = words.line;
+  const others = group.lines.filter((line) => line !== main && rowWords(line, group));
+  const subject = ticker ?? group.name;
 
   return (
-    <article
+    <StockCard
       data-briefing-group={group.key}
-      // The agents strip above links a stock its agent flagged to its card here (one card per stock, lib/briefing-anchors.ts).
+      // The agents strip links a stock its agent flagged to its card here (one card per stock, lib/briefing-anchors.ts).
       id={anchor && ticker ? `brief-${ticker}` : undefined}
-      className={`scroll-mt-20 grid grid-cols-[1.25rem_minmax(0,1fr)_auto] gap-x-3 px-4 py-2.5 sm:grid-cols-[1.25rem_3.75rem_minmax(0,1fr)_4.5rem] ${settled ? "opacity-80" : ""}`}
+      className="scroll-mt-20"
+      ticker={ticker}
+      name={group.name}
+      figure={move != null ? signedPct(move, 1) : null}
+      tone={move == null ? "flat" : move >= 0 ? "up" : "down"}
+      sentence={words.sentence || null}
+      fact={words.fact}
+      foot={expanded ? "Show less" : others.length > 0 ? `${others.length} more` : null}
+      muted={settled}
+      expanded={expanded}
+      fill={fill}
+      cover={
+        <button
+          type="button"
+          aria-expanded={expanded}
+          aria-controls={expanded ? panelId : undefined}
+          aria-label={[
+            subject,
+            move != null ? signedPct(move, 1) : null,
+            words.sentence || null,
+            words.fact,
+            others.length > 0 && !expanded ? `${others.length} more` : null,
+          ]
+            .filter(Boolean)
+            .join(", ")}
+          onClick={() => {
+            if (!expanded && main) trackBriefingItemOpened({ kind: main.item.kind, ticker: ticker ?? main.item.ticker, relation: main.item.relation, decision: main.decision });
+            setExpanded((value) => !value);
+          }}
+          className="absolute inset-0 cursor-pointer rounded-[inherit] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
+        />
+      }
     >
-      <span className="col-start-1 row-start-1 pt-px">
-        {ticker ? (
-          <StockLogo ticker={ticker} size={20} className="rounded-md" />
-        ) : (
-          <span aria-hidden="true" className="oa-mono flex size-5 items-center justify-center rounded-md bg-oa-bg text-[8px] font-medium text-oa-muted-fg">
-            JOB
-          </span>
-        )}
-      </span>
-      <span className="col-start-2 row-start-1 min-w-0 leading-5">
-        {ticker ? (
-          <Link prefetch={false}
-            href={`/stock/${encodeURIComponent(ticker)}`}
-            title={group.name !== ticker ? group.name : undefined}
-            className="oa-mono rounded text-[14px] font-semibold text-oa-fg outline-none hover:underline focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
-          >
-            {ticker}
-          </Link>
-        ) : (
-          <span className="text-[14px] font-semibold text-oa-fg">{group.name}</span>
-        )}
-      </span>
-      <span className="col-start-3 row-start-1 text-right leading-5 sm:col-start-4">
-        {move != null ? (
-          <span className="inline-flex items-center justify-end gap-2">
-            <span className={`oa-mono whitespace-nowrap text-[14px] tabular-nums ${move >= 0 ? "text-signal-bullish" : "text-signal-bearish"}`}>{signedPct(move)}</span>
-          </span>
-        ) : null}
-      </span>
-      <ul
-        className={`col-span-2 col-start-2 row-start-2 mt-0.5 min-w-0 sm:col-span-1 sm:col-start-3 sm:row-span-2 sm:row-start-1 sm:mt-0`}
-      >
-        {shown.map((line) => (
-          <LineRow key={line.id} line={line} group={group} actions={actions} />
-        ))}
-        {group.lines.length > limit ? (
-          <li>
-            <button
-              type="button"
-              aria-expanded={expanded}
-              onClick={() => setExpanded((value) => !value)}
-              className="-ml-1.5 inline-flex h-9 cursor-pointer items-center rounded px-1.5 text-[12.5px] font-medium text-oa-muted-fg outline-none hover:text-oa-fg focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)] sm:h-6"
-            >
-              {expanded ? "Show less" : `${hidden} more ${hidden === 1 ? "update" : "updates"}`}
-            </button>
-          </li>
-        ) : null}
-      </ul>
-    </article>
+      {expanded ? (
+        <div id={panelId}>
+          {main ? <LinePanel id={`${panelId}-main`} line={main} group={group} actions={actions} stockLink /> : null}
+          {others.length > 0 ? (
+            <ul className={main ? "mt-1 border-t border-oa-border pt-1.5" : ""}>
+              {others.map((line) => (
+                <LineRow key={line.id} line={line} group={group} actions={actions} />
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
+    </StockCard>
   );
 }

@@ -6,8 +6,9 @@
  */
 
 import { callWord, type CallWord } from "@/lib/stock-chart";
-import type { StockIntelligenceDoc } from "@/lib/stock";
+import type { CallStabilityStateDoc, DirectiveStability, StockIntelligenceDoc } from "@/lib/stock";
 import { todayET } from "@/lib/calendar-shared";
+import { withoutVagueChange } from "@/lib/call-basis";
 
 /**
  * The reason the screener job writes for this company from its own numbers
@@ -50,6 +51,14 @@ export type StockRead = {
   whatWouldChange: string | null;
   /** Today's review leaned toward this other call and the steady call held. */
   heldAgainst: CallWord | null;
+  /** The steady call's own start day (YYYY-MM-DD), only while calls are held steady; null otherwise. */
+  steadySince: string | null;
+  /**
+   * Which way the steady call itself moved on `steadySince` (+1 up, -1 down, 0 when it made no move that day, as
+   * for a call it started from), the way backend/call_stability.py `_last_direction` counts it. Null when only the
+   * call ledger can say.
+   */
+  steadyStep: -1 | 0 | 1 | null;
 };
 
 type Evidence = { text?: unknown; type?: unknown };
@@ -121,7 +130,8 @@ export function dropPastDatedSentences(text: string, today: string): string {
 
 export function matchingCompanyReason(reason: CompanyReason | null | undefined, call: CallWord | null, today: string = todayET()): string | null {
   if (!reason || !call || reason.call !== call || reason.source !== "company") return null;
-  return dropPastDatedSentences(clean(reason.text), today) || null;
+  // Older snapshot rows end on a condition nobody can check ("if they slow sharply"); that sentence goes.
+  return dropPastDatedSentences(withoutVagueChange(clean(reason.text)), today) || null;
 }
 
 // "What would change our mind" items that say nothing about the company: sector or market-wide lines, and the
@@ -171,9 +181,59 @@ export function callSince(
   return /^\d{4}-\d{2}-\d{2}/.test(written) ? todayET(Date.parse(written)) : null;
 }
 
+// The state version the backend decides from (backend/call_stability.py `VERSION`); any other it ignores, and so do we.
+const STABILITY_VERSION = "stability-1";
+const STABILITY_TRIGGERS = new Set(["start", "confirmed", "earnings", "guidance", "move", "market"]);
+
+/**
+ * The steady call's stored state (`tm_call_stability/{id}`) in the brief's `directive_v2.stability` shape, for a brief
+ * written before the steady call was published (most briefs are rebuilt only every few days). Only when the state's
+ * call is the call the brief shows: if they differ the brief is behind the steady call, and the page keeps the
+ * brief as it is rather than mix the two. "What would change it" and "the latest data leans the other way" are
+ * written with the day's prices and vote, which the state does not keep, so they stay empty.
+ */
+const STEP_RANK: Record<string, number> = { Trim: 0, Hold: 1, Add: 2 };
+
+/**
+ * Which way the steady call moved on `since`, from its own changes (backend `_last_direction`): a state seeded or
+ * started on that day made no move, so the rule treats a fall or a market drop as able to move it inside the hold.
+ */
+export function stepFromState(state: CallStabilityStateDoc | null | undefined, since: string): -1 | 0 | 1 {
+  const changes = Array.isArray(state?.changes) ? (state!.changes as Array<Record<string, unknown> | null>) : [];
+  const last = changes.length ? changes[changes.length - 1] : null;
+  if (!last || clean(last.date) !== since) return 0;
+  const from = STEP_RANK[clean(last.from)];
+  const to = STEP_RANK[clean(last.to)];
+  if (from === undefined || to === undefined || from === to) return 0;
+  return to > from ? 1 : -1;
+}
+
+export function stabilityFromState(state: CallStabilityStateDoc | null | undefined, call: CallWord | null): DirectiveStability | null {
+  if (!state || !call || state.version !== STABILITY_VERSION || state.call !== call) return null;
+  const since = clean(state.since);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(since)) return null;
+  const trigger = clean(state.since_trigger);
+  const setOn = clean(state.levels?.set_on);
+  return {
+    version: STABILITY_VERSION,
+    since,
+    since_reason: clean(state.since_reason) || null,
+    trigger: STABILITY_TRIGGERS.has(trigger) ? (trigger as DirectiveStability["trigger"]) : null,
+    what_would_change: null,
+    levels_set_on: /^\d{4}-\d{2}-\d{2}$/.test(setOn) ? setOn : null,
+    held_against_vote: null,
+    vote: null,
+  };
+}
+
 export function buildStockRead(
   intelligence: StockIntelligenceDoc | null | undefined,
-  options: { companyReason?: CompanyReason | null; callChanges?: ReadonlyArray<{ date: string; from: CallWord | null; to: CallWord }> } = {},
+  options: {
+    companyReason?: CompanyReason | null;
+    callChanges?: ReadonlyArray<{ date: string; from: CallWord | null; to: CallWord }>;
+    /** The steady call's stored state, used only when the brief carries no `stability` of its own. */
+    steadyState?: CallStabilityStateDoc | null;
+  } = {},
 ): StockRead | null {
   if (!intelligence) return null;
   const doc = intelligence as LooseIntelligence;
@@ -186,7 +246,8 @@ export function buildStockRead(
   for (const point of doc.key_points ?? []) pushDistinct(reasons, point);
   pushDistinct(reasons, doc.visual_summary?.why_it_matters);
 
-  const stability = directive?.stability ?? null;
+  const ownStability = directive?.stability ?? null;
+  const stability = ownStability ?? stabilityFromState(options.steadyState, callWord(directive?.stance));
   const whatWouldChange = clean(stability?.what_would_change) || null;
   const changers: string[] = [];
   for (const item of evidence) if (clean(item.type) === "risk") pushDistinct(changers, item.text);
@@ -248,6 +309,16 @@ export function buildStockRead(
     }),
     whatWouldChange,
     heldAgainst: stability?.held_against_vote ? heldVote(stability.vote, callWord(directive?.stance)) : null,
+    steadySince: /^\d{4}-\d{2}-\d{2}$/.test(clean(stability?.since)) ? clean(stability?.since) : null,
+    // From the state when we read it; a brief's own stability carries no changes, but "start" means the rule made no
+    // move that day. Otherwise the call ledger's switch on that day stands in (the caller's `lastStepOn`).
+    steadyStep: !stability
+      ? null
+      : ownStability
+        ? clean(ownStability.trigger) === "start"
+          ? 0
+          : null
+        : stepFromState(options.steadyState, clean(stability.since)),
   };
 }
 

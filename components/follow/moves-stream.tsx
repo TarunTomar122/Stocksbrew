@@ -92,7 +92,7 @@ export function MovesStream({
         return (
           <li
             key={event.id}
-            className="grid grid-cols-[52px_minmax(0,1fr)] gap-x-3 px-4 py-2.5 sm:grid-cols-[64px_minmax(0,1fr)_auto]"
+            className="grid grid-cols-[52px_minmax(0,1fr)] gap-x-3 px-4 py-2.5 sm:grid-cols-[64px_minmax(0,1fr)]"
           >
             <div
               className="oa-mono pt-0.5 text-[12px] leading-5 text-oa-muted-fg"
@@ -131,14 +131,17 @@ export function MovesStream({
                     : event.headline}
                 </p>
               )}
+              {/* The filing itself opens from its dates, so no "Report (PDF)" is repeated on every row (owner, Nov 11). */}
               <p className="mt-0.5 text-[11.5px] leading-4 text-oa-muted-fg">
-                {timing(event)}
+                {event.url ? (
+                  <ExternalLink href={event.url} className="-my-1 inline-block py-1">
+                    {timing(event) || "The filing"}
+                    <span className="sr-only">{event.kind === "fund" ? " (the report at the SEC)" : " (the report, a PDF)"}</span>
+                  </ExternalLink>
+                ) : (
+                  timing(event)
+                )}
               </p>
-            </div>
-            <div className="col-start-2 mt-1 text-[11.5px] text-oa-muted-fg sm:col-start-3 sm:mt-0.5 sm:text-right">
-              <ExternalLink href={event.url}>
-                {event.kind === "fund" ? "This report at the SEC" : "Report (PDF)"}
-              </ExternalLink>
             </div>
           </li>
         );

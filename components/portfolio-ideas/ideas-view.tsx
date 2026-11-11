@@ -1,10 +1,11 @@
 import Link from "next/link";
 import * as React from "react";
 
-import { NUM, Panel, Tag, Ticker, fmtDay } from "@/components/oa/kit";
+import { FOCUS, NUM, Panel, Tag, Ticker, fmtDay } from "@/components/oa/kit";
 import { TheRead } from "@/components/oa/insight";
 import { RatePicker } from "@/components/portfolio-ideas/rate-picker";
 import { LOSS_MIN, LOSS_PCT } from "@/lib/portfolio-ideas/losses";
+import { watchDropsHref } from "@/lib/portfolio-ideas/watch";
 import { COMPANY_LINE, TRIM_MIN_POINTS, TRIM_MIN_USD } from "@/lib/portfolio-ideas/rebalance";
 import type { IdeasView as IdeasData } from "@/lib/portfolio-ideas/server";
 import type { AddIdea, CallWord, LossIdea, RebalancePlan, SaleTax, SimilarPick, TaxRates, TrimIdea } from "@/lib/portfolio-ideas/types";
@@ -316,7 +317,7 @@ function LossRow({ loss, rates, example }: { loss: LossIdea; rates: TaxRates; ex
             ? " Our call on it is Sell some, so selling fits our call as well."
             : ""}
       </p>
-      <div className="mt-2.5 rounded border border-oa-border bg-oa-bg px-3 pt-1.5">
+      <div className="mt-2.5 rounded border border-oa-border bg-oa-bg px-3 pb-1 pt-1.5">
         <p className="oa-caption pt-1">{loss.fund ? "Funds" : "Stocks"} that keep a similar exposure meanwhile</p>
         {loss.similar.length > 0 ? (
           <ul className="divide-y divide-oa-border">
@@ -329,16 +330,22 @@ function LossRow({ loss, rates, example }: { loss: LossIdea; rates: TaxRates; ex
             We do not have enough on {loss.name} to name a look-alike {loss.fund ? "fund" : "stock"}.
           </p>
         )}
-        <p className="border-t border-oa-border py-2 text-[12.5px] leading-[18px] text-oa-muted-fg">
-          Similar by our data, not a recommendation. They will not move exactly the same way.
-        </p>
       </div>
-      {loss.watch ? (
-        <Link href={loss.watch.href} prefetch={false} className="mt-2.5 inline-block text-[13.5px] font-medium leading-5 text-oa-primary hover:underline">
-          {loss.watch.label} →
-        </Link>
-      ) : null}
     </li>
+  );
+}
+
+function LossWatch({ losses }: { losses: LossIdea[] }) {
+  const watched = losses.filter((loss) => loss.watch && loss.shares > 0);
+  if (watched.length === 0) return null;
+  const href = watched.length === 1 ? watched[0]!.watch!.href : watchDropsHref(watched.map((loss) => ({ ticker: loss.ticker, price: loss.value / loss.shares })), 5);
+  if (!href) return null;
+  return (
+    <p className="border-t border-oa-border px-4 py-2.5">
+      <Link href={href} prefetch={false} className={`rounded text-[13.5px] font-medium leading-5 text-oa-primary hover:underline ${FOCUS}`}>
+        {watched.length === 1 ? watched[0]!.watch!.label : "Tell me if any of these falls another 5%"}
+      </Link>
+    </p>
   );
 }
 
@@ -371,6 +378,8 @@ function LossPanel({ view }: { view: IdeasData }) {
               <LossRow key={loss.id} loss={loss} rates={rates} example={view.subject === "example"} />
             ))}
           </ul>
+          {/* One watch for every loss on the list, not a link under each one (owner, Nov 11). */}
+          <LossWatch losses={losses} />
         </>
       )}
     </Panel>
@@ -402,6 +411,7 @@ function Aside({ view }: { view: IdeasData }) {
       <Panel label="Before you act">
         <ul className="flex flex-col gap-2 text-pretty text-[13.5px] leading-5 text-oa-muted-fg">
           <li>These are ideas worked out from the numbers, not advice, and not tax advice. We do not see your whole tax year.</li>
+          <li>The look-alikes for a loss are similar by our data, not a recommendation. They will not move exactly the same way.</li>
           <li>Nothing here buys or sells. Any trade is yours to make at your broker.</li>
           <li>
             The tax is a rough estimate with US federal rules made simple: the two rates above, no state tax, and the oldest shares sold first.

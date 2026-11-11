@@ -104,7 +104,7 @@ export default async function InsidersPage() {
         right={<span className="hidden sm:inline">Three or more insiders buying the same stock within 30 days</span>}
       >
         {clusters.length > 0 ? (
-          <ClusterRows clusters={clusters.slice(0, 9)} />
+          <ClusterRows clusters={clusters} />
         ) : (
           <p className="px-4 py-3 text-[14px] leading-5 text-oa-muted-fg">
             {meta

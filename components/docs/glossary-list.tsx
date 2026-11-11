@@ -71,9 +71,13 @@ export function GlossaryList({ rows }: { rows: GlossaryRow[] }) {
                 {row.see ? (
                   <>
                     {" "}
-                    <AppLink href={row.see.href} className="whitespace-nowrap text-[13.5px] font-medium text-oa-primary hover:underline">
-                      {row.see.title} →
-                    </AppLink>
+                    <span className="text-[13.5px] text-oa-muted-fg">
+                      More in{" "}
+                      <AppLink href={row.see.href} className="font-medium text-oa-primary hover:underline">
+                        {row.see.title}
+                      </AppLink>
+                      .
+                    </span>
                   </>
                 ) : null}
               </dd>
