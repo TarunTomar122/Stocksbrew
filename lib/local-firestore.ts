@@ -1,3 +1,5 @@
+import { noteDegradedRender, uncachedFetch } from "@/lib/next-render";
+
 /** How long one store call may take before it fails. Override with LOCALDB_TIMEOUT_MS. */
 const REQUEST_TIMEOUT_MS = Math.max(1000, Number(process.env.LOCALDB_TIMEOUT_MS) || 25_000);
 
@@ -436,7 +438,8 @@ export class LocalFirestore {
   }
 
   async request(path: string, init: { method?: string; body?: unknown } = {}): Promise<Response> {
-    const send = () => withSlot(() => fetch(`${this.baseUrl}${path}`, {
+    // uncachedFetch: never through Next's Data Cache (see lib/next-render.ts).
+    const send = () => withSlot(() => uncachedFetch(`${this.baseUrl}${path}`, {
       method: init.method || "GET",
       headers: {
         Authorization: `Bearer ${this.token}`,
@@ -446,10 +449,18 @@ export class LocalFirestore {
       // A stalled store must not hold this request (and every one queued
       // behind it for a slot) until the serverless function times out.
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    }).then((response) => {
-      noteServerBacklog(response);
-      return response;
-    }));
+    }).then(
+      (response) => {
+        noteServerBacklog(response);
+        if (response.status >= 500) noteDegradedRender();
+        return response;
+      },
+      (error: unknown) => {
+        // A timeout or dropped connection: a cached page built now is missing data.
+        noteDegradedRender();
+        throw error;
+      },
+    ));
     if (!TIMING_ON) return send();
     const startedAt = performance.now();
     const inFlightAtStart = inFlight;

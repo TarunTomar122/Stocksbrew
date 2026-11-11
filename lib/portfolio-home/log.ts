@@ -1,4 +1,5 @@
 import type { AgentJob, AgentRun } from "@/lib/agent-jobs";
+import { AFTER_CLOSE_RUN_ET, afterCloseRunOn, afterCloseTimeEt } from "@/lib/agent-schedule";
 import { fmtDollars, fmtPlanDay } from "@/lib/dividend-plan";
 import { sessionWords, whenWords } from "@/lib/earnings-season";
 import type { InsightTone } from "@/lib/insights";
@@ -22,7 +23,7 @@ import { daysUntil, nextPayment, type HomeMode, type HomeSources, type Loaded } 
 /** The person's standing agents and their recent runs, newest first. */
 export type AgentsSource = {
   /** `weekly` marks a once-a-week schedule, which is not due on most days. */
-  jobs: Array<Pick<AgentJob, "id" | "name" | "enabled"> & { weekly?: boolean }>;
+  jobs: Array<Pick<AgentJob, "id" | "name" | "enabled"> & { weekly?: boolean } & Partial<Pick<AgentJob, "trigger" | "scope">>>;
   runs: Array<Pick<AgentRun, "job_id" | "job_name" | "day" | "ran_at" | "decision" | "summary">>;
 };
 
@@ -268,8 +269,18 @@ function nyClock(iso: string): { day: string; minutes: number } | null {
   return { day: `${parts.year}-${parts.month}-${parts.day}`, minutes: Number(parts.hour) * 60 + Number(parts.minute) };
 }
 
-/** The after-close runner fires at 5:30 PM ET on weekdays; a run made by hand ("Run now") at another time proves nothing about it. */
-const AFTER_CLOSE_MINUTES = 17 * 60;
+/** The after-close runner's start (lib/agent-schedule.ts, kept in step with the VPS timer); a run made by hand ("Run now") earlier proves nothing about it. */
+const AFTER_CLOSE_MINUTES = AFTER_CLOSE_RUN_ET.hour * 60 + AFTER_CLOSE_RUN_ET.minute;
+
+/** The first day on or after `day` that the after-close runner reads a new close (weekdays that are not NYSE holidays). */
+function nextRunDay(day: string): string {
+  let next = day;
+  for (let i = 0; i < 14; i++, next = shiftDay(next, 1)) {
+    const run = afterCloseRunOn(next);
+    if (run?.marketDay) return next;
+  }
+  return weekdayOnOrAfter(day);
+}
 
 /** The market day of a run the scheduled runner made: on a weekday, after the close, evening of the same day or early the next morning. */
 function scheduledRunDay(run: AgentsSource["runs"][number]): string | null {
@@ -294,12 +305,13 @@ export function nextAgentCheck(agents: AgentsSource | null, today: string): LogR
   if (on === 0) return null;
   const newest = agents.runs.map(scheduledRunDay).filter((day): day is string => day !== null).sort().pop() ?? null;
   if (!newest || newest < previousWeekday(today)) return null;
-  const day = newest >= today ? weekdayOnOrAfter(shiftDay(today, 1)) : weekdayOnOrAfter(today);
+  const day = newest >= today ? nextRunDay(shiftDay(today, 1)) : nextRunDay(today);
+  const at = afterCloseRunOn(day);
   return {
     id: "agents-next",
     day,
     at: null,
-    text: `Your ${on === 1 ? "agent checks" : `${on} agents check`} again after the close${day === today ? " today" : ""}.`,
+    text: `Your ${on === 1 ? "agent checks" : `${on} agents check`} again after the close${day === today ? " today" : ""}${at ? `, from ${afterCloseTimeEt(at)}` : ""}.`,
     changed: null,
     tone: "flat",
     ticker: null,
@@ -312,11 +324,27 @@ function newestFirst(a: LogRow, b: LogRow): number {
   return b.day.localeCompare(a.day) || (b.at ?? "").localeCompare(a.at ?? "");
 }
 
-export function buildAgentLog(input: { sources: Partial<HomeSources>; agents: Loaded<AgentsSource> | null; mode: HomeMode; today: string }): AgentLog {
+/**
+ * The checks of the data itself (the memo, the reasons, the earnings calendar, the prices), by row id, for a
+ * finding to show the one that explains it ("Checked the earnings calendar … Nov 9, 3:13 PM ET").
+ */
+export function dataChecks(sources: Partial<HomeSources>, mode: HomeMode, today: string): Map<string, LogRow> {
+  const rows = [memoRow(sources, mode), reasonsRow(sources, mode), calendarRow(sources, mode), pricesRow(sources, mode)];
+  return new Map(rows.filter((row): row is LogRow => row !== null && row.day <= today).map((row) => [row.id, row]));
+}
+
+export function buildAgentLog(input: {
+  sources: Partial<HomeSources>;
+  agents: Loaded<AgentsSource> | null;
+  mode: HomeMode;
+  today: string;
+  /** Check rows a lead finding already shows as its own last check (see ./loop.ts), so the log keeps the rest. */
+  omit?: ReadonlySet<string>;
+}): AgentLog {
   const { sources, mode, today } = input;
   const agents = mode === "mine" ? ready(input.agents ?? undefined) : null;
   const checked = [memoRow(sources, mode), reasonsRow(sources, mode), calendarRow(sources, mode), pricesRow(sources, mode), ...agentRows(agents)]
-    .filter((row): row is LogRow => row !== null && row.day <= today)
+    .filter((row): row is LogRow => row !== null && row.day <= today && !input.omit?.has(row.id))
     .sort(newestFirst)
     .slice(0, MAX_CHECKED);
   const next = [...reportRows(sources, today), dividendRow(sources, today), nextAgentCheck(agents, today)]

@@ -33,7 +33,7 @@ function readsAsOneAgent(href: string) {
 
 function question(href: string): string {
   expect(href.startsWith("/ask?q=")).toBe(true);
-  return decodeURIComponent(href.slice("/ask?q=".length));
+  return new URL(href, "https://example.test").searchParams.get("q") ?? "";
 }
 
 const row = (id: string, extra: Partial<Insight> = {}): Insight => ({ id, tone: "flat", text: "x", ...extra });

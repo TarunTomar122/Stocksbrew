@@ -1,5 +1,5 @@
 [Unit]
-Description=Run Tikrr agent data: prices, strategies, earnings, screener and agents after the US close
+Description=Run Tikrr agent data: prices, strategies, earnings, screener, agents and reason checks after the US close
 
 [Timer]
 OnCalendar=Mon..Fri *-*-* 17:30:00 America/New_York

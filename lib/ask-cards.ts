@@ -99,12 +99,18 @@ export type PortfolioRow = {
   day_change_pct: number | null;
   weight_pct: number | null;
   gain_pct: number | null;
+  /** What the person entered. Null when they did not. */
+  shares?: number | null;
+  avg_cost?: number | null;
+  value?: number | null;
   call: string | null;
   note: string | null;
 };
 
 export type PortfolioCard = CardBase & {
   card: "portfolio";
+  /** True when this is the example portfolio, not the person's own. */
+  example?: boolean;
   tracked: number;
   holdings: number | null;
   watching: number | null;
@@ -164,7 +170,8 @@ export type WebCard = CardBase & { card: "web"; query: string; results: Array<{ 
 export type EarningsCard = CardBase & {
   card: "earnings";
   scope: string;
-  events: Array<{ ticker: string; company: string; date: string; time: string | null; eps_estimate: number | null }>;
+  /** `weekday` is the date's day name ("Friday"), so an answer never works it out. */
+  events: Array<{ ticker: string; company: string; date: string; weekday?: string; time: string | null; eps_estimate: number | null }>;
 };
 
 export type BacktestStats = {
@@ -310,6 +317,144 @@ export type ActionCard = CardBase & {
   reason: string | null;
 };
 
+/* ── the person's own: reasons, memo, agents, research, briefing ───────── */
+
+export type Verdict = "holds" | "weaker" | "broken" | "played_out";
+
+export type ReasonRow = {
+  ticker: string;
+  verdict: Verdict;
+  /** "Reason weaker". */
+  verdict_words: string;
+  headline: string;
+  /** The watcher's note: what fired, with its figures. */
+  note: string;
+  /** The person's own words, or null. */
+  quote: string | null;
+  /** What fired, worst first, at most three. */
+  findings: Array<{ text: string; source: string; as_of: string; href: string | null }>;
+  /** The verdict before the latest change and the day it changed. */
+  changed_from: { verdict: Verdict; day: string } | null;
+  as_of: string;
+};
+
+export type ReasonsCard = CardBase & {
+  card: "reasons";
+  example: boolean;
+  /** Reasons saved on tracked stocks. */
+  saved: number;
+  /** Worst first. */
+  rows: ReasonRow[];
+  /** Stocks with a reason this plan does not check. */
+  locked: string[];
+  /** Stocks with a reason we had no data to check. */
+  unchecked: string[];
+};
+
+export type MemoLine = { id: string; text: string; tickers: string[]; source: string; as_of: string; href: string };
+
+export type MemoCard = CardBase & {
+  card: "memo";
+  example: boolean;
+  week_key: string;
+  monday: string;
+  friday: string;
+  /** Last close the memo is built on. */
+  end_day: string | null;
+  /** That close as a person says it: "Tuesday, Nov 10". */
+  through: string | null;
+  complete: boolean;
+  top_line: string;
+  /** The week's return line, when the memo has one. */
+  week: string | null;
+  changed: MemoLine[];
+  hurt: MemoLine[];
+  look: MemoLine[];
+  /** The line the link pointed at, when it was found. */
+  focus: MemoLine | null;
+  /** A link named a line that is not in this week's memo (the week moved on, or the line dropped out). */
+  focus_missing?: boolean;
+  /** Reasons left out because the plan does not cover those stocks. */
+  held_back: number;
+};
+
+export type AgentRow = {
+  id: string;
+  name: string;
+  /** "Every market day, for NVDA": what it watches, in words. */
+  watches: string;
+  enabled: boolean;
+  last_run: {
+    day: string;
+    /** "Found something", "Nothing to report", "Could not check". */
+    decision: string;
+    summary: string;
+    findings: Array<{ ticker: string | null; headline: string; detail: string; at: string }>;
+  } | null;
+};
+
+export type AgentsCard = CardBase & {
+  card: "agents";
+  /** Agents the person has, archived ones left out. */
+  total: number;
+  rows: AgentRow[];
+  /** The agent the link pointed at; null when none or not found. */
+  focus: string | null;
+  focus_missing: boolean;
+};
+
+export type ResearchCard = CardBase & {
+  card: "research";
+  ticker: string;
+  name: string;
+  key: string;
+  status: "running" | "ready" | "failed";
+  created_at: string;
+  headline: string | null;
+  summary: string[];
+  change: string[];
+  watch: Array<{ date: string | null; text: string }>;
+  risks: Array<{ title: string; text: string }>;
+  sources: number;
+  href: string;
+};
+
+export type ResearchListCard = CardBase & {
+  card: "research_list";
+  ticker: string | null;
+  reports: Array<{ ticker: string; name: string; key: string; status: string; created_at: string; headline: string | null; href: string }>;
+};
+
+export type BriefingItemCard = CardBase & {
+  card: "briefing_item";
+  ticker: string;
+  name: string;
+  day: string;
+  headline: string;
+  why: string;
+  metric: string | null;
+  reason_confirmed: boolean;
+  next_step: string;
+  evidence: Array<{ label: string; source: string; url: string | null; at: string | null }>;
+  day_change_pct: number | null;
+  price: number | null;
+};
+
+/** "Watch this": an agent request filled in for /agents. Nothing is set up until the person saves it there. */
+export type WatchCard = CardBase & {
+  card: "watch";
+  /** "ready": not set up, the button opens the agent box. "already": the person has this agent. */
+  status: "ready" | "already";
+  /** The request as typed into the agent box. */
+  request: string;
+  /** What the agent will do, in the agent box's own words. */
+  preview: string;
+  href: string;
+  /** Names of the person's agents that already do this. */
+  existing: Array<{ name: string; enabled: boolean }>;
+  note: string | null;
+};
+
 export type MatchesCard = CardBase & { card: "matches"; query: string; matches: Array<{ ticker: string; name: string }> };
 
 export type SignInCard = { card: "sign_in"; message: string };
@@ -335,6 +480,13 @@ export type AskCard =
   | MarketsCard
   | BasketCard
   | ActionCard
+  | ReasonsCard
+  | MemoCard
+  | AgentsCard
+  | ResearchCard
+  | ResearchListCard
+  | BriefingItemCard
+  | WatchCard
   | MatchesCard
   | SignInCard
   | ErrorCard;

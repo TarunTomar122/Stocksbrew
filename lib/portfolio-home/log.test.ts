@@ -114,7 +114,7 @@ describe("nextAgentCheck", () => {
 
   it("promises a next check only when the runner ran for the last market day", () => {
     // Ran for Tuesday: due again after Wednesday's close.
-    expect(nextAgentCheck(value(agents([{ day: "2026-11-10" }])), TODAY)).toMatchObject({ day: TODAY, text: "Your 2 agents check again after the close today." });
+    expect(nextAgentCheck(value(agents([{ day: "2026-11-10" }])), TODAY)).toMatchObject({ day: TODAY, text: "Your 2 agents check again after the close today, from 5:30 PM ET." });
     // Already ran after today's close: the next weekday.
     expect(nextAgentCheck(value(agents([{ day: TODAY, ran_at: "2026-11-11T22:40:00.000Z" }])), TODAY)?.day).toBe("2026-11-12");
     // A long after-close group that finished after midnight still counts for its day.
@@ -133,7 +133,7 @@ describe("nextAgentCheck", () => {
   });
 
   it("leaves weekly agents out of the count", () => {
-    expect(nextAgentCheck(value(agents([{}], true, true)), TODAY)?.text).toBe("Your agent checks again after the close today.");
+    expect(nextAgentCheck(value(agents([{}], true, true)), TODAY)?.text).toBe("Your agent checks again after the close today, from 5:30 PM ET.");
   });
 
   it("skips the weekend", () => {

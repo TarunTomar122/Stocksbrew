@@ -9,7 +9,15 @@ import { StockLogo } from "@/components/stock-logo";
 import { MarkSlot, ToneGlyph, Verdict } from "@/components/oa/kit/tone";
 import type {
   ActionCard,
+  AgentsCard,
   AskCard,
+  BriefingItemCard,
+  MemoCard,
+  MemoLine,
+  ReasonsCard,
+  ResearchCard,
+  ResearchListCard,
+  WatchCard,
   BacktestCard,
   BasketCard,
   ChangesCard,
@@ -104,6 +112,8 @@ function Table({ children }: { children: React.ReactNode }) {
 }
 
 const ROW = "border-b border-oa-border last:border-b-0";
+/** About eight rows, then the list scrolls inside with no visible bar (owner rule for every long list). */
+const SCROLL_8 = "scrollbar-hide max-h-[22rem] overflow-y-auto";
 const na = <span className="text-oa-muted-fg">n/a</span>;
 
 function ratio(value: number | null, suffix = "x") {
@@ -325,12 +335,31 @@ function Portfolio({ card }: { card: PortfolioCard }) {
     );
   }
   const hasWeights = card.rows.some((row) => row.weight_pct !== null);
+  const hasShares = card.rows.some((row) => row.shares != null);
+  const hasCost = card.rows.some((row) => row.avg_cost != null);
   return (
-    <Frame label="Your portfolio" right={<span className={NUM}>{card.tracked} names</span>} source={<SourceLine source={card.source} asOf={card.as_of} href={card.source_url} />} flush>
+    <Frame
+      label={card.example ? "The example portfolio" : "Your portfolio"}
+      right={<span className={NUM}>{card.tracked} names</span>}
+      source={<SourceLine source={card.source} asOf={card.as_of} href={card.source_url} />}
+      flush
+    >
+      {card.example ? <p className="border-b border-oa-border px-3.5 py-2 text-[13px] leading-5 text-oa-muted-fg">These are made-up holdings priced with real quotes, not yours.</p> : null}
+      <div className={SCROLL_8}>
       <Table>
         <thead>
           <tr>
             <Th>Stock</Th>
+            {hasShares ? (
+              <Th right hideOnMobile>
+                Shares
+              </Th>
+            ) : null}
+            {hasCost ? (
+              <Th right hideOnMobile>
+                Avg cost
+              </Th>
+            ) : null}
             <Th right>Price</Th>
             <Th right>Today</Th>
             {hasWeights ? (
@@ -351,6 +380,16 @@ function Portfolio({ card }: { card: PortfolioCard }) {
                   {row.position === "holding" ? "Held" : "Watching"}
                 </Tag>
               </Td>
+              {hasShares ? (
+                <Td right hideOnMobile>
+                  {row.shares == null ? "" : row.shares.toLocaleString("en-US", { maximumFractionDigits: 4 })}
+                </Td>
+              ) : null}
+              {hasCost ? (
+                <Td right hideOnMobile>
+                  {row.avg_cost == null ? "" : fmtMoney(row.avg_cost)}
+                </Td>
+              ) : null}
               <Td right>{fmtMoney(row.price)}</Td>
               <Td right>
                 <Delta value={row.day_change_pct} />
@@ -368,6 +407,7 @@ function Portfolio({ card }: { card: PortfolioCard }) {
           ))}
         </tbody>
       </Table>
+      </div>
       {card.rows.length > 20 ? <p className="border-t border-oa-border px-3.5 py-2 text-[12.5px] text-oa-muted-fg">Showing 20 of {card.rows.length}. The rest are on your portfolio page.</p> : null}
     </Frame>
   );
@@ -1169,6 +1209,225 @@ function Basket({ card, actions }: { card: BasketCard; actions: CardActions }) {
   );
 }
 
+/* ── the person's own: reasons, memo, agents, research, briefing ───────── */
+
+const VERDICT_TONE: Record<ReasonsCard["rows"][number]["verdict"], "up" | "down" | "flat"> = { holds: "up", weaker: "down", broken: "down", played_out: "flat" };
+
+function Reasons({ card }: { card: ReasonsCard }) {
+  const source = <SourceLine source={card.source} asOf={card.as_of} href={card.source_url} />;
+  return (
+    <Frame label={card.example ? "Reasons in the example portfolio" : "Your reasons"} right={<span className={NUM}>{card.rows.length} checked</span>} source={source} flush>
+      {card.example ? <p className="border-b border-oa-border px-3.5 py-2 text-[13px] leading-5 text-oa-muted-fg">These reasons are made up for the example portfolio. The checks run on real data.</p> : null}
+      {card.rows.length === 0 ? (
+        <p className="px-3.5 py-3 text-[14px] leading-5 text-oa-muted-fg">
+          {card.locked.length > 0 ? `Your plan does not check the reasons on ${card.locked.join(", ")}.` : "There is no checked reason to show yet."}
+        </p>
+      ) : (
+        <ul className={`${SCROLL_8} divide-y divide-oa-border`}>
+          {card.rows.map((row) => (
+            <li key={row.ticker} className="px-3.5 py-2.5">
+              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                <TickerLink symbol={row.ticker} />
+                <Verdict tone={VERDICT_TONE[row.verdict]}>{row.verdict_words}</Verdict>
+                {row.changed_from ? <span className="text-[12px] text-oa-muted-fg">Changed {fmtDay(row.changed_from.day)}</span> : null}
+              </div>
+              <p className="mt-1 text-pretty text-[13.5px] leading-5 text-oa-fg">{row.note || row.headline}</p>
+              {row.quote ? <p className="mt-0.5 text-pretty text-[12.5px] leading-5 text-oa-muted-fg">Your words: “{row.quote}”</p> : null}
+            </li>
+          ))}
+        </ul>
+      )}
+      {card.rows.length > 0 && (card.locked.length > 0 || card.unchecked.length > 0) ? (
+        <p className="border-t border-oa-border px-3.5 py-2 text-[12.5px] leading-5 text-oa-muted-fg">
+          {card.locked.length > 0 ? `Not checked on your plan: ${card.locked.join(", ")}. ` : ""}
+          {card.unchecked.length > 0 ? `No data to check: ${card.unchecked.join(", ")}.` : ""}
+        </p>
+      ) : null}
+    </Frame>
+  );
+}
+
+function MemoSection({ title, lines, focus }: { title: string; lines: MemoLine[]; focus: string | null }) {
+  if (lines.length === 0) return null;
+  return (
+    <div className="mt-3">
+      <p className="oa-caption mb-1">{title}</p>
+      <ul className="divide-y divide-oa-border border-y border-oa-border">
+        {lines.map((line) => (
+          <li key={line.id} className={`py-2 text-pretty text-[13.5px] leading-5 ${line.id === focus ? "-mx-1.5 rounded-md bg-oa-accent px-1.5 text-oa-fg" : "text-oa-fg"}`}>
+            {line.text}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function Memo({ card }: { card: MemoCard }) {
+  const range = `${fmtDay(card.monday)} to ${fmtDay(card.end_day ?? card.friday)}`;
+  return (
+    <Frame
+      label={card.example ? "The example portfolio's week" : "Your week"}
+      right={<span className={NUM}>{range}</span>}
+      source={<SourceLine source={card.source} asOf={card.as_of} href={card.source_url} />}
+    >
+      {card.focus_missing ? <p className="mb-2 text-pretty text-[13px] leading-5 text-oa-muted-fg">The line you came from is no longer in this week's memo. Here is the memo as it reads now.</p> : null}
+      <p className="text-pretty text-[14.5px] font-medium leading-5 text-oa-fg">{card.top_line}</p>
+      {card.week && card.week !== card.top_line ? <p className="mt-1 text-pretty text-[13.5px] leading-5 text-oa-muted-fg">{card.week}</p> : null}
+      <MemoSection title="What changed" lines={card.changed} focus={card.focus?.id ?? null} />
+      <MemoSection title="What could hurt" lines={card.hurt} focus={card.focus?.id ?? null} />
+      <MemoSection title="Worth a look" lines={card.look} focus={card.focus?.id ?? null} />
+    </Frame>
+  );
+}
+
+function Agents({ card }: { card: AgentsCard }) {
+  return (
+    <Frame label="Your agents" right={<span className={NUM}>{card.total}</span>} source={<SourceLine source={card.source} asOf={card.as_of} href={card.source_url} />} flush>
+      {card.focus_missing ? <p className="border-b border-oa-border px-3.5 py-2 text-pretty text-[13px] leading-5 text-oa-muted-fg">The agent you came from is not in your account any more. These are the agents you have.</p> : null}
+      {card.rows.length === 0 ? (
+        <p className="px-3.5 py-3 text-[14px] leading-5 text-oa-muted-fg">
+          You have no agents yet.{" "}
+          <AppLink href="/agents" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2">
+            Set one up
+          </AppLink>{" "}
+          and it will check the market for you every day.
+        </p>
+      ) : (
+        <ul className={`${SCROLL_8} divide-y divide-oa-border`}>
+          {card.rows.map((row) => (
+            <li key={row.id} className={`px-3.5 py-2.5 ${row.id === card.focus ? "bg-oa-accent" : ""}`}>
+              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                <AppLink href={`/agents/jobs?job=${encodeURIComponent(row.id)}`} className={`text-[14px] font-medium text-oa-fg hover:underline ${FOCUS}`}>
+                  {row.name}
+                </AppLink>
+                {row.enabled ? null : <Tag>Paused</Tag>}
+                {row.last_run ? <span className="text-[12px] text-oa-muted-fg">{row.last_run.decision} on {fmtDay(row.last_run.day)}</span> : <span className="text-[12px] text-oa-muted-fg">Not run yet</span>}
+              </div>
+              <p className="mt-0.5 text-pretty text-[13px] leading-5 text-oa-muted-fg">{row.last_run?.summary ?? row.watches}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Frame>
+  );
+}
+
+function Research({ card }: { card: ResearchCard }) {
+  return (
+    <Frame label={`Your ${card.ticker} research`} right={<span className={NUM}>{fmtDay(card.created_at, true)}</span>} source={<SourceLine source={card.source} asOf={card.as_of} href={card.source_url} />}>
+      {card.headline ? <p className="text-pretty text-[14.5px] font-medium leading-5 text-oa-fg">{card.headline}</p> : null}
+      {card.summary.length > 0 ? (
+        <ul className="mt-2 list-disc space-y-1 pl-5 text-pretty text-[13.5px] leading-5 text-oa-fg marker:text-oa-muted-fg">
+          {card.summary.map((line, index) => (
+            <li key={index}>{line}</li>
+          ))}
+        </ul>
+      ) : null}
+      {card.watch.length > 0 ? (
+        <div className="mt-3">
+          <p className="oa-caption mb-1">What to watch</p>
+          <ul className="space-y-1 text-pretty text-[13.5px] leading-5 text-oa-fg">
+            {card.watch.map((row, index) => (
+              <li key={index}>
+                {row.date ? <span className={`${NUM} mr-2 text-[12px] text-oa-muted-fg`}>{fmtDay(row.date)}</span> : null}
+                {row.text}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      <p className="mt-3 text-[13px]">
+        <AppLink href={card.href} className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
+          Read the full report
+        </AppLink>
+        <span className="text-oa-muted-fg">{` · ${card.sources} sources`}</span>
+      </p>
+    </Frame>
+  );
+}
+
+function ResearchList({ card }: { card: ResearchListCard }) {
+  return (
+    <Frame label="Your research reports" source={<SourceLine source={card.source} asOf={card.as_of} href={card.source_url} />} flush>
+      {card.reports.length === 0 ? (
+        <p className="px-3.5 py-3 text-[14px] leading-5 text-oa-muted-fg">You have no research reports yet. Start one from any stock page.</p>
+      ) : (
+        <ul className={`${SCROLL_8} divide-y divide-oa-border`}>
+          {card.reports.map((report) => (
+            <li key={`${report.ticker}-${report.key}`}>
+              <AppLink href={report.href} className={`flex items-baseline gap-3 px-3.5 py-2 hover:bg-oa-accent ${FOCUS}`}>
+                <span className={`${NUM} w-16 shrink-0 text-[13.5px] font-medium text-oa-fg`}>{report.ticker}</span>
+                <span className="min-w-0 flex-1 text-pretty text-[13.5px] leading-5 text-oa-fg">{report.headline ?? (report.status === "running" ? "Still being written" : "No headline")}</span>
+                <span className={`${NUM} shrink-0 text-[11.5px] text-oa-muted-fg`}>{fmtDay(report.created_at)}</span>
+              </AppLink>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Frame>
+  );
+}
+
+function BriefingItem({ card }: { card: BriefingItemCard }) {
+  return (
+    <Frame
+      label={<span className="inline-flex items-center gap-2">From your briefing <TickerLink symbol={card.ticker} logo={14} /></span>}
+      right={card.day_change_pct !== null ? <Delta value={card.day_change_pct} /> : null}
+      source={<SourceLine source={card.source} asOf={card.as_of} href={card.source_url} />}
+    >
+      <p className="text-pretty text-[14.5px] font-medium leading-5 text-oa-fg">{card.headline}</p>
+      {card.why ? <p className="mt-1 text-pretty text-[13.5px] leading-5 text-oa-muted-fg">{card.why}</p> : null}
+      {card.evidence.length > 0 ? (
+        <ul className="mt-2 space-y-1 text-[13px] leading-5">
+          {card.evidence.map((row, index) => (
+            <li key={index} className="text-oa-muted-fg">
+              {row.url ? (
+                <a href={row.url} target="_blank" rel="noopener noreferrer" className="text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
+                  {row.label}
+                </a>
+              ) : (
+                <span className="text-oa-fg">{row.label}</span>
+              )}
+              {` · ${row.source}`}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </Frame>
+  );
+}
+
+function Watch({ card, actions }: { card: WatchCard; actions: CardActions }) {
+  const already = card.status === "already";
+  return (
+    <div className="oa-surface border border-oa-border bg-oa-card px-3.5 py-3">
+      <p className="text-pretty text-[14px] leading-5 text-oa-fg">
+        {already
+          ? `You already have ${card.existing.length === 1 ? "an agent" : "agents"} for this: ${card.existing.map((job) => `${job.name}${job.enabled ? "" : " (paused)"}`).join(", ")}.`
+          : card.preview}
+      </p>
+      {card.note && !already ? <p className="mt-1 text-pretty text-[12.5px] leading-5 text-oa-muted-fg">{card.note}</p> : null}
+      <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-2">
+        {already ? (
+          <AppLink href="/agents" className={`inline-flex h-8 items-center rounded-lg border border-oa-border px-3 text-[13px] font-medium text-oa-fg hover:bg-oa-accent ${FOCUS}`}>
+            See your agents
+          </AppLink>
+        ) : actions.signedIn ? (
+          <AppLink href={card.href} className={`inline-flex h-8 items-center rounded-lg bg-oa-primary px-3 text-[13px] font-medium text-oa-primary-fg hover:opacity-90 ${FOCUS}`}>
+            Watch this
+          </AppLink>
+        ) : (
+          <OaButton size="sm" onClick={actions.signIn}>
+            Sign in to watch this
+          </OaButton>
+        )}
+        {already ? null : <span className="text-[12px] text-oa-muted-fg">Nothing is set up until you save it on the Agents page.</span>}
+      </div>
+    </div>
+  );
+}
+
 /* ── the switch ─────────────────────────────────────────────────────────── */
 
 export function AskCardView({ card, actions }: { card: AskCard; actions: CardActions }) {
@@ -1211,6 +1470,20 @@ export function AskCardView({ card, actions }: { card: AskCard; actions: CardAct
       return <Basket card={card} actions={actions} />;
     case "action":
       return <Action card={card} actions={actions} />;
+    case "reasons":
+      return <Reasons card={card} />;
+    case "memo":
+      return <Memo card={card} />;
+    case "agents":
+      return <Agents card={card} />;
+    case "research":
+      return <Research card={card} />;
+    case "research_list":
+      return <ResearchList card={card} />;
+    case "briefing_item":
+      return <BriefingItem card={card} />;
+    case "watch":
+      return <Watch card={card} actions={actions} />;
     case "sign_in":
       return (
         <div className="oa-surface flex flex-wrap items-center justify-between gap-3 border border-oa-border bg-oa-card px-3.5 py-3">

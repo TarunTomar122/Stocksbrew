@@ -116,7 +116,25 @@ export function planOffline(question: string): PlannedCall[] {
     const holdings = tickers.filter((ticker) => ticker !== "SPY").map((ticker) => ({ ticker }));
     if (holdings.length > 0) return [{ tool: "run_backtest", input: { holdings, ...(since ? { start: since } : {}), ...(benchmark ? { benchmark } : {}) } }];
   }
-  if (/\bmy (portfolio|holdings|watchlist|names|stocks|positions)\b/.test(lower)) {
+  const mine = /\bmy (portfolio|holdings|watchlist|names|stocks|positions)\b/.test(lower);
+  if (/\b(reports?|reporting|earnings)\b/.test(lower) && mine) return [{ tool: "get_earnings", input: { days: 7, mine: true } }];
+  if (/\bmy reasons?\b|\breasons? for (owning|holding|buying)\b/.test(lower)) {
+    return [{ tool: "get_my_reasons", input: tickers[0] ? { ticker: tickers[0] } : {} }];
+  }
+  if (/\bmy (agents?|watchers?|watches)\b/.test(lower)) return [{ tool: "get_my_agents", input: {} }];
+  if (/\bmy\b.*\bresearch\b|\bresearch reports?\b/.test(lower)) return [{ tool: "get_my_research", input: tickers[0] ? { ticker: tickers[0] } : {} }];
+  if (/\bmemo\b/.test(lower) || (mine && /\b(this|the|last) week\b|\bweekly\b/.test(lower))) return [{ tool: "get_my_week", input: {} }];
+  const watch = /\bwatch\b.*\bfor me\b|\b(keep an eye on|tell me when|let me know when|remind me|ping me)\b/.test(lower);
+  if (watch && (tickers.length > 0 || mine)) {
+    const ticker = tickers[0];
+    const who = ticker ? { ticker } : { mine: true };
+    const level = /\b(below|under|above|over)\s*\$?(\d+(?:\.\d+)?)/.exec(lower);
+    if (level && ticker) return [{ tool: "suggest_watch", input: { kind: /below|under/.test(level[1]!) ? "price_below" : "price_above", ticker, level: Number(level[2]) } }];
+    if (/\b(report|reports|earnings)\b/.test(lower)) return [{ tool: "suggest_watch", input: { kind: "earnings_before", ...who } }];
+    if (/\binsiders?\b/.test(lower)) return [{ tool: "suggest_watch", input: { kind: "insider_trade", ...who } }];
+    return [{ tool: "suggest_watch", input: { kind: "daily_move", ...who } }];
+  }
+  if (mine) {
     return [{ tool: /chang|new|since|happen/.test(lower) ? "get_portfolio_changes" : "get_my_portfolio", input: {} }];
   }
   if (/\b13f\b|hedge fund|\bfund\b.*\b(bought|buy|sold|sell|hold|own)|berkshire|buffett|ackman|pershing|bridgewater|burry|scion|tepper|druckenmiller/.test(lower)) {
@@ -278,6 +296,33 @@ export function describeCard(card: AskCard): string {
       return card.action === "add_to_watchlist"
         ? `Ready to add ${list(card.tickers)} to your watchlist. Nothing is saved until you confirm on the card.`
         : `Ready to set the alert on ${card.tickers[0]}. Nothing is created until you confirm on the card.`;
+    case "reasons": {
+      const whose = card.example ? "The example portfolio" : "You";
+      if (card.rows.length === 0) return card.locked.length > 0 ? `Your plan does not check the reasons on ${list(card.locked)}.` : `${whose} ${card.example ? "has" : "have"} no checked reasons yet.`;
+      const weak = card.rows.filter((row) => row.verdict === "weaker" || row.verdict === "broken");
+      const lead = weak[0] ?? card.rows[0]!;
+      const prefix = card.example ? "This is the example portfolio, not yours. " : "";
+      return `${prefix}${weak.length === 0 ? "Every checked reason still holds." : `${list(weak.map((row) => row.ticker))} ${weak.length === 1 ? "has a reason that is" : "have reasons that are"} weaker or broken.`} ${lead.headline}`;
+    }
+    case "memo": {
+      const prefix = card.example ? "This is the example portfolio's memo, not yours. " : "";
+      const focus = card.focus ? ` The line you came from: ${card.focus.text}` : "";
+      return `${prefix}${card.top_line}${focus}`;
+    }
+    case "agents":
+      return card.rows.length === 0
+        ? "You have no agents yet. An agent watches stocks for you and reports what it finds."
+        : `You have ${card.total} ${card.total === 1 ? "agent" : "agents"}. ${card.rows[0]!.name}: ${card.rows[0]!.last_run ? card.rows[0]!.last_run.summary : "it has not run yet."}`;
+    case "research":
+      return `Your ${card.ticker} report from ${day(card.created_at)}: ${card.headline ?? card.summary[0] ?? "it has no headline."}`;
+    case "research_list":
+      return card.reports.length === 0 ? "You have no research reports yet." : `You have ${card.reports.length} research ${card.reports.length === 1 ? "report" : "reports"}, the newest on ${card.reports[0]!.ticker}.`;
+    case "briefing_item":
+      return `${card.headline} ${card.why}`.trim();
+    case "watch":
+      return card.status === "already"
+        ? `You already have an agent for this: ${list(card.existing.map((job) => job.name))}.`
+        : `${card.preview} Nothing is set up yet: use Watch this on the card to save it on the Agents page.`;
     case "matches":
       return card.matches.length === 0 ? `Nothing in our catalog matches "${card.query}".` : `Closest matches: ${list(card.matches.slice(0, 4).map((match) => `${match.ticker} (${match.name})`))}.`;
     case "sign_in":

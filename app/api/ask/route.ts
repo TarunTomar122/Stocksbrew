@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import {
   convertToModelMessages,
+  type ModelMessage,
   createUIMessageStream,
   createUIMessageStreamResponse,
   stepCountIs,
@@ -10,7 +11,9 @@ import {
   type UIMessage,
 } from "ai";
 
-import { auditNumbers, cardForModel, isAskCard, type AskUIMessage } from "@/lib/ask-cards";
+import { auditNumbers, cardForModel, isAskCard, type AskCard, type AskUIMessage } from "@/lib/ask-cards";
+import { contextLabel, parseAskContext } from "@/lib/ask-context";
+import { openContext } from "@/lib/ask-context-open";
 import { ASK_MAX_QUESTION_CHARS, ASK_MAX_STEPS, ASK_MAX_TURNS_SENT } from "@/lib/ask-config";
 import { askUsageStore, storableMessages } from "@/lib/ask-data";
 import { askPlanFor, consumeAskQuota, decideAskQuota, peekAskQuota } from "@/lib/ask-limits";
@@ -53,6 +56,14 @@ function textOf(message: UIMessage | undefined): string {
     .trim();
 }
 
+/**
+ * Whether a card's figures count as evidence for the numbers check. A "Watch this" card echoes the level the
+ * model chose, so a figure the model made up would trace to its own suggestion; it is left out.
+ */
+function auditable(card: AskCard): boolean {
+  return card.card !== "watch";
+}
+
 /** Tool results already in the conversation, as the model saw them. */
 function earlierOutputs(messages: UIMessage[]): unknown[] {
   const out: unknown[] = [];
@@ -60,7 +71,7 @@ function earlierOutputs(messages: UIMessage[]): unknown[] {
     for (const part of message.parts ?? []) {
       if (!part.type.startsWith("tool-")) continue;
       const output = (part as { output?: unknown }).output;
-      if (isAskCard(output)) out.push(cardForModel(output));
+      if (isAskCard(output) && auditable(output)) out.push(cardForModel(output));
     }
   }
   return out;
@@ -103,8 +114,10 @@ export async function POST(req: NextRequest) {
   if (Number(req.headers.get("content-length") ?? 0) > ASK_MAX_BODY_BYTES) {
     return NextResponse.json({ error: "bad_request", message: "That conversation is too long to send. Start a new one." }, { status: 413 });
   }
-  const body = (await req.json().catch(() => null)) as { messages?: unknown } | null;
+  const body = (await req.json().catch(() => null)) as { messages?: unknown; context?: unknown } | null;
   const messages = cleanMessages(body?.messages);
+  // Ids only, re-read below for this session. Anything that is not exactly one of the shapes is ignored, not an error.
+  const context = parseAskContext(body?.context);
   if (!messages) return NextResponse.json({ error: "bad_request", message: "Send a question." }, { status: 400 });
 
   const question = textOf(messages[messages.length - 1]);
@@ -146,16 +159,50 @@ export async function POST(req: NextRequest) {
     now,
     levels: (ticker) => canSeeLevels(viewer, ticker),
     earliestBacktestStart: earliestBacktestStart(viewer.plan, now),
+    // The viewer is the same session as `who`; the person's own tools read only `who.uid`.
+    viewer: viewer.uid === who.uid ? viewer : null,
+    example: Boolean(context?.example),
   });
+  // The item a link carried opens with the first question only. Later questions in the conversation already have its card.
+  const firstTurn = messages.filter((message) => message.role === "user").length === 1;
   // Start the window on a person's turn so the model never opens on a dangling tool result.
   let recent = messages.slice(-ASK_MAX_TURNS_SENT);
   while (recent.length > 1 && recent[0]!.role !== "user") recent = recent.slice(1);
   const stream = createUIMessageStream<AskUIMessage>({
     originalMessages: messages,
     execute: async ({ writer }) => {
+      // Open the assistant message before anything else goes on the stream (the notice, the opened item), so the
+      // page keeps one answer with one id. Without it the first part starts a second message.
+      writer.write({ type: "start" });
       if (llm.via === "offline") writer.write({ type: "data-notice", data: { text: OFFLINE_NOTICE } });
-      const system = askSystemPrompt({ signedIn: Boolean(who.uid), isPro: who.isPro, now });
-      const history = await convertToModelMessages(recent, { tools });
+      // Read here, after the stream has started, so a slow read never holds the response.
+      const opened =
+        context && firstTurn
+          ? await openContext(context, tools, now).catch((error) => {
+              console.error("ask_context_failed", error);
+              return null;
+            })
+          : null;
+      const system = askSystemPrompt({
+        signedIn: Boolean(who.uid),
+        isPro: who.isPro,
+        now,
+        startedFrom: opened && context ? contextLabel(opened.fellBack ? { ...context, kind: "stock" } : context) : null,
+        example: Boolean(context?.example),
+      });
+      const history: ModelMessage[] = await convertToModelMessages(recent, { tools });
+      if (opened) {
+        // Shown as the answer's first lookup, and handed to the model as one it already made.
+        writer.write({ type: "tool-input-available", toolCallId: opened.toolCallId, toolName: opened.toolName, input: opened.input });
+        writer.write({ type: "tool-output-available", toolCallId: opened.toolCallId, output: opened.output });
+        history.push(
+          { role: "assistant", content: [{ type: "tool-call", toolCallId: opened.toolCallId, toolName: opened.toolName, input: opened.input }] },
+          {
+            role: "tool",
+            content: [{ type: "tool-result", toolCallId: opened.toolCallId, toolName: opened.toolName, output: { type: "json", value: cardForModel(opened.output) as never } }],
+          },
+        );
+      }
       const result = streamText({
         model: llm.model,
         providerOptions: llm.providerOptions,
@@ -182,8 +229,10 @@ export async function POST(req: NextRequest) {
       const answer = steps.map((step) => step.text).join("\n");
       if (!answer.trim()) return;
       const outputs: unknown[] = earlierOutputs(recent);
+      if (opened) outputs.push(cardForModel(opened.output));
       for (const step of steps) {
         for (const toolResult of step.toolResults) {
+          if (isAskCard(toolResult.output) && !auditable(toolResult.output)) continue;
           outputs.push(isAskCard(toolResult.output) ? cardForModel(toolResult.output) : toolResult.output);
         }
       }

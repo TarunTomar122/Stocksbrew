@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { appendVaryAccept, preferredType } from "@/lib/accept";
+import { anonViewPath, isAnonViewPath, publicPathname } from "@/lib/anon-view";
 import { parsePairSlug } from "@/lib/seo/pair-slug";
 
 /** Same name as app/api/auth/session/route.ts and lib/auth-server.ts. */
@@ -64,8 +65,40 @@ export function middleware(request: NextRequest) {
     return response;
   }
 
+  // The cached copies are internal addresses. Someone who lands on one
+  // directly goes to the page it stands for, so it is never indexed or shared.
+  if (isAnonViewPath(request.nextUrl.pathname)) {
+    const publicUrl = request.nextUrl.clone();
+    publicUrl.pathname = publicPathname(request.nextUrl.pathname);
+    const response = NextResponse.redirect(publicUrl, 308);
+    appendVaryAccept(response.headers);
+    return response;
+  }
+
   const waitlist = process.env.NEXT_PUBLIC_WAITLIST_MODE === "true";
   if (!waitlist) {
+    // Signed-out visitors get the cached copy of the busiest public pages
+    // (lib/anon-view.ts): the same page, served by the CDN instead of being
+    // rendered again. Anyone with a session cookie (even a stale one) gets the
+    // live page, so nothing personal is ever cached.
+    const anonPath =
+      (request.method === "GET" || request.method === "HEAD") && !request.cookies.has(SESSION_COOKIE_NAME)
+        ? anonViewPath({
+            pathname: request.nextUrl.pathname,
+            searchParams: request.nextUrl.searchParams,
+            country: request.headers.get("x-vercel-ip-country"),
+          })
+        : null;
+    if (anonPath) {
+      const anonUrl = request.nextUrl.clone();
+      anonUrl.pathname = anonPath;
+      // The copy is built without a query; the browser still sees the full address.
+      anonUrl.search = "";
+      const response = NextResponse.rewrite(anonUrl);
+      response.headers.set("x-stocksbrew-view", "cached");
+      appendVaryAccept(response.headers);
+      return response;
+    }
     const response = NextResponse.next();
     appendVaryAccept(response.headers);
     return response;

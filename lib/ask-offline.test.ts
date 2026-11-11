@@ -45,6 +45,23 @@ describe("planOffline", () => {
     expect(planOffline("Set an alert for AAPL below 180")).toEqual([{ tool: "propose_price_alert", input: { ticker: "AAPL", condition: "below", target_price: 180 } }]);
   });
 
+  it("routes questions about the person's own week, reasons, agents, research and reports", () => {
+    expect(planOffline("How is my portfolio doing this week?")).toEqual([{ tool: "get_my_week", input: {} }]);
+    expect(planOffline("What does my memo say?")).toEqual([{ tool: "get_my_week", input: {} }]);
+    expect(planOffline("Which of my reasons are weaker?")).toEqual([{ tool: "get_my_reasons", input: {} }]);
+    expect(planOffline("Is my reason for owning NVDA still holding up?")).toEqual([{ tool: "get_my_reasons", input: { ticker: "NVDA" } }]);
+    expect(planOffline("What have my agents found?")).toEqual([{ tool: "get_my_agents", input: {} }]);
+    expect(planOffline("Summarise my NVDA research")).toEqual([{ tool: "get_my_research", input: { ticker: "NVDA" } }]);
+    expect(planOffline("What reports this week for my stocks?")).toEqual([{ tool: "get_earnings", input: { days: 7, mine: true } }]);
+  });
+
+  it("offers an agent when asked to keep watching, and never plans one by itself", () => {
+    expect(planOffline("Tell me when NVDA drops below 150")).toEqual([{ tool: "suggest_watch", input: { kind: "price_below", ticker: "NVDA", level: 150 } }]);
+    expect(planOffline("Remind me before Apple reports")).toEqual([{ tool: "suggest_watch", input: { kind: "earnings_before", ticker: "AAPL" } }]);
+    expect(planOffline("Watch NVDA for me")).toEqual([{ tool: "suggest_watch", input: { kind: "daily_move", ticker: "NVDA" } }]);
+    expect(planOffline("What should I watch for at NVDA?").some((call) => call.tool === "suggest_watch")).toBe(false);
+  });
+
   it("has no plan for a question it cannot route", () => {
     expect(planOffline("Explain convexity to me")).toEqual([]);
   });

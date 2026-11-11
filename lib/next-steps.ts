@@ -17,6 +17,7 @@
 
 import { watchEarningsHref, watchMoveHref } from "@/lib/agents-plain/ask-links";
 import { ASK_MAX_QUESTION_CHARS } from "@/lib/ask-config";
+import { formatAskContext, parseAskContext, type AskContext } from "@/lib/ask-context";
 import { MARKET_GROUP_KEY, type BriefingGroup } from "@/lib/briefing-groups";
 import { dayGap } from "@/lib/insight-format";
 import type { Insight, InsightAction, TheRead } from "@/lib/insights";
@@ -27,9 +28,17 @@ const TICKER = /^[A-Z][A-Z0-9.-]{0,9}$/;
 export const MY_STOCKS_HREF = "/portfolio";
 export const AFFECT_LABEL = "Does this affect my stocks?";
 
-/** Ask, with the question filled in and asked on arrival. */
-export function askHref(question: string): string {
-  return `/ask?q=${encodeURIComponent(question.trim().slice(0, ASK_MAX_QUESTION_CHARS))}`;
+/**
+ * Ask, with the question filled in and asked on arrival. `context` names the
+ * item the question is about (lib/ask-context.ts: a stock, a research report,
+ * a saved reason, a memo line, a briefing line, an agent, the portfolio), so
+ * the first answer starts from that item's evidence. Ids only; a context that
+ * is not valid is left off rather than sent.
+ */
+export function askHref(question: string, context?: AskContext | string | null): string {
+  const base = `/ask?q=${encodeURIComponent(question.trim().slice(0, ASK_MAX_QUESTION_CHARS))}`;
+  const parsed = typeof context === "string" ? parseAskContext(context) : context ? parseAskContext(formatAskContext(context)) : null;
+  return parsed ? `${base}&ctx=${encodeURIComponent(formatAskContext(parsed))}` : base;
 }
 
 function cleanTicker(ticker: string | null | undefined): string | null {
@@ -95,7 +104,7 @@ export function stockCallSteps(input: {
   const reminder = earningsReminder(ticker, input.earningsInDays);
   const move = reminder ? null : watchMoveHref(ticker, 5);
   return {
-    ask: [first, second].map((question) => ({ label: question, href: askHref(question) })),
+    ask: [first, second].map((question) => ({ label: question, href: askHref(question, `stock:${ticker}`) })),
     watch: reminder
       ? { label: reminder.days === 3 ? "Remind me 3 days before earnings" : "Remind me the day before earnings", href: reminder.href }
       : move
@@ -138,7 +147,7 @@ export function briefingSteps(
       insights: read.insights.map((insight) => {
         const ticker = insight.tickers?.length === 1 ? cleanTicker(insight.tickers[0]) : null;
         if (!ticker || !isStoryRow(insight)) return insight;
-        return withStep(insight, { label: "Ask why it moved", href: askHref(whyMovedQuestion(ticker, null)) });
+        return withStep(insight, { label: "Ask why it moved", href: askHref(whyMovedQuestion(ticker, null), `stock:${ticker}`) });
       }),
     };
   }
@@ -149,7 +158,7 @@ export function briefingSteps(
   if (ticker) {
     leadSteps.push({
       label: pct != null && Number.isFinite(pct) && Math.abs(pct) >= 0.05 ? `Why did it ${pct > 0 ? "rise" : "fall"}?` : "Why did it move?",
-      href: askHref(whyMovedQuestion(ticker, pct)),
+      href: askHref(whyMovedQuestion(ticker, pct), `stock:${ticker}`),
     });
     const watch = watchMoveHref(ticker, 5);
     if (watch) leadSteps.push({ label: `Watch ${ticker} for me`, href: watch });
@@ -209,7 +218,7 @@ export function portfolioSteps(
         const pct = position.dayPct;
         const verb = pct == null || !Number.isFinite(pct) || Math.abs(pct) < 0.05 ? "moved" : pct > 0 ? "rose" : "fell";
         // The row's own link is "Why NVDA moved" (our page); this one asks, so it says so and names the direction.
-        return withStep(insight, { label: `Ask why ${first} ${verb}`, href: askHref(whyMovedQuestion(first, pct)) });
+        return withStep(insight, { label: `Ask why ${first} ${verb}`, href: askHref(whyMovedQuestion(first, pct), `stock:${first}`) });
       }
       return insight;
     }),

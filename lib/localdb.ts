@@ -1,5 +1,7 @@
 /** Server-only LocalDB read helper. Keep this module out of client components. */
 
+import { noteDegradedRender, uncachedFetch } from "@/lib/next-render";
+
 type LocalDBPayload = {
   document?: {
     data?: unknown;
@@ -18,10 +20,14 @@ export async function getLocalDBDocument<T = Record<string, unknown>>(
   if (!baseUrl || !token) return null;
 
   try {
-    const response = await fetch(`${baseUrl}/documents/${encodeURIComponent(documentPath)}`, {
+    // uncachedFetch: never through Next's Data Cache (see lib/next-render.ts).
+    const response = await uncachedFetch(`${baseUrl}/documents/${encodeURIComponent(documentPath)}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (!response.ok) return null;
+    if (!response.ok) {
+      if (response.status >= 500) noteDegradedRender();
+      return null;
+    }
 
     const payload = (await response.json()) as LocalDBPayload;
     if (!isObject(payload) || !isObject(payload.document) || !isObject(payload.document.data)) {
@@ -29,6 +35,7 @@ export async function getLocalDBDocument<T = Record<string, unknown>>(
     }
     return payload.document.data as T;
   } catch {
+    noteDegradedRender();
     return null;
   }
 }

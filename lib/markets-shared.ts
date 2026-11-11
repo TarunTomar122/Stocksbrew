@@ -711,8 +711,8 @@ export function predictionReading(market: PredictionMarket): string | null {
   const ranked = [...outcomes].sort((a, b) => b.probability - a.probability);
   const [top, next] = ranked;
   if (market.kind === "exclusive") {
-    const tail = next && next.probability >= 0.05 ? ` Next: ${next.label} at ${formatProbability(next.probability)}.` : "";
-    return `Most likely: ${top.label}, at ${formatProbability(top.probability)}.${tail}`;
+    const tail = next && next.probability >= 0.05 ? `, then ${formatProbability(next.probability)} on ${next.label}` : "";
+    return `Traders put ${formatProbability(top.probability)} on ${top.label}${tail}.`;
   }
   return null;
 }
@@ -811,10 +811,11 @@ export function putCallReading(asset: Pick<MarketAsset, "price" | "average_20d" 
   }
   const diff = asset.price - asset.average_20d;
   const average = asset.average_20d.toFixed(2);
-  if (Math.abs(diff) < 0.03) return `In line with its 20-day average of ${average}.`;
+  const now = asset.price.toFixed(2);
+  if (Math.abs(diff) < 0.03) return `Puts and calls traded in their usual mix, ${now} against a 20-day average of ${average}.`;
   return diff > 0
-    ? `Above its 20-day average of ${average}: more puts than usual traded against calls.`
-    : `Below its 20-day average of ${average}: more calls than usual traded against puts.`;
+    ? `More puts than usual traded against calls, ${now} against a 20-day average of ${average}.`
+    : `More calls than usual traded against puts, ${now} against a 20-day average of ${average}.`;
 }
 
 /** The largest one-day percent moves across every priced asset, biggest first. */

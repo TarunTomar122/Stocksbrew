@@ -320,7 +320,7 @@ export function moversTakeaway(movers: MarketAsset[]): string | null {
   const lead = `${FUND_TOPIC[top.id] ?? top.name} moved most, ${signedPct(top.change.d1!)}.`;
   if (up === movers.length) return `All ${movers.length} of the biggest moves were gains. ${lead}`;
   if (up === 0) return `All ${movers.length} of the biggest moves were losses. ${lead}`;
-  return `${up} of the ${movers.length} biggest moves were gains. ${lead}`;
+  return `${up} of the ${movers.length} biggest moves ${up === 1 ? "was a gain" : "were gains"}. ${lead}`;
 }
 
 /* ── the read for one class page (/markets/indices, /markets/crypto, ...) ── */

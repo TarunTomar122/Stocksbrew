@@ -137,9 +137,16 @@ describe("buildStockRead", () => {
       levels: { addBelow: 100, trimAbove: 132 },
       lastChange: { date: "2026-10-01", from: "Add", to: "Hold", priceAtCall: 100 },
     });
+    // Keep names no level; the change of call is what is left to say.
     const call = read?.insights.find((item) => item.id === "call");
-    expect(call?.text).toBe("NVDA is 10% above our buy-more price ($100), and 20% below the price where we'd sell some ($132).");
-    expect(call?.soWhat).toBe("We changed our call from Buy more to Keep on Oct 1 at $100, and it is up 10% since.");
+    expect(call?.text).toBe("We changed our call from Buy more to Keep on Oct 1 at $100, and it is up 10% since.");
+  });
+
+  it("names only the level that matches the call", () => {
+    const at = (word: "Add" | "Trim") =>
+      buildStockRead({ ...base, dayPct: 1, price: 110, call: { word, writtenAt: null }, levels: { addBelow: 100, trimAbove: 132 }, lastChange: null })?.insights.find((item) => item.id === "call")?.text;
+    expect(at("Add")).toBe("NVDA is 10% above our buy-more price ($100).");
+    expect(at("Trim")).toBe("NVDA would need to rise 20% to reach the price where we'd sell some ($132).");
   });
 
   it("leaves out a level more than half the price away, as the page header does", () => {

@@ -292,7 +292,7 @@ export function briefingRead(
       ? `${leadName} ${leadInsight.text.slice(lead.ticker.length + 1).replace(/\.$/, "")}.`
       : "";
     const leadWhy = whyText && wordCount(whyText) <= HEADLINE_WORDS ? whyText : "";
-    const biggest = `the biggest move${earlier ? "" : " today"} with a confirmed reason`;
+    const biggest = `the biggest move${earlier ? "" : " today"} with news behind it`;
     const withBiggest = leadWhy ? `${leadWhy.replace(/\.$/, "")}, ${biggest}.` : "";
     // The "biggest move" clause rides along only while the headline stays short; otherwise it goes under the index line.
     const biggestBelow = Boolean(leadWhy) && wordCount(withBiggest) > HEADLINE_WORDS;
@@ -304,7 +304,7 @@ export function briefingRead(
           : withBiggest
         : leadMove != null && Number.isFinite(leadMove) && leadMove !== 0
           ? `${leadName} ${leadMove > 0 ? "rose" : "fell"} ${pct(leadMove)}${earlier}, ${biggest}.`
-          : `${leadName} made the biggest move with a confirmed reason${earlier}.`;
+          : `${leadName} made the biggest move with news behind it${earlier}.`;
     const clock = indexClock(briefing.market.as_of, briefing.date);
     const direction = index ? `${index.change_pct >= 0 ? "up" : "down"} ${pct(index.change_pct, 2)}` : "";
     const indexLine = !index
@@ -324,7 +324,7 @@ export function briefingRead(
         giants,
         ...ordered.slice(0, 1).map((group) => {
           const insight = group.items.map((item) => explainedMoveInsight(item, briefing.date, group.name)).find(Boolean) ?? null;
-          return insight && group === lead ? { ...insight, soWhat: "The biggest move today with a confirmed reason." } : insight;
+          return insight && group === lead ? { ...insight, soWhat: "The biggest move today with news behind it." } : insight;
         }),
       ]);
       return { headline: day.line, insights: stories, asOf };

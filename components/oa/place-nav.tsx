@@ -1,7 +1,7 @@
 "use client";
 
 import { IntentLink } from "@/components/oa/intent-link";
-import { usePathname } from "next/navigation";
+import { usePublicPathname } from "@/lib/use-public-pathname";
 import * as React from "react";
 
 import { iconFor, placeFor, sectionFor, trailFor, type Crumb } from "@/components/oa/nav-items";
@@ -16,7 +16,7 @@ const FOCUS =
  * says the page and shows its neighbours. Places with one page get nothing.
  */
 export function PlaceStrip() {
-  const pathname = usePathname() ?? "/";
+  const pathname = usePublicPathname() ?? "/";
   const place = placeFor(pathname);
   const current = sectionFor(pathname, place);
   const row = React.useRef<HTMLDivElement>(null);
@@ -155,7 +155,7 @@ export function PlaceTrail({
   tail?: Crumb[];
   className?: string;
 }) {
-  const pathname = usePathname() ?? "/";
+  const pathname = usePublicPathname() ?? "/";
   const trail = trailFor(pathname);
   const links = trail ? [...trail, ...tail] : null;
   const body = links ? (links.length ? <TrailLinks trail={links} /> : null) : crumb;
@@ -172,7 +172,7 @@ export function PlaceTrail({
 
 /** The small icon beside a page title: the same one the menu and the Market today list use for this place. */
 export function PageIcon({ className = "" }: { className?: string }) {
-  const pathname = usePathname() ?? "/";
+  const pathname = usePublicPathname() ?? "/";
   const icon = iconFor(pathname);
   if (!icon) return null;
   return (

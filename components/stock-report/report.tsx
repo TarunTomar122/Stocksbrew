@@ -4,6 +4,7 @@ import { todayET } from "@/lib/calendar-shared";
 import { MarketStatusInline } from "@/components/market-status";
 import { RangeBar } from "@/components/oa/kit";
 import { CALL_PLAIN, callMetaLine, plainAction, plainCallReason, wholeSentences } from "@/lib/plain-copy";
+import { callBasis, factHasDate, lastReportOn } from "@/lib/call-basis";
 import { CoverButton, LockCard } from "@/components/oa/gate";
 import { ProCheckoutButton } from "@/components/oa/pro-checkout-button";
 import { StockLogo } from "@/components/stock-logo";
@@ -91,50 +92,6 @@ function ProLock({ ticker, market, what, compact = false }: { ticker: string; ma
         ) : null}
         <MoreLink href="/pricing">See what Pro includes</MoreLink>
       </div>
-    </div>
-  );
-}
-
-/**
- * Where the price sits between the two levels of the call: the add zone on the
- * left, the trim zone on the right, the price as a dot. One look says whether
- * the stock is near a level, which two percentages never did.
- */
-function CallTrack({ price, add, trim, level }: { price: number; add: number; trim: number; level: (value: number) => string }) {
-  const ZONE = 14; // percent of the track each zone takes
-  const t = (price - add) / (trim - add);
-  const pos = Math.min(97, Math.max(3, ZONE + t * (100 - 2 * ZONE)));
-  const aboveAdd = ((price - add) / add) * 100;
-  const toTrim = ((trim - price) / price) * 100;
-  const where =
-    price <= add
-      ? { text: "At a price where we'd buy more", color: TONE_COLOR.up }
-      : price >= trim
-        ? { text: "At a price where we'd sell some", color: TONE_COLOR.down }
-        : aboveAdd < 0.5
-          ? { text: "Right at our buy-more price", color: TONE_COLOR.up }
-          : { text: `${aboveAdd.toFixed(aboveAdd < 10 ? 1 : 0)}% above our buy-more price, ${toTrim.toFixed(toTrim < 10 ? 1 : 0)}% below our sell-some price`, color: undefined };
-  return (
-    <div className="mt-3">
-      <div className="relative h-2.5 rounded-full bg-oa-bg" role="img" aria-label={`${where.text}. We would buy more below ${level(add)} and sell some above ${level(trim)}.`}>
-        <span className="absolute inset-y-0 left-0 rounded-l-full" style={{ width: `${ZONE}%`, background: `color-mix(in srgb, ${TONE_COLOR.up} 35%, transparent)` }} />
-        <span className="absolute inset-y-0 right-0 rounded-r-full" style={{ width: `${ZONE}%`, background: `color-mix(in srgb, ${TONE_COLOR.down} 35%, transparent)` }} />
-        <span
-          className="absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-oa-card bg-oa-fg shadow-sm"
-          style={{ left: `${pos}%` }}
-        />
-      </div>
-      <dl className="mt-2 grid grid-cols-2 gap-x-4">
-        <div className="min-w-0">
-          <dt className="text-[13px] leading-[18px] text-oa-muted-fg">Buy more below</dt>
-          <dd className={`${NUM} text-[15px] font-medium leading-[22px] text-oa-fg`}>{level(add)}</dd>
-        </div>
-        <div className="min-w-0 text-right">
-          <dt className="text-[13px] leading-[18px] text-oa-muted-fg">Sell some above</dt>
-          <dd className={`${NUM} text-[15px] font-medium leading-[22px] text-oa-fg`}>{level(trim)}</dd>
-        </div>
-      </dl>
-      <p className="mt-1 text-[14px] leading-5 text-oa-fg">{where.text}</p>
     </div>
   );
 }
@@ -229,14 +186,18 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
     const addBelow = within(read.zones.addBelow);
     const addAbove = within(read.zones.addAbove);
     const trimAbove = within(read.zones.trimAbove);
+    // The chart shows only the level that matches the call (owner, Nov 11): buy-more price on Buy more,
+    // sell-some price on Sell some, neither on Keep. The alert suggestions keep both.
+    const showAdd = read.call === "Add";
+    const showTrim = read.call === "Trim";
     if (addBelow) {
-      zones.push({ key: "add", price: addBelow, side: "below", tone: "up", label: `Buy more below ${level(addBelow)}` });
+      if (showAdd) zones.push({ key: "add", price: addBelow, side: "below", tone: "up", label: `Buy more below ${level(addBelow)}` });
       suggested.push({ id: "add", label: "Buy-more price", condition: "below", price: addBelow, note: `Buy more below ${level(addBelow)}` });
     } else if (addAbove) {
       suggested.push({ id: "add", label: "Buy if it breaks higher", condition: "above", price: addAbove, note: `Buy more above ${level(addAbove)}` });
     }
     if (trimAbove && (!addBelow || trimAbove > addBelow)) {
-      zones.push({ key: "trim", price: trimAbove, side: "above", tone: "down", label: `Sell some above ${level(trimAbove)}` });
+      if (showTrim) zones.push({ key: "trim", price: trimAbove, side: "above", tone: "down", label: `Sell some above ${level(trimAbove)}` });
       suggested.push({ id: "trim", label: "Sell-some price", condition: "above", price: trimAbove, note: `Sell some above ${level(trimAbove)}` });
     }
   }
@@ -301,14 +262,16 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
   // A missing or zero quote must not turn into "Infinity% from here".
   const hasPrice = fin(stock.price) && stock.price > 0;
   const fromHere = (price: number) => (hasPrice ? signedPct(((price - stock.price) / stock.price) * 100) : null);
+  // A call shows only the price that goes with it: where we'd buy more on Buy more, where we'd sell some on
+  // Sell some, and none on Keep; the chart follows the same rule.
   const callLevels = ready
     ? [
-        ready.zones.addBelow
-          ? { label: "Buy more below", price: ready.zones.addBelow, tone: "up" as const }
-          : ready.zones.addAbove
-            ? { label: "Buy more above", price: ready.zones.addAbove, tone: "up" as const }
+        ready.call === "Add" && ready.zones.addBelow
+          ? { label: "Buy more below", price: ready.zones.addBelow }
+          : ready.call === "Add" && ready.zones.addAbove
+            ? { label: "Buy more above", price: ready.zones.addAbove }
             : null,
-        ready.zones.trimAbove ? { label: "Sell some above", price: ready.zones.trimAbove, tone: "down" as const } : null,
+        ready.call === "Trim" && ready.zones.trimAbove ? { label: "Sell some above", price: ready.zones.trimAbove } : null,
       ].filter((item): item is NonNullable<typeof item> => Boolean(item))
     : [];
   // A call written weeks ago keeps its date in view: its horizon ("the next few weeks") ran from then, and a reason
@@ -319,6 +282,22 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
   const callIsOld = callAge != null && callAge > 14;
   const reasonIsNewer = Boolean(callDay && ready?.reasonAsOf && ready.reasonAsOf > callDay);
   const callMeta = ready ? callMetaLine(ready.confidence, ready.horizon, callIsOld && callDay ? fmtDate(callDay, false) : null) : "";
+  // The company reason taken apart: the facts the call rests on, each dated, then what would change it (lib/call-basis.ts).
+  // Only for the reason written from the company's own numbers; any other reason stays one paragraph.
+  const callReason = ready ? plainCallReason(ready.actionSummary) : "";
+  const basis =
+    ready?.reasonAsOf && callReason
+      ? callBasis(callReason, {
+          asOf: ready.reasonAsOf,
+          lastReport: lastReportOn(
+            data.earnings.past.map((event) => event.event_date),
+            ready.reasonAsOf,
+            facts?.captured_at ?? null,
+          ),
+        })
+      : null;
+  // A fact with no day of its own ("It pays a 2.2% dividend") gets the day its figures are from.
+  const basisAsOf = basis && ready?.reasonAsOf ? fmtDate(ready.reasonAsOf, false) : "";
   // The brief leads with its own first sentence (what is happening to the company, in plain facts), not the
   // engine's title ("AI growth remains powerful as scrutiny raises the proof required"); the title is the fallback.
   const briefBody = (ready?.body ?? "").trim().replace(/\s+/g, " ");
@@ -328,6 +307,18 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
   // A level more than half the price away says little about today (the engine still sets some that far out); the landing card uses the same rule.
   const nearLevel = (value: number) => hasPrice && Math.abs(value - stock.price) / stock.price <= 0.5;
   const nearLevels = callLevels.filter((item) => nearLevel(item.price));
+  // Where today's price sits against the level: past it, right at it, or how far off ("−0.0% from here" said nothing).
+  const levelNote = (item: { label: string; price: number }): ReactNode => {
+    if (!hasPrice) return null;
+    const below = item.label.endsWith("below");
+    if (below ? stock.price <= item.price : stock.price >= item.price) return "The price is there now";
+    if (Math.abs(item.price - stock.price) / stock.price < 0.005) return "Right at today's price";
+    return (
+      <>
+        <span className={NUM}>{fromHere(item.price)}</span> from here
+      </>
+    );
+  };
   const callWord = ready?.call ? (CALL_PLAIN[ready.call as keyof typeof CALL_PLAIN] ?? ready.call) : null;
   const callAction = ready ? plainAction(ready.actionLabel, ready.call) : null;
   // "Keep" then "Keep what you own, ..." says the call twice; the word only stays when the sentence does not start with it.
@@ -405,9 +396,10 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
                 <section aria-label={`Our call on ${stock.ticker}`} className="min-w-0 border-t border-oa-border pt-3 md:border-l md:border-t-0 md:pl-6 md:pt-0">
                   <div className="flex items-baseline justify-between gap-3">
                     <h2 className="oa-caption">Our call</h2>
+                    {/* When we last looked at the call again: the brief is rewritten, and the call decided, at this time. */}
                     {ready?.writtenAt ? (
                       <p className="text-[12px] leading-4 text-oa-muted-fg">
-                        {reasonIsNewer ? "Call written" : "Written"} {fmtStamp(ready.writtenAt)}
+                        {reasonIsNewer ? "Call last reviewed" : callIsOld ? "Last reviewed" : "Reviewed"} {fmtStamp(ready.writtenAt)}
                       </p>
                     ) : readState === "locked" ? (
                       <Tag tone="primary">Pro</Tag>
@@ -437,30 +429,62 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
                           </span>
                         ) : null}
                       </p>
-                      {/* The stored reason, in plain words with the same meaning, after what the call means. */}
-                      {plainCallReason(ready.actionSummary) ? (
+                      {/* What the call rests on (each fact with its date), then what would change it, then how sure we are.
+                          All of it comes before any price, so a level never reads as more certain than its reasons. */}
+                      {basis ? (
+                        <div className="mt-2 max-w-[62ch] text-[15px] leading-[22px] text-oa-fg">
+                          <p className="font-medium">Why:</p>
+                          <ul role="list" className="mt-0.5 flex flex-col gap-1">
+                            {basis.facts.map((fact) => (
+                              <li key={fact} className="flex gap-2">
+                                <span aria-hidden="true" className="mt-[9px] size-[5px] shrink-0 rounded-full bg-oa-muted-fg" />
+                                <span className="min-w-0 text-pretty">
+                                  {basisAsOf && !factHasDate(fact) ? (
+                                    <>
+                                      {fact.replace(/[.!?]$/, "")}
+                                      <span className="text-oa-muted-fg">, as of {basisAsOf.replace(" ", "\u00a0")}</span>.
+                                    </>
+                                  ) : (
+                                    // "Nov 2" never splits across lines.
+                                    fact.replace(/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\d)/g, "$1\u00a0$2")
+                                  )}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                          {basis.change ? (
+                            <p className="mt-2 text-pretty">
+                              <span className="font-medium">What would change it: </span>
+                              {basis.change}
+                            </p>
+                          ) : null}
+                        </div>
+                      ) : callReason ? (
                         <p className="mt-2 max-w-[62ch] text-pretty text-[15px] leading-[22px] text-oa-fg">
                           <span className="font-medium">Why: </span>
-                          {plainCallReason(ready.actionSummary)}
+                          {callReason}
                           {reasonIsNewer && ready.reasonAsOf ? (
                             <span className="text-[13px] text-oa-muted-fg"> This reason uses data to {fmtDate(ready.reasonAsOf, false)}.</span>
                           ) : null}
                         </p>
                       ) : null}
-                      {hasPrice && ready.zones.addBelow && ready.zones.addBelow > 0 && ready.zones.trimAbove && ready.zones.trimAbove > ready.zones.addBelow && nearLevel(ready.zones.addBelow) && nearLevel(ready.zones.trimAbove) ? (
-                        <CallTrack price={stock.price} add={ready.zones.addBelow} trim={ready.zones.trimAbove} level={level} />
-                      ) : nearLevels.length ? (
+                      {/* How sure, in words, and honest about the record: we have no test showing these calls beat the market. */}
+                      <p className="mt-2 text-pretty text-[13px] leading-[18px] text-oa-muted-fg">
+                        {callMeta ? `${callMeta} ` : null}We can&apos;t show that calls like this beat the market, so this is our view, not advice.{" "}
+                        {data.gate.levels ? (
+                          <a href="#read" className="text-oa-primary hover:underline">
+                            Read the reasoning
+                          </a>
+                        ) : null}
+                      </p>
+                      {nearLevels.length ? (
                         <dl className="mt-2.5 grid grid-cols-2 gap-x-4 border-t border-oa-border pt-2.5">
                           {nearLevels.map((item) => (
                             <div key={item.label} className="min-w-0">
                               <dt className="text-[12.5px] leading-4 text-oa-muted-fg">{item.label}</dt>
                               <dd className="mt-0.5 flex flex-wrap items-baseline gap-x-2">
                                 <span className={`${NUM} text-[15px] font-medium leading-[22px] text-oa-fg`}>{level(item.price)}</span>
-                                {fromHere(item.price) ? (
-                                  <span className="text-[12.5px] leading-4 text-oa-muted-fg">
-                                    <span className={NUM}>{fromHere(item.price)}</span> from here
-                                  </span>
-                                ) : null}
+                                {levelNote(item) ? <span className="text-[12.5px] leading-4 text-oa-muted-fg">{levelNote(item)}</span> : null}
                               </dd>
                             </div>
                           ))}
@@ -474,21 +498,17 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
                           <span>
                             {/* Says the next step for this reader: sign in first, or pick the stock if signed in. */}
                             {/* One short pointer here; the one place that explains the free account is the full-report box below. */}
-                            The prices where we&apos;d buy more or sell some are in the full report.{" "}
+                            {ready.call === "Add"
+                              ? "The price where we'd buy more is in the full report."
+                              : ready.call === "Trim"
+                                ? "The price where we'd sell some is in the full report."
+                                : "The prices where we'd buy more or sell some are in the full report."}{" "}
                             <a href="#call" className="font-medium text-oa-primary hover:underline">
                               {data.gate.plan === "anon" ? "Get it free" : `Pick ${stock.ticker} for it`}
                             </a>
                           </span>
                         </p>
                       ) : null}
-                      <p className="mt-2 text-[13px] leading-[18px] text-oa-muted-fg">
-                        {callMeta ? `${callMeta} ` : null}Our view, not advice.{" "}
-                        {data.gate.levels ? (
-                          <a href="#read" className="text-oa-primary hover:underline">
-                            Read the reasoning
-                          </a>
-                        ) : null}
-                      </p>
                       {callSteps ? <CallNextSteps ticker={stock.ticker} steps={callSteps} /> : null}
                     </>
                   ) : readState === "locked" ? (

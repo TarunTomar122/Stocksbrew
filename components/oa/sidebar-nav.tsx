@@ -1,7 +1,7 @@
 "use client";
 
 import { IntentLink } from "@/components/oa/intent-link";
-import { usePathname } from "next/navigation";
+import { usePublicPathname } from "@/lib/use-public-pathname";
 
 import { NavIcon } from "@/components/oa/nav-icon";
 import { MORE_LINKS, PLACES, placeFor, sectionFor, type NavItem, type NavPlace } from "@/components/oa/nav-items";
@@ -47,7 +47,7 @@ function SectionRow({ item, current }: { item: NavItem; current: boolean }) {
  * stock is its own page); the trail above the stock's name says the rest.
  */
 export function SidebarNav() {
-  const pathname = usePathname() ?? "/";
+  const pathname = usePublicPathname() ?? "/";
   const place = placeFor(pathname);
   const current = sectionFor(pathname, place);
   return (

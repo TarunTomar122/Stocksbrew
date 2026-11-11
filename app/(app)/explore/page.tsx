@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
-import { loadDeskBrief, loadDeskMarketsData, loadDeskSectors, loadDeskWire, todayET, type DeskBrief, type DeskData, type DeskSector } from "@/app/(app)/explore/desk-data";
+import { loadDeskBrief, loadDeskMarketsData, loadDeskMovers, loadDeskSectors, loadDeskWire, todayET, type DeskBrief, type DeskData, type DeskSector } from "@/app/(app)/explore/desk-data";
 import { MarketsGhost } from "@/app/(app)/explore/ghosts";
 import {
   CommoditiesCurrenciesCryptoSection,
   hasMarketsData,
+  MarketFold,
+  marketSectionNotes,
   MarketsMovedSection,
   OptionsSection,
   PredictionsSection,
@@ -14,7 +16,7 @@ import {
 } from "@/components/markets/overview-sections";
 import { MarketTickerStrip } from "@/components/markets/widgets";
 import { TheRead } from "@/components/oa/insight";
-import { AppPage, Delta, FOCUS, PageHead, Panel, ShowMore } from "@/components/oa/kit";
+import { AppPage, CardGrid, Delta, FOCUS, PageHead, Panel, Ticker } from "@/components/oa/kit";
 import { PanelGhost } from "@/components/oa/kit/skeleton";
 import { NavIcon } from "@/components/oa/nav-icon";
 import { iconFor } from "@/components/oa/nav-items";
@@ -77,9 +79,9 @@ function SectorBars({ rows }: { rows: DeskSector[] }) {
   if (sorted.length < 4) return null;
   const max = Math.max(0.5, ...sorted.map((row) => Math.abs(row.day)));
   return (
-    <Panel label="How each sector did today" right={<Link prefetch={false} href="/sectors" className={`text-[13px] font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg ${FOCUS}`}>All sectors</Link>}>
-      {/* Eleven rows on a phone: about eight show, the rest scroll inside the panel (two columns from sm up fit as they are). */}
-      <ul className="grid gap-x-8 max-sm:max-h-[16.25rem] max-sm:overflow-y-auto max-sm:overscroll-contain scrollbar-hide sm:grid-cols-2">
+    <Panel fill label="How each sector did today" right={<Link prefetch={false} href="/sectors" className={`text-[13px] font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg ${FOCUS}`}>All sectors</Link>}>
+      {/* Eleven rows: about eight show on a phone and the rest scroll inside; two columns from sm, one again beside the stock moves. */}
+      <ul className="grid gap-x-8 max-sm:max-h-[16.25rem] max-sm:overflow-y-auto max-sm:overscroll-contain scrollbar-hide sm:grid-cols-2 md:grid-cols-1">
         {sorted.map((row) => {
           const width = Math.max(3, (Math.abs(row.day) / max) * 100);
           const up = row.day >= 0;
@@ -109,16 +111,61 @@ function SectorBars({ rows }: { rows: DeskSector[] }) {
 }
 
 /**
- * Everything the Markets page carries, arranged for a day: the cross-asset strip, every sector, what moved
- * across markets and why, then each asset class. Sectors are drawn as named bars here, so the stocks section
- * leaves out the Markets page's sector grid. Below lg, options and traded odds wait behind one button.
+ * The day's biggest stock moves, largest first, each with its reason when a source confirmed one. Rows are the
+ * links; rows with a reason run two or three lines, so about six show and the rest scroll inside. Same cached
+ * feed the read above is built from.
  */
-async function MarketsSlot({ sectors }: { sectors: ReturnType<typeof loadDeskSectors> }) {
-  const [data, sectorData] = await Promise.all([loadDeskMarketsData(), sectors]);
+function StockMoves({ movers }: { movers: DeskData["movers"] }) {
+  const rows = [...movers.up, ...movers.down].sort((a, b) => Math.abs(b.changePct) - Math.abs(a.changePct));
+  if (rows.length === 0) return null;
+  return (
+    <Panel
+      fill
+      flush
+      label="Biggest stock moves"
+      right={<AppLink href="/movers" className={`text-[13px] font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg ${FOCUS}`}>Why stocks moved</AppLink>}
+    >
+      {movers.takeaway ? <p className="text-pretty border-b border-oa-border px-4 py-2.5 text-[14px] leading-5 text-oa-fg">{movers.takeaway}</p> : null}
+      <ul className="max-h-[25rem] divide-y divide-oa-border overflow-y-auto overscroll-contain scrollbar-hide">
+        {rows.map((row) => (
+          <li key={row.ticker} className="relative px-4 py-2 hover:bg-oa-accent">
+            <div className="flex min-w-0 items-center justify-between gap-3">
+              <Ticker symbol={row.ticker} name={row.name} stretch />
+              <Delta value={row.changePct} className="shrink-0 font-medium" />
+            </div>
+            {row.reason ? <p className="mt-0.5 text-pretty pl-7 text-[13.5px] leading-5 text-oa-muted-fg">{row.reason}</p> : null}
+          </li>
+        ))}
+      </ul>
+    </Panel>
+  );
+}
+
+/**
+ * The lead under the read, in one weight: the cross-asset strip (indices, yields, oil, gold, the dollar, bitcoin),
+ * then the biggest stock moves with their reasons beside every sector's day. Everything else the Markets page
+ * carries follows in titled sections that open in place, each showing its one-line read while closed.
+ */
+async function MarketsSlot({ sectors, movers }: { sectors: ReturnType<typeof loadDeskSectors>; movers: Promise<DeskData["movers"]> }) {
+  const [data, sectorData, moverData] = await Promise.all([loadDeskMarketsData(), sectors, movers]);
+  // Two cards side by side; when one feed is empty the other takes the full width instead of half a row.
+  const hasMoves = moverData.up.length + moverData.down.length > 0;
+  const hasSectors = sectorData.rows.filter((row) => Number.isFinite(row.day)).length >= 4;
+  const lead =
+    hasMoves && hasSectors ? (
+      <CardGrid className="lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
+        <StockMoves movers={moverData} />
+        <SectorBars rows={sectorData.rows} />
+      </CardGrid>
+    ) : hasMoves ? (
+      <StockMoves movers={moverData} />
+    ) : hasSectors ? (
+      <SectorBars rows={sectorData.rows} />
+    ) : null;
   if (!hasMarketsData(data)) {
     return (
       <>
-        <SectorBars rows={sectorData.rows} />
+        {lead}
         <Panel>
           <p className="text-[15px] font-medium text-oa-fg">Prices for indices, rates, commodities, currencies and crypto are not available right now.</p>
           <p className="mt-1 text-[14px] text-oa-muted-fg">Try again in a few minutes.</p>
@@ -127,20 +174,38 @@ async function MarketsSlot({ sectors }: { sectors: ReturnType<typeof loadDeskSec
     );
   }
   const overview = buildMarketsOverview(data);
+  const notes = marketSectionNotes(data);
   return (
     <>
       <MarketTickerStrip tiles={overview.tiles} />
-      <SectorBars rows={sectorData.rows} />
-      <MarketsMovedSection data={data} overview={overview} />
-      <StocksAndFundsSection data={data} sectors={false} />
-      <RatesAndVolatilitySection data={data} />
-      <CommoditiesCurrenciesCryptoSection data={data} />
-      <ShowMore label="Show options and prediction markets">
-        <div className="flex flex-col gap-4">
-          <OptionsSection data={data} />
-          <PredictionsSection data={data} />
+      {lead}
+      <section aria-labelledby="more-markets" className="mt-4">
+        <h2 id="more-markets" className="px-2 pb-1 text-[17px] font-medium tracking-tight text-oa-fg sm:px-3">
+          More markets
+        </h2>
+        <div className="border-t border-oa-border">
+          <MarketFold title="What moved across markets" note={notes.moved}>
+            <MarketsMovedSection data={data} overview={overview} />
+          </MarketFold>
+          <MarketFold title="Indices and theme funds" note={notes.stocks}>
+            <StocksAndFundsSection data={data} sectors={false} label={false} />
+          </MarketFold>
+          <MarketFold title="Rates and volatility" note={notes.rates}>
+            <RatesAndVolatilitySection data={data} label={false} />
+          </MarketFold>
+          <MarketFold title="Commodities, currencies and crypto" note={notes.commodities}>
+            <CommoditiesCurrenciesCryptoSection data={data} label={false} />
+          </MarketFold>
+          <MarketFold title="Options" note={notes.options}>
+            <OptionsSection data={data} label={false} />
+          </MarketFold>
+          {data.predictions.length > 0 ? (
+            <MarketFold title="Prediction markets" note={notes.predictions}>
+              <PredictionsSection data={data} label={false} />
+            </MarketFold>
+          ) : null}
         </div>
-      </ShowMore>
+      </section>
     </>
   );
 }
@@ -182,16 +247,17 @@ function MoreOnToday() {
 }
 
 /**
- * Market today: how the whole market did. The read in three ranked points, the cross-asset strip and every
- * sector, what moved across markets and why, then indices, rates, commodities, currencies and crypto, with
- * a short strip of places that go deeper at the end. The head needs no data, so it is on screen at once;
- * the read and the market sections each wait only for their own loaders.
+ * Market today: how the whole market did. The read in three ranked points leads; then what moved most (the
+ * cross-asset strip, the biggest stock moves with their reasons, every sector); then every other market in
+ * titled sections that open in place; then a short strip of places that go deeper. The head needs no data, so
+ * it is on screen at once; the read and the market sections each wait only for their own loaders.
  */
 export default function ExplorePage() {
   const today = todayET(new Date());
   const brief = loadDeskBrief(today);
   const wire = loadDeskWire(today);
   const sectors = loadDeskSectors(today);
+  const movers = loadDeskMovers(today);
 
   return (
     <AppPage>
@@ -204,7 +270,7 @@ export default function ExplorePage() {
         </Suspense>
 
         <Suspense fallback={<MarketsGhost />}>
-          <MarketsSlot sectors={sectors} />
+          <MarketsSlot sectors={sectors} movers={movers} />
         </Suspense>
 
         <MoreOnToday />

@@ -2,7 +2,7 @@
 #   sudo cp backend/vps/units/tikrr-agentdata-after-close.* /etc/systemd/system/
 #   sudo systemctl daemon-reload && sudo systemctl enable --now tikrr-agentdata-after-close.timer
 [Unit]
-Description=Tikrr agent data: prices, strategies, earnings, screener and agents after the US close
+Description=Tikrr agent data: prices, strategies, earnings, screener, agents and reason checks after the US close
 
 [Service]
 Type=oneshot
@@ -10,5 +10,11 @@ User=ubuntu
 WorkingDirectory=/opt/tikrr
 Environment=TIKRR_REPO_DIR=/opt/tikrr
 Environment=TIKRR_ENV_FILE=/etc/tikrr/backend.env
+# The standing agents and reason checks (TypeScript) reach the store over HTTP and need its token.
+# A root-only file with only LOCALDB_API_TOKEN in it (not the server's localdb.env, whose settings
+# must not reach the Python steps); systemd reads it before switching to User=. The runner fills in
+# the local URL. Make it with:
+#   sudo sh -c 'umask 077; grep "^LOCALDB_API_TOKEN=" /etc/tikrr/localdb.env > /etc/tikrr/agentdata-localdb.env'
+EnvironmentFile=-/etc/tikrr/agentdata-localdb.env
 MemoryMax=2G
 ExecStart=/opt/tikrr/backend/vps/run-agentdata.sh after_close

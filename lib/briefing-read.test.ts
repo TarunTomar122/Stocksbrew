@@ -84,7 +84,7 @@ describe("briefingRead", () => {
   it("reads the market view from its explained moves", () => {
     const lead = { ...cbrs, relation: "market" as const, needs_you: true };
     const read = briefingRead({ ...base, mode: "market" }, groupBriefingSections({ ...sections([]), needs_you: [lead] }, "market"));
-    expect(read?.headline).toBe("CBRS rose 7.9%, the biggest move today with a confirmed reason.");
+    expect(read?.headline).toBe("CBRS rose 7.9%, the biggest move today with news behind it.");
     // The index is the first line under the story.
     expect(read?.insights.map((insight) => insight.id)[0]).toBe("index");
     expect(read?.insights[0]!.text).toBe("The S&P 500 is up 2.33%.");
@@ -105,7 +105,7 @@ describe("briefingRead", () => {
     const read = briefingRead({ ...base, mode: "market" }, groupBriefingSections({ ...sections([]), needs_you: [hims] }, "market"));
     // With the reason in it the headline is long enough; "the biggest move" goes under the index line.
     expect(read?.headline).toBe("Hims & Hers Health fell 16.5% after earnings that missed expectations and a lower forecast.");
-    expect(read?.insights[0]).toMatchObject({ id: "index", text: "The S&P 500 is up 2.33%.", soWhat: "Hims & Hers Health's 16.5% fall was the biggest move today with a confirmed reason." });
+    expect(read?.insights[0]).toMatchObject({ id: "index", text: "The S&P 500 is up 2.33%.", soWhat: "Hims & Hers Health's 16.5% fall was the biggest move today with news behind it." });
     // The lead's reason is in the headline, so its row is not repeated below.
     expect(read?.insights.some((insight) => insight.tickers?.includes("HIMS"))).toBe(false);
     expect(read?.headlineTickers).toEqual(["HIMS"]);
@@ -130,7 +130,7 @@ describe("briefingRead", () => {
       { ...base, mode: "market", date: "2026-11-10" },
       groupBriefingSections({ ...sections([]), needs_you: [lead] }, "market"),
     );
-    expect(read?.headline).toBe("CBRS rose 7.9% on Monday, the biggest move with a confirmed reason.");
+    expect(read?.headline).toBe("CBRS rose 7.9% on Monday, the biggest move with news behind it.");
     expect(read?.insights[0].text).toBe("The S&P 500 is up 2.33%.");
     expect(read?.insights[1].text).toBe("CBRS rose 7.9% on Monday: Cerebras signed a cloud deal.");
   });
@@ -173,7 +173,7 @@ describe("the market view's session line", () => {
     // How the giants pulled it is the first line under the session, then the one story.
     expect(read?.insights[0]).toMatchObject({ id: "giants", tone: "down", text: "The 10 biggest companies lost 0.7% together and pulled it down." });
     expect(read?.insights[1]?.tickers).toEqual(["HIMS"]);
-    expect(read?.insights[1]?.soWhat).toBe("The biggest move today with a confirmed reason.");
+    expect(read?.insights[1]?.soWhat).toBe("The biggest move today with news behind it.");
     // One story under the session; the other explained moves are the list below the read.
     expect(read?.insights).toHaveLength(2);
     expect(read?.headlineTickers).toBeUndefined();

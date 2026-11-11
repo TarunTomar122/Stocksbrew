@@ -1,7 +1,7 @@
 "use client";
 
 import type * as React from "react";
-import { usePathname } from "next/navigation";
+import { usePublicPathname } from "@/lib/use-public-pathname";
 
 import { isMarketingPath } from "@/components/oa/nav-items";
 
@@ -12,6 +12,6 @@ import { isMarketingPath } from "@/components/oa/nav-items";
  * click from /docs to /briefing swaps the chrome without a reload.
  */
 export function ChromeSwitch({ app, marketing }: { app: React.ReactNode; marketing: React.ReactNode }) {
-  const pathname = usePathname() ?? "/";
+  const pathname = usePublicPathname() ?? "/";
   return <>{isMarketingPath(pathname) ? marketing : app}</>;
 }

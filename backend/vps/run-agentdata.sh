@@ -3,8 +3,11 @@
 # Usage: run-agentdata.sh frequent|hourly|after_close|weekly
 # Sources the VPS env file the same way run-power-trades.sh does. The Python
 # jobs use LOCALDB_PATH when it is set (straight to the SQLite store); the
-# "standing agents" step is TypeScript and needs LOCALDB_URL and
-# LOCALDB_API_TOKEN in the same env file, plus node and node_modules.
+# "standing agents" and "reason checks" steps are TypeScript and go over HTTP:
+# they need LOCALDB_API_TOKEN (the after-close unit loads it from the root-only
+# /etc/tikrr/agentdata-localdb.env) plus node and node_modules. schedule.py fills in LOCALDB_URL (the
+# local service) and the service account (GOOGLE_APPLICATION_CREDENTIALS) when
+# the env file leaves them out, and names anything still missing.
 #
 # One group at a time, machine-wide: several jobs read SEC EDGAR, which
 # rate-limits by address, so a second group waits for the first to finish.

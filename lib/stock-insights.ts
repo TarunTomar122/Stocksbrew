@@ -231,8 +231,11 @@ export function buildStockRead(input: StockInsightInput): TheRead | null {
   if (input.levels && price !== null) {
     // A level more than half the price away says little about today; the page header leaves those out, so the read does too.
     const near = (level: number) => Math.abs(level - price) / price <= 0.5;
-    const add = fin(input.levels.addBelow) && input.levels.addBelow > 0 && near(input.levels.addBelow) ? input.levels.addBelow : null;
-    const trim = fin(input.levels.trimAbove) && input.levels.trimAbove > 0 && near(input.levels.trimAbove) ? input.levels.trimAbove : null;
+    // Only the level that matches the call (owner, Nov 11): the buy-more price on Buy more, the sell-some price on
+    // Sell some, neither on Keep; "right at our buy-more price" on a Sell some call would contradict it.
+    const word = input.call?.word;
+    const add = word === "Add" && fin(input.levels.addBelow) && input.levels.addBelow > 0 && near(input.levels.addBelow) ? input.levels.addBelow : null;
+    const trim = word === "Trim" && fin(input.levels.trimAbove) && input.levels.trimAbove > 0 && near(input.levels.trimAbove) ? input.levels.trimAbove : null;
     let text = "";
     let tone: Insight["tone"] = "flat";
     if (add !== null && price <= add) {
@@ -254,8 +257,8 @@ export function buildStockRead(input: StockInsightInput): TheRead | null {
       const sinceMove = ((price - change.priceAtCall) / change.priceAtCall) * 100;
       const how = Math.abs(sinceMove) < 0.1 ? "it is about where it was" : `it ${sinceMove >= 0 ? "is up" : "is down"} ${pct(sinceMove)} since`;
       // The call words a reader sees on the page ("Keep"), not the data's codes ("Hold").
-      const word = (call: CallWord) => (CALL_PLAIN as Record<string, string | undefined>)[call] ?? call;
-      since = `We changed our call from ${word(change.from)} to ${word(change.to)} on ${shortDay(change.date)} at ${money(change.priceAtCall)}, and ${how}.`;
+      const plain = (call: CallWord) => (CALL_PLAIN as Record<string, string | undefined>)[call] ?? call;
+      since = `We changed our call from ${plain(change.from)} to ${plain(change.to)} on ${shortDay(change.date)} at ${money(change.priceAtCall)}, and ${how}.`;
     }
     if (text) callInsight = { id: "call", tone, text, soWhat: since, action: { label: "The reasoning", href: "#read" } };
     else if (since) callInsight = { id: "call", tone: "flat", text: since };

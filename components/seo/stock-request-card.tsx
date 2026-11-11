@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePublicPathname } from "@/lib/use-public-pathname";
 import { useState } from "react";
 
 import { UnlistedStockDiscoveryModal } from "@/components/unlisted-stock-discovery-modal";
@@ -25,7 +25,7 @@ export function tickerFromStockPath(pathname: string | null): string | null {
  * the old "not in our library yet" page opened on its own.
  */
 export function StockRequestCard() {
-  const ticker = tickerFromStockPath(usePathname());
+  const ticker = tickerFromStockPath(usePublicPathname());
   const [open, setOpen] = useState(false);
   if (!ticker) return null;
   return (

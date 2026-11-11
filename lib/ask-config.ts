@@ -38,7 +38,8 @@ export const ASK_SUGGESTIONS: AskSuggestion[] = [
   { label: "An idea", question: "Build me a basket of companies that benefit from power grid spending." },
   { label: "A backtest", question: "How would an equal mix of AAPL, MSFT and NVDA have done against the S&P 500 since 2019?" },
   { label: "Smart money", question: "What did Berkshire Hathaway buy and sell in its latest 13F?" },
-  { label: "My portfolio", question: "What changed in my portfolio since yesterday?", needsAccount: true },
+  { label: "My week", question: "How is my portfolio doing this week?", needsAccount: true },
+  { label: "My reasons", question: "Which of my reasons for owning a stock are weaker now?", needsAccount: true },
 ];
 
 export const EXPLORE_SUGGESTIONS: string[] = [
@@ -71,6 +72,12 @@ export const ASK_TOOL_LABELS: Record<string, string> = {
   build_basket: "Building the basket",
   propose_watchlist_add: "Preparing the watchlist change",
   propose_price_alert: "Preparing the alert",
+  get_my_reasons: "Checking your reasons",
+  get_my_week: "Reading this week's memo",
+  get_my_agents: "Reading your agents",
+  get_my_research: "Opening your research",
+  open_briefing_item: "Opening your briefing",
+  suggest_watch: "Filling in an agent",
 };
 
 /** The same steps once they are done, for the line above a finished answer. */
@@ -96,4 +103,10 @@ export const ASK_TOOL_DONE: Record<string, string> = {
   build_basket: "built the basket",
   propose_watchlist_add: "prepared the watchlist change",
   propose_price_alert: "prepared the alert",
+  get_my_reasons: "checked your reasons",
+  get_my_week: "read this week's memo",
+  get_my_agents: "read your agents",
+  get_my_research: "opened your research",
+  open_briefing_item: "opened your briefing",
+  suggest_watch: "filled in an agent",
 };

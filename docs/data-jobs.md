@@ -12,7 +12,7 @@ Standard library only. Each module is runnable on its own with `python3 -m backe
 |---|---|---|
 | `frequent` | every 30 min (`:07`, `:37`) | `news_feed` (the wire), `news_tone` (tone and theme per headline, skips without `ANTHROPIC_API_KEY`), `markets` |
 | `hourly` | `:20` every hour | `sec_filings`, `insiders_form4`, `calendar_events` (economic releases, IPOs, dividends) |
-| `after_close` | Mon to Fri 22:30 | `backtest_strategies` (daily prices, strategy baskets, live record), `earnings_calendar`, `earnings_reactions`, `screener`, then the standing agents (`scripts/run-agent-jobs.ts`) |
+| `after_close` | Mon to Fri 17:30 America/New_York | `backtest_strategies` (daily prices, strategy baskets, live record), `earnings_calendar`, `earnings_history`, `earnings_reactions`, `dividend_history`, `screener`, then the standing agents (`scripts/run-agent-jobs.ts`, into `tm_agent_runs`) and the nightly reason check (`scripts/run-reason-checks.ts`, into `tm_thesis_checks`). The two TypeScript steps run under `vite-node -c scripts/jobs.config.ts` and need `LOCALDB_API_TOKEN` (the unit loads it from the root-only `/etc/tikrr/agentdata-localdb.env`, which holds only that line). The app reads this schedule from `lib/agent-schedule.ts`. |
 | `weekly` | Sun 06:00 | `funds_13f`, `fund_holders`, `house_ptr` |
 | `earnings_day` | every 10 min, Mon to Fri 06:00 to 20:59 New York (not installed yet) | `earnings_day`: a report per covered stock that filed earnings today (8-K Item 2.02 on EDGAR, Nasdaq EPS estimate and actual, Yahoo prices) into `tm_earnings_day`; off unless `EARNINGS_DAY_ENABLED=1` |
 

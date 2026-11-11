@@ -78,20 +78,20 @@ export async function OaLanding() {
       <OaSiteHeader variant="marketing" />
 
       <div className={FRAME}>
-        {/* hero */}
-        <section className="grid grid-cols-1 items-center gap-8 pb-4 pt-10 sm:gap-14 sm:pt-16 lg:pt-20 lg:grid-cols-[1fr_1fr]">
+        {/* hero: tighter on a phone so today's briefing card (the stock, its move, our call, the watch button) is on the first screen */}
+        <section className="grid grid-cols-1 items-center gap-5 pb-4 pt-5 sm:gap-14 sm:pt-16 lg:pt-20 lg:grid-cols-[1fr_1fr]">
           <div>
-            <h1 className="text-balance font-medium tracking-tight text-oa-fg text-[2.25rem] leading-[1.08] sm:text-[3.5rem] sm:leading-[1.05]">
+            <h1 className="text-balance font-medium tracking-tight text-oa-fg text-[1.875rem] leading-[1.1] sm:text-[3.5rem] sm:leading-[1.05]">
               {HERO_HEADLINE_LEAD}{" "}
               <span className="text-oa-muted-fg">{HERO_HEADLINE_EMPHASIS}</span>
             </h1>
-            <p className="text-pretty mt-4 max-w-lg text-[16px] leading-[26px] text-oa-fg/85 sm:mt-5 sm:text-[17px] sm:leading-7">
+            <p className="text-pretty mt-3 max-w-lg text-[15px] leading-6 text-oa-fg/85 sm:mt-5 sm:text-[17px] sm:leading-7">
               {HERO_SUBHEAD}
             </p>
-            <div className="mt-6 sm:mt-8">
+            <div className="mt-4 sm:mt-8">
               <OaHeroSearch source="hero" />
             </div>
-            {user.signedIn ? null : <p className="mt-3 text-base text-oa-muted-fg">{HERO_FOOTNOTE}</p>}
+            {user.signedIn ? null : <p className="mt-2 text-[14px] leading-5 text-oa-muted-fg sm:mt-3 sm:text-base">{HERO_FOOTNOTE}</p>}
           </div>
           <div className="flex justify-center lg:justify-end">
             <Suspense fallback={<HeroBriefingGhost />}>

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePublicPathname } from "@/lib/use-public-pathname";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { CssIcon } from "@/components/icons/css-icons";
@@ -56,7 +56,7 @@ export function MarketStatusTab({ nowIso }: { nowIso: string }) {
   const [open, setOpen] = useState(false);
   const paneRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const pathname = usePathname();
+  const pathname = usePublicPathname();
 
   const session = getMarketSessionState(new Date(nowMs));
   const copy = getMarketStatusBannerCopy(session);

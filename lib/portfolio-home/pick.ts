@@ -8,6 +8,7 @@ import { discounted, HINDSIGHT_DISCOUNT, monthWords } from "@/lib/goal/series";
 import type { InsightTone, TheRead } from "@/lib/insights";
 import type { MemoPageData } from "@/lib/memo/server";
 import type { IdeasView } from "@/lib/portfolio-ideas/server";
+import type { CallWord } from "@/lib/portfolio-ideas/types";
 import { usd } from "@/lib/portfolio-ideas/words";
 import { countWord } from "@/lib/read-format";
 import { coveredPct, signedPct as stressPct } from "@/lib/stress-test";
@@ -66,6 +67,15 @@ export type Noticed = {
   tone: InsightTone;
   /** One plain sentence with its number; the memo's own top line keeps its two or three. */
   text: string;
+  /**
+   * The short line a lead card opens on: one idea about the stock in `ticker` (or the portfolio when there is
+   * none), short enough for a phone. Falls back to `text`.
+   */
+  headline?: string;
+  /** What the headline leaves out, said once: the line under it on a lead card. Null when the headline says it all. */
+  why?: string | null;
+  /** Where the numbers come from and the day (or instant) they are from, shown beside the evidence. */
+  source?: FindingSource | null;
   /** What backs it: one short sentence with the supporting figure or where it comes from. */
   evidence: string | null;
   /** The stock it is about, for its logo. */
@@ -83,6 +93,9 @@ export type Noticed = {
    */
   needsYou?: boolean;
 };
+
+/** "Earnings calendar", as of an instant (ISO) or a day (YYYY-MM-DD); both null when the source has no date. */
+export type FindingSource = { label: string; day: string | null; at: string | null };
 
 export const MAX_NOTICED = 5;
 export const MIN_NOTICED = 3;
@@ -135,6 +148,24 @@ function sentence(text: string): string {
   return /[.!?]$/.test(capped) ? capped : `${capped}.`;
 }
 
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** A source line; a value with a time in it is an instant, a bare day is a day, anything else is left out. */
+function sourceOf(label: string, when: string | null | undefined): FindingSource {
+  const value = (when ?? "").trim();
+  if (ISO_DAY.test(value)) return { label, day: value, at: null };
+  if (/^\d{4}-\d{2}-\d{2}T/.test(value) && !Number.isNaN(Date.parse(value))) return { label, day: value.slice(0, 10), at: value };
+  return { label, day: null, at: null };
+}
+
+/** The first sentence of a paragraph, and the rest. */
+function firstSentence(text: string): { first: string; rest: string | null } {
+  const match = /^(.+?[.!?])\s+(?=[A-Z0-9])/.exec(text.trim());
+  if (!match) return { first: text.trim(), rest: null };
+  const rest = text.trim().slice(match[0].length).trim();
+  return { first: match[1]!, rest: rest || null };
+}
+
 function moveWatch(ticker: string | null | undefined): Noticed["watch"] {
   if (!ticker) return null;
   const href = watchMoveHref(ticker);
@@ -160,7 +191,10 @@ function memoItem(data: MemoPageData): Noticed | null {
     caption: CAPTIONS.memo,
     tone: memo.week?.tone ?? "flat",
     text: memo.topLine.trim(),
+    headline: firstSentence(memo.topLine).first,
+    why: firstSentence(memo.topLine).rest,
     evidence: `From the memo for the week of ${fmtPlanDay(memo.monday)}${through}.${counts}`,
+    source: sourceOf("Weekly memo from daily closes", memo.endDay ?? memo.monday),
     ticker: null,
     open: { label: "Read the memo", href: TOOL_HREF.memo },
     watch: null,
@@ -182,6 +216,11 @@ function xrayItem(view: XrayView): Noticed | null {
     caption: CAPTIONS.xray,
     tone: "flat",
     text: read.headline,
+    // The headline names the stock the card is labelled with; when the read leads with another, its own words stay.
+    headline: top.ticker === lead ? `${top.name} is ${fmtPct(top.pct)} of ${view.mode === "example" ? "the example" : "your money"} once funds are counted.` : read.headline,
+    // The evidence line under it already says how much came through funds.
+    why: null,
+    source: sourceOf(view.pricesAsOf ? "Fund holdings from SEC filings, priced at the close" : "Fund holdings from SEC filings, at today's prices", view.pricesAsOf),
     evidence:
       top.viaFunds > 0 && top.via.length > 0
         ? `${top.name}: ${top.direct > 0 ? `${fmtPct(top.directPct)} bought directly and ` : ""}${fmtPct(top.fundPct)} through ${joinList(top.via.slice(0, 3).map((slice) => slice.fund))}. ${sentence(xrayFootnote(xray))}`
@@ -226,12 +265,22 @@ function earningsItem(view: SeasonView): Noticed | null {
   const vsDay = watch.stats.usualKind === "single" ? null : vsDayWords(watch.stats.vsNormalDay);
   const past = history ? `It ${history}${vsDay ? `, ${vsDay}` : ""}.` : "We have no record of how it moved on past reports.";
   const others = holdings.length > 1 ? ` ${countWord(holdings.length)} of ${example ? "the example's" : "your"} holdings report in the next six weeks.` : "";
+  const share = watch.weight !== null ? `It is ${weightWords(watch.weight)} of ${whose}` : null;
+  const only = `the only one of ${example ? "the example's" : "your"} holdings to report in the next six weeks`;
   return {
     id: `earnings-${watch.ticker}`,
     tool: "earnings",
     caption: CAPTIONS.earnings,
     tone: "flat",
     text,
+    headline: `${watch.name} reports ${when}.`,
+    why:
+      holdings.length === 1
+        ? share
+          ? `${share}, and ${only}.`
+          : `It is ${only}.`
+        : `Of the holdings reporting soon, its report matters most${share ? `: it is ${weightWords(watch.weight!)} of ${whose}` : ""}.`,
+    source: sourceOf("Earnings calendar", view.asOf),
     evidence: `${past}${others}`,
     ticker: watch.ticker,
     open: { label: "Plan earnings season", href: TOOL_HREF.earnings },
@@ -290,14 +339,16 @@ function stressItem(view: StressView): Noticed | null {
   const lead = read.headlineTickers?.[0] ?? null;
   // The line starts with the ticker (the read draws it as a logo and name); in plain evidence text, the name reads better.
   const driverText = driver ? (driver.leadName && driver.text.startsWith(`${driver.tickers?.[0]} `) ? `${driver.leadName}${driver.text.slice(driver.tickers![0]!.length)}` : driver.text) : null;
-  const evidence = [driverText, together?.text].filter(Boolean).join(" ");
   return {
     id: "stress-worst",
     tool: "stress",
     caption: CAPTIONS.stress,
     tone: together?.tone ?? "flat",
     text: read.headline,
-    evidence: evidence || null,
+    headline: read.headline,
+    why: driverText,
+    evidence: together?.text ?? null,
+    source: sourceOf("Daily closes for the holdings and the S&P 500", view.history?.last),
     ticker: lead,
     open: { label: "Run the stress test", href: TOOL_HREF.stress },
     watch: moveWatch(lead),
@@ -307,19 +358,52 @@ function stressItem(view: StressView): Noticed | null {
 
 /* ── rebalancing and tax-loss ideas ────────────────────────────────────── */
 
+/** "Our call on Microsoft is to keep it": the call words (Buy more / Keep / Sell some) as a sentence. */
+const CALL_AIM: Record<CallWord, string> = { Add: "to buy more", Hold: "to keep it", Trim: "to sell some" };
+
 function ideasItem(view: IdeasView): Noticed | null {
   const read = view.read;
   if (!read?.headline) return null;
   const trim = view.plan.trims[0];
   const loss = view.losses[0];
+  const example = view.subject === "example";
+  const whose = example ? "the example" : "your portfolio";
+  const source = view.pricesAsOf ? sourceOf("Closing prices and our daily screen", view.pricesAsOf) : sourceOf("Live prices and our daily screen", view.snapshotDay);
   if (trim) {
+    // The card is labelled with the stock to sell, so its lines are about that stock; the read's portfolio-wide
+    // headline ("3 companies are each above 10%, led by Apple") is context in the evidence.
+    const before = Number.isFinite(trim.before) ? fmtPct(trim.before) : "";
+    const headline =
+      !before || !trim.subject
+        ? trim.sentence
+        : trim.kind === "company"
+          ? `${trim.subject} is ${before} of ${whose} once funds are counted.`
+          : trim.kind === "sector"
+            ? `Selling some ${trim.name} would bring ${trim.subject} down to ${fmtPct(trim.after)} of ${whose}.`
+            : `${trim.name} has grown to ${before} of ${whose}.`;
+    const call = trim.call ? CALL_AIM[trim.call] : null;
+    const context = trim.subject && read.headline.startsWith(trim.subject) ? null : read.headline;
+    const evidence = [context, call ? `Our call on ${trim.name} is ${call}.` : null].filter(Boolean).join(" ");
+    // The sale in short, without repeating the share already in the headline (or the ideas page's "this portfolio").
+    const count = Number.isFinite(trim.shares) && trim.shares > 0 ? `about ${trim.shares} ${trim.shares === 1 ? "share" : "shares"}${trim.sentence.includes(", half the") ? ", half the holding," : ""}` : null;
+    const why =
+      headline === trim.sentence
+        ? null
+        : trim.kind === "sector"
+          ? `${trim.subject} is ${before} of ${whose} today.`
+          : count && Number.isFinite(trim.after)
+            ? `Selling ${count} would bring it to ${fmtPct(trim.after)}.`
+            : trim.sentence;
     return {
       id: `ideas-trim-${trim.ticker}`,
       tool: "ideas",
       caption: CAPTIONS.ideas,
       tone: "flat",
-      text: read.headline,
-      evidence: trim.sentence,
+      text: trim.sentence,
+      headline,
+      why,
+      evidence: evidence || null,
+      source,
       ticker: trim.ticker,
       open: { label: "See where to sell some", href: TOOL_HREF.ideas },
       watch: moveWatch(trim.ticker),
@@ -336,8 +420,15 @@ function ideasItem(view: IdeasView): Noticed | null {
       tool: "ideas",
       caption: CAPTIONS.ideas,
       tone: "down",
-      text: read.headline,
-      evidence: look ? `${look.name} is a similar ${look.fund ? "fund" : "company"} to hold meanwhile, so selling for the tax would not leave the money idle.` : null,
+      text: `${loss.name} sits ${usd(loss.loss)} below ${example ? "what was paid" : "what you paid"}.`,
+      evidence:
+        [
+          look ? `${look.name} is a similar ${look.fund ? "fund" : "company"} to hold meanwhile, so selling for the tax would not leave the money idle.` : null,
+          view.losses.length > 1 ? read.headline : null,
+        ]
+          .filter(Boolean)
+          .join(" ") || null,
+      source,
       ticker: loss.ticker,
       open: { label: "See the tax-loss idea", href: TOOL_HREF.ideas },
       watch: loss.watch && request ? { href: loss.watch.href, request } : moveWatch(loss.ticker),
@@ -378,7 +469,10 @@ function reasonsItem(source: ReasonsSource, example: boolean): Noticed | null {
       caption: "Why you own it",
       tone: worst.verdict === "played_out" ? "flat" : "down",
       text: `${owner} ${worst.ticker} ${VERDICT_PHRASE[worst.verdict]}.${others > 0 ? ` ${others === 1 ? "One other reason needs" : `${capital(countWord(others))} other reasons need`} a look too.` : ""}`,
+      headline: `The reason for owning ${worst.ticker} ${VERDICT_PHRASE[worst.verdict]}.`,
+      why: others > 0 ? `${others === 1 ? "One other reason needs" : `${capital(countWord(others))} other reasons need`} a look too.` : null,
       evidence: worst.signals[0]?.text ?? null,
+      source: worst.signals[0]?.source ? sourceOf(worst.signals[0].source, worst.signals[0].asOf ?? worst.asOf) : worst.asOf ? sourceOf("The reason watcher", worst.asOf) : null,
       ticker: worst.ticker,
       open: { label: `See ${worst.ticker}`, href: `/stock/${encodeURIComponent(worst.ticker)}` },
       watch: null,

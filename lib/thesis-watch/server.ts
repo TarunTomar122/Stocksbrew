@@ -48,6 +48,14 @@ export type ReasonChecks = {
   unchecked: string[];
   /** Every reason on a tracked stock, by instrument id, for the surfaces that list them. */
   theses: Record<string, Thesis>;
+  /**
+   * The stored checks could not be read, so nothing was written: a check built
+   * without them would replace their history and wording. The page still shows
+   * tonight's verdicts. Absent when the read worked.
+   */
+  storedReadFailed?: boolean;
+  /** Writes to tm_thesis_checks that failed. Absent when there were none. */
+  writeFailures?: number;
 };
 
 export const EMPTY_CHECKS: ReasonChecks = { checks: {}, locked: [], unchecked: [], theses: {} };
@@ -125,11 +133,13 @@ export async function checkReasons(viewer: Viewer, userDoc: UserDoc | null, opti
     .filter((stock) => !(typeof holdings[stock.instrumentId]?.average_cost === "number" && holdings[stock.instrumentId]!.average_cost! > 0))
     .map((stock) => ({ ticker: stock.ticker, day: savedDay(theses[stock.instrumentId]!.created_at) }))
     .filter((request) => /^\d{4}-\d{2}-\d{2}$/.test(request.day));
+  let storedReadFailed = false;
   const [facts, closes, stored] = await Promise.all([
     loadStockFacts(stocks, today),
     needClose.length > 0 ? closesOnDays(needClose) : Promise.resolve(new Map<string, number>()),
     readStored(uid, us).catch((error) => {
       console.warn("[thesis-watch] stored checks read failed:", error instanceof Error ? error.message : error);
+      storedReadFailed = true;
       return new Map<string, StoredCheck>();
     }),
   ]);
@@ -171,15 +181,28 @@ export async function checkReasons(viewer: Viewer, userDoc: UserDoc | null, opti
           ? { ...(await wordNote(check, reader)), wordTried: true }
           : { note: draft, wordedBy: "rules" as const, wordTried: false };
       const next = nextStoredCheck(before, { uid, check, reasonUpdatedAt, note: note.note, wordedBy: note.wordedBy, draft, wordTried: note.wordTried, day: today, now });
-      if (next && options.persist !== false) {
+      // Without the stored checks a write would replace their history: write nothing until they can be read.
+      if (next && options.persist !== false && !storedReadFailed) {
         writes.push(adminFirestore.collection(CHECKS_COLLECTION).doc(checkDocId(uid, stock.instrumentId)).set(toDoc(next)));
       }
       checks[stock.instrumentId] = viewOf(check, next ?? before, note);
     }),
   );
   const saved = await Promise.allSettled(writes);
-  for (const result of saved) if (result.status === "rejected") console.warn("[thesis-watch] save failed:", result.reason);
-  return { checks, locked, unchecked, theses };
+  let writeFailures = 0;
+  for (const result of saved) {
+    if (result.status !== "rejected") continue;
+    writeFailures += 1;
+    console.warn("[thesis-watch] save failed:", result.reason instanceof Error ? result.reason.message : "unknown error");
+  }
+  return {
+    checks,
+    locked,
+    unchecked,
+    theses,
+    ...(storedReadFailed ? { storedReadFailed } : {}),
+    ...(writeFailures > 0 ? { writeFailures } : {}),
+  };
 }
 
 export { VERDICT_RANK } from "./rules";

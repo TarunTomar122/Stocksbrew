@@ -286,9 +286,9 @@ describe("readings", () => {
   });
 
   it("compares a put/call ratio with its own average", () => {
-    expect(putCallReading({ price: 0.59, average_20d: 0.61, unit: "ratio" })).toBe("In line with its 20-day average of 0.61.");
-    expect(putCallReading({ price: 1.26, average_20d: 1.03, unit: "ratio" })).toContain("more puts than usual");
-    expect(putCallReading({ price: 0.4, average_20d: 0.61, unit: "ratio" })).toContain("more calls than usual");
+    expect(putCallReading({ price: 0.59, average_20d: 0.61, unit: "ratio" })).toBe("Puts and calls traded in their usual mix, 0.59 against a 20-day average of 0.61.");
+    expect(putCallReading({ price: 1.26, average_20d: 1.03, unit: "ratio" })).toContain("More puts than usual");
+    expect(putCallReading({ price: 0.4, average_20d: 0.61, unit: "ratio" })).toContain("More calls than usual");
     expect(putCallReading({ price: 0.59, average_20d: null, unit: "ratio" })).toBeNull();
     expect(putCallReading({ price: 100, average_20d: 90, unit: "USD" })).toBeNull();
   });
@@ -374,7 +374,7 @@ describe("readings", () => {
         { label: "Hike 25bps", probability: 0.805, strike: null, change_24h: 0.04 },
       ],
     });
-    expect(predictionReading(fed)).toBe("Most likely: Hike 25bps, at 81%. Next: Fed maintains rate at 20%.");
+    expect(predictionReading(fed)).toBe("Traders put 81% on Hike 25bps, then 20% on Fed maintains rate.");
     const binary = prediction({
       kind: "binary",
       outcomes: [

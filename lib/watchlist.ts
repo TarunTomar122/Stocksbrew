@@ -69,7 +69,7 @@ export type UserDoc = {
 export const getUserDoc = cache(async (uid: string): Promise<UserDoc | null> => {
   const snap = await adminFirestore.collection("users").doc(uid).get();
   if (!snap.exists) return null;
-  return { uid, ...(snap.data() as Omit<UserDoc, "uid">) };
+  return { ...(snap.data() as Omit<UserDoc, "uid">), uid };
 });
 
 // Optional dev-only bypass: set NEXT_PUBLIC_DEV_UNLOCK_PRO=1 to treat any

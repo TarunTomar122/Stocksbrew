@@ -67,14 +67,22 @@ function nextReporter(sources: Partial<HomeSources>): string | null {
  * of the biggest companies, then the next report and the news on the biggest
  * one to fill. Each question appears once.
  */
-export function pickQuestions(input: { lead: Noticed[]; rest: Noticed[]; sources: Partial<HomeSources>; mode: HomeMode }): HomeQuestion[] {
+export function pickQuestions(input: {
+  lead: Noticed[];
+  rest: Noticed[];
+  sources: Partial<HomeSources>;
+  mode: HomeMode;
+  /** Questions already offered elsewhere on the page (on each lead finding), so the box does not repeat them. */
+  skip?: string[];
+}): HomeQuestion[] {
   const out: string[] = [];
+  const skip = new Set(input.skip ?? []);
   const add = (question: string | null) => {
-    if (question && !out.includes(question) && out.length < MAX_QUESTIONS) out.push(question);
+    if (question && !skip.has(question) && !out.includes(question) && out.length < MAX_QUESTIONS) out.push(question);
   };
 
   const fromFindings = [...input.lead, ...input.rest].map(questionFor).filter((question): question is string => question !== null);
-  for (const question of [...new Set(fromFindings)].slice(0, FROM_FINDINGS)) add(question);
+  for (const question of [...new Set(fromFindings)].filter((question) => !skip.has(question)).slice(0, FROM_FINDINGS)) add(question);
 
   if (input.mode === "mine") add("What changed in my portfolio since yesterday?");
   const top = biggest(input.sources);
@@ -85,5 +93,7 @@ export function pickQuestions(input: { lead: Noticed[]; rest: Noticed[]; sources
   if (top[0]) add(out.some((question) => question.startsWith("What is the latest news")) ? vsMarket(top[0]) : latestNews(top[0]));
   if (input.mode === "mine") add("Which of my holdings has the weakest call right now?");
 
-  return out.map((question) => ({ question, href: askHref(question) }));
+  // Portfolio-wide questions open on the person's (or the example's) portfolio; the rest name their stock in the words.
+  const context = input.mode === "mine" ? "portfolio" : "ex.portfolio";
+  return out.map((question) => ({ question, href: askHref(question, /\b(my|portfolio)\b/i.test(question) ? context : null) }));
 }

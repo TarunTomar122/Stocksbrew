@@ -7,7 +7,7 @@ import { FREE_COVERED_STOCKS, limitFor, planOf, ruleFor, type FeatureId, type Pl
 import { coverageState, type CoverageState } from "@/lib/entitlements-coverage";
 import { isFeaturedStockTicker } from "@/lib/seo/stock-pages";
 import { isTrialEligible } from "@/lib/trial-eligibility";
-import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
+import { getUserDoc, resolveIsSubscribed, type UserDoc } from "@/lib/watchlist";
 
 export type Viewer = {
   uid: string | null;
@@ -40,6 +40,15 @@ export const getViewer = cache(async (): Promise<Viewer> => {
     return { uid: null, signedIn: false, isSubscribed: false, plan: "anon", tracked: [], covered: [], coverage: null, trialEligible: trialMarket() };
   }
   const doc = await getUserDoc(session.uid).catch(() => null);
+  return viewerFromUserDoc(session.uid, doc, trialMarket() && isTrialEligible(doc as Parameters<typeof isTrialEligible>[0]));
+});
+
+/**
+ * The viewer a signed-in account resolves to, from its user doc alone: the
+ * same plan and coverage `getViewer` gives that person, for code that runs
+ * without a request (the nightly jobs).
+ */
+export function viewerFromUserDoc(uid: string, doc: UserDoc | null, trialEligible = false): Viewer {
   const isSubscribed = resolveIsSubscribed(doc);
   const strings = (value: unknown): string[] =>
     Array.isArray(value) ? value.filter((id): id is string => typeof id === "string") : [];
@@ -48,16 +57,16 @@ export const getViewer = cache(async (): Promise<Viewer> => {
   // the first tracked stocks are covered, so nobody starts with nothing.
   const coverage = coverageState(doc as Record<string, unknown> | null, isSubscribed);
   return {
-    uid: session.uid,
+    uid,
     signedIn: true,
     isSubscribed,
     plan: planOf({ signedIn: true, isSubscribed }),
     tracked,
     covered: coverage.covered,
     coverage,
-    trialEligible: trialMarket() && isTrialEligible(doc as Parameters<typeof isTrialEligible>[0]),
+    trialEligible,
   };
-});
+}
 
 /**
  * Whether a "covered" feature (zones and target, the pre-earnings read, zone

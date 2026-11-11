@@ -1,7 +1,7 @@
 import { AppPage, PageHead, Panel } from "@/components/oa/kit";
 
 const PLACES: Array<{ href: string; label: string; what: string }> = [
-  { href: "/movers", label: "Movers", what: "Every day of big moves with a confirmed reason" },
+  { href: "/movers", label: "Movers", what: "Every day of big moves, each with what caused it" },
   { href: "/signals?tab=movers", label: "Today's movers", what: "Unusual moves in the current session" },
   { href: "/screener", label: "Screener", what: "Every US stock we cover" },
 ];

@@ -2,29 +2,30 @@
  * Evaluate every enabled standing job once and record each decision in
  * `tm_agent_runs` (including "checked, nothing to do").
  *
- *   npx vite-node -c vitest.config.ts scripts/run-agent-jobs.ts            # run for real
- *   npx vite-node -c vitest.config.ts scripts/run-agent-jobs.ts -- --dry   # list what would run
+ *   node_modules/.bin/vite-node -c scripts/jobs.config.ts scripts/run-agent-jobs.ts         # run for real
+ *   node_modules/.bin/vite-node -c scripts/jobs.config.ts scripts/run-agent-jobs.ts --dry   # decide, write nothing
  *
  * It reads the same env files as the app (.env.local, .env.vps.local). One run
  * per job per market day, so running it twice is harmless. It sends nothing:
  * results show up in the job's run log and in the Briefing.
  *
- * Run it after the daily price refresh (`python3 -m backend.agentdata.prices`),
- * because price rules read daily closes. It is not installed on any server.
+ * The VPS runs it every weekday after the close, after the price refresh
+ * (the after_close group in backend/agentdata/schedule.py), because price
+ * rules read daily closes. Use scripts/jobs.config.ts, not the test config:
+ * it stands in for React's `cache` and `unstable_cache`, which only exist
+ * inside a Next server.
  */
-import { adminFirestore } from "@/lib/firebase-admin";
-import { AGENT_JOBS_COLLECTION, agentMarketDay, runAllEnabledJobs } from "@/lib/agent-jobs-data";
+// A developer's .env.local can switch every account to Pro; a job must see the real plans.
+process.env.NEXT_PUBLIC_DEV_UNLOCK_PRO = "0";
+
+// The app modules are imported inside main(), after the line above: static imports would load first.
+export {};
 
 async function main() {
-  const dry = process.argv.includes("--dry");
-  const now = new Date();
-  if (dry) {
-    const snap = await adminFirestore.collection(AGENT_JOBS_COLLECTION).where("enabled", "==", true).get();
-    console.log(`[agent-jobs] dry run for ${agentMarketDay(now)}: ${snap.docs.length} enabled jobs, nothing written`);
-    return;
-  }
-  const summary = await runAllEnabledJobs(now, (line) => console.log(`[agent-jobs] ${line}`));
-  console.log(`[agent-jobs] ${JSON.stringify(summary)}`);
+  const { runAllEnabledJobs } = await import("@/lib/agent-jobs-data");
+  const dryRun = process.argv.includes("--dry");
+  const summary = await runAllEnabledJobs(new Date(), (line) => console.log(`[agent-jobs] ${line}`), { dryRun });
+  console.log(`[agent-jobs]${dryRun ? " dry run, nothing written:" : ""} ${JSON.stringify(summary)}`);
   if (summary.failed > 0) process.exitCode = 1;
 }
 

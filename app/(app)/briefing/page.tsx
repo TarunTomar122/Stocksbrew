@@ -10,6 +10,7 @@ import type { BriefingSession } from "@/lib/briefing-read";
 import { etDay } from "@/lib/insight-format";
 import { loadDeskGiants, loadDeskSectors } from "../explore/desk-data";
 import { getMarketSessionState } from "@/lib/market-session";
+import { noteDegradedRender } from "@/lib/next-render";
 import { ogImage } from "@/lib/og/url";
 
 export const dynamic = "force-dynamic";
@@ -68,6 +69,8 @@ async function loadSession(day: string, indexAsOf: string | null): Promise<Brief
 export default async function BriefingPage({ searchParams }: { searchParams?: { day?: string | string[] } }) {
   const day = typeof searchParams?.day === "string" ? searchParams.day : null;
   const data = await loadBriefingPage({ day, persist: true });
+  // A briefing missing a source is not kept as the cached signed-out copy for long (lib/next-render.ts).
+  if (data.degraded.length > 0) noteDegradedRender();
   const session = !day && !data.archived && data.briefing.mode === "market" ? await loadSession(data.briefing.date, data.briefing.market.as_of).catch(() => null) : null;
 
   return (

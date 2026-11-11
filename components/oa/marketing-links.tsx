@@ -1,13 +1,13 @@
 "use client";
 
 import { IntentLink } from "@/components/oa/intent-link";
-import { usePathname } from "next/navigation";
+import { usePublicPathname } from "@/lib/use-public-pathname";
 
 import { MARKETING_LINKS, isNavItemActive } from "@/components/oa/nav-items";
 
 /** The marketing bar's links, from lg up. Below lg the bottom tab bar is the nav. */
 export function MarketingLinks() {
-  const pathname = usePathname() ?? "/";
+  const pathname = usePublicPathname() ?? "/";
   return (
     <nav aria-label="Site" className="hidden min-w-0 items-center gap-0.5 lg:flex">
       {MARKETING_LINKS.map((item) => {

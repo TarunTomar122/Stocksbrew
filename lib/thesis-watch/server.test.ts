@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const state = vi.hoisted(() => ({ docs: new Map<string, Record<string, unknown>>(), writes: [] as string[], factsAsked: [] as string[] }));
+const state = vi.hoisted(() => ({ docs: new Map<string, Record<string, unknown>>(), writes: [] as string[], factsAsked: [] as string[], failReads: false, failWrites: false }));
 
 vi.mock("@/lib/entitlements-server", () => ({
   isCovered: (viewer: { plan: string; covered: string[] }, id: string) => viewer.plan === "pro" || viewer.covered.includes(id),
@@ -8,8 +8,12 @@ vi.mock("@/lib/entitlements-server", () => ({
 vi.mock("@/lib/firebase-admin", () => {
   const ref = (path: string) => ({
     path,
-    get: async () => ({ exists: state.docs.has(path), data: () => state.docs.get(path) }),
+    get: async () => {
+      if (state.failReads) throw new Error("LocalDB batch read failed (503)");
+      return { exists: state.docs.has(path), data: () => state.docs.get(path) };
+    },
     set: async (data: Record<string, unknown>) => {
+      if (state.failWrites) throw new Error("LocalDB write failed (503)");
       state.writes.push(path);
       state.docs.set(path, data);
     },
@@ -53,6 +57,8 @@ beforeEach(() => {
   state.docs.clear();
   state.writes = [];
   state.factsAsked = [];
+  state.failReads = false;
+  state.failWrites = false;
 });
 
 describe("checkReasons", () => {
@@ -88,5 +94,24 @@ describe("checkReasons", () => {
     await checkReasons(viewer("pro"), userDoc, { now: NOW, persist: false });
     expect(state.writes).toEqual([]);
     expect(await checkReasons({ ...viewer("pro"), uid: null }, userDoc, { now: NOW })).toMatchObject({ checks: {} });
+  });
+
+  it("writes nothing when the stored checks cannot be read, so their history is never replaced", async () => {
+    await checkReasons(viewer("pro"), userDoc, { now: NOW });
+    const before = JSON.stringify([...state.docs.entries()]);
+    state.writes = [];
+    state.failReads = true;
+    const result = await checkReasons(viewer("pro"), userDoc, { now: new Date("2026-11-12T16:00:00Z") });
+    expect(Object.keys(result.checks).sort()).toEqual(["US_KO", "US_NVDA"]);
+    expect(result.storedReadFailed).toBe(true);
+    expect(state.writes).toEqual([]);
+    expect(JSON.stringify([...state.docs.entries()])).toBe(before);
+  });
+
+  it("counts failed writes", async () => {
+    state.failWrites = true;
+    const result = await checkReasons(viewer("pro"), userDoc, { now: NOW });
+    expect(result.writeFailures).toBe(2);
+    expect(result.storedReadFailed).toBeUndefined();
   });
 });

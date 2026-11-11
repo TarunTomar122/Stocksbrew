@@ -143,7 +143,15 @@ async function userAgents(uid: string): Promise<AgentsSource> {
   const [jobs, runs] = await Promise.all([listJobs(uid), listRuns(uid, RUNS_READ)]);
   const live = new Set(jobs.map((job) => job.id));
   return {
-    jobs: jobs.map((job) => ({ id: job.id, name: job.name, enabled: job.enabled, weekly: job.trigger.type === "schedule" && job.trigger.cadence === "weekly" })),
+    jobs: jobs.map((job) => ({
+      id: job.id,
+      name: job.name,
+      enabled: job.enabled,
+      weekly: job.trigger.type === "schedule" && job.trigger.cadence === "weekly",
+      // For the findings to name the agent that already watches them (lib/portfolio-home/loop.ts).
+      trigger: job.trigger,
+      scope: job.scope,
+    })),
     runs: runs
       .filter((run) => live.has(run.job_id))
       .map((run) => ({ job_id: run.job_id, job_name: run.job_name, day: run.day, ran_at: run.ran_at, decision: run.decision, summary: run.summary })),

@@ -9,6 +9,7 @@ import { AskCardView, type CardActions } from "@/components/ask/cards";
 import { AskMarkdown } from "@/components/ask/markdown";
 import { OaButton } from "@/components/oa/button";
 import { isAskCard, type AskUIMessage, type NumberAudit } from "@/lib/ask-cards";
+import { contextLabel, contextQuestion, parseAskContext } from "@/lib/ask-context";
 import { ASK_LIMITS, ASK_MAX_QUESTION_CHARS, ASK_SUGGESTIONS, ASK_TOOL_DONE, ASK_TOOL_LABELS, type AskPlan } from "@/lib/ask-config";
 import type { AskLimitReached } from "@/lib/ask-limits";
 import { getFirebaseAuth } from "@/lib/firebase-client";
@@ -315,6 +316,7 @@ export function AskWorkspace({
   signedIn,
   plan,
   initialQuestion,
+  initialContext = null,
   initialConversation,
   initialConversations,
   initialAllowance,
@@ -322,6 +324,8 @@ export function AskWorkspace({
   signedIn: boolean;
   plan: AskPlan;
   initialQuestion: string | null;
+  /** The item a link carried (lib/ask-context.ts), already checked for shape by the page. Sent with this conversation's questions. */
+  initialContext?: string | null;
   initialConversation: { id: string; items: AskUIMessage[] } | null;
   initialConversations: ConversationSummary[];
   initialAllowance: Allowance | null;
@@ -331,7 +335,19 @@ export function AskWorkspace({
   const [allowance, setAllowance] = React.useState<Allowance | null>(initialAllowance);
   const [limit, setLimit] = React.useState<AskLimitReached | null>(null);
   const [problem, setProblem] = React.useState<string | null>(null);
-  const [input, setInput] = React.useState("");
+  /**
+   * The item this conversation started from. Sent with every question in it: the server opens the item with the
+   * first one, and later ones keep its example flag. A restored or new conversation has none.
+   */
+  const [context, setContext] = React.useState<string | null>(() => (parseAskContext(initialContext) ? initialContext : null));
+  const contextRef = React.useRef(context);
+  contextRef.current = context;
+  const parsedContext = React.useMemo(() => parseAskContext(context), [context]);
+  // A link with an item and no question fills in a question to start from. It waits for the person to send it.
+  const [input, setInput] = React.useState(() => {
+    const start = !initialQuestion && !initialConversation ? parseAskContext(initialContext) : null;
+    return start ? contextQuestion(start) : "";
+  });
   const [historyOpen, setHistoryOpen] = React.useState(false);
   const limitRef = React.useRef(false);
   /** The newest exchange, scrolled to the top of the view when a question is asked. */
@@ -396,7 +412,9 @@ export function AskWorkspace({
       }
       if (!signedIn || isError || isAbort) return;
       const id = conversationRef.current;
-      window.history.replaceState(window.history.state, "", `/ask?c=${id}`);
+      // The linked item stays in the address, so a reload keeps the conversation's example flag.
+      const linked = contextRef.current ? `&ctx=${encodeURIComponent(contextRef.current)}` : "";
+      window.history.replaceState(window.history.state, "", `/ask?c=${id}${linked}`);
       // Saved from here, after the answer is on screen, so a slow write never delays the reply.
       void fetch("/api/ask/conversations", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id, messages: finished }) })
         .then((response) => (response.ok ? response.json() : null))
@@ -448,7 +466,7 @@ export function AskWorkspace({
       setLimit(null);
       setProblem(null);
       setInput("");
-      void sendMessage({ text });
+      void sendMessage({ text }, contextRef.current ? { body: { context: contextRef.current } } : undefined);
       inputRef.current?.focus();
     },
     [busy, sendMessage, plan],
@@ -493,6 +511,7 @@ export function AskWorkspace({
 
   const startNew = () => {
     if (busy) void stop();
+    setContext(null);
     setMessages([]);
     setConversationId(newConversationId());
     setLimit(null);
@@ -513,6 +532,7 @@ export function AskWorkspace({
       if (!response.ok) throw new Error("not found");
       const data = (await response.json()) as { conversation: { id: string; items: AskUIMessage[] } };
       scrollPending.current = true;
+      setContext(null);
       setMessages(data.conversation.items);
       setConversationId(data.conversation.id);
       window.history.replaceState(window.history.state, "", `/ask?c=${data.conversation.id}`);
@@ -632,6 +652,31 @@ export function AskWorkspace({
           <div className="sm:pt-[5vh]">
             {/* The box is the page: the title sits right on top of it and everything else is below. */}
             <h1 className="mb-3 text-balance text-[19px] font-semibold leading-6 tracking-[-0.01em] text-oa-fg sm:text-[22px] sm:leading-7">Ask about a stock, an idea or your portfolio</h1>
+            {parsedContext ? (
+              <div className="mb-2 flex min-w-0 items-center gap-1.5 text-[13.5px] leading-5 text-oa-muted-fg">
+                <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" className="shrink-0 text-oa-primary">
+                  <path d="M3 3.5h8M3 7h8M3 10.5h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+                <span className="min-w-0">
+                  The answer starts from <span className="font-medium text-oa-fg">{contextLabel(parsedContext)}</span>.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    // The filled-in question only made sense with the item, so it goes too.
+                    if (input === contextQuestion(parsedContext)) setInput("");
+                    setContext(null);
+                  }}
+                  aria-label="Ask without it"
+                  title="Ask without it"
+                  className={`-my-1 ml-0.5 flex size-7 shrink-0 items-center justify-center rounded-md hover:bg-oa-accent hover:text-oa-fg ${FOCUS}`}
+                >
+                  <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+                    <path d="M2 2l6 6M8 2 2 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  </svg>
+                </button>
+              </div>
+            ) : null}
             {composer}
             {smallPrint}
             {limit ? (
@@ -650,7 +695,12 @@ export function AskWorkspace({
                 <li key={suggestion.question}>
                   <button
                     type="button"
-                    onClick={() => ask(suggestion.question)}
+                    onClick={() => {
+                      // A question from this list is its own, so it starts without the linked item.
+                      contextRef.current = null;
+                      setContext(null);
+                      ask(suggestion.question);
+                    }}
                     className={`grid min-h-11 w-full items-baseline gap-x-4 py-2 text-left hover:bg-oa-accent sm:grid-cols-[7.5rem_minmax(0,1fr)] sm:px-2 ${FOCUS}`}
                   >
                     <span className="text-[12.5px] leading-5 text-oa-muted-fg">{suggestion.label}</span>

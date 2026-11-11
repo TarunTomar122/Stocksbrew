@@ -4,6 +4,7 @@ import { AskWorkspace } from "@/components/ask/ask-workspace";
 import { AppPage } from "@/components/oa/kit";
 import type { AskUIMessage } from "@/lib/ask-cards";
 import { ASK_MAX_QUESTION_CHARS } from "@/lib/ask-config";
+import { formatAskContext, parseAskContext } from "@/lib/ask-context";
 import { askUsageStore, getConversation, listConversations } from "@/lib/ask-data";
 import { askPlanFor, peekAskQuota } from "@/lib/ask-limits";
 import { getSessionUser } from "@/lib/auth-server";
@@ -33,9 +34,11 @@ function first(value: string | string[] | undefined): string | null {
   return typeof text === "string" && text.trim() ? text.trim() : null;
 }
 
-export default async function AskPage({ searchParams }: { searchParams: { q?: string | string[]; c?: string | string[] } }) {
+export default async function AskPage({ searchParams }: { searchParams: { q?: string | string[]; c?: string | string[]; ctx?: string | string[] } }) {
   const session = await getSessionUser();
   const question = first(searchParams.q)?.slice(0, ASK_MAX_QUESTION_CHARS) ?? null;
+  // Shape only: the item itself is read when the question is sent, so opening the page adds no read.
+  const linked = parseAskContext(first(searchParams.ctx));
   const conversationId = first(searchParams.c);
 
   const [doc, conversations, conversation] = session
@@ -60,6 +63,7 @@ export default async function AskPage({ searchParams }: { searchParams: { q?: st
         signedIn={Boolean(session)}
         plan={plan}
         initialQuestion={question}
+        initialContext={linked ? formatAskContext(linked) : null}
         initialConversation={conversation ? { id: conversation.id, items: conversation.items as AskUIMessage[] } : null}
         initialConversations={conversations}
         initialAllowance={quota ? { limit: quota.limit, remaining: quota.remaining } : null}

@@ -476,7 +476,7 @@ export type RunOutcome =
  * Evaluate one job for today and record the decision. One run per job per
  * market day: a second call the same day returns the first run untouched.
  */
-export async function runJob(job: StoredJob, now = new Date()): Promise<RunOutcome> {
+export async function runJob(job: StoredJob, now = new Date(), options: { dryRun?: boolean } = {}): Promise<RunOutcome> {
   const day = agentMarketDay(now);
   const runRef = adminFirestore.collection(AGENT_RUNS_COLLECTION).doc(runDocId(job.uid, job.id, day));
   const existing = await runRef.get();
@@ -509,6 +509,8 @@ export async function runJob(job: StoredJob, now = new Date()): Promise<RunOutco
     day,
     ran_at: stamp,
   };
+  // A dry run reads and decides exactly as a real one, and writes nothing.
+  if (options.dryRun) return { status: "recorded", run };
   await runRef.set(JSON.parse(JSON.stringify(run)));
   await adminFirestore
     .collection(AGENT_JOBS_COLLECTION)
@@ -536,8 +538,12 @@ export type RunAllSummary = {
   decisions: Record<AgentRun["decision"], number>;
 };
 
-/** Evaluate every enabled job once. Safe to run more than once a day. */
-export async function runAllEnabledJobs(now = new Date(), log: (line: string) => void = () => {}): Promise<RunAllSummary> {
+/**
+ * Evaluate every enabled job once. Safe to run more than once a day. With
+ * `dryRun` every job is read and decided the same way and nothing is written
+ * ("recorded" then means "would record").
+ */
+export async function runAllEnabledJobs(now = new Date(), log: (line: string) => void = () => {}, options: { dryRun?: boolean } = {}): Promise<RunAllSummary> {
   const snap = await adminFirestore.collection(AGENT_JOBS_COLLECTION).where("enabled", "==", true).get();
   const jobs = snap.docs
     .map((doc) => {
@@ -572,11 +578,12 @@ export async function runAllEnabledJobs(now = new Date(), log: (line: string) =>
   };
   for (const job of runnable) {
     try {
-      const outcome = await runJob(job, now);
+      const outcome = await runJob(job, now, options);
       summary[outcome.status] += 1;
       if (outcome.status === "recorded") summary.decisions[outcome.run.decision] += 1;
       // Job ids only: a run log line must never carry a person's uid or email.
-      log(`${job.id} ${outcome.status}${outcome.status === "not_due" ? "" : ` ${outcome.run.decision}`}`);
+      const status = options.dryRun && outcome.status === "recorded" ? "would record" : outcome.status;
+      log(`${job.id} ${status}${outcome.status === "not_due" ? "" : ` ${outcome.run.decision}`}`);
     } catch (error) {
       summary.failed += 1;
       log(`${job.id} failed: ${error instanceof Error ? error.message : "unknown error"}`);

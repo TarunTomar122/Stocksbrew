@@ -1,14 +1,14 @@
 "use client";
 
 import { IntentLink } from "@/components/oa/intent-link";
-import { usePathname } from "next/navigation";
+import { usePublicPathname } from "@/lib/use-public-pathname";
 
 import { NavIcon } from "@/components/oa/nav-icon";
 import { PLACES, placeFor } from "@/components/oa/nav-items";
 
 /** Bottom tab bar below lg: the same five places as the sidebar, by their short names. */
 export function MobileNav() {
-  const pathname = usePathname() ?? "/";
+  const pathname = usePublicPathname() ?? "/";
   const place = placeFor(pathname);
   return (
     <nav

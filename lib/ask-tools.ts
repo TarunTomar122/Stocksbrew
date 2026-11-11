@@ -77,6 +77,9 @@ import { getPowerTradesCached } from "@/lib/power-trades";
 import { getLiveInvestmentThemes } from "@/lib/research-themes";
 import { getStockIntelPro, getStockSummary } from "@/lib/stock";
 import { redactLevels } from "@/lib/entitlements";
+import type { Viewer } from "@/lib/entitlements-server";
+import { buildMineTools } from "@/lib/ask-tools-mine";
+import { loadExamplePortfolio } from "@/lib/portfolio-data";
 
 /**
  * The tools the Ask copilot can call. Every tool returns a card (see
@@ -99,6 +102,13 @@ export type AskToolContext = {
   /** Earliest backtest start the plan allows (ISO day), or null for the full history. */
   earliestBacktestStart?: string | null;
   now?: Date;
+  /** Who is asking, resolved by the route (getViewer). Plan gates on the person's own tools read it. */
+  viewer?: Viewer | null;
+  /**
+   * The question came from the example portfolio (an `ex.` context, lib/ask-context.ts). The portfolio tools then
+   * answer about the example when the person has no portfolio of their own, and the card says it is the example.
+   */
+  example?: boolean;
 };
 
 const SIGN_IN: Record<string, string> = {
@@ -307,11 +317,48 @@ function callText(call: unknown): string | null {
   return stance ?? title;
 }
 
-async function portfolioCard(uid: string): Promise<PortfolioCard> {
+/** The example portfolio the Portfolio page shows visitors: made-up shares, real prices. */
+async function examplePortfolioCard(): Promise<AskCard> {
+  const example = await loadExamplePortfolio();
+  if (!example) return errorCard("The example portfolio is not available right now.");
+  const { portfolio } = example;
+  const row = (position: (typeof portfolio.positions)[number], kind: "holding" | "watching") => ({
+    ticker: position.ticker,
+    name: text(position.name, 60),
+    position: kind,
+    price: roundOrNull(position.price),
+    day_change_pct: roundOrNull(position.dayPct),
+    weight_pct: roundOrNull(position.weight, 1),
+    gain_pct: roundOrNull(position.gainPct, 1),
+    shares: num(position.shares),
+    avg_cost: roundOrNull(position.avgCost),
+    value: roundOrNull(position.value, 0),
+    call: null,
+    note: null,
+  });
+  const card: PortfolioCard = {
+    card: "portfolio",
+    example: true,
+    tracked: portfolio.positions.length + portfolio.watching.length,
+    holdings: portfolio.positions.length,
+    watching: portfolio.watching.length,
+    rows: [...portfolio.positions.map((position) => row(position, "holding")), ...portfolio.watching.map((position) => row(position, "watching"))],
+    needs_attention: [],
+    source: "The example portfolio: made-up shares, priced with real quotes. Not the person's own.",
+    as_of: example.pricesAsOf,
+    source_url: "/portfolio",
+  };
+  return card;
+}
+
+async function portfolioCard(uid: string, example: boolean): Promise<AskCard> {
   const data = await getMyAgentRadar(uid, { limit: 40 });
   const rows = (data.rows ?? []) as Array<Record<string, unknown>>;
+  // Nothing held and the question came from the example: answer about the example, and the card says so.
+  if (example && !rows.some((row) => row.position_type === "holding")) return examplePortfolioCard();
   return {
     card: "portfolio",
+    example: false,
     tracked: Number(data.tracked_count) || 0,
     holdings: num((data as { holdings_count?: unknown }).holdings_count),
     watching: num((data as { watchlist_count?: unknown }).watchlist_count),
@@ -325,6 +372,9 @@ async function portfolioCard(uid: string): Promise<PortfolioCard> {
         day_change_pct: roundOrNull(row.day_change_pct),
         weight_pct: roundOrNull(holding?.portfolio_weight_pct, 1),
         gain_pct: roundOrNull(holding?.unrealized_gain_pct, 1),
+        shares: num(holding?.quantity),
+        avg_cost: roundOrNull(holding?.average_cost),
+        value: roundOrNull(holding?.market_value, 0),
         // The call is the same for every reader, paid or not.
         call: callText(row.call),
         note: text(row.summary, 160),
@@ -481,7 +531,17 @@ async function webCard(query: string): Promise<AskCard> {
   return card;
 }
 
-async function earningsCard(input: { ticker?: string; days?: number }, now: Date): Promise<AskCard> {
+/** "2026-11-13" to "Friday". Empty when it is not a day. */
+function weekdayOf(day: string): string {
+  const at = Date.parse(`${day.slice(0, 10)}T12:00:00Z`);
+  return Number.isFinite(at) ? new Date(at).toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" }) : "";
+}
+
+async function earningsCard(input: { ticker?: string; days?: number; mine?: boolean }, now: Date, tracked: string[] | null): Promise<AskCard> {
+  if (input.mine && !input.ticker) {
+    if (!tracked) return signIn("portfolio");
+    if (tracked.length === 0) return errorCard("You are not tracking any stocks yet, so there are no reports to list for you.");
+  }
   if (input.ticker) {
     const ticker = input.ticker.trim().toUpperCase();
     const event = await getNextEarningsCalendarEventCached("US", ticker);
@@ -489,7 +549,7 @@ async function earningsCard(input: { ticker?: string; days?: number }, now: Date
       card: "earnings",
       scope: `Next report for ${ticker}`,
       events: event
-        ? [{ ticker: event.ticker, company: event.company, date: event.event_date, time: event.time ?? null, eps_estimate: roundOrNull(event.eps_estimate) }]
+        ? [{ ticker: event.ticker, company: event.company, date: event.event_date, weekday: weekdayOf(event.event_date), time: event.time ?? null, eps_estimate: roundOrNull(event.eps_estimate) }]
         : [],
       source: "Earnings calendar",
       as_of: event?.captured_at ?? null,
@@ -500,19 +560,22 @@ async function earningsCard(input: { ticker?: string; days?: number }, now: Date
   const days = Math.min(21, Math.max(1, Math.round(input.days ?? 7)));
   const from = today(now);
   const to = new Date(now.getTime() + days * 86400000).toISOString().slice(0, 10);
-  const events = await getEarnings("US", from, to);
+  const all = await getEarnings("US", from, to);
+  const mine = input.mine && tracked ? new Set(tracked) : null;
+  const events = mine ? all.filter((event) => mine.has(event.ticker.toUpperCase())) : all;
   const card: EarningsCard = {
     card: "earnings",
-    scope: `Reports from ${from} to ${to}`,
+    scope: mine ? `Your stocks reporting from ${from} to ${to}` : `Reports from ${from} to ${to}`,
     events: events.slice(0, 40).map((event) => ({
       ticker: event.ticker,
       company: event.company,
       date: event.event_date,
+      weekday: weekdayOf(event.event_date),
       time: event.time ?? null,
       eps_estimate: roundOrNull(event.eps_estimate),
     })),
     source: "Earnings calendar",
-    as_of: events[0]?.captured_at ?? null,
+    as_of: all[0]?.captured_at ?? null,
     source_url: "/calendar",
   };
   return card;
@@ -939,6 +1002,9 @@ const TICKER = z.string().min(1).max(12).describe("A US ticker symbol, like AAPL
 export function buildAskTools(context: AskToolContext): ToolSet {
   const uid = context.uid;
   const now = () => context.now ?? new Date();
+  /** The tickers the signed-in person tracks, from the session's own viewer. Null when signed out. */
+  const trackedTickers = (): string[] | null =>
+    uid && context.viewer?.uid === uid ? context.viewer.tracked.filter((id) => id.startsWith("US_")).map((id) => id.slice(3).replace(/_/g, ".").toUpperCase()) : uid ? [] : null;
 
   const tools: ToolSet = {
     find_stock: tool({
@@ -992,9 +1058,11 @@ export function buildAskTools(context: AskToolContext): ToolSet {
     }),
 
     get_my_portfolio: tool({
-      description: "The signed-in person's holdings and watchlist: price, today's move, weight, gain and our current call on each.",
+      description:
+        "The signed-in person's holdings and watchlist: shares, average cost, value, weight, gain since cost, price, today's move and our current call on each.",
       inputSchema: z.object({}),
-      execute: async () => safe("get_my_portfolio", async () => (uid ? portfolioCard(uid) : signIn("portfolio"))),
+      execute: async () =>
+        safe("get_my_portfolio", async () => (uid ? portfolioCard(uid, Boolean(context.example)) : context.example ? examplePortfolioCard() : signIn("portfolio"))),
       toModelOutput: modelView,
     }),
 
@@ -1042,9 +1110,10 @@ export function buildAskTools(context: AskToolContext): ToolSet {
     }),
 
     get_earnings: tool({
-      description: "Earnings dates. Pass a ticker for that company's next report, or days for everything reporting in the next N days.",
-      inputSchema: z.object({ ticker: TICKER.optional(), days: z.number().int().min(1).max(21).optional() }),
-      execute: async (input) => safe("get_earnings", () => earningsCard(input, now())),
+      description:
+        "Earnings dates. Pass a ticker for that company's next report, or days for everything reporting in the next N days. Add mine=true to list only the stocks the signed-in person tracks ('which of my stocks report this week').",
+      inputSchema: z.object({ ticker: TICKER.optional(), days: z.number().int().min(1).max(21).optional(), mine: z.boolean().optional() }),
+      execute: async (input) => safe("get_earnings", () => earningsCard(input, now(), trackedTickers())),
       toModelOutput: modelView,
     }),
 
@@ -1184,6 +1253,8 @@ export function buildAskTools(context: AskToolContext): ToolSet {
         }),
     }),
   };
+  // The person's own reasons, memo, agents, research and briefing, plus "Watch this". Same uid, same viewer.
+  Object.assign(tools, buildMineTools({ uid, viewer: context.viewer ?? null, example: Boolean(context.example), now: context.now }));
   // Several inputs are optional. Strict schemas would require every field, so say so explicitly
   // instead of relying on the provider's default.
   for (const item of Object.values(tools)) (item as { strict?: boolean }).strict = false;

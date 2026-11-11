@@ -16,17 +16,19 @@ const LEDE = "What changed in your stocks this week, what is coming up, and what
 /**
  * The My stocks overview. Every portfolio tool already writes its own read;
  * this page asks them all at once (lib/portfolio-home/server.ts), leads with
- * the few changes that need the person (lib/portfolio-home/focus.ts), offers
- * questions for Ask drawn from the holdings (questions.ts), and keeps a dated
- * log of what the agent checked and what is coming up (log.ts). Each part
- * streams in as soon as its own sources answer.
+ * the few changes that need the person (lib/portfolio-home/focus.ts), each as
+ * a small loop of evidence, a question for Ask and the watch on it (loop.ts),
+ * offers more questions for Ask drawn from the holdings (questions.ts), and
+ * keeps a short dated log of the other checks and what is coming up (log.ts).
+ * Each part streams in as soon as its own sources answer.
  */
 export default function PortfolioHomePage() {
   const load = loadPortfolioHome();
   return (
     <AppPage>
       <JsonLd data={toolPageLd("/portfolio")} />
-      <PageHead title="My stocks" lede={LEDE} full />
+      {/* Not `full`: on a phone the lede moves to the page note at the bottom, so the findings start higher. */}
+      <PageHead title="My stocks" lede={LEDE} />
       <Suspense fallback={null}>
         <ExampleLine load={load} />
       </Suspense>

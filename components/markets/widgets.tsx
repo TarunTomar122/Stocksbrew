@@ -102,6 +102,25 @@ export function EmptyState({ children }: { children: React.ReactNode }) {
   return <p className="px-3.5 py-4 text-[14px] leading-5 text-oa-muted-fg">{children}</p>;
 }
 
+/**
+ * Points to a tenth of a pixel ("12.3,4" not "12.30,4.00"): a line 52px wide looks the same, and every page
+ * with a few dozen of these sends noticeably less HTML.
+ */
+function tenthPoints(points: string): string {
+  if (!points) return points;
+  return points
+    .split(" ")
+    .map((pair) => pair.split(",").map((value) => String(Math.round(Number(value) * 10) / 10)).join(","))
+    .join(" ");
+}
+
+/** At most `count` evenly spaced values, first and last kept: closer than about 1.5px apart, points only add bytes. */
+function thin(values: number[], count: number): number[] {
+  if (values.length <= count || count < 2) return values;
+  const step = (values.length - 1) / (count - 1);
+  return Array.from({ length: count }, (_, index) => values[Math.round(index * step)]);
+}
+
 /** A year of closes as one line. Renders nothing when there are fewer than two points. */
 export function Sparkline({
   values,
@@ -116,7 +135,7 @@ export function Sparkline({
   height?: number;
   className?: string;
 }) {
-  const points = sparkPoints(values, width, height, 2);
+  const points = tenthPoints(sparkPoints(thin(values, Math.ceil(width / 1.5)), width, height, 2));
   if (!points) return <span aria-hidden="true" className={`inline-block ${className}`} style={{ width, height }} />;
   return (
     <svg
