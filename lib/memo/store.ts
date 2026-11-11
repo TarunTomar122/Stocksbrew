@@ -1,6 +1,7 @@
 import { adminFirestore } from "@/lib/firebase-admin";
 
 import { MEMO_VERSION, type Memo, type MemoItem } from "./types";
+import { readItemCard, readView } from "./view";
 
 /**
  * Each signed-in person's memos, one document per week:
@@ -27,7 +28,31 @@ export type StoredMemo = {
   signature: string;
 };
 
-export type MemoHistoryRow = { weekKey: string; monday: string; friday: string; complete: boolean; topLine: string };
+export type MemoHistoryRow = {
+  weekKey: string;
+  monday: string;
+  friday: string;
+  complete: boolean;
+  topLine: string;
+  /** From the memo's view; missing on weeks written before the page went visual. */
+  headline?: string | null;
+  portfolioPct?: number | null;
+  marketPct?: number | null;
+};
+
+/** A week's line in the list of memos. */
+export function historyRow(memo: Memo): MemoHistoryRow {
+  return {
+    weekKey: memo.weekKey,
+    monday: memo.monday,
+    friday: memo.friday,
+    complete: memo.complete,
+    topLine: memo.topLine,
+    headline: memo.view?.headline ?? null,
+    portfolioPct: memo.view?.portfolioPct ?? null,
+    marketPct: memo.view?.marketPct ?? null,
+  };
+}
 
 const str = (value: unknown): string => (typeof value === "string" ? value : "");
 
@@ -48,6 +73,7 @@ function readItems(value: unknown): MemoItem[] | null {
       tickers: Array.isArray(row.tickers) ? row.tickers.filter((ticker): ticker is string => typeof ticker === "string") : [],
       source: str(row.source),
       asOf: str(row.asOf),
+      card: readItemCard(row.card),
     });
   }
   return items;
@@ -80,6 +106,7 @@ export function readStoredMemo(data: unknown): StoredMemo | null {
       heldBack: typeof raw.heldBack === "number" ? raw.heldBack : 0,
       wordedBy: raw.wordedBy === "model" ? "model" : "rules",
       writtenAt: str(raw.writtenAt),
+      view: readView(raw.view),
     },
     day: str(doc.day),
     signature: str(doc.signature),
@@ -115,8 +142,7 @@ export async function listMemos(uid: string): Promise<MemoHistoryRow[]> {
   for (const doc of snap.docs) {
     const stored = readStoredMemo(doc.data());
     if (!stored) continue;
-    const { memo } = stored;
-    rows.push({ weekKey: memo.weekKey, monday: memo.monday, friday: memo.friday, complete: memo.complete, topLine: memo.topLine });
+    rows.push(historyRow(stored.memo));
   }
   return rows.sort((a, b) => b.monday.localeCompare(a.monday)).slice(0, HISTORY_LIMIT);
 }

@@ -52,6 +52,51 @@ def trigger_web_revalidate(
     return True
 
 
+def notify_indexnow_families(
+    families: list[str],
+    *,
+    changed_since: str | None = None,
+) -> bool:
+    """Tell IndexNow about whole sitemap families (for example ``["stocks"]``).
+
+    The web app builds the list from the same code as ``/sitemaps/<family>.xml``
+    and, with ``changed_since`` (YYYY-MM-DD), keeps only pages whose ``lastmod``
+    is that day or later, so unchanged pages are not resubmitted. It sends them
+    in batches within IndexNow's 10,000-URL limit. Best effort: never raises.
+    """
+    base = os.getenv("WEB_REVALIDATE_BASE_URL", "").strip().rstrip("/")
+    token = os.getenv("WEB_REVALIDATE_TOKEN", "").strip()
+    if not base or not token:
+        print("skip indexnow families: WEB_REVALIDATE_BASE_URL or WEB_REVALIDATE_TOKEN missing")
+        return False
+    body: dict[str, object] = {"families": families, "include_defaults": False}
+    if changed_since:
+        body["changed_since"] = changed_since
+    try:
+        resp = requests.post(
+            f"{base}/api/seo/indexnow",
+            headers={"x-revalidate-token": token},
+            json=body,
+            timeout=60,
+        )
+    except requests.RequestException as exc:
+        print(f"indexnow families failed: {exc}")
+        return False
+    if resp.status_code >= 300:
+        print(f"indexnow families failed: {resp.status_code} {resp.text[:300]}")
+        return False
+    # The route answers 200 with ok=false when IndexNow refused the list (a 429, say).
+    try:
+        accepted = bool(resp.json().get("ok"))
+    except ValueError:
+        accepted = False
+    if not accepted:
+        print(f"indexnow families refused: {resp.text[:300]}")
+        return False
+    print(f"indexnow families ok families={','.join(families)} since={changed_since or '-'} response={resp.text[:300]}")
+    return True
+
+
 def main() -> None:
     if not trigger_web_revalidate():
         if os.getenv("WEB_REVALIDATE_BASE_URL", "").strip() and os.getenv("WEB_REVALIDATE_TOKEN", "").strip():

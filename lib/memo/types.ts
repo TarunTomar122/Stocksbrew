@@ -176,6 +176,32 @@ export type MemoFact = {
   data: Record<string, string | number | null>;
   /** Reasons this fact left out because the viewer's plan does not cover the stock. */
   heldBack?: number;
+  /** The figure and short line the page shows; the text goes behind "Why". */
+  card?: MemoItemCard | null;
+};
+
+/**
+ * A small picture beside a card's figure, from the same values as its sentence:
+ * - share: a part of the whole (a sector's share of the portfolio), with the S&P 500's share when known;
+ * - pair: the portfolio and the S&P 500 over the same stretch, in percent (a past shock).
+ */
+export type MemoVisual =
+  | { kind: "share"; pct: number; benchmarkPct: number | null; label: string }
+  | { kind: "pair"; portfolio: number; market: number };
+
+/**
+ * The card form of a fact, for the page: one figure and a short line that reads on from it
+ * ("56%" / "of the portfolio is in Technology, against 37% of the S&P 500"). The long sentence
+ * stays as the item's text, behind a "Why" toggle.
+ */
+export type MemoItemCard = {
+  /** One figure, as printed: "56%", "−9.5%", "$24.1M", "Nov 17". */
+  figure: string;
+  /** Ten words or fewer, written to follow the figure. */
+  label: string;
+  /** "up" or "down" when the figure is a gain or a loss; colours the figure, nothing else. */
+  sign?: "up" | "down" | null;
+  visual?: MemoVisual | null;
 };
 
 export type MemoItem = {
@@ -188,6 +214,44 @@ export type MemoItem = {
   tickers: string[];
   source: string;
   asOf: string;
+  /** Missing on memos written before the page went visual. */
+  card?: MemoItemCard | null;
+};
+
+/** One day on the week's chart: percent from the close before Monday. */
+export type MemoCurvePoint = { day: string; portfolio: number; market: number | null };
+
+/** A holding's share of the week's move. */
+export type MemoMover = {
+  ticker: string;
+  name: string;
+  /** The stock's own move over the week, percent. */
+  pct: number;
+  /** Percentage points of the portfolio's move. */
+  points: number;
+  /** Where a tap goes: why it moved that week, its earnings report, or the stock. */
+  href: string;
+};
+
+/** A call that ended the week different from how it started. */
+export type MemoCallChange = { ticker: string; name: string; from: CallWord; to: CallWord; date: string };
+
+/**
+ * What the visual page draws, kept with the memo so a stored week shows the
+ * same picture it was written with. Every value comes from the facts above.
+ */
+export type MemoView = {
+  /** Twelve words or fewer: "Up 1.2% this week, 0.8 points behind the S&P 500". */
+  headline: string;
+  portfolioPct: number | null;
+  marketPct: number | null;
+  /** The close before Monday first (at 0), then each close in the week. Empty when the week cannot be priced. */
+  curve: MemoCurvePoint[];
+  /** Up to three that helped most, then up to three that hurt most. */
+  movers: MemoMover[];
+  calls: MemoCallChange[];
+  /** Holdings the week's figure leaves out, and why, in one sentence; null when none. */
+  footnote: string | null;
 };
 
 export type Memo = {
@@ -215,6 +279,8 @@ export type Memo = {
   wordedBy: "rules" | "model";
   /** ISO time it was written. */
   writtenAt: string;
+  /** The page's charts and tables. Missing on memos written before the page went visual. */
+  view?: MemoView | null;
 };
 
 export const MEMO_VERSION = 1;

@@ -10,34 +10,52 @@ export type IndexNowResult = {
   error?: string;
 };
 
-/** Submit URL list to Bing/Yandex IndexNow. Key file must live at /{INDEXNOW_KEY}.txt */
-export async function submitIndexNow(urls: string[]): Promise<IndexNowResult> {
+/** IndexNow takes at most 10,000 URLs in one POST (https://www.indexnow.org/documentation). */
+export const INDEXNOW_BATCH = 10_000;
+/** A ceiling per call, far above what the site has (about 700 stock pages), so a bad caller cannot flood the endpoint. */
+export const INDEXNOW_MAX_URLS = 50_000;
+
+/** Absolute, de-duplicated addresses on our own host, in the order given. */
+export function indexNowUrls(urls: string[]): string[] {
   const absolute = urls
     .map((u) => (u.startsWith("http") ? u : `${SITE_ORIGIN}${u.startsWith("/") ? u : `/${u}`}`))
-    .filter((u, i, arr) => arr.indexOf(u) === i)
-    .slice(0, 10_000);
+    .filter((u) => u.startsWith(`${SITE_ORIGIN}/`) || u === SITE_ORIGIN);
+  return [...new Set(absolute)].slice(0, INDEXNOW_MAX_URLS);
+}
 
+/**
+ * Submit URLs to IndexNow (Bing, Yandex and the other engines that share it),
+ * in batches of at most 10,000, one after another. The key file lives at
+ * /{INDEXNOW_KEY}.txt. `ok` is true only when every batch was accepted.
+ */
+export async function submitIndexNow(urls: string[], fetchImpl: typeof fetch = fetch): Promise<IndexNowResult> {
+  const absolute = indexNowUrls(urls);
   if (absolute.length === 0) {
     return { ok: false, status: 400, submitted: 0, error: "no_urls" };
   }
 
-  const res = await fetch(INDEXNOW_ENDPOINT, {
-    method: "POST",
-    headers: { "Content-Type": "application/json; charset=utf-8" },
-    body: JSON.stringify({
-      host: SITE_HOST,
-      key: INDEXNOW_KEY,
-      keyLocation: `${SITE_ORIGIN}/${INDEXNOW_KEY}.txt`,
-      urlList: absolute,
-    }),
-  });
-
-  return {
-    ok: res.ok || res.status === 202,
-    status: res.status,
-    submitted: absolute.length,
-    error: res.ok || res.status === 202 ? undefined : await res.text().catch(() => "request_failed"),
-  };
+  let submitted = 0;
+  let status = 200;
+  for (let start = 0; start < absolute.length; start += INDEXNOW_BATCH) {
+    const batch = absolute.slice(start, start + INDEXNOW_BATCH);
+    const res = await fetchImpl(INDEXNOW_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json; charset=utf-8" },
+      body: JSON.stringify({
+        host: SITE_HOST,
+        key: INDEXNOW_KEY,
+        keyLocation: `${SITE_ORIGIN}/${INDEXNOW_KEY}.txt`,
+        urlList: batch,
+      }),
+    });
+    status = res.status;
+    if (!(res.ok || res.status === 202)) {
+      // Stop at the first refusal (a 429 means slow down): later batches would be refused too.
+      return { ok: false, status, submitted, error: await res.text().catch(() => "request_failed") };
+    }
+    submitted += batch.length;
+  }
+  return { ok: true, status, submitted };
 }
 
 /** High-priority URLs to ping after SEO deploys. */

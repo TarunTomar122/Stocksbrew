@@ -83,15 +83,7 @@ export default function BlogPostPage({ params }: Props) {
             mainEntityOfPage: { "@type": "WebPage", "@id": url },
             url,
           },
-          ...(faqs.length > 0
-            ? [
-                {
-                  "@context": "https://schema.org",
-                  "@type": "FAQPage",
-                  mainEntity: faqs.map((faq) => ({ "@type": "Question", name: faq.question, acceptedAnswer: { "@type": "Answer", text: faq.answer } })),
-                },
-              ]
-            : []),
+          // No FAQPage markup (owner's SEO playbook): Google shows FAQ results for few sites; the questions stay visible on the page.
           breadcrumbLd([
             { name: "Home", path: "/" },
             { name: "Blog", path: "/blog" },

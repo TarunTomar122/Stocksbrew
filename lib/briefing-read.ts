@@ -100,6 +100,7 @@ function explainedMoveInsight(item: BriefingItem, date?: string, name?: string |
     id: `move-${item.id}`,
     tone: toneOfChange(item.day_change_pct),
     text,
+    figure: { value: signed(item.day_change_pct) },
     leadName,
     tickers: [item.ticker],
     action: { label: `Our view on ${item.ticker}`, href: stockHref(item.ticker) },
@@ -140,6 +141,7 @@ function moverInsight(group: BriefingGroup, index: IndexMove, date?: string): In
   return {
     id: `mover-${group.key}`,
     tone: toneOfChange(move),
+    figure: { value: signed(move) },
     text: why ? `${base}${why.startsWith("after") ? ` ${why}` : `: ${why}`}.` : `${base}${earlier ? "" : versusIndex(index)}.`,
     tickers: [group.ticker],
     action: { label: `${group.ticker} report`, href: stockHref(group.ticker) },
@@ -154,6 +156,7 @@ function callInsight(item: BriefingItem): Insight | null {
     id: `call-${item.id}`,
     tone: item.tone,
     text: `Our call moved to ${to}.`,
+    figure: { value: to, label: "our call now" },
     tickers: [item.ticker],
     action: { label: `Read why`, href: stockHref(item.ticker) },
   };
@@ -180,6 +183,7 @@ function addZoneInsight(items: BriefingItem[], index: IndexMove): Insight | null
     id: "add-zones",
     tone: "flat",
     text: `${names.length} stocks you watch are in their add zone: ${joinAnd(more > 0 ? [...named, `${more} more`] : named)}.`,
+    figure: { value: String(names.length), label: "in their add zone" },
     soWhat: fell
       ? `The ${index.name} is down ${pct(index.change_pct, 2)}, so most got there with the market. Reread a call before adding.`
       : "Reread a call before adding.",
@@ -319,7 +323,9 @@ export function briefingRead(
     if (day) {
       const ordered = lead ? [lead, ...leads.filter((group) => group !== lead)] : leads;
       // How the biggest companies pulled the index is the first line under the session, not part of the headline.
-      const giants: Insight | null = day.pulled ? { id: "giants", tone: toneOfChange(day.pulledPct), text: day.pulled } : null;
+      const giants: Insight | null = day.pulled
+        ? { id: "giants", tone: toneOfChange(day.pulledPct), text: day.pulled, ...(day.pulledPct != null ? { figure: { value: signed(day.pulledPct), label: "the biggest companies together" } } : {}) }
+        : null;
       const stories = pickInsights([
         giants,
         ...ordered.slice(0, 1).map((group) => {
@@ -337,6 +343,7 @@ export function briefingRead(
             id: "index",
             tone: toneOfChange(index.change_pct, 0.05),
             text: indexLine,
+            figure: { value: signed(index.change_pct, 2) },
             ...(biggestBelow ? { soWhat: `${leadName}'s ${leadMove != null && Number.isFinite(leadMove) ? `${pct(leadMove)} ${leadMove < 0 ? "fall" : "rise"}` : "move"} was ${biggest}.` } : {}),
           }
         : null;
@@ -394,6 +401,7 @@ export function briefingRead(
       id: "decisions",
       tone: "flat",
       text: `${decisions.length === 1 ? "One stock needs" : `${decisions.length} stocks need`} a decision: ${joinAnd(names)}.`,
+      figure: { value: String(decisions.length), label: decisions.length === 1 ? "needs a decision" : "need a decision" },
       soWhat: "They are first below.",
       tickers: names,
     });

@@ -68,6 +68,7 @@ export function buildScreenerRead(input: {
     movers = {
       id: "movers",
       tone: mid >= 0 ? "up" : "down",
+      figure: { value: `${Math.round((up / moves.length) * 100)}%`, label: "of them rose" },
       text: `${Math.round((up / moves.length) * 100)}% of them rose. Biggest: ${joinNames(best.map((row) => `${row.symbol} ${signedPct(row.day_pct!)}`))}${showWorst ? `; worst ${worst.symbol} ${signedPct(worst.day_pct!)}` : ""}.`,
       tickers: [...best.map((row) => row.symbol), ...(showWorst ? [worst.symbol] : [])],
       action: { label: `Why ${best[0]!.symbol} moved`, href: `/stock/${best[0]!.symbol}` },
@@ -101,6 +102,7 @@ export function buildScreenerRead(input: {
       id: "zones",
       tone: "up",
       text: `${plural(total, "stock")} ${total === 1 ? "is" : "are"} at or within 3% of the price where we'd buy more: ${listed}.`,
+      figure: { value: String(total), label: "near our buy-more price" },
       tickers: names,
       action: { label: `See ${names[0]}`, href: `/stock/${names[0]}` },
     };
@@ -115,6 +117,7 @@ export function buildScreenerRead(input: {
       id: "earnings",
       tone: "flat",
       text: `${reporting.length} of them ${reporting.length === 1 ? "reports" : "report"} in the next two weeks, including ${joinNames(names.map((row) => `${row.symbol} ${shortDay(row.earnings_date)}`))}.`,
+      figure: { value: String(reporting.length), label: reporting.length === 1 ? "reports in two weeks" : "report in two weeks" },
       tickers: names.map((row) => row.symbol),
       action: { label: "Calendar", href: "/calendar" },
     };

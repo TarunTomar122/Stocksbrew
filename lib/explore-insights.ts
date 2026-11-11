@@ -157,6 +157,7 @@ export function buildGiantsRead(rows: readonly GiantForRead[]): { line: string; 
       id: "giants",
       tone: Math.abs(average) < 0.05 ? "flat" : average > 0 ? "up" : "down",
       text: `${line} ${pull}`,
+      figure: Math.abs(average) < 0.05 ? { value: `${up} of ${n}`, label: "rose" } : { value: signedPct(average, 1), label: `the ${n} biggest, together` },
       soWhat: "They carry the most weight in the S&P 500.",
       tickers: [puller.symbol],
       action: { label: `${puller.name}'s report`, href: `/stock/${encodeURIComponent(puller.symbol)}` },

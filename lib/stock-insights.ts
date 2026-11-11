@@ -177,14 +177,17 @@ export function buildStockRead(input: StockInsightInput): TheRead | null {
       : null;
     const usual = usualMove(input.series, input.quoteDay);
     let text = "";
+    let figure: Insight["figure"];
     if (rank) {
       const side = rank.rel < 0 ? "worst" : "best";
       const span = rank.since
         ? `since ${shortDay(rank.since)}${rank.sessions >= 120 ? `, ${Math.round(rank.sessions / 21)} months ago` : ""}`
         : `in at least ${Math.max(3, Math.round(rank.window / 21))} months`;
       text = `${ticker} ${rank.rel < 0 ? "trailed" : "beat"} the S&P 500 by ${Math.abs(rank.rel).toFixed(1)} points ${when}, its ${side} day against the market ${span}.`;
+      figure = { value: `${rank.rel < 0 ? "\u2212" : "+"}${Math.abs(rank.rel).toFixed(1)} pts`, label: "against the S&P 500" };
     } else if (usual !== null && usual > 0 && Math.abs(day) / usual >= 2 && Math.abs(day) >= 1) {
       text = `Today's ${pct(day)} move is ${(Math.abs(day) / usual).toFixed(1)} times bigger than a normal day for ${ticker}, which moves about ${pct(usual)} a day.`;
+      figure = { value: `${(Math.abs(day) / usual).toFixed(1)}\u00d7`, label: "a normal day's move" };
     }
     const reason = input.moveReason ? input.moveReason.replace(/\s+/g, " ").trim().replace(/\.$/, "") : "";
     if (text || reason) {
@@ -192,6 +195,7 @@ export function buildStockRead(input: StockInsightInput): TheRead | null {
         id: "move",
         tone: day > 0 ? "up" : "down",
         text: text || `Why ${ticker} moved ${when}: ${clip(reason, 150)}.`,
+        figure: figure ?? { value: signedPct(day), label: when },
         soWhat: text && reason ? `The reason we found: ${clip(reason, 150)}.` : undefined,
         action: { label: "What changed", href: "#changed" },
       };
@@ -220,6 +224,7 @@ export function buildStockRead(input: StockInsightInput): TheRead | null {
       id: "earnings",
       tone: "flat",
       text: `${ticker} reports ${shortDay(next.date)}${timeWord(next.time)}, ${inDays(daysToNext)}.`,
+      figure: { value: shortDay(next.date), label: inDays(daysToNext) },
       soWhat,
       action: { label: "Earnings", href: "#earnings" },
     };
@@ -238,18 +243,23 @@ export function buildStockRead(input: StockInsightInput): TheRead | null {
     const trim = word === "Trim" && fin(input.levels.trimAbove) && input.levels.trimAbove > 0 && near(input.levels.trimAbove) ? input.levels.trimAbove : null;
     let text = "";
     let tone: Insight["tone"] = "flat";
+    let figure: Insight["figure"];
     if (add !== null && price <= add) {
       text = `At ${money(price)}, ${ticker} is below ${money(add)}, the price where we'd buy more.`;
+      figure = { value: money(add), label: "where we'd buy more" };
       tone = "up";
     } else if (trim !== null && price >= trim) {
       text = `At ${money(price)}, ${ticker} is above ${money(trim)}, the price where we'd sell some.`;
+      figure = { value: money(trim), label: "where we'd sell some" };
       tone = "down";
     } else if (add !== null) {
       const above = ((price - add) / add) * 100;
       const addPart = above < 0.5 ? `${ticker} is right at our buy-more price (${money(add)})` : `${ticker} is ${pct(above)} above our buy-more price (${money(add)})`;
       text = trim !== null ? `${addPart}, and ${pct(((trim - price) / price) * 100)} below the price where we'd sell some (${money(trim)}).` : `${addPart}.`;
+      figure = above < 0.5 ? { value: money(add), label: "our buy-more price" } : { value: pct(above), label: "above our buy-more price" };
     } else if (trim !== null) {
       text = `${ticker} would need to rise ${pct(((trim - price) / price) * 100)} to reach the price where we'd sell some (${money(trim)}).`;
+      figure = { value: pct(((trim - price) / price) * 100), label: "to our sell-some price" };
     }
     const change = input.lastChange;
     let since: string | undefined;
@@ -260,8 +270,8 @@ export function buildStockRead(input: StockInsightInput): TheRead | null {
       const plain = (call: CallWord) => (CALL_PLAIN as Record<string, string | undefined>)[call] ?? call;
       since = `We changed our call from ${plain(change.from)} to ${plain(change.to)} on ${shortDay(change.date)} at ${money(change.priceAtCall)}, and ${how}.`;
     }
-    if (text) callInsight = { id: "call", tone, text, soWhat: since, action: { label: "The reasoning", href: "#read" } };
-    else if (since) callInsight = { id: "call", tone: "flat", text: since };
+    if (text) callInsight = { id: "call", tone, text, figure, soWhat: since, action: { label: "The reasoning", href: "#read" } };
+    else if (since && change) callInsight = { id: "call", tone: "flat", text: since, figure: { value: shortDay(change.date), label: "our call changed" } };
   }
 
   // ── the longer trend, as a fallback ──
@@ -283,6 +293,7 @@ export function buildStockRead(input: StockInsightInput): TheRead | null {
         id: "trend",
         tone: benchYear !== null ? (stockYear >= benchYear ? "up" : "down") : stockYear >= 0 ? "up" : "down",
         text: `${ticker} ${stockYear >= 0 ? "is up" : "is down"} ${pct(stockYear)} over the past year${benchYear !== null ? ` against ${signedPct(benchYear)} for the S&P 500` : ""}${highPart}.`,
+        figure: { value: signedPct(stockYear), label: "over the past year" },
       };
     }
   }

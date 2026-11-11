@@ -307,6 +307,11 @@ export function marketRead(input: MarketReadInput): TheRead | null {
     insights.push({
       id: "balance",
       tone: change !== null && Math.abs(change) >= 2 ? (change > 0 ? "up" : "down") : leanTone(now),
+      // One tone figure, the larger side (owner rule), labelled so it never reads as a price move.
+      figure:
+        pct.negative > pct.positive
+          ? { value: `${pct.negative}%`, label: "of stories negative", tone: "down" }
+          : { value: `${pct.positive}%`, label: "of stories positive", tone: "up" },
       text: `${pct.positive}% of the last day's ${total.toLocaleString("en-US")} stories read positive and ${pct.negative}% negative${versus}.`,
       soWhat: pct.neutral >= 50 ? "Most of the rest is routine: filings, fund flows and previews." : undefined,
     });
@@ -320,6 +325,7 @@ export function marketRead(input: MarketReadInput): TheRead | null {
     insights.push({
       id: "theme",
       tone: side.tone,
+      figure: { value: String(top.count), label: top.count === 1 ? "story" : "stories" },
       text: `The biggest story is ${top.name}: ${top.count} stories${grew}, ${side.text}.`,
       soWhat: lead ? moveClause(lead.ticker, lead.pct) ?? undefined : undefined,
       tickers: top.tickers.slice(0, 4).map((row) => row.ticker),
@@ -359,6 +365,7 @@ export function marketRead(input: MarketReadInput): TheRead | null {
     insights.push({
       id: "disagree",
       tone: disagreement.pct > 0 ? "up" : "down",
+      figure: { value: signed(disagreement.pct), label: `${disagreement.ticker} today` },
       text: `${disagreement.ticker}: ${rowLean === "positive" ? `${pctTones.positive}% of today's headlines about it read as good news` : `${pctTones.negative}% of today's headlines about it read as bad news`}, yet the stock is ${signed(disagreement.pct)} today.`,
       // Say what we see, not why: the headlines alone do not explain this move.
       soWhat: "The headlines alone don't explain the move.",

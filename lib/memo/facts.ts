@@ -4,12 +4,16 @@ import { CALL_PLAIN, asSentence, companyFirstMove, plainCallReason, wholeSentenc
 const say = (call: string): string => `"${(CALL_PLAIN as Record<string, string>)[call] ?? call}"`;
 
 import type {
+  CallWord,
   DailySeries,
+  MemoItemCard,
+  MemoCurvePoint,
   MemoFact,
   MemoHolding,
   MemoInputs,
   MemoTone,
 } from "./types";
+import { pct, points, signedPct } from "./format";
 import { addDays, longDay, shortDay, weekdayName, weekdayOf } from "./week";
 
 /**
@@ -27,6 +31,8 @@ import { addDays, longDay, shortDay, weekdayName, weekdayOf } from "./week";
  */
 
 export const DRIVER_MIN_POINTS = 0.2;
+/** Words in a card's line under its figure. */
+export const CARD_WORDS = 10;
 export const INSIDER_SELL_MIN = 10_000_000;
 export const INSIDER_BUY_MIN = 1_000_000;
 export const COMPANY_RISK_PCT = 20;
@@ -39,17 +45,7 @@ export const DIVIDEND_LOOKAHEAD_DAYS = 21;
 
 /* ── formatting ─────────────────────────────────────────────────────────── */
 
-/** "2.3%", "12%", "0.4%": one decimal under 10, whole above. Always unsigned. */
-export function pct(value: number): string {
-  const abs = Math.abs(value);
-  return abs >= 10 ? `${Math.round(abs)}%` : `${abs.toFixed(1)}%`;
-}
-
-/** "1.4 points" */
-export function points(value: number): string {
-  const abs = Math.abs(value);
-  return `${abs.toFixed(1)} ${abs.toFixed(1) === "1.0" ? "point" : "points"}`;
-}
+export { pct, points, signedPct };
 
 /** "$24.1 million", "$1.2 billion", "$350,000", "$42". */
 export function money(value: number): string {
@@ -60,9 +56,23 @@ export function money(value: number): string {
   return `$${abs >= 100 ? Math.round(abs) : abs.toFixed(2).replace(/\.00$/, "")}`;
 }
 
+/** "$24.1M", "$1.2B", "$350K", "$42": a figure for a card, where "million" does not fit. */
+export function shortMoney(value: number): string {
+  const abs = Math.abs(value);
+  if (abs >= 1e9) return `$${(abs / 1e9).toFixed(1)}B`;
+  if (abs >= 1e6) return `$${(abs / 1e6).toFixed(1)}M`;
+  if (abs >= 1e3) return `$${Math.round(abs / 1e3)}K`;
+  return `$${abs >= 100 ? Math.round(abs) : abs.toFixed(2).replace(/\.00$/, "")}`;
+}
+
 /** "$0.82", "$1.50": per-share amounts keep their cents. */
 export function cents(value: number): string {
   return `$${Math.abs(value).toFixed(2)}`;
+}
+
+/** Words in a line: "S&P 500" counts as two. */
+export function wordsIn(text: string): number {
+  return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
 function countWord(n: number): string {
@@ -115,6 +125,8 @@ export type WeekPerformance = {
   priced: number;
   total: number;
   basis: "value" | "equal";
+  /** The close before Monday (at 0), then every S&P 500 close to `to`, as percent from that close. */
+  daily: MemoCurvePoint[];
 };
 
 /**
@@ -166,6 +178,17 @@ export function weekPerformance(input: Pick<MemoInputs, "week" | "holdings" | "s
     weight: round(((row.units * row.c1) / end) * 100, 1),
   }));
   const market = (endRef.close / startRef.close - 1) * 100;
+  // Each S&P 500 close in the stretch, priced with the same holdings and share counts as the week's figure.
+  const daily: MemoCurvePoint[] = [];
+  const bench = benchmark!;
+  for (let i = 0; i < Math.min(bench.dates.length, bench.closes.length); i++) {
+    const day = bench.dates[i]!;
+    const close = bench.closes[i]!;
+    if (day < from || day > to || !(Number.isFinite(close) && close > 0)) continue;
+    let value = 0;
+    for (const row of rows) value += row.units * (closeOnOrBefore(input.series.get(row.holding.ticker), day)?.close ?? row.c0);
+    daily.push({ day, portfolio: round((value / start - 1) * 100), market: round((close / startRef.close - 1) * 100) });
+  }
   return {
     from,
     to,
@@ -177,6 +200,7 @@ export function weekPerformance(input: Pick<MemoInputs, "week" | "holdings" | "s
     priced: rows.length,
     total: input.holdings.length,
     basis: anyUnits ? "value" : "equal",
+    daily,
   };
 }
 
@@ -246,9 +270,25 @@ function coveredTicker(inputs: MemoInputs, ticker: string): boolean {
   return inputs.holdings.find((holding) => holding.ticker === ticker)?.covered ?? false;
 }
 
-function inWeek(inputs: MemoInputs, day: string): boolean {
+function inWeek(inputs: Pick<MemoInputs, "week" | "today">, day: string): boolean {
   const end = inputs.week.complete ? inputs.week.friday : inputs.today;
   return day >= inputs.week.monday && day <= end;
+}
+
+type NetCall = MemoInputs["calls"][number] & { from: CallWord };
+
+/**
+ * Each stock's call change over the week: the call before its first change and the call after its last,
+ * dated the last change. A call that changed and changed back is left out. Oldest first.
+ */
+export function netCallChanges(inputs: Pick<MemoInputs, "calls" | "week" | "today">): NetCall[] {
+  const net = new Map<string, NetCall>();
+  for (const call of [...inputs.calls].sort((a, b) => a.date.localeCompare(b.date))) {
+    if (!inWeek(inputs, call.date) || !call.from || call.from === call.to) continue;
+    const held = net.get(call.ticker);
+    net.set(call.ticker, held ? { ...call, from: held.from } : { ...call, from: call.from });
+  }
+  return [...net.values()].filter((call) => call.from !== call.to).sort((a, b) => a.date.localeCompare(b.date) || a.ticker.localeCompare(b.ticker));
 }
 
 export type FactsResult = {
@@ -377,7 +417,26 @@ export function buildFacts(inputs: MemoInputs): FactsResult {
     reportedOn.add(`${report.ticker}|${report.day}`);
     reportedOn.add(`${report.ticker}|${nextWeekday(report.day)}`);
     reported.add(`${report.ticker}|${report.day}`);
+    const reaction = typeof data.reaction_pct === "number" ? data.reaction_pct : null;
+    const forecast = report.guidance === "raised" ? ", forecast raised" : report.guidance === "lowered" ? ", forecast cut" : "";
+    const result =
+      report.verdict === "beat" ? "beat estimates" : report.verdict === "miss" ? "missed estimates" : report.verdict === "in_line" ? "matched estimates" : null;
+    const reportCard: MemoItemCard =
+      reaction !== null
+        ? {
+            figure: signedPct(reaction),
+            // A move that rounds to 0.0% is neither a gain nor a loss.
+            sign: Math.abs(reaction) < 0.05 ? null : reaction > 0 ? "up" : "down",
+            label: `for ${name} after its report${result ? ` ${result}` : ""}`,
+          }
+        : report.verdict === "beat" || report.verdict === "miss" || report.verdict === "in_line"
+          ? {
+              figure: report.verdict === "beat" ? "Beat" : report.verdict === "miss" ? "Missed" : "In line",
+              label: `${report.verdict === "in_line" ? "with estimates" : "estimates"} in ${name}'s report on ${weekdayName(report.day)}${forecast}`,
+            }
+          : { figure: "Reported", label: `${name}'s earnings on ${weekdayName(report.day)}${forecast}` };
     facts.push({
+      card: reportCard,
       id: `report:${report.ticker}:${report.day}`,
       kind: "report",
       section: "changed",
@@ -395,18 +454,8 @@ export function buildFacts(inputs: MemoInputs): FactsResult {
   }
 
   /* call changes: the week's net change per stock, grouped when several moved the same way */
-  const netCalls = new Map<string, MemoInputs["calls"][number] & { from: NonNullable<MemoInputs["calls"][number]["from"]> }>();
-  for (const call of [...inputs.calls].sort((a, b) => a.date.localeCompare(b.date))) {
-    if (!inWeek(inputs, call.date) || !call.from || call.from === call.to) continue;
-    const held = netCalls.get(call.ticker);
-    // The call before the week's first change, and the call after its last.
-    netCalls.set(call.ticker, held ? { ...call, from: held.from } : { ...call, from: call.from });
-  }
   const callGroups = new Map<string, Array<MemoInputs["calls"][number] & { from: string }>>();
-  for (const call of netCalls.values()) {
-    if (call.from === call.to) continue; // changed and changed back
-    callGroups.set(call.to, [...(callGroups.get(call.to) ?? []), call]);
-  }
+  for (const call of netCallChanges(inputs)) callGroups.set(call.to, [...(callGroups.get(call.to) ?? []), call]);
   for (const [to, calls] of callGroups) {
     const section = to === "Trim" ? "hurt" : to === "Add" ? "look" : "changed";
     const tone: MemoTone = to === "Add" ? "up" : to === "Trim" ? "down" : "flat";
@@ -422,6 +471,7 @@ export function buildFacts(inputs: MemoInputs): FactsResult {
         else held = 1;
       }
       facts.push({
+        card: { figure: CALL_PLAIN[call.to], label: `on ${name}, from ${CALL_PLAIN[call.from]} on ${weekdayName(call.date)}` },
         id: `call:${call.ticker}:${call.date}`,
         kind: "call",
         section,
@@ -443,6 +493,7 @@ export function buildFacts(inputs: MemoInputs): FactsResult {
     const named = calls.map((call) => `${nameOf(inputs, call.ticker)} (from ${say(call.from)})`);
     const first = calls[0]!;
     facts.push({
+      card: { figure: CALL_PLAIN[to as CallWord], label: `on ${countWord(calls.length)} holdings: ${calls.slice(0, 3).map((call) => call.ticker).join(", ")}${calls.length > 3 ? " and more" : ""}` },
       id: `calls:${to}:${first.date}`,
       kind: "call",
       section,
@@ -482,6 +533,7 @@ export function buildFacts(inputs: MemoInputs): FactsResult {
     }
     heldBack += held;
     facts.push({
+      card: { figure: signedPct(move.pct), sign: move.pct >= 0 ? "up" : "down", label: `for ${name} on ${weekdayName(move.day)}` },
       id: `move:${move.ticker}:${move.day}`,
       kind: "move",
       section: "changed",
@@ -513,7 +565,12 @@ export function buildFacts(inputs: MemoInputs): FactsResult {
     });
     const more = upcoming.length - named.length;
     const lastDay = upcoming[upcoming.length - 1]!.date;
+    const firstUp = upcoming[0]!;
     facts.push({
+      card: {
+        figure: shortDay(firstUp.date),
+        label: `${nameOf(inputs, firstUp.ticker)} reports${timeWords(firstUp.time)}${upcoming.length > 1 ? `, then ${countWord(upcoming.length - 1)} more` : ""}`,
+      },
       id: "upcoming",
       kind: "upcoming",
       section: "look",
@@ -537,6 +594,11 @@ export function buildFacts(inputs: MemoInputs): FactsResult {
     if (risky) {
       const name = nameOf(inputs, risky.event.ticker);
       facts.push({
+        card: {
+          figure: pct(risky.weight!),
+          label: `of ${words.portfolio} is ${name}, reporting ${weekdayName(risky.event.date)}`,
+          visual: { kind: "share", pct: risky.weight!, benchmarkPct: null, label: risky.event.ticker },
+        },
         id: `upcoming_risk:${risky.event.ticker}`,
         kind: "upcoming_risk",
         section: "hurt",
@@ -574,7 +636,27 @@ export function buildFacts(inputs: MemoInputs): FactsResult {
             ? `${lead.action === "added" ? "added to" : "cut"} its ${name} stake by ${pct(lead.changePct)}`
             : `${lead.action === "added" ? "added to" : "cut"} its ${name} stake`;
     const others = moves.length - 1;
+    const fundWhat =
+      lead.action === "sold"
+        ? `sold all its ${name} shares`
+        : lead.action === "new"
+          ? `bought ${name} for the first time`
+          : `${lead.action === "added" ? "added to" : "cut"} its ${name} stake`;
     facts.push({
+      card: {
+        figure:
+          lead.action === "sold"
+            ? "Sold"
+            : lead.action === "new"
+              ? "New"
+              : lead.changePct !== null
+                ? `${lead.action === "added" ? "+" : "−"}${pct(lead.changePct)}`
+                : lead.action === "added"
+                  ? "Added"
+                  : "Cut",
+        // A long fund name would push the line past ten words; the full name is behind "Why".
+        label: wordsIn(`${lead.fund} ${fundWhat}`) <= CARD_WORDS ? `${lead.fund} ${fundWhat}` : `A tracked fund ${fundWhat}`,
+      },
       id: `fund:${ticker}`,
       kind: "fund",
       section: lead.action === "sold" || lead.action === "trimmed" ? "changed" : "look",
@@ -611,6 +693,7 @@ export function buildFacts(inputs: MemoInputs): FactsResult {
     if (row.bought >= INSIDER_BUY_MIN) {
       const who = row.buyers.size === 1 ? "An insider" : `${countWord(row.buyers.size).replace(/^./, (c) => c.toUpperCase())} insiders`;
       facts.push({
+        card: { figure: shortMoney(row.bought), label: `of ${name} stock bought by insiders` },
         id: `insider_buy:${ticker}`,
         kind: "insider",
         section: "look",
@@ -629,6 +712,7 @@ export function buildFacts(inputs: MemoInputs): FactsResult {
     if (row.sold >= INSIDER_SELL_MIN) {
       const plannedShare = row.planned > 0 ? ` ${money(row.planned)} of it was under trading plans set in advance.` : "";
       facts.push({
+        card: { figure: shortMoney(row.sold), label: `of ${name} stock sold by insiders` },
         id: `insider_sell:${ticker}`,
         kind: "insider",
         section: "hurt",
@@ -657,6 +741,15 @@ export function buildFacts(inputs: MemoInputs): FactsResult {
         : "";
     const others = congress.length - 1;
     facts.push({
+      card: {
+        figure:
+          congressLead.amountLow !== null && congressLead.amountHigh !== null
+            ? `${shortMoney(congressLead.amountLow)}–${shortMoney(congressLead.amountHigh)}`
+            : congressLead.action === "buy"
+              ? "Bought"
+              : "Sold",
+        label: `${congressLead.person} ${congressLead.action === "buy" ? "bought" : "sold"} ${name}`,
+      },
       id: `congress:${congressLead.ticker}:${congressLead.disclosureDate}`,
       kind: "congress",
       section: "look",
@@ -685,6 +778,11 @@ export function buildFacts(inputs: MemoInputs): FactsResult {
     const company = exposure.company;
     const via = company.fundPct >= 1 && company.via.length > 0 ? `, ${points(company.fundPct)} of it inside ${joinList(company.via.slice(0, 3))}` : "";
     facts.push({
+      card: {
+        figure: pct(company.pct),
+        label: `of what ${inputs.subject === "example" ? "the example owns" : "you own"} is ${company.name}, counting funds`,
+        visual: { kind: "share", pct: company.pct, benchmarkPct: null, label: company.ticker },
+      },
       id: `concentration:${company.ticker}`,
       kind: "concentration",
       section: "hurt",
@@ -702,6 +800,11 @@ export function buildFacts(inputs: MemoInputs): FactsResult {
   } else if (exposure?.company && exposure.company.fundPct >= 3 && exposure.company.pct >= 10) {
     const company = exposure.company;
     facts.push({
+      card: {
+        figure: pct(company.pct),
+        label: `of what ${inputs.subject === "example" ? "the example owns" : "you own"} is ${company.name}, counting funds`,
+        visual: { kind: "share", pct: company.pct, benchmarkPct: null, label: company.ticker },
+      },
       id: `hidden:${company.ticker}`,
       kind: "concentration",
       section: "look",
@@ -721,6 +824,14 @@ export function buildFacts(inputs: MemoInputs): FactsResult {
     const sector = exposure.sector;
     const bench = sector.benchmarkPct !== null ? `, against ${pct(sector.benchmarkPct)} of the S&P 500` : "";
     facts.push({
+      card: {
+        figure: pct(sector.pct),
+        label:
+          sector.benchmarkPct !== null
+            ? `in ${sector.sector}, against ${pct(sector.benchmarkPct)} of the S&P 500`
+            : `of ${words.portfolio} is in ${sector.sector}`,
+        visual: { kind: "share", pct: sector.pct, benchmarkPct: sector.benchmarkPct, label: sector.sector },
+      },
       id: `sector:${sector.sector}`,
       kind: "sector",
       section: "hurt",
@@ -756,7 +867,13 @@ export function buildFacts(inputs: MemoInputs): FactsResult {
       data[`${dividend.ticker}_per_share`] = dividend.perShare;
       if (dividend.amount !== null) data[`${dividend.ticker}_amount`] = round(dividend.amount);
     }
+    const nextUp = nextDividends[0]!;
+    const moreDividends = nextDividends.length > 1 ? `, then ${countWord(nextDividends.length - 1)} more` : "";
     facts.push({
+      card:
+        nextUp.amount !== null && nextUp.amount > 0
+          ? { figure: shortMoney(nextUp.amount), label: `from ${nextUp.name}, ex-dividend ${shortDay(nextUp.exDate)}${moreDividends}` }
+          : { figure: cents(nextUp.perShare), label: `a share from ${nextUp.name}, ex-dividend ${shortDay(nextUp.exDate)}${moreDividends}` },
       id: "dividends",
       kind: "dividend",
       section: "look",
@@ -777,6 +894,14 @@ export function buildFacts(inputs: MemoInputs): FactsResult {
     .sort((a, b) => (b.payout ?? 0) - (a.payout ?? 0))[0];
   if (atRisk) {
     facts.push({
+      card:
+        atRisk.payout! < 0
+          ? { figure: "Loss", label: `${atRisk.name} pays a dividend while losing money` }
+          : {
+              figure: pct(atRisk.payout!),
+              label: `of ${atRisk.name}'s earnings go out as dividends`,
+              visual: { kind: "share", pct: Math.min(100, atRisk.payout!), benchmarkPct: null, label: atRisk.ticker },
+            },
       id: `dividend_risk:${atRisk.ticker}`,
       kind: "dividend_risk",
       section: "hurt",
@@ -801,6 +926,7 @@ export function buildFacts(inputs: MemoInputs): FactsResult {
     const name = nameOf(inputs, reason.ticker);
     const phrase = reason.verdict === "broken" ? "looks broken" : "is weaker";
     facts.push({
+      card: { figure: reason.verdict === "broken" ? "Broken" : "Weaker", label: `your reason for owning ${name}` },
       id: `reason:${reason.ticker}`,
       kind: "reason",
       section: "hurt",
@@ -821,6 +947,12 @@ export function buildFacts(inputs: MemoInputs): FactsResult {
   const stress = inputs.stress;
   if (stress && stress.portfolio < 0 && stress.portfolio <= stress.market - STRESS_GAP_POINTS) {
     facts.push({
+      card: {
+        figure: signedPct(stress.portfolio),
+        sign: "down",
+        label: `for today's mix in the ${stress.name}`,
+        visual: { kind: "pair", portfolio: round(stress.portfolio, 1), market: round(stress.market, 1) },
+      },
       id: "stress",
       kind: "stress",
       section: "hurt",
@@ -835,6 +967,19 @@ export function buildFacts(inputs: MemoInputs): FactsResult {
       asOf: stress.end,
       data: { episode: stress.name, start: stress.start, end: stress.end, portfolio_pct: round(stress.portfolio, 1), sp500_pct: round(stress.market, 1) },
     });
+  }
+
+  // A card's line stays at ten words: a long company name gives way to its ticker (the logo sits beside it).
+  for (const fact of facts) {
+    const card = fact.card;
+    if (!card || wordsIn(card.label) <= CARD_WORDS) continue;
+    let label = card.label;
+    for (const holding of inputs.holdings) {
+      if (wordsIn(label) <= CARD_WORDS) break;
+      if (holding.name && holding.name !== holding.ticker && wordsIn(holding.name) > 1) label = label.split(holding.name).join(holding.ticker);
+    }
+    if (exposure?.company && wordsIn(label) > CARD_WORDS) label = label.split(exposure.company.name).join(exposure.company.ticker);
+    fact.card = { ...card, label };
   }
 
   return { facts, performance: perf, heldBack };

@@ -513,6 +513,7 @@ export function buildXrayRead(xray: Xray, context: Pick<XrayContext, "benchmark"
       tone: "flat",
       // Starts with the ticker, which the read shows as the company's logo and name, so the sentence reads "Microsoft is 12.7% ...".
       text: `${doubled.ticker} is ${fmtPct1(doubled.directPct)} of ${v.all} on its own, and ${viaNames(doubled)} ${doubled.via.length === 1 ? "adds" : "add"} another ${fmtPct1(doubled.fundPct)}, so it is really ${fmtPct1(doubled.directPct + doubled.fundPct)}.`,
+      figure: { value: fmtPct1(doubled.directPct + doubled.fundPct), label: "counting the funds" },
       tickers: [doubled.ticker],
       leadName: doubled.name,
       ...watchAction(doubled.ticker, doubled.name),

@@ -294,8 +294,15 @@ class DailyAnomalyReasoningTest(unittest.TestCase):
             },
         ), patch.object(reasons, "_research_row", return_value=explanation), patch.object(
             reasons, "_write_ticker_read_models"
-        ), patch.object(reasons, "trigger_web_revalidate", return_value=True):
+        ), patch.object(reasons, "trigger_web_revalidate", return_value=True), patch.object(
+            reasons, "notify_indexnow_families", return_value=True
+        ) as indexnow_families:
             reasons.main()
+
+        # The evening run tells IndexNow about the stock pages rebuilt that day.
+        indexnow_families.assert_called_once()
+        self.assertEqual(indexnow_families.call_args.args[0], ["stocks"])
+        self.assertEqual(indexnow_families.call_args.kwargs["changed_since"], "2026-07-28")
 
         row = state["payload"]["anomalies"][0]
         self.assertEqual(row["price"], 100.0)

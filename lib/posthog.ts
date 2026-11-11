@@ -97,6 +97,8 @@ function toGtagParams(properties?: Record<string, unknown>) {
   if (!properties) return {};
   return Object.fromEntries(
     Object.entries(properties).flatMap(([key, value]) => {
+      // PostHog's own keys ($set, $insert_id) mean nothing to GA, and GA names must start with a letter.
+      if (key.startsWith("$")) return [];
       const normalized = normalizeValue(value);
       return normalized === null ? [] : [[key, normalized]];
     }),

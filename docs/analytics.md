@@ -61,6 +61,7 @@ leaves the browser. Remove the key to stop.
 | Event | Properties | Fired from | Answers |
 |---|---|---|---|
 | `$pageview` | `path`, `area`, `referrer` (first view only), `utm_*`, `source` (`?ref=`), `ai_referrer`, `discovery_channel` | `components/posthog-pageview.tsx`, first load and every app-router navigation to a new path (query-only changes such as a screener filter are not new pageviews) | Visitors, sources, landing pages, devices, top pages, retention |
+| `attribution_submitted` | `source` (`google`, `ai`, `reddit`, `x`, `youtube`, `friend`, `other`), or `skipped: true`; sets the person property `heard_about_us` (the source id, or `skipped`) | `components/attribution-survey.tsx`, opened by `components/attribution-trigger.tsx` 30 seconds after a new account's first tracked stock, once per account (answer or skip). Stored on the user doc as `heard_about_us` (`app/api/user/attribution/route.ts`); the typed "somewhere else" text stays on the user doc, never in analytics | Where signups say they found us, next to what the referrer says (AI answers often arrive with no referrer) |
 | `user_returned` | `days_since_first`, `days_since_last` | same component, first visit of a later UTC day (per browser, `localStorage.sb_visits`) | New vs returning, D1/D7 return |
 | `$pageleave`, `$autocapture`, `$web_vitals`, `$exception` | PostHog's own | posthog-js (`capture_pageleave`, `autocapture`, project web-vitals setting, `capture_exceptions: true`) | Time on page, unplanned clicks, slow pages, client errors |
 
@@ -114,6 +115,36 @@ the two lines: activation (above) → `limit_hit` / `paywall_shown` →
 `paywall_shown` with `feature = briefing_personal`; a filing or news agent saved
 paused on Free reports `limit_hit` with `feature = agent_events`.
 
+### The money path: signup to paid (checked 2026-11-11)
+
+One funnel, all events that already exist. Split by `heard_about_us`, the
+first pageview's `discovery_channel` / `ai_referrer`, or `$initial_referring_domain`.
+
+1. `user_signed_up` (browser, `lib/sign-in.ts`)
+2. first useful action: `stock_tracked` with `first = true` (server) or `agent_switched_on` (browser)
+3. `checkout_clicked` (browser) → `checkout_started` (server)
+4. `subscription_activated` (server webhook, `subscription.active`)
+5. `subscription_payment_succeeded` (server webhook, `payment.succeeded`)
+
+Identity, as read in the code: the browser calls `identify(uid)` before
+`user_signed_up`, so the anonymous visit (referrer, UTM, AI referrer, landing
+page) merges into the account. Every server event above uses the same Firebase
+uid as `distinct_id` (`lib/posthog-server-capture.ts`); the webhook takes it
+from the checkout's `metadata.user_id`. So steps 1 to 5 land on one person.
+Not checked against live PostHog data.
+
+Gaps, not fixed here:
+- **Trial vs paid.** With the 3-day card trial, `subscription.active` may arrive
+  when the trial starts, so step 4 can count trials as conversions. Neither
+  webhook event carries the amount or a trial flag. Until it does, count paid as
+  step 5 at least 3 days after step 4, and treat step 4 as "trial started".
+  Whether Dodo sends `payment.succeeded` for a $0 trial start is not checked.
+- **The first agent** is only a browser event (`agent_switched_on`, from the
+  agents workspace). `app/api/agent-jobs` sends no server event, so an agent
+  saved any other way would not show in the funnel (other paths not checked).
+- **`heard_about_us`** is only asked after a first tracked stock, so people who
+  sign up and never track a stock never answer it.
+
 ### Engagement: what is working
 
 | Event | Properties | Fired from | Answers |
@@ -146,7 +177,7 @@ paused on Free reports `limit_hit` with `feature = agent_events`.
 | `compare_run` | `tickers` (≤6), `count` | `components/compare-desk/picker.tsx` | Compares |
 | `search_performed` | `surface`, `query`, `results_count`, `found`, `ticker` | header and hero search (`components/oa/oa-header-search-button.tsx`, `oa-hero-search.tsx`); no-result queries after a 1.2s pause | What people look for, and what we lack |
 | `stock_search_selected`, `stock_request_clicked`, `stock_request_*` | ticker / query | search components, request modal | Kept from before |
-| `market_status_cta_clicked`, `attribution_submitted`, `agent_access_action`, `landing_cta_clicked` | as before (`landing_cta_clicked` with `surface=hero_import` is the "See what we think of yours" link under the hero card, declared) | as before | Kept |
+| `market_status_cta_clicked`, `agent_access_action`, `landing_cta_clicked` | as before (`landing_cta_clicked` with `surface=hero_import` is the "See what we think of yours" link under the hero card, declared) | as before | Kept |
 
 ### Removed in this release
 

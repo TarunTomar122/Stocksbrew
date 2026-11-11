@@ -171,13 +171,16 @@ function biggestInsight(input: CalendarReadInput, skip: Set<string>): Insight | 
   const lead = next[0];
   if (!lead) return null;
   const move = pastMoveText(input.context?.[lead.ticker]);
-  const when = [whenWord(lead.date, input.today), timeWord(lead)].filter(Boolean).join(" ");
+  const day = whenWord(lead.date, input.today);
+  const when = [day, timeWord(lead)].filter(Boolean).join(" ");
   const runner = next[1];
   const runnerText = runner ? ` The next biggest is ${runner.ticker}, ${whenWord(runner.date, input.today)}.` : "";
   return {
     id: "biggest",
     tone: "flat",
     text: `${displayName(lead)}${capWord(lead)} is the biggest company still to report ${input.period}, ${when}.${move ? ` Last time it ${move}.` : ""}${runnerText}`,
+    // The day it reports is the news here, not its size.
+    figure: day ? { value: day.charAt(0).toUpperCase() + day.slice(1), label: timeWord(lead) || "reports" } : undefined,
     tickers: [lead.ticker, ...(runner ? [runner.ticker] : [])],
     action: { label: `${lead.ticker} earnings`, href: `/calendar/earnings/${encodeURIComponent(lead.ticker)}` },
   };

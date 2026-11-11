@@ -130,6 +130,8 @@ function leaderInsight(assets: MarketAsset[], spxDay: number, regime: MarketRegi
   return {
     id: "leader",
     tone: move > 0 ? "up" : "down",
+    // The card's logos are the fund's holdings, so the big number says whose move it is.
+    figure: { value: `${move > 0 ? "+" : move < 0 ? "\u2212" : ""}${Math.abs(move).toFixed(2)}%`, label: `${leader.symbol} today` },
     // "Better" or "worse" than the index: "1.9 pts less" read as the wrong way round on a fall.
     text: `${topic(leader)} ${move > 0 ? "led" : "fell hardest"}: ${leader.symbol} ${move > 0 ? "rose" : "fell"} ${absPct(move, 2)}, ${Math.abs(gap).toFixed(1)} points ${gap > 0 ? "better" : "worse"} than the S&P 500.`,
     soWhat: reversal

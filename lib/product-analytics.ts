@@ -135,12 +135,14 @@ export function trackLandingCtaClicked(props: {
   captureEvent("landing_cta_clicked", props);
 }
 
-export function trackAttributionSubmitted(props: {
-  source?: string;
-  other?: string;
-  skipped?: boolean;
-}) {
-  captureEvent("attribution_submitted", props);
+/**
+ * The "How did you hear about us?" answer. The source id also goes on the
+ * person (`heard_about_us`) so every funnel can be split by it. The typed
+ * "somewhere else" text stays on the user doc only: no free text goes to analytics.
+ */
+export function trackAttributionSubmitted(props: { source?: string; skipped?: boolean }) {
+  const heard = props.skipped ? "skipped" : props.source;
+  captureEvent("attribution_submitted", { ...props, ...(heard ? { $set: { heard_about_us: heard } } : {}) });
 }
 
 /** The follow/track button was pressed (signed in or not). The add itself is `stock_tracked`, sent by the server. */

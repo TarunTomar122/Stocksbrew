@@ -16,7 +16,10 @@ from backend.market_daily import (
     latest_market_days,
     save_article,
 )
-from backend.scripts.trigger_web_revalidate import trigger_web_revalidate
+from backend.scripts.trigger_web_revalidate import (
+    notify_indexnow_families,
+    trigger_web_revalidate,
+)
 from backend.storage import TraceMoneyStore
 
 
@@ -93,6 +96,8 @@ def _run_one(
             force=True,
             notify_indexnow=True,
         )
+        # The stock pages the day's calls and briefs rebuilt, not only the edition.
+        notify_indexnow_families(["stocks"], changed_since=edition_date)
     elif save_draft:
         store.save_market_daily_draft(document)
     return document
@@ -124,6 +129,7 @@ def _promote_draft(store: TraceMoneyStore, edition_date: str) -> dict[str, Any]:
         force=True,
         notify_indexnow=True,
     )
+    notify_indexnow_families(["stocks"], changed_since=edition_date)
     return document
 
 

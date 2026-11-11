@@ -37,7 +37,10 @@ from backend.scripts.build_daily_anomalies import (
     _write_ticker_read_models,
     archive_explained_day,
 )
-from backend.scripts.trigger_web_revalidate import trigger_web_revalidate
+from backend.scripts.trigger_web_revalidate import (
+    notify_indexnow_families,
+    trigger_web_revalidate,
+)
 from backend.storage import TraceMoneyStore
 from backend.url_extractor import firecrawl_enabled, search_firecrawl
 
@@ -978,6 +981,13 @@ def main() -> None:
             )
         except Exception as exc:  # noqa: BLE001
             print(f"[warn] move page refresh failed: {exc}")
+    if args.market.upper() == "US" and args.expected_price_session_phase == "post_close":
+        # The last step of the evening chain (prices, then calls and briefs, then this):
+        # tell IndexNow about every stock page rebuilt today. Market Daily, which also
+        # does this, is paused. Best effort; never fails the job.
+        session_day = str(updated.get("date") or updated.get("generated_at") or "")[:10]
+        if session_day:
+            notify_indexnow_families(["stocks"], changed_since=session_day)
     if args.require_web_revalidate and not revalidated:
         raise RuntimeError("anomaly reasons were saved, but the web refresh failed")
     result = {

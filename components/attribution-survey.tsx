@@ -39,7 +39,7 @@ export function AttributionSurvey({ onDone }: Props) {
       source === "other" ? { source, other: other?.trim() } : { source },
     );
     if (!ok) return;
-    trackAttributionSubmitted({ source, other: other?.trim() || undefined });
+    trackAttributionSubmitted({ source });
     try {
       localStorage.setItem("tikrr_attribution_done", "1");
     } catch {
@@ -91,7 +91,7 @@ export function AttributionSurvey({ onDone }: Props) {
           How did you hear about us?
         </h2>
         <p className="mt-1.5 text-[13px] leading-relaxed text-on-surface-variant">
-          One tap helps us know what&apos;s working.
+          One tap tells us where people find us.
         </p>
 
         {pending === "other" ? (
@@ -100,7 +100,7 @@ export function AttributionSurvey({ onDone }: Props) {
               type="text"
               value={otherText}
               onChange={(e) => setOtherText(e.target.value)}
-              placeholder="Podcast, newsletter, etc."
+              placeholder="A podcast, a newsletter or a forum"
               maxLength={120}
               autoFocus
               className="w-full rounded-xl border border-outline-variant bg-surface-container-low px-3.5 py-2.5 text-[14px] text-on-surface outline-none ring-0 placeholder:text-on-surface-variant focus:border-outline"
@@ -129,14 +129,15 @@ export function AttributionSurvey({ onDone }: Props) {
             </div>
           </div>
         ) : (
-          <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <div className="mt-5 grid grid-cols-2 gap-2">
             {ATTRIBUTION_SOURCES.map((option) => (
               <button
                 key={option.id}
                 type="button"
                 onClick={() => void handlePick(option.id)}
                 disabled={submitting}
-                className="rounded-xl border border-outline-variant bg-surface-container-low px-3 py-3 text-[13px] font-semibold text-on-surface transition-colors hover:border-outline hover:bg-surface-container disabled:cursor-not-allowed disabled:opacity-50"
+                // Six answers fill the grid; "Somewhere else" takes the last row on its own.
+                className={`${option.id === "other" ? "col-span-full " : ""}rounded-xl border border-outline-variant bg-surface-container-low px-3 py-3 text-[13px] font-semibold text-on-surface transition-colors hover:border-outline hover:bg-surface-container disabled:cursor-not-allowed disabled:opacity-50`}
               >
                 {option.label}
               </button>

@@ -13,9 +13,13 @@ import { CONTACT_EMAIL } from "@/lib/docs/site";
 import { getCurrentMarket } from "@/lib/market";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import {
+  CALL_COVERAGE,
   MEDIUM_DESCRIPTION,
   SITE_TITLE_DEFAULT,
 } from "@/lib/brand-copy";
+import { FREE_COVERED_STOCKS } from "@/lib/paywall-flag";
+import { CALL_PLAIN } from "@/lib/plain-copy";
+import { US_PRO_MONTHLY, US_PRO_TRIAL_DAYS, US_PRO_YEARLY } from "@/lib/pricing";
 import { ogImage } from "@/lib/og/url";
 import { Providers } from "./providers";
 import "./globals.css";
@@ -73,15 +77,60 @@ const jsonLd = {
       applicationCategory: "FinanceApplication",
       operatingSystem: "All",
       featureList: [
-        "US stock financials, news, and market context",
-        "Watchlist tracking and alerts for important changes",
-        "AI research briefs for tracked stocks",
-        "Structured stock data for connected AI tools",
+        `A dated ${Object.values(CALL_PLAIN).join(" / ")} call with its reasons on ${CALL_COVERAGE}`,
+        "A daily briefing on the stocks you follow: what moved, why, and what is coming up",
+        "Agents that watch prices, earnings, SEC filings, news, Congress trades and insider trades",
+        "Ask: sourced answers about any stock or your portfolio",
+        "Financials, valuation, filings, earnings, analyst targets and news for US stocks",
+        "API, MCP server and CLI for your own AI agent (Pro)",
       ],
+      // Two plans, three prices. A single price of 0 made engines describe the whole product as free.
       offers: {
-        "@type": "Offer",
-        price: "0",
+        "@type": "AggregateOffer",
         priceCurrency: "USD",
+        lowPrice: "0",
+        highPrice: String(US_PRO_YEARLY),
+        offerCount: 3,
+        offers: [
+          {
+            "@type": "Offer",
+            name: "Free",
+            price: "0",
+            priceCurrency: "USD",
+            url: "https://www.stocksbrew.online/pricing",
+            description: `Our call on ${CALL_COVERAGE}, stock reports and filings, free to read. A free account adds the full report on ${FREE_COVERED_STOCKS} stocks you pick.`,
+          },
+          {
+            "@type": "Offer",
+            name: "Pro, monthly",
+            price: String(US_PRO_MONTHLY),
+            priceCurrency: "USD",
+            url: "https://www.stocksbrew.online/pricing",
+            description: `The full report on every stock you track. ${US_PRO_TRIAL_DAYS}-day free trial at US checkout for a first subscription; a card is required.`,
+            priceSpecification: {
+              "@type": "UnitPriceSpecification",
+              price: String(US_PRO_MONTHLY),
+              priceCurrency: "USD",
+              billingDuration: "P1M",
+              unitCode: "MON",
+            },
+          },
+          {
+            "@type": "Offer",
+            name: "Pro, yearly",
+            price: String(US_PRO_YEARLY),
+            priceCurrency: "USD",
+            url: "https://www.stocksbrew.online/pricing",
+            description: "Pro billed once a year.",
+            priceSpecification: {
+              "@type": "UnitPriceSpecification",
+              price: String(US_PRO_YEARLY),
+              priceCurrency: "USD",
+              billingDuration: "P1Y",
+              unitCode: "ANN",
+            },
+          },
+        ],
       },
     },
   ],

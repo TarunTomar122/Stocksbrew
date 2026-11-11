@@ -245,8 +245,14 @@ const getRecentMovesCached = unstable_cache(readRecentMoves, ["explained-moves-r
  * document (tm_daily_anomalies/US__YYYY-MM-DD): the live `US__latest` feed is
  * replaced every session, so its pages are only listed once archived.
  */
-export async function getRecentMoves(today: string = todayET(), options: { archivedOnly?: boolean } = {}): Promise<MoveRef[]> {
-  const moves = await getRecentMovesCached(dayMinus(today, MOVE_SITEMAP_DAYS), !options.archivedOnly).catch(() => [] as MoveRef[]);
+export async function getRecentMoves(
+  today: string = todayET(),
+  options: { archivedOnly?: boolean; /** Told when the read failed, so the sitemap does not cache an empty family. */ onError?: (error: unknown) => void } = {},
+): Promise<MoveRef[]> {
+  const moves = await getRecentMovesCached(dayMinus(today, MOVE_SITEMAP_DAYS), !options.archivedOnly).catch((error: unknown) => {
+    options.onError?.(error);
+    return [] as MoveRef[];
+  });
   return [...moves].sort((a, b) => b.day.localeCompare(a.day) || Math.abs(b.pct) - Math.abs(a.pct));
 }
 
@@ -301,6 +307,9 @@ async function readInsiderCounts(since: string): Promise<InsiderCount[]> {
 const getInsiderCountsCached = unstable_cache(readInsiderCounts, ["insider-counts-v1"], { revalidate: 3600 });
 
 /** Open-market Form 4 trades per stock in the insider window, with the last filing day. */
-export async function getInsiderCounts(today: string = todayET()): Promise<InsiderCount[]> {
-  return getInsiderCountsCached(dayMinus(today, INSIDER_WINDOW_DAYS)).catch(() => [] as InsiderCount[]);
+export async function getInsiderCounts(today: string = todayET(), onError?: (error: unknown) => void): Promise<InsiderCount[]> {
+  return getInsiderCountsCached(dayMinus(today, INSIDER_WINDOW_DAYS)).catch((error: unknown) => {
+    onError?.(error);
+    return [] as InsiderCount[];
+  });
 }

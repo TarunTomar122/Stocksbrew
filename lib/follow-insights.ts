@@ -755,6 +755,7 @@ export function buildFundRead(profile: FundProfile, copy?: CopyRecord | null, to
               : profile.latest.stock_positions >= 50 && topWeight < 0.2
                 ? `${short} ${stale ? "spread" : "spreads"} its money widely: its top three stocks (${listWords(top3.map((position) => position.ticker!))}) ${stale ? "were" : "are"} only ${pct(topWeight)} of ${plural(profile.latest.stock_positions, "holding")}.`
                 : `Its three biggest holdings, ${listWords(top3.map((position) => `${position.ticker} ${pct(position.weight ?? 0)}`))}, ${stale ? "made" : "make"} up ${pct(topWeight)} of the stocks it ${stale ? "owned" : "owns"}.`,
+          figure: { value: pct(topWeight), label: "in its top three stocks" },
           tickers: top3.map((position) => position.ticker!),
           action: { label: "Full portfolio", href: "#portfolio" },
         }

@@ -20,8 +20,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = toolPageMetadata("/portfolio/memo");
 
-const LEDE =
-  "Once a week, a short memo on everything you hold: how it did against the S&P 500, what changed, what could hurt and what is worth a look.";
+const LEDE = "Your week in one look: how your stocks did against the S&P 500, who moved them, what changed and what could hurt.";
 
 type Search = Record<string, string | string[] | undefined>;
 
@@ -65,7 +64,7 @@ function Layout({ data, plan, note }: { data: MemoPageData; plan: Parameters<typ
       ) : null}
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_17rem] lg:items-start">
         <MemoLetter memo={data.memo} example={data.mode === "example"} plan={plan} />
-        <MemoHistory rows={data.history} current={data.memo.weekKey} latestKey={latestKey} />
+        <MemoHistory rows={data.history} current={data.memo.weekKey} latestKey={latestKey} example={data.mode === "example"} />
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import { buildFacts, leftOutSentence, moveSize, pct, rise, type WeekPerformance } from "./facts";
 import { MEMO_VERSION, type Memo, type MemoFact, type MemoInputs, type MemoItem, type MemoSection } from "./types";
+import { buildView } from "./view";
 
 /**
  * The memo from the week's facts: rules pick what goes in each section and
@@ -33,6 +34,7 @@ export function toItem(fact: MemoFact, text: string = fact.text): MemoItem {
     tickers: fact.tickers,
     source: fact.source,
     asOf: fact.asOf,
+    card: fact.card ?? null,
   };
 }
 
@@ -122,6 +124,7 @@ export function buildMemo(inputs: MemoInputs, now: Date = new Date()): BuiltMemo
     heldBack: [...chosen.changed, ...chosen.hurt, ...chosen.look].reduce((sum, fact) => sum + (fact.heldBack ?? 0), 0),
     wordedBy: "rules",
     writtenAt: now.toISOString(),
+    view: buildView(inputs, performance),
   };
   const partial = performance ? performance.priced < performance.total : false;
   return {

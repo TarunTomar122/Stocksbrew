@@ -511,7 +511,11 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
                       ) : null}
                       {/* How sure, in words, and honest about the record: we have no test showing these calls beat the market. */}
                       <p className="mt-2 text-pretty text-[13px] leading-[18px] text-oa-muted-fg">
-                        {callMeta ? `${callMeta} ` : null}Our view, not advice.{" "}
+                        {/* Linked to how calls are made, so a crawler reading the first block finds the method behind the call. Same look as the text around it. */}
+                        {callMeta ? `${callMeta} ` : null}
+                        <Link prefetch={false} href="/docs/methodology" className="hover:underline focus-visible:underline focus-visible:outline-none">
+                          Our view, not advice.
+                        </Link>{" "}
                         {data.gate.levels ? (
                           <a href="#read" className="text-oa-primary hover:underline">
                             Read the reasoning

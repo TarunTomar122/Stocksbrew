@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Crumbs, DocsShell, InlineToc } from "@/components/docs/docs-shell";
 import { JsonLd, breadcrumbLd } from "@/components/docs/json-ld";
 import { FOCUS, fmtDay } from "@/components/oa/kit";
+import { comparisonAnswer } from "@/lib/compare-data";
 import { COMPARISON_RECHECKED, DOC_COMPARISONS, docCompareHref, getDocComparison, movedCompareHref } from "@/lib/docs/compare";
 import { SITE_URL } from "@/lib/docs/site";
 import { getCompareRelated } from "@/lib/seo/compare-links";
@@ -40,6 +41,8 @@ export default function DocsComparePage({ params }: Props) {
   const path = docCompareHref(page.slug);
   const rechecked = COMPARISON_RECHECKED[page.slug];
   const related = getCompareRelated(page.slug);
+  const answer = comparisonAnswer(page);
+  const pricesChecked = rechecked && rechecked !== "not checked" ? rechecked : null;
   const toc = [
     { id: "who-each-is-for", text: "Who each is for" },
     { id: "side-by-side", text: "Side by side" },
@@ -52,12 +55,8 @@ export default function DocsComparePage({ params }: Props) {
     <DocsShell current="/docs/compare" toc={toc}>
       <JsonLd
         data={[
+          // No FAQPage markup: the questions below stay as plain text on the page.
           { "@context": "https://schema.org", "@type": "WebPage", name: page.title, description: page.description, url: `${SITE_URL}${path}` },
-          {
-            "@context": "https://schema.org",
-            "@type": "FAQPage",
-            mainEntity: page.faqs.map((faq) => ({ "@type": "Question", name: faq.question, acceptedAnswer: { "@type": "Answer", text: faq.answer } })),
-          },
           breadcrumbLd([
             { name: "Home", path: "/" },
             { name: "Docs", path: "/docs" },
@@ -70,18 +69,21 @@ export default function DocsComparePage({ params }: Props) {
         <Crumbs items={[{ label: "Docs", href: "/docs" }, { label: "Comparisons", href: "/docs/compare" }, { label: page.competitorName }]} />
         <header className="mb-6">
           <h1 className="text-balance text-[28px] font-medium leading-[1.15] tracking-tight text-oa-fg sm:text-[34px]">{page.title}</h1>
-          <p className="mt-3 text-pretty text-[17px] leading-7 text-oa-muted-fg">{page.verdict}</p>
+          {/* The answer first, in one paragraph: who each is for, then what each costs and one thing we do worse. */}
+          <p className="mt-3 text-pretty text-[17px] leading-7 text-oa-muted-fg">
+            {answer.who} <span className="mt-2 block">{answer.cost}</span>
+          </p>
           <p className="oa-mono mt-3 text-[11.5px] leading-4 text-oa-muted-fg">
             Written by stocksbrew · desk research from official pages · no affiliate links
-            {rechecked ? ` · ${page.competitorName} details rechecked ${fmtDay(rechecked, true)}` : ""}
+            {pricesChecked ? ` · ${page.competitorName} prices checked ${fmtDay(pricesChecked, true)}` : ` · ${page.competitorName} prices not checked`}
           </p>
         </header>
 
         <aside className="oa-surface mb-6 border border-[color-mix(in_srgb,var(--oa-primary)_45%,transparent)] bg-oa-card px-4 py-3">
           <p className="oa-caption mb-1">Read this first</p>
           <p className="text-pretty text-[15px] leading-6 text-oa-fg/90">
-            What this page says about stocksbrew was rechecked against the product on November 10, 2026. What it says about {page.competitorName} is desk research and may
-            be out of date. For what stocksbrew does today, see{" "}
+            What this page says about stocksbrew was rechecked against the product on November 10, 2026. What it says about {page.competitorName}&apos;s features is desk research and may
+            be out of date{pricesChecked ? `; its prices were read from its own pricing page on ${fmtDay(pricesChecked, true)}` : ""}. For what stocksbrew does today, see{" "}
             <Link prefetch={false} href="/docs/start/what-stocksbrew-is" className={LINK}>
               What stocksbrew is and is not
             </Link>

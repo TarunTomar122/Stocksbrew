@@ -1,4 +1,4 @@
-import { COMPARISON_PAGES, getComparisonPage, type ComparisonPage } from "@/lib/compare-data";
+import { COMPARISON_PAGES, PRICE_CHECKS, getComparisonPage, type ComparisonPage } from "@/lib/compare-data";
 
 /**
  * The product comparisons (stocksbrew next to another research tool) moved
@@ -24,9 +24,11 @@ export function movedCompareHref(href: string): string {
   return match ? `/docs/compare/${match[1]}${match[2]}` : href;
 }
 
-/** The date each comparison's facts about the other product were last rechecked against its official pages. */
-export const COMPARISON_RECHECKED: Record<string, string> = {
-  "stocksbrew-vs-finviz": "2026-07-16",
-  "stocksbrew-vs-tradingview": "2026-07-16",
-  "stocksbrew-vs-seeking-alpha": "2026-07-16",
-};
+/**
+ * The day each comparison's prices for the other product were last read off
+ * that product's own pricing page (PRICE_CHECKS in lib/compare-data.ts, which
+ * also holds the address), or "not checked" when the page could not be read.
+ */
+export const COMPARISON_RECHECKED: Record<string, string> = Object.fromEntries(
+  COMPARISON_PAGES.map((page) => [page.slug, PRICE_CHECKS[page.slug]?.checked ?? "not checked"]),
+);

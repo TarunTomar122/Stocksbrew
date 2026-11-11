@@ -171,6 +171,8 @@ function positionsRead(input: PortfolioInsightInput): TheRead | null {
         id: "contributors",
         tone: sign > 0 ? "up" : "down",
         text,
+        // The share of the move is the point; without one, the lead stock's own move.
+        figure: share >= 35 && share <= 100 ? { value: pct(share, 0), label: "of the day's move" } : { value: signedPct(leaders[0]!.position.dayPct!), label: leaders[0]!.position.ticker },
         soWhat: drag ? `${drag.position.ticker} went the other way: it ${drag.position.dayPct! > 0 ? "rose" : "fell"} ${pct(Math.abs(drag.position.dayPct!), 1)}.` : undefined,
         tickers: [...leaders.map((row) => row.position.ticker), ...(drag ? [drag.position.ticker] : [])],
         action: { label: `Why ${leaders[0]!.position.ticker} moved`, href: `/stock/${leaders[0]!.position.ticker}` },
@@ -193,6 +195,7 @@ function positionsRead(input: PortfolioInsightInput): TheRead | null {
         reporting.length === 1
           ? `${first.position.ticker} reports ${shortDay(first.date)}${first.time === "amc" ? " after the close" : first.time === "bmo" ? " before the open" : ""}, the only holding reporting ${span}; it is ${shareOfBook([first], rows, byValue)}.`
           : `${plural(reporting.length, "holding")} report ${span}: ${joinSome(list, reporting.length)}${byValue ? `, ${shareOfBook(reporting, rows, byValue)} between them` : ""}.`,
+      figure: shortDay(first.date) ? { value: shortDay(first.date), label: reporting.length === 1 ? `${first.position.ticker} reports` : `${first.position.ticker} reports first` } : undefined,
       tickers: reporting.slice(0, 6).map((row) => row.position.ticker),
       action: { label: `${first.position.ticker} earnings`, href: `/stock/${first.position.ticker}#earnings` },
     };
@@ -211,6 +214,7 @@ function positionsRead(input: PortfolioInsightInput): TheRead | null {
       id: "calls",
       tone: changes.every((change) => change.to === "Add") ? "up" : changes.every((change) => change.to === "Trim") ? "down" : "flat",
       text: `We changed our call on ${plural(changes.length, "holding")} this week: ${joinSome(parts, changes.length)}.`,
+      figure: { value: String(changes.length), label: changes.length === 1 ? "call changed" : "calls changed" },
       tickers: changes.slice(0, 6).map((change) => change.ticker),
       action: { label: "Read why", href: `/stock/${changes[0]!.ticker}#read` },
     };
@@ -255,6 +259,7 @@ function zoneLine(list: PortfolioPosition[], zones: PortfolioInsightInput["zones
       id: "zones",
       tone: inAdd.length >= inTrim.length ? "up" : "down",
       text: `${parts.join("; ")}.`,
+      figure: inAdd.length > 0 ? { value: String(inAdd.length), label: "in the add zone" } : { value: String(inTrim.length), label: "in the trim zone" },
       tickers: named,
       action: { label: `See ${first.position.ticker}`, href: `/stock/${first.position.ticker}` },
     };
@@ -275,6 +280,7 @@ function zoneLine(list: PortfolioPosition[], zones: PortfolioInsightInput["zones
         atLevel.length === 1
           ? `${names[0]} sits right at its add level (${money(atLevel[0]!.zone.add!)}).`
           : `${joinNames(names)}${atLevel.length > names.length ? ` and ${atLevel.length - names.length} more` : ""} sit right at their add levels.`,
+      figure: atLevel.length === 1 ? { value: money(atLevel[0]!.zone.add!), label: "add level" } : { value: String(atLevel.length), label: "at their add level" },
       tickers: names,
       action: { label: `See ${names[0]}`, href: `/stock/${names[0]}` },
     };
@@ -284,6 +290,7 @@ function zoneLine(list: PortfolioPosition[], zones: PortfolioInsightInput["zones
     id: "zones",
     tone: "flat",
     text: `${top.position.ticker} is ${pct(top.zone.toAdd!)} above its add level (${money(top.zone.add!)}), the closest of your ${nouns}.`,
+    figure: { value: pct(top.zone.toAdd!), label: "above the add level" },
     soWhat: next.length ? `Next: ${joinNames(next.map((item) => `${item.position.ticker} ${pct(item.zone.toAdd!)} away`))}.` : undefined,
     tickers: [top.position.ticker, ...next.map((item) => item.position.ticker)],
     action: { label: `Set an alert on ${top.position.ticker}`, href: `/stock/${top.position.ticker}` },
@@ -315,6 +322,7 @@ function sectorLine(input: PortfolioInsightInput, rows: Weighted[], byValue: boo
     id: "sector",
     tone: "flat",
     text: `${lead}${fin(sp) ? `, against ${pct(sp, 0)} of the S&P 500` : ""}.`,
+    figure: { value: pct(top.weight, 0), label: `in ${top.sector}` },
     tickers: names.slice(0, 6),
     action: { label: "Analytics", href: "/watchlist?tab=analytics" },
   };
@@ -408,6 +416,7 @@ function watchingRead(input: PortfolioInsightInput): TheRead | null {
         id: "earnings",
         tone: "flat",
         text: `${plural(reporting.length, "watched name")} report${reporting.length === 1 ? "s" : ""} ${reportingSpan(reporting.map((item) => item.position.nextEarnings!.date), input.today)}: ${joinSome(reporting.slice(0, 5).map((item) => `${item.position.ticker} ${shortDay(item.position.nextEarnings!.date)}`), reporting.length)}.`,
+        figure: { value: shortDay(reporting[0]!.position.nextEarnings!.date), label: `${reporting[0]!.position.ticker} reports${reporting.length > 1 ? " first" : ""}` },
         tickers: reporting.slice(0, 5).map((item) => item.position.ticker),
         action: { label: `${reporting[0]!.position.ticker} earnings`, href: `/stock/${reporting[0]!.position.ticker}#earnings` },
       }
@@ -518,6 +527,7 @@ function analyticsRead(input: PortfolioInsightInput): TheRead | null {
       id: "risk",
       tone: analytics.beta > 1.2 ? "down" : analytics.beta < 0.8 ? "up" : "flat",
       text: `When the S&P 500 moves 1%, your portfolio has tended to move ${analytics.beta.toFixed(1)}%.${vol}`,
+      figure: { value: `${analytics.beta.toFixed(1)}%`, label: "for each 1% the S&P 500 moves" },
       soWhat: high.length ? `${joinNames(high.map((row) => `${row.position.ticker} (${row.position.beta!.toFixed(1)})`))} swing the most.` : undefined,
       tickers: high.map((row) => row.position.ticker),
     };
@@ -542,6 +552,10 @@ function analyticsRead(input: PortfolioInsightInput): TheRead | null {
           sign > 0
             ? `${names} ${share >= 35 && share <= 100 ? `made ${pct(share, 0)} of` : "did the most for"} your +${money(gain)} (${signedPct(totals.gainPct, 2)}) gain on cost.`
             : `${names} ${share >= 35 && share <= 100 ? `${lead.length === 1 ? "accounts" : "account"} for ${pct(share, 0)} of` : share > 100 ? "drove most of" : "lost the most in"} your ${money(gain)} (${pct(totals.gainPct, 2)}) loss on cost.`,
+        figure:
+          share >= 35 && share <= 100
+            ? { value: pct(share, 0), label: `of the ${sign > 0 ? "gain" : "loss"} on cost` }
+            : { value: `${sign > 0 ? "+" : "\u2212"}${money(gain)}`, label: "on cost" },
         tickers: lead.map((position) => position.ticker),
       };
     }
@@ -613,6 +627,7 @@ function alertsRead(input: PortfolioInsightInput): TheRead | null {
           id: "next",
           tone: "flat",
           text: `Next closest: ${joinNames(priced.slice(1, 4).map((item) => `${item.alert.ticker} ${item.alert.condition} ${money(item.alert.target_price!)} (${pct(item.away)} away)`))}.`,
+          figure: { value: pct(priced[1]!.away), label: `to the ${priced[1]!.alert.ticker} alert` },
           tickers: [...new Set(priced.slice(1, 4).map((item) => item.alert.ticker))],
         }
       : null;
@@ -621,6 +636,7 @@ function alertsRead(input: PortfolioInsightInput): TheRead | null {
         id: "unwatched-earnings",
         tone: "flat",
         text: `${joinSome(soon.slice(0, 3).map((item) => item.position.ticker), soon.length)} ${soon.length === 1 ? "reports" : "report"} in the next two weeks with no alert set.`,
+        figure: { value: shortDay(soon[0]!.position.nextEarnings!.date), label: `${soon[0]!.position.ticker} reports${soon.length > 1 ? " first" : ""}` },
         tickers: soon.slice(0, 3).map((item) => item.position.ticker),
         action: { label: `Alert on ${soon[0]!.position.ticker}`, href: `/stock/${soon[0]!.position.ticker}` },
       }
@@ -631,6 +647,7 @@ function alertsRead(input: PortfolioInsightInput): TheRead | null {
           id: "bare",
           tone: "flat",
           text: `${bare.length} of your ${plural(input.portfolio.positions.length, "holding")} ${bare.length === 1 ? "has" : "have"} no alert of any kind.`,
+          figure: { value: `${bare.length} of ${input.portfolio.positions.length}`, label: "holdings with no alert" },
           tickers: bare.slice(0, 6).map((position) => position.ticker),
         }
       : null;
