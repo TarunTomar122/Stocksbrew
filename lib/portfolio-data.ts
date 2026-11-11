@@ -151,6 +151,9 @@ const EXAMPLE: Array<{
   { ticker: "CAT", name: "Caterpillar", sector: "Industrials", kind: "watchlist" },
 ];
 
+/** The example's own stocks (not its funds or watchlist), in its order: what the example agents watch (lib/portfolio-home/example-agents.ts). */
+export const EXAMPLE_STOCK_TICKERS: readonly string[] = EXAMPLE.filter((item) => item.kind === "holding" && item.sector !== FUNDS_SECTOR).map((item) => item.ticker);
+
 export type ExamplePortfolio = {
   portfolio: Portfolio;
   /** New York day the example is priced on (the quotes' day), YYYY-MM-DD. */

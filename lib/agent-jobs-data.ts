@@ -14,7 +14,7 @@ import { loadFilingFacts, loadNewsFacts } from "@/lib/agent-events-data";
 import { listEarningsDayReports } from "@/lib/earnings-day";
 import type { EarningsReportFact } from "@/lib/earnings-day-agent";
 import { earningsDayHref, toneOfGuidance, toneOfVerdict } from "@/lib/earnings-day-shared";
-import { limitFor, type Plan } from "@/lib/entitlements";
+import { limitFor, systemPlanOf, type Plan } from "@/lib/entitlements";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { isCovered, viewerFromUserDoc } from "@/lib/entitlements-server";
 import { getUserDoc, resolveIsSubscribed, type UserDoc } from "@/lib/watchlist";
@@ -620,14 +620,18 @@ export type RunAllSummary = {
  * `dryRun` every job is read and decided the same way and nothing is written
  * ("recorded" then means "would record").
  */
-export async function runAllEnabledJobs(now = new Date(), log: (line: string) => void = () => {}, options: { dryRun?: boolean } = {}): Promise<RunAllSummary> {
+export async function runAllEnabledJobs(
+  now = new Date(),
+  log: (line: string) => void = () => {},
+  options: { dryRun?: boolean; /** Only this account's jobs (the example agents' setup script runs its own). */ onlyUid?: string } = {},
+): Promise<RunAllSummary> {
   const snap = await adminFirestore.collection(AGENT_JOBS_COLLECTION).where("enabled", "==", true).get();
   const jobs = snap.docs
     .map((doc) => {
       const data = doc.data() as Record<string, unknown>;
       return jobFromDoc(data, text(data.uid));
     })
-    .filter((job): job is StoredJob => job !== null && !job.archived && job.enabled);
+    .filter((job): job is StoredJob => job !== null && !job.archived && job.enabled && (!options.onlyUid || job.uid === options.onlyUid));
   // The plan caps how many jobs run at once (lib/entitlements.ts: agents). The API enforces it when a job is
   // switched on; this covers accounts whose plan changed since, by running the oldest ones up to the limit.
   // Nothing is switched off or deleted here.
@@ -636,10 +640,12 @@ export async function runAllEnabledJobs(now = new Date(), log: (line: string) =>
   const runnable: StoredJob[] = [];
   let overPlan = 0;
   for (const [uid, owned] of byUid) {
-    const doc = await getUserDoc(uid).catch(() => undefined);
+    // A system account (the example portfolio's agents) has no user doc; its plan is fixed in lib/entitlements.ts.
+    const system = systemPlanOf(uid);
+    const doc = system ? null : await getUserDoc(uid).catch(() => undefined);
     // If the account cannot be read, run its jobs: an outage should not silence anyone's agents.
-    const plan: Plan = doc === undefined ? "pro" : resolveIsSubscribed(doc) ? "pro" : "free";
-    const limit = doc === undefined ? Number.POSITIVE_INFINITY : limitFor("agents", plan);
+    const plan: Plan = system ?? (doc === undefined ? "pro" : resolveIsSubscribed(doc) ? "pro" : "free");
+    const limit = !system && doc === undefined ? Number.POSITIVE_INFINITY : limitFor("agents", plan);
     // Filing and news agents a plan cannot run (a lapsed Pro, or Free on the tighter line) wait, switched on, until it can.
     const allowed = owned.filter((job) => planMayRun(job, plan));
     const sorted = [...allowed].sort((a, b) => a.created_at.localeCompare(b.created_at));

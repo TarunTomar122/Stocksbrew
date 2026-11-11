@@ -5,6 +5,7 @@ import * as React from "react";
 import { FOCUS } from "@/components/ask/atoms";
 import { AskWorkspace, type Allowance, type AskRequest, type PanelBarActions } from "@/components/ask/ask-workspace";
 import type { AskPlan } from "@/lib/ask-config";
+import { formatExampleSubject, pageExampleSubject } from "@/lib/ask-examples";
 import { ASK_PANEL_ID } from "@/lib/ask-link";
 import { pageAskContext } from "@/lib/ask-page-context";
 import { usePublicPathname } from "@/lib/use-public-pathname";
@@ -114,6 +115,18 @@ export default function AskPanel({
     () => (viewer ? pageAskContext({ pathname, search: typeof window === "undefined" ? "" : window.location.search, signedIn: viewer.signedIn, example }) : null),
     [pathname, viewer, example],
   );
+
+  // Signed out, the page's example answer (lib/ask-examples.ts). It follows the page only while the panel is open, so
+  // a closed panel never fetches one as someone moves between pages.
+  const pageExample = React.useMemo(() => {
+    if (!viewer || viewer.signedIn) return null;
+    const subject = pageExampleSubject({ pathname, pageContext });
+    return subject ? formatExampleSubject(subject) : null;
+  }, [viewer, pathname, pageContext]);
+  const [exampleSubject, setExampleSubject] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    if (open) setExampleSubject(pageExample);
+  }, [open, pageExample]);
 
   // A request from a link carries its own item. The Ask button's carries none, so it takes the page's.
   const effectiveRequest = React.useMemo<AskRequest | null>(
@@ -270,6 +283,7 @@ export default function AskPanel({
             initialAllowance={viewer.allowance}
             request={effectiveRequest}
             pageContext={pageContext}
+            exampleSubject={exampleSubject}
             renderBar={bar}
             onHandedOff={onHandedOff}
           />

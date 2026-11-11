@@ -406,6 +406,44 @@ class Doc:
             self.p(note, muted=True, size=t.TEXT_XS)
         return self
 
+    def changes(self, rows: list[tuple[str, str, str, str]], *, link: bool = True) -> "Doc":
+        """What a basket bought and sold: (ticker, "in" or "out", weight, reason), each with its logo.
+
+        ``link=False`` for funds, which have no stock page.
+        """
+        trs = []
+        for i, (ticker, side, weight, reason) in enumerate(rows):
+            border = f"border-top:1px solid {t.DIVIDER};" if i else ""
+            word, color = ("In", t.UP) if side == "in" else ("Out", t.DOWN)
+            reason_html = (
+                f"<div style='margin-top:2px;font-size:{t.TEXT_XS}px;line-height:1.45;color:{t.MUTED}'>{esc(reason)}</div>"
+                if reason
+                else ""
+            )
+            trs.append(
+                "<tr>"
+                f"<td width='34' valign='top' style='{border}padding:10px 0'><img src='{esc(logo_src(ticker))}' width='24' height='24' alt='' "
+                f"style='display:block;width:24px;height:24px;border-radius:12px;border:1px solid {t.BORDER};background:#fff' /></td>"
+                f"<td valign='top' style='{border}padding:10px 12px 10px 0'>"
+                f"<span style='font-size:{t.TEXT_XS}px;font-weight:700;color:{color}'>{word}</span>&nbsp; "
+                + (
+                    f"<a href='{esc(stock_url(ticker))}' style='font-size:{t.TEXT_SM}px;font-weight:700;color:{t.INK};text-decoration:none'>{esc(ticker)}</a>"
+                    if link
+                    else f"<span style='font-size:{t.TEXT_SM}px;font-weight:700;color:{t.INK}'>{esc(ticker)}</span>"
+                )
+                + f"{reason_html}</td>"
+                f"<td align='right' valign='top' style='{border}padding:10px 0;font-size:{t.TEXT_SM}px;color:{t.BODY};"
+                f"white-space:nowrap;font-variant-numeric:tabular-nums'>{esc(weight)}</td>"
+                "</tr>"
+            )
+            self.text.append(f"  {word:<4} {ticker:<6} {weight:>6}  {reason}".rstrip())
+        self.parts.append(
+            "<table role='presentation' width='100%' cellpadding='0' cellspacing='0' "
+            f"style='margin:0 0 8px;border:1px solid {t.BORDER};border-radius:{t.RADIUS}px;background:{t.CARD}'>"
+            f"<tr><td style='padding:4px 16px'><table role='presentation' width='100%' cellpadding='0' cellspacing='0'>{''.join(trs)}</table></td></tr></table>"
+        )
+        return self
+
     def calendar(self, rows: list[tuple[str, str, str]]) -> "Doc":
         """Upcoming dated items: (day label, ticker, what)."""
         trs = []
@@ -557,8 +595,10 @@ def render(
     preheader: str,
     unsubscribe_token: str | None = None,
     meta: dict | None = None,
+    reason: str | None = None,
 ) -> Email:
-    reason = CATEGORY_REASON.get(category, CATEGORY_REASON["product"])
+    """Wrap a doc in the shell. ``reason`` replaces the category's "why you get this" line."""
+    reason = reason or CATEGORY_REASON.get(category, CATEGORY_REASON["product"])
     unsub = unsubscribe_url(category, unsubscribe_token)
     label = {"daily": "the daily brief", "weekly": "the weekly recap", "alerts": "alert emails"}.get(category, "these emails")
     footer_html = (

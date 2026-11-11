@@ -5,6 +5,7 @@ import { fmtDay, fmtStampET } from "@/components/oa/kit";
 import { Bar } from "@/components/oa/kit/skeleton";
 import { ToneGlyph } from "@/components/oa/kit/tone";
 import { findingSlug } from "@/components/portfolio-home/agents-panel";
+import { phoneReason } from "@/components/portfolio-home/phone-reason";
 import { HomeSignIn } from "@/components/portfolio-home/sign-in";
 import { StockLogo } from "@/components/stock-logo";
 import { ASK_MAX_QUESTION_CHARS } from "@/lib/ask-config";
@@ -12,7 +13,8 @@ import { countWord } from "@/lib/read-format";
 import { newYorkToday } from "@/lib/portfolio-data";
 import { focusHeadline, focusNoticed, prioritise, type FoldRow, type Lead } from "@/lib/portfolio-home/focus";
 import { buildAgentLog, dataChecks, type LogRow } from "@/lib/portfolio-home/log";
-import { askFor, findingLoop, findingWatchLine, foldedCheckIds, matchAgent, nextWords, stampWords, watchPlan, type FindingLoop, type WatchPlan } from "@/lib/portfolio-home/loop";
+import { loadExampleAgentsSource } from "@/lib/portfolio-home/example-check-server";
+import { askFor, exampleWatchLine, findingLoop, findingWatchLine, foldedCheckIds, matchAgent, nextWords, stampWords, watchPlan, type FindingLoop, type WatchPlan } from "@/lib/portfolio-home/loop";
 import type { FindingSource } from "@/lib/portfolio-home/pick";
 import { pickQuestions } from "@/lib/portfolio-home/questions";
 import { feedSources, type ExampleReason, type HomeLoad } from "@/lib/portfolio-home/server";
@@ -145,15 +147,21 @@ async function FindingWatch({ item, loop, load, today }: { item: Lead; loop: Fin
   const [{ mode, viewer }, agents] = await Promise.all([load.context, load.agents]);
   const mine = mode === "mine";
   const match = mine && agents.state === "ready" ? matchAgent(loop.watch, item.ticker, agents.value, trackedTickers(viewer.tracked), today) : null;
-  const line = findingWatchLine({
-    plan: loop.watch,
-    match,
-    ticker: item.ticker,
-    agents,
-    mine,
-    reasonDay: loop.check?.id === "reasons" ? loop.check.day : null,
-    today,
-  });
+  // The example, for someone with no agents of their own: the agents panel shows the example's own agents, so a
+  // finding one of them watches says so (with its real last check) instead of "No agent watches this yet".
+  const noOwnAgents = !viewer.uid || agents.state === "empty" || (agents.state === "ready" && agents.value.jobs.length === 0);
+  const exampleAgents = !mine && noOwnAgents ? await loadExampleAgentsSource() : null;
+  const line =
+    (exampleAgents ? exampleWatchLine({ plan: loop.watch, ticker: item.ticker, agents: exampleAgents, today }) : null) ??
+    findingWatchLine({
+      plan: loop.watch,
+      match,
+      ticker: item.ticker,
+      agents,
+      mine,
+      reasonDay: loop.check?.id === "reasons" ? loop.check.day : null,
+      today,
+    });
   if (!line) return null;
   return (
     <p className={`mb-1 flex items-start gap-1.5 text-pretty text-[12.5px] leading-[17px] ${line.fired ? "text-oa-fg" : "text-oa-muted-fg"}`}>
@@ -216,6 +224,7 @@ function StepLink({ label, href, watch }: { label: string; href: string; watch: 
 function FindingCard({ item, loop, load, today }: { item: Lead; loop: FindingLoop; load: HomeLoad; today: string }) {
   const headline = item.headline ?? item.text;
   const why = item.headline ? (item.why ?? null) : null;
+  const reason = phoneReason(item, headline);
   const slug = findingSlug(item.id);
   const check = loop.check;
   const source = item.source ?? null;
@@ -254,6 +263,8 @@ function FindingCard({ item, loop, load, today }: { item: Lead; loop: FindingLoo
               <span className="truncate">{item.caption}</span>
             </span>
             <span className="mt-1 block text-pretty text-[15px] font-medium leading-[21px] text-oa-fg">{headline}</span>
+            {/* A phone shows one short reason closed; open, the full explanation below takes its place. */}
+            {reason ? <span className="mt-0.5 block text-pretty text-[13.5px] leading-[18px] text-oa-muted-fg group-open:hidden sm:hidden">{reason}</span> : null}
             {/* Shown closed from sm up (the desktop density); on a phone they open with the card. */}
             <span id={`finding-${slug}-more`}>
               {why ? <span className="mt-1 hidden text-pretty text-[14px] leading-5 text-oa-fg group-open:block sm:block">{why}</span> : null}

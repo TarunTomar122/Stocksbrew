@@ -179,7 +179,7 @@ function Quote({ card }: { card: QuoteCard }) {
         {card.day_change_pct !== null ? <Delta value={card.day_change_pct} className="text-[15px]" /> : null}
         {card.sector ? <span className="text-[13px] text-oa-muted-fg">{[card.sector, card.industry].filter(Boolean).join(" · ")}</span> : null}
       </div>
-      <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
+      <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4 [.oa-ask-panel_&]:grid-cols-2">
         <Stat label="Market value">{fmtCompact(card.market_cap, "$")}</Stat>
         <Stat label="P/E, trailing">{ratio(card.pe_ttm)}</Stat>
         <Stat label="52-week range">
@@ -229,7 +229,7 @@ function Returns({ card }: { card: ReturnsCard }) {
       }
       source={<SourceLine source={card.source} asOf={card.as_of} />}
     >
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4 [.oa-ask-panel_&]:grid-cols-2">
         <Stat label="Total return" sub={`${fmtMoney(card.from.close)} to ${fmtMoney(card.to.close)}`}>
           <Delta value={card.return_pct} />
         </Stat>
@@ -471,7 +471,7 @@ function MarketBrief({ card }: { card: MarketBriefCard }) {
       {card.title ? <p className="text-pretty text-[15px] font-medium leading-5 text-oa-fg">{card.title}</p> : null}
       {card.body ? <p className="mt-1 line-clamp-4 text-pretty text-[13.5px] leading-5 text-oa-muted-fg">{card.body}</p> : null}
       {card.macro.length > 0 ? (
-        <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2.5 border-t border-oa-border pt-3 sm:grid-cols-4">
+        <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2.5 border-t border-oa-border pt-3 sm:grid-cols-4 [.oa-ask-panel_&]:grid-cols-2">
           {card.macro.map((item) => (
             <Stat key={item.label} label={item.label} sub={<Delta value={item.day_change_pct} className="text-[12px]" />}>
               {item.value}
@@ -752,7 +752,7 @@ function Fund({ card }: { card: FundCard }) {
       flush
     >
       {card.record || card.stock_value !== null ? (
-        <dl className="grid grid-cols-2 gap-x-4 gap-y-3 border-b border-oa-border p-3.5 sm:grid-cols-4">
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-3 border-b border-oa-border p-3.5 sm:grid-cols-4 [.oa-ask-panel_&]:grid-cols-2">
           <Stat label="Reported stocks">{fmtCompact(card.stock_value, "$")}</Stat>
           <Stat label="Positions">{card.positions_count ?? na}</Stat>
           {card.record ? (
@@ -1413,16 +1413,15 @@ function Watch({ card, actions }: { card: WatchCard; actions: CardActions }) {
           <AppLink href="/agents" className={`inline-flex h-8 items-center rounded-lg border border-oa-border px-3 text-[13px] font-medium text-oa-fg hover:bg-oa-accent ${FOCUS}`}>
             See your agents
           </AppLink>
-        ) : actions.signedIn ? (
+        ) : (
+          // Signed out too: the Agents page opens the filled-in agent with its last four weeks, and asks for an
+          // account only when it is saved.
           <AppLink href={card.href} className={`inline-flex h-8 items-center rounded-lg bg-oa-primary px-3 text-[13px] font-medium text-oa-primary-fg hover:opacity-90 ${FOCUS}`}>
             Watch this
           </AppLink>
-        ) : (
-          <OaButton size="sm" onClick={actions.signIn}>
-            Sign in to watch this
-          </OaButton>
         )}
-        {already ? null : <span className="text-[12px] text-oa-muted-fg">Nothing is set up until you save it on the Agents page.</span>}
+        {/* Signed out, the note already says saving takes an account. */}
+        {already || !actions.signedIn ? null : <span className="text-[12px] text-oa-muted-fg">Nothing is set up until you save it on the Agents page.</span>}
       </div>
     </div>
   );

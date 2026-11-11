@@ -3,10 +3,12 @@ import { Suspense } from "react";
 
 import { WATCH_FOCUS, WATCH_LINK, WATCH_LIST, WatchRow, WouldWatchRow } from "@/components/agent-watch/watch-list";
 import { Bar } from "@/components/oa/kit/skeleton";
+import { CheckDetail, didWhen, ExampleChecks, tickerList } from "@/components/portfolio-home/example-check";
 import { activeWatches } from "@/lib/agent-watch";
 import { fmtPlanDay } from "@/lib/dividend-plan";
 import { newYorkToday } from "@/lib/portfolio-data";
 import { focusNoticed, prioritise, type Lead } from "@/lib/portfolio-home/focus";
+import { loadExampleChecks } from "@/lib/portfolio-home/example-check-server";
 import { watchPlan } from "@/lib/portfolio-home/loop";
 import { feedSources, type HomeLoad } from "@/lib/portfolio-home/server";
 import { countWord } from "@/lib/read-format";
@@ -15,11 +17,14 @@ import type { Verdict } from "@/lib/thesis-watch/rules";
 /**
  * "Your agents" on the My stocks overview: every active watch in one row, with
  * its last check, what it found and its next check (lib/agent-watch.ts), and
- * the reason watcher when the person gave reasons. With no agents, the watches
- * the findings below would set up; for the example, what the example would
- * watch, marked as the example and with no run history. It waits only for the
- * person's agents (a small read with its own time limit); the reason row and
- * the links to the findings stream in after it.
+ * the reason watcher when the person gave reasons. With no agents: signed out,
+ * the example portfolio's own agents with their latest real check in full
+ * (./example-check.tsx); signed in, that check under "You have no agents
+ * yet", then the watches the findings below would set up. When the example
+ * agents have not run lately, the example's would-watch list instead, never a
+ * made-up check. It waits only for the person's agents and the example's runs
+ * (small reads with their own time limits); the reason row and the links to
+ * the findings stream in after them.
  */
 
 const CARD = "oa-surface min-w-0 overflow-hidden border border-oa-border bg-oa-card";
@@ -209,14 +214,37 @@ export async function AgentsPanel({ load }: { load: HomeLoad }) {
     );
   }
 
-  // No agents of their own: what the findings would watch. Signed out, or with no holdings marked, that is the example.
+  // No agents of their own. Signed out, or with no holdings marked, the page is about the example, so this shows what
+  // the example's own agents really checked (their runs, lib/portfolio-home/example-check.ts); with nothing run lately,
+  // what the example's findings would watch. A suggestion, not a status: on a phone it follows the findings.
   const example = !mine;
-  // A suggestion, not a status: on a phone it follows the findings it repeats, so they stay on the first screen.
+  const checks = await loadExampleChecks();
+  if (!signedIn && checks) {
+    return (
+      <section aria-labelledby="agents-head" className={CARD}>
+        <ExampleChecks
+          checks={checks}
+          today={today}
+          head={
+            <h2 id="agents-head" className={H2}>
+              {EXAMPLE_TAG}
+              What an agent did {didWhen(checks.featured)}
+            </h2>
+          }
+        />
+        <p className="border-t border-oa-border px-4 py-2.5 text-[13.5px] leading-5">
+          <Link href="/agents" prefetch={false} className={WATCH_LINK}>
+            Set one up for your stocks
+          </Link>
+        </p>
+      </section>
+    );
+  }
   return (
     <section aria-labelledby="agents-head" className={CARD}>
       <div className="px-4 pb-2 pt-3.5">
         <h2 id="agents-head" className={H2}>
-          {example ? (
+          {example && !signedIn ? (
             <>
               {EXAMPLE_TAG}
               What the example would watch
@@ -226,9 +254,18 @@ export async function AgentsPanel({ load }: { load: HomeLoad }) {
           )}
         </h2>
         <p className="mt-1 text-pretty text-[13.5px] leading-5 text-oa-muted-fg">
-          {example ? "An agent checks your stocks after every market close and tells you only when something needs you." : "You have no agents yet. An agent checks your stocks after every market close and tells you only when something needs you."}
+          {signedIn && checks
+            ? `You have no agents yet. Here's what an agent did ${didWhen(checks.featured)} for the example portfolio, which holds ${tickerList(checks.tickers)}.`
+            : example && !signedIn
+              ? "An agent checks your stocks after every market close and tells you only when something needs you."
+              : "You have no agents yet. An agent checks your stocks after every market close and tells you only when something needs you."}
         </p>
       </div>
+      {signedIn && checks ? (
+        <div className="px-4 pb-3">
+          <CheckDetail view={checks.featured} today={today} />
+        </div>
+      ) : null}
       {mine ? (
         <ul className="border-t border-oa-border empty:hidden">
           <Suspense fallback={null}>
@@ -236,9 +273,12 @@ export async function AgentsPanel({ load }: { load: HomeLoad }) {
           </Suspense>
         </ul>
       ) : null}
-      <Suspense fallback={<WouldWatchGhost />}>
-        <WouldWatchRows load={load} mine={mine} />
-      </Suspense>
+      {/* The example's would-watch list only stands in when there is no real example check to show. */}
+      {mine || !checks ? (
+        <Suspense fallback={<WouldWatchGhost />}>
+          <WouldWatchRows load={load} mine={mine} />
+        </Suspense>
+      ) : null}
       <p className="border-t border-oa-border px-4 py-2.5 text-[13.5px] leading-5">
         <Link href="/agents" prefetch={false} className={WATCH_LINK}>
           Set one up

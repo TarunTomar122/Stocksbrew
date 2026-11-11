@@ -13,6 +13,14 @@ Writes (additive, through ``DocStore``):
   table, thinned curve against SPY, caveats) and the live record.
 * ``tm_strategy_runs/{slug}``: the full rebalance history and the frozen
   decisions the live record is valued from.
+* ``tm_strategy_rebalances/{slug}__{signal_date}``: one record per rebalance
+  that changed the basket, written on the run that first publishes the new
+  basket: ``date`` (the session the trades fill, or the pick date for rules
+  on financials), ``headline``, ``why`` (one paragraph from the rule itself),
+  ``added`` (symbol, name, weight, rank, reason), ``removed`` (symbol, name,
+  previous_weight, cause, reason), ``kept`` (symbol, name, weight,
+  previous_weight), cash before and after. The web app reads it in
+  ``lib/strategies-rebalances.ts``; the mail job sends Pro followers a note.
 * ``tm_backtest_universe/US``: the candidate lists, names and size proxies.
 * ``tm_price_history_daily/{SYMBOL}``: the refreshed price series, only those
   newer than the stored copy (skipped with ``--no-price-write``).
@@ -863,6 +871,381 @@ def describe_basket(
     }
 
 
+# -- rebalance notes ----------------------------------------------------------
+#
+# When the basket a strategy holds moves to a new month, the job compares it
+# with the basket it published before and writes one record of what changed
+# and why, in the strategy's own terms. No model call: every sentence comes
+# from the rule and the numbers the rule read on the day the picks were made.
+
+REBALANCE_COLLECTION = "tm_strategy_rebalances"
+# A weight that moved by less than this (a tenth of a percentage point) did not change.
+WEIGHT_STEP = 0.001
+# How many tickers a sentence names before it says "and N more".
+NAMED_IN_SENTENCE = 6
+
+FIELD_WORDS = {
+    "roic": "return on invested capital",
+    "fcf_yield": "free cash flow yield",
+    "dividend_yield": "dividend yield",
+    "shareholder_yield": "dividends plus buybacks yield",
+    "dividend_growth_years": "run of dividend raises",
+    "dividend_growth": "dividend growth",
+    "debt_to_equity": "debt to equity",
+    "market_cap": "market value",
+}
+
+
+def _field_value(field: str, value: float) -> str:
+    if field == "debt_to_equity":
+        return f"{value:.2f} times equity"
+    if field == "dividend_growth_years":
+        return f"{int(value)} years"
+    if field == "market_cap":
+        return _money(value)
+    return f"{value:.1f}%"
+
+
+def _signal_words(signal: dict[str, Any]) -> str:
+    """What one ranking signal measures, as a short noun phrase."""
+    kind = signal["type"]
+    if kind == "momentum":
+        return f"{signal['months']}-month return"
+    if kind == "low_volatility":
+        return "steady prices"
+    if kind == "trend":
+        return f"distance above the {signal['ma_days']}-day average"
+    if kind == "near_high":
+        return f"closeness to the {signal['days']}-day high"
+    if kind == "pullback":
+        return f"fall over the last {signal['days']} sessions"
+    if kind == "congress_net_buying":
+        return "buying by members of Congress"
+    if kind == "fundamental":
+        return FIELD_WORDS.get(signal["field"], signal["field"].replace("_", " "))
+    return "size"
+
+
+def top_group(spec: dict[str, Any]) -> str:
+    """The group the rules hold, in words: "the 25 with the highest 12-month return"."""
+    slots = spec["holdings"]
+    who = "the one" if slots == 1 else f"the {slots}"
+    ranks = spec["rank"]
+    if len(ranks) > 1:
+        return f"{who} with the best combined rank on {kit_join([_signal_words(signal) for signal in ranks])}"
+    signal = ranks[0]
+    kind = signal["type"]
+    if kind == "momentum":
+        return f"{who} with the highest {signal['months']}-month return"
+    if kind == "low_volatility":
+        return f"{who} with the steadiest prices"
+    if kind == "trend":
+        return f"{who} furthest above {'its' if slots == 1 else 'their'} {signal['ma_days']}-day average"
+    if kind == "near_high":
+        return f"{who} closest to {'its' if slots == 1 else 'their'} {signal['days']}-day high"
+    if kind == "pullback":
+        return f"{who} that fell most over the last {signal['days']} sessions"
+    if kind == "size":
+        return "the largest" if slots == 1 else f"the {slots} largest"
+    if kind == "congress_net_buying":
+        return f"{who} with the most buying by members of Congress"
+    if kind == "fundamental":
+        lowest = signal["field"] == "debt_to_equity"
+        return f"{who} with the {'lowest' if lowest else 'highest'} {_signal_words(signal)}"
+    return who
+
+
+def pool_words(spec: dict[str, Any]) -> str:
+    """The filters a stock must pass before it is ranked, as a "from those ..." clause, or ""."""
+    bits: list[str] = []
+    for rule in spec["filters"]:
+        kind = rule["type"]
+        if kind == "trend" and rule["min"] == 0:
+            bits.append(f"above their {rule['ma_days']}-day average")
+        elif kind == "momentum" and rule["min"] == 0:
+            bits.append(f"up over the last {rule['months']} months")
+        elif kind == "congress_net_buying":
+            bits.append("with more purchases than sales by members of Congress")
+        elif kind == "fundamental":
+            # Financial floors and limits are listed in the rules on the page; naming all of them here is too much.
+            return ""
+    return f", from those {kit_join(bits)}" if bits else ""
+
+
+def kit_join(items: list[str]) -> str:
+    items = [item for item in items if item]
+    if len(items) <= 1:
+        return "".join(items)
+    if len(items) == 2:
+        return f"{items[0]} and {items[1]}"
+    return f"{', '.join(items[:-1])} and {items[-1]}"
+
+
+def _named(symbols: list[str]) -> str:
+    """Up to six tickers, then a count: "AAPL, MSFT and 4 more"."""
+    if len(symbols) <= NAMED_IN_SENTENCE:
+        return kit_join(symbols)
+    shown = symbols[: NAMED_IN_SENTENCE - 1]
+    return f"{', '.join(shown)} and {len(symbols) - len(shown)} more"
+
+
+def _filter_miss(rule: dict[str, Any], value: float) -> str:
+    """Why one stock failed one filter, with the number the rule read."""
+    kind = rule["type"]
+    low = rule["min"] is not None and value < rule["min"]
+    if kind == "trend":
+        side = "below" if value < 0 else "above"
+        if low and rule["min"] == 0:
+            return f"Closed {_pct(value)} below its {rule['ma_days']}-day average, and the rules only hold ones above it."
+        return f"Closed {_pct(value)} {side} its {rule['ma_days']}-day average, outside the rule."
+    if kind == "momentum":
+        direction = "Down" if value < 0 else "Up"
+        if low and rule["min"] == 0:
+            return f"{direction} {_pct(value)} over the last {rule['months']} months, and the rules only hold ones that are up."
+        return f"{direction} {_pct(value)} over the last {rule['months']} months, outside the rule."
+    if kind == "congress_net_buying":
+        return f"Members of Congress no longer filed more purchases than sales of it in the last {rule['window_days']} days."
+    if kind == "fundamental":
+        field = rule["field"]
+        words = FIELD_WORDS.get(field, field.replace("_", " "))
+        if low:
+            return f"Its {words} is {_field_value(field, value)}, under the rule's floor of {_field_value(field, rule['min'])}."
+        if rule["max"] is not None and value > rule["max"]:
+            return f"Its {words} is {_field_value(field, value)}, over the rule's limit of {_field_value(field, rule['max'])}."
+    return "It no longer passes the rules."
+
+
+def _filter_group(rule: dict[str, Any], many: bool) -> str:
+    """The same miss for a group, in a "left because ..." clause."""
+    kind = rule["type"]
+    if kind == "trend":
+        return f"{'they' if many else 'it'} closed below {'their' if many else 'its'} {rule['ma_days']}-day average"
+    if kind == "momentum":
+        return f"{'they are' if many else 'it is'} down over the last {rule['months']} months"
+    if kind == "congress_net_buying":
+        return f"members of Congress no longer bought more of {'them' if many else 'it'} than they sold"
+    if kind == "fundamental":
+        words = FIELD_WORDS.get(rule["field"], rule["field"].replace("_", " "))
+        return f"{'their' if many else 'its'} {words} is outside the rule"
+    return f"{'they' if many else 'it'} no longer {'pass' if many else 'passes'} the rules"
+
+
+def explain_exit(
+    spec: dict[str, Any], panel: backtest.Panel, index: int, symbol: str, ranked: dict[str, dict[str, Any]], eligible: int
+) -> tuple[str, str, str]:
+    """Why a stock held before is not held now: (cause, group key, the reason in a sentence)."""
+    if symbol in ranked:
+        holding = ranked[symbol]
+        evidence = [
+            sentence
+            for sentence in (signal_sentence(signal, holding["values"]) for signal in spec["rank"])
+            if sentence
+        ]
+        rank = f"Rank {holding['rank']} of {eligible}, and the rules hold {spec['holdings']}."
+        return "rank", "rank", " ".join(evidence + [rank])
+    if symbol not in panel.px:
+        return "pool", "pool", "No longer in the pool the rules pick from."
+    price = panel.px[symbol][index]
+    seen = panel.obs[symbol][index]
+    if backtest.is_nan(price) or price <= 0 or seen < 0 or index - seen > backtest.MAX_STALE_SESSIONS:
+        return "data", "stale", "We have no recent price for it."
+    top = spec["universe"]["top_by_size"]
+    if top is not None:
+        sizes: list[tuple[str, float]] = []
+        for other in panel.universe:
+            other_price = panel.px[other][index]
+            if backtest.is_nan(other_price) or other_price <= 0:
+                continue
+            value = backtest.signal_value({"type": "size"}, other, index, panel)
+            if not backtest.is_nan(value):
+                sizes.append((other, value))
+        sizes.sort(key=lambda item: (-item[1], item[0]))
+        if symbol not in {item[0] for item in sizes[:top]}:
+            return "size", "size", f"No longer one of the {top} largest companies we cover."
+    for rule in spec["filters"]:
+        value = backtest.signal_value(rule, symbol, index, panel)
+        if backtest.is_nan(value):
+            if rule["type"] == "fundamental":
+                return "data", "data", "We no longer have the company figures the rules need."
+            return "data", "data", "There is not enough price history to measure it."
+        if (rule["min"] is not None and value < rule["min"]) or (rule["max"] is not None and value > rule["max"]):
+            return "filter", f"filter:{backtest.signal_key(rule)}", _filter_miss(rule, value)
+    return "data", "data", "We could not measure it on the day the picks were made."
+
+
+def _weights(basket: dict[str, Any] | None) -> dict[str, float]:
+    out: dict[str, float] = {}
+    for holding in (basket or {}).get("holdings") or []:
+        weight = _num(holding.get("weight"))
+        if isinstance(holding.get("symbol"), str) and weight is not None:
+            out[holding["symbol"]] = weight
+    return out
+
+
+def is_new_rebalance(previous_basket: dict[str, Any] | None, basket: dict[str, Any]) -> bool:
+    """The basket moved to a later month: the monthly rebalance happened since the last publish."""
+    before = str((previous_basket or {}).get("as_of") or "")
+    now = str(basket.get("as_of") or "")
+    return bool(before) and bool(now) and now > before and now[0:7] != before[0:7]
+
+
+def rebalance_record(
+    definition: dict[str, Any],
+    spec: dict[str, Any],
+    panel: backtest.Panel,
+    group: dict[str, Any],
+    previous_basket: dict[str, Any] | None,
+    basket: dict[str, Any],
+    last_info: dict[str, Any] | None,
+    names: dict[str, str],
+    generated_at: str,
+) -> dict[str, Any] | None:
+    """What changed at this rebalance and why, or None when it is not a new rebalance or nothing changed."""
+    if not is_new_rebalance(previous_basket, basket):
+        return None
+    signal_date = basket["as_of"]
+    if signal_date not in panel.calendar:
+        return None
+    before = _weights(previous_basket)
+    after = _weights(basket)
+    before_cash = _num((previous_basket or {}).get("cash_weight")) or 0.0
+    after_cash = _num(basket.get("cash_weight")) or 0.0
+    added_symbols = [h["symbol"] for h in basket["holdings"] if h["symbol"] not in before]
+    removed_symbols = [s for s in before if s not in after]
+    kept_symbols = [h["symbol"] for h in basket["holdings"] if h["symbol"] in before]
+    reweighted = [symbol for symbol in kept_symbols if abs(after[symbol] - before[symbol]) >= WEIGHT_STEP]
+    if not added_symbols and not removed_symbols and not reweighted and abs(after_cash - before_cash) < WEIGHT_STEP:
+        return None
+
+    index = panel.calendar.index(signal_date)
+    # Every stock that passed the rules, ranked: the same selection with a slot for each.
+    full = backtest.select(dict(spec, holdings=max(1, len(panel.universe))), panel, index)
+    ranked = {holding["symbol"]: holding for holding in full["holdings"]}
+    market_ok = full["market_ok"]
+    stocks = group["kind"] == "stocks"
+    unit, units = ("stock", "stocks") if stocks else ("fund", "funds")
+    by_symbol = {h["symbol"]: h for h in basket["holdings"]}
+
+    # Leavers that still passed the rules read best nearest the cut first; the rest keep the old basket's order.
+    removed_symbols.sort(key=lambda symbol: ranked[symbol]["rank"] if symbol in ranked else len(ranked) + 1)
+    removed: list[dict[str, Any]] = []
+    groups: dict[str, list[str]] = {}
+    group_rules: dict[str, dict[str, Any]] = {}
+    for symbol in removed_symbols:
+        if not market_ok:
+            cause, key = "market", "market"
+            reason = f"Sold with everything else: the S&P 500 fund closed below its {spec['market_filter']['ma_days']}-day average."
+        else:
+            cause, key, reason = explain_exit(spec, panel, index, symbol, ranked, full["eligible"])
+        if key.startswith("filter:"):
+            group_rules[key] = next(rule for rule in spec["filters"] if f"filter:{backtest.signal_key(rule)}" == key)
+        groups.setdefault(key, []).append(symbol)
+        removed.append(
+            {"symbol": symbol, "name": names.get(symbol), "previous_weight": backtest.r6(before[symbol]), "cause": cause, "reason": reason}
+        )
+
+    rule_sentence = f"Each month the rules hold {top_group(spec)}{pool_words(spec)}."
+    sentences: list[str] = []
+    if not market_ok:
+        sentences.append(
+            f"The S&P 500 fund closed below its {spec['market_filter']['ma_days']}-day average on {backtest.format_day(signal_date)}, "
+            "so the rules sold everything and hold cash until it closes back above."
+        )
+    else:
+        sentences.append(rule_sentence)
+        market_exit_before = str((previous_basket or {}).get("note") or "").startswith("The S&P 500 fund closed below")
+        if added_symbols and not before and spec["market_filter"] is not None and market_exit_before:
+            sentences.append(f"The S&P 500 fund closed back above its {spec['market_filter']['ma_days']}-day average, so the rules bought again.")
+        if added_symbols:
+            sentences.append(f"{_named(added_symbols)} came in.")
+        for key, symbols in groups.items():
+            many = len(symbols) > 1
+            if key == "rank":
+                sentences.append(f"{_named(symbols)} left because {'they' if many else 'it'} slipped out of that group.")
+            elif key == "size":
+                sentences.append(
+                    f"{_named(symbols)} left because {'they are' if many else 'it is'} no longer among the {spec['universe']['top_by_size']} largest."
+                )
+            elif key == "pool":
+                sentences.append(f"{_named(symbols)} left because {'they are' if many else 'it is'} no longer in the pool.")
+            elif key == "stale":
+                sentences.append(f"{_named(symbols)} left because we have no recent price for {'them' if many else 'it'}.")
+            elif key == "data":
+                sentences.append(f"{_named(symbols)} left because we could not measure {'them' if many else 'it'} on the rule's terms.")
+            else:
+                sentences.append(f"{_named(symbols)} left because {_filter_group(group_rules[key], many)}.")
+        if kept_symbols and (added_symbols or removed_symbols):
+            if len(kept_symbols) == 1:
+                sentences.append("One stayed at a new weight." if reweighted else "One stayed.")
+            else:
+                stayed = f"The other {len(kept_symbols)} stayed"
+                sentences.append(f"{stayed}, {len(reweighted)} of them at a new weight." if reweighted else f"{stayed}.")
+        elif reweighted:
+            sentences.append(f"No {unit} came in or left. {len(reweighted)} changed weight.")
+        if basket.get("note") and after_cash >= WEIGHT_STEP:
+            sentences.append(str(basket["note"]))
+
+    if not market_ok:
+        headline = f"Sold every {unit} and moved to cash."
+    elif not before and added_symbols:
+        headline = f"Bought {len(added_symbols)} {unit if len(added_symbols) == 1 else units} after a spell in cash."
+    else:
+        bits = []
+        if added_symbols:
+            bits.append(f"{len(added_symbols)} {unit if len(added_symbols) == 1 else units} came in")
+        if removed_symbols:
+            bits.append(f"{len(removed_symbols)} left" if added_symbols else f"{len(removed_symbols)} {unit if len(removed_symbols) == 1 else units} left")
+        if kept_symbols:
+            bits.append(f"{len(kept_symbols)} stayed")
+        headline = (kit_join(bits) + ".").capitalize() if added_symbols or removed_symbols else f"Same {units}, {len(reweighted)} at a new weight."
+
+    trade_date = (last_info or {}).get("trade_date") if (last_info or {}).get("signal_date") == signal_date else None
+    return {
+        "slug": definition["slug"],
+        "name": definition["name"],
+        "kind": group["kind"],
+        "date": trade_date or signal_date,
+        "signal_date": signal_date,
+        "trade_date": trade_date,
+        "previous_as_of": previous_basket.get("as_of"),
+        "headline": headline,
+        "why": " ".join(sentences),
+        "rule": rule_sentence,
+        "added": [
+            {
+                "symbol": symbol,
+                "name": by_symbol[symbol].get("name"),
+                "weight": by_symbol[symbol]["weight"],
+                "rank": by_symbol[symbol].get("rank"),
+                "reason": by_symbol[symbol].get("reason") or "",
+            }
+            for symbol in added_symbols
+        ],
+        "removed": removed,
+        "kept": [
+            {
+                "symbol": symbol,
+                "name": by_symbol[symbol].get("name"),
+                "weight": by_symbol[symbol]["weight"],
+                "previous_weight": backtest.r6(before[symbol]),
+            }
+            for symbol in kept_symbols
+        ],
+        "reweighted": len(reweighted),
+        "held": len(basket["holdings"]),
+        "previously_held": len(before),
+        "cash_weight": backtest.r6(after_cash),
+        "previous_cash_weight": backtest.r6(before_cash),
+        "market_ok": market_ok,
+        "source": SOURCE,
+        "generated_at": generated_at,
+    }
+
+
+def rebalance_path(record: dict[str, Any]) -> str:
+    return f"{REBALANCE_COLLECTION}/{record['slug']}__{record['signal_date']}"
+
+
 def run_strategy(
     definition: dict[str, Any],
     group: dict[str, Any],
@@ -872,6 +1255,8 @@ def run_strategy(
     previous: dict[str, Any] | None,
     previous_run: dict[str, Any] | None,
     today: str,
+    *,
+    rebalances_out: list[dict[str, Any]] | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     raw_spec = full_spec(definition, group)
     spec = backtest.normalize_spec(raw_spec)
@@ -1069,6 +1454,18 @@ def run_strategy(
             for item in rebalances
         ],
     }
+    # A backtestable strategy whose backtest failed tonight fell back to today's picks: that is not a
+    # scheduled rebalance, so it writes no note. And the note can never stop the strategy from publishing.
+    if rebalances_out is not None and (result is not None or not testable):
+        try:
+            record = rebalance_record(
+                definition, spec, panel, group, (previous or {}).get("basket"), basket, last_info, names, generated_at
+            )
+        except Exception as error:  # noqa: BLE001
+            log(f"{definition['slug']}: no rebalance note ({type(error).__name__}: {error})")
+            record = None
+        if record is not None:
+            rebalances_out.append(record)
     return doc, run_doc
 
 
@@ -1142,6 +1539,7 @@ def main(argv: list[str] | None = None) -> int:
         if definition not in selected:
             continue
         slug = definition["slug"]
+        changes: list[dict[str, Any]] = []
         doc, run_doc = run_strategy(
             definition,
             groups[definition["universe"]],
@@ -1151,8 +1549,14 @@ def main(argv: list[str] | None = None) -> int:
             previous.get(f"tm_strategies/{slug}"),
             previous_runs.get(f"tm_strategy_runs/{slug}"),
             today,
+            rebalances_out=changes,
         )
         doc["order"] = order
+        # The change record goes first: once the new basket is stored, the next run compares against it and
+        # would not see this rebalance again.
+        for record in changes:
+            docs.append((rebalance_path(record), record))
+            log(f"{slug}: rebalanced on {record['date']}: {record['headline']}")
         docs.append((f"tm_strategies/{slug}", doc))
         docs.append((f"tm_strategy_runs/{slug}", run_doc))
         test = doc["backtest"]
@@ -1181,6 +1585,13 @@ def main(argv: list[str] | None = None) -> int:
     }
     if not args.only:
         docs.append(("tm_backtest_universe/US", universe_doc))
+
+    # Every note of the run carries the same time, taken just before the write: the mail job waits
+    # until that is half an hour old, so one email has every strategy that rebalanced today.
+    stamped = datetime.now(timezone.utc).isoformat()
+    for path, data in docs:
+        if path.startswith(f"{REBALANCE_COLLECTION}/"):
+            data["generated_at"] = stamped
 
     if args.dry_run:
         log(f"dry run: would write {len(docs)} documents")

@@ -12,6 +12,7 @@ import { OaSiteHeader } from "@/components/oa/oa-site-header";
 import { StockLogo } from "@/components/stock-logo";
 import { PAGE_FRAME, RiskTag } from "@/components/strategies/shared";
 import { TrackStrategyButton } from "@/components/strategies/track-button";
+import { LatestRebalancePanel, RebalanceNoteLock } from "@/components/strategies/rebalance";
 import { LockCard } from "@/components/oa/gate";
 import { getSessionUser } from "@/lib/auth-server";
 import { setupHref } from "@/lib/backtest/setup";
@@ -20,6 +21,7 @@ import { getViewer } from "@/lib/entitlements-server";
 import { getScreenerRows } from "@/lib/screener";
 import { getStrategy, readTrackedStrategies } from "@/lib/strategies";
 import { buildStrategyRead, type YtdMap } from "@/lib/strategies-insights";
+import { getLatestRebalance } from "@/lib/strategies-rebalances";
 import { getUserDoc } from "@/lib/watchlist";
 import { ogImage } from "@/lib/og/url";
 
@@ -44,8 +46,14 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 export default async function StrategyPage({ params }: { params: { slug: string } }) {
   const [strategy, session] = await Promise.all([getStrategy(params.slug).catch(() => null), getSessionUser()]);
   if (!strategy) notFound();
-  const [userDoc, viewer] = await Promise.all([session ? getUserDoc(session.uid).catch(() => null) : Promise.resolve(null), getViewer()]);
+  const [userDoc, viewer, latestRebalance] = await Promise.all([
+    session ? getUserDoc(session.uid).catch(() => null) : Promise.resolve(null),
+    getViewer(),
+    getLatestRebalance(strategy.slug).catch(() => null),
+  ]);
   const isTracked = readTrackedStrategies(userDoc).some((entry) => entry.slug === strategy.slug);
+  // Following is Pro; someone on Free who followed one earlier keeps it, and learns what the note at each rebalance would add.
+  const noteLocked = isTracked && !can("followed_strategies", viewer.plan);
   // What the rules hold now is the part worth paying for: anyone could copy it. The rules, the backtest and
   // rebalances older than six months stay open. Locked names are never rendered, so they never reach the browser.
   const seesHoldings = can("strategy_holdings", viewer.plan);
@@ -89,8 +97,9 @@ export default async function StrategyPage({ params }: { params: { slug: string 
           lede={strategy.tagline}
           actions={
             <>
-              <span className="max-sm:hidden">
+              <span className="inline-flex flex-col items-end gap-1 max-sm:hidden">
                 <TrackStrategyButton slug={strategy.slug} initialTracked={isTracked} canFollow={can("followed_strategies", viewer.plan)} />
+                {noteLocked ? <RebalanceNoteLock /> : null}
               </span>
               <Link
                 href={backtesterHref}
@@ -128,6 +137,7 @@ export default async function StrategyPage({ params }: { params: { slug: string 
                     <Link href={backtesterHref} className="inline-flex h-10 items-center rounded-lg bg-oa-secondary px-3 text-sm font-medium text-oa-secondary-fg">
                       Open in backtester
                     </Link>
+                    {noteLocked ? <RebalanceNoteLock className="basis-full" /> : null}
                   </div>
                 </ResultLead>
                 <StatGrid
@@ -153,6 +163,7 @@ export default async function StrategyPage({ params }: { params: { slug: string 
                   <Link href={backtesterHref} className="inline-flex h-10 items-center rounded-lg bg-oa-secondary px-3 text-sm font-medium text-oa-secondary-fg">
                     Open in backtester
                   </Link>
+                  {noteLocked ? <RebalanceNoteLock className="basis-full" /> : null}
                 </div>
               </section>
             )}
@@ -213,6 +224,8 @@ export default async function StrategyPage({ params }: { params: { slug: string 
               </p>
               ) : null}
             </Panel>
+
+            {latestRebalance ? <LatestRebalancePanel record={latestRebalance} seesNames={seesHoldings} /> : null}
 
             {test ? (
               <Panel id="years" title="Year by year" aside="Backtested">

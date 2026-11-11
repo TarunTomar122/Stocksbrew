@@ -18,6 +18,7 @@ import { canonicalSectorSlug } from "@/lib/screener-shared";
 import { packChartRanges, type CallWord, type ChartRange, type PackedChartRanges } from "@/lib/stock-chart";
 
 import { AlertControls, type SuggestedAlert } from "./alert-controls";
+import { callMeaning } from "./call-line";
 import { capTier, compactMoney, daysBetween, fin, fmtDate, fmtStamp, levelFormatter, moneyFormatter, relativeDays, signedPct } from "./format";
 import { EarlierTimeline } from "./earlier-timeline";
 import { PricePanel, type PanelZone } from "./price-panel";
@@ -351,9 +352,16 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
   };
   const callWord = ready?.call ? (CALL_PLAIN[ready.call as keyof typeof CALL_PLAIN] ?? ready.call) : null;
   const callAction = ready ? plainAction(ready.actionLabel, ready.call) : null;
-  // "Keep" then "Keep what you own, ..." says the call twice; the word only stays when the sentence does not start with it.
-  // Whole words only ("Keep" in "Keep what you own"), the way plainAction reads its labels. Call words are plain letters.
-  const callWordRepeats = Boolean(callWord && callAction && /^[a-z ]+$/i.test(callWord) && new RegExp(`^${callWord}\\b`, "i").test(callAction));
+  // The chip carries the call word; the line says what it means, going on from the chip when the plain action starts
+  // with the word ("[Buy more] on a dip, not here"), so the call is never said twice (./call-line.ts).
+  const meaning = callMeaning(callWord, callAction);
+  // What would change the call, set apart from the reasons so it reads as the condition to watch.
+  const changeLine = (text: string) => (
+    <p className="mt-2.5 max-w-[62ch] text-pretty rounded-lg border border-oa-border bg-oa-bg px-3 py-2 text-[14px] leading-5 text-oa-fg">
+      <span className="font-medium">What would change it: </span>
+      {text}
+    </p>
+  );
 
   // Under the call: two questions for Ask and one thing to watch (lib/next-steps.ts). Ask and agents cover US stocks.
   const callSteps =
@@ -378,7 +386,7 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
         {/* ── the lead: price and call, then the chart, across the full width ── */}
         <div className="order-1 min-w-0 xl:col-span-2 xl:row-start-1">
           <Panel>
-            <header className="px-3.5 pt-3 sm:px-4 sm:pt-3.5">
+            <header className="px-3.5 pb-3 pt-3 sm:px-4 sm:pt-3.5">
               {/* Where this stock sits: "Research › Technology", the same trail every deep page has. */}
               <PlaceTrail className="mb-2" tail={stock.sector ? [{ label: stock.sector, href: `/sectors/${canonicalSectorSlug(stock.sector)}` }] : []} />
               <div className="flex min-w-0 items-center gap-3">
@@ -440,10 +448,11 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
                   </div>
                   {ready ? (
                     <>
+                      {/* The call in a word ("Sell some"), then what it means ("Don't buy more at this price"). */}
                       <p className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1">
-                        {callWord && !callWordRepeats ? (
+                        {callWord ? (
                           <span
-                            className="inline-flex h-7 items-center whitespace-nowrap rounded-md px-2.5 text-[14px] font-semibold"
+                            className="inline-flex h-7 items-center whitespace-nowrap rounded-md px-2.5 text-[15px] font-semibold"
                             style={{
                               color: callTone ? TONE_COLOR[callTone] : "var(--oa-fg)",
                               background: `color-mix(in srgb, ${callTone ? TONE_COLOR[callTone] : "var(--oa-fg)"} 12%, transparent)`,
@@ -452,28 +461,21 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
                             {callWord}
                           </span>
                         ) : null}
-                        {/* The call in a word ("Sell some"), then what it means ("We'd sell some, not buy more"). */}
-                        {callAction ? (
-                          <span className="flex items-baseline gap-2 text-[17px] font-medium leading-6 tracking-tight text-oa-fg">
-                            {callWordRepeats ? (
-                              <span aria-hidden="true" className="relative top-[-2px] inline-block size-2.5 shrink-0 rounded-full" style={{ background: callTone ? TONE_COLOR[callTone] : "var(--oa-fg)" }} />
-                            ) : null}
-                            <span>{callAction}</span>
-                          </span>
-                        ) : null}
+                        {callWord && meaning ? " " : null}
+                        {meaning ? <span className="text-pretty text-[17px] font-medium leading-6 tracking-tight text-oa-fg">{meaning}</span> : null}
                       </p>
                       {/* What the call rests on (each fact with its date), then what would change it, then how sure we are.
                           All of it comes before any price, so a level never reads as more certain than its reasons. */}
                       {basis ? (
-                        <div className="mt-2 max-w-[62ch] text-[15px] leading-[22px] text-oa-fg">
+                        <div className="mt-2.5 max-w-[62ch] text-[15px] leading-[21px] text-oa-fg">
                           {/* One date for all the reasons when they share it, instead of "as of Nov 10" on every line. */}
                           <p className="font-medium">
                             Why{basisAsOf && basis.facts.every((fact) => !factHasDate(fact)) ? <span className="font-normal text-oa-muted-fg">, as of {basisAsOf.replace(" ", "\u00a0")}</span> : null}:
                           </p>
-                          <ul role="list" className="mt-0.5 flex flex-col gap-1">
+                          <ul role="list" className="mt-1 flex flex-col gap-1">
                             {basis.facts.map((fact) => (
-                              <li key={fact} className="flex gap-2">
-                                <span aria-hidden="true" className="mt-[9px] size-[5px] shrink-0 rounded-full bg-oa-muted-fg" />
+                              <li key={fact} className="flex gap-2.5">
+                                <span aria-hidden="true" className="mt-[8px] size-[5px] shrink-0 rounded-full bg-oa-muted-fg" />
                                 <span className="min-w-0 text-pretty">
                                   {basisAsOf && !factHasDate(fact) && basis.facts.some((other) => factHasDate(other)) ? (
                                     <>
@@ -489,15 +491,10 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
                             ))}
                           </ul>
                           {/* The steady call's own rule wins: it is what would actually move the call. */}
-                          {ready.whatWouldChange || basis.change ? (
-                            <p className="mt-2 text-pretty">
-                              <span className="font-medium">What would change it: </span>
-                              {ready.whatWouldChange || basis.change}
-                            </p>
-                          ) : null}
+                          {ready.whatWouldChange || basis.change ? changeLine(ready.whatWouldChange || basis.change || "") : null}
                         </div>
                       ) : callReason ? (
-                        <p className="mt-2 max-w-[62ch] text-pretty text-[15px] leading-[22px] text-oa-fg">
+                        <p className="mt-2.5 max-w-[62ch] text-pretty text-[15px] leading-[21px] text-oa-fg">
                           <span className="font-medium">Why: </span>
                           {callReason}
                           {reasonIsNewer && ready.reasonAsOf ? (
@@ -505,15 +502,10 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
                           ) : null}
                         </p>
                       ) : null}
-                      {!basis && ready.whatWouldChange ? (
-                        <p className="mt-2 max-w-[62ch] text-pretty text-[15px] leading-[22px] text-oa-fg">
-                          <span className="font-medium">What would change it: </span>
-                          {ready.whatWouldChange}
-                        </p>
-                      ) : null}
+                      {!basis && ready.whatWouldChange ? changeLine(ready.whatWouldChange) : null}
                       {/* Honest about the day: the latest review pointed elsewhere, and the call held on purpose. */}
                       {ready.heldAgainst ? (
-                        <p className="mt-1.5 max-w-[62ch] text-pretty text-[13px] leading-[18px] text-oa-muted-fg">
+                        <p className="mt-2 max-w-[62ch] text-pretty text-[13px] leading-[18px] text-oa-muted-fg">
                           The latest data leans toward {CALL_PLAIN[ready.heldAgainst as keyof typeof CALL_PLAIN] ?? ready.heldAgainst}. One day isn&apos;t enough to change the call.
                         </p>
                       ) : null}
@@ -595,7 +587,7 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
                 defaultRange={data.chart.ranges.some((range) => range.key === "1Y") ? "1Y" : "6M"}
               />
             ) : (
-              <Missing className="mt-3 border-t border-oa-border">We do not have enough price history for {stock.ticker} to draw a chart yet.</Missing>
+              <Missing className="border-t border-oa-border">We do not have enough price history for {stock.ticker} to draw a chart yet.</Missing>
             )}
 
             {/* On a phone the read comes before the key facts, so they are printed again below it. */}

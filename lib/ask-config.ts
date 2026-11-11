@@ -108,5 +108,5 @@ export const ASK_TOOL_DONE: Record<string, string> = {
   get_my_agents: "read your agents",
   get_my_research: "opened your research",
   open_briefing_item: "opened your briefing",
-  suggest_watch: "filled in an agent",
+  suggest_watch: "set up a watch you can save",
 };

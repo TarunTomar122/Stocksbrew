@@ -615,6 +615,14 @@ function anyOf(scope: AgentScope, who: string): string {
   return `any of ${who}`;
 }
 
+/**
+ * "3 calendar days": the earnings rule counts calendar days, weekends included (earningsWithin uses dayDiff).
+ * Checks run on market days, so the warning comes on the first market day within that many days of the report.
+ */
+export function calendarDays(days: number): string {
+  return `${days} calendar ${days === 1 ? "day" : "days"}`;
+}
+
 /** "When" in a few words, for the job list. */
 export function triggerLabel(trigger: AgentTrigger): string {
   if (trigger.type === "schedule") {
@@ -631,7 +639,7 @@ export function triggerLabel(trigger: AgentTrigger): string {
   if (trigger.event === "fund_13f") return "New 13F filing";
   if (trigger.event === "congress_trade") return "Congressional disclosure";
   if (trigger.event === "insider_trade") return "Insider trade";
-  if (trigger.event === "earnings_approaching") return `${trigger.days_before ?? 3} days before earnings`;
+  if (trigger.event === "earnings_approaching") return `${calendarDays(trigger.days_before ?? 3)} before earnings`;
   if (trigger.event === "earnings_reported") return "Earnings came out";
   if (trigger.event === "sec_filing") return filingTriggerLabel(trigger.filings);
   if (trigger.event === "news") return newsTriggerLabel(trigger.news ?? "any");
@@ -667,7 +675,7 @@ export function describeJob(job: Pick<AgentJobDraft, "trigger" | "scope">): stri
   if (trigger.event === "congress_trade") return `Tell me when a member of Congress discloses a trade in ${who}.`;
   if (trigger.event === "insider_trade") return `Tell me when an executive or director reports a trade in ${who}.`;
   if (trigger.event === "earnings_approaching") {
-    return `Tell me ${trigger.days_before ?? 3} days before ${anyOf(job.scope, who)} reports earnings.`;
+    return `Tell me ${calendarDays(trigger.days_before ?? 3)} before ${anyOf(job.scope, who)} reports earnings.`;
   }
   if (trigger.event === "earnings_reported") {
     return `Tell me when ${anyOf(job.scope, who)} reports earnings, with the numbers against expectations and how the stock reacted.`;
@@ -1109,18 +1117,18 @@ function evaluateEvent(
       const before = dayDiff(since, event.date);
       return before == null || before > days;
     });
-    const checked = [`Earnings dates within ${days} days of ${shortDate(day)}: ${upcoming.length}`, namesNote];
+    const checked = [`Earnings dates within ${calendarDays(days)} of ${shortDate(day)}: ${upcoming.length}`, namesNote];
     if (fresh.length === 0) {
       return nothing(
         upcoming.length === 0
-          ? `Checked, nothing to do. None of your names reports within ${days} days.`
+          ? `Checked, nothing to do. None of your names reports within ${calendarDays(days)}.`
           : `Checked, nothing to do. ${listNames(upcoming.map((e) => e.ticker))} ${upcoming.length === 1 ? "reports" : "report"} soon, and you were already told.`,
         checked,
       );
     }
     const findings = fresh.map(earningsFinding);
     return notify(
-      findings.length === 1 ? `${findings[0].headline}, on ${shortDate(findings[0].at)}.` : `${listNames(fresh.map((e) => e.ticker))} report earnings within ${days} days.`,
+      findings.length === 1 ? `${findings[0].headline}, on ${shortDate(findings[0].at)}.` : `${listNames(fresh.map((e) => e.ticker))} report earnings within ${calendarDays(days)}.`,
       findings,
       checked,
     );

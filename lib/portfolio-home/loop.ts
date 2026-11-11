@@ -242,3 +242,26 @@ export function findingWatchLine(input: {
   const status = watchStatus({ plan, match, agents: mine ? agents.state : "none" });
   return status ? { text: status, link: null, fired: false } : null;
 }
+
+/**
+ * The line beside a finding on the example portfolio when one of the example's own agents (lib/portfolio-home/
+ * example-agents.ts) does what the finding's watch asks: that agent, its last check and what it found, from its real
+ * runs. Null when none of them does, so the finding keeps its usual "No agent watches this yet." The link goes to
+ * the example's check on this page; the example's agents have no page of their own.
+ */
+export function exampleWatchLine(input: { plan: WatchPlan | null; ticker: string | null; agents: AgentsSource; today: string }): FindingWatchLine | null {
+  const { plan, ticker, agents, today } = input;
+  const match = matchAgent(plan, ticker, agents, new Set(), today);
+  if (!match?.enabled || !match.lastRun || !ticker) return null;
+  const run = match.lastRun;
+  const day = fmtPlanDay(run.day);
+  const symbol = ticker.toUpperCase();
+  const named = run.decision === "notify" && (run.tickers ?? []).some((one) => one.toUpperCase() === symbol);
+  // Recent: news, with a link to the check. Older (the runner missed a day): still said, but not as news.
+  if (named && run.day >= previousMarketDay(today)) return { text: `An agent flagged this for the example on ${day}.`, link: { label: "See its check", href: "#agents-head" }, fired: true };
+  if (named) return { text: `An agent watches this for the example. It flagged it on ${day}.`, link: null, fired: false };
+  // Short on purpose: it sits under every finding it covers. A run that flagged other stocks found nothing on this one.
+  const outcome =
+    run.decision === "could_not_check" ? `It could not check on ${day}.` : `Its ${day} check found nothing${run.decision === "notify" ? ` on ${symbol}` : ""}.`;
+  return { text: `An agent watches this for the example. ${outcome}`, link: null, fired: false };
+}

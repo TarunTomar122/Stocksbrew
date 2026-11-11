@@ -4,7 +4,7 @@ import * as React from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 
-import { FOCUS, NUM, fmtAgo } from "@/components/ask/atoms";
+import { FOCUS, NUM, fmtAgo, fmtAsOf } from "@/components/ask/atoms";
 import { AskCardView, type CardActions } from "@/components/ask/cards";
 import { ContextPin } from "@/components/ask/context-pin";
 import { AskMarkdown } from "@/components/ask/markdown";
@@ -13,6 +13,7 @@ import { isAskCard, type AskUIMessage, type NumberAudit } from "@/lib/ask-cards"
 import { contextQuestion, contextSuggestions, parseAskContext } from "@/lib/ask-context";
 import { ASK_LIMITS, ASK_MAX_QUESTION_CHARS, ASK_SUGGESTIONS, ASK_TOOL_DONE, ASK_TOOL_LABELS, type AskPlan } from "@/lib/ask-config";
 import type { AskLimitReached } from "@/lib/ask-limits";
+import { exampleDay, exampleQuestion, parseExampleSubject, type AskExample, type AskExampleResult } from "@/lib/ask-examples";
 import { ASK_HANDOFF_PARAM, ASK_HANDOFF_VALUE, takeAskHandoff, writeAskHandoff, writeAskReopen } from "@/lib/ask-handoff";
 import { getFirebaseAuth } from "@/lib/firebase-client";
 import { signInWithGoogle, syncServerSession } from "@/lib/sign-in";
@@ -52,6 +53,9 @@ const SIGN_IN_FIRST: AskLimitReached = {
   next_step: "sign_in",
   message: "Asking takes a free account.",
 };
+
+/** The same, under an example answer: the example showed what Ask does, so this is about asking your own. */
+const SIGN_IN_AFTER_EXAMPLE: AskLimitReached = { ...SIGN_IN_FIRST, message: "Ask your own question with a free account." };
 
 function newConversationId(): string {
   const bytes = new Uint8Array(12);
@@ -222,7 +226,10 @@ function Answer({ message, actions, streaming }: { message: AskUIMessage | null;
       const name = tool.type.slice(5);
       if (tool.state === "output-available") {
         steps.push({ name, state: "done" });
-        if (isAskCard(tool.output) && tool.output.card !== "matches") {
+        // An agent the tool turned down is the copilot's own misstep, not something to read: the answer offers
+        // another one (lib/ask-pipeline.ts) or none.
+        const refusedWatch = name === "suggest_watch" && isAskCard(tool.output) && tool.output.card === "error";
+        if (isAskCard(tool.output) && tool.output.card !== "matches" && !refusedWatch) {
           cards.push(<AskCardView key={index} card={tool.output} actions={actions} />);
         }
       } else if (tool.state === "output-error") {
@@ -242,6 +249,106 @@ function Answer({ message, actions, streaming }: { message: AskUIMessage | null;
       {!streaming && cards.length > 0 ? <div className="space-y-3 pt-1">{cards}</div> : null}
       {audit && !streaming ? <AuditLine audit={audit} /> : null}
     </div>
+  );
+}
+
+/* ── the example answer (signed out) ────────────────────────────────────── */
+
+type ExampleState = { phase: "loading" | "writing" | "none" } | { phase: "ready"; example: AskExample };
+
+/** Examples already fetched on this page view, so moving between stocks and back does not ask again. */
+const examplesSeen = new Map<string, AskExample>();
+
+/** How long a visitor waits for an example that someone else's request is still writing, before giving up on it. */
+const EXAMPLE_WAIT_MS = 75_000;
+
+/**
+ * Today's example answer for a subject ("stock:NVDA", "market"), fetched once the panel is open (never with the
+ * page). A first request of the day can take the time an answer takes; anyone arriving meanwhile is told to wait,
+ * and asks again every few seconds.
+ */
+function useAskExample(subject: string | null): ExampleState | null {
+  const [state, setState] = React.useState<ExampleState | null>(null);
+  React.useEffect(() => {
+    if (!subject) {
+      setState(null);
+      return;
+    }
+    const seen = examplesSeen.get(subject);
+    // A copy from an earlier day (a tab left open overnight) is fetched again.
+    if (seen && seen.day === exampleDay(new Date())) {
+      setState({ phase: "ready", example: seen });
+      return;
+    }
+    let cancelled = false;
+    let retry: number | undefined;
+    let retriedStore = false;
+    const started = Date.now();
+    // A cached example arrives at once; one being written takes a while, and the line says so after a moment.
+    const slow = window.setTimeout(() => !cancelled && setState((current) => (current?.phase === "loading" ? { phase: "writing" } : current)), 1500);
+    const load = async () => {
+      try {
+        const response = await fetch(`/api/ask/example?subject=${encodeURIComponent(subject)}`, { headers: { accept: "application/json" } });
+        const data = (response.ok ? await response.json() : null) as AskExampleResult | null;
+        if (cancelled) return;
+        if (data?.status === "ready" && data.example?.message?.parts) {
+          examplesSeen.set(subject, data.example);
+          setState({ phase: "ready", example: data.example });
+        } else if (data?.status === "pending" && Date.now() - started < EXAMPLE_WAIT_MS) {
+          setState({ phase: "writing" });
+          retry = window.setTimeout(() => void load(), 4000);
+        } else if (data?.status === "unavailable" && data.reason === "store" && !retriedStore) {
+          // Two visitors claiming at once can trip the store's write check; one more try settles it.
+          retriedStore = true;
+          retry = window.setTimeout(() => void load(), 2000);
+        } else {
+          setState({ phase: "none" });
+        }
+      } catch {
+        if (!cancelled) setState({ phase: "none" });
+      }
+    };
+    setState({ phase: "loading" });
+    void load();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(slow);
+      window.clearTimeout(retry);
+    };
+  }, [subject]);
+  return state;
+}
+
+/** "from today, 10:42 AM ET" or "from Nov 10, 4:12 PM ET". */
+function exampleWhen(generatedAt: string): string {
+  const at = new Date(generatedAt);
+  if (Number.isNaN(at.getTime())) return "";
+  const stamp = fmtAsOf(generatedAt);
+  if (exampleDay(at) !== exampleDay(new Date())) return `from ${stamp}`;
+  return `from today, ${at.toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" })} ET`;
+}
+
+function ExampleAnswer({ state, subject, actions }: { state: ExampleState; subject: string; actions: CardActions }) {
+  if (state.phase === "none") return null;
+  if (state.phase !== "ready") {
+    const parsed = parseExampleSubject(subject);
+    const what = parsed?.kind === "stock" ? parsed.ticker : "the market";
+    return (
+      <p className="mb-4 flex items-center gap-2 text-[13px] leading-5 text-oa-muted-fg" role="status">
+        <Spinner />
+        <span>{state.phase === "loading" ? "Opening today's example answer…" : `Writing today's example answer on ${what}. The first one each day can take up to a minute.`}</span>
+      </p>
+    );
+  }
+  const { example } = state;
+  return (
+    <section aria-label="Example answer" className="mb-4">
+      <p className="oa-caption mb-1.5">
+        Example answer {exampleWhen(example.generated_at)}
+      </p>
+      <h3 className="mb-3 text-pretty text-[17px] font-medium leading-6 tracking-tight text-oa-fg">{example.question}</h3>
+      <Answer message={example.message} actions={actions} streaming={false} />
+    </section>
   );
 }
 
@@ -352,6 +459,7 @@ export function AskWorkspace({
   renderBar,
   onHandedOff,
   handoff = false,
+  exampleSubject = null,
 }: {
   signedIn: boolean;
   plan: AskPlan;
@@ -373,6 +481,8 @@ export function AskWorkspace({
   onHandedOff?: () => void;
   /** Page: the panel just handed a conversation over (lib/ask-handoff.ts). */
   handoff?: boolean;
+  /** Panel, signed out: the page's example answer to show before the sign-in notice ("stock:NVDA", "market"). */
+  exampleSubject?: string | null;
 }) {
   const panel = variant === "panel";
   const router = useRouter();
@@ -532,6 +642,14 @@ export function AskWorkspace({
   }, [panel]);
 
   const actions = React.useMemo<CardActions>(() => ({ signedIn, ask, signIn: () => void signIn() }), [signedIn, ask, signIn]);
+  // Signed out only: someone who can ask does not need an example.
+  const example = useAskExample(panel && plan === "anonymous" ? exampleSubject : null);
+  const parsedExample = React.useMemo(() => parseExampleSubject(exampleSubject), [exampleSubject]);
+  const exampleShown = example?.phase === "ready" ? example.example.question : null;
+  // The box starts with the page's question filled in. Once the example has answered it, the box is left for theirs.
+  React.useEffect(() => {
+    if (exampleShown && parsedExample && exampleShown === exampleQuestion(parsedExample)) setInput((current) => (current.trim() === exampleShown ? "" : current));
+  }, [exampleShown, parsedExample]);
 
   // A question handed over from Explore or a link: ask it once, then clean the address bar.
   const asked = React.useRef(false);
@@ -750,7 +868,7 @@ export function AskWorkspace({
         event.preventDefault();
         ask(input, "typed");
       }}
-      className="flex items-end gap-2 rounded-[22px] border border-oa-border bg-oa-card p-2 pl-4 shadow-[0_1px_0_rgba(0,0,0,0.02),0_8px_24px_-12px_rgba(60,40,20,0.25)] focus-within:border-[color-mix(in_srgb,var(--oa-ring)_70%,transparent)]"
+      className="flex items-end gap-2 rounded-[22px] border border-oa-border bg-oa-card p-2 pl-4 shadow-[0_1px_0_rgba(0,0,0,0.02),0_8px_24px_-12px_rgba(60,40,20,0.25)] focus-within:border-[color-mix(in_srgb,var(--oa-fg)_30%,transparent)]"
     >
       <label htmlFor={inputId} className="sr-only">
         Ask a question
@@ -769,7 +887,8 @@ export function AskWorkspace({
           }
         }}
         placeholder={empty ? "Ask about a stock or an idea" : "Ask a follow-up"}
-        className="max-h-[168px] min-h-[36px] flex-1 resize-none bg-transparent py-1.5 text-[16px] leading-6 text-oa-fg outline-none placeholder:text-oa-muted-fg"
+        // The box's border shows focus; no second outline on the text inside it (owner, Nov 11).
+        className="max-h-[168px] min-h-[36px] flex-1 resize-none bg-transparent py-1.5 text-[16px] leading-6 text-oa-fg outline-none placeholder:text-oa-muted-fg focus:outline-none focus-visible:outline-none"
       />
       {busy ? (
         <button
@@ -813,11 +932,13 @@ export function AskWorkspace({
   );
 
   if (panel) {
-    // Signed out, the sign-in notice shows before anything is asked: the panel is often opened just to look.
-    const notice = limit ?? (plan === "anonymous" ? SIGN_IN_FIRST : null);
+    // Signed out, the sign-in notice shows before anything is asked: the panel is often opened just to look. Under an
+    // example answer it invites them to ask their own.
+    const notice = limit ?? (plan === "anonymous" ? (example?.phase === "ready" ? SIGN_IN_AFTER_EXAMPLE : SIGN_IN_FIRST) : null);
     const aboutThis = parsedContext
       ? contextSuggestions(parsedContext)
-          .filter((question) => question !== input.trim())
+          // The question the example already answers is not offered again.
+          .filter((question) => question !== input.trim() && question !== exampleShown)
           .map((question) => ({ label: null as string | null, question, keepContext: true }))
       : [];
     // With nothing more to offer about the item (the example portfolio, an agent), the general questions fill in.
@@ -848,6 +969,7 @@ export function AskWorkspace({
             ) : null}
             {empty ? (
               <div className={parsedContext ? "pb-4" : "pb-4 pt-4"}>
+                {example && exampleSubject && parsedExample ? <ExampleAnswer state={example} subject={exampleSubject} actions={actions} /> : null}
                 {notice ? (
                   <div className="mb-4">
                     <LimitNotice limit={notice} onSignIn={() => void signIn()} />
@@ -1003,9 +1125,6 @@ export function AskWorkspace({
                 </li>
               ))}
             </ul>
-            <p className="mt-4 max-w-[70ch] text-pretty text-[13px] leading-5 text-oa-muted-fg">
-              The copilot looks things up before it answers. Every figure comes from a lookup you can see, with its source and time. It can run a backtest, read a 13F, or turn an idea into a basket.
-            </p>
           </div>
         ) : (
           <>

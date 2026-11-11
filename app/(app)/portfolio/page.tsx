@@ -5,6 +5,7 @@ import { AppPage, PageHead } from "@/components/oa/kit";
 import { AgentsPanel, AgentsPanelGhost } from "@/components/portfolio-home/agents-panel";
 import { AgentLogGhost, AgentLogPanel, AskBox, AskGhost, ExampleLine, FocusCard, FocusGhost } from "@/components/portfolio-home/home";
 import { loadPortfolioHome } from "@/lib/portfolio-home/server";
+import { FollowedRebalances } from "@/components/strategies/rebalance-notice";
 import { JsonLd } from "@/components/docs/json-ld";
 import { toolPageLd, toolPageMetadata } from "@/lib/seo/tool-pages";
 
@@ -41,6 +42,10 @@ export default function PortfolioHomePage() {
         <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-4">
           <Suspense fallback={<FocusGhost />}>
             <FocusCard load={load} />
+          </Suspense>
+          {/* Pro: a followed strategy that rebalanced in the last few days. Nothing at all otherwise. */}
+          <Suspense fallback={null}>
+            <FollowedRebalances />
           </Suspense>
           <div className="order-last min-w-0 lg:order-none">
             <Suspense fallback={<AgentLogGhost />}>

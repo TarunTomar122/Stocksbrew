@@ -514,6 +514,27 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
   "Build",
 ];
 
+/**
+ * The site's own example account: the owner of the standing agents that watch
+ * the example portfolio (scripts/setup-example-agents.ts), so a visitor sees
+ * real, dated agent checks on My stocks and the landing. It is not a person:
+ * no sign-in account, no user doc, no email. Sign-up gives people Firebase's
+ * generated uids (28 letters and digits, no hyphen), so a real account cannot
+ * get this one; never mint a custom token for it.
+ */
+export const EXAMPLE_AGENTS_UID = "example-portfolio";
+
+/**
+ * The plan of a system account, or null for everyone else (their plan comes
+ * from their user doc). Server side only, read by the after-close runner
+ * (lib/agent-jobs-data.ts runAllEnabledJobs): the example account runs on Pro
+ * so its filing agent and all three agents run every market day. Nothing a
+ * person sends can name this uid; it never comes from a session.
+ */
+export function systemPlanOf(uid: string | null | undefined): Plan | null {
+  return uid === EXAMPLE_AGENTS_UID ? "pro" : null;
+}
+
 export function planOf(viewer: { signedIn: boolean; isSubscribed: boolean }): Plan {
   if (!viewer.signedIn) return "anon";
   return viewer.isSubscribed ? "pro" : "free";

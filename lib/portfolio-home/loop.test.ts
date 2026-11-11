@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { buildAgentLog, dataChecks, type AgentsSource } from "@/lib/portfolio-home/log";
-import { askFor, contextFor, checkIdOf, findingLoop, foldedCheckIds, matchAgent, nextWords, stampWords, watchPlan, watchStatus } from "@/lib/portfolio-home/loop";
+import { askFor, contextFor, checkIdOf, exampleWatchLine, findingLoop, foldedCheckIds, matchAgent, nextWords, stampWords, watchPlan, watchStatus } from "@/lib/portfolio-home/loop";
 import { pickNoticed, type HomeSources, type Loaded, type Noticed } from "@/lib/portfolio-home/pick";
 import { pickQuestions } from "@/lib/portfolio-home/questions";
 
@@ -215,5 +215,47 @@ describe("lead findings speak about the stock they are labelled with", () => {
     const [found] = pickNoticed({ memo: empty, xray: empty, season: empty, dividends: empty, stress: empty, ideas: empty, reasons }, "example");
     expect(found).toMatchObject({ headline: "The reason for owning UNH has played out.", why: null, evidence: "It is no longer cheap." });
     expect(found!.source).toEqual({ label: "Company results in our daily screen", day: "2026-11-10", at: null });
+  });
+});
+
+describe("exampleWatchLine", () => {
+  const example: AgentsSource = {
+    jobs: [
+      { id: "exampleearnings", name: "Earnings in the next 3 days", enabled: true, trigger: { type: "event", event: "earnings_approaching", days_before: 3 }, scope: { kind: "tickers", tickers: ["NVDA", "MSFT"] } },
+      { id: "examplebigmove", name: "5% moves in a day", enabled: true, trigger: { type: "price", rule: "moves_pct", pct: 5 }, scope: { kind: "tickers", tickers: ["NVDA", "MSFT"] } },
+    ],
+    runs: [
+      { job_id: "exampleearnings", job_name: "", day: "2026-11-10", ran_at: "2026-11-10T22:41:00.000Z", decision: "nothing", summary: "" },
+      { job_id: "examplebigmove", job_name: "", day: "2026-11-10", ran_at: "2026-11-10T22:41:00.000Z", decision: "notify", summary: "MSFT fell 6%.", tickers: ["MSFT"] },
+    ],
+  };
+
+  it("names the example's agent that watches the finding, with its real last check", () => {
+    const line = exampleWatchLine({ plan: watchPlan(report, "example"), ticker: "NVDA", agents: example, today: TODAY });
+    expect(line?.fired).toBe(false);
+    expect(line?.text).toBe("An agent watches this for the example. Its Nov 10 check found nothing.");
+  });
+
+  it("says when that agent flagged the finding's stock, and links to its check on the page", () => {
+    const line = exampleWatchLine({ plan: watchPlan(trim, "example"), ticker: "MSFT", agents: example, today: TODAY });
+    expect(line).toMatchObject({ fired: true, link: { href: "#agents-head" } });
+    expect(line?.text).toBe("An agent flagged this for the example on Nov 10.");
+  });
+
+  it("says an older alert was an alert, not news and not 'found nothing'", () => {
+    const line = exampleWatchLine({ plan: watchPlan(trim, "example"), ticker: "MSFT", agents: example, today: "2026-11-16" });
+    expect(line).toMatchObject({ fired: false, link: null, text: "An agent watches this for the example. It flagged it on Nov 10." });
+  });
+
+  it("claims nothing for a stock or a rule none of them covers", () => {
+    expect(exampleWatchLine({ plan: watchPlan(loss, "example"), ticker: "UNH", agents: example, today: TODAY })).toBeNull();
+    expect(exampleWatchLine({ plan: watchPlan(report, "example"), ticker: "AAPL", agents: example, today: TODAY })).toBeNull();
+  });
+
+  it("does not pass another stock's alert off as this one's", () => {
+    const nvdaMove = { ...trim, id: "x-NVDA", ticker: "NVDA", watch: { href: "/agents?q=x", request: "Tell me when NVDA moves 5% in a day" } };
+    const line = exampleWatchLine({ plan: watchPlan(nvdaMove, "example"), ticker: "NVDA", agents: example, today: TODAY });
+    expect(line?.fired).toBe(false);
+    expect(line?.text).toBe("An agent watches this for the example. Its Nov 10 check found nothing on NVDA.");
   });
 });

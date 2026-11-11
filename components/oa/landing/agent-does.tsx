@@ -7,7 +7,10 @@ import { NavIcon } from "@/components/oa/nav-icon";
 import { iconFor } from "@/components/oa/nav-items";
 import { Reveal } from "@/components/reveal";
 import { findingWithin, type AgentCardId } from "@/lib/landing-agent-cards";
+import { loadExampleChecks } from "@/lib/portfolio-home/example-check-server";
 import { AppLink } from "@/components/oa/app-link";
+import { nextCheckWords } from "@/lib/agent-watch";
+import { newYorkToday } from "@/lib/portfolio-data";
 
 /**
  * "Everything it watches for you": one small card per thing the agent does,
@@ -93,7 +96,9 @@ const CARDS: CardDef[] = [
   },
 ];
 
-/** Cards shown on a phone before "Show all it does". */
+const CARDS_BY_ID: Partial<Record<AgentCardId, CardDef>> = Object.fromEntries(CARDS.map((card) => [card.id, card]));
+
+/** Cards shown on a phone before "Show all it does" (the agent check card counts as one). */
 const FIRST = 4;
 
 async function Finding({ card }: { card: CardDef }) {
@@ -123,48 +128,116 @@ function FindingGhost() {
   );
 }
 
+const CARD_LINK =
+  "group oa-surface flex h-full flex-col border border-oa-border bg-oa-card px-4 py-4 outline-none transition-colors hover:bg-oa-accent focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)] sm:px-5";
+
+function CardHead({ id, href, title }: { id: string; href: string; title: string }) {
+  const icon = iconFor(href);
+  return (
+    <div className="flex items-center gap-2.5">
+      {icon ? (
+        <span aria-hidden="true" className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg border border-oa-border bg-oa-bg text-oa-primary">
+          <NavIcon name={icon} className="size-[18px]" />
+        </span>
+      ) : null}
+      <h3 id={`landing-card-${id}`} className="text-[15px] font-medium leading-6 text-oa-fg">
+        {title}
+      </h3>
+    </div>
+  );
+}
+
+function CardCta({ label }: { label: string }) {
+  return (
+    <span className="mt-auto inline-flex items-center gap-1.5 pt-3 text-[14px] font-medium text-oa-muted-fg transition-colors group-hover:text-oa-fg">
+      {label}
+      <span aria-hidden="true" className="transition-transform duration-200 group-hover:translate-x-0.5">
+        →
+      </span>
+    </span>
+  );
+}
+
 function Card({ card }: { card: CardDef }) {
-  const icon = iconFor(card.href);
   return (
     <li className="min-w-0">
-      <AppLink
-        href={card.href}
-        aria-labelledby={`landing-card-${card.id}`}
-        aria-describedby={`landing-card-${card.id}-finding`}
-        className="group oa-surface flex h-full flex-col border border-oa-border bg-oa-card px-4 py-4 outline-none transition-colors hover:bg-oa-accent focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)] sm:px-5"
-      >
-        <div className="flex items-center gap-2.5">
-          {icon ? (
-            <span aria-hidden="true" className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg border border-oa-border bg-oa-bg text-oa-primary">
-              <NavIcon name={icon} className="size-[18px]" />
-            </span>
-          ) : null}
-          <h3 id={`landing-card-${card.id}`} className="text-[15px] font-medium leading-6 text-oa-fg">
-            {card.title}
-          </h3>
-        </div>
+      <AppLink href={card.href} aria-labelledby={`landing-card-${card.id}`} aria-describedby={`landing-card-${card.id}-finding`} className={CARD_LINK}>
+        <CardHead id={card.id} href={card.href} title={card.title} />
         <div id={`landing-card-${card.id}-finding`} className="mt-3 min-h-[4.25rem]">
           <Suspense fallback={<FindingGhost />}>
             <Finding card={card} />
           </Suspense>
         </div>
-        <span className="mt-auto inline-flex items-center gap-1.5 pt-3 text-[14px] font-medium text-oa-muted-fg transition-colors group-hover:text-oa-fg">
-          {card.cta}
-          <span aria-hidden="true" className="transition-transform duration-200 group-hover:translate-x-0.5">
-            →
-          </span>
-        </span>
+        <CardCta label={card.cta} />
       </AppLink>
     </li>
   );
 }
 
+const CHECK_ID = "agent-check";
+const CHECK_HREF = "/portfolio";
+const CHECK_TITLE = "What an agent checked";
+
+/**
+ * The example portfolio's latest real agent check (lib/portfolio-home/example-check.ts): the rule in the owner's
+ * words, when it ran, what it found or that there was nothing to report, and the evidence or its next check. Read
+ * from a short shared cache. With no recent run it is the plain "Tell your agent what to watch" card, never a
+ * made-up check.
+ */
+async function AgentCheckCard() {
+  const checks = await loadExampleChecks();
+  const agents = CARDS_BY_ID.agents;
+  if (!checks) return agents ? <Card card={agents} /> : null;
+  const view = checks.featured;
+  const ask = view.ask.replace(/\bany of these\b/, "any of my stocks");
+  const evidence = view.findings[0]?.detail || null;
+  const note = evidence ?? `${view.decided}${view.next ? ` It checks again ${nextCheckWords(view.next, newYorkToday())}.` : ""}`;
+  return (
+    <li className="min-w-0">
+      <AppLink href={CHECK_HREF} aria-labelledby={`landing-card-${CHECK_ID}`} aria-describedby={`landing-card-${CHECK_ID}-finding`} className={CARD_LINK}>
+        <CardHead id={CHECK_ID} href={CHECK_HREF} title={CHECK_TITLE} />
+        <div id={`landing-card-${CHECK_ID}-finding`} className="mt-3 min-h-[4.25rem]">
+          <p className="mb-2 w-fit max-w-full rounded-lg border border-oa-border bg-oa-bg px-2.5 py-1.5 text-pretty text-[14px] leading-5 text-oa-fg">
+            <span className="sr-only">The example portfolio&apos;s agent: </span>“{ask}”
+          </p>
+          <p className="text-pretty text-[15px] leading-[22px] text-oa-fg">
+            <span className="oa-mono whitespace-nowrap text-[13px] tabular-nums text-oa-muted-fg">{view.when}</span>
+            {": "}
+            {view.outcome}
+          </p>
+          {note ? <p className="mt-1.5 text-pretty text-[13.5px] leading-5 text-oa-muted-fg">{note}</p> : null}
+        </div>
+        <CardCta label="See the example's agents" />
+      </AppLink>
+    </li>
+  );
+}
+
+/** The check card's frame while the run loads, so nothing moves when it arrives. */
+function AgentCheckGhost() {
+  return (
+    <li className="min-w-0" aria-hidden="true">
+      <div className={CARD_LINK}>
+        <CardHead id={`${CHECK_ID}-ghost`} href={CHECK_HREF} title={CHECK_TITLE} />
+        <div className="mt-3 min-h-[4.25rem]">
+          <FindingGhost />
+        </div>
+      </div>
+    </li>
+  );
+}
+
 export function AgentDoes() {
-  const first = CARDS.slice(0, FIRST);
-  const rest = CARDS.slice(FIRST);
+  // The real agent check leads (it stands in for the "agents" card), so a visitor sees the agent at work first.
+  const listed = CARDS.filter((card) => card.id !== "agents");
+  const first = listed.slice(0, FIRST - 1);
+  const rest = listed.slice(FIRST - 1);
   return (
     <Reveal delay={60}>
       <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <Suspense fallback={<AgentCheckGhost />}>
+          <AgentCheckCard />
+        </Suspense>
         {first.map((card) => (
           <Card key={card.id} card={card} />
         ))}

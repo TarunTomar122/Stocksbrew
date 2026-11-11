@@ -31,6 +31,7 @@ import { getFirebaseAuth } from "@/lib/firebase-client";
 import { POST_SIGNUP_ONBOARDING_PENDING, signInWithGoogle, syncServerSession } from "@/lib/sign-in";
 
 import { RunList, RunReport, SessionStrip, VerdictChip, type RunRow } from "./run-list";
+import { checksWhenShort, earningsWhen, tellsShort, watchSummary } from "./summary";
 import { trackAgentPreviewed, trackAgentReportOpened, trackAgentSwitchedOn, trackLimitHit } from "@/lib/product-analytics";
 
 type Replay = AgentReplay & { tickers: string[]; available: AgentFacts["available"]; replayed_at: string };
@@ -153,6 +154,13 @@ function formFromDraft(draft: AgentJobDraft, offered: AgentTemplate[]): { templa
   return { template, form };
 }
 
+/** True while the form still lacks something only the person can type (a ticker, a price), so a phone opens it for editing. */
+function needsInput(template: AgentTemplate, form: Form): boolean {
+  const names = form.tickers.split(/[\s,;]+/).filter(Boolean).length;
+  if ((template.id === "price-level" || form.scope === "tickers") && names === 0) return true;
+  return template.fields.includes("level") && !(Number(form.level) > 0);
+}
+
 function runRows(runs: AgentRun[]): RunRow[] {
   return runs.map((run) => ({ ...run, key: run.id }));
 }
@@ -181,9 +189,28 @@ function ReplayPanel({ replay, job }: { replay: Replay; job: Pick<AgentJob, "tri
         : job.trigger.event === "news"
           ? "Real headlines and our tone read of them"
           : "Real data";
+  // On a phone the result is one line; the strip, the latest report and every day wait behind "See all".
+  const phoneLine =
+    rows.length === 0
+      ? "There was nothing to check in the last four weeks."
+      : told === 0 && unchecked === rows.length
+        ? `It could not check any of the last ${rows.length} market days.`
+        : told === 0 && unchecked > 0
+          ? `All quiet on the ${rows.length - unchecked} market days it could check.`
+          : told === 0
+            ? `All quiet on the last ${rows.length} market days.`
+            : `It would have told you on ${told} of the last ${rows.length} market days.`;
+  const tickersLine =
+    replay.tickers.length > 0 ? (
+      <>
+        On {replay.tickers.slice(0, 8).join(", ")}
+        {replay.tickers.length > 8 ? ` and ${replay.tickers.length - 8} more` : ""}. {evidence}, each day seeing only what was known then.
+      </>
+    ) : null;
   return (
     <div className="overflow-hidden rounded-xl border border-oa-border bg-oa-bg">
-      <div className="flex flex-wrap items-end justify-between gap-3 px-3.5 py-3 sm:px-4">
+      <p className="px-3.5 py-2.5 text-pretty text-[14px] font-medium leading-5 text-oa-fg sm:hidden">{phoneLine}</p>
+      <div className="flex flex-wrap items-end justify-between gap-3 px-3.5 py-3 max-sm:hidden sm:px-4">
         <div className="min-w-0">
           <p className="oa-caption">
             What it would have done, {shortDate(replay.from)} to {shortDate(replay.to)}
@@ -199,17 +226,12 @@ function ReplayPanel({ replay, job }: { replay: Replay; job: Pick<AgentJob, "tri
                     ? `All quiet: it would not have told you anything in the last ${rows.length} market days.`
                 : `It would have told you on ${told} of the last ${rows.length} market days.`}
           </p>
-          {replay.tickers.length > 0 ? (
-            <p className="mt-0.5 text-[13px] leading-5 text-oa-muted-fg">
-              On {replay.tickers.slice(0, 8).join(", ")}
-              {replay.tickers.length > 8 ? ` and ${replay.tickers.length - 8} more` : ""}. {evidence}, each day seeing only what was known then.
-            </p>
-          ) : null}
+          {tickersLine ? <p className="mt-0.5 text-[13px] leading-5 text-oa-muted-fg">{tickersLine}</p> : null}
         </div>
         <SessionStrip runs={rows} job={job} />
       </div>
       {latestHit ? (
-        <div className="border-t border-oa-border bg-oa-card px-3.5 py-3 sm:px-4">
+        <div className="border-t border-oa-border bg-oa-card px-3.5 py-3 max-sm:hidden sm:px-4">
           <p className="oa-caption mb-1.5">Latest time it would have told you · {shortDate(latestHit.day)}</p>
           <RunReport view={presentRun(latestHit, job, { replay: true })} />
         </div>
@@ -220,6 +242,13 @@ function ReplayPanel({ replay, job }: { replay: Replay; job: Pick<AgentJob, "tri
             See all {rows.length} days
             <span aria-hidden="true" className="transition-transform group-open:rotate-90">›</span>
           </summary>
+          {/* What the phone line leaves out: the period, the stocks and the strip of days. */}
+          <div className="flex flex-col items-start gap-2 border-t border-oa-border px-3.5 py-2.5 sm:hidden">
+            <p className="text-pretty text-[13px] leading-5 text-oa-muted-fg">
+              {shortDate(replay.from)} to {shortDate(replay.to)}. {tickersLine}
+            </p>
+            <SessionStrip runs={rows} job={job} />
+          </div>
           <div className="border-t border-oa-border">
             <RunList runs={rows} job={job} limit={20} replay />
           </div>
@@ -244,7 +273,8 @@ function checksWhen(trigger: AgentJobDraft["trigger"], schedule: JobsWorkspacePr
     return `Every ${day} after the market closes, from ${at}.`;
   }
   const first = schedule?.next ? ` If you save it now, its first check is ${schedule.next}.` : "";
-  return `After every market close, from ${at}, Monday to Friday.${first}`;
+  const earnings = earningsWhen(trigger);
+  return `After every market close, from ${at}, Monday to Friday.${earnings ? ` ${earnings}` : ""}${first}`;
 }
 
 /** Sign-in errors that mean the person closed the window themselves: nothing to say about those. */
@@ -341,6 +371,19 @@ export function JobsWorkspace({
   const [templateId, setTemplateId] = React.useState<string | null>(starter?.templateId ?? arrived?.template.id ?? null);
   const [form, setForm] = React.useState<Form>(starter?.form ?? arrived?.form ?? { ...BLANK, scope: signedIn && tracked > 0 ? "watchlist" : "tickers" });
   const [replay, setReplay] = React.useState<Replay | null>(starter?.replay ?? null);
+  // On a phone the builder shows a one-line summary of what it watches; tapping it opens the fields (`editing`).
+  const [editing, setEditing] = React.useState(() => {
+    const id = starter?.templateId ?? arrived?.template.id ?? null;
+    const first = AGENT_TEMPLATES.find((entry) => entry.id === id);
+    return first ? needsInput(first, starter?.form ?? arrived?.form ?? BLANK) : false;
+  });
+  React.useEffect(() => {
+    // Opened from Edit (or a blocked Save) on a phone: focus goes to the first field. Done keeps focus on the
+    // toggle, which stays in place. A desktop shows the fields all along and keeps focus where it is.
+    const phone = window.matchMedia("(max-width: 639.98px)").matches;
+    if (phone && focusAfter.current === "fields" && editing) fieldsRef.current?.querySelector<HTMLElement>("input, select")?.focus();
+    focusAfter.current = null;
+  }, [editing]);
   const [replayFor, setReplayFor] = React.useState<string>(starter?.key ?? "");
   const [busy, setBusy] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -352,6 +395,9 @@ export function JobsWorkspace({
   /** The payload of an agent loaded into the builder from the plain-English box, while it is unchanged. */
   const [fromWords, setFromWords] = React.useState<string | null>(null);
   const builderRef = React.useRef<HTMLDivElement>(null);
+  const fieldsRef = React.useRef<HTMLDListElement>(null);
+  // Opening the fields from the phone summary moves focus to the first one.
+  const focusAfter = React.useRef<"fields" | "toggle" | null>(null);
 
   const template = AGENT_TEMPLATES.find((entry) => entry.id === templateId) ?? null;
   const payload = template ? payloadFor(template, form, signedIn) : null;
@@ -443,8 +489,15 @@ export function JobsWorkspace({
     setReplay(null);
     setError(null);
     setNotice(null);
-    setForm({ ...BLANK, scope: signedIn && tracked > 0 && next.id !== "price-level" ? "watchlist" : "tickers" });
+    const nextForm: Form = { ...BLANK, scope: signedIn && tracked > 0 && next.id !== "price-level" ? "watchlist" : "tickers" };
+    setForm(nextForm);
+    setEditing(needsInput(next, nextForm));
     requestAnimationFrame(() => builderRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
+  }
+
+  function openFields() {
+    focusAfter.current = "fields";
+    setEditing(true);
   }
 
   async function replayPayload(key: string, templateForTracking: string) {
@@ -493,6 +546,7 @@ export function JobsWorkspace({
       const key = JSON.stringify(payloadFor(next.template, next.form, signedIn));
       setTemplateId(next.template.id);
       setForm(next.form);
+      setEditing(needsInput(next.template, next.form));
       setReplay(null);
       setFromWords(key);
       // Signed out there is no list of theirs to replay, so "anything I own" is shown without a replay; the card says why.
@@ -534,7 +588,14 @@ export function JobsWorkspace({
   }
 
   async function turnOn() {
-    if (payload) await create(payloadKey, "create");
+    if (!payload) return;
+    // Something is missing or wrong (no ticker, no price): say so and open the fields on a phone, where they may be folded.
+    if (savable && !savable.ok) {
+      setError(savable.error);
+      openFields();
+      return;
+    }
+    await create(payloadKey, "create");
   }
 
   // The agent as it would be saved, checked the way the server checks it. Signed out, "the stocks I track" stays
@@ -549,6 +610,7 @@ export function JobsWorkspace({
     if (!savable) return;
     if (!savable.ok) {
       setError(savable.error);
+      openFields();
       return;
     }
     setBusy("signin");
@@ -621,6 +683,14 @@ export function JobsWorkspace({
   const replayBlocked = !signedIn && (needsTickers ? namesTyped === 0 : form.scope === "watchlist");
   // Signed in with nothing tracked, "the stocks I track" would save an agent with nothing to watch.
   const emptyList = signedIn && tracked === 0 && !needsTickers && form.scope === "watchlist";
+  // On a phone the fields stay open while something only the person can fix is missing (the notes under them say what).
+  const fieldsLocked = Boolean(template && (needsInput(template, form) || replayBlocked || emptyList));
+  const fieldsOpen = editing || fieldsLocked;
+  // Once open for a missing field, they stay open: filling it in must not fold them away mid-typing.
+  React.useEffect(() => {
+    if (fieldsLocked) setEditing(true);
+  }, [fieldsLocked]);
+  const summary = template && draftPreview ? watchSummary(draftPreview, { signedIn, tracked, title: template.title }) : "";
 
   const messages = (
     <>
@@ -640,7 +710,8 @@ export function JobsWorkspace({
 
   const builder =
     template && draftPreview ? (
-      <section aria-labelledby="draft-title" className={CARD}>
+      // overflow-clip, not hidden: the phone's Save bar sticks inside this card, and a hidden overflow would stop it.
+      <section aria-labelledby="draft-title" className={CARD.replace("overflow-hidden", "overflow-clip")}>
         <div ref={builderRef} className="grid min-w-0 content-start gap-3.5 px-3.5 py-3.5 sm:px-4">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
@@ -676,7 +747,32 @@ export function JobsWorkspace({
             </button>
           </div>
 
-          <dl className="grid gap-x-5 gap-y-3 rounded-xl border border-oa-border bg-oa-bg px-3.5 py-3 sm:grid-cols-2">
+          {/* A phone gets the agent in three short lines; the first one opens and closes the fields under it. */}
+          <div className="overflow-hidden rounded-xl border border-oa-border bg-oa-bg sm:hidden">
+            {fieldsLocked ? (
+              // Something only the person can type is still missing, so the fields stay open and there is nothing to toggle.
+              <p className="flex min-h-11 items-center px-3.5 py-2 text-pretty text-[14px] font-medium leading-5 text-oa-fg">{summary}</p>
+            ) : (
+              <button
+                type="button"
+                aria-expanded={editing}
+                aria-controls="draft-fields"
+                onClick={() => (editing ? setEditing(false) : openFields())}
+                className="flex min-h-11 w-full cursor-pointer items-center justify-between gap-3 px-3.5 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
+              >
+                <span className="min-w-0 text-pretty text-[14px] font-medium leading-5 text-oa-fg">{summary}</span>
+                <span className="shrink-0 text-[13px] font-medium text-oa-primary">{editing ? "Done" : "Edit"}</span>
+              </button>
+            )}
+            {fieldsOpen ? null : (
+              <div className="border-t border-oa-border px-3.5 py-2 text-pretty text-[13px] leading-5 text-oa-muted-fg">
+                <p>{checksWhenShort(draftPreview.trigger, schedule?.time)}</p>
+                <p>{tellsShort(draftPreview.trigger)}</p>
+              </div>
+            )}
+          </div>
+
+          <dl ref={fieldsRef} id="draft-fields" className={`grid gap-x-5 gap-y-3 rounded-xl border border-oa-border bg-oa-bg px-3.5 py-3 sm:grid-cols-2 ${fieldsOpen ? "" : "max-sm:hidden"}`}>
             <div className="grid min-w-0 content-start gap-1">
               <dt className={LABEL}>What it watches</dt>
               <dd className="min-w-0">
@@ -711,7 +807,7 @@ export function JobsWorkspace({
                     {template.fields.includes("days_before") ? (
                       <>
                         <input aria-label="Days before earnings" className={`${INLINE_INPUT} oa-mono w-16`} inputMode="numeric" value={form.days} onChange={(event) => setForm({ ...form, days: event.target.value })} />
-                        <span>days before earnings</span>
+                        <span>calendar days before earnings</span>
                       </>
                     ) : null}
                     {template.fields.includes("weekday") ? (
@@ -797,32 +893,14 @@ export function JobsWorkspace({
             </p>
           ) : null}
 
-          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-            {already ? (
-              <p className="text-pretty text-[14px] font-medium leading-5 text-oa-fg">You already have this agent.</p>
-            ) : signedIn ? (
-              <OaButton loading={busy === "create"} onClick={turnOn} className="max-sm:!h-10 max-sm:w-full">
-                Save this agent
-              </OaButton>
-            ) : (
-              <OaButton loading={busy === "signin"} onClick={saveSignedOut} className="max-sm:!h-10 max-sm:w-full">
-                Save this agent
-              </OaButton>
-            )}
-            <OaButton
-              variant="secondary"
-              data-action="replay"
-              loading={busy === "replay"}
-              disabled={replayBlocked}
-              onClick={runReplay}
-              className="max-sm:!h-10 max-sm:w-full"
-            >
-              {replay && !replayIsCurrent ? "Update the preview" : "Preview the last four weeks"}
-            </OaButton>
+          {/* On a phone the wrapper steps aside (contents) so the buttons can stick above the tab bar while the card is in
+              view. The offset is the bar's measured height: 57.5px plus its bottom padding, max(safe area, 4px). */}
+          <div className="flex flex-col gap-2 max-sm:contents sm:flex-row sm:flex-wrap sm:items-center">
+            {/* The note comes first so a phone reads it above the Save bar; from sm up it sits after the buttons. */}
             {replay && !replayIsCurrent ? (
-              <span className="text-[13px] leading-5 text-oa-muted-fg">You changed it. Update the preview to see the new result.</span>
+              <span className="text-[13px] leading-5 text-oa-muted-fg sm:order-last">You changed it. Update the preview to see the new result.</span>
             ) : draftPreview && plan !== "pro" && !planMayRun(draftPreview, plan === "anon" ? "free" : plan) ? (
-              <span className="flex flex-wrap items-center gap-2 text-pretty text-[13px] leading-5 text-oa-muted-fg sm:ml-1">
+              <span className="flex flex-wrap items-center gap-2 text-pretty text-[13px] leading-5 text-oa-muted-fg sm:order-last sm:ml-1">
                 <ProMark className="h-[22px]" />
                 <span>
                   Agents that read new filings and news are part of Pro. On Free this one saves paused.{" "}
@@ -832,8 +910,33 @@ export function JobsWorkspace({
                 </span>
               </span>
             ) : !signedIn && !already ? (
-              <span className="text-pretty text-[13px] leading-5 text-oa-muted-fg sm:ml-1">Saving asks you to sign in. It is free, and this agent stays filled in while you do.</span>
+              <span className="text-pretty text-[13px] leading-5 text-oa-muted-fg sm:order-last sm:ml-1">Saving asks you to sign in. It is free, and this agent stays filled in while you do.</span>
             ) : null}
+            <div className="flex items-center gap-2 max-sm:sticky max-sm:bottom-[calc(58px+max(env(safe-area-inset-bottom),4px))] max-sm:z-20 max-sm:-mx-3.5 max-sm:border-t max-sm:border-oa-border max-sm:bg-oa-card max-sm:px-3.5 max-sm:py-2.5 max-sm:shadow-[0_-6px_18px_-12px_rgba(0,0,0,0.35)] sm:contents">
+              {already ? (
+                <p className="text-pretty text-[14px] font-medium leading-5 text-oa-fg max-sm:flex-1">You already have this agent.</p>
+              ) : signedIn ? (
+                <OaButton loading={busy === "create"} onClick={turnOn} className="max-sm:!h-10 max-sm:flex-1">
+                  Save this agent
+                </OaButton>
+              ) : (
+                <OaButton loading={busy === "signin"} onClick={saveSignedOut} className="max-sm:!h-10 max-sm:flex-1">
+                  Save this agent
+                </OaButton>
+              )}
+              <OaButton
+                variant="secondary"
+                data-action="replay"
+                loading={busy === "replay"}
+                disabled={replayBlocked}
+                onClick={runReplay}
+                // On a phone the preview already on screen needs no second button; it comes back once something changes.
+                className={`max-sm:!h-10 ${replayShown ? "max-sm:hidden" : ""}`}
+              >
+                <span className="sm:hidden">{replay && !replayIsCurrent ? "Update preview" : "Preview"}</span>
+                <span className="max-sm:hidden">{replay && !replayIsCurrent ? "Update the preview" : "Preview the last four weeks"}</span>
+              </OaButton>
+            </div>
           </div>
         </div>
       </section>

@@ -498,7 +498,14 @@ async function earningsTiming(input: Parameters<typeof watchRequest>[0], now: Da
 export async function watchCard(context: MineToolContext, input: Parameters<typeof watchRequest>[0]): Promise<AskCard> {
   const timing = await earningsTiming(input, context.now ?? new Date());
   if (timing.days !== null) input = { ...input, days: timing.days };
+  // Signed out there is no "my stocks" to watch; this would be a card about nothing.
+  if (!context.uid && input.mine === true && !tickerOf(input.ticker)) {
+    return errorCard("Signed out, there are no stocks of their own to watch. Name the stock the answer is about, or offer no agent; do not mention this in the answer.");
+  }
   const request = watchRequest(input);
+  if (!request && !tickerOf(input.ticker) && input.mine !== true) {
+    return errorCard("An agent watches one stock (or, signed in, every stock the person tracks). Name the stock the answer is about, or offer no agent; do not mention this in the answer.");
+  }
   if (!request) return errorCard("That is not something an agent can watch in that form. Agents watch a closing price level, a big daily move, an upcoming report, insider, Congress or fund trades, or the add level from our call.");
   const catalog = await plainCatalog();
   const parsed = parseByRules(request, catalog, { hidden: hiddenTemplateIds() });
@@ -516,7 +523,9 @@ export async function watchCard(context: MineToolContext, input: Parameters<type
       if (matches.every(Boolean)) existing = matches.map((job) => ({ name: job!.name, enabled: job!.enabled }));
     }
   } else {
-    note = note ? `${note} Setting up an agent takes a free account.` : "Setting up an agent takes a free account.";
+    // The Agents page shows the agent and its last four weeks before any sign-in; only saving it takes an account.
+    const saving = "The Agents page shows what it would have caught over the last four weeks. Saving it takes a free account.";
+    note = note ? `${note} ${saving}` : saving;
   }
   return {
     card: "watch",
@@ -602,7 +611,7 @@ export function buildMineTools(context: MineToolContext): ToolSet {
         "Offer an agent that keeps watching something after this answer: a closing price level, a big daily move, a reminder before earnings, insider, Congress or fund trades, or the add level from our call. It sets nothing up: the card has a 'Watch this' button that opens the Agents page with the request filled in, and the person saves it there. Call it when your answer points to something worth watching, at most once per answer.",
       inputSchema: z.object({
         kind: z.enum(WATCH_KINDS),
-        ticker: TICKER.optional().describe("The stock. Leave out with mine=true for every stock they track"),
+        ticker: TICKER.optional().describe("The stock. Required, unless mine=true for every stock a signed-in person tracks. There is no market-wide agent"),
         mine: z.boolean().optional().describe("Watch every stock the person tracks (daily_move, earnings_before, insider_trade only)"),
         level: z.number().positive().optional().describe("Price level for price_below or price_above, from a card in this conversation"),
         pct: z.number().positive().optional().describe("Move size for daily_move, 1 to 50. Defaults to 5"),

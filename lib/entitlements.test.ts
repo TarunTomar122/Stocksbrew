@@ -6,6 +6,7 @@ import {
   can,
   clip,
   clipByAge,
+  EXAMPLE_AGENTS_UID,
   describeRule,
   limitFor,
   nextStep,
@@ -14,6 +15,7 @@ import {
   redactLevelsDeep,
   redactOurLevels,
   ruleFor,
+  systemPlanOf,
   type FeatureId,
 } from "./entitlements";
 
@@ -184,5 +186,15 @@ describe("redactOurLevels", () => {
   it("never returns an empty card when given a fallback", () => {
     expect(redactOurLevels("The add level is $182.40.", "Open TSLA for the news.")).toBe("Open TSLA for the news.");
     expect(redactOurLevels(null, "Open TSLA.")).toBe("Open TSLA.");
+  });
+});
+
+describe("systemPlanOf", () => {
+  it("gives only the example account a fixed plan", () => {
+    expect(systemPlanOf(EXAMPLE_AGENTS_UID)).toBe("pro");
+    expect(systemPlanOf("example-portfolio ")).toBeNull();
+    expect(systemPlanOf("abcDEF1234567890abcDEF123456")).toBeNull();
+    expect(systemPlanOf(null)).toBeNull();
+    expect(systemPlanOf(undefined)).toBeNull();
   });
 });

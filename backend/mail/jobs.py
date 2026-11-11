@@ -2,7 +2,7 @@
 
     python -m backend.mail.jobs daily      # trading days, ~8:30am ET
     python -m backend.mail.jobs weekly     # Saturday, ~9am ET
-    python -m backend.mail.jobs alerts     # every 15 minutes
+    python -m backend.mail.jobs alerts     # every 15 minutes (plus the rebalance note when STRATEGY_REBALANCE_NOTES=1)
     python -m backend.mail.jobs lifecycle  # hourly
 
 Every job is a dry run unless `--send` (or `--to`) is given. `--send` only
@@ -21,7 +21,7 @@ from collections import Counter
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Iterable
 
-from backend.mail import alerts, daily, lifecycle, send, weekly
+from backend.mail import alerts, daily, lifecycle, rebalance, send, weekly
 from backend.mail.data import ET, load_person, parse_ts, stocks_by_id, tracked_counts
 from backend.mail.source import HttpSource, Source, StoreSource
 from backend.subscription_entitlement import is_pro_user
@@ -29,7 +29,7 @@ from backend.subscription_entitlement import is_pro_user
 USER_FIELDS = [
     "email", "email_lower", "display_name", "created_at", "last_sign_in_at", "is_subscribed", "subscriptionStatus",
     "proGifted", "proGiftExpiresAt", "tracked_stocks", "covered_stocks", "covered_adds_log", "unsubscribed",
-    "email_unsubscribed_all", *send.PREF_FIELD.values(),
+    "email_unsubscribed_all", "tracked_strategies", *send.PREF_FIELD.values(),
 ]
 
 
@@ -67,11 +67,18 @@ def run(job: str, *, dry_run: bool, only_uid: str | None, to: str | None, limit:
         return stats
     if job == "lifecycle":
         popular = stocks_by_id(src, [i for i, _ in tracked_counts(src, limit=8)], now=now)
+    # The note at each rebalance rides on the alerts run (rebalance.py); read the records once per run.
+    rebalances: list = []
+    if job == "alerts" and rebalance.enabled():
+        try:
+            rebalances = rebalance.load_recent(src, now)
+        except Exception as exc:  # the note must never stop the alert emails
+            print(f"[mail] rebalance notes skipped: {exc!r}")
 
     builders: dict[str, Callable] = {
         "daily": lambda uid, user, hist: _daily(src, uid, user, now, market),
         "weekly": lambda uid, user, hist: _weekly(src, uid, user, now, market),
-        "alerts": lambda uid, user, hist: _alerts(src, uid, user, now, hist),
+        "alerts": lambda uid, user, hist: _alerts(src, uid, user, now, hist) + _rebalance_notes(user, now, hist, rebalances),
         "lifecycle": lambda uid, user, hist: _lifecycle(src, uid, user, now, hist, popular),
     }
     build = builders[job]
@@ -149,6 +156,27 @@ def _alerts(src, uid, user, now, hist, clock: Callable[[], datetime] | None = No
         return []
     email.meta["until"] = until.isoformat()
     return [(email, f"alerts_{now.strftime('%Y-%m-%dT%H:%M')}")]
+
+
+def _rebalance_notes(user, now, hist, records):
+    """One note per rebalance day for a Pro person following a strategy that rebalanced."""
+    try:
+        return _rebalance_note(user, now, hist, records)
+    except Exception as exc:  # a bad record costs this note, never the person's other alerts
+        print(f"[mail] rebalance note failed: {exc!r}")
+        return []
+
+
+def _rebalance_note(user, now, hist, records):
+    found = rebalance.due(user, records, now) if records else None
+    if not found:
+        return []
+    day, picked = found
+    key = rebalance.dedupe_key(day)
+    if key in hist.keys:
+        return []  # sent on an earlier run; checked here so the log is not a skipped line every 15 minutes
+    email = rebalance.build_note(picked)
+    return [(email, key)] if email else []
 
 
 def _lifecycle(src, uid, user, now, hist, popular):

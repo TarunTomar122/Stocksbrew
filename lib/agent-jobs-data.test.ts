@@ -24,6 +24,8 @@ vi.mock("@/lib/firebase-admin", () => {
     adminFirestore: {
       collection: (collection: string) => ({
         doc: (id: string) => ref(collection, id),
+        // Whole-collection reads (congress, funds, insiders) come back empty here.
+        limit: () => ({ get: async () => ({ docs: [], size: 0 }) }),
         where: (field: string, _op: string, value: unknown) => ({
           async get() {
             const docs = [...store.docs.entries()]
@@ -39,6 +41,10 @@ vi.mock("@/lib/firebase-admin", () => {
     },
   };
 });
+
+// Filings and headlines for the filing and news agents: none, but read fine.
+vi.mock("@/lib/agent-events-data", () => ({ loadFilingFacts: async () => [], loadNewsFacts: async () => null }));
+vi.mock("@/lib/earnings-day", () => ({ listEarningsDayReports: async () => [] }));
 
 const ROWS = [
   { instrument_id: "US_NVDA", ticker: "NVDA", directive_v2: { zones: { accumulate_below: 150, trim_above: 220 } } },
@@ -113,5 +119,63 @@ describe("createJob and the plan", () => {
     const first = await createJob("u1", price as never, new Date("2026-11-11T12:00:00Z"), limit, "free");
     const second = await createJob("u1", { ...price, name: "NVDA below $140", trigger: { ...price.trigger, level: 140 } } as never, new Date("2026-11-11T12:01:00Z"), limit, "free");
     expect([first.enabled, second.enabled]).toEqual([true, false]);
+  });
+});
+
+describe("the runner and the example account", () => {
+  const job = (uid: string, id: string, trigger: Record<string, unknown>, created: string) => ({
+    id,
+    uid,
+    template: "x",
+    name: id,
+    trigger,
+    scope: { kind: "tickers", tickers: ["NVDA"] },
+    mode: "tell_me",
+    enabled: true,
+    created_at: created,
+    updated_at: created,
+  });
+  const FILING = { type: "event", event: "sec_filing", filings: { major: true } };
+  const EARNINGS = { type: "event", event: "earnings_approaching", days_before: 3 };
+  const MOVE = { type: "price", rule: "moves_pct", pct: 5 };
+
+  function seedJobs() {
+    for (const [uid, id, trigger, created] of [
+      ["example-portfolio", "exampleearnings", EARNINGS, "2026-11-11T10:00:00.000Z"],
+      ["example-portfolio", "examplebigmove", MOVE, "2026-11-11T10:00:00.001Z"],
+      ["example-portfolio", "examplefilings", FILING, "2026-11-11T10:00:00.002Z"],
+      ["u1", "userfiling1", FILING, "2026-11-01T10:00:00.000Z"],
+    ] as const) {
+      store.docs.set(`tm_agent_jobs/${uid}__${id}`, job(uid, id, trigger, created));
+    }
+    // A Free account on the tighter line: one agent, and no filing agents.
+    store.docs.set("users/u1", { tracked_stocks: ["US_NVDA"] });
+  }
+
+  it("runs all three example agents on the tighter Free line, where a Free account's filing agent waits", async () => {
+    vi.stubEnv("PAYWALL_V2", "1");
+    vi.resetModules();
+    seedJobs();
+    const { runAllEnabledJobs } = await import("./agent-jobs-data");
+    const summary = await runAllEnabledJobs(new Date("2026-11-11T23:00:00Z"), () => {}, { dryRun: true });
+    expect(summary.jobs).toBe(4);
+    // u1's filing agent is past its plan; the example account's three all run.
+    expect(summary.over_plan).toBe(1);
+    expect(summary.recorded + summary.not_due).toBe(3);
+    // Dry: nothing written.
+    expect([...store.docs.keys()].filter((key) => key.startsWith("tm_agent_runs/"))).toEqual([]);
+  });
+
+  it("onlyUid leaves everyone else's agents alone, and a real run writes only that account's runs", async () => {
+    vi.stubEnv("PAYWALL_V2", "1");
+    vi.resetModules();
+    seedJobs();
+    const { runAllEnabledJobs } = await import("./agent-jobs-data");
+    const summary = await runAllEnabledJobs(new Date("2026-11-11T23:00:00Z"), () => {}, { onlyUid: "example-portfolio" });
+    expect(summary.jobs).toBe(3);
+    expect(summary.over_plan).toBe(0);
+    const runs = [...store.docs.keys()].filter((key) => key.startsWith("tm_agent_runs/"));
+    expect(runs.length).toBe(summary.recorded);
+    expect(runs.every((key) => key.startsWith("tm_agent_runs/example-portfolio__"))).toBe(true);
   });
 });

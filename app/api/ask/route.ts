@@ -1,24 +1,15 @@
 import { createHash } from "node:crypto";
 
 import { NextRequest, NextResponse } from "next/server";
-import {
-  convertToModelMessages,
-  type ModelMessage,
-  createUIMessageStream,
-  createUIMessageStreamResponse,
-  stepCountIs,
-  streamText,
-  type UIMessage,
-} from "ai";
+import { createUIMessageStreamResponse } from "ai";
 
-import { auditNumbers, cardForModel, isAskCard, type AskCard, type AskUIMessage } from "@/lib/ask-cards";
-import { contextLabel, parseAskContext } from "@/lib/ask-context";
-import { openContext } from "@/lib/ask-context-open";
-import { ASK_MAX_QUESTION_CHARS, ASK_MAX_STEPS, ASK_MAX_TURNS_SENT } from "@/lib/ask-config";
+import type { AskUIMessage } from "@/lib/ask-cards";
+import { parseAskContext } from "@/lib/ask-context";
+import { ASK_MAX_QUESTION_CHARS } from "@/lib/ask-config";
 import { askUsageStore, storableMessages } from "@/lib/ask-data";
 import { askPlanFor, consumeAskQuota, decideAskQuota, peekAskQuota } from "@/lib/ask-limits";
 import { askModel } from "@/lib/ask-llm";
-import { askSystemPrompt } from "@/lib/ask-prompt";
+import { askUIStream, textOf } from "@/lib/ask-pipeline";
 import { buildAskTools } from "@/lib/ask-tools";
 import { getSessionUser } from "@/lib/auth-server";
 import { earliestBacktestStart } from "@/lib/backtest/gated";
@@ -30,9 +21,6 @@ export const dynamic = "force-dynamic";
 
 
 const ASK_MAX_BODY_BYTES = 200_000;
-
-const OFFLINE_NOTICE =
-  "No language model key on this server. This answer was assembled from the tool results by fixed rules, not written by the copilot.";
 
 /** Signed-out people are counted by a hash of their address. The address itself is never stored. */
 function anonymousKey(req: NextRequest): string {
@@ -47,34 +35,6 @@ async function whoIsAsking(req: NextRequest) {
   const doc = await getUserDoc(session.uid).catch(() => null);
   const isPro = resolveIsSubscribed(doc);
   return { uid: session.uid, isPro, plan: askPlanFor({ uid: session.uid, isPro }), key: session.uid };
-}
-
-function textOf(message: UIMessage | undefined): string {
-  return (message?.parts ?? [])
-    .map((part) => (part.type === "text" ? part.text : ""))
-    .join(" ")
-    .trim();
-}
-
-/**
- * Whether a card's figures count as evidence for the numbers check. A "Watch this" card echoes the level the
- * model chose, so a figure the model made up would trace to its own suggestion; it is left out.
- */
-function auditable(card: AskCard): boolean {
-  return card.card !== "watch";
-}
-
-/** Tool results already in the conversation, as the model saw them. */
-function earlierOutputs(messages: UIMessage[]): unknown[] {
-  const out: unknown[] = [];
-  for (const message of messages) {
-    for (const part of message.parts ?? []) {
-      if (!part.type.startsWith("tool-")) continue;
-      const output = (part as { output?: unknown }).output;
-      if (isAskCard(output) && auditable(output)) out.push(cardForModel(output));
-    }
-  }
-  return out;
 }
 
 function cleanMessages(raw: unknown): AskUIMessage[] | null {
@@ -160,91 +120,7 @@ export async function POST(req: NextRequest) {
     viewer: viewer.uid === who.uid ? viewer : null,
     example: Boolean(context?.example),
   });
-  // The item a link carried opens with the first question only. Later questions in the conversation already have its card.
-  const firstTurn = messages.filter((message) => message.role === "user").length === 1;
-  // Start the window on a person's turn so the model never opens on a dangling tool result.
-  let recent = messages.slice(-ASK_MAX_TURNS_SENT);
-  while (recent.length > 1 && recent[0]!.role !== "user") recent = recent.slice(1);
-  const stream = createUIMessageStream<AskUIMessage>({
-    originalMessages: messages,
-    execute: async ({ writer }) => {
-      // Open the assistant message before anything else goes on the stream (the notice, the opened item), so the
-      // page keeps one answer with one id. Without it the first part starts a second message.
-      writer.write({ type: "start" });
-      if (llm.via === "offline") writer.write({ type: "data-notice", data: { text: OFFLINE_NOTICE } });
-      // Read here, after the stream has started, so a slow read never holds the response.
-      const opened =
-        context && firstTurn
-          ? await openContext(context, tools, now).catch((error) => {
-              console.error("ask_context_failed", error);
-              return null;
-            })
-          : null;
-      const system = askSystemPrompt({
-        signedIn: Boolean(who.uid),
-        isPro: who.isPro,
-        now,
-        startedFrom: opened && context ? contextLabel(opened.fellBack ? { ...context, kind: "stock" } : context) : null,
-        example: Boolean(context?.example),
-      });
-      const history: ModelMessage[] = await convertToModelMessages(recent, { tools });
-      if (opened) {
-        // Shown as the answer's first lookup, and handed to the model as one it already made.
-        writer.write({ type: "tool-input-available", toolCallId: opened.toolCallId, toolName: opened.toolName, input: opened.input });
-        writer.write({ type: "tool-output-available", toolCallId: opened.toolCallId, output: opened.output });
-        history.push(
-          { role: "assistant", content: [{ type: "tool-call", toolCallId: opened.toolCallId, toolName: opened.toolName, input: opened.input }] },
-          {
-            role: "tool",
-            content: [{ type: "tool-result", toolCallId: opened.toolCallId, toolName: opened.toolName, output: { type: "json", value: cardForModel(opened.output) as never } }],
-          },
-        );
-      }
-      const result = streamText({
-        model: llm.model,
-        providerOptions: llm.providerOptions,
-        // On Claude, a cache point after the system prompt covers the tool definitions and the prompt (about 6k
-        // tokens, the same for every signed-in person on a given day), so every question after the first reads them
-        // from cache. Measured 2026-11-10: about 6k of a first step's 6k input tokens came from cache.
-        system:
-          llm.via === "anthropic"
-            ? { role: "system", content: system, providerOptions: { anthropic: { cacheControl: { type: "ephemeral" } } } }
-            : system,
-        messages: history,
-        // Only the server writes system instructions. A system message inside the conversation is refused.
-        allowSystemInMessages: false,
-        tools,
-        stopWhen: stepCountIs(ASK_MAX_STEPS),
-        // An answer is a few paragraphs. This caps a runaway reply, not a normal one.
-        maxOutputTokens: 8000,
-        onError: ({ error }) => console.error("ask_stream_error", error),
-      });
-      writer.merge(result.toUIMessageStream({ sendReasoning: false }));
-
-      // Once the answer is written, check its figures against what the tools returned.
-      const steps = await result.steps;
-      const answer = steps.map((step) => step.text).join("\n");
-      if (!answer.trim()) return;
-      const outputs: unknown[] = earlierOutputs(recent);
-      if (opened) outputs.push(cardForModel(opened.output));
-      for (const step of steps) {
-        for (const toolResult of step.toolResults) {
-          if (isAskCard(toolResult.output) && !auditable(toolResult.output)) continue;
-          outputs.push(isAskCard(toolResult.output) ? cardForModel(toolResult.output) : toolResult.output);
-        }
-      }
-      // What the person typed counts as given: "since 2019", "above $180".
-      for (const message of recent) if (message.role === "user") outputs.push(textOf(message));
-      const audit = auditNumbers(answer, outputs);
-      if (audit.checked > 0) writer.write({ type: "data-audit", data: audit });
-    },
-    onError: (error) => {
-      console.error("ask_failed", error);
-      return "The copilot could not finish that answer. Nothing was changed. Try again.";
-    },
-    // The conversation is saved by the page once the answer is in (POST /api/ask/conversations), so a slow
-    // write to the store never holds this stream open.
-  });
+  const stream = askUIStream({ messages, context, signedIn: Boolean(who.uid), isPro: who.isPro, llm, tools, now });
 
   const headers: Record<string, string> = {};
   if (quota?.ok) {
