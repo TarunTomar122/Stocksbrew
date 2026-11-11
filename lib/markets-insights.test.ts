@@ -50,6 +50,14 @@ describe("buildMarketsRead", () => {
     const sectors = ["xlk", "xlf", "xle", "xlv", "xli", "xly", "xlp", "xlu", "xlb", "xlre", "xlc"].map((id) => asset(id, 0.2));
     const read = buildMarketsRead({ as_of: null, assets: [asset("sp500", -0.38, { class: "index", group: null }), ...sectors], predictions: [], treasury: null, volCurve: null }, new Date("2026-11-10T22:00:00Z"));
     expect(read?.headline).toMatch(/^The S&P 500 lost 0\.38% today even though all 11 sectors rose\./);
+    // Most sectors (not all) the other way is the same story, not a "mixed" day.
+    const most = ["xlk", "xlf", "xle", "xlv", "xli", "xly", "xlp", "xlu", "xlb", "xlre", "xlc"].map((id, i) => asset(id, i < 6 ? 0.2 : -0.3));
+    const mostRead = buildMarketsRead({ as_of: null, assets: [asset("sp500", -0.38, { class: "index", group: null }), ...most], predictions: [], treasury: null, volCurve: null }, new Date("2026-11-10T22:00:00Z"));
+    expect(mostRead?.headline).toMatch(/^The S&P 500 lost 0\.38% today even though 6 of 11 sectors rose\./);
+    // And the mirror image counts the sectors that fell.
+    const fellMost = ["xlk", "xlf", "xle", "xlv", "xli", "xly", "xlp", "xlu", "xlb", "xlre", "xlc"].map((id, i) => asset(id, i < 4 ? 0.2 : -0.3));
+    const upRead = buildMarketsRead({ as_of: null, assets: [asset("sp500", 0.4, { class: "index", group: null }), ...fellMost], predictions: [], treasury: null, volCurve: null }, new Date("2026-11-10T22:00:00Z"));
+    expect(upRead?.headline).toMatch(/^The S&P 500 gained 0\.40% today even though 7 of 11 sectors fell\./);
   });
 
   it("returns null without a stock price", () => {

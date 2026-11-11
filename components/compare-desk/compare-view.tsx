@@ -14,7 +14,7 @@ import { buildCompareTable, describeDifferences, tallyWins, type CompareTableGro
 import { canSeeLevels, type Viewer } from "@/lib/entitlements-server";
 import { getScreenerRows } from "@/lib/screener";
 import { withoutZones, type ScreenerRow } from "@/lib/screener-shared";
-import { plainCallReason, shortCompanyName } from "@/lib/plain-copy";
+import { plainCallReason, shortCompanyName, wholeSentences } from "@/lib/plain-copy";
 
 /**
  * The compare desk's body for two to four stocks: the read, the rebased price
@@ -293,7 +293,9 @@ export async function CompareView({
                         {rows.map((row, index) => (
                           <td key={index} className={`${CELL} w-[7.25rem] max-w-[7.25rem] sm:w-[10.5rem] sm:max-w-[10.5rem]`}>
                             {row?.call_reason ? (
-                              <span className="block text-pretty text-right text-[12.5px] leading-[1.15rem] text-oa-fg">{plainCallReason(row.call_reason)}</span>
+                              <span className="block text-pretty text-right text-[12.5px] leading-[1.15rem] text-oa-fg">{/* The evidence sentence only; the narrow cell has no room for what would change the call. */}
+                                {wholeSentences(plainCallReason(row.call_reason), 1)}
+                              </span>
                             ) : (
                               <Unknown />
                             )}

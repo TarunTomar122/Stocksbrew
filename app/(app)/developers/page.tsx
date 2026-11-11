@@ -24,7 +24,7 @@ const SHARE_IMAGE = ogImage(["page", "developers"], "stocksbrew API, MCP server 
 export const metadata: Metadata = {
   title: "Developers: stocksbrew API, MCP server and CLI",
   description:
-    "Connect Claude Code, Codex, Cursor or your own script to stocksbrew: a remote MCP server, a REST API and a CLI over the same 15 tools. Quickstart, auth, rate limits and the full tool reference.",
+    "Connect Claude Code, Codex, Cursor or your own script to stocksbrew: a remote MCP server, a REST API and a CLI over the same tools. Quickstart, auth, rate limits and the full tool reference.",
   keywords: ["stock market MCP server", "stock research API", "MCP finance", "AI agent stock API", "stocksbrew CLI"],
   alternates: { canonical: "/developers" },
   openGraph: {
@@ -76,6 +76,21 @@ const PROMPTS: { title: string; prompt: string; uses: string }[] = [
     title: "A price alert",
     prompt: "Set a stocksbrew alert for AAPL below 200. Show me exactly what you are about to create and wait for my yes.",
     uses: "create_alert (after confirmation), get_my_alerts",
+  },
+  {
+    title: "Inside my portfolio",
+    prompt: "Using stocksbrew, tell me what I really own once my funds are opened up, what my holdings should pay me in dividends over the next year, and how they did in the 2022 rate-hike slide. Quote the sentences and dates it gives.",
+    uses: "what_you_own, dividend_plan, stress_test",
+  },
+  {
+    title: "Worth copying?",
+    prompt: "What would copying Berkshire Hathaway's 13F filings have made against the S&P 500? Then show me the top five funds on stocksbrew's copy ranking.",
+    uses: "copy_test",
+  },
+  {
+    title: "Set up a watch",
+    prompt: "Read this into stocksbrew agents and show me what it would watch: tell me if NVDA closes below 150 or a fund sells it.",
+    uses: "watch_in_plain_words",
   },
   {
     title: "What is moving",
@@ -458,7 +473,7 @@ export default async function DevelopersPage() {
             ]}
           />
           <Prose className="!text-[14.5px] !leading-6 text-oa-muted-fg">
-            The CLI covers the read tools above. Portfolio and alert tools are available over MCP and REST.
+            The CLI covers the commands above. Every other tool, including portfolio, alerts, copy tests and agents, is available over MCP and REST.
           </Prose>
         </PageSection>
 

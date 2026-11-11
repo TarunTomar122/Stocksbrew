@@ -55,6 +55,11 @@ describe("Stocksbrew MCP server", () => {
       "get_my_alerts",
       "create_alert",
       "delete_alert",
+      "what_you_own",
+      "dividend_plan",
+      "stress_test",
+      "copy_test",
+      "watch_in_plain_words",
     ]);
     for (const name of [
       "search_stocks",
@@ -68,6 +73,11 @@ describe("Stocksbrew MCP server", () => {
       "get_my_radar",
       "get_radar_changes",
       "get_my_alerts",
+      "what_you_own",
+      "dividend_plan",
+      "stress_test",
+      "copy_test",
+      "watch_in_plain_words",
     ]) {
       const tool = result.tools.find((item) => item.name === name);
       expect(tool).toBeDefined();
@@ -109,6 +119,24 @@ describe("Stocksbrew MCP server", () => {
       tool: "get_market_brief",
       args: { market: "US" },
     });
+
+    await client.close();
+    await server.close();
+  });
+
+  it("passes the new tools' arguments through, with defaults filled in", async () => {
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    const server = createStocksbrewMcpServer({ ...principal, scopes: [...principal.scopes] });
+    const client = new Client({ name: "test-client", version: "1.0.0" });
+    await server.connect(serverTransport);
+    await client.connect(clientTransport);
+
+    const stress = await client.callTool({ name: "stress_test", arguments: {} });
+    expect(stress.structuredContent).toMatchObject({ tool: "stress_test", args: { holdings: false } });
+    const copy = await client.callTool({ name: "copy_test", arguments: { query: "berkshire" } });
+    expect(copy.structuredContent).toMatchObject({ tool: "copy_test", args: { query: "berkshire", limit: 10 } });
+    const watch = await client.callTool({ name: "watch_in_plain_words", arguments: { text: "x".repeat(301) } });
+    expect(watch.isError).toBe(true);
 
     await client.close();
     await server.close();

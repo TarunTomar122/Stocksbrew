@@ -7,12 +7,21 @@
 
 import { callWord, type CallWord } from "@/lib/stock-chart";
 import type { StockIntelligenceDoc } from "@/lib/stock";
+import { todayET } from "@/lib/calendar-shared";
+
+/**
+ * The reason the screener job writes for this company from its own numbers
+ * (backend/call_reason.py `compose_company_reason`, stored on the
+ * `tm_screener_snapshot` row). Used under the call only when it was written
+ * for the same call the brief shows now.
+ */
+export type CompanyReason = { text: string; call: CallWord | null; source?: string | null };
 
 export type StockRead = {
   call: CallWord | null;
   /** The action in the brief's own words, e.g. "Hold here". */
   actionLabel: string | null;
-  /** One or two sentences on what to do: the stock-specific `call_reason` when stored, else the template summary. */
+  /** Two sentences on why this call: the company reason when it matches the call, else the brief's `call_reason`, else the template summary. */
   actionSummary: string | null;
   headline: string | null;
   /** The longer narrative paragraph, when it adds to the headline. */
@@ -71,7 +80,44 @@ function positive(value: unknown): number | null {
   return fin(value) && value > 0 ? value : null;
 }
 
-export function buildStockRead(intelligence: StockIntelligenceDoc | null | undefined): StockRead | null {
+/** The company reason, when it was written from the numbers for the call the brief shows. */
+const MONTH_INDEX: Record<string, number> = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 };
+
+/**
+ * Drops a forward-looking sentence whose date has passed ("The Nov 17 report decides what we do" on Nov 18),
+ * so a stalled snapshot never shows yesterday's plan as today's. `today` is a New York YYYY-MM-DD.
+ */
+export function dropPastDatedSentences(text: string, today: string): string {
+  const now = Date.parse(`${today}T00:00:00Z`);
+  if (!Number.isFinite(now)) return text;
+  // Split only where a sentence ends and a new one starts, so "3.3%" never splits.
+  const sentences = text.split(/(?<=[.!?])\s+(?=[A-Z])/);
+  const kept = sentences.filter((sentence) => {
+    const match = /\bThe ([A-Z][a-z]{2}) (\d{1,2}) report\b/.exec(sentence);
+    if (!match || MONTH_INDEX[match[1]!] === undefined) return true;
+    const year = Number(today.slice(0, 4));
+    let date = Date.UTC(year, MONTH_INDEX[match[1]!]!, Number(match[2]));
+    // A December report named in January is last year's; one named more than six months back is next year's.
+    if (date - now > 180 * 86_400_000) date = Date.UTC(year - 1, MONTH_INDEX[match[1]!]!, Number(match[2]));
+    if (now - date > 180 * 86_400_000) date = Date.UTC(year + 1, MONTH_INDEX[match[1]!]!, Number(match[2]));
+    return date >= now;
+  });
+  return kept.join(" ").trim();
+}
+
+export function matchingCompanyReason(reason: CompanyReason | null | undefined, call: CallWord | null, today: string = todayET()): string | null {
+  if (!reason || !call || reason.call !== call || reason.source !== "company") return null;
+  return dropPastDatedSentences(clean(reason.text), today) || null;
+}
+
+// "What would change our mind" items that say nothing about the company: sector or market-wide lines, and the
+// engine's shared "Revisit if ..." templates (the company reason already says what would change the call).
+const MARKET_WIDE = /\b(?:breadth|sector|market leadership|the (?:broader |wider )?market|risk appetite|rates? (?:rise|rises|stay high))\b|^revisit (?:only )?if\b/i;
+
+export function buildStockRead(
+  intelligence: StockIntelligenceDoc | null | undefined,
+  options: { companyReason?: CompanyReason | null } = {},
+): StockRead | null {
   if (!intelligence) return null;
   const doc = intelligence as LooseIntelligence;
   const directive = (doc.directive_v2 ?? null) as LooseDirective | null;
@@ -95,8 +141,13 @@ export function buildStockRead(intelligence: StockIntelligenceDoc | null | undef
   const bodyText = clean(doc.today_brief) || clean(doc.body) || clean(doc.visual_summary?.what_changed);
   const body = bodyText && (!headline || norm(bodyText) !== norm(headline)) ? bodyText : null;
   const actionLabel = clean(directive?.action?.label) || null;
-  // Prefer the stock-specific reason; older briefs only have the shared template summary.
-  const actionSummary = clean(directive?.call_reason) || clean(directive?.action?.summary) || null;
+  // The company reason first (its own numbers and what would change the call), then the brief's
+  // stock-specific line, then the shared template that older briefs carry.
+  const companyReason = matchingCompanyReason(options.companyReason, callWord(directive?.stance));
+  const actionSummary = companyReason || clean(directive?.call_reason) || clean(directive?.action?.summary) || null;
+  // With a reason about the company, sector-wide lines ("Technology breadth remains weak") say less than it does.
+  // Short labels only: a longer sentence that mentions the sector is usually about the company itself.
+  const shownChangers = companyReason ? changers.filter((item) => !(MARKET_WIDE.test(item) && (item.length <= 70 || /^revisit/i.test(item)))) : changers;
 
   if (!headline && !body && !actionLabel && reasons.length === 0) return null;
 
@@ -109,7 +160,7 @@ export function buildStockRead(intelligence: StockIntelligenceDoc | null | undef
     headline,
     body,
     reasons: reasons.slice(0, 3),
-    changers: changers.slice(0, 3),
+    changers: shownChangers.slice(0, 3),
     confidence:
       confidenceRaw === "high" ? "high" : confidenceRaw === "medium" || confidenceRaw === "med" ? "medium" : confidenceRaw === "low" ? "low" : null,
     horizon: clean(directive?.horizon) || null,

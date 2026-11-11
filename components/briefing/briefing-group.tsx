@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { MoveBar, Verdict } from "@/components/oa/kit/tone";
+import { Verdict } from "@/components/oa/kit/tone";
 import { StockLogo } from "@/components/stock-logo";
 import { askWhyHref, COPILOT_PATH, type BriefingItem, type BriefingItemStatus } from "@/lib/briefing";
 import { visibleLines, type BriefingGroup, type BriefingLine } from "@/lib/briefing-groups";
@@ -222,7 +222,7 @@ export function BriefingGroupCard({
   return (
     <article
       data-briefing-group={group.key}
-      className={`grid grid-cols-[1.25rem_minmax(0,1fr)_auto] gap-x-3 px-4 py-2.5 ${moveMax ? "sm:grid-cols-[1.25rem_3.75rem_minmax(0,1fr)_auto]" : "sm:grid-cols-[1.25rem_3.75rem_minmax(0,1fr)_4.5rem]"} ${settled ? "opacity-80" : ""}`}
+      className={`grid grid-cols-[1.25rem_minmax(0,1fr)_auto] gap-x-3 px-4 py-2.5 sm:grid-cols-[1.25rem_3.75rem_minmax(0,1fr)_4.5rem] ${settled ? "opacity-80" : ""}`}
     >
       <span className="col-start-1 row-start-1 pt-px">
         {ticker ? (
@@ -249,8 +249,7 @@ export function BriefingGroupCard({
       <span className="col-start-3 row-start-1 text-right leading-5 sm:col-start-4">
         {move != null ? (
           <span className="inline-flex items-center justify-end gap-2">
-            {moveMax ? <MoveBar value={move} max={moveMax} width={44} /> : null}
-            <span className={`oa-mono whitespace-nowrap text-[14px] tabular-nums ${moveMax ? "w-[4.5rem] text-right" : ""} ${move >= 0 ? "text-signal-bullish" : "text-signal-bearish"}`}>{signedPct(move)}</span>
+            <span className={`oa-mono whitespace-nowrap text-[14px] tabular-nums ${move >= 0 ? "text-signal-bullish" : "text-signal-bearish"}`}>{signedPct(move)}</span>
           </span>
         ) : null}
       </span>

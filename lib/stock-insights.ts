@@ -43,6 +43,8 @@ export type StockInsightInput = {
   /** Covered stocks only: the last time the call switched. */
   lastChange: { date: string; from: CallWord | null; to: CallWord; priceAtCall: number | null } | null;
   asOf?: string | null;
+  /** False on the stock page, where the call sits right above the read: say the move, not the call a second time. */
+  callInHeadline?: boolean;
 };
 
 const LOOKBACK = 252;
@@ -145,7 +147,7 @@ export function buildStockRead(input: StockInsightInput): TheRead | null {
   // Defensive lookup: a call word outside Add/Hold/Trim keeps the plain "Our call: X." line instead of throwing.
   const meaning = input.call ? (CALL_MEANING as Record<string, string | undefined>)[input.call.word] : undefined;
   // The call said as what we'd do ("We'd keep it, not buy more."), not as a code word with a gloss.
-  const callPart = input.call ? ` ${meaning ?? `Our call: ${input.call.word}`}.` : "";
+  const callPart = input.call && input.callInHeadline !== false ? ` ${meaning ?? `Our call: ${input.call.word}`}.` : "";
 
   // ── headline: today's move against its group (or the market), then the call ──
   let headline = "";
@@ -163,7 +165,7 @@ export function buildStockRead(input: StockInsightInput): TheRead | null {
       else tail = `, ${Math.abs(day) > Math.abs(base.pct) ? "more than" : "less than"} ${base.label} (${signedPct(base.pct)})`;
     }
     headline = `${ticker} ${movedWord(day)} ${when}${tail}.${callPart}`;
-  } else if (input.call) {
+  } else if (input.call && input.callInHeadline !== false) {
     headline = `Our call on ${ticker}: ${input.call.word}.`;
   }
 

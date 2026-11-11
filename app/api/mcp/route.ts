@@ -6,6 +6,8 @@ import { createStocksbrewMcpServer } from "@/lib/agent-mcp-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// A plain-words parse (watch_in_plain_words) can take a model read of up to about 12s.
+export const maxDuration = 30;
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",

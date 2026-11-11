@@ -9,9 +9,9 @@ import type { AgentToolName } from "@/lib/agent-intelligence";
  */
 
 export const SCOPE_INFO: Record<AgentScope, { text: string; writes: boolean }> = {
-  "stocks:read": { text: "Read stock research: the call, zones, fundamentals, risks, full stock detail and comparisons.", writes: false },
-  "market:read": { text: "Read the market brief, Explore sections, screens and the Market Daily archive.", writes: false },
-  "radar:read": { text: "Read your own portfolio: the stocks you hold and watch, and what changed.", writes: false },
+  "stocks:read": { text: "Read stock research: the call, zones, fundamentals, risks, full stock detail and comparisons, and read a watch request in plain words.", writes: false },
+  "market:read": { text: "Read the market brief, Explore sections, screens, the copy tests and the Market Daily archive.", writes: false },
+  "radar:read": { text: "Read your own portfolio: the stocks you hold and watch, what changed, what your funds hold, your dividends and your stress test.", writes: false },
   "radar:write": { text: "Add a stock to your portfolio or remove one.", writes: true },
   "alerts:read": { text: "Read your active alerts.", writes: false },
   "alerts:write": { text: "Create a price alert or deactivate an alert.", writes: true },
@@ -33,6 +33,11 @@ export const TOOL_SCOPE: Record<AgentToolName, AgentScope> = {
   get_my_alerts: "alerts:read",
   create_alert: "alerts:write",
   delete_alert: "alerts:write",
+  what_you_own: "radar:read",
+  dividend_plan: "radar:read",
+  stress_test: "radar:read",
+  copy_test: "market:read",
+  watch_in_plain_words: "stocks:read",
 };
 
 export type RestRoute = {
@@ -63,6 +68,11 @@ export const TOOL_REST: Record<AgentToolName, RestRoute> = {
   get_my_alerts: { method: "GET", path: "/alerts", args: "query", example: { path: "/alerts?ticker=NVDA" } },
   create_alert: { method: "POST", path: "/alerts", args: "json", example: { path: "/alerts", body: { ticker: "NVDA", condition: "below", target_price: 190 } } },
   delete_alert: { method: "DELETE", path: "/alerts", args: "json", example: { path: "/alerts", body: { alert_id: "ALERT_ID" } } },
+  what_you_own: { method: "GET", path: "/portfolio/xray", args: "query", example: { path: "/portfolio/xray?limit=15" } },
+  dividend_plan: { method: "GET", path: "/portfolio/dividends", args: "query", example: { path: "/portfolio/dividends?payments=true" } },
+  stress_test: { method: "GET", path: "/portfolio/stress", args: "query", example: { path: "/portfolio/stress?holdings=true" } },
+  copy_test: { method: "GET", path: "/copy", args: "query", example: { path: "/copy?query=berkshire" } },
+  watch_in_plain_words: { method: "POST", path: "/agents/parse", args: "json", example: { path: "/agents/parse", body: { text: "tell me if NVDA closes below 150" } } },
 };
 
 /** The order the reference groups tools in. */
@@ -70,7 +80,10 @@ export const TOOL_GROUPS: { title: string; blurb: string; tools: AgentToolName[]
   { title: "Stocks", blurb: "Research on any stock we cover.", tools: ["search_stocks", "get_stock_intelligence", "get_stock_detail", "compare_stocks"] },
   { title: "Market", blurb: "What the market and our discovery lists look like now.", tools: ["get_market_brief", "get_explore", "get_screens", "get_market_history"] },
   { title: "Your portfolio", blurb: "The stocks on your account. Writes change your account.", tools: ["get_my_radar", "get_radar_changes", "add_to_radar", "remove_from_radar"] },
+  { title: "Inside your portfolio", blurb: "What your holdings own through funds, pay in dividends and did in past shocks.", tools: ["what_you_own", "dividend_plan", "stress_test"] },
+  { title: "Copy tests", blurb: "What copying a fund or a House member would have made.", tools: ["copy_test"] },
   { title: "Alerts", blurb: "Your alert rules. Agents can create price alerts only.", tools: ["get_my_alerts", "create_alert", "delete_alert"] },
+  { title: "Agents", blurb: "Read a watch request into stocksbrew agents. Saving happens on the Agents page.", tools: ["watch_in_plain_words"] },
 ];
 
 /** Every error code the API can return, with the HTTP status the REST routes use. */
@@ -91,6 +104,12 @@ export const API_ERRORS: { code: string; status: number; meaning: string }[] = [
   { code: "alert_not_found", status: 404, meaning: "No alert with that id belongs to this account." },
   { code: "email_required", status: 409, meaning: "The account has no email address to send alerts to." },
   { code: "profile_not_ready", status: 409, meaning: "The account has not finished setting up. Open the app once and retry." },
+  { code: "invalid_slug", status: 400, meaning: "The copy test slug has characters a slug cannot have." },
+  { code: "copy_test_not_found", status: 404, meaning: "No copy test has that slug, or no fund or House member matches the search." },
+  { code: "copy_tests_unavailable", status: 503, meaning: "The copy tests could not be loaded. Retry later." },
+  { code: "portfolio_unavailable", status: 503, meaning: "Your holdings could not be read just now. Retry in a minute." },
+  { code: "invalid_request", status: 400, meaning: "The watch request is empty or longer than 300 characters." },
+  { code: "plain_parse_limit", status: 429, meaning: "The day's plain-English requests are used up, shared with the Agents page." },
   { code: "market_unavailable", status: 503, meaning: "The market brief could not be loaded. Retry later." },
   { code: "screens_unavailable", status: 503, meaning: "The screen catalog could not be loaded. Retry later." },
   { code: "internal_error", status: 500, meaning: "Something failed on our side." },

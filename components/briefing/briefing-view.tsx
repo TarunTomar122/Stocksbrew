@@ -21,7 +21,7 @@ import {
   groupCountLabel,
   type BriefingGroup,
 } from "@/lib/briefing-groups";
-import { briefingRead } from "@/lib/briefing-read";
+import { briefingRead, earlierSession, type BriefingSession } from "@/lib/briefing-read";
 
 import { BriefingGroupCard, type GroupActions } from "./briefing-group";
 import { longDay, pricesLine, shortDay, signedPct, sourceTime } from "./format";
@@ -42,6 +42,8 @@ export type BriefingViewProps = {
   marketState: string;
   /** Earnings reports for the person's stocks, rendered on the server (components/earnings-day). */
   earnings?: React.ReactNode;
+  /** How every sector did today, for the market view's headline and its strip. Null on other days. */
+  session?: BriefingSession | null;
 };
 
 const CARD = "oa-surface overflow-hidden border border-oa-border bg-oa-card";
@@ -78,6 +80,57 @@ function isUnexplainedMove(group: BriefingGroup): boolean {
     Boolean(group.ticker) &&
     group.items.length > 0 &&
     group.items.every((item) => item.kind === "price_move" && item.reason_status !== "confirmed")
+  );
+}
+
+/**
+ * Every sector on one line, best to worst: one bar each, up from the middle
+ * when it rose and down when it fell, so "7 of 11 rose" is something you see.
+ * Each bar opens its sector page.
+ */
+function SessionStrip({ sectors }: { sectors: BriefingSession["sectors"] }) {
+  const rows = [...sectors].filter((row) => Number.isFinite(row.day)).sort((a, b) => b.day - a.day);
+  if (rows.length < 4) return null;
+  const max = Math.max(0.5, ...rows.map((row) => Math.abs(row.day)));
+  const best = rows[0]!;
+  const worst = rows[rows.length - 1]!;
+  return (
+    <figure className="mt-3 border-t border-oa-border pt-3">
+      <ul aria-label="How each sector did today, best to worst" className="flex h-16 items-stretch gap-1">
+        {rows.map((row) => {
+          const height = Math.max(4, (Math.abs(row.day) / max) * 50);
+          const up = row.day >= 0;
+          return (
+            <li key={row.name} className="relative flex-1">
+            <a
+              href={row.slug ? `/sectors/${row.slug}` : "/sectors"}
+              title={`${row.name} ${signedPct(row.day)}`}
+              aria-label={`${row.name} ${signedPct(row.day)}`}
+              className="absolute inset-0 rounded-sm outline-none hover:bg-oa-accent focus-visible:bg-oa-accent"
+            >
+              <span aria-hidden="true" className="absolute inset-x-0 top-1/2 h-px bg-oa-border" />
+              <span
+                aria-hidden="true"
+                className={`absolute inset-x-[18%] rounded-[2px] ${up ? "bg-signal-bullish" : "bg-signal-bearish"}`}
+                style={up ? { bottom: "50%", height: `${height}%` } : { top: "50%", height: `${height}%` }}
+              />
+            </a>
+            </li>
+          );
+        })}
+      </ul>
+      <figcaption className="mt-1.5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 text-[13px] leading-5 text-oa-muted-fg">
+        <span>
+          Best: <span className="text-oa-fg">{best.name}</span> <span className="oa-mono tabular-nums">{signedPct(best.day)}</span>
+        </span>
+        <a href="/explore" className="order-last w-full font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg sm:order-none sm:w-auto">
+          Each bar is a sector: see all {rows.length}
+        </a>
+        <span>
+          Worst: <span className="text-oa-fg">{worst.name}</span> <span className="oa-mono tabular-nums">{signedPct(worst.day)}</span>
+        </span>
+      </figcaption>
+    </figure>
   );
 }
 
@@ -146,6 +199,7 @@ export function BriefingView({
   degraded,
   marketState,
   earnings = null,
+  session = null,
 }: BriefingViewProps) {
   const [state, setState] = React.useState<BriefingStateMap>(initialState);
   const [busy, setBusy] = React.useState<string | null>(null);
@@ -160,7 +214,7 @@ export function BriefingView({
   const settledCount = sections.kept.length + sections.dismissed.length;
 
   const grouped = groupBriefingSections(sections, briefing.mode);
-  const read = briefingRead(briefing, grouped);
+  const read = briefingRead(briefing, grouped, personal ? null : session);
 
   /**
    * Sets one or more items (a line, or a whole stock) and saves them one at a
@@ -233,23 +287,22 @@ export function BriefingView({
     ? grouped.worth_knowing
     : [...grouped.needs_you.filter((group) => !inRead.has(group.key)), ...grouped.worth_knowing];
   // In the market view a move with no confirmed reason has nothing to say but its number, so those
-  // share one line at the top of the list instead of a row each repeating "no reason yet".
+  // share one sentence at the end of the list instead of a row each repeating "no reason yet".
   const unexplained = personal ? [] : worthListed.filter(isUnexplainedMove);
-  // The market list reads biggest move first; rows with no move today (an earnings report) follow.
+  // Report-only rows (no move of their own, they only said "Reported earnings today") become one line of names.
+  const reportedOnly = personal ? [] : worthListed.filter((group) => !isUnexplainedMove(group) && group.day_change_pct == null && group.ticker);
+  // The market list reads biggest move first.
   const worthAll = personal
     ? worthListed
     : worthListed
         .filter((group) => !isUnexplainedMove(group))
+        .filter((group) => group.day_change_pct != null)
         .map((group, index) => ({ group, index }))
-        .sort((a, b) => {
-          const am = a.group.day_change_pct == null ? -1 : Math.abs(a.group.day_change_pct);
-          const bm = b.group.day_change_pct == null ? -1 : Math.abs(b.group.day_change_pct);
-          return bm - am || a.index - b.index;
-        })
+        .sort((a, b) => Math.abs(b.group.day_change_pct ?? 0) - Math.abs(a.group.day_change_pct ?? 0) || a.index - b.index)
         .map(({ group }) => group);
+  // The sector strip belongs to the session headline: today's live sectors under the index line they explain.
+  const showSession = !personal && Boolean(session) && Boolean(read) && !read?.headlineTickers && briefing.market.indices.length > 0 && !earlierSession(briefing.market.as_of, briefing.date);
   const worth = showAllWorth ? worthAll : worthAll.slice(0, WORTH_KNOWING_FIRST);
-  // One scale for every bar in the list, so a 16% move looks twice a 8% one.
-  const worthMax = Math.max(0, ...worthListed.map((group) => Math.abs(group.day_change_pct ?? 0)));
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start lg:gap-x-5">
@@ -328,7 +381,11 @@ export function BriefingView({
       </header>
 
       <div className="flex min-w-0 flex-col gap-4">
-        <TheRead read={read} label={personal ? "Today for you" : "Today in the market"} />
+        <TheRead
+          read={read}
+          label={personal ? "Today for you" : "Today in the market"}
+          visual={showSession && session ? <SessionStrip sectors={session.sectors} /> : null}
+        />
         {earnings}
 
         {error ? (
@@ -347,33 +404,14 @@ export function BriefingView({
           </Section>
         ) : null}
 
-        {worthListed.length > 0 ? (
-          <Section id="worth-knowing" label={personal ? "Worth knowing" : "Also moving"} count={groupCountLabel(worthListed)}>
-            {unexplained.length > 0 ? (
-              <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-oa-border px-4 pb-2.5 pt-1 text-[13px] leading-5 text-oa-muted-fg">
-                <span>Big moves we can&apos;t explain yet:</span>
-                {unexplained.map((group) => (
-                  <a
-                    key={group.key}
-                    href={`/stock/${encodeURIComponent(group.ticker as string)}`}
-                    className="inline-flex min-h-10 items-baseline gap-1.5 rounded hover:underline sm:min-h-0"
-                  >
-                    <span className="oa-mono font-semibold text-oa-fg">{group.ticker}</span>
-                    {group.day_change_pct != null ? (
-                      <span className={`oa-mono tabular-nums ${group.day_change_pct >= 0 ? "text-signal-bullish" : "text-signal-bearish"}`}>{signedPct(group.day_change_pct)}</span>
-                    ) : null}
-                  </a>
-                ))}
-              </p>
-            ) : null}
-            {worth.map((group, index) => (
-              <React.Fragment key={group.key}>
-                {/* Rows with no move of their own (an earnings report) are not moves: they get their own small heading. */}
-                {!personal && group.day_change_pct == null && (index === 0 || worth[index - 1]!.day_change_pct != null) ? (
-                  <p className="oa-caption border-b border-oa-border bg-oa-bg px-4 py-1.5">Earnings reports</p>
-                ) : null}
-                <BriefingGroupCard group={group} actions={actions} limit={COMPACT_VISIBLE_LINES} moveMax={personal ? undefined : worthMax || undefined} />
-              </React.Fragment>
+        {worthAll.length > 0 || unexplained.length > 0 || reportedOnly.length > 0 ? (
+          <Section
+            id="worth-knowing"
+            label={personal ? "Worth knowing" : worthAll.length > 0 ? "Other big moves, with the reason" : "Other big moves"}
+            count={personal ? groupCountLabel(worthListed) : worthAll.length > 0 ? `${worthAll.length} ${worthAll.length === 1 ? "stock" : "stocks"}` : undefined}
+          >
+            {worth.map((group) => (
+              <BriefingGroupCard key={group.key} group={group} actions={actions} limit={COMPACT_VISIBLE_LINES} />
             ))}
             {worthAll.length > WORTH_KNOWING_FIRST ? (
               <button
@@ -384,6 +422,38 @@ export function BriefingView({
               >
                 {showAllWorth ? "Show fewer" : `Show all ${worthAll.length}`}
               </button>
+            ) : null}
+            {/* Moves with no confirmed reason come last, in one sentence: there is nothing to say about them but the number. */}
+            {unexplained.length > 0 ? (
+              <p className={`text-pretty px-4 pb-2.5 pt-2 text-[13.5px] leading-6 text-oa-muted-fg ${worth.length > 0 ? "border-t border-oa-border" : ""}`}>
+                We haven&apos;t confirmed why {unexplained.length === 1 ? "one other stock" : `${unexplained.length} other stocks`} moved this much yet:{" "}
+                {unexplained.map((group, index) => (
+                  <React.Fragment key={group.key}>
+                    {index > 0 ? (index === unexplained.length - 1 ? " and " : ", ") : null}
+                    <a href={`/stock/${encodeURIComponent(group.ticker as string)}`} className="whitespace-nowrap text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
+                      <span className="oa-mono font-semibold">{group.ticker}</span>{" "}
+                      {group.day_change_pct != null ? (
+                        <span className={`oa-mono tabular-nums ${group.day_change_pct >= 0 ? "text-signal-bullish" : "text-signal-bearish"}`}>{signedPct(group.day_change_pct)}</span>
+                      ) : null}
+                    </a>
+                  </React.Fragment>
+                ))}
+                .
+              </p>
+            ) : null}
+            {reportedOnly.length > 0 ? (
+              <p className={`text-pretty px-4 pb-2.5 pt-2 text-[13.5px] leading-6 text-oa-muted-fg ${worth.length > 0 || unexplained.length > 0 ? "border-t border-oa-border" : ""}`}>
+                Also reported earnings:{" "}
+                {reportedOnly.map((group, index) => (
+                  <React.Fragment key={group.key}>
+                    {index > 0 ? (index === reportedOnly.length - 1 ? " and " : ", ") : null}
+                    <a href={`/stock/${encodeURIComponent(group.ticker as string)}`} className="oa-mono font-semibold text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
+                      {group.ticker}
+                    </a>
+                  </React.Fragment>
+                ))}
+                .
+              </p>
             ) : null}
           </Section>
         ) : null}
@@ -465,6 +535,8 @@ export function BriefingView({
 
       {/* Side rail: the market as context, not the lead. */}
       <aside className="flex min-w-0 flex-col gap-4">
+        {/* The market view's read already says how the index did, so this card is for your own briefing. */}
+        {personal ? (
         <section aria-label="Market today" className={CARD}>
           <header className="flex min-h-10 items-center justify-between gap-3 px-4 py-2">
             <h2 className="oa-label">Market today</h2>
@@ -499,6 +571,7 @@ export function BriefingView({
             </a>
           </div>
         </section>
+        ) : null}
 
         {!personal ? (
           <section aria-labelledby="today-pages-label" className={CARD}>

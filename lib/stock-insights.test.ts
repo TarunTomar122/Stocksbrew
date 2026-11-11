@@ -91,6 +91,17 @@ describe("buildStockRead", () => {
     expect(read?.headline).toBe("NVDA fell 4.3% today while Semiconductors rose 1.2%. We'd keep it, not buy more.");
   });
 
+  it("leaves the call out when the page already shows it above the read", () => {
+    const read = buildStockRead({
+      ...base,
+      dayPct: -4.3,
+      group: { label: "Semiconductors", medianPct: 1.2, count: 20 },
+      call: { word: "Hold", writtenAt: "2026-11-09T21:00:00Z" },
+      callInHeadline: false,
+    });
+    expect(read?.headline).toBe("NVDA fell 4.3% today while Semiconductors rose 1.2%.");
+  });
+
   it("says 'on Nov 9' when the quote is not from today", () => {
     const read = buildStockRead({ ...base, quoteDay: "2026-11-09", dayPct: 2, marketPct: 1 });
     expect(read?.headline).toContain("rose 2.0% on Nov 9, more than the S&P 500 (+1.0%)");

@@ -172,6 +172,61 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-11 ~03:55 UTC, MCP tools landed (lead)
+- Five new read-only tools on /api/mcp (20 in total), each wrapping the page's own loader and read:
+  - `what_you_own` (x-ray)
+  - `dividend_plan`
+  - `stress_test`
+  - `copy_test` (by slug, by search, or the ranking)
+  - `watch_in_plain_words` (parse only; no MCP tool creates agents)
+- Each also has a REST route under /api/v1, and /developers and the OpenAPI list them. Same Pro bearer auth, scope check and 200-a-day allowance as the existing tools. The user id comes only from the token.
+- Tested through the real route handler in-process against live LocalDB, with the bearer check, usage counters and user doc stubbed (no real token minted): tools/list returned 20, a call with no token got 401, and all eight calls returned 200. Checks: tsc, eslint and vitest 1543/1543.
+- Quality pass found no cross-user leakage, and its fixes are in (a 503 on a failed copy read, raw errors no longer reach clients). Lead added `maxDuration = 30` to /api/mcp.
+- Open, for the owner: `watch_in_plain_words` sits under the `stocks:read` scope, and existing `radar:read` tokens now cover x-ray, dividends and stress (the consent text was widened). The /developers argument tables scroll sideways on phones (an existing table).
+
+### 2026-11-11 ~03:40 UTC, memo, earnings season and MCP tools started (lead)
+- New builders:
+  - Weekly portfolio memo (`/portfolio/memo`): what changed, what could hurt and what is worth a look. The facts come from the existing reads; a model only words them, behind a numbers check.
+  - Earnings season planner (`/portfolio/earnings`): every report coming for your stocks, with how each one moved after its past reports.
+  - New MCP tools on the existing server at /api/mcp (OAuth, already on /developers): what_you_own, dividend_plan, stress_test, copy_test and watch_in_plain_words, so Claude and ChatGPT can use the new features.
+- Running: UI loop round 14+, company-specific call reasons, plus the three above. Next ship: stress test, the opacity fix, the loop's work and call reasons, then these.
+
+### 2026-11-11 ~03:35 UTC, stress test landed; opacity classes fixed site-wide (lead)
+- Stress test built (`/portfolio/stress`): today's holdings replayed through eight real episodes pinned to SPY's own closes, with the S&P 500 beside each:
+  - 2015 China scare
+  - late-2018 sell-off
+  - Covid crash
+  - 2020 rebound
+  - 2022 rate-hike slide
+  - 2023 bank scare
+  - 2024 yen unwind
+  - 2025 tariff shock
+- On the example: "In the Covid crash this portfolio would have lost 32%, against 34% for the S&P 500; of the single stocks, Apple did the most damage, down 31%." Each row opens to show each holding's move over the window.
+- Gaps are named ("Not trading until ..."), never filled from the index. Under 50% coverage there is no figure, and hindsight bias is said out loud. Its quality pass found 15 issues, all fixed. Checks: 22 tests, tsc and eslint clean.
+- Lead wiring: a "Stress test" nav entry under My stocks and a sitemap line. Screenshots read: d2-open (desktop, Covid row open) and m-open-dark (phone, dark).
+- Found through the stress builder: every `oa-*` opacity class (`bg-oa-fg/30`, `text-oa-fg/85`, `border-oa-fg/30`, `bg-oa-muted-fg/45`, ...) compiled to nothing. That is 56 files; the `oa` colours were plain CSS variables, which Tailwind cannot fade. Bars and divider lines were invisible (likely the copy hub's visuals 3 from Cursor).
+- Fixed in tailwind.config.ts: the `oa` colours are now `color-mix(in srgb, var(--oa-x) calc(<alpha-value> * 100%), transparent)`. Checked the served CSS (the classes now generate). Screenshots read: copy hub desktop (S&P bars visible), landing desktop, NVDA phone in dark mode. No regressions seen.
+- Ships with the next batch (UI loop round 14+, company-specific call reasons) after one combined quality pass.
+
+### 2026-11-11 ~03:20 UTC, x-ray, dividends and plain-English agents live (lead)
+- `d9a21ae` LIVE:
+  - /portfolio/xray and /portfolio/dividends, in the My stocks menu.
+  - "Tell your agent what to watch" on Alerts & agents.
+  - The Codex review fixes: one dated price source, VOO and QQQ in the example, copy-test wording and phone verdicts, stale follow records.
+  - UI council batches 13a, 13b and 14.
+- The quality pass found six bugs. Five were fixed before shipping:
+  - The dated-price loader skipped newer quotes once the snapshot had any price, so a day-old snapshot could beat the live quote.
+  - Dividends still priced from the last history bar.
+  - VOO had no dividend history: the job now includes the x-ray ETFs; I ran it for 15 ETFs and 14 pay. The example now projects $1,220, not $932.
+  - "NVDA account for" and a false "drove most of" on small shares.
+  - Stale House profiles said "is reported" and "Dec 10" without a year.
+  - Also fixed: a duplicate React key in the dividend list, fund weights over 1 in the x-ray, and pricing saying "save 17%" twice.
+- Left open: "remind me before TSLA earnings and every Friday sum up my week" scopes the weekly review to TSLA (the preview shows it, and the save matches the preview). Two saves at the same instant can pass the 20-agent cap. Signed-in model reads are not counted during a store outage.
+- Verified on the exact tree: tsc 0, vitest 1315/1315, eslint clean. Python: copy_trades, etf_holdings, schedule (unittest) and dividend_history (pytest) all pass.
+- The frozen tree ran on :8001. Screenshots read: watchlist (prices match the screener: NVDA $168.79, MSFT $533.42), pricing, screener phone, dividends after the fix, McGarvey phone.
+- Live: 10 key pages 200. A signed-out POST to /api/agents/parse returns the NVDA spec through the rules path.
+- VPS: not pulled. The schedule lines for ETF holdings (weekly) and dividend history (after close) wait for the owner.
+
 ### 2026-11-11 ~03:05 UTC, plain-English agents landed (lead)
 - "Tell your agent what to watch" now sits at the top of Alerts & agents. Fixed rules read the common shapes for free; Claude Haiku (the same setup as Ask) reads only leftover words and can only pick among the 12 existing watch kinds. Every sentence shown is written by our code, and tickers or numbers the person never typed are dropped.
 - Saving goes through the existing `parseJobDraft` and `createJob`, so Free still runs two agents and saves extras paused. Daily rate limits apply per person, and signed-out model reads share one 300-a-day ceiling and fail closed.

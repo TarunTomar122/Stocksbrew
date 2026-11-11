@@ -10,18 +10,17 @@ import { buildLandingHeroMetrics } from "@/lib/landing-hero-metrics";
 import { getCurrentMarket } from "@/lib/market";
 import { plainAction, plainCallReason, plainFinance, shortCompanyName, wholeSentences } from "@/lib/plain-copy";
 import { getPowerTradesCached, type PowerTrade } from "@/lib/power-trades";
-import { getRedditCues, hasRedditBrief } from "@/lib/reddit-cues";
 import { isFeaturedStockTicker } from "@/lib/seo/stock-pages";
 import { getStockFacts, getStockIntelligenceDoc } from "@/lib/stock";
+import { callWord } from "@/lib/stock-chart";
+import { getScreenerRows } from "@/lib/screener";
+import { matchingCompanyReason } from "@/lib/stock-read";
 
 import {
   ChangeText,
-  LABEL,
   fmtAmountRange,
   fmtDay,
   fmtPrice,
-  initials,
-  toneClass,
 } from "./shared";
 
 function Sparkline({ closes }: { closes: number[] }) {
@@ -63,39 +62,42 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
   );
 }
 
-/** One line of the briefing that is not the lead item. */
-function BriefLine({
-  href,
-  kind,
-  avatar,
-  children,
-  meta,
-  metaTone = "flat",
-}: {
-  href: string;
-  kind: string;
-  avatar: React.ReactNode;
-  children: React.ReactNode;
-  meta?: string;
-  metaTone?: "up" | "down" | "flat";
-}) {
+/**
+ * Where today's price sits between the price where we'd buy more and the price
+ * where we'd sell some: one look says how close it is to either.
+ */
+function ZoneBar({ price, add, trim }: { price: number; add: number; trim: number }) {
+  const ZONE = 16; // percent of the track each end zone takes
+  const t = (price - add) / (trim - add);
+  const pos = Math.min(97, Math.max(3, ZONE + t * (100 - 2 * ZONE)));
   return (
-    <a
-      href={href}
-      className="flex items-start gap-3 rounded-[18px] border border-oa-border bg-oa-card px-3.5 py-3 outline-none transition-colors hover:border-oa-fg/25 focus-visible:border-oa-fg/40"
-    >
-      <span className="mt-0.5 shrink-0">{avatar}</span>
-      <span className="min-w-0 flex-1">
-        <span className="flex items-center justify-between gap-3">
-          <span className={LABEL}>{kind}</span>
-          {meta ? (
-            <span className={`whitespace-nowrap text-[13px] tabular-nums ${toneClass(metaTone)}`}>{meta}</span>
-          ) : null}
+    <div className="mt-3">
+      <div className="relative h-2.5 rounded-full bg-oa-bg" role="img" aria-label={`Today's price, ${fmtPrice(price)}, between the price where we'd buy more (${fmtWhole(add)}) and where we'd sell some (${fmtWhole(trim)}).`}>
+        <span className="absolute inset-y-0 left-0 rounded-l-full bg-[color-mix(in_srgb,var(--signal-bullish)_35%,transparent)]" style={{ width: `${ZONE}%` }} />
+        <span className="absolute inset-y-0 right-0 rounded-r-full bg-[color-mix(in_srgb,var(--signal-bearish)_35%,transparent)]" style={{ width: `${ZONE}%` }} />
+        <span className="absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-oa-card bg-oa-fg shadow-sm" style={{ left: `${pos}%` }} />
+      </div>
+      <div className="mt-1.5 flex justify-between gap-4 text-[13px] leading-5 text-oa-muted-fg">
+        <span>
+          We&apos;d buy more below <span className="font-medium tabular-nums text-oa-fg">{fmtWhole(add)}</span>
         </span>
-        <span className="mt-0.5 block text-[15px] leading-6 text-oa-fg/85">{children}</span>
-      </span>
-    </a>
+        <span className="text-right">
+          We&apos;d sell some above <span className="font-medium tabular-nums text-oa-fg">{fmtWhole(trim)}</span>
+        </span>
+      </div>
+    </div>
   );
+}
+
+const fmtWhole = (value: number) => `$${Math.round(value).toLocaleString("en-US")}`;
+
+/** "Nov 10, 4:00 PM ET" in New York time, or "" without a usable time. */
+function stampET(iso: string | null | undefined): string {
+  const at = iso ? new Date(iso) : null;
+  if (!at || Number.isNaN(at.getTime())) return "";
+  const day = at.toLocaleDateString("en-US", { timeZone: "America/New_York", month: "short", day: "numeric" });
+  const time = at.toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" });
+  return `${day}, ${time} ET`;
 }
 
 function pickTrade(trades: PowerTrade[], ticker: string): PowerTrade | null {
@@ -108,10 +110,10 @@ function pickTrade(trades: PowerTrade[], ticker: string): PowerTrade | null {
 }
 
 /**
- * The hero's right side: today's briefing, built from the same live data the
- * app reads. One lead stock with its call, plus a disclosed trade or what
- * investors are saying, but only when it is about that same stock. Nothing
- * here is scripted.
+ * The hero's right side: one moment from today's briefing, built from the same
+ * live data the app reads. What it noticed about one stock (the move, its
+ * reason, a disclosed trade in that same stock), what that means if you own
+ * it, and the next step: watch it. Nothing here is scripted.
  */
 /**
  * Everything the card needs, read once and cached together. Before, the card
@@ -121,32 +123,33 @@ function pickTrade(trades: PowerTrade[], ticker: string): PowerTrade | null {
 const getHeroBriefingData = sharedCache(
   async () => {
     const market = getCurrentMarket();
-    const [anomalies, trades, reddit] = await Promise.all([
+    const [anomalies, trades] = await Promise.all([
       getLandingAnomalies(),
       getPowerTradesCached(60).catch(() => null),
-      getRedditCues(market).catch(() => null),
     ]);
     const featured = await resolveLandingHeroFeatured(anomalies);
     if (!featured) throw new Error("landing_hero_empty");
     const { anomaly, priceHistory } = featured;
-    const [intelligence, stockFacts] = await Promise.all([
+    const [intelligence, stockFacts, screenerRow] = await Promise.all([
       getStockIntelligenceDoc(anomaly.instrument_id, market).catch(() => null),
       getStockFacts(anomaly.instrument_id).catch(() => null),
+      // The reason under the call written from this company's own numbers (the same one the stock page shows).
+      market === "US"
+        ? getScreenerRows([anomaly.ticker]).then((rows) => rows.get(anomaly.ticker.toUpperCase()) ?? null).catch(() => null)
+        : Promise.resolve(null),
     ]);
-    const buzz =
-      (reddit?.tickers ?? []).find(
-        (t) => hasRedditBrief(t) && t.ticker.toUpperCase() === anomaly.ticker.toUpperCase(),
-      ) ?? null;
     return {
       anomaly,
       closes: priceHistory.slice(-90).map((p) => p.close),
       directiveV2: intelligence?.directive_v2 ?? null,
+      companyReason: screenerRow?.call_reason
+        ? { text: screenerRow.call_reason, call: screenerRow.call ?? null, source: screenerRow.call_reason_source ?? null }
+        : null,
       analystTarget: stockFacts?.analyst?.target_price ?? null,
       trade: pickTrade(trades?.trades ?? [], anomaly.ticker) ?? null,
-      buzz,
     };
   },
-  ["landing-hero-briefing-v1"],
+  ["landing-hero-briefing-v2"],
   { revalidate: 120 },
 );
 
@@ -164,7 +167,7 @@ export async function HeroBriefing() {
     );
   }
 
-  const { anomaly, analystTarget, trade, buzz } = featured;
+  const { anomaly, analystTarget, trade } = featured;
   const directive = normalizeDirectiveForUi(featured.directiveV2);
   const metrics = buildLandingHeroMetrics(directive, anomaly.price, analystTarget);
 
@@ -177,7 +180,10 @@ export async function HeroBriefing() {
   const callText = plainAction(directive?.text, null);
   // The call's own reason, one whole sentence, so the example says why and not only what.
   // Reasons are part of the full report, which is only public on the showcase stocks (same rule as the price levels below).
-  const callReason = isFeaturedStockTicker(anomaly.ticker) && directive?.rationale ? wholeSentences(plainCallReason(directive.rationale), 1) : "";
+  // The company reason (its numbers, then what would change the call) when it was written for this same call; else the brief's line.
+  const companyReason = matchingCompanyReason(featured.companyReason, callWord(featured.directiveV2?.stance));
+  const reasonSource = companyReason ?? directive?.rationale ?? "";
+  const callReason = isFeaturedStockTicker(anomaly.ticker) && reasonSource ? wholeSentences(plainCallReason(reasonSource), companyReason ? 2 : 1) : "";
   // Only say why it moved when we actually researched a reason.
   const why = moveReason ? wholeSentences(plainFinance(moveReason), 1) || moveReason : null;
   const closes = featured.closes;
@@ -189,85 +195,90 @@ export async function HeroBriefing() {
     if (Math.abs(pct) < 0.5) return "about today's price";
     return `${Math.abs(pct).toFixed(0)}% ${pct >= 0 ? "above" : "below"} today`;
   };
-  const mood = (sentiment: string | null | undefined) =>
-    sentiment === "bearish" ? "Mostly worried" : sentiment === "bullish" ? "Mostly hopeful" : sentiment ? "Mixed" : undefined;
 
-  const stats: { label: string; value: string; sub?: string }[] = [];
   // Zones are only public on the showcase stocks; on any other stock
   // they come with covering it, so the landing page must not hand them out.
   const showcase = isFeaturedStockTicker(anomaly.ticker);
   // A level more than half the price away says little about today; the call engine still sets some that far out.
   const near = (level: number) => anomaly.price > 0 && Math.abs(level - anomaly.price) / anomaly.price <= 0.5;
-  if (showcase && metrics.accumulate_below != null && near(metrics.accumulate_below)) {
-    stats.push({ label: "Price where we'd buy more", value: `$${metrics.accumulate_below.toFixed(0)}`, sub: fromHere(metrics.accumulate_below) });
-  }
-  if (showcase && metrics.trim_above != null && near(metrics.trim_above)) {
-    stats.push({ label: "Price where we'd sell some", value: `$${metrics.trim_above.toFixed(0)}`, sub: fromHere(metrics.trim_above) });
-  }
-  if (typeof analystTarget === "number" && analystTarget > 0 && anomaly.price > 0) {
-    stats.push({
-      label: "Analysts' average price target",
-      value: `$${analystTarget.toFixed(0)}`,
-      sub: fromHere(analystTarget),
-    });
+  const add = showcase && metrics.accumulate_below != null && near(metrics.accumulate_below) ? metrics.accumulate_below : null;
+  const trim = showcase && metrics.trim_above != null && near(metrics.trim_above) ? metrics.trim_above : null;
+  const zoneBar = add != null && trim != null && trim > add && anomaly.price > 0 ? { add, trim } : null;
+  // Without both levels, the one figure that still says something about the price.
+  const stats: { label: string; value: string; sub?: string }[] = [];
+  if (!zoneBar) {
+    if (add != null) stats.push({ label: "We'd buy more below", value: fmtWhole(add), sub: fromHere(add) });
+    if (trim != null) stats.push({ label: "We'd sell some above", value: fmtWhole(trim), sub: fromHere(trim) });
+    if (typeof analystTarget === "number" && analystTarget > 0 && near(analystTarget)) {
+      stats.push({ label: "Price analysts expect, on average", value: fmtWhole(analystTarget), sub: fromHere(analystTarget) });
+    }
   }
   // No risk/reward ratio here: it is built from our zones, and the call
   // engine's backtests showed no edge we could stand behind on the front page.
 
-  // Trade and buzz are only about the lead stock, so the card reads as one story.
+  const pct = Number.isFinite(anomaly.day_change_pct) ? anomaly.day_change_pct : null;
+  // The move in words, only when we have one; a small move needs no "no reason yet".
+  const moved = pct == null ? "" : Math.abs(pct) < 0.05 ? `${name} barely moved.` : `${name} ${pct > 0 ? "rose" : "fell"} ${Math.abs(pct).toFixed(1)}%.`;
+  const reasonLine = why ?? (pct != null && Math.abs(pct) >= 0.5 ? "We haven't found a confirmed reason yet." : "");
+  const when = stampET(anomaly.price_as_of);
+  const watchHref = `/agents?watch=${encodeURIComponent(anomaly.ticker)}`;
+  const step = "text-[12px] font-medium uppercase tracking-[0.06em] text-oa-muted-fg";
 
   return (
     <figure className="w-full">
       <SquircleSurface className="border border-oa-border p-1 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
-        <div className="flex items-center justify-between gap-2 pb-2 pl-3.5 pr-2 pt-1.5">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 pb-2 pl-3.5 pr-3 pt-1.5">
           <h2 className="ml-1 flex items-center gap-2 text-base font-medium text-oa-fg/80">
             <span className="relative flex size-2" aria-hidden="true">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-60 motion-reduce:hidden" />
               <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
             </span>
-            One stock from today&apos;s briefing
+            {/* "Stood out" only when it did: a quiet day still shows a stock, without the claim. */}
+            {pct != null && Math.abs(pct) >= 2 ? "What stood out today" : "One of the stocks we watch, today"}
           </h2>
+          {when ? <p className="ml-5 text-[13px] tabular-nums text-oa-muted-fg">{when}</p> : null}
         </div>
 
         <SquircleSurface className="gap-2 rounded-[22px] bg-oa-bg p-2 [--card-clip-radius:12px] sm:rounded-[44px] sm:p-2.5 sm:[--card-clip-radius:17px]">
-          {/* lead item: the move, the reason, the call */}
-          <a
-            href={`/stock/${anomaly.ticker}`}
-            className="block rounded-[18px] border border-oa-border bg-oa-card p-4 outline-none transition-colors hover:border-oa-fg/25 focus-visible:border-oa-fg/40"
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-2.5">
-                <StockLogo
-                  ticker={anomaly.ticker}
-                  market={market === "IN" ? "IN" : "US"}
-                  size={26}
-                  circle
-                  eager
-                />
-                <p className="min-w-0 text-[15px] leading-5 text-oa-muted-fg">
+          {/* One moment, start to end: what it saw, what that means if you own the stock, and the next step. */}
+          <div className="rounded-[18px] border border-oa-border bg-oa-card p-4">
+            <a href={`/stock/${anomaly.ticker}`} className="flex items-center justify-between gap-3 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-oa-fg/20">
+              <span className="flex min-w-0 items-center gap-2.5">
+                <StockLogo ticker={anomaly.ticker} market={market === "IN" ? "IN" : "US"} size={26} circle eager />
+                <span className="min-w-0 text-[15px] leading-5 text-oa-muted-fg">
                   <span className="font-medium text-oa-fg">{name}</span> <span className="oa-mono">{anomaly.ticker}</span>
-                </p>
-              </div>
-            </div>
-            <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-              <span className="text-3xl font-medium tabular-nums tracking-tight text-oa-fg">
-                {fmtPrice(anomaly.price)}
+                </span>
               </span>
-              <ChangeText pct={anomaly.day_change_pct ?? 0} className="text-base font-medium" />
-            </div>
-            {why ? (
-              <p className="mt-2 text-[15px] leading-6 text-oa-fg/85">
-                <span className="font-medium text-oa-fg">Why it moved: </span>
-                {why}
-              </p>
-            ) : null}
+              <span className="flex shrink-0 items-baseline gap-2">
+                <span className="text-[17px] font-medium tabular-nums text-oa-fg">{fmtPrice(anomaly.price)}</span>
+                {pct != null ? <ChangeText pct={pct} className="text-[15px] font-medium" /> : null}
+              </span>
+            </a>
+
+            <p className={`mt-3.5 ${step}`}>What happened</p>
+            <p className="mt-1 text-[15px] leading-6 text-oa-fg">
+              {moved}
+              {reasonLine ? <span className="text-oa-fg/85">{moved ? " " : ""}{reasonLine}</span> : null}
+              {trade ? (
+                <span className="text-oa-fg/85">
+                  {" "}
+                  {trade.person_name}, a member of Congress, {trade.tx_type === "buy" ? "bought" : "sold"} {fmtAmountRange(trade.amount_low, trade.amount_high).toLowerCase()} of it
+                  {trade.disclosure_date ? ` (reported ${fmtDay(trade.disclosure_date)})` : ""}.
+                </span>
+              ) : null}
+            </p>
+
             {callText ? (
-              <p className="mt-2 text-[15px] leading-6 text-oa-fg/85">
-                <span className="font-medium text-oa-fg">Our call: </span>
-                {callText}.{callReason ? <span className="text-oa-muted-fg"> {callReason}</span> : null}
-              </p>
+              <>
+                <p className={`mt-3.5 ${step}`}>If you own it</p>
+                <p className="mt-1 text-[15px] leading-6 text-oa-fg">
+                  <span className="font-medium">{callText}.</span>
+                  {callReason ? <span className="text-oa-fg/85"> {callReason}</span> : null}
+                </p>
+                {zoneBar ? <ZoneBar price={anomaly.price} add={zoneBar.add} trim={zoneBar.trim} /> : null}
+              </>
             ) : null}
-            {!why && !callText ? <p className="mt-2 text-[15px] leading-6 text-oa-fg/85">We have not found a confirmed reason for today&apos;s move yet.</p> : null}
+
             {stats.length > 0 ? (
               <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2.5 border-t border-oa-border pt-3">
                 {stats.map((s) => (
@@ -275,47 +286,30 @@ export async function HeroBriefing() {
                 ))}
               </div>
             ) : null}
-            {closes.length > 1 ? (
+            {/* The price line only when there is no level bar: one picture per card. */}
+            {!zoneBar && closes.length > 1 ? (
               <div className="mt-2">
                 <Sparkline closes={closes} />
                 <p className="text-[13px] leading-5 text-oa-muted-fg">Price over the last {closes.length >= 80 ? "3 months" : `${closes.length} trading days`}</p>
               </div>
             ) : null}
-            <p className="mt-3 border-t border-oa-border pt-2.5 text-[14px] font-medium leading-5 text-oa-fg">
-              Read our full view on {name} <span aria-hidden="true">→</span>
-            </p>
-          </a>
 
-          {trade ? (
-            <BriefLine
-              href="/follow?tab=congress"
-              kind="Congress"
-              meta={trade.disclosure_date ? `Filed ${fmtDay(trade.disclosure_date)}` : undefined}
-              avatar={
-                <span
-                  aria-hidden="true"
-                  className="flex size-[26px] items-center justify-center rounded-full bg-oa-secondary text-[11px] font-medium text-oa-secondary-fg"
-                >
-                  {initials(trade.person_name)}
-                </span>
-              }
-            >
-              {trade.person_name} {trade.tx_type === "buy" ? "bought" : "sold"}{" "}
-              <span className="oa-mono text-oa-fg">{trade.ticker}</span>,{" "}
-              {fmtAmountRange(trade.amount_low, trade.amount_high).toLowerCase()}.
-            </BriefLine>
-          ) : null}
+            <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-oa-border pt-3.5">
+              <a
+                href={watchHref}
+                data-track="landing_cta_clicked"
+                data-track-surface="hero_watch"
+                className="inline-flex h-10 items-center rounded-full bg-oa-fg px-4 text-[14px] font-medium text-oa-page outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-oa-fg/30"
+              >
+                Watch {name} for me
+              </a>
+              <a href={`/stock/${anomaly.ticker}`} className="text-[14px] font-medium text-oa-fg underline decoration-oa-border underline-offset-4 hover:decoration-oa-fg">
+                Read our full view
+              </a>
+            </div>
+            <p className="mt-2 text-[13px] leading-5 text-oa-muted-fg">It checks {name} every market day and emails you only when something happens.</p>
+          </div>
 
-          {buzz ? (
-            <BriefLine
-              href={`/stock/${buzz.ticker}`}
-              kind="On Reddit"
-              meta={mood(buzz.sentiment)}
-              avatar={<StockLogo ticker={buzz.ticker} size={26} circle />}
-            >
-              {wholeSentences(buzz.summary, 1) || buzz.summary}
-            </BriefLine>
-          ) : null}
         </SquircleSurface>
       </SquircleSurface>
     </figure>

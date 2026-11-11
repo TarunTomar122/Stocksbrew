@@ -113,6 +113,10 @@ export type ScreenerRow = {
   /** Our read. The call is open to everyone; the zones are stripped on the server unless the viewer covers the stock. */
   call?: CallWord;
   call_reason?: string;
+  /** "company" when `call_reason` was written from the company's own numbers; otherwise the brief's line ("model", "facts" for its fallback, or "template"). */
+  call_reason_source?: "company" | "model" | "facts" | "template";
+  /** The second sentence of a "company" reason on its own: what would change the call. */
+  call_change?: string;
   call_confidence?: string;
   call_at?: string;
   add_below?: number;

@@ -23,6 +23,7 @@ import { anomalyDetail, anomalyHeadline } from "@/components/daily-anomalies-sha
 import { getCurrentMarket } from "@/lib/market";
 import { getLatestPriceQuotes, getMarketSnapshot } from "@/lib/firestore";
 import { getRedditCues } from "@/lib/reddit-cues";
+import { getScreenerRows } from "@/lib/screener";
 import { getSessionUser } from "@/lib/auth-server";
 import { getStockFacts, getStockIntelligenceDoc, getStockPriceHistory, getStockSummary } from "@/lib/stock";
 import type { PriceHistoryPoint } from "@/lib/price-history-chart";
@@ -73,7 +74,14 @@ export async function resolveLandingHeroFeatured(
 ): Promise<{ anomaly: AnomalyItem; priceHistory: PriceHistoryPoint[] } | null> {
   const market = getCurrentMarket();
 
-  for (const ticker of shuffledLandingHeroBrewTickers()) {
+  // The showcase stock that moved most today goes first (shuffle order breaks ties), so the card shows a real move.
+  // The movers list only holds the day's big or explained moves; the screener snapshot has every showcase stock's day.
+  const shuffled = shuffledLandingHeroBrewTickers();
+  const rows = await getScreenerRows(shuffled).catch(() => new Map());
+  const moveOf = (ticker: string) =>
+    Math.abs(rows.get(ticker.toUpperCase())?.day_pct ?? findLandingHeroAnomaly(anomalies, ticker)?.day_change_pct ?? 0);
+  const order = [...shuffled].sort((a, b) => moveOf(b) - moveOf(a));
+  for (const ticker of order) {
     const summary = await getStockSummary(ticker, market).catch(() => null);
     if (!summary) continue;
 

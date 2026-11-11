@@ -6,6 +6,9 @@ import { EarningsDayBriefing } from "@/components/earnings-day/briefing-reports"
 import { AppPage } from "@/components/oa/kit";
 import { MarketingSchema } from "@/components/seo/marketing-schema";
 import { loadBriefingPage } from "@/lib/briefing-data";
+import type { BriefingSession } from "@/lib/briefing-read";
+import { etDay } from "@/lib/insight-format";
+import { loadDeskGiants, loadDeskSectors } from "../explore/desk-data";
 import { getMarketSessionState } from "@/lib/market-session";
 import { ogImage } from "@/lib/og/url";
 
@@ -33,9 +36,39 @@ function marketStateLabel(now: Date): string {
   return "Market is closed";
 }
 
+/**
+ * How the whole session went (each sector, and the biggest companies together), for the market
+ * view's headline. Live data, so only when it is from the briefing's own day; null otherwise.
+ */
+async function loadSession(day: string, indexAsOf: string | null): Promise<BriefingSession | null> {
+  const today = etDay(new Date().toISOString()) ?? day;
+  const [sectors, giants] = await Promise.all([loadDeskSectors(today), loadDeskGiants(today)]);
+  if (sectors.rows.length < 4 || etDay(sectors.asOf) !== day) return null;
+  // The headline puts the sectors next to the index's figure: within 45 minutes of each other, or both after the close.
+  const gap = indexAsOf && sectors.asOf ? Math.abs(Date.parse(sectors.asOf) - Date.parse(indexAsOf)) : NaN;
+  const afterClose = (iso: string | null) => (iso ? Number(new Date(iso).toLocaleString("en-US", { timeZone: "America/New_York", hour: "numeric", hourCycle: "h23" })) >= 16 : false);
+  if (!(gap <= 45 * 60_000) && !(afterClose(indexAsOf) && afterClose(sectors.asOf))) return null;
+  const sameDay = giants.day === day && giants.rows.length >= 5;
+  const cap = giants.rows.reduce((sum, row) => sum + row.cap, 0);
+  return {
+    sectors: sectors.rows.map((row) => ({ name: row.name, day: row.day, slug: row.slug || undefined })),
+    // A size-weighted average is exactly the change in their combined value.
+    giants:
+      sameDay && cap > 0
+        ? {
+            count: giants.rows.length,
+            pct: giants.rows.reduce((sum, row) => sum + row.cap * row.day, 0) / cap,
+            // The company whose move shifted the group's value the most.
+            leader: (([top]) => (top ? { name: top.name, pct: top.day } : null))([...giants.rows].sort((a, b) => Math.abs(b.cap * b.day) - Math.abs(a.cap * a.day))),
+          }
+        : null,
+  };
+}
+
 export default async function BriefingPage({ searchParams }: { searchParams?: { day?: string | string[] } }) {
   const day = typeof searchParams?.day === "string" ? searchParams.day : null;
   const data = await loadBriefingPage({ day, persist: true });
+  const session = !day && !data.archived && data.briefing.mode === "market" ? await loadSession(data.briefing.date, data.briefing.market.as_of).catch(() => null) : null;
 
   return (
     <AppPage>
@@ -49,6 +82,7 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
           archived={data.archived}
           degraded={data.degraded}
           marketState={marketStateLabel(new Date())}
+          session={session}
           earnings={
             day || data.archived ? null : (
               <Suspense fallback={null}>

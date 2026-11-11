@@ -152,7 +152,13 @@ def _clean(value: Any) -> str:
 
 def short_name(name: Any, ticker: Any) -> str:
     """'NVIDIA Corporation' -> 'NVIDIA', 'Micron Technology, Inc.' -> 'Micron'."""
+    # "C3.ai Inc - Class A", "Nokia Corporation Sponsored ADR", "Cooper Companies (The)": share classes,
+    # listing notes and a trailing "(The)" are not part of the name.
     out = _clean(name)
+    out = re.sub(r"\s*\((?:The|Class\s+[A-Z]|Puerto Rico)\)\s*", " ", out, flags=re.IGNORECASE).strip()
+    out = re.sub(r"\s*-?\s*(?:Sponsored\s+)?ADR\b.*$", "", out, flags=re.IGNORECASE)
+    out = re.sub(r"\s*-\s*(?:Class\s+[A-Z]|Common\s+Stock|Ordinary\s+Shares)?\s*$", "", out, flags=re.IGNORECASE)
+    out = re.sub(r",?\s+(?:Co|PBC|CORP\.?)$", "", out)
     changed = True
     while out and changed:
         changed = False
@@ -160,7 +166,14 @@ def short_name(name: Any, ticker: Any) -> str:
             if out.endswith(suffix) and len(out) > len(suffix):
                 out = out[: -len(suffix)].rstrip()
                 changed = True
-    return out[:40] or _clean(ticker).upper()
+    # "The Cigna Group" reads as "Cigna" mid-sentence.
+    if out.startswith("The ") and len(out) > 8:
+        out = out[4:]
+    # "JPMorgan Chase & Co." loses "Co." above; the "&" left behind goes too.
+    out = re.sub(r"\s*(?:&|\band)$", "", out)
+    if len(out) > 40:
+        out = out[:40].rsplit(" ", 1)[0]
+    return out or _clean(ticker).upper()
 
 
 def _name_tokens(name: str, ticker: str) -> list[str]:
@@ -653,3 +666,511 @@ def call_reason_text(directive: Any) -> str:
     """What to show under a call: the specific reason, else the old summary."""
     directive = _dict(directive)
     return _clean(directive.get("call_reason")) or _clean(_dict(directive.get("action")).get("summary"))
+
+
+# ── the company reason, from the stock's own numbers ───────────────────────
+#
+# ``compose_fallback_reason`` above works from the brief alone, so it can only
+# say what the brief's cards say. The screener job has the numbers: the P/E
+# against the P/Es we stored for the stock, sales and expected profit growth,
+# the latest earnings surprise, the past week's move next to similar
+# companies, rating changes and dividends. ``compose_company_reason`` picks the
+# facts that decide this call with plain rules and words them in two
+# sentences: the evidence, then the event or condition that would change the
+# call. No model is involved, so every number is one we computed.
+#
+# Share prices never appear: levels are part of the paid report, and the
+# reason is shown to everyone. "A drop into our buy range" says the same thing
+# without the number.
+
+COMPANY_REASON_MAX_CHARS = 300
+
+_MONTHS = ("January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December")
+_SMALL = ("no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine")
+
+# Industry words -> how a reader names the group ("other chip stocks").
+_PEER_INDUSTRY = (
+    ("asset management", "brokers and asset managers"),
+    ("custody", "brokers and asset managers"),
+    ("capital markets", "brokers and asset managers"),
+    ("automotive retail", "retailers"),
+    ("auto dealer", "retailers"),
+    ("gas utilit", "utilities"),
+    ("industrial gas", "chemical makers"),
+    ("chemical", "chemical makers"),
+    ("semiconductor", "chip stocks"),
+    ("software", "software stocks"),
+    ("bank", "bank stocks"),
+    ("biotech", "biotech stocks"),
+    ("drug", "drug makers"),
+    ("pharma", "drug makers"),
+    ("oil", "oil and gas stocks"),
+    ("natural gas", "oil and gas stocks"),
+    ("beverage", "drink makers"),
+    ("restaurant", "restaurant stocks"),
+    ("insurance", "insurers"),
+    ("reit", "property trusts"),
+    ("aerospace", "aerospace and defense stocks"),
+    ("auto", "car and parts makers"),
+    ("internet", "internet stocks"),
+    ("entertainment", "media stocks"),
+    ("airline", "airlines"),
+    ("medical", "medical device makers"),
+    ("capital markets", "brokers and asset managers"),
+    ("asset management", "brokers and asset managers"),
+    ("credit services", "card and lending companies"),
+    ("retail", "retailers"),
+    ("utilities", "utilities"),
+    ("telecom", "telecom stocks"),
+    ("computer hardware", "hardware makers"),
+    ("communication equipment", "network equipment makers"),
+    ("information technology services", "IT services companies"),
+)
+_PEER_SECTOR = {
+    "technology": "tech stocks",
+    "health care": "health care stocks",
+    "financials": "financial stocks",
+    "consumer discretionary": "consumer stocks",
+    "consumer staples": "food, drink and household stocks",
+    "communication services": "media and telecom stocks",
+    "industrials": "industrial stocks",
+    "energy": "energy stocks",
+    "materials": "materials stocks",
+    "real estate": "property stocks",
+    "utilities": "utilities",
+}
+
+
+def peer_label(industry: Any, sector: Any) -> tuple[str, str]:
+    """('industry', 'chip stocks') or ('sector', 'tech stocks'); ('', '') when unknown."""
+    text = _clean(industry).lower()
+    for needle, label in _PEER_INDUSTRY:
+        if needle in text:
+            return "industry", label
+    label = _PEER_SECTOR.get(_clean(sector).lower(), "")
+    return ("sector", label) if label else ("", "")
+
+
+def _pct(value: float) -> str:
+    """'18%', '3.5%', '0.4%': whole numbers from 10 up, one decimal below."""
+    size = abs(value)
+    if size >= 10:
+        return f"{size:.0f}%"
+    text = f"{size:.1f}".rstrip("0").rstrip(".")
+    return f"{text}%"
+
+
+def _times(value: float) -> str:
+    return f"{value:.0f}" if value >= 10 else f"{value:.1f}".rstrip("0").rstrip(".")
+
+
+def _count(value: int) -> str:
+    return _SMALL[value] if 0 <= value < len(_SMALL) else str(value)
+
+
+def _month_span(start: Any, end: Any, today: date) -> str:
+    first, last = _iso_date(start), _iso_date(end)
+    if not first or not last:
+        return ""
+    if (today - last).days <= 14:
+        # "since November" only when that November is recent; a year-long history names its year.
+        if (today - first).days <= 75:
+            return f"since {_MONTHS[first.month - 1]}"
+        return f"since {_MONTHS[first.month - 1]} {first.year}"
+    if (first.year, first.month) == (last.year, last.month):
+        return f"in {_MONTHS[first.month - 1]}"
+    return f"from {_MONTHS[first.month - 1]} to {_MONTHS[last.month - 1]}"
+
+
+def _possessive(name: str) -> str:
+    if name.endswith(("'s", "’s")):
+        return name  # "Domino's", "Moody's"
+    return f"{name}'" if name.endswith("s") else f"{name}'s"
+
+
+def _upper_first(text: str) -> str:
+    """Capitalise a sentence start, but leave names like "eBay" and "nCino" as they are."""
+    if len(text) > 1 and text[0].islower() and text[1].isupper():
+        return text
+    return text[:1].upper() + text[1:]
+
+
+class _Fact:
+    """One piece of evidence, worded three ways.
+
+    ``lead`` has the company as its subject and opens the sentence; ``follow``
+    joins it after a comma with "it"; ``short`` is ``follow`` without its
+    second half, used when the full pair runs long.
+    """
+
+    __slots__ = ("key", "tone", "lead", "follow", "short", "lead_short", "weight", "number")
+
+    def __init__(
+        self,
+        key: str,
+        tone: str,
+        lead: str,
+        follow: str,
+        weight: float,
+        short: str = "",
+        number: float | None = None,
+        lead_short: str = "",
+    ) -> None:
+        self.key, self.tone, self.lead, self.follow, self.weight = key, tone, lead, follow, weight
+        self.short = short or follow
+        self.lead_short = lead_short or lead
+        self.number = number
+
+
+def _move_fact(facts: dict[str, Any], subject: str, today: date) -> _Fact | None:
+    week, month = _num(facts.get("ret_1w")), _num(facts.get("ret_1m"))
+    if week is not None and abs(week) >= 5:
+        own, window, peer, days = week, "over the past week", _num(facts.get("peer_ret_1w")), 7
+    elif month is not None and abs(month) >= 10:
+        own, window, peer, days = month, "over the past month", _num(facts.get("peer_ret_1m")), 31
+    else:
+        return None
+    verb = "rose" if own > 0 else "fell"
+    cause = ""
+    report = _dict(facts.get("last_report"))
+    report_day = _iso_date(report.get("date"))
+    label = _clean(facts.get("peer_label"))
+    if days == 7 and report_day and 0 <= (today - report_day).days <= 7:
+        surprise = _num(report.get("surprise_pct"))
+        result = str(report.get("label") or "").lower()
+        if result in ("beat", "miss") and surprise is not None and 1 <= abs(surprise) <= 300:
+            word = "beat" if result == "beat" else "missed"
+            cause = f" after its {_say_date(report_day)} report {word} profit forecasts by {_pct(surprise)}"
+        else:
+            cause = f" after its {_say_date(report_day)} report"
+    elif peer is not None and label:
+        if abs(peer) < 1:
+            cause = f" while other {label} barely moved"
+        elif (peer > 0) != (own > 0):
+            cause = f" while other {label} {'rose' if peer > 0 else 'fell'} {_pct(peer)}"
+        elif abs(own) >= 2 * abs(peer) and abs(own) - abs(peer) >= 4:
+            cause = f", far more than other {label} ({'up' if peer > 0 else 'down'} {_pct(peer)})"
+        elif abs(peer) >= 1.4 * abs(own) and abs(peer) - abs(own) >= 3:
+            cause = f", less than other {label} ({'up' if peer > 0 else 'down'} {_pct(peer)})"
+        elif abs(peer) >= 0.6 * abs(own):
+            cause = f", in step with other {label} ({'up' if peer > 0 else 'down'} {_pct(peer)})"
+        else:
+            cause = f", more than other {label} ({'up' if peer > 0 else 'down'} {_pct(peer)})"
+    text = f"{verb} {_pct(own)} {window}{cause}"
+    big = abs(week or 0) >= 8 or abs(month or 0) >= 15
+    tone = "up" if own > 0 else "down"
+    return _Fact("move", tone, f"{subject} {text}", f"the stock {text}", 3.0 if big else 1.0, short=f"the stock {verb} {_pct(own)} {window}", number=own)
+
+
+def _valuation_fact(facts: dict[str, Any], subject: str, today: date) -> _Fact | None:
+    pe, median = _num(facts.get("pe")), _num(facts.get("pe_hist_median"))
+    days = _num(facts.get("pe_hist_days")) or 0
+    if not pe or not median or pe <= 0 or median <= 0 or days < 20 or pe > 300 or median > 300:
+        return None
+    span = _month_span(facts.get("pe_hist_from"), facts.get("pe_hist_to"), today)
+    if not span or _times(pe) == _times(median):
+        return None
+    ratio = pe / median
+    if ratio <= 0.9:
+        side, tone, weight = "below", "good", 2.0 + (1 - ratio) * 3
+    elif ratio >= 1.12:
+        side, tone, weight = "above", "bad", 2.0 + min(ratio - 1, 1) * 3
+    else:
+        tail = f"trades at {_times(pe)} times its past year's earnings, close to its usual level"
+        return _Fact("valuation", "flat", f"{subject} {tail}", f"it {tail}", 0.5)
+    tail = f"trades at {_times(pe)} times its past year's earnings, {side} the {_times(median)} it typically traded at {span}"
+    short = f"its P/E of {_times(pe)} is {side} the usual {_times(median)}"
+    return _Fact("valuation", tone, f"{subject} {tail}", f"it {tail}", weight, short=short, number=median)
+
+
+def _outlook(ahead: float | None, poss: str, weight: float) -> _Fact | None:
+    if ahead is None:
+        return None
+    if ahead >= 10:
+        text = f"analysts expect profit to grow {_pct(ahead)} next year"
+        return _Fact("outlook", "good", f"analysts expect {poss} profit to grow {_pct(ahead)} next year", text, weight, number=ahead)
+    if ahead <= -5:
+        text = f"analysts expect profit to fall {_pct(ahead)} next year"
+        return _Fact("outlook", "bad", f"analysts expect {poss} profit to fall {_pct(ahead)} next year", text, weight, number=ahead)
+    return None
+
+
+def _growth_facts(facts: dict[str, Any], subject: str) -> list[_Fact]:
+    """Sales growth over the past year, and what analysts expect for profit next year.
+
+    When both point the same way they are said in one clause; when they
+    disagree each is its own fact, so a falling-sales company with a profit
+    recovery ahead can still be described honestly.
+    """
+    sales, ahead = _num(facts.get("rev_growth")), _num(facts.get("eps_next_y"))
+    poss = _possessive(subject)
+    if sales is not None and abs(sales) > 500:
+        sales = None
+    if ahead is not None and (abs(ahead) > 500 or ahead <= -95):
+        ahead = None
+    outlook = _outlook(ahead, poss, 2.0 if ahead is not None and abs(ahead) >= 15 else 1.0)
+    if sales is None:
+        return [outlook] if outlook is not None else []
+    if sales >= 15:
+        tone, base, weight = "good", f"sales grew {_pct(sales)} over the past year", 2.5 + min(sales, 100) / 50
+    elif abs(sales) < 0.5:
+        tone, base, weight = "bad", "sales were flat over the past year", 1.5
+    elif sales < 0:
+        tone, base, weight = "bad", f"sales fell {_pct(sales)} over the past year", 2.5 + min(abs(sales), 50) / 25
+    elif sales < 3:
+        tone, base, weight = "bad", f"sales grew only {_pct(sales)} over the past year", 1.5
+    else:
+        tone, base, weight = "good", f"sales grew {_pct(sales)} over the past year", 0.8
+    if outlook is not None and outlook.tone == tone and abs(sales) >= 3:
+        extra = f" and {outlook.follow}"
+        return [
+            _Fact(
+                "growth", tone, f"{poss} {base}{extra}", f"its {base}{extra}", weight + 0.5,
+                short=f"its {base}", number=sales, lead_short=f"{poss} {base}",
+            )
+        ]
+    out = [_Fact("growth", tone, f"{poss} {base}", f"its {base}", weight, number=sales)]
+    if outlook is not None:
+        out.append(outlook)
+    return out
+
+
+def _report_fact(facts: dict[str, Any], subject: str, today: date) -> _Fact | None:
+    report = _dict(facts.get("last_report"))
+    day = _iso_date(report.get("date"))
+    surprise = _num(report.get("surprise_pct"))
+    result = str(report.get("label") or "").lower()
+    if not day or surprise is None or result not in ("beat", "miss") or not 0 <= (today - day).days <= 30:
+        return None
+    if abs(surprise) < 2 or abs(surprise) > 300:
+        return None
+    word = "beat" if result == "beat" else "missed"
+    text = f"report on {_say_date(day)} {word} profit forecasts by {_pct(surprise)}"
+    return _Fact("report", "good" if result == "beat" else "bad", f"{_possessive(subject)} {text}", f"its {text}", 3.0 + min(abs(surprise), 30) / 15)
+
+
+def _ratings_fact(facts: dict[str, Any], subject: str) -> _Fact | None:
+    change = _num(facts.get("buys_chg_3m"))
+    if change is None or abs(change) < 2:
+        return None
+    count = int(abs(change))
+    word = "more" if change > 0 else "fewer"
+    text = f"{_count(count)} {word} analysts rate it a buy than three months ago"
+    lead = f"{_count(count)} {word} analysts rate {subject} a buy than three months ago"
+    return _Fact("ratings", "good" if change > 0 else "bad", lead, text, 1.2)
+
+
+def _dividend_fact(facts: dict[str, Any], subject: str) -> _Fact | None:
+    years, yield_pct = _num(facts.get("div_growth_years")), _num(facts.get("div_yield"))
+    if not years or not yield_pct or years < 10 or yield_pct < 1.5 or yield_pct > 15:
+        return None
+    text = f"pays a {_pct(yield_pct)} dividend that it has raised for {int(years)} years in a row"
+    return _Fact("dividend", "good", f"{subject} {text}", f"it {text}", 1.4)
+
+
+def _range_fact(facts: dict[str, Any], subject: str) -> _Fact | None:
+    below = _num(facts.get("from_hi_pct"))
+    if below is None:
+        return None
+    if below <= -25:
+        text = f"sits {_pct(below)} below its high of the past year"
+        return _Fact("range", "down", f"{subject} {text}", f"it {text}", 1.0)
+    if below >= -2:
+        text = "trades near its high of the past year"
+        return _Fact("range", "up", f"{subject} {text}", f"it {text}", 0.6)
+    return None
+
+
+def _sentence(first: _Fact, second: _Fact | None, link: str, *, short: bool = False) -> str:
+    if second is None:
+        return f"{_upper_first(first.lead)}."
+    # One "and" per sentence: a first clause that already joins two facts is cut to its first.
+    lead = first.lead_short if " and " in first.lead else first.lead
+    lead = _upper_first(lead)
+    use_short = short or first.key == "move" or (link == "and" and " and " in second.follow)
+    return f"{lead}, {link} {second.short if use_short else second.follow}."
+
+
+def _pick(bucket: str, move: _Fact | None, good: list[_Fact], bad: list[_Fact], flat: list[_Fact], range_fact: _Fact | None) -> tuple[_Fact | None, _Fact | None, str]:
+    """The two facts that decide this call and the word that joins them."""
+    big = move is not None and move.weight >= 3.0
+    down = move is not None and move.tone == "down"
+    up = move is not None and move.tone == "up"
+    if bucket == "add":
+        if big and down and good:
+            return move, good[0], "but"
+        if good:
+            if len(good) > 1:
+                return good[0], good[1], "and"
+            if down:
+                return good[0], move, "but"
+            if up:
+                return good[0], move, "and"
+            if range_fact is not None and range_fact.tone == "down":
+                return good[0], range_fact, "but"
+            return good[0], (flat[0] if flat else None), "and"
+        if move is not None:
+            # A rising price is what the call is following.
+            return move, (range_fact if up and range_fact is not None and range_fact.tone == "up" else (flat[0] if flat else None)), "and"
+        return (flat[0] if flat else None), None, ""
+    if bucket == "trim":
+        if bad:
+            if big:
+                return move, bad[0], "and"
+            if move is not None:
+                return bad[0], move, "and"
+            return bad[0], (bad[1] if len(bad) > 1 else None), "and"
+        if up:
+            # Nothing wrong with the company; the price ran ahead of it.
+            return (good[0], move, "but") if good else (move, None, "")
+        if down:
+            return move, (range_fact if range_fact is not None and range_fact.tone == "down" else None), "and"
+        if range_fact is not None and range_fact.tone == "up":
+            return (good[0], range_fact, "but") if good else (range_fact, None, "")
+        return (flat[0] if flat else None), None, ""
+    # hold: the tension between what is going for it and what is not
+    if big and move is not None:
+        if down:
+            if good:
+                return move, good[0], "even though"
+            return move, (bad[0] if bad else None), "and"
+        if bad:
+            return move, bad[0], "but"
+        return move, (good[0] if good else None), "and"
+    if good and bad:
+        return good[0], bad[0], "but"
+    if good:
+        if down:
+            return good[0], move, "but"
+        if up:
+            return good[0], move, "and"
+        if range_fact is not None:
+            return good[0], range_fact, "but"
+        return good[0], (flat[0] if flat else None), "and"
+    if bad:
+        if up:
+            return bad[0], move, "but"
+        return bad[0], (flat[0] if flat else None), "and"
+    if move is not None:
+        return move, (flat[0] if flat else None), "and"
+    return (flat[0] if flat else range_fact), None, ""
+
+
+def _change_sentence(facts: dict[str, Any], bucket: str, stance: str, used: list[_Fact], today: date, subject: str) -> str:
+    """The event or condition that would change the call."""
+    report_day = _iso_date(facts.get("next_report"))
+    dated = report_day is not None and 0 <= (report_day - today).days <= 100
+    when = f"the {_say_date(report_day)} report" if dated and report_day else f"{_possessive(subject)} next report"
+    when_cap = _upper_first(when)
+    median = _num(facts.get("pe_hist_median"))
+    by_key = {fact.key: fact for fact in used}
+    growth = by_key.get("growth")
+    sales = growth.number if growth is not None else None
+    valuation = by_key.get("valuation")
+    has_zone = bool(facts.get("has_add_level"))
+    event = _clean(facts.get("next_event"))
+    event_day = _iso_date(facts.get("next_event_date"))
+    event_text = f"{event} on {_say_date(event_day)}" if event and event_day and event_day >= today else ""
+
+    if bucket == "add":
+        execution = str(facts.get("execution") or "").lower()
+        if "move" in by_key and by_key["move"].tone == "up" and execution not in ("now", ""):
+            return f"After that rise we'd buy on a dip rather than now, and stop buying if {when} misses forecasts."
+        if growth is not None and sales is not None and sales >= 15:
+            return f"We'd stop buying if {when} shows sales growth slowing sharply from {_pct(sales)}."
+        if growth is not None and sales is not None and sales >= 3:
+            return f"We'd stop buying if {when} shows sales shrinking or misses forecasts."
+        if valuation is not None and valuation.tone == "good" and median:
+            return f"We'd stop buying if the P/E climbs back above {_times(median)} or {when} misses forecasts."
+        if "dividend" in by_key:
+            return f"We'd stop buying if {when} misses forecasts or the dividend stops growing."
+        if "outlook" in by_key:
+            return f"We'd stop buying if analysts start cutting next year's profit forecast or {when} misses."
+        if event_text and not dated:
+            return f"We'd look again after {event_text}."
+        return f"A miss in {when} would make us stop buying."
+    if bucket == "trim":
+        out = "look again" if stance == "avoid" else "stop selling"
+        if "move" in by_key and by_key["move"].tone == "up" and not (set(by_key) & {"growth", "valuation", "report", "outlook", "ratings"} and any(f.tone == "bad" for f in used)):
+            return f"We'd {out} once the price settles back, or if {when} beats forecasts by a wide margin."
+        if growth is not None and growth.tone == "bad":
+            again = "sales growing again" if (sales is not None and sales < 0) else "faster sales growth"
+            return f"We'd {out} if {when} shows {again}."
+        if valuation is not None and valuation.tone == "bad" and median:
+            return f"We'd {out} if the P/E falls back toward {_times(median)} or {when} beats forecasts."
+        if event_text and not dated:
+            return f"We'd look again after {event_text}."
+        return f"We'd {out} if {when} beats forecasts."
+    # hold
+    buy = "a drop into our buy range" if has_zone else "a lower price"
+    if growth is not None and growth.tone == "good" and sales is not None and sales >= 40:
+        return f"{when_cap} decides what we do: we'd buy more if sales keep growing this fast, and sell some if they slow sharply."
+    if growth is not None and growth.tone == "good" and sales is not None and sales >= 5:
+        return f"{when_cap} decides what we do: we'd buy more if sales keep growing near {_pct(sales)}, and sell some if they slow sharply."
+    if "report" in by_key or "move" in by_key:
+        return f"{when_cap} decides what we do: a beat would have us buying more, and a miss would have us selling some."
+    if valuation is not None and valuation.tone == "bad" and median:
+        return f"We'd buy more if the P/E falls back toward {_times(median)}, and sell some if {when} misses forecasts."
+    if event_text and not dated:
+        return f"We'd decide after {event_text}, or after {buy}."
+    return f"We'd buy more after {buy} or a beat in {when}, and sell some after a miss."
+
+
+def compose_company_reason(facts: dict[str, Any], *, today: date | None = None) -> dict[str, Any] | None:
+    """Two sentences on why this call, for this company, from its own numbers.
+
+    ``facts`` is a flat dict (the screener row plus a few extras):
+    name, symbol, stance, execution, pe, pe_hist_median, pe_hist_days,
+    pe_hist_from, pe_hist_to, rev_growth, eps_next_y, ret_1w, ret_1m,
+    peer_label, peer_ret_1w, peer_ret_1m, last_report {date, label,
+    surprise_pct}, next_report (date), buys_chg_3m, div_yield,
+    div_growth_years, from_hi_pct, has_add_level, next_event,
+    next_event_date.
+
+    Returns {"text", "why", "change", "facts"} or None when the numbers say
+    nothing about this company, so the brief's own reason stays.
+    """
+    bucket = bucket_for(facts.get("stance"))
+    if bucket is None:
+        return None
+    stance = str(facts.get("stance") or "").lower()
+    today = today or datetime.now(timezone.utc).date()
+    subject = short_name(facts.get("name"), facts.get("symbol"))
+    if not subject:
+        return None
+
+    move = _move_fact(facts, subject, today)
+    candidates = [
+        fact
+        for fact in (
+            _report_fact(facts, subject, today),
+            _valuation_fact(facts, subject, today),
+            *_growth_facts(facts, subject),
+            _ratings_fact(facts, subject),
+            _dividend_fact(facts, subject),
+        )
+        if fact is not None
+    ]
+    # A report that already explains the move is not said twice.
+    if move is not None and " report" in move.lead:
+        candidates = [fact for fact in candidates if fact.key != "report"]
+    good = sorted((fact for fact in candidates if fact.tone == "good"), key=lambda fact: -fact.weight)
+    bad = sorted((fact for fact in candidates if fact.tone == "bad"), key=lambda fact: -fact.weight)
+    flat = [fact for fact in candidates if fact.tone == "flat"]
+    first, second, link = _pick(bucket, move, good, bad, flat, _range_fact(facts, subject))
+    if first is None:
+        return None
+
+    attempts = [(second, False), (second, True), (None, False)] if second is not None else [(None, False)]
+    for other, short in attempts:
+        used = [fact for fact in (first, other) if fact is not None]
+        why = _sentence(first, other, link, short=short)
+        change = _change_sentence(facts, bucket, stance, used, today, subject)
+        text = _clean(f"{why} {change}")
+        if len(text) <= COMPANY_REASON_MAX_CHARS:
+            break
+    else:
+        return None
+    if any(pattern.search(text) for pattern in _BANNED) or _PRICE_LEVEL.search(text) or _PLACEHOLDER.search(text):
+        return None
+    return {"text": text, "why": _clean(why), "change": _clean(change), "facts": [fact.key for fact in used]}

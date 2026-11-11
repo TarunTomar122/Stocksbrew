@@ -7,6 +7,7 @@ import { AppPage } from "@/components/oa/kit";
 import { hiddenTemplateIds, parseJobDraft } from "@/lib/agent-jobs";
 import { agentMarketDay, listJobs, listRuns, loadFacts, replayDraft, resolveScope } from "@/lib/agent-jobs-data";
 import { getSessionUser } from "@/lib/auth-server";
+import { getCoverage } from "@/lib/seo/family-data";
 
 export const dynamic = "force-dynamic";
 
@@ -27,11 +28,11 @@ const availableSources = unstable_cache(
 );
 
 const sampleReplay = unstable_cache(
-  async (_day: string) => {
-    const draft = parseJobDraft(SAMPLE);
+  async (_day: string, watch: string) => {
+    const draft = parseJobDraft(sampleFor(watch || null));
     return draft.ok ? replayDraft(null, draft.draft) : null;
   },
-  ["agents-sample-replay-v1"],
+  ["agents-sample-replay-v2"],
   { revalidate: 3600 },
 );
 
@@ -42,10 +43,24 @@ const SAMPLE = {
   trigger: { pct: 4 },
 };
 
-export default async function AgentJobsPage({ searchParams }: { searchParams?: { job?: string | string[] } }) {
+/** "Watch MSFT for me" from the landing card: the same big-move rule, on that one stock. */
+function sampleFor(watch: string | null) {
+  return watch ? { ...SAMPLE, scope: { kind: "tickers", tickers: [watch] } } : SAMPLE;
+}
+
+/** A ticker from `?watch=`, or null. Letters, digits, a dot or a dash, as tickers are written. */
+function watchParam(value: string | string[] | undefined): string | null {
+  const raw = typeof value === "string" ? value.trim().toUpperCase() : "";
+  return /^[A-Z][A-Z0-9.-]{0,9}$/.test(raw) ? raw : null;
+}
+
+export default async function AgentJobsPage({ searchParams }: { searchParams?: { job?: string | string[]; watch?: string | string[] } }) {
   const session = await getSessionUser().catch(() => null);
   const focus = typeof searchParams?.job === "string" ? searchParams.job : null;
-  const sampleDraft = parseJobDraft(SAMPLE);
+  // Only a stock we follow: an unknown ticker would replay nothing and still be named, and every string would be a cache entry.
+  const asked = watchParam(searchParams?.watch);
+  const watch = asked ? await getCoverage().then((coverage) => (coverage.bySymbol.has(asked) ? asked : null)).catch(() => null) : null;
+  const sampleDraft = parseJobDraft(sampleFor(watch));
 
   const [jobs, runs, sources, scope] = await Promise.all([
     session ? listJobs(session.uid).catch(() => []) : [],
@@ -53,10 +68,10 @@ export default async function AgentJobsPage({ searchParams }: { searchParams?: {
     availableSources(agentMarketDay()).catch(() => ({ fund_filings: false, congress: false, insiders: false, earnings: false, movers: false })),
     session ? resolveScope(session.uid, { kind: "watchlist" }).catch(() => ({ tickers: [], levels: {} })) : { tickers: [], levels: {} },
   ]);
-  // The example is for signed-out visitors; it is always labelled as an example.
+  // The example is for signed-out visitors, or anyone who came to watch one stock; it is always labelled as an example.
   const sample =
-    !session && sampleDraft.ok
-      ? await sampleReplay(agentMarketDay())
+    (!session || watch) && sampleDraft.ok
+      ? await sampleReplay(agentMarketDay(), watch ?? "")
           .then((replay) => (replay ? { draft: sampleDraft.draft, replay } : null))
           .catch(() => null)
       : null;

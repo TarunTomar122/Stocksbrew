@@ -93,6 +93,16 @@ function spreadLabels(labels: PlotLabel[], gap: number): Map<string, number> {
 }
 
 /** Up to six labels along the time axis: days, months or years depending on the span. */
+/** The chart's return said as a period a person would name ("over the past year", not "over 1Y"). */
+const PERIOD_WORDS: Record<string, string> = {
+  // Short enough to sit beside the range tabs on a 390px phone.
+  "1M": "in a month",
+  "6M": "in 6 months",
+  "1Y": "in a year",
+  "5Y": "in 5 years",
+  MAX: "all time",
+};
+
 function timeMarks(points: ChartRange["points"]): Array<{ x: number; label: string }> {
   const n = points.length;
   if (n < 2) return [];
@@ -283,13 +293,13 @@ export function PricePanel({
           <span className="font-medium" style={{ color: lineColor }}>
             {signedPct(range.changePct, Math.abs(range.changePct) >= 100 ? 0 : 1)}
           </span>{" "}
-          <span className="max-[359px]:hidden sm:hidden">{range.key === "MAX" ? "all time" : `over ${range.label}`}</span>
+          <span className="max-[359px]:hidden sm:hidden">{PERIOD_WORDS[range.key] ?? `over ${range.label}`}</span>
           <span className="hidden sm:inline">since {fmtDate(range.fromDate)}</span>
         </p>
       </div>
 
       <div
-        className="relative h-[260px] w-full select-none sm:h-[340px]"
+        className="relative h-[210px] w-full select-none sm:h-[340px]"
         role="img"
         aria-label={`${ticker} price, ${range.label} range: ${money(points[0]!.close, currency)} on ${fmtDate(points[0]!.date)} to ${money(last, currency)} on ${fmtDate(points[n - 1]!.date)}, ${signedPct(range.changePct)}. ${markers.length} marked events.`}
       >

@@ -86,6 +86,7 @@ export const PLACES: NavPlace[] = [
       section("Portfolio", "/watchlist", "portfolio", ["/portfolio", "/import"]),
       section("What you own", "/portfolio/xray", "portfolio"),
       section("Dividends", "/portfolio/dividends", "calendar"),
+      section("Stress test", "/portfolio/stress", "backtest"),
       section("Taxes", "/watchlist/tax", "filings"),
       section("Practice account", "/practice", "practice"),
     ],

@@ -265,12 +265,15 @@ export function buildMarketsRead(data: MarketsData, now: Date = new Date()): The
   const spxText = `the S&P 500 ${spxDay >= 0 ? "gained" : "lost"} ${absPct(spxDay, 2)}`;
   const odd = regime === "mixed" ? null : outlier(data.assets, spxDay);
   const oddText = odd ? ` ${topic(odd)}'s ${absPct(odd.change.d1!)} ${odd.change.d1! < 0 ? "drop" : "jump"} was the outlier.` : "";
-  // Every sector one way and the index the other is the story itself: say it straight, never "edged up" on a down day.
+  // Most sectors one way and the index the other is the story itself: say it straight, never "edged up" on a down day.
+  // The same when most sectors went the other way: "mixed" hides that the index fell while most sectors rose.
   const against =
     breadth.total > 0 &&
-    ((breadth.up === breadth.total && spxDay < 0) || (breadth.down === breadth.total && spxDay > 0));
+    ((breadth.up > breadth.total / 2 && spxDay < 0) || (breadth.down > breadth.total / 2 && spxDay > 0));
+  // Count the sectors that went the other way: "gained 0.4% even though 7 of 11 sectors fell".
+  const againstText = spxDay >= 0 ? (breadth.down === breadth.total ? `all ${breadth.total} sectors fell` : `${breadth.down} of ${breadth.total} sectors fell`) : sectorsText;
   const headline = against
-    ? `The S&P 500 ${spxDay >= 0 ? "gained" : "lost"} ${absPct(spxDay, 2)} ${when} even though ${sectorsText}.${oddText}`
+    ? `The S&P 500 ${spxDay >= 0 ? "gained" : "lost"} ${absPct(spxDay, 2)} ${when} even though ${againstText}.${oddText}`
     : `${label} ${when}: ${sectorsText ? `${sectorsText} and ${spxText}` : spxText}.${oddText}`;
 
   const insights = pickInsights([

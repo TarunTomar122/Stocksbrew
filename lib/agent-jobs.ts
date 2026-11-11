@@ -515,6 +515,12 @@ function scopePhrase(scope: AgentScope): string {
   return "the names you track";
 }
 
+/** "any of NVDA and AAPL", but just "MSFT" for one stock and "any stock" for every stock. */
+function anyOf(scope: AgentScope, who: string): string {
+  if (scope.kind === "any" || (scope.kind === "tickers" && scope.tickers.length === 1)) return who;
+  return `any of ${who}`;
+}
+
 /** "When" in a few words, for the job list. */
 export function triggerLabel(trigger: AgentTrigger): string {
   if (trigger.type === "schedule") {
@@ -553,24 +559,24 @@ export function describeJob(job: Pick<AgentJobDraft, "trigger" | "scope">): stri
     if (trigger.rule === "crosses_above") return `Tell me when ${who} closes above ${price(trigger.level ?? 0)}.`;
     if (trigger.rule === "crosses_below") return `Tell me when ${who} closes below ${price(trigger.level ?? 0)}.`;
     if (trigger.rule === "moves_pct") {
-      return `Tell me when any of ${who} closes ${trigger.pct ?? 5}% or more away from the day before.`;
+      return `Tell me when ${anyOf(job.scope, who)} closes ${trigger.pct ?? 5}% or more away from the day before.`;
     }
-    return `Tell me when any of ${who} closes at or below the add level from its research call.`;
+    return `Tell me when ${anyOf(job.scope, who)} closes at or below the add level from its research call.`;
   }
   if (trigger.event === "fund_13f") {
     return job.scope.kind === "any"
       ? "Tell me when a fund we track files a new 13F."
-      : `Tell me when a fund we track files a new 13F, and point out any of ${who} in it.`;
+      : `Tell me when a fund we track files a new 13F, and point out ${anyOf(job.scope, who)} in it.`;
   }
   if (trigger.event === "congress_trade") return `Tell me when a member of Congress discloses a trade in ${who}.`;
   if (trigger.event === "insider_trade") return `Tell me when an executive or director reports a trade in ${who}.`;
   if (trigger.event === "earnings_approaching") {
-    return `Tell me ${trigger.days_before ?? 3} days before any of ${who} reports earnings.`;
+    return `Tell me ${trigger.days_before ?? 3} days before ${anyOf(job.scope, who)} reports earnings.`;
   }
   if (trigger.event === "earnings_reported") {
-    return `Tell me when any of ${who} reports earnings, with the numbers against expectations and how the stock reacted.`;
+    return `Tell me when ${anyOf(job.scope, who)} reports earnings, with the numbers against expectations and how the stock reacted.`;
   }
-  return `Tell me when any of ${who} lands on the day's movers list.`;
+  return `Tell me when ${anyOf(job.scope, who)} lands on the day's movers list.`;
 }
 
 /* ── validating what a person sends ─────────────────────────────────────── */

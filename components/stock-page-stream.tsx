@@ -71,6 +71,7 @@ import { buildStockRead as buildStockInsightRead } from "@/lib/stock-insights";
 import { getGroupMove, getMarketDay, getStockGroup } from "@/lib/insight-data";
 import { etDay, fin } from "@/lib/insight-format";
 import { getDailySeries } from "@/lib/screener-series";
+import { getScreenerRows } from "@/lib/screener";
 
 export const revalidate = 60;
 
@@ -247,7 +248,7 @@ export async function StockPageStream({ params }: Props) {
     Date.now(),
     stock.instrument_id,
   );
-  const [intelligenceDirect, instrumentViewDirect, intelProDirect, docBundle] = await Promise.all([
+  const [intelligenceDirect, instrumentViewDirect, intelProDirect, docBundle, screenerRow] = await Promise.all([
     directNeeded.intelligence
       ? getStockIntelligenceDoc(stock.instrument_id, market).catch(() => null)
       : Promise.resolve(null),
@@ -264,6 +265,10 @@ export async function StockPageStream({ params }: Props) {
       earningsIntel: directNeeded.earnings_intel,
       preEarnings: hasLevels && directNeeded.pre_earnings,
     }).catch(() => null),
+    // The reason under the call, written from this company's own numbers (cached snapshot; US only).
+    market === "US"
+      ? getScreenerRows([stock.ticker]).then((rows) => rows.get(stock.ticker.toUpperCase()) ?? null).catch(() => null)
+      : Promise.resolve(null),
   ]);
 
   const intelligence = viewSections.intelligence ?? intelligenceDirect;
@@ -343,7 +348,10 @@ export async function StockPageStream({ params }: Props) {
     hasFullAnalysisAccess && isSplitScaleStaleBrief(intelligence, stock.price, stock.captured_at);
 
   // ── the read ──────────────────────────────────────────────────────────────
-  const fullRead = hasFullAnalysisAccess && !isPriceStaleBrief ? buildStockRead(intelligence) : null;
+  const companyReason = screenerRow?.call_reason
+    ? { text: screenerRow.call_reason, call: screenerRow.call ?? null, source: screenerRow.call_reason_source ?? null }
+    : null;
+  const fullRead = hasFullAnalysisAccess && !isPriceStaleBrief ? buildStockRead(intelligence, { companyReason }) : null;
   // Strip the levels here so they never reach the browser for an uncovered stock.
   // A brief written from a bot wall or an error page says nothing about the
   // company. Now that the read is open to everyone, hold those back.
@@ -488,6 +496,8 @@ export async function StockPageStream({ params }: Props) {
       : null;
   const insightRead = buildStockInsightRead({
     ticker: stock.ticker,
+    // The call is the card right above the read; the read says what the day did.
+    callInHeadline: false,
     today: etDay(nowIso) ?? today,
     quoteDay,
     price: fin(stock.price) ? stock.price : null,

@@ -7,7 +7,7 @@ export async function GET() {
     info: {
       title: "Stocksbrew Agent API",
       version: "1.2.0",
-      description: "Stock research, full stock detail, Explore, Screens, Watchlist tracking and alert tools for Stocksbrew Pro members. No trading or brokerage access.",
+      description: "Stock research, full stock detail, Explore, Screens, Watchlist tracking, alert tools, portfolio x-ray, dividends, stress tests, copy tests and plain-English agent reading for Stocksbrew Pro members. No trading or brokerage access.",
     },
     servers: [{ url: `${base}/api/v1` }],
     security: [{ bearerAuth: [] }],
@@ -156,6 +156,51 @@ export async function GET() {
           summary: "Deactivate an alert",
           requestBody: { required: true, content: { "application/json": { schema: { type: "object", required: ["alert_id"], properties: { alert_id: { type: "string" } } } } } },
           responses: { "200": { description: "Deactivated alert", content: { "application/json": { schema: { type: "object" } } } } },
+        },
+      },
+      "/portfolio/xray": {
+        get: {
+          operationId: "whatYouOwn",
+          summary: "Get the member's holdings opened up through their funds: companies, sectors and fund overlap",
+          parameters: [{ name: "limit", in: "query", schema: { type: "integer", minimum: 1, maximum: 50, default: 15 } }],
+          responses: { "200": { description: "Portfolio x-ray", content: { "application/json": { schema: { type: "object" } } } } },
+        },
+      },
+      "/portfolio/dividends": {
+        get: {
+          operationId: "dividendPlan",
+          summary: "Get the member's 12-month dividend plan by month and by stock, announced vs estimate",
+          parameters: [{ name: "payments", in: "query", schema: { type: "boolean", default: false } }],
+          responses: { "200": { description: "Dividend plan", content: { "application/json": { schema: { type: "object" } } } } },
+        },
+      },
+      "/portfolio/stress": {
+        get: {
+          operationId: "stressTest",
+          summary: "Get the member's holdings through eight past market episodes against the S&P 500",
+          parameters: [{ name: "holdings", in: "query", schema: { type: "boolean", default: false } }],
+          responses: { "200": { description: "Stress test", content: { "application/json": { schema: { type: "object" } } } } },
+        },
+      },
+      "/copy": {
+        get: {
+          operationId: "copyTest",
+          summary: "Get one fund's or House member's copy test, or the ranking of all of them",
+          parameters: [
+            { name: "slug", in: "query", schema: { type: "string", maxLength: 100 } },
+            { name: "query", in: "query", schema: { type: "string", maxLength: 100 } },
+            { name: "kind", in: "query", schema: { type: "string", enum: ["fund", "congress"] } },
+            { name: "limit", in: "query", schema: { type: "integer", minimum: 1, maximum: 50, default: 10 } },
+          ],
+          responses: { "200": { description: "Copy test or ranking", content: { "application/json": { schema: { type: "object" } } } } },
+        },
+      },
+      "/agents/parse": {
+        post: {
+          operationId: "watchInPlainWords",
+          summary: "Read a plain-English watch request into agent previews (nothing is saved)",
+          requestBody: { required: true, content: { "application/json": { schema: { type: "object", required: ["text"], properties: { text: { type: "string", minLength: 1, maxLength: 300 } } } } } },
+          responses: { "200": { description: "Agent preview", content: { "application/json": { schema: { type: "object" } } } } },
         },
       },
     },

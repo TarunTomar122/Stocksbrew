@@ -193,9 +193,56 @@ function stockGroups(groups: BriefingGroup[]): BriefingGroup[] {
   return groups.filter((group) => group.key !== MARKET_GROUP_KEY && group.ticker);
 }
 
+/**
+ * How the whole session went, for the market view's headline: each sector's
+ * move today and, when known, the biggest companies' move together (the
+ * change in their combined value). Live data, so only for today's briefing.
+ */
+export type BriefingSession = {
+  sectors: Array<{ name: string; day: number; slug?: string }>;
+  giants?: { count: number; pct: number; leader?: { name: string; pct: number } | null } | null;
+};
+
+/**
+ * "The S&P 500 closed down 0.37% even though 7 of 11 sectors rose. The 10 biggest
+ * companies lost 0.7% together and pulled it down." What the day meant, before any
+ * single stock. Empty when there is no index or too few sectors to count.
+ */
+/** ", led by NVIDIA (−5.5%)," when the company that moved them most went their way. */
+function leaderText(leader: { name: string; pct: number } | null | undefined, pct: number): string {
+  if (!leader || !leader.name || !Number.isFinite(leader.pct) || Math.sign(leader.pct) !== Math.sign(pct)) return "";
+  return `, led by ${leader.name} (${signed(leader.pct)}),`;
+}
+
+export function sessionLine(indexLine: string, index: IndexMove, session: BriefingSession | null | undefined): string {
+  const sectors = (session?.sectors ?? []).filter((sector) => Number.isFinite(sector.day));
+  if (!index || !Number.isFinite(index.change_pct) || !indexLine || sectors.length < 4) return "";
+  const total = sectors.length;
+  const up = sectors.filter((sector) => sector.day > 0).length;
+  const down = sectors.filter((sector) => sector.day < 0).length;
+  const move = index.change_pct;
+  const base = indexLine.replace(/\.$/, "");
+  const against = (move < 0 && up > total / 2) || (move > 0 && down > total / 2);
+  if (against) {
+    const giants = session?.giants;
+    // Only say the giants did it when they moved the same way as the index and by more.
+    const pulled =
+      giants && giants.count >= 5 && Number.isFinite(giants.pct) && Math.abs(giants.pct) >= 0.05 && Math.sign(giants.pct) === Math.sign(move) && Math.abs(giants.pct) >= Math.abs(move)
+        ? ` The ${giants.count} biggest companies ${giants.pct < 0 ? "lost" : "gained"} ${Math.abs(giants.pct).toFixed(1)}% together${leaderText(giants.leader, giants.pct)} and ${giants.pct < 0 ? "pulled it down" : "lifted it"}.`
+        : "";
+    return `${base} even though ${move < 0 ? `${up} of ${total} sectors rose` : `${down} of ${total} sectors fell`}.${pulled}`;
+  }
+  const same = move >= 0 ? up : down;
+  const word = move >= 0 ? "higher" : "lower";
+  if (same === total) return `${base}, with every sector ${word}.`;
+  if (same === 0) return `${base}, with no sector ${word}.`;
+  return `${base}, with ${same} of ${total} sectors ${word}.`;
+}
+
 export function briefingRead(
   briefing: Pick<Briefing, "mode" | "portfolio" | "market" | "quiet"> & { date?: string },
   grouped: GroupedSections,
+  session?: BriefingSession | null,
 ): TheRead | null {
   const open = [...grouped.needs_you, ...grouped.worth_knowing, ...grouped.coming_up];
   const items = open.flatMap((group) => group.items);
@@ -238,7 +285,19 @@ export function briefingRead(
         : clock?.kind === "intraday"
           ? `As of ${clock.clock}, the ${index.name} is ${direction}.`
           : `The ${index.name} is ${direction}.`;
-    // The story first, the index as its backdrop.
+    // What the whole session meant comes first when we can say it; the biggest explained move is then the first story under it.
+    const day = earlier ? "" : sessionLine(indexLine, index, session);
+    if (day) {
+      const ordered = lead ? [lead, ...leads.filter((group) => group !== lead)] : leads;
+      const stories = pickInsights(
+        ordered.slice(0, 1).map((group) => {
+          const insight = group.items.map((item) => explainedMoveInsight(item, briefing.date, group.name)).find(Boolean) ?? null;
+          return insight && group === lead ? { ...insight, soWhat: "The biggest move today with a confirmed reason." } : insight;
+        }),
+      );
+      return { headline: day, insights: stories, asOf };
+    }
+    // Otherwise the story first, the index as its backdrop.
     const headline = [leaders, indexLine].filter(Boolean).join(" ");
     const insights = pickInsights(
       leads

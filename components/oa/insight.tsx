@@ -18,6 +18,8 @@ export function TheRead({
   className = "",
   fold,
   foldLabel,
+  foldKeep = 0,
+  visual,
 }: {
   read: TheReadData | null | undefined;
   label?: string;
@@ -30,26 +32,40 @@ export function TheRead({
   fold?: "phone" | "always";
   /** What the fold button says, naming what is inside ("Show more on technology"). */
   foldLabel?: string;
+  /** How many points stay above the fold (the main driver), the rest wait behind the button. */
+  foldKeep?: number;
+  /** A small picture of the headline, drawn right under it (the briefing's sector strip). */
+  visual?: React.ReactNode;
 }) {
   if (!read || (!read.headline && read.insights.length === 0)) return null;
-  const points =
-    read.insights.length > 0 ? (
-      <ul className="mt-3 divide-y divide-oa-border border-t border-oa-border">
-        {read.insights.map((insight) => (
+  const list = (items: typeof read.insights, top = true) =>
+    items.length > 0 ? (
+      <ul className={`divide-y divide-oa-border ${top ? "mt-3 border-t border-oa-border" : "border-t border-oa-border"}`}>
+        {items.map((insight) => (
           <InsightRow key={insight.id} insight={insight} />
         ))}
       </ul>
     ) : null;
+  const points = list(read.insights);
+  // With a fold, the first `foldKeep` points stay in view and only the rest wait.
+  const kept = fold && foldKeep > 0 ? list(read.insights.slice(0, foldKeep)) : null;
+  const folded = fold && foldKeep > 0 ? list(read.insights.slice(foldKeep), false) : points;
   return (
     <section aria-label={label} className={`oa-surface border border-oa-border bg-oa-card px-4 pb-3 pt-3.5 sm:px-5 sm:pb-3.5 sm:pt-4 ${className}`}>
       <p className="oa-label">{label}</p>
       {read.headline ? (
         <h2 className="mt-1 max-w-[46rem] text-pretty text-[19px] font-semibold leading-[26px] tracking-[-0.01em] text-oa-fg sm:text-[21px] sm:leading-[28px]">{read.headline}</h2>
       ) : null}
+      {visual}
       {points && fold && read.headline ? (
-        <ShowMore always={fold === "always"} label={foldLabel ?? `Show ${read.insights.length === 1 ? "the detail" : `${read.insights.length} more points`}`} className="[&>button]:mb-1">
-          {points}
-        </ShowMore>
+        <>
+          {kept}
+          {folded ? (
+            <ShowMore always={fold === "always"} label={foldLabel ?? `Show ${read.insights.length === 1 ? "the detail" : `${read.insights.length} more points`}`} className={`[&>button]:mb-1 ${kept ? "[&>button]:mt-2" : ""}`}>
+              {folded}
+            </ShowMore>
+          ) : null}
+        </>
       ) : (
         points
       )}

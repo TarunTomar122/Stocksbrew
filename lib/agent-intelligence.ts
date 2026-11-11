@@ -4,6 +4,14 @@ import {
   type AgentScope,
 } from "@/lib/agent-access-config";
 import { requireAgentScope, type AgentPrincipal } from "@/lib/agent-auth";
+import { AgentDataError } from "@/lib/agent-errors";
+import {
+  getAgentCopyTest,
+  getAgentDividendPlan,
+  getAgentStressTest,
+  getAgentWhatYouOwn,
+  readAgentWatchRequest,
+} from "@/lib/agent-feature-tools";
 import { consumeAgentQuota } from "@/lib/agent-quota";
 import { compareStocks } from "@/lib/compare-stocks";
 import { MARKET_FEED_FRESHNESS, freshnessInfo } from "@/lib/freshness";
@@ -63,18 +71,14 @@ export type AgentToolName =
   | "remove_from_radar"
   | "get_my_alerts"
   | "create_alert"
-  | "delete_alert";
+  | "delete_alert"
+  | "what_you_own"
+  | "dividend_plan"
+  | "stress_test"
+  | "copy_test"
+  | "watch_in_plain_words";
 
-export class AgentDataError extends Error {
-  constructor(
-    message: string,
-    public readonly code = "data_error",
-    public readonly status = 400,
-  ) {
-    super(message);
-    this.name = "AgentDataError";
-  }
-}
+export { AgentDataError };
 
 function nullableNumber(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
@@ -110,11 +114,11 @@ function envelope<T extends Record<string, unknown>>(data: T, asOf?: string | nu
 }
 
 function requiredScopeForTool(tool: AgentToolName): AgentScope {
-  if (tool === "get_market_brief" || tool === "get_market_history" || tool === "get_explore" || tool === "get_screens") return "market:read";
+  if (tool === "get_market_brief" || tool === "get_market_history" || tool === "get_explore" || tool === "get_screens" || tool === "copy_test") return "market:read";
   if (tool === "add_to_radar" || tool === "remove_from_radar") return "radar:write";
   if (tool === "get_my_alerts") return "alerts:read";
   if (tool === "create_alert" || tool === "delete_alert") return "alerts:write";
-  if (tool === "get_my_radar" || tool === "get_radar_changes") return "radar:read";
+  if (tool === "get_my_radar" || tool === "get_radar_changes" || tool === "what_you_own" || tool === "dividend_plan" || tool === "stress_test") return "radar:read";
   return "stocks:read";
 }
 
@@ -871,6 +875,26 @@ export async function executeAgentTool(
       break;
     case "delete_alert":
       data = await deleteAgentAlert(principal.uid, String(args.alert_id || ""));
+      break;
+    case "what_you_own":
+      data = await getAgentWhatYouOwn(principal.uid, { limit: typeof args.limit === "number" ? args.limit : undefined });
+      break;
+    case "dividend_plan":
+      data = await getAgentDividendPlan(principal.uid, { payments: args.payments === true });
+      break;
+    case "stress_test":
+      data = await getAgentStressTest(principal.uid, { holdings: args.holdings === true });
+      break;
+    case "copy_test":
+      data = await getAgentCopyTest({
+        slug: typeof args.slug === "string" ? args.slug : undefined,
+        query: typeof args.query === "string" ? args.query : undefined,
+        kind: args.kind === "fund" || args.kind === "congress" ? args.kind : undefined,
+        limit: typeof args.limit === "number" ? args.limit : undefined,
+      });
+      break;
+    case "watch_in_plain_words":
+      data = await readAgentWatchRequest(principal.uid, { text: String(args.text || "") });
       break;
     default:
       throw new AgentDataError("Unknown agent tool.", "unknown_tool", 404);

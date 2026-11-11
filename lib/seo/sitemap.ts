@@ -86,6 +86,7 @@ const PAGES = [
   "/portfolio",
   "/portfolio/xray",
   "/portfolio/dividends",
+  "/portfolio/stress",
   "/agents",
   "/pricing",
   "/developers",

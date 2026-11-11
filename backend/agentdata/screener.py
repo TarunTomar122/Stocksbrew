@@ -39,6 +39,8 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
+from backend.call_reason import compose_company_reason, peer_label
+
 from .store import DocStore
 
 COLLECTION = "tm_screener_snapshot"
@@ -348,6 +350,8 @@ def call_fields(intel: dict[str, Any] | None, price: float | None) -> dict[str, 
     )
     if reason:
         out["call_reason"] = reason[:320]
+        source = str(directive.get("call_reason_source") or "").strip() if directive.get("call_reason") else ""
+        out["call_reason_source"] = source or "template"
     confidence = str(directive.get("confidence") or legacy.get("confidence") or "").strip().lower()
     if confidence in ("low", "med", "medium", "high"):
         out["call_confidence"] = "medium" if confidence == "med" else confidence
@@ -696,12 +700,33 @@ def _get_many(store: DocStore, paths: list[str], *, chunk: int, select: list[str
     return out
 
 
+_COMPARE = {
+    ">=": lambda left, right: left >= right,
+    ">": lambda left, right: left > right,
+    "<=": lambda left, right: left <= right,
+    "<": lambda left, right: left < right,
+}
+
+
+def _matches(row: dict[str, Any], flt: dict[str, Any]) -> bool:
+    """One query filter applied in Python (the SQLite path), the way the HTTP service applies it."""
+    field, op, value = flt["field"], flt["op"], flt["value"]
+    if op == "==":
+        return row.get(field) == value
+    compare = _COMPARE.get(op)
+    if compare is None:
+        raise ValueError(f"unsupported filter op {op!r}")
+    # A missing field never passes a comparison (the HTTP service skips documents without the field).
+    if row.get(field) in (None, ""):
+        return False
+    return compare(str(row.get(field)), str(value))
+
+
 def _query(store: DocStore, collection: str, filters: list[dict[str, Any]], select: list[str] | None = None) -> list[dict[str, Any]]:
     if store.mode != "http":
         rows = [data for _, data in store.list(collection, limit=20000)]
         for flt in filters:
-            field, op, value = flt["field"], flt["op"], flt["value"]
-            rows = [row for row in rows if (row.get(field) == value if op == "==" else str(row.get(field) or "") >= value)]
+            rows = [row for row in rows if _matches(row, flt)]
         return rows
     body: dict[str, Any] = {"collection": collection, "filters": filters, "orders": [], "limit": 10000}
     if select:
@@ -735,6 +760,167 @@ def theme_tickers(store: DocStore) -> list[str]:
     return sorted(ticker for ticker in tickers if ticker)
 
 
+def calendar_names(events: Iterable[dict[str, Any]]) -> dict[str, str]:
+    """Company names from the earnings calendar, for stocks the instrument master names by ticker.
+
+    All-capitals names ("MCDONALD`S CORP") are skipped; the Nasdaq calendar's own casing is kept.
+    """
+    out: dict[str, str] = {}
+    for event in events:
+        ticker = str(event.get("ticker") or "").upper()
+        company = " ".join(str(event.get("company") or "").split())
+        if ticker and company and company.upper() != ticker and not company.isupper():
+            out.setdefault(ticker, company)
+    return out
+
+
+def last_reports(events: Iterable[dict[str, Any]], today: str) -> dict[str, dict[str, Any]]:
+    """Latest reported earnings per ticker with a known surprise: {date, label, surprise_pct}."""
+    out: dict[str, dict[str, Any]] = {}
+    for event in events:
+        ticker = str(event.get("ticker") or "").upper()
+        day = str(event.get("actuals_reported_date") or event.get("event_date") or "")[:10]
+        label = str(event.get("surprise_label") or "").lower()
+        surprise = num(event.get("eps_surprise_pct"))
+        if not ticker or len(day) != 10 or day > today or label not in ("beat", "miss", "inline", "in-line", "met"):
+            continue
+        if ticker in out and out[ticker]["date"] >= day:
+            continue
+        out[ticker] = {"date": day, "label": label, "surprise_pct": surprise}
+    return out
+
+
+def peer_moves(rows: list[dict[str, Any]], *, min_peers: int = 4) -> dict[str, dict[str, Any]]:
+    """For each symbol, how the rest of its industry (else its sector) moved: label and median returns."""
+    groups: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    labels: dict[str, tuple[str, str]] = {}
+    for row in rows:
+        kind, label = peer_label(row.get("industry"), row.get("sector"))
+        industry_key = ("industry", label) if kind == "industry" else None
+        _, sector_label = peer_label("", row.get("sector"))
+        sector_key = ("sector", sector_label) if sector_label else None
+        for key in (industry_key, sector_key):
+            if key:
+                groups.setdefault(key, []).append(row)
+        labels[row["symbol"]] = (label if kind == "industry" else "", sector_label)
+    out: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        industry_label, sector_label = labels.get(row["symbol"], ("", ""))
+        for key in (("industry", industry_label), ("sector", sector_label)):
+            if not key[1]:
+                continue
+            others = [other for other in groups.get(key, []) if other["symbol"] != row["symbol"]]
+            if len(others) < min_peers:
+                continue
+            entry: dict[str, Any] = {"label": key[1]}
+            for field in ("ret_1w", "ret_1m"):
+                values = [value for other in others if (value := num(other.get(field))) is not None]
+                if len(values) >= min_peers:
+                    entry[field] = statistics.median(values)
+            out[row["symbol"]] = entry
+            break
+    return out
+
+
+def _brief_next_event(intel: dict[str, Any] | None, today: str) -> tuple[str, str]:
+    """The brief's next dated event that is not earnings: ('the FDA decision', '2026-12-02')."""
+    cards = ((intel or {}).get("visual_cards") or {}).get("catalyst_cards") if isinstance((intel or {}).get("visual_cards"), dict) else None
+    for card in cards or []:
+        if not isinstance(card, dict):
+            continue
+        event = " ".join(str(card.get("event") or "").split()).rstrip(".")
+        day = str(card.get("window") or "")[:10]
+        if not event or "earning" in event.lower() or len(event) > 50 or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", day) or day < today:
+            continue
+        if re.search(r"[{}\[\]<>$%\d]", event):
+            continue
+        event = re.sub(r"^(?:the|next|upcoming)\s+", "", event, flags=re.IGNORECASE)
+        first, _, rest = event.partition(" ")
+        if first[:1].isupper() and not first.isupper() and first.lower() in ("congressional", "annual", "investor", "quarterly", "federal", "court", "shareholder"):
+            first = first.lower()
+        return f"the {first} {rest}".strip(), day
+    return "", ""
+
+
+def reason_facts(
+    row: dict[str, Any],
+    intel: dict[str, Any] | None,
+    *,
+    peers: dict[str, Any] | None,
+    report: dict[str, Any] | None,
+    today: str,
+    name: str | None = None,
+) -> dict[str, Any]:
+    """The flat input ``compose_company_reason`` reads, from a finished row and its brief.
+
+    ``name`` stands in when the instrument master only has the ticker ("MCD").
+    """
+    directive = (intel or {}).get("directive_v2") if isinstance((intel or {}).get("directive_v2"), dict) else {}
+    legacy = (intel or {}).get("directive") if isinstance((intel or {}).get("directive"), dict) else {}
+    facts: dict[str, Any] = {
+        key: row.get(key)
+        for key in (
+            "name", "symbol", "pe", "pe_hist_median", "pe_hist_days", "pe_hist_from", "pe_hist_to", "rev_growth",
+            "eps_next_y", "ret_1w", "ret_1m", "buys_chg_3m", "div_yield", "div_growth_years", "from_hi_pct",
+        )
+    }
+    if name and str(facts.get("name") or "").upper() == str(row.get("symbol") or "").upper():
+        facts["name"] = name
+    facts["stance"] = directive.get("stance") or legacy.get("stance")
+    facts["execution"] = directive.get("execution")
+    facts["next_report"] = row.get("earnings_date")
+    facts["has_add_level"] = bool(row.get("add_below"))
+    if peers:
+        facts["peer_label"] = peers.get("label")
+        facts["peer_ret_1w"] = peers.get("ret_1w")
+        facts["peer_ret_1m"] = peers.get("ret_1m")
+    if report:
+        facts["last_report"] = report
+    event, day = _brief_next_event(intel, today)
+    if event:
+        facts["next_event"], facts["next_event_date"] = event, day
+    return facts
+
+
+def attach_company_reasons(
+    rows: list[dict[str, Any]],
+    intel_by_id: dict[str, dict[str, Any]],
+    reports: dict[str, dict[str, Any]],
+    today: str,
+    names: dict[str, str] | None = None,
+) -> dict[str, int]:
+    """Replace the shared template under each call with a reason about the company.
+
+    ``call_reason`` becomes two sentences built from the row's own numbers
+    (``call_reason_source`` "company", the second sentence also in
+    ``call_change``). A row whose numbers say too little keeps the brief's own
+    reason. Returns counts by source.
+    """
+    peers = peer_moves(rows)
+    day = date.fromisoformat(today)
+    counts: dict[str, int] = {}
+    for row in rows:
+        if not row.get("call"):
+            continue
+        intel = intel_by_id.get(str(row.get("instrument_id") or ""))
+        facts = reason_facts(
+            row, intel, peers=peers.get(row["symbol"]), report=reports.get(row["symbol"]), today=today, name=(names or {}).get(row["symbol"])
+        )
+        try:
+            composed = compose_company_reason(facts, today=day)
+        except Exception as exc:  # one odd row must not cost the snapshot
+            log(f"reason for {row['symbol']} failed: {exc}")
+            composed = None
+        if composed:
+            row["call_reason"] = composed["text"]
+            # "company", not "facts": the brief's own fallback line is already called "facts".
+            row["call_reason_source"] = "company"
+            row["call_change"] = composed["change"]
+        source = str(row.get("call_reason_source") or "none")
+        counts[source] = counts.get(source, 0) + 1
+    return counts
+
+
 def log(message: str) -> None:
     print(f"[screener] {message}", file=sys.stderr, flush=True)
 
@@ -763,7 +949,7 @@ def build(store: DocStore, *, today: str | None = None) -> dict[str, Any]:
 
     intel_pro: dict[str, dict[str, Any]] = {}
     intel: dict[str, dict[str, Any]] = {}
-    intel_select = ["directive_v2", "directive", "thesis", "generated_at", "as_of", "options_digest"]
+    intel_select = ["directive_v2", "directive", "thesis", "generated_at", "as_of", "options_digest", "visual_cards"]
     for name in [universe, *fallbacks]:
         missing = [i for i in ids if i not in intel_pro]
         for path, data in _get_many(store, [f"tm_stock_intel_pro/US__{name}/stocks/{i}" for i in missing], chunk=200).items():
@@ -791,6 +977,20 @@ def build(store: DocStore, *, today: str | None = None) -> dict[str, Any]:
         day = str(event.get("event_date") or "")[:10]
         if ticker and len(day) == 10 and day >= today and (ticker not in calendar or day < calendar[ticker][0]):
             calendar[ticker] = (day, str(event.get("time") or ""))
+
+    # Reported results from the past five weeks, for "its Nov 4 report beat forecasts by 6%".
+    recent_events = _query(
+        store,
+        "tm_earnings_events",
+        [{"field": "event_date", "op": ">=", "value": days_before(today, 200)}],
+        ["ticker", "company", "event_date", "actuals_reported_date", "surprise_label", "eps_surprise_pct"],
+    )
+    reports = last_reports(
+        [event for event in recent_events if days_before(today, 35) <= str(event.get("event_date") or "")[:10] <= today],
+        today,
+    )
+    names = calendar_names(recent_events)
+    log(f"recent reported earnings: {len(reports)}, calendar names: {len(names)}")
 
     rows: list[dict[str, Any]] = []
     extra_rows: list[dict[str, Any]] = []
@@ -831,6 +1031,9 @@ def build(store: DocStore, *, today: str | None = None) -> dict[str, Any]:
             continue
         rows.append(row)
 
+    reason_counts = attach_company_reasons(rows, intel, reports, today, names)
+    log(f"call reasons by source: {reason_counts}")
+
     # Basket lines and benchmarks we do not cover: price and returns only.
     for ticker in extras:
         raw = history.get(f"tm_price_history_daily/{ticker}") or {}
@@ -859,6 +1062,7 @@ def build(store: DocStore, *, today: str | None = None) -> dict[str, Any]:
         "shards": shard_ids,
         "extra_shard": f"{MARKET}__extra",
         "coverage": coverage(rows),
+        "call_reasons": reason_counts,
         "pe_history": {
             "from": min((row["pe_hist_from"] for row in rows if "pe_hist_from" in row), default=None),
             "to": max((row["pe_hist_to"] for row in rows if "pe_hist_to" in row), default=None),

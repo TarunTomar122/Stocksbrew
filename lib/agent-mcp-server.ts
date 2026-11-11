@@ -20,7 +20,8 @@ function toolResult(data: Record<string, unknown>): CallToolResult {
 function toolError(error: unknown): CallToolResult {
   const authError = error instanceof Error && error.name === "AgentAuthError";
   const known = authError || error instanceof AgentDataError || error instanceof AgentQuotaError;
-  const message = error instanceof Error ? error.message : "Stocksbrew could not complete this request.";
+  // Only our own errors carry a message meant for people; anything else stays in the server log.
+  const message = known && error instanceof Error ? error.message : "Stocksbrew could not complete this request.";
   const code = authError && "code" in error && typeof error.code === "string"
     ? error.code
     : error instanceof AgentDataError
@@ -53,7 +54,7 @@ export function createStocksbrewMcpServer(principal: AgentPrincipal): McpServer 
     name: AGENT_MCP_SERVER_NAME,
     version: AGENT_MCP_SERVER_VERSION,
     title: "Stocksbrew for Agents",
-    description: "Full stock detail, Explore, curated screens, Watchlist tracking and alert tools for Stocksbrew Pro members.",
+    description: "Full stock detail, Explore, curated screens, Watchlist tracking, alert tools, portfolio x-ray, dividends, stress tests, copy tests and plain-English agent reading for Stocksbrew Pro members.",
   });
 
   const readOnly = {
@@ -218,6 +219,54 @@ export function createStocksbrewMcpServer(principal: AgentPrincipal): McpServer 
     inputSchema: { alert_id: z.string().min(1).max(200) },
     annotations: { ...write, destructiveHint: true, idempotentHint: true },
   }, toolHandler(principal, "delete_alert"));
+
+  server.registerTool("what_you_own", {
+    title: "What you really own",
+    description: "Open up the member's funds and add what is inside them to the stocks they bought: their real stake in each company (direct vs through funds), sectors against the S&P 500, how much their funds overlap, and the read the page shows. Fund holdings come from each fund's SEC N-PORT filing. Read data_status first: no_holdings, no_values and no_funds mean there is little or nothing to show.",
+    inputSchema: {
+      limit: z.number().int().min(1).max(50).default(15).describe("How many companies to return, biggest first"),
+    },
+    annotations: readOnly,
+  }, toolHandler(principal, "what_you_own"));
+
+  server.registerTool("dividend_plan", {
+    title: "Dividend plan",
+    description: "What the member's holdings should pay over the next twelve months, month by month and per stock, with announced dividends kept apart from estimates based on each stock's last year of payments. Holdings without a share count are listed in missing_shares and add nothing to the totals.",
+    inputSchema: {
+      payments: z.boolean().default(false).describe("Include every planned payment for each stock, not only the next one"),
+    },
+    annotations: readOnly,
+  }, toolHandler(principal, "dividend_plan"));
+
+  server.registerTool("stress_test", {
+    title: "Stress test",
+    description: "How the member's holdings, at today's weights, did in eight real market shocks and rallies of the last decade, each next to the S&P 500, from their own daily closes. It is history, not a forecast. Each episode names the holding that did the most; ask for holdings to get every holding's move.",
+    inputSchema: {
+      holdings: z.boolean().default(false).describe("Include every holding's move in each episode"),
+    },
+    annotations: readOnly,
+  }, toolHandler(principal, "stress_test"));
+
+  server.registerTool("copy_test", {
+    title: "Copy test",
+    description: "What copying a 13F fund's filings or a House member's reported trades would have made against the S&P 500, traded the first close after each disclosure became public. With slug or query: one record (a query that matches several returns their slugs to pick from). With neither: the ranking of every fund and member. Pretend money, before costs and taxes.",
+    inputSchema: {
+      slug: z.string().min(1).max(100).optional().describe("A record's slug, such as berkshire-hathaway"),
+      query: z.string().min(1).max(100).optional().describe("Fund, manager or House member name to search"),
+      kind: z.enum(["fund", "congress"]).optional().describe("Only funds or only House members"),
+      limit: z.number().int().min(1).max(50).default(10).describe("Ranked rows to return per kind, when listing"),
+    },
+    annotations: readOnly,
+  }, toolHandler(principal, "copy_test"));
+
+  server.registerTool("watch_in_plain_words", {
+    title: "Read a watch request",
+    description: "Read a plain-English request such as \"tell me if NVDA closes below 150 or a fund sells it\" into the stocksbrew agents it would make, with the sentences the Agents page shows and anything it cannot watch. This only reads the request; nothing is saved. To switch the agents on, the member types the request on the Agents page.",
+    inputSchema: {
+      text: z.string().min(1).max(300).describe("What to watch, in the member's own words"),
+    },
+    annotations: readOnly,
+  }, toolHandler(principal, "watch_in_plain_words"));
 
   return server;
 }

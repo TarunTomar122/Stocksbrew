@@ -342,6 +342,14 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
       ].filter((item): item is NonNullable<typeof item> => Boolean(item))
     : [];
   const callMeta = ready ? callMetaLine(ready.confidence, ready.horizon) : "";
+  // A level more than half the price away says little about today (the engine still sets some that far out); the landing card uses the same rule.
+  const nearLevel = (value: number) => hasPrice && Math.abs(value - stock.price) / stock.price <= 0.5;
+  const nearLevels = callLevels.filter((item) => nearLevel(item.price));
+  const callWord = ready?.call ? (CALL_PLAIN[ready.call as keyof typeof CALL_PLAIN] ?? ready.call) : null;
+  const callAction = ready ? plainAction(ready.actionLabel, ready.call) : null;
+  // "Keep" then "Keep what you own, ..." says the call twice; the word only stays when the sentence does not start with it.
+  // Whole words only ("Keep" in "Keep what you own"), the way plainAction reads its labels. Call words are plain letters.
+  const callWordRepeats = Boolean(callWord && callAction && /^[a-z ]+$/i.test(callWord) && new RegExp(`^${callWord}\\b`, "i").test(callAction));
 
   const stats = headerStats.length ? <KeyStats items={headerStats} /> : null;
   // On a phone the page below the chart is one part at a time (PhoneSections).
@@ -417,7 +425,7 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
                   {ready ? (
                     <>
                       <p className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1">
-                        {ready.call ? (
+                        {callWord && !callWordRepeats ? (
                           <span
                             className="inline-flex h-7 items-center whitespace-nowrap rounded-md px-2.5 text-[14px] font-semibold"
                             style={{
@@ -425,12 +433,17 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
                               background: `color-mix(in srgb, ${callTone ? TONE_COLOR[callTone] : "var(--oa-fg)"} 12%, transparent)`,
                             }}
                           >
-                            {CALL_PLAIN[ready.call as keyof typeof CALL_PLAIN] ?? ready.call}
+                            {callWord}
                           </span>
                         ) : null}
                         {/* The call in a word ("Sell some"), then what it means ("We'd sell some, not buy more"). */}
-                        {plainAction(ready.actionLabel, ready.call) ? (
-                          <span className="text-[17px] font-medium leading-6 tracking-tight text-oa-fg">{plainAction(ready.actionLabel, ready.call)}</span>
+                        {callAction ? (
+                          <span className="flex items-baseline gap-2 text-[17px] font-medium leading-6 tracking-tight text-oa-fg">
+                            {callWordRepeats ? (
+                              <span aria-hidden="true" className="relative top-[-2px] inline-block size-2.5 shrink-0 rounded-full" style={{ background: callTone ? TONE_COLOR[callTone] : "var(--oa-fg)" }} />
+                            ) : null}
+                            <span>{callAction}</span>
+                          </span>
                         ) : null}
                       </p>
                       {/* The stored reason, in plain words with the same meaning, after what the call means. */}
@@ -440,11 +453,11 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
                           {plainCallReason(ready.actionSummary)}
                         </p>
                       ) : null}
-                      {hasPrice && ready.zones.addBelow && ready.zones.addBelow > 0 && ready.zones.trimAbove && ready.zones.trimAbove > ready.zones.addBelow ? (
+                      {hasPrice && ready.zones.addBelow && ready.zones.addBelow > 0 && ready.zones.trimAbove && ready.zones.trimAbove > ready.zones.addBelow && nearLevel(ready.zones.addBelow) && nearLevel(ready.zones.trimAbove) ? (
                         <CallTrack price={stock.price} add={ready.zones.addBelow} trim={ready.zones.trimAbove} level={level} />
-                      ) : callLevels.length ? (
+                      ) : nearLevels.length ? (
                         <dl className="mt-2.5 grid grid-cols-2 gap-x-4 border-t border-oa-border pt-2.5">
-                          {callLevels.map((item) => (
+                          {nearLevels.map((item) => (
                             <div key={item.label} className="min-w-0">
                               <dt className="text-[12.5px] leading-4 text-oa-muted-fg">{item.label}</dt>
                               <dd className="mt-0.5 flex flex-wrap items-baseline gap-x-2">

@@ -229,7 +229,8 @@ export function JobsWorkspace({
   React.useEffect(() => setRuns(initialRuns), [initialRuns]);
   const [openJob, setOpenJob] = React.useState<string | null>(focusJobId ?? null);
   // Signed out, the builder opens on a real example with its replay, so the page shows what an agent says.
-  const starter = React.useMemo(() => starterFor(!signedIn && initialJobs.length === 0 ? sample ?? null : null, signedIn), [initialJobs.length, sample, signedIn]);
+  // The page only sends an example to a signed-out visitor, or to anyone who came to watch one stock ("?watch=MSFT").
+  const starter = React.useMemo(() => starterFor(sample && (signedIn || initialJobs.length === 0) ? sample : null, signedIn), [initialJobs.length, sample, signedIn]);
   const [templateId, setTemplateId] = React.useState<string | null>(starter?.templateId ?? null);
   const [form, setForm] = React.useState<Form>(starter?.form ?? { ...BLANK, scope: signedIn && tracked > 0 ? "watchlist" : "tickers" });
   const [replay, setReplay] = React.useState<Replay | null>(starter?.replay ?? null);
@@ -464,7 +465,9 @@ export function JobsWorkspace({
             {starter && replayFor === starter.key && replayIsCurrent ? (
               <p className="text-pretty text-[14px] leading-5 text-oa-fg">
                 <span className="mr-1.5 inline-flex h-[22px] items-center rounded border border-oa-border bg-oa-bg px-2 align-[1px] text-[12.5px] font-medium text-oa-muted-fg">Example, not switched on</span>
-                Here it watches Nvidia, Apple, Microsoft, Amazon and Tesla over the last four weeks of real prices, checking each day&apos;s close. Change anything, or pick a different agent below.
+                {sample?.draft.scope.kind === "tickers" && sample.draft.scope.tickers.length === 1
+                  ? `Here it watches ${sample.draft.scope.tickers[0]} over the last four weeks of real prices, checking each day's close. Change anything, or pick a different agent below.`
+                  : "Here it watches Nvidia, Apple, Microsoft, Amazon and Tesla over the last four weeks of real prices, checking each day's close. Change anything, or pick a different agent below."}
               </p>
             ) : null}
             <div className={`grid gap-3 sm:grid-cols-2 xl:grid-cols-4 ${replayShown ? "order-2" : "order-1"}`}>

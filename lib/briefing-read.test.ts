@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Briefing, BriefingItem } from "@/lib/briefing";
 import { groupBriefingSections } from "@/lib/briefing-groups";
-import { briefingRead, firstSentence } from "@/lib/briefing-read";
+import { briefingRead, firstSentence, sessionLine } from "@/lib/briefing-read";
 
 function item(overrides: Partial<BriefingItem> & Pick<BriefingItem, "id" | "kind" | "ticker">): BriefingItem {
   return {
@@ -129,6 +129,48 @@ describe("briefingRead", () => {
     );
     expect(read?.headline).toBe("CBRS rose 7.9% on Monday, the biggest move with a confirmed reason. The S&P 500 is up 2.33%.");
     expect(read?.insights[0].text).toBe("CBRS rose 7.9% on Monday: Cerebras signed a cloud deal.");
+  });
+});
+
+describe("the market view's session line", () => {
+  const sectors = (ups: number, downs: number) => [
+    ...Array.from({ length: ups }, (_, i) => ({ name: `Up ${i}`, day: 0.4 })),
+    ...Array.from({ length: downs }, (_, i) => ({ name: `Down ${i}`, day: -0.6 })),
+  ];
+  const fell = { name: "S&P 500", price: 7522, change_pct: -0.37 };
+
+  it("says when most sectors went the other way, and that the giants did it only when they did", () => {
+    expect(sessionLine("The S&P 500 closed down 0.37%.", fell, { sectors: sectors(7, 4), giants: { count: 10, pct: -0.7 } })).toBe(
+      "The S&P 500 closed down 0.37% even though 7 of 11 sectors rose. The 10 biggest companies lost 0.7% together and pulled it down.",
+    );
+    expect(sessionLine("The S&P 500 closed down 0.37%.", fell, { sectors: sectors(7, 4), giants: { count: 10, pct: -0.7, leader: { name: "NVIDIA", pct: -5.53 } } })).toBe(
+      "The S&P 500 closed down 0.37% even though 7 of 11 sectors rose. The 10 biggest companies lost 0.7% together, led by NVIDIA (−5.5%), and pulled it down.",
+    );
+    expect(sessionLine("The S&P 500 closed down 0.37%.", fell, { sectors: sectors(7, 4), giants: { count: 10, pct: 0.2 } })).toBe(
+      "The S&P 500 closed down 0.37% even though 7 of 11 sectors rose.",
+    );
+  });
+
+  it("counts the sectors that went with the index, and says nothing with too few sectors", () => {
+    expect(sessionLine("The S&P 500 closed down 0.37%.", fell, { sectors: sectors(3, 8) })).toBe("The S&P 500 closed down 0.37%, with 8 of 11 sectors lower.");
+    expect(sessionLine("The S&P 500 is up 1.20%.", { name: "S&P 500", change_pct: 1.2 }, { sectors: sectors(11, 0) })).toBe("The S&P 500 is up 1.20%, with every sector higher.");
+    expect(sessionLine("The S&P 500 closed down 0.37%.", fell, { sectors: sectors(2, 1) })).toBe("");
+  });
+
+  it("leads the market view with the session, then the biggest explained move as the first story", () => {
+    const hims = item({ id: "h", kind: "price_move", ticker: "HIMS", name: "Hims & Hers Health, Inc.", relation: "market", needs_you: true, reason_status: "confirmed", why: "Earnings miss and guidance cut trigger Hims & Hers selloff.", day_change_pct: -16.5 });
+    const cbrs = item({ id: "m", kind: "price_move", ticker: "CBRS", relation: "market", needs_you: true, reason_status: "confirmed", why: "Cerebras signed a cloud deal.", day_change_pct: 7.92 });
+    const read = briefingRead(
+      { ...base, mode: "market", market: { ...base.market, indices: [fell] } },
+      groupBriefingSections({ ...sections([]), needs_you: [cbrs, hims] }, "market"),
+      { sectors: sectors(7, 4), giants: { count: 10, pct: -0.7 } },
+    );
+    expect(read?.headline).toBe("The S&P 500 is down 0.37% even though 7 of 11 sectors rose. The 10 biggest companies lost 0.7% together and pulled it down.");
+    expect(read?.insights[0]?.tickers).toEqual(["HIMS"]);
+    expect(read?.insights[0]?.soWhat).toBe("The biggest move today with a confirmed reason.");
+    // One story under the session; the other explained moves are the list below the read.
+    expect(read?.insights).toHaveLength(1);
+    expect(read?.headlineTickers).toBeUndefined();
   });
 });
 

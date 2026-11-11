@@ -607,7 +607,8 @@ async function SectorsPanel({ sectors: pending }: { sectors: ReturnType<typeof l
 /** One read for the whole desk: the brief with the news read folded in, stocks first (see `mergeDeskRead`). */
 async function ReadSlot({ brief, wire }: { brief: Promise<DeskBrief>; wire: Promise<DeskData["wire"]> }) {
   const [{ read }, news] = await Promise.all([brief, wire]);
-  return <TheRead read={mergeDeskRead(read, news.read)} label="Today's read" className="mb-4" />;
+  // On a phone the headline and its main driver show; the other stories wait behind one tap so the sectors come next.
+  return <TheRead read={mergeDeskRead(read, news.read)} label="Today's read" className="mb-4" fold="phone" foldKeep={1} foldLabel="Show more of what drove the day" />;
 }
 
 async function MarketsStripSlot({ markets: pending }: { markets: Promise<DeskData["markets"]> }) {

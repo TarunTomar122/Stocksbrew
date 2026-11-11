@@ -41,6 +41,36 @@ describe("buildStockRead", () => {
     expect(buildStockRead(withReason)!.actionSummary).toBe("Nvidia is down 6% this week, so we'd hold rather than add.");
   });
 
+  it("puts the company reason under the call only when it was written for the same call", () => {
+    const companyReason = {
+      text: "NVIDIA fell 18% over the past week, far more than other chip stocks (down 3.3%), even though its sales grew 83% over the past year. The Nov 17 report decides the next step.",
+      call: "Hold" as const,
+      source: "company",
+    };
+    const withBriefReason = {
+      ...base,
+      directive_v2: { ...base.directive_v2, call_reason: "Nvidia is down 6% this week, so we'd hold rather than add." },
+    } as unknown as StockIntelligenceDoc;
+    expect(buildStockRead(withBriefReason, { companyReason })!.actionSummary).toBe(companyReason.text);
+    // Written for another call (the brief changed since the snapshot): the brief's own line stays.
+    expect(buildStockRead(withBriefReason, { companyReason: { ...companyReason, call: "Add" } })!.actionSummary).toBe(
+      "Nvidia is down 6% this week, so we'd hold rather than add.",
+    );
+    // The template a row carries when its numbers said too little is not a company reason.
+    expect(buildStockRead(base, { companyReason: { ...companyReason, source: "template" } })!.actionSummary).toBe("Keep the position; do not add.");
+    expect(buildStockRead(base, { companyReason: null })!.actionSummary).toBe("Keep the position; do not add.");
+  });
+
+  it("drops sector-wide lines from what would change the call once a company reason is shown", () => {
+    const withSector = {
+      ...base,
+      visual_cards: { risk_cards: [{ risk: "Technology sector keeps weakening", trigger: "Technology breadth remains weak" }] },
+    } as unknown as StockIntelligenceDoc;
+    expect(buildStockRead(withSector)!.changers).toContain("Technology breadth remains weak");
+    const read = buildStockRead(withSector, { companyReason: { text: "NVIDIA fell 18% over the past week.", call: "Hold", source: "company" } })!;
+    expect(read.changers).toEqual(["A damaging finding could weaken trust."]);
+  });
+
   it("splits evidence into reasons and what would change the call", () => {
     const read = buildStockRead(base)!;
     expect(read.call).toBe("Hold");
@@ -81,5 +111,21 @@ describe("buildStockRead", () => {
     expect(read.changed).toEqual({ reason: "Earnings beat." });
     expect(read.zones.addBelow).toBeNull();
     expect(read.confidence).toBeNull();
+  });
+});
+
+describe("dated company reasons expire", () => {
+  const text = "NVIDIA fell 18% over the past week, far more than other chip stocks. The Nov 17 report decides what we do: we'd buy more if sales keep growing this fast.";
+  it("keeps the plan until the report date", async () => {
+    const { dropPastDatedSentences } = await import("./stock-read");
+    expect(dropPastDatedSentences(text, "2026-11-17")).toBe(text);
+  });
+  it("drops the plan once the report has passed, keeping the evidence", async () => {
+    const { dropPastDatedSentences } = await import("./stock-read");
+    expect(dropPastDatedSentences(text, "2026-11-18")).toBe("NVIDIA fell 18% over the past week, far more than other chip stocks.");
+  });
+  it("reads a December report named in January as last year's", async () => {
+    const { dropPastDatedSentences } = await import("./stock-read");
+    expect(dropPastDatedSentences("The Dec 16 report decides what we do.", "2027-01-05")).toBe("");
   });
 });
