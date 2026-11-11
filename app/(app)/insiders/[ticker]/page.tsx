@@ -5,6 +5,7 @@ import { JsonLd, breadcrumbLd } from "@/components/docs/json-ld";
 import { InsiderTable } from "@/components/follow/insider-table";
 import { TheRead } from "@/components/oa/insight";
 import { AppPage, CardGrid, NUM, PageHead, Panel, SourceLine, StatStrip, fmtDay } from "@/components/oa/kit";
+import { StockLogo } from "@/components/stock-logo";
 import { todayET } from "@/lib/calendar-shared";
 import { getInsiderTradesForSymbol, type InsiderTrade } from "@/lib/follow";
 import { buildInsiderPageRead, insiderTotals, usd } from "@/lib/insider-page";
@@ -12,6 +13,8 @@ import { ogImage } from "@/lib/og/url";
 import { sectorSlug } from "@/lib/screener-shared";
 import { cleanTicker, insiderHref, insiderIsIndexable, insiderTitle, insiderWindow, pairHref, sectorHref, stockLabel } from "@/lib/seo/families";
 import { getCoverage, pairsFor, stockPairs } from "@/lib/seo/family-data";
+import Link from "next/link";
+import { AppLink } from "@/components/oa/app-link";
 
 /**
  * Insider trades for one stock (/insiders/NVDA), from SEC Form 4: the read,
@@ -85,7 +88,7 @@ export default async function InsiderStockPage({ params }: Props) {
       <PageHead
         crumb={
           <>
-            <a href="/insiders">Insiders</a> / <a href={`/stock/${encodeURIComponent(ticker)}`}>{ticker}</a>
+            <Link prefetch={false} href="/insiders">Insiders</Link> / <Link prefetch={false} href={`/stock/${encodeURIComponent(ticker)}`}>{ticker}</Link>
           </>
         }
         title={`${name ?? ticker} insider trades`}
@@ -131,10 +134,10 @@ export default async function InsiderStockPage({ params }: Props) {
               ...(row?.sector ? [{ href: sectorHref(sectorSlug(row.sector)), label: `${row.sector} stocks` }] : []),
             ].map((item) => (
               <li key={item.href} className="border-b border-oa-border last:border-b-0">
-                <a href={item.href} className="flex items-center justify-between gap-3 px-4 py-2.5 text-[14px] text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
+                <AppLink href={item.href} className="flex items-center justify-between gap-3 px-4 py-2.5 text-[14px] text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
                   <span className="min-w-0 truncate">{item.label}</span>
                   <span aria-hidden="true" className="text-oa-muted-fg">→</span>
-                </a>
+                </AppLink>
               </li>
             ))}
           </ul>
@@ -144,12 +147,16 @@ export default async function InsiderStockPage({ params }: Props) {
             <ul>
               {pairs.map((pair) => (
                 <li key={pair.slug} className="border-b border-oa-border last:border-b-0">
-                  <a href={pairHref(pair.a, pair.b)} className={`${NUM} flex items-center justify-between gap-3 px-4 py-2.5 text-[14px] text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent`}>
-                    <span>
-                      {pair.a} vs {pair.b}
+                  <Link prefetch={false} href={pairHref(pair.a, pair.b)} className={`${NUM} flex items-center justify-between gap-3 px-4 py-2.5 text-[14px] text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent`}>
+                    <span className="inline-flex min-w-0 items-center gap-1.5">
+                      <StockLogo ticker={pair.a} size={18} />
+                      {pair.a}
+                      <span className="px-0.5 text-oa-muted-fg">vs</span>
+                      <StockLogo ticker={pair.b} size={18} />
+                      {pair.b}
                     </span>
                     <span aria-hidden="true" className="text-oa-muted-fg">→</span>
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -164,10 +171,10 @@ export default async function InsiderStockPage({ params }: Props) {
               { href: "/follow?tab=insiders", label: "Follow insiders" },
             ].map((item) => (
               <li key={item.href} className="border-b border-oa-border last:border-b-0">
-                <a href={item.href} className="flex items-center justify-between gap-3 px-4 py-2.5 text-[14px] text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
+                <AppLink href={item.href} className="flex items-center justify-between gap-3 px-4 py-2.5 text-[14px] text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
                   <span className="min-w-0 truncate">{item.label}</span>
                   <span aria-hidden="true" className="text-oa-muted-fg">→</span>
-                </a>
+                </AppLink>
               </li>
             ))}
           </ul>

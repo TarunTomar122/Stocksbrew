@@ -7,6 +7,7 @@
 import * as React from "react";
 
 import { Verdict } from "@/components/oa/kit/tone";
+import { StockLogo } from "@/components/stock-logo";
 import {
   assetAsOfText,
   assetHref,
@@ -41,6 +42,8 @@ import {
   type VolCurve,
 } from "@/lib/markets-shared";
 import { yieldCurveWord, type ToneWord } from "@/lib/tone";
+import Link from "next/link";
+import { AppLink } from "@/components/oa/app-link";
 
 const CARD = "oa-surface min-w-0 overflow-hidden border border-oa-border bg-oa-card text-oa-fg";
 
@@ -159,7 +162,7 @@ export function MarketTickerStrip({ tiles, className = "" }: { tiles: MarketsOve
       <ul className="flex divide-x divide-oa-border overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {tiles.map((tile) => (
           <li key={tile.id} className="min-w-[164px] flex-1 sm:min-w-[132px]">
-            <a
+            <AppLink
               href={tile.href}
               className="flex h-full flex-col gap-0.5 px-3 py-2.5 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent"
               title={`${tile.name}, ${formatAsOf(tile.as_of)}`}
@@ -172,7 +175,7 @@ export function MarketTickerStrip({ tiles, className = "" }: { tiles: MarketsOve
               <span className={`${MONO} whitespace-nowrap text-[12.5px] leading-4 ${toneText(tile.tone)}`}>
                 {tile.change ?? "·"} <span className="text-oa-muted-fg">{tile.changeLabel}</span>
               </span>
-            </a>
+            </AppLink>
           </li>
         ))}
       </ul>
@@ -187,9 +190,9 @@ function CardHead({ title, href, hrefLabel = "All" }: { title: React.ReactNode; 
     <div className="flex min-h-10 items-center justify-between gap-3 border-b border-oa-border px-3.5 py-2">
       <h3 className="oa-label min-w-0 truncate">{title}</h3>
       {href ? (
-        <a href={href} className={`${MONO} shrink-0 text-[12.5px] uppercase tracking-[0.04em] text-oa-muted-fg outline-none hover:text-oa-fg focus-visible:text-oa-fg`}>
+        <AppLink href={href} className={`${MONO} shrink-0 text-[12.5px] uppercase tracking-[0.04em] text-oa-muted-fg outline-none hover:text-oa-fg focus-visible:text-oa-fg`}>
           {hrefLabel} →
-        </a>
+        </AppLink>
       ) : null}
     </div>
   );
@@ -203,12 +206,20 @@ function latestAsOf(assets: MarketAsset[]): MarketAsset | null {
 export function AssetRow({ asset }: { asset: MarketAsset }) {
   const tone = signalTone(asset.change.d1, asset.change_mode);
   return (
-    <a
+    <Link prefetch={false}
       href={assetHref(asset)}
       className="grid min-h-11 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 px-3.5 py-1.5 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent"
     >
       <span className="flex min-w-0 flex-col">
-        <span className={`${MONO} truncate text-[14px] font-medium leading-4 text-oa-fg`}>{asset.symbol}</span>
+        {asset.class === "etf" ? (
+          // Only funds are real tickers with logos; indexes, rates, commodities, FX and crypto are not.
+          <span className={`${MONO} flex min-w-0 items-center gap-1.5 text-[14px] font-medium leading-4 text-oa-fg`}>
+            <StockLogo ticker={asset.symbol} size={16} />
+            <span className="truncate">{asset.symbol}</span>
+          </span>
+        ) : (
+          <span className={`${MONO} truncate text-[14px] font-medium leading-4 text-oa-fg`}>{asset.symbol}</span>
+        )}
         <span title={asset.name} className="truncate text-[12.5px] leading-4 text-oa-muted-fg">{asset.name}</span>
       </span>
       <span className="flex flex-col items-center" title="Past year">
@@ -219,7 +230,7 @@ export function AssetRow({ asset }: { asset: MarketAsset }) {
         <span className={`${MONO} text-[14px] leading-4 text-oa-fg`}>{formatLevel(asset.price, asset.unit)}</span>
         <span className={`${MONO} text-[12.5px] leading-4 ${toneText(tone)}`}>{formatChange(asset.change.d1, asset.change_mode) ?? "·"}</span>
       </span>
-    </a>
+    </Link>
   );
 }
 
@@ -325,7 +336,7 @@ export function SectorHeatGrid({
           ) : null}
           <div className={`grid grid-cols-3 gap-px bg-oa-border ${wide ? "sm:grid-cols-4 lg:grid-cols-6" : ""}`}>
             {sectors.map((asset) => (
-              <a
+              <Link prefetch={false}
                 key={asset.id}
                 href={assetHref(asset)}
                 style={heatStyle(asset.change.d1)}
@@ -339,7 +350,7 @@ export function SectorHeatGrid({
                   </span>
                   <span className={`${MONO} text-[12.5px] leading-4 text-oa-fg/80`}>{asset.symbol}</span>
                 </span>
-              </a>
+              </Link>
             ))}
           </div>
           {latest ? (
@@ -468,9 +479,9 @@ export function CurveChart({
               points.length > 7 && index % 2 === 1 ? (wide ? "max-sm:hidden" : "hidden") : ""
             }`;
             return item.href ? (
-              <a key={item.label} href={item.href} className={`${cls} outline-none hover:[&>span:last-child]:underline`} style={{ left: `${x(index)}%` }}>
+              <AppLink key={item.label} href={item.href} className={`${cls} outline-none hover:[&>span:last-child]:underline`} style={{ left: `${x(index)}%` }}>
                 {body}
-              </a>
+              </AppLink>
             ) : (
               <span key={item.label} className={cls} style={{ left: `${x(index)}%` }}>
                 {body}
@@ -645,7 +656,7 @@ export function PredictionCard({
   const closes = formatDay(market.close_time, true);
   return (
     <section className={`${CARD} flex flex-col ${className}`}>
-      <a href={predictionHref(market)} className="flex flex-col gap-2.5 px-3.5 py-3 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent">
+      <Link prefetch={false} href={predictionHref(market)} className="flex flex-col gap-2.5 px-3.5 py-3 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent">
         <span className="flex items-center justify-between gap-2">
           <span className="oa-caption">{topicLabel(market.topic)}</span>
           <span className={`${MONO} text-[12.5px] text-oa-muted-fg`}>{market.source_name}</span>
@@ -656,7 +667,7 @@ export function PredictionCard({
             <OutcomeRow key={outcome.label} outcome={outcome} lead={outcome.probability === top} />
           ))}
         </ul>
-      </a>
+      </Link>
       <div className="mt-auto flex flex-col gap-1 border-t border-oa-border bg-oa-bg px-3.5 py-2">
         {reading ? <p className="text-[12.5px] leading-[18px] text-oa-fg">{reading}</p> : null}
         <p className={`${MONO} text-[12.5px] leading-4 text-oa-muted-fg`}>
@@ -690,7 +701,7 @@ export function MarketReadings({
         <ul className="divide-y divide-oa-border">
           {readings.map((reading) => (
             <li key={reading.key}>
-              <a
+              <AppLink
                 href={reading.href}
                 className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-3 px-3.5 py-2.5 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent sm:grid-cols-[7rem_minmax(0,1fr)]"
               >
@@ -699,7 +710,7 @@ export function MarketReadings({
                   {reading.verdict && reading.verdict.tone !== "flat" ? <Verdict tone={reading.verdict.tone}>{reading.verdict.word}</Verdict> : null}
                 </span>
                 <span className="text-[14px] leading-[21px] text-oa-fg">{reading.text}</span>
-              </a>
+              </AppLink>
             </li>
           ))}
         </ul>
@@ -717,7 +728,7 @@ export function ClassTabs({ classes, active, counts }: { classes: MarketClassInf
     <nav aria-label="Asset classes" className="oa-scroll-fade -mx-2 overflow-x-auto border-b border-oa-border px-4 pr-8 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
       <ul className="flex w-max gap-6">
         <li>
-          <a
+          <Link prefetch={false}
             href="/markets"
             aria-current={!active ? "page" : undefined}
             className={`-mb-px flex h-10 items-center border-b-2 text-[14px] outline-none transition-colors ${
@@ -725,14 +736,14 @@ export function ClassTabs({ classes, active, counts }: { classes: MarketClassInf
             }`}
           >
             Overview
-          </a>
+          </Link>
         </li>
         {classes.map((item) => {
           const on = item.slug === active;
           const count = counts?.[item.slug];
           return (
             <li key={item.slug}>
-              <a
+              <AppLink
                 href={classHref(item.slug)}
                 aria-current={on ? "page" : undefined}
                 className={`-mb-px flex h-10 items-center gap-1.5 border-b-2 text-[14px] outline-none transition-colors ${
@@ -741,7 +752,7 @@ export function ClassTabs({ classes, active, counts }: { classes: MarketClassInf
               >
                 {item.title}
                 {count ? <span className={`${MONO} text-[12.5px] text-oa-muted-fg`}>{count}</span> : null}
-              </a>
+              </AppLink>
             </li>
           );
         })}

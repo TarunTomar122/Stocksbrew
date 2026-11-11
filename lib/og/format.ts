@@ -109,3 +109,31 @@ export function levelFree(text: string | null | undefined): string | null {
   const out = kept.join(" ").trim();
   return out.length >= 12 ? out : null;
 }
+
+/** The longest headline and supporting line the read card draws whole (lib/og/cards.tsx ReadCard). */
+export const OG_HEADLINE_MAX = 140;
+export const OG_LINE_MAX = 130;
+
+/**
+ * A sentence that fits the card whole: the text itself, or its first sentence,
+ * or null. Cards never cut a sentence off with an ellipsis (owner rule: no
+ * truncation), so a line too long to fit is left out instead.
+ */
+export function whole(text: string | null | undefined, max: number): string | null {
+  const clean = (text ?? "").replace(/\s+/g, " ").trim();
+  if (!clean) return null;
+  if (clean.length <= max) return clean;
+  const first = clean.split(/(?<=[.!?])\s+(?=[A-Z0-9"“($])/)[0]!.trim();
+  return first.length <= max && first.length >= 20 ? first : null;
+}
+
+/** Up to `max` supporting lines that fit whole, in the read's own order. */
+export function wholeLines(lines: Array<{ text: string; tone: OgTone }>, max = 2): Array<{ text: string; tone: OgTone }> {
+  const out: Array<{ text: string; tone: OgTone }> = [];
+  for (const line of lines) {
+    const text = whole(line.text, OG_LINE_MAX);
+    if (text) out.push({ text, tone: line.tone });
+    if (out.length >= max) break;
+  }
+  return out;
+}

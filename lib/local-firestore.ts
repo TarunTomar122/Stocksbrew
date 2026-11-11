@@ -62,17 +62,36 @@ function logTiming(method: string, what: string, status: string, ms: number, con
   }
 }
 
-// The store sits behind a small accept queue: past about six requests in
-// flight at once, the extra connections wait a full second to be picked up
-// (measured: 12 parallel reads took ~240 ms capped at 6 and ~1200 ms
-// uncapped). Queueing the overflow here is far cheaper than that second.
-// LOCALDB_MAX_CONCURRENCY overrides the cap once the server allows more.
-const MAX_IN_FLIGHT = Math.max(1, Number.parseInt(process.env.LOCALDB_MAX_CONCURRENCY || "", 10) || 6);
+// How many store requests run at once from this process. An older store
+// server had an accept queue of 5: past about six requests in flight, the
+// extra connections waited a full second to be picked up (12 parallel reads
+// took ~240 ms capped at 6 and ~1200 ms uncapped). The current server
+// (backend/localdb/server.py) queues 128 and says so in an
+// `X-LocalDB-Backlog` header, so the cap starts at the old safe 6 and rises
+// to 16 once a response carries that header. LOCALDB_MAX_CONCURRENCY pins the
+// cap to a fixed number instead.
+const LEGACY_MAX_IN_FLIGHT = 6;
+const DEFAULT_MAX_IN_FLIGHT = 16;
+const PINNED_MAX_IN_FLIGHT = Number.parseInt(process.env.LOCALDB_MAX_CONCURRENCY || "", 10);
+let maxInFlight = PINNED_MAX_IN_FLIGHT > 0 ? PINNED_MAX_IN_FLIGHT : LEGACY_MAX_IN_FLIGHT;
 let slotsInUse = 0;
 const slotWaiters: Array<() => void> = [];
 
+/** Raise the cap once the server shows it queues connections rather than dropping them. */
+function noteServerBacklog(response: Response): void {
+  if (PINNED_MAX_IN_FLIGHT > 0 || maxInFlight >= DEFAULT_MAX_IN_FLIGHT) return;
+  const backlog = Number.parseInt(response.headers.get("x-localdb-backlog") || "", 10);
+  if (!(backlog >= 64)) return;
+  maxInFlight = DEFAULT_MAX_IN_FLIGHT;
+  // Start whoever is queued for the new slots.
+  while (slotsInUse < maxInFlight && slotWaiters.length) {
+    slotsInUse += 1;
+    slotWaiters.shift()!();
+  }
+}
+
 async function withSlot<T>(run: () => Promise<T>): Promise<T> {
-  if (slotsInUse >= MAX_IN_FLIGHT) {
+  if (slotsInUse >= maxInFlight) {
     // The finishing request hands its slot straight to the next waiter.
     await new Promise<void>((resolve) => slotWaiters.push(resolve));
   } else {
@@ -85,6 +104,11 @@ async function withSlot<T>(run: () => Promise<T>): Promise<T> {
     if (next) next();
     else slotsInUse -= 1;
   }
+}
+
+/** For tests: the current cap and queue. */
+export function localDbConcurrencyForTests(): { max: number; inUse: number; waiting: number } {
+  return { max: maxInFlight, inUse: slotsInUse, waiting: slotWaiters.length };
 }
 
 // Identical reads that overlap in time share one round trip. Only the raw
@@ -422,6 +446,9 @@ export class LocalFirestore {
       // A stalled store must not hold this request (and every one queued
       // behind it for a slot) until the serverless function times out.
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    }).then((response) => {
+      noteServerBacklog(response);
+      return response;
     }));
     if (!TIMING_ON) return send();
     const startedAt = performance.now();

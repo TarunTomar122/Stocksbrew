@@ -13,6 +13,7 @@ import { getStockIntelligenceDoc } from "@/lib/stock";
 import { sharedCache } from "@/lib/shared-cache";
 
 import { ChangeText, EmptyRow, fmtPrice } from "./shared";
+import Link from "next/link";
 
 /** An example book. Share counts are made up; prices and calls are live. */
 const EXAMPLE_BOOK: { ticker: string; shares: number; held: boolean }[] = [
@@ -125,7 +126,7 @@ export async function OnePlace() {
             const stance = row.stance ? STANCE[row.stance] : null;
             return (
               <li key={row.ticker}>
-                <a
+                <Link prefetch={false}
                   href={`/stock/${row.ticker}`}
                   className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent sm:px-5"
                 >
@@ -147,7 +148,7 @@ export async function OnePlace() {
                     <span className="text-oa-fg">{fmtPrice(row.price ?? 0)}</span>
                     {row.changePct != null ? <ChangeText pct={row.changePct} /> : null}
                   </span>
-                </a>
+                </Link>
               </li>
             );
           })}

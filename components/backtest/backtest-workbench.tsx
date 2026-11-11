@@ -5,6 +5,7 @@ import type { GatedBacktestResponse } from "@/lib/backtest/gated";
 import * as React from "react";
 
 import { OaButton } from "@/components/oa/button";
+import { StockLogo } from "@/components/stock-logo";
 import type { BacktestRun } from "@/lib/backtest";
 import {
   BENCHMARK_OPTIONS,
@@ -106,7 +107,10 @@ function ResultView({ run }: { run: BacktestRun }) {
                 {run.holdings.map((holding) => (
                   <tr key={holding.symbol} className="h-9 border-b border-oa-border last:border-0 hover:bg-oa-accent">
                     <td className="oa-mono px-3.5 font-medium text-oa-fg">
-                      {holding.symbol}
+                      <span className="inline-flex items-center gap-1.5 align-middle">
+                        <StockLogo ticker={holding.symbol} size={16} />
+                        {holding.symbol}
+                      </span>
                       {holding.last_price_date && holding.last_price_date < run.period.end ? (
                         <span className="ml-1.5 font-sans text-[11px] font-normal text-oa-muted-fg">last price {longDay(holding.last_price_date)}</span>
                       ) : null}

@@ -9,15 +9,12 @@ import { ShareButton } from "@/components/share/share-button";
 import { getSessionUser } from "@/lib/auth-server";
 import { loadExampleStress, loadUserStress, type StressView as StressData } from "@/lib/stress-test-data";
 import { getUserDoc } from "@/lib/watchlist";
+import { JsonLd } from "@/components/docs/json-ld";
+import { toolPageLd, toolPageMetadata } from "@/lib/seo/tool-pages";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Stress test your portfolio",
-  description:
-    "How your stocks would have done in real market shocks: the Covid crash, the 2022 rate-hike slide, the 2023 bank scare, the 2025 tariff shock and more, each against the S&P 500.",
-  alternates: { canonical: "/portfolio/stress" },
-};
+export const metadata: Metadata = toolPageMetadata("/portfolio/stress");
 
 const LEDE =
   "What today's holdings did in real market shocks of the last decade, from their own daily closes, next to the S&P 500. It is history, not a forecast.";
@@ -26,6 +23,7 @@ export default async function StressPage() {
   const session = await getSessionUser();
   return (
     <AppPage>
+      <JsonLd data={toolPageLd("/portfolio/stress")} />
       <PageHead
         title="Stress test"
         crumb={

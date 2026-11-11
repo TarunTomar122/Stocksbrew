@@ -17,6 +17,7 @@ import {
   type InsiderTrade,
 } from "@/lib/follow";
 import { ogImage } from "@/lib/og/url";
+import Link from "next/link";
 
 export function generateMetadata(): Metadata {
   const shareImage = ogImage(["page", "insiders"], "Insider buying and selling from SEC Form 4", { daily: true });
@@ -57,9 +58,9 @@ export default async function InsidersPage() {
       <PageHead
         crumb={
           <>
-            <a href="/follow?tab=insiders" className="hover:text-oa-fg">
+            <Link prefetch={false} href="/follow?tab=insiders" className="hover:text-oa-fg">
               Follow
-            </a>{" "}
+            </Link>{" "}
             / Insiders
           </>
         }

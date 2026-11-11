@@ -1,8 +1,10 @@
 import * as React from "react";
 
 import { ToneGlyph } from "@/components/oa/kit/tone";
+import { StockLogo } from "@/components/stock-logo";
 import { fmtFrac, fmtPoints, sparkPath, stockHref } from "@/lib/follow-shared";
 import { markFor } from "@/lib/tone";
+import Link from "next/link";
 
 export const UP = "text-signal-bullish";
 export const DOWN = "text-signal-bearish";
@@ -16,18 +18,22 @@ export function toneOf(value: number | null | undefined): string {
 export function Ticker({
   ticker,
   className = "",
+  logo = 16,
 }: {
   ticker: string | null | undefined;
   className?: string;
+  /** Logo size in px; the logo sits centred while the ticker keeps the row's text baseline. */
+  logo?: number;
 }) {
   if (!ticker) return null;
   return (
-    <a
+    <Link prefetch={false}
       href={stockHref(ticker)}
-      className={`oa-mono font-medium text-oa-fg underline decoration-oa-border decoration-1 underline-offset-[3px] outline-none transition-colors hover:text-oa-primary hover:decoration-oa-primary focus-visible:text-oa-primary ${className}`}
+      className={`oa-mono inline-flex shrink-0 items-baseline gap-1.5 font-medium text-oa-fg underline decoration-oa-border decoration-1 underline-offset-[3px] outline-none transition-colors hover:text-oa-primary hover:decoration-oa-primary focus-visible:text-oa-primary ${className}`}
     >
+      <StockLogo ticker={ticker} size={logo} className="self-center" />
       {ticker}
-    </a>
+    </Link>
   );
 }
 
@@ -50,6 +56,7 @@ export function HoldingChip({
   if (!label) return null;
   const inner = (
     <>
+      {ticker ? <StockLogo ticker={ticker} size={14} /> : null}
       <span
         className={ticker ? "oa-mono font-medium text-oa-fg" : "text-oa-fg"}
       >
@@ -64,13 +71,13 @@ export function HoldingChip({
   const shape =
     "inline-flex h-6 items-center gap-1 whitespace-nowrap rounded-md border border-oa-border bg-oa-bg px-1.5 text-[11px] leading-none";
   return ticker ? (
-    <a
+    <Link prefetch={false}
       href={stockHref(ticker)}
       title={title ?? name ?? ticker}
       className={`${shape} outline-none transition-colors hover:border-oa-primary/60 focus-visible:border-oa-primary`}
     >
       {inner}
-    </a>
+    </Link>
   ) : (
     <span title={title ?? name ?? undefined} className={shape}>
       {inner}

@@ -2,6 +2,7 @@ import * as React from "react";
 
 import { DataTable, type DataColumn, type DataRow } from "@/components/oa/kit/data-table";
 import { Delta, Empty, FOCUS, NUM, Panel, ShowMore, Tag, Ticker, ToneGlyph, Verdict, fmtCompact } from "@/components/oa/kit";
+import { StockLogo } from "@/components/stock-logo";
 import { shortCompanyName } from "@/lib/plain-copy";
 import {
   CALENDAR_TYPES,
@@ -37,6 +38,8 @@ import {
   type IpoItem,
   type Session,
 } from "@/lib/calendar-shared";
+import Link from "next/link";
+import { AppLink } from "@/components/oa/app-link";
 
 const CHIP =
   "inline-flex h-10 shrink-0 items-center gap-1.5 rounded-md border px-3 text-[14px] transition-colors lg:h-8 " + FOCUS;
@@ -76,14 +79,14 @@ export function CalendarControls({
   return (
     <div className="mb-3 flex flex-col gap-2">
       <div className="oa-scroll-fade -mx-2 flex gap-2 overflow-x-auto px-4 pr-9 [scrollbar-width:none] sm:mx-0 sm:px-0 lg:flex-wrap [&::-webkit-scrollbar]:hidden">
-        <a href={calendarHref(filters, today, { type: null })} aria-current={!filters.type ? "true" : undefined} className={`${CHIP} ${!filters.type ? CHIP_ON : CHIP_OFF}`}>
+        <Link prefetch={false} href={calendarHref(filters, today, { type: null })} aria-current={!filters.type ? "true" : undefined} className={`${CHIP} ${!filters.type ? CHIP_ON : CHIP_OFF}`}>
           All
           <span className={`${NUM} text-[12.5px] text-oa-muted-fg`}>{total}</span>
-        </a>
+        </Link>
         {CALENDAR_TYPES.map((type) => {
           const active = filters.type === type.id;
           return (
-            <a
+            <Link prefetch={false}
               key={type.id}
               href={calendarHref(filters, today, { type: active ? null : type.id })}
               aria-current={active ? "true" : undefined}
@@ -91,17 +94,17 @@ export function CalendarControls({
             >
               {type.label}
               <span className={`${NUM} text-[12.5px] text-oa-muted-fg`}>{counts[type.id]}</span>
-            </a>
+            </Link>
           );
         })}
         {mineAvailable ? (
-          <a
+          <Link prefetch={false}
             href={calendarHref(filters, today, { mine: !filters.mine })}
             aria-current={filters.mine ? "true" : undefined}
             className={`${CHIP} ${filters.mine ? CHIP_ON : CHIP_OFF}`}
           >
             My stocks only
-          </a>
+          </Link>
         ) : null}
       </div>
       {filters.view === "week" ? <DayStrip filters={filters} today={today} days={days} /> : <PeriodNav filters={filters} today={today} className="lg:hidden" />}
@@ -139,17 +142,17 @@ export function PeriodNav({ filters, today, className = "" }: { filters: Calenda
   }
   return (
     <div className={`flex shrink-0 items-center gap-1.5 ${className}`}>
-      <a href={prev} aria-label="Earlier" className={NAV_BUTTON}>
+      <AppLink href={prev} aria-label="Earlier" className={NAV_BUTTON}>
         ←
-      </a>
+      </AppLink>
       <span className={`${NUM} min-w-0 flex-1 px-1 text-center text-[14px] font-medium text-oa-fg lg:min-w-[9.5rem] lg:flex-none`}>{label}</span>
-      <a href={next} aria-label="Later" className={NAV_BUTTON}>
+      <AppLink href={next} aria-label="Later" className={NAV_BUTTON}>
         →
-      </a>
+      </AppLink>
       {home ? (
-        <a href={home} className={NAV_BUTTON}>
+        <AppLink href={home} className={NAV_BUTTON}>
           {homeLabel}
-        </a>
+        </AppLink>
       ) : null}
     </div>
   );
@@ -164,15 +167,15 @@ function DayStrip({ filters, today, days }: { filters: CalendarFilters; today: s
   return (
     <div className="lg:hidden">
       <nav aria-label="Days of this week" className="oa-surface grid grid-cols-[2.5rem_repeat(5,minmax(0,1fr))_2.5rem] overflow-hidden border border-oa-border bg-oa-card">
-        <a href={calendarHref(filters, today, { week: addDays(filters.week, -7) })} aria-label="Earlier week" className={`flex items-center justify-center text-[15px] text-oa-muted-fg hover:bg-oa-accent ${FOCUS}`}>
+        <Link prefetch={false} href={calendarHref(filters, today, { week: addDays(filters.week, -7) })} aria-label="Earlier week" className={`flex items-center justify-center text-[15px] text-oa-muted-fg hover:bg-oa-accent ${FOCUS}`}>
           ←
-        </a>
+        </Link>
         {weekDays(filters.week).map((day) => {
           const bucket = days.get(day) ?? emptyDay(day);
           const isToday = day === today;
           const past = day < today;
           return (
-            <a
+            <AppLink
               key={day}
               href={past ? calendarHref(filters, today, { view: "list", day }) : `#d-${day}`}
               aria-current={isToday ? "date" : undefined}
@@ -184,19 +187,19 @@ function DayStrip({ filters, today, days }: { filters: CalendarFilters; today: s
               <span className={`text-[12.5px] leading-4 ${isToday ? "font-medium text-oa-primary" : "text-oa-muted-fg"}`}>{isToday ? "Today" : weekdayName(day)}</span>
               <span className={`${NUM} text-[15px] leading-5 ${isToday ? "font-semibold text-oa-fg" : past ? "text-oa-muted-fg" : "font-medium text-oa-fg"}`}>{Number(day.slice(8))}</span>
               <span className={`${NUM} text-[11px] leading-3 text-oa-muted-fg`}>{bucket.total || " "}</span>
-            </a>
+            </AppLink>
           );
         })}
-        <a href={calendarHref(filters, today, { week: addDays(filters.week, 7) })} aria-label="Later week" className={`flex items-center justify-center border-l border-oa-border text-[15px] text-oa-muted-fg hover:bg-oa-accent ${FOCUS}`}>
+        <Link prefetch={false} href={calendarHref(filters, today, { week: addDays(filters.week, 7) })} aria-label="Later week" className={`flex items-center justify-center border-l border-oa-border text-[15px] text-oa-muted-fg hover:bg-oa-accent ${FOCUS}`}>
           →
-        </a>
+        </Link>
       </nav>
       {thisWeek ? null : (
         <p className="mt-2 text-[14px] text-oa-muted-fg">
           {fmtWeekRange(filters.week)}.{" "}
-          <a href={calendarHref(filters, today, { week: defaultWeekStart(today) })} className="text-oa-primary underline underline-offset-2">
+          <Link prefetch={false} href={calendarHref(filters, today, { week: defaultWeekStart(today) })} className="text-oa-primary underline underline-offset-2">
             Back to this week
-          </a>
+          </Link>
         </p>
       )}
     </div>
@@ -310,14 +313,19 @@ function EarningsLine({
     ? `${fmtEps(item.epsActual)}${item.epsEstimate !== null ? ` vs ${fmtEps(item.epsEstimate)} est` : ""}${
         item.surprisePct !== null ? `, ${item.surprisePct > 0 ? "+" : item.surprisePct < 0 ? "−" : ""}${Math.abs(item.surprisePct).toFixed(1)}% surprise` : ""
       }`
-    : "";
+    : item.epsEstimate !== null
+      ? `expected ${fmtEps(item.epsEstimate)} a share`
+      : "";
   return (
-    <a
+    <Link prefetch={false}
       href={earningsHref(item.ticker)}
       title={[item.company, result].filter(Boolean).join(": ")}
       className={`flex min-h-10 items-center gap-x-2 px-3 py-1 hover:bg-oa-accent lg:min-h-[30px] lg:py-0.5 ${narrow ? "" : "flex-wrap"} ${FOCUS}`}
     >
-      <span className={`${NUM} shrink-0 text-[14px] ${quiet ? "font-medium text-oa-fg" : "font-semibold text-oa-fg"} ${compact ? "" : narrow && reported ? "min-w-[3.25rem] lg:min-w-0" : "min-w-[3.25rem]"}`}>{item.ticker}</span>
+      <span className={`${NUM} inline-flex shrink-0 items-center gap-1.5 text-[14px] ${quiet ? "font-medium text-oa-fg" : "font-semibold text-oa-fg"} ${compact ? "" : narrow ? "min-w-[4.5rem] lg:min-w-0" : "min-w-[4.5rem]"}`}>
+        <StockLogo ticker={item.ticker} size={16} />
+        {item.ticker}
+      </span>
       {narrow && reported ? <ResultMark item={item} /> : null}
       {/* Wraps on a phone rather than cutting the name; the narrow desktop columns still clip. */}
       {/* Wide rows wrap the result under the name rather than letting the two overlap. */}
@@ -335,13 +343,15 @@ function EarningsLine({
           </>
         ) : item.epsEstimate !== null ? (
           <span className={`${NUM} text-oa-muted-fg`}>
-            {/* One word for the estimate everywhere; "a share" only where there is room. */}
-            <span className="text-[12.5px]">expected</span> {fmtEps(item.epsEstimate)}
+            {/* One word for the estimate, except in the narrow desktop week columns: next to the logo there is
+                no room for it there, so it moves into the row's tooltip. "a share" only where there is room. */}
+            <span className={`text-[12.5px] ${narrow ? "lg:hidden" : ""}`}>expected </span>
+            {fmtEps(item.epsEstimate)}
             <span className={`text-[12.5px] ${narrow ? "lg:hidden" : ""}`}> a share</span>
           </span>
         ) : null}
       </span>
-    </a>
+    </Link>
   );
 }
 
@@ -396,11 +406,14 @@ function IpoLine({ item }: { item: IpoItem }) {
 /** Ex-dividend rows sit under an "Ex-dividend" heading, so the row says only who, how much and when it pays. */
 function DividendLine({ item, quiet = false }: { item: DividendItem; quiet?: boolean }) {
   return (
-    <a href={`/stock/${encodeURIComponent(item.ticker)}`} className={`flex min-h-10 items-center gap-2 px-3 py-1 hover:bg-oa-accent lg:min-h-[30px] lg:py-0.5 ${FOCUS}`}>
-      <span className={`${NUM} text-[14px] font-medium text-oa-fg`}>{item.ticker}</span>
+    <Link prefetch={false} href={`/stock/${encodeURIComponent(item.ticker)}`} className={`flex min-h-10 items-center gap-2 px-3 py-1 hover:bg-oa-accent lg:min-h-[30px] lg:py-0.5 ${FOCUS}`}>
+      <span className={`${NUM} inline-flex shrink-0 items-center gap-1.5 text-[14px] font-medium text-oa-fg`}>
+        <StockLogo ticker={item.ticker} size={16} />
+        {item.ticker}
+      </span>
       {item.paymentDate ? <span className={`min-w-0 truncate text-[12.5px] text-oa-muted-fg ${quiet ? "lg:hidden" : ""}`}>pays {fmtShortDay(item.paymentDate)}</span> : null}
       <span className={`${NUM} ml-auto shrink-0 text-[14px] text-oa-fg`}>${item.amount.toFixed(item.amount < 0.1 ? 4 : 2)}</span>
-    </a>
+    </Link>
   );
 }
 
@@ -413,9 +426,9 @@ const WEEK_OTHER_ROWS = 4;
 function More({ count, href }: { count: number; href: string }) {
   if (count <= 0) return null;
   return (
-    <a href={href} className={`flex min-h-10 items-center px-3 text-[14px] text-oa-primary hover:underline lg:min-h-[30px] ${FOCUS}`}>
+    <AppLink href={href} className={`flex min-h-10 items-center px-3 text-[14px] text-oa-primary hover:underline lg:min-h-[30px] ${FOCUS}`}>
       + {count} more
-    </a>
+    </AppLink>
   );
 }
 
@@ -439,7 +452,7 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
         past ? "order-2 bg-oa-bg" : "order-1"
       }`}
     >
-      <a
+      <AppLink
         href={dayHref}
         className={`flex min-h-10 items-center justify-between gap-2 border-b border-oa-border px-3 py-2 hover:bg-oa-accent ${FOCUS} ${
           isToday ? "shadow-[inset_0_2px_0_var(--oa-primary)]" : past ? "max-lg:border-b-0" : "bg-oa-bg"
@@ -479,7 +492,7 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
             </span>
           ) : null}
         </span>
-      </a>
+      </AppLink>
 
       <DayBody fold={!isToday && !past && bucket.total > 0} past={past} label={`Show ${dayCount(bucket)}`}>
         {bucket.total === 0 ? <p className="px-3 py-4 text-[14px] text-oa-muted-fg">Nothing scheduled.</p> : null}
@@ -629,9 +642,9 @@ export function WeekView({
           {weekend.map((bucket, index) => (
             <React.Fragment key={bucket.day}>
               {index > 0 ? ", " : ""}
-              <a href={calendarHref(filters, today, { view: "list", day: bucket.day })} className="text-oa-fg underline decoration-oa-border underline-offset-2">
+              <Link prefetch={false} href={calendarHref(filters, today, { view: "list", day: bucket.day })} className="text-oa-fg underline decoration-oa-border underline-offset-2">
                 {bucket.total} on {weekdayName(bucket.day, true)}
-              </a>
+              </Link>
             </React.Fragment>
           ))}
           .
@@ -674,7 +687,7 @@ export function MonthView({ days, filters, today }: { days: Map<string, DayBucke
             const level = cell.inMonth ? heatLevel(bucket.total, max) : 0;
             const isToday = cell.day === today;
             return (
-              <a
+              <Link prefetch={false}
                 key={cell.day}
                 href={calendarHref(filters, today, { view: "list", day: cell.day })}
                 aria-label={`${weekdayName(cell.day, true)}, ${fmtShortDay(cell.day)}: ${bucket.total} event${bucket.total === 1 ? "" : "s"}`}
@@ -721,7 +734,7 @@ export function MonthView({ days, filters, today }: { days: Map<string, DayBucke
                       .join(" · ")}
                   </span>
                 ) : null}
-              </a>
+              </Link>
             );
           })}
         </div>
@@ -808,9 +821,9 @@ function ListDay({ bucket, today, single, filters, mark }: { bucket: DayBuckets;
       flush
       id={`d-${bucket.day}`}
       label={
-        <a href={calendarHref(filters, today, { view: "list", day: bucket.day })} className="hover:underline">
+        <Link prefetch={false} href={calendarHref(filters, today, { view: "list", day: bucket.day })} className="hover:underline">
           {weekdayName(bucket.day, true)}, {fmtShortDay(bucket.day)} · {relativeDay(bucket.day, today)}
-        </a>
+        </Link>
       }
       right={<span className={NUM}>{bucket.total}</span>}
     >

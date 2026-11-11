@@ -18,7 +18,8 @@ Groups and what they keep fresh:
 * ``after_close``  daily prices, strategy baskets and their live record, earnings
                    dates and reactions, the screener snapshot, then the standing agents
 * ``weekly``       13F fund portfolios, who holds each stock, House trade reports,
-                   then the copy tests built from them (off until ``COPY_TRADES_ENABLED=1``)
+                   then the copy tests built from them (off until ``COPY_TRADES_ENABLED=1``),
+                   ETF holdings and stock logo tiles
 * ``earnings_day`` the report on each covered stock that filed earnings today
                    (every 10 minutes on weekdays; the job itself stays off until
                    ``EARNINGS_DAY_ENABLED=1``)
@@ -78,6 +79,10 @@ GROUPS: dict[str, list[tuple[str, list[str]]]] = {
         # What each ETF holds, from its latest SEC N-PORT filing (the x-ray page). Funds whose
         # filing has not changed are skipped, so most runs are a few dozen SEC requests.
         ("ETF holdings", ["backend.agentdata.etf_holdings"]),
+        # Square logo tiles for every covered stock and fund (Finnhub, then FMP), stored in
+        # tm_stock_logos for /api/logo. Logos 30+ days old are fetched again; a failed fetch never
+        # replaces a stored tile. Needs Pillow on the host.
+        ("stock logos", ["backend.agentdata.stock_logos"]),
     ],
     # Minutes after a company files its earnings release (8-K Item 2.02). Cheap when
     # nobody reports: one store read. Today and yesterday, so an evening release

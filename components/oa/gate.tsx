@@ -9,6 +9,7 @@ import { US_PRO_MONTHLY } from "@/lib/pricing";
 import { trackLimitHit, trackPaywallShown, trackPaywallUnlockClicked } from "@/lib/product-analytics";
 import { signInWithGoogle } from "@/lib/sign-in";
 import { useProCheckout } from "@/lib/use-pro-checkout";
+import Link from "next/link";
 
 /**
  * The one lock in the product. Every limit a person can hit renders through
@@ -117,12 +118,12 @@ export function LockCard({
           {ctaLabel(step, trialEligible)}
         </OaButton>
         {step === "upgrade" ? (
-          <a
+          <Link prefetch={false}
             href={`/pricing#${feature}`}
             className="text-[13px] text-oa-muted-fg underline decoration-oa-border underline-offset-2 hover:text-oa-fg"
           >
             What is in Pro
-          </a>
+          </Link>
         ) : null}
       </div>
     </div>

@@ -3,11 +3,13 @@ import type { Metadata } from "next";
 import { JsonLd, breadcrumbLd } from "@/components/docs/json-ld";
 import { TheRead } from "@/components/oa/insight";
 import { AppPage, CardGrid, Delta, NUM, PageHead, Panel, ShowMore, Ticker, fmtDay } from "@/components/oa/kit";
+import { StockLogo } from "@/components/stock-logo";
 import { pickInsights, type TheRead as TheReadData } from "@/lib/insights";
 import { ogImage } from "@/lib/og/url";
 import { companyFirstMove, firstFullSentence, plainFinance, sentenceCase, shortCompanyName } from "@/lib/plain-copy";
 import { longDay, moveHref, moversDayHref } from "@/lib/seo/families";
 import { getRecentMoves, type MoveRef } from "@/lib/seo/family-data";
+import Link from "next/link";
 
 /** Every recent day with explained moves, newest first. Each day opens /movers/[date]. */
 
@@ -120,13 +122,13 @@ function MoveRow({ move }: { move: MoveRef }) {
         <Delta value={move.pct} digits={1} className="w-[4.25rem] shrink-0 text-right text-[15px] font-medium" />
       </span>
       {reason ? (
-        <a
+        <Link prefetch={false}
           href={moveHref(move.ticker, move.day)}
           className="group mt-0.5 block max-w-[68ch] text-pretty rounded pl-7 text-[14px] leading-5 text-oa-muted-fg outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
         >
           {/* The reason is the link; no "Why it moved" on every row (owner, Nov 11). */}
           <span className="group-hover:text-oa-fg group-hover:underline">{reason}.</span>
-        </a>
+        </Link>
       ) : null}
     </li>
   );
@@ -154,7 +156,7 @@ export default async function MoversPage() {
   return (
     <AppPage>
       <JsonLd data={breadcrumbLd([{ name: "Movers", path: "/movers" }])} />
-      <PageHead crumb={<a href="/signals?tab=movers">Signals</a>} title="Why stocks moved" note={false} />
+      <PageHead crumb={<Link prefetch={false} href="/signals?tab=movers">Signals</Link>} title="Why stocks moved" note={false} />
       <TheRead read={hubRead(moves, latest?.[0] ?? null)} label={latest ? `${fmtDay(latest[0])}, in short` : "In short"} className="mb-4" />
       {latest ? (
         <CardGrid cols={2} className="mb-5">
@@ -192,11 +194,12 @@ export default async function MoversPage() {
               const top = [...list].sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct)).slice(0, 4);
               return (
                 <li key={day} className="border-b border-oa-border last:border-b-0">
-                  <a href={moversDayHref(day)} className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-1 px-4 py-3 outline-none hover:bg-oa-accent focus-visible:bg-oa-accent sm:grid-cols-[11rem_minmax(0,1fr)_auto]">
+                  <Link prefetch={false} href={moversDayHref(day)} className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-1 px-4 py-3 outline-none hover:bg-oa-accent focus-visible:bg-oa-accent sm:grid-cols-[11rem_minmax(0,1fr)_auto]">
                     <span className={`${NUM} text-[14px] font-medium text-oa-fg`}>{longDay(day)}</span>
                     <span className="flex min-w-0 flex-wrap gap-x-3 gap-y-0.5 text-[13.5px] max-sm:col-span-2 max-sm:row-start-2">
                       {top.map((move) => (
                         <span key={move.ticker} className="inline-flex items-baseline gap-1.5">
+                          <StockLogo ticker={move.ticker} size={16} className="self-center" />
                           <span className={`${NUM} font-medium text-oa-fg`}>{move.ticker}</span>
                           <Delta value={move.pct} digits={1} className="text-[12.5px]" />
                         </span>
@@ -205,7 +208,7 @@ export default async function MoversPage() {
                     <span className="text-[12.5px] text-oa-muted-fg">
                       {list.length} stocks, {up} up · see all →
                     </span>
-                  </a>
+                  </Link>
                 </li>
               );
             })}

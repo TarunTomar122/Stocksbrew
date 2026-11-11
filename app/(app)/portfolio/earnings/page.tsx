@@ -8,15 +8,12 @@ import { AppPage, PageHead, SourceLine, fmtDay, fmtStampET } from "@/components/
 import { getSessionUser } from "@/lib/auth-server";
 import { loadExampleSeason, loadUserSeason, type SeasonView as SeasonData } from "@/lib/earnings-season-data";
 import { getUserDoc } from "@/lib/watchlist";
+import { JsonLd } from "@/components/docs/json-ld";
+import { toolPageLd, toolPageMetadata } from "@/lib/seo/tool-pages";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Earnings season planner",
-  description:
-    "Every earnings report coming for your stocks in the next six weeks, with the date and time, the EPS estimate, and how each stock moved after its past reports.",
-  alternates: { canonical: "/portfolio/earnings" },
-};
+export const metadata: Metadata = toolPageMetadata("/portfolio/earnings");
 
 const LEDE = "Reports coming for your stocks in the next six weeks, and how each moved after past reports. Past moves are history, not a forecast.";
 const SOURCE = "Nasdaq earnings calendar, SEC 8-K filings, daily closes";
@@ -24,6 +21,7 @@ const SOURCE = "Nasdaq earnings calendar, SEC 8-K filings, daily closes";
 export default function EarningsSeasonPage() {
   return (
     <AppPage>
+      <JsonLd data={toolPageLd("/portfolio/earnings")} />
       <PageHead
         title="Earnings season"
         crumb={

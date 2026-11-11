@@ -106,12 +106,85 @@ export const getScreenerSnapshot = perRequest(async (market: "US" = "US"): Promi
   return { meta, rows, extras: extras.map((row) => withFreshEarningsGap(row, today)) };
 });
 
+/**
+ * Whether every shard came back. A shard that failed to load reads as no rows
+ * (see getScreenerSnapshot), and anything cached from a partial snapshot would
+ * wrongly say "not covered" until it expires.
+ */
+export function isCompleteSnapshot(snapshot: ScreenerSnapshot | null): snapshot is ScreenerSnapshot {
+  // Covered rows only: the extras shard may legitimately be empty, and the meta does not say how many it holds.
+  return Boolean(snapshot) && snapshot!.rows.length >= snapshot!.meta.row_count;
+}
+
+/**
+ * What one stock's pages need from the snapshot, under its own small cache
+ * key, so a stock page reads a few kilobytes instead of all ~1.7 MB of shards.
+ * Rows are as getScreenerSnapshot returns them (sector resolved).
+ */
+export type ScreenerSymbolContext = {
+  /** The covered stock's row (from `rows`). */
+  row: ScreenerRow | null;
+  /** The benchmark or basket line (from `extras`), for symbols outside coverage such as SPY. */
+  extra: ScreenerRow | null;
+  /** How many covered stocks share this stock's industry. */
+  industrySize: number;
+  priceHistoryTo: string | null;
+  generatedAt: string;
+};
+
+async function readSymbolContext(symbol: string): Promise<ScreenerSymbolContext> {
+  const snapshot = await getScreenerSnapshot();
+  // Throwing keeps a missing or partial snapshot out of the cache.
+  if (!isCompleteSnapshot(snapshot)) throw new Error("screener_snapshot_unavailable");
+  const row = snapshot.rows.find((item) => item.symbol === symbol) ?? null;
+  const extra = snapshot.extras.find((item) => item.symbol === symbol) ?? null;
+  return {
+    row,
+    extra,
+    industrySize: row?.industry ? snapshot.rows.filter((item) => item.industry === row.industry).length : 0,
+    priceHistoryTo: snapshot.meta.price_history_to ?? null,
+    generatedAt: snapshot.meta.generated_at,
+  };
+}
+
+// Same freshness as the meta entry: a new snapshot shows up here within five minutes.
+const getSymbolContextCached = unstable_cache(readSymbolContext, ["screener-symbol-v1"], { revalidate: 300 });
+
+/** One stock's slice of the snapshot (see ScreenerSymbolContext). Null when the snapshot is unavailable. Deduped per request. */
+export const getScreenerSymbolContext = perRequest(async (symbol: string): Promise<ScreenerSymbolContext | null> => {
+  const upper = symbol.trim().toUpperCase();
+  if (!upper) return null;
+  const context = await getSymbolContextCached(upper).catch(() => null);
+  if (!context) return null;
+  // The earnings gap counts from New York's today, which can be later than when the entry was cached.
+  const today = todayET();
+  return {
+    ...context,
+    row: context.row ? withFreshEarningsGap(context.row, today) : null,
+    extra: context.extra ? withFreshEarningsGap(context.extra, today) : null,
+  };
+});
+
+/** Up to this many symbols are looked up one by one; more read the whole snapshot once. */
+const ROW_LOOKUP_LIMIT = 4;
+
 /** Rows for a set of symbols, covered stocks first, then benchmarks and uncovered basket lines. */
 export async function getScreenerRows(symbols: readonly string[]): Promise<Map<string, ScreenerRow>> {
-  const snapshot = await getScreenerSnapshot();
   const out = new Map<string, ScreenerRow>();
+  const wanted = new Set(symbols.map((symbol) => symbol.trim().toUpperCase()).filter(Boolean));
+  if (wanted.size === 0) return out;
+  if (wanted.size <= ROW_LOOKUP_LIMIT) {
+    const contexts = await Promise.all([...wanted].map((symbol) => getScreenerSymbolContext(symbol)));
+    if (contexts.every(Boolean)) {
+      for (const context of contexts) {
+        const row = context!.row ?? context!.extra;
+        if (row) out.set(row.symbol, row);
+      }
+      return out;
+    }
+  }
+  const snapshot = await getScreenerSnapshot();
   if (!snapshot) return out;
-  const wanted = new Set(symbols.map((symbol) => symbol.trim().toUpperCase()));
   for (const row of [...snapshot.extras, ...snapshot.rows]) {
     if (wanted.has(row.symbol)) out.set(row.symbol, row);
   }
@@ -122,4 +195,21 @@ export async function getScreenerRows(symbols: readonly string[]): Promise<Map<s
 export async function getScreenerDirectory(): Promise<Array<{ symbol: string; name: string }>> {
   const snapshot = await getScreenerSnapshot();
   return (snapshot?.rows ?? []).map((row) => ({ symbol: row.symbol, name: row.name ?? row.symbol }));
+}
+
+/**
+ * The same snapshot for a caller that must tell "this stock is not in the
+ * screener" from "the store did not answer" (full research, lib/research).
+ * Every failed read throws instead of turning into an empty list, so it is
+ * never mistaken for a fact. Benchmarks and basket lines (`extras`) are left
+ * out; that caller does not use them.
+ */
+export async function getScreenerSnapshotStrict(market: "US" = "US"): Promise<ScreenerSnapshot | null> {
+  const meta = await getMetaCached(market);
+  if (!meta || meta.shards.length === 0) return null;
+  const shards = await Promise.all(meta.shards.map((id) => getShardCached(id, meta.generated_at)));
+  const today = todayET();
+  const rows = shards.flat().map((row) => withFreshEarningsGap(withResolvedSector(row), today));
+  if (rows.length === 0) return null;
+  return { meta, rows, extras: [] };
 }

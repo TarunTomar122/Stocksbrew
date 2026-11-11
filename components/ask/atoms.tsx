@@ -1,5 +1,9 @@
 import * as React from "react";
 
+import { StockLogo } from "@/components/stock-logo";
+import Link from "next/link";
+import { AppLink } from "@/components/oa/app-link";
+
 /**
  * Small pieces the Ask cards and the Explore desk share. They mirror the page
  * kit (`components/oa/kit`) but carry no server imports, so client components
@@ -121,9 +125,9 @@ export function SourceLine({ source, asOf, href, note, className = "" }: { sourc
   const parts = [
     source ? (
       href ? (
-        <a key="s" href={href} {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})} className="underline decoration-oa-border underline-offset-2 hover:text-oa-fg">
+        <AppLink key="s" href={href} {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})} className="underline decoration-oa-border underline-offset-2 hover:text-oa-fg">
           {source}
-        </a>
+        </AppLink>
       ) : (
         <span key="s">{source}</span>
       )
@@ -144,12 +148,13 @@ export function SourceLine({ source, asOf, href, note, className = "" }: { sourc
   );
 }
 
-/** A ticker that links to its stock page. No logo: cards hold many of them. */
-export function TickerLink({ symbol, className = "" }: { symbol: string; className?: string }) {
+/** A ticker with its logo in front, linking to the stock page. `logo={false}` drops the logo. */
+export function TickerLink({ symbol, className = "", logo = 16 }: { symbol: string; className?: string; logo?: number | false }) {
   return (
-    <a href={`/stock/${encodeURIComponent(symbol)}`} className={`${NUM} rounded text-[13.5px] font-medium text-oa-fg hover:underline ${FOCUS} ${className}`}>
+    <Link prefetch={false} href={`/stock/${encodeURIComponent(symbol)}`} className={`${NUM} inline-flex items-baseline gap-1.5 rounded text-[13.5px] font-medium text-oa-fg hover:underline ${FOCUS} ${className}`}>
+      {logo ? <StockLogo ticker={symbol} size={logo} className="self-center" /> : null}
       {symbol}
-    </a>
+    </Link>
   );
 }
 

@@ -18,7 +18,7 @@ import { CONTACT_EMAIL } from "@/lib/docs/site";
 import { limitFor } from "@/lib/entitlements";
 import { countWord } from "@/lib/plain-copy";
 import { getViewer } from "@/lib/entitlements-server";
-import { getLandingUserContext } from "@/components/terminal-landing-streams";
+import { getLandingUserContext } from "@/components/landing-data";
 
 import { AgentDoes } from "./landing/agent-does";
 import { HeroBriefing } from "./landing/hero-briefing";
@@ -26,6 +26,7 @@ import { OnePlace } from "./landing/one-place";
 import { PlansSection } from "./landing/plans-section";
 import { FRAME, SectionHead } from "./landing/shared";
 import { TodayMoves } from "./landing/today-moves";
+import Link from "next/link";
 
 // Folded, all closed: the page proves its points above and answers the rest here. The founder note is the last answer.
 const FAQS: { q: string; a: React.ReactNode }[] = [
@@ -56,13 +57,13 @@ const FAQS: { q: string; a: React.ReactNode }[] = [
           tell me
         </a>
         . I read every message.{" "}
-        <a href="/about" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-4 hover:decoration-oa-fg">
+        <Link prefetch={false} href="/about" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-4 hover:decoration-oa-fg">
           More about me
-        </a>{" "}
+        </Link>{" "}
         and{" "}
-        <a href="/docs" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-4 hover:decoration-oa-fg">
+        <Link prefetch={false} href="/docs" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-4 hover:decoration-oa-fg">
           how the research is made
-        </a>
+        </Link>
         .
       </>
     ),

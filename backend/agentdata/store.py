@@ -61,6 +61,8 @@ WRITABLE_PREFIXES = (
     "tm_dividend_history",
     # ETF holdings from SEC N-PORT (etf_holdings.py): one per fund, its CUSIP map and a run summary.
     "tm_etf_",
+    # Company logo tiles served by app/api/logo (stock_logos.py), plus a run summary.
+    "tm_stock_logos",
 )
 
 

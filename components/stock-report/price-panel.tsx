@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 
-import { placeMarkers, type ChartEvent, type ChartEventKind, type ChartRange, type ChartRangeKey } from "@/lib/stock-chart";
+import { placeMarkers, unpackChartRanges, type ChartEvent, type ChartEventKind, type ChartRange, type ChartRangeKey, type PackedChartRanges } from "@/lib/stock-chart";
 
 import { fmtDate, signedPct } from "./format";
 
@@ -146,7 +146,8 @@ function timeMarks(points: ChartRange["points"]): Array<{ x: number; label: stri
 
 export function PricePanel({
   ticker,
-  ranges,
+  ranges: rangesProp,
+  packed,
   events,
   zones = [],
   levels = [],
@@ -154,13 +155,16 @@ export function PricePanel({
   defaultRange = "1Y",
 }: {
   ticker: string;
-  ranges: ChartRange[];
+  /** The ranges as they are, or `packed` (one shared series, see packChartRanges), which is smaller to send. */
+  ranges?: ChartRange[];
+  packed?: PackedChartRanges | null;
   events: ChartEvent[];
   zones?: PanelZone[];
   levels?: PanelLevel[];
   currency: string;
   defaultRange?: ChartRangeKey;
 }) {
+  const ranges = useMemo(() => rangesProp ?? (packed ? unpackChartRanges(packed) : []), [rangesProp, packed]);
   const initial = ranges.find((range) => range.key === defaultRange)?.key ?? ranges[ranges.length - 1]?.key;
   const [activeKey, setActiveKey] = useState<ChartRangeKey | undefined>(initial);
   const [hover, setHover] = useState<number | null>(null);

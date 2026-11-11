@@ -18,6 +18,7 @@ import {
   type StatItem,
 } from "@/components/oa/kit";
 import { ExportCsvButton } from "@/components/portfolio-tax/export-csv-button";
+import { StockLogo } from "@/components/stock-logo";
 import {
   gainTone,
   money,
@@ -108,8 +109,9 @@ function StockCell({
     <span className="flex min-w-0 flex-col leading-4">
       <Link
         href={`/stock/${encodeURIComponent(ticker)}`}
-        className="oa-mono text-[13px] font-medium text-oa-fg hover:underline"
+        className="oa-mono inline-flex items-center gap-1.5 text-[13px] font-medium text-oa-fg hover:underline"
       >
+        <StockLogo ticker={ticker} size={16} />
         {ticker}
       </Link>
       {sub ? <span className="text-[12px] text-oa-muted-fg">{sub}</span> : null}
@@ -248,8 +250,9 @@ function RealisedTable({ pieces }: { pieces: RealisedPiece[] }) {
         <span className="flex items-center gap-1.5">
           <Link
             href={`/stock/${encodeURIComponent(piece.ticker)}`}
-            className="oa-mono text-[13px] font-medium text-oa-fg hover:underline"
+            className="oa-mono inline-flex items-center gap-1.5 text-[13px] font-medium text-oa-fg hover:underline"
           >
+            <StockLogo ticker={piece.ticker} size={16} />
             {piece.ticker}
           </Link>
           {piece.washSale ? <Tag tone="warn">Wash?</Tag> : null}
@@ -311,10 +314,11 @@ function WashList({ pieces }: { pieces: RealisedPiece[] }) {
         return (
           <li
             key={piece.key}
-            className="flex flex-col gap-1 px-4 py-2.5 text-[13px] leading-5 sm:flex-row sm:items-baseline sm:gap-4"
+            className="flex flex-col gap-1 px-4 py-2.5 text-[13px] leading-5 sm:flex-row sm:items-start sm:gap-4"
           >
-            <span className="flex shrink-0 items-baseline gap-2 sm:w-56">
-              <span className="oa-mono font-medium text-oa-fg">
+            <span className="flex shrink-0 items-center gap-2 sm:w-56">
+              <span className="oa-mono inline-flex items-center gap-1.5 font-medium text-oa-fg">
+                <StockLogo ticker={piece.ticker} size={16} />
                 {piece.ticker}
               </span>
               <span className="text-oa-muted-fg">

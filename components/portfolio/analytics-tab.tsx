@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { CARD, Dash, EmptyNote, NUM, Pct, SectionTitle, Stat, TD, TH } from "@/components/portfolio/parts";
 import { MarkSlot } from "@/components/oa/kit/tone";
+import { StockLogo } from "@/components/stock-logo";
 import { markFor, toneFor } from "@/lib/tone";
 import type { HealthProps } from "@/lib/radar-next-data";
 import {
@@ -136,7 +137,8 @@ function SinceSavedTable({ positions }: { positions: PortfolioPosition[] }) {
           {rows.map(({ position, since, diff }) => (
             <tr key={position.instrument_id} className="h-9 border-b border-oa-border last:border-b-0">
               <td className={`${TD} pl-3`}>
-                <Link href={`/stock/${position.ticker}`} className="oa-mono font-medium text-oa-fg hover:underline">
+                <Link href={`/stock/${position.ticker}`} className="oa-mono inline-flex items-center gap-1.5 align-middle font-medium text-oa-fg hover:underline">
+                  <StockLogo ticker={position.ticker} size={16} />
                   {position.ticker}
                 </Link>
               </td>

@@ -9,6 +9,7 @@ import {
   type SectorPeriod,
   type SectorStat,
 } from "@/lib/screener-shared";
+import Link from "next/link";
 
 /**
  * The market map: every covered stock as a tile sized by market value and
@@ -105,7 +106,7 @@ export function SectorMap({
               const cx = tile.x + tile.w / 2;
               const cy = tile.y + tile.h / 2;
               return (
-                <a key={row.symbol} href={`/stock/${encodeURIComponent(row.symbol)}`}>
+                <Link prefetch={false} key={row.symbol} href={`/stock/${encodeURIComponent(row.symbol)}`}>
                   <title>{`${row.symbol} ${row.name ?? ""}${isFiniteNumber(value) ? `: ${signed(value, 2)}` : ""}`}</title>
                   <rect
                     x={tile.x + 0.5}
@@ -143,7 +144,7 @@ export function SectorMap({
                       {signed(value as number)}
                     </text>
                   ) : null}
-                </a>
+                </Link>
               );
             })}
           </g>
@@ -161,7 +162,7 @@ export function SectorHeatGrid({ stats, period, sectorHref }: { stats: readonly 
       {stats.map((stat) => {
         const change = stat.change[period];
         return (
-          <a
+          <Link prefetch={false}
             key={stat.slug}
             href={sectorHref(stat.slug)}
             className="flex min-h-[4.75rem] flex-col justify-between p-3 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-oa-ring"
@@ -174,7 +175,7 @@ export function SectorHeatGrid({ stats, period, sectorHref }: { stats: readonly 
                 {total > 0 ? `${((stat.marketCap / total) * 100).toFixed(0)}% of cap` : ""}
               </span>
             </span>
-          </a>
+          </Link>
         );
       })}
     </div>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Delta, Empty, FOCUS, NUM, Panel, Ticker } from "@/components/oa/kit";
+import { StockLogo } from "@/components/stock-logo";
 import type { WireQuote } from "@/lib/wire";
 import {
   WIRE_PAGE_SIZE,
@@ -70,28 +71,28 @@ export function WireFilterBar({
   const base = { ...filters, limit: WIRE_PAGE_SIZE };
   return (
     <div className="oa-scroll-fade -mx-2 mb-3 flex items-center gap-2 overflow-x-auto px-4 pr-9 [scrollbar-width:none] sm:mx-0 sm:px-0 lg:flex-wrap [&::-webkit-scrollbar]:hidden">
-      <a href={wireHref(base, { topic: null })} aria-current={!filters.topic ? "true" : undefined} className={`${CHIP} ${!filters.topic ? CHIP_ON : CHIP_OFF}`}>
+      <Link prefetch={false} href={wireHref(base, { topic: null })} aria-current={!filters.topic ? "true" : undefined} className={`${CHIP} ${!filters.topic ? CHIP_ON : CHIP_OFF}`}>
         Everything
-      </a>
+      </Link>
       {WIRE_TOPICS.map((topic) => {
         const active = filters.topic === topic.id;
         return (
-          <a key={topic.id} href={wireHref(base, { topic: active ? null : topic.id })} aria-current={active ? "true" : undefined} className={`${CHIP} ${active ? CHIP_ON : CHIP_OFF}`}>
+          <Link prefetch={false} key={topic.id} href={wireHref(base, { topic: active ? null : topic.id })} aria-current={active ? "true" : undefined} className={`${CHIP} ${active ? CHIP_ON : CHIP_OFF}`}>
             {topic.label}
             <span className={`${NUM} text-[12.5px] text-oa-muted-fg`}>{topicCounts[topic.id]}</span>
-          </a>
+          </Link>
         );
       })}
       {signedIn && mineCount !== null ? (
-        <a href={wireHref(base, { mine: !filters.mine })} aria-current={filters.mine ? "true" : undefined} className={`${CHIP} ${filters.mine ? CHIP_ON : CHIP_OFF}`}>
+        <Link prefetch={false} href={wireHref(base, { mine: !filters.mine })} aria-current={filters.mine ? "true" : undefined} className={`${CHIP} ${filters.mine ? CHIP_ON : CHIP_OFF}`}>
           My stocks
           <span className={`${NUM} text-[12.5px] text-oa-muted-fg`}>{mineCount}</span>
-        </a>
+        </Link>
       ) : null}
       {hasActiveFilter(filters) ? (
-        <a href="/news" className={`shrink-0 rounded px-1.5 text-[14px] text-oa-muted-fg underline decoration-oa-border underline-offset-2 hover:text-oa-fg ${FOCUS}`}>
+        <Link prefetch={false} href="/news" className={`shrink-0 rounded px-1.5 text-[14px] text-oa-muted-fg underline decoration-oa-border underline-offset-2 hover:text-oa-fg ${FOCUS}`}>
           Clear all
-        </a>
+        </Link>
       ) : null}
     </div>
   );
@@ -101,14 +102,15 @@ export function WireFilterBar({
 
 function TickerMove({ ticker, quote, filters }: { ticker: string; quote: WireQuote | undefined; filters: WireFilters }) {
   return (
-    <a
+    <Link prefetch={false}
       href={wireHref({ ...filters, limit: WIRE_PAGE_SIZE }, { ticker })}
       title={quote?.name ? `${quote.name}: filter the wire to ${ticker}` : `Filter the wire to ${ticker}`}
       className={`inline-flex items-baseline gap-1 rounded text-[12.5px] hover:underline max-lg:min-h-8 max-lg:items-center ${FOCUS}`}
     >
+      <StockLogo ticker={ticker} size={14} className="mr-0.5 self-center" />
       <span className={`${NUM} font-medium text-oa-fg`}>{ticker}</span>
       {quote?.pct != null ? <Delta value={quote.pct} digits={1} className="text-[12.5px]" /> : null}
-    </a>
+    </Link>
   );
 }
 
@@ -141,7 +143,7 @@ function WireRow({ item, quotes, filters }: { item: WireItem; quotes: Record<str
         {kind ? <span className="ml-2 whitespace-nowrap text-[12.5px] font-normal text-oa-muted-fg">{kind}</span> : null}
       </p>
       {shown.length ? (
-        <div className="mt-0.5 flex flex-wrap items-baseline gap-x-3 lg:mt-0 lg:max-w-[17rem] lg:justify-end">
+        <div className="mt-0.5 flex flex-wrap items-baseline gap-x-3 max-lg:items-center lg:mt-0 lg:max-w-[17rem] lg:justify-end">
           {shown.map((ticker) => (
             <TickerMove key={ticker} ticker={ticker} quote={quotes[ticker]} filters={filters} />
           ))}
@@ -221,12 +223,12 @@ export function TickerStrip({ ticker, quote, count, filters }: { ticker: string;
         {count} headline{count === 1 ? "" : "s"} in 14 days
       </span>
       <span className="ml-auto flex items-center gap-3 text-[14px]">
-        <a href={`/stock/${encodeURIComponent(ticker)}`} className={`rounded font-medium text-oa-primary hover:underline ${FOCUS}`}>
+        <Link prefetch={false} href={`/stock/${encodeURIComponent(ticker)}`} className={`rounded font-medium text-oa-primary hover:underline ${FOCUS}`}>
           Open {ticker}
-        </a>
-        <a href={wireHref({ ...filters, limit: WIRE_PAGE_SIZE }, { ticker: null })} className={`rounded text-oa-muted-fg hover:text-oa-fg hover:underline ${FOCUS}`}>
+        </Link>
+        <Link prefetch={false} href={wireHref({ ...filters, limit: WIRE_PAGE_SIZE }, { ticker: null })} className={`rounded text-oa-muted-fg hover:text-oa-fg hover:underline ${FOCUS}`}>
           Remove filter
-        </a>
+        </Link>
       </span>
     </div>
   );

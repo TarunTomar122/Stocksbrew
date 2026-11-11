@@ -1,6 +1,7 @@
 import { AGENT_TEMPLATES } from "@/lib/agent-jobs";
 
 import { H2, LEDE } from "./shared";
+import Link from "next/link";
 
 const GROUP_LABEL: Record<string, string> = {
   Schedule: "On a schedule",
@@ -28,12 +29,12 @@ export function AgentsSection() {
           before you switch it on.
         </p>
         <div className="mt-6 flex flex-wrap items-center gap-3">
-          <a
+          <Link prefetch={false}
             href="/agents"
             className="inline-flex h-11 items-center rounded-full border border-oa-border bg-oa-card px-5 text-base font-medium text-oa-fg transition-colors hover:border-oa-fg/30 active:translate-y-px"
           >
             Set up an agent
-          </a>
+          </Link>
           <span className="text-[14px] text-oa-muted-fg">It sends you a note. It never places a trade.</span>
         </div>
       </div>

@@ -595,6 +595,16 @@ export function cleanTickers(raw: unknown, max = MAX_SCOPE_TICKERS): string[] {
 export type DraftResult = { ok: true; draft: AgentJobDraft } | { ok: false; error: string };
 
 /** Turn untrusted input into a job draft, or say what is wrong with it in plain words. */
+/**
+ * The example job replayed for a signed-out visitor on /agents and drawn on
+ * its share card (lib/og/tool-cards.ts): a 4% day on five big stocks.
+ */
+export const AGENT_SAMPLE_JOB = {
+  template: "big-move",
+  scope: { kind: "tickers", tickers: ["NVDA", "AAPL", "MSFT", "AMZN", "TSLA"] },
+  trigger: { pct: 4 },
+} as const;
+
 export function parseJobDraft(raw: unknown, options: { hidden?: string[] } = {}): DraftResult {
   if (!raw || typeof raw !== "object") return { ok: false, error: "Pick a template to start." };
   const input = raw as Record<string, unknown>;

@@ -9,9 +9,8 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("react", async (original) => ({ ...(await original<typeof import("react")>()), cache: <T,>(fn: T) => fn }));
 vi.mock("next/font/google", () => ({ Instrument_Sans: () => ({ variable: "", className: "" }) }));
-// geist imports `next/font/local` as a directory, which only the Next compiler resolves.
-vi.mock("geist/font/sans", () => ({ GeistSans: { variable: "", className: "" } }));
-vi.mock("geist/font/mono", () => ({ GeistMono: { variable: "", className: "" } }));
+// `next/font/local` only resolves inside the Next compiler.
+vi.mock("next/font/local", () => ({ default: () => ({ variable: "", className: "" }) }));
 vi.mock("@/lib/og/data", () => ({ stockShareLine: async () => "Our call on NVDA: Hold. AI growth remains powerful." }));
 vi.mock("@/lib/stock", async (original) => ({
   ...(await original<typeof import("@/lib/stock")>()),
@@ -99,5 +98,27 @@ describe("share images in page metadata", { timeout: 120_000 }, () => {
     expectShareImage(pricing.metadata, "/page/pricing");
     const briefing = await import("@/app/(app)/briefing/page");
     expectShareImage(briefing.generateMetadata(), "/page/briefing");
+  });
+
+  it("portfolio tools, agents and the market pages carry their own cards", async () => {
+    const xray = await import("@/app/(app)/portfolio/xray/page");
+    expectShareImage(xray.metadata, "/portfolio/xray");
+    expect(xray.metadata.openGraph?.url).toBe("https://www.stocksbrew.online/portfolio/xray");
+    const stress = await import("@/app/(app)/portfolio/stress/page");
+    expectShareImage(stress.metadata, "/portfolio/stress");
+    const agents = await import("@/app/(app)/agents/page");
+    expectShareImage(agents.metadata, "/page/agents");
+    const explore = await import("@/app/(app)/explore/page");
+    expectShareImage(explore.generateMetadata(), "/page/explore");
+    const markets = await import("@/app/(app)/markets/page");
+    expectShareImage(markets.generateMetadata(), "/page/markets");
+    expect(String(explore.generateMetadata().title)).not.toBe(String(markets.generateMetadata().title));
+  });
+
+  it("a typed basket request is left out of search", async () => {
+    const page = await import("@/app/(app)/baskets/new/page");
+    expectShareImage(page.generateMetadata({ searchParams: {} }), "/page/baskets");
+    expect(page.generateMetadata({ searchParams: {} }).robots).toBeUndefined();
+    expect(page.generateMetadata({ searchParams: { q: "cheap banks" } }).robots).toEqual({ index: false, follow: false });
   });
 });

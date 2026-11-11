@@ -20,7 +20,7 @@ export function ClusterCard({ cluster }: { cluster: InsiderCluster }) {
     <div className="oa-surface flex min-w-0 flex-col border border-oa-border bg-oa-card p-3.5">
       <div className="flex items-baseline justify-between gap-3">
         <p className="flex min-w-0 items-baseline gap-2">
-          <Ticker ticker={cluster.symbol} className="text-[15px]" />
+          <Ticker ticker={cluster.symbol} logo={18} className="text-[15px]" />
           <span className="truncate text-[13px] text-oa-muted-fg">
             {cluster.company}
           </span>

@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { IntentLink } from "@/components/oa/intent-link";
 import { usePathname } from "next/navigation";
 
 import { NavIcon } from "@/components/oa/nav-icon";
@@ -18,7 +18,7 @@ export function MobileNav() {
       {PLACES.map((item) => {
         const active = item === place;
         return (
-          <Link
+          <IntentLink
             key={item.href}
             href={item.href}
             aria-current={active ? (pathname === item.href ? "page" : "location") : undefined}
@@ -28,7 +28,7 @@ export function MobileNav() {
           >
             <NavIcon name={item.icon} className="size-[22px]" />
             <span className="truncate">{item.short}</span>
-          </Link>
+          </IntentLink>
         );
       })}
     </nav>

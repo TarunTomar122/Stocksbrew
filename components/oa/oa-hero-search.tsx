@@ -1,13 +1,17 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { captureEvent } from "@/lib/posthog";
 import { cancelSearchNoResults, trackSearchNoResults, trackSearchPerformed } from "@/lib/product-analytics";
 import type { SearchEntry } from "@/lib/search";
+import { getClientSearchIndex, prefetchSearchIndex } from "@/lib/search-index-client";
 import { formatSearchPct, scoreSearchEntry } from "@/lib/ticker-search-utils";
-import { StockRequestModal } from "@/components/stock-request-modal";
+
+// Opens only when a search finds nothing; loaded then, so its animation library stays out of every page.
+const StockRequestModal = dynamic(() => import("@/components/stock-request-modal").then((mod) => mod.StockRequestModal), { ssr: false });
 
 const ANALYZE_PILL =
   "inline-flex h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-[color-mix(in_srgb,var(--oa-primary)_80%,#3a3480)] bg-[color-mix(in_srgb,var(--oa-primary)_90%,#3a3480)] px-4 text-[15px] font-medium text-oa-primary-fg shadow-[inset_0_1px_0_rgba(255,255,255,0.22),inset_0_-1px_0_rgba(58,52,128,0.30)] outline-none transition-all hover:bg-oa-primary active:translate-y-px active:scale-[0.98] sm:px-5";
@@ -17,7 +21,7 @@ const ANALYZE_PILL =
  *  stock's research page. */
 export function OaHeroSearch({ source = "hero" }: { source?: string }) {
   const router = useRouter();
-  const [searchIndex, setSearchIndex] = useState<SearchEntry[]>([]);
+  const [searchIndex, setSearchIndex] = useState<SearchEntry[]>(() => getClientSearchIndex("US"));
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -40,30 +44,16 @@ export function OaHeroSearch({ source = "hero" }: { source?: string }) {
     setActiveIndex(0);
   }, [query]);
 
-  useEffect(() => {
-    let cancelled = false;
-    const run = async () => {
-      try {
-        const res = await fetch("/api/search-index?market=US", { cache: "no-store" });
-        if (!res.ok) return;
-        const payload = (await res.json()) as { entries?: SearchEntry[] };
-        if (!cancelled && Array.isArray(payload.entries)) setSearchIndex(payload.entries);
-      } catch {
-        // keep empty index; raw submits still navigate
-      }
-    };
-    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
-      const idleId = (window as Window & { requestIdleCallback: (cb: () => void) => number }).requestIdleCallback(run);
-      return () => {
-        cancelled = true;
-        if ("cancelIdleCallback" in window) (window as Window & { cancelIdleCallback: (id: number) => void }).cancelIdleCallback(idleId);
-      };
-    }
-    void run();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  // The index loads on first intent (hover or focus on the field), not with the page; the header
+  // search shares the same request (lib/search-index-client).
+  const loadIndex = useCallback(() => {
+    if (searchIndex.length > 0) return;
+    prefetchSearchIndex("US")
+      .then((entries) => {
+        if (entries.length > 0) setSearchIndex(entries);
+      })
+      .catch(() => undefined); // keep empty index; raw submits still navigate
+  }, [searchIndex.length]);
 
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
@@ -131,7 +121,11 @@ export function OaHeroSearch({ source = "hero" }: { source?: string }) {
             setQuery(e.target.value);
             setOpen(true);
           }}
-          onFocus={() => setOpen(true)}
+          onFocus={() => {
+            setOpen(true);
+            loadIndex();
+          }}
+          onPointerEnter={loadIndex}
           onKeyDown={(e) => {
             if (e.key === "ArrowDown") {
               e.preventDefault();

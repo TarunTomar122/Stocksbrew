@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { IntentLink } from "@/components/oa/intent-link";
 import { usePathname } from "next/navigation";
 
 import { MARKETING_LINKS, isNavItemActive } from "@/components/oa/nav-items";
@@ -13,7 +13,7 @@ export function MarketingLinks() {
       {MARKETING_LINKS.map((item) => {
         const active = isNavItemActive(item, pathname);
         return (
-          <Link
+          <IntentLink
             key={item.href}
             href={item.href}
             aria-current={active ? "page" : undefined}
@@ -22,7 +22,7 @@ export function MarketingLinks() {
             }`}
           >
             {item.label}
-          </Link>
+          </IntentLink>
         );
       })}
     </nav>

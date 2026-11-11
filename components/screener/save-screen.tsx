@@ -8,6 +8,7 @@ import { Menu } from "@/components/screener/menu";
 import type { Plan } from "@/lib/entitlements";
 import { savedScreenHref, SAVED_SCREEN_NAME_MAX, type SavedScreen } from "@/lib/screener-saved";
 import { trackLimitHit, trackScreenSaved } from "@/lib/product-analytics";
+import Link from "next/link";
 
 /** "Save screen": names the screen in the address bar and keeps it on the person's account. */
 export function SaveScreen({
@@ -167,9 +168,9 @@ export function MyScreens({ screens, currentQuery, className = "" }: { screens: 
               active ? "border-[color-mix(in_srgb,var(--ink)_55%,transparent)] bg-oa-card font-medium text-oa-fg" : "border-oa-border bg-oa-card text-oa-fg"
             } ${removing === screen.id ? "opacity-50" : ""}`}
           >
-            <a href={savedScreenHref(screen)} className="max-w-[16rem] truncate rounded-l-md py-1 pl-2.5 pr-1.5 outline-none hover:underline focus-visible:underline">
+            <Link prefetch={false} href={savedScreenHref(screen)} className="max-w-[16rem] truncate rounded-l-md py-1 pl-2.5 pr-1.5 outline-none hover:underline focus-visible:underline">
               {screen.name}
-            </a>
+            </Link>
             <button
               type="button"
               onClick={() => void remove(screen.id)}

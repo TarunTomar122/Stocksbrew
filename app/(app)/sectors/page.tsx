@@ -11,6 +11,7 @@ import { sectorStats } from "@/lib/screener-shared";
 import { callCounts } from "@/lib/sector-insights";
 import { sectorHref } from "@/lib/seo/families";
 import { getCoverage, sectorGroups } from "@/lib/seo/family-data";
+import Link from "next/link";
 
 /** Every sector we cover, with the read on how they moved. Each row opens /sectors/[slug]. */
 
@@ -67,9 +68,9 @@ export default async function SectorsPage() {
       key: stat.slug,
       href: sectorHref(stat.slug),
       cells: [
-        <a key="s" href={sectorHref(stat.slug)} className="font-medium text-oa-fg hover:underline">
+        <Link prefetch={false} key="s" href={sectorHref(stat.slug)} className="font-medium text-oa-fg hover:underline">
           {stat.name}
-        </a>,
+        </Link>,
         <span key="n" className={`${NUM} text-[13.5px]`}>{stat.count}</span>,
         <Delta key="d" value={stat.change.day_pct} digits={1} className="text-[13.5px]" />,
         <Delta key="m" value={stat.change.ret_1m} digits={1} className="text-[13.5px]" />,
@@ -86,13 +87,13 @@ export default async function SectorsPage() {
     <AppPage>
       <JsonLd data={breadcrumbLd([{ name: "Sectors", path: "/sectors" }])} />
       <PageHead
-        crumb={<a href="/screener">Screener</a>}
+        crumb={<Link prefetch={false} href="/screener">Screener</Link>}
         title="Stock market sectors"
         meta={<SourceLine source="Prices and company data" asOf={coverage.priceDay ? closeWords(coverage.priceDay, fmtDay(coverage.priceDay, true)) : undefined} />}
         actions={
-          <a href="/screener?tab=sectors" className="text-[13px] font-medium text-oa-primary hover:underline">
+          <Link prefetch={false} href="/screener?tab=sectors" className="text-[13px] font-medium text-oa-primary hover:underline">
             Heat map →
-          </a>
+          </Link>
         }
         note={false}
       />

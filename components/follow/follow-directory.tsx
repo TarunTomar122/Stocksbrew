@@ -22,6 +22,7 @@ import {
   type SortKey,
 } from "@/lib/follow-shared";
 import { oneRowPerCompany } from "@/lib/share-class";
+import Link from "next/link";
 
 export type DirectoryTab = "funds" | "congress" | "insiders";
 
@@ -185,12 +186,12 @@ export function FollowDirectory({
             className="oa-surface mt-3 border border-oa-primary/40 bg-[color-mix(in_srgb,var(--oa-primary)_8%,transparent)] px-4 py-2 text-[13px] leading-5 text-oa-fg"
           >
             {message}{" "}
-            <a
+            <Link prefetch={false}
               href="/pricing"
               className="underline decoration-oa-primary/50 underline-offset-[3px] hover:text-oa-primary"
             >
               See plans
-            </a>
+            </Link>
           </p>
         ) : null}
 
@@ -258,7 +259,7 @@ export function FollowDirectory({
                     }`}
                   >
                     <div className="min-w-0">
-                      <a
+                      <Link prefetch={false}
                         href={sourceHref(source.slug)}
                         data-track="fund_opened"
                         data-track-slug={source.slug}
@@ -267,7 +268,7 @@ export function FollowDirectory({
                       >
                         <PartyDot party={source.party} />
                         <span className="text-pretty">{source.name}</span>
-                      </a>
+                      </Link>
                       <p className="text-pretty text-[12px] leading-4 text-oa-muted-fg">
                         {source.person}
                         {!source.active

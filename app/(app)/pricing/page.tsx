@@ -73,6 +73,7 @@ const PLAIN_NAMES: Partial<Record<FeatureId, string>> = {
   themes: "Theme baskets: each stock and why it fits",
   compare: "Compare stocks side by side",
   export_data: "Download research tables as a spreadsheet (your own holdings always download free)",
+  deep_research: "A long research report on any stock, with every source",
   ask: "Ask questions about any stock or your portfolio and get answers with sources",
   follow_directory: "What funds, Congress and insiders own and trade, with how their picks did",
   followed_sources: "Investors you follow",

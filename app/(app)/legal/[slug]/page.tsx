@@ -7,6 +7,7 @@ import { TabBar, fmtDay } from "@/components/oa/kit";
 import { LEGAL_DOCS, getLegalDoc } from "@/lib/docs/company";
 import { SITE_URL } from "@/lib/docs/site";
 import { ogImage } from "@/lib/og/url";
+import Link from "next/link";
 
 type Props = { params: { slug: string } };
 
@@ -56,9 +57,9 @@ export default function LegalPage({ params }: Props) {
       after={
         <p className="mt-10 border-t border-oa-border pt-4 text-[13.5px] leading-5 text-oa-muted-fg">
           For how this works in practice, see{" "}
-          <a href="/security" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2">
+          <Link prefetch={false} href="/security" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2">
             Security
-          </a>
+          </Link>
           .
         </p>
       }

@@ -9,6 +9,7 @@ import {
   money,
   shares as fmtShares,
 } from "@/components/portfolio-tax/format";
+import { StockLogo } from "@/components/stock-logo";
 import type { TaxStock } from "@/lib/portfolio-tax-data";
 import type { TaxLotEntry } from "@/lib/portfolio-tax";
 
@@ -635,8 +636,9 @@ export function LotBook({ stocks }: { stocks: LotBookStock[] }) {
                   <span className="flex min-w-0 flex-col leading-4">
                     <Link
                       href={`/stock/${encodeURIComponent(stock.ticker)}`}
-                      className="oa-mono text-[13px] font-medium text-oa-fg hover:underline"
+                      className="oa-mono inline-flex items-center gap-1.5 text-[13px] font-medium text-oa-fg hover:underline"
                     >
+                      <StockLogo ticker={stock.ticker} size={16} />
                       {stock.ticker}
                     </Link>
                     <span className="text-[12px] text-oa-muted-fg sm:hidden">

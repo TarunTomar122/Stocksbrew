@@ -8,6 +8,8 @@ import { SideTocPage, TEXT_LINK } from "@/components/docs/side-toc";
 import { Empty, FOCUS, PageHead, Panel, StatStrip, Tag, fmtDay } from "@/components/oa/kit";
 import { FEATURES, FREE_COVERED_STOCKS, describeRule, type Feature } from "@/lib/entitlements";
 import { US_PRO_MONTHLY } from "@/lib/pricing";
+import Link from "next/link";
+import { AppLink } from "@/components/oa/app-link";
 
 /**
  * The Account page. Server-rendered from one plain data object; the controls
@@ -106,10 +108,10 @@ function LinkList({ items, empty }: { items: { href: string; label: string; meta
     <ul>
       {items.map((item) => (
         <li key={item.href + item.label} className="border-b border-oa-border last:border-b-0">
-          <a href={item.href} className={`flex items-center justify-between gap-3 px-4 py-2 hover:bg-oa-accent ${FOCUS}`}>
+          <AppLink href={item.href} className={`flex items-center justify-between gap-3 px-4 py-2 hover:bg-oa-accent ${FOCUS}`}>
             <span className="min-w-0 truncate text-[14.5px] font-medium text-oa-fg">{item.label}</span>
             {item.meta ? <span className={`${NUM} shrink-0 text-[11.5px] text-oa-muted-fg`}>{item.meta}</span> : null}
-          </a>
+          </AppLink>
         </li>
       ))}
     </ul>
@@ -129,9 +131,9 @@ export function AccountView({ data }: { data: AccountData }) {
       label="Account"
       footer={
         <>
-          <a href="/security" className={TEXT_LINK}>
+          <Link prefetch={false} href="/security" className={TEXT_LINK}>
             How your data is handled
-          </a>
+          </Link>
         </>
       }
     >
@@ -182,9 +184,9 @@ export function AccountView({ data }: { data: AccountData }) {
               <div className="flex shrink-0 flex-wrap items-center gap-2">
                 {!plan.isPro ? <UpgradeButton disabled={off} label={`Get Pro, $${US_PRO_MONTHLY} a month`} /> : null}
                 {plan.kind === "pro" && plan.billable && !plan.cancelAtPeriodEnd ? <CancelPlan disabled={off} /> : null}
-                <a href="/pricing" className={`inline-flex h-8 items-center rounded-lg px-2 text-[14px] font-medium text-oa-muted-fg hover:text-oa-fg ${FOCUS}`}>
+                <Link prefetch={false} href="/pricing" className={`inline-flex h-8 items-center rounded-lg px-2 text-[14px] font-medium text-oa-muted-fg hover:text-oa-fg ${FOCUS}`}>
                   Compare plans
-                </a>
+                </Link>
               </div>
             </div>
             <dl>
@@ -231,7 +233,7 @@ export function AccountView({ data }: { data: AccountData }) {
             </dl>
           </Panel>
 
-          <Panel label={plan.isPro ? "What your plan includes" : "What changes with Pro"} right={<a href="/docs/start/free-vs-pro" className="hover:text-oa-fg hover:underline">Full table</a>} flush>
+          <Panel label={plan.isPro ? "What your plan includes" : "What changes with Pro"} right={<Link prefetch={false} href="/docs/start/free-vs-pro" className="hover:text-oa-fg hover:underline">Full table</Link>} flush>
             <PlanCompare isPro={plan.isPro} />
           </Panel>
           <p className="text-[13.5px] leading-5 text-oa-muted-fg">
@@ -284,21 +286,21 @@ export function AccountView({ data }: { data: AccountData }) {
           lede={
             <>
               Two different things share the word. Agents inside the app watch your stocks for you. Developer access lets your own agent or script read your research over MCP, REST or the CLI.{" "}
-              <a href="/developers" className={TEXT_LINK}>
+              <Link prefetch={false} href="/developers" className={TEXT_LINK}>
                 Developer docs
-              </a>
+              </Link>
             </>
           }
         >
-          <Panel label="Agents in the app" right={<a href="/agents" className="hover:text-oa-fg hover:underline">Open Agents</a>} flush>
+          <Panel label="Agents in the app" right={<Link prefetch={false} href="/agents" className="hover:text-oa-fg hover:underline">Open Agents</Link>} flush>
             {data.agents == null ? (
               <p className="px-4 py-3 text-[14px] leading-6 text-oa-muted-fg">We could not load your agents just now.</p>
             ) : data.agents.total === 0 ? (
               <p className="px-4 py-3 text-[14px] leading-6 text-oa-muted-fg">
                 None yet. An agent checks one rule each market day and writes down what it found.{" "}
-                <a href="/docs/agents/triggers" className={TEXT_LINK}>
+                <Link prefetch={false} href="/docs/agents/triggers" className={TEXT_LINK}>
                   How agents work
-                </a>
+                </Link>
               </p>
             ) : (
               <p className="px-4 py-3 text-[15px] leading-6 text-oa-fg">
@@ -368,9 +370,9 @@ export function AccountView({ data }: { data: AccountData }) {
                 </p>
                 <div className="flex shrink-0 items-center gap-2">
                   <UpgradeButton disabled={off} />
-                  <a href="/developers" className={`inline-flex h-8 items-center rounded-lg px-2 text-[14px] font-medium text-oa-muted-fg hover:text-oa-fg ${FOCUS}`}>
+                  <Link prefetch={false} href="/developers" className={`inline-flex h-8 items-center rounded-lg px-2 text-[14px] font-medium text-oa-muted-fg hover:text-oa-fg ${FOCUS}`}>
                     Read the docs
-                  </a>
+                  </Link>
                 </div>
               </div>
             </Panel>
@@ -391,9 +393,9 @@ export function AccountView({ data }: { data: AccountData }) {
                   ["/markets", "Markets"],
                   ["/screener", "Screener"],
                 ].map(([href, label]) => (
-                  <a key={href} href={href} className={TEXT_LINK}>
+                  <AppLink key={href} href={href} className={TEXT_LINK}>
                     {label}
-                  </a>
+                  </AppLink>
                 ))}
               </p>
             </Panel>
@@ -405,9 +407,9 @@ export function AccountView({ data }: { data: AccountData }) {
                 empty={
                   <>
                     None.{" "}
-                    <a href="/follow" className={TEXT_LINK}>
+                    <Link prefetch={false} href="/follow" className={TEXT_LINK}>
                       Browse Follow
-                    </a>
+                    </Link>
                   </>
                 }
               />
@@ -418,9 +420,9 @@ export function AccountView({ data }: { data: AccountData }) {
                 empty={
                   <>
                     None.{" "}
-                    <a href="/strategies" className={TEXT_LINK}>
+                    <Link prefetch={false} href="/strategies" className={TEXT_LINK}>
                       Browse strategies
-                    </a>
+                    </Link>
                   </>
                 }
               />
@@ -435,9 +437,9 @@ export function AccountView({ data }: { data: AccountData }) {
                 empty={
                   <>
                     None.{" "}
-                    <a href="/screener" className={TEXT_LINK}>
+                    <Link prefetch={false} href="/screener" className={TEXT_LINK}>
                       Open the screener
-                    </a>
+                    </Link>
                   </>
                 }
               />
@@ -446,16 +448,16 @@ export function AccountView({ data }: { data: AccountData }) {
               {data.following.markets.length === 0 ? (
                 <p className="px-4 py-3 text-[14px] leading-6 text-oa-muted-fg">
                   None.{" "}
-                  <a href="/markets" className={TEXT_LINK}>
+                  <Link prefetch={false} href="/markets" className={TEXT_LINK}>
                     Open markets
-                  </a>
+                  </Link>
                 </p>
               ) : (
                 <div className="flex flex-wrap gap-1.5 px-4 py-3">
                   {data.following.markets.map((id) => (
-                    <a key={id} href="/markets" className={`${NUM} inline-flex h-7 items-center rounded-md border border-oa-border bg-oa-bg px-2 text-[12.5px] uppercase text-oa-fg hover:bg-oa-accent ${FOCUS}`}>
+                    <Link prefetch={false} key={id} href="/markets" className={`${NUM} inline-flex h-7 items-center rounded-md border border-oa-border bg-oa-bg px-2 text-[12.5px] uppercase text-oa-fg hover:bg-oa-accent ${FOCUS}`}>
                       {id}
-                    </a>
+                    </Link>
                   ))}
                 </div>
               )}
@@ -464,9 +466,9 @@ export function AccountView({ data }: { data: AccountData }) {
           )}
           <p className="text-[13.5px] leading-5 text-oa-muted-fg">
             Your stocks and alerts live in{" "}
-            <a href="/watchlist" className={TEXT_LINK}>
+            <Link prefetch={false} href="/watchlist" className={TEXT_LINK}>
               Portfolio
-            </a>
+            </Link>
             .
           </p>
         </Section>
@@ -501,9 +503,9 @@ export function AccountView({ data }: { data: AccountData }) {
                   Removes your account record, portfolio, what you follow, tokens and your Google sign-in with us, straight away.
                   {plan.billable ? " Your subscription is set to cancel at the end of the period." : ""} It does not yet remove alerts, agents and their logs, the practice account, Ask conversations or
                   feedback: email us and we will remove those by hand.{" "}
-                  <a href="/security#deleting-your-account" className={TEXT_LINK}>
+                  <Link prefetch={false} href="/security#deleting-your-account" className={TEXT_LINK}>
                     The full list
-                  </a>
+                  </Link>
                 </p>
               </div>
               <div className="shrink-0">

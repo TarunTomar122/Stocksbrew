@@ -18,6 +18,7 @@ import { loadToolReference, type ToolReference } from "@/lib/docs/developer-tool
 import { API_ERRORS, COVERAGE_STATES, SCOPE_INFO, TOOL_GROUPS, TOOL_REST, TOOL_SCOPE } from "@/lib/docs/developers";
 import { SITE_URL } from "@/lib/docs/site";
 import { ogImage } from "@/lib/og/url";
+import Link from "next/link";
 
 const SHARE_IMAGE = ogImage(["page", "developers"], "stocksbrew API, MCP server and CLI");
 
@@ -202,9 +203,9 @@ export default async function DevelopersPage() {
             OpenAPI 3.1 JSON
           </a>
           <br />
-          <a href="/profile#agent-access" className={TEXT_LINK}>
+          <Link prefetch={false} href="/profile#agent-access" className={TEXT_LINK}>
             Your tokens
-          </a>
+          </Link>
         </>
       }
     >
@@ -230,12 +231,12 @@ export default async function DevelopersPage() {
         title="API, MCP server and CLI"
         lede="Plug stocksbrew into your agent or your own script. One set of tools, three ways in: a remote MCP server for agents, a REST API for code, and a CLI for a terminal. Reads your research and your portfolio. Cannot trade."
         actions={
-          <a
+          <Link prefetch={false}
             href="/profile#agent-access"
             className="inline-flex h-9 items-center rounded-lg bg-oa-primary px-3.5 text-[14px] font-medium text-oa-primary-fg outline-none hover:brightness-110 focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]"
           >
             Get a token
-          </a>
+          </Link>
         }
       />
 
@@ -271,9 +272,9 @@ export default async function DevelopersPage() {
           <h3 className="mt-2 text-[16.5px] font-medium text-oa-fg">2. A client that wants a bearer header</h3>
           <Prose>
             Create a personal token under{" "}
-            <a href="/profile#agent-access" className={TEXT_LINK}>
+            <Link prefetch={false} href="/profile#agent-access" className={TEXT_LINK}>
               Account
-            </a>{" "}
+            </Link>{" "}
             and put it in the client&apos;s config. Keep the config file out of version control.
           </Prose>
           <CodeBlock label="mcp.json" code={mcpJson} />
@@ -494,17 +495,17 @@ export default async function DevelopersPage() {
           </ul>
           <Prose className="!text-[14.5px] !leading-6 text-oa-muted-fg">
             The full terms are in the{" "}
-            <a href="/legal/terms" className={TEXT_LINK}>
+            <Link prefetch={false} href="/legal/terms" className={TEXT_LINK}>
               terms of service
-            </a>
+            </Link>
             . How tokens and account data are handled is on{" "}
-            <a href="/security" className={TEXT_LINK}>
+            <Link prefetch={false} href="/security" className={TEXT_LINK}>
               Security
-            </a>
+            </Link>
             . Looking for agents that watch your stocks inside the app, with no code? That is{" "}
-            <a href="/agents" className={TEXT_LINK}>
+            <Link prefetch={false} href="/agents" className={TEXT_LINK}>
               Agents
-            </a>
+            </Link>
             .
           </Prose>
         </PageSection>

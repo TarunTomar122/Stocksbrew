@@ -26,6 +26,8 @@ import {
   signTone,
 } from "@/components/portfolio/parts";
 import { PositionsTable } from "@/components/portfolio/positions-table";
+import { ImportButton } from "@/components/import/import-button";
+import { ReasonsStrip } from "@/components/thesis/reasons-sheet";
 import { ShareButton } from "@/components/share/share-button";
 import { RadarBatchEditModal } from "@/components/radar-batch-edit-modal";
 import { StockLogo } from "@/components/stock-logo";
@@ -207,6 +209,7 @@ function ReportingStrip({
           href={`/stock/${position.ticker}`}
           className={`inline-flex h-7 shrink-0 items-center gap-1.5 rounded border border-oa-border bg-oa-bg px-2 hover:border-oa-fg/30 ${FOCUS}`}
         >
+          <StockLogo ticker={position.ticker} size={16} circle />
           <span className="oa-mono text-[12px] font-medium text-oa-fg">
             {position.ticker}
           </span>
@@ -248,7 +251,7 @@ export function PortfolioView({
     const url = new URL(window.location.href);
     if (next === "positions") url.searchParams.delete("tab");
     else url.searchParams.set("tab", next);
-    window.history.replaceState(null, "", url.toString());
+    window.history.replaceState(window.history.state, "", url.toString());
   }
 
   // Tracking is unlimited on every plan and these are the person's own stocks, so every row shows.
@@ -368,6 +371,7 @@ export function PortfolioView({
                   ctaLabel="Add or edit stocks"
                   triggerClassName={BTN_PRIMARY}
                 />
+                <ImportButton className={BTN_PLAIN} positions={everything} />
                 <ShareButton kind="portfolio" className={BTN_PLAIN} />
                 <Link href="/watchlist/classic" className={BTN_PLAIN}>
                   Chat about it
@@ -477,6 +481,11 @@ export function PortfolioView({
                   : "Add the stocks you own and the ones you are watching."}
               </EmptyNote>
             ) : (
+              <>
+              {/* Why you own each holding, and what the reason watcher found (components/thesis). */}
+              {example ? null : (
+                <ReasonsStrip stocks={positions.map((position) => ({ instrument_id: position.instrument_id, ticker: position.ticker, name: position.name }))} />
+              )}
               <PositionsTable
                 positions={shownPositions}
                 kind="holding"
@@ -489,6 +498,7 @@ export function PortfolioView({
                 }
                 totals={totals}
               />
+              </>
             )}
             <ReportingStrip positions={everything} today={today} />
             {positions.some(

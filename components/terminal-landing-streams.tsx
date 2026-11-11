@@ -1,4 +1,4 @@
-import { cache } from "react";
+import { getLandingAnomalies, getLandingAnomaliesDoc, getLandingUserContext, resolveLandingHeroFeatured } from "@/components/landing-data";
 import { LandingHeroCommand } from "@/components/landing-hero-command";
 import { LandingScannerReddit } from "@/components/landing-scanner-reddit";
 import { LandingSectorHeat } from "@/components/landing-sector-heat";
@@ -36,69 +36,7 @@ function shortHeadline(text: string | null | undefined, maxLen = 110): string | 
   return `${clean.slice(0, maxLen - 1).trim()}…`;
 }
 
-export const getLandingUserContext = cache(async () => {
-  const session = await getSessionUser().catch(() => null);
-  if (!session) {
-    return {
-      signedIn: false,
-      isSubscribed: false,
-      trackedIds: [] as string[],
-    };
-  }
-  const userDoc = await getUserDoc(session.uid).catch(() => null);
-  const isSubscribed = resolveIsSubscribed(userDoc);
-  const trackedIds = Array.isArray(userDoc?.tracked_stocks)
-    ? userDoc.tracked_stocks.filter((id): id is string => typeof id === "string")
-    : [];
-  return {
-    signedIn: true,
-    isSubscribed,
-    trackedIds,
-  };
-});
-
-const getLandingAnomaliesDoc = cache(async () => {
-  const market = getCurrentMarket();
-  return getDailyAnomalies(market).catch(() => null);
-});
-
-const getLandingAnomalies = cache(async () => {
-  const doc = await getLandingAnomaliesDoc();
-  return doc?.anomalies ?? [];
-});
-
-export { getLandingAnomalies };
-
-export async function resolveLandingHeroFeatured(
-  anomalies: AnomalyItem[],
-): Promise<{ anomaly: AnomalyItem; priceHistory: PriceHistoryPoint[] } | null> {
-  const market = getCurrentMarket();
-
-  // The showcase stock that moved most today goes first (shuffle order breaks ties), so the card shows a real move.
-  // The movers list only holds the day's big or explained moves; the screener snapshot has every showcase stock's day.
-  const shuffled = shuffledLandingHeroBrewTickers();
-  const rows = await getScreenerRows(shuffled).catch(() => new Map());
-  const moveOf = (ticker: string) =>
-    Math.abs(rows.get(ticker.toUpperCase())?.day_pct ?? findLandingHeroAnomaly(anomalies, ticker)?.day_change_pct ?? 0);
-  // A move with a confirmed reason makes the better example, so those go first, then the size of the move.
-  const explained = (ticker: string) => (findLandingHeroAnomaly(anomalies, ticker)?.move_explanation?.headline && moveOf(ticker) >= 1 ? 1 : 0);
-  const order = [...shuffled].sort((a, b) => explained(b) - explained(a) || moveOf(b) - moveOf(a));
-  for (const ticker of order) {
-    const summary = await getStockSummary(ticker, market).catch(() => null);
-    if (!summary) continue;
-
-    const priceHistory = await getStockPriceHistory(summary.instrument_id).catch(() => []);
-
-    const fromAnomalies = findLandingHeroAnomaly(anomalies, ticker);
-    const anomaly = fromAnomalies
-      ? mergeLandingHeroAnomaly(fromAnomalies, summary)
-      : stockSummaryToAnomaly(summary);
-
-    return { anomaly, priceHistory };
-  }
-
-  return null;
-}
+export { getLandingAnomalies, getLandingUserContext, resolveLandingHeroFeatured };
 
 export async function LandingTapeStream() {
   const anomalies = await getLandingAnomalies();

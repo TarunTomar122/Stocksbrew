@@ -2,6 +2,7 @@ import * as React from "react";
 
 import { OaSiteHeader } from "@/components/oa/oa-site-header";
 import { uiFont } from "@/components/oa/font";
+import { AppLink } from "@/components/oa/app-link";
 
 /** The app shell every markets page sits in: site chrome, paper background, the standard frame. */
 export function MarketsPageFrame({ children }: { children: React.ReactNode }) {
@@ -21,9 +22,9 @@ export function Crumbs({ items }: { items: Array<{ label: string; href?: string 
         <React.Fragment key={item.label}>
           {index > 0 ? <span aria-hidden="true">/</span> : null}
           {item.href ? (
-            <a href={item.href} className="underline decoration-oa-border underline-offset-2 outline-none hover:text-oa-fg focus-visible:text-oa-fg">
+            <AppLink href={item.href} className="underline decoration-oa-border underline-offset-2 outline-none hover:text-oa-fg focus-visible:text-oa-fg">
               {item.label}
-            </a>
+            </AppLink>
           ) : (
             <span aria-current="page" className="text-oa-fg">
               {item.label}

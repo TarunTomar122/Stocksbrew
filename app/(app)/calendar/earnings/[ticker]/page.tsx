@@ -11,6 +11,7 @@ import { summarizeReports, todayET, weekStart } from "@/lib/calendar-shared";
 import { loadWire } from "@/lib/wire";
 import { normalizeTicker } from "@/lib/wire-shared";
 import { ogImage } from "@/lib/og/url";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -70,13 +71,13 @@ export default async function EarningsDetailPage({ params }: Props) {
   return (
     <AppPage>
       <nav aria-label="Breadcrumb" className="oa-mono mb-3 flex flex-wrap items-center gap-x-2 px-2 text-[12px] text-oa-muted-fg sm:px-0">
-        <a href="/calendar" className={`rounded hover:text-oa-fg hover:underline ${FOCUS}`}>
+        <Link prefetch={false} href="/calendar" className={`rounded hover:text-oa-fg hover:underline ${FOCUS}`}>
           Calendar
-        </a>
+        </Link>
         <span aria-hidden="true">/</span>
-        <a href={`/calendar?w=${weekStart(anchor)}`} className={`rounded hover:text-oa-fg hover:underline ${FOCUS}`}>
+        <Link prefetch={false} href={`/calendar?w=${weekStart(anchor)}`} className={`rounded hover:text-oa-fg hover:underline ${FOCUS}`}>
           Week of the report
-        </a>
+        </Link>
         <span aria-hidden="true">/</span>
         <span className="text-oa-fg">{ticker}</span>
       </nav>
@@ -90,12 +91,12 @@ export default async function EarningsDetailPage({ params }: Props) {
         }
         lede="Next report, what is expected, past results and how the stock moved."
         actions={
-          <a
+          <Link prefetch={false}
             href={`/stock/${encodeURIComponent(ticker)}`}
             className={`inline-flex h-9 items-center rounded-md border border-oa-border bg-oa-card px-3 text-[13.5px] font-medium text-oa-fg hover:bg-oa-accent ${FOCUS}`}
           >
             Open the {ticker} report
-          </a>
+          </Link>
         }
       />
 

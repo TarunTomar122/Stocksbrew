@@ -5,6 +5,7 @@ import { JsonLd, breadcrumbLd } from "@/components/docs/json-ld";
 import { TheRead } from "@/components/oa/insight";
 import { AppPage, CardGrid, Delta, NUM, PageHead, Panel, SourceLine, Tag, fmtDay, fmtStampET } from "@/components/oa/kit";
 import { CallTag } from "@/components/screener/shared";
+import { StockLogo } from "@/components/stock-logo";
 import { todayET } from "@/lib/calendar-shared";
 import { buildMoveRead, closeOn, sinceClose } from "@/lib/move-page";
 import { ogImage } from "@/lib/og/url";
@@ -179,7 +180,10 @@ export default async function MovePage({ params }: Props) {
               {sameDay.map((item) => (
                 <li key={item.ticker} className="border-b border-oa-border last:border-b-0">
                   <a href={moveHref(item.ticker, item.day)} className="flex items-center gap-3 px-4 py-2.5 outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
-                    <span className={`${NUM} w-12 shrink-0 text-[13.5px] font-medium text-oa-fg`}>{item.ticker}</span>
+                    <span className={`${NUM} inline-flex w-[4.75rem] shrink-0 items-center gap-1.5 text-[13.5px] font-medium text-oa-fg`}>
+                      <StockLogo ticker={item.ticker} size={18} />
+                      {item.ticker}
+                    </span>
                     <Delta value={item.pct} digits={1} className="w-14 shrink-0 text-[13px]" />
                     <span className="min-w-0 truncate text-[13.5px] text-oa-fg">{item.headline}</span>
                   </a>

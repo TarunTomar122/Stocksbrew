@@ -74,23 +74,53 @@ describe("browser analytics gate", () => {
     vi.stubEnv("NEXT_PUBLIC_VERCEL_ENV", "production");
     vi.stubEnv("NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA", "abcdef1234");
     browser("www.stocksbrew.online");
-    const { captureEvent } = await load();
+    const { captureEvent, loadPostHog } = await load();
     captureEvent("stock_viewed", { ticker: "NVDA", empty: undefined });
+    // posthog-js is not loaded with the page: nothing reaches it until it arrives.
+    expect(ph.init).not.toHaveBeenCalled();
+    await loadPostHog();
     expect(ph.init).toHaveBeenCalledTimes(1);
     const config = ph.init.mock.calls[0]![1] as { capture_pageview: boolean; capture_exceptions: boolean; loaded: (c: typeof ph) => void };
     expect(config.capture_pageview).toBe(false);
     expect(config.capture_exceptions).toBe(true);
     config.loaded(ph);
     expect(ph.register).toHaveBeenCalledWith({ $environment: "production", app_version: "abcdef1" });
-    expect(ph.capture).toHaveBeenCalledWith("stock_viewed", { ticker: "NVDA" });
+    expect(ph.capture).toHaveBeenCalledWith("stock_viewed", { ticker: "NVDA" }, { timestamp: expect.any(Date) });
+  });
+
+  it("queues calls made before posthog-js loads and replays them in order, with their own times", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    browser("www.stocksbrew.online");
+    const { captureEvent, registerSuperProperties, loadPostHog } = await load();
+    const order: string[] = [];
+    ph.capture.mockImplementation((name: string) => {
+      order.push(`capture:${name}`);
+    });
+    ph.register.mockImplementation(() => {
+      order.push("register");
+    });
+    const before = Date.now();
+    captureEvent("$pageview", { path: "/briefing" });
+    registerSuperProperties({ plan: "free" });
+    captureEvent("stock_viewed", { ticker: "NVDA" });
+    expect(ph.capture).not.toHaveBeenCalled();
+    await loadPostHog();
+    expect(ph.init).toHaveBeenCalledTimes(1);
+    expect(order).toEqual(["capture:$pageview", "register", "capture:stock_viewed"]);
+    const sentAt = (ph.capture.mock.calls[0] as unknown as [string, unknown, { timestamp: Date }])[2].timestamp.getTime();
+    expect(sentAt).toBeGreaterThanOrEqual(before);
+    expect(sentAt).toBeLessThanOrEqual(Date.now());
+    ph.capture.mockReset();
+    ph.register.mockReset();
   });
 
   it("does not reset an anonymous visitor, only an identified one", async () => {
     vi.stubEnv("NODE_ENV", "production");
     browser("www.stocksbrew.online");
-    const { resetAnalyticsIfIdentified } = await load();
+    const { resetAnalyticsIfIdentified, loadPostHog } = await load();
     ph.get_property.mockReturnValue("anonymous");
     resetAnalyticsIfIdentified();
+    await loadPostHog();
     expect(ph.reset).not.toHaveBeenCalled();
     ph.get_property.mockReturnValue("identified");
     resetAnalyticsIfIdentified();
@@ -100,8 +130,9 @@ describe("browser analytics gate", () => {
   it("identifies with the uid only once, and never throws", async () => {
     vi.stubEnv("NODE_ENV", "production");
     browser("www.stocksbrew.online");
-    const { identifyUser, captureEvent } = await load();
+    const { identifyUser, captureEvent, loadPostHog } = await load();
     identifyUser("uid-9");
+    await loadPostHog();
     expect(ph.identify).toHaveBeenCalledWith("uid-9", {});
     ph.get_distinct_id.mockReturnValue("uid-9");
     identifyUser("uid-9");
@@ -110,5 +141,23 @@ describe("browser analytics gate", () => {
       throw new Error("blocked by an extension");
     });
     expect(() => captureEvent("anything")).not.toThrow();
+  });
+
+  it("keeps sending GA4 events when posthog-js cannot be loaded", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    browser("www.stocksbrew.online");
+    const gtag = vi.fn();
+    (globalThis.window as unknown as { gtag: typeof gtag }).gtag = gtag;
+    vi.stubEnv("NEXT_PUBLIC_GA_MEASUREMENT_ID", "G-TEST");
+    vi.doMock("posthog-js", () => {
+      throw new Error("blocked by an extension");
+    });
+    const { captureEvent, loadPostHog } = await load();
+    captureEvent("stock_viewed", { ticker: "NVDA" });
+    await loadPostHog();
+    captureEvent("stock_viewed", { ticker: "AMD" });
+    expect(ph.capture).not.toHaveBeenCalled();
+    expect(gtag).toHaveBeenCalledTimes(2);
+    vi.doUnmock("posthog-js");
   });
 });

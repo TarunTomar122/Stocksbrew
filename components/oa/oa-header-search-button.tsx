@@ -1,16 +1,20 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { captureEvent } from "@/lib/posthog";
 import { cancelSearchNoResults, trackSearchNoResults, trackSearchPerformed } from "@/lib/product-analytics";
 import type { SearchEntry } from "@/lib/search";
+import { getClientSearchIndex, prefetchSearchIndex } from "@/lib/search-index-client";
 import { formatSearchPct, scoreSearchEntry } from "@/lib/ticker-search-utils";
-import { StockRequestModal } from "@/components/stock-request-modal";
+
+// Opens only when a search finds nothing; loaded then, so its animation library stays out of every page.
+const StockRequestModal = dynamic(() => import("@/components/stock-request-modal").then((mod) => mod.StockRequestModal), { ssr: false });
 
 export function OaHeaderSearchButton({ trigger = "icon" }: { trigger?: "icon" | "row" } = {}) {
   const router = useRouter();
-  const [searchIndex, setSearchIndex] = useState<SearchEntry[]>([]);
+  const [searchIndex, setSearchIndex] = useState<SearchEntry[]>(() => getClientSearchIndex("US"));
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -33,30 +37,20 @@ export function OaHeaderSearchButton({ trigger = "icon" }: { trigger?: "icon" | 
     setActiveIndex(0);
   }, [query]);
 
+  // The index loads on first intent (hover, focus or opening search), not with the page:
+  // most visits never search. Both mounted triggers share one request (lib/search-index-client).
+  const loadIndex = useCallback(() => {
+    if (searchIndex.length > 0) return;
+    prefetchSearchIndex("US")
+      .then((entries) => {
+        if (entries.length > 0) setSearchIndex(entries);
+      })
+      .catch(() => undefined); // keep empty index; raw submits still navigate
+  }, [searchIndex.length]);
+
   useEffect(() => {
-    let cancelled = false;
-    const run = async () => {
-      try {
-        const res = await fetch("/api/search-index?market=US", { cache: "no-store" });
-        if (!res.ok) return;
-        const payload = (await res.json()) as { entries?: SearchEntry[] };
-        if (!cancelled && Array.isArray(payload.entries)) setSearchIndex(payload.entries);
-      } catch {
-        // keep empty index
-      }
-    };
-    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
-      const idleId = (window as Window & { requestIdleCallback: (cb: () => void) => number }).requestIdleCallback(run);
-      return () => {
-        cancelled = true;
-        if ("cancelIdleCallback" in window) (window as Window & { cancelIdleCallback: (id: number) => void }).cancelIdleCallback(idleId);
-      };
-    }
-    void run();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    if (open) loadIndex();
+  }, [open, loadIndex]);
 
   useEffect(() => {
     if (open) {
@@ -135,6 +129,8 @@ export function OaHeaderSearchButton({ trigger = "icon" }: { trigger?: "icon" | 
         <button
           type="button"
           onClick={() => setOpen(true)}
+          onPointerEnter={loadIndex}
+          onFocus={loadIndex}
           className="flex h-9 w-full items-center gap-2.5 rounded-lg border border-oa-border bg-oa-card px-3 text-left text-[14px] text-oa-muted-fg transition-colors hover:text-oa-fg"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true" className="size-4 shrink-0">
@@ -148,6 +144,8 @@ export function OaHeaderSearchButton({ trigger = "icon" }: { trigger?: "icon" | 
         <button
           type="button"
           onClick={() => setOpen(true)}
+          onPointerEnter={loadIndex}
+          onFocus={loadIndex}
           aria-label="Search stocks"
           className="inline-flex h-9 w-9 items-center justify-center rounded-full text-oa-muted-fg transition-colors hover:bg-oa-accent hover:text-oa-fg"
         >

@@ -825,7 +825,7 @@ export function PortfolioAnalyzer({ searchIndex }: { searchIndex: SearchEntry[] 
         <div className="mt-16 flex flex-col items-center gap-4 text-center">
           <div className="flex items-center -space-x-3">
             {SAMPLE_PORTFOLIO.map((t) => (
-              <StockLogo key={t} ticker={t} size={40} circle className="border-2 border-oa-card shadow-[0_1px_2px_rgba(0,0,0,0.08)]" />
+              <StockLogo key={t} ticker={t} size={40} circle labelled className="border-2 border-oa-card shadow-[0_1px_2px_rgba(0,0,0,0.08)]" />
             ))}
           </div>
           <p className="text-[14px] font-medium text-[var(--oa-fg)]">Add your stocks above to get started</p>

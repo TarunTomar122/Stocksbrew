@@ -7,6 +7,7 @@ import { closeWords } from "@/lib/benchmark-day";
 import { AppPage, CardGrid, Delta, MoveBar, NUM, PageHead, Panel, ShowMore, SourceLine, StatStrip, Ticker, fmtCompact, fmtDay, fmtMoney } from "@/components/oa/kit";
 import { asSentence } from "@/lib/plain-copy";
 import { DataTable, type DataColumn, type DataRow } from "@/components/oa/kit/data-table";
+import { StockLogo } from "@/components/stock-logo";
 import { CallTag } from "@/components/screener/shared";
 import { todayET } from "@/lib/calendar-shared";
 import { INVESTMENT_THEMES } from "@/lib/investment-themes";
@@ -16,6 +17,7 @@ import { buildSectorRead, medianPe, ranked, weightedChange } from "@/lib/sector-
 import { moveHref, pairHref, sectorHref, sectorIsIndexable, sectorTitle } from "@/lib/seo/families";
 import { getCoverage, getMovesDay, sectorGroups, stockPairs } from "@/lib/seo/family-data";
 import { alsoClassesLabel, oneRowPerCompany } from "@/lib/share-class";
+import Link from "next/link";
 
 /**
  * One page per sector (/sectors/technology): the read, the sector against the
@@ -176,7 +178,7 @@ export default async function SectorPage({ params }: Props) {
     <AppPage>
       <JsonLd data={breadcrumbLd([{ name: "Sectors", path: "/sectors" }, { name: group.name, path }])} />
       <PageHead
-        crumb={<a href="/sectors">Sectors</a>}
+        crumb={<Link prefetch={false} href="/sectors">Sectors</Link>}
         title={`${group.name} stocks`}
         meta={<SourceLine source="Prices and company data" asOf={coverage.priceDay ? closeWords(coverage.priceDay, fmtDay(coverage.priceDay, true)) : undefined} />}
         note={false}
@@ -217,11 +219,14 @@ export default async function SectorPage({ params }: Props) {
           <ul>
             {explained.slice(0, 6).map((move) => (
               <li key={move.ticker} className="border-b border-oa-border last:border-b-0">
-                <a href={moveHref(move.ticker, move.day)} className="flex items-start gap-3 px-4 py-2.5 outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
-                  <span className={`${NUM} w-14 shrink-0 text-[14px] font-medium leading-5 text-oa-fg`}>{move.ticker}</span>
+                <Link prefetch={false} href={moveHref(move.ticker, move.day)} className="flex items-start gap-3 px-4 py-2.5 outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
+                  <span className={`${NUM} inline-flex w-[4.75rem] shrink-0 items-center gap-1.5 text-[14px] font-medium leading-5 text-oa-fg`}>
+                    <StockLogo ticker={move.ticker} size={18} />
+                    {move.ticker}
+                  </span>
                   <Delta value={move.pct} digits={1} className="w-16 shrink-0 text-[13.5px] leading-5" />
                   <span className="min-w-0 text-pretty text-[14px] leading-5 text-oa-fg">{asSentence(move.headline)}</span>
-                </a>
+                </Link>
               </li>
             ))}
           </ul>
@@ -233,9 +238,9 @@ export default async function SectorPage({ params }: Props) {
           flush
           label={`All ${group.rows.length} stocks, biggest first`}
           right={
-            <a href={`/screener?sector=${group.slug}`} className="text-oa-primary hover:underline">
+            <Link prefetch={false} href={`/screener?sector=${group.slug}`} className="text-oa-primary hover:underline">
               Filter them →
-            </a>
+            </Link>
           }
         >
           <DataTable columns={columns} rows={tableRows} initialSort={{ id: "cap", dir: "desc" }} pageSize={50} stickyHeader={false} compact />
@@ -249,12 +254,12 @@ export default async function SectorPage({ params }: Props) {
             <ul>
               {pairs.map((pair) => (
                 <li key={pair.slug} className="border-b border-oa-border last:border-b-0">
-                  <a href={pairHref(pair.a, pair.b)} className="flex items-center justify-between gap-3 px-4 py-2.5 text-[14px] text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
+                  <Link prefetch={false} href={pairHref(pair.a, pair.b)} className="flex items-center justify-between gap-3 px-4 py-2.5 text-[14px] text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
                     <span className={NUM}>
                       {pair.a} vs {pair.b}
                     </span>
                     <span className="min-w-0 text-pretty text-right text-[12.5px] text-oa-muted-fg">{pair.group}</span>
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -267,10 +272,10 @@ export default async function SectorPage({ params }: Props) {
             <ul>
               {themes.map(({ theme, members }) => (
                 <li key={theme.slug} className="border-b border-oa-border last:border-b-0">
-                  <a href={`/themes/${theme.slug}`} className="flex items-center justify-between gap-3 px-4 py-2.5 text-[14px] text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
+                  <Link prefetch={false} href={`/themes/${theme.slug}`} className="flex items-center justify-between gap-3 px-4 py-2.5 text-[14px] text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
                     <span className="min-w-0 text-pretty">{theme.name}</span>
                     <span className={`${NUM} shrink-0 text-[12.5px] text-oa-muted-fg`}>{members.slice(0, 3).join(", ")}</span>
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -285,16 +290,16 @@ export default async function SectorPage({ params }: Props) {
               .filter((item) => item.slug !== group.slug)
               .map((item) => (
                 <li key={item.slug} className="border-b border-oa-border last:border-b-0">
-                  <a href={sectorHref(item.slug)} className="flex items-center justify-between gap-3 px-4 py-2 text-[14px] text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
+                  <Link prefetch={false} href={sectorHref(item.slug)} className="flex items-center justify-between gap-3 px-4 py-2 text-[14px] text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
                     <span className="min-w-0 truncate">{item.name}</span>
                     <Delta value={weightedChange(item.rows, "day_pct")} digits={1} className="shrink-0 text-[13px]" />
-                  </a>
+                  </Link>
                 </li>
               ))}
           </ul>
-          <a href="/best" className="oa-card-foot mt-auto block border-t border-oa-border px-4 py-2.5 text-[14px] text-oa-primary outline-none hover:bg-oa-accent hover:underline focus-visible:bg-oa-accent">
+          <Link prefetch={false} href="/best" className="oa-card-foot mt-auto block border-t border-oa-border px-4 py-2.5 text-[14px] text-oa-primary outline-none hover:bg-oa-accent hover:underline focus-visible:bg-oa-accent">
             Best stock lists: dividends, value, growth →
-          </a>
+          </Link>
         </Panel>
       </CardGrid>
     </AppPage>

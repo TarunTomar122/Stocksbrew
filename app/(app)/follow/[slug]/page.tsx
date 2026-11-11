@@ -45,6 +45,7 @@ import {
 import { alsoClassesLabel, oneRowPerCompany } from "@/lib/share-class";
 import { netSide, type ToneWord } from "@/lib/tone";
 import { ogImage } from "@/lib/og/url";
+import Link from "next/link";
 
 type Props = { params: { slug: string } };
 
@@ -405,9 +406,9 @@ function FundView({
       <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
         <div className="min-w-0">
           <p className="text-[12.5px] leading-4 text-oa-muted-fg">
-            <a href="/follow" className="underline decoration-oa-border underline-offset-2 hover:text-oa-fg">
+            <Link prefetch={false} href="/follow" className="underline decoration-oa-border underline-offset-2 hover:text-oa-fg">
               Follow
-            </a>{" "}
+            </Link>{" "}
             / Funds
           </p>
           <div className="mt-1 flex flex-wrap items-baseline gap-x-3">
@@ -864,9 +865,9 @@ function CongressView({
       <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
         <div className="min-w-0">
           <p className="text-[12.5px] leading-4 text-oa-muted-fg">
-            <a href="/follow?tab=congress" className="underline decoration-oa-border underline-offset-2 hover:text-oa-fg">
+            <Link prefetch={false} href="/follow?tab=congress" className="underline decoration-oa-border underline-offset-2 hover:text-oa-fg">
               Follow
-            </a>{" "}
+            </Link>{" "}
             / Congress
           </p>
           <div className="mt-1 flex flex-wrap items-baseline gap-x-3">

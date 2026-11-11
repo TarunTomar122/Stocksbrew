@@ -3,6 +3,7 @@ import { unstable_cache } from "next/cache";
 import { canSeeLevels, type Viewer } from "@/lib/entitlements-server";
 import { BENCHMARK_SYMBOL } from "@/lib/portfolio-data";
 import { isFeaturedStockTicker } from "@/lib/seo/stock-pages";
+import { checkReasons } from "@/lib/thesis-watch/server";
 import type { UserDoc } from "@/lib/watchlist";
 
 import { buildMemo } from "./build";
@@ -20,7 +21,7 @@ import {
 } from "./data";
 import { memoModelReader } from "./model";
 import { listMemos, readMemo, saveMemo, type MemoHistoryRow, type StoredMemo } from "./store";
-import type { DailySeries, Memo, MemoInputs } from "./types";
+import type { DailySeries, Memo, MemoInputs, MemoReason } from "./types";
 import type { MemoWeek } from "./week";
 import { applyWording, wordingPayload } from "./word";
 
@@ -118,6 +119,19 @@ export async function loadExampleMemo(today: string, weekKey: string | null, opt
 
 /* ── a signed-in person ─────────────────────────────────────────────────── */
 
+/** The person's reasons on these holdings that the watcher found weaker or broken, worst first. Never throws. */
+async function memoReasons(viewer: Viewer, userDoc: UserDoc | null, tickers: string[]): Promise<MemoReason[]> {
+  const held = new Set(tickers);
+  const result = await checkReasons(viewer, userDoc).catch(() => null);
+  return Object.values(result?.checks ?? {})
+    .filter((check) => held.has(check.ticker) && (check.verdict === "weaker" || check.verdict === "broken") && check.signals[0])
+    .sort((a, b) => (a.verdict === b.verdict ? a.ticker.localeCompare(b.ticker) : a.verdict === "broken" ? -1 : 1))
+    .map((check) => {
+      const signal = check.signals[0]!;
+      return { ticker: check.ticker, verdict: check.verdict as MemoReason["verdict"], finding: signal.text, source: signal.source, asOf: signal.asOf, data: signal.data };
+    });
+}
+
 /**
  * Whether a stored memo for the current week can be shown as it is: same
  * holdings and coverage, same last close (a new close, including a late
@@ -146,7 +160,9 @@ export async function loadUserMemo(viewer: Viewer, userDoc: UserDoc | null, week
   const current = await currentWeek(source.holdings.map((holding) => holding.ticker), now);
   if (!current) return null;
   const { week, series, today } = current;
-  const signature = source.signature;
+  // Reasons that weakened or broke go under "What could hurt"; a changed verdict rewrites the week.
+  const reasons = await memoReasons(viewer, userDoc, source.holdings.map((holding) => holding.ticker));
+  const signature = reasons.length > 0 ? `${source.signature}|${reasons.map((reason) => `${reason.ticker}:${reason.verdict}`).join(",")}` : source.signature;
   const prev = previousWeek(week, series.get("SPY"));
 
   const [stored, storedPrev] = await Promise.all([
@@ -162,7 +178,9 @@ export async function loadUserMemo(viewer: Viewer, userDoc: UserDoc | null, week
     const weeks = prevNeeded ? [prev, week] : [week];
     const [events, shape] = await Promise.all([
       loadSpanEvents(source.holdings, spanOf(weeks, today)),
-      loadShapeFacts(source, series).catch(() => NO_SHAPE),
+      loadShapeFacts(source, series)
+        .catch(() => NO_SHAPE)
+        .then((facts) => ({ ...facts, reasons })),
     ]);
     // Last week has no portfolio-shape lines: those are about today's holdings.
     const [current, backfill] = await Promise.all([

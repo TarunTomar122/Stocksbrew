@@ -7,6 +7,7 @@ import { useUser } from "@/lib/auth-context";
 import { startDodoCheckout } from "@/lib/dodo-checkout-client";
 import { trackCheckoutClicked, trackCheckoutFailed } from "@/lib/product-analytics";
 import { signInWithGoogle } from "@/lib/sign-in";
+import Link from "next/link";
 
 export type PricingPeriod = "monthly" | "yearly";
 
@@ -177,9 +178,9 @@ export function PlanCards({
               Start free
             </OaButton>
           ) : (
-            <a href="/watchlist" className={OUTLINE_LINK}>
+            <Link prefetch={false} href="/watchlist" className={OUTLINE_LINK}>
               Open your stocks
-            </a>
+            </Link>
           )}
           <p className="mt-2 text-[13px] leading-[18px] text-oa-muted-fg">No card. Swap one of your five stocks each week.</p>
         </div>
@@ -208,9 +209,9 @@ export function PlanCards({
         <Points items={proPoints} />
         <div className="mt-auto pt-6">
           {plan === "pro" ? (
-            <a href="/profile" className={OUTLINE_LINK}>
+            <Link prefetch={false} href="/profile" className={OUTLINE_LINK}>
               Manage your plan
-            </a>
+            </Link>
           ) : (
             <OaButton className="h-11 w-full text-[15px]" loading={busy === "pro"} onClick={() => void startPro()}>
               {trial ? "Try Pro free for 3 days" : "Get Pro"}

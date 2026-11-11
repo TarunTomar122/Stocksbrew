@@ -137,6 +137,18 @@ export const FEATURES = {
       body: "Your briefing explains the stocks your agent covers, and you can swap which five those are once a week. Pro explains every holding.",
     },
   },
+  // The reason watcher (lib/thesis-watch): saving a reason is free on every stock; checking it is the agent's work.
+  reason_watch: {
+    name: "Reason watcher: the agent checks why you own each stock and says when the reason weakens or breaks",
+    group: "Your stocks",
+    anon: locked,
+    free: covered,
+    pro: open,
+    lock: {
+      title: "Free checks the reasons on your covered stocks",
+      body: "Your reason is saved on every stock. The agent checks it on the five stocks it covers for you, and you can swap which five once a week. Pro checks every reason you save.",
+    },
+  },
   portfolio_analytics: {
     name: "Portfolio analytics: allocation, concentration, risk, performance vs S&P 500",
     group: "Your stocks",
@@ -259,6 +271,19 @@ export const FEATURES = {
     lock: {
       title: "Exporting research tables is part of Pro",
       body: "Screens, fund portfolios and backtest trades download as CSV on Pro. Your own holdings export free on any plan, and every table stays free to read.",
+    },
+  },
+  deep_research: {
+    name: "Full research on any stock: a long, sourced report from filings, earnings, peers, ownership and news",
+    group: "Research",
+    // Each report is a dozen reads, two SEC documents and one long model call, so it needs an account.
+    anon: locked,
+    // Three a month lets someone research what they are deciding on now. Measured 2026-11-11: about $0.005 to $0.009 a report on Haiku 5.5.
+    free: meter(3, "month", "reports"),
+    pro: meter(30, "month", "reports"),
+    lock: {
+      title: "That is this month's full research used",
+      body: "Free includes three full research reports each month, and every report you ran stays saved. Pro includes 30 each month.",
     },
   },
 

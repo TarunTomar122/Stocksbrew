@@ -13,9 +13,12 @@ import { OG_HEIGHT, OG_WIDTH } from "@/lib/og/url";
 export const OG_CACHE = {
   data: "public, max-age=600, s-maxage=3600, stale-while-revalidate=86400",
   words: "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800",
+  /** A stand-in drawn because its data was slow or missing: kept a few minutes, then drawn again. */
+  transient: "public, max-age=60, s-maxage=300",
 } as const;
 
 export function cacheFor(card: OgCard): string {
+  if (card.transient) return OG_CACHE.transient;
   if (card.kind === "text") return OG_CACHE.words;
   if (card.kind === "landing" && !card.row) return OG_CACHE.words;
   return OG_CACHE.data;

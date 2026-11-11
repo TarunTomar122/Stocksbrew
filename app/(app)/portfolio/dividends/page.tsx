@@ -14,15 +14,12 @@ import { getSessionUser } from "@/lib/auth-server";
 import { buildDividendRead } from "@/lib/dividend-plan";
 import { exampleSeeds, holdingSeeds, loadDividendPlan, type HoldingSeed } from "@/lib/dividend-plan-data";
 import { getUserDoc } from "@/lib/watchlist";
+import { JsonLd } from "@/components/docs/json-ld";
+import { toolPageLd, toolPageMetadata } from "@/lib/seo/tool-pages";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Dividend planner",
-  description:
-    "What your stocks should pay you over the next twelve months, month by month: announced dividends with their pay dates, the rest estimated from each stock's last year of payments.",
-  alternates: { canonical: "/portfolio/dividends" },
-};
+export const metadata: Metadata = toolPageMetadata("/portfolio/dividends");
 
 const LEDE = "What your holdings should pay over the next twelve months, with announced dividends kept apart from estimates.";
 
@@ -30,6 +27,7 @@ export default async function DividendsPage() {
   const session = await getSessionUser();
   return (
     <AppPage>
+      <JsonLd data={toolPageLd("/portfolio/dividends")} />
       <PageHead
         title="Dividends"
         crumb={

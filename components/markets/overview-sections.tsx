@@ -20,6 +20,7 @@ import {
   type MarketsOverview,
 } from "@/lib/markets-shared";
 import { vixWord } from "@/lib/tone";
+import { AppLink } from "@/components/oa/app-link";
 
 function ofClass(data: MarketsData, assetClass: MarketAsset["class"]): MarketAsset[] {
   return data.assets.filter((asset) => asset.class === assetClass);
@@ -131,7 +132,7 @@ export function OptionsSection({ data }: { data: MarketsData }) {
 export function PredictionsSection({ data }: { data: MarketsData }) {
   return (
     <>
-      <SectionLabel aside={data.predictions.length > 0 ? <a href={classHref("predictions")} className="hover:text-oa-fg">All {data.predictions.length} →</a> : null}>
+      <SectionLabel aside={data.predictions.length > 0 ? <AppLink href={classHref("predictions")} className="hover:text-oa-fg">All {data.predictions.length} →</AppLink> : null}>
         Prediction markets
       </SectionLabel>
       {data.predictions.length === 0 ? (

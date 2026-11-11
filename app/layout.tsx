@@ -3,11 +3,10 @@ import { Suspense } from "react";
 import { cache } from "react";
 import { cookies } from "next/headers";
 import Script from "next/script";
-import { GeistSans } from "geist/font/sans";
-import { GeistMono } from "geist/font/mono";
 import { Analytics } from "@vercel/analytics/next";
 
 import { Footer } from "@/components/footer";
+import { monoFont, uiFont } from "@/components/oa/font";
 import { MarketStatusTab } from "@/components/market-status";
 import { getSessionUser } from "@/lib/auth-server";
 import { CONTACT_EMAIL } from "@/lib/docs/site";
@@ -191,18 +190,8 @@ async function FooterData() {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const hasSessionCookie = Boolean(cookies().get(SESSION_COOKIE_NAME)?.value);
   return (
-    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${uiFont.variable} ${monoFont.variable}`} suppressHydrationWarning>
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://api.fontshare.com" crossOrigin="" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800;900&display=swap"
-          rel="stylesheet"
-        />
-        <link
-          href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,600,700,800,900&display=swap"
-          rel="stylesheet"
-        />
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var t=localStorage.getItem('sb-theme');var d=t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.style.colorScheme=d?'dark':'light';}catch(e){}})();`,

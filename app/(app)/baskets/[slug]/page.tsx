@@ -14,6 +14,7 @@ import { LockCard } from "@/components/oa/gate";
 import { limitFor } from "@/lib/entitlements";
 import { getViewer } from "@/lib/entitlements-server";
 import { getUserDoc } from "@/lib/watchlist";
+import { pageMetadata } from "@/lib/seo/page-meta";
 
 // Reads the viewer and today's snapshot, so it is rendered per request.
 export const dynamic = "force-dynamic";
@@ -24,15 +25,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const stored = await readStoredBasket(params.slug).catch(() => null);
   if (!stored) return { title: "Basket not found", robots: { index: false, follow: false } };
   const theme = themeSlugFor(stored.spec);
-  const description = `${stored.sentence} The companies that fit today, why each one is in, and a backtest against the S&P 500.`;
-  return {
+  const full = `${stored.sentence} The companies that fit today, why each one is in, and a backtest against the S&P 500.`;
+  // A basket someone typed is theirs to share, not a page for search. One that is a whole research theme points at it.
+  return pageMetadata({
     title: `${stored.title}: a stock basket`,
-    description,
-    // A basket someone typed is theirs to share, not a page for search. One that is a whole research theme points at it.
-    alternates: { canonical: theme ? `/themes/${theme}` : `/baskets/${stored.slug}` },
-    robots: theme ? undefined : { index: false, follow: true },
-    openGraph: { title: `${stored.title} · stocksbrew`, description, url: `https://www.stocksbrew.online/baskets/${stored.slug}` },
-  };
+    description: full.length <= 155 ? full : stored.sentence,
+    path: `/baskets/${stored.slug}`,
+    canonical: theme ? `/themes/${theme}` : undefined,
+    noindex: !theme,
+    card: ["basket", stored.slug],
+    // The companies and the backtest are picked again from each day's numbers.
+    daily: true,
+    alt: `${stored.title}: the companies that fit today and a backtest`,
+  });
 }
 
 export default async function BasketPage({ params, searchParams }: Props) {

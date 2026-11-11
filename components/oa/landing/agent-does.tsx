@@ -7,6 +7,7 @@ import { NavIcon } from "@/components/oa/nav-icon";
 import { iconFor } from "@/components/oa/nav-items";
 import { Reveal } from "@/components/reveal";
 import { findingWithin, type AgentCardId } from "@/lib/landing-agent-cards";
+import { AppLink } from "@/components/oa/app-link";
 
 /**
  * "Everything it watches for you": one small card per thing the agent does,
@@ -126,7 +127,7 @@ function Card({ card }: { card: CardDef }) {
   const icon = iconFor(card.href);
   return (
     <li className="min-w-0">
-      <a
+      <AppLink
         href={card.href}
         aria-labelledby={`landing-card-${card.id}`}
         aria-describedby={`landing-card-${card.id}-finding`}
@@ -153,7 +154,7 @@ function Card({ card }: { card: CardDef }) {
             →
           </span>
         </span>
-      </a>
+      </AppLink>
     </li>
   );
 }

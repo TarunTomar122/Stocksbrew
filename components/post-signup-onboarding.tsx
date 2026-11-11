@@ -1,13 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 
-import { TickerSearchField } from "@/components/ticker-search-field";
 import { useUser } from "@/lib/auth-context";
 import { captureEvent } from "@/lib/posthog";
 import type { SearchEntry } from "@/lib/search";
 import { POST_SIGNUP_ONBOARDING_PENDING } from "@/lib/sign-in";
+
+// This modal is mounted on every page (app/providers.tsx) but opens once, after sign-up, so its
+// search field (and the icon and motion code under it) loads only when the field is shown.
+const TickerSearchField = dynamic(() => import("@/components/ticker-search-field").then((mod) => mod.TickerSearchField), {
+  ssr: false,
+});
 
 const SEEN_KEY = "stocksbrew:onboarding:seen";
 

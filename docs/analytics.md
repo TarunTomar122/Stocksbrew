@@ -93,7 +93,7 @@ Activation funnel (14-day window): `$pageview` → `signin_started` →
 |---|---|---|---|
 | `paywall_shown` | `surface`, `feature`, `ticker`, `step` (`sign_in`/`upgrade`), `page` | `components/oa/gate.tsx` (every LockCard / MoreLocked), once per session per lock | Which gates people meet |
 | `paywall_unlock_clicked` | same | same | Which gates get clicked |
-| `limit_hit` | `feature` (lib/entitlements.ts id), `plan`, `limit`, `code`, `page` | Ask (`components/ask/ask-workspace.tsx`), backtest, saved screens, follows, alerts, agents (saved paused), covered stocks (gate CoverButton, track button) | Which meters run out, by plan |
+| `limit_hit` | `feature` (lib/entitlements.ts id), `plan`, `limit`, `code`, `page` | Ask (`components/ask/ask-workspace.tsx`), full research (`components/research/launcher.tsx`), backtest, saved screens, follows, alerts, agents (saved paused), covered stocks (gate CoverButton, track button) | Which meters run out, by plan |
 | `checkout_clicked` | `period`, `market`, `signed_in`, `surface`, `feature`, `page` | `components/pricing/plan-cards.tsx`, `lib/use-pro-checkout.ts` (gate locks pass their feature), `components/oa/pro-checkout-button.tsx` | Checkout intent by surface and gate |
 | `checkout_failed` | `reason`, `surface` | same three | Broken checkouts and sign-in drop-off inside checkout |
 | `checkout_started` | `period`, `market`, `trial_eligible`, `surface`, `feature` | **server**: `app/api/subscription/create-checkout/route.ts` | Checkout sessions created (the client sends the click's surface/feature; also stored on the user as `lastCheckoutSource`) |
@@ -112,8 +112,13 @@ look at history include both names.
 | `read_viewed` | `ticker`, `call`, `full_read` | `components/track-view.tsx` at the end of the brief on the stock page | Do people read the brief |
 | `read_expanded` | `section` (`news`, `timeline`), `ticker` | `Details` in `components/stock-report/primitives.tsx` | Depth of reading |
 | `alert_created` | `ticker`, `kind` | `components/stock-report/alert-controls.tsx` | Alerts set |
-| `insight_clicked` | `insight_id`, `insight_kind`, `tone`, `target` (`stock`/`action`), `ticker`, `href`, `page` | `components/oa/insight.tsx` (every The read row, declared) | Which reads people act on, per page |
+| `insight_clicked` | `insight_id`, `insight_kind`, `tone`, `target` (`stock`/`action`/`action_2`; `ask`/`watch` under a stock's call), `ticker`, `href`, `page` | `components/oa/insight.tsx` (every The read row and the headline's next steps, declared); `components/stock-report/report.tsx` (the call's next steps, `insight_id` `stock-call`) | Which reads people act on, per page, and which next step they take (`href` says Ask or agents) |
 | `earnings_report_opened` | `surface` (`stock_page`) | `components/earnings-day/stock-entry.tsx` (declared) | Do people open the earnings day report from the stock page (the briefing list sends `briefing_item_opened` with `kind=earnings_report`) |
+| `research_entry_clicked` | `ticker` | `components/research/stock-entry.tsx` (declared, the "Full research" line on the stock page) | Does the stock page send people to the full research |
+| `research_started` | `ticker`, `surface` (`research_page`), `again` (they already had a report on it), `page` | `components/research/launcher.tsx` on "Get the full research" | Who asks for a full report, on which stocks |
+| `research_completed` | `ticker`, `seconds`, `removed` (sentences the numbers check took out) | same, when the saved report arrives | Do runs finish, how long they take, how often the check bites |
+| `research_failed` | `ticker`, `code` (`limit`, `running`, `write_failed`, `no_evidence`, `sources_down`, `save_failed`, `not_configured`, `network`, `stream_ended`...), `step` | same | Where runs break; `limit` also sends `limit_hit` with `feature=deep_research` |
+| `research_shared_cta` | `ticker` | `app/(app)/stock/[symbol]/research/s/[shareId]/page.tsx` (declared, "Get your own report" on a shared report) | Do shared reports bring new people |
 | `briefing_item_opened` | `kind`, `ticker`, `relation`, `decision` | `components/briefing/briefing-group.tsx` | What in the briefing gets opened |
 | `mover_opened` | `ticker`, `list` | Explore movers (`app/(app)/explore/page.tsx`), Signals movers (`components/signals/signals-view.tsx`) | Movers interest |
 | `signal_opened` | `kind` (`reddit`/`policy`), `ticker` | Signals tabs | Which signals get opened |

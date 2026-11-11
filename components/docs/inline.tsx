@@ -1,4 +1,5 @@
 import * as React from "react";
+import { AppLink } from "@/components/oa/app-link";
 
 const LINK =
   "font-medium text-oa-fg underline decoration-[color-mix(in_srgb,var(--oa-primary)_55%,transparent)] decoration-1 underline-offset-[3px] hover:decoration-oa-primary outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)] rounded-sm";
@@ -25,9 +26,9 @@ export function renderInline(text: string, keyPrefix = "i"): React.ReactNode[] {
       const href = match[2];
       const external = /^https?:\/\//.test(href);
       out.push(
-        <a key={key} href={href} className={LINK} {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}>
+        <AppLink key={key} href={href} className={LINK} {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}>
           {match[1]}
-        </a>,
+        </AppLink>,
       );
     } else if (match[3] != null) {
       out.push(

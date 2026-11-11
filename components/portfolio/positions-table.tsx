@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 
 import { CallCell, Dash, EarningsCell, FOCUS, NUM, Pct, signTone, TD, TH } from "@/components/portfolio/parts";
 import { StockLogo } from "@/components/stock-logo";
+import { ThesisLine } from "@/components/thesis/thesis-line";
 import { flushWatchlistRebuild } from "@/lib/radar-client-refresh";
 import {
   fmtMoney,
@@ -307,6 +308,7 @@ function StockCell({ position, inline = false }: { position: PortfolioPosition; 
         >
           {position.ticker}
         </Link>
+        <ThesisLine instrumentId={position.instrument_id} inline={inline} />
       </div>
     </div>
   );

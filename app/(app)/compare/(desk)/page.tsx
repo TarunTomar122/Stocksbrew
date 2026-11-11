@@ -14,6 +14,7 @@ import { getScreenerDirectory } from "@/lib/screener";
 import { ogImage } from "@/lib/og/url";
 import { pairSlug } from "@/lib/seo/families";
 import { getCoverage, stockPairs } from "@/lib/seo/family-data";
+import { AppLink } from "@/components/oa/app-link";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -99,7 +100,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Sear
           <ul className="grid sm:grid-cols-2 lg:grid-cols-3">
             {STARTERS.map((starter) => (
               <li key={starter.symbols.join()} className="-mb-px -mr-px border-b border-r border-oa-border">
-                <a href={compareHref(starter.symbols.slice(0, limit))} className="flex h-full items-center gap-3 px-4 py-3.5 outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
+                <AppLink href={compareHref(starter.symbols.slice(0, limit))} className="flex h-full items-center gap-3 px-4 py-3.5 outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
                   <span className="flex shrink-0">
                     {starter.symbols.slice(0, limit).map((symbol) => (
                       <span key={symbol} className="-ml-1.5 rounded-full ring-2 ring-oa-card first:ml-0">
@@ -111,7 +112,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Sear
                     <span className={`${NUM} block text-[14px] font-medium text-oa-fg`}>{starter.symbols.slice(0, limit).join(" vs ")}</span>
                     <span className="block text-[13px] text-oa-muted-fg">{starter.why}</span>
                   </span>
-                </a>
+                </AppLink>
               </li>
             ))}
           </ul>

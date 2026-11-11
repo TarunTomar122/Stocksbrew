@@ -6,6 +6,7 @@ import { SquircleSurface } from "@/components/oa/squircle";
 import { StockLogo } from "@/components/stock-logo";
 
 import { LABEL } from "./shared";
+import Link from "next/link";
 
 export type IdeaBookLine = {
   ticker: string;
@@ -91,7 +92,7 @@ export function IdeaBook({ themes }: { themes: IdeaBookTheme[] }) {
           <ul className="flex flex-col gap-1.5">
             {theme.lines.map((line, index) => (
               <li key={line.ticker} className={index >= MOBILE_LINES ? "hidden md:block" : undefined}>
-                <a
+                <Link prefetch={false}
                   href={`/stock/${line.ticker}`}
                   className="grid grid-cols-1 gap-x-5 gap-y-2 rounded-[16px] border border-oa-border bg-oa-card px-3.5 py-3 outline-none transition-colors hover:border-oa-fg/25 focus-visible:border-oa-fg/40 md:grid-cols-[11rem_minmax(0,1fr)_minmax(0,1fr)]"
                 >
@@ -117,7 +118,7 @@ export function IdeaBook({ themes }: { themes: IdeaBookTheme[] }) {
                     <span className={`${LABEL} mb-0.5 block`}>What breaks it</span>
                     {line.breaks}
                   </span>
-                </a>
+                </Link>
               </li>
             ))}
           </ul>
@@ -125,7 +126,7 @@ export function IdeaBook({ themes }: { themes: IdeaBookTheme[] }) {
             <p className="text-[14px] text-oa-muted-fg">
               A few of the {theme.total} names in this idea. Research, not a recommendation.
             </p>
-            <a
+            <Link prefetch={false}
               href={`/themes/${theme.slug}`}
               className="group/open inline-flex items-center gap-1.5 text-[15px] font-medium text-oa-fg"
             >
@@ -133,7 +134,7 @@ export function IdeaBook({ themes }: { themes: IdeaBookTheme[] }) {
               <span aria-hidden="true" className="transition-transform duration-200 group-hover/open:translate-x-0.5">
                 →
               </span>
-            </a>
+            </Link>
           </div>
         </SquircleSurface>
       </div>

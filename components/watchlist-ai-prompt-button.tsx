@@ -2,6 +2,7 @@
 
 import { AnimatedIcon } from "@/components/animated-icon";
 import { trackAskAiClicked } from "@/lib/product-analytics";
+import Link from "next/link";
 
 /**
  * "Ask AI": opens our own copilot at /ask with a question about this stock,
@@ -22,7 +23,7 @@ export function WatchlistAiPromptButton({
     : "What changed in my portfolio since yesterday?";
   const label = ticker ? `Ask about ${ticker}` : "Ask about your portfolio";
   return (
-    <a
+    <Link prefetch={false}
       href={`/ask?q=${encodeURIComponent(question)}`}
       onClick={(event) => {
         event.stopPropagation();
@@ -37,6 +38,6 @@ export function WatchlistAiPromptButton({
     >
       <AnimatedIcon name="auto_awesome" size={14} />
       {iconOnly ? <span className="sr-only">{label}</span> : label}
-    </a>
+    </Link>
   );
 }

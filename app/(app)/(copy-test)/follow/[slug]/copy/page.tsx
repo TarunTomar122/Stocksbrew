@@ -10,10 +10,7 @@ import {
   COPY_BIASES,
   COPY_HUB_PATH,
   COPY_LIMITS,
-  copyDescription,
   copyHref,
-  copyIsIndexable,
-  copyTitle,
   fmtDollars,
   copyVerdict,
   getCopyRecord,
@@ -26,7 +23,7 @@ import {
   type CopyRecordFull,
 } from "@/lib/copy-trades";
 import { fmtDate, fmtFrac, isValidSourceSlug } from "@/lib/follow-shared";
-import { ogImage } from "@/lib/og/url";
+import { copyRecordMetadata } from "@/lib/seo/copy-seo";
 
 /**
  * "What if you had copied them?" for one fund or House member: a $10,000 copy
@@ -37,8 +34,6 @@ import { ogImage } from "@/lib/og/url";
 export const revalidate = 3600;
 
 type Props = { params: { slug: string } };
-
-const BASE = "https://www.stocksbrew.online";
 
 async function load(slug: string): Promise<CopyRecord | null> {
   if (!isValidSourceSlug(slug)) return null;
@@ -51,18 +46,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // This page sits in its own route group, outside follow/loading.tsx, so nothing has streamed yet
   // and a missing record is a real 404 rather than a 200 with a not-found body.
   if (!record) notFound();
-  const title = copyTitle(record);
-  const description = copyDescription(record);
-  const path = copyHref(record.slug);
-  const shareImage = ogImage(["follow", record.slug], `${record.name}: a $10,000 copy against the S&P 500`, { daily: true });
-  return {
-    title,
-    description,
-    alternates: { canonical: path },
-    robots: { index: copyIsIndexable(record), follow: true },
-    openGraph: { title: `${title} · stocksbrew`, description, url: `${BASE}${path}`, images: [shareImage] },
-    twitter: { card: "summary_large_image", title: `${title} · stocksbrew`, description, images: [shareImage] },
-  };
+  return copyRecordMetadata(record);
 }
 
 function Head({ record }: { record: CopyRecord }) {

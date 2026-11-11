@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { IntentLink } from "@/components/oa/intent-link";
 
 import { ThemeToggle } from "@/components/theme-toggle";
 import { StartFreeButton } from "@/components/oa/start-free-button";
@@ -97,9 +97,9 @@ export function Footer({ isSubscribed = false }: { isSubscribed?: boolean }) {
 
         <div className="grid grid-cols-2 gap-x-6 gap-y-8 sm:grid-cols-3 lg:grid-cols-6">
           <div className="col-span-2 flex flex-col gap-3">
-            <Link href="/" className="w-fit text-oa-fg">
+            <IntentLink href="/" className="w-fit text-oa-fg">
               <StocksbrewLogo markSize={22} wordmarkClassName="text-[17px] font-medium tracking-tight" />
-            </Link>
+            </IntentLink>
             <p className="max-w-[300px] text-[14px] leading-6 text-oa-muted-fg">{SHORT_DESCRIPTION}</p>
             <div className="mt-1 flex w-fit items-center gap-3">
               <span className="oa-caption">Appearance</span>
@@ -118,9 +118,9 @@ export function Footer({ isSubscribed = false }: { isSubscribed?: boolean }) {
                         {link.label}
                       </a>
                     ) : (
-                      <Link href={link.href} className="text-[14px] leading-6 text-oa-muted-fg transition-colors hover:text-oa-fg">
+                      <IntentLink href={link.href} className="text-[14px] leading-6 text-oa-muted-fg transition-colors hover:text-oa-fg">
                         {link.label}
-                      </Link>
+                      </IntentLink>
                     )}
                   </li>
                 ))}
@@ -132,13 +132,13 @@ export function Footer({ isSubscribed = false }: { isSubscribed?: boolean }) {
         <div className="mt-10 flex flex-col gap-2 border-t border-oa-border pt-5 sm:flex-row sm:items-start sm:justify-between">
           <p className="oa-mono text-[11.5px] leading-5 text-oa-muted-fg">
             © {year} stocksbrew ·{" "}
-            <Link href="/legal/terms" className="hover:text-oa-fg">
+            <IntentLink href="/legal/terms" className="hover:text-oa-fg">
               Terms
-            </Link>{" "}
+            </IntentLink>{" "}
             ·{" "}
-            <Link href="/legal/privacy" className="hover:text-oa-fg">
+            <IntentLink href="/legal/privacy" className="hover:text-oa-fg">
               Privacy
-            </Link>
+            </IntentLink>
           </p>
           <p className="max-w-[640px] text-[12.5px] leading-5 text-oa-muted-fg">
             Research and data for information only, not investment advice. stocksbrew does not connect to a brokerage

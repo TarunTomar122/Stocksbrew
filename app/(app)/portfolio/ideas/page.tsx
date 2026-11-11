@@ -11,17 +11,14 @@ import { loadExampleIdeas, loadUserIdeas } from "@/lib/portfolio-ideas/server";
 import { parseRates } from "@/lib/portfolio-ideas/tax";
 import type { TaxRates } from "@/lib/portfolio-ideas/types";
 import { getUserDoc } from "@/lib/watchlist";
+import { JsonLd } from "@/components/docs/json-ld";
+import { toolPageLd, toolPageMetadata } from "@/lib/seo/tool-pages";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Rebalancing and tax-loss ideas",
-  description:
-    "Concrete trim and add ideas for a portfolio that leans too hard on one company or sector, with the tax on each sale, and losses you could sell for tax with similar stocks to hold meanwhile. Research, not advice.",
-  alternates: { canonical: "/portfolio/ideas" },
-};
+export const metadata: Metadata = toolPageMetadata("/portfolio/ideas");
 
-const LEDE = "Trim and add ideas for a lopsided portfolio, the tax on each sale, and losses you could sell to save tax.";
+const LEDE = "Where to sell some or buy more in a lopsided portfolio, the tax on each sale, and losses you could sell to save tax.";
 
 type Search = Record<string, string | string[] | undefined>;
 
@@ -29,6 +26,7 @@ export default async function IdeasPage({ searchParams }: { searchParams: Promis
   const rates = parseRates(await searchParams);
   return (
     <AppPage>
+      <JsonLd data={toolPageLd("/portfolio/ideas")} />
       <PageHead
         title="Rebalancing and tax-loss ideas"
         crumb={

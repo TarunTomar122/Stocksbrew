@@ -13,6 +13,7 @@ import {
 } from "@/lib/briefing";
 
 import { TheRead } from "@/components/oa/insight";
+import { StockLogo } from "@/components/stock-logo";
 import {
   COMPACT_VISIBLE_LINES,
   GROUP_VISIBLE_LINES,
@@ -26,6 +27,8 @@ import { briefingLead, briefingSteps } from "@/lib/next-steps";
 import { BriefingGroupCard, type GroupActions } from "./briefing-group";
 import { longDay, pricesLine, shortDay, signedPct, sourceTime } from "./format";
 import { SignInButton } from "./sign-in-button";
+import Link from "next/link";
+import { AppLink } from "@/components/oa/app-link";
 
 export type BriefingViewerKind = "signed_out" | "empty" | "pending" | "member";
 
@@ -102,7 +105,7 @@ function SessionStrip({ sectors }: { sectors: BriefingSession["sectors"] }) {
           const up = row.day >= 0;
           return (
             <li key={row.name} className="relative flex-1">
-            <a
+            <Link prefetch={false}
               href={row.slug ? `/sectors/${row.slug}` : "/sectors"}
               title={`${row.name} ${signedPct(row.day)}`}
               aria-label={`${row.name} ${signedPct(row.day)}`}
@@ -114,7 +117,7 @@ function SessionStrip({ sectors }: { sectors: BriefingSession["sectors"] }) {
                 className={`absolute inset-x-[18%] rounded-[2px] ${up ? "bg-signal-bullish" : "bg-signal-bearish"}`}
                 style={up ? { bottom: "50%", height: `${height}%` } : { top: "50%", height: `${height}%` }}
               />
-            </a>
+            </Link>
             </li>
           );
         })}
@@ -123,9 +126,9 @@ function SessionStrip({ sectors }: { sectors: BriefingSession["sectors"] }) {
         <span>
           Best: <span className="text-oa-fg">{best.name}</span> <span className="oa-mono tabular-nums">{signedPct(best.day)}</span>
         </span>
-        <a href="/explore" className="order-last w-full font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg sm:order-none sm:w-auto">
+        <Link prefetch={false} href="/explore" className="order-last w-full font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg sm:order-none sm:w-auto">
           Each bar is a sector: see all {rows.length}
-        </a>
+        </Link>
         <span>
           Worst: <span className="text-oa-fg">{worst.name}</span> <span className="oa-mono tabular-nums">{signedPct(worst.day)}</span>
         </span>
@@ -159,19 +162,22 @@ function MoverRows({ title, rows, asOf }: { title: string; rows: BriefingMarketM
         {rows.map((row) => {
           return (
             <li key={row.ticker}>
-              <a
+              <Link prefetch={false}
                 href={`/stock/${row.ticker}`}
-                className="grid min-h-10 grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3 px-4 py-1.5 text-[14px] leading-5 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent lg:min-h-8"
+                className="grid min-h-10 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 px-4 py-1.5 text-[14px] leading-5 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent lg:min-h-8"
               >
-                <span className="flex min-w-0 items-baseline gap-2">
-                  <span className="oa-mono font-semibold text-oa-fg">{row.ticker}</span>
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="oa-mono inline-flex items-center gap-1.5 font-semibold text-oa-fg">
+                    <StockLogo ticker={row.ticker} size={18} />
+                    {row.ticker}
+                  </span>
 
                 </span>
                 {/* Ticker and move only: no size bar, and nothing written when there is no reason (owner, Nov 11). */}
                 <span className={`oa-mono w-[4.25rem] text-right tabular-nums ${row.day_change_pct >= 0 ? "text-signal-bullish" : "text-signal-bearish"}`}>
                   {signedPct(row.day_change_pct)}
                 </span>
-              </a>
+              </Link>
             </li>
           );
         })}
@@ -314,7 +320,7 @@ export function BriefingView({
               {days.map((entry, position) => {
                 const active = entry.day === briefing.date;
                 return (
-                  <a
+                  <Link prefetch={false}
                     key={entry.day}
                     href={position === 0 ? "/briefing" : `/briefing?day=${entry.day}`}
                     aria-current={active ? "page" : undefined}
@@ -323,7 +329,7 @@ export function BriefingView({
                     }`}
                   >
                     {position === 0 ? "Today" : shortDay(entry.day)}
-                  </a>
+                  </Link>
                 );
               })}
             </nav>
@@ -350,9 +356,9 @@ export function BriefingView({
               ) : (
                 <>
                   <span>Market view.</span>
-                  <a href="/watchlist" className="-my-2.5 inline-flex h-10 items-center text-oa-primary underline decoration-[color-mix(in_srgb,var(--oa-primary)_40%,transparent)] underline-offset-2 sm:my-0 sm:h-5">
+                  <Link prefetch={false} href="/watchlist" className="-my-2.5 inline-flex h-10 items-center text-oa-primary underline decoration-[color-mix(in_srgb,var(--oa-primary)_40%,transparent)] underline-offset-2 sm:my-0 sm:h-5">
                     Add a stock you hold or watch
-                  </a>
+                  </Link>
                   <span>to make it yours.</span>
                 </>
               )
@@ -424,12 +430,12 @@ export function BriefingView({
                 {unexplained.map((group, index) => (
                   <React.Fragment key={group.key}>
                     {index > 0 ? (index === unexplained.length - 1 ? " and " : ", ") : null}
-                    <a href={`/stock/${encodeURIComponent(group.ticker as string)}`} className="whitespace-nowrap text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
+                    <Link prefetch={false} href={`/stock/${encodeURIComponent(group.ticker as string)}`} className="whitespace-nowrap text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
                       <span className="oa-mono font-semibold">{group.ticker}</span>{" "}
                       {group.day_change_pct != null ? (
                         <span className={`oa-mono tabular-nums ${group.day_change_pct >= 0 ? "text-signal-bullish" : "text-signal-bearish"}`}>{signedPct(group.day_change_pct)}</span>
                       ) : null}
-                    </a>
+                    </Link>
                   </React.Fragment>
                 ))}
                 .
@@ -441,9 +447,9 @@ export function BriefingView({
                 {reportedOnly.map((group, index) => (
                   <React.Fragment key={group.key}>
                     {index > 0 ? (index === reportedOnly.length - 1 ? " and " : ", ") : null}
-                    <a href={`/stock/${encodeURIComponent(group.ticker as string)}`} className="oa-mono font-semibold text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
+                    <Link prefetch={false} href={`/stock/${encodeURIComponent(group.ticker as string)}`} className="oa-mono font-semibold text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
                       {group.ticker}
-                    </a>
+                    </Link>
                   </React.Fragment>
                 ))}
                 .
@@ -484,14 +490,17 @@ export function BriefingView({
                   <ul className="grid grid-cols-2 gap-x-4 gap-y-0.5 sm:grid-cols-3">
                     {briefing.quiet.names.map((name) => (
                       <li key={name.ticker}>
-                        <a href={`/stock/${name.ticker}`} className="flex items-baseline justify-between gap-2 rounded px-1 py-1 text-[13px] leading-5 hover:bg-oa-accent">
-                          <span className="oa-mono font-semibold text-oa-fg">{name.ticker}</span>
+                        <Link prefetch={false} href={`/stock/${name.ticker}`} className="flex items-center justify-between gap-2 rounded px-1 py-1 text-[13px] leading-5 hover:bg-oa-accent">
+                          <span className="oa-mono inline-flex items-center gap-1.5 font-semibold text-oa-fg">
+                            <StockLogo ticker={name.ticker} size={16} />
+                            {name.ticker}
+                          </span>
                           {name.day_change_pct != null ? (
                             <span className={`oa-mono tabular-nums ${name.day_change_pct >= 0 ? "text-signal-bullish" : "text-signal-bearish"}`}>
                               {signedPct(name.day_change_pct)}
                             </span>
                           ) : null}
-                        </a>
+                        </Link>
                       </li>
                     ))}
                   </ul>
@@ -560,9 +569,9 @@ export function BriefingView({
             <p className="px-4 py-3 text-[14px] leading-5 text-oa-muted-fg">Market data is not available right now.</p>
           ) : null}
           <div className="flex min-h-10 items-center justify-end px-4 py-1">
-            <a href="/movers" className="-my-2 inline-flex min-h-10 items-center text-[13px] font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
+            <Link prefetch={false} href="/movers" className="-my-2 inline-flex min-h-10 items-center text-[13px] font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
               See all stock moves
-            </a>
+            </Link>
           </div>
         </section>
         ) : null}
@@ -577,10 +586,10 @@ export function BriefingView({
             <ul className="pb-1">
               {TODAY_PAGES.map((page) => (
                 <li key={page.href}>
-                  <a href={page.href} className="group block px-4 py-2 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent">
+                  <AppLink href={page.href} className="group block px-4 py-2 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent">
                     <span className="block text-[14px] font-medium leading-5 text-oa-fg group-hover:underline">{page.title} →</span>
                     <span className="block text-pretty text-[13px] leading-[18px] text-oa-muted-fg">{page.line}</span>
-                  </a>
+                  </AppLink>
                 </li>
               ))}
             </ul>
@@ -589,9 +598,9 @@ export function BriefingView({
 
         <p className="px-2 text-[12.5px] leading-5 text-oa-muted-fg sm:px-1">
           Want a heads-up when a stock hits a price, files a report or nears earnings?{" "}
-          <a href="/agents" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
+          <Link prefetch={false} href="/agents" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
             Set up an agent
-          </a>{" "}
+          </Link>{" "}
           and it will report here every market day.
         </p>
       </aside>

@@ -8,6 +8,7 @@ import { useState } from "react";
 import { MarkSlot } from "@/components/oa/kit/tone";
 import { CARD, EmptyNote, FOCUS, NUM, Pct, SectionTitle } from "@/components/portfolio/parts";
 import { PreferenceToggle } from "@/components/preference-toggle";
+import { StockLogo } from "@/components/stock-logo";
 import { createStockAlert, deleteStockAlert } from "@/lib/create-alert";
 import { limitFor } from "@/lib/entitlements";
 import { fmtDay, fmtMoney, type PortfolioPosition } from "@/lib/portfolio-shared";
@@ -152,8 +153,9 @@ export function AlertsTab({
                   ? ((alert.target_price - price) / price) * 100
                   : null;
               return (
-                <li key={alert.id} className="grid min-h-11 grid-cols-[4.5rem_minmax(0,1fr)_auto] items-center gap-x-3 px-3 py-1.5">
-                  <Link href={`/stock/${alert.ticker}`} className="oa-mono text-[13px] font-medium text-oa-fg hover:underline">
+                <li key={alert.id} className="grid min-h-11 grid-cols-[5.75rem_minmax(0,1fr)_auto] items-center gap-x-3 px-3 py-1.5">
+                  <Link href={`/stock/${alert.ticker}`} className="oa-mono inline-flex items-center gap-1.5 text-[13px] font-medium text-oa-fg hover:underline">
+                    <StockLogo ticker={alert.ticker} size={18} />
                     {alert.ticker}
                   </Link>
                   <div className="min-w-0">
@@ -251,8 +253,11 @@ export function AlertsTab({
             <ul className="divide-y divide-oa-border">
               {inZone.map((position) => (
                 <li key={position.instrument_id}>
-                  <Link href={`/stock/${position.ticker}`} className="grid min-h-10 grid-cols-[4.5rem_minmax(0,1fr)_auto] items-center gap-x-3 px-3 py-1.5 hover:bg-oa-accent">
-                    <span className="oa-mono text-[13px] font-medium text-oa-fg">{position.ticker}</span>
+                  <Link href={`/stock/${position.ticker}`} className="grid min-h-10 grid-cols-[5.75rem_minmax(0,1fr)_auto] items-center gap-x-3 px-3 py-1.5 hover:bg-oa-accent">
+                    <span className="oa-mono inline-flex items-center gap-1.5 text-[13px] font-medium text-oa-fg">
+                      <StockLogo ticker={position.ticker} size={18} />
+                      {position.ticker}
+                    </span>
                     <span className="truncate text-[13px] text-oa-fg">
                       <span>{plainCallWord(position.stance)}</span>
                       {position.zone ? <span className="text-oa-muted-fg"> · {position.zone.label}</span> : null}
@@ -273,8 +278,11 @@ export function AlertsTab({
             <ul className="divide-y divide-oa-border">
               {signals.slice(0, 12).map((signal, index) => (
                 <li key={`${signal.ticker}-${index}`}>
-                  <Link href={`/stock/${signal.ticker}`} className="grid min-h-10 grid-cols-[4.5rem_minmax(0,1fr)] items-start gap-x-3 px-3 py-2 hover:bg-oa-accent">
-                    <span className="oa-mono text-[13px] font-medium text-oa-fg">{signal.ticker}</span>
+                  <Link href={`/stock/${signal.ticker}`} className="grid min-h-10 grid-cols-[5.75rem_minmax(0,1fr)] items-start gap-x-3 px-3 py-2 hover:bg-oa-accent">
+                    <span className="oa-mono inline-flex items-center gap-1.5 text-[13px] font-medium leading-5 text-oa-fg">
+                      <StockLogo ticker={signal.ticker} size={18} />
+                      {signal.ticker}
+                    </span>
                     <span className="min-w-0 text-[13px] leading-5 text-oa-fg">
                       {/* The words stay in normal ink; the mark in front says good or bad for the stock, in a fixed slot so the titles line up. */}
                       <MarkSlot tone={signal.tone === "bull" ? "up" : signal.tone === "bear" ? "down" : null} className="mr-1.5 -mt-px align-middle" />

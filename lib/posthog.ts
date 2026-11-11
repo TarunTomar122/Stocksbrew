@@ -1,6 +1,6 @@
 "use client";
 
-import posthog from "posthog-js";
+import type { PostHog } from "posthog-js";
 
 import {
   ANALYTICS_DEBUG_KEY,
@@ -18,6 +18,11 @@ import {
  * the server. Only the production site sends (lib/analytics-env.ts); with
  * localStorage `sb_analytics_debug=1` any environment prints events to the
  * console instead, which is how tracking is tested locally.
+ *
+ * posthog-js itself (about 60KB) is not in any page's first load: it is
+ * imported once the browser is idle or the visitor first interacts
+ * (loadPostHog). Calls made before then wait in a queue, in order, and
+ * captures keep the time they happened.
  */
 
 type Mode = "idle" | "live" | "debug" | "off";
@@ -28,6 +33,19 @@ let environment: AnalyticsEnvironment = "dev";
 let debugIdentified = false;
 /** Super properties, mirrored here so debug mode prints what production would send. */
 const superProps: Record<string, unknown> = {};
+
+/** The loaded client, once posthog-js has arrived and been initialised. */
+let client: PostHog | null = null;
+/** Calls made in live mode before the client arrived, run in order once it does. */
+let queue: Array<(ph: PostHog) => void> = [];
+let loading: Promise<void> | null = null;
+let loadScheduled = false;
+/** posthog-js could not be loaded (blocked or offline): PostHog calls are dropped, GA4 events still go. */
+let loadFailed = false;
+/** Set by initPostHog in live mode: the options posthog.init gets once the library has loaded. */
+let pendingInit: { key: string; base: Record<string, unknown> } | null = null;
+/** A queue cap, so a page that never goes idle cannot grow it without bound. */
+const MAX_QUEUED = 200;
 
 /** PostHog's own events that carry clicked or copied element text (`$el_text`, `$elements`). */
 const ELEMENT_TEXT_EVENTS = new Set(["$autocapture", "$rageclick", "$dead_click", "$copy_autocapture"]);
@@ -99,8 +117,99 @@ export function compactProps(properties?: Record<string, unknown>): Record<strin
   return Object.fromEntries(Object.entries(properties).filter(([, value]) => value !== undefined));
 }
 
-export function initPostHog() {
-  if (typeof window === "undefined" || mode !== "idle") return posthog;
+function posthogConfig(base: Record<string, unknown>) {
+  return {
+    api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com",
+    person_profiles: "identified_only" as const,
+    autocapture: true,
+    // $pageview is sent by components/posthog-pageview.tsx on every app-router navigation.
+    capture_pageview: false,
+    capture_pageleave: true,
+    // window.onerror and unhandled rejections arrive as $exception.
+    capture_exceptions: true,
+    // Replay (switched on in the project settings) never records typed
+    // input, and masks all text on portfolio and account pages.
+    session_recording: {
+      maskAllInputs: true,
+      maskTextSelector: "*",
+      maskTextFn: (text: string) => maskReplayText(text, window.location.pathname),
+    },
+    // Autocaptured clicks (and rage/dead clicks, copies) carry the element's
+    // text, which on a portfolio page can be a value or a share count: drop them there.
+    before_send: (event: { event: string } | null) =>
+      event && ELEMENT_TEXT_EVENTS.has(event.event) && isPrivatePath(window.location.pathname) ? null : event,
+    loaded: (loaded: PostHog) => {
+      loaded.register(base);
+    },
+  };
+}
+
+/**
+ * Import and start posthog-js now, then run every queued call. Safe to call
+ * any number of times; does nothing unless this page sends events.
+ */
+export function loadPostHog(): Promise<void> {
+  if (loading) return loading;
+  const init = pendingInit;
+  if (!init) return Promise.resolve();
+  loading = import("posthog-js")
+    .then(({ default: ph }) => {
+      // The config's callback parameter types are narrower than posthog-js's own; the shape is the documented one.
+      ph.init(init.key, posthogConfig(init.base) as unknown as Parameters<PostHog["init"]>[1]);
+      client = ph;
+      const waiting = queue;
+      queue = [];
+      for (const call of waiting) {
+        try {
+          call(ph);
+        } catch {
+          // one bad call must not drop the rest
+        }
+      }
+    })
+    .catch(() => {
+      // Blocked by an extension or offline: stop queueing, the page carries on without PostHog.
+      loadFailed = true;
+      queue = [];
+    });
+  return loading;
+}
+
+/** Start loading when the browser is idle, or at the first interaction, whichever comes first. */
+function scheduleLoad() {
+  if (loadScheduled || typeof window === "undefined") return;
+  loadScheduled = true;
+  const start = () => {
+    void loadPostHog();
+  };
+  try {
+    const events = ["pointerdown", "keydown", "scroll"] as const;
+    const onFirst = () => {
+      for (const name of events) window.removeEventListener(name, onFirst, true);
+      start();
+    };
+    for (const name of events) window.addEventListener(name, onFirst, { capture: true, passive: true, once: true });
+    const idle = (window as Window & { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number }).requestIdleCallback;
+    if (typeof idle === "function") idle.call(window, start, { timeout: 4000 });
+    else setTimeout(start, 2000);
+  } catch {
+    setTimeout(start, 2000);
+  }
+}
+
+/** Run a call against PostHog now if it is loaded, or once it is. Live mode only. */
+function withPostHog(call: (ph: PostHog) => void) {
+  if (loadFailed) return;
+  if (client) {
+    call(client);
+    return;
+  }
+  if (queue.length < MAX_QUEUED) queue.push(call);
+  scheduleLoad();
+}
+
+export function initPostHog(): void {
+  if (typeof window === "undefined" || mode !== "idle") return;
   try {
     environment = analyticsEnvironment({
       hostname: window.location.hostname,
@@ -115,37 +224,15 @@ export function initPostHog() {
     };
     Object.assign(superProps, base);
     if (shouldSendClientEvents(environment, key)) {
-      posthog.init(key as string, {
-        api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com",
-        person_profiles: "identified_only",
-        autocapture: true,
-        // $pageview is sent by components/posthog-pageview.tsx on every app-router navigation.
-        capture_pageview: false,
-        capture_pageleave: true,
-        // window.onerror and unhandled rejections arrive as $exception.
-        capture_exceptions: true,
-        // Replay (switched on in the project settings) never records typed
-        // input, and masks all text on portfolio and account pages.
-        session_recording: {
-          maskAllInputs: true,
-          maskTextSelector: "*",
-          maskTextFn: (text) => maskReplayText(text, window.location.pathname),
-        },
-        // Autocaptured clicks (and rage/dead clicks, copies) carry the element's
-        // text, which on a portfolio page can be a value or a share count: drop them there.
-        before_send: (event) => (event && ELEMENT_TEXT_EVENTS.has(event.event) && isPrivatePath(window.location.pathname) ? null : event),
-        loaded: (client) => {
-          client.register(base);
-        },
-      });
+      pendingInit = { key: key as string, base };
       mode = "live";
+      scheduleLoad();
     } else {
       mode = readDebugFlag() ? "debug" : "off";
     }
   } catch {
     mode = "off";
   }
-  return posthog;
 }
 
 /** Which environment this page counts as; "dev" before init. */
@@ -166,8 +253,13 @@ export function captureEvent(name: string, properties?: Record<string, unknown>)
   try {
     initPostHog();
     const props = compactProps(properties);
-    if (mode === "live") posthog.capture(name, props);
-    else if (mode === "debug") debugLog("capture", name, props);
+    if (mode === "live") {
+      // Queued captures keep the moment they happened, not the moment PostHog arrived.
+      const timestamp = new Date();
+      withPostHog((ph) => {
+        ph.capture(name, props, { timestamp });
+      });
+    } else if (mode === "debug") debugLog("capture", name, props);
     else return;
 
     if (mode === "live") {
@@ -188,7 +280,7 @@ export function registerSuperProperties(properties: Record<string, string | numb
   try {
     initPostHog();
     Object.assign(superProps, properties);
-    if (mode === "live") posthog.register(properties);
+    if (mode === "live") withPostHog((ph) => ph.register(properties));
     else if (mode === "debug") debugLog("register", "super_properties", properties);
   } catch {
     // never throw from analytics
@@ -208,8 +300,10 @@ export function identifyUser(
     initPostHog();
     const props = compactProps(properties);
     if (mode === "live") {
-      if (posthog.get_distinct_id() !== distinctId) posthog.identify(distinctId, props);
-      else if (Object.keys(props).length > 0) posthog.setPersonProperties(props);
+      withPostHog((ph) => {
+        if (ph.get_distinct_id() !== distinctId) ph.identify(distinctId, props);
+        else if (Object.keys(props).length > 0) ph.setPersonProperties(props);
+      });
     } else if (mode === "debug") {
       if (!debugIdentified) debugLog("identify", distinctId, props);
       debugIdentified = true;
@@ -229,20 +323,27 @@ export function resetAnalyticsIfIdentified() {
   if (typeof window === "undefined") return;
   try {
     initPostHog();
-    const identified = mode === "live" ? posthog.get_property("$user_state") === "identified" : debugIdentified;
-    if (!identified) return;
-    debugIdentified = false;
-    for (const key of Object.keys(superProps)) {
-      if (key !== "$environment" && key !== "app_version") delete superProps[key];
-    }
     if (mode === "live") {
-      posthog.reset();
-      posthog.register({ $environment: superProps.$environment, app_version: superProps.app_version });
-    } else if (mode === "debug") {
+      // Whether PostHog holds an identified person is only known once it has loaded.
+      withPostHog((ph) => {
+        if (ph.get_property("$user_state") !== "identified") return;
+        clearUserSuperProps();
+        ph.reset();
+        ph.register({ $environment: superProps.$environment, app_version: superProps.app_version });
+      });
+    } else if (mode === "debug" && debugIdentified) {
+      debugIdentified = false;
+      clearUserSuperProps();
       debugLog("reset", "analytics");
     }
   } catch {
     // never throw from analytics
+  }
+}
+
+function clearUserSuperProps() {
+  for (const key of Object.keys(superProps)) {
+    if (key !== "$environment" && key !== "app_version") delete superProps[key];
   }
 }
 
@@ -251,11 +352,13 @@ export function captureError(error: unknown, properties?: Record<string, unknown
   if (typeof window === "undefined") return;
   try {
     initPostHog();
-    if (mode === "live") posthog.captureException(error, compactProps(properties));
+    if (mode === "live") {
+      const props = compactProps(properties);
+      withPostHog((ph) => ph.captureException(error, props));
+    }
     else if (mode === "debug") debugLog("exception", error instanceof Error ? error.message : String(error), properties);
   } catch {
     // never throw from analytics
   }
 }
 
-export { posthog };

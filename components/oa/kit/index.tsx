@@ -8,6 +8,7 @@ import { StockLogo } from "@/components/stock-logo";
 import { shortCompanyName } from "@/lib/plain-copy";
 
 import { PAGE_PAD, PAGE_PAD_PROSE } from "./skeleton";
+import { AppLink } from "@/components/oa/app-link";
 
 /**
  * The page kit. Every app page is assembled from these so the product reads
@@ -673,13 +674,13 @@ export function StreamRow({
   shortTime?: boolean;
 }) {
   const heading = href ? (
-    <a
+    <AppLink
       href={href}
       {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
       className={`rounded hover:underline ${FOCUS}`}
     >
       {title}
-    </a>
+    </AppLink>
   ) : (
     title
   );

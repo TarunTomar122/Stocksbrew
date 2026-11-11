@@ -422,3 +422,22 @@ export function trackImportSaved(props: { surface: ImportSurface; added: number;
 export function trackThesisSaved(props: { count: number; kinds: string[]; with_text: number; asked: number }) {
   captureEvent("thesis_saved", { count: props.count, kinds: props.kinds.slice(0, 12).join(","), with_text: props.with_text, asked: props.asked });
 }
+
+/* ── full research (components/research) ────────────────────────────────── */
+
+export type ResearchSurface = "research_page";
+
+/** Someone pressed "Get the full research". The ticker is a stock lookup, never personal. */
+export function trackResearchStarted(props: { ticker: string; surface: ResearchSurface; again: boolean }) {
+  captureEvent("research_started", { ...props, page: currentArea() });
+}
+
+/** The report was saved. `seconds` is wall time; `removed` is how many sentences the numbers check took out. */
+export function trackResearchCompleted(props: { ticker: string; seconds: number; removed: number }) {
+  captureEvent("research_completed", { ...props, page: currentArea() });
+}
+
+/** The run stopped or was refused. `code` is the API's (limit, running, write_failed, no_evidence, network...). */
+export function trackResearchFailed(props: { ticker: string; code: string; step?: string | null }) {
+  captureEvent("research_failed", { ticker: props.ticker, code: props.code.slice(0, 40), step: props.step ?? null, page: currentArea() });
+}

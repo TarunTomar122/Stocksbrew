@@ -2,7 +2,8 @@ import { notFound } from "next/navigation";
 
 import { canSeeLevels, coveredSlotsLeft, getViewer } from "@/lib/entitlements-server";
 import { redactLevels } from "@/lib/entitlements";
-import { LockedAiBrief } from "@/components/locked-ai-brief";
+// Split into its own chunk: it only shows on a stock that has no brief yet.
+import { LockedAiBriefLazy as LockedAiBrief } from "@/components/locked-ai-brief-lazy";
 import { StockPageSchema } from "@/components/seo/stock-page-schema";
 import { StockPageAnalytics } from "@/components/stock-page-analytics";
 import { StockReport } from "@/components/stock-report/report";
@@ -50,7 +51,7 @@ import { isWithinPreEarningsWindow, shouldShowPreEarningsIntel } from "@/lib/pre
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { normalizeDirectiveForUi } from "@/lib/directive-ui";
 import { getLivePremarketQuote, getPremarketMovers } from "@/lib/premarket";
-import { isFeaturedStockTicker, stockSeoDescription } from "@/lib/seo/stock-pages";
+import { stockSeoDescription } from "@/lib/seo/stock-pages";
 import {
   buildChartRanges,
   callChanges,
@@ -65,7 +66,7 @@ import {
   getStockLongSeries,
   getStockSnapshotHistory,
 } from "@/lib/stock-events";
-import { getFollowSources } from "@/lib/follow";
+import { getFollowSlugs } from "@/lib/follow";
 import { getStockOwnership } from "@/lib/stock-ownership";
 import { CALL_PLAIN, wholeSentences } from "@/lib/plain-copy";
 import { buildStockRead, readLooksBroken } from "@/lib/stock-read";
@@ -74,7 +75,7 @@ import { buildStockRead as buildStockInsightRead } from "@/lib/stock-insights";
 import { getGroupMove, getMarketDay, getStockGroup } from "@/lib/insight-data";
 import { etDay, fin } from "@/lib/insight-format";
 import { getDailySeries } from "@/lib/screener-series";
-import { getScreenerRows, getScreenerSnapshot } from "@/lib/screener";
+import { getScreenerSymbolContext } from "@/lib/screener";
 
 export const revalidate = 60;
 
@@ -189,40 +190,75 @@ export async function StockPageStream({ params }: Props) {
     );
   }
 
-  const session = await sessionPromise;
-  const userDoc = session ? await getUserDoc(session.uid).catch(() => null) : null;
-  const tracked = Array.isArray(userDoc?.tracked_stocks)
-    ? userDoc.tracked_stocks.filter((id): id is string => typeof id === "string")
-    : [];
-  const subscribed = resolveIsSubscribed(userDoc);
-  const isFeaturedStock = isFeaturedStockTicker(stock.ticker);
-  // Reading is free: facts, the call and the written brief are open on every
-  // stock, for every reader. What a plan changes is the levels (price zones,
-  // target, what would change the call, the pre-earnings read): Pro sees them
-  // everywhere, Free on the stocks its agent covers, and everyone on the
-  // showcase stocks. See lib/entitlements.ts.
-  const hasFullAnalysisAccess = true;
-  const viewer = await getViewer();
-  const hasLevels = canSeeLevels(viewer, stock.instrument_id);
-  const currency = currencySymbolFor(stock.instrument_id.split("_", 1)[0]);
-  const tier = resolveStockTier(stock.instrument_id, tracked);
-  const isTracked = tracked.includes(stock.instrument_id);
-  const shouldLoadAI = hasFullAnalysisAccess;
+  // Every read below starts now and runs side by side; each later step waits only for the reads it needs,
+  // never for the slowest of a whole round. Anything that fails degrades to "no data".
   const isUS = market === "US";
+  const viewerPromise = getViewer();
+  const userDocPromise = sessionPromise.then((session) => (session ? getUserDoc(session.uid).catch(() => null) : null));
+  const viewPromise = getStockPageView(market, stock.instrument_id).catch(() => null);
+  const instrumentMetaPromise = getInstrument(stock.instrument_id).catch(() => null);
+  const resolvedViewPromise = viewPromise.then((view) => resolveStockPageViewSections(view, Date.now(), stock.instrument_id));
 
-  // The read's baselines (stored closes for the stock and SPY, SPY's live move, the stock's group), started
-  // now so they load alongside everything else. US only: SPY is the wrong yardstick for an Indian stock.
+  // Sections the stored page view lacks (or holds stale) are read from their own documents.
+  const intelligenceDirectPromise = resolvedViewPromise.then(({ directNeeded }) =>
+    directNeeded.intelligence ? getStockIntelligenceDoc(stock.instrument_id, market).catch(() => null) : null,
+  );
+  const instrumentViewDirectPromise = resolvedViewPromise.then(({ directNeeded }) =>
+    directNeeded.instrument_view ? getInstrumentViewDoc(stock.instrument_id, market).catch(() => null) : null,
+  );
+  const intelProDirectPromise = resolvedViewPromise.then(({ directNeeded }) =>
+    directNeeded.intel_pro ? getStockIntelPro(stock.instrument_id, market).catch(() => null) : null,
+  );
+  // The pre-earnings read is fetched whatever the plan, so this batch need not wait for the viewer; it is
+  // dropped below unless the viewer may see levels on this stock, so it never reaches anyone else's browser.
+  const docBundlePromise = resolvedViewPromise.then(({ directNeeded }) =>
+    getStockPageDocBundle(market, stock.instrument_id, stock.ticker, {
+      facts: directNeeded.facts,
+      technicals: directNeeded.technicals,
+      onDemandJob: true,
+      earningsIntel: directNeeded.earnings_intel,
+      preEarnings: directNeeded.pre_earnings,
+    }).catch(() => null),
+  );
+  const intelProPromise = Promise.all([resolvedViewPromise, intelProDirectPromise]).then(
+    ([resolved, direct]) => resolved.sections.intel_pro ?? direct,
+  );
+  const instrumentViewPromise = Promise.all([resolvedViewPromise, instrumentViewDirectPromise]).then(
+    ([resolved, direct]) => resolved.sections.instrument_view ?? direct,
+  );
+  const technicalsPromise = Promise.all([resolvedViewPromise, docBundlePromise]).then(
+    ([resolved, bundle]) =>
+      resolved.sections.technicals ?? bundle?.technicals ?? getLatestTechnicals(stock.instrument_id).catch(() => null),
+  );
+  // Ranking is cached; quote and comparison fields are enriched from the
+  // latest price/facts docs on each render. Never trust backfilled peer rows.
+  // Starts as soon as the sector is known, alongside the reads above.
+  const sectorPeersPromise = Promise.all([intelProPromise, instrumentMetaPromise]).then(async ([intelPro, instrumentMeta]) => {
+    const ranked = await getSectorPeersForStock(stock.instrument_id, market, intelPro, instrumentMeta, 12).catch(
+      () => [] as SectorPeerRow[],
+    );
+    if (ranked.length > 0) return ranked.slice(0, 8);
+    const instrumentView = await instrumentViewPromise;
+    return enrichRelatedTickersForComparison(stock.instrument_id, market, instrumentView?.related_tickers ?? []).catch(
+      () => [] as SectorPeerRow[],
+    );
+  });
+  // This company's own slice of the screener snapshot: the reason under the call and its as-of day (US only).
+  const screenerContextPromise = isUS ? getScreenerSymbolContext(stock.ticker).catch(() => null) : Promise.resolve(null);
+  // The read's baselines (stored closes for the stock and SPY, SPY's live move, the stock's group's move).
+  // US only: SPY is the wrong yardstick for an Indian stock.
+  const quoteDay = etDay(stock.captured_at);
   const insightBasePromise = isUS
     ? Promise.all([
         getDailySeries([stock.ticker, "SPY"]).catch(() => null),
         getMarketDay(),
-        getStockGroup(stock.ticker).catch(() => null),
+        getStockGroup(stock.ticker)
+          .catch(() => null)
+          .then((group) => (group ? getGroupMove(group.kind, group.name, quoteDay, stock.ticker).catch(() => null) : null)),
       ])
     : Promise.resolve(null);
 
-  // One round of reads, all cached. Anything that fails degrades to "no data".
   const [
-    view,
     instrumentMeta,
     snapshotHistory,
     longSeries,
@@ -237,10 +273,9 @@ export async function StockPageStream({ params }: Props) {
     congressTrades,
     callHistory,
     ownership,
-    followSources,
+    followSlugs,
   ] = await Promise.all([
-    getStockPageView(market, stock.instrument_id).catch(() => null),
-    getInstrument(stock.instrument_id).catch(() => null),
+    instrumentMetaPromise,
     getStockSnapshotHistory(stock.instrument_id).catch(() => ({ closes: [], multiple: null })),
     isUS ? getStockLongSeries(stock.ticker).catch(() => null) : Promise.resolve(null),
     getMarketMovers(market).catch(() => null),
@@ -252,49 +287,56 @@ export async function StockPageStream({ params }: Props) {
     getNewsForTicker(market, stock.ticker, { days: 14, limit: 14 }).catch(() => []),
     isUS ? getPremarketMovers(market).catch(() => null) : Promise.resolve(null),
     isUS ? getStockCongressTrades(stock.ticker).catch(() => []) : Promise.resolve(null),
-    hasFullAnalysisAccess ? getStockCallHistory(stock.instrument_id).catch(() => []) : Promise.resolve([]),
+    getStockCallHistory(stock.instrument_id).catch(() => []),
     getStockOwnership(stock.ticker, market).catch(() => ({ funds: null, insiders: null })),
-    isUS ? getFollowSources().catch(() => []) : Promise.resolve([]),
+    // Only the slugs: whether a member of Congress has a Follow page to link.
+    isUS ? getFollowSlugs().catch(() => [] as string[]) : Promise.resolve([] as string[]),
   ]);
-  const followSlugs = followSources.map((source) => source.slug);
+  const [
+    viewer,
+    userDoc,
+    { sections: viewSections },
+    intelligenceDirect,
+    intelPro,
+    instrumentViewLoaded,
+    docBundle,
+    technicals,
+    sectorPeers,
+    screenerContext,
+    insightBase,
+  ] = await Promise.all([
+    viewerPromise,
+    userDocPromise,
+    resolvedViewPromise,
+    intelligenceDirectPromise,
+    intelProPromise,
+    instrumentViewPromise,
+    docBundlePromise,
+    technicalsPromise,
+    sectorPeersPromise,
+    screenerContextPromise,
+    insightBasePromise,
+  ]);
+  const tracked = Array.isArray(userDoc?.tracked_stocks)
+    ? userDoc.tracked_stocks.filter((id): id is string => typeof id === "string")
+    : [];
+  const subscribed = resolveIsSubscribed(userDoc);
+  // Reading is free: facts, the call and the written brief are open on every
+  // stock, for every reader. What a plan changes is the levels (price zones,
+  // target, what would change the call, the pre-earnings read): Pro sees them
+  // everywhere, Free on the stocks its agent covers, and everyone on the
+  // showcase stocks. See lib/entitlements.ts.
+  const hasFullAnalysisAccess = true;
+  const hasLevels = canSeeLevels(viewer, stock.instrument_id);
+  const currency = currencySymbolFor(stock.instrument_id.split("_", 1)[0]);
+  const tier = resolveStockTier(stock.instrument_id, tracked);
+  const isTracked = tracked.includes(stock.instrument_id);
+  const shouldLoadAI = hasFullAnalysisAccess;
   const congressHref = (personId: string) =>
     followSlugs.includes(personId) ? `/follow/${personId}` : "/follow?tab=congress";
 
-  const { sections: viewSections, directNeeded } = resolveStockPageViewSections(
-    view,
-    Date.now(),
-    stock.instrument_id,
-  );
-  const [intelligenceDirect, instrumentViewDirect, intelProDirect, docBundle, screenerRow] = await Promise.all([
-    directNeeded.intelligence
-      ? getStockIntelligenceDoc(stock.instrument_id, market).catch(() => null)
-      : Promise.resolve(null),
-    shouldLoadAI && directNeeded.instrument_view
-      ? getInstrumentViewDoc(stock.instrument_id, market).catch(() => null)
-      : Promise.resolve(null),
-    directNeeded.intel_pro
-      ? getStockIntelPro(stock.instrument_id, market).catch(() => null)
-      : Promise.resolve(null),
-    getStockPageDocBundle(market, stock.instrument_id, stock.ticker, {
-      facts: directNeeded.facts,
-      technicals: directNeeded.technicals,
-      onDemandJob: true,
-      earningsIntel: directNeeded.earnings_intel,
-      preEarnings: hasLevels && directNeeded.pre_earnings,
-    }).catch(() => null),
-    // The reason under the call, written from this company's own numbers (cached snapshot; US only).
-    market === "US"
-      ? getScreenerRows([stock.ticker]).then((rows) => rows.get(stock.ticker.toUpperCase()) ?? null).catch(() => null)
-      : Promise.resolve(null),
-  ]);
-
   const intelligence = viewSections.intelligence ?? intelligenceDirect;
-  const instrumentView = shouldLoadAI
-    ? viewSections.instrument_view ?? instrumentViewDirect
-    : null;
-  const intelPro = viewSections.intel_pro ?? intelProDirect;
-  const technicals =
-    viewSections.technicals ?? docBundle?.technicals ?? (await getLatestTechnicals(stock.instrument_id).catch(() => null));
+  const instrumentView = shouldLoadAI ? instrumentViewLoaded : null;
   const stockFacts = viewSections.facts ?? docBundle?.facts ?? null;
   const onDemandJob = docBundle?.onDemandJob ?? null;
   const earningsIntel = viewSections.earnings_intel ?? docBundle?.earningsIntel ?? null;
@@ -317,24 +359,6 @@ export async function StockPageStream({ params }: Props) {
     industry: decodeTextEntities(industryLabel || stock.industry || ""),
     description: stock.description ? decodeTextEntities(stock.description) : stock.description,
   };
-
-  // Ranking is cached; quote and comparison fields are enriched from the
-  // latest price/facts docs on each render. Never trust backfilled peer rows.
-  const sectorPeersRaw = await getSectorPeersForStock(
-    stock.instrument_id,
-    market,
-    intelPro,
-    instrumentMeta,
-    12,
-  ).catch(() => [] as SectorPeerRow[]);
-  const sectorPeers: SectorPeerRow[] =
-    sectorPeersRaw.length > 0
-      ? sectorPeersRaw.slice(0, 8)
-      : await enrichRelatedTickersForComparison(
-          stock.instrument_id,
-          market,
-          instrumentView?.related_tickers ?? [],
-        ).catch(() => []);
 
   const priorityIds = marketMovers?.priority_instrument_ids ?? [];
   const inPriorityCohort = priorityIds.includes(stock.instrument_id);
@@ -366,7 +390,8 @@ export async function StockPageStream({ params }: Props) {
 
   // ── the read ──────────────────────────────────────────────────────────────
   // The reason is rewritten every night from the latest numbers, so it can be newer than the call; its as-of goes with it.
-  const screenerAsOf = screenerRow?.call_reason ? ((await getScreenerSnapshot().catch(() => null))?.meta.price_history_to ?? null) : null;
+  const screenerRow = screenerContext ? screenerContext.row ?? screenerContext.extra : null;
+  const screenerAsOf = screenerRow?.call_reason ? screenerContext?.priceHistoryTo ?? null : null;
   const companyReason = screenerRow?.call_reason
     ? { text: screenerRow.call_reason, call: screenerRow.call ?? null, source: screenerRow.call_reason_source ?? null, asOf: screenerAsOf }
     : null;
@@ -512,10 +537,7 @@ export async function StockPageStream({ params }: Props) {
   });
 
   // ── the read at the top: plain rules over numbers already loaded ─────────
-  const insightBase = await insightBasePromise;
-  const quoteDay = etDay(stock.captured_at);
-  const groupRef = insightBase?.[2] ?? null;
-  const groupMove = groupRef ? await getGroupMove(groupRef.kind, groupRef.name, quoteDay, stock.ticker).catch(() => null) : null;
+  const groupMove = insightBase?.[2] ?? null;
   const marketDay = insightBase?.[1] ?? null;
   const dailySeries = insightBase?.[0]?.series ?? {};
   const lastChange = hasLevels ? [...changes].reverse().find((change) => change.from) ?? null : null;

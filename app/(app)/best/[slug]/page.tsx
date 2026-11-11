@@ -20,6 +20,8 @@ import { getBestListPage } from "@/lib/best-stocks-data";
 import { ogImage } from "@/lib/og/url";
 import { sectorSlug } from "@/lib/screener-shared";
 import { sectorHref } from "@/lib/seo/families";
+import Link from "next/link";
+import { AppLink } from "@/components/oa/app-link";
 
 /**
  * One "best stocks for X" list (/best/dividend-stocks-under-50): the rule in
@@ -79,7 +81,7 @@ export default async function BestListPage({ params }: Props) {
       <JsonLd data={breadcrumbLd([{ name: "Best stock lists", path: "/best" }, { name: list.heading, path }])} />
       {built.shown.length > 0 ? <JsonLd data={itemListLd(built)} /> : null}
       <PageHead
-        crumb={<a href="/best">Best stock lists</a>}
+        crumb={<Link prefetch={false} href="/best">Best stock lists</Link>}
         title={list.heading}
         meta={<SourceLine source="Prices and company data" asOf={closeDay} />}
         note={false}
@@ -119,19 +121,19 @@ export default async function BestListPage({ params }: Props) {
           <ul>
             {related.map((item) => (
               <li key={item.slug} className="border-b border-oa-border last:border-b-0">
-                <a
+                <AppLink
                   href={bestListHref(item.slug)}
                   className="flex items-center justify-between gap-3 px-4 py-2.5 text-[14px] text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent"
                 >
                   <span className="min-w-0 text-pretty">{item.heading}</span>
                   <span className="shrink-0 text-[12.5px] text-oa-muted-fg">{item.group}</span>
-                </a>
+                </AppLink>
               </li>
             ))}
             <li>
-              <a href="/best" className="block px-4 py-2.5 text-[14px] text-oa-primary outline-none hover:bg-oa-accent hover:underline focus-visible:bg-oa-accent">
+              <Link prefetch={false} href="/best" className="block px-4 py-2.5 text-[14px] text-oa-primary outline-none hover:bg-oa-accent hover:underline focus-visible:bg-oa-accent">
                 All lists →
-              </a>
+              </Link>
             </li>
           </ul>
         </Panel>
@@ -140,22 +142,22 @@ export default async function BestListPage({ params }: Props) {
             <ul>
               {sectorList.map(([sector, count]) => (
                 <li key={sector} className="border-b border-oa-border last:border-b-0">
-                  <a
+                  <Link prefetch={false}
                     href={sectorHref(sectorSlug(sector))}
                     className="flex items-center justify-between gap-3 px-4 py-2.5 text-[14px] text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent"
                   >
                     <span className="min-w-0 text-pretty">{sector} stocks</span>
                     <span className={`${NUM} shrink-0 text-[12.5px] text-oa-muted-fg`}>{count} on this list</span>
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>
           ) : (
             <p className="px-4 py-3 text-[14px] text-oa-muted-fg">No stocks on this list today.</p>
           )}
-          <a href="/screener" className="oa-card-foot mt-auto block border-t border-oa-border px-4 py-2.5 text-[14px] text-oa-primary outline-none hover:bg-oa-accent hover:underline focus-visible:bg-oa-accent">
+          <Link prefetch={false} href="/screener" className="oa-card-foot mt-auto block border-t border-oa-border px-4 py-2.5 text-[14px] text-oa-primary outline-none hover:bg-oa-accent hover:underline focus-visible:bg-oa-accent">
             Build your own screen →
-          </a>
+          </Link>
         </Panel>
       </CardGrid>
 

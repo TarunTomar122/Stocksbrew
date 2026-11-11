@@ -7,6 +7,7 @@ import { FOCUS, PageHead } from "@/components/oa/kit";
 import { SECTIONS, getSection, guideHref, guidesIn, readingMinutes } from "@/lib/docs";
 import { SITE_URL } from "@/lib/docs/site";
 import { ogImage } from "@/lib/og/url";
+import Link from "next/link";
 
 type Props = { params: { section: string } };
 
@@ -59,31 +60,31 @@ export default function DocsSectionPage({ params }: Props) {
       <ol className="oa-surface border border-oa-border bg-oa-card">
         {guides.map((guide, guideIndex) => (
           <li key={guide.slug} className="border-b border-oa-border last:border-b-0">
-            <a href={guideHref(guide)} className={`group grid grid-cols-[2.25rem_minmax(0,1fr)_auto] gap-x-2 px-4 py-3 hover:bg-oa-accent ${FOCUS}`}>
+            <Link prefetch={false} href={guideHref(guide)} className={`group grid grid-cols-[2.25rem_minmax(0,1fr)_auto] gap-x-2 px-4 py-3 hover:bg-oa-accent ${FOCUS}`}>
               <span className="oa-mono pt-0.5 text-[13px] tabular-nums text-oa-label">{String(guideIndex + 1).padStart(2, "0")}</span>
               <span className="min-w-0">
                 <span className="block text-[16px] font-medium leading-6 text-oa-fg group-hover:underline">{guide.title}</span>
                 <span className="mt-0.5 block text-pretty text-[14px] leading-5 text-oa-muted-fg">{guide.summary}</span>
               </span>
               <span className="oa-mono pt-1 text-[11.5px] tabular-nums text-oa-muted-fg">{readingMinutes(guide)} min</span>
-            </a>
+            </Link>
           </li>
         ))}
       </ol>
       <nav aria-label="Sections" className="mt-8 grid gap-3 sm:grid-cols-2">
         {prev ? (
-          <a href={`/docs/${prev.id}`} className={`oa-surface border border-oa-border bg-oa-card px-4 py-3 hover:bg-oa-accent ${FOCUS}`}>
+          <Link prefetch={false} href={`/docs/${prev.id}`} className={`oa-surface border border-oa-border bg-oa-card px-4 py-3 hover:bg-oa-accent ${FOCUS}`}>
             <span className="oa-caption block">Previous part</span>
             <span className="mt-0.5 block text-[15px] font-medium text-oa-fg">{prev.title}</span>
-          </a>
+          </Link>
         ) : (
           <span />
         )}
         {next ? (
-          <a href={`/docs/${next.id}`} className={`oa-surface border border-oa-border bg-oa-card px-4 py-3 text-right hover:bg-oa-accent ${FOCUS}`}>
+          <Link prefetch={false} href={`/docs/${next.id}`} className={`oa-surface border border-oa-border bg-oa-card px-4 py-3 text-right hover:bg-oa-accent ${FOCUS}`}>
             <span className="oa-caption block">Next part</span>
             <span className="mt-0.5 block text-[15px] font-medium text-oa-fg">{next.title}</span>
-          </a>
+          </Link>
         ) : null}
       </nav>
     </DocsShell>

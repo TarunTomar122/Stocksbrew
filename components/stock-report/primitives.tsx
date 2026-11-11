@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
-import { ToneGlyph } from "@/components/oa/kit";
+import { ToneGlyph } from "@/components/oa/kit/tone";
+import { AppLink } from "@/components/oa/app-link";
 
 /**
  * Building blocks for the stock report, in the brew system: paper cards with a
@@ -20,7 +21,8 @@ export const TONE_COLOR = {
 export type Tone = keyof typeof TONE_COLOR;
 
 // The good-or-bad cue lives in the shared kit so every page uses the same marks.
-export { MarkSlot, ToneGlyph, Verdict } from "@/components/oa/kit";
+// Imported from the kit's tone module (not its index) so client components can use these primitives too.
+export { MarkSlot, ToneGlyph, Verdict } from "@/components/oa/kit/tone";
 
 export type SectionId =
   | "overview"
@@ -208,7 +210,7 @@ export function Missing({ children, className = "" }: { children: ReactNode; cla
 /** Text link with the sliding arrow. */
 export function MoreLink({ href, children, external = false, className = "" }: { href: string; children: ReactNode; external?: boolean; className?: string }) {
   return (
-    <a
+    <AppLink
       href={href}
       {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
       className={`group/more inline-flex items-center gap-1 text-[13px] font-medium text-oa-primary outline-none hover:underline focus-visible:underline ${className}`}
@@ -217,7 +219,7 @@ export function MoreLink({ href, children, external = false, className = "" }: {
       <span aria-hidden="true" className="transition-transform duration-200 group-hover/more:translate-x-0.5">
         {external ? "↗" : "→"}
       </span>
-    </a>
+    </AppLink>
   );
 }
 
@@ -227,15 +229,18 @@ export function Details({
   children,
   className = "",
   track,
+  onToggle,
 }: {
   summary: ReactNode;
   children: ReactNode;
   className?: string;
   /** Sends `read_expanded` with this section when opened (lib/analytics-dom.ts). */
   track?: { section: string; ticker?: string };
+  /** Client components only: told when the reader opens or closes it. */
+  onToggle?: (open: boolean) => void;
 }) {
   return (
-    <details className={`group/details ${className}`}>
+    <details className={`group/details ${className}`} onToggle={onToggle ? (event) => onToggle(event.currentTarget.open) : undefined}>
       <summary
         data-track={track ? "read_expanded" : undefined}
         data-track-section={track?.section}

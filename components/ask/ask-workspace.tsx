@@ -14,6 +14,7 @@ import type { AskLimitReached } from "@/lib/ask-limits";
 import { getFirebaseAuth } from "@/lib/firebase-client";
 import { signInWithGoogle, syncServerSession } from "@/lib/sign-in";
 import { trackAskAnswerFailed, trackAskAnswerReceived, trackAskQuestionAsked, trackLimitHit } from "@/lib/product-analytics";
+import Link from "next/link";
 
 /**
  * The Ask copilot: a conversation where every tool result is drawn as a card
@@ -156,9 +157,9 @@ function LimitNotice({ limit, onSignIn }: { limit: AskLimitReached; onSignIn: ()
           </OaButton>
         ) : null}
         {limit.next_step === "upgrade" ? (
-          <a href="/pricing" className={`inline-flex h-8 items-center rounded-lg bg-oa-secondary px-3 text-sm font-medium text-oa-secondary-fg ${FOCUS}`}>
+          <Link prefetch={false} href="/pricing" className={`inline-flex h-8 items-center rounded-lg bg-oa-secondary px-3 text-sm font-medium text-oa-secondary-fg ${FOCUS}`}>
             See what Pro adds
-          </a>
+          </Link>
         ) : null}
       </div>
     </div>
@@ -395,7 +396,7 @@ export function AskWorkspace({
       }
       if (!signedIn || isError || isAbort) return;
       const id = conversationRef.current;
-      window.history.replaceState(null, "", `/ask?c=${id}`);
+      window.history.replaceState(window.history.state, "", `/ask?c=${id}`);
       // Saved from here, after the answer is on screen, so a slow write never delays the reply.
       void fetch("/api/ask/conversations", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id, messages: finished }) })
         .then((response) => (response.ok ? response.json() : null))
@@ -473,7 +474,7 @@ export function AskWorkspace({
     if (asked.current || !initialQuestion || initialConversation) return;
     asked.current = true;
     // Signed out, keep ?q= in the address so the reload after sign-in asks it.
-    if (plan !== "anonymous") window.history.replaceState(null, "", "/ask");
+    if (plan !== "anonymous") window.history.replaceState(window.history.state, "", "/ask");
     ask(initialQuestion, "link");
   }, [initialQuestion, initialConversation, ask, plan]);
 
@@ -497,7 +498,7 @@ export function AskWorkspace({
     setLimit(null);
     setProblem(null);
     setHistoryOpen(false);
-    window.history.replaceState(null, "", "/ask");
+    window.history.replaceState(window.history.state, "", "/ask");
     inputRef.current?.focus();
   };
 
@@ -514,7 +515,7 @@ export function AskWorkspace({
       scrollPending.current = true;
       setMessages(data.conversation.items);
       setConversationId(data.conversation.id);
-      window.history.replaceState(null, "", `/ask?c=${data.conversation.id}`);
+      window.history.replaceState(window.history.state, "", `/ask?c=${data.conversation.id}`);
     } catch {
       setProblem("That conversation could not be opened.");
     }

@@ -9,6 +9,7 @@ import { TheRead } from "@/components/oa/insight";
 import { interTight } from "@/components/oa/font";
 import { PageHead, PageNote } from "@/components/oa/kit";
 import { OaSiteHeader } from "@/components/oa/oa-site-header";
+import { StockLogo } from "@/components/stock-logo";
 import { PAGE_FRAME, RiskTag } from "@/components/strategies/shared";
 import { TrackStrategyButton } from "@/components/strategies/track-button";
 import { LockCard } from "@/components/oa/gate";
@@ -170,14 +171,18 @@ export default async function StrategyPage({ params }: { params: { slug: string 
               {!seesHoldings ? null : basket.holdings.length > 0 ? (
                 <ul className="divide-y divide-oa-border">
                   {basket.holdings.map((holding) => (
-                    <li key={holding.symbol} className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 px-3.5 py-2 hover:bg-oa-accent sm:grid-cols-[4rem_minmax(0,10rem)_minmax(0,1fr)_3rem] sm:items-baseline">
+                    <li key={holding.symbol} className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 px-3.5 py-2 hover:bg-oa-accent sm:grid-cols-[5.25rem_minmax(0,10rem)_minmax(0,1fr)_3rem] sm:items-baseline">
                       <span className="oa-mono text-[14px] font-medium text-oa-fg sm:order-1">
                         {stocks ? (
-                          <Link href={`/stock/${holding.symbol}`} className="hover:text-oa-primary">
+                          <Link href={`/stock/${holding.symbol}`} className="inline-flex items-center gap-1.5 align-middle hover:text-oa-primary">
+                            <StockLogo ticker={holding.symbol} size={18} />
                             {holding.symbol}
                           </Link>
                         ) : (
-                          holding.symbol
+                          <span className="inline-flex items-center gap-1.5 align-middle">
+                            <StockLogo ticker={holding.symbol} size={18} />
+                            {holding.symbol}
+                          </span>
                         )}
                         <span className="ml-2 font-sans text-[13px] font-normal text-oa-muted-fg sm:hidden">{holding.name}</span>
                       </span>
@@ -189,7 +194,7 @@ export default async function StrategyPage({ params }: { params: { slug: string 
                     </li>
                   ))}
                   {basket.cash_weight > 0.0005 ? (
-                    <li className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 px-3.5 py-2 sm:grid-cols-[4rem_minmax(0,10rem)_minmax(0,1fr)_3rem] sm:items-baseline">
+                    <li className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 px-3.5 py-2 sm:grid-cols-[5.25rem_minmax(0,10rem)_minmax(0,1fr)_3rem] sm:items-baseline">
                       <span className="oa-mono text-[14px] font-medium text-oa-fg sm:order-1">CASH</span>
                       <span className="oa-mono text-right text-[14px] tabular-nums text-oa-fg sm:order-4">{plainPct(basket.cash_weight)}</span>
                       <span className="hidden sm:order-2 sm:block" />

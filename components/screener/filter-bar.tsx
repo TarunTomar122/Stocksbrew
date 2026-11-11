@@ -31,6 +31,7 @@ import {
   type ScreenerView,
   type Zone,
 } from "@/lib/screener-shared";
+import { AppLink } from "@/components/oa/app-link";
 
 /**
  * The screener's controls. Every change is written to the URL, the server
@@ -522,8 +523,8 @@ export function ColumnPicker({ view, availableFields, zonesEverywhere }: { view:
 /** A plain link styled as a control, for server components that sit beside the menus. */
 export function ControlLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
-    <a href={href} className={CONTROL}>
+    <AppLink href={href} className={CONTROL}>
       {children}
-    </a>
+    </AppLink>
   );
 }

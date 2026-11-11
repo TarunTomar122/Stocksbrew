@@ -146,6 +146,79 @@ export function withLivePoint(ranges: ChartRange[], date: string | null | undefi
   });
 }
 
+// ─── Sending the ranges to the browser ───────────────────────────────────────
+
+/**
+ * The chart's ranges as one series. The ranges overlap (the last month is in
+ * every one of them), so each day is sent once: every day any range draws,
+ * oldest first, as day gaps and closes, and each range as the positions of
+ * its points in that series. About a quarter of the size of the ranges
+ * themselves; unpackChartRanges gives back exactly the same ranges.
+ */
+export type PackedChartRanges = {
+  /** The first day of the series. */
+  start: string;
+  /** Days from each point to the next, one fewer than `closes`. */
+  gaps: number[];
+  closes: number[];
+  ranges: Array<Omit<ChartRange, "points"> & { at: number[] }>;
+};
+
+function isoFromDayMs(ms: number): string {
+  return new Date(ms).toISOString().slice(0, 10);
+}
+
+/** Positions as their first value, then the step from each to the next. */
+function deltas(values: number[]): number[] {
+  return values.map((value, index) => (index === 0 ? value : value - values[index - 1]!));
+}
+
+function undelta(values: number[]): number[] {
+  const out: number[] = [];
+  let running = 0;
+  for (const value of values) {
+    running += value;
+    out.push(running);
+  }
+  return out;
+}
+
+export function packChartRanges(ranges: ReadonlyArray<ChartRange>): PackedChartRanges | null {
+  const closeByDay = new Map<string, number>();
+  for (const range of ranges) {
+    for (const point of range.points) {
+      if (!isIsoDay(point.date)) return null;
+      const known = closeByDay.get(point.date);
+      // Two ranges disagreeing on a day's close cannot share one series.
+      if (known !== undefined && known !== point.close) return null;
+      closeByDay.set(point.date, point.close);
+    }
+  }
+  const days = [...closeByDay.keys()].sort();
+  if (!days.length) return null;
+  const position = new Map(days.map((day, index) => [day, index]));
+  const dayNumbers = days.map((day) => dayMs(day) / 86_400_000);
+  return {
+    start: days[0]!,
+    gaps: dayNumbers.slice(1).map((value, index) => value - dayNumbers[index]!),
+    closes: days.map((day) => closeByDay.get(day)!),
+    ranges: ranges.map(({ points, ...rest }) => ({ ...rest, at: deltas(points.map((point) => position.get(point.date)!)) })),
+  };
+}
+
+export function unpackChartRanges(packed: PackedChartRanges): ChartRange[] {
+  let ms = dayMs(packed.start);
+  const days = [packed.start];
+  for (const gap of packed.gaps) {
+    ms += gap * 86_400_000;
+    days.push(isoFromDayMs(ms));
+  }
+  return packed.ranges.map(({ at, ...rest }) => ({
+    ...rest,
+    points: undelta(at).map((index) => ({ date: days[index]!, close: packed.closes[index]! })),
+  }));
+}
+
 // ─── Events on the chart ─────────────────────────────────────────────────────
 
 export type ChartEventKind = "call" | "earnings" | "congress" | "insider";

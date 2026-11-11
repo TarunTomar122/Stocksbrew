@@ -1,6 +1,8 @@
 import { AppChrome } from "@/components/oa/app-chrome";
 import { interTight } from "@/components/oa/font";
 import { AppPage, PageHead, Panel } from "@/components/oa/kit";
+import Link from "next/link";
+import { AppLink } from "@/components/oa/app-link";
 
 const PLACES: Array<{ href: string; label: string; what: string }> = [
   { href: "/briefing", label: "Briefing", what: "What moved today and what needs you" },
@@ -32,13 +34,13 @@ export default function NotFound() {
         <ul>
           {PLACES.map((place) => (
             <li key={place.href} className="border-b border-oa-border last:border-b-0">
-              <a href={place.href} className="group flex items-center justify-between gap-4 px-4 py-3 outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
+              <AppLink href={place.href} className="group flex items-center justify-between gap-4 px-4 py-3 outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
                 <span className="min-w-0">
                   <span className="block text-[15px] font-medium leading-[22px] text-oa-fg">{place.label}</span>
                   <span className="mt-0.5 block text-pretty text-[14px] leading-[20px] text-oa-muted-fg">{place.what}</span>
                 </span>
                 <span aria-hidden="true" className="shrink-0 text-[15px] text-oa-muted-fg group-hover:text-oa-primary">→</span>
-              </a>
+              </AppLink>
             </li>
           ))}
         </ul>
@@ -53,9 +55,9 @@ export default function NotFound() {
           llms.txt
         </a>
         {" · "}
-        <a href="/developers" className="underline decoration-oa-border underline-offset-2 hover:text-oa-fg">
+        <Link prefetch={false} href="/developers" className="underline decoration-oa-border underline-offset-2 hover:text-oa-fg">
           developers
-        </a>
+        </Link>
       </p>
     </AppPage>
     </>

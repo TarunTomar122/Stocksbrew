@@ -13,6 +13,7 @@ import {
   type PredictionMarket,
   type PredictionOutcome,
 } from "@/lib/markets-shared";
+import Link from "next/link";
 
 type SortKey = "order" | "probability" | "change" | "closes";
 
@@ -136,12 +137,12 @@ export function PredictionTable({ markets }: { markets: PredictionMarket[] }) {
                 return (
                   <tr key={market.id} className="group border-b border-oa-border last:border-b-0 hover:bg-oa-bg">
                     <th scope="row" className="max-w-[20rem] p-0 text-left font-normal">
-                      <a href={predictionHref(market)} className="flex min-h-12 flex-col justify-center px-3.5 py-1.5 outline-none focus-visible:bg-oa-accent">
+                      <Link prefetch={false} href={predictionHref(market)} className="flex min-h-12 flex-col justify-center px-3.5 py-1.5 outline-none focus-visible:bg-oa-accent">
                         <span className="text-[14px] font-medium leading-[18px] text-oa-fg">{market.question}</span>
                         <span className="oa-mono text-[12.5px] uppercase leading-4 tracking-[0.06em] text-oa-muted-fg">
                           {market.topic} · {market.source_name}
                         </span>
-                      </a>
+                      </Link>
                     </th>
                     <td className="w-[13rem] px-2.5">
                       <span className="flex flex-col gap-1">

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { AnimatedIcon } from "@/components/animated-icon";
+import { CssIcon } from "@/components/icons/css-icons";
 import { CountdownClock } from "@/components/countdown-clock";
 import {
   countdownTickMs,
@@ -149,14 +149,14 @@ export function MarketStatusTab({ nowIso }: { nowIso: string }) {
                     aria-label="One more thing"
                     className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-full border border-oa-border bg-oa-bg text-oa-fg transition-transform duration-200 hover:-translate-y-0.5 motion-reduce:transform-none active:translate-y-0"
                   >
-                    <AnimatedIcon name={iconName} size={22} />
+                    <CssIcon name={iconName} size={22} />
                   </button>
                 ) : (
                   <div
                     aria-hidden
                     className="grid size-11 shrink-0 place-items-center rounded-full border border-oa-border bg-oa-bg text-oa-fg"
                   >
-                    <AnimatedIcon name={iconName} size={22} />
+                    <CssIcon name={iconName} size={22} />
                   </div>
                 )}
 
@@ -193,7 +193,7 @@ export function MarketStatusTab({ nowIso }: { nowIso: string }) {
           aria-controls="market-status-panel"
           className="mx-auto flex h-11 cursor-pointer items-center gap-2.5 rounded-full border border-oa-border bg-oa-card px-3.5 text-[12.5px] font-medium text-oa-fg shadow-[0_10px_30px_rgba(15,23,42,0.16)] transition-transform duration-200 hover:-translate-y-0.5 motion-reduce:transform-none active:translate-y-0"
         >
-          <AnimatedIcon name={iconName} size={15} />
+          <CssIcon name={iconName} size={15} />
           <span>
             Market opens in <span className="oa-mono tabular-nums">{session.countdown}</span>
           </span>
@@ -273,7 +273,7 @@ export function MarketStatusInline({
             <span className="relative inline-flex size-2 rounded-full bg-oa-muted-fg" />
           )}
         </span>
-        <AnimatedIcon name={open ? "sun" : "sun-moon"} size={13} />
+        <CssIcon name={open ? "sun" : "sun-moon"} size={13} />
         {text}
       </span>
       <span id={`market-status-tip-${surface}`} role="tooltip" className="t-tt">

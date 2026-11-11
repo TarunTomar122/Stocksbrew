@@ -9,15 +9,12 @@ import { getSessionUser } from "@/lib/auth-server";
 import { loadExampleGoal, loadUserGoal, type GoalData } from "@/lib/goal/data";
 import { readInputs } from "@/lib/goal/inputs";
 import { getUserDoc } from "@/lib/watchlist";
+import { JsonLd } from "@/components/docs/json-ld";
+import { toolPageLd, toolPageMetadata } from "@/lib/seo/tool-pages";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Goal planner",
-  description:
-    "Will your portfolio reach your goal in time? Thousands of replays of actual monthly returns from your own holdings, with your monthly savings added, and the range of outcomes.",
-  alternates: { canonical: "/portfolio/goal" },
-};
+export const metadata: Metadata = toolPageMetadata("/portfolio/goal");
 
 const LEDE = "Will your holdings and monthly savings reach your goal in time? Thousands of replays of past returns since 2014.";
 
@@ -26,6 +23,7 @@ type SearchParams = Record<string, string | string[] | undefined>;
 export default async function GoalPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <AppPage>
+      <JsonLd data={toolPageLd("/portfolio/goal")} />
       <PageHead
         title="Goal planner"
         crumb={

@@ -13,15 +13,12 @@ import { loadExampleMemo, loadUserMemo, type MemoPageData } from "@/lib/memo/ser
 import { mondayOfKey } from "@/lib/memo/week";
 import { newYorkToday } from "@/lib/portfolio-data";
 import { getUserDoc } from "@/lib/watchlist";
+import { JsonLd } from "@/components/docs/json-ld";
+import { toolPageLd, toolPageMetadata } from "@/lib/seo/tool-pages";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Weekly memo on your portfolio",
-  description:
-    "A short weekly memo on your whole portfolio: how it did against the S&P 500 and why, what changed in your stocks, what could hurt and what is worth a look, each with a link to the evidence.",
-  alternates: { canonical: "/portfolio/memo" },
-};
+export const metadata: Metadata = toolPageMetadata("/portfolio/memo");
 
 const LEDE =
   "Once a week, a short memo on everything you hold: how it did against the S&P 500, what changed, what could hurt and what is worth a look.";
@@ -39,6 +36,7 @@ export default async function MemoPage({ searchParams }: { searchParams: Promise
   const session = await getSessionUser();
   return (
     <AppPage>
+      <JsonLd data={toolPageLd("/portfolio/memo")} />
       <PageHead
         title="Weekly memo"
         crumb={

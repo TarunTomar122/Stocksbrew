@@ -31,7 +31,8 @@ describe("agent access frontend launch surfaces", () => {
   it("publishes an indexable agent page without replacing the investor-first primary navigation", () => {
     expect(source("components/footer.tsx")).toContain('href: "/agents"');
     expect(source("lib/seo/sitemap.ts")).toContain('"/agents"');
-    expect(source("app/(app)/agents/page.tsx")).toContain('alternates: { canonical: "/agents" }');
+    // The canonical (/agents) comes from lib/seo/tool-pages.ts; lib/seo/tool-pages.test.ts checks it on the built metadata.
+    expect(source("app/(app)/agents/page.tsx")).toContain('toolPageMetadata("/agents")');
     expect(source("app/(app)/developers/page.tsx")).toContain('alternates: { canonical: "/developers" }');
     expect(source("app/(app)/developers/page.tsx")).toContain('"@type": "WebAPI"');
     expect(source("components/terminal-landing-hero-copy.tsx")).not.toContain("AI agent access");

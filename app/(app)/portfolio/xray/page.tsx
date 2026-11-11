@@ -8,15 +8,12 @@ import { pricesWords } from "@/lib/portfolio-prices";
 import { getUserDoc } from "@/lib/watchlist";
 import { xrayFootnote } from "@/lib/xray";
 import { loadExampleXray, loadUserXray, type XrayView as XrayData } from "@/lib/xray-data";
+import { JsonLd } from "@/components/docs/json-ld";
+import { toolPageLd, toolPageMetadata } from "@/lib/seo/tool-pages";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "What you really own",
-  description:
-    "Open up the ETFs you hold and add what is inside them to the stocks you bought: your real stake in each company and sector, and how much your funds overlap, from each fund's SEC filing.",
-  alternates: { canonical: "/portfolio/xray" },
-};
+export const metadata: Metadata = toolPageMetadata("/portfolio/xray");
 
 function Source({ view }: { view: XrayData }) {
   return (
@@ -45,6 +42,7 @@ export default async function XrayPage() {
   if (mine && mine.xray.total > 0) {
     return (
       <AppPage>
+        <JsonLd data={toolPageLd("/portfolio/xray")} />
         <PageHead title="What you really own" meta={<Source view={mine} />} actions={hasFunds ? <ShareButton kind="xray" /> : undefined} />
         <div className="flex flex-col gap-3">
           {hasFunds ? null : <NoFundsNote coveredFunds={mine.coveredFunds ?? []} />}
@@ -57,6 +55,7 @@ export default async function XrayPage() {
   const example = await loadExampleXray().catch(() => null);
   return (
     <AppPage>
+      <JsonLd data={toolPageLd("/portfolio/xray")} />
       <PageHead
         title="What you really own"
         lede="Your funds hold companies too. This adds them to the stocks you bought, from each fund's own SEC filing."

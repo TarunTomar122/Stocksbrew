@@ -15,6 +15,8 @@ type Base = {
   path: string;
   /** Source and as-of line, bottom right. Null when there is nothing dated on the card. */
   footnote: string | null;
+  /** A words-only stand-in for data that was not in time: cached briefly so the real card replaces it soon. */
+  transient?: boolean;
 };
 
 /** A page led by its read: the headline is the hero, one or two insights under it. */

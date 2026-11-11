@@ -1,4 +1,5 @@
 import * as React from "react";
+import { AppLink } from "@/components/oa/app-link";
 
 /**
  * The oa surface and the standard card.
@@ -73,7 +74,7 @@ export function SquircleCard({
           {title}
         </h2>
         {seeAllHref ? (
-          <a
+          <AppLink
             href={seeAllHref}
             className="group/seeall -mr-1.5 flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[13px] font-medium text-oa-muted-fg outline-none transition-colors hover:bg-oa-accent hover:text-oa-fg focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
           >
@@ -84,7 +85,7 @@ export function SquircleCard({
             >
               →
             </span>
-          </a>
+          </AppLink>
         ) : null}
       </div>
       <div className={`min-w-0 border-t border-oa-border ${cleanClassName(contentClassName) || "py-1"}`}>

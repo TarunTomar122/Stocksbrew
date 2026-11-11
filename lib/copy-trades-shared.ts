@@ -219,7 +219,7 @@ export function stoppedMonth(record: { stopped?: boolean; end_date: string | nul
 }
 
 /** "from Feb 2020" or, for a record that stopped, "from Mar 2023 until Dec 2024". */
-function period(record: { start_date: string; end_date: string; stopped?: boolean }): string {
+export function period(record: { start_date: string; end_date: string; stopped?: boolean }): string {
   return record.stopped ? `from ${fmtMonthYear(record.start_date)} until ${fmtMonthYear(record.end_date)}` : `from ${fmtMonthYear(record.start_date)}`;
 }
 

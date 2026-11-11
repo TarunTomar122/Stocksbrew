@@ -70,6 +70,7 @@ import { alsoClassesLabel, oneRowPerCompany } from "@/lib/share-class";
 import { getUserDoc } from "@/lib/watchlist";
 import { ogImage } from "@/lib/og/url";
 import { shortCompanyName } from "@/lib/plain-copy";
+import { AppLink } from "@/components/oa/app-link";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -193,7 +194,7 @@ function ListCard({
   active: boolean;
 }) {
   return (
-    <a
+    <AppLink
       href={href}
       aria-current={active ? "true" : undefined}
       className={`oa-surface flex min-w-0 flex-col border bg-oa-card px-3 py-2.5 outline-none transition-colors hover:bg-oa-accent focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)] ${
@@ -205,14 +206,14 @@ function ListCard({
         {count != null ? <span className={`${NUM} shrink-0 text-[12.5px] text-oa-muted-fg`}>{count} stocks</span> : null}
       </span>
       <span className="mt-1 text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg">{description}</span>
-    </a>
+    </AppLink>
   );
 }
 
 /** The same screen as a menu line, with the sentence that says what it looks for. */
 function PresetLine({ preset, count, active, locked }: { preset: ScreenPreset; count: number; active: boolean; locked: boolean }) {
   return (
-    <a
+    <Link prefetch={false}
       href={`/screener?preset=${preset.slug}`}
       aria-current={active ? "true" : undefined}
       className={`block px-3 py-2 outline-none hover:bg-oa-accent focus-visible:bg-oa-accent ${active ? "bg-oa-accent" : ""}`}
@@ -222,7 +223,7 @@ function PresetLine({ preset, count, active, locked }: { preset: ScreenPreset; c
         {locked ? <ProMark /> : <span className={`${NUM} shrink-0 text-[12.5px] text-oa-muted-fg`}>{count}</span>}
       </span>
       <span className="mt-0.5 block text-[12.5px] leading-[18px] text-oa-muted-fg">{preset.description}</span>
-    </a>
+    </Link>
   );
 }
 
@@ -346,9 +347,9 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
       href: sectorHref(stat.slug),
       sort: [stat.name, stat.count, stat.marketCap, stat.change.day_pct ?? null, stat.change.ret_1w ?? null, stat.change.ret_1m ?? null, stat.change.ret_ytd ?? null, stat.advancing, null, null],
       cells: [
-        <a key="s" href={sectorHref(stat.slug)} className="font-medium text-oa-fg hover:underline">
+        <Link prefetch={false} key="s" href={sectorHref(stat.slug)} className="font-medium text-oa-fg hover:underline">
           {stat.name}
-        </a>,
+        </Link>,
         <span key="c" className={NUM}>{stat.count}</span>,
         <span key="m" className={NUM}>{fmtCompact(stat.marketCap, "$")}</span>,
         <Delta key="d" value={stat.change.day_pct} />,
@@ -358,13 +359,19 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
         stat.advancing === null ? <Unknown key="a" /> : <span key="a" className={NUM}>{stat.advancing.toFixed(0)}%</span>,
         stat.best ? (
           <span key="b" className="inline-flex items-center gap-2">
-            <a href={`/stock/${stat.best.symbol}`} className={`${NUM} text-[13px] font-medium text-oa-fg hover:underline`}>{stat.best.symbol}</a>
+            <Link prefetch={false} href={`/stock/${stat.best.symbol}`} className={`${NUM} inline-flex items-center gap-1.5 text-[13px] font-medium text-oa-fg hover:underline`}>
+              <StockLogo ticker={stat.best.symbol} size={16} />
+              {stat.best.symbol}
+            </Link>
             <Delta value={stat.best.pct} digits={1} className="text-[12.5px]" />
           </span>
         ) : null,
         stat.worst ? (
           <span key="wo" className="inline-flex items-center gap-2">
-            <a href={`/stock/${stat.worst.symbol}`} className={`${NUM} text-[13px] font-medium text-oa-fg hover:underline`}>{stat.worst.symbol}</a>
+            <Link prefetch={false} href={`/stock/${stat.worst.symbol}`} className={`${NUM} inline-flex items-center gap-1.5 text-[13px] font-medium text-oa-fg hover:underline`}>
+              <StockLogo ticker={stat.worst.symbol} size={16} />
+              {stat.worst.symbol}
+            </Link>
             <Delta value={stat.worst.pct} digits={1} className="text-[12.5px]" />
           </span>
         ) : null,
@@ -511,7 +518,7 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
   const phoneRow = (row: (typeof shown)[number]) => (
       <li key={row.symbol} className="flex items-center gap-2 border-b border-oa-border px-3 last:border-b-0">
         {/* No tick boxes on a phone: a row is one tap to the stock; comparing lives on the stock page. */}
-        <a href={`/stock/${encodeURIComponent(row.symbol)}`} className="flex min-h-14 min-w-0 flex-1 items-center gap-3 py-2 outline-none focus-visible:bg-oa-accent">
+        <Link prefetch={false} href={`/stock/${encodeURIComponent(row.symbol)}`} className="flex min-h-14 min-w-0 flex-1 items-center gap-3 py-2 outline-none focus-visible:bg-oa-accent">
           <StockLogo ticker={row.symbol} size={28} />
           <span className="min-w-0 flex-1">
             {/* The sorted-by figure sits beside the ticker, so the name keeps the second line to itself. */}
@@ -521,8 +528,9 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
             </span>
             {/* One line, cut with an ellipsis if it must (owner, Nov 11); the full name is on hover. */}
             <span className="flex min-w-0 gap-x-1.5 whitespace-nowrap text-[12.5px] leading-[18px] text-oa-muted-fg">
-              <span className="min-w-0 truncate" title={row.name ?? undefined}>{shortCompanyName(row.name)}</span>
-              {alsoClassesLabel(otherClasses, row.symbol) ? <span className={`${NUM} shrink-0`}>· {alsoClassesLabel(otherClasses, row.symbol)}</span> : null}
+              {/* The name keeps its room; "also GOOG" is the part that gets cut when space runs out. */}
+              <span className="max-w-full shrink-0 truncate" title={row.name ?? undefined}>{shortCompanyName(row.name)}</span>
+              {alsoClassesLabel(otherClasses, row.symbol) ? <span className={`${NUM} min-w-0 truncate`}>· {alsoClassesLabel(otherClasses, row.symbol)}</span> : null}
             </span>
           </span>
           {row.spark && row.spark.length > 1 ? (
@@ -539,7 +547,7 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
             </span>
           </span>
           <span className="flex w-[4.75rem] shrink-0 justify-end">{row.call ? <CallTag call={row.call} /> : null}</span>
-        </a>
+        </Link>
       </li>
   );
   const phoneList = (
@@ -685,9 +693,9 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
               <LockCard feature="screener_call_filters" plan={plan} trialEligible={viewer.trialEligible} />
               <p className="mt-3 text-[13.5px] leading-5 text-oa-muted-fg">
                 This screen filters on our call or price zones.{" "}
-                <a href="/screener" className="text-oa-primary underline underline-offset-2">
+                <Link prefetch={false} href="/screener" className="text-oa-primary underline underline-offset-2">
                   Start a screen without them
-                </a>
+                </Link>
                 .
               </p>
             </div>
@@ -745,15 +753,15 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
             {[...directory, ...(unsectored.length ? [{ slug: "other", name: "Not classified", count: unsectored.length, rows: unsectored }] : [])].map((group) => (
               <section key={group.slug}>
                 <h3 className="oa-caption mb-1.5">
-                  {group.slug === "other" ? group.name : <a href={`/screener?sector=${group.slug}`} className="hover:underline">{group.name}</a>}{" "}
+                  {group.slug === "other" ? group.name : <Link prefetch={false} href={`/screener?sector=${group.slug}`} className="hover:underline">{group.name}</Link>}{" "}
                   <span className="text-oa-muted-fg">{group.rows.length}</span>
                 </h3>
                 <ul className="flex flex-wrap gap-x-3 gap-y-1">
                   {group.rows.map((row) => (
                     <li key={row.symbol}>
-                      <a href={`/stock/${encodeURIComponent(row.symbol)}`} title={row.name} className={`${NUM} text-[12.5px] text-oa-fg hover:underline`}>
+                      <Link prefetch={false} href={`/stock/${encodeURIComponent(row.symbol)}`} title={row.name} className={`${NUM} text-[12.5px] text-oa-fg hover:underline`}>
                         {row.symbol}
-                      </a>
+                      </Link>
                     </li>
                   ))}
                 </ul>

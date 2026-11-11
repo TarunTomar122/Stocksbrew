@@ -1,9 +1,10 @@
 /** Shared stock-logo source resolution — safe for client and server imports.
  *
- * The client `StockLogo` component walks this ordered list with an <img>
- * onError fallback chain. Server-side callers (e.g. the @vercel/og share-card
- * route) cannot retry on error, so they use `resolveLogoUrl` to pick the single
- * most reliable source up front. */
+ * The app's `StockLogo` no longer uses these: it reads our own stored tiles
+ * through `logoSrc` (bottom of this file). The third-party chain below is kept
+ * for the share-card and email renderers that still fetch remote logos. Note
+ * logo.clearbit.com no longer resolves (Clearbit's free logo API was shut
+ * down), so those entries only cost a failed lookup. */
 
 // Domain map for the NSE names we care about. Used to prefer a domain logo
 // before FMP, because FMP sometimes returns a valid-but-blank placeholder.
@@ -214,7 +215,7 @@ export function domainForTicker(
     : US_DOMAIN[normalized];
 }
 
-/** Ordered logo-source chain used by the client <img> fallback walk. */
+/** Ordered remote logo sources, for the share-card renderers. */
 export function stockLogoSources(
   ticker: string,
   market: "US" | "IN",
@@ -249,4 +250,63 @@ export function resolveLogoUrl(
   const domain = domainForTicker(ticker.toUpperCase(), market);
   if (domain) return clearbitUrl(domain);
   return finnhubUrl(ticker);
+}
+
+// -- Logos served from our own domain ----------------------------------------
+//
+// `backend/agentdata/stock_logos.py` fetches every covered ticker's logo once,
+// turns it into a 128px square tile and stores it in `tm_stock_logos`.
+// `app/api/logo/[symbol]` serves it with a one-year immutable cache, so a logo
+// costs one small same-origin request the first time and nothing after that.
+// The third-party chain above stays for emails and share cards only.
+
+/** Part of every logo URL. The tiles are cached as immutable for a year, so a
+ * logo the job replaces reaches browsers that already have the old one only
+ * when this changes: bump it after a re-run that changed logos on purpose. */
+export const LOGO_VERSION = "1";
+
+/** A store key we will ask for: letters and digits, single dots between them
+ * (BRK.B), `&` for NSE names like M&M, `^` for index symbols. Same rule as
+ * `LOGO_KEY` in backend/agentdata/stock_logos.py. */
+const LOGO_KEY_PATTERN = /^[A-Z0-9][A-Z0-9&^]*(?:\.[A-Z0-9&^]+)*$/;
+
+export function isLogoKey(key: string): boolean {
+  return key.length <= 15 && LOGO_KEY_PATTERN.test(key);
+}
+
+/** Store key for a ticker; matches `logo_key` in backend/agentdata/stock_logos.py. */
+export function logoKey(ticker: string): string {
+  return String(ticker || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[-_/]/g, ".");
+}
+
+/** Same-origin URL of a ticker's logo tile. */
+export function logoSrc(ticker: string, market: "US" | "IN" = "US"): string {
+  const key = encodeURIComponent(logoKey(ticker) || "?");
+  return `/api/logo/${key}?v=${LOGO_VERSION}${market === "IN" ? "&m=IN" : ""}`;
+}
+
+/** Up to two letters for the lettered tile shown when a company has no logo. */
+export function logoInitials(ticker: string): string {
+  return String(ticker || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 2) || "?";
+}
+
+/** Deterministic tile colour for a ticker, so its lettered tile never changes
+ * (BRK-B and BRK.B get the same one, from the client or the server). */
+export function logoFallbackColor(ticker: string): string {
+  const upper = logoKey(ticker);
+  let hash = 0;
+  for (let i = 0; i < upper.length; i += 1) {
+    hash = (hash * 31 + upper.charCodeAt(i)) >>> 0;
+  }
+  return `hsl(${hash % 360} 62% 28%)`;
+}
+
+/** Full-bleed square SVG with the ticker's letters (the client crops the shape). */
+export function logoMonogramSvg(ticker: string, size = 128): string {
+  const initials = logoInitials(ticker);
+  const fontSize = Math.round(size * (initials.length > 1 ? 0.38 : 0.5));
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><rect width="${size}" height="${size}" fill="${logoFallbackColor(ticker)}"/><text x="50%" y="50%" dy=".35em" text-anchor="middle" fill="#fff" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif" font-weight="600" font-size="${fontSize}">${initials}</text></svg>`;
 }

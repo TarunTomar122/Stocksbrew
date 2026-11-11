@@ -6,6 +6,7 @@ import { OaButton } from "@/components/oa/button";
 import { useUser } from "@/lib/auth-context";
 import { getFirebaseAuth } from "@/lib/firebase-client";
 import { signInWithGoogle } from "@/lib/sign-in";
+import Link from "next/link";
 
 /** Saves the strategy to the signed-in user's own list through /api/strategies/track. */
 export function TrackStrategyButton({
@@ -53,12 +54,12 @@ export function TrackStrategyButton({
   // Below Pro, a strategy not already followed gets a link to Pro. Someone who followed one before can still stop.
   if (!canFollow && !tracked) {
     return (
-      <a
+      <Link prefetch={false}
         href="/pricing"
         className="inline-flex h-9 items-center rounded-lg bg-oa-primary px-3 text-sm font-medium text-oa-primary-fg outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]"
       >
         Track with Pro
-      </a>
+      </Link>
     );
   }
 

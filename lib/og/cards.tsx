@@ -342,8 +342,9 @@ function StatRow({ stats }: { stats: OgStat[] }) {
 /* ── cards ──────────────────────────────────────────────────────────────── */
 
 function ReadCard({ card }: { card: OgReadCard }) {
-  const headline = fit(card.headline, 120);
-  const size = headlineSize(headline, [[48, 70], [80, 62], [100, 56]], 50);
+  // 140 characters still fit at the smallest size with two lines under them (lib/og/tool-cards.ts OG_HEADLINE_MAX).
+  const headline = fit(card.headline, 140);
+  const size = headlineSize(headline, [[48, 70], [80, 62], [100, 56], [120, 50]], 46);
   const lineCount = card.stats && card.stats.length > 0 ? 1 : 2;
   return (
     <Frame eyebrow={card.eyebrow} path={card.path} footnote={card.footnote}>

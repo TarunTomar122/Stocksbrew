@@ -6,6 +6,7 @@ import { EquityChart } from "@/components/backtest/equity-chart";
 import { longDay, money, plainPct, signedMoney, signedPct, toneOf } from "@/components/backtest/format";
 import { Panel } from "@/components/backtest/results";
 import { OaButton } from "@/components/oa/button";
+import { StockLogo } from "@/components/stock-logo";
 import { getFirebaseAuth } from "@/lib/firebase-client";
 import type { PracticePayload, PracticeTradeResponse } from "@/lib/practice-store";
 import { signInWithGoogle } from "@/lib/sign-in";
@@ -165,7 +166,10 @@ export function PracticeDesk({ initial, mode }: { initial: PracticePayload; mode
                   {view.rows.map((row) => (
                     <tr key={row.symbol} className="h-11 border-b border-oa-border last:border-0 hover:bg-oa-accent">
                       <td className="py-1 pl-4 pr-2">
-                        <span className="oa-mono font-medium text-oa-fg">{row.symbol}</span>
+                        <span className="oa-mono inline-flex items-center gap-1.5 font-medium text-oa-fg">
+                          <StockLogo ticker={row.symbol} size={16} />
+                          {row.symbol}
+                        </span>
                         <span className="oa-mono block text-[12.5px] tabular-nums text-oa-muted-fg sm:hidden">{shares(row.shares)} sh</span>
                       </td>
                       <td className="oa-mono hidden px-2 text-right tabular-nums text-oa-fg sm:table-cell">{shares(row.shares)}</td>

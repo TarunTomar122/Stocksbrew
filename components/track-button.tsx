@@ -1,6 +1,5 @@
 "use client";
 
-import { AnimatedIcon } from "@/components/animated-icon";
 
 import { createPortal } from "react-dom";
 import { useCallback, useEffect, useState, useTransition } from "react";
@@ -519,6 +518,25 @@ function TrackModal({
   return createPortal(modal, document.body);
 }
 
+/** The two choice icons (watch, own), drawn inline at 18px in the lucide style. */
+function PositionGlyph({ name }: { name: string }) {
+  const common = { width: 18, height: 18, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true };
+  if (name === "account_balance_wallet") {
+    return (
+      <svg {...common}>
+        <path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1" />
+        <path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4" />
+      </svg>
+    );
+  }
+  return (
+    <svg {...common}>
+      <path d="M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
 function PositionOption({
   label,
   sublabel,
@@ -549,7 +567,8 @@ function PositionOption({
           active ? "bg-on-surface text-surface" : "bg-surface-container text-on-surface-variant"
         }`}
       >
-        <AnimatedIcon name={icon} size={18} />
+        {/* Plain SVGs: the animated icon set pulls the motion library into every stock page. */}
+        <PositionGlyph name={icon} />
       </span>
       <span className="flex flex-col">
         <span className="text-[14px] font-semibold text-on-surface">{label}</span>

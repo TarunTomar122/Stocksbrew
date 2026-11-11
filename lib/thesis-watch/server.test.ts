@@ -1,0 +1,92 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const state = vi.hoisted(() => ({ docs: new Map<string, Record<string, unknown>>(), writes: [] as string[], factsAsked: [] as string[] }));
+
+vi.mock("@/lib/entitlements-server", () => ({
+  isCovered: (viewer: { plan: string; covered: string[] }, id: string) => viewer.plan === "pro" || viewer.covered.includes(id),
+}));
+vi.mock("@/lib/firebase-admin", () => {
+  const ref = (path: string) => ({
+    path,
+    get: async () => ({ exists: state.docs.has(path), data: () => state.docs.get(path) }),
+    set: async (data: Record<string, unknown>) => {
+      state.writes.push(path);
+      state.docs.set(path, data);
+    },
+  });
+  return {
+    adminFirestore: {
+      collection: (name: string) => ({ doc: (id: string) => ref(`${name}/${id}`) }),
+      getAll: async (...refs: Array<{ get: () => Promise<unknown> }>) => Promise.all(refs.map((r) => r.get())),
+    },
+  };
+});
+vi.mock("@/lib/portfolio-data", () => ({
+  newYorkToday: (now = new Date()) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).format(now),
+}));
+vi.mock("./model", () => ({ thesisModelReader: () => null }));
+vi.mock("./data", async () => {
+  const { emptyFacts } = await import("./facts");
+  return {
+    tickerFromId: (id: string) => id.split("_").slice(1).join("."),
+    closesOnDays: async () => new Map(),
+    loadStockFacts: async (stocks: Array<{ instrumentId: string; ticker: string }>, today: string) => {
+      state.factsAsked.push(...stocks.map((s) => s.instrumentId));
+      return new Map(stocks.map((s) => [s.instrumentId, { ...emptyFacts(s.ticker, s.instrumentId, s.ticker, today), close: { value: 100, day: today }, revenueGrowth: -5, payout: 40 }]));
+    },
+  };
+});
+
+import { checkReasons } from "./server";
+
+const reason = (kind: string) => ({ kind, reason: null, created_at: "2026-10-01T00:00:00.000Z", updated_at: "2026-10-01T00:00:00.000Z" });
+const userDoc = {
+  uid: "made-up-uid",
+  tracked_stocks: ["US_NVDA", "US_KO", "US_AAPL"],
+  watchlist_positions: { US_NVDA: "holding", US_KO: "holding", US_AAPL: "holding" },
+  theses: { US_NVDA: reason("growth"), US_KO: reason("dividend"), US_GONE: reason("trade") },
+} as never;
+const viewer = (plan: "free" | "pro", covered: string[] = []) => ({ uid: "made-up-uid", signedIn: true, isSubscribed: plan === "pro", plan, tracked: [], covered, coverage: null, trialEligible: false });
+const NOW = new Date("2026-11-11T16:00:00Z");
+
+beforeEach(() => {
+  state.docs.clear();
+  state.writes = [];
+  state.factsAsked = [];
+});
+
+describe("checkReasons", () => {
+  it("Free: checks covered stocks only and computes nothing about the rest", async () => {
+    const result = await checkReasons(viewer("free", ["US_NVDA"]), userDoc, { now: NOW });
+    expect(Object.keys(result.checks)).toEqual(["US_NVDA"]);
+    expect(result.checks.US_NVDA!.verdict).toBe("broken");
+    expect(result.locked).toEqual(["US_KO"]);
+    expect(state.factsAsked).toEqual(["US_NVDA"]);
+    // Only the person's own check documents, and never a reason for a stock they stopped tracking.
+    expect(state.writes).toEqual(["tm_thesis_checks/made-up-uid__US_NVDA"]);
+  });
+
+  it("Pro: checks every reason on a tracked stock, and writes once a day", async () => {
+    const result = await checkReasons(viewer("pro"), userDoc, { now: NOW });
+    expect(Object.keys(result.checks).sort()).toEqual(["US_KO", "US_NVDA"]);
+    expect(state.writes).toHaveLength(2);
+    await checkReasons(viewer("pro"), userDoc, { now: new Date("2026-11-11T20:00:00Z") });
+    expect(state.writes).toHaveLength(2);
+    await checkReasons(viewer("pro"), userDoc, { now: new Date("2026-11-12T16:00:00Z") });
+    expect(state.writes).toHaveLength(4);
+  });
+
+  it("gives no verdict when nothing could be checked", async () => {
+    const fundOnly = { ...(userDoc as Record<string, unknown>), theses: { US_KO: reason("value") } } as never;
+    const result = await checkReasons(viewer("pro"), fundOnly, { now: NOW });
+    expect(result.checks).toEqual({});
+    expect(result.unchecked).toEqual(["US_KO"]);
+    expect(state.writes).toEqual([]);
+  });
+
+  it("writes nothing when asked not to, and nothing for a signed-out viewer", async () => {
+    await checkReasons(viewer("pro"), userDoc, { now: NOW, persist: false });
+    expect(state.writes).toEqual([]);
+    expect(await checkReasons({ ...viewer("pro"), uid: null }, userDoc, { now: NOW })).toMatchObject({ checks: {} });
+  });
+});

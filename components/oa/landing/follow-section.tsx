@@ -6,6 +6,7 @@ import { getPowerTradesCached, type PowerTrade } from "@/lib/power-trades";
 import { listStrategies } from "@/lib/strategies";
 
 import { EmptyRow, H2, LEDE, RowLink, fmtAmountRange, fmtDay, fmtPct, initials, toneClass } from "./shared";
+import Link from "next/link";
 
 type Person = {
   id: string;
@@ -120,9 +121,9 @@ export async function FollowSection() {
         {/* Keep the footnote in the last row even when there are fewer than four cards. */}
         <p className="text-[14px] leading-5 text-oa-muted-fg lg:row-start-6">
           Records are backtested, not traded, and say so. Or{" "}
-          <a href="/backtest" className="text-oa-fg underline decoration-oa-border underline-offset-2">
+          <Link prefetch={false} href="/backtest" className="text-oa-fg underline decoration-oa-border underline-offset-2">
             test a mix of your own
-          </a>
+          </Link>
           .
         </p>
       </div>
@@ -155,7 +156,7 @@ export async function FollowSection() {
                     .filter((holding) => holding.ticker)
                     .slice(0, 5)
                     .map((holding) => (
-                      <a
+                      <Link prefetch={false}
                         key={holding.ticker}
                         href={`/stock/${encodeURIComponent(holding.ticker as string)}`}
                         className="inline-flex h-7 items-center gap-1.5 rounded-md border border-oa-border bg-oa-bg pl-1.5 pr-2 text-[13px] hover:border-oa-fg/30"
@@ -165,7 +166,7 @@ export async function FollowSection() {
                         {typeof holding.weight === "number" ? (
                           <span className="oa-mono text-oa-muted-fg">{(holding.weight * (holding.weight <= 1 ? 100 : 1)).toFixed(0)}%</span>
                         ) : null}
-                      </a>
+                      </Link>
                     ))}
                 </div>
                 <p className="mt-auto pt-2.5 text-[13px] leading-5 text-oa-muted-fg">

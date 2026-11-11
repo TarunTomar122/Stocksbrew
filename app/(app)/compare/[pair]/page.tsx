@@ -13,6 +13,8 @@ import { sectorSlug, type ScreenerRow } from "@/lib/screener-shared";
 import { insiderHref, pairHref, pairIsIndexable, parsePairSlug, sectorHref, stockLabel, type StockPair } from "@/lib/seo/families";
 import { getCoverage, pairsFor, stockPairs, type Coverage } from "@/lib/seo/family-data";
 import { plainCallReason, shortCompanyName } from "@/lib/plain-copy";
+import Link from "next/link";
+import { AppLink } from "@/components/oa/app-link";
 
 /**
  * Stock against stock: /compare/amd-vs-nvda. One page per pair of rivals in
@@ -86,9 +88,9 @@ function CallCard({ row }: { row: ScreenerRow }) {
           <p className={`${NUM} mt-2 text-[12px] text-oa-muted-fg`}>
             {row.call_at ? `Call dated ${fmtDay(row.call_at, true)}` : "Call date not on file"}
             {" · "}
-            <a href={`/stock/${encodeURIComponent(row.symbol)}`} className="underline decoration-oa-border underline-offset-2 hover:text-oa-fg">
+            <Link prefetch={false} href={`/stock/${encodeURIComponent(row.symbol)}`} className="underline decoration-oa-border underline-offset-2 hover:text-oa-fg">
               full report
-            </a>
+            </Link>
           </p>
         </>
       ) : (
@@ -103,10 +105,10 @@ function LinkList({ items }: { items: Array<{ href: string; label: string }> }) 
     <ul className="flex flex-col">
       {items.map((item) => (
         <li key={item.href} className="border-b border-oa-border last:border-b-0">
-          <a href={item.href} className="flex items-center justify-between gap-3 px-4 py-2.5 text-[14px] text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
+          <AppLink href={item.href} className="flex items-center justify-between gap-3 px-4 py-2.5 text-[14px] text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
             <span className="min-w-0 truncate">{item.label}</span>
             <span aria-hidden="true" className="text-oa-muted-fg">→</span>
-          </a>
+          </AppLink>
         </li>
       ))}
     </ul>
@@ -143,11 +145,11 @@ export default async function PairPage({ params, searchParams }: Props) {
       <PageHead
         crumb={
           <>
-            <a href="/compare">Compare</a>
+            <Link prefetch={false} href="/compare">Compare</Link>
             {sector ? (
               <>
                 {" / "}
-                <a href={sectorHref(sectorSlug(sector))}>{sector}</a>
+                <Link prefetch={false} href={sectorHref(sectorSlug(sector))}>{sector}</Link>
               </>
             ) : null}
             {" / "}

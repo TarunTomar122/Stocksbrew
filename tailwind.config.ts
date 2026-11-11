@@ -121,12 +121,15 @@ const config: Config = {
         },
       },
       fontFamily: {
-        headline: ["Satoshi", "var(--font-geist-sans)", "system-ui", "sans-serif"],
-        body: ["Satoshi", "var(--font-geist-sans)", "system-ui", "sans-serif"],
-        label: ["Satoshi", "var(--font-geist-sans)", "system-ui", "sans-serif"],
-        display: ["'Plus Jakarta Sans'", "Satoshi", "system-ui", "sans-serif"],
-        // ponytail: was Geist Mono, made numbers look like a second font next to Satoshi body text
-        mono: ["Satoshi", "var(--font-geist-sans)", "system-ui", "sans-serif"],
+        // One interface face everywhere: Instrument Sans (components/oa/font.ts, set on <html> in
+        // app/layout.tsx). Satoshi and Plus Jakarta Sans were dropped: no page drew text in them
+        // any more, and their stylesheets blocked the first paint of every page.
+        headline: ["var(--font-inter-tight)", "ui-sans-serif", "system-ui", "sans-serif"],
+        body: ["var(--font-inter-tight)", "ui-sans-serif", "system-ui", "sans-serif"],
+        label: ["var(--font-inter-tight)", "ui-sans-serif", "system-ui", "sans-serif"],
+        display: ["var(--font-inter-tight)", "ui-sans-serif", "system-ui", "sans-serif"],
+        // Numbers use the interface face too (tabular figures come from .oa-mono), not a second font.
+        mono: ["var(--font-inter-tight)", "ui-sans-serif", "system-ui", "sans-serif"],
       },
       borderRadius: {
         sm: "0.375rem",   /* 6px */

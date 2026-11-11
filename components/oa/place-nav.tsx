@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { IntentLink } from "@/components/oa/intent-link";
 import { usePathname } from "next/navigation";
 import * as React from "react";
 
@@ -77,7 +77,7 @@ export function PlaceStrip() {
           return (
             <React.Fragment key={item.href}>
               {startsGroup ? <span aria-hidden="true" className="mx-1 h-5 w-px shrink-0 bg-oa-border" /> : null}
-              <Link
+              <IntentLink
                 href={item.href}
                 aria-current={on ? (exact ? "page" : "location") : undefined}
                 className={`flex h-8 shrink-0 items-center whitespace-nowrap rounded-full border px-3 text-[14px] transition-colors ${FOCUS} ${
@@ -87,7 +87,7 @@ export function PlaceStrip() {
                 }`}
               >
                 {item.label}
-              </Link>
+              </IntentLink>
             </React.Fragment>
           );
         })}
@@ -130,9 +130,9 @@ function TrailLinks({ trail }: { trail: Crumb[] }) {
               ›
             </span>
           ) : null}
-          <Link href={crumb.href} className={`rounded ${FOCUS}`}>
+          <IntentLink href={crumb.href} className={`rounded ${FOCUS}`}>
             {crumb.label}
-          </Link>
+          </IntentLink>
         </React.Fragment>
       ))}
     </>

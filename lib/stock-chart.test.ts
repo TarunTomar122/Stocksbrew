@@ -9,8 +9,10 @@ import {
   isLargeDisclosedTrade,
   monthsBefore,
   multiplePercentile,
+  packChartRanges,
   placeMarkers,
   thinSeries,
+  unpackChartRanges,
   withLivePoint,
   type ChartPoint,
 } from "@/lib/stock-chart";
@@ -107,6 +109,50 @@ describe("withLivePoint", () => {
     expect(withLivePoint(ranges, "2026-11-01", 1)).toEqual(ranges);
     expect(withLivePoint(ranges, null, 10)).toBe(ranges);
     expect(withLivePoint(ranges, "2026-11-10", 0)).toBe(ranges);
+  });
+});
+
+describe("packChartRanges", () => {
+  /** Trading days only (weekends skipped) over `years`, with fractional closes like a stored adjusted series. */
+  function tradingDays(years: number): ChartPoint[] {
+    const out: ChartPoint[] = [];
+    const end = Date.parse("2026-11-10T00:00:00Z");
+    for (let ms = end - years * 365 * 86_400_000; ms <= end; ms += 86_400_000) {
+      const day = new Date(ms).getUTCDay();
+      if (day === 0 || day === 6) continue;
+      out.push({ date: new Date(ms).toISOString().slice(0, 10), close: Math.round((50 + Math.sin(ms / 4e9) * 20 + out.length / 100) * 1e4) / 1e4 });
+    }
+    return out;
+  }
+
+  it("gives back exactly the same ranges, live point included", () => {
+    const ranges = withLivePoint(buildChartRanges(tradingDays(12)), "2026-11-11", 168.7899932861328);
+    expect(ranges.map((range) => range.key)).toEqual(["1M", "6M", "1Y", "5Y", "MAX"]);
+    const packed = packChartRanges(ranges);
+    expect(packed).not.toBeNull();
+    expect(unpackChartRanges(JSON.parse(JSON.stringify(packed)))).toEqual(ranges);
+  });
+
+  it("sends each day once, so it is much smaller than the ranges", () => {
+    const ranges = buildChartRanges(tradingDays(12));
+    const packed = packChartRanges(ranges)!;
+    const days = new Set(ranges.flatMap((range) => range.points.map((point) => point.date)));
+    expect(packed.closes).toHaveLength(days.size);
+    expect(JSON.stringify(packed).length).toBeLessThan(JSON.stringify(ranges).length * 0.5);
+  });
+
+  it("crosses month and year ends without drifting a day", () => {
+    const ranges = buildChartRanges(daily(800, "2026-03-02"));
+    expect(unpackChartRanges(packChartRanges(ranges)!)).toEqual(ranges);
+  });
+
+  it("declines ranges it cannot share one series for", () => {
+    const ranges = buildChartRanges(daily(400));
+    const clash = ranges.map((range, index) =>
+      index === 0 ? { ...range, points: range.points.map((point, i, all) => (i === all.length - 1 ? { ...point, close: point.close + 1 } : point)) } : range,
+    );
+    expect(packChartRanges(clash)).toBeNull();
+    expect(packChartRanges([])).toBeNull();
   });
 });
 

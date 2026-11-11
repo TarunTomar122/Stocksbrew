@@ -1,11 +1,12 @@
 import { unstable_cache } from "next/cache";
+import { cache } from "react";
 
 import { benchmarkForDay, quoteDay } from "@/lib/benchmark-day";
 import { todayET } from "@/lib/calendar-shared";
 import type { AnomalyItem } from "@/lib/daily-anomalies";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { getMarketsData } from "@/lib/markets";
-import { getScreenerSnapshot } from "@/lib/screener";
+import { getScreenerSnapshot, isCompleteSnapshot, withFreshEarningsGap } from "@/lib/screener";
 import { sectorSlug, type ScreenerRow } from "@/lib/screener-shared";
 import {
   INSIDER_WINDOW_DAYS,
@@ -38,7 +39,11 @@ export type Coverage = {
   generatedAt: string | null;
 };
 
-export async function getCoverage(): Promise<Coverage> {
+// React's request cache only exists in the server-components build; elsewhere (tests, scripts) read each time.
+const perRequest: typeof cache = typeof cache === "function" ? cache : (fn) => fn;
+
+/** Deduped per request: a stock page asks for it from its metadata and two link rows. */
+export const getCoverage = perRequest(async (): Promise<Coverage> => {
   // A failed or empty read must not look like "this page does not exist": the
   // pages would answer 404 and search engines would drop them. Throwing gives a
   // 500 instead, which crawlers retry; sitemap callers already catch it.
@@ -55,7 +60,47 @@ export async function getCoverage(): Promise<Coverage> {
     priceDay,
     generatedAt: snapshot?.meta.generated_at ?? null,
   };
+});
+
+/**
+ * One stock's place in the coverage: its row, the pair pages it is in (best
+ * first, up to three) and the other stock's name in each. What a stock page
+ * needs for its index rule and its "compare with" links, cached under its own
+ * small key so the page does not read the whole snapshot.
+ */
+export type StockFamily = {
+  row: ScreenerRow | null;
+  pairs: StockPair[];
+  names: Record<string, string>;
+};
+
+const FAMILY_PAIRS = 3;
+
+async function readStockFamily(symbol: string): Promise<StockFamily> {
+  const [snapshot, coverage] = await Promise.all([getScreenerSnapshot(), getCoverage()]);
+  // A partial snapshot would cache "not covered" (and a noindex) for this stock; throwing keeps it out of the cache.
+  if (!isCompleteSnapshot(snapshot)) throw new Error("coverage_unavailable");
+  const row = coverage.bySymbol.get(symbol) ?? null;
+  if (!row) return { row: null, pairs: [], names: {} };
+  const pairs = pairsFor(stockPairs(coverage), symbol).slice(0, FAMILY_PAIRS);
+  const names: Record<string, string> = {};
+  for (const pair of pairs) {
+    const other = pair.a === symbol ? pair.b : pair.a;
+    const name = coverage.bySymbol.get(other)?.name;
+    if (name) names[other] = name;
+  }
+  return { row, pairs, names };
 }
+
+// As fresh as the snapshot's own meta entry (lib/screener.ts).
+const getStockFamilyCached = unstable_cache(readStockFamily, ["stock-family-v1"], { revalidate: 300 });
+
+/** Throws when the coverage cannot be read, like getCoverage. Deduped per request. */
+export const getStockFamily = perRequest(async (symbol: string): Promise<StockFamily> => {
+  const family = await getStockFamilyCached(symbol.trim().toUpperCase());
+  // The earnings gap counts from New York's today, which can be later than when the entry was cached.
+  return family.row ? { ...family, row: withFreshEarningsGap(family.row, todayET()) } : family;
+});
 
 /** Stock pages that pass the index rule today (see stockHasCurrentRead), in ticker order. */
 export function indexableStockSymbols(coverage: Coverage, today: string = todayET()): string[] {

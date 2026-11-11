@@ -1,5 +1,6 @@
 import { cache } from "react";
 
+import { listJobs, listRuns } from "@/lib/agent-jobs-data";
 import { buildDividendRead } from "@/lib/dividend-plan";
 import { exampleSeeds, holdingSeeds, loadDividendPlan } from "@/lib/dividend-plan-data";
 import { loadExampleSeason, loadUserSeason } from "@/lib/earnings-season-data";
@@ -14,7 +15,10 @@ import { loadExampleStress, loadUserStress } from "@/lib/stress-test-data";
 import { getUserDoc, type UserDoc } from "@/lib/watchlist";
 import { loadExampleXray, loadUserXray } from "@/lib/xray-data";
 
-import type { DividendSource, HomeMode, HomeSources, Loaded } from "./pick";
+import { checkReasons, exampleReasonChecks } from "@/lib/thesis-watch/server";
+
+import type { AgentsSource } from "./log";
+import type { DividendSource, HomeMode, HomeSources, Loaded, ReasonsSource } from "./pick";
 
 /**
  * Loads every portfolio tool's own data for the My stocks overview, all at
@@ -26,6 +30,10 @@ import type { DividendSource, HomeMode, HomeSources, Loaded } from "./pick";
 
 /** How long one source may take before the overview goes on without it. */
 export const SOURCE_TIMEOUT_MS = 6000;
+/** The agent run log only feeds the "checked" panel, so it gets less time than the tools. */
+export const AGENTS_TIMEOUT_MS = 3000;
+/** Enough recent runs to find each agent's newest one (one run per agent per market day). */
+const RUNS_READ = 60;
 
 /** Why a signed-in person sees the example, so the page can say it. */
 export type ExampleReason = "signed-out" | "read-failed" | "no-holdings" | "watching-only" | "no-us-holdings";
@@ -36,7 +44,12 @@ export type HomeContext = {
   reason: ExampleReason | null;
 };
 
-export type HomeLoad = { context: Promise<HomeContext>; sources: { [K in keyof HomeSources]: Promise<HomeSources[K]> } };
+export type HomeLoad = {
+  context: Promise<HomeContext>;
+  sources: { [K in keyof HomeSources]: Promise<HomeSources[K]> };
+  /** The person's own standing agents and their run log; "empty" for the example. Only the "checked" panel waits for it. */
+  agents: Promise<Loaded<AgentsSource>>;
+};
 
 export function withTimeout<T>(work: Promise<T | null>, label: string, ms = SOURCE_TIMEOUT_MS): Promise<Loaded<T>> {
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -106,6 +119,37 @@ async function userDividends(userDoc: UserDoc): Promise<DividendSource | null> {
   return { plan, read: buildDividendRead(plan, { example: false, editHref: "/watchlist" }) };
 }
 
+/** What the reason watcher found on the person's holdings (lib/thesis-watch), checked and stored as on Portfolio. */
+async function userReasons(userDoc: UserDoc, viewer: Viewer): Promise<ReasonsSource | null> {
+  const tracked = Array.isArray(userDoc.tracked_stocks) ? userDoc.tracked_stocks : [];
+  const kinds = userDoc.watchlist_positions ?? {};
+  const held = new Set(tracked.filter((id) => kinds[id] === "holding"));
+  const result = await checkReasons(viewer, userDoc);
+  return {
+    checks: Object.values(result.checks).filter((check) => held.has(check.instrumentId)),
+    withReason: Object.keys(result.theses).filter((id) => held.has(id)).length,
+    holdings: held.size,
+    locked: result.locked.filter((id) => held.has(id)).length,
+  };
+}
+
+async function exampleReasons(): Promise<ReasonsSource | null> {
+  const checks = await exampleReasonChecks();
+  return checks.length > 0 ? { checks, withReason: checks.length, holdings: checks.length, locked: 0 } : null;
+}
+
+/** The person's standing agents (archived ones left out) and their newest runs, from the same store /agents reads. */
+async function userAgents(uid: string): Promise<AgentsSource> {
+  const [jobs, runs] = await Promise.all([listJobs(uid), listRuns(uid, RUNS_READ)]);
+  const live = new Set(jobs.map((job) => job.id));
+  return {
+    jobs: jobs.map((job) => ({ id: job.id, name: job.name, enabled: job.enabled, weekly: job.trigger.type === "schedule" && job.trigger.cadence === "weekly" })),
+    runs: runs
+      .filter((run) => live.has(run.job_id))
+      .map((run) => ({ job_id: run.job_id, job_name: run.job_name, day: run.day, ran_at: run.ran_at, decision: run.decision, summary: run.summary })),
+  };
+}
+
 /**
  * Starts every source once per request (the feed and each tool card share
  * them) and hands back the promises, so each part of the page can render as
@@ -137,19 +181,25 @@ export const loadPortfolioHome = cache((): HomeLoad => {
       stress: mine("stress", (doc) => loadUserStress(doc), () => loadExampleStress()),
       goal: mine("goal", (doc) => loadUserGoal(doc), () => loadExampleGoal()),
       ideas: mine("ideas", (doc) => loadUserIdeas(doc, rates), () => loadExampleIdeas(rates)),
+      reasons: mine("reasons", (doc, viewer) => userReasons(doc, viewer), () => exampleReasons()),
     },
+    // Only for a person looking at their own holdings; the example has no standing agents to report on.
+    agents: ctx.then((context) =>
+      context.mode === "mine" && context.viewer.uid ? withTimeout<AgentsSource>(userAgents(context.viewer.uid), "agents", AGENTS_TIMEOUT_MS) : ({ state: "empty" } as const),
+    ),
   };
 });
 
 /** The sources the "noticed" feed picks from, once each has answered or run out of time (the goal planner only feeds its card). */
 export async function feedSources(load: HomeLoad): Promise<Omit<HomeSources, "goal">> {
-  const [memo, xray, season, dividends, stress, ideas] = await Promise.all([
+  const [memo, xray, season, dividends, stress, ideas, reasons] = await Promise.all([
     load.sources.memo,
     load.sources.xray,
     load.sources.season,
     load.sources.dividends,
     load.sources.stress,
     load.sources.ideas,
+    load.sources.reasons,
   ]);
-  return { memo, xray, season, dividends, stress, ideas };
+  return { memo, xray, season, dividends, stress, ideas, reasons };
 }

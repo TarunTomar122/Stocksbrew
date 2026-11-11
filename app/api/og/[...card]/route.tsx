@@ -18,8 +18,24 @@ import {
   versusCard,
 } from "@/lib/og/data";
 import { renderOgCard } from "@/lib/og/render";
+import { agentsCard, basketBuilderCard, basketCard, copyHubCard, copyRecordCard, isPortfolioOgTool, portfolioToolCard } from "@/lib/og/tool-cards";
 import type { OgCard } from "@/lib/og/types";
-import { isOgPageKey } from "@/lib/og/url";
+import { isOgPageKey, type OgPageKey } from "@/lib/og/url";
+
+/** Page keys drawn from `lib/og/tool-cards.ts`; the rest come from `pageCard`. */
+async function toolPageCard(key: OgPageKey): Promise<OgCard> {
+  switch (key) {
+    case "agents":
+      // Without the replay the words-only card stands in, briefly.
+      return (await agentsCard().catch(() => null)) ?? { ...(await pageCard(key)), transient: true };
+    case "copy":
+      return copyHubCard();
+    case "baskets":
+      return basketBuilderCard();
+    default:
+      return pageCard(key);
+  }
+}
 
 /**
  * Share cards by path. See `lib/og/url.ts` for the address scheme: every
@@ -30,7 +46,9 @@ import { isOgPageKey } from "@/lib/og/url";
  *   /api/og/market/<class>        /api/og/market/<class>/<id>
  *   /api/og/docs/<section>[/<slug>]   /api/og/blog/<slug>
  *   /api/og/versus/<slug>         /api/og/legal/<slug>
- *   /api/og/page/<key>            (briefing, markets, signals, pricing, ...)
+ *   /api/og/portfolio/<tool>      (the example portfolio: home, memo, xray, dividends, ...)
+ *   /api/og/copy/<slug>           /api/og/basket/<slug>
+ *   /api/og/page/<key>            (briefing, markets, signals, pricing, copy, baskets, ...)
  */
 
 export const runtime = "nodejs";
@@ -76,8 +94,14 @@ async function resolve(parts: string[]): Promise<OgCard | null> {
       return SLUG.test(a) ? versusCard(a.toLowerCase()) : null;
     case "legal":
       return SLUG.test(a) ? legalCard(a.toLowerCase()) : null;
+    case "portfolio":
+      return isPortfolioOgTool(a) ? portfolioToolCard(a) : null;
+    case "copy":
+      return SLUG.test(a) ? copyRecordCard(a.toLowerCase()) : null;
+    case "basket":
+      return SLUG.test(a) ? basketCard(a) : null;
     case "page":
-      return isOgPageKey(a) ? pageCard(a) : null;
+      return isOgPageKey(a) ? toolPageCard(a) : null;
     default:
       return null;
   }
@@ -88,7 +112,7 @@ async function resolve(parts: string[]): Promise<OgCard | null> {
  * that the data cache cannot hold (a strategy with its full backtest), so the
  * small spec is what gets cached, keyed by the card's path.
  */
-const resolveCached = unstable_cache(async (key: string) => resolve(key.split("/")), ["og-card-spec-v5"], { revalidate: 300 });
+const resolveCached = unstable_cache(async (key: string) => resolve(key.split("/")), ["og-card-spec-v11"], { revalidate: 300 });
 
 export async function GET(request: NextRequest, { params }: Params) {
   const parts = (params.card ?? []).slice(0, 4);

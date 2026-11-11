@@ -15,6 +15,7 @@ import { canSeeLevels, type Viewer } from "@/lib/entitlements-server";
 import { getScreenerRows } from "@/lib/screener";
 import { withoutZones, type ScreenerRow } from "@/lib/screener-shared";
 import { plainCallReason, shortCompanyName, wholeSentences } from "@/lib/plain-copy";
+import Link from "next/link";
 
 /**
  * The compare desk's body for two to four stocks: the read, the rebased price
@@ -208,9 +209,9 @@ export async function CompareView({
                         <p className="mt-2 text-pretty text-[13px] leading-5 text-oa-muted-fg">The reasons and risks are in the full report on {symbol}, free on five stocks you pick.</p>
                       ) : null}
                       <p className={`${NUM} mt-2.5 text-[11px] text-oa-muted-fg`}>
-                        <a href={`/stock/${encodeURIComponent(symbol)}`} className="underline decoration-oa-border underline-offset-2 hover:text-oa-fg">
+                        <Link prefetch={false} href={`/stock/${encodeURIComponent(symbol)}`} className="underline decoration-oa-border underline-offset-2 hover:text-oa-fg">
                           full report
-                        </a>
+                        </Link>
                       </p>
                     </>
                   ) : (
@@ -251,14 +252,14 @@ export async function CompareView({
                   const row = rows[index];
                   return (
                     <th key={symbol} scope="col" className="px-2 py-3 text-right align-bottom font-normal sm:px-3">
-                      <a href={`/stock/${encodeURIComponent(symbol)}`} className="group inline-flex flex-col items-end gap-1 outline-none">
+                      <Link prefetch={false} href={`/stock/${encodeURIComponent(symbol)}`} className="group inline-flex flex-col items-end gap-1 outline-none">
                         <span className="inline-flex items-center gap-2">
                           <span aria-hidden="true" className="size-2 rounded-full" style={{ background: LINE_COLORS[index % LINE_COLORS.length] }} />
                           <span className="max-sm:hidden"><StockLogo ticker={symbol} size={22} /></span>
                           <span className={`${NUM} text-[15px] font-medium text-oa-fg group-hover:underline group-focus-visible:underline`}>{symbol}</span>
                         </span>
                         <span className="max-w-[5.75rem] text-pretty text-right text-[12.5px] leading-4 text-oa-muted-fg sm:max-w-[11rem]">{row?.name ? shortCompanyName(row.name) : "Not covered"}</span>
-                      </a>
+                      </Link>
                       <div className={`${NUM} mt-1 text-[11px] text-oa-muted-fg`}>
                         {row ? `${wins[index]} ${wins[index] === 1 ? "row" : "rows"} won` : ""}
                       </div>

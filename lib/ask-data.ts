@@ -189,6 +189,17 @@ export async function loadDailySeries(symbol: string): Promise<DailySeries | nul
   }
 }
 
+/**
+ * The same closes for a caller that must tell "we hold no history" from "the
+ * store did not answer" (full research): a failed read throws instead of
+ * coming back as null. A throw is never cached.
+ */
+export async function loadDailySeriesStrict(symbol: string): Promise<DailySeries | null> {
+  const upper = symbol.trim().toUpperCase();
+  if (!/^[A-Z][A-Z0-9.\-^=]{0,11}$/.test(upper)) return null;
+  return unstable_cache(() => loadDailySeriesUncached(upper), ["ask-daily-series-v1", upper], { revalidate: 3 * 3600 })();
+}
+
 /* ── the wire ───────────────────────────────────────────────────────────── */
 
 type RawNews = {

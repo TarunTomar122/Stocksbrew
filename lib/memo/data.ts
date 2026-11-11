@@ -278,7 +278,7 @@ export async function loadSpanEvents(holdings: MemoHolding[], span: Span): Promi
 
 /* ── the shape of the portfolio today ───────────────────────────────────── */
 
-export type ShapeFacts = Pick<MemoInputs, "exposure" | "dividends" | "stress">;
+export type ShapeFacts = Pick<MemoInputs, "exposure" | "dividends" | "stress" | "reasons">;
 
 function exposureOf(view: XrayView | null): MemoExposure | null {
   if (!view || view.xray.total <= 0) return null;

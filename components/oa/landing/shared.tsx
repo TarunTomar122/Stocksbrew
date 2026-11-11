@@ -1,6 +1,7 @@
 import * as React from "react";
 
 import { Reveal } from "@/components/reveal";
+import { AppLink } from "@/components/oa/app-link";
 
 /** Layout and type constants shared by every landing section. */
 export const FRAME = "mx-auto w-full max-w-[76rem] px-4 sm:px-6";
@@ -82,7 +83,7 @@ export function SectionHead({
           {lede ? <p className={`${LEDE} ${align === "center" ? "mx-auto" : ""}`}>{lede}</p> : null}
         </div>
         {href && hrefLabel ? (
-          <a
+          <AppLink
             href={href}
             className="group/more inline-flex h-10 w-fit shrink-0 items-center gap-1.5 rounded-full border border-oa-border bg-oa-card px-4 text-[15px] font-medium text-oa-fg transition-colors hover:border-oa-fg/30"
           >
@@ -90,7 +91,7 @@ export function SectionHead({
             <span aria-hidden="true" className="transition-transform duration-200 group-hover/more:translate-x-0.5">
               →
             </span>
-          </a>
+          </AppLink>
         ) : null}
       </div>
     </Reveal>
@@ -110,7 +111,7 @@ export function RowLink({
   external?: boolean;
 }) {
   return (
-    <a
+    <AppLink
       href={href}
       {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
       className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 px-3.5 py-3 text-[15px] leading-6 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent"
@@ -121,7 +122,7 @@ export function RowLink({
           {value}
         </span>
       ) : null}
-    </a>
+    </AppLink>
   );
 }
 

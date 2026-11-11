@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { IntentLink } from "@/components/oa/intent-link";
 import { usePathname } from "next/navigation";
 
 import { NavIcon } from "@/components/oa/nav-icon";
@@ -11,7 +11,7 @@ const FOCUS =
 
 function PlaceRow({ place, active, current }: { place: NavPlace; active: boolean; current: boolean }) {
   return (
-    <Link
+    <IntentLink
       href={place.href}
       title={place.blurb}
       aria-current={current ? "page" : active ? "location" : undefined}
@@ -21,13 +21,13 @@ function PlaceRow({ place, active, current }: { place: NavPlace; active: boolean
     >
       <NavIcon name={place.icon} className={`size-[18px] shrink-0 ${active ? "text-oa-primary" : ""}`} />
       <span className="truncate">{place.label}</span>
-    </Link>
+    </IntentLink>
   );
 }
 
 function SectionRow({ item, current }: { item: NavItem; current: boolean }) {
   return (
-    <Link
+    <IntentLink
       href={item.href}
       aria-current={current ? "page" : undefined}
       className={`flex h-8 items-center rounded-md pl-3 pr-2 text-[14px] transition-colors ${FOCUS} ${
@@ -37,7 +37,7 @@ function SectionRow({ item, current }: { item: NavItem; current: boolean }) {
       }`}
     >
       <span className="truncate">{item.label}</span>
-    </Link>
+    </IntentLink>
   );
 }
 
@@ -78,9 +78,9 @@ export function SidebarNav() {
       </ul>
       <div className="mt-auto flex flex-wrap gap-x-3 gap-y-1 px-3 pt-4 text-[13px] leading-5">
         {MORE_LINKS.map((item) => (
-          <Link key={item.href} href={item.href} className={`rounded text-oa-muted-fg hover:text-oa-fg ${FOCUS}`}>
+          <IntentLink key={item.href} href={item.href} className={`rounded text-oa-muted-fg hover:text-oa-fg ${FOCUS}`}>
             {item.label}
-          </Link>
+          </IntentLink>
         ))}
       </div>
     </nav>

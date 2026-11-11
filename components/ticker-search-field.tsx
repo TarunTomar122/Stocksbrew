@@ -8,6 +8,7 @@ import { StockRequestModal } from "@/components/stock-request-modal";
 import { TrackButton } from "@/components/track-button";
 import { captureEvent } from "@/lib/posthog";
 import type { SearchEntry } from "@/lib/search";
+import { prefetchSearchIndex } from "@/lib/search-index-client";
 import { formatSearchPct, scoreSearchEntry } from "@/lib/ticker-search-utils";
 import type { Market } from "@/lib/types";
 
@@ -58,13 +59,11 @@ export function TickerSearchField({
 
   useEffect(() => {
     let cancelled = false;
-    const url = `/api/search-index?market=${encodeURIComponent(String(market || "US"))}`;
+    // Shared with every other search box on the page: one request per market (lib/search-index-client).
+    const marketKey = String(market || "US").toUpperCase() === "IN" ? "IN" : "US";
     const run = async () => {
       try {
-        const res = await fetch(url, { cache: "no-store" });
-        if (!res.ok) return;
-        const payload = (await res.json()) as { entries?: SearchEntry[] };
-        const entries = Array.isArray(payload.entries) ? payload.entries : [];
+        const entries = await prefetchSearchIndex(marketKey);
         if (!cancelled) {
           setSearchIndex(entries);
           setSearchIndexReady(entries.length > 0);

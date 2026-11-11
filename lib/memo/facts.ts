@@ -796,6 +796,27 @@ export function buildFacts(inputs: MemoInputs): FactsResult {
     });
   }
 
+  /* reasons the person gave that weakened or broke (lib/thesis-watch) */
+  for (const reason of inputs.reasons ?? []) {
+    const name = nameOf(inputs, reason.ticker);
+    const phrase = reason.verdict === "broken" ? "looks broken" : "is weaker";
+    facts.push({
+      id: `reason:${reason.ticker}`,
+      kind: "reason",
+      section: "hurt",
+      rank: reason.verdict === "broken" ? 80 : 58,
+      tickers: [reason.ticker],
+      text: `Your reason for owning ${name} ${phrase}. ${reason.finding}`,
+      short: `your reason for owning ${name} ${phrase}`,
+      href: `/stock/${encodeURIComponent(reason.ticker)}`,
+      linkLabel: "Your reason",
+      tone: "down",
+      source: reason.source,
+      asOf: reason.asOf,
+      data: { ...reason.data, ticker: reason.ticker },
+    });
+  }
+
   /* the closest past shock */
   const stress = inputs.stress;
   if (stress && stress.portfolio < 0 && stress.portfolio <= stress.market - STRESS_GAP_POINTS) {

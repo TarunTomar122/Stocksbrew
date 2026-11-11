@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { Suspense, cache } from "react";
 
 import { EarningsDayStockEntry } from "@/components/earnings-day/stock-entry";
+import { ResearchStockEntry } from "@/components/research/stock-entry";
+import { StockReason } from "@/components/thesis/stock-reason";
 import { StockPageStream } from "@/components/stock-page-stream";
 import { StockReportSkeleton } from "@/components/stock-report/skeleton";
 import { StockFamilyLinks } from "@/components/seo/stock-family-links";
@@ -13,7 +15,7 @@ import { getCurrentMarket } from "@/lib/market";
 import { getStockSummary, normalizeStockSymbolParam } from "@/lib/stock";
 import { stockShareLine } from "@/lib/og/data";
 import { ogImage } from "@/lib/og/url";
-import { getCoverage } from "@/lib/seo/family-data";
+import { getStockFamily } from "@/lib/seo/family-data";
 import {
   getSeoStockPage,
   stockHasCurrentRead,
@@ -65,19 +67,30 @@ const stockExists = cache(async (symbol: string): Promise<"yes" | "no" | "unknow
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { symbol } = await params;
-  if ((await stockExists(symbol)) === "no") return { title: "Stock not found", robots: { index: false, follow: true } };
   const normalized = normalizeStockSymbolParam(symbol);
   const label =
     normalized ?? (symbol.trim().toUpperCase().slice(0, 16) || symbol.toUpperCase());
   const upper = label.toUpperCase();
   const profile = getSeoStockPage(upper);
+  // The metadata holds the first byte of the page, so for the stocks in our
+  // catalogue its reads all start at once instead of one after another. Each
+  // is cached and shared with the page's own reads. Any other symbol waits
+  // for the exists check first, so a made-up ticker never adds cache entries.
+  const existsRead = stockExists(symbol);
+  const exists = profile ? null : await existsRead;
   // Fulfilled/search-catalog stocks can exist in Firestore before the checked-
   // in 500-company catalogue is refreshed. Resolve those real pages here so a
   // valid long-tail stock such as NOK is not left noindex until the next code
   // deployment.
-  const live = profile
-    ? null
-    : await getStockSummary(upper, "US").catch(() => null);
+  const liveRead = profile || !normalized ? Promise.resolve(null) : getStockSummary(upper, "US").catch(() => null);
+  const known = normalized && exists !== "no";
+  const shareLineRead = known ? stockShareLine(upper).catch(() => null) : Promise.resolve(null);
+  // If the coverage read fails, keep the page indexable rather than noindex it during an outage.
+  const indexRead = known
+    ? getStockFamily(upper).then((family) => stockHasCurrentRead(family.row, todayET()), () => true)
+    : Promise.resolve(true);
+  if ((exists ?? (await existsRead)) === "no") return { title: "Stock not found", robots: { index: false, follow: true } };
+  const live = await liveRead;
   const identity = profile ?? live;
   const title = identity
     ? stockSeoTitle({ name: identity.name, ticker: upper })
@@ -92,7 +105,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     : `${upper} stock price, fundamentals, earnings, analyst context, risks, and recent news in one research view.`;
   // The share card: price, move, our call and the read, drawn from today's data (lib/og).
   const shareImage = ogImage(["stock", upper], identity ? `${upper} (${identity.name}): price, today's move and our call` : `${upper} stock report`, { daily: true });
-  const shareLine = identity ? await stockShareLine(upper).catch(() => null) : null;
+  const shareLine = identity ? await shareLineRead : null;
   return {
     title,
     description,
@@ -109,8 +122,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     alternates: { canonical: `/stock/${upper}` },
     // The index rule lives in lib/seo/stock-pages.ts (stockHasCurrentRead); the stocks sitemap applies the same rule to the same row.
     robots: {
-      // If the coverage read fails, keep the page indexable rather than noindex it during an outage.
-      index: Boolean(identity) && (await getCoverage().then((coverage) => stockHasCurrentRead(coverage.bySymbol.get(upper), todayET()), () => true)),
+      index: Boolean(identity) && (await indexRead),
       follow: true,
     },
     openGraph: {
@@ -140,8 +152,14 @@ export default async function StockPage({ params }: Props) {
       <Suspense fallback={null}>
         <EarningsDayStockEntry ticker={ticker} />
       </Suspense>
+      {/* The owner's own reason and what the reason watcher found; fetched in the browser, so the page stays cached. */}
+      <StockReason ticker={ticker} />
       <Suspense fallback={<StockReportSkeleton />}>
         <StockPageStream params={params} />
+      </Suspense>
+      {/* The full research report on this stock (components/research). */}
+      <Suspense fallback={null}>
+        <ResearchStockEntry ticker={ticker} />
       </Suspense>
       <Suspense fallback={null}>
         <StockFamilyLinks ticker={ticker} />

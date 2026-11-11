@@ -10,6 +10,8 @@ import { moveRowText, reasonSource, visibleLines, type BriefingGroup, type Brief
 import { compactTime, signedPct, sourceTime } from "./format";
 import { verdictFor } from "./item-metric";
 import { trackBriefingItemOpened } from "@/lib/product-analytics";
+import Link from "next/link";
+import { AppLink } from "@/components/oa/app-link";
 
 const ACTION =
   "inline-flex h-10 cursor-pointer items-center rounded-md border border-oa-border bg-oa-card px-2.5 text-[13px] font-medium text-oa-fg outline-none transition-colors hover:bg-oa-accent focus-visible:ring-[3px] focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)] disabled:opacity-50 sm:h-7";
@@ -58,9 +60,9 @@ function Sources({ items }: { items: BriefingItem[] }) {
         return (
           <li key={`${entry.label}-${index}`} className="flex flex-col gap-x-3 text-[13px] leading-5 sm:flex-row sm:items-baseline sm:justify-between">
             {entry.url ? (
-              <a href={entry.url} {...(isExternal(entry.url) ? { target: "_blank", rel: "noopener noreferrer" } : {})} className={`min-w-0 truncate ${SOFT} ${LINK}`}>
+              <AppLink href={entry.url} {...(isExternal(entry.url) ? { target: "_blank", rel: "noopener noreferrer" } : {})} className={`min-w-0 truncate ${SOFT} ${LINK}`}>
                 {entry.label}
-              </a>
+              </AppLink>
             ) : (
               <span className={`min-w-0 truncate ${SOFT}`}>{entry.label}</span>
             )}
@@ -105,9 +107,9 @@ function LinePanel({ id, line, group, actions }: { id: string; line: BriefingLin
             <dt className="oa-caption">The reason</dt>
             <dd className="mt-0.5">
               {story.url ? (
-                <a href={story.url} {...(isExternal(story.url) ? { target: "_blank", rel: "noopener noreferrer" } : {})} className={`${SOFT} ${LINK}`}>
+                <AppLink href={story.url} {...(isExternal(story.url) ? { target: "_blank", rel: "noopener noreferrer" } : {})} className={`${SOFT} ${LINK}`}>
                   {story.label}
-                </a>
+                </AppLink>
               ) : (
                 <span className={SOFT}>{story.label}</span>
               )}
@@ -141,9 +143,9 @@ function LinePanel({ id, line, group, actions }: { id: string; line: BriefingLin
             Put it back
           </button>
         )}
-        <a href={askWhyHref(item)} className={ACTION} title={COPILOT_PATH ? "Ask about this" : "Open the page that explains it"}>
+        <AppLink href={askWhyHref(item)} className={ACTION} title={COPILOT_PATH ? "Ask about this" : "Open the page that explains it"}>
           Ask why
-        </a>
+        </AppLink>
         {!actions.readOnly && others && groupStatus === "open" ? (
           <button type="button" className={QUIET_ACTION} disabled={busyGroup} onClick={() => actions.onStatus(group.items, "dismissed", group.key)}>
             Got it for all {group.items.length} on {subject}
@@ -233,13 +235,13 @@ export function BriefingGroupCard({
       </span>
       <span className="col-start-2 row-start-1 min-w-0 leading-5">
         {ticker ? (
-          <a
+          <Link prefetch={false}
             href={`/stock/${encodeURIComponent(ticker)}`}
             title={group.name !== ticker ? group.name : undefined}
             className="oa-mono rounded text-[14px] font-semibold text-oa-fg outline-none hover:underline focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
           >
             {ticker}
-          </a>
+          </Link>
         ) : (
           <span className="text-[14px] font-semibold text-oa-fg">{group.name}</span>
         )}

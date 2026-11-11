@@ -6,6 +6,7 @@ import { OaButton } from "@/components/oa/button";
 import { useUser } from "@/lib/auth-context";
 import { getFirebaseAuth } from "@/lib/firebase-client";
 import { signInWithGoogle } from "@/lib/sign-in";
+import Link from "next/link";
 
 /** Follows a plain-English basket through /api/baskets/follow. The server freezes today's members and prices. */
 export function FollowBasketButton({ slug, initialFollowed }: { slug: string; initialFollowed: boolean }) {
@@ -55,9 +56,9 @@ export function FollowBasketButton({ slug, initialFollowed }: { slug: string; in
         <span role="alert" className="text-[12.5px] leading-[18px] text-oa-muted-fg">
           {error.text}{" "}
           {error.pro ? (
-            <a href="/pricing" className="text-oa-primary underline underline-offset-2">
+            <Link prefetch={false} href="/pricing" className="text-oa-primary underline underline-offset-2">
               See Pro
-            </a>
+            </Link>
           ) : null}
         </span>
       ) : null}

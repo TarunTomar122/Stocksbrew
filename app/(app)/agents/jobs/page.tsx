@@ -4,7 +4,7 @@ import { unstable_cache } from "next/cache";
 import { JobsWorkspace } from "@/components/agents-jobs/jobs-workspace";
 import { PlainAgentBox } from "@/components/agents-plain/plain-agent-box";
 import { AppPage } from "@/components/oa/kit";
-import { hiddenTemplateIds, parseJobDraft } from "@/lib/agent-jobs";
+import { AGENT_SAMPLE_JOB, hiddenTemplateIds, parseJobDraft } from "@/lib/agent-jobs";
 import { agentMarketDay, listJobs, listRuns, loadFacts, replayDraft, resolveScope } from "@/lib/agent-jobs-data";
 import { getSessionUser } from "@/lib/auth-server";
 import { getCoverage } from "@/lib/seo/family-data";
@@ -37,11 +37,7 @@ const sampleReplay = unstable_cache(
 );
 
 /** The example shown before someone has a job of their own: a real rule on real prices. */
-const SAMPLE = {
-  template: "big-move",
-  scope: { kind: "tickers", tickers: ["NVDA", "AAPL", "MSFT", "AMZN", "TSLA"] },
-  trigger: { pct: 4 },
-};
+const SAMPLE = AGENT_SAMPLE_JOB;
 
 /** "Watch MSFT for me" from the landing card: the same big-move rule, on that one stock. */
 function sampleFor(watch: string | null) {

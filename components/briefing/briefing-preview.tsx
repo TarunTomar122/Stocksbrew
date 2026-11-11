@@ -5,6 +5,7 @@ import { groupBriefingSections } from "@/lib/briefing-groups";
 
 import { KIND_LABEL, longDay, sourceTime } from "./format";
 import { ItemMetric } from "./item-metric";
+import { AppLink } from "@/components/oa/app-link";
 
 /**
  * A compact card of the top three briefing items.
@@ -66,7 +67,7 @@ export async function BriefingPreview({
         <ul className="border-t border-oa-border">
           {items.map((item) => (
             <li key={item.id} className="border-b border-oa-border last:border-b-0">
-              <a
+              <AppLink
                 href={item.href}
                 className="flex items-start gap-3 px-4 py-3 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent"
               >
@@ -90,18 +91,18 @@ export async function BriefingPreview({
                     <span className="oa-caption">Next</span> {item.next_step}
                   </span>
                 </span>
-              </a>
+              </AppLink>
             </li>
           ))}
         </ul>
       )}
-      <a
+      <AppLink
         href={href}
         className="flex items-center justify-between gap-3 border-t border-oa-border px-4 py-2.5 text-[13px] font-medium text-oa-fg outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent"
       >
         <span>{personal ? "Open your briefing" : "Read the full briefing"} →</span>
         <span className="oa-mono text-[11px] font-normal text-oa-muted-fg">Built {sourceTime(briefing.built_at)}</span>
-      </a>
+      </AppLink>
     </div>
   );
 }

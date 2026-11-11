@@ -11,6 +11,7 @@ import {
   type LatestPriceCore,
 } from "@/lib/firestore";
 import { getAiUniverse, getInstrument } from "@/lib/firestore";
+import { localFirestoreFromEnv } from "@/lib/local-firestore";
 import { hasSufficientOverallData } from "@/lib/fundamentals-coverage";
 import { buildPriceHistorySeries } from "@/lib/price-history-series";
 import type { PriceHistoryPoint } from "@/lib/price-history-chart";
@@ -22,6 +23,7 @@ import type { EarningsIntelDoc } from "@/lib/earnings-intel";
 import type { PreEarningsIntelDoc } from "@/lib/pre-earnings-intel-shared";
 import type { StockTechnicals } from "@/lib/technicals";
 import { unstable_cache } from "next/cache";
+import { cache } from "react";
 
 export type { PriceHistoryPoint } from "@/lib/price-history-chart";
 export { PRICE_HISTORY_CHART_MIN } from "@/lib/price-history-chart";
@@ -637,10 +639,17 @@ export async function getStockFacts(
   return doc.exists ? (doc.data() as StockFacts) : null;
 }
 
-export async function getStockSummary(
+// React's request cache only exists in the server-components build; elsewhere (tests, scripts) read each time.
+const perRequest: typeof cache = typeof cache === "function" ? cache : (fn) => fn;
+
+/**
+ * Deduped per request: the stock page asks from its metadata, its 404 check
+ * and its report, and the alias fallback below is an uncached query.
+ */
+export const getStockSummary = perRequest(async (
   symbol: string,
   market: "US" | "IN" = "US",
-): Promise<StockSummary | null> {
+): Promise<StockSummary | null> => {
   const ticker = symbol.toUpperCase();
   const instrumentId = `${market}_${ticker}`;
 
@@ -742,7 +751,7 @@ export async function getStockSummary(
   }
 
   return null;
-}
+});
 
 export async function getInstrumentViewDoc(
   instrumentId: string,
@@ -1107,17 +1116,64 @@ function peerFundamentalsFromDocs(
   };
 }
 
+// What a peer row reads from each peer's price, facts and instrument documents.
+const PEER_FIELDS = [
+  "name",
+  "quote.current",
+  "quote.day_change_pct",
+  "fundamentals.market_cap",
+  "fundamentals.pe_ttm",
+  "quick_stats.market_cap",
+  "quick_stats.pe_ttm",
+  "financials.revenue_growth_yoy_pct",
+];
+
+type PeerDocs = {
+  prices: Map<string, LatestPriceCore>;
+  factsById: Map<string, StockFacts>;
+  instrumentsById: Map<string, Instrument>;
+};
+
+/**
+ * The peers' price, facts and instrument documents. On LocalDB this is one
+ * batch read of only the fields a peer row shows (PEER_FIELDS), instead of
+ * three reads of whole documents (an instrument carries its description,
+ * facts their full history). The maps hold those fields only.
+ */
+async function loadPeerDocs(ids: string[]): Promise<PeerDocs> {
+  const local = localFirestoreFromEnv();
+  if (!local) {
+    const [prices, factsById, instrumentsById] = await Promise.all([
+      getLatestPriceCores(ids),
+      batchGetRefs<StockFacts>(ids.map((id) => adminFirestore.collection("tm_stock_facts").doc(id))),
+      batchGetRefs<Instrument>(ids.map((id) => adminFirestore.collection("tm_instruments").doc(id))),
+    ]);
+    return { prices, factsById, instrumentsById };
+  }
+  const collections = ["tm_latest_prices", "tm_stock_facts", "tm_instruments"] as const;
+  const snapshots = await local.getAllSelected(
+    collections.flatMap((collection) => ids.map((id) => local.collection(collection).doc(id))),
+    PEER_FIELDS,
+  );
+  const maps = collections.map(() => new Map<string, Record<string, unknown>>());
+  snapshots.forEach((snapshot, index) => {
+    const data = snapshot.exists ? snapshot.data() : undefined;
+    if (data) maps[Math.floor(index / ids.length)]!.set(snapshot.id, data);
+  });
+  return {
+    prices: maps[0] as unknown as Map<string, LatestPriceCore>,
+    factsById: maps[1] as unknown as Map<string, StockFacts>,
+    instrumentsById: maps[2] as unknown as Map<string, Instrument>,
+  };
+}
+
 async function enrichSectorPeerRows(
   peers: StockIntelPro[],
   market: "US" | "IN",
 ): Promise<SectorPeerRow[]> {
   if (peers.length === 0) return [];
   const peerIds = peers.map((p) => p.instrument_id);
-  const [prices, factsById, instrumentsById] = await Promise.all([
-    getLatestPriceCores(peerIds),
-    batchGetRefs<StockFacts>(peerIds.map((id) => adminFirestore.collection("tm_stock_facts").doc(id))),
-    batchGetRefs<Instrument>(peerIds.map((id) => adminFirestore.collection("tm_instruments").doc(id))),
-  ]);
+  const { prices, factsById, instrumentsById } = await loadPeerDocs(peerIds);
   return peers.map((s) => {
     const quote = prices.get(s.instrument_id)?.quote;
     const instrument = instrumentsById.get(s.instrument_id);
@@ -1148,23 +1204,22 @@ export async function enrichRelatedTickersForComparison(
   const ids = candidates.map((r) => r.instrument_id);
   const universes = await getIntelUniverseIds(market);
 
-  const [prices, factsById, instrumentsById] = await Promise.all([
-    getLatestPriceCores(ids),
-    batchGetRefs<StockFacts>(ids.map((id) => adminFirestore.collection("tm_stock_facts").doc(id))),
-    batchGetRefs<Instrument>(ids.map((id) => adminFirestore.collection("tm_instruments").doc(id))),
-  ]);
-
-  const intelById = new Map<string, StockIntelPro>();
-  for (const universe of universes) {
-    const batch = await batchGetRefs<StockIntelPro>(
-      ids.map((id) =>
-        adminFirestore.collection("tm_stock_intel_pro").doc(`${market}__${universe}`).collection("stocks").doc(id),
-      ),
-    );
-    for (const [id, intel] of batch.entries()) {
-      if (intel && !intelById.has(id)) intelById.set(id, intel);
+  // The peers' documents and their scores load side by side.
+  const loadIntel = async () => {
+    const byId = new Map<string, StockIntelPro>();
+    for (const universe of universes) {
+      const batch = await batchGetRefs<StockIntelPro>(
+        ids.map((id) =>
+          adminFirestore.collection("tm_stock_intel_pro").doc(`${market}__${universe}`).collection("stocks").doc(id),
+        ),
+      );
+      for (const [id, intel] of batch.entries()) {
+        if (intel && !byId.has(id)) byId.set(id, intel);
+      }
     }
-  }
+    return byId;
+  };
+  const [{ prices, factsById, instrumentsById }, intelById] = await Promise.all([loadPeerDocs(ids), loadIntel()]);
 
   return candidates.map((row) => {
     const intel = intelById.get(row.instrument_id);

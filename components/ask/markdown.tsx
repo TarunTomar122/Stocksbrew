@@ -2,6 +2,7 @@
 
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { AppLink } from "@/components/oa/app-link";
 
 /** The copilot's prose. Markdown in, brew typography out. Links open in a new tab unless they stay on the site. */
 export function AskMarkdown({ text }: { text: string }) {
@@ -21,9 +22,9 @@ export function AskMarkdown({ text }: { text: string }) {
           a: ({ href, children }) => {
             const internal = typeof href === "string" && href.startsWith("/");
             return (
-              <a href={href} {...(internal ? {} : { target: "_blank", rel: "noopener noreferrer" })} className="underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
+              <AppLink href={href} {...(internal ? {} : { target: "_blank", rel: "noopener noreferrer" })} className="underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
                 {children}
-              </a>
+              </AppLink>
             );
           },
           code: ({ children }) => <code className="oa-mono rounded bg-oa-bg px-1 py-0.5 text-[13px]">{children}</code>,

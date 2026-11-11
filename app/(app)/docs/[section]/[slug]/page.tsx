@@ -9,6 +9,8 @@ import { FOCUS } from "@/components/oa/kit";
 import { GUIDES, getGuide, getGuideByKey, getSection, guideHref, guidesIn, headingsOf, neighbours, readingMinutes } from "@/lib/docs";
 import { SITE_URL } from "@/lib/docs/site";
 import { ogImage } from "@/lib/og/url";
+import Link from "next/link";
+import { AppLink } from "@/components/oa/app-link";
 
 type Props = { params: { section: string; slug: string } };
 
@@ -106,13 +108,13 @@ export default function DocsGuidePage({ params }: Props) {
               {guide.tool ? "Calculator" : `${readingMinutes(guide)} min read`}
             </p>
             {guide.surface ? (
-              <a
+              <AppLink
                 href={guide.surface.href}
                 className={`inline-flex h-8 items-center gap-1 rounded-md border border-oa-border bg-oa-card px-2.5 text-[14px] font-medium text-oa-fg hover:bg-oa-accent ${FOCUS}`}
               >
                 {guide.surface.label}
                 <span aria-hidden="true">→</span>
-              </a>
+              </AppLink>
             ) : null}
           </div>
         </header>
@@ -134,10 +136,10 @@ export default function DocsGuidePage({ params }: Props) {
             <ul className="oa-surface border border-oa-border bg-oa-card">
               {related.map((item) => (
                 <li key={guideHref(item)} className="border-b border-oa-border last:border-b-0">
-                  <a href={guideHref(item)} className={`group block px-4 py-2.5 hover:bg-oa-accent ${FOCUS}`}>
+                  <Link prefetch={false} href={guideHref(item)} className={`group block px-4 py-2.5 hover:bg-oa-accent ${FOCUS}`}>
                     <span className="block text-[15px] font-medium leading-6 text-oa-fg group-hover:underline">{item.title}</span>
                     <span className="block text-pretty text-[13.5px] leading-5 text-oa-muted-fg">{item.summary}</span>
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -146,26 +148,26 @@ export default function DocsGuidePage({ params }: Props) {
 
         <nav aria-label="Previous and next guide" className="mt-8 grid gap-3 sm:grid-cols-2">
           {prev ? (
-            <a href={guideHref(prev)} className={`oa-surface border border-oa-border bg-oa-card px-4 py-3 hover:bg-oa-accent ${FOCUS}`}>
+            <Link prefetch={false} href={guideHref(prev)} className={`oa-surface border border-oa-border bg-oa-card px-4 py-3 hover:bg-oa-accent ${FOCUS}`}>
               <span className="oa-caption block">← Previous</span>
               <span className="mt-0.5 block text-[15px] font-medium leading-6 text-oa-fg">{prev.title}</span>
-            </a>
+            </Link>
           ) : (
             <span className="hidden sm:block" />
           )}
           {next ? (
-            <a href={guideHref(next)} className={`oa-surface border border-oa-border bg-oa-card px-4 py-3 hover:bg-oa-accent sm:text-right ${FOCUS}`}>
+            <Link prefetch={false} href={guideHref(next)} className={`oa-surface border border-oa-border bg-oa-card px-4 py-3 hover:bg-oa-accent sm:text-right ${FOCUS}`}>
               <span className="oa-caption block">Next →</span>
               <span className="mt-0.5 block text-[15px] font-medium leading-6 text-oa-fg">{next.title}</span>
-            </a>
+            </Link>
           ) : null}
         </nav>
 
         <p className="mt-8 border-t border-oa-border pt-4 text-[13.5px] leading-5 text-oa-muted-fg">
           Something here wrong or unclear?{" "}
-          <a href="/docs/methodology/corrections#reporting-an-error" className={`font-medium text-oa-fg underline decoration-oa-border underline-offset-2 ${FOCUS}`}>
+          <Link prefetch={false} href="/docs/methodology/corrections#reporting-an-error" className={`font-medium text-oa-fg underline decoration-oa-border underline-offset-2 ${FOCUS}`}>
             Tell us
-          </a>
+          </Link>
           . Informational only, not investment advice.
         </p>
       </article>

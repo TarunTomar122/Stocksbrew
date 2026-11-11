@@ -43,6 +43,8 @@ export const OG_PAGE_KEYS = [
   "security",
   "glossary",
   "tools",
+  "copy",
+  "baskets",
 ] as const;
 
 export type OgPageKey = (typeof OG_PAGE_KEYS)[number];
@@ -50,6 +52,14 @@ export type OgPageKey = (typeof OG_PAGE_KEYS)[number];
 export function isOgPageKey(value: string): value is OgPageKey {
   return (OG_PAGE_KEYS as readonly string[]).includes(value);
 }
+
+/**
+ * The portfolio tools, each drawn from the example portfolio a signed-out
+ * visitor sees: `/api/og/portfolio/<tool>`. "home" is the /portfolio overview.
+ */
+export const PORTFOLIO_OG_TOOLS = ["home", "memo", "xray", "dividends", "stress", "earnings", "goal", "ideas", "analyze"] as const;
+
+export type PortfolioOgTool = (typeof PORTFOLIO_OG_TOOLS)[number];
 
 /** New York calendar day, YYYY-MM-DD. */
 export function ogDay(now: Date = new Date()): string {

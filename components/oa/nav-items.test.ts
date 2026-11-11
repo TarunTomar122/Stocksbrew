@@ -116,7 +116,7 @@ describe("trailFor", () => {
     expect(trail("/stock/NVDA")).toBe("Research");
     expect(trail("/stock/nvda/moves/2026-11-10")).toBe("Research › NVDA");
     expect(trail("/stock/NVDA/earnings/2026-11-19")).toBe("Research › NVDA › Earnings");
-    expect(trail("/stock/NVDA/research/abc")).toBe("Research › NVDA › Full research");
+    expect(trail("/stock/NVDA/research/abc")).toBe("Research › NVDA › Long research report");
     expect(trail("/sectors/technology")).toBe("Research › Sectors");
     expect(trail("/compare/amd-vs-nvda")).toBe("Research › Compare");
     expect(trail("/markets/crypto/BTC")).toBe("Research › Markets › Crypto");

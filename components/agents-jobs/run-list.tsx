@@ -6,6 +6,7 @@ import * as React from "react";
 import { StockLogo } from "@/components/stock-logo";
 import { shortDate, type AgentEvaluation, type AgentJob } from "@/lib/agent-jobs";
 import { presentRun, signedPct, VERDICT_LABEL, type AgentVerdict, type RunView } from "@/lib/agent-jobs-present";
+import { AppLink } from "@/components/oa/app-link";
 
 export type RunRow = AgentEvaluation & { key: string; day: string; ran_at?: string };
 
@@ -167,13 +168,13 @@ export function RunReport({ view, showHeadline = true }: { view: RunView; showHe
             <li key={`${note.title}-${index}`} className="px-3 py-2 text-[13.5px] leading-5">
               <p className="font-medium text-oa-fg">
                 {note.url ? (
-                  <a
+                  <AppLink
                     href={note.url}
                     {...(/^https?:/.test(note.url) ? { target: "_blank", rel: "noopener noreferrer" } : {})}
                     className="hover:underline"
                   >
                     {note.title}
-                  </a>
+                  </AppLink>
                 ) : (
                   note.title
                 )}

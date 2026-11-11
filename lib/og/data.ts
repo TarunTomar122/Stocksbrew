@@ -633,7 +633,7 @@ export function copyRows(record: CopyRecord | null): OgRecordCard["record"] {
   return {
     title: "$10,000 copied, against the S&P 500",
     rows: [
-      { label: "Copying each filing", value: ogSignedPct(mine * 100, 0)!, tone: ogTone(mine), big: true },
+      { label: record.kind === "fund" ? "Copying each filing" : "Copying each trade", value: ogSignedPct(mine * 100, 0)!, tone: ogTone(mine), big: true },
       { label: "S&P 500", value: ogSignedPct(bench * 100, 0)!, tone: ogTone(bench) },
     ],
     spark: points.length > 1 ? points.map((row) => row[1]) : null,

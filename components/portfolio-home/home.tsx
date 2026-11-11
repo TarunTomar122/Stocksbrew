@@ -1,18 +1,31 @@
 import Link from "next/link";
 import { Suspense } from "react";
 
-import { ShowMore } from "@/components/oa/kit/more";
+import { fmtDay, fmtStampET } from "@/components/oa/kit";
 import { Bar } from "@/components/oa/kit/skeleton";
 import { ToneGlyph } from "@/components/oa/kit/tone";
 import { HomeSignIn } from "@/components/portfolio-home/sign-in";
 import { StockLogo } from "@/components/stock-logo";
-import { pickNoticed, SOURCE_OF, TOOL_GROUPS, TOOL_HREF, TOOL_TITLES, toolCard, type HomeMode, type Noticed, type ToolId } from "@/lib/portfolio-home/pick";
+import { ASK_MAX_QUESTION_CHARS } from "@/lib/ask-config";
+import { countWord } from "@/lib/read-format";
+import { newYorkToday } from "@/lib/portfolio-data";
+import { focusHeadline, focusNoticed, prioritise, type FoldRow, type Lead } from "@/lib/portfolio-home/focus";
+import { buildAgentLog, type LogRow } from "@/lib/portfolio-home/log";
+import { pickQuestions } from "@/lib/portfolio-home/questions";
 import { feedSources, type ExampleReason, type HomeLoad } from "@/lib/portfolio-home/server";
+
+/**
+ * The My stocks overview, laid out as an agent reporting to the person: the
+ * two or three changes that need them (each with one next step) and one fold
+ * with everything else; an Ask box with questions drawn from their holdings;
+ * and a dated log of what the agent checked and what is coming up. Each part
+ * waits only for the sources it reads (lib/portfolio-home/server.ts).
+ */
 
 const FOCUS = "outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]";
 const LINK = `font-medium text-oa-primary hover:underline ${FOCUS} rounded`;
-/** How many points a phone shows before the rest wait behind one button. */
-const PHONE_KEEP = 3;
+const CARD = "oa-surface min-w-0 overflow-hidden border border-oa-border bg-oa-card";
+const H2 = "text-pretty text-[16px] font-semibold leading-[22px] tracking-[-0.005em] text-oa-fg sm:text-[17px] sm:leading-6";
 
 /* ── the example line ──────────────────────────────────────────────────── */
 
@@ -54,9 +67,10 @@ export async function ExampleLine({ load }: { load: HomeLoad }) {
   );
 }
 
-/* ── what the agent noticed ────────────────────────────────────────────── */
+/* ── what needs you ────────────────────────────────────────────────────── */
 
-function NoticedRow({ item }: { item: Noticed }) {
+function LeadRow({ item }: { item: Lead }) {
+  const watch = item.action.kind === "watch";
   return (
     <li
       data-track-links="insight_clicked"
@@ -66,205 +80,365 @@ function NoticedRow({ item }: { item: Noticed }) {
       className="grid grid-cols-[12px_minmax(0,1fr)] gap-x-3 px-4 py-3.5 sm:gap-x-4 sm:px-5"
     >
       <ToneGlyph tone={item.tone} className="mt-[5px]" />
-      <div className="min-w-0 max-w-[52rem]">
-        {/* A div, not a p: the logo renders a div of its own. */}
-        <div className="flex items-center gap-1.5 text-[12.5px] leading-[18px] text-oa-muted-fg">
-          {item.ticker ? <StockLogo ticker={item.ticker} size={16} /> : null}
-          <span>{item.caption}</span>
+      <div className="min-w-0">
+        <div className="flex min-w-0 items-center gap-1.5 text-[13px] leading-[18px] text-oa-muted-fg">
+          {item.ticker ? (
+            <>
+              <StockLogo ticker={item.ticker} size={18} eager />
+              <span className="oa-mono font-medium tabular-nums text-oa-fg">{item.ticker}</span>
+              <span aria-hidden="true">·</span>
+            </>
+          ) : null}
+          {/* When the step is an agent request, the caption is the way to the evidence; otherwise the step already goes there. */}
+          {watch ? (
+            <Link href={item.open.href} prefetch={false} data-track-target="evidence" className={`truncate hover:text-oa-fg hover:underline ${FOCUS} rounded`}>
+              {item.caption}
+            </Link>
+          ) : (
+            <span className="truncate">{item.caption}</span>
+          )}
         </div>
         <p className="mt-1 text-pretty text-[15px] leading-[22px] text-oa-fg">{item.text}</p>
         {item.evidence ? <p className="mt-1 text-pretty text-[13px] leading-[19px] text-oa-muted-fg">{item.evidence}</p> : null}
-        <div className="mt-1.5 flex flex-wrap items-center gap-x-5">
-          <Link href={item.open.href} prefetch={false} data-track-target="action" className={`inline-flex min-h-9 items-center text-[13.5px] ${LINK}`}>
-            {item.open.label} →
-          </Link>
-          {item.watch ? (
-            <Link
-              href={item.watch.href}
-              prefetch={false}
-              data-track-target="watch"
-              title={`“${item.watch.request}”. You can check it before anything is saved.`}
-              className={`inline-flex min-h-9 items-center text-[13.5px] text-oa-fg underline decoration-oa-border underline-offset-[3px] hover:decoration-oa-fg ${FOCUS} rounded`}
-            >
-              Watch this for me
-            </Link>
-          ) : null}
-        </div>
+        <Link
+          href={item.action.href}
+          prefetch={false}
+          data-track-target={watch ? "watch" : "action"}
+          title={watch ? "We read it back to you on the agents page before anything is saved." : undefined}
+          className={`mt-2.5 inline-flex min-h-9 max-w-full items-center rounded border border-[color-mix(in_srgb,var(--oa-primary)_55%,transparent)] px-3 py-1.5 text-left text-[13.5px] font-medium leading-[18px] text-oa-primary transition-colors hover:bg-[color-mix(in_srgb,var(--oa-primary)_8%,transparent)] ${FOCUS}`}
+        >
+          {item.action.label}
+        </Link>
       </div>
     </li>
   );
 }
 
-function NoticedFrame({ example, children }: { example: boolean; children: React.ReactNode }) {
+function FoldItem({ row }: { row: FoldRow }) {
   return (
-    <section aria-labelledby="noticed-head" className="oa-surface min-w-0 overflow-hidden border border-oa-border bg-oa-card">
-      <div className="flex min-h-11 items-center justify-between gap-3 border-b border-oa-border px-4 py-2 sm:px-5">
-        <h2 id="noticed-head" className="oa-label min-w-0">
-          {example ? "What the agent noticed in the example this week" : "What your agent noticed this week"}
-        </h2>
-      </div>
-      {children}
-    </section>
+    <li>
+      <Link
+        href={row.href}
+        prefetch={false}
+        data-track-links="insight_clicked"
+        data-track-insight-id={row.key.slice(0, 80)}
+        data-track-insight-kind={`home-fold-${row.tool}`}
+        className={`grid grid-cols-[18px_minmax(0,1fr)] gap-x-2.5 px-4 py-2.5 transition-colors hover:bg-oa-accent sm:px-5 ${FOCUS}`}
+      >
+        <span className="mt-px flex h-[18px] items-center justify-center">
+          {row.ticker ? <StockLogo ticker={row.ticker} size={18} /> : row.tone ? <ToneGlyph tone={row.tone} /> : <span aria-hidden="true" className="h-1 w-1 rounded-full bg-oa-muted-fg" />}
+        </span>
+        <span className="min-w-0">
+          <span className="flex min-w-0 items-baseline justify-between gap-3">
+            <span className="truncate text-[14px] font-medium leading-[18px] text-oa-fg">{row.title}</span>
+            {row.figure ? <span className="oa-mono shrink-0 text-[13.5px] font-medium tabular-nums text-oa-fg">{row.figure}</span> : null}
+          </span>
+          <span className="mt-0.5 block text-pretty text-[13px] leading-[18px] text-oa-muted-fg">{row.text}</span>
+        </span>
+      </Link>
+    </li>
   );
 }
 
-export async function NoticedFeed({ load }: { load: HomeLoad }) {
-  const [{ mode }, sources] = await Promise.all([load.context, feedSources(load)]);
-  const items = pickNoticed(sources, mode);
-  const states = Object.values(sources).map((source) => source.state);
-  const slow = states.filter((state) => state === "slow").length;
-  const failed = states.filter((state) => state === "failed").length;
-  const example = mode === "example";
-  if (items.length === 0) {
-    const holdings = example ? "the example's holdings" : "your holdings";
-    return (
-      <NoticedFrame example={example}>
-        <p className="px-4 py-5 text-pretty text-[14px] leading-5 text-oa-muted-fg sm:px-5">
-          {slow + failed > 0
-            ? `The tools could not read ${holdings} just now. Reload in a minute, or open any of them below.`
-            : example
-              ? "Nothing in the example needs attention right now."
-              : "Nothing needs your attention right now. Add share counts in Portfolio and there is more to notice."}
-        </p>
-      </NoticedFrame>
-    );
-  }
-  const kept = items.slice(0, PHONE_KEEP);
-  const rest = items.slice(PHONE_KEEP);
-  return (
-    <NoticedFrame example={example}>
-      <ol className="divide-y divide-oa-border">
-        {kept.map((item) => (
-          <NoticedRow key={item.id} item={item} />
-        ))}
-      </ol>
-      {rest.length > 0 ? (
-        <ShowMore label={`Show ${rest.length} more`} className="[&>button]:mx-4 [&>button]:mb-3 [&>button]:w-[calc(100%-2rem)]">
-          <ol start={kept.length + 1} className="divide-y divide-oa-border border-t border-oa-border">
-            {rest.map((item) => (
-              <NoticedRow key={item.id} item={item} />
-            ))}
-          </ol>
-        </ShowMore>
-      ) : null}
-      {slow + failed > 0 ? (
-        <p className="border-t border-oa-border px-4 py-2.5 text-[12.5px] leading-[18px] text-oa-muted-fg sm:px-5">
-          {leftOutWords(slow, failed)}
-        </p>
-      ) : null}
-    </NoticedFrame>
-  );
-}
-
-/** "One tool took too long to answer and one could not be read, so they are left out here. Open them below." */
-function leftOutWords(slow: number, failed: number): string {
-  const count = (n: number) => (n === 1 ? "one" : String(n));
+/** "One tool took too long to answer and one could not be read, so they are left out here." */
+export function leftOutWords(slow: number, failed: number): string {
+  const count = (n: number) => countWord(n).toLowerCase();
   const parts = [
     slow > 0 ? `${count(slow)} ${slow === 1 ? "tool" : "tools"} took too long to answer` : null,
     failed > 0 ? `${count(failed)} ${slow > 0 ? "" : failed === 1 ? "tool " : "tools "}could not be read` : null,
   ].filter(Boolean) as string[];
   const many = slow + failed > 1;
-  const text = `${parts.join(" and ")}, so ${many ? "they are" : "it is"} left out here. Open ${many ? "them" : "it"} below.`;
+  const text = `${parts.join(" and ")}, so ${many ? "they are" : "it is"} left out here. Reload in a minute to try again.`;
   return text.charAt(0).toUpperCase() + text.slice(1).replace(/\s+/g, " ");
 }
 
-export function NoticedGhost() {
+/** The lead: what needs the person, each with one step; then one fold with everything else, each tool said once. */
+export async function FocusCard({ load }: { load: HomeLoad }) {
+  const [{ mode }, sources, goal] = await Promise.all([load.context, feedSources(load), load.sources.goal]);
+  const noticed = focusNoticed(sources, mode);
+  const { lead, fold } = prioritise(noticed, { ...sources, goal }, mode);
+  const urgent = lead.filter((item) => item.needsYou).length;
+  const states = Object.values(sources).map((source) => source.state);
+  const slow = states.filter((state) => state === "slow").length;
+  const failed = states.filter((state) => state === "failed").length;
+  const example = mode === "example";
   return (
-    <div aria-hidden="true" className="oa-surface min-w-0 overflow-hidden border border-oa-border bg-oa-card">
-      <div className="flex min-h-11 items-center border-b border-oa-border px-4 py-2 sm:px-5">
-        <Bar className="h-3 w-56" />
+    <section aria-labelledby="focus-head" className={CARD}>
+      <h2 id="focus-head" className={`${H2} border-b border-oa-border px-4 py-3 sm:px-5`}>
+        {noticed.length === 0 && slow + failed > 0 ? `The tools could not read ${example ? "the example's" : "your"} holdings just now.` : focusHeadline(urgent, mode)}
+      </h2>
+      {lead.length > 0 ? (
+        <ol className="divide-y divide-oa-border">
+          {lead.map((item) => (
+            <LeadRow key={item.id} item={item} />
+          ))}
+        </ol>
+      ) : (
+        <p className="px-4 py-4 text-pretty text-[14px] leading-5 text-oa-muted-fg sm:px-5">
+          {slow + failed > 0 ? (
+            "Reload in a minute to try again."
+          ) : example ? (
+            "The example's tools came back with nothing to say this week."
+          ) : (
+            <>
+              <Link href="/watchlist" prefetch={false} className={LINK}>
+                Add share counts in Portfolio
+              </Link>{" "}
+              and the tools have more to go on.
+            </>
+          )}
+        </p>
+      )}
+      {fold.length > 0 ? (
+        <details className="group border-t border-oa-border">
+          <summary
+            className={`flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-4 py-2 text-[14px] font-medium text-oa-fg transition-colors hover:bg-oa-accent sm:px-5 [&::-webkit-details-marker]:hidden ${FOCUS}`}
+          >
+            <span>
+              <span className="group-open:hidden">Show the other {fold.length} things the agent looked at</span>
+              <span className="hidden group-open:inline">Everything else the agent looked at</span>
+            </span>
+            <svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12" className="shrink-0 text-oa-muted-fg transition-transform group-open:rotate-180">
+              <path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </summary>
+          <ul className="scrollbar-hide max-h-[31rem] divide-y divide-oa-border overflow-y-auto overscroll-contain border-t border-oa-border">
+            {fold.map((row) => (
+              <FoldItem key={row.key} row={row} />
+            ))}
+          </ul>
+        </details>
+      ) : null}
+      {slow + failed > 0 && noticed.length > 0 ? (
+        <p className="border-t border-oa-border px-4 py-2.5 text-[12.5px] leading-[18px] text-oa-muted-fg sm:px-5">{leftOutWords(slow, failed)}</p>
+      ) : null}
+    </section>
+  );
+}
+
+export function FocusGhost() {
+  return (
+    <div aria-hidden="true" className={CARD}>
+      <div className="border-b border-oa-border px-4 py-3.5 sm:px-5">
+        <Bar className="h-4 w-64" />
       </div>
-      {[0, 1, 2].map((row) => (
-        <div key={row} className="border-b border-oa-border px-4 py-4 last:border-b-0 sm:px-5">
-          <Bar className="h-3 w-24" />
-          <Bar className="mt-2.5 h-4 w-full max-w-[44rem]" />
-          <Bar className="mt-2 h-4 w-3/4 max-w-[34rem]" />
-          <Bar className="mt-3 h-3 w-32" />
+      {[0, 1].map((row) => (
+        <div key={row} className="border-b border-oa-border px-4 py-4 sm:px-5">
+          <Bar className="h-3 w-28" />
+          <Bar className="mt-2.5 h-4 w-full max-w-[34rem]" />
+          <Bar className="mt-2 h-3 w-3/4 max-w-[28rem]" />
+          <Bar className="mt-3 h-8 w-48" />
         </div>
       ))}
+      <div className="px-4 py-3.5 sm:px-5">
+        <Bar className="h-3.5 w-72" />
+      </div>
     </div>
   );
 }
 
-/* ── the tools ─────────────────────────────────────────────────────────── */
+/* ── ask ───────────────────────────────────────────────────────────────── */
 
-const CARD = `oa-surface flex h-full min-w-0 flex-col border border-oa-border bg-oa-card px-4 py-3 transition-colors hover:bg-oa-accent ${FOCUS}`;
-
-async function ToolCardBody({ id, load }: { id: ToolId; load: HomeLoad }) {
-  const key = SOURCE_OF[id];
-  const [{ mode }, source] = await Promise.all([load.context, load.sources[key]]);
-  const card = toolCard(id, { [key]: source }, mode);
+async function AskSuggestions({ load }: { load: HomeLoad }) {
+  const [{ mode }, sources] = await Promise.all([load.context, feedSources(load)]);
+  const noticed = focusNoticed(sources, mode);
+  const { lead } = prioritise(noticed, sources, mode);
+  const leadIds = new Set(lead.map((item) => item.id));
+  const questions = pickQuestions({ lead, rest: noticed.filter((item) => !leadIds.has(item.id)), sources, mode });
+  if (questions.length === 0) return null;
   return (
-    <>
-      {card.figure ? <span className="oa-mono mt-1.5 text-[17px] font-medium leading-6 tabular-nums text-oa-fg">{card.figure}</span> : null}
-      <span className={`text-pretty text-[13px] leading-[18px] text-oa-muted-fg ${card.figure ? "mt-0.5" : "mt-1.5"}`}>{card.detail}</span>
-    </>
+    <ul aria-label="Questions to ask" className="mt-3 flex flex-col gap-1.5">
+      {questions.map((item) => (
+        <li key={item.question}>
+          <Link
+            href={item.href}
+            prefetch={false}
+            data-track-links="insight_clicked"
+            data-track-insight-id="home-ask"
+            data-track-insight-kind="home-ask"
+            data-track-target="ask"
+            className={`block rounded border border-oa-border bg-oa-bg px-3 py-2 text-pretty text-[13.5px] leading-[19px] text-oa-fg transition-colors hover:border-oa-primary hover:text-oa-primary ${FOCUS}`}
+          >
+            {item.question}
+          </Link>
+        </li>
+      ))}
+    </ul>
   );
 }
 
-function ToolCardGhost() {
+function AskSuggestionsGhost() {
   return (
-    <span aria-hidden="true" className="mt-2 flex flex-col gap-2">
-      <span className="block h-4 w-24 animate-pulse rounded bg-oa-accent motion-reduce:animate-none" />
-      <span className="block h-3 w-40 animate-pulse rounded bg-oa-accent motion-reduce:animate-none" />
-    </span>
+    <div aria-hidden="true" className="mt-3 flex flex-col gap-1.5">
+      {[0, 1, 2].map((row) => (
+        <Bar key={row} className="h-9 w-full" />
+      ))}
+    </div>
   );
 }
 
 /**
- * Where a card goes. The example's tax-loss figure comes from the ideas page, which shows it; the Taxes page
- * needs your own lots, so a visitor would land on a sign-in box there.
+ * Ask, from here: a plain form that opens /ask with the question (Ask asks it
+ * on arrival), and questions drawn from the holdings and this week's findings.
+ * Nothing calls a model until the person asks.
  */
-function toolHref(id: ToolId, mode: HomeMode): string {
-  return id === "taxes" && mode === "example" ? TOOL_HREF.ideas : TOOL_HREF[id];
-}
-
-export function ToolGridGhost() {
+export async function AskBox({ load }: { load: HomeLoad }) {
+  const { mode } = await load.context;
+  const mine = mode === "mine";
   return (
-    <div aria-hidden="true" className="mt-6 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-      {[0, 1, 2, 3].map((index) => (
-        <div key={index} className="oa-surface border border-oa-border bg-oa-card px-4 py-3">
-          <Bar className="h-4 w-32" />
-          <Bar className="mt-3 h-4 w-20" />
-          <Bar className="mt-2 h-3 w-40" />
-        </div>
-      ))}
-    </div>
+    <AskFrame
+      mine={mine}
+      suggestions={
+        <Suspense fallback={<AskSuggestionsGhost />}>
+          <AskSuggestions load={load} />
+        </Suspense>
+      }
+    />
   );
 }
 
-/** The tools in plain words, grouped as in the navigation, each with one live figure that streams in on its own. */
-export async function ToolGrid({ load }: { load: HomeLoad }) {
-  const { mode } = await load.context;
+function AskFrame({ mine, suggestions }: { mine: boolean; suggestions: React.ReactNode }) {
   return (
-    <section aria-labelledby="tools-head" className="mt-6">
-      <h2 id="tools-head" className="sr-only">
-        Your portfolio tools
+    <section aria-labelledby="ask-head" className={`${CARD} px-4 py-3.5`}>
+      <h2 id="ask-head" className={H2}>
+        {mine ? "Ask about your stocks" : "Ask about any stock"}
       </h2>
-      <div className="flex flex-col gap-5">
-        {TOOL_GROUPS.map((group) => (
-          <div key={group.label}>
-            <h3 className="oa-label mb-2 px-2 sm:px-0">{group.label}</h3>
-            <ul className="oa-card-grid grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-              {group.tools.map((id) => (
-                <li key={id} className="min-w-0">
-                  <Link href={toolHref(id, mode)} prefetch={false} className={CARD}>
-                    <span className="flex items-center justify-between gap-2 text-[14.5px] font-medium leading-5 text-oa-fg">
-                      {TOOL_TITLES[id]}
-                      <span aria-hidden="true" className="text-oa-muted-fg">
-                        →
-                      </span>
-                    </span>
-                    <Suspense fallback={<ToolCardGhost />}>
-                      <ToolCardBody id={id} load={load} />
-                    </Suspense>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
-      </div>
+      <form action="/ask" method="get" role="search" className="mt-2.5 flex gap-2">
+        <label htmlFor="home-ask" className="sr-only">
+          Your question
+        </label>
+        <input
+          id="home-ask"
+          name="q"
+          type="text"
+          required
+          maxLength={ASK_MAX_QUESTION_CHARS}
+          autoComplete="off"
+          placeholder={mine ? "What changed in my portfolio?" : "Ask about any US stock"}
+          className={`h-10 min-w-0 flex-1 rounded border border-oa-border bg-oa-bg px-3 text-[14px] text-oa-fg placeholder:text-oa-muted-fg ${FOCUS}`}
+        />
+        <button
+          type="submit"
+          className={`inline-flex h-10 shrink-0 cursor-pointer items-center rounded border border-oa-primary bg-oa-primary px-4 text-[14px] font-medium text-oa-primary-fg transition-[filter] hover:brightness-110 ${FOCUS}`}
+        >
+          Ask
+        </button>
+      </form>
+      {suggestions}
     </section>
+  );
+}
+
+export function AskGhost() {
+  return <AskFrame mine={false} suggestions={<AskSuggestionsGhost />} />;
+}
+
+/* ── what the agent checked ────────────────────────────────────────────── */
+
+function LogItem({ row, upcoming }: { row: LogRow; upcoming: boolean }) {
+  const time = row.at ? fmtStampET(row.at).replace(/^[A-Z][a-z]{2} \d{1,2}, /, "") : "";
+  const body = (
+    <>
+      <span className="oa-mono pt-px text-[12.5px] leading-[18px] tabular-nums text-oa-muted-fg">
+        {fmtDay(row.day)}
+        {time ? <span className="block whitespace-nowrap text-[11px]">{time}</span> : null}
+      </span>
+      <span className="min-w-0">
+        <span className="flex min-w-0 items-start gap-1.5">
+          {row.ticker ? <StockLogo ticker={row.ticker} size={16} className="mt-px" /> : null}
+          <span className="text-pretty text-[13.5px] leading-[18px] text-oa-fg">{row.text}</span>
+        </span>
+        {row.changed ? (
+          <span className="mt-0.5 flex items-start gap-1.5 text-pretty text-[12.5px] leading-[17px] text-oa-muted-fg">
+            {!upcoming && row.tone !== "flat" ? <ToneGlyph tone={row.tone} className="mt-[4px]" /> : null}
+            <span>{row.changed}</span>
+          </span>
+        ) : null}
+      </span>
+    </>
+  );
+  const grid = "grid grid-cols-[4.25rem_minmax(0,1fr)] gap-x-2.5 px-4 py-2.5";
+  return (
+    <li>
+      {row.href ? (
+        <Link href={row.href} prefetch={false} className={`${grid} transition-colors hover:bg-oa-accent ${FOCUS}`}>
+          {body}
+        </Link>
+      ) : (
+        <div className={grid}>{body}</div>
+      )}
+    </li>
+  );
+}
+
+const LIST = "scrollbar-hide max-h-[26rem] divide-y divide-oa-border overflow-y-auto overscroll-contain";
+
+/** A dated log: what the agent checked (newest first) and what is coming up, from real runs and real dates only. */
+export async function AgentLogPanel({ load }: { load: HomeLoad }) {
+  const [{ mode }, memo, reasons, season, dividends, goal, agents] = await Promise.all([
+    load.context,
+    load.sources.memo,
+    load.sources.reasons,
+    load.sources.season,
+    load.sources.dividends,
+    load.sources.goal,
+    load.agents,
+  ]);
+  const mine = mode === "mine";
+  const log = buildAgentLog({ sources: { memo, reasons, season, dividends, goal }, agents, mode, today: newYorkToday() });
+  const waiting = [memo, reasons, season, goal].some((source) => source?.state === "slow" || source?.state === "failed");
+  return (
+    <section aria-labelledby="log-head" className={CARD}>
+      <h2 id="log-head" className={`${H2} px-4 pt-3.5`}>
+        {mine ? "What your agent checked" : "What the agent checked"}
+      </h2>
+      {log.checked.length > 0 ? (
+        <ol className={`${LIST} mt-1.5`}>
+          {log.checked.map((row) => (
+            <LogItem key={row.id} row={row} upcoming={false} />
+          ))}
+        </ol>
+      ) : (
+        <p className="px-4 pb-3 pt-1.5 text-pretty text-[13.5px] leading-5 text-oa-muted-fg">
+          {waiting ? "No check has come back yet. Reload in a minute." : "Nothing has been checked yet."}
+        </p>
+      )}
+      {log.next.length > 0 ? (
+        <>
+          <h3 className="border-t border-oa-border px-4 pt-3 text-[14.5px] font-semibold leading-5 text-oa-fg">Coming up</h3>
+          <ol className={`${LIST} mt-1`}>
+            {log.next.map((row) => (
+              <LogItem key={row.id} row={row} upcoming />
+            ))}
+          </ol>
+        </>
+      ) : null}
+      {mine && log.hasAgents === false ? (
+        <p className="border-t border-oa-border px-4 py-2.5 text-pretty text-[13px] leading-[18px] text-oa-muted-fg">
+          No agent of yours is watching these yet.{" "}
+          <Link href="/agents" prefetch={false} className={LINK}>
+            Set one up
+          </Link>
+          .
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
+export function AgentLogGhost() {
+  return (
+    <div aria-hidden="true" className={`${CARD} px-4 py-3.5`}>
+      <Bar className="h-4 w-48" />
+      {[0, 1, 2, 3].map((row) => (
+        <div key={row} className="mt-3.5 grid grid-cols-[4.25rem_minmax(0,1fr)] gap-x-2.5">
+          <Bar className="h-3 w-10" />
+          <span>
+            <Bar className="h-3.5 w-full" />
+            <Bar className="mt-1.5 h-3 w-2/3" />
+          </span>
+        </div>
+      ))}
+    </div>
   );
 }

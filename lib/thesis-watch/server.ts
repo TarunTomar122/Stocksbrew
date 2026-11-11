@@ -1,0 +1,242 @@
+import { isCovered, type Viewer } from "@/lib/entitlements-server";
+import { adminFirestore } from "@/lib/firebase-admin";
+import { newYorkToday } from "@/lib/portfolio-data";
+import { readTheses, type Thesis } from "@/lib/thesis";
+import type { UserDoc } from "@/lib/watchlist";
+
+import { closesOnDays, loadStockFacts, tickerFromId } from "./data";
+import { thesisModelReader } from "./model";
+import { evaluate, ruleNote, savedDay, type ReasonCheck, type Verdict } from "./rules";
+import { CHECKS_COLLECTION, checkDocId, lastChange, nextStoredCheck, readStoredCheck, toDoc, type StoredCheck } from "./store";
+import { wordNote } from "./word";
+
+/**
+ * The reason watcher for one signed-in person: every saved reason on a stock
+ * they still track, checked against today's facts. Free checks covered
+ * stocks only; Pro checks every reason (`reason_watch` in lib/entitlements.ts).
+ * Locked stocks are named but nothing about them is computed or sent.
+ *
+ * Runs when the person opens Portfolio, the stock page, My stocks or the
+ * memo, at most once a day per stock in effect: the facts are cached per stock
+ * per day and the stored check is only rewritten when the day or the findings
+ * change. A model rewords a note only when the findings change and only when
+ * the caller can wait for it (the API route, not a page render).
+ */
+
+export type CheckView = {
+  instrumentId: string;
+  ticker: string;
+  kind: ReasonCheck["kind"];
+  verdict: Verdict;
+  headline: string;
+  note: string;
+  wordedBy: "rules" | "model";
+  signals: ReasonCheck["signals"];
+  checked: ReasonCheck["checked"];
+  quote: string | null;
+  limit: string | null;
+  asOf: string;
+  /** The verdict before the latest change and the day it changed, when there was one. */
+  change: { from: Verdict; day: string } | null;
+};
+
+export type ReasonChecks = {
+  checks: Record<string, CheckView>;
+  /** Stocks with a reason that this plan does not check (Free, not covered). */
+  locked: string[];
+  /** Stocks with a reason we could not check (no data for it, or not a US stock). */
+  unchecked: string[];
+  /** Every reason on a tracked stock, by instrument id, for the surfaces that list them. */
+  theses: Record<string, Thesis>;
+};
+
+export const EMPTY_CHECKS: ReasonChecks = { checks: {}, locked: [], unchecked: [], theses: {} };
+
+function trackedTheses(userDoc: UserDoc | null): Record<string, Thesis> {
+  if (!userDoc) return {};
+  const tracked = new Set(Array.isArray(userDoc.tracked_stocks) ? userDoc.tracked_stocks : []);
+  const all = readTheses((userDoc as unknown as Record<string, unknown>).theses);
+  return Object.fromEntries(Object.entries(all).filter(([id]) => tracked.has(id)));
+}
+
+/** Whether this viewer's plan checks the reason on this stock. */
+export function watches(viewer: Viewer, instrumentId: string): boolean {
+  if (viewer.plan === "pro") return true;
+  if (viewer.plan === "anon") return false;
+  return isCovered(viewer, instrumentId);
+}
+
+function viewOf(check: ReasonCheck, stored: Pick<StoredCheck, "note" | "wordedBy" | "history"> | null, note: { note: string; wordedBy: "rules" | "model" }): CheckView {
+  return {
+    instrumentId: check.instrumentId,
+    ticker: check.ticker,
+    kind: check.kind,
+    verdict: check.verdict,
+    headline: check.headline,
+    note: note.note,
+    wordedBy: note.wordedBy,
+    signals: check.signals,
+    checked: check.checked,
+    quote: check.quote,
+    limit: check.limit,
+    asOf: check.asOf,
+    change: stored ? lastChange(stored.history) : null,
+  };
+}
+
+async function readStored(uid: string, ids: string[]): Promise<Map<string, StoredCheck>> {
+  const out = new Map<string, StoredCheck>();
+  if (ids.length === 0) return out;
+  const snaps = await adminFirestore.getAll(...ids.map((id) => adminFirestore.collection(CHECKS_COLLECTION).doc(checkDocId(uid, id))));
+  snaps.forEach((snap, index) => {
+    const stored = snap.exists ? readStoredCheck(snap.data()) : null;
+    if (stored) out.set(ids[index]!, stored);
+  });
+  return out;
+}
+
+export type CheckOptions = {
+  /** Only these stocks (instrument ids); all reasons when left out. */
+  only?: readonly string[];
+  /** Write the result to tm_thesis_checks (default true). */
+  persist?: boolean;
+  /** Let a model reword notes whose findings changed (default false: page renders do not wait for a model). */
+  word?: boolean;
+  now?: Date;
+};
+
+export async function checkReasons(viewer: Viewer, userDoc: UserDoc | null, options: CheckOptions = {}): Promise<ReasonChecks> {
+  if (!viewer.uid || !userDoc) return EMPTY_CHECKS;
+  const uid = viewer.uid;
+  const now = options.now ?? new Date();
+  const today = newYorkToday(now);
+  const theses = trackedTheses(userDoc);
+  const only = options.only ? new Set(options.only) : null;
+  const wanted = Object.keys(theses).filter((id) => !only || only.has(id));
+  const locked = wanted.filter((id) => !watches(viewer, id));
+  const open = wanted.filter((id) => watches(viewer, id));
+  const us = open.filter((id) => id.startsWith("US_"));
+  const unchecked = open.filter((id) => !id.startsWith("US_"));
+  if (us.length === 0) return { checks: {}, locked, unchecked, theses };
+
+  const stocks = us.map((id) => ({ instrumentId: id, ticker: tickerFromId(id) }));
+  const holdings = userDoc.watchlist_holdings ?? {};
+  const needClose = stocks
+    .filter((stock) => !(typeof holdings[stock.instrumentId]?.average_cost === "number" && holdings[stock.instrumentId]!.average_cost! > 0))
+    .map((stock) => ({ ticker: stock.ticker, day: savedDay(theses[stock.instrumentId]!.created_at) }))
+    .filter((request) => /^\d{4}-\d{2}-\d{2}$/.test(request.day));
+  const [facts, closes, stored] = await Promise.all([
+    loadStockFacts(stocks, today),
+    needClose.length > 0 ? closesOnDays(needClose) : Promise.resolve(new Map<string, number>()),
+    readStored(uid, us).catch((error) => {
+      console.warn("[thesis-watch] stored checks read failed:", error instanceof Error ? error.message : error);
+      return new Map<string, StoredCheck>();
+    }),
+  ]);
+
+  // At most four wording calls at once: the first visit of a day can redraft every holding's note.
+  const baseReader = options.word ? thesisModelReader() : null;
+  const reader = baseReader ? limitConcurrency(baseReader, 4) : null;
+  const checks: Record<string, CheckView> = {};
+  const writes: Promise<unknown>[] = [];
+  await Promise.all(
+    stocks.map(async (stock) => {
+      const stockFacts = facts.get(stock.instrumentId);
+      const thesis = theses[stock.instrumentId]!;
+      if (!stockFacts) {
+        unchecked.push(stock.instrumentId);
+        return;
+      }
+      const cost = holdings[stock.instrumentId]?.average_cost;
+      const check = evaluate(
+        thesis,
+        stockFacts,
+        { avgCost: typeof cost === "number" && cost > 0 ? cost : null, savedClose: closes.get(`${stock.ticker}|${savedDay(thesis.created_at)}`) ?? null },
+        today,
+      );
+      // Nothing fired and nothing to show it was looked at (a fund, a stock with no results on file): no verdict.
+      if (check.signals.length === 0 && check.checked.length === 0) {
+        unchecked.push(stock.instrumentId);
+        return;
+      }
+      const before = stored.get(stock.instrumentId) ?? null;
+      const reasonUpdatedAt = thesis.updated_at || thesis.created_at;
+      // The stored note is kept while the rules would write the same words (same findings, same figures),
+      // and a rules note gets one try at a model's wording when the caller can wait for it.
+      const draft = ruleNote(check);
+      const keep = before && before.reasonUpdatedAt === reasonUpdatedAt && before.draft === draft && before.note && (before.wordedBy === "model" || before.wordTried || !reader);
+      const note = keep
+        ? { note: before!.note, wordedBy: before!.wordedBy, wordTried: before!.wordTried }
+        : reader
+          ? { ...(await wordNote(check, reader)), wordTried: true }
+          : { note: draft, wordedBy: "rules" as const, wordTried: false };
+      const next = nextStoredCheck(before, { uid, check, reasonUpdatedAt, note: note.note, wordedBy: note.wordedBy, draft, wordTried: note.wordTried, day: today, now });
+      if (next && options.persist !== false) {
+        writes.push(adminFirestore.collection(CHECKS_COLLECTION).doc(checkDocId(uid, stock.instrumentId)).set(toDoc(next)));
+      }
+      checks[stock.instrumentId] = viewOf(check, next ?? before, note);
+    }),
+  );
+  const saved = await Promise.allSettled(writes);
+  for (const result of saved) if (result.status === "rejected") console.warn("[thesis-watch] save failed:", result.reason);
+  return { checks, locked, unchecked, theses };
+}
+
+export { VERDICT_RANK } from "./rules";
+
+/* ── the example portfolio ──────────────────────────────────────────────── */
+
+/**
+ * Made-up reasons for the example portfolio's holdings (lib/portfolio-data.ts),
+ * so a visitor sees what the watcher says. The reasons are invented and said
+ * to be; the checks run on the real stored facts, nothing is written.
+ */
+export const EXAMPLE_REASONS: Record<string, { kind: Thesis["kind"]; savedAt: string }> = {
+  MSFT: { kind: "long_term", savedAt: "2026-02-03" },
+  AAPL: { kind: "product", savedAt: "2026-02-03" },
+  NVDA: { kind: "growth", savedAt: "2026-03-17" },
+  JPM: { kind: "dividend", savedAt: "2026-03-17" },
+  COST: { kind: "growth", savedAt: "2026-05-11" },
+  XOM: { kind: "dividend", savedAt: "2026-05-11" },
+  UNH: { kind: "value", savedAt: "2026-06-22" },
+};
+
+export async function exampleReasonChecks(now: Date = new Date()): Promise<CheckView[]> {
+  const today = newYorkToday(now);
+  const entries = Object.entries(EXAMPLE_REASONS);
+  const stocks = entries.map(([ticker]) => ({ instrumentId: `US_${ticker}`, ticker }));
+  const [facts, closes] = await Promise.all([loadStockFacts(stocks, today), closesOnDays(entries.map(([ticker, row]) => ({ ticker, day: row.savedAt })))]);
+  const out: CheckView[] = [];
+  for (const [ticker, row] of entries) {
+    const stockFacts = facts.get(`US_${ticker}`);
+    if (!stockFacts) continue;
+    const thesis = { kind: row.kind, reason: null, created_at: `${row.savedAt}T00:00:00.000Z` };
+    const check = evaluate(thesis, stockFacts, { avgCost: null, savedClose: closes.get(`${ticker}|${row.savedAt}`) ?? null }, today);
+    out.push(viewOf(check, null, { note: ruleNote(check), wordedBy: "rules" }));
+  }
+  return out;
+}
+
+/** Wraps an async function so no more than `max` calls run at the same time; the rest wait their turn. */
+function limitConcurrency<A extends unknown[], R>(fn: (...args: A) => Promise<R>, max: number): (...args: A) => Promise<R> {
+  let active = 0;
+  const queue: (() => void)[] = [];
+  const next = () => {
+    if (active >= max) return;
+    const start = queue.shift();
+    if (start) start();
+  };
+  return (...args: A) =>
+    new Promise<R>((resolve, reject) => {
+      queue.push(() => {
+        active += 1;
+        fn(...args)
+          .then(resolve, reject)
+          .finally(() => {
+            active -= 1;
+            next();
+          });
+      });
+      next();
+    });
+}

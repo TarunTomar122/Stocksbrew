@@ -21,31 +21,15 @@ import { iconFor } from "@/components/oa/nav-items";
 import { marketTodayRead } from "@/lib/explore-insights";
 import { marketTodaySteps } from "@/lib/next-steps";
 import { buildMarketsOverview } from "@/lib/markets-shared";
-import { ogImage } from "@/lib/og/url";
+import { JsonLd } from "@/components/docs/json-ld";
+import { toolPageLd, toolPageMetadata } from "@/lib/seo/tool-pages";
+import Link from "next/link";
+import { AppLink } from "@/components/oa/app-link";
 
 export const dynamic = "force-dynamic";
 
 export function generateMetadata(): Metadata {
-  const shareImage = ogImage(["page", "explore"], "Today's read of the US stock market", { daily: true });
-  return {
-    title: "Stock Market Today: Sectors, Indices, Yields, Oil, Gold and Bitcoin",
-    description:
-      "How the US stock market did today in three points, then every sector, the indices, Treasury yields, oil and gold, the dollar, bitcoin and the odds on the next Fed decision.",
-    keywords: ["stock market today", "market movers today", "sector performance today", "treasury yields today", "oil price today", "bitcoin price today", "fed rate odds"],
-    alternates: { canonical: "/explore" },
-    openGraph: {
-      title: "Stock Market Today: Sectors, Indices, Yields, Oil, Gold and Bitcoin · stocksbrew",
-      description: "How the US stock market did today in three points, then every sector, rates, commodities, currencies and crypto.",
-      url: "https://www.stocksbrew.online/explore",
-      images: [shareImage],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: "Market today · stocksbrew",
-      description: "How the US stock market did today in three points, then every sector, rates, commodities, currencies and crypto.",
-      images: [shareImage],
-    },
-  };
+  return toolPageMetadata("/explore");
 }
 
 /* ── the page ───────────────────────────────────────────────────────────── */
@@ -93,7 +77,7 @@ function SectorBars({ rows }: { rows: DeskSector[] }) {
   if (sorted.length < 4) return null;
   const max = Math.max(0.5, ...sorted.map((row) => Math.abs(row.day)));
   return (
-    <Panel label="How each sector did today" right={<a href="/sectors" className={`text-[13px] font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg ${FOCUS}`}>All sectors</a>}>
+    <Panel label="How each sector did today" right={<Link prefetch={false} href="/sectors" className={`text-[13px] font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg ${FOCUS}`}>All sectors</Link>}>
       {/* Eleven rows on a phone: about eight show, the rest scroll inside the panel (two columns from sm up fit as they are). */}
       <ul className="grid gap-x-8 max-sm:max-h-[16.25rem] max-sm:overflow-y-auto max-sm:overscroll-contain scrollbar-hide sm:grid-cols-2">
         {sorted.map((row) => {
@@ -101,7 +85,7 @@ function SectorBars({ rows }: { rows: DeskSector[] }) {
           const up = row.day >= 0;
           return (
             <li key={row.id}>
-              <a
+              <Link prefetch={false}
                 href={row.slug ? `/sectors/${row.slug}` : "/sectors"}
                 className={`grid min-h-8 grid-cols-[minmax(0,7.5rem)_minmax(0,1fr)_4rem] sm:grid-cols-[minmax(0,11rem)_minmax(0,1fr)_4.25rem] items-center gap-x-3 rounded text-[13.5px] leading-5 hover:bg-oa-accent ${FOCUS}`}
               >
@@ -115,7 +99,7 @@ function SectorBars({ rows }: { rows: DeskSector[] }) {
                   />
                 </span>
                 <Delta value={row.day} className="text-right font-medium" />
-              </a>
+              </Link>
             </li>
           );
         })}
@@ -182,13 +166,13 @@ function MoreOnToday() {
           const icon = iconFor(entry.href);
           return (
             <li key={entry.href}>
-              <a
+              <AppLink
                 href={entry.href}
                 className={`oa-surface flex min-h-11 items-center gap-2.5 border border-oa-border bg-oa-card px-3 py-2 text-[14px] font-medium text-oa-fg transition-colors hover:bg-oa-accent ${FOCUS}`}
               >
                 {icon ? <NavIcon name={icon} className="size-[18px] shrink-0 text-oa-primary" /> : null}
                 <span className="min-w-0 sm:whitespace-nowrap">{entry.title}</span>
-              </a>
+              </AppLink>
             </li>
           );
         })}
@@ -211,6 +195,7 @@ export default function ExplorePage() {
 
   return (
     <AppPage>
+      <JsonLd data={toolPageLd("/explore")} />
       <PageHead title="Market today" />
 
       <div className="flex flex-col gap-4">

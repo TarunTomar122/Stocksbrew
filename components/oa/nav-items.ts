@@ -238,7 +238,7 @@ export function trailFor(pathname: string): Crumb[] | null {
     const stockHref = `/stock/${encodeURIComponent(ticker)}`;
     trail.push({ label: ticker, href: stockHref });
     if (segments[2] === "earnings") trail.push({ label: "Earnings", href: `/calendar/earnings/${encodeURIComponent(ticker)}` });
-    if (segments[2] === "research" && segments.length > 3) trail.push({ label: "Full research", href: `${stockHref}/research` });
+    if (segments[2] === "research" && segments.length > 3) trail.push({ label: "Long research report", href: `${stockHref}/research` });
   }
   if (segments[0] === "markets" && segments[1] && segments.length > 2) {
     trail.push({ label: MARKET_CLASS_NAMES[segments[1]] ?? segments[1], href: `/markets/${encodeURIComponent(segments[1])}` });

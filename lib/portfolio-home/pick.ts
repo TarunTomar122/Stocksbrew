@@ -12,6 +12,8 @@ import { usd } from "@/lib/portfolio-ideas/words";
 import { countWord } from "@/lib/read-format";
 import { coveredPct, signedPct as stressPct } from "@/lib/stress-test";
 import type { StressView } from "@/lib/stress-test-data";
+import { VERDICT_RANK, type Verdict } from "@/lib/thesis-watch/rules";
+import type { CheckView } from "@/lib/thesis-watch/server";
 import { fmtPct, joinList, xrayFootnote } from "@/lib/xray";
 import type { XrayView } from "@/lib/xray-data";
 
@@ -38,6 +40,18 @@ export type HomeSources = {
   stress: Loaded<StressView>;
   goal: Loaded<GoalData>;
   ideas: Loaded<IdeasView>;
+  /** The reason watcher's checks (lib/thesis-watch). Optional so older callers and tests need not pass it. */
+  reasons?: Loaded<ReasonsSource>;
+};
+
+/** What the reason watcher found across the person's holdings. */
+export type ReasonsSource = {
+  checks: Array<Pick<CheckView, "instrumentId" | "ticker" | "kind" | "verdict" | "signals" | "checked"> & Partial<Pick<CheckView, "asOf" | "change">>>;
+  /** Holdings that have a reason, and all holdings. */
+  withReason: number;
+  holdings: number;
+  /** Reasons on stocks this plan does not check. */
+  locked: number;
 };
 
 export type HomeMode = "mine" | "example";
@@ -62,6 +76,12 @@ export type Noticed = {
   watch: { href: string; request: string } | null;
   /** Higher first. */
   priority: number;
+  /**
+   * A change that asks the person for a decision now: a reason that weakened or broke, a report
+   * within a week, a trim or tax-loss idea, one company at 10% or more once funds are counted.
+   * The overview leads with these (./focus.ts); the rest wait behind one fold.
+   */
+  needsYou?: boolean;
 };
 
 export const MAX_NOTICED = 5;
@@ -170,6 +190,7 @@ function xrayItem(view: XrayView): Noticed | null {
     open: { label: "See what you really own", href: TOOL_HREF.xray },
     watch: moveWatch(lead),
     priority: top.pct >= 10 ? 75 : 70,
+    needsYou: top.pct >= 10,
   };
 }
 
@@ -216,6 +237,7 @@ function earningsItem(view: SeasonView): Noticed | null {
     open: { label: "Plan earnings season", href: TOOL_HREF.earnings },
     watch: earningsWatch(watch, gap),
     priority: gap <= 7 ? 90 : 60,
+    needsYou: gap <= 7,
   };
 }
 
@@ -299,9 +321,10 @@ function ideasItem(view: IdeasView): Noticed | null {
       text: read.headline,
       evidence: trim.sentence,
       ticker: trim.ticker,
-      open: { label: "See the trim ideas", href: TOOL_HREF.ideas },
+      open: { label: "See where to sell some", href: TOOL_HREF.ideas },
       watch: moveWatch(trim.ticker),
       priority: 80,
+      needsYou: true,
     };
   }
   if (loss) {
@@ -319,6 +342,7 @@ function ideasItem(view: IdeasView): Noticed | null {
       open: { label: "See the tax-loss idea", href: TOOL_HREF.ideas },
       watch: loss.watch && request ? { href: loss.watch.href, request } : moveWatch(loss.ticker),
       priority: 75,
+      needsYou: true,
     };
   }
   // Nothing to do is a real answer; it only fills a short list.
@@ -333,6 +357,72 @@ function ideasItem(view: IdeasView): Noticed | null {
     open: { label: "See how we checked", href: TOOL_HREF.ideas },
     watch: null,
     priority: 10,
+  };
+}
+
+/* ── the reason watcher ─────────────────────────────────────────────────── */
+
+const capital = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
+
+const VERDICT_PHRASE: Record<Verdict, string> = { holds: "still holds", weaker: "is weaker", broken: "looks broken", played_out: "has played out" };
+
+function reasonsItem(source: ReasonsSource, example: boolean): Noticed | null {
+  const ranked = [...source.checks].sort((a, b) => VERDICT_RANK[a.verdict] - VERDICT_RANK[b.verdict] || a.ticker.localeCompare(b.ticker));
+  const worst = ranked[0];
+  const owner = example ? "In the example, the reason for owning" : "Your reason for owning";
+  if (worst && worst.verdict !== "holds") {
+    const others = ranked.filter((check) => check !== worst && check.verdict !== "holds").length;
+    return {
+      id: `reason-${worst.ticker}-${worst.verdict}`,
+      tool: "portfolio",
+      caption: "Why you own it",
+      tone: worst.verdict === "played_out" ? "flat" : "down",
+      text: `${owner} ${worst.ticker} ${VERDICT_PHRASE[worst.verdict]}.${others > 0 ? ` ${others === 1 ? "One other reason needs" : `${capital(countWord(others))} other reasons need`} a look too.` : ""}`,
+      evidence: worst.signals[0]?.text ?? null,
+      ticker: worst.ticker,
+      open: { label: `See ${worst.ticker}`, href: `/stock/${encodeURIComponent(worst.ticker)}` },
+      watch: null,
+      priority: worst.verdict === "broken" ? 95 : worst.verdict === "weaker" ? 85 : 70,
+      needsYou: true,
+    };
+  }
+  if (worst) {
+    // In the example the reasons are made up; a cost line would talk about "you", so a company fact backs it instead.
+    const backer = ranked.find((check) => check.checked.some((line) => line.id !== "cost")) ?? worst;
+    const line = backer.checked.find((item) => item.id !== "cost") ?? null;
+    const missing = source.holdings - source.withReason;
+    const n = ranked.length;
+    return {
+      id: "reasons-hold",
+      tool: "portfolio",
+      caption: "Why you own it",
+      tone: "up",
+      text: example
+        ? `All ${n} reasons in the example still hold.`
+        : `${n === 1 ? "The reason we checked still holds" : `All ${n} reasons we checked still hold`}.${missing > 0 ? ` ${missing === 1 ? "One holding has" : `${capital(countWord(missing))} holdings have`} no reason yet.` : ""}`,
+      evidence: line ? `${backer.ticker}: ${line.text}` : null,
+      ticker: line ? backer.ticker : null,
+      open: example ? { label: "See the example portfolio", href: TOOL_HREF.portfolio } : { label: missing > 0 ? "Add your reasons" : "Review your reasons", href: "/watchlist?reasons=1" },
+      watch: null,
+      priority: 30,
+    };
+  }
+  if (example || source.holdings === 0) return null;
+  if (source.locked > 0) return null;
+  return {
+    id: "reasons-none",
+    tool: "portfolio",
+    caption: "Why you own it",
+    tone: "flat",
+    text:
+      source.withReason === 0
+        ? `You have not said why you own ${source.holdings === 1 ? "your holding" : `any of your ${source.holdings} holdings`}.`
+        : "We could not check your reasons today.",
+    evidence: source.withReason === 0 ? "Give each one a reason and the agent checks it against the company's numbers, and marks it when it weakens or breaks." : null,
+    ticker: null,
+    open: { label: "Add your reasons", href: "/watchlist?reasons=1" },
+    watch: null,
+    priority: 25,
   };
 }
 
@@ -351,6 +441,7 @@ export function pickNoticed(sources: Omit<HomeSources, "goal">, mode: HomeMode):
   const dividends = ready(sources.dividends);
   const stress = ready(sources.stress);
   const ideas = ready(sources.ideas);
+  const reasons = ready(sources.reasons);
 
   const ideasPick = ideas ? ideasItem(ideas) : null;
   let xrayPick = xray ? xrayItem(xray) : null;
@@ -367,6 +458,7 @@ export function pickNoticed(sources: Omit<HomeSources, "goal">, mode: HomeMode):
     xrayPick,
     dividends ? dividendItem(dividends, example) : null,
     stress ? stressItem(stress) : null,
+    reasons ? reasonsItem(reasons, example) : null,
   ].filter((item): item is Noticed => item !== null);
 
   const ranked = [...all].sort((a, b) => b.priority - a.priority);

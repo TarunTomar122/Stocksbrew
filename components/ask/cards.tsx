@@ -5,6 +5,7 @@ import * as React from "react";
 import { Delta, FOCUS, NUM, SourceLine, Tag, TickerLink, fmtAgo, fmtCompact, fmtDay, fmtMoney, toneText } from "@/components/ask/atoms";
 import { LineChart } from "@/components/ask/line-chart";
 import { OaButton } from "@/components/oa/button";
+import { StockLogo } from "@/components/stock-logo";
 import { MarkSlot, ToneGlyph, Verdict } from "@/components/oa/kit/tone";
 import type {
   ActionCard,
@@ -30,6 +31,8 @@ import type {
   WebCard,
 } from "@/lib/ask-cards";
 import { beatShare, markFor, priceVsTarget, rsiWord, scoreVerdict, type Tone } from "@/lib/tone";
+import Link from "next/link";
+import { AppLink } from "@/components/oa/app-link";
 
 /**
  * How each tool result is drawn in the conversation. One card per result,
@@ -151,9 +154,10 @@ function Quote({ card }: { card: QuoteCard }) {
     <Frame
       label={
         <>
-          <a href={`/stock/${encodeURIComponent(card.ticker)}`} className="text-oa-fg hover:underline">
+          <Link prefetch={false} href={`/stock/${encodeURIComponent(card.ticker)}`} className="inline-flex items-center gap-1.5 align-middle text-oa-fg hover:underline">
+            <StockLogo ticker={card.ticker} size={16} />
             {card.ticker}
-          </a>
+          </Link>
           {card.name ? <span className="ml-2 normal-case tracking-normal text-oa-muted-fg">{card.name}</span> : null}
         </>
       }
@@ -206,7 +210,10 @@ function Returns({ card }: { card: ReturnsCard }) {
     <Frame
       label={
         <>
-          <span className="text-oa-fg">{card.ticker}</span>
+          <span className="inline-flex items-center gap-1.5 align-middle text-oa-fg">
+            <StockLogo ticker={card.ticker} size={16} />
+            {card.ticker}
+          </span>
           <span className="ml-2 normal-case tracking-normal text-oa-muted-fg">{card.period}</span>
         </>
       }
@@ -375,7 +382,7 @@ function Changes({ card }: { card: ChangesCard }) {
         <ul className="mt-3 divide-y divide-oa-border border-t border-oa-border">
           {card.items.map((item, index) => (
             <li key={index} className="flex gap-3 py-2 text-[13.5px] leading-5">
-              <span className="w-14 shrink-0">{item.ticker ? <TickerLink symbol={item.ticker} /> : null}</span>
+              <span className="w-[5rem] shrink-0">{item.ticker ? <TickerLink symbol={item.ticker} /> : null}</span>
               <span className="min-w-0">
                 <span className="text-oa-fg">{item.title}</span>
                 {item.detail ? <span className="block text-oa-muted-fg">{item.detail}</span> : null}
@@ -447,9 +454,9 @@ function Screens({ card }: { card: ScreensCard }) {
         {card.screens.map((screen) => (
           <li key={screen.id} className="px-3.5 py-2.5">
             <div className="flex items-baseline justify-between gap-3">
-              <a href={`/screens/${screen.id}`} className={`text-[14px] font-medium text-oa-fg hover:underline ${FOCUS}`}>
+              <Link prefetch={false} href={`/screens/${screen.id}`} className={`text-[14px] font-medium text-oa-fg hover:underline ${FOCUS}`}>
                 {screen.title}
-              </a>
+              </Link>
               <span className={`${NUM} shrink-0 text-[12.5px] text-oa-muted-fg`}>
                 {screen.match_count} {screen.match_count === 1 ? "match" : "matches"}
               </span>
@@ -457,8 +464,8 @@ function Screens({ card }: { card: ScreensCard }) {
             <p className="text-[13px] leading-5 text-oa-muted-fg">{screen.tagline}</p>
             <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
               {screen.top.map((row) => (
-                <span key={row.ticker} className="inline-flex items-baseline gap-1.5">
-                  <TickerLink symbol={row.ticker} className="!text-[12.5px]" />
+                <span key={row.ticker} className="inline-flex items-center gap-1.5">
+                  <TickerLink symbol={row.ticker} logo={14} className="!text-[12.5px]" />
                   <Delta value={row.day_change_pct} className="text-[12px]" />
                 </span>
               ))}
@@ -476,14 +483,14 @@ function Themes({ card }: { card: ThemesCard }) {
       <ul className="divide-y divide-oa-border">
         {card.themes.map((theme) => (
           <li key={theme.slug} className="px-3.5 py-2.5">
-            <a href={`/themes/${theme.slug}`} className={`text-[14px] font-medium text-oa-fg hover:underline ${FOCUS}`}>
+            <Link prefetch={false} href={`/themes/${theme.slug}`} className={`text-[14px] font-medium text-oa-fg hover:underline ${FOCUS}`}>
               {theme.name}
-            </a>
+            </Link>
             <p className="text-[13px] leading-5 text-oa-muted-fg">{theme.description}</p>
             <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
               {theme.names.map((name) => (
-                <span key={name.ticker} className="inline-flex items-baseline gap-1.5 text-[12.5px] text-oa-muted-fg">
-                  <TickerLink symbol={name.ticker} className="!text-[12.5px]" />
+                <span key={name.ticker} className="inline-flex items-center gap-1.5 text-[12.5px] text-oa-muted-fg">
+                  <TickerLink symbol={name.ticker} logo={14} className="!text-[12.5px]" />
                   {name.role}
                 </span>
               ))}
@@ -512,7 +519,7 @@ function News({ card }: { card: NewsCard }) {
                 <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[12px] text-oa-muted-fg">
                   {article.source}
                   {article.tickers.slice(0, 4).map((ticker) => (
-                    <TickerLink key={ticker} symbol={ticker} className="!text-[12px]" />
+                    <TickerLink key={ticker} symbol={ticker} logo={14} className="!text-[12px]" />
                   ))}
                 </span>
               </span>
@@ -617,7 +624,7 @@ function Backtest({ card }: { card: BacktestCard }) {
       <p className="mb-2 flex flex-wrap gap-x-3 gap-y-1 text-[13px] text-oa-muted-fg">
         {card.holdings.map((holding) => (
           <span key={holding.ticker} className="inline-flex items-baseline gap-1.5">
-            <TickerLink symbol={holding.ticker} className="!text-[13px]" />
+            <TickerLink symbol={holding.ticker} logo={14} className="!text-[13px]" />
             <span className={NUM}>{holding.weight_pct.toFixed(holding.weight_pct % 1 === 0 ? 0 : 1)}%</span>
           </span>
         ))}
@@ -694,9 +701,9 @@ function Fund({ card }: { card: FundCard }) {
     <Frame
       label={
         <>
-          <a href={`/follow/${card.slug}`} className="text-oa-fg hover:underline">
+          <Link prefetch={false} href={`/follow/${card.slug}`} className="text-oa-fg hover:underline">
             {card.manager}
-          </a>
+          </Link>
           <span className="ml-2 normal-case tracking-normal text-oa-muted-fg">{card.fund}</span>
         </>
       }
@@ -781,9 +788,9 @@ function Investors({ card }: { card: InvestorsCard }) {
           <li key={investor.slug} className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-x-2 px-3.5 py-2">
             <span className={`${NUM} pt-0.5 text-[11.5px] text-oa-muted-fg`}>{fmtDay(investor.latest_date)}</span>
             <span className="min-w-0">
-              <a href={`/follow/${investor.slug}`} className={`text-[13.5px] font-medium text-oa-fg hover:underline ${FOCUS}`}>
+              <Link prefetch={false} href={`/follow/${investor.slug}`} className={`text-[13.5px] font-medium text-oa-fg hover:underline ${FOCUS}`}>
                 {investor.name}
-              </a>
+              </Link>
               <Tag className="ml-2">{investor.kind === "fund" ? "13F" : "Congress"}</Tag>
               <span className="block truncate text-[12.5px] text-oa-muted-fg">{investor.headline}</span>
             </span>
@@ -908,9 +915,9 @@ function Markets({ card }: { card: MarketsCard }) {
           {card.assets.map((asset) => (
             <tr key={asset.id} className={ROW}>
               <Td>
-                <a href={asset.href} className={`font-medium text-oa-fg hover:underline ${FOCUS}`}>
+                <AppLink href={asset.href} className={`font-medium text-oa-fg hover:underline ${FOCUS}`}>
                   {asset.name}
-                </a>
+                </AppLink>
                 <span className={`${NUM} ml-2 text-[12px] text-oa-muted-fg`}>{asset.symbol}</span>
               </Td>
               <Td hideOnMobile className="text-oa-muted-fg">
@@ -964,7 +971,10 @@ function Results({ state }: { state: RunState }) {
     <ul className="mt-2 space-y-0.5 text-[13px]">
       {state.results.map((row) => (
         <li key={row.ticker + row.message} className="flex gap-2">
-          <span className={`${NUM} w-12 shrink-0 font-medium ${row.ok ? "text-oa-fg" : "text-signal-bearish"}`}>{row.ticker}</span>
+          <span className={`${NUM} inline-flex w-[4.75rem] shrink-0 items-center gap-1.5 font-medium ${row.ok ? "text-oa-fg" : "text-signal-bearish"}`}>
+            <StockLogo ticker={row.ticker} size={14} />
+            {row.ticker}
+          </span>
           <span className="text-oa-muted-fg">{row.message}</span>
         </li>
       ))}
@@ -981,7 +991,7 @@ function Action({ card, actions }: { card: ActionCard; actions: CardActions }) {
     <Frame label={alert ? "Set a price alert?" : "Add to your watchlist?"} right={<Tag tone={done ? "up" : "warn"}>{done ? "Done" : "Needs your yes"}</Tag>}>
       {alert ? (
         <p className="text-[14.5px] leading-6 text-oa-fg">
-          Email me when <TickerLink symbol={card.tickers[0]!} /> closes {card.condition} <span className={`${NUM} font-medium`}>{fmtMoney(card.target_price)}</span>.
+          Email me when <TickerLink symbol={card.tickers[0]!} logo={false} /> closes {card.condition} <span className={`${NUM} font-medium`}>{fmtMoney(card.target_price)}</span>.
           {card.last_price != null ? <span className="text-oa-muted-fg"> It last traded at {fmtMoney(card.last_price)}.</span> : null}
         </p>
       ) : (
@@ -1044,9 +1054,9 @@ function Basket({ card, actions }: { card: BasketCard; actions: CardActions }) {
             {card.built_from.map((item, index) => (
               <React.Fragment key={item.href}>
                 {index > 0 ? ", " : ""}
-                <a href={item.href} className="underline decoration-oa-border underline-offset-2 hover:text-oa-fg">
+                <AppLink href={item.href} className="underline decoration-oa-border underline-offset-2 hover:text-oa-fg">
                   the {item.name} {item.kind}
-                </a>
+                </AppLink>
               </React.Fragment>
             ))}
             .
@@ -1150,9 +1160,9 @@ function Basket({ card, actions }: { card: BasketCard; actions: CardActions }) {
         <Results state={save.state} />
         <Results state={agent.state} />
         {watching ? (
-          <a href="/agents" className="mt-1 inline-block text-[13px] font-medium text-oa-fg underline decoration-oa-border underline-offset-2">
+          <Link prefetch={false} href="/agents" className="mt-1 inline-block text-[13px] font-medium text-oa-fg underline decoration-oa-border underline-offset-2">
             See its run log
-          </a>
+          </Link>
         ) : null}
       </div>
     </Frame>

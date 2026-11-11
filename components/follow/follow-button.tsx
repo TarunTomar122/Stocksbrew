@@ -5,6 +5,7 @@ import * as React from "react";
 import { useUser } from "@/lib/auth-context";
 import { trackFollowClicked, trackLimitHit } from "@/lib/product-analytics";
 import { signInWithGoogle } from "@/lib/sign-in";
+import Link from "next/link";
 
 /**
  * Saves a source to the signed-in person's own list. Signed out, the same
@@ -121,12 +122,12 @@ export function FollowButton({
         className="max-w-[16rem] text-right text-[12px] leading-4 text-oa-muted-fg"
       >
         {notice}{" "}
-        <a
+        <Link prefetch={false}
           href="/pricing"
           className="underline decoration-oa-border underline-offset-[3px] hover:text-oa-fg"
         >
           See plans
-        </a>
+        </Link>
       </span>
     </span>
   );

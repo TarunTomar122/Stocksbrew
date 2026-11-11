@@ -6,6 +6,7 @@ import { FOCUS } from "@/components/oa/kit";
 import { ABOUT_BLOCKS } from "@/lib/docs/company";
 import { SITE_URL } from "@/lib/docs/site";
 import { ogImage } from "@/lib/og/url";
+import { AppLink } from "@/components/oa/app-link";
 
 const SHARE_IMAGE = ogImage(["page", "about"], "About stocksbrew");
 
@@ -66,10 +67,10 @@ export default function AboutPage() {
           <ul className="oa-surface grid overflow-hidden border border-oa-border bg-oa-card sm:grid-cols-2">
             {NEXT.map((item) => (
               <li key={item.href} className="-mb-px -mr-px border-b border-r border-oa-border">
-                <a href={item.href} className={`group block h-full px-4 py-3 hover:bg-oa-accent ${FOCUS}`}>
+                <AppLink href={item.href} className={`group block h-full px-4 py-3 hover:bg-oa-accent ${FOCUS}`}>
                   <span className="block text-[15px] font-medium leading-6 text-oa-fg group-hover:underline">{item.title}</span>
                   <span className="block text-[13.5px] leading-5 text-oa-muted-fg">{item.text}</span>
-                </a>
+                </AppLink>
               </li>
             ))}
           </ul>

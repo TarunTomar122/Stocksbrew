@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { MarketingSchema } from "@/components/seo/marketing-schema";
+import { JsonLd } from "@/components/docs/json-ld";
 
 import { MarketsPageFrame } from "@/components/markets/page-frame";
 import {
@@ -18,20 +18,12 @@ import { TheRead } from "@/components/oa/insight";
 import { getMarketsData } from "@/lib/markets";
 import { buildMarketsRead } from "@/lib/markets-insights";
 import { buildMarketsOverview, formatAsOf, MARKET_CLASSES, type MarketAsset } from "@/lib/markets-shared";
-import { ogImage } from "@/lib/og/url";
+import { toolPageLd, toolPageMetadata } from "@/lib/seo/tool-pages";
 
 export const revalidate = 300;
 
 export function generateMetadata(): Metadata {
-  const shareImage = ogImage(["page", "markets"], "Markets today: indices, rates, commodities, FX and crypto", { daily: true });
-  return {
-    title: "Markets Today: Indices, ETFs, Treasury Yields, Commodities, FX and Crypto",
-    description:
-      "One page for every market that moves a portfolio: US indices and ETFs, Treasury yields, commodities, currencies, crypto, options pricing and prediction markets.",
-    alternates: { canonical: "/markets" },
-    openGraph: { title: "Markets Today: Indices, ETFs, Treasury Yields, Commodities, FX and Crypto · stocksbrew", url: "https://www.stocksbrew.online/markets", images: [shareImage] },
-    twitter: { card: "summary_large_image", images: [shareImage] },
-  };
+  return toolPageMetadata("/markets");
 }
 
 const LEDE =
@@ -51,7 +43,7 @@ export default async function MarketsPage() {
 
   return (
     <MarketsPageFrame>
-      <MarketingSchema path="/markets" name="Markets Today" description="US indices and ETFs, Treasury yields, commodities, currencies, crypto, options pricing and prediction markets on one page." breadcrumbLabel="Markets" />
+      <JsonLd data={toolPageLd("/markets")} />
       <PageHead note={false} className="!mb-0" title="Markets" meta={refreshed} />
 
       <ClassTabs classes={MARKET_CLASSES} counts={counts} />

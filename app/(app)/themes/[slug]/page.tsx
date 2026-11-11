@@ -14,6 +14,7 @@ import { INVESTMENT_THEMES } from "@/lib/investment-themes";
 import { withoutZones } from "@/lib/screener-shared";
 import { BASKET_BENCHMARK, BASKET_WINDOWS, getBasket, getBasketChart, type BasketLine } from "@/lib/screener-themes";
 import { ogImage } from "@/lib/og/url";
+import Link from "next/link";
 
 // Reads the viewer (cookies) and live prices, so it is rendered per request like the old theme page.
 export const dynamic = "force-dynamic";
@@ -114,9 +115,9 @@ export default async function ThemeBookPage({ params }: Props) {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }} />
       <PageHead
         crumb={
-          <a href="/themes" className="hover:underline">
+          <Link prefetch={false} href="/themes" className="hover:underline">
             Idea baskets
-          </a>
+          </Link>
         }
         title={basket.name}
         lede={basket.thesis}

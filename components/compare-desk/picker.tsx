@@ -4,8 +4,10 @@ import { useRouter } from "next/navigation";
 import * as React from "react";
 
 import { ProMark } from "@/components/oa/gate";
+import { StockLogo } from "@/components/stock-logo";
 import { compareHref } from "@/lib/compare-shared";
 import { trackCompareRun } from "@/lib/product-analytics";
+import Link from "next/link";
 
 /**
  * The compare desk's ticker box. Type a ticker or a company, pick one, and it
@@ -90,7 +92,10 @@ export function ComparePicker({
       {symbols.map((symbol, index) => (
         <span key={symbol} className="inline-flex h-8 items-center gap-2 rounded-md border border-oa-border bg-oa-card pl-2.5 pr-1 text-[13.5px]">
           <span aria-hidden="true" className="size-2 rounded-full" style={{ background: colors[index % colors.length] }} />
-          <span className="oa-mono font-medium text-oa-fg">{symbol}</span>
+          <span className="oa-mono inline-flex items-center gap-1.5 font-medium text-oa-fg">
+            <StockLogo ticker={symbol} size={16} />
+            {symbol}
+          </span>
           <button
             type="button"
             onClick={() => go(symbols.filter((item) => item !== symbol))}
@@ -106,10 +111,10 @@ export function ComparePicker({
 
       {full ? (
         limit < proLimit ? (
-          <a href="/pricing#compare" className="inline-flex h-8 items-center gap-2 rounded-md border border-dashed border-oa-border px-2.5 text-[13px] text-oa-muted-fg hover:text-oa-fg">
+          <Link prefetch={false} href="/pricing#compare" className="inline-flex h-8 items-center gap-2 rounded-md border border-dashed border-oa-border px-2.5 text-[13px] text-oa-muted-fg hover:text-oa-fg">
             <span className="max-sm:hidden">Compare up to {proLimit}</span>
             <span className="sm:hidden">Up to {proLimit}</span> <ProMark />
-          </a>
+          </Link>
         ) : (
           <span className="text-[13px] text-oa-muted-fg">{limit} is the most that fits side by side.</span>
         )

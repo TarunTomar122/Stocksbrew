@@ -8,8 +8,9 @@ import { OaProfileButton } from "@/components/oa/oa-profile-button";
 import { PlaceStrip } from "@/components/oa/place-nav";
 import { SidebarNav } from "@/components/oa/sidebar-nav";
 import { StartFreeButton } from "@/components/oa/start-free-button";
-import { getLandingUserContext } from "@/components/terminal-landing-streams";
+import { getLandingUserContext } from "@/components/landing-data";
 import { StocksbrewLogo } from "@/components/stocksbrew-logo";
+import Link from "next/link";
 
 /**
  * The app's chrome: sidebar at lg and up; below lg a slim top bar, the strip
@@ -37,15 +38,15 @@ async function SidebarAccount() {
   return (
     <>
       <OaProfileButton />
-      <a href="/profile" className="min-w-0 truncate text-[14px] text-oa-muted-fg hover:text-oa-fg">
+      <Link prefetch={false} href="/profile" className="min-w-0 truncate text-[14px] text-oa-muted-fg hover:text-oa-fg">
         Account
-      </a>
+      </Link>
       {user.isSubscribed ? (
         <span className="oa-caption ml-auto">Pro</span>
       ) : (
-        <a href="/pricing" className="ml-auto text-[13px] font-medium text-oa-primary hover:underline">
+        <Link prefetch={false} href="/pricing" className="ml-auto text-[13px] font-medium text-oa-primary hover:underline">
           Go Pro
-        </a>
+        </Link>
       )}
     </>
   );
@@ -62,9 +63,9 @@ export async function MarketingAccount() {
   if (!user.signedIn) return <StartFreeButton surface="header" size="sm" variant="outline" label="Start free" />;
   return (
     <>
-      <a href="/briefing" className="hidden rounded-md px-2 py-1.5 text-[15px] font-medium text-oa-fg hover:bg-oa-accent sm:inline-flex">
+      <Link prefetch={false} href="/briefing" className="hidden rounded-md px-2 py-1.5 text-[15px] font-medium text-oa-fg hover:bg-oa-accent sm:inline-flex">
         Open the app
-      </a>
+      </Link>
       <OaProfileButton />
     </>
   );
@@ -74,9 +75,9 @@ export function AppChrome() {
   const app = (
     <>
       <aside className="oa-sidebar fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r border-oa-border bg-oa-page lg:flex">
-        <a href="/" className="flex h-14 shrink-0 items-center px-5 text-oa-fg">
+        <Link prefetch={false} href="/" className="flex h-14 shrink-0 items-center px-5 text-oa-fg">
           <StocksbrewLogo markSize={22} wordmarkClassName="text-[16px] font-medium tracking-tight" />
-        </a>
+        </Link>
         <div className="px-3 pb-3">
           <OaHeaderSearchButton trigger="row" />
         </div>
@@ -89,9 +90,9 @@ export function AppChrome() {
       </aside>
 
       <header className="sticky top-0 z-40 flex h-[52px] items-center justify-between border-b border-oa-border bg-[color-mix(in_srgb,var(--oa-page)_88%,transparent)] px-4 py-2 backdrop-blur-xl lg:hidden">
-        <a href="/" className="text-oa-fg">
+        <Link prefetch={false} href="/" className="text-oa-fg">
           <StocksbrewLogo markSize={22} wordmarkClassName="text-[16px] font-medium tracking-tight" />
-        </a>
+        </Link>
         <div className="flex items-center gap-2">
           <OaHeaderSearchButton />
           <Suspense fallback={<CornerGhost wide={false} />}>

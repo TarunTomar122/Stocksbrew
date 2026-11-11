@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Delta, Empty, FOCUS, NUM, Panel, TabBar, Tag, Ticker, Verdict, fmtAgo, fmtCompact, fmtDay, fmtMoney, fmtStampET, type TabItem } from "@/components/oa/kit";
 import type { MoversData, PolicyData, RedditData, RedditThread } from "@/lib/signals";
 import { MoreLocked } from "@/components/oa/gate";
+import { StockLogo } from "@/components/stock-logo";
 import type { Plan } from "@/lib/entitlements";
 import {
   POLICY_PAGE_SIZE,
@@ -23,6 +24,7 @@ import {
 } from "@/lib/signals-shared";
 import { moodWord } from "@/lib/tone";
 import { plainFinance, sentenceCase } from "@/lib/plain-copy";
+import { AppLink } from "@/components/oa/app-link";
 
 const CHIP = "inline-flex h-10 shrink-0 items-center gap-1.5 rounded-md border px-3 text-[14px] transition-colors sm:h-8 " + FOCUS;
 const CHIP_ON = "border-[color-mix(in_srgb,var(--ink)_55%,transparent)] bg-oa-card font-medium text-oa-fg";
@@ -35,10 +37,10 @@ function ChipRow({ items, current, className = "" }: { items: ChipItem[]; curren
   return (
     <div className={`oa-scroll-fade -mx-2 flex gap-1.5 overflow-x-auto px-4 pr-9 [scrollbar-width:none] sm:mx-0 sm:px-0 sm:pr-0 [&::-webkit-scrollbar]:hidden ${className}`}>
       {items.map((item) => (
-        <a key={item.id} href={item.href} aria-current={item.id === current ? "true" : undefined} className={`${CHIP} ${item.id === current ? CHIP_ON : CHIP_OFF}`}>
+        <AppLink key={item.id} href={item.href} aria-current={item.id === current ? "true" : undefined} className={`${CHIP} ${item.id === current ? CHIP_ON : CHIP_OFF}`}>
           {item.label}
           {item.count != null ? <span className={`${NUM} text-[12.5px] text-oa-muted-fg`}>{item.count}</span> : null}
-        </a>
+        </AppLink>
       ))}
     </div>
   );
@@ -453,6 +455,7 @@ function PolicyLine({ post, compact }: { post: PolicyPost; compact: boolean }) {
         <span className="hidden min-w-0 items-center gap-x-3 overflow-hidden whitespace-nowrap text-[12.5px] lg:flex">
           {post.names.slice(0, 2).map((name) => (
             <span key={name.ticker} className="inline-flex items-baseline gap-1.5">
+              <StockLogo ticker={name.ticker} size={14} className="self-center" />
               <span className={`${NUM} font-medium text-oa-fg`}>{name.ticker}</span>
               {name.since ? <Delta value={name.since.pct} className="text-[12.5px]" /> : null}
             </span>
@@ -480,16 +483,17 @@ function PolicyDetail({ post, compact }: { post: PolicyPost; compact: boolean })
       {post.names.length ? (
         <div className="mt-2 flex flex-wrap gap-1.5">
           {post.names.map((name) => (
-            <a
+            <Link prefetch={false}
               key={name.ticker}
               href={`/stock/${encodeURIComponent(name.ticker)}`}
               title={name.since ? `${name.company}: from the ${fmtDay(name.since.fromDate)} close to ${fmtDay(name.since.toDate)}` : name.company}
               className={`inline-flex h-10 items-center gap-1.5 rounded border border-oa-border bg-oa-card px-2 text-[12.5px] hover:border-oa-fg sm:h-7 ${FOCUS}`}
             >
+              <StockLogo ticker={name.ticker} size={16} />
               <span className={`${NUM} font-medium text-oa-fg`}>{name.ticker}</span>
               {name.since ? <Delta value={name.since.pct} className="text-[12.5px]" /> : <span className="text-oa-muted-fg">no price</span>}
               <span className="text-oa-muted-fg">since</span>
-            </a>
+            </Link>
           ))}
         </div>
       ) : null}
@@ -587,9 +591,9 @@ export function PolicyTab({
 
 function SeeAll({ href, children }: { href: string; children: React.ReactNode }) {
   return (
-    <a href={href} className={LINK}>
+    <AppLink href={href} className={LINK}>
       {children}
-    </a>
+    </AppLink>
   );
 }
 
@@ -649,9 +653,9 @@ export function TodayTab({
             <span className="text-signal-bullish">{counts.up} up</span>, <span className="text-signal-bearish">{counts.down} down</span>).{" "}
           </>
         ) : null}
-        <a href="/movers" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
+        <Link prefetch={false} href="/movers" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
           See why each one moved
-        </a>{" "}
+        </Link>{" "}
         or <SeeAll href={moversHref}>the full list here</SeeAll>.
       </p>
 

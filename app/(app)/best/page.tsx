@@ -8,6 +8,8 @@ import { StockLogo } from "@/components/stock-logo";
 import { BEST_LISTS, LIST_GROUPS, bestListHref, buildHubRead, monthYear } from "@/lib/best-stocks";
 import { getAllBestLists } from "@/lib/best-stocks-data";
 import { ogImage } from "@/lib/og/url";
+import Link from "next/link";
+import { AppLink } from "@/components/oa/app-link";
 
 /**
  * The hub of the "best stocks for X" lists (/best): the read across all of
@@ -47,7 +49,7 @@ export default async function BestHubPage() {
     <AppPage>
       <JsonLd data={breadcrumbLd([{ name: "Best stock lists", path: "/best" }])} />
       <PageHead
-        crumb={<a href="/screener">Find stocks</a>}
+        crumb={<Link prefetch={false} href="/screener">Find stocks</Link>}
         title="Best stock lists"
         meta={<SourceLine source="Prices, company data and filings" asOf={closeDay} />}
         note={false}
@@ -67,7 +69,7 @@ export default async function BestHubPage() {
               <ul>
                 {members.map(({ built }) => (
                   <li key={built.list.slug} className="border-b border-oa-border last:border-b-0">
-                    <a
+                    <AppLink
                       href={bestListHref(built.list.slug)}
                       className="block px-4 py-3 outline-none hover:bg-oa-accent focus-visible:bg-oa-accent"
                     >
@@ -89,7 +91,7 @@ export default async function BestHubPage() {
                           ))}
                         </span>
                       ) : null}
-                    </a>
+                    </AppLink>
                   </li>
                 ))}
               </ul>

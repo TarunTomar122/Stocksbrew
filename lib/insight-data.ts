@@ -2,7 +2,7 @@ import { unstable_cache } from "next/cache";
 
 import { getLatestPriceQuotes } from "@/lib/firestore";
 import { etDay, fin, median } from "@/lib/insight-format";
-import { getScreenerSnapshot } from "@/lib/screener";
+import { getScreenerSnapshot, getScreenerSymbolContext } from "@/lib/screener";
 import type { ScreenerRow } from "@/lib/screener-shared";
 
 /**
@@ -78,13 +78,11 @@ export async function getGroupMove(kind: GroupKind, name: string, day: string | 
 
 /** The group a stock is best compared with: its industry when we cover enough of it, else its sector. */
 export async function getStockGroup(symbol: string): Promise<{ kind: GroupKind; name: string } | null> {
-  const snapshot = await getScreenerSnapshot().catch(() => null);
-  const row = snapshot?.rows.find((item) => item.symbol === symbol);
-  if (!snapshot || !row) return null;
-  if (row.industry) {
-    const size = snapshot.rows.filter((item) => item.industry === row.industry).length;
-    if (size >= MIN_INDUSTRY) return { kind: "industry", name: row.industry };
-  }
+  // The stock's own slice of the snapshot (its row and its industry's size), not the whole snapshot.
+  const context = await getScreenerSymbolContext(symbol).catch(() => null);
+  const row = context?.row;
+  if (!context || !row) return null;
+  if (row.industry && context.industrySize >= MIN_INDUSTRY) return { kind: "industry", name: row.industry };
   return row.sector ? { kind: "sector", name: row.sector } : null;
 }
 

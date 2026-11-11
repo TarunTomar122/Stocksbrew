@@ -17,6 +17,7 @@ import type { EarningsIntelDoc } from "@/lib/earnings-intel";
 import { cleanEarningsProse, EPS_OUTCOME_LINES, STOCK_OUTCOME_LINES, type PreEarningsIntelDoc } from "@/lib/pre-earnings-intel-shared";
 import { sentenceOutcome, type ToneWord } from "@/lib/tone";
 import { etTime, type WireItem } from "@/lib/wire-shared";
+import Link from "next/link";
 
 const COLUMNS: DataColumn[] = [
   { id: "date", label: "Report date" },
@@ -222,9 +223,9 @@ export function PreEarningsRead({
         <p className="text-[14.5px] leading-6 text-oa-fg">
           We have a note ready for the {fmtDay(forDate, true)} report: what we expect it to earn per share, how the stock may react and what to
           watch. It is part of the full report, which a free account gets on five stocks you pick and Pro gets on every stock.{" "}
-          <a href="/pricing" className="font-medium text-oa-primary hover:underline">
+          <Link prefetch={false} href="/pricing" className="font-medium text-oa-primary hover:underline">
             See both plans
-          </a>
+          </Link>
         </p>
       </Panel>
     );
@@ -345,9 +346,9 @@ export function TickerHeadlines({ ticker, items }: { ticker: string; items: Wire
     <Panel
       label="Latest headlines"
       right={
-        <a href={`/news?ticker=${encodeURIComponent(ticker)}`} className="text-oa-primary hover:underline">
+        <Link prefetch={false} href={`/news?ticker=${encodeURIComponent(ticker)}`} className="text-oa-primary hover:underline">
           All on the wire
-        </a>
+        </Link>
       }
       flush
     >

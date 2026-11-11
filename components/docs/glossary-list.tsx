@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { Inline } from "@/components/docs/inline";
+import { AppLink } from "@/components/oa/app-link";
 
 export type GlossaryRow = { term: string; id: string; text: string; letter: string; see: { href: string; title: string } | null };
 
@@ -70,9 +71,9 @@ export function GlossaryList({ rows }: { rows: GlossaryRow[] }) {
                 {row.see ? (
                   <>
                     {" "}
-                    <a href={row.see.href} className="whitespace-nowrap text-[13.5px] font-medium text-oa-primary hover:underline">
+                    <AppLink href={row.see.href} className="whitespace-nowrap text-[13.5px] font-medium text-oa-primary hover:underline">
                       {row.see.title} →
-                    </a>
+                    </AppLink>
                   </>
                 ) : null}
               </dd>

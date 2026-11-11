@@ -4,7 +4,7 @@ import { StockLogo } from "@/components/stock-logo";
 import {
   getLandingAnomalies,
   resolveLandingHeroFeatured,
-} from "@/components/terminal-landing-streams";
+} from "@/components/landing-data";
 import { normalizeDirectiveForUi } from "@/lib/directive-ui";
 import { buildLandingHeroMetrics } from "@/lib/landing-hero-metrics";
 import { getCurrentMarket } from "@/lib/market";
@@ -22,6 +22,8 @@ import {
   fmtDay,
   fmtPrice,
 } from "./shared";
+import Link from "next/link";
+import { AppLink } from "@/components/oa/app-link";
 
 function Sparkline({ closes }: { closes: number[] }) {
   if (closes.length < 2) return null;
@@ -260,7 +262,7 @@ export async function HeroBriefing() {
         <SquircleSurface className="gap-2 rounded-[22px] bg-oa-bg p-2 [--card-clip-radius:12px] sm:rounded-[44px] sm:p-2.5 sm:[--card-clip-radius:17px]">
           {/* One moment, start to end: what it saw, what that means if you own the stock, and the next step. */}
           <div className="rounded-[18px] border border-oa-border bg-oa-card p-4">
-            <a href={`/stock/${anomaly.ticker}`} className="flex items-center justify-between gap-3 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-oa-fg/20">
+            <Link prefetch={false} href={`/stock/${anomaly.ticker}`} className="flex items-center justify-between gap-3 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-oa-fg/20">
               <span className="flex min-w-0 items-center gap-2.5">
                 <StockLogo ticker={anomaly.ticker} market={market === "IN" ? "IN" : "US"} size={26} circle eager />
                 <span className="min-w-0 text-[15px] leading-5 text-oa-muted-fg">
@@ -271,7 +273,7 @@ export async function HeroBriefing() {
                 <span className="text-[17px] font-medium tabular-nums text-oa-fg">{fmtPrice(anomaly.price)}</span>
                 {pct != null ? <ChangeText pct={pct} className="text-[15px] font-medium" /> : null}
               </span>
-            </a>
+            </Link>
 
             {/* The takeaway in two sentences (what happened, what we'd do), then the button; the evidence sits under it. */}
             {takeaway || callText ? (
@@ -282,17 +284,17 @@ export async function HeroBriefing() {
             ) : null}
 
             <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
-              <a
+              <AppLink
                 href={watchHref}
                 data-track="landing_cta_clicked"
                 data-track-surface="hero_watch"
                 className="inline-flex h-10 items-center rounded-full bg-oa-fg px-4 text-[14px] font-medium text-oa-page outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-oa-fg/30"
               >
                 Watch {name} for me
-              </a>
-              <a href={`/stock/${anomaly.ticker}`} className="text-[14px] font-medium text-oa-fg underline decoration-oa-border underline-offset-4 hover:decoration-oa-fg">
+              </AppLink>
+              <Link prefetch={false} href={`/stock/${anomaly.ticker}`} className="text-[14px] font-medium text-oa-fg underline decoration-oa-border underline-offset-4 hover:decoration-oa-fg">
                 Read our full view of {name}
-              </a>
+              </Link>
             </div>
             <p className="mt-2 text-[13px] leading-5 text-oa-muted-fg">It checks {name} every market day and emails you only when something happens.</p>
 
@@ -332,6 +334,12 @@ export async function HeroBriefing() {
 
         </SquircleSurface>
       </SquircleSurface>
+      <figcaption className="mt-3 px-1 text-center text-[15px] leading-6 text-oa-muted-fg lg:text-right">
+        Own US stocks?{" "}
+        <Link prefetch={false} href="/import" data-track="landing_cta_clicked" data-track-surface="hero_import" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-4 hover:decoration-oa-fg">
+          See what we think of yours
+        </Link>
+      </figcaption>
     </figure>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { AnimatedIcon } from "@/components/animated-icon";
+import { CssIcon } from "@/components/icons/css-icons";
 import { useEffect, useState } from "react";
 
 /**
@@ -76,7 +76,7 @@ export function ThemeToggle({
             : isDark ? "text-on-surface-variant" : "text-surface"
         }`}
       >
-        <AnimatedIcon name="light_mode" size={15} />
+        <CssIcon name="sun" size={15} />
       </span>
       <span
         aria-hidden
@@ -86,7 +86,7 @@ export function ThemeToggle({
             : isDark ? "text-surface" : "text-on-surface-variant"
         }`}
       >
-        <AnimatedIcon name="dark_mode" size={14} />
+        <CssIcon name="moon" size={14} />
       </span>
     </button>
   );

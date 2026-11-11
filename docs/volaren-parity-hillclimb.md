@@ -167,10 +167,36 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 - [x] Call engine v3 scorecard: built, no edge, stays off. Next: reframe the call as a descriptive scorecard.
 - [x] Open source readiness report done; going public blocked on owner decisions (key rotation, CSV, license): LICENSE, waitlist CSV in history, scrub private infra and personal identities, env example, README.
 - [ ] Share previews (OG cards) for every page family (in progress).
+- [ ] Speed: stock page and briefing fast and snappy (owner's main focus after the Nov 11 UI round). Profiling in progress; then fix the top causes and re-measure TTFB, HTML size, client JS and mobile LCP before and after.
 
 ## Log
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
+
+### 2026-11-11 ~07:45 UTC, ship 18 in build: speed, import, research, logos, workspace (lead)
+
+- Speed plan from the profiler (scratchpad/perf/): stock page does ~22 LocalDB reads in ~7 sequential rounds plus ~3MB of unstable_cache reads per request (whole 1.5MB screener snapshot for one row, 547KB follow sources for slugs), metadata reads in sequence, LocalDB server backlog 5 / HTTP 1.0 causing ~1s stalls; client ships ~785KB JS per page (recharts via app-chrome, motion via `import * as Icons`, eager posthog, render-blocking font CSS), plain <a> stock links reload the page, ~15 nav prefetches and a double search-index fetch per page. Two speed builders running: stock page server (owns app/(app)/stock/[symbol], stock-page-stream, lib/screener, lib/local-firestore, backend/localdb/server.py) and client (layout, app-chrome, fonts, posthog idle-load, search index once, <a>→<Link> codemod over 109 files, hover-only nav prefetch). Client baseline (production build, laptop): First Load JS / 418kB, /briefing 442kB, /portfolio 415kB, /stock 448kB; /stock/NVDA 390px LCP 2.9-3.6s, TBT 127-252ms; ~168KB fonts per page, only Instrument Sans renders.
+- Screenshot import finished (vision tested on Haiku with mock screens; production would use OpenAI gpt-5.6-luna, untested; adds-only save route; caps verified). It must ship with the thesis work (shared thesis step).
+- Logo sweep added logos next to tickers in ~28 more files; logo route bugs (bad-key batch 503, `%` 500) relayed to the logo builder.
+- Deep research and share-card quality passes: no blockers; findings relayed to their builders (subagent reports were reaching the lead instead of the builders, so three builders sat idle until relayed).
+- Running (8): thesis/reason watcher, My stocks workspace (Codex asks 1-3), speed server, speed client, deep research fixes, logo fixes, share-card fixes, one builder subagent.
+- Open: ship 18 integration once they report; VPS restart for the LocalDB server change; Codex re-judge after ship 18.
+
+### 2026-11-11 ~07:10 UTC, ship 17 live (084a5c5) (lead)
+
+- Deployed 084a5c5 (vercel@65.14.0, Ready), main moved and pushed. Live check: 11 pages 200; "No confirmed reason" no longer shown (it remains only in the briefing's serialized data, which the speed work will trim).
+- Quality pass findings fixed before shipping: a lone reasonless move on a personal briefing card now shows its next step (so the card keeps Got it / Keep watching) instead of an empty row; the remaining wording ("Without a reason" filter, signals read "came with no news yet", landing empty state, plainFinance drops the missing-catalyst clause, run-log detail, briefing summary, landing FAQ and lede, docs, compare pages); /portfolio's example memo now uses rules only (`loadExampleMemo(..., { worded: false })`, own cache key) so the overview never starts a model call; landing move rows lost their size bars; blog CTA points at /portfolio/analyze; dead `max` removed in signals.
+- Verified on the exact tree: tsc clean, vitest 1675/1675, eslint clean on the changed files; screenshots scratchpad/s17/ (signals movers 1280/390, portfolio 390) and scratchpad/qp_shots/.
+- Codex judge (CLI, live screenshots; scratchpad/judge17/verdict.md): overall 6; UI 7, UX 6, usability 6, human wording 7, agent feel 4, similarity 7. Top asks: a portfolio-aware Ask entry with suggested questions; visible agent activity (what was checked, what changed, next check); My stocks reduced to 2-3 prioritised findings with one action each; mobile clearance and product higher on the landing; Market today hierarchy. Asks 1-3 handed to a My stocks agent-workspace builder (owns lib/portfolio-home, components/portfolio-home, the page).
+- Open: speed plan (profiling agent), the five builders and the workspace builder into ship 18, Codex asks 4-5.
+
+### 2026-11-11 ~06:55 UTC, ship 17 frozen and fixed; builders resumed after the session move; speed is next (lead)
+
+- Ship 17 candidate (a5e8fe3 plus fixes in scratchpad/wt19): My stocks overview, richer landing, Market today with the Markets sections, ideas fix, dividend ideas, shorter headlines, agent moments, owner tweaks. On the frozen tree: tsc clean, vitest 1675/1675, eslint clean.
+- Owner fixes added to the candidate (and to main): screener phone names on one line; size bars removed on /movers and the briefing movers panel; "No confirmed reason yet" removed from every UI surface (briefing panel, briefing stock cards via `lineText` returning "" and `LineRow` skipping empty rows, signals rows, briefing and signals reads, landing hero, share cards). The briefing's reasonless line now reads "Also moved: GDXU −16.28% and ELMT −12.46%." Screenshots in scratchpad/s17/ (movers 1280/390, ideas, news, screener 390, dividends 390, briefing 1280, signals).
+- The session moved accounts on a usage limit; the five builders (deep research, screenshot import, logos, reason watcher, share cards/SEO) and the first quality pass stopped. All five builders resumed from their transcripts; the quality pass was restarted on the updated candidate.
+- Owner (06:50): the stock page and the briefing load slow; after this UI round the main focus is speed. Live, logged out: /stock/NVDA TTFB 0.5-0.8s, total 0.9-2.1s, HTML ~650KB (others 145-210KB); /briefing TTFB ~0.3s. A profiling agent is measuring server reads, payload, client JS and throttled mobile loads, and will hand back a ranked fix list.
+- Open: ship 17 waits on the quality pass; Codex re-judge after it ships; speed plan; the five builders integrate into ship 18. Owner to-dos: postal address, Brevo domain authentication, delete the stray Vercel project "wt11".
 
 ### 2026-11-11 ~06:40 UTC, laptop ran out of memory; capture helper fixed; headlines shortened (lead)
 - The owner's laptop died. Causes:

@@ -67,6 +67,17 @@ export const getFollowSources = unstable_cache(
   { revalidate: REVALIDATE },
 );
 
+/**
+ * Just the slugs of the funds and members with a Follow page, for pages that
+ * only need to know whether to link one (a stock page's congress trades).
+ * Cached on its own: the full sources are about half a megabyte.
+ */
+export const getFollowSlugs = unstable_cache(
+  async (): Promise<string[]> => (await getFollowSources()).map((source) => source.slug),
+  ["follow-slugs-v1"],
+  { revalidate: REVALIDATE },
+);
+
 async function loadActivity(limit: number): Promise<FollowActivity[]> {
   const snap = await adminFirestore
     .collection("tm_follow_activity")

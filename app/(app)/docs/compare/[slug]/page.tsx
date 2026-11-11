@@ -8,6 +8,8 @@ import { COMPARISON_RECHECKED, DOC_COMPARISONS, docCompareHref, getDocComparison
 import { SITE_URL } from "@/lib/docs/site";
 import { getCompareRelated } from "@/lib/seo/compare-links";
 import { ogImage } from "@/lib/og/url";
+import Link from "next/link";
+import { AppLink } from "@/components/oa/app-link";
 
 type Props = { params: { slug: string } };
 
@@ -80,9 +82,9 @@ export default function DocsComparePage({ params }: Props) {
           <p className="text-pretty text-[15px] leading-6 text-oa-fg/90">
             What this page says about stocksbrew was rechecked against the product on November 10, 2026. What it says about {page.competitorName} is desk research and may
             be out of date. For what stocksbrew does today, see{" "}
-            <a href="/docs/start/what-stocksbrew-is" className={LINK}>
+            <Link prefetch={false} href="/docs/start/what-stocksbrew-is" className={LINK}>
               What stocksbrew is and is not
-            </a>
+            </Link>
             . Check {page.competitorName}&apos;s current features and prices on{" "}
             <a href={page.competitorUrl} target="_blank" rel="noopener noreferrer" className={LINK}>
               its own site
@@ -202,9 +204,9 @@ export default function DocsComparePage({ params }: Props) {
           <ul className="oa-surface border border-oa-border bg-oa-card">
             {[...related.compares.map((link) => ({ ...link, href: movedCompareHref(link.href) })), ...related.blogs].map((link) => (
               <li key={link.href} className="border-b border-oa-border last:border-b-0">
-                <a href={link.href} className={`block px-4 py-2 text-[14.5px] font-medium text-oa-fg hover:bg-oa-accent hover:underline ${FOCUS}`}>
+                <AppLink href={link.href} className={`block px-4 py-2 text-[14.5px] font-medium text-oa-fg hover:bg-oa-accent hover:underline ${FOCUS}`}>
                   {link.label}
-                </a>
+                </AppLink>
               </li>
             ))}
           </ul>
@@ -212,10 +214,10 @@ export default function DocsComparePage({ params }: Props) {
 
         <p className="mt-8 border-t border-oa-border pt-4 text-[13.5px] leading-5 text-oa-muted-fg">
           Found something out of date?{" "}
-          <a href="/docs/methodology/corrections#reporting-an-error" className={LINK}>
+          <Link prefetch={false} href="/docs/methodology/corrections#reporting-an-error" className={LINK}>
             Tell us
-          </a>{" "}
-          with the official page that shows it. <a href="/docs/compare" className={LINK}>All comparisons</a>.
+          </Link>{" "}
+          with the official page that shows it. <Link prefetch={false} href="/docs/compare" className={LINK}>All comparisons</Link>.
         </p>
       </article>
     </DocsShell>

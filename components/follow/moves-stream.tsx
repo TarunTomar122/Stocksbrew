@@ -18,6 +18,7 @@ import {
   type ActivityItem,
   type FollowActivity,
 } from "@/lib/follow-shared";
+import Link from "next/link";
 
 function MoveItem({ item }: { item: ActivityItem }) {
   const size = activitySize(item);
@@ -103,12 +104,12 @@ export function MovesStream({
               {showName ? (
                 <p className="flex min-w-0 items-center gap-1.5 text-[14px] leading-5">
                   <PartyDot party={event.party} />
-                  <a
+                  <Link prefetch={false}
                     href={sourceHref(event.source_id)}
                     className="truncate font-medium text-oa-fg outline-none hover:text-oa-primary focus-visible:text-oa-primary"
                   >
                     {event.name}
-                  </a>
+                  </Link>
                   <span className="hidden shrink-0 truncate text-[12px] text-oa-muted-fg sm:inline">
                     {event.person}
                   </span>

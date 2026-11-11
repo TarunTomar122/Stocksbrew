@@ -7,6 +7,8 @@ import { useUser } from "@/lib/auth-context";
 import { setupHref } from "@/lib/backtest/setup";
 import { compareHref } from "@/lib/compare-shared";
 import { signInWithGoogle } from "@/lib/sign-in";
+import Link from "next/link";
+import { AppLink } from "@/components/oa/app-link";
 
 /**
  * What you can do with a set of tickers: follow them, compare them, or
@@ -111,17 +113,17 @@ export function WatchlistButton({
         {text}
       </button>
       {state.kind === "done" ? (
-        <a href="/watchlist" className="text-[13px] text-oa-muted-fg underline decoration-oa-border underline-offset-2 hover:text-oa-fg">
+        <Link prefetch={false} href="/watchlist" className="text-[13px] text-oa-muted-fg underline decoration-oa-border underline-offset-2 hover:text-oa-fg">
           Open watchlist
-        </a>
+        </Link>
       ) : null}
       {state.kind === "limit" ? (
         <span role="status" className="text-[13px] leading-5 text-oa-muted-fg">
           {state.added > 0 ? `Added ${state.added} of ${state.total}. ` : ""}
           {state.reason}{" "}
-          <a href="/pricing#follow_stocks" className="text-oa-primary underline underline-offset-2">
+          <Link prefetch={false} href="/pricing#follow_stocks" className="text-oa-primary underline underline-offset-2">
             See Pro
-          </a>
+          </Link>
         </span>
       ) : null}
       {state.kind === "error" ? (
@@ -150,14 +152,14 @@ export function BasketActions({
     <div className={`flex flex-wrap items-center gap-2 ${className}`}>
       <WatchlistButton symbols={symbols} label={watchLabel} />
       {symbols.length >= 2 && compareLimit >= 2 ? (
-        <a href={compareHref(compareSet)} className={CONTROL}>
+        <AppLink href={compareHref(compareSet)} className={CONTROL}>
           Compare{symbols.length > compareLimit ? ` first ${compareLimit}` : ""}
-        </a>
+        </AppLink>
       ) : null}
       {symbols.length >= 1 ? (
-        <a href={backtestHref(symbols)} className={CONTROL}>
+        <AppLink href={backtestHref(symbols)} className={CONTROL}>
           Backtest as a basket
-        </a>
+        </AppLink>
       ) : null}
     </div>
   );

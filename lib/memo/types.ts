@@ -95,6 +95,17 @@ export type MemoDividend = {
 
 export type MemoStress = { name: string; start: string; end: string; portfolio: number; market: number };
 
+/** A reason the person gave for owning a stock that the reason watcher (lib/thesis-watch) found weaker or broken. */
+export type MemoReason = {
+  ticker: string;
+  verdict: "weaker" | "broken";
+  /** The watcher's first finding, one or two sentences with its figures. */
+  finding: string;
+  source: string;
+  asOf: string;
+  data: Record<string, string | number | null>;
+};
+
 export type MemoInputs = {
   week: MemoWeek;
   /** New York day the memo is written. */
@@ -116,6 +127,8 @@ export type MemoInputs = {
   exposure: MemoExposure | null;
   dividends: MemoDividend[];
   stress: MemoStress | null;
+  /** Reasons that weakened or broke; about today's holdings, so only the current week has them. */
+  reasons?: MemoReason[];
 };
 
 export type MemoSection = "changed" | "hurt" | "look";
@@ -137,7 +150,8 @@ export type FactKind =
   | "sector"
   | "dividend"
   | "dividend_risk"
-  | "stress";
+  | "stress"
+  | "reason";
 
 export type MemoFact = {
   /** Stable within a week: "call:AAPL:2026-11-05". */

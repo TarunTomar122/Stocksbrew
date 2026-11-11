@@ -4,6 +4,7 @@ import { AccountView } from "@/components/account/account-view";
 import { AppPage, PageHead, Panel } from "@/components/oa/kit";
 import { publicAppUrl } from "@/lib/agent-access-config";
 import { getSessionUser } from "@/lib/auth-server";
+import Link from "next/link";
 
 export const revalidate = 0;
 
@@ -40,9 +41,9 @@ export default async function AccountPage({ searchParams }: Props) {
           <SignInPanel />
           <p className="text-[13.5px] leading-5 text-oa-muted-fg">
             What we store and how to delete it is on{" "}
-            <a href="/security" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2">
+            <Link prefetch={false} href="/security" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2">
               Security
-            </a>
+            </Link>
             . You can read stock reports, the wire and the docs without an account.
           </p>
         </div>

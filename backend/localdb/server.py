@@ -63,22 +63,69 @@ def _resolve_operation(existing: dict[str, Any], operation: dict[str, Any]) -> d
     return _apply_operation(existing, operation, _resolve_value, _MISSING)
 
 
+# How long an idle keep-alive connection is held open. Longer than Caddy's
+# upstream keep-alive (2 minutes), so the proxy is the side that closes an idle
+# connection and never sends a request down one this server just dropped.
+KEEPALIVE_IDLE_SECONDS = 150
+# Pending connections the kernel queues for accept(). The socketserver default
+# is 5: past that, new connections were dropped and the client retried the SYN
+# about a second later, which showed up as one-second stalls whenever more than
+# about six requests were in flight at once.
+ACCEPT_BACKLOG = 128
+
+
 class _HTTPServer(ThreadingHTTPServer):
     daemon_threads = True
     allow_reuse_address = True
+    request_queue_size = ACCEPT_BACKLOG
 
 
 class LocalDBRequestHandler(BaseHTTPRequestHandler):
     server: _HTTPServer
+    # Keep-alive: a caller (Caddy, the web app, a job) reuses one connection
+    # for many requests instead of paying a new TCP handshake on each. Every
+    # response states its Content-Length (see _send_json), which HTTP/1.1
+    # needs to know where one response ends and the next begins.
+    protocol_version = "HTTP/1.1"
+    # Applied to the connection socket: closes idle keep-alive connections and
+    # bounds a stalled read.
+    timeout = KEEPALIVE_IDLE_SECONDS
+    # Headers and body go out as two writes; without TCP_NODELAY the second one
+    # can wait on a delayed ACK (tens of milliseconds) on a reused connection.
+    disable_nagle_algorithm = True
 
     def log_message(self, _format: str, *_args: Any) -> None:
         return
+
+    def parse_request(self) -> bool:
+        # Reset per request: one connection now carries many requests.
+        self._body_consumed = False
+        return super().parse_request()
+
+    def _has_unread_body(self) -> bool:
+        if getattr(self, "_body_consumed", False):
+            return False
+        if self.headers.get("Transfer-Encoding"):
+            return True
+        try:
+            return int(self.headers.get("Content-Length") or "0") > 0
+        except ValueError:
+            return True
 
     def _send_json(self, payload: dict[str, Any], status: int = 200) -> None:
         body = json.dumps(payload, ensure_ascii=True, separators=(",", ":")).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
+        # Tells the web app this server queues connections instead of dropping
+        # them, so it may run more requests at once (lib/local-firestore.ts).
+        self.send_header("X-LocalDB-Backlog", str(self.server.request_queue_size))
+        if self._has_unread_body():
+            # Answered before reading the request body (refused, too large,
+            # bad length). Its bytes are still on the socket and would be read
+            # as the next request, so this connection ends here.
+            self.close_connection = True
+            self.send_header("Connection", "close")
         self.end_headers()
         self.wfile.write(body)
 
@@ -102,10 +149,12 @@ class LocalDBRequestHandler(BaseHTTPRequestHandler):
             length = int(raw_length or "-1")
         except ValueError as error:
             raise ValueError("invalid request body") from error
-        if length < 0 or length > MAX_BODY_BYTES:
+        if length < 0 or length > MAX_BODY_BYTES or self.headers.get("Transfer-Encoding"):
             raise ValueError("request body is too large or missing")
+        raw = self.rfile.read(length)
+        self._body_consumed = len(raw) == length
         try:
-            return json.loads(self.rfile.read(length).decode("utf-8"))
+            return json.loads(raw.decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError) as error:
             raise ValueError("request body must be valid JSON") from error
 

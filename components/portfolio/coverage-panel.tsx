@@ -5,6 +5,8 @@ import { useState } from "react";
 
 import { CARD, FOCUS, NUM } from "@/components/portfolio/parts";
 import { ProMark } from "@/components/oa/gate";
+import { StockLogo } from "@/components/stock-logo";
+import Link from "next/link";
 
 /** What the server worked out about coverage for this account (lib/entitlements-coverage.ts). */
 export type PortfolioCoverage = {
@@ -107,8 +109,11 @@ export function CoveragePanel({ coverage, stocks }: { coverage: PortfolioCoverag
               const blocked = !isCovered && full;
               return (
                 <li key={stock.instrument_id} className="flex min-h-11 items-center justify-between gap-3 px-3 py-1.5">
-                  <span className="flex min-w-0 items-baseline gap-2">
-                    <span className="oa-mono text-[13px] font-medium text-oa-fg">{stock.ticker}</span>
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="oa-mono inline-flex shrink-0 items-center gap-1.5 text-[13px] font-medium text-oa-fg">
+                      <StockLogo ticker={stock.ticker} size={18} />
+                      {stock.ticker}
+                    </span>
                     {stock.name && stock.name !== stock.ticker ? (
                       <span className="truncate text-[12.5px] text-oa-muted-fg">{stock.name}</span>
                     ) : null}
@@ -135,9 +140,9 @@ export function CoveragePanel({ coverage, stocks }: { coverage: PortfolioCoverag
             <p role="status" className={error ? "text-signal-bearish" : undefined}>
               {error ?? (full ? `All ${coverage.limit} slots are in use. Uncover one to make room; uncovering is free any time. ${rule}` : rule)}
             </p>
-            <a href="/pricing#covered_stocks" className="inline-flex shrink-0 items-center gap-1.5 text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
+            <Link prefetch={false} href="/pricing#covered_stocks" className="inline-flex shrink-0 items-center gap-1.5 text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
               Cover everything <ProMark />
-            </a>
+            </Link>
           </div>
         </div>
       ) : null}

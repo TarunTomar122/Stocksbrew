@@ -9,24 +9,18 @@ import { isEmptySpec, specSentence } from "@/lib/baskets-plain/spec";
 import { getViewer } from "@/lib/entitlements-server";
 import { getScreenerRows } from "@/lib/screener";
 import { getUserDoc } from "@/lib/watchlist";
+import { JsonLd } from "@/components/docs/json-ld";
+import { toolPageLd, toolPageMetadata } from "@/lib/seo/tool-pages";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
 type Props = { searchParams: Record<string, string | string[] | undefined> };
 
-const DESCRIPTION =
-  "Describe a stock theme in your own words, like “AI power stocks under $50B” or “cheap banks”. Get the companies that fit, why each one is in, and a backtest against the S&P 500.";
-
 export function generateMetadata({ searchParams }: Props): Metadata {
   const asked = typeof searchParams.q === "string" && searchParams.q.trim().length > 0;
-  return {
-    title: "Build a Stock Basket in Plain English",
-    description: DESCRIPTION,
-    alternates: { canonical: "/baskets/new" },
-    // A typed request is somebody's search, not a page of its own.
-    robots: asked ? { index: false, follow: false } : undefined,
-    openGraph: { title: "Build a stock basket in plain English · stocksbrew", description: DESCRIPTION, url: "https://www.stocksbrew.online/baskets/new" },
-  };
+  // A typed request is somebody's search, not a page of its own.
+  return { ...toolPageMetadata("/baskets/new"), ...(asked ? { robots: { index: false, follow: false } } : {}) };
 }
 
 async function YourBaskets({ uid }: { uid: string }) {
@@ -45,9 +39,9 @@ async function YourBaskets({ uid }: { uid: string }) {
           return (
             <li key={entry.slug} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-oa-border px-4 py-3 last:border-0">
               <div className="min-w-0">
-                <a href={`/baskets/${entry.slug}`} className="text-[14.5px] font-medium text-oa-fg hover:underline">
+                <Link prefetch={false} href={`/baskets/${entry.slug}`} className="text-[14.5px] font-medium text-oa-fg hover:underline">
                   {entry.title}
-                </a>
+                </Link>
                 <p className="text-[12.5px] leading-[18px] text-oa-muted-fg">
                   Followed {fmtDay(entry.followed_at, true)} with {entry.members.length} {entry.members.length === 1 ? "stock" : "stocks"}
                   {since.priced < since.total ? `; ${since.total - since.priced} no longer ${since.total - since.priced === 1 ? "has a price" : "have prices"}, so the change counts ${since.priced}` : ""}
@@ -91,6 +85,7 @@ export default async function NewBasketPage({ searchParams }: Props) {
 
   return (
     <AppPage>
+      <JsonLd data={toolPageLd("/baskets/new")} />
       <PageHead
         title="Build a basket in plain English"
         lede="Describe the stocks you want the way you would say it. We turn it into a rule over the stocks we cover, list every company that fits with the reason it is in, and test the basket against the S&P 500."
@@ -133,9 +128,9 @@ export default async function NewBasketPage({ searchParams }: Props) {
 
       <p className="mt-5 px-2 text-[13.5px] leading-5 text-oa-muted-fg sm:px-0">
         Prefer a basket our research wrote by hand?{" "}
-        <a href="/themes" className="text-oa-fg underline decoration-oa-border underline-offset-4 hover:decoration-oa-primary">
+        <Link prefetch={false} href="/themes" className="text-oa-fg underline decoration-oa-border underline-offset-4 hover:decoration-oa-primary">
           See the idea baskets
-        </a>
+        </Link>
         .
       </p>
     </AppPage>

@@ -42,6 +42,8 @@ import {
 } from "./format";
 import { Details, MarkSlot, Missing, MoreLink, NUM, Panel, PROSE, ReportSection, Row, StatGrid, Tag, TONE_COLOR, ToneGlyph, Verdict, type SectionId, type Tone } from "./primitives";
 import type { ReportData } from "./types";
+import Link from "next/link";
+import { AppLink } from "@/components/oa/app-link";
 
 type SectionProps = { data: ReportData };
 
@@ -729,7 +731,7 @@ export function OwnershipSection({ data }: SectionProps) {
               {funds.rows.slice(0, 8).map((row) => {
                 const action = row.action ? FUND_ACTION[row.action] : null;
                 return (
-                  <a
+                  <AppLink
                     key={row.slug}
                     href={row.href}
                     className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 border-b border-oa-border px-3.5 py-2 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent sm:px-4"
@@ -756,11 +758,11 @@ export function OwnershipSection({ data }: SectionProps) {
                           .join(" · ")}
                       </span>
                     </span>
-                  </a>
+                  </AppLink>
                 );
               })}
               {funds.exits.slice(0, 4).map((row) => (
-                <a
+                <AppLink
                   key={`exit-${row.slug}`}
                   href={row.href}
                   className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 border-b border-oa-border px-3.5 py-2 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent sm:px-4"
@@ -777,7 +779,7 @@ export function OwnershipSection({ data }: SectionProps) {
                   <span className={`${NUM} text-right text-[12px] leading-5 text-oa-muted-fg`}>
                     {row.prevPortfolioPct != null ? `was ${row.prevPortfolioPct.toFixed(1)}% of book` : ""}
                   </span>
-                </a>
+                </AppLink>
               ))}
               <p className="px-3.5 py-2 text-[12px] leading-4 text-oa-muted-fg sm:px-4">
                 {funds.holderCount > 8 ? `${funds.holderCount} followed funds hold it; top eight shown. ` : ""}
@@ -807,7 +809,7 @@ export function OwnershipSection({ data }: SectionProps) {
                       ? `${compactMoney(trade.amount_low, "$")} or more`
                       : "Amount not disclosed";
                 return (
-                  <a
+                  <Link prefetch={false}
                     key={trade.trade_id}
                     href={data.followSlugs.includes(trade.person_id) ? `/follow/${trade.person_id}` : "/follow?tab=congress"}
                     className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 border-b border-oa-border px-3.5 py-2 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent sm:px-4"
@@ -831,7 +833,7 @@ export function OwnershipSection({ data }: SectionProps) {
                       <span className={`${NUM} block text-[14px] leading-5 text-oa-fg`}>{range}</span>
                       <span className={`${NUM} block text-[12px] leading-4 text-oa-muted-fg`}>traded {fmtDate(trade.transaction_date)}</span>
                     </span>
-                  </a>
+                  </Link>
                 );
               })}
               <p className="px-3.5 py-2 text-[12px] leading-4 text-oa-muted-fg sm:px-4">
@@ -1193,9 +1195,9 @@ export function PeersSection({ data }: SectionProps) {
               {cells}
             </div>
           ) : (
-            <a key={row.ticker} href={`/stock/${row.ticker}`} className={`${base} outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent`}>
+            <Link prefetch={false} key={row.ticker} href={`/stock/${row.ticker}`} className={`${base} outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent`}>
               {cells}
-            </a>
+            </Link>
           );
         })}
         <p className="border-t border-oa-border px-3.5 py-2 text-[12px] leading-4 text-oa-muted-fg sm:px-4">

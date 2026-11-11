@@ -11,6 +11,8 @@ import { movedCompareHref } from "@/lib/docs/compare";
 import { SITE_URL } from "@/lib/docs/site";
 import { getBlogCompareLinks } from "@/lib/seo/compare-links";
 import { ogImage } from "@/lib/og/url";
+import Link from "next/link";
+import { AppLink } from "@/components/oa/app-link";
 
 type Props = { params: { slug: string } };
 
@@ -99,9 +101,9 @@ export default function BlogPostPage({ params }: Props) {
       />
       <article>
         <nav aria-label="Breadcrumb" className="oa-mono mb-3 flex flex-wrap items-center gap-x-1.5 text-[11.5px] uppercase tracking-[0.06em] text-oa-muted-fg">
-          <a href="/blog" className={`rounded hover:text-oa-fg ${FOCUS}`}>
+          <Link prefetch={false} href="/blog" className={`rounded hover:text-oa-fg ${FOCUS}`}>
             Blog
-          </a>
+          </Link>
           <span aria-hidden="true">/</span>
           <span className="text-oa-label">{post.category}</span>
         </nav>
@@ -153,13 +155,13 @@ export default function BlogPostPage({ params }: Props) {
             <p className="text-pretty text-[14.5px] leading-6 text-oa-fg/85">
               Tarun reviewed this article for product accuracy and usefulness. A model may have helped with structure or editing. Material facts should be checked
               against the linked primary sources. Found an error?{" "}
-              <a href="/docs/methodology/corrections#reporting-an-error" className={LINK}>
+              <Link prefetch={false} href="/docs/methodology/corrections#reporting-an-error" className={LINK}>
                 Tell us
-              </a>
+              </Link>
               . The standard is in{" "}
-              <a href="/docs/methodology/corrections" className={LINK}>
+              <Link prefetch={false} href="/docs/methodology/corrections" className={LINK}>
                 Editorial standards and corrections
-              </a>
+              </Link>
               .
             </p>
           </div>
@@ -182,18 +184,18 @@ export default function BlogPostPage({ params }: Props) {
               <ul className="oa-surface border border-oa-border bg-oa-card">
                 {more.map((item) => (
                   <li key={item.slug} className="border-b border-oa-border last:border-b-0">
-                    <a href={`/blog/${item.slug}`} className={`group block px-4 py-2.5 hover:bg-oa-accent ${FOCUS}`}>
+                    <Link prefetch={false} href={`/blog/${item.slug}`} className={`group block px-4 py-2.5 hover:bg-oa-accent ${FOCUS}`}>
                       <span className="block text-[15px] font-medium leading-6 text-oa-fg group-hover:underline">{item.title}</span>
                       <span className="line-clamp-1 block text-[13.5px] leading-5 text-oa-muted-fg">{item.description}</span>
-                    </a>
+                    </Link>
                   </li>
                 ))}
                 {compares.map((link) => (
                   <li key={link.href} className="border-b border-oa-border last:border-b-0">
-                    <a href={link.href} className={`group flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-oa-accent ${FOCUS}`}>
+                    <AppLink href={link.href} className={`group flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-oa-accent ${FOCUS}`}>
                       <span className="text-[15px] font-medium leading-6 text-oa-fg group-hover:underline">stocksbrew {link.label.replace(/^stocksbrew\s+/i, "")}</span>
                       <span className="oa-mono text-[10.5px] uppercase tracking-[0.06em] text-oa-label">Comparison</span>
-                    </a>
+                    </AppLink>
                   </li>
                 ))}
               </ul>
@@ -206,18 +208,18 @@ export default function BlogPostPage({ params }: Props) {
               <p className="text-[14px] leading-5 text-oa-muted-fg">Search any US stock for financials, earnings, filings and news. Free to read.</p>
             </div>
             <div className="flex shrink-0 gap-2">
-              <a href="/explore" className={`inline-flex h-9 items-center rounded-lg bg-oa-fg px-3.5 text-[14px] font-medium text-oa-page hover:opacity-90 ${FOCUS}`}>
+              <Link prefetch={false} href="/explore" className={`inline-flex h-9 items-center rounded-lg bg-oa-fg px-3.5 text-[14px] font-medium text-oa-page hover:opacity-90 ${FOCUS}`}>
                 Search a stock
-              </a>
-              <a href="/docs" className={`inline-flex h-9 items-center rounded-lg border border-oa-border bg-oa-card px-3.5 text-[14px] font-medium text-oa-fg hover:bg-oa-accent ${FOCUS}`}>
+              </Link>
+              <Link prefetch={false} href="/docs" className={`inline-flex h-9 items-center rounded-lg border border-oa-border bg-oa-card px-3.5 text-[14px] font-medium text-oa-fg hover:bg-oa-accent ${FOCUS}`}>
                 Read the docs
-              </a>
+              </Link>
             </div>
           </div>
 
-          <a href="/blog" className={`w-fit rounded text-[14px] font-medium text-oa-muted-fg hover:text-oa-fg ${FOCUS}`}>
+          <Link prefetch={false} href="/blog" className={`w-fit rounded text-[14px] font-medium text-oa-muted-fg hover:text-oa-fg ${FOCUS}`}>
             ← All posts
-          </a>
+          </Link>
         </footer>
       </article>
     </AppPage>

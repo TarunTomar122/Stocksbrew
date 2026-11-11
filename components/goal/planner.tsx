@@ -6,6 +6,7 @@ import { FanChart, FanLegend } from "@/components/goal/fan-chart";
 import { TheRead } from "@/components/oa/insight";
 import { Card as Panel, NUM, Stats, dayWords } from "@/components/goal/card";
 import { ShowMore } from "@/components/oa/kit/more";
+import { StockLogo } from "@/components/stock-logo";
 import { INFLATION, PATHS, BLOCK_MONTHS, replay, yearlyOf } from "@/lib/goal/bootstrap";
 import type { GoalData, GoalMix } from "@/lib/goal/data";
 import { LIMITS, inputProblem, inputsQuery, parseAmount, type GoalInputs, type MixId } from "@/lib/goal/inputs";
@@ -540,7 +541,10 @@ function HoldingsTable({ parts }: { parts: PartHistory[] }) {
           {sorted.map((part) => (
             <tr key={part.ticker}>
               <td className="px-4 py-2">
-                <span className={`${NUM} font-medium text-oa-fg`}>{part.ticker}</span>{" "}
+                <span className={`${NUM} inline-flex items-center gap-1.5 align-middle font-medium text-oa-fg`}>
+                  <StockLogo ticker={part.ticker} size={18} />
+                  {part.ticker}
+                </span>{" "}
                 <span className="text-oa-muted-fg">{part.name !== part.ticker ? part.name : ""}</span>
               </td>
               <td className={`${NUM} px-3 py-2 text-right`}>{pctWords(part.weight)}</td>

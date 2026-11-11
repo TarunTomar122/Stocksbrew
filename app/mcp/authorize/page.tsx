@@ -7,6 +7,7 @@ import { OAuthRequestError, validateAuthorizationRequest } from "@/lib/agent-oau
 import { getSessionUser } from "@/lib/auth-server";
 import { SCOPE_INFO } from "@/lib/docs/developers";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
+import Link from "next/link";
 
 export const metadata: Metadata = { title: "Connect an agent", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
@@ -31,9 +32,9 @@ export default async function McpAuthorizePage({ searchParams }: Props) {
         <Panel>
           <p className="text-pretty text-[15px] leading-6 text-oa-fg/90">
             Nothing was connected. Start again from your agent or client. If it keeps happening, the client is sending a request we do not accept: the details it needs are in the{" "}
-            <a href="/developers#auth" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2">
+            <Link prefetch={false} href="/developers#auth" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2">
               developer docs
-            </a>
+            </Link>
             .
           </p>
         </Panel>
@@ -78,9 +79,9 @@ export default async function McpAuthorizePage({ searchParams }: Props) {
         <AgentConsentActions authorizationParams={Object.fromEntries(params.entries())} signedIn={Boolean(session)} subscribed={subscribed} />
         <p className="text-[13.5px] leading-5 text-oa-muted-fg">
           Signed in as {session?.email ?? "nobody yet"}. Connected agents are listed under{" "}
-          <a href="/profile#agent-access" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2">
+          <Link prefetch={false} href="/profile#agent-access" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2">
             Account
-          </a>
+          </Link>
           .
         </p>
       </div>

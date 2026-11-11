@@ -2560,3 +2560,44 @@ input:-webkit-autofill:focus {
 body:has(.oa-topbar) :is(.oa-page-frame, .oa-page-prose).max-w-\[84rem\] {
   max-width: 76rem;
 }
+
+/* CSS versions of the animated sun, sun-moon and moon icons (components/icons/css-icons.tsx):
+   rays fade back in one after another on hover, the moon wobbles. Same timing as the motion icons. */
+.sb-ic:hover .sb-ic-ray {
+  animation: sb-ic-ray 0.3s both;
+  animation-delay: calc(var(--sb-ic-i, 1) * 0.1s);
+}
+.sb-ic:hover .sb-ic-wobble,
+.sb-ic:hover .sb-ic-wobble-soft {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.sb-ic:hover .sb-ic-wobble {
+  animation: sb-ic-wobble 1.2s ease-in-out;
+}
+.sb-ic:hover .sb-ic-wobble-soft {
+  animation: sb-ic-wobble-soft 1.5s ease-in-out;
+}
+@keyframes sb-ic-ray {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes sb-ic-wobble {
+  0%, 100% { transform: rotate(0); }
+  20% { transform: rotate(-10deg); }
+  40% { transform: rotate(10deg); }
+  60% { transform: rotate(-5deg); }
+  80% { transform: rotate(5deg); }
+}
+@keyframes sb-ic-wobble-soft {
+  0%, 100% { transform: rotate(0); }
+  20% { transform: rotate(-5deg); }
+  40% { transform: rotate(5deg); }
+  60% { transform: rotate(-2deg); }
+  80% { transform: rotate(2deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sb-ic:hover :is(.sb-ic-ray, .sb-ic-wobble, .sb-ic-wobble-soft) {
+    animation: none;
+  }
+}

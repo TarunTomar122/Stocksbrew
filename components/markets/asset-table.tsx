@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { Sparkline, toneText } from "@/components/markets/widgets";
+import { StockLogo } from "@/components/stock-logo";
 import {
   assetHref,
   signalTone,
@@ -15,6 +16,7 @@ import {
   type MarketAsset,
   type MarketChange,
 } from "@/lib/markets-shared";
+import Link from "next/link";
 
 type SortKey = "order" | "symbol" | "price" | keyof MarketChange | "extra1" | "extra2";
 
@@ -220,10 +222,18 @@ export function AssetTable({ assets, assetClass }: { assets: MarketAsset[]; asse
               {rows.map((asset) => (
                 <tr key={asset.id} className="group border-b border-oa-border last:border-b-0">
                   <th scope="row" className="sticky left-0 z-10 max-w-[9.5rem] bg-oa-card p-0 text-left font-normal group-hover:bg-oa-bg sm:max-w-[19rem]">
-                    <a href={assetHref(asset)} className="flex min-h-11 flex-col justify-center px-3.5 py-1.5 outline-none focus-visible:bg-oa-accent">
-                      <span className="oa-mono truncate text-[14px] font-medium leading-[18px] text-oa-fg">{asset.symbol}</span>
+                    <Link prefetch={false} href={assetHref(asset)} className="flex min-h-11 flex-col justify-center px-3.5 py-1.5 outline-none focus-visible:bg-oa-accent">
+                      {asset.class === "etf" ? (
+                        // Funds are real tickers with logos; indexes, rates, commodities, FX and crypto are not.
+                        <span className="oa-mono flex min-w-0 items-center gap-1.5 text-[14px] font-medium leading-[18px] text-oa-fg">
+                          <StockLogo ticker={asset.symbol} size={16} />
+                          <span className="truncate">{asset.symbol}</span>
+                        </span>
+                      ) : (
+                        <span className="oa-mono truncate text-[14px] font-medium leading-[18px] text-oa-fg">{asset.symbol}</span>
+                      )}
                       <span className="truncate text-[12.5px] leading-4 text-oa-muted-fg">{asset.name}</span>
-                    </a>
+                    </Link>
                   </th>
                   <td className="oa-mono whitespace-nowrap px-2.5 text-right tabular-nums text-oa-fg group-hover:bg-oa-bg">
                     {formatLevel(asset.price, asset.unit)}

@@ -4,11 +4,13 @@ import { notFound } from "next/navigation";
 import { JsonLd, breadcrumbLd } from "@/components/docs/json-ld";
 import { TheRead } from "@/components/oa/insight";
 import { AppPage, CardGrid, Delta, NUM, PageHead, Panel, SourceLine, fmtDay, fmtStampET } from "@/components/oa/kit";
+import { StockLogo } from "@/components/stock-logo";
 import { buildMoversDayRead, closeOn } from "@/lib/move-page";
 import { ogImage } from "@/lib/og/url";
 import { getDailySeries } from "@/lib/screener-series";
 import { MOVERS_DAY_MIN_MOVES, isIsoDay, longDay, moveHref, moversDayHref, moversDayTitle } from "@/lib/seo/families";
 import { getMovesDay, getRecentMoves, type ExplainedMove } from "@/lib/seo/family-data";
+import Link from "next/link";
 
 /**
  * One day of big moves that have a confirmed, sourced reason
@@ -54,11 +56,16 @@ function MoveRows({ moves }: { moves: ExplainedMove[] }) {
     <ul>
       {moves.map((move) => (
         <li key={move.ticker} className="border-b border-oa-border last:border-b-0">
-          <a href={moveHref(move.ticker, move.day)} className="grid grid-cols-[3.5rem_4rem_minmax(0,1fr)] items-baseline gap-x-3 px-4 py-2.5 outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
-            <span className={`${NUM} text-[14px] font-medium text-oa-fg`}>{move.ticker}</span>
+          <Link prefetch={false} href={moveHref(move.ticker, move.day)} className="grid grid-cols-[4.75rem_4rem_minmax(0,1fr)] items-baseline gap-x-3 px-4 py-2.5 outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
+            <span className={`${NUM} text-[14px] font-medium text-oa-fg`}>
+              <span className="inline-flex items-center gap-1.5 align-middle">
+                <StockLogo ticker={move.ticker} size={18} />
+                {move.ticker}
+              </span>
+            </span>
             <Delta value={move.pct} digits={1} className="text-[13.5px]" />
             <span className="min-w-0 text-pretty text-[14px] leading-5 text-oa-fg">{move.headline}</span>
-          </a>
+          </Link>
         </li>
       ))}
     </ul>
@@ -89,20 +96,20 @@ export default async function MoversDayPage({ params }: Props) {
         ])}
       />
       <PageHead
-        crumb={<a href="/movers">Movers</a>}
+        crumb={<Link prefetch={false} href="/movers">Movers</Link>}
         title={`Why stocks moved on ${longDay(day)}`}
         meta={<SourceLine source="Researched from news and filings" asOf={researched ? fmtStampET(researched) : undefined} />}
         actions={
           <span className={`${NUM} flex items-center gap-3 text-[13px]`}>
             {before ? (
-              <a href={moversDayHref(before)} className="text-oa-primary hover:underline">
+              <Link prefetch={false} href={moversDayHref(before)} className="text-oa-primary hover:underline">
                 ← {fmtDay(before)}
-              </a>
+              </Link>
             ) : null}
             {after ? (
-              <a href={moversDayHref(after)} className="text-oa-primary hover:underline">
+              <Link prefetch={false} href={moversDayHref(after)} className="text-oa-primary hover:underline">
                 {fmtDay(after)} →
-              </a>
+              </Link>
             ) : null}
           </span>
         }

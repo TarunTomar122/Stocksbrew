@@ -5,6 +5,7 @@ import { TheRead } from "@/components/oa/insight";
 import { buildThemesRead } from "@/lib/themes-insights";
 import { BASKET_BENCHMARK, BASKET_WINDOWS, getBaskets, type Basket, type BasketWindow } from "@/lib/screener-themes";
 import { ogImage } from "@/lib/og/url";
+import Link from "next/link";
 
 // Prices behind the basket returns move during the day; never freeze this page at build time.
 export const revalidate = 300;
@@ -42,7 +43,7 @@ function BasketRow({ basket, index }: { basket: Basket; index: number }) {
   const more = basket.size > basket.lead.length ? ` +${basket.size - basket.lead.length}` : "";
   return (
     <li className="border-b border-oa-border last:border-b-0">
-      <a href={`/themes/${basket.slug}`} className={`block px-4 py-3 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent ${ROW}`}>
+      <Link prefetch={false} href={`/themes/${basket.slug}`} className={`block px-4 py-3 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent ${ROW}`}>
         <span className={`${NUM} hidden text-[12.5px] text-oa-muted-fg lg:block`}>{index + 1}</span>
         <span className="block min-w-0">
           <span className="flex items-baseline justify-between gap-3">
@@ -76,7 +77,7 @@ function BasketRow({ basket, index }: { basket: Basket; index: number }) {
             <Pct value={basket.perf[window.id]?.pct} lead={window.id === LEAD_WINDOW} />
           </span>
         ))}
-      </a>
+      </Link>
     </li>
   );
 }

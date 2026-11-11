@@ -209,14 +209,16 @@ export type EarningsDetail = {
   postRead: EarningsIntelDoc | null;
 };
 
-async function loadDetailUncached(ticker: string, today: string): Promise<EarningsDetail | null> {
+/** `strict`: a failed read throws instead of reading as "none on file" (full research needs the difference). */
+async function loadDetailUncached(ticker: string, today: string, strict = false): Promise<EarningsDetail | null> {
   const instrumentId = `US_${ticker}`;
+  const soft = <T,>(read: Promise<T>, fallback: T): Promise<T> => (strict ? read : read.catch(() => fallback));
   const [eventSnap, reactionSnap, cores, preSnap, postSnap] = await Promise.all([
-    adminFirestore.collection(EARNINGS).where("ticker", "==", ticker).get().catch(() => null),
-    adminFirestore.collection(REACTIONS).where("ticker", "==", ticker).get().catch(() => null),
-    getLatestPriceCores([instrumentId]).catch(() => new Map()),
-    adminFirestore.collection("tm_pre_earnings_intel").doc(`US__${instrumentId}__upcoming`).get().catch(() => null),
-    adminFirestore.collection("tm_earnings_intel").doc(`US__${instrumentId}__latest`).get().catch(() => null),
+    soft(adminFirestore.collection(EARNINGS).where("ticker", "==", ticker).get(), null),
+    soft(adminFirestore.collection(REACTIONS).where("ticker", "==", ticker).get(), null),
+    soft(getLatestPriceCores([instrumentId]), new Map() as Awaited<ReturnType<typeof getLatestPriceCores>>),
+    soft(adminFirestore.collection("tm_pre_earnings_intel").doc(`US__${instrumentId}__upcoming`).get(), null),
+    soft(adminFirestore.collection("tm_earnings_intel").doc(`US__${instrumentId}__latest`).get(), null),
   ]);
 
   const events = (eventSnap?.docs ?? [])
@@ -264,6 +266,11 @@ const loadDetailCached = unstable_cache(loadDetailUncached, ["calendar-earnings-
 
 export function loadEarningsDetail(ticker: string, today: string = todayET()): Promise<EarningsDetail | null> {
   return loadDetailCached(ticker.trim().toUpperCase(), today);
+}
+
+/** The same detail, read fresh, where any failed read throws (full research tells an outage from "no reports"). */
+export function loadEarningsDetailStrict(ticker: string, today: string = todayET()): Promise<EarningsDetail | null> {
+  return loadDetailUncached(ticker.trim().toUpperCase(), today, true);
 }
 
 /* ── History behind the read ───────────────────────────────────────────── */

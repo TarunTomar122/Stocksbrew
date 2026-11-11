@@ -6,6 +6,8 @@ import { FOCUS, PageHead } from "@/components/oa/kit";
 import { GLOSSARY, GUIDES, SECTIONS, guideHref, guidesIn, readingMinutes } from "@/lib/docs";
 import { SITE_URL } from "@/lib/docs/site";
 import { ogImage } from "@/lib/og/url";
+import Link from "next/link";
+import { AppLink } from "@/components/oa/app-link";
 
 const SHARE_IMAGE = ogImage(["page", "docs"], "stocksbrew docs");
 
@@ -65,16 +67,16 @@ export default function DocsIndexPage() {
               <div className="mb-2">
                 <h2 id={`sec-${section.id}`} className={`${lead ? "text-[17px] leading-6" : "text-[15px] leading-[22px]"} font-semibold text-oa-fg`}>
                   <span className="oa-mono mr-2 text-[12.5px] font-normal tabular-nums text-oa-muted-fg">{String(sectionIndex + 1).padStart(2, "0")}</span>
-                  <a href={`/docs/${section.id}`} className={`rounded hover:underline ${FOCUS}`}>
+                  <Link prefetch={false} href={`/docs/${section.id}`} className={`rounded hover:underline ${FOCUS}`}>
                     {section.title}
-                  </a>
+                  </Link>
                 </h2>
                 <p className="mt-0.5 max-w-[70ch] text-[14px] leading-5 text-oa-muted-fg">{section.blurb}</p>
               </div>
               <ul className="oa-surface overflow-hidden border border-oa-border bg-oa-card">
                 {guides.map((guide, guideIndex) => (
                   <li key={guide.slug} className="border-b border-oa-border last:border-b-0">
-                    <a
+                    <Link prefetch={false}
                       href={guideHref(guide)}
                       className={`group grid min-h-11 items-baseline gap-x-4 px-4 py-2.5 hover:bg-oa-accent ${
                         lead ? "grid-cols-[1.25rem_minmax(0,1fr)_auto]" : "grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[minmax(0,16rem)_minmax(0,1fr)_auto]"
@@ -93,7 +95,7 @@ export default function DocsIndexPage() {
                         </>
                       )}
                       <span className="whitespace-nowrap text-[12.5px] tabular-nums text-oa-muted-fg">{readingMinutes(guide)} min</span>
-                    </a>
+                    </Link>
                   </li>
                 ))}
               </ul>
@@ -112,10 +114,10 @@ export default function DocsIndexPage() {
               { href: "/developers", title: "API, MCP and CLI", text: "Connect your own agent or script to your stocks and our research." },
             ].map((item) => (
               <li key={item.href} className="-mb-px -mr-px border-b border-r border-oa-border">
-                <a href={item.href} className={`group block h-full px-4 py-3 hover:bg-oa-accent ${FOCUS}`}>
+                <AppLink href={item.href} className={`group block h-full px-4 py-3 hover:bg-oa-accent ${FOCUS}`}>
                   <span className="block text-[15px] font-medium leading-6 text-oa-fg group-hover:underline">{item.title}</span>
                   <span className="mt-0.5 block text-pretty text-[14px] leading-5 text-oa-muted-fg">{item.text}</span>
-                </a>
+                </AppLink>
               </li>
             ))}
           </ul>

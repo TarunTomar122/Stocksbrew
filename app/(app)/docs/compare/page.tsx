@@ -6,6 +6,7 @@ import { FOCUS, PageHead } from "@/components/oa/kit";
 import { DOC_COMPARISONS, docCompareHref } from "@/lib/docs/compare";
 import { SITE_URL } from "@/lib/docs/site";
 import { ogImage } from "@/lib/og/url";
+import Link from "next/link";
 
 const SHARE_IMAGE = ogImage(["page", "tools"], "stocksbrew compared with other research tools");
 
@@ -42,22 +43,22 @@ export default function DocsCompareIndexPage() {
       <ul className="oa-surface border border-oa-border bg-oa-card">
         {DOC_COMPARISONS.map((page) => (
           <li key={page.slug} className="border-b border-oa-border last:border-b-0">
-            <a href={docCompareHref(page.slug)} className={`group block px-4 py-3 hover:bg-oa-accent ${FOCUS}`}>
+            <Link prefetch={false} href={docCompareHref(page.slug)} className={`group block px-4 py-3 hover:bg-oa-accent ${FOCUS}`}>
               <span className="block text-[16px] font-medium leading-6 text-oa-fg group-hover:underline">{page.title}</span>
               <span className="mt-0.5 block text-pretty text-[14px] leading-5 text-oa-muted-fg">{page.competitorBestFor}</span>
-            </a>
+            </Link>
           </li>
         ))}
       </ul>
       <p className="mt-5 text-pretty text-[14px] leading-6 text-oa-muted-fg">
         Looking to compare two stocks, not two products? That is{" "}
-        <a href="/compare" className={`font-medium text-oa-fg underline decoration-oa-border underline-offset-2 ${FOCUS}`}>
+        <Link prefetch={false} href="/compare" className={`font-medium text-oa-fg underline decoration-oa-border underline-offset-2 ${FOCUS}`}>
           Compare
-        </a>
+        </Link>
         . How these pages are researched is in{" "}
-        <a href="/docs/methodology/corrections" className={`font-medium text-oa-fg underline decoration-oa-border underline-offset-2 ${FOCUS}`}>
+        <Link prefetch={false} href="/docs/methodology/corrections" className={`font-medium text-oa-fg underline decoration-oa-border underline-offset-2 ${FOCUS}`}>
           Editorial standards and corrections
-        </a>
+        </Link>
         .
       </p>
     </DocsShell>

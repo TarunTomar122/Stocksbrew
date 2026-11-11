@@ -1,11 +1,12 @@
 import { StockLogo } from "@/components/stock-logo";
-import { getLandingAnomalies } from "@/components/terminal-landing-streams";
+import { getLandingAnomalies } from "@/components/landing-data";
 import { moveReason } from "@/lib/briefing";
 import { shortCompanyName } from "@/lib/plain-copy";
 
 import { heroTicker } from "./hero-briefing";
 import { ChangeText } from "./shared";
 import { moveLine } from "./track-grid";
+import Link from "next/link";
 
 const ROWS = 3;
 // A line that only restates the move: "moved sharply today", "surged 9% today", "rebounds sharply with little news",
@@ -42,7 +43,7 @@ export async function TodayMoves() {
       {rows.map((item) => {
         return (
           <li key={item.instrument_id}>
-            <a
+            <Link prefetch={false}
               href={`/stock/${item.ticker}`}
               className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-2 px-4 py-4 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent sm:grid-cols-[minmax(0,1fr)_6rem] sm:px-5"
             >
@@ -58,7 +59,7 @@ export async function TodayMoves() {
               <span className="flex flex-col items-end justify-start pt-0.5">
                 <ChangeText pct={item.day_change_pct} className="text-[15px] font-medium" />
               </span>
-            </a>
+            </Link>
           </li>
         );
       })}

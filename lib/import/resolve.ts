@@ -1,0 +1,169 @@
+/**
+ * Checks imported tickers against the stocks we cover (the search index the
+ * rest of the app tracks from). Pure: the caller passes the directory in.
+ */
+
+import type { MergeMode } from "@/lib/import/merge";
+import type { ImportConfidence, ParsedHolding } from "@/lib/import/normalize";
+
+export type DirectoryEntry = {
+  instrument_id: string;
+  ticker: string;
+  name: string;
+  /** Last price in the search index, when it has one: a cross-check on what the screenshot said. */
+  price?: number | null;
+};
+
+/**
+ * matched:   the ticker is one we cover.
+ * suggested: the ticker was missing or unknown, and we matched the name or a
+ *            known alias (GOOG is tracked as GOOGL). The person confirms it.
+ * unknown:   we do not cover it yet; the person can ask us to add it.
+ */
+export type ImportStatus = "matched" | "suggested" | "unknown";
+
+/** One row of the review table, and what the save route accepts back. */
+export type ImportRow = {
+  /** Stable key for the review table. */
+  key: string;
+  /** What the input said ("GOOG", or the name when there was no ticker). */
+  raw: string;
+  status: ImportStatus;
+  instrument_id: string | null;
+  ticker: string | null;
+  name: string | null;
+  shares: number | null;
+  average_cost: number | null;
+  market_value: number | null;
+  confidence: ImportConfidence;
+  /** Set when the screen showed another currency and its cost and value were left out ("EUR"). */
+  currency?: string;
+  /** Set in the review table for a stock the person already holds; the save treats a missing one as "keep". */
+  merge?: MergeMode;
+};
+
+/** Symbols we track under another class or a newer ticker. */
+const ALIASES: Record<string, string> = {
+  GOOG: "GOOGL",
+  FB: "META",
+  BRKB: "BRK.B",
+  BRK: "BRK.B",
+  BFB: "BF.B",
+};
+
+const NAME_NOISE =
+  /\b(incorporated|inc|corporation|corp|company|co|ltd|limited|plc|holdings?|group|the|class [a-c]|cl [a-c]|common stock|ordinary shares?|shares?|adr|sa|nv|ag|se)\b/g;
+
+/** "NVIDIA Corporation" and "Nvidia Corp." are the same company. */
+export function nameKey(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[.,'’()]/g, " ")
+    .replace(NAME_NOISE, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+export type Directory = {
+  byTicker: Map<string, DirectoryEntry>;
+  byName: Map<string, DirectoryEntry>;
+};
+
+export function buildDirectory(entries: DirectoryEntry[]): Directory {
+  const byTicker = new Map<string, DirectoryEntry>();
+  const byName = new Map<string, DirectoryEntry>();
+  const ambiguous = new Set<string>();
+  for (const entry of entries) {
+    const ticker = entry.ticker.toUpperCase();
+    if (!ticker || !entry.instrument_id) continue;
+    byTicker.set(ticker, entry);
+    const key = nameKey(entry.name || "");
+    if (!key) continue;
+    // Two companies with the same cleaned name: neither is matched by name.
+    if (byName.has(key) && byName.get(key)!.ticker !== ticker) ambiguous.add(key);
+    else byName.set(key, entry);
+  }
+  for (const key of ambiguous) byName.delete(key);
+  return { byTicker, byName };
+}
+
+function lookup(directory: Directory, ticker: string): DirectoryEntry | undefined {
+  return directory.byTicker.get(ticker) ?? directory.byTicker.get(ticker.replace(".", "-")) ?? directory.byTicker.get(ticker.replace("-", "."));
+}
+
+/**
+ * The screen's value per share is far from today's price: one of the numbers
+ * was probably misread (a blurry 6 read as an 8). Old screenshots drift a
+ * little, so only a gap over 15% counts.
+ */
+function offPrice(row: ParsedHolding, entry: DirectoryEntry): boolean {
+  const price = entry.price;
+  if (!row.shares || !row.marketValue || typeof price !== "number" || !Number.isFinite(price) || price <= 0) return false;
+  return Math.abs(row.marketValue / row.shares / price - 1) > 0.15;
+}
+
+/** Each parsed holding against the directory, in the order they came. */
+export function resolveHoldings(rows: ParsedHolding[], directory: Directory): ImportRow[] {
+  const out: ImportRow[] = [];
+  const used = new Set<string>();
+  rows.forEach((row, index) => {
+    const raw = row.ticker ?? row.name ?? "";
+    let entry: DirectoryEntry | undefined;
+    let status: ImportStatus = "unknown";
+    if (row.ticker) {
+      entry = lookup(directory, row.ticker);
+      if (entry) status = "matched";
+      else if (ALIASES[row.ticker.replace(".", "")]) {
+        entry = lookup(directory, ALIASES[row.ticker.replace(".", "")]!);
+        if (entry) status = "suggested";
+      }
+    }
+    if (!entry && row.name) {
+      const key = nameKey(row.name);
+      // "Berkshire Hathaway B" is the B share; the directory keeps the plain name.
+      entry = directory.byName.get(key) ?? directory.byName.get(key.replace(/ [a-c]$/, ""));
+      if (entry) status = "suggested";
+    }
+    // Two input rows that land on the same stock (GOOG and GOOGL): the first keeps it, the second shows as its own row to fix.
+    if (entry && used.has(entry.instrument_id)) {
+      entry = undefined;
+      status = "unknown";
+    }
+    if (entry) used.add(entry.instrument_id);
+    if (!entry && row.guess) return;
+    let confidence: ImportConfidence =
+      status === "matched" ? row.confidence : status === "suggested" ? (row.confidence === "low" ? "low" : "medium") : "low";
+    if (entry && offPrice(row, entry)) confidence = confidence === "high" ? "medium" : "low";
+    out.push({
+      key: `${index}-${raw}`,
+      raw,
+      status,
+      instrument_id: entry?.instrument_id ?? null,
+      ticker: entry?.ticker ?? row.ticker,
+      name: entry?.name ?? row.name,
+      shares: row.shares,
+      average_cost: row.averageCost,
+      market_value: row.marketValue,
+      // A ticker we had to guess is never "high", whatever the reader said.
+      confidence,
+      ...(row.currency ? { currency: row.currency } : {}),
+    });
+  });
+  return out;
+}
+
+/** The ticker we track a symbol under, when it is one we keep under another class or name (GOOG is GOOGL). */
+export function aliasFor(ticker: string): string | null {
+  return ALIASES[ticker.trim().toUpperCase().replace(/^\$/, "").replace(/[.\-/ ]/g, "")] ?? null;
+}
+
+/**
+ * Re-check a ticker the person typed into the review table. Returns the
+ * directory entry, following the same aliases as the import.
+ */
+export function findTicker(directory: Directory, typed: string): DirectoryEntry | null {
+  const ticker = typed.trim().toUpperCase().replace(/^\$/, "");
+  if (!ticker) return null;
+  return lookup(directory, ticker) ?? (ALIASES[ticker.replace(".", "")] ? lookup(directory, ALIASES[ticker.replace(".", "")]!) ?? null : null);
+}

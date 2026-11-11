@@ -5,6 +5,7 @@ import { Crumbs, MarketsPageFrame, SectionLabel, Stat, StatGrid } from "@/compon
 import { PriceChart } from "@/components/markets/price-chart";
 import { ProbabilityChart } from "@/components/markets/probability-chart";
 import { WatchButton } from "@/components/markets/watch-button";
+import { StockLogo } from "@/components/stock-logo";
 import {
   AssetClassCard,
   ChangeValue,
@@ -44,6 +45,7 @@ import {
 } from "@/lib/markets-shared";
 import { getSearchIndexForApi } from "@/lib/search";
 import { ogImage, shareMetadata } from "@/lib/og/url";
+import Link from "next/link";
 
 export const revalidate = 300;
 
@@ -231,7 +233,14 @@ async function AssetPage({ asset, data }: { asset: MarketAsset; data: MarketsDat
                       <>
                         <span className="oa-mono text-[12.5px] tabular-nums text-oa-muted-fg">{String(index + 1).padStart(2, "0")}</span>
                         <span className="flex min-w-0 flex-col">
-                          <span className={`oa-mono truncate text-[14px] font-medium leading-4 ${linked ? "text-oa-primary" : "text-oa-fg"}`}>{holding.symbol ?? "·"}</span>
+                          {holding.symbol ? (
+                            <span className={`oa-mono flex min-w-0 items-center gap-1.5 text-[14px] font-medium leading-4 ${linked ? "text-oa-primary" : "text-oa-fg"}`}>
+                              <StockLogo ticker={holding.symbol} size={16} />
+                              <span className="truncate">{holding.symbol}</span>
+                            </span>
+                          ) : (
+                            <span className="oa-mono truncate text-[14px] font-medium leading-4 text-oa-fg">·</span>
+                          )}
                           <span className="truncate text-[12.5px] leading-4 text-oa-muted-fg">{holding.name}</span>
                         </span>
                         <span aria-hidden="true" className="hidden h-1.5 overflow-hidden rounded-full bg-oa-bg sm:block">
@@ -244,9 +253,9 @@ async function AssetPage({ asset, data }: { asset: MarketAsset; data: MarketsDat
                     return (
                       <li key={`${holding.symbol}-${holding.name}`}>
                         {linked ? (
-                          <a href={`/stock/${holding.symbol}`} className={`${cls} outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent`}>
+                          <Link prefetch={false} href={`/stock/${holding.symbol}`} className={`${cls} outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent`}>
                             {body}
-                          </a>
+                          </Link>
                         ) : (
                           <div className={cls}>{body}</div>
                         )}

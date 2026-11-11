@@ -36,6 +36,7 @@ import {
   type FollowSource,
 } from "@/lib/follow";
 import { ogImage } from "@/lib/og/url";
+import Link from "next/link";
 
 export function generateMetadata(): Metadata {
   const shareImage = ogImage(["page", "follow"], "What funds, lawmakers and insiders just filed", { daily: true });
@@ -160,12 +161,12 @@ async function InsidersTab({
             : "Largest insider buys"
         }
         right={
-          <a
+          <Link prefetch={false}
             href="/insiders"
             className="font-medium text-oa-fg hover:text-oa-primary"
           >
             All insider trades →
-          </a>
+          </Link>
         }
       >
         {biggestBuys.length > 0 ? (
@@ -408,12 +409,12 @@ export default function FollowPage({
         full
         actions={
           tab === "insiders" ? undefined : (
-            <a
+            <Link prefetch={false}
               href="/follow/copy"
               className="inline-flex min-h-10 items-center whitespace-nowrap text-[14px] font-medium text-oa-fg underline decoration-oa-border underline-offset-4 hover:decoration-oa-fg sm:min-h-0"
             >
               Whose moves were worth copying? →
-            </a>
+            </Link>
           )
         }
       />

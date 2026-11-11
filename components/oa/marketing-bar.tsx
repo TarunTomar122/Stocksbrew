@@ -3,6 +3,7 @@ import type * as React from "react";
 import { MarketingLinks } from "@/components/oa/marketing-links";
 import { OaHeaderSearchButton } from "@/components/oa/oa-header-search-button";
 import { StocksbrewLogo } from "@/components/stocksbrew-logo";
+import Link from "next/link";
 
 /**
  * The top bar for the pages a visitor reads before using the product: the
@@ -18,9 +19,9 @@ export function MarketingBar({ account }: { account: React.ReactNode }) {
   return (
     <header className="oa-topbar sticky top-0 z-40 border-b border-oa-border bg-[color-mix(in_srgb,var(--oa-page)_90%,transparent)] backdrop-blur-xl">
       <div className="mx-auto flex h-14 w-full max-w-[76rem] items-center justify-between gap-4 px-4 sm:px-6">
-        <a href="/" className="shrink-0 rounded text-oa-fg outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]">
+        <Link prefetch={false} href="/" className="shrink-0 rounded text-oa-fg outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]">
           <StocksbrewLogo markSize={22} wordmarkClassName="text-[16px] font-medium tracking-tight" />
-        </a>
+        </Link>
         <MarketingLinks />
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <OaHeaderSearchButton />

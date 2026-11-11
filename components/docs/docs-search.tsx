@@ -3,6 +3,8 @@
 import * as React from "react";
 
 import type { SearchEntry } from "@/lib/docs/types";
+import Link from "next/link";
+import { AppLink } from "@/components/oa/app-link";
 
 type QuickEntry = Pick<SearchEntry, "href" | "title" | "group" | "summary">;
 type Hit = QuickEntry & { snippet: string | null; score: number };
@@ -195,14 +197,14 @@ export function DocsSearch({ quick, autoFocus = false, className = "" }: { quick
           {hits.length === 0 ? (
             <p className="px-3 py-4 text-[14px] leading-5 text-oa-muted-fg">
               Nothing in the docs matches “{query}”. Try a shorter word, or open the{" "}
-              <a href="/docs/glossary" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2">
+              <Link prefetch={false} href="/docs/glossary" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2">
                 glossary
-              </a>
+              </Link>
               .
             </p>
           ) : (
             hits.map((hit, index) => (
-              <a
+              <AppLink
                 key={hit.href}
                 href={hit.href}
                 role="option"
@@ -219,7 +221,7 @@ export function DocsSearch({ quick, autoFocus = false, className = "" }: { quick
                 <span className="mt-0.5 line-clamp-2 block text-[13px] leading-5 text-oa-muted-fg">
                   <Highlight text={hit.snippet ?? hit.summary} words={words} />
                 </span>
-              </a>
+              </AppLink>
             ))
           )}
         </div>

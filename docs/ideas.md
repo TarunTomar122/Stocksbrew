@@ -38,9 +38,9 @@ Context (Nov 2026): about 544 visitors a month but only 5 signed in, so getting 
 - Earnings season planner: one page of every report coming for your stocks this month, with what usually happens.
 - Shareable portfolio cards: a clean image of your portfolio's read to post, which also brings new visitors.
 
-## Spec: the reason watcher (the big one, not built yet)
+## Spec: the reason watcher (the big one, built Nov 11, not shipped)
 
-What exists now: a person can save one reason per stock ("Why do you own NVDA?"), a kind plus an optional line of their own, stored on their own user doc as `theses: { [instrument_id]: { kind, reason, created_at, updated_at } }` (`lib/thesis.ts`, `/api/thesis`). The watcher reads that map and checks each reason against data we already store. It never writes numbers with a model; the rules pick the facts, and a model may only word the note.
+What existed before the build: a person can save one reason per stock ("Why do you own NVDA?"), a kind plus an optional line of their own, stored on their own user doc as `theses: { [instrument_id]: { kind, reason, created_at, updated_at } }` (`lib/thesis.ts`, `/api/thesis`). The watcher reads that map and checks each reason against data we already store. It never writes numbers with a model; the rules pick the facts, and a model may only word the note.
 
 How it runs
 - Once a day after the screener snapshot and earnings jobs, plus right after an event for a held stock (earnings intel, an 8-K, a big move with an explanation).
@@ -65,3 +65,31 @@ Signals that apply to every kind: insiders selling more than $10M in 30 days (ne
 The person's own words: when there is a free-text reason, the note quotes it back ("You said: every big cloud is still buying its chips") and names which stored facts speak to it. Matching free text to data is the one place a model helps; it chooses among the signals above and never invents a new number.
 
 Not in the first version: segment revenue (we do not store segments), price targets of our own, any trading action. The weekly portfolio memo builds on these verdicts and comes after.
+
+### What was built (Nov 11)
+
+- Code: rules `lib/thesis-watch/rules.ts` (thresholds in `THRESHOLDS`), facts `lib/thesis-watch/facts.ts` and `data.ts`, stored checks `store.ts` (`tm_thesis_checks/{uid}__{instrument_id}`: latest verdict, signals, note, last 20 changes), wording `word.ts` + `model.ts` (the memo's numbers check), per person `server.ts`, `/api/thesis/checks`. Removing a reason: `DELETE /api/thesis`.
+- It runs in the web app, not as a backend job: every loader already existed there, facts are cached per stock per day, and a check is stored at most once a day per stock (or when the findings change). It runs when the person opens Portfolio, the stock page, My stocks or the memo. Nothing is added to `schedule.py`.
+- Free checks covered stocks only, Pro every reason (`reason_watch` in `lib/entitlements.ts`), enforced in `checkReasons`; locked stocks are named and nothing about them is computed.
+- Surfaces: one word on each Portfolio row ("Reason still holds", "Reason weaker", "Reason broken", "Reason played out"), one "Why you own them" line over the holdings that opens the reasons sheet (add, change, remove), a panel on the stock page for the owner, an item in My stocks, and "What could hurt" in the memo when a reason is weaker or broken. No email.
+
+Changes from the table after the replay, and data gaps:
+- An unexplained fall is measured against the S&P 500 and needs 5 times the stock's usual gap to the market and at least 8% (written down as 3 times and 4%; that fired 1.5 times a quarter per stock).
+- "Our call changing direction" counts once Sell some has lasted 14 days (a fresh turn to Trim came about twice a quarter per stock).
+- CEO or CFO leaving (8-K item 5.02) is left out: the item also covers director elections and pay, and 399 of them were filed by 781 companies in 92 days (0.62 a quarter per holding in the replay).
+- Price lines (a trade's 15% either way, a long-term hold 30% down) count only when the last three closes are all past them.
+- Not stored, so not checked: analysts' estimate history (a negative growth forecast stands in), going-concern notes, quarterly revenue (the trailing year and the last fiscal year stand in), Form 4 sales before Sep 10 2026.
+
+Replay (stored data, 751 stocks with prices, weekly steps Nov 15 2024 to Nov 6 2026; yearly results stand in for trailing ones; long-term holds and trades start each quarter at that day's close; explained moves are not taken out, so falls are an upper bound). Fires per holding per quarter:
+
+| Kind | Signals | Verdict changes per quarter |
+|---|---|---|
+| The growth story | revenue shrinking 0.061, growth slowing 0.048, Sell some for 30 days 0.116 (calls from Jun 2026) | 0.54 |
+| The dividend | cut 0.011, stopped 0.005, payout over 90% 0.030, cash short of the dividend 0.028, dividend lower than a year ago 0.048 | 0.68 |
+| It is cheap | losses 0.041, value trap 0.041, no longer cheap 0.285 | 0.75 |
+| I believe in the product | bottom quarter of its sector 0.085 (news tone and explained trouble: 14 and 90 days stored, not replayable) | 0.65 |
+| A long-term hold | 30% down with Sell some 0.156, revenue down two years 0.045 | 0.52 |
+| A short-term trade | stop 0.304, target 0.384, held over 60 days 0.937 (once per trade by design) | 1.95 (a trade lives one quarter, so a change or two is its life) |
+| Every kind | unexplained fall 0.27, Sell some for 14 days 0.175, insider sales over $10M outside plans 0.182 (two months of Form 4) | |
+
+Guidance cuts, fund exits and earnings without a plan have too little stored history to replay.

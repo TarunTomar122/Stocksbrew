@@ -14,14 +14,15 @@ import { WatchlistAiPromptButton } from "@/components/watchlist-ai-prompt-button
 import { TheRead } from "@/components/oa/insight";
 import { PlaceTrail } from "@/components/oa/place-nav";
 import { canonicalSectorSlug } from "@/lib/screener-shared";
-import type { CallWord } from "@/lib/stock-chart";
-import type { StockTimelineItem, StockTimelineKind } from "@/lib/stock-timeline";
+import { packChartRanges, type CallWord, type ChartRange, type PackedChartRanges } from "@/lib/stock-chart";
 
 import { AlertControls, type SuggestedAlert } from "./alert-controls";
 import { capTier, compactMoney, daysBetween, fin, fmtDate, fmtStamp, levelFormatter, moneyFormatter, relativeDays, signedPct } from "./format";
+import { EarlierTimeline } from "./earlier-timeline";
 import { PricePanel, type PanelZone } from "./price-panel";
-import { Details, LockIcon, Missing, MoreLink, NUM, Panel, PROSE, SECTION_LABELS, Tag, TONE_COLOR, ToneGlyph, type SectionId, type Tone } from "./primitives";
+import { LockIcon, Missing, MoreLink, NUM, Panel, PROSE, SECTION_LABELS, Tag, TONE_COLOR, type SectionId, type Tone } from "./primitives";
 import { PhoneSections } from "./phone-sections";
+import { TimelineRow } from "./timeline-row";
 import { SectionTabs } from "./section-tabs";
 import {
   EarningsSection,
@@ -36,89 +37,10 @@ import {
 } from "./sections";
 import type { ReportData } from "./types";
 import { stockCallSteps, type CallSteps } from "@/lib/next-steps";
+import Link from "next/link";
+import { AppLink } from "@/components/oa/app-link";
 
 const CALL_TONE: Record<CallWord, Tone | null> = { Add: "up", Hold: null, Trim: "down" };
-
-const KIND_LABEL: Record<StockTimelineKind, string> = {
-  move: "Move",
-  earnings: "Earnings",
-  analyst: "Analysts",
-  news: "News",
-  congress: "Congress",
-  discussion: "Reddit",
-  dividend: "Dividend",
-  call: "Our call",
-};
-
-function timelineDate(item: Pick<StockTimelineItem, "at" | "precision">, nowIso: string): string {
-  if (item.precision === "month") {
-    const text = fmtDate(item.at, true);
-    return text.replace(/ \d+,/, "");
-  }
-  const sameYear = item.at.slice(0, 4) === nowIso.slice(0, 4);
-  if (item.precision === "day") return fmtDate(item.at, !sameYear);
-  const day = new Date(item.at).toLocaleDateString("en-US", {
-    timeZone: "America/New_York",
-    month: "short",
-    day: "numeric",
-    ...(sameYear ? {} : { year: "numeric" }),
-  });
-  return day;
-}
-
-function TimelineRow({ item, nowIso }: { item: StockTimelineItem; nowIso: string }) {
-  const tone = item.tone && item.tone !== "flat" ? item.tone : undefined;
-  // Only a headline keeps its publisher; the other rows speak for themselves.
-  const meta = [item.kind === "news" ? item.source : "", item.precision === "time" ? fmtStamp(item.at) : ""].filter(Boolean);
-  return (
-    <li className="grid grid-cols-[4.25rem_minmax(0,1fr)] gap-x-3 border-b border-oa-border px-3.5 py-2.5 last:border-b-0 sm:grid-cols-[5rem_minmax(0,1fr)] sm:px-4">
-      <div className="pt-0.5">
-        <p className={`${NUM} text-[12px] leading-4 text-oa-fg`}>{timelineDate(item, nowIso)}</p>
-        <p className="oa-mono mt-0.5 text-[10px] uppercase leading-4 tracking-[0.08em]" style={{ color: item.kind === "call" ? "var(--oa-primary)" : "var(--oa-muted-fg)" }}>
-          {KIND_LABEL[item.kind]}
-        </p>
-      </div>
-      <div className="min-w-0">
-        <p className="text-[14px] font-medium leading-5 text-oa-fg">
-          {tone ? (
-            <ToneGlyph tone={tone} className="mr-1.5 -translate-y-px align-middle" />
-          ) : null}
-          {item.href && !item.sourceUrl ? (
-            <a href={item.href} className="hover:underline">
-              {item.title}
-            </a>
-          ) : item.sourceUrl ? (
-            <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="hover:underline">
-              {item.title}
-            </a>
-          ) : (
-            item.title
-          )}
-          {item.locked ? (
-            <span className="ml-1.5 inline-flex -translate-y-px align-middle">
-              <Tag tone="primary">Pro</Tag>
-            </span>
-          ) : null}
-        </p>
-        {/* Complete sentences only: a feed excerpt cut off with "..." loses its broken last clause. */}
-        {wholeSentences(item.detail) ? <p className="mt-0.5 text-pretty text-[13px] leading-5 text-oa-muted-fg">{wholeSentences(item.detail)}</p> : null}
-        {meta.length || (item.href && item.sourceUrl) ? (
-          <p className="oa-mono mt-0.5 text-[11px] leading-4 text-oa-muted-fg">
-            {meta.join(" · ")}
-            {item.href && item.sourceUrl ? (
-              <>
-                {meta.length ? " · " : ""}
-                <a href={item.href} className="text-oa-primary hover:underline">
-                  open
-                </a>
-              </>
-            ) : null}
-          </p>
-        ) : null}
-      </div>
-    </li>
-  );
-}
 
 /** Shown where the price zones would be, on a stock the viewer's agent does not cover. */
 function LevelsLock({ ticker, instrumentId, tracked, gate }: { ticker: string; instrumentId: string; tracked: boolean; gate: ReportData["gate"] }) {
@@ -142,9 +64,9 @@ function LevelsLock({ ticker, instrumentId, tracked, gate }: { ticker: string; i
         gate.slotsLeft > 0 ? (
           <CoverButton instrumentId={instrumentId} ticker={ticker} />
         ) : (
-          <a href="/watchlist" className="self-start text-[13px] font-medium text-oa-primary hover:underline">
+          <Link prefetch={false} href="/watchlist" className="self-start text-[13px] font-medium text-oa-primary hover:underline">
             Choose your five in Portfolio
-          </a>
+          </Link>
         )
       ) : null}
     </div>
@@ -231,16 +153,16 @@ function CallNextSteps({ ticker, steps }: { ticker: string; steps: CallSteps }) 
       <p className="flex flex-wrap gap-x-4 gap-y-2 sm:gap-y-1">
         <span className="text-oa-muted-fg">Ask about this</span>
         {steps.ask.map((step) => (
-          <a key={step.href} href={step.href} data-track-target="ask" className={link}>
+          <AppLink key={step.href} href={step.href} data-track-target="ask" className={link}>
             {step.label} →
-          </a>
+          </AppLink>
         ))}
       </p>
       {steps.watch ? (
         <p className="mt-2 sm:mt-1.5">
-          <a href={steps.watch.href} data-track-target="watch" className={link}>
+          <AppLink href={steps.watch.href} data-track-target="watch" className={link}>
             {steps.watch.label} →
-          </a>
+          </AppLink>
         </p>
       ) : null}
     </div>
@@ -274,6 +196,12 @@ function KeyStats({ items }: { items: Array<{ label: string; value: ReactNode; s
       ))}
     </div>
   );
+}
+
+/** The chart's ranges as one shared series when they pack (a quarter of the bytes), else as they are. */
+function packedOrRanges(ranges: ChartRange[]): { packed: PackedChartRanges } | { ranges: ChartRange[] } {
+  const packed = packChartRanges(ranges);
+  return packed ? { packed } : { ranges };
 }
 
 export function StockReport({ data, related }: { data: ReportData; /** Links to the stock's sector, rivals, insiders and earnings pages, streamed in under the head. */ related?: ReactNode }) {
@@ -585,7 +513,7 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
             {data.chart ? (
               <PricePanel
                 ticker={stock.ticker}
-                ranges={data.chart.ranges}
+                {...packedOrRanges(data.chart.ranges)}
                 events={data.chart.events}
                 zones={zones}
                 currency={currency}
@@ -635,24 +563,24 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
             </Panel>
 
             <nav aria-label={`More on ${stock.ticker}`} className="flex flex-col text-[13.5px] leading-5">
-              <a
+              <Link prefetch={false}
                 href={`/backtest?t=${encodeURIComponent(stock.ticker)}`}
                 className="flex min-h-10 items-center justify-between gap-3 rounded-lg px-3.5 text-oa-fg outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent sm:px-4"
               >
                 <span>Backtest {stock.ticker}</span>
                 <span className="oa-mono shrink-0 text-[12px] text-oa-muted-fg">vs S&amp;P 500 →</span>
-              </a>
+              </Link>
               <WatchlistAiPromptButton
                 ticker={stock.ticker}
                 className="flex min-h-10 w-full items-center gap-2 rounded-lg px-3.5 text-left text-oa-fg outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent sm:px-4"
               />
-              <a
+              <Link prefetch={false}
                 href={`/compare?symbols=${encodeURIComponent(stock.ticker)}`}
                 className="flex min-h-10 items-center justify-between gap-3 rounded-lg px-3.5 text-oa-fg outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent sm:px-4"
               >
                 <span>Compare with another stock</span>
                 <span className="oa-mono text-[12px] text-oa-muted-fg">→</span>
-              </a>
+              </Link>
             </nav>
           </div>
         </aside>
@@ -798,15 +726,8 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
                     <TimelineRow key={item.id} item={item} nowIso={nowIso} />
                   ))}
                 </ol>
-                {restItems.length ? (
-                  <Details className="border-t border-oa-border" track={{ section: "timeline", ticker: stock.ticker }} summary={`${restItems.length} earlier ${restItems.length === 1 ? "entry" : "entries"}`}>
-                    <ol>
-                      {restItems.map((item) => (
-                        <TimelineRow key={item.id} item={item} nowIso={nowIso} />
-                      ))}
-                    </ol>
-                  </Details>
-                ) : null}
+                {/* The older entries are drawn in the browser, so their markup is not in every page (earlier-timeline.tsx). */}
+                {restItems.length ? <EarlierTimeline items={restItems} nowIso={nowIso} ticker={stock.ticker} /> : null}
               </>
             ) : (
               <Missing>Nothing new on {stock.ticker} yet.</Missing>

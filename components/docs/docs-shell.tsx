@@ -3,6 +3,8 @@ import * as React from "react";
 import { DocsSearch } from "@/components/docs/docs-search";
 import { AppPage, FOCUS } from "@/components/oa/kit";
 import { SECTIONS, buildQuickIndex, guideHref, guidesIn } from "@/lib/docs";
+import Link from "next/link";
+import { AppLink } from "@/components/oa/app-link";
 
 /**
  * The docs frame: section nav on the left at lg and up, the page in the
@@ -21,7 +23,7 @@ const REFERENCE_LINKS = [
 function NavLink({ href, label, current }: { href: string; label: string; current: string }) {
   const active = current === href;
   return (
-    <a
+    <AppLink
       href={href}
       aria-current={active ? "page" : undefined}
       className={`-ml-px block border-l py-1 pl-3 pr-2 text-[14px] leading-5 transition-colors ${FOCUS} ${
@@ -29,20 +31,20 @@ function NavLink({ href, label, current }: { href: string; label: string; curren
       }`}
     >
       {label}
-    </a>
+    </AppLink>
   );
 }
 
 function SectionNav({ current }: { current: string }) {
   return (
     <nav aria-label="Docs" className="flex flex-col gap-1">
-      <a
+      <Link prefetch={false}
         href="/docs"
         aria-current={current === "/docs" ? "page" : undefined}
         className={`rounded px-1 py-1 text-[14px] ${FOCUS} ${current === "/docs" ? "font-medium text-oa-fg" : "text-oa-muted-fg hover:text-oa-fg"}`}
       >
         All docs
-      </a>
+      </Link>
       {SECTIONS.map((section) => {
         const guides = guidesIn(section.id);
         const sectionHref = `/docs/${section.id}`;
@@ -94,9 +96,9 @@ export function DocsShell({
         {/* Left: search and the course outline */}
         <aside className="hidden lg:block">
           <div className="sticky top-6 flex max-h-[calc(100vh-3rem)] flex-col gap-3">
-            <a href="/docs" className={`oa-label rounded ${FOCUS}`}>
+            <Link prefetch={false} href="/docs" className={`oa-label rounded ${FOCUS}`}>
               stocksbrew docs
-            </a>
+            </Link>
             <DocsSearch quick={quick} />
             <div className="-mr-2 min-h-0 flex-1 overflow-y-auto pb-6 pr-2 [scrollbar-width:thin]">
               <SectionNav current={current} />
@@ -177,9 +179,9 @@ export function Crumbs({ items }: { items: { label: string; href?: string }[] })
         <React.Fragment key={index}>
           {index > 0 ? <span aria-hidden="true">/</span> : null}
           {item.href ? (
-            <a href={item.href} className={`rounded underline decoration-oa-border underline-offset-2 hover:text-oa-fg ${FOCUS}`}>
+            <AppLink href={item.href} className={`rounded underline decoration-oa-border underline-offset-2 hover:text-oa-fg ${FOCUS}`}>
               {item.label}
-            </a>
+            </AppLink>
           ) : (
             <span>{item.label}</span>
           )}

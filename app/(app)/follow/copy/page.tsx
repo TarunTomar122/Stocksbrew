@@ -7,7 +7,7 @@ import { JsonLd, breadcrumbLd } from "@/components/docs/json-ld";
 import { AppPage, CardGrid, Empty, ShowMore } from "@/components/oa/kit";
 import { COPY_FRAMING, COPY_HUB_PATH, copyHref, getCopyHub, rankRows, type CopyHub, type CopyHubRow } from "@/lib/copy-trades";
 import { fmtDate } from "@/lib/follow-shared";
-import { ogImage } from "@/lib/og/url";
+import { copyHubMetadata } from "@/lib/seo/copy-seo";
 
 /**
  * The ranked hub: every fund and House member we follow, copied with one
@@ -22,19 +22,8 @@ const BASE = "https://www.stocksbrew.online";
 const SHOWN = 10;
 /** The fold button sits inside a flush panel: give it the panel's gutter. */
 const FOLD = "[&>button]:mx-4 [&>button]:mb-3 [&>button]:w-[calc(100%-2rem)]";
-const TITLE = "Whose Moves Were Worth Copying? 13F Funds and Congress, Backtested";
-const DESCRIPTION =
-  "Every 13F fund and House member we follow, copied at the close of the first trading day after each filing or trade report became public, ranked against the S&P 500. The rule, the period and the record for each.";
-
 export async function generateMetadata(): Promise<Metadata> {
-  const shareImage = ogImage(["page", "follow"], "Whose moves were worth copying? Funds and Congress against the S&P 500", { daily: true });
-  return {
-    title: TITLE,
-    description: DESCRIPTION,
-    alternates: { canonical: COPY_HUB_PATH },
-    openGraph: { title: `${TITLE} · stocksbrew`, description: DESCRIPTION, url: `${BASE}${COPY_HUB_PATH}`, images: [shareImage] },
-    twitter: { card: "summary_large_image", title: `${TITLE} · stocksbrew`, description: DESCRIPTION, images: [shareImage] },
-  };
+  return copyHubMetadata();
 }
 
 /** One group shown under the ranking but not in it: records that ended, or are too short. */
