@@ -87,6 +87,8 @@ export type FollowSource = {
   id: string;
   slug: string;
   kind: FollowKind;
+  /** Members of Congress only: which chamber's reports this is ("house" when missing). */
+  chamber?: Chamber;
   name: string;
   person: string;
   style: string;
@@ -258,11 +260,18 @@ export type CongressReport = {
   buys: number;
   sells: number;
   url: string;
+  /** Senate reports: "html" for an electronic report, "paper" for a scanned one we list but do not read. */
+  format?: "html" | "paper";
+  amendment?: number;
+  /** An electronic report whose table did not add up when read; listed, no trades taken from it. */
+  unreadable?: boolean;
 };
 
 export type CongressProfile = {
   slug: string;
   kind: "congress";
+  /** "house" when missing: the House job wrote profiles before senators were read. */
+  chamber?: Chamber;
   name: string;
   person: string;
   party: string;
@@ -276,6 +285,8 @@ export type CongressProfile = {
   stats: CongressStats;
   first_report: string;
   reports_count: number;
+  /** Senate: how many of the reports are scanned paper filings (listed, never read). */
+  paper_reports?: number;
   trades: CongressTrade[];
   trades_total: number;
   reports: CongressReport[];
@@ -690,6 +701,54 @@ export function sparkPath(
 
 /** Lawmakers have 45 days to report a trade. */
 export const STOCK_ACT_DEADLINE_DAYS = 45;
+
+export type Chamber = "house" | "senate";
+
+/** The chamber a member's reports come from; anything stored before senators were read is the House. */
+export function chamberOf(row: { chamber?: string | null } | null | undefined): Chamber {
+  return row?.chamber === "senate" ? "senate" : "house";
+}
+
+/** Where a chamber's reports are filed, with the public page that holds them. */
+export const CHAMBER_SOURCE: Record<Chamber, { office: string; reports: string; url: string; file: string }> = {
+  house: {
+    office: "Clerk of the House",
+    reports: "House trade reports",
+    url: "https://disclosures-clerk.house.gov/FinancialDisclosure",
+    file: "PDF",
+  },
+  senate: {
+    office: "Senate eFD",
+    reports: "Senate trade reports",
+    url: "https://efdsearch.senate.gov/search/home/",
+    file: "Report",
+  },
+};
+
+/** "US House · CA-11" or "US Senate · RI": the seat line under a member's name. */
+export function seatParts(row: { chamber?: string | null; state?: string | null; district?: string | null }): string[] {
+  const senate = chamberOf(row) === "senate";
+  const seat = row.state ? (senate || !row.district ? row.state : `${row.state}-${row.district}`) : "";
+  return [senate ? "US Senate" : "US House", seat].filter(Boolean);
+}
+
+/**
+ * "House members", "senators" or "members of Congress", for a list that may hold both.
+ * Counts only rows that are members of Congress.
+ */
+export function congressNoun(rows: Array<{ kind?: string; chamber?: string | null }>): string {
+  const members = rows.filter((row) => row.kind === undefined || row.kind === "congress");
+  const senate = members.filter((row) => chamberOf(row) === "senate").length;
+  if (senate === 0) return "House members";
+  return senate === members.length ? "senators" : "members of Congress";
+}
+
+/** "House trade reports", "Senate trade reports" or both, for a source line. */
+export function congressReportsLabel(rows: Array<{ kind?: string; chamber?: string | null }>): string {
+  const chambers = new Set(rows.filter((row) => row.kind === undefined || row.kind === "congress").map(chamberOf));
+  if (chambers.size === 2) return "House and Senate trade reports";
+  return CHAMBER_SOURCE[chambers.has("senate") ? "senate" : "house"].reports;
+}
 
 export function partyLabel(party: string | null | undefined): string {
   if (party === "D") return "Democrat";

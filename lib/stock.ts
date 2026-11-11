@@ -249,6 +249,25 @@ export type DirectiveV2 = {
   invalidation?: string;
   changed_from_previous?: boolean;
   change_reason?: string;
+  /** Set when the steady call is published (backend/call_stability.py, CALL_STABILITY_MODE=on). */
+  stability?: DirectiveStability | null;
+};
+
+/** How long the call has stood and what the rule would need to change it. */
+export type DirectiveStability = {
+  version?: string;
+  /** The New York trading day the call took its current value, YYYY-MM-DD. */
+  since?: string | null;
+  /** Why it last changed, in plain words; null for the first call we wrote. */
+  since_reason?: string | null;
+  trigger?: "start" | "confirmed" | "earnings" | "guidance" | "move" | "market" | null;
+  /** What would change it, written from the same rule that holds it. */
+  what_would_change?: string | null;
+  levels_set_on?: string | null;
+  /** Today's review leaned another way and the call held. */
+  held_against_vote?: boolean | null;
+  /** That review's call: "Add" | "Hold" | "Trim". */
+  vote?: string | null;
 };
 
 export type VisualCards = {

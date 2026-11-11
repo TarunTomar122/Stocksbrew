@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   WEEK_MS,
@@ -168,5 +168,40 @@ describe("coverageAfterTrackChange", () => {
 
   it("does nothing on Pro", () => {
     expect(coverageAfterTrackChange({ tracked_stocks: ids(3) }, true, ids(30), NOW)).toBeNull();
+  });
+});
+
+describe("picks made before the Free limit shrank", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  it("can each be picked back once, without a fill or the weekly swap", () => {
+    // A lapsed Pro that had chosen seven: Free keeps the first five, the other two stay pickable.
+    let doc: CoverageDoc = { tracked_stocks: ids(8), covered_stocks: ids(7), covered_fills_used: 5 };
+    expect(coverageState(doc, false, NOW).held).toEqual(["US_T5", "US_T6"]);
+    doc = apply(doc, false, ids(5).filter((id) => id !== "US_T0"));
+    expect(coverageState(doc, false, NOW).held).toEqual(["US_T5", "US_T6"]);
+    doc = apply(doc, false, [...ids(5).filter((id) => id !== "US_T0"), "US_T5"]);
+    expect(doc.covered_adds_log).toEqual([]);
+    expect(coverageState(doc, false, NOW).held).toEqual(["US_T6"]);
+    expect(coverageState(doc, false, NOW).swapAvailable).toBe(true);
+  });
+
+  it("on the tighter line, a Free account with five keeps three and can choose any of its five", async () => {
+    vi.stubEnv("PAYWALL_V2", "1");
+    vi.resetModules();
+    const cov = await import("./entitlements-coverage");
+    const doc: CoverageDoc = { tracked_stocks: ids(6), covered_stocks: ids(5), covered_fills_used: 5 };
+    const state = cov.coverageState(doc, false, NOW);
+    expect(state.covered).toEqual(ids(3));
+    expect(state.held).toEqual(["US_T3", "US_T4"]);
+    const dropped = cov.planCoverage(doc, false, ["US_T1", "US_T2"], NOW);
+    if (!dropped.ok) throw new Error(dropped.message);
+    const after = { ...doc, ...dropped.write };
+    const picked = cov.planCoverage(after, false, ["US_T1", "US_T2", "US_T4"], NOW);
+    expect(picked.ok).toBe(true);
+    if (picked.ok) expect(picked.write.covered_adds_log).toEqual([]);
   });
 });

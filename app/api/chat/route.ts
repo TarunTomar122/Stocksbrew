@@ -6,7 +6,7 @@ import { tavily } from "@tavily/core";
 import { askUsageStore } from "@/lib/ask-data";
 import { askPlanFor, consumeAskQuota } from "@/lib/ask-limits";
 import { redactLevels, redactLevelsDeep } from "@/lib/entitlements";
-import { canSeeLevels, getViewer } from "@/lib/entitlements-server";
+import { METER_UNAVAILABLE_MESSAGE, canSeeLevels, getViewer } from "@/lib/entitlements-server";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { getWatchlistView, type WatchlistRow } from "@/lib/watchlist-view";
 import { getInstrumentLabels, resolveInstrumentByTicker } from "@/lib/instrument-resolver";
@@ -380,14 +380,17 @@ export async function POST(req: NextRequest) {
   const uid = decoded.uid;
   // The old chat spends the same daily allowance as Ask, from the same counter, so the two never add up to more.
   const plan = askPlanFor({ uid, isPro: resolveIsSubscribed(await getUserDoc(uid).catch(() => null)) });
-  // The same rule as /api/ask: a signed-in person is not locked out because the counter is down.
+  // The same rule as /api/ask: a counter we cannot read means "try again", never an uncounted model call.
   const quota = await consumeAskQuota(askUsageStore, { key: uid, plan }).catch((error) => {
     console.error("chat_quota_failed", error);
     return null;
   });
+  if (!quota) {
+    return NextResponse.json({ error: "unavailable", message: METER_UNAVAILABLE_MESSAGE }, { status: 503 });
+  }
   // Who is asking, once: it decides which stocks' full read the model may see.
   const chatViewer = await getViewer();
-  if (quota && !quota.ok) {
+  if (!quota.ok) {
     return NextResponse.json({ error: "limit_reached", limit: quota.limit, message: quota.message }, { status: 429 });
   }
   const body = await req.json();

@@ -82,7 +82,7 @@ export type ReasonCheck = {
   ticker: string;
   kind: ThesisKind | null;
   verdict: Verdict;
-  /** "Your reason for owning NVDA still holds." */
+  /** "Your reason for owning NVDA still holds.", or for a reason that played out, what completed it (whatChanged). */
   headline: string;
   /** The signals that fired, worst first. */
   signals: Signal[];
@@ -633,6 +633,44 @@ export function headlineFor(verdict: Verdict, ticker: string): string {
   }
 }
 
+const oneDecimal = (value: number): string => value.toFixed(1).replace(/\.0$/, "");
+
+/**
+ * The headline when a reason has played out: the verdict in plain words, then the fact that completed it, with one
+ * number ("UNH has done what you bought it for: it is no longer cheap, with a P/E higher than on 91% of past days.").
+ * `signal` is the id of that fact and `rest` the figures the headline leaves out, for the line after it. Null for the
+ * other verdicts, or when that fact is missing its figures. Every figure comes from the signal's own data, so the
+ * wording check (lib/thesis-watch/word.ts) accepts it.
+ */
+export function whatChanged(check: Pick<ReasonCheck, "ticker" | "verdict" | "signals">): { headline: string; signal: string; rest: string | null } | null {
+  if (check.verdict !== "played_out") return null;
+  const done = check.signals.find((signal) => signal.level === "done");
+  if (!done) return null;
+  const { ticker } = check;
+  const lead = `${ticker} has done what you bought it for`;
+  if (done.id === "no_longer_cheap") {
+    const { pe, pe_percentile_pct: pct, pe_median: median } = done.data;
+    if (typeof pe !== "number" || typeof pct !== "number") return null;
+    return {
+      headline: `${lead}: it is no longer cheap, with a P/E higher than on ${Math.round(pct)}% of past days.`,
+      signal: done.id,
+      rest: `Its P/E is ${oneDecimal(pe)}${typeof median === "number" ? `, and half the time it has been below ${oneDecimal(median)}` : ""}.`,
+    };
+  }
+  if (done.id === "trade_target") {
+    const { move_pct: move, close_usd: close, cost_usd: basis } = done.data;
+    if (typeof move !== "number" || typeof close !== "number" || typeof basis !== "number") return null;
+    // The basis is the average cost when there is one, else the close on the day the reason was saved.
+    const paid = done.text.includes("your average cost");
+    return {
+      headline: `${lead} as a short-term trade: it is up ${pctWords(move)} ${paid ? "on what you paid" : "since you saved this reason"}.`,
+      signal: done.id,
+      rest: `It closed at ${moneyWords(close)}, against ${paid ? `your average cost of ${moneyWords(basis)}` : `${moneyWords(basis)} when you saved it`}.`,
+    };
+  }
+  return null;
+}
+
 /** The person's own words, quoted back: "You said: “every big cloud is still buying.”" */
 export function quoteOf(thesis: Pick<Thesis, "kind" | "reason">): string | null {
   const reason = thesis.reason?.trim();
@@ -682,7 +720,7 @@ export function evaluate(thesis: Pick<Thesis, "kind" | "reason" | "created_at">,
     ticker: facts.ticker,
     kind: thesis.kind,
     verdict,
-    headline: headlineFor(verdict, facts.ticker),
+    headline: whatChanged({ ticker: facts.ticker, verdict, signals })?.headline ?? headlineFor(verdict, facts.ticker),
     signals,
     checked: signals.length === 0 ? checkedFor(ctx) : [],
     quote: quoteOf(thesis),
@@ -691,9 +729,18 @@ export function evaluate(thesis: Pick<Thesis, "kind" | "reason" | "created_at">,
   };
 }
 
-/** The rules' own note: the headline, then the first two findings (each one or two sentences). */
-export function ruleNote(check: Pick<ReasonCheck, "headline" | "signals" | "checked" | "verdict">): string {
-  const lines = (check.signals.length > 0 ? check.signals : check.checked).slice(0, 2).map((signal) => signal.text);
+/**
+ * The rules' own note: the headline, then the first two findings (each one or two sentences). When the headline
+ * already says the fact that completed the reason (whatChanged), that fact is not said twice: what the headline
+ * left out takes its place.
+ */
+export function ruleNote(check: Pick<ReasonCheck, "ticker" | "headline" | "signals" | "checked" | "verdict">): string {
+  const changed = whatChanged(check);
+  const said = changed && check.headline === changed.headline ? changed : null;
+  const rows = check.signals.length > 0 ? check.signals : check.checked;
+  const lines = said
+    ? [said.rest, ...rows.filter((signal) => signal.id !== said.signal).map((signal) => signal.text)].filter((line): line is string => Boolean(line)).slice(0, 2)
+    : rows.slice(0, 2).map((signal) => signal.text);
   const lead = check.verdict === "holds" && check.checked.length > 0 ? `${check.headline} Nothing we check has turned against it.` : check.headline;
   return [lead, ...lines].join(" ");
 }

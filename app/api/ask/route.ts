@@ -22,7 +22,7 @@ import { askSystemPrompt } from "@/lib/ask-prompt";
 import { buildAskTools } from "@/lib/ask-tools";
 import { getSessionUser } from "@/lib/auth-server";
 import { earliestBacktestStart } from "@/lib/backtest/gated";
-import { canSeeLevels, getViewer } from "@/lib/entitlements-server";
+import { METER_UNAVAILABLE_MESSAGE, canSeeLevels, getViewer } from "@/lib/entitlements-server";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 
 export const maxDuration = 60;
@@ -142,12 +142,9 @@ export async function POST(req: NextRequest) {
   try {
     quota = await consumeAskQuota(askUsageStore, { key: who.key, plan: who.plan });
   } catch (error) {
-    // The counter is down. Failing closed would take the copilot down with it; signed-out traffic is the abuse risk, so only that waits.
+    // The counter is down. Every question is a paid model call, so nothing runs uncounted: say "try again" (FAIL_CLOSED_METERS).
     console.error("ask_quota_failed", error);
-    if (!who.uid) {
-      return NextResponse.json({ error: "unavailable", message: "The copilot is busy. Try again in a minute, or sign in." }, { status: 503 });
-    }
-    quota = null;
+    return NextResponse.json({ error: "unavailable", message: METER_UNAVAILABLE_MESSAGE }, { status: 503 });
   }
   if (quota && !quota.ok) return NextResponse.json(quota, { status: 429 });
 

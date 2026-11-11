@@ -6,7 +6,7 @@ import * as React from "react";
 
 import { SignInButton } from "@/components/briefing/sign-in-button";
 import { OaButton } from "@/components/oa/button";
-import { AGENT_TEMPLATES, type AgentFacts, type AgentJob, type AgentJobDraft } from "@/lib/agent-jobs";
+import { AGENT_TEMPLATES, planMayRun, type AgentFacts, type AgentJob, type AgentJobDraft } from "@/lib/agent-jobs";
 import type { PlainCannot, PlainParseResult } from "@/lib/agents-plain/parse";
 import { savedSentence } from "@/lib/agents-plain/save";
 
@@ -51,7 +51,7 @@ type ParseResponse = {
   capacity: { running: number; total: number; limit: number; max: number } | null;
 };
 
-type SaveResponse = { ok: true; jobs: AgentJob[]; already: string[]; failed?: string[]; paused: { count: number; limit: number } | null };
+type SaveResponse = { ok: true; jobs: AgentJob[]; already: string[]; failed?: string[]; paused: { count: number; limit: number; pro_only?: number } | null };
 
 const CARD = "oa-surface overflow-hidden border border-oa-border bg-oa-card";
 const FIELD =
@@ -90,9 +90,15 @@ function capacityNote(result: ParseResponse, count: number): string | null {
       ? `You have ${capacity.max} agents, the most one account can keep. Remove one to save this.`
       : `You have room for ${room} more ${room === 1 ? "agent" : "agents"}, and this sets up ${count}. Remove one first, or ask for fewer things at once.`;
   }
+  // Filing and news watches the plan does not include are saved paused whatever the count (lib/entitlements.ts agent_events).
+  const proOnly = result.spec.watches.filter((watch) => !planMayRun(watch.draft, result.plan)).length;
+  if (proOnly > 0) {
+    return `Watching filings and news is part of Pro, so ${proOnly === count ? (count === 1 ? "this one" : "these") : `${proOnly} of these`} will be saved paused. Change ${proOnly === 1 ? "it" : "them"} to watch a price, an earnings date or a big move to run on Free.`;
+  }
   const paused = Math.max(0, capacity.running + count - capacity.limit);
   if (paused === 0) return null;
-  const plan = result.plan === "free" ? "Free runs two agents at a time" : `Your plan runs ${capacity.limit} agents at a time`;
+  const runs = capacity.limit === 1 ? "one agent" : capacity.limit === 2 ? "two agents" : `${capacity.limit} agents`;
+  const plan = result.plan === "free" ? `Free runs ${runs} at a time` : `Your plan runs ${runs} at a time`;
   const on = capacity.running === 1 ? "you have 1 on" : `you have ${capacity.running} on`;
   return `${plan} and ${on}, so ${paused === count ? (count === 1 ? "this one" : "these") : `${paused} of these`} will be saved paused. Pause another agent to switch ${paused === 1 ? "it" : "them"} on.`;
 }
@@ -218,7 +224,15 @@ export function PlainAgentBox({
       });
       const body = (await response.json().catch(() => null)) as (SaveResponse & { error?: string }) | null;
       if (!response.ok || !body?.ok) throw new Error(body?.error || "That didn't save. Try again in a moment.");
-      setSaved(savedSentence({ saved: body.jobs, already: body.already, failed: body.failed, limit: body.paused?.limit ?? result.capacity?.limit ?? null }));
+      setSaved(
+        savedSentence({
+          saved: body.jobs,
+          already: body.already,
+          failed: body.failed,
+          limit: body.paused?.limit ?? result.capacity?.limit ?? null,
+          proOnly: body.jobs.filter((job) => !job.enabled && !planMayRun(job, result.plan)).map((job) => job.name),
+        }),
+      );
       setResult(null);
       setText("");
       onRead?.(null);

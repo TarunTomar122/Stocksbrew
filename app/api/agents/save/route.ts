@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { MAX_JOBS_PER_USER, hiddenTemplateIds, parseJobDraft, type AgentJob, type AgentJobDraft } from "@/lib/agent-jobs";
 import { AgentJobError, createJob, listJobs } from "@/lib/agent-jobs-data";
+import { PRO_EVENTS_PAUSED, planMayRun } from "@/lib/agent-jobs";
 import { MAX_WATCHES } from "@/lib/agents-plain/parse";
 import { sameJob } from "@/lib/agents-plain/save";
 import { getSessionUser } from "@/lib/auth-server";
@@ -63,7 +64,7 @@ export async function POST(req: NextRequest) {
         continue;
       }
       try {
-        saved.push(await createJob(session.uid, draft, new Date(), runLimit));
+        saved.push(await createJob(session.uid, draft, new Date(), runLimit, viewer.plan));
       } catch (error) {
         if (error instanceof AgentJobError) throw error;
         console.error("plain agent save failed", error instanceof Error ? error.message : "unknown");
@@ -73,12 +74,14 @@ export async function POST(req: NextRequest) {
     // Nothing saved at all is an error; some saved is a result the page can show, with what is left to retry.
     if (saved.length === 0 && failed.length > 0) return NextResponse.json({ error: "That didn't save. Try again in a moment." }, { status: 503 });
     const paused = saved.filter((job) => !job.enabled).length;
+    // Filing and news agents the plan does not include are saved paused too; say so rather than blame the count.
+    const proOnly = saved.filter((job) => !job.enabled && !planMayRun(job, viewer.plan)).length;
     return NextResponse.json({
       ok: true,
       jobs: saved,
       already,
       failed,
-      paused: paused > 0 ? { count: paused, limit: runLimit } : null,
+      paused: paused > 0 ? { count: paused, limit: runLimit, ...(proOnly > 0 ? { pro_only: proOnly, message: PRO_EVENTS_PAUSED } : {}) } : null,
     });
   } catch (error) {
     if (error instanceof AgentJobError) return NextResponse.json({ error: error.message }, { status: error.status });

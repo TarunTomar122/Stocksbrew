@@ -1,17 +1,24 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
+import { BriefingAgentsGhost, BriefingAgentsStrip, BriefingAskStrip } from "@/components/briefing/agents-strip";
 import { BriefingView } from "@/components/briefing/briefing-view";
+import { BriefingLockedMoves } from "@/components/briefing/locked-moves";
 import { EarningsDayBriefing } from "@/components/earnings-day/briefing-reports";
 import { AppPage } from "@/components/oa/kit";
 import { MarketingSchema } from "@/components/seo/marketing-schema";
-import { loadBriefingPage } from "@/lib/briefing-data";
+import { loadWatches } from "@/lib/agent-watch-server";
+import { getSessionUser } from "@/lib/auth-server";
+import { briefingAnchorTickers } from "@/lib/briefing-anchors";
+import { getViewer } from "@/lib/entitlements-server";
+import { loadBriefingPage, type BriefingPageData } from "@/lib/briefing-data";
 import type { BriefingSession } from "@/lib/briefing-read";
 import { etDay } from "@/lib/insight-format";
 import { loadDeskGiants, loadDeskSectors } from "../explore/desk-data";
 import { getMarketSessionState } from "@/lib/market-session";
 import { noteDegradedRender } from "@/lib/next-render";
 import { ogImage } from "@/lib/og/url";
+import { newYorkToday } from "@/lib/portfolio-data";
 
 export const dynamic = "force-dynamic";
 
@@ -66,8 +73,41 @@ async function loadSession(day: string, indexAsOf: string | null): Promise<Brief
   };
 }
 
+/**
+ * Under the read: signed in, the person's agents with their latest outcomes and Ask on their portfolio, streamed in
+ * its own Suspense (one small read); signed out, Ask on the market only, with nothing read about anyone. The
+ * signed-out page is the cached one (app/(app)/anon/[v]/briefing). Not on an earlier day's briefing.
+ */
+function agentsSlot(data: BriefingPageData): React.ReactNode {
+  if (data.archived) return null;
+  const viewer = data.viewer;
+  if (viewer.kind === "signed_out") return <BriefingAskStrip />;
+  // Stocks with an open, visible card in a personal briefing, so a flagged stock can jump to it.
+  const inBriefing = briefingAnchorTickers(data.briefing, data.state);
+  return (
+    <Suspense fallback={<BriefingAgentsGhost />}>
+      <BriefingAgentsStrip uid={viewer.uid} today={newYorkToday()} inBriefing={inBriefing} portfolio={viewer.kind !== "empty"} />
+    </Suspense>
+  );
+}
+
+/** Free: the moves on stocks the agent does not cover, named with no explanation (lib/briefing.ts locked_moves). */
+async function lockedSlot(data: BriefingPageData) {
+  const moves = data.briefing.locked_moves ?? [];
+  if (moves.length === 0 || data.viewer.kind !== "member") return null;
+  const viewer = await getViewer();
+  return <BriefingLockedMoves moves={moves} plan={viewer.plan} trialEligible={viewer.trialEligible} archived={data.archived} />;
+}
+
 export default async function BriefingPage({ searchParams }: { searchParams?: { day?: string | string[] } }) {
   const day = typeof searchParams?.day === "string" ? searchParams.day : null;
+  // The agents strip's one read starts with the page rather than after the briefing is built: same per-request
+  // call (loadWatches is React-cached on uid and day), so the strip picks up the read already in flight.
+  if (!day) {
+    void getSessionUser()
+      .then((user) => (user ? loadWatches(user.uid, newYorkToday()) : null))
+      .catch(() => null);
+  }
   const data = await loadBriefingPage({ day, persist: true });
   // A briefing missing a source is not kept as the cached signed-out copy for long (lib/next-render.ts).
   if (data.degraded.length > 0) noteDegradedRender();
@@ -86,6 +126,8 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
           degraded={data.degraded}
           marketState={marketStateLabel(new Date())}
           session={session}
+          agents={agentsSlot(data)}
+          locked={await lockedSlot(data)}
           earnings={
             day || data.archived ? null : (
               <Suspense fallback={null}>

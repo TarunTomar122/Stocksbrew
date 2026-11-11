@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { MARKETING_LINKS, PLACES, isMarketingPath, placeFor, sectionFor, trailFor } from "@/components/oa/nav-items";
+import { MARKETING_LINKS, PLACES, isMarketingPath, placeFor, sectionFor, stripOrder, trailFor } from "@/components/oa/nav-items";
 
 const place = (path: string) => placeFor(path)?.label ?? null;
 const sectionOf = (path: string) => sectionFor(path)?.label ?? null;
@@ -154,5 +154,25 @@ describe("marketing chrome", () => {
   it("links the five places by their short names, then pricing and docs", () => {
     expect(MARKETING_LINKS.map((item) => item.label)).toEqual(["Today", "My stocks", "Research", "Investors", "Alerts", "Pricing", "Docs"]);
     expect(MARKETING_LINKS.find((item) => item.label === "My stocks")!.href).toBe("/portfolio");
+  });
+});
+
+describe("stripOrder", () => {
+  const labels = (path: string) => {
+    const where = placeFor(path)!;
+    return stripOrder(where, sectionFor(path, where)).map((item) => item.label);
+  };
+
+  it("puts the page you are on first, then the ones after it, then the ones before", () => {
+    expect(labels("/briefing")).toEqual(["Briefing", "Market today", "Why stocks moved", "Signals", "News", "Calendar"]);
+    expect(labels("/news")).toEqual(["News", "Calendar", "Briefing", "Market today", "Why stocks moved", "Signals"]);
+    expect(labels("/movers/2026-11-10")[0]).toBe("Why stocks moved");
+  });
+
+  it("keeps the place's own order where no section is lit, and lists every section once", () => {
+    expect(labels("/stock/NVDA")).toEqual(placeFor("/stock/NVDA")!.sections.map((item) => item.label));
+    for (const place of PLACES) {
+      for (const item of place.sections) expect(new Set(stripOrder(place, item)).size).toBe(place.sections.length);
+    }
   });
 });

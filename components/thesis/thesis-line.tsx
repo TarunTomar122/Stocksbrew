@@ -23,7 +23,8 @@ export function ThesisLine({ instrumentId }: { instrumentId: string; inline?: bo
   const { check } = useCheck(instrumentId);
   if (!thesis || !check || check.verdict === "holds") return null;
   const word = VERDICT_WORDS[check.verdict];
-  const title = `${thesisSentence(thesis)} ${check.headline}`;
+  // The verdict word as well as the headline: a played-out headline says what changed, not the word itself.
+  const title = `${thesisSentence(thesis)} ${word}. ${check.headline}`;
   return (
     <span title={title} className={`block whitespace-nowrap text-[12px] leading-4 ${TONE[check.verdict]}`}>
       <span className="sr-only">{title}</span>

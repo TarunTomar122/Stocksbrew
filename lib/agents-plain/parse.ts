@@ -17,6 +17,8 @@
  * reason, never dropped and never stretched into something else.
  */
 
+import { cleanFilingFilter, filingFilterAllowsAnyStock, filingWhen, type FilingFilter } from "@/lib/agent-events-filings";
+import { cleanNewsWatch, newsWatchPhrase, type NewsWatch } from "@/lib/agent-events-news";
 import {
   MAX_SCOPE_TICKERS,
   hiddenTemplateIds,
@@ -24,6 +26,7 @@ import {
   type AgentJobDraft,
   type AgentScope,
 } from "@/lib/agent-jobs";
+import type { FilingGroup } from "@/lib/filings-shared";
 
 import { findStocks, listStockNames, resolveStock, type PlainStock, type StockCatalog } from "./stocks";
 
@@ -46,6 +49,8 @@ export const WATCH_KINDS = [
   "buy_zone",
   "daily_check",
   "weekly_review",
+  "sec_filing",
+  "news_change",
 ] as const;
 export type WatchKind = (typeof WATCH_KINDS)[number];
 
@@ -97,6 +102,14 @@ export type Intent = {
   implicit?: boolean;
   /** Other move sizes asked for on the same stocks, folded into this one ("up 5% or down 3%"). */
   folded_pcts?: number[];
+  /** sec_filing: which forms and 8-K items, or "something big". */
+  filings?: FilingFilter | null;
+  /** sec_filing: they named a shelf offering (S-3), which we do not collect. */
+  shelf?: boolean;
+  /** news_change: heavier than usual, a tone, or either. */
+  news?: NewsWatch | null;
+  /** news_change: they named one kind of story ("an FDA decision"), which agents can't pick out. */
+  topic?: boolean;
 };
 
 export type PlainCannot = {
@@ -158,7 +171,7 @@ function quote(text: string): string {
 }
 
 const REASONS: Record<CannotCode, string> = {
-  news: "agents don't read news headlines or company announcements.",
+  news: "agents can't pick out one kind of story, like an FDA decision or a lawsuit. They can tell you when the news about a stock gets much heavier than usual or turns clearly negative or positive.",
   intraday: "agents read each day's closing price, so they can't catch a price during the day.",
   chart_signals: "agents don't track chart signals like moving averages, volume or 52-week highs. A price level works, like “NVDA closes below 150”.",
   fundamentals: "agents don't track valuation numbers like the P/E ratio or market value.",
@@ -264,7 +277,47 @@ function jobName(kind: WatchKind, subject: Subject, intent: Intent): string {
       return label ? `Morning check on ${label}` : "Morning check on my names";
     case "weekly_review":
       return label ? `Weekly review of ${label}` : "Weekly review of my names";
+    case "sec_filing":
+      return `${prefix}${filingName(intent.filings ?? null, !prefix)}`;
+    case "news_change":
+      return `${prefix}${newsName(intent.news ?? "any", !prefix)}`;
   }
+}
+
+const ITEM_NAMES: Record<string, string> = {
+  "1.01": "deals",
+  "1.02": "deals ending",
+  "1.03": "bankruptcy",
+  "1.05": "cyber incidents",
+  "2.01": "acquisitions",
+  "2.02": "results",
+  "2.03": "new debt",
+  "2.05": "restructuring",
+  "2.06": "impairments",
+  "3.01": "delisting notices",
+  "4.01": "auditor changes",
+  "4.02": "restatements",
+  "5.01": "changes in control",
+  "5.02": "executive changes",
+  "5.07": "shareholder votes",
+};
+
+/** "new 8-Ks on executive changes", "big SEC filings", "New SEC filings" (capitalised when it starts the name). */
+function filingName(filter: FilingFilter | null, lead: boolean): string {
+  const forms = filter?.forms ?? [];
+  const items = (filter?.items ?? []).map((item) => ITEM_NAMES[item] ?? `item ${item}`);
+  const text = filter?.major
+    ? "big SEC filings"
+    : forms.length === 0
+      ? "new SEC filings"
+      : `new ${forms.map((form) => (form === "13D/G" ? "13D or 13G" : form)).join(" or ")} filings${items.length ? ` on ${items.join(" or ")}` : ""}`;
+  return lead ? capitalise(text) : text;
+}
+
+function newsName(watch: NewsWatch, lead: boolean): string {
+  const text =
+    watch === "busy" ? "much more news than usual" : watch === "negative" ? "news turns negative" : watch === "positive" ? "news turns positive" : watch === "tone" ? "news turns one way" : "news gets heavier or one-sided";
+  return lead ? capitalise(text) : text;
 }
 
 /** The "when …" line for one watch, short (after the subject is named) or full. */
@@ -305,6 +358,10 @@ function watchLine(kind: WatchKind, subject: Subject, intent: Intent, short: boo
       const target = subject.kind === "tickers" ? listStockNames(subject.stocks) : "the stocks you track";
       return `every ${WEEKDAY_NAMES[intent.weekday ?? 1]}, a review of ${target}: moves of 5% or more over five sessions, earnings in the week ahead and trades by members of Congress`;
     }
+    case "sec_filing":
+      return `when ${filingWhen(intent.filings ?? undefined, who, subject.kind === "any")}`;
+    case "news_change":
+      return `when ${newsWatchPhrase(intent.news ?? "any", subject.kind === "tickers" && subject.stocks.length === 1 && !short ? subject.stocks[0].name : who)}`;
   }
 }
 
@@ -353,6 +410,18 @@ function noteFor(kind: WatchKind, subject: Subject, intent: Intent): string | nu
     notes.push("Members have up to 45 days to disclose a trade, so you'll hear when it's disclosed, not when it happened.");
   }
   if (kind === "buy_zone") notes.push("Only stocks with a research call have a buy price.");
+  if (kind === "sec_filing") {
+    const filter = intent.filings ?? null;
+    if (intent.shelf) notes.push("Shelf offerings on form S-3 aren't collected yet, so this watches S-1 offerings only.");
+    if (filter?.items?.includes("5.02")) notes.push("Executive changes on an 8-K include routine board seats and pay plans, so some will be minor.");
+    if (filter?.major) notes.push("Results, routine 8-Ks and executive changes are left out, so for most companies this is a few times a year.");
+    else if (!filter?.forms?.length) notes.push("That covers 8-Ks, 10-Qs, 10-Ks, share offerings and activist stakes, about one or two a month for a big company. Funds' routine passive-stake reports (13G) are left out.");
+    notes.push("You'll hear after the close on the day it's filed, with a link to the filing on the SEC's site.");
+  }
+  if (kind === "news_change") {
+    if (intent.topic) notes.push("Agents can't pick out one kind of story, so you'll hear when the news gets much heavier or turns one way, whatever it's about.");
+    notes.push("You'll hear after the close, with the biggest story to read.");
+  }
   return notes.length ? notes.join(" ") : null;
 }
 
@@ -371,6 +440,8 @@ const TEMPLATE_OF: Record<WatchKind, string> = {
   buy_zone: "buy-zone",
   daily_check: "morning-check",
   weekly_review: "weekly-review",
+  sec_filing: "sec-filing",
+  news_change: "news",
 };
 
 function subjectFor(intent: Intent): Subject {
@@ -379,6 +450,8 @@ function subjectFor(intent: Intent): Subject {
   const filings = intent.kind === "fund_13f" || intent.kind === "congress_trade" || intent.kind === "insider_trade";
   // "Tell me when a fund files a 13F" with no stock named means any filing; insiders default to your names (any is every company).
   if (filings && (intent.every || intent.kind !== "insider_trade")) return { kind: "any", stocks: [] };
+  // "Tell me when any company files an S-1": market-wide only for offerings and big stakes, which are rare.
+  if (intent.kind === "sec_filing" && intent.every && filingFilterAllowsAnyStock(intent.filings ?? undefined)) return { kind: "any", stocks: [] };
   return { kind: "watchlist", stocks: [] };
 }
 
@@ -437,6 +510,8 @@ function buildIntent(intent: Intent, ctx: BuildContext): { watches: BuiltWatch[]
       pct: settled.pct,
       days_before: settled.days,
       weekday: settled.weekday,
+      filings: intent.filings ?? undefined,
+      news: intent.news ?? undefined,
     };
     const parsed = parseJobDraft(
       { template: TEMPLATE_OF[intent.kind], name: jobName(intent.kind, subject, settled), scope: scopeOf(subject), trigger },
@@ -607,8 +682,48 @@ const WEEKLY_RE =
   /\bevery (monday|tuesday|wednesday|thursday|friday|saturday|sunday|week|weekend)\b|\bon (monday|tuesday|wednesday|thursday|friday|saturday|sunday)s\b|\bonce a week\b|\bend of (?:the |each |every )?week\b|\bweekly (?:summary|recap|review|digest|update|check|email|rundown)\b|\bsum(?:marise|marize| up) (?:my|the|each|every) week\b|\bweek in review\b/gi;
 const SUMMARY_RE = /\b(?:summary|summarise|summarize|sum up|recap|digest|rundown|round[- ]?up)\b/i;
 
+// One kind of story, which agents can't pick out. The news as a whole is NEWS_WORD_RE.
 const NEWS_RE =
-  /\bnews\b|\bheadlines?\b|\barticles?\b|\bpress releases?\b|\bstories\b|\btweets?\b|\btweeted\b|\breddit\b|\bposts? about\b|\bmentions?(?:ed)?\b|\btalked about\b|\brumou?rs?\b|\bannounce(?:s|d|ment|ments)?\b|\bfda\b|\bapprovals?\b|\bmergers?\b|\bacquisitions?\b|\bacquires?\b|\bbuyouts?\b|\blawsuits?\b|\blayoffs?\b|\bguidance\b|\bstock splits?\b|\bbuybacks?\b|\bbankrupt\w*\b|\brecalls?\b|\bceo (?:leaves|quits|resigns|steps down)\b/gi;
+  /\bpress releases?\b|\btweets?\b|\btweeted\b|\breddit\b|\bposts? about\b|\bmentions?(?:ed)?\b|\brumou?rs?\b|\bannounce(?:s|d|ment|ments)?\b|\bfda\b|\bapprovals?\b|\bmergers?\b|\bacquisitions?\b|\bacquires?\b|\bbuyouts?\b|\blawsuits?\b|\blayoffs?\b|\bguidance\b|\bstock splits?\b|\bbuybacks?\b|\bbankrupt\w*\b|\brecalls?\b|\bceo (?:leaves|quits|resigns|steps down)\b/gi;
+const NEWS_WORD_RE = /\bnews\b|\bheadlines?\b|\barticles?\b|\bstories\b|\bstory\b|\bcoverage\b|\bmedia\b|\bpress\b|\btalked about\b|\bbuzz(?:ing)?\b/gi;
+const NEWS_NEGATIVE_RE = /\bnegative\w*|\bbad\b|\bbearish\b|\bsour(?:s|ed)?\b|\bugly\b|\bworse\b|\bgloomy\b|\bturns? (?:on|against)\b/gi;
+const NEWS_POSITIVE_RE = /\bpositive\w*|\bgood\b|\bbullish\b|\bgreat\b|\bupbeat\b|\bbetter\b/gi;
+const NEWS_BUSY_RE =
+  /\bheav(?:y|ier)\b|\bmore than usual\b|\bmore than normal\b|\bunusual(?:ly)?\b|\bspikes?\b|\bsurges?\b|\ba lot\b|\blots\b|\bbusy\b|\bblows? up\b|\bexplodes?\b|\ball over\b|\bpicks? up\b|\btrending\b|\bflood(?:ed|s)?\b/gi;
+const NEWS_TURN_RE = /\bturns?\b|\bturned\b|\bgets?\b|\bgoes\b|\bis\b|\bthere'?s\b|\bthere is\b|\babout\b|\bon\b|\bclearly\b|\breally\b|\bsuddenly\b|\bthan usual\b|\bthe\b/gi;
+
+// SEC filings. A form named outright ("8-K", "10-K") is always a filing watch; "files" alone is one unless a
+// fund, an insider or Congress is doing the filing (those are their own agents).
+const FORM_TOKEN_RE = /\b8-?k\b|\b10-?k\b|\b10-?q\b|\bs-?1\b|\bs-?3\b|\b13-?d\b|\b13-?g\b|\bschedule 13[dg]?\b/gi;
+const FILE_RE = /\bfil(?:es|ed|ing|ings|e)\b|\bwith the sec\b|\bsec\b|\bedgar\b/gi;
+const FORM_WORDS: Array<[RegExp, FilingGroup]> = [
+  [/\b8-?k\b|\bcurrent reports?\b/gi, "8-K"],
+  [/\b10-?k\b|\bannual (?:reports?|filings?)\b/gi, "10-K"],
+  [/\b10-?q\b|\bquarterly (?:reports?|filings?)\b/gi, "10-Q"],
+  [/\bs-?1\b|\bs-?3\b|\b(?:share |stock |secondary )?offerings?\b|\bsells? (?:new )?shares\b|\bdilut\w*|\bregistration\b/gi, "S-1"],
+  [/\b13-?d\b|\b13-?g\b|\bschedule 13[dg]?\b|\bactivists?\b|\b(?:5%|five percent|big|large) stakes?\b|\bstakes? (?:of|above|over) (?:more than )?5%/gi, "13D/G"],
+];
+const FILING_ITEMS: Array<[RegExp, string]> = [
+  [/\bdeals?\b|\bagreements?\b|\bcontracts?\b|\bpartnerships?\b/gi, "1.01"],
+  [/\bbankrupt\w*|\bchapter 11\b|\breceivership\b/gi, "1.03"],
+  [/\bcyber\w*|\bhack(?:s|ed)?\b|\b(?:data )?breach(?:es)?\b/gi, "1.05"],
+  [/\bacqui(?:res?|red|ring|sitions?)\b|\bmergers?\b|\bbuys? (?:a|another) company\b|\bsells? (?:a|its) (?:unit|division|business)\b/gi, "2.01"],
+  [/\bresults\b|\bearnings?\b/gi, "2.02"],
+  [/\bdebt\b|\bborrow\w*|\bloans?\b|\bbonds?\b/gi, "2.03"],
+  [/\brestructur\w*|\blayoffs?\b|\bjob cuts\b/gi, "2.05"],
+  [/\bimpairments?\b|\bwrite-?(?:downs?|offs?)\b/gi, "2.06"],
+  [/\bdelist\w*/gi, "3.01"],
+  [/\bauditors?\b/gi, "4.01"],
+  [/\brestat\w*/gi, "4.02"],
+  [/\bchange (?:in|of) control\b|\btakeover\b/gi, "5.01"],
+  [
+    /\b(?:officers?|executives?|execs?|directors?|ceo|cfo|coo|board|management|leadership)(?: (?:changes?|change-ups?|shake-?ups?|departures?|leaves|quits|resigns|steps down|appointments?))?\b|\bresign(?:s|ation)?\b|\bsteps? down\b/gi,
+    "5.02",
+  ],
+  [/\bshareholder (?:votes?|meetings?)\b|\bvote results\b/gi, "5.07"],
+];
+const MAJOR_RE = /\b(?:something|anything)\s+(?:big|major|important|material|significant|serious)\b|\b(?:big|major|important|material|significant)\s+(?:filings?|forms?|news from the sec)\b/gi;
+const FILING_GLUE_RE = /\bnew\b|\ba\b|\ban\b|\bits\b|\btheir\b|\babout\b|\bon\b|\bwith\b|\bform\b|\bforms\b|\bsomething\b|\banything\b|\breports?\b|\bthe sec\b|\bchanges?\b|\bfor\b/gi;
 const INTRADAY_RE =
   /\bintra-?day\b|\bduring the day\b|\breal[- ]?time\b|\bthe (?:moment|second|minute|instant)\b|\bimmediately\b|\bright away\b|\binstantly\b|\bpre-?market\b|\bafter[- ]hours\b|\bevery (?:minute|hour)\b|\bhourly\b|\blive\b/gi;
 const CHART_RE =
@@ -727,7 +842,8 @@ export function parseByRules(raw: string, catalog: StockCatalog, ctx: BuildConte
   // Index words first, so "S&P 500" is the fund that tracks it, not a stock that happens to share the words.
   const marketSpans: Array<{ span: Span; ticker: string; said: string }> = [];
   for (const [re, ticker, said] of MARKET_RE) for (const { span } of collect(re, text)) marketSpans.push({ span, ticker, said });
-  const masked = marketSpans.reduce((acc, { span }) => acc.slice(0, span.start) + " ".repeat(span.end - span.start) + acc.slice(span.end), text);
+  const formSpans = collect(FORM_TOKEN_RE, text).map((hit) => ({ span: hit.span }));
+  const masked = [...marketSpans, ...formSpans].reduce((acc, { span }) => acc.slice(0, span.start) + " ".repeat(span.end - span.start) + acc.slice(span.end), text);
   const found = findStocks(masked, catalog);
   spans.push(...found.spans);
   for (const word of found.unknown) {
@@ -769,6 +885,45 @@ export function parseByRules(raw: string, catalog: StockCatalog, ctx: BuildConte
   const restricted: Array<{ intent: Intent; what: string }> = [];
   const pieces = clauses(text);
 
+  // A filing watch and a news watch read their details from the whole request, since "files an 8-K about a deal
+  // or an executive change" and "news about AAPL and MSFT turns negative" are split into clauses.
+  const lowerAll = text;
+  const filingWanted = collect(FORM_TOKEN_RE, lowerAll).length > 0 || (collect(FILE_RE, lowerAll).length > 0 && !collect(FUND_RE, lowerAll).length && !collect(INSIDER_RE, lowerAll).some((hit) => /form\s*4|insider/i.test(hit.match[0])) && !collect(CONGRESS_RE, lowerAll).length);
+  let filingFilter: FilingFilter | null = null;
+  let shelf = false;
+  if (filingWanted) {
+    const markAll = (re: RegExp) => {
+      const hits = collect(re, text);
+      for (const hit of hits) spans.push(hit.span);
+      return hits;
+    };
+    const major = markAll(MAJOR_RE).length > 0;
+    const forms: FilingGroup[] = [];
+    for (const [re, form] of FORM_WORDS) if (markAll(re).length > 0 && !forms.includes(form)) forms.push(form);
+    shelf = /\bs-?3\b/i.test(text);
+    const items: string[] = [];
+    for (const [re, item] of FILING_ITEMS) if (markAll(re).length > 0 && !items.includes(item)) items.push(item);
+    filingFilter = major ? { major: true } : forms.length || items.length ? { ...(forms.length || items.length ? { forms: items.length && !forms.includes("8-K") ? (["8-K", ...forms] as FilingGroup[]) : forms } : {}), ...(items.length ? { items: items.sort() } : {}) } : null;
+  }
+  const newsWanted = collect(NEWS_WORD_RE, text).length > 0 && !filingWanted;
+  let newsWatch: NewsWatch = "any";
+  if (newsWanted) {
+    const markAll = (re: RegExp) => {
+      const hits = collect(re, text);
+      for (const hit of hits) spans.push(hit.span);
+      return hits.length > 0;
+    };
+    const negative = markAll(NEWS_NEGATIVE_RE);
+    const positive = markAll(NEWS_POSITIVE_RE);
+    const busy = markAll(NEWS_BUSY_RE);
+    markAll(NEWS_TURN_RE);
+    newsWatch = busy && (negative || positive) ? "any" : busy ? "busy" : negative && positive ? "tone" : negative ? "negative" : positive ? "positive" : "any";
+  }
+  const itemOnly = (local: string) => FILING_ITEMS.some(([re]) => {
+    re.lastIndex = 0;
+    return re.test(local);
+  });
+
   for (const piece of pieces) {
     const range = { start: piece.start, end: piece.start + piece.text.length };
     const local = piece.text;
@@ -793,6 +948,15 @@ export function parseByRules(raw: string, catalog: StockCatalog, ctx: BuildConte
       for (const intent of priceBefore) intents.push({ ...intent, level: numberOf(bare[1]) });
       continue;
     }
+
+    // "…files an 8-K about a deal or an executive change": the second clause only adds to the filing watch.
+    const filingBefore = previous.some((intent) => intent.kind === "sec_filing");
+    if (filingWanted && filingBefore && named.length === 0 && !has(FILE_RE) && !has(FORM_TOKEN_RE) && itemOnly(local)) {
+      mark(FILING_GLUE_RE);
+      continue;
+    }
+    const secClause = filingWanted && (has(FILE_RE) || has(FORM_TOKEN_RE) || has(MAJOR_RE));
+    const newsClause = newsWanted && has(NEWS_WORD_RE);
 
     const mineHits = mark(MINE_RE);
     const mine = mineHits.length > 0;
@@ -834,16 +998,36 @@ export function parseByRules(raw: string, catalog: StockCatalog, ctx: BuildConte
       mark(DIVIDEND_RE);
       clauseCannots.push(cannot("dividends", local.trim()));
     }
-    const earningsWord = has(EARNINGS_RE);
-    if (has(NEWS_RE) && !earningsWord) {
+    const earningsWord = has(EARNINGS_RE) && !secClause;
+    const topic = has(NEWS_RE);
+    if (topic && !earningsWord && !secClause && !newsClause) {
       mark(NEWS_RE);
-      clauseCannots.push(cannot("news", local.trim()));
+      const who = named[0]?.ticker ?? (pending[0]?.ticker || last[0]?.ticker) ?? null;
+      const executive = /\bceo (?:leaves|quits|resigns|steps down)\b/i.test(local);
+      clauseCannots.push(
+        cannot("news", local.trim(), {
+          suggest: executive
+            ? `Tell me when ${who ?? "my stocks"} ${who ? "files" : "file"} an 8-K about an executive change`
+            : `Tell me when the news about ${who ?? "my stocks"} turns negative`,
+        }),
+      );
+    }
+    if (secClause) {
+      mark(FILE_RE);
+      mark(FORM_TOKEN_RE);
+      mark(FILING_GLUE_RE);
+      clauseIntents.push({ kind: "sec_filing", stocks: [], every, filings: filingFilter, shelf });
+    } else if (newsClause) {
+      mark(NEWS_WORD_RE);
+      mark(NEWS_TURN_RE);
+      if (topic) mark(NEWS_RE);
+      clauseIntents.push({ kind: "news_change", stocks: [], news: newsWatch, topic });
     }
 
     // A stop-loss is still a price worth hearing about. A P/E below 30, a price target, a dividend yield,
     // a move from what you paid or a bitcoin crash is not a price level on the stock, so nothing is read from it.
     const BLOCKING: CannotCode[] = ["cost_basis", "chart_signals", "fundamentals", "analyst_ratings", "call_change", "dividends", "not_a_us_stock"];
-    const blocked = clauseCannots.some((entry) => BLOCKING.includes(entry.code));
+    const blocked = clauseCannots.some((entry) => BLOCKING.includes(entry.code)) || secClause || newsClause;
 
     // Prices.
     const pctHits = blocked ? [] : mark(PCT_RE);
@@ -901,7 +1085,7 @@ export function parseByRules(raw: string, catalog: StockCatalog, ctx: BuildConte
 
     // Earnings.
     const filingWords = has(FUND_RE) || has(INSIDER_RE) || has(CONGRESS_RE);
-    const reportsAsEarnings = !earningsWord && !filingWords && has(REPORTS_RE) && (named.length > 0 || mine || pending.length > 0 || last.length > 0);
+    const reportsAsEarnings = !secClause && !newsClause && !earningsWord && !filingWords && has(REPORTS_RE) && (named.length > 0 || mine || pending.length > 0 || last.length > 0);
     if (earningsWord || reportsAsEarnings) {
       mark(EARNINGS_RE);
       mark(REPORTS_RE);
@@ -916,12 +1100,12 @@ export function parseByRules(raw: string, catalog: StockCatalog, ctx: BuildConte
     // "Berkshire files its 13F" is the fund, not the BRK.B shares.
     const berkshire = named.find((stock) => /^BRK[.-]B$/.test(stock.ticker));
     let fundPerson: string | null = null;
-    if (berkshire && /\b13-?f\b|\bfiles?\b|\bfiled\b|\bfiling\b|\bportfolio\b|\bbuys?\b|\bsells?\b/i.test(local) && (has(FUND_RE) || /\b13-?f\b|\bfil(?:es?|ed|ing)\b|\bportfolio\b/i.test(local))) {
+    if (!secClause && berkshire && /\b13-?f\b|\bfiles?\b|\bfiled\b|\bfiling\b|\bportfolio\b|\bbuys?\b|\bsells?\b/i.test(local) && (has(FUND_RE) || /\b13-?f\b|\bfil(?:es?|ed|ing)\b|\bportfolio\b/i.test(local))) {
       named = named.filter((stock) => stock !== berkshire);
       fundPerson = "Berkshire Hathaway";
       FUND_RE.lastIndex = 0;
     }
-    if (has(FUND_RE) || fundPerson) {
+    if ((has(FUND_RE) && !secClause) || fundPerson) {
       mark(FUND_RE);
       mark(TRADE_WORD_RE);
       mark(/\bfiles?\b|\bfiled\b|\bfiling\b|\breports?\b|\bnew\b|\bquarterly\b|\bwe track\b|\bposition\b|\bstake\b|\bholdings?\b|\bmanager\b|\bbig\b/gi);
@@ -945,7 +1129,8 @@ export function parseByRules(raw: string, catalog: StockCatalog, ctx: BuildConte
         clauseIntents.push({ kind: "congress_trade", stocks: [], side, every, person: named_[0].match[1] });
       }
     }
-    if (has(INSIDER_RE)) {
+    // "Tesla's CEO leaves" is not a trade: it gets the 8-K suggestion above, not an insider agent.
+    if (has(INSIDER_RE) && !secClause && !/\bceo (?:leaves|quits|resigns|steps down)\b/i.test(local)) {
       mark(INSIDER_RE);
       mark(TRADE_WORD_RE);
       mark(/\b(?:files?|filed|reports?|form)\b/gi);
@@ -1141,6 +1326,14 @@ export type ModelWatch = {
   weekday: number | null;
   side: "buy" | "sell" | null;
   person: string | null;
+  /** sec_filing: forms asked for ("8-K", "10-K", "10-Q", "S-1", "13D/G"). Optional for older answers. */
+  forms?: string[] | null;
+  /** sec_filing: 8-K item codes asked for, like "5.02". */
+  items?: string[] | null;
+  /** sec_filing: "something big". */
+  major?: boolean | null;
+  /** news_change: which change. */
+  news?: string | null;
 };
 
 export type ModelCannot = { quote: string; reason: CannotCode };
@@ -1222,6 +1415,8 @@ export function specFromModel(input: string, parsed: ModelParse, catalog: StockC
       side: watch.side === "buy" || watch.side === "sell" ? watch.side : null,
       person: typeof watch.person === "string" && inRequest(watch.person, input) ? inRequest(watch.person, input) : null,
       intraday: INTRADAY_RE.test(input) ? true : undefined,
+      ...(watch.kind === "sec_filing" ? { filings: cleanFilingFilter({ forms: watch.forms ?? [], items: watch.items ?? [], major: watch.major === true }) ?? null, shelf: /\bs-?3\b/i.test(input) } : {}),
+      ...(watch.kind === "news_change" ? { news: cleanNewsWatch(watch.news) } : {}),
     });
     INTRADAY_RE.lastIndex = 0;
   }

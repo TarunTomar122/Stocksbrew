@@ -10,7 +10,19 @@
  * There is one mode: tell me. A job never places a trade.
  */
 
+import {
+  cleanFilingFilter,
+  evaluateFilingEvent,
+  filingFilterAllowsAnyStock,
+  filingReplayNotes,
+  filingWhen,
+  filingTriggerLabel,
+  type FilingFact,
+  type FilingFilter,
+} from "@/lib/agent-events-filings";
+import { cleanNewsWatch, evaluateNewsEvent, newsReplayNotes, newsTriggerLabel, newsWatchPhrase, type NewsFacts, type NewsWatch } from "@/lib/agent-events-news";
 import { evaluateEarningsReported, type EarningsReportFact } from "@/lib/earnings-day-agent";
+import { can, type Plan } from "@/lib/entitlements";
 
 /* ── types ──────────────────────────────────────────────────────────────── */
 
@@ -21,12 +33,25 @@ export type AgentEventKind =
   | "insider_trade"
   | "earnings_approaching"
   | "earnings_reported"
-  | "mover";
+  | "mover"
+  /** A stock in scope filed a new SEC form (lib/agent-events-filings.ts). */
+  | "sec_filing"
+  /** The news about a stock in scope got much heavier or turned one way (lib/agent-events-news.ts). */
+  | "news";
 export type AgentPriceRule = "crosses_above" | "crosses_below" | "moves_pct" | "enters_buy_zone";
 
 export type AgentTrigger =
   | { type: "schedule"; cadence: AgentScheduleCadence; /** 1 = Monday … 5 = Friday. Weekly only. */ weekday?: number }
-  | { type: "event"; event: AgentEventKind; /** Earnings only: how many days ahead. */ days_before?: number }
+  | {
+      type: "event";
+      event: AgentEventKind;
+      /** Earnings only: how many days ahead. */
+      days_before?: number;
+      /** sec_filing only: which forms and 8-K items. None means any filing. */
+      filings?: FilingFilter;
+      /** news only: heavier than usual, a tone, or either. */
+      news?: NewsWatch;
+    }
   | { type: "price"; rule: AgentPriceRule; level?: number; pct?: number };
 
 export type AgentScope =
@@ -42,6 +67,23 @@ export type AgentJobDraft = {
   trigger: AgentTrigger;
   scope: AgentScope;
 };
+
+/**
+ * True for an agent that acts on a new SEC filing or a turn in the news
+ * (lib/entitlements.ts: `agent_events`, Pro only on the tighter line).
+ */
+export function usesProEvents(job: Pick<AgentJobDraft, "trigger">): boolean {
+  return job.trigger.type === "event" && (job.trigger.event === "sec_filing" || job.trigger.event === "news");
+}
+
+/** What a filing or news agent says when the plan does not include `agent_events` (one sentence everywhere: API errors, the run button, the plain box). */
+export const PRO_EVENTS_PAUSED =
+  "Watching filings and news is part of Pro. Change what this agent watches to a price, an earnings date or a big move to run it on Free.";
+
+/** Whether this plan may run this job at all, before the count limit: everything, except filing and news agents where the plan has no `agent_events`. */
+export function planMayRun(job: Pick<AgentJobDraft, "trigger">, plan: Plan): boolean {
+  return !usesProEvents(job) || can("agent_events", plan);
+}
 
 export type AgentJob = AgentJobDraft & {
   id: string;
@@ -59,7 +101,7 @@ export type AgentJob = AgentJobDraft & {
 
 export type AgentDecision = "notify" | "nothing" | "could_not_check";
 
-export type AgentFindingKind = "move" | "level" | "earnings" | "congress" | "insider" | "filing" | "mover";
+export type AgentFindingKind = "move" | "level" | "earnings" | "congress" | "insider" | "filing" | "mover" | "news";
 
 export type AgentFinding = {
   ticker: string | null;
@@ -86,6 +128,14 @@ export type AgentFinding = {
   level?: number | null;
   /** Earnings only: "bmo" or "amc" when known. */
   time?: string | null;
+  /** SEC filings only: the exact form, like "8-K" or "10-K/A". */
+  form?: string;
+  /** News only: distinct stories in the window, and on a normal session. */
+  stories?: number;
+  normal?: number | null;
+  /** News only: the side the news leaned, and the share of read stories on it. */
+  tone?: "negative" | "positive" | null;
+  tone_pct?: number | null;
 };
 
 /** How many things a run found in total, before the list was capped. */
@@ -131,7 +181,8 @@ export type AgentFacts = {
   /** Daily closes by ticker, oldest first. */
   prices: Record<string, AgentPriceSeries>;
   /** The add-below level from the current research call, by ticker. */
-  levels: Record<string, { add_below: number | null; trim_above?: number | null }>;
+  /** `locked`: the agent does not cover this stock for the account, so its levels were not loaded (lib/agent-jobs-data resolveScope). */
+  levels: Record<string, { add_below: number | null; trim_above?: number | null; locked?: true }>;
   earnings: Array<{ ticker: string; date: string; time?: string | null }>;
   fund_filings: Array<{ id: string; fund: string; date: string; headline: string; url: string | null; tickers: string[] }>;
   congress: Array<{
@@ -159,11 +210,24 @@ export type AgentFacts = {
   earnings_reports?: EarningsReportFact[];
   /** The days we kept a movers list for. A day outside it cannot be checked. */
   mover_days: string[];
+  /** SEC filings for every covered company (tm_agent_filings), each on the day it could first be read. */
+  filings?: FilingFact[];
+  /** Headlines naming the names in scope, with their tone labels (tm_agent_news, tm_agent_news_tone). */
+  news?: NewsFacts;
   /**
    * Whether each source has been collected at all. A source we do not have is
    * reported as "could not check", never as "nothing happened".
    */
-  available: { fund_filings: boolean; congress: boolean; insiders: boolean; earnings: boolean; movers: boolean; earnings_reports?: boolean };
+  available: {
+    fund_filings: boolean;
+    congress: boolean;
+    insiders: boolean;
+    earnings: boolean;
+    movers: boolean;
+    earnings_reports?: boolean;
+    filings?: boolean;
+    news?: boolean;
+  };
 };
 
 export const EMPTY_FACTS: AgentFacts = {
@@ -445,6 +509,36 @@ export const AGENT_TEMPLATES: AgentTemplate[] = [
     },
   },
   {
+    id: "sec-filing",
+    group: "Event",
+    title: "A company files with the SEC",
+    ask: "Tell me when one of my names files something with the SEC, like an 8-K or its annual report.",
+    tells: "When one of your stocks files a new form with the SEC, what it is about, and a link to the original.",
+    fields: [],
+    needs: "filings",
+    defaults: {
+      template: "sec-filing",
+      name: "New SEC filings from my names",
+      trigger: { type: "event", event: "sec_filing" },
+      scope: { kind: "watchlist" },
+    },
+  },
+  {
+    id: "news",
+    group: "Event",
+    title: "The news about a stock changes",
+    ask: "Tell me when the news about one of my names gets much heavier than usual or turns clearly negative or positive.",
+    tells: "When one of your stocks is suddenly all over the news, or its stories turn clearly bad or good, with the biggest story to read.",
+    fields: [],
+    needs: "news",
+    defaults: {
+      template: "news",
+      name: "News about my names",
+      trigger: { type: "event", event: "news", news: "any" },
+      scope: { kind: "watchlist" },
+    },
+  },
+  {
     id: "price-level",
     group: "Price",
     title: "Crosses a level",
@@ -539,6 +633,8 @@ export function triggerLabel(trigger: AgentTrigger): string {
   if (trigger.event === "insider_trade") return "Insider trade";
   if (trigger.event === "earnings_approaching") return `${trigger.days_before ?? 3} days before earnings`;
   if (trigger.event === "earnings_reported") return "Earnings came out";
+  if (trigger.event === "sec_filing") return filingTriggerLabel(trigger.filings);
+  if (trigger.event === "news") return newsTriggerLabel(trigger.news ?? "any");
   return "On the movers list";
 }
 
@@ -576,6 +672,8 @@ export function describeJob(job: Pick<AgentJobDraft, "trigger" | "scope">): stri
   if (trigger.event === "earnings_reported") {
     return `Tell me when ${anyOf(job.scope, who)} reports earnings, with the numbers against expectations and how the stock reacted.`;
   }
+  if (trigger.event === "sec_filing") return `Tell me when ${filingWhen(trigger.filings, anyOf(job.scope, who), job.scope.kind === "any")}.`;
+  if (trigger.event === "news") return `Tell me when ${newsWatchPhrase(trigger.news ?? "any", anyOf(job.scope, who))}.`;
   return `Tell me when ${anyOf(job.scope, who)} lands on the day's movers list.`;
 }
 
@@ -669,11 +767,18 @@ export function parseJobDraft(raw: unknown, options: { hidden?: string[] } = {})
         return { ok: false, error: "Pick between 1 and 14 days before earnings." };
       }
       trigger = { type: "event", event, days_before: Math.round(days) };
+    } else if (event === "sec_filing") {
+      const filings = cleanFilingFilter(rawTrigger.filings);
+      trigger = filings ? { type: "event", event, filings } : { type: "event", event };
+      // Every company's 8-Ks would be a flood; only offerings and big stakes make sense market-wide.
+      if (scope.kind === "any" && !filingFilterAllowsAnyStock(filings)) scope = { kind: "watchlist" };
+    } else if (event === "news") {
+      trigger = { type: "event", event, news: cleanNewsWatch(rawTrigger.news) };
     } else {
       trigger = { type: "event", event };
     }
-    // Earnings and movers are about names the person follows; "any" would be the whole market.
-    if (scope.kind === "any" && (event === "earnings_approaching" || event === "earnings_reported" || event === "mover")) scope = { kind: "watchlist" };
+    // Earnings, movers and news are about names the person follows; "any" would be the whole market.
+    if (scope.kind === "any" && (event === "earnings_approaching" || event === "earnings_reported" || event === "mover" || event === "news")) scope = { kind: "watchlist" };
   }
 
   const typed = typeof input.name === "string" ? input.name.replace(/\s+/g, " ").trim().slice(0, 80) : "";
@@ -736,6 +841,7 @@ function evaluatePrice(
   const missing: string[] = [];
   const stale: string[] = [];
   const noLevel: string[] = [];
+  const notCovered: string[] = [];
   let fresh = 0;
   let lastDate = "";
 
@@ -786,7 +892,9 @@ function evaluatePrice(
       }
     } else {
       const addBelow = facts.levels[ticker]?.add_below ?? null;
-      if (addBelow == null || !(addBelow > 0)) {
+      if (facts.levels[ticker]?.locked) {
+        notCovered.push(ticker);
+      } else if (addBelow == null || !(addBelow > 0)) {
         noLevel.push(ticker);
       } else if (quote.prev > addBelow && quote.close <= addBelow) {
         push(`${ticker} closed in its add zone, at or below ${price(addBelow)}`, { kind: "level", zone: "add", level: addBelow });
@@ -799,6 +907,7 @@ function evaluatePrice(
     ...(stale.length ? [`No new close since the last check: ${listNames(stale)}`] : []),
     ...(missing.length ? [`No price history: ${listNames(missing)}`] : []),
     ...(noLevel.length ? [`No add level in the research call: ${listNames(noLevel)}`] : []),
+    ...(notCovered.length ? [`Not covered on your plan, so not checked: ${listNames(notCovered)}`] : []),
   ];
 
   const latest_close = lastDate || null;
@@ -824,8 +933,11 @@ function evaluatePrice(
   if (fresh === 0 && stale.length === 0) {
     return couldNot(`Could not check: no price history for ${listNames(missing)}.`, checked);
   }
-  if (trigger.rule === "enters_buy_zone" && noLevel.length === fresh && fresh > 0) {
-    return { ...couldNot("Could not check: none of these names has an add level in its research call.", checked), latest_close };
+  if (trigger.rule === "enters_buy_zone" && notCovered.length === fresh && fresh > 0) {
+    return { ...couldNot(`Could not check: ${fresh === 1 ? "this stock is" : "none of these stocks is"} covered on your plan, so ${fresh === 1 ? "its" : "their"} add levels are not checked.`, checked), latest_close };
+  }
+  if (trigger.rule === "enters_buy_zone" && noLevel.length + notCovered.length === fresh && fresh > 0) {
+    return { ...couldNot("Could not check: none of these names has an add level we can check on your plan.", checked), latest_close };
   }
   if (fresh === 0) return nothing("Checked, nothing to do. There has been no new close since the last check.", checked);
   return {
@@ -983,6 +1095,8 @@ function evaluateEvent(
   }
 
   if (trigger.event === "earnings_reported") return evaluateEarningsReported(facts, { day, since, tickers }, MAX_FINDINGS);
+  if (trigger.event === "sec_filing") return evaluateFilingEvent(trigger.filings, scope, facts, { day, since, tickers }, MAX_FINDINGS);
+  if (trigger.event === "news") return evaluateNewsEvent(trigger.news ?? "any", scope, facts, { day, since, tickers }, MAX_FINDINGS);
   if (trigger.event === "earnings_approaching") {
     if (!facts.available.earnings) {
       return couldNot("Could not check: the earnings calendar was not available.", ["Earnings calendar: unavailable"]);
@@ -1266,6 +1380,8 @@ export function replayJob(
   if (trigger.type === "event" && trigger.event === "mover") {
     notes.push("The movers list is replayed only for the days we kept it.");
   }
+  if (trigger.type === "event" && trigger.event === "sec_filing") notes.push(...filingReplayNotes());
+  if (trigger.type === "event" && trigger.event === "news") notes.push(...newsReplayNotes(facts.news));
   if ((trigger.type === "event" && trigger.event === "congress_trade") || trigger.type === "schedule") {
     notes.push("Congressional trades are placed on the day they were disclosed, which is when anyone could have known.");
   }

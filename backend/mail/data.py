@@ -13,10 +13,10 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from backend.mail.source import Source
-from backend.subscription_entitlement import covered_instrument_ids, is_pro_user
+from backend.subscription_entitlement import FREE_COVERED_STOCKS, covered_instrument_ids, is_pro_user
 
 ET = ZoneInfo("America/New_York")
-FREE_COVERED_STOCKS = 5  # mirrors lib/entitlements.ts
+# FREE_COVERED_STOCKS comes from backend.subscription_entitlement (5, or 3 on PAYWALL_V2).
 PRICE_MAX_AGE_HOURS = 80  # a Friday close is still "the last close" on Monday morning
 VIEW_MAX_AGE_HOURS = 72
 

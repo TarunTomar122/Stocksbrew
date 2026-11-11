@@ -1,3 +1,5 @@
+import { FREE_COVERED_WORD } from "@/lib/paywall-flag";
+
 /**
  * Approved product copy (v0.3). Source of truth: docs/product-voice.md
  */
@@ -13,7 +15,7 @@ export const SHORT_DESCRIPTION =
   "An investing agent that reads for you. It never touches your money.";
 
 export const MEDIUM_DESCRIPTION =
-  "Search any US stock for financials, valuation, filings, earnings, analyst targets and news. Follow up to five stocks free in your Watchlist.";
+  `Search any US stock for financials, valuation, filings, earnings, analyst targets and news. Follow as many stocks as you like for free, with the full report on ${FREE_COVERED_WORD} you pick.`;
 
 export const LONG_DESCRIPTION =
   "Search any US stock for financials, valuation, filings, earnings, analyst targets and news. Add the stocks you care about to your Watchlist and we’ll keep checking new filings, earnings reports and news. Pro adds detailed calls, price zones, targets and unlimited tracking. Research only, not investment advice.";
@@ -25,7 +27,14 @@ export const HERO_HEADLINE_EMPHASIS = "that tells you what to buy and why.";
 export const HERO_SUBHEAD =
   "It goes through the filings, earnings and news, then tells you why each stock moved, what changed, and what is worth a look next.";
 
-export const HERO_FOOTNOTE = "Our call on every stock is free, and so is the full report on five you pick. No card, no broker login.";
+/**
+ * How many stocks have our call, in words, for copy that would otherwise promise "every stock". The screener
+ * snapshot (tm_screener_snapshot/US, `call` column) had a call on 726 of its 796 stocks on Nov 11, 2026. Keep this
+ * below the real count; recheck it when the universe changes.
+ */
+export const CALL_COVERAGE = "more than 700 US stocks";
+
+export const HERO_FOOTNOTE = `Our call on ${CALL_COVERAGE} is free, and so is the full report on ${FREE_COVERED_WORD} you pick. No card, no broker login.`;
 
 /** Homepage block above live movers / Reddit / sectors (Finviz-style labels, not manifesto). */
 export const HOME_LIVE_FEED_EYEBROW = "Market today";

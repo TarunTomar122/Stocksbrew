@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { askModel } from "@/lib/ask-llm";
-import { consumeMeter, getViewer, peekMeter } from "@/lib/entitlements-server";
+import { ruleFor } from "@/lib/entitlements";
+import { METER_UNAVAILABLE_MESSAGE, consumeMeter, getViewer, peekMeter } from "@/lib/entitlements-server";
 import { STEP_LOADERS } from "@/lib/research/gather";
 import { runResearch } from "@/lib/research/run";
 import { researchStore, runningItem } from "@/lib/research/store";
@@ -85,6 +86,10 @@ export async function POST(req: NextRequest) {
   if (!summary) return json(404, { code: "not_found", message: `We do not cover ${ticker} yet, so there is nothing to research.` });
 
   const meter = await peekMeter(FEATURE, viewer.plan, viewer.uid);
+  // A long report is a real model bill, so a counter we cannot read means "try again", never "run uncounted".
+  if (!meter && ruleFor(FEATURE, viewer.plan).kind === "meter") {
+    return json(503, { code: "unavailable", message: METER_UNAVAILABLE_MESSAGE });
+  }
   if (meter && !meter.allowed) {
     return json(429, { code: "limit", plan: viewer.plan, limit: meter.limit, used: meter.used, message: `That is all ${meter.limit} reports for this month. Your saved reports stay open.` });
   }

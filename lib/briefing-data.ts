@@ -17,6 +17,7 @@ import {
   BRIEFING_ITEM_ID_RE,
   briefingWindow,
   buildBriefing,
+  gateSavedBriefing,
   daysBetween,
   marketDay,
   seenKeys,
@@ -42,6 +43,7 @@ import {
   newsFromArticle,
   withMarketIndexFigures,
   positionFromRow,
+  uncoveredPosition,
   triggeredAlertFromDoc,
 } from "@/lib/briefing-inputs";
 import { listRuns } from "@/lib/agent-jobs-data";
@@ -57,7 +59,11 @@ import { getNewsFeed } from "@/lib/news";
 import { getPowerTradesCached } from "@/lib/power-trades";
 import { getPreEarningsIntelForInstruments } from "@/lib/pre-earnings-intel";
 import { getRedditCues, hasRedditBrief } from "@/lib/reddit-cues";
+import { afterResponse } from "@/lib/after-response";
+import { fingerprint, perUserCache } from "@/lib/per-user-cache";
+import { sharedCache } from "@/lib/shared-cache";
 import { getUserDoc } from "@/lib/watchlist";
+import { isCovered, viewerFromUserDoc } from "@/lib/entitlements-server";
 import {
   getRadarStockStates,
   getRadarUserView,
@@ -281,11 +287,18 @@ async function loadAgentRuns(uid: string): Promise<BriefingAgentRun[]> {
     }));
 }
 
-async function buildMarketBriefing(now: Date): Promise<{ briefing: Briefing; degraded: string[] }> {
+type MarketBuild = { briefing: Briefing; degraded: string[]; /** False when a read the page does not flag (reports, calendar) failed. */ complete: boolean };
+
+async function buildMarketBriefing(now: Date): Promise<MarketBuild> {
+  let complete = true;
+  const missed = <T,>(fallback: T) => () => {
+    complete = false;
+    return fallback;
+  };
   const [market, reports, upcoming] = await Promise.all([
     loadMarketInputs(),
-    listAllEarningsIntelDocs().catch(() => []),
-    loadMarketUpcoming(marketDay(now)).catch(() => []),
+    listAllEarningsIntelDocs().catch(missed([])),
+    loadMarketUpcoming(marketDay(now)).catch(missed([] as BriefingUpcomingEarnings[])),
   ]);
   const { degraded, ...inputs } = market;
   const briefing = buildBriefing({
@@ -304,7 +317,47 @@ async function buildMarketBriefing(now: Date): Promise<{ briefing: Briefing; deg
     attention: [],
     upcoming_earnings: upcoming,
   });
-  return { briefing, degraded };
+  return { briefing, degraded, complete };
+}
+
+/** Thrown inside the cache so a build missing a source is never kept; carries the build so it is not redone. */
+class IncompleteMarketBuild extends Error {
+  declare readonly build: MarketBuild;
+  constructor(build: MarketBuild) {
+    super("market briefing built without every source");
+    // Not enumerable, so Next's log line for a failed background refresh stays one line.
+    Object.defineProperty(this, "build", { value: build, enumerable: false });
+  }
+}
+
+/**
+ * The market view is the same for everyone (signed out, and signed in with nothing tracked or not built yet), so
+ * it is built once a minute per market day and shared, like the cached signed-out page. Without this every
+ * signed-in market view read the whole earnings-report collection (~1-2MB) and an uncached calendar query.
+ */
+const marketBriefingCached = sharedCache(
+  async (_day: string): Promise<MarketBuild> => {
+    const build = await buildMarketBriefing(new Date());
+    if (build.degraded.length > 0 || !build.complete) throw new IncompleteMarketBuild(build);
+    return build;
+  },
+  ["briefing-market-v1"],
+  { revalidate: 60 },
+);
+
+/** How old a shared market build may be. unstable_cache serves a stale entry however old it is (and refreshes it behind). */
+const MARKET_BUILD_MAX_AGE_MS = 3 * 60_000;
+
+async function marketBriefing(now: Date): Promise<MarketBuild> {
+  try {
+    const build = await marketBriefingCached(marketDay(now));
+    const age = now.getTime() - Date.parse(build.briefing.built_at);
+    // A copy from before the market day turned, or left over from a quiet stretch, is built again here.
+    if (build.briefing.date === marketDay(now) && age >= -60_000 && age < MARKET_BUILD_MAX_AGE_MS) return build;
+  } catch (error) {
+    if (error instanceof IncompleteMarketBuild) return error.build;
+  }
+  return buildMarketBriefing(now);
 }
 
 /* ── per-person inputs ──────────────────────────────────────────────────── */
@@ -356,8 +409,10 @@ async function buildPersonalBriefing(input: {
   now: Date;
   previous: { day: string; doc: BriefingStateDoc } | null;
   holdings: Record<string, { quantity?: number | null; market_value?: number | null }>;
+  /** Whether the agent covers this stock for the account (lib/entitlements: briefing_personal is "covered"). */
+  covers: (instrumentId: string) => boolean;
 }): Promise<{ briefing: Briefing; positions: BriefingPosition[]; degraded: string[] }> {
-  const { uid, rows, now, previous, holdings } = input;
+  const { uid, rows, now, previous, holdings, covers } = input;
   const today = marketDay(now);
   const ids = rows.map((row) => row.instrument_id);
   const degraded: string[] = [];
@@ -387,7 +442,7 @@ async function buildPersonalBriefing(input: {
   const draftPositions = rows.map((row) => {
     const latest = quotes.get(row.instrument_id);
     const quote = latest?.quote;
-    return positionFromRow(row, {
+    const position = positionFromRow(row, {
       state: states[row.instrument_id] ?? null,
       label: labels.get(row.instrument_id) ?? null,
       pre_earnings: preById.get(row.instrument_id) ?? null,
@@ -403,6 +458,7 @@ async function buildPersonalBriefing(input: {
           }
         : null,
     });
+    return covers(row.instrument_id) ? position : uncoveredPosition(position);
   });
   const times = await loadEarningsTimes(draftPositions, today);
   const positions = draftPositions.map((position) => ({
@@ -434,6 +490,16 @@ async function buildPersonalBriefing(input: {
   });
   return { briefing, positions, degraded: [...new Set(degraded)] };
 }
+
+/**
+ * This person's built briefing, kept for a minute in this server's memory (lib/per-user-cache.ts: keyed by uid,
+ * never shared between people). A build missing a source is not kept.
+ */
+const personalBuilds = perUserCache<{ briefing: Briefing; positions: BriefingPosition[]; degraded: string[] }>({
+  ttlMs: 60_000,
+  max: 200,
+  keep: (build) => build.degraded.length === 0,
+});
 
 /** Keep today's briefing so it can be reopened on a later day. Additive, own document only. */
 async function saveSnapshot(
@@ -490,7 +556,7 @@ export async function loadBriefingPage(
   const session = await getSessionUser().catch(() => null);
 
   if (!session) {
-    const { briefing, degraded } = await buildMarketBriefing(now);
+    const { briefing, degraded } = await marketBriefing(now);
     return { briefing, viewer: { kind: "signed_out" }, state: {}, days: [], archived: false, degraded };
   }
 
@@ -513,8 +579,10 @@ export async function loadBriefingPage(
   if (requested && requested !== today) {
     const doc = stateDocs.get(requested);
     if (doc && isBriefing(doc.snapshot)) {
+      // Read back under today's coverage: an old day must not explain a stock the agent does not cover now.
+      const coverage = viewerFromUserDoc(uid, userDoc);
       return {
-        briefing: doc.snapshot,
+        briefing: gateSavedBriefing(doc.snapshot, (instrumentId) => isCovered(coverage, instrumentId)),
         viewer: { kind: "member", uid },
         state: cleanState(doc.items),
         days: history,
@@ -525,7 +593,7 @@ export async function loadBriefingPage(
   }
 
   if (tracked.length === 0) {
-    const { briefing, degraded } = await buildMarketBriefing(now);
+    const { briefing, degraded } = await marketBriefing(now);
     return { briefing, viewer: { kind: "empty", uid }, state: {}, days: [], archived: false, degraded };
   }
 
@@ -542,7 +610,7 @@ export async function loadBriefingPage(
     }));
 
   if (rows.length === 0) {
-    const { briefing, degraded } = await buildMarketBriefing(now);
+    const { briefing, degraded } = await marketBriefing(now);
     return {
       briefing,
       viewer: { kind: "pending", uid, tracked: tracked.length },
@@ -553,24 +621,41 @@ export async function loadBriefingPage(
     };
   }
 
+  // The same plan and coverage getViewer gives this person, from the doc already in hand (no second read).
+  const coverage = viewerFromUserDoc(uid, userDoc);
   const previousDay = briefingWindow(today)
     .slice(1)
     .find((day) => stateDocs.has(day));
   const previousDoc = previousDay ? stateDocs.get(previousDay) : undefined;
-  const { briefing, positions, degraded } = await buildPersonalBriefing({
-    uid,
+  const previous = previousDay && previousDoc ? { day: previousDay, doc: previousDoc } : null;
+  const holdings =
+    userDoc?.watchlist_holdings && typeof userDoc.watchlist_holdings === "object" ? userDoc.watchlist_holdings : {};
+  // Opening the briefing again within a minute reuses this person's last build. The key covers what they edit
+  // (tracked rows, holdings, plan and coverage) and yesterday's calls, so an edit shows at once; alerts, call
+  // changes, filings and agent runs can lag by up to that minute.
+  const buildKey = fingerprint({
+    today,
     rows,
-    now,
-    previous: previousDay && previousDoc ? { day: previousDay, doc: previousDoc } : null,
-    holdings:
-      userDoc?.watchlist_holdings && typeof userDoc.watchlist_holdings === "object" ? userDoc.watchlist_holdings : {},
+    holdings,
+    plan: coverage.plan,
+    covered: coverage.covered,
+    previous: previous ? { day: previous.day, seen: previous.doc.seen ?? [], calls: previous.doc.calls ?? {} } : null,
   });
+  const { briefing, positions, degraded } = await personalBuilds.get(uid, buildKey, () =>
+    buildPersonalBriefing({
+      uid,
+      rows,
+      now,
+      previous,
+      holdings,
+      covers: (instrumentId) => isCovered(coverage, instrumentId),
+    }),
+  );
 
   const todayDoc = stateDocs.get(today);
   if (options.persist) {
-    await saveSnapshot(uid, briefing, positions, todayDoc, now).catch((error) => {
-      console.warn("[briefing] could not save today's snapshot", error);
-    });
+    // Bookkeeping for reopening this day later: it never holds the page.
+    afterResponse("briefing snapshot", saveSnapshot(uid, briefing, positions, todayDoc, now));
   }
 
   return {

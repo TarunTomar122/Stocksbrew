@@ -89,7 +89,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const indexRead = known
     ? getStockFamily(upper).then((family) => stockHasCurrentRead(family.row, todayET()), () => true)
     : Promise.resolve(true);
-  if ((exists ?? (await existsRead)) === "no") return { title: "Stock not found", robots: { index: false, follow: true } };
+  // A catalogued stock is known to exist, so its metadata (which holds the first byte) does not wait on the check.
+  if (!profile && exists === "no") return { title: "Stock not found", robots: { index: false, follow: true } };
   const live = await liveRead;
   const identity = profile ?? live;
   const title = identity
@@ -142,8 +143,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function StockPage({ params }: Props) {
   const { symbol } = await params;
-  if ((await stockExists(symbol)) === "no") notFound();
   const ticker = normalizeStockSymbolParam(symbol) ?? symbol.toUpperCase();
+  // Only symbols outside the catalogue wait for the store before anything streams (a real 404, see stockExists).
+  // The 500 catalogued stocks always exist, so their shell goes out at once. If one were ever missing from the
+  // store, the report would show its "not covered yet" view (with a 200) instead of the 404 page.
+  if (!getSeoStockPage(ticker) && (await stockExists(symbol)) === "no") notFound();
   return (
     <main className={`oa-landing stock-report-page ${interTight.variable} min-w-0 flex-grow overflow-x-clip`}>
       <style>{STICKY_FIX}</style>

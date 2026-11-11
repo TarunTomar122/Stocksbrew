@@ -5,6 +5,7 @@ import { isDodoConfigured, DODO_BASE, dodoHeaders, productIdFor } from "@/lib/do
 import { recordLifecycleEvent } from "@/lib/lifecycle-events";
 import { captureServerEventSafe } from "@/lib/posthog-server-capture";
 import { isTrialEligible } from "@/lib/trial-eligibility";
+import { PAYWALL_VARIANT } from "@/lib/paywall-flag";
 
 export async function POST(req: NextRequest) {
   // 1. Verify Firebase ID token from Authorization header
@@ -134,7 +135,8 @@ export async function POST(req: NextRequest) {
         lastCheckoutCreatedAt: new Date().toISOString(),
         lastCheckoutPlan: effectivePeriod,
         lastCheckoutMarket: market,
-        lastCheckoutSource: { surface: checkoutSurface, feature: checkoutFeature },
+        // `paywall`: which Free/Pro line the person was on when they chose to pay, read back by the webhook.
+        lastCheckoutSource: { surface: checkoutSurface, feature: checkoutFeature, paywall: PAYWALL_VARIANT },
       },
       { merge: true },
     );
@@ -160,6 +162,7 @@ export async function POST(req: NextRequest) {
     checkout_session_id: session.id ?? null,
     surface: checkoutSurface,
     feature: checkoutFeature,
+    paywall: PAYWALL_VARIANT,
     $insert_id: session.id
       ? `checkout:${session.id}`
       : `checkout:${uid}:${effectivePeriod}:${market}:${Date.now()}`,

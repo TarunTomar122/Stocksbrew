@@ -9,6 +9,7 @@ import { SquircleSurface } from "@/components/oa/squircle";
 import { interTight } from "@/components/oa/font";
 import { Reveal } from "@/components/reveal";
 import {
+  CALL_COVERAGE,
   HERO_FOOTNOTE,
   HERO_HEADLINE_EMPHASIS,
   HERO_HEADLINE_LEAD,
@@ -141,7 +142,7 @@ export async function OaLanding() {
           {!user.isSubscribed ? (
             <section id="pricing" className="scroll-mt-24">
               <SectionHead
-                title="Our call on every stock is free. Pro adds the full report on all of them."
+                title={`Our call on ${CALL_COVERAGE} is free. Pro adds the full report on all of them.`}
                 lede={`A free account also gets the full report on ${countWord(limitFor("covered_stocks", "free"))} stocks you pick: why we made the call, and the prices where we'd buy more or sell some.`}
                 href="/pricing"
                 hrefLabel="Compare the plans"

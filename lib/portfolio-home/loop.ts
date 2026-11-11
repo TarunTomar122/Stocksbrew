@@ -1,7 +1,8 @@
 import type { AgentScope, AgentTrigger } from "@/lib/agent-jobs";
+import { agentHref, firedFor, nextCheckFor, stampWords } from "@/lib/agent-watch";
 import { fmtPlanDay } from "@/lib/dividend-plan";
 
-import { nextAgentCheck, type AgentsSource, type LogRow } from "./log";
+import { previousMarketDay, type AgentsSource, type LogRow } from "./log";
 import type { HomeMode, Loaded, Noticed } from "./pick";
 import { questionFor, type HomeQuestion } from "./questions";
 import { askHref } from "@/lib/next-steps";
@@ -141,23 +142,15 @@ export function matchAgent(plan: WatchPlan | null, ticker: string | null, agents
   if (!found) return null;
   const lastRun =
     agents.runs.filter((run) => run.job_id === found.id).sort((a, b) => b.day.localeCompare(a.day) || b.ran_at.localeCompare(a.ran_at))[0] ?? null;
-  const next = found.enabled && !found.weekly ? (nextAgentCheck(agents, today)?.day ?? null) : null;
+  const next = nextCheckFor(
+    found,
+    agents.runs.filter((run) => run.job_id === found.id),
+    today,
+  );
   return { id: found.id, name: found.name, enabled: found.enabled, lastRun, next };
 }
 
-/** "Nov 10 at 5:41 PM ET", or the day alone when there is no time. */
-export function stampWords(at: string | null, day: string | null): string {
-  if (at) {
-    const date = new Date(at);
-    if (!Number.isNaN(date.getTime()) && at.includes("T")) {
-      const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).formatToParts(date);
-      const get = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
-      // No-break spaces keep "3:13 PM ET" on one line.
-      return `${get("month")}\u00a0${get("day")} at ${get("hour")}:${get("minute")}\u00a0${get("dayPeriod")}\u00a0ET`;
-    }
-  }
-  return day && /^\d{4}-\d{2}-\d{2}/.test(day) ? fmtPlanDay(day) : "";
-}
+export { stampWords };
 
 const RAN: Record<AgentsSource["runs"][number]["decision"], string> = {
   notify: "and had something to tell you",
@@ -192,4 +185,60 @@ export function watchStatus(input: {
 /** "After the close today", "After the close on Nov 12". */
 export function nextWords(day: string, today: string): string {
   return day === today ? "After the close today." : `After the close on ${fmtPlanDay(day)}.`;
+}
+
+/** The one line a finding shows beside it, closed or open: whether a watch covers it and what that watch last found. */
+export type FindingWatchLine = {
+  text: string;
+  /** The run that flagged it, when the watch fired. */
+  link: { label: string; href: string } | null;
+  /** True when the watch's latest run flagged this finding's stock. */
+  fired: boolean;
+};
+
+/**
+ * Whether a watch covers a lead finding, and its latest outcome, in one line:
+ * the agent that has the finding's rule (watchStatus), else any of the
+ * person's agents whose latest run flagged the stock, else the reason watcher's
+ * last check for a reason finding. Null when there is nothing honest to say.
+ */
+export function findingWatchLine(input: {
+  plan: WatchPlan | null;
+  match: AgentMatch | null;
+  ticker: string | null;
+  agents: Loaded<AgentsSource>;
+  /** False for the example: the person's own agents say nothing about the example's stocks. */
+  mine: boolean;
+  /** The reason watcher's last check day, for a reason finding. */
+  reasonDay: string | null;
+  /** New York day, YYYY-MM-DD: only a run from the last market day or today counts as news. */
+  today: string;
+}): FindingWatchLine | null {
+  const { plan, match, ticker, agents, mine, reasonDay, today } = input;
+  if (plan?.kind === "reasons") {
+    return reasonDay ? { text: `The reason watcher last checked this on ${fmtPlanDay(reasonDay)}.`, link: null, fired: false } : null;
+  }
+  const ready = mine && agents.state === "ready" ? agents.value : null;
+  const symbol = ticker ? ticker.toUpperCase() : null;
+  // Only when its latest run named this stock: a watchlist agent that flagged AMD says nothing about NVDA.
+  if (match?.enabled && match.lastRun?.decision === "notify" && match.lastRun.day >= previousMarketDay(today) && symbol && (match.lastRun.tickers ?? []).some((one) => one.toUpperCase() === symbol)) {
+    const ran = stampWords(match.lastRun.ran_at, match.lastRun.day);
+    return {
+      text: `Your agent “${match.name}” flagged this${ran ? ` on ${ran}` : ""}.`,
+      link: { label: "See what it found", href: agentHref(match.id) },
+      fired: true,
+    };
+  }
+  if (!match && ready) {
+    const fired = firedFor(ticker, ready, today);
+    if (fired) {
+      return {
+        text: `Your agent “${fired.job.name}” flagged ${ticker!.toUpperCase()} on ${fmtPlanDay(fired.run.day)}.`,
+        link: { label: "See what it found", href: agentHref(fired.job.id) },
+        fired: true,
+      };
+    }
+  }
+  const status = watchStatus({ plan, match, agents: mine ? agents.state : "none" });
+  return status ? { text: status, link: null, fired: false } : null;
 }

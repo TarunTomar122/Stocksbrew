@@ -173,6 +173,11 @@ describe("copy test pages", () => {
     expect(whoLine({ kind: "congress", person: "X", party: "D", state: "CA", district: "11" })).toBe("Democrat, CA-11");
   });
 
+  it("a senator reads as a senator for their state, with no district", () => {
+    expect(whoLine({ kind: "congress", chamber: "senate", person: "X", party: "D", state: "RI", district: "" })).toBe("Democrat, senator for RI");
+    expect(whoLine({ kind: "congress", chamber: "senate", person: "X", party: "", state: "RI" })).toBe("Senator for RI");
+  });
+
   it("never quotes a stock's rise beside a loss on it", () => {
     // Bought more after it rose, then it fell: up 1% overall but a loss for the copy.
     const worst = positionSentence(position({ ticker: "GOOGL", pnl: -375, return: 0.0136, first: "2025-11-17" }), false);
@@ -247,7 +252,12 @@ describe("ranking", () => {
     expect(read.insights[0]!.text).toBe("1 of 1 House members beat the S&P 500 when copied from their first reported buy.");
     expect(read.insights[1]!.id).toBe("best-fund-b");
     expect(read.insights[2]!.id).toBe("best-member-p");
+    expect(read.source).toContain("SEC 13F filings, House trade reports and daily closes");
     expect(buildHubRead(null)).toBeNull();
+    // With a senator in the rows the count and the source name both chambers.
+    const mixed = buildHubRead({ ...hub, rows: [...rows, { ...rows.find((row) => row.slug === "p")!, slug: "s", chamber: "senate", eligible: false }] })!;
+    expect(mixed.insights[0]!.text).toContain("members of Congress beat the S&P 500");
+    expect(mixed.source).toContain("House and Senate trade reports");
   });
 });
 

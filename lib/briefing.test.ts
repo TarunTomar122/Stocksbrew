@@ -10,6 +10,7 @@ import {
   buildBriefing,
   compareItems,
   daysBetween,
+  gateSavedBriefing,
   joinList,
   leadSentences,
   marketDay,
@@ -1021,5 +1022,70 @@ describe("quiet is never a cut-off", () => {
     const briefing = buildBriefing(input({ positions }));
     expect(briefing.quiet.names.map((name) => name.ticker)).toEqual(["CALM"]);
     expect(briefing.needs_you.length + briefing.also_today.length).toBe(30);
+  });
+});
+
+describe("stocks the agent does not cover (Free)", () => {
+  it("names an uncovered move without explaining it, and keeps it out of the quiet list", () => {
+    const briefing = buildBriefing(
+      input({
+        positions: [
+          position({ ticker: "NVDA", day_change_pct: -6.2, stance: "accumulate" }),
+          position({ ticker: "TSLA", day_change_pct: -5.1, stance: "accumulate", covered: false }),
+          position({ ticker: "AMD", day_change_pct: 4.4, covered: false }),
+          position({ ticker: "KO", day_change_pct: 0.1, covered: false }),
+        ],
+        movers: [mover({ ticker: "TSLA", day_change_pct: -5.1, move_explanation: CONFIRMED })],
+      }),
+    );
+    const items = [...briefing.needs_you, ...briefing.also_today];
+    expect(items.some((item) => item.ticker === "NVDA" && item.kind === "price_move")).toBe(true);
+    expect(items.some((item) => item.ticker === "TSLA" || item.ticker === "AMD")).toBe(false);
+    expect(briefing.locked_moves).toEqual([
+      { ticker: "TSLA", instrument_id: "US_TSLA", relation: "holding", day_change_pct: -5.1 },
+      { ticker: "AMD", instrument_id: "US_AMD", relation: "holding", day_change_pct: 4.4 },
+    ]);
+    expect(briefing.quiet.names.map((name) => name.ticker)).toEqual(["KO"]);
+    // Explaining TSLA's move against the person's own book is the covered work. (The market strip may still name
+    // the reason when TSLA is one of the day's biggest movers for everyone: that part is public.)
+    expect(JSON.stringify(items)).not.toContain("board opens a probe");
+  });
+
+  it("does not call the day quiet when only uncovered stocks moved", () => {
+    const briefing = buildBriefing(
+      input({
+        positions: [
+          position({ ticker: "KO", day_change_pct: 0.1 }),
+          position({ ticker: "TSLA", day_change_pct: -5.1, covered: false }),
+          position({ ticker: "AMD", day_change_pct: 4.4, covered: false }),
+        ],
+      }),
+    );
+    expect(briefing.summary).toBe("Nothing on your covered stocks needs you. Two other stocks moved, and they are named below.");
+  });
+
+  it("reads a saved day back under today's coverage", () => {
+    const saved = buildBriefing(
+      input({
+        positions: [
+          position({ ticker: "NVDA", day_change_pct: -6.2, stance: "accumulate", add_below: 99 }),
+          position({ ticker: "TSLA", day_change_pct: -5.1, stance: "accumulate" }),
+        ],
+        movers: [mover({ ticker: "TSLA", day_change_pct: -5.1, move_explanation: CONFIRMED })],
+      }),
+    );
+    const before = [...saved.needs_you, ...saved.also_today];
+    expect(before.some((item) => item.ticker === "TSLA")).toBe(true);
+    const gated = gateSavedBriefing(saved, (id) => id === "US_NVDA");
+    const after = [...gated.needs_you, ...gated.also_today];
+    expect(after.some((item) => item.ticker === "TSLA")).toBe(false);
+    expect(after.some((item) => item.ticker === "NVDA")).toBe(true);
+    expect(gated.locked_moves?.map((move) => move.ticker)).toEqual(["TSLA"]);
+    expect(gateSavedBriefing(saved, () => true)).toEqual({ ...saved, nothing_needs_you: saved.needs_you.length === 0 });
+  });
+
+  it("sends no locked moves when every stock is covered", () => {
+    const briefing = buildBriefing(input({ positions: [position({ ticker: "NVDA", day_change_pct: -6.2 })] }));
+    expect(briefing.locked_moves).toBeUndefined();
   });
 });

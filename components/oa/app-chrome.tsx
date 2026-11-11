@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 
+import { AskPanelButton, AskPanelHost } from "@/components/ask/ask-panel-host";
 import { ChromeSwitch } from "@/components/oa/chrome-switch";
 import { MarketingBar } from "@/components/oa/marketing-bar";
 import { MobileNav } from "@/components/oa/mobile-nav";
@@ -80,6 +81,7 @@ export function AppChrome() {
         </Link>
         <div className="px-3 pb-3">
           <OaHeaderSearchButton trigger="row" />
+          <AskPanelButton variant="row" />
         </div>
         <SidebarNav />
         <div className="flex h-14 shrink-0 items-center gap-3 border-t border-oa-border px-4">
@@ -95,6 +97,7 @@ export function AppChrome() {
         </Link>
         <div className="flex items-center gap-2">
           <OaHeaderSearchButton />
+          <AskPanelButton variant="pill" />
           <Suspense fallback={<CornerGhost wide={false} />}>
             <TopBarAccount />
           </Suspense>
@@ -116,6 +119,8 @@ export function AppChrome() {
     <>
       <ChromeSwitch app={app} marketing={marketing} />
       <MobileNav />
+      {/* Ask beside any page: only the button and a click catcher load with the page; the panel loads on first open. */}
+      <AskPanelHost />
     </>
   );
 }

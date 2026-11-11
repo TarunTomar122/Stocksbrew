@@ -35,7 +35,7 @@ vi.mock("next/headers", () => ({ headers: () => new Map() }));
 vi.mock("@/lib/auth-server", () => ({ getSessionUser: async () => null }));
 vi.mock("@/lib/seo/stock-pages", () => ({ isFeaturedStockTicker: (ticker: string) => ticker === "SHOW" }));
 
-import { canSeeLevels, consumeMeter, coveredSlotsLeft, isCovered, peekMeter, type Viewer } from "./entitlements-server";
+import { FAIL_CLOSED_METERS, canSeeLevels, consumeMeter, coveredSlotsLeft, isCovered, peekMeter, type Viewer } from "./entitlements-server";
 
 const DAY = new Date("2026-11-10T15:00:00Z");
 const NEXT_DAY = new Date("2026-11-11T00:00:01Z");
@@ -95,10 +95,27 @@ describe("consumeMeter", () => {
     expect(result).toMatchObject({ allowed: true, limit: 50, remaining: 49 });
   });
 
-  it("fails open when the store is down", async () => {
+  it("fails closed on a costly feature when the store is down, and says try again", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     store.fail = true;
-    expect((await consumeMeter("ask", "free", "u1", DAY)).allowed).toBe(true);
+    for (const feature of ["ask", "deep_research"] as const) {
+      const result = await consumeMeter(feature, "free", "u1", DAY);
+      expect(result, feature).toMatchObject({ allowed: false, unavailable: true, remaining: 0 });
+    }
+    expect(FAIL_CLOSED_METERS.has("ask") && FAIL_CLOSED_METERS.has("deep_research")).toBe(true);
+  });
+
+  it("still fails open on a cheap meter when the store is down", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    store.fail = true;
+    const result = await consumeMeter("backtest", "free", "u1", DAY);
+    expect(result.allowed).toBe(true);
+    expect(result.unavailable).toBeUndefined();
+  });
+
+  it("peeks as null when the store is down, which the research route reads as try again", async () => {
+    store.fail = true;
+    expect(await peekMeter("deep_research", "free", "u1", DAY)).toBeNull();
   });
 
   it("does not meter features that are not meters", async () => {

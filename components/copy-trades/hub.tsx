@@ -3,7 +3,7 @@ import Link from "next/link";
 
 import { NUM, ShowMore, Sparkline } from "@/components/oa/kit";
 import { COPY_BIASES, copyHref, fmtPointsWord, rankRows, spanLabel, whoLine, type CopyHub, type CopyHubRow, type CopyKind } from "@/lib/copy-trades-shared";
-import { fmtFrac, fmtMonthYear } from "@/lib/follow-shared";
+import { congressNoun, fmtFrac, fmtMonthYear } from "@/lib/follow-shared";
 
 /**
  * The hub's first screen, built around one question: would copying them have
@@ -21,11 +21,15 @@ function median(values: number[]): number | null {
   return sorted.length % 2 ? sorted[middle]! : (sorted[middle - 1]! + sorted[middle]!) / 2;
 }
 
+function capitalize(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 export function kindTally(hub: CopyHub, kind: CopyKind): KindTally {
   const { ranked } = rankRows(hub.rows, kind);
   return {
     kind,
-    label: kind === "fund" ? `Funds, copied since ${hub.fund_start.slice(0, 4)}` : "House members, copied from their first reported buy",
+    label: kind === "fund" ? `Funds, copied since ${hub.fund_start.slice(0, 4)}` : `${capitalize(congressNoun(hub.rows))}, copied from their first reported buy`,
     ranked,
     beat: ranked.filter((row) => (row.excess_per_year ?? 0) > 0).length,
     median: median(ranked.map((row) => row.excess_per_year as number)),
@@ -76,7 +80,7 @@ function Method({ hub }: { hub: CopyHub }) {
           <p className="mt-1 text-pretty text-oa-muted-fg">{COPY_BIASES.fund}</p>
         </div>
         <div>
-          <p className="font-medium text-oa-fg">House members</p>
+          <p className="font-medium text-oa-fg">{capitalize(congressNoun(hub.rows))}</p>
           <p className="mt-0.5 text-pretty text-oa-fg">{hub.congress_rule}</p>
           <p className="mt-1 text-pretty text-oa-muted-fg">{hub.congress_caveat}</p>
           <p className="mt-1 text-pretty text-oa-muted-fg">{COPY_BIASES.congress}</p>

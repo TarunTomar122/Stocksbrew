@@ -1,7 +1,7 @@
 /**
  * The read for the Follow surface (funds, Congress, insiders), computed with
- * plain rules from what the jobs store: 13F changes per fund, House trade
- * reports, Form 4 buys. Pure: the loaders in `lib/follow.ts` hand the rows in.
+ * plain rules from what the jobs store: 13F changes per fund, House and
+ * Senate trade reports, Form 4 buys. Pure: the loaders in `lib/follow.ts` hand the rows in.
  *
  * Everything is grouped by stock first, because "which stocks are they
  * buying" is the question people bring here. An insight the data cannot back
@@ -10,6 +10,7 @@
 
 import { pickInsights, toneOfChange, type Insight, type TheRead } from "@/lib/insights";
 import {
+  chamberOf,
   fmtDate,
   fmtMonthYear,
   quarterLabel,
@@ -38,7 +39,7 @@ export type FundDigest = {
   exited: FundMove[];
 };
 
-/** One reported House trade, the fields the read needs. */
+/** One reported House or Senate trade, the fields the read needs. */
 export type CongressTradeLite = {
   ticker: string;
   company: string;
@@ -679,7 +680,7 @@ function fullMonthYear(iso: string | null | undefined): string {
   return match && month ? `${month} ${match[1]}` : "";
 }
 
-/** A House member whose latest report is older than this is treated as a record that stopped. */
+/** A member of Congress whose latest report is older than this is treated as a record that stopped. */
 export const MEMBER_STALE_DAYS = 183;
 
 function todayInNewYork(): string {
@@ -889,6 +890,6 @@ export function buildCongressMemberRead(profile: CongressProfile, copy?: CopyRec
   return {
     headline,
     insights: pickInsights([favourite, lean, record]),
-    source: `House reports, latest filed ${fmtDate(profile.latest_date)}`,
+    source: `${chamberOf(profile) === "senate" ? "Senate" : "House"} reports, latest filed ${fmtDate(profile.latest_date)}`,
   };
 }

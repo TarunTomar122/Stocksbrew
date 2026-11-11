@@ -9,6 +9,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 from backend.mail import kit
+from backend.subscription_entitlement import FREE_COVERED_WORD
 from backend.mail.data import ET, FREE_COVERED_STOCKS, Person, Stock, direction
 
 WINBACK_AFTER_DAYS = 21
@@ -115,7 +116,7 @@ def build_pro_welcome(person: Person, *, unsubscribe_token: str | None = None) -
     doc.p(lead)
     doc.bullets([
         "Price levels and the reasons behind every call, on every stock you track",
-        "Every stock you track in the daily brief and the weekly recap, not just five",
+        f"Every stock you track in the daily brief and the weekly recap, not just {FREE_COVERED_WORD}",
         "Up to 20 agent jobs watching your stocks, with what they find sent to your inbox",
         "Screening by our call, unlimited saved screens, and data export",
     ])
@@ -157,17 +158,17 @@ def build_swap_open(person: Person, *, unsubscribe_token: str | None = None) -> 
     doc.h1(f"{pick.ticker} {kit.verb(pick.week_change_pct)} {kit.pct(pick.week_change_pct, signed=False)} this week and isn't covered")
     doc.p(
         f"{_hello(person)} on Free we cover {FREE_COVERED_STOCKS} of your stocks in full, and you can swap one each week. "
-        f"Your swap is available now. {pick.ticker} had the biggest week of the stocks outside your five."
+        f"Your swap is available now. {pick.ticker} had the biggest week of the stocks outside your {FREE_COVERED_WORD}."
     )
     if covered:
         doc.h2("Covered now")
         doc.movers([(s.ticker, "Covered", s.week_change_pct) for s in covered])
-    doc.h2("Biggest weeks outside your five")
+    doc.h2(f"Biggest weeks outside your {FREE_COVERED_WORD}")
     doc.movers([(s.ticker, "Not covered", s.week_change_pct) for s in sorted(outside, key=lambda s: -abs(s.week_change_pct or 0))[:3]])
     doc.button("Choose this week's swap", kit.app_url("/watchlist"))
     doc.link("Or cover everything with Pro", kit.app_url("/pricing"))
     return kit.render(doc, kind="swap_open", category="product",
-                      subject=f"Your swap is open. {pick.ticker} moved {kit.pct(pick.week_change_pct)} outside your five",
+                      subject=f"Your swap is open. {pick.ticker} moved {kit.pct(pick.week_change_pct)} outside your {FREE_COVERED_WORD}",
                       preheader="Swap one covered stock this week, or cover them all with Pro.",
                       unsubscribe_token=unsubscribe_token)
 

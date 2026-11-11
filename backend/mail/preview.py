@@ -16,7 +16,11 @@ from pathlib import Path
 
 from backend.mail import alerts, daily, lifecycle, weekly
 from backend.mail.data import load_person, stocks_by_id, tracked_counts
+from backend.subscription_entitlement import FREE_COVERED_STOCKS
 from backend.mail.kit import Email
+from backend.subscription_entitlement import FREE_COVERED_WORD, PAYWALL_V2
+
+FREE_AGENTS = 1 if PAYWALL_V2 else 2  # lib/entitlements.ts: agents, free
 
 
 def _source():
@@ -46,11 +50,11 @@ def render_all(uid: str, now: datetime | None = None) -> tuple[list[tuple[str, E
 
     free_view = copy.deepcopy(person)
     free_view.is_pro = False
-    free_view.covered_ids = free_view.tracked_ids[:5]
+    free_view.covered_ids = free_view.tracked_ids[:FREE_COVERED_STOCKS]
 
     out: list[tuple[str, Email | None, str]] = []
     out.append(("1 · Daily brief (Pro)", daily.build_daily(person, now=now, market=market), "Trading days, about 8:30am ET, only when something changed"))
-    out.append(("1b · Daily brief (Free)", daily.build_daily(free_view, now=now, market=market), "Same email for a Free account: covered five only, plus what's outside"))
+    out.append(("1b · Daily brief (Free)", daily.build_daily(free_view, now=now, market=market), f"Same email for a Free account: covered {FREE_COVERED_WORD} only, plus what's outside"))
     out.append(("2 · Weekly recap", weekly.build_weekly(person, market=market, now=now), "Saturdays, 9am ET"))
     findings = alerts.load_findings(src, uid, since=now - timedelta(days=3))
     out.append(("3 · Alerts", alerts.build_alerts(person, findings), "When an agent job finds something, bundled over 15 minutes"))
@@ -78,9 +82,13 @@ def render_all(uid: str, now: datetime | None = None) -> tuple[list[tuple[str, E
     out.append(("5 · Pro welcome", lifecycle.build_pro_welcome(person), "Right after upgrading"))
     out.append(("6a · Weekly swap open (Free)", lifecycle.build_swap_open(free_view), "Free only, when the weekly swap opens and an uncovered stock moved"))
     out.append(("6b · Limit reached (Free)", lifecycle.build_limit_reached(
-        free_view, title="Free runs two agents at a time",
-        body="You tried to start a third agent job. Your other two keep running, and the new one is saved and paused until you turn one off.",
-        used=2, cap=2, pro_cap=20), "Free only, the first time a limit is hit each month"))
+        free_view, title="Free runs one agent at a time" if PAYWALL_V2 else "Free runs two agents at a time",
+        body=(
+            "You tried to start a second agent. The one you have keeps running, and the new one is saved and paused until you pause the first."
+            if PAYWALL_V2 else
+            "You tried to start a third agent job. Your other two keep running, and the new one is saved and paused until you turn one off."
+        ),
+        used=FREE_AGENTS, cap=FREE_AGENTS, pro_cap=20), "Free only, the first time a limit is hit each month"))
     out.append(("7 · We miss you", lifecycle.build_winback(person, now=now), "Once, after 21 days without a visit"))
     info = {"uid": uid[:6], "tracked": len(person.tracked_ids), "pro": person.is_pro, "generated_at": now.isoformat()}
     return out, info

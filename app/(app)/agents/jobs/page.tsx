@@ -2,10 +2,15 @@ import type { Metadata } from "next";
 import { unstable_cache } from "next/cache";
 
 import { JobsWorkspace } from "@/components/agents-jobs/jobs-workspace";
+import { getViewer } from "@/lib/entitlements-server";
 import { PlainAgentBox } from "@/components/agents-plain/plain-agent-box";
 import { AppPage } from "@/components/oa/kit";
 import { AGENT_SAMPLE_JOB, hiddenTemplateIds, parseJobDraft } from "@/lib/agent-jobs";
 import { agentMarketDay, listJobs, listRuns, loadFacts, replayDraft, resolveScope } from "@/lib/agent-jobs-data";
+import { draftFromParam, type LinkedDraft } from "@/lib/agent-jobs-link";
+import { afterCloseDayWords, afterCloseTimeEt, nextAfterCloseRun } from "@/lib/agent-schedule";
+import { parseByRules } from "@/lib/agents-plain/parse";
+import { plainCatalog } from "@/lib/agents-plain/server";
 import { getSessionUser } from "@/lib/auth-server";
 import { getCoverage } from "@/lib/seo/family-data";
 
@@ -56,27 +61,50 @@ function askParam(value: string | string[] | undefined): string | null {
   return raw ? raw.slice(0, 300) : null;
 }
 
+/**
+ * The agent a link asked for, filled in before anyone signs in. `?draft=` is a draft the page wrote itself before a
+ * sign-in (checked again here like any input); `?q=` is a request in words, read with the fixed rules only (no
+ * model, no meter) and used when it reads as exactly one agent. Anything else goes to the box above as words.
+ */
+async function linkedDraft(draft: string | string[] | undefined, words: string | null, hidden: string[]): Promise<LinkedDraft | null> {
+  const fromUrl = draftFromParam(draft, hidden);
+  if (fromUrl) return { draft: fromUrl };
+  if (!words) return null;
+  const catalog = await plainCatalog().catch(() => null);
+  if (!catalog || catalog.byTicker.size === 0) return null;
+  const rules = parseByRules(words, catalog, { hidden });
+  if (!rules.confident || rules.spec.watches.length !== 1 || rules.spec.cannot.length > 0) return null;
+  const watch = rules.spec.watches[0]!;
+  return { draft: watch.draft, note: watch.note };
+}
+
 export default async function AgentJobsPage({
   searchParams,
 }: {
-  searchParams?: { job?: string | string[]; watch?: string | string[]; q?: string | string[] };
+  searchParams?: { job?: string | string[]; watch?: string | string[]; q?: string | string[]; draft?: string | string[] };
 }) {
   const session = await getSessionUser().catch(() => null);
   const focus = typeof searchParams?.job === "string" ? searchParams.job : null;
+  const hidden = hiddenTemplateIds();
+  const words = askParam(searchParams?.q);
+  const next = nextAfterCloseRun(new Date());
+  const schedule = { time: afterCloseTimeEt(next), next: afterCloseDayWords(next) };
   // Only a stock we follow: an unknown ticker would replay nothing and still be named, and every string would be a cache entry.
   const asked = watchParam(searchParams?.watch);
   const watch = asked ? await getCoverage().then((coverage) => (coverage.bySymbol.has(asked) ? asked : null)).catch(() => null) : null;
   const sampleDraft = parseJobDraft(sampleFor(watch));
 
-  const [jobs, runs, sources, scope] = await Promise.all([
+  const [linked, jobs, runs, sources, scope] = await Promise.all([
+    linkedDraft(searchParams?.draft, words, hidden).catch(() => null),
     session ? listJobs(session.uid).catch(() => []) : [],
     session ? listRuns(session.uid).catch(() => []) : [],
     availableSources(agentMarketDay()).catch(() => ({ fund_filings: false, congress: false, insiders: false, earnings: false, movers: false })),
     session ? resolveScope(session.uid, { kind: "watchlist" }).catch(() => ({ tickers: [], levels: {} })) : { tickers: [], levels: {} },
   ]);
   // The example is for signed-out visitors, or anyone who came to watch one stock; it is always labelled as an example.
+  // A visitor who came with an agent of their own sees that one instead, so the example is not read at all.
   const sample =
-    (!session || watch) && sampleDraft.ok
+    !linked && (!session || watch) && sampleDraft.ok
       ? await sampleReplay(agentMarketDay(), watch ?? "")
           .then((replay) => (replay ? { draft: sampleDraft.draft, replay } : null))
           .catch(() => null)
@@ -86,6 +114,7 @@ export default async function AgentJobsPage({
     <AppPage width="wide" className="max-w-[68rem]">
         <JobsWorkspace
           signedIn={Boolean(session)}
+          plan={session ? (await getViewer()).plan : "anon"}
           initialJobs={jobs}
           initialRuns={runs}
           available={sources}
@@ -94,8 +123,10 @@ export default async function AgentJobsPage({
           today={agentMarketDay()}
           focusJobId={focus}
           sample={sample}
-          hiddenTemplates={hiddenTemplateIds()}
-          lead={<PlainAgentBox signedIn={Boolean(session)} available={sources} prefill={askParam(searchParams?.q)} />}
+          linked={linked}
+          schedule={schedule}
+          hiddenTemplates={hidden}
+          lead={<PlainAgentBox signedIn={Boolean(session)} available={sources} prefill={linked ? null : words} />}
         />
     </AppPage>
   );

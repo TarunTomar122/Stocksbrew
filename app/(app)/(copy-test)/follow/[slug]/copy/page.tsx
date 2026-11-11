@@ -22,11 +22,11 @@ import {
   type CopyRecord,
   type CopyRecordFull,
 } from "@/lib/copy-trades";
-import { fmtDate, fmtFrac, isValidSourceSlug } from "@/lib/follow-shared";
+import { CHAMBER_SOURCE, chamberOf, fmtDate, fmtFrac, isValidSourceSlug } from "@/lib/follow-shared";
 import { copyRecordMetadata } from "@/lib/seo/copy-seo";
 
 /**
- * "What if you had copied them?" for one fund or House member: a $10,000 copy
+ * "What if you had copied them?" for one fund or member of Congress: a $10,000 copy
  * portfolio replayed from the public disclosure dates (backend/agentdata/copy_trades.py),
  * against the S&P 500 and against not trading at all. Free for everyone.
  */
@@ -78,7 +78,7 @@ function Head({ record }: { record: CopyRecord }) {
 /** Why a record stopped, as the end of a sentence. */
 function endReason(record: CopyRecordFull): string {
   if (record.kind === "fund") return "the fund stopped filing";
-  return record.active === false ? "they left the House" : "everything copied had been sold";
+  return record.active === false ? `they left the ${chamberOf(record) === "senate" ? "Senate" : "House"}` : "everything copied had been sold";
 }
 
 /** The rule in one sentence, the caveat and the biases in a line each. */
@@ -129,7 +129,7 @@ function Verdict({ record }: { record: CopyRecordFull }) {
       <h2 className="mt-1 max-w-[46rem] text-pretty text-[17px] font-semibold leading-[24px] tracking-[-0.01em] text-oa-fg sm:text-[19px] sm:leading-[26px]">{verdict.headline}</h2>
       {verdict.detail ? <p className="mt-1.5 max-w-[46rem] text-pretty text-[15px] leading-[22px] text-oa-fg">{verdict.detail}</p> : null}
       <p className="mt-2 text-[12.5px] leading-[18px] text-oa-muted-fg">
-        {verdict.span} · {record.kind === "fund" ? "SEC 13F filings" : "House trade reports"} and daily closes
+        {verdict.span} · {record.kind === "fund" ? "SEC 13F filings" : CHAMBER_SOURCE[chamberOf(record)].reports} and daily closes
       </p>
     </section>
   );

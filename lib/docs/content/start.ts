@@ -1,5 +1,6 @@
 import { h2, note, ol, p, steps, table, ul, warn } from "@/lib/docs/build";
 import type { Guide } from "@/lib/docs/types";
+import { CALL_COVERAGE } from "@/lib/brand-copy";
 import { FREE_COVERED_STOCKS } from "@/lib/entitlements";
 import { US_PRO_MONTHLY, US_PRO_YEARLY } from "@/lib/pricing";
 
@@ -207,7 +208,7 @@ export const START_GUIDES: Guide[] = [
     surface: { label: "See pricing", href: "/pricing" },
     blocks: [
       p(
-        "Anything we write once for everyone is free to read: stock reports, our call on every stock, filings, fund pages, strategies and their caveats. What a plan changes is how much is done for you personally.",
+        `Anything we write once for everyone is free to read: stock reports, our call on ${CALL_COVERAGE}, filings, fund pages, strategies and their caveats. What a plan changes is how much is done for you personally.`,
       ),
       h2("The one number that matters: covered stocks", "covered-stocks"),
       p(

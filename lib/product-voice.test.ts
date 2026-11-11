@@ -48,8 +48,9 @@ describe("product language", () => {
   });
 
   it("states the real free limit in the site description", () => {
-    expect(FREE_COVERED_STOCKS).toBe(5);
-    expect(MEDIUM_DESCRIPTION).toContain("up to five stocks free");
-    expect(MEDIUM_DESCRIPTION).not.toMatch(/three|\b3\b/);
+    // Tracking is unlimited; the limit is how many get the full report (five, or three with PAYWALL_V2).
+    const word = FREE_COVERED_STOCKS === 3 ? "three" : "five";
+    expect(MEDIUM_DESCRIPTION).toContain(`full report on ${word} you pick`);
+    expect(MEDIUM_DESCRIPTION).toContain("as many stocks as you like");
   });
 });

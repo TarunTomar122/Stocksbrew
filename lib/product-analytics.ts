@@ -1,6 +1,7 @@
 "use client";
 
 import { captureEvent, registerSuperProperties } from "@/lib/posthog";
+import { PAYWALL_VARIANT } from "@/lib/paywall-flag";
 
 /**
  * Typed product events. docs/analytics.md is the tracking plan: every event
@@ -32,6 +33,7 @@ export type AuthSurface =
   | "home_content"
   | "agent_oauth"
   | "import_try"
+  | "agents_save"
   | "unknown";
 
 export type PaywallSurface =
@@ -90,9 +92,13 @@ export function lengthBucket(text: string): "short" | "medium" | "long" {
 
 /* ── identity and super properties ─────────────────────────────────────── */
 
-/** Sent with every later event: who is looking, by plan. */
+/**
+ * Sent with every later event: who is looking, by plan, and which Free/Pro
+ * line they are on (`paywall`: "v1" today, "v2" with PAYWALL_V2=1), so every
+ * step of the funnel can be split by line.
+ */
 export function setAnalyticsPlan(plan: PlanName) {
-  registerSuperProperties({ plan, signed_in: plan !== "anon" });
+  registerSuperProperties({ plan, signed_in: plan !== "anon", paywall: PAYWALL_VARIANT });
 }
 
 /* ── acquisition and activation ────────────────────────────────────────── */

@@ -24,7 +24,12 @@ import { daysUntil, nextPayment, type HomeMode, type HomeSources, type Loaded } 
 export type AgentsSource = {
   /** `weekly` marks a once-a-week schedule, which is not due on most days. */
   jobs: Array<Pick<AgentJob, "id" | "name" | "enabled"> & { weekly?: boolean } & Partial<Pick<AgentJob, "trigger" | "scope">>>;
-  runs: Array<Pick<AgentRun, "job_id" | "job_name" | "day" | "ran_at" | "decision" | "summary">>;
+  runs: Array<
+    Pick<AgentRun, "job_id" | "job_name" | "day" | "ran_at" | "decision" | "summary"> & {
+      /** The stocks the run's findings name, so a finding or a briefing line can point at the run that flagged it. */
+      tickers?: string[];
+    }
+  >;
 };
 
 export type LogRow = {
@@ -135,7 +140,7 @@ function reasonsRow(sources: Partial<HomeSources>, mode: HomeMode): LogRow | nul
     .slice(0, 2)
     .map((check) => `${check.ticker} went from ${VERDICT_WORDS[check.change!.from]} to ${VERDICT_WORDS[check.verdict]} on ${fmtPlanDay(check.change!.day)}`);
   const standing =
-    holding === n ? (n === 1 ? "It still holds." : `All ${n} still hold.`) : n === 1 ? "It no longer holds." : `${countWord(holding)} of ${countWord(n).toLowerCase()} still hold.`;
+    holding === n ? (n === 1 ? "It still holds." : n === 2 ? "Both still hold." : `All ${n} still hold.`) : n === 1 ? "It no longer holds." : `${countWord(holding)} of ${countWord(n).toLowerCase()} still hold.`;
   return {
     id: "reasons",
     day: nyDay(day),
@@ -273,7 +278,7 @@ function nyClock(iso: string): { day: string; minutes: number } | null {
 const AFTER_CLOSE_MINUTES = AFTER_CLOSE_RUN_ET.hour * 60 + AFTER_CLOSE_RUN_ET.minute;
 
 /** The first day on or after `day` that the after-close runner reads a new close (weekdays that are not NYSE holidays). */
-function nextRunDay(day: string): string {
+export function nextRunDay(day: string): string {
   let next = day;
   for (let i = 0; i < 14; i++, next = shiftDay(next, 1)) {
     const run = afterCloseRunOn(next);
@@ -283,13 +288,32 @@ function nextRunDay(day: string): string {
 }
 
 /** The market day of a run the scheduled runner made: on a weekday, after the close, evening of the same day or early the next morning. */
-function scheduledRunDay(run: AgentsSource["runs"][number]): string | null {
+export function scheduledRunDay(run: AgentsSource["runs"][number]): string | null {
   const clock = nyClock(run.ran_at);
   if (!clock || weekday(run.day) > 5) return null;
   if (clock.day === run.day && clock.minutes >= AFTER_CLOSE_MINUTES) return run.day;
   // A long after-close group can finish after midnight.
   if (clock.day === shiftDay(run.day, 1) && clock.minutes < 6 * 60) return run.day;
   return null;
+}
+
+/** The market day before `day` (Friday for a Monday, Wednesday for the Friday after Thanksgiving). */
+export function previousMarketDay(day: string): string {
+  let out = shiftDay(day, -1);
+  for (let i = 0; i < 14; i++, out = shiftDay(out, -1)) {
+    if (afterCloseRunOn(out)?.marketDay) return out;
+  }
+  return previousWeekday(day);
+}
+
+/**
+ * The newest market day the scheduled after-close runner is proven to have run
+ * for, from the run log, or null when it has not run for the last market day
+ * (or today): then nothing may promise a next check.
+ */
+export function runnerDay(runs: AgentsSource["runs"], today: string): string | null {
+  const newest = runs.map(scheduledRunDay).filter((day): day is string => day !== null).sort().pop() ?? null;
+  return newest && newest >= previousMarketDay(today) ? newest : null;
 }
 
 /**
@@ -303,8 +327,8 @@ export function nextAgentCheck(agents: AgentsSource | null, today: string): LogR
   if (!agents) return null;
   const on = agents.jobs.filter((job) => job.enabled && !job.weekly).length;
   if (on === 0) return null;
-  const newest = agents.runs.map(scheduledRunDay).filter((day): day is string => day !== null).sort().pop() ?? null;
-  if (!newest || newest < previousWeekday(today)) return null;
+  const newest = runnerDay(agents.runs, today);
+  if (!newest) return null;
   const day = newest >= today ? nextRunDay(shiftDay(today, 1)) : nextRunDay(today);
   const at = afterCloseRunOn(day);
   return {

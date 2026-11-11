@@ -3,7 +3,7 @@ import * as React from "react";
 import { CodeBlock } from "@/components/docs/copy-button";
 import { Inline } from "@/components/docs/inline";
 import type { Block } from "@/lib/docs/types";
-import { FEATURES, FEATURE_GROUPS, describeRule, type Feature } from "@/lib/entitlements";
+import { FEATURES, FEATURE_GROUPS, describeRule, listedFeatureIds, type Feature } from "@/lib/entitlements";
 
 /**
  * Renders a guide's blocks. One vertical rhythm for the whole course: body
@@ -195,7 +195,7 @@ function DocBlock({ block }: { block: Block }) {
 
 /** Free vs Pro, straight from the table the gates read. */
 function EntitlementsTable() {
-  const features = Object.values(FEATURES) as Feature[];
+  const features = listedFeatureIds().map((id) => FEATURES[id] as Feature);
   return (
     <div className="oa-surface overflow-x-auto border border-oa-border bg-oa-card">
       <table className="w-full table-fixed border-collapse text-left text-[14.5px] leading-6">

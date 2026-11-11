@@ -12,6 +12,7 @@ import {
   planOf,
   redactLevels,
   redactLevelsDeep,
+  redactOurLevels,
   ruleFor,
   type FeatureId,
 } from "./entitlements";
@@ -169,3 +170,19 @@ describe("clipByAge", () => {
   });
 });
 
+
+describe("redactOurLevels", () => {
+  it("cuts our own level phrases and keeps analyst targets and news", () => {
+    expect(redactOurLevels("Shares fell 5%. Check the add zone at $470. The price is 2.1% above it.")).toBe("Shares fell 5%. The price is 2.1% above it.");
+    expect(redactOurLevels("Call: add below $182.40, trim above $260.")).toBe("");
+    expect(redactOurLevels("Alert me below $150")).toBe("");
+    expect(redactOurLevels("Analysts lifted their target to $250. The stock found support near $200.")).toBe(
+      "Analysts lifted their target to $250. The stock found support near $200.",
+    );
+  });
+
+  it("never returns an empty card when given a fallback", () => {
+    expect(redactOurLevels("The add level is $182.40.", "Open TSLA for the news.")).toBe("Open TSLA for the news.");
+    expect(redactOurLevels(null, "Open TSLA.")).toBe("Open TSLA.");
+  });
+});

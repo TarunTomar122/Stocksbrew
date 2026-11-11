@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildStockRead, previousCall } from "@/lib/stock-read";
+import { buildStockRead, callSince, previousCall } from "@/lib/stock-read";
 import type { StockIntelligenceDoc } from "@/lib/stock";
 
 const base = {
@@ -154,5 +154,63 @@ describe("previousCall", () => {
     expect(previousCall(changes, "Add", "2026-12-10T21:30:00Z")).toBeNull();
     expect(previousCall(changes, "Add", null)).toBeNull();
     expect(previousCall([{ date: "2026-11-09", from: null, to: "Add" }], "Add", "2026-11-10T21:30:00Z")).toBeNull();
+  });
+});
+
+describe("callSince", () => {
+  const changes = [
+    { date: "2026-10-01", from: null, to: "Add" as const },
+    { date: "2026-10-20", from: "Add" as const, to: "Hold" as const },
+  ];
+
+  it("uses the steady call's own date first", () => {
+    expect(callSince(changes, "Hold", { stabilitySince: "2026-09-02" })).toBe("2026-09-02");
+  });
+
+  it("prefers the ledger over a steady call that only started when the rule was switched on", () => {
+    expect(callSince(changes, "Hold", { stabilitySince: "2026-11-12", stabilityTrigger: "start" })).toBe("2026-10-20");
+    expect(callSince(changes, "Hold", { stabilitySince: "2026-11-12", stabilityTrigger: "confirmed" })).toBe("2026-11-12");
+  });
+
+  it("falls back to the last switch into the current call in the ledger", () => {
+    expect(callSince(changes, "Hold")).toBe("2026-10-20");
+    expect(callSince([{ date: "2026-10-01", from: null, to: "Add" }], "Add")).toBe("2026-10-01");
+  });
+
+  it("gives the brief's own New York day when the ledger has not caught up", () => {
+    expect(callSince(changes, "Trim", { writtenAt: "2026-11-10T20:45:00+00:00" })).toBe("2026-11-10");
+    expect(callSince([], null)).toBeNull();
+  });
+});
+
+describe("steady call", () => {
+  const steady = {
+    ...base,
+    directive_v2: {
+      ...base.directive_v2,
+      watch_out: "We plan to hold this call until at least Dec 2; before then only a results report could change it.",
+      invalidation: "We plan to hold this call until at least Dec 2; before then only a results report could change it.",
+      stability: {
+        since: "2026-11-04",
+        since_reason: "Nvidia reported results on Nov 3, so we moved our call from Buy more to Keep.",
+        trigger: "earnings",
+        what_would_change: "We plan to hold this call until at least Dec 2; before then only a results report could change it.",
+        held_against_vote: true,
+        vote: "Trim",
+      },
+    },
+  } as unknown as StockIntelligenceDoc;
+
+  it("carries the steady call's date and its rule, and keeps the rule out of the lower list", () => {
+    const read = buildStockRead(steady, { callChanges: [{ date: "2026-10-01", from: null, to: "Hold" }] })!;
+    expect(read.since).toBe("2026-11-04");
+    expect(read.whatWouldChange).toMatch(/^We plan to hold this call until at least Dec 2/);
+    expect(read.changers.some((item) => item.startsWith("We plan"))).toBe(false);
+    expect(read.heldAgainst).toBe("Trim");
+  });
+
+  it("is null on a brief without the steady call", () => {
+    expect(buildStockRead(base)!.whatWouldChange).toBeNull();
+    expect(buildStockRead(base)!.heldAgainst).toBeNull();
   });
 });

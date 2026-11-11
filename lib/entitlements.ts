@@ -19,7 +19,7 @@
  *      and the earnings date. A covered stock also gets the full agent
  *      treatment: price zones, the reasons behind the call, explained moves
  *      in the briefing, zone and call alerts, the pre-earnings read. Free
- *      covers 5 (one swap a week, lib/entitlements-coverage.ts), Pro covers
+ *      covers 5, or 3 with PAYWALL_V2 (one swap a week, lib/entitlements-coverage.ts), Pro covers
  *      everything.
  *   3. Everything else works on Free at a small count, so a limit always
  *      reads "you have used your 2, want more?" and never "what is this?".
@@ -31,6 +31,9 @@
  *
  * This file is pure (no server imports) so client components can read it.
  */
+
+import { CALL_COVERAGE } from "@/lib/brand-copy";
+import { FREE_COVERED_STOCKS, FREE_COVERED_WORD, PAYWALL_V2 } from "@/lib/paywall-flag";
 
 export type Plan = "anon" | "free" | "pro";
 
@@ -55,8 +58,8 @@ const count = (max: number, unit: string): Rule => ({ kind: "count", max, unit }
 const meter = (max: number, per: "day" | "month", unit: string): Rule => ({ kind: "meter", max, per, unit });
 const depth = (max: number, unit: string): Rule => ({ kind: "depth", max, unit });
 
-/** How many stocks the agent covers in full on Free. */
-export const FREE_COVERED_STOCKS = 5;
+/** How many stocks the agent covers in full on Free (5 today, 3 on PAYWALL_V2). */
+export { FREE_COVERED_STOCKS, PAYWALL_V2 };
 /** How often a Free account may swap which stocks are covered. */
 export const FREE_COVER_SWAPS_PER_WEEK = 1;
 
@@ -79,11 +82,19 @@ export type Feature = {
   pro: Rule;
   /** The lock card: what is behind it and the way out that costs nothing. */
   lock: { title: string; body: string };
+  /**
+   * The tighter line (PAYWALL_V2=1): the fields that change when the flag is
+   * on. Kept on the same row so the pricing page, the lock cards and the
+   * routes can never read two different tables.
+   */
+  v2?: Partial<Pick<Feature, "name" | "anon" | "free" | "pro" | "lock">>;
+  /** A row that only exists on the tighter line: today it is open on every plan and not listed on /pricing. */
+  v2Only?: true;
 };
 
 const NO_LOCK = { title: "", body: "" };
 
-export const FEATURES = {
+const TABLE = {
   /* ── Your stocks ─────────────────────────────────────────────────────── */
   tracked_stocks: {
     name: "Stocks you track: holdings and watched names, with prices, the call and the earnings date",
@@ -103,12 +114,13 @@ export const FEATURES = {
     free: count(FREE_COVERED_STOCKS, "stocks"),
     pro: open,
     lock: {
-      title: "Free covers five stocks",
+      title: `Free covers ${FREE_COVERED_WORD} stocks`,
       body: "A covered stock gets price zones, the reasons behind the call, explained moves in your briefing and the pre-earnings read. Swap one out (Free swaps one a week), or go Pro and cover everything you track.",
     },
+    // FREE_COVERED_STOCKS is 3 on the tighter line (lib/paywall-flag.ts): the lever it pulls hardest. Three covered stocks are a real sample of the agent, not most of a portfolio.
   },
   stock_call: {
-    name: "Our call on every stock: add, hold or trim, in one line, with the date",
+    name: `Our call on ${CALL_COVERAGE}: buy more, keep or sell some, in one line, with the date`,
     group: "Your stocks",
     anon: open,
     free: open,
@@ -123,7 +135,7 @@ export const FEATURES = {
     pro: open,
     lock: {
       title: "Cover this stock to see the full read",
-      body: "The call is free for everyone. The reasons behind it, the price zones, what would change it and how it has moved come with covering a stock. Use one of your five covered slots, or go Pro for every stock.",
+      body: `The call is free for everyone. The reasons behind it, the price zones, what would change it and how it has moved come with covering a stock. Use one of your ${FREE_COVERED_WORD} covered slots, or go Pro for every stock.`,
     },
   },
   briefing_personal: {
@@ -134,7 +146,7 @@ export const FEATURES = {
     pro: open,
     lock: {
       title: "The rest of your portfolio moved too",
-      body: "Your briefing explains the stocks your agent covers, and you can swap which five those are once a week. Pro explains every holding.",
+      body: `Your briefing explains the ${FREE_COVERED_WORD} stocks your agent covers, and you can swap one of them once a week. Pro explains every holding.`,
     },
   },
   // The reason watcher (lib/thesis-watch): saving a reason is free on every stock; checking it is the agent's work.
@@ -146,7 +158,7 @@ export const FEATURES = {
     pro: open,
     lock: {
       title: "Free checks the reasons on your covered stocks",
-      body: "Your reason is saved on every stock. The agent checks it on the five stocks it covers for you, and you can swap which five once a week. Pro checks every reason you save.",
+      body: `Your reason is saved on every stock. The agent checks it on the ${FREE_COVERED_WORD} stocks it covers for you, and you can swap one of them once a week. Pro checks every reason you save.`,
     },
   },
   portfolio_analytics: {
@@ -197,7 +209,7 @@ export const FEATURES = {
     pro: open,
     lock: {
       title: "The pre-earnings read is ready for this stock",
-      body: "The date and the estimates are free for every stock. What the report has to show, how the stock reacted the last four times and what would change the call come with covering it. Use one of your five, or go Pro.",
+      body: `The date and the estimates are free for every stock. What the report has to show, how the stock reacted the last four times and what would change the call come with covering it. Use one of your ${FREE_COVERED_WORD}, or go Pro.`,
     },
   },
   signals: {
@@ -389,6 +401,28 @@ export const FEATURES = {
       title: "Saved and paused: Free runs two agents at a time",
       body: "Your agent is saved. Pause another to run this one, or go Pro and run up to 20.",
     },
+    // One agent is enough to learn what an agent does; a second one is where someone starts relying on it.
+    v2: {
+      free: count(1, "agent"),
+      lock: {
+        title: "Saved and paused: Free runs one agent at a time",
+        body: "Your agent is saved. Pause the one that is running to run this one instead, or go Pro and run up to 20.",
+      },
+    },
+  },
+  agent_events: {
+    name: "Agents that act on a new SEC filing or a turn in the news, not just a price or a date",
+    group: "Agents and alerts",
+    anon: locked,
+    free: open,
+    pro: open,
+    lock: {
+      title: "Watching filings and news is part of Pro",
+      body: "Your agent is saved and paused. On Free an agent can watch a price, an earnings date or a big move after each close. Change what it watches to one of those to run it, or go Pro and it reads every new filing and news turn on your stocks.",
+    },
+    // Continuous monitoring is the Pro promise: a filing or a news turn is the agent working while you are not looking.
+    v2: { free: locked },
+    v2Only: true,
   },
   price_alerts: {
     name: "Price alerts by email",
@@ -429,8 +463,8 @@ export const FEATURES = {
     free: covered,
     pro: open,
     lock: {
-      title: "The email covers your five covered stocks",
-      body: "Free gets the daily brief and the weekly recap for the five stocks it covers, plus a note when something outside them moves. Pro covers every stock you track.",
+      title: `The email covers your ${FREE_COVERED_WORD} covered stocks`,
+      body: `Free gets the daily brief and the weekly recap for the ${FREE_COVERED_WORD} stocks it covers, plus a note when something outside them moves. Pro covers every stock you track.`,
     },
   },
 
@@ -448,7 +482,26 @@ export const FEATURES = {
   },
 } as const satisfies Record<string, Feature>;
 
-export type FeatureId = keyof typeof FEATURES;
+export type FeatureId = keyof typeof TABLE;
+
+/**
+ * The live table: each row with its PAYWALL_V2 changes applied when `v2` is
+ * true. Exported for tests; everything else reads `FEATURES`.
+ */
+export function buildFeatures(v2: boolean): Record<FeatureId, Feature> {
+  const out = {} as Record<FeatureId, Feature>;
+  for (const [id, row] of Object.entries(TABLE) as Array<[FeatureId, Feature]>) {
+    out[id] = v2 && row.v2 ? { ...row, ...row.v2 } : row;
+  }
+  return out;
+}
+
+export const FEATURES: Record<FeatureId, Feature> = buildFeatures(PAYWALL_V2);
+
+/** Rows the pricing page and the docs list: everything except tighter-line rows while the flag is off. */
+export function listedFeatureIds(v2: boolean = PAYWALL_V2): FeatureId[] {
+  return (Object.keys(TABLE) as FeatureId[]).filter((id) => v2 || !(TABLE[id] as Feature).v2Only);
+}
 
 export const FEATURE_GROUPS: FeatureGroup[] = [
   "Your stocks",
@@ -565,6 +618,25 @@ export function redactLevels(text: string | null | undefined): string | null {
     .filter((sentence) => !(MONEY.test(sentence) && LEVEL_WORDS.test(sentence)));
   const out = kept.join(" ").trim();
   return out || null;
+}
+
+/** The level phrases our own engine and briefing write: narrower than LEVEL_WORDS, so analyst targets and "support" in news survive. */
+const OUR_LEVEL_PHRASES =
+  /\b(?:add|trim|buy[- ]more|sell[- ]some|accumulate|breakout)\s+(?:zone|level|price|below|above)\b|\b(?:add|buy|trim|sell) (?:below|above)\b|\bbuy more below\b|\bsell some above\b|\bits (?:add|trim) zone\b|\balert me (?:below|above)\b/i;
+
+/**
+ * Drop only sentences that pair a price with one of our own level phrases
+ * ("the add zone at $470", "Alert me below $182"). For text written about an
+ * uncovered stock where the rest is public (news, analyst targets): keeps more
+ * than `redactLevels`. Returns `fallback` rather than an empty string.
+ */
+export function redactOurLevels(text: string | null | undefined, fallback = ""): string {
+  const clean = typeof text === "string" ? text.trim() : "";
+  if (!clean) return fallback;
+  const kept = clean
+    .split(/(?<=[.!?;])\s+/)
+    .filter((sentence) => !(MONEY.test(sentence) && OUR_LEVEL_PHRASES.test(sentence)));
+  return kept.join(" ").trim() || fallback;
 }
 
 /** `redactLevels` over every string inside a JSON-like value. */

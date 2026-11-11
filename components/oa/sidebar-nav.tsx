@@ -65,7 +65,8 @@ export function SidebarNav() {
                     const heading = sub.group && sub.group !== item.sections[index - 1]?.group ? sub.group : null;
                     return (
                       <li key={sub.href}>
-                        {heading ? <p className="oa-caption px-3 pb-1 pt-2.5">{heading}</p> : null}
+                        {/* A group label, not a link (owner, Nov 11: "feels like I can click them"): small capitals, quieter than any row. */}
+                        {heading ? <p className="select-none px-3 pb-1 text-[10px] font-semibold uppercase leading-4 tracking-[0.1em] text-oa-muted-fg opacity-70 pt-3.5">{heading}</p> : null}
                         <SectionRow item={sub} current={sub === current} />
                       </li>
                     );

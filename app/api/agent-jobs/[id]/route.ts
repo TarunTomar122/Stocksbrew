@@ -15,11 +15,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (typeof body?.enabled !== "boolean") {
     return NextResponse.json({ error: "Say whether the job should be on or off." }, { status: 400 });
   }
+  const plan = (await getViewer()).plan;
   try {
-    const job = await updateJob(session.uid, params.id, { enabled: body.enabled }, new Date(), limitFor("agents", (await getViewer()).plan));
+    const job = await updateJob(session.uid, params.id, { enabled: body.enabled }, new Date(), limitFor("agents", plan), plan);
     return NextResponse.json({ ok: true, job });
   } catch (error) {
-    if (error instanceof AgentJobError) return NextResponse.json({ error: error.message }, { status: error.status });
+    if (error instanceof AgentJobError) {
+      return NextResponse.json({ error: error.message, ...(error.feature ? { feature: error.feature, plan } : {}) }, { status: error.status });
+    }
     throw error;
   }
 }

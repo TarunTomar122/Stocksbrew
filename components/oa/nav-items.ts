@@ -4,7 +4,7 @@
  * big investors did, and set something to watch for you. Every page in the
  * app belongs to exactly one place, so one place is always lit, and each
  * place lists its pages as sections (the sidebar under the lit place, the
- * strip under the phone top bar).
+ * strip and its "More" menu under the phone top bar).
  *
  * Routes never change here: only names, grouping and which item lights up.
  */
@@ -195,6 +195,17 @@ export function sectionFor(pathname: string, place: NavPlace | null = placeFor(p
     }
   }
   return best;
+}
+
+/**
+ * The phone strip's order: the section you are on first, then the ones after it, then the ones before it, so the
+ * current page and its next neighbours are the pills that fit. With no current section (a stock page), the place's
+ * own order.
+ */
+export function stripOrder(place: NavPlace, current: NavItem | null): NavItem[] {
+  const at = current ? place.sections.indexOf(current) : -1;
+  if (at <= 0) return place.sections;
+  return [...place.sections.slice(at), ...place.sections.slice(0, at)];
 }
 
 /** The icon of the section (or place) that owns a path: page titles and link lists use it, so a place looks the same everywhere. */

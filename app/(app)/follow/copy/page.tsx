@@ -6,11 +6,11 @@ import { UnrankedList } from "@/components/copy-trades/parts";
 import { JsonLd, breadcrumbLd } from "@/components/docs/json-ld";
 import { AppPage, CardGrid, Empty, ShowMore } from "@/components/oa/kit";
 import { COPY_FRAMING, COPY_HUB_PATH, copyHref, getCopyHub, rankRows, type CopyHub, type CopyHubRow } from "@/lib/copy-trades";
-import { fmtDate } from "@/lib/follow-shared";
+import { congressNoun, fmtDate } from "@/lib/follow-shared";
 import { copyHubMetadata } from "@/lib/seo/copy-seo";
 
 /**
- * The ranked hub: every fund and House member we follow, copied with one
+ * The ranked hub: every fund and member of Congress we follow, copied with one
  * stated rule from the public disclosure dates, ranked by how far ahead of
  * (or behind) the S&P 500 the copy ran each year. Free for everyone.
  */
@@ -127,7 +127,7 @@ export default async function CopyHubPage() {
             { name: "Whose moves were worth copying?", path: COPY_HUB_PATH },
           ]),
           ...(fundRanking.length ? [rankingLd("13F funds whose moves were worth copying", fundRanking)] : []),
-          ...(memberRanking.length ? [rankingLd("House members whose trades were worth copying", memberRanking)] : []),
+          ...(memberRanking.length ? [rankingLd(`${congressNoun(memberRanking).replace(/^./, (c) => c.toUpperCase())} whose trades were worth copying`, memberRanking)] : []),
         ]}
       />
       <header className="mb-3 px-2 sm:mb-4 sm:px-0">

@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta, timezone
 
 from backend.mail import kit
+from backend.subscription_entitlement import FREE_COVERED_WORD
 from backend.mail.data import ET, Person, Stock
 
 STALE_HISTORY_DAYS = 4  # a stock whose history stops earlier than this is left out of the week
@@ -86,7 +87,7 @@ def build_weekly(person: Person, *, market: dict[str, Stock] | None = None, now:
                 f"{kit.plural(len(hidden), 'stock')} you track aren't covered on Free. The biggest mover among them was "
                 f"{big.ticker} at {kit.pct(big.week_change_pct)}. Pro covers everything you track.",
                 tone="copper",
-                title="Outside your covered five",
+                title=f"Outside your covered {FREE_COVERED_WORD}",
             )
             doc.link("Compare Free and Pro", kit.app_url("/pricing"))
 

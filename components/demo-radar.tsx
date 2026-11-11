@@ -8,6 +8,7 @@ import { getFirebaseAuth } from "@/lib/firebase-client";
 import { StockLogo } from "@/components/stock-logo";
 import { ConnectedReadCard } from "@/components/connected-read-card";
 import { FREE_COVERED_STOCKS } from "@/lib/entitlements";
+import { CALL_COVERAGE } from "@/lib/brand-copy";
 
 type DemoRow = {
   ticker: string;
@@ -273,7 +274,7 @@ export function DemoRadar({ headingLevel = "h1" }: { headingLevel?: "h1" | "h2" 
           {/* What's locked — chip row */}
           <div className="flex flex-wrap items-center justify-center gap-2">
             {[
-              "A call on every stock",
+              `A call on ${CALL_COVERAGE}`,
               "Anomalies on your book",
               "Reddit buzz on your names",
               "Sector regime read",

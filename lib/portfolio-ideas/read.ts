@@ -1,6 +1,6 @@
 import { pickInsights, type Insight, type TheRead } from "@/lib/insights";
 
-import { COMPANY_LINE } from "./rebalance";
+import { COMPANY_LINE, heldCallWord, heldCallsClause } from "./rebalance";
 import type { IdeasResult, LossIdea, TrimIdea } from "./types";
 import { callPlain, fmtPct, joinList, portfolioWord, usd } from "./words";
 
@@ -34,8 +34,8 @@ function lossSentence(loss: LossIdea, subject: IdeasResult["subject"]): Insight 
     tone: "down",
     text: `${loss.ticker} is ${usd(loss.loss)} (${Math.abs(Math.round(loss.lossPct))}%) below what ${subject === "example" ? "was" : "you"} paid${taxPart}.`,
     soWhat:
-      loss.call === "Add"
-        ? `Our call is Buy more, so this would only be a sale for the tax${look ? `; holding ${look.name} meanwhile keeps the exposure` : ""}.`
+      loss.call === "Add" || loss.call === "Hold"
+        ? `Our call is ${callPlain(loss.call)}, so this would only be a sale for the tax${look ? `; holding ${look.name} meanwhile keeps the exposure` : ""}.`
         : look
           ? `${look.name} is a similar ${look.fund ? "fund" : "company"} to hold meanwhile.`
           : undefined,
@@ -52,7 +52,7 @@ export function buildIdeasRead(result: IdeasResult): TheRead | null {
   // Every company over the line, trimmed or not (two share classes are one company), biggest first.
   const overList = plan.companiesOver;
   const overCount = overList.length;
-  // Above the line, but every trim that would fix it is too small or would sell a Buy more call.
+  // Above the line, but every trim that would fix it is too small or would sell a Buy more or Keep call.
   const blocked = [...plan.buyMoreOver, ...plan.small].sort((a, b) => b.pct - a.pct)[0] ?? null;
   const paid = subject === "example" ? "what was paid" : "what you paid";
   const sectorShift = plan.sectors[0] ?? null;
@@ -72,9 +72,11 @@ export function buildIdeasRead(result: IdeasResult): TheRead | null {
     const buyMoreOnly = plan.small.length === 0;
     headline =
       buyMoreOnly && plan.buyMoreOver.length === 1
-        ? `${blocked.name} is ${fmtPct(blocked.pct)} of ${where}, but our call is Buy more, so we would not sell.`
+        ? `${blocked.name} is ${fmtPct(blocked.pct)} of ${where}, but our call is ${heldCallWord(plan.buyMoreOver)}, so we would not sell.`
         : buyMoreOnly
-          ? `${joinList(plan.buyMoreOver.map((row) => row.ticker))} are each above ${COMPANY_LINE}%, but our call on each is Buy more, so we would not sell.`
+          ? `${joinList(plan.buyMoreOver.map((row) => row.ticker))} are each above ${COMPANY_LINE}%, but ${
+              plan.buyMoreOver.every((row) => row.call === plan.buyMoreOver[0]!.call) ? `our call on each is ${heldCallWord(plan.buyMoreOver)}` : heldCallsClause(plan.buyMoreOver)
+            }, so we would not sell.`
           : `${blocked.name} is ${fmtPct(blocked.pct)} of ${where}, but no trim that would fix it is worth making.`;
   } else if (blocked) {
     headline = `We would not sell anything for size, but ${losses.length === 1 ? `${losses[0]!.name} sits` : `${losses.length} holdings sit`} ${usd(lossTotal)} below ${paid}.`;
@@ -112,13 +114,13 @@ export function buildIdeasRead(result: IdeasResult): TheRead | null {
       tickers: plan.trims.slice(1, 4).map((trim) => trim.ticker),
     });
   }
-  // A Buy more call above the line gets no trim; say why, so its absence is not a puzzle.
+  // A Buy more or Keep call above the line gets no trim; say why, so its absence is not a puzzle.
   const held = plan.trims.length > 0 ? plan.buyMoreOver[0] : undefined;
   if (held) {
     insights.push({
       id: `held-${held.ticker}`,
       tone: "flat",
-      text: `${held.ticker} is ${fmtPct(held.pct)} of ${where}, above the ${COMPANY_LINE}% line too, but our call on it is Buy more, so there is no trim idea for it.`,
+      text: `${held.ticker} is ${fmtPct(held.pct)} of ${where}, above the ${COMPANY_LINE}% line too, but our call on it is ${heldCallWord([held])}, so there is no trim idea for it.`,
       soWhat: `Adding more would make ${where} lean on it even harder.`,
       tickers: [held.ticker],
       leadName: held.name,
@@ -135,7 +137,7 @@ export function buildIdeasRead(result: IdeasResult): TheRead | null {
     });
   }
   if (losses[0]) insights.push(lossSentence(losses[0], subject));
-  // When the headline already says "our call is Buy more", the quiet line would only repeat it; say what adding would do instead.
+  // When the headline already says "our call is Buy more" (or Keep), the quiet line would only repeat it; say what adding would do instead.
   const buyMoreHeadline = plan.trims.length === 0 && blocked !== null && losses.length === 0 && plan.small.length === 0;
   if (buyMoreHeadline) {
     insights.unshift({

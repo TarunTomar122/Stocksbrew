@@ -1,5 +1,6 @@
 import { ProCheckoutButton } from "@/components/oa/pro-checkout-button";
 import { StartFreeButton } from "@/components/oa/start-free-button";
+import { CALL_COVERAGE } from "@/lib/brand-copy";
 import { limitFor } from "@/lib/entitlements";
 import { countWord } from "@/lib/plain-copy";
 import { US_PRO_MONTHLY } from "@/lib/pricing";
@@ -28,7 +29,7 @@ export function PlansSection({ trialEligible }: { trialEligible: boolean }) {
           <p className="text-[17px] font-semibold leading-6 text-oa-fg">Free</p>
           <p className="oa-mono mt-3 text-[32px] font-medium leading-none tracking-tight">$0</p>
           <ul className="mt-5 flex flex-col gap-2">
-            <Line>Our call on every stock, and every market and investor page</Line>
+            <Line>Our call on {CALL_COVERAGE}, and every market and investor page</Line>
             <Line>The full report on {coveredWord} stocks you pick: why, and the prices where we&apos;d act</Line>
             <Line>{capitalize(countWord(limitFor("agents", "free")))} agents that check your stocks every market day and email you when something you picked happens</Line>
           </ul>

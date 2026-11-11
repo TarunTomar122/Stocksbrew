@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { bigDropOf, callFacts, dividendFacts, emptyFacts, namesTrouble, priorYearGrowth, type StockFacts } from "./facts";
-import { evaluate, ruleNote, verdictOf, type HoldingContext } from "./rules";
+import { evaluate, ruleNote, verdictOf, whatChanged, type HoldingContext } from "./rules";
 import { HISTORY_MAX, nextStoredCheck, readStoredCheck, toDoc } from "./store";
 import { applyNote } from "./word";
 
@@ -146,12 +146,25 @@ describe("rules per kind", () => {
     const done = evaluate(thesis("value"), facts({ pe: 28.4, pePercentile: 72, peMedian: 22 }), NO_COST, TODAY);
     expect(done.verdict).toBe("played_out");
     expect(done.signals[0]!.text).toBe("The stock is no longer cheap against its own past. Its P/E of 28.4 is higher than on 72% of the days in its stored history, where the middle is 22.");
+    // The headline says what changed, not just "played out", and the note does not say the P/E twice.
+    expect(done.headline).toBe("NVDA has done what you bought it for: it is no longer cheap, with a P/E higher than on 72% of past days.");
+    expect(ruleNote(done)).toBe(`${done.headline} Its P/E is 28.4, and half the time it has been below 22.`);
+    expect(whatChanged(done)).toMatchObject({ signal: "no_longer_cheap" });
+    expect(whatChanged({ ...done, verdict: "broken" })).toBeNull();
     expect(evaluate(thesis("value"), facts({ netIncome: -2e9 }), NO_COST, TODAY).verdict).toBe("broken");
     expect(evaluate(thesis("value"), facts({ epsGrowth: -25, pe: 9, pePercentile: 20 }), NO_COST, TODAY).signals[0]!.id).toBe("value_trap");
   });
 
   it("short-term trade: against cost, days held and earnings without a plan", () => {
-    expect(evaluate(thesis("trade"), facts({ close: { value: 120, day: "2026-11-10" } }), { avgCost: 100, savedClose: null }, TODAY).verdict).toBe("played_out");
+    const target = evaluate(thesis("trade"), facts({ close: { value: 120, day: "2026-11-10" } }), { avgCost: 100, savedClose: null }, TODAY);
+    expect(target.verdict).toBe("played_out");
+    expect(target.headline).toBe("NVDA has done what you bought it for as a short-term trade: it is up 20% on what you paid.");
+    expect(ruleNote(target)).toBe(`${target.headline} It closed at $120.00, against your average cost of $100.00.`);
+    // Just over the 15% line, with no cost entered (the close on the day the reason was saved is the basis).
+    const atLine = evaluate(thesis("trade", null, "2026-11-02T15:00:00.000Z"), facts({ close: { value: 116, day: "2026-11-10" } }), { avgCost: null, savedClose: 100 }, TODAY);
+    expect(atLine.verdict).toBe("played_out");
+    expect(atLine.headline).toBe("NVDA has done what you bought it for as a short-term trade: it is up 16% since you saved this reason.");
+    expect(ruleNote(atLine)).toContain("It closed at $116.00, against $100.00 when you saved it.");
     const stop = evaluate(thesis("trade"), facts({ close: { value: 80, day: "2026-11-10" } }), { avgCost: 100, savedClose: null }, TODAY);
     expect(stop.signals[0]!.text).toBe("It closed 20% below your average cost of $100.00.");
     const noCost = evaluate(thesis("trade", null, "2026-11-02T15:00:00.000Z"), facts({ close: { value: 80, day: "2026-11-10" } }), { avgCost: null, savedClose: 100 }, TODAY);

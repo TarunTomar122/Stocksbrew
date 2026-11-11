@@ -16,6 +16,7 @@ import { getScreenerRows } from "@/lib/screener";
 import { withoutZones, type ScreenerRow } from "@/lib/screener-shared";
 import { plainCallReason, shortCompanyName, wholeSentences } from "@/lib/plain-copy";
 import Link from "next/link";
+import { FREE_COVERED_WORD } from "@/lib/paywall-flag";
 
 /**
  * The compare desk's body for two to four stocks: the read, the rebased price
@@ -206,7 +207,7 @@ export async function CompareView({
                         </p>
                       ) : null}
                       {brief.locked ? (
-                        <p className="mt-2 text-pretty text-[13px] leading-5 text-oa-muted-fg">The reasons and risks are in the full report on {symbol}, free on five stocks you pick.</p>
+                        <p className="mt-2 text-pretty text-[13px] leading-5 text-oa-muted-fg">The reasons and risks are in the full report on {symbol}, free on {FREE_COVERED_WORD} stocks you pick.</p>
                       ) : null}
                       <p className={`${NUM} mt-2.5 text-[11px] text-oa-muted-fg`}>
                         <Link prefetch={false} href={`/stock/${encodeURIComponent(symbol)}`} className="underline decoration-oa-border underline-offset-2 hover:text-oa-fg">

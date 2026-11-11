@@ -22,6 +22,7 @@ import {
   type BriefingGroup,
 } from "@/lib/briefing-groups";
 import { briefingRead, earlierSession, type BriefingSession } from "@/lib/briefing-read";
+import { anchorGroups, WORTH_KNOWING_FIRST } from "@/lib/briefing-anchors";
 import { briefingLead, briefingSteps } from "@/lib/next-steps";
 
 import { BriefingGroupCard, type GroupActions } from "./briefing-group";
@@ -47,11 +48,16 @@ export type BriefingViewProps = {
   earnings?: React.ReactNode;
   /** How every sector did today, for the market view's headline and its strip. Null on other days. */
   session?: BriefingSession | null;
+  /**
+   * The person's agents with their latest outcomes and an Ask box (./agents-strip.tsx), rendered and streamed on
+   * the server; signed out, Ask on the market. Sits under the read. When given, the side rail's agents line goes.
+   */
+  agents?: React.ReactNode;
+  /** The "rest of your stocks moved too" card on Free (./locked-moves.tsx), rendered on the server. */
+  locked?: React.ReactNode;
 };
 
 const CARD = "oa-surface overflow-hidden border border-oa-border bg-oa-card";
-/** On a day when everything moves the list gets long; the rest is one tap away, never dropped. */
-const WORTH_KNOWING_FIRST = 8;
 
 function Section({
   id,
@@ -197,6 +203,8 @@ export function BriefingView({
   marketState,
   earnings = null,
   session = null,
+  agents = null,
+  locked = null,
 }: BriefingViewProps) {
   const [state, setState] = React.useState<BriefingStateMap>(initialState);
   const [busy, setBusy] = React.useState<string | null>(null);
@@ -275,8 +283,6 @@ export function BriefingView({
     readOnly: archived,
     day: briefing.date,
   };
-  const groupCards = (groups: BriefingGroup[], limit: number) =>
-    groups.map((group) => <BriefingGroupCard key={group.key} group={group} actions={actions} limit={limit} />);
 
   const index = briefing.market.indices;
   const movers = [...briefing.market.gainers, ...briefing.market.losers];
@@ -303,6 +309,10 @@ export function BriefingView({
   // The sector strip belongs to the session headline: today's live sectors under the index line they explain.
   const showSession = !personal && Boolean(session) && Boolean(read) && !read?.headlineTickers && briefing.market.indices.length > 0 && !earlierSession(briefing.market.as_of, briefing.date);
   const worth = showAllWorth ? worthAll : worthAll.slice(0, WORTH_KNOWING_FIRST);
+  // Only a personal briefing's cards are linked from the agents strip (lib/briefing-anchors.ts); settled ones never.
+  const anchors: ReadonlySet<BriefingGroup> = personal ? anchorGroups([...grouped.needs_you, ...worth, ...grouped.coming_up]) : new Set();
+  const groupCards = (groups: BriefingGroup[], limit: number) =>
+    groups.map((group) => <BriefingGroupCard key={group.key} group={group} actions={actions} limit={limit} anchor={anchors.has(group)} />);
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start lg:gap-x-5">
@@ -386,6 +396,7 @@ export function BriefingView({
           label={personal ? "Today for you" : "Today in the market"}
           visual={showSession && session ? <SessionStrip sectors={session.sectors} /> : null}
         />
+        {agents}
         {earnings}
 
         {error ? (
@@ -411,7 +422,7 @@ export function BriefingView({
             count={personal ? groupCountLabel(worthListed) : worthAll.length > 0 ? `${worthAll.length} ${worthAll.length === 1 ? "stock" : "stocks"}` : undefined}
           >
             {worth.map((group) => (
-              <BriefingGroupCard key={group.key} group={group} actions={actions} limit={COMPACT_VISIBLE_LINES} />
+              <BriefingGroupCard key={group.key} group={group} actions={actions} limit={COMPACT_VISIBLE_LINES} anchor={anchors.has(group)} />
             ))}
             {worthAll.length > WORTH_KNOWING_FIRST ? (
               <button
@@ -457,6 +468,8 @@ export function BriefingView({
             ) : null}
           </Section>
         ) : null}
+
+        {personal && locked ? locked : null}
 
         <Section id="coming-up" label="Coming up" count={grouped.coming_up.length > 0 ? "next 7 days" : undefined}>
           {grouped.coming_up.length > 0 ? (
@@ -526,7 +539,13 @@ export function BriefingView({
               </span>
               <span className="text-right text-[12.5px] leading-4 text-oa-muted-fg">{showSettled ? "Hide" : "Show"}</span>
             </button>
-            {showSettled ? <div className="pb-1">{groupCards(grouped.settled, GROUP_VISIBLE_LINES)}</div> : null}
+            {showSettled ? (
+              <div className="pb-1">
+                {grouped.settled.map((group) => (
+                  <BriefingGroupCard key={group.key} group={group} actions={actions} limit={GROUP_VISIBLE_LINES} />
+                ))}
+              </div>
+            ) : null}
             {!canSave && !archived ? (
               <p className="px-4 pb-2.5 text-[12.5px] leading-5 text-oa-muted-fg">Kept for this visit only. Sign in to keep it.</p>
             ) : null}
@@ -596,13 +615,15 @@ export function BriefingView({
           </section>
         ) : null}
 
-        <p className="px-2 text-[12.5px] leading-5 text-oa-muted-fg sm:px-1">
-          Want a heads-up when a stock hits a price, files a report or nears earnings?{" "}
-          <Link prefetch={false} href="/agents" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
-            Set up an agent
-          </Link>{" "}
-          and it will report here every market day.
-        </p>
+        {agents ? null : (
+          <p className="px-2 text-[12.5px] leading-5 text-oa-muted-fg sm:px-1">
+            Want a heads-up when a stock hits a price, files a report or nears earnings?{" "}
+            <Link prefetch={false} href="/agents" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
+              Set up an agent
+            </Link>{" "}
+            and it will report here every market day.
+          </p>
+        )}
       </aside>
     </div>
   );

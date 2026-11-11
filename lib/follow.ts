@@ -18,7 +18,7 @@ export * from "@/lib/follow-shared";
 
 /**
  * Loaders for the Follow surface. Everything is written by the jobs in
- * `backend/agentdata` (funds_13f.py, house_ptr.py, insiders_form4.py) and
+ * `backend/agentdata` (funds_13f.py, house_ptr.py, senate_ptr.py, insiders_form4.py) and
  * only changes when they run, so ten minutes of cache is plenty.
  */
 const REVALIDATE = 600;
@@ -85,8 +85,9 @@ async function loadActivity(limit: number): Promise<FollowActivity[]> {
     .limit(limit)
     .get();
   return snap.docs
-    .map((doc) => doc.data() as FollowActivity)
-    .filter((item) => item && item.source_id && item.date);
+    .map((doc) => doc.data() as FollowActivity & { superseded_by?: string })
+    // A Senate report its amendment restated stays stored, marked; the amendment's event stands for it.
+    .filter((item) => item && item.source_id && item.date && !item.superseded_by);
 }
 
 export const getFollowActivity = (limit = 60) =>
@@ -103,7 +104,8 @@ async function loadSourceActivity(slug: string): Promise<FollowActivity[]> {
     .limit(40)
     .get();
   return snap.docs
-    .map((doc) => doc.data() as FollowActivity)
+    .map((doc) => doc.data() as FollowActivity & { superseded_by?: string })
+    .filter((item) => !item.superseded_by)
     .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
 }
 
@@ -335,8 +337,9 @@ export const getFundDigests = unstable_cache(loadFundDigests, ["follow-fund-dige
 async function loadRecentCongressTrades(since: string): Promise<CongressTradeLite[]> {
   const snap = await adminFirestore.collection("tm_follow_trades").where("disclosure_date", ">=", since).limit(5000).get();
   return snap.docs
-    .map((doc) => doc.data() as Partial<CongressTradeLite>)
-    .filter((trade) => typeof trade.ticker === "string" && trade.ticker && typeof trade.disclosure_date === "string")
+    .map((doc) => doc.data() as Partial<CongressTradeLite> & { superseded_by?: string })
+    // A Senate report restated by an amendment keeps its old trades stored, marked; count the amendment's only.
+    .filter((trade) => !trade.superseded_by && typeof trade.ticker === "string" && trade.ticker && typeof trade.disclosure_date === "string")
     .map((trade) => ({
       ticker: trade.ticker as string,
       company: trade.company ?? "",
@@ -347,7 +350,7 @@ async function loadRecentCongressTrades(since: string): Promise<CongressTradeLit
     }));
 }
 
-/** House trades reported in the last `days` days, for the read. */
+/** House and Senate trades reported in the last `days` days, for the read. */
 export function getRecentCongressTrades(days = 30, today: string = new Date().toISOString().slice(0, 10)) {
   const start = new Date(`${today}T00:00:00Z`);
   start.setUTCDate(start.getUTCDate() - days);

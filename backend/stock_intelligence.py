@@ -17,6 +17,7 @@ from backend.call_engine_pipeline import (
     engine_context_for,
     resolve_directive,
 )
+from backend import call_stability
 from backend.call_reason import attach_call_reason, coerce_model_reasons, validated_model_reasons
 from backend.directive_v2 import build_directive_v2
 from backend.evidence_history import (
@@ -1447,10 +1448,12 @@ def build_no_news_intelligence_doc(
         }]
 
     previous_v2 = None
+    previous_brief = None
     anomaly_doc = None
     if store is not None:
         try:
             prev_doc = store.get_stock_intelligence_doc(market, universe_id, instrument_id)
+            previous_brief = prev_doc if isinstance(prev_doc, dict) else None
             previous_v2 = (prev_doc or {}).get("directive_v2")
             if not isinstance(previous_v2, dict):
                 previous_v2 = None
@@ -1536,19 +1539,41 @@ def build_no_news_intelligence_doc(
             model_reasons=brief.get("call_reasons"),
         )
 
-    if not engine_context.active:
-        doc["directive_v2"] = _with_reason(legacy_directive)
-        return doc
+    def _steady(directive: dict[str, Any]) -> dict[str, Any]:
+        # CALL_STABILITY_MODE shadow/on; {} when off. Reads its own price, report and
+        # market facts, the same ones the news-backed path and the replay use. In "on"
+        # mode a CallStabilityError reaches the caller below, which keeps the old brief.
+        fields = call_stability.run_for_brief(
+            store=store,
+            market=market,
+            instrument=instrument,
+            directive=directive,
+            history_points=history_points,
+            now_utc=now_utc,
+        )
+        if "directive_v2" in fields:
+            directive = fields.pop("directive_v2")
+        doc.update(fields)
+        return directive
+
+    try:
+        if not engine_context.active:
+            doc["directive_v2"] = _with_reason(_steady(legacy_directive))
+            return doc
+        resolved = resolve_directive(
+            engine_context.mode,
+            legacy_directive=legacy_directive,
+            engine_call=compute_engine_call(engine_context, instrument),
+            live_price=current_price,
+        )
+        steady_directive = _steady(resolved["directive_v2"])
+    except call_stability.CallStabilityError as exc:
+        logger.error("call stability: keeping the previous brief for %s: %s", instrument_id, exc)
+        return previous_brief
     # Shadow or on. The no-news brief is written before the call is known, so
     # in "on" mode its text is not an explanation of the call; only the
     # directive fields come from the engine.
-    resolved = resolve_directive(
-        engine_context.mode,
-        legacy_directive=legacy_directive,
-        engine_call=compute_engine_call(engine_context, instrument),
-        live_price=current_price,
-    )
-    resolved["directive_v2"] = _with_reason(resolved["directive_v2"])
+    resolved["directive_v2"] = _with_reason(steady_directive)
     doc.update(resolved)
     return doc
 
@@ -4347,6 +4372,26 @@ def build_stock_intelligence_docs(
             engine_call=engine_call,
             live_price=current_price,
         )
+        # CALL_STABILITY_MODE shadow/on: the day's call is a vote; the steady call
+        # only moves on a confirmed turn or a hard reason. Off (default) returns {}.
+        try:
+            steady_fields = call_stability.run_for_brief(
+                store=store,
+                market=market,
+                instrument=instrument,
+                directive=resolved_directive["directive_v2"],
+                history_points=history_points,
+                now_utc=now_utc,
+            )
+        except call_stability.CallStabilityError as exc:
+            # "on" only: the steady call could not be decided and saved. Keep this
+            # stock's previous brief rather than publish a call the state does not back.
+            logger.error("call stability: keeping the previous brief for %s: %s", instrument_id, exc)
+            if prev_doc:
+                docs.append(prev_doc)
+            continue
+        if "directive_v2" in steady_fields:
+            resolved_directive["directive_v2"] = steady_fields.pop("directive_v2")
         # Additive: the call is already decided above; this only says why, for
         # this stock, from the model's matching reason or the stock's own facts.
         resolved_directive["directive_v2"] = attach_call_reason(
@@ -4362,6 +4407,7 @@ def build_stock_intelligence_docs(
             "source": LLM_BRIEF_SOURCE,
             "coverage_type": "on_demand_news",
             **resolved_directive,
+            **steady_fields,
             "lanes": [
                 {"label": "Positive Mentions", "positive_pct": positive_pct},
                 {"label": "Source Agreement", "positive_pct": source_agreement_pct},

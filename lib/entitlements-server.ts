@@ -113,7 +113,25 @@ export type MeterResult = {
   limit: number;
   remaining: number;
   per: "day" | "month";
+  /** The counter could not be read, so a costly feature said no. Show "try again", not "limit reached". */
+  unavailable?: true;
 };
+
+/**
+ * Metered features that cost us a model call per use. When the counter store
+ * is down these say "try again in a minute" instead of running uncounted: an
+ * outage must not turn into unlimited model spend. Cheap meters (backtests)
+ * still fail open so an outage does not take them down.
+ *
+ * Today "ask" is listed for any future caller of consumeMeter: /api/ask and
+ * /api/chat count questions on their own counter (lib/ask-limits.ts), which
+ * fails closed in the routes. Deep research's real gate is the peek before a
+ * run (/api/research); the count after the report is saved only records it.
+ */
+export const FAIL_CLOSED_METERS: ReadonlySet<FeatureId> = new Set<FeatureId>(["ask", "deep_research"]);
+
+/** What to tell a person when a costly feature's counter is down. */
+export const METER_UNAVAILABLE_MESSAGE = "We could not check your allowance just now, so nothing ran and nothing was counted. Try again in a minute.";
 
 function periodKey(per: "day" | "month", now: Date): string {
   return per === "day" ? now.toISOString().slice(0, 10) : now.toISOString().slice(0, 7);
@@ -122,8 +140,9 @@ function periodKey(per: "day" | "month", now: Date): string {
 /**
  * Count one use of a metered feature. `subject` is the uid, or for signed-out
  * visitors a stable anonymous key (a hashed IP). The day rolls over at
- * midnight UTC. Fails open if the store is
- * down: a counter outage must not take the feature down with it.
+ * midnight UTC. If the store is down, cheap features fail open (an outage
+ * must not take them down) and the costly ones in FAIL_CLOSED_METERS fail
+ * closed with `unavailable`.
  */
 export async function consumeMeter(
   feature: FeatureId,
@@ -162,12 +181,21 @@ export async function consumeMeter(
       return { allowed: true, used: used + 1, limit: rule.max, remaining: rule.max - used - 1, per: rule.per };
     });
   } catch (error) {
+    if (FAIL_CLOSED_METERS.has(feature)) {
+      console.error("consumeMeter failed closed", feature, error);
+      return { allowed: false, used: 0, limit: rule.max, remaining: 0, per: rule.per, unavailable: true };
+    }
     console.error("consumeMeter failed open", feature, error);
     return { allowed: true, used: 0, limit: rule.max, remaining: rule.max, per: rule.per };
   }
 }
 
-/** Read a meter without spending it, for "2 of 3 left today" notes. */
+/**
+ * Read a meter without spending it, for "2 of 3 left today" notes. Null when
+ * the feature has no meter on this plan, or the store could not be read: a
+ * caller gating a costly feature treats null as "try again" (see the research
+ * route).
+ */
 export async function peekMeter(
   feature: FeatureId,
   plan: Plan,

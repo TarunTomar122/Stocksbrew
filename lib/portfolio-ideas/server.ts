@@ -1,5 +1,6 @@
 import { unstable_cache } from "next/cache";
 
+import { redactLevels } from "@/lib/entitlements";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { getLatestPriceQuotes } from "@/lib/firestore";
 import { getSnapshotFacts } from "@/lib/insight-data";
@@ -57,7 +58,8 @@ type Seed = Omit<IdeaHolding, "call" | "callReason" | "sector" | "industry" | "m
 
 function enrich(seed: Seed, row: ScreenerRow | undefined, today: string): IdeaHolding {
   const call = row?.call && CALLS.includes(row.call) ? (row.call as CallWord) : null;
-  const reason = row?.call_reason ? matchingCompanyReason({ text: row.call_reason, call, source: row.call_reason_source ?? null }, call, today) : null;
+  // The call's one line is free on every stock, but the engine can write a price level into it; levels follow coverage, so they go (as on the stock page).
+  const reason = row?.call_reason ? redactLevels(matchingCompanyReason({ text: row.call_reason, call, source: row.call_reason_source ?? null }, call, today)) : null;
   return {
     ...seed,
     call: seed.fund ? null : call,

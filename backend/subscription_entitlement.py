@@ -1,6 +1,7 @@
 """Shared Pro entitlement rules for backend work."""
 from __future__ import annotations
 
+import os
 from datetime import datetime, timezone
 from typing import Any, Mapping
 
@@ -49,7 +50,11 @@ def has_current_pro_entitlement(user: Mapping[str, Any]) -> bool:
 # for line. ``has_current_pro_entitlement`` above stays the stricter rule for
 # compute cohorts (an unknown status does not buy research compute).
 
-FREE_COVERED_STOCKS = 5  # lib/entitlements.ts: FREE_COVERED_STOCKS
+# lib/paywall-flag.ts: FREE_COVERED_STOCKS. Five today, three on the tighter
+# Free/Pro line (PAYWALL_V2=1), which must be set on the jobs and the web app together.
+PAYWALL_V2 = os.environ.get("PAYWALL_V2") == "1"
+FREE_COVERED_STOCKS = 3 if PAYWALL_V2 else 5
+FREE_COVERED_WORD = "three" if PAYWALL_V2 else "five"
 
 
 def is_pro_user(user: Mapping[str, Any] | None) -> bool:

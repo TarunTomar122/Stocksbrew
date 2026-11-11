@@ -8,6 +8,7 @@ import { startDodoCheckout } from "@/lib/dodo-checkout-client";
 import { trackCheckoutClicked, trackCheckoutFailed } from "@/lib/product-analytics";
 import { signInWithGoogle } from "@/lib/sign-in";
 import Link from "next/link";
+import { FREE_COVERED_STOCKS, FREE_COVERED_WORD } from "@/lib/paywall-flag";
 
 export type PricingPeriod = "monthly" | "yearly";
 
@@ -29,9 +30,9 @@ export type PlanPrice = {
 const OUTLINE_LINK =
   "flex h-11 w-full items-center justify-center rounded-lg border border-[color-mix(in_srgb,var(--oa-fg)_22%,transparent)] bg-oa-card text-[15px] font-medium text-oa-fg outline-none transition-colors hover:bg-oa-accent focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]";
 
-/** How many stocks get the full report, drawn: five dots on Free, a full row on Pro. */
+/** How many stocks get the full report, drawn: a dot per covered stock on Free, a full row on Pro. */
 function Coverage({ every }: { every: boolean }) {
-  const dots = every ? 28 : 5;
+  const dots = every ? 28 : FREE_COVERED_STOCKS;
   return (
     // Wraps inside a one-dot-tall box, so a narrow card shows only whole dots, never one cut in half at the edge.
     <div aria-hidden="true" className="mt-3 flex h-3 flex-wrap items-center gap-x-[5px] gap-y-3 overflow-hidden">
@@ -40,7 +41,7 @@ function Coverage({ every }: { every: boolean }) {
       ))}
       {every ? null : (
         <>
-          {Array.from({ length: 23 }, (_, index) => (
+          {Array.from({ length: 28 - FREE_COVERED_STOCKS }, (_, index) => (
             <span key={`off-${index}`} className="block h-3 w-3 shrink-0 rounded-full border border-oa-muted-fg/40" />
           ))}
         </>
@@ -169,7 +170,7 @@ export function PlanCards({
           <span className="oa-mono text-[44px] font-semibold leading-[52px] tracking-[-0.02em] text-oa-fg">$0</span>
           <span className="text-[14px] text-oa-muted-fg">forever</span>
         </p>
-        <p className="mt-3 text-[16px] font-medium leading-6 text-oa-fg">The full report on 5 stocks you choose</p>
+        <p className="mt-3 text-[16px] font-medium leading-6 text-oa-fg">The full report on {FREE_COVERED_STOCKS} stocks you choose</p>
         <Coverage every={false} />
         <Points items={freePoints} />
         <div className="mt-auto pt-6">
@@ -182,7 +183,7 @@ export function PlanCards({
               Open your stocks
             </Link>
           )}
-          <p className="mt-2 text-[13px] leading-[18px] text-oa-muted-fg">No card. Swap one of your five stocks each week.</p>
+          <p className="mt-2 text-[13px] leading-[18px] text-oa-muted-fg">No card. Swap one of your {FREE_COVERED_WORD} stocks each week.</p>
         </div>
       </section>
 

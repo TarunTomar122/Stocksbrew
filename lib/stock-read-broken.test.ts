@@ -17,6 +17,9 @@ const base: StockRead = {
   articleCount: 12,
   sourceCount: 5,
   changed: null,
+  since: null,
+  whatWouldChange: null,
+  heldAgainst: null,
 };
 
 describe("readLooksBroken", () => {

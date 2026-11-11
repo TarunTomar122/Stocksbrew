@@ -241,7 +241,7 @@ describe("rules: what we can't watch", () => {
 
   it("names the reason in plain words and never invents a watch", () => {
     for (const [text, code] of [
-      ["tell me about any news on Tesla", "news"],
+      ["tell me when Tesla gets FDA approval", "news"],
       ["tell me when NVDA crosses its 200 day moving average", "chart_signals"],
       ["tell me when analysts upgrade Apple", "analyst_ratings"],
       ["let me know when MSFT announces a dividend", "dividends"],
@@ -416,6 +416,23 @@ describe("saving", () => {
       "“NVDA below $150” is on. Reports show up below after the next check. Your plan runs two agents at a time, so “NVDA: new 13F filings” is saved and paused. Pause another agent to switch it on. You already had “AAPL: insider trades”, so it was left as it was.",
     );
   });
+
+  it("says a filing or news agent paused on Free is paused for Pro, not for the count", () => {
+    expect(
+      savedSentence({
+        saved: [
+          { name: "NVDA below $150", enabled: true },
+          { name: "NVDA: new 8-K", enabled: false },
+        ],
+        already: [],
+        limit: 1,
+        proOnly: ["NVDA: new 8-K"],
+      }),
+    ).toBe(
+      "“NVDA below $150” is on. Reports show up below after the next check. “NVDA: new 8-K” watches filings or news, which is part of Pro, so it is saved and paused. Change it to watch a price, an earnings date or a big move to run on Free.",
+    );
+    expect(savedSentence({ saved: [{ name: "AAPL below $200", enabled: false }], already: [], limit: 1 })).toMatch(/^Your plan runs one agent at a time/);
+  });
 });
 
 describe("index levels", () => {
@@ -426,3 +443,87 @@ describe("index levels", () => {
     expect(result.spec.cannot[0].line).toMatch(/its price is not the index level/);
   });
 });
+
+describe("rules: SEC filings and news", () => {
+  it("reads a form, the 8-K items and something big", () => {
+    const eightK = rules("Tell me when NVDA files an 8-K");
+    expect(eightK.confident).toBe(true);
+    expect(eightK.spec.watches[0].draft).toEqual({
+      template: "sec-filing",
+      name: "NVDA: new 8-K filings",
+      trigger: { type: "event", event: "sec_filing", filings: { forms: ["8-K"] } },
+      scope: { kind: "tickers", tickers: ["NVDA"] },
+    });
+    expect(eightK.spec.lead).toBe("I'll watch NVIDIA (NVDA) and tell you when it files an 8-K.");
+
+    // The second clause adds an item; "executive" is not an insider trade here.
+    const items = rules("Tell me when NVDA files an 8-K about a deal or an executive change");
+    expect(items.spec.watches).toHaveLength(1);
+    expect(items.spec.watches[0].draft.trigger).toEqual({ type: "event", event: "sec_filing", filings: { forms: ["8-K"], items: ["1.01", "5.02"] } });
+    expect(items.spec.watches[0].note).toMatch(/routine board seats/);
+
+    const big = rules("Tell me when any of my stocks files something big");
+    expect(big.confident).toBe(true);
+    expect(big.spec.watches[0].draft).toMatchObject({ trigger: { event: "sec_filing", filings: { major: true } }, scope: { kind: "watchlist" } });
+    expect(big.spec.watches[0].line).toMatch(/files something big: a deal, an acquisition/);
+  });
+
+  it("keeps 13F with funds and Form 4 with insiders, and reads 10-K and stakes", () => {
+    expect(rules("Tell me when a fund files a 13F on NVDA").spec.watches[0].draft.template).toBe("fund-filing");
+    expect(rules("Tell me when an insider files a Form 4 on NVDA").spec.watches[0].draft.template).toBe("insider-trade");
+    expect(rules("tell me if apple files its 10-K").spec.watches[0].draft.trigger).toEqual({ type: "event", event: "sec_filing", filings: { forms: ["10-K"] } });
+    const stake = rules("Tell me when anyone files a 13D on TSLA").spec.watches[0];
+    expect(stake.draft.trigger).toEqual({ type: "event", event: "sec_filing", filings: { forms: ["13D/G"] } });
+    expect(stake.full).toBe("when an investor reports a stake of more than 5% in Tesla (13D or 13G)");
+  });
+
+  it("allows any company only for offerings and stakes", () => {
+    expect(rules("let me know when any company files an S-1").spec.watches[0].draft.scope).toEqual({ kind: "any" });
+    expect(rules("let me know when any company files an 8-K").spec.watches[0].draft.scope).toEqual({ kind: "watchlist" });
+  });
+
+  it("reads a news watch: which way, or heavier than usual", () => {
+    const negative = rules("Tell me when news about AAPL turns negative");
+    expect(negative.confident).toBe(true);
+    expect(negative.spec.watches[0].draft).toEqual({
+      template: "news",
+      name: "AAPL: news turns negative",
+      trigger: { type: "event", event: "news", news: "negative" },
+      scope: { kind: "tickers", tickers: ["AAPL"] },
+    });
+    expect(negative.spec.lead).toBe("I'll watch Apple (AAPL) and tell you when the news about it turns clearly negative.");
+    expect(rules("tell me if there's a lot of news about NVDA").spec.watches[0].draft.trigger).toEqual({ type: "event", event: "news", news: "busy" });
+    const two = rules("news about AAPL and MSFT turns negative");
+    expect(two.confident).toBe(true);
+    expect(two.spec.watches[0].draft.scope).toEqual({ kind: "tickers", tickers: ["AAPL", "MSFT"] });
+    expect(rules("tell me about any news on Tesla").spec.watches[0].draft.trigger).toEqual({ type: "event", event: "news", news: "any" });
+  });
+
+  it("refuses one kind of story, and offers what works instead", () => {
+    const fda = rules("tell me when Tesla gets FDA approval");
+    expect(fda.spec.watches).toEqual([]);
+    expect(fda.spec.cannot[0]).toMatchObject({ code: "news", suggest: "Tell me when the news about TSLA turns negative" });
+    const ceo = rules("tell me when Tesla's CEO leaves");
+    expect(ceo.spec.watches).toEqual([]);
+    expect(ceo.spec.cannot[0].suggest).toBe("Tell me when TSLA files an 8-K about an executive change");
+  });
+
+  it("takes filings and news from the model, cleaned", () => {
+    const parsed: ModelParse = {
+      watches: [
+        { ...modelWatch("sec_filing", ["NVDA"]), forms: ["8-K", "bogus"], items: ["5.02", "9.99"] },
+        { ...modelWatch("news_change", ["Apple"]), news: "positive" },
+      ],
+      cannot: [],
+    };
+    const spec = specFromModel("NVDA executive change filings and good news on Apple", parsed, catalog, EARNINGS_OFF);
+    expect(spec.watches.map((watch) => watch.draft.trigger)).toEqual([
+      { type: "event", event: "sec_filing", filings: { forms: ["8-K"], items: ["5.02"] } },
+      { type: "event", event: "news", news: "positive" },
+    ]);
+  });
+});
+
+function modelWatch(kind: ModelWatch["kind"], stocks: string[]): ModelWatch {
+  return { kind, stocks, my_stocks: false, any_stock: false, level: null, pct: null, direction: null, days_before: null, weekday: null, side: null, person: null };
+}

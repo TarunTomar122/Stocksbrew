@@ -137,3 +137,26 @@ class CoveredInstrumentIdsTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_free_covered_stocks_follows_the_paywall_flag(monkeypatch):
+    import importlib
+
+    import backend.subscription_entitlement as entitlement
+
+    try:
+        monkeypatch.delenv("PAYWALL_V2", raising=False)
+        today = importlib.reload(entitlement)
+        assert today.FREE_COVERED_STOCKS == 5
+        assert today.FREE_COVERED_WORD == "five"
+        user = {"tracked_stocks": ["US_A", "US_B", "US_C", "US_D", "US_E", "US_F"]}
+        assert today.covered_instrument_ids(user) == ["US_A", "US_B", "US_C", "US_D", "US_E"]
+
+        monkeypatch.setenv("PAYWALL_V2", "1")
+        tighter = importlib.reload(entitlement)
+        assert tighter.FREE_COVERED_STOCKS == 3
+        assert tighter.FREE_COVERED_WORD == "three"
+        assert tighter.covered_instrument_ids(user) == ["US_A", "US_B", "US_C"]
+    finally:
+        monkeypatch.delenv("PAYWALL_V2", raising=False)
+        importlib.reload(entitlement)

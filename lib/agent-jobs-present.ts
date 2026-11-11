@@ -223,6 +223,9 @@ function sourceFor(trigger: AgentTrigger | undefined, findings: AgentFinding[]):
     if (trigger.event === "congress_trade") return "Congressional disclosures";
     if (trigger.event === "insider_trade") return "SEC Form 4 filings";
     if (trigger.event === "fund_13f") return "SEC 13F filings";
+    if (trigger.event === "sec_filing") return "SEC filings";
+    if (trigger.event === "news") return "Headlines and their tone";
+    if (trigger.event === "earnings_reported") return "Earnings reports";
     return "Today's movers";
   }
   return findings[0]?.source ?? "Daily closes";

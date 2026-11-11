@@ -7,6 +7,7 @@ import { trialConsumedPatch } from "@/lib/trial-eligibility";
 import { captureServerEvent } from "@/lib/posthog-server-capture";
 import { sendTransactionalEmail } from "@/lib/brevo";
 import { buildWelcomeProEmail } from "@/lib/emails/welcome-pro";
+import { PAYWALL_VARIANT } from "@/lib/paywall-flag";
 
 type WebhookLogLevel = "info" | "warn" | "error";
 
@@ -175,7 +176,7 @@ async function handleEvent(
       // PostHog names the paid conversion `subscription_activated` (docs/analytics.md);
       // the lifecycle record above keeps its own name for the mail job.
       const before = beforeSnap?.data() as Record<string, unknown> | undefined;
-      const lastSource = (before?.lastCheckoutSource ?? null) as { surface?: unknown; feature?: unknown } | null;
+      const lastSource = (before?.lastCheckoutSource ?? null) as { surface?: unknown; feature?: unknown; paywall?: unknown } | null;
       await captureServerEvent(uid, type === "subscription.active" ? "subscription_activated" : "subscription_renewed", {
         source_event: type,
         plan: "pro",
@@ -184,6 +185,8 @@ async function handleEvent(
         first_time: !wasAlreadySubscribed,
         checkout_surface: typeof lastSource?.surface === "string" ? lastSource.surface : null,
         checkout_feature: typeof lastSource?.feature === "string" ? lastSource.feature : null,
+        // The line the checkout started on (a renewal can arrive after the flag changed); today's line when the checkout predates it.
+        paywall: lastSource?.paywall === "v1" || lastSource?.paywall === "v2" ? lastSource.paywall : PAYWALL_VARIANT,
         subscription_id: subId ?? null,
         $insert_id: `dodo:${deliveryId}:${type}`,
       }).catch(() => undefined);

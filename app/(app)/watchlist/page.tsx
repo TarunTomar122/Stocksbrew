@@ -336,6 +336,7 @@ async function PortfolioStream({ tab }: { tab: string }) {
           viewer.plan === "free" && viewer.coverage
             ? {
                 covered: viewer.coverage.covered,
+                held: viewer.coverage.held,
                 limit: viewer.coverage.limit,
                 fillsLeft: viewer.coverage.fillsLeft,
                 swapAvailable: viewer.coverage.swapAvailable,

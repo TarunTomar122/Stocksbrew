@@ -5,6 +5,7 @@ import { StartFreeButton } from "@/components/oa/start-free-button";
 import { interTight } from "@/components/oa/font";
 import { SHORT_DESCRIPTION } from "@/lib/brand-copy";
 import { StocksbrewLogo } from "@/components/stocksbrew-logo";
+import { FREE_COVERED_WORD } from "@/lib/paywall-flag";
 
 const FRAME = "mx-auto w-full max-w-[84rem] px-4 sm:px-6 lg:px-8";
 
@@ -85,7 +86,7 @@ export function Footer({ isSubscribed = false }: { isSubscribed?: boolean }) {
                 Let the agent do the reading.
               </h2>
               <p className="mt-1.5 text-[15.5px] leading-6 text-oa-muted-fg">
-                Follow five stocks free. You hear from us when something changes.
+                Follow {FREE_COVERED_WORD} stocks free. You hear from us when something changes.
               </p>
             </div>
             <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">

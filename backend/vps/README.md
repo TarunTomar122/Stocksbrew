@@ -182,6 +182,13 @@ systemctl disable --now tikrr-reddit-buzz.timer
 systemctl show tikrr-reddit-buzz.service -p MemoryMax -p MemorySwapMax
 ```
 
+## Free/Pro line flag
+
+`PAYWALL_V2=1` switches the tighter Free/Pro line (lib/paywall-flag.ts). The mail jobs and the agent runner read it
+(`backend/subscription_entitlement.py`: Free covers 3 stocks, not 5), so it goes into the backend env file on this box
+in the same change as the Vercel variable and a redeploy (it is inlined at build time). One without the other means
+the emails cover five stocks while the app covers three, or the other way round. To roll back, remove it from both.
+
 ## Deploy updates
 
 `/opt/tikrr` is a normal Git checkout. GitHub is the source of truth; do not

@@ -75,11 +75,11 @@ describe("product analytics helpers", () => {
 
   it("sets the plan super property, and marks the plan Pro on checkout return", () => {
     analytics.setAnalyticsPlan("free");
-    expect(registerSuperProperties).toHaveBeenLastCalledWith({ plan: "free", signed_in: true });
+    expect(registerSuperProperties).toHaveBeenLastCalledWith({ plan: "free", signed_in: true, paywall: expect.stringMatching(/^v[12]$/) });
     analytics.setAnalyticsPlan("anon");
-    expect(registerSuperProperties).toHaveBeenLastCalledWith({ plan: "anon", signed_in: false });
+    expect(registerSuperProperties).toHaveBeenLastCalledWith({ plan: "anon", signed_in: false, paywall: expect.stringMatching(/^v[12]$/) });
     analytics.trackCheckoutReturned({ subscription_id: "sub_2" });
-    expect(registerSuperProperties).toHaveBeenLastCalledWith({ plan: "pro", signed_in: true });
+    expect(registerSuperProperties).toHaveBeenLastCalledWith({ plan: "pro", signed_in: true, paywall: expect.stringMatching(/^v[12]$/) });
   });
 
   it("caps list properties so payloads stay small", () => {

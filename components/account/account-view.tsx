@@ -10,6 +10,7 @@ import { FEATURES, FREE_COVERED_STOCKS, describeRule, type Feature } from "@/lib
 import { US_PRO_MONTHLY } from "@/lib/pricing";
 import Link from "next/link";
 import { AppLink } from "@/components/oa/app-link";
+import { FREE_COVERED_WORD } from "@/lib/paywall-flag";
 
 /**
  * The Account page. Server-rendered from one plain data object; the controls
@@ -247,7 +248,7 @@ export function AccountView({ data }: { data: AccountData }) {
             <EmailSwitch
               field="email_digest_enabled"
               label="Daily brief"
-              description={`About 8:30am ET on trading days, only when something changed in your stocks: a big move and why, a level reached, a new call, earnings. ${data.plan.isPro ? "Covers every stock you track." : "Covers your five covered stocks."}`}
+              description={`About 8:30am ET on trading days, only when something changed in your stocks: a big move and why, a level reached, a new call, earnings. ${data.plan.isPro ? "Covers every stock you track." : `Covers your ${FREE_COVERED_WORD} covered stocks.`}`}
               initial={data.emails.digest}
               disabled={off}
             />

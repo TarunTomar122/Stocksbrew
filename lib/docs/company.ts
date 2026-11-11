@@ -1,5 +1,6 @@
 import { h2, h3, note, p, table, ul, warn } from "@/lib/docs/build";
 import { CONTACT_EMAIL } from "@/lib/docs/site";
+import { CALL_COVERAGE } from "@/lib/brand-copy";
 import type { Block } from "@/lib/docs/types";
 import { US_PRO_MONTHLY, US_PRO_YEARLY } from "@/lib/pricing";
 
@@ -36,7 +37,7 @@ export const ABOUT_BLOCKS: Block[] = [
   p("There is no team page because there is no team to put on one, and no investor logos because there are none."),
   h2("How it pays for itself"),
   p(
-    `Reading is free: stock reports, our call on every stock, filings, fund pages and strategies. Pro is $${US_PRO_MONTHLY} a month or $${US_PRO_YEARLY} a year and pays for the parts that run on your behalf. There are no ads, no affiliate links in our comparisons and no selling of your data. See [Free vs Pro](/docs/start/free-vs-pro).`,
+    `Reading is free: stock reports, our call on ${CALL_COVERAGE}, filings, fund pages and strategies. Pro is $${US_PRO_MONTHLY} a month or $${US_PRO_YEARLY} a year and pays for the parts that run on your behalf. There are no ads, no affiliate links in our comparisons and no selling of your data. See [Free vs Pro](/docs/start/free-vs-pro).`,
   ),
   h2("If something is wrong"),
   p(`If a page is confusing or a number looks wrong, email me at ${MAIL} with the page and what you expected. I read every message. How errors get corrected is in [Editorial standards and corrections](/docs/methodology/corrections).`),

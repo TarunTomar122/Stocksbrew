@@ -1,14 +1,19 @@
 "use client";
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import * as React from "react";
 
 import { PlainAgentReadContext } from "@/components/agents-plain/plain-agent-box";
-import { SignInButton } from "@/components/briefing/sign-in-button";
 import { OaButton } from "@/components/oa/button";
+import { LockCard, ProMark } from "@/components/oa/gate";
 import { TheRead } from "@/components/oa/insight";
 import {
   AGENT_TEMPLATES,
   describeJob,
+  parseJobDraft,
+  planMayRun,
+  PRO_EVENTS_PAUSED,
   shortDate,
   triggerLabel,
   type AgentFacts,
@@ -18,7 +23,12 @@ import {
   type AgentRun,
   type AgentTemplate,
 } from "@/lib/agent-jobs";
+import { draftHref, type LinkedDraft } from "@/lib/agent-jobs-link";
 import { agentsRead, orderJobs, presentRun, type JobStatus } from "@/lib/agent-jobs-present";
+import { sameJob } from "@/lib/agents-plain/save";
+import type { Plan } from "@/lib/entitlements";
+import { getFirebaseAuth } from "@/lib/firebase-client";
+import { POST_SIGNUP_ONBOARDING_PENDING, signInWithGoogle, syncServerSession } from "@/lib/sign-in";
 
 import { RunList, RunReport, SessionStrip, VerdictChip, type RunRow } from "./run-list";
 import { trackAgentPreviewed, trackAgentReportOpened, trackAgentSwitchedOn, trackLimitHit } from "@/lib/product-analytics";
@@ -27,6 +37,8 @@ type Replay = AgentReplay & { tickers: string[]; available: AgentFacts["availabl
 
 export type JobsWorkspaceProps = {
   signedIn: boolean;
+  /** The viewer's plan, so an agent the plan cannot run (a filing or news agent on Free) says so instead of looking on. */
+  plan?: Plan;
   initialJobs: AgentJob[];
   initialRuns: AgentRun[];
   /** Which sources hold any data today, so a template can say when it cannot run yet. */
@@ -41,6 +53,10 @@ export type JobsWorkspaceProps = {
   focusJobId?: string | null;
   /** A replay computed on the server for the signed-out example. */
   sample?: { draft: AgentJobDraft; replay: Replay } | null;
+  /** An agent a link asked for (`?q=` read by rules, or `?draft=` kept across a sign-in): opened filled in, on top. */
+  linked?: LinkedDraft | null;
+  /** When the agents run on their own (lib/agent-schedule.ts), worked out on the server: "5:30 PM ET" and "today". */
+  schedule?: { time: string; next: string } | null;
   /** Template ids not offered right now (server flags, lib/agent-jobs.ts hiddenTemplateIds). */
   hiddenTemplates?: string[];
   /** Shown under the intro, above everything else (the plain-English agent box). */
@@ -50,6 +66,8 @@ export type JobsWorkspaceProps = {
 const CARD = "oa-surface overflow-hidden border border-oa-border bg-oa-card";
 const INPUT =
   "h-9 w-full rounded-lg border border-oa-border bg-oa-bg px-2.5 text-[14px] text-oa-fg outline-none placeholder:text-oa-muted-fg focus-visible:border-[color:color-mix(in_srgb,var(--oa-fg)_40%,transparent)] focus-visible:ring-[3px] focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_40%,transparent)]";
+/** The same field without a fixed width, for inputs that sit inside a sentence. */
+const INLINE_INPUT = INPUT.replace("w-full ", "");
 const WEEKDAYS = [
   { value: 1, label: "Monday" },
   { value: 2, label: "Tuesday" },
@@ -66,6 +84,9 @@ type Form = {
   pct: string;
   days: string;
   weekday: number;
+  /** Carried through from a linked draft: which SEC forms, and which news change. No field edits them. */
+  filings?: Extract<AgentJobDraft["trigger"], { type: "event" }>["filings"];
+  news?: Extract<AgentJobDraft["trigger"], { type: "event" }>["news"];
 };
 
 const BLANK: Form = { scope: "watchlist", tickers: "", level: "", direction: "crosses_below", pct: "5", days: "3", weekday: 1 };
@@ -83,6 +104,8 @@ function payloadFor(template: AgentTemplate, form: Form, signedIn: boolean) {
       pct: Number(form.pct),
       days_before: Number(form.days),
       weekday: form.weekday,
+      ...(form.filings ? { filings: form.filings } : {}),
+      ...(form.news ? { news: form.news } : {}),
     },
   };
 }
@@ -120,8 +143,10 @@ function formFromDraft(draft: AgentJobDraft, offered: AgentTemplate[]): { templa
     if (trigger.rule === "crosses_above" || trigger.rule === "crosses_below") form.direction = trigger.rule;
     if (trigger.level != null) form.level = String(trigger.level);
     if (trigger.pct != null) form.pct = String(trigger.pct);
-  } else if (trigger.type === "event" && trigger.days_before != null) {
-    form.days = String(trigger.days_before);
+  } else if (trigger.type === "event" && (trigger.days_before != null || trigger.filings || trigger.news)) {
+    if (trigger.days_before != null) form.days = String(trigger.days_before);
+    if (trigger.filings) form.filings = trigger.filings;
+    if (trigger.news) form.news = trigger.news;
   } else if (trigger.type === "schedule" && trigger.weekday != null) {
     form.weekday = trigger.weekday;
   }
@@ -147,6 +172,15 @@ function ReplayPanel({ replay, job }: { replay: Replay; job: Pick<AgentJob, "tri
   const rows = replayRows(replay);
   const latestHit = rows.find((run) => run.decision === "notify");
   const told = replay.counts.notify;
+  const unchecked = replay.counts.could_not_check;
+  const evidence =
+    job.trigger.type !== "event"
+      ? "Real closes"
+      : job.trigger.event === "sec_filing"
+        ? "Real SEC filings"
+        : job.trigger.event === "news"
+          ? "Real headlines and our tone read of them"
+          : "Real data";
   return (
     <div className="overflow-hidden rounded-xl border border-oa-border bg-oa-bg">
       <div className="flex flex-wrap items-end justify-between gap-3 px-3.5 py-3 sm:px-4">
@@ -157,14 +191,18 @@ function ReplayPanel({ replay, job }: { replay: Replay; job: Pick<AgentJob, "tri
           <p className="mt-1 text-pretty text-[15px] font-medium leading-snug text-oa-fg">
             {rows.length === 0
               ? "There was nothing to check in the last four weeks."
-              : told === 0
-                ? `All quiet: it would not have told you anything in the last ${rows.length} market days.`
+              : told === 0 && unchecked === rows.length
+                ? `It could not check any of the last ${rows.length} market days. The list under this says why.`
+                : told === 0 && unchecked > 0
+                  ? `All quiet on the ${rows.length - unchecked} market days it could check. It could not check the other ${unchecked}.`
+                  : told === 0
+                    ? `All quiet: it would not have told you anything in the last ${rows.length} market days.`
                 : `It would have told you on ${told} of the last ${rows.length} market days.`}
           </p>
           {replay.tickers.length > 0 ? (
             <p className="mt-0.5 text-[13px] leading-5 text-oa-muted-fg">
               On {replay.tickers.slice(0, 8).join(", ")}
-              {replay.tickers.length > 8 ? ` and ${replay.tickers.length - 8} more` : ""}. Real closes, each day seeing only what was known then.
+              {replay.tickers.length > 8 ? ` and ${replay.tickers.length - 8} more` : ""}. {evidence}, each day seeing only what was known then.
             </p>
           ) : null}
         </div>
@@ -196,6 +234,38 @@ function sourceNote(template: AgentTemplate, available: AgentFacts["available"])
   if (template.needs === "fund_filings") return "13F filings are not in yet. Until they are, each run says it couldn't check.";
   if (template.needs === "insiders") return "Insider trades are not in yet. Until they are, each run says it couldn't check.";
   return "This source is not available right now. Until it is, each run says it couldn't check.";
+}
+
+/** When an agent runs, from the real after-close schedule. Every agent is checked in that one run. */
+function checksWhen(trigger: AgentJobDraft["trigger"], schedule: JobsWorkspaceProps["schedule"]): string {
+  const at = schedule?.time ?? "5:30 PM ET";
+  if (trigger.type === "schedule" && trigger.cadence === "weekly") {
+    const day = WEEKDAYS.find((entry) => entry.value === trigger.weekday)?.label ?? "Monday";
+    return `Every ${day} after the market closes, from ${at}.`;
+  }
+  const first = schedule?.next ? ` If you save it now, its first check is ${schedule.next}.` : "";
+  return `After every market close, from ${at}, Monday to Friday.${first}`;
+}
+
+/** Sign-in errors that mean the person closed the window themselves: nothing to say about those. */
+const SIGN_IN_CANCELLED = new Set(["auth/popup-closed-by-user", "auth/cancelled-popup-request", "auth/user-cancelled"]);
+
+/**
+ * Sign in, then load the page again at an address that holds the draft, so the same agent is waiting with its
+ * save button. A navigation to `href` (not a reload) because the router can rewrite the address after a sign-in.
+ */
+async function signInKeepingDraft(href: string) {
+  const user = getFirebaseAuth().currentUser;
+  // A browser can still hold a Firebase user after the server session expired: refresh the cookie instead.
+  if (user) await syncServerSession(user);
+  else await signInWithGoogle({ surface: "agents_save" });
+  try {
+    // Saving this agent is the new account's first step; the general welcome would open on top of it.
+    localStorage.removeItem(POST_SIGNUP_ONBOARDING_PENDING);
+  } catch {
+    // Storage blocked: the welcome shows, and the draft is still waiting under it.
+  }
+  window.location.replace(href);
 }
 
 const GROUP_LABEL: Record<AgentTemplate["group"], string> = {
@@ -233,6 +303,7 @@ function Switch({ job, busy, onToggle }: { job: AgentJob; busy: boolean; onToggl
 
 export function JobsWorkspace({
   signedIn,
+  plan = "pro",
   initialJobs,
   initialRuns,
   available,
@@ -241,6 +312,8 @@ export function JobsWorkspace({
   today,
   focusJobId,
   sample,
+  linked,
+  schedule,
   hiddenTemplates,
   lead,
 }: JobsWorkspaceProps) {
@@ -248,6 +321,7 @@ export function JobsWorkspace({
     () => (hiddenTemplates?.length ? AGENT_TEMPLATES.filter((entry) => !hiddenTemplates.includes(entry.id)) : AGENT_TEMPLATES),
     [hiddenTemplates],
   );
+  const router = useRouter();
   const [jobs, setJobs] = React.useState(initialJobs);
   const [runs, setRuns] = React.useState(initialRuns);
   // A server refresh (signing in or out, say) replaces what this page holds.
@@ -257,13 +331,22 @@ export function JobsWorkspace({
   // Signed out, the builder opens on a real example with its replay, so the page shows what an agent says.
   // The page only sends an example to a signed-out visitor, or to anyone who came to watch one stock ("?watch=MSFT").
   const starter = React.useMemo(() => starterFor(sample && (signedIn || initialJobs.length === 0) ? sample : null, signedIn), [initialJobs.length, sample, signedIn]);
-  const [templateId, setTemplateId] = React.useState<string | null>(starter?.templateId ?? null);
-  const [form, setForm] = React.useState<Form>(starter?.form ?? { ...BLANK, scope: signedIn && tracked > 0 ? "watchlist" : "tickers" });
+  // The agent a link asked for, read once on arrival: a refresh after saving elsewhere on the page must not bring it back.
+  const [arrived] = React.useState(() => {
+    const next = linked ? formFromDraft(linked.draft, offered) : null;
+    return next && linked ? { ...next, key: JSON.stringify(payloadFor(next.template, next.form, signedIn)), note: linked.note ?? null } : null;
+  });
+  /** True while the builder still holds the linked agent (edited or not); it then sits on top of the page. */
+  const [linkedOpen, setLinkedOpen] = React.useState(Boolean(arrived));
+  const [templateId, setTemplateId] = React.useState<string | null>(starter?.templateId ?? arrived?.template.id ?? null);
+  const [form, setForm] = React.useState<Form>(starter?.form ?? arrived?.form ?? { ...BLANK, scope: signedIn && tracked > 0 ? "watchlist" : "tickers" });
   const [replay, setReplay] = React.useState<Replay | null>(starter?.replay ?? null);
   const [replayFor, setReplayFor] = React.useState<string>(starter?.key ?? "");
   const [busy, setBusy] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [notice, setNotice] = React.useState<string | null>(null);
+  // The plan's lock for an agent the server just saved paused (lib/entitlements.ts agents / agent_events).
+  const [lock, setLock] = React.useState<{ feature: "agents" | "agent_events"; plan: Plan } | null>(null);
   const [allTemplates, setAllTemplates] = React.useState(false);
   const [adding, setAdding] = React.useState(false);
   /** The payload of an agent loaded into the builder from the plain-English box, while it is unchanged. */
@@ -284,7 +367,7 @@ export function JobsWorkspace({
       .filter(Boolean);
     const base = template.defaults;
     const scope: AgentJobDraft["scope"] =
-      template.id === "price-level" || form.scope === "tickers" || (!signedIn && form.scope === "watchlist")
+      template.id === "price-level" || form.scope === "tickers"
         ? { kind: "tickers", tickers }
         : form.scope === "any"
           ? { kind: "any" }
@@ -294,8 +377,11 @@ export function JobsWorkspace({
     else if (trigger.type === "price" && template.id === "big-move") trigger = { type: "price", rule: "moves_pct", pct: Number(form.pct) || 5 };
     else if (trigger.type === "event" && trigger.event === "earnings_approaching") trigger = { ...trigger, days_before: Number(form.days) || 3 };
     else if (trigger.type === "schedule" && trigger.cadence === "weekly") trigger = { ...trigger, weekday: form.weekday };
+    if (trigger.type === "event" && (trigger.event === "sec_filing" || trigger.event === "news")) {
+      trigger = { ...trigger, ...(form.filings ? { filings: form.filings } : {}), ...(form.news ? { news: form.news } : {}) };
+    }
     return { trigger, scope };
-  }, [form, signedIn, template]);
+  }, [form, template]);
 
   const runsByJob = React.useMemo(() => {
     const map = new Map<string, AgentRun[]>();
@@ -331,9 +417,16 @@ export function JobsWorkspace({
     setBusy(key);
     setError(null);
     setNotice(null);
+    setLock(null);
     try {
       const response = await fetch(url, { ...init, headers: { "Content-Type": "application/json" } });
-      const body = (await response.json().catch(() => null)) as (T & { error?: string }) | null;
+      const body = (await response.json().catch(() => null)) as (T & { error?: string; feature?: string; plan?: Plan }) | null;
+      // A plan refusal (switching on a filing or news agent on Free, or past the agent limit) shows the lock card, not an error.
+      if (!response.ok && body && (body.feature === "agents" || body.feature === "agent_events") && body.plan && body.plan !== "pro") {
+        setLock({ feature: body.feature, plan: body.plan });
+        trackLimitHit({ feature: body.feature, plan: body.plan, code: body.feature === "agent_events" ? "pro_only_trigger" : "switch_on_at_limit" });
+        return null;
+      }
       if (!response.ok || !body) throw new Error(body?.error || "That did not work. Try again.");
       return body;
     } catch (cause) {
@@ -345,6 +438,7 @@ export function JobsWorkspace({
   }
 
   function pick(next: AgentTemplate) {
+    setLinkedOpen(false);
     setTemplateId(next.id);
     setReplay(null);
     setError(null);
@@ -372,7 +466,8 @@ export function JobsWorkspace({
   // it, otherwise the builder closes, so two different agents never sit one above the other.
   // A later read replaces an agent loaded from earlier words too, as long as the person has not changed it here.
   const wordsShowing = Boolean(fromWords && fromWords === payloadKey);
-  const exampleShowing = Boolean(starter && templateId === starter.templateId && replayFor === starter.key && !fromWords) || wordsShowing;
+  const linkedUntouched = Boolean(linkedOpen && arrived && payloadKey === arrived.key);
+  const exampleShowing = Boolean(starter && templateId === starter.templateId && replayFor === starter.key && !fromWords) || wordsShowing || linkedUntouched;
   const exampleRef = React.useRef({ replaceable: exampleShowing, words: wordsShowing });
   exampleRef.current = { replaceable: exampleShowing, words: wordsShowing };
   const onPlainRead = React.useCallback(
@@ -388,8 +483,8 @@ export function JobsWorkspace({
         return;
       }
       const next = formFromDraft(drafts[0]!, offered);
-      // Signed out there is no watchlist to replay, so "anything I own" cannot be previewed here.
-      if (!next || (!signedIn && next.form.scope !== "tickers")) {
+      setLinkedOpen(false);
+      if (!next) {
         setTemplateId(null);
         setReplay(null);
         setFromWords(null);
@@ -400,7 +495,8 @@ export function JobsWorkspace({
       setForm(next.form);
       setReplay(null);
       setFromWords(key);
-      void replayPayload(key, next.template.id);
+      // Signed out there is no list of theirs to replay, so "anything I own" is shown without a replay; the card says why.
+      if (signedIn || next.form.scope === "tickers") void replayPayload(key, next.template.id);
     },
     // replayPayload only uses setters and `call`, which read no changing state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -408,20 +504,31 @@ export function JobsWorkspace({
   );
 
   async function create(body: string, key: string) {
-    const result = await call<{ job: AgentJob; paused?: { message?: string } | null }>(key, "/api/agent-jobs", { method: "POST", body });
+    const result = await call<{ job: AgentJob; paused?: { message?: string; feature?: "agents" | "agent_events"; plan?: Plan } | null }>(key, "/api/agent-jobs", {
+      method: "POST",
+      body,
+    });
     if (!result) return;
+    setLock(!result.job.enabled && result.paused?.feature && result.paused.plan ? { feature: result.paused.feature, plan: result.paused.plan } : null);
     trackAgentSwitchedOn({ template: result.job.template, via: key === "create" ? "create" : "quick_start", enabled: result.job.enabled });
     // Saved but switched off: the plan's agent limit (lib/entitlements.ts `agents`).
-    if (!result.job.enabled && result.paused) trackLimitHit({ feature: "agents", code: "paused_at_limit" });
+    if (!result.job.enabled && result.paused) trackLimitHit({ feature: result.paused.feature ?? "agents", code: result.paused.feature === "agent_events" ? "pro_only_trigger" : "paused_at_limit" });
     setJobs((current) => [...current, result.job]);
     setOpenJob(result.job.id);
     setTemplateId(null);
     setReplay(null);
     setAdding(false);
+    // Saved: a reload must not offer the same agent again from the address it came in on. Through the router, so a
+    // later refresh does not put the old address back.
+    if (linkedOpen || /[?&](?:draft|q)=/.test(window.location.search)) router.replace("/agents", { scroll: false });
+    setLinkedOpen(false);
     // Past the plan's limit the server saves the job switched off and says why.
     setNotice(
       result.paused?.message && !result.job.enabled
-        ? `"${result.job.name}": ${result.paused.message}`
+        ? // The lock card under this note says why and what the ways out are; on Pro (no card) the server's message does.
+          result.paused.plan && result.paused.plan !== "pro"
+          ? `"${result.job.name}" is saved and paused.`
+          : `"${result.job.name}": ${result.paused.message}`
         : `"${result.job.name}" is on. Its reports show up here, starting with its next check.`,
     );
   }
@@ -429,6 +536,45 @@ export function JobsWorkspace({
   async function turnOn() {
     if (payload) await create(payloadKey, "create");
   }
+
+  // The agent as it would be saved, checked the way the server checks it. Signed out, "the stocks I track" stays
+  // that, so after signing in it watches their list instead of an empty one.
+  const savable = React.useMemo(
+    () => (template ? parseJobDraft(payloadFor(template, form, true), { hidden: hiddenTemplates ?? [] }) : null),
+    [form, hiddenTemplates, template],
+  );
+  const already = Boolean(signedIn && savable?.ok && jobs.some((job) => sameJob(job, savable.draft)));
+
+  async function saveSignedOut() {
+    if (!savable) return;
+    if (!savable.ok) {
+      setError(savable.error);
+      return;
+    }
+    setBusy("signin");
+    setError(null);
+    try {
+      await signInKeepingDraft(draftHref(savable.draft));
+    } catch (cause) {
+      setBusy(null);
+      const code = (cause as { code?: unknown } | null)?.code;
+      if (typeof code === "string" && SIGN_IN_CANCELLED.has(code)) return;
+      setError("Sign-in did not finish. This agent is still here, so try again when you are ready.");
+    }
+  }
+
+  // Arrived with an agent: replay it straight away (reads only), so the last four weeks are there to look at.
+  // Signed out, a replay needs named stocks (at most five, as the route allows).
+  const replayedOnArrival = React.useRef(false);
+  React.useEffect(() => {
+    if (replayedOnArrival.current || !arrived) return;
+    replayedOnArrival.current = true;
+    const names = arrived.form.tickers.split(/[\s,;]+/).filter(Boolean).length;
+    if (!signedIn && (arrived.form.scope !== "tickers" || names === 0 || names > 5)) return;
+    void replayPayload(arrived.key, arrived.template.id);
+    // Once per arrival; replayPayload only uses setters and `call`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function quickStart(entry: AgentTemplate) {
     await create(JSON.stringify(payloadFor(entry, { ...BLANK, scope: "watchlist" }, true)), `start-${entry.id}`);
@@ -464,9 +610,235 @@ export function JobsWorkspace({
     }
   }
 
-  const needsTickers = template ? template.id === "price-level" || form.scope === "tickers" || (!signedIn && form.scope === "watchlist") : false;
+  // Signed out, "the stocks I track" can still be picked: it is what gets saved, and it takes effect after signing in.
+  const needsTickers = template ? template.id === "price-level" || form.scope === "tickers" : false;
   const hasJobs = signedIn && jobs.length > 0;
   const showTemplates = !hasJobs || adding;
+
+  const LABEL = "text-[12.5px] font-medium text-oa-muted-fg";
+  const namesTyped = form.tickers.split(/[\s,;]+/).filter(Boolean).length;
+  // Signed out, a replay needs stocks named here: there is no list of theirs to read yet.
+  const replayBlocked = !signedIn && (needsTickers ? namesTyped === 0 : form.scope === "watchlist");
+  // Signed in with nothing tracked, "the stocks I track" would save an agent with nothing to watch.
+  const emptyList = signedIn && tracked === 0 && !needsTickers && form.scope === "watchlist";
+
+  const messages = (
+    <>
+      {error ? (
+        <p role="alert" className="rounded-lg border border-[color:color-mix(in_srgb,var(--signal-bearish)_40%,transparent)] bg-oa-card px-3.5 py-2 text-[13px] text-signal-bearish">
+          {error}
+        </p>
+      ) : null}
+      {notice ? (
+        <p role="status" className="rounded-lg border border-oa-border bg-oa-card px-3.5 py-2 text-[13px] text-[color:color-mix(in_srgb,var(--oa-fg)_85%,transparent)]">
+          {notice}
+        </p>
+      ) : null}
+      {lock ? <LockCard feature={lock.feature} plan={lock.plan} /> : null}
+    </>
+  );
+
+  const builder =
+    template && draftPreview ? (
+      <section aria-labelledby="draft-title" className={CARD}>
+        <div ref={builderRef} className="grid min-w-0 content-start gap-3.5 px-3.5 py-3.5 sm:px-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h2 id="draft-title" className="text-pretty text-[17px] font-semibold leading-6 text-oa-fg">
+                {describeJob(draftPreview)}
+              </h2>
+              {starter && replayFor === starter.key && replayIsCurrent ? (
+                <p className="mt-1 text-pretty text-[14px] leading-5 text-oa-muted-fg">
+                  This is an example, and it is not switched on.{" "}
+                  {sample?.draft.scope.kind === "tickers" && sample.draft.scope.tickers.length === 1
+                    ? `It watches ${sample.draft.scope.tickers[0]} over the last four weeks of real prices. Change anything, or pick a different agent below.`
+                    : "It watches Nvidia, Apple, Microsoft, Amazon and Tesla over the last four weeks of real prices. Change anything, or pick a different agent below."}
+                </p>
+              ) : fromWords && fromWords === payloadKey ? (
+                <p className="mt-1 text-pretty text-[14px] leading-5 text-oa-muted-fg">
+                  This is the agent you described above, and it is not switched on yet. Save it above, or change it here.
+                </p>
+              ) : (
+                <p className="mt-1 text-pretty text-[14px] leading-5 text-oa-muted-fg">Nothing is saved yet. Change anything here, then save it.</p>
+              )}
+              {linkedOpen && arrived?.note ? <p className="mt-1 text-pretty text-[13.5px] leading-5 text-oa-fg">{arrived.note}</p> : null}
+              {sourceNote(template, available) ? <p className="mt-1 text-pretty text-[13.5px] leading-5 text-oa-fg">{sourceNote(template, available)}</p> : null}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setTemplateId(null);
+                setLinkedOpen(false);
+              }}
+              className="-mr-1 h-8 shrink-0 cursor-pointer px-1 text-[13px] font-medium text-oa-muted-fg hover:text-oa-fg"
+            >
+              Close
+            </button>
+          </div>
+
+          <dl className="grid gap-x-5 gap-y-3 rounded-xl border border-oa-border bg-oa-bg px-3.5 py-3 sm:grid-cols-2">
+            <div className="grid min-w-0 content-start gap-1">
+              <dt className={LABEL}>What it watches</dt>
+              <dd className="min-w-0">
+                {template.fields.some((field) => field === "direction" || field === "level" || field === "pct" || field === "days_before" || field === "weekday") ? (
+                  <div className="flex flex-wrap items-center gap-2 text-[14px] text-oa-fg">
+                    {template.fields.includes("direction") ? (
+                      <>
+                        <span>Closes</span>
+                        <select aria-label="Above or below" className={`${INLINE_INPUT}`} value={form.direction} onChange={(event) => setForm({ ...form, direction: event.target.value as Form["direction"] })}>
+                          <option value="crosses_below">below</option>
+                          <option value="crosses_above">above</option>
+                        </select>
+                      </>
+                    ) : null}
+                    {template.fields.includes("level") ? (
+                      <input
+                        aria-label="Price in dollars"
+                        className={`${INLINE_INPUT} oa-mono w-28`}
+                        inputMode="decimal"
+                        value={form.level}
+                        placeholder="$180"
+                        onChange={(event) => setForm({ ...form, level: event.target.value })}
+                      />
+                    ) : null}
+                    {template.fields.includes("pct") ? (
+                      <>
+                        <span>Moves at least</span>
+                        <input aria-label="Move in percent" className={`${INLINE_INPUT} oa-mono w-20`} inputMode="decimal" value={form.pct} onChange={(event) => setForm({ ...form, pct: event.target.value })} />
+                        <span>% in a day</span>
+                      </>
+                    ) : null}
+                    {template.fields.includes("days_before") ? (
+                      <>
+                        <input aria-label="Days before earnings" className={`${INLINE_INPUT} oa-mono w-16`} inputMode="numeric" value={form.days} onChange={(event) => setForm({ ...form, days: event.target.value })} />
+                        <span>days before earnings</span>
+                      </>
+                    ) : null}
+                    {template.fields.includes("weekday") ? (
+                      <>
+                        <span>Every</span>
+                        <select aria-label="Day of the week" className={`${INLINE_INPUT}`} value={form.weekday} onChange={(event) => setForm({ ...form, weekday: Number(event.target.value) })}>
+                          {WEEKDAYS.map((day) => (
+                            <option key={day.value} value={day.value}>
+                              {day.label}
+                            </option>
+                          ))}
+                        </select>
+                      </>
+                    ) : null}
+                  </div>
+                ) : (
+                  // The filled-in trigger ("8-K filing", "News turns negative"), not the template's generic name.
+                  <p className="text-pretty text-[14px] leading-5 text-oa-fg">{draftPreview ? triggerLabel(draftPreview.trigger) : template.title}</p>
+                )}
+              </dd>
+            </div>
+            <div className="grid min-w-0 content-start gap-1">
+              <dt className={LABEL}>Which stocks</dt>
+              <dd className="flex min-w-0 flex-wrap items-center gap-2">
+                {template.id !== "price-level" ? (
+                  <select
+                    aria-label="Which stocks"
+                    className={`${INLINE_INPUT}`}
+                    value={form.scope}
+                    onChange={(event) => setForm({ ...form, scope: event.target.value as Form["scope"] })}
+                  >
+                    <option value="watchlist">{signedIn ? `The stocks I track (${tracked})` : "The stocks I track"}</option>
+                    <option value="tickers">Stocks I choose</option>
+                    {template.defaults.trigger.type === "event" && ["fund_13f", "congress_trade", "insider_trade"].includes(template.defaults.trigger.event) ? (
+                      <option value="any">Any stock</option>
+                    ) : null}
+                  </select>
+                ) : null}
+                {needsTickers ? (
+                  <input
+                    aria-label={template.id === "price-level" ? "Ticker" : "Tickers"}
+                    className={`${INLINE_INPUT} oa-mono min-w-0 flex-1 basis-40 uppercase`}
+                    value={form.tickers}
+                    placeholder={template.id === "price-level" ? "AAPL" : "AAPL, NVDA, MSFT"}
+                    autoCapitalize="characters"
+                    spellCheck={false}
+                    onChange={(event) => setForm({ ...form, tickers: event.target.value })}
+                  />
+                ) : null}
+              </dd>
+            </div>
+            <div className="grid min-w-0 content-start gap-1">
+              <dt className={LABEL}>When it checks</dt>
+              <dd className="text-pretty text-[14px] leading-5 text-oa-fg">{checksWhen(draftPreview.trigger, schedule)}</dd>
+            </div>
+            <div className="grid min-w-0 content-start gap-1">
+              <dt className={LABEL}>How it tells you</dt>
+              <dd className="text-pretty text-[14px] leading-5 text-oa-fg">
+                A short report here after every check, and an email when it finds something. You can switch the emails off in your profile.
+              </dd>
+            </div>
+          </dl>
+
+          {replayShown && replay ? (
+            <ReplayPanel replay={replay} job={draftPreview} />
+          ) : busy === "replay" ? (
+            <p role="status" className="rounded-xl border border-oa-border bg-oa-bg px-3.5 py-3 text-[14px] leading-5 text-oa-muted-fg">
+              Replaying the last four weeks of real closes…
+            </p>
+          ) : emptyList ? (
+            <p className="rounded-xl border border-oa-border bg-oa-bg px-3.5 py-3 text-pretty text-[14px] leading-5 text-oa-fg">
+              You don&apos;t track any stocks yet, so this has nothing to watch until you add some in{" "}
+              <Link href="/portfolio" className="font-medium underline underline-offset-2">
+                My stocks
+              </Link>
+              . Or choose stocks above instead.
+            </p>
+          ) : replayBlocked ? (
+            <p className="rounded-xl border border-oa-border bg-oa-bg px-3.5 py-3 text-pretty text-[14px] leading-5 text-oa-fg">
+              {needsTickers
+                ? "Type a ticker or two above to see what it would have said over the last four weeks."
+                : "Once you sign in, it watches the stocks you track. To see what it would have said over the last four weeks, choose stocks above and type a ticker or two."}
+            </p>
+          ) : null}
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+            {already ? (
+              <p className="text-pretty text-[14px] font-medium leading-5 text-oa-fg">You already have this agent.</p>
+            ) : signedIn ? (
+              <OaButton loading={busy === "create"} onClick={turnOn} className="max-sm:!h-10 max-sm:w-full">
+                Save this agent
+              </OaButton>
+            ) : (
+              <OaButton loading={busy === "signin"} onClick={saveSignedOut} className="max-sm:!h-10 max-sm:w-full">
+                Save this agent
+              </OaButton>
+            )}
+            <OaButton
+              variant="secondary"
+              data-action="replay"
+              loading={busy === "replay"}
+              disabled={replayBlocked}
+              onClick={runReplay}
+              className="max-sm:!h-10 max-sm:w-full"
+            >
+              {replay && !replayIsCurrent ? "Update the preview" : "Preview the last four weeks"}
+            </OaButton>
+            {replay && !replayIsCurrent ? (
+              <span className="text-[13px] leading-5 text-oa-muted-fg">You changed it. Update the preview to see the new result.</span>
+            ) : draftPreview && plan !== "pro" && !planMayRun(draftPreview, plan === "anon" ? "free" : plan) ? (
+              <span className="flex flex-wrap items-center gap-2 text-pretty text-[13px] leading-5 text-oa-muted-fg sm:ml-1">
+                <ProMark className="h-[22px]" />
+                <span>
+                  Agents that read new filings and news are part of Pro. On Free this one saves paused.{" "}
+                  <a href="/pricing" className="font-medium text-oa-primary hover:underline">
+                    See Pro
+                  </a>
+                </span>
+              </span>
+            ) : !signedIn && !already ? (
+              <span className="text-pretty text-[13px] leading-5 text-oa-muted-fg sm:ml-1">Saving asks you to sign in. It is free, and this agent stays filled in while you do.</span>
+            ) : null}
+          </div>
+        </div>
+      </section>
+    ) : null;
+
 
   return (
     <PlainAgentReadContext.Provider value={onPlainRead}>
@@ -479,18 +851,13 @@ export function JobsWorkspace({
         happens. Agents never trade.
       </p>
 
+      {/* An agent from a link comes first: it is what the person came here for. */}
+      {linkedOpen ? builder : null}
+      {linkedOpen ? messages : null}
+
       {lead}
 
-      {error ? (
-        <p role="alert" className="rounded-lg border border-[color:color-mix(in_srgb,var(--signal-bearish)_40%,transparent)] bg-oa-card px-3.5 py-2 text-[13px] text-signal-bearish">
-          {error}
-        </p>
-      ) : null}
-      {notice ? (
-        <p role="status" className="rounded-lg border border-oa-border bg-oa-card px-3.5 py-2 text-[13px] text-[color:color-mix(in_srgb,var(--oa-fg)_85%,transparent)]">
-          {notice}
-        </p>
-      ) : null}
+      {linkedOpen ? null : messages}
 
       {hasJobs ? <TheRead read={read} label="What your agents found" /> : null}
 
@@ -513,6 +880,7 @@ export function JobsWorkspace({
                 open={openJob === status.job.id}
                 tracked={tracked}
                 busy={busy}
+                proOnly={plan !== "pro" && !planMayRun(status.job, plan)}
                 onOpen={() => {
                   if (openJob !== status.job.id) trackAgentReportOpened({ template: status.job.template, has_report: Boolean(status.view) });
                   setOpenJob(openJob === status.job.id ? null : status.job.id);
@@ -526,132 +894,7 @@ export function JobsWorkspace({
         </section>
       ) : null}
 
-      {template && draftPreview ? (
-        <section aria-label="Set up an agent" className={CARD}>
-          <header className="flex min-h-11 items-center justify-between gap-3 border-b border-oa-border px-3.5 py-2 sm:px-4">
-            <h2 className="oa-label min-w-0 truncate">{template.title}</h2>
-            <button type="button" onClick={() => setTemplateId(null)} className="cursor-pointer text-[13px] font-medium text-oa-muted-fg hover:text-oa-fg">
-              Close
-            </button>
-          </header>
-          <div ref={builderRef} className="grid min-w-0 content-start gap-3.5 px-3.5 py-3.5 sm:px-4">
-            {starter && replayFor === starter.key && replayIsCurrent ? (
-              <p className="text-pretty text-[14px] leading-5 text-oa-fg">
-                <span className="mr-1.5 inline-flex h-[22px] items-center rounded border border-oa-border bg-oa-bg px-2 align-[1px] text-[12.5px] font-medium text-oa-muted-fg">Example, not switched on</span>
-                {sample?.draft.scope.kind === "tickers" && sample.draft.scope.tickers.length === 1
-                  ? `Here it watches ${sample.draft.scope.tickers[0]} over the last four weeks of real prices, checking each day's close. Change anything, or pick a different agent below.`
-                  : "Here it watches Nvidia, Apple, Microsoft, Amazon and Tesla over the last four weeks of real prices, checking each day's close. Change anything, or pick a different agent below."}
-              </p>
-            ) : fromWords && fromWords === payloadKey ? (
-              <p className="text-pretty text-[14px] leading-5 text-oa-fg">
-                <span className="mr-1.5 inline-flex h-[22px] items-center rounded border border-oa-border bg-oa-bg px-2 align-[1px] text-[12.5px] font-medium text-oa-muted-fg">
-                  From your words, not switched on
-                </span>
-                This is the agent you described above, replayed on the last four weeks of real closes. Save it above, or change it here.
-              </p>
-            ) : null}
-            <div className={`grid gap-3 sm:grid-cols-2 xl:grid-cols-4 ${replayShown ? "order-2" : "order-1"}`}>
-              {template.id !== "price-level" ? (
-                <label className="grid gap-1 text-[12.5px] font-medium text-oa-muted-fg">
-                  Which stocks
-                  <select
-                    className={INPUT}
-                    value={!signedIn && form.scope === "watchlist" ? "tickers" : form.scope}
-                    onChange={(event) => setForm({ ...form, scope: event.target.value as Form["scope"] })}
-                  >
-                    {signedIn ? <option value="watchlist">The stocks I track ({tracked})</option> : null}
-                    <option value="tickers">Stocks I choose</option>
-                    {template.defaults.trigger.type === "event" &&
-                    ["fund_13f", "congress_trade", "insider_trade"].includes(template.defaults.trigger.event) ? (
-                      <option value="any">Any stock</option>
-                    ) : null}
-                  </select>
-                </label>
-              ) : null}
-              {needsTickers ? (
-                <label className={`grid gap-1 text-[12.5px] font-medium text-oa-muted-fg ${template.id === "price-level" ? "" : "xl:col-span-2"}`}>
-                  {template.id === "price-level" ? "Ticker" : "Tickers"}
-                  <input
-                    className={`${INPUT} oa-mono uppercase`}
-                    value={form.tickers}
-                    placeholder={template.id === "price-level" ? "AAPL" : "AAPL, NVDA, MSFT"}
-                    autoCapitalize="characters"
-                    spellCheck={false}
-                    onChange={(event) => setForm({ ...form, tickers: event.target.value })}
-                  />
-                </label>
-              ) : null}
-              {template.fields.includes("direction") ? (
-                <label className="grid gap-1 text-[12.5px] font-medium text-oa-muted-fg">
-                  Closes
-                  <select className={INPUT} value={form.direction} onChange={(event) => setForm({ ...form, direction: event.target.value as Form["direction"] })}>
-                    <option value="crosses_below">Below</option>
-                    <option value="crosses_above">Above</option>
-                  </select>
-                </label>
-              ) : null}
-              {template.fields.includes("level") ? (
-                <label className="grid gap-1 text-[12.5px] font-medium text-oa-muted-fg">
-                  Price ($)
-                  <input className={`${INPUT} oa-mono`} inputMode="decimal" value={form.level} placeholder="180" onChange={(event) => setForm({ ...form, level: event.target.value })} />
-                </label>
-              ) : null}
-              {template.fields.includes("pct") ? (
-                <label className="grid gap-1 text-[12.5px] font-medium text-oa-muted-fg">
-                  Tell me when a stock moves at least (%)
-                  <input className={`${INPUT} oa-mono`} inputMode="decimal" value={form.pct} onChange={(event) => setForm({ ...form, pct: event.target.value })} />
-                </label>
-              ) : null}
-              {template.fields.includes("days_before") ? (
-                <label className="grid gap-1 text-[12.5px] font-medium text-oa-muted-fg">
-                  Days before earnings
-                  <input className={`${INPUT} oa-mono`} inputMode="numeric" value={form.days} onChange={(event) => setForm({ ...form, days: event.target.value })} />
-                </label>
-              ) : null}
-              {template.fields.includes("weekday") ? (
-                <label className="grid gap-1 text-[12.5px] font-medium text-oa-muted-fg">
-                  Day of the week
-                  <select className={INPUT} value={form.weekday} onChange={(event) => setForm({ ...form, weekday: Number(event.target.value) })}>
-                    {WEEKDAYS.map((day) => (
-                      <option key={day.value} value={day.value}>
-                        {day.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ) : null}
-            </div>
-
-            <div className={`rounded-xl border border-oa-border bg-oa-bg px-3.5 py-3 ${replayShown ? "order-1" : "order-2"}`}>
-              <p className="oa-caption">In plain words</p>
-              <p className="mt-1 max-w-[70ch] text-pretty text-[16px] leading-6 text-oa-fg">&ldquo;{describeJob(draftPreview)}&rdquo;</p>
-              {sourceNote(template, available) ? (
-                <p className="mt-1.5 text-[12.5px] leading-5 text-[color:color-mix(in_srgb,var(--oa-fg)_80%,transparent)]">{sourceNote(template, available)}</p>
-              ) : null}
-            </div>
-
-            <div className="order-4 flex flex-wrap items-center gap-2">
-              {signedIn ? (
-                <OaButton loading={busy === "create"} onClick={turnOn} className="max-sm:!h-10">
-                  Switch it on
-                </OaButton>
-              ) : (
-                <SignInButton label="Sign in to turn it on" size="md" className="max-sm:!h-10" />
-              )}
-              <OaButton variant="secondary" data-action="replay" loading={busy === "replay"} onClick={runReplay} className="max-sm:!h-10">
-                {replay && replayIsCurrent ? "Update preview" : "Preview the last 4 weeks"}
-              </OaButton>
-              {replay && !replayIsCurrent ? <span className="text-[12.5px] text-oa-muted-fg">You changed it. Update the preview to see the new result.</span> : null}
-            </div>
-
-            {replayShown && replay ? (
-              <div className="order-3">
-                <ReplayPanel replay={replay} job={draftPreview} />
-              </div>
-            ) : null}
-          </div>
-        </section>
-      ) : null}
+      {linkedOpen ? null : builder}
 
       {showTemplates ? (
         <section aria-labelledby="templates-label" className="flex min-w-0 flex-col gap-2">
@@ -662,9 +905,9 @@ export function JobsWorkspace({
             <p className="text-[12.5px] leading-5 text-oa-muted-fg">
               {signedIn
                 ? tracked > 0
-                  ? `Start watches your ${tracked} tracked names. Preview shows the last 4 weeks first.`
+                  ? `Start watches your ${tracked} tracked names. Preview shows the last four weeks first.`
                   : "Track a few stocks first, or pick tickers in Preview."
-                : "Try any of them on the last four weeks of prices. Sign in to switch one on."}
+                : "Try any of them on the last four weeks of prices before you save one."}
             </p>
           </div>
           <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -729,6 +972,7 @@ function JobRow({
   open,
   tracked,
   busy,
+  proOnly = false,
   onOpen,
   onToggle,
   onRun,
@@ -739,6 +983,8 @@ function JobRow({
   open: boolean;
   tracked: number;
   busy: string | null;
+  /** Watches filings or news on a plan without them: saved, never run, until Pro (lib/entitlements.ts agent_events). */
+  proOnly?: boolean;
   onOpen: () => void;
   onToggle: () => void;
   onRun: () => void;
@@ -751,7 +997,9 @@ function JobRow({
       <div className="flex items-start gap-3 px-3.5 py-2.5 sm:px-4">
         <button type="button" aria-expanded={open} onClick={onOpen} className="min-w-0 flex-1 cursor-pointer text-left outline-none">
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            {!job.enabled ? (
+            {proOnly ? (
+              <ProMark className="h-[22px]" />
+            ) : !job.enabled ? (
               <span className="oa-mono inline-flex h-[22px] items-center rounded border border-oa-border px-1.5 text-[11.5px] uppercase tracking-[0.04em] text-oa-muted-fg">
                 Paused
               </span>
@@ -768,7 +1016,9 @@ function JobRow({
             </span>
           </span>
           <span className={`mt-1 block text-[13.5px] leading-5 ${open ? "" : "line-clamp-2 sm:line-clamp-1"} ${view?.verdict === "quiet" ? "text-oa-muted-fg" : "text-oa-fg"}`}>
-            {view ? (
+            {proOnly ? (
+              <span className="text-oa-muted-fg">{PRO_EVENTS_PAUSED} It stays saved and does not run until then.</span>
+            ) : view ? (
               <>
                 {view.headline} <span className="text-oa-muted-fg">{open ? "" : view.todo}</span>
               </>

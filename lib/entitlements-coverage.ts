@@ -19,11 +19,18 @@ import { FREE_COVERED_STOCKS, FREE_COVER_SWAPS_PER_WEEK } from "@/lib/entitlemen
  *   covered_stocks      instrument ids, in the order they were covered
  *   covered_fills_used  how many of the five free fills are spent
  *   covered_adds_log    [{ id, at, kind }] for the last seven days
+ *   covered_held        stocks this account covered before its limit shrank
+ *                       (PAYWALL_V2 cut Free from five to three, or Pro
+ *                       ended): each can be picked back once without a fill
+ *                       or the weekly swap, so nobody is stuck with the
+ *                       first three by stored order. Until the first write
+ *                       it is read from covered_stocks past the limit.
  */
 
 export const COVERED_FIELD = "covered_stocks";
 export const COVER_FILLS_FIELD = "covered_fills_used";
 export const COVER_LOG_FIELD = "covered_adds_log";
+export const COVER_HELD_FIELD = "covered_held";
 
 export const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -34,6 +41,7 @@ export type CoverageDoc = {
   covered_stocks?: unknown;
   covered_fills_used?: unknown;
   covered_adds_log?: unknown;
+  covered_held?: unknown;
 };
 
 function strings(value: unknown): string[] {
@@ -76,6 +84,18 @@ export function effectiveCovered(doc: CoverageDoc | null | undefined, isPro: boo
   return tracked.slice(0, FREE_COVERED_STOCKS);
 }
 
+/**
+ * Stocks the account chose before its Free limit shrank and can pick back
+ * free, once each: the stored `covered_held`, or before that is written, the
+ * explicit choice past the limit. Only ids still tracked and not covered now.
+ */
+export function heldPicks(doc: CoverageDoc | null | undefined): string[] {
+  const tracked = strings(doc?.tracked_stocks);
+  const covered = effectiveCovered(doc, false);
+  const stored = Array.isArray(doc?.covered_held) ? strings(doc?.covered_held) : strings(doc?.covered_stocks).slice(FREE_COVERED_STOCKS);
+  return stored.filter((id, index, list) => tracked.includes(id) && !covered.includes(id) && list.indexOf(id) === index);
+}
+
 /** Free fills already spent. Before an explicit choice, the default covered stocks count as spent. */
 export function fillsUsed(doc: CoverageDoc | null | undefined): number {
   const raw = doc?.covered_fills_used;
@@ -86,6 +106,8 @@ export function fillsUsed(doc: CoverageDoc | null | undefined): number {
 
 export type CoverageState = {
   covered: string[];
+  /** Earlier picks past today's limit that can be covered again without a swap (heldPicks). Empty on Pro. */
+  held: string[];
   /** Infinity on Pro. */
   limit: number;
   slotsLeft: number;
@@ -100,13 +122,14 @@ export type CoverageState = {
 export function coverageState(doc: CoverageDoc | null | undefined, isPro: boolean, now: Date = new Date()): CoverageState {
   const covered = effectiveCovered(doc, isPro);
   if (isPro) {
-    return { covered, limit: Number.POSITIVE_INFINITY, slotsLeft: Number.POSITIVE_INFINITY, fillsLeft: Number.POSITIVE_INFINITY, swapAvailable: true, nextSwapAt: null };
+    return { covered, held: [], limit: Number.POSITIVE_INFINITY, slotsLeft: Number.POSITIVE_INFINITY, fillsLeft: Number.POSITIVE_INFINITY, swapAvailable: true, nextSwapAt: null };
   }
   const swaps = recentCoverLog(doc?.covered_adds_log, now).filter((entry) => entry.kind === "swap");
   const swapAvailable = swaps.length < FREE_COVER_SWAPS_PER_WEEK;
   const blocking = swaps[swaps.length - FREE_COVER_SWAPS_PER_WEEK];
   return {
     covered,
+    held: heldPicks(doc),
     limit: FREE_COVERED_STOCKS,
     slotsLeft: Math.max(0, FREE_COVERED_STOCKS - covered.length),
     fillsLeft: Math.max(0, FREE_COVERED_STOCKS - fillsUsed(doc)),
@@ -120,6 +143,7 @@ export type CoverageWrite = {
   covered_stocks: string[];
   covered_fills_used: number;
   covered_adds_log: CoverLogEntry[];
+  covered_held: string[];
 };
 
 export type CoverageError = {
@@ -164,7 +188,8 @@ export function planCoverage(
       covered: next,
       added,
       removed,
-      write: { covered_stocks: next, covered_fills_used: fills, covered_adds_log: log },
+      // What Free could pick back if Pro ends: the choice past the Free limit.
+      write: { covered_stocks: next, covered_fills_used: fills, covered_adds_log: log, covered_held: next.slice(FREE_COVERED_STOCKS) },
     };
   }
 
@@ -178,12 +203,16 @@ export function planCoverage(
   }
 
   const recentIds = new Set(log.map((entry) => entry.id));
+  const held = heldPicks(doc);
   const nowIso = now.toISOString();
   let swapsLeft = FREE_COVER_SWAPS_PER_WEEK - log.filter((entry) => entry.kind === "swap").length;
   const entries: CoverLogEntry[] = [];
   for (const id of added) {
     if (recentIds.has(id)) {
       // Seen this week already. Not logged again, so the week still runs from the first cover.
+      continue;
+    } else if (held.includes(id)) {
+      // Chosen before the limit shrank: picking it back reveals nothing new, so it costs neither a fill nor the swap.
       continue;
     } else if (fills < FREE_COVERED_STOCKS) {
       fills += 1;
@@ -210,7 +239,7 @@ export function planCoverage(
     covered: next,
     added,
     removed,
-    write: { covered_stocks: next, covered_fills_used: fills, covered_adds_log: [...log, ...entries] },
+    write: { covered_stocks: next, covered_fills_used: fills, covered_adds_log: [...log, ...entries], covered_held: held.filter((id) => !next.includes(id)) },
   };
 }
 
@@ -247,5 +276,7 @@ export function coverageAfterTrackChange(
       entries.push({ id, at: nowIso, kind: "fill" });
     }
   }
-  return { covered_stocks: covered, covered_fills_used: fills, covered_adds_log: [...log, ...entries] };
+  // Earlier picks stay pickable while still tracked (read before covered_stocks is rewritten below its old length).
+  const held = heldPicks(doc).filter((id) => nextIds.includes(id) && !covered.includes(id));
+  return { covered_stocks: covered, covered_fills_used: fills, covered_adds_log: [...log, ...entries], covered_held: held };
 }

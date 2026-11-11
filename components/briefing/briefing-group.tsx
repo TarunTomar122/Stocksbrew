@@ -206,12 +206,15 @@ export function BriefingGroupCard({
   actions,
   limit,
   moveMax,
+  anchor = false,
 }: {
   group: BriefingGroup;
   actions: GroupActions;
   limit: number;
   /** The largest move in the list: when given, each move gets a bar on that one scale. */
   moveMax?: number;
+  /** The first open card of its stock on the page: it carries the `brief-<ticker>` id the agents strip links to. */
+  anchor?: boolean;
 }) {
   const [expanded, setExpanded] = React.useState(false);
   const { shown, hidden } = visibleLines(group.lines, expanded, limit);
@@ -222,7 +225,9 @@ export function BriefingGroupCard({
   return (
     <article
       data-briefing-group={group.key}
-      className={`grid grid-cols-[1.25rem_minmax(0,1fr)_auto] gap-x-3 px-4 py-2.5 sm:grid-cols-[1.25rem_3.75rem_minmax(0,1fr)_4.5rem] ${settled ? "opacity-80" : ""}`}
+      // The agents strip above links a stock its agent flagged to its card here (one card per stock, lib/briefing-anchors.ts).
+      id={anchor && ticker ? `brief-${ticker}` : undefined}
+      className={`scroll-mt-20 grid grid-cols-[1.25rem_minmax(0,1fr)_auto] gap-x-3 px-4 py-2.5 sm:grid-cols-[1.25rem_3.75rem_minmax(0,1fr)_4.5rem] ${settled ? "opacity-80" : ""}`}
     >
       <span className="col-start-1 row-start-1 pt-px">
         {ticker ? (

@@ -10,12 +10,14 @@
 
 import { randomBytes } from "node:crypto";
 
+import { loadFilingFacts, loadNewsFacts } from "@/lib/agent-events-data";
 import { listEarningsDayReports } from "@/lib/earnings-day";
 import type { EarningsReportFact } from "@/lib/earnings-day-agent";
 import { earningsDayHref, toneOfGuidance, toneOfVerdict } from "@/lib/earnings-day-shared";
-import { limitFor } from "@/lib/entitlements";
+import { limitFor, type Plan } from "@/lib/entitlements";
 import { adminFirestore } from "@/lib/firebase-admin";
-import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
+import { isCovered, viewerFromUserDoc } from "@/lib/entitlements-server";
+import { getUserDoc, resolveIsSubscribed, type UserDoc } from "@/lib/watchlist";
 import {
   AGENT_JOB_ID_RE,
   EMPTY_FACTS,
@@ -25,6 +27,8 @@ import {
   addDays,
   evaluateJob,
   jobDocId,
+  planMayRun,
+  PRO_EVENTS_PAUSED,
   replayJob,
   runDocId,
   type AgentFacts,
@@ -33,6 +37,7 @@ import {
   type AgentReplay,
   type AgentRun,
   type AgentScope,
+  type AgentTrigger,
 } from "@/lib/agent-jobs";
 
 export const AGENT_JOBS_COLLECTION = "tm_agent_jobs";
@@ -40,6 +45,10 @@ export const AGENT_RUNS_COLLECTION = "tm_agent_runs";
 const HISTORY_SESSIONS = 70;
 const CALENDAR_SYMBOL = "SPY";
 const EVENT_LOOKBACK_DAYS = 7 * REPLAY_WEEKS + 12;
+/** Headlines: the replay window plus ten sessions of "normal day" before its first day. */
+const NEWS_REPLAY_DAYS = 7 * REPLAY_WEEKS + 18;
+/** A live run only needs the last check's window and the ten sessions before it. */
+const NEWS_RUN_DAYS = 21;
 const MAX_RUNS_LISTED = 240;
 /** A watchlist can be longer than a hand-picked list; past this the job says it was cut. */
 export const MAX_WATCHLIST_TICKERS = 60;
@@ -64,7 +73,12 @@ export function lastSettledDay(now: Date = new Date()): string {
 }
 
 export class AgentJobError extends Error {
-  constructor(message: string, public readonly status = 400) {
+  constructor(
+    message: string,
+    public readonly status = 400,
+    /** The entitlements feature behind a refusal, so the page can show its lock card. */
+    public readonly feature: "agents" | "agent_events" | null = null,
+  ) {
     super(message);
     this.name = "AgentJobError";
   }
@@ -132,10 +146,17 @@ export async function getJob(uid: string, jobId: string): Promise<StoredJob | nu
 
 /**
  * `runLimit` is how many jobs the account's plan may have switched on at once
- * (lib/entitlements.ts: `agents`). A job made past it is saved switched off,
- * never discarded: the caller tells the person it is paused and why.
+ * (lib/entitlements.ts: `agents`). A job made past it, or one the plan cannot
+ * run (`planMayRun`), is saved switched off, never discarded: the caller tells
+ * the person it is paused and why.
  */
-export async function createJob(uid: string, draft: AgentJobDraft, now = new Date(), runLimit = MAX_JOBS_PER_USER): Promise<StoredJob> {
+export async function createJob(
+  uid: string,
+  draft: AgentJobDraft,
+  now = new Date(),
+  runLimit = MAX_JOBS_PER_USER,
+  plan: Plan = "pro",
+): Promise<StoredJob> {
   const existing = await listJobs(uid);
   if (existing.length >= MAX_JOBS_PER_USER) {
     throw new AgentJobError(`You can have up to ${MAX_JOBS_PER_USER} jobs. Remove one to add another.`);
@@ -146,7 +167,7 @@ export async function createJob(uid: string, draft: AgentJobDraft, now = new Dat
     id: randomBytes(8).toString("hex").slice(0, 12),
     uid,
     mode: "tell_me",
-    enabled: existing.filter((job) => job.enabled).length < runLimit,
+    enabled: planMayRun(draft, plan) && existing.filter((job) => job.enabled).length < runLimit,
     created_at: stamp,
     updated_at: stamp,
     last_checked_day: null,
@@ -162,15 +183,22 @@ export async function updateJob(
   patch: { enabled?: boolean; archived?: boolean },
   now = new Date(),
   runLimit = MAX_JOBS_PER_USER,
+  plan: Plan = "pro",
 ): Promise<StoredJob | null> {
   const job = await getJob(uid, jobId);
   if (!job) throw new AgentJobError("That job does not exist.", 404);
+  if (patch.enabled === true && !job.enabled && !planMayRun(job, plan)) {
+    throw new AgentJobError(PRO_EVENTS_PAUSED, 409, "agent_events");
+  }
   if (patch.enabled === true && !job.enabled) {
     const running = (await listJobs(uid)).filter((other) => other.enabled && other.id !== jobId).length;
     if (running >= runLimit) {
       throw new AgentJobError(
-        `Your plan runs ${runLimit} ${runLimit === 1 ? "agent" : "agents"} at a time. Pause another to run this one.`,
+        runLimit === 1
+          ? "Your plan runs one agent at a time. Pause the one that is running to run this one."
+          : `Your plan runs ${runLimit} agents at a time. Pause another to run this one.`,
         409,
+        "agents",
       );
     }
   }
@@ -223,7 +251,15 @@ export type ResolvedScope = {
   levels: AgentFacts["levels"];
 };
 
-/** The tickers a scope means for this person right now, with add levels from their research rows. */
+/**
+ * The tickers a scope means for this person right now, with add levels from
+ * their research rows. Levels are only filled for stocks the agent covers for
+ * this account (Pro: every stock; Free: the covered few), the rule the personal
+ * briefing uses (isCovered). Unlike the public stock page (canSeeLevels), the
+ * showcase stocks are not opened here: an agent is personal work. An uncovered
+ * stock carries `locked` and no numbers, so neither the page, a run, nor an
+ * email can name its level.
+ */
 export async function resolveScope(uid: string | null, scope: AgentScope): Promise<ResolvedScope> {
   if (scope.kind === "any") return { tickers: [], levels: {} };
   const levels: AgentFacts["levels"] = {};
@@ -238,12 +274,17 @@ export async function resolveScope(uid: string | null, scope: AgentScope): Promi
     ? ((userSnap.data()?.tracked_stocks as unknown[]) ?? []).filter((id): id is string => typeof id === "string")
     : [];
   const rows = viewSnap.exists ? ((viewSnap.data()?.rows as Array<Record<string, unknown>>) ?? []) : [];
+  const viewer = viewerFromUserDoc(uid, userSnap.exists ? ({ ...(userSnap.data() as Record<string, unknown>), uid } as UserDoc) : null);
   const tickerById = new Map<string, string>();
   for (const row of rows) {
     const ticker = text(row.ticker).toUpperCase();
     const id = text(row.instrument_id);
     if (!ticker) continue;
     if (id) tickerById.set(id, ticker);
+    if (!isCovered(viewer, id || ticker)) {
+      levels[ticker] = { add_below: null, trim_above: null, locked: true };
+      continue;
+    }
     const directive = (row.directive_v2 ?? row.ai_directive) as { zones?: { accumulate_below?: unknown; trim_above?: unknown } } | undefined;
     const addBelow = finite(directive?.zones?.accumulate_below);
     const trimAbove = finite(directive?.zones?.trim_above);
@@ -294,13 +335,28 @@ async function loadPrices(tickers: string[], end: string): Promise<{ prices: Age
   return { prices, calendar };
 }
 
+const collectionReads = new Map<string, { at: number; value: Promise<Array<Record<string, unknown>> | null> }>();
+
+/**
+ * A whole small collection. The runner checks every job in turn and each one
+ * needs the same congressional, 13F and insider rows, so a read is shared for
+ * a few minutes instead of repeated per job. A failed read is not kept.
+ */
 async function loadCollection(name: string, limit = 2000): Promise<Array<Record<string, unknown>> | null> {
-  try {
-    const snap = await adminFirestore.collection(name).limit(limit).get();
-    return snap.docs.map((doc) => doc.data() as Record<string, unknown>);
-  } catch {
-    return null;
-  }
+  const key = `${name}:${limit}`;
+  const hit = collectionReads.get(key);
+  if (hit && Date.now() - hit.at < 5 * 60_000) return hit.value;
+  const value = adminFirestore
+    .collection(name)
+    .limit(limit)
+    .get()
+    .then((snap) => snap.docs.map((doc) => doc.data() as Record<string, unknown>))
+    .catch(() => null);
+  collectionReads.set(key, { at: Date.now(), value });
+  value.then((rows) => {
+    if (rows == null) collectionReads.delete(key);
+  });
+  return value;
 }
 
 async function loadEarnings(tickers: string[], from: string, to: string): Promise<AgentFacts["earnings"] | null> {
@@ -378,21 +434,38 @@ async function loadMovers(): Promise<{ movers: AgentFacts["movers"]; days: strin
   }
 }
 
-/** Everything the evaluator may read for these tickers, up to `end`. */
+/**
+ * Everything the evaluator may read for these tickers, up to `end`. With a
+ * trigger, filings and headlines are only read for the jobs that use them;
+ * without one (the page's "which sources are in" check) everything is read.
+ * `purpose: "run"` reads only as much news history as a live check needs.
+ */
 export async function loadFacts(
   tickers: string[],
-  options: { end: string; levels?: AgentFacts["levels"]; now?: Date },
+  options: { end: string; levels?: AgentFacts["levels"]; now?: Date; trigger?: AgentTrigger; purpose?: "run" | "replay" },
 ): Promise<{ facts: AgentFacts; calendar: string[] }> {
   const from = addDays(options.end, -EVENT_LOOKBACK_DAYS);
   const settled = lastSettledDay(options.now ?? new Date());
-  const [{ prices, calendar }, congressDocs, fundDocs, insiderDocs, earnings, movers, earningsReports] = await Promise.all([
-    loadPrices(tickers, options.end < settled ? options.end : settled),
+  const event = options.trigger?.type === "event" ? options.trigger.event : null;
+  const wantsFilings = !options.trigger || event === "sec_filing";
+  const wantsNews = !options.trigger || event === "news";
+  const pricesRead = loadPrices(tickers, options.end < settled ? options.end : settled);
+  const filingsRead = wantsFilings ? loadFilingFacts(from) : Promise.resolve(null);
+  const newsRead = wantsNews
+    ? pricesRead.then(({ calendar }) =>
+        loadNewsFacts(tickers, addDays(options.end, -(options.purpose === "run" ? NEWS_RUN_DAYS : NEWS_REPLAY_DAYS)), calendar),
+      )
+    : Promise.resolve(null);
+  const [{ prices, calendar }, congressDocs, fundDocs, insiderDocs, earnings, movers, earningsReports, filings, news] = await Promise.all([
+    pricesRead,
     loadCollection("tm_power_trades"),
     loadCollection("tm_follow_activity"),
     loadCollection("tm_insider_trades"),
     loadEarnings(tickers, from, addDays(options.end, 21)),
     loadMovers(),
     loadEarningsReports(tickers, from),
+    filingsRead,
+    newsRead,
   ]);
 
   const facts: AgentFacts = {
@@ -440,6 +513,8 @@ export async function loadFacts(
     movers: movers?.movers ?? [],
     mover_days: movers?.days ?? [],
     earnings_reports: earningsReports ?? [],
+    ...(filings ? { filings } : {}),
+    ...(news ? { news } : {}),
     available: {
       congress: congressDocs != null && congressDocs.length > 0,
       fund_filings: (fundDocs ?? []).length > 0,
@@ -447,6 +522,8 @@ export async function loadFacts(
       earnings: earnings != null,
       movers: movers != null,
       earnings_reports: earningsReports != null,
+      ...(wantsFilings ? { filings: filings != null && filings.length > 0 } : {}),
+      ...(wantsNews ? { news: news != null && news.coverage_from != null } : {}),
     },
   };
   return { facts, calendar };
@@ -460,7 +537,7 @@ export type ReplayResult = AgentReplay & { tickers: string[]; available: AgentFa
 export async function replayDraft(uid: string | null, draft: AgentJobDraft, now = new Date()): Promise<ReplayResult> {
   const end = agentMarketDay(now);
   const scope = await resolveScope(uid, draft.scope);
-  const { facts, calendar } = await loadFacts(scope.tickers, { end, levels: scope.levels, now });
+  const { facts, calendar } = await loadFacts(scope.tickers, { end, levels: scope.levels, now, trigger: draft.trigger, purpose: "replay" });
   // Replay through the last session whose close is final; today is still moving.
   const last = calendar[calendar.length - 1] ?? end;
   const replay = replayJob(draft, facts, { end: last, tickers: scope.tickers, calendar });
@@ -486,7 +563,7 @@ export async function runJob(job: StoredJob, now = new Date(), options: { dryRun
   }
 
   const scope = await resolveScope(job.uid, job.scope);
-  const { facts } = await loadFacts(scope.tickers, { end: day, levels: scope.levels, now });
+  const { facts } = await loadFacts(scope.tickers, { end: day, levels: scope.levels, now, trigger: job.trigger, purpose: "run" });
   const evaluation = evaluateJob(job, facts, {
     day,
     // Null on a first run: events dated today count, last week's do not, and an
@@ -561,10 +638,13 @@ export async function runAllEnabledJobs(now = new Date(), log: (line: string) =>
   for (const [uid, owned] of byUid) {
     const doc = await getUserDoc(uid).catch(() => undefined);
     // If the account cannot be read, run its jobs: an outage should not silence anyone's agents.
-    const limit = doc === undefined ? Number.POSITIVE_INFINITY : limitFor("agents", resolveIsSubscribed(doc) ? "pro" : "free");
-    const sorted = [...owned].sort((a, b) => a.created_at.localeCompare(b.created_at));
+    const plan: Plan = doc === undefined ? "pro" : resolveIsSubscribed(doc) ? "pro" : "free";
+    const limit = doc === undefined ? Number.POSITIVE_INFINITY : limitFor("agents", plan);
+    // Filing and news agents a plan cannot run (a lapsed Pro, or Free on the tighter line) wait, switched on, until it can.
+    const allowed = owned.filter((job) => planMayRun(job, plan));
+    const sorted = [...allowed].sort((a, b) => a.created_at.localeCompare(b.created_at));
     runnable.push(...sorted.slice(0, limit));
-    overPlan += Math.max(0, sorted.length - limit);
+    overPlan += owned.length - allowed.length + Math.max(0, sorted.length - limit);
   }
   const summary: RunAllSummary = {
     day: agentMarketDay(now),

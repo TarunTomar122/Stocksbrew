@@ -151,6 +151,8 @@ export function buildLosses(input: {
     const loss = byTerm.short + byTerm.long + byTerm.unknown;
     const lossPct = cost > 0 ? (loss / cost) * 100 : 0;
     if (loss > -LOSS_MIN || lossPct > -LOSS_PCT) continue;
+    // No sale next to a Keep or Buy more call, not even for the tax (owner, Nov 11: "hold it and sell it at the same time").
+    if (holding.call === "Add" || holding.call === "Hold") continue;
     // The term carrying most of the loss names the row; the split is kept for the tax.
     const term = (["short", "long", "unknown"] as Term[]).reduce((best, next) => (byTerm[next] < byTerm[best] ? next : best), "short" as Term);
     const taxSaved = -(byTerm.short * rateFor("short", rates) + byTerm.unknown * rateFor("unknown", rates) + byTerm.long * rateFor("long", rates)) / 100;

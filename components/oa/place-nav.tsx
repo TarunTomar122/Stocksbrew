@@ -4,120 +4,210 @@ import { IntentLink } from "@/components/oa/intent-link";
 import { usePublicPathname } from "@/lib/use-public-pathname";
 import * as React from "react";
 
-import { iconFor, placeFor, sectionFor, trailFor, type Crumb } from "@/components/oa/nav-items";
+import { iconFor, placeFor, sectionFor, stripOrder, trailFor, type Crumb, type NavItem } from "@/components/oa/nav-items";
 import { NavIcon } from "@/components/oa/nav-icon";
 
 const FOCUS =
   "outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]";
 
 /**
- * Below lg: the pages of the place you are in, as a row of chips under the
- * top bar, with the current one filled. The tab bar says the place; this
- * says the page and shows its neighbours. Places with one page get nothing.
+ * Below lg: the pages of the place you are in, under the top bar. The page
+ * you are on comes first (filled), then as many of the next pages as fit
+ * whole, then a "More" button that opens every page of the place with its
+ * icon. Pills never get cut off: a pill that does not fit wraps onto a
+ * hidden second line. Places with one page get nothing.
  */
 export function PlaceStrip() {
   const pathname = usePublicPathname() ?? "/";
   const place = placeFor(pathname);
   const current = sectionFor(pathname, place);
+  const pills = place ? stripOrder(place, current) : [];
+  const menuId = React.useId();
   const row = React.useRef<HTMLDivElement>(null);
-  // Which edges have chips hidden past them, so the row can say there are more.
-  const [more, setMore] = React.useState({ left: false, right: false });
+  const button = React.useRef<HTMLButtonElement>(null);
+  const panel = React.useRef<HTMLDivElement>(null);
+  const [open, setOpen] = React.useState(false);
+  // How many pills sit on the visible line. Until it is measured, a guess from the label lengths, so the server's
+  // HTML already leaves "More" out where every pill fits.
+  const [shown, setShown] = React.useState(() => guessShown(pills));
 
+  // Which pills fit: the row wraps, so a pill that does not fit starts a second line, which the row's fixed height
+  // hides. Count those on the first line and take the rest out of the tab order too.
   const measure = React.useCallback(() => {
     const container = row.current;
     if (!container) return;
-    const left = container.scrollLeft > 4;
-    const right = container.scrollLeft + container.clientWidth < container.scrollWidth - 4;
-    setMore((prev) => (prev.left === left && prev.right === right ? prev : { left, right }));
+    const links = Array.from(container.children) as HTMLElement[];
+    const top = links[0]?.offsetTop ?? 0;
+    const fit = links.filter((link) => link.offsetTop === top).length;
+    setShown((prev) => (prev === fit ? prev : fit));
   }, []);
 
-  // Centre the current chip inside the row without moving the page: before paint, and again once the web font
-  // has loaded and the chips have their real widths.
   useIsoLayoutEffect(() => {
     const container = row.current;
     if (!container) return;
-    const centre = () => {
-      const chip = container.querySelector<HTMLElement>('[aria-current="page"], [aria-current="location"]');
-      if (chip) {
-        const target = chip.offsetLeft - container.offsetLeft - (container.clientWidth - chip.offsetWidth) / 2;
-        container.scrollLeft = Math.max(0, Math.min(target, container.scrollWidth - container.clientWidth));
-      }
-      measure();
-    };
-    centre();
+    measure();
     let live = true;
-    document.fonts?.ready.then(() => live && centre()).catch(() => undefined);
-    window.addEventListener("resize", measure);
+    document.fonts?.ready.then(() => live && measure()).catch(() => undefined);
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    observer?.observe(container);
     return () => {
       live = false;
-      window.removeEventListener("resize", measure);
+      observer?.disconnect();
     };
   }, [pathname, measure]);
 
-  const nudge = (direction: 1 | -1) => {
-    const container = row.current;
-    container?.scrollBy({ left: direction * container.clientWidth * 0.6, behavior: "smooth" });
-  };
+  // A new page closes the menu (the chrome stays mounted while pages change underneath it).
+  React.useEffect(() => setOpen(false), [pathname]);
+
+  // Open: focus the page you are on (or the first), close on Escape or a tap anywhere else.
+  React.useEffect(() => {
+    if (!open) return;
+    const links = panel.current?.querySelectorAll<HTMLAnchorElement>("a");
+    const target = panel.current?.querySelector<HTMLAnchorElement>('[aria-current="page"], [aria-current="location"]') ?? links?.[0];
+    target?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      setOpen(false);
+      button.current?.focus();
+    };
+    const onPointer = (event: PointerEvent) => {
+      const node = event.target as Node;
+      if (!panel.current?.contains(node) && !button.current?.contains(node)) setOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("pointerdown", onPointer);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("pointerdown", onPointer);
+    };
+  }, [open]);
+
+  const everyPillFits = shown >= pills.length;
+  // The row grew (a phone turned sideways) until every pill fits: "More" goes, and its menu with it.
+  React.useEffect(() => {
+    if (everyPillFits) setOpen(false);
+  }, [everyPillFits]);
 
   if (!place || place.sections.length < 2) return null;
+  const menuOpen = open && !everyPillFits;
   return (
-    <nav aria-label={place.label} className="oa-place-strip relative border-b border-oa-border bg-oa-page lg:hidden">
-      <div
-        ref={row}
-        onScroll={measure}
-        className="flex items-center gap-1.5 overflow-x-auto px-3 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        // The edge cues below replace the global scroll fade, which only some browsers can draw.
-        style={{ animation: "none", maskImage: "none", WebkitMaskImage: "none" }}
-      >
-        {place.sections.map((item, index) => {
+    <nav
+      aria-label={place.label}
+      className="oa-place-strip relative z-30 flex items-center gap-1.5 border-b border-oa-border bg-oa-page px-3 py-1.5 lg:hidden"
+      // Tabbing out of the open menu closes it, the way a tap outside does. (A null target is a tap, which Safari
+      // does not focus; the pointer handler deals with taps.)
+      onBlur={(event) => {
+        const next = event.relatedTarget as Node | null;
+        if (menuOpen && next && !event.currentTarget.contains(next)) setOpen(false);
+      }}
+    >
+      <div ref={row} className="flex h-9 min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-4 overflow-hidden p-0.5">
+        {pills.map((item, index) => {
           const on = item === current;
           const exact = on && pathname === item.href;
-          // A thin rule where the sidebar starts a new sub-heading, so the groups read on a phone too.
-          const startsGroup = index > 0 && (item.group ?? null) !== (place.sections[index - 1]!.group ?? null);
+          const hidden = index >= shown;
           return (
-            <React.Fragment key={item.href}>
-              {startsGroup ? <span aria-hidden="true" className="mx-1 h-5 w-px shrink-0 bg-oa-border" /> : null}
-              <IntentLink
-                href={item.href}
-                aria-current={on ? (exact ? "page" : "location") : undefined}
-                className={`flex h-8 shrink-0 items-center whitespace-nowrap rounded-full border px-3 text-[14px] transition-colors ${FOCUS} ${
-                  on
-                    ? "border-transparent bg-oa-fg font-medium text-oa-page"
-                    : "border-oa-border bg-oa-card text-oa-fg hover:bg-oa-accent"
-                }`}
-              >
-                {item.label}
-              </IntentLink>
-            </React.Fragment>
+            <IntentLink
+              key={item.href}
+              href={item.href}
+              aria-current={on ? (exact ? "page" : "location") : undefined}
+              tabIndex={hidden ? -1 : undefined}
+              aria-hidden={hidden || undefined}
+              className={`flex h-8 shrink-0 items-center whitespace-nowrap rounded-full border px-3 text-[14px] transition-colors ${FOCUS} ${
+                on
+                  ? "border-transparent bg-oa-fg font-medium text-oa-page"
+                  : "border-oa-border bg-oa-card text-oa-fg hover:bg-oa-accent"
+              }`}
+            >
+              {item.label}
+            </IntentLink>
           );
         })}
       </div>
-      {/* The cue that the row goes on: a fade into the page with an arrow that scrolls it. Decorative for screen
-          readers, which get every link in the row anyway. */}
-      {more.left ? <EdgeCue side="left" onClick={() => nudge(-1)} /> : null}
-      {more.right ? <EdgeCue side="right" onClick={() => nudge(1)} /> : null}
+      {everyPillFits ? null : (
+        <button
+          ref={button}
+          type="button"
+          aria-expanded={menuOpen}
+          aria-controls={menuOpen ? menuId : undefined}
+          onClick={() => setOpen((value) => !value)}
+          className={`flex h-8 shrink-0 items-center gap-1 rounded-full border px-3 text-[14px] font-medium transition-colors ${FOCUS} ${
+            menuOpen ? "border-oa-fg bg-oa-accent text-oa-fg" : "border-oa-border bg-oa-card text-oa-fg hover:bg-oa-accent"
+          }`}
+        >
+          More<span className="sr-only"> pages in {place.label}</span>
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 16 16"
+            width="14"
+            height="14"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={`transition-transform motion-reduce:transition-none ${menuOpen ? "rotate-180" : ""}`}
+          >
+            <path d="M3.5 6 8 10.5 12.5 6" />
+          </svg>
+        </button>
+      )}
+      {menuOpen ? (
+        <div
+          ref={panel}
+          id={menuId}
+          className="absolute inset-x-3 top-full mt-1.5 max-h-[calc(100dvh-11rem)] overflow-y-auto rounded-xl border border-oa-border bg-oa-card p-1.5 shadow-[0_12px_32px_-12px_rgba(0,0,0,0.35)] [scrollbar-width:thin]"
+        >
+          <ul className="flex flex-col">
+            {place.sections.map((item, index) => {
+              const on = item === current;
+              const heading = item.group && item.group !== place.sections[index - 1]?.group ? item.group : null;
+              return (
+                <li key={item.href}>
+                  {heading ? <p className="select-none px-3 pb-1 text-[10px] font-semibold uppercase leading-4 tracking-[0.1em] text-oa-muted-fg opacity-70 pt-3.5">{heading}</p> : null}
+                  <IntentLink
+                    href={item.href}
+                    aria-current={on ? (pathname === item.href ? "page" : "location") : undefined}
+                    onClick={() => setOpen(false)}
+                    className={`flex h-11 items-center gap-3 rounded-lg px-3 text-[15px] transition-colors ${FOCUS} ${
+                      on
+                        ? "bg-[color-mix(in_srgb,var(--ink)_7%,transparent)] font-medium text-oa-fg"
+                        : "text-oa-fg hover:bg-oa-accent"
+                    }`}
+                  >
+                    <NavIcon name={item.icon} className={`size-[18px] shrink-0 ${on ? "text-oa-primary" : "text-oa-muted-fg"}`} />
+                    {item.label}
+                  </IntentLink>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ) : null}
     </nav>
   );
 }
 
 const useIsoLayoutEffect = typeof window === "undefined" ? React.useEffect : React.useLayoutEffect;
 
-function EdgeCue({ side, onClick }: { side: "left" | "right"; onClick: () => void }) {
-  const left = side === "left";
-  return (
-    <button
-      type="button"
-      tabIndex={-1}
-      aria-hidden="true"
-      onClick={onClick}
-      className={`absolute inset-y-0 ${left ? "left-0 justify-start pl-1" : "right-0 justify-end pr-1"} flex w-12 items-center text-oa-muted-fg`}
-      style={{ background: `linear-gradient(to ${left ? "left" : "right"}, transparent, var(--oa-page) 55%)` }}
-    >
-      <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <path d={left ? "M10 3.5 5.5 8l4.5 4.5" : "M6 3.5 10.5 8 6 12.5"} />
-      </svg>
-    </button>
-  );
+/**
+ * The server's guess at how many pills fit a 390px phone beside "More": 14px text runs about 7.6px a letter, a pill
+ * adds 24px of padding and border, the gap 6px. The browser measures the real number before it paints.
+ */
+function guessShown(pills: NavItem[]): number {
+  const pill = (item: NavItem) => item.label.length * 7.6 + 26 + 6;
+  const room = 390 - 24 - 4;
+  const all = pills.reduce((sum, item) => sum + pill(item), 0);
+  if (all <= room) return pills.length;
+  let used = 80; // "More"
+  let count = 0;
+  for (const item of pills) {
+    used += pill(item);
+    if (used > room) break;
+    count += 1;
+  }
+  return Math.max(1, count);
 }
 
 function TrailLinks({ trail }: { trail: Crumb[] }) {

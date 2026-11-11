@@ -15,6 +15,7 @@
 
 import { hasResearchBackedNarrative } from "@/components/daily-anomalies-shared";
 import type { AnomalyItem } from "@/lib/daily-anomalies";
+import { redactOurLevels } from "@/lib/entitlements";
 import { callShift } from "@/lib/tone";
 
 export type BriefingKind =
@@ -116,6 +117,18 @@ export type BriefingQuietName = {
   day_change_pct: number | null;
 };
 
+/**
+ * A stock the person tracks that moved enough to make the briefing but is not
+ * one their agent covers, so the briefing names the move without explaining
+ * it. Prices are public; the explanation is the covered work.
+ */
+export type BriefingLockedMove = {
+  ticker: string;
+  instrument_id: string;
+  relation: "holding" | "watching";
+  day_change_pct: number;
+};
+
 export type BriefingMarketMover = {
   ticker: string;
   name: string;
@@ -149,6 +162,8 @@ export type Briefing = {
   stale_note: string | null;
   /** Null when no holding has a size, or in the market view. */
   portfolio?: BriefingPortfolio | null;
+  /** Moves on stocks the agent does not cover for this account (Free), biggest first. Empty on Pro. */
+  locked_moves?: BriefingLockedMove[];
 };
 
 /* ── inputs ─────────────────────────────────────────────────────────────── */
@@ -175,6 +190,12 @@ export type BriefingPosition = {
   quantity?: number | null;
   /** What the holding is worth, in dollars, when known. */
   market_value?: number | null;
+  /**
+   * False when the agent does not cover this stock for the account (Free):
+   * the caller has already cleared its levels, and the briefing names its
+   * move without explaining it. Missing means covered.
+   */
+  covered?: boolean;
 };
 
 /** A standing job's run that found something, to surface under "Needs you". */
@@ -1448,7 +1469,7 @@ function groupTrades(trades: BriefingCongressTrade[], date: string): Map<string,
 
 /* ── personal briefing ──────────────────────────────────────────────────── */
 
-function buildPersonalItems(input: BriefingInput, sessionDay: string): Draft[] {
+function buildPersonalItems(input: BriefingInput, sessionDay: string, lockedMoves: BriefingLockedMove[] = []): Draft[] {
   const { date, now } = input;
   const seenBefore = new Set((input.seen_before ?? []).map((key) => key.trim()));
   const out: Draft[] = [];
@@ -1475,7 +1496,15 @@ function buildPersonalItems(input: BriefingInput, sessionDay: string): Draft[] {
       // The earnings card carries today's move in its headline.
     } else {
       const move = moveItem(position, anomaly, date, positionDay);
-      if (move) out.push(move);
+      // An uncovered stock's move is named in the "rest of your stocks" line, not explained.
+      if (move && position.covered === false && position.day_change_pct != null) {
+        lockedMoves.push({
+          ticker: position.ticker,
+          instrument_id: position.instrument_id,
+          relation: position.relation,
+          day_change_pct: position.day_change_pct,
+        });
+      } else if (move) out.push(move);
     }
     if (reported) out.push(reported);
 
@@ -1706,9 +1735,15 @@ function reasonTail(lead: BriefingItem | undefined): string {
   return "";
 }
 
-function personalSummary(needsYou: BriefingItem[], also: BriefingItem[], trackedCount: number): string {
+function personalSummary(needsYou: BriefingItem[], also: BriefingItem[], trackedCount: number, lockedCount = 0): string {
   if (needsYou.length === 0) {
     if (also.length === 0) {
+      // Only stocks the agent does not cover moved: they are named under the read, so "all quiet" would be wrong.
+      if (lockedCount > 0) {
+        return lockedCount === 1
+          ? "Nothing on your covered stocks needs you. One other stock moved, and it is named below."
+          : `Nothing on your covered stocks needs you. ${capitalise(countWord(lockedCount))} other stocks moved, and they are named below.`;
+      }
       if (trackedCount === 0) return `${NOTHING_NEEDS_YOU}.`;
       return trackedCount === 1
         ? `${NOTHING_NEEDS_YOU}. The one name you track is quiet.`
@@ -1750,8 +1785,10 @@ function marketSummary(lead: BriefingItem[], indices: BriefingIndex[]): string {
 
 export function buildBriefing(input: BriefingInput): Briefing {
   const sessionDay = dayKey(input.movers_date) ?? input.date;
+  const lockedMoves: BriefingLockedMove[] = [];
   const drafts =
-    input.mode === "market" ? buildMarketItems(input, sessionDay) : buildPersonalItems(input, sessionDay);
+    input.mode === "market" ? buildMarketItems(input, sessionDay) : buildPersonalItems(input, sessionDay, lockedMoves);
+  lockedMoves.sort((a, b) => Math.abs(b.day_change_pct) - Math.abs(a.day_change_pct) || a.ticker.localeCompare(b.ticker));
 
   // One id, one item: a duplicate source row must not produce a duplicate card.
   const positionByTicker = new Map(input.positions.map((position) => [position.ticker.toUpperCase(), position]));
@@ -1785,8 +1822,17 @@ export function buildBriefing(input: BriefingInput): Briefing {
   for (const item of drafts) {
     if (unique.has(item.id)) continue;
     const position = item.relation === "market" ? null : positionByTicker.get(item.ticker.toUpperCase());
+    // Belt and braces for uncovered stocks: no sentence that names a price level survives in what the card says.
+    const unlevelled =
+      position?.covered === false
+        ? {
+            why: redactOurLevels(item.why, `Open ${item.ticker} for the news and filings behind this.`),
+            next_step: redactOurLevels(item.next_step, `Open ${item.ticker} to see our call.`),
+          }
+        : null;
     unique.set(item.id, {
       ...item,
+      ...unlevelled,
       position_note: positionNote(position, totalValue > 0 ? totalValue : null),
       call: position ? stanceLabel(position.stance) || null : null,
     });
@@ -1805,7 +1851,7 @@ export function buildBriefing(input: BriefingInput): Briefing {
     .slice(0, input.mode === "personal" ? MAX_ALSO_TODAY_PERSONAL : MAX_ALSO_TODAY);
 
   // Quiet means nothing was found, not "it did not fit": every item counts, shown or not.
-  const mentioned = new Set(items.map((item) => item.ticker).filter(Boolean));
+  const mentioned = new Set([...items.map((item) => item.ticker), ...lockedMoves.map((move) => move.ticker)].filter(Boolean));
   const quietNames: BriefingQuietName[] = input.positions
     .filter((position) => !mentioned.has(position.ticker))
     .map((position) => ({
@@ -1861,7 +1907,7 @@ export function buildBriefing(input: BriefingInput): Briefing {
     summary:
       input.mode === "market"
         ? marketSummary(finalNeeds, input.indices)
-        : personalSummary(finalNeeds, finalAlso, input.positions.length),
+        : personalSummary(finalNeeds, finalAlso, input.positions.length, lockedMoves.length),
     needs_you: finalNeeds,
     also_today: finalAlso,
     nothing_needs_you: finalNeeds.length === 0,
@@ -1870,6 +1916,48 @@ export function buildBriefing(input: BriefingInput): Briefing {
     counts: { holdings, watching },
     stale_note: staleNote,
     portfolio,
+    ...(lockedMoves.length > 0 ? { locked_moves: lockedMoves } : {}),
+  };
+}
+
+/**
+ * A saved briefing, read back for today's coverage. Days saved before
+ * coverage reached the briefing (or before a swap) can hold an explained move
+ * or a zone card for a stock the agent no longer covers for this account:
+ * those become named moves with no explanation, and any price level left in
+ * the other cards' words is cut. Pure; the caller says which stocks are covered.
+ */
+export function gateSavedBriefing(briefing: Briefing, covers: (instrumentId: string) => boolean): Briefing {
+  if (briefing.mode !== "personal") return briefing;
+  const locked: BriefingLockedMove[] = [...(briefing.locked_moves ?? [])];
+  const lockedSeen = new Set(locked.map((move) => move.ticker));
+  const keep = (items: BriefingItem[]): BriefingItem[] =>
+    items.flatMap((item) => {
+      if (!item.instrument_id || item.relation === "market" || covers(item.instrument_id)) return [item];
+      if (item.kind === "price_move" || item.kind === "zone_entered") {
+        if (item.day_change_pct != null && !lockedSeen.has(item.ticker)) {
+          lockedSeen.add(item.ticker);
+          locked.push({ ticker: item.ticker, instrument_id: item.instrument_id, relation: item.relation, day_change_pct: item.day_change_pct });
+        }
+        return [];
+      }
+      return [
+        {
+          ...item,
+          why: redactOurLevels(item.why, `Open ${item.ticker} for the news and filings behind this.`),
+          next_step: redactOurLevels(item.next_step, `Open ${item.ticker} to see our call.`),
+        },
+      ];
+    });
+  const needsYou = keep(briefing.needs_you);
+  const alsoToday = keep(briefing.also_today);
+  locked.sort((a, b) => Math.abs(b.day_change_pct) - Math.abs(a.day_change_pct) || a.ticker.localeCompare(b.ticker));
+  return {
+    ...briefing,
+    needs_you: needsYou,
+    also_today: alsoToday,
+    nothing_needs_you: needsYou.length === 0,
+    ...(locked.length > 0 ? { locked_moves: locked } : {}),
   };
 }
 

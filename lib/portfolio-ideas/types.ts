@@ -143,8 +143,8 @@ export type RebalancePlan = {
   moreOver: Array<{ ticker: string; name: string; pct: number }>;
   /** Every company above the line once funds are counted, biggest first, whatever happened to it. */
   companiesOver: Array<{ ticker: string; name: string; pct: number }>;
-  /** Companies above the line whose call is Buy more: said as information, never sold. */
-  buyMoreOver: Array<{ ticker: string; name: string; pct: number; callReason: string | null }>;
+  /** Above the line, but our call is Buy more or Keep, so no idea sells them. */
+  buyMoreOver: Array<{ ticker: string; name: string; pct: number; callReason: string | null; call: "Add" | "Hold" }>;
   /** Companies above the line whose trim would be too small to matter (under the minimum sale). */
   small: Array<{ ticker: string; name: string; pct: number }>;
   /** Set when there is nothing to do: why that is a fine answer. */

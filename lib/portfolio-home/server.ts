@@ -1,6 +1,6 @@
 import { cache } from "react";
 
-import { listJobs, listRuns } from "@/lib/agent-jobs-data";
+import { readAgentWatches, WATCHES_TIMEOUT_MS } from "@/lib/agent-watch-server";
 import { buildDividendRead } from "@/lib/dividend-plan";
 import { exampleSeeds, holdingSeeds, loadDividendPlan } from "@/lib/dividend-plan-data";
 import { loadExampleSeason, loadUserSeason } from "@/lib/earnings-season-data";
@@ -9,6 +9,7 @@ import { loadExampleGoal, loadUserGoal } from "@/lib/goal/data";
 import { loadExampleMemo, type MemoPageData } from "@/lib/memo/server";
 import { listMemos, readMemo } from "@/lib/memo/store";
 import { newYorkToday } from "@/lib/portfolio-data";
+import { fingerprint, perUserCache } from "@/lib/per-user-cache";
 import { loadExampleIdeas, loadUserIdeas } from "@/lib/portfolio-ideas/server";
 import { DEFAULT_RATES } from "@/lib/portfolio-ideas/tax";
 import { loadExampleStress, loadUserStress } from "@/lib/stress-test-data";
@@ -30,10 +31,8 @@ import type { DividendSource, HomeMode, HomeSources, Loaded, ReasonsSource } fro
 
 /** How long one source may take before the overview goes on without it. */
 export const SOURCE_TIMEOUT_MS = 6000;
-/** The agent run log only feeds the "checked" panel, so it gets less time than the tools. */
-export const AGENTS_TIMEOUT_MS = 3000;
-/** Enough recent runs to find each agent's newest one (one run per agent per market day). */
-const RUNS_READ = 60;
+/** The agents only feed the agents panel and each finding's watch line, so they get less time than the tools; the briefing uses the same limit. */
+export const AGENTS_TIMEOUT_MS = WATCHES_TIMEOUT_MS;
 
 /** Why a signed-in person sees the example, so the page can say it. */
 export type ExampleReason = "signed-out" | "read-failed" | "no-holdings" | "watching-only" | "no-us-holdings";
@@ -47,7 +46,11 @@ export type HomeContext = {
 export type HomeLoad = {
   context: Promise<HomeContext>;
   sources: { [K in keyof HomeSources]: Promise<HomeSources[K]> };
-  /** The person's own standing agents and their run log; "empty" for the example. Only the "checked" panel waits for it. */
+  /**
+   * The signed-in person's own standing agents and each one's newest runs (lib/agent-watch-server.ts), whether
+   * the page shows their holdings or the example; "empty" when signed out. The agents panel and each finding's
+   * watch line wait for it, nothing else.
+   */
   agents: Promise<Loaded<AgentsSource>>;
 };
 
@@ -138,24 +141,23 @@ async function exampleReasons(): Promise<ReasonsSource | null> {
   return checks.length > 0 ? { checks, withReason: checks.length, holdings: checks.length, locked: 0 } : null;
 }
 
-/** The person's standing agents (archived ones left out) and their newest runs, from the same store /agents reads. */
-async function userAgents(uid: string): Promise<AgentsSource> {
-  const [jobs, runs] = await Promise.all([listJobs(uid), listRuns(uid, RUNS_READ)]);
-  const live = new Set(jobs.map((job) => job.id));
-  return {
-    jobs: jobs.map((job) => ({
-      id: job.id,
-      name: job.name,
-      enabled: job.enabled,
-      weekly: job.trigger.type === "schedule" && job.trigger.cadence === "weekly",
-      // For the findings to name the agent that already watches them (lib/portfolio-home/loop.ts).
-      trigger: job.trigger,
-      scope: job.scope,
-    })),
-    runs: runs
-      .filter((run) => live.has(run.job_id))
-      .map((run) => ({ job_id: run.job_id, job_name: run.job_name, day: run.day, ran_at: run.ran_at, decision: run.decision, summary: run.summary })),
-  };
+/**
+ * A person's own tool reads (x-ray, earnings, dividends, stress, goal, ideas, reasons), kept for a minute in this
+ * server's memory so opening My stocks again soon skips them (lib/per-user-cache.ts: keyed by uid, never shared
+ * between people). Only finished reads are kept, never "slow" or "failed".
+ */
+const ownSources = perUserCache<Loaded<unknown>>({
+  ttlMs: 60_000,
+  max: 400,
+  keep: (loaded) => loaded.state === "ready" || loaded.state === "empty",
+});
+
+/**
+ * Everything those reads depend on that the person can change: their whole user doc (holdings, reasons, goal
+ * inputs), their plan and covered stocks, and the day. Any edit gives a new key, so it shows on the next load.
+ */
+export function ownSourcesKey(userDoc: UserDoc, viewer: Pick<Viewer, "plan" | "covered">, today: string = newYorkToday()): string {
+  return fingerprint({ today, plan: viewer.plan, covered: viewer.covered, doc: userDoc });
 }
 
 /**
@@ -175,14 +177,23 @@ export const loadPortfolioHome = cache((): HomeLoad => {
       userDoc: null,
     };
   });
-  const mine = <T,>(label: string, own: (doc: UserDoc, viewer: Viewer) => Promise<T | null>, example: () => Promise<T | null>) =>
-    ctx.then((context) => withTimeout<T>(context.mode === "mine" && context.userDoc ? own(context.userDoc, context.viewer) : example(), label));
+  let ownKey: string | null = null;
+  const mine = <T,>(label: string, own: (doc: UserDoc, viewer: Viewer) => Promise<T | null>, example: () => Promise<T | null>, options: { fresh?: boolean } = {}) =>
+    ctx.then((context): Promise<Loaded<T>> => {
+      const { userDoc, viewer } = context;
+      if (context.mode !== "mine" || !userDoc) return withTimeout<T>(example(), label);
+      const run = () => withTimeout<T>(own(userDoc, viewer), label);
+      if (options.fresh || !viewer.uid) return run();
+      ownKey ??= ownSourcesKey(userDoc, viewer);
+      return ownSources.get(viewer.uid, `${label}:${ownKey}`, run) as Promise<Loaded<T>>;
+    });
   // The ideas page's default rates; a person who set other rates sees them on that page.
   const rates = DEFAULT_RATES;
   return {
     context: ctx.then(({ viewer, mode, reason }) => ({ viewer, mode, reason })),
     sources: {
-      memo: mine("memo", (_doc, viewer) => (viewer.uid ? storedMemo(viewer.uid) : Promise.resolve(null)), () => loadExampleMemo(newYorkToday(), null, { worded: false })),
+      // Written on its own page (/portfolio/memo), so always read fresh: coming back from there shows the new memo.
+      memo: mine("memo", (_doc, viewer) => (viewer.uid ? storedMemo(viewer.uid) : Promise.resolve(null)), () => loadExampleMemo(newYorkToday(), null, { worded: false }), { fresh: true }),
       xray: mine("xray", (doc) => loadUserXray(doc), () => loadExampleXray()),
       season: mine("earnings", (doc) => loadUserSeason(doc), () => loadExampleSeason()),
       dividends: mine("dividends", (doc) => userDividends(doc), () => exampleDividends()),
@@ -191,9 +202,9 @@ export const loadPortfolioHome = cache((): HomeLoad => {
       ideas: mine("ideas", (doc) => loadUserIdeas(doc, rates), () => loadExampleIdeas(rates)),
       reasons: mine("reasons", (doc, viewer) => userReasons(doc, viewer), () => exampleReasons()),
     },
-    // Only for a person looking at their own holdings; the example has no standing agents to report on.
+    // Anyone signed in: a person with no holdings marked may still have agents watching stocks. Signed out, there are none.
     agents: ctx.then((context) =>
-      context.mode === "mine" && context.viewer.uid ? withTimeout<AgentsSource>(userAgents(context.viewer.uid), "agents", AGENTS_TIMEOUT_MS) : ({ state: "empty" } as const),
+      context.viewer.uid ? withTimeout<AgentsSource>(readAgentWatches(context.viewer.uid, newYorkToday()), "agents", AGENTS_TIMEOUT_MS) : ({ state: "empty" } as const),
     ),
   };
 });

@@ -133,7 +133,7 @@ function TrimRow({ trim, rates, example }: { trim: TrimIdea; rates: TaxRates; ex
 }
 
 /**
- * Above the line, but our call is Buy more: said as information, with no sale
+ * Above the line, but our call is Buy more or Keep: said as information, with no sale
  * and no share count. `brief` when the quiet line above already said it is
  * above the line and why we would not sell.
  */
@@ -142,12 +142,14 @@ function HeldRow({ row, where, brief }: { row: RebalancePlan["buyMoreOver"][numb
     <li className="px-4 py-3.5">
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
         <Ticker symbol={row.ticker} name={row.name} />
-        <CallTag call="Add" />
+        <CallTag call={row.call} />
       </div>
       <p className="mt-2 text-pretty text-[15px] leading-[22px] text-oa-fg">
         {brief
-          ? `Adding more would make ${where} lean on it even harder.`
-          : `${row.ticker} is ${fmtPct(row.pct)} of ${where}, above the ${COMPANY_LINE}% line. Our call is Buy more, so we would not sell it. Adding more would make ${where} lean on it even harder.`}
+          ? `${row.ticker} is ${fmtPct(row.pct)} of ${where}.${row.call === "Add" ? " Adding more would make it bigger still." : ""}`
+          : `${row.ticker} is ${fmtPct(row.pct)} of ${where}, above the ${COMPANY_LINE}% line. Our call is ${row.call === "Add" ? "Buy more" : "Keep"}, so we would not sell it.${
+              row.call === "Add" ? ` Adding more would make ${where} lean on it even harder.` : ""
+            }`}
       </p>
       {row.callReason ? <p className="mt-1 text-pretty text-[13.5px] leading-5 text-oa-muted-fg">{row.callReason}</p> : null}
     </li>
@@ -203,7 +205,8 @@ function RebalancePanel({ view }: { view: IdeasData }) {
       {plan.trims.length === 0 ? (
         <>
           <div className="px-4 py-4">
-            <p className="text-pretty text-[15px] leading-[22px] text-oa-fg">{plan.quiet ?? "There is nothing to rebalance."}</p>
+            {/* The read above already says why (plan.quiet), so the panel says it once, briefly. */}
+            <p className="text-pretty text-[15px] leading-[22px] text-oa-fg">Nothing to sell for size.</p>
             <p className="mt-1 text-[13.5px] leading-5 text-oa-muted-fg">Doing nothing costs no tax and no trading fees, and it is often the right call.</p>
           </div>
           <HeldList plan={plan} where={where} brief />
@@ -303,8 +306,8 @@ function LossRow({ loss, rates, example }: { loss: LossIdea; rates: TaxRates; ex
       <p className="mt-1 text-pretty text-[13.5px] leading-5 text-oa-muted-fg">
         {recent}
         {loss.longTermOn ? ` It turns long term on ${fmtDay(loss.longTermOn, true)}; a loss taken before then counts as short term, which offsets the higher-taxed gains.` : ""}
-        {loss.call === "Add"
-          ? ` Our call is Buy more, so this would only be a sale for the tax: ${
+        {loss.call === "Add" || loss.call === "Hold"
+          ? ` Our call is ${loss.call === "Add" ? "Buy more" : "Keep"}, so this would only be a sale for the tax: ${
               loss.similar.length > 0
                 ? `holding a similar ${loss.fund ? "fund" : "company"} from the list below meanwhile keeps the exposure.`
                 : "you would be without the stock until the 30 days are up."
@@ -404,7 +407,7 @@ function Aside({ view }: { view: IdeasData }) {
             The tax is a rough estimate with US federal rules made simple: the two rates above, no state tax, and the oldest shares sold first.
           </li>
           <li>
-            No trim idea sells a stock our call says to buy more of, and we leave out any sale under {usd(TRIM_MIN_USD)} or under {TRIM_MIN_POINTS} points of the
+            No trim idea sells a stock our call says to keep or buy more of, and we leave out any sale under {usd(TRIM_MIN_USD)} or under {TRIM_MIN_POINTS} points of the
             portfolio.
           </li>
           <li>

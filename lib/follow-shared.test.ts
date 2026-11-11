@@ -3,6 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   MAX_FOLLOWED,
   activitySize,
+  chamberOf,
+  congressNoun,
+  congressReportsLabel,
+  seatParts,
   chartGeometry,
   chartY,
   daysBetween,
@@ -275,5 +279,28 @@ describe("followed sources", () => {
     expect(toggleFollowed(["a", "b"], "a", false)).toEqual(["b"]);
     expect(toggleFollowed(undefined, "a", false)).toEqual([]);
     expect(toggleFollowed(["a"], "Not A Slug", true)).toEqual(["a"]);
+  });
+});
+
+describe("House and Senate labels", () => {
+  it("treats anything stored before senators were read as the House", () => {
+    expect(chamberOf({})).toBe("house");
+    expect(chamberOf({ chamber: "senate" })).toBe("senate");
+    expect(chamberOf(null)).toBe("house");
+  });
+
+  it("gives a seat line per chamber", () => {
+    expect(seatParts({ state: "CA", district: "11" })).toEqual(["US House", "CA-11"]);
+    expect(seatParts({ chamber: "senate", state: "RI", district: "" })).toEqual(["US Senate", "RI"]);
+    expect(seatParts({ chamber: "house", state: "", district: "" })).toEqual(["US House"]);
+  });
+
+  it("names a list by who is in it", () => {
+    expect(congressNoun([{ kind: "congress" }, { kind: "fund" }])).toBe("House members");
+    expect(congressNoun([{ kind: "congress", chamber: "senate" }])).toBe("senators");
+    expect(congressNoun([{ kind: "congress" }, { kind: "congress", chamber: "senate" }])).toBe("members of Congress");
+    expect(congressReportsLabel([{ kind: "congress", chamber: "senate" }])).toBe("Senate trade reports");
+    expect(congressReportsLabel([{ kind: "congress" }, { kind: "congress", chamber: "senate" }])).toBe("House and Senate trade reports");
+    expect(congressReportsLabel([])).toBe("House trade reports");
   });
 });

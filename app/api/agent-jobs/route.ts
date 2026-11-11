@@ -4,6 +4,7 @@ import { limitFor } from "@/lib/entitlements";
 import { getViewer } from "@/lib/entitlements-server";
 import { parseJobDraft } from "@/lib/agent-jobs";
 import { AgentJobError, createJob, listJobs, listRuns } from "@/lib/agent-jobs-data";
+import { PRO_EVENTS_PAUSED, planMayRun } from "@/lib/agent-jobs";
 import { getSessionUser } from "@/lib/auth-server";
 
 export const dynamic = "force-dynamic";
@@ -26,12 +27,25 @@ export async function POST(req: NextRequest) {
   try {
     const viewer = await getViewer();
     const runLimit = limitFor("agents", viewer.plan);
-    const job = await createJob(session.uid, parsed.draft, new Date(), runLimit);
-    // Past the plan's limit the job is saved switched off, never thrown away.
+    const job = await createJob(session.uid, parsed.draft, new Date(), runLimit, viewer.plan);
+    // Past the plan's limit, or watching what the plan does not include, the job is saved switched off, never thrown away.
+    const blocked = !planMayRun(parsed.draft, viewer.plan);
     return NextResponse.json({
       ok: true,
       job,
-      paused: job.enabled ? null : { feature: "agents", limit: runLimit, message: `Saved and paused. Your plan runs ${runLimit} agents at a time: pause another to run this one.` },
+      paused: job.enabled
+        ? null
+        : blocked
+          ? { feature: "agent_events", plan: viewer.plan, message: PRO_EVENTS_PAUSED }
+          : {
+              feature: "agents",
+              plan: viewer.plan,
+              limit: runLimit,
+              message:
+                runLimit === 1
+                  ? "Saved and paused. Your plan runs one agent at a time: pause the one that is running to run this one."
+                  : `Saved and paused. Your plan runs ${runLimit} agents at a time: pause another to run this one.`,
+            },
     });
   } catch (error) {
     if (error instanceof AgentJobError) return NextResponse.json({ error: error.message }, { status: error.status });

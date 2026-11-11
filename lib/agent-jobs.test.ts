@@ -127,6 +127,21 @@ describe("price rules", () => {
     expect(without?.decision).toBe("could_not_check");
   });
 
+  it("never checks or names a level on a stock the plan does not cover, and says so", () => {
+    const zone = job("buy-zone");
+    const prices = { AAA: series({ "2026-10-13": 89 }), BBB: series({ "2026-10-13": 89 }) };
+    const opts = { day: "2026-10-13", since: "2026-10-12", tickers: ["AAA", "BBB"] };
+    const locked = { add_below: null, trim_above: null, locked: true as const };
+    const mixed = evaluateJob(zone, facts({ prices, levels: { AAA: { add_below: 90 }, BBB: locked } }), opts);
+    expect(mixed?.findings.map((finding) => finding.ticker)).toEqual(["AAA"]);
+    expect(mixed?.checked.join(" ")).toContain("Not covered on your plan, so not checked: BBB");
+
+    const none = evaluateJob(zone, facts({ prices, levels: { AAA: locked, BBB: locked } }), opts);
+    expect(none?.decision).toBe("could_not_check");
+    expect(none?.summary).toMatch(/covered on your plan/);
+    expect(JSON.stringify(none)).not.toMatch(/\$\d/);
+  });
+
   it("has nothing to look at when the watchlist is empty", () => {
     const result = evaluateJob(job("big-move"), facts(), { day: "2026-10-13", since: null, tickers: [] });
     expect(result?.decision).toBe("could_not_check");

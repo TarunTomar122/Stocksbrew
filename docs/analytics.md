@@ -104,6 +104,16 @@ Activation funnel (14-day window): `$pageview` → `signin_started` →
 Before this release the webhook sent `subscription_converted`; queries that
 look at history include both names.
 
+Every client event carries the `paywall` super property (`v1` today, `v2`
+when the build has `PAYWALL_V2=1`, lib/paywall-flag.ts), and `checkout_started`
+and `subscription_activated` carry it from the server. The funnel to compare
+the two lines: activation (above) → `limit_hit` / `paywall_shown` →
+`paywall_unlock_clicked` → `checkout_clicked` → `checkout_started` →
+`subscription_activated` → `subscription_renewed`, split by `paywall` and by
+`feature`. The briefing's "rest of your stocks moved too" card reports as
+`paywall_shown` with `feature = briefing_personal`; a filing or news agent saved
+paused on Free reports `limit_hit` with `feature = agent_events`.
+
 ### Engagement: what is working
 
 | Event | Properties | Fired from | Answers |

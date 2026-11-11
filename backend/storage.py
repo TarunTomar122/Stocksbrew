@@ -1475,6 +1475,18 @@ class TraceMoneyStore:
                     "levels_anchored_on": engine_zones.get("anchored_on"),
                     "review_on": engine.get("review_on"),
                 }
+            # When the steady call is published (CALL_STABILITY_MODE=on), record the
+            # day's raw vote and why the call stands. Additive: nothing when off or shadow.
+            stability = directive.get("stability") if isinstance(directive.get("stability"), dict) else None
+            if stability:
+                engine_fields = {
+                    **engine_fields,
+                    "raw_stance": directive.get("raw_stance"),
+                    "stability_since": stability.get("since"),
+                    "stability_trigger": stability.get("trigger"),
+                    "stability_reason": stability.get("since_reason"),
+                    "stability_version": stability.get("version"),
+                }
             self.db.collection("tm_directive_history").document(instrument_id).collection("calls").document(date_key).set({
                 **engine_fields,
                 "instrument_id": instrument_id,
@@ -1571,6 +1583,71 @@ class TraceMoneyStore:
             return None
         doc = self.db.collection("tm_call_engine_state").document(doc_id).get()
         return _serialize(doc.to_dict()) if doc.exists else None
+
+    # ── call stability (backend/call_stability.py) ───────────────────────────
+
+    def get_call_stability_state(self, instrument_id: str) -> dict[str, Any] | None:
+        """The steady call's state for one stock, or None before its first run."""
+        doc_id = str(instrument_id or "").strip().upper().replace("/", "-")
+        if not doc_id:
+            return None
+        doc = self.db.collection("tm_call_stability").document(doc_id).get()
+        return _serialize(doc.to_dict()) if doc.exists else None
+
+    def save_call_stability_state(
+        self,
+        instrument_id: str,
+        state: dict[str, Any],
+        *,
+        expected_rev: int | None,
+        history_row: dict[str, Any] | None = None,
+    ) -> bool:
+        """Write the steady call's state only if nobody saved it since we read it.
+
+        ``expected_rev`` is the ``rev`` read before deciding (None when there was no
+        state). Returns False on a conflict so the caller decides again from the newer
+        state; raises on any other failure. With it, one row per trading day goes to
+        tm_call_stability_history/{id}/calls/{day}, in the same commit. Additive:
+        nothing outside these two collections is touched."""
+        doc_id = str(instrument_id or "").strip().upper().replace("/", "-")
+        if not doc_id:
+            raise ValueError("instrument_id is required")
+        now = datetime.now(timezone.utc).isoformat()
+        payload = {**state, "instrument_id": doc_id, "rev": int(expected_rev or 0) + 1, "updated_at": now}
+        ref = self.db.collection("tm_call_stability").document(doc_id)
+        day = str(state.get("session") or "")[:10]
+        history_ref = (
+            self.db.collection("tm_call_stability_history").document(doc_id).collection("calls").document(day)
+            if history_row and len(day) == 10 else None
+        )
+        history = {**(history_row or {}), "instrument_id": doc_id, "updated_at": now}
+        if isinstance(self.db, LocalFirestoreClient):
+            transaction = self.db.transaction()
+            current = ref.get(transaction=transaction)
+            stored_rev = (current.to_dict() or {}).get("rev") if current.exists else None
+            if stored_rev != expected_rev:
+                return False
+            transaction.set(ref, payload)
+            if history_ref is not None:
+                transaction.set(history_ref, history, merge=True)
+            try:
+                transaction.commit()
+            except RuntimeError as exc:
+                if "conflict" in str(exc):
+                    return False
+                raise
+            return True
+        # Firestore (rollback only): a checked write, not atomic.
+        current = ref.get()
+        stored_rev = (current.to_dict() or {}).get("rev") if current.exists else None
+        if stored_rev != expected_rev:
+            return False
+        batch = self.db.batch()
+        batch.set(ref, payload)
+        if history_ref is not None:
+            batch.set(history_ref, history, merge=True)
+        batch.commit()
+        return True
 
     def save_stock_intelligence_docs(self, market: str, universe_id: str, docs_payload: list[dict[str, Any]]) -> None:
         namespace = self._news_namespace(market, universe_id)

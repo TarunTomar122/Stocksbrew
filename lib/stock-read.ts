@@ -44,6 +44,12 @@ export type StockRead = {
   reasonAsOf?: string | null;
   /** The brief says its call changed since the previous one; `from` is the call before, when the call ledger confirms it. */
   changed: { reason: string | null; from: CallWord | null } | null;
+  /** The day the call took its current value (YYYY-MM-DD): the steady call's own date, else the call ledger's. */
+  since: string | null;
+  /** What would change the call, from the rule that holds it steady. Null until the steady call is published. */
+  whatWouldChange: string | null;
+  /** Today's review leaned toward this other call and the steady call held. */
+  heldAgainst: CallWord | null;
 };
 
 type Evidence = { text?: unknown; type?: unknown };
@@ -142,6 +148,29 @@ export function previousCall(
   return days >= -1 && days <= 7 ? last.from : null;
 }
 
+/**
+ * The day the current call began. The steady call carries its own date; without it the call ledger says when the
+ * call last switched to what it is now (or when coverage began, if it never switched). A ledger that has not caught
+ * up with this brief yet (its last call differs) gives the brief's own day.
+ */
+export function callSince(
+  changes: ReadonlyArray<{ date: string; from: CallWord | null; to: CallWord }>,
+  call: CallWord | null,
+  options: { stabilitySince?: unknown; stabilityTrigger?: unknown; writtenAt?: string | null } = {},
+): string | null {
+  const own = clean(options.stabilitySince);
+  const last = changes.length ? changes[changes.length - 1] : null;
+  const ledger = call && last && last.to === call && /^\d{4}-\d{2}-\d{2}/.test(last.date) ? last.date.slice(0, 10) : null;
+  // "start" is only the day the steady call was switched on; the ledger knows how long the call really stood.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(own) && !(clean(options.stabilityTrigger) === "start" && ledger && ledger < own)) return own;
+  if (!call) return null;
+  if (ledger) return ledger;
+  // No ledger at all (empty, or its read failed): we don't know how long the call stood, so no "since".
+  if (changes.length === 0) return null;
+  const written = clean(options.writtenAt);
+  return /^\d{4}-\d{2}-\d{2}/.test(written) ? todayET(Date.parse(written)) : null;
+}
+
 export function buildStockRead(
   intelligence: StockIntelligenceDoc | null | undefined,
   options: { companyReason?: CompanyReason | null; callChanges?: ReadonlyArray<{ date: string; from: CallWord | null; to: CallWord }> } = {},
@@ -157,11 +186,16 @@ export function buildStockRead(
   for (const point of doc.key_points ?? []) pushDistinct(reasons, point);
   pushDistinct(reasons, doc.visual_summary?.why_it_matters);
 
+  const stability = directive?.stability ?? null;
+  const whatWouldChange = clean(stability?.what_would_change) || null;
   const changers: string[] = [];
   for (const item of evidence) if (clean(item.type) === "risk") pushDistinct(changers, item.text);
   for (const card of doc.visual_cards?.risk_cards ?? []) pushDistinct(changers, card.trigger || card.detail || card.risk);
-  pushDistinct(changers, directive?.invalidation);
-  pushDistinct(changers, directive?.watch_out);
+  // With the steady call these two are the rule's own sentence, which the call block shows on its own.
+  if (!whatWouldChange) {
+    pushDistinct(changers, directive?.invalidation);
+    pushDistinct(changers, directive?.watch_out);
+  }
   pushDistinct(changers, doc.visual_summary?.what_to_watch);
   pushDistinct(changers, doc.risk);
 
@@ -207,7 +241,19 @@ export function buildStockRead(
           from: previousCall(options.callChanges ?? [], callWord(directive?.stance), clean(doc.generated_at) || null),
         }
       : null,
+    since: callSince(options.callChanges ?? [], callWord(directive?.stance), {
+      stabilitySince: stability?.since,
+      stabilityTrigger: stability?.trigger,
+      writtenAt: clean(doc.generated_at) || null,
+    }),
+    whatWouldChange,
+    heldAgainst: stability?.held_against_vote ? heldVote(stability.vote, callWord(directive?.stance)) : null,
   };
+}
+
+function heldVote(vote: unknown, call: CallWord | null): CallWord | null {
+  const word = vote === "Add" || vote === "Hold" || vote === "Trim" ? vote : null;
+  return word && word !== call ? word : null;
 }
 
 /** The pipeline sometimes records its own bookkeeping as the reason a call changed. That is not for readers. */

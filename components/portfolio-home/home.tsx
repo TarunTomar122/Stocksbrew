@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { fmtDay, fmtStampET } from "@/components/oa/kit";
 import { Bar } from "@/components/oa/kit/skeleton";
 import { ToneGlyph } from "@/components/oa/kit/tone";
+import { findingSlug } from "@/components/portfolio-home/agents-panel";
 import { HomeSignIn } from "@/components/portfolio-home/sign-in";
 import { StockLogo } from "@/components/stock-logo";
 import { ASK_MAX_QUESTION_CHARS } from "@/lib/ask-config";
@@ -11,7 +12,7 @@ import { countWord } from "@/lib/read-format";
 import { newYorkToday } from "@/lib/portfolio-data";
 import { focusHeadline, focusNoticed, prioritise, type FoldRow, type Lead } from "@/lib/portfolio-home/focus";
 import { buildAgentLog, dataChecks, type LogRow } from "@/lib/portfolio-home/log";
-import { askFor, findingLoop, foldedCheckIds, matchAgent, nextWords, stampWords, watchPlan, watchStatus, type FindingLoop, type WatchPlan } from "@/lib/portfolio-home/loop";
+import { askFor, findingLoop, findingWatchLine, foldedCheckIds, matchAgent, nextWords, stampWords, watchPlan, type FindingLoop, type WatchPlan } from "@/lib/portfolio-home/loop";
 import type { FindingSource } from "@/lib/portfolio-home/pick";
 import { pickQuestions } from "@/lib/portfolio-home/questions";
 import { feedSources, type ExampleReason, type HomeLoad } from "@/lib/portfolio-home/server";
@@ -112,35 +113,63 @@ function trackedTickers(tracked: string[] | undefined): Set<string> {
 }
 
 /**
- * The watch: the rule that would keep watching the finding and whether one of
- * the person's agents already has it (from their own agents, which arrive on
- * their own and never hold up the card), then when it is checked next, only
- * when the run log proves the after-close runner is running.
+ * The watch, open: the rule that would keep watching the finding (opening the
+ * person's agent when one already has it), then when it is checked next, only
+ * when the run log proves the after-close runner is running. Whether it is
+ * covered, and what the watch last found, shows on the card closed (FindingWatch).
  */
 async function WatchRows({ plan, ticker, load, today }: { plan: WatchPlan; ticker: string | null; load: HomeLoad; today: string }) {
   const [{ mode, viewer }, agents] = await Promise.all([load.context, load.agents]);
-  const mine = mode === "mine";
-  const tracked = trackedTickers(viewer.tracked);
-  const match = mine && agents.state === "ready" ? matchAgent(plan, ticker, agents.value, tracked, today) : null;
-  const status = watchStatus({
-    plan,
-    match,
-    agents: mine ? agents.state : "none",
-  });
+  const match = mode === "mine" && agents.state === "ready" ? matchAgent(plan, ticker, agents.value, trackedTickers(viewer.tracked), today) : null;
   return (
     <>
-      <LoopRow term="Watch">
-        {plan.kind === "reasons" ? (
-          plan.text
-        ) : (
-          <>
-            {ruleLink(plan, match ? `/agents?job=${encodeURIComponent(match.id)}` : plan.href)}
-            {status ? <span className="block text-oa-muted-fg">{status}</span> : null}
-          </>
-        )}
-      </LoopRow>
+      <LoopRow term="Watch">{plan.kind === "reasons" ? plan.text : ruleLink(plan, match ? `/agents?job=${encodeURIComponent(match.id)}` : plan.href)}</LoopRow>
       {match?.next ? <LoopRow term="Next check">{nextWords(match.next, today)}</LoopRow> : null}
     </>
+  );
+}
+
+const EYE = (
+  <svg aria-hidden="true" width="13" height="13" viewBox="0 0 16 16" className="mt-[2px] shrink-0">
+    <path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8Z" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+    <circle cx="8" cy="8" r="2" fill="currentColor" />
+  </svg>
+);
+
+/**
+ * Beside each finding, closed or open: whether a watch covers it and what that
+ * watch last found, linking to the run when it fired (lib/portfolio-home/loop.ts
+ * findingWatchLine). Waits only for the person's agents.
+ */
+async function FindingWatch({ item, loop, load, today }: { item: Lead; loop: FindingLoop; load: HomeLoad; today: string }) {
+  const [{ mode, viewer }, agents] = await Promise.all([load.context, load.agents]);
+  const mine = mode === "mine";
+  const match = mine && agents.state === "ready" ? matchAgent(loop.watch, item.ticker, agents.value, trackedTickers(viewer.tracked), today) : null;
+  const line = findingWatchLine({
+    plan: loop.watch,
+    match,
+    ticker: item.ticker,
+    agents,
+    mine,
+    reasonDay: loop.check?.id === "reasons" ? loop.check.day : null,
+    today,
+  });
+  if (!line) return null;
+  return (
+    <p className={`mb-1 flex items-start gap-1.5 text-pretty text-[12.5px] leading-[17px] ${line.fired ? "text-oa-fg" : "text-oa-muted-fg"}`}>
+      <span className={line.fired ? "text-oa-primary" : undefined}>{EYE}</span>
+      <span>
+        {line.text}
+        {line.link ? (
+          <>
+            {" "}
+            <Link href={line.link.href} prefetch={false} data-track-target="agent-run" className={LINK}>
+              {line.link.label}
+            </Link>
+          </>
+        ) : null}
+      </span>
+    </p>
   );
 }
 
@@ -187,10 +216,7 @@ function StepLink({ label, href, watch }: { label: string; href: string; watch: 
 function FindingCard({ item, loop, load, today }: { item: Lead; loop: FindingLoop; load: HomeLoad; today: string }) {
   const headline = item.headline ?? item.text;
   const why = item.headline ? (item.why ?? null) : null;
-  const slug = item.id
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .slice(0, 60);
+  const slug = findingSlug(item.id);
   const check = loop.check;
   const source = item.source ?? null;
   const sourceLine = source ? sourceWords(source) : null;
@@ -205,7 +231,7 @@ function FindingCard({ item, loop, load, today }: { item: Lead; loop: FindingLoo
       data-track-insight-id={item.id.slice(0, 80)}
       data-track-insight-kind={`home-${item.tool}`}
       data-track-tone={item.tone}
-      className="[&:has(>details[open])_[data-open-only]]:inline [&:has(>details[open])_[data-same-as-watch]]:hidden"
+      className="scroll-mt-20 [&:has(>details[open])_[data-open-only]]:inline [&:has(>details[open])_[data-same-as-watch]]:hidden"
     >
       <details className="group">
         <summary
@@ -267,6 +293,11 @@ function FindingCard({ item, loop, load, today }: { item: Lead; loop: FindingLoo
         </div>
       </details>
       <div className="px-4 pb-2.5 pt-1 sm:px-5">
+        {loop.watch || item.ticker ? (
+          <Suspense fallback={null}>
+            <FindingWatch item={item} loop={loop} load={load} today={today} />
+          </Suspense>
+        ) : null}
         <span data-same-as-watch={sameAsWatch ? "" : undefined}>
           <Suspense fallback={<StepLink label={item.action.label} href={item.action.href} watch={item.action.kind === "watch"} />}>
             <PrimaryStep item={item} load={load} today={today} />
@@ -533,7 +564,8 @@ function LogItem({ row, upcoming }: { row: LogRow; upcoming: boolean }) {
       </span>
     </>
   );
-  const grid = "grid grid-cols-[4.25rem_minmax(0,1fr)] gap-x-2.5 px-4 py-2.5";
+  // Wide enough for "12:37 AM ET" on one line, with a clear gap before the text.
+  const grid = "grid grid-cols-[5.5rem_minmax(0,1fr)] gap-x-4 px-4 py-2.5";
   return (
     <li>
       {row.href ? (
@@ -551,16 +583,19 @@ const LIST = "scrollbar-hide max-h-[26rem] divide-y divide-oa-border overflow-y-
 
 /** A dated log: what the agent checked (newest first) and what is coming up, from real runs and real dates only. */
 export async function AgentLogPanel({ load }: { load: HomeLoad }) {
-  const [{ mode }, sources, goal, agents] = await Promise.all([load.context, feedSources(load), load.sources.goal, load.agents]);
+  const [{ mode }, sources, goal] = await Promise.all([load.context, feedSources(load), load.sources.goal]);
   const { memo, reasons, season } = sources;
   const mine = mode === "mine";
   const today = newYorkToday();
   // A check that explains a lead finding is shown on that finding; the log keeps the rest.
   const { lead } = prioritise(focusNoticed(sources, mode), { ...sources, goal }, mode);
   const omit = foldedCheckIds(lead, dataChecks({ ...sources, goal }, mode, today));
+  // The agents panel lists the reason watcher with its last check, so the log leaves that row out for a person's own stocks.
+  if (mine && reasons?.state === "ready" && reasons.value.checks.length > 0) omit.add("reasons");
+  // The person's agents, their runs and their next check are in the agents panel (./agents-panel.tsx), so the log is the data checks and what is coming up.
   const log = buildAgentLog({
     sources: { ...sources, goal },
-    agents,
+    agents: null,
     mode,
     today,
     omit,
@@ -568,7 +603,6 @@ export async function AgentLogPanel({ load }: { load: HomeLoad }) {
   const waiting = [memo, reasons, season, goal].some((source) => source?.state === "slow" || source?.state === "failed");
   // Every check went onto a finding: the panel is only what is coming up.
   const allFolded = omit.size > 0 && log.checked.length === 0;
-  const noAgents = mine && log.hasAgents === false;
   // Nothing left to list: no panel, unless a source is still out (then it says to reload).
   if (allFolded && log.next.length === 0 && !waiting) return null;
   return (
@@ -597,15 +631,6 @@ export async function AgentLogPanel({ load }: { load: HomeLoad }) {
           </ol>
         </>
       ) : null}
-      {noAgents ? (
-        <p className="border-t border-oa-border px-4 py-2.5 text-pretty text-[13px] leading-[18px] text-oa-muted-fg">
-          No agent of yours is watching these yet.{" "}
-          <Link href="/agents" prefetch={false} className={LINK}>
-            Set one up
-          </Link>
-          .
-        </p>
-      ) : null}
     </section>
   );
 }
@@ -615,7 +640,7 @@ export function AgentLogGhost() {
     <div aria-hidden="true" className={`${CARD} px-4 py-3.5`}>
       <Bar className="h-4 w-48" />
       {[0, 1, 2, 3].map((row) => (
-        <div key={row} className="mt-3.5 grid grid-cols-[4.25rem_minmax(0,1fr)] gap-x-2.5">
+        <div key={row} className="mt-3.5 grid grid-cols-[5.5rem_minmax(0,1fr)] gap-x-4">
           <Bar className="h-3 w-10" />
           <span>
             <Bar className="h-3.5 w-full" />

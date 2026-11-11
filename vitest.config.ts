@@ -10,6 +10,7 @@ export default defineConfig({
   test: {
     environment: "node",
     globals: true,
+    setupFiles: ["./vitest.setup.ts"],
     // The CLI package has its own node:test suite (npm test in packages/stocksbrew-cli).
     exclude: [...configDefaults.exclude, "packages/**"],
   },

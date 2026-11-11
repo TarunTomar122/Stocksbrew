@@ -22,6 +22,9 @@ import { buildCongressMemberRead, buildFundRead, fundIsStale, fundStaleLine, mem
 import { getSessionUser } from "@/lib/auth-server";
 import {
   STOCK_ACT_DEADLINE_DAYS,
+  CHAMBER_SOURCE,
+  chamberOf,
+  seatParts,
   fmtBracket,
   fmtDate,
   fmtFrac,
@@ -59,11 +62,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const title =
     profile.kind === "fund"
       ? `${name} 13F Portfolio: Holdings, New Buys and Sells`
-      : `${name} Stock Trades: Latest House Disclosures`;
+      : `${name} Stock Trades: Latest ${chamberOf(profile) === "senate" ? "Senate" : "House"} Disclosures`;
   const description =
     profile.kind === "fund"
       ? `${name} (${profile.manager}): the latest 13F portfolio, what changed last quarter, and what following each filing from its filing date would have returned against the S&P 500.`
-      : `${name}: stock trades reported to the Clerk of the House, how long each took to report, and what following the reports would have returned against the S&P 500.`;
+      : `${name}: stock trades reported to the ${chamberOf(profile) === "senate" ? "Secretary of the Senate" : "Clerk of the House"}, how long each took to report, and what following the reports would have returned against the S&P 500.`;
   // The card: who it is, what they hold, and following their filings against the S&P 500.
   const shareImage = ogImage(["follow", profile.slug], profile.kind === "fund" ? `${name}: top holdings and record against the S&P 500` : `${name}: reported stock trades and record against the S&P 500`, { daily: true });
   return {
@@ -755,7 +758,7 @@ function CongressView({
 }) {
   const stats = profile.stats;
   const party = partyLabel(profile.party);
-  const seat = profile.state ? `${profile.state}-${profile.district}` : "";
+  const office = CHAMBER_SOURCE[chamberOf(profile)];
   const trades = profile.trades;
   const first = trades.slice(0, 40);
   const rest = trades.slice(40);
@@ -876,17 +879,17 @@ function CongressView({
             </h1>
             <p className="flex items-center gap-2 text-[15px] leading-6 text-oa-muted-fg">
               <PartyDot party={profile.party} />
-              {[party, "US House", seat].filter(Boolean).join(" · ")}
+              {[party, ...seatParts(profile)].filter(Boolean).join(" · ")}
               {!profile.sitting ? <span>· no longer in this seat</span> : null}
             </p>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-3">
           <ExternalLink
-            href="https://disclosures-clerk.house.gov/FinancialDisclosure"
+            href={office.url}
             className="text-[13px] text-oa-muted-fg"
           >
-            Clerk of the House
+            {office.office}
           </ExternalLink>
           <FollowButton
             slug={profile.slug}
@@ -904,7 +907,7 @@ function CongressView({
         <Panel
           title="Latest report"
           right={
-            <ExternalLink href={profile.source_url}>Report (PDF)</ExternalLink>
+            <ExternalLink href={profile.source_url}>{office.file === "PDF" ? "Report (PDF)" : "Report"}</ExternalLink>
           }
         >
           <div className="px-4 py-3">
@@ -917,7 +920,11 @@ function CongressView({
             </p>
             <p className="mt-1 text-[13px] leading-5 text-oa-muted-fg">
               {profile.reports_count} reports read since{" "}
-              {fmtDate(profile.first_report)}.
+              {fmtDate(profile.first_report)}
+              {profile.paper_reports
+                ? `, ${profile.paper_reports} of them filed on paper, which we list but do not read`
+                : ""}
+              .
               {stats.median_lag_days != null
                 ? ` A typical trade ${memberStaleLine(profile) ? "was" : "is"} reported ${stats.median_lag_days} days after it happened; the law allows ${STOCK_ACT_DEADLINE_DAYS}.`
                 : ""}
@@ -1014,11 +1021,15 @@ function CongressView({
                   {fmtDate(report.filed_at)}
                 </span>
                 <span className="oa-mono text-[12px] text-oa-muted-fg">
-                  {report.buys} {report.buys === 1 ? "buy" : "buys"} ·{" "}
-                  {report.sells} {report.sells === 1 ? "sale" : "sales"}
+                  {report.format === "paper"
+                    ? "Paper filing, not read"
+                    : report.unreadable
+                      ? "Could not be read"
+                      : `${report.buys} ${report.buys === 1 ? "buy" : "buys"} · ${report.sells} ${report.sells === 1 ? "sale" : "sales"}`}
+                  {report.amendment ? ` · amendment ${report.amendment}` : ""}
                 </span>
                 <span className="text-[12px] text-oa-muted-fg">
-                  <ExternalLink href={report.url}>PDF</ExternalLink>
+                  <ExternalLink href={report.url}>{report.format === "paper" ? "Scan" : office.file}</ExternalLink>
                 </span>
               </li>
             ))}
@@ -1064,7 +1075,7 @@ export default async function FollowProfilePage({ params }: Props) {
             description:
               profile.kind === "fund"
                 ? `${displayName}'s US stock holdings as reported in its quarterly Form 13F filings to the SEC, with the changes from one quarter to the next.`
-                : `Stock trades ${displayName} reported to the Clerk of the House under the STOCK Act, with the date of each trade and the date it was reported.`,
+                : `Stock trades ${displayName} reported to the ${chamberOf(profile) === "senate" ? "Secretary of the Senate" : "Clerk of the House"} under the STOCK Act, with the date of each trade and the date it was reported.`,
             url: pageUrl,
             isAccessibleForFree: true,
             creator: { "@type": "Organization", name: "stocksbrew", url: "https://www.stocksbrew.online" },

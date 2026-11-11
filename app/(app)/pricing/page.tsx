@@ -9,8 +9,11 @@ import { SubscriptionSuccessModal } from "@/components/subscription-success-moda
 import {
   FEATURES,
   FEATURE_GROUPS,
+  FREE_COVERED_STOCKS,
+  can,
   describeRule,
   limitFor,
+  listedFeatureIds,
   ruleFor,
   type Feature,
   type FeatureId,
@@ -18,6 +21,8 @@ import {
 } from "@/lib/entitlements";
 import { getViewer } from "@/lib/entitlements-server";
 import { countWord } from "@/lib/plain-copy";
+import { FREE_COVERED_WORD } from "@/lib/paywall-flag";
+import { CALL_COVERAGE } from "@/lib/brand-copy";
 import { US_PRO_MONTHLY, US_PRO_YEARLY, US_YEARLY_SAVE_PCT } from "@/lib/pricing";
 import { SUBSCRIBE_SUPPORT_EMAIL } from "@/lib/subscribe-benefits";
 import { ogImage } from "@/lib/og/url";
@@ -27,12 +32,11 @@ const SHARE_IMAGE = ogImage(["page", "pricing"], "stocksbrew pricing: Free and P
 export const metadata: Metadata = {
   title: "Pricing: Free and Pro",
   description:
-    "Our call on every stock is free. Free adds the full report on five stocks you pick; Pro adds it on every stock.",
+    `Our call on ${CALL_COVERAGE} is free. Free adds the full report on ${FREE_COVERED_WORD} stocks you pick; Pro adds it on all of them.`,
   alternates: { canonical: "/pricing" },
   openGraph: {
     title: "stocksbrew pricing: Free and Pro",
-    description:
-      "Free gives you the full report on five stocks you pick. Pro gives it on every stock.",
+    description: `Free gives you the full report on ${FREE_COVERED_WORD} stocks you pick. Pro gives it on every stock we have a call on.`,
     url: "https://www.stocksbrew.online/pricing",
     images: [SHARE_IMAGE],
   },
@@ -50,14 +54,14 @@ type Props = {
 
 // "The full report" and "Stocks that get the full report" said the same thing twice; one row says both.
 const MERGED_INTO_ANOTHER_ROW = new Set<FeatureId>(["stock_zones"]);
-const ids = (Object.keys(FEATURES) as FeatureId[]).filter((id) => !MERGED_INTO_ANOTHER_ROW.has(id));
+const ids = listedFeatureIds().filter((id) => !MERGED_INTO_ANOTHER_ROW.has(id));
 
 // Row names said plainly where the entitlements table uses our own shorthand.
 // Display only: the rules themselves still come from lib/entitlements.
 const PLAIN_NAMES: Partial<Record<FeatureId, string>> = {
   tracked_stocks: "Stocks you follow, with prices, our call and the next earnings date",
   covered_stocks: "The full report: why we made the call, the prices where we'd buy more or sell some, and what would change our mind",
-  stock_call: "Our call on every stock: buy more, keep or sell some, with the date",
+  stock_call: `Our call on ${CALL_COVERAGE}: buy more, keep or sell some, with the date`,
   stock_zones: "The full report: why we made the call, the prices where we'd buy more or sell some, and what would change our mind",
   briefing_personal: "A daily briefing on your stocks: what moved, why, and what to look at",
   portfolio_analytics: "How your money is spread, how much it swings, and how you did against the S&P 500",
@@ -88,6 +92,7 @@ const PLAIN_NAMES: Partial<Record<FeatureId, string>> = {
   email_market: "A daily market email",
   email_briefing: "Your morning email (only on days something changed) and a Saturday recap",
   agent_api: "Use stocksbrew from Claude, ChatGPT or your own code",
+  agent_events: "Agents that act on a new company filing or a turn in the news",
 };
 
 /** The few differences that decide it, shown under the plan cards; every other row is one tap away. */
@@ -137,14 +142,15 @@ function Cell({ rule, strong = false, id }: { rule: Rule; strong?: boolean; id?:
   }
   // "Covered stocks" is our word; say which stocks that is on each plan.
   const said = describeRule(rule);
-  const text = said === "Covered stocks" ? (strong ? "Every stock you own" : "5 stocks you choose") : id === "covered_stocks" && /^5 stocks?$/.test(said) ? "5 stocks you choose" : said;
+  const chosen = `${FREE_COVERED_STOCKS} stocks you choose`;
+  const text = said === "Covered stocks" ? (strong ? "Every stock you own" : chosen) : id === "covered_stocks" && said === `${FREE_COVERED_STOCKS} stocks` ? chosen : said;
   return <span className={`text-[14px] leading-5 sm:text-[15px] ${strong ? "font-medium text-oa-fg" : "text-oa-fg"}`}>{text}</span>;
 }
 
 const FAQS: Array<{ q: string; a: string }> = [
   {
     q: "What do I actually get for free?",
-    a: "Our call on every stock, and every page on the site. You can follow as many stocks as you like. Five of them, which you choose, get the full report: why we made the call, the prices where we'd act, and a note when one moves or reports earnings. You can swap one of the five each week.",
+    a: `Our call on ${CALL_COVERAGE}, and every page on the site. You can follow as many stocks as you like. ${FREE_COVERED_WORD[0].toUpperCase()}${FREE_COVERED_WORD.slice(1)} of them, which you choose, get the full report: why we made the call, the prices where we'd act, and a note when one moves or reports earnings. You can swap one of the ${FREE_COVERED_WORD} each week.`,
   },
   {
     q: "So what am I paying for with Pro?",
@@ -152,7 +158,7 @@ const FAQS: Array<{ q: string; a: string }> = [
   },
   {
     q: "What happens when I hit a limit?",
-    a: "It says which limit, how to get past it without paying (swap one of your five stocks, pause an agent, wait for the daily reset), and what Pro changes. Nothing you made is deleted, and we never show a blurred row or a made-up number.",
+    a: `It says which limit, how to get past it without paying (swap one of your ${FREE_COVERED_WORD} stocks, pause an agent, wait for the daily reset), and what Pro changes. Nothing you made is deleted, and we never show a blurred row or a made-up number.`,
   },
   {
     q: "Is the call different for people who pay?",
@@ -191,10 +197,12 @@ export default async function PricingPage({ searchParams }: Props) {
         ];
 
   const freePoints = [
-    "Our call on every stock you look up",
-    "A daily briefing on your five stocks",
+    `Our call on ${CALL_COVERAGE}`,
+    `A daily briefing on your ${FREE_COVERED_WORD} stocks`,
     `${limitFor("ask", "free")} questions a day about any stock`,
-    `${limitFor("agents", "free")} agents that watch for a price, an earnings date or a big move for you`,
+    limitFor("agents", "free") === 1
+      ? "An agent that watches for a price, an earnings date or a big move for you"
+      : `${limitFor("agents", "free")} agents that watch for a price, an earnings date or a big move for you`,
     "A practice account with $100,000 of pretend money",
   ];
   const proPoints = [
@@ -202,6 +210,8 @@ export default async function PricingPage({ searchParams }: Props) {
     "A daily briefing on every stock you own, by email",
     `${limitFor("ask", "pro")} questions a day and up to ${limitFor("agents", "pro")} agents`,
     "An email when a stock reaches our buy or sell price, reports earnings or gets a new call",
+    // Only true on the tighter line, where these agents are Pro-only.
+    ...(can("agent_events", "free") ? [] : ["Agents that read every new filing and news turn on your stocks"]),
   ];
   const differences = DIFFERENCES.filter((id) => FEATURES[id] && describeRule(ruleFor(id, "free")) !== describeRule(ruleFor(id, "pro")));
 
@@ -211,10 +221,10 @@ export default async function PricingPage({ searchParams }: Props) {
 
       <header className="mb-5 px-2 pt-2 sm:mb-6 sm:px-0 sm:pt-4">
         <h1 className="text-balance text-[28px] font-semibold leading-[34px] tracking-[-0.02em] text-oa-fg sm:text-[36px] sm:leading-[44px]">
-          Our call on every stock is free. Pro adds the full report on all of them.
+          Our call on {CALL_COVERAGE} is free. Pro adds the full report on all of them.
         </h1>
         <p className="mt-2 max-w-[46rem] text-pretty text-[16px] leading-6 text-oa-muted-fg">
-          Whether we&apos;d buy more, keep or sell some is free on every stock, and a free account also gets the full report on five stocks you pick. The full report is the why behind the call: our reasons, the prices where we&apos;d act, and what would change our mind.
+          Whether we&apos;d buy more, keep or sell some is free to read, and a free account also gets the full report on {FREE_COVERED_WORD} stocks you pick. The full report is the why behind the call: our reasons, the prices where we&apos;d act, and what would change our mind.
         </p>
       </header>
 
@@ -237,7 +247,7 @@ export default async function PricingPage({ searchParams }: Props) {
 
       {searchParams.from === "radar_limit" && viewer.plan === "free" ? (
         <Panel className="mb-5">
-          <p className="text-[15px] font-medium text-oa-fg">Five of your stocks already get the full report, which is the Free limit.</p>
+          <p className="text-[15px] font-medium text-oa-fg">{FREE_COVERED_WORD.charAt(0).toUpperCase() + FREE_COVERED_WORD.slice(1)} of your stocks already get the full report, which is the Free limit.</p>
           <p className="mt-1 text-[14px] leading-5 text-oa-muted-fg">
             Swap one in your portfolio, or go Pro for the full report on every stock.
           </p>

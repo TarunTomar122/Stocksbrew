@@ -11,6 +11,8 @@ import Link from "next/link";
 /** What the server worked out about coverage for this account (lib/entitlements-coverage.ts). */
 export type PortfolioCoverage = {
   covered: string[];
+  /** Earlier picks past today's limit, free to pick back once each (lib/entitlements-coverage.ts heldPicks). */
+  held?: string[];
   limit: number;
   fillsLeft: number;
   swapAvailable: boolean;
@@ -25,9 +27,13 @@ function fmtSwapDay(iso: string): string {
   return date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
 }
 
+function joinTickers(tickers: string[]): string {
+  return tickers.length <= 1 ? (tickers[0] ?? "") : `${tickers.slice(0, -1).join(", ")} and ${tickers[tickers.length - 1]}`;
+}
+
 /**
  * Free: which tracked stocks the agent covers in full, and a way to change it.
- * Tracking stays unlimited; this only moves the five covered slots around.
+ * Tracking stays unlimited; this only moves the covered slots around.
  * Every change goes through POST /api/coverage, which enforces the limit and
  * the weekly swap; the page re-reads after a change.
  */
@@ -39,6 +45,7 @@ export function CoveragePanel({ coverage, stocks }: { coverage: PortfolioCoverag
   const covered = new Set(coverage.covered);
   const full = coverage.covered.length >= coverage.limit;
   const coveredStocks = stocks.filter((stock) => covered.has(stock.instrument_id));
+  const heldStocks = stocks.filter((stock) => (coverage.held ?? []).includes(stock.instrument_id));
 
   async function toggle(stock: Stock, next: boolean) {
     setBusy(stock.instrument_id);
@@ -87,6 +94,12 @@ export function CoveragePanel({ coverage, stocks }: { coverage: PortfolioCoverag
           <p className="mt-0.5 text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg">
             Covered stocks get price zones, the reasons behind the call and the pre-earnings read. Everything you track gets prices, the call and earnings dates.
           </p>
+          {heldStocks.length > 0 ? (
+            <p className="mt-1.5 text-pretty text-[12.5px] leading-[18px] text-oa-fg">
+              Free now covers {coverage.limit} stocks, so we kept the first {coverage.limit} you chose. You also had {joinTickers(heldStocks.map((stock) => stock.ticker))}{" "}
+              covered: pick {heldStocks.length === 1 ? "it" : "any of them"} back here at no cost (uncover one first), without using your weekly swap.
+            </p>
+          ) : null}
         </div>
         <button
           type="button"

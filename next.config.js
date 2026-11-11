@@ -191,6 +191,12 @@ const nextConfig = {
       { source: "/blog/when-to-sell-a-stock", destination: "/blog/fundamental-stock-analysis-framework", permanent: true },
     ];
   },
+  // The tighter Free/Pro line (lib/paywall-flag.ts). Inlined at build time so
+  // lock cards in the browser and the routes that enforce them read the same
+  // rule. Unset (production today) means the current line.
+  env: {
+    PAYWALL_V2: process.env.PAYWALL_V2 === "1" ? "1" : "",
+  },
   experimental: {
     serverActions: true,
   },

@@ -13,7 +13,7 @@ import { usd } from "@/lib/portfolio-ideas/words";
 import { countWord } from "@/lib/read-format";
 import { coveredPct, signedPct as stressPct } from "@/lib/stress-test";
 import type { StressView } from "@/lib/stress-test-data";
-import { VERDICT_RANK, type Verdict } from "@/lib/thesis-watch/rules";
+import { VERDICT_RANK, whatChanged, type Verdict } from "@/lib/thesis-watch/rules";
 import type { CheckView } from "@/lib/thesis-watch/server";
 import { fmtPct, joinList, xrayFootnote } from "@/lib/xray";
 import type { XrayView } from "@/lib/xray-data";
@@ -463,15 +463,17 @@ function reasonsItem(source: ReasonsSource, example: boolean): Noticed | null {
   const owner = example ? "In the example, the reason for owning" : "Your reason for owning";
   if (worst && worst.verdict !== "holds") {
     const others = ranked.filter((check) => check !== worst && check.verdict !== "holds").length;
+    const changed = whatChanged(worst);
     return {
       id: `reason-${worst.ticker}-${worst.verdict}`,
       tool: "portfolio",
       caption: "Why you own it",
       tone: worst.verdict === "played_out" ? "flat" : "down",
       text: `${owner} ${worst.ticker} ${VERDICT_PHRASE[worst.verdict]}.${others > 0 ? ` ${others === 1 ? "One other reason needs" : `${capital(countWord(others))} other reasons need`} a look too.` : ""}`,
-      headline: `The reason for owning ${worst.ticker} ${VERDICT_PHRASE[worst.verdict]}.`,
+      // A reason that played out says what changed ("UNH has done what you bought it for: it is no longer cheap…").
+      headline: changed?.headline ?? `The reason for owning ${worst.ticker} ${VERDICT_PHRASE[worst.verdict]}.`,
       why: others > 0 ? `${others === 1 ? "One other reason needs" : `${capital(countWord(others))} other reasons need`} a look too.` : null,
-      evidence: worst.signals[0]?.text ?? null,
+      evidence: changed ? changed.rest : (worst.signals[0]?.text ?? null),
       source: worst.signals[0]?.source ? sourceOf(worst.signals[0].source, worst.signals[0].asOf ?? worst.asOf) : worst.asOf ? sourceOf("The reason watcher", worst.asOf) : null,
       ticker: worst.ticker,
       open: { label: `See ${worst.ticker}`, href: `/stock/${encodeURIComponent(worst.ticker)}` },

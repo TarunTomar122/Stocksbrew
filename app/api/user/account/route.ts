@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { forgetSessionsFor } from "@/lib/auth-server";
 import { adminAuth } from "@/lib/firebase-admin";
 import { deleteUserAccount } from "@/lib/delete-user-account";
 
@@ -22,6 +23,8 @@ export async function DELETE(req: NextRequest) {
 
   try {
     await deleteUserAccount(uid);
+    // This instance stops trusting the account's recent session checks (lib/auth-server.ts).
+    forgetSessionsFor(uid);
   } catch (error) {
     console.error("account_delete_failed", uid, error);
     return NextResponse.json({ error: "Could not delete account" }, { status: 500 });

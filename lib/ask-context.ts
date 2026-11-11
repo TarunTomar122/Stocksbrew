@@ -20,7 +20,12 @@
  * An `ex.` prefix (`ex.portfolio`, `ex.memo`, `ex.reason:NVDA`) says the
  * question came from the example portfolio, so Ask may answer about the
  * example when the person has no portfolio of their own, and says so.
+ *
+ * The one import is a type (the card shapes), so this file still adds nothing
+ * at runtime.
  */
+
+import type { AskCard } from "@/lib/ask-cards";
 
 export const ASK_CONTEXT_KINDS = ["stock", "research", "reason", "memo", "brief", "agent", "portfolio"] as const;
 export type AskContextKind = (typeof ASK_CONTEXT_KINDS)[number];
@@ -187,6 +192,29 @@ export function contextQuestion(context: AskContext): string {
   }
 }
 
+/**
+ * Questions the Ask panel offers for an item, contextQuestion first. They stay to what the item's own lookup and
+ * Ask's stock tools cover (the stock's news, risks and return against the S&P 500, in lib/next-steps.ts's wording;
+ * the person's own portfolio for portfolio and memo). The example portfolio gets only its own question.
+ */
+export function contextSuggestions(context: AskContext): string[] {
+  const ticker = context.ticker ?? "";
+  const first = contextQuestion(context);
+  switch (context.kind) {
+    case "stock":
+      return [first, `What is the latest news on ${ticker}?`, `How has ${ticker} done against the S&P 500 this year?`, `What are the biggest risks for ${ticker} right now?`];
+    case "research":
+    case "reason":
+    case "brief":
+      return [first, `What is the latest news on ${ticker}?`, `How has ${ticker} done against the S&P 500 this year?`];
+    case "portfolio":
+    case "memo":
+      return context.example ? [first] : [first, "What changed in my portfolio since yesterday?", "Which of my holdings has the weakest call right now?"];
+    case "agent":
+      return [first];
+  }
+}
+
 export type ContextCall = { tool: string; input: Record<string, unknown> };
 
 /**
@@ -210,5 +238,92 @@ export function contextToolCall(context: AskContext): ContextCall {
       return { tool: "get_my_agents", input: { job_id: context.id } };
     case "portfolio":
       return { tool: "get_my_portfolio", input: {} };
+  }
+}
+
+/* ── the pinned card at the top of a conversation ───────────────────────── */
+
+/** Where the item lives in the app, for the pinned card's link back. Same places the links into Ask come from. */
+export function contextHref(context: AskContext): { href: string; label: string } {
+  const ticker = context.ticker ?? "";
+  switch (context.kind) {
+    case "stock":
+      return { href: `/stock/${encodeURIComponent(ticker)}`, label: `Open ${ticker}` };
+    case "research":
+      return { href: `/stock/${encodeURIComponent(ticker)}/research/${context.id}`, label: "Open the report" };
+    case "reason":
+    case "portfolio":
+      return { href: "/portfolio", label: "Open My stocks" };
+    case "memo":
+      return { href: "/portfolio/memo", label: "Open the memo" };
+    case "brief":
+      return { href: "/briefing", label: "Open Today" };
+    case "agent":
+      return { href: `/agents?job=${context.id}`, label: "Open the agent" };
+  }
+}
+
+export type ContextPin = {
+  /** Shown with a logo when there is one. */
+  ticker: string | null;
+  /** "NVIDIA Corp" or "This week's memo". */
+  title: string;
+  /** One sentence about the item, taken from the card the server opened, or null before that card exists. */
+  summary: string | null;
+};
+
+function sentence(text: string | null | undefined): string | null {
+  const clean = typeof text === "string" ? text.replace(/\s+/g, " ").trim() : "";
+  return clean || null;
+}
+
+/**
+ * The pinned card's words. The title and summary come from the card the server opened for the first question (the
+ * same lookup the answer starts from), so nothing here is written for the pin. Before that card exists, the title is
+ * the ticker or the item's name and there is no summary.
+ */
+export function contextPin(context: AskContext, opened: AskCard | null): ContextPin {
+  const ticker = context.ticker;
+  const fallbackTitle =
+    context.kind === "memo"
+      ? context.example
+        ? "The example portfolio's memo"
+        : "This week's memo"
+      : context.kind === "portfolio"
+        ? context.example
+          ? "The example portfolio"
+          : "My stocks"
+        : context.kind === "agent"
+          ? "Your agent"
+          : context.kind === "research"
+            ? `${ticker} research report`
+            : (ticker ?? "");
+  const base: ContextPin = { ticker, title: fallbackTitle, summary: null };
+  if (!opened) return base;
+  switch (opened.card) {
+    case "quote":
+      return {
+        ticker: opened.ticker,
+        title: opened.name ?? opened.ticker,
+        summary: sentence(opened.headline),
+      };
+    case "research":
+      return { ticker: opened.ticker, title: `${opened.name} research report`, summary: sentence(opened.headline) ?? sentence(opened.summary[0]) };
+    case "reasons": {
+      const row = opened.rows.find((entry) => entry.ticker === ticker) ?? (opened.rows.length === 1 ? opened.rows[0] : null);
+      return row ? { ...base, summary: sentence(`${row.verdict_words}. ${row.headline}`) } : base;
+    }
+    case "memo":
+      return { ...base, summary: sentence(opened.focus?.text) ?? sentence(opened.top_line) };
+    case "briefing_item":
+      return { ticker: opened.ticker, title: opened.name || opened.ticker, summary: sentence(opened.headline) };
+    case "agents": {
+      const row = opened.rows.find((entry) => entry.id === opened.focus) ?? null;
+      return row ? { ...base, title: row.name, summary: sentence(row.last_run?.summary) ?? sentence(row.watches) } : base;
+    }
+    case "portfolio":
+      return { ...base, summary: sentence(opened.needs_attention[0]?.text) };
+    default:
+      return base;
   }
 }

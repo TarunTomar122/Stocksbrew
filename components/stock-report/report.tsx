@@ -40,24 +40,25 @@ import type { ReportData } from "./types";
 import { stockCallSteps, type CallSteps } from "@/lib/next-steps";
 import Link from "next/link";
 import { AppLink } from "@/components/oa/app-link";
+import { FREE_COVERED_WORD } from "@/lib/paywall-flag";
 
 const CALL_TONE: Record<CallWord, Tone | null> = { Add: "up", Hold: null, Trim: "down" };
 
 /** Shown where the price zones would be, on a stock the viewer's agent does not cover. */
 function LevelsLock({ ticker, instrumentId, tracked, gate }: { ticker: string; instrumentId: string; tracked: boolean; gate: ReportData["gate"] }) {
-  // "Covering" is our word; readers get "the full report on five stocks you pick".
-  const left = `${gate.slotsLeft} of your five free full reports ${gate.slotsLeft === 1 ? "is" : "are"} left`;
+  // "Covering" is our word; readers get "the full report on five (three on PAYWALL_V2) stocks you pick".
+  const left = `${gate.slotsLeft} of your ${FREE_COVERED_WORD} free full reports ${gate.slotsLeft === 1 ? "is" : "are"} left`;
   const title = gate.plan === "anon" ? `Sign in to read the full report on ${ticker}` : `Get the full report on ${ticker}`;
   const body =
     gate.plan === "anon"
-      ? "Our call is free for everyone. A free account also gets the full report on five stocks you pick: why we made the call, the prices where we'd buy more or sell some, and what would change our mind. You can follow as many stocks as you like."
+      ? `Our call is free for everyone. A free account also gets the full report on ${FREE_COVERED_WORD} stocks you pick: why we made the call, the prices where we'd buy more or sell some, and what would change our mind. You can follow as many stocks as you like.`
       : !tracked
         ? gate.slotsLeft > 0
           ? `Add ${ticker} to your portfolio and it gets one of your free full reports: why we made the call, the prices where we'd act, alerts and a note before earnings. ${left}.`
-          : `All five of your free full reports are in use. Add ${ticker} to your portfolio and swap it in for one of them (one swap a week on Free), or go Pro for a full report on every stock.`
+          : `All ${FREE_COVERED_WORD} of your free full reports are in use. Add ${ticker} to your portfolio and swap it in for one of them (one swap a week on Free), or go Pro for a full report on every stock.`
         : gate.slotsLeft > 0
           ? `You follow ${ticker}. Turn on its full report to see why we made the call, the prices where we'd act, alerts and a note before earnings. ${left}.`
-          : `All five of your free full reports are in use. Swap one out in Portfolio (free any time) to make room for ${ticker}, or go Pro for a full report on every stock.`;
+          : `All ${FREE_COVERED_WORD} of your free full reports are in use. Swap one out in Portfolio (free any time) to make room for ${ticker}, or go Pro for a full report on every stock.`;
   return (
     <div className="flex flex-col gap-2">
       <LockCard feature="stock_zones" plan={gate.plan} trialEligible={gate.trialEligible} ticker={ticker} title={title} body={body} stacked />
@@ -66,7 +67,7 @@ function LevelsLock({ ticker, instrumentId, tracked, gate }: { ticker: string; i
           <CoverButton instrumentId={instrumentId} ticker={ticker} />
         ) : (
           <Link prefetch={false} href="/watchlist" className="self-start text-[13px] font-medium text-oa-primary hover:underline">
-            Choose your five in Portfolio
+            Choose your {FREE_COVERED_WORD} in Portfolio
           </Link>
         )
       ) : null}
@@ -97,8 +98,37 @@ function ProLock({ ticker, market, what, compact = false }: { ticker: string; ma
 }
 
 /** The call's next steps: ask about it, or have an agent watch it. Each opens prefilled; nothing runs or saves on its own. */
-function CallNextSteps({ ticker, steps }: { ticker: string; steps: CallSteps }) {
+function CallNextSteps({ ticker, steps, stacked = false }: { ticker: string; steps: CallSteps; stacked?: boolean }) {
   const link = "rounded font-medium text-oa-primary hover:underline";
+  if (stacked) {
+    // Under the price on a wide screen: one link per line, so the call column keeps only the call and its reasons.
+    return (
+      <ul
+        role="list"
+        data-track-links="insight_clicked"
+        data-track-insight-id="stock-call"
+        data-track-insight-kind="call"
+        data-track-ticker={ticker}
+        className="flex flex-col gap-1.5 text-[13px] leading-5"
+      >
+        {steps.ask.map((step) => (
+          <li key={step.href}>
+            <AppLink href={step.href} data-track-target="ask" className={link}>
+              {/* The arrow never wraps onto a line of its own. */}
+              {step.label}{"\u00a0"}→
+            </AppLink>
+          </li>
+        ))}
+        {steps.watch ? (
+          <li>
+            <AppLink href={steps.watch.href} data-track-target="watch" className={link}>
+              {steps.watch.label}{"\u00a0"}→
+            </AppLink>
+          </li>
+        ) : null}
+      </ul>
+    );
+  }
   return (
     <div
       data-track-links="insight_clicked"
@@ -374,8 +404,8 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
                 </div>
               </div>
 
-              <div className="mt-3 grid gap-x-6 gap-y-3 md:grid-cols-[auto_minmax(0,1fr)] md:items-start">
-                <div className="min-w-0">
+              <div className="mt-3 grid gap-x-6 gap-y-3 md:grid-cols-[minmax(15rem,auto)_minmax(0,1fr)] md:items-start">
+                <div className="min-w-0 md:col-start-1 md:row-start-1">
                   <p className="flex flex-wrap items-baseline gap-x-2.5">
                     <span className={`${NUM} text-[36px] font-semibold leading-[44px] text-oa-fg sm:text-[42px] sm:leading-[48px]`}>{money(stock.price)}</span>
                     {dayPct != null ? (
@@ -393,9 +423,12 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
                 </div>
 
                 {/* The call sits beside the price on a wide screen and right under it on a phone. */}
-                <section aria-label={`Our call on ${stock.ticker}`} className="min-w-0 border-t border-oa-border pt-3 md:border-l md:border-t-0 md:pl-6 md:pt-0">
+                <section aria-label={`Our call on ${stock.ticker}`} className="min-w-0 border-t border-oa-border pt-3 md:col-start-2 md:row-span-2 md:row-start-1 md:border-l md:border-t-0 md:pl-6 md:pt-0">
                   <div className="flex items-baseline justify-between gap-3">
-                    <h2 className="oa-caption">Our call</h2>
+                    {/* How long the call has stood: a call that keeps its date is one you can hold us to. */}
+                    <h2 className="oa-caption">
+                      Our call{ready?.since ? ` since ${fmtDate(ready.since, ready.since.slice(0, 4) !== today.slice(0, 4))}` : ""}
+                    </h2>
                     {/* When we last looked at the call again: the brief is rewritten, and the call decided, at this time. */}
                     {ready?.writtenAt ? (
                       <p className="text-[12px] leading-4 text-oa-muted-fg">
@@ -433,13 +466,16 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
                           All of it comes before any price, so a level never reads as more certain than its reasons. */}
                       {basis ? (
                         <div className="mt-2 max-w-[62ch] text-[15px] leading-[22px] text-oa-fg">
-                          <p className="font-medium">Why:</p>
+                          {/* One date for all the reasons when they share it, instead of "as of Nov 10" on every line. */}
+                          <p className="font-medium">
+                            Why{basisAsOf && basis.facts.every((fact) => !factHasDate(fact)) ? <span className="font-normal text-oa-muted-fg">, as of {basisAsOf.replace(" ", "\u00a0")}</span> : null}:
+                          </p>
                           <ul role="list" className="mt-0.5 flex flex-col gap-1">
                             {basis.facts.map((fact) => (
                               <li key={fact} className="flex gap-2">
                                 <span aria-hidden="true" className="mt-[9px] size-[5px] shrink-0 rounded-full bg-oa-muted-fg" />
                                 <span className="min-w-0 text-pretty">
-                                  {basisAsOf && !factHasDate(fact) ? (
+                                  {basisAsOf && !factHasDate(fact) && basis.facts.some((other) => factHasDate(other)) ? (
                                     <>
                                       {fact.replace(/[.!?]$/, "")}
                                       <span className="text-oa-muted-fg">, as of {basisAsOf.replace(" ", "\u00a0")}</span>.
@@ -452,10 +488,11 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
                               </li>
                             ))}
                           </ul>
-                          {basis.change ? (
+                          {/* The steady call's own rule wins: it is what would actually move the call. */}
+                          {ready.whatWouldChange || basis.change ? (
                             <p className="mt-2 text-pretty">
                               <span className="font-medium">What would change it: </span>
-                              {basis.change}
+                              {ready.whatWouldChange || basis.change}
                             </p>
                           ) : null}
                         </div>
@@ -468,48 +505,27 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
                           ) : null}
                         </p>
                       ) : null}
+                      {!basis && ready.whatWouldChange ? (
+                        <p className="mt-2 max-w-[62ch] text-pretty text-[15px] leading-[22px] text-oa-fg">
+                          <span className="font-medium">What would change it: </span>
+                          {ready.whatWouldChange}
+                        </p>
+                      ) : null}
+                      {/* Honest about the day: the latest review pointed elsewhere, and the call held on purpose. */}
+                      {ready.heldAgainst ? (
+                        <p className="mt-1.5 max-w-[62ch] text-pretty text-[13px] leading-[18px] text-oa-muted-fg">
+                          The latest data leans toward {CALL_PLAIN[ready.heldAgainst as keyof typeof CALL_PLAIN] ?? ready.heldAgainst}. One day isn&apos;t enough to change the call.
+                        </p>
+                      ) : null}
                       {/* How sure, in words, and honest about the record: we have no test showing these calls beat the market. */}
                       <p className="mt-2 text-pretty text-[13px] leading-[18px] text-oa-muted-fg">
-                        {callMeta ? `${callMeta} ` : null}We can&apos;t show that calls like this beat the market, so this is our view, not advice.{" "}
+                        {callMeta ? `${callMeta} ` : null}Our view, not advice.{" "}
                         {data.gate.levels ? (
                           <a href="#read" className="text-oa-primary hover:underline">
                             Read the reasoning
                           </a>
                         ) : null}
                       </p>
-                      {nearLevels.length ? (
-                        <dl className="mt-2.5 grid grid-cols-2 gap-x-4 border-t border-oa-border pt-2.5">
-                          {nearLevels.map((item) => (
-                            <div key={item.label} className="min-w-0">
-                              <dt className="text-[12.5px] leading-4 text-oa-muted-fg">{item.label}</dt>
-                              <dd className="mt-0.5 flex flex-wrap items-baseline gap-x-2">
-                                <span className={`${NUM} text-[15px] font-medium leading-[22px] text-oa-fg`}>{level(item.price)}</span>
-                                {levelNote(item) ? <span className="text-[12.5px] leading-4 text-oa-muted-fg">{levelNote(item)}</span> : null}
-                              </dd>
-                            </div>
-                          ))}
-                        </dl>
-                      ) : null}
-                      {!data.gate.levels ? (
-                        <p className="mt-2.5 flex items-start gap-2 border-t border-oa-border pt-2.5 text-[13.5px] leading-5 text-oa-muted-fg">
-                          <span className="mt-0.5 text-oa-primary">
-                            <LockIcon />
-                          </span>
-                          <span>
-                            {/* Says the next step for this reader: sign in first, or pick the stock if signed in. */}
-                            {/* One short pointer here; the one place that explains the free account is the full-report box below. */}
-                            {ready.call === "Add"
-                              ? "The price where we'd buy more is in the full report."
-                              : ready.call === "Trim"
-                                ? "The price where we'd sell some is in the full report."
-                                : "The prices where we'd buy more or sell some are in the full report."}{" "}
-                            <a href="#call" className="font-medium text-oa-primary hover:underline">
-                              {data.gate.plan === "anon" ? "Get it free" : `Pick ${stock.ticker} for it`}
-                            </a>
-                          </span>
-                        </p>
-                      ) : null}
-                      {callSteps ? <CallNextSteps ticker={stock.ticker} steps={callSteps} /> : null}
                     </>
                   ) : readState === "locked" ? (
                     <div className="-mx-3.5 -mb-3">
@@ -525,6 +541,45 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
                     </p>
                   )}
                 </section>
+                {/* Under the price on a wide screen (after the call on a phone): the price that goes with the call, and
+                    what to do next. The call column keeps only the call and its reasons (owner, Nov 11: "left empty, right too much text"). */}
+                {ready ? (
+                  <div className="flex min-w-0 flex-col gap-3 border-t border-oa-border pt-3 md:col-start-1 md:row-start-2 md:border-t-0 md:pt-0">
+                  {nearLevels.length ? (
+                    <dl className="flex flex-wrap gap-x-6 gap-y-2">
+                      {nearLevels.map((item) => (
+                        <div key={item.label} className="min-w-0">
+                          <dt className="text-[12.5px] leading-4 text-oa-muted-fg">{item.label}</dt>
+                          <dd className="mt-0.5 flex flex-wrap items-baseline gap-x-2">
+                            <span className={`${NUM} text-[15px] font-medium leading-[22px] text-oa-fg`}>{level(item.price)}</span>
+                            {levelNote(item) ? <span className="text-[12.5px] leading-4 text-oa-muted-fg">{levelNote(item)}</span> : null}
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                  ) : null}
+                  {!data.gate.levels ? (
+                    <p className="flex items-start gap-2 text-[13.5px] leading-5 text-oa-muted-fg">
+                      <span className="mt-0.5 text-oa-primary">
+                        <LockIcon />
+                      </span>
+                      <span>
+                        {/* Says the next step for this reader: sign in first, or pick the stock if signed in. */}
+                        {/* One short pointer here; the one place that explains the free account is the full-report box below. */}
+                        {ready.call === "Add"
+                          ? "The price where we'd buy more is in the full report."
+                          : ready.call === "Trim"
+                            ? "The price where we'd sell some is in the full report."
+                            : "The prices where we'd buy more or sell some are in the full report."}{" "}
+                        <a href="#call" className="font-medium text-oa-primary hover:underline">
+                          {data.gate.plan === "anon" ? "Get it free" : `Pick ${stock.ticker} for it`}
+                        </a>
+                      </span>
+                    </p>
+                  ) : null}
+                  {callSteps ? <CallNextSteps ticker={stock.ticker} steps={callSteps} stacked /> : null}
+                  </div>
+                ) : null}
               </div>
             </header>
 

@@ -8,7 +8,7 @@
  * `lib/copy-trades.ts`.
  */
 
-import { fmtDate, fmtFrac, fmtMonthYear, partyLabel } from "@/lib/follow-shared";
+import { CHAMBER_SOURCE, chamberOf, congressNoun, congressReportsLabel, fmtDate, fmtFrac, fmtMonthYear, partyLabel, type Chamber } from "@/lib/follow-shared";
 import { pickInsights, type Insight, type TheRead } from "@/lib/insights";
 import { shortCompanyName } from "@/lib/plain-copy";
 
@@ -71,6 +71,8 @@ export type CopyCoverage = {
 type CopyBase = {
   slug: string;
   kind: CopyKind;
+  /** Members of Congress: "house" when missing (records written before senators were read). */
+  chamber?: Chamber;
   name: string;
   person: string;
   party?: string;
@@ -133,6 +135,7 @@ export type CopyRecord = CopyRecordEmpty | CopyRecordFull;
 export type CopyHubRow = {
   slug: string;
   kind: CopyKind;
+  chamber?: Chamber;
   name: string;
   person: string;
   party?: string;
@@ -281,9 +284,17 @@ export function copyRowIsIndexable(row: Pick<CopyHubRow, "start_date" | "session
   return Boolean(row.start_date) && (row.sessions ?? 0) >= INDEX_MIN_SESSIONS;
 }
 
-/** "Democrat, CA-11" for a member ("House member, VA-7" when the party is not on file), or the manager for a fund. */
-export function whoLine(row: Pick<CopyBase, "kind" | "person" | "party" | "state" | "district">): string {
+/**
+ * "Democrat, CA-11" for a House member ("House member, VA-7" when the party is not on file),
+ * "Republican, senator for TX" for a senator, or the manager for a fund.
+ */
+export function whoLine(row: Pick<CopyBase, "kind" | "chamber" | "person" | "party" | "state" | "district">): string {
   if (row.kind === "fund") return row.person;
+  if (chamberOf(row) === "senate") {
+    const seat = row.state ? `senator for ${row.state}` : "senator";
+    const party = partyLabel(row.party);
+    return party ? `${party}, ${seat}` : seat.charAt(0).toUpperCase() + seat.slice(1);
+  }
   const party = partyLabel(row.party) || "House member";
   const seat = row.state ? `${row.state}${row.district ? `-${row.district}` : ""}` : "";
   return [party, seat].filter(Boolean).join(", ");
@@ -388,7 +399,7 @@ export function buildCopyRead(record: CopyRecord): TheRead | null {
   return {
     headline,
     insights: pickInsights([pace, best ? positionSentence(best, true, stoppedAt) : null, worst ? positionSentence(worst, false, stoppedAt) : null]),
-    source: `${record.kind === "fund" ? "SEC 13F filings" : "House trade reports"} and daily closes to ${fmtDate(record.end_date)}`,
+    source: `${record.kind === "fund" ? "SEC 13F filings" : CHAMBER_SOURCE[chamberOf(record)].reports} and daily closes to ${fmtDate(record.end_date)}`,
   };
 }
 
@@ -529,9 +540,9 @@ export function buildHubRead(hub: CopyHub | null): TheRead | null {
   const funds = kindRead(hub.rows, "fund");
   const members = kindRead(hub.rows, "congress");
   if (funds.total === 0 && members.total === 0) return null;
-  // The funds lead the headline; the House members' count is the first line under it.
+  // The funds lead the headline; the members' count is the first line under it.
   const fundLine = funds.total > 0 ? `${funds.beat} of the ${funds.total} funds with two years of record beat the S&P 500 when copied from ${hub.fund_start.slice(0, 4)}.` : null;
-  const memberLine = members.total > 0 ? `${members.beat} of ${members.total} House members beat the S&P 500 when copied from their first reported buy.` : null;
+  const memberLine = members.total > 0 ? `${members.beat} of ${members.total} ${congressNoun(hub.rows)} beat the S&P 500 when copied from their first reported buy.` : null;
   const headline = fundLine ?? memberLine!;
   const insights: Array<Insight | null> = [];
   if (fundLine && memberLine) insights.push({ id: "members-count", tone: members.beat * 2 > members.total ? "up" : members.beat * 2 < members.total ? "down" : "flat", text: memberLine });
@@ -548,7 +559,7 @@ export function buildHubRead(hub: CopyHub | null): TheRead | null {
     headline,
     // The members' count the headline handed down rides on top of the usual three points.
     insights: pickInsights(insights, insights[0]?.id === "members-count" ? 4 : 3),
-    source: `SEC 13F filings, House trade reports and daily closes to ${fmtDate(hub.price_as_of)}`,
+    source: `SEC 13F filings, ${congressReportsLabel(hub.rows)} and daily closes to ${fmtDate(hub.price_as_of)}`,
   };
 }
 

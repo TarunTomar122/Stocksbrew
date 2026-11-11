@@ -8,19 +8,20 @@ import { fmtPct, joinList, portfolioWord, sharesWord, usd } from "./words";
  * "Trim this, add that": plain rules over the x-ray (lib/xray.ts, funds
  * counted) and the person's own lots. Written down before they were tried:
  *
- * - No trim idea ever sells a stock our call says to buy more of (for a company
- *   with two share classes, a Buy more call on either one). Trims come from
- *   Sell some calls first, then Keep (and stocks we have no call on).
+ * - No trim idea ever sells a stock our call says to buy more of or to keep (for
+ *   a company with two share classes, either call on either one): a sale next to
+ *   "Keep" reads as two answers at once (owner, Nov 11). Trims come from Sell some
+ *   calls first, then stocks we have no call on.
  * - A company above COMPANY_LINE percent of the portfolio, once funds are
  *   counted, is concentrated. The idea sells enough of the stock bought
- *   directly to bring it back to the line. A Buy more call above the line is
- *   named as information, with no sale.
+ *   directly to bring it back to the line. A Buy more or Keep call above the line
+ *   is named as information, with no sale.
  * - A holding that has grown to DRIFT_RATIO times its share of the money put
  *   in, and at least DRIFT_POINTS points more, has drifted. The idea sells it
- *   back to its starting share. Not for a stock our call says to buy more of.
+ *   back to its starting share. Not for a stock our call says to buy more of or keep.
  * - A sector more than SECTOR_GAP points above its S&P 500 weight is tilted.
  *   After the trims above, more is sold from that sector's stocks (Sell some
- *   first, then Keep, never Buy more) to bring it to SECTOR_TARGET points over.
+ *   first, then no call; never Keep or Buy more) to bring it to SECTOR_TARGET points over.
  * - No idea sells more than MAX_SELL of a holding, and funds are never
  *   trimmed: they are already spread out. Only the MAX_COMPANIES biggest
  *   companies over the line get an idea; the rest are named.
@@ -56,7 +57,12 @@ const SLACK = 0.5;
 /** A cheaper-lots alternative is worth showing only when it saves at least this much tax. */
 const CHEAPER_MIN = 25;
 
-const CALL_ORDER: Record<string, number> = { Trim: 0, Hold: 1, none: 2 };
+const CALL_ORDER: Record<string, number> = { Trim: 0, none: 1 };
+
+/** Our call says to hold it or add to it: no idea sells it, whatever its size. */
+function heldByCall(call: string | null | undefined): call is "Add" | "Hold" {
+  return call === "Add" || call === "Hold";
+}
 
 type Working = IdeaHolding & { left: number; sold: number };
 
@@ -130,7 +136,7 @@ export function buildRebalance(input: {
     viaFunds = 0,
     label = holding.name,
   ): TrimIdea | "small" | null => {
-    if (holding.call === "Add") return null;
+    if (heldByCall(holding.call)) return null;
     const price = holding.price as number;
     const cap = Math.floor((holding.shares ?? 0) * MAX_SELL) - holding.sold;
     const shares = Math.min(Math.max(0, Math.ceil(wanted / price - 1e-9)), cap, Math.floor(holding.left));
@@ -175,15 +181,15 @@ export function buildRebalance(input: {
     };
   };
 
-  /* 1. One company over the line, funds counted. Every share class held directly can be sold, unless our call is Buy more. */
+  /* 1. One company over the line, funds counted. Every share class held directly can be sold, unless our call is Buy more or Keep. */
   // Over the line by more than the slack the trims allow, so "13%, above the 10% line" never reads "10%, above the 10% line".
   // Biggest first (the x-ray order): size decides which MAX_COMPANIES get an idea.
   const over = xray.companies
     .filter((company) => company.pct > COMPANY_LINE + SLACK)
     .map((company) => {
       const classes = working.filter((row) => company.classes.includes(row.ticker) && tradable(row));
-      // A Buy more call on any class held directly means we would not sell the company at all.
-      const sellable = classes.some((row) => row.call === "Add")
+      // A Buy more or Keep call on any class held directly means we would not sell the company at all.
+      const sellable = classes.some((row) => heldByCall(row.call))
         ? []
         : [...classes].sort((a, b) => CALL_ORDER[a.call ?? "none"]! - CALL_ORDER[b.call ?? "none"]! || (b.value ?? 0) - (a.value ?? 0));
       return { company, classes, sellable };
@@ -196,8 +202,8 @@ export function buildRebalance(input: {
       continue;
     }
     if (sellable.length === 0) {
-      const buyMore = classes.find((row) => row.call === "Add") ?? classes[0]!;
-      buyMoreOver.push({ ...entry, ticker: buyMore.ticker, callReason: buyMore.callReason });
+      const held = classes.find((row) => row.call === "Add") ?? classes.find((row) => row.call === "Hold") ?? classes[0]!;
+      buyMoreOver.push({ ...entry, ticker: held.ticker, callReason: held.callReason, call: held.call === "Add" ? "Add" : "Hold" });
       continue;
     }
     if (companiesTrimmed >= MAX_COMPANIES) {
@@ -231,7 +237,7 @@ export function buildRebalance(input: {
   const valueTotal = costed.reduce((sum, row) => sum + (row.value as number), 0);
   if (costed.length >= 3 && costTotal > 0 && valueTotal > 0) {
     for (const holding of costed) {
-      if (holding.sold > 0 || holding.call === "Add" || !tradable(holding)) continue;
+      if (holding.sold > 0 || heldByCall(holding.call) || !tradable(holding)) continue;
       const then = (costOf(holding) / costTotal) * 100;
       const now = ((holding.value as number) / valueTotal) * 100;
       if (now - then < DRIFT_POINTS || now < then * DRIFT_RATIO) continue;
@@ -251,7 +257,7 @@ export function buildRebalance(input: {
     const target = row.benchmarkPct + SECTOR_TARGET;
     let now = pct(sectorValue.get(row.sector) ?? row.value);
     const candidates = working
-      .filter((holding) => tradable(holding) && holding.sold === 0 && holding.call !== "Add" && sectorOf(holding) === row.sector)
+      .filter((holding) => tradable(holding) && holding.sold === 0 && !heldByCall(holding.call) && sectorOf(holding) === row.sector)
       .sort((a, b) => CALL_ORDER[a.call ?? "none"]! - CALL_ORDER[b.call ?? "none"]! || (b.value ?? 0) - (a.value ?? 0))
       .slice(0, 2);
     for (const holding of candidates) {
@@ -272,7 +278,7 @@ export function buildRebalance(input: {
         ? null
         : fundShare >= 0.3
           ? `${Math.round(fundShare * 100)}% of it sits in funds, which these ideas never sell.`
-          : "The rest is in stocks our call says to buy more of, in holdings already cut by half, or in sales too small to be worth making.";
+          : "The rest is in stocks our call says to keep or buy more of, in holdings already cut by half, or in sales too small to be worth making.";
     sectors.push({ sector: row.sector, before: row.pct, after, benchmark: row.benchmarkPct, target, shortBy });
   }
 
@@ -338,21 +344,21 @@ export function buildRebalance(input: {
       const first = unsized[0]!;
       quiet = `${first.name} is ${fmtPct(first.pct)} of ${where}, above the ${COMPANY_LINE}% line, but there is no share count and price to size a trim from.`;
     } else if (blocked.length > 0) {
-      // Concentrated, but every trim that would fix it is too small or would sell a Buy more call.
+      // Concentrated, but every trim that would fix it is too small or would sell a Buy more or Keep call.
       const lead = blocked[0]!;
       const because =
         small.length === 0
           ? buyMoreOver.length === 1
-            ? `our call on ${lead.ticker} is Buy more and we would not sell it`
-            : `our call on ${joinList(buyMoreOver.map((row) => row.ticker))} is Buy more and we would not sell them`
+            ? `our call on ${lead.ticker} is ${heldCallWord(buyMoreOver)} and we would not sell it`
+            : `${heldCallsClause(buyMoreOver)} and we would not sell them`
           : buyMoreOver.length === 0
             ? `the ${small.length === 1 ? "trim" : "trims"} that would fix it ${small.length === 1 ? "is" : "are"} too small to be worth making`
-            : "the trims that would fix it are either too small to be worth making or would sell a stock our call says to buy more of";
+            : "the trims that would fix it are either too small to be worth making or would sell a stock our call says to keep or buy more of";
       quiet = `${Where} is concentrated, with ${lead.name} at ${fmtPct(lead.pct)}, above the ${COMPANY_LINE}% line, but ${because}, so doing nothing is a fine answer.`;
     } else if (fundOnly.length > 0) {
       quiet = `${fundOnly[0]!.name} is ${fmtPct(fundOnly[0]!.pct)} of ${where} only through funds, so there is no single stock to trim; otherwise nothing is out of line.`;
     } else if (tilted) {
-      quiet = `${tilted.sector} is ${fmtPct(tilted.pct)} of ${where}, well above the S&P 500's ${fmtPct(tilted.benchmarkPct as number)}, but none of its stocks has a trim worth making (they are funds, stocks our call says to buy more of, or sales too small to matter), so doing nothing is a fine answer.`;
+      quiet = `${tilted.sector} is ${fmtPct(tilted.pct)} of ${where}, well above the S&P 500's ${fmtPct(tilted.benchmarkPct as number)}, but none of its stocks has a trim worth making (they are funds, stocks our call says to keep or buy more of, or sales too small to matter), so doing nothing is a fine answer.`;
     } else {
       quiet = `No company is above ${COMPANY_LINE}% of ${where} once the funds are counted${top ? ` (the biggest, ${top.name}, is ${fmtPct(top.pct)})` : ""}, and no sector is more than ${SECTOR_GAP} points above the S&P 500, so leaving it as it is is a fine answer.`;
     }
@@ -374,4 +380,22 @@ export function buildRebalance(input: {
     small,
     quiet,
   };
+}
+
+/** "Buy more", "Keep", or "Buy more or Keep" for a list of stocks we would not sell. */
+export function heldCallWord(rows: Array<{ call: "Add" | "Hold" }>): string {
+  const add = rows.some((row) => row.call === "Add");
+  const keep = rows.some((row) => row.call === "Hold");
+  return add && keep ? "Buy more or Keep" : add ? "Buy more" : "Keep";
+}
+
+/**
+ * Several stocks we would not sell, with each one's call: "our call on MSFT and NVDA is Keep",
+ * or for a mix, "our call is Buy more on AAPL and Keep on MSFT and NVDA", never "Buy more or Keep".
+ */
+export function heldCallsClause(rows: Array<{ ticker: string; call: "Add" | "Hold" }>): string {
+  const add = rows.filter((row) => row.call === "Add").map((row) => row.ticker);
+  const keep = rows.filter((row) => row.call === "Hold").map((row) => row.ticker);
+  if (add.length === 0 || keep.length === 0) return `our call on ${joinList(rows.map((row) => row.ticker))} is ${heldCallWord(rows)}`;
+  return `our call is Buy more on ${joinList(add)} and Keep on ${joinList(keep)}`;
 }

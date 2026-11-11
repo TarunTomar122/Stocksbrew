@@ -4,6 +4,7 @@
  */
 
 import { etDayOf } from "@/lib/benchmark-day";
+import { redactLevels } from "@/lib/entitlements";
 
 import type { EarningsIntelDoc } from "@/lib/earnings-intel";
 import type { HeroIndex } from "@/lib/hero-indices";
@@ -82,6 +83,25 @@ export function positionFromRow(row: WatchlistRow, extras: PositionExtras = {}):
       positive(extras.holding?.market_value) ??
       positive(row.holding?.market_value) ??
       positive(row.holding?.computed_market_value),
+  };
+}
+
+/**
+ * The same position for a stock the agent does not cover on this account:
+ * price, move, the call word and earnings date stay (they are free on every
+ * stock); the levels, what would change the call and the pre-earnings read
+ * go, and any price level is cut out of the call's one line.
+ */
+export function uncoveredPosition(position: BriefingPosition): BriefingPosition {
+  return {
+    ...position,
+    call_summary: redactLevels(position.call_summary),
+    watch_out: null,
+    add_below: null,
+    breakout_above: null,
+    trim_above: null,
+    pre_earnings_headline: null,
+    covered: false,
   };
 }
 
