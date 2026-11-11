@@ -78,6 +78,7 @@ Each stock page separates timestamped market prices from slower-moving fundament
 - [Why stocks moved](${BASE}/movers): Big daily moves that have a confirmed reason with cited sources, one page per day at /movers/{yyyy-mm-dd} and per stock at /stock/{TICKER}/moves/{yyyy-mm-dd}. Moves without a found reason have no page.
 - Stock against stock: same-industry rivals side by side at /compare/{a}-vs-{b} (lower case, tickers in alphabetical order).
 - Insider trades per stock: open-market SEC Form 4 buys and sales at /insiders/{TICKER}, for example [NVIDIA insider trades](${BASE}${insiderHref("NVDA")}).
+- [Best stock lists](${BASE}/best): "best stocks for X" lists such as dividend stocks under $50, undervalued stocks, growth stocks, AI and chip stocks, stocks insiders are buying and what hedge funds bought. Each states its exact rule and what it is ranked by, at /best/{list}, rebuilt after every trading day.
 ${families.sectors ? `\n### Sectors\n\n${families.sectors}\n` : ""}${families.pairs ? `\n### Comparisons\n\n${families.pairs}\n` : ""}
 ## Research guides
 

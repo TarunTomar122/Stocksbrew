@@ -51,6 +51,7 @@ export const SITEMAP_FAMILIES = [
   "funds",
   "congress",
   "markets",
+  "best",
 ] as const;
 
 export type SitemapFamily = (typeof SITEMAP_FAMILIES)[number];
@@ -247,6 +248,17 @@ export async function sitemapEntries(family: SitemapFamily, today: string = toda
         if (kind === "congress" && !(source.stats && source.stats.trades > 0)) continue;
         entries.push({ path: `/follow/${source.slug}`, lastmod: day(source.latest_date) });
       }
+      break;
+    }
+    case "best": {
+      // The "best stocks for X" lists (lib/best-stocks.ts), by the same index rule as their pages.
+      // The list content is rebuilt from each close, so the close is its last change.
+      const { getAllBestLists } = await import("@/lib/best-stocks-data");
+      const { bestListHref } = await import("@/lib/best-stocks");
+      const { input, lists } = await getAllBestLists(today);
+      const lastmod = day(input.priceDay);
+      entries.push({ path: "/best", lastmod });
+      for (const item of lists) if (item.indexable) entries.push({ path: bestListHref(item.built.list.slug), lastmod });
       break;
     }
     case "markets": {
