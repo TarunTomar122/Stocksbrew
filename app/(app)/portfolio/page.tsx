@@ -1,74 +1,30 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 
-import { AppPage, PageHead } from "@/components/oa/kit";
-import { AgentsPanel, AgentsPanelGhost } from "@/components/portfolio-home/agents-panel";
-import { AgentLogGhost, AgentLogPanel, ComingUp, ExampleLine, FocusCard, FocusGhost } from "@/components/portfolio-home/home";
-import { PortfolioAskHint } from "@/components/ask/portfolio-ask-hint";
-import { loadPortfolioHome } from "@/lib/portfolio-home/server";
-import { FollowedRebalances } from "@/components/strategies/rebalance-notice";
 import { JsonLd } from "@/components/docs/json-ld";
+import { AppPage, PageHead } from "@/components/oa/kit";
+import { MyStocksBody } from "@/components/portfolio-home/my-stocks";
+import { loadPortfolioHome } from "@/lib/portfolio-home/server";
 import { toolPageLd, toolPageMetadata } from "@/lib/seo/tool-pages";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = toolPageMetadata("/portfolio");
 
-const LEDE = "What changed in your stocks this week, what is coming up, and what you could do about it.";
+const LEDE = "How your stocks did, and the one thing that matters for each of them right now.";
 
 /**
- * The My stocks overview. Every portfolio tool already writes its own read;
- * this page asks them all at once (lib/portfolio-home/server.ts), leads with
- * the few changes that need the person (lib/portfolio-home/focus.ts), each as
- * a small loop of evidence, a question for Ask and the watch on it (loop.ts),
- * offers more questions for Ask drawn from the holdings (questions.ts), and
- * keeps a short dated log of the other checks and what is coming up (log.ts).
- * The person's agents, each with its last check, what it found and its next
- * check, sit at the top of the side column (components/portfolio-home/agents-panel.tsx).
- * Each part streams in as soon as its own sources answer.
+ * The My stocks overview (owner, Nov 11: "more useful stuff about my stocks"): how the person's stocks did against
+ * the S&P 500, then every holding as a card with its move, their gain, our call and the one thing that matters for
+ * it now (lib/portfolio-home/stocks.ts), the portfolio tools as one line of links, and their agents in the side
+ * rail. The signed-out page is the same layout on the example portfolio. Loads: lib/portfolio-home/server.ts.
  */
 export default function PortfolioHomePage() {
   const load = loadPortfolioHome();
   return (
     <AppPage>
       <JsonLd data={toolPageLd("/portfolio")} />
-      {/* Not `full`: on a phone the lede moves to the page note at the bottom, so the findings start higher. */}
       <PageHead title="My stocks" lede={LEDE} />
-      <Suspense fallback={null}>
-        <ExampleLine load={load} />
-      </Suspense>
-      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_21rem] xl:grid-cols-[minmax(0,1fr)_23rem]">
-        {/* Wide screens: the findings, everything else and what is coming up on the left; your agents and what the
-            agent checked on the right, so the two columns end close together (owner rule 4). Phones: one column (both
-            wrappers are `contents`), findings first, the log last. */}
-        <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-4">
-          <Suspense fallback={<FocusGhost />}>
-            <FocusCard load={load} />
-          </Suspense>
-          <Suspense fallback={null}>
-            <ComingUp load={load} />
-          </Suspense>
-          {/* Pro: a followed strategy that rebalanced in the last few days. Nothing at all otherwise. */}
-          <Suspense fallback={null}>
-            <FollowedRebalances />
-          </Suspense>
-        </div>
-        {/* On a phone this column's cards join the page's single column (contents), so the agents panel can lead it for a signed-in person. */}
-        <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-4">
-          <Suspense fallback={<AgentsPanelGhost />}>
-            <AgentsPanel load={load} />
-          </Suspense>
-          {/* No Ask box here: the shell's Ask opens on this page's stocks with its questions (owner rule 1). */}
-          <Suspense fallback={null}>
-            <PortfolioAskHint load={load} />
-          </Suspense>
-          <div className="order-last min-w-0 lg:order-none">
-            <Suspense fallback={<AgentLogGhost />}>
-              <AgentLogPanel load={load} />
-            </Suspense>
-          </div>
-        </div>
-      </div>
+      <MyStocksBody load={load} />
     </AppPage>
   );
 }

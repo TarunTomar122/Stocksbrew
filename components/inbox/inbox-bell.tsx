@@ -4,8 +4,10 @@ import Link from "next/link";
 import * as React from "react";
 
 import { InboxRow } from "@/components/inbox/inbox-row";
+import { useMarkSeen } from "@/components/inbox/use-mark-seen";
 import { useUser } from "@/lib/auth-context";
 import { badgeText, isUnread, nyDay } from "@/lib/inbox/merge";
+import { newestShown, wouldClear } from "@/lib/inbox/seen";
 import { INBOX_SEEN_EVENT, type InboxSummary } from "@/lib/inbox/types";
 import { usePublicPathname } from "@/lib/use-public-pathname";
 
@@ -16,6 +18,10 @@ import { usePublicPathname } from "@/lib/use-public-pathname";
  * for a few seconds). On a desktop it opens the newest few in a popover; on a
  * phone it is a link to /inbox. Signed out, nothing is fetched until the
  * popover opens, and then it shows the example portfolio's inbox.
+ *
+ * Opening the popover reads what it shows: after about two seconds open, the
+ * items in it are marked read and the count clears; following one marks it at
+ * once. The "new" dots stay while it is open, so people see what was new.
  */
 
 /** Read the count again when the tab comes back after this long. */
@@ -132,11 +138,12 @@ export function InboxBell({ variant }: { variant: "sidebar" | "topbar" }) {
     };
   }, [signedIn, key, load]);
 
-  // "Mark all read" on the inbox page clears the count at once.
+  // A save of the read mark (the page or the popover read, or "Mark all read") clears the count at once.
   React.useEffect(() => {
     const onSeen = (event: Event) => {
       const seenAt = (event as CustomEvent<{ seenAt?: string }>).detail?.seenAt ?? new Date().toISOString();
-      if (shared.summary) shared.summary = { ...shared.summary, unread: 0, seenAt };
+      // A save up to a followed item leaves anything newer unread; those are all among the newest few the bell holds.
+      if (shared.summary) shared.summary = { ...shared.summary, unread: shared.summary.items.filter((item) => isUnread(item, seenAt)).length, seenAt };
       notify();
       // Replace the browser's cached count (kept for 30 seconds) with the server's new one, after any read in flight.
       const key = shared.key;
@@ -172,6 +179,28 @@ export function InboxBell({ variant }: { variant: "sidebar" | "topbar" }) {
   }, [open, key]);
 
   const unread = summary?.signedIn ? summary.unread : 0;
+  // Taken when the popover first shows a fresh signed-in list (not while a newer read is on its way), dropped when it closes.
+  const [view, setView] = React.useState<{ seenAt: string | null; unread: number } | null>(null);
+  const reading = Boolean(shared.pending);
+  React.useEffect(() => {
+    if (!open) setView(null);
+    else if (!view && !reading && summary?.signedIn) setView({ seenAt: summary.seenAt, unread: summary.unread });
+  }, [open, view, reading, summary]);
+  // Findings first: a day's "checked, nothing found" line only fills the popover when there is nothing else.
+  const popoverItems = React.useMemo(() => {
+    const list = summary?.items ?? [];
+    const findings = list.filter((item) => !item.quiet);
+    return findings.length > 0 ? findings : list;
+  }, [summary]);
+  // The popover shows the newest few. The read mark is one time, so marking them read would also clear older unread
+  // items it never showed: it only reads itself when everything unread is in view, and leaves the rest to /inbox.
+  const shownUnreadCount = view?.seenAt ? popoverItems.filter((item) => isUnread(item, view.seenAt!)).length : 0;
+  const seen = useMarkSeen({
+    auto: open && view !== null && Boolean(summary?.signedIn) && wouldClear(popoverItems, view.seenAt) && shownUnreadCount >= view.unread,
+    at: newestShown(popoverItems),
+    signedIn: Boolean(summary?.signedIn),
+    account: user?.uid ?? null,
+  });
   const label = unread > 0 ? `Inbox, ${unread} new` : "Inbox";
   const onInbox = pathname === "/inbox";
 
@@ -197,11 +226,10 @@ export function InboxBell({ variant }: { variant: "sidebar" | "topbar" }) {
     if (next && (!summary || Date.now() - shared.at > REFRESH_AFTER_MS)) void load(Boolean(summary));
   };
   const today = nyDay(new Date().toISOString()) ?? "";
-  // Findings first: a day's "checked, nothing found" line only fills the popover when there is nothing else.
-  const all = summary?.items ?? [];
-  const found = all.filter((item) => !item.quiet);
-  const items = found.length > 0 ? found : all;
-  const seenAt = summary?.seenAt ?? null;
+  const items = popoverItems;
+  // The read mark as it was when the popover opened: the dots and the "N new" hold for this view after the save.
+  const seenAt = view?.seenAt ?? summary?.seenAt ?? null;
+  const shownUnread = view ? view.unread : unread;
 
   return (
     <div ref={wrap} className="relative">
@@ -234,7 +262,7 @@ export function InboxBell({ variant }: { variant: "sidebar" | "topbar" }) {
               Inbox
             </p>
             {summary?.signedIn ? (
-              <p className="oa-mono text-[12.5px] tabular-nums text-oa-muted-fg">{unread > 0 ? `${unread} new` : "All read"}</p>
+              <p className="oa-mono text-[12.5px] tabular-nums text-oa-muted-fg">{shownUnread > 0 ? `${shownUnread} new` : "All read"}</p>
             ) : null}
           </div>
           {!summary && state !== "failed" ? (
@@ -270,7 +298,11 @@ export function InboxBell({ variant }: { variant: "sidebar" | "topbar" }) {
                   withDay
                   compact
                   showDetail={false}
-                  onOpen={() => setOpen(false)}
+                  onOpen={() => {
+                    // Following an item reads it: the save goes now, up to that item, before the popover closes.
+                    if (summary.signedIn && seenAt && isUnread(item, seenAt)) seen.markNow(item.at);
+                    setOpen(false);
+                  }}
                 />
               ))}
             </ul>

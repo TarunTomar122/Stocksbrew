@@ -91,7 +91,7 @@ async function UserInbox({ uid, kind }: { uid: string; kind: InboxKind | null })
   return (
     <div className="flex flex-col gap-3 sm:gap-4">
       <ReadAndList read={inboxRead(inbox.items, seenAt, false)} label="Your inbox">
-        {(heading) => <InboxList items={inbox.items.map(forClient)} seenAt={seenAt} today={inbox.today} example={false} initialKind={kind} heading={heading} />}
+        {(heading) => <InboxList items={inbox.items.map(forClient)} seenAt={seenAt} today={inbox.today} example={false} initialKind={kind} heading={heading} account={uid} />}
       </ReadAndList>
       {/* No Ask box on the page: the shell's Ask opens on the person's stocks (owner rule 1). */}
       <AskPageHint context="portfolio" />

@@ -20,6 +20,8 @@ import { loadExampleXray, loadUserXray } from "@/lib/xray-data";
 import { checkReasons, exampleReasonChecks } from "@/lib/thesis-watch/server";
 
 import type { AgentsSource } from "./log";
+import type { BookSource } from "./stocks";
+import { loadExampleBook, loadUserBook } from "./stocks-server";
 import type { DividendSource, HomeMode, HomeSources, Loaded, ReasonsSource } from "./pick";
 
 /**
@@ -53,6 +55,8 @@ export type HomeLoad = {
    * watch line wait for it, nothing else.
    */
   agents: Promise<Loaded<AgentsSource>>;
+  /** The holdings as stock cards (./stocks-server.ts): prices, gains, calls and each one's facts. */
+  book: Promise<Loaded<BookSource>>;
 };
 
 export function withTimeout<T>(work: Promise<T | null>, label: string, ms = SOURCE_TIMEOUT_MS): Promise<Loaded<T>> {
@@ -83,8 +87,8 @@ function usHoldings(userDoc: UserDoc | null): { holdings: number; usHoldings: nu
   return { holdings: held.length, usHoldings: held.filter((id) => id.startsWith("US_")).length, tracked: tracked.length };
 }
 
-async function resolveContext(): Promise<HomeContext & { userDoc: UserDoc | null }> {
-  const viewer = await getViewer();
+async function resolveContext(resolveViewer: () => Promise<Viewer>): Promise<HomeContext & { userDoc: UserDoc | null }> {
+  const viewer = await resolveViewer();
   if (!viewer.uid) return { viewer, mode: "example", reason: "signed-out", userDoc: null };
   let failed = false;
   const userDoc = await getUserDoc(viewer.uid).catch((error) => {
@@ -169,12 +173,15 @@ export function ownSourcesKey(userDoc: UserDoc, viewer: Pick<Viewer, "plan" | "c
  * them) and hands back the promises, so each part of the page can render as
  * soon as its own source is in.
  */
-export const loadPortfolioHome = cache((): HomeLoad => {
+export const loadPortfolioHome = cache((): HomeLoad => startPortfolioHome(getViewer));
+
+/** The loads for the viewer `resolveViewer` gives; the page goes through loadPortfolioHome (the request's viewer, once per request). */
+export function startPortfolioHome(resolveViewer: () => Promise<Viewer>): HomeLoad {
   // Never rejects: with no viewer at all the page shows the example rather than an error.
-  const ctx = resolveContext().catch(async (error) => {
+  const ctx = resolveContext(resolveViewer).catch(async (error) => {
     console.warn("[portfolio-home] viewer failed:", error instanceof Error ? error.message : error);
     noteDegradedRender();
-    const viewer = await getViewer().catch(() => null);
+    const viewer = await resolveViewer().catch(() => null);
     return {
       viewer: viewer ?? ({ uid: null, signedIn: false, isSubscribed: false, plan: "anon", tracked: [], covered: [], coverage: null, trialEligible: false } as Viewer),
       mode: "example" as const,
@@ -207,12 +214,14 @@ export const loadPortfolioHome = cache((): HomeLoad => {
       ideas: mine("ideas", (doc) => loadUserIdeas(doc, rates), () => loadExampleIdeas(rates)),
       reasons: mine("reasons", (doc, viewer) => userReasons(doc, viewer), () => exampleReasons()),
     },
+    // Prices move, so a person's book is kept for the same minute as their other reads and no longer.
+    book: mine("book", (doc, viewer) => loadUserBook(doc, viewer), () => loadExampleBook()),
     // Anyone signed in: a person with no holdings marked may still have agents watching stocks. Signed out, there are none.
     agents: ctx.then((context) =>
       context.viewer.uid ? withTimeout<AgentsSource>(readAgentWatches(context.viewer.uid, newYorkToday()), "agents", AGENTS_TIMEOUT_MS) : ({ state: "empty" } as const),
     ),
   };
-});
+}
 
 /** The sources the "noticed" feed picks from, once each has answered or run out of time (the goal planner only feeds its card). */
 export async function feedSources(load: HomeLoad): Promise<Omit<HomeSources, "goal">> {

@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Suspense } from "react";
 
+import { AgentLog, AgentLogGhost } from "@/components/agent-log/agent-log";
 import { Disclosure } from "@/components/oa/disclosure";
 import { Bar } from "@/components/oa/kit/skeleton";
 import { OaSiteHeader } from "@/components/oa/oa-site-header";
@@ -100,6 +101,12 @@ export async function OaLanding() {
             </Suspense>
           </div>
         </section>
+
+        {/* Under the hero: the work the agent did across the market today, from the jobs' own records. Nothing at all
+            when there is no log yet, so no empty box. */}
+        <Suspense fallback={<AgentLogGhost compact className="mt-4 sm:mt-10" />}>
+          <AgentLog compact className="mt-4 sm:mt-10" />
+        </Suspense>
 
         {/* one story below the hero: short proofs with real data, one link each, then the questions folded */}
         <div className="flex flex-col gap-14 pb-12 pt-10 sm:gap-20 sm:pb-20 sm:pt-14">

@@ -9,6 +9,28 @@ describe("sentenceCase", () => {
     expect(sentenceCase("NVIDIA Stock Falls As AI Chip Demand Fears Grow")).toBe("NVIDIA stock falls as AI chip demand fears grow");
     expect(sentenceCase("S&P 500 Hits Record High As Fed Cuts Rates")).toBe("S&P 500 hits record high as Fed cuts rates");
   });
+  it("lowers the words the news page's most talked about left half-fixed (Nov 11)", () => {
+    expect(sentenceCase('Microsoft Is "No Longer The Bundler" As Anthropic Gives Away Office Rivals, Says Jason Calacanis', "Microsoft Corporation")).toBe(
+      'Microsoft is "no longer the bundler" as Anthropic gives away Office rivals, says Jason Calacanis',
+    );
+    expect(sentenceCase("Alphabet Fell 10% On A $9.1 Billion Cash Burn. Do Two New TPUs Make It A Buy?", "Alphabet Inc.")).toBe(
+      "Alphabet fell 10% on a $9.1 billion cash burn. Do two new TPUs make it a buy?",
+    );
+    // A closing quote is not part of the word before it.
+    expect(sentenceCase("Why The iPhone Duo Could Kick Off A 'New Decade' For Apple", "Apple Inc.")).toBe("Why the iPhone Duo could kick off a 'new decade' for Apple");
+    // Both sides of an ampersand between capitals are a name.
+    expect(sentenceCase("SpaceX Supplier Applied Aerospace & Defense Is Doing Just Fine. The Stock Isn't")).toBe(
+      "SpaceX supplier Applied Aerospace & Defense is doing just fine. The stock isn't",
+    );
+    expect(sentenceCase("Procter & Gamble Raises Outlook On Strong Demand")).toBe("Procter & Gamble raises outlook on strong demand");
+    expect(sentenceCase("Tesla Stock Rises & Falls On Musk News")).toBe("Tesla stock rises & falls on Musk news");
+    expect(sentenceCase("Is SpaceX Stock A Buy Right Now?")).toBe("Is SpaceX stock a buy right now?");
+    expect(sentenceCase("SpaceX's Starlink Sees Strong Subscriber Growth, But Ookla Asks Whether Network Capacity Can Keep Up")).toBe(
+      "SpaceX's Starlink sees strong subscriber growth, but Ookla asks whether network capacity can keep up",
+    );
+    expect(sentenceCase("Microsoft Stock Suddenly Has An Anthropic Problem", "Microsoft Corporation")).toBe("Microsoft stock suddenly has an Anthropic problem");
+    expect(sentenceCase("Apple Revenue & Profit Beat Estimates")).toBe("Apple revenue & profit beat estimates");
+  });
   it("leaves sentences alone", () => {
     const text = "Hims & Hers plunges after earnings miss and guidance cut";
     expect(isTitleCase(text)).toBe(false);
@@ -46,7 +68,7 @@ describe("sentenceCase", () => {
     expect(sentenceCase("Microsoft Teams Hits Record Users As Tesla Model Y Sales Rise")).toBe("Microsoft Teams hits record users as Tesla Model Y sales rise");
     expect(sentenceCase("Why Bank Of America Stock Is Rising Today", "Bank of America Corporation")).toBe("Why Bank of America stock is rising today");
     expect(sentenceCase("Shares Of Take-Two Rise After GTA VI Preorders Beat")).toBe("Shares of Take-Two rise after GTA VI Preorders beat");
-    expect(sentenceCase("SpaceX Supplier Is Doing Just Fine. The Stock Isn’t.")).toBe("SpaceX Supplier is doing just fine. The stock isn’t.");
+    expect(sentenceCase("SpaceX Supplier Is Doing Just Fine. The Stock Isn’t.")).toBe("SpaceX supplier is doing just fine. The stock isn’t.");
   });
   it("starts a new clause after a colon", () => {
     expect(sentenceCase("Earnings Preview: What To Expect From Micron Report")).toBe("Earnings preview: What to expect from Micron report");

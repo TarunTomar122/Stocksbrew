@@ -1,9 +1,10 @@
 import Link from "next/link";
+import type * as React from "react";
 
 import { Delta, FOCUS, NUM, Panel, Ticker } from "@/components/oa/kit";
 import { StockLogo } from "@/components/stock-logo";
 import { sentenceCase } from "@/lib/plain-copy";
-import { leanOf, totalOf, type NewsTheme, type StockBuzz, type ToneCounts } from "@/lib/wire-read";
+import { toneLean, type NewsTheme, type StockBuzz, type ToneCounts } from "@/lib/wire-read";
 import { WIRE_PAGE_SIZE, etDay, etTime, wireHref, type WireFilters, type WireItem } from "@/lib/wire-shared";
 
 const ET_WEEKDAY = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short" });
@@ -14,43 +15,38 @@ export function when(iso: string): string {
   return etDay(iso) === etDay(Date.now()) ? time : `${ET_WEEKDAY.format(new Date(iso))} ${time}`;
 }
 
-/** Eight rows of Most talked about: the one scroll height both cards of the news read share. */
-const LIST_HEIGHT = "max-h-[20.5rem]";
-const LIST_HEIGHT_LG = "lg:max-h-[20.5rem]";
-
-/** Fewer labelled stories than this is too thin to say how something's news leans. */
-const MIN_FOR_LEAN = 3;
+/**
+ * About eight rows of Most talked about (each with its top story under it): the one scroll height both cards of the
+ * news read share on a wide screen, so they end level.
+ */
+const LIST_HEIGHT_LG = "lg:max-h-[32rem]";
 
 /**
- * "75% negative": the larger side as a share of all the stories (neutral ones included), only when the news clearly
- * leans one way. Nothing at all otherwise (owner rule 1): "No clear lean" on every card said nothing, many times.
+ * "75% negative" (or "Leans negative" when the side is a clear lean of fewer than half the stories), only when the
+ * news clearly leans one way (`toneLean`). Nothing at all otherwise (owner rule 1): "No clear lean" on every card said
+ * nothing, many times. `stories` is every story counted, so a share is never of a handful of labelled ones.
  */
-export function leanWords(counts: ToneCounts, total: number = totalOf(counts)): string {
-  if (total < MIN_FOR_LEAN) return "";
-  const lean = leanOf(counts);
-  if (lean !== "positive" && lean !== "negative") return "";
-  const share = Math.round(((lean === "positive" ? counts.positive : counts.negative) / total) * 100);
-  return `${share}% ${lean}`;
+export function leanWords(counts: ToneCounts, stories?: number): string {
+  return toneLean(counts, stories)?.text ?? "";
 }
 
-function leanText(counts: ToneCounts): string {
-  if (counts.positive > counts.negative) return "text-signal-bullish";
-  if (counts.negative > counts.positive) return "text-signal-bearish";
-  return "";
+function leanText(counts: ToneCounts, stories?: number): string {
+  const lean = toneLean(counts, stories);
+  return lean?.side === "positive" ? "text-signal-bullish" : lean?.side === "negative" ? "text-signal-bearish" : "";
 }
 
 /**
- * How the news on something leans, in one figure ("75% negative"), with the three counts for screen readers.
- * Nothing at all when it does not clearly lean.
+ * How the news on something leans, in one figure ("75% negative") or words ("Leans negative"), coloured, with the
+ * counts for screen readers. Nothing at all when it does not clearly lean.
  */
-export function ToneBar({ counts, className = "" }: { counts: ToneCounts; className?: string }) {
-  const words = leanWords(counts);
+export function ToneBar({ counts, stories, className = "" }: { counts: ToneCounts; stories?: number; className?: string }) {
+  const words = leanWords(counts, stories);
   if (!words) return null;
-  const label = `${counts.positive} positive, ${counts.negative} negative, ${counts.neutral} neutral`;
+  const label = `${counts.positive} positive, ${counts.negative} negative${stories ? ` of ${stories} ${stories === 1 ? "story" : "stories"}` : `, ${counts.neutral} neutral`}`;
   return (
-    <span className={`${NUM} inline-flex items-center text-[12.5px] leading-[18px] ${className}`} title={label}>
+    <span className={`${NUM} inline-flex items-center whitespace-nowrap text-[12.5px] leading-[18px] ${className}`} title={label}>
       <span className="sr-only">{label}</span>
-      <span aria-hidden="true" className={leanText(counts)}>
+      <span aria-hidden="true" className={leanText(counts, stories)}>
         {words}
       </span>
     </span>
@@ -87,7 +83,7 @@ export function HeadlineLine({ item, companyName = "", className = "" }: { item:
 /**
  * The stories driving the news, stock first (owner rule 7): each theme leads with the stocks it moves and their
  * day, then its name and its one tone figure, then its best headlines as the evidence. On a wide screen it sits
- * beside Most talked about with the same scroll height (`LIST_HEIGHT`), each card sized to its own content, so
+ * beside Most talked about with the same scroll height (`LIST_HEIGHT_LG`), each card sized to its own content, so
  * neither is stretched over empty space (owner rule 4).
  */
 export function ThemesPanel({ themes, filters, className = "" }: { themes: NewsTheme[]; filters: WireFilters; className?: string }) {
@@ -99,7 +95,7 @@ export function ThemesPanel({ themes, filters, className = "" }: { themes: NewsT
       <ol className={`scrollbar-hide divide-y divide-oa-border lg:overflow-y-auto lg:overscroll-contain ${LIST_HEIGHT_LG}`}>
         {themes.map((theme) => {
           const href = wireHref({ ...filters, limit: WIRE_PAGE_SIZE }, { theme: theme.name, ticker: null, topic: null, q: "", mine: false });
-          const lean = leanWords(theme.tones);
+          const lean = leanWords(theme.tones, theme.count);
           const fresh = theme.prevCount === 0;
           return (
             <li key={theme.name} className="px-4 py-3">
@@ -122,7 +118,7 @@ export function ThemesPanel({ themes, filters, className = "" }: { themes: NewsT
                 {/* One figure, the lean (owner rule 5); "new today" is said in words, not as a second count. */}
                 {lean || fresh ? (
                   <span className={`${NUM} shrink-0 text-[12.5px] leading-[18px] text-oa-muted-fg`}>
-                    {lean ? <span className={leanText(theme.tones)}>{lean}</span> : null}
+                    {lean ? <span className={leanText(theme.tones, theme.count)}>{lean}</span> : null}
                     {lean && fresh ? " · " : null}
                     {fresh ? "new today" : null}
                   </span>
@@ -143,10 +139,16 @@ export function ThemesPanel({ themes, filters, className = "" }: { themes: NewsT
   );
 }
 
+/** The top story about a stock, as one line in sentence case, without a trailing full stop. */
+export function buzzHighlight(row: Pick<StockBuzz, "lead" | "name">): string {
+  return headlineWords(row.lead.title, row.name ?? "").replace(/[.!]+$/, "");
+}
+
 /**
- * The stocks with the most coverage right now, most first: the ticker, how its news leans (one figure) and the
- * day's move. No coverage bars (owner rule 5): the order already says who is talked about most. Every stock
- * shows, about eight rows at a time with the rest scrolling inside.
+ * The stocks with the most coverage right now, most first (owner, Nov 11: "where info about positive or negative talk
+ * and highlight?"). Each row: rank, logo and ticker, how its news leans (one coloured figure, only when it clearly
+ * leans), the day's move, and its top story written out underneath. No coverage bars (owner rule 5): the order already
+ * says who is talked about most. Every stock shows, about eight rows at a time with the rest scrolling inside.
  */
 export function TalkedAbout({
   rows,
@@ -156,39 +158,45 @@ export function TalkedAbout({
 }: {
   rows: StockBuzz[];
   filters: WireFilters;
-  /** Alone on its row (no themes beside it): two columns on a wide screen, every stock in view, so the card is never half empty. */
+  /** Alone on its row (no themes beside it): two columns on a wide screen, so the card is never half empty. */
   wide?: boolean;
   className?: string;
 }) {
   if (rows.length === 0) return null;
   // The tone column only when some stock's news leans; otherwise the moves sit right after the ticker.
-  const toned = rows.some((row) => leanWords(row.tones) !== "");
-  // About eight rows in view, the rest scrolling inside; alone on its row, every stock shows in two columns.
-  const frame = wide ? "max-lg:max-h-[20.5rem] max-lg:overflow-y-auto max-lg:overscroll-contain" : `${LIST_HEIGHT} overflow-y-auto overscroll-contain`;
-  const list = wide ? "gap-x-0 lg:columns-2" : "";
+  const toned = rows.some((row) => leanWords(row.tones, row.count) !== "");
+  // About eight rows in view, the rest scrolling inside (owner rule 5).
+  const frame = `max-h-[34rem] ${LIST_HEIGHT_LG}`;
+  // Alone on its row: two columns read top to bottom (1 to 7, then 8 on), in a grid so the rows of both columns line up.
+  const half = Math.ceil(rows.length / 2);
+  const list = wide ? "lg:grid lg:grid-flow-col lg:grid-cols-2 lg:grid-rows-[repeat(var(--rows),auto)]" : "";
+  const cols = toned ? "grid-cols-[1.25rem_minmax(0,1fr)_auto_3.75rem]" : "grid-cols-[1.25rem_minmax(0,1fr)_3.75rem]";
   return (
     <Panel flush label="Most talked about" className={className}>
-      <div className={`scrollbar-hide ${frame}`}>
-        <ol className={`scrollbar-hide ${list}`}>
+      <div className={`scrollbar-hide overflow-y-auto overscroll-contain ${frame}`}>
+        <ol className={list} style={wide ? ({ "--rows": half } as React.CSSProperties) : undefined}>
           {rows.map((row, index) => (
-            <li key={row.ticker} className={`break-inside-avoid border-b border-oa-border hover:bg-oa-accent ${wide ? "" : "last:border-b-0"}`}>
+            <li key={row.ticker} className={`border-b border-oa-border hover:bg-oa-accent ${wide ? (index >= half ? "lg:border-l" : "") : "last:border-b-0"}`}>
               <Link
                 href={wireHref({ ...filters, limit: WIRE_PAGE_SIZE }, { ticker: row.ticker, theme: null })}
                 prefetch={false}
-                className={`grid min-h-10 ${toned ? "grid-cols-[1.25rem_minmax(0,1fr)_6.5rem_4rem]" : "grid-cols-[1.25rem_minmax(0,1fr)_4rem]"} items-center gap-x-3 px-4 py-2 ${FOCUS}`}
+                className={`block px-4 py-2 ${FOCUS}`}
               >
-                <span className={`${NUM} text-[12.5px] text-oa-muted-fg`}>{index + 1}</span>
-                <span className="flex min-w-0 items-center gap-2">
-                  <StockLogo ticker={row.ticker} size={18} eager={index < 8} />
-                  <span className={`${NUM} text-[14px] font-medium text-oa-fg`}>{row.ticker}</span>
-                </span>
-                {/* A fixed column, so the moves line up whether or not a stock's news has a lean. */}
-                {toned ? (
-                  <span className="text-right">
-                    <ToneBar counts={row.tones} />
+                <span className={`grid min-h-6 ${cols} items-center gap-x-3`}>
+                  <span className={`${NUM} text-[12.5px] text-oa-muted-fg`}>{index + 1}</span>
+                  <span className="flex min-w-0 items-center gap-2">
+                    <StockLogo ticker={row.ticker} size={18} eager={index < 8} />
+                    <span className={`${NUM} text-[14px] font-medium text-oa-fg`}>{row.ticker}</span>
                   </span>
-                ) : null}
-                <span className="text-right">{row.pct !== null ? <Delta value={row.pct} digits={1} className="text-[14px] font-medium" /> : null}</span>
+                  {toned ? (
+                    <span className="text-right">
+                      <ToneBar counts={row.tones} stories={row.count} />
+                    </span>
+                  ) : null}
+                  <span className="text-right">{row.pct !== null ? <Delta value={row.pct} digits={1} className="text-[14px] font-medium" /> : null}</span>
+                </span>
+                {/* The top story, whole and in sentence case, so the row says what the talk is about. */}
+                <span className="mt-0.5 block text-pretty pl-[2rem] text-[13px] leading-[19px] text-oa-muted-fg">{buzzHighlight(row)}</span>
               </Link>
             </li>
           ))}

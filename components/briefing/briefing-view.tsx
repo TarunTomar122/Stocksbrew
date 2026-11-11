@@ -54,6 +54,8 @@ export type BriefingViewProps = {
   beforeOpen?: React.ReactNode;
   /** The "rest of your stocks moved too" card on Free (./locked-moves.tsx), rendered on the server. */
   locked?: React.ReactNode;
+  /** What the agent did today across the market (components/agent-log), streamed under the read. */
+  agentLog?: React.ReactNode;
 };
 
 const CARD = "oa-surface overflow-hidden border border-oa-border bg-oa-card";
@@ -257,6 +259,7 @@ export function BriefingView({
   rail = null,
   beforeOpen = null,
   locked = null,
+  agentLog = null,
 }: BriefingViewProps) {
   const [state, setState] = React.useState<BriefingStateMap>(initialState);
   const [busy, setBusy] = React.useState<string | null>(null);
@@ -457,6 +460,7 @@ export function BriefingView({
           askContext={askContext}
           visual={showSession && session ? <SessionStrip sectors={session.sectors} /> : null}
         />
+        {agentLog}
         {/* Without an agents card of their own (signed out), what an agent would do here, said once under the read. */}
         {!rail && !archived ? (
           <p className={`${CARD} px-4 py-2.5 text-pretty text-[13.5px] leading-5 text-oa-muted-fg`}>

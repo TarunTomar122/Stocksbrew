@@ -5,6 +5,8 @@
  * access here, so all of it is unit tested.
  */
 
+import { firstFullSentence } from "@/lib/plain-copy";
+
 export type SignalsTab = "today" | "movers" | "reddit" | "policy";
 
 export const SIGNALS_TABS: Array<{ id: SignalsTab; label: string }> = [
@@ -260,6 +262,14 @@ export type RedditName = {
   velocity: MentionVelocity;
   dayPct: number | null;
 };
+
+/** What is being said about a name, as one line: its first catalyst, else the summary's first sentence. */
+export function redditHighlight(name: Pick<RedditName, "catalysts" | "summary">): string | null {
+  const said = name.catalysts.find((line) => line.trim()) ?? (name.summary ? firstFullSentence(name.summary) : null);
+  const clean = said ? said.trim().replace(/[.!]+$/, "") : "";
+  // The line keeps its own capitals ("CEO", "AI", "Nvidia"); only the first letter is raised.
+  return clean ? `${clean.charAt(0).toUpperCase()}${clean.slice(1)}.` : null;
+}
 
 /** Loudest first: posts in the scan, then how hard it is accelerating. */
 export function rankReddit(names: RedditName[]): RedditName[] {

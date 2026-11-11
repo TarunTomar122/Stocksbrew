@@ -5,3 +5,4 @@ trafilatura
 yfinance
 beautifulsoup4
 Pillow
+anthropic>=0.40

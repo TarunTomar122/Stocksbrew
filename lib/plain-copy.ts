@@ -63,7 +63,9 @@ for (const word of (
   "upside downside advance advances overnight defend defends fade fades clouds money private achieve achieves peak " +
   "lease withstand boom number backlog anyway answer load so doing does do did owe owes historic two three " +
   "models work works finds find helps help known build builds run runs production platform database " +
-  "scales centers processors hours time term long short got dream dreams unit units isn't aren't won't can't don't doesn't there"
+  "scales centers processors hours time term long short got dream dreams unit units isn't aren't won't can't don't doesn't there " +
+  // Most talked about on the news page, Nov 11 ("no Longer the Bundler", "could Kick off a 'new Decade'", "cash Burn").
+  "longer away kick kicks kicked decade decades burn burns burning bundler bundle bundles supplier suppliers right problem problems revive revives emerge emerges subscriber subscribers ask asks whether keep wants want break breaks network capacity gas summer"
 ).split(" ")) {
   if (word) COMMON.add(word);
 }
@@ -128,7 +130,8 @@ export function sentenceCase(text: string | null | undefined, companyName = ""):
       .split(/[^a-z0-9'’&-]+/)
       .filter((part) => part && !OWN_NAME_SMALL_WORDS.has(part)),
   );
-  const tokens = [...value.matchAll(/[A-Za-z][A-Za-z'’]*/g)].map((match) => ({ word: match[0], offset: match.index ?? 0 }));
+  // An apostrophe belongs to a word only inside it ("Isn't", "Nvidia's"), never a closing quote ("'New Decade'").
+  const tokens = [...value.matchAll(/[A-Za-z](?:[A-Za-z]|['’](?=[A-Za-z]))*/g)].map((match) => ({ word: match[0], offset: match.index ?? 0 }));
   const bareOf = (word: string) => word.toLowerCase().replace(/’/g, "'").replace(/'s$/, "");
   // A capitalised word nothing above knows: possibly a name, so a common-ending word beside it keeps its capital.
   const unknownName = (word: string | undefined) => {
@@ -181,7 +184,11 @@ export function sentenceCase(text: string | null | undefined, companyName = ""):
       /[A-Z]/.test(word.slice(1)) ||
       KNOWN_NAMES.has(bare) ||
       own.has(bare) ||
-      own.has(word.toLowerCase());
+      own.has(word.toLowerCase()) ||
+      // Beside an ampersand, a common word whose other side is a name is part of that name ("Applied Aerospace &
+      // Defense"); between two common words ("Rises & Falls", "Revenue & Profit") it is lowered like any other.
+      (/^ ?& ?$/.test(gapBefore) && /^[A-Z]/.test(prev?.word ?? "") && !COMMON.has(bareOf(prev?.word ?? ""))) ||
+      (/^ ?& ?$/.test(gapAfter) && /^[A-Z]/.test(next?.word ?? "") && !COMMON.has(bareOf(next?.word ?? "")));
     if (keep) return out.push(word);
     if (COMMON.has(bare) || compound[index] === "lower") return out.push(word.toLowerCase());
     // Only neighbours joined by a space or hyphen count: "Following, Apple" is two clauses.

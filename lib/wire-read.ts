@@ -6,18 +6,28 @@
  * Inputs are the headlines (`WireItem`), the day moves, and one label per
  * headline from `backend/agentdata/news_tone.py` (tone, scope, theme). The
  * labels are the only model-written part; every share, count and change below
- * is plain arithmetic over them, and a headline without a label is left out of
- * the tone figures rather than guessed.
+ * is plain arithmetic over them. Where the model has not read a story, a page
+ * may add a label from the headline's own words (`lib/wire-headline-tone.ts`,
+ * marked `by: "words"`); a headline with neither is left out of the tone
+ * figures rather than guessed.
  */
 
 import { balancePct, pickInsights, sharePct, type Insight, type InsightTone, type TheRead } from "@/lib/insights";
-import { better, isForeignLanguage, storyRelevance, storyWeight, titleKey } from "@/lib/wire-companies";
+import { better, isForeignLanguage, labelFor, storyRelevance, storyWeight, titleKey } from "@/lib/wire-companies";
 import { sentenceCase, shortCompanyName } from "@/lib/plain-copy";
 import { themeKey, wireHref, WIRE_PAGE_SIZE, type WireFilters, type WireItem } from "@/lib/wire-shared";
 
 export type NewsTone = "positive" | "negative" | "neutral";
 export type NewsScope = "stock" | "market" | "other";
-export type NewsLabel = { tone: NewsTone; scope: NewsScope; theme: string | null };
+export type NewsLabel = {
+  tone: NewsTone;
+  scope: NewsScope;
+  theme: string | null;
+  /** Who said it: the model labeller (the default) or the headline word list, which never sets a theme. */
+  by?: "model" | "words";
+  /** A word-list label on a story naming two companies: the one stock its words are about. The other gets no tone. */
+  ticker?: string;
+};
 export type NewsLabels = Record<string, NewsLabel>;
 export type ToneCounts = { positive: number; negative: number; neutral: number };
 export type Quotes = Record<string, { pct: number | null; name: string }>;
@@ -42,6 +52,42 @@ export function leanOf(counts: ToneCounts, margin = 10): "positive" | "negative"
   if (total === 0) return null;
   const gap = ((counts.positive - counts.negative) / total) * 100;
   return gap >= margin ? "positive" : gap <= -margin ? "negative" : "mixed";
+}
+
+/** At least this many stories with a tone before anything is said about how a stock's news leans. */
+export const MIN_TONED = 3;
+
+export type ToneLean = {
+  side: "positive" | "negative";
+  /** The leading side as a share of all the stories counted (with or without a tone), whole percent. */
+  pct: number;
+  /** "70% negative" when the side is most of the stories, "Leans negative" when it is a clear lean of fewer. */
+  text: string;
+};
+
+/**
+ * How a set of stories leans, when it clearly does: at least `MIN_TONED` of them have a tone, the leading side has
+ * at least two stories and twice the other side's, and it is at least a quarter of all `stories`. `stories` is every
+ * story counted, labelled or not (it defaults to the labelled ones), so "70% negative" is never 70% of a handful
+ * read out of thirty. A lean of under half ("Leans negative") needs more: at least three stories on its side and over
+ * three times the other's, so a couple of stray headlines cannot paint a stock. Null otherwise: nothing is said rather
+ * than "no clear lean".
+ */
+export function toneLean(counts: ToneCounts, stories: number = totalOf(counts)): ToneLean | null {
+  const labelled = totalOf(counts);
+  if (labelled < MIN_TONED) return null;
+  const side = counts.positive > counts.negative ? "positive" : counts.negative > counts.positive ? "negative" : null;
+  if (!side) return null;
+  const lead = side === "positive" ? counts.positive : counts.negative;
+  const other = side === "positive" ? counts.negative : counts.positive;
+  if (lead < 2 || lead < other * 2) return null;
+  const base = Math.max(stories, labelled);
+  const share = lead / base;
+  if (share < 0.25) return null;
+  const pct = Math.round(share * 100);
+  if (share >= 0.5) return { side, pct, text: `${pct}% ${side}` };
+  if (lead < 3 || lead <= other * 3) return null;
+  return { side, pct, text: `Leans ${side}` };
 }
 
 export function leanTone(counts: ToneCounts): InsightTone {
@@ -147,7 +193,8 @@ export function stockBuzz(
       const group = byTicker.get(ticker) ?? { items: [], score: 0, tones: emptyCounts() };
       group.items.push(item);
       group.score += storyWeight(item) * dilution * recency;
-      if (label) group.tones[label.tone] += 1;
+      const own = labelFor(labels, item, ticker);
+      if (own) group.tones[own.tone] += 1;
       byTicker.set(ticker, group);
       mentions += 1;
     }
@@ -156,7 +203,7 @@ export function stockBuzz(
   const rows: StockBuzz[] = [];
   for (const [ticker, group] of byTicker) {
     // The headline to read first: a publisher's story about this company that says something, newest first.
-    const pull = (item: WireItem) => storyRelevance(item) + (labels[item.id] && labels[item.id]!.tone !== "neutral" ? 0.3 : 0);
+    const pull = (item: WireItem) => storyRelevance(item) + ((labelFor(labels, item, ticker)?.tone ?? "neutral") !== "neutral" ? 0.3 : 0);
     const lead = [...group.items].sort((a, b) => pull(b) - pull(a) || (a.publishedAt < b.publishedAt ? 1 : a.publishedAt > b.publishedAt ? -1 : 0))[0]!;
     rows.push({
       ticker,
@@ -316,13 +363,9 @@ function dayBefore(prev: number): string {
   return prev === 0 ? "none the day before" : `against ${prev} the day before`;
 }
 
-/** The stock's news leaning one way, from at least three labelled stories; null when it doesn't. */
-function stockLean(row: StockBuzz): { pct: number; word: "positive" | "negative" } | null {
-  const total = totalOf(row.tones);
-  if (total < 3) return null;
-  const lean = leanOf(row.tones);
-  if (lean !== "positive" && lean !== "negative") return null;
-  return { pct: Math.round(((lean === "positive" ? row.tones.positive : row.tones.negative) / total) * 100), word: lean };
+/** The stock's news leaning one way, as a share of all its stories (`toneLean`); null when it doesn't clearly. */
+function stockLean(row: StockBuzz): ToneLean | null {
+  return toneLean(row.tones, row.count);
 }
 
 function rose(pct: number): string {
@@ -361,14 +404,14 @@ export function marketRead(input: MarketReadInput): TheRead | null {
   {
     const lean = stockLean(leader);
     const surge = isSurge(leader.count, leader.prevCount);
-    const toneBit = lean ? `, ${lean.pct}% of them ${lean.word}` : "";
+    const toneBit = lean ? (lean.pct >= 50 ? `, ${lean.pct}% of them ${lean.side}` : `, with the news leaning ${lean.side}`) : "";
     // The baseline is in the figure's label ("stories, 12 the day before"), so the sentence does not say it again.
     const text =
       leader.pct !== null
         ? `${leader.ticker} ${rose(leader.pct)} today on ${leader.count} stories${toneBit}.`
         : `${leader.ticker} drew ${leader.count} stories in the last day${toneBit}.`;
     let soWhat: string | undefined;
-    if (lean && leader.pct !== null && Math.abs(leader.pct) >= 2 && (lean.word === "negative") === leader.pct > 0) {
+    if (lean && leader.pct !== null && Math.abs(leader.pct) >= 2 && (lean.side === "negative") === leader.pct > 0) {
       soWhat = leader.pct > 0 ? "Buyers are looking past the bad headlines so far." : "Sellers are ignoring the good headlines so far.";
     } else if (surge && leader.pct !== null && Math.abs(leader.pct) < 1) {
       soWhat = "All that news has barely moved the stock so far.";
@@ -418,21 +461,23 @@ export function marketRead(input: MarketReadInput): TheRead | null {
   }
 
   // 3. A stock whose news and price point opposite ways, when the labels clearly say how its news leans.
+  // Only when most of its stories (not most of a few labelled ones) read one way.
   const disagreement = buzz.slice(0, READ_DEPTH).find((row) => {
-    if (used.has(row.ticker) || row.pct === null || Math.abs(row.pct) < 2 || totalOf(row.tones) < 3) return false;
-    const rowLean = leanOf(row.tones, 20);
-    return (rowLean === "positive" && row.pct < 0) || (rowLean === "negative" && row.pct > 0);
+    if (used.has(row.ticker) || row.pct === null || Math.abs(row.pct) < 2) return false;
+    const rowLean = stockLean(row);
+    if (!rowLean || rowLean.pct < 50) return false;
+    return (rowLean.side === "positive" && row.pct < 0) || (rowLean.side === "negative" && row.pct > 0);
   });
-  if (disagreement && disagreement.pct !== null) {
-    const good = leanOf(disagreement.tones, 20) === "positive";
-    const pctTones = balancePct({ ...disagreement.tones });
+  const disagreeLean = disagreement ? stockLean(disagreement) : null;
+  if (disagreement && disagreement.pct !== null && disagreeLean) {
+    const good = disagreeLean.side === "positive";
     used.add(disagreement.ticker);
     insights.push({
       id: "disagree",
       toned: true,
       tone: disagreement.pct > 0 ? "up" : "down",
       figure: { value: signed(disagreement.pct), label: `${disagreement.ticker} today` },
-      text: `${disagreement.ticker}: ${good ? `${pctTones.positive}% of today's headlines about it read as good news` : `${pctTones.negative}% of today's headlines about it read as bad news`}, yet the stock ${rose(disagreement.pct)}.`,
+      text: `${disagreement.ticker}: ${disagreeLean.pct}% of today's headlines about it read as ${good ? "good" : "bad"} news, yet the stock ${rose(disagreement.pct)}.`,
       // Say what we see, not why: the headlines alone do not explain this move.
       soWhat: "The headlines alone don't explain the move; wait for a reason before acting on it.",
       tickers: [disagreement.ticker],
@@ -486,13 +531,16 @@ export function marketRead(input: MarketReadInput): TheRead | null {
     });
   }
 
-  // 6. How the whole wire leans, against the day before: only with enough labels, and only to fill a gap.
-  const now = countTones(today, labels);
+  // 6. How the whole wire leans, against the day before: only with enough labels, and only to fill a gap. Model
+  // labels only: they read every story including the neutral ones, so their shares are of the whole wire, while the
+  // headline word list only ever marks the stories that clearly lean.
+  const byModel = (_item: WireItem, label: NewsLabel) => label.by !== "words";
+  const now = countTones(today, labels, byModel);
   const total = totalOf(now);
   const wireLean = leanOf(now);
   if (total >= MIN_LABELLED && (wireLean === "positive" || wireLean === "negative")) {
     const pct = balancePct({ ...now });
-    const before = countTones(yesterday, labels);
+    const before = countTones(yesterday, labels, byModel);
     const beforePct = totalOf(before) >= MIN_LABELLED ? balancePct({ ...before }) : null;
     const negative = wireLean === "negative";
     const share = negative ? pct.negative : pct.positive;
@@ -512,7 +560,12 @@ export function marketRead(input: MarketReadInput): TheRead | null {
   const shown = picked.map(({ toned: _toned, ...insight }: Toned) => insight);
   const stories = today.length;
   const sourceBits = [`${stories.toLocaleString("en-US")} stories from ${input.sources} ${input.sources === 1 ? "source" : "sources"}`];
-  if (usedTone && input.labelledBy) sourceBits.push(`tone read per headline by ${input.labelledBy}`);
+  if (usedTone) {
+    const byWords = today.some((item) => labels[item.id]?.by === "words");
+    const byModel = today.some((item) => labels[item.id] && labels[item.id]!.by !== "words");
+    if (byModel && input.labelledBy) sourceBits.push(`tone read per headline by ${input.labelledBy}${byWords ? " and from the headlines' own words" : ""}`);
+    else if (byWords) sourceBits.push("tone from the headlines' own words");
+  }
   return { headline, headlineTickers: [leader.ticker], insights: shown, source: sourceBits.join(" · "), asOf: input.asOf };
 }
 
@@ -533,8 +586,10 @@ export type WireReading = {
   buzz: StockBuzz[];
   themes: NewsTheme[];
   read: TheRead | null;
-  /** Labelled share of today's stories, so a page can tell when the labels are behind. */
+  /** Labelled share of today's stories (the model's labels only), so a page can tell when the labels are behind. */
   labelledShare: number | null;
+  /** Share of today's stories with any tone, the model's or the headline word list's. */
+  tonedShare: number | null;
 };
 
 /**
@@ -563,6 +618,7 @@ export function readTheWire(source: WireReadSource, options: { nowMs: number; fi
     labelledBy: source.labelledBy,
     filters,
   });
-  const labelled = today.filter((item) => source.labels[item.id]).length;
-  return { today, yesterday, buzz, themes, read, labelledShare: sharePct(labelled, today.length) };
+  const labelled = today.filter((item) => source.labels[item.id] && source.labels[item.id]!.by !== "words").length;
+  const toned = today.filter((item) => source.labels[item.id]).length;
+  return { today, yesterday, buzz, themes, read, labelledShare: sharePct(labelled, today.length), tonedShare: sharePct(toned, today.length) };
 }

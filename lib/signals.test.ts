@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   POLICY_PAGE_SIZE,
+  redditHighlight,
   causeLabel,
   classifyMover,
   confirmedTickers,
@@ -260,3 +261,14 @@ describe("pickToday", () => {
     expect(pick.unexplained.map((row) => row.ticker)).toEqual(["T9", "T6", "T3", "T0"]);
   });
 });
+
+describe("reddit highlight", () => {
+  it("says what is being said in one line: the first catalyst, else the summary's first sentence", () => {
+    expect(redditHighlight({ catalysts: ["board probe into the CEO", "chip export report"], summary: "Long text. More." })).toBe("Board probe into the CEO.");
+    expect(redditHighlight({ catalysts: [], summary: "Holders worry about the CEO probe. Some are buying the dip." })).toBe("Holders worry about the CEO probe.");
+    expect(redditHighlight({ catalysts: ["AI capex fears!"], summary: null })).toBe("AI capex fears.");
+    expect(redditHighlight({ catalysts: [], summary: null })).toBeNull();
+    expect(redditHighlight({ catalysts: ["  "], summary: null })).toBeNull();
+  });
+});
+

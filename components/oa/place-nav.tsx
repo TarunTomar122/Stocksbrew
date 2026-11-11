@@ -144,13 +144,16 @@ export function PlaceStrip() {
     >
       <div
         ref={row}
-        className={`flex h-9 min-w-0 flex-wrap items-center gap-x-1.5 gap-y-4 overflow-hidden p-0.5 ${rowWidth === null || everyPillFits ? "flex-1" : "flex-initial"}`}
-        style={rowWidth === null || everyPillFits ? undefined : { width: rowWidth }}
+        // Every pill in one line that scrolls sideways (no scrollbar), fading at the edge when some are past it, with
+        // "More" right after: no measured gap, and nothing hidden (owner rule 4, Nov 11).
+        className={`flex h-9 min-w-0 flex-1 flex-nowrap items-center gap-x-1.5 overflow-x-auto p-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
+          everyPillFits ? "" : "[mask-image:linear-gradient(to_right,black_82%,transparent)]"
+        }`}
       >
         {pills.map((item, index) => {
           const on = item === current;
           const exact = on && pathname === item.href;
-          const hidden = index >= shown;
+          const hidden = false;
           return (
             <IntentLink
               key={item.href}

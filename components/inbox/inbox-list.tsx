@@ -4,15 +4,22 @@ import { useRouter } from "next/navigation";
 import * as React from "react";
 
 import { InboxRow } from "@/components/inbox/inbox-row";
+import { postSeen, useMarkSeen } from "@/components/inbox/use-mark-seen";
 import { ProMark } from "@/components/oa/gate";
 import { groupByDay, isUnread, kindCounts } from "@/lib/inbox/merge";
-import { INBOX_SEEN_EVENT, KIND_LABEL, type InboxItem, type InboxKind } from "@/lib/inbox/types";
+import { newestShown, wouldClear } from "@/lib/inbox/seen";
+import { KIND_LABEL, type InboxItem, type InboxKind } from "@/lib/inbox/types";
 
 /**
  * The inbox page's list: kind chips, then the items grouped by day in one
- * fixed-height box that scrolls inside (about eight rows show), and "Mark all
- * read". Filtering happens here, on what the page already sent, so a chip
- * never waits on the server; the chosen kind is kept in the address.
+ * fixed-height box that scrolls inside (about eight rows show). Filtering
+ * happens here, on what the page already sent, so a chip never waits on the
+ * server; the chosen kind is kept in the address.
+ *
+ * Opening the page reads it: after about two seconds in view, everything it
+ * shows is marked read, and following an item marks it at once. The "new" dots
+ * stay for this view so people see what was new. "Mark all read" is only there
+ * when that save failed and something is still unread.
  */
 
 const FOCUS = "outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]";
@@ -35,6 +42,7 @@ export function InboxList({
   example,
   initialKind,
   heading = null,
+  account = null,
 }: {
   items: InboxItem[];
   /** The read mark the page was rendered with; null for the example. */
@@ -44,11 +52,17 @@ export function InboxList({
   initialKind: InboxKind | null;
   /** The page's read in one line, when it has no cards of its own: it heads the list instead of a card by itself. */
   heading?: string | null;
+  /** The signed-in person's uid; null for the example. */
+  account?: string | null;
 }) {
   const [kind, setKind] = React.useState<InboxKind | null>(initialKind);
   const [mark, setMark] = React.useState<string | null>(seenAt);
   const [saving, setSaving] = React.useState<"idle" | "saving" | "failed">("idle");
   const router = useRouter();
+  // Everything the page shows (every kind; a chip only hides rows), read up to its newest item.
+  const newest = React.useMemo(() => newestShown(items), [items]);
+  const clears = !example && wouldClear(items, mark);
+  const auto = useMarkSeen({ auto: clears, at: newest, signedIn: !example, account });
 
   const chips = React.useMemo(() => {
     const counts = new Map<InboxKind, number>();
@@ -70,29 +84,27 @@ export function InboxList({
     window.history.replaceState(window.history.state, "", url.toString());
   };
 
+  // Asked for by hand (the automatic save failed): the dots clear now and the read above the list is drawn again.
   const markAll = async () => {
     setSaving("saving");
-    try {
-      const response = await fetch("/api/inbox/seen", { method: "POST", credentials: "same-origin" });
-      if (!response.ok) throw new Error(String(response.status));
-      const body = (await response.json()) as { seenAt?: string };
-      const next = body.seenAt ?? new Date().toISOString();
-      setMark(next);
-      setSaving("idle");
-      window.dispatchEvent(new CustomEvent(INBOX_SEEN_EVENT, { detail: { seenAt: next } }));
-      // The read above the list counts from the read mark: draw it again.
-      router.refresh();
-    } catch {
+    const next = await postSeen(null, { account });
+    if (!next) {
       setSaving("failed");
+      return;
     }
+    setMark(next);
+    setSaving("idle");
+    router.refresh();
   };
+  // Only when something can still be unread: the automatic save failed and nothing cleared it since.
+  const offerMarkAll = !example && unread > 0 && (auto.state === "failed" || saving !== "idle");
 
   return (
     <section aria-label="Inbox" className="oa-surface min-w-0 overflow-hidden border border-oa-border bg-oa-card">
       {heading ? (
         <h2 className="text-pretty px-4 pb-1 pt-3.5 text-[17px] font-semibold leading-[24px] tracking-[-0.01em] text-oa-fg sm:px-5 sm:text-[19px] sm:leading-[26px]">{heading}</h2>
       ) : null}
-      {filtering || !example ? (
+      {filtering || offerMarkAll ? (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-oa-border px-3 py-2.5 sm:px-4">
           {filtering ? (
             <div role="group" aria-label="Show" className="scrollbar-hide -mx-1 flex min-w-0 basis-full gap-2 overflow-x-auto px-1 sm:basis-0 sm:flex-1">
@@ -108,18 +120,16 @@ export function InboxList({
               ))}
             </div>
           ) : null}
-          {!example ? (
+          {offerMarkAll ? (
             <div className="ml-auto flex shrink-0 items-center gap-3">
               {saving === "failed" ? <span className="text-[12.5px] text-oa-muted-fg">That didn&apos;t save. Try again.</span> : null}
               <button
                 type="button"
                 onClick={markAll}
-                disabled={unread === 0 || saving === "saving"}
-                className={`h-8 rounded-md px-2.5 text-[13.5px] font-medium transition-colors ${FOCUS} ${
-                  unread === 0 ? "cursor-default text-oa-muted-fg" : "text-oa-primary hover:bg-oa-accent"
-                }`}
+                disabled={saving === "saving"}
+                className={`h-8 rounded-md px-2.5 text-[13.5px] font-medium text-oa-primary transition-colors hover:bg-oa-accent ${FOCUS}`}
               >
-                {unread === 0 ? "All read" : saving === "saving" ? "Marking…" : `Mark all read (${unread})`}
+                {saving === "saving" ? "Marking…" : `Mark all read (${unread})`}
               </button>
             </div>
           ) : null}
@@ -134,7 +144,15 @@ export function InboxList({
               <h3 className="oa-caption sticky top-0 z-[1] border-b border-oa-border bg-oa-bg px-4 py-1.5">{group.label}</h3>
               <ul className="divide-y divide-oa-border">
                 {group.items.map((item) => (
-                  <InboxRow key={item.id} item={item} unread={Boolean(mark && isUnread(item, mark))} today={today} lockMark={<ProMark />} />
+                  <InboxRow
+                    key={item.id}
+                    item={item}
+                    unread={Boolean(mark && isUnread(item, mark))}
+                    today={today}
+                    lockMark={<ProMark />}
+                    // Following an item counts as reading it: the save goes now, up to that item, not after the two seconds.
+                    onOpen={mark && isUnread(item, mark) ? () => auto.markNow(item.at) : undefined}
+                  />
                 ))}
               </ul>
             </section>

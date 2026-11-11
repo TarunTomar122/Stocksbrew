@@ -73,10 +73,11 @@ export function InboxRow({
   return (
     <li
       data-inbox-id={item.id}
-      className={`relative flex items-start gap-3 ${compact ? "px-3 py-2.5" : "px-4 py-3"} transition-colors hover:bg-oa-accent ${item.quiet ? "opacity-80" : ""}`}
+      className={`relative flex items-start gap-3 ${compact ? "py-2.5 pl-5 pr-3" : "py-3 pl-6 pr-4"} transition-colors hover:bg-oa-accent ${item.quiet ? "opacity-80" : ""}`}
     >
       {unread ? (
-        <span aria-hidden="true" className={`absolute left-1.5 ${compact ? "top-[17px]" : "top-[19px]"} size-1.5 rounded-full bg-oa-primary`} />
+        // In its own gutter, level with the middle of the icon, never over it.
+        <span aria-hidden="true" className={`absolute ${compact ? "left-2 top-[21px]" : "left-2.5 top-[25px]"} size-1.5 rounded-full bg-oa-primary`} />
       ) : null}
       <span className="mt-0.5 flex shrink-0 items-center">
         {lead ? (

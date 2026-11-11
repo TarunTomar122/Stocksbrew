@@ -25,9 +25,9 @@ function CompanyCard({ group, filters }: { group: CompanyGroup; filters: WireFil
         {group.pct !== null ? <Delta value={group.pct} digits={1} className="shrink-0 text-[14px] font-medium" /> : null}
       </header>
       {/* The tone only when the news clearly leans; a card whose news doesn't lean says nothing about it (owner rule 1). */}
-      {leanWords(group.tones) ? (
+      {leanWords(group.tones, group.count) ? (
         <div className="flex min-h-9 items-center border-b border-oa-border bg-oa-bg px-4 py-1.5">
-          <ToneBar counts={group.tones} />
+          <ToneBar counts={group.tones} stories={group.count} />
         </div>
       ) : null}
       {/* No footer count: the tone above is the card's one figure (owner rule 5), and the card itself opens the rest. */}

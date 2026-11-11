@@ -22,6 +22,7 @@ The rule the owner has repeated most, and is angriest about: "repeating the same
 - Stock items in the briefing, memo, market summaries and similar lists are small cards side by side, with the logo, one big figure and one highlighted fact. "Instead of having this in a table with rows, turn them into small cards ... each stock gets a card with some information that we need highlighted."
 - Reads and summaries are visual, not paragraphs: "I don't want to read text." Insights are cards with one big figure, and the weekly memo is charts and cards.
 - Cards in a row are equal height.
+- Ranked lists with several facts per stock (Signals' Reddit names, News' most talked about) stay compact tables, not cards: "this table was better off earlier without cards". Each row still carries its signal: the mood or tone (positive/negative talk, as one figure or word) and one highlight (what is being said, the top story), not just a ticker and a number ("where info about positive or negative talk and highlight?").
 - Dense data tables (screener, holdings) can stay tables, but tickers only (no long names), names on one line cut with "…", and short column words ("Avg cost").
 
 ## 4. No empty space
@@ -30,6 +31,8 @@ The rule the owner has repeated most, and is angriest about: "repeating the same
 - No half-empty card rows: a lone card fills its row, and an odd last card spans the row.
 - No side rail that ends halfway down while the main column goes on. No card stretched tall over a short list ("hate the empty space here wtf is this ugly").
 - No card padded out to match a taller neighbour: fill it with more real content, or size both lists to the same scroll height.
+
+- No card without data: a card that can only say "you have not…", "none of your holdings…", "nothing to plan yet" is not shown at all ("dont show cards when we dont have data breh"). Empty states belong on the page that owns them, not as filler cards elsewhere.
 
 ## 5. Lists and tables
 
@@ -77,6 +80,9 @@ The rule the owner has repeated most, and is angriest about: "repeating the same
 - Secondary material goes in the right rail, not the main column ("this should be in sidebar on right, cz it's not super important"; e.g. Your agents on the briefing).
 - Today includes Premarket ("where is premarket??? need that in today").
 - A stock page header must not have an empty left side and too much text on the right.
+
+- My stocks is about the person's stocks, not the tools: "a lot of useless insights, I'd rather have more useful stuff about my stocks". Each holding with its move, gain, call and the one thing that matters for it; tools (stress test, goal planner, dividends) are links, not cards.
+- Agent status reads in two seconds: one row per agent (kind, short name, a figure, when it ran) and flagged stocks as logo chips with their move. No "Checked: …" paragraphs ("what is this design and why is it so text").
 
 ## 11. Speed
 

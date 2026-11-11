@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { Delta, Empty, FOCUS, NUM, Panel, Ticker } from "@/components/oa/kit";
 import { StockLogo } from "@/components/stock-logo";
-import { ToneBar, headlineWords } from "@/components/wire/news-read";
+import { ToneBar, headlineWords, leanWords } from "@/components/wire/news-read";
 import type { WireQuote } from "@/lib/wire";
 import type { ToneCounts } from "@/lib/wire-read";
 import {
@@ -215,6 +215,7 @@ export function TickerStrip({
   quote,
   count,
   tones,
+  toneStories,
   filters,
 }: {
   ticker: string;
@@ -222,6 +223,8 @@ export function TickerStrip({
   count: number;
   /** How its headlines lean, said once here instead of on every row below. */
   tones?: ToneCounts;
+  /** How many stories `tones` was counted over, labelled or not. */
+  toneStories?: number;
   filters: WireFilters;
 }) {
   return (
@@ -235,7 +238,12 @@ export function TickerStrip({
       <span className={`${NUM} text-[14px] text-oa-muted-fg`}>
         {count} headline{count === 1 ? "" : "s"} in 14 days
       </span>
-      {tones ? <ToneBar counts={tones} className="[&_span]:text-[14px]" /> : null}
+      {/* The lean is over the last day's stories, so it says "today" beside the 14-day count. */}
+      {tones && leanWords(tones, toneStories) ? (
+        <span className="text-[14px] text-oa-muted-fg">
+          <ToneBar counts={tones} stories={toneStories} className="[&_span]:text-[14px]" /> today
+        </span>
+      ) : null}
       <span className="ml-auto flex items-center gap-3 text-[14px]">
         <Link prefetch={false} href={`/stock/${encodeURIComponent(ticker)}`} className={`rounded font-medium text-oa-primary hover:underline ${FOCUS}`}>
           Open {ticker}

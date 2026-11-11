@@ -52,3 +52,30 @@ def test_parse_merges_follows_chains_and_drops_cycles():
     }
     assert nt.parse_merges(payload, counts) == {"Nvidia governance concerns": "Nvidia CEO probe", "Crude slide": "Oil slide"}
     assert nt.parse_merges({}, counts) == {}
+
+
+class _FakeStore:
+    def __init__(self, fail: bool = False):
+        self.writes: list[tuple[str, dict, bool]] = []
+        self.fail = fail
+
+    def set(self, path, data, merge=False):
+        if self.fail:
+            raise OSError("down")
+        self.writes.append((path, data, merge))
+
+
+def test_note_skip_records_the_reason_without_touching_updated_at():
+    store = _FakeStore()
+    assert nt.note_skip("ANTHROPIC_API_KEY is not set", store=store) == {"skipped": "ANTHROPIC_API_KEY is not set"}
+    [(path, data, merge)] = store.writes
+    assert path == nt.META_PATH and merge is True
+    assert data["skipped"] == "ANTHROPIC_API_KEY is not set" and "skipped_at" in data
+    assert "updated_at" not in data
+
+
+def test_note_skip_is_quiet_on_a_dry_run_and_when_the_store_is_down():
+    store = _FakeStore()
+    assert nt.note_skip("x", store=store, dry_run=True) == {"skipped": "x"}
+    assert store.writes == []
+    assert nt.note_skip("x", store=_FakeStore(fail=True)) == {"skipped": "x"}

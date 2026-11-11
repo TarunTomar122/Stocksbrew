@@ -43,7 +43,7 @@ async function readExampleRuns(today: string): Promise<StoredCheck[]> {
     .filter((run): run is StoredCheck => run !== null);
 }
 
-const cachedRuns = sharedCache(readExampleRuns, ["example-agent-runs-v1"], { revalidate: REVALIDATE_SECONDS });
+const cachedRuns = sharedCache(readExampleRuns, ["example-agent-runs-v2"], { revalidate: REVALIDATE_SECONDS });
 
 /** The example's runs for today's window, once per request; null when the read failed or ran past its limit. */
 const exampleRuns = cache(async (today: string): Promise<StoredCheck[] | null> => {

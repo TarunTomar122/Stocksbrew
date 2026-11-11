@@ -9,8 +9,9 @@ import { TickerStrip, WireFilterBar, WireSearch, WireStream } from "@/components
 import { getSessionUser } from "@/lib/auth-server";
 import { getTrackedStocks } from "@/lib/watchlist";
 import { loadWire, modelLabel } from "@/lib/wire";
-import { COMPANY_PAGE, groupByCompany } from "@/lib/wire-companies";
-import { countTones, readTheWire, themesBesideRead } from "@/lib/wire-read";
+import { COMPANY_PAGE, groupByCompany, labelFor } from "@/lib/wire-companies";
+import { withHeadlineTones } from "@/lib/wire-headline-tone";
+import { countTones, readTheWire, storiesBetween, themesBesideRead } from "@/lib/wire-read";
 import {
   WIRE_TOPICS,
   filterWire,
@@ -82,9 +83,13 @@ export default async function NewsPage({ searchParams }: { searchParams?: Search
   // Never later than now, so one headline stamped in the future cannot push the window past real news.
   const anchor = wire.freshness.newestAt ? Math.min(now, Date.parse(wire.freshness.newestAt)) : now;
   const since = anchor - 24 * 3_600_000;
+  // The model labels, plus a tone from the headline's own words for the last two days' stories it has not read, so
+  // a stock's news can be said to lean even when the labeller is behind (lib/wire-headline-tone.ts; kept apart).
+  const names = Object.fromEntries(Object.entries(wire.quotes).map(([ticker, quote]) => [ticker, quote.name]));
+  const labels = withHeadlineTones(wire.items, wire.labels, { sinceMs: anchor - 48 * 3_600_000, names });
   // A ticker or a theme reads as one time-ordered stream; everything else is read by stock.
   const streamView = Boolean(effective.ticker || effective.theme);
-  const grouped = streamView ? [] : groupByCompany(matched, { sinceMs: since, quotes: wire.quotes, mine: mineSet, labels: wire.labels });
+  const grouped = streamView ? [] : groupByCompany(matched, { sinceMs: since, quotes: wire.quotes, mine: mineSet, labels });
   // "My stocks" keeps stories that name a followed company; a roundup naming others must not put them under "Your companies".
   const companies = effective.mine ? grouped.filter((group) => group.mine) : grouped;
   // The read is about the whole market, so it only leads the unfiltered wire.
@@ -95,7 +100,7 @@ export default async function NewsPage({ searchParams }: { searchParams?: Search
           {
             items: wire.items,
             quotes: wire.quotes,
-            labels: wire.labels,
+            labels,
             newestAt: wire.freshness.newestAt,
             labelledBy: modelLabel(wire.labelsMeta.model),
             labelledAt: wire.labelsMeta.updatedAt,
@@ -108,6 +113,8 @@ export default async function NewsPage({ searchParams }: { searchParams?: Search
   const step = Math.max(1, Math.round(effective.limit / WIRE_PAGE_SIZE));
   const shownCompanies = COMPANY_PAGE * step;
   const canShowMore = effective.limit < WIRE_MAX_ROWS;
+  // One stock's lean over the same last day the rest of the page reads, every story counted.
+  const tickerDay = effective.ticker ? storiesBetween(wire.items, labels, since, anchor + 1) : [];
 
   return (
     <AppPage>
@@ -151,7 +158,14 @@ export default async function NewsPage({ searchParams }: { searchParams?: Search
       ) : null}
 
       {effective.ticker ? (
-        <TickerStrip ticker={effective.ticker} quote={wire.quotes[effective.ticker]} count={wire.items.length} tones={countTones(wire.items, wire.labels)} filters={effective} />
+        <TickerStrip
+          ticker={effective.ticker}
+          quote={wire.quotes[effective.ticker]}
+          count={wire.items.length}
+          tones={countTones(tickerDay, labels, (item) => Boolean(labelFor(labels, item, effective.ticker ?? "")))}
+          toneStories={tickerDay.filter((item) => labels[item.id]?.scope !== "other").length}
+          filters={effective}
+        />
       ) : null}
 
       {streamView ? (

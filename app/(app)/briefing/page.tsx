@@ -6,6 +6,7 @@ import { BriefingAgentsGhost, BriefingAgentsStrip } from "@/components/briefing/
 import { BriefingView } from "@/components/briefing/briefing-view";
 import { BriefingLockedMoves } from "@/components/briefing/locked-moves";
 import { EarningsDayBriefing } from "@/components/earnings-day/briefing-reports";
+import { AgentLog, AgentLogGhost } from "@/components/agent-log/agent-log";
 import { AppPage } from "@/components/oa/kit";
 import { BeforeOpenCard } from "@/components/premarket/before-open";
 import { MarketingSchema } from "@/components/seo/marketing-schema";
@@ -159,6 +160,13 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
             )
           }
           locked={await lockedSlot(data)}
+          agentLog={
+            day || data.archived ? null : (
+              <Suspense fallback={<AgentLogGhost />}>
+                <AgentLog />
+              </Suspense>
+            )
+          }
           earnings={
             day || data.archived ? null : (
               <Suspense fallback={null}>

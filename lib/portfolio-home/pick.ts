@@ -651,6 +651,8 @@ export type ToolCard = {
   figure: string | null;
   /** What the figure is, or why there is none. */
   detail: string;
+  /** The figure only says there is nothing there ("Nothing to trim", "No losses"): no row of its own in a list. */
+  empty: boolean;
 };
 
 export type ToolGroup = { label: string; tools: ToolId[] };
@@ -702,7 +704,7 @@ export function goalYearly(goal: GoalData): number | null {
   return spy ? yearlyOf(discounted(own.returns, spy.returns, HINDSIGHT_DISCOUNT)) : own.yearly;
 }
 
-function figureFor(id: ToolId, sources: Partial<HomeSources>, mode: HomeMode): Pick<ToolCard, "figure" | "detail"> | null {
+function figureFor(id: ToolId, sources: Partial<HomeSources>, mode: HomeMode): (Pick<ToolCard, "figure" | "detail"> & { empty?: true }) | null {
   const example = mode === "example";
   const your = example ? "the example's" : "your";
   switch (id) {
@@ -722,7 +724,7 @@ function figureFor(id: ToolId, sources: Partial<HomeSources>, mode: HomeMode): P
       if (!memo) return sources.memo?.state === "empty" && !example ? { figure: null, detail: "Open it and this week's memo is written for your holdings." } : null;
       const watch = memo.hurt.length;
       const look = memo.look.length;
-      if (watch + look === 0) return { figure: "A quiet week", detail: `Nothing in ${your} stocks needs a decision.` };
+      if (watch + look === 0) return { figure: "A quiet week", detail: `Nothing in ${your} stocks needs a decision.`, empty: true };
       return {
         figure: watch > 0 ? `${watch} to watch` : `${look} worth a look`,
         detail:
@@ -745,7 +747,7 @@ function figureFor(id: ToolId, sources: Partial<HomeSources>, mode: HomeMode): P
       const season = ready(sources.season)?.season;
       if (!season) return null;
       const holdings = season.reporting.filter((stock) => stock.kind === "holding");
-      if (holdings.length === 0) return { figure: "No reports", detail: `None of ${your} holdings reports in the next six weeks.` };
+      if (holdings.length === 0) return { figure: "No reports", detail: `None of ${your} holdings reports in the next six weeks.`, empty: true };
       const first = holdings[0]!;
       return {
         figure: `${holdings.length} ${holdings.length === 1 ? "report" : "reports"}`,
@@ -785,7 +787,7 @@ function figureFor(id: ToolId, sources: Partial<HomeSources>, mode: HomeMode): P
       const ideas = ready(sources.ideas);
       if (!ideas || !(ideas.plan.total > 0)) return null;
       const trims = ideas.plan.trims.length;
-      if (trims === 0) return { figure: "Nothing to trim", detail: `${example ? "The example" : "Your portfolio"} is not leaning too hard on one company or sector.` };
+      if (trims === 0) return { figure: "Nothing to trim", detail: `${example ? "The example" : "Your portfolio"} is not leaning too hard on one company or sector.`, empty: true };
       return {
         figure: `${trims} trim ${trims === 1 ? "idea" : "ideas"}`,
         detail: ideas.plan.adds.length > 0 ? `With ${ideas.plan.adds.length} ${ideas.plan.adds.length === 1 ? "place" : "places"} the money could go.` : "With the tax on each sale.",
@@ -795,7 +797,7 @@ function figureFor(id: ToolId, sources: Partial<HomeSources>, mode: HomeMode): P
       const ideas = ready(sources.ideas);
       if (!ideas || !(ideas.plan.total > 0)) return null;
       const losses = ideas.losses;
-      if (losses.length === 0) return { figure: "No losses", detail: `No holding is far enough below ${example ? "what was paid" : "what you paid"} to sell for tax.` };
+      if (losses.length === 0) return { figure: "No losses", detail: `No holding is far enough below ${example ? "what was paid" : "what you paid"} to sell for tax.`, empty: true };
       const total = losses.reduce((sum, loss) => sum + loss.loss, 0);
       return {
         figure: usd(total),
@@ -815,5 +817,6 @@ export function toolCard(id: ToolId, sources: Partial<HomeSources>, mode: HomeMo
     href: TOOL_HREF[id],
     figure: figure?.figure ?? null,
     detail: figure?.detail ?? WAITING[state === "ready" ? "empty" : state],
+    empty: figure?.figure == null || figure.empty === true,
   };
 }

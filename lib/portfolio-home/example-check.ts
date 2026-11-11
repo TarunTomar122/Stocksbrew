@@ -19,7 +19,7 @@ export type StoredCheck = {
   ran_at: string;
   decision: AgentDecision;
   summary: string;
-  findings: Array<Pick<AgentFinding, "ticker" | "headline" | "detail" | "source" | "url" | "at">>;
+  findings: Array<Pick<AgentFinding, "ticker" | "headline" | "detail" | "source" | "url" | "at"> & Partial<Pick<AgentFinding, "kind" | "change_pct">>>;
   /** Every finding the run stored, when more were kept than `findings` holds. */
   findingCount?: number;
   checked: string[];
@@ -367,6 +367,11 @@ export function exampleAgentsSource(agents: Array<{ id: string; draft: Pick<Agen
   if (own.length === 0) return null;
   return {
     jobs: agents.map((agent) => ({ id: agent.id, name: agent.draft.name, enabled: true, trigger: agent.draft.trigger, scope: agent.draft.scope })),
-    runs: own.map((run) => ({ ...asSourceRuns([run])[0]!, tickers: run.decision === "notify" ? runTickers(run.findings) : [] })),
+    runs: own.map((run) => ({
+      ...asSourceRuns([run])[0]!,
+      tickers: run.decision === "notify" ? runTickers(run.findings) : [],
+      // What it found, for the agent rows' stock chips (lib/portfolio-home/agent-lines.ts).
+      detail: { findings: run.findings, findingCount: run.findingCount ?? run.findings.length, checked: run.checked, latest_close: run.latest_close, counts: run.counts },
+    })),
   };
 }

@@ -4,7 +4,7 @@
  * Pure, so the grouping and the noise rules can be tested without a store.
  */
 
-import type { NewsLabels, ToneCounts } from "@/lib/wire-read";
+import type { NewsLabel, NewsLabels, ToneCounts } from "@/lib/wire-read";
 import type { WireItem } from "@/lib/wire-shared";
 
 export type CompanyGroup = {
@@ -91,6 +91,12 @@ export function better(a: WireItem, b: WireItem): number {
   return a.publishedAt < b.publishedAt ? 1 : a.publishedAt > b.publishedAt ? -1 : 0;
 }
 
+/** The story's label as it bears on one stock it names: none when the label is about the other stock in it. */
+export function labelFor(labels: NewsLabels | null | undefined, item: WireItem, ticker: string): NewsLabel | undefined {
+  const label = labels?.[item.id];
+  return label && (!label.ticker || label.ticker === ticker) ? label : undefined;
+}
+
 /**
  * Group the wire by the companies it names, since `sinceMs`. Each story counts
  * once per company even when several feeds carried it. Companies the viewer
@@ -136,7 +142,7 @@ export function groupByCompany(
     const ordered = [...group.items].sort(better);
     const tones = { positive: 0, negative: 0, neutral: 0 };
     for (const item of group.items) {
-      const label = labels?.[item.id];
+      const label = labelFor(labels, item, ticker);
       if (label) tones[label.tone] += 1;
     }
     groups.push({

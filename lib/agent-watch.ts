@@ -1,4 +1,4 @@
-import { AGENT_JOB_ID_RE, describeJob, runDocId, scheduleDue, type AgentDecision, type AgentJob, type AgentRunCounts } from "@/lib/agent-jobs";
+import { AGENT_JOB_ID_RE, describeJob, runDocId, scheduleDue, type AgentDecision, type AgentFindingKind, type AgentJob, type AgentRunCounts } from "@/lib/agent-jobs";
 import { afterCloseRunOn, afterCloseTimeEt } from "@/lib/agent-schedule";
 import { fmtPlanDay } from "@/lib/dividend-plan";
 import { nextRunDay, previousMarketDay, runnerDay, scheduledRunDay, type AgentsSource, type RunDetail } from "@/lib/portfolio-home/log";
@@ -247,6 +247,9 @@ export function runDetailFromDoc(data: Record<string, unknown>, limit = DETAIL_F
       source: text(finding.source),
       url: text(finding.url) || null,
       at: text(finding.at).slice(0, 10),
+      // The structured move, when the run stored one: the agent rows show it beside the ticker.
+      ...(typeof finding.change_pct === "number" && Number.isFinite(finding.change_pct) ? { change_pct: finding.change_pct } : {}),
+      ...(typeof finding.kind === "string" && finding.kind ? { kind: finding.kind as AgentFindingKind } : {}),
     })),
     findingCount: findings.length,
     checked: Array.isArray(data.checked) ? (data.checked as unknown[]).filter((line): line is string => typeof line === "string") : [],

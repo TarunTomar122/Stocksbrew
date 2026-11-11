@@ -225,13 +225,27 @@ def merge_themes(client: Any, model: str, counts: dict[str, int]) -> dict[str, s
         return {}
 
 
+def note_skip(reason: str, *, store: Any = None, dry_run: bool = False) -> dict[str, Any]:
+    """Say on the meta doc why the job did nothing, so a stalled label feed shows its cause.
+
+    Only ``skipped`` and ``skipped_at`` are written: ``updated_at`` stays the time labels were last written, which is
+    what the wire reads as the labels' age. A store that cannot be reached is not an error here.
+    """
+    if not dry_run:
+        try:
+            (store or DocStore.from_env()).set(META_PATH, {"skipped": reason, "skipped_at": iso_now()}, merge=True)
+        except Exception as error:  # noqa: BLE001 - the skip itself is the result; the note is best effort
+            print(f"[news_tone] could not note the skip: {type(error).__name__}", flush=True)
+    return {"skipped": reason}
+
+
 def run(*, hours: int = 48, limit: int | None = None, dry_run: bool = False, model: str | None = None) -> dict[str, Any]:
     try:
         import anthropic  # only this job needs it
     except ImportError:
-        return {"skipped": "the anthropic package is not installed"}
+        return note_skip("the anthropic package is not installed", dry_run=dry_run)
     if not os.getenv("ANTHROPIC_API_KEY", "").strip():
-        return {"skipped": "ANTHROPIC_API_KEY is not set"}
+        return note_skip("ANTHROPIC_API_KEY is not set", dry_run=dry_run)
 
     model = model or os.getenv("NEWS_TONE_MODEL", "").strip() or DEFAULT_MODEL
     store = DocStore.from_env()
@@ -305,11 +319,16 @@ def run(*, hours: int = 48, limit: int | None = None, dry_run: bool = False, mod
         merged = len(renames)
 
     if not dry_run:
-        store.set(
-            META_PATH,
-            {"market": "US", "updated_at": now_iso, "model": model, "method": METHOD, "window_hours": hours, "labelled": written, "failed": failed, "theme_renames": merged},
-            merge=True,
-        )
+        if written == 0 and failed > 0:
+            # Every batch failed (a revoked key, an outage): say so, and leave ``updated_at`` as the last time labels
+            # were written, so the stall shows instead of looking like a fresh run.
+            store.set(META_PATH, {"skipped": f"every batch failed ({failed} headlines)", "skipped_at": now_iso, "failed": failed}, merge=True)
+        else:
+            store.set(
+                META_PATH,
+                {"market": "US", "updated_at": now_iso, "model": model, "method": METHOD, "window_hours": hours, "labelled": written, "failed": failed, "theme_renames": merged, "skipped": None},
+                merge=True,
+            )
     return {"headlines": len(headlines), "already": len(headlines) - len(todo), "labelled": written, "failed": failed, "themes": len(counts), "theme_renames": merged}
 
 

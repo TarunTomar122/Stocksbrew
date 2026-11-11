@@ -36,7 +36,7 @@ export type AgentsSource = {
 
 /** A run's evidence and what it checked (lib/agent-watch.ts runDetailFromDoc). */
 export type RunDetail = {
-  findings: Array<Pick<AgentFinding, "ticker" | "headline" | "detail" | "source" | "url" | "at">>;
+  findings: Array<Pick<AgentFinding, "ticker" | "headline" | "detail" | "source" | "url" | "at"> & Partial<Pick<AgentFinding, "kind" | "change_pct">>>;
   /** Every finding the run stored, the ones left out of `findings` included. */
   findingCount: number;
   checked: string[];
