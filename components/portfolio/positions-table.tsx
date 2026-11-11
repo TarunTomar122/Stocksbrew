@@ -635,7 +635,7 @@ export function PositionsTable({
                       </span>
                     </div>
                   ) : null}
-                  {position.stance || position.nextEarnings || editable ? (
+                  {position.stance || position.nextEarnings ? (
                   <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 pl-[2.125rem]">
                     {position.stance ? <CallCell position={position} /> : null}
                     <span className="ml-auto flex shrink-0 items-center gap-2">
@@ -643,20 +643,6 @@ export function PositionsTable({
                         <span className="text-[11px] text-oa-muted-fg">
                           Reports <EarningsCell next={position.nextEarnings} today={today} />
                         </span>
-                      ) : null}
-                      {editable ? (
-                        <button
-                          type="button"
-                          aria-expanded={isEditing}
-                          aria-label={`Edit ${position.ticker}`}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setEditing(isEditing ? null : position.instrument_id);
-                          }}
-                          className={`inline-flex h-10 items-center rounded border border-oa-border px-3 text-[13px] font-medium text-oa-fg ${FOCUS}`}
-                        >
-                          {isEditing ? "Close" : "Edit"}
-                        </button>
                       ) : null}
                     </span>
                   </div>

@@ -163,8 +163,9 @@ export function zoneFor(row: Pick<PortfolioRowInput, "stance" | "zones" | "price
   const near = (level: number) => !price || Math.abs(level - price) / price <= 0.5;
   const add = positive(zones.accumulate_below);
   const trim = positive(zones.trim_above);
-  if (call === "Add" && add && near(add)) return { label: `Buy more below ${money(add)}`, tone: "bull" };
-  if (call === "Trim" && trim && near(trim)) return { label: `Sell some above ${money(trim)}`, tone: "bear" };
+  // The call's chip sits beside it, so the level says only where: "Below $296".
+  if (call === "Add" && add && near(add)) return { label: `Below ${money(add)}`, tone: "bull" };
+  if (call === "Trim" && trim && near(trim)) return { label: `Above ${money(trim)}`, tone: "bear" };
   return null;
 }
 

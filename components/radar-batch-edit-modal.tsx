@@ -87,6 +87,8 @@ export function RadarBatchEditModal({
   const [items, setItems] = useState<StagedItem[]>(() => [...initialItems]);
   // What is typed in each row's shares box, kept as text so "3." or an empty box can be typed freely.
   const [shareDrafts, setShareDrafts] = useState<Record<string, string>>({});
+  // The same for the cost per share, so the whole holding can be edited here (the rows have no Edit button).
+  const [costDrafts, setCostDrafts] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -102,6 +104,7 @@ export function RadarBatchEditModal({
     if (!opening) return;
     setItems([...initialItems]);
     setShareDrafts({});
+    setCostDrafts({});
     originalIds.current = new Set(initialItems.map((i) => i.instrument_id));
     setQuery("");
     setError(null);
@@ -210,6 +213,20 @@ export function RadarBatchEditModal({
     setShareDrafts((prev) => ({ ...prev, [instrumentId]: raw }));
   }
 
+  function setCost(instrumentId: string, raw: string) {
+    setCostDrafts((prev) => ({ ...prev, [instrumentId]: raw }));
+  }
+
+  /** The typed cost per share when it is a real price, else null: an empty or bad box keeps the saved cost. */
+  function typedCost(instrumentId: string): number | null {
+    const raw = costDrafts[instrumentId];
+    if (raw === undefined) return null;
+    const text = raw.replace(/[$₹,]/g, "").trim();
+    if (text === "") return null;
+    const value = Number(text);
+    return Number.isFinite(value) && value > 0 && value <= 1_000_000_000 ? value : null;
+  }
+
   /** The typed share count when it is a real number, else null: an empty or bad box keeps the saved count. */
   function typedShares(instrumentId: string): number | null {
     const raw = shareDrafts[instrumentId];
@@ -221,12 +238,14 @@ export function RadarBatchEditModal({
   }
 
   function clearDraft(instrumentId: string) {
-    setShareDrafts((prev) => {
+    const drop = (prev: Record<string, string>) => {
       if (!(instrumentId in prev)) return prev;
       const next = { ...prev };
       delete next[instrumentId];
       return next;
-    });
+    };
+    setShareDrafts(drop);
+    setCostDrafts(drop);
   }
 
   function remove(instrumentId: string) {
@@ -269,8 +288,12 @@ export function RadarBatchEditModal({
             const initial = initialItems.find((x) => x.instrument_id === i.instrument_id);
             const saved = i.position_type === "holding" ? i.holding ?? initial?.holding : undefined;
             const typed = i.position_type === "holding" ? typedShares(i.instrument_id) : null;
-            // A typed count replaces the saved one; everything else on the holding (its average cost) is kept.
-            const holding = typed !== null ? { ...(saved ?? {}), quantity: typed } : saved;
+            const cost = i.position_type === "holding" ? typedCost(i.instrument_id) : null;
+            // Typed numbers replace the saved ones; anything left empty keeps what was saved.
+            const holding =
+              typed !== null || cost !== null
+                ? { ...(saved ?? {}), ...(typed !== null ? { quantity: typed } : {}), ...(cost !== null ? { average_cost: cost } : {}) }
+                : saved;
             return {
               instrument_id: i.instrument_id,
               position_type: i.position_type,
@@ -389,7 +412,7 @@ export function RadarBatchEditModal({
                   {sortedItems.map((item) => {
                     const isNew = !originalIds.current.has(item.instrument_id);
                     return (
-                      <li key={item.instrument_id} className={`flex items-center gap-2.5 px-4 py-3 transition-colors ${isNew ? "tint-bull" : ""}`}>
+                      <li key={item.instrument_id} className={`flex flex-wrap items-center gap-2.5 px-4 py-3 transition-colors sm:flex-nowrap ${isNew ? "tint-bull" : ""}`}>
                         <StockLogo ticker={item.ticker} market={item.instrument_id.startsWith("IN_") ? "IN" : "US"} size={30} />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5">
@@ -401,6 +424,7 @@ export function RadarBatchEditModal({
                           <p className="truncate text-[11px] text-on-surface-variant">{item.name}</p>
                         </div>
                         {item.position_type === "holding" ? (
+                          <div className="order-last flex w-full justify-end gap-2 pl-10 sm:order-none sm:w-auto sm:pl-0">
                           <label className="flex shrink-0 flex-col items-end gap-0.5">
                             <span className="text-[10px] font-medium uppercase tracking-wide text-on-surface-variant">Shares</span>
                             <input
@@ -416,6 +440,22 @@ export function RadarBatchEditModal({
                               className="w-[76px] rounded-lg border border-outline-variant bg-surface px-2 py-1 text-right text-[13px] tabular-nums text-on-surface outline-none focus:border-on-surface aria-[invalid=true]:border-[#ef4444]"
                             />
                           </label>
+                          <label className="flex shrink-0 flex-col items-end gap-0.5">
+                            <span className="text-[10px] font-medium uppercase tracking-wide text-on-surface-variant">Cost per share</span>
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              autoComplete="off"
+                              placeholder={item.instrument_id.startsWith("IN_") ? "₹0" : "$0"}
+                              aria-label={`Cost per share of ${item.ticker}`}
+                              value={costDrafts[item.instrument_id] ?? (item.holding?.average_cost != null ? String(Math.round(item.holding.average_cost * 100) / 100) : "")}
+                              onChange={(event) => setCost(item.instrument_id, event.target.value)}
+                              aria-invalid={Boolean(costDrafts[item.instrument_id]?.trim()) && typedCost(item.instrument_id) === null}
+                              title="What you paid for each share, on average. Leaving it empty keeps the saved cost."
+                              className="w-[92px] rounded-lg border border-outline-variant bg-surface px-2 py-1 text-right text-[13px] tabular-nums text-on-surface outline-none focus:border-on-surface aria-[invalid=true]:border-[#ef4444]"
+                            />
+                          </label>
+                          </div>
                         ) : null}
                         <PositionSwitch
                           value={item.position_type}

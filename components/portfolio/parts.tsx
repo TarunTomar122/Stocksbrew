@@ -57,7 +57,7 @@ function plainCall(stance: string): string {
   return call ? CALL_PLAIN[call] : stance;
 }
 
-/** Our call and the one price that goes with it: "Buy more" and "Buy more below $180". */
+/** Our call and the one price that goes with it: "Buy more" and "Below $180". */
 export function CallCell({ position }: { position: Pick<PortfolioPosition, "stance" | "zone" | "needsAttention"> }) {
   if (!position.stance) return <Dash />;
   const tone = stanceTone(position.stance);
