@@ -136,7 +136,7 @@ export function MovesStream({
             </div>
             <div className="col-start-2 mt-1 text-[11.5px] text-oa-muted-fg sm:col-start-3 sm:mt-0.5 sm:text-right">
               <ExternalLink href={event.url}>
-                {event.kind === "fund" ? "13F on EDGAR" : "Report (PDF)"}
+                {event.kind === "fund" ? "This report at the SEC" : "Report (PDF)"}
               </ExternalLink>
             </div>
           </li>

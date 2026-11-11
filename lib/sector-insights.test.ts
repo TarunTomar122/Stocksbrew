@@ -21,7 +21,7 @@ describe("sector read", () => {
     ];
     const all = [...rows, row("AAPL", { sector: "Technology", call: "Hold" }), row("MSFT", { sector: "Technology", call: "Hold" })];
     const read = buildSectorRead({ name: "Energy", rows, all, spy: row("SPY", { day_pct: 0.4, ret_1m: 1, ret_ytd: 12 }), priceDay: "2026-11-09", moveHrefs: new Map([["OXY", "/stock/OXY/moves/2026-11-09"]]) })!;
-    expect(read.headline).toBe("Energy stocks rose 1.4% in the latest trading day, ahead of the S&P 500 (+0.4%), and 60% of its 5 stocks rose.");
+    expect(read.headline).toBe("Energy stocks rose 1.4% on Nov 9, ahead of the S&P 500 (+0.4%), and 60% of its 5 stocks rose.");
     expect(read.insights.map((insight) => insight.id)).toEqual(["movers", "trend", "calls"]);
     expect(read.insights[0]!.text).toBe("XOM +3.0%, CVX +2.0% rose the most, while OXY −4.0%, COP −1.0% fell the most.");
     expect(read.insights[0]!.action).toEqual({ label: "Why OXY moved", href: "/stock/OXY/moves/2026-11-09" });

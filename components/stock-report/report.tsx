@@ -640,7 +640,7 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
                     ) : null}
                     {ready.changers.length ? (
                       <div className="px-3.5 py-3 sm:px-4">
-                        <h3 className="oa-label">What would change the call</h3>
+                        <h3 className="oa-label">What would change our mind</h3>
                         <ul className="mt-2 flex flex-col gap-2.5">
                           {ready.changers.map((item, index) => (
                             <li key={index} className="grid grid-cols-[1.25rem_minmax(0,1fr)] gap-x-1.5 text-[14px] leading-5 text-oa-fg">

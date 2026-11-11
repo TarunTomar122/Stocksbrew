@@ -80,7 +80,7 @@ export default async function SignalsPage({ searchParams }: { searchParams?: Sea
       <MarketingSchema path="/signals" name="Market Signals" description={DESCRIPTION} breadcrumbLabel="Signals" />
       <PageHead
         title="Signals: what people are saying about stocks"
-        lede="What Reddit is talking about, what the President posted about the market, and the stocks moving far outside their normal range."
+        lede="What Reddit is talking about and what the President posted about the market. The day's big moves and their reasons are on Why stocks moved."
         meta={source}
       />
       <SignalsBar tabs={tabs} filters={filters} movers={movers} policy={policy} />

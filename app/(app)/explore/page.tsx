@@ -7,7 +7,7 @@ import {
   loadDeskCalendar,
   loadDeskFollow,
   loadDeskMarkets,
-  loadDeskMovers,
+  loadDeskGiants,
   loadDeskScreens,
   loadDeskSectors,
   loadDeskSignals,
@@ -17,7 +17,6 @@ import {
   todayET,
   type DeskBrief,
   type DeskData,
-  type DeskMover,
 } from "@/app/(app)/explore/desk-data";
 import { TheRead } from "@/components/oa/insight";
 import { AskBox } from "@/components/explore-desk/ask-box";
@@ -49,7 +48,7 @@ import { followTakeaway, mergeDeskRead, strategiesTakeaway } from "@/lib/explore
 import { fmtFrac, type ActivityItem } from "@/lib/follow-shared";
 import { moodWord, netSide, type ToneWord } from "@/lib/tone";
 import { ogImage } from "@/lib/og/url";
-import { companyFirstMove, sentenceCase } from "@/lib/plain-copy";
+import { sentenceCase } from "@/lib/plain-copy";
 
 export const dynamic = "force-dynamic";
 
@@ -178,49 +177,6 @@ function Takeaway({ text }: { text: string | null | undefined }) {
   return <p className="border-b border-oa-border px-4 py-2.5 text-pretty text-[14px] font-medium leading-5 text-oa-fg">{text}</p>;
 }
 
-/* ── movers ─────────────────────────────────────────────────────────────── */
-
-/**
- * One side of the lead: the names that moved most, largest first. A reason is
- * printed only when it was confirmed against a source; a name with no line
- * under it has none yet, and the panel says so once.
- */
-function MoverRows({ title, rows }: { title: string; rows: DeskMover[] }) {
-  const max = Math.max(0, ...rows.map((row) => Math.abs(row.changePct ?? 0)));
-  return (
-    <div className="min-w-0">
-      <p className="oa-caption border-b border-oa-border bg-oa-bg px-4 py-1.5">{title}</p>
-      <ul data-track-links="mover_opened" data-track-list={title.toLowerCase().slice(0, 30)} className="max-sm:[&>li:nth-child(n+4)]:hidden">
-        {rows.map((row) => (
-          <li key={row.ticker} className="group relative border-b border-oa-border px-4 py-2 last:border-b-0 hover:bg-oa-accent">
-            <div className="flex items-center justify-between gap-3">
-              <Ticker symbol={row.ticker} name={row.name && row.name.toUpperCase() !== row.ticker.toUpperCase() ? row.name : null} wrap stretch className="min-w-0" />
-              <span className="flex shrink-0 items-center gap-3">
-                {/* Above the row's stretched stock link, so "Ask why" stays its own target. */}
-                <span className="relative z-[1]">
-                <AskLink quiet question={`Why did ${row.ticker} move today, and what does it change?`}>Ask why</AskLink>
-                </span>
-                {row.price !== null ? <span className={`${NUM} hidden text-[12.5px] text-oa-muted-fg sm:inline`}>{fmtMoney(row.price)}</span> : null}
-                <MoveBar value={row.changePct} max={max} width={48} className="max-sm:hidden" />
-                <Delta value={row.changePct} className="w-[4.5rem] text-right text-[15px] font-medium" />
-              </span>
-            </div>
-            {row.reason ? (
-              <p className="mt-0.5 max-w-[68ch] text-pretty pl-7 text-[14px] leading-5 text-oa-muted-fg">
-                {/* Company first where the feed wrote the cause first ("Acadia rose after ..."). */}
-                {(() => {
-                  const turned = companyFirstMove(row.reason, row.changePct, { company: { name: row.name, ticker: row.ticker } });
-                  return turned ? `${turned}.` : row.reason;
-                })()}
-              </p>
-            ) : null}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
 /* ── the panels, one per source ─────────────────────────────────────────── */
 
 /** Stocks in the news: one row per stock, ranked by how much is being said about it now. */
@@ -268,39 +224,48 @@ async function StoriesPanel({ wire, nowMs }: { wire: Promise<DeskData["wire"]>; 
   );
 }
 
-/** The lead: what is moving today and why. */
-async function MoversPanel({ movers: pending }: { movers: Promise<DeskData["movers"]> }) {
-  const movers = await pending;
-  const all = [...movers.up, ...movers.down];
-  const asOf = movers.asOf ? fmtStampET(movers.asOf) : "";
+/**
+ * The biggest companies and how each moved: the single stocks that carry the
+ * most weight in the S&P 500. The day's biggest movers, with their reasons,
+ * are on Why stocks moved, so this panel never repeats them.
+ */
+async function GiantsPanel({ giants: pending }: { giants: ReturnType<typeof loadDeskGiants> }) {
+  const { rows, line, day } = await pending;
+  if (rows.length === 0) return null;
+  const max = Math.max(...rows.map((row) => Math.abs(row.day)));
+  const half = Math.ceil(rows.length / 2);
+  const column = (list: typeof rows) => (
+    <ul className="min-w-0">
+      {list.map((row) => (
+        <li key={row.symbol} className="relative flex min-h-11 items-center justify-between gap-3 border-b border-oa-border px-4 py-1.5 transition-colors last:border-b-0 hover:bg-oa-accent">
+          <Ticker symbol={row.symbol} name={row.name} wrap stretch className="min-w-0" />
+          <span className="flex shrink-0 items-center gap-3">
+            <MoveBar value={row.day} max={max} width={56} />
+            <Delta value={row.day} className="w-[4.5rem] text-right text-[14px] font-medium" />
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
   return (
     <Panel
-      label="What is moving today, and why"
-      right={
-        <>
-          {asOf ? <span className="hidden sm:inline">as of {asOf}</span> : null}
-          <OpenLink href="/signals">All movers</OpenLink>
-        </>
-      }
+      label={day ? `The biggest companies on ${fmtDay(day)}` : "The biggest companies today"}
+      right={<OpenLink href="/screener">All stocks</OpenLink>}
       flush
       className="mb-5"
     >
-      {all.length > 0 ? (
-        <>
-          <Takeaway text={movers.takeaway} />
-          <div className={`grid ${movers.up.length > 0 && movers.down.length > 0 ? "lg:grid-cols-2" : ""} lg:divide-x lg:divide-oa-border max-lg:[&>*+*]:border-t max-lg:[&>*+*]:border-oa-border`}>
-            {movers.up.length > 0 ? <MoverRows title="Biggest gains" rows={movers.up} /> : null}
-            {movers.down.length > 0 ? <MoverRows title="Biggest drops" rows={movers.down} /> : null}
-          </div>
-          {asOf ? (
-            <p className="border-t border-oa-border bg-oa-bg px-4 py-1.5 text-[12.5px] leading-[18px] text-oa-muted-fg sm:hidden">
-              As of {asOf}.
-            </p>
-          ) : null}
-        </>
-      ) : (
-        <Empty title="No big movers yet">Nothing has moved enough to flag today.</Empty>
-      )}
+      <Takeaway text={line} />
+      <div className="grid md:grid-cols-2 md:divide-x md:divide-oa-border">
+        {column(rows.slice(0, half))}
+        <div className="max-md:border-t max-md:border-oa-border">{column(rows.slice(half))}</div>
+      </div>
+      <p className="border-t border-oa-border bg-oa-bg px-4 py-2 text-[13px] leading-5 text-oa-muted-fg">
+        The day&apos;s biggest single-stock moves and why each happened are on{" "}
+        <a href="/movers" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
+          Why stocks moved
+        </a>
+        .
+      </p>
     </Panel>
   );
 }
@@ -670,7 +635,7 @@ function MarketsStripGhost() {
  * awaited inside the panel that shows it.
  *
  * Order: the day's read, a slim row of market levels, then the lead (how each
- * sector did), then what is moving today and why, then the wire beside Ask and the calendar, then the
+ * sector did), then the biggest companies, then the wire beside Ask and the calendar, then the
  * desk previews, each led by its one-line takeaway.
  */
 export default function ExplorePage() {
@@ -697,8 +662,8 @@ export default function ExplorePage() {
         <SectorsPanel sectors={loadDeskSectors(today)} />
       </Suspense>
 
-      <Suspense fallback={<div className="mb-5"><PanelGhost rows={5} lines={2} /></div>}>
-        <MoversPanel movers={loadDeskMovers(today)} />
+      <Suspense fallback={<div className="mb-5"><PanelGhost rows={5} /></div>}>
+        <GiantsPanel giants={loadDeskGiants(today)} />
       </Suspense>
 
       <div className="grid items-stretch gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">

@@ -531,11 +531,14 @@ export function Ticker({
   size?: number;
   className?: string;
 }) {
+  // A name that only repeats the ticker ("TTWO TTWO") says nothing; leave it out.
+  const shown = name ? shortCompanyName(name) : "";
+  const label = shown && shown.toUpperCase() !== symbol.toUpperCase() ? shown : "";
   const body = (
     <>
       <StockLogo ticker={symbol} size={size} />
       <span className={`${NUM} text-[14px] font-medium text-oa-fg`}>{symbol}</span>
-      {name ? <span className={`min-w-0 text-[14px] text-oa-muted-fg ${wrap ? "text-pretty leading-5" : "truncate"}`}>{shortCompanyName(name)}</span> : null}
+      {label ? <span className={`min-w-0 text-[14px] text-oa-muted-fg ${wrap ? "text-pretty leading-5" : "truncate"}`}>{label}</span> : null}
     </>
   );
   const cls = `inline-flex min-w-0 items-center gap-2 ${className}`;

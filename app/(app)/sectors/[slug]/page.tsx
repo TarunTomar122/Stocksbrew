@@ -3,6 +3,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 
 import { JsonLd, breadcrumbLd } from "@/components/docs/json-ld";
 import { TheRead } from "@/components/oa/insight";
+import { closeWords } from "@/lib/benchmark-day";
 import { AppPage, CardGrid, Delta, MoveBar, NUM, PageHead, Panel, ShowMore, SourceLine, StatStrip, Ticker, fmtCompact, fmtDay, fmtMoney } from "@/components/oa/kit";
 import { asSentence } from "@/lib/plain-copy";
 import { DataTable, type DataColumn, type DataRow } from "@/components/oa/kit/data-table";
@@ -14,7 +15,7 @@ import { canonicalSectorSlug, type ScreenerRow } from "@/lib/screener-shared";
 import { buildSectorRead, medianPe, ranked, weightedChange } from "@/lib/sector-insights";
 import { moveHref, pairHref, sectorHref, sectorIsIndexable, sectorTitle } from "@/lib/seo/families";
 import { getCoverage, getMovesDay, sectorGroups, stockPairs } from "@/lib/seo/family-data";
-import { oneRowPerCompany } from "@/lib/share-class";
+import { alsoClassesLabel, oneRowPerCompany } from "@/lib/share-class";
 
 /**
  * One page per sector (/sectors/technology): the read, the sector against the
@@ -63,7 +64,7 @@ type Period = "day_pct" | "ret_1m" | "ret_ytd";
 
 function MoverList({ rows, period }: { rows: ScreenerRow[]; period: Period }) {
   // GOOGL and GOOG move together; one Alphabet row, not two.
-  const list = oneRowPerCompany(ranked(rows, period), (row) => row.symbol).rows;
+  const { rows: list, also } = oneRowPerCompany(ranked(rows, period), (row) => row.symbol);
   if (list.length < 2) return <p className="px-4 py-3 text-[14px] text-oa-muted-fg">Not enough prices for this period.</p>;
   const top = list.slice(0, 3);
   const bottom = list.slice(-3).reverse().filter((row) => !top.includes(row));
@@ -71,7 +72,10 @@ function MoverList({ rows, period }: { rows: ScreenerRow[]; period: Period }) {
   const max = Math.max(...[...top, ...bottom].map((row) => Math.abs(Number(row[period]) || 0)));
   const item = (row: ScreenerRow) => (
     <li key={row.symbol} className="relative flex items-center justify-between gap-3 border-b border-oa-border px-4 py-2 transition-colors last:border-b-0 hover:bg-oa-accent">
-      <Ticker symbol={row.symbol} name={row.name} size={18} wrap stretch className="min-w-0" />
+      <span className="min-w-0">
+        <Ticker symbol={row.symbol} name={row.name} size={18} wrap stretch className="min-w-0" />
+        {alsoClassesLabel(also, row.symbol) ? <span className={`${NUM} ml-[26px] block text-[12px] leading-4 text-oa-muted-fg`}>{alsoClassesLabel(also, row.symbol)}</span> : null}
+      </span>
       <span className="flex shrink-0 items-center gap-2">
         <MoveBar value={row[period]} max={max} width={40} />
         <Delta value={row[period]} digits={1} className="w-16 text-right text-[13.5px]" />
@@ -80,9 +84,9 @@ function MoverList({ rows, period }: { rows: ScreenerRow[]; period: Period }) {
   );
   return (
     <div>
-      <p className="oa-caption border-b border-oa-border bg-oa-bg px-4 py-1.5">Did best</p>
+      <p className="oa-caption border-b border-oa-border bg-oa-bg px-4 py-1.5">Rose most</p>
       <ul>{top.map(item)}</ul>
-      <p className="oa-caption border-y border-oa-border bg-oa-bg px-4 py-1.5">Did worst</p>
+      <p className="oa-caption border-y border-oa-border bg-oa-bg px-4 py-1.5">Fell most</p>
       <ul>{bottom.map(item)}</ul>
     </div>
   );
@@ -132,12 +136,16 @@ export default async function SectorPage({ params }: Props) {
     { id: "pe", label: "P/E", align: "right", hideOnMobile: true },
     { id: "call", label: "Our call", align: "right" },
   ];
-  const tableRows: DataRow[] = oneRowPerCompany(group.rows, (row) => row.symbol).rows.map((row) => ({
+  const folded = oneRowPerCompany(group.rows, (row) => row.symbol);
+  const tableRows: DataRow[] = folded.rows.map((row) => ({
     key: row.symbol,
     href: `/stock/${encodeURIComponent(row.symbol)}`,
     cells: [
-      <Ticker key="t" symbol={row.symbol} name={row.name} size={18} className="max-w-[16rem]" />,
-      <span key="i" className="text-[13px] text-oa-muted-fg">{row.industry ?? ""}</span>,
+      <span key="t" className="block">
+        <Ticker symbol={row.symbol} name={row.name} size={18} className="max-w-[13rem]" />
+        {alsoClassesLabel(folded.also, row.symbol) ? <span className={`${NUM} ml-[26px] block text-[12px] leading-4 text-oa-muted-fg`}>{alsoClassesLabel(folded.also, row.symbol)}</span> : null}
+      </span>,
+      <span key="i" title={row.industry ?? undefined} className="block max-w-[10rem] truncate text-[13px] text-oa-muted-fg">{row.industry ?? ""}</span>,
       <span key="p" className={`${NUM} text-[13.5px]`}>{fmtMoney(row.price)}</span>,
       <Delta key="d" value={row.day_pct} digits={1} className="text-[13.5px]" />,
       <Delta key="m" value={row.ret_1m} digits={1} className="text-[13.5px]" />,
@@ -170,7 +178,7 @@ export default async function SectorPage({ params }: Props) {
       <PageHead
         crumb={<a href="/sectors">Sectors</a>}
         title={`${group.name} stocks`}
-        meta={<SourceLine source="Prices and company data" asOf={coverage.priceDay ? `the ${fmtDay(coverage.priceDay, true)} close` : undefined} />}
+        meta={<SourceLine source="Prices and company data" asOf={coverage.priceDay ? closeWords(coverage.priceDay, fmtDay(coverage.priceDay, true)) : undefined} />}
         note={false}
       />
 
@@ -179,19 +187,19 @@ export default async function SectorPage({ params }: Props) {
       <StatStrip
         className="mb-4"
         stats={[
-          { label: "Last trading day", value: <Delta value={sectorDay} digits={1} />, sub: spyNote(spy?.day_pct) },
+          { label: coverage.priceDay ? fmtDay(coverage.priceDay) : "Last trading day", value: <Delta value={sectorDay} digits={1} />, sub: spyNote(spy?.day_pct) },
           { label: "1 month", value: <Delta value={sectorMonth} digits={1} />, sub: spyNote(spy?.ret_1m) },
           { label: "This year", value: <Delta value={sectorYear} digits={1} />, sub: spyNote(spy?.ret_ytd) },
           {
-            label: "Typical price vs earnings",
-            value: pe ? <span className={NUM}>{pe.value.toFixed(1)}x</span> : <span className={NUM}>n/a</span>,
-            sub: allPe ? `${allPe.value.toFixed(1)}x for all stocks we cover` : undefined,
+            label: "Price for $1 of yearly profit",
+            value: pe ? <span className={NUM}>${pe.value.toFixed(0)}</span> : <span className={NUM}>n/a</span>,
+            sub: allPe ? `$${allPe.value.toFixed(0)} for the typical stock we follow` : undefined,
           },
         ]}
       />
 
       <CardGrid cols={3} className="mb-4">
-        <Panel flush fill label="Last trading day">
+        <Panel flush fill label={coverage.priceDay ? fmtDay(coverage.priceDay) : "Last trading day"}>
           <MoverList rows={group.rows} period="day_pct" />
         </Panel>
         <ShowMore contents label="Show the best and worst over a month and this year">
@@ -230,7 +238,7 @@ export default async function SectorPage({ params }: Props) {
             </a>
           }
         >
-          <DataTable columns={columns} rows={tableRows} initialSort={{ id: "cap", dir: "desc" }} pageSize={50} stickyHeader={false} />
+          <DataTable columns={columns} rows={tableRows} initialSort={{ id: "cap", dir: "desc" }} pageSize={50} stickyHeader={false} compact />
         </Panel>
       </ShowMore>
 

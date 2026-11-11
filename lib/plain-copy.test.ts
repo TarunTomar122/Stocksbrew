@@ -67,7 +67,8 @@ describe("plainAction and callMetaLine", () => {
     expect(plainAction("Hold", "Hold")).toBe("We'd keep it, not buy more");
     expect(plainAction(null, "Trim")).toBe("We'd sell some, not buy more");
     expect(plainAction("Wait for earnings", "Hold")).toBe("Wait for earnings");
-    expect(callMetaLine("medium", "weeks")).toBe("Medium confidence, for the next few weeks.");
+    expect(callMetaLine("medium", "weeks")).toBe("We're fairly sure of this for the next few weeks.");
+    expect(callMetaLine("low", null)).toBe("We're not very sure of this.");
     expect(callMetaLine(null, null)).toBe("");
   });
 });
@@ -81,7 +82,7 @@ describe("plainCallReason", () => {
     expect(plainCallReason("Still constructive, but price is up 26% from its recent low, so the first pullback is the better entry.")).toBe(
       "We still like it, but the price is up 26% from its recent low, so we'd wait for the first dip to buy.",
     );
-    expect(plainCallReason("Upside and downside look balanced; keep the position but do not force a new add.")).toMatch(/^The chances of a rise and a fall/);
+    expect(plainCallReason("Upside and downside look balanced; keep the position but do not force a new add.")).toMatch(/^We see about as much reason for it to fall as to rise/);
     expect(plainCallReason("The setup is constructive, but the cleaner entry is a pullback into support.")).not.toMatch(/setup|constructive|support/);
   });
 
@@ -215,5 +216,67 @@ describe("shortCompanyName keeps very short names readable", () => {
     expect(shortCompanyName("3M Company")).toBe("3M");
     expect(shortCompanyName("Marsh & McLennan Companies, Inc.")).toBe("Marsh & McLennan Companies");
     expect(shortCompanyName("NVIDIA Corporation")).toBe("NVIDIA");
+  });
+});
+
+describe("feed names in the company's own casing", () => {
+  it("fixes 13F title-casing, capitals, clipped fields and listing tails", () => {
+    expect(shortCompanyName("Dr Horton")).toBe("D.R. Horton");
+    expect(shortCompanyName("D R HORTON INC")).toBe("D.R. Horton");
+    expect(shortCompanyName("Nvidia")).toBe("NVIDIA");
+    expect(shortCompanyName("Mckesson")).toBe("McKesson");
+    expect(shortCompanyName("Nxp Semiconductors NV")).toBe("NXP Semiconductors");
+    expect(shortCompanyName("Te Connectivity")).toBe("TE Connectivity");
+    expect(shortCompanyName("Ishares Core S&P 500 ETF")).toBe("iShares Core S&P 500 ETF");
+    expect(shortCompanyName("Credo Technology Group Holdi")).toBe("Credo Technology Group");
+    expect(shortCompanyName("Jefferies Financial Group in")).toBe("Jefferies Financial Group");
+    expect(shortCompanyName("Vanguard Ftse Emerging Marke")).toBe("Vanguard FTSE Emerging Markets");
+    expect(shortCompanyName("Bloom Energy Corp- a")).toBe("Bloom Energy");
+    expect(shortCompanyName("Dell Technologies -C")).toBe("Dell Technologies");
+    expect(shortCompanyName("ASML Holding Nv-Ny Reg Shs")).toBe("ASML");
+    expect(shortCompanyName("WINDWARD BIO GROUP AG")).toBe("Windward Bio Group");
+    expect(shortCompanyName("CSX CORP")).toBe("CSX");
+    expect(shortCompanyName("AMC")).toBe("AMC");
+    expect(shortCompanyName("MACY'S INC")).toBe("Macy's");
+    expect(shortCompanyName("JOYY Inc. American Deposit")).toBe("JOYY");
+    expect(shortCompanyName("Hello Group Inc. Sponsored")).toBe("Hello Group");
+    // Names already in mixed case keep their own casing.
+    expect(shortCompanyName("Hims & Hers Health, Inc.")).toBe("Hims & Hers Health");
+    expect(shortCompanyName("Applied Optoelectronics Tech")).toBe("Applied Optoelectronics Tech");
+  });
+});
+
+describe("plainFinance says a beat and a raised forecast as both facts", () => {
+  it("rewrites the headline pair", async () => {
+    const { plainFinance } = await import("./plain-copy");
+    expect(plainFinance("Revenue Beat and Guidance Lift")).toBe("Revenue that beat expectations and a raised forecast");
+    expect(plainFinance("Acadia rose after revenue beat and forecast")).toBe("Acadia rose after revenue and a forecast that beat expectations");
+    expect(plainFinance("Revenue Beat and Guidance Lift Acadia Shares")).toBe("Acadia rose after revenue that beat expectations and a raised forecast");
+    expect(plainFinance("GTA VI Preorders Spark Take-Two's rebound")).toBe("Take-Two rose after GTA VI Preorders");
+    expect(plainFinance("GTA VI Preorders Spark Take-Two\u2019s Relief Rally")).toBe("Take-Two rose after GTA VI Preorders");
+  });
+});
+
+describe("plainFinance says analyst target headlines as sentences", () => {
+  it("names who did what", async () => {
+    const { plainFinance } = await import("./plain-copy");
+    expect(plainFinance("Analyst trims Biodesix target despite maintaining Buy rating.")).toBe("An analyst lowered the price they expect for Biodesix but still says buy.");
+    expect(plainFinance("Analyst lowers Serve Robotics price target, pressuring shares.")).toBe("Serve Robotics fell after an analyst lowered the price they expect.");
+    expect(plainFinance("AST SpaceMobile slides after earnings that missed expectations and price-target cut")).toBe("AST SpaceMobile slides after earnings that missed expectations and a lower analyst price target");
+  });
+});
+
+describe("feed names from the quality pass", () => {
+  it("fixes shouting names, acronyms and abbreviations", async () => {
+    const { readableCompanyName, shortCompanyName } = await import("./plain-copy");
+    expect(readableCompanyName("BANK OF NEW YORK MELLON CORP")).toBe("Bank of New York Mellon Corp");
+    expect(shortCompanyName("PROCTER AND GAMBLE CO")).toBe("Procter and Gamble");
+    expect(readableCompanyName("BNY MELLON")).toBe("BNY Mellon");
+    expect(readableCompanyName("EBAY INC")).toBe("eBay Inc");
+    expect(readableCompanyName("MCDONALDS CORP")).toBe("McDonald's Corp");
+    expect(readableCompanyName("PAYPAL HLDGS INC")).toBe("PayPal Holdings Inc");
+    expect(shortCompanyName("AI HOLDINGS")).toBe("AI Holdings");
+    expect(shortCompanyName("HP INC")).toBe("HP");
+    expect(shortCompanyName("3M CO")).toBe("3M");
   });
 });

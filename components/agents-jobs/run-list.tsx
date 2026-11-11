@@ -276,7 +276,7 @@ export function SessionStrip({ runs, job }: { runs: RunRow[]; job: (Pick<AgentJo
         );
       })}
     </div>
-    <span className="text-[11.5px] leading-4 text-oa-muted-fg">One bar a market day, tall when it would have told you</span>
+    <span className="text-[11.5px] leading-4 text-oa-muted-fg">Each bar is a market day; a tall bar is a day it would have emailed you</span>
     </div>
   );
 }

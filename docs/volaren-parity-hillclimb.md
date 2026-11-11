@@ -172,6 +172,13 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-11 ~03:00, UI rounds 6-9 live (lead)
+
+- `8e6b41d` LIVE: plain call words everywhere (Buy more / Keep / Sell some, incl. screener filters), company names in lead sentences, briefing picks the biggest explained move, move bars, clickable rows, share classes shown once (not when searched), each Today page leads with something different, "Best stock lists" in the Research menu. Quality pass found a briefing list nested inside links (rows twice, hydration errors) and pricing copy contradicting plan rules: fixed. Exact commit verified: tsc 0, vitest 1177/1177; all important pages 200 live.
+- Scores: Codex r6 6.18 → r7 6.29 → r8 6.39 → r9 6.48; Cursor ~4.9 and noisy (±4 per page between unchanged rounds). Phone pages now go to reviewers as ~1,700 px tiles.
+- Dev server had stopped mid-loop; restarted detached.
+- Running: UI loop round 10+ (screener chip clipping, stale S&P figure in the screener read, all-caps names, share-class notes, tense after events, screener opening on a short list, Signals vs Market today overlap); "copy the smart money, tested" (new /follow/[slug]/copy pages).
+
 ### 2026-11-11 ~02:00, 27 /best lists live (lead)
 
 - `ff483c0` LIVE: /best hub + 27 data-backed lists (dividends, undervalued, growth, AI, chips, insiders buying, funds bought, under $10/20/50, most shorted, near highs/lows...), each with its exact rule, a read, ranked rows with the qualifying number, BreadcrumbList + ItemList JSON-LD, `best` sitemap family (28 URLs). Quality pass: SHIP after fixes (insurer exclusion, negative equity, "tenfold" wording, junk names). Exact commit verified: tsc 0, vitest 1159/1159. Live 200s (first-hit 404s right after deploy are requests reaching the previous deployment; they clear in seconds).

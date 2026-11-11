@@ -96,7 +96,7 @@ export function buildMoversDayRead(input: { day: string; moves: readonly Explain
   if (moves.length === 0) return null;
   const up = moves.filter((move) => move.pct >= 0);
   const down = moves.filter((move) => move.pct < 0);
-  const headline = `${moves.length} ${moves.length === 1 ? "stock" : "stocks"} made a big move with a confirmed reason on ${longDay(day)}: ${up.length} up, ${down.length} down${input.spyClose ? `, with the S&P 500 ${signedPct(input.spyClose.pct)}` : ""}.`;
+  const headline = `On ${longDay(day)} we found the reason for ${moves.length} big ${moves.length === 1 ? "move" : "moves"}: ${up.length} up, ${down.length} down${input.spyClose ? `, with the S&P 500 ${signedPct(input.spyClose.pct)}` : ""}.`;
 
   const buckets = new Map<string, ExplainedMove[]>();
   for (const move of moves) {

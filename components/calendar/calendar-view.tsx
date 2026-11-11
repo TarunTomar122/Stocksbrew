@@ -77,7 +77,7 @@ export function CalendarControls({
     <div className="mb-3 flex flex-col gap-2">
       <div className="oa-scroll-fade -mx-2 flex gap-2 overflow-x-auto px-4 pr-9 [scrollbar-width:none] sm:mx-0 sm:px-0 lg:flex-wrap [&::-webkit-scrollbar]:hidden">
         <a href={calendarHref(filters, today, { type: null })} aria-current={!filters.type ? "true" : undefined} className={`${CHIP} ${!filters.type ? CHIP_ON : CHIP_OFF}`}>
-          Everything
+          All
           <span className={`${NUM} text-[12.5px] text-oa-muted-fg`}>{total}</span>
         </a>
         {CALENDAR_TYPES.map((type) => {
@@ -367,15 +367,9 @@ function EconomicLine({ item }: { item: EconomicItem }) {
   );
 }
 
-/** "WINDWARD BIO GROUP AG" reads as shouting; feeds send some names in capitals. Short tickers-as-names stay. */
+/** "WINDWARD BIO GROUP AG" reads as shouting; feeds send some names in capitals. shortCompanyName softens them. */
 function readableName(name: string): string {
-  const short = shortCompanyName(name) || name;
-  if (short.length <= 5 || short !== short.toUpperCase() || !/[A-Z]{3}/.test(short)) return short;
-  // Word by word: short codes ("AG", "SA") and anything with a symbol in it ("S&P") keep their capitals.
-  return short
-    .split(" ")
-    .map((word) => (word.length <= 2 || /[^A-Za-z]/.test(word) ? word : word.charAt(0) + word.slice(1).toLowerCase()))
-    .join(" ");
+  return shortCompanyName(name) || name;
 }
 
 function IpoLine({ item }: { item: IpoItem }) {
@@ -504,7 +498,7 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
           return (
             <div key={session}>
               <h3 className={`${SECTION} flex items-baseline justify-between gap-2`}>
-                <span>{SESSION_LABEL[session]}</span>
+                <span>{session === "unknown" && past ? "Time not given" : SESSION_LABEL[session]}</span>
                 <span className={NUM}>{rows.length}</span>
               </h3>
               {rows.slice(0, sessionRows).map((item) => (

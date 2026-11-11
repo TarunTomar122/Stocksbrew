@@ -320,13 +320,15 @@ export function buildRedditRead(names: RedditName[], asOf: string | null = null)
   const bullShare = sharePct(mood.bullish, mood.total) ?? 0;
   const lean = bearShare >= bullShare + 15 ? "bearish" : bullShare >= bearShare + 15 ? "bullish" : "split";
   // Bullish and bearish said plainly: people expect prices to rise, or to fall.
+  // The count first, so a share has its base: "Of the 56 stock mentions we counted on Reddit, 41% ...".
+  const base = mood.total > 0 ? `Of the ${mood.total} stock mentions we counted on Reddit` : "On Reddit";
   const leanText =
     lean === "split"
-      ? `Reddit is split: ${bullShare}% of mentions expect prices to rise and ${bearShare}% expect them to fall`
+      ? `${base}, ${bullShare}% expect prices to rise and ${bearShare}% expect them to fall`
       : lean === "bearish"
-        ? `More Reddit posts expect a fall than a rise: ${bearShare}% of mentions expect prices to fall and ${bullShare}% expect a rise`
-        : `More Reddit posts expect a rise than a fall: ${bullShare}% of mentions expect prices to rise and ${bearShare}% expect a fall`;
-  const headline = loud ? `${leanText}. ${loud.ticker} is the stock everyone is talking about.` : `${leanText}.`;
+        ? `More Reddit posts expect a fall than a rise. ${base}, ${bearShare}% expect prices to fall and ${bullShare}% expect a rise`
+        : `More Reddit posts expect a rise than a fall. ${base}, ${bullShare}% expect prices to rise and ${bearShare}% expect a fall`;
+  const headline = loud ? `${leanText}. ${loud.ticker} gets the most mentions.` : `${leanText}.`;
   const loudest = loudestInsight(names);
   const against = againstInsight(names);
   const skip = new Set([...(loudest?.tickers ?? []), ...(against?.tickers ?? [])]);
@@ -445,7 +447,9 @@ export function buildSignalsTodayRead(movers: MoverForRead[], names: RedditName[
     insights: pickInsights([
       redditRead?.insights[0],
       policyLine && policyLine.text !== headline ? policyLine : null,
-      moverRead && moverRead.headline !== headline ? { id: "movers-line", tone: "flat" as const, text: moverRead.headline, action: { label: "Why stocks moved", href: "/movers" } } : null,
+      // The moves only when there is nothing people said: Why stocks moved and Market today carry them.
+      !redditRead && !policyLine && moverRead && moverRead.headline !== headline ? { id: "movers-line", tone: "flat" as const, text: moverRead.headline, action: { label: "Why stocks moved", href: "/movers" } } : null,
+      redditRead?.insights[1],
     ]),
     asOf,
   };

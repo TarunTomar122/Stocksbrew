@@ -658,9 +658,9 @@ export type ScreenPreset = {
 export const PRESETS: ScreenPreset[] = [
   {
     slug: "cheap-vs-own-history",
-    name: "Cheap vs own history and still growing",
+    name: "Cheaper than usual, still growing",
     description:
-      "Today's P/E is lower than on three quarters of the days we have on file for the stock, revenue is still growing 8% or more, and the company is profitable.",
+      "The price against earnings is lower than on three days in four we have on file for the stock, sales are still growing 8% or more a year, and the company makes a profit.",
     filters: { ranges: { pe_hist_pctile: { max: 25 }, rev_growth: { min: 8 }, net_margin: { min: 0 } } },
     sort: { id: "pe_hist_pctile", dir: "asc" },
     columns: ["spark", "price", "day_pct", "pe", "pe_hist_pctile", "fwd_pe", "rev_growth", "net_margin", "ret_1y", "score"],
@@ -669,8 +669,8 @@ export const PRESETS: ScreenPreset[] = [
   },
   {
     slug: "add-zone-today",
-    name: "In the add zone today",
-    description: "The price is at or below the level where our brief says adding makes sense, and our call is add or hold.",
+    name: "At our buy-more price today",
+    description: "The price is at or below where our report says we'd buy more, and our call is buy more or keep.",
     filters: { zones: ["add"], calls: ["Add", "Hold"] },
     sort: { id: "to_add_pct", dir: "asc" },
     columns: ["spark", "price", "day_pct", "call", "add_below", "to_add_pct", "trim_above", "upside", "score"],
@@ -679,9 +679,9 @@ export const PRESETS: ScreenPreset[] = [
   },
   {
     slug: "near-low-analysts-warming",
-    name: "Near 52-week low, analysts warming",
+    name: "Near a one-year low, analysts warming",
     description:
-      "Within 20% of the 52-week low while at least one more analyst rates the stock a buy than three months ago.",
+      "Within 20% of its lowest price in a year, and at least one more analyst says buy than three months ago.",
     filters: { ranges: { from_lo_pct: { max: 20 }, buys_chg_3m: { min: 1 } } },
     sort: { id: "from_lo_pct", dir: "asc" },
     columns: ["spark", "price", "day_pct", "from_lo_pct", "from_hi_pct", "buys_chg_3m", "buy_pct", "upside", "rsi", "score"],
@@ -699,9 +699,9 @@ export const PRESETS: ScreenPreset[] = [
   },
   {
     slug: "low-volatility-dividend-growers",
-    name: "Low volatility dividend growers",
+    name: "Steady dividend raisers",
     description:
-      "Swings under 25% a year, a yield of 1.5% or more, a dividend that has been growing, and a payout under 75% of earnings.",
+      "A calm price (swings under 25% a year), pays 1.5% a year or more in dividends, has been raising the dividend, and pays out less than three quarters of its profit.",
     filters: {
       ranges: { vol_90d: { max: 25 }, div_yield: { min: 1.5 }, div_growth: { min: 0.1 }, payout: { min: 0, max: 75 } },
     },
@@ -711,8 +711,8 @@ export const PRESETS: ScreenPreset[] = [
   },
   {
     slug: "quality-compounders",
-    name: "Quality compounders",
-    description: "Return on invested capital above 15%, operating margin above 20%, revenue growing, and debt under control.",
+    name: "Strong businesses, still growing",
+    description: "Earns over 15% a year on the money invested in it, keeps more than 20 cents of each sales dollar as profit, sales still growing, and modest debt.",
     filters: {
       ranges: { roic: { min: 15 }, op_margin: { min: 20 }, rev_growth: { min: 5 }, debt_equity: { max: 1.5 } },
     },
@@ -723,8 +723,8 @@ export const PRESETS: ScreenPreset[] = [
   },
   {
     slug: "momentum-above-200-day",
-    name: "Leaders above the 200-day line",
-    description: "Up 15% or more over six months, still above the 200-day average, and not yet overbought.",
+    name: "Rising steadily",
+    description: "Up 15% or more over six months, still above its average price of the last 200 days, and not yet overheated.",
     filters: { ranges: { ret_6m: { min: 15 }, vs_200d: { min: 0 }, rsi: { max: 70 } } },
     sort: { id: "ret_6m", dir: "desc" },
     columns: ["spark", "price", "day_pct", "ret_1m", "ret_6m", "ret_1y", "vs_200d", "rsi", "from_hi_pct", "score"],
@@ -734,7 +734,7 @@ export const PRESETS: ScreenPreset[] = [
   {
     slug: "widely-held-and-rated",
     name: "Widely held and well rated",
-    description: "Institutions own 70% or more and our composite score is 60 or higher.",
+    description: "Big investors such as funds own 70% or more of it, and our overall score is 60 or higher.",
     filters: { ranges: { inst_own: { min: 70 }, score: { min: 60 } } },
     sort: { id: "score", dir: "desc" },
     columns: ["spark", "price", "day_pct", "inst_own", "score", "s_quality", "s_growth", "pe", "upside", "ret_1y"],

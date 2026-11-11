@@ -37,11 +37,14 @@ export function HoldingChip({
   name,
   weight,
   title,
+  also,
 }: {
   ticker: string | null;
   name: string | null;
   weight?: string;
   title?: string;
+  /** Other share classes of the same company folded into this chip ("GOOG"). */
+  also?: string[];
 }) {
   const label = ticker ?? (name ? name.split(" ").slice(0, 2).join(" ") : "");
   if (!label) return null;
@@ -52,6 +55,7 @@ export function HoldingChip({
       >
         {label}
       </span>
+      {also && also.length ? <span className="oa-mono text-oa-muted-fg">+{also.join(", ")}</span> : null}
       {weight ? (
         <span className="oa-mono text-oa-muted-fg">{weight}</span>
       ) : null}

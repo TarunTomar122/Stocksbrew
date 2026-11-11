@@ -105,3 +105,48 @@ function orderStocksFirst(insights: Insight[]): Insight[] {
   const rest = insights.filter((insight) => (insight.tickers ?? []).length === 0);
   return [...withStock, ...rest];
 }
+
+/* ── the biggest companies: the market-level view of single stocks ──────── */
+
+export type GiantForRead = { symbol: string; name: string; day: number; cap: number };
+
+/**
+ * Market today's single-stock part: how the biggest companies did, since they
+ * carry the most weight in the S&P 500. Moves with a reason have their own
+ * page (Why stocks moved), so this never lists the day's biggest movers.
+ * Average weighted by company value; the one that pulled hardest is the
+ * largest value-times-move. Null with fewer than five companies.
+ */
+export function buildGiantsRead(rows: readonly GiantForRead[]): { line: string; insight: Insight } | null {
+  const usable = rows.filter((row) => Number.isFinite(row.day) && Number.isFinite(row.cap) && row.cap > 0);
+  if (usable.length < 5) return null;
+  const total = usable.reduce((sum, row) => sum + row.cap, 0);
+  const average = usable.reduce((sum, row) => sum + row.cap * row.day, 0) / total;
+  const up = usable.filter((row) => row.day > 0).length;
+  const puller = [...usable].sort((a, b) => Math.abs(b.cap * b.day) - Math.abs(a.cap * a.day))[0]!;
+  const sameWay = Math.sign(puller.day) === Math.sign(average) && Math.abs(average) >= 0.05;
+  // A size-weighted average is exactly the change in their combined value: say that, not "weighted".
+  const moved = Math.abs(average) < 0.05 ? "were worth about the same together as the day before" : `${average > 0 ? "gained" : "lost"} ${Math.abs(average).toFixed(1)}% of their combined value`;
+  const n = usable.length;
+  // A size-weighted fall while most of them rose (or the reverse) needs saying, or the two numbers read as a mistake.
+  const against = (average <= -0.05 && up > n / 2) || (average >= 0.05 && up < n / 2);
+  const line = against
+    ? `The ${n} biggest companies ${moved}, even though ${up} of them rose.`
+    : `The ${n} biggest companies ${moved}; ${up} of the ${n} rose.`;
+  const pull = Math.abs(average) < 0.05
+    ? `${puller.name} (${signedPct(puller.day)}) moved the group the most.`
+    : sameWay
+    ? `${puller.name} (${signedPct(puller.day)}) did the most to ${average > 0 ? "lift" : "pull down"} the group.`
+    : `${puller.name} (${signedPct(puller.day)}) moved the other way.`;
+  return {
+    line,
+    insight: {
+      id: "giants",
+      tone: Math.abs(average) < 0.05 ? "flat" : average > 0 ? "up" : "down",
+      text: `${line} ${pull}`,
+      soWhat: "They carry the most weight in the S&P 500.",
+      tickers: [puller.symbol],
+      action: { label: `${puller.name}'s report`, href: `/stock/${encodeURIComponent(puller.symbol)}` },
+    },
+  };
+}

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { JsonLd, breadcrumbLd } from "@/components/docs/json-ld";
 import { TheRead } from "@/components/oa/insight";
+import { closeWords } from "@/lib/benchmark-day";
 import { AppPage, Delta, NUM, PageHead, Panel, SourceLine, fmtCompact, fmtDay } from "@/components/oa/kit";
 import { DataTable, type DataColumn, type DataRow } from "@/components/oa/kit/data-table";
 import { ogImage } from "@/lib/og/url";
@@ -87,7 +88,7 @@ export default async function SectorsPage() {
       <PageHead
         crumb={<a href="/screener">Screener</a>}
         title="Stock market sectors"
-        meta={<SourceLine source="Prices and company data" asOf={coverage.priceDay ? `the ${fmtDay(coverage.priceDay, true)} close` : undefined} />}
+        meta={<SourceLine source="Prices and company data" asOf={coverage.priceDay ? closeWords(coverage.priceDay, fmtDay(coverage.priceDay, true)) : undefined} />}
         actions={
           <a href="/screener?tab=sectors" className="text-[13px] font-medium text-oa-primary hover:underline">
             Heat map →

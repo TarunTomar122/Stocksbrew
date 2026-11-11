@@ -128,7 +128,7 @@ export function SelectionBar({ order, compareLimit }: { order: readonly string[]
   if (selected.size === 0) {
     return (
       <p className="border-t border-oa-border px-4 py-2.5 text-[13px] text-oa-muted-fg">
-        Tick rows to add them to your watchlist, compare them side by side or backtest them as a basket.
+        Tick a few rows to watch them, compare them, or see how they would have done together.
       </p>
     );
   }

@@ -67,7 +67,7 @@ function signedPct(value: number, digits = 1): string {
 }
 
 function pts(value: number, digits = 1): string {
-  return `${Math.abs(value * 100).toFixed(digits)} pts`;
+  return `${Math.abs(value * 100).toFixed(digits)} points`;
 }
 
 function listWords(items: string[]): string {
@@ -317,14 +317,19 @@ function windowWords(days: number): string {
 
 // ── insight builders ────────────────────────────────────────────────────────
 
+/** A tally's company in words ("Amazon"), its ticker when the feed has no name. */
+function tallyName(row: Pick<StockTally, "ticker" | "name">): string {
+  return shortCompanyName(row.name) || row.ticker;
+}
+
 export function fundCrowdInsight(tallies: StockTally[], fundsInPeriod: number, period: string | null): Insight | null {
   const buy = mostBought(tallies, 1)[0];
   if (!buy || buy.buyers.length < 3 || !period) return null;
   const sell = mostSold(tallies.filter((row) => row.ticker !== buy.ticker), 1)[0];
   const quarter = quarterLabel(period);
   const text =
-    `In their ${quarter} reports, ${buy.buyers.length} of ${fundsInPeriod} funds bought or added to ${buy.ticker}, more than any other stock` +
-    (sell && sell.sellers.length >= 3 ? `. ${sell.sellers.length} sold some or all of their ${sell.ticker}, more than any other stock.` : ".");
+    `In their ${quarter} reports, ${buy.buyers.length} of ${fundsInPeriod} funds bought or added to ${tallyName(buy)}, more than any other stock` +
+    (sell && sell.sellers.length >= 3 ? `. ${sell.sellers.length} sold some or all of their ${tallyName(sell)}, more than any other stock.` : ".");
   const others = mostBought(tallies, 3)
     .slice(1)
     .filter((row) => row.buyers.length >= 3);
@@ -475,8 +480,8 @@ export function buildFollowRead(input: FollowReadInput): FollowRead {
     // One stock leads; a runner-up is named as second, so the counts below never contradict the headline.
     const tied = top[1] !== undefined && top[1].buyers.length === top[0]!.buyers.length;
     headline = tied
-      ? `More funds bought ${top[0]!.ticker} and ${top[1]!.ticker} than any other stock in ${quarterLabel(period)}`
-      : `More funds bought ${top[0]!.ticker} than any other stock in ${quarterLabel(period)}${top[1] ? `, with ${top[1].ticker} second` : ""}`;
+      ? `More funds bought ${tallyName(top[0]!)} and ${tallyName(top[1]!)} than any other stock in ${quarterLabel(period)}`
+      : `More funds bought ${tallyName(top[0]!)} than any other stock in ${quarterLabel(period)}${top[1] ? `, with ${tallyName(top[1])} second` : ""}`;
     let buys = 0;
     let sells = 0;
     for (const row of congressTallies) {
@@ -496,8 +501,8 @@ export function buildFollowRead(input: FollowReadInput): FollowRead {
     insights,
     source:
       period && fundsInPeriod > 0
-        ? `${plural(fundsInPeriod, "fund")} filed for ${quarterLabel(period)} of ${input.totalFunds} we follow; House reports and SEC Form 4`
-        : "SEC 13F, House reports and SEC Form 4",
+        ? `${plural(fundsInPeriod, "fund")} filed for ${quarterLabel(period)} of ${input.totalFunds} we follow; Congress trade reports and insiders' own filings`
+        : "Funds' quarterly reports, Congress trade reports and insiders' own filings",
     fundPeriod: period,
     fundsInPeriod,
     fundTallies,
@@ -575,7 +580,7 @@ export function buildInsiderRead(input: {
   else if (first?.id === "insider-pace") parts.push(first.text.split(":")[0]);
   if (lead) parts.push(`${plural(lead.buyers.length, "insider")} bought ${lead.ticker} in two weeks`);
   const headline = parts.length > 0 ? `${parts.join("; ")}.` : "";
-  return { headline, insights, source: "SEC Form 4, open-market trades", tallies };
+  return { headline, insights, source: "Insiders' own filings at the SEC, open-market buys and sells", tallies };
 }
 
 function usd(value: number): string {

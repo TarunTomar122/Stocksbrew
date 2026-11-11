@@ -324,7 +324,7 @@ export function PortfolioView({
                   )}
                 </HeaderFigure>
                 <HeaderFigure
-                  label="Gain since bought"
+                  label="Gain since you bought"
                   note={
                     totals.gain !== null && totals.gainPct !== null ? (
                       <>
@@ -369,7 +369,7 @@ export function PortfolioView({
             )}
             <p className="text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg lg:text-right">
               {example
-                ? `Made-up shares and costs, real ${pricesAsOf ? `closing prices from ${fmtDay(pricesAsOf)}` : "prices"}.`
+                ? `Example shares and costs, priced at ${pricesAsOf ? `the ${fmtDay(pricesAsOf)} close` : "the latest prices"}.`
                 : asOf
                   ? `Prices as of ${fmtClock(asOf)}.`
                   : "Prices are the latest quote."}
@@ -575,7 +575,7 @@ export function PortfolioIntro({
         </span>{" "}
         {signedIn
           ? "Add your first stocks and this page fills in around them."
-          : `We cover ${freeLimit} of them in full at no cost. Below is an example portfolio: made-up shares, real prices.`}
+          : `Pick ${freeLimit} of them for the full report, also free. Below is an example portfolio with real prices.`}
       </p>
       <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 sm:shrink-0">
         {signedIn ? (

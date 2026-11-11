@@ -153,7 +153,7 @@ export type Session = "bmo" | "amc" | "unknown";
 export const SESSION_LABEL: Record<Session, string> = {
   bmo: "Before the market opens",
   amc: "After the market closes",
-  unknown: "Time not confirmed",
+  unknown: "Time not announced yet",
 };
 
 export type Reaction = { pct: number; basis: "1d" | "2d"; toDate: string };

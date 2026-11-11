@@ -8,7 +8,7 @@ import {
 import { normalizeDirectiveForUi } from "@/lib/directive-ui";
 import { buildLandingHeroMetrics } from "@/lib/landing-hero-metrics";
 import { getCurrentMarket } from "@/lib/market";
-import { plainAction, plainFinance, shortCompanyName, wholeSentences } from "@/lib/plain-copy";
+import { plainAction, plainCallReason, plainFinance, shortCompanyName, wholeSentences } from "@/lib/plain-copy";
 import { getPowerTradesCached, type PowerTrade } from "@/lib/power-trades";
 import { getRedditCues, hasRedditBrief } from "@/lib/reddit-cues";
 import { isFeaturedStockTicker } from "@/lib/seo/stock-pages";
@@ -56,7 +56,8 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
       <p className="text-[13px] leading-5 text-oa-muted-fg">{label}</p>
       <p className="text-[15px] font-medium leading-6 tabular-nums text-oa-fg">
         {value}
-        {sub ? <span className="ml-1.5 font-normal text-oa-muted-fg">{sub}</span> : null}
+        {/* Its own line on phones, so "84% above today" never breaks away from the price. */}
+        {sub ? <span className="block font-normal text-[13px] leading-5 text-oa-muted-fg sm:ml-1.5 sm:inline sm:text-[15px] sm:leading-6">{sub}</span> : null}
       </p>
     </div>
   );
@@ -174,6 +175,9 @@ export async function HeroBriefing() {
     null;
   // The engine's label in plain words ("Accumulate on pullbacks" -> "Buy more on a dip, not here"), as on the stock page.
   const callText = plainAction(directive?.text, null);
+  // The call's own reason, one whole sentence, so the example says why and not only what.
+  // Reasons are part of the full report, which is only public on the showcase stocks (same rule as the price levels below).
+  const callReason = isFeaturedStockTicker(anomaly.ticker) && directive?.rationale ? wholeSentences(plainCallReason(directive.rationale), 1) : "";
   // Only say why it moved when we actually researched a reason.
   const why = moveReason ? wholeSentences(plainFinance(moveReason), 1) || moveReason : null;
   const closes = featured.closes;
@@ -181,6 +185,8 @@ export async function HeroBriefing() {
   const fromHere = (price: number) => {
     if (!(anomaly.price > 0)) return undefined;
     const pct = ((price - anomaly.price) / anomaly.price) * 100;
+    // "0% below today" reads as a mistake; within half a percent it is today's price.
+    if (Math.abs(pct) < 0.5) return "about today's price";
     return `${Math.abs(pct).toFixed(0)}% ${pct >= 0 ? "above" : "below"} today`;
   };
   const mood = (sentiment: string | null | undefined) =>
@@ -190,15 +196,17 @@ export async function HeroBriefing() {
   // Zones are only public on the showcase stocks; on any other stock
   // they come with covering it, so the landing page must not hand them out.
   const showcase = isFeaturedStockTicker(anomaly.ticker);
-  if (showcase && metrics.accumulate_below != null) {
-    stats.push({ label: "We'd buy more below", value: `$${metrics.accumulate_below.toFixed(0)}`, sub: fromHere(metrics.accumulate_below) });
+  // A level more than half the price away says little about today; the call engine still sets some that far out.
+  const near = (level: number) => anomaly.price > 0 && Math.abs(level - anomaly.price) / anomaly.price <= 0.5;
+  if (showcase && metrics.accumulate_below != null && near(metrics.accumulate_below)) {
+    stats.push({ label: "Price where we'd buy more", value: `$${metrics.accumulate_below.toFixed(0)}`, sub: fromHere(metrics.accumulate_below) });
   }
-  if (showcase && metrics.trim_above != null) {
-    stats.push({ label: "We'd sell some above", value: `$${metrics.trim_above.toFixed(0)}`, sub: fromHere(metrics.trim_above) });
+  if (showcase && metrics.trim_above != null && near(metrics.trim_above)) {
+    stats.push({ label: "Price where we'd sell some", value: `$${metrics.trim_above.toFixed(0)}`, sub: fromHere(metrics.trim_above) });
   }
   if (typeof analystTarget === "number" && analystTarget > 0 && anomaly.price > 0) {
     stats.push({
-      label: "Analysts' average target",
+      label: "Analysts' average price target",
       value: `$${analystTarget.toFixed(0)}`,
       sub: fromHere(analystTarget),
     });
@@ -256,7 +264,7 @@ export async function HeroBriefing() {
             {callText ? (
               <p className="mt-2 text-[15px] leading-6 text-oa-fg/85">
                 <span className="font-medium text-oa-fg">Our call: </span>
-                {callText}.
+                {callText}.{callReason ? <span className="text-oa-muted-fg"> {callReason}</span> : null}
               </p>
             ) : null}
             {!why && !callText ? <p className="mt-2 text-[15px] leading-6 text-oa-fg/85">We have not found a confirmed reason for today&apos;s move yet.</p> : null}
@@ -273,6 +281,9 @@ export async function HeroBriefing() {
                 <p className="text-[13px] leading-5 text-oa-muted-fg">Price over the last {closes.length >= 80 ? "3 months" : `${closes.length} trading days`}</p>
               </div>
             ) : null}
+            <p className="mt-3 border-t border-oa-border pt-2.5 text-[14px] font-medium leading-5 text-oa-fg">
+              Read our full view on {name} <span aria-hidden="true">→</span>
+            </p>
           </a>
 
           {trade ? (

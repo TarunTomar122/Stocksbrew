@@ -260,7 +260,7 @@ export function FilterBar({ view, sectors, availableFields, capCounts, plan, can
           <input
             type="search"
             value={query}
-            placeholder="Ticker, company or industry"
+            placeholder="Company or industry"
             onChange={(event) => {
               typing.current = true;
               setQuery(event.target.value);

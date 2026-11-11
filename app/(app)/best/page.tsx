@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { JsonLd, breadcrumbLd } from "@/components/docs/json-ld";
 import { TheRead } from "@/components/oa/insight";
+import { closeWords } from "@/lib/benchmark-day";
 import { AppPage, CardGrid, NUM, PageHead, Panel, SourceLine, fmtDay } from "@/components/oa/kit";
 import { StockLogo } from "@/components/stock-logo";
 import { BEST_LISTS, LIST_GROUPS, bestListHref, buildHubRead, monthYear } from "@/lib/best-stocks";
@@ -40,7 +41,7 @@ export default async function BestHubPage() {
     lists.map((item) => item.built),
     input,
   );
-  const closeDay = input.priceDay ? `the ${fmtDay(input.priceDay, true)} close` : undefined;
+  const closeDay = input.priceDay ? closeWords(input.priceDay, fmtDay(input.priceDay, true)) : undefined;
 
   return (
     <AppPage>

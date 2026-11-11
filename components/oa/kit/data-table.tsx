@@ -32,6 +32,7 @@ export function DataTable({
   empty,
   pageSize,
   stickyHeader = true,
+  compact = false,
 }: {
   columns: DataColumn[];
   rows: DataRow[];
@@ -40,6 +41,8 @@ export function DataTable({
   /** Show this many rows, with a "Show more" control for the rest. */
   pageSize?: number;
   stickyHeader?: boolean;
+  /** Tighter cell padding, for wide tables that must fit the content column at 1280. */
+  compact?: boolean;
 }) {
   const [sort, setSort] = React.useState(initialSort ?? null);
   const [shown, setShown] = React.useState(pageSize ?? rows.length);
@@ -81,7 +84,7 @@ export function DataTable({
                     scope="col"
                     title={column.hint}
                     aria-sort={active ? (sort?.dir === "asc" ? "ascending" : "descending") : undefined}
-                    className={`oa-caption h-9 whitespace-nowrap border-b border-oa-border bg-oa-bg px-2 py-0 first:pl-4 last:pr-4 ${align} ${
+                    className={`oa-caption h-9 whitespace-nowrap border-b border-oa-border bg-oa-bg ${compact ? "px-1.5" : "px-2"} py-0 first:pl-4 last:pr-4 ${align} ${
                       column.hideOnMobile ? "hidden sm:table-cell" : ""
                     } ${stickyHeader ? "sticky top-0 z-[1]" : ""}`}
                   >
@@ -131,7 +134,7 @@ export function DataTable({
                   return (
                     <td
                       key={column?.id ?? index}
-                      className={`h-11 whitespace-nowrap px-2 py-1 align-middle first:pl-4 last:pr-4 ${
+                      className={`h-11 whitespace-nowrap ${compact ? "px-1.5" : "px-2"} py-1 align-middle first:pl-4 last:pr-4 ${
                         column?.align === "right" ? "text-right" : "text-left"
                       } ${column?.hideOnMobile ? "hidden sm:table-cell" : ""}`}
                     >

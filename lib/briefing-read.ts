@@ -216,11 +216,19 @@ export function briefingRead(
     const leadName = lead ? nameOf(lead.name, lead.ticker) || (lead.ticker as string) : "";
     const earlier = earlierSession(briefing.market.as_of, briefing.date);
     const leadMove = lead?.day_change_pct;
+    // The reason goes in the headline when it splits cleanly ("Hims & Hers Health fell 16.5% after earnings that
+    // missed expectations"); its row then leaves the list below, so the read never says the same thing twice.
+    const leadInsight = lead && leadName ? lead.items.map((item) => explainedMoveInsight(item, briefing.date, lead.name)).find(Boolean) ?? null : null;
+    const leadWhy = leadInsight && lead?.ticker && leadInsight.text.startsWith(`${lead.ticker} `) && / after /.test(leadInsight.text)
+      ? `${leadName} ${leadInsight.text.slice(lead.ticker.length + 1).replace(/\.$/, "")}.`
+      : "";
     const leaders = !leadName
       ? ""
-      : leadMove != null && Number.isFinite(leadMove) && leadMove !== 0
-        ? `${leadName} ${leadMove > 0 ? "rose" : "fell"} ${pct(leadMove)}${earlier}, the biggest move we can explain${earlier ? "" : " today"}.`
-        : `${leadName} made the biggest move we can explain${earlier}.`;
+      : leadWhy
+        ? `${leadWhy} It was the biggest move${earlier ? "" : " today"} with a confirmed reason.`
+        : leadMove != null && Number.isFinite(leadMove) && leadMove !== 0
+          ? `${leadName} ${leadMove > 0 ? "rose" : "fell"} ${pct(leadMove)}${earlier}, the biggest move${earlier ? "" : " today"} with a confirmed reason.`
+          : `${leadName} made the biggest move with a confirmed reason${earlier}.`;
     const clock = indexClock(briefing.market.as_of, briefing.date);
     const direction = index ? `${index.change_pct >= 0 ? "up" : "down"} ${pct(index.change_pct, 2)}` : "";
     const indexLine = !index
@@ -233,7 +241,9 @@ export function briefingRead(
     // The story first, the index as its backdrop.
     const headline = [leaders, indexLine].filter(Boolean).join(" ");
     const insights = pickInsights(
-      leads.map((group) => group.items.map((item) => explainedMoveInsight(item, briefing.date, group.name)).find(Boolean) ?? null),
+      leads
+        .filter((group) => !(leadWhy && group === lead))
+        .map((group) => group.items.map((item) => explainedMoveInsight(item, briefing.date, group.name)).find(Boolean) ?? null),
     );
     if (!headline && insights.length === 0) return null;
     return { headline, insights, asOf };

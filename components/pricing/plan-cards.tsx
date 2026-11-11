@@ -10,6 +10,11 @@ import { signInWithGoogle } from "@/lib/sign-in";
 
 export type PricingPeriod = "monthly" | "yearly";
 
+/** "17" from the yearly note "... 17% less than paying monthly.", or null. */
+function yearlySaving(note: string | undefined): string | null {
+  return /(\d+)% less/.exec(note ?? "")?.[1] ?? null;
+}
+
 export type PlanPrice = {
   period: PricingPeriod;
   /** "$19" */
@@ -115,7 +120,15 @@ export function PricingGrid({
                 : "text-oa-muted-fg hover:text-oa-fg"
             }`}
           >
-            {price.period === "monthly" ? "Monthly" : "Yearly"}
+            {price.period === "monthly" ? (
+              "Monthly"
+            ) : (
+              <>
+                Yearly
+                {/* The saving, so Yearly is not a mystery switch. */}
+                {yearlySaving(price.note) ? <span className="ml-1 text-oa-primary">−{yearlySaving(price.note)}%</span> : null}
+              </>
+            )}
           </button>
         ))}
       </div>

@@ -1,8 +1,10 @@
 import { unstable_cache } from "next/cache";
 
+import { benchmarkForDay, quoteDay } from "@/lib/benchmark-day";
 import { todayET } from "@/lib/calendar-shared";
 import type { AnomalyItem } from "@/lib/daily-anomalies";
 import { adminFirestore } from "@/lib/firebase-admin";
+import { getMarketsData } from "@/lib/markets";
 import { getScreenerSnapshot } from "@/lib/screener";
 import { sectorSlug, type ScreenerRow } from "@/lib/screener-shared";
 import {
@@ -31,7 +33,7 @@ export type Coverage = {
   bySymbol: Map<string, ScreenerRow>;
   /** The S&P 500 (SPY) row, for "against the market" comparisons. */
   spy: ScreenerRow | null;
-  /** The last close in the snapshot, YYYY-MM-DD. */
+  /** The day the stocks are priced on (their quotes, else the last close in the history), YYYY-MM-DD. */
   priceDay: string | null;
   generatedAt: string | null;
 };
@@ -40,14 +42,17 @@ export async function getCoverage(): Promise<Coverage> {
   // A failed or empty read must not look like "this page does not exist": the
   // pages would answer 404 and search engines would drop them. Throwing gives a
   // 500 instead, which crawlers retry; sitemap callers already catch it.
-  const snapshot = await getScreenerSnapshot();
+  const [snapshot, markets] = await Promise.all([getScreenerSnapshot(), getMarketsData().catch(() => null)]);
   const rows = (snapshot?.rows ?? []).filter((row) => !row.benchmark && !row.uncovered);
   if (rows.length === 0) throw new Error("coverage_unavailable");
+  // Stocks are priced from the latest quotes; the history (and the SPY row built from it) can end a day earlier.
+  const priceDay = quoteDay(rows, snapshot?.meta.price_history_to ?? null);
+  const sp500 = markets?.assets.find((asset) => asset.id === "sp500") ?? null;
   return {
     rows,
     bySymbol: new Map(rows.map((row) => [row.symbol.toUpperCase(), row])),
-    spy: snapshot?.extras.find((row) => row.symbol === "SPY") ?? null,
-    priceDay: snapshot?.meta.price_history_to ?? null,
+    spy: benchmarkForDay(snapshot?.extras.find((row) => row.symbol === "SPY") ?? null, priceDay, sp500),
+    priceDay,
     generatedAt: snapshot?.meta.generated_at ?? null,
   };
 }

@@ -203,7 +203,7 @@ describe("one fund, one member", () => {
     expect(read.insights[0].text).toBe("Pershing Square is 62% in three stocks: UBER 30%, BN 20% and MSFT 12%.");
     expect(read.insights[1].text).toBe("In Q2 2026 it opened V (5.8%), added to UBER (now 30%), cut AMZN to 10.4% and sold out of GOOG.");
     expect(read.insights[2].text).toBe(
-      "Since Aug 14, 2013, copying Pershing Square's stock picks from each filing date beat the S&P 500 by 3.4 pts a year (+17.3% against +13.9%).",
+      "Since Aug 14, 2013, copying Pershing Square's stock picks from each filing date beat the S&P 500 by 3.4 points a year (+17.3% against +13.9%).",
     );
   });
 
@@ -223,7 +223,7 @@ describe("one fund, one member", () => {
       performance: perf,
     } as unknown as CongressProfile;
     const read = buildCongressMemberRead(profile);
-    expect(read.headline).toBe("Copying Jane Doe's buys beat the S&P 500 by 3.4 pts a year since Aug 2013.");
+    expect(read.headline).toBe("Copying Jane Doe's buys beat the S&P 500 by 3.4 points a year since Aug 2013.");
     expect(read.insights[0].text).toBe("NVDA is the stock Jane Doe trades most: 2 buys and 1 sale in the latest 5 reported trades.");
     expect(read.insights[1].soWhat).toBe("A typical trade reaches the public 20 days after it happens; 1 came in past the 45-day limit.");
   });

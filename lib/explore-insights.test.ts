@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { followTakeaway, mergeDeskRead, screensTakeaway, strategiesTakeaway } from "@/lib/explore-insights";
+import { buildGiantsRead, followTakeaway, mergeDeskRead, screensTakeaway, strategiesTakeaway } from "@/lib/explore-insights";
 import type { Insight } from "@/lib/insights";
 import type { FollowActivity } from "@/lib/follow-shared";
 
@@ -74,5 +74,22 @@ describe("mergeDeskRead", () => {
     expect(mergeDeskRead(null, news)!.insights.map((insight) => insight.id)).toEqual(["theme", "leader", "balance"]);
     expect(mergeDeskRead(null, null)).toBeNull();
     expect(mergeDeskRead({ headline: "", insights: [] }, { headline: "", insights: [] })).toBeNull();
+  });
+});
+
+describe("buildGiantsRead", () => {
+  const giant = (symbol: string, cap: number, day: number) => ({ symbol, name: symbol, cap, day });
+  it("weights the biggest companies by size and names the one that pulled hardest", () => {
+    const read = buildGiantsRead([giant("AAPL", 5, -0.6), giant("NVDA", 4.6, -5.5), giant("GOOGL", 4.2, -0.3), giant("MSFT", 2.9, -2.2), giant("AMZN", 2.4, 1.5)])!;
+    expect(read.line).toBe("The 5 biggest companies lost 1.7% of their combined value; 1 of the 5 rose.");
+    expect(read.insight.text).toContain("NVDA (−5.5%) did the most to pull down the group.");
+    expect(read.insight.tickers).toEqual(["NVDA"]);
+  });
+  it("says so when the weighted move and the count disagree", () => {
+    const read = buildGiantsRead([giant("AAPL", 5, 0.2), giant("NVDA", 4.6, -5.5), giant("GOOGL", 4.2, 0.1), giant("MSFT", 2.9, 0.3), giant("AMZN", 2.4, 0.2)])!;
+    expect(read.line).toBe("The 5 biggest companies lost 1.2% of their combined value, even though 4 of them rose.");
+  });
+  it("needs five companies", () => {
+    expect(buildGiantsRead([giant("AAPL", 5, 1)])).toBeNull();
   });
 });

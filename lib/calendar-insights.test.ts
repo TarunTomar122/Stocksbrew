@@ -57,13 +57,20 @@ describe("buildCalendarRead", () => {
 
   it("leads with the release today and the biggest reporters", () => {
     const read = buildCalendarRead({
-      items, today: TODAY, period: "this week", mine: null,
+      items, today: TODAY, period: "this week", mine: null, now: new Date(`${TODAY}T12:00:00Z`),
       context: { CSCO: { last: { pct: -5.8, basis: "2d", toDate: "2026-08-13", eventDate: "2026-08-12" }, typicalDayPct: 1.75 } },
     })!;
     expect(read.headline).toBe("CPI inflation numbers come out today at 8:30 AM ET. 3 companies still report earnings this week. The biggest are CSCO and AMAT on Thursday.");
     expect(read.insights[0]!.id).toBe("biggest");
     expect(read.insights[0]!.text).toContain("about 3 times its normal daily move");
     expect(read.insights[1]!.text).toBe("So far 3 of 3 companies beat what analysts expected (100%), and none fell short. Biggest moves after: CNH +13.5% and CEG +9.5%.");
+  });
+
+  it("says a release earlier today came out, by New York time", () => {
+    const at = (iso: string) => buildCalendarRead({ items, today: TODAY, period: "this week", mine: null, now: new Date(iso) })!.headline;
+    // 8:29 and 8:31 AM in New York (EST, UTC-5) on TODAY.
+    expect(at(`${TODAY}T13:29:00Z`)).toMatch(/^CPI inflation numbers come out today at 8:30 AM ET\./);
+    expect(at(`${TODAY}T13:31:00Z`)).toMatch(/^CPI inflation numbers came out today at 8:30 AM ET\./);
   });
 
   it("puts the person's own stocks first, in date order", () => {

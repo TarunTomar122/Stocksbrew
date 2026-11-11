@@ -84,7 +84,7 @@ describe("briefingRead", () => {
   it("reads the market view from its explained moves", () => {
     const lead = { ...cbrs, relation: "market" as const, needs_you: true };
     const read = briefingRead({ ...base, mode: "market" }, groupBriefingSections({ ...sections([]), needs_you: [lead] }, "market"));
-    expect(read?.headline).toBe("CBRS rose 7.9%, the biggest move we can explain today. The S&P 500 is up 2.33%.");
+    expect(read?.headline).toBe("CBRS rose 7.9%, the biggest move today with a confirmed reason. The S&P 500 is up 2.33%.");
     expect(read?.insights).toHaveLength(1);
   });
   it("says a cause-first reason company first, with the name in place of the ticker", () => {
@@ -100,9 +100,11 @@ describe("briefingRead", () => {
       day_change_pct: -16.5,
     });
     const read = briefingRead({ ...base, mode: "market" }, groupBriefingSections({ ...sections([]), needs_you: [hims] }, "market"));
-    expect(read?.headline).toBe("Hims & Hers Health fell 16.5%, the biggest move we can explain today. The S&P 500 is up 2.33%.");
-    expect(read?.insights[0].text).toBe("HIMS fell 16.5% after earnings that missed expectations and a lower forecast.");
-    expect(read?.insights[0].leadName).toBe("Hims & Hers Health");
+    expect(read?.headline).toBe(
+      "Hims & Hers Health fell 16.5% after earnings that missed expectations and a lower forecast. It was the biggest move today with a confirmed reason. The S&P 500 is up 2.33%.",
+    );
+    // The lead's reason is in the headline, so its row is not repeated below.
+    expect(read?.insights.some((insight) => insight.tickers?.includes("HIMS"))).toBe(false);
   });
 
   it("folds stocks you watch sitting in their add zone into one line read against the index", () => {
@@ -124,7 +126,7 @@ describe("briefingRead", () => {
       { ...base, mode: "market", date: "2026-11-10" },
       groupBriefingSections({ ...sections([]), needs_you: [lead] }, "market"),
     );
-    expect(read?.headline).toBe("CBRS rose 7.9% on Monday, the biggest move we can explain. The S&P 500 is up 2.33%.");
+    expect(read?.headline).toBe("CBRS rose 7.9% on Monday, the biggest move with a confirmed reason. The S&P 500 is up 2.33%.");
     expect(read?.insights[0].text).toBe("CBRS rose 7.9% on Monday: Cerebras signed a cloud deal.");
   });
 });

@@ -69,6 +69,8 @@ export type CalendarReadInput = {
   context?: Record<string, ReportContext>;
   /** Link to the agenda filtered to the person's stocks. */
   mineHref?: string;
+  /** The current time, so a release earlier today reads in the past tense. Defaults to now. */
+  now?: Date;
 };
 
 function upcomingEarnings(items: CalendarItem[], today: string): EarningsItem[] {
@@ -239,6 +241,25 @@ function fmtClock(time: string): string {
   return `${h! % 12 === 0 ? 12 : h! % 12}:${String(m).padStart(2, "0")} ${h! < 12 ? "AM" : "PM"}`;
 }
 
+/** True once a release set for `today` at its New York time has passed. Only for the real today. */
+function releasedAlready(item: EconomicItem, today: string, now: Date): boolean {
+  if (!item.timeEt || item.date !== today) return false;
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(now);
+  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
+  if (`${get("year")}-${get("month")}-${get("day")}` !== today) return false;
+  const [h, m] = item.timeEt.split(":").map(Number);
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return false;
+  return Number(get("hour")) * 60 + Number(get("minute")) >= h! * 60 + m!;
+}
+
 export function buildCalendarRead(input: CalendarReadInput): TheRead | null {
   const upcoming = upcomingEarnings(input.items, input.today);
   const reported = reportedEarnings(input.items, input.today);
@@ -246,7 +267,10 @@ export function buildCalendarRead(input: CalendarReadInput): TheRead | null {
   if (upcoming.length === 0 && reported.length === 0 && !econToday) return null;
 
   const parts: string[] = [];
-  if (econToday) parts.push(`${econToday.title.trim()} numbers come out today${econToday.timeEt ? ` at ${fmtClock(econToday.timeEt)} ET` : ""}`);
+  if (econToday) {
+    const out = releasedAlready(econToday, input.today, input.now ?? new Date());
+    parts.push(`${econToday.title.trim()} numbers ${out ? "came" : "come"} out today${econToday.timeEt ? ` at ${fmtClock(econToday.timeEt)} ET` : ""}`);
+  }
   if (upcoming.length) {
     const leaders = upcoming.slice(0, 2);
     const sameDay = leaders.length === 2 && leaders[0]!.date === leaders[1]!.date;

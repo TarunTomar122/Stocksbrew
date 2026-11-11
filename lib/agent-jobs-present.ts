@@ -407,10 +407,10 @@ export function presentRun(
       headline = extra.shift() ?? headline;
     }
   }
-  if (!todo) todo = zoneLine || "Nothing needs you.";
+  if (!todo) todo = zoneLine || "No action needed.";
   else if (zoneLine) todo = `${zoneLine} ${todo}`;
   if (extra.length) todo = `${todo} ${extra.join(" ")}`;
-  if (!act && (trigger?.type === "event" && trigger.event !== "earnings_approaching") && todo === "Nothing needs you.") {
+  if (!act && (trigger?.type === "event" && trigger.event !== "earnings_approaching") && todo === "No action needed.") {
     todo = "Worth a look.";
   }
 
@@ -456,8 +456,8 @@ export function agentsRead(statuses: JobStatus[], today: string): TheRead | null
     act > 0
       ? `${act === 1 ? "One agent needs you" : `${act} agents need you`}${look ? `, and ${look === 1 ? "one has a heads-up" : `${look} have heads-ups`}` : ""}.`
       : look > 0
-        ? `Nothing needs you. ${look === 1 ? "One agent has a heads-up" : `${look} agents have heads-ups`}.`
-        : "All quiet. Nothing needs you.";
+        ? `No action needed. ${look === 1 ? "One agent has a heads-up" : `${look} agents have heads-ups`}.`
+        : "All quiet. No action needed.";
 
   const insights: Insight[] = ran
     .filter((status) => status.view?.verdict !== "quiet")

@@ -40,7 +40,7 @@ import {
   type FundProfile,
   type Performance,
 } from "@/lib/follow";
-import { oneRowPerCompany } from "@/lib/share-class";
+import { alsoClassesLabel, oneRowPerCompany } from "@/lib/share-class";
 import { netSide, type ToneWord } from "@/lib/tone";
 import { ogImage } from "@/lib/og/url";
 
@@ -289,7 +289,7 @@ function ChangeList({
         <p className="mt-1.5 text-[13px] text-oa-muted-fg">None.</p>
       ) : (
         <ul className="mt-1.5 space-y-1">
-          {oneRowPerCompany(rows, (row) => row.ticker).rows.slice(0, 8).map((row, index) => (
+          {(({ rows: folded, also }) => folded.slice(0, 8).map((row, index) => (
             <li
               key={`${row.cusip}-${index}`}
               className="flex items-baseline justify-between gap-2 text-[13px] leading-5"
@@ -300,13 +300,14 @@ function ChangeList({
                   className={`text-pretty ${row.ticker ? "text-[12px] text-oa-muted-fg" : "text-oa-fg"}`}
                 >
                   {shortCompanyName(row.name)}
+                  {alsoClassesLabel(also, row.ticker) ? <span className="oa-mono"> · {alsoClassesLabel(also, row.ticker)}</span> : null}
                 </span>
               </span>
               <span className="oa-mono shrink-0 text-[12px] text-oa-muted-fg">
                 {detail(row)}
               </span>
             </li>
-          ))}
+          )))(oneRowPerCompany(rows, (row) => row.ticker))}
           {count > Math.min(rows.length, 8) ? (
             <li className="text-[12px] text-oa-muted-fg">
               and {count - Math.min(rows.length, 8)} more in the filing
@@ -322,10 +323,13 @@ function RecordPanel({
   performance,
   name,
   what,
+  slug,
 }: {
   performance: Performance | null;
   name: string;
   what: string;
+  /** Links to the full copy test (/follow/<slug>/copy). */
+  slug: string;
 }) {
   if (!performance) {
     return (
@@ -358,8 +362,7 @@ function RecordPanel({
         {performance.fund.annualized != null &&
         performance.spy.annualized != null
           ? ` That is ${fmtFrac(performance.fund.annualized)} a year against ${fmtFrac(performance.spy.annualized)} for the S&P 500.`
-          : ""}
-      </p>
+          : ""}      </p>
     </Panel>
   );
 }
@@ -507,8 +510,8 @@ function FundView({
                 count={changes.counts.added}
                 rows={changes.added}
                 detail={(row) =>
-                  row.shares_delta_pct != null
-                    ? `${fmtFrac(row.shares_delta_pct / 100, Math.abs(row.shares_delta_pct) >= 100 ? 0 : 1)} sh`
+                  row.shares_delta_pct != null && Number.isFinite(row.shares_delta_pct)
+                    ? `${Math.abs(row.shares_delta_pct).toFixed(Math.abs(row.shares_delta_pct) >= 100 ? 0 : 1)}% more`
                     : ""
                 }
               />
@@ -518,8 +521,8 @@ function FundView({
                 count={changes.counts.reduced}
                 rows={changes.reduced}
                 detail={(row) =>
-                  row.shares_delta_pct != null
-                    ? `${fmtFrac(row.shares_delta_pct / 100, 1)} sh`
+                  row.shares_delta_pct != null && Number.isFinite(row.shares_delta_pct)
+                    ? `${Math.abs(row.shares_delta_pct).toFixed(1)}% fewer`
                     : ""
                 }
               />
@@ -589,6 +592,7 @@ function FundView({
           performance={profile.performance}
           name={profile.fund}
           what="reported stocks"
+          slug={profile.slug}
         />
       </div>
 
@@ -927,6 +931,7 @@ function CongressView({
           performance={profile.performance}
           name={profile.name}
           what="reported buys"
+          slug={profile.slug}
         />
       </div>
 

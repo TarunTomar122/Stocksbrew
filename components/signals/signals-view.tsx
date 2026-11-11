@@ -603,40 +603,6 @@ function SeeAll({ href, children }: { href: string; children: React.ReactNode })
   );
 }
 
-const TODAY_MOVER_COLS = "grid grid-cols-[1.25rem_minmax(0,1fr)_auto_1rem] items-center gap-x-2 lg:grid-cols-[1.75rem_5.5rem_minmax(0,1fr)_8.5rem_1.25rem] lg:gap-x-3";
-
-/** The lead of the Today tab: the moves we can explain, largest first, one line each. */
-function TodayMovers({ movers }: { movers: Mover[] }) {
-  // Bars share one scale, so a 16% drop looks twice the size of an 8% one.
-  const max = Math.max(...movers.map((mover) => Math.abs(mover.pct)), 0);
-  return (
-    <ol>
-      {movers.map((mover, index) => (
-        <li key={mover.ticker} className="border-b border-oa-border last:border-b-0">
-          <details className="group">
-            <summary data-track="mover_opened" data-track-ticker={mover.ticker} data-track-list="today" className={`cursor-pointer list-none px-4 py-2.5 hover:bg-oa-accent [&::-webkit-details-marker]:hidden ${FOCUS}`}>
-              <div className={TODAY_MOVER_COLS}>
-                <span aria-label={`Rank ${index + 1}`} className={`${NUM} text-[12.5px] text-oa-muted-fg`}>
-                  {index + 1}
-                </span>
-                <Ticker symbol={mover.ticker} size={20} className="min-w-0" />
-                <p className="col-span-3 col-start-2 row-start-2 mt-0.5 min-w-0 text-pretty text-[14px] leading-5 text-oa-fg lg:col-span-1 lg:col-start-3 lg:row-start-1 lg:mt-0 lg:font-medium">
-                  {plainFinance(sentenceCase(mover.headline))}
-                </p>
-                <span className="flex items-center justify-end gap-2">
-                  <MoveBar pct={mover.pct} max={max} always />
-                  <Delta value={mover.pct} className="text-right text-[15px] font-semibold" />
-                </span>
-                <Chevron />
-              </div>
-            </summary>
-            <MoverDetail mover={mover} />
-          </details>
-        </li>
-      ))}
-    </ol>
-  );
-}
 
 export function TodayTab({
   pick,
@@ -685,45 +651,19 @@ export function TodayTab({
           {pick.policy.length ? <PolicyList posts={pick.policy} compact /> : <Empty className="!py-6">No market posts yet.</Empty>}
         </Panel>
       </div>
-      {/* What moved comes after what people said: the moves have their own page (Why stocks moved). */}
-      <Panel
-        label={
+      {/* Signals is what people are saying. The day's moves and their reasons live on Why stocks moved, so they are one line here, not a third copy of the same list. */}
+      <p className="text-[14px] leading-5 text-oa-muted-fg">
+        {counts.all ? (
           <>
-            Big moves with a known reason <span className={`${NUM} ml-1.5 hidden font-normal text-oa-muted-fg sm:inline`}>{counts.explained} of {counts.all}</span>
+            {counts.all} stocks moved{movers.thresholdPct ? ` ${movers.thresholdPct}% or more` : " a lot"} today (
+            <span className="text-signal-bullish">{counts.up} up</span>, <span className="text-signal-bearish">{counts.down} down</span>).{" "}
           </>
-        }
-        right={<SeeAll href={moversHref}>All {counts.all} moves</SeeAll>}
-        flush
-      >
-        {pick.movers.length ? (
-          <TodayMovers movers={pick.movers} />
-        ) : (
-          <Empty className="!py-6">No move on today&apos;s list has a confirmed reason yet.</Empty>
-        )}
-        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-t border-oa-border bg-oa-bg px-4 py-2 text-[12.5px] leading-5 text-oa-muted-fg">
-          {counts.all ? (
-            <span>
-              {counts.all} stocks moved{movers.thresholdPct ? ` ${movers.thresholdPct}% or more` : " a lot"}: <span className="text-signal-bullish">{counts.up} up</span>,{" "}
-              <span className="text-signal-bearish">{counts.down} down</span>.
-            </span>
-          ) : (
-            <span>No moves past the threshold.</span>
-          )}
-          {pick.unexplained.length ? (
-            <span className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
-              <SeeAll href={`${moversHref}&show=unexplained`}>{counts.unexplained} with no reason found yet</SeeAll>
-              {pick.unexplained.map((mover) => (
-                <a key={mover.ticker} href={`/stock/${encodeURIComponent(mover.ticker)}`} data-track="mover_opened" data-track-list="unexplained" className={`inline-flex items-baseline gap-1.5 rounded hover:underline ${FOCUS}`}>
-                  <span className={`${NUM} font-medium text-oa-fg`}>{mover.ticker}</span>
-                  <Delta value={mover.pct} className="text-[12.5px]" />
-                </a>
-              ))}
-            </span>
-          ) : counts.all ? (
-            <span>Every move on today&apos;s list has a reason attached.</span>
-          ) : null}
-        </div>
-      </Panel>
+        ) : null}
+        <a href="/movers" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
+          See why each one moved
+        </a>{" "}
+        or <SeeAll href={moversHref}>the full list here</SeeAll>.
+      </p>
 
     </>
   );

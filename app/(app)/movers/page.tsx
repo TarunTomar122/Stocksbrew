@@ -38,7 +38,7 @@ function hubRead(moves: readonly MoveRef[], latest: string | null): TheReadData 
   const repeat = [...counts.entries()].filter(([, count]) => count >= 2).sort((a, b) => b[1] - a[1]);
   const biggest = [...today].sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct))[0];
   // The story first (the day's biggest move, in a sentence), then the count.
-  const count = `${today.length} ${today.length === 1 ? "stock" : "stocks"} made a big move with a confirmed reason on ${longDay(latest)}: ${up} rose and ${today.length - up} fell.`;
+  const count = `On ${longDay(latest)} we found the reason for ${today.length} big ${today.length === 1 ? "move" : "moves"}: ${up} ${up === 1 ? "stock" : "stocks"} rose and ${today.length - up} fell.`;
   return {
     headline: biggest ? biggestLine(biggest, latest) : count,
     insights: pickInsights([

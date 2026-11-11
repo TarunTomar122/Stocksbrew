@@ -509,7 +509,7 @@ export function JobsWorkspace({
               ) : null}
               {template.fields.includes("pct") ? (
                 <label className="grid gap-1 text-[12.5px] font-medium text-oa-muted-fg">
-                  Smallest daily move (%)
+                  Tell me when a stock moves at least (%)
                   <input className={`${INPUT} oa-mono`} inputMode="decimal" value={form.pct} onChange={(event) => setForm({ ...form, pct: event.target.value })} />
                 </label>
               ) : null}
@@ -534,7 +534,7 @@ export function JobsWorkspace({
             </div>
 
             <div className={`rounded-xl border border-oa-border bg-oa-bg px-3.5 py-3 ${replayShown ? "order-1" : "order-2"}`}>
-              <p className="oa-caption">What it watches</p>
+              <p className="oa-caption">In plain words</p>
               <p className="mt-1 max-w-[70ch] text-pretty text-[16px] leading-6 text-oa-fg">&ldquo;{describeJob(draftPreview)}&rdquo;</p>
               {sourceNote(template, available) ? (
                 <p className="mt-1.5 text-[12.5px] leading-5 text-[color:color-mix(in_srgb,var(--oa-fg)_80%,transparent)]">{sourceNote(template, available)}</p>
@@ -547,7 +547,7 @@ export function JobsWorkspace({
                   Switch it on
                 </OaButton>
               ) : (
-                <SignInButton label="Sign in to switch it on" size="md" className="max-sm:!h-10" />
+                <SignInButton label="Sign in to turn it on" size="md" className="max-sm:!h-10" />
               )}
               <OaButton variant="secondary" data-action="replay" loading={busy === "replay"} onClick={runReplay} className="max-sm:!h-10">
                 {replay && replayIsCurrent ? "Update preview" : "Preview the last 4 weeks"}

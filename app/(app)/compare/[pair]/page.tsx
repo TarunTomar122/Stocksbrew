@@ -3,6 +3,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 
 import { CompareView } from "@/components/compare-desk/compare-view";
 import { JsonLd, breadcrumbLd } from "@/components/docs/json-ld";
+import { closeWords } from "@/lib/benchmark-day";
 import { AppPage, CardGrid, NUM, PageHead, Panel, SourceLine, Ticker, fmtDay } from "@/components/oa/kit";
 import { CallTag } from "@/components/screener/shared";
 import { todayET } from "@/lib/calendar-shared";
@@ -156,7 +157,7 @@ export default async function PairPage({ params, searchParams }: Props) {
         // Tickers keep the title on one line on a phone; the names follow underneath.
         title={`${first.symbol} vs ${second.symbol}`}
         lede={`${shortCompanyName(name(first))} and ${shortCompanyName(name(second))}, side by side.`}
-        meta={<SourceLine source="Prices and company data" asOf={coverage.priceDay ? `the ${fmtDay(coverage.priceDay, true)} close` : undefined} />}
+        meta={<SourceLine source="Prices and company data" asOf={coverage.priceDay ? closeWords(coverage.priceDay, fmtDay(coverage.priceDay, true)) : undefined} />}
         full
       />
 

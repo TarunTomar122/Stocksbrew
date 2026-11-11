@@ -85,7 +85,8 @@ export function SaveScreen({
           <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" aria-hidden="true">
             <path d="M4 2.5h8v11l-4-2.6-4 2.6z" />
           </svg>
-          <span className="max-sm:sr-only">Save screen</span>
+          <span className="sm:hidden">Save</span>
+          <span className="max-sm:hidden">Save screen</span>
         </>
       }
     >

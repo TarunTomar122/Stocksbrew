@@ -29,6 +29,8 @@ import { RowCheck, SelectAllCheck, SelectionBar, SelectionProvider } from "@/com
 import { CONTROL, CallTag, EarningsDate, FieldValue, Unknown, ZoneTag } from "@/components/screener/shared";
 import { can, limitFor } from "@/lib/entitlements";
 import { canSeeLevels, getViewer } from "@/lib/entitlements-server";
+import { benchmarkForDay, quoteDay } from "@/lib/benchmark-day";
+import { getMarketsData } from "@/lib/markets";
 import { getScreenerSnapshot } from "@/lib/screener";
 import { readSavedScreens, type SavedScreen } from "@/lib/screener-saved";
 import {
@@ -73,6 +75,8 @@ type SearchParams = Record<string, string | string[] | undefined>;
 
 const BASE = "https://www.stocksbrew.online";
 const PAGE_ROWS = 50;
+/** With no screen chosen, the page opens on a short named list: the biggest companies. The rest is one tap away. */
+const FIRST_LIST = 20;
 
 export async function generateMetadata({ searchParams }: { searchParams: SearchParams }): Promise<Metadata> {
   const view = parseView(searchParams);
@@ -133,9 +137,12 @@ function SortLabel({ view, id, numeric, locked = false, children }: { view: Scre
       className={`inline-flex items-center gap-1 rounded tracking-[inherit] outline-none hover:text-oa-fg focus-visible:underline ${active ? "text-oa-fg" : ""}`}
     >
       {children}
-      <span aria-hidden="true" className={active ? "text-oa-primary" : "opacity-0"}>
-        {view.sort.dir === "asc" ? "↑" : "↓"}
-      </span>
+      {/* Only the sorted column carries an arrow: a hidden arrow on every column cost the table its last column at 1280. */}
+      {active ? (
+        <span aria-hidden="true" className="text-oa-primary">
+          {view.sort.dir === "asc" ? "↑" : "↓"}
+        </span>
+      ) : null}
     </Link>
   );
 }
@@ -239,7 +246,7 @@ function SectorStrip({ stat }: { stat: SectorStat }) {
 }
 
 export default async function ScreenerPage({ searchParams }: { searchParams: SearchParams }) {
-  const [snapshot, viewer] = await Promise.all([getScreenerSnapshot().catch(() => null), getViewer()]);
+  const [snapshot, viewer, markets] = await Promise.all([getScreenerSnapshot().catch(() => null), getViewer(), getMarketsData().catch(() => null)]);
 
   if (!snapshot) {
     return (
@@ -257,6 +264,7 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
   const presets = availablePresets(meta.coverage);
   const view = parseView(searchParams, presets);
   const activePreset = view.preset ? presets.find((preset) => preset.slug === view.preset) ?? null : null;
+  const hasScreen = activePreset !== null || countActiveFilters(view.filters) > 0;
 
   // The call is open to everyone. Price zones belong to covered stocks (every stock on Pro),
   // so strip them before anything else touches the rows: no filter or sort can leak them.
@@ -276,6 +284,13 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
     .map(([id]) => id);
 
   const asOf = fmtStampET(meta.generated_at);
+  // Day moves come from the latest quotes; the price history (and its SPY row) can end a session earlier.
+  const priceDay = quoteDay(snapshot.rows, meta.price_history_to ?? null);
+  const spy = benchmarkForDay(
+    snapshot.extras.find((row) => row.symbol === "SPY") ?? null,
+    priceDay,
+    markets?.assets.find((asset) => asset.id === "sp500") ?? null,
+  );
   const tabs = [
     { id: "screen", label: "Screen", href: viewHref({ ...view, tab: "screen" }), count: meta.row_count },
     { id: "sectors", label: "Sectors", href: viewHref({ ...view, tab: "sectors" }), count: sectorOptions.length },
@@ -302,7 +317,7 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
     const stats = sectorStats(rows, view.period);
     const sectorHref = (slug: string) => viewHref({ ...view, tab: "screen", preset: null, filters: { ...EMPTY_FILTERS, sectors: [slug] }, sort: DEFAULT_SORT });
     const periodLabel = SECTOR_PERIODS.find((item) => item.id === view.period)?.label ?? "Today";
-    const sectorsRead = buildSectorsRead({ stats: sectorStats(rows), priceDay: meta.price_history_to ?? null });
+    const sectorsRead = buildSectorsRead({ stats: sectorStats(rows), priceDay });
     const sectorColumns: DataColumn[] = [
       { id: "sector", label: "Sector" },
       { id: "count", label: "Stocks", align: "right", hideOnMobile: true },
@@ -379,7 +394,8 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
   const matched = lockedByCall ? [] : sortRows(applyFilters(rows, view.filters), sort);
   // Rows are rendered on the server, so the page carries only the rows it shows.
   const requested = Number(Array.isArray(searchParams.n) ? searchParams.n[0] : searchParams.n);
-  const shownCount = Number.isFinite(requested) ? Math.min(Math.max(PAGE_ROWS, Math.floor(requested)), 1000) : PAGE_ROWS;
+  const firstList = !hasScreen && sort.id === DEFAULT_SORT.id && sort.dir === DEFAULT_SORT.dir && !Number.isFinite(requested);
+  const shownCount = Number.isFinite(requested) ? Math.min(Math.max(PAGE_ROWS, Math.floor(requested)), 1000) : firstList ? FIRST_LIST : PAGE_ROWS;
   // One row per company: GOOGL and GOOG are one Alphabet row that names the other class. Counts stay per ticker.
   const page = matched.slice(0, shownCount);
   // A search shows every class it matched, so someone who typed GOOG sees GOOG.
@@ -399,7 +415,6 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
     saved = readSavedScreens((doc as { saved_screens?: unknown } | null)?.saved_screens);
   }
   const savedLimit = limitFor("saved_screens", plan);
-  const hasScreen = activePreset !== null || countActiveFilters(view.filters) > 0;
   const currentQuery = hasScreen ? viewToQuery(view) : "";
   const description = describeScreen(view, sectorOptions);
   const onlySector =
@@ -411,8 +426,8 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
         matched,
         universe: rows,
         narrowed: hasScreen,
-        priceDay: meta.price_history_to ?? null,
-        spy: snapshot.extras.find((row) => row.symbol === "SPY") ?? null,
+        priceDay,
+        spy,
       });
   const columns: DataColumn[] = [
     { id: "_select", label: <SelectAllCheck symbols={shown.map((row) => row.symbol)} />, sortable: false },
@@ -547,8 +562,15 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
 
       {/* Desktop: one row of chips, as many as fit, with the full list behind "All screens". Phones get the list inside the results bar. */}
       <nav aria-label="Saved screens" className="mb-3 hidden items-center gap-2 lg:flex">
-        <span className="oa-caption shrink-0">Saved screens</span>
+        <span className="oa-caption shrink-0">Lists</span>
         <div className="flex h-8 min-w-0 flex-1 flex-wrap gap-x-2 gap-y-4 overflow-hidden">
+          <a
+            href="/screener"
+            aria-current={firstList ? "true" : undefined}
+            className={`${PRESET_CHIP} ${firstList ? "border-[color-mix(in_srgb,var(--ink)_55%,transparent)] bg-oa-card font-medium text-oa-fg" : "border-oa-border text-oa-muted-fg hover:bg-oa-accent hover:text-oa-fg"}`}
+          >
+            Biggest companies
+          </a>
           {saved.length > 0 ? <MyScreens screens={saved} currentQuery={currentQuery} className="shrink-0 !flex-nowrap [&>.oa-caption]:hidden" /> : null}
           {presets.map((preset) => (
             <PresetChip
@@ -570,7 +592,7 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
       ) : null}
 
       {/* The screener's job is the tool: the read keeps its headline and folds its points. */}
-      <TheRead read={screenRead} label={hasScreen ? "What this screen says" : "The market we cover"} fold="always" foldLabel={hasScreen ? "Show what else this screen says" : "Show what else stands out today"} className="mb-4" />
+      <TheRead read={screenRead} label={hasScreen ? "What this list says" : "The market, in short"} fold="always" foldLabel={hasScreen ? "Show what else this list says" : "Show what else stands out"} className="mb-4" />
 
       {onlySector ? <SectorStrip stat={onlySector} /> : null}
 
@@ -589,12 +611,26 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
               />
             </div>
             <div className="flex min-h-8 basis-full items-center gap-2 max-sm:[&_button]:h-10 lg:basis-auto">
-              <span className="lg:hidden">{screensMenu("Screens", "left")}</span>
+              <span className="lg:hidden">{screensMenu("Lists", "left")}</span>
               <p className="mr-auto min-w-0 whitespace-nowrap text-[14px] leading-5 text-oa-muted-fg lg:mr-1">
-                <span className={`${NUM} font-medium text-oa-fg`}>{lockedByCall ? "" : matched.length.toLocaleString("en-US")}</span>{" "}
-                {lockedByCall ? "" : !hasScreen ? (matched.length === 1 ? "match" : "matches") : `of ${meta.row_count}`}
+                {firstList ? (
+                  <>
+                    <span className="font-medium text-oa-fg sm:hidden">{shown.length} biggest</span>
+                    <span className="max-sm:hidden">
+                      <span className="font-medium text-oa-fg">Biggest companies</span> <span className={NUM}>{shown.length} of {matched.length.toLocaleString("en-US")}</span>
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className={`${NUM} font-medium text-oa-fg`}>{lockedByCall ? "" : matched.length.toLocaleString("en-US")}</span>{" "}
+                    {lockedByCall ? "" : !hasScreen ? (sort.id === DEFAULT_SORT.id && sort.dir === DEFAULT_SORT.dir ? "stocks, biggest first" : "stocks") : `of ${meta.row_count}`}
+                  </>
+                )}
               </p>
-              <ColumnPicker view={view} availableFields={availableFields} zonesEverywhere={plan === "pro"} />
+              {/* Phones show a fixed list (price, day, our call), so columns are a desktop control. */}
+              <span className="max-sm:hidden">
+                <ColumnPicker view={view} availableFields={availableFields} zonesEverywhere={plan === "pro"} />
+              </span>
               <SaveScreen
                 query={currentQuery}
                 canSave={can("saved_screens", plan)}
@@ -613,6 +649,11 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
             </div>
             {!lockedByCall && description.length > 0 ? (
               <p className="hidden basis-full text-[12.5px] leading-[18px] text-oa-muted-fg sm:block">Showing: {description.join(" · ")}</p>
+            ) : null}
+            {!lockedByCall ? (
+              <p className="basis-full text-[12.5px] leading-[18px] text-oa-muted-fg">
+                Our call is what we&apos;d do with each stock today: buy more, keep, or sell some. Tap a stock to see its page. It is research, not advice.
+              </p>
             ) : null}
           </div>
 
@@ -635,10 +676,18 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
           ) : (
             <>
               <div className="hidden sm:block">
-                <DataTable columns={columns} rows={tableRows} stickyHeader={false} />
+                <DataTable columns={columns} rows={tableRows} stickyHeader={false} compact />
               </div>
               {phoneList}
-              {remaining > 0 ? (
+              {firstList && remaining > 0 ? (
+                <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1 border-t border-oa-border px-4 py-3 text-[14px]">
+                  <span className="text-oa-muted-fg">The {shown.length} biggest companies we follow.</span>
+                  {/* The full list pages in fifties from here, so the first tap does not render all 781 rows at once. */}
+                  <Link href={moreHref(PAGE_ROWS)} scroll={false} prefetch={false} className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
+                    See all {matched.length.toLocaleString("en-US")} stocks
+                  </Link>
+                </div>
+              ) : remaining > 0 ? (
                 <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1 border-t border-oa-border px-4 py-2.5 text-[13px]">
                   <span className={`${NUM} text-oa-muted-fg`}>
                     Showing {page.length} of {matched.length.toLocaleString("en-US")}

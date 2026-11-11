@@ -49,7 +49,7 @@ describe("move page numbers", () => {
 
   it("sums a day of moves by direction and cause", () => {
     const read = buildMoversDayRead({ day: "2026-11-09", moves: [move(), move({ ticker: "HIMS", pct: -11, cause: "earnings guidance cut" }), move({ ticker: "OUST", pct: 2, cause: "business_contract" })], spyClose: null })!;
-    expect(read.headline).toBe("3 stocks made a big move with a confirmed reason on Nov 9, 2026: 2 up, 1 down.");
+    expect(read.headline).toBe("On Nov 9, 2026 we found the reason for 3 big moves: 2 up, 1 down.");
     expect(read.insights.find((insight) => insight.id === "causes")?.text).toBe("Earnings explained 2 of the 3 moves.");
     expect(buildMoversDayRead({ day: "2026-11-09", moves: [], spyClose: null })).toBeNull();
   });

@@ -1,4 +1,4 @@
-import { fin, median, movedWord, signedPct, upDown } from "@/lib/insight-format";
+import { fin, median, movedWord, shortDay, signedPct, upDown } from "@/lib/insight-format";
 import { pickInsights, sharePct, toneOfChange, type Insight, type TheRead } from "@/lib/insights";
 import type { ScreenerRow } from "@/lib/screener-shared";
 
@@ -76,7 +76,9 @@ export function buildSectorRead(input: SectorReadInput): TheRead | null {
   let headline = "";
   if (day !== null) {
     const moved = Math.abs(day) < 0.05 ? "were flat" : `${day > 0 ? "rose" : "fell"} ${Math.abs(day).toFixed(1)}%`;
-    headline = `${name} stocks ${moved} in the latest trading day${against(day, spy?.day_pct)}`;
+    // The day by its date: "in the latest trading day" left readers guessing which day the S&P figure was from.
+    const when = input.priceDay ? `on ${shortDay(input.priceDay)}` : "in the latest trading day";
+    headline = `${name} stocks ${moved} ${when}${against(day, spy?.day_pct)}`;
     if (breadth !== null) headline += `, and ${breadth}% of its ${withDay.length} stocks rose`;
     headline += ".";
   }

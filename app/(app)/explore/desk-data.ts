@@ -1,7 +1,7 @@
 import { unstable_cache } from "next/cache";
 
 import type { TheRead } from "@/lib/insights";
-import { asSentence, firstFullSentence } from "@/lib/plain-copy";
+import { asSentence, firstFullSentence, shortCompanyName } from "@/lib/plain-copy";
 import { getDailyAnomalies } from "@/lib/daily-anomalies";
 import { getEarnings, type EarningsEvent } from "@/lib/earnings";
 import { getFollowActivity, type FollowActivity } from "@/lib/follow";
@@ -15,7 +15,10 @@ import { getThematicScreens } from "@/lib/screens";
 import { addDays, weekStart } from "@/lib/calendar-shared";
 import { loadCalendarRange, loadReportContext } from "@/lib/calendar";
 import { buildCalendarRead, readTickers } from "@/lib/calendar-insights";
-import { screensTakeaway } from "@/lib/explore-insights";
+import { buildGiantsRead, screensTakeaway, type GiantForRead } from "@/lib/explore-insights";
+import { etDayOf, quoteDay } from "@/lib/benchmark-day";
+import { getScreenerSnapshot } from "@/lib/screener";
+import { oneRowPerCompany } from "@/lib/share-class";
 import { pickInsights } from "@/lib/insights";
 import { getMarketsData } from "@/lib/markets";
 import { buildMarketsRead, FUND_TOPIC, SECTOR_IDS, sectorTakeaway } from "@/lib/markets-insights";
@@ -270,6 +273,30 @@ export const loadDeskSectors = section<{ rows: DeskSector[]; takeaway: string | 
   { rows: [], takeaway: null, asOf: null },
 );
 
+/**
+ * The ten biggest companies we follow and how each moved on the day most
+ * stocks are priced. Market today shows these instead of the day's biggest
+ * movers, which have their own page (Why stocks moved).
+ */
+export const loadDeskGiants = section<{ rows: GiantForRead[]; line: string | null; day: string | null }>(
+  "giants",
+  async () => {
+    const snapshot = await getScreenerSnapshot();
+    if (!snapshot) throw new Error("giants_empty");
+    const day = quoteDay(snapshot.rows, snapshot.meta.price_history_to ?? null);
+    const priced = snapshot.rows
+      .filter((row) => typeof row.market_cap === "number" && row.market_cap > 0 && typeof row.day_pct === "number" && Number.isFinite(row.day_pct))
+      .filter((row) => !day || etDayOf(row.price_at) === day)
+      .sort((a, b) => (b.market_cap ?? 0) - (a.market_cap ?? 0));
+    const rows = oneRowPerCompany(priced, (row) => row.symbol)
+      .rows.slice(0, 10)
+      .map((row) => ({ symbol: row.symbol, name: shortCompanyName(row.name) || row.symbol, day: row.day_pct as number, cap: row.market_cap as number }));
+    if (rows.length < 5) throw new Error("giants_empty");
+    return { rows, line: buildGiantsRead(rows)?.line ?? null, day };
+  },
+  { rows: [], line: null, day: null },
+);
+
 /** Sector fund -> our sector page. */
 const SECTOR_SLUG: Record<string, string> = {
   xlk: "technology",
@@ -386,11 +413,12 @@ export const loadDeskBrief = section<DeskBrief>(
   "brief",
   async (today) => {
     const monday = weekStart(today);
-    const [markets, anomalies, calendar, reddit] = await Promise.all([
+    const [markets, anomalies, calendar, reddit, giants] = await Promise.all([
       getMarketsData().catch(() => null),
       getDailyAnomalies("US").catch(() => null),
       loadCalendarRange(monday, addDays(monday, 4), today),
       loadReddit().catch(() => null),
+      loadDeskGiants(today),
     ]);
     const movers = (anomalies?.anomalies ?? []).filter((row) => row.ticker && Number.isFinite(row.day_change_pct)).map((row) => classifyMover(row));
     const marketRead = markets && markets.assets.length ? buildMarketsRead(markets) : null;
@@ -404,7 +432,8 @@ export const loadDeskBrief = section<DeskBrief>(
     const read: TheRead | null = marketRead || moverRead
       ? {
           headline: marketRead?.headline ?? moverRead!.headline,
-          insights: pickInsights([moverRead?.insights[0], calendarPick, redditRead?.insights[0], marketRead?.insights[0]]),
+          // Market today reads the market: the biggest companies, not the day's biggest movers (Why stocks moved has those).
+          insights: pickInsights([buildGiantsRead(giants.rows)?.insight ?? null, marketRead?.insights[0], calendarPick, redditRead?.insights[0]]),
           asOf: marketRead?.asOf ?? null,
         }
       : null;

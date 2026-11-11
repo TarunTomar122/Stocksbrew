@@ -46,13 +46,15 @@ type Props = {
   };
 };
 
-const ids = Object.keys(FEATURES) as FeatureId[];
+// "The full report" and "Stocks that get the full report" said the same thing twice; one row says both.
+const MERGED_INTO_ANOTHER_ROW = new Set<FeatureId>(["stock_zones"]);
+const ids = (Object.keys(FEATURES) as FeatureId[]).filter((id) => !MERGED_INTO_ANOTHER_ROW.has(id));
 
 // Row names said plainly where the entitlements table uses our own shorthand.
 // Display only: the rules themselves still come from lib/entitlements.
 const PLAIN_NAMES: Partial<Record<FeatureId, string>> = {
   tracked_stocks: "Stocks you follow, with prices, our call and the next earnings date",
-  covered_stocks: "Stocks that get the full report",
+  covered_stocks: "The full report: why we made the call, the prices where we'd buy more or sell some, and what would change our mind",
   stock_call: "Our call on every stock: buy more, keep or sell some, with the date",
   stock_zones: "The full report: why we made the call, the prices where we'd buy more or sell some, and what would change our mind",
   briefing_personal: "A daily briefing on your stocks: what moved, why, and what to look at",
@@ -176,7 +178,7 @@ export default async function PricingPage({ searchParams }: Props) {
       <header className="mb-6 px-2 pt-2 sm:mb-8 sm:px-0 sm:pt-6">
         <h1 className="text-[34px] font-semibold leading-[40px] tracking-[-0.02em] text-oa-fg sm:text-[48px] sm:leading-[56px]">Free and Pro</h1>
         <p className="mt-2 max-w-[44rem] text-pretty text-[16px] leading-6 text-oa-muted-fg sm:text-[17px] sm:leading-[26px]">
-          Our call on every stock is free for everyone. Free adds the full report on five stocks you pick; Pro adds it on every stock.
+          Our call, a one-line buy more, keep or sell some, is free on every stock. Free adds the full report on five stocks you pick; Pro adds it on every stock.
         </p>
       </header>
 

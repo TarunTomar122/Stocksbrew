@@ -39,8 +39,8 @@ describe("buildPortfolioReads", () => {
     );
     expect(reads.positions?.headline).toBe("Your 4 holdings rose 2.8% on average today, against +0.6% for the S&P 500.");
     const contributors = reads.positions?.insights.find((item) => item.id === "contributors");
-    expect(contributors?.text).toBe("ASTS (+8.0%) and CBRS (+4.0%) led the move; the rest of your stocks held it back.");
-    expect(contributors?.soWhat).toBe("NVDA pulled the other way, −1.0%.");
+    expect(contributors?.text).toBe("ASTS (+8.0%) and CBRS (+4.0%) led the move; the rest of your stocks rose less or fell.");
+    expect(contributors?.soWhat).toBe("NVDA went the other way: it fell 1.0%.");
   });
 
   it("uses value weights when shares are entered", () => {

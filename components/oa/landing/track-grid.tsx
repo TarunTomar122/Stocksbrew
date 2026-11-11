@@ -1,5 +1,5 @@
 import { anomalyHeadline, hasResearchBackedNarrative } from "@/components/daily-anomalies-shared";
-import { companyFirstMove, plainFinance } from "@/lib/plain-copy";
+import { companyFirstMove, plainFinance, sentenceCase, shortCompanyName } from "@/lib/plain-copy";
 import { sharedCache } from "@/lib/shared-cache";
 import { SquircleCard } from "@/components/oa/squircle";
 import { Reveal } from "@/components/reveal";
@@ -35,7 +35,8 @@ const NEWS_MAX_AGE_DAYS = 7;
 
 /** A move's reason in plain words, company first when the feed wrote the cause first ("Zeta rose after strong earnings"). */
 function moveLine(item: { ticker: string; name: string; day_change_pct: number } & Parameters<typeof anomalyHeadline>[0]): string {
-  const said = plainFinance(anomalyHeadline(item));
+  // Feeds write some reasons in Title Case ("GTA VI Preorders Spark Take-Two's Rebound"); read them as a sentence.
+  const said = plainFinance(sentenceCase(anomalyHeadline(item)));
   const turned = companyFirstMove(said.replace(/\.$/, ""), item.day_change_pct, { company: { name: item.name, ticker: item.ticker } });
   return turned ? `${turned}.` : said;
 }
@@ -192,7 +193,7 @@ export async function TrackGrid({ only, rows = 8 }: { only?: string[]; rows?: nu
                   label={
                     <>
                       <Ticker symbol={row.symbol} />
-                      <Detail clamp={1}>{row.name}</Detail>
+                      <Detail clamp={1}>{shortCompanyName(row.name) || row.name}</Detail>
                     </>
                   }
                   value={
@@ -223,7 +224,7 @@ export async function TrackGrid({ only, rows = 8 }: { only?: string[]; rows?: nu
                 label={
                   <>
                     <Ticker symbol={event.ticker} />
-                    <Detail clamp={1}>{event.company}</Detail>
+                    <Detail clamp={1}>{shortCompanyName(event.company) || event.company}</Detail>
                   </>
                 }
                 value={

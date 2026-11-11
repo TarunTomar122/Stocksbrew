@@ -94,21 +94,92 @@ const CLIPPED_NAMES: Array<[RegExp, string]> = [
   [/^taiwan semiconductor manufactur\w*(?: co(?:mpany)?)?$/i, "Taiwan Semiconductor"],
   // The "The" is part of how people say it.
   [/^trade desk$/i, "The Trade Desk"],
+  // 13F files it as "D R HORTON INC"; title-casing that gives "Dr Horton".
+  [/^(?:d\.?\s*r\.?|dr)\s+horton$/i, "D.R. Horton"],
 ];
+
+/**
+ * How companies write their own names, for words that a feed's title-casing
+ * or capitals get wrong ("Nvidia", "Mckesson", "Ishares"). Keys are lowercase.
+ */
+const NAME_WORDS: Record<string, string> = {
+  nvidia: "NVIDIA", nvr: "NVR", nxp: "NXP", slb: "SLB", amd: "AMD", ibm: "IBM", asml: "ASML", hca: "HCA", kla: "KLA", csx: "CSX",
+  eog: "EOG", tjx: "TJX", ge: "GE", hp: "HP", ups: "UPS", cvs: "CVS", pnc: "PNC", aes: "AES", te: "TE", usa: "USA",
+  etf: "ETF", msci: "MSCI", ftse: "FTSE", usd: "USD", mbs: "MBS", reit: "REIT", ai: "AI", "s&p": "S&P", "at&t": "AT&T",
+  mckesson: "McKesson", mercadolibre: "MercadoLibre", servicenow: "ServiceNow", conocophillips: "ConocoPhillips",
+  technipfmc: "TechnipFMC", ishares: "iShares", crowdstrike: "CrowdStrike", davita: "DaVita", applovin: "AppLovin",
+  autozone: "AutoZone", nisource: "NiSource", paccar: "PACCAR", verisign: "VeriSign", paypal: "PayPal", jpmorgan: "JPMorgan",
+  blackrock: "BlackRock", exxonmobil: "ExxonMobil", firstenergy: "FirstEnergy", fedex: "FedEx", hubspot: "HubSpot",
+  linkedin: "LinkedIn", youtube: "YouTube", docusign: "DocuSign", datadog: "Datadog", mongodb: "MongoDB", siriusxm: "SiriusXM",
+  bny: "BNY", dte: "DTE", cbre: "CBRE", spdr: "SPDR", ebay: "eBay", mcdonalds: "McDonald's", "mcdonald's": "McDonald's", ionq: "IonQ",
+  // Abbreviations some filings feeds use, spelled out.
+  hldgs: "Holdings", hldg: "Holding", intl: "International", finl: "Financial", svcs: "Services", svc: "Service", mgmt: "Management",
+};
+
+// Legal words a 28-character 13F name field cuts short: "Credo Technology Group Holdi", "Jefferies Financial Group In".
+const CLIPPED_TAILS = ["Holdings", "Incorporated", "Corporation", "Company", "Limited", "Markets", "International"];
+
+/** True when the letters in `text` are all capitals (with at least three in a row): a feed shouting the name. */
+function isShouting(text: string): boolean {
+  return /[A-Z]{3}/.test(text) && text === text.toUpperCase();
+}
+
+/**
+ * A feed's company name in the company's own casing: capitals softened word by
+ * word ("WINDWARD BIO GROUP AG" -> "Windward Bio Group AG"), known spellings
+ * restored ("Mckesson" -> "McKesson", "Nvidia" -> "NVIDIA") and short codes
+ * kept ("AG", "S&P"). A name already in mixed case keeps its own casing apart
+ * from the known spellings.
+ */
+export function readableCompanyName(name: string | null | undefined): string {
+  const value = (name ?? "").trim().replace(/\s+/g, " ");
+  if (!value) return "";
+  const shouting = isShouting(value);
+  // A one-word name of five letters or fewer in capitals is usually the company's own acronym ("AMC", "CSX").
+  if (shouting && !value.includes(" ") && value.length <= 5) return NAME_WORDS[value.toLowerCase()] ?? value;
+  return value
+    .split(" ")
+    .map((word, index) => {
+      const known = NAME_WORDS[word.toLowerCase()];
+      if (known) return known;
+      if (!shouting) return word;
+      // Small joining words read lowercase inside a name ("Bank of New York Mellon", "Procter and Gamble").
+      if (index > 0 && /^(?:OF|AND|THE|FOR|IN|ON|DE)$/.test(word)) return word.toLowerCase();
+      // Two-letter codes ("AG", "NV"), three letters with no vowel ("CSX") and anything with a symbol in it stay as written.
+      if (word.length <= 2 || /^[^AEIOUY]{3}$/.test(word) || /[^A-Za-z'.-]/.test(word)) return word;
+      return word
+        .toLowerCase()
+        .replace(/(^|[-'.])([a-z])/g, (_, lead: string, letter: string) => `${lead}${letter.toUpperCase()}`)
+        .replace(/'S$/, "'s");
+    })
+    .join(" ");
+}
 
 /**
  * A company name without its legal suffix, so it fits a row without being cut:
  * "Hims & Hers Health, Inc." -> "Hims & Hers Health", "NVIDIA Corporation" -> "NVIDIA".
+ * Feed casing is fixed on the way (see readableCompanyName).
  */
 export function shortCompanyName(name: string | null | undefined): string {
-  const value = (name ?? "").trim().replace(/\s+/g, " ");
+  let value = readableCompanyName(name);
+  // A filing field cut mid-word: finish the legal word so the suffix rule below can drop it.
+  if (value.length >= 27 && value.length <= 28) {
+    const last = value.match(/\s(\w{2,})$/)?.[1];
+    const whole = last ? CLIPPED_TAILS.find((word) => word.length > last.length && word.toLowerCase().startsWith(last.toLowerCase())) : undefined;
+    if (whole) value = `${value.slice(0, value.length - last!.length)}${whole}`;
+  }
+  // Share-class and listing tails: "Bloom Energy Corp- a", "Dell Technologies -C", "ASML Holding Nv-Ny Reg Shs".
+  value = value
+    .replace(/\s*-\s*(?:Class\s+|Cl\s+)?[A-C](?:\s+Shs?)?$/i, "")
+    .replace(/[-\s]+(?:N\.?Y\.?\s+)?Reg(?:istry)?\s+Sh(?:are)?s?$/i, "")
+    .replace(/[-\s]+(?:Sp(?:on)?\s+)?ADR$/i, "")
+    // "JOYY Inc. American Depositary Shares", "Hello Group Inc. Sponsored": listing words, not the name.
+    .replace(/[-\s,]+(?:Sponsored\s+)?American\s+Deposit\w*(?:\s.*)?$/i, "")
+    .replace(/\s+Sponsored$/i, "");
   const short = value
     // "Elmet Group Co. (The)": the feed's way of filing "The Elmet Group".
     .replace(/\s*\(The\)$/i, "")
-    // Feed tails like "Cerebras Systems Inc - a" and "Taiwan Semiconductor-Sp ADR".
-    .replace(/\s+-\s+(?:Class\s+|Cl\s+)?[A-C](?:\s+Shs?)?$/i, "")
-    .replace(/[-\s]+(?:Sp(?:on)?\s+)?ADR$/i, "")
-    .replace(/,?\s+(?:Inc|Incorporated|Corp|Corporation|Co|Company|Ltd|Limited|plc|PLC|N\.V|S\.A|SE|AG|L\.P|LP|LLC|Holdings?|Group|Class [A-C])\.?$/i, "")
+    .replace(/,?\s+(?:Inc|Incorporated|Corp|Corporation|Co|Company|Ltd|Limited|plc|PLC|N\.?V|S\.A|SE|AG|L\.P|LP|LLC|Holdings?|Group|Class [A-C])\.?$/i, "")
     .replace(/,?\s+(?:Inc|Corp|Co|Ltd|plc|Holdings?)\.?$/i, "")
     .replace(/[,\s]+$/, "")
     // "Eli Lilly and Company" lost its "Company"; the "and" it leaves behind goes too.
@@ -119,8 +190,8 @@ export function shortCompanyName(name: string | null | undefined): string {
   const known = CLIPPED_NAMES.find(([pattern]) => pattern.test(short));
   if (known) return known[1];
   // "On Holding AG" -> "On" says nothing on its own; keep the word that makes it a name. "3M" and "HP" stay.
-  if (/^[A-Z][a-z]{0,2}$/.test(short) && value.length > short.length) {
-    const kept = value.replace(/,?\s+(?:Inc|Incorporated|Corp|Corporation|Co|Ltd|Limited|plc|PLC|N\.V|S\.A|SE|AG|L\.P|LP|LLC|Class [A-C])\.?$/i, "").replace(/[,\s]+$/, "");
+  if (/^(?:[A-Z][a-z]{0,2}|[A-Z]{2})$/.test(short) && value.length > short.length) {
+    const kept = value.replace(/,?\s+(?:Inc|Incorporated|Corp|Corporation|Co|Ltd|Limited|plc|PLC|N\.?V|S\.A|SE|AG|L\.P|LP|LLC|Class [A-C])\.?$/i, "").replace(/[,\s]+$/, "");
     return kept || value;
   }
   return short || value;
@@ -170,13 +241,16 @@ export function plainAction(label: string | null | undefined, call: Call | null 
 
 const HORIZONS: Record<string, string> = { days: "the next few days", weeks: "the next few weeks", months: "the next few months", quarters: "the next few quarters", years: "the next few years" };
 
-/** "Medium confidence, for the next few weeks." from the call's confidence and horizon words. */
+const SURE: Record<string, string> = { high: "We're quite sure of this", medium: "We're fairly sure of this", med: "We're fairly sure of this", low: "We're not very sure of this" };
+
+/** "We're fairly sure of this for the next few weeks." from the call's confidence and horizon words. */
 export function callMetaLine(confidence: string | null | undefined, horizon: string | null | undefined): string {
   const conf = (confidence ?? "").trim().toLowerCase();
   const span = (horizon ?? "").trim().toLowerCase();
   const when = span ? HORIZONS[span] ?? span : "";
-  if (conf && when) return `${conf.charAt(0).toUpperCase()}${conf.slice(1)} confidence, for ${when}.`;
-  if (conf) return `${conf.charAt(0).toUpperCase()}${conf.slice(1)} confidence.`;
+  const sure = conf ? SURE[conf] ?? `${conf.charAt(0).toUpperCase()}${conf.slice(1)} confidence` : "";
+  if (sure && when) return `${sure} for ${when}.`;
+  if (sure) return `${sure}.`;
   if (when) return `For ${when}.`;
   return "";
 }
@@ -212,7 +286,7 @@ const CALL_REASONS: Array<[RegExp, (match: RegExpExecArray) => string]> = [
   [/^the setup is not paying enough for the risk right now\.?$/i, () => "Right now the possible gain isn't worth the risk."],
   [
     /^upside and downside look balanced; keep the position but do not force a new add\.?$/i,
-    () => "The chances of a rise and a fall look about even. If you own it, we'd keep it, but we wouldn't buy more now.",
+    () => "We see about as much reason for it to fall as to rise. If you own it, keep it; we wouldn't buy more now.",
   ],
   [/^no reliable current price is available, so this stays on watch\.?$/i, () => "We don't have a reliable price right now, so we're only watching it."],
   [/^revisit only if fresh evidence improves the setup\.?$/i, () => "We'd look again only if new evidence makes the case better."],
@@ -267,7 +341,14 @@ export function plainCallReason(text: string | null | undefined): string {
 // Wall Street shorthand in our move reasons, said the long way with the same
 // meaning. Ordered: the longer phrases first so "Q3 earnings beat" is not
 // half-rewritten by the plain "earnings beat" rule.
-const FINANCE_PHRASES: Array<[RegExp, string]> = [
+const FINANCE_PHRASES: Array<[RegExp, string | ((match: string, ...groups: string[]) => string)]> = [
+  // "Revenue Beat and Guidance Lift Acadia Shares": the company's move first, then both facts.
+  [/^(earnings|revenue|sales|profit) beats? and (?:guidance|outlook|forecast) (?:lifts?|raises?|boosts?|sends?) (.+?) shares?(?: higher| up)?\b/i, (_m, what: string, company: string) => `${company} rose after ${what.toLowerCase()} that beat expectations and a raised forecast`],
+  // "GTA VI Preorders Spark Take-Two's rebound": the company first.
+  [/^(.+?) sparks? (.+?)(?:'|\u2019)s (?:relief rally|rebound|rally|jump|gains?|rise|surge)\b/i, "$2 rose after $1"],
+  // "Revenue Beat and Guidance Lift": a beat and a raised forecast, said as both facts.
+  [/\b(earnings|revenue|sales|profit) beats? and (?:guidance|outlook|forecast) (?:lift|raise|hike|increase|boost)s?\b(?![^.]*\bshares?\b)/gi, "$1 that beat expectations and a raised forecast"],
+  [/\b(earnings|revenue|sales|profit) beats? and (?:guidance|outlook|forecast)\b(?!\s+(?:cut|reduction|lift|raise|hike|increase|boost))/gi, "$1 and a forecast that beat expectations"],
   [/\b(?:strong |solid |big )?(Q[1-4] |(?:first|second|third|fourth)-quarter )?(earnings|revenue|sales|profit) beats?\b(?!\s+(?:the\s+)?(?:analysts?'?\s+)?(?:estimates?|expectations|forecasts?|views|consensus))/gi, "$1$2 that beat expectations"],
   [/\b(?:weak )?(Q[1-4] |(?:first|second|third|fourth)-quarter )?(earnings|revenue|sales|profit) miss(?:es)?\b(?!\s+(?:the\s+)?(?:analysts?'?\s+)?(?:estimates?|expectations|forecasts?|views|consensus))/gi, "$1$2 that missed expectations"],
   [/\bguidance (?:cut|reduction)\b/gi, "a lower forecast"],
@@ -279,6 +360,10 @@ const FINANCE_PHRASES: Array<[RegExp, string]> = [
   // "on weak forecast" is headline grammar; a sentence needs the article.
   [/\b(on|and|after|with|despite) (weak|weaker|soft|softer|lower|disappointing|strong|stronger|higher|raised|upbeat) forecast\b/gi, "$1 a $2 forecast"],
   [/\brelief rally\b/gi, "rebound"],
+  // Analyst target headlines: who did what, in a sentence.
+  [/\b(?:a )?price[- ]target cut\b/gi, "a lower analyst price target"],
+  [/^analyst (?:trims|lowers|cuts) (.+?)(?:'s)? (?:price )?target despite (?:maintaining|keeping) (?:a |its )?buy rating\b/i, "An analyst lowered the price they expect for $1 but still says buy"],
+  [/^analyst (?:trims|lowers|cuts) (.+?)(?:'s)? price target, (?:pressuring|weighing on|hitting) shares\b/i, "$1 fell after an analyst lowered the price they expect"],
   // The researcher's own words for "we found no reason", said the way a reader would.
   [/\bbreaks above (?:its )?recent (?:closing )?range\b/gi, "rises above its recent price range"],
   [/\bbreaks below (?:its )?recent (?:closing )?range\b/gi, "falls below its recent price range"],
@@ -299,7 +384,7 @@ const FINANCE_PHRASES: Array<[RegExp, string]> = [
 export function plainFinance(text: string | null | undefined): string {
   const original = (text ?? "").trim();
   let value = original;
-  for (const [pattern, replacement] of FINANCE_PHRASES) value = value.replace(pattern, replacement);
+  for (const [pattern, replacement] of FINANCE_PHRASES) value = typeof replacement === "string" ? value.replace(pattern, replacement) : value.replace(pattern, replacement);
   // "that beat expectations" leaves "Q3 earnings" with a doubled space when the quarter is missing.
   value = value.replace(/\s{2,}/g, " ");
   // Re-capitalise only when a rewrite started the text with a small letter ("Guidance cut" -> "a lower forecast");

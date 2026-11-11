@@ -45,7 +45,7 @@ function historyRows(events: EarningsItem[], today: string): DataRow[] {
             {fmtDay(item.fiscalEnding, true)}
           </span>,
           <span key="w" className="text-[12.5px] text-oa-muted-fg">
-            {SESSION_LABEL[item.session]}
+            {item.session === "unknown" && item.date < today ? "Time not given" : SESSION_LABEL[item.session]}
           </span>,
           <span key="e" className={`${NUM} ${item.epsEstimate === null ? "text-oa-muted-fg" : "text-oa-fg"}`}>{fmtEps(item.epsEstimate) || "n/a"}</span>,
           item.epsActual !== null ? (

@@ -153,12 +153,12 @@ function positionsRead(input: PortfolioInsightInput): TheRead | null {
       const text =
         share >= 35 && share <= 100
           ? `${joinNames(names)} did ${pct(share, 0)} of that move.`
-          : `${joinNames(names)} led the move${share > 100 ? `; the rest of your stocks ${sign > 0 ? "held it back" : "softened the fall"}` : ""}.`;
+          : `${joinNames(names)} led the move${share > 100 ? `; the rest of your stocks ${sign > 0 ? "rose less or fell" : "made up some of the drop"}` : ""}.`;
       contributors = {
         id: "contributors",
         tone: sign > 0 ? "up" : "down",
         text,
-        soWhat: drag ? `${drag.position.ticker} pulled the other way, ${signedPct(drag.position.dayPct!)}.` : undefined,
+        soWhat: drag ? `${drag.position.ticker} went the other way: it ${drag.position.dayPct! > 0 ? "rose" : "fell"} ${pct(Math.abs(drag.position.dayPct!), 1)}.` : undefined,
         tickers: [...leaders.map((row) => row.position.ticker), ...(drag ? [drag.position.ticker] : [])],
         action: { label: `Why ${leaders[0]!.position.ticker} moved`, href: `/stock/${leaders[0]!.position.ticker}` },
       };

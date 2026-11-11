@@ -308,18 +308,19 @@ export function FollowDirectory({
                     ))}
 
                     <div className="hidden min-w-0 flex-wrap gap-1 overflow-hidden lg:flex lg:max-h-6">
-                      {oneRowPerCompany(source.top_holdings, (holding) => holding.ticker).rows.slice(0, 3).map((holding, index) => (
+                      {(({ rows: folded, also }) => folded.slice(0, 3).map((holding, index) => (
                         <HoldingChip
                           key={`${holding.ticker ?? holding.name}-${index}`}
                           ticker={holding.ticker}
                           name={holding.name}
+                          also={holding.ticker ? also.get(holding.ticker.toUpperCase()) : undefined}
                           title={
                             source.kind === "fund" && holding.weight != null
                               ? `${holding.name ?? holding.ticker}: ${fmtWeight(holding.weight)} of the stock book`
                               : undefined
                           }
                         />
-                      ))}
+                      )))(oneRowPerCompany(source.top_holdings, (holding) => holding.ticker))}
                     </div>
 
                     <span
