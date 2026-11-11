@@ -32,7 +32,8 @@ const OUTLINE_LINK =
 function Coverage({ every }: { every: boolean }) {
   const dots = every ? 28 : 5;
   return (
-    <div aria-hidden="true" className="mt-3 flex h-3 items-center gap-[5px] overflow-hidden">
+    // Wraps inside a one-dot-tall box, so a narrow card shows only whole dots, never one cut in half at the edge.
+    <div aria-hidden="true" className="mt-3 flex h-3 flex-wrap items-center gap-x-[5px] gap-y-3 overflow-hidden">
       {Array.from({ length: dots }, (_, index) => (
         <span key={index} className={`block h-3 w-3 shrink-0 rounded-full bg-oa-primary`} />
       ))}

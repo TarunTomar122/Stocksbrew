@@ -17,6 +17,7 @@ import {
   type Rule,
 } from "@/lib/entitlements";
 import { getViewer } from "@/lib/entitlements-server";
+import { countWord } from "@/lib/plain-copy";
 import { US_PRO_MONTHLY, US_PRO_YEARLY, US_YEARLY_SAVE_PCT } from "@/lib/pricing";
 import { SUBSCRIBE_SUPPORT_EMAIL } from "@/lib/subscribe-benefits";
 import { ogImage } from "@/lib/og/url";
@@ -80,9 +81,9 @@ const PLAIN_NAMES: Partial<Record<FeatureId, string>> = {
   followed_strategies: "Strategies you follow, with a note each time they change",
   backtest: "Test your own rules on past prices",
   backtest_history: "How far back your tests can go",
-  agents: "Agents that watch your stocks for a price, a date or news",
-  price_alerts: "Price alerts by email",
-  zone_alerts: "Email when a stock reaches our buy or sell price, reports earnings, or our call changes",
+  agents: "Agents: things you ask us to watch for, like a price, an earnings date, a big move, or a trade by Congress, insiders or funds",
+  price_alerts: "One-tap price alerts by email, from a stock page",
+  zone_alerts: "One-tap emails when a stock reaches our buy or sell price, reports earnings, or our call changes",
   email_market: "A daily market email",
   email_briefing: "Your morning email (only on days something changed) and a Saturday recap",
   agent_api: "Use stocksbrew from Claude, ChatGPT or your own code",
@@ -96,9 +97,9 @@ const DIFF_NAMES: Partial<Record<FeatureId, string>> = {
   covered_stocks: "The full report: our reasons, the prices where we'd act, what would change our mind",
   briefing_personal: "A daily briefing on what moved in your stocks and why",
   email_briefing: "A morning email when something changed in your stocks",
-  zone_alerts: "Email when a stock reaches our buy or sell price, or our call changes",
+  zone_alerts: "One-tap emails when a stock reaches our buy or sell price, reports earnings, or our call changes",
   ask: "Questions you can ask about any stock or your portfolio",
-  agents: "Agents that email you when a stock hits a price or nears earnings",
+  agents: "Agents that watch for a price, an earnings date, a big move, or a trade by Congress, insiders or funds",
   backtest_history: "Years of past prices you can test your own buying rules on",
 };
 
@@ -146,11 +147,11 @@ const FAQS: Array<{ q: string; a: string }> = [
   },
   {
     q: "So what am I paying for with Pro?",
-    a: "The full report on every stock, not just five. Your daily briefing and morning email explain everything you own, not just five stocks, and you get far more questions, tests and agents each day.",
+    a: "The full report on every stock you follow. Your daily briefing and morning email explain everything you own, and you get far more questions, tests and agents each day, plus the one-tap earnings and call-change emails.",
   },
   {
     q: "What happens when I hit a limit?",
-    a: "It says which limit, how to get past it without paying (swap one of your five stocks, pause an agent, wait for the daily reset), and what Pro changes. Nothing you made is deleted. We never show a blurred row or a made-up number, and what you cannot see is not sent to your browser.",
+    a: "It says which limit, how to get past it without paying (swap one of your five stocks, pause an agent, wait for the daily reset), and what Pro changes. Nothing you made is deleted, and we never show a blurred row or a made-up number.",
   },
   {
     q: "Is the call different for people who pay?",
@@ -192,14 +193,14 @@ export default async function PricingPage({ searchParams }: Props) {
     "Our call on every stock you look up",
     "A daily briefing on your five stocks",
     `${limitFor("ask", "free")} questions a day about any stock`,
-    `${limitFor("agents", "free")} agents that email you when a stock hits your price`,
+    `${limitFor("agents", "free")} agents that watch for a price, an earnings date or a big move for you`,
     "A practice account with $100,000 of pretend money",
   ];
   const proPoints = [
     "Everything in Free",
     "A daily briefing on every stock you own, by email",
     `${limitFor("ask", "pro")} questions a day and up to ${limitFor("agents", "pro")} agents`,
-    "An email when a stock reaches our buy or sell price",
+    "An email when a stock reaches our buy or sell price, reports earnings or gets a new call",
   ];
   const differences = DIFFERENCES.filter((id) => FEATURES[id] && describeRule(ruleFor(id, "free")) !== describeRule(ruleFor(id, "pro")));
 
@@ -209,10 +210,10 @@ export default async function PricingPage({ searchParams }: Props) {
 
       <header className="mb-5 px-2 pt-2 sm:mb-6 sm:px-0 sm:pt-4">
         <h1 className="text-balance text-[28px] font-semibold leading-[34px] tracking-[-0.02em] text-oa-fg sm:text-[36px] sm:leading-[44px]">
-          Free for five stocks. Pro for all of them.
+          Our call on every stock is free. Pro adds the full report on all of them.
         </h1>
         <p className="mt-2 max-w-[46rem] text-pretty text-[16px] leading-6 text-oa-muted-fg">
-          Our call (buy more, keep or sell some) is free on every stock, on both plans. The full report is the why behind it: our reasons, the prices where we&apos;d act, and what would change our mind.
+          Whether we&apos;d buy more, keep or sell some is free on every stock, and a free account also gets the full report on five stocks you pick. The full report is the why behind the call: our reasons, the prices where we&apos;d act, and what would change our mind.
         </p>
       </header>
 
@@ -289,6 +290,10 @@ export default async function PricingPage({ searchParams }: Props) {
             ))}
           </tbody>
         </table>
+        {/* One plain line on the two words the rows use (lib/entitlements.ts: agents, price_alerts, zone_alerts). */}
+        <p className="border-t border-oa-border px-4 py-3 text-pretty text-[13.5px] leading-5 text-oa-muted-fg sm:px-5">
+          An agent is something you ask us to watch for, in your own words, like &ldquo;tell me when NVIDIA closes under $150&rdquo; or &ldquo;remind me before Apple reports&rdquo;. Alerts are one-tap emails from a stock page: Free keeps {countWord(limitFor("price_alerts", "free"))} price alerts, and the earnings, call-change and buy-or-sell-price alerts come with Pro.
+        </p>
       </section>
 
       <ShowMore always label="Compare every feature, both plans" less="Hide the full comparison" className="mt-0">

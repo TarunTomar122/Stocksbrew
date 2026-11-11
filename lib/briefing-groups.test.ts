@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import { NO_CONFIRMED_REASON, type BriefingItem } from "@/lib/briefing";
 import {
+  moveRowText,
+  reasonSource,
+  usableReplacement,
   COMPACT_VISIBLE_LINES,
   GROUP_VISIBLE_LINES,
   decisionText,
@@ -290,5 +293,47 @@ describe("groupBriefingSections", () => {
   it("handles an empty briefing", () => {
     const grouped = groupBriefingSections({ needs_you: [], worth_knowing: [], coming_up: [], kept: [], dismissed: [] });
     expect(grouped).toEqual({ needs_you: [], worth_knowing: [], coming_up: [], settled: [] });
+  });
+});
+
+describe("confirmed move rows", () => {
+  const confirmed = (why: string) =>
+    move("TTWO", 8.3, {
+      why,
+      reason_status: "confirmed",
+      evidence: [
+        { label: "Price $224.66", source: "Market quote", url: null, at: null },
+        { label: "Take-Two jumps", source: "Reuters", url: "https://reuters.com/x", at: null },
+      ],
+    });
+
+  it("uses the reason's next whole sentence when the company-first line still reads like a headline", () => {
+    const item = confirmed(
+      "GTA VI Preorders Spark Take-Two's Relief Rally. Investors are looking past Take-Two's weak quarter because management said GTA VI preorders are running far above expectations.",
+    );
+    expect(moveRowText(item, { name: "Take-Two Interactive", ticker: "TTWO" }, 8.3)).toBe(
+      "Investors are looking past Take-Two's weak quarter because management said GTA VI preorders are running far above expectations.",
+    );
+    expect(reasonSource(item)).toBe("Reuters");
+  });
+
+  it("keeps a plain company-first line and names no source for an unconfirmed move", () => {
+    const item = confirmed("Revenue that beat expectations lifts Acadia shares. More detail.");
+    expect(moveRowText(item, { name: "Acadia Pharmaceuticals", ticker: "ACAD" }, 10.7)).toMatch(/^Acadia rose after revenue that beat expectations\.$/);
+    expect(reasonSource(move("X", 5))).toBeNull();
+  });
+
+  it("never swaps in a sentence that leans on the one before or drops the company", () => {
+    const company = { name: "Take-Two Interactive", ticker: "TTWO" };
+    expect(usableReplacement("The company also raised its full-year outlook.", company)).toBe(false);
+    expect(usableReplacement("This demand signal strengthens confidence.", company)).toBe(false);
+    expect(usableReplacement("Investors cheered the GTA VI preorders at Take-Two.", company)).toBe(true);
+    const item = confirmed("GTA VI Preorders Spark Take-Two's Relief Rally.  The company also raised its outlook.");
+    expect(moveRowText(item, company, 8.3)).toBe("Take-Two rose after GTA VI Preorders.");
+  });
+
+  it("does not name a placeholder as the publisher", () => {
+    const item = move("X", 5, { reason_status: "confirmed", why: "X rose after a deal.", evidence: [{ label: "Deal", source: "News", url: null, at: null }] });
+    expect(reasonSource(item)).toBeNull();
   });
 });

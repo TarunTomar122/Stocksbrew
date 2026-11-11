@@ -99,6 +99,19 @@ export function mergeDeskRead(brief: TheRead | null | undefined, news: TheRead |
   return { ...brief, insights: ordered };
 }
 
+/**
+ * Market today's read, the same on the page and its share card: the desk brief's first three points. Without a
+ * brief, the news read's lines that say something about a stock or a story (never its tone lines: "40% of
+ * headlines read as good news" says what the coverage felt like, not what to do), under `fallbackHeadline`
+ * (the sector takeaway) since the news read's own headline is a tone line too. Null with nothing to say.
+ */
+export function marketTodayRead(brief: TheRead | null | undefined, news: TheRead | null | undefined, fallbackHeadline: string | null = null): TheRead | null {
+  if (brief && (brief.headline || brief.insights.length > 0)) return { ...brief, insights: brief.insights.slice(0, 3) };
+  const lines = (news?.insights ?? []).filter((insight) => insight.id !== "balance" && insight.id !== "disagree").slice(0, 3);
+  if (fallbackHeadline) return { headline: fallbackHeadline, insights: lines, asOf: news?.asOf ?? null };
+  return null;
+}
+
 /** Stable: lines that name a stock keep their order and go before the ones that do not. */
 function orderStocksFirst(insights: Insight[]): Insight[] {
   const withStock = insights.filter((insight) => (insight.tickers ?? []).length > 0);

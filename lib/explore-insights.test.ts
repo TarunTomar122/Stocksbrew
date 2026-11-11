@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildGiantsRead, followTakeaway, mergeDeskRead, screensTakeaway, strategiesTakeaway } from "@/lib/explore-insights";
+import { buildGiantsRead, followTakeaway, marketTodayRead, mergeDeskRead, screensTakeaway, strategiesTakeaway } from "@/lib/explore-insights";
 import type { Insight } from "@/lib/insights";
 import type { FollowActivity } from "@/lib/follow-shared";
 
@@ -91,5 +91,20 @@ describe("buildGiantsRead", () => {
   });
   it("needs five companies", () => {
     expect(buildGiantsRead([giant("AAPL", 5, 1)])).toBeNull();
+  });
+});
+
+describe("marketTodayRead", () => {
+  const line = (id: string, text: string) => ({ id, tone: "flat" as const, text });
+  it("keeps the brief's first three points", () => {
+    const brief = { headline: "The S&P 500 lost 0.38%.", insights: [line("a", "A."), line("b", "B."), line("c", "C."), line("d", "D.")] };
+    expect(marketTodayRead(brief, null)?.insights.map((insight) => insight.id)).toEqual(["a", "b", "c"]);
+  });
+  it("falls back to the news lines without the tone lines, under the sector headline", () => {
+    const news = { headline: "Stock news leans positive today.", insights: [line("balance", "40% read positive."), line("theme", "The biggest story is chips."), line("disagree", "MSFT: 40% good news.")] };
+    const read = marketTodayRead(null, news, "6 of 11 sectors rose.");
+    expect(read?.headline).toBe("6 of 11 sectors rose.");
+    expect(read?.insights.map((insight) => insight.id)).toEqual(["theme"]);
+    expect(marketTodayRead(null, news, null)).toBeNull();
   });
 });

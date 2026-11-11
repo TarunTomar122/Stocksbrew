@@ -495,13 +495,40 @@ function itemId(date: string, kind: BriefingKind, ticker: string, extra?: string
   return [date, kind, idPart(ticker.toUpperCase()), extra ? idPart(extra) : ""].filter(Boolean).join("_");
 }
 
+/** The publisher's own name for the hosts our reasons cite most; any other host is shown as it is. */
+const PUBLISHERS: Record<string, string> = {
+  "reuters.com": "Reuters",
+  "bloomberg.com": "Bloomberg",
+  "cnbc.com": "CNBC",
+  "finance.yahoo.com": "Yahoo Finance",
+  "yahoo.com": "Yahoo Finance",
+  "marketwatch.com": "MarketWatch",
+  "wsj.com": "The Wall Street Journal",
+  "barrons.com": "Barron's",
+  "ft.com": "Financial Times",
+  "apnews.com": "AP",
+  "benzinga.com": "Benzinga",
+  "investing.com": "Investing.com",
+  "seekingalpha.com": "Seeking Alpha",
+  "fool.com": "The Motley Fool",
+  "investors.com": "Investor's Business Daily",
+  "thestreet.com": "TheStreet",
+  "zacks.com": "Zacks",
+  "nasdaq.com": "Nasdaq",
+  "businesswire.com": "Business Wire",
+  "prnewswire.com": "PR Newswire",
+  "globenewswire.com": "GlobeNewswire",
+  "sec.gov": "SEC filing",
+  "finnhub.io": "Finnhub news",
+  "news.google.com": "Google News",
+};
+
 function sourceName(url: string | null | undefined): string {
   const value = clean(url);
   if (!value) return "";
   try {
     const host = new URL(value).hostname.replace(/^www\./, "");
-    if (host === "finnhub.io") return "Finnhub news";
-    return host;
+    return PUBLISHERS[host] ?? PUBLISHERS[host.split(".").slice(-2).join(".")] ?? host;
   } catch {
     return "";
   }

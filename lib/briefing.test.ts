@@ -172,7 +172,7 @@ describe("moveReason", () => {
   it("confirms a reason only when the research found sources", () => {
     const reason = moveReason(mover({ ticker: "NVDA", day_change_pct: -4.85, move_explanation: CONFIRMED }));
     expect(reason.status).toBe("confirmed");
-    expect(reason.evidence[0]).toMatchObject({ source: "reuters.com", url: "https://www.reuters.com/markets/nvda-probe" });
+    expect(reason.evidence[0]).toMatchObject({ source: "Reuters", url: "https://www.reuters.com/markets/nvda-probe" });
   });
 
   it("does not present a price-action read as a cause", () => {
@@ -255,7 +255,7 @@ describe("buildBriefing: price moves", () => {
     expect(item.why).toContain("Nvidia slides as its board opens a probe.");
     expect(item.why).not.toContain("third sentence");
     expect(item.next_step).toBe("The call is Hold. Open NVDA to see what would change it.");
-    expect(item.evidence.map((entry) => entry.source)).toEqual(["Market quote", "reuters.com"]);
+    expect(item.evidence.map((entry) => entry.source)).toEqual(["Market quote", "Reuters"]);
     expect(item.evidence[0].at).toBe("2026-11-09T18:20:00.000Z");
     expect(briefing.summary).toBe(
       "One thing needs you today: NVDA is down 4.85%. On NVDA: Nvidia slides as its board opens a probe.",

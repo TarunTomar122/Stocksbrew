@@ -172,6 +172,40 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-11 ~06:45 UTC, goal planner and rebalancing/tax ideas started; council round 20 best (lead)
+- Council round 20 (batch 19): Codex 6.75, its best yet; Cursor 5.41, flat. Round 19 was 6.56 / 5.41. The UI loop is still active, editing the landing, briefing, pricing and plain-copy.
+- New builders (Agent tool; the T3 delegate tools are gone after the account move):
+  - Goal planner (`/portfolio/goal`): a block bootstrap from the real monthly returns of the holdings since 2014, with the 10th/50th/90th outcomes, the chance of reaching the target, one lever, and the limits stated.
+  - Rebalancing and tax-loss ideas: sized trims and adds with estimated tax, losses with the wash-sale rule, similar stocks, and agent offers. Research, never advice, no execution.
+- Next ship (15): baskets in plain English and the history-builder leftovers, once the loop's landing work settles or is left out.
+
+### 2026-11-11 ~06:30 UTC, memo, earnings season, share cards live; baskets and history landed (lead)
+- `b5b590a` LIVE and VPS pulled:
+  - weekly memo (/portfolio/memo);
+  - earnings season (/portfolio/earnings, up to 8 past reports per stock);
+  - share cards (share button on the five portfolio pages, /s/{id} with an OG card);
+  - the Codex round-2 fixes (KO/NVDA consistency, relative dates, phone place-nav, memo wording, earnings labels, the agents preview, "Watch this for me" links);
+  - UI loop batches 16-17;
+  - the EDGAR earnings history job (after_close, before reactions) and one-day reaction windows.
+  - The UI loop's landing rework stays out; it is unfinished.
+- Earnings history (builder): `tm_earnings_history` has 3 years of 8-K 2.02 releases. Non-release 2.02 filings are rejected (638, e.g. LCID deliveries). Median reports went from 1 to 8 (656 stocks with 8). 109 missing price docs were written. Two-session reactions went from 699 to 193. 40 moves hand-checked to the cent.
+- Ship 14 quality pass: share privacy and auth held. Fixed before shipping:
+  - the history backend was missing from the commit;
+  - a temp vitest config (`scripts/.tmp-vite.config.ts`, with another session's path) had been swept in;
+  - the KO past-year range could sit below today's high (today's high and low are folded in now);
+  - screener extras kept stale earnings gaps;
+  - the memo said "took off the most" (now "cost the most");
+  - the Costco swing line now says it is the biggest move on record;
+  - "Nothing reports" became "No reports".
+  - Kept: three small landing copy changes that leaked in ("Our call on every stock is free, and so is the full report on five you pick"), because they are more accurate than "Free to read every stock".
+- Verified on the exact tree: tsc 0, vitest 1492/1492, eslint clean, pytest 17 + schedule OK. The frozen tree ran on :8001. Screenshots read: memo phone, earnings desktop. Live: 10 key pages 200, and an unknown share id gives 404.
+- Baskets in plain English landed (builder): /baskets/new and /baskets/<slug>, with about 55 subjects, honest "can't filter" lines, a labelled backtest and a follow action. Its quality pass found 12 issues, all fixed. Lead: "Build a basket" nav entry under Research, sitemap line, and the "By its name, it is one of the banks" wording. It ships next.
+- Open for the owner:
+  - entitlements rows for followed baskets and basket backtests (they borrow the saved-screens limit and run free over the full history);
+  - a `portfolio_memo` feature id;
+  - share analytics events.
+- Open: signed-out "Watch this for me" arrivals spend one of 40 daily parses per IP (fine for real visitors). The share button shows on example views and answers "nothing of yours to share".
+
 ### 2026-11-11 ~05:55 UTC, share cards landed (lead)
 - Shareable portfolio cards built: a Share button on the signed-in portfolio, x-ray, dividends, stress test and memo pages. It opens a dialog with "This is exactly what people will see", choices of which read to share, and "Hide company and fund names". The public page `/s/{id}` (noindex) has an OG image so the link unfurls as the card.
 - Example cards: "Once my funds are counted, Apple is 17% of my portfolio, not the 15% I bought directly." and "In the Covid crash, my portfolio would have fallen 32%, about the same as the S&P 500." (the image carries "History, not a forecast").

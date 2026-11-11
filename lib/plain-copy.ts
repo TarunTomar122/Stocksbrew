@@ -522,6 +522,45 @@ function splitMoveReasonLoose(reason: string | null | undefined, pct: number | n
   return null;
 }
 
+const COUNT_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
+/** Small counts in words ("five"), as a sentence says them; larger ones as digits. */
+export function countWord(n: number): string {
+  return COUNT_WORDS[n] ?? String(n);
+}
+
+const DAY_OR_MONTH = /^(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|January|February|March|April|May|June|July|August|September|October|November|December)$/;
+
+/**
+ * True when a sentence still carries a headline's capitals after the first word: "Take-Two rose after GTA VI
+ * Preorders" (a feed title turned company first). Acronyms (GTA, VI), words with inner capitals (iPhone) and
+ * the words of the company's own name do not count. Proper nouns do, so a caller should only swap in another
+ * sentence when it has a whole one to hand.
+ */
+export function hasTitleCaseLeftover(text: string | null | undefined, companyName = ""): boolean {
+  const own = new Set(companyName.toLowerCase().split(/[^a-z0-9'’-]+/).filter(Boolean));
+  const words = (text ?? "").trim().split(/\s+/);
+  // A run of capitalized words (acronyms included) holding a Title Case word that is not the company's own,
+  // a day or a month: "GTA VI Preorders". One proper noun on its own ("as Microsoft spending grew") is a
+  // sentence, not a headline, so it does not count.
+  let run: { title: boolean; length: number } = { title: false, length: 0 };
+  for (let index = 1; index < words.length; index += 1) {
+    const raw = words[index]!;
+    const word = raw.replace(/^["“(]+|["”),.;:!?]+$/g, "");
+    const startsSentence = /[.!?]$/.test(words[index - 1] ?? "");
+    const capital = /^[A-Z]/.test(word) && !startsSentence;
+    if (!capital) {
+      run = { title: false, length: 0 };
+      continue;
+    }
+    const bare = word.toLowerCase().replace(/['’]s$/, "");
+    const title = /^[A-Z][a-z’'-]+$/.test(word) && !own.has(bare) && !own.has(word.toLowerCase()) && !DAY_OR_MONTH.test(word);
+    run = { title: run.title || title, length: run.length + 1 };
+    if (run.title && run.length >= 2) return true;
+    if (/[,.;:!?)]$/.test(raw)) run = { title: false, length: 0 };
+  }
+  return false;
+}
+
 /**
  * The same, as one sentence (no full stop): "Hims & Hers fell 16.5% after
  * earnings that missed expectations and a weaker forecast". Null when

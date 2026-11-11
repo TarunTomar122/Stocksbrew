@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { asSentence, companyFirstMove, firstFullSentence, isTitleCase, sentenceCase, shortCompanyName, splitMoveReason } from "./plain-copy";
+import { asSentence, companyFirstMove, countWord, firstFullSentence, hasTitleCaseLeftover, isTitleCase, sentenceCase, shortCompanyName, splitMoveReason } from "./plain-copy";
 
 describe("sentenceCase", () => {
   it("undoes Title Case but keeps names and acronyms", () => {
@@ -290,5 +290,28 @@ describe("splitMoveReason reads our own past-tense rewrites", () => {
     });
     expect(splitMoveReason("Zeta rose 8% after strong earnings", 8.2, { withPct: true })?.predicate).toBe("rose 8% after strong earnings");
     expect(splitMoveReason("Zeta fell after strong earnings", 8.2, { withPct: true })).toBeNull();
+  });
+});
+
+describe("hasTitleCaseLeftover", () => {
+  it("spots headline capitals left in a sentence, not acronyms, the company's name or a new sentence", () => {
+    expect(hasTitleCaseLeftover("Take-Two rose after GTA VI Preorders.", "Take-Two Interactive")).toBe(true);
+    expect(hasTitleCaseLeftover("Take-Two rose after GTA VI preorders.", "Take-Two Interactive")).toBe(false);
+    expect(hasTitleCaseLeftover("Hims & Hers fell after earnings missed. Shares hit a low.", "Hims & Hers Health")).toBe(false);
+    expect(hasTitleCaseLeftover("Apple rose after iPhone sales beat.", "Apple Inc.")).toBe(false);
+    expect(hasTitleCaseLeftover("", "")).toBe(false);
+  });
+
+  it("lets a single proper noun, a day or a month through", () => {
+    expect(hasTitleCaseLeftover("Zeta rose as Microsoft spending grew.", "Zeta Global")).toBe(false);
+    expect(hasTitleCaseLeftover("Zeta rose after the Fed cut rates on Monday.", "Zeta Global")).toBe(false);
+    expect(hasTitleCaseLeftover("Zeta rose after its report on November 4.", "Zeta Global")).toBe(false);
+  });
+});
+
+describe("countWord", () => {
+  it("says small counts in words and larger ones as digits", () => {
+    expect(countWord(5)).toBe("five");
+    expect(countWord(20)).toBe("20");
   });
 });

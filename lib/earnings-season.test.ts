@@ -130,6 +130,19 @@ describe("buildHistory", () => {
     expect(history.typicalDayPct).not.toBeNull();
   });
 
+  it("takes a day's earliest 8-K whatever order the filings arrive in", () => {
+    // 7:00 AM ET (before the open) and 4:30 PM ET (after the close) on the same day.
+    const early = { filedAt: "2026-08-26T11:00:00+00:00" };
+    const late = { filedAt: "2026-08-26T20:30:00+00:00" };
+    for (const filings of [
+      [early, late],
+      [late, early],
+    ]) {
+      const history = buildHistory({ events: [], reactions: [], filings, series: closes }, "2026-11-11");
+      expect(history.past.map((report) => [report.date, report.session])).toEqual([["2026-08-26", "bmo"]]);
+    }
+  });
+
   it("keeps one row per quarter, preferring the one with a result", () => {
     const history = buildHistory(
       {

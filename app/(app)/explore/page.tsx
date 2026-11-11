@@ -1,54 +1,12 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
 
-import {
-  loadDeskBrief,
-  loadDeskCalendar,
-  loadDeskFollow,
-  loadDeskMarkets,
-  loadDeskGiants,
-  loadDeskScreens,
-  loadDeskSectors,
-  loadDeskSignals,
-  loadDeskStrategies,
-  loadDeskThemes,
-  loadDeskWire,
-  todayET,
-  type DeskBrief,
-  type DeskData,
-} from "@/app/(app)/explore/desk-data";
+import { loadDeskBrief, loadDeskSectors, loadDeskWire, todayET, type DeskBrief, type DeskData, type DeskSector } from "@/app/(app)/explore/desk-data";
 import { TheRead } from "@/components/oa/insight";
-import { AskBox } from "@/components/explore-desk/ask-box";
-import { ToneBar } from "@/components/wire/news-read";
-import {
-  AppPage,
-  Delta,
-  Empty,
-  FOCUS,
-  MoveBar,
-  NUM,
-  PageHead,
-  Panel,
-  ShowMore,
-  SourceLine,
-  Sparkline,
-  Tag,
-  Ticker,
-  Verdict,
-  fmtAgo,
-  fmtDay,
-  fmtMoney,
-  fmtStampET,
-  toneText,
-} from "@/components/oa/kit";
+import { marketTodayRead } from "@/lib/explore-insights";
+import { AppPage, Delta, FOCUS, PageHead, Panel } from "@/components/oa/kit";
 import { Bar, PanelGhost } from "@/components/oa/kit/skeleton";
-import { EXPLORE_SUGGESTIONS } from "@/lib/ask-config";
-import { followTakeaway, mergeDeskRead, strategiesTakeaway } from "@/lib/explore-insights";
-import { fmtFrac, type ActivityItem } from "@/lib/follow-shared";
-import { moodWord, netSide, type ToneWord } from "@/lib/tone";
 import { ogImage } from "@/lib/og/url";
-import { sentenceCase } from "@/lib/plain-copy";
 
 export const dynamic = "force-dynamic";
 
@@ -57,573 +15,141 @@ export function generateMetadata(): Metadata {
   return {
     title: "Stock Research Today: Top Stories, Movers and Ideas",
     description:
-      "The stocksbrew research desk: ask the copilot, then read today's top stories, the biggest movers with a confirmed reason, what reports today, and previews of the screener, themes, signals, markets, strategies and followed investors.",
+      "Today's US stock market in three points, how every sector did, and every research page one tap away: sectors, movers, headlines, earnings, investors and markets.",
     keywords: ["stock research", "stock screener", "market movers today", "earnings today", "investment themes", "13F filings", "insider trades"],
     alternates: { canonical: "/explore" },
     openGraph: {
       title: "Stock Research Today: Top Stories, Movers and Ideas · stocksbrew",
-      description: "Ask a question, then read what moved today and why, with the source and time on every number.",
+      description: "Today's US stock market in three points, with the source and time on every number.",
       url: "https://www.stocksbrew.online/explore",
       images: [shareImage],
     },
     twitter: {
       card: "summary_large_image",
       title: "Explore · stocksbrew",
-      description: "Ask a question, then read what moved today and why, with the source and time on every number.",
+      description: "Today's US stock market in three points, with the source and time on every number.",
       images: [shareImage],
     },
   };
 }
 
-/** Each desk preview shows this many rows, so a row of panels carries the same weight. */
-const DESK_ROWS = 4;
-
-const SESSION: Record<string, string> = { bmo: "Before open", amc: "After close", during: "In session" };
-
-/** "$0.52" or "−$0.52": the sign goes before the currency. */
-function signedMoney(value: number): string {
-  return `${value < 0 ? "−" : ""}${fmtMoney(Math.abs(value))}`;
-}
-
-const BOUGHT = new Set(["new", "added", "buy"]);
-const SOLD = new Set(["reduced", "sold", "sell"]);
+/* ── the page ───────────────────────────────────────────────────────────── */
 
 /**
- * Which way a lawmaker's report leaned, weighed by the middle of each dollar
- * bracket. Only when it both bought and sold: one-sided, the sentence says it.
- * A 13F preview carries a few lines per side with no dollars, too few to weigh,
- * so funds get no chip here (their own page weighs the whole filing).
+ * The day in three ranked points (the biggest companies, the sector that moved most, the earnings that matter
+ * this week), then how every sector did as a named bar chart. The news read's tone lines ("40% of
+ * headlines read as good news") are left out: they say what the coverage felt like, not what to do with it.
+ * The news read is only the fallback when the desk's own read is missing.
  */
-function filingLean(kind: string, items: ActivityItem[]): ToneWord | null {
-  if (kind === "fund") return null;
-  const known = items.filter((item) => BOUGHT.has(item.action) || SOLD.has(item.action));
-  if (!known.some((item) => BOUGHT.has(item.action)) || !known.some((item) => SOLD.has(item.action))) return null;
-  const priced = known.every((item) => item.amount_low != null);
-  let bought = 0;
-  let sold = 0;
-  for (const item of known) {
-    const size = priced ? ((item.amount_low ?? 0) + (item.amount_high ?? item.amount_low ?? 0)) / 2 : 1;
-    if (BOUGHT.has(item.action)) bought += size;
-    else sold += size;
-  }
-  return netSide(bought, sold);
-}
-
-/** Bullish, bearish or mixed as a chip; a neutral or unread lean gets nothing. */
-function MoodChip({ raw }: { raw: string | null | undefined }) {
-  const mood = String(raw ?? "").trim().toLowerCase() === "neutral" ? null : moodWord(raw);
-  return mood ? <Verdict tone={mood.tone}>{mood.word}</Verdict> : null;
-}
-
-function askHref(question: string): string {
-  return `/ask?q=${encodeURIComponent(question)}`;
-}
-
-function OpenLink({ href, children }: { href: string; children: React.ReactNode }) {
+async function ReadSlot({
+  brief,
+  wire,
+  sectors,
+}: {
+  brief: Promise<DeskBrief>;
+  wire: Promise<DeskData["wire"]>;
+  sectors: ReturnType<typeof loadDeskSectors>;
+}) {
+  const [{ read }, sectorData] = await Promise.all([brief, sectors]);
+  // The news read is only waited on when the brief has nothing.
+  const news = read && (read.headline || read.insights.length > 0) ? null : await wire.then((data) => data.read).catch(() => null);
+  const shown = marketTodayRead(read, news, sectorData.takeaway);
+  // The three points first; how every sector did comes right after, as the picture behind the headline.
   return (
-    <a href={href} className={`rounded font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg ${FOCUS}`}>
-      {children}
-    </a>
+    <>
+      {shown ? <TheRead read={shown} label="Today's read" className="mb-4" /> : null}
+      <SectorBars rows={sectorData.rows} />
+    </>
   );
 }
 
-/**
- * A way to ask about one row. With `quiet` it stays out of the way until the
- * row is hovered or focused (desktop); a phone has Ask in its own panel.
- */
-function AskLink({ question, children = "Ask", quiet = false }: { question: string; children?: React.ReactNode; quiet?: boolean }) {
+/** Every sector's day as a named bar, best first: the picture behind "6 of 11 sectors rose". Each opens its sector. */
+function SectorBars({ rows }: { rows: DeskSector[] }) {
+  const sorted = [...rows].filter((row) => Number.isFinite(row.day)).sort((a, b) => b.day - a.day);
+  if (sorted.length < 4) return null;
+  const max = Math.max(0.5, ...sorted.map((row) => Math.abs(row.day)));
   return (
-    <a
-      href={askHref(question)}
-      className={`h-6 shrink-0 items-center rounded border border-oa-border bg-oa-card px-1.5 text-[12.5px] font-medium text-oa-muted-fg hover:border-[color-mix(in_srgb,var(--oa-primary)_40%,transparent)] hover:text-oa-primary ${FOCUS} ${
-        quiet ? "hidden opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 lg:inline-flex" : "inline-flex"
-      }`}
-    >
-      {children}
-    </a>
-  );
-}
-
-/* ── cross-asset strip ──────────────────────────────────────────────────── */
-
-function MarketsStrip({ markets }: { markets: NonNullable<DeskData["markets"]> }) {
-  const asOf = fmtStampET(markets.as_of);
-  return (
-    <section aria-label="Markets" className="mb-4">
-      {/* One slim row of context above the lead: it scrolls sideways on a phone instead of stacking. */}
-      <ul className="oa-scroll-fade -mx-2 flex gap-x-6 overflow-x-auto px-4 pr-9 [scrollbar-width:none] sm:mx-0 sm:px-0 sm:pr-0 lg:flex-wrap lg:justify-between lg:gap-y-1 [&::-webkit-scrollbar]:hidden">
-        {markets.tiles.map((tile) => (
-          <li key={tile.id} className="shrink-0">
-            <a href={tile.href} className={`block rounded py-0.5 hover:underline ${FOCUS}`}>
-              <span className="block whitespace-nowrap text-[12.5px] leading-[18px] text-oa-muted-fg">{tile.name}</span>
-              <span className="flex items-baseline gap-2 whitespace-nowrap">
-                <span className={`${NUM} text-[14px] font-medium leading-5 text-oa-fg`}>{tile.level}</span>
-                <span className={`${NUM} text-[12.5px] leading-5 ${toneText(tile.tone)}`}>{tile.change ?? "n/a"}</span>
-              </span>
-            </a>
-          </li>
-        ))}
-        {asOf ? (
-          <li className="shrink-0 self-end pb-0.5 text-[12.5px] leading-5 text-oa-muted-fg">as of {asOf}</li>
-        ) : null}
-      </ul>
-    </section>
-  );
-}
-
-/** A panel's first row: what the rows under it add up to, in one sentence. Nothing when the data has no line to give. */
-function Takeaway({ text }: { text: string | null | undefined }) {
-  if (!text) return null;
-  return <p className="border-b border-oa-border px-4 py-2.5 text-pretty text-[14px] font-medium leading-5 text-oa-fg">{text}</p>;
-}
-
-/* ── the panels, one per source ─────────────────────────────────────────── */
-
-/** Stocks in the news: one row per stock, ranked by how much is being said about it now. */
-async function StoriesPanel({ wire, nowMs }: { wire: Promise<DeskData["wire"]>; nowMs: number }) {
-  // The panel's own read is folded into the page's read at the top; the panel opens on its stock rows.
-  const { stocks } = await wire;
-  return (
-    <Panel fill label="Stocks in the news" right={<OpenLink href="/news">Open the wire</OpenLink>} flush>
-      {stocks.length === 0 ? (
-        <Empty title="The wire is quiet">No stock has made the news yet today.</Empty>
-      ) : (
-        <ul>
-          {stocks.map((stock) => (
-            <li key={stock.ticker} className="border-b border-oa-border px-4 py-2.5 last:border-b-0 hover:bg-oa-accent">
-              <div className="flex items-center justify-between gap-3">
-                <Ticker symbol={stock.ticker} name={stock.name} size={18} wrap className="min-w-0" />
-                <span className="flex shrink-0 items-center gap-3">
-                  <ToneBar counts={stock.tones} className="max-sm:hidden" />
-                  {stock.pct !== null ? <Delta value={stock.pct} digits={1} className="w-[4.25rem] text-right text-[14px] font-medium" /> : null}
-                </span>
-              </div>
+    <Panel label="How each sector did today" right={<a href="/sectors" className={`text-[13px] font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg ${FOCUS}`}>All sectors</a>} className="mb-5">
+      <ul className="grid gap-x-8 sm:grid-cols-2">
+        {sorted.map((row) => {
+          const width = Math.max(3, (Math.abs(row.day) / max) * 100);
+          const up = row.day >= 0;
+          return (
+            <li key={row.id}>
               <a
-                href={stock.lead.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`mt-1 block max-w-[72ch] text-pretty pl-[26px] text-[14px] leading-5 text-oa-fg hover:underline ${FOCUS}`}
+                href={row.slug ? `/sectors/${row.slug}` : "/sectors"}
+                className={`grid min-h-8 grid-cols-[minmax(0,7.5rem)_minmax(0,1fr)_4rem] sm:grid-cols-[minmax(0,11rem)_minmax(0,1fr)_4.25rem] items-center gap-x-3 rounded text-[13.5px] leading-5 hover:bg-oa-accent ${FOCUS}`}
               >
-                {sentenceCase(stock.lead.title)}
+                <span className="text-pretty text-oa-fg">{row.name}</span>
+                {/* Zero in the middle: gains grow right, losses grow left, so the sign reads at a glance. */}
+                <span className="relative h-2" aria-hidden="true">
+                  <span className="absolute inset-y-0 left-1/2 w-px bg-oa-border" />
+                  <span
+                    className={`absolute inset-y-0 rounded-sm ${up ? "left-1/2 bg-signal-bullish" : "right-1/2 bg-signal-bearish"}`}
+                    style={{ width: `${width / 2}%` }}
+                  />
+                </span>
+                <Delta value={row.day} className="text-right font-medium" />
               </a>
-              <p className={`${NUM} mt-0.5 flex flex-wrap items-center gap-x-2 pl-[26px] text-[12.5px] leading-[18px] text-oa-muted-fg`}>
-                <span className="min-w-0 truncate">{stock.lead.source || "Unknown source"}</span>
-                <span aria-hidden="true">·</span>
-                <span>{fmtAgo(stock.lead.publishedAt, nowMs)}</span>
-                <span aria-hidden="true">·</span>
-                <Link href={`/news?ticker=${encodeURIComponent(stock.ticker)}`} prefetch={false} className={`rounded hover:text-oa-fg hover:underline ${FOCUS}`}>
-                  {stock.count} {stock.count === 1 ? "story" : "stories"}
-                </Link>
-                <ToneBar counts={stock.tones} className="sm:hidden" />
-              </p>
             </li>
-          ))}
-        </ul>
-      )}
+          );
+        })}
+      </ul>
     </Panel>
   );
 }
 
-/**
- * The biggest companies and how each moved: the single stocks that carry the
- * most weight in the S&P 500. The day's biggest movers, with their reasons,
- * are on Why stocks moved, so this panel never repeats them.
- */
-async function GiantsPanel({ giants: pending }: { giants: ReturnType<typeof loadDeskGiants> }) {
-  const { rows, day } = await pending;
-  if (rows.length === 0) return null;
-  const max = Math.max(...rows.map((row) => Math.abs(row.day)));
-  const half = Math.ceil(rows.length / 2);
-  const column = (list: typeof rows) => (
-    <ul className="min-w-0">
-      {list.map((row) => (
-        <li key={row.symbol} className="relative flex min-h-11 items-center justify-between gap-3 border-b border-oa-border px-4 py-1.5 transition-colors last:border-b-0 hover:bg-oa-accent">
-          <Ticker symbol={row.symbol} name={row.name} wrap stretch className="min-w-0" />
-          <span className="flex shrink-0 items-center gap-3">
-            <MoveBar value={row.day} max={max} width={56} />
-            <Delta value={row.day} className="w-[4.5rem] text-right text-[14px] font-medium" />
-          </span>
-        </li>
-      ))}
-    </ul>
-  );
+/** Everything else on the desk, one plain line each. The lines with a live figure read it; the rest say what is there. */
+async function Directory({ brief, sectors }: { brief: Promise<DeskBrief>; sectors: ReturnType<typeof loadDeskSectors> }) {
+  const [{ calendarLine }, sectorData] = await Promise.all([brief, sectors]);
+  const entries: { href: string; title: string; line: string }[] = [
+    { href: "/sectors", title: "Sectors", line: sectorData.takeaway ?? "How each of the 11 sectors did, and the stocks that led and lagged in each." },
+    { href: "/movers", title: "Why stocks moved", line: "The day's biggest moves, with the reason when we could confirm one." },
+    { href: "/news", title: "Headlines", line: "The day's stories about companies, grouped by stock." },
+    { href: "/calendar", title: "Calendar", line: calendarLine ?? "Who reports earnings this week, and the economic reports that move the market." },
+    { href: "/screener", title: "Find stocks", line: "Ready-made lists, like the biggest companies or the cheapest against their own past, or your own filters." },
+    { href: "/themes", title: "Themes", line: "Groups of companies betting on one idea, like data centers or defense, and how each group is doing." },
+    { href: "/signals", title: "Signals", line: "What people on Reddit and in the news are saying about stocks, and whether prices agree." },
+    { href: "/follow", title: "Investors", line: "What big funds, members of Congress and company insiders bought and sold." },
+    { href: "/strategies", title: "Strategies", line: "Simple buying rules tested on years of real prices." },
+    { href: "/markets", title: "Markets", line: "Gold, oil, government bonds, the dollar and bitcoin, and how each moved today." },
+    { href: "/ask", title: "Ask", line: "Ask a question about any stock or idea, in your own words." },
+  ];
   return (
-    <Panel
-      label={day ? `The biggest companies on ${fmtDay(day)}` : "The biggest companies today"}
-      right={<OpenLink href="/screener">All stocks</OpenLink>}
-      flush
-      className="mb-5"
-    >
-      {/* The read above already says the group's move; the panel shows the rows. */}
-      <div className="grid md:grid-cols-2 md:divide-x md:divide-oa-border">
-        {column(rows.slice(0, half))}
-        <div className="max-md:border-t max-md:border-oa-border">{column(rows.slice(half))}</div>
-      </div>
-      <p className="border-t border-oa-border bg-oa-bg px-4 py-2 text-[13px] leading-5 text-oa-muted-fg">
-        The day&apos;s biggest single-stock moves and why each happened are on{" "}
-        <a href="/movers" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
-          Why stocks moved
-        </a>
-        .
-      </p>
-    </Panel>
-  );
-}
-
-async function CalendarPanel({ calendar, brief, today }: { calendar: Promise<Pick<DeskData, "earnings" | "ipos">>; brief: Promise<DeskBrief>; today: string }) {
-  const [{ earnings, ipos }, { calendarLine }] = await Promise.all([calendar, brief]);
-  return (
-    <Panel fill className="min-h-0" label={`On the calendar · ${fmtDay(today)}`} right={<OpenLink href="/calendar">Open calendar</OpenLink>} flush>
-      {earnings.today.length === 0 && earnings.next.length === 0 && ipos.length === 0 ? (
-        <Empty title="Nothing scheduled">No earnings or IPOs in the next week.</Empty>
-      ) : (
-        <>
-          <Takeaway text={calendarLine} />
-          {earnings.today.length > 0 ? (
+    <Panel label="More on today's market" flush>
+      <ul className="grid sm:grid-cols-2 sm:divide-x sm:divide-oa-border">
+        {[entries.slice(0, Math.ceil(entries.length / 2)), entries.slice(Math.ceil(entries.length / 2))].map((column, index) => (
+          <li key={index} className="min-w-0 max-sm:border-t max-sm:border-oa-border max-sm:first:border-t-0">
             <ul>
-              {earnings.today.map((event) => (
-                <li key={`${event.ticker}-today`} className="flex items-center justify-between gap-3 border-b border-oa-border px-4 py-2 last:border-b-0">
-                  <Ticker symbol={event.ticker} name={event.company} wrap className="min-w-0" />
-                  <span className="flex shrink-0 items-center gap-2">
-                    {event.eps_estimate !== null ? (
-                      <span className={`${NUM} hidden text-[12.5px] text-oa-muted-fg sm:inline lg:hidden xl:inline`}>EPS est. {signedMoney(event.eps_estimate)}</span>
-                    ) : null}
-                    <Tag tone="primary">{SESSION[event.time] ?? "Today"}</Tag>
-                  </span>
+              {column.map((entry) => (
+                <li key={entry.href} className="border-b border-oa-border last:border-b-0">
+                  <a href={entry.href} className={`group flex items-start justify-between gap-3 px-4 py-3 transition-colors hover:bg-oa-accent ${FOCUS}`}>
+                    <span className="min-w-0">
+                      <span className="block text-[15px] font-medium leading-6 text-oa-fg">{entry.title}</span>
+                      <span className="block text-pretty text-[14px] leading-5 text-oa-muted-fg">{entry.line}</span>
+                    </span>
+                    <span aria-hidden="true" className="mt-0.5 shrink-0 text-oa-muted-fg transition-transform group-hover:translate-x-0.5">
+                      →
+                    </span>
+                  </a>
                 </li>
               ))}
             </ul>
-          ) : (
-            <p className="border-b border-oa-border px-4 py-2.5 text-[14px] text-oa-muted-fg">No earnings today.</p>
-          )}
-          {earnings.next.length > 0 ? (
-            <p className="border-b border-oa-border px-4 py-2.5 text-[14px] leading-6 text-oa-muted-fg last:border-b-0">
-              <span className="oa-caption mr-2">Next up</span>
-              {earnings.next.map((event, index) => (
-                <span key={`${event.ticker}-${event.event_date}`}>
-                  {index > 0 ? <span className="mx-1.5" aria-hidden="true">·</span> : null}
-                  <a href={`/stock/${event.ticker}`} className={`${NUM} font-medium text-oa-fg hover:underline`}>
-                    {event.ticker}
-                  </a>{" "}
-                  <span className={NUM}>{fmtDay(event.event_date)}</span>
-                </span>
-              ))}
-            </p>
-          ) : null}
-          {ipos.length > 0 ? (
-            <p className="border-b border-oa-border px-4 py-2.5 text-[14px] leading-6 text-oa-muted-fg last:border-b-0">
-              <span className="oa-caption mr-2">IPOs</span>
-              {ipos.map((ipo, index) => (
-                <span key={`${ipo.ticker}-${ipo.ipo_date}`}>
-                  {index > 0 ? <span className="mx-1.5" aria-hidden="true">·</span> : null}
-                  <span className="text-oa-fg">{ipo.company}</span> <span className={NUM}>{fmtDay(ipo.ipo_date)}</span>
-                </span>
-              ))}
-            </p>
-          ) : null}
-        </>
-      )}
+          </li>
+        ))}
+      </ul>
     </Panel>
   );
 }
 
-async function ScreensPanel({ screens: pending }: { screens: Promise<DeskData["screens"]> }) {
-  const screens = await pending;
+/** The directory's shape while its live lines load. */
+function DirectoryGhost() {
   return (
-    <Panel fill label="Screener" right={<OpenLink href="/screener">Open</OpenLink>} flush>
-      {screens.items.length === 0 ? (
-        <Empty>No screen results yet today.</Empty>
-      ) : (
-        <>
-          <Takeaway text={screens.takeaway} />
-          <ul>
-            {screens.items.slice(0, DESK_ROWS).map((screen) => (
-              <li key={screen.id} className="border-b border-oa-border px-4 py-2 last:border-b-0">
-                <div className="flex items-baseline justify-between gap-3">
-                  <a href={`/screens/${screen.id}`} className={`min-w-0 truncate text-[14px] font-medium text-oa-fg hover:underline ${FOCUS}`}>
-                    {screen.title}
-                  </a>
-                  <span className={`${NUM} shrink-0 text-[12.5px] text-oa-muted-fg`}>
-                    {screen.matchCount} {screen.matchCount === 1 ? "match" : "matches"}
-                  </span>
-                </div>
-                <p className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5">
-                  {screen.top.map((row) => (
-                    <span key={row.ticker} className="inline-flex items-baseline gap-1.5">
-                      <a href={`/stock/${row.ticker}`} className={`${NUM} text-[12.5px] font-medium text-oa-fg hover:underline`}>
-                        {row.ticker}
-                      </a>
-                      {row.changePct !== null ? <Delta value={row.changePct} className="text-[12px]" /> : null}
-                    </span>
-                  ))}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-    </Panel>
-  );
-}
-
-async function ThemesPanel({ themes: pending }: { themes: Promise<DeskData["themes"]> }) {
-  const themes = await pending;
-  return (
-    <Panel fill label="Themes" right={<OpenLink href="/themes">Open</OpenLink>} flush>
-      {themes.length === 0 ? (
-        <Empty>No themes are published yet.</Empty>
-      ) : (
-        <>
-          <ul>
-            {themes.slice(0, DESK_ROWS).map((theme) => (
-              <li key={theme.slug} className="group border-b border-oa-border px-4 py-2 last:border-b-0">
-                <div className="flex items-baseline justify-between gap-3">
-                  <a href={`/themes/${theme.slug}`} className={`min-w-0 truncate text-[14px] font-medium text-oa-fg hover:underline ${FOCUS}`}>
-                    {theme.name}
-                  </a>
-                  <AskLink quiet question={`Build me a basket for the ${theme.name} theme.`}>Build a basket</AskLink>
-                </div>
-                <p className={`${NUM} mt-0.5 truncate text-[12.5px] text-oa-muted-fg`}>{theme.tickers.join("  ")}</p>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-    </Panel>
-  );
-}
-
-async function SignalsPanel({ signals, brief, nowMs }: { signals: Promise<Pick<DeskData, "reddit" | "posts">>; brief: Promise<DeskBrief>; nowMs: number }) {
-  const [{ reddit, posts }, { signalsLine }] = await Promise.all([signals, brief]);
-  const hasSignals = reddit.items.length + posts.items.length > 0;
-  return (
-    <Panel fill label="Signals" right={<OpenLink href="/signals">Open</OpenLink>} flush>
-      {hasSignals ? (
-        <>
-          <Takeaway text={signalsLine} />
-          <ul>
-            {reddit.items.slice(0, DESK_ROWS / 2).map((row) => (
-              <li key={`r-${row.ticker}`} className="border-b border-oa-border px-4 py-2 last:border-b-0">
-                <div className="flex items-baseline justify-between gap-3">
-                  <span className="flex min-w-0 items-baseline gap-2">
-                    <a href={`/stock/${row.ticker}`} className={`${NUM} text-[14px] font-medium text-oa-fg hover:underline`}>
-                      {row.ticker}
-                    </a>
-                    <span className="text-[12.5px] text-oa-muted-fg">Reddit</span>
-                    <MoodChip raw={row.sentiment} />
-                  </span>
-                  <span className={`${NUM} shrink-0 text-[12.5px] text-oa-muted-fg`}>{row.mentions} mentions</span>
-                </div>
-                {row.summary ? <p className="mt-0.5 text-[12.5px] leading-[18px] text-oa-muted-fg">{row.summary}</p> : null}
-              </li>
-            ))}
-            {posts.items.slice(0, DESK_ROWS - Math.min(reddit.items.length, DESK_ROWS / 2)).map((post) => (
-              <li key={`p-${post.url}`} className="border-b border-oa-border px-4 py-2 last:border-b-0">
-                <div className="flex items-baseline justify-between gap-3">
-                  <span className="flex min-w-0 items-baseline gap-2">
-                    <a href={`/stock/${post.ticker}`} className={`${NUM} text-[14px] font-medium text-oa-fg hover:underline`}>
-                      {post.ticker}
-                    </a>
-                    <span className="text-[12.5px] text-oa-muted-fg">Trump post</span>
-                    <MoodChip raw={post.sentiment} />
-                  </span>
-                  <span className={`${NUM} shrink-0 text-[12.5px] text-oa-muted-fg`}>{fmtAgo(post.publishedAt, nowMs)}</span>
-                </div>
-                <p className="mt-0.5 text-[12.5px] leading-[18px] text-oa-muted-fg">
-                  <a href={post.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                    “{post.said}”
-                  </a>
-                </p>
-              </li>
-            ))}
-          </ul>
-        </>
-      ) : (
-        <Empty>Nothing in the last day.</Empty>
-      )}
-    </Panel>
-  );
-}
-
-async function FollowPanel({ follow: pending }: { follow: Promise<DeskData["follow"]> }) {
-  const follow = await pending;
-  return (
-    <Panel fill label="Follow" right={<OpenLink href="/follow">Open</OpenLink>} flush>
-      {follow.length === 0 ? (
-        <Empty>No new filings yet.</Empty>
-      ) : (
-        <>
-          <Takeaway text={followTakeaway(follow)} />
-          <ul>
-            {follow.slice(0, DESK_ROWS).map((item) => {
-              const lean = filingLean(item.kind, item.items ?? []);
-              return (
-                <li key={item.id} className="grid grid-cols-[3.25rem_minmax(0,1fr)] gap-x-2 border-b border-oa-border px-4 py-2 last:border-b-0">
-                  <span className={`${NUM} pt-0.5 text-[12px] text-oa-muted-fg`}>{fmtDay(item.date)}</span>
-                  <span className="min-w-0">
-                    <span className="flex items-baseline gap-2">
-                      <a href={`/follow/${item.source_id}`} className={`min-w-0 truncate text-[14px] font-medium text-oa-fg hover:underline ${FOCUS}`}>
-                        {item.name}
-                      </a>
-                      <span className="shrink-0 text-[12.5px] text-oa-muted-fg">{item.kind === "fund" ? "Fund" : "Congress"}</span>
-                    </span>
-                    <span className="mt-0.5 block text-[12.5px] leading-[18px] text-oa-muted-fg">
-                      {lean && lean.tone !== "flat" ? (
-                        <Verdict tone={lean.tone} className="mr-1.5 align-[-5px]">
-                          {lean.word}
-                        </Verdict>
-                      ) : null}
-                      {item.headline}
-                    </span>
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        </>
-      )}
-    </Panel>
-  );
-}
-
-async function StrategiesPanel({ strategies: pending }: { strategies: Promise<DeskData["strategies"]> }) {
-  const strategies = await pending;
-  return (
-    <Panel fill label="Strategies" right={<OpenLink href="/strategies">Open</OpenLink>} flush>
-      {strategies.length === 0 ? (
-        <Empty>No strategy is published yet.</Empty>
-      ) : (
-        <>
-          <Takeaway text={strategiesTakeaway(strategies)} />
-          <ul>
-            {strategies.map((strategy) => {
-              const test = strategy.backtest;
-              return (
-                <li key={strategy.slug} className="border-b border-oa-border px-4 py-2 last:border-b-0">
-                  <div className="flex items-center justify-between gap-3">
-                    <a href={`/strategies/${strategy.slug}`} className={`min-w-0 truncate text-[14px] font-medium text-oa-fg hover:underline ${FOCUS}`}>
-                      {strategy.name}
-                    </a>
-                    {test ? <Sparkline values={test.spark.strategy} width={56} height={18} tone="flat" /> : null}
-                  </div>
-                  <p className="mt-0.5 text-[12.5px] leading-[18px] text-oa-muted-fg">
-                    {test && test.strategy.annualized_return !== null ? (
-                      <>
-                        <span className={`${NUM} text-oa-fg`}>{fmtFrac(test.strategy.annualized_return)}</span> a year in a backtest,{" "}
-                        <span className={NUM}>
-                          {test.period.start.slice(0, 4)} to {test.period.end.slice(0, 4)}
-                        </span>
-                        {test.benchmark.annualized_return !== null ? (
-                          <>
-                            {" "}
-                            (benchmark <span className={NUM}>{fmtFrac(test.benchmark.annualized_return)}</span>)
-                          </>
-                        ) : null}
-                      </>
-                    ) : (
-                      "Live record only, no backtest."
-                    )}
-                  </p>
-                </li>
-              );
-            })}
-          </ul>
-          <div className="mt-auto border-t border-oa-border bg-oa-bg px-4 py-1.5">
-            <SourceLine note="Backtested, not real returns" />
-          </div>
-        </>
-      )}
-    </Panel>
-  );
-}
-
-async function MarketsPanel({ markets: pending, brief }: { markets: Promise<DeskData["markets"]>; brief: Promise<DeskBrief> }) {
-  const [markets, { marketsLine }] = await Promise.all([pending, brief]);
-  return (
-    <Panel fill label="Markets" right={<OpenLink href="/markets">Open</OpenLink>} flush>
-      {markets && markets.readings.length > 0 ? (
-        <>
-          <Takeaway text={marketsLine} />
-          <ul>
-            {markets.readings.slice(0, DESK_ROWS).map((reading) => (
-              <li key={reading.key} className="border-b border-oa-border px-4 py-2 last:border-b-0">
-                <a href={reading.href} {...(reading.external ? { target: "_blank", rel: "noopener noreferrer" } : {})} className={`block rounded hover:underline ${FOCUS}`}>
-                  <span className="flex items-center justify-between gap-2 text-[14px] font-medium leading-5 text-oa-fg">
-                    {reading.label}
-                    {reading.verdict && reading.verdict.tone !== "flat" ? <Verdict tone={reading.verdict.tone}>{reading.verdict.word}</Verdict> : null}
-                  </span>
-                  <span className="mt-0.5 block text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg">{reading.text}</span>
-                </a>
-              </li>
-            ))}
-          </ul>
-        </>
-      ) : (
-        <Empty>Quotes are unavailable right now.</Empty>
-      )}
-    </Panel>
-  );
-}
-
-/**
- * The lead of Market today: the 11 sectors on one scale, best first, each a
- * link to its sector page. The whole market before single stocks; the day's
- * biggest single moves follow, and have their own page.
- */
-async function SectorsPanel({ sectors: pending }: { sectors: ReturnType<typeof loadDeskSectors> }) {
-  const { rows, takeaway } = await pending;
-  if (rows.length === 0) return null;
-  const max = Math.max(...rows.map((row) => Math.abs(row.day)));
-  const half = Math.ceil(rows.length / 2);
-  const column = (list: typeof rows) => (
-    <ul className="min-w-0">
-      {list.map((row) => (
-        <li key={row.id} className="border-b border-oa-border last:border-b-0">
-          <a
-            href={row.slug ? `/sectors/${row.slug}` : "/sectors"}
-            className={`grid min-h-11 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 px-4 py-1.5 transition-colors hover:bg-oa-accent ${FOCUS}`}
-          >
-            <span className="min-w-0 text-pretty text-[14px] leading-5 text-oa-fg">{row.name}</span>
-            <MoveBar value={row.day} max={max} width={64} />
-            <Delta value={row.day} className="w-[4.5rem] text-right text-[14px] font-medium" />
-          </a>
-        </li>
-      ))}
-    </ul>
-  );
-  return (
-    <Panel label="How each sector did today" right={<OpenLink href="/sectors">All sectors</OpenLink>} flush className="mb-5">
-      <Takeaway text={takeaway} />
-      <div className="grid md:grid-cols-2 md:divide-x md:divide-oa-border">
-        {column(rows.slice(0, half))}
-        <div className="max-md:border-t max-md:border-oa-border">{column(rows.slice(half))}</div>
-      </div>
-    </Panel>
-  );
-}
-
-/* ── the page ───────────────────────────────────────────────────────────── */
-
-/** One read for the whole desk: the brief with the news read folded in, stocks first (see `mergeDeskRead`). */
-async function ReadSlot({ brief, wire }: { brief: Promise<DeskBrief>; wire: Promise<DeskData["wire"]> }) {
-  const [{ read }, news] = await Promise.all([brief, wire]);
-  // On a phone the headline and its main driver show; the other stories wait behind one tap so the sectors come next.
-  return <TheRead read={mergeDeskRead(read, news.read)} label="Today's read" className="mb-4" fold="phone" foldKeep={1} foldLabel="Show more of what drove the day" />;
-}
-
-async function MarketsStripSlot({ markets: pending }: { markets: Promise<DeskData["markets"]> }) {
-  const markets = await pending;
-  return markets ? <MarketsStrip markets={markets} /> : null;
-}
-
-/** The cross-asset strip's size: one slim row. */
-function MarketsStripGhost() {
-  return (
-    <div className="mb-4 flex gap-6 overflow-hidden" aria-busy="true">
-      {Array.from({ length: 7 }, (_, index) => (
-        <div key={index} className="shrink-0 py-0.5">
-          <Bar className="h-3 w-20" />
-          <Bar className="mt-2 h-4 w-24" />
+    <div className="oa-surface grid gap-4 border border-oa-border bg-oa-card p-4 sm:grid-cols-2" aria-busy="true">
+      {Array.from({ length: 11 }, (_, index) => (
+        <div key={index}>
+          <Bar className="h-4 w-28" />
+          <Bar className="mt-2 h-3.5 w-full" />
         </div>
       ))}
     </div>
@@ -631,81 +157,26 @@ function MarketsStripGhost() {
 }
 
 /**
- * The head needs no data, so it is on screen at once. Each panel then waits
- * only for its own source: every loader is started here, side by side, and
- * awaited inside the panel that shows it.
- *
- * Order: the day's read, a slim row of market levels, then the lead (how each
- * sector did), then the biggest companies, then the wire beside Ask and the calendar, then the
- * desk previews, each led by its one-line takeaway.
+ * Market today: the day's read in three ranked points, how every sector did, then a directory of
+ * the rest. The head needs no data, so it is on screen at once; each part waits only for its own loader.
  */
 export default function ExplorePage() {
-  const now = new Date();
-  const nowMs = now.getTime();
-  const today = todayET(now);
-  const markets = loadDeskMarkets(today);
+  const today = todayET(new Date());
   const brief = loadDeskBrief(today);
   const wire = loadDeskWire(today);
+  const sectors = loadDeskSectors(today);
 
   return (
-    <AppPage width="wide">
+    <AppPage>
       <PageHead title="Market today" />
 
-      <Suspense fallback={<div className="mb-4"><PanelGhost rows={3} lines={2} /></div>}>
-        <ReadSlot brief={brief} wire={wire} />
+      <Suspense fallback={<div className="mb-5"><PanelGhost rows={3} lines={2} /></div>}>
+        <ReadSlot brief={brief} wire={wire} sectors={sectors} />
       </Suspense>
 
-      <Suspense fallback={<MarketsStripGhost />}>
-        <MarketsStripSlot markets={markets} />
+      <Suspense fallback={<DirectoryGhost />}>
+        <Directory brief={brief} sectors={sectors} />
       </Suspense>
-
-      <Suspense fallback={<div className="mb-5"><PanelGhost rows={6} /></div>}>
-        <SectorsPanel sectors={loadDeskSectors(today)} />
-      </Suspense>
-
-      <Suspense fallback={<div className="mb-5"><PanelGhost rows={5} /></div>}>
-        <GiantsPanel giants={loadDeskGiants(today)} />
-      </Suspense>
-
-      <div className="grid items-stretch gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
-        <Suspense fallback={<PanelGhost rows={9} lines={2} />}>
-          <StoriesPanel wire={wire} nowMs={nowMs} />
-        </Suspense>
-
-        <div className="grid min-w-0 grid-rows-[auto_minmax(0,1fr)] gap-5">
-          <Panel label="Ask about a stock or an idea">
-            <AskBox suggestions={EXPLORE_SUGGESTIONS} />
-          </Panel>
-          <Suspense fallback={<PanelGhost rows={4} />}>
-            <CalendarPanel calendar={loadDeskCalendar(today)} brief={brief} today={today} />
-          </Suspense>
-        </div>
-      </div>
-
-      <h2 className="oa-label mb-2 mt-8">More to explore</h2>
-      {/* On a phone the six previews wait behind one button; the lead above is the point of the page. */}
-      <ShowMore label="Show the screener, themes and 4 more">
-        <div className="grid items-stretch gap-5 md:grid-cols-2 xl:grid-cols-3">
-        <Suspense fallback={<PanelGhost rows={4} lines={2} />}>
-          <ScreensPanel screens={loadDeskScreens(today)} />
-        </Suspense>
-        <Suspense fallback={<PanelGhost rows={4} lines={2} />}>
-          <ThemesPanel themes={loadDeskThemes(today)} />
-        </Suspense>
-        <Suspense fallback={<PanelGhost rows={4} lines={2} />}>
-          <SignalsPanel signals={loadDeskSignals(today)} brief={brief} nowMs={nowMs} />
-        </Suspense>
-        <Suspense fallback={<PanelGhost rows={4} lines={2} />}>
-          <FollowPanel follow={loadDeskFollow(today)} />
-        </Suspense>
-        <Suspense fallback={<PanelGhost rows={4} lines={2} />}>
-          <StrategiesPanel strategies={loadDeskStrategies(today)} />
-        </Suspense>
-        <Suspense fallback={<PanelGhost rows={4} lines={2} />}>
-          <MarketsPanel markets={markets} brief={brief} />
-        </Suspense>
-        </div>
-      </ShowMore>
     </AppPage>
   );
 }

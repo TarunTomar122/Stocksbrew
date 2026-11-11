@@ -8,7 +8,7 @@ import {
 import { normalizeDirectiveForUi } from "@/lib/directive-ui";
 import { buildLandingHeroMetrics } from "@/lib/landing-hero-metrics";
 import { getCurrentMarket } from "@/lib/market";
-import { plainAction, plainCallReason, plainFinance, shortCompanyName, wholeSentences } from "@/lib/plain-copy";
+import { companyFirstMove, plainAction, plainCallReason, plainFinance, shortCompanyName, wholeSentences } from "@/lib/plain-copy";
 import { getPowerTradesCached, type PowerTrade } from "@/lib/power-trades";
 import { isFeaturedStockTicker } from "@/lib/seo/stock-pages";
 import { getStockFacts, getStockIntelligenceDoc } from "@/lib/stock";
@@ -153,6 +153,15 @@ const getHeroBriefingData = sharedCache(
   { revalidate: 120 },
 );
 
+/** The stock the hero card shows today, so the sections below can leave it out instead of saying it twice. */
+
+/** The call reason's label, so it never reads as the reason for today's move. */
+const WHY_LABEL: Record<string, string> = { Add: "Why we'd buy more", Hold: "Why we'd keep it", Trim: "Why we'd sell some" };
+export async function heroTicker(): Promise<string | null> {
+  const data = await getHeroBriefingData().catch(() => null);
+  return data?.anomaly.ticker?.toUpperCase() ?? null;
+}
+
 export async function HeroBriefing() {
   const market = getCurrentMarket();
   const featured = await getHeroBriefingData().catch(() => null);
@@ -183,7 +192,8 @@ export async function HeroBriefing() {
   // The company reason (its numbers, then what would change the call) when it was written for this same call; else the brief's line.
   const companyReason = matchingCompanyReason(featured.companyReason, callWord(featured.directiveV2?.stance));
   const reasonSource = companyReason ?? directive?.rationale ?? "";
-  const callReason = isFeaturedStockTicker(anomaly.ticker) && reasonSource ? wholeSentences(plainCallReason(reasonSource), companyReason ? 2 : 1) : "";
+  // One sentence: the card is the call and its main reason; the rest of the thinking is one tap away on the stock page.
+  const callReason = isFeaturedStockTicker(anomaly.ticker) && reasonSource ? wholeSentences(plainCallReason(reasonSource), 1) : "";
   // Only say why it moved when we actually researched a reason.
   const why = moveReason ? wholeSentences(plainFinance(moveReason), 1) || moveReason : null;
   const closes = featured.closes;
@@ -219,10 +229,20 @@ export async function HeroBriefing() {
   const pct = Number.isFinite(anomaly.day_change_pct) ? anomaly.day_change_pct : null;
   // The move in words, only when we have one; a small move needs no "no reason yet".
   const moved = pct == null ? "" : Math.abs(pct) < 0.05 ? `${name} barely moved.` : `${name} ${pct > 0 ? "rose" : "fell"} ${Math.abs(pct).toFixed(1)}%.`;
-  const reasonLine = why ?? (pct != null && Math.abs(pct) >= 0.5 ? "We haven't found a confirmed reason yet." : "");
+  // Sentence one of the takeaway: the move with its reason, company first ("Hims & Hers fell after earnings that
+  // missed expectations."), or the move and the honest "no confirmed reason yet". The size is in the row above.
+  const turnedWhy = why && pct != null ? companyFirstMove(why.replace(/[.!]$/, ""), pct, { company: { name: anomaly.name || name, ticker: anomaly.ticker } }) : null;
+  const takeaway = turnedWhy
+    ? `${turnedWhy}.`
+    : why
+      ? // The reason alone: the size of the move is in the row above, and "rose 4%" next to a reason that
+        // reads the other way would contradict itself.
+        why
+      : pct != null && Math.abs(pct) >= 0.5
+        ? `${name} ${pct > 0 ? "rose" : "fell"} ${Math.abs(pct).toFixed(1)}% today, and we haven't found a confirmed reason yet.`
+        : moved;
   const when = stampET(anomaly.price_as_of);
   const watchHref = `/agents?watch=${encodeURIComponent(anomaly.ticker)}`;
-  const step = "text-[12px] font-medium uppercase tracking-[0.06em] text-oa-muted-fg";
 
   return (
     <figure className="w-full">
@@ -255,46 +275,15 @@ export async function HeroBriefing() {
               </span>
             </a>
 
-            <p className={`mt-3.5 ${step}`}>What happened</p>
-            <p className="mt-1 text-[15px] leading-6 text-oa-fg">
-              {moved}
-              {reasonLine ? <span className="text-oa-fg/85">{moved ? " " : ""}{reasonLine}</span> : null}
-              {trade ? (
-                <span className="text-oa-fg/85">
-                  {" "}
-                  {trade.person_name}, a member of Congress, {trade.tx_type === "buy" ? "bought" : "sold"} {fmtAmountRange(trade.amount_low, trade.amount_high).toLowerCase()} of it
-                  {trade.disclosure_date ? ` (reported ${fmtDay(trade.disclosure_date)})` : ""}.
-                </span>
-              ) : null}
-            </p>
-
-            {callText ? (
-              <>
-                <p className={`mt-3.5 ${step}`}>If you own it</p>
-                <p className="mt-1 text-[15px] leading-6 text-oa-fg">
-                  <span className="font-medium">{callText}.</span>
-                  {callReason ? <span className="text-oa-fg/85"> {callReason}</span> : null}
-                </p>
-                {zoneBar ? <ZoneBar price={anomaly.price} add={zoneBar.add} trim={zoneBar.trim} /> : null}
-              </>
+            {/* The takeaway in two sentences (what happened, what we'd do), then the button; the evidence sits under it. */}
+            {takeaway || callText ? (
+              <p className="mt-3 text-pretty text-[15px] leading-6 text-oa-fg">
+                {takeaway ? <span className="text-oa-fg/85">{takeaway}</span> : null}
+                {callText ? <span className="font-medium">{takeaway ? " " : ""}{callText}.</span> : null}
+              </p>
             ) : null}
 
-            {stats.length > 0 ? (
-              <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2.5 border-t border-oa-border pt-3">
-                {stats.map((s) => (
-                  <Stat key={s.label} {...s} />
-                ))}
-              </div>
-            ) : null}
-            {/* The price line only when there is no level bar: one picture per card. */}
-            {!zoneBar && closes.length > 1 ? (
-              <div className="mt-2">
-                <Sparkline closes={closes} />
-                <p className="text-[13px] leading-5 text-oa-muted-fg">Price over the last {closes.length >= 80 ? "3 months" : `${closes.length} trading days`}</p>
-              </div>
-            ) : null}
-
-            <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-oa-border pt-3.5">
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
               <a
                 href={watchHref}
                 data-track="landing_cta_clicked"
@@ -304,10 +293,43 @@ export async function HeroBriefing() {
                 Watch {name} for me
               </a>
               <a href={`/stock/${anomaly.ticker}`} className="text-[14px] font-medium text-oa-fg underline decoration-oa-border underline-offset-4 hover:decoration-oa-fg">
-                Read our full view
+                Read our full view of {name}
               </a>
             </div>
             <p className="mt-2 text-[13px] leading-5 text-oa-muted-fg">It checks {name} every market day and emails you only when something happens.</p>
+
+            {callReason || zoneBar || stats.length > 0 || trade || closes.length > 1 ? (
+              <div className="mt-3.5 border-t border-oa-border pt-3">
+                {callReason ? (
+                  <p className="text-pretty text-[14px] leading-[22px] text-oa-fg/85">
+                    {/* The reason for the call, not for today's move (which has its own line above). */}
+                    <span className="font-medium text-oa-fg">{WHY_LABEL[callWord(featured.directiveV2?.stance) ?? ""] ?? "Why this call"}: </span>
+                    {callReason}
+                  </p>
+                ) : null}
+                {zoneBar ? <ZoneBar price={anomaly.price} add={zoneBar.add} trim={zoneBar.trim} /> : null}
+                {stats.length > 0 ? (
+                  <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2.5">
+                    {stats.map((s) => (
+                      <Stat key={s.label} {...s} />
+                    ))}
+                  </div>
+                ) : null}
+                {/* The price line only when there is no level bar: one picture per card. */}
+                {!zoneBar && closes.length > 1 ? (
+                  <div className="mt-2">
+                    <Sparkline closes={closes} />
+                    <p className="text-[13px] leading-5 text-oa-muted-fg">Price over the last {closes.length >= 80 ? "3 months" : `${closes.length} trading days`}</p>
+                  </div>
+                ) : null}
+                {trade ? (
+                  <p className="mt-2 text-pretty text-[13px] leading-5 text-oa-muted-fg">
+                    {trade.person_name}, a member of Congress, {trade.tx_type === "buy" ? "bought" : "sold"} {fmtAmountRange(trade.amount_low, trade.amount_high).toLowerCase()} of it
+                    {trade.disclosure_date ? ` (reported ${fmtDay(trade.disclosure_date)})` : ""}.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
         </SquircleSurface>

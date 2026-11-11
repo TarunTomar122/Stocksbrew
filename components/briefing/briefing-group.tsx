@@ -5,8 +5,7 @@ import * as React from "react";
 import { Verdict } from "@/components/oa/kit/tone";
 import { StockLogo } from "@/components/stock-logo";
 import { askWhyHref, COPILOT_PATH, type BriefingItem, type BriefingItemStatus } from "@/lib/briefing";
-import { visibleLines, type BriefingGroup, type BriefingLine } from "@/lib/briefing-groups";
-import { companyFirstMove } from "@/lib/plain-copy";
+import { moveRowText, reasonSource, visibleLines, type BriefingGroup, type BriefingLine } from "@/lib/briefing-groups";
 
 import { compactTime, signedPct, sourceTime } from "./format";
 import { verdictFor } from "./item-metric";
@@ -160,16 +159,9 @@ function LinePanel({ id, line, group, actions }: { id: string; line: BriefingLin
   );
 }
 
-/**
- * A confirmed move's reason, company first when the feed wrote it cause first:
- * "Revenue that beat expectations lift Acadia shares" reads "Acadia rose after
- * revenue that beat expectations." The move itself is in the row's number.
- */
+/** A confirmed move's reason, company first, in one whole sentence (lib/briefing-groups.ts `moveRowText`). */
 function lineText(line: BriefingLine, group: BriefingGroup): string {
-  const { item } = line;
-  if (item.kind !== "price_move" || item.reason_status !== "confirmed") return line.text;
-  const turned = companyFirstMove(line.text.replace(/[.!]$/, ""), item.day_change_pct ?? group.day_change_pct, { company: { name: group.name, ticker: group.ticker } });
-  return turned ? `${turned}.` : line.text;
+  return line.decision ? line.text : moveRowText(line.item, { name: group.name, ticker: group.ticker }, group.day_change_pct);
 }
 
 function LineRow({ line, group, actions }: { line: BriefingLine; group: BriefingGroup; actions: GroupActions }) {
@@ -191,6 +183,8 @@ function LineRow({ line, group, actions }: { line: BriefingLine; group: Briefing
         }`}
       >
         <span className="text-pretty">{lineText(line, group)}</span>
+        {/* Who reported the reason, named beside it; the link and the time are one tap away in the panel. */}
+        {reasonSource(line.item) ? <span className="ml-1.5 whitespace-nowrap text-[12px] text-oa-muted-fg">{reasonSource(line.item)}</span> : null}
       </button>
       {open ? <LinePanel id={panelId} line={line} group={group} actions={actions} /> : null}
     </li>

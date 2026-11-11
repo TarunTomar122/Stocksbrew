@@ -1,5 +1,5 @@
 import type { BriefingEvidence, BriefingItem, BriefingKind, BriefingRelation, BriefingSections } from "@/lib/briefing";
-import { asSentence, firstFullSentence } from "@/lib/plain-copy";
+import { asSentence, companyFirstMove, firstFullSentence, hasTitleCaseLeftover } from "@/lib/plain-copy";
 
 /**
  * The briefing grouped by stock. The builder makes one item per event, so a
@@ -184,6 +184,42 @@ export function lineText(item: BriefingItem): string {
   }
   if (ticker && headline.startsWith(`${ticker} `)) return capitalise(stripTicker(item));
   return headline;
+}
+
+/**
+ * A confirmed move's row: the reason with the company first ("Acadia rose after revenue that beat expectations.").
+ * When that still reads like a headline ("Take-Two rose after GTA VI Preorders"), the reason's next whole sentence
+ * says it better, so it is used instead when it is a readable length.
+ */
+export function moveRowText(item: BriefingItem, company: { name: string; ticker?: string | null }, pct: number | null): string {
+  const lead = lineText(item);
+  if (item.kind !== "price_move" || item.reason_status !== "confirmed") return lead;
+  const turned = companyFirstMove(lead.replace(/[.!]$/, ""), item.day_change_pct ?? pct, { company: { name: company.name, ticker: company.ticker ?? undefined } });
+  const text = turned ? `${turned}.` : lead;
+  if (!hasTitleCaseLeftover(text, company.name)) return text;
+  const why = item.why.trim().replace(/\s+/g, " ");
+  const first = firstFullSentence(why);
+  const next = asSentence(firstFullSentence(why.slice(first.length).trim()));
+  return usableReplacement(next, company) ? next : text;
+}
+
+/**
+ * A sentence that can stand in for a headline-like reason on its own: a readable length, not a headline itself,
+ * naming the company (or its ticker), and not leaning on the sentence before it ("This", "It", "The company").
+ */
+export function usableReplacement(sentence: string, company: { name: string; ticker?: string | null }): boolean {
+  if (!sentence || sentence.length > 240 || hasTitleCaseLeftover(sentence, company.name)) return false;
+  if (/^(?:this|that|these|those|it|its|they|their|the company|the stock|shares|also|meanwhile)\b/i.test(sentence)) return false;
+  const first = company.name.split(/\s+/)[0]?.replace(/[^A-Za-z0-9&'’-]/g, "") ?? "";
+  const names = [first, company.ticker ?? ""].filter((value) => value.length >= 2);
+  return names.some((name) => new RegExp(`\\b${escapeRe(name)}`, "i").test(sentence));
+}
+
+/** The publisher behind a confirmed reason, to name beside it ("Reuters"). Null without one. */
+export function reasonSource(item: BriefingItem): string | null {
+  if (item.kind !== "price_move" || item.reason_status !== "confirmed") return null;
+  // "News" and "Source" are placeholders for evidence with no link, not a publisher.
+  return item.evidence.find((entry) => !isQuote(entry) && entry.source && !/^(?:news|source)$/i.test(entry.source))?.source ?? null;
 }
 
 function isQuote(entry: BriefingEvidence): boolean {

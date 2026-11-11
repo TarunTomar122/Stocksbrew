@@ -103,6 +103,7 @@ export const PLACES: NavPlace[] = [
     sections: [
       section("Find stocks", "/screener", "screener"),
       section("Best stock lists", "/best", "screener"),
+      section("Build a basket", "/baskets/new", "themes", ["/baskets"]),
       section("Sectors", "/sectors", "markets"),
       section("Compare", "/compare", "compare"),
       section("Markets", "/markets", "markets"),

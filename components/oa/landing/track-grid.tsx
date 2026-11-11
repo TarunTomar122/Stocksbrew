@@ -1,5 +1,6 @@
 import { anomalyHeadline, hasResearchBackedNarrative } from "@/components/daily-anomalies-shared";
-import { companyFirstMove, plainFinance, sentenceCase, shortCompanyName } from "@/lib/plain-copy";
+import { usableReplacement } from "@/lib/briefing-groups";
+import { asSentence, companyFirstMove, firstFullSentence, hasTitleCaseLeftover, plainFinance, sentenceCase, shortCompanyName } from "@/lib/plain-copy";
 import { sharedCache } from "@/lib/shared-cache";
 import { SquircleCard } from "@/components/oa/squircle";
 import { Reveal } from "@/components/reveal";
@@ -34,11 +35,15 @@ const INSET = "pb-1";
 const NEWS_MAX_AGE_DAYS = 7;
 
 /** A move's reason in plain words, company first when the feed wrote the cause first ("Zeta rose after strong earnings"). */
-function moveLine(item: { ticker: string; name: string; day_change_pct: number } & Parameters<typeof anomalyHeadline>[0]): string {
+export function moveLine(item: { ticker: string; name: string; day_change_pct: number } & Parameters<typeof anomalyHeadline>[0]): string {
   // Feeds write some reasons in Title Case ("GTA VI Preorders Spark Take-Two's Rebound"); read them as a sentence.
   const said = plainFinance(sentenceCase(anomalyHeadline(item)));
   const turned = companyFirstMove(said.replace(/\.$/, ""), item.day_change_pct, { company: { name: item.name, ticker: item.ticker } });
-  return turned ? `${turned}.` : said;
+  const line = turned ? `${turned}.` : said;
+  // Still a headline ("Take-Two rose after GTA VI Preorders"): the reason's own first sentence says it whole.
+  if (!hasTitleCaseLeftover(line, item.name)) return line;
+  const detail = asSentence(firstFullSentence((item.move_explanation?.why_it_matters ?? "").replace(/\s+/g, " ")));
+  return usableReplacement(detail, { name: item.name, ticker: item.ticker }) ? detail : line;
 }
 const CARD_COUNT = 6;
 

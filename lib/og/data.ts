@@ -64,7 +64,7 @@ import { LANDING_HERO_BREW_TICKERS } from "@/lib/landing-hero-featured";
 import type { TheRead } from "@/lib/insights";
 import { withoutZones, type ScreenerRow } from "@/lib/screener-shared";
 import { loadDeskBrief, loadDeskWire } from "@/app/(app)/explore/desk-data";
-import { mergeDeskRead } from "@/lib/explore-insights";
+import { marketTodayRead } from "@/lib/explore-insights";
 
 import {
   ogDayLabel,
@@ -371,9 +371,9 @@ function readCard(key: string, label: string, path: string, read: TheRead | null
 
 async function exploreCard(): Promise<OgCard | null> {
   const today = todayET();
-  // The same read the page shows: the brief with the news folded in, stocks first.
+  // The same read the page shows (lib/explore-insights.ts marketTodayRead): the brief's three points, no tone lines.
   const [brief, wire] = await Promise.all([within(loadDeskBrief(today), 4000), within(loadDeskWire(today), 4000)]);
-  return readCard("explore", "Explore", "/explore", mergeDeskRead(brief?.read, wire?.read), { day: ogDayLabel(today) });
+  return readCard("explore", "Market today", "/explore", marketTodayRead(brief?.read, wire?.read, brief?.marketsLine ?? null), { day: ogDayLabel(today) });
 }
 
 async function newsCard(): Promise<OgCard | null> {

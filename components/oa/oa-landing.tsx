@@ -1,3 +1,4 @@
+import * as React from "react";
 import { Suspense } from "react";
 
 import { Disclosure } from "@/components/oa/disclosure";
@@ -13,52 +14,62 @@ import {
   HERO_HEADLINE_LEAD,
   HERO_SUBHEAD,
 } from "@/lib/brand-copy";
-import { US_PRO_MONTHLY, US_PRO_YEARLY } from "@/lib/pricing";
+import { CONTACT_EMAIL } from "@/lib/docs/site";
+import { limitFor } from "@/lib/entitlements";
+import { countWord } from "@/lib/plain-copy";
 import { getViewer } from "@/lib/entitlements-server";
 import { getLandingUserContext } from "@/components/terminal-landing-streams";
 
-import { AgentsSection } from "./landing/agents-section";
 import { HeroBriefing } from "./landing/hero-briefing";
 import { OnePlace } from "./landing/one-place";
 import { PlansSection } from "./landing/plans-section";
-import { FRAME, H2, SectionHead } from "./landing/shared";
-import { TrackGrid } from "./landing/track-grid";
+import { FRAME, SectionHead } from "./landing/shared";
+import { TodayMoves } from "./landing/today-moves";
 
-const FAQS = [
+// Folded, all closed: the page proves three things above and answers the rest here. The founder note is the last answer.
+const FAQS: { q: string; a: React.ReactNode }[] = [
   {
     q: "What is stocksbrew?",
-    a: "An agent that follows your stocks. It reads the filings, earnings reports and news on what you own, explains what moved and why, shows you what funds, members of Congress and insiders are doing, and tells you when something needs a look.",
+    a: "A research site that follows US stocks for you. Every market day it reads the filings, earnings reports and news, says why each stock moved and what we would do with it: buy more, keep or sell some.",
   },
   {
     q: "Does it trade for me or hold my money?",
     a: "No. stocksbrew never connects to a brokerage, and it cannot place trades or move money. You read the research and act wherever you already invest.",
   },
   {
-    q: "How much does it cost?",
-    a: `Reading is free on every stock, including our call. On Free your agent covers five stocks in full. Pro is $${US_PRO_MONTHLY} a month or $${US_PRO_YEARLY} a year and covers everything you own, with more agents, alerts and questions.`,
-  },
-  {
-    q: "Where does the information come from?",
-    a: "Public filings, earnings reports, market prices, analyst targets and the news. Headlines and filings link to the original.",
-  },
-  {
-    q: "Is the research written by AI?",
-    a: "The explanations and calls are AI-written from filings, numbers and news. Prices and financials are not. When there is no confirmed reason for a move, we say so.",
-  },
-  {
-    q: "Can I cancel anytime?",
-    a: "Yes. One click, no questions asked, and you keep access until the period you paid for runs out.",
+    q: "Where does the information come from, and who writes it?",
+    a: "Prices, financials and filings come from public sources, and headlines link to the original. The explanations and calls are written by AI from those numbers and that news. When there is no confirmed reason for a move, we say so.",
   },
   {
     q: "Is this investment advice?",
-    a: "No. stocksbrew provides research for your own decisions. It is not a broker or an adviser.",
+    a: "No. stocksbrew is research for your own decisions. It is not a broker or an adviser.",
+  },
+  {
+    q: "Who makes stocksbrew?",
+    a: (
+      <>
+        One person. Following a company used to mean reopening the same tabs every day, and most days nothing had changed. So I
+        built the thing I wanted: it does the reading and speaks up only when it has something to say, with the source next to
+        it. If a page is confusing or a fact looks wrong,{" "}
+        <a href={`mailto:${CONTACT_EMAIL}`} className="font-medium text-oa-fg underline decoration-oa-border underline-offset-4 hover:decoration-oa-fg">
+          tell me
+        </a>
+        . I read every message.{" "}
+        <a href="/about" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-4 hover:decoration-oa-fg">
+          More about me
+        </a>{" "}
+        and{" "}
+        <a href="/docs" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-4 hover:decoration-oa-fg">
+          how the research is made
+        </a>
+        .
+      </>
+    ),
   },
 ];
 
 export async function OaLanding() {
   const user = await getLandingUserContext();
-  const half = Math.ceil(FAQS.length / 2);
-  const faqColumns = [FAQS.slice(0, half), FAQS.slice(half)];
 
   return (
     <main className={`oa-landing ${interTight.variable} min-w-0 flex-grow overflow-x-clip`}>
@@ -87,105 +98,56 @@ export async function OaLanding() {
           </div>
         </section>
 
-        {/* everything below stacks as plates; the page background between them is the only divider */}
+        {/* one story below the hero: three short proofs with real data, one link each, then the questions folded */}
         <div className="flex flex-col gap-14 pb-12 pt-10 sm:gap-20 sm:pb-20 sm:pt-14">
-          {/* proof: three live feeds from today, each tied to the page that has the rest */}
           <section id="live" className="scroll-mt-24">
             <SectionHead
-              title="Every day, it checks what moves your stocks."
-              lede="Big moves with the reason behind them, earnings coming up, and what members of Congress bought and sold. This is today's real data."
+              title="Why stocks moved today."
+              lede="Every market day we look for the reason behind each big move, and say so when we can't find one."
               href="/briefing"
               hrefLabel="See today's briefing"
             />
-            <Suspense fallback={<div className="oa-surface h-[26rem] animate-pulse border border-oa-border bg-oa-card motion-reduce:animate-none" aria-hidden="true" />}>
-              <TrackGrid only={["moves", "earnings", "congress"]} rows={5} />
+            <Suspense fallback={<div className="oa-surface h-72 animate-pulse border border-oa-border bg-oa-card motion-reduce:animate-none" aria-hidden="true" />}>
+              <TodayMoves />
             </Suspense>
           </section>
 
-          {/* proof: your stocks */}
           <section id="portfolio" className="scroll-mt-24">
             <SectionHead
-              title="Everything you own, in one place."
-              lede="Add your stocks one at a time or paste a list. There is no broker login, so nothing here can touch your money."
+              title="What we'd do with each stock you own."
+              lede="Add your stocks and we tell you, for each one, whether we'd buy more, keep it or sell some, and why. There is no broker login, so nothing here can touch your money."
               href="/watchlist"
-              hrefLabel="Open your stocks"
+              hrefLabel="Add your stocks"
             />
-            <Suspense fallback={<div className="oa-surface h-[22rem] animate-pulse border border-oa-border bg-oa-card motion-reduce:animate-none" aria-hidden="true" />}>
+            <Suspense fallback={<div className="oa-surface h-80 animate-pulse border border-oa-border bg-oa-card motion-reduce:animate-none" aria-hidden="true" />}>
               <OnePlace />
             </Suspense>
-          </section>
-
-          {/* proof: agents */}
-          <section id="agents" className="scroll-mt-24">
-            <Reveal>
-              <AgentsSection />
-            </Reveal>
           </section>
 
           {/* plans: hidden once you already subscribe */}
           {!user.isSubscribed ? (
             <section id="pricing" className="scroll-mt-24">
+              <SectionHead
+                title="Our call on every stock is free. Pro adds the full report on all of them."
+                lede={`A free account also gets the full report on ${countWord(limitFor("covered_stocks", "free"))} stocks you pick: why we made the call, and the prices where we'd buy more or sell some.`}
+                href="/pricing"
+                hrefLabel="Compare the plans"
+              />
               <Reveal>
                 <PlansSection trialEligible={(await getViewer()).trialEligible} />
               </Reveal>
             </section>
           ) : null}
 
-          {/* questions */}
           <section id="faq" className="scroll-mt-24">
-            <SectionHead title="Questions" align="center" />
-            <Reveal>
-              <div className="mx-auto grid max-w-5xl grid-cols-1 gap-x-12 md:grid-cols-2">
-                {faqColumns.map((column, index) => (
-                  <div key={index}>
-                    {column.map((item) => (
-                      <Disclosure key={item.q} question={item.q}>
-                        {item.a}
-                      </Disclosure>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            </Reveal>
-          </section>
-
-          {/* why */}
-          <section id="why" className="scroll-mt-24">
-            <Reveal>
-              <div className="mx-auto max-w-3xl">
-                <h2 className={H2}>Why I built stocksbrew.</h2>
-                <div className="mt-5 flex flex-col gap-4 text-[17px] leading-8 text-oa-fg/80">
-                  <p>
-                    Following a company meant reopening the same tabs every day: the filing, the
-                    earnings call, the chart, the news, the forum thread. Most days nothing had
-                    changed. The day something did was easy to miss.
-                  </p>
-                  <p>
-                    So I built the thing I wanted. It does the reading every day and speaks up only
-                    when it has something to say, with the source next to it. It never touches your
-                    money. You stay the one who decides.
-                  </p>
-                  <p>
-                    stocksbrew is a small, independent product. If a page is confusing or a fact
-                    looks wrong, tell me. I read every message.
-                  </p>
-                </div>
-                <div className="mt-6 flex flex-wrap items-center gap-3 text-[15px]">
-                  <a
-                    href="/about"
-                    className="inline-flex h-10 items-center rounded-full border border-oa-border bg-oa-card px-4 font-medium text-oa-fg transition-colors hover:border-oa-fg/30"
-                  >
-                    Who is behind this
-                  </a>
-                  <a
-                    href="/docs"
-                    className="inline-flex h-10 items-center rounded-full border border-oa-border bg-oa-card px-4 font-medium text-oa-fg transition-colors hover:border-oa-fg/30"
-                  >
-                    How the research is made
-                  </a>
-                </div>
-              </div>
-            </Reveal>
+            <h2 className="text-[20px] font-medium tracking-tight text-oa-fg">Questions</h2>
+            <div className="mt-3 max-w-3xl">
+              {FAQS.map((item) => (
+                <Disclosure key={item.q} question={item.q}>
+                  {item.a}
+                </Disclosure>
+              ))}
+            </div>
           </section>
         </div>
       </div>
