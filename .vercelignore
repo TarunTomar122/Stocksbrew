@@ -1,0 +1,4 @@
+# The web app only needs the JSON in backend/config at build time. The Python
+# jobs run on the VPS; uploading them makes Vercel treat backend/ as a Python service.
+/backend/*
+!/backend/config
