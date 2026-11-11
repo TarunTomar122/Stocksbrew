@@ -92,25 +92,23 @@ type StripProps = {
   portfolio: boolean;
 };
 
-/** Signed in: the person's active watches and their latest outcomes, then Ask on their portfolio. */
+/** Signed in: the person's active watches and their latest outcomes, for the side rail (Ask sits under the read). */
 export async function BriefingAgentsStrip({ uid, ...props }: StripProps & { uid: string }) {
   const loaded = await loadWatches(uid, props.today);
   return <BriefingAgentsCard loaded={loaded} {...props} />;
 }
 
 /** The strip itself, from the watches once they are read. */
-export function BriefingAgentsCard({ loaded, today, inBriefing, portfolio }: StripProps & { loaded: Loaded<AgentsSource> }) {
+export function BriefingAgentsCard({ loaded, today, inBriefing }: StripProps & { loaded: Loaded<AgentsSource> }) {
   const anchors = new Set(inBriefing);
-  const ask = <AskForm portfolio={portfolio} placeholder={portfolio ? "Ask about your stocks" : "Ask about any US stock"} />;
 
   if (loaded.state !== "ready") {
     return (
       <section aria-labelledby="briefing-agents-label" className={CARD}>
         <Head>Your agents</Head>
-        <p className="px-4 pb-2 text-pretty text-[13.5px] leading-5 text-oa-muted-fg">
+        <p className="px-4 pb-2.5 text-pretty text-[13.5px] leading-5 text-oa-muted-fg">
           We could not read your agents just now. Reload in a minute.
         </p>
-        <div className="border-t border-oa-border px-4 py-3">{ask}</div>
       </section>
     );
   }
@@ -155,7 +153,6 @@ export function BriefingAgentsCard({ loaded, today, inBriefing, portfolio }: Str
           ) : null}
         </>
       )}
-      <div className="border-t border-oa-border px-4 py-3">{ask}</div>
     </section>
   );
 }
@@ -166,8 +163,18 @@ export function BriefingAgentsGhost() {
       <Bar className="h-3 w-24" />
       <Bar className="mt-3 h-3.5 w-full" />
       <Bar className="mt-1.5 h-3 w-2/3" />
-      <Bar className="mt-4 h-10 w-full" />
+      <Bar className="mt-3 h-3.5 w-full" />
+      <Bar className="mt-1.5 h-3 w-1/2" />
     </div>
+  );
+}
+
+/** Signed in: Ask on the person's portfolio (or any stock when they track none), under the read. */
+export function BriefingPortfolioAsk({ portfolio }: { portfolio: boolean }) {
+  return (
+    <section aria-label="Ask about your stocks" className={`${CARD} px-4 py-3`}>
+      <AskForm portfolio={portfolio} placeholder={portfolio ? "Ask about your stocks" : "Ask about any US stock"} />
+    </section>
   );
 }
 

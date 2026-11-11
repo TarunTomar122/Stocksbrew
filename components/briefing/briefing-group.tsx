@@ -169,19 +169,6 @@ function LinePanel({ id, line, group, actions }: { id: string; line: BriefingLin
   );
 }
 
-/** A speech bubble: Ask. */
-const ASK_ICON = (
-  <svg aria-hidden="true" viewBox="0 0 16 16" className="size-4">
-    <path
-      d="M3 3.5h10a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H7.5L4.5 14v-2.5H3a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1z"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.4"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
-
 /** A confirmed move's reason, company first, in one whole sentence (lib/briefing-groups.ts `moveRowText`). */
 function lineText(line: BriefingLine, group: BriefingGroup): string {
   return line.decision ? line.text : moveRowText(line.item, { name: group.name, ticker: group.ticker }, group.day_change_pct);
@@ -242,13 +229,6 @@ export function BriefingGroupCard({
   const settled = sharedStatus(group.items, actions) !== "open";
   const move = group.day_change_pct;
   const ticker = group.ticker;
-  // Your own briefing: one takeaway (the first line) and Ask about it, with the line attached.
-  const top = group.lines[0] ?? null;
-  const ask =
-    actions.personal && top
-      ? // The line's own words stay out of the link (they can say what you hold); Ask reads the line from its id.
-        briefAskHref(ticker ? `Why does this matter for ${ticker} today?` : "Why does this matter today?", briefContext(top.item, actions.day, true))
-      : null;
 
   return (
     <article
@@ -286,21 +266,8 @@ export function BriefingGroupCard({
           </span>
         ) : null}
       </span>
-      {ask ? (
-        <span className="col-start-3 row-start-2 flex justify-end sm:col-start-4">
-          <AppLink
-            href={ask}
-            title={`Ask about ${ticker ?? group.name}`}
-            aria-label={`Ask about ${ticker ?? group.name}`}
-            data-track-target="ask"
-            className="-mr-1.5 inline-flex size-10 items-center justify-center rounded-md text-oa-muted-fg outline-none transition-colors hover:bg-oa-accent hover:text-oa-primary focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)] sm:size-7"
-          >
-            {ASK_ICON}
-          </AppLink>
-        </span>
-      ) : null}
       <ul
-        className={`${ask ? "col-span-1" : "col-span-2"} col-start-2 row-start-2 mt-0.5 min-w-0 sm:col-span-1 sm:col-start-3 sm:row-span-2 sm:row-start-1 sm:mt-0`}
+        className={`col-span-2 col-start-2 row-start-2 mt-0.5 min-w-0 sm:col-span-1 sm:col-start-3 sm:row-span-2 sm:row-start-1 sm:mt-0`}
       >
         {shown.map((line) => (
           <LineRow key={line.id} line={line} group={group} actions={actions} />

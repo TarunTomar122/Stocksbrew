@@ -4,7 +4,7 @@ import { signedPct, signedPoints } from "@/lib/memo/format";
 import type { Memo, MemoMover } from "@/lib/memo/types";
 
 import { explainMover } from "./explain";
-import { ExplainPanel, ROW_CHEVRON } from "./explain-panel";
+import { ExplainPanel } from "./explain-panel";
 
 /**
  * Who moved the week: each holding's share of the portfolio's move, in
@@ -13,7 +13,7 @@ import { ExplainPanel, ROW_CHEVRON } from "./explain-panel";
  * (the memo's own line, its source, the report or move page) and Ask about it.
  */
 /** Ticker, the bar, the points, the chevron. */
-const COLS = "grid grid-cols-[5.75rem_minmax(0,1fr)_3.25rem_12px] sm:grid-cols-[7rem_minmax(0,1fr)_3.5rem_12px]";
+const COLS = "grid grid-cols-[5.75rem_minmax(0,1fr)_3.25rem] sm:grid-cols-[7rem_minmax(0,1fr)_3.5rem]";
 
 export function Movers({ movers, memo, example }: { movers: MemoMover[]; memo: Pick<Memo, "changed" | "hurt" | "look">; example: boolean }) {
   if (movers.length === 0) return null;
@@ -29,7 +29,6 @@ export function Movers({ movers, memo, example }: { movers: MemoMover[]; memo: P
             <span className="whitespace-nowrap pr-2 text-right">{anyDown ? "Pulled down" : ""}</span>
             <span className="whitespace-nowrap pl-2">{anyUp ? "Pushed up" : ""}</span>
           </span>
-          <span />
           <span />
         </div>
         <ul>
@@ -60,7 +59,6 @@ export function Movers({ movers, memo, example }: { movers: MemoMover[]; memo: P
                       />
                     </span>
                     <span className={`${NUM} text-right text-[13px] text-oa-fg`}>{signedPoints(mover.points)}</span>
-                    {ROW_CHEVRON}
                   </summary>
                   <ExplainPanel
                     explain={explainMover(memo, mover, example)}

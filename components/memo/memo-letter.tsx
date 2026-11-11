@@ -16,7 +16,7 @@ import { WeekChart } from "./week-chart";
  * The week's memo, picture first: a short headline over the week's line
  * against the S&P 500, the holdings that moved it, the calls that changed,
  * then what could hurt and what is worth a look as cards. Every figure comes
- * from the memo's facts; each card's full sentence sits behind "Why". A memo
+ * from the memo's facts; each card shows its full sentence. A memo
  * written before the page went visual has no view, so it shows its top line
  * and its sentences as cards.
  */
@@ -41,7 +41,11 @@ const watchHurt = () => true;
 const watchLook = (item: MemoItem) => item.kind === "upcoming";
 const watchNone = () => false;
 
-export function MemoLetter({ memo, example, plan }: { memo: Memo; example: boolean; plan: Plan }) {
+/**
+ * The week list (`rail`) sits beside the chart only; everything under it runs the full width, in pairs, so the page
+ * never shows an empty right-hand column (owner, Nov 11).
+ */
+export function MemoLetter({ memo, example, plan, rail = null }: { memo: Memo; example: boolean; plan: Plan; rail?: React.ReactNode }) {
   const view = memo.view ?? null;
   const hasView = Boolean(view);
   const hurt = cardItems(memo.hurt, hasView);
@@ -49,6 +53,7 @@ export function MemoLetter({ memo, example, plan }: { memo: Memo; example: boole
   const also = cardItems(memo.changed, hasView);
   return (
     <div className="flex min-w-0 flex-col gap-4">
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_17rem] lg:items-stretch">
       <article aria-label={`Memo, ${weekTitle(memo)}`} className="oa-surface min-w-0 border border-oa-border bg-oa-card">
         <header className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-oa-border px-4 py-2.5 sm:px-5">
           <p className="oa-label">{weekTitle(memo)}</p>
@@ -68,12 +73,19 @@ export function MemoLetter({ memo, example, plan }: { memo: Memo; example: boole
           {view?.footnote ? <p className="mt-2 text-[12px] leading-4 text-oa-muted-fg">{view.footnote}</p> : null}
         </div>
       </article>
+      {/* On wide screens the week list takes the chart's height and scrolls inside it, so neither leaves a gap. */}
+      {rail ? (
+        <div className="min-w-0 lg:relative">
+          <div className="lg:absolute lg:inset-0 lg:flex lg:flex-col">{rail}</div>
+        </div>
+      ) : null}
+      </div>
 
       {view ? (
-        <>
+        <div className="grid gap-4 lg:grid-cols-2 lg:items-start lg:[&>*:only-child]:col-span-2">
           <Movers movers={view.movers} memo={memo} example={example} />
           <CallChanges calls={view.calls} memo={memo} example={example} />
-        </>
+        </div>
       ) : null}
 
       <MemoCards title="What could hurt" items={hurt} empty="Nothing stands out as a risk this week." example={example} watchable={watchHurt} />

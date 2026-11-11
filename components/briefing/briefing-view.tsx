@@ -51,9 +51,11 @@ export type BriefingViewProps = {
   session?: BriefingSession | null;
   /**
    * The person's agents with their latest outcomes and an Ask box (./agents-strip.tsx), rendered and streamed on
-   * the server; signed out, Ask on the market. Sits under the read. When given, the side rail's agents line goes.
+   * the server; signed out, Ask on the market. Signed in, just the Ask box (the agents themselves are `rail`). Sits under the read. When given, the side rail's agents line goes.
    */
   agents?: React.ReactNode;
+  /** Signed in: the person's agents and their latest outcomes, at the top of the side rail. */
+  rail?: React.ReactNode;
   /** The "rest of your stocks moved too" card on Free (./locked-moves.tsx), rendered on the server. */
   locked?: React.ReactNode;
 };
@@ -205,6 +207,7 @@ export function BriefingView({
   earnings = null,
   session = null,
   agents = null,
+  rail = null,
   locked = null,
 }: BriefingViewProps) {
   const [state, setState] = React.useState<BriefingStateMap>(initialState);
@@ -603,6 +606,9 @@ export function BriefingView({
           </div>
         </section>
         ) : null}
+
+        {/* Your agents: useful, but not the lead (owner, Nov 11), so under the market card. */}
+        {rail}
 
         {!personal ? (
           <section aria-labelledby="today-pages-label" className={CARD}>

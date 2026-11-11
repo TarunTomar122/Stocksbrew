@@ -5,7 +5,7 @@ import { CALL_CHIP } from "@/lib/memo/view";
 import { shortDay, weekdayName } from "@/lib/memo/week";
 
 import { explainCall } from "./explain";
-import { ExplainPanel, ROW_CHEVRON } from "./explain-panel";
+import { ExplainPanel } from "./explain-panel";
 
 /** A call in its plain words, coloured by what it asks of you. */
 export function CallChip({ call }: { call: CallWord }) {
@@ -53,7 +53,6 @@ export function CallChanges({ calls, memo, example }: { calls: MemoCallChange[];
                     <span className="hidden sm:inline">{weekdayName(call.date).slice(0, 3)} </span>
                     {shortDay(call.date)}
                   </span>
-                  {ROW_CHEVRON}
                 </summary>
                 <ExplainPanel
                   explain={explainCall(memo, call, example)}

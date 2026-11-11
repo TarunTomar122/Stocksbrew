@@ -713,8 +713,10 @@ export function buildSeasonRead(season: Season, options: SeasonReadOptions): The
       action: { label: "Past reports", href: `/calendar/earnings/${encodeURIComponent(pattern.ticker)}` },
     });
   } else {
+    // Only a report from the last two quarters: a year-old move is history, not news (owner, Nov 11).
+    const recent = (day: string) => Date.parse(`${today}T00:00:00Z`) - Date.parse(`${day}T00:00:00Z`) <= 200 * 86_400_000;
     const swings = season.reporting
-      .filter((stock) => stock.stats.biggest && stock.ticker !== watch?.ticker)
+      .filter((stock) => stock.stats.biggest && recent(stock.stats.biggest.date) && stock.ticker !== watch?.ticker)
       .sort((a, b) => Math.abs(b.stats.biggest!.pct) - Math.abs(a.stats.biggest!.pct));
     const big = swings[0];
     if (big && Math.abs(big.stats.biggest!.pct) >= 4) {

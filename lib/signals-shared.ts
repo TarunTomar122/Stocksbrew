@@ -406,13 +406,13 @@ export function pickToday(movers: Mover[], reddit: RedditName[], policy: PolicyP
   const newest = filterPolicy(policy, "all");
   const picked: PolicyPost[] = [];
   for (const post of [...filterPolicy(recentNamed, "all"), ...newest]) {
-    if (picked.length >= 4) break;
+    if (picked.length >= 8) break;
     if (!picked.some((row) => row.id === post.id)) picked.push(post);
   }
   return {
     movers: bySize.filter((mover) => mover.explained).slice(0, 5),
     unexplained: bySize.filter((mover) => !mover.explained).slice(0, 4),
-    reddit: rankReddit(reddit).slice(0, 5),
+    reddit: rankReddit(reddit).slice(0, 8),
     policy: picked.sort((a, b) => (a.publishedAt < b.publishedAt ? 1 : -1)),
   };
 }

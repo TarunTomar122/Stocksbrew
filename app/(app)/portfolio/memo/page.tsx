@@ -62,10 +62,12 @@ function Layout({ data, plan, note }: { data: MemoPageData; plan: Parameters<typ
       {data.missingWeek ? (
         <p className="px-2 text-[14px] leading-5 text-oa-muted-fg sm:px-0">There is no memo for that week, so this is the latest one.</p>
       ) : null}
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_17rem] lg:items-start">
-        <MemoLetter memo={data.memo} example={data.mode === "example"} plan={plan} />
-        <MemoHistory rows={data.history} current={data.memo.weekKey} latestKey={latestKey} example={data.mode === "example"} />
-      </div>
+      <MemoLetter
+        memo={data.memo}
+        example={data.mode === "example"}
+        plan={plan}
+        rail={<MemoHistory rows={data.history} current={data.memo.weekKey} latestKey={latestKey} example={data.mode === "example"} />}
+      />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
-import { BriefingAgentsGhost, BriefingAgentsStrip, BriefingAskStrip } from "@/components/briefing/agents-strip";
+import { BriefingAgentsGhost, BriefingAgentsStrip, BriefingAskStrip, BriefingPortfolioAsk } from "@/components/briefing/agents-strip";
 import { BriefingView } from "@/components/briefing/briefing-view";
 import { BriefingLockedMoves } from "@/components/briefing/locked-moves";
 import { EarningsDayBriefing } from "@/components/earnings-day/briefing-reports";
@@ -74,14 +74,26 @@ async function loadSession(day: string, indexAsOf: string | null): Promise<Brief
 }
 
 /**
- * Under the read: signed in, the person's agents with their latest outcomes and Ask on their portfolio, streamed in
- * its own Suspense (one small read); signed out, Ask on the market only, with nothing read about anyone. The
+ * Under the read: signed in, Ask on the person's portfolio (their agents sit in the side rail, railSlot); signed
+ * out, Ask on the market only, with nothing read about anyone. The
  * signed-out page is the cached one (app/(app)/anon/[v]/briefing). Not on an earlier day's briefing.
  */
 function agentsSlot(data: BriefingPageData): React.ReactNode {
   if (data.archived) return null;
   const viewer = data.viewer;
   if (viewer.kind === "signed_out") return <BriefingAskStrip />;
+  // Stocks with an open, visible card in a personal briefing, so a flagged stock can jump to it.
+  return <BriefingPortfolioAsk portfolio={viewer.kind !== "empty"} />;
+}
+
+/**
+ * The side rail's agents card: signed in, the person's watches with their latest outcomes, streamed in its own
+ * Suspense (one small read). Not the lead of the page (owner, Nov 11), so it sits beside the briefing, not under it.
+ */
+function railSlot(data: BriefingPageData): React.ReactNode {
+  if (data.archived) return null;
+  const viewer = data.viewer;
+  if (viewer.kind === "signed_out") return null;
   // Stocks with an open, visible card in a personal briefing, so a flagged stock can jump to it.
   const inBriefing = briefingAnchorTickers(data.briefing, data.state);
   return (
@@ -127,6 +139,7 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
           marketState={marketStateLabel(new Date())}
           session={session}
           agents={agentsSlot(data)}
+          rail={railSlot(data)}
           locked={await lockedSlot(data)}
           earnings={
             day || data.archived ? null : (

@@ -74,7 +74,7 @@ export function TheRead({
             // One card kept above a closed fold takes the whole row, so it never sits beside an empty column.
             const alone = keep === 1 && hidden > 0 && index === 0 ? (fold === "always" ? "group-data-[open=false]/fold:col-span-full" : "max-lg:group-data-[open=false]/fold:col-span-full") : "";
             return (
-              <InsightCard key={insight.id} insight={insight} ask={askFor(insight, askContext)} className={`${span} ${alone} ${index >= keep ? foldHide : ""}`} />
+              <InsightCard key={insight.id} insight={insight} className={`${span} ${alone} ${index >= keep ? foldHide : ""}`} />
             );
           })}
         </ul>
@@ -181,17 +181,8 @@ export function askFor(insight: Insight, choice: AskContextChoice): string | nul
   return `/ask?q=${encodeURIComponent(insightAskQuestion(insight, context))}${context ? `&ctx=${encodeURIComponent(context)}` : ""}`;
 }
 
-/** A speech bubble: Ask. */
-const ASK_ICON = (
-  <svg aria-hidden="true" viewBox="0 0 16 16" className="size-4">
-    <path d="M3 3.5h10a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H7.5L4.5 14v-2.5H3a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1z" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
-  </svg>
-);
-
-const TONE_EDGE = { up: "var(--signal-bullish)", down: "var(--signal-bearish)" } as const;
-
 /**
- * One insight as a card: a thin tone edge on top, the key figure big with the
+ * One insight as a card (no coloured top edge: owner, Nov 11): the key figure big with the
  * stocks' logos beside it, the sentence whole (it wraps, never clips), the
  * second clause muted, and the next steps at the foot. Cards in a row share
  * one height (the grid stretches them), so the links line up.
@@ -199,15 +190,9 @@ const TONE_EDGE = { up: "var(--signal-bullish)", down: "var(--signal-bearish)" }
 export function InsightCard({
   insight,
   className = "",
-  ask = null,
 }: {
   insight: Insight;
   className?: string;
-  /**
-   * Ask about this card (TheRead's `askFor`): the card's only step when it has none, else a small icon in its
-   * bottom corner, so the words are not repeated on every card.
-   */
-  ask?: string | null;
 }) {
   const tickers = [...new Set(insight.tickers ?? [])];
   const figure = figureOf(insight);
@@ -225,7 +210,6 @@ export function InsightCard({
   // Only when something is left after the ticker; a sentence that is just "HIMS" stays as it is.
   const named = opens && !labelled && insight.leadName && rest !== insight.text ? insight.leadName : null;
   const text = labelled || named ? rest : insight.text;
-  const edge = insight.tone === "flat" ? null : TONE_EDGE[insight.tone];
   return (
     <li
       // Any link in the card sends `insight_clicked` (lib/analytics-dom.ts), so we learn which reads people act on.
@@ -233,12 +217,8 @@ export function InsightCard({
       data-track-insight-id={insight.id.slice(0, 80)}
       data-track-insight-kind={insightKind(insight.id)}
       data-track-tone={insight.tone}
-      className={`oa-surface relative flex min-w-0 flex-col overflow-hidden border border-oa-border bg-oa-bg px-3.5 pb-3 pt-3 ${className}`}
+      className={`oa-surface relative flex min-w-0 flex-col overflow-hidden border border-oa-border bg-oa-bg px-3.5 pb-3 pt-3 ${insight.action ? "transition-colors hover:border-[color-mix(in_srgb,var(--oa-fg)_25%,transparent)] hover:bg-oa-accent" : ""} ${className}`}
     >
-      {/* The tone edge is the card's good-or-bad mark, so it carries the words for screen readers too. */}
-      {edge ? (
-        <span role="img" aria-label={insight.tone === "up" ? "good" : "bad"} className="absolute inset-x-0 top-0 h-[3px]" style={{ background: edge }} />
-      ) : null}
       {figure || tickers.length > 0 ? (
         <div className="flex min-w-0 items-start justify-between gap-3">
           {figure ? (
@@ -250,7 +230,7 @@ export function InsightCard({
               {figure.label ? <p className="text-[12.5px] leading-[17px] text-oa-muted-fg">{figure.label}</p> : null}
             </div>
           ) : null}
-          {tickers.length > 0 ? <CardStocks tickers={tickers} className={figure ? "mt-0.5" : ""} /> : null}
+          {tickers.length > 0 ? <CardStocks tickers={tickers} className={`relative z-10 ${figure ? "mt-0.5" : ""}`} /> : null}
         </div>
       ) : null}
       <p className={`max-w-[60rem] text-pretty text-[14.5px] leading-[21px] text-oa-fg ${figure || tickers.length > 0 ? "mt-2" : ""}`}>
@@ -258,29 +238,15 @@ export function InsightCard({
         {text}
       </p>
       {insight.soWhat ? <p className="mt-1 max-w-[60rem] text-pretty text-[13.5px] leading-[19px] text-oa-muted-fg">{insight.soWhat}</p> : null}
-      {insight.action || insight.secondAction ? (
-        <div className="mt-auto flex items-center gap-3 pt-2.5">
-          <div className="flex min-w-0 flex-1 flex-wrap gap-x-4 gap-y-0.5">
-            {insight.action ? <ActionLink action={insight.action} target="action" wrap /> : null}
-            {insight.secondAction ? <ActionLink action={insight.secondAction} target="action_2" wrap /> : null}
-          </div>
-          {ask ? (
-            <Link
-              href={ask}
-              prefetch={false}
-              data-track-target="ask"
-              aria-label="Ask about this"
-              title="Ask about this"
-              className="-my-1.5 -mr-1.5 inline-flex size-8 shrink-0 items-center justify-center rounded-md text-oa-muted-fg outline-none transition-colors hover:bg-oa-accent hover:text-oa-primary focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
-            >
-              {ASK_ICON}
-            </Link>
-          ) : null}
-        </div>
-      ) : ask ? (
-        <div className="mt-auto pt-2.5">
-          <ActionLink action={{ label: "Ask about this", href: ask }} target="ask" wrap />
-        </div>
+      {/* The whole card opens its main page. No link words or Ask icon repeated on every card (owner, Nov 11). */}
+      {insight.action ? (
+        <Link
+          href={insight.action.href}
+          prefetch={false}
+          data-track-target="action"
+          aria-label={insight.action.label}
+          className="absolute inset-0 z-0 rounded-[inherit] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
+        />
       ) : null}
     </li>
   );

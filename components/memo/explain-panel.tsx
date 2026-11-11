@@ -12,12 +12,6 @@ import type { Explanation } from "./explain";
 
 const LINK = `rounded font-medium text-oa-primary underline-offset-2 hover:underline ${FOCUS}`;
 
-export const ROW_CHEVRON = (
-  <svg aria-hidden="true" viewBox="0 0 12 12" className="size-3 shrink-0 text-oa-muted-fg transition-transform group-open/row:rotate-180">
-    <path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
-
 export function ExplainPanel({ explain, className = "" }: { explain: Explanation; className?: string }) {
   return (
     <div className={`rounded bg-oa-bg px-3 py-2 text-[13.5px] leading-5 ${className}`}>

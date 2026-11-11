@@ -23,7 +23,7 @@ export function MemoHistory({ rows, current, latestKey, example }: { rows: MemoH
     ...rows.flatMap((row) => [row.portfolioPct, row.marketPct].filter((value): value is number => typeof value === "number").map(Math.abs)),
   );
   return (
-    <nav aria-label="Earlier memos" className="oa-surface min-w-0 overflow-hidden border border-oa-border bg-oa-card">
+    <nav aria-label="Earlier memos" className="oa-surface min-w-0 overflow-hidden border border-oa-border bg-oa-card lg:flex lg:max-h-full lg:flex-col">
       <div className="flex min-h-11 items-center justify-between gap-2 border-b border-oa-border px-4 py-2">
         <h2 className="oa-label">Every week</h2>
         <span aria-hidden="true" className={`${SERIES_VARS} flex items-center gap-3 text-[11.5px] text-oa-muted-fg`}>
@@ -38,7 +38,7 @@ export function MemoHistory({ rows, current, latestKey, example }: { rows: MemoH
         </span>
       </div>
       {/* About eight weeks in view, then it scrolls inside. */}
-      <ol className="max-h-[42rem] divide-y divide-oa-border overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <ol className="max-h-[42rem] divide-y divide-oa-border overflow-y-auto [scrollbar-width:none] lg:min-h-0 lg:flex-1 [&::-webkit-scrollbar]:hidden">
         {rows.map((row) => {
           const selected = row.weekKey === current;
           const href = row.weekKey === latestKey ? "/portfolio/memo" : `/portfolio/memo?week=${row.weekKey}`;

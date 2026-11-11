@@ -27,7 +27,6 @@ import { isNum, signedPct, weekdayOf } from "@/lib/read-format";
  */
 
 const HOLDING_FILL = "bg-[color-mix(in_srgb,var(--oa-primary)_78%,transparent)]";
-const BAND_FILL = "bg-[color-mix(in_srgb,var(--oa-muted-fg)_18%,transparent)]";
 const TODAY_FILL = "bg-[color-mix(in_srgb,var(--oa-primary)_9%,transparent)]";
 
 function capFirst(text: string): string {
@@ -56,17 +55,6 @@ const TIME_SHORT: Record<Session, string> = { bmo: "before the open", amc: "afte
 
 function pctOf(weight: number): string {
   return weight >= 10 ? `${Math.round(weight)}%` : `${weight.toFixed(1).replace(/\.0$/, "")}%`;
-}
-
-/** A tidy, shared scale for the move strips, so a 4% move is the same width on every row. */
-function stripScale(stocks: SeasonStock[]): number {
-  let top = 0;
-  for (const stock of stocks) {
-    for (const report of stock.past) if (isNum(report.move)) top = Math.max(top, Math.abs(report.move));
-    if (isNum(stock.typicalDayPct)) top = Math.max(top, stock.typicalDayPct);
-  }
-  const step = top > 20 ? 10 : top > 10 ? 5 : 2;
-  return Math.max(4, Math.ceil(top / step) * step);
 }
 
 /* ── The six weeks ─────────────────────────────────────────────────────── */
@@ -177,31 +165,25 @@ function Timeline({ season }: { season: Season }) {
 
 /* ── Report by report ──────────────────────────────────────────────────── */
 
-function dotTone(move: number): string {
-  return move > 0 ? "bg-signal-bullish" : move < 0 ? "bg-signal-bearish" : "bg-oa-muted-fg";
-}
-
-/** The move after each past report as a dot around zero, over a band the size of a normal day. */
-function MoveStrip({ stock, scale }: { stock: SeasonStock; scale: number }) {
-  const moves = stock.past.filter((report): report is PastReport & { move: number } => isNum(report.move));
+/** The moves after the last four reports as plain numbers, newest first and in bold (owner, Nov 11: the dot strip was unreadable). */
+function LastMoves({ stock }: { stock: SeasonStock }) {
+  const moves = stock.past.filter((report): report is PastReport & { move: number } => isNum(report.move)).slice(0, 4);
   if (moves.length === 0) return <span className="block text-[12.5px] leading-5 text-oa-muted-fg">No past moves on record</span>;
-  const at = (value: number) => 50 + (Math.max(-scale, Math.min(scale, value)) / scale) * 50;
-  const band = isNum(stock.typicalDayPct) && stock.typicalDayPct > 0 ? Math.min(50, (stock.typicalDayPct / scale) * 50) : null;
-  const label = `Moves after past reports: ${moves.map((report) => `${signedPct(report.move)} on ${fmtDay(report.date, true)}`).join(", ")}${isNum(stock.typicalDayPct) ? `. A normal day is about ${stock.typicalDayPct.toFixed(1)}%.` : ""}`;
   return (
-    <span role="img" aria-label={label} className="relative block h-5 w-full">
-      <span aria-hidden="true" className="absolute inset-x-0 top-1/2 h-px bg-oa-border" />
-      {band !== null ? <span aria-hidden="true" className={`absolute inset-y-[3px] rounded-[2px] ${BAND_FILL}`} style={{ left: `${50 - band}%`, width: `${band * 2}%` }} /> : null}
-      <span aria-hidden="true" className="absolute inset-y-0 left-1/2 w-px bg-oa-muted-fg" />
-      {/* Oldest first, so the latest report's dot is drawn on top. */}
-      {[...moves].reverse().map((report, index) => (
+    <span
+      role="img"
+      aria-label={`After its last ${moves.length === 1 ? "report" : `${moves.length} reports`}: ${moves.map((report) => `${signedPct(report.move)} after the ${fmtDay(report.date, true)} report`).join(", ")}`}
+      className={`${NUM} flex flex-wrap gap-x-3 text-[13.5px] leading-5`}
+    >
+      {moves.map((report, index) => (
         <span
           key={report.date}
           aria-hidden="true"
           title={`${signedPct(report.move)} after the ${fmtDay(report.date, true)} report`}
-          className={`absolute top-1/2 block -translate-x-1/2 -translate-y-1/2 rounded-full ring-[1.5px] ring-oa-card ${dotTone(report.move)} ${index === moves.length - 1 ? "size-3" : "size-2.5 opacity-80"}`}
-          style={{ left: `${at(report.move)}%` }}
-        />
+          className={`${report.move > 0 ? "text-signal-bullish" : report.move < 0 ? "text-signal-bearish" : "text-oa-muted-fg"} ${index === 0 ? "font-semibold" : "opacity-80"}`}
+        >
+          {signedPct(report.move)}
+        </span>
       ))}
     </span>
   );
@@ -285,7 +267,7 @@ function PastTable({ stock, today }: { stock: SeasonStock; today: string }) {
   );
 }
 
-function StockRow({ stock, scale, today }: { stock: SeasonStock; scale: number; today: string }) {
+function StockRow({ stock, today }: { stock: SeasonStock; today: string }) {
   const next = stock.next!;
   const usual = usualText(stock);
   const eps = fmtEps(next.epsEstimate);
@@ -293,13 +275,10 @@ function StockRow({ stock, scale, today }: { stock: SeasonStock; scale: number; 
     <li id={`report-${stock.ticker}`} className="scroll-mt-24">
       <details className="group/row">
         <summary
-          className="relative grid cursor-pointer list-none grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 px-4 py-2.5 hover:bg-oa-bg focus-visible:bg-oa-bg focus-visible:outline-none sm:grid-cols-[minmax(0,1.2fr)_7.5rem_5.5rem_5rem_minmax(9rem,1.4fr)_7.5rem_1rem] sm:gap-x-4 [&::-webkit-details-marker]:hidden"
+          className="relative grid cursor-pointer list-none grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 px-4 py-2.5 hover:bg-oa-bg focus-visible:bg-oa-bg focus-visible:outline-none sm:grid-cols-[minmax(0,1.2fr)_7.5rem_5.5rem_5rem_minmax(9rem,1.4fr)_7.5rem] sm:gap-x-4 [&::-webkit-details-marker]:hidden"
         >
           <span className="min-w-0 max-sm:order-1">
             <Ticker symbol={stock.ticker} name={stock.name} href={null} size={20} wrap />
-          </span>
-          <span aria-hidden="true" className="text-oa-muted-fg transition-transform group-open/row:rotate-90 max-sm:absolute max-sm:right-4 max-sm:top-3 sm:col-start-7 sm:row-start-1">
-            ›
           </span>
           {/* On a phone these three read as one line; from sm up they are columns. */}
           <span className="col-span-2 flex flex-wrap items-baseline gap-x-2 text-[12.5px] leading-5 text-oa-muted-fg max-sm:order-3 sm:contents">
@@ -317,7 +296,7 @@ function StockRow({ stock, scale, today }: { stock: SeasonStock; scale: number; 
             </span>
           </span>
           <span className="min-w-0 max-sm:order-4">
-            <MoveStrip stock={stock} scale={scale} />
+            <LastMoves stock={stock} />
           </span>
           <span className="text-right max-sm:order-5">
             <span className={`${NUM} block text-[13px] leading-4 ${usual.sub.length ? "text-oa-fg" : "text-oa-muted-fg"}`}>{usual.main}</span>
@@ -350,42 +329,20 @@ function StockRow({ stock, scale, today }: { stock: SeasonStock; scale: number; 
 }
 
 function Reports({ season }: { season: Season }) {
-  const scale = stripScale(season.reporting);
   const weeks = season.weeks.filter((week) => week.stocks.length > 0);
   return (
     <Panel
       label="Report by report"
       flush
-      right={
-        <span className="flex items-center gap-3">
-          <span className="inline-flex items-center gap-1.5">
-            <span aria-hidden="true" className="inline-block size-2 rounded-full bg-signal-bullish" />
-            <span aria-hidden="true" className="-ml-1 inline-block size-2 rounded-full bg-signal-bearish" />
-            past moves
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span aria-hidden="true" className={`inline-block h-2.5 w-4 rounded-[2px] ${BAND_FILL}`} />
-            normal day
-          </span>
-        </span>
-      }
     >
-      <div className="hidden grid-cols-[minmax(0,1.2fr)_7.5rem_5.5rem_5rem_minmax(9rem,1.4fr)_7.5rem_1rem] gap-x-4 border-b border-oa-border px-4 py-1.5 sm:grid">
+      <div className="hidden grid-cols-[minmax(0,1.2fr)_7.5rem_5.5rem_5rem_minmax(9rem,1.4fr)_7.5rem] gap-x-4 border-b border-oa-border px-4 py-1.5 sm:grid">
         <span className="oa-caption">Stock</span>
         <span className="oa-caption">Reports</span>
         <span className="oa-caption text-right">Share</span>
         <span className="oa-caption text-right">EPS est.</span>
-        <span className="oa-caption flex justify-between">
-          <span>−{scale}%</span>
-          <span>After past reports</span>
-          <span>+{scale}%</span>
-        </span>
+        <span className="oa-caption">After the last 4 reports</span>
         <span className="oa-caption text-right">Usual move</span>
-        <span />
       </div>
-      <p className="oa-caption border-b border-oa-border px-4 py-1.5 sm:hidden">
-        Dots run from −{scale}% to +{scale}%. Tap a stock for its past reports.
-      </p>
       {weeks.map((week) => (
         <section key={week.start} aria-label={weekTitle(week, season.today)}>
           <div className="flex items-baseline justify-between gap-3 border-b border-oa-border bg-oa-bg px-4 py-1.5">
@@ -406,7 +363,7 @@ function Reports({ season }: { season: Season }) {
           </div>
           <ul className="divide-y divide-oa-border border-b border-oa-border last:border-b-0">
             {week.stocks.map((stock) => (
-              <StockRow key={stock.ticker} stock={stock} scale={scale} today={season.today} />
+              <StockRow key={stock.ticker} stock={stock} today={season.today} />
             ))}
           </ul>
         </section>

@@ -54,7 +54,7 @@ function sourceWords(item: MemoItem): string {
  * writes just the event, ending on its day ("Nvidia fell 5.2% on Monday, Nov 9."), which repeats the row.
  * Stored items keep no reason field, so the sentence's end tells.
  */
-const hasReason = (item: MemoItem) => !/^\d{4}-\d{2}-\d{2}$/.test(item.asOf) || !item.text.trim().endsWith(`on ${longDay(item.asOf)}.`);
+export const hasReason = (item: Pick<MemoItem, "asOf" | "text">) => !/^\d{4}-\d{2}-\d{2}$/.test(item.asOf) || !item.text.trim().endsWith(`on ${longDay(item.asOf)}.`);
 
 /** The item that explains a holding's week: its report, else its biggest move with a confirmed reason. */
 function moverItem(items: MemoItem[], ticker: string): MemoItem | null {

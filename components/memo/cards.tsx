@@ -7,13 +7,15 @@ import { pct } from "@/lib/memo/format";
 import type { FactKind, MemoItem, MemoVisual } from "@/lib/memo/types";
 
 import { MiniBars } from "./mini-bars";
-import { WhyFoot } from "./why";
+import { hasReason } from "./explain";
 
 /**
  * A section of the memo as cards: one figure, a short line that reads on
- * from it, a small picture where one helps, and one action. The memo's full
- * sentence sits behind "Why". Memos written before the cards existed show
- * their sentence instead.
+ * from it, a small picture where one helps, and the memo's full sentence
+ * always shown under it (owner, Nov 11: no "Why" toggle). The whole card opens
+ * its evidence page, so no link words repeat on every card; a watch, where a
+ * card has one, is its only visible action. Memos written before the cards
+ * existed show their sentence instead.
  */
 
 type LinkTo = { label: string; href: string };
@@ -117,11 +119,18 @@ function Visual({ visual, example }: { visual: MemoVisual; example: boolean }) {
 
 function Card({ item, example, watch }: { item: MemoItem; example: boolean; watch: LinkTo | null }) {
   const card = item.card ?? null;
-  const evidence: LinkTo = { label: `${item.linkLabel} →`, href: item.href };
   const single = item.tickers.length === 1 ? item.tickers[0]! : null;
   const figureTone = card?.sign === "up" ? "text-signal-bullish" : card?.sign === "down" ? "text-signal-bearish" : "text-oa-fg";
+  // The full sentence under the figure, unless it only restates it ("AST SpaceMobile fell 8.7% on Tuesday, Nov 10.").
+  const detail = card && hasReason(item) ? item.text : null;
   return (
-    <li className="oa-surface flex min-w-0 flex-col border border-oa-border bg-oa-card p-3.5">
+    <li className="oa-surface relative flex min-w-0 flex-col border border-oa-border bg-oa-card p-3.5 transition-colors hover:border-[color-mix(in_srgb,var(--oa-fg)_25%,transparent)] hover:bg-oa-accent">
+      <Link
+        href={item.href}
+        prefetch={false}
+        aria-label={card ? `${card.figure} ${card.label}: ${item.linkLabel}` : item.linkLabel}
+        className={`absolute inset-0 z-0 rounded-[inherit] ${FOCUS}`}
+      />
       <div className="flex items-start gap-3">
         <span className="mt-1">{single ? <StockLogo ticker={single} size={24} eager /> : <Icon kind={item.kind} />}</span>
         {card ? (
@@ -134,22 +143,17 @@ function Card({ item, example, watch }: { item: MemoItem; example: boolean; watc
         )}
       </div>
       {card?.visual ? <Visual visual={card.visual} example={example} /> : null}
-      {card ? (
-        <WhyFoot
-          action={watch ?? { label: item.linkLabel, href: item.href }}
-          text={item.text}
-          source={item.source}
-          evidence={watch ? evidence : null}
-          about={`${card.figure} ${card.label}`}
-        />
-      ) : (
-        <div className="mt-auto border-t border-oa-border pt-2 text-[13px] leading-5">
-          <Link href={item.href} prefetch={false} className={`rounded font-medium text-oa-primary underline-offset-2 hover:underline ${FOCUS}`}>
-            {item.linkLabel}&nbsp;→
-          </Link>
-          <span className="text-oa-muted-fg"> · {item.source}</span>
-        </div>
-      )}
+      {detail ? <p className="mt-2.5 text-pretty text-[13.5px] leading-5 text-oa-muted-fg">{detail}</p> : null}
+      <p className="mt-auto pt-2.5 text-[12px] leading-4 text-oa-muted-fg">{item.source}</p>
+      {watch ? (
+        <Link
+          href={watch.href}
+          prefetch={false}
+          className={`relative z-10 mt-1.5 self-start rounded text-[13px] font-medium leading-5 text-oa-primary underline-offset-2 hover:underline ${FOCUS}`}
+        >
+          {watch.label}&nbsp;→
+        </Link>
+      ) : null}
     </li>
   );
 }
@@ -172,7 +176,11 @@ export function MemoCards({
     <section aria-label={title} className="min-w-0">
       <h2 className="oa-label px-1 pb-2">{title}</h2>
       {items.length > 0 ? (
-        <ul className="oa-card-grid grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <ul
+          // No empty half-rows: a lone or odd last card takes the whole row on tablets, and on wide screens the
+          // columns are only as many as the cards (auto-fit), so one card spans the row and two share it.
+          className="oa-card-grid grid grid-cols-1 gap-3 sm:grid-cols-2 sm:[&>li:last-child:nth-child(odd)]:col-span-2 lg:[grid-template-columns:repeat(auto-fit,minmax(16rem,1fr))] lg:[&>li:last-child:nth-child(odd)]:col-span-1"
+        >
           {items.map((item) => (
             <Card key={item.id} item={item} example={example} watch={watchable(item) ? watchFor(item) : null} />
           ))}
