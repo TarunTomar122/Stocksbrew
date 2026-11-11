@@ -150,7 +150,7 @@ export const METHODOLOGY_GUIDES: Guide[] = [
         "It is not a track record. We do not publish a win rate for calls, because we have not yet measured one in a way we would stand behind.",
       ),
       h2("Who sees what"),
-      p("The call, its reasons, its date and what changed since the last one are shown to every reader, signed out included. The price zones and what would change the call are shown on Pro, on the stocks a Free account follows, and to everyone on a small set of showcase stocks. See [Free vs Pro](/docs/start/free-vs-pro#covered-stocks)."),
+      p("The call, its reasons, what would change it, its date and what changed since the last one are shown to every reader, signed out included. The price zones and the whole brief are shown on Pro, on the stocks a Free account covers, and to everyone on a small set of showcase stocks. See [Free vs Pro](/docs/start/free-vs-pro#covered-stocks)."),
       note("If the reasons do not persuade you, the call should not either."),
     ],
     related: ["methodology/model-written-vs-computed", "start/read-a-stock-report", "methodology/data-sources"],

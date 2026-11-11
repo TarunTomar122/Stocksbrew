@@ -127,7 +127,7 @@ export function PlanCards({
 
   const trial = trialEligible && market === "US";
   const terms = trial
-    ? `Free for 3 days, then ${active?.price ?? ""} ${active?.per ?? ""}. Card needed.`.replace(/\s+/g, " ")
+    ? `3 days free, then ${active?.price ?? ""} ${active?.per ?? ""} unless you cancel. Starting the trial asks for a card.`.replace(/\s+/g, " ")
     : "Cancel in one click. Refund in the first seven days.";
   const periodSwitch =
     plan !== "pro" && prices.length > 1 ? (

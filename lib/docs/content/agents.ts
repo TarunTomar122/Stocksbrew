@@ -109,7 +109,7 @@ export const AGENTS_GUIDES: Guide[] = [
       ul(
         "In the agent's own log on [Agents](/agents).",
         "In the [Briefing](/briefing), as an item, when the decision was Told you.",
-        "Agents do not send emails. Results are delivered in the app only. On Pro, use an [alert](/docs/portfolio/alerts) if you need an email for a price level.",
+        "In your [Inbox](/inbox), and by email: what your agents told you is bundled into one email, a few times a day at most. The **Alerts** switch in [Account](/profile#notifications) turns those emails off.",
       ),
       h2("Pausing and removing"),
       p("A paused agent keeps its log and stops being checked. Removing an agent archives it. Past runs stay in the log so the record is not rewritten."),

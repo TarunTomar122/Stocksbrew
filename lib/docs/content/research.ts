@@ -66,7 +66,7 @@ export const RESEARCH_GUIDES: Guide[] = [
       h2("What sits next to a date"),
       ul(
         "The consensus estimates, when we hold them.",
-        "The pre-earnings read: what the report has to show and what would change our call. It is shown on Pro, on the stocks a Free account follows, and on the showcase stocks. The date and estimates are shown for every stock.",
+        "The pre-earnings read: what the report has to show and how the stock reacted the last few times. It is shown on Pro, on the stocks a Free account covers, and on the showcase stocks. The date and estimates are shown for every stock.",
         "After the report: the result against expectations, guidance and the price reaction when we hold them.",
       ),
       h2("Filters"),

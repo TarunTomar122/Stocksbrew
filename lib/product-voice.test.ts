@@ -20,11 +20,11 @@ function source(path: string): string {
 
 describe("product language", () => {
   it("keeps the approved first impression exact", () => {
-    expect(HERO_HEADLINE).toBe("The investing platform that tells you what to buy and why.");
+    expect(HERO_HEADLINE).toBe("Your stocks, explained every day, with sources.");
     expect(`${HERO_HEADLINE_LEAD} ${HERO_HEADLINE_EMPHASIS}`).toBe(HERO_HEADLINE);
-    expect(HERO_SUBHEAD).toBe(
-      "It goes through the filings, earnings and news, then tells you why each stock moved, what changed, and what is worth a look next.",
-    );
+    expect(HERO_SUBHEAD).toBe("Buy more, Keep or Sell some on each one: why, and what would change it.");
+    // No promise to tell people what to buy: it overpromises and reads as advice.
+    expect(HERO_HEADLINE.toLowerCase()).not.toContain("what to buy");
     const landing = source("components/oa/oa-landing.tsx");
     expect(landing).toContain("{HERO_HEADLINE_LEAD}");
     expect(landing).toContain("{HERO_HEADLINE_EMPHASIS}");

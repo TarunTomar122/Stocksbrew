@@ -35,18 +35,21 @@ describe("first Watchlist activation flow", () => {
     expect(checkout).not.toContain('effectivePeriod === "yearly" && isTrialEligible(userDoc)');
   });
 
-  // The call and the written read are open to everyone. What a plan gates is
-  // the levels (zones, what would change the call, the pre-earnings read), and
-  // they are removed on the server, never hidden in the browser.
+  // The call, its reasons and what would change it are open to everyone, on
+  // every stock. What a plan gates is the full report (zones, the whole brief,
+  // the pre-earnings read, the call's history), and it is removed on the
+  // server, never hidden in the browser.
   it("strips the price levels on the server for stocks the viewer's plan does not cover", () => {
     const stockPage = source("components/stock-page-stream.tsx");
     const report = source("components/stock-report/report.tsx");
     expect(stockPage).toContain("const hasLevels = canSeeLevels(viewer, stock.instrument_id)");
     expect(stockPage).toContain("fullRead && !hasLevels");
     expect(stockPage).toContain("zones: { addBelow: null, addAbove: null, trimAbove: null },");
-    // The reasoning goes with the levels: an uncovered stock keeps only the call, its headline and the date.
-    expect(stockPage).toContain("reasons: [],");
-    expect(stockPage).toContain("changers: [],");
+    // The reasons stay, with any price inside them taken out; the rest of the brief goes with the levels.
+    expect(stockPage).toContain("reasons: fullRead.reasons.map((item) => redactLevels(item))");
+    expect(stockPage).toContain("body: null,");
+    expect(stockPage).toContain("intelPro: hasLevels ? intelPro : null");
+    expect(stockPage).not.toContain("callEvidence.conditions = []");
     expect(stockPage).toContain("const preEarningsDoc = hasLevels");
     expect(stockPage).toContain("levels: hasLevels");
     expect(stockPage).not.toContain("StockDetail");

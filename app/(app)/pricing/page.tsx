@@ -60,9 +60,9 @@ const ids = listedFeatureIds().filter((id) => !MERGED_INTO_ANOTHER_ROW.has(id));
 // Display only: the rules themselves still come from lib/entitlements.
 const PLAIN_NAMES: Partial<Record<FeatureId, string>> = {
   tracked_stocks: "Stocks you follow, with prices, our call and the next earnings date",
-  covered_stocks: "The full report: why we made the call, the prices where we'd buy more or sell some, and what would change our mind",
-  stock_call: `Our call on ${CALL_COVERAGE}: buy more, keep or sell some, with the date`,
-  stock_zones: "The full report: why we made the call, the prices where we'd buy more or sell some, and what would change our mind",
+  covered_stocks: "The full report: the prices where we'd buy more or sell some, the whole brief, and how the call has moved",
+  stock_call: `Our call on ${CALL_COVERAGE}: buy more, keep or sell some, why, and what would change it`,
+  stock_zones: "The full report: the prices where we'd buy more or sell some, the whole brief, and how the call has moved",
   briefing_personal: "A daily briefing on your stocks: what moved, why, and what to look at",
   portfolio_analytics: "How your money is spread, how much it swings, and how you did against the S&P 500",
   practice_account: "A practice account with $100,000 of pretend money",
@@ -100,7 +100,7 @@ const DIFFERENCES: FeatureId[] = ["covered_stocks", "briefing_personal", "email_
 
 /** Shorter names for the difference rows, where the full row name would wrap three times on a phone. */
 const DIFF_NAMES: Partial<Record<FeatureId, string>> = {
-  covered_stocks: "The full report: our reasons, the prices where we'd act, what would change our mind",
+  covered_stocks: "The full report: the prices where we'd act, the whole brief, how the call has moved",
   briefing_personal: "A daily briefing on what moved in your stocks and why",
   email_briefing: "A morning email when something changed in your stocks",
   zone_alerts: "One-tap emails when a stock reaches our buy or sell price, reports earnings, or our call changes",
@@ -150,7 +150,7 @@ function Cell({ rule, strong = false, id }: { rule: Rule; strong?: boolean; id?:
 const FAQS: Array<{ q: string; a: string }> = [
   {
     q: "What do I actually get for free?",
-    a: `Our call on ${CALL_COVERAGE}, and every page on the site. You can follow as many stocks as you like. ${FREE_COVERED_WORD[0].toUpperCase()}${FREE_COVERED_WORD.slice(1)} of them, which you choose, get the full report: why we made the call, the prices where we'd act, and a note when one moves or reports earnings. You can swap one of the ${FREE_COVERED_WORD} each week.`,
+    a: `Our call on ${CALL_COVERAGE}, why we made it and what would change it, and every page on the site. You can follow as many stocks as you like. ${FREE_COVERED_WORD[0].toUpperCase()}${FREE_COVERED_WORD.slice(1)} of them, which you choose, get the full report: the prices where we'd act, the whole brief, and a morning email when one moves or reports earnings. You can swap one of the ${FREE_COVERED_WORD} each week.`,
   },
   {
     q: "So what am I paying for with Pro?",
@@ -198,7 +198,7 @@ export default async function PricingPage({ searchParams }: Props) {
 
   const freePoints = [
     `Our call on ${CALL_COVERAGE}`,
-    `A daily briefing on your ${FREE_COVERED_WORD} stocks`,
+    `A daily briefing and morning email on your ${FREE_COVERED_WORD} stocks`,
     `${limitFor("ask", "free")} questions a day about any stock`,
     limitFor("agents", "free") === 1
       ? "An agent that watches for a price, an earnings date or a big move for you"
@@ -207,7 +207,7 @@ export default async function PricingPage({ searchParams }: Props) {
   ];
   const proPoints = [
     "Everything in Free",
-    "A daily briefing on every stock you own, by email",
+    "The daily briefing and morning email on every stock you follow",
     `${limitFor("ask", "pro")} questions a day and up to ${limitFor("agents", "pro")} agents`,
     "An email when a stock reaches our buy or sell price, reports earnings or gets a new call",
     // Only true on the tighter line, where these agents are Pro-only.
@@ -224,7 +224,7 @@ export default async function PricingPage({ searchParams }: Props) {
           Our call on {CALL_COVERAGE} is free. Pro adds the full report on all of them.
         </h1>
         <p className="mt-2 max-w-[46rem] text-pretty text-[16px] leading-6 text-oa-muted-fg">
-          Whether we&apos;d buy more, keep or sell some is free to read, and a free account also gets the full report on {FREE_COVERED_WORD} stocks you pick. The full report is the why behind the call: our reasons, the prices where we&apos;d act, and what would change our mind.
+          Whether we&apos;d buy more, keep or sell some, why, and what would change it is free to read on every stock. A free account also gets the full report on {FREE_COVERED_WORD} stocks you pick: the prices where we&apos;d act, the whole brief, and how the call has moved.
         </p>
       </header>
 

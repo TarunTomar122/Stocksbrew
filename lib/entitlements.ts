@@ -9,23 +9,26 @@
  * paywall-research.md): reading is free, the agent working for you is the
  * product. Three rules produce every row.
  *
- *   1. Anything the pipeline writes once for everyone (the call and its
- *      headline, filings, fund pages, strategy rules and backtests) is free to
- *      read. It costs nothing per reader and it is how people find us. The
- *      reasoning behind a call and what a strategy holds now are not: those
- *      are what Pro sells (changed 2026-11-10).
+ *   1. Anything the pipeline writes once for everyone (the call, its reasons
+ *      and what would change it, filings, fund pages, strategy rules and
+ *      backtests) is free to read, on every stock, signed out included. It
+ *      costs nothing per reader and it is how people find us. The full report
+ *      (price zones, the whole brief, the scorecard, how the call has moved)
+ *      and what a strategy holds now are what Pro sells (one rule on every
+ *      stock page since 2026-11-11; the showcase stocks open their full report
+ *      to everyone and say they are an example).
  *   2. One number matters: covered stocks. Tracking is unlimited on every
  *      signed-in plan: what you own and what you watch, with prices, the call
  *      and the earnings date. A covered stock also gets the full agent
- *      treatment: price zones, the reasons behind the call, explained moves
+ *      treatment: price zones, the whole brief, explained moves
  *      in the briefing, zone and call alerts, the pre-earnings read. Free
  *      covers 5, or 3 with PAYWALL_V2 (one swap a week, lib/entitlements-coverage.ts), Pro covers
  *      everything.
  *   3. Everything else works on Free at a small count, so a limit always
  *      reads "you have used your 2, want more?" and never "what is this?".
  *
- * Never gated, on any plan: the call itself and when it was made (the same
- * call for every reader, at the same time), sources, as-of times, risk notes,
+ * Never gated, on any plan: the call itself, when it was made, its reasons and
+ * what would change it (the same for every reader, at the same time), sources, as-of times, risk notes,
  * backtest caveats and methodology, public filings, the user's own data and
  * its export, and cancelling.
  *
@@ -115,12 +118,12 @@ const TABLE = {
     pro: open,
     lock: {
       title: `Free covers ${FREE_COVERED_WORD} stocks`,
-      body: "A covered stock gets price zones, the reasons behind the call, explained moves in your briefing and the pre-earnings read. Swap one out (Free swaps one a week), or go Pro and cover everything you track.",
+      body: "A covered stock gets price zones, the whole brief, explained moves in your briefing and the pre-earnings read. Swap one out (Free swaps one a week), or go Pro and cover everything you track.",
     },
     // FREE_COVERED_STOCKS is 3 on the tighter line (lib/paywall-flag.ts): the lever it pulls hardest. Three covered stocks are a real sample of the agent, not most of a portfolio.
   },
   stock_call: {
-    name: `Our call on ${CALL_COVERAGE}: buy more, keep or sell some, in one line, with the date`,
+    name: `Our call on ${CALL_COVERAGE}: buy more, keep or sell some, why, and what would change it, with the date`,
     group: "Your stocks",
     anon: open,
     free: open,
@@ -128,14 +131,14 @@ const TABLE = {
     lock: NO_LOCK,
   },
   stock_zones: {
-    name: "The full read: price zones, the reasons behind the call, what would change it and its history",
+    name: "The full report: price zones, the whole brief, the scorecard and how the call has moved",
     group: "Your stocks",
     anon: locked,
     free: covered,
     pro: open,
     lock: {
-      title: "Cover this stock to see the full read",
-      body: `The call is free for everyone. The reasons behind it, the price zones, what would change it and how it has moved come with covering a stock. Use one of your ${FREE_COVERED_WORD} covered slots, or go Pro for every stock.`,
+      title: "Cover this stock to see the full report",
+      body: `The call, its reasons and what would change it are free for everyone. The price zones, the whole brief and how the call has moved come with covering a stock. Use one of your ${FREE_COVERED_WORD} covered slots, or go Pro for every stock.`,
     },
   },
   briefing_personal: {
@@ -209,7 +212,7 @@ const TABLE = {
     pro: open,
     lock: {
       title: "The pre-earnings read is ready for this stock",
-      body: `The date and the estimates are free for every stock. What the report has to show, how the stock reacted the last four times and what would change the call come with covering it. Use one of your ${FREE_COVERED_WORD}, or go Pro.`,
+      body: `The date and the estimates are free for every stock. What the report has to show and how the stock reacted the last four times come with covering it. Use one of your ${FREE_COVERED_WORD}, or go Pro.`,
     },
   },
   signals: {

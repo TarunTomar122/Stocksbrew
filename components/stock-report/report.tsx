@@ -41,13 +41,13 @@ function LevelsLock({ ticker, instrumentId, tracked, gate }: { ticker: string; i
   const title = gate.plan === "anon" ? `Sign in to read the full report on ${ticker}` : `Get the full report on ${ticker}`;
   const body =
     gate.plan === "anon"
-      ? `Our call is free for everyone. A free account also gets the full report on ${FREE_COVERED_WORD} stocks you pick: why we made the call, the prices where we'd buy more or sell some, and what would change our mind. You can follow as many stocks as you like.`
+      ? `Our call, why we made it and what would change it are free for everyone. A free account also gets the full report on ${FREE_COVERED_WORD} stocks you pick: the prices where we'd buy more or sell some, the whole brief and a note before earnings. You can follow as many stocks as you like.`
       : !tracked
         ? gate.slotsLeft > 0
-          ? `Add ${ticker} to your portfolio and it gets one of your free full reports: why we made the call, the prices where we'd act, alerts and a note before earnings. ${left}.`
+          ? `Add ${ticker} to your portfolio and it gets one of your free full reports: the prices where we'd act, the whole brief and a note before earnings. ${left}.`
           : `All ${FREE_COVERED_WORD} of your free full reports are in use. Add ${ticker} to your portfolio and swap it in for one of them (one swap a week on Free), or go Pro for a full report on every stock.`
         : gate.slotsLeft > 0
-          ? `You follow ${ticker}. Turn on its full report to see why we made the call, the prices where we'd act, alerts and a note before earnings. ${left}.`
+          ? `You follow ${ticker}. Turn on its full report to see the prices where we'd act, the whole brief and a note before earnings. ${left}.`
           : `All ${FREE_COVERED_WORD} of your free full reports are in use. Swap one out in Portfolio (free any time) to make room for ${ticker}, or go Pro for a full report on every stock.`;
   return (
     <div className="flex flex-col gap-2">
@@ -312,11 +312,11 @@ export function StockReport({
       ? `${callIsOld || reasonIsNewer ? "Last reviewed" : "Reviewed"} ${reviewedWords}.`
       : "";
   // The evidence under the call (each line with its source and date) and the measurable conditions that would change
-  // it (lib/call-evidence.ts). The conditions come with covering the stock; the server sends none otherwise.
+  // it (lib/call-evidence.ts). Both are open on every stock, for every reader, like the call itself.
   const evidence = ready ? data.callEvidence?.evidence ?? [] : [];
-  const conditions = ready && data.gate.levels ? data.callEvidence?.conditions ?? [] : [];
-  // Without measured conditions, the steady call's own sentence, when it is published and the viewer covers the stock.
-  const ruleChange = ready && data.gate.levels && !conditions.length ? ready.whatWouldChange : null;
+  const conditions = ready ? data.callEvidence?.conditions ?? [] : [];
+  // Without measured conditions, the steady call's own sentence, when it is published.
+  const ruleChange = ready && !conditions.length ? ready.whatWouldChange : null;
   // The brief's written "what would change our mind" list, only when the call block has no measured conditions.
   const showChangers = Boolean(ready?.changers.length) && !conditions.length;
   const showReasons = Boolean(ready?.reasons.length);
@@ -484,6 +484,14 @@ export function StockReport({
                       {/* How long the call has stood (a call that keeps its date is one you can hold us to) and when we last
                           looked at it again: the brief is rewritten, and the call decided, at that time. */}
                       {callDates ? <p className="mt-1.5 text-pretty text-[13px] leading-[18px] text-oa-muted-fg">{callDates}</p> : null}
+                      {/* A showcase stock shows its whole report to everyone; say so, so nobody takes it for the free plan. */}
+                      {data.gate.example ? (
+                        <p className="mt-1.5">
+                          <Tag tone="primary" className="!font-sans !text-[12.5px] !normal-case !tracking-normal">
+                            Example, open to everyone
+                          </Tag>
+                        </p>
+                      ) : null}
                       {/* What the call rests on (each fact with its source and date), then what would change it.
                           All of it comes before any price, so a level never reads as more certain than its reasons. */}
                       {evidence.length ? (
@@ -532,12 +540,6 @@ export function StockReport({
                           {reasonIsNewer && ready.reasonAsOf ? (
                             <span className="text-[13px] text-oa-muted-fg"> This reason uses data to {fmtDate(ready.reasonAsOf, false)}.</span>
                           ) : null}
-                        </p>
-                      ) : null}
-                      {/* Honest about the day: the latest review pointed elsewhere, and the call held on purpose. */}
-                      {ready.heldAgainst ? (
-                        <p className="mt-2 max-w-[62ch] text-pretty text-[13px] leading-[18px] text-oa-muted-fg">
-                          The latest data leans toward {CALL_PLAIN[ready.heldAgainst as keyof typeof CALL_PLAIN] ?? ready.heldAgainst}. One day isn&apos;t enough to change the call.
                         </p>
                       ) : null}
                       {/* With the conditions box under the price, the next steps move here on a wide screen so the two sides
@@ -738,11 +740,6 @@ export function StockReport({
                   {/* Zero-size marker: `read_viewed` once the end of the brief is on screen. */}
                   <TrackView event="read_viewed" properties={{ ticker: stock.ticker, full_read: data.gate.levels, call: ready.call ?? null }} />
                 </div>
-                {!data.gate.levels ? (
-                  <div id="call" className="scroll-mt-16 border-t border-oa-border p-3 lg:scroll-mt-4">
-                    <LevelsLock ticker={stock.ticker} instrumentId={stock.instrument_id} tracked={data.isTracked} gate={data.gate} />
-                  </div>
-                ) : null}
                 {showReasons || showChangers ? (
                   <div className={`grid border-t border-oa-border ${showReasons && showChangers ? "md:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]" : ""}`}>
                     {showReasons ? (
@@ -775,6 +772,12 @@ export function StockReport({
                         </ul>
                       </div>
                     ) : null}
+                  </div>
+                ) : null}
+                {/* After the reasons, which are open on every stock: only the full report is behind this. */}
+                {!data.gate.levels ? (
+                  <div id="call" className="scroll-mt-16 border-t border-oa-border p-3 lg:scroll-mt-4">
+                    <LevelsLock ticker={stock.ticker} instrumentId={stock.instrument_id} tracked={data.isTracked} gate={data.gate} />
                   </div>
                 ) : null}
               </div>

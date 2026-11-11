@@ -20,12 +20,11 @@ export const MEDIUM_DESCRIPTION =
 export const LONG_DESCRIPTION =
   "Search any US stock for financials, valuation, filings, earnings, analyst targets and news. Add the stocks you care about to your Watchlist and we’ll keep checking new filings, earnings reports and news. Pro adds detailed calls, price zones, targets and unlimited tracking. Research only, not investment advice.";
 
-export const HERO_HEADLINE = "The investing platform that tells you what to buy and why.";
-export const HERO_HEADLINE_LEAD = "The investing platform";
-export const HERO_HEADLINE_EMPHASIS = "that tells you what to buy and why.";
+export const HERO_HEADLINE = "Your stocks, explained every day, with sources.";
+export const HERO_HEADLINE_LEAD = "Your stocks, explained every day,";
+export const HERO_HEADLINE_EMPHASIS = "with sources.";
 
-export const HERO_SUBHEAD =
-  "It goes through the filings, earnings and news, then tells you why each stock moved, what changed, and what is worth a look next.";
+export const HERO_SUBHEAD = "Buy more, Keep or Sell some on each one: why, and what would change it.";
 
 /**
  * How many stocks have our call, in words, for copy that would otherwise promise "every stock". The screener
@@ -34,7 +33,16 @@ export const HERO_SUBHEAD =
  */
 export const CALL_COVERAGE = "more than 700 US stocks";
 
-export const HERO_FOOTNOTE = `Our call on ${CALL_COVERAGE} is free, and so is the full report on ${FREE_COVERED_WORD} you pick. No card, no broker login.`;
+/** Under the landing's "Watch these for me", for someone signed out. */
+export const HERO_FOOTNOTE = "Free with your Google account. No card, no broker login.";
+
+/**
+ * The landing's proof line, from the screener job's own count of stocks with a call (lib/landing-taste.ts
+ * `getCallCount`), rounded ("about 730"). Only facts we can show: no user counts, no ratings.
+ */
+export function heroProof(about: string | null): string {
+  return about ? `${about.charAt(0).toUpperCase()}${about.slice(1)} US stocks with a dated call, and the sources under each one.` : "A dated call on each stock, with the sources under it.";
+}
 
 /** Homepage block above live movers / Reddit / sectors (Finviz-style labels, not manifesto). */
 export const HOME_LIVE_FEED_EYEBROW = "Market today";

@@ -1,6 +1,6 @@
 import { example, h2, note, p, table, ul, warn } from "@/lib/docs/build";
 import type { Guide } from "@/lib/docs/types";
-import { FREE_COVERED_STOCKS } from "@/lib/entitlements";
+import { FREE_COVERED_STOCKS, limitFor } from "@/lib/entitlements";
 
 const UPDATED = "2026-11-09";
 /** Guides whose facts were rechecked against the code and changed. */
@@ -45,7 +45,7 @@ export const PORTFOLIO_GUIDES: Guide[] = [
       ),
       h2("How many you can track"),
       p(
-        `Tracking has no limit on any plan: holdings and watched names together, each with its price, our call and the next earnings date. Free **covers** ${FREE_COVERED_STOCKS} of them in full (price zones, the reasons behind the call, the pre-earnings read). Your first ${FREE_COVERED_STOCKS} tracked stocks are covered as you add them; after that you choose under **Covered in full** at the top of Portfolio, with one swap a week. Uncovering is free any time, and the app names the day your next swap opens. Pro covers everything you track. See [Free vs Pro](/docs/start/free-vs-pro#covered-stocks).`,
+        `Tracking has no limit on any plan: holdings and watched names together, each with its price, our call and the next earnings date. Free **covers** ${FREE_COVERED_STOCKS} of them in full (price zones, the whole brief, how the call has moved, the pre-earnings read). Your first ${FREE_COVERED_STOCKS} tracked stocks are covered as you add them; after that you choose under **Covered in full** at the top of Portfolio, with one swap a week. Uncovering is free any time, and the app names the day your next swap opens. Pro covers everything you track. See [Free vs Pro](/docs/start/free-vs-pro#covered-stocks).`,
       ),
       h2("Keeping it current"),
       p(
@@ -106,11 +106,11 @@ export const PORTFOLIO_GUIDES: Guide[] = [
     section: "portfolio",
     slug: "alerts",
     title: "Alerts",
-    summary: "Alerts are part of Pro and arrive by email. The kinds of alert, when each one fires, and what Free has instead.",
+    summary: "Alerts arrive by email. The kinds of alert, when each one fires, and what Free includes.",
     updated: REVISED,
     surface: SURFACE,
     blocks: [
-      p("An alert is a rule on one stock that sends you an email when it becomes true. Alerts are part of Pro. You set one on the stock report or from Portfolio."),
+      p(`An alert is a rule on one stock that sends you an email when it becomes true. You set one on the stock report or from Portfolio. Free keeps ${limitFor("price_alerts", "free")} price alerts; the other kinds are part of Pro.`),
       h2("Kinds"),
       table(
         ["Alert", "Fires when"],
@@ -136,7 +136,7 @@ export const PORTFOLIO_GUIDES: Guide[] = [
       ),
       h2("On Free"),
       p(
-        "Free has no email alerts. The same events (a stock entering its zone, a changed call, earnings coming up) appear in your briefing for the stocks you follow. For a price level, an [agent](/docs/agents/triggers) can watch it and report in the app.",
+        `Free keeps ${limitFor("price_alerts", "free")} price alerts by email. A fired alert frees its slot. The other kinds (a stock reaching our level, a changed call, earnings coming up) are Pro; on Free the same events appear in your briefing and morning email for your covered stocks.`,
       ),
       h2("Alerts or an agent"),
       p(

@@ -239,7 +239,10 @@ function salesLine(input: CallEvidenceInput): EvidenceLine | null {
   const year = lastYearGrowth(sales.history, sales.revenue);
   if (year) {
     const g1 = year.pct;
-    if (g1 < 0 && g0 >= 0) text += `, after falling ${pct(g1)} in fiscal ${year.year}`;
+    // A year under half a percent either way would read "after falling 0.3%" or "faster than the 0.2%": say it was
+    // flat instead ("as in" when the last four quarters were flat too).
+    if (Math.abs(g1) < 0.5) text += Math.abs(g0) < 0.5 ? `, as in fiscal ${year.year}` : `, after flat sales in fiscal ${year.year}`;
+    else if (g1 < 0 && g0 >= 0) text += `, after falling ${pct(g1)} in fiscal ${year.year}`;
     // Sales that fell: "faster" or "slower" than a year's rise or fall reads backwards, so say what the year did.
     else if (g0 < 0) text += `, after ${g1 < 0 ? "falling" : "growing"} ${pct(g1)} in fiscal ${year.year}`;
     else if (g0 - g1 > 2) text += `, faster than the ${pct(g1)} of fiscal ${year.year}`;
@@ -471,9 +474,24 @@ function upperFirst(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
+/**
+ * A line that argues against its own call: a missed report or a fall under Buy more, a beat or a rise under Sell
+ * some. Listed under "Why" it would read as a reason for the call it contradicts, so it is left out there (the
+ * landing's cards use the same test, lib/landing-taste-shared.ts). Keep has no side to argue against.
+ */
+export function leansAgainst(line: { id: string; text: string }, call: CallWord | null): boolean {
+  const lead = line.text.split(",")[0] ?? "";
+  if (call === "Add") return (line.id === "eps" && /\b(?:missed|worse than)\b/.test(line.text)) || (line.id === "move" && /\bfell\b/.test(lead));
+  if (call === "Trim") return (line.id === "eps" && /\b(?:beat|better than)\b/.test(line.text)) || (line.id === "move" && /\brose\b/.test(lead));
+  return false;
+}
+
 export function buildCallEvidence(input: CallEvidenceInput): CallEvidence {
   const swing = dailySwing(input.series, input.benchmark);
-  const candidates = [salesLine(input), moveLine(input, swing) ?? highLine(input), epsLine(input), dividendLine(input), valuationLine(input)];
-  const evidence = candidates.filter((line): line is EvidenceLine => line !== null).slice(0, 3);
+  // A move that argues against the call gives way to the high, as a move that says nothing does.
+  const move = moveLine(input, swing);
+  const candidates = [salesLine(input), move && !leansAgainst(move, input.call) ? move : highLine(input), epsLine(input), dividendLine(input), valuationLine(input)];
+  // The "Why" under a call: only lines that back it, so the next one in line takes the place of one that argues against it.
+  const evidence = candidates.filter((line): line is EvidenceLine => line !== null && !leansAgainst(line, input.call)).slice(0, 3);
   return { evidence, conditions: conditionLines(input, swing) };
 }

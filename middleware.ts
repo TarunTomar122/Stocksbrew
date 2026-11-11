@@ -56,7 +56,9 @@ export function middleware(request: NextRequest) {
     request.nextUrl.pathname === "/" &&
     request.method === "GET" &&
     request.cookies.has(SESSION_COOKIE_NAME) &&
-    !request.nextUrl.searchParams.has("home")
+    !request.nextUrl.searchParams.has("home") &&
+    // A shared "/?try=NVDA,JPM" link shows its cards to anyone who opens it, signed in or not.
+    !request.nextUrl.searchParams.has("try")
   ) {
     const portfolioUrl = request.nextUrl.clone();
     portfolioUrl.pathname = "/portfolio";

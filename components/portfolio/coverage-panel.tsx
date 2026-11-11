@@ -92,7 +92,7 @@ export function CoveragePanel({ coverage, stocks }: { coverage: PortfolioCoverag
             ) : null}
           </p>
           <p className="mt-0.5 text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg">
-            Covered stocks get price zones, the reasons behind the call and the pre-earnings read. Everything you track gets prices, the call and earnings dates.
+            Covered stocks get price zones, the whole brief and the pre-earnings read. Everything you track gets prices, the call and earnings dates.
           </p>
           {heldStocks.length > 0 ? (
             <p className="mt-1.5 text-pretty text-[12.5px] leading-[18px] text-oa-fg">

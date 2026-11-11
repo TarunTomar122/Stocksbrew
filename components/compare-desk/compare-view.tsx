@@ -11,6 +11,7 @@ import { StockLogo } from "@/components/stock-logo";
 import { getCompareData } from "@/lib/compare";
 import { buildCompareRead } from "@/lib/compare-insights";
 import { buildCompareTable, describeDifferences, tallyWins, type CompareTableGroup } from "@/lib/compare-shared";
+import { redactLevels } from "@/lib/entitlements";
 import { canSeeLevels, type Viewer } from "@/lib/entitlements-server";
 import { getScreenerRows } from "@/lib/screener";
 import { withoutZones, type ScreenerRow } from "@/lib/screener-shared";
@@ -128,10 +129,20 @@ export async function CompareView({
   const earnings = group("earnings");
   const anyCall = rows.some((row) => row?.call);
   const anyEarnings = rows.some((row) => row?.earnings_date);
-  // The thesis, drivers and risk are the full read: an uncovered stock keeps only its headline, here on the server.
+  // The reasons and risks are open on every stock, as on the stock page, with any of our prices taken out; the
+  // longer thesis is the full report, so an uncovered stock drops it here on the server.
   const briefs = data.briefs.map((brief) =>
     brief && !canSeeLevels(viewer, brief.symbol)
-      ? { ...brief, thesis: null, drivers: [], points: [], risk: null, locked: true as const }
+      ? {
+          ...brief,
+          thesis: null,
+          drivers: brief.drivers
+            .map((driver) => ({ ...driver, label: redactLevels(driver.label) ?? "", detail: redactLevels(driver.detail) }))
+            .filter((driver) => driver.label || driver.detail),
+          points: brief.points.map((point) => redactLevels(point)).filter((point): point is string => Boolean(point)),
+          risk: redactLevels(brief.risk),
+          locked: true as const,
+        }
       : brief ? { ...brief, locked: false as const } : brief,
   );
   const pair = symbols.length === 2;
@@ -207,7 +218,7 @@ export async function CompareView({
                         </p>
                       ) : null}
                       {brief.locked ? (
-                        <p className="mt-2 text-pretty text-[13px] leading-5 text-oa-muted-fg">The reasons and risks are in the full report on {symbol}, free on {FREE_COVERED_WORD} stocks you pick.</p>
+                        <p className="mt-2 text-pretty text-[13px] leading-5 text-oa-muted-fg">The prices where we&apos;d act and the whole brief are in the full report on {symbol}, free on {FREE_COVERED_WORD} stocks you pick.</p>
                       ) : null}
                       <p className={`${NUM} mt-2.5 text-[11px] text-oa-muted-fg`}>
                         <Link prefetch={false} href={`/stock/${encodeURIComponent(symbol)}`} className="underline decoration-oa-border underline-offset-2 hover:text-oa-fg">

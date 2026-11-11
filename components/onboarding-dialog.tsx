@@ -46,17 +46,31 @@ function onboardingStorage(action: (store: Storage) => void) {
 
 const isWide = () => typeof window !== "undefined" && window.matchMedia("(min-width: 640px)").matches;
 
-export function OnboardingDialog({ onClosed }: { onClosed: () => void }) {
+/**
+ * `retry`: stocks picked on the landing that could not be added after sign-in. The dialog opens on them, as stocks
+ * to watch, with the failure said once above the button, so one tap tries again.
+ */
+export function OnboardingDialog({
+  onClosed,
+  retry,
+}: {
+  onClosed: () => void;
+  retry?: { picks: ReadonlyArray<{ instrumentId: string; ticker: string }>; message: string };
+}) {
   const router = useRouter();
   const pathname = usePathname();
-  const [step, setStep] = useState<OnboardingStep>("choose");
-  const [kind, setKind] = useState<Kind>("holding");
-  const [picked, setPicked] = useState<SearchEntry[]>([]);
+  const [step, setStep] = useState<OnboardingStep>(retry?.picks.length ? "popular" : "choose");
+  const [kind, setKind] = useState<Kind>(retry?.picks.length ? "watchlist" : "holding");
+  const [picked, setPicked] = useState<SearchEntry[]>(() =>
+    (retry?.picks ?? []).map((pick) => ({ instrument_id: pick.instrumentId, ticker: pick.ticker, name: pick.ticker })),
+  );
   const [index, setIndex] = useState<SearchEntry[]>(() => getClientSearchIndex("US"));
   const [indexFailed, setIndexFailed] = useState(false);
   const [indexTry, setIndexTry] = useState(0);
   const [busy, setBusy] = useState<{ done: number; total: number } | null>(null);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(() => (retry?.picks.length ? retry.message : ""));
+  /** On the landing picks that could not be added, until the person goes Back to the other ways in. */
+  const [retrying, setRetrying] = useState(() => Boolean(retry?.picks.length));
   /** Stocks already saved by an add that partly failed: closing now still lands on My stocks. */
   const [saved, setSaved] = useState(0);
   const dialogRef = useRef<HTMLElement>(null);
@@ -188,6 +202,7 @@ export function OnboardingDialog({ onClosed }: { onClosed: () => void }) {
   }
 
   function back() {
+    setRetrying(false);
     setPicked([]);
     setError("");
     setStep("choose");
@@ -258,9 +273,10 @@ export function OnboardingDialog({ onClosed }: { onClosed: () => void }) {
     return POPULAR.map((ticker) => byTicker.get(ticker)).filter((entry): entry is SearchEntry => Boolean(entry));
   }, [index]);
 
-  const title = step === "choose" ? "Add your stocks" : step === "own" ? "Which stocks do you own?" : "Pick a few big names";
-  const lede =
-    step === "choose"
+  const title = retrying ? "Watch the stocks you picked" : step === "choose" ? "Add your stocks" : step === "own" ? "Which stocks do you own?" : "Pick a few big names";
+  const lede = retrying
+    ? "They are still here. Add them again, and tap any big name below you want to follow too."
+    : step === "choose"
       ? "Add the stocks you own or follow and you will see our call on each one, its news and how it did today. Start whichever way is easiest."
       : step === "own"
         ? "Search by company or ticker. Add a few now and the rest any time."

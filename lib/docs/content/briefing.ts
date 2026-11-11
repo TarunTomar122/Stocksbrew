@@ -1,5 +1,6 @@
 import { h2, note, p, table, ul, warn } from "@/lib/docs/build";
 import type { Guide } from "@/lib/docs/types";
+import { FREE_COVERED_STOCKS } from "@/lib/entitlements";
 
 const UPDATED = "2026-11-09";
 /** Guides whose facts were rechecked against the code and changed. */
@@ -137,13 +138,12 @@ export const BRIEFING_GUIDES: Guide[] = [
         ["Email", "What it is", "Who gets it"],
         [
           ["Daily market email", "The market as a whole", "Anyone who signed up for it. It does not need an account"],
-          ["Weekly review", "The week on your stocks", "Pro"],
-          ["Your own briefing, before the open", "Your stocks before the US market opens", "Pro"],
-          ["Your own briefing, at the open", "Your stocks once the opening prices have settled", "Pro"],
-          ["Alerts", "One of your alerts fired", "Pro. See [Alerts](/docs/portfolio/alerts)"],
+          ["Your morning brief", "Your stocks before the US market opens, only on days something changed", `Everyone with stocks: every stock you track on Pro, your ${FREE_COVERED_STOCKS} covered stocks on Free`],
+          ["Weekly recap", "The week on your stocks, on Saturday", `Everyone with stocks, the same stocks as the morning brief`],
+          ["Alerts", "One of your alerts fired, or an agent told you something", "Price alerts and agents on any plan; level, earnings and call-change alerts on Pro. See [Alerts](/docs/portfolio/alerts)"],
         ],
       ),
-      p("On Free, your own briefing is read in the app. This page gives no send times, because none is fixed yet."),
+      p("The app has the full briefing every day; the morning email comes only on days something changed in your stocks."),
       h2("Turning them off"),
       ul(
         "[Account](/profile#notifications) has two switches: **Market briefs** controls your own briefing and the weekly review, **Alerts** controls alert emails. Both are on by default.",

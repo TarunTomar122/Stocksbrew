@@ -22,6 +22,7 @@ const capitalize = (word: string) => word.charAt(0).toUpperCase() + word.slice(1
 export function PlansSection({ trialEligible }: { trialEligible: boolean }) {
   const covered = limitFor("covered_stocks", "free");
   const coveredWord = countWord(covered);
+  const freeAgents = limitFor("agents", "free");
   return (
     <div>
       <div className="grid gap-4 md:grid-cols-2">
@@ -29,9 +30,13 @@ export function PlansSection({ trialEligible }: { trialEligible: boolean }) {
           <p className="text-[17px] font-semibold leading-6 text-oa-fg">Free</p>
           <p className="oa-mono mt-3 text-[32px] font-medium leading-none tracking-tight">$0</p>
           <ul className="mt-5 flex flex-col gap-2">
-            <Line>Our call on {CALL_COVERAGE}, and every market and investor page</Line>
-            <Line>The full report on {coveredWord} stocks you pick: why, and the prices where we&apos;d act</Line>
-            <Line>{capitalize(countWord(limitFor("agents", "free")))} agents that check your stocks every market day and email you when something you picked happens</Line>
+            <Line>Our call on {CALL_COVERAGE}, with why and what would change it, and every market and investor page</Line>
+            <Line>The full report on {coveredWord} stocks you pick: the prices where we&apos;d act, and a morning email when one of them moves</Line>
+            <Line>
+              {freeAgents === 1
+                ? "An agent that checks your stocks every market day and emails you when something you picked happens"
+                : `${capitalize(countWord(freeAgents))} agents that check your stocks every market day and email you when something you picked happens`}
+            </Line>
           </ul>
           <div className="mt-auto pt-6">
             <StartFreeButton surface="landing_pro_preview" variant="outline" label="Start free" className="w-full" />
@@ -52,6 +57,11 @@ export function PlansSection({ trialEligible }: { trialEligible: boolean }) {
             <ProCheckoutButton size="md" className="w-full">
               {trialEligible ? "Try Pro free for 3 days" : "Get Pro"}
             </ProCheckoutButton>
+            {trialEligible ? (
+              <p className="mt-2 text-[13px] leading-[18px] text-oa-muted-fg">
+                3 days free, then ${US_PRO_MONTHLY} a month unless you cancel. Starting the trial asks for a card.
+              </p>
+            ) : null}
           </div>
         </div>
       </div>

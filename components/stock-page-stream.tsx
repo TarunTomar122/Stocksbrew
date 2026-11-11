@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { canSeeLevels, coveredSlotsLeft, getViewer } from "@/lib/entitlements-server";
+import { canSeeLevels, coveredSlotsLeft, getViewer, isCovered } from "@/lib/entitlements-server";
 import { redactLevels } from "@/lib/entitlements";
 // Split into its own chunk: it only shows on a stock that has no brief yet.
 import { LockedAiBriefLazy as LockedAiBrief } from "@/components/locked-ai-brief-lazy";
@@ -357,11 +357,10 @@ export async function StockPageStream({ params }: Props) {
     ? userDoc.tracked_stocks.filter((id): id is string => typeof id === "string")
     : [];
   const subscribed = resolveIsSubscribed(userDoc);
-  // Reading is free: facts, the call and the written brief are open on every
-  // stock, for every reader. What a plan changes is the levels (price zones,
-  // target, what would change the call, the pre-earnings read): Pro sees them
-  // everywhere, Free on the stocks its agent covers, and everyone on the
-  // showcase stocks. See lib/entitlements.ts.
+  // One rule on every stock page, signed out included: the call, its reasons and what would change it are open.
+  // What a plan changes is the full report: the price levels, the whole written brief, the scorecard, the
+  // pre-earnings read and how the call has moved. Pro sees it everywhere, Free on the stocks its agent covers,
+  // and everyone on the showcase stocks, which say they are an example. See lib/entitlements.ts.
   const hasFullAnalysisAccess = true;
   const hasLevels = canSeeLevels(viewer, stock.instrument_id);
   const currency = currencySymbolFor(stock.instrument_id.split("_", 1)[0]);
@@ -436,21 +435,22 @@ export async function StockPageStream({ params }: Props) {
     ? null
     : fullRead && !hasLevels
       ? {
-          // Uncovered stock: the call, its one-line headline and the date stay. The reasoning (the longer body,
-          // the reasons, what would change the call, why it last changed) and the levels come with covering it.
+          // Uncovered stock: the call, its reasons, what would change it and the day it was set stay (open on every
+          // stock). The levels, the rest of the written brief and how the call has moved (what it was before and why it
+          // changed) come with covering it. The engine writes its add or trim price into some sentences ("The add level
+          // is $182.40"), so every one goes through redactLevels.
           ...fullRead,
           // The headline can fall back to the thesis when a brief has none; locked, only a real headline shows.
           // The brief's first sentence (what is happening at the company, in plain facts) leads, as it does on a covered
-          // stock; the engine's title ("growth faces a renewed memory-cycle test") is only the fallback. The rest of the
-          // body is the reasoning and stays with covering it.
+          // stock; the engine's title ("growth faces a renewed memory-cycle test") is only the fallback.
           headline: lockedLead(fullRead.body) ?? redactLevels(typeof intelligence?.headline === "string" ? intelligence.headline : null),
-          // The call engine writes its add or trim level into this sentence ("The add level is $182.40").
           actionSummary: redactLevels(fullRead.actionSummary),
           body: null,
-          reasons: [],
-          changers: [],
-          // How the call has moved (the call before, and why it changed) is part of the full read (lib/entitlements.ts).
-          changed: fullRead.changed ? { reason: null, from: null } : null,
+          reasons: fullRead.reasons.map((item) => redactLevels(item)).filter((item): item is string => Boolean(item)),
+          changers: fullRead.changers.map((item) => redactLevels(item)).filter((item): item is string => Boolean(item)),
+          whatWouldChange: redactLevels(fullRead.whatWouldChange),
+          // Not even "We changed our call": the move is part of the full report. `since` keeps "Our call since Nov 9".
+          changed: null,
           zones: { addBelow: null, addAbove: null, trimAbove: null },
         }
       : fullRead;
@@ -606,8 +606,8 @@ export async function StockPageStream({ params }: Props) {
     asOf: stock.captured_at ?? null,
   });
 
-  // The evidence under the call and what would change it, from stored numbers only (lib/call-evidence.ts). The
-  // conditions are "what would change the call", which comes with covering the stock, so nobody else is sent them.
+  // The evidence under the call and what would change it, from stored numbers only (lib/call-evidence.ts). Both are
+  // open on every stock; neither carries our price levels.
   const callEvidence =
     readState === "ready" && read && isUS
       ? buildCallEvidence(
@@ -627,7 +627,6 @@ export async function StockPageStream({ params }: Props) {
           }),
         )
       : null;
-  if (callEvidence && !hasLevels) callEvidence.conditions = [];
 
   const data: ReportData = {
     stock: displayStock,
@@ -639,6 +638,7 @@ export async function StockPageStream({ params }: Props) {
       plan: viewer.plan,
       trialEligible: viewer.trialEligible,
       levels: hasLevels,
+      example: hasLevels && !isCovered(viewer, stock.instrument_id),
       slotsLeft: Number.isFinite(coveredSlotsLeft(viewer)) ? coveredSlotsLeft(viewer) : 0,
     },
     subscribed,

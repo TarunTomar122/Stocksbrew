@@ -1,7 +1,7 @@
 import { h2, note, ol, p, steps, table, ul, warn } from "@/lib/docs/build";
 import type { Guide } from "@/lib/docs/types";
 import { CALL_COVERAGE } from "@/lib/brand-copy";
-import { FREE_COVERED_STOCKS } from "@/lib/entitlements";
+import { FREE_COVERED_STOCKS, limitFor } from "@/lib/entitlements";
 import { US_PRO_MONTHLY, US_PRO_YEARLY } from "@/lib/pricing";
 
 const UPDATED = "2026-11-09";
@@ -76,8 +76,8 @@ export const START_GUIDES: Guide[] = [
           "Open [Briefing](/briefing). With names on your account it switches from the market view to yours. Start with **Needs you**. See [How to read a briefing](/docs/start/read-a-briefing).",
         ],
         [
-          "Set one price alert (Pro)",
-          "Alerts are part of Pro and arrive by email. On a stock report, set an alert above or below a price. It fires when a fetched price is past the level. On Free, skip this step: an agent can watch a price for you and report in the app. See [Alerts](/docs/portfolio/alerts).",
+          "Set one price alert",
+          `Price alerts arrive by email. On a stock report, set an alert above or below a price. It fires when a fetched price is past the level. Free keeps ${limitFor("price_alerts", "free")} price alerts; alerts on our levels, earnings and call changes are Pro. See [Alerts](/docs/portfolio/alerts).`,
         ],
         [
           "Start one agent",
@@ -157,7 +157,7 @@ export const START_GUIDES: Guide[] = [
       h2("The top: price, call and what changed"),
       ul(
         "**Price panel.** The latest published price, the day's change and a chart. The time under it is the time of that price, not the time you opened the page.",
-        "**Our call.** One of add, hold, trim, watch or avoid, with a confidence and a horizon. The call, its reason and its date are shown to every reader, signed out included. Next to it are the price zones: **Add below**, **Trim above**, and **Add above** when the call is waiting for a breakout. The zones and what would change the call are shown on Pro, on the stocks a Free account follows, and to everyone on a small set of showcase stocks. See [How calls and zones are produced](/docs/methodology/calls-and-zones).",
+        "**Our call.** One of add, hold, trim, watch or avoid, with a confidence and a horizon. The call, its reasons, what would change it and its date are shown to every reader, signed out included. Next to it are the price zones: **Add below**, **Trim above**, and **Add above** when the call is waiting for a breakout. The zones are shown on Pro, on the stocks a Free account covers, and to everyone on a small set of showcase stocks. See [How calls and zones are produced](/docs/methodology/calls-and-zones).",
         "**The read.** A short written explanation of the call: what is driving the stock and what the main risk is. This text is written by a model from the sources attached to it. See [What a model writes](/docs/methodology/model-written-vs-computed).",
         "**What changed.** The dated changes since the previous read, so you can see why today's call differs from last week's.",
       ),
@@ -212,15 +212,16 @@ export const START_GUIDES: Guide[] = [
       ),
       h2("The one number that matters: covered stocks", "covered-stocks"),
       p(
-        `Tracking is unlimited on Free and Pro: every holding and watched name gets its price, our call and its next earnings date. On Free, ${FREE_COVERED_STOCKS} of them are **covered**: they get price zones and what would change the call, explained moves in your briefing, and the pre-earnings read. Pro covers everything you track. Free keeps 5 price alerts by email; email alerts on zones and calls are Pro only.`,
+        `Tracking is unlimited on Free and Pro: every holding and watched name gets its price, our call and its next earnings date. On Free, ${FREE_COVERED_STOCKS} of them are **covered**: they get the full report (price zones, the whole brief, how the call has moved), explained moves in your briefing and morning email, and the pre-earnings read. Pro covers everything you track. Free keeps 5 price alerts by email; email alerts on zones and calls are Pro only.`,
       ),
       p(
         `Without a limit on changes, the ${FREE_COVERED_STOCKS} slots could be used to read zones across the whole market. So the first ${FREE_COVERED_STOCKS} stocks you cover are free picks, and after that covering a new stock is a swap, one a week. Uncovering is free any time, and putting back a stock you covered in the last seven days does not use the swap. When the swap is used, the app names the day the next one opens.`,
       ),
-      p("A small set of showcase stocks shows its zones to everyone, signed out included, so you can see what coverage looks like before you use a slot."),
+      p("A small set of showcase stocks shows its full report to everyone, signed out included, marked **Example, open to everyone**, so you can see what coverage looks like before you use a slot."),
       h2("What is never behind a lock"),
       ul(
         "The call on a stock and when it was made. Every reader sees the same call at the same time.",
+        "Why we made the call and what would change it, on every stock.",
         "The source of a number and the time it is from.",
         "Risk notes, backtest caveats and methodology.",
         "Public filings.",
@@ -233,7 +234,7 @@ export const START_GUIDES: Guide[] = [
       ),
       { t: "entitlements" },
       note(
-        "Three rows are ahead of the code that runs today. The weekly review email is sent to Pro accounts only. The daily market email goes to people who signed up for it, not to every Free account. And an account can hold 20 agents in total, so that is the working limit on Pro. See [The briefing by email](/docs/briefing/emails).",
+        "Two rows are ahead of the code that runs today. The daily market email goes to people who signed up for it, not to every Free account. And an account can hold 20 agents in total, so that is the working limit on Pro. See [The briefing by email](/docs/briefing/emails).",
         "Where the table and the code differ",
       ),
       h2("How a limit behaves"),

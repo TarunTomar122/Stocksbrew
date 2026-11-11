@@ -67,8 +67,10 @@ export function AuthProvider({ children, initialAuthed = false }: AuthProviderPr
               refreshedAfterSignInRef.current = true;
               // Signed in on the landing page: go straight to the portfolio,
               // the same place middleware sends signed-in visitors to "/".
-              if (window.location.pathname === "/" && !new URLSearchParams(window.location.search).has("home")) {
-                window.location.assign("/watchlist");
+              // `?home` and a shared `?try=` link stay on the landing, as in middleware.
+              const params = new URLSearchParams(window.location.search);
+              if (window.location.pathname === "/" && !params.has("home") && !params.has("try")) {
+                window.location.assign("/portfolio");
               } else {
                 router.refresh();
               }

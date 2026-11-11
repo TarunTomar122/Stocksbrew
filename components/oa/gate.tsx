@@ -117,6 +117,8 @@ export function LockCard({
         <OaButton size="sm" loading={busy} onClick={act} className="max-sm:min-h-11 max-sm:px-4">
           {ctaLabel(step, trialEligible)}
         </OaButton>
+        {/* The trial is real but asks for a card: say so where the button promises it. */}
+        {step === "upgrade" && trialEligible ? <span className="text-[13px] text-oa-muted-fg">The trial asks for a card.</span> : null}
         {step === "upgrade" ? (
           <Link prefetch={false}
             href={`/pricing#${feature}`}

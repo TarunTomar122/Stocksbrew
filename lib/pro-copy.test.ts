@@ -10,7 +10,7 @@ const PRODUCT_COPY_FILES = [
   "components/footer.tsx",
   "components/oa/gate.tsx",
   "components/oa/landing/follow-section.tsx",
-  "components/oa/landing/hero-briefing.tsx",
+  "components/oa/landing/taste.tsx",
   "components/oa/landing/idea-book.tsx",
   "components/oa/landing/markets-section.tsx",
   "components/oa/landing/one-place.tsx",

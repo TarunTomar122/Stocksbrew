@@ -38,7 +38,14 @@ export type ReportData = {
    * shown: Pro everywhere, Free on covered stocks, everyone on showcase stocks.
    * When false those fields are stripped on the server, not hidden.
    */
-  gate: { plan: "anon" | "free" | "pro"; trialEligible: boolean; levels: boolean; slotsLeft: number };
+  gate: {
+    plan: "anon" | "free" | "pro";
+    trialEligible: boolean;
+    levels: boolean;
+    slotsLeft: number;
+    /** The levels are open only because this is one of the showcase stocks, not the viewer's plan: label it as an example. */
+    example?: boolean;
+  };
   subscribed: boolean;
   isTracked: boolean;
   tier: "ai_launch" | "ai_personal" | "free";
@@ -80,7 +87,7 @@ export type ReportData = {
   insightRead: TheRead | null;
   /**
    * The evidence under the call and what would change it (lib/call-evidence.ts), from stored numbers only. The
-   * conditions are empty unless `gate.levels`. Null when there is no call to show or the stock is not a US stock.
+   * conditions are open on every stock, like the call and its reasons. Null when there is no call to show or the stock is not a US stock.
    */
   callEvidence?: CallEvidence | null;
 };

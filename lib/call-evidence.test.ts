@@ -238,6 +238,30 @@ describe("buildCallEvidence", () => {
     expect(mixed.evidence.find((line) => line.id === "eps")).toBeUndefined();
   });
 
+  it("never lists a line that argues against the call as a reason for it", () => {
+    const calendar = [
+      { event_date: "2026-10-13", eps_estimate: 5.94, estimated_eps: 5.94, reported_eps: 5.75, eps_surprise: -0.19, source: "nasdaq_calendar", actuals_source: "nasdaq_calendar" },
+    ];
+    const reports = [{ date: "2026-10-13", periodEnd: "2026-09-30", form: "10-Q" }];
+    const dividend = { annual: 6.6, price: 342.11, growthYears: 15, capturedAt: "2026-11-08T08:41:01Z" };
+    const jpm = (call: CallEvidenceInput["call"]) => buildCallEvidence(base({ ticker: "JPM", call, calendar, reports, nextReport: null, dividend }));
+    // A missed report is not a reason to buy more; the next line in line (the dividend) takes its place.
+    expect(jpm("Add").evidence.map((line) => line.id)).toEqual(["sales", "dividend"]);
+    expect(jpm("Hold").evidence.map((line) => line.id)).toEqual(["sales", "eps", "dividend"]);
+    // A fall under Buy more and a rise under Sell some are left out the same way.
+    const fell = closes("2026-11-10", 80, [-0.04, -0.04, -0.05, -0.03, -0.04]);
+    const addAfterFall = buildCallEvidence(base({ call: "Add", series: fell.series, benchmark: fell.benchmark })).evidence;
+    expect(addAfterFall.some((line) => line.id === "move")).toBe(false);
+    // With a long enough history, the dropped move gives way to how far the stock sits under its high.
+    const longFall = closes("2026-11-10", 200, [-0.04, -0.04, -0.05, -0.03, -0.04]);
+    const addUnderHigh = buildCallEvidence(base({ call: "Add", series: longFall.series, benchmark: longFall.benchmark })).evidence;
+    expect(addUnderHigh.map((line) => line.id)).toContain("high");
+    expect(addUnderHigh.map((line) => line.id)).not.toContain("move");
+    expect(buildCallEvidence(base({ call: "Trim", series: fell.series, benchmark: fell.benchmark })).evidence.some((line) => line.id === "move")).toBe(true);
+    const rose = closes("2026-11-10", 80, [0.04, 0.04, 0.05, 0.03, 0.04]);
+    expect(buildCallEvidence(base({ call: "Trim", series: rose.series, benchmark: rose.benchmark })).evidence.some((line) => line.id === "move")).toBe(false);
+  });
+
   it("says a loss as money lost, not as earnings of a loss", () => {
     const calendar = [{ event_date: "2026-11-06", eps_estimate: -0.26, estimated_eps: -0.26, reported_eps: -0.22, eps_surprise: 0.04, source: "nasdaq_calendar" }];
     const { evidence } = buildCallEvidence(base({ ticker: "OKLO", sales: null, calendar, reports: [], nextReport: null }));
@@ -250,6 +274,22 @@ describe("buildCallEvidence", () => {
     expect(shrinking.evidence[0]?.text).toBe("INTC's sales fell 2% over the last four quarters, to $90.0B, after falling 8% in fiscal 2025.");
     const turned = buildCallEvidence(base({ ticker: "INTC", sales: { revenue: 90e9, growthPct: -6, history: [{ period: "FY 2025", revenue: 110e9 }, { period: "FY 2024", revenue: 100e9 }], capturedAt: "2026-11-08T00:00:00Z" } }));
     expect(turned.evidence[0]?.text).toBe("INTC's sales fell 6% over the last four quarters, to $90.0B, after growing 10% in fiscal 2025.");
+  });
+
+  it("calls a year that rounds to 0% flat, whichever way sales went since", () => {
+    const sales = (growthPct: number, last: number) => ({ revenue: 90e9, growthPct, history: [{ period: "FY 2025", revenue: last }, { period: "FY 2024", revenue: 100e9 }], capturedAt: "2026-11-08T00:00:00Z" });
+    // Fell after a year that barely grew: not "after growing 0%".
+    const afterUp = buildCallEvidence(base({ ticker: "INTC", sales: sales(-4, 100.3e9) }));
+    expect(afterUp.evidence[0]?.text).toBe("INTC's sales fell 4% over the last four quarters, to $90.0B, after flat sales in fiscal 2025.");
+    // Fell after a year that barely fell: not "after falling 0%".
+    const afterDown = buildCallEvidence(base({ ticker: "INTC", sales: sales(-4, 99.7e9) }));
+    expect(afterDown.evidence[0]?.text).toBe("INTC's sales fell 4% over the last four quarters, to $90.0B, after flat sales in fiscal 2025.");
+    // Rose after a year that barely fell: not "after falling 0%" either.
+    const rising = buildCallEvidence(base({ ticker: "INTC", sales: sales(5, 99.7e9) }));
+    expect(rising.evidence[0]?.text).toBe("INTC's sales rose 5% over the last four quarters, to $90.0B, after flat sales in fiscal 2025.");
+    // Flat both times: said once.
+    const still = buildCallEvidence(base({ ticker: "INTC", sales: sales(0.2, 100.3e9) }));
+    expect(still.evidence[0]?.text).toBe("INTC's sales were flat over the last four quarters, to $90.0B, as in fiscal 2025.");
   });
 
   it("names the provider the earnings figures came from", () => {

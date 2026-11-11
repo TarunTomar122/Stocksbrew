@@ -7,23 +7,21 @@ import { moveReason } from "@/lib/briefing";
 import { oldestStamp } from "@/lib/quote-time";
 import { isCircularReason } from "@/lib/reason-quality";
 
-import { heroTicker } from "./hero-briefing";
 import { SectionHead } from "./shared";
 import { moveLine } from "./track-grid";
 
 const ROWS = 3;
 /**
  * Proof one: today's biggest moves with a confirmed reason, as stock cards (the logo and ticker, the move as the
- * one big figure, the reason in one sentence), the whole card opening the stock. The hero's stock is left out so
- * the page never says the same thing twice. The section renders its own head, so on a day with no confirmed
+ * one big figure, the reason in one sentence), the whole card opening the stock. The section renders its own head, so on a day with no confirmed
  * reason yet the whole section stays out instead of showing an empty strip (owner rules 4 and 7).
  */
 export async function TodayMoves() {
-  const [anomalies, skip] = await Promise.all([getLandingAnomalies().catch(() => []), heroTicker()]);
+  const anomalies = await getLandingAnomalies().catch(() => []);
   const rows = anomalies
     // Confirmed reasons only, by the briefing's own rule (sources, and a cause that is more than the price action),
     // so "moved sharply today" or "reverses after an earlier gain" never passes for a reason here.
-    .filter((item) => moveReason(item).status === "confirmed" && Number.isFinite(item.day_change_pct) && item.ticker?.toUpperCase() !== skip)
+    .filter((item) => moveReason(item).status === "confirmed" && Number.isFinite(item.day_change_pct))
     // The feed still marks a few bare price notes as confirmed; a sentence that only restates the move ("moved
     // sharply today", "semiconductor rally drives SOXL higher") names no cause, so it is not a reason.
     .filter((item) => !isCircularReason(moveLine(item), item.ticker, item.name))

@@ -226,8 +226,8 @@ async function quoteCard(ticker: string, uid: string | null, levels: boolean): P
     call_evidence: evidence
       ? {
           evidence: evidence.evidence.map((line) => ({ text: line.text, source: line.source })),
-          // What would change the call comes with covering the stock, like the stock page.
-          what_would_change: levels ? evidence.conditions : [],
+          // What would change the call is open on every stock, like the stock page (it names no price levels).
+          what_would_change: evidence.conditions,
         }
       : null,
     key_points: levels ? texts(intel.key_points, 4, "text", "point", "title") : [],
