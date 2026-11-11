@@ -29,7 +29,9 @@ async function main() {
   if (summary.failed > 0) process.exitCode = 1;
 }
 
-main().catch((error) => {
+// Awaited at the top level: vite-node closes its module server once the top level returns, and any import still
+// loading then fails with "The server is being restarted or closed" (seen on the VPS's node 22).
+await main().catch((error) => {
   console.error("[agent-jobs] failed:", error instanceof Error ? error.message : error);
   process.exitCode = 1;
 });

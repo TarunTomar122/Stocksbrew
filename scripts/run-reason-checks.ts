@@ -41,7 +41,9 @@ async function main() {
   if (runFailed(summary)) process.exitCode = 1;
 }
 
-main().catch((error) => {
+// Awaited at the top level: vite-node closes its module server once the top level returns, and any import still
+// loading then fails with "The server is being restarted or closed" (seen on the VPS's node 22).
+await main().catch((error) => {
   // The message only: a stack or a request body could name a document, and with it a person.
   console.error("[reason-checks] failed:", error instanceof Error ? error.message : "unknown error");
   process.exitCode = 1;
