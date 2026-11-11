@@ -11,6 +11,7 @@
 import { cache } from "react";
 
 import { adminFirestore } from "@/lib/firebase-admin";
+import { localFirestoreFromEnv } from "@/lib/local-firestore";
 import { getSessionUser } from "@/lib/auth-server";
 import {
   BRIEFING_DAY_RE,
@@ -127,12 +128,25 @@ function cleanState(raw: unknown): BriefingStateMap {
   return out;
 }
 
-/** The last seven days of this person's briefing documents, newest first. */
+/**
+ * Everything in a day's document but the saved briefing itself. The window
+ * reads seven days on every open; the snapshots are whole briefings, so they
+ * are only read for the one earlier day someone opens (`loadSavedBriefing`).
+ */
+const STATE_FIELDS = ["uid", "date", "items", "snapshot_built_at", "seen", "calls", "updated_at"];
+
+/** The last seven days of this person's briefing documents, newest first, without their snapshots. */
 async function loadStateDocs(uid: string, today: string): Promise<Map<string, BriefingStateDoc>> {
   const days = briefingWindow(today);
   const out = new Map<string, BriefingStateDoc>();
   if (days.length === 0) return out;
-  const snaps = await adminFirestore.getAll(...days.map((day) => stateRef(uid, day)));
+  const local = localFirestoreFromEnv();
+  const snaps = local
+    ? await local.getAllSelected(
+        days.map((day) => local.collection(BRIEFING_STATE_COLLECTION).doc(`${uid}__${day}`)),
+        STATE_FIELDS,
+      )
+    : await adminFirestore.getAll(...days.map((day) => stateRef(uid, day)));
   for (const snap of snaps) {
     if (!snap.exists) continue;
     const data = snap.data() as BriefingStateDoc;
@@ -141,6 +155,19 @@ async function loadStateDocs(uid: string, today: string): Promise<Map<string, Br
     out.set(data.date, data);
   }
   return out;
+}
+
+/** Whether a day's document holds a saved briefing (saveSnapshot writes both fields together). */
+function hasSavedBriefing(doc: BriefingStateDoc | undefined): boolean {
+  return Boolean(doc && (typeof doc.snapshot_built_at === "string" || isBriefing(doc.snapshot)));
+}
+
+/** One earlier day's saved briefing, read in full when someone opens that day. */
+async function loadSavedBriefing(uid: string, day: string): Promise<Briefing | null> {
+  const snap = await stateRef(uid, day).get();
+  const data = snap.exists ? (snap.data() as BriefingStateDoc) : null;
+  if (!data || data.uid !== uid || data.date !== day) return null;
+  return isBriefing(data.snapshot) ? data.snapshot : null;
 }
 
 /** Read one day of saved item state for the signed-in person. */
@@ -571,18 +598,19 @@ export async function loadBriefingPage(
     : [];
 
   const days: BriefingDayLink[] = briefingWindow(today)
-    .map((day) => ({ day, available: day === today || isBriefing(stateDocs.get(day)?.snapshot) }))
+    .map((day) => ({ day, available: day === today || hasSavedBriefing(stateDocs.get(day)) }))
     .filter((entry) => entry.available);
   const history = days.length > 1 ? days : [];
 
   const requested = options.day && BRIEFING_DAY_RE.test(options.day) ? options.day : null;
   if (requested && requested !== today) {
     const doc = stateDocs.get(requested);
-    if (doc && isBriefing(doc.snapshot)) {
+    const saved = doc && hasSavedBriefing(doc) ? await loadSavedBriefing(uid, requested).catch(() => null) : null;
+    if (doc && saved) {
       // Read back under today's coverage: an old day must not explain a stock the agent does not cover now.
       const coverage = viewerFromUserDoc(uid, userDoc);
       return {
-        briefing: gateSavedBriefing(doc.snapshot, (instrumentId) => isCovered(coverage, instrumentId)),
+        briefing: gateSavedBriefing(saved, (instrumentId) => isCovered(coverage, instrumentId)),
         viewer: { kind: "member", uid },
         state: cleanState(doc.items),
         days: history,

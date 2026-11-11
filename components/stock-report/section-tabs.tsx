@@ -7,17 +7,44 @@ type Tab = { id: string; label: string; count?: number | null };
 /**
  * The report's deeper sections as tabs: one section on screen at a time, so
  * the page is the call, the chart and the read, then whichever part the
- * reader picks. Every section stays in the page (only hidden), so links to
- * `#financials` and search engines still find it. A link to a section's hash
- * opens its tab.
+ * reader picks. A link to a section's hash opens its tab.
+ *
+ * Only the first tab is in the page as sent. The rest are drawn here, from
+ * data the page already holds: the one picked at once, and the others one
+ * by one while the browser is idle, so each is in the page (hidden) soon
+ * after load and a tap shows it with no wait. Sending all eight as markup
+ * was most of every stock page's weight.
  */
-export function SectionTabs({ sections, children }: { sections: Tab[]; children: React.ReactNode }) {
-  const panels = React.Children.toArray(children);
+export function SectionTabs({ sections, renderPanel }: { sections: Tab[]; renderPanel: (id: string) => React.ReactNode }) {
   const ids = sections.map((section) => section.id);
   const [active, setActive] = React.useState(ids[0] ?? "");
+  const [drawn, setDrawn] = React.useState<ReadonlySet<string>>(() => new Set(ids.slice(0, 1)));
   const strip = React.useRef<HTMLDivElement>(null);
   const root = React.useRef<HTMLDivElement>(null);
   const key = ids.join(",");
+
+  // The chosen tab is drawn on the render that shows it (below), then kept.
+  React.useEffect(() => {
+    setDrawn((current) => (current.has(active) ? current : new Set(current).add(active)));
+  }, [active]);
+
+  // The others, one per idle moment, so drawing them never holds up a tap or a scroll.
+  const missing = ids.some((id) => !drawn.has(id));
+  React.useEffect(() => {
+    if (!missing) return;
+    const known = key.split(",");
+    const drawOne = () =>
+      setDrawn((current) => {
+        const id = known.find((candidate) => !current.has(candidate));
+        return id ? new Set(current).add(id) : current;
+      });
+    if (typeof window.requestIdleCallback === "function") {
+      const handle = window.requestIdleCallback(drawOne, { timeout: 4000 });
+      return () => window.cancelIdleCallback(handle);
+    }
+    const handle = window.setTimeout(drawOne, 400);
+    return () => window.clearTimeout(handle);
+  }, [drawn, missing, key]);
 
   React.useEffect(() => {
     const known = key.split(",");
@@ -89,15 +116,11 @@ export function SectionTabs({ sections, children }: { sections: Tab[]; children:
           })}
         </div>
       </nav>
-      {panels.map((panel, index) => {
-        const id = ids[index];
-        if (!id) return null;
-        return (
-          <div key={id} id={`tab-${id}`} role="tabpanel" hidden={id !== active} className="pt-4">
-            {panel}
-          </div>
-        );
-      })}
+      {ids.map((id) => (
+        <div key={id} id={`tab-${id}`} role="tabpanel" hidden={id !== active} className="pt-4">
+          {drawn.has(id) || id === active ? renderPanel(id) : null}
+        </div>
+      ))}
     </div>
   );
 }

@@ -2,6 +2,8 @@
 
 import * as React from "react";
 
+import { SECTION_LABELS } from "./primitives";
+
 export type PhoneSection = { id: string; label: string };
 
 /** Phone only: the width below which the report shows one section at a time (Tailwind's md). */
@@ -39,6 +41,8 @@ export function PhoneSections({ sections, initial, className = "" }: { sections:
       const id = decodeURIComponent(hash.replace(/^#/, ""));
       if (!id) return null;
       if (known.includes(id)) return id;
+      // A section tab (#financials, #ownership) lives in the Report part, even before the tabs have streamed in.
+      if (id in SECTION_LABELS && known.includes("report")) return "report";
       const target = document.getElementById(id) ?? document.getElementById(`tab-${id}`);
       return target?.closest<HTMLElement>("[data-phone-section]")?.dataset.phoneSection ?? null;
     };

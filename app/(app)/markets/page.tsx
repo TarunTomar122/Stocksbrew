@@ -3,16 +3,10 @@ import type { Metadata } from "next";
 import { JsonLd } from "@/components/docs/json-ld";
 
 import { MarketsPageFrame } from "@/components/markets/page-frame";
-import {
-  CommoditiesCurrenciesCryptoSection,
-  hasMarketsData,
-  MarketsMovedSection,
-  OptionsSection,
-  PredictionsSection,
-  RatesAndVolatilitySection,
-  StocksAndFundsSection,
-} from "@/components/markets/overview-sections";
-import { ClassTabs, MarketTickerStrip } from "@/components/markets/widgets";
+import { compactOverview, packMarkets } from "@/components/markets/compact";
+import { MarketsOverviewBody } from "@/components/markets/overview-client";
+import { hasMarketsData } from "@/components/markets/overview-sections";
+import { ClassTabs } from "@/components/markets/widgets";
 import { PageHead, PageNote } from "@/components/oa/kit";
 import { TheRead } from "@/components/oa/insight";
 import { getMarketsData } from "@/lib/markets";
@@ -56,14 +50,8 @@ export default async function MarketsPage() {
       ) : (
         <>
           <TheRead read={read} className="mb-3" />
-          <MarketTickerStrip tiles={overview.tiles} />
-
-          <MarketsMovedSection data={data} overview={overview} />
-          <StocksAndFundsSection data={data} />
-          <RatesAndVolatilitySection data={data} />
-          <CommoditiesCurrenciesCryptoSection data={data} />
-          <OptionsSection data={data} />
-          <PredictionsSection data={data} />
+          {/* Every card below draws in the browser from the data, sent once and cut to what the cards show. */}
+          <MarketsOverviewBody packed={packMarkets(data)} overview={compactOverview(overview)} builtAt={new Date().toISOString()} />
         </>
       )}
       <PageNote className="!mt-4" lede={LEDE} source={refreshed} />

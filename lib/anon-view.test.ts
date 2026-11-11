@@ -14,6 +14,7 @@ describe("anonViewPath", () => {
     expect(view("/briefing")).toBe(`${ANON_PREFIX}/briefing`);
     expect(view("/explore")).toBe(`${ANON_PREFIX}/explore`);
     expect(view("/movers")).toBe(`${ANON_PREFIX}/movers`);
+    expect(view("/portfolio")).toBe(`${ANON_PREFIX}/portfolio`);
     expect(view("/")).toBe(ANON_PREFIX);
   });
 
@@ -43,6 +44,8 @@ describe("anonViewPath", () => {
     expect(view("/stock")).toBeNull();
     expect(view("/watchlist")).toBeNull();
     expect(view("/briefing/extra")).toBeNull();
+    expect(view("/portfolio/memo")).toBeNull();
+    expect(view("/portfolio/xray")).toBeNull();
     expect(view("/pricing")).toBeNull();
   });
 
@@ -74,7 +77,7 @@ describe("publicPathname", () => {
   });
 
   it("round-trips every cached page", () => {
-    for (const path of ["/", "/stock/KO", "/briefing", "/explore", "/movers"]) {
+    for (const path of ["/", "/stock/KO", "/briefing", "/explore", "/movers", "/portfolio"]) {
       const copy = view(path);
       expect(copy && isAnonViewPath(copy)).toBe(true);
       expect(publicPathname(copy as string)).toBe(path);

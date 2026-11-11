@@ -7,7 +7,7 @@
  */
 import type * as React from "react";
 
-import { SectionLabel } from "@/components/markets/page-frame";
+import { SectionLabel } from "@/components/markets/section-label";
 import { AssetClassCard, MarketReadings, PredictionCard, SectorHeatGrid, VolCurveChart, YieldCurveChart } from "@/components/markets/widgets";
 import { listTakeaway, moversTakeaway, sectorTakeaway } from "@/lib/markets-insights";
 import {
@@ -15,7 +15,6 @@ import {
   biggestMoves,
   buildMarketsOverview,
   classHref,
-  predictionReading,
   structureReading,
   yieldCurveShiftReading,
   type MarketAsset,
@@ -113,72 +112,9 @@ export function CommoditiesCurrenciesCryptoSection({ data, label = true }: { dat
   );
 }
 
-/** "Fed decision in Dec 2026?" stays as it is; a question stored without an end mark gets a full stop. */
-function sentence(text: string): string {
-  const trimmed = text.trim();
-  return /[.?!]$/.test(trimmed) ? trimmed : `${trimmed}.`;
-}
-
 /** Card notes sit above several rows, so each names the asset it is about. */
 function commoditiesNote(commodities: MarketAsset[]): string | null {
   return commodities.map((asset) => structureReading(asset, asset.name)).find(Boolean) ?? null;
-}
-
-/** The one-line read each folded section on Market today shows while it is closed, from the same helpers its cards use. */
-export function marketSectionNotes(data: MarketsData): {
-  moved: string | null;
-  stocks: string | null;
-  rates: string | null;
-  commodities: string | null;
-  options: string | null;
-  predictions: string | null;
-} {
-  const find = (id: string) => data.assets.find((asset) => asset.id === id);
-  const vix = find("vix");
-  const dxy = find("dxy");
-  const equityPutCall = find("pc-equity");
-  const equityReading = equityPutCall ? assetReading(equityPutCall) : null;
-  const lead = pickPredictions(data.predictions)[0];
-  const leadReading = lead ? predictionReading(lead) : null;
-  return {
-    moved: moversTakeaway(biggestMoves(data.assets, 7)),
-    stocks: vix ? assetReading(vix) : null,
-    rates: yieldCurveShiftReading(data.treasury),
-    commodities: commoditiesNote(ofClass(data, "commodity")) ?? (dxy ? assetReading(dxy, "The dollar index") : null),
-    options: equityReading ? `In single-stock options, ${equityReading.charAt(0).toLowerCase()}${equityReading.slice(1)}` : null,
-    predictions: lead && leadReading ? `${sentence(lead.question)} ${leadReading}` : null,
-  };
-}
-
-/**
- * A titled section that opens in place (the focus ring is spelled out rather than imported from the kit, whose
- * index pulls in the site header and would drag server-only modules into any client tree that renders this): the title and its one-line read while closed, the cards when open.
- * A plain `<details>`, so it costs no client JavaScript and find-in-page still reaches what is inside.
- */
-export function MarketFold({ title, note, children }: { title: string; note?: string | null; children: React.ReactNode }) {
-  return (
-    <details className="group border-b border-oa-border">
-      {/* A summary holds phrasing and heading content only, so the title, its note and the chevron sit in a grid directly. */}
-      <summary className="grid cursor-pointer list-none grid-cols-[minmax(0,1fr)_auto] gap-x-4 rounded px-2 py-3 outline-none transition-colors hover:bg-oa-accent focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)] sm:px-3 [&::-webkit-details-marker]:hidden">
-        <h3 className="text-[15px] font-medium leading-6 text-oa-fg">{title}</h3>
-        <svg
-          aria-hidden="true"
-          viewBox="0 0 16 16"
-          className="row-span-2 mt-1 size-4 shrink-0 text-oa-muted-fg transition-transform duration-200 group-open:rotate-180 motion-reduce:transition-none"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={1.5}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="m4 6 4 4 4-4" />
-        </svg>
-        {/* Open, the cards carry the same sentence, so the note steps aside. */}
-        {note ? <span className="text-pretty text-[13.5px] leading-5 text-oa-muted-fg group-open:hidden">{note}</span> : null}
-      </summary>
-      <div className="flex flex-col gap-3 pb-4 pt-1">{children}</div>
-    </details>
-  );
 }
 
 /** Put/call ratios and the volatility indices. */

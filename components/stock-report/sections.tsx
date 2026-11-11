@@ -41,11 +41,11 @@ import {
   wholeGap,
 } from "./format";
 import { Details, MarkSlot, Missing, MoreLink, NUM, Panel, PROSE, ReportSection, Row, StatGrid, Tag, TONE_COLOR, ToneGlyph, Verdict, type SectionId, type Tone } from "./primitives";
-import type { ReportData } from "./types";
+import type { SectionData } from "./types";
 import Link from "next/link";
 import { AppLink } from "@/components/oa/app-link";
 
-type SectionProps = { data: ReportData };
+type SectionProps = { data: SectionData };
 
 const READING_TONE: Record<Reading["tone"], Tone> = { good: "up", bad: "down", neutral: "flat" };
 
@@ -95,11 +95,11 @@ function realDescription(text: string | null | undefined): boolean {
   return clean.length >= 60 && !/tracked in the .* universe/i.test(clean);
 }
 
-function hasHistory(data: ReportData): boolean {
+function hasHistory(data: SectionData): boolean {
   return chronologicalHistory(data.facts?.financial_history).filter((row) => fin(row.revenue) || fin(row.eps_diluted)).length >= 2;
 }
 
-function scoredPillars(data: ReportData) {
+function scoredPillars(data: SectionData) {
   const pillars = data.intelPro?.pillars;
   if (!pillars) return [];
   return (["growth", "quality", "valuation", "momentum"] as const)
@@ -108,7 +108,7 @@ function scoredPillars(data: ReportData) {
 }
 
 /** Which sections have real content. Empty ones are dropped from the page and the rail. */
-export function sectionAvailability(data: ReportData): Record<SectionId, boolean> {
+export function sectionAvailability(data: SectionData): Record<SectionId, boolean> {
   const { facts, fundamentals, technicals } = data;
   const hasValuation =
     valuationRows({
@@ -688,13 +688,7 @@ export function OwnershipSection({ data }: SectionProps) {
   const buys = recentCongress.filter((trade) => trade.tx_type === "buy").length;
   const sells = recentCongress.filter((trade) => trade.tx_type === "sell").length;
   // Funds: who added or opened against who trimmed or sold out, by count of funds.
-  const fundsFlow = funds
-    ? netFlow(
-        funds.rows.filter((row) => row.action === "new" || row.action === "added").length,
-        funds.rows.filter((row) => row.action === "trimmed").length + funds.exits.length,
-        "Funds",
-      )
-    : null;
+  const fundsFlow = funds ? netFlow(funds.added, funds.cut, "Funds") : null;
   // Insiders: by dollars, leaving out pre-planned 10b5-1 sales, which are scheduled months ahead and say little.
   const insiderRows = (insiders?.rows ?? []).filter((row) => !row.planned);
   // Some filings carry no dollar value; then count trades instead.
@@ -998,7 +992,7 @@ export function NewsSection({ data }: SectionProps) {
   );
 }
 
-function NewsRow({ article }: { article: ReportData["news"][number] }) {
+function NewsRow({ article }: { article: SectionData["news"][number] }) {
   const tone: Tone | undefined = article.sentiment_label === "bullish" ? "up" : article.sentiment_label === "bearish" ? "down" : undefined;
   return (
     <a

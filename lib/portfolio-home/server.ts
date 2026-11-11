@@ -8,6 +8,7 @@ import { getViewer, type Viewer } from "@/lib/entitlements-server";
 import { loadExampleGoal, loadUserGoal } from "@/lib/goal/data";
 import { loadExampleMemo, type MemoPageData } from "@/lib/memo/server";
 import { listMemos, readMemo } from "@/lib/memo/store";
+import { noteDegradedRender } from "@/lib/next-render";
 import { newYorkToday } from "@/lib/portfolio-data";
 import { fingerprint, perUserCache } from "@/lib/per-user-cache";
 import { loadExampleIdeas, loadUserIdeas } from "@/lib/portfolio-ideas/server";
@@ -59,6 +60,8 @@ export function withTimeout<T>(work: Promise<T | null>, label: string, ms = SOUR
   const slow = new Promise<Loaded<T>>((resolve) => {
     timer = setTimeout(() => {
       console.warn(`[portfolio-home] ${label} took longer than ${ms}ms; showing the page without it`);
+      // A cached copy (the signed-out page, app/(app)/anon/[v]/portfolio) built without this source is kept for seconds only.
+      noteDegradedRender();
       resolve({ state: "slow" });
     }, ms);
   });
@@ -66,6 +69,7 @@ export function withTimeout<T>(work: Promise<T | null>, label: string, ms = SOUR
     (value): Loaded<T> => (value === null || value === undefined ? { state: "empty" } : { state: "ready", value }),
     (error): Loaded<T> => {
       console.warn(`[portfolio-home] ${label} failed:`, error instanceof Error ? error.message : error);
+      noteDegradedRender();
       return { state: "failed" };
     },
   );
@@ -169,6 +173,7 @@ export const loadPortfolioHome = cache((): HomeLoad => {
   // Never rejects: with no viewer at all the page shows the example rather than an error.
   const ctx = resolveContext().catch(async (error) => {
     console.warn("[portfolio-home] viewer failed:", error instanceof Error ? error.message : error);
+    noteDegradedRender();
     const viewer = await getViewer().catch(() => null);
     return {
       viewer: viewer ?? ({ uid: null, signedIn: false, isSubscribed: false, plan: "anon", tracked: [], covered: [], coverage: null, trialEligible: false } as Viewer),

@@ -9,7 +9,9 @@ import { StockPageAnalytics } from "@/components/stock-page-analytics";
 import { StockReport } from "@/components/stock-report/report";
 import { dayInET, fmtDate } from "@/components/stock-report/format";
 import { Suspense } from "react";
-import type { ReportData } from "@/components/stock-report/types";
+import type { ReportData, ReportExtras } from "@/components/stock-report/types";
+import { StockReportBelow } from "@/components/stock-report/below";
+import { StockBelowSkeleton } from "@/components/stock-report/skeleton";
 import { StockRelatedRow } from "@/components/seo/stock-family-links";
 import { StockViewTracker } from "@/components/stock-view-tracker";
 import { UnlistedStockShell } from "@/components/unlisted-stock-shell";
@@ -33,10 +35,12 @@ import {
   getStockSummary,
   normalizeStockSymbolParam,
   type StockIntelligenceDoc,
+  type InstrumentViewDoc,
 } from "@/lib/stock";
 import { getCurrentMarket } from "@/lib/market";
 import { getRedditContextForTicker, getRedditCues, resolveRedditContextForSymbol } from "@/lib/reddit-cues";
-import { getNewsForTicker } from "@/lib/news";
+import type { RedditTickerContext } from "@/lib/reddit-cues-shared";
+import { getNewsForTicker, type NewsArticle } from "@/lib/news";
 import { getLatestTechnicals } from "@/lib/technicals";
 import { currencySymbolFor, decodeTextEntities } from "@/lib/utils";
 import {
@@ -67,7 +71,7 @@ import {
   getStockSnapshotHistory,
 } from "@/lib/stock-events";
 import { getFollowSlugs } from "@/lib/follow";
-import { getStockOwnership } from "@/lib/stock-ownership";
+import { getStockOwnership, type StockOwnership } from "@/lib/stock-ownership";
 import { CALL_PLAIN, wholeSentences } from "@/lib/plain-copy";
 import { buildStockRead, readLooksBroken } from "@/lib/stock-read";
 import { buildStockTimeline } from "@/lib/stock-timeline";
@@ -150,6 +154,39 @@ function lockedLead(body: string | null): string | null {
   return kept ? kept.replace(/[;,:]\s*$/, ".") : null;
 }
 
+/** The lower half of the report, once its reads are in (components/stock-report/below.tsx). */
+async function ReportBelowStream({
+  data,
+  extras,
+  analytics,
+}: {
+  data: ReportData;
+  extras: Promise<ReportExtras>;
+  analytics: Omit<Parameters<typeof StockPageAnalytics>[0], "hasCrowdSignal">;
+}) {
+  const loaded = await extras;
+  return (
+    <>
+      {/* `stock_viewed` says whether the page had a crowd signal, so it goes out with the part that knows. */}
+      <StockPageAnalytics {...analytics} hasCrowdSignal={Boolean(loaded.reddit)} />
+      <StockReportBelow data={data} extras={loaded} />
+    </>
+  );
+}
+
+/** Whether this stock's price is refreshed less often than the priority set's (a notice explains it); never holds up the page. */
+async function PriorityNotice({ market, instrumentId, ticker }: { market: "US" | "IN"; instrumentId: string; ticker: string }) {
+  const [marketMovers, priceCoreOverrides] = await Promise.all([
+    getMarketMovers(market).catch(() => null),
+    getPriceCoreOverrides(market).catch(() => [] as string[]),
+  ]);
+  const priorityIds = marketMovers?.priority_instrument_ids ?? [];
+  const inPriorityCohort = priorityIds.includes(instrumentId);
+  const inExtendedOverrides = (priceCoreOverrides || []).includes(instrumentId);
+  const open = priorityIds.length > 0 && !(inPriorityCohort || inExtendedOverrides);
+  return <PriorityStockModal open={open} instrumentId={instrumentId} ticker={ticker} />;
+}
+
 export async function StockPageStream({ params }: Props) {
   const { symbol } = await params;
   const sessionPromise = getSessionUser();
@@ -223,13 +260,13 @@ export async function StockPageStream({ params }: Props) {
   const intelProPromise = Promise.all([resolvedViewPromise, intelProDirectPromise]).then(
     ([resolved, direct]) => resolved.sections.intel_pro ?? direct,
   );
-  const instrumentViewPromise = Promise.all([resolvedViewPromise, instrumentViewDirectPromise]).then(
-    ([resolved, direct]) => resolved.sections.instrument_view ?? direct,
-  );
+  const instrumentViewPromise = Promise.all([resolvedViewPromise, instrumentViewDirectPromise])
+    .then(([resolved, direct]) => resolved.sections.instrument_view ?? direct)
+    .catch(() => null);
   const technicalsPromise = Promise.all([resolvedViewPromise, docBundlePromise]).then(
     ([resolved, bundle]) =>
       resolved.sections.technicals ?? bundle?.technicals ?? getLatestTechnicals(stock.instrument_id).catch(() => null),
-  );
+  ).catch(() => null);
   // Ranking is cached; quote and comparison fields are enriched from the
   // latest price/facts docs on each render. Never trust backfilled peer rows.
   // Starts as soon as the sector is known, alongside the reads above.
@@ -242,7 +279,7 @@ export async function StockPageStream({ params }: Props) {
     return enrichRelatedTickersForComparison(stock.instrument_id, market, instrumentView?.related_tickers ?? []).catch(
       () => [] as SectorPeerRow[],
     );
-  });
+  }).catch(() => [] as SectorPeerRow[]);
   // This company's own slice of the screener snapshot: the reason under the call and its as-of day (US only).
   const screenerContextPromise = isUS ? getScreenerSymbolContext(stock.ticker).catch(() => null) : Promise.resolve(null);
   // The read's baselines (stored closes for the stock and SPY, SPY's live move, the stock's group's move).
@@ -258,37 +295,33 @@ export async function StockPageStream({ params }: Props) {
       ])
     : Promise.resolve(null);
 
+  // Reads only the lower half uses (what changed, the sections, the priority notice) start now too, but the
+  // top of the page (price, call, chart, the read) never waits for them: they stream in under it.
+  const newsPromise = getNewsForTicker(market, stock.ticker, { days: 14, limit: 14 }).catch(() => [] as NewsArticle[]);
+  const redditPromise = getRedditContextForTicker(market, stock.ticker).catch(() => null);
+  const ownershipPromise = getStockOwnership(stock.ticker, market).catch((): StockOwnership => ({ funds: null, insiders: null }));
+
   const [
     instrumentMeta,
     snapshotHistory,
     longSeries,
-    marketMovers,
-    priceCoreOverrides,
     anomaly,
-    redditTickerContext,
     calendarEarnings,
     earningsDates,
-    recentNews,
     premarketDoc,
     congressTrades,
     callHistory,
-    ownership,
     followSlugs,
   ] = await Promise.all([
     instrumentMetaPromise,
     getStockSnapshotHistory(stock.instrument_id).catch(() => ({ closes: [], multiple: null })),
     isUS ? getStockLongSeries(stock.ticker).catch(() => null) : Promise.resolve(null),
-    getMarketMovers(market).catch(() => null),
-    getPriceCoreOverrides(market).catch(() => [] as string[]),
     getDailyAnomalyForTicker(market, stock.ticker).catch(() => null),
-    getRedditContextForTicker(market, stock.ticker).catch(() => null),
     getNextEarningsCalendarEventCached(market, stock.ticker).catch(() => null),
     getStockEarningsDates(market, stock.ticker).catch(() => []),
-    getNewsForTicker(market, stock.ticker, { days: 14, limit: 14 }).catch(() => []),
     isUS ? getPremarketMovers(market).catch(() => null) : Promise.resolve(null),
     isUS ? getStockCongressTrades(stock.ticker).catch(() => []) : Promise.resolve(null),
     getStockCallHistory(stock.instrument_id).catch(() => []),
-    getStockOwnership(stock.ticker, market).catch(() => ({ funds: null, insiders: null })),
     // Only the slugs: whether a member of Congress has a Follow page to link.
     isUS ? getFollowSlugs().catch(() => [] as string[]) : Promise.resolve([] as string[]),
   ]);
@@ -298,10 +331,7 @@ export async function StockPageStream({ params }: Props) {
     { sections: viewSections },
     intelligenceDirect,
     intelPro,
-    instrumentViewLoaded,
     docBundle,
-    technicals,
-    sectorPeers,
     screenerContext,
     insightBase,
   ] = await Promise.all([
@@ -310,10 +340,7 @@ export async function StockPageStream({ params }: Props) {
     resolvedViewPromise,
     intelligenceDirectPromise,
     intelProPromise,
-    instrumentViewPromise,
     docBundlePromise,
-    technicalsPromise,
-    sectorPeersPromise,
     screenerContextPromise,
     insightBasePromise,
   ]);
@@ -336,7 +363,6 @@ export async function StockPageStream({ params }: Props) {
     followSlugs.includes(personId) ? `/follow/${personId}` : "/follow?tab=congress";
 
   const intelligence = viewSections.intelligence ?? intelligenceDirect;
-  const instrumentView = shouldLoadAI ? instrumentViewLoaded : null;
   const stockFacts = viewSections.facts ?? docBundle?.facts ?? null;
   const onDemandJob = docBundle?.onDemandJob ?? null;
   const earningsIntel = viewSections.earnings_intel ?? docBundle?.earningsIntel ?? null;
@@ -360,10 +386,6 @@ export async function StockPageStream({ params }: Props) {
     description: stock.description ? decodeTextEntities(stock.description) : stock.description,
   };
 
-  const priorityIds = marketMovers?.priority_instrument_ids ?? [];
-  const inPriorityCohort = priorityIds.includes(stock.instrument_id);
-  const inExtendedOverrides = (priceCoreOverrides || []).includes(stock.instrument_id);
-  const showPriorityNotice = priorityIds.length > 0 && !(inPriorityCohort || inExtendedOverrides);
   const displayAnomaly = anomaly
     ? mergeAnomalyWithLatestPrice(
         anomaly,
@@ -479,62 +501,68 @@ export async function StockPageStream({ params }: Props) {
   const pastEarnings = earningsDates.filter((event) => event.event_date < today);
   const nextEarnings =
     calendarEarnings ?? earningsDates.find((event) => event.event_date >= today) ?? null;
-  const cue = redditTickerContext?.cue;
-  const timeline = buildStockTimeline({
-    ticker: stock.ticker,
-    now,
-    move:
-      displayAnomaly && moveHeadline && moveHeadline !== "--"
+  const buildTimeline = (
+    recentNews: NewsArticle[],
+    instrumentView: InstrumentViewDoc | null,
+    redditTickerContext: RedditTickerContext | null,
+  ): ReportExtras["timeline"] => {
+    const cue = redditTickerContext?.cue;
+    return buildStockTimeline({
+      ticker: stock.ticker,
+      now,
+      move:
+        displayAnomaly && moveHeadline && moveHeadline !== "--"
+          ? {
+              asOf: displayAnomaly.price_as_of ?? stock.captured_at ?? null,
+              dayChangePct: displayAnomaly.day_change_pct,
+              headline: moveHeadline,
+              // The pipeline's "being prepared" filler is not a reason; leave it out.
+              detail: moveDetailRaw && !/being prepared/i.test(moveDetailRaw) ? moveDetailRaw : null,
+              evidenceUrl: evidence?.url ?? null,
+              evidenceTitle: evidence?.title ?? null,
+            }
+          : null,
+      news: recentNews,
+      briefEvents: hasFullAnalysisAccess ? instrumentView?.timeline ?? null : null,
+      earnings: earningsIntel,
+      // The post-earnings write-up is free (lib/entitlements.ts); only the pre-earnings read is covered.
+      earningsLocked: false,
+      lastEarningsDate: pastEarnings[pastEarnings.length - 1]?.event_date ?? null,
+      powerTrades: (congressTrades ?? []).filter(
+        (trade) => now.getTime() - new Date(`${trade.transaction_date.slice(0, 10)}T00:00:00Z`).getTime() <= 180 * 86_400_000,
+      ),
+      reddit: cue
         ? {
-            asOf: displayAnomaly.price_as_of ?? stock.captured_at ?? null,
-            dayChangePct: displayAnomaly.day_change_pct,
-            headline: moveHeadline,
-            // The pipeline's "being prepared" filler is not a reason; leave it out.
-            detail: moveDetailRaw && !/being prepared/i.test(moveDetailRaw) ? moveDetailRaw : null,
-            evidenceUrl: evidence?.url ?? null,
-            evidenceTitle: evidence?.title ?? null,
+            generatedAt: redditTickerContext?.generated_at ?? null,
+            postCount: redditTickerContext?.post_count ?? cue.mention_count ?? null,
+            sentiment: cue.sentiment ?? null,
           }
         : null,
-    news: recentNews,
-    briefEvents: hasFullAnalysisAccess ? instrumentView?.timeline ?? null : null,
-    earnings: earningsIntel,
-    // The post-earnings write-up is free (lib/entitlements.ts); only the pre-earnings read is covered.
-    earningsLocked: false,
-    lastEarningsDate: pastEarnings[pastEarnings.length - 1]?.event_date ?? null,
-    powerTrades: (congressTrades ?? []).filter(
-      (trade) => now.getTime() - new Date(`${trade.transaction_date.slice(0, 10)}T00:00:00Z`).getTime() <= 180 * 86_400_000,
-    ),
-    reddit: cue
-      ? {
-          generatedAt: redditTickerContext?.generated_at ?? null,
-          postCount: redditTickerContext?.post_count ?? cue.mention_count ?? null,
-          sentiment: cue.sentiment ?? null,
-        }
-      : null,
-    facts: stockFacts,
-    callChange:
-      read?.changed && read.writtenAt
+      facts: stockFacts,
+      callChange:
+        read?.changed && read.writtenAt
+          ? {
+              at: read.writtenAt,
+              reason: read.changed.reason,
+              headline: read.actionLabel,
+              from: read.changed.from ? CALL_PLAIN[read.changed.from as keyof typeof CALL_PLAIN] ?? null : null,
+              to: read.call ? CALL_PLAIN[read.call as keyof typeof CALL_PLAIN] ?? null : null,
+            }
+          : null,
+      // The first ledger entry is the day coverage began, not a change. How the call has moved on this stock is
+      // part of the full read, so an uncovered viewer gets none of it.
+      callHistory: hasLevels ? changes.filter((change) => change.from) : [],
+      nextEarnings: nextEarnings
         ? {
-            at: read.writtenAt,
-            reason: read.changed.reason,
-            headline: read.actionLabel,
-            from: read.changed.from ? CALL_PLAIN[read.changed.from as keyof typeof CALL_PLAIN] ?? null : null,
-            to: read.call ? CALL_PLAIN[read.call as keyof typeof CALL_PLAIN] ?? null : null,
+            date: nextEarnings.event_date,
+            time: nextEarnings.time,
+            epsEstimate: nextEarnings.eps_estimate,
+            source: "Earnings calendar",
           }
         : null,
-    // The first ledger entry is the day coverage began, not a change. How the call has moved on this stock is
-    // part of the full read, so an uncovered viewer gets none of it.
-    callHistory: hasLevels ? changes.filter((change) => change.from) : [],
-    nextEarnings: nextEarnings
-      ? {
-          date: nextEarnings.event_date,
-          time: nextEarnings.time,
-          epsEstimate: nextEarnings.eps_estimate,
-          source: "Earnings calendar",
-        }
-      : null,
-    congressHref: (trade) => congressHref(trade.person_id),
-  });
+      congressHref: (trade) => congressHref(trade.person_id),
+    });
+  };
 
   // ── the read at the top: plain rules over numbers already loaded ─────────
   const groupMove = insightBase?.[2] ?? null;
@@ -569,7 +597,6 @@ export async function StockPageStream({ params }: Props) {
     asOf: stock.captured_at ?? null,
   });
 
-  const redditPosts = redditTickerContext?.post_count ?? cue?.mention_count ?? 0;
   const data: ReportData = {
     stock: displayStock,
     market,
@@ -602,7 +629,6 @@ export async function StockPageStream({ params }: Props) {
     chart,
     series: longSeries,
     multiple: snapshotHistory.multiple,
-    timeline,
     facts: stockFacts,
     // The past year's range and the yield worked out from today's price, so neither can contradict the quote.
     fundamentals: consistentFundamentals(stock.fundamentals ?? null, {
@@ -616,7 +642,6 @@ export async function StockPageStream({ params }: Props) {
     // The scorecard (pillars, overall score, sector comparisons) is part of the full read, so an uncovered stock
     // sends null and none of it reaches the browser.
     intelPro: hasLevels ? intelPro : null,
-    technicals,
     earnings: {
       next: nextEarnings,
       past: pastEarnings,
@@ -624,22 +649,49 @@ export async function StockPageStream({ params }: Props) {
       intelLocked: false,
       pre: activePreEarningsIntel,
     },
-    ownership,
-    congress: congressTrades,
-    followSlugs,
-    news: recentNews,
-    reddit:
-      cue && redditPosts > 0
-        ? {
-            postCount: redditPosts,
-            sentiment: cue.sentiment ?? null,
-            summary: cue.summary?.trim() || null,
-            generatedAt: redditTickerContext?.generated_at ?? null,
-          }
-        : null,
-    peers: sectorPeers,
     premarketQuote,
     insightRead,
+  };
+
+  // ── the lower half: what changed and the sections, once their own reads are in ──
+  const extrasPromise: Promise<ReportExtras> = Promise.all([
+    newsPromise,
+    redditPromise,
+    ownershipPromise,
+    technicalsPromise,
+    sectorPeersPromise,
+    instrumentViewPromise,
+  ]).then(([recentNews, redditTickerContext, ownership, technicals, sectorPeers, instrumentViewLoaded]) => {
+    const cue = redditTickerContext?.cue;
+    const redditPosts = redditTickerContext?.post_count ?? cue?.mention_count ?? 0;
+    return {
+      timeline: buildTimeline(recentNews, shouldLoadAI ? instrumentViewLoaded : null, redditTickerContext),
+      technicals,
+      ownership,
+      congress: congressTrades,
+      followSlugs,
+      news: recentNews,
+      reddit:
+        cue && redditPosts > 0
+          ? {
+              postCount: redditPosts,
+              sentiment: cue.sentiment ?? null,
+              summary: cue.summary?.trim() || null,
+              generatedAt: redditTickerContext?.generated_at ?? null,
+            }
+          : null,
+      peers: sectorPeers,
+    };
+  });
+  const analytics = {
+    ticker: displayStock.ticker,
+    instrumentId: displayStock.instrument_id,
+    isSubscribed: subscribed,
+    isTracked,
+    hasAiBrief: readState === "ready",
+    call: data.read?.call ?? null,
+    plan: data.gate.plan,
+    levels: data.gate.levels,
   };
 
   return (
@@ -659,23 +711,10 @@ export async function StockPageStream({ params }: Props) {
         updatedAt={displayStock.captured_at}
       />
       <StockViewTracker ticker={displayStock.ticker} instrumentId={displayStock.instrument_id} market={market} />
-      <StockPageAnalytics
-        ticker={displayStock.ticker}
-        instrumentId={displayStock.instrument_id}
-        isSubscribed={subscribed}
-        isTracked={isTracked}
-        hasAiBrief={readState === "ready"}
-        hasCrowdSignal={Boolean(data.reddit)}
-        call={data.read?.call ?? null}
-        plan={data.gate.plan}
-        levels={data.gate.levels}
-      />
       <OnDemandResearchRefresh status={resolvedOnDemandStatus} />
-      <PriorityStockModal
-        open={showPriorityNotice}
-        instrumentId={displayStock.instrument_id}
-        ticker={displayStock.ticker}
-      />
+      <Suspense fallback={null}>
+        <PriorityNotice market={market} instrumentId={displayStock.instrument_id} ticker={displayStock.ticker} />
+      </Suspense>
       <StockReport
         data={data}
         related={
@@ -684,6 +723,11 @@ export async function StockPageStream({ params }: Props) {
               <StockRelatedRow ticker={displayStock.ticker} />
             </Suspense>
           ) : null
+        }
+        below={
+          <Suspense fallback={<StockBelowSkeleton />}>
+            <ReportBelowStream data={data} extras={extrasPromise} analytics={analytics} />
+          </Suspense>
         }
       />
     </>

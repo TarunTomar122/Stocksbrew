@@ -17,16 +17,18 @@ export function MarketsGhost() {
         <PanelGhost rows={6} lines={2} />
         <PanelGhost rows={8} />
       </div>
+      {/* "More markets": six cards, as components/markets/market-cards.tsx lays them out. */}
       <div className="mt-4">
         <Bar className="mx-2 mb-2 h-5 w-32 sm:mx-3" />
-        <div className="border-t border-oa-border">
+        <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }, (_, index) => (
-            <div
-              key={index}
-              className="border-b border-oa-border px-2 py-3 sm:px-3"
-            >
-              <Bar className="h-4 w-48" />
-              <Bar className="mt-2 h-3 w-3/4" />
+            <div key={index} className="oa-surface border border-oa-border bg-oa-bg px-3.5 pb-3 pt-3">
+              <Bar className="h-3 w-24" />
+              <Bar className="mt-3 h-7 w-20" />
+              <Bar className="mt-1.5 h-3 w-40" />
+              <Bar className="mt-3 h-4 w-full" />
+              <Bar className="mt-1.5 h-4 w-3/4" />
+              <Bar className="mt-4 h-7 w-[120px]" />
             </div>
           ))}
         </div>

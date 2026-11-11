@@ -16,7 +16,12 @@ import type { StockTechnicals } from "@/lib/technicals";
 import type { StockIntelPro } from "@/lib/types";
 import type { TheRead } from "@/lib/insights";
 
-/** Everything the stock report renders, assembled once in `stock-page-stream.tsx`. */
+/**
+ * The top of the stock report, assembled in `stock-page-stream.tsx` from the
+ * reads it needs: the quote, the call and its read, the chart and the key
+ * facts. It renders as soon as those are in; what changed and the sections
+ * stream in under it (`ReportExtras`).
+ */
 export type ReportData = {
   stock: StockSummary;
   market: "US" | "IN";
@@ -57,12 +62,9 @@ export type ReportData = {
   series: StockPriceSeries | null;
   multiple: MultipleHistory | null;
 
-  timeline: { items: StockTimelineItem[]; upcoming: StockTimelineUpcoming[] };
-
   facts: StockFacts | null;
   fundamentals: StockFundamentals | null;
   intelPro: StockIntelPro | null;
-  technicals: StockTechnicals | null;
 
   earnings: {
     next: EarningsEvent | null;
@@ -72,16 +74,76 @@ export type ReportData = {
     pre: PreEarningsIntelDoc | null;
   };
 
+  premarketQuote: LivePremarketQuote | null;
+  /** The page's read: today's move in context, what is coming, where the price sits against the call. */
+  insightRead: TheRead | null;
+};
+
+/** The rest of the report, read while the top is already on screen: what changed and what only the sections use. */
+export type ReportExtras = {
+  timeline: { items: StockTimelineItem[]; upcoming: StockTimelineUpcoming[] };
+  technicals: StockTechnicals | null;
   ownership: StockOwnership;
   /** null when the congressional feed does not cover this market. */
   congress: PowerTrade[] | null;
   /** Slugs that have a page under /follow. Rows link there only when the page exists. */
   followSlugs: string[];
-
   news: NewsArticle[];
   reddit: { postCount: number; sentiment: string | null; summary: string | null; generatedAt: string | null } | null;
   peers: SectorPeerRow[];
-  premarketQuote: LivePremarketQuote | null;
-  /** The page's read: today's move in context, what is coming, where the price sits against the call. */
-  insightRead: TheRead | null;
+};
+
+/** The fields of the quote the report's sections read. */
+export type SectionStock = Pick<
+  StockSummary,
+  "ticker" | "name" | "instrument_id" | "price" | "day_change_pct" | "description" | "sector" | "industry" | "exchange" | "country"
+>;
+
+/** The ownership the section draws: eight fund rows and four exits are shown, so only those travel, with the full counts. */
+export type SectionOwnership = {
+  funds:
+    | (NonNullable<StockOwnership["funds"]> & {
+        /** Funds that opened or added, across every row (not only the rows sent). */
+        added: number;
+        /** Funds that trimmed or sold out, across every row and exit. */
+        cut: number;
+      })
+    | null;
+  insiders: StockOwnership["insiders"];
+};
+
+/** One news row in the News section: only what the row shows. */
+export type SectionNewsArticle = Pick<NewsArticle, "id" | "title" | "url" | "source_name" | "published_at" | "sentiment_label">;
+
+/**
+ * What the report's sections (Overview, Financials, ... Peers) read, and no
+ * more. The sections render in the browser from this (report-sections.tsx),
+ * so it travels to the client once as data instead of as markup; anything big
+ * the sections do not draw (the chart's ranges, article summaries, every
+ * Follow slug on the site) stays on the server. `toSectionData` shapes it.
+ *
+ * Adding a section: give it its fields here, a label in SECTION_LABELS, a rule
+ * in `sectionAvailability` and a view in report-sections.tsx.
+ */
+export type SectionData = {
+  stock: SectionStock;
+  market: ReportData["market"];
+  currency: string;
+  nowIso: string;
+  facts: ReportData["facts"];
+  fundamentals: ReportData["fundamentals"];
+  intelPro: ReportData["intelPro"];
+  technicals: ReportExtras["technicals"];
+  earnings: ReportData["earnings"];
+  /** Funds as shown: the top rows and exits only, with the counts the flow line needs from all of them. */
+  ownership: SectionOwnership;
+  congress: ReportExtras["congress"];
+  /** Only the slugs of the people in `congress` that have a Follow page. */
+  followSlugs: string[];
+  news: SectionNewsArticle[];
+  reddit: ReportExtras["reddit"];
+  peers: ReportExtras["peers"];
+  /** The long price history's summary; its chart ranges are left out (the chart has its own copy). */
+  series: Omit<StockPriceSeries, "ranges"> | null;
+  multiple: ReportData["multiple"];
 };

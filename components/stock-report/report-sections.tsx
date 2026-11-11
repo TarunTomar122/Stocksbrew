@@ -1,0 +1,50 @@
+"use client";
+
+import { memo, type ComponentType } from "react";
+
+import type { SectionId } from "./primitives";
+import { SectionTabs } from "./section-tabs";
+import {
+  EarningsSection,
+  FinancialsSection,
+  NewsSection,
+  OverviewSection,
+  OwnershipSection,
+  PeersSection,
+  TechnicalsSection,
+  ValuationSection,
+} from "./sections";
+import type { SectionData } from "./types";
+
+/**
+ * Each tab's view, in the order of SECTION_LABELS. A new section adds its view here. Memoised: the data never
+ * changes after load, so drawing the next tab on an idle moment does not draw the ones already there again.
+ */
+const VIEWS: Record<SectionId, ComponentType<{ data: SectionData }>> = {
+  overview: memo(OverviewSection),
+  financials: memo(FinancialsSection),
+  valuation: memo(ValuationSection),
+  earnings: memo(EarningsSection),
+  ownership: memo(OwnershipSection),
+  news: memo(NewsSection),
+  technicals: memo(TechnicalsSection),
+  peers: memo(PeersSection),
+};
+
+/**
+ * The deeper report, one part at a time, drawn in the browser from
+ * `SectionData` (types.ts). The server sends the first tab's markup and the
+ * data once; the other tabs are drawn from that data (section-tabs.tsx), so
+ * their markup never travels.
+ */
+export function ReportSections({ sections, data }: { sections: Array<{ id: SectionId; label: string; count: number | null }>; data: SectionData }) {
+  return (
+    <SectionTabs
+      sections={sections}
+      renderPanel={(id) => {
+        const View = VIEWS[id as SectionId];
+        return View ? <View data={data} /> : null;
+      }}
+    />
+  );
+}

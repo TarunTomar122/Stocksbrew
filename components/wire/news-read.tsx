@@ -80,13 +80,14 @@ function changeNote(count: number, prev: number): string | null {
 /** The stories driving the news: each theme with its lean, the stocks it touches and its best headlines. */
 export function ThemesPanel({ themes, filters, className = "" }: { themes: NewsTheme[]; filters: WireFilters; className?: string }) {
   if (themes.length === 0) return null;
+  // Fewer themes get more headlines each, so the card fills its row instead of leaving a blank block (owner, Nov 11).
+  const perTheme = themes.length <= 2 ? 5 : themes.length === 3 ? 3 : 2;
   return (
     <Panel fill flush label="What is driving the news" className={className}>
       <ol className="divide-y divide-oa-border">
         {themes.map((theme) => {
           const note = changeNote(theme.count, theme.prevCount);
           const href = wireHref({ ...filters, limit: WIRE_PAGE_SIZE }, { theme: theme.name, ticker: null, topic: null, q: "", mine: false });
-          const more = theme.count - Math.min(2, theme.items.length);
           return (
             <li key={theme.name} className="px-4 py-3">
               <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
@@ -113,17 +114,12 @@ export function ThemesPanel({ themes, filters, className = "" }: { themes: NewsT
                 </div>
               ) : null}
               <ul className="mt-2 flex flex-col gap-2">
-                {theme.items.slice(0, 2).map((item) => (
+                {theme.items.slice(0, perTheme).map((item) => (
                   <li key={item.id}>
                     <HeadlineLine item={item} clamp={1} />
                   </li>
                 ))}
               </ul>
-              {more > 0 ? (
-                <Link href={href} prefetch={false} className={`mt-1.5 inline-block rounded text-[13px] font-medium text-oa-primary hover:underline ${FOCUS}`}>
-                  {more} more →
-                </Link>
-              ) : null}
             </li>
           );
         })}

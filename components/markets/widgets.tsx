@@ -121,6 +121,18 @@ function thin(values: number[], count: number): number[] {
   return Array.from({ length: count }, (_, index) => values[Math.round(index * step)]);
 }
 
+/**
+ * The values a sparkline `width` pixels wide draws. Thinning twice to the same width changes nothing, so a page
+ * can send the thinned values (markets/compact.ts) and the line comes out the same.
+ */
+export function sparkValues(values: number[], width: number): number[] {
+  return thin(values, Math.ceil(width / 1.5));
+}
+
+/** Sparkline widths: a row of a class card, and a tile of the ticker strip. */
+export const ROW_SPARK_WIDTH = 52;
+export const TILE_SPARK_WIDTH = 44;
+
 /** A year of closes as one line. Renders nothing when there are fewer than two points. */
 export function Sparkline({
   values,
@@ -135,7 +147,7 @@ export function Sparkline({
   height?: number;
   className?: string;
 }) {
-  const points = tenthPoints(sparkPoints(thin(values, Math.ceil(width / 1.5)), width, height, 2));
+  const points = tenthPoints(sparkPoints(sparkValues(values, width), width, height, 2));
   if (!points) return <span aria-hidden="true" className={`inline-block ${className}`} style={{ width, height }} />;
   return (
     <svg
@@ -188,7 +200,7 @@ export function MarketTickerStrip({ tiles, className = "" }: { tiles: MarketsOve
             >
               <span className="flex items-center justify-between gap-2">
                 <span className={`${MONO} text-[12.5px] font-medium uppercase tracking-[0.04em] text-oa-muted-fg`}>{tile.symbol}</span>
-                <Sparkline values={tile.spark} tone={tile.tone} width={44} height={16} />
+                <Sparkline values={tile.spark} tone={tile.tone} width={TILE_SPARK_WIDTH} height={16} />
               </span>
               <span className={`${MONO} text-[15px] font-medium leading-5 text-oa-fg`}>{tile.level}</span>
               <span className={`${MONO} whitespace-nowrap text-[12.5px] leading-4 ${toneText(tile.tone)}`}>
@@ -242,7 +254,7 @@ export function AssetRow({ asset }: { asset: MarketAsset }) {
         <span title={asset.name} className="truncate text-[12.5px] leading-4 text-oa-muted-fg">{asset.name}</span>
       </span>
       <span className="flex flex-col items-center" title="Past year">
-        <Sparkline values={asset.spark} tone={sparkTone(asset.spark, asset.change_mode)} width={52} height={18} />
+        <Sparkline values={asset.spark} tone={sparkTone(asset.spark, asset.change_mode)} width={ROW_SPARK_WIDTH} height={18} />
         <span className="text-[13px] leading-4 text-oa-muted-fg">1Y</span>
       </span>
       <span className="flex min-w-[4.5rem] flex-col items-end">

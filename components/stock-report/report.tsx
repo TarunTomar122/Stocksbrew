@@ -20,23 +20,11 @@ import { packChartRanges, type CallWord, type ChartRange, type PackedChartRanges
 import { AlertControls, type SuggestedAlert } from "./alert-controls";
 import { callMeaning } from "./call-line";
 import { capTier, compactMoney, daysBetween, fin, fmtDate, fmtStamp, levelFormatter, moneyFormatter, relativeDays, signedPct } from "./format";
-import { EarlierTimeline } from "./earlier-timeline";
 import { PricePanel, type PanelZone } from "./price-panel";
-import { LockIcon, Missing, MoreLink, NUM, Panel, PROSE, SECTION_LABELS, Tag, TONE_COLOR, type SectionId, type Tone } from "./primitives";
+import { LockIcon, Missing, MoreLink, NUM, Panel, PROSE, Tag, TONE_COLOR, type Tone } from "./primitives";
 import { PhoneSections } from "./phone-sections";
-import { TimelineRow } from "./timeline-row";
-import { SectionTabs } from "./section-tabs";
-import {
-  EarningsSection,
-  FinancialsSection,
-  NewsSection,
-  OverviewSection,
-  OwnershipSection,
-  PeersSection,
-  TechnicalsSection,
-  ValuationSection,
-  sectionAvailability,
-} from "./sections";
+import { NO_EXTRAS, toSectionData } from "./section-data";
+import { sectionAvailability } from "./sections";
 import type { ReportData } from "./types";
 import { stockCallSteps, type CallSteps } from "@/lib/next-steps";
 import Link from "next/link";
@@ -192,7 +180,17 @@ function packedOrRanges(ranges: ChartRange[]): { packed: PackedChartRanges } | {
   return packed ? { packed } : { ranges };
 }
 
-export function StockReport({ data, related }: { data: ReportData; /** Links to the stock's sector, rivals, insiders and earnings pages, streamed in under the head. */ related?: ReactNode }) {
+export function StockReport({
+  data,
+  related,
+  below,
+}: {
+  data: ReportData;
+  /** Links to the stock's sector, rivals, insiders and earnings pages, streamed in under the head. */
+  related?: ReactNode;
+  /** What changed and the deeper report (below.tsx), streamed in after the top. */
+  below?: ReactNode;
+}) {
   const { stock, market, currency, nowIso, read, readState, facts, fundamentals } = data;
   const today = todayET(Number.isFinite(Date.parse(nowIso)) ? Date.parse(nowIso) : Date.now());
   const money = moneyFormatter(currency);
@@ -274,19 +272,11 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
     .filter((item): item is NonNullable<typeof item> => Boolean(item))
     .slice(0, 8);
 
-  // ── sections that have something to show ──────────────────────────────────
-  const available = sectionAvailability(data);
-  const railSections = (Object.keys(SECTION_LABELS) as SectionId[])
-    .filter((id) => available[id])
-    .map((id) => ({
-      id,
-      label: SECTION_LABELS[id],
-      count: id === "news" ? data.news.length : id === "peers" ? data.peers.length : null,
-    }));
+  // ── whether the deeper report will have anything (the sections themselves stream in below) ──
+  // From the top's own data (a US stock always has ownership). below.tsx gets the same answer, so a stock whose only
+  // sections come from the lower half's reads (news, rivals) shows them with "Changes" on a phone.
+  const hasReport = Object.values(sectionAvailability(toSectionData(data, NO_EXTRAS))).some(Boolean);
 
-  const timelineItems = data.timeline.items;
-  const firstItems = timelineItems.slice(0, 7);
-  const restItems = timelineItems.slice(7, 40);
   const callTone = read?.call ? CALL_TONE[read.call] : null;
 
   const ready = readState === "ready" && read ? read : null;
@@ -376,7 +366,7 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
     { id: "view", label: "Our view" },
     { id: "changed", label: "Changes" },
     ...(stats ? [{ id: "facts", label: "Facts" }] : []),
-    ...(railSections.length ? [{ id: "report", label: "Report" }] : []),
+    ...(hasReport ? [{ id: "report", label: "Report" }] : []),
     { id: "alerts", label: "Alerts" },
   ];
 
@@ -763,65 +753,9 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
           ) : null}
         </div>
 
-        {/* ── what changed, then the sections ─────────────────────────────── */}
+        {/* ── what changed, then the sections: streamed in under the rest (below.tsx) ── */}
         <div className="order-4 flex min-w-0 flex-col gap-4 xl:col-start-1 xl:row-start-3">
-          <div data-phone-section="changed" className="min-w-0">
-          <Panel
-            id="changed"
-            label="What changed"
-            className="scroll-mt-16 lg:scroll-mt-4"
-          >
-            {data.timeline.upcoming.length ? (
-              <div className="border-b border-oa-border bg-oa-bg">
-                {data.timeline.upcoming.map((item) => {
-                  const days = daysBetween(today, item.date);
-                  return (
-                    <div key={item.id} className="grid grid-cols-[4.25rem_minmax(0,1fr)] gap-x-3 border-b border-oa-border px-3.5 py-2 last:border-b-0 sm:grid-cols-[5rem_minmax(0,1fr)] sm:px-4">
-                      <div>
-                        <p className={`${NUM} text-[12px] leading-4 text-oa-fg`}>{fmtDate(item.date, false)}</p>
-                        <p className="oa-mono text-[10px] uppercase leading-4 tracking-[0.08em] text-oa-label">{days != null ? relativeDays(days) : "next"}</p>
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-[14px] font-medium leading-5 text-oa-fg">{item.title}</p>
-                        {item.detail ? <p className="text-[13px] leading-5 text-oa-muted-fg">{item.detail}</p> : null}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : null}
-            {firstItems.length ? (
-              <>
-                <ol>
-                  {firstItems.map((item) => (
-                    <TimelineRow key={item.id} item={item} nowIso={nowIso} />
-                  ))}
-                </ol>
-                {/* The older entries are drawn in the browser, so their markup is not in every page (earlier-timeline.tsx). */}
-                {restItems.length ? <EarlierTimeline items={restItems} nowIso={nowIso} ticker={stock.ticker} /> : null}
-              </>
-            ) : (
-              <Missing>Nothing new on {stock.ticker} yet.</Missing>
-            )}
-          </Panel>
-
-          </div>
-
-          {/* The deeper report, one part at a time: the order matches SECTION_LABELS, which is the order of railSections. */}
-          {railSections.length ? (
-            <div data-phone-section="report" className="min-w-0">
-            <SectionTabs sections={railSections}>
-              {available.overview ? <OverviewSection data={data} /> : null}
-              {available.financials ? <FinancialsSection data={data} /> : null}
-              {available.valuation ? <ValuationSection data={data} /> : null}
-              {available.earnings ? <EarningsSection data={data} /> : null}
-              {available.ownership ? <OwnershipSection data={data} /> : null}
-              {available.news ? <NewsSection data={data} /> : null}
-              {available.technicals ? <TechnicalsSection data={data} /> : null}
-              {available.peers ? <PeersSection data={data} /> : null}
-            </SectionTabs>
-            </div>
-          ) : null}
+          {below}
 
           <p className="px-2 text-[12px] leading-5 text-oa-muted-fg sm:px-0">
             Research, not investment advice. Prices can be delayed.

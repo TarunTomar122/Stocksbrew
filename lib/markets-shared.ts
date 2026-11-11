@@ -445,7 +445,23 @@ function etParts(date: Date): Record<string, string> {
  * An as-of time in New York time, where US markets keep their clock:
  * "2:49 PM ET" for today, "Nov 6, 3:30 PM ET" for another day.
  */
-export function formatAsOf(iso: string | null | undefined, now: Date = new Date()): string {
+/**
+ * The time the as-of words are worked out against. On the server it is the real clock. In the browser, /markets
+ * pins it to the moment the server built the page (setMarketsClock), so a copy cached overnight redraws with the same
+ * words ("9:11 AM ET", not "Nov 10, 9:11 AM ET") and React finds no mismatch.
+ */
+let pinnedClock: number | null = null;
+
+export function setMarketsClock(iso: string | null): void {
+  const at = iso ? Date.parse(iso) : NaN;
+  pinnedClock = Number.isFinite(at) ? at : null;
+}
+
+function marketsNow(): Date {
+  return pinnedClock === null ? new Date() : new Date(pinnedClock);
+}
+
+export function formatAsOf(iso: string | null | undefined, now: Date = marketsNow()): string {
   if (!iso) return "";
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "";
@@ -471,7 +487,7 @@ export function assetAsOfText(asset: Pick<MarketAsset, "as_of" | "daily_only" | 
 }
 
 /** "today" when the quote is from the current New York day, otherwise "on Nov 6". */
-export function sessionWord(iso: string | null | undefined, now: Date = new Date()): string {
+export function sessionWord(iso: string | null | undefined, now: Date = marketsNow()): string {
   if (!iso) return "in the latest session";
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "in the latest session";
@@ -482,7 +498,7 @@ export function sessionWord(iso: string | null | undefined, now: Date = new Date
 }
 
 /** The label for the one-day change: crypto never closes, so it is a rolling 24 hours. */
-export function dayChangeLabel(asset: Pick<MarketAsset, "class" | "as_of">, now: Date = new Date()): string {
+export function dayChangeLabel(asset: Pick<MarketAsset, "class" | "as_of">, now: Date = marketsNow()): string {
   if (asset.class === "crypto") return "24h";
   return sessionWord(asset.as_of, now) === "today" ? "today" : "last session";
 }

@@ -78,11 +78,5 @@ export function StatGrid({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function SectionLabel({ children, aside }: { children: React.ReactNode; aside?: React.ReactNode }) {
-  return (
-    <div className="mt-2 flex items-baseline justify-between gap-3 px-2 sm:px-0">
-      <h2 className="oa-label">{children}</h2>
-      {aside ? <span className="text-[12.5px] text-oa-muted-fg">{aside}</span> : null}
-    </div>
-  );
-}
+// Lives in its own module so client trees (overview-client.tsx) can use it without this file's site header.
+export { SectionLabel } from "@/components/markets/section-label";

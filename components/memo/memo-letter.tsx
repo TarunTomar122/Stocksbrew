@@ -2,7 +2,7 @@ import { MoreLocked } from "@/components/oa/gate";
 import { Tag } from "@/components/oa/kit";
 import type { Plan } from "@/lib/entitlements";
 import { firstFullSentence } from "@/lib/plain-copy";
-import type { Memo, MemoItem } from "@/lib/memo/types";
+import type { Memo, MemoItem, MemoMover } from "@/lib/memo/types";
 import { cardItems } from "@/lib/memo/view";
 import { shortDay, weekTitle, weekdayName } from "@/lib/memo/week";
 
@@ -41,6 +41,20 @@ const watchHurt = () => true;
 const watchLook = (item: MemoItem) => item.kind === "upcoming";
 const watchNone = () => false;
 
+/** The week's biggest driver, named before the chart: "NVIDIA's 9.5% drop took 1.4 points off the week." */
+function DriverLine({ movers }: { movers: MemoMover[] }) {
+  const top = [...movers].sort((a, b) => Math.abs(b.points) - Math.abs(a.points))[0];
+  if (!top || Math.abs(top.points) < 0.05) return null;
+  const size = `${Math.abs(top.pct).toFixed(1)}%`;
+  const shown = Math.abs(top.points).toFixed(1);
+  const points = shown === "1.0" ? "1 point" : Number(shown) > 1 ? `${shown} points` : `${shown} of a point`;
+  const text =
+    top.points < 0
+      ? `${top.name || top.ticker}'s ${size} ${top.pct < 0 ? "drop" : "move"} took ${points} off the week, the most of any holding.`
+      : `${top.name || top.ticker}'s ${size} ${top.pct > 0 ? "rise" : "move"} added ${points}, more than any other holding.`;
+  return <p className="mt-1 text-pretty text-[14.5px] leading-[21px] text-oa-muted-fg">{text}</p>;
+}
+
 /**
  * The week list (`rail`) sits beside the chart only; everything under it runs the full width, in pairs, so the page
  * never shows an empty right-hand column (owner, Nov 11).
@@ -65,6 +79,7 @@ export function MemoLetter({ memo, example, plan, rail = null }: { memo: Memo; e
           <h2 className="text-balance text-[21px] font-semibold leading-[28px] tracking-[-0.015em] text-oa-fg sm:text-[24px] sm:leading-[31px]">
             {view ? view.headline : firstFullSentence(memo.topLine)}
           </h2>
+          {view ? <DriverLine movers={view.movers} /> : null}
           {view && view.curve.length >= 2 ? (
             <div className="mt-3">
               <WeekChart curve={view.curve} subject={memo.subject} days={explainDays(memo, view.curve)} />

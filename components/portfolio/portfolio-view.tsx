@@ -373,9 +373,6 @@ export function PortfolioView({
                 />
                 <ImportButton className={BTN_PLAIN} positions={everything} />
                 <ShareButton kind="portfolio" className={BTN_PLAIN} />
-                <Link href="/watchlist/classic" className={BTN_PLAIN}>
-                  Chat about it
-                </Link>
                 <WatchlistAiPromptButton className={BTN_PLAIN} />
               </div>
             )}

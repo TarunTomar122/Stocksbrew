@@ -3,17 +3,8 @@ import { Suspense } from "react";
 
 import { loadDeskBrief, loadDeskMarketsData, loadDeskMovers, loadDeskSectors, loadDeskWire, todayET, type DeskBrief, type DeskData, type DeskSector } from "@/app/(app)/explore/desk-data";
 import { MarketsGhost } from "@/app/(app)/explore/ghosts";
-import {
-  CommoditiesCurrenciesCryptoSection,
-  hasMarketsData,
-  MarketFold,
-  marketSectionNotes,
-  MarketsMovedSection,
-  OptionsSection,
-  PredictionsSection,
-  RatesAndVolatilitySection,
-  StocksAndFundsSection,
-} from "@/components/markets/overview-sections";
+import { hasMarketsData } from "@/components/markets/overview-sections";
+import { MarketCards } from "@/components/markets/market-cards";
 import { MarketTickerStrip } from "@/components/markets/widgets";
 import { TheRead } from "@/components/oa/insight";
 import { AppPage, CardGrid, Delta, FOCUS, PageHead, Panel, Ticker } from "@/components/oa/kit";
@@ -174,7 +165,6 @@ async function MarketsSlot({ sectors, movers }: { sectors: ReturnType<typeof loa
     );
   }
   const overview = buildMarketsOverview(data);
-  const notes = marketSectionNotes(data);
   return (
     <>
       <MarketTickerStrip tiles={overview.tiles} />
@@ -183,28 +173,8 @@ async function MarketsSlot({ sectors, movers }: { sectors: ReturnType<typeof loa
         <h2 id="more-markets" className="px-2 pb-1 text-[17px] font-medium tracking-tight text-oa-fg sm:px-3">
           More markets
         </h2>
-        <div className="border-t border-oa-border">
-          <MarketFold title="What moved across markets" note={notes.moved}>
-            <MarketsMovedSection data={data} overview={overview} />
-          </MarketFold>
-          <MarketFold title="Indices and theme funds" note={notes.stocks}>
-            <StocksAndFundsSection data={data} sectors={false} label={false} />
-          </MarketFold>
-          <MarketFold title="Rates and volatility" note={notes.rates}>
-            <RatesAndVolatilitySection data={data} label={false} />
-          </MarketFold>
-          <MarketFold title="Commodities, currencies and crypto" note={notes.commodities}>
-            <CommoditiesCurrenciesCryptoSection data={data} label={false} />
-          </MarketFold>
-          <MarketFold title="Options" note={notes.options}>
-            <OptionsSection data={data} label={false} />
-          </MarketFold>
-          {data.predictions.length > 0 ? (
-            <MarketFold title="Prediction markets" note={notes.predictions}>
-              <PredictionsSection data={data} label={false} />
-            </MarketFold>
-          ) : null}
-        </div>
+        {/* One card per part of the market, each opening its part of /markets (components/markets/market-cards.tsx). */}
+        <MarketCards data={data} className="mt-2" />
       </section>
     </>
   );

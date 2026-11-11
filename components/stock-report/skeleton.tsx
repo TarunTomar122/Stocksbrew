@@ -1,3 +1,8 @@
+"use client";
+
+// A client component only so its markup is not sent twice: as a server component every stock page carried
+// this whole skeleton again in its React data, even when it never showed. It has no state.
+
 /**
  * Loading state for the stock report. It mirrors the real layout box for box
  * (price and call, the chart, the follow column, the read, the section tabs) so nothing
@@ -97,27 +102,45 @@ export function StockReportSkeleton() {
               ))}
             </div>
           </PanelBone>
-          <PanelBone>
-            <div className="border-b border-oa-border px-3.5 py-2.5 sm:px-4">
-              <Bone className="h-3 w-28" />
-            </div>
-            {Array.from({ length: 4 }).map((_, index) => (
-              <div key={index} className="grid grid-cols-[4.25rem_minmax(0,1fr)] gap-x-3 border-b border-oa-border px-3.5 py-2.5 last:border-b-0 sm:grid-cols-[5rem_minmax(0,1fr)] sm:px-4">
-                <Bone className="h-3.5 w-12" />
-                <div>
-                  <Bone className="h-4 w-4/5" />
-                  <Bone className="mt-1.5 h-3 w-2/5" />
-                </div>
-              </div>
-            ))}
-          </PanelBone>
-          <div className="flex gap-4 border-b border-oa-border pb-3 pt-1">
-            {Array.from({ length: 6 }).map((_, index) => (
-              <Bone key={index} className="h-4 w-16 shrink-0" />
-            ))}
-          </div>
+          <BelowBones />
         </div>
       </div>
+    </div>
+  );
+}
+
+function BelowBones() {
+  return (
+    <>
+      <PanelBone>
+        <div className="border-b border-oa-border px-3.5 py-2.5 sm:px-4">
+          <Bone className="h-3 w-28" />
+        </div>
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div key={index} className="grid grid-cols-[4.25rem_minmax(0,1fr)] gap-x-3 border-b border-oa-border px-3.5 py-2.5 last:border-b-0 sm:grid-cols-[5rem_minmax(0,1fr)] sm:px-4">
+            <Bone className="h-3.5 w-12" />
+            <div>
+              <Bone className="h-4 w-4/5" />
+              <Bone className="mt-1.5 h-3 w-2/5" />
+            </div>
+          </div>
+        ))}
+      </PanelBone>
+      <div className="flex gap-4 border-b border-oa-border pb-3 pt-1">
+        {Array.from({ length: 6 }).map((_, index) => (
+          <Bone key={index} className="h-4 w-16 shrink-0" />
+        ))}
+      </div>
+    </>
+  );
+}
+
+/** The lower half while its reads finish: what changed, then the section tabs (below.tsx). */
+export function StockBelowSkeleton() {
+  return (
+    // Marked as the "Changes" part, so on a phone it only shows where what changed will appear.
+    <div data-phone-section="changed" className="flex min-w-0 flex-col gap-4" aria-busy="true" aria-label="Loading what changed">
+      <BelowBones />
     </div>
   );
 }
