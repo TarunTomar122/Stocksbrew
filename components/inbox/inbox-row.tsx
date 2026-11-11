@@ -11,7 +11,7 @@ import type { InboxItem, InboxKind } from "@/lib/inbox/types";
  * One inbox line: the stock's logo (or the kind's icon), the sentence whole,
  * and who reported it and when. The whole row is the link to the evidence;
  * nothing is repeated on every row (no icon, no chevron, no link text): Ask is
- * one box for the whole list. No hooks: the page's list and the bell's popover
+ * the shell's one Ask. No hooks: the page's list and the bell's popover
  * both render it.
  */
 

@@ -9,7 +9,7 @@ import { MarketTickerStrip } from "@/components/markets/widgets";
 import { TheRead } from "@/components/oa/insight";
 import { AppPage, Delta, FOCUS, PageHead, Panel } from "@/components/oa/kit";
 import { unTitle } from "@/components/briefing/card-words";
-import { StockCard, StockCardGrid, stockGridFill } from "@/components/briefing/stock-card";
+import { StockCard, StockCardGrid, StockChip, StockChipRow, stockGridFill } from "@/components/briefing/stock-card";
 import { PanelGhost } from "@/components/oa/kit/skeleton";
 import { NavIcon } from "@/components/oa/nav-icon";
 import { iconFor } from "@/components/oa/nav-items";
@@ -92,9 +92,11 @@ function SectorList({ rows }: { rows: DeskSector[] }) {
  * keeps five up and five down), so every one shows; on a phone the cards scroll inside after about three.
  */
 function StockMoves({ movers }: { movers: DeskData["movers"] }) {
-  // Moves with a confirmed reason first, then the ones without (largest first in each), so the cards that only
-  // carry a figure sit together instead of beside a full card and leaving half of it empty.
+  // Moves with a confirmed reason are cards, largest first; the ones without are chips under them, so no card is
+  // left with only a figure beside full ones.
   const rows = [...movers.up, ...movers.down].sort((a, b) => Number(Boolean(b.reason)) - Number(Boolean(a.reason)) || Math.abs(b.changePct) - Math.abs(a.changePct));
+  const told = rows.filter((row) => row.reason);
+  const bare = rows.filter((row) => !row.reason);
   if (rows.length === 0) return null;
   return (
     <section aria-labelledby="stock-moves">
@@ -109,27 +111,44 @@ function StockMoves({ movers }: { movers: DeskData["movers"] }) {
       {/* With one card the takeaway only repeats it ("AIRJW moved most, −11.8%"); it says something once there are several. */}
       {movers.takeaway && rows.length > 1 ? <p className="text-pretty px-2 pb-2 text-[14px] leading-5 text-oa-muted-fg sm:px-3">{movers.takeaway}</p> : null}
       <div className="max-sm:max-h-[30rem] max-sm:overflow-y-auto max-sm:overscroll-contain scrollbar-hide">
-        <StockCardGrid wide>
-          {rows.map((row, index) => (
-            <StockCard
-              key={row.ticker}
-              ticker={row.ticker}
-              name={row.name || row.ticker}
-              figure={signedPct(row.changePct)}
-              tone={row.changePct >= 0 ? "up" : "down"}
-              sentence={row.reason ? unTitle(row.reason, row.name) : null}
-              fill={stockGridFill(index, rows.length, true)}
-              cover={
-                <Link
-                  href={`/stock/${encodeURIComponent(row.ticker)}`}
-                  prefetch={false}
-                  aria-label={`${row.ticker}, ${signedPct(row.changePct)} today`}
-                  className="absolute inset-0 z-0 rounded-[inherit] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
-                />
-              }
-            />
-          ))}
-        </StockCardGrid>
+        {told.length > 0 ? (
+          <StockCardGrid wide>
+            {told.map((row, index) => (
+              <StockCard
+                key={row.ticker}
+                ticker={row.ticker}
+                name={row.name || row.ticker}
+                figure={signedPct(row.changePct)}
+                tone={row.changePct >= 0 ? "up" : "down"}
+                sentence={unTitle(row.reason!, row.name)}
+                fill={stockGridFill(index, told.length, true)}
+                cover={
+                  <Link
+                    href={`/stock/${encodeURIComponent(row.ticker)}`}
+                    prefetch={false}
+                    aria-label={`${row.ticker}, ${signedPct(row.changePct)} today`}
+                    className="absolute inset-0 z-0 rounded-[inherit] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
+                  />
+                }
+              />
+            ))}
+          </StockCardGrid>
+        ) : null}
+        {/* Moves with no reason we could confirm: a chip each, not an empty card (owner rules 4 and 7). */}
+        {bare.length > 0 ? (
+          <StockChipRow label={told.length > 0 ? "Also moved" : "Biggest stock moves"} className={told.length > 0 ? "mt-3" : ""}>
+            {bare.map((row) => (
+              <StockChip
+                key={row.ticker}
+                ticker={row.ticker}
+                name={row.name}
+                figure={signedPct(row.changePct)}
+                tone={row.changePct >= 0 ? "up" : "down"}
+                label={`${row.ticker}, ${signedPct(row.changePct)} today`}
+              />
+            ))}
+          </StockChipRow>
+        ) : null}
       </div>
     </section>
   );

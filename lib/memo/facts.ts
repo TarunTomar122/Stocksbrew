@@ -4,6 +4,7 @@ import { CALL_PLAIN, asSentence, companyFirstMove, plainCallReason, wholeSentenc
 const say = (call: string): string => `"${(CALL_PLAIN as Record<string, string>)[call] ?? call}"`;
 
 import type {
+  CallFlip,
   CallWord,
   DailySeries,
   MemoItemCard,
@@ -205,24 +206,28 @@ export function weekPerformance(input: Pick<MemoInputs, "week" | "holdings" | "s
 }
 
 /**
- * Which holdings the week's figure leaves out, and why, in one sentence: "Vanguard S&P 500 ETF is left out
- * because its prices stop at Monday's close." Empty when every holding is counted.
+ * Which holdings the week's figure leaves out, and why, said as a plain fact rather than how the sum works (owner
+ * rule 8): "Vanguard S&P 500 ETF isn't in this week's line: we have no prices for it after Monday." `where` is the
+ * chart's "line" under the chart, the "figure" in the top line. Empty when every holding is counted. Stored memos
+ * written with the older "is left out because ..." wording are rewritten the same way at render
+ * (components/memo/explain.ts plainFootnote).
  */
-export function leftOutSentence(perf: Pick<WeekPerformance, "left" | "from">): string {
+export function leftOutSentence(perf: Pick<WeekPerformance, "left" | "from">, where: "line" | "figure" = "line"): string {
   const left = perf.left;
   if (left.length === 0) return "";
+  const what = `this week's ${where}`;
   const why = (row: LeftOut) =>
     row.why === "shares"
       ? "it has no share count"
       : row.why === "early" && row.last
-        ? `its prices stop at ${row.last > perf.from ? `${weekdayName(row.last)}'s` : `the ${shortDay(row.last)}`} close`
-        : "we have no closes for it this week";
-  if (left.length === 1) return `${left[0]!.name} is left out because ${why(left[0]!)}.`;
+        ? `we have no prices for it after ${row.last > perf.from ? weekdayName(row.last) : shortDay(row.last)}`
+        : "we have no prices for it this week";
+  if (left.length === 1) return `${left[0]!.name} isn't in ${what}: ${why(left[0]!)}.`;
   const reasons = new Set(left.map((row) => row.why));
   const names = joinList(left.slice(0, 4).map((row) => row.name)) + (left.length > 4 ? ` and ${countWord(left.length - 4)} more` : "");
-  if (reasons.size === 1 && left[0]!.why === "shares") return `${names} are left out because they have no share count.`;
-  if (!reasons.has("shares")) return `${names} are left out because we do not have all of this week's closes for them.`;
-  return `${names} are left out for want of a share count or this week's closes.`;
+  if (reasons.size === 1 && left[0]!.why === "shares") return `${names} aren't in ${what}: they have no share count.`;
+  if (!reasons.has("shares")) return `${names} aren't in ${what}: we don't have all of this week's prices for them.`;
+  return `${names} aren't in ${what}: some have no share count and some lack this week's prices.`;
 }
 
 /* ── the facts ──────────────────────────────────────────────────────────── */
@@ -275,20 +280,61 @@ function inWeek(inputs: Pick<MemoInputs, "week" | "today">, day: string): boolea
   return day >= inputs.week.monday && day <= end;
 }
 
-type NetCall = MemoInputs["calls"][number] & { from: CallWord };
+type NetCall = MemoInputs["calls"][number] & { from: CallWord; flip: CallFlip | null };
+
+/** Buy more is two steps from Sell some; Keep sits between. */
+const CALL_STEP: Record<CallWord, number> = { Trim: 0, Hold: 1, Add: 2 };
+
+/** A change that undoes one made within this many sessions before it is a reversal (owner rule 9). */
+export const REVERSAL_SESSIONS = 5;
+
+/** Weekdays after `from` up to and including `to` (both YYYY-MM-DD): Friday to the next Monday is one session. */
+export function weekdaysBetween(from: string, to: string): number {
+  let count = 0;
+  for (let day = addDays(from, 1); day <= to; day = addDays(day, 1)) if (weekdayOf(day) < 5) count++;
+  return count;
+}
+
+/**
+ * Whether a stock's week of call changes is a flip a plain "was X" would hide (owner rule 9): it changed more than
+ * once in the week, its net change skips a step, or its last change undoes the one before it within
+ * REVERSAL_SESSIONS sessions (that earlier change may be from the week before; `calls` holds what was read).
+ */
+export function callFlip(net: { from: CallWord; to: CallWord }, changes: Array<{ date: string; from: CallWord | null; to: CallWord }>, inWeekCount: number): CallFlip | null {
+  if (inWeekCount > 1) return "twice";
+  if (Math.abs(CALL_STEP[net.to] - CALL_STEP[net.from]) > 1) return "skip";
+  const ordered = changes.filter((change) => change.from && change.from !== change.to).sort((a, b) => a.date.localeCompare(b.date));
+  const last = ordered[ordered.length - 1];
+  const before = ordered[ordered.length - 2];
+  if (last && before && last.from) {
+    const lastWay = Math.sign(CALL_STEP[last.to] - CALL_STEP[last.from]);
+    const beforeWay = Math.sign(CALL_STEP[before.to] - CALL_STEP[before.from!]);
+    if (lastWay !== 0 && lastWay === -beforeWay && weekdaysBetween(before.date, last.date) <= REVERSAL_SESSIONS) return "reversal";
+  }
+  return null;
+}
 
 /**
  * Each stock's call change over the week: the call before its first change and the call after its last,
- * dated the last change. A call that changed and changed back is left out. Oldest first.
+ * dated the last change, with whether it is a flip (callFlip). A call that changed and changed back is left out.
+ * Oldest first.
  */
 export function netCallChanges(inputs: Pick<MemoInputs, "calls" | "week" | "today">): NetCall[] {
-  const net = new Map<string, NetCall>();
+  const net = new Map<string, Omit<NetCall, "flip">>();
+  const count = new Map<string, number>();
   for (const call of [...inputs.calls].sort((a, b) => a.date.localeCompare(b.date))) {
     if (!inWeek(inputs, call.date) || !call.from || call.from === call.to) continue;
     const held = net.get(call.ticker);
     net.set(call.ticker, held ? { ...call, from: held.from } : { ...call, from: call.from });
+    count.set(call.ticker, (count.get(call.ticker) ?? 0) + 1);
   }
-  return [...net.values()].filter((call) => call.from !== call.to).sort((a, b) => a.date.localeCompare(b.date) || a.ticker.localeCompare(b.ticker));
+  return [...net.values()]
+    .filter((call) => call.from !== call.to)
+    .map((call) => {
+      const upTo = inputs.calls.filter((row) => row.ticker === call.ticker && row.date <= call.date);
+      return { ...call, flip: callFlip(call, upTo, count.get(call.ticker) ?? 0) };
+    })
+    .sort((a, b) => a.date.localeCompare(b.date) || a.ticker.localeCompare(b.ticker));
 }
 
 export type FactsResult = {
@@ -316,7 +362,7 @@ export function buildFacts(inputs: MemoInputs): FactsResult {
     // "Together, eight of your nine holdings": one figure for the group, not each holding's move.
     const subjectWords = partial ? `Together, ${countWord(perf.priced)} of ${words.possessive} ${countWord(perf.total)} holdings` : words.holdings;
     const verb = partial ? riseMany(perf.portfolioPct, past) : rise(perf.portfolioPct, past, inputs.subject);
-    const leftWords = leftOutSentence(perf);
+    const leftWords = leftOutSentence(perf, "figure");
     const left = leftWords ? ` ${leftWords}` : "";
     facts.push({
       id: "performance",
@@ -454,7 +500,7 @@ export function buildFacts(inputs: MemoInputs): FactsResult {
   }
 
   /* call changes: the week's net change per stock, grouped when several moved the same way */
-  const callGroups = new Map<string, Array<MemoInputs["calls"][number] & { from: string }>>();
+  const callGroups = new Map<string, NetCall[]>();
   for (const call of netCallChanges(inputs)) callGroups.set(call.to, [...(callGroups.get(call.to) ?? []), call]);
   for (const [to, calls] of callGroups) {
     const section = to === "Trim" ? "hurt" : to === "Add" ? "look" : "changed";
@@ -463,7 +509,10 @@ export function buildFacts(inputs: MemoInputs): FactsResult {
     if (calls.length === 1) {
       const call = calls[0]!;
       const name = nameOf(inputs, call.ticker);
-      const first = `Our call on ${name} moved from ${say(call.from)} to ${say(call.to)} on ${longDay(call.date)}.`;
+      // A flip (owner rule 9) says only the call it is now and since when, never the sale it came from.
+      const first = call.flip
+        ? `Our call on ${name} changed to ${say(call.to)} on ${longDay(call.date)}.`
+        : `Our call on ${name} moved from ${say(call.from)} to ${say(call.to)} on ${longDay(call.date)}.`;
       let reason = "";
       let held = 0;
       if (call.text) {
@@ -471,7 +520,12 @@ export function buildFacts(inputs: MemoInputs): FactsResult {
         else held = 1;
       }
       facts.push({
-        card: { figure: CALL_PLAIN[call.to], label: `on ${name}, from ${CALL_PLAIN[call.from]} on ${weekdayName(call.date)}` },
+        // The card names the call it replaced only where the memo page would (lib/memo/view.ts callShows): never a
+        // flip, and never a sale beside Keep or Buy more.
+        card: {
+          figure: CALL_PLAIN[call.to],
+          label: call.flip || call.from === "Trim" || call.to === "Trim" ? `on ${name}, since ${weekdayName(call.date)}` : `on ${name}, from ${CALL_PLAIN[call.from]} on ${weekdayName(call.date)}`,
+        },
         id: `call:${call.ticker}:${call.date}`,
         kind: "call",
         section,
@@ -484,13 +538,13 @@ export function buildFacts(inputs: MemoInputs): FactsResult {
         tone,
         source: "stocksbrew call history",
         asOf: call.date,
-        data: { ticker: call.ticker, from: call.from, to: call.to, date: call.date, ...(reason ? { reason } : {}) },
+        data: { ticker: call.ticker, ...(call.flip ? {} : { from: call.from }), to: call.to, date: call.date, ...(reason ? { reason } : {}) },
         heldBack: held,
       });
       heldBack += held;
       continue;
     }
-    const named = calls.map((call) => `${nameOf(inputs, call.ticker)} (from ${say(call.from)})`);
+    const named = calls.map((call) => (call.flip ? nameOf(inputs, call.ticker) : `${nameOf(inputs, call.ticker)} (from ${say(call.from)})`));
     const first = calls[0]!;
     facts.push({
       card: { figure: CALL_PLAIN[to as CallWord], label: `on ${countWord(calls.length)} holdings: ${calls.slice(0, 3).map((call) => call.ticker).join(", ")}${calls.length > 3 ? " and more" : ""}` },
@@ -506,7 +560,7 @@ export function buildFacts(inputs: MemoInputs): FactsResult {
       tone,
       source: "stocksbrew call history",
       asOf: calls[calls.length - 1]!.date,
-      data: { to, count: calls.length, ...Object.fromEntries(calls.map((call) => [`${call.ticker}_from`, call.from])) },
+      data: { to, count: calls.length, ...Object.fromEntries(calls.filter((call) => !call.flip).map((call) => [`${call.ticker}_from`, call.from])) },
     });
   }
 

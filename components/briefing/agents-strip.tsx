@@ -1,53 +1,24 @@
 import Link from "next/link";
 
-import { WATCH_FOCUS, WATCH_LINK, WATCH_LIST, WatchRow, soonestNext } from "@/components/agent-watch/watch-list";
+import { WATCH_LINK, WATCH_LIST, WatchRow, soonestNext } from "@/components/agent-watch/watch-list";
 import { Bar } from "@/components/oa/kit/skeleton";
 import { activeWatches, nextCheckWords } from "@/lib/agent-watch";
 import { loadWatches } from "@/lib/agent-watch-server";
-import { ASK_MAX_QUESTION_CHARS } from "@/lib/ask-config";
 import type { AgentsSource } from "@/lib/portfolio-home/log";
 import type { Loaded } from "@/lib/portfolio-home/pick";
 import { countWord } from "@/lib/read-format";
 
 /**
- * The briefing's strip of ongoing work: the signed-in person's active watches
- * with their latest outcomes, and an Ask box that opens Ask on their portfolio
- * (ctx "portfolio", lib/ask-context.ts). Signed out it is only an Ask box on
- * the market and a line about agents: the signed-out briefing is one cached
+ * The briefing rail's agents card: the signed-in person's active watches with
+ * their latest outcomes. Signed out the rail has a line about agents instead
+ * (components/briefing/briefing-view.tsx): the signed-out briefing is one cached
  * page for everyone (app/(app)/anon/[v]/briefing), so it never reads a cookie
  * or anyone's data. Server components; the watches are one small read with
  * its own time limit (lib/agent-watch-server.ts), streamed in their own
- * Suspense, and nothing here calls a model.
+ * Suspense, and nothing here calls a model. Ask is the shell's, not a box here.
  */
 
 const CARD = "oa-surface min-w-0 overflow-hidden border border-oa-border bg-oa-card";
-
-function AskForm({ portfolio, placeholder }: { portfolio: boolean; placeholder: string }) {
-  return (
-    <form action="/ask" method="get" role="search" className="flex gap-2">
-      <label htmlFor="briefing-ask" className="sr-only">
-        Your question
-      </label>
-      <input
-        id="briefing-ask"
-        name="q"
-        type="text"
-        required
-        maxLength={ASK_MAX_QUESTION_CHARS}
-        autoComplete="off"
-        placeholder={placeholder}
-        className={`h-10 min-w-0 flex-1 rounded border border-oa-border bg-oa-bg px-3 text-[14px] text-oa-fg placeholder:text-oa-muted-fg ${WATCH_FOCUS}`}
-      />
-      {portfolio ? <input type="hidden" name="ctx" value="portfolio" /> : null}
-      <button
-        type="submit"
-        className={`inline-flex h-10 shrink-0 cursor-pointer items-center rounded border border-oa-primary bg-oa-primary px-4 text-[14px] font-medium text-oa-primary-fg transition-[filter] hover:brightness-110 ${WATCH_FOCUS}`}
-      >
-        Ask
-      </button>
-    </form>
-  );
-}
 
 function Head({ children, manage = false }: { children: React.ReactNode; manage?: boolean }) {
   return (
@@ -92,7 +63,7 @@ type StripProps = {
   portfolio: boolean;
 };
 
-/** Signed in: the person's active watches and their latest outcomes, for the side rail (Ask sits under the read). */
+/** Signed in: the person's active watches and their latest outcomes, for the side rail. */
 export async function BriefingAgentsStrip({ uid, ...props }: StripProps & { uid: string }) {
   const loaded = await loadWatches(uid, props.today);
   return <BriefingAgentsCard loaded={loaded} {...props} />;
@@ -166,30 +137,5 @@ export function BriefingAgentsGhost() {
       <Bar className="mt-3 h-3.5 w-full" />
       <Bar className="mt-1.5 h-3 w-1/2" />
     </div>
-  );
-}
-
-/** Signed in: Ask on the person's portfolio (or any stock when they track none), under the read. */
-export function BriefingPortfolioAsk({ portfolio }: { portfolio: boolean }) {
-  return (
-    <section aria-label="Ask about your stocks" className={`${CARD} px-4 py-3`}>
-      <AskForm portfolio={portfolio} placeholder={portfolio ? "Ask about your stocks" : "Ask about any US stock"} />
-    </section>
-  );
-}
-
-/** Signed out: Ask on the market, and the one line about agents. Static, the same for every visitor. */
-export function BriefingAskStrip() {
-  return (
-    <section aria-label="Ask about the market" className={`${CARD} px-4 py-3`}>
-      <AskForm portfolio={false} placeholder="Ask about the market or any US stock" />
-      <p className="mt-2 text-pretty text-[13px] leading-5 text-oa-muted-fg">
-        Want a heads-up when a stock you follow moves, files a report or nears earnings?{" "}
-        <Link href="/agents" prefetch={false} className={WATCH_LINK}>
-          Set up an agent
-        </Link>{" "}
-        and it reports here after every market close.
-      </p>
-    </section>
   );
 }

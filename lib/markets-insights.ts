@@ -387,3 +387,93 @@ export function buildClassRead(input: { slug: string; assets: MarketAsset[]; dat
   const latest = assets.reduce<string | null>((best, asset) => (asset.as_of && (!best || asset.as_of > best) ? asset.as_of : best), null);
   return { headline: headline ? cap(headline) : "", insights, asOf: latest ?? data.as_of ?? null };
 }
+
+/* ── Market today: the next thing to watch ──────────────────────────────── */
+
+/** A report on the calendar: the day and, when known, whether it lands before the open or after the close. */
+export type UpcomingReport = { ticker: string; date: string; time?: string | null };
+
+const REPORT_TIME: Record<string, string> = { bmo: "before the open", amc: "after the close" };
+
+function dayWord(date: string, today: string): string {
+  const gap = Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000);
+  if (gap === 0) return "today";
+  if (gap === 1) return "tomorrow";
+  const day = new Date(`${date}T12:00:00Z`);
+  const month = day.toLocaleDateString("en-US", { month: "short", timeZone: "UTC" });
+  // A weekday only inside this week; past the weekend "on Tuesday" could mean either, so the date is said instead.
+  const todayWeekday = new Date(`${today}T12:00:00Z`).getUTCDay();
+  if (gap > 1 && gap < 7 && day.getUTCDay() > todayWeekday) return `on ${day.toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" })}`;
+  return `on ${month} ${day.getUTCDate()}`;
+}
+
+/** "reports tomorrow after the close", "reports on Nov 19". */
+export function reportsWhen(report: UpcomingReport, today: string): string {
+  return [`reports ${dayWord(report.date, today)}`, report.time ? REPORT_TIME[report.time] : null].filter(Boolean).join(" ");
+}
+
+/**
+ * The next report for each ticker that is still to come: a report today counts only after the close (one before
+ * the open has already landed). Earliest first per ticker.
+ */
+export function nextReports(events: UpcomingReport[], today: string): Map<string, UpcomingReport> {
+  const out = new Map<string, UpcomingReport>();
+  const sorted = [...events].sort((a, b) => a.date.localeCompare(b.date));
+  for (const event of sorted) {
+    if (!event.ticker || event.date < today) continue;
+    if (event.date === today && event.time !== "amc") continue;
+    if (!out.has(event.ticker)) out.set(event.ticker, event);
+  }
+  return out;
+}
+
+/**
+ * Each lead insight on Market today ends with the next thing to watch on its stocks, only when there is a real one:
+ * a report on the calendar ("Watch next: NVDA reports on Nov 19 after the close."). One line per stock across the
+ * read, and none for a card that is already about a report. The giants card's general line ("They carry the most
+ * weight...") gives way to it.
+ */
+export function withWatchNext(insights: Insight[], reports: Map<string, UpcomingReport>, today: string, skip: ReadonlySet<string> = new Set()): Insight[] {
+  const told = new Set(skip);
+  for (const insight of insights) if (insight.id === "report" || insight.id === "biggest") for (const ticker of insight.tickers ?? []) told.add(ticker);
+  return insights.map((insight) => {
+    if (insight.id === "report" || insight.id === "biggest") return insight;
+    const ticker = (insight.tickers ?? []).find((symbol) => reports.has(symbol) && !told.has(symbol));
+    if (!ticker) return insight;
+    told.add(ticker);
+    const watch = `Watch next: ${ticker} ${reportsWhen(reports.get(ticker)!, today)}.`;
+    const keep = insight.id === "giants" ? undefined : insight.soWhat;
+    return { ...insight, soWhat: keep ? `${keep} ${watch}` : watch };
+  });
+}
+
+/** The stock's last report and its normal day, as the calendar loads them (lib/calendar.ts ReportContext). */
+export type LastReport = { last: { pct: number } | null; typicalDayPct: number | null } | undefined;
+
+/**
+ * The calendar's "biggest company still to report" card, short (owner rules 3 and 8): the stock's move after its
+ * last report as the one figure, and one sentence with when it reports and how that move compares with a normal day.
+ * Without a past move, the day it reports is the figure.
+ */
+export function reportCard(insight: Insight, report: UpcomingReport, context: LastReport, today: string): Insight {
+  const when = reportsWhen(report, today);
+  const last = context?.last ?? null;
+  const base = { ...insight, id: "report", tickers: [report.ticker], soWhat: undefined };
+  if (!last || !isNum(last.pct)) {
+    const day = dayWord(report.date, today).replace(/^on /, "");
+    return {
+      ...base,
+      figure: { value: cap(day), label: (report.time && REPORT_TIME[report.time]) || "reports" },
+      text: `${report.ticker} ${when}, the biggest company still to report this week.`,
+    };
+  }
+  const typical = context?.typicalDayPct;
+  const multiple = isNum(typical) && typical > 0 ? Math.abs(last.pct) / typical : null;
+  const size = multiple !== null && multiple >= 1.5 ? `, about ${Math.round(multiple)} times a normal day` : multiple !== null && multiple < 0.8 ? ", less than a normal day" : "";
+  return {
+    ...base,
+    tone: last.pct >= 0 ? "up" : "down",
+    figure: { value: signedPct(last.pct), label: "after its last report", tone: last.pct >= 0 ? "up" : "down" },
+    text: `${report.ticker} ${when}; after its last report the stock ${last.pct >= 0 ? "rose" : "fell"} ${absPct(last.pct)}${size}.`,
+  };
+}

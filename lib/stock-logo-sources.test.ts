@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   isLogoKey,
+  LOGO_FALLBACK_COLORS,
   LOGO_VERSION,
   logoFallbackColor,
   logoInitials,
@@ -38,7 +39,7 @@ describe("same-origin logos", () => {
     expect(logoInitials("")).toBe("?");
     expect(logoFallbackColor("NVDA")).toBe(logoFallbackColor("nvda"));
     expect(logoFallbackColor("BRK-B")).toBe(logoFallbackColor("BRK.B"));
-    expect(logoFallbackColor("NVDA")).toMatch(/^hsl\(\d+ 62% 28%\)$/);
+    expect(LOGO_FALLBACK_COLORS).toContain(logoFallbackColor("NVDA"));
   });
 
   it("draws a plain square SVG with only safe letters in it", () => {

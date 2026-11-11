@@ -5,6 +5,7 @@ import { Delta, Empty, FOCUS, NUM, Panel, TabBar, Ticker, Verdict, fmtAgo, fmtDa
 import type { MoversData, PolicyData, RedditData, RedditThread } from "@/lib/signals";
 import { MoreLocked } from "@/components/oa/gate";
 import { StockLogo } from "@/components/stock-logo";
+import { StockCard, StockChip, StockChipRow, fillLastRow } from "@/components/briefing/stock-card";
 import type { Plan } from "@/lib/entitlements";
 import {
   POLICY_PAGE_SIZE,
@@ -198,75 +199,83 @@ function paceWords(velocity: MentionVelocity): string | null {
   return null;
 }
 
-/** The mood in a plain word, quiet: the reason under it carries the detail. Neutral prints nothing. */
-function MoodText({ stance }: { stance: Stance | string | null | undefined }) {
-  const mood = stance === "neutral" ? null : moodWord(stance);
-  return mood ? <span className="text-[13px] text-oa-muted-fg">{mood.word}</span> : null;
+/**
+ * What is being said about a name, as one sentence: the mood first when the posts lean one way ("Worried: board
+ * investigation and national-security allegations."), nothing about mood when they don't.
+ */
+function redditSentence(name: RedditName, full: boolean): string | null {
+  const said = full ? (name.summary ? firstFullSentence(name.summary) : name.catalysts[0] ?? null) : (name.catalysts[0] ?? (name.summary ? firstFullSentence(name.summary) : null));
+  const mood = name.stanceRead && name.stance !== "neutral" ? moodWord(name.stance) : null;
+  const clean = said ? said.trim().replace(/[.!]+$/, "") : "";
+  if (!clean) return mood ? `${mood.word}.` : null;
+  if (!mood || mood.tone === "flat") return `${clean.charAt(0).toUpperCase()}${clean.slice(1)}.`;
+  // The line keeps its own first capital after the colon, so "CEO", "AI" and "Nvidia" are never lowered.
+  return `${mood.word}: ${clean.charAt(0).toUpperCase()}${clean.slice(1)}.`;
 }
 
-const REDDIT_COLS = "grid grid-cols-[1.25rem_minmax(0,1fr)_auto_2.5rem] items-center gap-x-2 lg:grid-cols-[1.75rem_minmax(0,1fr)_5.5rem_3.5rem] lg:gap-x-4";
-
 /**
- * One name: rank, stock, mood and the post count on the line, and what is
- * being said written out under it (owner rule 2: nothing to open to read it).
- * The Reddit tab gives the full summary and the pace; the Today card, the
- * first thing people are talking about. The row opens the stock.
+ * The Reddit names as stock cards (owner rule 3): logo and ticker, the post count as the one big figure, what is
+ * being said as one sentence, and one highlighted fact only when a name is running hot. Every name is in the list;
+ * about eight show at a time and the rest scroll inside with no bar (owner rule 5). The card opens the stock.
  */
-function RedditLine({ name, rank, compact }: { name: RedditName; rank: number; compact: boolean }) {
-  const said = compact ? (name.catalysts[0] ?? (name.summary ? firstFullSentence(name.summary) : null)) : name.summary;
-  const pace = compact ? null : paceWords(name.velocity);
-  const meta = compact
-    ? []
-    : [
-        pace,
-        name.subreddits.length ? name.subreddits.map((sub) => `r/${sub}`).join(", ") : null,
-        name.latestPostAt ? `last post ${fmtAgo(name.latestPostAt)} ago` : null,
-      ].filter((part): part is string => Boolean(part));
+function RedditCards({ names, wide = false, full = false }: { names: RedditName[]; wide?: boolean; full?: boolean }) {
+  const cols = wide ? ({ sm: 2, lg: 3 } as const) : ({ sm: 2 } as const);
+  const posts = (count: number) => `${count} ${count === 1 ? "post" : "posts"}`;
+  const rows = names.map((name) => {
+    const pace = paceWords(name.velocity);
+    const foot = full
+      ? [name.subreddits.length ? name.subreddits.slice(0, 2).map((sub) => `r/${sub}`).join(", ") : null, name.latestPostAt ? `${fmtAgo(name.latestPostAt)} ago` : null]
+          .filter(Boolean)
+          .join(" · ")
+      : "";
+    return { name, sentence: redditSentence(name, full), fact: pace ? cap(pace) : null, foot: foot || null };
+  });
+  // A name with nothing said about it is a chip under the cards, not an empty card (owner rule 4).
+  const cards = rows.filter((row) => row.sentence || row.fact || row.foot);
+  const bare = rows.filter((row) => !(row.sentence || row.fact || row.foot));
   return (
-    <div className="relative px-4 py-2.5 transition-colors hover:bg-oa-accent">
-      <div className={REDDIT_COLS}>
-        <span aria-label={`Rank ${rank}`} className={`${NUM} text-[12.5px] text-oa-muted-fg`}>
-          {rank}
-        </span>
-        <Ticker symbol={name.ticker} name={compact ? null : name.company} size={20} stretch className="min-w-0" />
-        <span className="text-right lg:text-left">
-          <MoodText stance={name.stance} />
-        </span>
-        <span className={`${NUM} text-right text-[14px] text-oa-fg`}>{name.mentions}</span>
-      </div>
-      {said ? (
-        <p className={`mt-1 text-pretty pl-[1.75rem] text-[13.5px] leading-5 text-oa-fg lg:pl-[2.75rem] ${compact ? "" : "max-w-[78ch]"}`}>{said}</p>
+    <div data-track-links="signal_opened" data-track-kind="reddit" className="p-3">
+      {cards.length > 0 ? (
+        <ul className={`grid grid-flow-row-dense grid-cols-1 gap-3 sm:grid-cols-2 ${wide ? "lg:grid-cols-3" : ""}`}>
+          {cards.map(({ name, sentence, fact, foot }, index) => (
+            <StockCard
+              key={name.ticker}
+              ticker={name.ticker}
+              // Ticker only (owner rule): fund names like "SPDR S&P 500 ETF Trust" wrapped to three lines in a narrow card.
+              name={name.ticker}
+              figure={posts(name.mentions)}
+              sentence={sentence}
+              fact={fact}
+              foot={foot}
+              fill={fillLastRow(index, cards.length, cols)}
+              cover={
+                <Link
+                  href={`/stock/${encodeURIComponent(name.ticker)}`}
+                  prefetch={false}
+                  aria-label={`${name.ticker}, ${name.mentions} Reddit ${name.mentions === 1 ? "post" : "posts"}`}
+                  className="absolute inset-0 z-0 rounded-[inherit] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
+                />
+              }
+            />
+          ))}
+        </ul>
       ) : null}
-      {meta.length ? (
-        <p className="mt-0.5 pl-[1.75rem] text-[12.5px] leading-[18px] text-oa-muted-fg lg:pl-[2.75rem]">{meta.join(" · ")}</p>
+      {bare.length > 0 ? (
+        <StockChipRow label="Also talked about" className={cards.length > 0 ? "mt-3" : ""}>
+          {bare.map(({ name }) => (
+            <StockChip key={name.ticker} ticker={name.ticker} figure={posts(name.mentions)} label={`${name.ticker}, ${name.mentions} Reddit ${name.mentions === 1 ? "post" : "posts"}`} />
+          ))}
+        </StockChipRow>
       ) : null}
     </div>
   );
 }
 
-const REDDIT_SCROLL = "max-h-[48rem] overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
+// About eight cards in view, then the list scrolls inside with no bar showing (owner rule 5).
+const REDDIT_SCROLL = "max-h-[40rem] overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
 
-/** The ranked Reddit list: one name per row, what is being said always in view. */
-function RedditList({ names, compact = false, sticky = compact }: { names: RedditName[]; compact?: boolean; sticky?: boolean }) {
-  return (
-    <>
-      <div className={`border-b border-oa-border bg-oa-bg px-4 py-2 ${sticky ? "sticky top-0 z-[2]" : ""}`}>
-        <div className={REDDIT_COLS}>
-          <span className="oa-caption">#</span>
-          <span className="oa-caption">Stock</span>
-          <span className="oa-caption text-right lg:text-left">Mood</span>
-          <span className="oa-caption text-right">Posts</span>
-        </div>
-      </div>
-      <ol data-track-links="signal_opened" data-track-kind="reddit">
-        {names.map((name, index) => (
-          <li key={name.ticker} className="border-b border-oa-border last:border-b-0">
-            <RedditLine name={name} rank={index + 1} compact={compact} />
-          </li>
-        ))}
-      </ol>
-    </>
-  );
+function cap(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 function ThreadList({ threads }: { threads: RedditThread[] }) {
@@ -308,9 +317,8 @@ export function RedditTab({ data }: { data: RedditData }) {
         flush
       >
         {names.length ? (
-          // About eight names in view, then the list scrolls inside with no bar showing (owner rule 5).
           <div className={REDDIT_SCROLL}>
-            <RedditList names={names} sticky />
+            <RedditCards names={names} wide full />
           </div>
         ) : (
           <Empty title="Nothing yet">No Reddit names to show yet.</Empty>
@@ -364,9 +372,10 @@ function PolicyLine({ post, compact }: { post: PolicyPost; compact: boolean }) {
       )}
       <span
         className="hidden text-right lg:block"
-        title={post.market ? `SPY from the ${fmtDay(post.market.fromDate)} close to ${fmtDay(post.market.toDate)}` : "No session since the post"}
+        title={post.market ? `SPY from the ${fmtDay(post.market.fromDate)} close to ${fmtDay(post.market.toDate)}` : undefined}
       >
-        {post.market ? <Delta value={post.market.pct} className="text-[14px]" /> : <span className="text-[12.5px] text-oa-muted-fg">n/a</span>}
+        {/* No session since the post yet: the cell stays empty rather than saying "n/a". */}
+        {post.market ? <Delta value={post.market.pct} className="text-[14px]" /> : null}
       </span>
     </div>
   );
@@ -543,7 +552,7 @@ export function TodayTab({
           >
             {pick.reddit.length ? (
               <div className={scroll}>
-                <RedditList names={pick.reddit} compact />
+                <RedditCards names={pick.reddit} wide={!pair} />
               </div>
             ) : (
               <Empty className="!py-6">Nothing yet.</Empty>

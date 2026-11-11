@@ -29,6 +29,11 @@ const STORE_TIMEOUT_MS = 4000;
 const UPSTREAM_TIMEOUT_MS = 2500;
 // FMP's grey-person "no logo" image (first 16 hex of its SHA-256), same list as the job.
 const PLACEHOLDER_SHAS = new Set(["c7fe0cb0ef5982a3"]);
+// Stored tiles that came out nearly blank (a faint mark lost on white, SOXL's Direxion "x"), by the same short hash.
+// They get the lettered tile instead, so a list never shows an empty square. Add one here when a logo reads blank.
+const BLANK_STORED_SHAS = new Set(["c102515c0096e1b7"]);
+
+const shortSha = (body: Buffer) => createHash("sha256").update(body).digest("hex").slice(0, 16);
 type Tile = { body: Buffer; mime: string; cache: string };
 type Remembered = Tile & { until: number };
 
@@ -149,7 +154,7 @@ async function fetchUpstream(key: string, market: "US" | "IN"): Promise<Tile | n
     if (body.length < 300 || body.length > 200_000) return null;
     const size = pngSize(body);
     if (!size || Math.max(size.width, size.height) < 32) return null;
-    if (PLACEHOLDER_SHAS.has(createHash("sha256").update(body).digest("hex").slice(0, 16))) return null;
+    if (PLACEHOLDER_SHAS.has(shortSha(body))) return null;
     return { body, mime: "image/png", cache: ONE_DAY };
   } catch {
     return null;
@@ -190,7 +195,9 @@ export async function GET(req: NextRequest, { params }: { params: { symbol: stri
       return new NextResponse("Logo store unavailable", { status: 503, headers: { "Cache-Control": "no-store" } });
     }
     if (doc?.status === "ok" && doc.data_b64) {
-      const tile = { body: Buffer.from(doc.data_b64, "base64"), mime: doc.mime || "image/webp", cache: IMMUTABLE };
+      const body = Buffer.from(doc.data_b64, "base64");
+      if (BLANK_STORED_SHAS.has(shortSha(body))) return respond(remember(cacheKey, monogram(key)), "blank");
+      const tile = { body, mime: doc.mime || "image/webp", cache: IMMUTABLE };
       return respond(remember(cacheKey, tile), "store");
     }
     if (doc?.status === "none") return respond(remember(cacheKey, monogram(key)), "none");

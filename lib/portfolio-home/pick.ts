@@ -6,6 +6,7 @@ import { yearlyOf } from "@/lib/goal/bootstrap";
 import type { GoalData } from "@/lib/goal/data";
 import { discounted, HINDSIGHT_DISCOUNT, monthWords } from "@/lib/goal/series";
 import type { InsightTone, TheRead } from "@/lib/insights";
+import { plainLeftOut, signedPct as memoPct } from "@/lib/memo/format";
 import type { MemoPageData } from "@/lib/memo/server";
 import type { IdeasView } from "@/lib/portfolio-ideas/server";
 import type { CallWord } from "@/lib/portfolio-ideas/types";
@@ -74,6 +75,11 @@ export type Noticed = {
   headline?: string;
   /** What the headline leaves out, said once: the line under it on a lead card. Null when the headline says it all. */
   why?: string | null;
+  /**
+   * The finding as a small stock card (owner rule 3): one big figure ("Nov 17", "P/E 31.7", "17%") and one sentence
+   * that says what it means. Null when the finding has no figure of its own; the card then shows the headline.
+   */
+  card?: FindingCard | null;
   /** Where the numbers come from and the day (or instant) they are from, shown beside the evidence. */
   source?: FindingSource | null;
   /** What backs it: one short sentence with the supporting figure or where it comes from. */
@@ -93,6 +99,8 @@ export type Noticed = {
    */
   needsYou?: boolean;
 };
+
+export type FindingCard = { figure: string; sentence: string };
 
 /** "Earnings calendar", as of an instant (ISO) or a day (YYYY-MM-DD); both null when the source has no date. */
 export type FindingSource = { label: string; day: string | null; at: string | null };
@@ -178,6 +186,9 @@ function moveWatch(ticker: string | null | undefined): Noticed["watch"] {
 function memoItem(data: MemoPageData): Noticed | null {
   const memo = data.memo;
   if (!memo.topLine?.trim()) return null;
+  // A stored memo may still say who the figure leaves out as how the sum works; said as a fact, like new ones.
+  const topLine = plainLeftOut(memo.topLine.trim(), "figure");
+  const week = memo.view?.portfolioPct ?? null;
   const through = memo.endDay ? `, written from closes through ${fmtPlanDay(memo.endDay)}` : "";
   const watching = memo.hurt.length;
   const looks = memo.look.length;
@@ -190,9 +201,11 @@ function memoItem(data: MemoPageData): Noticed | null {
     tool: "memo",
     caption: CAPTIONS.memo,
     tone: memo.week?.tone ?? "flat",
-    text: memo.topLine.trim(),
-    headline: firstSentence(memo.topLine).first,
-    why: firstSentence(memo.topLine).rest,
+    text: topLine,
+    headline: firstSentence(topLine).first,
+    why: firstSentence(topLine).rest,
+    // The top line's first sentence, so a partial week still says "Together, eight of nine" and who is left out.
+    card: week !== null ? { figure: memoPct(week), sentence: firstSentence(topLine).first } : null,
     evidence: `From the memo for the week of ${fmtPlanDay(memo.monday)}${through}.${counts}`,
     source: sourceOf("Weekly memo from daily closes", memo.endDay ?? memo.monday),
     ticker: null,
@@ -220,6 +233,13 @@ function xrayItem(view: XrayView): Noticed | null {
     headline: top.ticker === lead ? `${top.name} is ${fmtPct(top.pct)} of ${view.mode === "example" ? "the example" : "your money"} once funds are counted.` : read.headline,
     // The evidence line under it already says how much came through funds.
     why: null,
+    card:
+      top.ticker === lead
+        ? {
+            figure: fmtPct(top.pct),
+            sentence: `${top.name} is ${fmtPct(top.pct)} of ${view.mode === "example" ? "the example" : "your money"} once funds are counted${top.viaFunds > 0 && top.via.length > 0 ? `, ${fmtPct(top.fundPct)} of it through ${joinList(top.via.slice(0, 2).map((slice) => slice.fund))}` : ""}.`,
+          }
+        : null,
     source: sourceOf(view.pricesAsOf ? "Fund holdings from SEC filings, priced at the close" : "Fund holdings from SEC filings, at today's prices", view.pricesAsOf),
     evidence:
       top.viaFunds > 0 && top.via.length > 0
@@ -267,6 +287,13 @@ function earningsItem(view: SeasonView): Noticed | null {
   const others = holdings.length > 1 ? ` ${countWord(holdings.length)} of ${example ? "the example's" : "your"} holdings report in the next six weeks.` : "";
   const share = watch.weight !== null ? `It is ${weightWords(watch.weight)} of ${whose}` : null;
   const only = `the only one of ${example ? "the example's" : "your"} holdings to report in the next six weeks`;
+  const sessionSaid = session ? `${watch.name} reports ${session}` : null;
+  const cardSentence =
+    holdings.length === 1
+      ? `${sessionSaid ? `${sessionSaid}. It is` : `${watch.name} is`} the only one of ${example ? "the example's" : "your"} holdings to report in the next six weeks${watch.weight !== null ? `, and ${weightWords(watch.weight)} of ${whose}` : ""}.`
+      : watch.weight !== null
+        ? `${sessionSaid ? `${sessionSaid}, and at` : "At"} ${weightWords(watch.weight)} of ${whose}${sessionSaid ? " it" : ` ${watch.name}`} is the report that matters most.`
+        : `${sessionSaid ?? `${watch.name} reports that day`}, the report that matters most of the ${countWord(holdings.length).toLowerCase()} coming up.`;
   return {
     id: `earnings-${watch.ticker}`,
     tool: "earnings",
@@ -280,6 +307,7 @@ function earningsItem(view: SeasonView): Noticed | null {
           ? `${share}, and ${only}.`
           : `It is ${only}.`
         : `Of the holdings reporting soon, its report matters most${share ? `: it is ${weightWords(watch.weight!)} of ${whose}` : ""}.`,
+    card: { figure: fmtPlanDay(watch.next.date), sentence: cardSentence },
     source: sourceOf("Earnings calendar", view.asOf),
     evidence: `${past}${others}`,
     ticker: watch.ticker,
@@ -339,6 +367,9 @@ function stressItem(view: StressView): Noticed | null {
   const lead = read.headlineTickers?.[0] ?? null;
   // The line starts with the ticker (the read draws it as a logo and name); in plain evidence text, the name reads better.
   const driverText = driver ? (driver.leadName && driver.text.startsWith(`${driver.tickers?.[0]} `) ? `${driver.leadName}${driver.text.slice(driver.tickers![0]!.length)}` : driver.text) : null;
+  const worst = view.result?.episodes
+    .filter((item) => item.episode.kind === "fall" && item.portfolio !== null && item.market !== null)
+    .sort((a, b) => a.portfolio! - b.portfolio!)[0];
   return {
     id: "stress-worst",
     tool: "stress",
@@ -347,6 +378,7 @@ function stressItem(view: StressView): Noticed | null {
     text: read.headline,
     headline: read.headline,
     why: driverText,
+    card: worst ? { figure: stressPct(worst.portfolio), sentence: read.headline } : null,
     evidence: together?.text ?? null,
     source: sourceOf("Daily closes for the holdings and the S&P 500", view.history?.last),
     ticker: lead,
@@ -402,6 +434,7 @@ function ideasItem(view: IdeasView): Noticed | null {
       text: trim.sentence,
       headline,
       why,
+      card: before ? { figure: before, sentence: why ? `${headline} ${why}` : headline } : null,
       evidence: evidence || null,
       source,
       ticker: trim.ticker,
@@ -421,6 +454,7 @@ function ideasItem(view: IdeasView): Noticed | null {
       caption: CAPTIONS.ideas,
       tone: "down",
       text: `${loss.name} sits ${usd(loss.loss)} below ${example ? "what was paid" : "what you paid"}.`,
+      card: { figure: usd(loss.loss), sentence: `${loss.name} sits that far below ${example ? "what was paid" : "what you paid"}, so selling it would book a loss for tax.` },
       evidence:
         [
           look ? `${look.name} is a similar ${look.fund ? "fund" : "company"} to hold meanwhile, so selling for the tax would not leave the money idle.` : null,
@@ -457,6 +491,39 @@ const capital = (text: string): string => text.charAt(0).toUpperCase() + text.sl
 
 const VERDICT_PHRASE: Record<Verdict, string> = { holds: "still holds", weaker: "is weaker", broken: "looks broken", played_out: "has played out" };
 
+const oneDecimal = (value: number) => value.toFixed(1).replace(/\.0$/, "");
+
+const VERDICT_FIGURE: Record<Verdict, string> = { holds: "Holds", weaker: "Weaker", broken: "Broken", played_out: "Played out" };
+
+/**
+ * A reason finding as a card: the figure behind the verdict ("P/E 31.7" for a stock that is no longer cheap,
+ * "+24%" for a trade that reached its target), else the verdict in a word, with one sentence on what changed.
+ */
+function reasonCard(check: ReasonsSource["checks"][number], example: boolean, others: number): FindingCard {
+  const bought = example ? "what it was bought for" : "what you bought it for";
+  const done = check.verdict === "played_out" ? check.signals.find((signal) => signal.level === "done") : null;
+  const more = others > 0 ? ` ${others === 1 ? "One other reason needs" : `${capital(countWord(others))} other reasons need`} a look too.` : "";
+  if (done?.id === "no_longer_cheap" && typeof done.data.pe === "number" && typeof done.data.pe_percentile_pct === "number") {
+    const median = typeof done.data.pe_median === "number" ? `, and half the time it has been below ${oneDecimal(done.data.pe_median)}` : "";
+    return {
+      figure: `P/E ${oneDecimal(done.data.pe)}`,
+      sentence: `${check.ticker} has done ${bought}: it is no longer cheap, with a P/E higher than on ${Math.round(done.data.pe_percentile_pct)}% of past days${median}.${more}`,
+    };
+  }
+  if (done?.id === "trade_target" && typeof done.data.move_pct === "number") {
+    const move = done.data.move_pct;
+    return {
+      figure: `${move >= 0 ? "+" : "−"}${oneDecimal(Math.abs(move))}%`,
+      sentence: `${check.ticker} has done ${bought} as a short-term trade.${more}`,
+    };
+  }
+  const signal = check.signals[0]?.text?.trim();
+  return {
+    figure: VERDICT_FIGURE[check.verdict],
+    sentence: `${signal ? signal : `The reason for owning ${check.ticker} ${VERDICT_PHRASE[check.verdict]}.`}${more}`,
+  };
+}
+
 function reasonsItem(source: ReasonsSource, example: boolean): Noticed | null {
   const ranked = [...source.checks].sort((a, b) => VERDICT_RANK[a.verdict] - VERDICT_RANK[b.verdict] || a.ticker.localeCompare(b.ticker));
   const worst = ranked[0];
@@ -473,6 +540,7 @@ function reasonsItem(source: ReasonsSource, example: boolean): Noticed | null {
       // A reason that played out says what changed ("UNH has done what you bought it for: it is no longer cheap…").
       headline: changed?.headline ?? `The reason for owning ${worst.ticker} ${VERDICT_PHRASE[worst.verdict]}.`,
       why: others > 0 ? `${others === 1 ? "One other reason needs" : `${capital(countWord(others))} other reasons need`} a look too.` : null,
+      card: reasonCard(worst, example, others),
       evidence: changed ? changed.rest : (worst.signals[0]?.text ?? null),
       source: worst.signals[0]?.source ? sourceOf(worst.signals[0].source, worst.signals[0].asOf ?? worst.asOf) : worst.asOf ? sourceOf("The reason watcher", worst.asOf) : null,
       ticker: worst.ticker,
@@ -493,6 +561,7 @@ function reasonsItem(source: ReasonsSource, example: boolean): Noticed | null {
       tool: "portfolio",
       caption: "Why you own it",
       tone: "up",
+      card: { figure: `${n} of ${n}`, sentence: example ? `All ${countWord(n).toLowerCase()} reasons in the example still hold.` : `${n === 1 ? "The reason you gave still holds" : `All ${countWord(n).toLowerCase()} reasons you gave still hold`}.` },
       text: example
         ? `All ${n} reasons in the example still hold.`
         : `${n === 1 ? "The reason we checked still holds" : `All ${n} reasons we checked still hold`}.${missing > 0 ? ` ${missing === 1 ? "One holding has" : `${capital(countWord(missing))} holdings have`} no reason yet.` : ""}`,
@@ -593,16 +662,17 @@ export const TOOL_GROUPS: ToolGroup[] = [
   { label: "Act", tools: ["ideas", "taxes"] },
 ];
 
+/** Each tool by the name of its place (owner rule 1: no "See…" or "Plan…" on every row), as in the navigation. */
 export const TOOL_TITLES: Record<ToolId, string> = {
-  portfolio: "See every holding",
-  memo: "Read this week's memo",
-  xray: "See what you really own",
-  earnings: "Plan for earnings season",
-  dividends: "Plan your dividends",
-  goal: "Plan for a goal",
-  stress: "Test it against past crashes",
-  ideas: "Get rebalancing ideas",
-  taxes: "Find losses to sell for tax",
+  portfolio: "Holdings",
+  memo: "Weekly memo",
+  xray: "What you own",
+  earnings: "Earnings season",
+  dividends: "Dividends",
+  goal: "Goal planner",
+  stress: "Stress test",
+  ideas: "Rebalancing ideas",
+  taxes: "Taxes",
 };
 
 /** Which source a tool's figure comes from, so a card can wait for that one only and say plainly when it is slow. */
@@ -643,7 +713,7 @@ function figureFor(id: ToolId, sources: Partial<HomeSources>, mode: HomeMode): P
       const left = goal.unvalued.length;
       return {
         figure: usd(goal.portfolioValue),
-        detail: `What ${example ? "the example's holdings are" : "your holdings are"} worth${goal.pricesAsOf ? ` at the ${fmtPlanDay(goal.pricesAsOf)} close` : ""}${left > 0 ? `, leaving out ${left} without a share count` : ""}.`,
+        detail: `${example ? "The example's" : "Your"} holdings${goal.pricesAsOf ? ` at the ${fmtPlanDay(goal.pricesAsOf)} close` : ""}${left > 0 ? `, leaving out ${left} without a share count` : ""}.`,
       };
     }
     case "memo": {
@@ -668,7 +738,8 @@ function figureFor(id: ToolId, sources: Partial<HomeSources>, mode: HomeMode): P
       if (!xray.funds.some((fund) => fund.status === "ok") || !top) {
         return { figure: null, detail: xray.funds.length === 0 ? `None of ${your} holdings is a fund, so there is nothing hidden to add up.` : "We cannot see inside these funds yet." };
       }
-      return { figure: `${top.name} ${fmtPct(top.pct)}`, detail: `The biggest company in ${your} money once funds are opened up.` };
+      // The ticker, not the name: a long company name would wrap the figure (owner rule 3, tickers only).
+      return { figure: `${top.ticker} ${fmtPct(top.pct)}`, detail: "The biggest company once funds are counted." };
     }
     case "earnings": {
       const season = ready(sources.season)?.season;
@@ -694,7 +765,7 @@ function figureFor(id: ToolId, sources: Partial<HomeSources>, mode: HomeMode): P
       if (yearly === null) return null;
       return {
         figure: `${(yearly * 100).toFixed(1)}% a year`,
-        detail: `The yearly return the planner starts from for ${your} holdings, before inflation, based on how they did since ${monthWords(goal.span.first)}.`,
+        detail: `Before inflation, from how ${your} holdings did since ${monthWords(goal.span.first)}.`,
       };
     }
     case "stress": {

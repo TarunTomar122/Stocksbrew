@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { isLogoKey, logoFallbackColor, logoInitials, logoKey, logoSrc } from "@/lib/stock-logo-sources";
+import { isLogoKey, LOGO_FALLBACK_INK, logoFallbackColor, logoInitials, logoKey, logoSrc } from "@/lib/stock-logo-sources";
 
 type Props = {
   ticker: string;
@@ -42,7 +42,7 @@ export function StockLogo({
   className = "",
   market = "US",
   fallbackBg,
-  fallbackFg = "#ffffff",
+  fallbackFg = LOGO_FALLBACK_INK,
   eager = false,
   circle = false,
   labelled = false,
@@ -66,7 +66,8 @@ export function StockLogo({
     const initials = logoInitials(upper);
     return (
       <span
-        className={`flex shrink-0 items-center justify-center ${shape} font-semibold ${className}`}
+        // The kit's monogram, the same tile the server draws (lib/stock-logo-sources.ts): never an empty square.
+        className={`oa-mono flex shrink-0 items-center justify-center ${shape} font-semibold tracking-[-0.02em] ${className}`}
         style={{
           width: dim,
           height: dim,

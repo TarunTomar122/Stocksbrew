@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { buildMemo, ruleTopLine } from "./build";
-import { buildFacts, money, pct, weekPerformance } from "./facts";
+import { buildFacts, callFlip, money, pct, weekdaysBetween, weekPerformance } from "./facts";
 import type { DailySeries, MemoHolding, MemoInputs } from "./types";
 import { addDays, memoWeekFor, mondayOfKey, weekKey } from "./week";
 import { applyWording, evidenceFor, keepSupported, rejectSentence, unsupportedNumber, wordingPayload } from "./word";
@@ -275,10 +275,10 @@ describe("quality-pass fixes", () => {
     const { memo, chosen } = buildMemo(inputs({ holdings }));
     // "Together": one figure for the group, and the holding left out is named with why.
     expect(chosen.find((fact) => fact.kind === "performance")!.text).toBe(
-      "Together, three of your four holdings are up 1.7% so far this week, through Tuesday's close, against a 1.0% rise in the S&P 500. Exxon Mobil is left out because it has no share count.",
+      "Together, three of your four holdings are up 1.7% so far this week, through Tuesday's close, against a 1.0% rise in the S&P 500. Exxon Mobil isn't in this week's figure: it has no share count.",
     );
     expect(memo.topLine.startsWith("Together, three of your four holdings are up 1.7%")).toBe(true);
-    expect(memo.topLine).toContain("Exxon Mobil is left out because it has no share count.");
+    expect(memo.topLine).toContain("Exxon Mobil isn't in this week's figure: it has no share count.");
     expect(memo.changed.some((item) => item.kind === "performance")).toBe(false);
   });
 
@@ -288,7 +288,7 @@ describe("quality-pass fixes", () => {
     const holdings = [...HOLDINGS, { ticker: "VOO", name: "Vanguard S&P 500 ETF", instrumentId: "US_VOO", units: 5, fund: true, covered: true }];
     const base = inputs({ holdings });
     const built = buildMemo({ ...base, series: new Map([...base.series, ["VOO", early]]) });
-    expect(built.memo.topLine).toContain("Vanguard S&P 500 ETF is left out because its prices stop at Monday's close.");
+    expect(built.memo.topLine).toContain("Vanguard S&P 500 ETF isn't in this week's figure: we have no prices for it after Monday.");
     expect(built.topLineMustSay).toEqual(["Together", "Vanguard S&P 500 ETF"]);
     // A reworded top line that loses the holding left out is not used.
     const { memo } = applyWording(built, {
@@ -407,5 +407,61 @@ describe("callReason", () => {
     expect(callReason(row, { to: "Hold", text: null, date: "2026-11-09" }, "2026-11-11")).toBe(row.call_reason);
     expect(callReason(row, { to: "Hold", text: null, date: "2026-10-29" }, "2026-11-11")).toBeNull();
     expect(callReason(row, { to: "Add", text: "Hold here.", date: "2026-11-09" }, "2026-11-11")).toBeNull();
+  });
+});
+
+/* ── calls stay put (owner rule 9) ───────────────────────────────────────── */
+
+describe("call flips", () => {
+  it("marks a skipped step, a reversal within five sessions and two changes in a week", () => {
+    expect(callFlip({ from: "Trim", to: "Add" }, [{ date: "2026-11-09", from: "Trim", to: "Add" }], 1)).toBe("skip");
+    expect(callFlip({ from: "Hold", to: "Add" }, [{ date: "2026-11-09", from: "Hold", to: "Add" }], 1)).toBeNull();
+    // Keep to Sell some on Thursday, back to Keep on Monday: three sessions apart.
+    const back = [
+      { date: "2026-11-05", from: "Hold" as const, to: "Trim" as const },
+      { date: "2026-11-09", from: "Trim" as const, to: "Hold" as const },
+    ];
+    expect(callFlip({ from: "Trim", to: "Hold" }, back, 1)).toBe("reversal");
+    // The same change after a month is a call that moved on, not a flip.
+    expect(callFlip({ from: "Trim", to: "Hold" }, [{ ...back[0]!, date: "2026-10-09" }, back[1]!], 1)).toBeNull();
+    // Two steps the same way is not a reversal.
+    expect(callFlip({ from: "Hold", to: "Add" }, [{ date: "2026-11-05", from: "Trim", to: "Hold" }, { date: "2026-11-09", from: "Hold", to: "Add" }], 1)).toBeNull();
+    expect(callFlip({ from: "Hold", to: "Add" }, [], 2)).toBe("twice");
+    expect(weekdaysBetween("2026-11-06", "2026-11-09")).toBe(1);
+  });
+
+  it("says a flip as the call it is now, never the sale it came from", () => {
+    const { facts } = buildFacts(inputs({ calls: [{ ticker: "AAPL", date: "2026-11-09", from: "Trim", to: "Add", text: null }] }));
+    const fact = facts.find((row) => row.kind === "call")!;
+    expect(fact.text).toBe('Our call on Apple changed to "Buy more" on Monday, Nov 9.');
+    expect(fact.text).not.toContain("Sell some");
+    expect(fact.card?.label).toBe("on Apple, since Monday");
+    expect(fact.data.from).toBeUndefined();
+    const view = buildMemo(inputs({ calls: [{ ticker: "AAPL", date: "2026-11-09", from: "Trim", to: "Add", text: null }] })).memo.view!;
+    expect(view.calls[0]).toMatchObject({ ticker: "AAPL", to: "Add", flip: "skip" });
+  });
+
+  it("catches a change that undoes one from the week before", () => {
+    const view = buildMemo(
+      inputs({
+        calls: [
+          { ticker: "JPM", date: "2026-11-05", from: "Add", to: "Hold", text: null },
+          { ticker: "JPM", date: "2026-11-09", from: "Hold", to: "Add", text: null },
+        ],
+      }),
+    ).memo.view!;
+    expect(view.calls).toEqual([expect.objectContaining({ ticker: "JPM", from: "Hold", to: "Add", flip: "reversal" })]);
+  });
+
+  it("keeps the latest call when it changed twice in the week", () => {
+    const view = buildMemo(
+      inputs({
+        calls: [
+          { ticker: "NVDA", date: "2026-11-09", from: "Hold", to: "Add", text: null },
+          { ticker: "NVDA", date: "2026-11-10", from: "Add", to: "Trim", text: null },
+        ],
+      }),
+    ).memo.view!;
+    expect(view.calls).toEqual([expect.objectContaining({ ticker: "NVDA", from: "Hold", to: "Trim", date: "2026-11-10", flip: "twice" })]);
   });
 });

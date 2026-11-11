@@ -141,7 +141,8 @@ function checkedOf(run: StoredCheck, trigger: AgentTrigger | undefined, watched:
   const say = wordsFor(audience);
   const these = audience === "example" ? "these" : "your";
   if (trigger?.type === "event" && trigger.event === "earnings_approaching") {
-    return `The earnings calendar for ${watched > 0 ? `the ${stocksWord(watched)}` : `${audience === "example" ? "these" : "your"} stocks`}, ${trigger.days_before ?? 3} calendar days ahead.`;
+    const days = trigger.days_before ?? 3;
+    return `Report dates for ${watched > 0 ? `the ${stocksWord(watched)}` : `${audience === "example" ? "these" : "your"} stocks`} over the next ${days === 1 ? "day" : `${days} days`}.`;
   }
   if (trigger?.type === "price") {
     const priced = run.counts?.priced ?? null;
@@ -152,15 +153,15 @@ function checkedOf(run: StoredCheck, trigger: AgentTrigger | undefined, watched:
         : priced == null || priced === names
           ? `the ${stocksWord(names)}`
           : `${countWord(priced).toLowerCase()} of the ${stocksWord(names)}`;
-    return run.latest_close ? `Closing prices for ${which}, the latest from ${shortDate(run.latest_close)}.` : `Closing prices for ${which}.`;
+    return run.latest_close ? `${shortDate(run.latest_close)} closing prices for ${which}.` : `Closing prices for ${which}.`;
   }
   if (trigger?.type === "event" && trigger.event === "sec_filing") {
     const all = /^SEC filings from (.+?): (\d+) filings? across/.exec(run.checked[0] ?? "");
     const mine = /, (\d+) filings? from them/.exec(run.checked[1] ?? "");
     if (all && mine) {
-      const own = Number(mine[1]);
-      // A watchlist rule's own count of stocks is not stored; without one the sentence says "your stocks".
-      return `Every SEC filing from ${all[1]}: ${all[2]} across the companies we cover, ${own === 0 ? "none" : own} from ${watched > 0 ? `${these} ${stocksWord(watched)}` : `${these} stocks`}.`;
+      // What was checked, not how many filings the whole market made (owner rule 8). A watchlist rule's own count
+      // of stocks is not stored; without one the sentence says "your stocks".
+      return `SEC filings from ${all[1]} for ${watched > 0 ? `${these} ${stocksWord(watched)}` : `${these} stocks`}.`;
     }
     return `New SEC filings from ${these} stocks.`;
   }

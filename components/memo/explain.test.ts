@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MemoItem } from "@/lib/memo/types";
-import { callReasonText, explainCall, explainDays, explainMover, plainFootnote } from "./explain";
+import { callReasonText, explainCall, explainDays, explainMover, hasReason, plainFootnote } from "./explain";
 
 function item(over: Partial<MemoItem>): MemoItem {
   return { id: "x", kind: "move", text: "", href: "/stock/NVDA", linkLabel: "Why it moved", tone: "down", tickers: ["NVDA"], source: "Researched move explanations", asOf: "2026-11-09", ...over };
@@ -47,13 +47,17 @@ describe("memo explanations", () => {
     expect(callReasonText(`Our call on Apple moved from Sell some to Buy more on Monday, Nov 9. "Margins keep widening."`)).toBe("Margins keep widening.");
     expect(callReasonText("Our call on Apple moved from Sell some to Buy more on Monday, Nov 9.")).toBeNull();
     expect(callReasonText("Something else entirely.")).toBe("Something else entirely.");
+    // A flip's line names only the call it is now (lib/memo/facts.ts).
+    expect(callReasonText('Our call on Apple changed to "Buy more" on Monday, Nov 9.')).toBeNull();
+    expect(callReasonText('Our call on Apple changed to "Buy more" on Monday, Nov 9. "Margins keep widening."')).toBe("Margins keep widening.");
+    expect(hasReason({ asOf: "2026-11-09", text: 'Our call on Apple changed to "Buy more" on Monday, Nov 9.' })).toBe(false);
   });
 
   it("says the chart note as a fact about the comparison", () => {
     expect(plainFootnote("Vanguard S&P 500 ETF is left out because its prices stop at Monday's close.")).toBe(
-      "Vanguard S&P 500 ETF isn't in this week's line: we have no prices for it after Monday's close.",
+      "Vanguard S&P 500 ETF isn't in this week's line: we have no prices for it after Monday.",
     );
-    expect(plainFootnote("Coca-Cola is left out because its prices stop at the Nov 6 close.")).toBe("Coca-Cola isn't in this week's line: we have no prices for it after the Nov 6 close.");
+    expect(plainFootnote("Coca-Cola is left out because its prices stop at the Nov 6 close.")).toBe("Coca-Cola isn't in this week's line: we have no prices for it after Nov 6.");
     expect(plainFootnote("Exxon Mobil and Visa are left out because they have no share count.")).toBe("Exxon Mobil and Visa aren't in this week's line: they have no share count.");
     expect(plainFootnote("Anything else.")).toBe("Anything else.");
   });

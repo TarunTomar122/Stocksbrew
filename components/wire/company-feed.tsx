@@ -1,9 +1,8 @@
 import Link from "next/link";
 
 import { CardGrid, Delta, Empty, FOCUS, Ticker } from "@/components/oa/kit";
-import { HeadlineLine, ToneBar } from "@/components/wire/news-read";
+import { HeadlineLine, ToneBar, leanWords } from "@/components/wire/news-read";
 import type { CompanyGroup } from "@/lib/wire-companies";
-import { totalOf } from "@/lib/wire-read";
 import { WIRE_PAGE_SIZE, wireHref, type WireFilters } from "@/lib/wire-shared";
 
 /**
@@ -25,9 +24,10 @@ function CompanyCard({ group, filters }: { group: CompanyGroup; filters: WireFil
         <Ticker symbol={group.ticker} name={group.name} size={22} className="relative z-10 min-w-0" />
         {group.pct !== null ? <Delta value={group.pct} digits={1} className="shrink-0 text-[14px] font-medium" /> : null}
       </header>
-      {totalOf(group.tones) > 0 ? (
+      {/* The tone only when the news clearly leans; a card whose news doesn't lean says nothing about it (owner rule 1). */}
+      {leanWords(group.tones) ? (
         <div className="flex min-h-9 items-center border-b border-oa-border bg-oa-bg px-4 py-1.5">
-          <ToneBar counts={group.tones} showWord />
+          <ToneBar counts={group.tones} />
         </div>
       ) : null}
       {/* No footer count: the tone above is the card's one figure (owner rule 5), and the card itself opens the rest. */}

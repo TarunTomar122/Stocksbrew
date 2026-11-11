@@ -233,8 +233,15 @@ export type MemoMover = {
   href: string;
 };
 
-/** A call that ended the week different from how it started. */
-export type MemoCallChange = { ticker: string; name: string; from: CallWord; to: CallWord; date: string };
+/**
+ * Why a call change cannot be shown as a plain "was X" (owner rule 9: calls stay put): it skipped a step (Sell some
+ * to Buy more), it undid a change made within the five sessions before it, or the call changed more than once this
+ * week. lib/memo/view.ts callShows says what such a change shows.
+ */
+export type CallFlip = "skip" | "reversal" | "twice";
+
+/** A call that ended the week different from how it started. `flip` is missing on memos stored before it existed. */
+export type MemoCallChange = { ticker: string; name: string; from: CallWord; to: CallWord; date: string; flip?: CallFlip | null };
 
 /**
  * What the visual page draws, kept with the memo so a stored week shows the

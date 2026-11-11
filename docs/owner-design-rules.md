@@ -37,6 +37,11 @@ The rule the owner has repeated most, and is angriest about: "repeating the same
 - Every ticker in a list, table or alert shows its logo, and logos load at once.
 - No decorative bars where the number already says it. Tone summaries use one figure ("75% negative"), not two counts.
 
+## 5b. Emails
+
+- No list of every other stock ("the rest of your stocks" chips): "remove the rest part, it's too crowded and useless for an email." An email shows only what happened that matters, then one button to the app.
+- Tile grids fill every row on phone and desktop (no lone tile beside an empty slot).
+
 ## 6. Visual style
 
 - No coloured top borders on cards: "I simply don't like top borders."

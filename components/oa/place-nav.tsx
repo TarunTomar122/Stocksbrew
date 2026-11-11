@@ -13,8 +13,8 @@ const FOCUS =
 /**
  * Below lg: the pages of the place you are in, under the top bar. The page
  * you are on comes first (filled), then as many of the next pages as fit
- * whole, then a "More" button that opens every page of the place with its
- * icon. Pills never get cut off: a pill that does not fit wraps onto a
+ * whole, then a plain "More" chip (no chevron) right after the last of them that opens every page of the place with
+ * its icon. Pills never get cut off: a pill that does not fit wraps onto a
  * hidden second line. Places with one page get nothing.
  */
 export function PlaceStrip() {
@@ -30,26 +30,61 @@ export function PlaceStrip() {
   // How many pills sit on the visible line. Until it is measured, a guess from the label lengths, so the server's
   // HTML already leaves "More" out where every pill fits.
   const [shown, setShown] = React.useState(() => guessShown(pills));
+  // The pill row's width once some pills do not fit: just the pills on its first line, so "More" follows the last
+  // one instead of sitting at the far edge past a gap (owner rule 4). Null while every pill fits.
+  const [rowWidth, setRowWidth] = React.useState<number | null>(null);
+  const strip = React.useRef<HTMLElement>(null);
+  // "More"'s width, kept from the last time it was drawn; a guess before then.
+  const moreWidth = React.useRef(64);
 
-  // Which pills fit: the row wraps, so a pill that does not fit starts a second line, which the row's fixed height
-  // hides. Count those on the first line and take the rest out of the tab order too.
+  // Which pills fit, from the strip's own width (never the row's, which this sets): every pill when they all fit;
+  // otherwise as many whole pills as fit beside "More". The rest wrap onto a second line the row's fixed height
+  // hides, and leave the tab order too.
   const measure = React.useCallback(() => {
+    const nav = strip.current;
     const container = row.current;
-    if (!container) return;
-    const links = Array.from(container.children) as HTMLElement[];
-    const top = links[0]?.offsetTop ?? 0;
-    const fit = links.filter((link) => link.offsetTop === top).length;
+    if (!nav || !container) return;
+    if (button.current) moreWidth.current = button.current.offsetWidth;
+    const navStyle = getComputedStyle(nav);
+    const rowStyle = getComputedStyle(container);
+    const gap = parseFloat(rowStyle.columnGap) || 0;
+    const inset = (parseFloat(rowStyle.paddingLeft) || 0) + (parseFloat(rowStyle.paddingRight) || 0);
+    const available = nav.clientWidth - (parseFloat(navStyle.paddingLeft) || 0) - (parseFloat(navStyle.paddingRight) || 0);
+    const widths = (Array.from(container.children) as HTMLElement[]).map((link) => link.offsetWidth);
+    const total = widths.reduce((sum, width) => sum + width, 0) + gap * Math.max(0, widths.length - 1) + inset;
+    if (total <= available) {
+      setShown((prev) => (prev === widths.length ? prev : widths.length));
+      setRowWidth(null);
+      return;
+    }
+    const room = available - moreWidth.current - (parseFloat(navStyle.columnGap) || 0) - inset;
+    let used = 0;
+    let fit = 0;
+    for (const width of widths) {
+      const next = used + (fit > 0 ? gap : 0) + width;
+      if (next > room) break;
+      used = next;
+      fit += 1;
+    }
+    // The page you are on always shows, cut to the room there is if it must be.
+    if (fit === 0) {
+      fit = 1;
+      used = Math.min(widths[0] ?? 0, Math.max(0, room));
+    }
     setShown((prev) => (prev === fit ? prev : fit));
+    // A pixel of slack, so rounding never pushes the last pill onto the hidden line.
+    const width = Math.ceil(used + inset) + 1;
+    setRowWidth((prev) => (prev === width ? prev : width));
   }, []);
 
   useIsoLayoutEffect(() => {
-    const container = row.current;
-    if (!container) return;
+    const nav = strip.current;
+    if (!nav) return;
     measure();
     let live = true;
     document.fonts?.ready.then(() => live && measure()).catch(() => undefined);
     const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
-    observer?.observe(container);
+    observer?.observe(nav);
     return () => {
       live = false;
       observer?.disconnect();
@@ -84,6 +119,10 @@ export function PlaceStrip() {
   }, [open]);
 
   const everyPillFits = shown >= pills.length;
+  // "More" just appeared: measure again with its real width rather than the guess.
+  useIsoLayoutEffect(() => {
+    if (!everyPillFits) measure();
+  }, [everyPillFits, measure]);
   // The row grew (a phone turned sideways) until every pill fits: "More" goes, and its menu with it.
   React.useEffect(() => {
     if (everyPillFits) setOpen(false);
@@ -93,6 +132,7 @@ export function PlaceStrip() {
   const menuOpen = open && !everyPillFits;
   return (
     <nav
+      ref={strip}
       aria-label={place.label}
       className="oa-place-strip relative z-30 flex items-center gap-1.5 border-b border-oa-border bg-oa-page px-3 py-1.5 lg:hidden"
       // Tabbing out of the open menu closes it, the way a tap outside does. (A null target is a tap, which Safari
@@ -102,7 +142,11 @@ export function PlaceStrip() {
         if (menuOpen && next && !event.currentTarget.contains(next)) setOpen(false);
       }}
     >
-      <div ref={row} className="flex h-9 min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-4 overflow-hidden p-0.5">
+      <div
+        ref={row}
+        className={`flex h-9 min-w-0 flex-wrap items-center gap-x-1.5 gap-y-4 overflow-hidden p-0.5 ${rowWidth === null || everyPillFits ? "flex-1" : "flex-initial"}`}
+        style={rowWidth === null || everyPillFits ? undefined : { width: rowWidth }}
+      >
         {pills.map((item, index) => {
           const on = item === current;
           const exact = on && pathname === item.href;
@@ -132,25 +176,12 @@ export function PlaceStrip() {
           aria-expanded={menuOpen}
           aria-controls={menuOpen ? menuId : undefined}
           onClick={() => setOpen((value) => !value)}
-          className={`flex h-8 shrink-0 items-center gap-1 rounded-full border px-3 text-[14px] font-medium transition-colors ${FOCUS} ${
+          className={`flex h-8 shrink-0 items-center rounded-full border px-3 text-[14px] font-medium transition-colors ${FOCUS} ${
             menuOpen ? "border-oa-fg bg-oa-accent text-oa-fg" : "border-oa-border bg-oa-card text-oa-fg hover:bg-oa-accent"
           }`}
         >
+          {/* Plain words, no chevron (owner rule 1): the chip's pressed look says the menu is open. */}
           More<span className="sr-only"> pages in {place.label}</span>
-          <svg
-            aria-hidden="true"
-            viewBox="0 0 16 16"
-            width="14"
-            height="14"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={`transition-transform motion-reduce:transition-none ${menuOpen ? "rotate-180" : ""}`}
-          >
-            <path d="M3.5 6 8 10.5 12.5 6" />
-          </svg>
         </button>
       )}
       {menuOpen ? (
@@ -200,7 +231,7 @@ function guessShown(pills: NavItem[]): number {
   const room = 390 - 24 - 4;
   const all = pills.reduce((sum, item) => sum + pill(item), 0);
   if (all <= room) return pills.length;
-  let used = 80; // "More"
+  let used = 64; // the "More" chip
   let count = 0;
   for (const item of pills) {
     used += pill(item);

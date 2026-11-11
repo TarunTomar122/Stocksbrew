@@ -259,9 +259,10 @@ export function exampleWatchLine(input: { plan: WatchPlan | null; ticker: string
   const named = run.decision === "notify" && (run.tickers ?? []).some((one) => one.toUpperCase() === symbol);
   // Recent: news, with a link to the check. Older (the runner missed a day): still said, but not as news.
   if (named && run.day >= previousMarketDay(today)) return { text: `An agent flagged this for the example on ${day}.`, link: { label: "See its check", href: "#agents-head" }, fired: true };
-  if (named) return { text: `An agent watches this for the example. It flagged it on ${day}.`, link: null, fired: false };
-  // Short on purpose: it sits under every finding it covers. A run that flagged other stocks found nothing on this one.
-  const outcome =
-    run.decision === "could_not_check" ? `It could not check on ${day}.` : `Its ${day} check found nothing${run.decision === "notify" ? ` on ${symbol}` : ""}.`;
-  return { text: `An agent watches this for the example. ${outcome}`, link: null, fired: false };
+  if (named) return { text: `An agent flagged this for the example on ${day}.`, link: null, fired: false };
+  // Short on purpose: what was checked and what it found, nothing about how the watch works (owner rule 8). A run
+  // that flagged other stocks found nothing on this one.
+  if (run.decision === "could_not_check") return { text: `An agent tried to check ${symbol} on ${day} and couldn't.`, link: null, fired: false };
+  // Named, so two cards never carry the same sentence (owner rule 1).
+  return { text: `An agent checked ${symbol} on ${day} and found nothing new.`, link: null, fired: false };
 }

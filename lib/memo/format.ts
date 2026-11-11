@@ -84,3 +84,28 @@ export function niceTicks(low: number, high: number, target = 4, minSpan = 1): n
   if (ticks[ticks.length - 1]! < hi - 1e-9) ticks.push(round(ticks[ticks.length - 1]! + step, 6));
   return ticks;
 }
+
+/**
+ * Memos stored before the wording changed say who the week's figure leaves out as how the sum works ("Vanguard S&P 500
+ * ETF is left out because its prices stop at Monday's close."). This says it as lib/memo/facts.ts leftOutSentence now
+ * does, so stored and new memos read the same: "Vanguard S&P 500 ETF isn't in this week's line: we have no prices for
+ * it after Monday." Works on a whole paragraph (a top line) as well as on the sentence alone; other text is unchanged.
+ */
+export function plainLeftOut(text: string, where: "line" | "figure" = "line"): string {
+  const what = `this week's ${where}`;
+  // Only the words after the name change, so a name with a dot in it ("Amazon.com") is kept whole.
+  const rules: Array<[RegExp, string]> = [
+    [/ is left out because its prices stop at ([A-Z][a-z]+day)'s close\./g, ` isn't in ${what}: we have no prices for it after $1.`],
+    [/ is left out because its prices stop at the ([A-Z][a-z]{2} \d{1,2}) close\./g, ` isn't in ${what}: we have no prices for it after $1.`],
+    [/ is left out because it has no share count\./g, ` isn't in ${what}: it has no share count.`],
+    [/ is left out because we have no closes for it this week\./g, ` isn't in ${what}: we have no prices for it this week.`],
+    [/ are left out because they have no share count\./g, ` aren't in ${what}: they have no share count.`],
+    [/ are left out because we do not have all of this week's closes for them\./g, ` aren't in ${what}: we don't have all of this week's prices for them.`],
+    [/ are left out for want of a share count or this week's closes\./g, ` aren't in ${what}: some have no share count and some lack this week's prices.`],
+    // The page's own earlier rewrite of the chart note, said the new way too.
+    [/ isn't in this week's line: we have no prices for it after ([A-Z][a-z]+day)'s close\./g, ` isn't in ${what}: we have no prices for it after $1.`],
+  ];
+  let out = text;
+  for (const [pattern, words] of rules) out = out.replace(pattern, words);
+  return out;
+}

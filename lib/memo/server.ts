@@ -90,9 +90,9 @@ async function exampleMemosUncached(_day: string, worded = true): Promise<Memo[]
   return Promise.all(weeks.map((week, index) => writeMemo(source, week, current.today, current.series, events, index === 0 ? shape : NO_SHAPE, now, worded)));
 }
 
-const exampleMemosCached = unstable_cache((day: string) => exampleMemosUncached(day), ["portfolio-memo-example-v11"], { revalidate: 6 * 3600 });
+const exampleMemosCached = unstable_cache((day: string) => exampleMemosUncached(day), ["portfolio-memo-example-v13"], { revalidate: 6 * 3600 });
 /** The same example from the memo's rules only, never the model: for pages that must not start a model call on load. */
-const exampleMemosRulesCached = unstable_cache((day: string) => exampleMemosUncached(day, false), ["portfolio-memo-example-rules-v4"], { revalidate: 6 * 3600 });
+const exampleMemosRulesCached = unstable_cache((day: string) => exampleMemosUncached(day, false), ["portfolio-memo-example-rules-v6"], { revalidate: 6 * 3600 });
 
 export type MemoPageData = {
   mode: "mine" | "example";

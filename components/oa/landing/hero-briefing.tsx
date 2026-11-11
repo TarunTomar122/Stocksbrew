@@ -13,6 +13,7 @@ import { getPowerTradesCached, type PowerTrade } from "@/lib/power-trades";
 import { isFeaturedStockTicker } from "@/lib/seo/stock-pages";
 import { getStockFacts, getStockIntelligenceDoc } from "@/lib/stock";
 import { callWord } from "@/lib/stock-chart";
+import { ownCallLevel } from "@/lib/call-level";
 import { getScreenerRows } from "@/lib/screener";
 import { matchingCompanyReason } from "@/lib/stock-read";
 
@@ -60,33 +61,6 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
         {/* Its own line on phones, so "84% above today" never breaks away from the price. */}
         {sub ? <span className="block font-normal text-[13px] leading-5 text-oa-muted-fg sm:ml-1.5 sm:inline sm:text-[15px] sm:leading-6">{sub}</span> : null}
       </p>
-    </div>
-  );
-}
-
-/**
- * Where today's price sits between the price where we'd buy more and the price
- * where we'd sell some: one look says how close it is to either.
- */
-function ZoneBar({ price, add, trim }: { price: number; add: number; trim: number }) {
-  const ZONE = 16; // percent of the track each end zone takes
-  const t = (price - add) / (trim - add);
-  const pos = Math.min(97, Math.max(3, ZONE + t * (100 - 2 * ZONE)));
-  return (
-    <div className="mt-3">
-      <div className="relative h-2.5 rounded-full bg-oa-bg" role="img" aria-label={`Today's price, ${fmtPrice(price)}, between the price where we'd buy more (${fmtWhole(add)}) and where we'd sell some (${fmtWhole(trim)}).`}>
-        <span className="absolute inset-y-0 left-0 rounded-l-full bg-[color-mix(in_srgb,var(--signal-bullish)_35%,transparent)]" style={{ width: `${ZONE}%` }} />
-        <span className="absolute inset-y-0 right-0 rounded-r-full bg-[color-mix(in_srgb,var(--signal-bearish)_35%,transparent)]" style={{ width: `${ZONE}%` }} />
-        <span className="absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-oa-card bg-oa-fg shadow-sm" style={{ left: `${pos}%` }} />
-      </div>
-      <div className="mt-1.5 flex justify-between gap-4 text-[13px] leading-5 text-oa-muted-fg">
-        <span>
-          We&apos;d buy more below <span className="font-medium tabular-nums text-oa-fg">{fmtWhole(add)}</span>
-        </span>
-        <span className="text-right">
-          We&apos;d sell some above <span className="font-medium tabular-nums text-oa-fg">{fmtWhole(trim)}</span>
-        </span>
-      </div>
     </div>
   );
 }
@@ -213,17 +187,13 @@ export async function HeroBriefing() {
   const showcase = isFeaturedStockTicker(anomaly.ticker);
   // A level more than half the price away says little about today; the call engine still sets some that far out.
   const near = (level: number) => anomaly.price > 0 && Math.abs(level - anomaly.price) / anomaly.price <= 0.5;
-  const add = showcase && metrics.accumulate_below != null && near(metrics.accumulate_below) ? metrics.accumulate_below : null;
-  const trim = showcase && metrics.trim_above != null && near(metrics.trim_above) ? metrics.trim_above : null;
-  const zoneBar = add != null && trim != null && trim > add && anomaly.price > 0 ? { add, trim } : null;
-  // Without both levels, the one figure that still says something about the price.
+  // The call shows only its own level (owner rule 8): buy-more on Buy more, sell-some on Sell some, none on Keep.
+  const own = showcase ? ownCallLevel(callWord(featured.directiveV2?.stance), { addBelow: metrics.accumulate_below, trimAbove: metrics.trim_above }) : null;
+  const level = own && near(own.price) ? own : null;
   const stats: { label: string; value: string; sub?: string }[] = [];
-  if (!zoneBar) {
-    if (add != null) stats.push({ label: "We'd buy more below", value: fmtWhole(add), sub: fromHere(add) });
-    if (trim != null) stats.push({ label: "We'd sell some above", value: fmtWhole(trim), sub: fromHere(trim) });
-    if (typeof analystTarget === "number" && analystTarget > 0 && near(analystTarget)) {
-      stats.push({ label: "Price analysts expect, on average", value: fmtWhole(analystTarget), sub: fromHere(analystTarget) });
-    }
+  if (level) stats.push({ label: level.label, value: fmtWhole(level.price), sub: fromHere(level.price) });
+  if (typeof analystTarget === "number" && analystTarget > 0 && near(analystTarget)) {
+    stats.push({ label: "Price analysts expect, on average", value: fmtWhole(analystTarget), sub: fromHere(analystTarget) });
   }
   // No risk/reward ratio here: it is built from our zones, and the call
   // engine's backtests showed no edge we could stand behind on the front page.
@@ -298,7 +268,7 @@ export async function HeroBriefing() {
             </div>
             <p className="mt-2 text-[13px] leading-5 text-oa-muted-fg">It checks {name} every market day and emails you only when something happens.</p>
 
-            {callReason || zoneBar || stats.length > 0 || trade || closes.length > 1 ? (
+            {callReason || stats.length > 0 || trade || closes.length > 1 ? (
               <div className="mt-3.5 border-t border-oa-border pt-3">
                 {callReason ? (
                   <p className="text-pretty text-[14px] leading-[22px] text-oa-fg/85">
@@ -307,16 +277,14 @@ export async function HeroBriefing() {
                     {callReason}
                   </p>
                 ) : null}
-                {zoneBar ? <ZoneBar price={anomaly.price} add={zoneBar.add} trim={zoneBar.trim} /> : null}
                 {stats.length > 0 ? (
-                  <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2.5">
+                  <div className={`mt-3 grid gap-x-4 gap-y-2.5 ${stats.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
                     {stats.map((s) => (
                       <Stat key={s.label} {...s} />
                     ))}
                   </div>
                 ) : null}
-                {/* The price line only when there is no level bar: one picture per card. */}
-                {!zoneBar && closes.length > 1 ? (
+                {closes.length > 1 ? (
                   <div className="mt-2">
                     <Sparkline closes={closes} />
                     <p className="text-[13px] leading-5 text-oa-muted-fg">Price over the last {closes.length >= 80 ? "3 months" : `${closes.length} trading days`}</p>

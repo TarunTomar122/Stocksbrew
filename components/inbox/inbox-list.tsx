@@ -34,6 +34,7 @@ export function InboxList({
   today,
   example,
   initialKind,
+  heading = null,
 }: {
   items: InboxItem[];
   /** The read mark the page was rendered with; null for the example. */
@@ -41,6 +42,8 @@ export function InboxList({
   today: string;
   example: boolean;
   initialKind: InboxKind | null;
+  /** The page's read in one line, when it has no cards of its own: it heads the list instead of a card by itself. */
+  heading?: string | null;
 }) {
   const [kind, setKind] = React.useState<InboxKind | null>(initialKind);
   const [mark, setMark] = React.useState<string | null>(seenAt);
@@ -52,7 +55,10 @@ export function InboxList({
     for (const { kind: k, count } of kindCounts(items)) counts.set(chipOf(k), (counts.get(chipOf(k)) ?? 0) + count);
     return [...counts.entries()].map(([k, count]) => ({ kind: k, count, label: k === "follow" ? "Investors and insiders" : KIND_LABEL[k] }));
   }, [items]);
-  const shown = kind ? items.filter((item) => chipOf(item.kind) === kind) : items;
+  // One kind (or none): no filter row, and no filter left on from the address with no way to clear it.
+  const filtering = chips.length > 1;
+  const active = filtering ? kind : null;
+  const shown = active ? items.filter((item) => chipOf(item.kind) === active) : items;
   const days = groupByDay(shown, today);
   const unread = mark ? items.filter((item) => isUnread(item, mark)).length : 0;
 
@@ -83,39 +89,44 @@ export function InboxList({
 
   return (
     <section aria-label="Inbox" className="oa-surface min-w-0 overflow-hidden border border-oa-border bg-oa-card">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-oa-border px-3 py-2.5 sm:px-4">
-        <div role="group" aria-label="Show" className="scrollbar-hide -mx-1 flex min-w-0 basis-full gap-2 overflow-x-auto px-1 sm:basis-0 sm:flex-1">
-          <button type="button" aria-pressed={kind === null} onClick={() => choose(null)} className={chipClass(kind === null)}>
-            All
-            <span className="oa-mono text-[12.5px] tabular-nums text-oa-muted-fg">{items.length}</span>
-          </button>
-          {chips.length > 1
-            ? chips.map((chip) => (
-                <button key={chip.kind} type="button" aria-pressed={kind === chip.kind} onClick={() => choose(chip.kind)} className={chipClass(kind === chip.kind)}>
+      {heading ? (
+        <h2 className="text-pretty px-4 pb-1 pt-3.5 text-[17px] font-semibold leading-[24px] tracking-[-0.01em] text-oa-fg sm:px-5 sm:text-[19px] sm:leading-[26px]">{heading}</h2>
+      ) : null}
+      {filtering || !example ? (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-oa-border px-3 py-2.5 sm:px-4">
+          {filtering ? (
+            <div role="group" aria-label="Show" className="scrollbar-hide -mx-1 flex min-w-0 basis-full gap-2 overflow-x-auto px-1 sm:basis-0 sm:flex-1">
+              <button type="button" aria-pressed={active === null} onClick={() => choose(null)} className={chipClass(active === null)}>
+                All
+                <span className="oa-mono text-[12.5px] tabular-nums text-oa-muted-fg">{items.length}</span>
+              </button>
+              {chips.map((chip) => (
+                <button key={chip.kind} type="button" aria-pressed={active === chip.kind} onClick={() => choose(chip.kind)} className={chipClass(active === chip.kind)}>
                   {chip.label}
                   <span className="oa-mono text-[12.5px] tabular-nums text-oa-muted-fg">{chip.count}</span>
                 </button>
-              ))
-            : null}
+              ))}
+            </div>
+          ) : null}
+          {!example ? (
+            <div className="ml-auto flex shrink-0 items-center gap-3">
+              {saving === "failed" ? <span className="text-[12.5px] text-oa-muted-fg">That didn&apos;t save. Try again.</span> : null}
+              <button
+                type="button"
+                onClick={markAll}
+                disabled={unread === 0 || saving === "saving"}
+                className={`h-8 rounded-md px-2.5 text-[13.5px] font-medium transition-colors ${FOCUS} ${
+                  unread === 0 ? "cursor-default text-oa-muted-fg" : "text-oa-primary hover:bg-oa-accent"
+                }`}
+              >
+                {unread === 0 ? "All read" : saving === "saving" ? "Marking…" : `Mark all read (${unread})`}
+              </button>
+            </div>
+          ) : null}
         </div>
-        {!example ? (
-          <div className="ml-auto flex shrink-0 items-center gap-3">
-            {saving === "failed" ? <span className="text-[12.5px] text-oa-muted-fg">That didn&apos;t save. Try again.</span> : null}
-            <button
-              type="button"
-              onClick={markAll}
-              disabled={unread === 0 || saving === "saving"}
-              className={`h-8 rounded-md px-2.5 text-[13.5px] font-medium transition-colors ${FOCUS} ${
-                unread === 0 ? "cursor-default text-oa-muted-fg" : "text-oa-primary hover:bg-oa-accent"
-              }`}
-            >
-              {unread === 0 ? "All read" : saving === "saving" ? "Marking…" : `Mark all read (${unread})`}
-            </button>
-          </div>
-        ) : null}
-      </div>
+      ) : null}
       {days.length === 0 ? (
-        <p className="px-4 py-6 text-[14px] text-oa-muted-fg">Nothing of this kind in the last two weeks.</p>
+        <p className="px-4 py-6 text-[14px] text-oa-muted-fg">{active ? "Nothing of this kind in the last two weeks." : "Nothing in the last two weeks."}</p>
       ) : (
         <div className="scrollbar-hide max-h-[min(36rem,calc(100dvh-14rem))] overflow-y-auto overscroll-contain">
           {days.map((group) => (

@@ -106,13 +106,13 @@ describe("the briefing", () => {
     expect(briefingLead([])).toBeNull();
   });
 
-  it("puts the lead's steps on its row and asks about your stocks under the headline", () => {
+  it("puts the lead's steps on its row, and no link words under a headline about the whole session", () => {
     const read: TheRead = {
       headline: "The S&P 500 fell 0.6% as tech dragged.",
       insights: [row("giants"), row("move-1", { tickers: ["HIMS"], action: { label: "Our view on HIMS", href: "/stock/HIMS" } })],
     };
     const out = briefingSteps(read, { mode: "market", lead })!;
-    expect(out.actions).toEqual([{ label: AFFECT_LABEL, href: "/portfolio" }]);
+    expect(out.actions).toBeUndefined();
     const story = out.insights[1]!;
     expect(story.action?.label).toBe("Why did it fall?");
     expect(question(story.action!.href)).toBe("Why did HIMS fall 16.5%?");

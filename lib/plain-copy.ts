@@ -88,6 +88,30 @@ const OWN_NAME_SMALL_WORDS = new Set(["a", "an", "and", "of", "the", "for", "in"
 // Energy", "United Airlines"); a lowercased name reads worse than one capital too many.
 const COMMON_ENDING = /^[a-z]{3,}(?:ing|ments?|tions?|sions?|ness)$|^[a-z]{4,}(?:ed|ly)$/;
 
+// A wire service's desk tag in front of a headline ("Analysis-", "EXCLUSIVE:", "UPDATE 2-", "BREAKINGVIEWS-").
+const SOURCE_TAG =
+  /^(?:analysis|exclusive|update(?:\s*\d+)?|refile|corrected|correction|breakingviews|factbox|explainer|insight|wrapup(?:\s*\d+)?|instant\s+view|fact\s*check)\s*(?:-|–|—|:)\s*/i;
+
+/**
+ * A source headline without the wire desk's tag in front (owner rule 8): "Analysis-Nvidia's clubby board faces a
+ * test" reads "Nvidia's clubby board faces a test", "UPDATE 2-EXCLUSIVE-Apple..." reads "Apple...". The tag needs
+ * its dash or colon, so a headline that starts with the word ("Analysis shows...", "Live Nation") is left alone.
+ */
+export function withoutSourceTag(text: string | null | undefined): string {
+  let value = (text ?? "").trim();
+  let stripped = false;
+  for (let guard = 0; guard < 4; guard += 1) {
+    const tag = SOURCE_TAG.exec(value);
+    // What follows the tag starts a headline: a capital, a figure, a quote or a brand like "eBay" ("Insight-driven"
+    // is a word, not a tag).
+    if (!tag || !/^(?:["“‘'$A-Z0-9]|[a-z][A-Z])/.test(value.slice(tag[0].length))) break;
+    value = value.slice(tag[0].length);
+    stripped = true;
+  }
+  // Only a headline that lost its tag gets a capital, and never a brand that starts lowercase ("eBay", "iPhone").
+  return stripped && value && !/^[a-z][A-Z]/.test(value) ? value.charAt(0).toUpperCase() + value.slice(1) : value;
+}
+
 /**
  * A Title Case headline written as a sentence. Leaves anything that is not Title Case alone. Keeps the first word,
  * the word after a colon, acronyms and tickers (AI, Q3, SOXL), words with inner capitals (iPhone, JPMorgan), the
@@ -95,7 +119,7 @@ const COMMON_ENDING = /^[a-z]{3,}(?:ing|ments?|tions?|sions?|ness)$|^[a-z]{4,}(?
  * lowered when it is on the common-word list, or when it has a common ending and no unknown capitalised word beside it.
  */
 export function sentenceCase(text: string | null | undefined, companyName = ""): string {
-  const value = (text ?? "").trim().replace(/\s+/g, " ");
+  const value = withoutSourceTag(text).replace(/\s+/g, " ");
   if (!value || !isTitleCase(value)) return value;
   // The company's own words keep their capitals, but not its small words: "Bank of America" must not keep "Of".
   const own = new Set(

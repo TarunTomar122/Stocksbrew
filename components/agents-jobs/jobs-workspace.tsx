@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import * as React from "react";
 
 import { PlainAgentReadContext } from "@/components/agents-plain/plain-agent-box";
+import { PageIcon } from "@/components/oa/place-nav";
 import { OaButton } from "@/components/oa/button";
 import { LockCard, ProMark } from "@/components/oa/gate";
 import { TheRead } from "@/components/oa/insight";
@@ -30,7 +31,7 @@ import type { Plan } from "@/lib/entitlements";
 import { getFirebaseAuth } from "@/lib/firebase-client";
 import { POST_SIGNUP_ONBOARDING_PENDING, signInWithGoogle, syncServerSession } from "@/lib/sign-in";
 
-import { RunList, RunReport, SessionStrip, VerdictChip, type RunRow } from "./run-list";
+import { RunList, RunReport, VerdictChip, type RunRow } from "./run-list";
 import { checksWhenShort, earningsWhen, tellsShort, watchSummary } from "./summary";
 import { trackAgentPreviewed, trackAgentReportOpened, trackAgentSwitchedOn, trackLimitHit } from "@/lib/product-analytics";
 
@@ -210,7 +211,8 @@ function ReplayPanel({ replay, job }: { replay: Replay; job: Pick<AgentJob, "tri
   return (
     <div className="overflow-hidden rounded-xl border border-oa-border bg-oa-bg">
       <p className="px-3.5 py-2.5 text-pretty text-[14px] font-medium leading-5 text-oa-fg sm:hidden">{phoneLine}</p>
-      <div className="flex flex-wrap items-end justify-between gap-3 px-3.5 py-3 max-sm:hidden sm:px-4">
+      {/* No strip of day bars beside this: the sentence has the number, and "See all days" lists each one (owner rules 5 and 6). */}
+      <div className="px-3.5 py-3 max-sm:hidden sm:px-4">
         <div className="min-w-0">
           <p className="oa-caption">
             What it would have done, {shortDate(replay.from)} to {shortDate(replay.to)}
@@ -228,7 +230,6 @@ function ReplayPanel({ replay, job }: { replay: Replay; job: Pick<AgentJob, "tri
           </p>
           {tickersLine ? <p className="mt-0.5 text-[13px] leading-5 text-oa-muted-fg">{tickersLine}</p> : null}
         </div>
-        <SessionStrip runs={rows} job={job} />
       </div>
       {latestHit ? (
         <div className="border-t border-oa-border bg-oa-card px-3.5 py-3 max-sm:hidden sm:px-4">
@@ -241,12 +242,11 @@ function ReplayPanel({ replay, job }: { replay: Replay; job: Pick<AgentJob, "tri
           <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between px-3.5 text-[13px] font-medium text-oa-muted-fg hover:text-oa-fg sm:px-4">
             See all {rows.length} days
           </summary>
-          {/* What the phone line leaves out: the period, the stocks and the strip of days. */}
-          <div className="flex flex-col items-start gap-2 border-t border-oa-border px-3.5 py-2.5 sm:hidden">
+          {/* What the phone line leaves out: the period and the stocks. */}
+          <div className="border-t border-oa-border px-3.5 py-2.5 sm:hidden">
             <p className="text-pretty text-[13px] leading-5 text-oa-muted-fg">
               {shortDate(replay.from)} to {shortDate(replay.to)}. {tickersLine}
             </p>
-            <SessionStrip runs={rows} job={job} />
           </div>
           <div className="border-t border-oa-border">
             <RunList runs={rows} job={job} limit={20} replay />
@@ -979,7 +979,11 @@ export function JobsWorkspace({
     <PlainAgentReadContext.Provider value={onPlainRead}>
     <div className="flex min-w-0 flex-col gap-3 sm:gap-4">
       <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 px-2 sm:px-0">
-        <h1 className="text-balance text-[19px] font-semibold leading-6 tracking-[-0.01em] text-oa-fg sm:text-[22px] sm:leading-7">Alerts &amp; agents</h1>
+        {/* The place's icon beside its title, as in the nav (owner rule 6), the same way PageHead draws it. */}
+        <div className="flex items-center gap-2.5">
+          <PageIcon />
+          <h1 className="text-balance text-[19px] font-semibold leading-6 tracking-[-0.01em] text-oa-fg sm:text-[22px] sm:leading-7">Alerts &amp; agents</h1>
+        </div>
       </header>
       <p className="-mt-1 max-w-[62ch] text-pretty px-2 text-[15px] leading-[22px] text-oa-muted-fg sm:-mt-2 sm:px-0">
         An agent watches your stocks for one thing you pick, like a big daily move or an earnings date, and reports here and by email when it

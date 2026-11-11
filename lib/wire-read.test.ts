@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { countTones, leanOf, marketRead, newsThemes, readTheWire, stockBuzz, storiesBetween, type NewsLabels } from "@/lib/wire-read";
+import { countTones, leanOf, marketRead, newsThemes, readTheWire, stockBuzz, storiesBetween, themesBesideRead, type NewsLabels, type NewsTheme } from "@/lib/wire-read";
 import { parseWireFilters, type WireItem } from "@/lib/wire-shared";
 
 const NOW = Date.parse("2026-11-10T16:00:00Z");
@@ -125,43 +125,89 @@ describe("the read", () => {
     const labels: NewsLabels = Object.fromEntries(rows.map((row) => [row.id, { tone, scope: "stock" as const, theme }]));
     return { rows, labels };
   }
+  const stories = (count: number, ticker: string, hoursAgo: number) => Array.from({ length: count }, () => item({ hoursAgo, tickers: [ticker] }));
+  const read = (items: WireItem[], quotes: Record<string, { pct: number | null; name: string }>, labels: NewsLabels = {}) =>
+    readTheWire({ items, quotes, labels, newestAt: new Date(NOW).toISOString(), labelledBy: "Claude Haiku 5.5", labelledAt: null }, { nowMs: NOW, filters });
 
-  it("says nothing when too few stories are labelled", () => {
-    const { rows, labels } = labelled(10, "positive", 1);
-    expect(marketRead({ today: rows, yesterday: [], labels, buzz: [], themes: [], sources: 1, asOf: null, labelledBy: null, filters })).toBeNull();
+  it("says nothing when no stock has enough coverage to lead", () => {
+    expect(marketRead({ today: [], yesterday: [], labels: {}, buzz: [], themes: [], sources: 1, asOf: null, labelledBy: null, filters })).toBeNull();
+    expect(read(stories(3, "NVDA", 1), { NVDA: { pct: 1, name: "NVIDIA Corporation" } }).read).toBeNull();
   });
 
-  it("compares the balance with the day before and names the biggest story and stock", () => {
-    const pos = labelled(30, "positive", 2);
-    const neg = labelled(20, "negative", 3, { tickers: ["NVDA"] }, "Nvidia CEO probe");
-    const old = labelled(25, "positive", 30);
-    const oldNeg = labelled(25, "negative", 31);
-    const all = [...pos.rows, ...neg.rows, ...old.rows, ...oldNeg.rows];
-    const labels = { ...pos.labels, ...neg.labels, ...old.labels, ...oldNeg.labels };
-    const reading = readTheWire(
-      { items: all, quotes: { NVDA: { pct: -4, name: "NVIDIA" } }, labels, newestAt: new Date(NOW).toISOString(), labelledBy: "Claude Haiku 5.5", labelledAt: null },
-      { nowMs: NOW, filters },
-    );
-    const read = reading.read!;
-    expect(read.headline).toBe("Stock news leans positive today. Biggest story: Nvidia CEO probe");
-    expect(read.insights[0]!.text).toBe("60% of the last day's 50 stories read positive and 40% negative, up from 50% the day before.");
-    expect(read.insights[0]!.tone).toBe("up");
-    expect(read.insights[1]!.text).toBe("The biggest story is Nvidia CEO probe: 20 stories, all of them new today, 100% negative.");
-    expect(read.insights[1]!.soWhat).toBe("NVDA is down 4.0% today.");
-    expect(read.insights[1]!.action!.href).toBe("/news?theme=Nvidia+CEO+probe");
-    expect(read.source).toBe("50 stories from 1 source · tone read per headline by Claude Haiku 5.5");
-    expect(reading.labelledShare).toBe(100);
+  it("leads with the most talked-about stock against the day before, then the biggest move and the jump in coverage, without tone labels", () => {
+    const items = [...stories(21, "NVDA", 1), ...stories(3, "NVDA", 30), ...stories(9, "AMD", 2), ...stories(1, "AMD", 30), ...stories(4, "CRWV", 3)];
+    const reading = read(items, {
+      NVDA: { pct: -4, name: "NVIDIA Corporation" },
+      AMD: { pct: 0.4, name: "Advanced Micro Devices, Inc." },
+      CRWV: { pct: 20, name: "CoreWeave, Inc." },
+    });
+    const r = reading.read!;
+    // One idea, one number (owner rule 8).
+    expect(r.headline).toBe("NVIDIA leads the news today, with 7 times the stories it got the day before.");
+    expect(r.insights.map((insight) => insight.id)).toEqual(["leader", "mover", "jump"]);
+    expect(r.insights[0]!.text).toBe("NVDA fell 4.0% today on 21 stories.");
+    expect(r.insights[0]!.figure).toEqual({ value: "21", label: "stories, 3 the day before" });
+    expect(r.insights[0]!.soWhat).toBe("Big news and a big move together: check what changed before you trade it.");
+    expect(r.insights[1]!.text).toBe("CRWV rose 20.0% today, the biggest move in the news, on 4 stories that are all new today.");
+    expect(r.insights[1]!.soWhat).toMatch(/^The top story: “Headline number \d+ about markets”\.$/);
+    // The figure has the coverage against the day before, so the sentence says what the stock did with it.
+    expect(r.insights[2]!.text).toBe("AMD is suddenly in the news, but the stock has barely moved on it so far.");
+    expect(r.insights[2]!.soWhat).toMatch(/^Leading its coverage: “Headline number \d+ about markets”\.$/);
+    // A ratio over a single story is noise: the count is the figure.
+    expect(r.insights[2]!.figure).toEqual({ value: "9", label: "stories, 1 the day before" });
+    // Every card names a different stock; no tone was used, so the source line does not mention it.
+    expect(new Set(r.insights.flatMap((insight) => insight.tickers ?? [])).size).toBe(3);
+    expect(r.source).toBe("34 stories from 1 source");
   });
 
-  it("flags a stock whose news and price disagree", () => {
-    const good = labelled(45, "neutral", 2);
-    const news = labelled(5, "positive", 1, { tickers: ["AAPL"] });
-    const labels = { ...good.labels, ...news.labels };
-    const reading = readTheWire(
-      { items: [...good.rows, ...news.rows], quotes: { AAPL: { pct: -3.5, name: "Apple" } }, labels, newestAt: new Date(NOW).toISOString(), labelledBy: null, labelledAt: null },
-      { nowMs: NOW, filters },
-    );
+  it("never says the headline's coverage jump when the card calls it ongoing", () => {
+    // 20 stories against 8 is 2.5 times: not a surge, so the headline uses the share and the card says so plainly.
+    const reading = read([...stories(20, "NVDA", 1), ...stories(8, "NVDA", 30)], { NVDA: { pct: 0.5, name: "NVIDIA" } });
+    expect(reading.read!.headline).toBe("NVIDIA leads the news today, with 100% of all company coverage.");
+    expect(reading.read!.insights[0]!.soWhat).toBe("A bit more coverage than the day before: still an ongoing story.");
+  });
+
+  it("says a leader's coverage fell when it did, not that it is steady", () => {
+    const reading = read([...stories(6, "NVDA", 1), ...stories(20, "NVDA", 30)], { NVDA: { pct: 0.5, name: "NVIDIA" } });
+    expect(reading.read!.insights[0]!.soWhat).toBe("Fewer stories than the day before: an older story winding down, not a new one.");
+  });
+
+  it("adds tone only where it clearly leans, and flags a stock whose news and price disagree", () => {
+    const lead = stories(12, "NVDA", 1);
+    const good = labelled(5, "positive", 1, { tickers: ["AAPL"] });
+    const reading = read([...lead, ...good.rows], { NVDA: { pct: 1.2, name: "NVIDIA" }, AAPL: { pct: -3.5, name: "Apple Inc." } }, good.labels);
     const disagree = reading.read!.insights.find((insight) => insight.id === "disagree");
-    expect(disagree?.text).toBe("AAPL: 100% of today's headlines about it read as good news, yet the stock is −3.5% today.");
+    expect(disagree?.text).toBe("AAPL: 100% of today's headlines about it read as good news, yet the stock fell 3.5%.");
+    expect(reading.read!.insights[0]!.text).not.toMatch(/positive|negative/);
+    expect(reading.read!.source).toContain("tone read per headline by Claude Haiku 5.5");
+  });
+
+  it("tells the biggest story when the labels name one about another stock", () => {
+    const lead = stories(15, "NVDA", 1);
+    const probe = labelled(4, "negative", 2, { tickers: ["TSLA"] }, "Tesla recall");
+    const reading = read([...lead, ...probe.rows], { NVDA: { pct: 0.2, name: "NVIDIA" }, TSLA: { pct: -2, name: "Tesla, Inc." } }, probe.labels);
+    const theme = reading.read!.insights.find((insight) => insight.id === "theme")!;
+    expect(theme.text).toBe("TSLA: the biggest story is Tesla recall, 100% negative.");
+    expect(theme.soWhat).toBe("TSLA is down 2.0% today.");
+    expect(theme.action!.href).toBe("/news?theme=Tesla+recall");
+  });
+});
+
+describe("themes beside the read", () => {
+  const theme = (name: string, tickers: string[]): NewsTheme => ({
+    name,
+    count: 4,
+    prevCount: 0,
+    tones: { positive: 0, negative: 0, neutral: 0 },
+    tickers: tickers.map((ticker) => ({ ticker, count: 1, pct: null })),
+    items: [],
+    market: false,
+    latestAt: "",
+  });
+  const read = { headline: "NVIDIA leads the news today.", insights: [{ id: "leader", tone: "up" as const, text: "NVDA rose.", tickers: ["NVDA"] }] };
+  it("leaves out a theme whose only stock is the one the read leads with", () => {
+    const themes = [theme("Nvidia governance", ["NVDA"]), theme("Chips", ["NVDA", "AMD"]), theme("Inflation", [])];
+    expect(themesBesideRead(themes, read).map((row) => row.name)).toEqual(["Chips", "Inflation"]);
+    expect(themesBesideRead(themes, null)).toHaveLength(3);
   });
 });

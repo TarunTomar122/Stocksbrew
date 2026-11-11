@@ -1,6 +1,6 @@
 import { leftOutSentence, netCallChanges, type WeekPerformance } from "./facts";
 import { pct, points, weekGap } from "./format";
-import type { CallWord, MemoCallChange, MemoItemCard, MemoCurvePoint, MemoInputs, MemoMover, MemoView, MemoVisual } from "./types";
+import type { CallFlip, CallWord, MemoCallChange, MemoItemCard, MemoCurvePoint, MemoInputs, MemoMover, MemoView, MemoVisual } from "./types";
 
 /**
  * What the memo page draws, shaped from the same facts as the memo's
@@ -40,6 +40,19 @@ export const CALL_CHIP: Record<CallWord, { label: string; tone: "up" | "neutral"
   Hold: { label: "Keep", tone: "neutral" },
   Trim: { label: "Sell some", tone: "down" },
 };
+
+/**
+ * What a changed call shows beside its chip (owner rule 9: calls stay put, and never a sale beside Keep or Buy
+ * more). `was` is the call it replaced, shown only for a one-step move between Keep and Buy more; a flip (a skipped
+ * step, a reversal within five sessions, two changes in one week) shows the call it is now and its date, plus the
+ * reason when the memo has one. A memo stored before flips were kept still has its skips caught from the two calls.
+ */
+export function callShows(call: Pick<MemoCallChange, "from" | "to" | "flip">): { was: CallWord | null; flip: CallFlip | null } {
+  const step: Record<CallWord, number> = { Trim: 0, Hold: 1, Add: 2 };
+  const flip = call.flip ?? (Math.abs(step[call.to] - step[call.from]) > 1 ? "skip" : null);
+  const sale = call.from === "Trim" || call.to === "Trim";
+  return { was: flip || sale ? null : call.from, flip };
+}
 
 /**
  * The items listed as cards under a section. Calls have their own table once
@@ -90,6 +103,7 @@ export function buildView(inputs: MemoInputs, perf: WeekPerformance | null): Mem
     from: call.from,
     to: call.to,
     date: call.date,
+    flip: call.flip,
   }));
   return {
     headline: memoHeadline(perf, inputs.week.complete),
@@ -157,7 +171,14 @@ export function readView(raw: unknown): MemoView | null {
     .map((m) => ({ ticker: m.ticker as string, name: str(m.name) ? m.name : (m.ticker as string), pct: m.pct as number, points: m.points as number, href: m.href as string }));
   const calls: MemoCallChange[] = rows(row.calls)
     .filter((c) => str(c.ticker) && isCall(c.from) && isCall(c.to) && str(c.date))
-    .map((c) => ({ ticker: c.ticker as string, name: str(c.name) ? c.name : (c.ticker as string), from: c.from as CallWord, to: c.to as CallWord, date: c.date as string }));
+    .map((c) => ({
+      ticker: c.ticker as string,
+      name: str(c.name) ? c.name : (c.ticker as string),
+      from: c.from as CallWord,
+      to: c.to as CallWord,
+      date: c.date as string,
+      flip: c.flip === "skip" || c.flip === "reversal" || c.flip === "twice" ? c.flip : null,
+    }));
   return {
     headline: row.headline,
     portfolioPct: num(row.portfolioPct) ? row.portfolioPct : null,

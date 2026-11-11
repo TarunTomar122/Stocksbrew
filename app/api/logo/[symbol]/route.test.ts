@@ -25,6 +25,7 @@ import { NextRequest } from "next/server";
 import { GET } from "./route";
 
 const TILE = Buffer.from("fake-webp-bytes").toString("base64");
+const SOXL_BLANK = "UklGRvoAAABXRUJQVlA4IO4AAABQCQCdASqAAIAAPj0ejkUiIaERiqwAIAPEtLdwukhLpM4E8YnyqDkcH/P/n7OD/n/z9XUTSeZFeDNgB0yG4268GCsYFEPJEqQpJR/n/z9nB/z/QAD+/8h8AdPxinxc/14j8Z0PPb+7xvqxwzOc11NIcx9/P/X/9f8T7d+1D5rpseJ6/AoCLnHUhcqwB87l5YssLhCkeG4R7lhOb7Ymdsh9AKHvfLf7CgIL9GPj9FAKXiAg6pE/3P5wcAPppn7EB8OksWN1Itih/Zg+8DRDjC7HKEivZ7GP2iAXlZ2nOPGOT+mAWdCzVI8e60wgAAAA";
 
 function call(symbol: string, query = "v=1") {
   return GET(new NextRequest(`http://localhost/api/logo/x?${query}`), { params: { symbol } });
@@ -59,6 +60,15 @@ describe("GET /api/logo/[symbol]", () => {
       expect(res.status, bad).toBe(400);
     }
     expect(store.getAllCalls).toEqual([]);
+  });
+
+  it("swaps a stored tile known to be blank for the lettered tile", async () => {
+    // The stored SOXL tile: a faint grey mark on white that reads as an empty square.
+    store.docs.set("SOXL", { status: "ok", mime: "image/webp", data_b64: SOXL_BLANK });
+    const res = await call("SOXL");
+    expect(res.headers.get("content-type")).toBe("image/svg+xml");
+    expect(res.headers.get("x-logo-source")).toBe("blank");
+    expect(await res.text()).toContain(">SO</text>");
   });
 
   it("gives a company with no logo its lettered tile for a day", async () => {

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import * as React from "react";
 
 import { StockLogo } from "@/components/stock-logo";
@@ -127,5 +128,55 @@ export function StockCard({
       {cover}
       {children ? <div className="relative z-10 mt-2 border-t border-oa-border pt-2">{children}</div> : null}
     </li>
+  );
+}
+
+/**
+ * A stock with nothing of its own to say: its logo, ticker and figure in a small chip that opens its page, so it is
+ * not a big card left empty beside its neighbours (owner rule 4). Chips sit in a wrapping row (`StockChipRow`).
+ * Nothing is written about what is missing (owner rule 7).
+ */
+export function StockChip({
+  ticker,
+  name,
+  figure,
+  tone = "flat",
+  label,
+  id,
+  className = "",
+}: {
+  ticker: string;
+  name?: string | null;
+  figure?: string | null;
+  tone?: "up" | "down" | "flat";
+  /** What a screen reader hears; defaults to the ticker, the name and the figure. */
+  label?: string;
+  id?: string;
+  className?: string;
+}) {
+  const figureTone = tone === "up" ? "text-signal-bullish" : tone === "down" ? "text-signal-bearish" : "text-oa-muted-fg";
+  const short = name ? shortCompanyName(name) : "";
+  return (
+    <li id={id} className={className}>
+      <Link
+        href={`/stock/${encodeURIComponent(ticker)}`}
+        prefetch={false}
+        title={short || undefined}
+        aria-label={label ?? [ticker, short && short.toUpperCase() !== ticker.toUpperCase() ? short : null, figure].filter(Boolean).join(", ")}
+        className={`oa-surface flex h-10 items-center gap-2 border border-oa-border bg-oa-card pl-2 pr-3 outline-none ${CARD_HOVER} focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]`}
+      >
+        <StockLogo ticker={ticker} size={22} />
+        <span className="oa-mono text-[13.5px] font-semibold text-oa-fg">{ticker}</span>
+        {figure ? <span className={`oa-mono text-[13.5px] tabular-nums ${figureTone}`}>{figure}</span> : null}
+      </Link>
+    </li>
+  );
+}
+
+export function StockChipRow({ children, label, className = "" }: { children: React.ReactNode; label?: string; className?: string }) {
+  return (
+    <ul aria-label={label} className={`flex flex-wrap gap-2 ${className}`}>
+      {children}
+    </ul>
   );
 }

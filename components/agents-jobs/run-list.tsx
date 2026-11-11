@@ -252,32 +252,3 @@ export function RunList({
   );
 }
 
-/** One mark per check, oldest on the left: tall when it had something to say. */
-export function SessionStrip({ runs, job }: { runs: RunRow[]; job: (Pick<AgentJob, "trigger"> & Partial<Pick<AgentJob, "scope">>) | null }) {
-  const ordered = [...runs].reverse();
-  if (ordered.length === 0) return null;
-  // A tall bar is a day it would have told you; a short one a quiet day. Said under the strip, not in a legend box.
-  return (
-    <div className="flex flex-col items-end gap-1">
-    <div className="flex items-end gap-[3px]" role="img" aria-label={`${ordered.length} market days, oldest first`}>
-      {ordered.map((run) => {
-        const verdict = presentRun(run, job, { replay: true }).verdict;
-        return (
-          <span
-            key={run.key}
-            title={`${shortDate(run.day)}: ${VERDICT_LABEL[verdict]}`}
-            className={
-              verdict === "act" || verdict === "look"
-                ? `h-5 w-2 rounded-[2px] ${verdict === "act" ? "bg-oa-primary" : "bg-[color:color-mix(in_srgb,var(--oa-fg)_55%,transparent)]"}`
-                : verdict === "quiet"
-                  ? "h-2 w-2 rounded-[2px] bg-[color:color-mix(in_srgb,var(--oa-fg)_20%,transparent)]"
-                  : "h-2 w-2 rounded-[2px] border border-dashed border-[color:color-mix(in_srgb,var(--oa-fg)_35%,transparent)]"
-            }
-          />
-        );
-      })}
-    </div>
-    <span className="text-[11.5px] leading-4 text-oa-muted-fg">Each bar is a market day; a tall bar is a day it would have emailed you</span>
-    </div>
-  );
-}

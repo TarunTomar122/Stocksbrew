@@ -282,8 +282,8 @@ function concentrationInsight(names: RedditName[]): Insight | null {
   };
 }
 
-function againstInsight(names: RedditName[]): Insight | null {
-  const odd = rankReddit(names.filter((name) => isStockName(name.ticker) && stanceAgainstPrice(name)));
+function againstInsight(names: RedditName[], skip: ReadonlySet<string> = new Set()): Insight | null {
+  const odd = rankReddit(names.filter((name) => isStockName(name.ticker) && !skip.has(name.ticker) && stanceAgainstPrice(name)));
   if (odd.length === 0) return null;
   const stance = odd[0]!.stance;
   const same = odd.filter((name) => name.stance === stance).slice(0, 3);
@@ -327,29 +327,50 @@ export function redditMood(names: RedditName[]): { bullish: number; bearish: num
   return { bullish, bearish, total };
 }
 
+/**
+ * Drops an insight whose stocks an earlier one already covers, so one stock never takes two of the three cards
+ * (owner rule 1). Insights without stocks always stay.
+ */
+export function oneCardPerStock(items: Array<Insight | null | undefined | false>): Insight[] {
+  const seen = new Set<string>();
+  const out: Insight[] = [];
+  for (const item of items) {
+    if (!item) continue;
+    const tickers = item.tickers ?? [];
+    if (tickers.some((ticker) => seen.has(ticker))) continue;
+    for (const ticker of tickers) seen.add(ticker);
+    out.push(item);
+  }
+  return out;
+}
+
+/**
+ * The crowd's lean in one short sentence with one number (owner rule 8): the larger side as a share of every stock
+ * mention. The base and the other side are left to the source line and the cards.
+ */
+export function redditHeadline(mood: { bullish: number; bearish: number; total: number }): string {
+  const bearShare = sharePct(mood.bearish, mood.total) ?? 0;
+  const bullShare = sharePct(mood.bullish, mood.total) ?? 0;
+  if (bearShare >= bullShare + 15) return `${bearShare}% of Reddit's stock mentions expect prices to fall.`;
+  if (bullShare >= bearShare + 15) return `${bullShare}% of Reddit's stock mentions expect prices to rise.`;
+  if (bearShare === 0 && bullShare === 0) return "Reddit is talking about stocks without leaning either way.";
+  if (bearShare === bullShare) return `Reddit is split evenly: ${bullShare}% of stock mentions expect a rise, and as many a fall.`;
+  const fall = bearShare > bullShare;
+  return `Reddit leans slightly toward a ${fall ? "fall" : "rise"}, with ${fall ? bearShare : bullShare}% of stock mentions expecting one.`;
+}
+
 export function buildRedditRead(names: RedditName[], asOf: string | null = null): TheRead | null {
   if (names.length === 0) return null;
   const mood = redditMood(names);
   const loud = rankReddit(names.filter((name) => isStockName(name.ticker)))[0];
-  const bearShare = sharePct(mood.bearish, mood.total) ?? 0;
-  const bullShare = sharePct(mood.bullish, mood.total) ?? 0;
-  const lean = bearShare >= bullShare + 15 ? "bearish" : bullShare >= bearShare + 15 ? "bullish" : "split";
-  // Bullish and bearish said plainly: people expect prices to rise, or to fall.
-  // The count first, so a share has its base: "Of the 56 stock mentions we counted on Reddit, 41% ...".
-  // One sentence with its base; the most-mentioned stock is the first line under it.
-  const of = mood.total > 0 ? ` of the ${mood.total} stock mentions we counted on Reddit` : " of Reddit mentions";
-  const headline =
-    lean === "split"
-      ? `Reddit is split: ${mood.total > 0 ? `of the ${mood.total} stock mentions we counted, ` : ""}${bullShare}% expect prices to rise and ${bearShare}% expect a fall.`
-      : lean === "bearish"
-        ? `${bearShare}%${of} expect prices to fall, against ${bullShare}% expecting a rise.`
-        : `${bullShare}%${of} expect prices to rise, against ${bearShare}% expecting a fall.`;
   const loudest = loudestInsight(names) ?? (loud ? { id: "loudest", tone: "flat" as const, text: `${loud.ticker} gets the most mentions.`, tickers: [loud.ticker] } : null);
-  const against = againstInsight(names);
+  // A stock the loudest card already tells is never the disagreement card too (owner rule 1).
+  const against = againstInsight(names, new Set(loudest?.tickers ?? []));
   const skip = new Set([...(loudest?.tickers ?? []), ...(against?.tickers ?? [])]);
   return {
-    headline,
-    insights: pickInsights([loudest, against, risingInsight(names, skip), concentrationInsight(names)]),
+    headline: redditHeadline(mood),
+    insights: pickInsights(oneCardPerStock([loudest, against, risingInsight(names, skip), concentrationInsight(names)])),
+    source: mood.total > 0 ? `From ${mood.total.toLocaleString("en-US")} stock mentions on Reddit` : undefined,
     asOf,
   };
 }
@@ -392,17 +413,48 @@ function praisedInsight(posts: PolicyPost[], now: number): Insight | null {
   };
 }
 
-function recentInsight(posts: PolicyPost[], now: number): Insight | null {
+export function recentInsight(posts: PolicyPost[], now: number): Insight | null {
   const week = posts.filter((post) => now - Date.parse(post.publishedAt) <= 7 * DAY);
   if (week.length === 0) return null;
+  const before = posts.filter((post) => {
+    const age = now - Date.parse(post.publishedAt);
+    return age > 7 * DAY && age <= 14 * DAY;
+  }).length;
   const named = week.filter((post) => post.names.length > 0);
   const bull = week.filter((post) => post.stance === "bullish").length;
   const bear = week.filter((post) => post.stance === "bearish").length;
   const tickers = [...new Set(named.flatMap((post) => post.names.map((name) => name.ticker)))];
+  // One tone figure (owner rule 5): the larger side as a share of the week's posts, never two counts side by side.
+  // A side only when it clearly leads (15 points of the week's posts, as on Reddit); 4 against 3 is a split.
+  const margin = (Math.abs(bull - bear) / week.length) * 100;
+  const side = margin < 15 ? null : bull > bear ? { count: bull, word: "positive", tone: "up" as const } : { count: bear, word: "negative", tone: "down" as const };
+  const share = side ? sharePct(side.count, week.length)! : null;
+  // Said as his, not a bare count: on the Today tab this card sits under Reddit's headline.
+  const times = week.length === 1 ? "once" : week.length === 2 ? "twice" : `${week.length} times`;
+  // At most three names in the sentence, so it stays one short line.
+  const names = tickers.length > 3 ? `${tickers.slice(0, 3).join(", ")} and ${plural(tickers.length - 3, "other")}` : listNames(tickers);
+  const companies = named.length === 0 ? "None named a listed company." : `${cap(plural(named.length, "post"))} named ${names}.`;
+  // "Split" only when both sides have posts; one or two positive posts among ten is not a split.
+  const toneWords = bull > 0 && bear > 0 ? ", split between positive and negative" : ", mostly neither positive nor negative";
+  // The figure says what the sentence does not (owner rule 1): the tone when one side leads, else the change from
+  // the week before, else the week's count (and then the sentence leaves the count out).
+  const change = before > 0 ? week.length - before : null;
+  const figure: Insight["figure"] = side
+    ? { value: `${share}%`, label: side.word, tone: side.tone }
+    : change !== null
+      ? { value: change === 0 ? "Same" : `${change > 0 ? "+" : "−"}${Math.abs(change)}`, label: change === 0 ? "as the week before" : "on the week before" }
+      : { value: String(week.length), label: week.length === 1 ? "post this week" : "posts this week" };
+  const opening = `The President posted about the market ${times} in the last 7 days`;
+  const text = side
+    ? `${opening}${before > 0 ? ` (${before} the week before)` : ""}. ${companies}`
+    : change !== null
+      ? `${opening}${toneWords}. ${companies}`
+      : `The President's market posts this week were${toneWords.replace(/^, /, " ")}. ${companies}`;
   return {
     id: "recent",
-    tone: bull > bear ? "up" : bear > bull ? "down" : "flat",
-    text: `${plural(week.length, "post")} about the market in the last 7 days: ${bull} positive and ${bear} negative. ${named.length === 0 ? "None named a listed company." : `${cap(plural(named.length, "post"))} named ${listNames(tickers)}.`}`,
+    tone: side?.tone ?? "flat",
+    figure,
+    text,
     tickers,
     action: { label: "Read the posts", href: "/signals?tab=policy" },
   };
@@ -457,15 +509,23 @@ export function buildSignalsTodayRead(movers: MoverForRead[], names: RedditName[
   const policyLine = praisedInsight(posts, now) ?? latestNamedInsight(posts, now) ?? recentInsight(posts, now);
   const headline = redditRead?.headline ?? policyLine?.text ?? moverRead?.headline;
   if (!headline) return null;
-  return {
-    headline,
-    insights: pickInsights([
+  // One card per stock (owner rule 1): a stock on the first card is never the subject of a later one.
+  const insights = pickInsights(
+    oneCardPerStock([
       redditRead?.insights[0],
       policyLine && policyLine.text !== headline ? policyLine : null,
       // The moves only when there is nothing people said: Why stocks moved and Market today carry them.
       !redditRead && !policyLine && moverRead && moverRead.headline !== headline ? { id: "movers-line", tone: "flat" as const, text: moverRead.headline, action: { label: "Why stocks moved", href: "/movers" } } : null,
-      redditRead?.insights[1],
+      ...(redditRead?.insights.slice(1) ?? []),
     ]),
+  );
+  // The source names every stream a card comes from: a card about the President's posts is not Reddit's.
+  const fromPolicy = Boolean(policyLine && insights.some((insight) => insight.id === policyLine.id));
+  const source = redditRead && headline === redditRead.headline && redditRead.source ? `${redditRead.source}${fromPolicy ? " and the President's posts" : ""}` : undefined;
+  return {
+    headline,
+    insights,
+    source,
     asOf,
   };
 }

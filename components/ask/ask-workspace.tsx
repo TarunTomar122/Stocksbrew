@@ -65,6 +65,13 @@ function newConversationId(): string {
   return Array.from(bytes, (byte) => (byte % 36).toString(36)).join("");
 }
 
+/** The item an /ask link names (`ctx`), checked, or null for a link with none. */
+function contextOfHref(href: string): string | null {
+  const query = href.split("?")[1] ?? "";
+  const raw = new URLSearchParams(query).get("ctx");
+  return raw && parseAskContext(raw) ? raw : null;
+}
+
 function textOf(message: AskUIMessage): string {
   return message.parts
     .map((part) => (part.type === "text" ? part.text : ""))
@@ -545,6 +552,7 @@ export function AskWorkspace({
   variant = "page",
   request = null,
   pageContext = null,
+  pageQuestions = null,
   renderBar,
   onHandedOff,
   handoff = false,
@@ -564,6 +572,11 @@ export function AskWorkspace({
   request?: AskRequest | null;
   /** Panel: the item of the page underneath (lib/ask-page-context.ts), which a new conversation starts from. */
   pageContext?: string | null;
+  /**
+   * Panel: the page's own questions (lib/ask-page-hint.ts), each an /ask link with its own item. Offered first while
+   * the conversation still starts from the page's item, in place of the item's stock questions.
+   */
+  pageQuestions?: Array<{ question: string; href: string }> | null;
   /** Panel: the bar at its top, given the panel's actions. */
   renderBar?: (actions: PanelBarActions) => React.ReactNode;
   /** Panel: the conversation has moved to /ask. */
@@ -1024,17 +1037,29 @@ export function AskWorkspace({
     // Signed out, the sign-in notice shows before anything is asked: the panel is often opened just to look. Under an
     // example answer it invites them to ask their own.
     const notice = limit ?? (plan === "anonymous" ? (example?.phase === "ready" ? SIGN_IN_AFTER_EXAMPLE : SIGN_IN_FIRST) : null);
-    const aboutThis = parsedContext
+    // `context`: undefined keeps the conversation's item, null starts without one, a string switches to that item.
+    type Suggestion = { label: string | null; question: string; context?: string | null };
+    // The page's own questions, while the conversation still starts from the page's item (owner rule 1: the page has
+    // no Ask box, so its questions live here).
+    const fromPage: Suggestion[] =
+      pageQuestions && pageQuestions.length > 0 && context === pageContext
+        ? pageQuestions
+            .filter((item) => item.question !== input.trim() && item.question !== exampleShown)
+            .map((item) => ({ label: null, question: item.question, context: contextOfHref(item.href) }))
+        : [];
+    const aboutThis: Suggestion[] = parsedContext
       ? contextSuggestions(parsedContext)
           // The question the example already answers is not offered again.
           .filter((question) => question !== input.trim() && question !== exampleShown)
-          .map((question) => ({ label: null as string | null, question, keepContext: true }))
+          .map((question) => ({ label: null, question }))
       : [];
     // With nothing more to offer about the item (the example portfolio, an agent), the general questions fill in.
-    const suggestions =
-      aboutThis.length > 0
-        ? aboutThis
-        : ASK_SUGGESTIONS.filter((item) => !item.needsAccount || signedIn).map((item) => ({ label: item.label as string | null, question: item.question, keepContext: false }));
+    const suggestions: Suggestion[] =
+      fromPage.length > 0
+        ? fromPage
+        : aboutThis.length > 0
+          ? aboutThis
+          : ASK_SUGGESTIONS.filter((item) => !item.needsAccount || signedIn).map((item) => ({ label: item.label as string | null, question: item.question, context: null }));
     return (
       <div className="flex h-full min-h-0 flex-col">
         {renderBar?.({ newConversation: startNew, openFullScreen, empty })}
@@ -1069,16 +1094,17 @@ export function AskWorkspace({
                     {problem}
                   </p>
                 ) : null}
-                <ul aria-label={aboutThis.length > 0 ? "Questions about this" : "Questions to start with"} className="divide-y divide-oa-border border-y border-oa-border">
+                <ul aria-label={fromPage.length > 0 || aboutThis.length > 0 ? "Questions about this" : "Questions to start with"} className="divide-y divide-oa-border border-y border-oa-border">
                   {suggestions.map((suggestion) => (
                     <li key={suggestion.question}>
                       <button
                         type="button"
                         onClick={() => {
-                          // A general question is its own, so it starts without the page's item.
-                          if (!suggestion.keepContext) {
-                            contextRef.current = null;
-                            setContext(null);
+                          // A general question is its own, so it starts without the page's item; a page question
+                          // starts from the item its link names.
+                          if (suggestion.context !== undefined && suggestion.context !== contextRef.current) {
+                            contextRef.current = suggestion.context;
+                            setContext(suggestion.context);
                           }
                           ask(suggestion.question);
                         }}

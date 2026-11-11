@@ -209,9 +209,12 @@ export async function loadSpanEvents(holdings: MemoHolding[], span: Span): Promi
     Promise.all(tickers.map((ticker) => getStockCongressTrades(ticker).catch(() => []))),
   ]);
 
+  // From two weeks before the span: a change early in a week can undo one from the week before, and the memo's call
+  // rule needs to see it (lib/memo/facts.ts callFlip, owner rule 9). Each week's facts keep only their own days.
+  const callsFrom = addDays(span.from, -14);
   const calls: MemoCall[] = holdings.flatMap((holding, index) =>
     callChanges(callLists[index] ?? [])
-      .filter((change) => change.date >= span.from && change.date <= span.to)
+      .filter((change) => change.date >= callsFrom && change.date <= span.to)
       .map((change) => ({ ticker: holding.ticker, date: change.date, from: change.from, to: change.to, text: callReason(screener.get(holding.ticker), change, span.today) })),
   );
 

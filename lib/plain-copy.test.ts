@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { asSentence, companyFirstMove, countWord, firstFullSentence, hasTitleCaseLeftover, isTitleCase, sentenceCase, shortCompanyName, splitMoveReason } from "./plain-copy";
+import { asSentence, companyFirstMove, countWord, firstFullSentence, hasTitleCaseLeftover, isTitleCase, sentenceCase, shortCompanyName, splitMoveReason, withoutSourceTag } from "./plain-copy";
 
 describe("sentenceCase", () => {
   it("undoes Title Case but keeps names and acronyms", () => {
@@ -347,5 +347,30 @@ describe("countWord", () => {
   it("says small counts in words and larger ones as digits", () => {
     expect(countWord(5)).toBe("five");
     expect(countWord(20)).toBe("20");
+  });
+});
+
+describe("withoutSourceTag", () => {
+  it("drops a wire desk's tag in front of a headline", () => {
+    expect(withoutSourceTag("Analysis-Nvidia's clubby board faces a sticky 'honey pot' test")).toBe("Nvidia's clubby board faces a sticky 'honey pot' test");
+    expect(withoutSourceTag("UPDATE 2-EXCLUSIVE-Apple weighs a bigger buyback")).toBe("Apple weighs a bigger buyback");
+    expect(withoutSourceTag("Exclusive: Tesla cuts prices")).toBe("Tesla cuts prices");
+    expect(withoutSourceTag("BREAKINGVIEWS-Oil's rally has legs")).toBe("Oil's rally has legs");
+  });
+
+  it("leaves a headline that only starts with the word alone", () => {
+    expect(withoutSourceTag("Analysis shows chip stocks are stretched")).toBe("Analysis shows chip stocks are stretched");
+    expect(withoutSourceTag("Insight-driven funds lag")).toBe("Insight-driven funds lag");
+    expect(withoutSourceTag("Live Nation beats estimates")).toBe("Live Nation beats estimates");
+  });
+
+  it("never capitalises a brand that starts lowercase", () => {
+    expect(withoutSourceTag("eBay raises its outlook")).toBe("eBay raises its outlook");
+    expect(withoutSourceTag("UPDATE 1-eBay beats estimates")).toBe("eBay beats estimates");
+    expect(withoutSourceTag("iPhone sales slow")).toBe("iPhone sales slow");
+  });
+
+  it("sentence case drops the tag too", () => {
+    expect(sentenceCase("Analysis-Nvidia's clubby board faces a sticky 'honey pot' test")).toBe("Nvidia's clubby board faces a sticky 'honey pot' test");
   });
 });

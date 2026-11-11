@@ -172,7 +172,7 @@ describe("toolCard", () => {
 
   it("gives each tool one live figure from its own loader", () => {
     expect(toolCard("dividends", { dividends: dividends() }, "mine")).toMatchObject({ figure: "$1,220", href: "/portfolio/dividends" });
-    expect(toolCard("xray", { xray: xray() }, "mine").figure).toBe("Apple 17%");
+    expect(toolCard("xray", { xray: xray() }, "mine").figure).toBe("AAPL 17%");
     expect(toolCard("earnings", { season: season([stock("NVDA", "NVIDIA", "2026-11-17", 11)]) }, "mine")).toMatchObject({ figure: "1 report" });
   });
 });

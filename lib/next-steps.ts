@@ -132,8 +132,8 @@ const isStoryRow = (insight: Insight) => insight.id.startsWith("move-") || insig
  * The briefing's steps. In the market view the lead story (the biggest move
  * with a confirmed reason) gets "Why did it fall?" and "Watch HIMS for me", on
  * its row or, when the headline tells it, under the headline; and the read gets
- * "Does this affect my stocks?" on the index line, or under a headline about the
- * whole session. In your own briefing each move on your stocks
+ * "Does this affect my stocks?" on the index line (a read about the whole session
+ * has none, so it gets nothing). In your own briefing each move on your stocks
  * gets a question for Ask beside its link.
  */
 export function briefingSteps(
@@ -174,11 +174,11 @@ export function briefingSteps(
   } else if (ticker && read.headlineTickers?.includes(ticker)) {
     actions = leadSteps;
   }
-  // "Does this affect my stocks?" sits with the market's own line: the index row when the headline tells a
-  // story, the headline itself when it is the whole session (that read has no index row).
+  // "Does this affect my stocks?" is the index card itself (the card is the link, no link words: owner rule 1). A
+  // read about the whole session has no index card, and a line of link text under its headline would be one more
+  // thing to read, so it gets none: the page head already offers the briefing about your own stocks.
   const indexRow = insights.findIndex((insight) => insight.id === "index");
   if (indexRow >= 0) insights = insights.map((insight, index) => (index === indexRow ? withStep(insight, affect) : insight));
-  else if (actions.length === 0) actions = [affect];
   // Steps show under a headline, so a read without one keeps none.
   return { ...read, insights, ...(actions.length > 0 && read.headline ? { actions } : {}) };
 }

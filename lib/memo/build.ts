@@ -65,7 +65,7 @@ export function ruleTopLine(
     const leadWords = lead ? `, with ${lead} doing the most ${perf.portfolioPct >= 0 ? "to lift it" : "damage"}` : "";
     first = `${who} ${verb} ${moveSize(perf.portfolioPct)} ${when}${against}${leadWords}.`;
     // The holding the figure leaves out is named, with why, so nobody wonders where it went.
-    const leftOut = partial ? leftOutSentence(perf) : "";
+    const leftOut = partial ? leftOutSentence(perf, "figure") : "";
     if (leftOut) first = `${first} ${leftOut}`;
   } else {
     first = `We cannot measure ${example ? "the example's" : "your"} week yet: fewer than two holdings have both a share count and this week's closes.`;

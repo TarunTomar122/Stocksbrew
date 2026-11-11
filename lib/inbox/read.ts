@@ -1,6 +1,6 @@
 import type { Insight, TheRead } from "@/lib/insights";
 
-import { isUnread, shortDay } from "./merge";
+import { isUnread } from "./merge";
 import type { InboxItem } from "./types";
 
 /**
@@ -98,6 +98,9 @@ function agentsCard(items: InboxItem[], example: boolean): Insight | null {
       figure: { value: "0", label: "things flagged" },
     };
   }
+  // One finding is already a row in the list under the read, sentence and all: a card would say it twice (owner
+  // rule 1). The headline counts it, the row tells it.
+  if (flags.length === 1) return null;
   // The card carries the latest finding itself (its move, its sentence, its stock), not the count the headline
   // already says (Nov 11: "flagged 1 thing" three times over).
   const latest = flags[0]!;
@@ -110,7 +113,7 @@ function agentsCard(items: InboxItem[], example: boolean): Insight | null {
     text: finding,
     tickers: latest.tickers.slice(0, 4),
     figure: move
-      ? { value: move.value, label: flags.length === 1 ? shortDay(latest.day) : `latest of ${flags.length} flags`, tone: move.tone }
+      ? { value: move.value, label: `latest of ${flags.length} flags`, tone: move.tone }
       : null,
   };
 }

@@ -1,3 +1,7 @@
+import { plainLeftOut, signedPct, signedPoints, pct } from "@/lib/memo/format";
+import type { Memo } from "@/lib/memo/types";
+import { fmtPlanDay } from "@/lib/dividend-plan";
+
 import { pickNoticed, TOOL_GROUPS, TOOL_HREF, TOOL_TITLES, toolCard, type HomeMode, type HomeSources, type Noticed, type ToolId } from "./pick";
 
 /**
@@ -19,6 +23,18 @@ export type LeadAction = {
 
 export type Lead = Noticed & { action: LeadAction };
 
+/** One of the weekly memo's facts on the overview: a figure and the words that read on from it. */
+export type MemoFact = {
+  id: "week" | "driver" | "risk";
+  /** What the figure is, in two or three words: "So far this week", "Biggest drag", "Main risk". */
+  caption: string;
+  figure: string;
+  /** The words that read on from the figure: "against +2.0% for the S&P 500". */
+  label: string;
+  tone: "up" | "down" | "flat";
+  ticker: string | null;
+};
+
 export type FoldRow = {
   key: string;
   /** What it is: the finding's caption ("Dividends") or the tool in plain words ("Plan for a goal"). */
@@ -30,6 +46,10 @@ export type FoldRow = {
   text: string;
   tone: Noticed["tone"] | null;
   tool: ToolId;
+  /** The weekly memo's row only: the week in two or three figures (memoFacts). Empty when the memo has no view. */
+  facts?: MemoFact[];
+  /** The weekly memo's row only: which week, "Week of Nov 9". */
+  note?: string;
 };
 
 export type Focus = {
@@ -77,11 +97,51 @@ export function focusNoticed(sources: Omit<HomeSources, "goal">, mode: HomeMode)
   return pickNoticed({ ...sources, dividends: { state: "empty" } }, mode);
 }
 
+/**
+ * The weekly memo in figures, for the overview (owner rule 3: no paragraph to read): the week's move against the
+ * S&P 500, the holding that moved it most, and the first thing the memo says could hurt. Each only when the memo
+ * has it; a memo stored before the page went visual has none of the first two.
+ */
+export function memoFacts(memo: Memo): MemoFact[] {
+  const out: MemoFact[] = [];
+  const view = memo.view ?? null;
+  if (view && view.portfolioPct !== null) {
+    out.push({
+      id: "week",
+      caption: memo.complete ? "This week" : "So far this week",
+      figure: signedPct(view.portfolioPct),
+      label: view.marketPct !== null ? `against ${signedPct(view.marketPct)} for the S&P 500` : "",
+      tone: Math.abs(view.portfolioPct) < 0.05 ? "flat" : view.portfolioPct > 0 ? "up" : "down",
+      ticker: null,
+    });
+  }
+  const top = view ? [...view.movers].sort((a, b) => Math.abs(b.points) - Math.abs(a.points))[0] : undefined;
+  if (top && Math.abs(top.points) >= 0.05) {
+    out.push({
+      id: "driver",
+      caption: top.points < 0 ? "Biggest drag" : "Biggest lift",
+      figure: `${signedPoints(top.points)} pts`,
+      label: `${top.ticker} ${Math.abs(top.pct) < 0.05 ? "barely moved" : `${top.pct > 0 ? "rose" : "fell"} ${pct(top.pct)}`}`,
+      tone: top.points < 0 ? "down" : "up",
+      ticker: top.ticker,
+    });
+  }
+  // The main risk is a risk the memo found (a sector, a report, a shock), not a call that changed: the memo page
+  // shows calls on their own (lib/memo/view.ts cardItems).
+  const risk = memo.hurt.find((item) => item.kind !== "call" && item.kind !== "drivers" && item.card?.figure && item.card.label);
+  if (risk?.card) {
+    out.push({ id: "risk", caption: "Main risk", figure: risk.card.figure, label: risk.card.label, tone: "flat", ticker: risk.tickers.length === 1 ? risk.tickers[0]! : null });
+  }
+  return out;
+}
+
 /** The memo's line can be from an older week; its first evidence sentence says which ("From the memo for the week of Nov 2, …"). */
 function foldText(item: Noticed): string {
-  if (item.tool !== "memo" || !item.evidence) return item.text;
-  const dated = /^[^.]*\./.exec(item.evidence)?.[0];
-  return dated ? `${item.text} ${dated}` : item.text;
+  if (item.tool !== "memo") return item.card?.sentence ?? item.text;
+  // Stored memos may still say who the figure leaves out as how the sum works; say it as a fact.
+  const text = plainLeftOut(item.text, "figure");
+  const dated = item.evidence ? /^[^.]*\./.exec(item.evidence)?.[0] : null;
+  return dated ? `${text} ${dated}` : text;
 }
 
 /** "One thing needs you this week." Short, one idea; the rows under it say what and why. */
@@ -109,15 +169,17 @@ export function prioritise(all: Noticed[], sources: Partial<HomeSources>, mode: 
   const rest = noticed.filter((item) => !leadIds.has(item.id));
 
   const said = new Set(noticed.flatMap(toolsOf));
+  const memo = sources.memo?.state === "ready" ? sources.memo.value.memo : null;
   const findingRows: FoldRow[] = rest.map((item) => ({
     key: item.id,
     title: item.caption,
     href: item.open.href,
     ticker: item.ticker,
-    figure: null,
+    figure: item.card?.figure ?? null,
     text: foldText(item),
     tone: item.tone,
     tool: item.tool,
+    ...(item.tool === "memo" && memo ? { facts: memoFacts(memo), note: `Week of ${fmtPlanDay(memo.monday)}` } : {}),
   }));
   const toolRows: FoldRow[] = TOOL_GROUPS.flatMap((group) => group.tools)
     .filter((id) => !said.has(id))

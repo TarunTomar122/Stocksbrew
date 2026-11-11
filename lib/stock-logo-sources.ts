@@ -263,7 +263,7 @@ export function resolveLogoUrl(
 /** Part of every logo URL. The tiles are cached as immutable for a year, so a
  * logo the job replaces reaches browsers that already have the old one only
  * when this changes: bump it after a re-run that changed logos on purpose. */
-export const LOGO_VERSION = "1";
+export const LOGO_VERSION = "2";
 
 /** A store key we will ask for: letters and digits, single dots between them
  * (BRK.B), `&` for NSE names like M&M, `^` for index symbols. Same rule as
@@ -293,6 +293,12 @@ export function logoInitials(ticker: string): string {
   return String(ticker || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 2) || "?";
 }
 
+/** The lettered tile's colours: muted earth tones from the brew kit (espresso, copper, olive, slate, plum, pine,
+ * clay), dark enough for cream letters and quiet on both the cream page and the dark one. */
+export const LOGO_FALLBACK_COLORS = ["#3d2c22", "#8a4a1f", "#55562f", "#3c4a52", "#5a3a48", "#2f4f45", "#7a4b3a"] as const;
+/** The lettered tile's letters: the kit's cream paper. */
+export const LOGO_FALLBACK_INK = "#fbf6ec";
+
 /** Deterministic tile colour for a ticker, so its lettered tile never changes
  * (BRK-B and BRK.B get the same one, from the client or the server). */
 export function logoFallbackColor(ticker: string): string {
@@ -301,12 +307,12 @@ export function logoFallbackColor(ticker: string): string {
   for (let i = 0; i < upper.length; i += 1) {
     hash = (hash * 31 + upper.charCodeAt(i)) >>> 0;
   }
-  return `hsl(${hash % 360} 62% 28%)`;
+  return LOGO_FALLBACK_COLORS[hash % LOGO_FALLBACK_COLORS.length]!;
 }
 
-/** Full-bleed square SVG with the ticker's letters (the client crops the shape). */
+/** Full-bleed square SVG with the ticker's letters (the client crops the shape), in the kit's mono face. */
 export function logoMonogramSvg(ticker: string, size = 128): string {
   const initials = logoInitials(ticker);
-  const fontSize = Math.round(size * (initials.length > 1 ? 0.38 : 0.5));
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><rect width="${size}" height="${size}" fill="${logoFallbackColor(ticker)}"/><text x="50%" y="50%" dy=".35em" text-anchor="middle" fill="#fff" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif" font-weight="600" font-size="${fontSize}">${initials}</text></svg>`;
+  const fontSize = Math.round(size * (initials.length > 1 ? 0.36 : 0.48));
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><rect width="${size}" height="${size}" fill="${logoFallbackColor(ticker)}"/><text x="50%" y="50%" dy=".35em" text-anchor="middle" fill="${LOGO_FALLBACK_INK}" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-weight="600" letter-spacing="-0.02em" font-size="${fontSize}">${initials}</text></svg>`;
 }

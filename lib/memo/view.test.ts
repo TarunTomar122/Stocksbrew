@@ -4,10 +4,10 @@ vi.mock("@/lib/firebase-admin", () => ({ adminFirestore: {} }));
 
 import { buildMemo } from "./build";
 import { buildFacts, weekPerformance } from "./facts";
-import { curveSlots, niceTicks, signedPct, signedPoints, weekGap } from "./format";
+import { curveSlots, niceTicks, plainLeftOut, signedPct, signedPoints, weekGap } from "./format";
 import { historyRow, readStoredMemo } from "./store";
 import type { DailySeries, MemoHolding, MemoInputs } from "./types";
-import { cardItems, gapWords, memoHeadline, pickMovers, readItemCard, readView } from "./view";
+import { callShows, cardItems, gapWords, memoHeadline, pickMovers, readItemCard, readView } from "./view";
 import { memoWeekFor } from "./week";
 import { evidenceFor, unsupportedNumber } from "./word";
 
@@ -202,8 +202,8 @@ describe("buildView", () => {
     expect(view.curve).toHaveLength(3);
     expect(view.portfolioPct).toBe(weekPerformance(RICH)!.portfolioPct);
     expect(view.calls).toEqual([
-      { ticker: "NVDA", name: "NVIDIA", from: "Hold", to: "Trim", date: "2026-11-09" },
-      { ticker: "JPM", name: "JPMorgan Chase", from: "Trim", to: "Hold", date: "2026-11-10" },
+      { ticker: "NVDA", name: "NVIDIA", from: "Hold", to: "Trim", date: "2026-11-09", flip: null },
+      { ticker: "JPM", name: "JPMorgan Chase", from: "Trim", to: "Hold", date: "2026-11-10", flip: null },
     ]);
     expect(view.footnote).toBeNull();
     // The movers' points are the week's own contributions.
@@ -214,7 +214,7 @@ describe("buildView", () => {
   it("puts the holding left out in a footnote, not the headline", () => {
     const short = inputs({ series: new Map([...inputs().series, ["KO", series([100, 100, 100, 100, 100, 100])]]) });
     const { memo } = buildMemo(short);
-    expect(memo.view!.footnote).toBe("Coca-Cola is left out because its prices stop at Monday's close.");
+    expect(memo.view!.footnote).toBe("Coca-Cola isn't in this week's line: we have no prices for it after Monday.");
     expect(memo.view!.headline).not.toContain("Coca-Cola");
   });
 
@@ -325,7 +325,7 @@ describe("stored memos", () => {
     expect(readView({ headline: "x", curve: [{ day: "2026-11-06", portfolio: 0 }, { day: "nope", portfolio: 1 }], movers: [], calls: [] })!.curve).toEqual([]);
     expect(
       readView({ headline: "x", curve: [], movers: [], calls: [{ ticker: "A", from: "Buy", to: "Hold", date: "2026-11-10" }, { ticker: "B", from: "Add", to: "Hold", date: "2026-11-10" }] })!.calls,
-    ).toEqual([{ ticker: "B", name: "B", from: "Add", to: "Hold", date: "2026-11-10" }]);
+    ).toEqual([{ ticker: "B", name: "B", from: "Add", to: "Hold", date: "2026-11-10", flip: null }]);
     expect(readView({ curve: [] })).toBeNull();
     expect(readItemCard({ figure: "", label: "x" })).toBeNull();
     expect(readItemCard({ figure: "5%", label: "x", visual: { kind: "pie" } })).toEqual({ figure: "5%", label: "x", sign: null, visual: null });
@@ -334,5 +334,33 @@ describe("stored memos", () => {
     const stored = readStoredMemo({ memo: older, day: "2026-11-11", signature: "s" })!;
     expect(stored.memo.view).toBeNull();
     expect(historyRow(stored.memo).portfolioPct).toBeNull();
+  });
+});
+
+describe("what a changed call shows", () => {
+  it("shows the call it replaced only for a one-step move between Keep and Buy more", () => {
+    expect(callShows({ from: "Hold", to: "Add" })).toEqual({ was: "Hold", flip: null });
+    expect(callShows({ from: "Add", to: "Hold" })).toEqual({ was: "Add", flip: null });
+    // Never a sale beside Keep or Buy more.
+    expect(callShows({ from: "Trim", to: "Hold" }).was).toBeNull();
+    expect(callShows({ from: "Hold", to: "Trim" }).was).toBeNull();
+    // A stored memo with no flip kept still catches a skipped step.
+    expect(callShows({ from: "Trim", to: "Add" })).toEqual({ was: null, flip: "skip" });
+    expect(callShows({ from: "Hold", to: "Add", flip: "reversal" })).toEqual({ was: null, flip: "reversal" });
+  });
+
+  it("reads a stored flip back, and nothing else", () => {
+    const calls = readView({ headline: "x", curve: [], movers: [], calls: [{ ticker: "A", from: "Trim", to: "Add", date: "2026-11-10", flip: "skip" }, { ticker: "B", from: "Hold", to: "Add", date: "2026-11-10", flip: "odd" }] })!.calls;
+    expect(calls.map((call) => call.flip)).toEqual(["skip", null]);
+  });
+});
+
+describe("who the week's figure leaves out", () => {
+  it("rewrites the stored wording as a plain fact, inside a paragraph too", () => {
+    expect(plainLeftOut("Together, eight of nine are down 0.1% so far this week. Vanguard S&P 500 ETF is left out because its prices stop at Monday's close. The thing to watch is X.", "figure")).toBe(
+      "Together, eight of nine are down 0.1% so far this week. Vanguard S&P 500 ETF isn't in this week's figure: we have no prices for it after Monday. The thing to watch is X.",
+    );
+    expect(plainLeftOut("Nothing to change here.")).toBe("Nothing to change here.");
+    expect(plainLeftOut("Amazon.com is left out because it has no share count.")).toBe("Amazon.com isn't in this week's line: it has no share count.");
   });
 });

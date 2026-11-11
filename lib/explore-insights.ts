@@ -128,9 +128,15 @@ export type GiantForRead = { symbol: string; name: string; day: number; cap: num
  * carry the most weight in the S&P 500. Moves with a reason have their own
  * page (Why stocks moved), so this never lists the day's biggest movers.
  * Average weighted by company value; the one that pulled hardest is the
- * largest value-times-move. Null with fewer than five companies.
+ * largest value-times-move. Null with fewer than five companies, and null
+ * when `day` (the day the rows are priced on) is not `session` (the market's
+ * current session): a read of yesterday's moves must not sit under today's.
  */
-export function buildGiantsRead(rows: readonly GiantForRead[]): { line: string; insight: Insight } | null {
+export function buildGiantsRead(
+  rows: readonly GiantForRead[],
+  dates: { day?: string | null; session?: string | null } = {},
+): { line: string; insight: Insight } | null {
+  if (dates.day && dates.session && dates.day !== dates.session) return null;
   const usable = rows.filter((row) => Number.isFinite(row.day) && Number.isFinite(row.cap) && row.cap > 0);
   if (usable.length < 5) return null;
   const total = usable.reduce((sum, row) => sum + row.cap, 0);

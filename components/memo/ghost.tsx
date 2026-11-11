@@ -10,7 +10,15 @@ export function MemoGhost() {
           <Bar className="mt-5 h-6 w-full max-w-[30rem]" />
           <Bar className="mt-4 h-[196px] w-full" />
         </div>
-        <PanelGhost rows={6} lines={1} />
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+          {[0, 1, 2, 3, 4].map((card) => (
+            <div key={card} className={`oa-surface border border-oa-border bg-oa-card p-3.5 ${card === 4 ? "col-span-2 lg:col-span-1" : ""}`}>
+              <Bar className="h-4 w-14" />
+              <Bar className="mt-3 h-6 w-16" />
+              <Bar className="mt-2 h-3 w-20" />
+            </div>
+          ))}
+        </div>
         <div className="grid gap-3 sm:grid-cols-2">
           {[0, 1, 2].map((card) => (
             <div key={card} className="oa-surface border border-oa-border bg-oa-card p-3.5">

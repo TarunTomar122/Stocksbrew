@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { StockCard, StockCardGrid, fillLastRow, stockGridFill } from "@/components/briefing/stock-card";
 import { MarketingSchema } from "@/components/seo/marketing-schema";
+import { StockLogo } from "@/components/stock-logo";
 import { TheRead } from "@/components/oa/insight";
 import { AppPage, Empty, PageHead, ShowMore, SourceLine, fmtStampET } from "@/components/oa/kit";
 import { ogImage } from "@/lib/og/url";
@@ -98,18 +99,45 @@ function GapperCard({ row, fill }: { row: Gapper; fill: string }) {
   );
 }
 
+/**
+ * A gapper with nothing said about why: its logo, ticker and gap in a small chip, so it is not a big card padded out
+ * to its neighbours' height (owner rule 4). Nothing is written about the missing reason (owner rule 7).
+ */
+function GapperChip({ row }: { row: Gapper }) {
+  return (
+    <li>
+      <Link
+        href={`/stock/${encodeURIComponent(row.ticker)}`}
+        prefetch={false}
+        title={row.name}
+        aria-label={`${row.ticker}, ${row.name}, ${gapPct(row.pct, 1)} before the open`}
+        className="oa-surface flex h-10 items-center gap-2 border border-oa-border bg-oa-card pl-2 pr-3 outline-none transition-colors hover:border-[color-mix(in_srgb,var(--oa-fg)_25%,transparent)] hover:bg-oa-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
+      >
+        <StockLogo ticker={row.ticker} size={22} />
+        <span className="oa-mono text-[13.5px] font-semibold text-oa-fg">{row.ticker}</span>
+        <span className={`oa-mono text-[13.5px] tabular-nums ${row.pct > 0 ? "text-signal-bullish" : "text-signal-bearish"}`}>{gapPct(row.pct, 1)}</span>
+      </Link>
+    </li>
+  );
+}
+
 function GapperList({ id, title, rows, verb }: { id: string; title: string; rows: Gapper[]; verb: string }) {
   if (rows.length === 0) return null;
-  const first = rows.slice(0, FIRST);
-  const rest = rows.slice(FIRST);
+  // The gaps with a story get cards; the rest share one strip of chips under them, biggest first as they came.
+  const told = rows.filter((row) => row.reason);
+  const bare = rows.filter((row) => !row.reason);
+  const first = told.slice(0, FIRST);
+  const rest = told.slice(FIRST);
   return (
     <section id={id} aria-labelledby={`${id}-label`} className="scroll-mt-20">
       <SectionHead id={`${id}-label`} title={title} count={`${rows.length} ${rows.length === 1 ? "stock" : "stocks"}`} />
-      <StockCardGrid wide>
-        {first.map((row, index) => (
-          <GapperCard key={row.ticker} row={row} fill={stockGridFill(index, first.length, true)} />
-        ))}
-      </StockCardGrid>
+      {first.length > 0 ? (
+        <StockCardGrid wide>
+          {first.map((row, index) => (
+            <GapperCard key={row.ticker} row={row} fill={stockGridFill(index, first.length, true)} />
+          ))}
+        </StockCardGrid>
+      ) : null}
       {rest.length > 0 ? (
         <ShowMore always label={`Show ${rest.length} more ${verb}`} less="Show fewer">
           <StockCardGrid wide className="mt-3">
@@ -118,6 +146,13 @@ function GapperList({ id, title, rows, verb }: { id: string; title: string; rows
             ))}
           </StockCardGrid>
         </ShowMore>
+      ) : null}
+      {bare.length > 0 ? (
+        <ul aria-label={first.length > 0 ? `Also ${verb}` : title} className={`flex flex-wrap gap-2 px-2 sm:px-0 ${first.length > 0 ? "mt-3" : ""}`}>
+          {bare.map((row) => (
+            <GapperChip key={row.ticker} row={row} />
+          ))}
+        </ul>
       ) : null}
     </section>
   );

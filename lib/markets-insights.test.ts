@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildClassRead, buildMarketsRead, listTakeaway, marketRegime, moversTakeaway, outlier, sectorBreadth, sectorTakeaway, SECTOR_IDS, usHoldings } from "@/lib/markets-insights";
+import { buildClassRead, buildMarketsRead, listTakeaway, marketRegime, moversTakeaway, nextReports, outlier, reportCard, reportsWhen, sectorBreadth, sectorTakeaway, SECTOR_IDS, usHoldings, withWatchNext } from "@/lib/markets-insights";
 import type { MarketAsset, MarketsData } from "@/lib/markets-shared";
 
 function asset(id: string, d1: number | null, extra: Partial<MarketAsset> = {}): MarketAsset {
@@ -137,5 +137,67 @@ describe("buildClassRead", () => {
 
   it("is null with nothing to say", () => {
     expect(buildClassRead({ slug: "fx", assets: [], data: data([]) })).toBeNull();
+  });
+});
+
+describe("Market today: what to watch next", () => {
+  const today = "2026-11-11";
+  const reports = nextReports(
+    [
+      { ticker: "NVDA", date: "2026-11-19", time: "amc" },
+      { ticker: "CSCO", date: "2026-11-12", time: "amc" },
+      { ticker: "WMT", date: "2026-11-11", time: "bmo" },
+      { ticker: "AMD", date: "2026-11-25", time: "during" },
+    ],
+    today,
+  );
+
+  it("keeps only reports still to come", () => {
+    expect([...reports.keys()].sort()).toEqual(["AMD", "CSCO", "NVDA"]);
+    expect(reportsWhen(reports.get("CSCO")!, today)).toBe("reports tomorrow after the close");
+    expect(reportsWhen(reports.get("NVDA")!, today)).toBe("reports on Nov 19 after the close");
+    expect(reportsWhen({ ticker: "X", date: "2026-11-13", time: "bmo" }, today)).toBe("reports on Friday before the open");
+    // Past the weekend a weekday is ambiguous, so the date is said.
+    expect(reportsWhen({ ticker: "X", date: "2026-11-17", time: "amc" }, today)).toBe("reports on Nov 17 after the close");
+  });
+
+  it("ends a card with the next report on its stocks, once per stock, and only when there is one", () => {
+    const cards = withWatchNext(
+      [
+        { id: "giants", tone: "down", text: "The 10 biggest companies lost 0.7%.", soWhat: "They carry the most weight in the S&P 500.", tickers: ["NVDA"] },
+        { id: "sector", tone: "up", text: "Chips led.", soWhat: "Still down 14% over the month.", tickers: ["AMD", "NVDA"] },
+        { id: "loudest", tone: "flat", text: "NVDA is the stock Reddit talks about most.", tickers: ["NVDA"] },
+        { id: "quiet", tone: "flat", text: "Nothing to watch.", tickers: ["MSFT"] },
+      ],
+      reports,
+      today,
+    );
+    expect(cards[0]!.soWhat).toBe("Watch next: NVDA reports on Nov 19 after the close.");
+    expect(cards[1]!.soWhat).toBe("Still down 14% over the month. Watch next: AMD reports on Nov 25.");
+    expect(cards[2]!.soWhat).toBeUndefined();
+    expect(cards[3]!.soWhat).toBeUndefined();
+  });
+
+  it("never repeats a report the calendar card already tells", () => {
+    const cards = withWatchNext(
+      [
+        { id: "biggest", tone: "flat", text: "Cisco reports tomorrow.", tickers: ["CSCO"] },
+        { id: "loudest", tone: "flat", text: "CSCO is loud on Reddit.", tickers: ["CSCO"] },
+      ],
+      reports,
+      today,
+    );
+    expect(cards[1]!.soWhat).toBeUndefined();
+  });
+
+  it("shortens the biggest report still to come to its figure and one sentence", () => {
+    const long = { id: "biggest", tone: "flat" as const, text: "Cisco Systems ($443.3B) is the biggest company still to report this week, tomorrow after the close. Last time it fell 8.4% the day after its Aug 12 report, about 5 times its normal daily move. The next biggest is NU, tomorrow.", tickers: ["CSCO", "NU"] };
+    const card = reportCard(long, reports.get("CSCO")!, { last: { pct: -8.4 }, typicalDayPct: 1.6 }, today);
+    expect(card.text).toBe("CSCO reports tomorrow after the close; after its last report the stock fell 8.4%, about 5 times a normal day.");
+    expect(card.figure).toEqual({ value: "−8.4%", label: "after its last report", tone: "down" });
+    expect(card.tickers).toEqual(["CSCO"]);
+    const plain = reportCard(long, reports.get("CSCO")!, undefined, today);
+    expect(plain.text).toBe("CSCO reports tomorrow after the close, the biggest company still to report this week.");
+    expect(plain.figure).toEqual({ value: "Tomorrow", label: "after the close" });
   });
 });

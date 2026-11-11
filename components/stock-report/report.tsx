@@ -11,10 +11,8 @@ import { StockLogo } from "@/components/stock-logo";
 import { StockPremarketQuote } from "@/components/stock-premarket-quote";
 import { TrackButton } from "@/components/track-button";
 import { TrackView } from "@/components/track-view";
-import { WatchlistAiPromptButton } from "@/components/watchlist-ai-prompt-button";
+import { AskPageHint } from "@/components/ask/ask-page-hint";
 import { TheRead } from "@/components/oa/insight";
-import { PlaceTrail } from "@/components/oa/place-nav";
-import { canonicalSectorSlug } from "@/lib/screener-shared";
 import { packChartRanges, type CallWord, type ChartRange, type PackedChartRanges } from "@/lib/stock-chart";
 
 import { AlertControls, type SuggestedAlert } from "./alert-controls";
@@ -29,6 +27,8 @@ import type { ReportData } from "./types";
 import { stockCallSteps, type CallSteps } from "@/lib/next-steps";
 import Link from "next/link";
 import { AppLink } from "@/components/oa/app-link";
+import { ownCallLevel, type CallLevel } from "@/lib/call-level";
+import { askContext, formatAskContext } from "@/lib/ask-context";
 import { FREE_COVERED_WORD } from "@/lib/paywall-flag";
 
 const CALL_TONE: Record<CallWord, Tone | null> = { Add: "up", Hold: null, Trim: "down" };
@@ -103,15 +103,15 @@ function CallNextSteps({ ticker, steps, stacked = false }: { ticker: string; ste
         {steps.ask.map((step) => (
           <li key={step.href}>
             <AppLink href={step.href} data-track-target="ask" className={link}>
-              {/* The arrow never wraps onto a line of its own. */}
-              {step.label}{"\u00a0"}→
+              {/* No trailing arrow (owner rule 1): the line itself is the control. */}
+              {step.label}
             </AppLink>
           </li>
         ))}
         {steps.watch ? (
           <li>
             <AppLink href={steps.watch.href} data-track-target="watch" className={link}>
-              {steps.watch.label}{"\u00a0"}→
+              {steps.watch.label}
             </AppLink>
           </li>
         ) : null}
@@ -130,14 +130,14 @@ function CallNextSteps({ ticker, steps, stacked = false }: { ticker: string; ste
         <span className="text-oa-muted-fg">Ask about this</span>
         {steps.ask.map((step) => (
           <AppLink key={step.href} href={step.href} data-track-target="ask" className={link}>
-            {step.label} →
+            {step.label}
           </AppLink>
         ))}
       </p>
       {steps.watch ? (
         <p className="mt-2 sm:mt-1.5">
           <AppLink href={steps.watch.href} data-track-target="watch" className={link}>
-            {steps.watch.label} →
+            {steps.watch.label}
           </AppLink>
         </p>
       ) : null}
@@ -180,6 +180,13 @@ function packedOrRanges(ranges: ChartRange[]): { packed: PackedChartRanges } | {
   return packed ? { packed } : { ranges };
 }
 
+/** The call block's short words for its own level. */
+const CALL_LEVEL_WORDS: Record<CallLevel["label"], string> = {
+  "We'd buy more below": "Buy more below",
+  "We'd buy more above": "Buy more above",
+  "We'd sell some above": "Sell some above",
+};
+
 export function StockReport({
   data,
   related,
@@ -208,6 +215,8 @@ export function StockReport({
   // ── the call on the chart ─────────────────────────────────────────────────
   const zones: PanelZone[] = [];
   const suggested: SuggestedAlert[] = [];
+  // The call's own price level, the one source for the chart, the alert suggestions and the call block below.
+  let own: CallLevel | null = null;
   if (read && readState === "ready") {
     // Levels more than half the price away are left out everywhere on the page: header, chart, read and alert suggestions.
     const within = (value: number | null | undefined) =>
@@ -215,19 +224,18 @@ export function StockReport({
     const addBelow = within(read.zones.addBelow);
     const addAbove = within(read.zones.addAbove);
     const trimAbove = within(read.zones.trimAbove);
-    // The chart shows only the level that matches the call (owner, Nov 11): buy-more price on Buy more,
-    // sell-some price on Sell some, neither on Keep. The alert suggestions keep both.
-    const showAdd = read.call === "Add";
-    const showTrim = read.call === "Trim";
-    if (addBelow) {
-      if (showAdd) zones.push({ key: "add", price: addBelow, side: "below", tone: "up", label: `Buy more below ${level(addBelow)}` });
-      suggested.push({ id: "add", label: "Buy-more price", condition: "below", price: addBelow, note: `Buy more below ${level(addBelow)}` });
-    } else if (addAbove) {
-      suggested.push({ id: "add", label: "Buy if it breaks higher", condition: "above", price: addAbove, note: `Buy more above ${level(addAbove)}` });
-    }
-    if (trimAbove && (!addBelow || trimAbove > addBelow)) {
-      if (showTrim) zones.push({ key: "trim", price: trimAbove, side: "above", tone: "down", label: `Sell some above ${level(trimAbove)}` });
-      suggested.push({ id: "trim", label: "Sell-some price", condition: "above", price: trimAbove, note: `Sell some above ${level(trimAbove)}` });
+    // The call shows only its own level (owner rule 8, lib/call-level.ts): the buy-more price on Buy more, the
+    // sell-some price on Sell some, none on Keep. The chart and the alert suggestions follow it, so a Keep never sits
+    // beside a price to buy or sell at.
+    own = ownCallLevel(read.call, { addBelow, addAbove, trimAbove: trimAbove && (!addBelow || trimAbove > addBelow) ? trimAbove : null });
+    if (own?.label === "We'd buy more below") {
+      zones.push({ key: "add", price: own.price, side: "below", tone: "up", label: `Buy more below ${level(own.price)}` });
+      suggested.push({ id: "add", label: "Buy-more price", condition: "below", price: own.price, note: `Buy more below ${level(own.price)}` });
+    } else if (own?.label === "We'd buy more above") {
+      suggested.push({ id: "add", label: "Buy if it breaks higher", condition: "above", price: own.price, note: `Buy more above ${level(own.price)}` });
+    } else if (own?.label === "We'd sell some above") {
+      zones.push({ key: "trim", price: own.price, side: "above", tone: "down", label: `Sell some above ${level(own.price)}` });
+      suggested.push({ id: "trim", label: "Sell-some price", condition: "above", price: own.price, note: `Sell some above ${level(own.price)}` });
     }
   }
   // Support and resistance stay in Technicals: the chart carries at most two labels.
@@ -278,23 +286,15 @@ export function StockReport({
   const hasReport = Object.values(sectionAvailability(toSectionData(data, NO_EXTRAS))).some(Boolean);
 
   const callTone = read?.call ? CALL_TONE[read.call] : null;
+  const askStock = askContext("stock", { ticker: stock.ticker });
 
   const ready = readState === "ready" && read ? read : null;
   // A missing or zero quote must not turn into "Infinity% from here".
   const hasPrice = fin(stock.price) && stock.price > 0;
   const fromHere = (price: number) => (hasPrice ? signedPct(((price - stock.price) / stock.price) * 100) : null);
-  // A call shows only the price that goes with it: where we'd buy more on Buy more, where we'd sell some on
-  // Sell some, and none on Keep; the chart follows the same rule.
-  const callLevels = ready
-    ? [
-        ready.call === "Add" && ready.zones.addBelow
-          ? { label: "Buy more below", price: ready.zones.addBelow }
-          : ready.call === "Add" && ready.zones.addAbove
-            ? { label: "Buy more above", price: ready.zones.addAbove }
-            : null,
-        ready.call === "Trim" && ready.zones.trimAbove ? { label: "Sell some above", price: ready.zones.trimAbove } : null,
-      ].filter((item): item is NonNullable<typeof item> => Boolean(item))
-    : [];
+  // A call shows only the price that goes with it (`own`, above): where we'd buy more on Buy more, where we'd sell
+  // some on Sell some, and none on Keep; the chart and the alert suggestions use the same level.
+  const callLevels = ready && own ? [{ label: CALL_LEVEL_WORDS[own.label], price: own.price }] : [];
   // A call written weeks ago keeps its date in view: its horizon ("the next few weeks") ran from then, and a reason
   // rewritten from newer numbers says so beside it.
   const writtenMs = ready?.writtenAt ? Date.parse(ready.writtenAt) : NaN;
@@ -410,8 +410,8 @@ export function StockReport({
         <div className="order-1 min-w-0 xl:col-span-2 xl:row-start-1">
           <Panel>
             <header className="px-3.5 pb-3 pt-3 sm:px-4 sm:pt-3.5">
-              {/* Where this stock sits: "Research › Technology", the same trail every deep page has. */}
-              <PlaceTrail className="mb-2" tail={stock.sector ? [{ label: stock.sector, href: `/sectors/${canonicalSectorSlug(stock.sector)}` }] : []} />
+              {/* No "Research › Technology" trail over the name (owner rule 6: no small label above a heading). Search
+                  engines still get the page's BreadcrumbList JSON-LD (components/seo/stock-page-schema.tsx). */}
               <div className="flex min-w-0 items-center gap-3">
                 <StockLogo ticker={stock.ticker} logoUrl={stock.logo_url} market={market} size={36} eager />
                 <div className="min-w-0 flex-1">
@@ -671,21 +671,18 @@ export function StockReport({
                 className="flex min-h-10 items-center justify-between gap-3 rounded-lg px-3.5 text-oa-fg outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent sm:px-4"
               >
                 <span>Backtest {stock.ticker}</span>
-                <span className="oa-mono shrink-0 text-[12px] text-oa-muted-fg">vs S&amp;P 500 →</span>
+                <span className="oa-mono shrink-0 text-[12px] text-oa-muted-fg">vs S&amp;P 500</span>
               </Link>
-              <WatchlistAiPromptButton
-                ticker={stock.ticker}
-                className="flex min-h-10 w-full items-center gap-2 rounded-lg px-3.5 text-left text-oa-fg outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent sm:px-4"
-              />
               <Link prefetch={false}
                 href={`/compare?symbols=${encodeURIComponent(stock.ticker)}`}
                 className="flex min-h-10 items-center justify-between gap-3 rounded-lg px-3.5 text-oa-fg outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent sm:px-4"
               >
                 <span>Compare with another stock</span>
-                <span className="oa-mono text-[12px] text-oa-muted-fg">→</span>
               </Link>
             </nav>
           </div>
+          {/* No Ask link in the rail (owner rule 1): the shell's Ask is the page's one Ask, and this tells it the stock. */}
+          {askStock ? <AskPageHint context={formatAskContext(askStock)} /> : null}
         </aside>
 
         {/* ── the read: what today means, what is coming, then our brief ──── */}

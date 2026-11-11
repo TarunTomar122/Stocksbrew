@@ -10,7 +10,7 @@ import { getSessionUser } from "@/lib/auth-server";
 import { getTrackedStocks } from "@/lib/watchlist";
 import { loadWire, modelLabel } from "@/lib/wire";
 import { COMPANY_PAGE, groupByCompany } from "@/lib/wire-companies";
-import { countTones, readTheWire } from "@/lib/wire-read";
+import { countTones, readTheWire, themesBesideRead } from "@/lib/wire-read";
 import {
   WIRE_TOPICS,
   filterWire,
@@ -102,6 +102,8 @@ export default async function NewsPage({ searchParams }: { searchParams?: Search
           },
           { nowMs: now, filters: effective, buzzLimit: 14, themeLimit: 5 },
         );
+  // The stories beside the read, without one that is only about the stock the read already leads with.
+  const themes = reading ? themesBesideRead(reading.themes, reading.read) : [];
   // Each "more" step shows another page of companies; the URL's row limit caps how many steps there are.
   const step = Math.max(1, Math.round(effective.limit / WIRE_PAGE_SIZE));
   const shownCompanies = COMPANY_PAGE * step;
@@ -131,11 +133,12 @@ export default async function NewsPage({ searchParams }: { searchParams?: Search
 
       {reading?.read ? <TheRead read={reading.read} label="The read" className="mb-4" /> : null}
 
-      {reading && (reading.themes.length || reading.buzz.length) ? (
+      {reading && (themes.length || reading.buzz.length) ? (
         // Side by side only when both have something; one alone takes the whole row instead of leaving half of it empty.
-        <div className={`mb-6 grid items-stretch gap-4 lg:gap-5 ${reading.themes.length && reading.buzz.length ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,25rem)]" : ""}`}>
-          <ThemesPanel themes={reading.themes} filters={effective} />
-          <TalkedAbout rows={reading.buzz} filters={effective} wide={reading.themes.length === 0} />
+        // Each card is as tall as its own content (owner rule 4), never stretched to its neighbour.
+        <div className={`mb-6 grid items-start gap-4 lg:gap-5 ${themes.length && reading.buzz.length ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,25rem)]" : ""}`}>
+          <ThemesPanel themes={themes} filters={effective} />
+          <TalkedAbout rows={reading.buzz} filters={effective} wide={themes.length === 0} />
         </div>
       ) : null}
 

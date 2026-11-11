@@ -233,7 +233,7 @@ describe("exampleWatchLine", () => {
   it("names the example's agent that watches the finding, with its real last check", () => {
     const line = exampleWatchLine({ plan: watchPlan(report, "example"), ticker: "NVDA", agents: example, today: TODAY });
     expect(line?.fired).toBe(false);
-    expect(line?.text).toBe("An agent watches this for the example. Its Nov 10 check found nothing.");
+    expect(line?.text).toBe("An agent checked NVDA on Nov 10 and found nothing new.");
   });
 
   it("says when that agent flagged the finding's stock, and links to its check on the page", () => {
@@ -244,7 +244,7 @@ describe("exampleWatchLine", () => {
 
   it("says an older alert was an alert, not news and not 'found nothing'", () => {
     const line = exampleWatchLine({ plan: watchPlan(trim, "example"), ticker: "MSFT", agents: example, today: "2026-11-16" });
-    expect(line).toMatchObject({ fired: false, link: null, text: "An agent watches this for the example. It flagged it on Nov 10." });
+    expect(line).toMatchObject({ fired: false, link: null, text: "An agent flagged this for the example on Nov 10." });
   });
 
   it("claims nothing for a stock or a rule none of them covers", () => {
@@ -256,6 +256,6 @@ describe("exampleWatchLine", () => {
     const nvdaMove = { ...trim, id: "x-NVDA", ticker: "NVDA", watch: { href: "/agents?q=x", request: "Tell me when NVDA moves 5% in a day" } };
     const line = exampleWatchLine({ plan: watchPlan(nvdaMove, "example"), ticker: "NVDA", agents: example, today: TODAY });
     expect(line?.fired).toBe(false);
-    expect(line?.text).toBe("An agent watches this for the example. Its Nov 10 check found nothing on NVDA.");
+    expect(line?.text).toBe("An agent checked NVDA on Nov 10 and found nothing new.");
   });
 });

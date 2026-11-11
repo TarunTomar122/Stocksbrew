@@ -3,7 +3,8 @@ import { Suspense } from "react";
 
 import { AppPage, PageHead } from "@/components/oa/kit";
 import { AgentsPanel, AgentsPanelGhost } from "@/components/portfolio-home/agents-panel";
-import { AgentLogGhost, AgentLogPanel, AskBox, AskGhost, ExampleLine, FocusCard, FocusGhost } from "@/components/portfolio-home/home";
+import { AgentLogGhost, AgentLogPanel, ComingUp, ExampleLine, FocusCard, FocusGhost } from "@/components/portfolio-home/home";
+import { PortfolioAskHint } from "@/components/ask/portfolio-ask-hint";
 import { loadPortfolioHome } from "@/lib/portfolio-home/server";
 import { FollowedRebalances } from "@/components/strategies/rebalance-notice";
 import { JsonLd } from "@/components/docs/json-ld";
@@ -37,30 +38,35 @@ export default function PortfolioHomePage() {
         <ExampleLine load={load} />
       </Suspense>
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_21rem] xl:grid-cols-[minmax(0,1fr)_23rem]">
-        {/* Wide screens: findings with the agent's log under them on the left, your agents and Ask on the right, so
-            neither column runs on alone. Phones: one column (both wrappers are `contents`), findings first, log last. */}
+        {/* Wide screens: the findings, everything else and what is coming up on the left; your agents and what the
+            agent checked on the right, so the two columns end close together (owner rule 4). Phones: one column (both
+            wrappers are `contents`), findings first, the log last. */}
         <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-4">
           <Suspense fallback={<FocusGhost />}>
             <FocusCard load={load} />
+          </Suspense>
+          <Suspense fallback={null}>
+            <ComingUp load={load} />
           </Suspense>
           {/* Pro: a followed strategy that rebalanced in the last few days. Nothing at all otherwise. */}
           <Suspense fallback={null}>
             <FollowedRebalances />
           </Suspense>
-          <div className="order-last min-w-0 lg:order-none">
-            <Suspense fallback={<AgentLogGhost />}>
-              <AgentLogPanel load={load} />
-            </Suspense>
-          </div>
         </div>
         {/* On a phone this column's cards join the page's single column (contents), so the agents panel can lead it for a signed-in person. */}
         <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-4">
           <Suspense fallback={<AgentsPanelGhost />}>
             <AgentsPanel load={load} />
           </Suspense>
-          <Suspense fallback={<AskGhost />}>
-            <AskBox load={load} />
+          {/* No Ask box here: the shell's Ask opens on this page's stocks with its questions (owner rule 1). */}
+          <Suspense fallback={null}>
+            <PortfolioAskHint load={load} />
           </Suspense>
+          <div className="order-last min-w-0 lg:order-none">
+            <Suspense fallback={<AgentLogGhost />}>
+              <AgentLogPanel load={load} />
+            </Suspense>
+          </div>
         </div>
       </div>
     </AppPage>

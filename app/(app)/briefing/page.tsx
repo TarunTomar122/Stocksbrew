@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
-import { BriefingAgentsGhost, BriefingAgentsStrip, BriefingAskStrip, BriefingPortfolioAsk } from "@/components/briefing/agents-strip";
+import { AskPageHint } from "@/components/ask/ask-page-hint";
+import { BriefingAgentsGhost, BriefingAgentsStrip } from "@/components/briefing/agents-strip";
 import { BriefingView } from "@/components/briefing/briefing-view";
 import { BriefingLockedMoves } from "@/components/briefing/locked-moves";
 import { EarningsDayBriefing } from "@/components/earnings-day/briefing-reports";
@@ -52,7 +53,12 @@ function marketStateLabel(now: Date): string {
 async function loadSession(day: string, indexAsOf: string | null): Promise<BriefingSession | null> {
   const today = etDay(new Date().toISOString()) ?? day;
   const [sectors, giants] = await Promise.all([loadDeskSectors(today), loadDeskGiants(today)]);
-  if (sectors.rows.length < 4 || etDay(sectors.asOf) !== day) return null;
+  // No sector list at all is a failed read (the loader hands back an empty one), so this copy is not kept for long.
+  if (sectors.rows.length < 4) {
+    noteDegradedRender();
+    return null;
+  }
+  if (etDay(sectors.asOf) !== day) return null;
   // The headline puts the sectors next to the index's figure: within 45 minutes of each other, or both after the close.
   const gap = indexAsOf && sectors.asOf ? Math.abs(Date.parse(sectors.asOf) - Date.parse(indexAsOf)) : NaN;
   const afterClose = (iso: string | null) => (iso ? Number(new Date(iso).toLocaleString("en-US", { timeZone: "America/New_York", hour: "numeric", hourCycle: "h23" })) >= 16 : false);
@@ -75,16 +81,13 @@ async function loadSession(day: string, indexAsOf: string | null): Promise<Brief
 }
 
 /**
- * Under the read: signed in, Ask on the person's portfolio (their agents sit in the side rail, railSlot); signed
- * out, Ask on the market only, with nothing read about anyone. The
- * signed-out page is the cached one (app/(app)/anon/[v]/briefing). Not on an earlier day's briefing.
+ * No Ask box on the page (owner rule 1): the shell's Ask is the page's one Ask. Signed in, it starts from the
+ * person's stocks (or nothing, when they track none); signed out it is the market's day, which the panel works out
+ * from the address, so the cached signed-out page (app/(app)/anon/[v]/briefing) carries no hint and reads no cookie.
  */
-function agentsSlot(data: BriefingPageData): React.ReactNode {
-  if (data.archived) return null;
-  const viewer = data.viewer;
-  if (viewer.kind === "signed_out") return <BriefingAskStrip />;
-  // Stocks with an open, visible card in a personal briefing, so a flagged stock can jump to it.
-  return <BriefingPortfolioAsk portfolio={viewer.kind !== "empty"} />;
+function askHint(data: BriefingPageData): React.ReactNode {
+  if (data.viewer.kind === "signed_out") return null;
+  return <AskPageHint context={data.viewer.kind === "empty" ? null : "portfolio"} />;
 }
 
 /**
@@ -124,7 +127,15 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
   const data = await loadBriefingPage({ day, persist: true });
   // A briefing missing a source is not kept as the cached signed-out copy for long (lib/next-render.ts).
   if (data.degraded.length > 0) noteDegradedRender();
-  const session = !day && !data.archived && data.briefing.mode === "market" ? await loadSession(data.briefing.date, data.briefing.market.as_of).catch(() => null) : null;
+  // A failed session read is a degraded render too (lib/next-render.ts), so the cached signed-out copy does not keep
+  // the market view without its sector list. A session left out on purpose (sectors from another day) is not.
+  const session =
+    !day && !data.archived && data.briefing.mode === "market"
+      ? await loadSession(data.briefing.date, data.briefing.market.as_of).catch(() => {
+          noteDegradedRender();
+          return null;
+        })
+      : null;
 
   return (
     <AppPage>
@@ -139,7 +150,6 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
           degraded={data.degraded}
           marketState={marketStateLabel(new Date())}
           session={session}
-          agents={agentsSlot(data)}
           rail={railSlot(data)}
           beforeOpen={
             day || data.archived ? null : (
@@ -157,6 +167,7 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
             )
           }
         />
+        {askHint(data)}
     </AppPage>
   );
 }

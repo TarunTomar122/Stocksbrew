@@ -96,12 +96,9 @@ export function MemoLetter({ memo, example, plan, rail = null }: { memo: Memo; e
       ) : null}
       </div>
 
-      {view ? (
-        <div className="grid gap-4 lg:grid-cols-2 lg:items-start lg:[&>*:only-child]:col-span-2">
-          <Movers movers={view.movers} memo={memo} example={example} />
-          <CallChanges calls={view.calls} memo={memo} example={example} />
-        </div>
-      ) : null}
+      {/* Each its own row of stock cards, the full width, so neither leaves a gap beside the other. */}
+      {view ? <Movers movers={view.movers} memo={memo} example={example} /> : null}
+      {view ? <CallChanges calls={view.calls} memo={memo} example={example} /> : null}
 
       <MemoCards title="What could hurt" items={hurt} empty="Nothing stands out as a risk this week." example={example} watchable={watchHurt} />
       <MemoCards title="Worth a look" items={look} empty="Nothing new to look at this week." example={example} watchable={watchLook} />

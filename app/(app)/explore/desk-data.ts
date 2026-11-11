@@ -12,7 +12,7 @@ import { getRedditCues } from "@/lib/reddit-cues";
 import { hasRedditBrief } from "@/lib/reddit-cues-shared";
 import { getLiveInvestmentThemes } from "@/lib/research-themes";
 import { getThematicScreens } from "@/lib/screens";
-import { addDays, weekStart } from "@/lib/calendar-shared";
+import { addDays, weekStart, type EarningsItem } from "@/lib/calendar-shared";
 import { loadCalendarRange, loadReportContext } from "@/lib/calendar";
 import { buildCalendarRead, readTickers } from "@/lib/calendar-insights";
 import { buildGiantsRead, screensTakeaway, type GiantForRead } from "@/lib/explore-insights";
@@ -21,7 +21,7 @@ import { getScreenerSnapshot } from "@/lib/screener";
 import { oneRowPerCompany } from "@/lib/share-class";
 import { pickInsights } from "@/lib/insights";
 import { getMarketsData } from "@/lib/markets";
-import { buildMarketsRead, FUND_TOPIC, SECTOR_IDS, sectorTakeaway } from "@/lib/markets-insights";
+import { buildMarketsRead, FUND_TOPIC, nextReports, reportCard, SECTOR_IDS, sectorTakeaway, withWatchNext } from "@/lib/markets-insights";
 import { loadReddit } from "@/lib/signals";
 import { buildMoversRead, buildRedditRead, moversHeadline } from "@/lib/signals-insights";
 import { classifyMover } from "@/lib/signals-shared";
@@ -423,12 +423,14 @@ export const loadDeskBrief = section<DeskBrief>(
   "brief",
   async (today) => {
     const monday = weekStart(today);
-    const [markets, anomalies, calendar, reddit, giants] = await Promise.all([
+    const [markets, anomalies, calendar, reddit, giants, reports] = await Promise.all([
       getMarketsData().catch(() => null),
       getDailyAnomalies("US").catch(() => null),
       loadCalendarRange(monday, addDays(monday, 4), today),
       loadReddit().catch(() => null),
       loadDeskGiants(today),
+      // The next three weeks of reports, for each card's "watch next" line. A failed read only drops those lines.
+      cachedEarnings(today, shiftDay(today, 21)).catch(() => [] as EarningsEvent[]),
     ]);
     const movers = (anomalies?.anomalies ?? []).filter((row) => row.ticker && Number.isFinite(row.day_change_pct)).map((row) => classifyMover(row));
     const marketRead = markets && markets.assets.length ? buildMarketsRead(markets) : null;
@@ -438,12 +440,26 @@ export const loadDeskBrief = section<DeskBrief>(
     const calendarRead = buildCalendarRead({ items: calendarItems, today, period: "this week", mine: null, context });
     const redditRead = reddit ? buildRedditRead(reddit.names) : null;
     if (!marketRead && !moverRead && !calendarRead && !redditRead) throw new Error("brief_empty");
-    const calendarPick = calendarRead?.insights.find((insight) => insight.id === "biggest") ?? calendarRead?.insights[0];
+    const biggest = calendarRead?.insights.find((insight) => insight.id === "biggest");
+    // The biggest report still to come, short: its last move as the figure and one sentence (owner rules 3 and 8).
+    const biggestItem = biggest?.tickers?.[0]
+      ? calendarItems.find((item): item is EarningsItem => item.kind === "earnings" && item.ticker === biggest.tickers![0])
+      : undefined;
+    const calendarPick =
+      biggest && biggestItem
+        ? reportCard(biggest, { ticker: biggestItem.ticker, date: biggestItem.date, time: biggestItem.session }, context[biggestItem.ticker], today)
+        : biggest ?? calendarRead?.insights[0];
     const read: TheRead | null = marketRead || moverRead
       ? {
           headline: marketRead?.headline ?? moverRead!.headline,
           // Market today reads the market: the biggest companies, not the day's biggest movers (Why stocks moved has those).
-          insights: pickInsights([buildGiantsRead(giants.rows)?.insight ?? null, marketRead?.insights[0], calendarPick, redditRead?.insights[0]]),
+          // Each card ends with the next real thing to watch on its stocks, when there is one (owner rule 7).
+          insights: withWatchNext(
+            // The biggest companies only when their prices are from the session the market read is about.
+            pickInsights([buildGiantsRead(giants.rows, { day: giants.day, session: etDayOf(marketRead?.asOf) })?.insight ?? null, marketRead?.insights[0], calendarPick, redditRead?.insights[0]]),
+            nextReports(reports.map((event) => ({ ticker: event.ticker, date: event.event_date, time: event.time })), today),
+            today,
+          ),
           asOf: marketRead?.asOf ?? null,
         }
       : null;

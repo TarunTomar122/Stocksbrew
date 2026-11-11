@@ -92,6 +92,13 @@ describe("buildGiantsRead", () => {
   it("needs five companies", () => {
     expect(buildGiantsRead([giant("AAPL", 5, 1)])).toBeNull();
   });
+  it("says nothing when its prices are from an earlier session than the market read", () => {
+    const rows = [giant("AAPL", 5, -0.6), giant("NVDA", 4.6, -5.5), giant("GOOGL", 4.2, -0.3), giant("MSFT", 2.9, -2.2), giant("AMZN", 2.4, 1.5)];
+    expect(buildGiantsRead(rows, { day: "2026-11-10", session: "2026-11-11" })).toBeNull();
+    expect(buildGiantsRead(rows, { day: "2026-11-11", session: "2026-11-11" })).not.toBeNull();
+    // No session to compare against: the rows stand.
+    expect(buildGiantsRead(rows, { day: "2026-11-10", session: null })).not.toBeNull();
+  });
 });
 
 describe("marketTodayRead", () => {

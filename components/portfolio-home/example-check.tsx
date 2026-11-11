@@ -128,8 +128,9 @@ export function CheckDetail({
           </span>
           <Evidence view={view} />
         </Row>
-        <Row term="Decided">{view.decided}</Row>
-        {view.next ? <Row term="Next check">{capital(nextCheckWords(view.next, today))}.</Row> : null}
+        {/* What it checked and what it found; how it decides is not the reader's business (owner rule 8). A person's own
+            agent says when it looks again, since that is theirs to plan around. */}
+        {view.next && audience === "mine" ? <Row term="Next check">{capital(nextCheckWords(view.next, today))}.</Row> : null}
       </dl>
       {steps?.change ? (
         <p className="border-t border-oa-border px-3 py-1.5 text-[13px] leading-[22px]">
@@ -142,19 +143,13 @@ export function CheckDetail({
   );
 }
 
-/** What a check did, in a few words for its row; the full sentence is in CheckDetail. */
-const DECIDED_SHORT: Record<CheckView["decision"], string> = {
-  notify: "Flagged it.",
-  nothing: "Stayed quiet.",
-  could_not_check: "Said it couldn't check.",
-};
-
 const ROW_LIST =
   "mt-1 flex flex-col gap-1 text-[12.5px] leading-[17px] [&>div]:grid [&>div]:grid-cols-[3.75rem_minmax(0,1fr)] [&>div]:gap-x-2 [&_dd]:min-w-0 [&_dd]:text-pretty [&_dd]:text-oa-fg [&_dt]:text-oa-muted-fg";
 
 /**
- * One check, all in view: the rule, then what it checked and when, what it found (with the evidence when it found
- * something) and what it decided, one short line each. `extra` sits under it (a link to the finding on this page).
+ * One check, all in view: the rule, then what it checked and when, and what it found (with the evidence when it found
+ * something), one short line each. The dot says whether it needs you; no "Decided" line repeats it (owner rule 8).
+ * `extra` sits under it (a link to the finding on this page).
  */
 export function CheckRow({
   view,
@@ -183,11 +178,8 @@ export function CheckRow({
             <span className={view.decision === "notify" ? "font-medium" : undefined}>{quietOutcome(view.outcome)}</span>
             {view.decision === "notify" ? <Evidence view={view} /> : null}
           </Row>
-          <Row term="Decided">
-            {DECIDED_SHORT[view.decision]}
-            {showNext && view.next ? <span className="text-oa-muted-fg"> Checks again {nextCheckWords(view.next, today)}.</span> : null}
-          </Row>
         </dl>
+        {showNext && view.next ? <p className="mt-1 text-[12.5px] leading-[17px] text-oa-muted-fg">Checks again {nextCheckWords(view.next, today)}.</p> : null}
         {extra}
       </div>
     </li>
@@ -225,14 +217,15 @@ export function ExampleChecks({ checks, today, head }: { checks: ExampleChecksVi
       <div className="px-4 pb-1 pt-3.5">
         {head}
         <p className="mt-1 text-pretty text-[13.5px] leading-5 text-oa-muted-fg">
-          {n === 1 ? "An agent watches" : `${n === 2 ? "Two" : n === 3 ? "Three" : n} agents watch`} the example&apos;s stocks ({tickerList(checks.tickers)}) and check them after every market close.
+          {n === 1 ? "An agent checks" : `${n === 2 ? "Two" : n === 3 ? "Three" : n} agents check`} {tickerList(checks.tickers)} after every close.
         </p>
       </div>
       {/* The check the heading talks about first, then the others; every one in view. */}
       <ul className="divide-y divide-oa-border">
-        <CheckRow view={checks.featured} today={today} />
+        {/* No "Checks again" under each one: they all run after the close, which the line above says once. */}
+        <CheckRow view={checks.featured} today={today} showNext={false} />
         {checks.others.map((view) => (
-          <CheckRow key={view.id} view={view} today={today} />
+          <CheckRow key={view.id} view={view} today={today} showNext={false} />
         ))}
       </ul>
     </>

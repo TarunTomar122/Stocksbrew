@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
-import { InboxAsk } from "@/components/inbox/inbox-ask";
+import { AskPageHint } from "@/components/ask/ask-page-hint";
 import { EmptyInbox } from "@/components/inbox/inbox-empty";
 import { InboxList } from "@/components/inbox/inbox-list";
 import { InboxSkeleton } from "@/components/inbox/inbox-skeleton";
@@ -14,6 +14,7 @@ import { forClient } from "@/lib/inbox/merge";
 import { inboxRead } from "@/lib/inbox/read";
 import { loadExampleInbox, loadUserInbox, readState } from "@/lib/inbox/server";
 import { INBOX_KINDS, type InboxKind } from "@/lib/inbox/types";
+import type { TheRead as TheReadData } from "@/lib/insights";
 import { getUserDoc } from "@/lib/watchlist";
 
 export const dynamic = "force-dynamic";
@@ -38,6 +39,21 @@ const EXAMPLE_TAG = (
   </span>
 );
 
+/**
+ * The read, then the list. When the read has no cards of its own (every card would only repeat a row below), its
+ * headline heads the list instead of standing alone in a card of its own.
+ */
+function ReadAndList({ read, label, children }: { read: TheReadData | null; label: string; children: (heading: string | null) => React.ReactNode }) {
+  if (!read || read.insights.length > 0) {
+    return (
+      <>
+        <TheRead read={read} label={label} askContext={false} />
+        {children(null)}
+      </>
+    );
+  }
+  return <>{children(read.headline || null)}</>;
+}
 
 async function ExampleInbox({ kind }: { kind: InboxKind | null }) {
   const inbox = await loadExampleInbox();
@@ -54,9 +70,11 @@ async function ExampleInbox({ kind }: { kind: InboxKind | null }) {
         <EmptyInbox example unavailable={inbox.missing.length > 0} />
       ) : (
         <>
-          <TheRead read={inboxRead(inbox.items, null, true)} label="The example's inbox" askContext={false} fold="phone" foldKeep={1} foldLabel="Show what else happened" />
-          <InboxAsk example />
-          <InboxList items={inbox.items.map(forClient)} seenAt={null} today={inbox.today} example initialKind={kind} />
+          <ReadAndList read={inboxRead(inbox.items, null, true)} label="The example's inbox">
+            {(heading) => <InboxList items={inbox.items.map(forClient)} seenAt={null} today={inbox.today} example initialKind={kind} heading={heading} />}
+          </ReadAndList>
+          {/* No Ask box on the page: the shell's Ask opens on the example's stocks (owner rule 1). */}
+          <AskPageHint context="ex.portfolio" />
         </>
       )}
     </div>
@@ -72,9 +90,11 @@ async function UserInbox({ uid, kind }: { uid: string; kind: InboxKind | null })
   const { seenAt } = readState(inbox.items, doc);
   return (
     <div className="flex flex-col gap-3 sm:gap-4">
-      <TheRead read={inboxRead(inbox.items, seenAt, false)} label="Your inbox" askContext={false} fold="phone" foldKeep={1} foldLabel="Show what else happened" />
-      <InboxAsk example={false} />
-      <InboxList items={inbox.items.map(forClient)} seenAt={seenAt} today={inbox.today} example={false} initialKind={kind} />
+      <ReadAndList read={inboxRead(inbox.items, seenAt, false)} label="Your inbox">
+        {(heading) => <InboxList items={inbox.items.map(forClient)} seenAt={seenAt} today={inbox.today} example={false} initialKind={kind} heading={heading} />}
+      </ReadAndList>
+      {/* No Ask box on the page: the shell's Ask opens on the person's stocks (owner rule 1). */}
+      <AskPageHint context="portfolio" />
     </div>
   );
 }

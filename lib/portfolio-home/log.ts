@@ -129,7 +129,7 @@ function memoRow(sources: Partial<HomeSources>, mode: HomeMode): LogRow | null {
     id: `memo-${memo.weekKey}`,
     day,
     at: written,
-    text: mine ? `Wrote your memo for the week of ${fmtPlanDay(memo.monday)}${through}.` : `Went through the example's week of ${fmtPlanDay(memo.monday)} for its memo${through}.`,
+    text: mine ? `Wrote your memo for the week of ${fmtPlanDay(memo.monday)}${through}.` : `Wrote the example's memo for the week of ${fmtPlanDay(memo.monday)}${through}.`,
     changed: found,
     tone: watch > 0 ? "down" : "flat",
     ticker: null,

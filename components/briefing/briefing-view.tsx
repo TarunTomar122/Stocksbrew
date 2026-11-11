@@ -25,12 +25,11 @@ import { briefingLead, briefingSteps } from "@/lib/next-steps";
 
 import { readAskContext } from "./ask";
 import { BriefingGroupCard, type GroupActions } from "./briefing-group";
-import { sectionWords } from "./card-words";
-import { StockCardGrid, stockGridFill } from "./stock-card";
+import { rowWords, sectionWords } from "./card-words";
+import { StockCardGrid, StockChip, StockChipRow, stockGridFill } from "./stock-card";
 import { longDay, pricesLine, shortDay, signedPct, sourceTime } from "./format";
 import { SignInButton } from "./sign-in-button";
 import Link from "next/link";
-import { AppLink } from "@/components/oa/app-link";
 
 export type BriefingViewerKind = "signed_out" | "empty" | "pending" | "member";
 
@@ -49,11 +48,6 @@ export type BriefingViewProps = {
   earnings?: React.ReactNode;
   /** How every sector did today, for the market view's headline and its strip. Null on other days. */
   session?: BriefingSession | null;
-  /**
-   * The person's agents with their latest outcomes and an Ask box (./agents-strip.tsx), rendered and streamed on
-   * the server; signed out, Ask on the market. Signed in, just the Ask box (the agents themselves are `rail`). Sits under the read. When given, the side rail's agents line goes.
-   */
-  agents?: React.ReactNode;
   /** Signed in: the person's agents and their latest outcomes, at the top of the side rail. */
   rail?: React.ReactNode;
   /** Before 9:30 ET: the futures and the biggest gaps (components/premarket/before-open.tsx), streamed. */
@@ -98,65 +92,42 @@ function isUnexplainedMove(group: BriefingGroup): boolean {
   );
 }
 
+/** Short names for the long sectors, as traders say them. */
+const SECTOR_SHORT: Record<string, string> = {
+  "communication services": "Communication",
+  "consumer discretionary": "Discretionary",
+  "consumer staples": "Staples",
+  "information technology": "Tech",
+};
+
 /**
- * Every sector on one line, best to worst: one bar each, up from the middle
- * when it rose and down when it fell, so "7 of 11 rose" is something you see.
- * Each bar opens its sector page.
+ * Every sector with its move, best to worst, each named and opening its sector page: a plain labelled list, so
+ * "6 of 11 sectors fell" is something you read, not a chart to decode (owner rule 6). Reads down the columns.
  */
 function SessionStrip({ sectors }: { sectors: BriefingSession["sectors"] }) {
   const rows = [...sectors].filter((row) => Number.isFinite(row.day)).sort((a, b) => b.day - a.day);
   if (rows.length < 4) return null;
-  const max = Math.max(0.5, ...rows.map((row) => Math.abs(row.day)));
-  const best = rows[0]!;
-  const worst = rows[rows.length - 1]!;
   return (
-    <figure className="mt-3 border-t border-oa-border pt-3">
-      <ul aria-label="How each sector did today, best to worst" className="flex h-16 items-stretch gap-1">
-        {rows.map((row) => {
-          const height = Math.max(4, (Math.abs(row.day) / max) * 50);
-          const up = row.day >= 0;
-          return (
-            <li key={row.name} className="relative flex-1">
-            <Link prefetch={false}
-              href={row.slug ? `/sectors/${row.slug}` : "/sectors"}
-              title={`${row.name} ${signedPct(row.day)}`}
-              aria-label={`${row.name} ${signedPct(row.day)}`}
-              className="absolute inset-0 rounded-sm outline-none hover:bg-oa-accent focus-visible:bg-oa-accent"
-            >
-              <span aria-hidden="true" className="absolute inset-x-0 top-1/2 h-px bg-oa-border" />
-              <span
-                aria-hidden="true"
-                className={`absolute inset-x-[18%] rounded-[2px] ${up ? "bg-signal-bullish" : "bg-signal-bearish"}`}
-                style={up ? { bottom: "50%", height: `${height}%` } : { top: "50%", height: `${height}%` }}
-              />
-            </Link>
-            </li>
-          );
-        })}
-      </ul>
-      <figcaption className="mt-1.5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 text-[13px] leading-5 text-oa-muted-fg">
-        <span>
-          Best: <span className="text-oa-fg">{best.name}</span> <span className="oa-mono tabular-nums">{signedPct(best.day)}</span>
-        </span>
-        <Link prefetch={false} href="/explore" className="order-last w-full font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg sm:order-none sm:w-auto">
-          Each bar is a sector: see all {rows.length}
-        </Link>
-        <span>
-          Worst: <span className="text-oa-fg">{worst.name}</span> <span className="oa-mono tabular-nums">{signedPct(worst.day)}</span>
-        </span>
-      </figcaption>
-    </figure>
+    <ul aria-label="How each sector did today, best to worst" className="mt-3 columns-2 gap-x-6 border-t border-oa-border pt-2 sm:columns-3">
+      {rows.map((row) => (
+        <li key={row.name} className="break-inside-avoid">
+          <Link
+            prefetch={false}
+            href={row.slug ? `/sectors/${row.slug}` : "/sectors"}
+            className="-mx-1.5 flex min-h-8 items-center justify-between gap-3 rounded px-1.5 text-[13.5px] leading-5 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent"
+          >
+            <span className="min-w-0 text-oa-fg">
+              {/* A phone's half-width column has no room for "Consumer discretionary": the trade's short name, whole. */}
+              <span className="sm:hidden">{SECTOR_SHORT[row.name.toLowerCase()] ?? row.name}</span>
+              <span className="hidden sm:inline">{row.name}</span>
+            </span>
+            <span className={`oa-mono shrink-0 tabular-nums ${row.day >= 0 ? "text-signal-bullish" : "text-signal-bearish"}`}>{signedPct(row.day)}</span>
+          </Link>
+        </li>
+      ))}
+    </ul>
   );
 }
-
-/** The other Today pages by name, so the briefing is the start and the rest are one tap on. */
-const TODAY_PAGES: Array<{ href: string; title: string }> = [
-  { href: "/explore", title: "Market today" },
-  { href: "/premarket", title: "Premarket" },
-  { href: "/movers", title: "Why stocks moved" },
-  { href: "/signals", title: "Signals" },
-  { href: "/calendar", title: "Calendar" },
-];
 
 function EmptyLine({ children }: { children: React.ReactNode }) {
   return <p className={`${CARD} px-4 py-2.5 text-[14px] leading-6 text-oa-muted-fg`}>{children}</p>;
@@ -164,21 +135,33 @@ function EmptyLine({ children }: { children: React.ReactNode }) {
 
 /**
  * A section's stocks as cards. The words are worked out for the section as a whole (./card-words.ts): an update
- * several stocks share is said once above the cards, and each card says only what is its own.
+ * several stocks share is said once above the cards, and each card says only what is its own. With `chips`, a stock
+ * left with nothing of its own (its only update said above) is a small chip under that line, not an empty card
+ * (owner rule 4).
  */
 function GroupCards({
   groups,
   actions,
   anchors,
   personal,
+  chips = false,
 }: {
   groups: BriefingGroup[];
   actions: GroupActions;
   anchors?: ReadonlySet<BriefingGroup>;
   personal: boolean;
+  chips?: boolean;
 }) {
   const words = React.useMemo(() => sectionWords(groups, { personal }), [groups, personal]);
   if (groups.length === 0) return null;
+  const bare = (group: BriefingGroup) => {
+    if (!chips || !group.ticker) return false;
+    const card = words.cards.get(group.key)!;
+    // Nothing on the card, and nothing more to open on it.
+    return !card.sentence && !card.fact && group.lines.every((line) => line === card.line || !rowWords(line, group));
+  };
+  const cards = groups.filter((group) => !bare(group));
+  const chipped = groups.filter(bare);
   return (
     <>
       {words.shared.length > 0 ? (
@@ -190,18 +173,35 @@ function GroupCards({
           ))}
         </ul>
       ) : null}
-      <StockCardGrid>
-        {groups.map((group, index) => (
-          <BriefingGroupCard
-            key={group.key}
-            group={group}
-            words={words.cards.get(group.key)!}
-            actions={actions}
-            anchor={anchors?.has(group) ?? false}
-            fill={stockGridFill(index, groups.length)}
-          />
-        ))}
-      </StockCardGrid>
+      {chipped.length > 0 ? (
+        <StockChipRow className={`px-2 sm:px-0 ${cards.length > 0 ? "mb-3" : ""}`}>
+          {chipped.map((group) => (
+            <StockChip
+              key={group.key}
+              id={anchors?.has(group) ? `brief-${group.ticker}` : undefined}
+              className="scroll-mt-20"
+              ticker={group.ticker!}
+              name={group.name}
+              figure={group.day_change_pct != null ? signedPct(group.day_change_pct, 1) : null}
+              tone={group.day_change_pct == null ? "flat" : group.day_change_pct >= 0 ? "up" : "down"}
+            />
+          ))}
+        </StockChipRow>
+      ) : null}
+      {cards.length > 0 ? (
+        <StockCardGrid>
+          {cards.map((group, index) => (
+            <BriefingGroupCard
+              key={group.key}
+              group={group}
+              words={words.cards.get(group.key)!}
+              actions={actions}
+              anchor={anchors?.has(group) ?? false}
+              fill={stockGridFill(index, cards.length)}
+            />
+          ))}
+        </StockCardGrid>
+      ) : null}
     </>
   );
 }
@@ -254,7 +254,6 @@ export function BriefingView({
   marketState,
   earnings = null,
   session = null,
-  agents = null,
   rail = null,
   beforeOpen = null,
   locked = null,
@@ -345,6 +344,7 @@ export function BriefingView({
 
   const index = briefing.market.indices;
   const movers = [...briefing.market.gainers, ...briefing.market.losers];
+
   const prices = pricesLine(briefing.stale_note);
   // The market view's read already tells the biggest explained moves; the ones it left out lead the list below.
   const inRead = new Set([...(read?.headlineTickers ?? []), ...(read?.insights ?? []).flatMap((insight) => insight.tickers ?? [])]);
@@ -370,12 +370,14 @@ export function BriefingView({
   const worth = showAllWorth ? worthAll : worthAll.slice(0, WORTH_KNOWING_FIRST);
   // Only a personal briefing's cards are linked from the agents strip (lib/briefing-anchors.ts); settled ones never.
   const anchors: ReadonlySet<BriefingGroup> = personal ? anchorGroups([...grouped.needs_you, ...worth, ...grouped.coming_up]) : new Set();
-  const groupCards = (groups: BriefingGroup[]) => <GroupCards groups={groups} actions={actions} anchors={anchors} personal={personal} />;
+  const groupCards = (groups: BriefingGroup[], chips = false) => <GroupCards groups={groups} actions={actions} anchors={anchors} personal={personal} chips={chips} />;
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start lg:gap-x-5">
+    // Two columns only while the rail has something in it (owner rule 4: no rail that leaves a void); signed out after
+    // the open it is empty and the briefing takes the whole width.
+    <div className="grid gap-4 lg:items-start lg:gap-x-5 lg:has-[>aside>:not(template)]:grid-cols-[minmax(0,1fr)_19rem]">
       {/* Head: whose briefing, the day, earlier days. One plain status line only when something is off. */}
-      <header className="min-w-0 px-2 sm:px-0 lg:col-span-2">
+      <header className="col-span-full min-w-0 px-2 sm:px-0">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
           <h1 className="flex flex-wrap items-baseline gap-x-2 text-[15px] font-semibold leading-6 text-oa-fg">
             {personal ? "Your briefing" : "Market briefing"}
@@ -455,7 +457,16 @@ export function BriefingView({
           askContext={askContext}
           visual={showSession && session ? <SessionStrip sectors={session.sectors} /> : null}
         />
-        {agents}
+        {/* Without an agents card of their own (signed out), what an agent would do here, said once under the read. */}
+        {!rail && !archived ? (
+          <p className={`${CARD} px-4 py-2.5 text-pretty text-[13.5px] leading-5 text-oa-muted-fg`}>
+            Want a heads-up when a stock you follow moves, files a report or nears earnings?{" "}
+            <Link prefetch={false} href="/agents" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
+              Set up an agent
+            </Link>{" "}
+            and it reports here after every market close.
+          </p>
+        ) : null}
         {earnings}
 
         {error ? (
@@ -531,7 +542,7 @@ export function BriefingView({
 
         <Section id="coming-up" label="Coming up" count={grouped.coming_up.length > 0 ? "next 7 days" : undefined}>
           {grouped.coming_up.length > 0 ? (
-            groupCards(grouped.coming_up)
+            groupCards(grouped.coming_up, true)
           ) : (
             <EmptyLine>
               {personal
@@ -614,80 +625,48 @@ export function BriefingView({
         <p className="px-2 text-[12px] leading-5 text-oa-muted-fg sm:px-1">Prices are delayed. Nothing here is advice to trade.</p>
       </div>
 
-      {/* Side rail: the market as context, not the lead. */}
-      <aside className="flex min-w-0 flex-col gap-4">
+      {/* Side rail: the market as context, not the lead. Only what earns it (before the open, the market, your
+          agents), and it stays in view while the main column scrolls on, so no empty strip opens up beside it. */}
+      <aside className="scrollbar-hide flex min-w-0 flex-col gap-4 [&:not(:has(>:not(template)))]:hidden lg:sticky lg:top-4 lg:-m-1 lg:max-h-[calc(100dvh-1.5rem)] lg:overflow-y-auto lg:overscroll-contain lg:p-1">
         {/* Before the bell, how the open is set up leads the rail; after 9:30 ET it renders nothing. */}
         {beforeOpen}
-        {/* The market view's read already says how the index did, so this card is for your own briefing. */}
-        {personal ? (
-        <section aria-label="Market today" className={CARD}>
-          <header className="flex min-h-10 items-center justify-between gap-3 px-4 py-2">
-            <h2 className="oa-label">Market today</h2>
-          </header>
-          {index.length > 0 ? (
-            <ul className="pb-1">
-              {index.map((entry) => (
-                <li key={entry.name} className="flex h-8 items-center justify-between gap-3 px-4 text-[14px]">
-                  <span className="text-oa-fg">{entry.name}</span>
-                  <span className="oa-mono flex items-baseline gap-2 tabular-nums">
-                    <span className="text-oa-muted-fg">{entry.price.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
-                    <span className={entry.change_pct >= 0 ? "text-signal-bullish" : "text-signal-bearish"}>{signedPct(entry.change_pct)}</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          {/* The index is a live quote; the movers come from the last full run, so their time sits with them.
-              The market view already leads with these same moves, so there it shows only the index. */}
-          {briefing.mode !== "market" ? (
-            <>
-              <MoverRows title="Biggest gains" rows={briefing.market.gainers} asOf={sourceTime(briefing.market.as_of)} />
-              <MoverRows title="Biggest drops" rows={briefing.market.losers} asOf={briefing.market.gainers.length > 0 ? null : sourceTime(briefing.market.as_of)} />
-            </>
-          ) : null}
-          {index.length === 0 && movers.length === 0 ? (
+        {/* The market view's read already says how the index did and leads with the same moves, so this card is for
+            your own briefing. */}
+        {personal && (index.length > 0 || movers.length > 0) ? (
+          <section aria-label="Market today" className={CARD}>
+            <header className="flex min-h-10 items-center justify-between gap-3 px-4 py-2">
+              <h2 className="oa-label">Market today</h2>
+            </header>
+            {index.length > 0 ? (
+              <ul className="pb-1">
+                {index.map((entry) => (
+                  <li key={entry.name} className="flex h-8 items-center justify-between gap-3 px-4 text-[14px]">
+                    <span className="text-oa-fg">{entry.name}</span>
+                    <span className="oa-mono flex items-baseline gap-2 tabular-nums">
+                      <span className="text-oa-muted-fg">{entry.price.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
+                      <span className={entry.change_pct >= 0 ? "text-signal-bullish" : "text-signal-bearish"}>{signedPct(entry.change_pct)}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {/* The index is a live quote; the movers come from the last full run, so their time sits with them. */}
+            <MoverRows title="Biggest gains" rows={briefing.market.gainers} asOf={sourceTime(briefing.market.as_of)} />
+            <MoverRows title="Biggest drops" rows={briefing.market.losers} asOf={briefing.market.gainers.length > 0 ? null : sourceTime(briefing.market.as_of)} />
+            <div className="flex min-h-10 items-center justify-end px-4 py-1">
+              <Link prefetch={false} href="/movers" className="-my-2 inline-flex min-h-10 items-center text-[13px] font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
+                See all stock moves
+              </Link>
+            </div>
+          </section>
+        ) : personal ? (
+          <section aria-label="Market today" className={CARD}>
             <p className="px-4 py-3 text-[14px] leading-5 text-oa-muted-fg">Market data is not available right now.</p>
-          ) : null}
-          <div className="flex min-h-10 items-center justify-end px-4 py-1">
-            <Link prefetch={false} href="/movers" className="-my-2 inline-flex min-h-10 items-center text-[13px] font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
-              See all stock moves
-            </Link>
-          </div>
-        </section>
+          </section>
         ) : null}
 
         {/* Your agents: useful, but not the lead (owner, Nov 11), so under the market card. */}
         {rail}
-
-        {!personal ? (
-          <section aria-labelledby="today-pages-label" className={CARD}>
-            <header className="flex min-h-10 items-center px-4 pb-0.5 pt-2.5">
-              <h2 id="today-pages-label" className="oa-label">
-                More about today
-              </h2>
-            </header>
-            <ul className="pb-1">
-              {TODAY_PAGES.map((page) => (
-                <li key={page.href}>
-                  {/* The row is the link: the title only, no arrow on every line (owner rule 1). */}
-                  <AppLink href={page.href} className="flex min-h-9 items-center px-4 py-1.5 text-[14px] font-medium leading-5 text-oa-fg outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent">
-                    {page.title}
-                  </AppLink>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
-
-        {agents ? null : (
-          <p className="px-2 text-[12.5px] leading-5 text-oa-muted-fg sm:px-1">
-            Want a heads-up when a stock hits a price, files a report or nears earnings?{" "}
-            <Link prefetch={false} href="/agents" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
-              Set up an agent
-            </Link>{" "}
-            and it will report here every market day.
-          </p>
-        )}
       </aside>
     </div>
   );

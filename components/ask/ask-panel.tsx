@@ -8,6 +8,7 @@ import type { AskPlan } from "@/lib/ask-config";
 import { formatExampleSubject, pageExampleSubject } from "@/lib/ask-examples";
 import { ASK_PANEL_ID } from "@/lib/ask-link";
 import { pageAskContext } from "@/lib/ask-page-context";
+import { ASK_PAGE_HINT_ATTR, parseAskPageHint, type AskPageHint } from "@/lib/ask-page-hint";
 import { usePublicPathname } from "@/lib/use-public-pathname";
 
 /**
@@ -41,6 +42,22 @@ function pageShowsExample(): boolean {
   const marks = document.querySelectorAll('a[href^="/ask?"][href*="ctx=ex."], input[name="ctx"][value^="ex."]');
   // The panel's own links say nothing about the page under it.
   return Array.from(marks).some((mark) => !mark.closest(`#${ASK_PANEL_ID}`));
+}
+
+/** What the page underneath says about itself (lib/ask-page-hint.ts): its item and its own questions. */
+function readPageHint(): AskPageHint | null {
+  // A page can stream a second, fuller hint in after a quick first one (its item, then its questions): the one with
+  // the most questions wins, the first one on a tie.
+  const hints = Array.from(document.querySelectorAll<HTMLScriptElement>(`script[${ASK_PAGE_HINT_ATTR}]`))
+    .filter((item) => !item.closest(`#${ASK_PANEL_ID}`))
+    .map((item) => parseAskPageHint(item.textContent))
+    .filter((hint): hint is AskPageHint => hint !== null);
+  return hints.reduce<AskPageHint | null>((best, hint) => (!best || hint.questions.length > best.questions.length ? hint : best), null);
+}
+
+/** Same hint twice reads as no change, so the conversation does not restart over an identical copy. */
+function sameHint(a: AskPageHint | null, b: AskPageHint | null): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
 }
 
 const FOCUSABLE = 'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -104,16 +121,46 @@ export default function AskPanel({
     if (open) loadViewer();
   }, [open, loadViewer]);
 
-  // Whether the page underneath shows the example, read once it has drawn (and again when it changes).
+  // Whether the page underneath shows the example, and what it says about itself, read once it has drawn (and again
+  // when it changes: a page can stream its hint in after the panel opened).
+  const [hint, setHint] = React.useState<AskPageHint | null>(null);
   React.useEffect(() => {
-    setExample(pageShowsExample());
-    const timer = window.setTimeout(() => setExample(pageShowsExample()), 400);
-    return () => window.clearTimeout(timer);
+    const read = () => {
+      setExample(pageShowsExample());
+      const next = readPageHint();
+      setHint((current) => (sameHint(current, next) ? current : next));
+    };
+    read();
+    const timer = window.setTimeout(read, 400);
+    // While the panel is open, a hint that streams in later still counts. One read per frame at most.
+    let frame = 0;
+    const observer =
+      open && typeof MutationObserver !== "undefined"
+        ? new MutationObserver(() => {
+            if (frame) return;
+            frame = window.requestAnimationFrame(() => {
+              frame = 0;
+              read();
+            });
+          })
+        : null;
+    observer?.observe(document.body, { childList: true, subtree: true });
+    return () => {
+      window.clearTimeout(timer);
+      observer?.disconnect();
+      if (frame) window.cancelAnimationFrame(frame);
+    };
   }, [pathname, open]);
 
   const pageContext = React.useMemo(
-    () => (viewer ? pageAskContext({ pathname, search: typeof window === "undefined" ? "" : window.location.search, signedIn: viewer.signedIn, example }) : null),
-    [pathname, viewer, example],
+    () =>
+      viewer
+        ? // The page's own word wins: the inbox and the briefing say which stocks they are about; the address cannot.
+          hint
+          ? hint.context
+          : pageAskContext({ pathname, search: typeof window === "undefined" ? "" : window.location.search, signedIn: viewer.signedIn, example })
+        : null,
+    [pathname, viewer, example, hint],
   );
 
   // Signed out, the page's example answer (lib/ask-examples.ts). It follows the page only while the panel is open, so
@@ -283,6 +330,7 @@ export default function AskPanel({
             initialAllowance={viewer.allowance}
             request={effectiveRequest}
             pageContext={pageContext}
+            pageQuestions={hint?.questions ?? null}
             exampleSubject={exampleSubject}
             renderBar={bar}
             onHandedOff={onHandedOff}

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { focusHeadline, focusNoticed, leadAction, prioritise, MAX_LEAD } from "@/lib/portfolio-home/focus";
+import type { Memo } from "@/lib/memo/types";
+import { focusHeadline, focusNoticed, leadAction, memoFacts, prioritise, MAX_LEAD } from "@/lib/portfolio-home/focus";
 import type { HomeSources, Loaded, Noticed } from "@/lib/portfolio-home/pick";
 import { pickQuestions, questionFor, MAX_QUESTIONS } from "@/lib/portfolio-home/questions";
 
@@ -165,5 +166,36 @@ describe("pickQuestions", () => {
 
   it("has nothing to offer the example with no findings and no data", () => {
     expect(pickQuestions({ lead: [], rest: [], sources: sources(), mode: "example" })).toEqual([]);
+  });
+});
+
+describe("memoFacts", () => {
+  const base = {
+    complete: false,
+    hurt: [{ id: "sector", kind: "sector", tickers: [], text: "x", card: { figure: "56%", label: "in Technology, against 37% of the S&P 500", sign: null, visual: null } }],
+    view: {
+      headline: "Down so far",
+      portfolioPct: -0.1,
+      marketPct: 2,
+      curve: [],
+      movers: [
+        { ticker: "QQQ", name: "QQQ", pct: 2.8, points: 0.6, href: "/x" },
+        { ticker: "NVDA", name: "NVIDIA", pct: -9.5, points: -1.4, href: "/y" },
+      ],
+      calls: [],
+      footnote: null,
+    },
+  } as unknown as Memo;
+
+  it("turns the memo into the week against the S&P 500, the biggest mover and the main risk", () => {
+    expect(memoFacts(base)).toEqual([
+      { id: "week", caption: "So far this week", figure: "−0.1%", label: "against +2.0% for the S&P 500", tone: "down", ticker: null },
+      { id: "driver", caption: "Biggest drag", figure: "−1.4 pts", label: "NVDA fell 9.5%", tone: "down", ticker: "NVDA" },
+      { id: "risk", caption: "Main risk", figure: "56%", label: "in Technology, against 37% of the S&P 500", tone: "flat", ticker: null },
+    ]);
+  });
+
+  it("says nothing it does not have", () => {
+    expect(memoFacts({ ...base, view: null, hurt: [] } as unknown as Memo)).toEqual([]);
   });
 });

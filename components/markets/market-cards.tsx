@@ -30,8 +30,6 @@ import { pickPredictions } from "./overview-sections";
 import { Sparkline } from "./widgets";
 
 const MINUS = "−";
-const UP = "var(--signal-bullish)";
-const DOWN = "var(--signal-bearish)";
 
 type Card = {
   key: string;
@@ -61,35 +59,6 @@ function name(asset: MarketAsset): string {
 }
 
 /* ── the small pictures ─────────────────────────────────────────────────── */
-
-/** Signed bars from a zero line, one per value: the day's biggest moves, largest first. */
-function MoveBars({ values, label }: { values: number[]; label: string }) {
-  const max = Math.max(...values.map((value) => Math.abs(value)), 0.01);
-  const width = 120;
-  const height = 34;
-  const gap = 3;
-  const bar = (width - gap * (values.length - 1)) / values.length;
-  const mid = height / 2;
-  return (
-    <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height} role="img" aria-label={label} className="block overflow-visible">
-      <line x1={0} x2={width} y1={mid} y2={mid} stroke="var(--oa-border)" strokeWidth={1} />
-      {values.map((value, index) => {
-        const size = Math.max((Math.abs(value) / max) * (mid - 1), 1);
-        return (
-          <rect
-            key={index}
-            x={index * (bar + gap)}
-            y={value >= 0 ? mid - size : mid}
-            width={bar}
-            height={size}
-            rx={1}
-            fill={value >= 0 ? UP : DOWN}
-          />
-        );
-      })}
-    </svg>
-  );
-}
 
 /** Probability bars for a market's leading outcomes: the outcome and its odds, then the bar under them. */
 function OddsBars({ outcomes }: { outcomes: Array<{ label: string; probability: number }> }) {
@@ -184,7 +153,7 @@ function movedCard(data: MarketsData, said: string): Card | null {
     logo: top.class === "etf" ? top.symbol : null,
     text: count ?? (skipped ? `${name(top)} was the next biggest move across markets.` : `${name(top)} moved most across markets.`),
     more: next ? `Next were ${next}.` : null,
-    visual: <MoveBars values={movers.map((asset) => asset.change.d1 ?? 0)} label={`The ${movers.length} biggest moves across markets`} />,
+    // No bar strip: the count sentence already says how many rose (owner rule 5).
   };
 }
 

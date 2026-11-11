@@ -4,7 +4,7 @@ import { callMeaning } from "./call-line";
 
 describe("callMeaning", () => {
   it("says a known action another way when it starts with the call word, as a full sentence", () => {
-    expect(callMeaning("Keep", "Keep what you own, don't buy more now")).toBe("Hold on to what you own, but don't buy more for now.");
+    expect(callMeaning("Keep", "Keep what you own, don't buy more now")).toBe("Keep what you own, but don't buy more for now.");
     expect(callMeaning("Buy more", "Buy more on a dip, not here")).toBe("Wait for a dip before adding.");
     expect(callMeaning("Sell some", "Sell some if it rises")).toBe("Take some profit if the price rises.");
   });

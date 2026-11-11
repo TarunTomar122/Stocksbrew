@@ -12,6 +12,7 @@
 
 import { balancePct, pickInsights, sharePct, type Insight, type InsightTone, type TheRead } from "@/lib/insights";
 import { better, isForeignLanguage, storyRelevance, storyWeight, titleKey } from "@/lib/wire-companies";
+import { sentenceCase, shortCompanyName } from "@/lib/plain-copy";
 import { themeKey, wireHref, WIRE_PAGE_SIZE, type WireFilters, type WireItem } from "@/lib/wire-shared";
 
 export type NewsTone = "positive" | "negative" | "neutral";
@@ -237,6 +238,16 @@ export function newsThemes(stories: WireItem[], options: { labels: NewsLabels; q
   return limit ? out.slice(0, limit) : out;
 }
 
+/**
+ * The themes to show beside the read: a theme whose only stock is the one the read leads with is left out, since
+ * the read's first card already tells that stock (owner rule 1).
+ */
+export function themesBesideRead(themes: NewsTheme[], read: TheRead | null): NewsTheme[] {
+  const lead = read?.insights[0]?.tickers?.[0];
+  if (!lead) return themes;
+  return themes.filter((theme) => !(theme.tickers.length === 1 && theme.tickers[0]!.ticker === lead));
+}
+
 /* ── The read ──────────────────────────────────────────────────────────── */
 
 function signed(pct: number, digits = 1): string {
@@ -273,110 +284,236 @@ export type MarketReadInput = {
 
 /** Stories with a usable label in a window: enough to say how the news leans. */
 export const MIN_LABELLED = 40;
+/** The most talked-about stock needs this many stories today before the read leads with it. */
+export const MIN_LEAD_STORIES = 5;
+/** How many of the most talked-about stocks the read looks through for a big move or a jump in coverage. */
+const READ_DEPTH = 15;
+
+/** A card, marked when it leans on the tone labels so the source line credits them only then. */
+type Toned = Insight & { toned?: boolean };
+
+/** The company as people say it ("NVIDIA", "Microsoft"), else the ticker. */
+function spokenName(row: StockBuzz): string {
+  return (row.name ? shortCompanyName(row.name) : "") || row.ticker;
+}
+
+/** Coverage at least three times the day before's: a new story, not an ongoing one. */
+function isSurge(count: number, prev: number): boolean {
+  return count >= Math.max(3, prev * 3);
+}
 
 /**
- * The read at the top of the wire: how the news leans against the day before,
- * the story driving it, and the stock everyone is talking about. Each insight
- * is left out when the data under it is too thin.
+ * "9 times": how many times the day before's coverage, rounded down so it is never overstated. Only for a surge
+ * against a real day before (at least three stories), so the headline and the card never disagree.
+ */
+function timesWord(count: number, prev: number): string | null {
+  if (prev < 3 || !isSurge(count, prev)) return null;
+  return `${Math.floor(count / prev)} times`;
+}
+
+/** "against 12 the day before", "none the day before". */
+function dayBefore(prev: number): string {
+  return prev === 0 ? "none the day before" : `against ${prev} the day before`;
+}
+
+/** The stock's news leaning one way, from at least three labelled stories; null when it doesn't. */
+function stockLean(row: StockBuzz): { pct: number; word: "positive" | "negative" } | null {
+  const total = totalOf(row.tones);
+  if (total < 3) return null;
+  const lean = leanOf(row.tones);
+  if (lean !== "positive" && lean !== "negative") return null;
+  return { pct: Math.round(((lean === "positive" ? row.tones.positive : row.tones.negative) / total) * 100), word: lean };
+}
+
+function rose(pct: number): string {
+  return `${pct >= 0 ? "rose" : "fell"} ${Math.abs(pct).toFixed(1)}%`;
+}
+
+/** The lead headline as a person would write it, quoted, for "the top story" lines. */
+function topStory(row: StockBuzz, lead = "The top story"): string | null {
+  const title = sentenceCase(row.lead.title, row.name ?? "").replace(/[.!]+$/, "");
+  return title ? `${lead}: “${title}”.` : null;
+}
+
+/**
+ * The read at the top of the wire, stocks first (owner rule 7): the stock leading the news, measured against the day
+ * before, then the biggest price move among the stocks in the news, then the sharpest jump in coverage. Each card
+ * names its stock, carries one number with its baseline and says what it means; a stock never takes two cards.
+ * Tone (from the per-headline labels) is added only where it clearly leans, so the read stands when the labels are
+ * behind. Null when no stock has enough coverage to lead.
  */
 export function marketRead(input: MarketReadInput): TheRead | null {
   const { today, yesterday, labels, buzz, themes, filters } = input;
-  const now = countTones(today, labels);
-  const total = totalOf(now);
-  if (total < MIN_LABELLED) return null;
-  const pct = balancePct({ ...now });
-  const before = countTones(yesterday, labels);
-  const beforePct = totalOf(before) >= MIN_LABELLED ? balancePct({ ...before }) : null;
-  const lean = leanOf(now);
-  const top = themes[0] ?? null;
+  const leader = buzz[0];
+  if (!leader || leader.count < MIN_LEAD_STORIES) return null;
+  const used = new Set<string>();
+  const insights: Array<Toned | null> = [];
+  const headlinesOf = (ticker: string) => wireHref({ ...filters, limit: WIRE_PAGE_SIZE }, { ticker });
 
-  const leanWord = lean === "positive" ? "leans positive" : lean === "negative" ? "leans negative" : "is mixed";
-  const headline = top ? `Stock news ${leanWord} today. Biggest story: ${top.name}` : `Stock news ${leanWord} today`;
+  // The headline: who leads the news, with one number (owner rule 8).
+  const leaderName = spokenName(leader);
+  const times = timesWord(leader.count, leader.prevCount);
+  const headline = times
+    ? `${leaderName} leads the news today, with ${times} the stories it got the day before.`
+    : `${leaderName} leads the news today, with ${leader.share}% of all company coverage.`;
 
-  const insights: Array<Insight | null> = [];
-
-  // 1. The balance, against the day before.
+  // 1. The leader: its coverage against the day before, its move, and what the two together say.
   {
-    const change = beforePct ? pct.positive - beforePct.positive : null;
-    const versus =
-      beforePct && change !== null
-        ? Math.abs(change) < 2
-          ? `, about the same as the day before (${beforePct.positive}%)`
-          : `, ${change > 0 ? "up" : "down"} from ${beforePct.positive}% the day before`
-        : "";
+    const lean = stockLean(leader);
+    const surge = isSurge(leader.count, leader.prevCount);
+    const toneBit = lean ? `, ${lean.pct}% of them ${lean.word}` : "";
+    // The baseline is in the figure's label ("stories, 12 the day before"), so the sentence does not say it again.
+    const text =
+      leader.pct !== null
+        ? `${leader.ticker} ${rose(leader.pct)} today on ${leader.count} stories${toneBit}.`
+        : `${leader.ticker} drew ${leader.count} stories in the last day${toneBit}.`;
+    let soWhat: string | undefined;
+    if (lean && leader.pct !== null && Math.abs(leader.pct) >= 2 && (lean.word === "negative") === leader.pct > 0) {
+      soWhat = leader.pct > 0 ? "Buyers are looking past the bad headlines so far." : "Sellers are ignoring the good headlines so far.";
+    } else if (surge && leader.pct !== null && Math.abs(leader.pct) < 1) {
+      soWhat = "All that news has barely moved the stock so far.";
+    } else if (surge && leader.pct !== null && Math.abs(leader.pct) >= 2) {
+      soWhat = "Big news and a big move together: check what changed before you trade it.";
+    } else if (!surge && leader.prevCount > 0) {
+      // Not a surge, so said from the real comparison: fewer, about as many, or more stories than the day before.
+      soWhat =
+        leader.count < leader.prevCount * 0.8
+          ? "Fewer stories than the day before: an older story winding down, not a new one."
+          : leader.count <= leader.prevCount * 1.25
+            ? "About as many stories as the day before: an ongoing story, not a new one."
+            : "A bit more coverage than the day before: still an ongoing story.";
+    }
+    used.add(leader.ticker);
     insights.push({
-      id: "balance",
-      tone: change !== null && Math.abs(change) >= 2 ? (change > 0 ? "up" : "down") : leanTone(now),
-      // One tone figure, the larger side (owner rule), labelled so it never reads as a price move.
-      figure:
-        pct.negative > pct.positive
-          ? { value: `${pct.negative}%`, label: "of stories negative", tone: "down" }
-          : { value: `${pct.positive}%`, label: "of stories positive", tone: "up" },
-      text: `${pct.positive}% of the last day's ${total.toLocaleString("en-US")} stories read positive and ${pct.negative}% negative${versus}.`,
-      soWhat: pct.neutral >= 50 ? "Most of the rest is routine: filings, fund flows and previews." : undefined,
+      id: "leader",
+      tone: leader.pct === null ? "flat" : leader.pct >= 0 ? "up" : "down",
+      figure: { value: String(leader.count), label: leader.prevCount > 0 ? `stories, ${leader.prevCount} the day before` : "stories, none the day before" },
+      text,
+      soWhat,
+      tickers: [leader.ticker],
+      leadName: leaderName !== leader.ticker ? leaderName : undefined,
+      toned: Boolean(lean),
+      action: { label: "Its headlines", href: headlinesOf(leader.ticker) },
     });
   }
 
-  // 2. The story driving it.
+  // 2. A big story, when the tone labels name one about a company not already told. Market-wide stories
+  // (inflation, the Fed) are left out: the stock they happen to name first is not what they are about.
+  const topIndex = themes.findIndex((theme) => !theme.market && theme.tickers[0] && !used.has(theme.tickers[0].ticker));
+  const top = topIndex >= 0 ? themes[topIndex]! : null;
   if (top) {
+    const lead = top.tickers[0]!;
     const side = sideOf(top.tones);
-    const lead = top.tickers[0] ?? null;
-    const grew = top.prevCount > 0 && top.count >= top.prevCount * 2 ? `, up from ${top.prevCount} the day before` : top.prevCount === 0 ? ", all of them new today" : "";
+    used.add(lead.ticker);
     insights.push({
       id: "theme",
       tone: side.tone,
-      figure: { value: String(top.count), label: top.count === 1 ? "story" : "stories" },
-      text: `The biggest story is ${top.name}: ${top.count} stories${grew}, ${side.text}.`,
-      soWhat: lead ? moveClause(lead.ticker, lead.pct) ?? undefined : undefined,
-      tickers: top.tickers.slice(0, 4).map((row) => row.ticker),
+      toned: true,
+      figure: { value: String(top.count), label: top.prevCount > 0 ? `stories, ${top.prevCount} the day before` : "stories, all new today" },
+      text: `${lead.ticker}: ${topIndex === 0 ? "the biggest story" : "another big story"} is ${top.name}, ${side.text}.`,
+      soWhat: moveClause(lead.ticker, lead.pct) ?? undefined,
+      tickers: [lead.ticker],
       action: { label: "Read them", href: wireHref({ ...filters, limit: WIRE_PAGE_SIZE }, { theme: top.name }) },
     });
   }
 
-  // 3. The stock with the most coverage (the next one when the biggest story already covers it),
-  // or one whose news and price disagree.
-  const storyStock = top?.tickers[0]?.ticker ?? null;
-  const leaderIndex = buzz.findIndex((row) => row.ticker !== storyStock);
-  const leader = leaderIndex >= 0 ? buzz[leaderIndex]! : null;
-  const disagreement = buzz.slice(0, 15).find((row) => {
-    if (row.pct === null || Math.abs(row.pct) < 2 || totalOf(row.tones) < 3) return false;
+  // 3. A stock whose news and price point opposite ways, when the labels clearly say how its news leans.
+  const disagreement = buzz.slice(0, READ_DEPTH).find((row) => {
+    if (used.has(row.ticker) || row.pct === null || Math.abs(row.pct) < 2 || totalOf(row.tones) < 3) return false;
     const rowLean = leanOf(row.tones, 20);
     return (rowLean === "positive" && row.pct < 0) || (rowLean === "negative" && row.pct > 0);
   });
-  if (leader) {
-    const side = totalOf(leader.tones) >= 3 ? sideOf(leader.tones) : null;
-    if (!disagreement || disagreement.ticker !== leader.ticker) {
-      // Starts with the ticker: the read shows a single stock's logo and symbol in front of the sentence.
-      const opener =
-        leaderIndex === 0 ? `${leader.ticker} is the most talked-about stock` : `${leader.ticker} is the most talked-about stock after ${buzz[0]!.ticker}`;
-      insights.push({
-        id: "leader",
-        tone: side?.tone ?? "flat",
-        text: `${opener}, with ${leader.share}% of company coverage (${leader.count} stories)${side ? `, ${side.text}` : ""}.`,
-        soWhat: moveClause(leader.ticker, leader.pct) ?? undefined,
-        tickers: [leader.ticker],
-        action: { label: "Its headlines", href: wireHref({ ...filters, limit: WIRE_PAGE_SIZE }, { ticker: leader.ticker }) },
-      });
-    }
-  }
   if (disagreement && disagreement.pct !== null) {
-    const rowLean = leanOf(disagreement.tones, 20);
+    const good = leanOf(disagreement.tones, 20) === "positive";
     const pctTones = balancePct({ ...disagreement.tones });
+    used.add(disagreement.ticker);
     insights.push({
       id: "disagree",
+      toned: true,
       tone: disagreement.pct > 0 ? "up" : "down",
       figure: { value: signed(disagreement.pct), label: `${disagreement.ticker} today` },
-      text: `${disagreement.ticker}: ${rowLean === "positive" ? `${pctTones.positive}% of today's headlines about it read as good news` : `${pctTones.negative}% of today's headlines about it read as bad news`}, yet the stock is ${signed(disagreement.pct)} today.`,
+      text: `${disagreement.ticker}: ${good ? `${pctTones.positive}% of today's headlines about it read as good news` : `${pctTones.negative}% of today's headlines about it read as bad news`}, yet the stock ${rose(disagreement.pct)}.`,
       // Say what we see, not why: the headlines alone do not explain this move.
-      soWhat: "The headlines alone don't explain the move.",
+      soWhat: "The headlines alone don't explain the move; wait for a reason before acting on it.",
       tickers: [disagreement.ticker],
-      action: { label: "Its headlines", href: wireHref({ ...filters, limit: WIRE_PAGE_SIZE }, { ticker: disagreement.ticker }) },
+      action: { label: "Its headlines", href: headlinesOf(disagreement.ticker) },
     });
   }
 
-  const sourceBits = [`${total.toLocaleString("en-US")} stories from ${input.sources} ${input.sources === 1 ? "source" : "sources"}`];
-  if (input.labelledBy) sourceBits.push(`tone read per headline by ${input.labelledBy}`);
-  return { headline, insights: pickInsights(insights, 3), source: sourceBits.join(" · "), asOf: input.asOf };
+  // 4. The biggest move among the stocks in the news, with the story behind it.
+  const mover = buzz
+    .slice(0, READ_DEPTH)
+    .filter((row) => !used.has(row.ticker) && row.pct !== null && Math.abs(row.pct) >= 3 && row.count >= 3)
+    .sort((a, b) => Math.abs(b.pct!) - Math.abs(a.pct!) || a.ticker.localeCompare(b.ticker))[0];
+  if (mover && mover.pct !== null) {
+    used.add(mover.ticker);
+    insights.push({
+      id: "mover",
+      tone: mover.pct >= 0 ? "up" : "down",
+      figure: { value: signed(mover.pct), label: `${mover.ticker} today` },
+      text: `${mover.ticker} ${rose(mover.pct)} today, the biggest move in the news, on ${mover.prevCount === 0 ? `${mover.count} stories that are all new today` : `${mover.count} stories, ${dayBefore(mover.prevCount)}`}.`,
+      soWhat: topStory(mover) ?? undefined,
+      tickers: [mover.ticker],
+      action: { label: "Its headlines", href: headlinesOf(mover.ticker) },
+    });
+  }
+
+  // 5. The sharpest jump in coverage: new attention, before or after the price notices.
+  const jump = buzz
+    .slice(0, READ_DEPTH)
+    .filter((row) => !used.has(row.ticker) && row.count >= 8 && isSurge(row.count, row.prevCount))
+    .sort((a, b) => b.count / Math.max(1, b.prevCount) - a.count / Math.max(1, a.prevCount) || b.count - a.count || a.ticker.localeCompare(b.ticker))[0];
+  if (jump) {
+    used.add(jump.ticker);
+    // A ratio only against a real day before; "24×" over a single story is noise, so the count is the figure then.
+    const ratio = jump.prevCount >= 2 ? Math.floor(jump.count / jump.prevCount) : null;
+    // The figure carries the coverage and its baseline, so the sentence says what the stock did with it (owner rule 1).
+    const text =
+      jump.pct === null
+        ? `${jump.ticker} is suddenly in the news, with no price move to read yet.`
+        : Math.abs(jump.pct) < 1
+          ? `${jump.ticker} is suddenly in the news, but the stock has barely moved on it so far.`
+          : `${jump.ticker} ${rose(jump.pct)} today as the news about it took off.`;
+    insights.push({
+      id: "jump",
+      tone: jump.pct === null || Math.abs(jump.pct) < 1 ? "flat" : jump.pct > 0 ? "up" : "down",
+      figure: ratio !== null ? { value: `${ratio}×`, label: "its coverage the day before" } : { value: String(jump.count), label: jump.prevCount === 1 ? "stories, 1 the day before" : "stories, none the day before" },
+      text,
+      // Worded apart from the mover card's "The top story", so two cards never open the same way (owner rule 1).
+      soWhat: topStory(jump, "Leading its coverage") ?? undefined,
+      tickers: [jump.ticker],
+      action: { label: "Its headlines", href: headlinesOf(jump.ticker) },
+    });
+  }
+
+  // 6. How the whole wire leans, against the day before: only with enough labels, and only to fill a gap.
+  const now = countTones(today, labels);
+  const total = totalOf(now);
+  const wireLean = leanOf(now);
+  if (total >= MIN_LABELLED && (wireLean === "positive" || wireLean === "negative")) {
+    const pct = balancePct({ ...now });
+    const before = countTones(yesterday, labels);
+    const beforePct = totalOf(before) >= MIN_LABELLED ? balancePct({ ...before }) : null;
+    const negative = wireLean === "negative";
+    const share = negative ? pct.negative : pct.positive;
+    const was = beforePct ? (negative ? beforePct.negative : beforePct.positive) : null;
+    insights.push({
+      id: "balance",
+      tone: negative ? "down" : "up",
+      toned: true,
+      figure: { value: `${share}%`, label: `of stories ${negative ? "negative" : "positive"}`, tone: negative ? "down" : "up" },
+      text: `${share}% of the last day's stock news read ${negative ? "negative" : "positive"}${was !== null ? `, against ${was}% the day before` : ""}.`,
+    });
+  }
+
+  const picked = pickInsights(insights, 3);
+  // Credit the tone labels only when a card that is shown uses them.
+  const usedTone = picked.some((insight) => (insight as Toned).toned);
+  const shown = picked.map(({ toned: _toned, ...insight }: Toned) => insight);
+  const stories = today.length;
+  const sourceBits = [`${stories.toLocaleString("en-US")} stories from ${input.sources} ${input.sources === 1 ? "source" : "sources"}`];
+  if (usedTone && input.labelledBy) sourceBits.push(`tone read per headline by ${input.labelledBy}`);
+  return { headline, headlineTickers: [leader.ticker], insights: shown, source: sourceBits.join(" · "), asOf: input.asOf };
 }
 
 /* ── Everything at once ────────────────────────────────────────────────── */
@@ -421,7 +558,8 @@ export function readTheWire(source: WireReadSource, options: { nowMs: number; fi
     buzz,
     themes,
     sources,
-    asOf: source.labelledAt ?? source.newestAt,
+    // The read is about the stories, so it is as fresh as the newest one, not as the tone labels.
+    asOf: source.newestAt ?? source.labelledAt,
     labelledBy: source.labelledBy,
     filters,
   });

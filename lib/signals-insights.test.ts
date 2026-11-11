@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildMoversRead, buildPolicyRead, buildRedditRead, causeKind, causeCluster, moverTheme, moversHeadline, praisedRecord, themeCluster, type MoverForRead } from "@/lib/signals-insights";
+import { buildMoversRead, buildPolicyRead, buildRedditRead, buildSignalsTodayRead, causeKind, causeCluster, moverTheme, moversHeadline, oneCardPerStock, praisedRecord, recentInsight, redditHeadline, themeCluster, type MoverForRead } from "@/lib/signals-insights";
 import type { PolicyPost, RedditName } from "@/lib/signals-shared";
 
 const m = (ticker: string, pct: number, cause: string | null, headline = "", industry: string | null = null): MoverForRead => ({
@@ -82,9 +82,21 @@ function name(ticker: string, mentions: number, stance: RedditName["stance"], da
 describe("reddit", () => {
   const names = [name("NVDA", 11, "bearish", -4.3, 4, 1.17), name("SPY", 7, "bearish", 2.4), name("QQQ", 5, "bearish", 3.4), name("AMD", 4, "bearish", 13.4), name("MU", 2, "mixed", 6.3, 2, 0.33), name("BABA", 2, "bullish", -3.7)];
 
+  it("names the President's posts in the Today read's source when one of its cards is about them", () => {
+    const now = Date.parse("2026-11-10T12:00:00Z");
+    const posts = [...Array(3)].map((_, i) => post(`p${i}`, "2026-11-09T00:00:00Z", "neutral", []));
+    const read = buildSignalsTodayRead([], names, posts, now, null)!;
+    const policy = read.insights.find((insight) => insight.id === "recent");
+    expect(policy?.text).toMatch(/^The President's market posts this week were mostly neither positive nor negative\./);
+    expect(read.source).toBe("From 31 stock mentions on Reddit and the President's posts");
+    expect(buildSignalsTodayRead([], names, [], now, null)!.source).toBe("From 31 stock mentions on Reddit");
+  });
+
   it("skips funds when naming the loudest stock and flags crowd-vs-price splits", () => {
     const read = buildRedditRead(names)!;
-    expect(read.headline).toMatch(/^\d+% of the 31 stock mentions we counted on Reddit expect prices to fall, against \d+% expecting a rise\.$/);
+    // One idea, one number (owner rule 8); the base goes in the source line.
+    expect(read.headline).toBe("87% of Reddit's stock mentions expect prices to fall.");
+    expect(read.source).toBe("From 31 stock mentions on Reddit");
     // The most-mentioned stock is the first line under it, not part of the headline.
     expect(read.headline).not.toContain("NVDA");
     expect(read.insights[0]!.text).toMatch(/^NVDA is the stock Reddit talks about most: 11 of 31 mentions \(35%\), 3\.4x/);
@@ -93,6 +105,33 @@ describe("reddit", () => {
 
   it("is null with no names", () => {
     expect(buildRedditRead([])).toBeNull();
+  });
+
+  it("never puts the loudest stock on the disagreement card too", () => {
+    // NVDA is loudest and also against its price; the disagreement card tells the next one (RKLB) instead.
+    const read = buildRedditRead([name("NVDA", 10, "bearish", 4.3), name("RKLB", 3, "bearish", 7.6), name("AMD", 2, "bullish", 1)])!;
+    const tickers = read.insights.flatMap((insight) => insight.tickers ?? []);
+    expect(tickers.filter((ticker) => ticker === "NVDA")).toHaveLength(1);
+    expect(read.insights[1]!.text).toContain("RKLB");
+    expect(read.insights[1]!.text).not.toContain("NVDA");
+  });
+
+  it("says a split crowd with one number", () => {
+    expect(redditHeadline({ bullish: 13, bearish: 17, total: 50 })).toBe("Reddit leans slightly toward a fall, with 34% of stock mentions expecting one.");
+    expect(redditHeadline({ bullish: 10, bearish: 10, total: 50 })).toBe("Reddit is split evenly: 20% of stock mentions expect a rise, and as many a fall.");
+    expect(redditHeadline({ bullish: 0, bearish: 0, total: 50 })).toBe("Reddit is talking about stocks without leaning either way.");
+  });
+});
+
+describe("one card per stock", () => {
+  it("drops a later card about a stock an earlier card told", () => {
+    const cards = oneCardPerStock([
+      { id: "a", tone: "flat", text: "a", tickers: ["NVDA"] },
+      { id: "b", tone: "flat", text: "b" },
+      { id: "c", tone: "flat", text: "c", tickers: ["RKLB", "NVDA"] },
+      { id: "d", tone: "flat", text: "d", tickers: ["AMD"] },
+    ]);
+    expect(cards.map((card) => card.id)).toEqual(["a", "b", "d"]);
   });
 });
 
@@ -123,5 +162,29 @@ describe("policy", () => {
 
   it("is null with no posts", () => {
     expect(buildPolicyRead([], now)).toBeNull();
+  });
+
+  it("says the week's tone as one figure, not two counts", () => {
+    const posts = [
+      post("1", "2026-11-09T00:00:00Z", "bullish", []),
+      post("2", "2026-11-08T00:00:00Z", "bullish", []),
+      post("3", "2026-11-07T00:00:00Z", "bearish", []),
+      post("4", "2026-11-06T00:00:00Z", "neutral", []),
+      post("5", "2026-10-30T00:00:00Z", "neutral", []),
+    ];
+    const recent = recentInsight(posts, now)!;
+    expect(recent.text).toBe("The President posted about the market 4 times in the last 7 days (1 the week before). None named a listed company.");
+    expect(recent.figure).toEqual({ value: "50%", label: "positive", tone: "up" });
+    // 4 against 3 of 10 is a split, said in words with no tone figure.
+    const split = recentInsight(
+      [...Array(4)].map((_, i) => post(`p${i}`, "2026-11-09T00:00:00Z", "bullish", [])).concat([...Array(3)].map((_, i) => post(`n${i}`, "2026-11-09T00:00:00Z", "bearish", [])), [...Array(3)].map((_, i) => post(`z${i}`, "2026-11-09T00:00:00Z", "neutral", []))),
+      now,
+    )!;
+    // The figure has the count, so the sentence does not say it again.
+    expect(split.text).toBe("The President's market posts this week were split between positive and negative. None named a listed company.");
+    expect(split.figure).toEqual({ value: "10", label: "posts this week" });
+    const busier = recentInsight([...Array(3)].map((_, i) => post(`p${i}`, "2026-11-09T00:00:00Z", "neutral", [])).concat([post("old", "2026-11-01T00:00:00Z", "neutral", [])]), now)!;
+    expect(busier.text).toBe("The President posted about the market 3 times in the last 7 days, mostly neither positive nor negative. None named a listed company.");
+    expect(busier.figure).toEqual({ value: "+2", label: "on the week before" });
   });
 });

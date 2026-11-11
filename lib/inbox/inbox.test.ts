@@ -278,18 +278,26 @@ describe("the read", () => {
     expect(inboxRead([], null, false)).toBeNull();
   });
 
-  it("puts the agent's finding on its card, not the count the headline already says", () => {
-    const items = mergeInbox([[agentItem(run(), "mine")!]], SINCE, NOW);
+  it("puts the agent's latest finding on its card, not the count the headline already says", () => {
+    const earlier = agentItem(run({ jobId: "older123x", day: "2026-11-09", ranAt: "2026-11-09T22:40:00Z", summary: "AMD rose 6.1% in a day.", tickers: ["AMD"] }), "mine")!;
+    const items = mergeInbox([[agentItem(run(), "mine")!, earlier]], SINCE, NOW);
     const card = inboxRead(items, "2026-11-01T00:00:00Z", false)!.insights.find((insight) => insight.id === "inbox-agents")!;
     expect(card.text).toBe("NVDA fell 5.47% in a day.");
-    expect(card.figure).toEqual({ value: "−5.47%", label: "Nov 10", tone: "down" });
+    expect(card.figure).toEqual({ value: "−5.47%", label: "latest of 2 flags", tone: "down" });
     expect(card.tickers).toEqual(["NVDA"]);
     // The direction word nearest the number signs it.
     expect(signedMove("After a lower open, NVDA rose 4.2% by noon.")).toEqual({ value: "+4.2%", tone: "up" });
     expect(signedMove("NVDA, down early, finished up 3.1%.")).toEqual({ value: "+3.1%", tone: "up" });
     expect(signedMove("NVDA moved 3% today.")).toBeNull();
     // No percent in the finding: no figure, rather than a count.
-    const plain = mergeInbox([[agentItem(run({ summary: "AMD's CFO sold shares on Monday.", tickers: ["AMD"] }), "mine")!]], SINCE, NOW);
+    const plain = mergeInbox([[agentItem(run({ summary: "AMD's CFO sold shares on Monday.", tickers: ["AMD"] }), "mine")!, earlier]], SINCE, NOW);
     expect(inboxRead(plain, null, false)!.insights.find((insight) => insight.id === "inbox-agents")!.figure).toBeNull();
+  });
+
+  it("leaves out the agents card when its one finding is already a row in the list", () => {
+    const items = mergeInbox([[agentItem(run(), "mine")!]], SINCE, NOW);
+    const read = inboxRead(items, "2026-11-01T00:00:00Z", false)!;
+    expect(read.headline).toBe("Since you last looked, your agents flagged 1 thing.");
+    expect(read.insights.find((insight) => insight.id === "inbox-agents")).toBeUndefined();
   });
 });

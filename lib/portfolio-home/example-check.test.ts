@@ -47,14 +47,14 @@ describe("shapeExampleChecks", () => {
     )!;
     expect(view.featured.id).toBe("examplebigmove");
     expect(view.featured.outcome).toBe("NVDA fell 5.47% in a day.");
-    expect(view.featured.checked).toBe("Closing prices for the seven stocks, the latest from Nov 10.");
+    expect(view.featured.checked).toBe("Nov 10 closing prices for the seven stocks.");
     expect(view.featured.findings[0]?.url).toBe("/stock/NVDA");
     expect(view.featured.findings[0]?.detail).toBe("Closed at $168.89 on Nov 10, down 5.47% from $178.67 the day before.");
     expect(view.featured.decided).toBe("It decided to tell you.");
     expect(view.featured.when).toMatch(/^Nov\s10\sat\s5:41/);
     expect(view.others.map((other) => other.id)).toEqual(["exampleearnings"]);
     expect(view.others[0]?.outcome).toBe("Nothing to report. None of these stocks reports within 3 days.");
-    expect(view.others[0]?.checked).toBe("The earnings calendar for the seven stocks, 3 calendar days ahead.");
+    expect(view.others[0]?.checked).toBe("Report dates for the seven stocks over the next 3 days.");
   });
 
   it("words a quiet price check plainly and names the next check only after a scheduled run", () => {
@@ -78,7 +78,7 @@ describe("shapeExampleChecks", () => {
       checked: ["SEC filings from Nov 11: 12 filings across the companies we cover", "Names in scope: 7, 0 filings from them"],
     });
     const view = shapeExampleChecks({ agents: AGENTS, runs: [filings], tickers: TICKERS }, "2026-11-11")!;
-    expect(view.featured.checked).toBe("Every SEC filing from Nov 11: 12 across the companies we cover, none from these seven stocks.");
+    expect(view.featured.checked).toBe("SEC filings from Nov 11 for these seven stocks.");
     expect(view.featured.outcome).toBe("Nothing to report. None of these stocks filed something big on Nov 11.");
   });
 
@@ -88,7 +88,7 @@ describe("shapeExampleChecks", () => {
     const view = shapeExampleChecks({ agents: AGENTS, runs: [one, told], tickers: TICKERS }, "2026-11-11")!;
     const byId = Object.fromEntries([view.featured, ...view.others].map((check) => [check.id, check]));
     expect(byId.examplebigmove?.outcome).toBe("Nothing to report. The one stock with a new close did not move 5% or more on Nov 10.");
-    expect(byId.examplebigmove?.checked).toBe("Closing prices for one of the seven stocks, the latest from Nov 10.");
+    expect(byId.examplebigmove?.checked).toBe("Nov 10 closing prices for one of the seven stocks.");
     expect(byId.exampleearnings?.outcome).toBe("Nothing to report. NVDA reports soon, which it had already said.");
   });
 
@@ -179,7 +179,7 @@ describe("ownCheckView", () => {
     expect(stored.detail?.findings).toHaveLength(1);
     const view = ownCheckView(job, [stored], "2026-11-11")!;
     expect(view.ask).toMatch(/NVDA/);
-    expect(view.checked).toBe("Closing prices for the two stocks, the latest from Nov 10.");
+    expect(view.checked).toBe("Nov 10 closing prices for the two stocks.");
     expect(view.stocks).toEqual(["NVDA", "AAPL"]);
     expect(view.flagged).toEqual(["NVDA"]);
     expect(view.findings[0]?.detail).toBe("Closed at $168.89 on Nov 10, down 5.47% from $178.67 the day before.");
@@ -200,7 +200,7 @@ describe("ownCheckView", () => {
   it("says 'your stocks' when a watchlist rule stored no count", () => {
     const watchlist = { ...job, scope: { kind: "watchlist" as const } };
     const stored = watchRunFromDoc({ ...doc, counts: null, decision: "nothing", findings: [], summary: "Checked, nothing to do." }, "u1")!;
-    expect(ownCheckView(watchlist, [stored], "2026-11-11")!.checked).toBe("Closing prices for your stocks, the latest from Nov 10.");
+    expect(ownCheckView(watchlist, [stored], "2026-11-11")!.checked).toBe("Nov 10 closing prices for your stocks.");
   });
 });
 
