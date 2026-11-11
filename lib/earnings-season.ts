@@ -567,8 +567,8 @@ export type SeasonReadOptions = { example: boolean };
 function voice(example: boolean) {
   return example
     ? {
-        reporting: (n: number) => (n === 1 ? "One stock in the example portfolio reports" : `${countWord(n)} stocks in the example portfolio report`),
-        share: (pct: string) => `, ${pct} of its value`,
+        reporting: (n: number) => (n === 1 ? "One of the example's stocks reports" : `${countWord(n)} of the example's stocks report`),
+        together: (n: number, pct: string) => `The ${countWord(n).toLowerCase()} that report are ${pct} of the example portfolio.`,
         none: "None of the stocks in the example portfolio report",
         noHoldings: "None of the example's holdings report",
         watchers: "the example watches",
@@ -576,7 +576,7 @@ function voice(example: boolean) {
       }
     : {
         reporting: (n: number) => (n === 1 ? "One of your stocks reports" : `${countWord(n)} of your stocks report`),
-        share: (pct: string) => `, ${pct} of your portfolio`,
+        together: (n: number, pct: string) => `The ${countWord(n).toLowerCase()} that report are ${pct} of your portfolio.`,
         none: "None of your stocks report",
         noHoldings: "None of your holdings report",
         watchers: "you watch",
@@ -610,9 +610,18 @@ export function buildSeasonRead(season: Season, options: SeasonReadOptions): The
   if (holdings.length === 0) {
     const anyHoldings = season.later.some((stock) => stock.kind === "holding" && !stock.fund);
     const nextUp = season.later.find((stock) => stock.kind === "holding" && !stock.fund && stock.next);
-    if (watching.length > 0) {
-      headline = `${words.noHoldings} in the next six weeks, but ${countWord(watching.length).toLowerCase()} ${watching.length === 1 ? "stock" : "stocks"} ${words.watchers} ${watching.length === 1 ? "does" : "do"}: ${watchList(watching, today)}.`;
-      headlineTickers.push(...watching.map((stock) => stock.ticker));
+    if (watching.length === 1) {
+      headline = `${words.noHoldings} in the next six weeks, but one stock ${words.watchers} does: ${watchList(watching, today)}.`;
+      headlineTickers.push(watching[0]!.ticker);
+    } else if (watching.length > 1) {
+      // Several watched names: the count leads, the list goes one line down so the headline stays short.
+      headline = `${words.noHoldings} in the next six weeks, but ${countWord(watching.length).toLowerCase()} stocks ${words.watchers} do.`;
+      insights.push({
+        id: "watching",
+        tone: "flat",
+        text: `${countWord(watching.length)} stocks ${words.watchers} report: ${watchList(watching, today)}.`,
+        tickers: watching.map((stock) => stock.ticker),
+      });
     } else if (!anyHoldings && season.later.length === 0) {
       return null;
     } else {
@@ -630,33 +639,42 @@ export function buildSeasonRead(season: Season, options: SeasonReadOptions): The
     return { headline, insights: pickInsights(insights), headlineTickers };
   }
 
-  // Sentence one: how many, by when, and how much of the money.
+  // The headline is how many report and the one to watch; its share of the money and its past moves go one line down.
   const reportingShare = season.weighted ? holdings.reduce((sum, stock) => sum + (stock.weight ?? 0), 0) : null;
-  const shareTail = reportingShare !== null && reportingShare > 0 ? words.share(pctOfPortfolio(reportingShare)) : "";
-  const first = `${words.reporting(holdings.length)} ${span}${shareTail}.`;
+  const together = holdings.length > 1 && reportingShare !== null && reportingShare > 0 ? words.together(holdings.length, pctOfPortfolio(reportingShare)) : null;
+  const first = `${words.reporting(holdings.length)} ${span}`;
 
-  // Sentence two: the one to watch.
   const watch = oneToWatch(holdings);
-  let second = "";
+  let watchPoint: Insight | null = null;
   if (watch) {
     headlineTickers.push(watch.ticker);
     const when = `${whenWords(watch.next!.date, today)}${watch.next!.session !== "unknown" ? ` ${sessionWords(watch.next!.session)}` : ""}`;
     const history = historyWords(watch.stats, watch.past, today);
     const vsDay = watch.stats.usualKind === "single" ? null : vsDayWords(watch.stats.vsNormalDay);
     const moved = history ? `${history}${vsDay ? `, ${vsDay}` : ""}` : null;
-    if (holdings.length === 1) {
-      // Its share is already in the first sentence.
-      second = moved
-        ? `${watch.name} reports ${when}. It ${moved}.`
-        : `${watch.name} reports ${when}, and we have no record of how it moved on past reports.`;
-    } else {
-      const facts = [watch.weight !== null ? `it is ${pctOfPortfolio(watch.weight)} of the portfolio` : null, moved].filter(Boolean) as string[];
-      second = facts.length
-        ? `${watch.name} is the one to watch ${when}: ${joinClauses(facts)}.`
-        : `${watch.name} reports first, ${when}.`;
+    const weight = watch.weight !== null ? `is ${pctOfPortfolio(watch.weight)} of the portfolio` : null;
+    headline =
+      holdings.length === 1
+        ? `${first}: ${watch.name}, ${when}.`
+        : weight || moved
+          ? `${first}. ${watch.name}, ${when}, is the one to watch.`
+          : `${first}. ${watch.name} reports first, ${when}.`;
+    // Starts with the ticker, which the read shows as the company's logo and name.
+    const facts = weight && moved ? `${weight} and ${moved}` : weight ?? moved;
+    if (facts) {
+      watchPoint = {
+        id: `watch-${watch.ticker}`,
+        tone: "flat",
+        text: `${watch.ticker} ${facts}.`,
+        ...(together ? { soWhat: together } : {}),
+        tickers: [watch.ticker],
+        leadName: watch.name,
+      };
     }
+  } else {
+    headline = `${first}.`;
   }
-  headline = `${first} ${second}`.trim();
+  if (!watchPoint && together) watchPoint = { id: "together", tone: "flat", text: together };
 
   // Point: the busy week, when one week carries more than one holding.
   const busy = season.weeks.filter((week) => week.stocks.some((stock) => stock.kind === "holding"));
@@ -715,7 +733,8 @@ export function buildSeasonRead(season: Season, options: SeasonReadOptions): The
     }
   }
 
-  // Point: how much history the moves rest on.
+  // Point: how much history the moves rest on. A caveat, so it always keeps its place.
+  let sample: Insight | null = null;
   const thinStocks = season.reporting.filter((stock) => stock.stats.count < SMALL_SAMPLE);
   if (thinStocks.length > 0 && thinStocks.length * 2 >= season.reporting.length) {
     const counts = thinStocks.map((stock) => stock.stats.count);
@@ -725,14 +744,14 @@ export function buildSeasonRead(season: Season, options: SeasonReadOptions): The
     const all = thinStocks.length === season.reporting.length;
     const who = all ? (thinStocks.length === 1 ? thinStocks[0]!.name : "each of these stocks") : nameList(thinStocks);
     const reports = (n: number) => `${countWord(n).toLowerCase()} past ${n === 1 ? "report" : "reports"}`;
-    insights.push({
+    sample = {
       id: "sample",
       tone: "flat",
       text:
         most === 0
           ? `We have no measured moves after past reports for ${all ? (thinStocks.length === 1 ? thinStocks[0]!.name : "these stocks") : who} yet, so there is no history to go on.`
           : `We have ${fewest === most ? `only ${reports(most)}` : `at most ${reports(most)}`} for ${who}, so treat ${thinStocks.length === 1 ? "its" : "their"} past moves as a small sample.${none.length ? ` ${nameList(none)} ${none.length === 1 ? "has" : "have"} none.` : ""}`,
-    });
+    };
   }
 
   if (watching.length > 0) {
@@ -744,7 +763,10 @@ export function buildSeasonRead(season: Season, options: SeasonReadOptions): The
     });
   }
 
-  return { headline, insights: pickInsights(insights), headlineTickers };
+  // The numbers the headline left out come first, in a line of their own on top of the usual three points,
+  // and the small-sample caveat always keeps its place among those three.
+  const rest = pickInsights(insights, sample ? 2 : 3);
+  return { headline, insights: pickInsights([watchPoint, ...rest, sample], 4), headlineTickers };
 }
 
 function watchList(stocks: SeasonStock[], today: string): string {

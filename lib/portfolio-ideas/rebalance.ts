@@ -2,15 +2,19 @@ import type { Xray } from "@/lib/xray";
 
 import { saleTax } from "./tax";
 import type { AddIdea, IdeaHolding, IdeasSubject, RebalancePlan, SectorShift, TaxRates, TrimIdea, TrimKind } from "./types";
-import { fmtPct, portfolioWord, sharesWord, usd } from "./words";
+import { fmtPct, joinList, portfolioWord, sharesWord, usd } from "./words";
 
 /**
  * "Trim this, add that": plain rules over the x-ray (lib/xray.ts, funds
  * counted) and the person's own lots. Written down before they were tried:
  *
+ * - No trim idea ever sells a stock our call says to buy more of (for a company
+ *   with two share classes, a Buy more call on either one). Trims come from
+ *   Sell some calls first, then Keep (and stocks we have no call on).
  * - A company above COMPANY_LINE percent of the portfolio, once funds are
  *   counted, is concentrated. The idea sells enough of the stock bought
- *   directly to bring it back to the line.
+ *   directly to bring it back to the line. A Buy more call above the line is
+ *   named as information, with no sale.
  * - A holding that has grown to DRIFT_RATIO times its share of the money put
  *   in, and at least DRIFT_POINTS points more, has drifted. The idea sells it
  *   back to its starting share. Not for a stock our call says to buy more of.
@@ -20,6 +24,13 @@ import { fmtPct, portfolioWord, sharesWord, usd } from "./words";
  * - No idea sells more than MAX_SELL of a holding, and funds are never
  *   trimmed: they are already spread out. Only the MAX_COMPANIES biggest
  *   companies over the line get an idea; the rest are named.
+ * - A sale under TRIM_MIN_USD dollars, or under TRIM_MIN_POINTS points of the
+ *   portfolio, is too small to be worth the trade and is left out.
+ * - Every percentage on a card is measured against today's portfolio on the
+ *   x-ray's base (funds counted): "before" is today's weight and "after" is
+ *   that sale on its own. Trims are still sized together (a sector trim only
+ *   covers what the company trims above it leave), and the sector summary
+ *   reports where all of them together would leave it.
  * - The money raised goes, on paper, to holdings our call says to buy more
  *   of, in sectors that are not tilted, without taking any company above
  *   ADD_CEILING, and never to a stock listed as a loss to sell (buying it
@@ -36,6 +47,10 @@ export const DRIFT_POINTS = 5;
 export const MAX_SELL = 0.5;
 export const ADD_CEILING = 8;
 export const MAX_COMPANIES = 3;
+/** A trim raising less than this many dollars is not worth the trade. */
+export const TRIM_MIN_USD = 500;
+/** Nor is one moving less than this many points of the portfolio. */
+export const TRIM_MIN_POINTS = 2;
 /** A result this close to the line counts as reaching it (whole shares rarely land exactly). */
 const SLACK = 0.5;
 /** A cheaper-lots alternative is worth showing only when it saves at least this much tax. */
@@ -61,7 +76,22 @@ export function buildRebalance(input: {
   const { xray, rates, today, subject } = input;
   const total = xray.total;
   const where = portfolioWord(subject);
-  const empty: RebalancePlan = { total, trims: [], adds: [], proceeds: 0, leftover: 0, taxTotal: null, sectors: [], fundOnly: [], unsized: [], moreOver: [], quiet: null };
+  const empty: RebalancePlan = {
+    total,
+    trims: [],
+    adds: [],
+    proceeds: 0,
+    leftover: 0,
+    taxTotal: null,
+    sectors: [],
+    fundOnly: [],
+    unsized: [],
+    moreOver: [],
+    companiesOver: [],
+    buyMoreOver: [],
+    small: [],
+    quiet: null,
+  };
   if (!(total > 0)) return empty;
 
   const pct = (value: number) => (value / total) * 100;
@@ -78,23 +108,35 @@ export function buildRebalance(input: {
   const fundOnly: RebalancePlan["fundOnly"] = [];
   const unsized: RebalancePlan["unsized"] = [];
   const moreOver: RebalancePlan["moreOver"] = [];
+  const buyMoreOver: RebalancePlan["buyMoreOver"] = [];
+  const small: RebalancePlan["small"] = [];
 
+  /**
+   * One sale. `shownBefore` is the subject's weight today (what the card
+   * shows); `runningBefore` is its weight after the trims already planned,
+   * used only to size the sale and to tell whether the plan reaches the line.
+   * "small" means the sale would be too small to be worth making; nothing is
+   * changed then.
+   */
   const sell = (
     holding: Working,
     kind: TrimKind,
     wanted: number,
     subjectName: string,
-    subjectBefore: number,
+    shownBefore: number,
+    runningBefore: number,
     target: number,
     why: string,
     viaFunds = 0,
     label = holding.name,
-  ): TrimIdea | null => {
+  ): TrimIdea | "small" | null => {
+    if (holding.call === "Add") return null;
     const price = holding.price as number;
     const cap = Math.floor((holding.shares ?? 0) * MAX_SELL) - holding.sold;
     const shares = Math.min(Math.max(0, Math.ceil(wanted / price - 1e-9)), cap, Math.floor(holding.left));
     if (shares <= 0) return null;
     const amount = shares * price;
+    if (amount < TRIM_MIN_USD || pct(amount) < TRIM_MIN_POINTS) return "small";
     holding.left -= shares;
     holding.sold += shares;
     const company = companyOf(holding.ticker);
@@ -102,14 +144,14 @@ export function buildRebalance(input: {
     const sector = sectorOf(holding);
     if (sector && sectorValue.has(sector)) sectorValue.set(sector, (sectorValue.get(sector) ?? 0) - amount);
 
-    const after = Math.max(0, subjectBefore - pct(amount));
-    const reached = after <= target + SLACK;
+    const after = Math.max(0, shownBefore - pct(amount));
+    const reached = runningBefore - pct(amount) <= target + SLACK;
     const tax = saleTax(holding.lots, shares, price, today, rates, "fifo");
     const highest = holding.lots.length > 1 ? saleTax(holding.lots, shares, price, today, rates, "highest") : null;
     const cheaper = tax && highest && tax.tax - highest.tax >= CHEAPER_MIN ? highest : null;
     // Capped at half the holding and still short of the line: say so rather than suggest selling it all.
     const halfNote = shares >= cap && !reached ? (label === holding.name ? ", half the holding," : `, half the ${holding.ticker} shares,`) : "";
-    const sentence = `Selling about ${shares} ${label} ${sharesWord(shares)}${halfNote} would bring ${kind === "sector" ? subjectName : "it"} from ${fmtPct(subjectBefore)} to ${fmtPct(after)} of ${where}.`;
+    const sentence = `Selling about ${shares} ${label} ${sharesWord(shares)}${halfNote} would bring ${kind === "sector" ? subjectName : "it"} from ${fmtPct(shownBefore)} to ${fmtPct(after)} of ${where}.`;
     return {
       id: `${kind}-${holding.ticker}`,
       kind,
@@ -121,7 +163,7 @@ export function buildRebalance(input: {
       amount,
       ofHolding: holding.shares ? (shares / holding.shares) * 100 : 0,
       subject: subjectName,
-      before: subjectBefore,
+      before: shownBefore,
       after,
       target,
       reached,
@@ -133,31 +175,53 @@ export function buildRebalance(input: {
     };
   };
 
-  /* 1. One company over the line, funds counted. Every share class held directly can be sold. */
+  /* 1. One company over the line, funds counted. Every share class held directly can be sold, unless our call is Buy more. */
+  // Over the line by more than the slack the trims allow, so "13%, above the 10% line" never reads "10%, above the 10% line".
+  // Biggest first (the x-ray order): size decides which MAX_COMPANIES get an idea.
+  const over = xray.companies
+    .filter((company) => company.pct > COMPANY_LINE + SLACK)
+    .map((company) => {
+      const classes = working.filter((row) => company.classes.includes(row.ticker) && tradable(row));
+      // A Buy more call on any class held directly means we would not sell the company at all.
+      const sellable = classes.some((row) => row.call === "Add")
+        ? []
+        : [...classes].sort((a, b) => CALL_ORDER[a.call ?? "none"]! - CALL_ORDER[b.call ?? "none"]! || (b.value ?? 0) - (a.value ?? 0));
+      return { company, classes, sellable };
+    });
   let companiesTrimmed = 0;
-  for (const company of xray.companies) {
-    if (company.pct <= COMPANY_LINE) continue;
+  for (const { company, classes, sellable } of over) {
     const entry = { ticker: company.ticker, name: company.name, pct: company.pct };
-    const classes = working.filter((row) => company.classes.includes(row.ticker) && tradable(row)).sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
     if (classes.length === 0) {
       (company.direct > 0 ? unsized : fundOnly).push(entry);
+      continue;
+    }
+    if (sellable.length === 0) {
+      const buyMore = classes.find((row) => row.call === "Add") ?? classes[0]!;
+      buyMoreOver.push({ ...entry, ticker: buyMore.ticker, callReason: buyMore.callReason });
       continue;
     }
     if (companiesTrimmed >= MAX_COMPANIES) {
       moreOver.push(entry);
       continue;
     }
-    companiesTrimmed += 1;
     const fundsPart = company.fundPct >= 0.5 ? `, ${fmtPct(company.fundPct)} of it through funds` : "";
     const why = `${company.name} is ${fmtPct(company.pct)} of ${where} once the funds are counted${fundsPart}, above the ${COMPANY_LINE}% line we use for one company.`;
-    for (const holding of classes) {
-      const before = pct(companyValue.get(company.key) ?? company.total);
-      if (before <= COMPANY_LINE + SLACK) break;
-      const wanted = ((before - COMPANY_LINE) / 100) * total;
-      const label = classes.length > 1 ? `${company.name} (${holding.ticker})` : holding.name;
-      const idea = sell(holding, "company", wanted, company.name, before, COMPANY_LINE, why, company.fundPct, label);
-      if (idea) trims.push(idea);
+    let made = 0;
+    let tooSmall = false;
+    for (const holding of sellable) {
+      const running = pct(companyValue.get(company.key) ?? company.total);
+      if (running <= COMPANY_LINE + SLACK) break;
+      const wanted = ((running - COMPANY_LINE) / 100) * total;
+      const label = sellable.length > 1 ? `${company.name} (${holding.ticker})` : holding.name;
+      const idea = sell(holding, "company", wanted, company.name, company.pct, running, COMPANY_LINE, why, company.fundPct, label);
+      if (idea === "small") tooSmall = true;
+      else if (idea) {
+        trims.push(idea);
+        made += 1;
+      }
     }
+    if (made > 0) companiesTrimmed += 1;
+    else if (tooSmall) small.push(entry);
   }
 
   /* 2. Drift: grown well past its share of the money put in. */
@@ -175,8 +239,8 @@ export function buildRebalance(input: {
       const before = pct(holding.value as number);
       const target = Math.max(0, before - pct(wanted));
       const why = `${holding.name} was ${fmtPct(then)} of the money put in and is ${fmtPct(now)} of the value now, after it outgrew the rest.`;
-      const idea = sell(holding, "drift", wanted, holding.name, before, target, why);
-      if (idea) trims.push(idea);
+      const idea = sell(holding, "drift", wanted, holding.name, before, before, target, why);
+      if (idea && idea !== "small") trims.push(idea);
     }
   }
 
@@ -194,10 +258,10 @@ export function buildRebalance(input: {
       if (now <= target + SLACK) break;
       const wanted = ((now - target) / 100) * total;
       const why = `${row.sector} is ${fmtPct(row.pct)} of ${where} against ${fmtPct(row.benchmarkPct)} of the S&P 500, more than ${SECTOR_GAP} points over.`;
-      const idea = sell(holding, "sector", wanted, row.sector, now, target, why);
-      if (!idea) continue;
+      const idea = sell(holding, "sector", wanted, row.sector, row.pct, now, target, why);
+      if (!idea || idea === "small") continue;
       trims.push(idea);
-      now = idea.after;
+      now -= pct(idea.amount);
     }
     const after = pct(sectorValue.get(row.sector) ?? row.value);
     // Only a sector the trims actually move is reported; one they leave alone is the quiet line's job.
@@ -208,9 +272,15 @@ export function buildRebalance(input: {
         ? null
         : fundShare >= 0.3
           ? `${Math.round(fundShare * 100)}% of it sits in funds, which these ideas never sell.`
-          : "The rest is in stocks our call says to buy more of, or in holdings already cut by half.";
+          : "The rest is in stocks our call says to buy more of, in holdings already cut by half, or in sales too small to be worth making.";
     sectors.push({ sector: row.sector, before: row.pct, after, benchmark: row.benchmarkPct, target, shortBy });
   }
+
+  // A company whose own trim was too small may still have been trimmed for its sector: then it is not "left out".
+  const trimmedTickers = new Set(trims.map((trim) => trim.ticker));
+  const classesOf = new Map(over.map(({ company }) => [company.ticker, company.classes]));
+  const smallLeft = small.filter((row) => !(classesOf.get(row.ticker) ?? [row.ticker]).some((ticker) => trimmedTickers.has(ticker)));
+  small.splice(0, small.length, ...smallLeft);
 
   /* 4. Where the money could go: Buy more calls, untilted sectors, under the ceiling. */
   const proceeds = trims.reduce((sum, trim) => sum + trim.amount, 0);
@@ -262,17 +332,46 @@ export function buildRebalance(input: {
   if (trims.length === 0) {
     const top = xray.companies[0];
     const tilted = xray.sectors.find((row) => fin(row.benchmarkPct) && row.pct - row.benchmarkPct >= SECTOR_GAP);
+    const Where = where.charAt(0).toUpperCase() + where.slice(1);
+    const blocked = [...buyMoreOver, ...small].sort((a, b) => b.pct - a.pct);
     if (unsized.length > 0) {
       const first = unsized[0]!;
       quiet = `${first.name} is ${fmtPct(first.pct)} of ${where}, above the ${COMPANY_LINE}% line, but there is no share count and price to size a trim from.`;
+    } else if (blocked.length > 0) {
+      // Concentrated, but every trim that would fix it is too small or would sell a Buy more call.
+      const lead = blocked[0]!;
+      const because =
+        small.length === 0
+          ? buyMoreOver.length === 1
+            ? `our call on ${lead.ticker} is Buy more and we would not sell it`
+            : `our call on ${joinList(buyMoreOver.map((row) => row.ticker))} is Buy more and we would not sell them`
+          : buyMoreOver.length === 0
+            ? `the ${small.length === 1 ? "trim" : "trims"} that would fix it ${small.length === 1 ? "is" : "are"} too small to be worth making`
+            : "the trims that would fix it are either too small to be worth making or would sell a stock our call says to buy more of";
+      quiet = `${Where} is concentrated, with ${lead.name} at ${fmtPct(lead.pct)}, above the ${COMPANY_LINE}% line, but ${because}, so doing nothing is a fine answer.`;
     } else if (fundOnly.length > 0) {
       quiet = `${fundOnly[0]!.name} is ${fmtPct(fundOnly[0]!.pct)} of ${where} only through funds, so there is no single stock to trim; otherwise nothing is out of line.`;
     } else if (tilted) {
-      quiet = `${tilted.sector} is ${fmtPct(tilted.pct)} of ${where}, well above the S&P 500's ${fmtPct(tilted.benchmarkPct as number)}, but none of its stocks is one we would trim (they are funds, small holdings or ones our call says to buy more of).`;
+      quiet = `${tilted.sector} is ${fmtPct(tilted.pct)} of ${where}, well above the S&P 500's ${fmtPct(tilted.benchmarkPct as number)}, but none of its stocks has a trim worth making (they are funds, stocks our call says to buy more of, or sales too small to matter), so doing nothing is a fine answer.`;
     } else {
       quiet = `No company is above ${COMPANY_LINE}% of ${where} once the funds are counted${top ? ` (the biggest, ${top.name}, is ${fmtPct(top.pct)})` : ""}, and no sector is more than ${SECTOR_GAP} points above the S&P 500, so leaving it as it is is a fine answer.`;
     }
   }
 
-  return { total, trims, adds, proceeds, leftover: Math.max(0, proceeds - placed), taxTotal, sectors, fundOnly, unsized, moreOver, quiet };
+  return {
+    total,
+    trims,
+    adds,
+    proceeds,
+    leftover: Math.max(0, proceeds - placed),
+    taxTotal,
+    sectors,
+    fundOnly,
+    unsized,
+    moreOver,
+    companiesOver: over.map(({ company }) => ({ ticker: company.ticker, name: company.name, pct: company.pct })).sort((a, b) => b.pct - a.pct),
+    buyMoreOver,
+    small,
+    quiet,
+  };
 }

@@ -178,7 +178,7 @@ export function RunReport({ view, showHeadline = true }: { view: RunView; showHe
                   note.title
                 )}
               </p>
-              <p className="text-oa-muted-fg">{note.detail}</p>
+              {note.detail ? <p className="text-oa-muted-fg">{note.detail}</p> : null}
             </li>
           ))}
         </ul>

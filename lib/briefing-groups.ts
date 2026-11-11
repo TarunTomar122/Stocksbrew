@@ -166,7 +166,8 @@ export function lineText(item: BriefingItem): string {
   const ticker = item.ticker;
   const headline = item.headline.trim();
   if (item.kind === "price_move") {
-    if (item.reason_status !== "confirmed") return "We haven't found a confirmed reason for this move yet.";
+    // No reason found: nothing to write; the row keeps its ticker and move (owner, Nov 11).
+    if (item.reason_status !== "confirmed") return "";
     // One complete sentence on the row; the rest of the reason opens with it.
     return asSentence(firstFullSentence(item.why)) || headline;
   }

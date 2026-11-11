@@ -337,7 +337,7 @@ export default async function StrategyPage({ params }: { params: { slug: string 
         <CaveatLine caveats={strategy.caveats} className="mt-4 max-w-[90ch]" />
         <p className="mt-1 text-[12.5px] leading-5 text-oa-muted-fg">Research, not advice.</p>
         {/* The head clips the tagline to one line (and drops it on a phone), so it is printed in full here. */}
-        <PageNote lede={strategy.tagline} />
+        <PageNote lede={strategy.tagline} ledeInHead />
       </div>
     </main>
   );

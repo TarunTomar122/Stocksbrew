@@ -5,9 +5,10 @@ import { NUM, Panel, Tag, Ticker, fmtDay } from "@/components/oa/kit";
 import { TheRead } from "@/components/oa/insight";
 import { RatePicker } from "@/components/portfolio-ideas/rate-picker";
 import { LOSS_MIN, LOSS_PCT } from "@/lib/portfolio-ideas/losses";
+import { COMPANY_LINE, TRIM_MIN_POINTS, TRIM_MIN_USD } from "@/lib/portfolio-ideas/rebalance";
 import type { IdeasView as IdeasData } from "@/lib/portfolio-ideas/server";
-import type { AddIdea, CallWord, LossIdea, SaleTax, SimilarPick, TaxRates, TrimIdea } from "@/lib/portfolio-ideas/types";
-import { callPlain, fmtPct, joinList, sharesWord, usd } from "@/lib/portfolio-ideas/words";
+import type { AddIdea, CallWord, LossIdea, RebalancePlan, SaleTax, SimilarPick, TaxRates, TrimIdea } from "@/lib/portfolio-ideas/types";
+import { callPlain, fmtPct, joinList, portfolioWord, sharesWord, usd } from "@/lib/portfolio-ideas/words";
 import { fmtShares } from "@/lib/portfolio-shared";
 
 /**
@@ -96,14 +97,11 @@ function TaxLine({ tax, cheaper, rates, name, example }: { tax: SaleTax | null; 
   );
 }
 
-function Reason({ call, reason, selling = false }: { call: CallWord | null; reason: string | null; selling?: boolean }) {
+function Reason({ call, reason }: { call: CallWord | null; reason: string | null }) {
   if (!call) return null;
   return (
     <p className="mt-2 text-pretty text-[13.5px] leading-5 text-oa-muted-fg">
-      <span className="font-medium text-oa-fg">
-        Our call is {callPlain(call)}.{selling && call === "Add" ? " This idea is only about size, not about the company." : ""}
-      </span>{" "}
-      {reason ?? ""}
+      <span className="font-medium text-oa-fg">Our call is {callPlain(call)}.</span> {reason ?? ""}
     </p>
   );
 }
@@ -129,8 +127,44 @@ function TrimRow({ trim, rates, example }: { trim: TrimIdea; rates: TaxRates; ex
       </p>
       <ShareBar before={trim.before} after={trim.after} target={trim.target} label={trim.subject} />
       <TaxLine tax={trim.tax} cheaper={trim.cheaper} rates={rates} name={trim.name} example={example} />
-      <Reason call={trim.call} reason={trim.callReason} selling />
+      <Reason call={trim.call} reason={trim.callReason} />
     </li>
+  );
+}
+
+/**
+ * Above the line, but our call is Buy more: said as information, with no sale
+ * and no share count. `brief` when the quiet line above already said it is
+ * above the line and why we would not sell.
+ */
+function HeldRow({ row, where, brief }: { row: RebalancePlan["buyMoreOver"][number]; where: string; brief: boolean }) {
+  return (
+    <li className="px-4 py-3.5">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+        <Ticker symbol={row.ticker} name={row.name} />
+        <CallTag call="Add" />
+      </div>
+      <p className="mt-2 text-pretty text-[15px] leading-[22px] text-oa-fg">
+        {brief
+          ? `Adding more would make ${where} lean on it even harder.`
+          : `${row.ticker} is ${fmtPct(row.pct)} of ${where}, above the ${COMPANY_LINE}% line. Our call is Buy more, so we would not sell it. Adding more would make ${where} lean on it even harder.`}
+      </p>
+      {row.callReason ? <p className="mt-1 text-pretty text-[13.5px] leading-5 text-oa-muted-fg">{row.callReason}</p> : null}
+    </li>
+  );
+}
+
+function HeldList({ plan, where, brief = false }: { plan: RebalancePlan; where: string; brief?: boolean }) {
+  if (plan.buyMoreOver.length === 0) return null;
+  return (
+    <div className="border-t border-oa-border">
+      <p className="oa-caption px-4 pt-3">Above the line, but we would not sell</p>
+      <ul className="divide-y divide-oa-border">
+        {plan.buyMoreOver.map((row) => (
+          <HeldRow key={row.ticker} row={row} where={where} brief={brief && plan.small.length === 0} />
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -161,15 +195,19 @@ function RebalancePanel({ view }: { view: IdeasData }) {
           taxTotal !== null ? ` · ${Math.abs(taxTotal) < 5 ? "about no tax" : taxTotal > 0 ? `tax about ${usd(taxTotal)}` : `tax lower by ${usd(taxTotal)}`}` : ""
         }`
       : null;
-  const others = [...plan.moreOver, ...plan.unsized, ...plan.fundOnly];
+  const others = [...plan.moreOver, ...plan.unsized, ...plan.fundOnly, ...plan.small];
+  const where = portfolioWord(view.subject);
   return (
     <Panel label="Trim this, add that" right={summary ? <span className={`${NUM} hidden sm:inline`}>{summary}</span> : null} flush>
       {summary ? <p className={`${NUM} border-b border-oa-border px-4 py-2 text-[12.5px] text-oa-muted-fg sm:hidden`}>{summary}</p> : null}
       {plan.trims.length === 0 ? (
-        <div className="px-4 py-4">
-          <p className="text-pretty text-[15px] leading-[22px] text-oa-fg">{plan.quiet ?? "There is nothing to rebalance."}</p>
-          <p className="mt-1 text-[13.5px] leading-5 text-oa-muted-fg">Doing nothing costs no tax and no trading fees, and it is often the right call.</p>
-        </div>
+        <>
+          <div className="px-4 py-4">
+            <p className="text-pretty text-[15px] leading-[22px] text-oa-fg">{plan.quiet ?? "There is nothing to rebalance."}</p>
+            <p className="mt-1 text-[13.5px] leading-5 text-oa-muted-fg">Doing nothing costs no tax and no trading fees, and it is often the right call.</p>
+          </div>
+          <HeldList plan={plan} where={where} brief />
+        </>
       ) : (
         <>
           <ul className="divide-y divide-oa-border">
@@ -182,9 +220,11 @@ function RebalancePanel({ view }: { view: IdeasData }) {
               {joinList(others.map((row) => `${row.name} (${fmtPct(row.pct)})`))} {others.length === 1 ? "is" : "are"} above the line too
               {plan.moreOver.length > 0 ? `; with ${view.subject === "example" ? "a portfolio" : "your portfolio"} this concentrated, these ideas start with the biggest three` : ""}
               {plan.unsized.length > 0 ? "; a holding with no share count or price cannot be sized" : ""}
-              {plan.fundOnly.length > 0 ? "; a company held only through funds has no stock of its own to trim" : ""}.
+              {plan.fundOnly.length > 0 ? "; a company held only through funds has no stock of its own to trim" : ""}
+              {plan.small.length > 0 ? `; a trim under ${usd(TRIM_MIN_USD)} or ${TRIM_MIN_POINTS} points of the portfolio is too small to be worth making` : ""}.
             </p>
           ) : null}
+          <HeldList plan={plan} where={where} />
           <div className="border-t border-oa-border px-4 pb-1 pt-3">
             <p className="oa-caption">Where the money could go</p>
             {plan.adds.length === 0 ? (
@@ -263,7 +303,15 @@ function LossRow({ loss, rates, example }: { loss: LossIdea; rates: TaxRates; ex
       <p className="mt-1 text-pretty text-[13.5px] leading-5 text-oa-muted-fg">
         {recent}
         {loss.longTermOn ? ` It turns long term on ${fmtDay(loss.longTermOn, true)}; a loss taken before then counts as short term, which offsets the higher-taxed gains.` : ""}
-        {loss.call === "Add" ? ` Our call on it is Buy more, so a sale here is only about the tax.` : ""}
+        {loss.call === "Add"
+          ? ` Our call is Buy more, so this would only be a sale for the tax: ${
+              loss.similar.length > 0
+                ? `holding a similar ${loss.fund ? "fund" : "company"} from the list below meanwhile keeps the exposure.`
+                : "you would be without the stock until the 30 days are up."
+            }`
+          : loss.call === "Trim"
+            ? " Our call on it is Sell some, so selling fits our call as well."
+            : ""}
       </p>
       <div className="mt-2.5 rounded border border-oa-border bg-oa-bg px-3 pt-1.5">
         <p className="oa-caption pt-1">{loss.fund ? "Funds" : "Stocks"} that keep a similar exposure meanwhile</p>
@@ -354,6 +402,10 @@ function Aside({ view }: { view: IdeasData }) {
           <li>Nothing here buys or sells. Any trade is yours to make at your broker.</li>
           <li>
             The tax is a rough estimate with US federal rules made simple: the two rates above, no state tax, and the oldest shares sold first.
+          </li>
+          <li>
+            No trim idea sells a stock our call says to buy more of, and we leave out any sale under {usd(TRIM_MIN_USD)} or under {TRIM_MIN_POINTS} points of the
+            portfolio.
           </li>
           <li>
             <BasisNote view={view} />

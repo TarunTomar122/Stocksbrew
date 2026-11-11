@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { DividendsGhost } from "@/components/dividends/ghost";
+import { DividendIdeasSection } from "@/components/dividends/ideas";
 import { MonthChart } from "@/components/dividends/month-chart";
 import { StockList } from "@/components/dividends/stock-list";
 import { AppPage, PageHead, SourceLine, fmtDay, fmtStampET } from "@/components/oa/kit";
@@ -113,6 +114,9 @@ async function Plan({ seeds, example }: { seeds: HoldingSeed[]; example: boolean
         </p>
       ) : null}
       {plan.total > 0 ? <MonthChart months={plan.months} /> : null}
+      <Suspense fallback={null}>
+        <DividendIdeasSection plan={plan} example={example} />
+      </Suspense>
       <StockList stocks={plan.stocks} example={example} />
     </div>
   );

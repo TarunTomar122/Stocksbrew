@@ -605,40 +605,53 @@ function contractMonth(label: string): string {
   return match ? `${match[1]} 20${match[2]}` : label;
 }
 
-export function structureReading(asset: Pick<MarketAsset, "structure">): string | null {
+/**
+ * Pass `subject` ("Gold") when the sentence stands on its own, away from the
+ * asset's name, so it says what it is about.
+ */
+export function structureReading(asset: Pick<MarketAsset, "structure">, subject?: string): string | null {
   const structure = asset.structure;
   if (!structure) return null;
   const gap = `${Math.abs(structure.spread_pct).toFixed(1)}%`;
-  if (structure.state === "contango") {
-    return `${contractMonth(structure.later_label)} delivery costs ${gap} more than ${contractMonth(structure.front_label)}: the curve is in contango.`;
+  const later = contractMonth(structure.later_label);
+  const front = contractMonth(structure.front_label);
+  if (structure.state === "contango" || structure.state === "backwardation") {
+    const shape = structure.state === "contango" ? "more than" : "less than";
+    const delivery = subject ? `${subject} for ${later} delivery costs ${gap} ${shape} for ${front}` : `${later} delivery costs ${gap} ${shape} ${front}`;
+    return `${delivery}: the curve is in ${structure.state}.`;
   }
-  if (structure.state === "backwardation") {
-    return `${contractMonth(structure.later_label)} delivery costs ${gap} less than ${contractMonth(structure.front_label)}: the curve is in backwardation.`;
-  }
-  return `${contractMonth(structure.front_label)} and ${contractMonth(structure.later_label)} trade within ${gap} of each other: the curve is flat.`;
+  return subject
+    ? `${subject}'s ${front} and ${later} contracts trade within ${gap} of each other: the curve is flat.`
+    : `${front} and ${later} trade within ${gap} of each other: the curve is flat.`;
 }
 
-/** Where the level sits against its one-year high and low. */
+/**
+ * Where the level sits against its one-year high and low. Pass `subject`
+ * ("The dollar index") when the sentence stands away from the asset's name:
+ * "The dollar index is 0.3% below its one-year high of 102.58 (Oct 12)."
+ */
 export function rangeReading(
   asset: Pick<MarketAsset, "price" | "unit" | "change_mode" | "high_1y" | "high_1y_date" | "low_1y" | "low_1y_date">,
+  subject?: string,
 ): string | null {
   const { price, high_1y: high, low_1y: low } = asset;
   if (!isNumber(price) || !isNumber(high) || !isNumber(low) || high <= low) return null;
+  const say = (text: string) => (subject ? `${subject} is ${text.charAt(0).toLowerCase()}${text.slice(1)}` : text);
   const span = high - low;
-  if (price >= high - span * 0.01) return "At its highest level in a year.";
-  if (price <= low + span * 0.01) return "At its lowest level in a year.";
+  if (price >= high - span * 0.01) return say("At its highest level in a year.");
+  if (price <= low + span * 0.01) return say("At its lowest level in a year.");
   const highText = formatLevel(high, asset.unit);
   const when = formatDay(asset.high_1y_date);
   const suffix = when ? ` (${when})` : "";
   if (asset.change_mode === "bps") {
-    return `${Math.round((high - price) * 100)} bps below its one-year high of ${highText}${suffix}.`;
+    return say(`${Math.round((high - price) * 100)} bps below its one-year high of ${highText}${suffix}.`);
   }
   if (asset.change_mode === "abs") {
-    return `${(high - price).toFixed(2)} below its one-year high of ${highText}${suffix}.`;
+    return say(`${(high - price).toFixed(2)} below its one-year high of ${highText}${suffix}.`);
   }
   const below = pctChange(high, price);
   if (below === null) return null;
-  return `${Math.abs(below).toFixed(1)}% below its one-year high of ${highText}${suffix}.`;
+  return say(`${Math.abs(below).toFixed(1)}% below its one-year high of ${highText}${suffix}.`);
 }
 
 /**
@@ -659,18 +672,22 @@ export function athReading(asset: Pick<MarketAsset, "price" | "ath" | "ath_date"
   return `${below.toFixed(0)}% below its all-time high of ${formatLevel(asset.ath, "USD")}${when ? ` (${when})` : ""}.`;
 }
 
-/** The single line a tile shows under its numbers, when the data has one to give. */
-export function assetReading(asset: MarketAsset): string | null {
+/**
+ * The single line a tile shows under its numbers, when the data has one to
+ * give. `subject` names the asset in range and futures-curve sentences, for a
+ * card note that does not sit next to the asset's own name.
+ */
+export function assetReading(asset: MarketAsset, subject?: string): string | null {
   if (asset.id === "vix") return vixReading(asset.price);
-  if (asset.unit === "ratio") return putCallReading(asset) ?? rangeReading(asset);
-  if (asset.class === "commodity") return structureReading(asset) ?? rangeReading(asset);
-  if (asset.class === "crypto") return athReading(asset) ?? rangeReading(asset);
+  if (asset.unit === "ratio") return putCallReading(asset) ?? rangeReading(asset, subject);
+  if (asset.class === "commodity") return structureReading(asset, subject) ?? rangeReading(asset, subject);
+  if (asset.class === "crypto") return athReading(asset) ?? rangeReading(asset, subject);
   if (asset.id === "us2s10s") {
     return asset.price < 0
       ? "Below zero: the 2-year yields more than the 10-year."
       : "Above zero: the 10-year yields more than the 2-year.";
   }
-  return rangeReading(asset);
+  return rangeReading(asset, subject);
 }
 
 function strikeText(value: number, percent: boolean): string {
@@ -746,18 +763,32 @@ function moveVerb(value: number, mode: ChangeMode): string {
   return `is ${tone === "up" ? "up" : "down"} ${size}`;
 }
 
-/** The sector ETFs that led and lagged in the latest session. */
+/**
+ * The eleven S&P 500 sector funds. SMH (chips) shares their heat grid but is a
+ * sub-industry, so it is not counted: every sector count says "of 11 sectors".
+ * lib/markets-insights.ts re-exports this list for sectorBreadth.
+ */
+export const SECTOR_IDS = ["xlk", "xlf", "xle", "xlv", "xli", "xly", "xlp", "xlu", "xlb", "xlre", "xlc"];
+
+/**
+ * The sectors that led and lagged in the latest session. Counts and order use
+ * the same rule as sectorBreadth (raw sign, ties by id), so this line and the
+ * Sectors card never disagree.
+ */
 export function sectorReading(assets: MarketAsset[], now: Date = new Date()): string | null {
-  const sectors = assets
-    .filter((asset) => asset.class === "etf" && asset.group === "sector" && isNumber(asset.change.d1))
-    .sort((a, b) => (b.change.d1 ?? 0) - (a.change.d1 ?? 0));
+  const sectors = SECTOR_IDS.map((id) => assets.find((asset) => asset.id === id))
+    .filter((asset): asset is MarketAsset => asset !== undefined && isNumber(asset.change.d1))
+    .sort((a, b) => (b.change.d1 ?? 0) - (a.change.d1 ?? 0) || a.id.localeCompare(b.id));
   if (sectors.length < 4) return null;
   const best = sectors[0];
   const worst = sectors[sectors.length - 1];
-  const up = sectors.filter((asset) => changeTone(asset.change.d1) === "up").length;
+  const up = sectors.filter((asset) => (asset.change.d1 ?? 0) > 0).length;
+  const down = sectors.filter((asset) => (asset.change.d1 ?? 0) < 0).length;
   const name = (asset: MarketAsset) => SECTOR_SHORT[asset.id] ?? asset.symbol;
   const when = sessionWord(best.as_of, now);
-  return `${up} of ${sectors.length} sector funds rose ${when}. ${name(best)} (${best.symbol}) led at ${formatPct(best.change.d1 ?? 0)}; ${name(worst)} (${worst.symbol}) trailed at ${formatPct(worst.change.d1 ?? 0)}.`;
+  const count =
+    up === sectors.length ? `All ${up} sectors rose` : down === sectors.length ? `All ${down} sectors fell` : `${up} of ${sectors.length} sectors rose`;
+  return `${count} ${when}. ${name(best)} (${best.symbol}) led at ${formatPct(best.change.d1 ?? 0)}; ${name(worst)} (${worst.symbol}) trailed at ${formatPct(worst.change.d1 ?? 0)}.`;
 }
 
 /** Whether near-term implied volatility is above or below the three-month level. */

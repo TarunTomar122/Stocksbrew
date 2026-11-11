@@ -344,21 +344,15 @@ function versus(copy: number, spy: number): string {
   return copy > spy ? "more than" : "less than";
 }
 
-/** The read on top of one copy page: the result against the S&P 500, then the best and worst moves it copied. */
-export function buildCopyRead(record: CopyRecord): TheRead | null {
+/** How the copy did a year against the S&P 500 (or in total, under a year): "That is +13.7% a year against +14.3% ...". */
+export function copyPace(record: CopyRecord): Insight | null {
   if (!isFullRecord(record)) return null;
   const copy = record.copy;
   const spy = record.spy;
-  const stoppedAt = record.stopped ? record.end_date : null;
-  const headline =
-    `Copying ${whatCopied(record)} ${period(record)} would have turned $10,000 into ${fmtDollars(copy.end_value)}, ` +
-    `${versus(copy.end_value, spy.end_value)} the ${fmtDollars(spy.end_value)} the S&P 500 made over the same days.`;
-
-  let pace: Insight | null = null;
   if (copy.annualized != null && spy.annualized != null) {
     const gap = copy.annualized - spy.annualized;
     const side = Math.abs(gap) < 0.0005 ? "level with it" : `${fmtPointsWord(gap)} a year ${gap > 0 ? "ahead" : "behind"}`;
-    pace = {
+    return {
       id: "pace",
       tone: Math.abs(gap) < 0.0005 ? "flat" : gap > 0 ? "up" : "down",
       text: `That is ${fmtFrac(copy.annualized)} a year against ${fmtFrac(spy.annualized)} for the S&P 500, ${side}.`,
@@ -367,13 +361,28 @@ export function buildCopyRead(record: CopyRecord): TheRead | null {
           ? `Its worst fall was ${fmtFrac(copy.max_drawdown)}, against ${fmtFrac(spy.max_drawdown)} for the index.`
           : undefined,
     };
-  } else if (copy.total != null && spy.total != null) {
-    pace = {
+  }
+  if (copy.total != null && spy.total != null) {
+    return {
       id: "pace",
       tone: "flat",
       text: `That is ${fmtFrac(copy.total)} against ${fmtFrac(spy.total)} for the S&P 500, over less than a year, which is too short to call.`,
     };
   }
+  return null;
+}
+
+/** The read on top of one copy page: the result against the S&P 500, then the best and worst moves it copied. */
+export function buildCopyRead(record: CopyRecord): TheRead | null {
+  if (!isFullRecord(record)) return null;
+  const copy = record.copy;
+  const spy = record.spy;
+  const stoppedAt = record.stopped ? record.end_date : null;
+  // The result against the index in the headline; the index's own dollar figure is the first line under it.
+  const headline = `Copying ${whatCopied(record)} ${period(record)} would have turned $10,000 into ${fmtDollars(copy.end_value)}, ${versus(copy.end_value, spy.end_value)} the S&P 500 did.`;
+  const spyMade = `The S&P 500 turned the same $10,000 into ${fmtDollars(spy.end_value)} over the same days.`;
+  const paced = copyPace(record);
+  const pace: Insight = paced ? { ...paced, text: `${spyMade} ${paced.text.replace(/^That is /, "The copy returned ")}` } : { id: "pace", tone: "flat", text: spyMade };
   const best = record.best[0];
   const worst = record.worst[0];
   return {
@@ -383,10 +392,25 @@ export function buildCopyRead(record: CopyRecord): TheRead | null {
   };
 }
 
+/**
+ * How every copy test is framed, in one plain sentence. Used wherever a copy
+ * result is shown, so the pages say it the same way.
+ */
+export const COPY_FRAMING = "A historical test on paper, before costs and taxes; the future can differ.";
+
+/**
+ * The stored caveats (written by backend/agentdata/copy_trades.py) used to end
+ * "past results do not repeat", which is too absolute. Documents written before
+ * the next weekly run still say it, so readers swap in the plain ending.
+ */
+export function plainCaveat(text: string): string {
+  return text.replace(/(past|Past) results do not repeat\.?\s*$/, (_match, word: string) => (word === "Past" ? "The" : "the") + " future can differ.");
+}
+
 /** The limits in one line, always on show; the full rule and caveats wait behind "How we tested this". */
 export const COPY_LIMITS: Record<CopyKind, string> = {
-  fund: "Pretend money, before costs and taxes. It trades at the close of the first trading day after each filing comes out, up to 45 days after the quarter, and skips delisted companies, which flatters it.",
-  congress: "Pretend money, before costs and taxes. It trades at the close of the first trading day after each report comes out, up to 45 days after the trade, sizes from reported ranges, and skips delisted companies, which flatters it.",
+  fund: "A historical test on paper, before costs and taxes. It trades at the close of the first trading day after each filing comes out, up to 45 days after the quarter, and skips delisted companies, which flatters it.",
+  congress: "A historical test on paper, before costs and taxes. It trades at the close of the first trading day after each report comes out, up to 45 days after the trade, sizes from reported ranges, and skips delisted companies, which flatters it.",
 };
 
 export type CopyVerdict = {
@@ -403,14 +427,8 @@ export function copyVerdict(record: CopyRecordFull): CopyVerdict | null {
   if (!read) return null;
   const copy = record.copy;
   const spy = record.spy;
-  const parts: string[] = [];
-  if (copy.annualized != null && spy.annualized != null) {
-    const gap = copy.annualized - spy.annualized;
-    const side = Math.abs(gap) < 0.0005 ? "level with it" : `${fmtPointsWord(gap)} a year ${gap > 0 ? "ahead" : "behind"}`;
-    parts.push(`That is ${fmtFrac(copy.annualized)} a year against ${fmtFrac(spy.annualized)} for the S&P 500, ${side}.`);
-  } else if (copy.total != null && spy.total != null) {
-    parts.push(`That is ${fmtFrac(copy.total)} against ${fmtFrac(spy.total)} for the S&P 500, over less than a year, which is too short to call.`);
-  }
+  // The read's first line carries the S&P 500's dollar figure and the yearly pace; the drawdowns get their dates here.
+  const parts: string[] = [read.insights.find((insight) => insight.id === "pace")?.text ?? ""].filter(Boolean);
   if (copy.max_drawdown != null) {
     // The index's worst fall is over the whole test, on its own dates, so it gets its own sentence.
     const when = copy.drawdown_peak && copy.drawdown_trough ? `, from ${fmtDate(copy.drawdown_peak)} to ${fmtDate(copy.drawdown_trough)}` : "";
@@ -511,11 +529,12 @@ export function buildHubRead(hub: CopyHub | null): TheRead | null {
   const funds = kindRead(hub.rows, "fund");
   const members = kindRead(hub.rows, "congress");
   if (funds.total === 0 && members.total === 0) return null;
-  const parts: string[] = [];
-  if (funds.total > 0) parts.push(`${funds.beat} of the ${funds.total} funds with two years of record beat the S&P 500 when copied from ${hub.fund_start.slice(0, 4)}`);
-  if (members.total > 0) parts.push(`${members.beat} of ${members.total} House members did from their first reported buy`);
-  const headline = `${parts.join(", and ")}.`.replace(/^./, (first) => first.toUpperCase());
+  // The funds lead the headline; the House members' count is the first line under it.
+  const fundLine = funds.total > 0 ? `${funds.beat} of the ${funds.total} funds with two years of record beat the S&P 500 when copied from ${hub.fund_start.slice(0, 4)}.` : null;
+  const memberLine = members.total > 0 ? `${members.beat} of ${members.total} House members beat the S&P 500 when copied from their first reported buy.` : null;
+  const headline = fundLine ?? memberLine!;
   const insights: Array<Insight | null> = [];
+  if (fundLine && memberLine) insights.push({ id: "members-count", tone: members.beat * 2 > members.total ? "up" : members.beat * 2 < members.total ? "down" : "flat", text: memberLine });
   if (funds.best) insights.push(rowInsight(funds.best, "best-fund", "The fund most worth copying was"));
   if (members.best) insights.push(rowInsight(members.best, "best-member", "The member most worth copying was"));
   if (funds.median != null && funds.total >= 5) {
@@ -527,7 +546,8 @@ export function buildHubRead(hub: CopyHub | null): TheRead | null {
   }
   return {
     headline,
-    insights: pickInsights(insights),
+    // The members' count the headline handed down rides on top of the usual three points.
+    insights: pickInsights(insights, insights[0]?.id === "members-count" ? 4 : 3),
     source: `SEC 13F filings, House trade reports and daily closes to ${fmtDate(hub.price_as_of)}`,
   };
 }

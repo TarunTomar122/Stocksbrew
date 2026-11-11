@@ -18,6 +18,10 @@ import {
 } from "@/lib/search-index-client";
 import { filterSearchEntries, type SearchEntry } from "@/lib/search-shared";
 
+/** Phones: logo, name, switch, remove (boxes on a second line). Wider: logo, name, shares, cost, switch, remove. */
+const ROW_GRID =
+  "grid grid-cols-[30px_minmax(0,1fr)_auto_auto] gap-x-3 gap-y-2 sm:grid-cols-[30px_minmax(0,1fr)_88px_104px_auto_auto]";
+
 type PositionType = "holding" | "watchlist";
 
 type StagedHolding = {
@@ -408,63 +412,81 @@ export function RadarBatchEditModal({
 
               {/* Stock list — always rendered, dimmed while searching */}
               <div className={`flex flex-col h-full transition-opacity duration-150 ${query.trim() ? "opacity-0 pointer-events-none" : "opacity-100"}`}>
+                {/* One grid for the header and every row, so the boxes line up down the list.
+                    Phones: name, switch and remove on the first line, the two boxes on the second.
+                    Wider: logo, name, shares, cost, switch, remove in fixed columns. */}
+                {sortedItems.some((i) => i.position_type === "holding") ? (
+                  <div aria-hidden="true" className={`${ROW_GRID} hidden border-b border-outline-variant px-4 py-2 text-[11px] font-medium text-on-surface-variant sm:grid`}>
+                    <span className="col-span-2">Stock</span>
+                    <span className="text-right">Shares</span>
+                    <span className="text-right">Avg cost</span>
+                    <span className="col-span-2" />
+                  </div>
+                ) : null}
                 <ul className="no-scrollbar flex-1 h-full overflow-y-auto divide-y divide-outline-variant">
                   {sortedItems.map((item) => {
                     const isNew = !originalIds.current.has(item.instrument_id);
+                    const holding = item.position_type === "holding";
                     return (
-                      <li key={item.instrument_id} className={`flex flex-wrap items-center gap-2.5 px-4 py-3 transition-colors sm:flex-nowrap ${isNew ? "tint-bull" : ""}`}>
+                      <li key={item.instrument_id} className={`${ROW_GRID} items-center px-4 py-3 transition-colors ${isNew ? "tint-bull" : ""}`}>
                         <StockLogo ticker={item.ticker} market={item.instrument_id.startsWith("IN_") ? "IN" : "US"} size={30} />
-                        <div className="min-w-0 flex-1">
+                        <div className="min-w-0">
                           <div className="flex items-center gap-1.5">
-                            <p className="truncate text-[13px] font-semibold text-on-surface">{item.ticker}</p>
+                            <p className="text-[14px] font-semibold text-on-surface">{item.ticker}</p>
                             {isNew && (
                               <span className="shrink-0 rounded-full bg-[#dcfce7] px-1.5 py-0.5 text-[9px] font-semibold tracking-wide uppercase text-[#16a34a]">New</span>
                             )}
                           </div>
-                          <p className="truncate text-[11px] text-on-surface-variant">{item.name}</p>
+                          {/* The full name, wrapping if it must: never cut off. */}
+                          <p className="text-pretty break-words text-[12px] leading-4 text-on-surface-variant">{item.name}</p>
                         </div>
-                        {item.position_type === "holding" ? (
-                          <div className="order-last flex w-full justify-end gap-2 pl-10 sm:order-none sm:w-auto sm:pl-0">
-                          <label className="flex shrink-0 flex-col items-end gap-0.5">
-                            <span className="text-[10px] font-medium uppercase tracking-wide text-on-surface-variant">Shares</span>
-                            <input
-                              type="text"
-                              inputMode="decimal"
-                              autoComplete="off"
-                              placeholder="0"
-                              aria-label={`Shares of ${item.ticker}`}
-                              value={shareDrafts[item.instrument_id] ?? (item.holding?.quantity != null ? String(item.holding.quantity) : "")}
-                              onChange={(event) => setShares(item.instrument_id, event.target.value)}
-                              aria-invalid={Boolean(shareDrafts[item.instrument_id]?.trim()) && typedShares(item.instrument_id) === null}
-                              title="Leave it empty to keep the saved number"
-                              className="w-[76px] rounded-lg border border-outline-variant bg-surface px-2 py-1 text-right text-[13px] tabular-nums text-on-surface outline-none focus:border-on-surface aria-[invalid=true]:border-[#ef4444]"
-                            />
-                          </label>
-                          <label className="flex shrink-0 flex-col items-end gap-0.5">
-                            <span className="text-[10px] font-medium uppercase tracking-wide text-on-surface-variant">Cost per share</span>
-                            <input
-                              type="text"
-                              inputMode="decimal"
-                              autoComplete="off"
-                              placeholder={item.instrument_id.startsWith("IN_") ? "₹0" : "$0"}
-                              aria-label={`Cost per share of ${item.ticker}`}
-                              value={costDrafts[item.instrument_id] ?? (item.holding?.average_cost != null ? String(Math.round(item.holding.average_cost * 100) / 100) : "")}
-                              onChange={(event) => setCost(item.instrument_id, event.target.value)}
-                              aria-invalid={Boolean(costDrafts[item.instrument_id]?.trim()) && typedCost(item.instrument_id) === null}
-                              title="What you paid for each share, on average. Leaving it empty keeps the saved cost."
-                              className="w-[92px] rounded-lg border border-outline-variant bg-surface px-2 py-1 text-right text-[13px] tabular-nums text-on-surface outline-none focus:border-on-surface aria-[invalid=true]:border-[#ef4444]"
-                            />
-                          </label>
+                        {holding ? (
+                          <div className="col-span-3 col-start-2 row-start-2 grid grid-cols-2 gap-2 sm:contents">
+                            <label className="flex items-center gap-2 sm:col-start-3 sm:row-start-1 sm:block">
+                              <span className="shrink-0 text-[12px] text-on-surface-variant sm:sr-only">Shares</span>
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                autoComplete="off"
+                                placeholder="0"
+                                aria-label={`Shares of ${item.ticker}`}
+                                value={shareDrafts[item.instrument_id] ?? (item.holding?.quantity != null ? String(item.holding.quantity) : "")}
+                                onChange={(event) => setShares(item.instrument_id, event.target.value)}
+                                aria-invalid={Boolean(shareDrafts[item.instrument_id]?.trim()) && typedShares(item.instrument_id) === null}
+                                title="Leave it empty to keep the saved number"
+                                className="h-9 w-full rounded-lg border border-outline-variant bg-surface px-2.5 text-right text-[14px] tabular-nums text-on-surface outline-none focus:border-on-surface aria-[invalid=true]:border-[#ef4444]"
+                              />
+                            </label>
+                            <label className="flex items-center gap-2 sm:col-start-4 sm:row-start-1 sm:block">
+                              <span className="shrink-0 text-[12px] text-on-surface-variant sm:sr-only">Avg cost</span>
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                autoComplete="off"
+                                placeholder={item.instrument_id.startsWith("IN_") ? "₹0" : "$0"}
+                                aria-label={`Average cost per share of ${item.ticker}`}
+                                value={costDrafts[item.instrument_id] ?? (item.holding?.average_cost != null ? String(Math.round(item.holding.average_cost * 100) / 100) : "")}
+                                onChange={(event) => setCost(item.instrument_id, event.target.value)}
+                                aria-invalid={Boolean(costDrafts[item.instrument_id]?.trim()) && typedCost(item.instrument_id) === null}
+                                title="What you paid for each share, on average. Leaving it empty keeps the saved cost."
+                                className="h-9 w-full rounded-lg border border-outline-variant bg-surface px-2.5 text-right text-[14px] tabular-nums text-on-surface outline-none focus:border-on-surface aria-[invalid=true]:border-[#ef4444]"
+                              />
+                            </label>
                           </div>
-                        ) : null}
-                        <PositionSwitch
-                          value={item.position_type}
-                          onChange={(positionType) => setPosition(item.instrument_id, positionType)}
-                        />
+                        ) : (
+                          // Keeps the columns in place on wider screens when a row is only watched.
+                          <span className="hidden sm:col-span-2 sm:col-start-3 sm:row-start-1 sm:block" />
+                        )}
+                        <div className="col-start-3 row-start-1 justify-self-end sm:col-start-5">
+                          <PositionSwitch
+                            value={item.position_type}
+                            onChange={(positionType) => setPosition(item.instrument_id, positionType)}
+                          />
+                        </div>
                         <button
                           type="button"
                           onClick={() => remove(item.instrument_id)}
-                          className="shrink-0 rounded-full p-1.5 text-on-surface-variant hover:text-[#ef4444] hover:tint-bear transition-colors"
+                          className="col-start-4 row-start-1 shrink-0 justify-self-end rounded-full p-1.5 text-on-surface-variant hover:text-[#ef4444] hover:tint-bear transition-colors sm:col-start-6"
                           aria-label={`Remove ${item.ticker}`}
                         >
                           <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2L2 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>

@@ -402,7 +402,7 @@ function rowOut(row: CopyHubRow) {
 
 const YEARLY_NAMES: Record<string, string> = { copy: "copy", spy: "sp500", hold: "not_trading" };
 
-const COPY_UNITS = "Returns, excess_per_year and drawdowns are fractions (0.12 is 12%). end_value is what $10,000 became. Pretend money, before costs and taxes.";
+const COPY_UNITS = "Returns, excess_per_year and drawdowns are fractions (0.12 is 12%). end_value is what $10,000 became. A historical test on paper, before costs and taxes; the future can differ.";
 
 function recordOut(record: CopyRecord, hub: CopyHub | null) {
   const base = {

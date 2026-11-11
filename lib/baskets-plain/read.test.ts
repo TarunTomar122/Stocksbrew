@@ -55,7 +55,7 @@ describe("buildBasketRead", () => {
       sectorPe: new Map(),
     };
     const read = buildBasketRead({ match, test: TEST, subjectNoun: "companies that fit the subject", all: [], asOf: null });
-    expect(read.headline).toBe("2 companies fit today, and held equally since January 2016, they beat the S&P 500 by 1.4 points a year.");
+    expect(read.headline).toBe("2 companies fit today, and since January 2016 they beat the S&P 500 by 1.4 points a year.");
     expect(read.insights[0]!.text).toBe(
       "Held in equal amounts from January 2016 to November 2026, the 2 members with that much price history returned +14.2% a year against +12.8% for the S&P 500. Its worst fall was 41.0%, deeper than the index's 34.0%.",
     );

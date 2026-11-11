@@ -379,7 +379,8 @@ const FINANCE_PHRASES: Array<[RegExp, string | ((match: string, ...groups: strin
   // The researcher's own words for "we found no reason", said the way a reader would.
   [/\bbreaks above (?:its )?recent (?:closing )?range\b/gi, "rises above its recent price range"],
   [/\bbreaks below (?:its )?recent (?:closing )?range\b/gi, "falls below its recent price range"],
-  [/,?\s+without (?:a )?(?:verified|confirmed|clear) catalyst\b/gi, ", with no confirmed reason yet"],
+  // A missing reason is not said at all (owner, Nov 11): the clause is dropped.
+  [/,?\s+without (?:a )?(?:verified|confirmed|clear) catalyst\b/gi, ""],
   [/\bdespite quiet coverage\b/gi, "with little news"],
   [/\bsell-?off\b/gi, "drop"],
   [/\bguidance\b/gi, "forecast"],

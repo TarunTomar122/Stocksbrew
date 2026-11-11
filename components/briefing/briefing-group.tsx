@@ -168,6 +168,10 @@ function LineRow({ line, group, actions }: { line: BriefingLine; group: Briefing
   const [open, setOpen] = React.useState(false);
   const panelId = React.useId();
   const settled = sharedStatus([line.item, ...line.folded], actions) !== "open";
+  // A move with no reason says nothing about the missing reason (owner, Nov 11). On a stock's card it shows its
+  // next step instead, so the row still opens to Got it / Keep watching; in the market list it is left out.
+  const text = lineText(line, group) || (group.ticker ? line.item.next_step.trim() : "");
+  if (!text) return null;
   return (
     <li className={settled ? "opacity-70" : ""}>
       <button
@@ -182,7 +186,7 @@ function LineRow({ line, group, actions }: { line: BriefingLine; group: Briefing
           line.decision ? "font-medium text-oa-fg" : SOFT
         }`}
       >
-        <span className="text-pretty">{lineText(line, group)}</span>
+        <span className="text-pretty">{text}</span>
         {/* Who reported the reason, named beside it; the link and the time are one tap away in the panel. */}
         {reasonSource(line.item) ? <span className="ml-1.5 whitespace-nowrap text-[12px] text-oa-muted-fg">{reasonSource(line.item)}</span> : null}
       </button>

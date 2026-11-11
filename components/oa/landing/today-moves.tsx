@@ -32,22 +32,19 @@ export async function TodayMoves() {
   if (rows.length === 0) {
     return (
       <p className="oa-surface border border-oa-border bg-oa-card px-4 py-4 text-[15px] leading-6 text-oa-muted-fg sm:px-5">
-        None of today&apos;s big moves has a confirmed reason yet. The briefing lists every move as we check it.
+        The briefing lists every big move of the day as we check it.
       </p>
     );
   }
-  const widest = Math.max(...rows.map((row) => Math.abs(row.day_change_pct)), 1);
 
   return (
     <ul className="oa-surface divide-y divide-oa-border overflow-hidden border border-oa-border bg-oa-card">
       {rows.map((item) => {
-        const up = item.day_change_pct >= 0;
-        const width = Math.max(6, (Math.abs(item.day_change_pct) / widest) * 100);
         return (
           <li key={item.instrument_id}>
             <a
               href={`/stock/${item.ticker}`}
-              className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-2 px-4 py-4 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent sm:grid-cols-[minmax(0,1fr)_11rem] sm:px-5"
+              className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-2 px-4 py-4 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent sm:grid-cols-[minmax(0,1fr)_6rem] sm:px-5"
             >
               <span className="min-w-0">
                 <span className="flex items-center gap-2 text-[15px] leading-6">
@@ -57,14 +54,9 @@ export async function TodayMoves() {
                 </span>
                 <span className="mt-1 block text-pretty text-[15px] leading-6 text-oa-fg/85">{moveLine(item)}</span>
               </span>
-              <span className="flex flex-col items-end justify-center gap-1.5">
+              {/* The move as a number only, no size bar (owner, Nov 11). */}
+              <span className="flex flex-col items-end justify-start pt-0.5">
                 <ChangeText pct={item.day_change_pct} className="text-[15px] font-medium" />
-                <span className="flex h-1.5 w-20 justify-end overflow-hidden rounded-full bg-oa-bg sm:w-full" aria-hidden="true">
-                  <span
-                    className={`h-full rounded-full ${up ? "bg-emerald-600/70 dark:bg-emerald-400/70" : "bg-red-600/70 dark:bg-red-400/70"}`}
-                    style={{ width: `${width}%` }}
-                  />
-                </span>
               </span>
             </a>
           </li>

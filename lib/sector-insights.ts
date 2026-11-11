@@ -78,10 +78,10 @@ export function buildSectorRead(input: SectorReadInput): TheRead | null {
     const moved = Math.abs(day) < 0.05 ? "were flat" : `${day > 0 ? "rose" : "fell"} ${Math.abs(day).toFixed(1)}%`;
     // The day by its date: "in the latest trading day" left readers guessing which day the S&P figure was from.
     const when = input.priceDay ? `on ${shortDay(input.priceDay)}` : "in the latest trading day";
-    headline = `${name} stocks ${moved} ${when}${against(day, spy?.day_pct)}`;
-    if (breadth !== null) headline += `, and ${breadth}% of its ${withDay.length} stocks rose`;
-    headline += ".";
+    headline = `${name} stocks ${moved} ${when}${against(day, spy?.day_pct)}.`;
   }
+  // How many of them rose is the first line under the headline, so the headline keeps one number and its comparison.
+  const breadthText = breadth !== null ? `${breadth}% of the ${withDay.length} ${name} stocks rose.` : null;
 
   // Leaders and laggards today, with the reason when we hold one.
   const today = ranked(rows, "day_pct");
@@ -93,7 +93,7 @@ export function buildSectorRead(input: SectorReadInput): TheRead | null {
     movers = {
       id: "movers",
       tone: toneOfChange(day, 0.05),
-      text: `${list(leaders, "day_pct")} rose the most, while ${list(laggards, "day_pct")} fell the most.`,
+      text: `${breadthText ? `${breadthText} ` : ""}${list(leaders, "day_pct")} rose the most, while ${list(laggards, "day_pct")} fell the most.`,
       tickers: [...leaders, ...laggards].map((row) => row.symbol),
       action: explained ? { label: `Why ${explained.symbol} moved`, href: input.moveHrefs!.get(explained.symbol)! } : undefined,
     };
@@ -130,7 +130,8 @@ export function buildSectorRead(input: SectorReadInput): TheRead | null {
     };
   }
 
-  const insights = pickInsights([movers, trend, callsInsight], 3);
+  const breadthPoint: Insight | null = !movers && breadthText && headline ? { id: "breadth", tone: toneOfChange(day, 0.05), text: breadthText } : null;
+  const insights = pickInsights([movers ?? breadthPoint, trend, callsInsight], 3);
   if (!headline && insights.length === 0) return null;
   return { headline: headline || `${rows.length} ${name} stocks we cover.`, insights, asOf: input.asOf ?? null };
 }

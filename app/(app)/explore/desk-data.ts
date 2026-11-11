@@ -7,7 +7,7 @@ import { getEarnings, type EarningsEvent } from "@/lib/earnings";
 import { getFollowActivity, type FollowActivity } from "@/lib/follow";
 import { getIpos, type IpoEvent } from "@/lib/ipos";
 import { getMarketsOverview } from "@/lib/markets";
-import type { MarketsOverview } from "@/lib/markets-shared";
+import type { MarketsData, MarketsOverview } from "@/lib/markets-shared";
 import { getRedditCues } from "@/lib/reddit-cues";
 import { hasRedditBrief } from "@/lib/reddit-cues-shared";
 import { getLiveInvestmentThemes } from "@/lib/research-themes";
@@ -247,6 +247,16 @@ export const loadDeskMarkets = section<DeskData["markets"]>(
   },
   null,
 );
+
+const NO_MARKETS: MarketsData = { as_of: null, assets: [], predictions: [], treasury: null, volCurve: null };
+
+/**
+ * Every market Market today draws below its read. `getMarketsData` is cached and never throws, but a
+ * store that hangs would keep those sections on their ghost, so it gets the same time limit as the rest.
+ */
+export function loadDeskMarketsData(): Promise<MarketsData> {
+  return soft("markets-data", getMarketsData(), NO_MARKETS);
+}
 
 export type DeskSector = { id: string; name: string; slug: string; day: number; month: number | null };
 

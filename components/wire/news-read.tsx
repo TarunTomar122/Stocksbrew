@@ -2,7 +2,6 @@ import Link from "next/link";
 
 import { Delta, FOCUS, NUM, Panel, Ticker, ToneGlyph } from "@/components/oa/kit";
 import { StockLogo } from "@/components/stock-logo";
-import { balancePct } from "@/lib/insights";
 import { leanOf, totalOf, type NewsTheme, type StockBuzz, type ToneCounts } from "@/lib/wire-read";
 import { WIRE_PAGE_SIZE, etDay, etTime, wireHref, type WireFilters, type WireItem } from "@/lib/wire-shared";
 
@@ -37,18 +36,13 @@ function leanText(counts: ToneCounts): string {
 export function ToneBar({ counts, className = "", showWord = false }: { counts: ToneCounts; className?: string; showWord?: boolean }) {
   const total = totalOf(counts);
   if (total === 0) return null;
-  const pct = balancePct({ ...counts });
   const lean = leanOf(counts);
   const word = lean === "positive" ? "Mostly positive" : lean === "negative" ? "Mostly negative" : "Mixed";
   const label = `${counts.positive} positive, ${counts.negative} negative, ${counts.neutral} neutral`;
   return (
     <span className={`inline-flex items-center gap-2 ${className}`} title={label}>
       {showWord && lean === "mixed" ? <span className="text-[13px] font-medium text-oa-fg">{word}</span> : null}
-      <span aria-hidden="true" className="flex h-1.5 w-14 shrink-0 overflow-hidden rounded-full bg-oa-bg">
-        <span style={{ width: `${pct.positive}%`, background: "var(--signal-bullish)" }} />
-        <span style={{ width: `${pct.neutral}%`, background: "color-mix(in srgb, var(--oa-muted-fg) 35%, transparent)" }} />
-        <span style={{ width: `${pct.negative}%`, background: "var(--signal-bearish)" }} />
-      </span>
+      {/* No tone bar (owner, Nov 11): the one figure beside it says the same. */}
       <span className={`${NUM} inline-flex items-center gap-1.5 text-[12.5px] leading-[18px] text-oa-muted-fg`}>
         <span className="sr-only">{label}</span>
         {/* One figure, not two counts to compare (owner, Nov 11): the larger side as a share of all the stories. */}

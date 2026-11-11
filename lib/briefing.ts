@@ -1702,7 +1702,8 @@ function reasonTail(lead: BriefingItem | undefined): string {
     const first = leadSentences(lead.why, 1, 160);
     return first ? ` On ${lead.ticker}: ${sentence(first)}` : "";
   }
-  return ` We have not found a confirmed reason for the move in ${lead.ticker}.`;
+  // No reason found: the summary says nothing about it (owner, Nov 11).
+  return "";
 }
 
 function personalSummary(needsYou: BriefingItem[], also: BriefingItem[], trackedCount: number): string {

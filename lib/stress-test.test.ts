@@ -222,7 +222,9 @@ describe("buildStressRead", () => {
 
   it("leads with the worst episode and the stock that did the most damage", () => {
     const read = buildStressRead(result, { example: true })!;
-    expect(read.headline).toBe("In the test slide this portfolio would have lost 34%, against 25% for the S&P 500; NVIDIA did the most damage, down 50%.");
+    expect(read.headline).toBe("In the test slide this portfolio would have lost 34%, against 25% for the S&P 500.");
+    // Who did the damage is the first line under the headline, led by the company's logo and name.
+    expect(read.insights[0]).toMatchObject({ id: "driver-NVDA", text: "NVDA did the most damage, down 50%.", leadName: "NVIDIA", tickers: ["NVDA"] });
     expect(read.headlineTickers).toEqual(["NVDA"]);
   });
 
@@ -248,6 +250,8 @@ describe("buildStressRead", () => {
     const out = runStressTest(weighted, partial, market, [FALL, RISE]);
     const read = buildStressRead(out, { example: false })!;
     expect(read.headline.startsWith("In the test slide the 80% of your portfolio we have prices for would have lost")).toBe(true);
+    // The coverage caveat always keeps its place in the read.
+    expect(read.insights.some((insight) => insight.id === "coverage")).toBe(true);
     expect(episodeSentence(out.episodes[0]!)).toContain(
       "Palantir was not trading yet and we have no prices around these dates for ARK Innovation, so this covers the other 80% of the portfolio.",
     );
@@ -259,8 +263,9 @@ describe("buildStressRead", () => {
     const gold = { ...closes({ fall: [100, 105] }), points: { fall: { start: { date: FALL.start, close: 100 }, end: { date: FALL.end, close: 105 } }, fall2: { start: { date: FALL.start, close: 100 }, end: { date: FALL.end, close: 102 } } } };
     const out = runStressTest(weightHoldings([{ ticker: "GLD", name: "Gold", value: 1 }]), new Map([["GLD", gold]]), m, [FALL, FALL2]);
     const read = buildStressRead(out, { example: true })!;
-    expect(read.headline).toBe("This portfolio did not lose money in any of the two sell-offs; in the test slide it would have gained 5% while the S&P 500 fell 20%.");
-    expect(read.insights[0]!.text).toBe("Across the two sell-offs, this portfolio rose while the S&P 500 fell, and it did better than the market in every one of them.");
+    expect(read.headline).toBe("This portfolio did not lose money in either of the two sell-offs.");
+    expect(read.insights[0]!.text).toBe("In the test slide it would have gained 5% while the S&P 500 fell 20%.");
+    expect(read.insights[1]!.text).toBe("Across the two sell-offs, this portfolio rose while the S&P 500 fell, and it did better than the market in every one of them.");
   });
 
   it("returns nothing when no episode can be measured", () => {

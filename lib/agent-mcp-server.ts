@@ -249,7 +249,7 @@ export function createStocksbrewMcpServer(principal: AgentPrincipal): McpServer 
 
   server.registerTool("copy_test", {
     title: "Copy test",
-    description: "What copying a 13F fund's filings or a House member's reported trades would have made against the S&P 500, traded the first close after each disclosure became public. With slug or query: one record (a query that matches several returns their slugs to pick from). With neither: the ranking of every fund and member. Pretend money, before costs and taxes.",
+    description: "What copying a 13F fund's filings or a House member's reported trades would have made against the S&P 500, traded the first close after each disclosure became public. With slug or query: one record (a query that matches several returns their slugs to pick from). With neither: the ranking of every fund and member. A historical test on paper, before costs and taxes; the future can differ.",
     inputSchema: {
       slug: z.string().min(1).max(100).optional().describe("A record's slug, such as berkshire-hathaway"),
       query: z.string().min(1).max(100).optional().describe("Fund, manager or House member name to search"),

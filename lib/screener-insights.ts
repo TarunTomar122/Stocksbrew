@@ -46,15 +46,16 @@ export function buildScreenerRead(input: {
   const top = sectors[0];
   const topShare = top ? Math.round((top.count / matched.length) * 100) : 0;
   const base = input.narrowed && allMid !== null ? { label: `the typical stock across all ${universe.length.toLocaleString("en-US")} we cover`, value: allMid } : spy !== null ? { label: "the S&P 500", value: spy } : null;
-  const parts: string[] = [];
-  parts.push(input.narrowed ? `${matched.length.toLocaleString("en-US")} ${matched.length === 1 ? "stock matches" : "stocks match"}` : `Across the ${matched.length.toLocaleString("en-US")} stocks we follow`);
-  if (top && matched.length >= 3 && topShare >= 30 && topShare < 100) parts.push(`${topShare}% are ${top.sector}`);
-  if (mid !== null && moves.length >= 3) {
-    // Both moves in words ("fell 0.3% ..., while the S&P 500 fell 0.4%"), never a word for one and a sign for the other.
-    parts.push(`the typical one ${mid >= 0 ? "rose" : "fell"} ${pct(mid)} ${on}${base ? `, while ${base.label} ${base.value >= 0 ? "rose" : "fell"} ${pct(base.value)}` : ""}`);
-  }
-  // "Across the 781 stocks we follow, the typical one rose 2.4% ..." reads as one sentence; a match count stands alone.
-  const headline = input.narrowed ? `${parts.join("; ")}.` : `${parts[0]}${parts.length > 1 ? `, ${parts.slice(1).join("; ")}` : ""}.`;
+  // One sentence: the size of the set and its typical move. The comparison and the main sector are the first line under it.
+  const count = matched.length.toLocaleString("en-US");
+  const typical = mid !== null && moves.length >= 3 ? `the typical one ${mid >= 0 ? "rose" : "fell"} ${pct(mid)} ${on}` : null;
+  // Both moves in words ("fell 0.3% ..., while the S&P 500 fell 0.4%"), never a word for one and a sign for the other.
+  const baseText = typical && base ? `${base.label.charAt(0).toUpperCase()}${base.label.slice(1)} ${base.value >= 0 ? "rose" : "fell"} ${pct(base.value)} ${on}.` : null;
+  const sectorText = top && matched.length >= 3 && topShare >= 30 && topShare < 100 ? `${topShare}% of the ${input.narrowed ? "matches" : "stocks"} are ${top.sector}.` : null;
+  // Across everything we follow, the S&P 500 beside the typical move is the point, so it stays in the sentence.
+  const headline = input.narrowed
+    ? `${count} ${matched.length === 1 ? "stock matches" : "stocks match"}${typical ? `, and ${typical}` : ""}.`
+    : `Across the ${count} stocks we follow${typical ? `, ${typical}${base ? `, while ${base.label} ${base.value >= 0 ? "rose" : "fell"} ${pct(base.value)}` : ""}` : ""}.`;
 
   // Breadth and the outliers.
   let movers: Insight | null = null;
@@ -131,7 +132,12 @@ export function buildScreenerRead(input: {
     };
   }
 
-  return { headline, insights: pickInsights([tilt, movers, zones, earnings, value], 3), asOf: input.asOf ?? null };
+  // What the headline left out: the main sector (when the tilt line does not already say it) and, for a
+  // screen, everything we cover beside its typical move. It closes the movers line, the first or second point.
+  const aside = [tilt ? null : sectorText, input.narrowed ? baseText : null].filter(Boolean).join(" ");
+  if (movers && aside) movers = { ...movers, soWhat: aside };
+  const asidePoint: Insight | null = !movers && aside ? { id: "context", tone: "flat", text: aside } : null;
+  return { headline, insights: pickInsights([tilt, movers ?? asidePoint, zones, earnings, value], 3), asOf: input.asOf ?? null };
 }
 
 /** The Sectors tab: who led, who lagged, how broad. */

@@ -49,7 +49,7 @@ export const FREE_TOOL_GROUPS: FreeToolGroup[] = [
         featured: true,
       },
       {
-        href: "/portfolio",
+        href: "/portfolio/analyze",
         title: "Portfolio Analyzer",
         description: "Upload holdings and see concentration, overlap, and risk.",
         icon: "pie_chart",

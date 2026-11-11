@@ -28,8 +28,16 @@ export type Insight = {
    */
   leadName?: string;
   /** Where to go to act or dig in. */
-  action?: { label: string; href: string };
+  action?: InsightAction;
+  /**
+   * A second, smaller next step beside the first, when the finding invites one
+   * ("Watch HIMS for me" next to "Why did it fall?"). Two at most per finding.
+   */
+  secondAction?: InsightAction;
 };
+
+/** A next step offered right where a finding is: a plain label and where it goes. */
+export type InsightAction = { label: string; href: string };
 
 export type TheRead = {
   /** The one-line headline of the page's read: "A risk-on morning, led by chips." */
@@ -41,6 +49,8 @@ export type TheRead = {
   asOf?: string | null;
   /** Stocks the headline itself tells, so lists under the read can leave them out. */
   headlineTickers?: string[];
+  /** Next steps for the headline itself, shown right under it. Two at most. */
+  actions?: InsightAction[];
 };
 
 /** Whole-number percentage share, or null when the base is empty. */

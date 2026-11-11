@@ -19,7 +19,7 @@ import {
   type InsiderTrade,
   type PerfCard,
 } from "@/lib/follow-shared";
-import { buildCopyRead, copyHref, fmtPointsWord, isFullRecord, possessive, stoppedMonth, type CopyRecord } from "@/lib/copy-trades-shared";
+import { buildCopyRead, copyHref, copyPace, fmtPointsWord, isFullRecord, possessive, stoppedMonth, type CopyRecord } from "@/lib/copy-trades-shared";
 import { shortCompanyName } from "@/lib/plain-copy";
 
 // ── shapes the loaders produce ─────────────────────────────────────────────
@@ -608,7 +608,8 @@ function copyTest(record: CopyRecord | null | undefined, who: string, what: stri
   if (!isFullRecord(record)) return null;
   const read = buildCopyRead(record);
   if (!read) return null;
-  const pace = read.insights.find((insight) => insight.id === "pace");
+  // The pace on its own, without the read's dollar sentence for the index.
+  const pace = copyPace(record);
   // The panel below opens with the dollar sentence; the read says it as the yearly gap, so the page never repeats itself.
   const gap = record.excess_per_year;
   const when = `from ${fmtMonthYear(record.start_date)}${stoppedMonth(record) ? ` until ${fmtMonthYear(record.end_date)}` : ""}`;
@@ -791,8 +792,12 @@ export function buildFundRead(profile: FundProfile, copy?: CopyRecord | null, to
     if (added.length > 0) shortParts.push(`added to ${listWords(added.map((row) => row.name))}`);
     if (reduced.length > 0) shortParts.push(`cut ${listWords(reduced.map((row) => row.name))}`);
     if (exited.length > 0) shortParts.push(`sold all of ${listWords(exited.map((row) => row.name))}`);
-    movesShort = listWords(shortParts);
-    if (tinyOpened.length > 0) {
+    // A long list of names keeps the headline to its first two moves; the full list, with tickers and
+    // weights, is the moves line under it.
+    const words = (text: string) => text.split(/\s+/).filter(Boolean).length;
+    const full = listWords(shortParts);
+    movesShort = shortParts.length > 2 && words(`${short} ${full} in ${profile.latest.quarter}`) > 20 ? `${listWords(shortParts.slice(0, 2))}, among other moves,` : full;
+    if (tinyOpened.length > 0 && shortParts.length <= 1) {
       const tiny = `a small new stake in ${listWords(tinyOpened.map((row) => row.name))}`;
       movesShort = movesShort ? `${movesShort} in ${profile.latest.quarter}, and opened ${tiny}` : `opened ${tiny}`;
     }

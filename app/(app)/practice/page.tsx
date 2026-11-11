@@ -49,7 +49,7 @@ export default async function PracticePage() {
             Prices are unavailable right now. Try again in a few minutes.
           </div>
         )}
-        <PageNote lede={lede} />
+        <PageNote lede={lede} ledeInHead />
       </div>
     </main>
   );

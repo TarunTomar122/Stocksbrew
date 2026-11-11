@@ -272,10 +272,9 @@ export function buildCalendarRead(input: CalendarReadInput): TheRead | null {
   if (upcoming.length === 0 && reported.length === 0 && !econToday) return null;
 
   const parts: string[] = [];
-  if (econToday) {
-    const out = releasedAlready(econToday, input.today, input.now ?? new Date());
-    parts.push(`${econToday.title.trim()} numbers ${out ? "came" : "come"} out today${econToday.timeEt ? ` at ${fmtClock(econToday.timeEt)} ET` : ""}`);
-  }
+  const econLine = econToday
+    ? `${econToday.title.trim()} numbers ${releasedAlready(econToday, input.today, input.now ?? new Date()) ? "came" : "come"} out today${econToday.timeEt ? ` at ${fmtClock(econToday.timeEt)} ET` : ""}`
+    : null;
   if (upcoming.length) {
     const leaders = upcoming.slice(0, 2);
     const sameDay = leaders.length === 2 && leaders[0]!.date === leaders[1]!.date;
@@ -290,14 +289,33 @@ export function buildCalendarRead(input: CalendarReadInput): TheRead | null {
     const beats = reported.filter((item) => surpriseOf(item)?.label === "beat").length;
     parts.push(`${reported.length} companies reported, ${beats} beat estimates`);
   }
-  // One sentence per fact, never two facts glued with a semicolon.
+  // The earnings lead the headline; a big release today is the line under it (or the headline on a day without earnings).
+  if (parts.length === 0 && econLine) parts.push(econLine);
   const headline = parts.map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}.`).join(" ");
+  const economic = economicInsight(input);
+  const econPoint: Insight | null =
+    econLine && parts[0] !== econLine
+      ? {
+          ...(economic ?? { id: "economic", tone: "flat" as const }),
+          text: `${econLine.charAt(0).toUpperCase()}${econLine.slice(1)}.`,
+          // The inflation note belongs to today's line only when today's release is the inflation one.
+          soWhat: econToday && /cpi|ppi|pce|inflation/i.test(econToday.title) ? economic?.soWhat : undefined,
+        }
+      : null;
 
   const mine = mineInsight(input);
   const skip = new Set(mine?.tickers ?? []);
   return {
     headline,
-    insights: pickInsights([mine, biggestInsight(input, skip), resultsInsight(input), economicInsight(input), ipoInsight(input)]),
+    insights: pickInsights([
+      mine,
+      econPoint,
+      biggestInsight(input, skip),
+      resultsInsight(input),
+      // The week's other big releases still get their line when today's is already said.
+      econPoint ? (economic && !economic.text.startsWith("One big") ? { ...economic, id: "economic-week", soWhat: econToday && /cpi|ppi|pce|inflation/i.test(econToday.title) ? undefined : economic.soWhat } : null) : economic,
+      ipoInsight(input),
+    ], econPoint ? 4 : 3),
   };
 }
 

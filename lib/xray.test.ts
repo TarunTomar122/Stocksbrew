@@ -178,7 +178,8 @@ describe("buildXrayRead", () => {
     );
     const read = buildXrayRead(xray)!;
     expect(read.headline).not.toMatch(/not the/);
-    expect(read.headline).toBe("Apple is still your biggest company at 99%, and your funds add 0.1% in NVIDIA, which you never bought.");
+    expect(read.headline).toBe("Once your funds are counted, Apple is still your biggest company, at 99% of everything you own.");
+    expect(read.insights[0]).toMatchObject({ id: "xray-hidden", text: "Your funds add 0.1% in NVIDIA, which you never bought.", tickers: ["NVDA"] });
   });
 
   it("names a swaps fund without promising to read it later", () => {

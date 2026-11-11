@@ -216,7 +216,7 @@ describe("event rules", () => {
     });
     const result = evaluateJob(job("mover"), data, { day: "2026-10-13", since: "2026-10-12", tickers: ["NVDA"] });
     expect(result?.findings).toHaveLength(1);
-    expect(result?.findings[0].detail).toBe("We have not found a confirmed reason for the move.");
+    expect(result?.findings[0].detail).toBe("");
   });
 
   it("cannot check the movers list for a day it was not kept", () => {

@@ -61,7 +61,7 @@ export const BRIEFING_GUIDES: Guide[] = [
     section: "briefing",
     slug: "reasons",
     title: "When we give a reason for a move",
-    summary: "A price move gets a reason only when research found one in dated sources. Otherwise the briefing says there is no confirmed reason.",
+    summary: "A price move gets a reason only when research found one in dated sources. Otherwise the move shows with its number and no reason line.",
     updated: REVISED,
     surface: SURFACE,
     blocks: [
@@ -72,7 +72,7 @@ export const BRIEFING_GUIDES: Guide[] = [
         ["State", "What you see", "What it means"],
         [
           ["Confirmed", "The reason, with the source and its date", "A research pass found a dated source that explains the move: results, guidance, a filing, a rating change, a deal."],
-          ["Unconfirmed", "We have not found a confirmed reason for the move.", "We looked and did not find one, or we have not researched the move yet."],
+          ["Unconfirmed", "The stock and its move, with no reason line", "We looked and did not find one, or we have not researched the move yet."],
           ["Not applicable", "No reason line", "The item is not a price move, for example an earnings date."],
         ],
       ),

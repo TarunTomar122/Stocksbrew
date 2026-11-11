@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ShowMore } from "@/components/oa/kit/more";
 import { ToneGlyph } from "@/components/oa/kit/tone";
 import { StockLogo } from "@/components/stock-logo";
-import type { Insight, TheRead as TheReadData } from "@/lib/insights";
+import type { Insight, InsightAction, TheRead as TheReadData } from "@/lib/insights";
 
 /**
  * The page's read: a one-line headline, then up to three insights, each a
@@ -52,11 +52,25 @@ export function TheRead({
   const folded = fold && foldKeep > 0 ? list(read.insights.slice(foldKeep), false) : points;
   return (
     <section aria-label={label} className={`oa-surface border border-oa-border bg-oa-card px-4 pb-3 pt-3.5 sm:px-5 sm:pb-3.5 sm:pt-4 ${className}`}>
-      <p className="oa-label">{label}</p>
+      {/* No small label above the headline (owner, Nov 11): the section keeps it as its accessible name only. */}
       {read.headline ? (
-        <h2 className="mt-1 max-w-[46rem] text-pretty text-[19px] font-semibold leading-[26px] tracking-[-0.01em] text-oa-fg sm:text-[21px] sm:leading-[28px]">{read.headline}</h2>
+        <h2 className="max-w-[46rem] text-pretty text-[17px] font-semibold leading-[24px] tracking-[-0.01em] text-oa-fg sm:text-[19px] sm:leading-[26px]">{read.headline}</h2>
       ) : null}
       {visual}
+      {read.headline && read.actions?.length ? (
+        // Next steps for the headline's own story, in the same link style as the rows. The read's
+        // container is not a row, so it carries its own click tracking.
+        <div
+          data-track-links="insight_clicked"
+          data-track-insight-id="headline"
+          data-track-insight-kind="headline"
+          data-track-ticker={read.headlineTickers?.[0]}
+          className="mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5">
+          {read.actions.slice(0, 2).map((action, index) => (
+            <ActionLink key={action.href} action={action} target={index === 0 ? "action" : "action_2"} />
+          ))}
+        </div>
+      ) : null}
       {points && fold && read.headline ? (
         <>
           {kept}
@@ -137,17 +151,34 @@ export function InsightRow({ insight }: { insight: Insight }) {
           </div>
         ) : null}
       </div>
-      {insight.action ? (
-        <Link
-          href={insight.action.href}
-          prefetch={false}
-          data-track-target="action"
-          className="col-start-2 mt-1.5 justify-self-start whitespace-nowrap rounded text-[13px] font-medium leading-[22px] text-oa-primary hover:underline sm:col-start-3 sm:row-start-1 sm:mt-0 sm:justify-self-end"
-        >
-          {insight.action.label} →
-        </Link>
+      {insight.action && insight.secondAction ? (
+        // Two next steps: side by side under the sentence on a phone, stacked in the right column on a wide screen.
+        <div className="col-start-2 mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5 sm:col-start-3 sm:row-start-1 sm:mt-0 sm:flex-col sm:items-end">
+          <ActionLink action={insight.action} target="action" />
+          <ActionLink action={insight.secondAction} target="action_2" />
+        </div>
+      ) : insight.action ? (
+        <ActionLink
+          action={insight.action}
+          target="action"
+          className="col-start-2 mt-1.5 justify-self-start sm:col-start-3 sm:row-start-1 sm:mt-0 sm:justify-self-end"
+        />
       ) : null}
     </li>
+  );
+}
+
+/** One next step in the read's link style: "Why did it fall? →". */
+function ActionLink({ action, target, className = "" }: { action: InsightAction; target: string; className?: string }) {
+  return (
+    <Link
+      href={action.href}
+      prefetch={false}
+      data-track-target={target}
+      className={`whitespace-nowrap rounded text-[13px] font-medium leading-[22px] text-oa-primary hover:underline ${className}`}
+    >
+      {action.label} →
+    </Link>
   );
 }
 

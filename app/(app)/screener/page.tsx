@@ -519,8 +519,9 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
               <span className={`${NUM} text-[15px] font-semibold leading-5 text-oa-fg`}>{row.symbol}</span>
               {phoneExtra ? <span className="shrink-0 text-[12.5px] text-oa-muted-fg [&_*]:!text-[12.5px]">{cellFor(phoneExtra, row)}</span> : null}
             </span>
-            <span className="flex flex-wrap gap-x-1.5 text-[12.5px] leading-[18px] text-oa-muted-fg">
-              <span className="min-w-0 text-pretty">{shortCompanyName(row.name)}</span>
+            {/* One line, cut with an ellipsis if it must (owner, Nov 11); the full name is on hover. */}
+            <span className="flex min-w-0 gap-x-1.5 whitespace-nowrap text-[12.5px] leading-[18px] text-oa-muted-fg">
+              <span className="min-w-0 truncate" title={row.name ?? undefined}>{shortCompanyName(row.name)}</span>
               {alsoClassesLabel(otherClasses, row.symbol) ? <span className={`${NUM} shrink-0`}>· {alsoClassesLabel(otherClasses, row.symbol)}</span> : null}
             </span>
           </span>
@@ -698,7 +699,8 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
           ) : (
             <>
               <div className="hidden sm:block">
-                <DataTable columns={columns} rows={tableRows} stickyHeader={false} compact />
+                {/* The screener is for scanning: about 14 rows before it scrolls inside (owner, Nov 11), header pinned. */}
+                <DataTable columns={columns} rows={tableRows} compact maxRows={14} />
               </div>
               {phoneList}
               {firstList && remaining > 0 ? (

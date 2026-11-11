@@ -7,9 +7,10 @@ import { buildXray, type FundDoc } from "@/lib/xray";
 
 import { buildLosses, similarFunds, similarStocks } from "./losses";
 import { buildIdeasRead } from "./read";
-import { COMPANY_LINE, buildRebalance } from "./rebalance";
+import { COMPANY_LINE, TRIM_MIN_POINTS, TRIM_MIN_USD, buildRebalance } from "./rebalance";
 import { DEFAULT_RATES, parseRates, saleTax } from "./tax";
-import type { IdeaHolding, IdeasResult } from "./types";
+import type { IdeaHolding, IdeasResult, RebalancePlan } from "./types";
+import { fmtPct } from "./words";
 import { dropRequest, levelBelow, watchDropHref } from "./watch";
 
 const TODAY = "2026-11-11";
@@ -368,5 +369,200 @@ describe("tax netting across short and long parts", () => {
     expect(nettedTax(1000, -1000, { short: 24, long: 15 })).toBe(0);
     expect(nettedTax(500, 500, { short: 24, long: 15 })).toBeCloseTo(195);
     expect(nettedTax(-200, -100, { short: 24, long: 15 })).toBeCloseTo(-63);
+  });
+});
+
+describe("the owner's portfolio: no contradictions on a card", () => {
+  // Like the owner's own: TSM 13% Buy more, NVDA 17% Keep (19% with a fund's NVDA), GOOGL 13%,
+  // AVGO just over the line, a small ORCL, and a Nasdaq-style fund full of Technology.
+  const qqq: FundDoc = {
+    ticker: "QQQ",
+    fundName: "Nasdaq fund",
+    asOf: "2026-06-30",
+    filedAt: null,
+    sourceUrl: null,
+    status: "ok",
+    note: null,
+    holdings: [
+      { ticker: "AAPL", name: "Apple", weight: 0.4 },
+      { ticker: "MSFT", name: "Microsoft", weight: 0.4 },
+      { ticker: "NVDA", name: "NVIDIA", weight: 0.1 },
+      { ticker: "PEP", name: "PepsiCo", weight: 0.1 },
+    ],
+  };
+  const tech = { sector: "Technology" };
+  const holdings = [
+    holding({ ticker: "TSM", name: "Taiwan Semiconductor", shares: 65, price: 200, cost: 196.5, call: "Add", ...tech }), // 13,000
+    holding({ ticker: "NVDA", name: "NVIDIA", shares: 100, price: 170, cost: 120, call: "Hold", ...tech }), // 17,000
+    holding({ ticker: "ORCL", name: "Oracle", shares: 25, price: 200, cost: 180, call: "Hold", ...tech }), // 5,000
+    holding({ ticker: "GOOGL", name: "Alphabet", shares: 100, price: 130, cost: 100, call: "Hold", sector: "Communication Services" }), // 13,000
+    holding({ ticker: "AVGO", name: "Broadcom", shares: 50, price: 230, cost: 200, call: "Hold", ...tech }), // 11,500
+    holding({ ticker: "QQQ", name: "Nasdaq fund", shares: 40, price: 500, fund: true }), // 20,000
+    holding({ ticker: "XOM", name: "Exxon", shares: 65, price: 100, cost: 100, call: "Hold", sector: "Energy" }), // 6,500
+    holding({ ticker: "JNJ", name: "Johnson & Johnson", shares: 40, price: 150, cost: 150, call: "Add", sector: "Health Care" }), // 6,000
+    holding({ ticker: "LLY", name: "Eli Lilly", shares: 10, price: 800, cost: 800, call: "Hold", sector: "Health Care" }), // 8,000
+  ];
+  const sectors = {
+    ...Object.fromEntries(holdings.filter((h) => !h.fund).map((h) => [h.ticker, h.sector!])),
+    AAPL: "Technology",
+    MSFT: "Technology",
+    PEP: "Consumer Staples",
+  };
+  const bench = { Technology: 33, "Communication Services": 9, Energy: 3, "Health Care": 10, "Consumer Staples": 6 };
+  const xray = xrayOf(holdings, sectors, bench, { QQQ: qqq });
+  const plan = buildRebalance({ holdings, xray, rates: RATES, today: TODAY, subject: "mine" });
+  const pctIn = (text: string) => [...text.matchAll(/(\d+(?:\.\d+)?)%/g)].map((m) => `${m[1]}%`);
+
+  it("never sells a Buy more call, and names it as information instead", () => {
+    expect(plan.trims.some((t) => t.call === "Add")).toBe(false);
+    expect(plan.trims.some((t) => t.ticker === "TSM")).toBe(false);
+    expect(plan.buyMoreOver.map((row) => row.ticker)).toEqual(["TSM"]);
+    expect(plan.buyMoreOver[0]!.pct).toBeCloseTo(13);
+    // Broadcom's own 1.5-point trim was too small, but it was trimmed for Technology, so it is not listed as left out.
+    expect(plan.trims.some((t) => t.ticker === "AVGO")).toBe(true);
+    expect(plan.small).toEqual([]);
+  });
+
+  it("puts every percentage on a card on one base: today's portfolio, funds counted", () => {
+    expect(plan.trims.length).toBeGreaterThan(0);
+    for (const trim of plan.trims) {
+      // The weight the card starts from is the x-ray's weight today, for the company or the sector.
+      const today =
+        trim.kind === "sector"
+          ? xray.sectors.find((row) => row.sector === trim.subject)!.pct
+          : trim.kind === "company"
+            ? xray.companies.find((row) => row.name === trim.subject)!.pct
+            : trim.before;
+      expect(trim.before).toBeCloseTo(today);
+      // "After" is this one sale on its own, so before - after is the sale's share of the portfolio.
+      expect(trim.before - trim.after).toBeCloseTo((trim.amount / plan.total) * 100);
+      // The headline sentence and the explanation quote the same "now".
+      expect(pctIn(trim.sentence).slice(0, 2)).toEqual([fmtPct(trim.before), fmtPct(trim.after)]);
+      if (trim.kind !== "drift") expect(pctIn(trim.why)[0]).toBe(fmtPct(trim.before));
+    }
+    const techTrims = plan.trims.filter((t) => t.kind === "sector" && t.subject === "Technology");
+    expect(techTrims.length).toBeGreaterThan(0);
+    for (const trim of techTrims) expect(fmtPct(trim.before)).toBe(fmtPct(xray.sectors.find((row) => row.sector === "Technology")!.pct));
+  });
+
+  it("drops trims too small to matter and keeps the rest above the minimum", () => {
+    for (const trim of plan.trims) {
+      expect(trim.amount).toBeGreaterThanOrEqual(TRIM_MIN_USD);
+      expect((trim.amount / plan.total) * 100).toBeGreaterThanOrEqual(TRIM_MIN_POINTS);
+    }
+  });
+
+  it("reports the sector's combined move separately from the cards", () => {
+    const shift = plan.sectors.find((row) => row.sector === "Technology")!;
+    expect(shift.before).toBeCloseTo(xray.sectors.find((row) => row.sector === "Technology")!.pct);
+    const techSold = plan.trims.filter((t) => ["TSM", "NVDA", "ORCL", "AVGO"].includes(t.ticker)).reduce((sum, t) => sum + t.amount, 0);
+    expect(shift.after).toBeCloseTo(shift.before - (techSold / plan.total) * 100);
+  });
+
+  it("explains the Buy more name in the read without a sale, and keeps the headline short", () => {
+    const read = buildIdeasRead({ subject: "mine", today: TODAY, rates: RATES, plan, losses: [], basis: "saved" })!;
+    expect(read.headline.split(/\s+/).length).toBeLessThanOrEqual(18);
+    // Led by the biggest company over the line, whatever order the trims come in.
+    expect(read.headline).toBe("4 companies are each above 10% of your portfolio once funds are counted, led by NVIDIA at 19%.");
+    const all = read.insights.map((i) => `${i.text} ${i.soWhat ?? ""}`).join(" ");
+    expect(all).not.toMatch(/Selling about \d+ Taiwan/);
+    expect(read.insights.find((i) => i.id === "held-TSM")?.text).toContain("our call on it is Buy more");
+  });
+});
+
+describe("small and blocked trims", () => {
+  const filler = (n: number, value: number) =>
+    Array.from({ length: n }, (_, i) => holding({ ticker: `F${i}`, shares: 10, price: value / 10, cost: value / 10, call: "Hold" }));
+
+  it("leaves out a trim under $500 even when it is 2+ points", () => {
+    // A $10,004 portfolio: AAA at 14% needs a $400 sale (4 points).
+    const holdings = [holding({ ticker: "AAA", name: "Triple A", shares: 14, price: 100, cost: 80, call: "Hold" }), ...filler(9, 956)];
+    const plan = buildRebalance({ holdings, xray: xrayOf(holdings, {}), rates: RATES, today: TODAY, subject: "mine" });
+    expect(plan.trims).toEqual([]);
+    expect(plan.small.map((row) => row.ticker)).toEqual(["AAA"]);
+    expect(plan.quiet).toContain("too small to be worth making");
+    expect(plan.quiet).toMatch(/fine answer/);
+  });
+
+  it("leaves out a trim under 2 points even when it is over $500", () => {
+    // $100,000: BBB at 11.5% needs 1.5 points ($1,500).
+    const holdings = [holding({ ticker: "BBB", name: "Bee", shares: 115, price: 100, cost: 80, call: "Trim" }), ...filler(11, 8045.45)];
+    const plan = buildRebalance({ holdings, xray: xrayOf(holdings, {}), rates: RATES, today: TODAY, subject: "mine" });
+    expect(plan.trims).toEqual([]);
+    expect(plan.small.map((row) => row.ticker)).toEqual(["BBB"]);
+  });
+
+  it("says plainly when the only name over the line is a Buy more call", () => {
+    const holdings = [
+      holding({ ticker: "TSM", name: "Taiwan Semiconductor", shares: 65, price: 200, cost: 150, call: "Add", sector: "Technology" }),
+      ...filler(10, 8700),
+    ];
+    const plan: RebalancePlan = buildRebalance({ holdings, xray: xrayOf(holdings, {}), rates: RATES, today: TODAY, subject: "mine" });
+    expect(plan.trims).toEqual([]);
+    expect(plan.buyMoreOver.map((row) => row.ticker)).toEqual(["TSM"]);
+    expect(plan.quiet).toBe(
+      "Your portfolio is concentrated, with Taiwan Semiconductor at 13%, above the 10% line, but our call on TSM is Buy more and we would not sell it, so doing nothing is a fine answer.",
+    );
+    const read = buildIdeasRead({ subject: "mine", today: TODAY, rates: RATES, plan, losses: [], basis: "saved" })!;
+    expect(read.headline).toBe("Taiwan Semiconductor is 13% of your portfolio, but our call is Buy more, so we would not sell.");
+    expect(read.headline.split(/\s+/).length).toBeLessThanOrEqual(18);
+    // The quiet line would repeat the headline; the read says what adding would do instead.
+    expect(read.insights.map((i) => i.text)).toEqual(["Adding more would make your portfolio lean on TSM even harder, so doing nothing is a fine answer here."]);
+  });
+
+  it("gives the company ideas to the biggest companies, whatever their call", () => {
+    const holdings = [
+      holding({ ticker: "BIG", shares: 25, price: 1000, cost: 900 }), // 25%, no call
+      holding({ ticker: "KEEP", shares: 20, price: 1000, cost: 900, call: "Hold" }), // 20%
+      holding({ ticker: "MID", shares: 18, price: 1000, cost: 900, call: "Hold" }), // 18%
+      holding({ ticker: "SELL", shares: 13, price: 1000, cost: 900, call: "Trim" }), // 13%
+      ...filler(6, 4000),
+    ];
+    const plan = buildRebalance({ holdings, xray: xrayOf(holdings, {}), rates: RATES, today: TODAY, subject: "mine" });
+    expect(plan.trims.map((t) => t.ticker)).toEqual(["BIG", "KEEP", "MID"]);
+    expect(plan.moreOver.map((row) => row.ticker)).toEqual(["SELL"]);
+  });
+
+  it("never sells a company when either share class is a Buy more call", () => {
+    const holdings = [
+      holding({ ticker: "GOOGL", name: "Alphabet", shares: 100, price: 100, cost: 90, call: "Add" }),
+      holding({ ticker: "GOOG", name: "Alphabet", shares: 100, price: 100, cost: 90, call: "Hold" }),
+      ...filler(16, 5000),
+    ];
+    const plan = buildRebalance({ holdings, xray: xrayOf(holdings, {}), rates: RATES, today: TODAY, subject: "mine" });
+    expect(plan.trims).toEqual([]);
+    expect(plan.buyMoreOver.map((row) => row.ticker)).toEqual(["GOOGL"]);
+  });
+
+  it("does not count a company a hair over the line, which would read as 10% above the 10% line", () => {
+    const holdings = [holding({ ticker: "EDGE", shares: 103, price: 100, cost: 90, call: "Add" }), ...filler(9, 10300 * 0.9693)];
+    const xray = xrayOf(holdings, {});
+    expect(xray.companies[0]!.pct).toBeGreaterThan(10);
+    expect(xray.companies[0]!.pct).toBeLessThan(10.5);
+    const plan = buildRebalance({ holdings, xray, rates: RATES, today: TODAY, subject: "mine" });
+    expect(plan.companiesOver).toEqual([]);
+    expect(plan.buyMoreOver).toEqual([]);
+    expect(plan.quiet).not.toContain("above the 10% line,");
+  });
+
+  it("names every Buy more call in the headline when there are several", () => {
+    const holdings = [
+      holding({ ticker: "AAA", shares: 15, price: 1000, cost: 900, call: "Add" }),
+      holding({ ticker: "BBB", shares: 12, price: 1000, cost: 900, call: "Add" }),
+      ...filler(10, 7300),
+    ];
+    const plan = buildRebalance({ holdings, xray: xrayOf(holdings, {}), rates: RATES, today: TODAY, subject: "mine" });
+    const read = buildIdeasRead({ subject: "mine", today: TODAY, rates: RATES, plan, losses: [], basis: "saved" })!;
+    expect(read.headline).toBe("AAA and BBB are each above 10%, but our call on each is Buy more, so we would not sell.");
+    expect(read.insights.map((i) => i.id)).toEqual(["held"]);
+  });
+
+  it("says a tax-loss sale of a Buy more call is only for the tax", () => {
+    const loser = holding({ ticker: "CI", name: "Cigna", shares: 10, price: 250, cost: 300, call: "Add", sector: "Health Care" });
+    const losses = buildLosses({ holdings: [loser], universe: [], funds: {}, rates: RATES, today: TODAY });
+    const holdings = [loser, ...filler(12, 1000)];
+    const plan = buildRebalance({ holdings, xray: xrayOf(holdings, {}), rates: RATES, today: TODAY, subject: "mine" });
+    const read = buildIdeasRead({ subject: "mine", today: TODAY, rates: RATES, plan, losses, basis: "saved" })!;
+    expect(read.insights.find((i) => i.id === "loss-CI")?.soWhat).toBe("Our call is Buy more, so this would only be a sale for the tax.");
   });
 });

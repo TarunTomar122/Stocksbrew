@@ -16,7 +16,7 @@ describe("the five places", () => {
   it("lists every app route under exactly one place", () => {
     const hrefs = PLACES.flatMap((item) => item.sections.map((sub) => sub.href));
     expect(new Set(hrefs).size).toBe(hrefs.length);
-    for (const href of ["/briefing", "/explore", "/movers", "/signals", "/news", "/calendar", "/watchlist", "/watchlist/tax", "/practice", "/screener", "/best", "/sectors", "/compare", "/markets", "/filings", "/ask", "/themes", "/strategies", "/backtest", "/follow", "/insiders", "/agents"]) {
+    for (const href of ["/briefing", "/explore", "/movers", "/signals", "/news", "/calendar", "/portfolio", "/watchlist", "/watchlist/tax", "/practice", "/screener", "/best", "/sectors", "/compare", "/markets", "/filings", "/ask", "/themes", "/strategies", "/backtest", "/follow", "/insiders", "/agents"]) {
       expect(hrefs).toContain(href);
     }
   });
@@ -60,6 +60,40 @@ describe("placeFor and sectionFor", () => {
     expect(sectionOf("/stock/NVDA")).toBeNull();
   });
 
+  it("opens My stocks on its overview and lights each tool by the longest prefix", () => {
+    expect(PLACES.find((item) => item.label === "My stocks")!.href).toBe("/portfolio");
+    expect(sectionOf("/portfolio")).toBe("Overview");
+    expect(sectionOf("/portfolio/analyze")).toBe("Overview");
+    expect(sectionOf("/portfolio/memo")).toBe("Weekly memo");
+    expect(sectionOf("/portfolio/xray")).toBe("What you own");
+    expect(sectionOf("/portfolio/earnings")).toBe("Earnings season");
+    expect(sectionOf("/portfolio/goal")).toBe("Goal planner");
+    expect(sectionOf("/portfolio/ideas")).toBe("Rebalancing ideas");
+    expect(sectionOf("/watchlist/portfolio")).toBe("Portfolio");
+    expect(sectionOf("/import")).toBe("Portfolio");
+    expect(sectionOf("/practice")).toBe("Practice account");
+  });
+
+  it("groups the My stocks tools the way you use them: your stocks, plan ahead, act", () => {
+    const sections = PLACES.find((item) => item.label === "My stocks")!.sections;
+    expect(sections.map((item) => [item.label, item.group ?? null])).toEqual([
+      ["Overview", null],
+      ["Portfolio", "Your stocks"],
+      ["Weekly memo", "Your stocks"],
+      ["What you own", "Your stocks"],
+      ["Earnings season", "Plan ahead"],
+      ["Dividends", "Plan ahead"],
+      ["Goal planner", "Plan ahead"],
+      ["Stress test", "Plan ahead"],
+      ["Rebalancing ideas", "Act"],
+      ["Taxes", "Act"],
+      ["Practice account", "Act"],
+    ]);
+    // A group is one run: no heading comes back after another group has started.
+    const runs = sections.map((item) => item.group ?? null).filter((group, index, all) => group !== all[index - 1]);
+    expect(new Set(runs).size).toBe(runs.length);
+  });
+
   it("does not light a place on a path that only shares its first letters", () => {
     expect(place("/newsletter")).toBeNull();
     expect(place("/stockholm")).toBeNull();
@@ -73,6 +107,9 @@ describe("trailFor", () => {
     expect(trailFor("/screener")).toEqual([]);
     expect(trailFor("/sectors")).toEqual([]);
     expect(trailFor("/insiders/")).toEqual([]);
+    expect(trailFor("/portfolio")).toEqual([]);
+    expect(trailFor("/portfolio/memo")).toEqual([]);
+    expect(trailFor("/watchlist")).toEqual([]);
   });
 
   it("says the way back the same way on every deep page", () => {
@@ -88,6 +125,8 @@ describe("trailFor", () => {
     expect(trail("/follow/berkshire-hathaway")).toBe("Follow investors");
     expect(trail("/insiders/NVDA")).toBe("Follow investors › Insiders");
     expect(trail("/themes/ai-power")).toBe("Research › Themes");
+    expect(trail("/import")).toBe("My stocks › Portfolio");
+    expect(trail("/portfolio/analyze")).toBe("My stocks");
   });
 
   it("links each step to its page", () => {
@@ -114,5 +153,6 @@ describe("marketing chrome", () => {
 
   it("links the five places by their short names, then pricing and docs", () => {
     expect(MARKETING_LINKS.map((item) => item.label)).toEqual(["Today", "My stocks", "Research", "Investors", "Alerts", "Pricing", "Docs"]);
+    expect(MARKETING_LINKS.find((item) => item.label === "My stocks")!.href).toBe("/portfolio");
   });
 });

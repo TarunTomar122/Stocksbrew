@@ -43,7 +43,10 @@ describe("movers", () => {
   });
 
   it("writes the headline from both sides", () => {
-    expect(moversHeadline([...SPACE, ...DROPS])).toBe("Space stocks led the gainers on contracts and deals (FLY, VSAT, LUNR and 1 more). Earnings reports sent IBRX, HIMS and CEVA down.");
+    // One sentence on the side the theme leads; the other side's cause is a line under it.
+    expect(moversHeadline([...SPACE, ...DROPS])).toBe("Space stocks led the gainers on contracts and deals (FLY, VSAT, LUNR and 1 more).");
+    const read = buildMoversRead([...SPACE, ...DROPS])!;
+    expect(read.insights.find((insight) => insight.id === "cause-decliners")?.tickers).toEqual(expect.arrayContaining(["IBRX", "HIMS", "CEVA"]));
   });
 
   it("names companies, not tickers, when it knows the name", () => {
@@ -56,7 +59,7 @@ describe("movers", () => {
 
   it("falls back to the single biggest move and is null when empty", () => {
     expect(moversHeadline([])).toBeNull();
-    expect(moversHeadline([m("UAMY", 23, null), m("X", -2, null)])).toBe("UAMY moved most, +23.0%, with no confirmed reason yet.");
+    expect(moversHeadline([m("UAMY", 23, null), m("X", -2, null)])).toBe("UAMY moved most, +23.0%.");
     expect(buildMoversRead([])).toBeNull();
   });
 
@@ -81,8 +84,9 @@ describe("reddit", () => {
 
   it("skips funds when naming the loudest stock and flags crowd-vs-price splits", () => {
     const read = buildRedditRead(names)!;
-    expect(read.headline).toMatch(/^More Reddit posts expect a fall than a rise/);
-    expect(read.headline).toContain("NVDA");
+    expect(read.headline).toMatch(/^\d+% of the 31 stock mentions we counted on Reddit expect prices to fall, against \d+% expecting a rise\.$/);
+    // The most-mentioned stock is the first line under it, not part of the headline.
+    expect(read.headline).not.toContain("NVDA");
     expect(read.insights[0]!.text).toMatch(/^NVDA is the stock Reddit talks about most: 11 of 31 mentions \(35%\), 3\.4x/);
     expect(read.insights[1]!.text).toContain("AMD");
   });

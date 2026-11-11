@@ -35,6 +35,7 @@ import {
   sectionAvailability,
 } from "./sections";
 import type { ReportData } from "./types";
+import { stockCallSteps, type CallSteps } from "@/lib/next-steps";
 
 const CALL_TONE: Record<CallWord, Tone | null> = { Add: "up", Hold: null, Trim: "down" };
 
@@ -216,6 +217,36 @@ function CallTrack({ price, add, trim, level }: { price: number; add: number; tr
   );
 }
 
+/** The call's next steps: ask about it, or have an agent watch it. Each opens prefilled; nothing runs or saves on its own. */
+function CallNextSteps({ ticker, steps }: { ticker: string; steps: CallSteps }) {
+  const link = "rounded font-medium text-oa-primary hover:underline";
+  return (
+    <div
+      data-track-links="insight_clicked"
+      data-track-insight-id="stock-call"
+      data-track-insight-kind="call"
+      data-track-ticker={ticker}
+      className="mt-2.5 border-t border-oa-border pt-2.5 text-[13px] leading-5"
+    >
+      <p className="flex flex-wrap gap-x-4 gap-y-2 sm:gap-y-1">
+        <span className="text-oa-muted-fg">Ask about this</span>
+        {steps.ask.map((step) => (
+          <a key={step.href} href={step.href} data-track-target="ask" className={link}>
+            {step.label} →
+          </a>
+        ))}
+      </p>
+      {steps.watch ? (
+        <p className="mt-2 sm:mt-1.5">
+          <a href={steps.watch.href} data-track-target="watch" className={link}>
+            {steps.watch.label} →
+          </a>
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 /**
  * The key stats under the chart: a ruled table, label on the left and the
  * figure on the right at reading size, two columns from md. Reads like a
@@ -375,6 +406,12 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
   // Whole words only ("Keep" in "Keep what you own"), the way plainAction reads its labels. Call words are plain letters.
   const callWordRepeats = Boolean(callWord && callAction && /^[a-z ]+$/i.test(callWord) && new RegExp(`^${callWord}\\b`, "i").test(callAction));
 
+  // Under the call: two questions for Ask and one thing to watch (lib/next-steps.ts). Ask and agents cover US stocks.
+  const callSteps =
+    ready && market === "US"
+      ? stockCallSteps({ ticker: stock.ticker, fullRead: data.gate.levels, dayPct, earningsInDays: earningsIn })
+      : null;
+
   const stats = headerStats.length ? <KeyStats items={headerStats} /> : null;
   // On a phone the page below the chart is one part at a time (PhoneSections).
   const phoneSections = [
@@ -524,6 +561,7 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
                           </a>
                         ) : null}
                       </p>
+                      {callSteps ? <CallNextSteps ticker={stock.ticker} steps={callSteps} /> : null}
                     </>
                   ) : readState === "locked" ? (
                     <div className="-mx-3.5 -mb-3">

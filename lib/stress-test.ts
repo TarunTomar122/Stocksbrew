@@ -467,6 +467,22 @@ function driverClause(result: EpisodeResult): string | null {
     : `${prefix}${lead.name} added the most, ${changeWords(lead.pct)}`;
 }
 
+/** The holding that did the most damage (or added the most) in an episode, as its own line: "AAPL did the most damage of the single stocks, down 31%." */
+function driverPoint(result: EpisodeResult): Insight | null {
+  const lead = result.driver?.fund && result.stockDriver ? result.stockDriver : result.driver;
+  if (!lead || lead.pct === null || result.portfolio === null) return null;
+  const among = lead === result.stockDriver ? " of the single stocks" : "";
+  const loss = result.portfolio < 0;
+  return {
+    id: `driver-${lead.ticker}`,
+    tone: lead.pct < 0 ? "down" : "up",
+    // Starts with the ticker, which the read shows as the company's logo and name.
+    text: `${lead.ticker} ${loss ? "did the most damage" : "added the most"}${among}, ${changeWords(lead.pct)}.`,
+    tickers: [lead.ticker],
+    leadName: lead.name,
+  };
+}
+
 function listWords(items: string[]): string {
   if (items.length <= 1) return items[0] ?? "";
   if (items.length === 2) return `${items[0]} and ${items[1]}`;
@@ -541,16 +557,23 @@ export function buildStressRead(result: StressResult, options: { example: boolea
         : missing.every((move) => move.status === "not-yet")
           ? `the ${coveredPct(lead)}% of ${subject} that was trading then`
           : `the ${coveredPct(lead)}% of ${subject} we have prices for`;
-    headline = `In the ${lead.episode.name} ${who} ${verbFor(lead.portfolio!, true)}${marketAfter(lead.portfolio!, lead.market!)}`;
-    const driver = driverClause(lead);
+    headline = `In the ${lead.episode.name} ${who} ${verbFor(lead.portfolio!, true)}${marketAfter(lead.portfolio!, lead.market!)}.`;
+    // Who did the damage goes one line down, so the headline is one idea.
+    const driver = driverPoint(lead);
     if (driver) {
-      headline += `; ${driver}.`;
-      headlineTickers.push((lead.driver?.fund && lead.stockDriver ? lead.stockDriver : lead.driver)!.ticker);
-    } else headline += ".";
+      insights.push(driver);
+      // The stock the read leads with, for callers that watch it (the portfolio home's "noticed" card).
+      headlineTickers.push(driver.tickers![0]!);
+    }
   } else if (falls.length > 0) {
-    // It never lost money in a sell-off: lead with the market's worst one.
+    // It never lost money in a sell-off: say so, and the market's worst one goes one line down.
     const hardest = [...falls].sort((a, b) => a.market! - b.market!)[0]!;
-    headline = `${sentenceCase(subject)} did not lose money in any of the ${count(falls.length)} sell-offs; in the ${hardest.episode.name} it ${verbFor(hardest.portfolio!, true)}${marketAfter(hardest.portfolio!, hardest.market!)}.`;
+    headline = `${sentenceCase(subject)} did not lose money in ${falls.length === 2 ? "either" : "any"} of the ${count(falls.length)} sell-offs.`;
+    insights.push({
+      id: `hardest-${hardest.episode.id}`,
+      tone: isFlat(hardest.portfolio!) ? "flat" : "up",
+      text: `In the ${hardest.episode.name} it ${verbFor(hardest.portfolio!, true)}${marketAfter(hardest.portfolio!, hardest.market!)}.`,
+    });
   } else {
     const first = usable[0]!;
     headline = `In the ${first.episode.name} ${subject} ${verbFor(first.portfolio!, true)}${marketAfter(first.portfolio!, first.market!)}.`;
@@ -611,11 +634,9 @@ export function buildStressRead(result: StressResult, options: { example: boolea
     }
   }
 
-  // When the headline only covers part of the portfolio, say who is missing.
-  if (lead) {
-    const clause = coverageClause(lead);
-    if (clause) insights.push({ id: "coverage", tone: "flat", text: `In the ${lead.episode.name}, ${clause}.` });
-  }
+  // When the headline only covers part of the portfolio, say who is missing. A caveat, so it always keeps its place.
+  const clause = lead ? coverageClause(lead) : null;
+  const coverage: Insight | null = lead && clause ? { id: "coverage", tone: "flat", text: `In the ${lead.episode.name}, ${clause}.` } : null;
 
   // The rally, so the page is not only about losses.
   const rise = usable.find((item) => item.episode.kind === "rise");
@@ -630,7 +651,11 @@ export function buildStressRead(result: StressResult, options: { example: boolea
     });
   }
 
-  return { headline, insights: insights.slice(0, 3), headlineTickers };
+  // The line the headline handed down (who did the damage, or the hardest sell-off) rides on top of the usual
+  // three points, and the coverage caveat always keeps its place among them.
+  const handed = insights[0]?.id.startsWith("driver-") || insights[0]?.id.startsWith("hardest-") ? insights.shift()! : null;
+  const kept = insights.slice(0, coverage ? 2 : 3);
+  return { headline, insights: [...(handed ? [handed] : []), ...kept, ...(coverage ? [coverage] : [])], headlineTickers };
 }
 
 /** One episode's detail: "Lost 31% while the S&P 500 fell 25%; NVIDIA did the most damage, down 50%." */

@@ -1,5 +1,5 @@
 import { fin, money, signedPct } from "@/lib/insight-format";
-import { pickInsights, type Insight, type TheRead } from "@/lib/insights";
+import { pickInsights, toneOfChange, type Insight, type TheRead } from "@/lib/insights";
 import type { ExplainedMove } from "@/lib/seo/family-data";
 import { causeBucket, longDay, moveHref } from "@/lib/seo/families";
 import type { ChartPoint } from "@/lib/stock-chart";
@@ -96,7 +96,11 @@ export function buildMoversDayRead(input: { day: string; moves: readonly Explain
   if (moves.length === 0) return null;
   const up = moves.filter((move) => move.pct >= 0);
   const down = moves.filter((move) => move.pct < 0);
-  const headline = `On ${longDay(day)} we found the reason for ${moves.length} big ${moves.length === 1 ? "move" : "moves"}: ${up.length} up, ${down.length} down${input.spyClose ? `, with the S&P 500 ${signedPct(input.spyClose.pct)}` : ""}.`;
+  const headline = `On ${longDay(day)} we found the reason for ${moves.length} big ${moves.length === 1 ? "move" : "moves"}: ${up.length} up, ${down.length} down.`;
+  // The index is the first line under the headline, so the headline keeps one idea.
+  const spy: Insight | null = input.spyClose
+    ? { id: "spy", tone: toneOfChange(input.spyClose.pct, 0.05), text: Math.abs(input.spyClose.pct) < 0.05 ? "The S&P 500 was flat that day." : `The S&P 500 ${input.spyClose.pct >= 0 ? "rose" : "fell"} ${Math.abs(input.spyClose.pct).toFixed(1)}% that day.` }
+    : null;
 
   const buckets = new Map<string, ExplainedMove[]>();
   for (const move of moves) {
@@ -127,6 +131,6 @@ export function buildMoversDayRead(input: { day: string; moves: readonly Explain
         }
       : null;
 
-  return { headline, insights: pickInsights([biggest(best, "best"), biggest(worst, "worst"), causes], 3), asOf: moves.map((move) => move.researchedAt ?? "").sort().pop() || null };
+  return { headline, insights: pickInsights([spy, biggest(best, "best"), biggest(worst, "worst"), causes], spy ? 4 : 3), asOf: moves.map((move) => move.researchedAt ?? "").sort().pop() || null };
 }
 

@@ -33,7 +33,12 @@ function lossSentence(loss: LossIdea, subject: IdeasResult["subject"]): Insight 
     id: `loss-${loss.ticker}`,
     tone: "down",
     text: `${loss.ticker} is ${usd(loss.loss)} (${Math.abs(Math.round(loss.lossPct))}%) below what ${subject === "example" ? "was" : "you"} paid${taxPart}.`,
-    soWhat: look ? `${look.name} is a similar ${look.fund ? "fund" : "company"} to hold meanwhile.` : undefined,
+    soWhat:
+      loss.call === "Add"
+        ? `Our call is Buy more, so this would only be a sale for the tax${look ? `; holding ${look.name} meanwhile keeps the exposure` : ""}.`
+        : look
+          ? `${look.name} is a similar ${look.fund ? "fund" : "company"} to hold meanwhile.`
+          : undefined,
     tickers: [loss.ticker],
     leadName: loss.name,
   };
@@ -44,15 +49,18 @@ export function buildIdeasRead(result: IdeasResult): TheRead | null {
   if (!(plan.total > 0)) return null;
   const where = portfolioWord(subject);
   const companyTrims = plan.trims.filter((trim) => trim.kind === "company");
-  // Every company over the line, trimmed or not (two share classes are one company).
-  const overCount = new Set(companyTrims.map((trim) => trim.subject)).size + plan.moreOver.length + plan.unsized.length + plan.fundOnly.length;
+  // Every company over the line, trimmed or not (two share classes are one company), biggest first.
+  const overList = plan.companiesOver;
+  const overCount = overList.length;
+  // Above the line, but every trim that would fix it is too small or would sell a Buy more call.
+  const blocked = [...plan.buyMoreOver, ...plan.small].sort((a, b) => b.pct - a.pct)[0] ?? null;
   const paid = subject === "example" ? "what was paid" : "what you paid";
   const sectorShift = plan.sectors[0] ?? null;
   const lossTotal = losses.reduce((sum, loss) => sum + loss.loss, 0);
 
   let headline: string;
   if (companyTrims.length > 0 && overCount >= 2) {
-    headline = `${overCount} companies are each above ${COMPANY_LINE}% of ${where} once the funds are counted, led by ${companyTrims[0]!.subject} at ${fmtPct(companyTrims[0]!.before)}.`;
+    headline = `${overCount} companies are each above ${COMPANY_LINE}% of ${where} once funds are counted, led by ${overList[0]!.name} at ${fmtPct(overList[0]!.pct)}.`;
   } else if (companyTrims.length > 0) {
     headline = `${companyTrims[0]!.subject} is ${fmtPct(companyTrims[0]!.before)} of ${where} once the funds are counted, above the ${COMPANY_LINE}% line we use for one company.`;
   } else if (sectorShift && plan.trims.length > 0) {
@@ -60,6 +68,16 @@ export function buildIdeasRead(result: IdeasResult): TheRead | null {
   } else if (plan.trims.length > 0) {
     const drift = plan.trims[0]!;
     headline = `${drift.name} has grown to ${fmtPct(drift.before)} of ${where}, well past its share of the money put in.`;
+  } else if (blocked && losses.length === 0) {
+    const buyMoreOnly = plan.small.length === 0;
+    headline =
+      buyMoreOnly && plan.buyMoreOver.length === 1
+        ? `${blocked.name} is ${fmtPct(blocked.pct)} of ${where}, but our call is Buy more, so we would not sell.`
+        : buyMoreOnly
+          ? `${joinList(plan.buyMoreOver.map((row) => row.ticker))} are each above ${COMPANY_LINE}%, but our call on each is Buy more, so we would not sell.`
+          : `${blocked.name} is ${fmtPct(blocked.pct)} of ${where}, but no trim that would fix it is worth making.`;
+  } else if (blocked) {
+    headline = `We would not sell anything for size, but ${losses.length === 1 ? `${losses[0]!.name} sits` : `${losses.length} holdings sit`} ${usd(lossTotal)} below ${paid}.`;
   } else if (losses.length > 0) {
     headline = `Nothing needs rebalancing, but ${losses.length === 1 ? `${losses[0]!.name} sits` : `${losses.length} holdings sit`} ${usd(lossTotal)} below ${paid}.`;
   } else {
@@ -73,7 +91,7 @@ export function buildIdeasRead(result: IdeasResult): TheRead | null {
       id: `trim-${lead.ticker}`,
       tone: "flat",
       text: `${lead.ticker}: ${lead.sentence.replace(/\.$/, "")}${taxClause(lead, rates)}.`,
-      soWhat: lead.call ? `Our call on it is ${callPlain(lead.call)}${lead.call === "Add" ? ", so this is only about size" : ""}.` : undefined,
+      soWhat: lead.call ? `Our call on it is ${callPlain(lead.call)}.` : undefined,
       tickers: [lead.ticker],
       leadName: lead.name,
     });
@@ -94,6 +112,18 @@ export function buildIdeasRead(result: IdeasResult): TheRead | null {
       tickers: plan.trims.slice(1, 4).map((trim) => trim.ticker),
     });
   }
+  // A Buy more call above the line gets no trim; say why, so its absence is not a puzzle.
+  const held = plan.trims.length > 0 ? plan.buyMoreOver[0] : undefined;
+  if (held) {
+    insights.push({
+      id: `held-${held.ticker}`,
+      tone: "flat",
+      text: `${held.ticker} is ${fmtPct(held.pct)} of ${where}, above the ${COMPANY_LINE}% line too, but our call on it is Buy more, so there is no trim idea for it.`,
+      soWhat: `Adding more would make ${where} lean on it even harder.`,
+      tickers: [held.ticker],
+      leadName: held.name,
+    });
+  }
   if (plan.adds.length > 0) {
     const names = plan.adds.map((add) => add.name);
     insights.push({
@@ -105,7 +135,16 @@ export function buildIdeasRead(result: IdeasResult): TheRead | null {
     });
   }
   if (losses[0]) insights.push(lossSentence(losses[0], subject));
-  if (plan.trims.length === 0 && plan.quiet) {
+  // When the headline already says "our call is Buy more", the quiet line would only repeat it; say what adding would do instead.
+  const buyMoreHeadline = plan.trims.length === 0 && blocked !== null && losses.length === 0 && plan.small.length === 0;
+  if (buyMoreHeadline) {
+    insights.unshift({
+      id: "held",
+      tone: "flat",
+      text: `Adding more would make ${where} lean on ${joinList(plan.buyMoreOver.map((row) => row.ticker))} even harder, so doing nothing is a fine answer here.`,
+      tickers: plan.buyMoreOver.slice(0, 3).map((row) => row.ticker),
+    });
+  } else if (plan.trims.length === 0 && plan.quiet) {
     insights.unshift({ id: "quiet", tone: "flat", text: plan.quiet });
   }
 

@@ -69,22 +69,26 @@ export function PlaceStrip() {
         // The edge cues below replace the global scroll fade, which only some browsers can draw.
         style={{ animation: "none", maskImage: "none", WebkitMaskImage: "none" }}
       >
-        {place.sections.map((item) => {
+        {place.sections.map((item, index) => {
           const on = item === current;
           const exact = on && pathname === item.href;
+          // A thin rule where the sidebar starts a new sub-heading, so the groups read on a phone too.
+          const startsGroup = index > 0 && (item.group ?? null) !== (place.sections[index - 1]!.group ?? null);
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              aria-current={on ? (exact ? "page" : "location") : undefined}
-              className={`flex h-8 shrink-0 items-center whitespace-nowrap rounded-full border px-3 text-[14px] transition-colors ${FOCUS} ${
-                on
-                  ? "border-transparent bg-oa-fg font-medium text-oa-page"
-                  : "border-oa-border bg-oa-card text-oa-fg hover:bg-oa-accent"
-              }`}
-            >
-              {item.label}
-            </Link>
+            <React.Fragment key={item.href}>
+              {startsGroup ? <span aria-hidden="true" className="mx-1 h-5 w-px shrink-0 bg-oa-border" /> : null}
+              <Link
+                href={item.href}
+                aria-current={on ? (exact ? "page" : "location") : undefined}
+                className={`flex h-8 shrink-0 items-center whitespace-nowrap rounded-full border px-3 text-[14px] transition-colors ${FOCUS} ${
+                  on
+                    ? "border-transparent bg-oa-fg font-medium text-oa-page"
+                    : "border-oa-border bg-oa-card text-oa-fg hover:bg-oa-accent"
+                }`}
+              >
+                {item.label}
+              </Link>
+            </React.Fragment>
           );
         })}
       </div>

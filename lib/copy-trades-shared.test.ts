@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  COPY_FRAMING,
   COPY_LIMITS,
   buildCopyRead,
   buildHubRead,
@@ -16,6 +17,7 @@ import {
   heldSpan,
   holdSentence,
   holdShortLabel,
+  plainCaveat,
   positionSentence,
   rankRows,
   stoppedMonth,
@@ -128,11 +130,12 @@ describe("copy test pages", () => {
 
   it("the read says the result against the S&P 500, then the best and worst moves", () => {
     const read = buildCopyRead(record())!;
-    expect(read.headline).toBe(
-      "Copying Berkshire Hathaway's 13F filings from Feb 2020 would have turned $10,000 into $23,678, less than the $24,639 the S&P 500 made over the same days.",
-    );
+    expect(read.headline).toBe("Copying Berkshire Hathaway's 13F filings from Feb 2020 would have turned $10,000 into $23,678, less than the S&P 500 did.");
     expect(read.insights.map((item) => item.id)).toEqual(["pace", "best-AAPL", "worst-GOOGL"]);
-    expect(read.insights[0]!.text).toBe("That is +13.7% a year against +14.3% for the S&P 500, 0.7 points a year behind.");
+    // The index's own dollar figure is the first line under the headline.
+    expect(read.insights[0]!.text).toBe(
+      "The S&P 500 turned the same $10,000 into $24,639 over the same days. The copy returned +13.7% a year against +14.3% for the S&P 500, 0.7 points a year behind.",
+    );
     expect(read.insights[0]!.tone).toBe("down");
     // The position's share of the $10,000 copy, not $8,038 made on $10,000.
     expect(read.insights[1]!.text).toBe("AAPL was the best move to have copied: its slice of the $10,000 copy made $8,038.");
@@ -239,11 +242,11 @@ describe("ranking", () => {
       congress_caveat: "",
     };
     const read = buildHubRead(hub)!;
-    expect(read.headline).toBe(
-      "2 of the 3 funds with two years of record beat the S&P 500 when copied from 2020, and 1 of 1 House members did from their first reported buy.",
-    );
-    expect(read.insights[0]!.id).toBe("best-fund-b");
-    expect(read.insights[1]!.id).toBe("best-member-p");
+    expect(read.headline).toBe("2 of the 3 funds with two years of record beat the S&P 500 when copied from 2020.");
+    // The members' count is the first line under it.
+    expect(read.insights[0]!.text).toBe("1 of 1 House members beat the S&P 500 when copied from their first reported buy.");
+    expect(read.insights[1]!.id).toBe("best-fund-b");
+    expect(read.insights[2]!.id).toBe("best-member-p");
     expect(buildHubRead(null)).toBeNull();
   });
 });
@@ -266,7 +269,7 @@ describe("copy page verdict and labels", () => {
   it("keeps the yearly return and the worst fall together, with the test's dates", () => {
     const verdict = copyVerdict(record())!;
     expect(verdict.headline).toBe(buildCopyRead(record())!.headline);
-    expect(verdict.detail).toMatch(/^That is \+13\.7% a year against \+14\.3% for the S&P 500, 0\.7 points a year behind\. Its worst fall was \d+\.\d%/);
+    expect(verdict.detail).toMatch(/^The S&P 500 turned the same \$10,000 into \$24,639 over the same days\. The copy returned \+13\.7% a year against \+14\.3% for the S&P 500, 0\.7 points a year behind\. Its worst fall was \d+\.\d%/);
     // The index's worst fall is on its own dates, said separately, without a double negative.
     expect(verdict.detail).toMatch(/\. The S&P 500's worst fall over the test was \d+\.\d%\.$/);
     expect(verdict.detail).not.toContain("−");
@@ -281,5 +284,19 @@ describe("copy page verdict and labels", () => {
   it("states the trading day the rule really uses in the one-line limits", () => {
     expect(COPY_LIMITS.fund).toContain("close of the first trading day after each filing");
     expect(COPY_LIMITS.congress).toContain("close of the first trading day after each report");
+  });
+
+  it("frames every copy test the same plain way", () => {
+    expect(COPY_FRAMING).toBe("A historical test on paper, before costs and taxes; the future can differ.");
+    for (const text of [COPY_FRAMING, COPY_LIMITS.fund, COPY_LIMITS.congress]) {
+      expect(text).not.toMatch(/pretend|do not repeat|don.t repeat/i);
+      expect(text).toMatch(/^A historical test on paper, before costs and taxes/);
+    }
+  });
+
+  it("swaps the old absolute ending on stored caveats", () => {
+    expect(plainCaveat("13F filings arrive late; past results do not repeat.")).toBe("13F filings arrive late; the future can differ.");
+    expect(plainCaveat("Members report late; the future can differ.")).toBe("Members report late; the future can differ.");
+    expect(plainCaveat("Amounts are ranges. Past results do not repeat. ")).toBe("Amounts are ranges. The future can differ.");
   });
 });

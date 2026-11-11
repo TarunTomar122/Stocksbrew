@@ -209,7 +209,7 @@ export function AssetRow({ asset }: { asset: MarketAsset }) {
     >
       <span className="flex min-w-0 flex-col">
         <span className={`${MONO} truncate text-[14px] font-medium leading-4 text-oa-fg`}>{asset.symbol}</span>
-        <span className="truncate text-[12.5px] leading-4 text-oa-muted-fg">{asset.name}</span>
+        <span title={asset.name} className="truncate text-[12.5px] leading-4 text-oa-muted-fg">{asset.name}</span>
       </span>
       <span className="flex flex-col items-center" title="Past year">
         <Sparkline values={asset.spark} tone={sparkTone(asset.spark, asset.change_mode)} width={52} height={18} />
@@ -457,9 +457,13 @@ export function CurveChart({
                 <span className="text-[12.5px] text-oa-fg">{format(item.value)}</span>
               </>
             );
-            // The last label leans left so a long value cannot run off the card.
+            // Labels centre on their point, the last one too: the chart's right margin (mr-5)
+            // holds half of a short value like "5.35%". Leaning it left ran it into the label
+            // before it ("4.98%5.35%"). Only a longer value leans left to stay on the card.
+            const last = index === points.length - 1;
+            const lean = last && Math.max(format(item.value).length, item.label.length) > 5;
             const cls = `${MONO} absolute top-0 flex flex-col whitespace-nowrap leading-4 ${
-              index === points.length - 1 ? "-translate-x-[80%] items-end" : "-translate-x-1/2 items-center"
+              lean ? "-translate-x-[80%] items-end" : "-translate-x-1/2 items-center"
             } ${
               points.length > 7 && index % 2 === 1 ? (wide ? "max-sm:hidden" : "hidden") : ""
             }`;

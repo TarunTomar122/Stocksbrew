@@ -13,7 +13,6 @@ import {
 } from "@/lib/briefing";
 
 import { TheRead } from "@/components/oa/insight";
-import { MoveBar } from "@/components/oa/kit/tone";
 import {
   COMPACT_VISIBLE_LINES,
   GROUP_VISIBLE_LINES,
@@ -22,6 +21,7 @@ import {
   type BriefingGroup,
 } from "@/lib/briefing-groups";
 import { briefingRead, earlierSession, type BriefingSession } from "@/lib/briefing-read";
+import { briefingLead, briefingSteps } from "@/lib/next-steps";
 
 import { BriefingGroupCard, type GroupActions } from "./briefing-group";
 import { longDay, pricesLine, shortDay, signedPct, sourceTime } from "./format";
@@ -146,12 +146,8 @@ function EmptyLine({ children }: { children: React.ReactNode }) {
   return <p className="px-4 pb-2.5 pt-1 text-[14px] leading-6 text-oa-muted-fg">{children}</p>;
 }
 
-/**
- * The day's largest moves. A reason is printed only where one is confirmed;
- * the rest are a ticker and a number, and the panel says once that no reason
- * was found for them.
- */
-function MoverRows({ title, rows, asOf, max }: { title: string; rows: BriefingMarketMover[]; asOf?: string | null; max: number }) {
+/** The day's largest moves: a ticker and a number each. The reasons are in the main column. */
+function MoverRows({ title, rows, asOf }: { title: string; rows: BriefingMarketMover[]; asOf?: string | null }) {
   if (rows.length === 0) return null;
   return (
     <div className="pb-1">
@@ -161,7 +157,6 @@ function MoverRows({ title, rows, asOf, max }: { title: string; rows: BriefingMa
       </p>
       <ul>
         {rows.map((row) => {
-          const confirmed = row.reason_status === "confirmed";
           return (
             <li key={row.ticker}>
               <a
@@ -172,14 +167,10 @@ function MoverRows({ title, rows, asOf, max }: { title: string; rows: BriefingMa
                   <span className="oa-mono font-semibold text-oa-fg">{row.ticker}</span>
 
                 </span>
-                <span className="flex items-center gap-2">
-                  <MoveBar value={row.day_change_pct} max={max} width={40} />
-                  <span className={`oa-mono w-[4.25rem] text-right tabular-nums ${row.day_change_pct >= 0 ? "text-signal-bullish" : "text-signal-bearish"}`}>
-                    {signedPct(row.day_change_pct)}
-                  </span>
+                {/* Ticker and move only: no size bar, and nothing written when there is no reason (owner, Nov 11). */}
+                <span className={`oa-mono w-[4.25rem] text-right tabular-nums ${row.day_change_pct >= 0 ? "text-signal-bullish" : "text-signal-bearish"}`}>
+                  {signedPct(row.day_change_pct)}
                 </span>
-                {/* The reasons are in the main column; here a short marker says whether one exists. */}
-                {confirmed ? null : <span className="col-span-2 text-[12.5px] leading-[18px] text-oa-muted-fg">No confirmed reason yet</span>}
               </a>
             </li>
           );
@@ -214,7 +205,11 @@ export function BriefingView({
   const settledCount = sections.kept.length + sections.dismissed.length;
 
   const grouped = groupBriefingSections(sections, briefing.mode);
-  const read = briefingRead(briefing, grouped, personal ? null : session);
+  // The read, with its next steps beside the findings (lib/next-steps.ts).
+  const read = briefingSteps(briefingRead(briefing, grouped, personal ? null : session), {
+    mode: personal ? "personal" : "market",
+    lead: personal ? null : briefingLead(grouped.needs_you),
+  });
 
   /**
    * Sets one or more items (a line, or a whole stock) and saves them one at a
@@ -279,7 +274,6 @@ export function BriefingView({
 
   const index = briefing.market.indices;
   const movers = [...briefing.market.gainers, ...briefing.market.losers];
-  const moverMax = Math.max(0, ...movers.map((row) => Math.abs(row.day_change_pct)));
   const prices = pricesLine(briefing.stale_note);
   // The market view's read already tells the biggest explained moves; the ones it left out lead the list below.
   const inRead = new Set([...(read?.headlineTickers ?? []), ...(read?.insights ?? []).flatMap((insight) => insight.tickers ?? [])]);
@@ -287,7 +281,7 @@ export function BriefingView({
     ? grouped.worth_knowing
     : [...grouped.needs_you.filter((group) => !inRead.has(group.key)), ...grouped.worth_knowing];
   // In the market view a move with no confirmed reason has nothing to say but its number, so those
-  // share one sentence at the end of the list instead of a row each repeating "no reason yet".
+  // share one line at the end of the list instead of a row each.
   const unexplained = personal ? [] : worthListed.filter(isUnexplainedMove);
   // Report-only rows (no move of their own, they only said "Reported earnings today") become one line of names.
   const reportedOnly = personal ? [] : worthListed.filter((group) => !isUnexplainedMove(group) && group.day_change_pct == null && group.ticker);
@@ -423,10 +417,10 @@ export function BriefingView({
                 {showAllWorth ? "Show fewer" : `Show all ${worthAll.length}`}
               </button>
             ) : null}
-            {/* Moves with no confirmed reason come last, in one sentence: there is nothing to say about them but the number. */}
+            {/* Moves with no confirmed reason come last as one line of tickers and moves, with nothing said about the missing reason (owner, Nov 11). */}
             {unexplained.length > 0 ? (
               <p className={`text-pretty px-4 pb-2.5 pt-2 text-[13.5px] leading-6 text-oa-muted-fg ${worth.length > 0 ? "border-t border-oa-border" : ""}`}>
-                We haven&apos;t confirmed why {unexplained.length === 1 ? "one other stock" : `${unexplained.length} other stocks`} moved this much yet:{" "}
+                Also moved:{" "}
                 {unexplained.map((group, index) => (
                   <React.Fragment key={group.key}>
                     {index > 0 ? (index === unexplained.length - 1 ? " and " : ", ") : null}
@@ -558,8 +552,8 @@ export function BriefingView({
               The market view already leads with these same moves, so there it shows only the index. */}
           {briefing.mode !== "market" ? (
             <>
-              <MoverRows title="Biggest gains" rows={briefing.market.gainers} max={moverMax} asOf={sourceTime(briefing.market.as_of)} />
-              <MoverRows title="Biggest drops" rows={briefing.market.losers} max={moverMax} asOf={briefing.market.gainers.length > 0 ? null : sourceTime(briefing.market.as_of)} />
+              <MoverRows title="Biggest gains" rows={briefing.market.gainers} asOf={sourceTime(briefing.market.as_of)} />
+              <MoverRows title="Biggest drops" rows={briefing.market.losers} asOf={briefing.market.gainers.length > 0 ? null : sourceTime(briefing.market.as_of)} />
             </>
           ) : null}
           {index.length === 0 && movers.length === 0 ? (

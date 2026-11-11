@@ -43,6 +43,7 @@ import {
 } from "@/lib/portfolio-shared";
 import { signInWithGoogle } from "@/lib/sign-in";
 import type { PortfolioReads } from "@/lib/portfolio-insights";
+import { portfolioSteps } from "@/lib/next-steps";
 import { TheRead } from "@/components/oa/insight";
 
 export type PortfolioViewProps = {
@@ -450,7 +451,7 @@ export function PortfolioView({
         {/* Each tab leads with what its numbers mean; the table under it is the evidence. */}
         <TheRead
           key={tab}
-          read={reads?.[tab] ?? null}
+          read={portfolioSteps(reads?.[tab] ?? null, { tab, positions: everything, today })}
           label={
             tab === "positions"
               ? example
@@ -619,7 +620,7 @@ export function PortfolioIntro({
           </button>
         )}
         <Link
-          href="/portfolio"
+          href="/portfolio/analyze"
           className={`inline-flex h-10 items-center text-[14px] text-oa-muted-fg underline decoration-oa-border underline-offset-4 hover:text-oa-fg sm:h-9 ${FOCUS}`}
         >
           Check a list of stocks without signing in

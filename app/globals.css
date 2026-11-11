@@ -582,10 +582,11 @@ table tbody tr:hover > * {
   }
 }
 /* PageHead. When the page frame prints the page note at the bottom (AppPage
-   does, and marks itself .oa-has-note), the head is compact: the lede is one
-   clipped line on desktop and gone on a phone, the source shrinks to its
-   as-of time on the title row. Without a note the head keeps the full lede
-   and the full source line, so neither is ever lost. */
+   does, and marks itself .oa-has-note), the head is compact: the lede wraps
+   in full under the title on desktop (never cut with an ellipsis) and is gone
+   on a phone, the source shrinks to its as-of time on the title row. Without
+   a note the head keeps the full lede and the full source line, so neither
+   is ever lost. */
 .oa-head-compact {
   display: none;
 }
@@ -594,11 +595,6 @@ table tbody tr:hover > * {
 }
 .oa-has-note .oa-head-fallback {
   display: none;
-}
-.oa-has-note .oa-head-lede {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 @media (max-width: 639.98px) {
   .oa-has-note .oa-head-lede {

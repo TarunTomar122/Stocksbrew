@@ -74,7 +74,8 @@ describe("buildMarketsRead", () => {
       asset("uso", -3.87, { group: "commodity" }),
     ];
     const read = buildMarketsRead(data(assets), NOW)!;
-    expect(read.headline).toBe("Most stocks rose Monday: all 11 sectors rose and the S&P 500 gained 2.35%. Oil's 3.9% drop was the outlier.");
+    // The outlier is the second line under the headline, not a second sentence in it.
+    expect(read.headline).toBe("Most stocks rose Monday: all 11 sectors rose and the S&P 500 gained 2.35%.");
     expect(read.insights.map((insight) => insight.id)).toEqual(["leader", "outlier", "size"]);
     expect(read.insights[0]!.text).toContain("SOXX rose 7.49%, 5.1 points better than the S&P 500");
     expect(read.insights[0]!.soWhat).toContain("bounce");

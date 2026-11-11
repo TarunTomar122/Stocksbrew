@@ -224,6 +224,8 @@ function positionsRead(input: PortfolioInsightInput): TheRead | null {
     const lead = insights.shift();
     if (!lead) return null;
     headline = lead.text;
+    // The lead's second clause is the first line under it, so the headline stays one sentence and nothing is lost.
+    if (lead.soWhat) insights.unshift({ id: `${lead.id}-more`, tone: lead.tone, text: lead.soWhat, action: lead.action });
   }
   return { headline, insights, source: byValue ? undefined : "Weighted equally until shares are entered", asOf: null };
 }
@@ -425,7 +427,10 @@ function watchingRead(input: PortfolioInsightInput): TheRead | null {
   const items = pickInsights([zoneInsight, movers, earnings, addCalls], 4);
   const lead = items.shift();
   if (!lead) return null;
-  return { headline: lead.text + (lead.soWhat ? ` ${lead.soWhat}` : ""), insights: items.slice(0, 3), asOf: null };
+  // The headline is the lead sentence alone; its second clause is the first line under it.
+  const more: Insight | null = lead.soWhat ? { id: `${lead.id}-more`, tone: lead.tone, text: lead.soWhat, action: lead.action } : null;
+  // The lead's second clause rides on top of the usual three points instead of pushing one out.
+  return { headline: lead.text, insights: pickInsights([more, ...items], more ? 4 : 3), asOf: null };
 }
 
 /* ── Analytics ───────────────────────────────────────────────────────────── */

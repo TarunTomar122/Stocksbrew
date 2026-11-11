@@ -90,14 +90,14 @@ FUND_RULE = (
     "sized like the fund's portfolio, and sell what it dropped or cut when the next filing shows it."
 )
 FUND_CAVEAT = (
-    "13F filings arrive up to 45 days after each quarter ends, so the copy always trades late; past results do not repeat."
+    "13F filings arrive up to 45 days after each quarter ends, so the copy always trades late; the future can differ."
 )
 CONGRESS_RULE = (
     "Buy each stock they reported buying at the close of the first trading day after the report became public, "
     "sized by the amount they reported, and sell when they report a sale."
 )
 CONGRESS_CAVEAT = (
-    "Members have up to 45 days to report a trade, and amounts are reported as ranges; past results do not repeat."
+    "Members have up to 45 days to report a trade, and amounts are reported as ranges; the future can differ."
 )
 FUND_HOLD_LABEL = "Bought their first portfolio and never traded"
 CONGRESS_HOLD_LABEL = "Kept every buy and ignored their sales"

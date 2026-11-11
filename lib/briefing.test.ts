@@ -270,7 +270,7 @@ describe("buildBriefing: price moves", () => {
     expect(item.why).toBe(NO_CONFIRMED_REASON);
     expect(item.reason_status).toBe("unconfirmed");
     expect(item.next_step).toBe("Open FLEX to check the latest news and filings yourself.");
-    expect(briefing.summary).toContain("We have not found a confirmed reason for the move in FLEX.");
+    expect(briefing.summary).not.toContain("confirmed reason");
   });
 
   it("labels a price-action read as what the price shows, not as the cause", () => {

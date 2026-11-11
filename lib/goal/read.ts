@@ -63,37 +63,45 @@ export function spyChanceWords(chance: number): string {
 /**
  * The headline: how often the mix reaches the goal, with the S&P 500's
  * replays of the same stretches right beside it when the mix is something
- * else, then the weak end of the range.
+ * else. One idea and one number; the range of outcomes goes one line down
+ * (`rangeInsight`).
  */
-function withDiscount(sentence: string, on: boolean): string {
-  return on ? sentence.replace(/\.$/, ", counting only half of each holding's past lead over the S&P 500.") : sentence;
-}
-
 export function headline(outcome: Outcome, inputs: GoalInputs, subject: string): string {
   const goal = moneyWords(inputs.target);
   const by = `by ${inputs.byAge}`;
-  const { chance, end } = outcome;
+  const { chance } = outcome;
+  const Subject = cap(subject);
   if (inputs.start <= 0 && inputs.monthly <= 0) return `With nothing to start with and nothing added each month, ${subject} has nothing to grow.`;
-  if (inputs.start >= inputs.target) {
-    return `What you have now already covers the ${goal} goal; in the weakest one in ten replays ${subject} is at ${moneyWords(end.p10)} ${by}.`;
-  }
-  const beside = outcome.benchmark ? `, against ${spyChanceWords(outcome.benchmark.chance)} with only the S&P 500` : "";
-  if (chance >= 0.95) return `In almost every replay ${subject} reaches ${goal} ${by}${beside}; even the weakest one in ten gets to ${moneyWords(end.p10)}.`;
+  if (inputs.start >= inputs.target) return `What you have now already covers the ${goal} goal.`;
+  const beside = outcome.benchmark ? `, against ${spyChanceWords(outcome.benchmark.chance)} for the S&P 500` : "";
+  if (chance >= 0.95) return `${Subject} reaches ${goal} ${by} in almost every replay${beside}.`;
   if (chance < 0.05) {
-    if (outcome.benchmark && outcome.benchmark.chance < 0.05) {
-      return `Almost no replay gets ${subject}, or the S&P 500 alone, to ${goal} ${by}; the middle replay ends at ${moneyWords(end.p50)}.`;
-    }
-    return beside
-      ? `Almost no replay gets ${subject} to ${goal} ${by}${beside}; the middle replay ends at ${moneyWords(end.p50)}.`
-      : `Almost no replay gets ${subject} to ${goal} ${by}; the middle replay ends at ${moneyWords(end.p50)} and the strongest one in ten at ${moneyWords(end.p90)}.`;
+    if (outcome.benchmark && outcome.benchmark.chance < 0.05) return `Almost no replay gets ${subject}, or the S&P 500 alone, to ${goal} ${by}.`;
+    return `Almost no replay gets ${subject} to ${goal} ${by}${beside}.`;
   }
-  if (chance >= 0.45 && chance < 0.55) {
-    return `In about half of the replays ${subject} reaches ${goal} ${by}${beside}; in the weakest one in ten it gets to ${moneyWords(end.p10)}.`;
-  }
-  const k = Math.round(chance * 10);
-  return beside
-    ? `In about ${k} of every 10 replays ${subject} reaches ${goal} ${by}${beside}; the weakest one in ten gets to ${moneyWords(end.p10)}.`
-    : `In about ${k} of every 10 replays ${subject} reaches ${goal} ${by}; the middle replay ends at ${moneyWords(end.p50)} and the weakest one in ten at ${moneyWords(end.p10)}.`;
+  if (chance >= 0.45 && chance < 0.55) return `${Subject} reaches ${goal} ${by} in about half of the replays${beside}.`;
+  return `${Subject} reaches ${goal} ${by} in about ${Math.round(chance * 10)} of 10 replays${beside}.`;
+}
+
+/** The range under the headline: the weak end (or the middle, when the goal is out of reach) in money. */
+export function rangeInsight(outcome: Outcome, inputs: GoalInputs, subject: string): Insight | null {
+  const { chance, end } = outcome;
+  if (inputs.start <= 0 && inputs.monthly <= 0) return null;
+  const by = `by ${inputs.byAge}`;
+  // The S&P 500's middle replay sits in the benchmark line, so the middle is said here only without it.
+  const middle = !outcome.benchmark;
+  let text: string;
+  if (inputs.start >= inputs.target) text = `In the weakest one in ten replays ${subject} is at ${moneyWords(end.p10)} ${by}.`;
+  else if (chance >= 0.95) text = `Even the weakest one in ten replays gets to ${moneyWords(end.p10)} ${by}.`;
+  else if (chance < 0.05)
+    text = middle
+      ? `The middle replay ends at ${moneyWords(end.p50)} and the strongest one in ten at ${moneyWords(end.p90)}.`
+      : `Even the strongest one in ten replays ends at ${moneyWords(end.p90)}.`;
+  else
+    text = middle
+      ? `The middle replay ends at ${moneyWords(end.p50)} and the weakest one in ten at ${moneyWords(end.p10)}.`
+      : `The weakest one in ten replays gets to ${moneyWords(end.p10)} ${by}.`;
+  return { id: "goal-range", tone: "flat", text };
 }
 
 function leverInsight(outcome: Outcome, inputs: GoalInputs): Insight | null {
@@ -203,12 +211,13 @@ export function buildGoalRead(
   const subject = subjectOf(inputs.mix, context.example);
   const discount = inputs.mix === "own" ? (inputs.full ? "full" : "half") : null;
   return {
-    // The discount goes in the headline itself, so the most-read sentence never states the flattering number bare.
-    headline: cap(withDiscount(headline(outcome, inputs, subject), discount === "half" && inputs.start < inputs.target && (inputs.start > 0 || inputs.monthly > 0))),
-    // The discount and the S&P 500 come second so they stay in view on a phone, next to the lever.
+    headline: cap(headline(outcome, inputs, subject)),
+    // The range first, then the hindsight discount and the S&P 500, so the caveat sits right under the
+    // headline and stays in view on a phone (the planner keeps two points above its fold), then the lever.
     insights: [
-      leverInsight(outcome, inputs),
+      rangeInsight(outcome, inputs, subject),
       benchmarkInsight(outcome, subject, discount, context.fullFlatters ?? true),
+      leverInsight(outcome, inputs),
       inputs.mix === "own" ? driverInsight(context.parts, subject, inputs.full) : null,
     ].filter((item): item is Insight => item !== null),
     source: `${context.paths.toLocaleString("en-US")} replays of past monthly returns from ${monthWords(context.span.first)} to ${monthWords(context.span.last)}. A replay of the past, not a forecast.`,

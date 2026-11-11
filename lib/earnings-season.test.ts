@@ -380,10 +380,15 @@ describe("buildSeasonRead", () => {
       today,
     );
     const read = buildSeasonRead(season, { example: false })!;
-    expect(read.headline).toBe(
-      "Two of your stocks report in the next six weeks, 15% of your portfolio. Nvidia is the one to watch on Nov 17 after the close: it is 11% of the portfolio and has moved 6.0% on a typical report, about three times a normal day.",
-    );
+    // One idea in the headline; the numbers are the first line under it.
+    expect(read.headline).toBe("Two of your stocks report in the next six weeks. Nvidia, on Nov 17 after the close, is the one to watch.");
     expect(read.headlineTickers).toEqual(["NVDA"]);
+    expect(read.insights[0]).toMatchObject({
+      id: "watch-NVDA",
+      text: "NVDA is 11% of the portfolio and has moved 6.0% on a typical report, about three times a normal day.",
+      soWhat: "The two that report are 15% of your portfolio.",
+      leadName: "Nvidia",
+    });
     // One holding a week: no "busiest week" point, and Costco's one past move is called a small sample.
     expect(read.insights.some((insight) => insight.id.startsWith("week-"))).toBe(false);
     expect(read.insights.find((insight) => insight.id === "sample")?.text).toBe(
@@ -402,7 +407,8 @@ describe("buildSeasonRead", () => {
       today,
     );
     const read = buildSeasonRead(season, { example: true })!;
-    expect(read.headline.startsWith("Two stocks in the example portfolio report in the next two weeks, 100% of its value.")).toBe(true);
+    expect(read.headline.startsWith("Two of the example's stocks report in the next two weeks.")).toBe(true);
+    expect(read.insights[0]!.soWhat).toBe("The two that report are 100% of the example portfolio.");
     const sample = read.insights.find((insight) => insight.id === "sample")!;
     expect(sample.text).toBe("We have at most two past reports for each of these stocks, so treat their past moves as a small sample. Xyz has none.");
   });
@@ -423,13 +429,17 @@ describe("buildSeasonRead", () => {
   it("with one stock reporting, says when and what it did", () => {
     const season = buildSeason([stock("NVDA", { name: "Nvidia", history: history("2026-11-12", [-1.77]) }), stock("MSFT", { history: history(null, []) })], today);
     const read = buildSeasonRead(season, { example: false })!;
-    expect(read.headline).toBe("One of your stocks reports this week, 50% of your portfolio. Nvidia reports tomorrow after the close. It fell 1.8% after its last report.");
+    expect(read.headline).toBe("One of your stocks reports this week: Nvidia, tomorrow after the close.");
+    expect(read.insights[0]!.text).toBe("NVDA is 50% of the portfolio and fell 1.8% after its last report.");
   });
 
   it("with no history at all, says so rather than inventing a move", () => {
     const season = buildSeason([stock("NEW", { name: "Newco", value: null, history: history("2026-11-20", []) })], today);
     const read = buildSeasonRead(season, { example: false })!;
-    expect(read.headline).toBe("One of your stocks reports in the next two weeks. Newco reports on Nov 20 after the close, and we have no record of how it moved on past reports.");
+    expect(read.headline).toBe("One of your stocks reports in the next two weeks: Newco, on Nov 20 after the close.");
+    // No weight and no history: no numbers line, and the small-sample line says there is nothing to go on.
+    expect(read.insights.map((insight) => insight.id)).toEqual(["sample"]);
+    expect(read.insights[0]!.text).toBe("We have no measured moves after past reports for Newco yet, so there is no history to go on.");
   });
 
   it("when only watched stocks report, the headline says so", () => {
@@ -452,7 +462,8 @@ describe("buildSeasonRead", () => {
       today,
     );
     const read = buildSeasonRead(season, { example: false })!;
-    expect(read.insights[0]!.text).toBe("Next week is the busiest: 80% of the portfolio reports, Alpha and Beta.");
+    expect(read.insights[0]!.id).toBe("watch-A");
+    expect(read.insights[1]!.text).toBe("Next week is the busiest: 80% of the portfolio reports, Alpha and Beta.");
     expect(read.insights.some((insight) => insight.id === "sample")).toBe(false);
   });
 

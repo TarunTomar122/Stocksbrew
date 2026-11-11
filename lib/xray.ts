@@ -474,6 +474,7 @@ export function buildXrayRead(xray: Xray, context: Pick<XrayContext, "benchmark"
   const top = xray.companies[0];
   let headline = "";
   const headlineTickers: string[] = [];
+  let hiddenPoint: Insight | null = null;
   // "17%, not the 15% bought directly" only says something when the two numbers read differently.
   const fundsMoveTop = Boolean(top && top.viaFunds > 0 && (top.direct === 0 || fmtPct(top.pct) !== fmtPct(top.directPct)));
   if (top && fundsMoveTop) {
@@ -489,9 +490,17 @@ export function buildXrayRead(xray: Xray, context: Pick<XrayContext, "benchmark"
     const hidden = xray.companies.find((row) => row.direct === 0 && row.viaFunds > 0);
     headlineTickers.push(top.ticker);
     headline = hidden
-      ? `${top.name} is still ${v.biggest} at ${fmtPct(top.pct)}, and ${v.funds} add ${fmtPct(hidden.pct)} in ${hidden.name}, ${v.never}.`
+      ? `${v.once}, ${top.name} is still ${v.biggest}, at ${fmtPct(top.pct)} of ${v.all}.`
       : `${top.name} is ${v.biggest} at ${fmtPct(top.pct)} of ${v.all}.`;
-    if (hidden) headlineTickers.push(hidden.ticker);
+    // The company the funds add is the first line under the headline.
+    if (hidden) {
+      hiddenPoint = {
+        id: "xray-hidden",
+        tone: "flat",
+        text: `${v.funds.charAt(0).toUpperCase()}${v.funds.slice(1)} add ${fmtPct(hidden.pct)} in ${hidden.name}, ${v.never}.`,
+        tickers: [hidden.ticker],
+      };
+    }
   }
 
   const insights: Array<Insight | null> = [];
@@ -555,12 +564,13 @@ export function buildXrayRead(xray: Xray, context: Pick<XrayContext, "benchmark"
     });
   }
 
-  // 5. Funds we cannot open.
-  insights.push(closedFundsInsight(closed, xray, v));
+  // 5. Funds we cannot open. A caveat on every number above, so it always keeps its place.
+  const closedLine = closedFundsInsight(closed, xray, v);
 
   return {
     headline,
-    insights: pickInsights(insights),
+    // The company the headline handed down rides on top of the usual three points; the closed-funds caveat always keeps its place.
+    insights: pickInsights([hiddenPoint, ...pickInsights(insights, closedLine ? 2 : 3), closedLine], 4),
     headlineTickers,
     source: xrayFootnote(xray),
   };

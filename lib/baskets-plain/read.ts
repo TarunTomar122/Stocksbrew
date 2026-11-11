@@ -209,7 +209,10 @@ export function buildBasketRead(input: {
     const by = Math.abs(gap) < 0.005 ? "" : ` by ${(Math.abs(gap) * 100).toFixed(1)} points${perYear ? " a year" : ""}`;
     // The test holds at most the first 25 and only those with prices back to its start; say so when that is not everyone.
     const who = test.members === count ? (count === 1 ? "it" : "they") : `the ${test.members} we could test`;
-    headline = `${fits} today, and held equally since ${monthYear(test.start)}, ${who} ${verb} the S&P 500${by}.`;
+    // "Held equally" and the full dates are the first line under it (backtestInsight); the start month stays
+    // here unless the "we could test" caveat needs the room.
+    const since = test.members === count ? ` since ${monthYear(test.start)}` : "";
+    headline = `${fits} today, and${since} ${who} ${verb} the S&P 500${by}.`;
   }
   const shown = match.members.slice(0, 25);
   return {

@@ -30,7 +30,7 @@ export const FOCUS =
 // The content frame every app page shares. Defined once, in ./skeleton, so loading files can use it without the whole kit.
 export { PAGE_PAD };
 
-type HeadNote = { lede?: React.ReactNode; meta?: React.ReactNode; note?: boolean; full?: boolean };
+type HeadNote = { lede?: React.ReactNode; meta?: React.ReactNode; note?: boolean; full?: boolean; className?: string };
 
 /**
  * Finds the PageHead among a page's children so its full lede and source can
@@ -73,12 +73,14 @@ export function AppPage({
   const max = width === "read" ? "max-w-[47rem]" : width === "full" ? "max-w-none" : "max-w-[84rem]";
   const head = findHead(children);
   const noted = head != null && head.note !== false && !head.full && (head.lede != null || head.meta != null);
+  // The head shows the full lede from sm up unless the page hides it there, so the note only repeats it on a phone.
+  const ledeInHead = noted && head.lede != null && !String(head.className ?? "").includes("oa-head-lede]:hidden");
   return (
     <main className={`oa-landing ${interTight.variable} min-w-0 flex-grow overflow-x-clip`}>
       <OaSiteHeader />
       <div className={`mx-auto w-full ${max} ${prose ? PAGE_PAD_PROSE : PAGE_PAD} ${noted ? "oa-has-note" : ""} ${className}`}>
         {children}
-        {noted ? <PageNote lede={head.lede} source={head.meta} /> : null}
+        {noted ? <PageNote lede={head.lede} source={head.meta} ledeInHead={ledeInHead} /> : null}
       </div>
     </main>
   );
@@ -95,10 +97,10 @@ function compactMeta(meta: React.ReactNode): React.ReactNode {
 }
 
 /**
- * Compact page head: one title row with the as-of time on its right, and at
- * most one muted line of what the page is (desktop only). A deep page gets
- * the way back above its title from the address (PlaceTrail: "Research ›
- * NVDA"), the same on every page; `crumb` is only shown outside the app's
+ * Compact page head: one title row with the as-of time on its right, and the
+ * muted line of what the page is under it (desktop only; it wraps, never
+ * cut). A deep page gets the way back above its title from the address
+ * (PlaceTrail: "Research › NVDA"), the same on every page; `crumb` is only shown outside the app's
  * places (docs, error pages).
  *
  * The full lede and the full source line are never dropped. AppPage prints
@@ -147,13 +149,13 @@ export function PageHead({
           </div>
         </div>
         {compact ? (
-          <div className="oa-head-compact min-w-0 max-w-full truncate text-[12.5px] leading-4 text-oa-muted-fg sm:max-w-[45%] sm:shrink-0 sm:text-right [&>*]:truncate">
+          <div className="oa-head-compact min-w-0 max-w-full text-pretty text-[12.5px] leading-4 text-oa-muted-fg sm:max-w-[45%] sm:shrink-0 sm:text-right">
             {compact}
           </div>
         ) : null}
         {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
       </div>
-      {lede ? <p className="oa-head-lede mt-1 max-w-4xl text-[14px] leading-5 text-oa-muted-fg">{lede}</p> : null}
+      {lede ? <p className="oa-head-lede mt-1 max-w-4xl text-pretty text-[14px] leading-5 text-oa-muted-fg">{lede}</p> : null}
       {(note || full) && meta ? <div className="oa-head-fallback mt-1">{meta}</div> : null}
     </header>
   );
@@ -167,18 +169,29 @@ export function PageHead({
 export function PageNote({
   lede,
   source,
+  ledeInHead = false,
   className = "",
 }: {
   lede?: React.ReactNode;
   /** Usually the same <SourceLine /> the head was given. */
   source?: React.ReactNode;
+  /**
+   * The PageHead above already shows this lede in full from sm up (it is only
+   * hidden on a phone), so the note prints it on a phone only, and drops out
+   * on desktop when there is no source line left to show.
+   */
+  ledeInHead?: boolean;
   className?: string;
 }) {
   if (!lede && !source) return null;
+  const desktopEmpty = ledeInHead && !source;
   return (
-    <aside aria-label="About this page" className={`mt-8 flex flex-col gap-2 border-t border-oa-border px-2 pt-4 sm:px-0 ${className}`}>
+    <aside
+      aria-label="About this page"
+      className={`mt-8 flex flex-col gap-2 border-t border-oa-border px-2 pt-4 sm:px-0 ${desktopEmpty ? "sm:hidden" : ""} ${className}`}
+    >
       <p className="oa-caption">About this page</p>
-      {lede ? <p className="max-w-3xl text-pretty text-[14px] leading-5 text-oa-muted-fg">{lede}</p> : null}
+      {lede ? <p className={`max-w-3xl text-pretty text-[14px] leading-5 text-oa-muted-fg ${ledeInHead ? "sm:hidden" : ""}`}>{lede}</p> : null}
       {source}
     </aside>
   );
@@ -527,7 +540,7 @@ export function Ticker({
    * `relative z-[1]` to stay on top.
    */
   stretch?: boolean;
-  /** Let a long name wrap to a second line instead of clipping it (lists with room to grow). */
+  /** No longer used: names stay on one line everywhere (owner rule). Kept so callers still compile. */
   wrap?: boolean;
   /** Defaults to the stock page; pass `null` for no link. */
   href?: string | null;
@@ -541,7 +554,8 @@ export function Ticker({
     <>
       <StockLogo ticker={symbol} size={size} />
       <span className={`${NUM} text-[14px] font-medium text-oa-fg`}>{symbol}</span>
-      {label ? <span className={`min-w-0 text-[14px] text-oa-muted-fg ${wrap ? "text-pretty leading-5" : "truncate"}`}>{label}</span> : null}
+      {/* One line, always (owner, Nov 11): a long name is cut with "…" and the full name shows on hover. */}
+      {label ? <span title={shown} className="min-w-0 truncate text-[14px] text-oa-muted-fg">{label}</span> : null}
     </>
   );
   const cls = `inline-flex min-w-0 items-center gap-2 ${className}`;

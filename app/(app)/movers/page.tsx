@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { JsonLd, breadcrumbLd } from "@/components/docs/json-ld";
 import { TheRead } from "@/components/oa/insight";
-import { AppPage, CardGrid, Delta, MoveBar, NUM, PageHead, Panel, ShowMore, Ticker, fmtDay } from "@/components/oa/kit";
+import { AppPage, CardGrid, Delta, NUM, PageHead, Panel, ShowMore, Ticker, fmtDay } from "@/components/oa/kit";
 import { pickInsights, type TheRead as TheReadData } from "@/lib/insights";
 import { ogImage } from "@/lib/og/url";
 import { companyFirstMove, firstFullSentence, plainFinance, sentenceCase, shortCompanyName } from "@/lib/plain-copy";
@@ -89,7 +89,7 @@ function firstSentence(text: string | null | undefined): string {
 // A phone shows the first few of each side; the rest wait behind one button.
 const PHONE_ROWS = 3;
 
-/** One move: the stock, a bar for its size, the number, and the reason in a sentence. */
+/** One move: the stock, the number, and the reason in a sentence. */
 /**
  * The day's biggest move as one sentence, company first: "Hims & Hers fell
  * 16.5% after earnings that missed expectations, the biggest move on Nov 10."
@@ -106,23 +106,19 @@ function biggestLine(move: MoveRef, latest: string): string {
 /** A list about eight rows tall that scrolls inside itself; the next row peeks out so it reads as scrollable. */
 const ROWS_SCROLL = "max-h-[34rem] overflow-y-auto overscroll-auto";
 
-function MoveRow({ move, max, headerTime }: { move: MoveRef; max: number; headerTime: string | null }) {
+function MoveRow({ move }: { move: MoveRef }) {
   // Company first where the feed wrote the cause first; the number is already on the row.
   const raw = firstSentence(move.headline);
   const reason = companyFirstMove(raw, move.pct, { company: { name: move.name, ticker: move.ticker } }) ?? raw;
-  const own = measuredAt(move);
-  const at = own && own !== headerTime ? own : null;
+  // One time for the whole list, in the panel's header; rows never carry their own (owner, Nov 11).
   return (
     <li className="border-b border-oa-border px-4 py-2.5 last:border-b-0">
       {/* Two places to go: the stock itself (its name) and the explanation (the reason). */}
       <span className="flex items-center justify-between gap-3">
         <Ticker symbol={move.ticker} name={move.name} wrap className="min-w-0" />
-        <span className="flex shrink-0 items-center gap-2.5">
-          <MoveBar value={move.pct} max={max} width={56} />
-          <Delta value={move.pct} digits={1} className="w-[4.25rem] text-right text-[15px] font-medium" />
-        </span>
+        {/* No size bar: the percentage already says it (owner, Nov 11). */}
+        <Delta value={move.pct} digits={1} className="w-[4.25rem] shrink-0 text-right text-[15px] font-medium" />
       </span>
-      {at ? <span className={`${NUM} block text-right text-[11.5px] leading-4 text-oa-muted-fg`}>{at}</span> : null}
       {reason ? (
         <a
           href={moveHref(move.ticker, move.day)}
@@ -143,7 +139,6 @@ export default async function MoversPage() {
   const days = [...byDay.entries()].sort((a, b) => b[0].localeCompare(a[0]));
   const [latest, ...earlier] = days;
   const latestMoves = latest ? latest[1] : [];
-  const max = Math.max(0, ...latestMoves.map((move) => Math.abs(move.pct)));
   const gains = latestMoves.filter((move) => move.pct >= 0).sort((a, b) => b.pct - a.pct);
   const drops = latestMoves.filter((move) => move.pct < 0).sort((a, b) => a.pct - b.pct);
   // The researcher measures a day's moves in one pass, so they usually share a
@@ -178,7 +173,7 @@ export default async function MoversPage() {
                 // About eight rows tall, then it scrolls inside the panel (no scrollbar shown), so the page stays short.
                 <ul className={ROWS_SCROLL}>
                   {side.rows.map((move) => (
-                    <MoveRow key={`${move.ticker}-${move.day}`} move={move} max={max} headerTime={sharedTime} />
+                    <MoveRow key={`${move.ticker}-${move.day}`} move={move} />
                   ))}
                 </ul>
               ) : (

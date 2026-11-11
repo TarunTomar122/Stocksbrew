@@ -46,7 +46,7 @@ const NO_ADS = "No ads";
 
 const S_CALL = "A call on each covered stock with its reason and date, free to read";
 const S_BRIEFING = "A daily briefing about your own stocks, ordered by what needs you";
-const S_NO_REASON = "Says so when it has no confirmed reason for a price move";
+const S_NO_REASON = "Gives a reason for a price move only when a dated source backs it";
 const S_FOLLOW = "Fund, Congress and insider filings measured from the day they became public";
 const S_BACKTEST = "Backtests labelled as backtests, with their caveats on the same page";
 const S_ALERTS = "Email alerts on price levels, zones and changed calls (Pro)";

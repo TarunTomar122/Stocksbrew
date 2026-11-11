@@ -230,7 +230,7 @@ export async function HeroBriefing() {
   // The move in words, only when we have one; a small move needs no "no reason yet".
   const moved = pct == null ? "" : Math.abs(pct) < 0.05 ? `${name} barely moved.` : `${name} ${pct > 0 ? "rose" : "fell"} ${Math.abs(pct).toFixed(1)}%.`;
   // Sentence one of the takeaway: the move with its reason, company first ("Hims & Hers fell after earnings that
-  // missed expectations."), or the move and the honest "no confirmed reason yet". The size is in the row above.
+  // missed expectations."), or just the move, with nothing said about a missing reason (owner, Nov 11).
   const turnedWhy = why && pct != null ? companyFirstMove(why.replace(/[.!]$/, ""), pct, { company: { name: anomaly.name || name, ticker: anomaly.ticker } }) : null;
   const takeaway = turnedWhy
     ? `${turnedWhy}.`
@@ -238,9 +238,7 @@ export async function HeroBriefing() {
       ? // The reason alone: the size of the move is in the row above, and "rose 4%" next to a reason that
         // reads the other way would contradict itself.
         why
-      : pct != null && Math.abs(pct) >= 0.5
-        ? `${name} ${pct > 0 ? "rose" : "fell"} ${Math.abs(pct).toFixed(1)}% today, and we haven't found a confirmed reason yet.`
-        : moved;
+      : moved;
   const when = stampET(anomaly.price_as_of);
   const watchHref = `/agents?watch=${encodeURIComponent(anomaly.ticker)}`;
 

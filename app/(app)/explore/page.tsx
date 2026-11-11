@@ -1,13 +1,26 @@
-import { NavIcon } from "@/components/oa/nav-icon";
-import { iconFor } from "@/components/oa/nav-items";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
-import { loadDeskBrief, loadDeskSectors, loadDeskWire, todayET, type DeskBrief, type DeskData, type DeskSector } from "@/app/(app)/explore/desk-data";
+import { loadDeskBrief, loadDeskMarketsData, loadDeskSectors, loadDeskWire, todayET, type DeskBrief, type DeskData, type DeskSector } from "@/app/(app)/explore/desk-data";
+import { MarketsGhost } from "@/app/(app)/explore/ghosts";
+import {
+  CommoditiesCurrenciesCryptoSection,
+  hasMarketsData,
+  MarketsMovedSection,
+  OptionsSection,
+  PredictionsSection,
+  RatesAndVolatilitySection,
+  StocksAndFundsSection,
+} from "@/components/markets/overview-sections";
+import { MarketTickerStrip } from "@/components/markets/widgets";
 import { TheRead } from "@/components/oa/insight";
+import { AppPage, Delta, FOCUS, PageHead, Panel, ShowMore } from "@/components/oa/kit";
+import { PanelGhost } from "@/components/oa/kit/skeleton";
+import { NavIcon } from "@/components/oa/nav-icon";
+import { iconFor } from "@/components/oa/nav-items";
 import { marketTodayRead } from "@/lib/explore-insights";
-import { AppPage, Delta, FOCUS, PageHead, Panel } from "@/components/oa/kit";
-import { Bar, PanelGhost } from "@/components/oa/kit/skeleton";
+import { marketTodaySteps } from "@/lib/next-steps";
+import { buildMarketsOverview } from "@/lib/markets-shared";
 import { ogImage } from "@/lib/og/url";
 
 export const dynamic = "force-dynamic";
@@ -15,21 +28,21 @@ export const dynamic = "force-dynamic";
 export function generateMetadata(): Metadata {
   const shareImage = ogImage(["page", "explore"], "Today's read of the US stock market", { daily: true });
   return {
-    title: "Stock Research Today: Top Stories, Movers and Ideas",
+    title: "Stock Market Today: Sectors, Indices, Yields, Oil, Gold and Bitcoin",
     description:
-      "Today's US stock market in three points, how every sector did, and every research page one tap away: sectors, movers, headlines, earnings, investors and markets.",
-    keywords: ["stock research", "stock screener", "market movers today", "earnings today", "investment themes", "13F filings", "insider trades"],
+      "How the US stock market did today in three points, then every sector, the indices, Treasury yields, oil and gold, the dollar, bitcoin and the odds on the next Fed decision.",
+    keywords: ["stock market today", "market movers today", "sector performance today", "treasury yields today", "oil price today", "bitcoin price today", "fed rate odds"],
     alternates: { canonical: "/explore" },
     openGraph: {
-      title: "Stock Research Today: Top Stories, Movers and Ideas · stocksbrew",
-      description: "Today's US stock market in three points, with the source and time on every number.",
+      title: "Stock Market Today: Sectors, Indices, Yields, Oil, Gold and Bitcoin · stocksbrew",
+      description: "How the US stock market did today in three points, then every sector, rates, commodities, currencies and crypto.",
       url: "https://www.stocksbrew.online/explore",
       images: [shareImage],
     },
     twitter: {
       card: "summary_large_image",
-      title: "Explore · stocksbrew",
-      description: "Today's US stock market in three points, with the source and time on every number.",
+      title: "Market today · stocksbrew",
+      description: "How the US stock market did today in three points, then every sector, rates, commodities, currencies and crypto.",
       images: [shareImage],
     },
   };
@@ -39,9 +52,9 @@ export function generateMetadata(): Metadata {
 
 /**
  * The day in three ranked points (the biggest companies, the sector that moved most, the earnings that matter
- * this week), then how every sector did as a named bar chart. The news read's tone lines ("40% of
- * headlines read as good news") are left out: they say what the coverage felt like, not what to do with it.
- * The news read is only the fallback when the desk's own read is missing.
+ * this week). The news read's tone lines ("40% of headlines read as good news") are left out: they say what
+ * the coverage felt like, not what to do with it. The news read is only the fallback when the desk's own
+ * read is missing.
  */
 async function ReadSlot({
   brief,
@@ -52,16 +65,25 @@ async function ReadSlot({
   wire: Promise<DeskData["wire"]>;
   sectors: ReturnType<typeof loadDeskSectors>;
 }) {
-  const [{ read }, sectorData] = await Promise.all([brief, sectors]);
-  // The news read is only waited on when the brief has nothing.
-  const news = read && (read.headline || read.insights.length > 0) ? null : await wire.then((data) => data.read).catch(() => null);
-  const shown = marketTodayRead(read, news, sectorData.takeaway);
-  // The three points first; how every sector did comes right after, as the picture behind the headline.
+  const { read } = await brief;
+  // The news read and the sector line are only waited on when the brief has nothing.
+  const [news, sectorLine] =
+    read && (read.headline || read.insights.length > 0)
+      ? [null, null]
+      : await Promise.all([wire.then((data) => data.read).catch(() => null), sectors.then((data) => data.takeaway).catch(() => null)]);
+  // The top development asks the reader's next question: "Does this affect my stocks?" (lib/next-steps.ts).
+  const shown = marketTodaySteps(marketTodayRead(read, news, sectorLine));
+  if (!shown) return null;
+  // Below lg the headline and the top point stay, so on a phone the cross-asset strip under the read is on the first screen.
+  const hidden = shown.insights.length - 1;
   return (
-    <>
-      {shown ? <TheRead read={shown} label="Today's read" className="mb-4" /> : null}
-      <SectorBars rows={sectorData.rows} />
-    </>
+    <TheRead
+      read={shown}
+      label="Today's read"
+      fold="phone"
+      foldKeep={1}
+      foldLabel={hidden === 1 ? "Show 1 more point" : `Show ${hidden} more points`}
+    />
   );
 }
 
@@ -71,8 +93,9 @@ function SectorBars({ rows }: { rows: DeskSector[] }) {
   if (sorted.length < 4) return null;
   const max = Math.max(0.5, ...sorted.map((row) => Math.abs(row.day)));
   return (
-    <Panel label="How each sector did today" right={<a href="/sectors" className={`text-[13px] font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg ${FOCUS}`}>All sectors</a>} className="mb-5">
-      <ul className="grid gap-x-8 sm:grid-cols-2">
+    <Panel label="How each sector did today" right={<a href="/sectors" className={`text-[13px] font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg ${FOCUS}`}>All sectors</a>}>
+      {/* Eleven rows on a phone: about eight show, the rest scroll inside the panel (two columns from sm up fit as they are). */}
+      <ul className="grid gap-x-8 max-sm:max-h-[16.25rem] max-sm:overflow-y-auto max-sm:overscroll-contain scrollbar-hide sm:grid-cols-2">
         {sorted.map((row) => {
           const width = Math.max(3, (Math.abs(row.day) / max) * 100);
           const up = row.day >= 0;
@@ -101,72 +124,84 @@ function SectorBars({ rows }: { rows: DeskSector[] }) {
   );
 }
 
-/** Everything else on the desk, one plain line each. The lines with a live figure read it; the rest say what is there. */
-async function Directory({ brief, sectors }: { brief: Promise<DeskBrief>; sectors: ReturnType<typeof loadDeskSectors> }) {
-  const [{ calendarLine }, sectorData] = await Promise.all([brief, sectors]);
-  const entries: { href: string; title: string; line: string }[] = [
-    { href: "/sectors", title: "Sectors", line: sectorData.takeaway ?? "How each of the 11 sectors did, and the stocks that led and lagged in each." },
-    { href: "/movers", title: "Why stocks moved", line: "The day's biggest moves, with the reason when we could confirm one." },
-    { href: "/news", title: "Headlines", line: "The day's stories about companies, grouped by stock." },
-    { href: "/calendar", title: "Calendar", line: calendarLine ?? "Who reports earnings this week, and the economic reports that move the market." },
-    { href: "/screener", title: "Find stocks", line: "Ready-made lists, like the biggest companies or the cheapest against their own past, or your own filters." },
-    { href: "/themes", title: "Themes", line: "Groups of companies betting on one idea, like data centers or defense, and how each group is doing." },
-    { href: "/signals", title: "Signals", line: "What people on Reddit and in the news are saying about stocks, and whether prices agree." },
-    { href: "/follow", title: "Investors", line: "What big funds, members of Congress and company insiders bought and sold." },
-    { href: "/strategies", title: "Strategies", line: "Simple buying rules tested on years of real prices." },
-    { href: "/markets", title: "Markets", line: "Gold, oil, government bonds, the dollar and bitcoin, and how each moved today." },
-    { href: "/ask", title: "Ask", line: "Ask a question about any stock or idea, in your own words." },
-  ];
+/**
+ * Everything the Markets page carries, arranged for a day: the cross-asset strip, every sector, what moved
+ * across markets and why, then each asset class. Sectors are drawn as named bars here, so the stocks section
+ * leaves out the Markets page's sector grid. Below lg, options and traded odds wait behind one button.
+ */
+async function MarketsSlot({ sectors }: { sectors: ReturnType<typeof loadDeskSectors> }) {
+  const [data, sectorData] = await Promise.all([loadDeskMarketsData(), sectors]);
+  if (!hasMarketsData(data)) {
+    return (
+      <>
+        <SectorBars rows={sectorData.rows} />
+        <Panel>
+          <p className="text-[15px] font-medium text-oa-fg">Prices for indices, rates, commodities, currencies and crypto are not available right now.</p>
+          <p className="mt-1 text-[14px] text-oa-muted-fg">Try again in a few minutes.</p>
+        </Panel>
+      </>
+    );
+  }
+  const overview = buildMarketsOverview(data);
   return (
-    <Panel label="More on today's market" flush>
-      <ul className="grid sm:grid-cols-2 sm:divide-x sm:divide-oa-border">
-        {[entries.slice(0, Math.ceil(entries.length / 2)), entries.slice(Math.ceil(entries.length / 2))].map((column, index) => (
-          <li key={index} className="min-w-0 max-sm:border-t max-sm:border-oa-border max-sm:first:border-t-0">
-            <ul>
-              {column.map((entry) => (
-                <li key={entry.href} className="border-b border-oa-border last:border-b-0">
-                  <a href={entry.href} className={`group flex items-start gap-3 px-4 py-3 transition-colors hover:bg-oa-accent ${FOCUS}`}>
-                    {/* The same icon the place has in the menu and beside its own title. */}
-                    {iconFor(entry.href) ? (
-                      <span aria-hidden="true" className="mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-lg border border-oa-border bg-oa-card text-oa-primary">
-                        <NavIcon name={iconFor(entry.href)!} className="size-[18px]" />
-                      </span>
-                    ) : null}
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-[15px] font-medium leading-6 text-oa-fg">{entry.title}</span>
-                      <span className="block text-pretty text-[14px] leading-5 text-oa-muted-fg">{entry.line}</span>
-                    </span>
-                    <span aria-hidden="true" className="mt-0.5 shrink-0 text-oa-muted-fg transition-transform group-hover:translate-x-0.5">
-                      →
-                    </span>
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </li>
-        ))}
-      </ul>
-    </Panel>
+    <>
+      <MarketTickerStrip tiles={overview.tiles} />
+      <SectorBars rows={sectorData.rows} />
+      <MarketsMovedSection data={data} overview={overview} />
+      <StocksAndFundsSection data={data} sectors={false} />
+      <RatesAndVolatilitySection data={data} />
+      <CommoditiesCurrenciesCryptoSection data={data} />
+      <ShowMore label="Show options and prediction markets">
+        <div className="flex flex-col gap-4">
+          <OptionsSection data={data} />
+          <PredictionsSection data={data} />
+        </div>
+      </ShowMore>
+    </>
   );
 }
 
-/** The directory's shape while its live lines load. */
-function DirectoryGhost() {
+/** The places that go deeper on today, as one short strip with each place's own icon. */
+const MORE_ON_TODAY: { href: string; title: string }[] = [
+  { href: "/movers", title: "Why stocks moved" },
+  { href: "/news", title: "News" },
+  { href: "/calendar", title: "Calendar" },
+  { href: "/signals", title: "Signals" },
+  { href: "/briefing", title: "Briefing" },
+  { href: "/markets", title: "All markets" },
+];
+
+function MoreOnToday() {
   return (
-    <div className="oa-surface grid gap-4 border border-oa-border bg-oa-card p-4 sm:grid-cols-2" aria-busy="true">
-      {Array.from({ length: 11 }, (_, index) => (
-        <div key={index}>
-          <Bar className="h-4 w-28" />
-          <Bar className="mt-2 h-3.5 w-full" />
-        </div>
-      ))}
-    </div>
+    <nav aria-labelledby="more-on-today" className="mt-2">
+      <h2 id="more-on-today" className="oa-label mb-2 px-2 sm:px-0">
+        More on today
+      </h2>
+      <ul className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+        {MORE_ON_TODAY.map((entry) => {
+          const icon = iconFor(entry.href);
+          return (
+            <li key={entry.href}>
+              <a
+                href={entry.href}
+                className={`oa-surface flex min-h-11 items-center gap-2.5 border border-oa-border bg-oa-card px-3 py-2 text-[14px] font-medium text-oa-fg transition-colors hover:bg-oa-accent ${FOCUS}`}
+              >
+                {icon ? <NavIcon name={icon} className="size-[18px] shrink-0 text-oa-primary" /> : null}
+                <span className="min-w-0 sm:whitespace-nowrap">{entry.title}</span>
+              </a>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
   );
 }
 
 /**
- * Market today: the day's read in three ranked points, how every sector did, then a directory of
- * the rest. The head needs no data, so it is on screen at once; each part waits only for its own loader.
+ * Market today: how the whole market did. The read in three ranked points, the cross-asset strip and every
+ * sector, what moved across markets and why, then indices, rates, commodities, currencies and crypto, with
+ * a short strip of places that go deeper at the end. The head needs no data, so it is on screen at once;
+ * the read and the market sections each wait only for their own loaders.
  */
 export default function ExplorePage() {
   const today = todayET(new Date());
@@ -178,13 +213,17 @@ export default function ExplorePage() {
     <AppPage>
       <PageHead title="Market today" />
 
-      <Suspense fallback={<div className="mb-5"><PanelGhost rows={3} lines={2} /></div>}>
-        <ReadSlot brief={brief} wire={wire} sectors={sectors} />
-      </Suspense>
+      <div className="flex flex-col gap-4">
+        <Suspense fallback={<PanelGhost rows={3} lines={2} />}>
+          <ReadSlot brief={brief} wire={wire} sectors={sectors} />
+        </Suspense>
 
-      <Suspense fallback={<DirectoryGhost />}>
-        <Directory brief={brief} sectors={sectors} />
-      </Suspense>
+        <Suspense fallback={<MarketsGhost />}>
+          <MarketsSlot sectors={sectors} />
+        </Suspense>
+
+        <MoreOnToday />
+      </div>
     </AppPage>
   );
 }

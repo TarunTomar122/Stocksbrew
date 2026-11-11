@@ -5,7 +5,7 @@ import { BestCard, HubAnswer, PlainRankTable, kindTally } from "@/components/cop
 import { UnrankedList } from "@/components/copy-trades/parts";
 import { JsonLd, breadcrumbLd } from "@/components/docs/json-ld";
 import { AppPage, CardGrid, Empty, ShowMore } from "@/components/oa/kit";
-import { COPY_HUB_PATH, copyHref, getCopyHub, rankRows, type CopyHub, type CopyHubRow } from "@/lib/copy-trades";
+import { COPY_FRAMING, COPY_HUB_PATH, copyHref, getCopyHub, rankRows, type CopyHub, type CopyHubRow } from "@/lib/copy-trades";
 import { fmtDate } from "@/lib/follow-shared";
 import { ogImage } from "@/lib/og/url";
 
@@ -149,10 +149,10 @@ export default async function CopyHubPage() {
         {hub ? (
           <>
             <p className="mt-1 max-w-3xl text-pretty text-[15px] leading-[22px] text-oa-fg">
-              We pretended to buy what each fund and member of Congress bought, at the close of the first trading day after it became public, and compared that with simply owning the S&amp;P 500.
+              We copied what each fund and member of Congress bought, at the close of the first trading day after it became public, and compared that with simply owning the S&amp;P 500.
             </p>
             <p className="mt-1 text-pretty text-[13px] leading-5 text-oa-muted-fg">
-              Pretend money, before costs and taxes. Prices to {fmtDate(hub.price_as_of)}. Past results don&apos;t repeat.
+              {COPY_FRAMING} Prices to {fmtDate(hub.price_as_of)}.
             </p>
           </>
         ) : null}

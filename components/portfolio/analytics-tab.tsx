@@ -338,7 +338,7 @@ export function AnalyticsTab({
             rebalance view
           </Link>
           {" · "}
-          <Link href="/portfolio" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
+          <Link href="/portfolio/analyze" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
             analyze any list of tickers
           </Link>
         </p>

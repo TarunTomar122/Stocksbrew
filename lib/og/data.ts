@@ -94,7 +94,7 @@ const getQuoteCached = unstable_cache((symbol: string) => getStockSummary(symbol
 /* ── shared bits ────────────────────────────────────────────────────────── */
 
 /** Resolve within `ms` or give up with null, so one slow source never stalls a card. */
-async function within<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+export async function within<T>(promise: Promise<T>, ms: number): Promise<T | null> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<null>((resolve) => {
     timer = setTimeout(() => resolve(null), ms);
@@ -110,7 +110,7 @@ function asCall(value: unknown): OgCall | null {
   return value === "Add" || value === "Hold" || value === "Trim" ? value : null;
 }
 
-function readLines(read: TheRead | null | undefined, max = 2): OgLine[] {
+export function readLines(read: TheRead | null | undefined, max = 2): OgLine[] {
   return (read?.insights ?? []).slice(0, max).map((insight) => ({ text: insight.text, tone: insight.tone }));
 }
 
@@ -348,7 +348,7 @@ async function briefingCard(): Promise<OgCard | null> {
       label: mover.ticker,
       value: ogSignedPct(mover.pct),
       tone: ogTone(mover.pct),
-      note: mover.explained ? mover.headline ?? mover.cause ?? "Reason confirmed" : "No confirmed reason yet",
+      note: mover.explained ? mover.headline ?? mover.cause ?? "" : "",
     })),
     footnote: ogFootnote(movers?.generatedAt ? `Movers as of ${ogStamp(movers.generatedAt)}` : null),
   };
@@ -623,7 +623,7 @@ function recordRows(perf: FundProfile["performance"], label: string): OgRecordCa
 }
 
 /** The copy test as the card's record, so the card quotes the same numbers as the profile and copy pages. */
-function copyRows(record: CopyRecord | null): OgRecordCard["record"] {
+export function copyRows(record: CopyRecord | null): OgRecordCard["record"] {
   if (!isFullRecord(record)) return null;
   const mine = record.copy.total;
   const bench = record.spy.total;

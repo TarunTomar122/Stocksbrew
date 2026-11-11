@@ -333,7 +333,7 @@ export default async function StrategiesPage() {
             </section>
           </div>
         )}
-        <PageNote lede={LEDE} />
+        <PageNote lede={LEDE} ledeInHead />
       </div>
     </main>
   );

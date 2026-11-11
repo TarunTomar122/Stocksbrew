@@ -252,7 +252,10 @@ export function buildCompareRead(input: { rows: Array<ScreenerRow | null>; bench
   if (!headline) {
     const lead = insights.shift();
     if (!lead) return null;
-    headline = lead.soWhat ? `${lead.text} ${lead.soWhat}` : lead.text;
+    headline = lead.text;
+    // The lead's second clause is the first line under it, so the headline stays one sentence.
+    if (lead.soWhat) insights.unshift({ id: `${lead.id}-more`, tone: lead.tone, text: lead.soWhat, action: lead.action });
   }
-  return { headline, insights: insights.slice(0, 3), asOf: input.asOf ?? null };
+  // The lead's second clause rides on top of the usual three points instead of pushing one out.
+  return { headline, insights: insights.slice(0, insights[0]?.id.endsWith("-more") ? 4 : 3), asOf: input.asOf ?? null };
 }

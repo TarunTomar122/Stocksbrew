@@ -143,7 +143,7 @@ describe("plainFinance says the researcher's no-reason lines plainly", () => {
   it("rewrites range breaks and missing catalysts", async () => {
     const { plainFinance } = await import("./plain-copy");
     expect(plainFinance("CHTR breaks above recent closing range without verified catalyst")).toBe(
-      "CHTR rises above its recent price range, with no confirmed reason yet",
+      "CHTR rises above its recent price range",
     );
     expect(plainFinance("VCX rebounds sharply despite quiet coverage.")).toBe("VCX rebounds sharply with little news.");
   });

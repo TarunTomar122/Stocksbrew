@@ -46,7 +46,7 @@ async function readAnnounced(since: string): Promise<Array<AnnouncedDividend & {
   return snap.docs.map((doc) => parseAnnouncedRow(doc.data())).filter((row): row is AnnouncedDividend & { ticker: string } => row !== null);
 }
 
-const getAnnounced = unstable_cache(readAnnounced, ["dividend-announced-v1"], { revalidate: 1800 });
+export const getAnnounced = unstable_cache(readAnnounced, ["dividend-announced-v1"], { revalidate: 1800 });
 
 export type HoldingSeed = { ticker: string; name: string | null; shares: number | null; avgCost: number | null; price?: number | null };
 

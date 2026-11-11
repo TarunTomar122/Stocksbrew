@@ -14,8 +14,11 @@ describe("screener read", () => {
   it("describes the set against everything we cover", () => {
     const matched = [...universe.slice(0, 6), universe[6]!];
     const read = buildScreenerRead({ matched, universe, narrowed: true, priceDay: "2026-11-09", spy: SPY });
-    expect(read?.headline).toBe("7 stocks match; 86% are Technology; the typical one rose 4.0% on Nov 9, while the typical stock across all 12 we cover rose 0.5%.");
-    expect(read?.insights.map((item) => item.id)).toContain("tilt");
+    expect(read?.headline).toBe("7 stocks match, and the typical one rose 4.0% on Nov 9.");
+    expect(read?.insights.map((item) => item.id)).toEqual(["tilt", "movers", "value"]);
+    // The tilt line names the main sector; the comparison closes the movers line, the second point.
+    expect(read?.insights[0]!.text).toMatch(/^86% of this screen is Technology/);
+    expect(read?.insights[1]!.soWhat).toBe("The typical stock across all 12 we cover rose 0.5% on Nov 9.");
   });
 
   it("counts covered stocks near an add zone, never stripped ones", () => {

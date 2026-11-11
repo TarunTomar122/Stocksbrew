@@ -20,13 +20,14 @@ import { countWord } from "@/lib/plain-copy";
 import { getViewer } from "@/lib/entitlements-server";
 import { getLandingUserContext } from "@/components/terminal-landing-streams";
 
+import { AgentDoes } from "./landing/agent-does";
 import { HeroBriefing } from "./landing/hero-briefing";
 import { OnePlace } from "./landing/one-place";
 import { PlansSection } from "./landing/plans-section";
 import { FRAME, SectionHead } from "./landing/shared";
 import { TodayMoves } from "./landing/today-moves";
 
-// Folded, all closed: the page proves three things above and answers the rest here. The founder note is the last answer.
+// Folded, all closed: the page proves its points above and answers the rest here. The founder note is the last answer.
 const FAQS: { q: string; a: React.ReactNode }[] = [
   {
     q: "What is stocksbrew?",
@@ -38,7 +39,7 @@ const FAQS: { q: string; a: React.ReactNode }[] = [
   },
   {
     q: "Where does the information come from, and who writes it?",
-    a: "Prices, financials and filings come from public sources, and headlines link to the original. The explanations and calls are written by AI from those numbers and that news. When there is no confirmed reason for a move, we say so.",
+    a: "Prices, financials and filings come from public sources, and headlines link to the original. The explanations and calls are written by AI from those numbers and that news, and a move only gets a reason when a source backs it.",
   },
   {
     q: "Is this investment advice?",
@@ -98,12 +99,12 @@ export async function OaLanding() {
           </div>
         </section>
 
-        {/* one story below the hero: three short proofs with real data, one link each, then the questions folded */}
+        {/* one story below the hero: short proofs with real data, one link each, then the questions folded */}
         <div className="flex flex-col gap-14 pb-12 pt-10 sm:gap-20 sm:pb-20 sm:pt-14">
           <section id="live" className="scroll-mt-24">
             <SectionHead
               title="Why stocks moved today."
-              lede="Every market day we look for the reason behind each big move, and say so when we can't find one."
+              lede="Every market day we look for the reason behind each big move, and show it only when a source backs it."
               href="/briefing"
               hrefLabel="See today's briefing"
             />
@@ -122,6 +123,17 @@ export async function OaLanding() {
             <Suspense fallback={<div className="oa-surface h-80 animate-pulse border border-oa-border bg-oa-card motion-reduce:animate-none" aria-hidden="true" />}>
               <OnePlace />
             </Suspense>
+          </section>
+
+          {/* the rest of what it does, each with one live finding from the example portfolio; every finding streams in on its own */}
+          <section id="what-it-does" className="scroll-mt-24">
+            <SectionHead
+              title="Everything it watches for you."
+              lede="Each finding below comes from an example portfolio and live data. Add your stocks and it does the same for yours."
+              href="/portfolio"
+              hrefLabel="See the example portfolio"
+            />
+            <AgentDoes />
           </section>
 
           {/* plans: hidden once you already subscribe */}

@@ -142,7 +142,7 @@ function Verdict({ record }: { record: CopyRecordFull }) {
   return (
     <section aria-label="The verdict" className="oa-surface border border-oa-border bg-oa-card px-4 pb-3 pt-3.5 sm:px-5 sm:pb-3.5 sm:pt-4">
       <p className="oa-label">The verdict</p>
-      <h2 className="mt-1 max-w-[46rem] text-pretty text-[19px] font-semibold leading-[26px] tracking-[-0.01em] text-oa-fg sm:text-[21px] sm:leading-[28px]">{verdict.headline}</h2>
+      <h2 className="mt-1 max-w-[46rem] text-pretty text-[17px] font-semibold leading-[24px] tracking-[-0.01em] text-oa-fg sm:text-[19px] sm:leading-[26px]">{verdict.headline}</h2>
       {verdict.detail ? <p className="mt-1.5 max-w-[46rem] text-pretty text-[15px] leading-[22px] text-oa-fg">{verdict.detail}</p> : null}
       <p className="mt-2 text-[12.5px] leading-[18px] text-oa-muted-fg">
         {verdict.span} · {record.kind === "fund" ? "SEC 13F filings" : "House trade reports"} and daily closes

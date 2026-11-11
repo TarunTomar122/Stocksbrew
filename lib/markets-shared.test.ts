@@ -28,6 +28,7 @@ import {
   signalTone,
   sliceSeries,
   sparkPoints,
+  structureReading,
   volCurveReading,
   volCurveVerdict,
   yieldCurveReading,
@@ -303,6 +304,33 @@ describe("readings", () => {
     expect(rangeReading({ ...base, unit: "%", change_mode: "bps", price: 4.86, high_1y: 5.2, low_1y: 3.9 })).toBe(
       "34 bps below its one-year high of 5.20% (Oct 5).",
     );
+    expect(rangeReading({ ...base, unit: "pts", price: 102.3, high_1y: 102.58, low_1y: 96.2 }, "The dollar index")).toBe(
+      "The dollar index is 0.3% below its one-year high of 102.58 (Oct 5).",
+    );
+    expect(rangeReading({ ...base, price: 92.7, high_1y: 92.78, low_1y: 63.52 }, "Gold")).toBe("Gold is at its highest level in a year.");
+  });
+
+  it("reads a futures curve, with the commodity named when asked", () => {
+    const structure = {
+      state: "contango" as const,
+      front_label: "Dec 26",
+      front_price: 100,
+      later_label: "Dec 27",
+      later_price: 105,
+      later_months_out: 12,
+      spread_pct: 5,
+    };
+    expect(structureReading({ structure })).toBe("Dec 2027 delivery costs 5.0% more than Dec 2026: the curve is in contango.");
+    expect(structureReading({ structure }, "Gold")).toBe(
+      "Gold for Dec 2027 delivery costs 5.0% more than for Dec 2026: the curve is in contango.",
+    );
+    expect(structureReading({ structure: { ...structure, state: "backwardation", spread_pct: -2 } }, "WTI crude oil")).toBe(
+      "WTI crude oil for Dec 2027 delivery costs 2.0% less than for Dec 2026: the curve is in backwardation.",
+    );
+    expect(structureReading({ structure: { ...structure, state: "flat", spread_pct: 0.2 } }, "Gold")).toBe(
+      "Gold's Dec 2026 and Dec 2027 contracts trade within 0.2% of each other: the curve is flat.",
+    );
+    expect(structureReading({ structure: null })).toBeNull();
   });
 
   it("names the sector funds that led and trailed", () => {
@@ -313,10 +341,17 @@ describe("readings", () => {
       asset({ id: "xle", symbol: "XLE", group: "sector", change: { d1: -1.1, w1: null, m1: null, ytd: null, y1: null } }),
       asset({ id: "arkk", group: "thematic", change: { d1: 9, w1: null, m1: null, ytd: null, y1: null } }),
     ];
-    expect(sectorReading(sectors, NOW)).toBe(
-      "2 of 4 sector funds rose today. Semis (SMH) led at +5.54%; Energy (XLE) trailed at −1.10%.",
+    const withFinancials = [
+      ...sectors,
+      asset({ id: "xlf", symbol: "XLF", group: "sector", change: { d1: 0.3, w1: null, m1: null, ytd: null, y1: null } }),
+    ];
+    // SMH is a chip fund that shares the sector grid; it is not one of the eleven sectors.
+    expect(sectorReading(withFinancials, NOW)).toBe(
+      "2 of 4 sectors rose today. Tech (XLK) led at +4.12%; Energy (XLE) trailed at −1.10%.",
     );
-    expect(sectorReading(sectors.slice(0, 3), NOW)).toBeNull();
+    expect(sectorReading(sectors, NOW)).toBeNull();
+    const allUp = withFinancials.map((item) => ({ ...item, change: { ...item.change, d1: Math.abs(item.change.d1 ?? 0) + 0.5 } }));
+    expect(sectorReading(allUp, NOW)).toMatch(/^All 4 sectors rose today\./);
   });
 
   it("ranks the biggest percent moves and leaves out yields, ratios and the VIX", () => {

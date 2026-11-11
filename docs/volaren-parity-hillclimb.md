@@ -172,6 +172,105 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-11 ~06:40 UTC, laptop ran out of memory; capture helper fixed; headlines shortened (lead)
+- The owner's laptop died. Causes:
+  - about six builders each running headless Chrome and vitest at once, plus extra dev servers;
+  - about 4,100 leftover Chrome profiles (19GB) in the temp folder, from shot.mjs, which never deletes its profile.
+- Fixes:
+  - `scratchpad/shotq.sh`: at most 3 Chromes across all builders (it waits for a slot), with a private profile per capture deleted afterwards (tested).
+  - Rule from the owner: coding in parallel is fine (at least 3 builders); browsers capped at 3 and servers at 3-4 (memory light-on-ram).
+- Live today too:
+  - `8ceb5e6`: one shared watchlist edit with Shares and Cost per share; "Below $296" beside the call.
+  - `d7d18ba`: "How our calls did" removed from the weekly email (owner: no scoreboard in emails). VPS pulled.
+- Headline sweep done: about 20 reads shortened to one idea of 12-20 words; moved facts and caveats sit in the first lines. Headline font 17/19px (was 19/21). tsc clean, vitest 1816/1816. Screenshots in scratchpad/hl.
+- Built and waiting to ship:
+  - My stocks overview;
+  - the richer landing ("Everything it watches for you", 9 live cards, no model calls);
+  - Market today with the Markets sections;
+  - ideas-page fixes (no sell on Buy-more names, small trims dropped, one weight base);
+  - dividend income ideas;
+  - the headline sweep.
+- Running: agent moments (next steps on stock, briefing, watchlist and explore findings) and leftover fixes (phone bar check, truncated subtitles, markets card copy, copy-page wording). Ship 17 follows them.
+
+### 2026-11-11 ~06:10 UTC (real clock; the entries below ran ahead), new emails switched on (lead)
+- Owner: "i still get old designed emails". The email v2 cutover was never done. The owner said yes for everyone, the gmail sender for now, old alerts off, and gave their contact email for the footer.
+- Done:
+  - Vercel production env `EMAIL_UNSUBSCRIBE_SECRET` and `MAIL_V2_ACTIVE=1`, then a redeploy (`a0b28b9`); the secret was generated into a 600 file and never printed.
+  - VPS pulled; `/etc/tikrr/backend.env` backed up and appended with the secret and `MAIL_V2_ACTIVE=1` (EMAILS_ENABLED was already 1). The old premarket, open and weekly senders now skip.
+  - The old power-trade and automatic Radar alerts are gated off (`a0b28b9`, LEGACY_ALERTS=1 brings them back). Every email footer shows the contact email.
+  - Plain call words in emails (`d8b2066`): Buy more / Keep / Sell some, "fell to our buy-more price".
+  - Dry runs over 164 accounts: daily 36, weekly 58, winback 10, alerts 0.
+  - One real daily and one weekly sent to the owner.
+  - `install-mail-timers.sh`: alerts every 15 min, lifecycle hourly, daily 8:30am ET (13:30 UTC), weekly Sat 9am ET.
+- Open, for the owner:
+  - CAN-SPAM needs a physical postal address in the footer (an email is not enough).
+  - The gmail sender fails DMARC; authenticate stocksbrew.online in Brevo.
+  - "We miss you" goes to 10 people on the first lifecycle run.
+- Watchlist (owner): no per-row Edit on phones; the shared Edit dialog now has Shares and Cost per share boxes; levels read "Below $296" beside the call chip. Built, quick review running, ships next.
+
+### 2026-11-11 ~08:30 UTC, owner feedback hotfix live; landing, Market today, headlines, ideas, dividends in flight (lead)
+- The owner is awake and reviewing the live site.
+- `4250c02` LIVE (hotfix built on the live commit with only these files):
+  - holdings table shows the ticker only;
+  - the call column says Buy more / Keep / Sell some, with only the level that matches the call (none for Keep, none more than 50% away);
+  - Edit your Watchlist has a Shares box per holding (the quality pass found three draft bugs: cancel persisting, empty box saving the last typed value, stale draft after Hold → Watch → Hold; all fixed by reading drafts once at save);
+  - one icon per place, beside each page title (`PageIcon` / `iconFor`) and in Market today's list, with new movers and sectors icons;
+  - Why stocks moved: the reason is the link (no per-row "Why it moved"), and lists scroll inside about 8 rows;
+  - DataTable scrolls inside about 8 rows by default (`maxRows`);
+  - Signals movers open on "With a reason", without bars;
+  - news tone reads "75% negative";
+  - "on tomorrow" is fixed;
+  - the x-ray shows a signed-in person's own holdings even with no funds.
+- Verified: tsc 0, vitest 1604/1604, eslint clean. Screenshots read: explore directory with icons, movers desktop. Live: 7 pages 200.
+- Owner rules saved to memory (compact-tables-and-rows): 8-row scroll lists with no scrollbar, no repeated row links, ticker-only tables, a call shows only its own level, one-figure tone, short headlines (12-18 words), one icon per place.
+- Codex judge round 3 (codex CLI, screenshot-only, stricter, so not comparable to round 2's 7.7): app UI 7, UX 6, usability 6, wording 7, agent feel 5, overall 6. Main ask: next steps tied to each insight (interactive agent moments). It also flagged the bottom bar covering content on phones, likely a full-page capture artifact (to verify on a real scroll), and two truncated page subtitles.
+- My stocks overview built (`/portfolio`: "What your agent noticed this week", five items with actions and watch links, a tool grid, the nav grouped Your stocks / Plan ahead / Act; the old analyzer moved to /portfolio/analyze). Not shipped yet.
+- Running:
+  - ideas-page fixer (no sell on Buy-more names, tiny trims dropped, one weight base: Technology read 73% vs 56%);
+  - Market today rebuilt with the Markets page's substance;
+  - headline-shortening sweep;
+  - dividend income ideas;
+  - a richer landing ("Everything it watches for you", live cards per capability; owner: "too thin").
+
+### 2026-11-11 ~07:50 UTC, goal planner and rebalancing/tax ideas live; My stocks home started (lead)
+- `b2e475a` LIVE: /portfolio/goal and /portfolio/ideas (nav "Goal planner" and "Rebalancing ideas", sitemap, a link from /watchlist/tax).
+- Ship 16 quality pass: the goal math is sound (block wraparound, percentiles, the lever, inflation, a symmetric discount). Fixed before shipping:
+  - Mixed short and long lots were taxed lot by lot; now US netting (`nettedTax`, tests). A +$1,000 long and −$1,000 short sale was "$90 less tax"; it is now $0.
+  - The read named one rate for a mixed sale (now both).
+  - On phones the "not advice" line sat below a 6,000px page; a one-line version now sits under the read.
+  - Same-index funds (QQQ/QQQM, IWM/VTWO, VTI/ITOT/SCHB, SPLG, VGT/XLK) are never offered as wash-sale look-alikes for each other.
+  - The goal headline now carries "counting only half of each holding's past lead over the S&P 500", and the page says "not advice".
+- Verified: tsc 0, vitest 1604/1604, eslint clean. Screenshots read: goal phone, ideas desktop and phone. Live: 6 pages 200.
+- Started:
+  - My stocks home ("What your agent noticed this week", 3-5 findings across memo, x-ray, earnings, dividends, goal and ideas, each with a next step and a watch link), plus the ten-item My stocks menu regrouped.
+  - Codex judge round 3 through the codex CLI, on the live site, 18 pages.
+
+### 2026-11-11 ~07:20 UTC, baskets and Market today live; goal planner and ideas in QA (lead)
+- `e8f11ce` LIVE:
+  - Build a basket (/baskets/new, /baskets/<slug>).
+  - UI loop batches 18-20: Market today has three ranked developments, sector bars and one directory; pricing says plainly what is free and what agents vs alerts are; briefing reasons name their publisher; the landing agent card fits a phone's first screen.
+- Ship 15 quality pass: no privacy or Pro-gate issues. Fixed before shipping:
+  - a Taxes-page link to the unshipped /portfolio/ideas;
+  - followers stuck when a basket is locked or empty (Follow now always shows for followers);
+  - the landing card's "Why:" contradicting "no confirmed reason yet" (now "Why we'd keep it:", from the call word);
+  - a basket page repeating a stranger's words from ?q= (the "I didn't use" line is never shown on slug pages);
+  - a missing comma; the pricing alerts line now names buy-or-sell-price alerts.
+- Verified: tsc 0, vitest 1542/1542, eslint clean. Screenshots read: landing (desktop and phone), explore, basket builder (phone).
+- Live: 10 pages 200, unknown basket 404, and /api/baskets/build?q=cheap banks returns 303 to its basket. The Vercel CLI printed "Not authorized" on the log stream, but the deployment built Ready and aliased (checked with `vercel inspect`).
+- UI loop round 21: Codex 6.46, Cursor 5.21; down, mostly on untouched stock pages (reviewer variance). The loop finished its rounds and is not running now.
+- Goal planner landed (`/portfolio/goal`):
+  - 4,000 replays of 12-month blocks of real monthly returns since Dec 2014, seeded.
+  - A hindsight discount by default (each holding counts half of its lead or lag over the S&P 500), with the full replay behind a "flattering version" checkbox.
+  - 3% flat inflation toggle, levers, presets.
+  - Example read: "In almost every replay this portfolio reaches $1 million by 55, against about 7 in 10 with only the S&P 500; even the weakest one in ten gets to $1.48 million." (The example starts at $128k with 20 years to go.)
+- Rebalancing and tax-loss ideas landed (`/portfolio/ideas`):
+  - sized trims for concentration over 10% (funds counted), drift and sector tilt, with estimated tax on each (rates changeable);
+  - adds to Buy-more names;
+  - losses with wash-sale dates and look-alikes;
+  - a "tell me if X falls another 5%" agent link.
+  - Example: "3 companies are each above 10% of this portfolio once the funds are counted, led by Apple at 17%."
+- Ship 16 candidate `3563ea3` (goal, ideas, nav, sitemap, the Taxes link): tsc 0, vitest 1603/1603, eslint clean. Quality pass running.
+
 ### 2026-11-11 ~06:45 UTC, goal planner and rebalancing/tax ideas started; council round 20 best (lead)
 - Council round 20 (batch 19): Codex 6.75, its best yet; Cursor 5.41, flat. Round 19 was 6.56 / 5.41. The UI loop is still active, editing the landing, briefing, pricing and plain-copy.
 - New builders (Agent tool; the T3 delegate tools are gone after the account move):

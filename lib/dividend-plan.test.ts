@@ -188,7 +188,7 @@ describe("buildDividendPlan and the read", () => {
   it("never claims an announcement when nothing is announced", () => {
     const estimatesOnly = buildDividendPlan([holding("MSFT", { history: MSFT, shares: 30 })], TODAY);
     const read = buildDividendRead(estimatesOnly, { example: true })!;
-    expect(read.headline).toBe("This example portfolio should pay about $109 from November to October. None of it is announced yet, so every month is an estimate.");
+    expect(read.headline).toBe("This example portfolio should pay about $109 from November to October, all of it an estimate until it is announced.");
     const next = read.insights.find((i) => i.id.startsWith("next-"));
     if (next) expect(next.text).toContain("an estimate");
   });
@@ -302,5 +302,13 @@ describe("formatting and parsing", () => {
     });
     expect(parseAnnouncedRow({ kind: "dividend", ticker: "X", date: "2026-11-19", amount: 0.98, superseded: true })).toBeNull();
     expect(parseAnnouncedRow({ kind: "ipo", ticker: "X", date: "2026-11-19", amount: 1 })).toBeNull();
+  });
+});
+
+describe("the read and property trusts", () => {
+  it("does not warn about a property trust's high payout", () => {
+    const plan = buildDividendPlan([holding("O", { history: MSFT, payout: 290, sector: "Real Estate" })], TODAY);
+    const read = buildDividendRead(plan)!;
+    expect(read.insights.some((item) => /pays? out/.test(item.text))).toBe(false);
   });
 });

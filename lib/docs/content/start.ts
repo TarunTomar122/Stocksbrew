@@ -127,7 +127,7 @@ export const START_GUIDES: Guide[] = [
       ul(
         "**Headline with the number.** What happened and by how much.",
         "**Why it matters.** One or two plain sentences. For a holding it also says how large the position is on your account.",
-        "**The reason, or the lack of one.** When a move has a confirmed reason we give it with the source. When it does not, the item says: We have not found a confirmed reason for the move. See [Reasons for a move](/docs/briefing/reasons).",
+        "**The reason, or the lack of one.** When a move has a confirmed reason we give it with the source. When it does not, the item shows the move and its next step, with no reason line. See [Reasons for a move](/docs/briefing/reasons).",
         "**A next step.** Something to read or check. It is never an instruction to buy or sell.",
         "**Evidence.** Each line names who it comes from and the date or time it refers to, with a link when there is one.",
       ),

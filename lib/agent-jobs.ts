@@ -1017,7 +1017,7 @@ function evaluateEvent(
     .map((mover) => ({
       ticker: mover.ticker.toUpperCase(),
       headline: `${mover.ticker.toUpperCase()} ${mover.day_change_pct >= 0 ? "rose" : "fell"} ${Math.abs(mover.day_change_pct).toFixed(2)}%`,
-      detail: mover.reason ? mover.reason : "We have not found a confirmed reason for the move.",
+      detail: mover.reason ? mover.reason : "",
       source: "stocksbrew movers",
       url: `/stock/${mover.ticker.toUpperCase()}`,
       at: mover.date.slice(0, 10),

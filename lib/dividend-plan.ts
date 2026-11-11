@@ -525,7 +525,7 @@ export function buildDividendRead(plan: DividendPlan, options: DividendReadOptio
     const known =
       plan.confirmed >= 0.5
         ? `, ${fmtDollars(plan.confirmed)} of it already ${paidSoFar ? "announced or paid" : "announced"}.`
-        : `. None of it is announced yet, so every month is an estimate.`;
+        : `, all of it an estimate until it is announced.`;
     headline = `${lead} about ${fmtDollars(plan.total)} from ${first} to ${last}${known}`;
   } else if (payers.length > 0) {
     headline = "Add how many shares you own to see what your dividends come to.";
@@ -538,8 +538,9 @@ export function buildDividendRead(plan: DividendPlan, options: DividendReadOptio
   const items: Array<Insight | null> = [];
 
   // Payout risk.
-  const stretched = payers.filter((s) => s.payout != null && s.payout > AT_RISK_PAYOUT).sort((a, b) => b.payout! - a.payout!);
-  const losing = payers.filter((s) => s.payout != null && s.payout < 0);
+  // `atRisk` leaves out property trusts, which must pay out most of their income.
+  const stretched = payers.filter((s) => s.atRisk && s.payout != null && s.payout > AT_RISK_PAYOUT).sort((a, b) => b.payout! - a.payout!);
+  const losing = payers.filter((s) => s.atRisk && s.payout != null && s.payout < 0);
   if (stretched.length === 1) {
     const s = stretched[0]!;
     items.push({

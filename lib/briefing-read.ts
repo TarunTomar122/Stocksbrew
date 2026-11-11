@@ -141,7 +141,6 @@ function moverInsight(group: BriefingGroup, index: IndexMove, date?: string): In
     id: `mover-${group.key}`,
     tone: toneOfChange(move),
     text: why ? `${base}${why.startsWith("after") ? ` ${why}` : `: ${why}`}.` : `${base}${earlier ? "" : versusIndex(index)}.`,
-    soWhat: why ? undefined : "No confirmed reason yet.",
     tickers: [group.ticker],
     action: { label: `${group.ticker} report`, href: stockHref(group.ticker) },
   };
@@ -214,9 +213,20 @@ function leaderText(leader: { name: string; pct: number } | null | undefined, pc
   return `, led by ${leader.name} (${signed(leader.pct)}),`;
 }
 
+/** The whole session line as one string (the read now uses `sessionParts`; kept for tests and other callers). */
 export function sessionLine(indexLine: string, index: IndexMove, session: BriefingSession | null | undefined): string {
+  const parts = sessionParts(indexLine, index, session);
+  return parts ? [parts.line, parts.pulled].filter(Boolean).join(" ") : "";
+}
+
+/**
+ * The session line in its two parts: the index against the sectors (the
+ * headline), and, when the biggest companies did it, how they pulled the
+ * index (the first line under it). Null when there is too little to say.
+ */
+export function sessionParts(indexLine: string, index: IndexMove, session: BriefingSession | null | undefined): { line: string; pulled: string | null; pulledPct: number | null } | null {
   const sectors = (session?.sectors ?? []).filter((sector) => Number.isFinite(sector.day));
-  if (!index || !Number.isFinite(index.change_pct) || !indexLine || sectors.length < 4) return "";
+  if (!index || !Number.isFinite(index.change_pct) || !indexLine || sectors.length < 4) return null;
   const total = sectors.length;
   const up = sectors.filter((sector) => sector.day > 0).length;
   const down = sectors.filter((sector) => sector.day < 0).length;
@@ -228,16 +238,27 @@ export function sessionLine(indexLine: string, index: IndexMove, session: Briefi
     // Only say the giants did it when they moved the same way as the index and by more.
     const pulled =
       giants && giants.count >= 5 && Number.isFinite(giants.pct) && Math.abs(giants.pct) >= 0.05 && Math.sign(giants.pct) === Math.sign(move) && Math.abs(giants.pct) >= Math.abs(move)
-        ? ` The ${giants.count} biggest companies ${giants.pct < 0 ? "lost" : "gained"} ${Math.abs(giants.pct).toFixed(1)}% together${leaderText(giants.leader, giants.pct)} and ${giants.pct < 0 ? "pulled it down" : "lifted it"}.`
-        : "";
-    return `${base} even though ${move < 0 ? `${up} of ${total} sectors rose` : `${down} of ${total} sectors fell`}.${pulled}`;
+        ? `The ${giants.count} biggest companies ${giants.pct < 0 ? "lost" : "gained"} ${Math.abs(giants.pct).toFixed(1)}% together${leaderText(giants.leader, giants.pct)} and ${giants.pct < 0 ? "pulled it down" : "lifted it"}.`
+        : null;
+    return {
+      line: `${base} even though ${move < 0 ? `${up} of ${total} sectors rose` : `${down} of ${total} sectors fell`}.`,
+      pulled,
+      pulledPct: pulled ? giants!.pct : null,
+    };
   }
   const same = move >= 0 ? up : down;
   const word = move >= 0 ? "higher" : "lower";
-  if (same === total) return `${base}, with every sector ${word}.`;
-  if (same === 0) return `${base}, with no sector ${word}.`;
-  return `${base}, with ${same} of ${total} sectors ${word}.`;
+  const line = same === total ? `${base}, with every sector ${word}.` : same === 0 ? `${base}, with no sector ${word}.` : `${base}, with ${same} of ${total} sectors ${word}.`;
+  return { line, pulled: null, pulledPct: null };
 }
+
+/** Words in a sentence, for keeping a headline to one short line of thought. */
+function wordCount(text: string): number {
+  return text.split(/\s+/).filter(Boolean).length;
+}
+
+/** A headline longer than this moves its extra clauses one line down. */
+const HEADLINE_WORDS = 20;
 
 export function briefingRead(
   briefing: Pick<Briefing, "mode" | "portfolio" | "market" | "quiet"> & { date?: string },
@@ -266,15 +287,23 @@ export function briefingRead(
     // The reason goes in the headline when it splits cleanly ("Hims & Hers Health fell 16.5% after earnings that
     // missed expectations"); its row then leaves the list below, so the read never says the same thing twice.
     const leadInsight = lead && leadName ? lead.items.map((item) => explainedMoveInsight(item, briefing.date, lead.name)).find(Boolean) ?? null : null;
-    const leadWhy = leadInsight && lead?.ticker && leadInsight.text.startsWith(`${lead.ticker} `) && / after /.test(leadInsight.text)
+    // A reason too long for a short headline stays in its row below instead.
+    const whyText = leadInsight && lead?.ticker && leadInsight.text.startsWith(`${lead.ticker} `) && / after /.test(leadInsight.text)
       ? `${leadName} ${leadInsight.text.slice(lead.ticker.length + 1).replace(/\.$/, "")}.`
       : "";
+    const leadWhy = whyText && wordCount(whyText) <= HEADLINE_WORDS ? whyText : "";
+    const biggest = `the biggest move${earlier ? "" : " today"} with a confirmed reason`;
+    const withBiggest = leadWhy ? `${leadWhy.replace(/\.$/, "")}, ${biggest}.` : "";
+    // The "biggest move" clause rides along only while the headline stays short; otherwise it goes under the index line.
+    const biggestBelow = Boolean(leadWhy) && wordCount(withBiggest) > HEADLINE_WORDS;
     const leaders = !leadName
       ? ""
       : leadWhy
-        ? `${leadWhy.replace(/\.$/, "")}, the biggest move${earlier ? "" : " today"} with a confirmed reason.`
+        ? biggestBelow
+          ? leadWhy
+          : withBiggest
         : leadMove != null && Number.isFinite(leadMove) && leadMove !== 0
-          ? `${leadName} ${leadMove > 0 ? "rose" : "fell"} ${pct(leadMove)}${earlier}, the biggest move${earlier ? "" : " today"} with a confirmed reason.`
+          ? `${leadName} ${leadMove > 0 ? "rose" : "fell"} ${pct(leadMove)}${earlier}, ${biggest}.`
           : `${leadName} made the biggest move with a confirmed reason${earlier}.`;
     const clock = indexClock(briefing.market.as_of, briefing.date);
     const direction = index ? `${index.change_pct >= 0 ? "up" : "down"} ${pct(index.change_pct, 2)}` : "";
@@ -286,24 +315,38 @@ export function briefingRead(
           ? `As of ${clock.clock}, the ${index.name} is ${direction}.`
           : `The ${index.name} is ${direction}.`;
     // What the whole session meant comes first when we can say it; the biggest explained move is then the first story under it.
-    const day = earlier ? "" : sessionLine(indexLine, index, session);
+    const day = earlier ? null : sessionParts(indexLine, index, session);
     if (day) {
       const ordered = lead ? [lead, ...leads.filter((group) => group !== lead)] : leads;
-      const stories = pickInsights(
-        ordered.slice(0, 1).map((group) => {
+      // How the biggest companies pulled the index is the first line under the session, not part of the headline.
+      const giants: Insight | null = day.pulled ? { id: "giants", tone: toneOfChange(day.pulledPct), text: day.pulled } : null;
+      const stories = pickInsights([
+        giants,
+        ...ordered.slice(0, 1).map((group) => {
           const insight = group.items.map((item) => explainedMoveInsight(item, briefing.date, group.name)).find(Boolean) ?? null;
           return insight && group === lead ? { ...insight, soWhat: "The biggest move today with a confirmed reason." } : insight;
         }),
-      );
-      return { headline: day, insights: stories, asOf };
+      ]);
+      return { headline: day.line, insights: stories, asOf };
     }
-    // Otherwise the story first, the index as its backdrop.
-    const headline = [leaders, indexLine].filter(Boolean).join(" ");
-    const insights = pickInsights(
-      leads
+    // Otherwise the story is the headline and the index, its backdrop, is the first line under it.
+    const headline = leaders || indexLine;
+    const indexPoint: Insight | null =
+      leaders && indexLine && index
+        ? {
+            id: "index",
+            tone: toneOfChange(index.change_pct, 0.05),
+            text: indexLine,
+            ...(biggestBelow ? { soWhat: `${leadName}'s ${leadMove != null && Number.isFinite(leadMove) ? `${pct(leadMove)} ${leadMove < 0 ? "fall" : "rise"}` : "move"} was ${biggest}.` } : {}),
+          }
+        : null;
+    // The index line the headline handed down rides on top of the usual three stories.
+    const insights = pickInsights([
+      indexPoint,
+      ...leads
         .filter((group) => !(leadWhy && group === lead))
         .map((group) => group.items.map((item) => explainedMoveInsight(item, briefing.date, group.name)).find(Boolean) ?? null),
-    );
+    ], indexPoint ? 4 : 3);
     if (!headline && insights.length === 0) return null;
     return { headline, insights, asOf, headlineTickers: leadWhy && lead?.ticker ? [lead.ticker] : undefined };
   }

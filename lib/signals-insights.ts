@@ -141,7 +141,7 @@ function unexplainedInsight(movers: MoverForRead[]): Insight | null {
   return {
     id: "unexplained",
     tone: "flat",
-    text: `${open.length} of ${movers.length} moves (${share}%) have no confirmed reason, the biggest ${listNames(biggest.map((mover) => `${mover.ticker} ${signedPct(mover.pct)}`))}.`,
+    text: `${open.length} of ${movers.length} big moves (${share}%) came with no news yet, the biggest ${listNames(biggest.map((mover) => `${mover.ticker} ${signedPct(mover.pct)}`))}.`,
     soWhat: "A big move with no news is worth a look before you act on it.",
     tickers: biggest.map((mover) => mover.ticker),
     action: { label: "See them", href: "/signals?tab=movers&show=unexplained" },
@@ -169,48 +169,63 @@ function listMovers(rows: MoverForRead[], max: number): string {
 
 /** The headline for the day's movers, also used as the explore movers panel's one-liner. */
 export function moversHeadline(movers: MoverForRead[]): string | null {
+  return moversLead(movers)?.text ?? null;
+}
+
+/**
+ * The movers headline and the side it is about. One sentence: the theme (or
+ * the cause) behind one side; the other side's cause is a line under it.
+ */
+function moversLead(movers: MoverForRead[]): { text: string; side: Side["label"] | null } | null {
   if (movers.length === 0) return null;
-  const parts: string[] = [];
+  const parts: Array<{ text: string; side: Side["label"] }> = [];
   const cluster = themeCluster(movers);
   let used: Side["label"] | null = null;
   if (cluster) {
     const cause = causeCluster(cluster.rows);
     const label = `${cluster.theme.label.charAt(0).toUpperCase()}${cluster.theme.label.slice(1)}`;
-    parts.push(`${label} stocks led the ${cluster.side.label}${cause ? ` on ${CAUSE_SHORT[cause.kind]}` : ""} (${listMovers(cluster.rows, 3)})`);
+    parts.push({ text: `${label} stocks led the ${cluster.side.label}${cause ? ` on ${CAUSE_SHORT[cause.kind]}` : ""} (${listMovers(cluster.rows, 3)})`, side: cluster.side.label });
     used = cluster.side.label;
   }
-  const earnings: Partial<Record<Side["label"], string>> = {};
+  const earnings: Partial<Record<Side["label"], { count: number; lead: string }>> = {};
   for (const side of sides(movers)) {
     if (side.label === used || parts.length >= 2) continue;
     const cause = causeCluster(side.rows.slice(0, 10));
     if (!cause) continue;
     const names = listMovers(cause.rows, 3);
-    if (cause.kind === "earnings") earnings[side.label] = names;
+    // Tickers here: two long company names made this a four-line headline on a phone.
+    if (cause.kind === "earnings") earnings[side.label] = { count: cause.rows.length, lead: cause.rows[0]!.ticker };
     const phrase =
       cause.kind === "earnings"
         ? side.label === "decliners"
           ? `earnings reports sent ${names} down`
           : `earnings reports lifted ${names}`
         : `${CAUSE_SHORT[cause.kind]} moved the ${side.label} (${names})`;
-    parts.push(phrase.charAt(0).toUpperCase() + phrase.slice(1));
+    parts.push({ text: phrase.charAt(0).toUpperCase() + phrase.slice(1), side: side.label });
   }
   // Both sides on earnings: say the one thing that explains the day, then the names.
   if (!used && earnings.gainers && earnings.decliners) {
-    return `Earnings reports drove the day's biggest moves: up for ${earnings.gainers}, down for ${earnings.decliners}.`;
+    // Counts and the biggest name on each side; the full lists are the rows under the read.
+    return {
+      text: `Earnings reports drove the day's biggest moves: ${earnings.gainers.count} up, led by ${earnings.gainers.lead}, and ${earnings.decliners.count} down, led by ${earnings.decliners.lead}.`,
+      side: null,
+    };
   }
-  if (parts.length) return parts.map((part) => `${part}.`).join(" ");
+  if (parts.length) return { text: `${parts[0]!.text}.`, side: parts[0]!.side };
   const top = [...movers].sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct) || a.ticker.localeCompare(b.ticker))[0]!;
-  return `${moverName(top)} moved most, ${signedPct(top.pct)}${top.explained && top.headline ? `: ${top.headline.replace(/\.$/, "")}` : ", with no confirmed reason yet"}.`;
+  return { text: `${moverName(top)} moved most, ${signedPct(top.pct)}${top.explained && top.headline ? `: ${top.headline.replace(/\.$/, "")}` : ""}.`, side: null };
 }
 
 export function buildMoversRead(movers: MoverForRead[], asOf: string | null = null): TheRead | null {
-  const headline = moversHeadline(movers);
-  if (!headline) return null;
+  const lead = moversLead(movers);
+  if (!lead) return null;
+  const headline = lead.text;
   const theme = themeInsight(movers);
   const themeSide = theme ? (theme.tone === "up" ? "gainers" : "decliners") : null;
   return {
     headline,
-    insights: pickInsights([theme, causeInsight(movers, themeSide), unexplainedInsight(movers)]),
+    // The cause line is about the side the headline did not cover.
+    insights: pickInsights([theme, causeInsight(movers, themeSide ?? lead.side), unexplainedInsight(movers)]),
     asOf,
   };
 }
@@ -321,15 +336,15 @@ export function buildRedditRead(names: RedditName[], asOf: string | null = null)
   const lean = bearShare >= bullShare + 15 ? "bearish" : bullShare >= bearShare + 15 ? "bullish" : "split";
   // Bullish and bearish said plainly: people expect prices to rise, or to fall.
   // The count first, so a share has its base: "Of the 56 stock mentions we counted on Reddit, 41% ...".
-  const base = mood.total > 0 ? `Of the ${mood.total} stock mentions we counted on Reddit` : "On Reddit";
-  const leanText =
+  // One sentence with its base; the most-mentioned stock is the first line under it.
+  const of = mood.total > 0 ? ` of the ${mood.total} stock mentions we counted on Reddit` : " of Reddit mentions";
+  const headline =
     lean === "split"
-      ? `${base}, ${bullShare}% expect prices to rise and ${bearShare}% expect them to fall`
+      ? `Reddit is split: ${mood.total > 0 ? `of the ${mood.total} stock mentions we counted, ` : ""}${bullShare}% expect prices to rise and ${bearShare}% expect a fall.`
       : lean === "bearish"
-        ? `More Reddit posts expect a fall than a rise. ${base}, ${bearShare}% expect prices to fall and ${bullShare}% expect a rise`
-        : `More Reddit posts expect a rise than a fall. ${base}, ${bullShare}% expect prices to rise and ${bearShare}% expect a fall`;
-  const headline = loud ? `${leanText}. ${loud.ticker} gets the most mentions.` : `${leanText}.`;
-  const loudest = loudestInsight(names);
+        ? `${bearShare}%${of} expect prices to fall, against ${bullShare}% expecting a rise.`
+        : `${bullShare}%${of} expect prices to rise, against ${bearShare}% expecting a fall.`;
+  const loudest = loudestInsight(names) ?? (loud ? { id: "loudest", tone: "flat" as const, text: `${loud.ticker} gets the most mentions.`, tickers: [loud.ticker] } : null);
   const against = againstInsight(names);
   const skip = new Set([...(loudest?.tickers ?? []), ...(against?.tickers ?? [])]);
   return {

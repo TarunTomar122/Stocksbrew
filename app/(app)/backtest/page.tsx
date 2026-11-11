@@ -129,7 +129,7 @@ export default async function BacktestPage({ searchParams }: { searchParams: Que
           firstDate={firstDate}
           lastDate={dates[dates.length - 1] ?? null}
         />
-        <PageNote lede={lede} />
+        <PageNote lede={lede} ledeInHead />
       </div>
     </main>
   );

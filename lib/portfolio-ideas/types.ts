@@ -79,7 +79,11 @@ export type TrimIdea = {
   ofHolding: number;
   /** What the idea is about: the company, or the sector for a sector trim. */
   subject: string;
-  /** The subject's share of the portfolio before and after this sale, percent. */
+  /**
+   * The subject's share of the portfolio today and after this one sale on its
+   * own, percent, on the x-ray's base (funds counted). Never after the other
+   * trims: every number on a card is measured against today's portfolio.
+   */
   before: number;
   after: number;
   /** The line the idea aims for, percent. */
@@ -137,6 +141,12 @@ export type RebalancePlan = {
   unsized: Array<{ ticker: string; name: string; pct: number }>;
   /** Companies above the line left out because only the biggest few get an idea. */
   moreOver: Array<{ ticker: string; name: string; pct: number }>;
+  /** Every company above the line once funds are counted, biggest first, whatever happened to it. */
+  companiesOver: Array<{ ticker: string; name: string; pct: number }>;
+  /** Companies above the line whose call is Buy more: said as information, never sold. */
+  buyMoreOver: Array<{ ticker: string; name: string; pct: number; callReason: string | null }>;
+  /** Companies above the line whose trim would be too small to matter (under the minimum sale). */
+  small: Array<{ ticker: string; name: string; pct: number }>;
   /** Set when there is nothing to do: why that is a fine answer. */
   quiet: string | null;
 };

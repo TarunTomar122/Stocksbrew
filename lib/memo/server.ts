@@ -44,6 +44,7 @@ async function writeMemo(
   events: SpanEvents,
   shape: ShapeFacts,
   now: Date,
+  worded = true,
 ): Promise<Memo> {
   const inputs: MemoInputs = {
     week,
@@ -56,7 +57,7 @@ async function writeMemo(
     ...shape,
   };
   const built = buildMemo(inputs, now);
-  const reader = memoModelReader();
+  const reader = worded ? memoModelReader() : null;
   if (!reader) return built.memo;
   try {
     const wording = await reader(wordingPayload(built));
@@ -72,7 +73,7 @@ async function writeMemo(
 /* ── the example ────────────────────────────────────────────────────────── */
 
 /** `day` keys the cache to the New York day. Throws rather than return nothing, so a failed read is not cached for hours. */
-async function exampleMemosUncached(_day: string): Promise<Memo[]> {
+async function exampleMemosUncached(_day: string, worded = true): Promise<Memo[]> {
   // The example is the same for every visitor, so it shows the reasons a visitor may see: the showcase stocks'.
   const source = await exampleHoldings((ticker) => isFeaturedStockTicker(ticker));
   if (!source) throw new Error("memo_example_holdings_unavailable");
@@ -85,10 +86,12 @@ async function exampleMemosUncached(_day: string): Promise<Memo[]> {
     loadSpanEvents(source.holdings, spanOf(weeks, current.today)),
     loadShapeFacts(source, current.series).catch(() => NO_SHAPE),
   ]);
-  return Promise.all(weeks.map((week, index) => writeMemo(source, week, current.today, current.series, events, index === 0 ? shape : NO_SHAPE, now)));
+  return Promise.all(weeks.map((week, index) => writeMemo(source, week, current.today, current.series, events, index === 0 ? shape : NO_SHAPE, now, worded)));
 }
 
-const exampleMemosCached = unstable_cache(exampleMemosUncached, ["portfolio-memo-example-v8"], { revalidate: 6 * 3600 });
+const exampleMemosCached = unstable_cache((day: string) => exampleMemosUncached(day), ["portfolio-memo-example-v8"], { revalidate: 6 * 3600 });
+/** The same example from the memo's rules only, never the model: for pages that must not start a model call on load. */
+const exampleMemosRulesCached = unstable_cache((day: string) => exampleMemosUncached(day, false), ["portfolio-memo-example-rules-v1"], { revalidate: 6 * 3600 });
 
 export type MemoPageData = {
   mode: "mine" | "example";
@@ -103,8 +106,8 @@ function historyOf(memos: Memo[]): MemoHistoryRow[] {
 }
 
 /** The example portfolio's memo for `weekKey` (latest when null), with its other weeks. */
-export async function loadExampleMemo(today: string, weekKey: string | null): Promise<MemoPageData | null> {
-  const memos = await exampleMemosCached(today).catch((error) => {
+export async function loadExampleMemo(today: string, weekKey: string | null, options: { worded?: boolean } = {}): Promise<MemoPageData | null> {
+  const memos = await (options.worded === false ? exampleMemosRulesCached : exampleMemosCached)(today).catch((error) => {
     console.warn("[memo] example unavailable:", error instanceof Error ? error.message : error);
     return [] as Memo[];
   });

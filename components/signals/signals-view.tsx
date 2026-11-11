@@ -66,7 +66,7 @@ export function SignalsBar({
     chips = [
       { id: "all", label: "All", count: counts.all, href: signalsHref(filters, { show: "all" }) },
       { id: "explained", label: "With a reason", count: counts.explained, href: signalsHref(filters, { show: "explained" }) },
-      { id: "unexplained", label: "No confirmed reason", count: counts.unexplained, href: signalsHref(filters, { show: "unexplained" }) },
+      { id: "unexplained", label: "Without a reason", count: counts.unexplained, href: signalsHref(filters, { show: "unexplained" }) },
       { id: "up", label: "Up", count: counts.up, href: signalsHref(filters, { show: "up" }) },
       { id: "down", label: "Down", count: counts.down, href: signalsHref(filters, { show: "down" }) },
     ];
@@ -116,13 +116,10 @@ function Chevron() {
   );
 }
 
-function MoverLine({ mover, rank, max }: { mover: Mover; rank: number; max: number }) {
-  const cause = mover.explained ? mover.cause ?? "Company news" : "No confirmed reason";
-  const headline = mover.explained
-    ? mover.headline
-    : mover.searched
-      ? "Searched the news, filings and outside sources. Nothing specific."
-      : "No specific cause found yet.";
+function MoverLine({ mover, rank }: { mover: Mover; rank: number }) {
+  // No reason found: the row is just the stock and its move, with nothing written in its place (owner, Nov 11).
+  const cause = mover.explained ? mover.cause ?? "Company news" : null;
+  const headline = mover.explained ? mover.headline : null;
   return (
     <div className={`px-4 py-3 lg:py-2.5 ${MOVER_COLS}`}>
       {/* who and how much: always the first thing on the line */}
@@ -135,13 +132,18 @@ function MoverLine({ mover, rank, max }: { mover: Mover; rank: number; max: numb
         <Delta value={mover.pct} className="shrink-0 text-[15px] font-semibold lg:w-[4.75rem] lg:text-right" />
       </div>
       {/* what kind of news, then the headline */}
-      <p className={`mt-1.5 flex min-w-0 items-baseline gap-1.5 pl-7 text-[13px] leading-5 lg:mt-0 lg:pl-0 ${mover.explained ? "text-oa-fg" : "text-oa-muted-fg"}`}>
-        <span aria-hidden="true" className={`size-1.5 shrink-0 translate-y-[-1px] rounded-full ${mover.explained ? "bg-oa-primary" : "bg-oa-border"}`} />
-        {/* Wraps instead of cutting off: "Earnings miss and analyst target cut" reads whole. */}
-        <span className="min-w-0 text-pretty">{cause}</span>
+      {/* The empty cells stay on a wide screen to hold the columns; on a phone they are not drawn. */}
+      <p className={`mt-1.5 flex min-w-0 items-baseline gap-1.5 pl-7 text-[13px] leading-5 text-oa-fg lg:mt-0 lg:pl-0 ${cause ? "" : "max-lg:hidden"}`}>
+        {cause ? (
+          <>
+            <span aria-hidden="true" className="size-1.5 shrink-0 translate-y-[-1px] rounded-full bg-oa-primary" />
+            {/* Wraps instead of cutting off: "Earnings miss and analyst target cut" reads whole. */}
+            <span className="min-w-0 text-pretty">{cause}</span>
+          </>
+        ) : null}
       </p>
-      <p className={`mt-0.5 min-w-0 pl-7 text-[14px] leading-[21px] lg:mt-0 lg:pl-0 ${mover.explained ? "font-medium text-oa-fg" : "text-oa-muted-fg"}`}>
-        {plainFinance(sentenceCase(headline))}
+      <p className={`mt-0.5 min-w-0 pl-7 text-[14px] font-medium leading-[21px] text-oa-fg lg:mt-0 lg:pl-0 ${headline ? "" : "max-lg:hidden"}`}>
+        {headline ? plainFinance(sentenceCase(headline)) : null}
       </p>
       <span className="hidden lg:block">{mover.explained ? <Chevron /> : null}</span>
     </div>
@@ -185,7 +187,6 @@ function MoverDetail({ mover }: { mover: Mover }) {
 
 export function MoversTab({ data, filters }: { data: MoversData; filters: SignalsFilters }) {
   const rows = filterMovers(data.movers, filters.show);
-  const max = rows.reduce((top, mover) => Math.max(top, Math.abs(mover.pct)), 0);
   return (
     <>
       <Panel flush>
@@ -206,12 +207,12 @@ export function MoversTab({ data, filters }: { data: MoversData; filters: Signal
                   {mover.explained ? (
                     <details className="group">
                       <summary data-track="mover_opened" data-track-ticker={mover.ticker} data-track-list="movers" className={`cursor-pointer list-none hover:bg-oa-accent [&::-webkit-details-marker]:hidden ${FOCUS}`}>
-                        <MoverLine mover={mover} rank={index + 1} max={max} />
+                        <MoverLine mover={mover} rank={index + 1} />
                       </summary>
                       <MoverDetail mover={mover} />
                     </details>
                   ) : (
-                    <MoverLine mover={mover} rank={index + 1} max={max} />
+                    <MoverLine mover={mover} rank={index + 1} />
                   )}
                 </li>
               ))}

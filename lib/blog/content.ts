@@ -2109,7 +2109,7 @@ export const blogContent: Record<string, string> = {
 <div class="cta-section">
   <h3>Analyze Your Portfolio for Free</h3>
   <p>Check sector allocation, concentration risk, and factor exposure.</p>
-  <a href="https://stocksbrew.online/portfolio" class="cta-button">Analyze Portfolio →</a>
+  <a href="https://stocksbrew.online/portfolio/analyze" class="cta-button">Analyze Portfolio →</a>
 </div>
 
 <p>Related: <a href="/blog/track-stock-news-for-your-portfolio">How to Track Portfolio News</a>.</p>

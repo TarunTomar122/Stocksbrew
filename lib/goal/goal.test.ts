@@ -241,22 +241,23 @@ describe("words", () => {
   const outcome = (chance: number) => ({ years: 20, bands: [end], end, chance, putIn: 220_000, levers: [], benchmark: null });
 
   it("says the chance in words", () => {
-    expect(headline(outcome(0.5), inputs(), "this portfolio")).toBe(
-      "In about half of the replays this portfolio reaches $1 million by 55; in the weakest one in ten it gets to $610,000.",
-    );
-    expect(headline(outcome(0.7), inputs(), "your portfolio")).toContain("In about 7 of every 10 replays your portfolio reaches $1 million by 55");
-    expect(headline(outcome(0.97), inputs(), "x")).toContain("In almost every replay");
+    expect(headline(outcome(0.5), inputs(), "this portfolio")).toBe("This portfolio reaches $1 million by 55 in about half of the replays.");
+    expect(headline(outcome(0.7), inputs(), "your portfolio")).toBe("Your portfolio reaches $1 million by 55 in about 7 of 10 replays.");
+    expect(headline(outcome(0.97), inputs(), "x")).toContain("in almost every replay");
     expect(headline(outcome(0.01), inputs(), "x")).toContain("Almost no replay gets x to $1 million by 55");
   });
 
-  it("builds a read with the lever first and the limits in the source line", () => {
+  it("builds a read with the range first, then the lever, and the limits in the source line", () => {
     const read = buildGoalRead(
       { ...outcome(0.4), levers: [{ kind: "more", q: 0.5, monthly: 800, extra: 300 }, { kind: "later", age: 58, years: 3 }] },
       inputs({ monthly: 500 }),
       { example: true, parts: [], span: { first: "2014-12", last: "2026-10" }, paths: 4000 },
     );
-    expect(read.insights[0]!.text).toBe("Putting in $800 a month, $300 more than now, would lift the middle replay to $1 million.");
-    expect(read.insights[0]!.soWhat).toBe("At $500 a month, half the replays get there by 58, 3 years later than you planned.");
+    // The range the headline leaves out comes first; the lever follows.
+    expect(read.insights[0]!.text).toBe("The middle replay ends at $1.01 million and the weakest one in ten at $610,000.");
+    const lever = read.insights.find((item) => item.id === "goal-lever-more")!;
+    expect(lever.text).toBe("Putting in $800 a month, $300 more than now, would lift the middle replay to $1 million.");
+    expect(lever.soWhat).toBe("At $500 a month, half the replays get there by 58, 3 years later than you planned.");
     expect(read.source).toContain("Dec 2014 to Oct 2026");
     expect(read.source).toContain("not a forecast");
   });
@@ -265,7 +266,7 @@ describe("words", () => {
     expect(headline(outcome(0), inputs({ start: 0, monthly: 0 }), "your portfolio")).toBe(
       "With nothing to start with and nothing added each month, your portfolio has nothing to grow.",
     );
-    expect(headline(outcome(1), inputs({ start: 1_200_000 }), "your portfolio")).toMatch(/^What you have now already covers the \$1 million goal/);
+    expect(headline(outcome(1), inputs({ start: 1_200_000 }), "your portfolio")).toBe("What you have now already covers the $1 million goal.");
     expect(moneyWords(1.2e12)).toBe("$1.2 trillion");
   });
 
@@ -273,9 +274,10 @@ describe("words", () => {
     const base = { ...outcome(0.93), benchmark: { chance: 0.8, p50: 1_360_000 } };
     const context = { example: true, parts: [], span: { first: "2014-12", last: "2026-10" }, paths: 4000 };
     const read = buildGoalRead(base, inputs(), context);
-    expect(read.headline).toBe(
-      "In about 9 of every 10 replays this portfolio reaches $1 million by 55, against about 8 in 10 with only the S&P 500; the weakest one in ten gets to $610,000, counting only half of each holding's past lead over the S&P 500.",
-    );
+    expect(read.headline).toBe("This portfolio reaches $1 million by 55 in about 9 of 10 replays, against about 8 in 10 for the S&P 500.");
+    // The headline is one idea; the weak end comes first, and the hindsight discount is the second line, in view on a phone.
+    expect(read.insights.map((item) => item.id).slice(0, 2)).toEqual(["goal-range", "goal-discount"]);
+    expect(read.insights[0]!.text).toBe("The weakest one in ten replays gets to $610,000 by 55.");
     const note = read.insights.find((item) => item.id === "goal-discount")!;
     expect(note.tone).toBe("flat");
     expect(note.text).toBe(DISCOUNT_SENTENCE);
