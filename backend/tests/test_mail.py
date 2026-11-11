@@ -134,18 +134,6 @@ def test_listicles_are_not_reasons(title, ok):
     assert is_reason_headline(title) is ok
 
 
-def test_weekly_scores_each_call_once_and_shows_misses():
-    s = stock("WK")
-    s.week_change_pct = 3.0
-    s.calls = calls("accumulate", "accumulate", "accumulate", last_day="2026-10-01")
-    for c in s.calls:
-        c.return_7d = -2.0
-    scored = weekly.scored_calls([s], NOW.date())
-    assert len(scored) == 1 and scored[0].right is False
-    email = weekly.build_weekly(person([s]), now=NOW)
-    assert "0 of 1" in email.text and "Missed" in email.text
-
-
 def test_alerts_bundle_and_list_busy_jobs():
     f = [alerts.Finding("Big daily moves", f"T{i}", f"T{i} rose 9% in the last session", "", "Daily closing prices", "2026-11-06", "")
          for i in range(5)]
@@ -277,7 +265,7 @@ def test_weekly_flat_week_and_stale_history():
     old.dates = [d for d in old.dates][:-10]  # history stopped two weeks ago
     old.closes = old.closes[:-10]
     e = weekly.build_weekly(person([a, old]), now=NOW)
-    assert "were flat" in e.text and "OLD" not in e.text.split("How our calls did")[0]
+    assert "were flat" in e.text and "OLD" not in e.text.split("Coming up next week")[0]
 
 
 def test_weekly_coming_up_is_next_week_only():
@@ -290,9 +278,10 @@ def test_weekly_coming_up_is_next_week_only():
     assert "1 earnings report coming up" in e.preheader
 
 
-def test_weekly_preheader_does_not_promise_a_missing_scorecard():
+def test_weekly_never_shows_a_record_of_our_calls():
+    # The owner does not want a scoreboard of our calls in emails.
     e = weekly.build_weekly(person([stock("NOC", week_change_pct=1.0)]), now=NOW)
-    assert "How our calls did" not in e.text and "calls" not in e.preheader
+    assert "How our calls did" not in e.text and "went the right way" not in e.text and "calls" not in e.preheader
 
 
 def test_alert_source_has_no_trailing_comma():
