@@ -11,6 +11,7 @@ Usage:
 """
 from __future__ import annotations
 
+import os
 import argparse
 import time
 from datetime import datetime, timedelta, timezone
@@ -94,6 +95,11 @@ def main() -> None:
     args = parser.parse_args()
 
     load_backend_env()
+    # The owner turned the old-design alert emails off with the switch to backend/mail (Nov 11):
+    # with MAIL_V2_ACTIVE=1 this job stops before sending. LEGACY_ALERTS=1 brings it back.
+    if os.environ.get("MAIL_V2_ACTIVE") == "1" and os.environ.get("LEGACY_ALERTS") != "1":
+        print("[legacy alerts] MAIL_V2_ACTIVE=1: old-design alert emails are off; skipping")
+        return
     t0 = time.time()
 
     if args.test_to:

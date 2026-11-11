@@ -22,6 +22,9 @@ from backend.mail import theme as t
 PROD_URL = "https://www.stocksbrew.online"
 
 
+# Where readers can reach us; every email footer shows it.
+CONTACT_EMAIL = os.environ.get("STOCKSBREW_CONTACT_EMAIL", "tomartarun2001@gmail.com")
+
 def _app_base() -> str:
     """Links and images in a sent email must be public: never a localhost or http base."""
     explicit = os.environ.get("MAIL_APP_URL", "").strip()
@@ -563,7 +566,9 @@ def render(
         f"<p style='margin:0 0 6px;font-size:{t.TEXT_XS}px;line-height:1.6;color:{t.MUTED}'>"
         f"<a href='{esc(settings_url())}' style='color:{t.MUTED};text-decoration:underline'>Email settings</a>"
         f" &nbsp;&middot;&nbsp; <a href='{esc(unsub)}' style='color:{t.MUTED};text-decoration:underline'>Stop {esc(label)}</a></p>"
-        f"<p style='margin:0;font-size:{t.TEXT_XS}px;line-height:1.6;color:{t.MUTED}'>Research to help you decide, not investment advice.</p>"
+        f"<p style='margin:0 0 6px;font-size:{t.TEXT_XS}px;line-height:1.6;color:{t.MUTED}'>Research to help you decide, not investment advice.</p>"
+        f"<p style='margin:0;font-size:{t.TEXT_XS}px;line-height:1.6;color:{t.MUTED}'>stocksbrew &middot; "
+        f"<a href='mailto:{esc(CONTACT_EMAIL)}' style='color:{t.MUTED};text-decoration:underline'>{esc(CONTACT_EMAIL)}</a></p>"
     )
     mark = f"{APP_URL}/email/mark.png"
     page = f"""<!doctype html>
