@@ -481,17 +481,17 @@ def level_bar(price: float | None, add: float | None, trim: float | None) -> str
         + f"<td width='3' style='width:3px;height:16px;background:{t.INK};font-size:0;line-height:0;border-radius:2px'>&nbsp;</td>"
         + "<td style='font-size:0;line-height:0'>&nbsp;</td></tr></table>"
     )
-    add_label = f"Add below {money(add)}" if add else ""
-    trim_label = f"Trim above {money(trim)}" if trim else ""
+    add_label = f"Buy more below {money(add)}" if add else ""
+    trim_label = f"Sell some above {money(trim)}" if trim else ""
     # a new call often sets its level at the close, so "at" the level is not "in" the zone
     if add and price < add * 0.998:
-        add_label = "In the add zone"
+        add_label = "Below our buy-more price"
     elif add and price <= add * 1.002:
-        add_label = "At the add level"
+        add_label = "At our buy-more price"
     if trim and price > trim * 1.002:
-        trim_label = "In the trim zone"
+        trim_label = "Above our sell-some price"
     elif trim and price >= trim * 0.998:
-        trim_label = "At the trim level"
+        trim_label = "At our sell-some price"
     return (
         f"<div style='margin-top:16px'>"
         "<table role='presentation' width='100%' cellpadding='0' cellspacing='0' style='border-radius:3px;overflow:hidden'>"

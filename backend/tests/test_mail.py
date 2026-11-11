@@ -204,9 +204,9 @@ def test_pct_never_prints_negative_zero():
 def test_level_at_the_close_is_not_in_the_zone():
     # a new call that sets its add level at the close is "at" the level, not "in the add zone"
     bar = kit.level_bar(59.38, 59.38, 103.67)
-    assert "In the add zone" not in bar and "At the add level" in bar
-    assert "In the add zone" in kit.level_bar(55.0, 59.38, 103.67)
-    assert "In the trim zone" not in kit.level_bar(103.67, 59.38, 103.67)
+    assert "Below our buy-more price" not in bar and "At our buy-more price" in bar
+    assert "Below our buy-more price" in kit.level_bar(55.0, 59.38, 103.67)
+    assert "Above our sell-some price" not in kit.level_bar(103.67, 59.38, 103.67)
 
 
 def test_inverted_levels_are_not_drawn():
@@ -324,7 +324,7 @@ def test_setup_nudge_does_not_call_a_small_move_big():
     s = stock("SML", change_pct=0.8)
     e = lifecycle.build_setup_nudge(person([]), [s], day=5)
     assert "[Big move]" not in e.text
-    assert "add and trim levels" not in e.text  # this stock has no levels
+    assert "buy more or sell some" not in e.text  # this stock has no levels
 
 
 class _FakeSource:

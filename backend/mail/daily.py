@@ -20,15 +20,15 @@ MAX_CARDS = 5
 MAX_ALSO = 6
 
 STANCE_LABEL = {
-    "accumulate": "Accumulate",
-    "buy": "Buy",
-    "add": "Add",
-    "hold": "Hold",
-    "watch": "Watch",
-    "trim": "Trim",
-    "avoid": "Avoid",
-    "sell": "Sell",
-    "reduce": "Reduce",
+    "accumulate": "Buy more",
+    "buy": "Buy more",
+    "add": "Buy more",
+    "hold": "Keep",
+    "watch": "Keep",
+    "trim": "Sell some",
+    "avoid": "Sell some",
+    "sell": "Sell some",
+    "reduce": "Sell some",
 }
 
 
@@ -126,15 +126,15 @@ def items_for(person: Person, now: datetime, spy: Stock | None = None) -> list[I
                             and direction(s.stance) != "bullish")
         if crossed_add:
             items.append(
-                Item(s, "level_add", 100, "In the add zone", "up", f"Closed under the add level {when}",
-                     f"{s.ticker} closed at {kit.money_pair(s.price, add_lvl)[0]}, below the {kit.money_pair(s.price, add_lvl)[1]} level our call had set. {s.call_reason}".strip(),
+                Item(s, "level_add", 100, "Below our buy-more price", "up", f"Closed under our buy-more price {when}",
+                     f"{s.ticker} closed at {kit.money_pair(s.price, add_lvl)[0]}, below {kit.money_pair(s.price, add_lvl)[1]}, the price where our call said we'd buy more. {s.call_reason}".strip(),
                      show_levels=True, levels=(add_lvl, s.trim_above))
             )
             continue
         if crossed_trim:
             items.append(
-                Item(s, "level_trim", 100, "Above the trim level", "caution", f"Closed over the trim level {when}",
-                     f"{s.ticker} closed at {kit.money_pair(s.price, trim_lvl)[0]}, above the {kit.money_pair(s.price, trim_lvl)[1]} level our call had set. {s.call_reason}".strip(),
+                Item(s, "level_trim", 100, "Above our sell-some price", "caution", f"Closed over our sell-some price {when}",
+                     f"{s.ticker} closed at {kit.money_pair(s.price, trim_lvl)[0]}, above {kit.money_pair(s.price, trim_lvl)[1]}, the price where our call said we'd sell some. {s.call_reason}".strip(),
                      show_levels=True, levels=(s.add_below, trim_lvl))
             )
             continue
@@ -180,9 +180,9 @@ def subject_for(items: list[Item], today: date) -> str:
         if i.kind == "big_move":
             return f"{s.ticker} {'up' if (s.change_pct or 0) > 0 else 'down'} {kit.pct(s.change_pct, signed=False)}"
         if i.kind == "level_add":
-            return f"{s.ticker} hit its add zone"
+            return f"{s.ticker} fell to our buy-more price"
         if i.kind == "level_trim":
-            return f"{s.ticker} passed its trim level"
+            return f"{s.ticker} rose past our sell-some price"
         if i.kind == "call_change":
             return f"new call on {s.ticker}"
         return f"{s.ticker} reports {earnings_day(s.earnings_date, today)}" if s.earnings_date else f"{s.ticker} reports soon"

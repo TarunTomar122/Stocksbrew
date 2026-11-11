@@ -77,7 +77,7 @@ def build_setup_nudge(person: Person, popular: list[Stock], *, day: int, unsubsc
             doc.h1(f"{lead.ticker} {'rose' if up else 'fell'} {kit.pct(lead.change_pct, signed=False)} in the last session")
             doc.p(
                 f"{_hello(person)} if {lead.ticker} were on your watchlist, this morning's email would have looked for the reason "
-                + ("and shown where it sits against our add and trim levels. " if has_levels else "behind the move. ")
+                + ("and shown where it sits against the prices where we'd buy more or sell some. " if has_levels else "behind the move. ")
                 + "Here's what that looks like."
             )
             why, source = why_line(lead)
