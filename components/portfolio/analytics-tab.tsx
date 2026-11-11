@@ -5,6 +5,7 @@ import { MarkSlot } from "@/components/oa/kit/tone";
 import { markFor, toneFor } from "@/lib/tone";
 import type { HealthProps } from "@/lib/radar-next-data";
 import {
+  FUNDS_SECTOR,
   fmtDay,
   fmtMoney,
   fmtSignedPct,
@@ -91,6 +92,14 @@ function DiffBar({ value, scale }: { value: number; scale: number }) {
       <rect x="49.7" y="0" width="0.6" height="10" fill="var(--oa-muted-fg)" />
     </svg>
   );
+}
+
+/** "6 sectors", or "5 sectors and funds" when index funds are held (they are not a sector). */
+function sectorNote(slices: Array<{ label: string }>): string {
+  const sectors = slices.filter((slice) => slice.label !== FUNDS_SECTOR).length;
+  if (sectors === 0 && slices.length > 0) return "funds only";
+  const funds = sectors < slices.length;
+  return `${sectors} sector${sectors === 1 ? "" : "s"}${funds ? " and funds" : ""}`;
 }
 
 function SinceSavedTable({ positions }: { positions: PortfolioPosition[] }) {
@@ -253,7 +262,7 @@ export function AnalyticsTab({
       ) : null}
 
       <section className={`${CARD} grid grid-cols-2 gap-px !bg-oa-border sm:grid-cols-3 lg:grid-cols-6`}>
-        <Stat label="Holdings" value={totals.holdings} note={`${analytics.bySector.length} sector${analytics.bySector.length === 1 ? "" : "s"}`} />
+        <Stat label="Holdings" value={totals.holdings} note={sectorNote(analytics.bySector)} />
         <Stat
           label="Largest"
           value={analytics.top1 !== null ? `${analytics.top1.toFixed(1)}%` : <Dash />}
@@ -316,7 +325,7 @@ export function AnalyticsTab({
       </div>
 
       <section className={CARD} aria-label="Performance since saved">
-        <SectionTitle aside={asOf}>Since you saved each position, against the S&amp;P 500</SectionTitle>
+        <SectionTitle aside={asOf}>{example ? "Since each position was added" : "Since you saved each position"}, against the S&amp;P 500</SectionTitle>
         <SinceSavedTable positions={positions} />
       </section>
 

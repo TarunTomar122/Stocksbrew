@@ -2,14 +2,15 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 
 import { Disclosure } from "@/components/oa/disclosure";
-import { AppPage, Panel } from "@/components/oa/kit";
-import { PricingGrid, type PlanPrice } from "@/components/pricing/plan-cards";
+import { AppPage, Panel, ShowMore } from "@/components/oa/kit";
+import { PlanCards, type PlanPrice } from "@/components/pricing/plan-cards";
 import { SubscriptionActivator } from "@/components/subscription-activator";
 import { SubscriptionSuccessModal } from "@/components/subscription-success-modal";
 import {
   FEATURES,
   FEATURE_GROUPS,
   describeRule,
+  limitFor,
   ruleFor,
   type Feature,
   type FeatureId,
@@ -87,13 +88,29 @@ const PLAIN_NAMES: Partial<Record<FeatureId, string>> = {
   agent_api: "Use stocksbrew from Claude, ChatGPT or your own code",
 };
 
-/** On a phone, the few differences that decide it come first; every other row is one tap away. */
-const KEY_DIFFERENCES: FeatureId[] = ["covered_stocks", "briefing_personal", "email_briefing", "agents", "ask"];
+/** The few differences that decide it, shown under the plan cards; every other row is one tap away. */
+const DIFFERENCES: FeatureId[] = ["covered_stocks", "briefing_personal", "email_briefing", "zone_alerts", "ask", "agents", "backtest_history"];
+
+/** Shorter names for the difference rows, where the full row name would wrap three times on a phone. */
+const DIFF_NAMES: Partial<Record<FeatureId, string>> = {
+  covered_stocks: "The full report: our reasons, the prices where we'd act, what would change our mind",
+  briefing_personal: "A daily briefing on what moved in your stocks and why",
+  email_briefing: "A morning email when something changed in your stocks",
+  zone_alerts: "Email when a stock reaches our buy or sell price, or our call changes",
+  ask: "Questions you can ask about any stock or your portfolio",
+  agents: "Agents that email you when a stock hits a price or nears earnings",
+  backtest_history: "Years of past prices you can test your own buying rules on",
+};
 
 const nameOf = (id: FeatureId) => PLAIN_NAMES[id] ?? (FEATURES[id] as Feature).name;
 
 /** Rows whose "included" is a count a tick would hide: Pro's full report is on every stock, its briefing on every one you own. */
-const EVERY_STOCK: Partial<Record<FeatureId, string>> = { covered_stocks: "Every stock", briefing_personal: "Every stock you own" };
+const EVERY_STOCK: Partial<Record<FeatureId, string>> = {
+  covered_stocks: "Every stock",
+  briefing_personal: "Every stock you own",
+  email_briefing: "Every stock you follow",
+  backtest_history: "Every year we have",
+};
 
 /** One cell of the comparison table. */
 function Cell({ rule, strong = false, id }: { rule: Rule; strong?: boolean; id?: FeatureId }) {
@@ -118,18 +135,18 @@ function Cell({ rule, strong = false, id }: { rule: Rule; strong?: boolean; id?:
   }
   // "Covered stocks" is our word; say which stocks that is on each plan.
   const said = describeRule(rule);
-  const text = said === "Covered stocks" ? (strong ? "Every stock you own" : "5 stocks you pick") : id === "covered_stocks" && /^5 stocks?$/.test(said) ? "5 stocks you pick" : said;
+  const text = said === "Covered stocks" ? (strong ? "Every stock you own" : "5 stocks you choose") : id === "covered_stocks" && /^5 stocks?$/.test(said) ? "5 stocks you choose" : said;
   return <span className={`text-[14px] leading-5 sm:text-[15px] ${strong ? "font-medium text-oa-fg" : "text-oa-fg"}`}>{text}</span>;
 }
 
 const FAQS: Array<{ q: string; a: string }> = [
   {
     q: "What do I actually get for free?",
-    a: "Our call on every stock, every stock page, the news, the calendar, filings, markets, strategies with their past results, and what every fund, member of Congress and insider filed. You can follow as many stocks as you like, and five you pick get the full report: why we made the call, the prices where we'd buy more or sell some, an explanation every time one moves, and a note before each earnings report. You can swap one of the five each week.",
+    a: "Our call on every stock, and every page on the site. You can follow as many stocks as you like. Five of them, which you choose, get the full report: why we made the call, the prices where we'd act, and a note when one moves or reports earnings. You can swap one of the five each week.",
   },
   {
     q: "So what am I paying for with Pro?",
-    a: "The full report on every stock instead of five you pick. Every holding is explained in your briefing, the briefing and the alerts arrive by email, and the daily limits on questions, tests and agents stop mattering.",
+    a: "The full report on every stock, not just five. Your daily briefing and morning email explain everything you own, not just five stocks, and you get far more questions, tests and agents each day.",
   },
   {
     q: "What happens when I hit a limit?",
@@ -171,14 +188,31 @@ export default async function PricingPage({ searchParams }: Props) {
           },
         ];
 
+  const freePoints = [
+    "Our call on every stock you look up",
+    "A daily briefing on your five stocks",
+    `${limitFor("ask", "free")} questions a day about any stock`,
+    `${limitFor("agents", "free")} agents that email you when a stock hits your price`,
+    "A practice account with $100,000 of pretend money",
+  ];
+  const proPoints = [
+    "Everything in Free",
+    "A daily briefing on every stock you own, by email",
+    `${limitFor("ask", "pro")} questions a day and up to ${limitFor("agents", "pro")} agents`,
+    "An email when a stock reaches our buy or sell price",
+  ];
+  const differences = DIFFERENCES.filter((id) => FEATURES[id] && describeRule(ruleFor(id, "free")) !== describeRule(ruleFor(id, "pro")));
+
   return (
     <AppPage>
       <SubscriptionSuccessModal open={callbackSuccess && viewer.isSubscribed} subscriptionId={subscriptionId ?? undefined} />
 
-      <header className="mb-6 px-2 pt-2 sm:mb-8 sm:px-0 sm:pt-6">
-        <h1 className="text-[34px] font-semibold leading-[40px] tracking-[-0.02em] text-oa-fg sm:text-[48px] sm:leading-[56px]">Free and Pro</h1>
-        <p className="mt-2 max-w-[44rem] text-pretty text-[16px] leading-6 text-oa-muted-fg sm:text-[17px] sm:leading-[26px]">
-          Our call, a one-line buy more, keep or sell some, is free on every stock. Free adds the full report on five stocks you pick; Pro adds it on every stock.
+      <header className="mb-5 px-2 pt-2 sm:mb-6 sm:px-0 sm:pt-4">
+        <h1 className="text-balance text-[28px] font-semibold leading-[34px] tracking-[-0.02em] text-oa-fg sm:text-[36px] sm:leading-[44px]">
+          Free for five stocks. Pro for all of them.
+        </h1>
+        <p className="mt-2 max-w-[46rem] text-pretty text-[16px] leading-6 text-oa-muted-fg">
+          Our call (buy more, keep or sell some) is free on every stock, on both plans. The full report is the why behind it: our reasons, the prices where we&apos;d act, and what would change our mind.
         </p>
       </header>
 
@@ -208,80 +242,120 @@ export default async function PricingPage({ searchParams }: Props) {
         </Panel>
       ) : null}
 
-      <PricingGrid plan={viewer.plan} market={market} prices={prices} trialEligible={viewer.trialEligible}>
-        {/* Phone: only what differs between the plans first; every row is one tap away. */}
-        <tbody className="sm:hidden">
-          <tr>
-            <th scope="colgroup" colSpan={3} className="border-y border-oa-border bg-oa-bg px-3 py-2 text-left text-[14px] font-semibold text-oa-fg">
-              What changes with Pro
-            </th>
-          </tr>
-          {KEY_DIFFERENCES.filter((id) => FEATURES[id] && describeRule(ruleFor(id, "free")) !== describeRule(ruleFor(id, "pro")))
-            .map((id) => (
-              <tr key={`diff-${id}`} className="border-b border-oa-border last:border-b-0">
-                <th scope="row" colSpan={3} className="px-3 py-2.5 text-left align-top text-[14px] font-normal leading-5 text-oa-fg">
-                  <span className="block text-pretty">{nameOf(id)}</span>
-                  <span className="mt-1.5 grid grid-cols-2 gap-x-3 text-[13px]">
-                    <span className="flex items-baseline gap-1.5">
-                      <span className="text-oa-muted-fg">Free</span>
-                      <Cell id={id} rule={ruleFor(id, "free")} />
-                    </span>
-                    <span className="flex items-baseline gap-1.5">
-                      <span className="text-oa-muted-fg">Pro</span>
-                      <Cell id={id} rule={ruleFor(id, "pro")} strong />
-                    </span>
-                  </span>
+      <PlanCards
+        plan={viewer.plan}
+        market={market}
+        prices={prices}
+        trialEligible={viewer.trialEligible}
+        freePoints={freePoints}
+        proPoints={proPoints}
+      />
+
+      <section className="oa-surface mt-3 overflow-hidden border border-oa-border bg-oa-card" aria-labelledby="pro-adds">
+        <div className="border-b border-oa-border px-4 py-3 sm:px-5">
+          <h2 id="pro-adds" className="text-[16px] font-semibold leading-6 text-oa-fg">
+            What changes with Pro
+          </h2>
+          <p className="text-[13.5px] leading-5 text-oa-muted-fg">Everything else is the same on both plans.</p>
+        </div>
+        <table className="w-full table-fixed border-collapse">
+          <colgroup>
+            <col />
+            <col className="w-[6.5rem] sm:w-[12rem] lg:w-[15rem]" />
+            <col className="w-[7rem] bg-[color-mix(in_srgb,var(--oa-primary)_4%,transparent)] sm:w-[12rem] lg:w-[15rem]" />
+          </colgroup>
+          <thead>
+            <tr className="border-b border-oa-border bg-oa-bg text-left">
+              <th scope="col" className="px-3 py-2 text-[12.5px] font-medium text-oa-muted-fg sm:px-5">
+                <span className="sr-only">Feature</span>
+              </th>
+              <th scope="col" className="px-3 py-2 text-[13px] font-semibold text-oa-fg sm:px-5">Free</th>
+              <th scope="col" className="px-3 py-2 text-[13px] font-semibold text-oa-fg sm:px-5">Pro</th>
+            </tr>
+          </thead>
+          <tbody>
+            {differences.map((id) => (
+              <tr key={id} className="border-b border-oa-border last:border-b-0">
+                <th scope="row" className="px-3 py-3 text-left align-top text-[14px] font-normal leading-5 text-oa-fg sm:px-5 sm:text-[15px] sm:leading-[22px]">
+                  {DIFF_NAMES[id] ?? nameOf(id)}
                 </th>
+                <td className="px-3 py-3 align-top sm:px-5">
+                  <Cell id={id} rule={ruleFor(id, "free")} />
+                </td>
+                <td className="px-3 py-3 align-top sm:px-5">
+                  <Cell id={id} rule={ruleFor(id, "pro")} strong />
+                </td>
               </tr>
             ))}
-        </tbody>
-        {FEATURE_GROUPS.map((group) => {
-          const rows = ids.filter((id) => (FEATURES[id] as Feature).group === group);
-          if (rows.length === 0) return null;
-          return (
-            <tbody key={group}>
-              <tr>
-                <th scope="colgroup" colSpan={3} className="border-y border-oa-border bg-oa-bg px-3 py-2 text-left text-[14px] font-semibold text-oa-fg sm:px-5">
-                  {group}
+          </tbody>
+        </table>
+      </section>
+
+      <ShowMore always label="Compare every feature, both plans" less="Hide the full comparison" className="mt-0">
+        <section className="oa-surface overflow-hidden border border-oa-border bg-oa-card">
+          <table className="w-full table-fixed border-collapse">
+            <colgroup>
+              <col />
+              <col className="w-[7.25rem] sm:w-[12rem] lg:w-[15rem]" />
+              <col className="w-[7.25rem] bg-[color-mix(in_srgb,var(--oa-primary)_4%,transparent)] sm:w-[12rem] lg:w-[15rem]" />
+            </colgroup>
+            <thead className="max-sm:hidden">
+              <tr className="text-left">
+                <th scope="col" className="px-5 py-2.5 text-[13px] font-medium text-oa-muted-fg">
+                  <span className="sr-only">Feature</span>
                 </th>
+                <th scope="col" className="px-5 py-2.5 text-[14px] font-semibold text-oa-fg">Free</th>
+                <th scope="col" className="px-5 py-2.5 text-[14px] font-semibold text-oa-fg">Pro</th>
               </tr>
-              {rows.map((id) => (
-                <tr key={id} id={id} className="scroll-mt-24 border-b border-oa-border last:border-b-0 target:bg-[color-mix(in_srgb,var(--oa-primary)_9%,transparent)]">
-                  {/* Phone: the feature across the full width, then what each plan gets under it. */}
-                  <th scope="row" colSpan={3} className="px-3 py-2.5 text-left align-top text-[14px] font-normal leading-5 text-oa-fg sm:hidden">
-                    <span className="block text-pretty">{nameOf(id)}</span>
-                    <span className="mt-1.5 grid grid-cols-2 gap-x-3 text-[13px]">
-                      <span className="flex items-baseline gap-1.5">
-                        <span className="text-oa-muted-fg">Free</span>
+            </thead>
+            {FEATURE_GROUPS.map((group) => {
+              const rows = ids.filter((id) => (FEATURES[id] as Feature).group === group);
+              if (rows.length === 0) return null;
+              return (
+                <tbody key={group}>
+                  <tr>
+                    <th scope="colgroup" colSpan={3} className="border-y border-oa-border bg-oa-bg px-3 py-2 text-left text-[14px] font-semibold text-oa-fg sm:px-5">
+                      {group}
+                    </th>
+                  </tr>
+                  {rows.map((id) => (
+                    <tr key={id} id={id} className="scroll-mt-24 border-b border-oa-border last:border-b-0 target:bg-[color-mix(in_srgb,var(--oa-primary)_9%,transparent)]">
+                      {/* Phone: the feature across the full width, then what each plan gets under it. */}
+                      <th scope="row" colSpan={3} className="px-3 py-2.5 text-left align-top text-[14px] font-normal leading-5 text-oa-fg sm:hidden">
+                        <span className="block text-pretty">{nameOf(id)}</span>
+                        <span className="mt-1.5 grid grid-cols-2 gap-x-3 text-[13px]">
+                          <span className="flex items-baseline gap-1.5">
+                            <span className="text-oa-muted-fg">Free</span>
+                            <Cell id={id} rule={ruleFor(id, "free")} />
+                          </span>
+                          <span className="flex items-baseline gap-1.5">
+                            <span className="text-oa-muted-fg">Pro</span>
+                            <Cell id={id} rule={ruleFor(id, "pro")} strong />
+                          </span>
+                        </span>
+                      </th>
+                      <th scope="row" className="px-5 py-2.5 text-left align-top text-[15px] font-normal leading-[22px] text-oa-fg max-sm:hidden">
+                        {nameOf(id)}
+                      </th>
+                      <td className="px-5 py-2.5 align-top max-sm:hidden">
                         <Cell id={id} rule={ruleFor(id, "free")} />
-                      </span>
-                      <span className="flex items-baseline gap-1.5">
-                        <span className="text-oa-muted-fg">Pro</span>
+                      </td>
+                      <td className="px-5 py-2.5 align-top max-sm:hidden">
                         <Cell id={id} rule={ruleFor(id, "pro")} strong />
-                      </span>
-                    </span>
-                  </th>
-                  <th scope="row" className="px-5 py-2.5 text-left align-top text-[15px] font-normal leading-[22px] text-oa-fg max-sm:hidden">
-                    {nameOf(id)}
-                  </th>
-                  <td className="px-5 py-2.5 align-top max-sm:hidden">
-                    <Cell id={id} rule={ruleFor(id, "free")} />
-                  </td>
-                  <td className="px-5 py-2.5 align-top max-sm:hidden">
-                    <Cell id={id} rule={ruleFor(id, "pro")} strong />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          );
-        })}
-      </PricingGrid>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              );
+            })}
+          </table>
+        </section>
+      </ShowMore>
 
       <h2 className="mb-3 mt-10 text-[17px] font-semibold leading-6 text-oa-fg">Questions people ask before paying</h2>
       <div className="oa-surface max-w-[52rem] overflow-hidden border border-oa-border bg-oa-card [&>div:last-child]:border-b-0 [&>div]:px-4">
-        {/* The two questions everyone has before paying are open; the rest wait. */}
-        {FAQS.map((faq, index) => (
-          <Disclosure key={faq.q} question={faq.q} defaultOpen={index < 2}>
+        {FAQS.map((faq) => (
+          <Disclosure key={faq.q} question={faq.q}>
             {faq.a}
           </Disclosure>
         ))}

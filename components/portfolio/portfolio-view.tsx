@@ -59,8 +59,10 @@ export type PortfolioViewProps = {
   health?: HealthProps | null;
   ideas?: IdeaCard[];
   emailPrefs?: { alerts: boolean; digest: boolean } | null;
-  /** Example mode: the date of the closes used. */
+  /** New York day the prices are from (the quotes' day). */
   pricesAsOf?: string | null;
+  /** How to say that day: "the Nov 10 close", or "Nov 11, during trading" (lib/portfolio-prices). */
+  pricesWords?: string | null;
   /** Live mode: when the page data was read. */
   asOf?: string | null;
   /** The read on each tab, computed on the server (lib/portfolio-insights). */
@@ -227,6 +229,7 @@ export function PortfolioView({
   ideas = [],
   emailPrefs = null,
   pricesAsOf = null,
+  pricesWords = null,
   asOf = null,
   reads = null,
 }: PortfolioViewProps) {
@@ -272,9 +275,11 @@ export function PortfolioView({
         <div className="flex flex-col gap-3 px-4 py-3 lg:flex-row lg:items-end lg:justify-between">
           <div className="flex min-w-0 flex-col gap-1.5">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-[15px] font-semibold leading-5 text-oa-fg">
-                {example ? "Example portfolio" : "Portfolio"}
-              </h1>
+              {example ? (
+                <h2 className="text-[15px] font-semibold leading-5 text-oa-fg">Example portfolio</h2>
+              ) : (
+                <h1 className="text-[15px] font-semibold leading-5 text-oa-fg">Portfolio</h1>
+              )}
               {example ? (
                 <span className="inline-flex h-[22px] items-center rounded border border-[color-mix(in_srgb,var(--oa-primary)_45%,transparent)] bg-[color-mix(in_srgb,var(--oa-primary)_7%,transparent)] px-2 text-[12.5px] font-medium text-oa-primary">
                   Example, not real money
@@ -286,7 +291,7 @@ export function PortfolioView({
               <div className="col-span-2 flex flex-col">
                 {totals.value !== null ? (
                   <span
-                    className={`${NUM} text-[30px] font-medium leading-9 tracking-tight text-oa-fg sm:text-[34px] sm:leading-10`}
+                    className={`${NUM} font-medium tracking-tight text-oa-fg ${example ? "text-[24px] leading-8" : "text-[30px] leading-9 sm:text-[34px] sm:leading-10"}`}
                   >
                     {fmtMoney(totals.value)}
                   </span>
@@ -308,7 +313,7 @@ export function PortfolioView({
               {/* Today and total gain wrap as one group, so they never split across rows. */}
               <div className="col-span-2 flex gap-x-8">
                 <HeaderFigure
-                  label={pricesAsOf ? `Change on ${fmtDay(pricesAsOf)}` : "Today"}
+                  label={pricesAsOf && pricesAsOf !== today ? `Change on ${fmtDay(pricesAsOf)}` : "Today"}
                   note={
                     totals.dayPct !== null ? (
                       <Pct value={totals.dayPct} />
@@ -369,8 +374,10 @@ export function PortfolioView({
             )}
             <p className="text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg lg:text-right">
               {example
-                ? `Example shares and costs, priced at ${pricesAsOf ? `the ${fmtDay(pricesAsOf)} close` : "the latest prices"}.`
-                : asOf
+                ? `Example shares and costs. Prices from ${pricesWords ?? "the latest quotes"}.`
+                : pricesWords
+                  ? `Prices from ${pricesWords}.`
+                  : asOf
                   ? `Prices as of ${fmtClock(asOf)}.`
                   : "Prices are the latest quote."}
             </p>
@@ -448,9 +455,13 @@ export function PortfolioView({
                 ? "How these stocks did"
                 : "How your stocks did"
               : tab === "watching"
-                ? "What you are watching"
+                ? example
+                  ? "The watched stocks"
+                  : "What you are watching"
                 : tab === "analytics"
-                  ? "How your money is spread"
+                  ? example
+                    ? "How the money is spread"
+                    : "How your money is spread"
                   : "Your alerts"
           }
         />
@@ -564,20 +575,20 @@ export function PortfolioIntro({
   const [busy, setBusy] = useState(false);
   return (
     <section
-      aria-label="About Portfolio"
-      className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-2 sm:px-0"
+      aria-labelledby="portfolio-intro"
+      className="oa-surface flex flex-col gap-3 border border-oa-border bg-oa-card px-4 py-4 sm:px-5 lg:flex-row lg:items-center lg:justify-between lg:gap-6"
     >
-      <p className="min-w-0 text-pretty text-[14px] leading-5 text-oa-muted-fg">
-        <span className="font-medium text-oa-fg">
+      <div className="min-w-0">
+        <h1 id="portfolio-intro" className="text-balance text-[20px] font-semibold leading-[27px] tracking-[-0.01em] text-oa-fg sm:text-[22px] sm:leading-7">
+          {signedIn ? "Your portfolio is empty" : "Keep the stocks you own and watch in one place"}
+        </h1>
+        <p className="mt-1 max-w-[44rem] text-pretty text-[15px] leading-[22px] text-oa-muted-fg">
           {signedIn
-            ? "Your portfolio is empty."
-            : "Track the stocks you own and the ones you're watching, free."}
-        </span>{" "}
-        {signedIn
-          ? "Add your first stocks and this page fills in around them."
-          : `Pick ${freeLimit} of them for the full report, also free. Below is an example portfolio with real prices.`}
-      </p>
-      <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 sm:shrink-0">
+            ? "Add your first stocks and this page fills in around them."
+            : `It's free, and there's no brokerage login. You'll see what each stock did today and why, and ${freeLimit} you choose get our full report.`}
+        </p>
+      </div>
+      <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 lg:shrink-0">
         {signedIn ? (
           <RadarBatchEditModal
             initialItems={[]}

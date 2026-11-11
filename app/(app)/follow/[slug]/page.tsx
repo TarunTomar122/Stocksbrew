@@ -18,7 +18,7 @@ import { JsonLd, breadcrumbLd } from "@/components/docs/json-ld";
 import { AppPage, ShowMore, Verdict } from "@/components/oa/kit";
 import { shortCompanyName } from "@/lib/plain-copy";
 import { TheRead } from "@/components/oa/insight";
-import { buildCongressMemberRead, buildFundRead } from "@/lib/follow-insights";
+import { buildCongressMemberRead, buildFundRead, fundIsStale, fundStaleLine, memberStaleLine } from "@/lib/follow-insights";
 import { getSessionUser } from "@/lib/auth-server";
 import {
   STOCK_ACT_DEADLINE_DAYS,
@@ -77,6 +77,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 const TH =
   "oa-mono px-3 py-2 text-[11px] font-normal uppercase tracking-[0.08em] text-oa-muted-fg";
 const TD = "px-3 py-1.5 align-middle";
+
+/** Where our records for a fund or member stop, said before the read when they stopped long ago. */
+function StaleNote({ line }: { line: string | null }) {
+  if (!line) return null;
+  return (
+    <p role="note" className="oa-surface mt-3 border border-oa-border border-l-[3px] border-l-oa-primary bg-oa-card px-4 py-2.5 text-pretty text-[15px] font-medium leading-[22px] text-oa-fg">
+      {line}
+    </p>
+  );
+}
 
 /** The quarter after `period` ends, plus the 45 days a manager has to file. */
 function nextDueDate(period: string): string | null {
@@ -423,6 +433,7 @@ function FundView({
         </div>
       </div>
 
+      <StaleNote line={fundStaleLine(profile)} />
       <TheRead read={buildFundRead(profile, copy)} fold="phone" className="mt-3" />
 
       <div className="mt-4">
@@ -444,10 +455,12 @@ function FundView({
                 ? `, amended ${fmtDate(latest.latest_filed_at)}`
                 : ""}
               .{" "}
-              {!profile.active
+              {!profile.active || fundIsStale(latest.period)
                 ? "They have not filed since, so treat this as history."
                 : due
-                  ? `The next one is due by ${fmtDate(due)}.`
+                  ? due < new Date().toISOString().slice(0, 10)
+                    ? `The next one was due by ${fmtDate(due)} and has not arrived.`
+                    : `The next one is due by ${fmtDate(due)}.`
                   : ""}
             </p>
           </div>
@@ -883,6 +896,7 @@ function CongressView({
         </div>
       </div>
 
+      <StaleNote line={memberStaleLine(profile)} />
       <TheRead read={buildCongressMemberRead(profile, copy)} className="mt-3" />
 
       <div className="mt-4">
@@ -895,13 +909,16 @@ function CongressView({
           <div className="px-4 py-3">
             <p className="text-[15px] leading-6 text-oa-fg">
               <LeanChip lean={reportLean(profile)} />
-              {profile.headline}
+              {/* The stored headline says "reported on Dec 10"; an old record needs its year. */}
+              {memberStaleLine(profile) && profile.latest_date
+                ? profile.headline.replace(/reported on ([A-Z][a-z]{2} \d{1,2})(?!,)/, `reported on $1, ${profile.latest_date.slice(0, 4)}`)
+                : profile.headline}
             </p>
             <p className="mt-1 text-[13px] leading-5 text-oa-muted-fg">
               {profile.reports_count} reports read since{" "}
               {fmtDate(profile.first_report)}.
               {stats.median_lag_days != null
-                ? ` A typical trade here is reported ${stats.median_lag_days} days after it happens; the law allows ${STOCK_ACT_DEADLINE_DAYS}.`
+                ? ` A typical trade ${memberStaleLine(profile) ? "was" : "is"} reported ${stats.median_lag_days} days after it happened; the law allows ${STOCK_ACT_DEADLINE_DAYS}.`
                 : ""}
             </p>
           </div>

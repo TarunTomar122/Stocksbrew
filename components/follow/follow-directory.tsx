@@ -195,6 +195,10 @@ export function FollowDirectory({
         ) : null}
 
         <div className="oa-surface mt-3 overflow-hidden border border-oa-border bg-oa-card lg:mt-0">
+          {/* Wide screens drop the "vs S&P" words from each cell, so the key sits above the columns once. */}
+          <p className="hidden border-b border-oa-border px-4 py-2 text-[12.5px] leading-[18px] text-oa-muted-fg lg:block">
+            What you would have made buying what each {tab === "funds" ? "fund" : "member"} reported, from the day it became public. The small number under each return is how many points ahead of or behind the S&amp;P 500 that was.
+          </p>
           <div
             className={`hidden items-center gap-x-2 border-b border-oa-border bg-oa-bg px-4 lg:grid ${GRID}`}
           >

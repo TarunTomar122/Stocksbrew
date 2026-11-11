@@ -274,7 +274,8 @@ export const CALL_COLUMN_IDS: ReadonlySet<string> = new Set([
 /** Columns that show a price zone. Filled only on stocks the viewer covers (every stock on Pro). */
 export const ZONE_COLUMN_IDS: ReadonlySet<string> = new Set(["zone", "to_add_pct", "add_below", "trim_above"]);
 
-export const DEFAULT_COLUMNS: string[] = ["spark", "price", "day_pct", "ret_1m", "ret_ytd", "market_cap", "pe", "rev_growth", "call"];
+/** What a first look needs: the line, the price, today, this year, size, growth and our call. More columns are one tap away. */
+export const DEFAULT_COLUMNS: string[] = ["spark", "price", "day_pct", "ret_ytd", "market_cap", "rev_growth", "call"];
 export const MAX_COLUMNS = 14;
 
 export const FIELD_GROUPS: FieldGroup[] = [

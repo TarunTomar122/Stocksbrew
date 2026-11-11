@@ -293,33 +293,45 @@ export function whoLine(row: Pick<CopyBase, "kind" | "person" | "party" | "state
 function heldMove(position: CopyPosition): string {
   if (position.return == null || !Number.isFinite(position.return)) return "";
   if ((position.return > 0) !== (position.pnl > 0)) return "";
-  return `${fmtFrac(position.return, 0)} while the copy held it`;
+  // Under half a percent rounds to "0%", which says nothing.
+  if (Math.abs(position.return) < 0.005) return "";
+  return `${position.return > 0 ? "up" : "down"} ${fmtFrac(Math.abs(position.return), 0, false)}`;
 }
 
 /**
- * When the copy held a stock: "held since Feb 2020" while the record runs, or
- * "held from Nov 2025 until the record ended in Feb 2026" when it stopped with
- * the stock still in it.
+ * When the copy held a stock: "since Feb 2020" while the record runs, "from
+ * Nov 2025 until the record ended in Feb 2026" when it stopped with the stock
+ * still in it, else "from Nov 2025 to Feb 2026".
  */
-export function heldSpan(position: CopyPosition, stoppedAt: string | null = null): string {
+function heldWhen(position: CopyPosition, stoppedAt: string | null): string {
   const from = fmtMonthYear(position.first);
-  if (position.held) return stoppedAt ? `held from ${from} until the record ended in ${fmtMonthYear(stoppedAt)}` : `held since ${from}`;
-  return `held from ${from} to ${fmtMonthYear(position.last)}`;
+  if (position.held) return stoppedAt ? `from ${from} until the record ended in ${fmtMonthYear(stoppedAt)}` : `since ${from}`;
+  return `from ${from} to ${fmtMonthYear(position.last)}`;
 }
 
-/** A position in words for the read: "Apple made $8,038 for the copy, up 356% while the copy held it, held since Feb 2020." */
+/** "held since Feb 2020", "held from Nov 2025 to Feb 2026", "held from Nov 2025 until the record ended in Feb 2026". */
+export function heldSpan(position: CopyPosition, stoppedAt: string | null = null): string {
+  return `held ${heldWhen(position, stoppedAt)}`;
+}
+
+/**
+ * A position in words for the read: "AAPL was the best move to have copied:
+ * its slice of the $10,000 copy made $8,038." then "The stock was up 356%
+ * while the copy held it, since Feb 2020."
+ */
 export function positionSentence(position: CopyPosition, best: boolean, stoppedAt: string | null = null): Insight {
   const name = copyCompanyName(position.name, position.ticker) || position.ticker;
   const amount = fmtDollars(Math.abs(position.pnl));
   const move = heldMove(position);
+  const when = heldWhen(position, stoppedAt);
   const text = best
-    ? `${position.ticker} was the best move to have copied: it made ${amount} on the $10,000.`
-    : `${position.ticker} was the costliest move to have copied: it lost ${amount} of the $10,000.`;
+    ? `${position.ticker} was the best move to have copied: its slice of the $10,000 copy made ${amount}.`
+    : `${position.ticker} was the costliest move to have copied: its slice of the $10,000 copy lost ${amount}.`;
   return {
     id: `${best ? "best" : "worst"}-${position.ticker}`,
     tone: best ? "up" : "down",
     text,
-    soWhat: `${[move, heldSpan(position, stoppedAt)].filter(Boolean).join(", ")}.`.replace(/^./, (first) => first.toUpperCase()),
+    soWhat: move ? `The stock was ${move} while the copy held it, ${when}.` : `The copy held it ${when}.`,
     tickers: [position.ticker],
     leadName: name,
     action: { label: "Open the stock", href: `/stock/${encodeURIComponent(position.ticker)}` },
@@ -369,6 +381,56 @@ export function buildCopyRead(record: CopyRecord): TheRead | null {
     insights: pickInsights([pace, best ? positionSentence(best, true, stoppedAt) : null, worst ? positionSentence(worst, false, stoppedAt) : null]),
     source: `${record.kind === "fund" ? "SEC 13F filings" : "House trade reports"} and daily closes to ${fmtDate(record.end_date)}`,
   };
+}
+
+/** The limits in one line, always on show; the full rule and caveats wait behind "How we tested this". */
+export const COPY_LIMITS: Record<CopyKind, string> = {
+  fund: "Pretend money, before costs and taxes. It trades at the close of the first trading day after each filing comes out, up to 45 days after the quarter, and skips delisted companies, which flatters it.",
+  congress: "Pretend money, before costs and taxes. It trades at the close of the first trading day after each report comes out, up to 45 days after the trade, sizes from reported ranges, and skips delisted companies, which flatters it.",
+};
+
+export type CopyVerdict = {
+  headline: string;
+  /** The yearly return against the S&P 500's and the worst fall against the index's, kept together. */
+  detail: string | null;
+  /** "Copied Feb 18, 2020 to Nov 9, 2026". */
+  span: string;
+};
+
+/** The compact verdict on top of a copy page: the dollar result, the yearly pace, the worst fall with its dates, and the test's dates. */
+export function copyVerdict(record: CopyRecordFull): CopyVerdict | null {
+  const read = buildCopyRead(record);
+  if (!read) return null;
+  const copy = record.copy;
+  const spy = record.spy;
+  const parts: string[] = [];
+  if (copy.annualized != null && spy.annualized != null) {
+    const gap = copy.annualized - spy.annualized;
+    const side = Math.abs(gap) < 0.0005 ? "level with it" : `${fmtPointsWord(gap)} a year ${gap > 0 ? "ahead" : "behind"}`;
+    parts.push(`That is ${fmtFrac(copy.annualized)} a year against ${fmtFrac(spy.annualized)} for the S&P 500, ${side}.`);
+  } else if (copy.total != null && spy.total != null) {
+    parts.push(`That is ${fmtFrac(copy.total)} against ${fmtFrac(spy.total)} for the S&P 500, over less than a year, which is too short to call.`);
+  }
+  if (copy.max_drawdown != null) {
+    // The index's worst fall is over the whole test, on its own dates, so it gets its own sentence.
+    const when = copy.drawdown_peak && copy.drawdown_trough ? `, from ${fmtDate(copy.drawdown_peak)} to ${fmtDate(copy.drawdown_trough)}` : "";
+    parts.push(`Its worst fall was ${fmtFrac(Math.abs(copy.max_drawdown), 1, false)}${when}.`);
+    if (spy.max_drawdown != null) parts.push(`The S&P 500's worst fall over the test was ${fmtFrac(Math.abs(spy.max_drawdown), 1, false)}.`);
+  }
+  return {
+    headline: read.headline,
+    detail: parts.length ? parts.join(" ") : null,
+    span: `Copied ${fmtDate(record.start_date)} to ${fmtDate(record.end_date)}`,
+  };
+}
+
+/**
+ * The short name of the comparison line: a fund's first portfolio never
+ * traded is "No trading"; a House member's every buy kept, sales ignored, is
+ * "Kept every buy" (it still buys, so "no trading" would mislead).
+ */
+export function holdShortLabel(record: Pick<CopyRecordFull, "kind">): string {
+  return record.kind === "fund" ? "No trading" : "Kept every buy";
 }
 
 /** One sentence comparing the copy with not trading at all, or null when there is no such line. */

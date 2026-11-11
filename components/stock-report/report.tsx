@@ -466,11 +466,10 @@ export function StockReport({ data, related }: { data: ReportData; /** Links to 
                           </span>
                           <span>
                             {/* Says the next step for this reader: sign in first, or pick the stock if signed in. */}
-                            {data.gate.plan === "anon"
-                              ? `Sign in free to see the prices where we'd buy more ${stock.ticker} or sell some. A free account gets the full report on five stocks you pick.`
-                              : `Pick ${stock.ticker} as one of your five free full reports to see the prices where we'd buy more or sell some.`}{" "}
+                            {/* One short pointer here; the one place that explains the free account is the full-report box below. */}
+                            The prices where we&apos;d buy more or sell some are in the full report.{" "}
                             <a href="#call" className="font-medium text-oa-primary hover:underline">
-                              How that works
+                              {data.gate.plan === "anon" ? "Get it free" : `Pick ${stock.ticker} for it`}
                             </a>
                           </span>
                         </p>

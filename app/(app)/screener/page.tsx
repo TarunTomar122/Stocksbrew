@@ -178,22 +178,33 @@ function columnMeta(id: string): { short: string; hint: string; numeric: boolean
   return { short: text?.short ?? id, hint: text?.label ?? id, numeric: id === "spark", sortable: true };
 }
 
-const PRESET_CHIP =
-  "inline-flex h-8 shrink-0 items-center gap-2 rounded-md border px-3 text-[14px] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]";
-
-/** A ready-made screen as one chip: its name and how many stocks match now (or the Pro mark). */
-function PresetChip({ preset, count, active, locked }: { preset: ScreenPreset; count: number; active: boolean; locked: boolean }) {
+/** A list as a small card: its name, how many stocks it finds today, and the sentence that says what it looks for. */
+function ListCard({
+  href,
+  name,
+  description,
+  count,
+  active,
+}: {
+  href: string;
+  name: string;
+  description: string;
+  count: number | null;
+  active: boolean;
+}) {
   return (
     <a
-      href={`/screener?preset=${preset.slug}`}
-      title={preset.description}
+      href={href}
       aria-current={active ? "true" : undefined}
-      className={`${PRESET_CHIP} ${
-        active ? "border-[color-mix(in_srgb,var(--ink)_55%,transparent)] bg-oa-card font-medium text-oa-fg" : "border-oa-border text-oa-muted-fg hover:bg-oa-accent hover:text-oa-fg"
+      className={`oa-surface flex min-w-0 flex-col border bg-oa-card px-3 py-2.5 outline-none transition-colors hover:bg-oa-accent focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)] ${
+        active ? "border-[color-mix(in_srgb,var(--ink)_55%,transparent)]" : "border-oa-border"
       }`}
     >
-      {preset.name}
-      {locked ? <ProMark /> : <span className={`${NUM} text-[12.5px] text-oa-muted-fg`}>{count}</span>}
+      <span className="flex items-baseline justify-between gap-2">
+        <span className="min-w-0 text-[14px] font-medium leading-5 text-oa-fg">{name}</span>
+        {count != null ? <span className={`${NUM} shrink-0 text-[12.5px] text-oa-muted-fg`}>{count} stocks</span> : null}
+      </span>
+      <span className="mt-1 text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg">{description}</span>
     </a>
   );
 }
@@ -498,20 +509,26 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
   const phoneExtra = PHONE_FIXED.has(sort.id) ? null : sort.id;
   const PHONE_FIRST = 20;
   const phoneRow = (row: (typeof shown)[number]) => (
-      <li key={row.symbol} className="flex items-center gap-2 border-b border-oa-border pl-2 pr-3 last:border-b-0">
-        <span className="flex size-10 shrink-0 items-center justify-center">
-          <RowCheck symbol={row.symbol} />
-        </span>
+      <li key={row.symbol} className="flex items-center gap-2 border-b border-oa-border px-3 last:border-b-0">
+        {/* No tick boxes on a phone: a row is one tap to the stock; comparing lives on the stock page. */}
         <a href={`/stock/${encodeURIComponent(row.symbol)}`} className="flex min-h-14 min-w-0 flex-1 items-center gap-3 py-2 outline-none focus-visible:bg-oa-accent">
           <StockLogo ticker={row.symbol} size={28} />
           <span className="min-w-0 flex-1">
-            <span className={`${NUM} block text-[15px] font-semibold leading-5 text-oa-fg`}>{row.symbol}</span>
+            {/* The sorted-by figure sits beside the ticker, so the name keeps the second line to itself. */}
+            <span className="flex items-baseline gap-1.5">
+              <span className={`${NUM} text-[15px] font-semibold leading-5 text-oa-fg`}>{row.symbol}</span>
+              {phoneExtra ? <span className="shrink-0 text-[12.5px] text-oa-muted-fg [&_*]:!text-[12.5px]">{cellFor(phoneExtra, row)}</span> : null}
+            </span>
             <span className="flex flex-wrap gap-x-1.5 text-[12.5px] leading-[18px] text-oa-muted-fg">
               <span className="min-w-0 text-pretty">{shortCompanyName(row.name)}</span>
               {alsoClassesLabel(otherClasses, row.symbol) ? <span className={`${NUM} shrink-0`}>· {alsoClassesLabel(otherClasses, row.symbol)}</span> : null}
-              {phoneExtra ? <span className="shrink-0 [&_*]:!text-[12.5px]">· {cellFor(phoneExtra, row)}</span> : null}
             </span>
           </span>
+          {row.spark && row.spark.length > 1 ? (
+            <Sparkline values={row.spark} width={44} height={20} className="max-[359px]:hidden" />
+          ) : (
+            <span aria-hidden="true" className="w-11 shrink-0 max-[359px]:hidden" />
+          )}
           <span className="shrink-0 text-right">
             <span className="block text-[14px] leading-5">
               <FieldValue id="price" value={row.price} />
@@ -526,13 +543,11 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
   );
   const phoneList = (
     <div className="sm:hidden">
-      <div className="oa-caption flex h-9 items-center gap-2 border-b border-oa-border bg-oa-bg pl-2 pr-3">
-        <span className="flex size-10 shrink-0 items-center justify-center">
-          <SelectAllCheck symbols={shown.map((row) => row.symbol)} />
-        </span>
+      <div className="oa-caption flex h-9 items-center gap-2 border-b border-oa-border bg-oa-bg px-3">
         <span className="min-w-0 flex-1">
           <SortLabel view={{ ...view, sort }} id="symbol" numeric={false}>Stock</SortLabel>
         </span>
+        <span className="w-11 text-center normal-case tracking-normal max-[359px]:hidden">3 mo</span>
         <span className="flex items-center gap-2">
           <SortLabel view={{ ...view, sort }} id="price" numeric>Price</SortLabel>
           <SortLabel view={{ ...view, sort }} id="day_pct" numeric>Day</SortLabel>
@@ -565,29 +580,33 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
         />
       ) : null}
 
-      {/* Desktop: one row of chips, as many as fit, with the full list behind "All screens". Phones get the list inside the results bar. */}
-      <nav aria-label="Saved screens" className="mb-3 hidden items-center gap-2 lg:flex">
-        <span className="oa-caption shrink-0">Lists</span>
-        <div className="flex h-8 min-w-0 flex-1 flex-wrap gap-x-2 gap-y-4 overflow-hidden">
-          <a
-            href="/screener"
-            aria-current={firstList ? "true" : undefined}
-            className={`${PRESET_CHIP} ${firstList ? "border-[color-mix(in_srgb,var(--ink)_55%,transparent)] bg-oa-card font-medium text-oa-fg" : "border-oa-border text-oa-muted-fg hover:bg-oa-accent hover:text-oa-fg"}`}
-          >
-            Biggest companies
-          </a>
-          {saved.length > 0 ? <MyScreens screens={saved} currentQuery={currentQuery} className="shrink-0 !flex-nowrap [&>.oa-caption]:hidden" /> : null}
-          {presets.map((preset) => (
-            <PresetChip
-              key={preset.slug}
-              preset={preset}
-              count={presetCounts.get(preset.slug) ?? 0}
-              active={activePreset?.slug === preset.slug}
-              locked={Boolean(preset.pro) && !canCallFilters}
-            />
-          ))}
+      {/* Desktop: the lists as small cards, each saying what it finds, so the page answers "where do I start" before the table. Phones get the list inside the results bar. */}
+      <nav aria-label="Stock lists" className="mb-3 hidden lg:block">
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <h2 className="text-[14px] font-medium text-oa-fg">Start with a list</h2>
+          {screensMenu(`All ${presets.length + saved.length + 1} lists`, "right")}
         </div>
-        {screensMenu(`All ${presets.length + saved.length}`, "right")}
+        <div className="grid grid-cols-4 gap-2">
+          <ListCard href="/screener" name="Biggest companies" description="The 20 largest companies we follow, by company value." count={null} active={firstList} />
+          {presets
+            .filter((preset) => !preset.pro || canCallFilters)
+            .slice(0, 3)
+            .map((preset) => (
+              <ListCard
+                key={preset.slug}
+                href={`/screener?preset=${preset.slug}`}
+                name={preset.name}
+                description={preset.description}
+                count={presetCounts.get(preset.slug) ?? 0}
+                active={activePreset?.slug === preset.slug}
+              />
+            ))}
+        </div>
+        {saved.length > 0 ? (
+          <div className="mt-2 flex items-center gap-2">
+            <MyScreens screens={saved} currentQuery={currentQuery} className="shrink-0 !flex-nowrap" />
+          </div>
+        ) : null}
       </nav>
 
       {activePreset ? (
@@ -596,8 +615,6 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
         </p>
       ) : null}
 
-      {/* The screener's job is the tool: the read keeps its headline and folds its points. */}
-      <TheRead read={screenRead} label={hasScreen ? "What this list says" : "The market, in short"} fold="always" foldLabel={hasScreen ? "Show what else this list says" : "Show what else stands out"} className="mb-4" />
 
       {onlySector ? <SectorStrip stat={onlySector} /> : null}
 
@@ -657,7 +674,7 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
             ) : null}
             {!lockedByCall ? (
               <p className="basis-full text-[12.5px] leading-[18px] text-oa-muted-fg">
-                Our call is what we&apos;d do with each stock today: buy more, keep, or sell some. Tap a stock to see its page. It is research, not advice.
+                Our call is what we&apos;d do with each stock today. Open a stock to see why. This is research, not advice.
               </p>
             ) : null}
           </div>
@@ -713,6 +730,8 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
         </Panel>
       </SelectionProvider>
 
+      {/* The list is the point of this page; the read about it comes after the stocks, folded to its headline. */}
+      <TheRead read={screenRead} label={hasScreen ? "What this list says" : "The market today, in short"} fold="always" foldLabel={hasScreen ? "Show what else this list says" : "Show what else stands out"} className="mt-4" />
 
       {showDirectory ? (
         <details className="oa-surface mt-6 border border-oa-border bg-oa-card">

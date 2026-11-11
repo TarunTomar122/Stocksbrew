@@ -138,3 +138,78 @@ describe("buildPortfolioReads", () => {
     expect(reads.positions?.headline).toMatch(/^These holdings rose/);
   });
 });
+
+describe("the example and fund rows", () => {
+  const funds = (extra: Partial<PortfolioInsightInput> = {}) =>
+    input(
+      [
+        row("NVDA", "holding", 1, { price: 150 }),
+        row("MSFT", "holding", -1, { price: 500 }),
+        row("JPM", "holding", 0.5, { price: 300, sector: "Financials" }),
+        row("VOO", "holding", 0.2, { price: 600, sector: "Funds" }),
+        row("QQQ", "holding", 0.3, { price: 650, sector: "Funds" }),
+      ],
+      extra,
+      {
+        US_NVDA: { quantity: 200, average_cost: 100 },
+        US_MSFT: { quantity: 30, average_cost: 450 },
+        US_JPM: { quantity: 20, average_cost: 280 },
+        US_VOO: { quantity: 40, average_cost: 550 },
+        US_QQQ: { quantity: 30, average_cost: 600 },
+      },
+    );
+
+  it("never says you or your about example holdings", () => {
+    const reads = buildPortfolioReads({ ...funds(), example: true });
+    const all = [reads.positions, reads.watching, reads.analytics]
+      .flatMap((read) => (read ? [read.headline, ...read.insights.flatMap((item) => [item.text, item.soWhat ?? ""])] : []))
+      .join(" ");
+    expect(all).not.toMatch(/\byou(r)?\b/i);
+    expect(reads.alerts).toBeNull();
+  });
+
+  it("credits the gain on cost the header shows, not a different since-saved figure", () => {
+    const data = funds();
+    const reads = buildPortfolioReads(data);
+    const contributors = reads.analytics?.insights.find((item) => item.id === "contributors");
+    // NVDA +10,000 and VOO +2,000 of a +15,400 gain on 79,100 cost.
+    expect(data.portfolio.totals.gain).toBeCloseTo(15400);
+    expect(contributors?.text).toBe("NVDA and VOO made 78% of your +$15,400 (+19.47%) gain on cost.");
+  });
+
+  it("does not treat funds as a sector or claim a sector is missing when funds are held", () => {
+    const reads = buildPortfolioReads(funds());
+    const analytics = reads.analytics!;
+    expect(analytics.headline).toBe("48% of your money is in Technology stocks bought directly, against 33% of the S&P 500.");
+    expect(analytics.insights.some((item) => item.id === "missing")).toBe(false);
+    expect(analytics.insights.find((item) => item.id === "funds")?.text).toBe(
+      "VOO and QQQ are 46% of your portfolio, and they hold hundreds of companies between them.",
+    );
+    const sector = reads.positions?.insights.find((item) => item.id === "sector");
+    expect(sector?.text).toBe("48% of your money is in Technology stocks bought directly, against 33% of the S&P 500.");
+  });
+});
+
+describe("analytics edge cases", () => {
+  it("says a loss on cost without a double negative", () => {
+    const reads = buildPortfolioReads(
+      input([row("AAA", "holding", 0, { price: 80 }), row("BBB", "holding", 0, { price: 90 }), row("CCC", "holding", 0, { price: 101 })], {}, {
+        US_AAA: { quantity: 10, average_cost: 100 },
+        US_BBB: { quantity: 10, average_cost: 100 },
+        US_CCC: { quantity: 10, average_cost: 100 },
+      }),
+    );
+    const contributors = reads.analytics?.insights.find((item) => item.id === "contributors");
+    // AAA and BBB lost $300 of a $290 loss (CCC made $10), so no share over 100% is quoted.
+    expect(contributors?.text).toBe("AAA and BBB drove most of your $290 (9.67%) loss on cost.");
+  });
+
+  it("speaks of one fund in the singular", () => {
+    const reads = buildPortfolioReads(
+      input([row("NVDA", "holding", 1, { price: 100 }), row("VOO", "holding", 0, { price: 100, sector: "Funds" })], {}, { US_NVDA: { quantity: 1 }, US_VOO: { quantity: 1 } }),
+    );
+    const funds = reads.analytics?.insights.find((item) => item.id === "funds");
+    expect(funds?.text).toBe("VOO is 50% of your portfolio, and it holds hundreds of companies.");
+    expect(funds?.soWhat).toBe("The X-ray shows what is inside it next to the stocks bought directly.");
+  });
+});

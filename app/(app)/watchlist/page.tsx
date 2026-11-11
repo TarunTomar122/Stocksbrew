@@ -19,7 +19,8 @@ import { getLatestEarningsIntelForInstruments } from "@/lib/earnings-intel";
 import { buildHealthProps, buildIdeas, enrichIdeas, collectIdeaInstrumentIds } from "@/lib/radar-next-data";
 import { getInstrumentLabels } from "@/lib/instrument-resolver";
 import { buildHubRows } from "@/lib/watchlist-hub-data";
-import { BENCHMARK_SYMBOL, loadDailySeries, loadExamplePortfolio, loadPortfolio, newYorkToday } from "@/lib/portfolio-data";
+import { loadExamplePortfolio, loadPortfolio, newYorkToday } from "@/lib/portfolio-data";
+import { pricesWords } from "@/lib/portfolio-prices";
 import { getGroupMove, getMarketDay, getSnapshotFacts } from "@/lib/insight-data";
 import { buildPortfolioReads, sectorsToLoad } from "@/lib/portfolio-insights";
 import { getStockCallHistory } from "@/lib/stock-events";
@@ -66,6 +67,9 @@ function ExampleState({ signedIn }: { signedIn: boolean }) {
   return (
     <div className="flex flex-col gap-3">
       <PortfolioIntro signedIn={signedIn} freeLimit={FREE_COVERED_STOCKS} />
+      <p className="mt-2 px-2 text-[14px] leading-5 text-oa-muted-fg sm:px-0">
+        <span className="font-medium text-oa-fg">Here&apos;s what it looks like</span>, with example stocks and made-up share counts.
+      </p>
       <Suspense fallback={<PortfolioGhost />}>
         <ExamplePortfolio />
       </Suspense>
@@ -79,19 +83,13 @@ async function ExamplePortfolio() {
   if (!example) return null;
   const today = newYorkToday();
   const tickers = [...example.portfolio.positions, ...example.portfolio.watching].map((position) => position.ticker);
-  const [facts, spy] = await Promise.all([
-    getSnapshotFacts(tickers),
-    loadDailySeries([BENCHMARK_SYMBOL]).then((map) => map.get(BENCHMARK_SYMBOL) ?? null).catch(() => null),
-  ]);
-  // The example is priced on stored closes, so its "day" is the last close against the one before, for SPY too.
-  const n = spy ? Math.min(spy.closes.length, spy.dates.length) : 0;
-  const spyLastDay = n >= 2 ? spy!.dates[n - 1]! : null;
-  const marketPct = n >= 2 && spyLastDay === example.pricesAsOf ? (spy!.closes[n - 1]! / spy!.closes[n - 2]! - 1) * 100 : null;
+  const facts = await getSnapshotFacts(tickers);
+  // The example is priced on the stock pages' quotes; its S&P 500 move is from the same day (lib/portfolio-data).
   const reads = buildPortfolioReads({
     portfolio: example.portfolio,
     today,
     quoteDay: example.pricesAsOf,
-    marketPct,
+    marketPct: example.marketPct,
     sectorOf: facts.sectorOf,
     spSectorWeights: facts.spSectorWeights,
     sectorMoves: {},
@@ -99,7 +97,7 @@ async function ExamplePortfolio() {
     callChanges: [],
     example: true,
   });
-  return <PortfolioView portfolio={example.portfolio} mode="example" today={today} pricesAsOf={example.pricesAsOf} reads={reads} />;
+  return <PortfolioView portfolio={example.portfolio} mode="example" today={today} pricesAsOf={example.pricesAsOf} pricesWords={pricesWords(example.pricesAsOf)} reads={reads} />;
 }
 
 function asString(value: unknown): string | null {
@@ -351,6 +349,8 @@ async function PortfolioStream({ tab }: { tab: string }) {
         ideas={mergedIdeas}
         emailPrefs={{ alerts: userDoc?.email_alerts_enabled ?? true, digest: userDoc?.email_digest_enabled ?? true }}
         asOf={now.toISOString()}
+        pricesAsOf={quoteDay}
+        pricesWords={pricesWords(quoteDay, now)}
         reads={reads}
       />
     </>

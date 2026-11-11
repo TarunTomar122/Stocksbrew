@@ -6,7 +6,12 @@ import {
   buildFundRead,
   buildInsiderRead,
   dominantPeriod,
+  fundIsStale,
+  fundStaleLine,
   insiderPace,
+  memberIsStale,
+  memberStaleLine,
+  missedFilings,
   mostBought,
   mostSold,
   tallyCongress,
@@ -15,6 +20,9 @@ import {
   type FundDigest,
 } from "@/lib/follow-insights";
 import type { CongressProfile, FundProfile, InsiderTrade } from "@/lib/follow-shared";
+
+/** A fixed day, so records do not go stale as the calendar moves. */
+const TODAY = "2026-11-11";
 
 function digest(slug: string, period: string, moves: Partial<Record<"opened" | "added" | "reduced" | "exited", string[]>>): FundDigest {
   const lines = (list?: string[]) => (list ?? []).map((ticker) => ({ ticker, name: `${ticker} Inc`, weight: 0.05 }));
@@ -80,12 +88,16 @@ describe("fund tallies", () => {
       "In their Q2 2026 reports, 3 of 3 funds bought or added to AMZN, more than any other stock. 3 sold some or all of their AAPL, more than any other stock.",
     );
     expect(read.fundsInPeriod).toBe(3);
+    // The funds tab leads with the funds-only sentence; Congress has its own tab.
+    expect(read.fundLead).toBe(read.headline.split(" Members of Congress")[0]);
+    expect(read.fundLead.endsWith(".")).toBe(true);
   });
 
   it("leaves the crowd insight out when fewer than three funds agree", () => {
     const read = buildFollowRead({ digests: digests.slice(0, 2), totalFunds: 2, congress: [], insiderBuys: [], sectors: {}, today: "2026-11-10" });
     expect(read.insights.find((insight) => insight.id === "fund-crowd")).toBeUndefined();
     expect(read.headline).toBe("");
+    expect(read.fundLead).toBe("");
   });
 
   it("puts the reader's own stocks first when funds moved them", () => {
@@ -177,7 +189,7 @@ describe("one fund, one member", () => {
       },
       performance: perf,
     } as unknown as FundProfile;
-    expect(buildFundRead(profile).headline).toBe("Berkshire Hathaway added to Alphabet in Q2 2026, and opened a small new stake in D.R. Horton.");
+    expect(buildFundRead(profile, null, TODAY).headline).toBe("Berkshire Hathaway added to Alphabet in Q2 2026, and opened a small new stake in D.R. Horton.");
   });
 
   it("reads a fund's concentration, moves and record", () => {
@@ -198,7 +210,7 @@ describe("one fund, one member", () => {
       },
       performance: perf,
     } as unknown as FundProfile;
-    const read = buildFundRead(profile);
+    const read = buildFundRead(profile, null, TODAY);
     expect(read.headline).toBe("Pershing Square bought V, added to UBER, cut AMZN and sold all of GOOG in Q2 2026.");
     expect(read.insights[0].text).toBe("Pershing Square is 62% in three stocks: UBER 30%, BN 20% and MSFT 12%.");
     expect(read.insights[1].text).toBe("In Q2 2026 it opened V (5.8%), added to UBER (now 30%), cut AMZN to 10.4% and sold out of GOOG.");
@@ -222,9 +234,74 @@ describe("one fund, one member", () => {
       ],
       performance: perf,
     } as unknown as CongressProfile;
-    const read = buildCongressMemberRead(profile);
+    const read = buildCongressMemberRead(profile, null, TODAY);
     expect(read.headline).toBe("Copying Jane Doe's buys beat the S&P 500 by 3.4 points a year since Aug 2013.");
     expect(read.insights[0].text).toBe("NVDA is the stock Jane Doe trades most: 2 buys and 1 sale in the latest 5 reported trades.");
     expect(read.insights[1].soWhat).toBe("A typical trade reaches the public 20 days after it happens; 1 came in past the 45-day limit.");
+  });
+});
+
+describe("records that stopped", () => {
+  it("treats a member as stopped after about six months without a report", () => {
+    expect(memberIsStale("2024-12-10", TODAY)).toBe(true);
+    expect(memberIsStale("2026-06-01", TODAY)).toBe(false);
+    expect(memberIsStale("", TODAY)).toBe(false);
+    expect(memberStaleLine({ name: "Morgan McGarvey", latest_date: "2024-12-10" }, TODAY)).toBe(
+      "Our records for Morgan McGarvey stop in December 2024; we don't know what they have traded since.",
+    );
+    expect(memberStaleLine({ name: "Jane Doe", latest_date: "2026-11-01" }, TODAY)).toBeNull();
+  });
+
+  it("counts the 13Fs a fund has missed by their 45-day deadlines", () => {
+    // Q3 2026 is due Nov 14, so on Nov 11 the Q2 2026 report is the latest one owed.
+    expect(missedFilings("2026-06-30", TODAY)).toBe(0);
+    expect(missedFilings("2026-03-31", TODAY)).toBe(1);
+    expect(missedFilings("2025-12-31", TODAY)).toBe(2);
+    // Not missed on the deadline day itself, only after it.
+    expect(missedFilings("2026-06-30", "2026-11-14")).toBe(0);
+    expect(missedFilings("2026-06-30", "2026-11-15")).toBe(1);
+    expect(fundIsStale("2026-03-31", TODAY)).toBe(false);
+    expect(fundIsStale("2025-12-31", TODAY)).toBe(true);
+    const fund = { fund: "Old Fund LP", latest: { period: "2025-09-30", filed_at: "2025-11-13" } } as unknown as FundProfile;
+    expect(fundStaleLine(fund, TODAY)).toBe("Our records for Old Fund LP stop with its Q3 2025 report, filed in November 2025; we don't know what it has traded since.");
+  });
+
+  it("says what a stopped member did in the past tense", () => {
+    const profile = {
+      name: "Morgan McGarvey",
+      first_report: "2023-03-24",
+      latest_date: "2024-12-10",
+      stats: { trades: 6, buys: 2, sells: 4, est_volume: 0, median_lag_days: 20, late_trades: 0, top_bought: [] },
+      trades: [
+        { ticker: "MSFT", company: "Microsoft", tx_type: "sell" },
+        { ticker: "MSFT", company: "Microsoft", tx_type: "sell" },
+        { ticker: "MSFT", company: "Microsoft", tx_type: "buy" },
+        { ticker: "AAPL", company: "Apple", tx_type: "sell" },
+        { ticker: "AAPL", company: "Apple", tx_type: "sell" },
+        { ticker: "NVDA", company: "Nvidia", tx_type: "buy" },
+      ],
+      performance: null,
+    } as unknown as CongressProfile;
+    const read = buildCongressMemberRead(profile, null, TODAY);
+    const all = [read.headline, ...read.insights.flatMap((item) => [item.text, item.soWhat ?? ""])].join(" ");
+    expect(all).toContain("MSFT was the stock Morgan McGarvey traded most: 1 buy and 2 sales in the last 6 reported trades we have.");
+    expect(all).toContain("Morgan McGarvey sold more than they bought: 2 buys and 4 sales from Mar 24, 2023 to Dec 10, 2024.");
+    expect(all).toContain("A typical trade reached the public 20 days after it happened.");
+    expect(all).not.toMatch(/trades most|sells more than buys|reaches the public/);
+  });
+
+  it("describes a stopped fund as it was at its last filing", () => {
+    const profile = {
+      fund: "Old Fund",
+      latest: { quarter: "Q3 2025", filed_at: "2025-11-13", period: "2025-09-30", stock_positions: 14 },
+      portfolio: [
+        { ticker: "UBER", weight: 0.3 },
+        { ticker: "BN", weight: 0.2 },
+        { ticker: "MSFT", weight: 0.12 },
+      ],
+      changes: null,
+      performance: null,
+    } as unknown as FundProfile;
+    expect(buildFundRead(profile, null, TODAY).headline).toBe("Old Fund was 62% in three stocks: UBER 30%, BN 20% and MSFT 12% at its last filing.");
   });
 });

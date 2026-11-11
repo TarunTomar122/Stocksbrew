@@ -11,6 +11,9 @@
  */
 
 export type PositionKind = "holding" | "watchlist";
+
+/** The sector label for index funds in a portfolio: they hold every sector, so they are not counted as one. */
+export const FUNDS_SECTOR = "Funds";
 export type Tone = "bull" | "bear" | "neutral";
 
 export type PortfolioRowInput = {

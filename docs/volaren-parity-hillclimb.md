@@ -172,7 +172,71 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
-### 2026-11-11 ~02:15 UTC, UI round 10 live (lead)
+### 2026-11-11 ~03:05 UTC, plain-English agents landed (lead)
+- "Tell your agent what to watch" now sits at the top of Alerts & agents. Fixed rules read the common shapes for free; Claude Haiku (the same setup as Ask) reads only leftover words and can only pick among the 12 existing watch kinds. Every sentence shown is written by our code, and tickers or numbers the person never typed are dropped.
+- Saving goes through the existing `parseJobDraft` and `createJob`, so Free still runs two agents and saves extras paused. Daily rate limits apply per person, and signed-out model reads share one 300-a-day ceiling and fail closed.
+- Example: "Tell me if NVDA drops below 150 or a fund sells it" becomes "I'll watch NVIDIA (NVDA) and tell you: when it closes below $150, or when a fund we track files a new 13F..." with an honest note that 13F filings can't tell a sale from a purchase. "sell NVDA for me" gets "agents never buy or sell for you".
+- Its quality pass found 11 bugs, all fixed with regression tests. Checks: tsc 0, eslint clean, vitest 1457/1457.
+- Screenshots read: desk-preview-light, phone-cannot-dark (plain-agents scratchpad).
+- Not verified: a signed-in save end to end (the route is tested with the data layer mocked), and analytics events (product-analytics.ts is held back with the research work).
+- Shared wiring: an optional `lead` prop on jobs-workspace.tsx and two lines in app/(app)/agents/jobs/page.tsx.
+- Next ship: x-ray, dividends and plain-English agents, once the fixer (which edits the example portfolio and xray-data) lands, then one combined quality pass.
+
+### 2026-11-11 ~02:55 UTC, council round 13 moved; loop and call reasons relaunched (lead)
+- Council round 13 (structural reworks of the copy hub, pricing, screener and follow): Codex 6.57 (+0.14), Cursor 5.54 (+0.33), the first movement after four flat rounds. Copy hub +6/+13, follow +4/+9, pricing +2/+8, screener +4/+1. Batch 13b applied; the round-14 reviews finished, but the loop agent ended before parsing them.
+- Relaunched the UI loop (round 14+): parse round 14, then the landing hero (one complete agent moment), briefing (session first), stock page hierarchy and explore.
+- New builder: company-specific call reasons. The screener snapshot still carries eight shared templates, and the NVDA "Why" is generic engine prose. Extend backend/call_reason.py and regenerate for every covered stock. The screener snapshot gets rebuilt against LocalDB; the VPS steps get reported, not run.
+- Times on the four entries below were corrected; they had been written about an hour ahead.
+
+### 2026-11-11 ~02:50 UTC, stress test started (lead)
+- New builder: "what if" stress test (`/portfolio/stress`). It replays real past episodes (Covid crash, the 2022 rate-hike slide, the 2023 bank stress, the Aug 2024 carry unwind, the Apr 2025 tariff shock, plus a recovery) on the portfolio's real holdings against the S&P 500, labelled as history, not a forecast.
+- Running: fixer for the Codex findings (one price source, one example portfolio with VOO and QQQ, copy-page wording, stale profiles), UI loop round 13+ (structural reworks), plain-English agents, stress test. Next ship: x-ray, dividends and whatever of those lands, after one combined quality pass.
+
+### 2026-11-11 ~02:45 UTC, dividend planner landed and wired (lead)
+- `/portfolio/dividends` built on real data. `tm_dividend_history` has 798 stocks from Yahoo Finance, and announced payments come from the Nasdaq dividend calendar. On the example it reads "This example portfolio should pay about $842 from November to October, $55 of it already announced", with the biggest months, raises and yield on cost. Below that, a 12-bar chart with announced payments solid and estimates striped, then a per-stock list with frequency, next payment, yield, yield on cost and payout. Payout over 90% shows a risk line; REITs are exempt.
+- Its quality pass found three bugs (a special dividend read as a raise, an announced special dropping the regular estimate, ties for the biggest month), all fixed with tests. Checks: vitest 23/23, pytest 8/8, tsc 0, eslint clean.
+- Lead wiring: a "Dividends" nav entry under My stocks (longest-prefix matching lights it, not Portfolio), `/portfolio/xray` and `/portfolio/dividends` in the static sitemap, and an after-close `dividend history` job in schedule.py (VPS not pulled). Nav and sitemap tests 21/21, schedule test OK. Screenshots read: ship12/div-d.png, div-m.png.
+- Open: a link to both pages from the portfolio view waits for the fixer, which owns the example portfolio files right now. Pay dates for stocks without calendar history assume a 21-day gap after the ex-date.
+
+### 2026-11-11 ~02:35 UTC, Codex judge 7.0 overall; fixes delegated (lead)
+- Codex (delegate_task, gpt-6-astra, high) scored 11 pages signed out at both widths. Columns are UI / UX / usability / wording / volaren similarity, then overall:
+  - x-ray 8/8/8/8/8, 8.0
+  - pricing 8/8/8/8/7, 7.8
+  - briefing 8/7/8/8/7, 7.6
+  - landing 8/7/8/7/6, 7.2
+  - copy hub 8/8/7/6/7, 7.2
+  - Berkshire copy 7.2
+  - Pelosi copy 7.0
+  - watchlist 8/7/6/7/7, 7.0
+  - screener 8/7/7/7/5, 6.8
+  - McGarvey 8/6/5/6/6, 6.2
+  - NVDA 8/6/6/5/6, 6.2
+- Top findings:
+  1. The example portfolio and the stock pages disagree on prices (NVDA $176.79 vs $168.79).
+  2. Stale records (McGarvey ends Dec 2024) lead with an 88-point headline.
+  3. The NVDA "Why" is generic.
+  4. Copy pages: "on the day it became public" contradicts the rule, gaps given as "%" instead of points, and phones hide dates and worst drop.
+  5. The landing hero should show an observation, its portfolio consequence and "watch this for me".
+  6. Watchlist and x-ray should share one example portfolio with the ETFs.
+  7. The briefing should lead with the session, not the biggest mover.
+  8. Screener presets should say why each stock qualifies.
+- Delegated: 1, 2, 4 and 6 to a fixer. 3, 5, 7 and 8 are layout and pipeline work for the UI loop and the next tick.
+
+### 2026-11-11 ~02:25 UTC, copy the smart money live (lead)
+- `c89fa42` LIVE: /follow/copy hub plus a page per fund and House member (243 records in `tm_copy_trades`), UI batches 11-12, follow profiles and their share cards quoting the copy test.
+- The second quality pass found two real bugs, both fixed before shipping. Share cards still showed the old performance numbers (Pelosi card +8.2 points vs 6.0 on the page). Records under a year were filed as "Not tested" although they had a full test; they now show "+x% vs +y% in all" under "Too short to rank", sorted last. Also fixed: a read error no longer caches a 404 for an hour, short or ended records say why they are not ranked on the profile, possessives ("Jones'"), "the copy made" rather than "it made" about a person, one "confirmed reason" wording, and the end date shown once per row.
+- Verified on the exact tree: tsc 0, vitest 1211/1211, eslint clean, 20/20 Python. The frozen tree ran on :8001 and I screenshotted the opened short-record fold (ship11/w11-crop-d.png). Live: hub, Berkshire and Pelosi copy pages, McGarvey, follow, explore, briefing, screener and landing all 200; an unknown slug gives a real 404.
+- Owner action: a deploy from a worktree without `.vercel/` created a stray Vercel project `wt11` (one failed build, no domain). Deleting it needs the owner's approval in Vercel.
+- `COPY_TRADES_ENABLED` is not set on the VPS and the VPS is not pulled, so the copy records stay as they are until the owner turns on the weekly job.
+
+### 2026-11-11 ~02:10 UTC, x-ray landed; ship 11 in QA; plain-English agents started (lead)
+- ETF x-ray built (`/portfolio/xray`): 16 ETFs from SEC N-PORT in `tm_etf_holdings` (as of Jun 30 to Aug 31, 2026; 96.9-100% of stock weight matched to tickers). The read leads with "Once the funds are counted, Apple is 17% of this portfolio, not the 15% bought directly." It also shows a direct vs through-funds bar, sectors against the S&P, fund overlap (VOO and QQQ 54%), and the full table on a tap. Its own quality pass found and fixed 6 bugs. Lead fixes: dates in the app's format ("Jun 30, 2026"), the doubled-exposure row as a full sentence, a "What you own" nav entry under My stocks, and a weekly `ETF holdings` job in schedule.py (VPS not pulled). Screenshots read: final-desktop.png, final-mobile-read.png (xray scratchpad).
+- Ship 11 candidate `4c31572`: UI batches 11-12, copy the smart money (with the fixes from its quality pass), and follow profiles reading the copy test's numbers (one figure on the profile and its copy page). tsc 0, vitest 1211/1211, eslint clean, 20/20 Python. The quality pass is running.
+- UI council rounds 11-12: Codex 6.47 then 6.43, Cursor 5.11 then 5.21. Flat for four rounds of copy polish, so the fresh loop agent works on structural reworks of the weakest pages (copy hub, pricing, screener, follow, watchlist example).
+- Started: plain-English agents (type what to watch, see the agent it understood, confirm). A Codex judge (delegate_task, gpt-6-astra) is scoring the new capabilities and the main pages against volaren.ai.
+- Running: dividend planner, UI loop round 13+, plain-English agents, Codex judge, ship 11 QA.
+
+### 2026-11-11 ~02:00 UTC, UI round 10 live (lead)
 - `340850d` + `17b64f0` LIVE: round 10a+10b (screener fits at 1280 and opens on the 20 biggest, one S&P figure per day, company names in their own casing, share classes said out loud, calendar tense, Market today shows the giants, plainer copy across a dozen pages).
 - Quality pass found seven issues; all fixed before shipping. The landing card leaked a call's reason on non-showcase stocks (now gated like the price levels). The screener note promised reasons Free does not get. "20 biggest" counted rows before share classes were folded. The giants read said "moved the other way" against a flat group. Pages said "the Nov 11 close" before 4 PM (new `closeWords`: "Nov 11, during trading"). Past reports said "Time not announced yet". Feed-name casing was wrong in places ("Bank OF", "Bny", "Ebay", "Hldgs", "AI Holdings" -> "AI").
 - Exact tree verified in a worktree: tsc 0, vitest 1195/1195, eslint clean. Live: 13 key pages 200; the screener carries the new copy.

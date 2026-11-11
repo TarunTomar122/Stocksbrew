@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  COPY_LIMITS,
   buildCopyRead,
   buildHubRead,
   copyChartGeometry,
@@ -9,10 +10,12 @@ import {
   copyHref,
   copyIsIndexable,
   copyTitle,
+  copyVerdict,
   fmtDollars,
   fmtThousands,
   heldSpan,
   holdSentence,
+  holdShortLabel,
   positionSentence,
   rankRows,
   stoppedMonth,
@@ -131,8 +134,10 @@ describe("copy test pages", () => {
     expect(read.insights.map((item) => item.id)).toEqual(["pace", "best-AAPL", "worst-GOOGL"]);
     expect(read.insights[0]!.text).toBe("That is +13.7% a year against +14.3% for the S&P 500, 0.7 points a year behind.");
     expect(read.insights[0]!.tone).toBe("down");
-    expect(read.insights[1]!.text).toBe("AAPL was the best move to have copied: it made $8,038 on the $10,000.");
-    expect(read.insights[1]!.soWhat).toBe("+356% while the copy held it, held since Feb 2020.");
+    // The position's share of the $10,000 copy, not $8,038 made on $10,000.
+    expect(read.insights[1]!.text).toBe("AAPL was the best move to have copied: its slice of the $10,000 copy made $8,038.");
+    // "held" once, not "held it, held since".
+    expect(read.insights[1]!.soWhat).toBe("The stock was up 356% while the copy held it, since Feb 2020.");
     expect(read.insights[1]!.leadName).toBe("Apple");
   });
 
@@ -168,8 +173,8 @@ describe("copy test pages", () => {
   it("never quotes a stock's rise beside a loss on it", () => {
     // Bought more after it rose, then it fell: up 1% overall but a loss for the copy.
     const worst = positionSentence(position({ ticker: "GOOGL", pnl: -375, return: 0.0136, first: "2025-11-17" }), false);
-    expect(worst.soWhat).toBe("Held since Nov 2025.");
-    expect(worst.text).toContain("lost $375");
+    expect(worst.soWhat).toBe("The copy held it since Nov 2025.");
+    expect(worst.text).toBe("GOOGL was the costliest move to have copied: its slice of the $10,000 copy lost $375.");
   });
 
   it("a record under a year is too short to call", () => {
@@ -254,5 +259,27 @@ describe("copy chart", () => {
     expect(fmtThousands(10000)).toBe("$10K");
     expect(geometry.years.map((year) => year.label)).toEqual(["2021", "2026"]);
     expect(copyChartGeometry([["2020-01-01", 1, 1]])).toBeNull();
+  });
+});
+
+describe("copy page verdict and labels", () => {
+  it("keeps the yearly return and the worst fall together, with the test's dates", () => {
+    const verdict = copyVerdict(record())!;
+    expect(verdict.headline).toBe(buildCopyRead(record())!.headline);
+    expect(verdict.detail).toMatch(/^That is \+13\.7% a year against \+14\.3% for the S&P 500, 0\.7 points a year behind\. Its worst fall was \d+\.\d%/);
+    // The index's worst fall is on its own dates, said separately, without a double negative.
+    expect(verdict.detail).toMatch(/\. The S&P 500's worst fall over the test was \d+\.\d%\.$/);
+    expect(verdict.detail).not.toContain("−");
+    expect(verdict.span).toMatch(/^Copied Feb \d+, 2020 to /);
+  });
+
+  it("says what the comparison line really did: a member's copy still buys", () => {
+    expect(holdShortLabel({ kind: "fund" })).toBe("No trading");
+    expect(holdShortLabel({ kind: "congress" })).toBe("Kept every buy");
+  });
+
+  it("states the trading day the rule really uses in the one-line limits", () => {
+    expect(COPY_LIMITS.fund).toContain("close of the first trading day after each filing");
+    expect(COPY_LIMITS.congress).toContain("close of the first trading day after each report");
   });
 });

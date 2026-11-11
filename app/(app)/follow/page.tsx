@@ -6,9 +6,9 @@ import {
   FollowDirectory,
   type DirectoryTab,
 } from "@/components/follow/follow-directory";
-import { AppPage, CardGrid, PageHead, PageNote, ShowMore, TabBar, type TabItem } from "@/components/oa/kit";
-import { TheRead } from "@/components/oa/insight";
-import { StockTallyPanel } from "@/components/follow/stock-tally";
+import { AppPage, PageHead, PageNote, ShowMore, TabBar, type TabItem } from "@/components/oa/kit";
+import { InsightRow } from "@/components/oa/insight";
+import { TallyBars } from "@/components/follow/stock-tally";
 import { MarketingSchema } from "@/components/seo/marketing-schema";
 import { Bar, PanelGhost } from "@/components/oa/kit/skeleton";
 import {
@@ -21,6 +21,7 @@ import { Panel } from "@/components/follow/panel";
 import { getSessionUser } from "@/lib/auth-server";
 import { mostBought, mostSold, type FollowRead } from "@/lib/follow-insights";
 import { quarterLabel } from "@/lib/follow-shared";
+import { shortCompanyName } from "@/lib/plain-copy";
 import { getUserDoc } from "@/lib/watchlist";
 import {
   fmtUsd,
@@ -251,108 +252,122 @@ async function LatestMoves({
   return <ShowMore label={`Show the latest ${stream.length} ${stream.length === 1 ? "filing" : "filings"}`}>{panel}</ShowMore>;
 }
 
-/** The read for the whole surface, then the tab's stocks grouped by who bought and sold them. */
+/** A stock's name for a sentence: the short company name, else the ticker. */
+const nameOf = (row: { ticker: string; name: string | null }) => shortCompanyName(row.name) || row.ticker;
+
+/** The tab's one picture: a headline that says what stands out, then a bar per stock. */
+function Focal({ label, title, note, children }: { label: string; title: string; note?: string; children: React.ReactNode }) {
+  return (
+    <section className="oa-surface min-w-0 border border-oa-border bg-oa-card px-4 pb-3 pt-4 sm:px-5">
+      <p className="oa-label">{label}</p>
+      <h2 className="mt-1.5 text-balance text-[19px] font-semibold leading-[26px] tracking-[-0.01em] text-oa-fg sm:text-[22px] sm:leading-[29px]">{title}</h2>
+      {note ? <p className="mt-1 text-pretty text-[13.5px] leading-5 text-oa-muted-fg">{note}</p> : null}
+      <div className="mt-2">{children}</div>
+    </section>
+  );
+}
+
+/**
+ * The top of each tab: one focal card (what this group bought, as bars, with
+ * what they sold one tap away), and beside it the other two groups in a line
+ * each, so the page answers "what stands out" before the directory starts.
+ */
 async function ReadBlock({ read, tab }: { read: Promise<FollowRead | null>; tab: DirectoryTab }) {
   const data = await read;
   if (!data) return null;
   const quarter = data.fundPeriod ? quarterLabel(data.fundPeriod) : "";
-  let panels: React.ReactNode = null;
+  let focal: React.ReactNode = null;
+  let ownIds: (id: string) => boolean = () => false;
   if (tab === "funds") {
     const bought = mostBought(data.fundTallies, 6);
     const sold = mostSold(data.fundTallies, 6);
-    const top = bought[0];
-    const cut = sold[0];
-    panels = (
-      <>
-        <StockTallyPanel
-          label={`Most bought by funds · ${quarter}`}
-          side="buy"
-          unit="fund"
-          rows={bought}
-          empty="No fund filings to count yet."
-          takeaway={
-            top ? `${top.buyers.length} of ${data.fundsInPeriod} funds bought or added to ${top.ticker}${top.opened ? `, ${top.opened} of them for the first time` : ""}.` : undefined
-          }
-        />
-        <ShowMore fill label="Show the stocks funds sold most">
-          <StockTallyPanel
-            label={`Most sold by funds · ${quarter}`}
-            side="sell"
-            unit="fund"
-            rows={sold}
-            empty="No fund filings to count yet."
-            takeaway={cut ? `${cut.sellers.length} funds sold some or all of their ${cut.ticker}; ${cut.buyers.length} bought it.` : undefined}
-          />
-        </ShowMore>
-      </>
+    ownIds = (id) => id === "fund-crowd";
+    focal = (
+      <Focal
+        label={quarter ? `${quarter} reports from ${data.fundsInPeriod} funds` : "Latest fund reports"}
+        title={data.fundLead || (quarter ? `What funds bought in ${quarter}` : "What funds bought")}
+        note="A fund counts once for a stock if it bought it for the first time or added to it."
+      >
+        <TallyBars rows={bought} side="buy" unit="fund" total={data.fundsInPeriod} empty="No fund reports to count yet." />
+        {sold.length > 0 ? (
+          <ShowMore always label="See what funds sold most" less="Hide what funds sold" className="mb-1">
+            <p className="mt-3 text-[14px] font-medium text-oa-fg">Sold some or all in {quarter}</p>
+            <TallyBars rows={sold} side="sell" unit="fund" total={data.fundsInPeriod} empty="No sales to count yet." />
+          </ShowMore>
+        ) : null}
+      </Focal>
     );
   } else if (tab === "congress") {
     const bought = mostBought(data.congressTallies, 6);
     const sold = mostSold(data.congressTallies, 6);
     const top = bought[0];
-    const cut = sold[0];
-    panels = (
-      <>
-        <StockTallyPanel
-          label="Most bought by Congress · 30 days"
-          side="buy"
-          unit="member"
-          rows={bought}
-          empty="No buys reported in the last 30 days."
-          takeaway={top ? `${top.buyers.length} ${top.buyers.length === 1 ? "member" : "members"} reported buying ${top.ticker}, more than any other stock.` : undefined}
-        />
-        <ShowMore fill label="Show the stocks Congress sold most">
-          <StockTallyPanel
-            label="Most sold by Congress · 30 days"
-            side="sell"
-            unit="member"
-            rows={sold}
-            empty="No sales reported in the last 30 days."
-            takeaway={cut ? `${cut.sellers.length} ${cut.sellers.length === 1 ? "member" : "members"} reported selling ${cut.ticker}.` : undefined}
-          />
-        </ShowMore>
-      </>
+    // Only name a leader when it is strictly ahead and more than one member bought it.
+    const leads = top && top.buyers.length >= 2 && (bought[1]?.buyers.length ?? 0) < top.buyers.length;
+    ownIds = (id) => id === "congress";
+    focal = (
+      <Focal
+        label="Reported in the last 30 days"
+        title={leads ? `More members of Congress reported buying ${nameOf(top)} than any other stock.` : "What members of Congress bought in the last 30 days"}
+      >
+        <TallyBars rows={bought} side="buy" unit="member" empty="No buys reported in the last 30 days." />
+        {sold.length > 0 ? (
+          <ShowMore always label="See what Congress sold most" less="Hide what Congress sold" className="mb-1">
+            <p className="mt-3 text-[14px] font-medium text-oa-fg">Sold, last 30 days</p>
+            <TallyBars rows={sold} side="sell" unit="member" empty="No sales reported in the last 30 days." />
+          </ShowMore>
+        ) : null}
+      </Focal>
     );
   } else {
     const bought = data.insiderTallies.slice(0, 6);
     const top = bought[0];
-    panels = (
-      <StockTallyPanel
-        label="Most bought by insiders · 2 weeks"
-        side="buy"
-        unit="insider"
-        rows={bought}
-        empty="No open-market insider buys in the last two weeks."
-        takeaway={top ? `${top.ticker} drew the most insiders buying with their own money: ${top.buyers.length}, ${fmtUsd(top.value ?? 0)} in all.` : undefined}
-      />
+    const leads = top && top.buyers.length >= 2 && (bought[1]?.buyers.length ?? 0) < top.buyers.length;
+    ownIds = (id) => id.startsWith("insider");
+    focal = (
+      <Focal
+        label="Insiders buying with their own money, last two weeks"
+        title={
+          leads && top
+            ? `${nameOf(top)} had the most insiders buying: ${top.buyers.length} of them, ${fmtUsd(top.value ?? 0)} in all.`
+            : "What company insiders bought in the last two weeks"
+        }
+      >
+        <TallyBars rows={bought} side="buy" unit="insider" empty="No open-market insider buys in the last two weeks." />
+      </Focal>
     );
   }
+  const others = data.insights.filter((insight) => !ownIds(insight.id));
   return (
-    <>
-      <TheRead read={data} className="mb-4" />
-      {tab === "insiders" ? (
-        <div className="mb-5">{panels}</div>
-      ) : (
-        <CardGrid cols={2} className="mb-5">
-          {panels}
-        </CardGrid>
-      )}
-    </>
+    <div className="mb-5 grid gap-3 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      {focal}
+      {others.length > 0 ? (
+        <section className="oa-surface min-w-0 self-start border border-oa-border bg-oa-card px-4 pt-3 sm:px-5">
+          <h2 className="oa-label">Also worth knowing</h2>
+          {/* A narrow column: the link always sits under its sentence, as it does on a phone. */}
+          <ul className="mt-1 divide-y divide-oa-border [&>li>a]:!col-start-2 [&>li>a]:!row-start-auto [&>li>a]:!mt-1.5 [&>li>a]:!justify-self-start [&>li]:!grid-cols-[12px_minmax(0,1fr)] [&>li]:!gap-x-3 [&>li_div]:!text-[14.5px]">
+            {others.map((insight) => (
+              <InsightRow key={insight.id} insight={insight} />
+            ))}
+          </ul>
+          {data.source ? <p className="border-t border-oa-border py-2.5 text-[12.5px] leading-[18px] text-oa-muted-fg">{data.source}</p> : null}
+        </section>
+      ) : null}
+    </div>
   );
 }
 
 const TAB_HEAD: Record<DirectoryTab, { title: string; lede: string }> = {
   funds: {
     title: "What big funds bought and sold",
-    lede: "Funds report what they own once a quarter, about six weeks after it ends. Congress and company insiders have their own tabs.",
+    lede: "Big funds report what they own once a quarter, about six weeks after the quarter ends, so these moves are weeks old by the time anyone sees them.",
   },
   congress: {
     title: "What members of Congress bought and sold",
-    lede: "Members of Congress report their trades within about six weeks, as a range of dollar amounts. Funds and company insiders have their own tabs.",
+    lede: "Members of Congress report their trades within about six weeks, as a range of dollar amounts rather than exact figures.",
   },
   insiders: {
     title: "What company insiders bought",
-    lede: "Executives and directors report buying their own company's stock within two business days. Funds and Congress have their own tabs.",
+    lede: "Executives and directors report buying their own company's stock within two business days, so this is the freshest of the three.",
   },
 };
 

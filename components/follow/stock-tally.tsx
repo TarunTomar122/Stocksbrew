@@ -68,3 +68,68 @@ export function StockTallyPanel({
     </Panel>
   );
 }
+
+/**
+ * The same tally drawn as bars: one row per stock, the bar is the share of
+ * everyone counted who was on that side ("19 of 60 funds"), so the leader
+ * reads at a glance and the names wait under each bar. With no `total`, the
+ * bars share the longest row's scale instead.
+ */
+export function TallyBars({
+  rows,
+  side,
+  unit,
+  total,
+  empty,
+}: {
+  rows: StockTally[];
+  side: "buy" | "sell";
+  /** "fund" / "member" / "insider": the counted thing, singular. */
+  unit: string;
+  /** Everyone counted (funds that filed this quarter); the bars are shares of it. */
+  total?: number;
+  empty: string;
+}) {
+  const { rows: shown, also } = oneRowPerCompany(rows, (row) => row.ticker);
+  if (shown.length === 0) return <p className="py-4 text-[14px] leading-5 text-oa-muted-fg">{empty}</p>;
+  const counts = shown.map((row) => (side === "buy" ? row.buyers : row.sellers).length);
+  const scale = total && total > 0 ? total : Math.max(...counts, 1);
+  return (
+    <ol className="divide-y divide-oa-border">
+      {shown.map((row, index) => {
+        const who = side === "buy" ? row.buyers : row.sellers;
+        const names = who.slice(0, 2).map((entry) => entry.name);
+        const more = who.length - names.length;
+        const width = Math.max(3, (counts[index]! / scale) * 100);
+        return (
+          <li key={row.ticker} className="relative py-2.5 transition-colors hover:bg-oa-accent/60">
+            <div className="flex items-center justify-between gap-3">
+              <Ticker symbol={row.ticker} name={row.name} size={20} wrap stretch className="min-w-0 max-w-full" />
+              <p className="shrink-0 text-right text-[13.5px] leading-5 text-oa-muted-fg">
+                <span className={`${NUM} font-semibold text-oa-fg`}>{who.length}</span>
+                {total ? (
+                  <>
+                    {" "}
+                    of <span className={NUM}>{total}</span> {unit}s
+                  </>
+                ) : (
+                  ` ${who.length === 1 ? unit : `${unit}s`}`
+                )}
+              </p>
+            </div>
+            <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-oa-bg" aria-hidden="true">
+              <div className={`h-full rounded-full ${side === "buy" ? "bg-signal-bullish" : "bg-signal-bearish"} opacity-75`} style={{ width: `${width}%` }} />
+            </div>
+            <p className="mt-1 text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg">
+              {names.join(", ")}
+              {more > 0 ? ` and ${more} more` : ""}
+              {row.opened && side === "buy" ? (row.opened === who.length && who.length > 1 ? `. All ${who.length} bought it for the first time` : `. ${row.opened} bought it for the first time`) : ""}
+              {row.opened && side === "buy" ? "." : ""}
+              {alsoClassesLabel(also, row.ticker) ? <span className={NUM}> · {alsoClassesLabel(also, row.ticker)}</span> : null}
+            </p>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}

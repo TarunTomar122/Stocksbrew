@@ -17,7 +17,7 @@
 
 import { pickInsights, type Insight, type TheRead } from "@/lib/insights";
 import { dayGap, dayWord, fin, joinNames, money, movedWord, pct, plural, shortDay, signedPct } from "@/lib/insight-format";
-import type { Portfolio, PortfolioPosition } from "@/lib/portfolio-shared";
+import { FUNDS_SECTOR, type Portfolio, type PortfolioPosition } from "@/lib/portfolio-shared";
 
 /** Names, then "and N more" for the ones left out, so a count and its list agree. */
 function joinSome(names: readonly string[], total: number): string {
@@ -85,6 +85,9 @@ function sectorFor(position: PortfolioPosition, sectorOf: Record<string, string>
   const raw = position.sector ?? sectorOf[position.ticker] ?? null;
   return raw ? SECTOR_ALIASES[raw] ?? raw : null;
 }
+
+/** Index funds hold every sector, so they are not counted as one. */
+const FUNDS = FUNDS_SECTOR;
 
 /** "9% of your book" with value weights, "1 of your 11 holdings" without. */
 function shareOfBook(names: Weighted[], all: Weighted[], byValue: boolean): string {
@@ -279,7 +282,7 @@ function sectorLine(input: PortfolioInsightInput, rows: Weighted[], byValue: boo
   const bySector = new Map<string, Weighted[]>();
   for (const row of rows) {
     const sector = sectorFor(row.position, input.sectorOf);
-    if (!sector) continue;
+    if (!sector || sector === FUNDS) continue;
     bySector.set(sector, [...(bySector.get(sector) ?? []), row]);
   }
   const ranked = [...bySector.entries()]
@@ -289,9 +292,11 @@ function sectorLine(input: PortfolioInsightInput, rows: Weighted[], byValue: boo
   if (!top || top.weight < 30) return null;
   const sp = input.spSectorWeights[top.sector];
   const names = [...top.members].sort((a, b) => b.weight - a.weight).map((row) => row.position.ticker);
+  // With index funds in the book, the share is of stocks bought directly; the funds hold more of the sector.
+  const direct = rows.some((row) => sectorFor(row.position, input.sectorOf) === FUNDS) ? " stocks bought directly" : "";
   const lead = byValue
-    ? `${pct(top.weight, 0)} of your money is in ${top.sector}`
-    : `${top.members.length} of your ${rows.length} holdings are ${top.sector} (${pct(top.weight, 0)})`;
+    ? `${pct(top.weight, 0)} of your money is in ${top.sector}${direct}`
+    : `${top.members.length} of your ${rows.length} holdings are ${top.sector}${direct} (${pct(top.weight, 0)})`;
   return {
     id: "sector",
     tone: "flat",
@@ -435,18 +440,40 @@ function analyticsRead(input: PortfolioInsightInput): TheRead | null {
     .filter(([sector]) => !mine.has(sector))
     .sort((a, b) => b[1] - a[1]);
   const missingWeight = missing.reduce((sum, [, weight]) => sum + weight, 0);
+  // Index funds hold every sector, so sector shares count only the stocks bought directly, and "you own nothing in" is left out.
+  const fundRows = rows.filter((row) => sectorFor(row.position, input.sectorOf) === FUNDS);
+  const fundWeight = fundRows.reduce((sum, row) => sum + row.weight, 0);
+  const direct = fundRows.length > 0 ? " stocks bought directly" : "";
+  const sectorCount = [...mine.keys()].filter((sector) => sector !== FUNDS).length;
 
   let headline = "";
   if (over && over.gap >= 10) {
-    headline = `${pct(over.weight, 0)} of your money is in ${over.sector}, against ${pct(over.sp, 0)} of the S&P 500.`;
+    headline = `${pct(over.weight, 0)} of your money is in ${over.sector}${direct}, against ${pct(over.sp, 0)} of the S&P 500.`;
   } else if (byValue && fin(analytics.top3) && portfolio.positions.length > 3) {
     headline = `Your three biggest holdings are ${pct(analytics.top3, 0)} of your portfolio.`;
   } else if (rows.length > 0) {
-    headline = `Your ${plural(rows.length, "holding")} spread across ${plural(mine.size, "sector")}.`;
+    headline =
+      fundRows.length === rows.length
+        ? `Your ${plural(rows.length, "holding")} ${rows.length === 1 ? "is a fund" : "are all funds"}.`
+        : fundRows.length > 0
+          ? `Your ${plural(rows.length, "holding")} include ${plural(fundRows.length, "fund")} and stocks in ${plural(sectorCount, "sector")}.`
+          : `Your ${plural(rows.length, "holding")} spread across ${plural(sectorCount, "sector")}.`;
   }
 
+  const funds: Insight | null =
+    fundRows.length > 0
+      ? {
+          id: "funds",
+          tone: "flat",
+          text: `${joinNames(fundRows.map((row) => row.position.ticker))} ${fundRows.length === 1 ? "is" : "are"} ${byValue ? `${pct(fundWeight, 0)} of your portfolio` : `${fundRows.length} of your ${rows.length} holdings`}, and ${fundRows.length === 1 ? "it holds hundreds of companies" : "they hold hundreds of companies between them"}.`,
+          soWhat: `The X-ray shows what is inside ${fundRows.length === 1 ? "it" : "them"} next to the stocks bought directly.`,
+          tickers: fundRows.map((row) => row.position.ticker),
+          action: { label: "Open the X-ray", href: "/portfolio/xray" },
+        }
+      : null;
+
   const gaps: Insight | null =
-    missing.length > 0 && missingWeight >= 10
+    fundRows.length === 0 && missing.length > 0 && missingWeight >= 10
       ? {
           id: "missing",
           tone: "flat",
@@ -479,10 +506,31 @@ function analyticsRead(input: PortfolioInsightInput): TheRead | null {
     };
   }
 
-  // Contributors to the move since saved.
+  // Contributors: to the gain on cost when costs are entered (the figure in the page header), else to the move since saved.
   let contributors: Insight | null = null;
+  const { totals } = portfolio;
+  const costed = portfolio.positions.filter((position) => fin(position.gain));
   const dated = rows.filter((row) => row.position.sinceSaved !== null);
-  if (dated.length >= 2) {
+  if (fin(totals.gain) && fin(totals.gainPct) && costed.length >= 2 && Math.abs(totals.gainPct) >= 0.5) {
+    const gain = totals.gain;
+    const sign = Math.sign(gain) || 1;
+    const lead = costed.filter((position) => Math.sign(position.gain!) === sign).sort((a, b) => Math.abs(b.gain!) - Math.abs(a.gain!)).slice(0, 2);
+    if (lead.length) {
+      const share = (lead.reduce((sum, position) => sum + position.gain!, 0) / gain) * 100;
+      const names = joinNames(lead.map((position) => position.ticker));
+      contributors = {
+        id: "contributors",
+        tone: sign > 0 ? "up" : "down",
+        text:
+          sign > 0
+            ? `${names} ${share >= 35 && share <= 100 ? `made ${pct(share, 0)} of` : "did the most for"} your +${money(gain)} (${signedPct(totals.gainPct, 2)}) gain on cost.`
+            : `${names} ${share >= 35 && share <= 100 ? `${lead.length === 1 ? "accounts" : "account"} for ${pct(share, 0)} of` : share > 100 ? "drove most of" : "lost the most in"} your ${money(gain)} (${pct(totals.gainPct, 2)}) loss on cost.`,
+        tickers: lead.map((position) => position.ticker),
+      };
+    }
+  }
+  // No usable gain on cost (fewer than two costs entered, or too small to split): the move since saved instead.
+  if (!contributors && dated.length >= 2) {
     const total = dated.reduce((sum, row) => sum + row.weight, 0);
     const contrib = dated.map((row) => ({ ...row, c: (row.weight / total) * row.position.sinceSaved!.pct }));
     const book = contrib.reduce((sum, row) => sum + row.c, 0);
@@ -502,7 +550,7 @@ function analyticsRead(input: PortfolioInsightInput): TheRead | null {
     }
   }
 
-  const insights = pickInsights([contributors, risk, concentration, gaps], 3);
+  const insights = pickInsights([contributors, funds, risk, concentration, gaps], 3);
   if (!headline && insights.length === 0) return null;
   return {
     headline,
@@ -572,10 +620,19 @@ function alertsRead(input: PortfolioInsightInput): TheRead | null {
   return { headline, insights: pickInsights([next, reporting, coverage], 3), asOf: null };
 }
 
-/** The example is nobody's book: "your book" reads as "the book". */
+/** The example is nobody's book: "your book" reads as "the book", "you are up" as "the holdings are up". */
+export function impersonalText(text: string): string {
+  return text
+    .replace(/\bYou own nothing in\b/g, "The portfolio owns nothing in")
+    .replace(/\bYou are (up|down)\b/g, "The holdings are $1")
+    .replace(/\b(S|s)ince you saved them\b/g, "$1ince they were added")
+    .replace(/\byour\b/g, "the")
+    .replace(/\bYour\b/g, "The");
+}
+
 function impersonal(read: TheRead | null): TheRead | null {
   if (!read) return read;
-  const fix = (text: string) => text.replace(/\byour (book|portfolio|money|holdings|watched names|stocks)\b/g, "the $1").replace(/\bYour (book|portfolio|holdings|three biggest holdings)\b/g, "The $1");
+  const fix = impersonalText;
   return {
     ...read,
     headline: fix(read.headline),

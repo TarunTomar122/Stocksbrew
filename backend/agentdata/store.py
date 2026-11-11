@@ -55,6 +55,10 @@ WRITABLE_PREFIXES = (
     "tm_call_engine_",
     # Copy-trade backtests (copy_trades.py): one record per fund or House member, plus the hub.
     "tm_copy_trades",
+    # Past dividend payments per stock (dividend_history.py), for the dividend planner.
+    "tm_dividend_history",
+    # ETF holdings from SEC N-PORT (etf_holdings.py): one per fund, its CUSIP map and a run summary.
+    "tm_etf_",
 )
 
 

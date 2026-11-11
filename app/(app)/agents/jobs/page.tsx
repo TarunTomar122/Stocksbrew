@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { unstable_cache } from "next/cache";
 
 import { JobsWorkspace } from "@/components/agents-jobs/jobs-workspace";
+import { PlainAgentBox } from "@/components/agents-plain/plain-agent-box";
 import { AppPage } from "@/components/oa/kit";
 import { hiddenTemplateIds, parseJobDraft } from "@/lib/agent-jobs";
 import { agentMarketDay, listJobs, listRuns, loadFacts, replayDraft, resolveScope } from "@/lib/agent-jobs-data";
@@ -73,6 +74,7 @@ export default async function AgentJobsPage({ searchParams }: { searchParams?: {
           focusJobId={focus}
           sample={sample}
           hiddenTemplates={hiddenTemplateIds()}
+          lead={<PlainAgentBox signedIn={Boolean(session)} available={sources} />}
         />
     </AppPage>
   );

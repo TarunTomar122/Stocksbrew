@@ -42,6 +42,8 @@ export type JobsWorkspaceProps = {
   sample?: { draft: AgentJobDraft; replay: Replay } | null;
   /** Template ids not offered right now (server flags, lib/agent-jobs.ts hiddenTemplateIds). */
   hiddenTemplates?: string[];
+  /** Shown under the intro, above everything else (the plain-English agent box). */
+  lead?: React.ReactNode;
 };
 
 const CARD = "oa-surface overflow-hidden border border-oa-border bg-oa-card";
@@ -214,6 +216,7 @@ export function JobsWorkspace({
   focusJobId,
   sample,
   hiddenTemplates,
+  lead,
 }: JobsWorkspaceProps) {
   const offered = React.useMemo(
     () => (hiddenTemplates?.length ? AGENT_TEMPLATES.filter((entry) => !hiddenTemplates.includes(entry.id)) : AGENT_TEMPLATES),
@@ -401,6 +404,8 @@ export function JobsWorkspace({
         An agent watches your stocks for one thing you pick, like a big daily move or an earnings date, and reports here and by email when it
         happens. Agents never trade.
       </p>
+
+      {lead}
 
       {error ? (
         <p role="alert" className="rounded-lg border border-[color:color-mix(in_srgb,var(--signal-bearish)_40%,transparent)] bg-oa-card px-3.5 py-2 text-[13px] text-signal-bearish">

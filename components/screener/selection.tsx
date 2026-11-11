@@ -127,7 +127,8 @@ export function SelectionBar({ order, compareLimit }: { order: readonly string[]
   const { selected, clear } = useSelection();
   if (selected.size === 0) {
     return (
-      <p className="border-t border-oa-border px-4 py-2.5 text-[13px] text-oa-muted-fg">
+      // Phones list stocks without tick boxes, so the hint is for wider screens only.
+      <p className="border-t border-oa-border px-4 py-2.5 text-[13px] text-oa-muted-fg max-sm:hidden">
         Tick a few rows to watch them, compare them, or see how they would have done together.
       </p>
     );

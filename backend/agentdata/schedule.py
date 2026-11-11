@@ -58,6 +58,8 @@ GROUPS: dict[str, list[tuple[str, list[str]]]] = {
         ("prices and strategies", ["backend.agentdata.backtest_strategies"]),
         ("earnings calendar", ["backend.agentdata.earnings_calendar"]),
         ("earnings reactions", ["backend.agentdata.earnings_reactions"]),
+        # Past dividends per stock for the dividend planner; a bad source reply never overwrites a good history.
+        ("dividend history", ["backend.agentdata.dividend_history"]),
         ("screener snapshot", ["backend.agentdata.screener"]),
         ("standing agents", ["node:scripts/run-agent-jobs.ts"]),
     ],
@@ -70,6 +72,9 @@ GROUPS: dict[str, list[tuple[str, list[str]]]] = {
         # Copy tests for every fund and member, from the 13F and House jobs above. Off until
         # COPY_TRADES_ENABLED=1; the job itself exits early without it.
         ("copy trade tests", ["backend.agentdata.copy_trades"]),
+        # What each ETF holds, from its latest SEC N-PORT filing (the x-ray page). Funds whose
+        # filing has not changed are skipped, so most runs are a few dozen SEC requests.
+        ("ETF holdings", ["backend.agentdata.etf_holdings"]),
     ],
     # Minutes after a company files its earnings release (8-K Item 2.02). Cheap when
     # nobody reports: one store read. Today and yesterday, so an evening release

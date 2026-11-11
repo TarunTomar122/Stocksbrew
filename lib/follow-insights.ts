@@ -454,6 +454,8 @@ export type FollowReadInput = {
 };
 
 export type FollowRead = TheRead & {
+  /** The funds-only part of the headline ("More funds bought Amazon.com than any other stock in Q2 2026."), or "" when no stock led. */
+  fundLead: string;
   fundPeriod: string | null;
   fundsInPeriod: number;
   fundTallies: StockTally[];
@@ -477,6 +479,7 @@ export function buildFollowRead(input: FollowReadInput): FollowRead {
 
   const top = mostBought(fundTallies, 2).filter((row) => row.buyers.length >= 3);
   let headline = "";
+  let fundLead = "";
   if (top.length > 0) {
     // One stock leads; a runner-up is named as second, so the counts below never contradict the headline.
     const tied = top[1] !== undefined && top[1].buyers.length === top[0]!.buyers.length;
@@ -490,6 +493,7 @@ export function buildFollowRead(input: FollowReadInput): FollowRead {
       sells += row.sellers.length;
     }
     headline += ".";
+    fundLead = headline;
     if (congress && sells > buys * 1.5) headline += " Members of Congress sold more than they bought.";
     else if (congress && buys > sells * 1.5) headline += " Members of Congress were buying too.";
   } else if (insider) {
@@ -504,6 +508,7 @@ export function buildFollowRead(input: FollowReadInput): FollowRead {
       period && fundsInPeriod > 0
         ? `${plural(fundsInPeriod, "fund")} filed for ${quarterLabel(period)} of ${input.totalFunds} we follow; Congress trade reports and insiders' own filings`
         : "Funds' quarterly reports, Congress trade reports and insiders' own filings",
+    fundLead,
     fundPeriod: period,
     fundsInPeriod,
     fundTallies,
@@ -663,8 +668,77 @@ function recordInsight(card: PerfCard | null, who: string, what: string): Insigh
   };
 }
 
-export function buildFundRead(profile: FundProfile, copy?: CopyRecord | null): TheRead {
+// ── records that stopped ────────────────────────────────────────────────────
+
+const FULL_MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+function fullMonthYear(iso: string | null | undefined): string {
+  const match = /^(\d{4})-(\d{2})/.exec(iso ?? "");
+  const month = match ? FULL_MONTHS[Number(match[2]) - 1] : undefined;
+  return match && month ? `${month} ${match[1]}` : "";
+}
+
+/** A House member whose latest report is older than this is treated as a record that stopped. */
+export const MEMBER_STALE_DAYS = 183;
+
+function todayInNewYork(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+}
+
+/** True when a member's latest report is more than about six months before `today`. */
+export function memberIsStale(latestDate: string | null | undefined, today: string = todayInNewYork()): boolean {
+  if (!latestDate || !/^\d{4}-\d{2}-\d{2}/.test(latestDate)) return false;
+  const gap = (Date.parse(`${today.slice(0, 10)}T00:00:00Z`) - Date.parse(`${latestDate.slice(0, 10)}T00:00:00Z`)) / 86_400_000;
+  return Number.isFinite(gap) && gap > MEMBER_STALE_DAYS;
+}
+
+/**
+ * How many 13Fs a fund has missed: quarter ends after its latest period whose
+ * 45-day filing deadline has passed by `today`.
+ */
+export function missedFilings(period: string | null | undefined, today: string = todayInNewYork()): number {
+  const match = /^(\d{4})-(\d{2})/.exec(period ?? "");
+  if (!match) return 0;
+  let year = Number(match[1]);
+  let quarter = Math.floor((Number(match[2]) - 1) / 3) + 1;
+  let missed = 0;
+  for (let i = 0; i < 400; i++) {
+    quarter += 1;
+    if (quarter > 4) {
+      quarter = 1;
+      year += 1;
+    }
+    const end = Date.UTC(year, quarter * 3, 0); // last day of the quarter
+    const due = new Date(end + 45 * 86_400_000).toISOString().slice(0, 10);
+    if (due >= today.slice(0, 10)) break; // not missed until its deadline day has passed
+    missed += 1;
+  }
+  return missed;
+}
+
+/** A fund two or more filings behind (its latest 13F is half a year or more out of date) is treated as a record that stopped. */
+export function fundIsStale(period: string | null | undefined, today: string = todayInNewYork()): boolean {
+  return missedFilings(period, today) >= 2;
+}
+
+/** The line that leads a stopped member's profile, above the read; null while the record is current. */
+export function memberStaleLine(profile: Pick<CongressProfile, "name" | "latest_date">, today?: string): string | null {
+  if (!memberIsStale(profile.latest_date, today)) return null;
+  return `Our records for ${profile.name} stop in ${fullMonthYear(profile.latest_date)}; we don't know what they have traded since.`;
+}
+
+/** The line that leads a fund's profile when its 13Fs stopped arriving; null while they are current. */
+export function fundStaleLine(profile: Pick<FundProfile, "fund" | "latest">, today?: string): string | null {
+  if (!fundIsStale(profile.latest.period, today)) return null;
+  const filed = fullMonthYear(profile.latest.filed_at);
+  return `Our records for ${profile.fund} stop with its ${quarterLabel(profile.latest.period)} report${filed ? `, filed in ${filed}` : ""}; we don't know what it has traded since.`;
+}
+
+export function buildFundRead(profile: FundProfile, copy?: CopyRecord | null, today?: string): TheRead {
   const short = profile.fund.replace(/\s+(Capital|Management|Associates|Group|Partners|LP|L\.P\.|Holdings|Investments|Advisors)(\s.*)?$/i, "") || profile.fund;
+  // A fund whose filings stopped is described as it was at its last filing.
+  const stale = fundIsStale(profile.latest.period, today);
+  const is = stale ? "was" : "is";
   const stocks = profile.portfolio.filter((position) => isStock(position.ticker) && position.weight != null);
   const top3 = stocks.slice(0, 3);
   const topWeight = top3.reduce((sum, position) => sum + (position.weight ?? 0), 0);
@@ -675,10 +749,10 @@ export function buildFundRead(profile: FundProfile, copy?: CopyRecord | null): T
           tone: "flat",
           text:
             topWeight >= 0.4
-              ? `${short} is ${pct(topWeight)} in three stocks: ${listWords(top3.map((position) => `${position.ticker} ${pct(position.weight ?? 0)}`))}.`
+              ? `${short} ${is} ${pct(topWeight)} in three stocks: ${listWords(top3.map((position) => `${position.ticker} ${pct(position.weight ?? 0)}`))}${stale ? " at its last filing" : ""}.`
               : profile.latest.stock_positions >= 50 && topWeight < 0.2
-                ? `${short} spreads its money widely: its top three stocks (${listWords(top3.map((position) => position.ticker!))}) are only ${pct(topWeight)} of ${plural(profile.latest.stock_positions, "holding")}.`
-                : `Its three biggest holdings, ${listWords(top3.map((position) => `${position.ticker} ${pct(position.weight ?? 0)}`))}, make up ${pct(topWeight)} of the stocks it owns.`,
+                ? `${short} ${stale ? "spread" : "spreads"} its money widely: its top three stocks (${listWords(top3.map((position) => position.ticker!))}) ${stale ? "were" : "are"} only ${pct(topWeight)} of ${plural(profile.latest.stock_positions, "holding")}.`
+                : `Its three biggest holdings, ${listWords(top3.map((position) => `${position.ticker} ${pct(position.weight ?? 0)}`))}, ${stale ? "made" : "make"} up ${pct(topWeight)} of the stocks it ${stale ? "owned" : "owns"}.`,
           tickers: top3.map((position) => position.ticker!),
           action: { label: "Full portfolio", href: "#portfolio" },
         }
@@ -749,8 +823,10 @@ export function buildFundRead(profile: FundProfile, copy?: CopyRecord | null): T
   };
 }
 
-export function buildCongressMemberRead(profile: CongressProfile, copy?: CopyRecord | null): TheRead {
+export function buildCongressMemberRead(profile: CongressProfile, copy?: CopyRecord | null, today?: string): TheRead {
   const stats = profile.stats;
+  // A member whose reports stopped is described in the past tense: we cannot say what they do now.
+  const stale = memberIsStale(profile.latest_date, today);
   const counts = new Map<string, { buys: number; sells: number; company: string }>();
   for (const trade of profile.trades) {
     if (!isStock(trade.ticker)) continue;
@@ -765,7 +841,9 @@ export function buildCongressMemberRead(profile: CongressProfile, copy?: CopyRec
       ? {
           id: "favourite",
           tone: traded[0][1].buys >= traded[0][1].sells ? "up" : "down",
-          text: `${traded[0][0]} is the stock ${profile.name} trades most: ${plural(traded[0][1].buys, "buy")} and ${plural(traded[0][1].sells, "sale")} in the latest ${plural(profile.trades.length, "reported trade")}.`,
+          text: stale
+            ? `${traded[0][0]} was the stock ${profile.name} traded most: ${plural(traded[0][1].buys, "buy")} and ${plural(traded[0][1].sells, "sale")} in the last ${plural(profile.trades.length, "reported trade")} we have.`
+            : `${traded[0][0]} is the stock ${profile.name} trades most: ${plural(traded[0][1].buys, "buy")} and ${plural(traded[0][1].sells, "sale")} in the latest ${plural(profile.trades.length, "reported trade")}.`,
           soWhat:
             traded.length > 1 ? `Then ${listWords(traded.slice(1, 3).map(([ticker, entry]) => `${ticker} (${entry.buys + entry.sells})`))}.` : undefined,
           tickers: traded.slice(0, 3).map(([ticker]) => ticker),
@@ -780,13 +858,15 @@ export function buildCongressMemberRead(profile: CongressProfile, copy?: CopyRec
           tone: stats.buys > stats.sells ? "up" : stats.sells > stats.buys ? "down" : "flat",
           text:
             stats.buys === 0
-              ? `Every one of ${profile.name}'s ${plural(stats.trades, "reported trade")} is a sale.`
+              ? `Every one of ${profile.name}'s ${plural(stats.trades, "reported trade")} ${stale ? "was" : "is"} a sale.`
               : stats.sells === 0
-                ? `Every one of ${profile.name}'s ${plural(stats.trades, "reported trade")} is a buy.`
-                : `${profile.name} ${stats.buys > stats.sells ? "buys more than sells" : stats.sells > stats.buys ? "sells more than buys" : "buys and sells about evenly"}: ${stats.buys} buys and ${stats.sells} sales since ${fmtDate(profile.first_report)}.`,
+                ? `Every one of ${profile.name}'s ${plural(stats.trades, "reported trade")} ${stale ? "was" : "is"} a buy.`
+                : stale
+                  ? `${profile.name} ${stats.buys > stats.sells ? "bought more than they sold" : stats.sells > stats.buys ? "sold more than they bought" : "bought and sold about evenly"}: ${stats.buys} buys and ${stats.sells} sales from ${fmtDate(profile.first_report)} to ${fmtDate(profile.latest_date)}.`
+                  : `${profile.name} ${stats.buys > stats.sells ? "buys more than sells" : stats.sells > stats.buys ? "sells more than buys" : "buys and sells about evenly"}: ${stats.buys} buys and ${stats.sells} sales since ${fmtDate(profile.first_report)}.`,
           soWhat:
             stats.median_lag_days != null
-              ? `A typical trade reaches the public ${plural(stats.median_lag_days, "day")} after it happens${stats.late_trades > 0 ? `; ${stats.late_trades} came in past the 45-day limit` : ""}.`
+              ? `A typical trade ${stale ? "reached" : "reaches"} the public ${plural(stats.median_lag_days, "day")} after it ${stale ? "happened" : "happens"}${stats.late_trades > 0 ? `; ${stats.late_trades} came in past the 45-day limit` : ""}.`
               : undefined,
           tickers: stats.top_bought.map((chip) => chip.ticker).filter(isStock).slice(0, 3),
         }

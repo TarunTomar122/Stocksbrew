@@ -5,19 +5,20 @@ import { notFound } from "next/navigation";
 import { CopyChart } from "@/components/copy-trades/copy-chart";
 import { PositionBars, YearTable } from "@/components/copy-trades/parts";
 import { JsonLd, breadcrumbLd } from "@/components/docs/json-ld";
-import { TheRead } from "@/components/oa/insight";
-import { AppPage, CardGrid, Empty, Panel, StatStrip, type StatItem } from "@/components/oa/kit";
+import { AppPage, CardGrid, Empty, Panel, ShowMore, StatStrip, type StatItem } from "@/components/oa/kit";
 import {
   COPY_BIASES,
   COPY_HUB_PATH,
-  buildCopyRead,
+  COPY_LIMITS,
   copyDescription,
   copyHref,
   copyIsIndexable,
   copyTitle,
   fmtDollars,
+  copyVerdict,
   getCopyRecord,
   holdSentence,
+  holdShortLabel,
   isFullRecord,
   stoppedMonth,
   whoLine,
@@ -96,17 +97,57 @@ function endReason(record: CopyRecordFull): string {
   return record.active === false ? "they left the House" : "everything copied had been sold";
 }
 
-/** The rule in one sentence, the caveat and the biases in a line each: the only explanation the page gives. */
-function RuleBox({ record }: { record: CopyRecord }) {
+/** The rule in one sentence, the caveat and the biases in a line each. */
+function RuleText({ record, extra }: { record: CopyRecord; extra?: string }) {
   return (
-    <div className="oa-surface border border-oa-border bg-oa-card px-4 py-3 text-[14px] leading-[21px]">
+    <>
       <p className="text-pretty text-oa-fg">
         <span className="font-medium">The rule: </span>
         {record.rule}
       </p>
       <p className="mt-1 text-pretty text-oa-muted-fg">{record.caveat}</p>
       <p className="mt-1 text-pretty text-oa-muted-fg">{COPY_BIASES[record.kind]}</p>
+      {extra ? <p className="mt-1 text-pretty text-oa-muted-fg">{extra}</p> : null}
+    </>
+  );
+}
+
+/** The rule on a page with nothing to test: shown in full, there is nothing else to read. */
+function RuleBox({ record }: { record: CopyRecord }) {
+  return (
+    <div className="oa-surface border border-oa-border bg-oa-card px-4 py-3 text-[14px] leading-[21px]">
+      <RuleText record={record} />
     </div>
+  );
+}
+
+/** The limits in one line, always on show, and the full method one tap away. */
+function HowTested({ record, coverage }: { record: CopyRecordFull; coverage: string }) {
+  return (
+    <div className="oa-surface border border-oa-border bg-oa-card px-4 pt-3 text-[14px] leading-[21px]">
+      <p className="text-pretty text-oa-muted-fg">{COPY_LIMITS[record.kind]}</p>
+      <ShowMore always label="How we tested this" less="Hide how we tested this" className="[&>button]:mt-1.5">
+        <div className="mt-2 border-t border-oa-border pb-3 pt-2">
+          <RuleText record={record} extra={coverage} />
+        </div>
+      </ShowMore>
+    </div>
+  );
+}
+
+/** The verdict before anything else: the result, its yearly pace and its worst fall side by side, and the dates. */
+function Verdict({ record }: { record: CopyRecordFull }) {
+  const verdict = copyVerdict(record);
+  if (!verdict) return null;
+  return (
+    <section aria-label="The verdict" className="oa-surface border border-oa-border bg-oa-card px-4 pb-3 pt-3.5 sm:px-5 sm:pb-3.5 sm:pt-4">
+      <p className="oa-label">The verdict</p>
+      <h2 className="mt-1 max-w-[46rem] text-pretty text-[19px] font-semibold leading-[26px] tracking-[-0.01em] text-oa-fg sm:text-[21px] sm:leading-[28px]">{verdict.headline}</h2>
+      {verdict.detail ? <p className="mt-1.5 max-w-[46rem] text-pretty text-[15px] leading-[22px] text-oa-fg">{verdict.detail}</p> : null}
+      <p className="mt-2 text-[12.5px] leading-[18px] text-oa-muted-fg">
+        {verdict.span} · {record.kind === "fund" ? "SEC 13F filings" : "House trade reports"} and daily closes
+      </p>
+    </section>
   );
 }
 
@@ -124,7 +165,8 @@ function stats(record: CopyRecordFull): StatItem[] {
       sub: `${fmtFrac(spy.total)}${spy.annualized != null ? `, ${fmtFrac(spy.annualized)} a year` : ""}`,
     },
   ];
-  if (hold) items.push({ label: "No trading", value: fmtDollars(hold.end_value), sub: record.hold_label });
+  // A member's line already says "Kept every buy"; its sub says the other half.
+  if (hold) items.push({ label: holdShortLabel(record), value: fmtDollars(hold.end_value), sub: record.kind === "fund" ? record.hold_label : "Their sales ignored" });
   items.push({
     label: "Worst fall",
     value: fmtFrac(copy.max_drawdown),
@@ -162,19 +204,12 @@ function coverageLine(record: CopyRecordFull): string {
 }
 
 function FullView({ record }: { record: CopyRecordFull }) {
-  const read = buildCopyRead(record);
   const hold = holdSentence(record);
   const scale = Math.max(...record.best.map((item) => Math.abs(item.pnl)), ...record.worst.map((item) => Math.abs(item.pnl)), 0);
   const noun = record.kind === "fund" ? "filings" : "reports";
   return (
     <>
-      <TheRead read={read} fold="phone" />
-
-      <div className="mt-3">
-        <RuleBox record={record} />
-      </div>
-
-      <StatStrip stats={stats(record)} className="mt-3" />
+      <Verdict record={record} />
 
       <div className="mt-3">
         <Panel label="What $10,000 became" right={<span>Closes to {fmtDate(record.end_date)}</span>}>
@@ -189,6 +224,8 @@ function FullView({ record }: { record: CopyRecordFull }) {
           ) : null}
         </Panel>
       </div>
+
+      <StatStrip stats={stats(record)} className="mt-3" />
 
       <CardGrid className="mt-3">
         <Panel label="The moves that made the most" flush fill>
@@ -205,7 +242,9 @@ function FullView({ record }: { record: CopyRecordFull }) {
         </Panel>
       </div>
 
-      <p className="mt-3 px-2 text-pretty text-[13px] leading-5 text-oa-muted-fg sm:px-0">{coverageLine(record)}</p>
+      <div className="mt-3">
+        <HowTested record={record} coverage={coverageLine(record)} />
+      </div>
 
       <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 px-2 text-[14px] sm:px-0">
         <Link href={`/follow/${encodeURIComponent(record.slug)}`} prefetch={false} className="font-medium text-oa-primary hover:underline">

@@ -303,7 +303,7 @@ function StockCell({ position, inline = false }: { position: PortfolioPosition; 
         >
           {position.ticker}
         </Link>
-        <span className="block max-w-[14rem] truncate text-[13px] leading-[18px] text-oa-muted-fg">{position.name}</span>
+        <span className="block max-w-[14rem] text-pretty text-[13px] leading-[18px] text-oa-muted-fg">{position.name}</span>
       </div>
     </div>
   );

@@ -34,10 +34,37 @@ export function ShowMore({
 }) {
   const [open, setOpen] = React.useState(false);
   const id = React.useId();
+  const content = React.useRef<HTMLDivElement>(null);
+  const scrollTo = React.useRef<HTMLElement | null>(null);
+  // A link to something inside (pricing#ask from a limit notice) opens the fold and brings it into view.
+  React.useEffect(() => {
+    const reveal = () => {
+      let hash = "";
+      try {
+        hash = decodeURIComponent(window.location.hash.slice(1));
+      } catch {
+        return;
+      }
+      if (!hash) return;
+      const target = document.getElementById(hash);
+      if (!target || !content.current?.contains(target)) return;
+      scrollTo.current = target;
+      setOpen(true);
+    };
+    reveal();
+    window.addEventListener("hashchange", reveal);
+    return () => window.removeEventListener("hashchange", reveal);
+  }, []);
+  // Scroll only once the fold is open and painted, so the target is not still hidden.
+  React.useEffect(() => {
+    if (!open || !scrollTo.current) return;
+    scrollTo.current.scrollIntoView({ block: "center" });
+    scrollTo.current = null;
+  }, [open]);
   const hide = open ? "" : always ? "hidden" : "max-lg:hidden";
   return (
     <div className={`${fill ? "lg:h-full" : ""} ${contents && !always ? "lg:contents" : ""} ${className}`}>
-      <div id={id} className={`${hide} ${fill && !always ? "lg:h-full" : ""} ${contents && !always ? "lg:contents" : ""}`}>
+      <div id={id} ref={content} className={`${hide} ${fill && !always ? "lg:h-full" : ""} ${contents && !always ? "lg:contents" : ""}`}>
         {children}
       </div>
       <button

@@ -21,45 +21,75 @@ export type PlanPrice = {
   price: string;
   /** "a month" */
   per: string;
-  /** "Billed $190 once a year. Works out to $15.83 a month." */
+  /** "Works out to $15.83 a month, 17% less than paying monthly." */
   note?: string;
 };
 
 const OUTLINE_LINK =
-  "flex h-10 w-full items-center justify-center rounded-lg border border-[color-mix(in_srgb,var(--oa-fg)_22%,transparent)] bg-oa-card text-[14px] font-medium text-oa-fg outline-none transition-colors hover:bg-oa-accent focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]";
+  "flex h-11 w-full items-center justify-center rounded-lg border border-[color-mix(in_srgb,var(--oa-fg)_22%,transparent)] bg-oa-card text-[15px] font-medium text-oa-fg outline-none transition-colors hover:bg-oa-accent focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]";
+
+/** How many stocks get the full report, drawn: five dots on Free, a full row on Pro. */
+function Coverage({ every }: { every: boolean }) {
+  const dots = every ? 28 : 5;
+  return (
+    <div aria-hidden="true" className="mt-3 flex h-3 items-center gap-[5px] overflow-hidden">
+      {Array.from({ length: dots }, (_, index) => (
+        <span key={index} className={`block h-3 w-3 shrink-0 rounded-full bg-oa-primary`} />
+      ))}
+      {every ? null : (
+        <>
+          {Array.from({ length: 23 }, (_, index) => (
+            <span key={`off-${index}`} className="block h-3 w-3 shrink-0 rounded-full border border-oa-muted-fg/40" />
+          ))}
+        </>
+      )}
+    </div>
+  );
+}
+
+function Points({ items }: { items: string[] }) {
+  return (
+    <ul className="mt-4 space-y-2 text-[14.5px] leading-[21px] text-oa-fg">
+      {items.map((item) => (
+        <li key={item} className="flex gap-2.5">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="mt-[3px] size-4 shrink-0 text-oa-primary">
+            <path d="m3 8.5 3.2 3L13 4.5" />
+          </svg>
+          <span className="text-pretty">{item}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 /**
- * Both plans in one grid, the way the best pricing pages do it: the plan
- * heads (name, price, one button each) sit on top of the same columns as the
- * feature rows, so a reader compares straight down. The rows are rendered on
- * the server from the entitlements table and passed in as `children`
- * (`<tbody>` groups). Exactly one filled button: Pro's.
+ * The plan choice, as two cards side by side (stacked on a phone): what each
+ * costs, how many stocks get the full report (drawn as dots), the few things
+ * that come with it, and one button. Exactly one filled button: Pro's. The
+ * yearly switch sits on the Pro card, since only Pro has a price to switch.
  */
-export function PricingGrid({
+export function PlanCards({
   plan,
   market,
   prices,
   trialEligible,
-  children,
+  freePoints,
+  proPoints,
 }: {
   plan: "anon" | "free" | "pro";
   market: "US" | "IN";
   prices: PlanPrice[];
   /** Only promise a free trial to someone who can get one. */
   trialEligible: boolean;
-  /** `<tbody>` groups, three cells per row: feature, Free, Pro. */
-  children: React.ReactNode;
+  freePoints: string[];
+  proPoints: string[];
 }) {
   const { user } = useUser();
-  const [period, setPeriod] = React.useState<PricingPeriod>(
-    prices[0]?.period ?? "monthly",
-  );
+  const [period, setPeriod] = React.useState<PricingPeriod>(prices[0]?.period ?? "monthly");
   const [busy, setBusy] = React.useState<"free" | "pro" | null>(null);
   const [error, setError] = React.useState<string | null>(null);
-  // On a phone only the first group of rows shows until asked: the plan
-  // differences that matter most, then everything on tap.
-  const [allRows, setAllRows] = React.useState(false);
   const active = prices.find((price) => price.period === period) ?? prices[0];
+  const yearly = prices.find((price) => price.period === "yearly");
 
   async function startFree() {
     setError(null);
@@ -78,19 +108,13 @@ export function PricingGrid({
     if (!active) return;
     setError(null);
     setBusy("pro");
-    trackCheckoutClicked({
-      period: active.period,
-      market,
-      signedIn: Boolean(user),
-      surface: "pricing",
-    });
+    trackCheckoutClicked({ period: active.period, market, signedIn: Boolean(user), surface: "pricing" });
     try {
       if (!user) await signInWithGoogle({ surface: "subscribe_pricing" });
       const url = await startDodoCheckout(active.period, market);
       window.location.assign(url);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Something went wrong";
+      const message = err instanceof Error ? err.message : "Something went wrong";
       setError(message);
       trackCheckoutFailed({ reason: message, surface: "pricing" });
     } finally {
@@ -99,14 +123,12 @@ export function PricingGrid({
   }
 
   const trial = trialEligible && market === "US";
-  const proCta = trial ? "Try Pro free for 3 days" : "Get Pro";
+  const terms = trial
+    ? `Free for 3 days, then ${active?.price ?? ""} ${active?.per ?? ""}. Card needed.`.replace(/\s+/g, " ")
+    : "Cancel in one click. Refund in the first seven days.";
   const periodSwitch =
     plan !== "pro" && prices.length > 1 ? (
-      <div
-        role="radiogroup"
-        aria-label="Billing period"
-        className="inline-flex rounded-md border border-oa-border bg-oa-bg p-0.5"
-      >
+      <div role="radiogroup" aria-label="Billing period" className="inline-flex rounded-md border border-oa-border bg-oa-bg p-0.5">
         {prices.map((price) => (
           <button
             key={price.period}
@@ -114,10 +136,8 @@ export function PricingGrid({
             role="radio"
             aria-checked={price.period === period}
             onClick={() => setPeriod(price.period)}
-            className={`h-8 rounded px-2.5 text-[14px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)] sm:px-3 ${
-              price.period === period
-                ? "bg-oa-card text-oa-fg shadow-sm"
-                : "text-oa-muted-fg hover:text-oa-fg"
+            className={`h-8 rounded px-2.5 text-[13.5px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)] ${
+              price.period === period ? "bg-oa-card text-oa-fg shadow-sm" : "text-oa-muted-fg hover:text-oa-fg"
             }`}
           >
             {price.period === "monthly" ? (
@@ -125,149 +145,84 @@ export function PricingGrid({
             ) : (
               <>
                 Yearly
-                {/* The saving, so Yearly is not a mystery switch. */}
-                {yearlySaving(price.note) ? <span className="ml-1 text-oa-primary">−{yearlySaving(price.note)}%</span> : null}
+                {yearlySaving(price.note) ? <span className="ml-1 text-oa-primary">save {yearlySaving(price.note)}%</span> : null}
               </>
             )}
           </button>
         ))}
       </div>
     ) : null;
-  // Under the table on a phone: the yearly note and the refund line, only when there is something to say.
-  const phoneNote = [active?.note, plan !== "pro" && !trial ? "Cancel Pro in one click; refund in the first seven days." : null].filter(Boolean).join(" ");
-  const planHead =
-    "px-2 pb-5 pt-5 text-left align-top font-normal sm:px-5 sm:pt-6";
 
+  const card = "oa-surface flex h-full min-w-0 flex-col border bg-oa-card p-5 sm:p-6";
   return (
-    <>
-      {periodSwitch ? (
-        <div className="mb-3 px-2 sm:hidden">{periodSwitch}</div>
-      ) : null}
-      <section className="oa-surface overflow-clip border border-oa-border bg-oa-card">
-        <table className={`w-full table-fixed border-collapse ${allRows ? "" : "max-sm:[&>tbody:nth-of-type(n+2)]:hidden"}`}>
-          <colgroup>
-            <col />
-            <col className="w-[7.25rem] sm:w-[14rem] lg:w-[17rem]" />
-            <col className="w-[7.25rem] bg-[color-mix(in_srgb,var(--oa-primary)_4%,transparent)] sm:w-[14rem] lg:w-[17rem]" />
-          </colgroup>
-          <thead>
-            <tr className="border-b border-oa-border">
-              <td className="px-3 pb-5 pt-5 align-top sm:px-5 sm:pt-6">
-                <span className="block text-pretty text-[13.5px] leading-5 text-oa-muted-fg sm:hidden">
-                  Our call is free on both.
-                </span>
-                <span className="max-sm:hidden">{periodSwitch}</span>
-                <p className="mt-3 max-w-[22rem] text-pretty text-[14px] leading-[22px] text-oa-muted-fg max-sm:hidden">
-                  {active?.note ??
-                    "Our call is one line: buy more, keep or sell some. The full report says why, gives the prices where we'd act and what would change our mind."}
-                </p>
-              </td>
-
-              <th scope="col" className={planHead}>
-                <span className="flex items-baseline justify-between gap-2">
-                  <span className="text-[17px] font-semibold leading-6 text-oa-fg">
-                    Free
-                  </span>
-                  {plan === "free" ? (
-                    <span className="text-[13px] text-oa-muted-fg max-sm:hidden">
-                      Your plan
-                    </span>
-                  ) : null}
-                </span>
-                <span className="oa-mono mt-2 block text-[40px] font-semibold leading-[48px] tracking-[-0.02em] text-oa-fg sm:text-[52px] sm:leading-[60px]">
-                  $0
-                </span>
-                <span className="block min-h-5 text-[14px] leading-5 text-oa-muted-fg">
-                  forever
-                </span>
-                <span className="mt-4 block">
-                  {plan === "anon" ? (
-                    <OaButton
-                      variant="outline"
-                      className="h-10 w-full text-[14px]"
-                      loading={busy === "free"}
-                      onClick={() => void startFree()}
-                    >
-                      Start free
-                    </OaButton>
-                  ) : (
-                    <a href="/watchlist" className={OUTLINE_LINK}>
-                      <span className="sm:hidden">Portfolio</span>
-                      <span className="max-sm:hidden">Open your portfolio</span>
-                    </a>
-                  )}
-                </span>
-              </th>
-
-              <th scope="col" className={planHead}>
-                <span className="flex items-baseline justify-between gap-2">
-                  <span className="text-[17px] font-semibold leading-6 text-oa-fg">
-                    Pro
-                  </span>
-                  {plan === "pro" ? (
-                    <span className="text-[13px] text-oa-muted-fg max-sm:hidden">
-                      Your plan
-                    </span>
-                  ) : null}
-                </span>
-                <span className="oa-mono mt-2 block text-[40px] font-semibold leading-[48px] tracking-[-0.02em] text-oa-fg sm:text-[52px] sm:leading-[60px]">
-                  {active?.price}
-                </span>
-                <span className="block min-h-5 text-[14px] leading-5 text-oa-muted-fg">
-                  {active?.per}
-                </span>
-                <span className="mt-4 block">
-                  {plan === "pro" ? (
-                    <a href="/profile" className={OUTLINE_LINK}>
-                      <span className="sm:hidden">Manage</span>
-                      <span className="max-sm:hidden">Manage your plan</span>
-                    </a>
-                  ) : (
-                    <OaButton
-                      className="h-10 w-full text-[14px]"
-                      loading={busy === "pro"}
-                      onClick={() => void startPro()}
-                    >
-                      <span className="sm:hidden">
-                        {trial ? "Try 3 days free" : "Get Pro"}
-                      </span>
-                      <span className="max-sm:hidden">{proCta}</span>
-                    </OaButton>
-                  )}
-                </span>
-                {plan !== "pro" ? (
-                  <span className="mt-2 block text-pretty text-[13px] leading-[18px] text-oa-muted-fg">
-                    {trial
-                      ? `3 days free, then ${active?.price ?? ""} ${active?.per ?? ""}. Card needed.`.replace(/\s+/g, " ")
-                      : "Cancel in one click. Refund in the first seven days."}
-                  </span>
-                ) : null}
-                {error ? (
-                  <span
-                    role="alert"
-                    className="mt-2 block text-[14px] text-signal-bearish"
-                  >
-                    {error}
-                  </span>
-                ) : null}
-              </th>
-            </tr>
-          </thead>
-          {children}
-        </table>
-        <button
-          type="button"
-          aria-expanded={allRows}
-          onClick={() => setAllRows((value) => !value)}
-          className="flex min-h-11 w-full items-center justify-center gap-2 border-t border-oa-border text-[14px] font-medium text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent sm:hidden"
-        >
-          {allRows ? "Show less" : "Show everything both plans include"}
-          <span aria-hidden="true" className={`text-oa-muted-fg transition-transform ${allRows ? "rotate-180" : ""}`}>
-            ▾
-          </span>
-        </button>
-        {phoneNote ? <p className="border-t border-oa-border px-3 py-3 text-[14px] leading-5 text-oa-muted-fg sm:hidden">{phoneNote}</p> : null}
+    <div className="oa-card-grid grid grid-cols-1 gap-3 md:grid-cols-2">
+      <section className={`${card} border-oa-border`} aria-labelledby="plan-free">
+        <div className="flex min-h-9 items-center justify-between gap-2">
+          <h2 id="plan-free" className="text-[17px] font-semibold leading-6 text-oa-fg">
+            Free
+          </h2>
+          {plan === "free" ? <span className="text-[13px] text-oa-muted-fg">Your plan</span> : null}
+        </div>
+        <p className="mt-2 flex items-baseline gap-2">
+          <span className="oa-mono text-[44px] font-semibold leading-[52px] tracking-[-0.02em] text-oa-fg">$0</span>
+          <span className="text-[14px] text-oa-muted-fg">forever</span>
+        </p>
+        <p className="mt-3 text-[16px] font-medium leading-6 text-oa-fg">The full report on 5 stocks you choose</p>
+        <Coverage every={false} />
+        <Points items={freePoints} />
+        <div className="mt-auto pt-6">
+          {plan === "anon" ? (
+            <OaButton variant="outline" className="h-11 w-full text-[15px]" loading={busy === "free"} onClick={() => void startFree()}>
+              Start free
+            </OaButton>
+          ) : (
+            <a href="/watchlist" className={OUTLINE_LINK}>
+              Open your stocks
+            </a>
+          )}
+          <p className="mt-2 text-[13px] leading-[18px] text-oa-muted-fg">No card. Swap one of your five stocks each week.</p>
+        </div>
       </section>
-    </>
+
+      <section className={`${card} border-[color-mix(in_srgb,var(--oa-primary)_55%,var(--oa-border))]`} aria-labelledby="plan-pro">
+        <div className="flex min-h-9 flex-wrap items-center justify-between gap-2">
+          <h2 id="plan-pro" className="text-[17px] font-semibold leading-6 text-oa-fg">
+            Pro
+          </h2>
+          {plan === "pro" ? <span className="text-[13px] text-oa-muted-fg">Your plan</span> : periodSwitch}
+        </div>
+        <p className="mt-2 flex items-baseline gap-2">
+          <span className="oa-mono text-[44px] font-semibold leading-[52px] tracking-[-0.02em] text-oa-fg">{active?.price}</span>
+          <span className="text-[14px] text-oa-muted-fg">{active?.per}</span>
+        </p>
+        {active?.period === "yearly" && active.note ? (
+          <p className="text-[13px] leading-[18px] text-oa-muted-fg">{active.note}</p>
+        ) : yearly && plan !== "pro" ? (
+          <p className="text-[13px] leading-[18px] text-oa-muted-fg">
+            Or {yearly.price} {yearly.per} if you pay yearly.
+          </p>
+        ) : null}
+        <p className="mt-3 text-[16px] font-medium leading-6 text-oa-fg">The full report on every stock</p>
+        <Coverage every />
+        <Points items={proPoints} />
+        <div className="mt-auto pt-6">
+          {plan === "pro" ? (
+            <a href="/profile" className={OUTLINE_LINK}>
+              Manage your plan
+            </a>
+          ) : (
+            <OaButton className="h-11 w-full text-[15px]" loading={busy === "pro"} onClick={() => void startPro()}>
+              {trial ? "Try Pro free for 3 days" : "Get Pro"}
+            </OaButton>
+          )}
+          {plan !== "pro" ? <p className="mt-2 text-pretty text-[13px] leading-[18px] text-oa-muted-fg">{terms}</p> : null}
+          {error ? (
+            <p role="alert" className="mt-2 text-[14px] text-signal-bearish">
+              {error}
+            </p>
+          ) : null}
+        </div>
+      </section>
+    </div>
   );
 }
