@@ -1,18 +1,25 @@
 "use client";
 
+import Link from "next/link";
 import * as React from "react";
 
 import { SERIES_VARS } from "@/components/backtest/format";
+import { StockLogo } from "@/components/stock-logo";
 import { curveSlots, niceTicks, signedPct, weekGap } from "@/lib/memo/format";
 import type { MemoCurvePoint } from "@/lib/memo/types";
 import { shortDay, weekdayName } from "@/lib/memo/week";
+
+import type { DayExplain } from "./explain";
 
 /**
  * The week as two lines, the portfolio and the S&P 500, each as percent from
  * the close before Monday. Six fixed slots (that close, then Monday to
  * Friday), so a week still running shows the days it has left. The gap
  * between the two at the last close is labelled at the end. Hover or drag for
- * a day's values; the hidden table carries them for screen readers.
+ * a day's values; the hidden table carries them for screen readers. A tap or
+ * click on a day (or Enter on its point) opens what moved it under the chart:
+ * the holdings' explained moves and reports that day, with their sources, and
+ * Ask about that day.
  */
 
 const SLOTS = 6;
@@ -20,10 +27,17 @@ const PAD = { left: 48, right: 70, top: 12, bottom: 26 };
 const HEIGHT = 196;
 const SLOT_LABELS = ["", "Mon", "Tue", "Wed", "Thu", "Fri"];
 
-export function WeekChart({ curve, subject }: { curve: MemoCurvePoint[]; subject: "mine" | "example" }) {
+export function WeekChart({ curve, subject, days = [] }: { curve: MemoCurvePoint[]; subject: "mine" | "example"; days?: DayExplain[] }) {
   const wrap = React.useRef<HTMLDivElement>(null);
   const [width, setWidth] = React.useState(640);
   const [hover, setHover] = React.useState<number | null>(null);
+  /** The day opened under the chart, by slot. */
+  const [pinned, setPinned] = React.useState<number | null>(null);
+  const panelId = React.useId();
+  /** Where the pointer went down, so a drag is not taken for a click. */
+  const downAt = React.useRef<number | null>(null);
+  /** The day points, so closing a day hands focus back to its point. */
+  const points = React.useRef(new Map<number, HTMLButtonElement>());
 
   React.useEffect(() => {
     const node = wrap.current;
@@ -63,19 +77,32 @@ export function WeekChart({ curve, subject }: { curve: MemoCurvePoint[]; subject
   const gap = end.market === null ? null : weekGap(end.portfolio, end.market);
   const endX = x(last.slot);
   const shown = hover === null ? null : slots.find((row) => row.slot === hover) ?? null;
+  const open = pinned === null ? null : slots.find((row) => row.slot === pinned) ?? null;
+  const openDay = open ? days.find((entry) => entry.day === open.point.day) ?? null : null;
+  const toggle = (slot: number) => setPinned((current) => (current === slot ? null : slot));
 
   /** The nearest day with a close under the pointer. */
-  const slotAt = (event: React.PointerEvent<SVGSVGElement>) => {
+  const slotAt = (event: React.MouseEvent<SVGSVGElement>) => {
     const box = event.currentTarget.getBoundingClientRect();
     const fraction = (event.clientX - box.left - PAD.left) / (box.width - PAD.left - PAD.right);
     const slot = Math.round(fraction * (SLOTS - 1));
     return slots.reduce((best, row) => (Math.abs(row.slot - slot) < Math.abs(best.slot - slot) ? row : best), slots[0]!).slot;
   };
   const onMove = (event: React.PointerEvent<SVGSVGElement>) => setHover(slotAt(event));
-  // A second tap on the same day hides it again on a phone.
+  // A second tap on the same day hides its values again on a phone.
   const onDown = (event: React.PointerEvent<SVGSVGElement>) => {
+    downAt.current = event.clientX;
     const slot = slotAt(event);
     setHover(event.pointerType !== "mouse" && slot === hover ? null : slot);
+  };
+  // A click or tap anywhere else on the chart opens the nearest day's story under it; again on the same day closes it.
+  // A drag across the days (reading values) does not open one when it ends, and the week's starting close has no story.
+  const onClick = (event: React.MouseEvent<SVGSVGElement>) => {
+    const dragged = downAt.current !== null && Math.abs(event.clientX - downAt.current) > 6;
+    downAt.current = null;
+    if (days.length === 0 || dragged) return;
+    const slot = slotAt(event);
+    if (slot > 0) toggle(slot);
   };
 
   const label = `${portfolioName} ${signedPct(end.portfolio)}${end.market === null ? "" : ` against the S&P 500's ${signedPct(end.market)}`} from ${shortDay(slots[0]!.point.day)} to ${weekdayName(end.day)}, ${shortDay(end.day)}`;
@@ -107,6 +134,7 @@ export function WeekChart({ curve, subject }: { curve: MemoCurvePoint[]; subject
           className="block max-w-full touch-pan-y"
           onPointerMove={onMove}
           onPointerDown={onDown}
+          onClick={onClick}
           // A tap on a phone also ends in pointerleave; keep its day showing until the next tap.
           onPointerLeave={(event) => {
             if (event.pointerType === "mouse") setHover(null);
@@ -170,6 +198,25 @@ export function WeekChart({ curve, subject }: { curve: MemoCurvePoint[]; subject
             </g>
           ) : null}
 
+          {/* Every day is a point that opens what moved it: filled when the memo explains a move that day. */}
+          {days.length > 0 ? (
+            <g pointerEvents="none">
+              {slots.filter(({ slot }) => slot > 0).map(({ slot, point }) => {
+                const told = (days.find((entry) => entry.day === point.day)?.stories.length ?? 0) > 0;
+                return (
+                  <circle
+                    key={point.day}
+                    cx={x(slot)}
+                    cy={y(point.portfolio)}
+                    r={pinned === slot ? 4.5 : told ? 3.5 : 2.5}
+                    fill={pinned === slot || told ? "var(--series-a)" : "var(--oa-card)"}
+                    stroke="var(--series-a)"
+                    strokeWidth="1.5"
+                  />
+                );
+              })}
+            </g>
+          ) : null}
           {shown ? (
             <g pointerEvents="none">
               <line x1={x(shown.slot)} x2={x(shown.slot)} y1={PAD.top} y2={PAD.top + plotH} stroke="var(--oa-fg)" strokeOpacity="0.3" strokeWidth="1" />
@@ -185,6 +232,27 @@ export function WeekChart({ curve, subject }: { curve: MemoCurvePoint[]; subject
             </g>
           )}
         </svg>
+        {/* The points as real buttons over the line, so a keyboard, a screen reader or a tap opens a day. */}
+        {days.length > 0
+          ? slots
+              .filter(({ slot }) => slot > 0)
+              .map(({ slot, point }) => (
+              <button
+                key={point.day}
+                ref={(node) => {
+                  if (node) points.current.set(slot, node);
+                  else points.current.delete(slot);
+                }}
+                type="button"
+                aria-label={`${weekdayName(point.day)}, ${shortDay(point.day)}: what moved it`}
+                aria-expanded={pinned === slot}
+                aria-controls={panelId}
+                onClick={() => toggle(slot)}
+                className="absolute size-6 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]"
+                style={{ left: x(slot), top: y(point.portfolio) }}
+              />
+            ))
+          : null}
         {shown ? (
           <div
             className="pointer-events-none absolute top-0 z-[1] w-[168px] rounded border border-oa-border bg-oa-card px-2.5 py-1.5 text-[12px] leading-[18px] shadow-sm"
@@ -210,6 +278,22 @@ export function WeekChart({ curve, subject }: { curve: MemoCurvePoint[]; subject
           </div>
         ) : null}
       </div>
+      {days.length > 0 ? (
+        <div id={panelId} aria-live="polite">
+          {open && openDay ? (
+            <DayPanel
+              day={openDay}
+              point={open.point}
+              previous={slots[slots.indexOf(open) - 1]?.point ?? null}
+              subject={subject}
+              onClose={() => {
+                points.current.get(open.slot)?.focus();
+                setPinned(null);
+              }}
+            />
+          ) : null}
+        </div>
+      ) : null}
       <table className="sr-only">
         <caption>Each close this week, percent from {shortDay(slots[0]!.point.day)}</caption>
         <thead>
@@ -229,6 +313,70 @@ export function WeekChart({ curve, subject }: { curve: MemoCurvePoint[]; subject
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/** One day's move from two week-to-date points (percent from the week's starting close). */
+function dayMove(now: number, before: number | null): number {
+  if (before === null) return now;
+  return ((1 + now / 100) / (1 + before / 100) - 1) * 100;
+}
+
+/** What moved one day: the day's two figures, the holdings' explained moves and reports, and Ask about it. */
+function DayPanel({
+  day,
+  point,
+  previous,
+  subject,
+  onClose,
+}: {
+  day: DayExplain;
+  point: MemoCurvePoint;
+  /** The close before, so the panel shows the day's own move, not the week so far. */
+  previous: MemoCurvePoint | null;
+  subject: "mine" | "example";
+  onClose: () => void;
+}) {
+  const link = "rounded font-medium text-oa-primary underline-offset-2 hover:underline";
+  return (
+    <div className="mt-2 rounded border border-oa-border bg-oa-bg px-3 py-2.5 text-[13.5px] leading-5">
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-oa-fg">
+          <span className="font-medium">{`${weekdayName(point.day)}, ${shortDay(point.day)}`}</span>
+          <span className="oa-mono ml-2 text-[12.5px] tabular-nums text-oa-muted-fg">
+            {subject === "example" ? "Example" : "Yours"} {signedPct(dayMove(point.portfolio, previous?.portfolio ?? null))}
+            {point.market !== null ? ` · S&P 500 ${signedPct(dayMove(point.market, previous?.market ?? null))}` : ""}
+          </span>
+        </p>
+        <button type="button" onClick={onClose} aria-label="Close this day" className="-mr-1 -mt-0.5 rounded px-1 text-[15px] leading-5 text-oa-muted-fg outline-none hover:text-oa-fg focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]">
+          ×
+        </button>
+      </div>
+      {day.stories.length > 0 ? (
+        <ul className="mt-1.5 flex flex-col gap-2">
+          {day.stories.map((story, index) => (
+            <li key={`${story.ticker}-${index}`} className="grid grid-cols-[18px_minmax(0,1fr)] gap-x-2">
+              <StockLogo ticker={story.ticker} size={18} className="mt-px" />
+              <div className="min-w-0">
+                <p className="text-pretty text-oa-fg">{story.text}</p>
+                <p className="mt-0.5 text-[12px] leading-4 text-oa-muted-fg">
+                  {story.source}
+                  {" · "}
+                  <Link href={story.evidence.href} prefetch={false} className={link}>
+                    {story.evidence.label}
+                  </Link>
+                </p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <p className="mt-2 text-[13px] leading-[22px]">
+        <Link href={day.ask.href} prefetch={false} data-track-target="ask" className={link}>
+          {day.ask.label}&nbsp;→
+        </Link>
+      </p>
     </div>
   );
 }

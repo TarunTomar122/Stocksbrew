@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import type { Briefing, BriefingItem } from "@/lib/briefing";
 import { groupBriefingSections } from "@/lib/briefing-groups";
-import { briefingRead, firstSentence, sessionLine } from "@/lib/briefing-read";
+import { briefingRead, firstSentence, holdingsFirst, sessionLine } from "@/lib/briefing-read";
+import type { BriefingGroup } from "@/lib/briefing-groups";
 
 function item(overrides: Partial<BriefingItem> & Pick<BriefingItem, "id" | "kind" | "ticker">): BriefingItem {
   return {
@@ -195,5 +196,20 @@ describe("indexClock", () => {
     expect(indexClock("2026-11-10T14:56:00.000Z", "2026-11-10")).toEqual({ kind: "intraday", clock: "9:56 AM ET" });
     expect(indexClock("2026-11-09T21:05:00.000Z", "2026-11-10")).toBeNull();
     expect(indexClock(null, "2026-11-10")).toBeNull();
+  });
+});
+
+describe("holdingsFirst", () => {
+  const g = (key: string, relation: BriefingGroup["relation"]) => ({ key, relation }) as BriefingGroup;
+  it("puts holdings, then watched stocks, then the market, keeping each band's order", () => {
+    const out = holdingsFirst({
+      needs_you: [g("W1", "watching"), g("H1", "holding"), g("M", "market"), g("H2", "holding")],
+      worth_knowing: [g("W2", "watching"), g("H3", "holding")],
+      coming_up: [],
+      settled: [g("S", "watching")],
+    });
+    expect(out.needs_you.map((group) => group.key)).toEqual(["H1", "H2", "W1", "M"]);
+    expect(out.worth_knowing.map((group) => group.key)).toEqual(["H3", "W2"]);
+    expect(out.settled.map((group) => group.key)).toEqual(["S"]);
   });
 });

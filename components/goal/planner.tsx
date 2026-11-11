@@ -94,6 +94,7 @@ export function GoalPlanner({
           fold="phone"
           foldKeep={2}
           foldLabel={read.insights.length === 3 ? "Show 1 more point" : `Show ${read.insights.length - 2} more points`}
+          askContext={false}
         />
       ) : (
         <section className="oa-surface border border-oa-border bg-oa-card px-4 py-3.5 sm:px-5">

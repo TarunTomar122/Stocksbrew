@@ -1,5 +1,5 @@
-import { shortDate, type AgentDecision, type AgentFinding, type AgentJobDraft, type AgentRunCounts, type AgentTrigger } from "@/lib/agent-jobs";
-import { nextCheckFor, runTickers, stampWords } from "@/lib/agent-watch";
+import { shortDate, type AgentDecision, type AgentFinding, type AgentJobDraft, type AgentRunCounts, type AgentScope, type AgentTrigger } from "@/lib/agent-jobs";
+import { agentHref, describeWatch, nextCheckFor, runDetailFromDoc, runTickers, stampWords } from "@/lib/agent-watch";
 import type { AgentsSource } from "@/lib/portfolio-home/log";
 import { countWord } from "@/lib/read-format";
 
@@ -20,6 +20,8 @@ export type StoredCheck = {
   decision: AgentDecision;
   summary: string;
   findings: Array<Pick<AgentFinding, "ticker" | "headline" | "detail" | "source" | "url" | "at">>;
+  /** Every finding the run stored, when more were kept than `findings` holds. */
+  findingCount?: number;
   checked: string[];
   latest_close: string | null;
   counts: AgentRunCounts | null;
@@ -48,6 +50,10 @@ export type CheckView = {
   decided: string;
   /** YYYY-MM-DD of its next after-close check, only when the run log proves the runner is checking it. */
   next: string | null;
+  /** The stocks it looked at, when the rule names them (a watchlist rule reads whatever is tracked that night). */
+  stocks: string[];
+  /** The stocks its findings name, in order. */
+  flagged: string[];
 };
 
 export type ExampleChecksView = {
@@ -81,22 +87,35 @@ function sentence(text: string): string {
 
 /** The evaluator writes for a person's own list ("your names"); the example's stocks are "these stocks". */
 function forExample(text: string): string {
-  return text
-    .replace(/^Checked, nothing to do\.\s*/i, "")
-    .replace(/\byour names\b/gi, "these stocks")
-    .replace(/\bof yours\b/gi, "of these")
-    .replace(/, and you were already told\b/g, ", which it had already said")
-    // Only the evaluator's own counting phrases: a filing or news headline may say "name" and mean it.
-    .replace(/\b(the \d+|\d+|all|The one|the one) names?\b/g, (_whole, lead: string) => `${lead} ${/^(the one|The one|1)$/.test(lead) ? "stock" : "stocks"}`)
-    .replace(/^Names in scope\b/, "Stocks watched");
+  return plainStocks(text.replace(/\byour names\b/gi, "these stocks").replace(/\bof yours\b/gi, "of these").replace(/, and you were already told\b/g, ", which it had already said"));
+}
+
+/** The evaluator's own words made plain for anyone: "names" are stocks, and "Checked, nothing to do." is left out. */
+function plainStocks(text: string): string {
+  return (
+    text
+      .replace(/^Checked, nothing to do\.\s*/i, "")
+      .replace(/\byour names\b/gi, "your stocks")
+      // Only the evaluator's own counting phrases: a filing or news headline may say "name" and mean it.
+      .replace(/\b(the \d+|\d+|all|The one|the one) names?\b/g, (_whole, lead: string) => `${lead} ${/^(the one|The one|1)$/.test(lead) ? "stock" : "stocks"}`)
+      .replace(/^Names in scope\b/, "Stocks watched")
+  );
 }
 
 function stocksWord(n: number): string {
   return n === 1 ? "one stock" : `${countWord(n).toLowerCase()} stocks`;
 }
 
-function outcomeOf(run: StoredCheck, trigger: AgentTrigger | undefined): string {
-  if (run.decision === "could_not_check") return sentence(forExample(run.summary.replace(/^Could not check:\s*/i, "It could not check: "))) || "It could not check this time.";
+/** Whose stocks a check is about: the example's ("these stocks") or the person's own ("your names" as written). */
+export type CheckAudience = "example" | "mine";
+
+function wordsFor(audience: CheckAudience): (text: string) => string {
+  return audience === "example" ? forExample : plainStocks;
+}
+
+function outcomeOf(run: StoredCheck, trigger: AgentTrigger | undefined, audience: CheckAudience = "example"): string {
+  const say = wordsFor(audience);
+  if (run.decision === "could_not_check") return sentence(say(run.summary.replace(/^Could not check:\s*/i, "It could not check: "))) || "It could not check this time.";
   if (trigger?.type === "price" && trigger.rule === "moves_pct") {
     const pct = trigger.pct ?? 5;
     if (run.decision === "notify" && run.findings.length > 1) {
@@ -112,20 +131,27 @@ function outcomeOf(run: StoredCheck, trigger: AgentTrigger | undefined): string 
     }
   }
   if (run.decision === "nothing") {
-    const why = sentence(forExample(run.summary));
+    const why = sentence(say(run.summary));
     return why ? `Nothing to report. ${why}` : "Nothing to report.";
   }
-  return sentence(forExample(run.summary)) || "It found something to tell you.";
+  return sentence(say(run.summary)) || "It found something to tell you.";
 }
 
-function checkedOf(run: StoredCheck, trigger: AgentTrigger | undefined, watched: number): string {
+function checkedOf(run: StoredCheck, trigger: AgentTrigger | undefined, watched: number, audience: CheckAudience = "example"): string {
+  const say = wordsFor(audience);
+  const these = audience === "example" ? "these" : "your";
   if (trigger?.type === "event" && trigger.event === "earnings_approaching") {
-    return `The earnings calendar for the ${stocksWord(watched)}, ${trigger.days_before ?? 3} calendar days ahead.`;
+    return `The earnings calendar for ${watched > 0 ? `the ${stocksWord(watched)}` : `${audience === "example" ? "these" : "your"} stocks`}, ${trigger.days_before ?? 3} calendar days ahead.`;
   }
   if (trigger?.type === "price") {
     const priced = run.counts?.priced ?? null;
     const names = run.counts?.names ?? watched;
-    const which = priced == null || priced === names ? `the ${stocksWord(names)}` : `${countWord(priced).toLowerCase()} of the ${stocksWord(names)}`;
+    const which =
+      names <= 0
+        ? `${these} stocks`
+        : priced == null || priced === names
+          ? `the ${stocksWord(names)}`
+          : `${countWord(priced).toLowerCase()} of the ${stocksWord(names)}`;
     return run.latest_close ? `Closing prices for ${which}, the latest from ${shortDate(run.latest_close)}.` : `Closing prices for ${which}.`;
   }
   if (trigger?.type === "event" && trigger.event === "sec_filing") {
@@ -133,11 +159,12 @@ function checkedOf(run: StoredCheck, trigger: AgentTrigger | undefined, watched:
     const mine = /, (\d+) filings? from them/.exec(run.checked[1] ?? "");
     if (all && mine) {
       const own = Number(mine[1]);
-      return `Every SEC filing from ${all[1]}: ${all[2]} across the companies we cover, ${own === 0 ? "none" : own} from these ${stocksWord(watched)}.`;
+      // A watchlist rule's own count of stocks is not stored; without one the sentence says "your stocks".
+      return `Every SEC filing from ${all[1]}: ${all[2]} across the companies we cover, ${own === 0 ? "none" : own} from ${watched > 0 ? `${these} ${stocksWord(watched)}` : `${these} stocks`}.`;
     }
-    return "New SEC filings from these stocks.";
+    return `New SEC filings from ${these} stocks.`;
   }
-  const lines = run.checked.filter((line) => !/^Names in scope/i.test(line)).map((line) => forExample(line));
+  const lines = run.checked.filter((line) => !/^Names in scope/i.test(line)).map((line) => say(line));
   return lines.length > 0 ? sentence(lines.join("; ")) : "Its sources for the day.";
 }
 
@@ -157,31 +184,116 @@ function newer(a: StoredCheck, b: StoredCheck): boolean {
 }
 
 /**
+ * One agent's newest run among `runs` (up to `today`), shaped for the page, or null when it has none.
+ * `stocks` are the stocks its rule names; `total` overrides their count when only the count is known.
+ */
+export function checkView(
+  agent: ExampleAgentDef,
+  runs: StoredCheck[],
+  today: string,
+  options: { stocks: string[]; audience: CheckAudience; total?: number | null; enabled?: boolean },
+): CheckView | null {
+  const own = runs.filter((run) => run.job_id === agent.id && DAY.test(run.day) && run.day <= today);
+  const latest = own.reduce<StoredCheck | null>((best, run) => (!best || newer(run, best) ? run : best), null);
+  if (!latest) return null;
+  const shown = latest.decision === "notify" ? latest.findings.slice(0, MAX_SHOWN).map((finding) => ({ ...finding, detail: evidenceWords(finding.detail) })) : [];
+  const total = latest.counts?.names ?? options.total ?? options.stocks.length;
+  return {
+    id: agent.id,
+    ask: agent.ask,
+    day: latest.day,
+    when: stampWords(latest.ran_at || null, latest.day),
+    ranAt: latest.ran_at,
+    decision: latest.decision,
+    outcome: outcomeOf(latest, agent.trigger, options.audience),
+    checked: checkedOf(latest, agent.trigger, total, options.audience),
+    findings: shown,
+    more: latest.decision === "notify" ? Math.max(0, (latest.findingCount ?? latest.findings.length) - shown.length) : 0,
+    decided: DECIDED[latest.decision],
+    next: nextCheckFor({ enabled: options.enabled ?? true, trigger: agent.trigger }, asSourceRuns(own), today),
+    stocks: options.stocks,
+    flagged: latest.decision === "notify" ? runTickers(latest.findings) : [],
+  };
+}
+
+type OwnJob = AgentsSource["jobs"][number];
+
+/**
+ * A person's own agent's newest stored run as an opened check, or null when it has not run (or its run was read
+ * without the detail). The rule is the agent's own words (lib/agent-watch.ts describeWatch).
+ */
+export function ownCheckView(job: OwnJob, runs: AgentsSource["runs"], today: string): CheckView | null {
+  const stored: StoredCheck[] = runs
+    .filter((run) => run.job_id === job.id && run.detail)
+    .map((run) => ({
+      job_id: run.job_id,
+      day: run.day,
+      ran_at: run.ran_at,
+      decision: run.decision,
+      summary: run.summary,
+      findings: run.detail!.findings,
+      findingCount: run.detail!.findingCount,
+      checked: run.detail!.checked,
+      latest_close: run.detail!.latest_close,
+      counts: run.detail!.counts,
+    }));
+  if (stored.length === 0 || !job.trigger) return null;
+  const scope: AgentScope | undefined = job.scope;
+  const stocks = scope?.kind === "tickers" ? scope.tickers.map((ticker) => ticker.toUpperCase()) : [];
+  // The next check is proven from all of this job's runs, the ones read without detail too.
+  const view = checkView({ id: job.id, ask: describeWatch(job), trigger: job.trigger }, stored, today, { stocks, audience: "mine", enabled: job.enabled });
+  if (!view) return null;
+  return { ...view, next: nextCheckFor(job, runs.filter((run) => run.job_id === job.id), today) };
+}
+
+const TICKER = /^[A-Z][A-Z0-9.-]{0,9}$/;
+
+function listAnd(items: string[]): string {
+  if (items.length <= 1) return items[0] ?? "";
+  if (items.length <= 3) return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
+  return `${items.slice(0, 3).join(", ")} and ${items.length - 3} more`;
+}
+
+export type CheckSteps = {
+  /** A question for Ask about this check, with the item it starts from (lib/ask-context.ts). */
+  ask: { question: string; context: string };
+  /** Where to change the rule: the person's own agent. None for the example (the panel offers one "Set one up"). */
+  change: { label: string; href: string } | null;
+};
+
+/**
+ * The two steps under an opened check: ask about it, and change the watch. A person's own check opens its agent
+ * in Ask (`agent:<id>`); the example's opens the stock it flagged, or the example portfolio.
+ */
+export function checkSteps(view: Pick<CheckView, "id" | "day" | "decision" | "flagged">, audience: CheckAudience): CheckSteps {
+  const whose = audience === "mine" ? "my agent" : "the example's agent";
+  const on = DAY.test(view.day) ? ` on ${shortDate(view.day)}` : "";
+  const flagged = view.flagged.filter((ticker) => TICKER.test(ticker));
+  const question =
+    view.decision === "notify" && flagged.length > 0
+      ? `Why did ${whose} flag ${listAnd(flagged)}${on}, and does it need ${audience === "mine" ? "me" : "attention"}?`
+      : view.decision === "notify"
+        ? `What did ${whose} find${on}, and does it need ${audience === "mine" ? "me" : "attention"}?`
+        : view.decision === "could_not_check"
+          ? `Why couldn't ${whose} check${on}, and is anything missed?`
+          : `What did ${whose} check${on}, and what would make it speak up?`;
+  if (audience === "mine") {
+    return { ask: { question, context: `agent:${view.id}` }, change: { label: "Change this watch", href: agentHref(view.id) } };
+  }
+  return {
+    ask: { question, context: flagged.length === 1 ? `stock:${flagged[0]}` : "ex.portfolio" },
+    change: null,
+  };
+}
+
+/**
  * Each example agent's newest run, shaped for the page, or null when none has run in the window the
  * loader read (then the page shows nothing about them). `today` is the New York day.
  */
 export function shapeExampleChecks(input: { agents: ExampleAgentDef[]; runs: StoredCheck[]; tickers: string[] }, today: string): ExampleChecksView | null {
-  const views: CheckView[] = [];
-  for (const agent of input.agents) {
-    const own = input.runs.filter((run) => run.job_id === agent.id && DAY.test(run.day) && run.day <= today);
-    const latest = own.reduce<StoredCheck | null>((best, run) => (!best || newer(run, best) ? run : best), null);
-    if (!latest) continue;
-    const shown = latest.decision === "notify" ? latest.findings.slice(0, MAX_SHOWN).map((finding) => ({ ...finding, detail: evidenceWords(finding.detail) })) : [];
-    views.push({
-      id: agent.id,
-      ask: agent.ask,
-      day: latest.day,
-      when: stampWords(latest.ran_at || null, latest.day),
-      ranAt: latest.ran_at,
-      decision: latest.decision,
-      outcome: outcomeOf(latest, agent.trigger),
-      checked: checkedOf(latest, agent.trigger, input.tickers.length),
-      findings: shown,
-      more: latest.decision === "notify" ? Math.max(0, latest.findings.length - shown.length) : 0,
-      decided: DECIDED[latest.decision],
-      next: nextCheckFor({ enabled: true, trigger: agent.trigger }, asSourceRuns(own), today),
-    });
-  }
+  const views = input.agents
+    .map((agent) => checkView(agent, input.runs, today, { stocks: input.tickers, audience: "example" }))
+    .filter((view): view is CheckView => view !== null);
   if (views.length === 0) return null;
   const newestDay = views.reduce((day, view) => (view.day > day ? view.day : day), "");
   // The newest day's check that found something, else one that checked and found nothing, else whatever ran.
@@ -198,27 +310,19 @@ export function storedCheckFromDoc(data: Record<string, unknown> | undefined, ui
   const jobId = text(data.job_id);
   const day = text(data.day);
   if (!jobId || !DAY.test(day) || (decision !== "notify" && decision !== "nothing" && decision !== "could_not_check")) return null;
-  const findings = (Array.isArray(data.findings) ? (data.findings as Array<Record<string, unknown>>) : [])
-    .filter((finding) => finding && typeof finding === "object" && text(finding.headline))
-    .map((finding) => ({
-      ticker: text(finding.ticker).toUpperCase() || null,
-      headline: text(finding.headline),
-      detail: text(finding.detail),
-      source: text(finding.source),
-      url: text(finding.url) || null,
-      at: text(finding.at).slice(0, 10),
-    }));
-  const counts = data.counts && typeof data.counts === "object" ? (data.counts as AgentRunCounts) : null;
+  // Every finding: the example's findings are matched to the cards by the stocks they name.
+  const detail = runDetailFromDoc(data, Number.POSITIVE_INFINITY);
   return {
     job_id: jobId,
     day,
     ran_at: text(data.ran_at),
     decision,
     summary: text(data.summary),
-    findings,
-    checked: Array.isArray(data.checked) ? (data.checked as unknown[]).filter((line): line is string => typeof line === "string") : [],
-    latest_close: text(data.latest_close) || null,
-    counts,
+    findings: detail.findings,
+    findingCount: detail.findingCount,
+    checked: detail.checked,
+    latest_close: detail.latest_close,
+    counts: detail.counts,
   };
 }
 

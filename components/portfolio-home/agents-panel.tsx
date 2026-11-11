@@ -3,11 +3,12 @@ import { Suspense } from "react";
 
 import { WATCH_FOCUS, WATCH_LINK, WATCH_LIST, WatchRow, WouldWatchRow } from "@/components/agent-watch/watch-list";
 import { Bar } from "@/components/oa/kit/skeleton";
-import { CheckDetail, didWhen, ExampleChecks, tickerList } from "@/components/portfolio-home/example-check";
+import { CheckDetail, CheckDisclosure, didWhen, ExampleChecks, tickerList } from "@/components/portfolio-home/example-check";
 import { activeWatches } from "@/lib/agent-watch";
 import { fmtPlanDay } from "@/lib/dividend-plan";
 import { newYorkToday } from "@/lib/portfolio-data";
 import { focusNoticed, prioritise, type Lead } from "@/lib/portfolio-home/focus";
+import { ownCheckView } from "@/lib/portfolio-home/example-check";
 import { loadExampleChecks } from "@/lib/portfolio-home/example-check-server";
 import { watchPlan } from "@/lib/portfolio-home/loop";
 import { feedSources, type HomeLoad } from "@/lib/portfolio-home/server";
@@ -16,7 +17,9 @@ import type { Verdict } from "@/lib/thesis-watch/rules";
 
 /**
  * "Your agents" on the My stocks overview: every active watch in one row, with
- * its last check, what it found and its next check (lib/agent-watch.ts), and
+ * its last check, what it found and its next check (lib/agent-watch.ts); a row
+ * that has run opens to the whole check (what it examined, the evidence, what
+ * it decided, its next run, Ask about it, change it: ./example-check.tsx), and
  * the reason watcher when the person gave reasons. With no agents: signed out,
  * the example portfolio's own agents with their latest real check in full
  * (./example-check.tsx); signed in, that check under "You have no agents
@@ -185,20 +188,22 @@ export async function AgentsPanel({ load }: { load: HomeLoad }) {
           </p>
         ) : null}
         <ul className={`${WATCH_LIST} mt-1.5`}>
-          {rows.map((row) => (
-            <WatchRow
-              key={row.id}
-              row={row}
-              today={today}
-              extra={
-                lead && row.last && row.last.tickers.length > 0 ? (
-                  <Suspense fallback={null}>
-                    <FindingAnchor lead={lead} tickers={row.last.tickers} />
-                  </Suspense>
-                ) : null
-              }
-            />
-          ))}
+          {rows.map((row) => {
+            const extra =
+              lead && row.last && row.last.tickers.length > 0 ? (
+                <Suspense fallback={null}>
+                  <FindingAnchor lead={lead} tickers={row.last.tickers} />
+                </Suspense>
+              ) : null;
+            // A check that has run opens to what it examined, what it found and its next run; one not run yet stays a row.
+            const job = own.jobs.find((entry) => entry.id === row.id);
+            const view = job ? ownCheckView(job, own.runs, today) : null;
+            return view ? (
+              <CheckDisclosure key={row.id} view={view} today={today} audience="mine" extra={extra} />
+            ) : (
+              <WatchRow key={row.id} row={row} today={today} extra={extra} />
+            );
+          })}
           {mine ? (
             <Suspense fallback={null}>
               <ReasonWatchRow load={load} />
@@ -263,7 +268,7 @@ export async function AgentsPanel({ load }: { load: HomeLoad }) {
       </div>
       {signedIn && checks ? (
         <div className="px-4 pb-3">
-          <CheckDetail view={checks.featured} today={today} />
+          <CheckDetail view={checks.featured} today={today} audience="example" />
         </div>
       ) : null}
       {mine ? (

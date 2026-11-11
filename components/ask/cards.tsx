@@ -39,6 +39,8 @@ import type {
   WebCard,
 } from "@/lib/ask-cards";
 import { beatShare, markFor, priceVsTarget, rsiWord, scoreVerdict, type Tone } from "@/lib/tone";
+import { WATCH_HOW_WORDS, WATCH_WHEN_PLAIN, saveOutcome, watchWhenWords, type SaveResponse, type SaveState } from "@/lib/ask-answer";
+import { lockCopy } from "@/lib/entitlements";
 import Link from "next/link";
 import { AppLink } from "@/components/oa/app-link";
 
@@ -1398,32 +1400,160 @@ function BriefingItem({ card }: { card: BriefingItemCard }) {
   );
 }
 
-function Watch({ card, actions }: { card: WatchCard; actions: CardActions }) {
-  const already = card.status === "already";
+function RuleRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="oa-surface border border-oa-border bg-oa-card px-3.5 py-3">
-      <p className="text-pretty text-[14px] leading-5 text-oa-fg">
-        {already
-          ? `You already have ${card.existing.length === 1 ? "an agent" : "agents"} for this: ${card.existing.map((job) => `${job.name}${job.enabled ? "" : " (paused)"}`).join(", ")}.`
-          : card.preview}
-      </p>
-      {card.note && !already ? <p className="mt-1 text-pretty text-[12.5px] leading-5 text-oa-muted-fg">{card.note}</p> : null}
-      <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-2">
-        {already ? (
-          <AppLink href="/agents" className={`inline-flex h-8 items-center rounded-lg border border-oa-border px-3 text-[13px] font-medium text-oa-fg hover:bg-oa-accent ${FOCUS}`}>
+    <>
+      <dt className="text-oa-muted-fg">{label}</dt>
+      <dd className="min-w-0 text-pretty text-oa-fg">{children}</dd>
+    </>
+  );
+}
+
+const LINK_BUTTON = `inline-flex h-8 items-center rounded-lg border border-oa-border px-3 text-[13px] font-medium text-oa-fg hover:bg-oa-accent ${FOCUS}`;
+
+/**
+ * "Keep watching": the agent an answer leads to, with its exact rule (what, which stocks, when it checks, how it tells
+ * you) before anything is saved. Signed in, one tap saves it through the agents API (POST /api/agents/save) with the
+ * card's own drafts; nothing is created without that tap, and the plan's limits apply exactly as on the Agents page.
+ * Signed out, or on a card from before the rule was stored, the button opens the Agents page with the request filled in.
+ */
+function Watch({ card, actions }: { card: WatchCard; actions: CardActions }) {
+  const [save, setSave] = React.useState<SaveState>({ phase: "idle" });
+  // "The next check is today" depends on the reader's clock, so it is worked out in the browser, never on the server.
+  const [when, setWhen] = React.useState<string | null>(null);
+  React.useEffect(() => setWhen(watchWhenWords()), []);
+  const already = card.status === "already";
+  if (already) {
+    return (
+      <div className="oa-surface border border-oa-border bg-oa-card px-3.5 py-3">
+        <p className="text-pretty text-[14px] leading-5 text-oa-fg">
+          {`You already have ${card.existing.length === 1 ? "an agent" : "agents"} for this: ${card.existing.map((job) => `${job.name}${job.enabled ? "" : " (paused)"}`).join(", ")}.`}
+        </p>
+        <div className="mt-2.5">
+          <AppLink href="/agents" className={LINK_BUTTON}>
             See your agents
           </AppLink>
-        ) : (
-          // Signed out too: the Agents page opens the filled-in agent with its last four weeks, and asks for an
-          // account only when it is saved.
-          <AppLink href={card.href} className={`inline-flex h-8 items-center rounded-lg bg-oa-primary px-3 text-[13px] font-medium text-oa-primary-fg hover:opacity-90 ${FOCUS}`}>
-            Watch this
-          </AppLink>
-        )}
-        {/* Signed out, the note already says saving takes an account. */}
-        {already || !actions.signedIn ? null : <span className="text-[12px] text-oa-muted-fg">Nothing is set up until you save it on the Agents page.</span>}
+        </div>
       </div>
-    </div>
+    );
+  }
+  const rule = card.rule;
+  const oneTap = actions.signedIn && Boolean(rule) && (card.drafts?.length ?? 0) > 0 && card.outlook?.kind !== "full";
+  const saved = save.phase === "on" || save.phase === "paused" || save.phase === "already";
+  const confirm = async () => {
+    setSave({ phase: "running" });
+    try {
+      const response = await fetch("/api/agents/save", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ drafts: card.drafts }) });
+      const body = (await response.json().catch(() => null)) as SaveResponse | null;
+      setSave(saveOutcome(response.ok, body));
+    } catch {
+      setSave({ phase: "failed", message: "We could not reach the server. Nothing was set up." });
+    }
+  };
+  const tag = save.phase === "on" ? <Tag tone="up">On</Tag> : save.phase === "paused" ? <Tag tone="warn">Saved, paused</Tag> : save.phase === "already" ? <Tag>Already set up</Tag> : null;
+  const lock = lockCopy("agents");
+  return (
+    <Frame label="Keep watching" right={tag}>
+      {rule ? (
+        <dl className="grid grid-cols-[3.75rem_minmax(0,1fr)] gap-x-3 gap-y-1 text-[13.5px] leading-5">
+          <RuleRow label="What">
+            {rule.what.length === 1 ? (
+              rule.what[0]
+            ) : (
+              <ul className="space-y-0.5">
+                {rule.what.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            )}
+          </RuleRow>
+          <RuleRow label={rule.mine || rule.stocks.length !== 1 ? "Stocks" : "Stock"}>
+            {rule.mine ? (
+              "Every stock you track"
+            ) : (
+              <span className="flex flex-wrap gap-x-3 gap-y-0.5">
+                {rule.stocks.map((stock) => (
+                  <span key={stock.ticker} className="inline-flex min-w-0 items-baseline gap-1.5" title={stock.name}>
+                    <TickerLink symbol={stock.ticker} logo={14} className="text-[13px]" />
+                    {stock.name && stock.name !== stock.ticker ? <span className="truncate text-oa-muted-fg">{stock.name}</span> : null}
+                  </span>
+                ))}
+              </span>
+            )}
+          </RuleRow>
+          <RuleRow label="When">
+            {when ?? WATCH_WHEN_PLAIN}
+          </RuleRow>
+          <RuleRow label="How">{WATCH_HOW_WORDS}</RuleRow>
+        </dl>
+      ) : (
+        <p className="text-pretty text-[14px] leading-5 text-oa-fg">{card.preview}</p>
+      )}
+      {card.note && !saved ? <p className="mt-2 text-pretty text-[12.5px] leading-5 text-oa-muted-fg">{card.note}</p> : null}
+      {actions.signedIn && card.outlook && !saved ? <p className="mt-2 text-pretty text-[13px] leading-5 text-oa-label">{card.outlook.line}</p> : null}
+
+      {save.phase === "on" ? (
+        <p className="mt-2.5 text-pretty text-[13.5px] leading-5 text-oa-fg" role="status">
+          It&apos;s on. You&apos;ll hear by email on the first day it happens.{save.missed ? ` ${save.missed}` : ""}{" "}
+          <AppLink href="/agents" className={`underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg ${FOCUS}`}>
+            See your agents
+          </AppLink>
+        </p>
+      ) : save.phase === "already" ? (
+        <p className="mt-2.5 text-pretty text-[13.5px] leading-5 text-oa-fg" role="status">
+          You already had this agent, so nothing changed.{" "}
+          <AppLink href="/agents" className={`underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg ${FOCUS}`}>
+            See your agents
+          </AppLink>
+        </p>
+      ) : save.phase === "paused" ? (
+        <div className="mt-2.5 text-pretty text-[13.5px] leading-5" role="status">
+          <p className="font-medium text-oa-fg">
+            {save.on > 0 ? `${save.on} ${save.on === 1 ? "is" : "are"} on and ${save.paused} ${save.paused === 1 ? "is" : "are"} saved and paused` : save.message ? "Saved and paused" : lock.title}
+          </p>
+          <p className="mt-0.5 text-oa-muted-fg">
+            {save.message ?? lock.body}
+            {save.missed ? ` ${save.missed}` : ""}
+          </p>
+          <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+            <AppLink href="/agents" className={`text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg ${FOCUS}`}>
+              See your agents
+            </AppLink>
+            <AppLink href="/pricing#agents" className={`text-oa-muted-fg underline decoration-oa-border underline-offset-2 hover:text-oa-fg ${FOCUS}`}>
+              What is in Pro
+            </AppLink>
+          </p>
+        </div>
+      ) : (
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+          {oneTap ? (
+            <>
+              <OaButton size="sm" loading={save.phase === "running"} onClick={() => void confirm()}>
+                Set up this watch
+              </OaButton>
+              <AppLink href={card.href} className={`rounded text-[13px] text-oa-muted-fg underline decoration-oa-border underline-offset-2 hover:text-oa-fg ${FOCUS}`}>
+                Change it first
+              </AppLink>
+            </>
+          ) : actions.signedIn && card.outlook?.kind === "full" ? (
+            <AppLink href="/agents" className={LINK_BUTTON}>
+              Open your agents
+            </AppLink>
+          ) : (
+            // Signed out too: the Agents page opens the filled-in agent with its last four weeks, and asks for an
+            // account only when it is saved.
+            <AppLink href={card.href} className={`inline-flex h-8 items-center rounded-lg bg-oa-primary px-3 text-[13px] font-medium text-oa-primary-fg hover:opacity-90 ${FOCUS}`}>
+              Set up this watch
+            </AppLink>
+          )}
+        </div>
+      )}
+      {save.phase === "failed" ? (
+        <p className="mt-2 text-[13px] leading-5 text-signal-bearish" role="alert">
+          {save.message}
+        </p>
+      ) : null}
+    </Frame>
   );
 }
 

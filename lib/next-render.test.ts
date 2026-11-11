@@ -5,10 +5,13 @@ vi.hoisted(() => {
   (globalThis as { AsyncLocalStorage?: unknown }).AsyncLocalStorage = require("node:async_hooks").AsyncLocalStorage;
 });
 
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
+
 import { staticGenerationAsyncStorage } from "next/dist/client/components/static-generation-async-storage.external";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { LocalFirestore } from "@/lib/local-firestore";
+import { LocalFirestore, setLocalDbFetchForTests } from "@/lib/local-firestore";
 import { noteDegradedRender } from "@/lib/next-render";
 
 type Store = Parameters<typeof staticGenerationAsyncStorage.run>[0];
@@ -21,24 +24,30 @@ function inRender<T>(store: Partial<Store>, fn: () => T): T {
 afterEach(() => {
   vi.unstubAllGlobals();
   delete (globalThis as { _nextOriginalFetch?: unknown })._nextOriginalFetch;
+  setLocalDbFetchForTests();
 });
 
 describe("LocalDB reads skip Next's Data Cache", () => {
-  it("goes through Next's unpatched fetch when Next has patched the global one", async () => {
-    const original = vi.fn(async () => new Response(JSON.stringify({ document: { path: "a/b", data: {} } }), { status: 200 }));
-    const patched = vi.fn(async () => new Response("{}", { status: 200 }));
-    (globalThis as { _nextOriginalFetch?: unknown })._nextOriginalFetch = original;
-    vi.stubGlobal("fetch", patched);
-    await new LocalFirestore("http://store.test", "token").collection("a").doc("b").get();
-    expect(original).toHaveBeenCalledTimes(1);
-    expect(patched).not.toHaveBeenCalled();
-  });
-
-  it("uses the global fetch outside Next", async () => {
-    const plain = vi.fn(async () => new Response(JSON.stringify({ document: { path: "a/c", data: {} } }), { status: 200 }));
-    vi.stubGlobal("fetch", plain);
-    await new LocalFirestore("http://store.test", "token").collection("a").doc("c").get();
-    expect(plain).toHaveBeenCalledTimes(1);
+  it("never touch the global fetch Next patches, nor Next's copy of the original", async () => {
+    const server = createServer((_request, response) => {
+      response.setHeader("Content-Type", "application/json");
+      response.end(JSON.stringify({ document: { path: "a/b", data: { ok: true } } }));
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const original = vi.fn(async () => new Response("{}", { status: 500 }));
+      const patched = vi.fn(async () => new Response("{}", { status: 500 }));
+      (globalThis as { _nextOriginalFetch?: unknown })._nextOriginalFetch = original;
+      vi.stubGlobal("fetch", patched);
+      const { port } = server.address() as AddressInfo;
+      const snapshot = await new LocalFirestore(`http://127.0.0.1:${port}`, "token").collection("a").doc("b").get();
+      expect(snapshot.data()).toEqual({ ok: true });
+      expect(original).not.toHaveBeenCalled();
+      expect(patched).not.toHaveBeenCalled();
+    } finally {
+      server.closeAllConnections();
+      await new Promise((resolve) => server.close(resolve));
+    }
   });
 });
 
@@ -63,7 +72,7 @@ describe("noteDegradedRender", () => {
   });
 
   it("is called when a store read fails during a cached build", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => new Response("down", { status: 503 })));
+    setLocalDbFetchForTests(async () => new Response("down", { status: 503 }));
     const store: Partial<Store> = { isStaticGeneration: true, revalidate: 60 };
     await inRender(store, () => new LocalFirestore("http://store.test", "token").collection("a").doc("d").get().catch(() => null));
     expect(store.revalidate).toBe(10);

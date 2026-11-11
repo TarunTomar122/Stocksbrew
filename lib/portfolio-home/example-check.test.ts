@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import type { AgentTrigger } from "@/lib/agent-jobs";
 
-import { exampleAgentsSource, ranWords, shapeExampleChecks, storedCheckFromDoc, type ExampleAgentDef, type StoredCheck } from "./example-check";
+import { checkSteps, exampleAgentsSource, ownCheckView, ranWords, shapeExampleChecks, storedCheckFromDoc, type ExampleAgentDef, type StoredCheck } from "./example-check";
+import { watchRunFromDoc } from "@/lib/agent-watch";
 
 const AGENTS: ExampleAgentDef[] = [
   { id: "exampleearnings", ask: "Tell me 3 days before any of these report earnings.", trigger: { type: "event", event: "earnings_approaching", days_before: 3 } },
@@ -147,5 +148,73 @@ describe("exampleAgentsSource", () => {
     expect(source.jobs.map((job) => job.id)).toEqual(["exampleearnings", "examplebigmove", "examplefilings"]);
     expect(source.runs.find((one) => one.job_id === "examplebigmove")?.tickers).toEqual(["NVDA"]);
     expect(source.runs.find((one) => one.job_id === "exampleearnings")?.tickers).toEqual([]);
+  });
+});
+
+describe("ownCheckView", () => {
+  const job = {
+    id: "abc123def",
+    name: "Big moves",
+    enabled: true,
+    weekly: false,
+    trigger: { type: "price", rule: "moves_pct", pct: 5 } as AgentTrigger,
+    scope: { kind: "tickers" as const, tickers: ["NVDA", "AAPL"] },
+  };
+  const doc = {
+    uid: "u1",
+    job_id: "abc123def",
+    job_name: "Big moves",
+    day: "2026-11-10",
+    ran_at: "2026-11-10T22:41:00.000Z",
+    decision: "notify",
+    summary: "NVDA fell 5.47% in a day.",
+    findings: [{ ticker: "NVDA", headline: "NVDA fell 5.47% in a day", detail: "Closed at $168.89 on Nov 10, −5.47% on the day before ($178.67).", source: "Daily closing prices", url: "/stock/NVDA", at: "2026-11-10" }],
+    checked: ["Daily closes for 2 names, latest Nov 10"],
+    latest_close: "2026-11-10",
+    counts: { names: 2, priced: 2, moves: 1 },
+  };
+
+  it("opens a person's own run with what it examined, in their words, and the stocks it looked at", () => {
+    const stored = watchRunFromDoc(doc, "u1")!;
+    expect(stored.detail?.findings).toHaveLength(1);
+    const view = ownCheckView(job, [stored], "2026-11-11")!;
+    expect(view.ask).toMatch(/NVDA/);
+    expect(view.checked).toBe("Closing prices for the two stocks, the latest from Nov 10.");
+    expect(view.stocks).toEqual(["NVDA", "AAPL"]);
+    expect(view.flagged).toEqual(["NVDA"]);
+    expect(view.findings[0]?.detail).toBe("Closed at $168.89 on Nov 10, down 5.47% from $178.67 the day before.");
+  });
+
+  it("is null for an agent that has not run, or a run read without its detail", () => {
+    expect(ownCheckView(job, [], "2026-11-11")).toBeNull();
+    const { detail: _drop, ...bare } = watchRunFromDoc(doc, "u1")!;
+    expect(ownCheckView(job, [bare], "2026-11-11")).toBeNull();
+  });
+
+  it("words the evaluator's counting phrases as plain sentences about your stocks", () => {
+    const daily = { ...job, trigger: { type: "schedule", cadence: "daily_open" } as AgentTrigger };
+    const stored = watchRunFromDoc({ ...doc, decision: "nothing", findings: [], summary: "Checked, nothing to do. None of your names met the rule, across the 2 names." }, "u1")!;
+    expect(ownCheckView(daily, [stored], "2026-11-11")!.outcome).toBe("Nothing to report. None of your stocks met the rule, across the 2 stocks.");
+  });
+
+  it("says 'your stocks' when a watchlist rule stored no count", () => {
+    const watchlist = { ...job, scope: { kind: "watchlist" as const } };
+    const stored = watchRunFromDoc({ ...doc, counts: null, decision: "nothing", findings: [], summary: "Checked, nothing to do." }, "u1")!;
+    expect(ownCheckView(watchlist, [stored], "2026-11-11")!.checked).toBe("Closing prices for your stocks, the latest from Nov 10.");
+  });
+});
+
+describe("checkSteps", () => {
+  it("asks about a person's own agent by its id and opens it to change", () => {
+    const steps = checkSteps({ id: "abc123def", day: "2026-11-10", decision: "notify", flagged: ["NVDA"] }, "mine");
+    expect(steps.ask).toEqual({ question: "Why did my agent flag NVDA on Nov 10, and does it need me?", context: "agent:abc123def" });
+    expect(steps.change).toEqual({ label: "Change this watch", href: "/agents?job=abc123def" });
+  });
+
+  it("asks about the example's check through the stock it flagged or the example portfolio", () => {
+    expect(checkSteps({ id: "examplebigmove", day: "2026-11-10", decision: "notify", flagged: ["NVDA"] }, "example").ask.context).toBe("stock:NVDA");
+    const quiet = checkSteps({ id: "examplebigmove", day: "2026-11-10", decision: "nothing", flagged: [] }, "example");
+    expect(quiet.ask).toEqual({ question: "What did the example's agent check on Nov 10, and what would make it speak up?", context: "ex.portfolio" });
+    expect(quiet.change).toBeNull();
   });
 });

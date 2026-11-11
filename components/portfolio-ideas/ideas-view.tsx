@@ -422,7 +422,7 @@ function Aside({ view }: { view: IdeasData }) {
 export function IdeasView({ view }: { view: IdeasData }) {
   return (
     <div className="flex flex-col gap-3">
-      <TheRead read={view.read} label={view.subject === "example" ? "The read on this portfolio" : "The read on your portfolio"} />
+      <TheRead read={view.read} label={view.subject === "example" ? "The read on this portfolio" : "The read on your portfolio"} askContext={view.subject === "example" ? "ex.portfolio" : "portfolio"} />
       {/* On a phone the caveats sit after both panels, so the short version comes first. */}
       <p className="px-2 text-pretty text-[13px] leading-5 text-oa-muted-fg sm:px-0 lg:hidden">
         Ideas worked out from the numbers, not advice and not tax advice. Nothing here buys or sells.

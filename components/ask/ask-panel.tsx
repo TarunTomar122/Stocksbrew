@@ -269,7 +269,7 @@ export default function AskPanel({
         aria-hidden={open ? undefined : true}
         onKeyDown={onKeyDown}
         className={`oa-ask-panel fixed inset-x-0 bottom-0 z-[56] ${open ? "flex" : "hidden"} flex-col overflow-hidden border-oa-border bg-oa-page outline-none lg:inset-x-auto lg:right-0 lg:top-0 lg:z-[45] lg:h-dvh lg:w-[420px] lg:rounded-none lg:border-l lg:shadow-[-16px_0_40px_-24px_rgba(40,25,10,0.35)] ${
-          expanded ? "h-dvh" : "h-[78dvh] rounded-t-2xl border-t shadow-[0_-12px_40px_-16px_rgba(0,0,0,0.3)]"
+          expanded ? "h-dvh" : "h-[88dvh] rounded-t-2xl border-t shadow-[0_-12px_40px_-16px_rgba(0,0,0,0.3)]"
         }`}
       >
         {viewer ? (

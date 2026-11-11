@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ReadFold } from "@/components/oa/read-fold";
 import { ToneGlyph } from "@/components/oa/kit/tone";
 import { StockLogo } from "@/components/stock-logo";
+import { formatAskContext, parseAskContext } from "@/lib/ask-context";
 import { figureOf, type Insight, type InsightAction, type TheRead as TheReadData } from "@/lib/insights";
 
 /**
@@ -21,6 +22,7 @@ export function TheRead({
   foldLabel,
   foldKeep = 0,
   visual,
+  askContext,
 }: {
   read: TheReadData | null | undefined;
   label?: string;
@@ -37,6 +39,13 @@ export function TheRead({
   foldKeep?: number;
   /** A small picture of the headline, drawn right under it (the briefing's sector strip). */
   visual?: React.ReactNode;
+  /**
+   * What a card's "Ask about this" starts from (lib/ask-context.ts). A card about one stock opens that stock
+   * (`stock:NVDA`) unless this says otherwise; a card about several stocks, or none, opens this item ("portfolio"
+   * on a read of your own stocks), or nothing. A function picks per card ("brief:..." for a briefing line); its
+   * null falls back the same way. `false` leaves Ask off every card.
+   */
+  askContext?: AskContextChoice;
 }) {
   if (!read || (!read.headline && read.insights.length === 0)) return null;
   const count = read.insights.length;
@@ -64,7 +73,9 @@ export function TheRead({
               : "";
             // One card kept above a closed fold takes the whole row, so it never sits beside an empty column.
             const alone = keep === 1 && hidden > 0 && index === 0 ? (fold === "always" ? "group-data-[open=false]/fold:col-span-full" : "max-lg:group-data-[open=false]/fold:col-span-full") : "";
-            return <InsightCard key={insight.id} insight={insight} className={`${span} ${alone} ${index >= keep ? foldHide : ""}`} />;
+            return (
+              <InsightCard key={insight.id} insight={insight} ask={askFor(insight, askContext)} className={`${span} ${alone} ${index >= keep ? foldHide : ""}`} />
+            );
           })}
         </ul>
       </div>
@@ -107,6 +118,76 @@ export function TheRead({
   );
 }
 
+export type AskContextChoice = false | string | null | undefined | ((insight: Insight) => string | null | undefined);
+
+const isAsk = (action: InsightAction | undefined) => Boolean(action && /^\/ask(?:[?#]|$)/.test(action.href));
+
+/** Words whose full stop does not end a sentence: "Apple Inc. said", "U.S. stocks", "Nov. 17". */
+const ABBREVIATION = /(?:^|\s)(?:[A-Z]|[A-Z]\.[A-Z]|Inc|Corp|Co|Ltd|Plc|vs|etc|No|St|Mr|Mrs|Ms|Dr|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\.$/;
+
+/** The sentence a question quotes: the card's first sentence, whole, ending in a full stop. */
+export function quoted(text: string): string {
+  const clean = text.replace(/\s+/g, " ").trim();
+  // A sentence ends at ". " before a capital, not at "$1.5", "U.S." or "Inc.".
+  const ends = /[.!?](?=\s+["“]?[A-Z])/g;
+  let match: RegExpExecArray | null;
+  let first = clean;
+  while ((match = ends.exec(clean))) {
+    const head = clean.slice(0, match.index + 1);
+    if (match[0] === "." && ABBREVIATION.test(head)) continue;
+    first = head;
+    break;
+  }
+  return /[.!?]$/.test(first) ? first : `${first}.`;
+}
+
+/**
+ * The question a card's Ask sends. About a stock (or nothing in particular), it quotes the card and asks what is
+ * behind it: "NVDA fell 5.5% after its report. What's behind this, and what should I watch next on NVDA?". About
+ * your own stocks (a portfolio, memo, briefing or agent context), the card's words stay out of the link, since
+ * they can carry amounts and share counts: the question is generic and Ask reads the item itself (`context`).
+ */
+export function insightAskQuestion(insight: Pick<Insight, "id" | "text" | "tickers">, context: string | null): string {
+  const parsed = context ? parseAskContext(context) : null;
+  const tickers = [...new Set(insight.tickers ?? [])];
+  const ticker = parsed?.ticker ?? (tickers.length === 1 ? tickers[0]! : null);
+  if (parsed && parsed.kind !== "stock") {
+    const whose = parsed.example ? "the example portfolio" : "my portfolio";
+    if (parsed.kind === "brief" && ticker) return `Why does this matter for ${ticker} today?`;
+    if (ticker && /^earn/i.test(insight.id ?? "")) return `What should I watch for in ${ticker}'s next report?`;
+    if (ticker) return `What should I know about ${ticker} in ${whose} right now?`;
+    return `What stands out in ${whose} right now, and why?`;
+  }
+  const tail = ticker ? `What's behind this, and what should I watch next on ${ticker}?` : "What's behind this, and why does it matter?";
+  return `${quoted(insight.text)} ${tail}`;
+}
+
+/**
+ * Where a card's Ask goes, or null when it gets none: Ask is off (`false`), the card says nothing, or one of its
+ * steps already asks. A card about one stock opens that stock unless the page gives your portfolio (or the
+ * example) as the context; the picker's choice comes first.
+ */
+export function askFor(insight: Insight, choice: AskContextChoice): string | null {
+  if (choice === false || !insight.text.trim()) return null;
+  if (isAsk(insight.action) || isAsk(insight.secondAction) || (insight.action && insight.secondAction)) return null;
+  const tickers = [...new Set(insight.tickers ?? [])];
+  const picked = typeof choice === "function" ? choice(insight) : null;
+  const fallback = typeof choice === "string" ? choice : null;
+  const pageWide = fallback !== null && /^(ex\.)?(portfolio|memo|brief)/.test(fallback);
+  const raw = picked ?? (tickers.length === 1 && !pageWide ? `stock:${tickers[0]}` : fallback);
+  const parsed = raw ? parseAskContext(raw) : null;
+  const context = parsed ? formatAskContext(parsed) : null;
+  // The same link lib/next-steps.ts askHref builds, written here so pages that use cards do not ship its imports.
+  return `/ask?q=${encodeURIComponent(insightAskQuestion(insight, context))}${context ? `&ctx=${encodeURIComponent(context)}` : ""}`;
+}
+
+/** A speech bubble: Ask. */
+const ASK_ICON = (
+  <svg aria-hidden="true" viewBox="0 0 16 16" className="size-4">
+    <path d="M3 3.5h10a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H7.5L4.5 14v-2.5H3a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1z" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+  </svg>
+);
+
 const TONE_EDGE = { up: "var(--signal-bullish)", down: "var(--signal-bearish)" } as const;
 
 /**
@@ -115,7 +196,19 @@ const TONE_EDGE = { up: "var(--signal-bullish)", down: "var(--signal-bearish)" }
  * second clause muted, and the next steps at the foot. Cards in a row share
  * one height (the grid stretches them), so the links line up.
  */
-export function InsightCard({ insight, className = "" }: { insight: Insight; className?: string }) {
+export function InsightCard({
+  insight,
+  className = "",
+  ask = null,
+}: {
+  insight: Insight;
+  className?: string;
+  /**
+   * Ask about this card (TheRead's `askFor`): the card's only step when it has none, else a small icon in its
+   * bottom corner, so the words are not repeated on every card.
+   */
+  ask?: string | null;
+}) {
   const tickers = [...new Set(insight.tickers ?? [])];
   const figure = figureOf(insight);
   // The arrow beside a figure shows its direction, so it only appears on a signed figure ("−5.5%") or one
@@ -166,9 +259,27 @@ export function InsightCard({ insight, className = "" }: { insight: Insight; cla
       </p>
       {insight.soWhat ? <p className="mt-1 max-w-[60rem] text-pretty text-[13.5px] leading-[19px] text-oa-muted-fg">{insight.soWhat}</p> : null}
       {insight.action || insight.secondAction ? (
-        <div className="mt-auto flex flex-wrap gap-x-4 gap-y-0.5 pt-2.5">
-          {insight.action ? <ActionLink action={insight.action} target="action" wrap /> : null}
-          {insight.secondAction ? <ActionLink action={insight.secondAction} target="action_2" wrap /> : null}
+        <div className="mt-auto flex items-center gap-3 pt-2.5">
+          <div className="flex min-w-0 flex-1 flex-wrap gap-x-4 gap-y-0.5">
+            {insight.action ? <ActionLink action={insight.action} target="action" wrap /> : null}
+            {insight.secondAction ? <ActionLink action={insight.secondAction} target="action_2" wrap /> : null}
+          </div>
+          {ask ? (
+            <Link
+              href={ask}
+              prefetch={false}
+              data-track-target="ask"
+              aria-label="Ask about this"
+              title="Ask about this"
+              className="-my-1.5 -mr-1.5 inline-flex size-8 shrink-0 items-center justify-center rounded-md text-oa-muted-fg outline-none transition-colors hover:bg-oa-accent hover:text-oa-primary focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
+            >
+              {ASK_ICON}
+            </Link>
+          ) : null}
+        </div>
+      ) : ask ? (
+        <div className="mt-auto pt-2.5">
+          <ActionLink action={{ label: "Ask about this", href: ask }} target="ask" wrap />
         </div>
       ) : null}
     </li>

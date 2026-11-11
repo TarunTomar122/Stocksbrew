@@ -8,6 +8,7 @@
  */
 
 import type { UIMessage } from "ai";
+import type { AgentJobDraft } from "@/lib/agent-jobs";
 
 /* ── cards ──────────────────────────────────────────────────────────────── */
 
@@ -440,7 +441,7 @@ export type BriefingItemCard = CardBase & {
   price: number | null;
 };
 
-/** "Watch this": an agent request filled in for /agents. Nothing is set up until the person saves it there. */
+/** "Keep watching": an agent an answer leads to. Nothing is set up until the person taps it (or saves it on /agents). */
 export type WatchCard = CardBase & {
   card: "watch";
   /** "ready": not set up, the button opens the agent box. "already": the person has this agent. */
@@ -453,6 +454,33 @@ export type WatchCard = CardBase & {
   /** Names of the person's agents that already do this. */
   existing: Array<{ name: string; enabled: boolean }>;
   note: string | null;
+  /**
+   * The rule in plain words, for the card to state before anything is saved. Absent on cards written before
+   * Nov 11 2026, which show the preview sentence and a link instead.
+   */
+  rule?: {
+    /** One line per agent the request makes: "NVIDIA moves 5% or more in a day, up or down". */
+    what: string[];
+    /** The stocks it watches by name. Empty with `mine`. */
+    stocks: Array<{ ticker: string; name: string }>;
+    /** It follows every stock the person tracks. */
+    mine: boolean;
+  };
+  /**
+   * The agents the request makes, as the Agents page would save them (validated by parseJobDraft). Signed in, the
+   * card saves exactly these through POST /api/agents/save when the person taps it, never before.
+   */
+  drafts?: AgentJobDraft[];
+  /**
+   * Signed in: what saving would do on their plan right now, read when the answer was written. The save itself
+   * decides; this only warns before the tap. Null when it would simply start.
+   */
+  outlook?: {
+    /** "full": no room for another agent at all; "pro_only": filing or news agents on a plan without them; "paused": over the running limit. */
+    kind: "full" | "pro_only" | "paused";
+    /** One sentence for before the tap. */
+    line: string;
+  } | null;
 };
 
 export type MatchesCard = CardBase & { card: "matches"; query: string; matches: Array<{ ticker: string; name: string }> };
@@ -686,6 +714,11 @@ export function cardForModel(card: AskCard): Record<string, unknown> {
   }
   if (card.card === "backtest") {
     const { curve: _curve, ...rest } = card;
+    return rest;
+  }
+  if (card.card === "watch") {
+    // The saved drafts and the rule are for the page; the model has the request and the preview in words.
+    const { drafts: _drafts, rule: _rule, outlook: _outlook, ...rest } = card;
     return rest;
   }
   return card as Record<string, unknown>;

@@ -962,7 +962,7 @@ export function JobsWorkspace({
 
       {linkedOpen ? null : messages}
 
-      {hasJobs ? <TheRead read={read} label="What your agents found" /> : null}
+      {hasJobs ? <TheRead read={read} label="What your agents found" askContext="portfolio" /> : null}
 
       {hasJobs ? (
         <section aria-labelledby="jobs-label" className={CARD}>

@@ -26,7 +26,7 @@ const AskPanel = dynamic(() => import("@/components/ask/ask-panel"), {
   loading: () => (
     <div
       role="status"
-      className="fixed inset-x-0 bottom-0 z-[55] flex h-[78dvh] items-center justify-center rounded-t-2xl border border-oa-border bg-oa-page text-[14px] text-oa-muted-fg shadow-[0_-12px_40px_-16px_rgba(0,0,0,0.3)] lg:inset-x-auto lg:right-0 lg:top-0 lg:z-[45] lg:h-dvh lg:w-[420px] lg:rounded-none"
+      className="fixed inset-x-0 bottom-0 z-[55] flex h-[88dvh] items-center justify-center rounded-t-2xl border border-oa-border bg-oa-page text-[14px] text-oa-muted-fg shadow-[0_-12px_40px_-16px_rgba(0,0,0,0.3)] lg:inset-x-auto lg:right-0 lg:top-0 lg:z-[45] lg:h-dvh lg:w-[420px] lg:rounded-none"
     >
       Opening Ask…
     </div>

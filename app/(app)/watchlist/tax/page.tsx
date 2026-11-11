@@ -60,7 +60,7 @@ export default async function PortfolioTaxPage({ searchParams }: { searchParams:
         </div>
         {session ? (
           <>
-            <TheRead read={buildTaxRead(data.picture, currentYear)} label={`Your taxes in ${currentYear}`} className="mb-3" />
+            <TheRead read={buildTaxRead(data.picture, currentYear)} label={`Your taxes in ${currentYear}`} className="mb-3" askContext="portfolio" />
             <p className="mb-3 px-2 text-pretty text-[14px] leading-5 text-oa-muted-fg sm:px-0">
               Wondering what to sell?{" "}
               <Link href="/portfolio/ideas" className="font-medium text-oa-primary hover:underline">

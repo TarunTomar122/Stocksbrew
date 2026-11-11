@@ -1,7 +1,7 @@
-import { AGENT_JOB_ID_RE, describeJob, runDocId, scheduleDue, type AgentDecision, type AgentJob } from "@/lib/agent-jobs";
+import { AGENT_JOB_ID_RE, describeJob, runDocId, scheduleDue, type AgentDecision, type AgentJob, type AgentRunCounts } from "@/lib/agent-jobs";
 import { afterCloseRunOn, afterCloseTimeEt } from "@/lib/agent-schedule";
 import { fmtPlanDay } from "@/lib/dividend-plan";
-import { nextRunDay, previousMarketDay, runnerDay, scheduledRunDay, type AgentsSource } from "@/lib/portfolio-home/log";
+import { nextRunDay, previousMarketDay, runnerDay, scheduledRunDay, type AgentsSource, type RunDetail } from "@/lib/portfolio-home/log";
 
 /**
  * A person's active watches (their switched-on standing agents) as the My
@@ -147,7 +147,8 @@ export function nextCheckWords(day: string, today: string): string {
   return `after the close on ${fmtPlanDay(day)}`;
 }
 
-function whatOf(job: SourceJob): string {
+/** What an agent watches, as one plain sentence ("Tell me 3 days before NVDA reports earnings."), else its name. */
+export function describeWatch(job: SourceJob): string {
   if (job.trigger && job.scope) return describeJob({ trigger: job.trigger, scope: job.scope });
   return job.name;
 }
@@ -161,7 +162,7 @@ export function activeWatches(agents: AgentsSource, today: string): WatchSummary
     return {
       id: job.id,
       name: job.name,
-      what: whatOf(job),
+      what: describeWatch(job),
       href: agentHref(job.id),
       last: run
         ? {
@@ -227,6 +228,33 @@ function text(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
+/** Findings kept per run for the opened check; the rest are only counted. */
+const DETAIL_FINDINGS = 10;
+
+/**
+ * What a stored run examined and found, for a check opened on My stocks (lib/portfolio-home/example-check.ts):
+ * the evidence with its sources, the lines saying what it checked, the newest close it read and its counts.
+ */
+export function runDetailFromDoc(data: Record<string, unknown>, limit = DETAIL_FINDINGS): RunDetail {
+  const findings = (Array.isArray(data.findings) ? (data.findings as Array<Record<string, unknown>>) : []).filter(
+    (finding) => finding && typeof finding === "object" && text(finding.headline),
+  );
+  return {
+    findings: findings.slice(0, limit).map((finding) => ({
+      ticker: text(finding.ticker).toUpperCase() || null,
+      headline: text(finding.headline),
+      detail: text(finding.detail),
+      source: text(finding.source),
+      url: text(finding.url) || null,
+      at: text(finding.at).slice(0, 10),
+    })),
+    findingCount: findings.length,
+    checked: Array.isArray(data.checked) ? (data.checked as unknown[]).filter((line): line is string => typeof line === "string") : [],
+    latest_close: text(data.latest_close) || null,
+    counts: data.counts && typeof data.counts === "object" ? (data.counts as AgentRunCounts) : null,
+  };
+}
+
 /** A stored run, cut down to what the watch views read; null for anything that is not one of this person's runs. */
 export function watchRunFromDoc(data: Record<string, unknown> | undefined, uid: string): AgentsSource["runs"][number] | null {
   if (!data || data.uid !== uid) return null;
@@ -242,6 +270,7 @@ export function watchRunFromDoc(data: Record<string, unknown> | undefined, uid: 
     decision,
     summary: text(data.summary),
     tickers: runTickers(Array.isArray(data.findings) ? (data.findings as Array<{ ticker: string | null }>) : []),
+    detail: runDetailFromDoc(data),
   };
 }
 

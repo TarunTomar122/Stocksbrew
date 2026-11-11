@@ -1,24 +1,13 @@
 /**
- * Two small hooks into Next.js 13.5 internals, kept in one place so an
- * upgrade has one file to check. Server only. Both are no-ops outside a
- * Next render (jobs, scripts, tests).
+ * A small hook into Next.js 13.5 internals, kept in one place so an upgrade
+ * has one file to check. Server only. A no-op outside a Next render (jobs,
+ * scripts, tests).
+ *
+ * Store reads stay out of Next's Data Cache without help from here: they go
+ * through undici's own fetch, not the global one Next patches (see
+ * localDbFetch in lib/local-firestore.ts).
  */
 import { staticGenerationAsyncStorage } from "next/dist/client/components/static-generation-async-storage.external";
-
-type FetchFn = typeof fetch;
-
-/**
- * `fetch` without Next's Data Cache. Next patches the global fetch and, on a
- * page built for the CDN (the cached signed-out pages, lib/anon-view.ts),
- * would store every response in the Data Cache, which outlives deploys and
- * can hand a rebuild a store read of any age. `cache: "no-store"` is no way
- * out: it makes those pages render on every request again. Next keeps the
- * unpatched fetch on `globalThis._nextOriginalFetch` (next/dist/server/lib/patch-fetch.js).
- */
-export function uncachedFetch(input: string, init?: RequestInit): Promise<Response> {
-  const original = (globalThis as { _nextOriginalFetch?: FetchFn })._nextOriginalFetch;
-  return (original ?? fetch)(input, init);
-}
 
 /** How long a copy built from failed reads is kept before the next request rebuilds it. */
 const DEGRADED_REVALIDATE_SECONDS = 10;

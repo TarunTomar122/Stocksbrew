@@ -492,7 +492,7 @@ export function SeasonView({
 }) {
   return (
     <div className="flex flex-col gap-3">
-      <TheRead read={read ? { ...read, source } : null} label={example ? "The example's earnings season" : "Your earnings season"} />
+      <TheRead read={read ? { ...read, source } : null} label={example ? "The example's earnings season" : "Your earnings season"} askContext={example ? "ex.portfolio" : "portfolio"} />
       <WatchNext season={season} />
       {missing.length > 0 ? (
         <p className="px-2 text-[13px] leading-5 text-signal-bearish sm:px-0">

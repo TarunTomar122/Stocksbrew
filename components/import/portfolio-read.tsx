@@ -139,7 +139,7 @@ export function PortfolioReadView({
   const sorted = [...stocks].sort((a, b) => (order[a.call ?? ""] ?? 3) - (order[b.call ?? ""] ?? 3) || a.ticker.localeCompare(b.ticker));
   return (
     <div className="flex flex-col gap-3">
-      <TheRead read={result.read} label="Our read on your stocks" />
+      <TheRead read={result.read} label="Our read on your stocks" askContext={false} />
       <SectorMix result={result} />
       <section aria-label="Each stock" className="oa-surface overflow-hidden border border-oa-border bg-oa-card">
         <div className="flex min-h-11 items-center justify-between gap-3 border-b border-oa-border px-4 py-2 sm:px-5">

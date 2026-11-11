@@ -21,10 +21,11 @@ import {
   groupCountLabel,
   type BriefingGroup,
 } from "@/lib/briefing-groups";
-import { briefingRead, earlierSession, type BriefingSession } from "@/lib/briefing-read";
+import { briefingRead, earlierSession, holdingsFirst, type BriefingSession } from "@/lib/briefing-read";
 import { anchorGroups, WORTH_KNOWING_FIRST } from "@/lib/briefing-anchors";
 import { briefingLead, briefingSteps } from "@/lib/next-steps";
 
+import { readAskContext } from "./ask";
 import { BriefingGroupCard, type GroupActions } from "./briefing-group";
 import { longDay, pricesLine, shortDay, signedPct, sourceTime } from "./format";
 import { SignInButton } from "./sign-in-button";
@@ -218,7 +219,8 @@ export function BriefingView({
   const sections = briefingSections(briefing, state);
   const settledCount = sections.kept.length + sections.dismissed.length;
 
-  const grouped = groupBriefingSections(sections, briefing.mode);
+  // Your own briefing reads holdings first, then what you watch, then the market (lib/briefing-read.ts).
+  const grouped = personal ? holdingsFirst(groupBriefingSections(sections, briefing.mode)) : groupBriefingSections(sections, briefing.mode);
   // The read, with its next steps beside the findings (lib/next-steps.ts).
   const read = briefingSteps(briefingRead(briefing, grouped, personal ? null : session), {
     mode: personal ? "personal" : "market",
@@ -282,7 +284,12 @@ export function BriefingView({
     busy,
     readOnly: archived,
     day: briefing.date,
+    personal,
   };
+  // Each card of your own read opens Ask on the briefing line it is about (or your stocks, for a card about several).
+  const askContext = personal
+    ? readAskContext([...grouped.needs_you, ...grouped.worth_knowing, ...grouped.coming_up].flatMap((group) => group.items), briefing.date)
+    : undefined;
 
   const index = briefing.market.indices;
   const movers = [...briefing.market.gainers, ...briefing.market.losers];
@@ -394,6 +401,7 @@ export function BriefingView({
         <TheRead
           read={read}
           label={personal ? "Today for you" : "Today in the market"}
+          askContext={askContext}
           visual={showSession && session ? <SessionStrip sectors={session.sectors} /> : null}
         />
         {agents}
@@ -408,7 +416,8 @@ export function BriefingView({
         {personal ? (
           <Section id="needs-you" label="Needs you" count={grouped.needs_you.length > 0 ? groupCountLabel(grouped.needs_you) : undefined}>
             {grouped.needs_you.length > 0 ? (
-              groupCards(grouped.needs_you, GROUP_VISIBLE_LINES)
+              // One takeaway per stock; its other updates wait behind "N more".
+              groupCards(grouped.needs_you, COMPACT_VISIBLE_LINES)
             ) : (
               <EmptyLine>No decisions today. The rest is below.</EmptyLine>
             )}

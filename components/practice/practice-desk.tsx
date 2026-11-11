@@ -95,7 +95,7 @@ export function PracticeDesk({ initial, mode }: { initial: PracticePayload; mode
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
-      <TheRead read={read} />
+      <TheRead read={read} askContext={false} />
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
         <div className="flex min-w-0 flex-col gap-4">
           {/* The lead: what the account is worth, then what is in it. */}

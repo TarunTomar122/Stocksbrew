@@ -192,6 +192,21 @@ function addZoneInsight(items: BriefingItem[], index: IndexMove): Insight | null
   };
 }
 
+const RELATION_ORDER: Record<BriefingGroup["relation"], number> = { holding: 0, watching: 1, market: 2 };
+
+/**
+ * Your own briefing reads holdings first, then the stocks you watch, then the market: each section keeps its
+ * own order (urgency, then size) inside those three bands. A stable sort, so nothing else moves.
+ */
+export function holdingsFirst(grouped: GroupedSections): GroupedSections {
+  const band = (groups: BriefingGroup[]) =>
+    groups
+      .map((group, index) => ({ group, index }))
+      .sort((a, b) => RELATION_ORDER[a.group.relation] - RELATION_ORDER[b.group.relation] || a.index - b.index)
+      .map(({ group }) => group);
+  return { needs_you: band(grouped.needs_you), worth_knowing: band(grouped.worth_knowing), coming_up: band(grouped.coming_up), settled: grouped.settled };
+}
+
 function stockGroups(groups: BriefingGroup[]): BriefingGroup[] {
   return groups.filter((group) => group.key !== MARKET_GROUP_KEY && group.ticker);
 }
@@ -428,8 +443,9 @@ export function briefingRead(
   const nextEarnings = items
     .filter((item) => item.kind === "earnings_upcoming" && item.relation === "holding" && !deciding.has(item.ticker))
     .sort((a, b) => (a.deadline_days ?? 99) - (b.deadline_days ?? 99))[0];
-  candidates.push(addZoneInsight(items, index));
+  // Holdings first (their move, its reason, their next report), then what you watch.
   candidates.push(nextEarnings ? earningsInsight(nextEarnings) : null);
+  candidates.push(addZoneInsight(items, index));
   // One insight per stock: a second line on the same ticker is noise.
   // Without a decision, the decisions' place goes to what the research changed on what you watch.
   for (const group of decisions.length === 0 ? stockGroups(grouped.worth_knowing) : []) {

@@ -105,7 +105,7 @@ async function Plan({ seeds, example }: { seeds: HoldingSeed[]; example: boolean
     .join(" · ");
   return (
     <div className="flex flex-col gap-3">
-      <TheRead read={read ? { ...read, source: asOf || undefined } : null} label={example ? "The example's dividends" : "Your dividends"} />
+      <TheRead read={read ? { ...read, source: asOf || undefined } : null} label={example ? "The example's dividends" : "Your dividends"} askContext={example ? "ex.portfolio" : "portfolio"} />
       {!calendarOk ? (
         <p className="px-2 text-[13px] text-signal-bearish sm:px-0">
           The dividend calendar could not be read just now, so announced payments may be shown as estimates.

@@ -49,7 +49,7 @@ function ResultView({ run }: { run: BacktestRun }) {
   const read = React.useMemo(() => buildBacktestRead({ ...run, benchmark }), [run, benchmark]);
   return (
     <div className="flex min-w-0 flex-col gap-4">
-      <TheRead read={read} />
+      <TheRead read={read} askContext={false} />
       <ResultLead
         perYear={perYear}
         years={yearsWords(run.period.years)}

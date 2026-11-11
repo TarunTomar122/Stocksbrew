@@ -28,7 +28,7 @@ export function XrayView({ xray, read, example }: { xray: Xray; read: TheReadDat
   const hasFunds = xray.funds.length > 0;
   return (
     <div className="flex flex-col gap-3">
-      <TheRead read={read} label={example ? "What this portfolio really owns" : "What you really own"} fold="phone" />
+      <TheRead read={read} label={example ? "What this portfolio really owns" : "What you really own"} fold="phone" askContext={example ? "ex.portfolio" : "portfolio"} />
       {hasFunds ? (
         <StatStrip
           stats={[

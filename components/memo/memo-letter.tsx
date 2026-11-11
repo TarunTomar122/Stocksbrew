@@ -7,6 +7,7 @@ import { cardItems } from "@/lib/memo/view";
 import { shortDay, weekTitle, weekdayName } from "@/lib/memo/week";
 
 import { CallChanges } from "./calls";
+import { explainDays } from "./explain";
 import { MemoCards } from "./cards";
 import { Movers } from "./movers";
 import { WeekChart } from "./week-chart";
@@ -61,7 +62,7 @@ export function MemoLetter({ memo, example, plan }: { memo: Memo; example: boole
           </h2>
           {view && view.curve.length >= 2 ? (
             <div className="mt-3">
-              <WeekChart curve={view.curve} subject={memo.subject} />
+              <WeekChart curve={view.curve} subject={memo.subject} days={explainDays(memo, view.curve)} />
             </div>
           ) : null}
           {view?.footnote ? <p className="mt-2 text-[12px] leading-4 text-oa-muted-fg">{view.footnote}</p> : null}
@@ -70,8 +71,8 @@ export function MemoLetter({ memo, example, plan }: { memo: Memo; example: boole
 
       {view ? (
         <>
-          <Movers movers={view.movers} />
-          <CallChanges calls={view.calls} />
+          <Movers movers={view.movers} memo={memo} example={example} />
+          <CallChanges calls={view.calls} memo={memo} example={example} />
         </>
       ) : null}
 

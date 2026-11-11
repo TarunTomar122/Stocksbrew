@@ -322,7 +322,7 @@ export function describeCard(card: AskCard): string {
     case "watch":
       return card.status === "already"
         ? `You already have an agent for this: ${list(card.existing.map((job) => job.name))}.`
-        : `${card.preview} Nothing is set up yet: use Watch this on the card to save it on the Agents page.`;
+        : `${card.preview} Nothing is set up yet: tap Set up this watch on the card to start it.`;
     case "matches":
       return card.matches.length === 0 ? `Nothing in our catalog matches "${card.query}".` : `Closest matches: ${list(card.matches.slice(0, 4).map((match) => `${match.ticker} (${match.name})`))}.`;
     case "sign_in":

@@ -211,6 +211,7 @@ export function StressView({
         read={read ? { ...read, source: "Real closes from each episode, dividends included. This is history, not a forecast." } : null}
         label={example ? "How this portfolio did in past market shocks" : "How your portfolio did in past market shocks"}
         fold="phone"
+        askContext={example ? "ex.portfolio" : "portfolio"}
       />
       <WatchWorst result={result} />
       <Panel

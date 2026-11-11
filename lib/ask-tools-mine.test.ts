@@ -156,7 +156,10 @@ vi.mock("@/lib/portfolio-data", () => ({ BENCHMARK_SYMBOL: "SPY", newYorkToday: 
 vi.mock("@/lib/briefing-data", () => ({ BRIEFING_STATE_COLLECTION: "tm_briefing_state" }));
 vi.mock("@/lib/earnings", () => ({ getNextEarningsCalendarEventCached: async () => state.nextEarnings }));
 
-import { buildMineTools, watchRequest, WATCH_KINDS } from "@/lib/ask-tools-mine";
+import { buildMineTools, watchOutlook, watchRequest, WATCH_KINDS } from "@/lib/ask-tools-mine";
+import { MAX_JOBS_PER_USER } from "@/lib/agent-jobs";
+import { cardForModel } from "@/lib/ask-cards";
+import { can, limitFor } from "@/lib/entitlements";
 import { parseByRules } from "@/lib/agents-plain/parse";
 import { buildCatalog } from "@/lib/agents-plain/stocks";
 
@@ -335,6 +338,54 @@ describe("Watch this", () => {
     expect(card).toMatchObject({ card: "watch", status: "ready", existing: [], request: "Tell me when NVDA moves 5% in a day" });
     expect(card.href).toBe("/agents?q=Tell%20me%20when%20NVDA%20moves%205%25%20in%20a%20day");
     expect(String(card.preview)).toMatch(/^I'll watch NVIDIA/);
+  });
+
+  it("states the exact rule and carries the agent it would save, for the card's one tap", async () => {
+    const card = await run(tools(UID), "suggest_watch", { kind: "daily_move", ticker: "NVDA", pct: 5 });
+    expect(card.rule).toEqual({ what: ["NVIDIA moves 5% or more in a day, up or down"], stocks: [{ ticker: "NVDA", name: "NVIDIA" }], mine: false });
+    expect(card.drafts).toEqual([expect.objectContaining({ scope: { kind: "tickers", tickers: ["NVDA"] }, trigger: expect.objectContaining({ pct: 5 }) })]);
+    // Nothing running yet: it would simply start.
+    expect(card.outlook).toBeNull();
+    // The model reads the request and the preview, not the drafts or the rule.
+    const forModel = cardForModel(card as never);
+    expect(forModel).not.toHaveProperty("drafts");
+    expect(forModel).not.toHaveProperty("rule");
+    expect(forModel).toHaveProperty("preview");
+  });
+
+  it("warns before the tap when the plan would save it paused", async () => {
+    const limit = limitFor("agents", "free");
+    state.jobs = Array.from({ length: limit }, (_, index) => ({
+      id: `run${index}`.padEnd(10, "0"),
+      uid: UID,
+      name: `AAPL below $${100 + index}`,
+      enabled: true,
+      template: "price-level",
+      trigger: { type: "price", rule: "crosses_below", level: 100 + index },
+      scope: { kind: "tickers", tickers: ["AAPL"] },
+    }));
+    const card = await run(tools(UID), "suggest_watch", { kind: "daily_move", ticker: "NVDA", pct: 5 });
+    expect(card.outlook).toMatchObject({ kind: "paused" });
+    expect(String((card.outlook as { line: string }).line)).toMatch(/^Free runs .* at a time and you have \d+ on, so this one will be saved paused\./);
+    // Signed out there is no plan to warn about.
+    expect((await run(tools(null), "suggest_watch", { kind: "daily_move", ticker: "NVDA", pct: 5 })).outlook).toBeNull();
+  });
+
+  it("the outlook follows the save route's order: room, then filing and news agents, then the running limit", () => {
+    const draft = (trigger: Record<string, unknown>) => ({ template: "t", name: "n", trigger, scope: { kind: "tickers", tickers: ["NVDA"] } }) as never;
+    const move = draft({ type: "price", rule: "daily_move", pct: 5 });
+    const job = (index: number, enabled = false) => ({ template: "t", trigger: { type: "price", rule: "crosses_below", level: index }, scope: { kind: "tickers", tickers: ["AAPL"] }, enabled }) as never;
+    expect(watchOutlook({ drafts: [move], jobs: Array.from({ length: MAX_JOBS_PER_USER }, (_, i) => job(i)), plan: "pro" })).toMatchObject({ kind: "full" });
+    const twoMoves = [move, draft({ type: "price", rule: "daily_move", pct: 8 })];
+    expect(watchOutlook({ drafts: twoMoves, jobs: Array.from({ length: MAX_JOBS_PER_USER - 1 }, (_, i) => job(i)), plan: "pro" })?.line).toMatch(/^You have room for 1 more agent, and this sets up 2\./);
+    // The same draft twice counts once, as the route saves it once.
+    expect(watchOutlook({ drafts: [move, move], jobs: Array.from({ length: MAX_JOBS_PER_USER - 1 }, (_, i) => job(i)), plan: "pro" })).toBeNull();
+    const filing = watchOutlook({ drafts: [draft({ type: "event", event: "sec_filing" })], jobs: [], plan: "free" });
+    if (can("agent_events", "free")) expect(filing).toBeNull();
+    else expect(filing).toMatchObject({ kind: "pro_only" });
+    expect(watchOutlook({ drafts: [move], jobs: [], plan: "pro" })).toBeNull();
+    // An agent the person already has is skipped on save, so it never warns.
+    expect(watchOutlook({ drafts: [move], jobs: [{ ...(move as object), enabled: true } as never], plan: "free" })).toBeNull();
   });
 
   it("says 'already' only when the person really has that agent", async () => {

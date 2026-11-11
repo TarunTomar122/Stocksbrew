@@ -17,7 +17,7 @@ import {
   type SignInCard,
   type WatchCard,
 } from "@/lib/ask-cards";
-import { decisionLabel, describeJob, hiddenTemplateIds, type AgentRun } from "@/lib/agent-jobs";
+import { MAX_JOBS_PER_USER, decisionLabel, describeJob, hiddenTemplateIds, planMayRun, type AgentJob, type AgentJobDraft, type AgentRun } from "@/lib/agent-jobs";
 import { listJobs, listRuns } from "@/lib/agent-jobs-data";
 import { parseByRules } from "@/lib/agents-plain/parse";
 import { sameJob } from "@/lib/agents-plain/save";
@@ -25,6 +25,7 @@ import { plainCatalog } from "@/lib/agents-plain/server";
 import { BRIEFING_DAY_RE, BRIEFING_ITEM_ID_RE, type Briefing, type BriefingItem } from "@/lib/briefing";
 import { BRIEFING_STATE_COLLECTION } from "@/lib/briefing-data";
 import { getNextEarningsCalendarEventCached } from "@/lib/earnings";
+import { limitFor, type Plan } from "@/lib/entitlements";
 import { canSeeLevels, type Viewer } from "@/lib/entitlements-server";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { buildMemo } from "@/lib/memo/build";
@@ -43,7 +44,7 @@ import { getUserDoc, type UserDoc } from "@/lib/watchlist";
  * Ask's tools over the signed-in person's own things: saved reasons and the
  * watcher's latest check, this week's memo, their agents and what those last
  * found, their research reports, one line of their briefing, and a filled-in
- * "Watch this" for /agents.
+ * "Keep watching" card for an agent.
  *
  * Scoping: every read uses `context.uid`, the session's uid that the route
  * resolved. No tool takes a uid, an email or a document id from the model, so
@@ -52,7 +53,7 @@ import { getUserDoc, type UserDoc } from "@/lib/watchlist";
  *
  * Writes: none. The reason watcher runs with `persist: false`, the memo is
  * read from the store or built in memory without saving and without a model,
- * and "Watch this" only fills in the agent box; the person saves it there.
+ * and the watch card saves an agent only when the person taps it (POST /api/agents/save from the page).
  */
 
 export type MineToolContext = {
@@ -428,7 +429,7 @@ export async function briefingItemCard(context: MineToolContext, input: { ticker
   } satisfies BriefingItemCard;
 }
 
-/* ── "Watch this" ───────────────────────────────────────────────────────── */
+/* ── "Keep watching" ───────────────────────────────────────────────────────── */
 
 export const WATCH_KINDS = ["price_below", "price_above", "daily_move", "earnings_before", "insider_trade", "congress_trade", "fund_13f", "buy_zone"] as const;
 export type WatchKindInput = (typeof WATCH_KINDS)[number];
@@ -495,6 +496,50 @@ async function earningsTiming(input: Parameters<typeof watchRequest>[0], now: Da
   return { days: null, note: `${ticker}'s report is ${gap === 0 ? "today" : "tomorrow"}, too close for a reminder, so this one starts with the report after it.` };
 }
 
+function capitalise(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/**
+ * What saving these agents would do on the person's plan, in one sentence for before the tap, with the same rules
+ * and order as the save route (app/api/agents/save) and the agent box: no room at all, then filing and news agents
+ * the plan does not run, then the running limit. Null when they would simply start. Agents the person already has
+ * are skipped on save, so they do not count. Pure.
+ */
+export function watchOutlook(input: { drafts: AgentJobDraft[]; jobs: Array<Pick<AgentJob, "template" | "trigger" | "scope" | "enabled">>; plan: Plan }): WatchCard["outlook"] {
+  // The same agent twice in one request is saved once, as the route does.
+  const unique = input.drafts.filter((draft, index) => input.drafts.findIndex((other) => sameJob(other, draft)) === index);
+  const fresh = unique.filter((draft) => !input.jobs.some((job) => sameJob(job, draft)));
+  const count = fresh.length;
+  if (count === 0) return null;
+  const one = count === 1;
+  if (input.jobs.length + count > MAX_JOBS_PER_USER) {
+    const room = Math.max(0, MAX_JOBS_PER_USER - input.jobs.length);
+    return {
+      kind: "full",
+      line:
+        room === 0
+          ? `You have ${MAX_JOBS_PER_USER} agents, the most one account can keep. Remove one on the Agents page to add this.`
+          : `You have room for ${room} more ${room === 1 ? "agent" : "agents"}, and this sets up ${count}. Remove one on the Agents page first.`,
+    };
+  }
+  const proOnly = fresh.filter((draft) => !planMayRun(draft, input.plan)).length;
+  if (proOnly > 0) {
+    return { kind: "pro_only", line: `Watching filings and news is part of Pro, so ${proOnly === count ? (one ? "this one" : "these") : `${proOnly} of these`} will be saved paused.` };
+  }
+  const running = input.jobs.filter((job) => job.enabled).length;
+  const limit = limitFor("agents", input.plan);
+  const paused = Math.max(0, running + count - limit);
+  if (paused === 0) return null;
+  const runs = limit === 1 ? "one agent" : limit === 2 ? "two agents" : `${limit} agents`;
+  const plan = input.plan === "free" ? `Free runs ${runs} at a time` : `Your plan runs ${runs} at a time`;
+  const on = running === 1 ? "you have 1 on" : `you have ${running} on`;
+  return {
+    kind: "paused",
+    line: `${plan} and ${on}, so ${paused === count ? (one ? "this one" : "these") : `${paused} of these`} will be saved paused. Pause another agent to switch ${paused === 1 ? "it" : "them"} on.`,
+  };
+}
+
 export async function watchCard(context: MineToolContext, input: Parameters<typeof watchRequest>[0]): Promise<AskCard> {
   const timing = await earningsTiming(input, context.now ?? new Date());
   if (timing.days !== null) input = { ...input, days: timing.days };
@@ -514,17 +559,21 @@ export async function watchCard(context: MineToolContext, input: Parameters<type
     return errorCard(parsed.spec.cannot[0]?.line ?? "An agent cannot watch that yet.");
   }
   let existing: WatchCard["existing"] = [];
+  let outlook: WatchCard["outlook"] = null;
   let note: string | null = [timing.note, ...parsed.spec.watches.map((watch) => watch.note)].filter(Boolean).join(" ") || null;
+  const drafts = parsed.spec.watches.map((watch) => watch.draft);
   if (context.uid) {
     const jobs = await listJobs(context.uid).catch(() => null);
     if (jobs) {
       const matches = parsed.spec.watches.map((watch) => jobs.find((job) => sameJob(job, watch.draft)) ?? null);
       // "Already" only when every agent the request would make exists. Anything less is still offered.
       if (matches.every(Boolean)) existing = matches.map((job) => ({ name: job!.name, enabled: job!.enabled }));
+      const plan = context.viewer?.uid === context.uid ? context.viewer.plan : null;
+      outlook = plan ? watchOutlook({ drafts, jobs, plan }) : null;
     }
   } else {
     // The Agents page shows the agent and its last four weeks before any sign-in; only saving it takes an account.
-    const saving = "The Agents page shows what it would have caught over the last four weeks. Saving it takes a free account.";
+    const saving = "Save it with a free account.";
     note = note ? `${note} ${saving}` : saving;
   }
   return {
@@ -535,7 +584,15 @@ export async function watchCard(context: MineToolContext, input: Parameters<type
     href: `/agents?q=${encodeURIComponent(request)}`,
     existing,
     note,
-    source: existing.length > 0 ? "Your agents" : "Nothing is set up until you save it on the Agents page",
+    rule: {
+      // "when NVIDIA moves 5% or more in a day, up or down" reads as the rule itself without its "when".
+      what: parsed.spec.watches.map((watch) => capitalise(watch.full.replace(/^when\s+/i, ""))),
+      stocks: parsed.spec.stocks.map((stock) => ({ ticker: stock.ticker, name: stock.name })),
+      mine: parsed.spec.uses_watchlist,
+    },
+    drafts,
+    outlook,
+    source: existing.length > 0 ? "Your agents" : "Nothing is set up until the person taps Set up this watch on the card",
     as_of: null,
     source_url: "/agents",
   } satisfies WatchCard;
@@ -608,7 +665,7 @@ export function buildMineTools(context: MineToolContext): ToolSet {
 
     suggest_watch: tool({
       description:
-        "Offer an agent that keeps watching something after this answer: a closing price level, a big daily move, a reminder before earnings, insider, Congress or fund trades, or the add level from our call. It sets nothing up: the card has a 'Watch this' button that opens the Agents page with the request filled in, and the person saves it there. Call it when your answer points to something worth watching, at most once per answer.",
+        "Offer an agent that keeps watching something after this answer: a closing price level, a big daily move, a reminder before earnings, insider, Congress or fund trades, or the add level from our call. It sets nothing up: the card states the rule and has a 'Set up this watch' button, and nothing is saved until the person taps it. Call it when your answer points to something worth watching, at most once per answer.",
       inputSchema: z.object({
         kind: z.enum(WATCH_KINDS),
         ticker: TICKER.optional().describe("The stock. Required, unless mine=true for every stock a signed-in person tracks. There is no market-wide agent"),

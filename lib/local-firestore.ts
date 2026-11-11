@@ -1,4 +1,6 @@
-import { noteDegradedRender, uncachedFetch } from "@/lib/next-render";
+import { Agent, fetch as undiciFetch, type RequestInit as UndiciRequestInit } from "undici";
+
+import { noteDegradedRender } from "@/lib/next-render";
 
 /** How long one store call may take before it fails. Override with LOCALDB_TIMEOUT_MS. */
 const REQUEST_TIMEOUT_MS = Math.max(1000, Number(process.env.LOCALDB_TIMEOUT_MS) || 25_000);
@@ -111,6 +113,58 @@ async function withSlot<T>(run: () => Promise<T>): Promise<T> {
 /** For tests: the current cap and queue. */
 export function localDbConcurrencyForTests(): { max: number; inUse: number; waiting: number } {
   return { max: maxInFlight, inUse: slotsInUse, waiting: slotWaiters.length };
+}
+
+// Store requests go through undici's own fetch and a connection pool of their
+// own, for two reasons:
+// - Keep-alive. Node's global fetch drops a connection after 4 s idle, so a
+//   page view more than 4 s after the last one paid a new TCP + TLS handshake
+//   to the VPS on its first read (~400 ms instead of ~110 ms from a laptop).
+//   This pool keeps idle connections for 60 s, below the store server's 150 s
+//   (backend/localdb/server.py) and Caddy's 5 minute idle timeout, so the
+//   client is the side that closes them.
+// - Next's Data Cache. Next patches the global fetch and, on a page built for
+//   the CDN (the cached signed-out pages, lib/anon-view.ts), would keep every
+//   response in its Data Cache, which outlives deploys. undici's fetch is not
+//   the global one, so Next never sees these requests.
+// undici's fetch is paired with undici's own Agent on purpose: handing an
+// Agent from the npm package to Node's built-in fetch breaks whenever the two
+// undici majors drift apart (an undici 6 Agent fails on Node 26's fetch).
+const KEEPALIVE_IDLE_MS = 60_000;
+let storeAgent: Agent | undefined;
+
+/** The options of the store connection pool, for tests. */
+export const LOCALDB_AGENT_OPTIONS = {
+  keepAliveTimeout: KEEPALIVE_IDLE_MS,
+  // The in-flight cap (see withSlot) plus a few spare: a read frees its slot
+  // before its body is fully read, so a few more sockets can be busy at once.
+  connections: Math.max(DEFAULT_MAX_IN_FLIGHT, PINNED_MAX_IN_FLIGHT || 0) + 4,
+} as const;
+
+type FetchLike = (url: string, init: RequestInit) => Promise<Response>;
+let fetchForTests: FetchLike | undefined;
+
+/** For tests: answer store requests with `fetch` instead of the network; no argument restores the network. */
+export function setLocalDbFetchForTests(fetch?: FetchLike): void {
+  fetchForTests = fetch;
+}
+
+/** One request to the store over the shared keep-alive pool. Server only. */
+export function localDbFetch(url: string, init: RequestInit = {}): Promise<Response> {
+  if (fetchForTests) return fetchForTests(url, init);
+  storeAgent ??= new Agent(LOCALDB_AGENT_OPTIONS);
+  // undici's Response has the same shape as the global one; only its TypeScript type differs.
+  return undiciFetch(url, { ...(init as UndiciRequestInit), dispatcher: storeAgent }) as unknown as Promise<Response>;
+}
+
+/**
+ * A pooled connection the server dropped (a store or Caddy restart) while it
+ * sat idle here. Reads change nothing, so a read that hits one is sent once
+ * more on a fresh connection; writes are not, as they may have landed.
+ */
+function isStaleConnection(error: unknown): boolean {
+  const code = (error as { cause?: { code?: unknown } } | null)?.cause?.code;
+  return code === "UND_ERR_SOCKET" || code === "ECONNRESET" || code === "EPIPE";
 }
 
 // Identical reads that overlap in time share one round trip. Only the raw
@@ -437,19 +491,26 @@ export class LocalFirestore {
     throw lastError;
   }
 
-  async request(path: string, init: { method?: string; body?: unknown } = {}): Promise<Response> {
-    // uncachedFetch: never through Next's Data Cache (see lib/next-render.ts).
-    const send = () => withSlot(() => uncachedFetch(`${this.baseUrl}${path}`, {
+  async request(path: string, init: { method?: string; body?: unknown; retryStale?: boolean } = {}): Promise<Response> {
+    const attempt = (signal: AbortSignal) => localDbFetch(`${this.baseUrl}${path}`, {
       method: init.method || "GET",
       headers: {
         Authorization: `Bearer ${this.token}`,
         ...(init.body ? { "Content-Type": "application/json" } : {}),
       },
       body: init.body ? JSON.stringify(init.body) : undefined,
+      signal,
+    });
+    const sendWithRetry = () => {
       // A stalled store must not hold this request (and every one queued
       // behind it for a slot) until the serverless function times out.
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    }).then(
+      const signal = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+      return attempt(signal).catch((error: unknown) => {
+        if (!init.retryStale || !isStaleConnection(error)) throw error;
+        return attempt(signal);
+      });
+    };
+    const send = () => withSlot(() => sendWithRetry().then(
       (response) => {
         noteServerBacklog(response);
         if (response.status >= 500) noteDegradedRender();
@@ -482,7 +543,7 @@ export class LocalFirestore {
     const pending = readsInFlight.get(key);
     if (pending) return pending;
     const started = (async (): Promise<ReadResult> => {
-      const response = await this.request(path, init);
+      const response = await this.request(path, { ...init, retryStale: true });
       return { status: response.status, ok: response.ok, text: await response.text() };
     })();
     readsInFlight.set(key, started);

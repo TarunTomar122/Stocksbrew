@@ -199,6 +199,10 @@ const nextConfig = {
   },
   experimental: {
     serverActions: true,
+    // Loaded by Node at run time instead of bundled: Next 13.5's webpack cannot
+    // parse undici 7's syntax. undici carries the LocalDB keep-alive pool
+    // (lib/local-firestore.ts).
+    serverComponentsExternalPackages: ["undici"],
   },
   images: {
     remotePatterns: [

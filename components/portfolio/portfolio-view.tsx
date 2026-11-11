@@ -456,6 +456,7 @@ export function PortfolioView({
         <TheRead
           key={tab}
           read={portfolioSteps(reads?.[tab] ?? null, { tab, positions: everything, today })}
+          askContext={example ? "ex.portfolio" : "portfolio"}
           label={
             tab === "positions"
               ? example

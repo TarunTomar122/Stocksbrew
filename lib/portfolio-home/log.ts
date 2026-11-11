@@ -1,4 +1,4 @@
-import type { AgentJob, AgentRun } from "@/lib/agent-jobs";
+import type { AgentFinding, AgentJob, AgentRun, AgentRunCounts } from "@/lib/agent-jobs";
 import { AFTER_CLOSE_RUN_ET, afterCloseRunOn, afterCloseTimeEt } from "@/lib/agent-schedule";
 import { fmtDollars, fmtPlanDay } from "@/lib/dividend-plan";
 import { sessionWords, whenWords } from "@/lib/earnings-season";
@@ -28,8 +28,20 @@ export type AgentsSource = {
     Pick<AgentRun, "job_id" | "job_name" | "day" | "ran_at" | "decision" | "summary"> & {
       /** The stocks the run's findings name, so a finding or a briefing line can point at the run that flagged it. */
       tickers?: string[];
+      /** What it examined and found, for the check opened on My stocks. Only runs read from the store carry it. */
+      detail?: RunDetail;
     }
   >;
+};
+
+/** A run's evidence and what it checked (lib/agent-watch.ts runDetailFromDoc). */
+export type RunDetail = {
+  findings: Array<Pick<AgentFinding, "ticker" | "headline" | "detail" | "source" | "url" | "at">>;
+  /** Every finding the run stored, the ones left out of `findings` included. */
+  findingCount: number;
+  checked: string[];
+  latest_close: string | null;
+  counts: AgentRunCounts | null;
 };
 
 export type LogRow = {

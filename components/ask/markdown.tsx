@@ -4,10 +4,16 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { AppLink } from "@/components/oa/app-link";
 
+const SIZES = {
+  /** The short answer at the top of an answer: a touch larger, so it reads first. */
+  lead: "text-[16px] leading-[1.55]",
+  body: "text-[15px] leading-[1.6]",
+} as const;
+
 /** The copilot's prose. Markdown in, brew typography out. Links open in a new tab unless they stay on the site. */
-export function AskMarkdown({ text }: { text: string }) {
+export function AskMarkdown({ text, size = "body" }: { text: string; size?: keyof typeof SIZES }) {
   return (
-    <div className="min-w-0 text-[15px] leading-[1.6] text-oa-fg">
+    <div className={`min-w-0 text-oa-fg ${SIZES[size]}`}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{

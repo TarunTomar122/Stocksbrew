@@ -9,7 +9,9 @@ import { AskCardView, type CardActions } from "@/components/ask/cards";
 import { ContextPin } from "@/components/ask/context-pin";
 import { AskMarkdown } from "@/components/ask/markdown";
 import { OaButton } from "@/components/oa/button";
-import { isAskCard, type AskUIMessage, type NumberAudit } from "@/lib/ask-cards";
+import { AppLink } from "@/components/oa/app-link";
+import { isActionCard, sourcesOf, splitAnswer, type AnswerSource } from "@/lib/ask-answer";
+import { isAskCard, type AskCard, type AskUIMessage, type NumberAudit } from "@/lib/ask-cards";
 import { contextQuestion, contextSuggestions, parseAskContext } from "@/lib/ask-context";
 import { ASK_LIMITS, ASK_MAX_QUESTION_CHARS, ASK_SUGGESTIONS, ASK_TOOL_DONE, ASK_TOOL_LABELS, type AskPlan } from "@/lib/ask-config";
 import type { AskLimitReached } from "@/lib/ask-limits";
@@ -145,7 +147,8 @@ function Steps({ steps, streaming, writing }: { steps: Step[]; streaming: boolea
 function AuditLine({ audit }: { audit: NumberAudit }) {
   const clean = audit.untraced.length === 0;
   return (
-    <p className={`oa-mono flex items-start gap-x-2 text-[11.5px] leading-4 ${clean ? "text-oa-muted-fg" : "text-oa-label"}`}>
+    // Clean, it sits beside "Show the evidence"; a warning takes a line of its own.
+    <p className={`oa-mono flex items-start gap-x-2 text-[11.5px] leading-4 ${clean ? "text-oa-muted-fg" : "basis-full text-oa-label"}`}>
       <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" className="mt-0.5 shrink-0">
         {clean ? (
           <path d="M2.5 6.4 5 8.8 9.6 3.4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -153,13 +156,14 @@ function AuditLine({ audit }: { audit: NumberAudit }) {
           <path d="M6 2.2v4.6M6 9.3v.4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
         )}
       </svg>
+      {/* The check covers the whole answer, the folded detail too, so it stays in view. */}
       {clean ? (
         <span>
-          {audit.checked === 1 ? "The 1 figure" : `All ${audit.checked} figures`} in this answer {audit.checked === 1 ? "is" : "are"} in the cards above
+          {audit.checked === 1 ? "The 1 figure" : `All ${audit.checked} figures`} in this answer {audit.checked === 1 ? "matches" : "match"} its sources
         </span>
       ) : (
         <span>
-          {audit.traced} of {audit.checked} figures are in the cards above. Not found: {audit.untraced.join(", ")}. Treat {audit.untraced.length === 1 ? "it" : "them"} as unverified.
+          {audit.traced} of {audit.checked} figures match the sources. Not found: {audit.untraced.join(", ")}. Treat {audit.untraced.length === 1 ? "it" : "them"} as unverified.
         </span>
       )}
     </p>
@@ -197,17 +201,57 @@ function LimitNotice({ limit, onSignIn }: { limit: AskLimitReached; onSignIn: ()
   );
 }
 
+/** The sources an answer's figures came from, one line each with the time the data is from. */
+function SourceList({ sources }: { sources: AnswerSource[] }) {
+  if (sources.length === 0) return null;
+  return (
+    <ul aria-label="Sources" className="oa-surface divide-y divide-oa-border border border-oa-border bg-oa-bg">
+      {sources.map((entry) => {
+        const external = entry.url ? /^https?:\/\//.test(entry.url) : false;
+        const stamp = fmtAsOf(entry.as_of);
+        return (
+          <li key={`${entry.source}|${entry.as_of ?? ""}`} className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-3 px-3 py-1.5 text-[13px] leading-5">
+            {entry.url ? (
+              <AppLink
+                href={entry.url}
+                {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                className={`min-w-0 rounded text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg ${FOCUS}`}
+              >
+                {entry.source}
+              </AppLink>
+            ) : (
+              <span className="min-w-0 text-oa-fg">{entry.source}</span>
+            )}
+            {stamp ? <span className={`${NUM} shrink-0 text-[11.5px] text-oa-muted-fg`}>{stamp}</span> : null}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function Chevron({ open }: { open: boolean }) {
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" className={`shrink-0 transition-transform ${open ? "rotate-90" : ""}`}>
+      <path d="M4.5 2.5 8 6l-3.5 3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 /**
- * The copilot's side of one exchange, in reading order: the steps line, the
- * written answer, then the cards it was written from. Cards wait until the
- * answer is finished, so the text never shoves them down the page mid-read.
+ * The copilot's side of one exchange, in reading order: the steps line, the short answer (its first paragraph,
+ * lib/ask-answer.ts), "Show the evidence" (the sources with their times, the detail and the cards it was written
+ * from, opening in place), the numbers check, and last what it asks the person to do (a watch to set up, names to
+ * save). The fold and the cards wait until the answer is finished, so nothing shoves the short answer down mid-read.
  */
 function Answer({ message, actions, streaming }: { message: AskUIMessage | null; actions: CardActions; streaming: boolean }) {
+  const [open, setOpen] = React.useState(false);
+  const evidenceId = React.useId();
   let audit: NumberAudit | null = null;
   let notice: string | null = null;
   const text: string[] = [];
   const steps: Step[] = [];
-  const cards: React.ReactNode[] = [];
+  const cards: Array<{ key: number; card: AskCard }> = [];
   message?.parts.forEach((part, index) => {
     if (part.type === "text") {
       if (part.text.trim()) text.push(part.text);
@@ -229,9 +273,7 @@ function Answer({ message, actions, streaming }: { message: AskUIMessage | null;
         // An agent the tool turned down is the copilot's own misstep, not something to read: the answer offers
         // another one (lib/ask-pipeline.ts) or none.
         const refusedWatch = name === "suggest_watch" && isAskCard(tool.output) && tool.output.card === "error";
-        if (isAskCard(tool.output) && tool.output.card !== "matches" && !refusedWatch) {
-          cards.push(<AskCardView key={index} card={tool.output} actions={actions} />);
-        }
+        if (isAskCard(tool.output) && tool.output.card !== "matches" && !refusedWatch) cards.push({ key: index, card: tool.output });
       } else if (tool.state === "output-error") {
         steps.push({ name, state: "failed" });
       } else {
@@ -241,13 +283,60 @@ function Answer({ message, actions, streaming }: { message: AskUIMessage | null;
   });
   const prose = text.join("\n\n");
   if (!streaming && !prose && cards.length === 0 && steps.length === 0) return null;
+  // An answer that does not open with a paragraph of prose (a list, an older answer) shows its text whole; only its
+  // cards fold.
+  const { lead, rest } = splitAnswer(prose);
+  const shown = lead || prose;
+  const folded = lead ? rest : "";
+  const evidence = cards.filter((entry) => !isActionCard(entry.card));
+  const asks = cards.filter((entry) => isActionCard(entry.card));
+  const sources = sourcesOf(evidence.map((entry) => entry.card));
+  const hasEvidence = !streaming && (Boolean(folded) || evidence.length > 0);
   return (
     <div className="min-w-0 space-y-3">
       <Steps steps={steps} streaming={streaming} writing={Boolean(prose)} />
       {notice ? <p className="text-[12.5px] leading-5 text-oa-muted-fg">{notice}</p> : null}
-      {prose ? <AskMarkdown text={prose} /> : null}
-      {!streaming && cards.length > 0 ? <div className="space-y-3 pt-1">{cards}</div> : null}
-      {audit && !streaming ? <AuditLine audit={audit} /> : null}
+      {shown ? <AskMarkdown text={shown} size={lead ? "lead" : "body"} /> : null}
+      {hasEvidence || (audit && !streaming) ? (
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            {hasEvidence ? (
+              <button
+                type="button"
+                aria-expanded={open}
+                aria-controls={open ? evidenceId : undefined}
+                onClick={() => setOpen((value) => !value)}
+                className={`-mx-1 inline-flex min-h-9 items-center gap-1.5 rounded-lg px-1 text-[13.5px] font-medium text-oa-fg hover:bg-oa-accent ${FOCUS}`}
+              >
+                <Chevron open={open} />
+                {open ? "Hide the evidence" : "Show the evidence"}
+                {sources.length > 0 ? (
+                  <span className="font-normal text-oa-muted-fg">
+                    · {sources.length} {sources.length === 1 ? "source" : "sources"}
+                  </span>
+                ) : null}
+              </button>
+            ) : null}
+            {audit && !streaming ? <AuditLine audit={audit} /> : null}
+          </div>
+          {hasEvidence && open ? (
+            <div id={evidenceId} className="mt-2 space-y-3">
+              <SourceList sources={sources} />
+              {folded ? <AskMarkdown text={folded} /> : null}
+              {evidence.map((entry) => (
+                <AskCardView key={entry.key} card={entry.card} actions={actions} />
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+      {!streaming && asks.length > 0 ? (
+        <div className="space-y-3">
+          {asks.map((entry) => (
+            <AskCardView key={entry.key} card={entry.card} actions={actions} />
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -868,7 +957,7 @@ export function AskWorkspace({
         event.preventDefault();
         ask(input, "typed");
       }}
-      className="flex items-end gap-2 rounded-[22px] border border-oa-border bg-oa-card p-2 pl-4 shadow-[0_1px_0_rgba(0,0,0,0.02),0_8px_24px_-12px_rgba(60,40,20,0.25)] focus-within:border-[color-mix(in_srgb,var(--oa-fg)_30%,transparent)]"
+      className={`flex items-end gap-2 rounded-[22px] border border-oa-border bg-oa-card ${panel ? "p-1.5 pl-3.5" : "p-2 pl-4"} shadow-[0_1px_0_rgba(0,0,0,0.02),0_8px_24px_-12px_rgba(60,40,20,0.25)] focus-within:border-[color-mix(in_srgb,var(--oa-fg)_30%,transparent)]`}
     >
       <label htmlFor={inputId} className="sr-only">
         Ask a question
@@ -919,7 +1008,7 @@ export function AskWorkspace({
   );
 
   const smallPrint = (
-    <p className="mt-1.5 flex flex-wrap justify-between gap-x-4 gap-y-0.5 px-1 text-[11.5px] leading-4 text-oa-muted-fg">
+    <p className={`${panel ? "mt-1" : "mt-1.5"} flex flex-wrap justify-between gap-x-4 gap-y-0.5 px-1 text-[11.5px] leading-4 text-oa-muted-fg`}>
       <span>
         {plan === "anonymous" ? `Sign in free to ask ${ASK_LIMITS.free.questionsPerDay} questions a day. ` : ""}Research, not advice.
       </span>
@@ -1031,7 +1120,7 @@ export function AskWorkspace({
             )}
           </div>
         </div>
-        <div className="shrink-0 border-t border-oa-border bg-oa-page px-3 pb-[max(env(safe-area-inset-bottom),0.625rem)] pt-2.5">
+        <div className="shrink-0 border-t border-oa-border bg-oa-page px-3 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2">
           {composer}
           {smallPrint}
         </div>

@@ -167,11 +167,36 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 - [x] Call engine v3 scorecard: built, no edge, stays off. Next: reframe the call as a descriptive scorecard.
 - [x] Open source readiness report done; going public blocked on owner decisions (key rotation, CSV, license): LICENSE, waitlist CSV in history, scrub private infra and personal identities, env example, README.
 - [ ] Share previews (OG cards) for every page family (in progress).
-- [ ] Speed: stock page and briefing fast and snappy (owner's main focus after the Nov 11 UI round). Profiling in progress; then fix the top causes and re-measure TTFB, HTML size, client JS and mobile LCP before and after.
+- [ ] Speed: stock page and briefing fast and snappy (owner's main focus after the Nov 11 UI round). Structural rework in progress (ship 24): stock page 580KB → <200KB, markets 460KB, portfolio loaders.
+- [ ] Short interest (FINRA) as a data source: stock page read, screener/Ask, agent trigger (in progress).
+- [ ] Ship 23: Ask answer shape, Ask in context from every card, LocalDB keep-alive (preview deploy first).
 
 ## Log
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
+
+### 2026-11-11 ~13:20 UTC (real clock), ship 23 waiting on Ask-in-context; speed rework and short interest started (lead)
+
+- Ask answer shape landed (short lead, evidence fold, "Keep watching" rule card; next check now says "after today's close"). Keep-alive re-test: Caddy host 0 errors, ~110ms vs ~300ms per round → ship 23 after one Vercel preview deploy.
+- QA on Ask-in-context relayed to its builder: week-chart role, quoted() abbreviation cuts, card Ask as a corner icon and off on simulation/import pages, no personal amounts in URLs, one "Set one up", plain wording for your own checks, chart footnote removed.
+- Live today, logged out: /stock/NVDA 580KB HTML (TTFB 0.1-0.2s), /markets 460KB, /portfolio example TTFB 0.4-0.6s / total 0.8-1.7s, /briefing 164KB.
+- Builders started (2): structural speed rework (stock page, markets, portfolio/briefing loaders: streamed sections, compact props, lazy charts, request-deduped reads; targets <200KB HTML, warm portfolio <0.3s TTFB); short interest from FINRA as a new data source (backend job → tm_short_interest, stock page read, screener or Ask tool).
+- Steady calls: first stabilised brief runs at 13:35 UTC — check tm_call_stability changes/history after.
+
+### 2026-11-11 ~13:50 UTC, Codex after ship 22; the loop builders started (lead)
+
+- Codex judge after ship 22 (CLI, live screenshots; scratchpad/judge22/verdict.md): overall 7.5 (was 7.2); UI 8 (7.5), UX 7.5 (7.5), usability 7 (7), human wording 7.5 (7.5), agent feel 7 (7), similarity 7.5 (7). Asks: Ask leads with a concise answer, sources/timestamps, then a prefilled watch with its exact rule and confirmation; My stocks agent checks expandable (examined, result, next run); briefing prioritises holdings and every card is askable in context; mobile Ask shorter first screen; memo chart points and changed calls open their explanation.
+- Steady calls: 757 state docs seeded, 0 changes since switch-on and no history rows yet — the tracked brief runs that rewrite calls are later today (radar official open 13:35 UTC, 08:45/15:40 ET jobs); premarket ran successfully at 12:30 (16 failed downloads, pre-existing kind).
+- Builders started (3): Ask answer shape (short lead, evidence folded, watch rule card with one-tap confirm for signed-in); Ask in context from every card + expandable agent checks + memo drill-down + briefing holdings-first; LocalDB keep-alive re-test against the production Caddy host from Node 22/24 (ship / change / drop).
+
+### 2026-11-11 ~13:30 UTC, ships 21 (b912aa0) and 22 (d1e972c) live; SEO playbook applied (lead)
+
+- Ship 21: Ask example answers for signed-out visitors (lib/ask-pipeline.ts extracted from the ask route, lib/ask-examples*.ts, tm_ask_examples, 300/day + 10/visitor caps, generated only after the panel opens) and answer → prefilled watch; real example agents (system uid example-portfolio, Pro via systemPlanOf, scripts/setup-example-agents.ts — now refuses to record a run before 4:30 PM ET without --force; the 6:19 AM ET laptop run means tonight's runner skips them, next real run Nov 12); strategy rebalance notes (tm_strategy_rebalances, "Latest rebalance" panel, Pro email behind STRATEGY_REBALANCE_NOTES=1, off); phone agent preview (sticky Save, "calendar days"), phone finding reasons, stock call line; quiet Ask focus; no Ask explainer. The LocalDB undici keep-alive was pulled from ships 21 and 22: the qp21 probe saw ECONNRESET under concurrent idle-gap loads with undici 7 and the dev server can't exercise it (Next aliases undici); re-test on a production build before shipping.
+- Ship 22: reads as cards site-wide (components/oa/insight.tsx, components/oa/read-fold.tsx, lib/insights.ts figure + deriveFigure; labelled figures set by hand where the auto pick misled: Market today leader "GDX today", news "of stories negative"/"stories"/"MSFT today", screener "of them rose"); weekly memo as charts and cards (components/memo/*, lib/memo view stored per week); SEO: llms.txt facts generated from the plan table with "checked on" (lib/llms.ts + test), AggregateOffer Free $0 / Pro $19 / $190, compare pages lead with who/price/our drawback, competitor prices rechecked from vendor pages (Seeking Alpha, Morningstar, Danelfin "not checked"), FAQPage markup removed everywhere (compare, blog, marketing schema), "not advice" links to methodology, IndexNow for the stocks family, sitemap families retried not dropped, "heard about us" property, seo/context.md and seo/ai-prompts.md.
+- Vercel: stocksbrew.online and tikrr.online now 308 to www (were 307). Training crawlers stay allowed (owner informed; revisit if an engine quotes a stale call).
+- Owner feedback handled this round: nav group labels quieter; My stocks columns balanced; no sale next to Keep/Buy more (incl. tax-loss); stock header split; memo "all text" → visual; reads → cards; Ask focus line.
+- Verified: ship 21 tsc 0, vitest 2293 (keep-alive tests removed), pytest + 3 pre-existing; ship 22 tsc 0, vitest 2337 with and without PAYWALL_V2, eslint clean; combined quality passes qp21 and qp22 with fixes; screenshots scratchpad/s21, s22, qp21, qp22, readcards, memo, seo-shots. Live: all checked pages 200; /portfolio/memo 8.6s on the first load after deploy (once-a-day example rebuild), then 0.3-0.5s; llms.txt shows the dated facts; AggregateOffer live.
+- Open: undici keep-alive re-test; VOO prices stopping at Monday (memo footnote) — check after tonight's price run; memo "What could hurt"/"Worth a look" labels sit above cards (owner may object); after-close run 22:30 UTC is the first real test of the price fix; owner: Bing Webmaster Tools.
 
 ### 2026-11-11 ~11:15 UTC (real clock), ship 20 live (6b03f0b); tighter free plan and steady calls switched on (lead)
 
