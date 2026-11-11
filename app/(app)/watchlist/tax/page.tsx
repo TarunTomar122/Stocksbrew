@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { PageHead, SourceLine, fmtStampET } from "@/components/oa/kit";
 import { TheRead } from "@/components/oa/insight";
@@ -60,6 +61,13 @@ export default async function PortfolioTaxPage({ searchParams }: { searchParams:
         {session ? (
           <>
             <TheRead read={buildTaxRead(data.picture, currentYear)} label={`Your taxes in ${currentYear}`} className="mb-3" />
+            <p className="mb-3 px-2 text-pretty text-[14px] leading-5 text-oa-muted-fg sm:px-0">
+              Wondering what to sell?{" "}
+              <Link href="/portfolio/ideas" className="font-medium text-oa-primary hover:underline">
+                See rebalancing and tax-loss ideas for these holdings, with the tax on each sale
+              </Link>
+              .
+            </p>
             <TaxView data={data} year={year} currentYear={currentYear} editable />
           </>
         ) : (
