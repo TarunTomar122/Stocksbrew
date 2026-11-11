@@ -6,6 +6,7 @@
  */
 
 import { firstFullSentence } from "@/lib/plain-copy";
+import { isCircularReason } from "@/lib/reason-quality";
 
 export type SignalsTab = "today" | "movers" | "reddit" | "policy";
 
@@ -131,7 +132,8 @@ export function classifyMover(input: MoverInput): Mover {
   const causeType = String(explanation?.cause_type ?? "").trim().toLowerCase();
   const headline = String(explanation?.headline ?? "").trim();
   const why = String(explanation?.why_it_matters ?? "").trim();
-  const explained = Boolean(explanation) && !NO_CAUSE.has(causeType) && !isPlaceholder(headline);
+  // A headline that only says the move again ("Semiconductor rally drives SOXL higher") is no reason (owner rules 7, 8).
+  const explained = Boolean(explanation) && !NO_CAUSE.has(causeType) && !isPlaceholder(headline) && !isCircularReason(headline, input.ticker, input.name);
   const confidence = String(explanation?.confidence ?? "").toLowerCase();
   const evidence = (explanation?.evidence ?? [])
     .map((row) => ({ title: String(row?.title ?? "").trim(), url: String(row?.url ?? "").trim() }))

@@ -13,6 +13,7 @@
  * - a next step is a thing to check or read, never an instruction to trade
  */
 
+import { isCircularReason } from "@/lib/reason-quality";
 import { hasResearchBackedNarrative } from "@/components/daily-anomalies-shared";
 import type { AnomalyItem } from "@/lib/daily-anomalies";
 import { redactOurLevels } from "@/lib/entitlements";
@@ -604,7 +605,10 @@ export function moveReason(anomaly: AnomalyItem | null | undefined): MoveReason 
   const causeType = clean(explanation?.cause_type).toLowerCase();
   const researched = hasResearchBackedNarrative(anomaly);
 
-  if (researched && sources.length > 0 && causeType !== "price_action") {
+  // A headline that only restates the move ("Semiconductor rally drives SOXL higher") is not a cause: treat it as
+  // price action, so the summary, the preview and the email never call it a reason (lib/reason-quality.ts).
+  const circular = isCircularReason(headline, anomaly.ticker, anomaly.name);
+  if (researched && sources.length > 0 && causeType !== "price_action" && !circular) {
     return {
       status: "confirmed",
       headline,

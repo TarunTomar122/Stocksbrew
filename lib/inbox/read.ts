@@ -38,8 +38,9 @@ function parts(items: InboxItem[], example: boolean): string[] {
   const calls = count("call");
   if (calls > 0) out.push(`our call moved on ${calls} of ${whose} stocks`);
   const flags = count("agent");
-  // "the example's" once is enough; after that it is "its".
-  if (flags > 0) out.push(`${example && out.length > 0 ? "its" : whose} agents flagged ${flags} ${plural(flags, "thing", "things")}`);
+  // "the example portfolio's" once is enough; after that it is "its".
+  const agentsOf = example ? (out.length > 0 ? "its" : "the example portfolio's") : "your";
+  if (flags > 0) out.push(`${agentsOf} agents flagged ${flags} ${plural(flags, "thing", "things")}`);
   const alerts = count("alert");
   if (alerts > 0) out.push(`${alerts} ${plural(alerts, "price alert", "price alerts")} went off`);
   const reasons = count("reason");
@@ -89,7 +90,7 @@ function agentsCard(items: InboxItem[], example: boolean): Insight | null {
   const flags = items.filter((item) => item.kind === "agent" && !item.quiet);
   const quiet = items.filter((item) => item.kind === "agent" && item.quiet);
   if (flags.length === 0 && quiet.length === 0) return null;
-  const whose = example ? "The example's" : "Your";
+  const whose = example ? "The example portfolio's" : "Your";
   if (flags.length === 0) {
     return {
       id: "inbox-agents",

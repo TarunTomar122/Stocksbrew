@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import { todayET } from "@/lib/calendar-shared";
 
 import { MarketStatusInline } from "@/components/market-status";
@@ -30,6 +30,7 @@ import { AppLink } from "@/components/oa/app-link";
 import { ownCallLevel, type CallLevel } from "@/lib/call-level";
 import { askContext, formatAskContext } from "@/lib/ask-context";
 import { FREE_COVERED_WORD } from "@/lib/paywall-flag";
+import { LatestResults } from "@/components/results/latest-results";
 
 const CALL_TONE: Record<CallWord, Tone | null> = { Add: "up", Hold: null, Trim: "down" };
 
@@ -688,6 +689,12 @@ export function StockReport({
         {/* ── the read: what today means, what is coming, then our brief ──── */}
         <div className="order-2 flex min-w-0 flex-col gap-4 xl:col-start-1 xl:row-start-2">
           <div data-phone-section="view" className="flex min-w-0 flex-col gap-4">
+          {/* Results night: the latest report's figures, move and call for ten days after it (components/results). */}
+          {market === "US" ? (
+            <Suspense fallback={null}>
+              <LatestResults ticker={stock.ticker} name={stock.name} call={callWord} />
+            </Suspense>
+          ) : null}
           <TheRead read={data.insightRead} label={`The read on ${stock.ticker}`} fold="phone" foldLabel={`Show more on ${stock.ticker} today`} />
           <Panel
             id="read"

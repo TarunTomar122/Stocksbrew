@@ -10,7 +10,7 @@
  * route all read this file.
  */
 
-export const INBOX_KINDS = ["agent", "call", "alert", "reason", "follow", "insider", "strategy", "memo"] as const;
+export const INBOX_KINDS = ["agent", "call", "results", "alert", "reason", "follow", "insider", "strategy", "memo"] as const;
 export type InboxKind = (typeof INBOX_KINDS)[number];
 
 export type InboxTone = "up" | "down" | "flat";
@@ -84,6 +84,7 @@ export const FIRST_SEEN_DAYS = 3;
 export const KIND_LABEL: Record<InboxKind, string> = {
   agent: "Agents",
   call: "Calls",
+  results: "Results",
   alert: "Price alerts",
   reason: "Reasons",
   follow: "Investors",

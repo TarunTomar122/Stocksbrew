@@ -127,6 +127,24 @@ describe("the one thing per stock", () => {
     });
     expect(facts[0]!.text).toBe("Your reason for owning it is weaker: sales fell 4% last quarter.");
   });
+
+  it("never puts a reason that played out or broke under a Buy more call (rule 9)", () => {
+    const position = portfolio({ earnings: { AAPL: "2026-12-01" } }).positions.find((item) => item.ticker === "AAPL")!;
+    const base = { position, today: TODAY, example: true, moves: {}, callChanges: {}, insiderBuys: {}, ideas: [] };
+    const reasons = [{ ticker: "AAPL", verdict: "played_out" as const, signal: "The stock is no longer cheap against its own past." }];
+    const add = stockFacts({ ...base, calls: { AAPL: { call: "Add", addBelow: null, trimAbove: null, reason: null } }, reasons });
+    expect(add.map((fact) => fact.kind)).not.toContain("reason");
+    // The card takes the next fact instead.
+    expect(add[0]!.text).toBe("Next report Dec 1.");
+    for (const verdict of ["weaker", "broken"] as const) {
+      const out = stockFacts({ ...base, calls: { AAPL: { call: "Add", addBelow: null, trimAbove: null, reason: null } }, reasons: [{ ...reasons[0]!, verdict }] });
+      expect(out.map((fact) => fact.kind)).not.toContain("reason");
+    }
+    const keep = stockFacts({ ...base, calls: { AAPL: { call: "Hold", addBelow: null, trimAbove: null, reason: null } }, reasons });
+    expect(keep[0]!.text).toBe("The example's reason for owning it has played out: the stock is no longer cheap against its own past.");
+    const sell = stockFacts({ ...base, calls: { AAPL: { call: "Trim", addBelow: null, trimAbove: null, reason: null } }, reasons });
+    expect(sell[0]!.kind).toBe("reason");
+  });
 });
 
 describe("the lead line", () => {

@@ -64,9 +64,10 @@ describe("wording", () => {
     expect(item.quiet).toBe(false);
   });
 
-  it("labels the example's agent as the example's and opens the stock, not an agent the visitor does not own", () => {
+  it("labels the example's agent as an example agent and opens the stock, not an agent the visitor does not own", () => {
     const item = agentItem(run({ jobId: "examplebigmove" }), "example")!;
-    expect(item.text.startsWith("The example's “5% moves in a day” agent flagged this")).toBe(true);
+    expect(item.text.startsWith("The example “5% moves in a day” agent flagged this")).toBe(true);
+    expect(item.text).not.toContain("example's");
     expect(item.href).toBe("/stock/NVDA");
   });
 
@@ -80,6 +81,13 @@ describe("wording", () => {
     expect(quiet).toHaveLength(1);
     expect(quiet[0]!.text).toBe("2 of your agents checked on Nov 10 and found nothing that needs you.");
     expect(isUnread(quiet[0]!, "2026-01-01T00:00:00Z")).toBe(false);
+  });
+
+  it("calls the example portfolio's agents example agents, never the example's agents", () => {
+    const quiet = quietItems([run({ decision: "nothing", jobId: "aaaaaa1" }), run({ decision: "nothing", jobId: "bbbbbb2" })], "example");
+    expect(quiet[0]!.text).toBe("2 example agents checked on Nov 10 and found nothing that needs a look.");
+    const items = mergeInbox([[agentItem(run(), "example")!]], SINCE, NOW);
+    expect(inboxRead(items, null, true)!.headline).toContain("the example portfolio's agents flagged 1 thing");
   });
 
   it("says how a call moved and what that means for shares the person owns or watches", () => {

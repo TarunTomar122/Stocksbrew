@@ -5,6 +5,7 @@ import { AskPageHint } from "@/components/ask/ask-page-hint";
 import { BriefingAgentsGhost, BriefingAgentsStrip } from "@/components/briefing/agents-strip";
 import { BriefingView } from "@/components/briefing/briefing-view";
 import { BriefingLockedMoves } from "@/components/briefing/locked-moves";
+import { withoutCircularReasons } from "@/components/briefing/real-reasons";
 import { EarningsDayBriefing } from "@/components/earnings-day/briefing-reports";
 import { AgentLog, AgentLogGhost } from "@/components/agent-log/agent-log";
 import { AppPage } from "@/components/oa/kit";
@@ -22,6 +23,7 @@ import { getMarketSessionState } from "@/lib/market-session";
 import { noteDegradedRender } from "@/lib/next-render";
 import { ogImage } from "@/lib/og/url";
 import { newYorkToday } from "@/lib/portfolio-data";
+import { overnightResultFacts } from "@/lib/results/server";
 
 export const dynamic = "force-dynamic";
 
@@ -108,6 +110,20 @@ function railSlot(data: BriefingPageData): React.ReactNode {
   );
 }
 
+/**
+ * Held stocks that reported overnight, for their cards' fact (lib/results): one shared cached list, then a cached
+ * read for each held stock that reported. Today's personal briefing only; a failed read leaves the cards as they were.
+ */
+async function resultFacts(data: BriefingPageData, day: string | null): Promise<Record<string, string> | undefined> {
+  if (day || data.archived || data.briefing.mode !== "personal") return undefined;
+  const held = [...data.briefing.needs_you, ...data.briefing.also_today].filter((item) => item.relation === "holding").map((item) => item.ticker);
+  if (held.length === 0) return undefined;
+  return overnightResultFacts([...new Set(held)], newYorkToday()).catch((error) => {
+    console.warn("[briefing] results read failed:", error instanceof Error ? error.message : error);
+    return undefined;
+  });
+}
+
 /** Free: the moves on stocks the agent does not cover, named with no explanation (lib/briefing.ts locked_moves). */
 async function lockedSlot(data: BriefingPageData) {
   const moves = data.briefing.locked_moves ?? [];
@@ -138,11 +154,14 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
         })
       : null;
 
+  // Both are cached reads; they run side by side.
+  const [locked, facts] = await Promise.all([lockedSlot(data), resultFacts(data, day)]);
+
   return (
     <AppPage>
       <MarketingSchema path="/briefing" name="Stock Market Today: What Moved and Why" description="A daily read of the US stock market: how the index closed, the biggest movers with the reason when we could confirm one, and what to check next." breadcrumbLabel="Briefing" />
         <BriefingView
-          briefing={data.briefing}
+          briefing={withoutCircularReasons(data.briefing)}
           initialState={data.state}
           viewer={data.viewer.kind}
           pendingTracked={data.viewer.kind === "pending" ? data.viewer.tracked : 0}
@@ -159,7 +178,8 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
               </Suspense>
             )
           }
-          locked={await lockedSlot(data)}
+          locked={locked}
+          resultFacts={facts}
           agentLog={
             day || data.archived ? null : (
               <Suspense fallback={<AgentLogGhost />}>

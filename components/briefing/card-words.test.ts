@@ -133,4 +133,20 @@ describe("unTitle names", () => {
     const { unTitle } = await import("./card-words");
     expect(unTitle("Nvidia Sells Off After Jensen Huang Affair")).not.toMatch(/Jensen huang/);
   });
+  it("makes an overnight result the held stock's fact, ahead of everything else", () => {
+    const groups = groupBriefingItems([
+      move("CBRS", -3.1, "The buy-more price is $20. The price is 2.0% above it."),
+      earnings("CBRS", "tomorrow after the close", 1),
+      move("COHR", 4.6),
+      item({ id: "w", kind: "price_move", ticker: "WAT", relation: "watching", why: NO_CONFIRMED_REASON, reason_status: "unconfirmed", day_change_pct: 2 }),
+    ]);
+    const results = { CBRS: "Beat by 8%, up 6% today", WAT: "Missed by 4%, down 2% today" };
+    const words = sectionWords(groups, { personal: true, results });
+    expect(words.cards.get("CBRS")!.fact).toBe("Beat by 8%, up 6% today");
+    // Only held stocks: a watched one keeps its own fact.
+    expect(words.cards.get("WAT")!.fact).not.toBe("Missed by 4%, down 2% today");
+    expect(words.cards.get("COHR")!.fact).toBe("You hold it");
+    // The market view never uses it.
+    expect(sectionWords(groups, { personal: false, results }).cards.get("CBRS")!.fact).not.toBe("Beat by 8%, up 6% today");
+  });
 });

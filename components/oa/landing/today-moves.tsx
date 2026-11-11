@@ -3,17 +3,13 @@ import Link from "next/link";
 import { StockCard, StockCardGrid, stockGridFill } from "@/components/briefing/stock-card";
 import { getLandingAnomalies } from "@/components/landing-data";
 import { moveReason } from "@/lib/briefing";
+import { isCircularReason } from "@/lib/reason-quality";
 
 import { heroTicker } from "./hero-briefing";
 import { SectionHead } from "./shared";
 import { moveLine } from "./track-grid";
 
 const ROWS = 3;
-// A line that only restates the move: "moved sharply today", "surged 9% today", "rebounds sharply with little news",
-// "reverses sharply after a 59% earlier gain". Anchored to the end, so "Zeta rose 12% after earnings" still passes.
-const NO_REASON =
-  /\b(?:moved sharply|is (?:up|down) [\d.]+%|(?:rose|fell|jumped|dropped|climbed|surged|slid|sank|gained|tumbled|soared|plunged) [\d.]+%)(?: today)?\.?$|\bwith little news\.?$|\breverses sharply after (?:an? )?[\d.]+% (?:earlier )?(?:gain|drop|fall|rise)\.?$/i;
-
 /**
  * Proof one: today's biggest moves with a confirmed reason, as stock cards (the logo and ticker, the move as the
  * one big figure, the reason in one sentence), the whole card opening the stock. The hero's stock is left out so
@@ -26,8 +22,9 @@ export async function TodayMoves() {
     // Confirmed reasons only, by the briefing's own rule (sources, and a cause that is more than the price action),
     // so "moved sharply today" or "reverses after an earlier gain" never passes for a reason here.
     .filter((item) => moveReason(item).status === "confirmed" && Number.isFinite(item.day_change_pct) && item.ticker?.toUpperCase() !== skip)
-    // The feed still marks a few bare price notes as confirmed; a sentence that only restates the move is not a reason.
-    .filter((item) => !NO_REASON.test(moveLine(item)))
+    // The feed still marks a few bare price notes as confirmed; a sentence that only restates the move ("moved
+    // sharply today", "semiconductor rally drives SOXL higher") names no cause, so it is not a reason.
+    .filter((item) => !isCircularReason(moveLine(item), item.ticker, item.name))
     .sort((a, b) => Math.abs(b.day_change_pct) - Math.abs(a.day_change_pct))
     .slice(0, ROWS);
   if (rows.length === 0) return null;

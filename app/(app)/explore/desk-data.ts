@@ -8,6 +8,7 @@ import { getFollowActivity, type FollowActivity } from "@/lib/follow";
 import { getIpos, type IpoEvent } from "@/lib/ipos";
 import { getMarketsOverview } from "@/lib/markets";
 import type { MarketsData, MarketsOverview } from "@/lib/markets-shared";
+import { realReason } from "@/lib/reason-quality";
 import { getRedditCues } from "@/lib/reddit-cues";
 import { hasRedditBrief } from "@/lib/reddit-cues-shared";
 import { getLiveInvestmentThemes } from "@/lib/research-themes";
@@ -21,7 +22,7 @@ import { getScreenerSnapshot } from "@/lib/screener";
 import { oneRowPerCompany } from "@/lib/share-class";
 import { pickInsights } from "@/lib/insights";
 import { getMarketsData } from "@/lib/markets";
-import { buildMarketsRead, FUND_TOPIC, nextReports, reportCard, SECTOR_IDS, sectorTakeaway, withWatchNext } from "@/lib/markets-insights";
+import { buildMarketsRead, FUND_TOPIC, nextReports, reportCard, SECTOR_IDS, sectorTakeaway, withWatchNext, type UpcomingReport } from "@/lib/markets-insights";
 import { loadReddit } from "@/lib/signals";
 import { buildMoversRead, buildRedditRead, moversHeadline } from "@/lib/signals-insights";
 import { classifyMover } from "@/lib/signals-shared";
@@ -199,7 +200,8 @@ export const loadDeskMovers = section<DeskData["movers"]>(
       name: row.name,
       price: Number.isFinite(row.price) && row.price > 0 ? row.price : null,
       changePct: row.day_change_pct,
-      reason: row.narrative_status === "unverified" ? null : clip(row.move_explanation?.headline ?? row.headline),
+      // A reason that only says the move again ("reverses recent gains") is none: the stock goes with the chips.
+      reason: row.narrative_status === "unverified" ? null : realReason(clip(row.move_explanation?.headline ?? row.headline), row.ticker, row.name),
     });
     return {
       up: rows.filter((row) => row.day_change_pct > 0).sort((a, b) => b.day_change_pct - a.day_change_pct).slice(0, 5).map(toMover),
@@ -211,6 +213,28 @@ export const loadDeskMovers = section<DeskData["movers"]>(
   },
   { up: [], down: [], asOf: null, thresholdPct: null, takeaway: null },
 );
+
+/**
+ * The reports on the calendar in the next three weeks, for a read's "Watch next" line on News and Signals (the same
+ * cached earnings read as Market today). Empty on a failed or slow read: the line is left out, never guessed.
+ */
+export const loadUpcomingReports = section<UpcomingReport[]>(
+  "upcoming-reports",
+  async (today) => {
+    const events = await cachedEarnings(today, shiftDay(today, 21));
+    return events.map((event) => ({ ticker: event.ticker, date: event.event_date, time: event.time }));
+  },
+  [],
+);
+
+/**
+ * A read whose cards about one stock end with that stock's next report, when the calendar has one within three
+ * weeks ("Watch next: NVDA reports on Nov 19 after the close."). Nothing is added without a real report.
+ */
+export function withReports(read: TheRead, reports: UpcomingReport[], today: string): TheRead {
+  if (reports.length === 0 || read.insights.length === 0) return read;
+  return { ...read, insights: withWatchNext(read.insights, nextReports(reports, today), today, new Set(), { singleStock: true }) };
+}
 
 /** Earnings and IPOs share a panel, so they load together. Either one failing leaves the other standing. */
 export const loadDeskCalendar = section<Pick<DeskData, "earnings" | "ipos">>(

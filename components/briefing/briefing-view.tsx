@@ -56,6 +56,8 @@ export type BriefingViewProps = {
   locked?: React.ReactNode;
   /** What the agent did today across the market (components/agent-log), streamed under the read. */
   agentLog?: React.ReactNode;
+  /** Held stocks that reported overnight, by ticker: the card's fact becomes the result (lib/results). */
+  resultFacts?: Readonly<Record<string, string>>;
 };
 
 const CARD = "oa-surface overflow-hidden border border-oa-border bg-oa-card";
@@ -147,14 +149,16 @@ function GroupCards({
   anchors,
   personal,
   chips = false,
+  results,
 }: {
   groups: BriefingGroup[];
   actions: GroupActions;
   anchors?: ReadonlySet<BriefingGroup>;
   personal: boolean;
   chips?: boolean;
+  results?: Readonly<Record<string, string>>;
 }) {
-  const words = React.useMemo(() => sectionWords(groups, { personal }), [groups, personal]);
+  const words = React.useMemo(() => sectionWords(groups, { personal, results }), [groups, personal, results]);
   if (groups.length === 0) return null;
   const bare = (group: BriefingGroup) => {
     if (!chips || !group.ticker) return false;
@@ -260,6 +264,7 @@ export function BriefingView({
   beforeOpen = null,
   locked = null,
   agentLog = null,
+  resultFacts,
 }: BriefingViewProps) {
   const [state, setState] = React.useState<BriefingStateMap>(initialState);
   const [busy, setBusy] = React.useState<string | null>(null);
@@ -373,7 +378,7 @@ export function BriefingView({
   const worth = showAllWorth ? worthAll : worthAll.slice(0, WORTH_KNOWING_FIRST);
   // Only a personal briefing's cards are linked from the agents strip (lib/briefing-anchors.ts); settled ones never.
   const anchors: ReadonlySet<BriefingGroup> = personal ? anchorGroups([...grouped.needs_you, ...worth, ...grouped.coming_up]) : new Set();
-  const groupCards = (groups: BriefingGroup[], chips = false) => <GroupCards groups={groups} actions={actions} anchors={anchors} personal={personal} chips={chips} />;
+  const groupCards = (groups: BriefingGroup[], chips = false) => <GroupCards groups={groups} actions={actions} anchors={anchors} personal={personal} chips={chips} results={resultFacts} />;
 
   return (
     // Two columns only while the rail has something in it (owner rule 4: no rail that leaves a void); signed out after
@@ -620,7 +625,7 @@ export function BriefingView({
             {/* The cards sit under the bar, not inside it: no card in a card. */}
             {showSettled ? (
               <div className="mt-3">
-                <GroupCards groups={grouped.settled} actions={actions} personal={personal} />
+                <GroupCards groups={grouped.settled} actions={actions} personal={personal} results={resultFacts} />
               </div>
             ) : null}
           </section>

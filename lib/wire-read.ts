@@ -324,7 +324,7 @@ export type MarketReadInput = {
   themes: NewsTheme[];
   sources: number;
   asOf: string | null;
-  /** Who labelled the tone, for the source line. */
+  /** Who labelled the tone. Not shown: how the tone was read is mechanics (owner rule 8). */
   labelledBy: string | null;
   filters: WireFilters;
 };
@@ -335,9 +335,6 @@ export const MIN_LABELLED = 40;
 export const MIN_LEAD_STORIES = 5;
 /** How many of the most talked-about stocks the read looks through for a big move or a jump in coverage. */
 const READ_DEPTH = 15;
-
-/** A card, marked when it leans on the tone labels so the source line credits them only then. */
-type Toned = Insight & { toned?: boolean };
 
 /** The company as people say it ("NVIDIA", "Microsoft"), else the ticker. */
 function spokenName(row: StockBuzz): string {
@@ -390,7 +387,7 @@ export function marketRead(input: MarketReadInput): TheRead | null {
   const leader = buzz[0];
   if (!leader || leader.count < MIN_LEAD_STORIES) return null;
   const used = new Set<string>();
-  const insights: Array<Toned | null> = [];
+  const insights: Array<Insight | null> = [];
   const headlinesOf = (ticker: string) => wireHref({ ...filters, limit: WIRE_PAGE_SIZE }, { ticker });
 
   // The headline: who leads the news, with one number (owner rule 8).
@@ -435,7 +432,6 @@ export function marketRead(input: MarketReadInput): TheRead | null {
       soWhat,
       tickers: [leader.ticker],
       leadName: leaderName !== leader.ticker ? leaderName : undefined,
-      toned: Boolean(lean),
       action: { label: "Its headlines", href: headlinesOf(leader.ticker) },
     });
   }
@@ -451,7 +447,6 @@ export function marketRead(input: MarketReadInput): TheRead | null {
     insights.push({
       id: "theme",
       tone: side.tone,
-      toned: true,
       figure: { value: String(top.count), label: top.prevCount > 0 ? `stories, ${top.prevCount} the day before` : "stories, all new today" },
       text: `${lead.ticker}: ${topIndex === 0 ? "the biggest story" : "another big story"} is ${top.name}, ${side.text}.`,
       soWhat: moveClause(lead.ticker, lead.pct) ?? undefined,
@@ -474,7 +469,6 @@ export function marketRead(input: MarketReadInput): TheRead | null {
     used.add(disagreement.ticker);
     insights.push({
       id: "disagree",
-      toned: true,
       tone: disagreement.pct > 0 ? "up" : "down",
       figure: { value: signed(disagreement.pct), label: `${disagreement.ticker} today` },
       text: `${disagreement.ticker}: ${disagreeLean.pct}% of today's headlines about it read as ${good ? "good" : "bad"} news, yet the stock ${rose(disagreement.pct)}.`,
@@ -548,25 +542,16 @@ export function marketRead(input: MarketReadInput): TheRead | null {
     insights.push({
       id: "balance",
       tone: negative ? "down" : "up",
-      toned: true,
       figure: { value: `${share}%`, label: `of stories ${negative ? "negative" : "positive"}`, tone: negative ? "down" : "up" },
       text: `${share}% of the last day's stock news read ${negative ? "negative" : "positive"}${was !== null ? `, against ${was}% the day before` : ""}.`,
     });
   }
 
-  const picked = pickInsights(insights, 3);
-  // Credit the tone labels only when a card that is shown uses them.
-  const usedTone = picked.some((insight) => (insight as Toned).toned);
-  const shown = picked.map(({ toned: _toned, ...insight }: Toned) => insight);
+  const shown = pickInsights(insights, 3);
   const stories = today.length;
-  const sourceBits = [`${stories.toLocaleString("en-US")} stories from ${input.sources} ${input.sources === 1 ? "source" : "sources"}`];
-  if (usedTone) {
-    const byWords = today.some((item) => labels[item.id]?.by === "words");
-    const byModel = today.some((item) => labels[item.id] && labels[item.id]!.by !== "words");
-    if (byModel && input.labelledBy) sourceBits.push(`tone read per headline by ${input.labelledBy}${byWords ? " and from the headlines' own words" : ""}`);
-    else if (byWords) sourceBits.push("tone from the headlines' own words");
-  }
-  return { headline, headlineTickers: [leader.ticker], insights: shown, source: sourceBits.join(" · "), asOf: input.asOf };
+  // The source and the time only: how each headline's tone was read is mechanics, not news (owner rule 8).
+  const source = `${stories.toLocaleString("en-US")} stories from ${input.sources} ${input.sources === 1 ? "source" : "sources"}`;
+  return { headline, headlineTickers: [leader.ticker], insights: shown, source, asOf: input.asOf };
 }
 
 /* ── Everything at once ────────────────────────────────────────────────── */

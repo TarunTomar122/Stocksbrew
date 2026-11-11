@@ -21,7 +21,9 @@ import {
   type FilingFilter,
 } from "@/lib/agent-events-filings";
 import { cleanNewsWatch, evaluateNewsEvent, newsReplayNotes, newsTriggerLabel, newsWatchPhrase, type NewsFacts, type NewsWatch } from "@/lib/agent-events-news";
+import { typicalDailyMove } from "@/lib/calendar-insights";
 import { evaluateEarningsReported, type EarningsReportFact } from "@/lib/earnings-day-agent";
+import { vsDayWords } from "@/lib/earnings-season";
 import { can, type Plan } from "@/lib/entitlements";
 
 /* ── types ──────────────────────────────────────────────────────────────── */
@@ -836,6 +838,23 @@ function noNames(): AgentEvaluation {
   ]);
 }
 
+/** How far ahead a flagged move names the stock's next report as the thing to watch. */
+const REPORT_WATCH_DAYS = 21;
+
+/**
+ * ", and reports on Nov 17" when the calendar has the stock's next report within three weeks after `day`; else "".
+ * One sentence with the move, so the line stays a single short headline wherever it is shown. A report on `day`
+ * itself is left out: the evaluator cannot tell whether it has already come out.
+ */
+function reportWatch(facts: AgentFacts, ticker: string | null | undefined, day: string): string {
+  if (!ticker) return "";
+  const last = addDays(day, REPORT_WATCH_DAYS);
+  const next = facts.earnings
+    .filter((event) => event.ticker === ticker && event.date > day && event.date <= last)
+    .sort((a, b) => a.date.localeCompare(b.date))[0];
+  return next ? `, and reports on ${shortDate(next.date)}` : "";
+}
+
 function evaluatePrice(
   trigger: Extract<AgentTrigger, { type: "price" }>,
   facts: AgentFacts,
@@ -893,7 +912,10 @@ function evaluatePrice(
     } else if (trigger.rule === "moves_pct") {
       if (Math.abs(changePct) >= (trigger.pct ?? 5)) {
         const zone = zoneOf(facts.levels[ticker], quote.close, quote.prev);
-        push(`${ticker} ${changePct >= 0 ? "rose" : "fell"} ${Math.abs(changePct).toFixed(2)}% in a day`, {
+        // Against the stock's own normal day ("about four times a normal day"), from the closes before this one.
+        const usual = typicalDailyMove(facts.prices[ticker]!.closes.slice(0, quote.index), 60);
+        const scale = usual !== null && usual > 0 ? vsDayWords(Math.abs(changePct) / usual) : null;
+        push(`${ticker} ${changePct >= 0 ? "rose" : "fell"} ${Math.abs(changePct).toFixed(2)}% in a day${scale ? `, ${scale}` : ""}`, {
           zone: zone?.zone ?? null,
           level: zone?.level ?? null,
         });
@@ -931,7 +953,7 @@ function evaluatePrice(
         ...(trigger.rule === "moves_pct" ? { threshold: trigger.pct ?? 5 } : {}),
       },
       ...notify(
-        findings.length === 1 ? `${findings[0].headline}.` : `${plural(findings.length, "name")} met the rule: ${listNames(findings.map((f) => f.ticker ?? ""))}.`,
+        findings.length === 1 ? `${findings[0].headline}${reportWatch(facts, findings[0].ticker, day)}.` : `${plural(findings.length, "name")} met the rule: ${listNames(findings.map((f) => f.ticker ?? ""))}.`,
         findings,
         checked,
       ),

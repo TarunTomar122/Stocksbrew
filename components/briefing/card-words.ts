@@ -169,11 +169,14 @@ function levelFact(item: BriefingItem): string | null {
 }
 
 /** Facts worth one chip, most useful first, leaving out anything the sentence already says. */
-function factCandidates(group: BriefingGroup, sentence: string, personal: boolean, above = ""): string[] {
+function factCandidates(group: BriefingGroup, sentence: string, personal: boolean, above = "", results: Readonly<Record<string, string>> = {}): string[] {
   // What the card says, and what the section said for it above the cards.
   const said = `${above} ${sentence}`.toLowerCase();
   const own = sentence.toLowerCase();
   const out: string[] = [];
+  // A held stock that reported overnight: the result is the fact ("Beat by 8%, up 6% today"), ahead of everything.
+  const result = personal && group.relation === "holding" && group.ticker ? results[group.ticker.toUpperCase()] : undefined;
+  if (result) out.push(result);
   const earnings = group.items.find((item) => item.kind === "earnings_upcoming" && item.deadline_days != null && item.deadline_days <= 7);
   if (earnings && !/\b(?:reports?|earnings)\b/.test(said)) {
     const fact = earningsFact(earnings);
@@ -201,7 +204,10 @@ function factCandidates(group: BriefingGroup, sentence: string, personal: boolea
  * Words for every card in a section. A sentence on two or more cards is said once for the section and those
  * cards show what is different about each; a fact that would sit on three or more cards is left off them.
  */
-export function sectionWords(groups: readonly BriefingGroup[], options: { personal: boolean }): SectionWords {
+export function sectionWords(
+  groups: readonly BriefingGroup[],
+  options: { personal: boolean; /** Overnight results on held stocks by ticker (lib/results), the cards' first fact. */ results?: Readonly<Record<string, string>> },
+): SectionWords {
   const first = new Map<string, { line: BriefingLine | null; sentence: string }>();
   for (const group of groups) {
     let line: BriefingLine | null = null;
@@ -263,7 +269,7 @@ export function sectionWords(groups: readonly BriefingGroup[], options: { person
       if (other) line = other;
     }
     cards.set(group.key, { line, sentence, fact: null });
-    facts.set(group.key, factCandidates(group, sentence, options.personal, sharedKeys.get(group.key)));
+    facts.set(group.key, factCandidates(group, sentence, options.personal, sharedKeys.get(group.key), options.results));
   }
   // A fact on two or more cards is not news on any of them (owner: no identical badge on several cards).
   const count = new Map<string, number>();

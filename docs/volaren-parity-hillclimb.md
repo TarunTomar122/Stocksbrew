@@ -184,6 +184,25 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-11 ~20:30 UTC, OVERNIGHT MODE (owner, Nov 11 evening): research → plan → improve → judge, all night (lead)
+
+Owner, going to bed for 12-15 hours: no new features tonight. Instead, a loop:
+1. Research the existing features (inventory, health, usage), the market (competitor teardown with prices), demand (what retail investors want and pay for), and a full UX audit by Codex and Cursor against docs/owner-design-rules.md.
+2. Synthesise one ranked plan: UI/UX fixes, improvements to existing features (demand, usability, how easily it sells), positioning/landing/pricing/paywall. Have Codex and Cursor critique the plan; revise it.
+3. Build the improvements (to existing features only), verify per AGENTS.md (screenshots both sizes, QA subagent, tsc/lint/tests), ship (deploys authorised earlier in this thread), then ask Codex + Cursor for feedback, improve, repeat until morning.
+4. Morning deliverable: one readable report (research evidence, competitor table with prices, the plan and why, what was shipped each round, council scores per round).
+Parked: results night (a new feature; built partway in lib/results/*, components/results/*; kept out of every deploy until the owner decides). Emails still wait on the owner's yes + postal address.
+Research running (4): feature inventory audit; competitor teardown; demand + selling; council UX audit.
+
+### 2026-11-11 ~19:40 UTC, ship 26 live (24e354d): My stocks about your stocks, agent day log, tone on the news, self-clearing inbox (lead)
+
+- Ship 26: /portfolio rebuilt stock-first (lead line + today/week/total figures, one card per holding: move in % and $, gain since bought, call with its own level, one fact: reports soon / call changed / big move with reason / tax-loss on Sell some only / insider buys ≥$25k non-10b5-1 / near its level; tools become a rail list with figures, empty tools dropped); compact agent rows (kind, short name, flagged count, logo chips with move, stale chips dated); "What the agent did today" log on /briefing and the home page (premarket scan, moves explained, briefs/calls, SEC filings, members' agents; one cached read, failures never cached); /signals Reddit back to a table (what people say, mood, posts, today %); /news Most talked about with tone + highlight; headline word-list tone fallback (legal-win and two-ticker guards); inbox marks read on view (forward-only, per uid); inbox dot gutter; phone place strip scrolls sideways; no cards without data.
+- VPS: news tone labeller had stopped Nov 10 (no anthropic package, no key). With the owner's yes: anthropic 2.8.0 installed, ANTHROPIC_API_KEY copied into /etc/tikrr/backend.env (600, backup backend.env.bak-20261111b, never printed), anthropic added to requirements.txt; first run labelled 3,102 headlines, 0 failed; runs every 30 min.
+- Verified: tsc 0, vitest 2579 both modes, eslint clean, pytest news_tone 6; QA qp26 (3 bugs: tone misreads, empty tools in the rail, memo linked twice; + rubric breaks) fixed in fix26; screenshots scratchpad/mystocks26, tables26, agentlog25, fix26, s26. Live 7 pages 200; VPS pulled.
+- Rubric judges on live 26 (scratchpad/judge26/): Codex UI 7 (+1), UX 6, usability 7 (+1), wording 6, agent feel 6, similarity 6, overall 6. Cursor failed (connection). Codex's top asks: reconcile calls with their own evidence (UNH shows Buy more beside "no longer cheap, the reason you bought it has played out"); every opening read decision-useful (comparison + a supported thing to watch); alerts with context; circular move reasons ("Semiconductor rally drives SOXL higher") treated as no reason; no model-name mechanics in source lines; the stock page's change conditions easier to scan.
+- In flight: results night (earnings actuals vs expectations, the move vs the usual report move, call held/changed → stock page block, inbox item, briefing card fact, earnings season).
+- Waiting on the owner: emails go-live (VPS + Vercel) and a CAN-SPAM postal address.
+
 ### 2026-11-11 ~18:15 UTC (owner clock ~6:10 PM local), ship 25 live (ae53302); owner feedback round 3 (lead)
 
 - Ship 25 live (one Ask, My stocks/memo as cards, news/signals open with a read, logos always, stock page own level only). Rubric re-judge was cut off by a slow screenshot run; re-run after ship 26.

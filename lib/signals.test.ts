@@ -90,11 +90,13 @@ describe("movers", () => {
     expect(causeLabel("price_action")).toBeNull();
     expect(causeLabel("")).toBeNull();
     const movers: Mover[] = [
-      classifyMover({ ticker: "A", day_change_pct: 3, move_explanation: { cause_type: "acquisition", headline: "A bought" } }),
+      classifyMover({ ticker: "A", day_change_pct: 3, move_explanation: { cause_type: "acquisition", headline: "A agrees to a $2 billion takeover" } }),
       classifyMover({ ticker: "B", day_change_pct: -9, move_explanation: null }),
       classifyMover({ ticker: "C", day_change_pct: 12, move_explanation: { cause_type: "price_action", headline: "C up" } }),
     ];
     expect(moverCounts(movers)).toEqual({ all: 3, explained: 1, unexplained: 2, up: 2, down: 1 });
+    // A headline that only says the move again is no reason, whatever the cause type says (owner rules 7, 8).
+    expect(classifyMover({ ticker: "SOXL", day_change_pct: 22, move_explanation: { cause_type: "sector_rotation", headline: "Semiconductor rally drives SOXL higher" } }).explained).toBe(false);
     expect(filterMovers(movers, "all").map((row) => row.ticker)).toEqual(["C", "B", "A"]);
     expect(filterMovers(movers, "unexplained").map((row) => row.ticker)).toEqual(["C", "B"]);
     expect(filterMovers(movers, "explained").map((row) => row.ticker)).toEqual(["A"]);

@@ -22,6 +22,7 @@ import {
   type WireTopic,
 } from "@/lib/wire-shared";
 import { ogImage } from "@/lib/og/url";
+import { loadUpcomingReports, todayET, withReports } from "@/app/(app)/explore/desk-data";
 
 export const dynamic = "force-dynamic";
 
@@ -57,9 +58,12 @@ export default async function NewsPage({ searchParams }: { searchParams?: Search
   const now = Date.now();
 
   const session = await getSessionUser().catch(() => null);
-  const [wire, tracked] = await Promise.all([
+  const today = todayET(new Date(now));
+  const [wire, tracked, upcoming] = await Promise.all([
     loadWire({ ticker: filters.ticker, now }),
     session ? getTrackedStocks(session.uid).catch(() => []) : Promise.resolve([] as string[]),
+    // The next three weeks of reports, for a read card's "Watch next" line (cached with Market today's).
+    loadUpcomingReports(today),
   ]);
   // Tracked ids look like "US_NVDA".
   const mine = new Set(tracked.map((id) => id.replace(/^[A-Z]{2}_/, "").toUpperCase()));
@@ -138,7 +142,7 @@ export default async function NewsPage({ searchParams }: { searchParams?: Search
         </p>
       ) : null}
 
-      {reading?.read ? <TheRead read={reading.read} label="The read" className="mb-4" /> : null}
+      {reading?.read ? <TheRead read={withReports(reading.read, upcoming, today)} label="The read" className="mb-4" /> : null}
 
       {reading && (themes.length || reading.buzz.length) ? (
         // Side by side only when both have something; one alone takes the whole row instead of leaving half of it empty.

@@ -433,11 +433,19 @@ export function nextReports(events: UpcomingReport[], today: string): Map<string
  * read, and none for a card that is already about a report. The giants card's general line ("They carry the most
  * weight...") gives way to it.
  */
-export function withWatchNext(insights: Insight[], reports: Map<string, UpcomingReport>, today: string, skip: ReadonlySet<string> = new Set()): Insight[] {
+export function withWatchNext(
+  insights: Insight[],
+  reports: Map<string, UpcomingReport>,
+  today: string,
+  skip: ReadonlySet<string> = new Set(),
+  options: { singleStock?: boolean } = {},
+): Insight[] {
   const told = new Set(skip);
   for (const insight of insights) if (insight.id === "report" || insight.id === "biggest") for (const ticker of insight.tickers ?? []) told.add(ticker);
   return insights.map((insight) => {
     if (insight.id === "report" || insight.id === "biggest") return insight;
+    // News and Signals: only a card about one stock gets its report, so a card naming five never picks one of them.
+    if (options.singleStock && (insight.tickers ?? []).length !== 1) return insight;
     const ticker = (insight.tickers ?? []).find((symbol) => reports.has(symbol) && !told.has(symbol));
     if (!ticker) return insight;
     told.add(ticker);

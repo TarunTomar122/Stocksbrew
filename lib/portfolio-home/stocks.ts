@@ -261,7 +261,9 @@ export function stockFacts(input: {
   }
 
   const check = input.reasons.find((item) => item.ticker === ticker && item.verdict !== "holds");
-  if (check) {
+  // A reason that played out, weakened or broke argues against adding, so it never sits under a Buy more call (owner
+  // rule 9): "it is no longer cheap" beside "Buy more" reads as two calls at once. The card takes its next fact.
+  if (check && plain !== "Buy more") {
     const owner = input.example ? "The example's reason for owning it" : "Your reason for owning it";
     const signal = firstSentence(check.signal, 110);
     out.push({ kind: "reason", text: signal ? `${owner} ${VERDICT_WORDS[check.verdict]}: ${signal.charAt(0).toLowerCase()}${signal.slice(1)}` : `${owner} ${VERDICT_WORDS[check.verdict]}.`, priority: check.verdict === "broken" ? 58 : 55 });

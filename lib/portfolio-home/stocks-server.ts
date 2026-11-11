@@ -1,4 +1,5 @@
 import { moveReason } from "@/lib/briefing";
+import { isCircularReason } from "@/lib/reason-quality";
 import { getDailyAnomalyTickers } from "@/lib/daily-anomalies";
 import { canSeeLevels, type Viewer } from "@/lib/entitlements-server";
 import { redactLevels } from "@/lib/entitlements";
@@ -74,7 +75,8 @@ async function moveReasons(tickers: string[], pricesDay: string | null): Promise
     const day = etDay(anomaly.price_as_of ?? anomaly.narrative_as_of ?? null);
     if (!pricesDay || day !== pricesDay) continue;
     const reason = moveReason(anomaly);
-    if (reason.status === "confirmed" && reason.headline) out[String(ticker).toUpperCase()] = reason.headline;
+    // A headline that only says the move again is no reason (owner rules 7, 8): the card takes its next fact.
+    if (reason.status === "confirmed" && reason.headline && !isCircularReason(reason.headline, String(ticker), anomaly.name)) out[String(ticker).toUpperCase()] = reason.headline;
   }
   return out;
 }

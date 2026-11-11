@@ -6,6 +6,8 @@ import { localFirestoreFromEnv } from "@/lib/local-firestore";
 import { getRebalancesSince } from "@/lib/strategies-rebalances";
 import { lastChange, readStoredCheck, CHECKS_COLLECTION } from "@/lib/thesis-watch/store";
 import { MEMO_COLLECTION } from "@/lib/memo/store";
+import { resultsFor } from "@/lib/results/server";
+import { RESULTS_DAYS } from "@/lib/results/types";
 
 import { nyDay } from "./merge";
 import type { InboxItem } from "./types";
@@ -20,6 +22,7 @@ import {
   plainCall,
   quietItems,
   reasonItem,
+  resultsItem,
   strategyItem,
   type AgentRunRecord,
   type Mode,
@@ -310,6 +313,20 @@ export async function insiderSource(stocks: InboxStock[], sinceDay: string): Pro
       .map((trade) => ({ id: trade.id, ticker: trade.symbol, insider: trade.insider, role: trade.role, value: trade.value, filedAt: trade.filed_at, url: trade.url })),
     positions,
   );
+}
+
+/* ── results ────────────────────────────────────────────────────────────── */
+
+/**
+ * Results on the person's stocks from the last RESULTS_DAYS days (inside the inbox window), one item per report:
+ * the shared cached list of recent reports, then one cached read per stock that reported.
+ */
+export async function resultsSource(stocks: InboxStock[], mode: Mode, sinceDay: string, today: string): Promise<InboxItem[]> {
+  if (stocks.length === 0) return [];
+  const positions = new Map(stocks.map((stock) => [stock.ticker, stock.position]));
+  const floor = shiftDay(today, -RESULTS_DAYS);
+  const reads = await resultsFor([...positions.keys()], { since: sinceDay > floor ? sinceDay : floor, today });
+  return reads.map((read) => resultsItem(read, positions.get(read.ticker) ?? null, mode, today)).filter((item): item is InboxItem => item !== null);
 }
 
 /* ── strategies they follow ─────────────────────────────────────────────── */

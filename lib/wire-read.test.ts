@@ -179,7 +179,9 @@ describe("the read", () => {
     const disagree = reading.read!.insights.find((insight) => insight.id === "disagree");
     expect(disagree?.text).toBe("AAPL: 100% of today's headlines about it read as good news, yet the stock fell 3.5%.");
     expect(reading.read!.insights[0]!.text).not.toMatch(/positive|negative/);
-    expect(reading.read!.source).toContain("tone read per headline by Claude Haiku 5.5");
+    // The source line names the stories and their sources, never the model that read their tone.
+    expect(reading.read!.source).toMatch(/^\d[\d,]* stories from \d+ sources?$/);
+    expect(reading.read!.source).not.toMatch(/Claude|Haiku|tone/);
   });
 
   it("tells the biggest story when the labels name one about another stock", () => {

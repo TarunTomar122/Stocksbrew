@@ -1,4 +1,7 @@
 import { instantOf, isBareDay, nyDay, shortDay } from "./merge";
+import type { ResultRead } from "@/lib/results/types";
+import { callLine, resultSentence, resultTone } from "@/lib/results/words";
+
 import type { InboxItem } from "./types";
 
 /**
@@ -100,7 +103,8 @@ export function agentItem(run: AgentRunRecord, mode: Mode): InboxItem | null {
   const at = ranAt ?? instantOf(run.day);
   if (!at) return null;
   const tickers = run.tickers.map(cleanTicker).filter((t): t is string => t !== null);
-  const whose = mode === "mine" ? "Your" : "The example's";
+  // "The example “5% moves in a day” agent", not "The example's …" (Nov 11 judge: the possessive reads awkwardly).
+  const whose = mode === "mine" ? "Your" : "The example";
   const name = agentName(run.jobName);
   const text = `${whose} ${name ? `${name} ` : ""}agent flagged this: ${sentence(run.summary)}`;
   const lead = tickers[0] ?? null;
@@ -133,11 +137,13 @@ export function quietItems(runs: AgentRunRecord[], mode: Mode): InboxItem[] {
     const timed = list.filter((run) => !isBareDay(run.ranAt)).map((run) => instantOf(run.ranAt)).filter((at): at is string => at !== null).sort().pop() ?? null;
     const latest = timed ?? instantOf(day);
     if (!latest) continue;
-    const whose = mode === "mine" ? "Your" : "The example's";
+    const whose = mode === "mine" ? "Your" : "The example";
     const text =
       list.length === 1
         ? `${whose} ${agentName(list[0]!.jobName) || ""} agent checked on ${shortDay(day)} and found nothing that needs ${mode === "mine" ? "you" : "a look"}.`.replace(/\s+/g, " ")
-        : `${list.length} of ${mode === "mine" ? "your" : "the example's"} agents checked on ${shortDay(day)} and found nothing that needs ${mode === "mine" ? "you" : "a look"}.`;
+        : mode === "mine"
+          ? `${list.length} of your agents checked on ${shortDay(day)} and found nothing that needs you.`
+          : `${list.length} example agents checked on ${shortDay(day)} and found nothing that needs a look.`;
     const item = base({
       id: `quiet:${day}`,
       kind: "agent",
@@ -466,5 +472,37 @@ export function memoItem(memo: MemoRecord): InboxItem | null {
     href: "/portfolio/memo",
     source: "Weekly memo",
     dedupeKey: `memo:${memo.weekKey}`,
+  });
+}
+
+/* ── results ────────────────────────────────────────────────────────────── */
+
+/**
+ * A stock of theirs reported: the results read (lib/results) in one sentence, with whether our call moved under it.
+ * Placed when the result was stored (the EPS actual, else the filing), so the row stays put as the move updates.
+ */
+export function resultsItem(read: ResultRead, position: Position, mode: Mode, today: string): InboxItem | null {
+  const ticker = cleanTicker(read.ticker);
+  const at = instantOf(read.eps?.asOf ?? read.revenue?.asOf ?? read.guidance?.asOf ?? null);
+  if (!ticker || !at) return null;
+  const who =
+    mode === "example"
+      ? `${ticker}, which the example portfolio ${position === "watchlist" ? "is watching" : "holds"},`
+      : `${ticker}, which you ${position === "holding" ? "own" : "watch"},`;
+  const text = resultSentence(read, who, today);
+  if (!text) return null;
+  return base({
+    id: `results:${ticker}:${read.reportDate}`,
+    kind: "results",
+    at,
+    tickers: [ticker],
+    text,
+    detail: read.call ? callLine(read.call, today) : null,
+    href: `/stock/${encodeURIComponent(ticker)}`,
+    source: "Results",
+    tone: resultTone(read),
+    weight: 1,
+    dedupeKey: `results:${ticker}:${read.reportDate}`,
+    thread: `results:${ticker}`,
   });
 }

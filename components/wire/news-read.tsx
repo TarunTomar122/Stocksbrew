@@ -190,7 +190,15 @@ export function TalkedAbout({
                   </span>
                   {toned ? (
                     <span className="text-right">
-                      <ToneBar counts={row.tones} stories={row.count} />
+                      {/* No clear lean: a quiet dash keeps the column lined up instead of a hole beside the move. */}
+                      {leanWords(row.tones, row.count) ? (
+                        <ToneBar counts={row.tones} stories={row.count} />
+                      ) : (
+                        <span className={`${NUM} text-[12.5px] leading-[18px] text-oa-muted-fg`}>
+                          <span aria-hidden="true">–</span>
+                          <span className="sr-only">No clear tone</span>
+                        </span>
+                      )}
                     </span>
                   ) : null}
                   <span className="text-right">{row.pct !== null ? <Delta value={row.pct} digits={1} className="text-[14px] font-medium" /> : null}</span>

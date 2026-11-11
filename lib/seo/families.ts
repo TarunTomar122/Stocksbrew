@@ -1,3 +1,4 @@
+import { isCircularReason } from "@/lib/reason-quality";
 import { pairSlug } from "@/lib/seo/pair-slug";
 import { isFresh, stockHasCurrentRead, type StockReadFacts } from "@/lib/seo/stock-pages";
 
@@ -211,6 +212,8 @@ export type MoveExplanationLike = {
 export type MoveLike = {
   narrative_status?: string | null;
   move_explanation?: MoveExplanationLike | null;
+  ticker?: string | null;
+  name?: string | null;
 };
 
 const UNEXPLAINED_CAUSES = new Set(["price_action", "no_verified_catalyst", "unknown", "none"]);
@@ -236,6 +239,8 @@ export function isConfirmedMove(move: MoveLike | null | undefined): boolean {
   const cause = String(explanation.cause_type ?? "").trim().toLowerCase();
   if (!cause || UNEXPLAINED_CAUSES.has(cause)) return false;
   if (String(explanation.external_source ?? "").startsWith("internal_tape")) return false;
+  // A headline that only restates the move ("Semiconductor rally drives SOXL higher") is not a reason (lib/reason-quality.ts).
+  if (isCircularReason(String(explanation.headline), move.ticker ?? null, move.name ?? null)) return false;
   return moveSources(move).length >= 1;
 }
 

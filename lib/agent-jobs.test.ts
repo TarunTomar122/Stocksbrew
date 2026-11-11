@@ -111,6 +111,26 @@ describe("price rules", () => {
     expect(result?.findings[1].headline).toBe("BBB fell 6.00% in a day");
   });
 
+  it("puts a flagged move against the stock's normal day, and names a report coming up", () => {
+    const move = job("big-move", { trigger: { type: "price", rule: "moves_pct", pct: 5 } });
+    // 40 sessions swinging 1.5% a day, then a 6% fall.
+    const dates: string[] = [];
+    const closes: number[] = [];
+    for (let i = 0; i < 41; i += 1) {
+      dates.push(new Date(Date.UTC(2026, 8, 1) + i * 86_400_000).toISOString().slice(0, 10));
+      closes.push(i % 2 === 0 ? 100 : 101.5);
+    }
+    closes[40] = closes[39]! * 0.94;
+    const day = dates[40]!;
+    const data = facts({ prices: { NVDA: { dates, closes } }, earnings: [{ ticker: "NVDA", date: "2026-10-20", time: "amc" }, { ticker: "AMD", date: "2026-10-15", time: null }] });
+    const result = evaluateJob(move, data, { day, since: dates[39]!, tickers: ["NVDA"] });
+    expect(result?.findings[0]!.headline).toBe("NVDA fell 6.00% in a day, about four times a normal day");
+    expect(result?.summary).toBe("NVDA fell 6.00% in a day, about four times a normal day, and reports on Oct 20.");
+    // A report more than three weeks out is not the thing to watch.
+    const far = evaluateJob(move, facts({ prices: { NVDA: { dates, closes } }, earnings: [{ ticker: "NVDA", date: "2026-11-30" }] }), { day, since: dates[39]!, tickers: ["NVDA"] });
+    expect(far?.summary).toBe("NVDA fell 6.00% in a day, about four times a normal day.");
+  });
+
   it("uses the add level from the research call, and admits when there is none", () => {
     const zone = job("buy-zone");
     const prices = { AAA: series({ "2026-10-13": 89 }), BBB: series({ "2026-10-13": 89 }) };

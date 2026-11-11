@@ -18,6 +18,7 @@ import type { InboxItem, InboxKind } from "@/lib/inbox/types";
 const KIND_ICON: Record<InboxKind, NavIconName> = {
   agent: "agents",
   call: "research",
+  results: "calendar",
   alert: "alerts",
   reason: "portfolio",
   follow: "follow",

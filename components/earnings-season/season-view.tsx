@@ -17,6 +17,8 @@ import {
   type SeasonWeek,
 } from "@/lib/earnings-season";
 import type { TheRead as TheReadData } from "@/lib/insights";
+import type { ResultSummary } from "@/lib/results/types";
+import { ResultLine } from "@/components/results/result-line";
 import { isNum, signedPct, weekdayOf } from "@/lib/read-format";
 
 /**
@@ -236,7 +238,7 @@ function usualText(stock: SeasonStock): { main: string; sub: string[] } {
  * One report coming up, all in view: the day, the share, the estimate, the last result and the moves after past
  * reports. The row opens the stock's earnings page, which has every past report in full.
  */
-function StockRow({ stock, today }: { stock: SeasonStock; today: string }) {
+function StockRow({ stock, today, result }: { stock: SeasonStock; today: string; result?: ResultSummary }) {
   const next = stock.next!;
   const usual = usualText(stock);
   const eps = fmtEps(next.epsEstimate);
@@ -265,7 +267,7 @@ function StockRow({ stock, today }: { stock: SeasonStock; today: string }) {
       </span>
       <span className="min-w-0 max-sm:order-4">
         <LastMoves stock={stock} today={today} />
-        <LastResult stock={stock} />
+        {result ? <ResultLine result={result} today={today} /> : <LastResult stock={stock} />}
       </span>
       <span className="text-right max-sm:order-5">
         <span className={`${NUM} block text-[13px] leading-4 ${usual.sub.length ? "text-oa-fg" : "text-oa-muted-fg"}`}>{usual.main}</span>
@@ -281,7 +283,7 @@ function StockRow({ stock, today }: { stock: SeasonStock; today: string }) {
 
 const REPORT_COLS = "sm:grid-cols-[minmax(0,1.2fr)_7.5rem_5.5rem_5rem_minmax(10rem,1.4fr)_7.5rem] sm:gap-x-4";
 
-function Reports({ season }: { season: Season }) {
+function Reports({ season, results }: { season: Season; results: Readonly<Record<string, ResultSummary>> }) {
   const weeks = season.weeks.filter((week) => week.stocks.length > 0);
   return (
     <Panel
@@ -316,7 +318,7 @@ function Reports({ season }: { season: Season }) {
           </div>
           <ul className="divide-y divide-oa-border border-b border-oa-border last:border-b-0">
             {week.stocks.map((stock) => (
-              <StockRow key={stock.ticker} stock={stock} today={season.today} />
+              <StockRow key={stock.ticker} stock={stock} today={season.today} result={results[stock.ticker]} />
             ))}
           </ul>
         </section>
@@ -336,7 +338,7 @@ function laterWords(stock: SeasonStock, to: string, allFunds: boolean): string |
   return `Reports ${fmtDay(stock.next.date, stock.next.date.slice(0, 4) !== to.slice(0, 4))}${stock.next.session !== "unknown" ? `, ${sessionWords(stock.next.session)}` : ""}`;
 }
 
-function Later({ season }: { season: Season }) {
+function Later({ season, results }: { season: Season; results: Readonly<Record<string, ResultSummary>> }) {
   if (season.later.length === 0) return null;
   const undated = season.later.filter((stock) => !stock.fund && !stock.next).length;
   const companies = season.later.filter((stock) => !stock.fund).length;
@@ -354,9 +356,14 @@ function Later({ season }: { season: Season }) {
         {season.later.map((stock) => {
           const words = laterWords(stock, season.to, companies === 0);
           const share = stock.kind === "watching" ? "Watching" : stock.weight !== null ? `${pctOf(stock.weight)} of portfolio` : null;
+          // A stock that just reported says what it reported (lib/results) under its name.
+          const result = results[stock.ticker];
           return (
             <li key={stock.ticker} className="relative -mb-px flex min-h-11 items-center justify-between gap-3 border-b border-oa-border px-4 py-2 md:odd:border-r">
-              <Ticker symbol={stock.ticker} name={stock.name} size={18} stretch wrap className="min-w-0" />
+              <span className="min-w-0">
+                <Ticker symbol={stock.ticker} name={stock.name} size={18} stretch wrap className="min-w-0" />
+                {result ? <ResultLine result={result} today={season.today} className="mt-0.5" /> : null}
+              </span>
               <span className="shrink-0 text-right text-[12.5px] leading-4 text-oa-muted-fg">
                 {words ? <span className="block">{words}</span> : null}
                 {share ? <span className={`${NUM} block`}>{share}</span> : null}
@@ -395,12 +402,15 @@ export function SeasonView({
   example,
   source,
   missing,
+  results = {},
 }: {
   season: Season;
   read: TheReadData | null;
   example: boolean;
   source: string;
   missing: string[];
+  /** Stocks that reported in the last ten days, by ticker (lib/results). */
+  results?: Readonly<Record<string, ResultSummary>>;
 }) {
   return (
     <div className="flex flex-col gap-3">
@@ -413,8 +423,8 @@ export function SeasonView({
         </p>
       ) : null}
       <Timeline season={season} />
-      {season.reporting.length > 0 ? <Reports season={season} /> : null}
-      <Later season={season} />
+      {season.reporting.length > 0 ? <Reports season={season} results={results} /> : null}
+      <Later season={season} results={results} />
     </div>
   );
 }

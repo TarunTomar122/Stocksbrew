@@ -211,7 +211,7 @@ describe("the news read with word tones", () => {
     expect(reading.labelledShare).toBe(0);
     expect(reading.tonedShare).toBe(60);
     expect(reading.read!.insights[0]!.text).toBe("NVDA fell 4.0% today on 5 stories, 60% of them negative.");
-    expect(reading.read!.source).toContain("tone from the headlines' own words");
+    expect(reading.read!.source).not.toContain("tone");
     expect(reading.read!.source).not.toContain("Claude");
   });
 });

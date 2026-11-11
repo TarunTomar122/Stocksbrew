@@ -199,10 +199,19 @@ function paceWords(velocity: MentionVelocity): string | null {
   return null;
 }
 
-/** The mood as one coloured word (Hopeful, Worried, Mixed); nothing when the posts were only counted, not read. */
+/**
+ * The mood as one coloured word (Hopeful, Worried, Mixed). With no lean, or posts only counted and not read, a quiet
+ * dash keeps the column lined up (owner rule 4), never a "no clear lean" phrase.
+ */
 function MoodWord({ name }: { name: RedditName }) {
   const mood = name.stanceRead && name.stance !== "neutral" ? moodWord(name.stance) : null;
-  if (!mood) return null;
+  if (!mood)
+    return (
+      <span className="text-[13px] text-oa-muted-fg">
+        <span aria-hidden="true">–</span>
+        <span className="sr-only">No clear mood</span>
+      </span>
+    );
   const tone = mood.tone === "up" ? "text-signal-bullish" : mood.tone === "down" ? "text-signal-bearish" : "text-oa-muted-fg";
   return <span className={`text-[13px] font-medium ${tone}`}>{mood.word}</span>;
 }

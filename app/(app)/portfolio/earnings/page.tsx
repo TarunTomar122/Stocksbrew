@@ -8,6 +8,7 @@ import { AppPage, PageHead, SourceLine, fmtDay, fmtStampET } from "@/components/
 import { getSessionUser } from "@/lib/auth-server";
 import { loadExampleSeason, loadUserSeason, type SeasonView as SeasonData } from "@/lib/earnings-season-data";
 import { getUserDoc } from "@/lib/watchlist";
+import { resultSummaries } from "@/lib/results/server";
 import { JsonLd } from "@/components/docs/json-ld";
 import { toolPageLd, toolPageMetadata } from "@/lib/seo/tool-pages";
 
@@ -50,8 +51,14 @@ function sourceFor(view: SeasonData): string {
     .join(" · ");
 }
 
-function View({ view }: { view: SeasonData }) {
-  return <SeasonView season={view.season} read={view.read} example={view.mode === "example"} source={sourceFor(view)} missing={view.missing} />;
+async function View({ view }: { view: SeasonData }) {
+  // Stocks that reported in the last ten days show what they reported (lib/results): cached reads, none on failure.
+  const tickers = [...view.season.reporting, ...view.season.later].filter((stock) => !stock.fund).map((stock) => stock.ticker);
+  const results = await resultSummaries(tickers, { today: view.season.today }).catch((error) => {
+    console.warn("[earnings-season] results read failed:", error instanceof Error ? error.message : error);
+    return {};
+  });
+  return <SeasonView season={view.season} read={view.read} example={view.mode === "example"} source={sourceFor(view)} missing={view.missing} results={results} />;
 }
 
 async function Planner() {

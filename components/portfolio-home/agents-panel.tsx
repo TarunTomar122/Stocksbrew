@@ -149,8 +149,9 @@ export async function AgentsPanel({ load }: { load: HomeLoad }) {
     return (
       <section aria-labelledby="agents-head" className={CARD}>
         <Head>
+          {/* The tag already says whose: "[Example] Agents", not "the example's agents". */}
           {EXAMPLE_TAG}
-          The example&apos;s agents
+          Agents
         </Head>
         <ul className={AGENT_LIST}>
           {lines.map((line) => (

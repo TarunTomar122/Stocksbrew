@@ -10,6 +10,7 @@ import { loadMovers, loadPolicy, loadReddit } from "@/lib/signals";
 import { buildMoversRead, buildPolicyRead, buildRedditRead, buildSignalsTodayRead } from "@/lib/signals-insights";
 import { SIGNALS_TABS, parseSignalsFilters, pickToday, signalsHref } from "@/lib/signals-shared";
 import { ogImage } from "@/lib/og/url";
+import { loadUpcomingReports, todayET, withReports } from "@/app/(app)/explore/desk-data";
 
 export const dynamic = "force-dynamic";
 
@@ -53,7 +54,9 @@ type SearchParams = Record<string, string | string[] | undefined>;
 export default async function SignalsPage({ searchParams }: { searchParams?: SearchParams }) {
   const filters = parseSignalsFilters(searchParams);
   const now = Date.now();
-  const [movers, reddit, policyAll, viewer] = await Promise.all([loadMovers(), loadReddit(now), loadPolicy(), getViewer()]);
+  const today = todayET(new Date(now));
+  // The next three weeks of reports ride along, for a read card's "Watch next" line (cached with Market today's).
+  const [movers, reddit, policyAll, viewer, upcoming] = await Promise.all([loadMovers(), loadReddit(now), loadPolicy(), getViewer(), loadUpcomingReports(today)]);
   // The archive past seven days is Pro (lib/entitlements.ts: signals_archive). Older rows are dropped here, on the
   // server, and only their count goes to the page.
   const archive = clipByAge("signals_archive", viewer.plan, policyAll.posts, (post) => post.publishedAt, now);
@@ -84,7 +87,7 @@ export default async function SignalsPage({ searchParams }: { searchParams?: Sea
         meta={source}
       />
       <SignalsBar tabs={tabs} filters={filters} movers={movers} policy={policy} />
-      <TheRead read={read} className="mb-4" />
+      <TheRead read={read ? withReports(read, upcoming, today) : read} className="mb-4" />
       {filters.tab === "today" ? (
         <TodayTab pick={pickToday(movers.movers, reddit.names, policy.posts, now)} movers={movers} reddit={reddit} policy={policy} filters={filters} now={now} />
       ) : null}
