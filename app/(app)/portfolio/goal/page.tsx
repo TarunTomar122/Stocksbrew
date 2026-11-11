@@ -27,7 +27,7 @@ export default async function GoalPage({ searchParams }: { searchParams: SearchP
       <PageHead
         title="Goal planner"
         crumb={
-          <Link href="/watchlist" className="underline decoration-oa-border underline-offset-2 hover:text-oa-fg">
+          <Link href="/portfolio?tab=holdings" className="underline decoration-oa-border underline-offset-2 hover:text-oa-fg">
             Portfolio
           </Link>
         }
@@ -87,7 +87,7 @@ async function GoalBody({ searchParams }: { searchParams: SearchParams }) {
         ) : session ? (
           <>
             You have no holdings marked yet, so this is the example portfolio.{" "}
-            <Link href="/watchlist" className="font-medium text-oa-primary hover:underline">
+            <Link href="/portfolio?tab=holdings" className="font-medium text-oa-primary hover:underline">
               Mark the stocks you own in Portfolio
             </Link>{" "}
             to plan with your own.
@@ -95,7 +95,7 @@ async function GoalBody({ searchParams }: { searchParams: SearchParams }) {
         ) : (
           <>
             This is an example portfolio with made-up share counts{example?.pricesAsOf ? `, valued at prices from ${fmtDay(example.pricesAsOf)}` : ""}.{" "}
-            <Link href="/watchlist" className="font-medium text-oa-primary hover:underline">
+            <Link href="/portfolio?tab=holdings" className="font-medium text-oa-primary hover:underline">
               Sign in and add your holdings
             </Link>{" "}
             to plan with your own.

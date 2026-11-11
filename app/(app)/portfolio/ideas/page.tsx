@@ -30,7 +30,7 @@ export default async function IdeasPage({ searchParams }: { searchParams: Promis
       <PageHead
         title="Rebalancing and tax-loss ideas"
         crumb={
-          <Link href="/watchlist" className="underline decoration-oa-border underline-offset-2 hover:text-oa-fg">
+          <Link href="/portfolio?tab=holdings" className="underline decoration-oa-border underline-offset-2 hover:text-oa-fg">
             Portfolio
           </Link>
         }
@@ -76,7 +76,7 @@ async function IdeasBody({ rates }: { rates: TaxRates }) {
         ) : session && markedHoldings > 0 ? (
           <>
             None of your holdings is a US stock or fund with a share count and a price we can use yet, so this is the example portfolio.{" "}
-            <Link href="/watchlist" className="font-medium text-oa-primary hover:underline">
+            <Link href="/portfolio?tab=holdings" className="font-medium text-oa-primary hover:underline">
               Add share counts in Portfolio
             </Link>{" "}
             to see ideas for yours.
@@ -84,7 +84,7 @@ async function IdeasBody({ rates }: { rates: TaxRates }) {
         ) : session ? (
           <>
             You have no holdings marked yet, so this is the example portfolio.{" "}
-            <Link href="/watchlist" className="font-medium text-oa-primary hover:underline">
+            <Link href="/portfolio?tab=holdings" className="font-medium text-oa-primary hover:underline">
               Mark the stocks you own in Portfolio
             </Link>{" "}
             to see ideas for yours.

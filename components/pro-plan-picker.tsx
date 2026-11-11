@@ -72,7 +72,7 @@ function FreeRadarCta() {
     trackLandingCtaClicked({
       surface: "landing_pro_preview",
       signedIn: false,
-      destination: "/watchlist",
+      destination: "/portfolio",
     });
     setBusy(true);
     try {
@@ -86,19 +86,19 @@ function FreeRadarCta() {
     } catch {
       // AuthProvider may still set cookie; continue to Radar
     }
-    window.location.assign("/watchlist");
+    window.location.assign("/portfolio");
   }
 
   if (user) {
     return (
       <Link
-        href="/watchlist"
+        href="/portfolio"
         className="pro-compare-secondary-cta"
         onClick={() =>
           trackLandingCtaClicked({
             surface: "landing_pro_preview",
             signedIn: true,
-            destination: "/watchlist",
+            destination: "/portfolio",
           })
         }
       >

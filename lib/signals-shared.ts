@@ -8,24 +8,23 @@
 import { firstFullSentence } from "@/lib/plain-copy";
 import { isCircularReason } from "@/lib/reason-quality";
 
-export type SignalsTab = "today" | "movers" | "reddit" | "policy";
+/** Signals is what people say about stocks: Reddit and the President. The day's moves live on Market today (/explore#moves). */
+export type SignalsTab = "today" | "reddit" | "policy";
 
 export const SIGNALS_TABS: Array<{ id: SignalsTab; label: string }> = [
   { id: "today", label: "Today" },
-  { id: "movers", label: "Movers" },
   { id: "reddit", label: "Reddit" },
   { id: "policy", label: "Policy" },
 ];
 
 export type SignalsFilters = {
   tab: SignalsTab;
-  /** Movers: "all" | "explained" | "unexplained" | "up" | "down". Policy: "all" | "named". */
+  /** Policy: "all" | "named". */
   show: string;
   limit: number;
 };
 
 export const POLICY_PAGE_SIZE = 40;
-const MOVER_SHOWS = ["all", "explained", "unexplained", "up", "down"];
 const POLICY_SHOWS = ["all", "named"];
 
 type ParamValue = string | string[] | undefined;
@@ -34,20 +33,18 @@ function first(value: ParamValue): string {
   return (Array.isArray(value) ? value[0] : value) ?? "";
 }
 
-/** What each tab shows before anyone picks a filter: the movers list opens on the moves we could explain. */
-export function defaultShow(tab: string): string {
-  return tab === "movers" ? "explained" : "all";
-}
+/** What every tab shows before anyone picks a filter. */
+const DEFAULT_SHOW = "all";
 
 export function parseSignalsFilters(params: Record<string, ParamValue> | undefined): SignalsFilters {
   const tabRaw = first(params?.tab).toLowerCase();
   const tab = SIGNALS_TABS.find((entry) => entry.id === tabRaw)?.id ?? "today";
   const showRaw = first(params?.show).toLowerCase();
-  const allowed = tab === "movers" ? MOVER_SHOWS : tab === "policy" ? POLICY_SHOWS : [];
+  const allowed = tab === "policy" ? POLICY_SHOWS : [];
   const n = Number.parseInt(first(params?.n), 10);
   return {
     tab,
-    show: allowed.includes(showRaw) ? showRaw : defaultShow(tab),
+    show: allowed.includes(showRaw) ? showRaw : DEFAULT_SHOW,
     limit: Number.isFinite(n) ? Math.min(400, Math.max(POLICY_PAGE_SIZE, n)) : POLICY_PAGE_SIZE,
   };
 }
@@ -56,12 +53,12 @@ export function signalsHref(filters: SignalsFilters, patch: Partial<SignalsFilte
   const next = { ...filters, ...patch };
   // A filter belongs to its tab; switching tabs starts clean.
   if (patch.tab && patch.tab !== filters.tab) {
-    next.show = defaultShow(next.tab);
+    next.show = DEFAULT_SHOW;
     next.limit = POLICY_PAGE_SIZE;
   }
   const query = new URLSearchParams();
   if (next.tab !== "today") query.set("tab", next.tab);
-  if (next.show !== defaultShow(next.tab)) query.set("show", next.show);
+  if (next.show !== DEFAULT_SHOW) query.set("show", next.show);
   if (next.limit > POLICY_PAGE_SIZE) query.set("n", String(next.limit));
   const text = query.toString();
   return text ? `/signals?${text}` : "/signals";

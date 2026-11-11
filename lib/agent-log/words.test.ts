@@ -76,12 +76,12 @@ describe("agent log lines", () => {
   });
 
   it("counts moves only when a reason was confirmed", () => {
-    expect(sentence(movesEntry({ at: at("14:58"), total: 30, explained: 15, screened: true, leader: { ticker: "CRWV", pct: 18.9 } }, "today's", "/movers"))).toBe(
+    expect(sentence(movesEntry({ at: at("14:58"), total: 30, explained: 15, screened: true, leader: { ticker: "CRWV", pct: 18.9 } }, "today's", "/explore#moves"))).toBe(
       "30 of today's biggest moves looked into; 15 have a reason we could confirm, including CRWV's, the biggest.",
     );
-    expect(movesEntry({ at: at("14:58"), total: 30, explained: 0, screened: true, leader: null }, "today's", "/movers")).toBeNull();
+    expect(movesEntry({ at: at("14:58"), total: 30, explained: 0, screened: true, leader: null }, "today's", "/explore#moves")).toBeNull();
     // A merged count is never smaller than what it explains.
-    expect(movesEntry({ at: at("14:58"), total: 10, explained: 12, screened: true, leader: null }, "today's", "/movers")?.figure).toBe("12");
+    expect(movesEntry({ at: at("14:58"), total: 10, explained: 12, screened: true, leader: null }, "today's", "/explore#moves")?.figure).toBe("12");
     // Only the dated copy left (it keeps the explained moves alone): no "of N looked into".
     expect(sentence(movesEntry({ at: at("14:58"), total: 15, explained: 15, screened: false, leader: { ticker: "CRWV", pct: 18.9 } }, "yesterday's", "/movers/2026-11-11"))).toBe(
       "15 big moves explained with a reason we could confirm, including CRWV's, the biggest.",
@@ -125,7 +125,7 @@ describe("agent log lines", () => {
     expect(sentence(briefsEntry({ at: at("17:11"), count: 9, withNews: 9 }))).toBe("9 stock briefs brought up to date.");
     expect(sentence(agentsEntry({ at: "2026-11-11T11:19:08.554Z", runs: 3, found: 1 }))).toBe("3 agents set up by members ran their checks; 1 found something to report.");
     expect(sentence(agentsEntry({ at: "2026-11-11T11:19:08.554Z", runs: 1, found: 0 }))).toBe("1 agent set up by members ran its checks; none found anything to report.");
-    expect(buildAgentLog({ day: DAY, when: "today", ongoing: false, facts: { agents: { at: at("11:19"), runs: 1, found: 0 } }, movesHref: "/movers" })?.lead).toBe(
+    expect(buildAgentLog({ day: DAY, when: "today", ongoing: false, facts: { agents: { at: at("11:19"), runs: 1, found: 0 } }, movesHref: "/explore#moves" })?.lead).toBe(
       "Today the agent ran 1 agent a member set up.",
     );
     expect(agentsEntry({ at: at("11:19"), runs: 0, found: 0 })).toBeNull();
@@ -145,13 +145,13 @@ describe("the day's log", () => {
   };
 
   it("leads with the three most telling lines and lists the rest oldest first", () => {
-    const log = buildAgentLog({ day: DAY, when: "today", ongoing: true, facts, movesHref: "/movers" });
+    const log = buildAgentLog({ day: DAY, when: "today", ongoing: true, facts, movesHref: "/explore#moves" });
     expect(log?.lead).toBe("So far today, the agent found the reason for 15 big moves, reviewed 146 calls and read 12 SEC filings.");
     // The briefs and the calls from the same run are one line.
     expect(log?.entries.map((line) => line.source)).toEqual(["agents", "premarket", "moves", "calls", "filings"]);
     expect(log?.entries.map((line) => line.time)).toEqual(["6:19 AM", "7:30 AM", "9:58 AM", "12:11 PM", "12:20 PM"]);
     expect(sentence(log!.entries[3]!)).toBe("146 stock briefs brought up to date, 121 with fresh news; no call changed.");
-    expect(buildAgentLog({ day: DAY, when: "today", ongoing: false, facts, movesHref: "/movers" })?.lead.startsWith("Today the agent found")).toBe(true);
+    expect(buildAgentLog({ day: DAY, when: "today", ongoing: false, facts, movesHref: "/explore#moves" })?.lead.startsWith("Today the agent found")).toBe(true);
     expect(buildAgentLog({ day: "2026-11-10", when: "yesterday", ongoing: false, facts: { briefs: { at: "2026-11-10T21:00:00Z", count: 9, withNews: null } }, movesHref: "/movers/2026-11-10" })?.lead).toBe(
       "Yesterday the agent brought 9 stock briefs up to date.",
     );
@@ -163,7 +163,7 @@ describe("the day's log", () => {
       when: "today",
       ongoing: false,
       facts: { briefs: facts.briefs, calls: { at: at("21:10"), reviewed: 146, changes: [{ ticker: "AAOI", to: "Trim", trigger: "earnings" }], heldAgainst: 3 } },
-      movesHref: "/movers",
+      movesHref: "/explore#moves",
     });
     expect(log?.entries.map(sentence)).toEqual(["146 stock briefs brought up to date, 121 with fresh news; 1 call changed: AAOI to Sell some after its results."]);
     expect(log?.entries[0]?.href).toBe("/stock/AAOI");
@@ -176,12 +176,12 @@ describe("the day's log", () => {
       when: "today",
       ongoing: true,
       facts: { ...facts, premarket: { ...facts.premarket!, at: "2026-11-10T12:30:00Z" }, moves: { ...facts.moves!, explained: 0 } },
-      movesHref: "/movers",
+      movesHref: "/explore#moves",
     });
     expect(stale?.entries.some((line) => line.source === "premarket" || line.source === "moves")).toBe(false);
-    expect(buildAgentLog({ day: DAY, when: "today", ongoing: true, facts: {}, movesHref: "/movers" })).toBeNull();
+    expect(buildAgentLog({ day: DAY, when: "today", ongoing: true, facts: {}, movesHref: "/explore#moves" })).toBeNull();
     expect(
-      buildAgentLog({ day: DAY, when: "today", ongoing: true, facts: { filings: { at: at("17:20"), companies: 769, count: 0, flagged: [] } }, movesHref: "/movers" }),
+      buildAgentLog({ day: DAY, when: "today", ongoing: true, facts: { filings: { at: at("17:20"), companies: 769, count: 0, flagged: [] } }, movesHref: "/explore#moves" }),
     ).toBeNull();
   });
 
@@ -192,7 +192,7 @@ describe("the day's log", () => {
       insiders: { at: at("16:22"), trades: 85, buys: 34, biggest: { ticker: "CRH", value: 569_700 } },
       earnings: { at: at("23:00"), count: 25, beat: 14, missed: 9 },
     };
-    const log = buildAgentLog({ day: DAY, when: "today", ongoing: false, facts: full, movesHref: "/movers" });
+    const log = buildAgentLog({ day: DAY, when: "today", ongoing: false, facts: full, movesHref: "/explore#moves" });
     expect(log?.entries).toHaveLength(MAX_ENTRIES);
     // Every source has its line (the briefs and calls share one); the quiet filings check is the one that would go first.
     expect(log?.entries.map((line) => line.source).sort()).toEqual(["agents", "calls", "earnings", "filings", "insiders", "moves", "premarket"]);

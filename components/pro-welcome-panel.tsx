@@ -48,7 +48,7 @@ export function ProWelcomePanel({ variant = "page", onDismiss }: Props) {
               Close
             </button>
           ) : null}
-          <Link href="/watchlist" className={PRIMARY_LINK}>
+          <Link href="/portfolio?tab=holdings" className={PRIMARY_LINK}>
             Build my Watchlist
           </Link>
         </div>
@@ -90,7 +90,7 @@ export function ProWelcomePanel({ variant = "page", onDismiss }: Props) {
       </div>
 
       <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2">
-        <Link href="/watchlist" className={PRIMARY_LINK}>
+        <Link href="/portfolio?tab=holdings" className={PRIMARY_LINK}>
           Build my Watchlist
         </Link>
         <Link href="/" className={SECONDARY_LINK}>

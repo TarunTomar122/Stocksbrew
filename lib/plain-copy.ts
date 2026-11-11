@@ -651,8 +651,11 @@ function splitMoveReasonLoose(reason: string | null | undefined, pct: number | n
     const [, why, verb, subject, noun] = cause as unknown as [string, string, string, string, string];
     const said = [verb.toLowerCase(), noun.toLowerCase()];
     if (said.some((word) => (up ? CAUSE_VERB_DOWN.includes(word) || MOVE_NOUN_DOWN.includes(word) : CAUSE_VERB_UP.includes(word) || MOVE_NOUN_UP.includes(word)))) return null;
-    // "Earnings ..." reads mid-sentence as "earnings ..."; an acronym ("GTA VI", "FDA") keeps its capitals.
-    const after = /^[A-Z][a-z]/.test(why) ? why.charAt(0).toLowerCase() + why.slice(1) : why;
+    // "Earnings ..." reads mid-sentence as "earnings ..."; an acronym ("GTA VI", "FDA") keeps its capitals, and so
+    // does a name: one that runs on in capitals ("Jefferies Buy rating", "Thacker Pass cost") or owns something
+    // ("Nvidia's order").
+    const name = /^[A-Z][a-z'’-]*(?:['’]s)?\s+[A-Z]/.test(why) || /^[A-Z][a-z]*['’]s\b/.test(why);
+    const after = /^[A-Z][a-z]/.test(why) && !name ? why.charAt(0).toLowerCase() + why.slice(1) : why;
     return { subject: subject.trim(), predicate: `${up ? "rose" : "fell"}${size} after ${after}` };
   }
   const first = COMPANY_FIRST.exec(text);

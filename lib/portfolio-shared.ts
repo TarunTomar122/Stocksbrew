@@ -553,3 +553,17 @@ export type PortfolioTab = (typeof PORTFOLIO_TABS)[number];
 export function parsePortfolioTab(value: string | null | undefined): PortfolioTab {
   return (PORTFOLIO_TABS as readonly string[]).includes(value ?? "") ? (value as PortfolioTab) : "positions";
 }
+
+/**
+ * Which view of the holdings editor a /portfolio request opens, or null for the overview. The old /watchlist
+ * addresses arrive with their query (next.config.js), so ?tab=positions and ?tab=analytics open the holdings, and so
+ * does ?reasons=1 (the reasons sheet sits on the holdings).
+ */
+export function myStocksTab(search: Record<string, string | string[] | undefined> | undefined): PortfolioTab | null {
+  const read = (value: string | string[] | undefined) => ((Array.isArray(value) ? value[0] : value) ?? "").toLowerCase();
+  const tab = read(search?.tab);
+  if (tab === "watching" || tab === "alerts") return tab;
+  if (tab === "holdings" || tab === "positions" || tab === "analytics") return "positions";
+  if (read(search?.reasons) === "1") return "positions";
+  return null;
+}

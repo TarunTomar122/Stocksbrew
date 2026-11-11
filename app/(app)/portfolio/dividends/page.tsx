@@ -31,7 +31,7 @@ export default async function DividendsPage() {
       <PageHead
         title="Dividends"
         crumb={
-          <Link href="/watchlist" className="underline decoration-oa-border underline-offset-2 hover:text-oa-fg">
+          <Link href="/portfolio?tab=holdings" className="underline decoration-oa-border underline-offset-2 hover:text-oa-fg">
             Portfolio
           </Link>
         }
@@ -73,7 +73,7 @@ async function Planner() {
         ) : session ? (
           <>
             You have no holdings marked yet, so this is an example portfolio.{" "}
-            <Link href="/watchlist" className="font-medium text-oa-primary hover:underline">
+            <Link href="/portfolio?tab=holdings" className="font-medium text-oa-primary hover:underline">
               Mark the stocks you own in Portfolio
             </Link>{" "}
             and add your share counts to plan your own dividends.
@@ -81,7 +81,7 @@ async function Planner() {
         ) : (
           <>
             This is an example portfolio with made-up share counts and real dividends.{" "}
-            <Link href="/watchlist" className="font-medium text-oa-primary hover:underline">
+            <Link href="/portfolio?tab=holdings" className="font-medium text-oa-primary hover:underline">
               Sign in and add your holdings
             </Link>{" "}
             to see what yours will pay.
@@ -99,7 +99,7 @@ async function Planner() {
 
 async function Plan({ seeds, example }: { seeds: HoldingSeed[]; example: boolean }) {
   const { plan, pricesAsOf, calendarOk } = await loadDividendPlan(seeds);
-  const read = buildDividendRead(plan, { example, editHref: "/watchlist" });
+  const read = buildDividendRead(plan, { example, editHref: "/portfolio?tab=holdings" });
   const asOf = [plan.asOf ? `dividends as of ${fmtStampET(plan.asOf)}` : null, pricesAsOf ? `prices from ${closeWords(pricesAsOf, fmtDay(pricesAsOf))}` : null]
     .filter(Boolean)
     .join(" · ");

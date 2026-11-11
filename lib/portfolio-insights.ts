@@ -324,7 +324,7 @@ function sectorLine(input: PortfolioInsightInput, rows: Weighted[], byValue: boo
     text: `${lead}${fin(sp) ? `, against ${pct(sp, 0)} of the S&P 500` : ""}.`,
     figure: { value: pct(top.weight, 0), label: `in ${top.sector}` },
     tickers: names.slice(0, 6),
-    action: { label: "Analytics", href: "/watchlist?tab=analytics" },
+    action: { label: "By sector", href: "#by-sector" },
   };
 }
 
@@ -360,7 +360,7 @@ function gainsLine(portfolio: Portfolio, rows: Weighted[], byValue: boolean): In
     text: `Since you saved them${sameDay ? ` on ${shortDay(from)}` : ""}, your holdings ${book >= 0 ? "are up" : "are down"} ${pct(book)}${byValue ? "" : " on average"}${bench !== null ? `, against ${signedPct(bench)} for the S&P 500` : ""}.`,
     soWhat: `${best.position.ticker} leads at ${signedPct(best.position.sinceSaved!.pct)}.`,
     tickers: [best.position.ticker],
-    action: { label: "Analytics", href: "/watchlist?tab=analytics" },
+    action: { label: "Since you saved them", href: "#since-saved" },
   };
 }
 

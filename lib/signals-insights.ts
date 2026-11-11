@@ -113,7 +113,7 @@ function themeInsight(movers: MoverForRead[]): Insight | null {
     tone: side.label === "gainers" ? "up" : "down",
     text: `${theme.label.charAt(0).toUpperCase()}${theme.label.slice(1)} stocks ${side.label === "gainers" ? "led" : "led the drop"}: ${rows.length} of the ${side.rows.length} biggest ${side.label}, ${signedPct(average)} on average.${causeText}`,
     tickers: rows.map((mover) => mover.ticker),
-    action: { label: "See the movers", href: "/signals?tab=movers" },
+    action: { label: "See the moves", href: "/explore#moves" },
   };
 }
 
@@ -131,7 +131,7 @@ function causeInsight(movers: MoverForRead[], skip: string | null): Insight | nu
       tone: side.label === "gainers" ? "up" : "down",
       text: `${countWord(cause.rows.length)} of the ${top.length} biggest ${side.label} moved ${CAUSE_WORDS[cause.kind]}${miss ? ", mostly misses" : ""}, ${signedPct(average)} on average.`,
       tickers: cause.rows.map((mover) => mover.ticker),
-      action: { label: "Read why", href: `/signals?tab=movers&show=${side.label === "gainers" ? "up" : "down"}` },
+      action: { label: "Read why", href: "/explore#moves" },
     };
   }
   return null;
@@ -148,7 +148,7 @@ function unexplainedInsight(movers: MoverForRead[]): Insight | null {
     text: `${open.length} of ${movers.length} big moves (${share}%) came with no news yet, the biggest ${listNames(biggest.map((mover) => `${mover.ticker} ${signedPct(mover.pct)}`))}.`,
     soWhat: "A big move with no news is worth a look before you act on it.",
     tickers: biggest.map((mover) => mover.ticker),
-    action: { label: "See them", href: "/signals?tab=movers&show=unexplained" },
+    action: { label: "See them", href: "/explore#moves" },
   };
 }
 
@@ -547,7 +547,7 @@ export function buildSignalsTodayRead(
   /** When the Reddit counts were taken. A read that leads with Reddit carries this time, not the movers'. */
   redditAsOf?: string | null,
 ): TheRead | null {
-  // Signals is about what people are saying; the day's moves have their own page (Why stocks moved).
+  // Signals is about what people are saying; the day's moves are on Market today.
   // So the crowd leads, the President's posts follow, and the moves come last.
   const moverRead = buildMoversRead(movers, asOf, now);
   const redditRead = buildRedditRead(names);
@@ -559,8 +559,8 @@ export function buildSignalsTodayRead(
     oneCardPerStock([
       redditRead?.insights[0],
       policyLine && policyLine.text !== headline ? policyLine : null,
-      // The moves only when there is nothing people said: Why stocks moved and Market today carry them.
-      !redditRead && !policyLine && moverRead && moverRead.headline !== headline ? { id: "movers-line", tone: "flat" as const, text: moverRead.headline, action: { label: "Why stocks moved", href: "/movers" } } : null,
+      // The moves only when there is nothing people said: Market today carries them.
+      !redditRead && !policyLine && moverRead && moverRead.headline !== headline ? { id: "movers-line", tone: "flat" as const, text: moverRead.headline, action: { label: "Market today", href: "/explore#moves" } } : null,
       ...(redditRead?.insights.slice(1) ?? []),
     ]),
   );

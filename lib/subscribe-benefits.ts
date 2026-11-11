@@ -96,7 +96,7 @@ export const SUBSCRIBE_BENEFITS: SubscribeBenefit[] = [
     icon: "notifications_active",
     title: "Watchlist and alerts",
     body: "Unlimited tracking, automatic earnings and zone alerts, plus manual price alerts.",
-    href: "/watchlist",
+    href: "/portfolio?tab=holdings",
     linkLabel: "Open Watchlist",
   },
   {
@@ -121,13 +121,13 @@ export const PRO_WELCOME_STEPS: ProWelcomeStep[] = [
   {
     title: "Build your Watchlist",
     body: "Add the stocks you own and the stocks you are waiting to buy.",
-    href: "/watchlist",
+    href: "/portfolio?tab=holdings",
     linkLabel: "Open Watchlist",
   },
   {
     title: "Read the call and target",
     body: "Open any tracked stock for its zones, drivers, risks, and Stocksbrew target price.",
-    href: "/watchlist",
+    href: "/portfolio?tab=holdings",
     linkLabel: "See your stocks",
   },
   {

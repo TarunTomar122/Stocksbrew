@@ -91,12 +91,12 @@ export default async function MoversDayPage({ params }: Props) {
     <AppPage>
       <JsonLd
         data={breadcrumbLd([
-          { name: "Movers", path: "/movers" },
+          { name: "Market today", path: "/explore" },
           { name: longDay(day), path },
         ])}
       />
       <PageHead
-        crumb={<Link prefetch={false} href="/movers">Movers</Link>}
+        crumb={<Link prefetch={false} href="/explore#moves">Market today</Link>}
         title={`Why stocks moved on ${longDay(day)}`}
         meta={<SourceLine source="Researched from news and filings" asOf={researched ? fmtStampET(researched) : undefined} />}
         actions={

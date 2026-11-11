@@ -29,7 +29,8 @@ import {
 describe("filters in the URL", () => {
   it("defaults to today and only accepts a filter that belongs to the tab", () => {
     expect(parseSignalsFilters(undefined)).toEqual({ tab: "today", show: "all", limit: POLICY_PAGE_SIZE });
-    expect(parseSignalsFilters({ tab: "Movers", show: "unexplained" })).toMatchObject({ tab: "movers", show: "unexplained" });
+    // The movers tab is gone (its list is Market today's, /explore#moves); an old link lands on Today.
+    expect(parseSignalsFilters({ tab: "Movers", show: "unexplained" })).toMatchObject({ tab: "today", show: "all" });
     expect(parseSignalsFilters({ tab: "reddit", show: "unexplained" }).show).toBe("all");
     expect(parseSignalsFilters({ tab: "policy", show: "named", n: "9999" })).toEqual({ tab: "policy", show: "named", limit: 400 });
     expect(parseSignalsFilters({ tab: "astrology" }).tab).toBe("today");
@@ -39,9 +40,9 @@ describe("filters in the URL", () => {
     const base = parseSignalsFilters(undefined);
     expect(signalsHref(base)).toBe("/signals");
     expect(signalsHref(base, { tab: "reddit" })).toBe("/signals?tab=reddit");
-    const movers = parseSignalsFilters({ tab: "movers", show: "down" });
-    expect(signalsHref(movers)).toBe("/signals?tab=movers&show=down");
-    expect(signalsHref(movers, { tab: "policy" })).toBe("/signals?tab=policy");
+    const named = parseSignalsFilters({ tab: "policy", show: "named" });
+    expect(signalsHref(named)).toBe("/signals?tab=policy&show=named");
+    expect(signalsHref(named, { tab: "reddit" })).toBe("/signals?tab=reddit");
     expect(signalsHref(parseSignalsFilters({ tab: "policy" }), { limit: 80 })).toBe("/signals?tab=policy&n=80");
   });
 });

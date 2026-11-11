@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  myStocksTab,
   annualisedVolatility,
   betaAgainst,
   buildPortfolio,
@@ -205,5 +206,24 @@ describe("parsePortfolioTab", () => {
     expect(parsePortfolioTab("alerts")).toBe("alerts");
     expect(parsePortfolioTab("closed")).toBe("positions");
     expect(parsePortfolioTab(undefined)).toBe("positions");
+  });
+});
+
+describe("myStocksTab", () => {
+  it("opens the overview on /portfolio and the holdings editor on its tabs", () => {
+    expect(myStocksTab(undefined)).toBeNull();
+    expect(myStocksTab({})).toBeNull();
+    expect(myStocksTab({ tab: "overview" })).toBeNull();
+    expect(myStocksTab({ tab: "holdings" })).toBe("positions");
+    expect(myStocksTab({ tab: "Watching" })).toBe("watching");
+    expect(myStocksTab({ tab: ["alerts", "watching"] })).toBe("alerts");
+  });
+
+  it("lands the old /watchlist addresses on the right view", () => {
+    // /watchlist?tab=positions and ?tab=analytics (analytics now sits under the holdings), and the reasons sheet.
+    expect(myStocksTab({ tab: "positions" })).toBe("positions");
+    expect(myStocksTab({ tab: "analytics" })).toBe("positions");
+    expect(myStocksTab({ reasons: "1" })).toBe("positions");
+    expect(myStocksTab({ tab: "watching", reasons: "1" })).toBe("watching");
   });
 });

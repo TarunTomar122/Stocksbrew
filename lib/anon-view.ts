@@ -32,8 +32,8 @@ const STOCK_PAGE_RE = /^\/stock\/[A-Z0-9][A-Z0-9.-]{0,15}$/;
 /**
  * The cached pages, with the query keys that change their signed-out view.
  * The cached copy is built without a query string, so a request carrying one
- * of these keys gets the live page. Stock pages, /explore, /movers,
- * /portfolio and the home page read no search params at all, so tracking
+ * of these keys gets the live page. Stock pages, /explore,
+ * and the home page read no search params at all, so tracking
  * tags (utm_*, gclid, ref) and the router's `_rsc` never matter. A page that starts reading a
  * search param must list it here.
  *
@@ -44,9 +44,9 @@ const STOCK_PAGE_RE = /^\/stock\/[A-Z0-9][A-Z0-9.-]{0,15}$/;
 const CACHED_PAGES = new Map<string, readonly string[]>([
   ["/briefing", ["day"]],
   ["/explore", []],
-  ["/movers", []],
-  // Signed out, My stocks is the example portfolio: the same page for everyone.
-  ["/portfolio", []],
+  // Signed out, My stocks is the example portfolio: the same page for everyone. Its other tabs (?tab=holdings,
+  // watching, alerts) and ?reasons=1 are live pages.
+  ["/portfolio", ["tab", "reasons"]],
 ]);
 
 /**

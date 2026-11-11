@@ -13,8 +13,10 @@ describe("anonViewPath", () => {
     expect(view("/stock/BRK.B")).toBe(`${ANON_PREFIX}/stock/BRK.B`);
     expect(view("/briefing")).toBe(`${ANON_PREFIX}/briefing`);
     expect(view("/explore")).toBe(`${ANON_PREFIX}/explore`);
-    expect(view("/movers")).toBe(`${ANON_PREFIX}/movers`);
     expect(view("/portfolio")).toBe(`${ANON_PREFIX}/portfolio`);
+    // The holdings editor's tabs and the reasons sheet are live pages.
+    expect(view("/portfolio?tab=holdings")).toBeNull();
+    expect(view("/portfolio?reasons=1")).toBeNull();
     expect(view("/")).toBe(ANON_PREFIX);
   });
 
@@ -77,7 +79,7 @@ describe("publicPathname", () => {
   });
 
   it("round-trips every cached page", () => {
-    for (const path of ["/", "/stock/KO", "/briefing", "/explore", "/movers", "/portfolio"]) {
+    for (const path of ["/", "/stock/KO", "/briefing", "/explore", "/portfolio"]) {
       const copy = view(path);
       expect(copy && isAnonViewPath(copy)).toBe(true);
       expect(publicPathname(copy as string)).toBe(path);

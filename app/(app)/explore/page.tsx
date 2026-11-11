@@ -2,12 +2,17 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { loadDeskBrief, loadDeskMarketsData, loadDeskMovers, loadDeskSectors, loadDeskWire, todayET, type DeskBrief, type DeskData, type DeskSector } from "@/app/(app)/explore/desk-data";
-import { MarketCardsGhost, MarketsGhost } from "@/app/(app)/explore/ghosts";
+import { MarketCardsGhost, MovesGhost, StripGhost } from "@/app/(app)/explore/ghosts";
 import { hasMarketsData } from "@/components/markets/overview-sections";
 import { MarketCards } from "@/components/markets/market-cards";
 import { MarketTickerStrip } from "@/components/markets/widgets";
 import { TheRead } from "@/components/oa/insight";
-import { AppPage, Delta, FOCUS, PageHead, Panel } from "@/components/oa/kit";
+import { AppPage, Delta, FOCUS, PageHead, Panel, fmtDay } from "@/components/oa/kit";
+import { signedPct } from "@/components/briefing/format";
+import { staleMoveClock } from "@/lib/move-clock";
+import { pricedAt } from "@/lib/quote-time";
+import { longDay, moversDayHref } from "@/lib/seo/families";
+import { getRecentMoves } from "@/lib/seo/family-data";
 import { unTitle } from "@/components/briefing/card-words";
 import { StockCard, StockCardGrid, StockChip, StockChipRow, stockGridFill } from "@/components/briefing/stock-card";
 import { PanelGhost } from "@/components/oa/kit/skeleton";
@@ -86,39 +91,72 @@ function SectorList({ rows }: { rows: DeskSector[] }) {
 }
 
 /**
- * The day's biggest stock moves as stock cards (owner rule 3): the logo and ticker, the move as
- * the one big figure, and the reason when a source confirmed one (none is written when it did not). The whole
- * card opens the stock; the one shared action, Why stocks moved, sits in the header. At most ten (the loader
- * keeps five up and five down), so every one shows; on a phone the cards scroll inside after about three.
+ * When the day's moves were priced, said once over the list (owner, Nov 11: rows never carry their own time): the
+ * oldest quote time on the moves' own New York day (lib/quote-time.ts), so no number is dated later than it was
+ * measured, with the day in front when the moves are not from today ("Nov 10, 4:00 PM ET"). A few thinly traded
+ * names (warrants, mostly) keep a morning quote all day; those are named once under the list with their own time
+ * (lib/move-clock.ts), so one stale quote does not date every other move to the morning.
  */
-function StockMoves({ movers }: { movers: DeskData["movers"] }) {
-  // Moves with a confirmed reason are cards, largest first; the ones without are chips under them, so no card is
-  // left with only a figure beside full ones.
-  const rows = [...movers.up, ...movers.down].sort((a, b) => Number(Boolean(b.reason)) - Number(Boolean(a.reason)) || Math.abs(b.changePct) - Math.abs(a.changePct));
+function movesClock(movers: DeskData["movers"], today: string, now: number): { clock: string | null; stale: { tickers: string[]; clock: string } | null } {
+  const day = movers.day;
+  if (!day) return { clock: null, stale: null };
+  const rows = [...movers.up, ...movers.down];
+  const late = day === today ? rows.filter((row) => staleMoveClock(row.priceAsOf, now)) : [];
+  const fresh = late.length < rows.length ? rows.filter((row) => !late.includes(row)) : rows;
+  const clock = pricedAt(fresh.map((row) => row.priceAsOf), day);
+  if (day !== today) return { clock: clock ? `${fmtDay(day)}, ${clock}` : fmtDay(day), stale: null };
+  const lateClock = fresh === rows ? null : pricedAt(late.map((row) => row.priceAsOf), day);
+  return {
+    clock: clock ? `As of ${clock}` : null,
+    stale: lateClock ? { tickers: late.sort((a, b) => Math.abs(b.changePct) - Math.abs(a.changePct)).map((row) => row.ticker), clock: lateClock } : null,
+  };
+}
+
+/** "AIRJW", "AIRJW and RVMDW", "AIRJW, RVMDW and 3 more". */
+function tickerList(tickers: string[]): string {
+  if (tickers.length <= 1) return tickers[0] ?? "";
+  if (tickers.length === 2) return `${tickers[0]} and ${tickers[1]}`;
+  if (tickers.length === 3) return `${tickers[0]}, ${tickers[1]} and ${tickers[2]}`;
+  return `${tickers[0]}, ${tickers[1]} and ${tickers.length - 2} more`;
+}
+
+/**
+ * The day's unusual stock moves (owner rule 3): the logo and ticker, the move as the one big figure, and the reason
+ * when a source confirmed one (lib/reason-quality: nothing is written when none was, and a sentence that only says the
+ * move again is no reason). Moves with a reason are cards, largest first; the rest are chips under them, so no card is
+ * left with only a figure. This is the one list of the day's moves: every move the feed holds shows (cards and chips
+ * each scroll inside after a few rows), priced from the same live quotes the briefing and the home page use, with one
+ * time over the list. Older days are a row of links to their own pages under it.
+ */
+function StockMoves({ movers, today }: { movers: DeskData["movers"]; today: string }) {
+  const rows = [...movers.up, ...movers.down].sort((a, b) => Math.abs(b.changePct) - Math.abs(a.changePct));
   const told = rows.filter((row) => row.reason);
   const bare = rows.filter((row) => !row.reason);
   if (rows.length === 0) return null;
+  const { clock, stale } = movesClock(movers, today, Date.now());
+  // "today" only for today's moves: before the open, or on a weekend, they are the last session's.
+  const when = movers.day && movers.day !== today ? `on ${fmtDay(movers.day)}` : "today";
   return (
-    <section aria-labelledby="stock-moves">
+    <>
       <div className="flex items-baseline justify-between gap-3 px-2 pb-1 sm:px-3">
         <h2 id="stock-moves" className="text-[17px] font-medium tracking-tight text-oa-fg">
-          Biggest stock moves
+          {/* The why is only promised when at least one move has a confirmed reason. */}
+          {told.length > 0 ? "Why stocks moved" : "Biggest stock moves"}
         </h2>
-        <AppLink href="/movers" className={`shrink-0 text-[13px] font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg ${FOCUS}`}>
-          Why stocks moved
-        </AppLink>
+        {clock ? <span className="oa-mono shrink-0 text-[12.5px] tabular-nums text-oa-muted-fg">{clock}</span> : null}
       </div>
-      {/* With one card the takeaway only repeats it ("AIRJW moved most, −11.8%"); it says something once there are several. */}
+      {/* With one move the takeaway only repeats it ("AIRJW moved most, −11.8%"); it says something once there are several. */}
       {movers.takeaway && rows.length > 1 ? <p className="text-pretty px-2 pb-2 text-[14px] leading-5 text-oa-muted-fg sm:px-3">{movers.takeaway}</p> : null}
-      <div className="max-sm:max-h-[30rem] max-sm:overflow-y-auto max-sm:overscroll-contain scrollbar-hide">
-        {told.length > 0 ? (
+      {told.length > 0 ? (
+        // About three rows of cards, then they scroll inside (no bar shown), so the page stays short.
+        <div className="max-h-[30rem] overflow-y-auto overscroll-contain scrollbar-hide sm:max-h-[24rem]">
           <StockCardGrid wide>
             {told.map((row, index) => (
               <StockCard
                 key={row.ticker}
                 ticker={row.ticker}
                 name={row.name || row.ticker}
-                figure={signedPct(row.changePct)}
+                figure={signedPct(row.changePct, 1)}
                 tone={row.changePct >= 0 ? "up" : "down"}
                 sentence={unTitle(row.reason!, row.name)}
                 fill={stockGridFill(index, told.length, true)}
@@ -126,38 +164,72 @@ function StockMoves({ movers }: { movers: DeskData["movers"] }) {
                   <Link
                     href={`/stock/${encodeURIComponent(row.ticker)}`}
                     prefetch={false}
-                    aria-label={`${row.ticker}, ${signedPct(row.changePct)} today`}
+                    aria-label={`${row.ticker}, ${signedPct(row.changePct, 1)} ${when}`}
                     className="absolute inset-0 z-0 rounded-[inherit] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
                   />
                 }
               />
             ))}
           </StockCardGrid>
-        ) : null}
-        {/* Moves with no reason we could confirm: a chip each, not an empty card (owner rules 4 and 7). */}
-        {bare.length > 0 ? (
-          <StockChipRow label={told.length > 0 ? "Also moved" : "Biggest stock moves"} className={told.length > 0 ? "mt-3" : ""}>
+        </div>
+      ) : null}
+      {/* Moves with no reason we could confirm: a chip each, not an empty card (owner rules 4 and 7). */}
+      {bare.length > 0 ? (
+        <div className={`max-h-[9.5rem] overflow-y-auto overscroll-contain scrollbar-hide ${told.length > 0 ? "mt-3" : ""}`}>
+          <StockChipRow label={told.length > 0 ? "Also moved" : "Biggest stock moves"}>
             {bare.map((row) => (
               <StockChip
                 key={row.ticker}
                 ticker={row.ticker}
                 name={row.name}
-                figure={signedPct(row.changePct)}
+                figure={signedPct(row.changePct, 1)}
                 tone={row.changePct >= 0 ? "up" : "down"}
-                label={`${row.ticker}, ${signedPct(row.changePct)} today`}
+                label={`${row.ticker}, ${signedPct(row.changePct, 1)} ${when}`}
               />
             ))}
           </StockChipRow>
-        ) : null}
-      </div>
-    </section>
+        </div>
+      ) : null}
+      {stale ? (
+        <p className="text-pretty px-2 pt-2 text-[13px] leading-5 text-oa-muted-fg sm:px-3">
+          {`${tickerList(stale.tickers)} last traded by ${stale.clock}, so ${stale.tickers.length === 1 ? "its move is" : "their moves are"} from then.`}
+        </p>
+      ) : null}
+    </>
   );
 }
 
-/** "+16.52%", "−3.10%": the card's figure, with a real minus sign. */
-function signedPct(value: number): string {
-  const shown = Number(value.toFixed(2));
-  return `${shown > 0 ? "+" : shown < 0 ? "\u2212" : ""}${Math.abs(shown).toFixed(2)}%`;
+/**
+ * Earlier days of big moves, each opening its own page (/movers/2026-11-10: the reason and sources for every move).
+ * One line of dated links under the moves, only days before the moves' own day (the archive's dated documents can
+ * run a day ahead after 7 PM New York time). With no moves above, it carries its own heading.
+ */
+async function EarlierDays({ movers, today, titled }: { movers: DeskData["movers"]; today: string; titled: boolean }) {
+  const moves = await getRecentMoves().catch(() => []);
+  const before = movers.day ?? today;
+  const counts = new Map<string, number>();
+  for (const move of moves) if (move.day < before) counts.set(move.day, (counts.get(move.day) ?? 0) + 1);
+  const days = [...counts.entries()].sort((a, b) => b[0].localeCompare(a[0])).slice(0, 8);
+  if (days.length === 0) return null;
+  const Label = titled ? "h2" : "span";
+  return (
+    <nav aria-labelledby="earlier-days" className="mt-3 flex items-center gap-2 overflow-x-auto px-2 scrollbar-hide sm:px-3">
+      <Label id="earlier-days" className={titled ? "shrink-0 text-[17px] font-medium tracking-tight text-oa-fg" : "shrink-0 text-[13px] text-oa-muted-fg"}>
+        {titled ? "Big moves on earlier days" : "Earlier days"}
+      </Label>
+      {days.map(([day, count]) => (
+        <Link
+          key={day}
+          prefetch={false}
+          href={moversDayHref(day)}
+          aria-label={`${longDay(day)}: ${count} explained ${count === 1 ? "move" : "moves"}`}
+          className={`oa-mono inline-flex h-8 shrink-0 items-center rounded border border-oa-border bg-oa-card px-2.5 text-[12.5px] tabular-nums text-oa-fg hover:bg-oa-accent ${FOCUS}`}
+        >
+          {fmtDay(day)}
+        </Link>
+      ))}
+    </nav>
+  );
 }
 
 /**
@@ -182,57 +254,61 @@ async function MoreMarkets({ data, brief }: { data: MarketsData; brief: Promise<
   return <MarketCards data={data} said={said} className="mt-2" />;
 }
 
+/** The cross-asset strip (indices, yields, oil, gold, the dollar, bitcoin), or nothing when prices are missing. */
+async function StripSlot({ markets }: { markets: Promise<MarketsData> }) {
+  const data = await markets;
+  return hasMarketsData(data) ? <MarketTickerStrip tiles={buildMarketsOverview(data).tiles} /> : null;
+}
+
 /**
- * The lead under the read: the cross-asset strip (indices, yields, oil, gold, the dollar, bitcoin), the biggest
- * stock moves as cards with their reasons, every sector's day, then a card for each other part of the market.
+ * The day's moves, in their own slot so they arrive as soon as the movers loader answers. "#moves" is where /movers,
+ * the old Signals movers tab and the home page's "See every move today" land; the ghost holds the same id meanwhile.
+ * On a day with no moves at all the section is not drawn, and the earlier days stand on their own.
  */
-async function MarketsSlot({
-  sectors,
-  movers,
-  brief,
-}: {
-  sectors: ReturnType<typeof loadDeskSectors>;
-  movers: Promise<DeskData["movers"]>;
-  brief: Promise<DeskBrief>;
-}) {
-  const [data, sectorData, moverData] = await Promise.all([loadDeskMarketsData(), sectors, movers]);
-  // The stock cards, then every sector; each stands alone at full width, so neither leaves half a row empty.
-  const lead = (
-    <>
-      <StockMoves movers={moverData} />
-      <SectorList rows={sectorData.rows} />
-    </>
+async function MovesSlot({ movers, today }: { movers: Promise<DeskData["movers"]>; today: string }) {
+  const data = await movers;
+  const any = data.up.length + data.down.length > 0;
+  return (
+    // With no moves the section has no heading of its own (the earlier days' row names itself), so it is not labelled.
+    <section id="moves" aria-labelledby={any ? "stock-moves" : undefined} className="scroll-mt-20">
+      <StockMoves movers={data} today={today} />
+      <Suspense fallback={null}>
+        <EarlierDays movers={data} today={today} titled={!any} />
+      </Suspense>
+    </section>
   );
+}
+
+/** Every sector's day, under the moves. */
+async function SectorsSlot({ sectors }: { sectors: ReturnType<typeof loadDeskSectors> }) {
+  const data = await sectors;
+  return <SectorList rows={data.rows} />;
+}
+
+/** A card for each other part of the market, or one line when the prices are not there. */
+async function MoreMarketsSlot({ markets, brief }: { markets: Promise<MarketsData>; brief: Promise<DeskBrief> }) {
+  const data = await markets;
   if (!hasMarketsData(data)) {
     return (
-      <>
-        {lead}
-        <Panel>
-          <p className="text-[15px] font-medium text-oa-fg">Prices for indices, rates, commodities, currencies and crypto are not available right now.</p>
-          <p className="mt-1 text-[14px] text-oa-muted-fg">Try again in a few minutes.</p>
-        </Panel>
-      </>
+      <Panel>
+        <p className="text-[15px] font-medium text-oa-fg">Prices for indices, rates, commodities, currencies and crypto are not available right now.</p>
+        <p className="mt-1 text-[14px] text-oa-muted-fg">Try again in a few minutes.</p>
+      </Panel>
     );
   }
-  const overview = buildMarketsOverview(data);
   return (
-    <>
-      <MarketTickerStrip tiles={overview.tiles} />
-      {lead}
-      <section aria-labelledby="more-markets" className="mt-4">
-        <h2 id="more-markets" className="px-2 pb-1 text-[17px] font-medium tracking-tight text-oa-fg sm:px-3">
-          More markets
-        </h2>
-        <Suspense fallback={<MarketCardsGhost className="mt-2" />}>
-          <MoreMarkets data={data} brief={brief} />
-        </Suspense>
-      </section>
-    </>
+    <section aria-labelledby="more-markets" className="mt-4">
+      <h2 id="more-markets" className="px-2 pb-1 text-[17px] font-medium tracking-tight text-oa-fg sm:px-3">
+        More markets
+      </h2>
+      <Suspense fallback={<MarketCardsGhost className="mt-2" />}>
+        <MoreMarkets data={data} brief={brief} />
+      </Suspense>
+    </section>
   );
 }
 
 /** The places that go deeper on today, as one short strip with each place's own icon. */
-// Why stocks moved is left out: the stock moves above carry it as their one header action.
 const MORE_ON_TODAY: { href: string; title: string }[] = [
   { href: "/news", title: "News" },
   { href: "/calendar", title: "Calendar" },
@@ -268,10 +344,11 @@ function MoreOnToday() {
 }
 
 /**
- * Market today: how the whole market did. The read in three ranked points leads; then what moved most (the
- * cross-asset strip, the biggest stock moves as cards with their reasons, every sector); then a card for every
- * other part of the market; then a short strip of places that go deeper. The head needs no data, so
- * it is on screen at once; the read and the market sections each wait only for their own loaders.
+ * Market today: the one read of the market's day (Why stocks moved was folded in on Nov 11; /movers redirects to
+ * #moves). The read in three ranked points leads; then the cross-asset strip; then every stock move of the day with
+ * its confirmed reason and one time over the list, with links to earlier days; then every sector; then a card for
+ * every other part of the market; then a short strip of places that go deeper. The head needs no data, so it is on
+ * screen at once; each section waits only for its own loader.
  */
 export default function ExplorePage() {
   const today = todayET(new Date());
@@ -279,6 +356,7 @@ export default function ExplorePage() {
   const wire = loadDeskWire(today);
   const sectors = loadDeskSectors(today);
   const movers = loadDeskMovers(today);
+  const markets = loadDeskMarketsData();
 
   return (
     <AppPage>
@@ -290,8 +368,20 @@ export default function ExplorePage() {
           <ReadSlot brief={brief} wire={wire} sectors={sectors} />
         </Suspense>
 
-        <Suspense fallback={<MarketsGhost />}>
-          <MarketsSlot sectors={sectors} movers={movers} brief={brief} />
+        <Suspense fallback={<StripGhost />}>
+          <StripSlot markets={markets} />
+        </Suspense>
+
+        <Suspense fallback={<MovesGhost />}>
+          <MovesSlot movers={movers} today={today} />
+        </Suspense>
+
+        <Suspense fallback={<PanelGhost rows={4} />}>
+          <SectorsSlot sectors={sectors} />
+        </Suspense>
+
+        <Suspense fallback={<MarketCardsGhost className="mt-2" />}>
+          <MoreMarketsSlot markets={markets} brief={brief} />
         </Suspense>
 
         <MoreOnToday />

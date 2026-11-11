@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import { canSeeLevels, getViewer } from "@/lib/entitlements-server";
 import { Suspense } from "react";
 
@@ -25,62 +24,43 @@ import { getGroupMove, getMarketDay, getSnapshotFacts } from "@/lib/insight-data
 import { buildPortfolioReads, sectorsToLoad } from "@/lib/portfolio-insights";
 import { getStockCallHistory } from "@/lib/stock-events";
 import { callChanges } from "@/lib/stock-chart";
-import { parsePortfolioTab, type PortfolioRowInput } from "@/lib/portfolio-shared";
+import type { PortfolioRowInput, PortfolioTab } from "@/lib/portfolio-shared";
 import { listStockAlerts } from "@/lib/stock-alerts";
 import { PortfolioHow, PortfolioIntro, PortfolioView } from "@/components/portfolio/portfolio-view";
 import type { PortfolioAlert, PortfolioSignal } from "@/components/portfolio/alerts-tab";
 import { PortfolioGhost } from "@/components/portfolio/portfolio-ghost";
 import { RadarPageAnalytics } from "@/components/radar-page-analytics";
-import { OaSiteHeader } from "@/components/oa/oa-site-header";
-import { interTight } from "@/components/oa/font";
 
-export const dynamic = "force-dynamic";
+/**
+ * The holdings editor under My stocks (/portfolio?tab=holdings, watching or alerts; it was /watchlist until Nov 11):
+ * the person's holdings as an editable table (shares, average cost, remove), the stocks they watch, and their alerts.
+ * Signed out or with nothing tracked, it is the example portfolio under a line on how to start. Every read and write
+ * is the one /watchlist made; only the address changed.
+ */
 
-export const metadata: Metadata = {
-  title: "Portfolio",
-  description:
-    "Track the stocks you own and the ones you are watching: value, today's move, gain, our call with its price zone, and the next earnings date.",
-};
-
-type Search = Record<string, string | string[] | undefined>;
-
-function first(value: string | string[] | undefined): string {
-  return Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
-}
-
-export default async function WatchlistPage({ searchParams }: { searchParams: Promise<Search> }) {
-  const search = await searchParams;
-  return (
-    <main className={`oa-landing ${interTight.variable} min-w-0 flex-grow overflow-x-clip`}>
-      <OaSiteHeader />
-      <div className="oa-page-frame mx-auto w-full max-w-[76rem] px-2 pb-24 pt-3 sm:px-6 sm:pt-5 lg:pb-10">
-        <Suspense fallback={<PortfolioGhost />}>
-          <PortfolioStream tab={first(search.tab)} />
-        </Suspense>
-      </div>
-    </main>
-  );
-}
-
-/** One slim line of what this is, then the example as the lead; how it works sits under it. */
-function ExampleState({ signedIn }: { signedIn: boolean }) {
-  return (
-    <div className="flex flex-col gap-3">
+/** One slim line of what this is, then the example as the lead (under the tabs); how it works sits under it. */
+function ExampleState({ signedIn, tab }: { signedIn: boolean; tab: PortfolioTab }) {
+  const lead = (
+    <>
       <PortfolioIntro signedIn={signedIn} freeLimit={FREE_COVERED_STOCKS} />
       <p className="mt-2 px-2 text-[14px] leading-5 text-oa-muted-fg sm:px-0">
         <span className="font-medium text-oa-fg">Here&apos;s what it looks like</span>, with example stocks and made-up share counts.
       </p>
+    </>
+  );
+  return (
+    <div className="flex flex-col gap-3">
       <Suspense fallback={<PortfolioGhost />}>
-        <ExamplePortfolio />
+        <ExamplePortfolio tab={tab} lead={lead} />
       </Suspense>
       <PortfolioHow />
     </div>
   );
 }
 
-async function ExamplePortfolio() {
+async function ExamplePortfolio({ tab, lead }: { tab: PortfolioTab; lead: React.ReactNode }) {
   const example = await loadExamplePortfolio().catch(() => null);
-  if (!example) return null;
+  if (!example) return <>{lead}</>;
   const today = newYorkToday();
   const tickers = [...example.portfolio.positions, ...example.portfolio.watching].map((position) => position.ticker);
   const facts = await getSnapshotFacts(tickers);
@@ -97,14 +77,27 @@ async function ExamplePortfolio() {
     callChanges: [],
     example: true,
   });
-  return <PortfolioView portfolio={example.portfolio} mode="example" today={today} pricesAsOf={example.pricesAsOf} pricesWords={pricesWords(example.pricesAsOf)} reads={reads} />;
+  return (
+    <PortfolioView
+      // A link to another tab starts the view on that tab; a refresh after an edit keeps the one the person chose.
+      key={tab}
+      portfolio={example.portfolio}
+      mode="example"
+      today={today}
+      initialTab={tab}
+      lead={lead}
+      pricesAsOf={example.pricesAsOf}
+      pricesWords={pricesWords(example.pricesAsOf)}
+      reads={reads}
+    />
+  );
 }
 
 function asString(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value : null;
 }
 
-async function PortfolioStream({ tab }: { tab: string }) {
+export async function HoldingsStream({ tab }: { tab: PortfolioTab }) {
   const session = await getSessionUser();
   const uid = session?.uid ?? null;
 
@@ -112,7 +105,7 @@ async function PortfolioStream({ tab }: { tab: string }) {
     return (
       <>
         <RadarPageAnalytics state="signed_out" trackedCount={0} isSubscribed={false} />
-        <ExampleState signedIn={false} />
+        <ExampleState signedIn={false} tab={tab} />
       </>
     );
   }
@@ -125,7 +118,7 @@ async function PortfolioStream({ tab }: { tab: string }) {
     return (
       <>
         <RadarPageAnalytics state="empty" trackedCount={0} isSubscribed={isSubscribed} />
-        <ExampleState signedIn />
+        <ExampleState signedIn tab={tab} />
       </>
     );
   }
@@ -327,10 +320,11 @@ async function PortfolioStream({ tab }: { tab: string }) {
     <>
       <RadarPageAnalytics state="active" trackedCount={hubRows.length} isSubscribed={isSubscribed} />
       <PortfolioView
+        key={tab}
         portfolio={portfolio}
         mode="live"
         today={newYorkToday(now)}
-        initialTab={parsePortfolioTab(tab)}
+        initialTab={tab}
         isSubscribed={isSubscribed}
         coverage={
           viewer.plan === "free" && viewer.coverage

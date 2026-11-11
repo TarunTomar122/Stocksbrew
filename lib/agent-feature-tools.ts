@@ -129,7 +129,7 @@ function noHoldings(userDoc: UserDoc | null, feature: string, path: string) {
   return {
     data_status: "no_holdings",
     message,
-    edit_link: link("/watchlist"),
+    edit_link: link("/portfolio?tab=holdings"),
     link: link(path),
   };
 }
@@ -233,7 +233,7 @@ export async function getAgentDividendPlan(uid: string, input: { payments?: bool
   const seeds = holdingSeeds(userDoc);
   if (seeds.length === 0) return envelope(noHoldings(userDoc, "The dividend planner", "/portfolio/dividends"), null, FRESHNESS.prices);
   const { plan, pricesAsOf, calendarOk } = await loadDividendPlan(seeds);
-  const read = buildDividendRead(plan, { example: false, editHref: "/watchlist" });
+  const read = buildDividendRead(plan, { example: false, editHref: "/portfolio?tab=holdings" });
   const noShares = plan.stocks.length > 0 && plan.stocks.every((stock) => stock.shares === null);
   return envelope({
     data_status: noShares ? "no_shares" : "available",

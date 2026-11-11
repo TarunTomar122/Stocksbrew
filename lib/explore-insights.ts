@@ -125,8 +125,8 @@ export type GiantForRead = { symbol: string; name: string; day: number; cap: num
 
 /**
  * Market today's single-stock part: how the biggest companies did, since they
- * carry the most weight in the S&P 500. Moves with a reason have their own
- * page (Why stocks moved), so this never lists the day's biggest movers.
+ * carry the most weight in the S&P 500. The day's biggest movers are the
+ * list under the read (/explore#moves), so this never lists them.
  * Average weighted by company value; the one that pulled hardest is the
  * largest value-times-move. Null with fewer than five companies, and null
  * when `day` (the day the rows are priced on) is not `session` (the market's

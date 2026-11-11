@@ -153,7 +153,7 @@ export function AlertsTab({
                   ? ((alert.target_price - price) / price) * 100
                   : null;
               return (
-                <li key={alert.id} className="grid min-h-11 grid-cols-[5.75rem_minmax(0,1fr)_auto] items-center gap-x-3 px-3 py-1.5">
+                <li key={alert.id} className="group grid min-h-11 grid-cols-[5.75rem_minmax(0,1fr)_auto] items-center gap-x-3 px-3 py-1.5 hover:bg-oa-accent">
                   <Link href={`/stock/${alert.ticker}`} className="oa-mono inline-flex items-center gap-1.5 text-[13px] font-medium text-oa-fg hover:underline">
                     <StockLogo ticker={alert.ticker} size={18} />
                     {alert.ticker}
@@ -174,7 +174,10 @@ export function AlertsTab({
                     type="button"
                     onClick={() => void remove(alert)}
                     disabled={removing === alert.id}
-                    className={`rounded border border-oa-border px-2 py-1 text-[12px] font-medium text-oa-muted-fg hover:text-signal-bearish disabled:opacity-50 ${FOCUS}`}
+                    aria-label={`Remove the ${alert.ticker} alert`}
+                    // Not on every row at rest (owner rule 1): it shows on the row under the pointer, or when focused.
+                    // A touch screen has no hover, so there it stays in view.
+                    className={`rounded border border-oa-border px-2 py-1 text-[12px] font-medium text-oa-muted-fg hover:text-signal-bearish disabled:opacity-50 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100 ${removing === alert.id ? "!opacity-100" : ""} ${FOCUS}`}
                   >
                     {removing === alert.id ? "Removing" : "Remove"}
                   </button>

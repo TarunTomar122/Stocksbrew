@@ -71,7 +71,7 @@ async function loadRadarRepeatVisitors(periodDays: number): Promise<{
     FROM events
     WHERE timestamp > now() - ${interval}
       AND event = '$pageview'
-      AND properties.path = '/watchlist'
+      AND properties.path IN ('/watchlist', '/portfolio')
       AND ${POSTHOG_DOMAIN_SQL}
     GROUP BY distinct_id
     HAVING visits > 1

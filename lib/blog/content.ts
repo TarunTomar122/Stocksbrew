@@ -2259,7 +2259,7 @@ export const blogContent: Record<string, string> = {
 <div class="cta-section">
   <h3>Build a Watchlist Around Real Decisions</h3>
   <p>Track three US stocks free, then use calls, earnings context, and alerts to keep the research current.</p>
-  <a href="/watchlist" class="cta-button">Open Watchlist →</a>
+  <a href="/portfolio" class="cta-button">Open Watchlist →</a>
 </div>
 
 <p>Related: <a href="/blog/earnings-season-watchlist-playbook">Earnings Watchlist Workflow</a> and <a href="/blog/stock-research-checklist-evidence-first">How to Research a Stock</a>.</p>

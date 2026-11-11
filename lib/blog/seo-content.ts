@@ -1189,7 +1189,7 @@ export const seoBlogContent: Record<string, string> = {
 <div class="cta-section">
   <h3>Never Miss a Report on Your List</h3>
   <p>Add holdings and watchlist names to Watchlist. Earnings dates, directives, and post-print stance updates — free for 3 stocks.</p>
-  <a href="/watchlist" class="cta-button">Open Watchlist →</a>
+  <a href="/portfolio" class="cta-button">Open Watchlist →</a>
 </div>
 `,
   "stock-market-information-overload": `

@@ -249,7 +249,7 @@ export function TrackButton({
         if (data.first_stock) {
           // The first add is the activation moment. Show the user the Radar
           // they just created instead of leaving them on the acquisition page.
-          window.location.assign("/watchlist");
+          window.location.assign("/portfolio?tab=holdings");
         }
       } finally {
         setPendingOp(null);

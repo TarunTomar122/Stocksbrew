@@ -73,6 +73,14 @@ const nextConfig = {
       { source: "/agents/jobs", destination: "/agents", permanent: true },
       { source: "/subscribe", destination: "/pricing", permanent: false },
       // Retired pages that still answered with old calls in old words. Each goes to the page that replaced it.
+      // One Today read (Nov 11, round 3): the day's moves live on Market today. Each past day keeps its own page
+      // (/movers/2026-11-10); the hub that retold today with older prices goes to the list on Market today.
+      { source: "/movers", destination: "/explore#moves", permanent: true },
+      // /signals?tab=movers (the old movers tab) is redirected in middleware.ts, so its filters are not carried along.
+      // One My stocks home: /portfolio holds the overview and the holdings editor (?tab=holdings|watching|alerts).
+      // The query is passed on, so /watchlist?tab=watching opens that tab and ?reasons=1 still opens the reasons.
+      { source: "/watchlist", destination: "/portfolio", permanent: true },
+      { source: "/watchlist/tax", destination: "/portfolio/taxes", permanent: true },
       { source: "/watchlist/classic", destination: "/portfolio", permanent: true },
       { source: "/watchlist/next", destination: "/portfolio", permanent: true },
       { source: "/watchlist/portfolio", destination: "/portfolio", permanent: true },
@@ -100,7 +108,7 @@ const nextConfig = {
       { source: "/use-cases/retirement-planning", destination: "/strategies", permanent: true },
       { source: "/use-cases/long-term-investing", destination: "/blog/fundamental-stock-analysis-framework", permanent: true },
       { source: "/use-cases/swing-trading", destination: "/screener", permanent: true },
-      { source: "/use-cases/day-trading", destination: "/signals?tab=movers", permanent: true },
+      { source: "/use-cases/day-trading", destination: "/explore#moves", permanent: true },
       { source: "/use-cases/:path*", destination: "/blog", permanent: true },
       { source: "/free-tools", destination: "/docs/tools", permanent: true },
       { source: "/editorial-policy", destination: "/docs/methodology", permanent: true },
@@ -138,7 +146,7 @@ const nextConfig = {
         destination: "/screener",
         permanent: true,
       },
-      { source: "/anomalies", destination: "/signals?tab=movers", permanent: true },
+      { source: "/anomalies", destination: "/explore#moves", permanent: true },
       // Blog consolidation — alerts cluster
       {
         source: "/blog/ai-stock-alerts-vs-price-alerts",

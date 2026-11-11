@@ -111,7 +111,7 @@ export function buildWelcomeProEmail(params: {
       </td></tr>
       <tr><td style="padding:18px 28px 28px 28px">
         <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
-          <a href="${APP_URL}/watchlist" style="display:inline-block;padding:12px 20px;border-radius:10px;background:${PRIMARY};color:#ffffff;font-size:14px;font-weight:600;text-decoration:none">
+          <a href="${APP_URL}/portfolio" style="display:inline-block;padding:12px 20px;border-radius:10px;background:${PRIMARY};color:#ffffff;font-size:14px;font-weight:600;text-decoration:none">
             Open your Watchlist &#8594;
           </a>
         </td></tr></table>

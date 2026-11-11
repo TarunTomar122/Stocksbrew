@@ -393,7 +393,7 @@ function BasisNote({ view }: { view: IdeasData }) {
     return (
       <>
         Where you entered lots on the Taxes page we use them. Otherwise we count a holding from the day you saved it, at its average cost, so shares bought earlier may already be long term, and a holding with no cost gets no estimate.{" "}
-        <Link href="/watchlist/tax" className="font-medium text-oa-primary hover:underline">
+        <Link href="/portfolio/taxes" className="font-medium text-oa-primary hover:underline">
           Add your buys on the Taxes page
         </Link>{" "}
         for exact dates.

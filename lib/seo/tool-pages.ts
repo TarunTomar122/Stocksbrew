@@ -123,14 +123,14 @@ export const TOOL_PAGE_SEO = {
     crumbs: [{ name: "Agents", path: "/agents" }],
   },
   "/explore": {
-    title: "Stock market today: every sector, yields and oil",
+    title: "Stock market today: why stocks moved, by sector",
     description:
-      "How the US stock market did today in three plain points, then every sector and what moved across yields, oil, gold and crypto.",
+      "How the US stock market did today in three plain points, why the biggest stocks moved with a sourced reason, every sector, and yields, oil, gold, crypto.",
     card: ["page", "explore"],
     alt: "Today's read of the US stock market",
     daily: true,
     crumbs: [{ name: "Market today", path: "/explore" }],
-    keywords: ["stock market today", "why is the stock market up today", "why is the stock market down today", "sector performance today", "market movers today"],
+    keywords: ["stock market today", "why stocks moved today", "why is the stock market up today", "why is the stock market down today", "sector performance today", "market movers today"],
   },
   "/markets": {
     title: "Market prices: indices, yields, oil, gold, crypto",

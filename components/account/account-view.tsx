@@ -467,7 +467,7 @@ export function AccountView({ data }: { data: AccountData }) {
           )}
           <p className="text-[13.5px] leading-5 text-oa-muted-fg">
             Your stocks and alerts live in{" "}
-            <Link prefetch={false} href="/watchlist" className={TEXT_LINK}>
+            <Link prefetch={false} href="/portfolio" className={TEXT_LINK}>
               Portfolio
             </Link>
             .

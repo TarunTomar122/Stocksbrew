@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 
 import { TheRead } from "@/components/oa/insight";
-import { AppPage, PageHead, SourceLine, fmtStampET } from "@/components/oa/kit";
+import { AppPage, PageHead } from "@/components/oa/kit";
 import { MarketingSchema } from "@/components/seo/marketing-schema";
-import { MoversTab, PolicyTab, RedditTab, SignalsBar, TodayTab } from "@/components/signals/signals-view";
+import { PolicyTab, RedditTab, SignalsBar, TodayTab } from "@/components/signals/signals-view";
 import { clipByAge } from "@/lib/entitlements";
 import { getViewer } from "@/lib/entitlements-server";
 import { loadMovers, loadPolicy, loadReddit } from "@/lib/signals";
-import { buildMoversRead, buildPolicyRead, buildRedditRead, buildSignalsTodayRead, moversPricedAt } from "@/lib/signals-insights";
+import { buildPolicyRead, buildRedditRead, buildSignalsTodayRead } from "@/lib/signals-insights";
 import { SIGNALS_TABS, parseSignalsFilters, pickToday, signalsHref } from "@/lib/signals-shared";
 import { ogImage } from "@/lib/og/url";
 import { loadUpcomingReports, todayET, withReports } from "@/app/(app)/explore/desk-data";
@@ -15,14 +15,10 @@ import { loadUpcomingReports, todayET, withReports } from "@/app/(app)/explore/d
 export const dynamic = "force-dynamic";
 
 const DESCRIPTION =
-  "Unusual stock moves with the reason we could confirm, the stocks Reddit is loudest about against their own baseline, and Trump's market posts with the move since.";
+  "The stocks Reddit is loudest about against their own baseline, what people say about each one, and Trump's market posts with the move since.";
 
 /** Each tab answers a different search, so each has its own title and address. Filters inside a tab keep the tab's address. */
 const TAB_META: Record<string, { title: string; description: string }> = {
-  movers: {
-    title: "Unusual Stock Movers Today, with the Reason When We Found One",
-    description: "The US stocks moving most against their own normal range today. Each one says why it moved when we could confirm a reason, and says so when we could not.",
-  },
   reddit: {
     title: "Most Mentioned Stocks on Reddit",
     description: "The stocks Reddit is loudest about, each measured against its own usual level of mentions.",
@@ -36,10 +32,10 @@ const TAB_META: Record<string, { title: string; description: string }> = {
 export function generateMetadata({ searchParams }: { searchParams?: SearchParams }): Metadata {
   const tab = parseSignalsFilters(searchParams).tab;
   const own = TAB_META[tab];
-  const title = own?.title ?? "Stock Signals: Unusual Movers, Reddit Mentions and Policy Posts";
+  const title = own?.title ?? "Stock Signals: Reddit Mentions and the President's Market Posts";
   const description = own?.description ?? DESCRIPTION;
   const canonical = own ? `/signals?tab=${tab}` : "/signals";
-  const shareImage = ogImage(["page", "signals"], "Today's signals: unusual movers, Reddit and policy posts", { daily: true });
+  const shareImage = ogImage(["page", "signals"], "Today's signals: Reddit and policy posts", { daily: true });
   return {
     title,
     description,
@@ -62,38 +58,30 @@ export default async function SignalsPage({ searchParams }: { searchParams?: Sea
   const archive = clipByAge("signals_archive", viewer.plan, policyAll.posts, (post) => post.publishedAt, now);
   const policy = { ...policyAll, posts: archive.items };
 
-  const counts = { today: null, movers: movers.movers.length, reddit: reddit.names.length, policy: policy.posts.length } as const;
+  const counts = { today: null, reddit: reddit.names.length, policy: policy.posts.length } as const;
   const tabs = SIGNALS_TABS.map((tab) => ({ id: tab.id, label: tab.label, href: signalsHref(filters, { tab: tab.id }), count: counts[tab.id] }));
 
-  // Intraday moves are the only thing here where the time matters to the reader: the time they were priced, not when
-  // the feed was last written up (a reason found at 11 AM does not make a 9:58 AM move any newer).
-  const movesAt = moversPricedAt(movers.movers, movers.generatedAt);
-  const source = filters.tab === "today" || filters.tab === "movers" ? <SourceLine asOf={fmtStampET(movesAt)} /> : null;
-
-  // The read for the tab: what the rows below add up to, computed from them.
+  // The read for the tab: what the rows below add up to, computed from them. The movers only feed the Today tab's
+  // one line about the day's moves (the list itself is on Market today).
   const read =
-    filters.tab === "movers"
-      ? buildMoversRead(movers.movers, movers.generatedAt, now)
-      : filters.tab === "reddit"
-        ? buildRedditRead(reddit.names, reddit.generatedAt)
-        : filters.tab === "policy"
-          ? buildPolicyRead(policy.posts, now, policy.generatedAt)
-          : buildSignalsTodayRead(movers.movers, reddit.names, policy.posts, now, movers.generatedAt, reddit.generatedAt);
+    filters.tab === "reddit"
+      ? buildRedditRead(reddit.names, reddit.generatedAt)
+      : filters.tab === "policy"
+        ? buildPolicyRead(policy.posts, now, policy.generatedAt)
+        : buildSignalsTodayRead(movers.movers, reddit.names, policy.posts, now, movers.generatedAt, reddit.generatedAt);
 
   return (
     <AppPage>
       <MarketingSchema path="/signals" name="Market Signals" description={DESCRIPTION} breadcrumbLabel="Signals" />
       <PageHead
         title="Signals: what people are saying about stocks"
-        lede="What Reddit is talking about and what the President posted about the market. The day's big moves and their reasons are on Why stocks moved."
-        meta={source}
+        lede="What Reddit is talking about and what the President posted about the market. The day's big moves and their reasons are on Market today."
       />
-      <SignalsBar tabs={tabs} filters={filters} movers={movers} policy={policy} />
+      <SignalsBar tabs={tabs} filters={filters} policy={policy} />
       <TheRead read={read ? withReports(read, upcoming, today) : read} className="mb-4" />
       {filters.tab === "today" ? (
         <TodayTab pick={pickToday(movers.movers, reddit.names, policy.posts, now)} movers={movers} reddit={reddit} policy={policy} filters={filters} now={now} />
       ) : null}
-      {filters.tab === "movers" ? <MoversTab data={movers} filters={filters} /> : null}
       {filters.tab === "reddit" ? <RedditTab data={reddit} /> : null}
       {filters.tab === "policy" ? (
         <PolicyTab

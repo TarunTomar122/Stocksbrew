@@ -16,7 +16,7 @@ describe("the five places", () => {
   it("lists every app route under exactly one place", () => {
     const hrefs = PLACES.flatMap((item) => item.sections.map((sub) => sub.href));
     expect(new Set(hrefs).size).toBe(hrefs.length);
-    for (const href of ["/briefing", "/explore", "/movers", "/signals", "/news", "/calendar", "/portfolio", "/watchlist", "/watchlist/tax", "/practice", "/screener", "/best", "/sectors", "/compare", "/markets", "/filings", "/ask", "/themes", "/strategies", "/backtest", "/follow", "/insiders", "/agents", "/inbox"]) {
+    for (const href of ["/briefing", "/explore", "/signals", "/news", "/calendar", "/portfolio", "/portfolio/taxes", "/practice", "/screener", "/best", "/sectors", "/compare", "/markets", "/filings", "/ask", "/themes", "/strategies", "/backtest", "/follow", "/insiders", "/agents", "/inbox"]) {
       expect(hrefs).toContain(href);
     }
   });
@@ -26,10 +26,9 @@ describe("placeFor and sectionFor", () => {
   it("lights one place on every app page, deep pages included", () => {
     expect(place("/briefing")).toBe("Today");
     expect(place("/explore")).toBe("Today");
-    expect(place("/movers")).toBe("Today");
     expect(place("/movers/2026-11-10")).toBe("Today");
     expect(place("/calendar/earnings/NVDA")).toBe("Today");
-    expect(place("/watchlist/tax")).toBe("My stocks");
+    expect(place("/portfolio/taxes")).toBe("My stocks");
     expect(place("/portfolio")).toBe("My stocks");
     expect(place("/import")).toBe("My stocks");
     expect(place("/stock/NVDA")).toBe("Research");
@@ -53,9 +52,9 @@ describe("placeFor and sectionFor", () => {
   });
 
   it("picks the longest matching section", () => {
-    expect(sectionOf("/watchlist")).toBe("Portfolio");
-    expect(sectionOf("/watchlist/tax")).toBe("Taxes");
-    expect(sectionOf("/movers/2026-11-10")).toBe("Why stocks moved");
+    expect(sectionOf("/portfolio/taxes")).toBe("Taxes");
+    // A past day of moves belongs to Market today, the one read of the day's moves.
+    expect(sectionOf("/movers/2026-11-10")).toBe("Market today");
     expect(sectionOf("/sectors/technology")).toBe("Sectors");
     expect(sectionOf("/best/dividend-stocks")).toBe("Best stock lists");
     expect(sectionOf("/stock/NVDA")).toBeNull();
@@ -69,8 +68,8 @@ describe("placeFor and sectionFor", () => {
     expect(sectionOf("/portfolio/earnings")).toBe("Earnings season");
     expect(sectionOf("/portfolio/goal")).toBe("Goal planner");
     expect(sectionOf("/portfolio/ideas")).toBe("Rebalancing ideas");
-    expect(sectionOf("/watchlist/tax")).toBe("Taxes");
-    expect(sectionOf("/import")).toBe("Portfolio");
+    expect(sectionOf("/portfolio/taxes")).toBe("Taxes");
+    expect(sectionOf("/import")).toBe("Overview");
     expect(sectionOf("/practice")).toBe("Practice account");
   });
 
@@ -78,7 +77,6 @@ describe("placeFor and sectionFor", () => {
     const sections = PLACES.find((item) => item.label === "My stocks")!.sections;
     expect(sections.map((item) => [item.label, item.group ?? null])).toEqual([
       ["Overview", null],
-      ["Portfolio", "Your stocks"],
       ["Weekly memo", "Your stocks"],
       ["What you own", "Your stocks"],
       ["Earnings season", "Plan ahead"],
@@ -103,13 +101,11 @@ describe("placeFor and sectionFor", () => {
 describe("trailFor", () => {
   it("is empty on a place's or a section's own page", () => {
     expect(trailFor("/briefing")).toEqual([]);
-    expect(trailFor("/movers")).toEqual([]);
     expect(trailFor("/screener")).toEqual([]);
     expect(trailFor("/sectors")).toEqual([]);
     expect(trailFor("/insiders/")).toEqual([]);
     expect(trailFor("/portfolio")).toEqual([]);
     expect(trailFor("/portfolio/memo")).toEqual([]);
-    expect(trailFor("/watchlist")).toEqual([]);
   });
 
   it("says the way back the same way on every deep page", () => {
@@ -120,12 +116,12 @@ describe("trailFor", () => {
     expect(trail("/sectors/technology")).toBe("Research › Sectors");
     expect(trail("/compare/amd-vs-nvda")).toBe("Research › Compare");
     expect(trail("/markets/crypto/BTC")).toBe("Research › Markets › Crypto");
-    expect(trail("/movers/2026-11-10")).toBe("Today › Why stocks moved");
+    expect(trail("/movers/2026-11-10")).toBe("Today › Market today");
     expect(trail("/calendar/earnings/NVDA")).toBe("Today › Calendar");
     expect(trail("/follow/berkshire-hathaway")).toBe("Follow investors");
     expect(trail("/insiders/NVDA")).toBe("Follow investors › Insiders");
     expect(trail("/themes/ai-power")).toBe("Research › Themes");
-    expect(trail("/import")).toBe("My stocks › Portfolio");
+    expect(trail("/import")).toBe("My stocks");
   });
 
   it("links each step to its page", () => {
@@ -163,9 +159,9 @@ describe("stripOrder", () => {
   };
 
   it("puts the page you are on first, then the ones after it, then the ones before", () => {
-    expect(labels("/briefing")).toEqual(["Briefing", "Premarket", "Market today", "Why stocks moved", "Signals", "News", "Calendar"]);
-    expect(labels("/news")).toEqual(["News", "Calendar", "Briefing", "Premarket", "Market today", "Why stocks moved", "Signals"]);
-    expect(labels("/movers/2026-11-10")[0]).toBe("Why stocks moved");
+    expect(labels("/briefing")).toEqual(["Briefing", "Premarket", "Market today", "Signals", "News", "Calendar"]);
+    expect(labels("/news")).toEqual(["News", "Calendar", "Briefing", "Premarket", "Market today", "Signals"]);
+    expect(labels("/movers/2026-11-10")[0]).toBe("Market today");
   });
 
   it("keeps the place's own order where no section is lit, and lists every section once", () => {

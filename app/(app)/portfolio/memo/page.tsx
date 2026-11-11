@@ -39,7 +39,7 @@ export default async function MemoPage({ searchParams }: { searchParams: Promise
       <PageHead
         title="Weekly memo"
         crumb={
-          <Link href="/watchlist" className="underline decoration-oa-border underline-offset-2 hover:text-oa-fg">
+          <Link href="/portfolio?tab=holdings" className="underline decoration-oa-border underline-offset-2 hover:text-oa-fg">
             Portfolio
           </Link>
         }
@@ -105,7 +105,7 @@ async function MemoBody({ week }: { week: string | null }) {
       ) : viewer.signedIn ? (
         <>
           You have no holdings marked yet, so this is the example portfolio&apos;s memo.{" "}
-          <Link href="/watchlist" className="font-medium text-oa-primary hover:underline">
+          <Link href="/portfolio?tab=holdings" className="font-medium text-oa-primary hover:underline">
             Mark the stocks you own in Portfolio
           </Link>{" "}
           and the memo is about yours.
@@ -113,7 +113,7 @@ async function MemoBody({ week }: { week: string | null }) {
       ) : (
         <>
           This is the memo for an example portfolio of real stocks and funds with made-up share counts.{" "}
-          <Link href="/watchlist" className="font-medium text-oa-primary hover:underline">
+          <Link href="/portfolio?tab=holdings" className="font-medium text-oa-primary hover:underline">
             Sign in and add your holdings
           </Link>{" "}
           to get one on yours every week.

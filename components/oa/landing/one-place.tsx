@@ -37,7 +37,7 @@ export async function OnePlace() {
   const view = book.state === "ready" ? exampleBookView(book.value, extra) : null;
   if (!view) {
     return (
-      <SquircleCard title="Example list" seeAllHref="/watchlist">
+      <SquircleCard title="Example list" seeAllHref="/portfolio?tab=holdings">
         <EmptyRow>Prices are refreshing. Open your stocks to see your own list.</EmptyRow>
       </SquircleCard>
     );

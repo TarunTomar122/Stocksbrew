@@ -5,7 +5,7 @@ import { FREE_COVERED_STOCKS, limitFor } from "@/lib/entitlements";
 const UPDATED = "2026-11-09";
 /** Guides whose facts were rechecked against the code and changed. */
 const REVISED = "2026-11-10";
-const SURFACE = { label: "Open Portfolio", href: "/watchlist" };
+const SURFACE = { label: "Open your holdings", href: "/portfolio?tab=holdings" };
 
 export const PORTFOLIO_GUIDES: Guide[] = [
   {
@@ -62,7 +62,7 @@ export const PORTFOLIO_GUIDES: Guide[] = [
     section: "portfolio",
     slug: "analytics",
     title: "Portfolio analytics",
-    summary: "What the analytics tab works out from your holdings, how each figure is computed and what it leaves out.",
+    summary: "What the figures under your holdings work out, how each one is computed and what it leaves out.",
     updated: REVISED,
     surface: SURFACE,
     blocks: [

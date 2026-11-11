@@ -98,7 +98,7 @@ describe("prioritise", () => {
   it("sends the example's tax row to the ideas page, where the example's losses are shown", () => {
     const { fold } = prioritise([], sources(), "example");
     expect(fold.find((row) => row.key === "tool-taxes")?.href).toBe("/portfolio/ideas");
-    expect(prioritise([], sources(), "mine").fold.find((row) => row.key === "tool-taxes")?.href).toBe("/watchlist/tax");
+    expect(prioritise([], sources(), "mine").fold.find((row) => row.key === "tool-taxes")?.href).toBe("/portfolio/taxes");
   });
 
   it("says plainly when a tool did not answer in time", () => {

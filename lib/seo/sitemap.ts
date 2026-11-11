@@ -87,7 +87,6 @@ const PAGES = [
   "/calendar",
   ...CALENDAR_TYPES.map((type) => `/calendar?type=${type.id}`),
   "/signals",
-  "/signals?tab=movers",
   "/signals?tab=reddit",
   "/signals?tab=policy",
   "/screener",
@@ -213,7 +212,6 @@ export async function sitemapEntries(family: SitemapFamily, today: string = toda
       const indexable = new Set(indexableStockSymbols(coverage, today));
       const since = dayMinus(today, MOVE_SITEMAP_DAYS);
       const recent = moves.filter((move) => move.day >= since);
-      if (recent.length) entries.push({ path: "/movers", lastmod: day(recent[0]!.researchedAt) ?? recent[0]!.day });
       const perDay = new Map<string, typeof recent>();
       for (const move of recent) perDay.set(move.day, [...(perDay.get(move.day) ?? []), move]);
       for (const [moveDay, list] of [...perDay.entries()].sort((a, b) => b[0].localeCompare(a[0]))) {

@@ -180,7 +180,7 @@ export const researchBlogContent: Record<string, string> = {
   <li>the explicit invalidation condition.</li>
 </ul>
 
-<p>Use <a href="/calendar?type=earnings">Earnings</a> for dates, <a href="/news">News</a> for ticker-specific developments, and <a href="/watchlist">Watchlist</a> to monitor calls and risk flags. These tools reduce the scanning burden; they do not change the underlying evidence standard.</p>
+<p>Use <a href="/calendar?type=earnings">Earnings</a> for dates, <a href="/news">News</a> for ticker-specific developments, and <a href="/portfolio">Watchlist</a> to monitor calls and risk flags. These tools reduce the scanning burden; they do not change the underlying evidence standard.</p>
 
 <h2 id="ai-boundary">Where AI helps—and where it should stop</h2>
 
@@ -324,7 +324,7 @@ export const researchBlogContent: Record<string, string> = {
 <div class="cta-section">
   <h3>Try the monitoring layer</h3>
   <p>Add three US stocks to Watchlist free. Keep your screener and charting workflow; use stocksbrew to track what changes afterward.</p>
-  <a href="/watchlist" class="cta-button">Open Watchlist →</a>
+  <a href="/portfolio" class="cta-button">Open Watchlist →</a>
 </div>
 `,
 };

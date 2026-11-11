@@ -109,7 +109,7 @@ export const MAX_NOTICED = 5;
 export const MIN_NOTICED = 3;
 
 const CAPTIONS: Record<ToolId, string> = {
-  portfolio: "Portfolio",
+  portfolio: "Holdings",
   memo: "Weekly memo",
   xray: "What you own",
   earnings: "Earnings season",
@@ -121,7 +121,7 @@ const CAPTIONS: Record<ToolId, string> = {
 };
 
 export const TOOL_HREF: Record<ToolId, string> = {
-  portfolio: "/watchlist",
+  portfolio: "/portfolio?tab=holdings",
   memo: "/portfolio/memo",
   xray: "/portfolio/xray",
   earnings: "/portfolio/earnings",
@@ -129,7 +129,7 @@ export const TOOL_HREF: Record<ToolId, string> = {
   goal: "/portfolio/goal",
   stress: "/portfolio/stress",
   ideas: "/portfolio/ideas",
-  taxes: "/watchlist/tax",
+  taxes: "/portfolio/taxes",
 };
 
 function ready<T>(loaded: Loaded<T> | undefined): T | null {
@@ -567,7 +567,7 @@ function reasonsItem(source: ReasonsSource, example: boolean): Noticed | null {
         : `${n === 1 ? "The reason we checked still holds" : `All ${n} reasons we checked still hold`}.${missing > 0 ? ` ${missing === 1 ? "One holding has" : `${capital(countWord(missing))} holdings have`} no reason yet.` : ""}`,
       evidence: line ? `${backer.ticker}: ${line.text}` : null,
       ticker: line ? backer.ticker : null,
-      open: example ? { label: "See the example portfolio", href: TOOL_HREF.portfolio } : { label: missing > 0 ? "Add your reasons" : "Review your reasons", href: "/watchlist?reasons=1" },
+      open: example ? { label: "See the example portfolio", href: TOOL_HREF.portfolio } : { label: missing > 0 ? "Add your reasons" : "Review your reasons", href: "/portfolio?tab=holdings&reasons=1" },
       watch: null,
       priority: 30,
     };
@@ -585,7 +585,7 @@ function reasonsItem(source: ReasonsSource, example: boolean): Noticed | null {
         : "We could not check your reasons today.",
     evidence: source.withReason === 0 ? "Give each one a reason and the agent checks it against the company's numbers, and marks it when it weakens or breaks." : null,
     ticker: null,
-    open: { label: "Add your reasons", href: "/watchlist?reasons=1" },
+    open: { label: "Add your reasons", href: "/portfolio?tab=holdings&reasons=1" },
     watch: null,
     priority: 25,
   };

@@ -439,7 +439,7 @@ export function BriefingView({
               ) : (
                 <>
                   <span>Market view.</span>
-                  <Link prefetch={false} href="/watchlist" className="-my-2.5 inline-flex h-10 items-center text-oa-primary underline decoration-[color-mix(in_srgb,var(--oa-primary)_40%,transparent)] underline-offset-2 sm:my-0 sm:h-5">
+                  <Link prefetch={false} href="/portfolio?tab=holdings" className="-my-2.5 inline-flex h-10 items-center text-oa-primary underline decoration-[color-mix(in_srgb,var(--oa-primary)_40%,transparent)] underline-offset-2 sm:my-0 sm:h-5">
                     Add a stock you hold or watch
                   </Link>
                   <span>to make it yours.</span>
@@ -668,7 +668,7 @@ export function BriefingView({
             <MoverRows title="Biggest gains" rows={briefing.market.gainers} asOf={sourceTime(briefing.market.as_of)} />
             <MoverRows title="Biggest drops" rows={briefing.market.losers} asOf={briefing.market.gainers.length > 0 ? null : sourceTime(briefing.market.as_of)} />
             <div className="flex min-h-10 items-center justify-end px-4 py-1">
-              <Link prefetch={false} href="/movers" className="-my-2 inline-flex min-h-10 items-center text-[13px] font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
+              <Link prefetch={false} href="/explore#moves" className="-my-2 inline-flex min-h-10 items-center text-[13px] font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
                 See all stock moves
               </Link>
             </div>

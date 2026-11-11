@@ -1,21 +1,19 @@
 import * as React from "react";
 import Link from "next/link";
 
-import { Delta, Empty, FOCUS, NUM, Panel, TabBar, Ticker, Verdict, fmtAgo, fmtDay, fmtMoney, fmtStampET, type TabItem } from "@/components/oa/kit";
+import { Delta, Empty, FOCUS, NUM, Panel, TabBar, Ticker, Verdict, fmtAgo, fmtDay, fmtStampET, type TabItem } from "@/components/oa/kit";
 import type { MoversData, PolicyData, RedditData, RedditThread } from "@/lib/signals";
 import { MoreLocked } from "@/components/oa/gate";
 import { StockLogo } from "@/components/stock-logo";
 import type { Plan } from "@/lib/entitlements";
 import {
   POLICY_PAGE_SIZE,
-  filterMovers,
   filterPolicy,
   moverCounts,
   rankReddit,
   redditHighlight,
   signalsHref,
   type MentionVelocity,
-  type Mover,
   type PolicyPost,
   type RedditName,
   type SignalsFilters,
@@ -23,8 +21,7 @@ import {
   type TodayPick,
 } from "@/lib/signals-shared";
 import { moodWord } from "@/lib/tone";
-import { plainFinance, sentenceCase } from "@/lib/plain-copy";
-import { moveHref } from "@/lib/seo/families";
+import { sentenceCase } from "@/lib/plain-copy";
 import { AppLink } from "@/components/oa/app-link";
 
 const CHIP = "inline-flex h-10 shrink-0 items-center gap-1.5 rounded-md border px-3 text-[14px] transition-colors sm:h-8 " + FOCUS;
@@ -55,25 +52,14 @@ function ChipRow({ items, current, className = "" }: { items: ChipItem[]; curren
 export function SignalsBar({
   tabs,
   filters,
-  movers,
   policy,
 }: {
   tabs: TabItem[];
   filters: SignalsFilters;
-  movers: MoversData;
   policy: PolicyData;
 }) {
   let chips: ChipItem[] = [];
-  if (filters.tab === "movers") {
-    const counts = moverCounts(movers.movers);
-    chips = [
-      { id: "all", label: "All", count: counts.all, href: signalsHref(filters, { show: "all" }) },
-      { id: "explained", label: "With a reason", count: counts.explained, href: signalsHref(filters, { show: "explained" }) },
-      { id: "unexplained", label: "Without a reason", count: counts.unexplained, href: signalsHref(filters, { show: "unexplained" }) },
-      { id: "up", label: "Up", count: counts.up, href: signalsHref(filters, { show: "up" }) },
-      { id: "down", label: "Down", count: counts.down, href: signalsHref(filters, { show: "down" }) },
-    ];
-  } else if (filters.tab === "policy") {
+  if (filters.tab === "policy") {
     const named = policy.posts.filter((post) => post.names.length > 0).length;
     chips = [
       { id: "all", label: "All market posts", count: policy.posts.length, href: signalsHref(filters, { show: "all", limit: POLICY_PAGE_SIZE }) },
@@ -99,95 +85,6 @@ function StanceWord({ stance, className = "" }: { stance: Stance | string | null
       {mood.word}
     </Verdict>
   ) : null;
-}
-
-/* ── Movers ────────────────────────────────────────────────────────────── */
-
-/**
- * The movers table. One line per stock, biggest move first, so the list reads
- * as a ranking: who, how much, what kind of news, the headline, and the reason
- * written out under it. The row opens the move's own page, which has the
- * sources; a move with no reason opens the stock.
- */
-const MOVER_COLS = "lg:grid lg:grid-cols-[1.75rem_minmax(0,13rem)_4.5rem_5rem_minmax(0,11rem)_minmax(0,1fr)] lg:items-center lg:gap-x-4";
-
-function MoverLine({ mover, rank, day }: { mover: Mover; rank: number; day: string | null }) {
-  // No reason found: the row is just the stock and its move, with nothing written in its place (owner, Nov 11).
-  const cause = mover.explained ? mover.cause ?? "Company news" : null;
-  const headline = mover.explained ? mover.headline : null;
-  const why = mover.explained && mover.why && mover.why !== headline ? mover.why : null;
-  // The move page lists the sources. It is only built for a move with a firm reason (lib/seo/families.ts
-  // isConfirmedMove: medium or high confidence and at least one source), so anything looser opens the stock.
-  const firm = mover.explained && (mover.confidence === "high" || mover.confidence === "medium") && mover.evidence.length > 0;
-  const href = firm && day ? moveHref(mover.ticker, day) : undefined;
-  return (
-    <div className="relative px-4 py-3 transition-colors hover:bg-oa-accent lg:py-2.5">
-      <div className={MOVER_COLS}>
-        {/* who and how much: always the first thing on the line */}
-        <div className="flex items-center gap-2 lg:contents">
-          <span aria-label={`Rank ${rank}`} className={`${NUM} w-5 shrink-0 text-[12.5px] text-oa-muted-fg lg:w-auto`}>
-            {rank}
-          </span>
-          <Ticker symbol={mover.ticker} name={mover.name} href={href} stretch size={20} className="min-w-0 flex-1 lg:flex-none" />
-          <span className={`${NUM} hidden text-right text-[13px] text-oa-muted-fg lg:block`}>{mover.price !== null ? fmtMoney(mover.price) : ""}</span>
-          <Delta value={mover.pct} className="shrink-0 text-[15px] font-semibold lg:w-[4.75rem] lg:text-right" />
-        </div>
-        {/* what kind of news, then the headline */}
-        {/* The empty cells stay on a wide screen to hold the columns; on a phone they are not drawn. */}
-        <p className={`mt-1.5 flex min-w-0 items-baseline gap-1.5 pl-7 text-[13px] leading-5 text-oa-fg lg:mt-0 lg:pl-0 ${cause ? "" : "max-lg:hidden"}`}>
-          {cause ? (
-            <>
-              <span aria-hidden="true" className="size-1.5 shrink-0 translate-y-[-1px] rounded-full bg-oa-primary" />
-              {/* Wraps instead of cutting off: "Earnings miss and analyst target cut" reads whole. */}
-              <span className="min-w-0 text-pretty">{cause}</span>
-            </>
-          ) : null}
-        </p>
-        <p className={`mt-0.5 min-w-0 pl-7 text-[14px] font-medium leading-[21px] text-oa-fg lg:mt-0 lg:pl-0 ${headline ? "" : "max-lg:hidden"}`}>
-          {headline ? plainFinance(sentenceCase(headline)) : null}
-        </p>
-        {/* The reason, always in view under the headline (owner rule 2: nothing to open to read it). */}
-        {why ? (
-          <p className="mt-1 min-w-0 text-pretty pl-7 text-[13.5px] leading-5 text-oa-muted-fg lg:col-start-2 lg:col-end-7 lg:mt-1 lg:max-w-[110ch] lg:pl-0">{why}</p>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-export function MoversTab({ data, filters }: { data: MoversData; filters: SignalsFilters }) {
-  const rows = filterMovers(data.movers, filters.show);
-  return (
-    <>
-      <Panel flush>
-        {rows.length ? (
-          <>
-            <div className={`hidden border-b border-oa-border bg-oa-bg px-4 py-2 ${MOVER_COLS}`}>
-              <span className="oa-caption">#</span>
-              <span className="oa-caption">Stock</span>
-              <span className="oa-caption text-right">Price</span>
-              <span className="oa-caption text-right">Move today</span>
-              <span className="oa-caption">Kind of news</span>
-              <span className="oa-caption">What happened</span>
-            </div>
-            <ol data-track-links="mover_opened" data-track-list="movers">
-              {rows.map((mover, index) => (
-                <li key={mover.ticker} className="border-b border-oa-border last:border-b-0">
-                  <MoverLine mover={mover} rank={index + 1} day={data.day} />
-                </li>
-              ))}
-            </ol>
-          </>
-        ) : (
-          <Empty title={data.movers.length ? "No moves match this filter" : "No unusual moves right now"}>
-            {data.movers.length
-              ? "Pick another filter to see the rest of today's list."
-              : "Nothing has moved past today's threshold yet."}
-          </Empty>
-        )}
-      </Panel>
-    </>
-  );
 }
 
 /* ── Reddit ────────────────────────────────────────────────────────────── */
@@ -562,7 +459,6 @@ export function TodayTab({
 }) {
   const counts = moverCounts(movers.movers);
   const newestPost = policy.posts[0];
-  const moversHref = signalsHref(filters, { tab: "movers" });
   // A card with nothing in it is not drawn (owner rule 4): the other one takes the row, and the gap is said in a line below.
   const showReddit = pick.reddit.length > 0 || pick.policy.length === 0;
   const showPolicy = pick.policy.length > 0;
@@ -610,7 +506,7 @@ export function TodayTab({
           </Panel>
         ) : null}
       </div>
-      {/* Signals is what people are saying. The day's moves and their reasons live on Why stocks moved, so they are one line here, not a third copy of the same list. */}
+      {/* Signals is what people are saying. The day's moves and their reasons live on Market today, so they are one line here, not a second copy of the same list. */}
       <p className="text-[14px] leading-5 text-oa-muted-fg">
         {counts.all ? (
           <>
@@ -618,10 +514,7 @@ export function TodayTab({
             <span className="text-signal-bullish">{counts.up} up</span>, <span className="text-signal-bearish">{counts.down} down</span>).{" "}
           </>
         ) : null}
-        <Link prefetch={false} href="/movers" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
-          See why each one moved
-        </Link>{" "}
-        or <SeeAll href={moversHref}>the full list here</SeeAll>.
+        <SeeAll href="/explore#moves">See each move on Market today</SeeAll>.
         {showPolicy ? null : " The President has not posted about the market lately."}
         {showReddit ? null : " Reddit has not said much about stocks lately."}
       </p>

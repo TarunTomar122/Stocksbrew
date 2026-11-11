@@ -163,7 +163,7 @@ async function dividendsCard(): Promise<OgCard | null> {
   if (!seeds || seeds.length === 0) return null;
   const data = await within(loadDividendPlan(seeds), SLOW_MS);
   if (!data) return null;
-  const read = buildDividendRead(data.plan, { example: true, editHref: "/watchlist" });
+  const read = buildDividendRead(data.plan, { example: true, editHref: "/portfolio?tab=holdings" });
   return exampleRead("dividends", read, ogFootnote("Yahoo Finance and Nasdaq", data.plan.asOf ? `as of ${ogStamp(data.plan.asOf)}` : null));
 }
 
@@ -234,7 +234,7 @@ async function homeCard(): Promise<OgCard | null> {
       memo: ready(memo),
       xray: ready(xray),
       season: ready(season),
-      dividends: ready(dividendData ? { plan: dividendData.plan, read: buildDividendRead(dividendData.plan, { example: true, editHref: "/watchlist" }) } : null),
+      dividends: ready(dividendData ? { plan: dividendData.plan, read: buildDividendRead(dividendData.plan, { example: true, editHref: "/portfolio?tab=holdings" }) } : null),
       stress: ready(stress),
       ideas: ready(ideas),
     },

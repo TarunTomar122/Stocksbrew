@@ -186,7 +186,7 @@ async function FilingsStream({ search }: { search: Search }) {
             </Link>
           </>
         ) : (
-          <Link href="/watchlist" className="ml-auto shrink-0 whitespace-nowrap pl-2 text-[14px] text-oa-muted-fg underline decoration-oa-border underline-offset-2 hover:text-oa-fg max-lg:hidden">
+          <Link href="/portfolio?tab=holdings" className="ml-auto shrink-0 whitespace-nowrap pl-2 text-[14px] text-oa-muted-fg underline decoration-oa-border underline-offset-2 hover:text-oa-fg max-lg:hidden">
             Sign in to see only your stocks
           </Link>
         )}
@@ -208,7 +208,7 @@ async function FilingsStream({ search }: { search: Search }) {
           </p>
           <p className="mt-1 text-[14px] text-oa-muted-fg">
             {mine && myTickers.size === 0 ? (
-              <Link href="/watchlist" className="underline underline-offset-2">Add stocks to your portfolio</Link>
+              <Link href="/portfolio?tab=holdings" className="underline underline-offset-2">Add stocks to your portfolio</Link>
             ) : (
               <Link href={hrefFor(null, false)} className="underline underline-offset-2">Show every filing</Link>
             )}
@@ -247,7 +247,7 @@ async function FilingsStream({ search }: { search: Search }) {
           ) : null}
           {session ? null : (
             <p className="px-2 text-[14px] leading-5 text-oa-muted-fg sm:px-0 lg:hidden">
-              <Link href="/watchlist" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
+              <Link href="/portfolio?tab=holdings" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
                 Sign in and add stocks
               </Link>{" "}
               to see only the filings from companies you track.

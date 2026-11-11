@@ -245,6 +245,8 @@ function salesLine(input: CallEvidenceInput): EvidenceLine | null {
     else if (g1 < 0 && g0 >= 0) text += `, after falling ${pct(g1)} in fiscal ${year.year}`;
     // Sales that fell: "faster" or "slower" than a year's rise or fall reads backwards, so say what the year did.
     else if (g0 < 0) text += `, after ${g1 < 0 ? "falling" : "growing"} ${pct(g1)} in fiscal ${year.year}`;
+    // A flat year (rounds to 0%) reads oddly as "faster than the 0%": say it was flat instead.
+    else if (Math.abs(g1) < 0.5) text += `, after flat sales in fiscal ${year.year}`;
     else if (g0 - g1 > 2) text += `, faster than the ${pct(g1)} of fiscal ${year.year}`;
     else if (g1 - g0 > 2) text += `, slower than the ${pct(g1)} of fiscal ${year.year}`;
     else text += `, about the pace of fiscal ${year.year} (${pct(g1)})`;

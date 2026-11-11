@@ -14,7 +14,7 @@ const LINK = `font-medium text-oa-primary hover:underline ${FOCUS} rounded`;
 /* ── the example line ──────────────────────────────────────────────────── */
 
 const MARK = (
-  <Link href="/watchlist" className={LINK}>
+  <Link href="/portfolio?tab=holdings" className={LINK}>
     Mark the stocks you own in Portfolio
   </Link>
 );

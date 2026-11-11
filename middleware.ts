@@ -31,6 +31,18 @@ export function middleware(request: NextRequest) {
     }
   }
 
+  // Signals is Reddit and the President now; its old movers tab was another copy of Market today's list. Done here
+  // rather than in next.config.js so the old filters (?tab=movers&show=up) are dropped instead of carried along.
+  if (request.nextUrl.pathname === "/signals" && request.nextUrl.searchParams.get("tab")?.toLowerCase() === "movers") {
+    const movesUrl = request.nextUrl.clone();
+    movesUrl.pathname = "/explore";
+    movesUrl.search = "";
+    movesUrl.hash = "moves";
+    const response = NextResponse.redirect(movesUrl, 308);
+    appendVaryAccept(response.headers);
+    return response;
+  }
+
   const acceptHeader = request.headers.get("accept");
   const chosen = preferredType(acceptHeader);
   if (chosen === "text/markdown") {

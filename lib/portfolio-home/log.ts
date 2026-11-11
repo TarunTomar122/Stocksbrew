@@ -162,7 +162,7 @@ function reasonsRow(sources: Partial<HomeSources>, mode: HomeMode): LogRow | nul
     // Red only when most reasons no longer hold; "Six of seven still hold" is mostly good news.
     tone: holding === n ? "up" : holding * 2 >= n ? "flat" : "down",
     ticker: null,
-    href: mode === "mine" ? "/watchlist?reasons=1" : "/watchlist",
+    href: mode === "mine" ? "/portfolio?tab=holdings&reasons=1" : "/portfolio?tab=holdings",
   };
 }
 
@@ -199,7 +199,7 @@ function pricesRow(sources: Partial<HomeSources>, mode: HomeMode): LogRow | null
     changed: goal.portfolioValue !== null ? `${example ? "They were" : "Your holdings were"} worth ${usd(goal.portfolioValue)}${goal.unvalued.length > 0 ? `, leaving out ${goal.unvalued.length} without a share count` : ""}.` : null,
     tone: "flat",
     ticker: null,
-    href: "/watchlist",
+    href: "/portfolio?tab=holdings",
   };
 }
 

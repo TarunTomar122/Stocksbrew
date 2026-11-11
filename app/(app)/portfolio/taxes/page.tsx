@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { PageHead, SourceLine, fmtStampET } from "@/components/oa/kit";
+import { AppPage, PageHead, SourceLine, fmtStampET } from "@/components/oa/kit";
 import { TheRead } from "@/components/oa/insight";
-import { interTight } from "@/components/oa/font";
-import { OaSiteHeader } from "@/components/oa/oa-site-header";
-import { PortfolioTaxTabs, TaxView } from "@/components/portfolio-tax/tax-view";
+import { MyStocksTabs } from "@/components/portfolio/my-stocks-tabs";
+import { TaxView } from "@/components/portfolio-tax/tax-view";
 import { TaxSignIn } from "@/components/portfolio-tax/tax-sign-in";
 import { getSessionUser } from "@/lib/auth-server";
 import { newYorkToday } from "@/lib/portfolio-data";
@@ -17,7 +16,8 @@ import { getUserDoc } from "@/lib/watchlist";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Portfolio tax",
+  title: "Portfolio taxes",
+  robots: { index: false, follow: true },
   description:
     "Realised gains by tax year, short and long term, harvestable losses at the latest price and wash-sale windows, from the lots you enter. US federal rules, not tax advice.",
 };
@@ -50,30 +50,26 @@ export default async function PortfolioTaxPage({ searchParams }: { searchParams:
     />
   );
 
+  // Taxes is a tab of My stocks (it was /watchlist/tax until Nov 11; that address redirects here).
   return (
-    <main className={`oa-landing ${interTight.variable} min-w-0 flex-grow overflow-x-clip`}>
-      <OaSiteHeader />
-      <div className="oa-page-frame mx-auto w-full max-w-[76rem] px-2 pb-24 pt-3 sm:px-6 sm:pt-5 lg:pb-10">
-        <PageHead title="Portfolio tax" meta={data.pricesAsOf ? source : undefined} note={false} className="!mb-1" />
-        <div className="mb-3">
-          <PortfolioTaxTabs />
-        </div>
-        {session ? (
-          <>
-            <TheRead read={buildTaxRead(data.picture, currentYear)} label={`Your taxes in ${currentYear}`} className="mb-3" askContext="portfolio" />
-            <p className="mb-3 px-2 text-pretty text-[14px] leading-5 text-oa-muted-fg sm:px-0">
-              Wondering what to sell?{" "}
-              <Link href="/portfolio/ideas" className="font-medium text-oa-primary hover:underline">
-                See rebalancing and tax-loss ideas for these holdings, with the tax on each sale
-              </Link>
-              .
-            </p>
-            <TaxView data={data} year={year} currentYear={currentYear} editable />
-          </>
-        ) : (
-          <TaxSignIn />
-        )}
-      </div>
-    </main>
+    <AppPage>
+      <PageHead title="My stocks" meta={data.pricesAsOf ? source : undefined} />
+      <MyStocksTabs current="taxes" />
+      {session ? (
+        <>
+          <TheRead read={buildTaxRead(data.picture, currentYear)} label={`Your taxes in ${currentYear}`} className="mb-3" askContext="portfolio" />
+          <p className="mb-3 px-2 text-pretty text-[14px] leading-5 text-oa-muted-fg sm:px-0">
+            Wondering what to sell?{" "}
+            <Link href="/portfolio/ideas" className="font-medium text-oa-primary hover:underline">
+              See rebalancing and tax-loss ideas for these holdings, with the tax on each sale
+            </Link>
+            .
+          </p>
+          <TaxView data={data} year={year} currentYear={currentYear} editable />
+        </>
+      ) : (
+        <TaxSignIn />
+      )}
+    </AppPage>
   );
 }

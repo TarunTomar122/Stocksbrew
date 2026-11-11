@@ -73,8 +73,8 @@ export const PLACES: NavPlace[] = [
     sections: [
       section("Briefing", "/briefing", "briefing"),
       section("Premarket", "/premarket", "premarket"),
-      section("Market today", "/explore", "explore"),
-      section("Why stocks moved", "/movers", "movers"),
+      // Market today is the one read of the day's moves; each past day's page (/movers/2026-11-10) lights it too.
+      section("Market today", "/explore", "explore", ["/movers"]),
       section("Signals", "/signals", "signals"),
       section("News", "/news", "news"),
       section("Calendar", "/calendar", "calendar"),
@@ -84,13 +84,13 @@ export const PLACES: NavPlace[] = [
     label: "My stocks",
     short: "My stocks",
     href: "/portfolio",
-    match: ["/watchlist", "/import"],
+    match: ["/import"],
     icon: "portfolio",
     blurb: "What you own and watch, and how it is doing",
-    // The overview first, then the tools in the order you would use them: see what you have, plan ahead, act.
+    // The overview first (with the holdings editor as its tabs), then the tools in the order you would use them:
+    // see what you have, plan ahead, act.
     sections: [
-      section("Overview", "/portfolio", "portfolio"),
-      section("Portfolio", "/watchlist", "portfolio", ["/import"], "Your stocks"),
+      section("Overview", "/portfolio", "portfolio", ["/import"]),
       section("Weekly memo", "/portfolio/memo", "briefing", [], "Your stocks"),
       section("What you own", "/portfolio/xray", "portfolio", [], "Your stocks"),
       section("Earnings season", "/portfolio/earnings", "calendar", [], "Plan ahead"),
@@ -98,7 +98,7 @@ export const PLACES: NavPlace[] = [
       section("Goal planner", "/portfolio/goal", "backtest", [], "Plan ahead"),
       section("Stress test", "/portfolio/stress", "backtest", [], "Plan ahead"),
       section("Rebalancing ideas", "/portfolio/ideas", "filings", [], "Act"),
-      section("Taxes", "/watchlist/tax", "filings", [], "Act"),
+      section("Taxes", "/portfolio/taxes", "filings", [], "Act"),
       section("Practice account", "/practice", "practice", [], "Act"),
     ],
   },

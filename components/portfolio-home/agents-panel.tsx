@@ -61,7 +61,7 @@ async function ReasonRow({ load, showDay }: { load: HomeLoad; showDay: boolean }
   const off = checks.filter((check) => check.verdict !== "holds");
   const line: AgentLine = {
     id: "reasons",
-    href: "/watchlist?reasons=1",
+    href: "/portfolio?tab=holdings&reasons=1",
     kind: "reasons",
     name: "Your reasons",
     rule: "Checks the reasons you gave for owning your stocks.",

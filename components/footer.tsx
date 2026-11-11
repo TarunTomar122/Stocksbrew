@@ -26,7 +26,6 @@ const COLUMNS: Column[] = [
     links: [
       { label: "Briefing", href: "/briefing" },
       { label: "Market today", href: "/explore" },
-      { label: "Why stocks moved", href: "/movers" },
       { label: "Signals", href: "/signals" },
       { label: "News", href: "/news" },
       { label: "Calendar", href: "/calendar" },
@@ -49,7 +48,7 @@ const COLUMNS: Column[] = [
   {
     title: "Yours",
     links: [
-      { label: "My stocks", href: "/watchlist" },
+      { label: "My stocks", href: "/portfolio" },
       { label: "Practice account", href: "/practice" },
       { label: "Follow investors", href: "/follow" },
       { label: "Insiders", href: "/insiders" },

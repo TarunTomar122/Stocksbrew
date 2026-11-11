@@ -99,7 +99,7 @@ export function PlanCards({
     setBusy("free");
     try {
       if (!user) await signInWithGoogle({ surface: "subscribe_pricing" });
-      window.location.href = "/watchlist";
+      window.location.href = "/portfolio";
     } catch {
       // the sign-in sheet reports its own errors
     } finally {
@@ -179,7 +179,7 @@ export function PlanCards({
               Start free
             </OaButton>
           ) : (
-            <Link prefetch={false} href="/watchlist" className={OUTLINE_LINK}>
+            <Link prefetch={false} href="/portfolio" className={OUTLINE_LINK}>
               Open your stocks
             </Link>
           )}

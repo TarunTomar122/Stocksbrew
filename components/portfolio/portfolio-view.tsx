@@ -26,6 +26,7 @@ import {
   signTone,
 } from "@/components/portfolio/parts";
 import { PositionsTable } from "@/components/portfolio/positions-table";
+import { MyStocksTabs, type MyStocksTab } from "@/components/portfolio/my-stocks-tabs";
 import { ImportButton } from "@/components/import/import-button";
 import { ReasonsStrip } from "@/components/thesis/reasons-sheet";
 import { ShareButton } from "@/components/share/share-button";
@@ -71,6 +72,8 @@ export type PortfolioViewProps = {
   asOf?: string | null;
   /** The read on each tab, computed on the server (lib/portfolio-insights). */
   reads?: PortfolioReads | null;
+  /** Shown under the tabs, before the summary: the example's line on how to start. */
+  lead?: React.ReactNode;
 };
 
 const BTN = `inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded border px-3 text-[12.5px] font-medium transition-colors ${FOCUS}`;
@@ -237,21 +240,31 @@ export function PortfolioView({
   pricesWords = null,
   asOf = null,
   reads = null,
+  lead = null,
 }: PortfolioViewProps) {
   const router = useRouter();
   const example = mode === "example";
-  const [tab, setTab] = useState<PortfolioTab>(initialTab);
+  // Analytics is no longer a tab of its own: it sits under the holdings (an old ?tab=analytics lands there).
+  const [tab, setTab] = useState<PortfolioTab>(initialTab === "analytics" ? "positions" : initialTab);
   const { totals, positions, watching } = portfolio;
   const everything = [...positions, ...watching];
 
   function choose(next: PortfolioTab) {
     setTab(next);
-    if (example) return;
-    // Keep the tab in the URL without a server round trip.
+    // Keep the tab in the URL without a server round trip (/portfolio alone is the overview, so Holdings says so).
     const url = new URL(window.location.href);
-    if (next === "positions") url.searchParams.delete("tab");
-    else url.searchParams.set("tab", next);
+    url.searchParams.set("tab", next === "positions" ? "holdings" : next);
+    url.searchParams.delete("reasons");
     window.history.replaceState(window.history.state, "", url.toString());
+  }
+
+  // My stocks' own tabs: Holdings, Watching and Alerts switch here, in the browser; Overview and Taxes are links.
+  const pageTab: MyStocksTab = tab === "watching" ? "watching" : tab === "alerts" ? "alerts" : "holdings";
+  function selectPageTab(next: MyStocksTab): boolean {
+    if (next === "holdings") choose("positions");
+    else if (next === "watching" || next === "alerts") choose(next);
+    else return false;
+    return true;
   }
 
   // Tracking is unlimited on every plan and these are the person's own stocks, so every row shows.
@@ -259,19 +272,15 @@ export function PortfolioView({
   const shownWatching = watching;
 
   const missingShares = totals.holdings - totals.valued;
-  const tabs: Array<{ key: PortfolioTab; label: string; count?: number }> = [
-    { key: "positions", label: example ? "Holdings" : "You own", count: totals.holdings },
-    { key: "watching", label: "Watching", count: totals.watching },
-    { key: "analytics", label: "Analytics" },
-    {
-      key: "alerts",
-      label: "Alerts",
-      count: example ? undefined : alerts.length,
-    },
-  ];
-
   return (
     <div className="flex flex-col gap-3">
+      <MyStocksTabs
+        current={pageTab}
+        counts={{ holdings: totals.holdings, watching: totals.watching, ...(example ? {} : { alerts: alerts.length }) }}
+        onSelect={selectPageTab}
+        className="!mb-0"
+      />
+      {lead}
       {/* header: what it is worth, what it did today, what it has made */}
       <section
         className={CARD}
@@ -279,18 +288,15 @@ export function PortfolioView({
       >
         <div className="flex flex-col gap-3 px-4 py-3 lg:flex-row lg:items-end lg:justify-between">
           <div className="flex min-w-0 flex-col gap-1.5">
-            <div className="flex flex-wrap items-center gap-2">
-              {example ? (
+            {/* The page's own title (My stocks) is above the tabs, so only the example says what it is. */}
+            {example ? (
+              <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-[15px] font-semibold leading-5 text-oa-fg">Example portfolio</h2>
-              ) : (
-                <h1 className="text-[15px] font-semibold leading-5 text-oa-fg">Portfolio</h1>
-              )}
-              {example ? (
                 <span className="inline-flex h-[22px] items-center rounded border border-[color-mix(in_srgb,var(--oa-primary)_45%,transparent)] bg-[color-mix(in_srgb,var(--oa-primary)_7%,transparent)] px-2 text-[12.5px] font-medium text-oa-primary">
                   Example, not real money
                 </span>
-              ) : null}
-            </div>
+              </div>
+            ) : null}
             {/* Total value is the one hero number. Today and total gain share a row beside it (under it on a phone). */}
             <div className="grid grid-cols-2 items-start gap-x-6 gap-y-2 sm:flex sm:flex-wrap sm:items-end sm:gap-x-8">
               <div className="col-span-2 flex flex-col">
@@ -400,53 +406,9 @@ export function PortfolioView({
         />
       ) : null}
 
-      {/* tabs */}
-      <div
-        role="tablist"
-        aria-label="Portfolio sections"
-        className="-mx-2 flex gap-1 overflow-x-auto border-b border-oa-border px-1 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden"
-      >
-        {tabs.map((item) => {
-          const active = tab === item.key;
-          return (
-            <button
-              key={item.key}
-              role="tab"
-              type="button"
-              id={`portfolio-tab-${item.key}`}
-              aria-selected={active}
-              aria-controls="portfolio-panel"
-              onClick={() => choose(item.key)}
-              className={`-mb-px inline-flex h-10 shrink-0 cursor-pointer items-center gap-1.5 border-b-2 px-3 text-[14px] transition-colors ${FOCUS} ${
-                active
-                  ? "border-oa-primary font-medium text-oa-fg"
-                  : "border-transparent text-oa-muted-fg hover:text-oa-fg"
-              }`}
-            >
-              {item.label}
-              {item.count !== undefined ? (
-                <span className={`${NUM} text-[11px] text-oa-muted-fg`}>
-                  {item.count}
-                </span>
-              ) : null}
-            </button>
-          );
-        })}
-        {/* Tax is its own route (/watchlist/tax), so it is a link, not a tab button. */}
-        {example ? null : (
-          <Link
-            href="/watchlist/tax"
-            className={`-mb-px inline-flex h-10 shrink-0 items-center gap-1.5 border-b-2 border-transparent px-3 text-[14px] text-oa-muted-fg transition-colors hover:text-oa-fg ${FOCUS}`}
-          >
-            Tax
-          </Link>
-        )}
-      </div>
-
       <div
         id="portfolio-panel"
-        role="tabpanel"
-        aria-labelledby={`portfolio-tab-${tab}`}
+        aria-label={tab === "watching" ? "Watching" : tab === "alerts" ? "Alerts" : "Holdings"}
         className="flex flex-col gap-3"
       >
         {/* Each tab leads with what its numbers mean; the table under it is the evidence. */}
@@ -463,11 +425,7 @@ export function PortfolioView({
                 ? example
                   ? "The watched stocks"
                   : "What you are watching"
-                : tab === "analytics"
-                  ? example
-                    ? "How the money is spread"
-                    : "How your money is spread"
-                  : "Your alerts"
+                : "Your alerts"
           }
         />
         {tab === "positions" ? (
@@ -475,7 +433,7 @@ export function PortfolioView({
             {positions.length === 0 ? (
               <EmptyNote title="Nothing marked as a holding yet">
                 {watching.length > 0
-                  ? "Open Watching, choose Edit on a stock you own, and mark it as a holding. Then enter the shares."
+                  ? "Open Watching, tap a stock you own and choose I own this. Then enter the shares."
                   : "Add the stocks you own and the ones you are watching."}
               </EmptyNote>
             ) : (
@@ -531,7 +489,8 @@ export function PortfolioView({
           </div>
         ) : null}
 
-        {tab === "analytics" ? (
+        {/* How the money is spread sits under the holdings it is about: the table first, then the evidence. */}
+        {tab === "positions" && positions.length > 0 ? (
           <AnalyticsTab
             portfolio={portfolio}
             health={health}
@@ -590,9 +549,9 @@ export function PortfolioIntro({
       className="oa-surface flex flex-col gap-3 border border-oa-border bg-oa-card px-4 py-4 sm:px-5 lg:flex-row lg:items-center lg:justify-between lg:gap-6"
     >
       <div className="min-w-0">
-        <h1 id="portfolio-intro" className="text-balance text-[20px] font-semibold leading-[27px] tracking-[-0.01em] text-oa-fg sm:text-[22px] sm:leading-7">
+        <h2 id="portfolio-intro" className="text-balance text-[20px] font-semibold leading-[27px] tracking-[-0.01em] text-oa-fg sm:text-[22px] sm:leading-7">
           {signedIn ? "Your portfolio is empty" : "Keep the stocks you own and watch in one place"}
-        </h1>
+        </h2>
         <p className="mt-1 max-w-[44rem] text-pretty text-[15px] leading-[22px] text-oa-muted-fg">
           {signedIn
             ? "Add your first stocks and this page fills in around them."

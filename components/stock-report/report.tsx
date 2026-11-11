@@ -56,7 +56,7 @@ function LevelsLock({ ticker, instrumentId, tracked, gate }: { ticker: string; i
         gate.slotsLeft > 0 ? (
           <CoverButton instrumentId={instrumentId} ticker={ticker} />
         ) : (
-          <Link prefetch={false} href="/watchlist" className="self-start text-[13px] font-medium text-oa-primary hover:underline">
+          <Link prefetch={false} href="/portfolio?tab=holdings" className="self-start text-[13px] font-medium text-oa-primary hover:underline">
             Choose your {FREE_COVERED_WORD} in Portfolio
           </Link>
         )

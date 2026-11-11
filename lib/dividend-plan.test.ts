@@ -197,7 +197,7 @@ describe("buildDividendPlan and the read", () => {
     const noShares = buildDividendPlan([holding("MSFT", { history: MSFT, shares: null })], TODAY);
     const read = buildDividendRead(noShares)!;
     expect(read.headline).toBe("Add how many shares you own to see what your dividends come to.");
-    expect(read.insights.some((i) => i.id === "missing-shares" && i.action?.href === "/watchlist")).toBe(true);
+    expect(read.insights.some((i) => i.id === "missing-shares" && i.action?.href === "/portfolio?tab=holdings")).toBe(true);
   });
 
   it("says so when nothing pays", () => {

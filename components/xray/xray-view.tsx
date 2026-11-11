@@ -308,7 +308,7 @@ export function XrayEmpty({ coveredFunds, reason }: { coveredFunds: string[]; re
           ? `We can open ${joinList(coveredFunds)} so far. Mark a fund as a holding on the Portfolio page with its share count, and this page shows every company inside it next to the stocks you bought.`
           : "Mark a fund as a holding on the Portfolio page with its share count, and this page shows every company inside it next to the stocks you bought."}
       </p>
-      <Link href="/watchlist" className="mt-3 inline-flex min-h-10 items-center rounded-lg border border-oa-border px-3 text-[14px] font-medium text-oa-fg hover:bg-oa-accent">
+      <Link href="/portfolio?tab=holdings" className="mt-3 inline-flex min-h-10 items-center rounded-lg border border-oa-border px-3 text-[14px] font-medium text-oa-fg hover:bg-oa-accent">
         Go to Portfolio
       </Link>
     </Panel>
@@ -321,7 +321,7 @@ export function NoFundsNote({ coveredFunds }: { coveredFunds: string[] }) {
     <p className="px-2 text-pretty text-[14px] leading-5 text-oa-muted-fg sm:px-0">
       None of your holdings is a fund, so this shows only the companies you bought directly.{" "}
       {coveredFunds.length > 0 ? `If you hold ${joinList(coveredFunds.slice(0, 4))} or another fund we can open, ` : "If you hold a fund, "}
-      <Link href="/watchlist" className="font-medium text-oa-primary underline-offset-2 hover:underline">
+      <Link href="/portfolio?tab=holdings" className="font-medium text-oa-primary underline-offset-2 hover:underline">
         mark it as a holding with its share count
       </Link>{" "}
       and this page adds every company inside it.
@@ -335,7 +335,7 @@ export function ExampleNote({ pricesWords, signedIn }: { pricesWords: string | n
     <p className="px-2 text-pretty text-[14px] leading-5 text-oa-muted-fg sm:px-0">
       This is an example portfolio: the shares are made up, and the prices are the same quotes as the stock pages ({pricesWords ?? "the latest close"}).{" "}
       {signedIn ? (
-        <Link href="/watchlist" className="font-medium text-oa-primary underline-offset-2 hover:underline">
+        <Link href="/portfolio?tab=holdings" className="font-medium text-oa-primary underline-offset-2 hover:underline">
           Add share counts to your holdings to see yours.
         </Link>
       ) : (

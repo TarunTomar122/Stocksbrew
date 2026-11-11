@@ -1,8 +1,7 @@
 import { AppPage, PageHead, Panel } from "@/components/oa/kit";
 
 const PLACES: Array<{ href: string; label: string; what: string }> = [
-  { href: "/movers", label: "Movers", what: "Every day of big moves, each with what caused it" },
-  { href: "/signals?tab=movers", label: "Today's movers", what: "Unusual moves in the current session" },
+  { href: "/explore#moves", label: "Market today", what: "Today's big moves, each with what caused it when a source confirmed it" },
   { href: "/screener", label: "Screener", what: "Every US stock we cover" },
 ];
 
@@ -10,7 +9,7 @@ const PLACES: Array<{ href: string; label: string; what: string }> = [
 export default function MoveNotFound() {
   return (
     <AppPage width="read">
-      <PageHead full crumb={<a href="/movers">Movers</a>} title="No explained move at this address" lede="We only publish a move when we found its reason and can cite a source." />
+      <PageHead full crumb={<a href="/explore">Market today</a>} title="No explained move at this address" lede="We only publish a move when we found its reason and can cite a source." />
       <Panel flush>
         <ul>
           {PLACES.map((place) => (

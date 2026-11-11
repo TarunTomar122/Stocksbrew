@@ -8,7 +8,6 @@ import type { HealthProps } from "@/lib/radar-next-data";
 import {
   FUNDS_SECTOR,
   fmtDay,
-  fmtMoney,
   fmtSignedPct,
   type AllocationSlice,
   type Portfolio,
@@ -307,29 +306,22 @@ export function AnalyticsTab({
         />
       </section>
 
-      <div className="grid gap-3 lg:grid-cols-2">
-        <section className={CARD} aria-label="Allocation by sector">
-          <SectionTitle aside={byCount ? "equal weight" : "by value"}>By sector</SectionTitle>
-          <div className="px-3 pt-3">
-            <SplitStrip slices={analytics.bySector} />
-          </div>
-          <AllocationBars slices={analytics.bySector} />
-        </section>
-        <section className={CARD} aria-label="Allocation by position">
-          <SectionTitle aside={byCount ? "equal weight" : totals.value !== null ? fmtMoney(totals.value, 0) : undefined}>
-            By position
-          </SectionTitle>
-          <div className="px-3 pt-3">
-            <SplitStrip slices={analytics.byPosition} />
-          </div>
-          <AllocationBars slices={analytics.byPosition} />
-        </section>
-      </div>
-
-      <section className={CARD} aria-label="Performance since saved">
-        <SectionTitle aside={asOf}>{example ? "Since each position was added" : "Since you saved each position"}, against the S&amp;P 500</SectionTitle>
-        <SinceSavedTable positions={positions} />
+      {/* By sector only: each position's share is already a column of the holdings table above. */}
+      <section id="by-sector" className={`${CARD} scroll-mt-20`} aria-label="Allocation by sector">
+        <SectionTitle aside={byCount ? "equal weight" : "by value"}>By sector</SectionTitle>
+        <div className="px-3 pt-3">
+          <SplitStrip slices={analytics.bySector} />
+        </div>
+        <AllocationBars slices={analytics.bySector} />
       </section>
+
+      {/* Only when a position has a date to measure from: no card that can only say it has nothing (owner rule 4). */}
+      {positions.some((position) => position.sinceSaved !== null) ? (
+        <section id="since-saved" className={`${CARD} scroll-mt-20`} aria-label="Performance since saved">
+          <SectionTitle aside={asOf}>{example ? "Since each position was added" : "Since you saved each position"}, against the S&amp;P 500</SectionTitle>
+          <SinceSavedTable positions={positions} />
+        </section>
+      ) : null}
 
       {health && health.headline ? <HealthRead health={health} /> : null}
 

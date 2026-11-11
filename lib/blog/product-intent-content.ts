@@ -156,7 +156,7 @@ export const productIntentBlogContent: Record<string, string> = {
 
 <h2>7. stocksbrew: best for a watchlist that researches back</h2>
 
-<p><a href="/watchlist">stocksbrew Watchlist</a> is built around a different idea: a list should monitor the research case, not only the price. Tracking a US stock starts an AI brief covering financials, analyst targets, news, market context, social conversation, drivers, risks, and catalysts. Watchlist then surfaces material changes and can send email alerts.</p>
+<p><a href="/portfolio">stocksbrew Watchlist</a> is built around a different idea: a list should monitor the research case, not only the price. Tracking a US stock starts an AI brief covering financials, analyst targets, news, market context, social conversation, drivers, risks, and catalysts. Watchlist then surfaces material changes and can send email alerts.</p>
 
 <p>The product fits investors who would rather wait for a completed research update than stare at a live list. It does not offer broker execution, advanced technical alerts, global stock coverage, or a native mobile app.</p>
 
@@ -184,7 +184,7 @@ export const productIntentBlogContent: Record<string, string> = {
 
 <div class="source-note"><strong>Method:</strong> we reviewed official product information from <a href="https://finance.yahoo.com/about/mobile/">Yahoo Finance</a>, <a href="https://support.apple.com/guide/iphone/check-stocks-iph1ac0b1bc/ios">Apple</a>, <a href="https://www.tradingview.com/">TradingView</a>, <a href="https://stockanalysis.com/">Stock Analysis</a>, <a href="https://www.koyfin.com/">Koyfin</a>, and <a href="https://seekingalpha.com/">Seeking Alpha</a> on August 3, 2026. Features and plan limits can change. We receive no affiliate compensation.</div>
 
-<div class="cta-section"><h3>Make the list do some work</h3><p>Add a US stock to Watchlist and stocksbrew will research it, publish the brief, and monitor what changes.</p><a class="cta-button" href="/watchlist">Open Watchlist →</a></div>
+<div class="cta-section"><h3>Make the list do some work</h3><p>Add a US stock to Watchlist and stocksbrew will research it, publish the brief, and monitor what changes.</p><a class="cta-button" href="/portfolio">Open Watchlist →</a></div>
 `,
 
   "best-stock-news-apps-2026": `
@@ -280,7 +280,7 @@ export const productIntentBlogContent: Record<string, string> = {
 
 <div class="source-note"><strong>Method:</strong> we reviewed official pages for <a href="https://www.reuters.com/markets/">Reuters</a>, <a href="https://www.bloomberg.com/markets">Bloomberg</a>, <a href="https://www.cnbc.com/markets/">CNBC</a>, <a href="https://finance.yahoo.com/about/mobile/">Yahoo Finance</a>, <a href="https://seekingalpha.com/">Seeking Alpha</a>, and <a href="https://stockanalysis.com/">Stock Analysis</a> on August 3, 2026. Product access and features can change. Stocksbrew receives no affiliate compensation.</div>
 
-<div class="cta-section"><h3>See the news around your stocks</h3><p>Track a US stock in Watchlist to connect relevant headlines with the company’s price, financials, catalysts, risks, and current research brief.</p><a class="cta-button" href="/watchlist">Track a stock →</a></div>
+<div class="cta-section"><h3>See the news around your stocks</h3><p>Track a US stock in Watchlist to connect relevant headlines with the company’s price, financials, catalysts, risks, and current research brief.</p><a class="cta-button" href="/portfolio">Track a stock →</a></div>
 `,
 
   "chartrecap-review": `

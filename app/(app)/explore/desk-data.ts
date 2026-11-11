@@ -9,6 +9,8 @@ import { getIpos, type IpoEvent } from "@/lib/ipos";
 import { getMarketsOverview } from "@/lib/markets";
 import type { MarketsData, MarketsOverview } from "@/lib/markets-shared";
 import { realReason } from "@/lib/reason-quality";
+import { moveReason } from "@/lib/briefing";
+import { moveLine } from "@/lib/move-line";
 import { getRedditCues } from "@/lib/reddit-cues";
 import { hasRedditBrief } from "@/lib/reddit-cues-shared";
 import { getLiveInvestmentThemes } from "@/lib/research-themes";
@@ -19,6 +21,7 @@ import { buildCalendarRead, readTickers } from "@/lib/calendar-insights";
 import { buildGiantsRead, screensTakeaway, type GiantForRead } from "@/lib/explore-insights";
 import { etDayOf, quoteDay } from "@/lib/benchmark-day";
 import { getScreenerSnapshot } from "@/lib/screener";
+import { etDayOfStamp, oldestStamp } from "@/lib/quote-time";
 import { oneRowPerCompany } from "@/lib/share-class";
 import { pickInsights } from "@/lib/insights";
 import { getMarketsData } from "@/lib/markets";
@@ -68,6 +71,8 @@ export type DeskMover = {
   changePct: number;
   /** One line on why, only when the explanation was confirmed against a source. */
   reason: string | null;
+  /** When `changePct` was priced (the live quote the feed was re-priced from, lib/daily-anomalies.ts). */
+  priceAsOf: string | null;
 };
 
 export type DeskScreen = { id: string; title: string; tagline: string; matchCount: number; top: Array<{ ticker: string; changePct: number | null }> };
@@ -100,11 +105,14 @@ export type DeskData = {
   today: string;
   wire: DeskNews;
   movers: {
+    /** Every unusual move up, largest first: Market today is the one list of the day's moves, so none is cut. */
     up: DeskMover[];
     down: DeskMover[];
     asOf: string | null;
+    /** The New York day the moves were priced on (feed.date is a UTC date, a day ahead after 7 PM New York time). */
+    day: string | null;
     thresholdPct: number | null;
-    /** What the whole list adds up to, in one line (every mover, not just the ten shown). */
+    /** What the whole list adds up to, in one line. */
     takeaway?: string | null;
   };
   earnings: { today: EarningsEvent[]; next: EarningsEvent[]; weekCount: number; asOf: string | null };
@@ -191,7 +199,8 @@ export const loadDeskWire = section<DeskData["wire"]>(
 );
 
 export const loadDeskMovers = section<DeskData["movers"]>(
-  "movers",
+  // Its own cache key since the list stopped at ten: an older cached copy has neither every move nor their times.
+  "movers-all",
   async () => {
     const anomalies = await getDailyAnomalies("US");
     const rows = (anomalies?.anomalies ?? []).filter((row) => row.ticker && Number.isFinite(row.day_change_pct));
@@ -200,18 +209,23 @@ export const loadDeskMovers = section<DeskData["movers"]>(
       name: row.name,
       price: Number.isFinite(row.price) && row.price > 0 ? row.price : null,
       changePct: row.day_change_pct,
-      // A reason that only says the move again ("reverses recent gains") is none: the stock goes with the chips.
-      reason: row.narrative_status === "unverified" ? null : realReason(clip(row.move_explanation?.headline ?? row.headline), row.ticker, row.name),
+      // The briefing's rule for a confirmed reason (lib/briefing.ts moveReason: researched, with a source, more than the
+      // price action), worded the way the home page words it (lib/move-line.ts). A reason that only says the move
+      // again ("reverses recent gains") is none: the stock goes with the chips.
+      reason: moveReason(row).status === "confirmed" ? realReason(moveLine(row), row.ticker, row.name) : null,
+      priceAsOf: row.price_as_of ?? null,
     });
+    const priced = oldestStamp(rows.map((row) => row.price_as_of));
     return {
-      up: rows.filter((row) => row.day_change_pct > 0).sort((a, b) => b.day_change_pct - a.day_change_pct).slice(0, 5).map(toMover),
-      down: rows.filter((row) => row.day_change_pct < 0).sort((a, b) => a.day_change_pct - b.day_change_pct).slice(0, 5).map(toMover),
+      up: rows.filter((row) => row.day_change_pct > 0).sort((a, b) => b.day_change_pct - a.day_change_pct).map(toMover),
+      down: rows.filter((row) => row.day_change_pct < 0).sort((a, b) => a.day_change_pct - b.day_change_pct).map(toMover),
       asOf: anomalies?.enriched_at ?? anomalies?.generated_at ?? null,
+      day: etDayOfStamp(priced) ?? etDayOfStamp(anomalies?.generated_at ?? null),
       thresholdPct: anomalies?.threshold_pct ?? null,
       takeaway: moversHeadline(rows.map((row) => classifyMover(row))),
     };
   },
-  { up: [], down: [], asOf: null, thresholdPct: null, takeaway: null },
+  { up: [], down: [], asOf: null, day: null, thresholdPct: null, takeaway: null },
 );
 
 /**
@@ -309,8 +323,8 @@ export const loadDeskSectors = section<{ rows: DeskSector[]; takeaway: string | 
 
 /**
  * The ten biggest companies we follow and how each moved on the day most
- * stocks are priced. Market today shows these instead of the day's biggest
- * movers, which have their own page (Why stocks moved).
+ * stocks are priced. Market today's read leads with these; the day's biggest
+ * movers are its list under the read (#moves).
  */
 export const loadDeskGiants = section<{ rows: GiantForRead[]; line: string | null; day: string | null }>(
   "giants",
@@ -476,7 +490,7 @@ export const loadDeskBrief = section<DeskBrief>(
     const read: TheRead | null = marketRead || moverRead
       ? {
           headline: marketRead?.headline ?? moverRead!.headline,
-          // Market today reads the market: the biggest companies, not the day's biggest movers (Why stocks moved has those).
+          // The read is about the market: the biggest companies, not the day's biggest movers (the list under it has those).
           // Each card ends with the next real thing to watch on its stocks, when there is one (owner rule 7).
           insights: withWatchNext(
             // The biggest companies only when their prices are from the session the market read is about.

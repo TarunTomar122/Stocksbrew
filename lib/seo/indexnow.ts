@@ -116,7 +116,6 @@ export const SEO_PRIORITY_URLS = [
   "/sectors/industrials",
   "/sectors/communication-services",
   "/sectors/energy",
-  "/movers",
   "/insiders",
   "/compare/amd-vs-nvda",
   "/compare/ko-vs-pep",

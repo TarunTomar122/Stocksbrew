@@ -59,7 +59,7 @@ export const analysisAppBlogContent: Record<string, string> = {
 
 <p><a href="/">Stocksbrew</a> is designed around a different question from a traditional screener: once you start researching a US stock, what is the current setup, what supports it, what threatens it, and when should you look again?</p>
 
-<p>A stock page combines price context, fundamentals, analyst consensus, valuation, growth, quality, momentum, ownership, earnings context, and a structured call. <a href="/watchlist">Watchlist</a> turns selected names into a monitored list with earnings and price-zone alerts. Pro adds the detailed call, Stocksbrew target, unlimited tracked names, and agent access for $9 per month.</p>
+<p>A stock page combines price context, fundamentals, analyst consensus, valuation, growth, quality, momentum, ownership, earnings context, and a structured call. <a href="/portfolio">Watchlist</a> turns selected names into a monitored list with earnings and price-zone alerts. Pro adds the detailed call, Stocksbrew target, unlimited tracked names, and agent access for $9 per month.</p>
 
 <p><strong>Where it is strongest:</strong> moving from scattered data to an interpretable watchlist workflow. The product exposes freshness and keeps the call, drivers, risks, target context, and alerts near the stock.</p>
 
@@ -164,7 +164,7 @@ export const analysisAppBlogContent: Record<string, string> = {
 <div class="cta-section">
   <h3>See the Stocksbrew workflow on your own ticker</h3>
   <p>Start with the free stock pages and three Watchlist names. Upgrade only if the detailed call, target, and alerts remove a real research bottleneck.</p>
-  <a class="cta-button" href="/watchlist">Try Stocksbrew Watchlist →</a>
+  <a class="cta-button" href="/portfolio">Try Stocksbrew Watchlist →</a>
 </div>
 `,
 
@@ -261,7 +261,7 @@ export const analysisAppBlogContent: Record<string, string> = {
   <li>Update the call, risk, target assumption, or next review date only when evidence warrants it.</li>
 </ol>
 
-<p>A monitoring app should make this step easier by carrying timestamps and identifying which tracked names actually changed. In <a href="/watchlist">Stocksbrew Watchlist</a>, the goal is not to make you check more often; it is to bring you back for earnings, price zones, and setup changes.</p>
+<p>A monitoring app should make this step easier by carrying timestamps and identifying which tracked names actually changed. In <a href="/portfolio">Stocksbrew Watchlist</a>, the goal is not to make you check more often; it is to bring you back for earnings, price zones, and setup changes.</p>
 
 <h2 id="template">A 15-minute daily analysis template</h2>
 
@@ -383,7 +383,7 @@ export const analysisAppBlogContent: Record<string, string> = {
 
 <p><a href="/agents">Stocksbrew for Agents</a> exposes research, Watchlist, and alert tools through MCP and a REST API. A compatible agent can search for a ticker, retrieve current intelligence, track a stock with permission, read changes, and manage alert rules. The response includes a schema version, as-of timestamp, freshness status, and usage information.</p>
 
-<p>The consumer product uses the same overall research shape: calls, targets, valuation, growth, quality, momentum, catalysts, and risks, with <a href="/watchlist">Watchlist</a> monitoring selected names. Pro is $19 per month and includes 200 combined agent calls per day.</p>
+<p>The consumer product uses the same overall research shape: calls, targets, valuation, growth, quality, momentum, catalysts, and risks, with <a href="/portfolio">Watchlist</a> monitoring selected names. Pro is $19 per month and includes 200 combined agent calls per day.</p>
 
 <p><strong>Best fit:</strong> someone who already uses an AI agent or wants a focused web workflow for US stocks and does not want to paste screenshots or manually restate current context.</p>
 
@@ -560,7 +560,7 @@ export const analysisAppBlogContent: Record<string, string> = {
 
 <h2 id="stocksbrew-free">7. Stocksbrew: best free interpreted US-stock watchlist layer</h2>
 
-<p><a href="/">Stocksbrew</a> provides public market pages for movers, heat, events, earnings, screens, and stock research. Free users can track up to three stocks on <a href="/watchlist">Watchlist</a> and preview the research workflow.</p>
+<p><a href="/">Stocksbrew</a> provides public market pages for movers, heat, events, earnings, screens, and stock research. Free users can track up to three stocks on <a href="/portfolio">Watchlist</a> and preview the research workflow.</p>
 
 <p><strong>Use it for:</strong> understanding what moved, seeing a stock's key data in one view, and keeping a small decision list instead of scanning a raw feed.</p>
 
@@ -611,7 +611,7 @@ export const analysisAppBlogContent: Record<string, string> = {
 <div class="cta-section">
   <h3>Start with three stocks, not another subscription</h3>
   <p>Build a free Watchlist, use the public market tools, and upgrade only when detailed calls and monitoring save you recurring work.</p>
-  <a class="cta-button" href="/watchlist">Start a free Watchlist →</a>
+  <a class="cta-button" href="/portfolio">Start a free Watchlist →</a>
 </div>
 `,
 

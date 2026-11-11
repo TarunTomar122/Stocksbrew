@@ -240,7 +240,7 @@ function costSignal(ctx: Ctx, id: string, level: SignalLevel): Signal | null {
     Math.abs(move.pct) < 0.05
       ? `It closed at ${moneyWords(close.value)}, level with ${move.words}.`
       : `It closed at ${moneyWords(close.value)}, ${pctWords(move.pct)} ${move.pct > 0 ? "above" : "below"} ${move.words}.`;
-  return { id, level, text, source: "Daily closes and your own entries", asOf: close.day, href: "/watchlist", data: move.data };
+  return { id, level, text, source: "Daily closes and your own entries", asOf: close.day, href: "/portfolio?tab=holdings", data: move.data };
 }
 
 function growthRules(ctx: Ctx, out: Signal[]) {
@@ -440,7 +440,7 @@ function longTermRules(ctx: Ctx, out: Signal[]) {
       text: `It closed ${pctWords(move.pct)} below ${move.words}, and our call is Sell some.`,
       source: "Daily closes, your own entries and our call",
       asOf: facts.close!.day,
-      href: "/watchlist",
+      href: "/portfolio?tab=holdings",
       data: { ...move.data, call: "Sell some" },
     });
   }
@@ -465,9 +465,9 @@ function tradeRules(ctx: Ctx, out: Signal[]) {
   const held = saved ? daysBetween(saved, ctx.today) : 0;
   const move = costMove(ctx);
   if (move && move.high <= -t.tradeStopPct) {
-    out.push({ id: "trade_stop", level: "hard", text: `It closed ${pctWords(move.pct)} below ${move.words}.`, source: "Daily closes and your own entries", asOf: facts.close!.day, href: "/watchlist", data: move.data });
+    out.push({ id: "trade_stop", level: "hard", text: `It closed ${pctWords(move.pct)} below ${move.words}.`, source: "Daily closes and your own entries", asOf: facts.close!.day, href: "/portfolio?tab=holdings", data: move.data });
   } else if (move && move.low >= t.tradeTargetPct) {
-    out.push({ id: "trade_target", level: "done", text: `It closed ${pctWords(move.pct)} above ${move.words}.`, source: "Daily closes and your own entries", asOf: facts.close!.day, href: "/watchlist", data: move.data });
+    out.push({ id: "trade_target", level: "done", text: `It closed ${pctWords(move.pct)} above ${move.words}.`, source: "Daily closes and your own entries", asOf: facts.close!.day, href: "/portfolio?tab=holdings", data: move.data });
   }
   if (held > t.tradeMaxDays) {
     out.push({
@@ -476,7 +476,7 @@ function tradeRules(ctx: Ctx, out: Signal[]) {
       text: `You saved this as a short-term trade ${held} days ago, on ${dayWords(saved, ctx.today)}.`,
       source: "Your own entries",
       asOf: ctx.today,
-      href: "/watchlist",
+      href: "/portfolio?tab=holdings",
       data: { ticker: facts.ticker, days: held, saved },
     });
   }

@@ -441,7 +441,7 @@ export function yourStocksInsight(tallies: StockTally[], mine: string[], period:
     tone: bought.length >= sold.length ? "up" : "down",
     text: `Of the ${plural(set.size, "stock")} you track, funds were ${pieces.join(" and ")} in ${quarterLabel(period)}.`,
     tickers: [...bought.slice(0, 2), ...sold.slice(0, 2)].map((row) => row.ticker),
-    action: { label: "Your portfolio", href: "/watchlist" },
+    action: { label: "Your portfolio", href: "/portfolio?tab=holdings" },
   };
 }
 

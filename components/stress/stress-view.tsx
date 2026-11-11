@@ -262,7 +262,7 @@ function Notes({ result, example, historyFirst }: { result: StressResult; exampl
     lines.push(
       <>
         {result.unvalued.join(", ")} {result.unvalued.length === 1 ? "has" : "have"} no share count, so {result.unvalued.length === 1 ? "it is" : "they are"} left out.{" "}
-        <Link href="/watchlist" className="font-medium text-oa-primary hover:underline">
+        <Link href="/portfolio?tab=holdings" className="font-medium text-oa-primary hover:underline">
           Add share counts in Portfolio
         </Link>
       </>,

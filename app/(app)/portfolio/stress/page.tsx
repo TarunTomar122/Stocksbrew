@@ -27,7 +27,7 @@ export default async function StressPage() {
       <PageHead
         title="Stress test"
         crumb={
-          <Link href="/watchlist" className="underline decoration-oa-border underline-offset-2 hover:text-oa-fg">
+          <Link href="/portfolio?tab=holdings" className="underline decoration-oa-border underline-offset-2 hover:text-oa-fg">
             Portfolio
           </Link>
         }
@@ -82,7 +82,7 @@ async function StressBody() {
         ) : session ? (
           <>
             You have no holdings marked yet, so this is the example portfolio.{" "}
-            <Link href="/watchlist" className="font-medium text-oa-primary hover:underline">
+            <Link href="/portfolio?tab=holdings" className="font-medium text-oa-primary hover:underline">
               Mark the stocks you own in Portfolio
             </Link>{" "}
             to test your own.
@@ -90,7 +90,7 @@ async function StressBody() {
         ) : (
           <>
             This is an example portfolio{example?.pricesAsOf ? `, weighted at the ${fmtDay(example.pricesAsOf)} close` : ""}.{" "}
-            <Link href="/watchlist" className="font-medium text-oa-primary hover:underline">
+            <Link href="/portfolio?tab=holdings" className="font-medium text-oa-primary hover:underline">
               Sign in and add your holdings
             </Link>{" "}
             to stress test your own.

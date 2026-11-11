@@ -50,7 +50,7 @@ async function logFor(day: string, today: string, now: Date): Promise<AgentLog |
     // The after-close jobs run into the evening; until then the day's log is still filling up.
     ongoing: day === today && (clock?.minutes ?? 0) < 20 * 60,
     facts: await factsFor(day),
-    movesHref: day === today ? "/movers" : `/movers/${day}`,
+    movesHref: day === today ? "/explore#moves" : `/movers/${day}`,
   });
 }
 

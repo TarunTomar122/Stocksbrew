@@ -1,6 +1,5 @@
-import { anomalyHeadline, hasResearchBackedNarrative } from "@/components/daily-anomalies-shared";
-import { usableReplacement } from "@/lib/briefing-groups";
-import { asSentence, companyFirstMove, firstFullSentence, hasTitleCaseLeftover, plainFinance, sentenceCase, shortCompanyName } from "@/lib/plain-copy";
+import { hasResearchBackedNarrative } from "@/components/daily-anomalies-shared";
+import { shortCompanyName } from "@/lib/plain-copy";
 import { sharedCache } from "@/lib/shared-cache";
 import { SquircleCard } from "@/components/oa/squircle";
 import { Reveal } from "@/components/reveal";
@@ -34,17 +33,9 @@ import {
 const INSET = "pb-1";
 const NEWS_MAX_AGE_DAYS = 7;
 
-/** A move's reason in plain words, company first when the feed wrote the cause first ("Zeta rose after strong earnings"). */
-export function moveLine(item: { ticker: string; name: string; day_change_pct: number } & Parameters<typeof anomalyHeadline>[0]): string {
-  // Feeds write some reasons in Title Case ("GTA VI Preorders Spark Take-Two's Rebound"); read them as a sentence.
-  const said = plainFinance(sentenceCase(anomalyHeadline(item), item.name));
-  const turned = companyFirstMove(said.replace(/\.$/, ""), item.day_change_pct, { company: { name: item.name, ticker: item.ticker } });
-  const line = turned ? `${turned}.` : said;
-  // Still a headline ("Take-Two rose after GTA VI Preorders"): the reason's own first sentence says it whole.
-  if (!hasTitleCaseLeftover(line, item.name)) return line;
-  const detail = asSentence(firstFullSentence((item.move_explanation?.why_it_matters ?? "").replace(/\s+/g, " ")));
-  return usableReplacement(detail, { name: item.name, ticker: item.ticker }) ? detail : line;
-}
+// Worded in one place for every page that shows a move (lib/move-line.ts).
+export { moveLine } from "@/lib/move-line";
+import { moveLine } from "@/lib/move-line";
 const CARD_COUNT = 6;
 
 function Ticker({ symbol, logo = true }: { symbol: string; logo?: boolean }) {
@@ -168,7 +159,7 @@ export async function TrackGrid({ only, rows = 8 }: { only?: string[]; rows?: nu
       key: "moves",
       hasData: explained.length > 0 || priceMovers.length > 0,
       node: (
-        <SquircleCard title="Price moves, with the reason" seeAllHref="/signals?tab=movers" contentClassName={INSET}>
+        <SquircleCard title="Price moves, with the reason" seeAllHref="/explore#moves" contentClassName={INSET}>
           {explained.length > 0 ? (
             explained.map((item) => (
               <RowLink

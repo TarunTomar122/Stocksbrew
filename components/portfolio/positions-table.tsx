@@ -433,7 +433,29 @@ export function PositionsTable({
     router.push(`/stock/${position.ticker}`);
   }
 
-  const span = columns.length + (editable ? 1 : 0);
+  // A table row draws a ring unreliably, so a focused row gets the hover tint and a thin inset outline.
+  const ROW_FOCUS =
+    "outline-none focus-visible:bg-oa-accent focus-visible:outline focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]";
+  // What choosing a row does, for the tooltip and screen readers: a holding opens its shares and cost, a watched
+  // stock its "I own this" and remove.
+  const editWords = (position: PortfolioPosition) =>
+    position.kind === "holding" ? `${position.ticker}: change shares and cost` : `${position.ticker}: mark as owned or remove`;
+  function onRowKey(event: React.KeyboardEvent<HTMLElement>, position: PortfolioPosition) {
+    if (event.target !== event.currentTarget) return;
+    if (event.key === "Enter" || (editable && event.key === " ")) {
+      event.preventDefault();
+      choose(position);
+    }
+  }
+
+  // In the editor the row itself opens its shares and cost (no "Edit" on every row, owner rule 1); the ticker still
+  // opens the stock. Read-only (the example), the row opens the stock.
+  function choose(position: PortfolioPosition) {
+    if (!editable) return open(position);
+    setEditing((current) => (current === position.instrument_id ? null : position.instrument_id));
+  }
+
+  const span = columns.length;
 
   return (
     <>
@@ -452,7 +474,6 @@ export function PositionsTable({
                   first={index === 0}
                 />
               ))}
-              {editable ? <th scope="col" className={`${TH} pr-3 text-right`}><span className="sr-only">Edit</span></th> : null}
             </tr>
           </thead>
           <tbody>
@@ -461,9 +482,15 @@ export function PositionsTable({
               return (
                 <PositionRows key={position.instrument_id}>
                   <tr
-                    onClick={() => open(position)}
-                    className={`h-12 cursor-pointer border-b border-oa-border transition-colors last:border-b-0 hover:bg-oa-accent ${
-                      position.needsAttention ? "bg-[color-mix(in_srgb,var(--oa-primary)_6%,transparent)]" : ""
+                    onClick={() => choose(position)}
+                    // Editable, the row is the way into its editor, so it takes focus and opens with Enter or Space.
+                    tabIndex={editable ? 0 : undefined}
+                    onKeyDown={editable ? (event) => onRowKey(event, position) : undefined}
+                    title={editable ? editWords(position) : undefined}
+                    aria-label={editable ? editWords(position) : undefined}
+                    aria-expanded={editable ? isEditing : undefined}
+                    className={`h-12 cursor-pointer border-b border-oa-border transition-colors last:border-b-0 hover:bg-oa-accent ${editable ? ROW_FOCUS : ""} ${
+                      isEditing ? "bg-oa-accent" : position.needsAttention ? "bg-[color-mix(in_srgb,var(--oa-primary)_6%,transparent)]" : ""
                     }`}
                   >
                     {columns.map((column, index) => (
@@ -493,22 +520,6 @@ export function PositionsTable({
                         )}
                       </td>
                     ))}
-                    {editable ? (
-                      <td className={`${TD} pr-3 text-right`}>
-                        <button
-                          type="button"
-                          aria-expanded={isEditing}
-                          aria-label={`Edit ${position.ticker}`}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setEditing(isEditing ? null : position.instrument_id);
-                          }}
-                          className={`rounded border border-transparent px-2 py-1 text-[12px] font-medium text-oa-muted-fg hover:border-oa-border hover:text-oa-fg ${FOCUS}`}
-                        >
-                          {isEditing ? "Close" : "Edit"}
-                        </button>
-                      </td>
-                    ) : null}
                   </tr>
                   {isEditing ? (
                     <tr className="border-b border-oa-border">
@@ -544,7 +555,6 @@ export function PositionsTable({
                     ) : null}
                   </td>
                 ))}
-                {editable ? <td className={TD} /> : null}
               </tr>
             </tfoot>
           ) : null}
@@ -585,14 +595,14 @@ export function PositionsTable({
             return (
               <li key={position.instrument_id}>
                 <div
-                  role="link"
+                  role={editable ? "button" : "link"}
                   tabIndex={0}
-                  onClick={() => open(position)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") open(position);
-                  }}
+                  aria-expanded={editable ? isEditing : undefined}
+                  aria-label={editable ? editWords(position) : undefined}
+                  onClick={() => choose(position)}
+                  onKeyDown={(event) => onRowKey(event, position)}
                   className={`flex cursor-pointer flex-col gap-1.5 px-3 py-2.5 hover:bg-oa-accent ${FOCUS} ${
-                    position.needsAttention ? "bg-[color-mix(in_srgb,var(--oa-primary)_6%,transparent)]" : ""
+                    isEditing ? "bg-oa-accent" : position.needsAttention ? "bg-[color-mix(in_srgb,var(--oa-primary)_6%,transparent)]" : ""
                   }`}
                 >
                   <div className="flex items-center justify-between gap-3">

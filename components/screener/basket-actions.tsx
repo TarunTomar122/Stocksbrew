@@ -113,7 +113,7 @@ export function WatchlistButton({
         {text}
       </button>
       {state.kind === "done" ? (
-        <Link prefetch={false} href="/watchlist" className="text-[13px] text-oa-muted-fg underline decoration-oa-border underline-offset-2 hover:text-oa-fg">
+        <Link prefetch={false} href="/portfolio?tab=holdings" className="text-[13px] text-oa-muted-fg underline decoration-oa-border underline-offset-2 hover:text-oa-fg">
           Open watchlist
         </Link>
       ) : null}

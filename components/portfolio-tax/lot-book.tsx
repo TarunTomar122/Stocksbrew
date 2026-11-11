@@ -732,7 +732,7 @@ export function LotBook({ stocks }: { stocks: LotBookStock[] }) {
             <span className="text-[12px] text-oa-muted-fg">
               Not listed?{" "}
               <Link
-                href="/watchlist"
+                href="/portfolio?tab=holdings"
                 className="underline decoration-oa-border underline-offset-2 hover:text-oa-fg"
               >
                 Add it to Portfolio
@@ -746,7 +746,7 @@ export function LotBook({ stocks }: { stocks: LotBookStock[] }) {
               ? "Lots are kept for stocks in your Portfolio. "
               : "Every stock in your Portfolio has lots. "}
             <Link
-              href="/watchlist"
+              href="/portfolio?tab=holdings"
               className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2"
             >
               Add a US stock to Portfolio

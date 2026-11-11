@@ -38,42 +38,6 @@ import {
 
 /* ── Pieces ────────────────────────────────────────────────────────────── */
 
-const TABS: Array<{ id: string; label: string; href: string }> = [
-  { id: "positions", label: "Positions", href: "/watchlist" },
-  { id: "watching", label: "Watching", href: "/watchlist?tab=watching" },
-  { id: "analytics", label: "Analytics", href: "/watchlist?tab=analytics" },
-  { id: "alerts", label: "Alerts", href: "/watchlist?tab=alerts" },
-  { id: "tax", label: "Tax", href: "/watchlist/tax" },
-];
-
-/** The Portfolio tab row, drawn the same way as on /watchlist, with Tax as the current one. */
-export function PortfolioTaxTabs() {
-  return (
-    <nav
-      aria-label="Portfolio sections"
-      className="-mx-2 flex gap-1 overflow-x-auto border-b border-oa-border px-1 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden"
-    >
-      {TABS.map((tab) => {
-        const active = tab.id === "tax";
-        return (
-          <Link
-            key={tab.id}
-            href={tab.href}
-            aria-current={active ? "page" : undefined}
-            className={`-mb-px inline-flex h-10 shrink-0 items-center gap-1.5 border-b-2 px-3 text-[14px] transition-colors ${FOCUS} ${
-              active
-                ? "border-oa-primary font-medium text-oa-fg"
-                : "border-transparent text-oa-muted-fg hover:text-oa-fg"
-            }`}
-          >
-            {tab.label}
-          </Link>
-        );
-      })}
-    </nav>
-  );
-}
-
 function TermTag({ term }: { term: Term }) {
   if (term === "long") return <Tag tone="neutral">Long</Tag>;
   if (term === "short") return <Tag tone="neutral">Short</Tag>;
@@ -531,8 +495,8 @@ export function TaxView({
                       key={option}
                       href={
                         option === currentYear
-                          ? "/watchlist/tax"
-                          : `/watchlist/tax?year=${option}`
+                          ? "/portfolio/taxes"
+                          : `/portfolio/taxes?year=${option}`
                       }
                       aria-current={option === year ? "true" : undefined}
                       className={`oa-mono inline-flex h-7 items-center rounded border px-2 text-[12.5px] ${FOCUS} ${
