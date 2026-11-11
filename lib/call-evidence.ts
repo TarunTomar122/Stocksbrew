@@ -33,6 +33,8 @@ export const MOVE_WEEK_SESSIONS = 5;
 export const VOL_SESSIONS = 60;
 export const MARKET_DROP_PCT = 4.0;
 export const MARKET_DROP_SESSIONS = 5;
+
+const SESSION_WORDS: Record<number, string> = { 3: "three", 4: "four", 5: "five", 6: "six" };
 export const MIN_HOLD_SESSIONS = 12;
 
 export type DailyClose = { date: string; close: number };
@@ -288,7 +290,9 @@ function moveLine(input: CallEvidenceInput, swing: number | null): EvidenceLine 
     if (!best || z > best.z) best = { span, stock, market, z };
   }
   if (!best || best.z < 1.5 || Math.abs(best.stock) < 3) return null;
-  const window = best.span === MOVE_WEEK_SESSIONS ? "week" : "month";
+  // The short window is the last five sessions, said as trading days so it is never read as this week so far (the
+  // weekly memo's week, from Friday's close).
+  const window = best.span === MOVE_WEEK_SESSIONS ? `${SESSION_WORDS[MOVE_WEEK_SESSIONS] ?? MOVE_WEEK_SESSIONS} trading days` : "month";
   const marketWords = Math.abs(best.market) < 0.05 ? "the S&P 500 was flat" : `the S&P 500 ${best.market > 0 ? "rose" : "fell"} ${pct(best.market)}`;
   return {
     id: "move",

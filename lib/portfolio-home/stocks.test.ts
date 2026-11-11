@@ -205,3 +205,13 @@ describe("extraFacts", () => {
     expect(out.reasons).toEqual([{ ticker: "UNH", verdict: "played_out", signal: "No longer cheap." }]);
   });
 });
+
+describe("the five-session figure's words", () => {
+  it("says trading days when only the five-session move is known, so it is not read as the memo's week so far", () => {
+    const rows = [row("NVDA", 200, null), row("AAPL", 100, null)];
+    const quiet = buildPortfolio({ rows, holdings: { US_NVDA: { quantity: 10 }, US_AAPL: { quantity: 10 } }, today: TODAY });
+    const lead = bookLead(source({ portfolio: quiet, week: { from: "2026-11-04", to: TODAY, pct: -2.3, dollars: -300, marketPct: -0.8 } }))!;
+    expect(lead.today).toBeNull();
+    expect(lead.headline).toBe("Your stocks fell 2.3% over the past five trading days, 1.5 points worse than the S&P 500.");
+  });
+});

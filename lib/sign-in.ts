@@ -8,6 +8,8 @@ type SignInOptions = {
 };
 
 export const POST_SIGNUP_ONBOARDING_PENDING = "stocksbrew:onboarding:pending";
+/** Set once the first-run dialog has been finished or skipped, so it never opens twice. */
+export const POST_SIGNUP_ONBOARDING_SEEN = "stocksbrew:onboarding:seen";
 
 export async function syncServerSession(user?: User | null): Promise<void> {
   const currentUser = user ?? getFirebaseAuth().currentUser;

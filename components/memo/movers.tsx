@@ -4,6 +4,7 @@ import { FOCUS, NUM } from "@/components/oa/kit";
 import { StockLogo } from "@/components/stock-logo";
 import { signedPct, signedPoints } from "@/lib/memo/format";
 import type { Memo, MemoMover } from "@/lib/memo/types";
+import { weekMoveWords } from "@/lib/memo/week";
 
 import { explainMover } from "./explain";
 import { MEMO_CARD, memoCell, memoGrid } from "./rows";
@@ -14,8 +15,10 @@ import { MEMO_CARD, memoCell, memoGrid } from "./rows";
  * (a report, or a move with a confirmed cause); with none, nothing is written. The ones that helped most come
  * first, the ones that hurt most last. The card opens the page with the evidence.
  */
-export function Movers({ movers, memo, example }: { movers: MemoMover[]; memo: Pick<Memo, "changed" | "hurt" | "look">; example: boolean }) {
+export function Movers({ movers, memo, example }: { movers: MemoMover[]; memo: Pick<Memo, "changed" | "hurt" | "look" | "complete">; example: boolean }) {
   if (movers.length === 0) return null;
+  // The memo's week runs from Friday's close; while it runs, "so far" keeps it apart from a five-session move.
+  const when = weekMoveWords(memo.complete);
   return (
     <section aria-labelledby="memo-movers" className="min-w-0">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-1 pb-2">
@@ -34,7 +37,7 @@ export function Movers({ movers, memo, example }: { movers: MemoMover[]; memo: P
               <Link
                 href={href}
                 prefetch={false}
-                title={`${mover.name}: ${signedPoints(mover.points)} points of the portfolio's move, ${signedPct(mover.pct)} this week`}
+                title={`${mover.name}: ${signedPoints(mover.points)} points of the portfolio's move, ${signedPct(mover.pct)} ${when}`}
                 className={`${MEMO_CARD} ${FOCUS}`}
               >
                 <span className="flex min-w-0 items-center gap-2">
@@ -46,7 +49,7 @@ export function Movers({ movers, memo, example }: { movers: MemoMover[]; memo: P
                   <span className="ml-1 text-[13px] font-normal text-oa-muted-fg">pts</span>
                 </span>
                 <span className="mt-0.5 block text-[13px] leading-[18px] text-oa-muted-fg">
-                  <span className={`${NUM} ${mover.pct >= 0 ? "text-signal-bullish" : "text-signal-bearish"}`}>{signedPct(mover.pct)}</span> this week
+                  <span className={`${NUM} ${mover.pct >= 0 ? "text-signal-bullish" : "text-signal-bearish"}`}>{signedPct(mover.pct)}</span> {when}
                 </span>
                 {explain.text ? <span className="mt-2 block text-pretty text-[13px] leading-[19px] text-oa-fg">{explain.text}</span> : null}
               </Link>

@@ -72,6 +72,12 @@ const nextConfig = {
       { source: "/mcp", destination: "/developers", permanent: true },
       { source: "/agents/jobs", destination: "/agents", permanent: true },
       { source: "/subscribe", destination: "/pricing", permanent: false },
+      // Retired pages that still answered with old calls in old words. Each goes to the page that replaced it.
+      { source: "/watchlist/classic", destination: "/portfolio", permanent: true },
+      { source: "/watchlist/next", destination: "/portfolio", permanent: true },
+      { source: "/watchlist/portfolio", destination: "/portfolio", permanent: true },
+      { source: "/portfolio/analyze", destination: "/portfolio/xray", permanent: true },
+      { source: "/profile/subscribe", destination: "/pricing", permanent: true },
       // The old investing guides were articles, so they go to the blog, not to
       // the product docs.
       { source: "/learn", destination: "/blog", permanent: true },

@@ -47,10 +47,11 @@ export function middleware(request: NextRequest) {
     });
   }
 
-  // Signed-in people skip the landing page and go straight to their portfolio.
-  // Only the cookie's presence is checked here (the edge cannot verify it); a
-  // stale cookie just lands on /watchlist's signed-out view. `/?home=1` keeps
-  // the landing page reachable for someone who is signed in.
+  // Signed-in people skip the landing page and go straight to My stocks
+  // (/portfolio, the nav's first place for them). Only the cookie's presence is
+  // checked here (the edge cannot verify it); a stale cookie just lands on My
+  // stocks' signed-out view, the example portfolio. `/?home=1` keeps the
+  // landing page reachable for someone who is signed in.
   if (
     request.nextUrl.pathname === "/" &&
     request.method === "GET" &&
@@ -58,7 +59,7 @@ export function middleware(request: NextRequest) {
     !request.nextUrl.searchParams.has("home")
   ) {
     const portfolioUrl = request.nextUrl.clone();
-    portfolioUrl.pathname = "/watchlist";
+    portfolioUrl.pathname = "/portfolio";
     const response = NextResponse.redirect(portfolioUrl, 307);
     response.headers.set("Cache-Control", "private, no-store");
     appendVaryAccept(response.headers);

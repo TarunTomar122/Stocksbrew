@@ -81,7 +81,7 @@ export function callBasis(reason: string | null | undefined, options: { asOf?: s
   return { facts, change: hasChange ? sentence(last) : null };
 }
 
-/** True when a fact names a day or month ("in the week to Nov 10", "report on Oct 27", "since April"). */
+/** True when a fact names a day or month ("in the five trading days to Nov 10", "report on Oct 27", "since April"). */
 export function factHasDate(fact: string): boolean {
   // Whole month words only, so "Marvell" or "Robinhood Markets" are not read as dates.
   return /\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|Aug(?:ust)?|Sep(?:t|tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\b/.test(fact);

@@ -12,6 +12,7 @@ import {
   type InsiderCluster,
   type InsiderTrade,
 } from "@/lib/follow-shared";
+import type { InsiderGroup } from "@/lib/insider-groups";
 
 function spanWords(cluster: InsiderCluster): string {
   return cluster.first_date === cluster.last_date
@@ -145,6 +146,10 @@ export function InsiderTableHead({ showSide = true }: { showSide?: boolean }) {
   );
 }
 
+function fmtPrice(price: number): string {
+  return `$${price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 /** One insider's buys or sells in one filing. */
 export function InsiderRow({ trade, showSide = true }: { trade: InsiderTrade; showSide?: boolean }) {
   const buy = trade.tx_type === "buy";
@@ -216,9 +221,7 @@ export function InsiderRow({ trade, showSide = true }: { trade: InsiderTrade; sh
         {fmtShares(trade.shares)}
       </span>
       <span className="oa-mono hidden text-right text-[12.5px] text-oa-fg md:block">
-        {trade.price != null
-          ? `$${trade.price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-          : ""}
+        {trade.price != null ? fmtPrice(trade.price) : ""}
       </span>
       <span
         className="oa-mono hidden text-right text-[12px] text-oa-muted-fg md:block"
@@ -230,6 +233,52 @@ export function InsiderRow({ trade, showSide = true }: { trade: InsiderTrade; sh
       >
         {fmtDate(trade.transaction_date, false)}
       </span>
+    </li>
+  );
+}
+
+/**
+ * Several insiders of one company in the same kind of job, trading the same way on the same
+ * day at about the same price, said once: "12 vice presidents · Jun He, Lipen Yuan and 10 more".
+ * The filing time opens the newest member's Form 4; the stock's own insider page lists each filing.
+ */
+export function InsiderGroupRow({ group, showSide = true }: { group: InsiderGroup; showSide?: boolean }) {
+  const buy = group.side === "buy";
+  const tone = buy ? UP : DOWN;
+  return (
+    <li
+      className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 px-4 py-2 md:min-h-[44px] md:py-1.5 ${showSide ? TRADE_GRID : TRADE_GRID_ONE_SIDE}`}
+    >
+      <span className="oa-mono order-3 col-span-2 text-[11.5px] text-oa-muted-fg md:order-none md:col-span-1 md:text-[12px]" title={`Filed ${group.filed_at} US Eastern`}>
+        <ExternalLink href={group.url} className="-my-1 inline-block py-1">
+          <span className="md:hidden">Filed </span>
+          {fmtFiledAt(group.filed_at).replace(" ET", "")}
+          <span className="sr-only"> (the newest Form 4 at the SEC)</span>
+        </ExternalLink>
+        <span className="md:hidden">, traded {fmtDate(group.transaction_date, false)}</span>
+      </span>
+      <span className="order-1 flex min-w-0 items-baseline gap-2 md:order-none">
+        <Ticker ticker={group.symbol} className="text-[13.5px]" />
+        {showSide ? <span className={`oa-mono text-[10.5px] uppercase tracking-[0.06em] md:hidden ${tone}`}>{buy ? "Bought" : "Sold"}</span> : null}
+      </span>
+      <span className="order-2 col-span-2 flex min-w-0 items-baseline gap-1.5 text-[13px] leading-5 md:order-none md:col-span-1">
+        <span className="min-w-0 truncate" title={group.trades.map((trade) => trade.insider).join(", ")}>
+          <span className="text-oa-fg">{group.label}</span>
+          <span className="text-oa-muted-fg"> · {group.names}</span>
+        </span>
+        {group.plan_10b5_1 ? (
+          <span className="oa-mono shrink-0 rounded border border-oa-border px-1 text-[9.5px] uppercase tracking-wider text-oa-muted-fg" title="Traded under pre-arranged 10b5-1 plans">
+            Plan
+          </span>
+        ) : null}
+      </span>
+      {showSide ? <span className={`oa-mono hidden text-[11px] uppercase tracking-[0.06em] md:block ${tone}`}>{buy ? "Buy" : "Sell"}</span> : null}
+      <span className={`oa-mono order-1 text-right text-[13px] font-medium md:order-none ${tone}`}>
+        {group.value != null ? fmtUsd(group.value) : <span className="text-oa-muted-fg">{fmtShares(group.shares)} shares</span>}
+      </span>
+      <span className="oa-mono hidden text-right text-[12.5px] text-oa-fg md:block">{fmtShares(group.shares)}</span>
+      <span className="oa-mono hidden text-right text-[12.5px] text-oa-fg md:block">{group.price != null ? fmtPrice(group.price) : ""}</span>
+      <span className="oa-mono hidden text-right text-[12px] text-oa-muted-fg md:block">{fmtDate(group.transaction_date, false)}</span>
     </li>
   );
 }

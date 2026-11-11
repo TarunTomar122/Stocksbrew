@@ -6,28 +6,14 @@
  */
 import type { Filing } from "@/lib/filings-shared";
 import type { InsiderTrade } from "@/lib/follow-shared";
-import { pickInsights, sharePct, type Insight, type TheRead } from "@/lib/insights";
+import { balanceWindow, filingDay as tradeDay, insiderBalance, mergeTrades, nyDay as etDay, shiftDay, type InsiderBalance } from "@/lib/insider-balance";
+import { pickInsights, type Insight, type TheRead } from "@/lib/insights";
 import { compactMoney, countWord, isNum, listNames, plural } from "@/lib/read-format";
 
-const DAY = 86_400_000;
-
-function etDay(ms: number): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(ms));
-}
-
-function shiftDay(day: string, days: number): string {
-  return new Date(Date.parse(`${day}T00:00:00Z`) + days * DAY).toISOString().slice(0, 10);
-}
-
-/** The filing day of an insider trade: its stored date, else the day part of its New York filing time. */
-function tradeDay(trade: Pick<InsiderTrade, "filing_date" | "filed_at">): string {
-  return (trade.filing_date || trade.filed_at || "").slice(0, 10);
-}
-
-/** [from, to] of the last 7 days ending today (New York), and the 7 before. */
+/** [from, to] of the last 7 days ending today (New York), and the 7 before. The same window /insiders quotes. */
 export function weekWindows(now: number): { thisWeek: [string, string]; lastWeek: [string, string] } {
-  const today = etDay(now);
-  return { thisWeek: [shiftDay(today, -6), today], lastWeek: [shiftDay(today, -13), shiftDay(today, -7)] };
+  const thisWeek = balanceWindow(now, 7);
+  return { thisWeek, lastWeek: [shiftDay(thisWeek[0], -7), shiftDay(thisWeek[0], -1)] };
 }
 
 function inWindow(day: string, [from, to]: [string, string]): boolean {
@@ -100,20 +86,16 @@ function buyingInsight(buys: InsiderTrade[], now: number): Insight | null {
   };
 }
 
-function sellingInsight(trades: InsiderTrade[], now: number): Insight | null {
-  const { thisWeek } = weekWindows(now);
-  const sells = insiderWeek(trades, "sell", thisWeek);
-  if (sells.value < 1_000_000) return null;
-  const planned = sells.trades.filter((trade) => trade.plan_10b5_1).reduce((sum, trade) => sum + (trade.value ?? 0), 0);
-  const plannedShare = sharePct(planned, sells.value) ?? 0;
+function sellingInsight(trades: InsiderTrade[], balance: InsiderBalance | null, now: number): Insight | null {
+  if (!balance || balance.sold < 1_000_000) return null;
+  const sells = insiderWeek(trades, "sell", weekWindows(now).thisWeek);
   const unplanned = sells.trades.filter((trade) => !trade.plan_10b5_1);
   const top = topSymbols(unplanned.length ? unplanned : sells.trades, 3);
-  const buys = insiderWeek(trades, "buy", thisWeek).value;
-  const ratio = buys > 0 ? Math.round(sells.value / buys) : null;
+  const ratio = balance.ratio;
   return {
     id: "insider-sells",
     tone: "down",
-    text: `Insiders sold ${compactMoney(sells.value)} across ${plural(sells.companies, "company", "companies")}${ratio !== null && ratio >= 2 ? `, ${ratio} dollars sold for every dollar bought` : ""}; ${plannedShare}% of it was pre-scheduled. The biggest unscheduled sellers: ${listNames(top)}.`,
+    text: `Insiders sold ${compactMoney(balance.sold)} across ${plural(balance.sellCompanies, "company", "companies")} in the last ${balance.days} days${ratio !== null && ratio >= 2 ? `, ${ratio} dollars sold for every dollar bought` : ""}; ${balance.plannedPct ?? 0}% of it was pre-scheduled. The biggest unscheduled sellers: ${listNames(top)}.`,
     tickers: top,
     action: { label: "See the sales", href: "/insiders" },
   };
@@ -206,28 +188,37 @@ function mineInsight(stream: Filing[], mine: Set<string> | null, now: number): I
   };
 }
 
-export function buildFilingsRead(input: { stream: Filing[]; trades: InsiderTrade[]; buys: InsiderTrade[]; mine: Set<string> | null; now: number; asOf?: string | null }): TheRead | null {
+export function buildFilingsRead(input: {
+  stream: Filing[];
+  trades: InsiderTrade[];
+  buys: InsiderTrade[];
+  mine: Set<string> | null;
+  now: number;
+  asOf?: string | null;
+  /** Rows `trades` was asked for (INSIDER_TRADE_ROWS), so a list that stops inside the week is not counted as the week. */
+  tradesLimit?: number;
+}): TheRead | null {
   const { stream, trades, buys, mine, now } = input;
   // Buys come from their own query (they are rare next to sales); merge so the counts see both.
-  const seen = new Set<string>();
-  const allTrades = [...buys, ...trades].filter((trade) => (seen.has(trade.id) ? false : (seen.add(trade.id), true)));
+  const allTrades = mergeTrades(buys, trades);
   const { thisWeek } = weekWindows(now);
-  const bought = insiderWeek(allTrades, "buy", thisWeek);
-  const sold = insiderWeek(allTrades, "sell", thisWeek);
+  // The same helper and window /insiders quotes, so the two pages never disagree on the balance.
+  const balance = insiderBalance({ trades, buys, now, days: 7, tradesLimit: input.tradesLimit });
   const results = companies(stream.filter((filing) => filing.group === "8-K" && hasItem(filing, "2.02") && inWindow(filingDayOf(filing), thisWeek))).length;
 
   const parts: string[] = [];
-  if (bought.value > 0 || sold.value > 0) {
+  if (balance && (balance.bought > 0 || balance.sold > 0)) {
+    const { bought, sold } = balance;
     parts.push(
-      bought.value > 0 && sold.value > 0
-        ? sold.value >= bought.value * 2
-          ? `Insiders sold ${Math.round(sold.value / bought.value)}x what they bought in the last 7 days`
-          : bought.value >= sold.value
+      bought > 0 && sold > 0
+        ? sold >= bought * 2
+          ? `Insiders sold ${balance.ratio}x what they bought in the last 7 days`
+          : bought >= sold
             ? `Insiders bought more than they sold in the last 7 days`
-            : `Insiders sold ${compactMoney(sold.value)} and bought ${compactMoney(bought.value)} in the last 7 days`
-        : bought.value > 0
-          ? `Insiders bought ${compactMoney(bought.value)} in the last 7 days`
-          : `Insiders sold ${compactMoney(sold.value)} in the last 7 days`,
+            : `Insiders sold ${compactMoney(sold)} and bought ${compactMoney(bought)} in the last 7 days`
+        : bought > 0
+          ? `Insiders bought ${compactMoney(bought)} in the last 7 days`
+          : `Insiders sold ${compactMoney(sold)} in the last 7 days`,
     );
   }
   if (results > 0) parts.push(`${plural(results, "company", "companies")} filed quarterly results`);
@@ -236,7 +227,7 @@ export function buildFilingsRead(input: { stream: Filing[]; trades: InsiderTrade
 
   return {
     headline,
-    insights: pickInsights([mineInsight(stream, mine, now), buyingInsight(allTrades, now), sellingInsight(allTrades, now), leadershipInsight(stream, now), activistInsight(stream, now)]),
+    insights: pickInsights([mineInsight(stream, mine, now), buyingInsight(allTrades, now), sellingInsight(allTrades, balance, now), leadershipInsight(stream, now), activistInsight(stream, now)]),
     asOf: input.asOf ?? null,
   };
 }

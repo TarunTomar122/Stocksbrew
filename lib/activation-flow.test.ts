@@ -61,20 +61,20 @@ describe("first Watchlist activation flow", () => {
     expect(gate).toContain('<OaButton size="sm" loading={busy} onClick={act} className="max-sm:min-h-11');
   });
 
-  it("shows the bulk Watchlist action after signed-out auth resolution", () => {
-    const bulkTrack = source("components/track-in-radar-button.tsx");
-    expect(bulkTrack).toContain("const { user, loading, initialAuthed } = useUser()");
-    expect(bulkTrack).toContain("const isLoading = loading && !initialAuthed");
-    expect(bulkTrack).not.toContain("const isLoading = !initialAuthed");
-  });
-
-  it("starts new users with one real stock task and records the chosen path", () => {
-    const onboarding = source("components/post-signup-onboarding.tsx");
-    expect(onboarding).toContain('id: "research"');
-    expect(onboarding).toContain('id: "watchlist"');
-    expect(onboarding).toContain('id: "holdings"');
-    expect(onboarding).toContain('captureEvent("onboarding_path_selected"');
-    expect(onboarding).toContain('captureEvent("onboarding_stock_researched"');
-    expect(onboarding).toContain('captureEvent("onboarding_stock_added"');
+  it("starts new users by adding their stocks and lands them on My stocks, never on the plans", () => {
+    const button = source("components/oa/start-free-button.tsx");
+    expect(button).not.toContain('"/subscribe"');
+    expect(button).toContain('"/portfolio"');
+    const gate = source("components/post-signup-onboarding.tsx");
+    // The dialog loads only when it opens.
+    expect(gate).toContain('import("@/components/onboarding-dialog")');
+    const dialog = source("components/onboarding-dialog.tsx");
+    for (const id of ['id: "own"', 'id: "popular"', 'id: "import"']) expect(dialog).toContain(id);
+    expect(dialog).toContain('const FINISH_HREF = "/portfolio"');
+    expect(dialog).toContain('fetch("/api/track"');
+    expect(dialog).toContain('captureEvent("onboarding_path_selected"');
+    expect(dialog).toContain('captureEvent("onboarding_stock_added"');
+    // The "how did you hear about us" question still follows the first stock.
+    expect(dialog).toContain('dispatchRadarTrackChanged({ action: "add"');
   });
 });

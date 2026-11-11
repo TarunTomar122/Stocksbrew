@@ -103,12 +103,6 @@ export const PORTFOLIO_TOOL_PAGES: Record<PortfolioOgTool, ToolPage> = {
     title: "Where to sell some or buy more in a lopsided portfolio",
     sub: "The tax on each sale, and losses you could sell to save tax with a similar stock to hold meanwhile.",
   },
-  analyze: {
-    path: "/portfolio/analyze",
-    label: "Portfolio analyzer",
-    title: "Paste your tickers, see what your portfolio leans on",
-    sub: "Sector weights, factor tilt and the risks worth a look. Free, and no account needed.",
-  },
 };
 
 /** The words-only card. `transient` when it stands in for data that was not in, so it is not kept long. */
@@ -266,7 +260,6 @@ const TOOL_LOADERS: Record<PortfolioOgTool, (() => Promise<OgCard | null>) | nul
   goal: goalCard,
   ideas: ideasCard,
   // The analyzer works on tickers someone pastes; there is no example finding to draw.
-  analyze: null,
 };
 
 export function isPortfolioOgTool(value: string): value is PortfolioOgTool {

@@ -160,7 +160,9 @@ describe("insiders", () => {
     const multi = read.insights.find((insight) => insight.id === "insider-multi" || insight.id === "insider-conviction");
     expect(multi?.tickers?.[0]).toBe("LKQ");
     const balance = read.insights.find((insight) => insight.id === "insider-balance");
-    expect(balance?.text).toBe("Insiders sold $10M outside pre-set plans in two weeks and bought $502K, 20 dollars sold for every one bought.");
+    // The same 7-day window and count as /filings (lib/insider-balance.ts), plan sales included and their share said underneath.
+    expect(balance?.text).toBe("Insiders sold $10.0M in the last 7 days and bought $502K, 20 dollars sold for every one bought.");
+    expect(balance?.soWhat).toBe("None of the selling was under pre-set plans. Selling is normal (pay, taxes, diversifying); buying is the rarer tell.");
   });
 });
 

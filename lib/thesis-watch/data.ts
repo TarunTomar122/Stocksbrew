@@ -3,6 +3,7 @@ import { unstable_cache } from "next/cache";
 import { parseHistoryDoc } from "@/lib/dividend-plan";
 import { latestReportFor } from "@/lib/earnings-day";
 import { earningsDayHref } from "@/lib/earnings-day-shared";
+import { isBalanceSheetFinancial } from "@/lib/financial-company";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { shortCompanyName } from "@/lib/plain-copy";
 import { loadDailySeries } from "@/lib/portfolio-data";
@@ -132,7 +133,8 @@ export function screenerFacts(row: ScreenerRow | null | undefined, today: string
     payout: fin(row.payout) ? row.payout : null,
     divYield: fin(row.div_yield) ? row.div_yield : null,
     divGrowth: fin(row.div_growth) ? row.div_growth : null,
-    fcf: fin(row.fcf) ? row.fcf : null,
+    // A bank's or insurer's free cash flow moves with its loan book and float, so "it burned $148B" is not a warning (lib/financial-company.ts).
+    fcf: fin(row.fcf) && !isBalanceSheetFinancial({ sector: row.sector, industry: row.industry, ticker: row.symbol }) ? row.fcf : null,
     marketCap: fin(row.market_cap) ? row.market_cap : null,
   };
   if (row.earnings_date && /^\d{4}-\d{2}-\d{2}$/.test(row.earnings_date)) {

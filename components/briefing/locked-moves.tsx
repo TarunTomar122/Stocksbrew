@@ -42,7 +42,7 @@ export function BriefingLockedMoves({
           {index > 0 ? (index === named.length - 1 && more === 0 ? " and " : ", ") : null}
           <Link prefetch={false} href={`/stock/${encodeURIComponent(move.ticker)}`} className="whitespace-nowrap text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
             <span className="oa-mono font-semibold">{move.ticker}</span>{" "}
-            <span className={`oa-mono tabular-nums ${move.day_change_pct >= 0 ? "text-signal-bullish" : "text-signal-bearish"}`}>{signedPct(move.day_change_pct)}</span>
+            <span className={`oa-mono tabular-nums ${move.day_change_pct >= 0 ? "text-signal-bullish" : "text-signal-bearish"}`}>{signedPct(move.day_change_pct, 1)}</span>
           </Link>
         </React.Fragment>
       ))}

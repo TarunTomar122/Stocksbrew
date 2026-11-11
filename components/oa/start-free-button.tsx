@@ -7,6 +7,12 @@ import { getFirebaseAuth } from "@/lib/firebase-client";
 import { signInWithGoogle } from "@/lib/sign-in";
 import type { AuthSurface } from "@/lib/product-analytics";
 
+/**
+ * Sign in with Google, then go to My stocks. A brand-new account gets the first-run dialog there
+ * (components/post-signup-onboarding.tsx: add the stocks you own, pick popular ones or import a screenshot), so
+ * the first thing a new person sees is their own stocks with our calls, not a price list. Pro offers use
+ * ProCheckoutButton, which goes to checkout.
+ */
 export function StartFreeButton({
   surface,
   size = "md",
@@ -31,11 +37,11 @@ export function StartFreeButton({
       onClick={async () => {
         setLoading(true);
         try {
-          // Already signed in? Skip the popup and show them the plans.
+          // Already signed in? Skip the popup.
           if (!getFirebaseAuth().currentUser) {
             await signInWithGoogle({ surface });
           }
-          window.location.href = "/subscribe";
+          window.location.href = "/portfolio";
         } catch {
           // the sign-in sheet reports its own errors; nothing to add here
         } finally {

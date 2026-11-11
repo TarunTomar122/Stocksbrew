@@ -8,12 +8,16 @@ import { pickInsights, sharePct, type Insight, type TheRead } from "@/lib/insigh
 import { shortCompanyName } from "@/lib/plain-copy";
 import { absPct, cap, countWord, isNum, listNames, plural, shortDay, signedPct } from "@/lib/read-format";
 import { rankReddit, type Mover, type PolicyPost, type RedditName } from "@/lib/signals-shared";
+import { staleMoveClock } from "@/lib/move-clock";
+import { etDayOfStamp, newestStamp, oldestStamp } from "@/lib/quote-time";
 
 /* ── movers ─────────────────────────────────────────────────────────────── */
 
 export type MoverForRead = Pick<Mover, "ticker" | "pct" | "explained" | "cause" | "headline"> & {
   name?: string | null;
   industry?: string | null;
+  /** When the move was priced; the read says the time when it is hours old (lib/move-clock.ts). */
+  priceAsOf?: string | null;
 };
 
 export type CauseKind = "earnings" | "analyst" | "clinical" | "deal" | "other";
@@ -176,32 +180,33 @@ export function moversHeadline(movers: MoverForRead[]): string | null {
  * The movers headline and the side it is about. One sentence: the theme (or
  * the cause) behind one side; the other side's cause is a line under it.
  */
-function moversLead(movers: MoverForRead[]): { text: string; side: Side["label"] | null } | null {
+function moversLead(movers: MoverForRead[]): { text: string; side: Side["label"] | null; named?: boolean; about: MoverForRead[] } | null {
   if (movers.length === 0) return null;
-  const parts: Array<{ text: string; side: Side["label"] }> = [];
+  // `about`: the moves the sentence makes a claim about, so its time is theirs and not some other mover's.
+  const parts: Array<{ text: string; side: Side["label"]; about: MoverForRead[] }> = [];
   const cluster = themeCluster(movers);
   let used: Side["label"] | null = null;
   if (cluster) {
     const cause = causeCluster(cluster.rows);
     const label = `${cluster.theme.label.charAt(0).toUpperCase()}${cluster.theme.label.slice(1)}`;
-    parts.push({ text: `${label} stocks led the ${cluster.side.label}${cause ? ` on ${CAUSE_SHORT[cause.kind]}` : ""} (${listMovers(cluster.rows, 3)})`, side: cluster.side.label });
+    parts.push({ text: `${label} stocks led the ${cluster.side.label}${cause ? ` on ${CAUSE_SHORT[cause.kind]}` : ""} (${listMovers(cluster.rows, 3)})`, side: cluster.side.label, about: cluster.rows });
     used = cluster.side.label;
   }
-  const earnings: Partial<Record<Side["label"], { count: number; lead: string }>> = {};
+  const earnings: Partial<Record<Side["label"], { count: number; lead: string; rows: MoverForRead[] }>> = {};
   for (const side of sides(movers)) {
     if (side.label === used || parts.length >= 2) continue;
     const cause = causeCluster(side.rows.slice(0, 10));
     if (!cause) continue;
     const names = listMovers(cause.rows, 3);
     // Tickers here: two long company names made this a four-line headline on a phone.
-    if (cause.kind === "earnings") earnings[side.label] = { count: cause.rows.length, lead: cause.rows[0]!.ticker };
+    if (cause.kind === "earnings") earnings[side.label] = { count: cause.rows.length, lead: cause.rows[0]!.ticker, rows: cause.rows };
     const phrase =
       cause.kind === "earnings"
         ? side.label === "decliners"
           ? `earnings reports sent ${names} down`
           : `earnings reports lifted ${names}`
         : `${CAUSE_SHORT[cause.kind]} moved the ${side.label} (${names})`;
-    parts.push({ text: phrase.charAt(0).toUpperCase() + phrase.slice(1), side: side.label });
+    parts.push({ text: phrase.charAt(0).toUpperCase() + phrase.slice(1), side: side.label, about: cause.rows });
   }
   // Both sides on earnings: say the one thing that explains the day, then the names.
   if (!used && earnings.gainers && earnings.decliners) {
@@ -209,24 +214,56 @@ function moversLead(movers: MoverForRead[]): { text: string; side: Side["label"]
     return {
       text: `Earnings reports drove the day's biggest moves: ${earnings.gainers.count} up, led by ${earnings.gainers.lead}, and ${earnings.decliners.count} down, led by ${earnings.decliners.lead}.`,
       side: null,
+      about: [...earnings.gainers.rows, ...earnings.decliners.rows],
     };
   }
-  if (parts.length) return { text: `${parts[0]!.text}.`, side: parts[0]!.side };
+  if (parts.length) return { text: `${parts[0]!.text}.`, side: parts[0]!.side, about: parts[0]!.about };
   const top = [...movers].sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct) || a.ticker.localeCompare(b.ticker))[0]!;
-  return { text: `${moverName(top)} moved most, ${signedPct(top.pct)}${top.explained && top.headline ? `: ${top.headline.replace(/\.$/, "")}` : ""}.`, side: null };
+  return { text: `${moverName(top)} moved most, ${signedPct(top.pct)}${top.explained && top.headline ? `: ${top.headline.replace(/\.$/, "")}` : ""}.`, side: null, named: true, about: [top] };
 }
 
-export function buildMoversRead(movers: MoverForRead[], asOf: string | null = null): TheRead | null {
+/**
+ * When the moves were priced: the oldest of their quote times on the latest day among them (every figure is at least
+ * that fresh; a leftover quote from an earlier day does not date the whole list), else the feed's time.
+ */
+export function moversPricedAt(movers: Array<Pick<MoverForRead, "priceAsOf">>, fallback: string | null = null): string | null {
+  const stamps = movers.map((mover) => mover.priceAsOf);
+  const day = etDayOfStamp(newestStamp(stamps));
+  return (day ? oldestStamp(stamps.filter((stamp) => etDayOfStamp(stamp) === day)) : null) ?? fallback;
+}
+
+/** Headlines stay one short line of thought (owner rule: about 12 to 18 words). */
+const HEADLINE_MAX_WORDS = 18;
+const words = (text: string) => text.split(/\s+/).filter(Boolean).length;
+
+/**
+ * "By 9:58 AM, " in front of a movers headline. Lower-cases the first word unless it is a name or an acronym
+ * ("CoreWeave", "AI"), and when the time makes it too long, drops the list of names in brackets and then
+ * everything after the colon; the rows under the read carry those.
+ */
+function withTime(text: string, clock: string, named: boolean): string {
+  const lowered = named || !/^[A-Z][a-z]/.test(text) ? text : `${text.charAt(0).toLowerCase()}${text.slice(1)}`;
+  let line = `By ${clock}, ${lowered}`;
+  if (words(line) > HEADLINE_MAX_WORDS) line = line.replace(/\s*\([^)]*\)/, "");
+  if (words(line) > HEADLINE_MAX_WORDS && line.includes(":")) line = `${line.slice(0, line.indexOf(":")).replace(/[.,]$/, "")}.`;
+  return line;
+}
+
+export function buildMoversRead(movers: MoverForRead[], asOf: string | null = null, now: number = Date.now()): TheRead | null {
   const lead = moversLead(movers);
   if (!lead) return null;
-  const headline = lead.text;
+  const pricedAt = moversPricedAt(movers, asOf);
+  // Moves priced hours ago (the feed runs once after the open) lead with their time: "By 9:58 AM, chip stocks led…".
+  // The time is that of the moves the headline names; a stale quote on some other row does not date it.
+  const stale = staleMoveClock(moversPricedAt(lead.about, pricedAt), now);
+  const headline = stale ? withTime(lead.text, stale, Boolean(lead.named)) : lead.text;
   const theme = themeInsight(movers);
   const themeSide = theme ? (theme.tone === "up" ? "gainers" : "decliners") : null;
   return {
     headline,
     // The cause line is about the side the headline did not cover.
     insights: pickInsights([theme, causeInsight(movers, themeSide ?? lead.side), unexplainedInsight(movers)]),
-    asOf,
+    asOf: pricedAt,
   };
 }
 
@@ -501,10 +538,18 @@ export function policyTakeaway(posts: PolicyPost[], now: number): string | null 
 
 /* ── the Today tab: one line from each stream ───────────────────────────── */
 
-export function buildSignalsTodayRead(movers: MoverForRead[], names: RedditName[], posts: PolicyPost[], now: number, asOf: string | null): TheRead | null {
+export function buildSignalsTodayRead(
+  movers: MoverForRead[],
+  names: RedditName[],
+  posts: PolicyPost[],
+  now: number,
+  asOf: string | null,
+  /** When the Reddit counts were taken. A read that leads with Reddit carries this time, not the movers'. */
+  redditAsOf?: string | null,
+): TheRead | null {
   // Signals is about what people are saying; the day's moves have their own page (Why stocks moved).
   // So the crowd leads, the President's posts follow, and the moves come last.
-  const moverRead = buildMoversRead(movers);
+  const moverRead = buildMoversRead(movers, asOf, now);
   const redditRead = buildRedditRead(names);
   const policyLine = praisedInsight(posts, now) ?? latestNamedInsight(posts, now) ?? recentInsight(posts, now);
   const headline = redditRead?.headline ?? policyLine?.text ?? moverRead?.headline;
@@ -522,10 +567,26 @@ export function buildSignalsTodayRead(movers: MoverForRead[], names: RedditName[
   // The source names every stream a card comes from: a card about the President's posts is not Reddit's.
   const fromPolicy = Boolean(policyLine && insights.some((insight) => insight.id === policyLine.id));
   const source = redditRead && headline === redditRead.headline && redditRead.source ? `${redditRead.source}${fromPolicy ? " and the President's posts" : ""}` : undefined;
+  const fromReddit = Boolean(redditRead && headline === redditRead.headline);
   return {
     headline,
     insights,
     source,
-    asOf,
+    // Each read carries its own stream's time: the President's posts are not dated by the movers feed (ship 28 QA).
+    asOf:
+      fromReddit && redditAsOf
+        ? redditAsOf
+        : moverRead && headline === moverRead.headline
+          ? moverRead.asOf ?? asOf
+          : policyLine && headline === policyLine.text
+            ? newestPost(posts) ?? undefined
+            : asOf,
   };
+}
+
+/** The newest post's time, for a read that leads with the President's posts. */
+function newestPost(posts: ReadonlyArray<{ publishedAt?: string | null }>): string | null {
+  let newest: string | null = null;
+  for (const post of posts) if (post.publishedAt && (!newest || post.publishedAt > newest)) newest = post.publishedAt;
+  return newest;
 }

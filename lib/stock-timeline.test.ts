@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { analystTrendChanges, buildStockTimeline, parseLooseDate, parseMonthPeriod, prettyDay, timelineSortMs } from "@/lib/stock-timeline";
 import type { NewsArticle } from "@/lib/news";
 import type { PowerTrade } from "@/lib/power-trades";
+import type { TimelineEvent } from "@/lib/stock";
 
 const now = new Date("2026-11-09T20:00:00Z");
 
@@ -125,6 +126,18 @@ describe("buildStockTimeline", () => {
     expect(items.map((item) => item.id)).toEqual(["call-change", "earnings-2026-08-26"]);
     expect(items[1]).toMatchObject({ title: "NVDA reported earnings", locked: true });
     expect(items[1]!.detail).toBeUndefined();
+  });
+
+  it("leaves out brief stories that only quote the bank as the analyst", () => {
+    const { items } = buildStockTimeline({
+      ticker: "JPM",
+      now,
+      briefEvents: [
+        { event_id: "a", timestamp: "2026-08-25T13:14:54Z", title: "JPMorgan Says Strategy Could Face $2.8 Billion in Forced Selling. What Would That Do to the Bitcoin Price?", source_name: "Yahoo Finance" },
+        { event_id: "b", timestamp: "2026-08-25T12:00:00Z", title: "JPMorgan Chase (JPM) Takes Lead Role In A Major AI IPO", source_name: "Yahoo Finance" },
+      ] as TimelineEvent[],
+    });
+    expect(items.map((item) => item.title)).toEqual(["JPMorgan Chase (JPM) Takes Lead Role In A Major AI IPO"]);
   });
 
   it("is empty when nothing is stored", () => {

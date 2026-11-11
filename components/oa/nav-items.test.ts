@@ -64,13 +64,12 @@ describe("placeFor and sectionFor", () => {
   it("opens My stocks on its overview and lights each tool by the longest prefix", () => {
     expect(PLACES.find((item) => item.label === "My stocks")!.href).toBe("/portfolio");
     expect(sectionOf("/portfolio")).toBe("Overview");
-    expect(sectionOf("/portfolio/analyze")).toBe("Overview");
     expect(sectionOf("/portfolio/memo")).toBe("Weekly memo");
     expect(sectionOf("/portfolio/xray")).toBe("What you own");
     expect(sectionOf("/portfolio/earnings")).toBe("Earnings season");
     expect(sectionOf("/portfolio/goal")).toBe("Goal planner");
     expect(sectionOf("/portfolio/ideas")).toBe("Rebalancing ideas");
-    expect(sectionOf("/watchlist/portfolio")).toBe("Portfolio");
+    expect(sectionOf("/watchlist/tax")).toBe("Taxes");
     expect(sectionOf("/import")).toBe("Portfolio");
     expect(sectionOf("/practice")).toBe("Practice account");
   });
@@ -127,7 +126,6 @@ describe("trailFor", () => {
     expect(trail("/insiders/NVDA")).toBe("Follow investors › Insiders");
     expect(trail("/themes/ai-power")).toBe("Research › Themes");
     expect(trail("/import")).toBe("My stocks › Portfolio");
-    expect(trail("/portfolio/analyze")).toBe("My stocks");
   });
 
   it("links each step to its page", () => {

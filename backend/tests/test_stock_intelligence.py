@@ -357,6 +357,56 @@ class StockIntelligenceTest(unittest.TestCase):
         self.assertEqual(nvda["evidence_history"]["coverage_days"], 1)
         self.assertEqual(nvda["sector_evidence_history"]["history_status"], "current_only")
 
+    def test_bank_quoted_as_the_analyst_does_not_get_the_story(self) -> None:
+        """JPM's brief and timeline carried JPMorgan-the-analyst stories about Strategy and Meta (Nov 11)."""
+        instruments = [
+            {"instrument_id": "US_META", "market": "US", "ticker": "META", "name": "Meta Platforms, Inc.", "sector": "Communication Services"},
+            {"instrument_id": "US_JPM", "market": "US", "ticker": "JPM", "name": "JPMorgan Chase & Co.", "sector": "Financial Services"},
+        ]
+
+        def article(article_id: str, title: str, tickers: list[str]) -> Article:
+            return Article(
+                id=article_id,
+                source_id=f"yahoo-{article_id}",
+                source_name="JPMorgan Chase & Co. via Yahoo Finance",
+                source_kind="publisher",
+                market="US",
+                title=title,
+                url=f"https://example.com/{article_id}",
+                summary=title,
+                article_overview=title,
+                article_key_points=[title, "Analysts see more upside."],
+                published_at="2026-11-11T12:00:00+00:00",
+                topic_key="stock:US:meta",
+                topic_label="Meta",
+                topic_kind="stock",
+                tags=[],
+                sector_tags=[],
+                stock_candidates=[],
+                stock_tickers=tickers,
+                signal_types=["ratings"],
+                bucket_keys=[],
+                bucket_labels=[],
+                bucket_kinds=[],
+                entity_mentions=[{"type": "stock", "canonical_name": t, "ticker": t, "sentiment_score": 0.6} for t in tickers],
+                sentiment_score=0.6,
+                sentiment_label="bullish",
+                enrichment_source="llm",
+                source_lane="core",
+                focus_ticker=tickers[0],
+            )
+
+        articles = [
+            article("a1", "Meta Platforms (META) Wins JPMorgan Backing, Is It Still 37% Below Fair Value?", ["META", "JPM"]),
+            article("a2", "JPMorgan Just Added Meta Platforms to Its Analyst Focus List", ["META", "JPM"]),
+            article("a3", "JPMorgan Chase (JPM) Takes Lead Role In A Major AI IPO", ["JPM"]),
+        ]
+        docs = {doc["instrument_id"]: doc for doc in build_stock_intelligence_docs("US", "us_test_6", instruments, articles)}
+        self.assertEqual(docs["US_META"]["news_count"], 2)
+        self.assertEqual(docs["US_JPM"]["news_count"], 1)
+        titles = [event.get("title") for event in docs["US_JPM"].get("timeline") or []]
+        self.assertTrue(all("Meta" not in str(title) for title in titles), titles)
+
     def test_summarize_price_context(self) -> None:
         latest = {
             "captured_at": "2026-05-20T20:00:00+00:00",

@@ -5,6 +5,7 @@
  * nothing is generated here.
  */
 
+import { ANALYST_FIRMS, firmIsSubject } from "@/lib/analyst-firms";
 import { callWord, type CallWord } from "@/lib/stock-chart";
 import type { CallStabilityStateDoc, DirectiveStability, StockIntelligenceDoc } from "@/lib/stock";
 import { todayET } from "@/lib/calendar-shared";
@@ -226,6 +227,15 @@ export function stabilityFromState(state: CallStabilityStateDoc | null | undefin
   };
 }
 
+/** True when every story the brief was written from only quotes this company (a bank or broker) as the analyst. */
+export function writtenFromOtherCompaniesNews(doc: { instrument_id?: unknown; timeline?: unknown } | null | undefined): boolean {
+  const ticker = clean(doc?.instrument_id).replace(/^[A-Z]+_/, "");
+  if (!ticker || !ANALYST_FIRMS.has(ticker)) return false;
+  const events: unknown[] = Array.isArray(doc?.timeline) ? doc.timeline : [];
+  const titles = events.map((event) => clean((event as { title?: unknown } | null)?.title)).filter(Boolean);
+  return titles.length > 0 && titles.every((title) => !firmIsSubject(ticker, title));
+}
+
 export function buildStockRead(
   intelligence: StockIntelligenceDoc | null | undefined,
   options: {
@@ -261,7 +271,10 @@ export function buildStockRead(
   pushDistinct(changers, doc.risk);
 
   const headline = clean(doc.headline) || clean(doc.thesis) || clean(doc.visual_summary?.what_changed) || null;
-  const bodyText = clean(doc.today_brief) || clean(doc.body) || clean(doc.visual_summary?.what_changed);
+  // A brief written only from stories that quote this bank as the analyst ("JPMorgan says Strategy could face...")
+  // narrates other companies' news: leave its paragraph out. The pipeline no longer feeds it such stories.
+  const offTopic = writtenFromOtherCompaniesNews(doc);
+  const bodyText = offTopic ? "" : clean(doc.today_brief) || clean(doc.body) || clean(doc.visual_summary?.what_changed);
   const body = bodyText && (!headline || norm(bodyText) !== norm(headline)) ? bodyText : null;
   const actionLabel = clean(directive?.action?.label) || null;
   // The company reason first (its own numbers and what would change the call), then the brief's
@@ -294,8 +307,9 @@ export function buildStockRead(
       trimAbove: positive(zones.trim_above),
     },
     writtenAt: clean(doc.generated_at) || null,
-    articleCount: positive(doc.evidence_history?.article_count) ?? positive(doc.news_count),
-    sourceCount: positive(doc.evidence_history?.source_count) ?? positive(doc.source_count),
+    // Those stories are not about the company, so they are not counted as its news either.
+    articleCount: offTopic ? null : positive(doc.evidence_history?.article_count) ?? positive(doc.news_count),
+    sourceCount: offTopic ? null : positive(doc.evidence_history?.source_count) ?? positive(doc.source_count),
     changed: directive?.changed_from_previous
       ? {
           reason: readableChangeReason(directive.change_reason),

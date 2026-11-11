@@ -190,12 +190,18 @@ describe("memoFacts", () => {
   it("turns the memo into the week against the S&P 500, the biggest mover and the main risk", () => {
     expect(memoFacts(base)).toEqual([
       { id: "week", caption: "So far this week", figure: "−0.1%", label: "against +2.0% for the S&P 500", tone: "down", ticker: null },
-      { id: "driver", caption: "Biggest drag", figure: "−1.4 pts", label: "NVDA fell 9.5%", tone: "down", ticker: "NVDA" },
+      { id: "driver", caption: "Biggest drag", figure: "−1.4 pts", label: "NVDA fell 9.5% so far this week", tone: "down", ticker: "NVDA" },
       { id: "risk", caption: "Main risk", figure: "56%", label: "in Technology, against 37% of the S&P 500", tone: "flat", ticker: null },
     ]);
   });
 
   it("says nothing it does not have", () => {
     expect(memoFacts({ ...base, view: null, hurt: [] } as unknown as Memo)).toEqual([]);
+  });
+
+  it("drops the 'so far' once the week is done", () => {
+    const done = memoFacts({ ...base, complete: true } as unknown as Memo);
+    expect(done.find((fact) => fact.id === "driver")?.label).toBe("NVDA fell 9.5%");
+    expect(done.find((fact) => fact.id === "week")?.caption).toBe("This week");
   });
 });

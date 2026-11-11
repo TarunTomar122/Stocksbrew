@@ -10,6 +10,7 @@
  * source or text a pipeline wrote earlier and stored.
  */
 
+import { firmIsSubject } from "@/lib/analyst-firms";
 import type { EarningsIntelDoc } from "@/lib/earnings-intel";
 import type { NewsArticle } from "@/lib/news";
 import type { PowerTrade } from "@/lib/power-trades";
@@ -318,6 +319,8 @@ export function buildStockTimeline(input: StockTimelineInput): {
   for (const event of input.briefEvents ?? []) {
     const title = event.title?.trim();
     if (!title || !event.timestamp) continue;
+    // A bank quoted as the analyst ("JPMorgan says Strategy could face...") is not news about the bank.
+    if (!firmIsSubject(ticker, title)) continue;
     if (isDuplicate(title, event.article_url)) continue;
     remember(title, event.article_url);
     const label = (event.sentiment_label ?? "").toLowerCase();

@@ -148,7 +148,7 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
   // the market view without its sector list. A session left out on purpose (sectors from another day) is not.
   const session =
     !day && !data.archived && data.briefing.mode === "market"
-      ? await loadSession(data.briefing.date, data.briefing.market.as_of).catch(() => {
+      ? await loadSession(data.briefing.date, data.briefing.market.indices[0]?.as_of ?? data.briefing.market.as_of).catch(() => {
           noteDegradedRender();
           return null;
         })
@@ -169,6 +169,7 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
           archived={data.archived}
           degraded={data.degraded}
           marketState={marketStateLabel(new Date())}
+          renderedAt={Date.now()}
           session={session}
           rail={railSlot(data)}
           beforeOpen={

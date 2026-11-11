@@ -162,11 +162,12 @@ describe("buildCallEvidence", () => {
     });
   });
 
-  it("names a big week against the market, with the closes it comes from", () => {
+  it("names a big five-session move against the market in trading days, with the closes it comes from", () => {
     const prices = closes("2026-11-10", 80, [-0.04, -0.04, -0.05, -0.03, -0.04]);
     const { evidence } = buildCallEvidence(base({ series: prices.series, benchmark: prices.benchmark }));
     const move = evidence.find((line) => line.id === "move");
-    expect(move?.text).toBe("NVDA fell 18% in the week to Nov\u00a010, while the S&P 500 was flat.");
+    // Five sessions, not "the week": the weekly memo's week runs from Friday's close and can show a different figure.
+    expect(move?.text).toBe("NVDA fell 18% in the five trading days to Nov\u00a010, while the S&P 500 was flat.");
     expect(move?.source).toBe("Yahoo Finance daily closes to Nov\u00a010");
   });
 

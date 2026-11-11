@@ -27,6 +27,7 @@ import hashlib
 import html
 import re
 import xml.etree.ElementTree as ET
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
@@ -45,13 +46,16 @@ from .feeds_common import (
     utc_now,
     write_changed,
 )
+from .analyst_firms import BROKERS as _BROKERS
+from .analyst_firms import firm_is_subject
 from .store import DocStore
 
 COLLECTION = "tm_agent_news"
 META_PATH = "tm_agent_news_meta/US"
 EXCERPT_LIMIT = 280
 # "strict-v2": names count only in the headline (or the lead sentence for a per-ticker feed).
-TICKER_MATCH_VERSION = "strict-v2"
+# "strict-v3": a bank or broker counts only when the headline is about it, not when it is the analyst.
+TICKER_MATCH_VERSION = "strict-v3"
 
 
 @dataclass(frozen=True)
@@ -134,17 +138,9 @@ _OTHER_COMPANY_AFTER: dict[str, tuple[str, ...]] = {
     "Merck": ("KGaA",),
 }
 
-# Banks and brokers turn up in headlines as the source of an opinion ("Jefferies lifts its
-# target", "Morgan Stanley says the correction is ending") far more often than as the subject.
-_BROKERS = {"JEF", "MS", "GS", "JPM", "C", "BAC", "WFC", "EVR", "HLI", "UBS", "BLK"}
-_OPINION_AFTER = re.compile(
-    r"^(?:['’]s)?(?:\s+(?:analysts?|strategists?|economists?|CEO|chief|[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?))?\s+"
-    r"(?i:says|said|sees|saw|highlights|lifts|raises|cuts|lowers|trims\s+(?:its\s+)?target|upgrades|downgrades|initiates|reiterates|"
-    r"warns|calls|expects|predicts|likes|argues|sends|names|picks|thinks|forecasts|turns|flags|backs|prefers|estimates|"
-    r"recommends|tells|believes|projects|is\s+bullish|is\s+bearish)\b"
-)
-_OPINION_BEFORE = re.compile(r"(?:\b(?:as|per|from|by|says|according\s+to)\s+)$", re.IGNORECASE)
-_CONFERENCE_AFTER = re.compile(r"^(?:\s+[A-Z0-9][\w&.-]*){0,4}\s+(?:Conference|Summit|Symposium|Forum)\b")
+# Banks and brokers quoted as the analyst ("JPMorgan says...", "Meta wins JPMorgan backing")
+# are not the subject of the story: see analyst_firms.py, shared with the brief pipeline.
+
 # Research-firm boilerplate: "Global X Market Report 2026 ... Featuring Thermo Fisher, Merck...".
 _MARKET_REPORT = re.compile(
     r"\b(?:market|industry)\b.{0,60}\b(?:report|forecast|outlook|analysis|size|share)\b.{0,80}(?:\b20\d\d\b|CAGR)|\bCAGR\b"
@@ -230,6 +226,9 @@ class TickerMatcher:
                 else:
                     phrase_owner[phrase] = instrument.ticker
         self._phrases = {phrase: ticker for phrase, ticker in phrase_owner.items() if ticker}
+        self._names_by_ticker: dict[str, list[str]] = defaultdict(list)
+        for phrase, ticker in self._phrases.items():
+            self._names_by_ticker[ticker].append(phrase)
         ordered = sorted(self._phrases, key=len, reverse=True)
         self._phrase_re = (
             re.compile(r"(?<![A-Za-z0-9])(" + "|".join(re.escape(p) for p in ordered) + r")(?![A-Za-z0-9])")
@@ -276,7 +275,14 @@ class TickerMatcher:
                 self._named(_lead_subject(description), lead, as_subject=True, max_start=12)
             if in_title or target in lead:
                 found.append(target)
-        return found
+        # A bank or broker tagged anywhere (a cashtag, a publisher's tag list, its own symbol feed)
+        # counts only when the headline is about it, not when it is the analyst.
+        in_headline = set(self.match(title))
+        return [
+            ticker
+            for ticker in found
+            if firm_is_subject(ticker, title, self._names_by_ticker.get(ticker, ()), others=bool(in_headline - {ticker}))
+        ]
 
     def _explicit(self, text: str, found: list[str]) -> None:
         for pattern in (_EXCHANGE_TAG, _CASHTAG):
@@ -286,8 +292,8 @@ class TickerMatcher:
                     found.append(ticker)
 
     def _named(self, text: str, found: list[str], *, as_subject: bool = False, max_start: int | None = None) -> None:
-        """Tickers named by company name. With ``as_subject``, a bank quoted for its view
-        or a broker hosting a conference does not count as a story about that bank."""
+        """Tickers named by company name. (A bank named only as the analyst is taken out
+        afterwards, in ``match_story``, by ``firm_is_subject``.)"""
         if self._phrase_re is None:
             return
         for hit in self._phrase_re.finditer(text):
@@ -300,10 +306,6 @@ class TickerMatcher:
             after = text[hit.end() :]
             if any(after.lstrip().startswith(word) for word in _OTHER_COMPANY_AFTER.get(phrase, ())):
                 continue
-            if as_subject and ticker in _BROKERS:
-                before = text[: hit.start()]
-                if _OPINION_AFTER.match(after) or _OPINION_BEFORE.search(before) or _CONFERENCE_AFTER.match(after):
-                    continue
             found.append(ticker)
 
 

@@ -17,6 +17,7 @@ import { isCircularReason } from "@/lib/reason-quality";
 import { hasResearchBackedNarrative } from "@/components/daily-anomalies-shared";
 import type { AnomalyItem } from "@/lib/daily-anomalies";
 import { redactOurLevels } from "@/lib/entitlements";
+import { oldestStamp } from "@/lib/quote-time";
 import { callShift } from "@/lib/tone";
 
 export type BriefingKind =
@@ -140,7 +141,8 @@ export type BriefingMarketMover = {
   as_of: string | null;
 };
 
-export type BriefingIndex = { name: string; price: number; change_pct: number };
+/** `as_of` is when the figure was priced, when the source says (the markets feed does; the home snapshot does not). */
+export type BriefingIndex = { name: string; price: number; change_pct: number; as_of?: string | null };
 
 export type Briefing = {
   date: string;
@@ -1360,7 +1362,10 @@ function buildMarketStrip(input: BriefingInput): Briefing["market"] {
     indices: input.indices.filter((index) => Number.isFinite(index.price) && Number.isFinite(index.change_pct)),
     gainers,
     losers,
-    as_of: input.movers_as_of,
+    // When the moves shown were priced (the oldest of their quotes, so none is dated later than it was measured). The
+    // movers are re-priced from the live quotes (lib/daily-anomalies.ts), so the feed's own run time
+    // (`movers_as_of`) would label a 3 PM move "as of 9:58 AM"; it is only the fallback.
+    as_of: oldestStamp([...gainers, ...losers].map((mover) => mover.as_of)) ?? input.movers_as_of,
   };
 }
 

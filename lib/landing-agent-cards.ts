@@ -247,7 +247,6 @@ async function basketFinding(): Promise<AgentFinding> {
 
 // One cache entry per card; the day is part of the key where the sentence says "today" or "on Thursday".
 const cachedMemo = sharedCache(memoFinding, ["landing-card-memo-v4"], { revalidate: REVALIDATE });
-const cachedXray = sharedCache(xrayFinding, ["landing-card-xray-v2"], { revalidate: REVALIDATE });
 const cachedEarnings = sharedCache(earningsFinding, ["landing-card-earnings-v2"], { revalidate: REVALIDATE });
 const cachedDividends = sharedCache(dividendFinding, ["landing-card-dividends-v3"], { revalidate: REVALIDATE });
 const cachedStress = sharedCache(stressFinding, ["landing-card-stress-v2"], { revalidate: 6 * 3600 });
@@ -283,7 +282,10 @@ export function loadAgentFinding(id: AgentCardId): Promise<AgentFinding> {
     case "memo":
       return once(`memo:${day}`, () => cachedMemo(day));
     case "xray":
-      return once("xray", cachedXray);
+      // No cache of its own: the shares come from the example's priced snapshot (loadExamplePortfolio), the one
+      // /portfolio and /portfolio/xray read. Apple sits near 17.5% there, so an extra 30 minutes of age here was
+      // enough to say 18% on this page while the x-ray said 17%.
+      return once("xray", xrayFinding);
     case "earnings":
       return earnings(day);
     case "dividends":

@@ -2107,9 +2107,9 @@ export const blogContent: Record<string, string> = {
 <p>Light calendar rebalance quarterly + full rebalance when threshold is hit. Best for most serious retail investors.</p>
 
 <div class="cta-section">
-  <h3>Analyze Your Portfolio for Free</h3>
-  <p>Check sector allocation, concentration risk, and factor exposure.</p>
-  <a href="https://stocksbrew.online/portfolio/analyze" class="cta-button">Analyze Portfolio →</a>
+  <h3>See What You Really Own</h3>
+  <p>Look inside your funds and see where your money really sits, by company and sector.</p>
+  <a href="https://www.stocksbrew.online/portfolio/xray" class="cta-button">See what you really own →</a>
 </div>
 
 <p>Related: <a href="/blog/track-stock-news-for-your-portfolio">How to Track Portfolio News</a>.</p>

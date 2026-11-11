@@ -74,26 +74,84 @@ function leanText(
 
 type Ranked = { item: StrategySummary; mine: number; bench: number; year: number; through: string };
 
+/**
+ * A strategy's return minus the S&P 500 fund's over its whole backtest, as a fraction: per year when the test is
+ * long enough to annualise, in total when it is not (the table's "vs S&P 500" column). Null without a backtest.
+ */
+export function backtestGap(item: Pick<StrategySummary, "backtest">): number | null {
+  const test = item.backtest;
+  if (!test) return null;
+  // Both sides on the same basis: per year when both are annualised, else both in total.
+  const yearly = test.strategy.annualized_return != null && test.benchmark.annualized_return != null;
+  const mine = yearly ? test.strategy.annualized_return : test.strategy.total_return;
+  const theirs = yearly ? test.benchmark.annualized_return : test.benchmark.total_return;
+  if (mine == null || theirs == null || !Number.isFinite(mine) || !Number.isFinite(theirs)) return null;
+  return mine - theirs;
+}
+
+/**
+ * Every count the strategies page states, from one list. `tested` is the strategies with a backtest (the table rows
+ * with figures); both "beat the S&P 500" counts are out of it, so the read, its cards and the table head agree.
+ * `thisYear` is only smaller than `tested` when a backtest has no row for the current year yet.
+ */
+export type StrategiesTally = {
+  total: number;
+  tested: StrategySummary[];
+  untested: StrategySummary[];
+  /** The tested strategies with at least 20 sessions this year, best first. */
+  thisYear: Ranked[];
+  /** Of `thisYear`, the ones ahead of the S&P 500 this year. */
+  thisYearBeat: Ranked[];
+  /** Of `tested`, the ones ahead of the S&P 500 over their whole backtest, in list order. */
+  wholeTestBeat: StrategySummary[];
+};
+
+export function strategiesTally(items: StrategySummary[], year: number = new Date().getUTCFullYear()): StrategiesTally {
+  const tested = items.filter((item) => backtestGap(item) !== null);
+  const untested = items.filter((item) => backtestGap(item) === null);
+  const thisYear: Ranked[] = [];
+  for (const item of tested) {
+    const row = item.backtest?.latest_year;
+    if (!row || row.year !== year || row.sessions < 20) continue;
+    thisYear.push({ item, mine: row.strategy, bench: row.benchmark, year: row.year, through: item.backtest?.period.end ?? "" });
+  }
+  thisYear.sort((a, b) => b.mine - a.mine);
+  return {
+    total: items.length,
+    tested,
+    untested,
+    thisYear,
+    thisYearBeat: thisYear.filter((row) => row.mine > row.bench),
+    wholeTestBeat: tested.filter((item) => (backtestGap(item) ?? 0) > 0),
+  };
+}
+
+/**
+ * "2 of 10 backtested strategies beat the S&P 500 this year", or, when some backtests have no row for this year yet,
+ * "2 of the 9 strategies backtested this year beat the S&P 500", so the denominator names its own list.
+ */
+function beatThisYear(count: number, tally: StrategiesTally): string {
+  const of = tally.thisYear.length;
+  return of === tally.tested.length
+    ? `${count} of ${of} backtested strategies beat the S&P 500 this year`
+    : `${count} of the ${of} strategies backtested this year beat the S&P 500`;
+}
+
 export function buildStrategiesRead(
   items: StrategySummary[],
-  options: { seesHoldings: boolean; ytd?: YtdMap; year?: number },
+  options: { seesHoldings: boolean; ytd?: YtdMap; year?: number; tally?: StrategiesTally },
 ): TheRead {
   const ytd = options.ytd ?? {};
   const year = options.year ?? new Date().getUTCFullYear();
-  const ranked: Ranked[] = [];
-  for (const item of items) {
-    const row = item.backtest?.latest_year;
-    if (!row || row.year !== year || row.sessions < 20) continue;
-    ranked.push({ item, mine: row.strategy, bench: row.benchmark, year: row.year, through: item.backtest?.period.end ?? "" });
-  }
-  ranked.sort((a, b) => b.mine - a.mine);
+  const tally = options.tally ?? strategiesTally(items, year);
+  const ranked = tally.thisYear;
 
   const insights: Array<Insight | null> = [];
   let headline = "";
   if (ranked.length >= 2) {
     const lead = ranked[0];
     const last = ranked[ranked.length - 1];
-    const beat = ranked.filter((row) => row.mine > row.bench).length;
+    const beat = tally.thisYearBeat.length;
     const why = leanText(lead.item.sectors, lead.item.top_holdings, options.seesHoldings, ytd, "up");
     insights.push({
       id: "leader",
@@ -112,25 +170,27 @@ export function buildStrategiesRead(
       tickers: drag?.tickers,
       action: { label: `Open ${last.item.name}`, href: `/strategies/${last.item.slug}` },
     });
-    const long = items.filter((item) => item.backtest && item.backtest.period.years >= 3);
-    const longBeat = long.filter(
-      (item) => (item.backtest?.strategy.annualized_return ?? -Infinity) > (item.backtest?.benchmark.annualized_return ?? Infinity),
-    );
-    if (long.length > 0) {
-      insights.push({
-        id: "long-run",
-        tone: longBeat.length * 2 >= long.length ? "up" : "down",
-        text: `Over their full tests, ${longBeat.length} of ${long.length} beat the S&P 500${
-          longBeat.length > 0 ? `: ${listWords(longBeat.slice(0, 3).map((item) => item.name))}` : ""
-        }.`,
-      });
-    }
+    // The same list as the headline's when every backtest has a row this year, so the two counts share a denominator.
+    const longBeat = tally.wholeTestBeat;
+    const tested = tally.tested.length;
+    const sameGroup = ranked.length === tested;
+    insights.push({
+      id: "long-run",
+      tone: longBeat.length * 2 >= tested ? "up" : "down",
+      figure: { value: `${longBeat.length} of ${tested}` },
+      text: `Over their whole backtests, ${longBeat.length} of ${sameGroup ? `those ${tested}` : `the ${tested} backtested strategies`} beat the S&P 500${
+        longBeat.length > 3
+          ? `, including ${listWords(longBeat.slice(0, 3).map((item) => item.name))}`
+          : longBeat.length > 0
+          ? `: ${listWords(longBeat.map((item) => item.name))}`
+          : ""
+      }.`,
+    });
+    const gap = pts(lead.mine - lead.bench);
     headline =
       beat === 0
-        ? `None of ${ranked.length} rules beat the S&P 500 this year; the closest, ${lead.item.name}, trails by ${pts(lead.mine - lead.bench)}.`
-        : beat * 2 < ranked.length
-        ? `Only ${beat} of ${ranked.length} rules beat the S&P 500 this year; the best, ${lead.item.name}, is ${pts(lead.mine - lead.bench)} ahead.`
-        : `${beat} of ${ranked.length} rules beat the S&P 500 this year; the best, ${lead.item.name}, is ${pts(lead.mine - lead.bench)} ahead.`;
+        ? `${beatThisYear(0, tally).replace(/^0 of/, "None of")}; ${lead.item.name} came closest, ${gap} behind.`
+        : `${beat * 2 < ranked.length ? "Only " : ""}${beatThisYear(beat, tally)}; ${lead.item.name} is ${gap} ahead.`;
   }
   return {
     headline,

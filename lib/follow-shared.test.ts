@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   MAX_FOLLOWED,
+  slimInsiderTrade,
   activitySize,
   chamberOf,
   congressNoun,
@@ -302,5 +303,26 @@ describe("House and Senate labels", () => {
     expect(congressReportsLabel([{ kind: "congress", chamber: "senate" }])).toBe("Senate trade reports");
     expect(congressReportsLabel([{ kind: "congress" }, { kind: "congress", chamber: "senate" }])).toBe("House and Senate trade reports");
     expect(congressReportsLabel([])).toBe("House trade reports");
+  });
+});
+
+describe("slimInsiderTrade", () => {
+  const base = { id: "a__1__P", symbol: "TSM", tx_type: "buy", insider: "Lipen Yuan", shares: 1000, price: 71.49, value: 71_490, plan_10b5_1: false };
+
+  it("keeps an open-market line with its price", () => {
+    expect(slimInsiderTrade({ ...base, price_comparable: true })?.price).toBe(71.49);
+    expect(slimInsiderTrade(base)?.price).toBe(71.49); // written before the flag existed
+  });
+
+  it("drops the per-share price of home-market shares but keeps the dollars", () => {
+    const trade = slimInsiderTrade({ ...base, foreign_line: true, price_comparable: false });
+    expect(trade?.price).toBeNull();
+    expect(trade?.value).toBe(71_490);
+  });
+
+  it("leaves out a line priced off the listed share, and anything that is not a buy or a sale", () => {
+    expect(slimInsiderTrade({ ...base, price_comparable: false })).toBeNull();
+    expect(slimInsiderTrade({ ...base, tx_type: "plan_buy" })).toBeNull();
+    expect(slimInsiderTrade({ ...base, id: "" })).toBeNull();
   });
 });

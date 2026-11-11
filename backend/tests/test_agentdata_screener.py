@@ -82,6 +82,25 @@ class ReturnsTest(unittest.TestCase):
         self.assertNotIn("ret_1y", returns)
         self.assertNotIn("ret_ytd", returns)
 
+    def test_week_return_counts_its_trading_days(self):
+        # NVDA's real closes: Nov 3 to Nov 10 is five sessions, -18%, while Friday Nov 6 to Nov 10 (the memo's week so far) is -9.5%.
+        early = daily("2026-08-01", [200.0] * 90)
+        series = early + [("2026-11-03", 206.69), ("2026-11-04", 200.13), ("2026-11-05", 181.6), ("2026-11-06", 186.64), ("2026-11-09", 178.67), ("2026-11-10", 168.89)]
+        returns = screener.window_returns(series, 168.89, "2026-11-10")
+        self.assertEqual(returns["ret_1w"], -18.29)
+        self.assertEqual(returns["ret_1w_sessions"], 5)
+        # Around a holiday (Thanksgiving, Nov 26) the same seven days hold four sessions.
+        holiday = early + [("2026-11-20", 100.0), ("2026-11-23", 101.0), ("2026-11-24", 102.0), ("2026-11-25", 103.0), ("2026-11-27", 104.0)]
+        self.assertEqual(screener.window_returns(holiday, 104.0, "2026-11-27")["ret_1w_sessions"], 4)
+        # A live quote after the last stored close is one more session.
+        self.assertEqual(screener.window_returns(series, 175.53, "2026-11-11")["ret_1w_sessions"], 5)
+        # A quote stamped on a Saturday (a Friday evening in UTC) is not one more session: still the five from Friday Nov 6.
+        friday = early + [("2026-11-06", 1.0), ("2026-11-09", 1.0), ("2026-11-10", 1.0), ("2026-11-11", 1.0), ("2026-11-12", 1.0), ("2026-11-13", 1.0)]
+        self.assertEqual(screener.window_returns(friday, 1.0, "2026-11-14")["ret_1w_sessions"], 5)
+        # Closes that lag the quote by days give no count, so the reason keeps "over the past week".
+        lagging = early + [("2026-11-05", 181.6), ("2026-11-06", 186.64)]
+        self.assertNotIn("ret_1w_sessions", screener.window_returns(lagging, 175.53, "2026-11-11"))
+
     def test_ytd_uses_the_last_close_of_the_previous_year(self):
         series = [("2025-12-30", 90.0), ("2025-12-31", 100.0), ("2026-01-02", 105.0), ("2026-02-02", 120.0)]
         returns = screener.window_returns(series, 120.0, "2026-02-02")

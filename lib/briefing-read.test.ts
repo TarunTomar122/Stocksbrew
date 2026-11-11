@@ -213,3 +213,61 @@ describe("holdingsFirst", () => {
     expect(out.settled.map((group) => group.key)).toEqual(["S"]);
   });
 });
+
+describe("the market read's time", () => {
+  // Nov 11: the movers feed ran at 9:58 AM, but the page re-priced CRWV from a 3:03 PM quote.
+  const crwv = item({
+    id: "crwv",
+    kind: "price_move",
+    ticker: "CRWV",
+    relation: "market",
+    needs_you: true,
+    reason_status: "confirmed",
+    why: "CoreWeave raises its forecast as AI demand and capacity strengthen.",
+    day_change_pct: 23.95,
+    as_of: "2026-11-11T20:03:00+00:00",
+  });
+  const market = (index: Briefing["market"]["indices"][number]) => ({
+    ...base,
+    mode: "market" as const,
+    date: "2026-11-11",
+    market: { indices: [index], gainers: [], losers: [], as_of: "2026-11-11T14:58:01.497Z" },
+  });
+
+  it("carries the time its moves were priced, not the movers feed's run time", () => {
+    const read = briefingRead(
+      market({ name: "S&P 500", price: 7549, change_pct: 1.39, as_of: "2026-11-11T20:02:00Z" }),
+      groupBriefingSections({ ...sections([]), needs_you: [crwv] }, "market"),
+    );
+    expect(read?.asOf).toBe("2026-11-11T20:03:00+00:00");
+    expect(read?.headline).toBe("CRWV rose 23.9%, the biggest move today with news behind it.");
+    // The index line uses the index's own quote time.
+    expect(read?.insights[0]?.text).toBe("As of 3:02 PM ET, the S&P 500 is up 1.39%.");
+  });
+
+  it("dates the read by its oldest move", () => {
+    const soxl = { ...crwv, id: "soxl", ticker: "SOXL", name: "SOXL", day_change_pct: 20.01, as_of: "2026-11-11T19:41:00Z" };
+    const read = briefingRead(
+      market({ name: "S&P 500", price: 7549, change_pct: 1.39, as_of: "2026-11-11T20:02:00Z" }),
+      groupBriefingSections({ ...sections([]), needs_you: [crwv, soxl] }, "market"),
+    );
+    expect(read?.asOf).toBe("2026-11-11T19:41:00Z");
+  });
+
+  it("gives an index with no time of its own no clock mid-session, and keeps the feed's time as the last resort", () => {
+    const read = briefingRead(
+      market({ name: "S&P 500", price: 7549, change_pct: 1.42 }),
+      groupBriefingSections({ ...sections([]), needs_you: [{ ...crwv, as_of: null }] }, "market"),
+    );
+    expect(read?.asOf).toBe("2026-11-11T14:58:01.497Z");
+    expect(read?.insights[0]?.text).toBe("The S&P 500 is up 1.42%.");
+  });
+
+  it("still says the index closed when the movers were priced after the close", () => {
+    const read = briefingRead(
+      { ...market({ name: "S&P 500", price: 7549, change_pct: 1.42 }), market: { indices: [{ name: "S&P 500", price: 7549, change_pct: 1.42 }], gainers: [], losers: [], as_of: "2026-11-11T21:10:00Z" } },
+      groupBriefingSections({ ...sections([]), needs_you: [crwv] }, "market"),
+    );
+    expect(read?.insights[0]?.text).toBe("The S&P 500 closed up 1.42%.");
+  });
+});

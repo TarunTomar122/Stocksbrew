@@ -1315,7 +1315,7 @@ export const seoBlogContent: Record<string, string> = {
 
 <p>Light check: monthly (weights + calendar). Deep check: quarterly (sectors, fundamentals, stance). Extra check: after any 10%+ portfolio drawdown or when adding a new core position.</p>
 
-<p>For rebalancing mechanics, read <a href="/blog/portfolio-rebalancing-guide-retail-investors">portfolio rebalancing for retail investors</a> and try the <a href="/watchlist/portfolio">portfolio rebalance view</a>.</p>
+<p>For rebalancing mechanics, read <a href="/blog/portfolio-rebalancing-guide-retail-investors">portfolio rebalancing for retail investors</a> and try the <a href="/portfolio/ideas">rebalancing ideas</a>.</p>
 
 <div class="cta-section">
   <h3>See Your Portfolio Health Score</h3>

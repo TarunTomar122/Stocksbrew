@@ -336,12 +336,12 @@ export function AnalyticsTab({
       {!example ? (
         <p className="text-[12.5px] leading-5 text-oa-muted-fg">
           More ways to look at it:{" "}
-          <Link href="/watchlist/portfolio" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
-            rebalance view
+          <Link href="/portfolio/ideas" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
+            rebalancing ideas
           </Link>
           {" · "}
-          <Link href="/portfolio/analyze" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
-            analyze any list of tickers
+          <Link href="/portfolio/xray" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
+            what you really own
           </Link>
         </p>
       ) : null}

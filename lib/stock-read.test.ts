@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildStockRead, callSince, matchingCompanyReason, previousCall, stabilityFromState } from "@/lib/stock-read";
+import { buildStockRead, callSince, matchingCompanyReason, previousCall, stabilityFromState, writtenFromOtherCompaniesNews } from "@/lib/stock-read";
 import type { CallStabilityStateDoc, StockIntelligenceDoc } from "@/lib/stock";
 
 const base = {
@@ -322,5 +322,36 @@ describe("company reason conditions", () => {
     const text =
       "NVIDIA fell 18% over the past week, even though its sales grew 83% over the past year. The Nov 17 report decides what we do: we'd buy more if sales growth stays above 83%, and sell some if growth falls below 42%.";
     expect(matchingCompanyReason(reason(text), "Hold", "2026-11-11")).toBe(text);
+  });
+});
+
+describe("writtenFromOtherCompaniesNews", () => {
+  // JPM's stored brief on Nov 11, 2026: three stories, none of them about JPMorgan.
+  const offTopic = [
+    { title: "JPMorgan Says Strategy Could Face $2.8 Billion in Forced Selling. What Would That Do to the Bitcoin Price?" },
+    { title: "Broadcom Shares Rise 2.20% After Hours - Broadcom (NASDAQ:AVGO), JPMorgan Chase (NYSE:JPM) - Benzinga" },
+    { title: "JPMorgan Names Dividend Giant Its Top Stock Pick for a Rocky Market" },
+  ];
+
+  it("flags a bank's brief written only from stories that quote it as the analyst", () => {
+    expect(writtenFromOtherCompaniesNews({ instrument_id: "US_JPM", timeline: offTopic })).toBe(true);
+  });
+
+  it("keeps the brief when one story is about the bank, or the stock is not a bank", () => {
+    expect(writtenFromOtherCompaniesNews({ instrument_id: "US_JPM", timeline: [...offTopic, { title: "JPMorgan Chase (JPM) Takes Lead Role In A Major AI IPO" }] })).toBe(false);
+    expect(writtenFromOtherCompaniesNews({ instrument_id: "US_META", timeline: offTopic })).toBe(false);
+    expect(writtenFromOtherCompaniesNews({ instrument_id: "US_JPM", timeline: [] })).toBe(false);
+  });
+
+  it("drops the paragraph from the read but keeps the headline", () => {
+    const read = buildStockRead({
+      instrument_id: "US_JPM",
+      headline: "JPMorgan's leadership is broad, but its own growth remains modest",
+      body: "JPMorgan's latest coverage centers on market commentary, including a warning that Strategy could face forced selling.",
+      timeline: offTopic,
+    } as unknown as StockIntelligenceDoc);
+    expect(read?.headline).toBe("JPMorgan's leadership is broad, but its own growth remains modest");
+    expect(read?.body).toBeNull();
+    expect(read?.articleCount).toBeNull();
   });
 });

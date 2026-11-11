@@ -364,7 +364,7 @@ export function bookLead(source: BookSource): BookLead | null {
   const headline = today
     ? leadHeadline({ pct: today.pct, marketPct: today.marketPct, when, example, average })
     : source.week
-      ? leadHeadline({ pct: source.week.pct, marketPct: source.week.marketPct, when: "over the past week", example, average: source.week.dollars === null })
+      ? leadHeadline({ pct: source.week.pct, marketPct: source.week.marketPct, when: "over the past five trading days", example, average: source.week.dollars === null })
       : example
         ? "The example's stocks, the ones that need a look first."
         : "Your stocks, the ones that need you first.";

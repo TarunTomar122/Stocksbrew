@@ -8,7 +8,20 @@ Run it::
 A Form 4 is what an officer, director or 10% owner files within two business
 days of trading their own company's stock. This job keeps only open-market
 trades: code P (bought) and code S (sold). Grants, option exercises, tax
-withholding and gifts are left out because nobody chose a price for them.
+withholding and gifts are left out because nobody chose a price for them, and
+so are code P purchases an issuer plan made on the insider's behalf (an
+employee stock purchase plan, a dividend reinvestment plan): TSMC files every
+monthly ESPP purchase for ~30 officers as code P.
+
+Prices are per share of the security the filing reports. Foreign issuers
+(TSMC since the 2026 rule change) report their home-market shares, which are
+not the US-listed ADR: one TSM ADR is five Taiwan shares. Such a line keeps its
+dollar value but is marked ``price_comparable: False`` so nobody reads its
+price against the ADR's. A line whose price is wildly off the stock's own
+52-week range and is not a foreign line is dropped as a mapping error.
+
+A rerun overwrites what it produces and deletes the documents of filings it
+re-read that no longer qualify, so a rule change repairs the window it covers.
 
 Collections (all additive):
 
@@ -39,6 +52,17 @@ DEFAULT_DAYS = 60
 CLUSTER_WINDOW_DAYS = 30
 CLUSTER_MIN_INSIDERS = 3
 OPEN_MARKET_CODES = {"P": "buy", "S": "sell"}
+# Purchases an issuer plan made for the insider at terms the issuer set. Matched
+# against the ownership nature and the footnotes the transaction points at.
+_ISSUER_PLAN = re.compile(
+    r"employee stock purchase|\bESPP\b|dividend reinvestment|\bDRIP\b|employee stock ownership|\bESOP\b|"
+    r"\b401\s*\(?k\)?|terms predetermined by the issuer",
+    re.I,
+)
+_DEPOSITARY = re.compile(r"american depositary|depositary (share|receipt)|\bADSs?\b|\bADRs?\b", re.I)
+_ORDINARY = re.compile(r"\bordinary shares?\b", re.I)
+# A price this far outside the stock's own 52-week range is not a price of the listed share.
+PRICE_RANGE_SLACK = 2.0
 SOURCE = "SEC EDGAR form 4"
 _EASTERN = ZoneInfo("America/New_York")
 
@@ -89,6 +113,41 @@ def _number(text: str) -> float | None:
 
 def _flag(text: str) -> bool:
     return (text or "").strip().lower() in ("1", "true", "y", "yes")
+
+
+def _footnote_refs(element: ET.Element, skip: tuple[str, ...] = ("postTransactionAmounts", "securityTitle")) -> list[str]:
+    """Footnote ids a transaction points at, except on the holdings after it and its title.
+
+    A footnote on the shares held afterwards ("includes 120 shares bought in the
+    ESPP") says nothing about how this trade was made.
+    """
+    out: list[str] = []
+    for child in element:
+        name = _local(child.tag)
+        if name in skip:
+            continue
+        if name == "footnoteId":
+            ident = child.get("id")
+            if ident:
+                out.append(ident)
+            continue
+        out.extend(_footnote_refs(child, skip))
+    return out
+
+
+def is_issuer_plan(nature: str, notes: Iterable[str]) -> bool:
+    """Whether an issuer plan (ESPP, dividend reinvestment, 401(k), ESOP) made this purchase."""
+    return any(_ISSUER_PLAN.search(text or "") for text in (nature, *notes))
+
+
+def is_foreign_line(security: str, foreign_symbol: str) -> bool:
+    """A foreign issuer's home-market share rather than its US depositary share."""
+    if not foreign_symbol:
+        return False
+    title = security or ""
+    if _DEPOSITARY.search(title):
+        return False
+    return True
 
 
 def insider_role(relationship: dict[str, Any]) -> str:
@@ -211,6 +270,11 @@ def parse_form4(xml_text: str) -> dict[str, Any] | None:
             }
         )
 
+    footnotes: dict[str, str] = {}
+    for element in _child(root, "footnotes") if _child(root, "footnotes") is not None else []:
+        if _local(element.tag) == "footnote" and element.get("id"):
+            footnotes[element.get("id")] = " ".join("".join(element.itertext()).split())
+
     transactions: list[dict[str, Any]] = []
     table = _child(root, "nonDerivativeTable")
     for element in table if table is not None else []:
@@ -221,6 +285,8 @@ def parse_form4(xml_text: str) -> dict[str, Any] | None:
         if not code or shares is None or shares <= 0:
             continue
         price = _number(_text(element, "transactionAmounts", "transactionPricePerShare"))
+        nature = _text(element, "ownershipNature", "natureOfOwnership")
+        notes = [footnotes[ident] for ident in _footnote_refs(element) if ident in footnotes]
         transactions.append(
             {
                 "code": code,
@@ -233,6 +299,7 @@ def parse_form4(xml_text: str) -> dict[str, Any] | None:
                 "ownership": "indirect"
                 if _text(element, "ownershipNature", "directOrIndirectOwnership").upper() == "I"
                 else "direct",
+                "issuer_plan": is_issuer_plan(nature, notes),
             }
         )
 
@@ -243,6 +310,7 @@ def parse_form4(xml_text: str) -> dict[str, Any] | None:
         "issuer_cik": _text(issuer, "issuerCik").lstrip("0"),
         "issuer_name": _text(issuer, "issuerName"),
         "issuer_symbol": _text(issuer, "issuerTradingSymbol").upper(),
+        "issuer_foreign_symbol": _text(issuer, "issuerForeignTradingSymbol").upper(),
         "owners": owners,
         "transactions": transactions,
     }
@@ -253,38 +321,57 @@ def summarize_open_market(parsed: dict[str, Any]) -> list[dict[str, Any]]:
 
     A filing often lists the same sale as a dozen fills. Those are added up and
     the price is the share-weighted average of the fills that state a price.
+    Fills an issuer plan made (an ESPP purchase) are not open-market trades.
+    Fills of a foreign issuer's home-market shares and of its ADRs are priced
+    in different units, so each gets its own line (foreign shares first; the
+    ADR line keeps the code-only id).
     """
     out: list[dict[str, Any]] = []
+    foreign_symbol = parsed.get("issuer_foreign_symbol") or ""
     for code, side in OPEN_MARKET_CODES.items():
         fills = [item for item in parsed["transactions"] if item["code"] == code]
         # A "purchase" that disposes of shares (or the reverse) is a filer error; skip it.
         fills = [item for item in fills if item["acquired"] == (code == "P")]
+        # An issuer plan buying for the insider is not their choice; selling plan shares is.
+        if code == "P":
+            fills = [item for item in fills if not item.get("issuer_plan")]
         if not fills:
             continue
-        shares = sum(item["shares"] for item in fills)
-        priced = [item for item in fills if item["price"] is not None]
-        priced_shares = sum(item["shares"] for item in priced)
-        value = sum(item["shares"] * item["price"] for item in priced) if priced else None
-        price = value / priced_shares if value is not None and priced_shares > 0 else None
-        if value is not None and priced_shares < shares and price is not None:
-            value = price * shares  # a fill without a price is valued at the average of the rest
-        dates = sorted(item["date"] for item in fills if item["date"])
-        last = max(fills, key=lambda item: (item["date"], -(item["shares_after"] or 0) if code == "S" else (item["shares_after"] or 0)))
-        out.append(
-            {
-                "code": code,
-                "tx_type": side,
-                "shares": round(shares, 4),
-                "price": round(price, 4) if price is not None else None,
-                "value": round(value, 2) if value is not None else None,
-                "fills": len(fills),
-                "transaction_date": dates[-1] if dates else "",
-                "first_transaction_date": dates[0] if dates else "",
-                "shares_after": last["shares_after"],
-                "ownership": "indirect" if all(item["ownership"] == "indirect" for item in fills) else "direct",
-            }
-        )
+        foreign = [item for item in fills if is_foreign_line(item.get("security") or "", foreign_symbol)]
+        listed = [item for item in fills if not is_foreign_line(item.get("security") or "", foreign_symbol)]
+        for group, is_foreign in ((listed, False), (foreign, True)):
+            if group:
+                out.append(_line(code, side, group, foreign=is_foreign, split=bool(foreign and listed)))
     return out
+
+
+def _line(code: str, side: str, fills: list[dict[str, Any]], *, foreign: bool, split: bool) -> dict[str, Any]:
+    """The summed line for one side's fills in one security."""
+    shares = sum(item["shares"] for item in fills)
+    priced = [item for item in fills if item["price"] is not None]
+    priced_shares = sum(item["shares"] for item in priced)
+    value = sum(item["shares"] * item["price"] for item in priced) if priced else None
+    price = value / priced_shares if value is not None and priced_shares > 0 else None
+    if value is not None and priced_shares < shares and price is not None:
+        value = price * shares  # a fill without a price is valued at the average of the rest
+    dates = sorted(item["date"] for item in fills if item["date"])
+    last = max(fills, key=lambda item: (item["date"], -(item["shares_after"] or 0) if code == "S" else (item["shares_after"] or 0)))
+    return {
+        "code": code,
+        # When one filing has both an ADR line and a home-market line, the home-market one gets an "F" id suffix.
+        "id_suffix": f"{code}F" if foreign and split else code,
+        "security": fills[0].get("security") or "",
+        "foreign_line": foreign,
+        "tx_type": side,
+        "shares": round(shares, 4),
+        "price": round(price, 4) if price is not None else None,
+        "value": round(value, 2) if value is not None else None,
+        "fills": len(fills),
+        "transaction_date": dates[-1] if dates else "",
+        "first_transaction_date": dates[0] if dates else "",
+        "shares_after": last["shares_after"],
+        "ownership": "indirect" if all(item["ownership"] == "indirect" for item in fills) else "direct",
+    }
 
 
 def detect_clusters(
@@ -384,6 +471,50 @@ def acceptance_iso(raw: str) -> str:
     return stamp.astimezone(_EASTERN).strftime("%Y-%m-%dT%H:%M:%S")
 
 
+def trade_doc_id(accession: str, owner_cik: str, suffix: str) -> str:
+    return f"{accession}__{owner_cik or 'x'}__{suffix}"
+
+
+def possible_doc_ids(parsed: dict[str, Any], accession: str) -> set[str]:
+    """Every trade document id a filing could produce, whatever the rules decide today."""
+    if not parsed.get("owners"):
+        return set()
+    owner_cik = parsed["owners"][0]["cik"]
+    return {trade_doc_id(accession, owner_cik, suffix) for suffix in ("P", "S", "PF", "SF")}
+
+
+def price_is_off(price: float | None, week_low: float | None, week_high: float | None, *, slack: float = PRICE_RANGE_SLACK) -> bool:
+    """Whether a per-share price cannot be a price of the listed share: far outside its 52-week range."""
+    if price is None or price <= 0 or not week_low or not week_high or week_low <= 0 or week_high < week_low:
+        return False
+    return price < week_low / slack or price > week_high * slack
+
+
+def check_prices(
+    docs: list[tuple[str, dict[str, Any]]],
+    ranges: dict[str, tuple[float, float]],
+) -> tuple[list[tuple[str, dict[str, Any]]], list[tuple[str, dict[str, Any]]]]:
+    """(kept, dropped). A foreign line stays with ``price_comparable`` False; any other line far off the range is dropped."""
+    kept: list[tuple[str, dict[str, Any]]] = []
+    dropped: list[tuple[str, dict[str, Any]]] = []
+    for path, data in docs:
+        span = ranges.get(str(data.get("symbol") or ""))
+        off = bool(span) and price_is_off(data.get("price"), span[0], span[1])
+        if off and _ORDINARY.search(str(data.get("security") or "")):
+            # A US-listed ADR whose filing reports the ordinary shares behind it (VNET: six to an ADS) and names no home ticker.
+            data = {**data, "foreign_line": True}
+        if data.get("foreign_line"):
+            # Home-market shares are priced per local share; with no range to check, assume they do not compare.
+            data = {**data, "price_comparable": bool(span) and not off}
+        elif off:
+            dropped.append((path, data))
+            continue
+        else:
+            data = {**data, "price_comparable": True}
+        kept.append((path, data))
+    return kept, dropped
+
+
 def build_trade_docs(
     parsed: dict[str, Any],
     *,
@@ -402,7 +533,8 @@ def build_trade_docs(
     others = [item["name"] for item in parsed["owners"][1:] if item["name"]]
     docs: list[tuple[str, dict[str, Any]]] = []
     for line in lines:
-        doc_id = f"{accession}__{owner['cik'] or 'x'}__{line['code']}"
+        line = dict(line)
+        doc_id = trade_doc_id(accession, owner["cik"], line.pop("id_suffix", line["code"]))
         lag = None
         if line["transaction_date"] and filing_date:
             lag = (date.fromisoformat(filing_date) - date.fromisoformat(line["transaction_date"])).days
@@ -502,6 +634,69 @@ def recent_form4(submissions: dict[str, Any], since: str) -> list[dict[str, str]
     return out
 
 
+def _batch_get(store: DocStore, paths: list[str], select: list[str] | None = None) -> dict[str, dict[str, Any]]:
+    """Batch read by path; over HTTP only the selected fields come back (a latest-price document is ~140 KB)."""
+    if store.mode != "http" or not select:
+        return store.get_many(paths)
+    out: dict[str, dict[str, Any]] = {}
+    for start in range(0, len(paths), 200):
+        payload = store._request("POST", "/documents:batchGet", {"paths": paths[start : start + 200], "select": select}) or {}
+        for document in payload.get("documents", []):
+            if isinstance(document, dict) and isinstance(document.get("data"), dict):
+                out[document["path"]] = document["data"]
+    return out
+
+
+def instrument_id(symbol: str) -> str:
+    """BRK.B -> US_BRK_B, the id ``tm_latest_prices`` uses."""
+    return "US_" + re.sub(r"[^A-Z0-9]", "_", symbol.upper())
+
+
+def load_week_ranges(store: DocStore, symbols: Iterable[str]) -> dict[str, tuple[float, float]]:
+    """symbol -> (52-week low, 52-week high) from ``tm_latest_prices``, where we hold one."""
+    wanted = sorted({symbol for symbol in symbols if symbol})
+    paths = {f"tm_latest_prices/{instrument_id(symbol)}": symbol for symbol in wanted}
+    out: dict[str, tuple[float, float]] = {}
+    for path, data in _batch_get(store, list(paths), select=["fundamentals"]).items():
+        fundamentals = data.get("fundamentals") or {}
+        low, high = fundamentals.get("week_52_low"), fundamentals.get("week_52_high")
+        if isinstance(low, (int, float)) and isinstance(high, (int, float)) and 0 < low <= high:
+            out[paths[path]] = (float(low), float(high))
+    return out
+
+
+def stale_paths(reread: set[str], produced: set[str], dropped: list[tuple[str, dict[str, Any]]]) -> list[str]:
+    """Stored trade documents of re-read filings that the rules no longer produce, to remove.
+
+    A line dropped only for its price is kept as stored: after a stock split an earlier,
+    correctly stored trade looks far off the split-adjusted range, and deleting it would
+    lose a real trade. The app hides an unchecked row priced off the range on its own.
+    """
+    return sorted(reread - produced - {path for path, _ in dropped})
+
+
+def delete_docs(store: DocStore, paths: list[str]) -> int:
+    """Delete documents by path. Only ever called with trade ids of filings this run re-read."""
+    if not paths:
+        return 0
+    for path in paths:
+        _check_trade_path(path)
+    if store.mode != "http":
+        writes = store._db.batch()
+        for path in paths:
+            writes.delete(store._db.document(path))
+        writes.commit()
+        return len(paths)
+    for start in range(0, len(paths), 200):
+        store._request("POST", "/documents:batchWrite", {"operations": [{"op": "delete", "path": path} for path in paths[start : start + 200]]})
+    return len(paths)
+
+
+def _check_trade_path(path: str) -> None:
+    if not re.fullmatch(r"tm_insider_trades/[0-9-]+__[0-9x]+__[PS]F?", path):
+        raise ValueError(f"refusing to delete {path}: not a Form 4 trade document")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Ingest open-market insider trades from SEC Form 4.")
     parser.add_argument("--days", type=int, default=DEFAULT_DAYS, help="how far back to read filings")
@@ -523,6 +718,8 @@ def main(argv: list[str] | None = None) -> int:
     log(f"store: {store.mode}{' (dry run)' if args.dry_run else ''}; {len(universe)} stocks, filings since {since}")
 
     docs: list[tuple[str, dict[str, Any]]] = []
+    # Ids of filings this run read in full: any of them it no longer produces is stale.
+    reread: set[str] = set()
     no_cik: list[str] = []
     seen_filings = 0
     seen_accessions: set[str] = set()
@@ -550,6 +747,7 @@ def main(argv: list[str] | None = None) -> int:
             parsed = parse_form4(body)
             if not parsed or parsed["issuer_cik"] != str(cik):
                 continue  # the company filed this as an owner of another issuer
+            reread |= {f"tm_insider_trades/{doc_id}" for doc_id in possible_doc_ids(parsed, filing["accession"])}
             docs.extend(
                 build_trade_docs(
                     parsed,
@@ -564,6 +762,13 @@ def main(argv: list[str] | None = None) -> int:
             )
         if index % 50 == 0:
             log(f"{index}/{len(universe)} stocks, {seen_filings} filings read, {len(docs)} open-market lines")
+
+    docs, dropped = check_prices(docs, load_week_ranges(store, {data["symbol"] for _, data in docs}))
+    for _, data in dropped:
+        log(f"dropped {data['symbol']} {data['id']}: ${data['price']} a share is far outside the stock's 52-week range")
+    produced = {path for path, _ in docs}
+    stale_candidates = stale_paths(reread, produced, dropped)
+    stale = sorted(_batch_get(store, stale_candidates, select=["id"])) if stale_candidates else []
 
     trades = [data for _, data in docs]
     clusters = detect_clusters(trades)
@@ -585,19 +790,26 @@ def main(argv: list[str] | None = None) -> int:
         "stocks_with_trades": len(totals),
         "clusters": len(clusters),
         "cluster_rule": f"{CLUSTER_MIN_INSIDERS} or more insiders buying within {CLUSTER_WINDOW_DAYS} days",
+        "dropped_off_price": len(dropped),
+        "stale_removed": len(stale),
         "failures": (listing.failures + filings.failures)[:40],
         "source": SOURCE,
         "source_url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=4",
     }
     if not args.dry_run:
         written = store.set_many(docs)
+        removed = delete_docs(store, stale)
+        if removed:
+            log(f"removed {removed} trade documents that no longer qualify: {', '.join(path.split('/', 1)[1] for path in stale[:10])}")
         if not wanted:
             store.set("tm_insider_meta/clusters", {"clusters": clusters, "generated_at": captured_at, "since": since, "source": SOURCE})
             store.set("tm_insider_meta/by_symbol", {"symbols": totals, "generated_at": captured_at, "since": since, "source": SOURCE})
             store.set("tm_insider_meta/run", meta)
         log(f"wrote {written} trade documents and {len(clusters)} clusters")
     else:
-        log(f"dry run: {len(docs)} trade documents not written")
+        log(f"dry run: {len(docs)} trade documents not written, {len(stale)} stale ones not removed")
+        for path in stale[:40]:
+            log(f"would remove {path}")
         for cluster in clusters[:5]:
             log(f"cluster {cluster['symbol']}: {cluster['insiders']} insiders, {cluster['first_date']} to {cluster['last_date']}")
     log(json.dumps(meta, indent=2))

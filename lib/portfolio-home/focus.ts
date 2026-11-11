@@ -121,7 +121,8 @@ export function memoFacts(memo: Memo): MemoFact[] {
       id: "driver",
       caption: top.points < 0 ? "Biggest drag" : "Biggest lift",
       figure: `${signedPoints(top.points)} pts`,
-      label: `${top.ticker} ${Math.abs(top.pct) < 0.05 ? "barely moved" : `${top.pct > 0 ? "rose" : "fell"} ${pct(top.pct)}`}`,
+      // A running week says "so far": it is measured from Friday's close, not over the past five trading days.
+      label: `${top.ticker} ${Math.abs(top.pct) < 0.05 ? "barely moved" : `${top.pct > 0 ? "rose" : "fell"} ${pct(top.pct)}`}${memo.complete ? "" : " so far this week"}`,
       tone: top.points < 0 ? "down" : "up",
       ticker: top.ticker,
     });

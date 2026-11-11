@@ -8,7 +8,9 @@
  * is left out.
  */
 
+import { insiderBalance } from "@/lib/insider-balance";
 import { pickInsights, toneOfChange, type Insight, type TheRead } from "@/lib/insights";
+import { compactMoney } from "@/lib/read-format";
 import {
   chamberOf,
   fmtDate,
@@ -524,6 +526,10 @@ export function buildInsiderRead(input: {
   recent: InsiderTrade[];
   sectors: SectorMap;
   today: string;
+  /** The instant the dollar balance's 7-day window ends at; noon UTC of `today` when left out. */
+  now?: number;
+  /** Rows `recent` was asked for (INSIDER_TRADE_ROWS), so a list that stops inside the window is not counted as the window. */
+  recentLimit?: number;
 }): TheRead & { tallies: StockTally[] } {
   const tallies = tallyInsiderBuys(input.buys, daysBefore(input.today, 14));
   const pace = insiderPace(input.buys, input.today, input.sectors);
@@ -557,26 +563,29 @@ export function buildInsiderRead(input: {
         }
       : null;
 
-  // Selling is the normal state; say how lopsided it is in dollars.
-  const cutoff = daysBefore(input.today, 14);
-  let buyValue = 0;
-  let sellValue = 0;
-  for (const trade of input.recent) {
-    if (trade.filed_at.slice(0, 10) < cutoff) continue;
-    if (trade.tx_type === "buy") buyValue += trade.value ?? 0;
-    else if (!trade.plan_10b5_1) sellValue += trade.value ?? 0;
-  }
-  for (const trade of input.buys) if (trade.filed_at.slice(0, 10) >= cutoff && !input.recent.some((other) => other.id === trade.id)) buyValue += trade.value ?? 0;
+  // Selling is the normal state; say how lopsided it is in dollars. The same helper, window and
+  // trades /filings counts, so the two pages quote one number.
+  const sums = insiderBalance({
+    trades: input.recent,
+    buys: input.buys,
+    now: input.now ?? Date.parse(`${input.today}T12:00:00Z`),
+    tradesLimit: input.recentLimit,
+  });
   const balance: Insight | null =
-    buyValue > 0 && sellValue > 0
+    sums && sums.bought > 0 && sums.sold > 0
       ? {
           id: "insider-balance",
-          tone: sellValue > buyValue ? "down" : "up",
+          tone: sums.sold > sums.bought ? "down" : "up",
           text:
-            sellValue > buyValue
-              ? `Insiders sold ${usd(sellValue)} outside pre-set plans in two weeks and bought ${usd(buyValue)}, ${Math.round(sellValue / buyValue)} dollars sold for every one bought.`
-              : `Insiders bought ${usd(buyValue)} in two weeks and sold ${usd(sellValue)} outside pre-set plans.`,
-          soWhat: sellValue > buyValue ? "Selling is normal (pay, taxes, diversifying); buying is the rarer tell." : undefined,
+            sums.sold > sums.bought
+              ? `Insiders sold ${compactMoney(sums.sold)} in the last ${sums.days} days and bought ${compactMoney(sums.bought)}${sums.ratio !== null && sums.ratio >= 2 ? `, ${sums.ratio} dollars sold for every one bought` : ""}.`
+              : `Insiders bought ${compactMoney(sums.bought)} in the last ${sums.days} days and sold ${compactMoney(sums.sold)}.`,
+          soWhat: [
+            sums.plannedPct === null ? null : sums.plannedPct === 0 ? "None of the selling was under pre-set plans." : `${sums.plannedPct}% of the selling was under pre-set plans.`,
+            sums.sold > sums.bought ? "Selling is normal (pay, taxes, diversifying); buying is the rarer tell." : null,
+          ]
+            .filter(Boolean)
+            .join(" "),
         }
       : null;
 

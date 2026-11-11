@@ -40,6 +40,7 @@ import { buildScreenerRead } from "@/lib/screener-insights";
 import { getFollowProfile, getFollowRead, getInsiderBuys, getInsiderTrades, getSectorMap } from "@/lib/follow";
 import { fmtWeight, quarterLabel, type CongressProfile, type FundProfile } from "@/lib/follow-shared";
 import { buildCongressMemberRead, buildFundRead, buildInsiderRead } from "@/lib/follow-insights";
+import { INSIDER_BUY_ROWS, INSIDER_TRADE_ROWS, nyDay } from "@/lib/insider-balance";
 import { getCopyRecord, isFullRecord, type CopyRecord } from "@/lib/copy-trades";
 import { getFilingsMeta, getFilingsStream } from "@/lib/filings";
 import { buildFilingsRead } from "@/lib/filings-insights";
@@ -478,20 +479,21 @@ async function followCard(): Promise<OgCard | null> {
 }
 
 async function insidersCard(): Promise<OgCard | null> {
-  const [buys, recent, sectors] = await Promise.all([within(getInsiderBuys(500), 3000), within(getInsiderTrades(900), 3000), within(getSectorMap(), 2000)]);
+  const [buys, recent, sectors] = await Promise.all([within(getInsiderBuys(INSIDER_BUY_ROWS), 3000), within(getInsiderTrades(INSIDER_TRADE_ROWS), 3000), within(getSectorMap(), 2000)]);
   if (!buys || !recent || !sectors) return null;
-  const read = buildInsiderRead({ buys, recent, sectors, today: new Date().toISOString().slice(0, 10) });
+  const now = Date.now();
+  const read = buildInsiderRead({ buys, recent, sectors, today: nyDay(now), now, recentLimit: INSIDER_TRADE_ROWS });
   return readCard("insiders", "Insiders", "/insiders", read, { footnote: "SEC Form 4" });
 }
 
 async function filingsCard(): Promise<OgCard | null> {
   const [stream, trades, buys, meta] = await Promise.all([
     within(getFilingsStream(), 3000),
-    within(getInsiderTrades(1500), 3000),
-    within(getInsiderBuys(400), 3000),
+    within(getInsiderTrades(INSIDER_TRADE_ROWS), 3000),
+    within(getInsiderBuys(INSIDER_BUY_ROWS), 3000),
     within(getFilingsMeta(), 1500),
   ]);
-  const read = buildFilingsRead({ stream: stream ?? [], trades: trades ?? [], buys: buys ?? [], mine: null, now: Date.now(), asOf: meta?.updatedAt ?? null });
+  const read = buildFilingsRead({ stream: stream ?? [], trades: trades ?? [], buys: buys ?? [], mine: null, now: Date.now(), asOf: meta?.updatedAt ?? null, tradesLimit: trades ? INSIDER_TRADE_ROWS : 0 });
   return readCard("filings", "Filings", "/filings", read, { footnote: ogFootnote("SEC EDGAR", meta?.updatedAt ? `as of ${ogStamp(meta.updatedAt)}` : null) });
 }
 

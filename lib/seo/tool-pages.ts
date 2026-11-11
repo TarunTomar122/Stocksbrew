@@ -105,14 +105,6 @@ export const TOOL_PAGE_SEO = {
     daily: true,
     crumbs: [MY_STOCKS, { name: "Rebalancing ideas", path: "/portfolio/ideas" }],
   },
-  "/portfolio/analyze": {
-    title: "Free portfolio analyzer: sectors, tilt and risks",
-    description:
-      "Paste your tickers or search by company and see your sector weights, factor tilt and the risks worth a look. Free, with no account needed.",
-    card: ["portfolio", "analyze"],
-    alt: "The free portfolio analyzer",
-    crumbs: [MY_STOCKS, { name: "Portfolio analyzer", path: "/portfolio/analyze" }],
-  },
   "/baskets/new": {
     title: "Build a stock basket in plain English",
     description:

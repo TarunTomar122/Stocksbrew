@@ -13,7 +13,7 @@ import { can } from "@/lib/entitlements";
 import { getViewer } from "@/lib/entitlements-server";
 import { getScreenerRows } from "@/lib/screener";
 import { listStrategies, liveHasReturn, readTrackedStrategies, type StrategySummary } from "@/lib/strategies";
-import { buildStrategiesRead, type YtdMap } from "@/lib/strategies-insights";
+import { backtestGap, buildStrategiesRead, strategiesTally, type YtdMap } from "@/lib/strategies-insights";
 import { markFor } from "@/lib/tone";
 import { getUserDoc } from "@/lib/watchlist";
 import { ogImage } from "@/lib/og/url";
@@ -63,16 +63,6 @@ function holdsText(item: StrategySummary): string {
   return item.cash_weight > 0.005 ? `${item.holdings} ${kind} + cash` : `${item.holdings} ${kind}`;
 }
 
-/** The strategy's yearly return minus the S&P 500 fund's over the same window, in percentage points. */
-function gapOf(item: StrategySummary): number | null {
-  const test = item.backtest;
-  if (!test) return null;
-  const mine = test.strategy.annualized_return ?? test.strategy.total_return;
-  const theirs = test.benchmark.annualized_return ?? test.benchmark.total_return;
-  if (mine == null || theirs == null) return null;
-  return mine - theirs;
-}
-
 function gapText(gap: number | null): string {
   if (gap === null) return "–";
   const sign = gap > 0 ? "+" : gap < 0 ? "−" : "";
@@ -101,7 +91,7 @@ const TRACKING = "oa-mono rounded-sm bg-oa-secondary px-1.5 py-px text-[12.5px] 
 
 function DesktopRow({ item, tracked, showLive, liveBare }: { item: StrategySummary; tracked: boolean; showLive: boolean; liveBare: boolean }) {
   const test = item.backtest;
-  const gap = gapOf(item);
+  const gap = backtestGap(item);
   return (
     <tr className="group border-b border-oa-border last:border-0 hover:bg-oa-accent" title={spyTitle(item)}>
       <td className="w-full max-w-0 py-2 pl-4 pr-3">
@@ -150,7 +140,7 @@ function DesktopRow({ item, tracked, showLive, liveBare }: { item: StrategySumma
 
 function MobileCard({ item, tracked, showLive, liveBare }: { item: StrategySummary; tracked: boolean; showLive: boolean; liveBare: boolean }) {
   const test = item.backtest;
-  const gap = gapOf(item);
+  const gap = backtestGap(item);
   return (
     <Link href={`/strategies/${item.slug}`} className="block border-b border-oa-border px-4 py-3 last:border-0 active:bg-oa-accent">
       <div className="flex items-start justify-between gap-3">
@@ -209,9 +199,9 @@ export default async function StrategiesPage() {
   const [items, session] = await Promise.all([listStrategies().catch(() => [] as StrategySummary[]), getSessionUser()]);
   const userDoc = session ? await getUserDoc(session.uid).catch(() => null) : null;
   const tracked = new Set(readTrackedStrategies(userDoc).map((entry) => entry.slug));
-  const tested = items.filter((item) => item.backtest && item.backtest.period.years >= 3);
-  const first = tested[0]?.backtest ?? null;
-  const ahead = tested.filter((item) => (item.backtest?.strategy.annualized_return ?? 0) > (item.backtest?.benchmark.annualized_return ?? 0)).length;
+  // One list behind every count on the page: the read's two "beat the S&P 500" counts and the line above the table.
+  const tally = strategiesTally(items);
+  const first = tally.tested.find((item) => (item.backtest?.period.years ?? 0) >= 3)?.backtest ?? tally.tested[0]?.backtest ?? null;
   const liveSince = items[0]?.live.since ?? null;
 
   // The read names holdings only for plans that see what each strategy holds.
@@ -222,7 +212,7 @@ export default async function StrategiesPage() {
     const rows = await getScreenerRows(symbols).catch(() => new Map());
     for (const [symbol, row] of rows) ytd[symbol] = row.ret_ytd;
   }
-  const read = buildStrategiesRead(items, { seesHoldings, ytd });
+  const read = buildStrategiesRead(items, { seesHoldings, ytd, tally });
 
   // The live record is one sentence until a session has closed; after that each row gets its own figure.
   // The fill day alone is only the cost of buying in, the same figure on every strategy: not a live return yet.
@@ -272,11 +262,19 @@ export default async function StrategiesPage() {
                     {longDay(first.period.start)} to {longDay(first.period.end)}
                   </span>
                 ) : null}
-                {tested.length > 0 ? (
+                {/* The read above already says how many beat the S&P 500; this line says once how many rows have one. */}
+                {tally.untested.length > 0 && tally.tested.length > 0 ? (
                   <>
                     <span aria-hidden="true">·</span>
                     <span>
-                      {ahead} of {tested.length} <span className="max-sm:hidden">long backtests </span>beat the S&amp;P 500<span className="max-sm:hidden"> fund</span>
+                      {tally.tested.length} of {tally.total} have a backtest
+                    </span>
+                  </>
+                ) : !read.headline && tally.tested.length > 0 ? (
+                  <>
+                    <span aria-hidden="true">·</span>
+                    <span>
+                      {tally.wholeTestBeat.length} of {tally.tested.length} beat the S&amp;P 500
                     </span>
                   </>
                 ) : null}

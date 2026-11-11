@@ -2,6 +2,8 @@ import { marketDay, type Briefing, type BriefingItem } from "@/lib/briefing";
 import { MARKET_GROUP_KEY, plainCallWord, type BriefingGroup, type GroupedSections } from "@/lib/briefing-groups";
 import { firstFullSentence, splitMoveReason, plainFinance, sentenceCase, shortCompanyName } from "@/lib/plain-copy";
 import { pickInsights, toneOfChange, type Insight, type TheRead } from "@/lib/insights";
+import { newestStamp, oldestStamp } from "@/lib/quote-time";
+import { staleMoveClock } from "@/lib/move-clock";
 
 /**
  * The briefing's read: one headline and up to three things that matter today,
@@ -82,11 +84,13 @@ function nameOf(name: string | null | undefined, ticker: string | null | undefin
  * starts with the ticker so the row leads with its logo; `leadName` shows the
  * company's name there.
  */
-function explainedMoveInsight(item: BriefingItem, date?: string, name?: string | null): Insight | null {
+function explainedMoveInsight(item: BriefingItem, date?: string, name?: string | null, now?: number): Insight | null {
   if (item.kind !== "price_move" || item.reason_status !== "confirmed" || item.day_change_pct == null || !item.ticker) return null;
   const reason = firstSentence(item.why);
   if (!reason) return null;
   const earlier = earlierSession(item.as_of, date);
+  // A move priced hours ago says so: "was up 23.9% by 9:58 AM", never "is up" beside a live index.
+  const stale = earlier || now == null ? null : staleMoveClock(item.as_of, now);
   const up = item.day_change_pct >= 0;
   // Company first ("Hims & Hers fell 16.5% after ..."): the row shows the logo and the name, then the rest.
   const split = earlier ? null : splitMoveReason(reason, item.day_change_pct, { withPct: true, company: { name: name ?? item.ticker, ticker: item.ticker } });
@@ -95,12 +99,14 @@ function explainedMoveInsight(item: BriefingItem, date?: string, name?: string |
     ? `${item.ticker} ${split.predicate}.`
     : earlier
       ? `${item.ticker} ${up ? "rose" : "fell"} ${pct(item.day_change_pct)}${earlier}: ${reason}.`
-      : `${item.ticker} is ${up ? "up" : "down"} ${pct(item.day_change_pct)}: ${reason}.`;
+      : stale
+        ? `${item.ticker} was ${up ? "up" : "down"} ${pct(item.day_change_pct)} by ${stale}: ${reason}.`
+        : `${item.ticker} is ${up ? "up" : "down"} ${pct(item.day_change_pct)}: ${reason}.`;
   return {
     id: `move-${item.id}`,
     tone: toneOfChange(item.day_change_pct),
     text,
-    figure: { value: signed(item.day_change_pct) },
+    figure: { value: signed(item.day_change_pct), ...(stale ? { label: `at ${stale}` } : {}) },
     leadName,
     tickers: [item.ticker],
     action: { label: `Our view on ${item.ticker}`, href: stockHref(item.ticker) },
@@ -127,7 +133,7 @@ function versusIndex(index: IndexMove): string {
 }
 
 /** A held stock's move, with the reason when its top update gives one. */
-function moverInsight(group: BriefingGroup, index: IndexMove, date?: string): Insight | null {
+function moverInsight(group: BriefingGroup, index: IndexMove, date?: string, now?: number): Insight | null {
   const move = group.day_change_pct;
   if (move == null || !group.ticker) return null;
   const top = group.lines[0]?.item;
@@ -135,14 +141,17 @@ function moverInsight(group: BriefingGroup, index: IndexMove, date?: string): In
   if (top?.kind === "price_move" && top.reason_status === "confirmed") why = firstSentence(top.why);
   else if (top?.kind === "earnings_reported") why = "after its earnings report";
   const earlier = earlierSession(group.as_of, date);
+  const stale = earlier || now == null ? null : staleMoveClock(group.as_of, now);
   const base = earlier
     ? `${group.ticker} ${move >= 0 ? "rose" : "fell"} ${pct(move)}${earlier}`
-    : `${group.ticker} is ${move >= 0 ? "up" : "down"} ${pct(move)} today`;
+    : stale
+      ? `${group.ticker} was ${move >= 0 ? "up" : "down"} ${pct(move)} by ${stale}`
+      : `${group.ticker} is ${move >= 0 ? "up" : "down"} ${pct(move)} today`;
   return {
     id: `mover-${group.key}`,
     tone: toneOfChange(move),
-    figure: { value: signed(move) },
-    text: why ? `${base}${why.startsWith("after") ? ` ${why}` : `: ${why}`}.` : `${base}${earlier ? "" : versusIndex(index)}.`,
+    figure: { value: signed(move), ...(stale ? { label: `at ${stale}` } : {}) },
+    text: why ? `${base}${why.startsWith("after") ? ` ${why}` : `: ${why}`}.` : `${base}${earlier || stale ? "" : versusIndex(index)}.`,
     tickers: [group.ticker],
     action: { label: `${group.ticker} report`, href: stockHref(group.ticker) },
   };
@@ -284,15 +293,17 @@ export function briefingRead(
   briefing: Pick<Briefing, "mode" | "portfolio" | "market" | "quiet"> & { date?: string },
   grouped: GroupedSections,
   session?: BriefingSession | null,
+  now: number = Date.now(),
 ): TheRead | null {
   const open = [...grouped.needs_you, ...grouped.worth_knowing, ...grouped.coming_up];
   const items = open.flatMap((group) => group.items);
-  // The market view reads the movers feed; your own reads your stocks' quotes, which are often fresher.
+  // The market read's time is when its moves were priced: the oldest of their quotes, so no number is dated later than
+  // it was measured. Never the movers feed's run time, which would label a 3 PM quote "as of 9:58 AM". (The index line
+  // carries its own clock.) Your own briefing reads your stocks' quotes and goes by the newest, as before.
   const quoteTimes = items
     .filter((item) => (item.kind === "price_move" || item.kind === "zone_entered") && item.as_of)
-    .map((item) => item.as_of as string)
-    .sort();
-  const asOf = briefing.mode === "market" ? briefing.market.as_of ?? null : quoteTimes[quoteTimes.length - 1] ?? null;
+    .map((item) => item.as_of as string);
+  const asOf = briefing.mode === "market" ? oldestStamp(quoteTimes) ?? briefing.market.as_of ?? null : newestStamp(quoteTimes);
 
   if (briefing.mode === "market") {
     const index = briefing.market.indices[0];
@@ -307,10 +318,16 @@ export function briefingRead(
     // The reason goes in the headline when it splits cleanly ("Hims & Hers Health fell 16.5% after earnings that
     // missed expectations"); its row then leaves the list below, so the read never says the same thing twice.
     const leadInsight = lead && leadName ? lead.items.map((item) => explainedMoveInsight(item, briefing.date, lead.name)).find(Boolean) ?? null : null;
+    // The lead's move priced hours ago (the movers feed runs once after the open) leads with its own time:
+    // "By 9:58 AM, CoreWeave was up 23.9%", so a morning number never reads as now beside a live index.
+    const leadStale = lead && !earlier ? staleMoveClock(lead.as_of, now) : null;
+    const by = leadStale ? `By ${leadStale}, ` : "";
     // A reason too long for a short headline stays in its row below instead.
-    const whyText = leadInsight && lead?.ticker && leadInsight.text.startsWith(`${lead.ticker} `) && / after /.test(leadInsight.text)
-      ? `${leadName} ${leadInsight.text.slice(lead.ticker.length + 1).replace(/\.$/, "")}.`
+    const leadRest = leadInsight && lead?.ticker && leadInsight.text.startsWith(`${lead.ticker} `) && / after /.test(leadInsight.text)
+      ? leadInsight.text.slice(lead.ticker.length + 1).replace(/\.$/, "")
       : "";
+    // Behind "By 9:58 AM, " the move is past tense: "was up", never "is up".
+    const whyText = leadRest ? `${by}${leadName} ${by ? leadRest.replace(/^is (up|down) /, "was $1 ") : leadRest}.` : "";
     const leadWhy = whyText && wordCount(whyText) <= HEADLINE_WORDS ? whyText : "";
     const biggest = `the biggest move${earlier ? "" : " today"} with news behind it`;
     const withBiggest = leadWhy ? `${leadWhy.replace(/\.$/, "")}, ${biggest}.` : "";
@@ -323,9 +340,14 @@ export function briefingRead(
           ? leadWhy
           : withBiggest
         : leadMove != null && Number.isFinite(leadMove) && leadMove !== 0
-          ? `${leadName} ${leadMove > 0 ? "rose" : "fell"} ${pct(leadMove)}${earlier}, ${biggest}.`
+          ? leadStale
+            ? `${by}${leadName} was ${leadMove > 0 ? "up" : "down"} ${pct(leadMove)}, ${biggest}.`
+            : `${leadName} ${leadMove > 0 ? "rose" : "fell"} ${pct(leadMove)}${earlier}, ${biggest}.`
           : `${leadName} made the biggest move with news behind it${earlier}.`;
-    const clock = indexClock(briefing.market.as_of, briefing.date);
+    // The index line's clock is the index's own quote time. An index without one (the home snapshot, a saved
+    // briefing) gets no clock mid-session, since the movers' time is not its time; "closed" still reads from them.
+    const anyClock = indexClock(index?.as_of ?? briefing.market.as_of, briefing.date);
+    const clock = !index?.as_of && anyClock?.kind === "intraday" ? null : anyClock;
     const direction = index ? `${index.change_pct >= 0 ? "up" : "down"} ${pct(index.change_pct, 2)}` : "";
     const indexLine = !index
       ? ""
@@ -345,7 +367,7 @@ export function briefingRead(
       const stories = pickInsights([
         giants,
         ...ordered.slice(0, 1).map((group) => {
-          const insight = group.items.map((item) => explainedMoveInsight(item, briefing.date, group.name)).find(Boolean) ?? null;
+          const insight = group.items.map((item) => explainedMoveInsight(item, briefing.date, group.name, now)).find(Boolean) ?? null;
           return insight && group === lead ? { ...insight, soWhat: "The biggest move today with news behind it." } : insight;
         }),
       ]);
@@ -368,7 +390,7 @@ export function briefingRead(
       indexPoint,
       ...leads
         .filter((group) => !(leadWhy && group === lead))
-        .map((group) => group.items.map((item) => explainedMoveInsight(item, briefing.date, group.name)).find(Boolean) ?? null),
+        .map((group) => group.items.map((item) => explainedMoveInsight(item, briefing.date, group.name, now)).find(Boolean) ?? null),
     ], indexPoint ? 4 : 3);
     if (!headline && insights.length === 0) return null;
     return { headline, insights, asOf, headlineTickers: leadWhy && lead?.ticker ? [lead.ticker] : undefined };
@@ -429,7 +451,7 @@ export function briefingRead(
     .filter((group) => group.day_change_pct != null && Math.abs(group.day_change_pct) >= 3)
     .sort((a, b) => Math.abs(b.day_change_pct ?? 0) - Math.abs(a.day_change_pct ?? 0))[0];
   const index = briefing.market.indices[0];
-  candidates.push(biggestMover ? moverInsight(biggestMover, index, briefing.date) : null);
+  candidates.push(biggestMover ? moverInsight(biggestMover, index, briefing.date, now) : null);
   const biggestExplained = items
     .filter(
       (item) =>
@@ -440,7 +462,7 @@ export function briefingRead(
         item.ticker !== biggestMover?.key,
     )
     .sort((a, b) => Math.abs(b.day_change_pct ?? 0) - Math.abs(a.day_change_pct ?? 0))[0];
-  candidates.push(biggestExplained ? explainedMoveInsight(biggestExplained, briefing.date) : null);
+  candidates.push(biggestExplained ? explainedMoveInsight(biggestExplained, briefing.date, undefined, now) : null);
   const nextEarnings = items
     .filter((item) => item.kind === "earnings_upcoming" && item.relation === "holding" && !deciding.has(item.ticker))
     .sort((a, b) => (a.deadline_days ?? 99) - (b.deadline_days ?? 99))[0];

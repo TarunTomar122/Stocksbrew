@@ -5,6 +5,8 @@ import { benchmarkForDay, quoteDay } from "@/lib/benchmark-day";
 import { todayET } from "@/lib/calendar-shared";
 import type { AnomalyItem } from "@/lib/daily-anomalies";
 import { adminFirestore } from "@/lib/firebase-admin";
+import { needsPriceCheck, weekRanges } from "@/lib/follow";
+import { slimInsiderTrade, type WeekRange } from "@/lib/follow-shared";
 import { getMarketsData } from "@/lib/markets";
 import { getScreenerSnapshot, isCompleteSnapshot, withFreshEarningsGap } from "@/lib/screener";
 import { sectorSlug, type ScreenerRow } from "@/lib/screener-shared";
@@ -221,7 +223,8 @@ export async function getMovesDay(day: string): Promise<ExplainedMove[]> {
   return getMovesDayCached(day).catch(() => []);
 }
 
-export type MoveRef = Pick<ExplainedMove, "ticker" | "name" | "day" | "pct" | "headline" | "researchedAt">;
+/** `priceAsOf` is when `pct` was measured; `researchedAt` is when the reason was written, often minutes later. */
+export type MoveRef = Pick<ExplainedMove, "ticker" | "name" | "day" | "pct" | "headline" | "researchedAt" | "priceAsOf">;
 
 async function readRecentMoves(since: string, includeLatest: boolean): Promise<MoveRef[]> {
   const collection = adminFirestore.collection("tm_daily_anomalies");
@@ -234,10 +237,10 @@ async function readRecentMoves(since: string, includeLatest: boolean): Promise<M
   if (latest?.exists) docs.push({ id: latest.id, data: latest.data() as AnomalyDoc });
   return collectMoves(docs)
     .filter((move) => move.day >= since)
-    .map(({ ticker, name, day, pct, headline, researchedAt }) => ({ ticker, name, day, pct, headline, researchedAt }));
+    .map(({ ticker, name, day, pct, headline, researchedAt, priceAsOf }) => ({ ticker, name, day, pct, headline, researchedAt, priceAsOf }));
 }
 
-const getRecentMovesCached = unstable_cache(readRecentMoves, ["explained-moves-recent-v2"], { revalidate: 1800 });
+const getRecentMovesCached = unstable_cache(readRecentMoves, ["explained-moves-recent-v3"], { revalidate: 1800 });
 
 /**
  * Every explained move of the last MOVE_SITEMAP_DAYS days, newest day first.
@@ -280,20 +283,25 @@ export function sectorGroups(coverage: Coverage): SectorGroup[] {
 export type InsiderCount = { symbol: string; trades: number; lastFiled: string };
 
 async function readInsiderCounts(since: string): Promise<InsiderCount[]> {
-  type Row = { symbol?: unknown; filing_date?: unknown; filed_at?: unknown };
+  type Row = Record<string, unknown> & { symbol?: unknown; filing_date?: unknown; filed_at?: unknown };
   let rows: Row[];
   try {
     // LocalDB takes the field list as one array (lib/local-firestore.ts).
     const query = adminFirestore.collection("tm_insider_trades") as unknown as {
       select(fields: string[]): { get(): Promise<{ docs: Array<{ data(): unknown }> }> };
     };
-    rows = (await query.select(["symbol", "filing_date", "filed_at"]).get()).docs.map((doc) => doc.data() as Row);
+    rows = (
+      await query.select(["id", "symbol", "tx_type", "price", "price_comparable", "foreign_line", "filing_date", "filed_at"]).get()
+    ).docs.map((doc) => doc.data() as Row);
   } catch {
     rows = (await adminFirestore.collection("tm_insider_trades").limit(10000).get()).docs.map((doc) => doc.data() as Row);
   }
+  // Count only the rows the insider pages show (lib/follow-shared.ts slimInsiderTrade), so "62 on file" matches the list.
+  const ranges = await weekRanges(rows.filter(needsPriceCheck).map((row) => String(row.symbol ?? ""))).catch(() => new Map<string, WeekRange>());
   const counts = new Map<string, InsiderCount>();
   for (const row of rows) {
     const symbol = typeof row.symbol === "string" ? row.symbol.toUpperCase() : "";
+    if (row.id !== undefined && !slimInsiderTrade(row, ranges.get(symbol))) continue;
     const day = String((typeof row.filing_date === "string" && row.filing_date) || row.filed_at || "").slice(0, 10);
     if (!symbol || !isIsoDay(day) || day < since) continue;
     const held = counts.get(symbol) ?? { symbol, trades: 0, lastFiled: day };
@@ -304,7 +312,7 @@ async function readInsiderCounts(since: string): Promise<InsiderCount[]> {
   return [...counts.values()].sort((a, b) => a.symbol.localeCompare(b.symbol));
 }
 
-const getInsiderCountsCached = unstable_cache(readInsiderCounts, ["insider-counts-v1"], { revalidate: 3600 });
+const getInsiderCountsCached = unstable_cache(readInsiderCounts, ["insider-counts-v2"], { revalidate: 3600 });
 
 /** Open-market Form 4 trades per stock in the insider window, with the last filing day. */
 export async function getInsiderCounts(today: string = todayET(), onError?: (error: unknown) => void): Promise<InsiderCount[]> {

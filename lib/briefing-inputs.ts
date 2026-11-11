@@ -233,7 +233,7 @@ export function withMarketIndexFigures(
     const change = finite(asset?.change.d1);
     // With a session day, only a figure from that same New York day replaces the snapshot's (a stale feed never wins).
     if (day && etDayOf(asset?.as_of ?? null) !== day) return index;
-    return asset && price != null && price > 0 && change != null ? { ...index, price, change_pct: change } : index;
+    return asset && price != null && price > 0 && change != null ? { ...index, price, change_pct: change, as_of: asset.as_of ?? null } : index;
   });
 }
 

@@ -824,10 +824,25 @@ class _Fact:
         self.number = number
 
 
+# Seven calendar days hold four or five sessions; any other count is not trusted.
+_SESSION_WORDS = {4: "four", 5: "five"}
+
+
+def _week_window(sessions: Any) -> str:
+    """'over the past five trading days' for the trailing week (the screener's ``ret_1w``).
+
+    Said in trading days so it is never read as the calendar week so far, which the weekly memo measures from
+    Friday's close. A row without the count keeps "over the past week", which is still true of a 7-day window.
+    """
+    count = _num(sessions)
+    word = _SESSION_WORDS.get(int(count)) if count is not None and count == int(count) else None
+    return f"over the past {word} trading days" if word else "over the past week"
+
+
 def _move_fact(facts: dict[str, Any], subject: str, today: date) -> _Fact | None:
     week, month = _num(facts.get("ret_1w")), _num(facts.get("ret_1m"))
     if week is not None and abs(week) >= 5:
-        own, window, peer, days = week, "over the past week", _num(facts.get("peer_ret_1w")), 7
+        own, window, peer, days = week, _week_window(facts.get("ret_1w_sessions")), _num(facts.get("peer_ret_1w")), 7
     elif month is not None and abs(month) >= 10:
         own, window, peer, days = month, "over the past month", _num(facts.get("peer_ret_1m")), 31
     else:
@@ -1136,7 +1151,7 @@ def compose_company_reason(facts: dict[str, Any], *, today: date | None = None) 
 
     ``facts`` is a flat dict (the screener row plus a few extras):
     name, symbol, stance, execution, pe, pe_hist_median, pe_hist_days,
-    pe_hist_from, pe_hist_to, rev_growth, eps_next_y, ret_1w, ret_1m,
+    pe_hist_from, pe_hist_to, rev_growth, eps_next_y, ret_1w, ret_1w_sessions (trading days in ret_1w), ret_1m,
     peer_label, peer_ret_1w, peer_ret_1m, last_report {date, label,
     surprise_pct}, next_report (date), buys_chg_3m, div_yield,
     div_growth_years, from_hi_pct, and optionally rev_growth_last_year.

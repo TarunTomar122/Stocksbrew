@@ -49,9 +49,9 @@ export const FREE_TOOL_GROUPS: FreeToolGroup[] = [
         featured: true,
       },
       {
-        href: "/portfolio/analyze",
-        title: "Portfolio Analyzer",
-        description: "Upload holdings and see concentration, overlap, and risk.",
+        href: "/portfolio/xray",
+        title: "What you really own",
+        description: "See the stocks inside your funds and where your money really sits.",
         icon: "pie_chart",
         accent: "#7c3aed",
       },

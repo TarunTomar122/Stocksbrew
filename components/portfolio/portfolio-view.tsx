@@ -628,7 +628,7 @@ export function PortfolioIntro({
           </button>
         )}
         <Link
-          href="/portfolio/analyze"
+          href="/import"
           className={`inline-flex h-10 items-center text-[14px] text-oa-muted-fg underline decoration-oa-border underline-offset-4 hover:text-oa-fg sm:h-9 ${FOCUS}`}
         >
           Check a list of stocks without signing in

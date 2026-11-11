@@ -4,7 +4,7 @@ import type { Plan } from "@/lib/entitlements";
 import { firstFullSentence } from "@/lib/plain-copy";
 import type { Memo, MemoItem, MemoMover } from "@/lib/memo/types";
 import { cardItems } from "@/lib/memo/view";
-import { shortDay, weekTitle, weekdayName } from "@/lib/memo/week";
+import { shortDay, sinceCloseWords, weekTitle, weekdayName } from "@/lib/memo/week";
 
 import { CallChanges } from "./calls";
 import { explainDays, plainFootnote } from "./explain";
@@ -41,8 +41,11 @@ const watchHurt = () => true;
 const watchLook = (item: MemoItem) => item.kind === "upcoming";
 const watchNone = () => false;
 
-/** The week's biggest driver, named before the chart: "NVIDIA's 9.5% drop took 1.4 points off the week." */
-function DriverLine({ movers }: { movers: MemoMover[] }) {
+/**
+ * The week's biggest driver, named before the chart: "NVIDIA's 9.5% drop took 1.4 points off the week." While the
+ * week runs it says where the move is measured from ("since Friday's close"), so it is not read as a five-session move.
+ */
+function DriverLine({ movers, since }: { movers: MemoMover[]; since: string }) {
   const top = [...movers].sort((a, b) => Math.abs(b.points) - Math.abs(a.points))[0];
   if (!top || Math.abs(top.points) < 0.05) return null;
   const size = `${Math.abs(top.pct).toFixed(1)}%`;
@@ -50,8 +53,8 @@ function DriverLine({ movers }: { movers: MemoMover[] }) {
   const points = shown === "1.0" ? "1 point" : Number(shown) > 1 ? `${shown} points` : `${shown} of a point`;
   const text =
     top.points < 0
-      ? `${top.name || top.ticker}'s ${size} ${top.pct < 0 ? "drop" : "move"} took ${points} off the week, the most of any holding.`
-      : `${top.name || top.ticker}'s ${size} ${top.pct > 0 ? "rise" : "move"} added ${points}, more than any other holding.`;
+      ? `${top.name || top.ticker}'s ${size} ${top.pct < 0 ? "drop" : "move"}${since ? ` ${since}` : ""} took ${points} off the week, the most of any holding.`
+      : `${top.name || top.ticker}'s ${size} ${top.pct > 0 ? "rise" : "move"}${since ? ` ${since}` : ""} added ${points}, more than any other holding.`;
   return <p className="mt-1 text-pretty text-[14.5px] leading-[21px] text-oa-muted-fg">{text}</p>;
 }
 
@@ -79,7 +82,7 @@ export function MemoLetter({ memo, example, plan, rail = null }: { memo: Memo; e
           <h2 className="text-balance text-[21px] font-semibold leading-[28px] tracking-[-0.015em] text-oa-fg sm:text-[24px] sm:leading-[31px]">
             {view ? view.headline : firstFullSentence(memo.topLine)}
           </h2>
-          {view ? <DriverLine movers={view.movers} /> : null}
+          {view ? <DriverLine movers={view.movers} since={sinceCloseWords(view.curve[0]?.day, memo.complete)} /> : null}
           {view && view.curve.length >= 2 ? (
             <div className="mt-3">
               <WeekChart curve={view.curve} subject={memo.subject} days={explainDays(memo, view.curve)} />

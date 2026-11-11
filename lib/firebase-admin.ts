@@ -55,7 +55,9 @@ loadTraceMoneyEnv();
 
 if (!getApps().length) {
   const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim();
-  const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH?.trim();
+  // The VPS names its key file GOOGLE_APPLICATION_CREDENTIALS (the Python jobs read that); accept either, so the node
+  // jobs (standing agents, reason checks) don't fail on a name.
+  const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH?.trim() || process.env.GOOGLE_APPLICATION_CREDENTIALS?.trim();
 
   if (!serviceAccountJson && !serviceAccountPath) {
     throw new Error("Set FIREBASE_SERVICE_ACCOUNT_JSON or FIREBASE_SERVICE_ACCOUNT_PATH");

@@ -4,13 +4,14 @@ import { todayET } from "@/lib/calendar-shared";
 import { StockLogo } from "@/components/stock-logo";
 import { multiplePercentile } from "@/lib/stock-chart";
 import { parseMonthPeriod } from "@/lib/stock-timeline";
+import { isBalanceSheetFinancial } from "@/lib/financial-company";
 import {
   balanceReading,
   businessHeadline,
   cashFlowReading,
   chronologicalHistory,
   growthReading,
-  marginReading,
+  overviewReadings,
   ownershipHeadline,
   rangeReading,
   rsiReading,
@@ -95,6 +96,25 @@ function realDescription(text: string | null | undefined): boolean {
   return clean.length >= 60 && !/tracked in the .* universe/i.test(clean);
 }
 
+/** Banks, insurers and lenders: free cash flow, net cash, debt and cash-flow multiples mislead for them. */
+function balanceSheetBusiness(data: SectionData): boolean {
+  return isBalanceSheetFinancial({ sector: data.stock.sector, industry: data.stock.industry, ticker: data.stock.ticker });
+}
+
+/** The multiples a reader can compare. Price to free cash flow and EV / EBITDA mean nothing for a bank. */
+function multipleRows(data: SectionData) {
+  const { facts, fundamentals } = data;
+  const balanceSheet = balanceSheetBusiness(data);
+  return valuationRows({
+    pe: fundamentals?.pe_ttm ?? facts?.quick_stats?.pe_ttm,
+    forwardPe: facts?.valuation?.forward_pe,
+    priceToSales: facts?.valuation?.price_to_sales,
+    priceToFcf: balanceSheet ? null : facts?.valuation?.price_to_fcf,
+    evToEbitda: balanceSheet ? null : facts?.valuation?.ev_to_ebitda,
+    sectorMetrics: data.intelPro?.pillars?.valuation?.metrics,
+  });
+}
+
 function hasHistory(data: SectionData): boolean {
   return chronologicalHistory(data.facts?.financial_history).filter((row) => fin(row.revenue) || fin(row.eps_diluted)).length >= 2;
 }
@@ -109,16 +129,9 @@ function scoredPillars(data: SectionData) {
 
 /** Which sections have real content. Empty ones are dropped from the page and the rail. */
 export function sectionAvailability(data: SectionData): Record<SectionId, boolean> {
-  const { facts, fundamentals, technicals } = data;
+  const { facts, technicals } = data;
   const hasValuation =
-    valuationRows({
-      pe: fundamentals?.pe_ttm ?? facts?.quick_stats?.pe_ttm,
-      forwardPe: facts?.valuation?.forward_pe,
-      priceToSales: facts?.valuation?.price_to_sales,
-      priceToFcf: facts?.valuation?.price_to_fcf,
-      evToEbitda: facts?.valuation?.ev_to_ebitda,
-      sectorMetrics: data.intelPro?.pillars?.valuation?.metrics,
-    }).length > 0 ||
+    multipleRows(data).length > 0 ||
     Boolean(data.multiple) ||
     fin(facts?.analyst?.target_price);
   const hasTechnicals =
@@ -133,7 +146,7 @@ export function sectionAvailability(data: SectionData): Record<SectionId, boolea
       Boolean(facts?.financials?.revenue) ||
       Boolean(facts?.business_segments?.items?.length) ||
       scoredPillars(data).length > 0,
-    financials: hasHistory(data) || (fin(facts?.balance?.cash_and_investments) && fin(facts?.balance?.total_debt)),
+    financials: hasHistory(data) || (!balanceSheetBusiness(data) && fin(facts?.balance?.cash_and_investments) && fin(facts?.balance?.total_debt)),
     valuation: hasValuation,
     earnings: Boolean(data.earnings.next || data.earnings.past.length || data.earnings.intel || data.earnings.pre),
     // US stocks always get the section: it says what we hold and what we do not.
@@ -158,6 +171,8 @@ export function OverviewSection({ data }: SectionProps) {
   const overall = data.intelPro?.overall;
   const segments = facts?.business_segments?.items ?? [];
   const regions = facts?.geographic_mix?.items ?? [];
+  const balanceSheet = balanceSheetBusiness(data);
+  const readings = overviewReadings(facts, currency, balanceSheet);
 
   const stats = [
     fin(fin0?.revenue) ? { label: `Revenue (${fin0?.fiscal_year || "TTM"})`, value: compactMoney(fin0.revenue, currency) } : null,
@@ -172,26 +187,30 @@ export function OverviewSection({ data }: SectionProps) {
       : null,
     fin(facts?.quality?.roe_pct) ? { label: "Return on equity", value: plainPct(facts.quality.roe_pct), tone: markFor("roe", facts.quality.roe_pct) } : null,
     fin(facts?.quality?.roic_pct) ? { label: "Return on capital", value: plainPct(facts.quality.roic_pct), tone: markFor("roic", facts.quality.roic_pct) } : null,
-    fin(facts?.quality?.debt_to_equity)
+    // A bank's debt to equity is the leverage it is built on, and it has no current ratio: both read as alarms that are not.
+    !balanceSheet && fin(facts?.quality?.debt_to_equity)
       ? { label: "Debt / equity", value: facts.quality.debt_to_equity.toFixed(2), tone: markFor("debtToEquity", facts.quality.debt_to_equity) }
       : null,
-    fin(facts?.quality?.current_ratio) ? { label: "Current ratio", value: facts.quality.current_ratio.toFixed(2), tone: markFor("currentRatio", facts.quality.current_ratio) } : null,
+    !balanceSheet && fin(facts?.quality?.current_ratio) ? { label: "Current ratio", value: facts.quality.current_ratio.toFixed(2), tone: markFor("currentRatio", facts.quality.current_ratio) } : null,
     fin(yieldPct) && yieldPct > 0 ? { label: "Dividend yield", value: plainPct(yieldPct, 2) } : null,
+    balanceSheet && fin(facts?.dividends?.payout_ratio_pct) && facts.dividends.payout_ratio_pct > 0
+      ? { label: "Payout ratio", value: plainPct(facts.dividends.payout_ratio_pct) }
+      : null,
     fin(facts?.dividends?.buyback_yield_pct) ? { label: "Buyback yield", value: plainPct(facts.dividends.buyback_yield_pct, 2) } : null,
   ].filter((item): item is NonNullable<typeof item> => Boolean(item));
 
   return (
-    <ReportSection id="overview" lede={businessHeadline(facts)}>
+    <ReportSection id="overview" lede={businessHeadline(facts, balanceSheet)}>
       {description ? (
         <Panel label="What it does" meta={[stock.exchange, stock.country].filter(Boolean).join(" · ") || undefined}>
           <p className={`px-3.5 py-3 sm:px-4 ${PROSE}`}>{description}</p>
           <div className="border-t border-oa-border">
-            <Readings items={[growthReading(facts, currency), marginReading(facts), cashFlowReading(facts, currency), balanceReading(facts, currency)]} />
+            <Readings items={readings} />
           </div>
         </Panel>
       ) : (
         <Panel label="In plain numbers">
-          <Readings items={[growthReading(facts, currency), marginReading(facts), cashFlowReading(facts, currency), balanceReading(facts, currency)]} />
+          <Readings items={readings} />
         </Panel>
       )}
 
@@ -277,21 +296,23 @@ export function FinancialsSection({ data }: SectionProps) {
   const rows = chronologicalHistory(facts?.financial_history).slice(-8);
   const label = (period: string) => shortPeriod(period);
   const money = (value: number) => compactMoney(value, "");
+  // For a bank or insurer, free cash flow and cash against debt are not what they look like (lib/financial-company.ts).
+  const balanceSheet = balanceSheetBusiness(data);
   const growth = growthReading(facts, currency);
-  const cash = cashFlowReading(facts, currency);
+  const cash = balanceSheet ? null : cashFlowReading(facts, currency);
   const lede = [growth?.statement, cash?.statement].filter(Boolean).join(" ") || null;
 
   const bars: Array<{ key: string; title: string; values: Array<number | null | undefined>; format: (value: number) => string; unit: string }> = [
     { key: "revenue", title: "Revenue", values: rows.map((row) => row.revenue), format: money, unit: currency },
     { key: "net", title: "Net income", values: rows.map((row) => row.net_income), format: money, unit: currency },
     { key: "eps", title: "EPS (diluted)", values: rows.map((row) => row.eps_diluted), format: (value: number) => value.toFixed(2), unit: `${currency} per share` },
-    { key: "fcf", title: "Free cash flow", values: rows.map((row) => row.free_cash_flow), format: money, unit: currency },
+    { key: "fcf", title: "Free cash flow", values: rows.map((row) => (balanceSheet ? null : row.free_cash_flow)), format: money, unit: currency },
   ].filter((chart) => chart.values.filter(fin).length >= 2);
 
   const hasMargins = rows.filter((row) => fin(row.gross_margin_pct) || fin(row.operating_margin_pct) || fin(row.profit_margin_pct)).length >= 2;
-  const cashNow = facts?.balance?.cash_and_investments;
-  const debtNow = facts?.balance?.total_debt;
-  const balance = balanceReading(facts, currency);
+  const cashNow = balanceSheet ? null : facts?.balance?.cash_and_investments;
+  const debtNow = balanceSheet ? null : facts?.balance?.total_debt;
+  const balance = balanceSheet ? null : balanceReading(facts, currency);
 
   return (
     <ReportSection id="financials" lede={lede}>
@@ -352,15 +373,7 @@ export function FinancialsSection({ data }: SectionProps) {
 export function ValuationSection({ data }: SectionProps) {
   const { stock, facts, fundamentals, currency, multiple: history } = data;
   const level = levelFormatter(currency);
-  const sectorMetrics = data.intelPro?.pillars?.valuation?.metrics;
-  const rows = valuationRows({
-    pe: fundamentals?.pe_ttm ?? facts?.quick_stats?.pe_ttm,
-    forwardPe: facts?.valuation?.forward_pe,
-    priceToSales: facts?.valuation?.price_to_sales,
-    priceToFcf: facts?.valuation?.price_to_fcf,
-    evToEbitda: facts?.valuation?.ev_to_ebitda,
-    sectorMetrics,
-  });
+  const rows = multipleRows(data);
   const peRow = rows.find((row) => row.key === "pe");
   const target = facts?.analyst_trend?.target;
   const analyst = facts?.analyst;

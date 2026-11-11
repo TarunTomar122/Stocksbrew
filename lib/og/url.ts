@@ -58,7 +58,7 @@ export function isOgPageKey(value: string): value is OgPageKey {
  * The portfolio tools, each drawn from the example portfolio a signed-out
  * visitor sees: `/api/og/portfolio/<tool>`. "home" is the /portfolio overview.
  */
-export const PORTFOLIO_OG_TOOLS = ["home", "memo", "xray", "dividends", "stress", "earnings", "goal", "ideas", "analyze"] as const;
+export const PORTFOLIO_OG_TOOLS = ["home", "memo", "xray", "dividends", "stress", "earnings", "goal", "ideas"] as const;
 
 export type PortfolioOgTool = (typeof PORTFOLIO_OG_TOOLS)[number];
 

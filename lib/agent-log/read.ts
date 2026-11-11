@@ -299,12 +299,14 @@ const AGENT_RUNS_COLLECTION = "tm_agent_runs";
 /** How many standing agents ran on the day and how many found something (tm_agent_runs). Counts only: no user ids. */
 export async function readAgentRuns(day: string): Promise<AgentRunsFacts | null> {
   const [start, end] = nyDayBounds(day);
-  const snap = await selectGet(adminFirestore.collection(AGENT_RUNS_COLLECTION).where("ran_at", ">=", start).where("ran_at", "<", end), ["ran_at", "decision"]);
+  const snap = await selectGet(adminFirestore.collection(AGENT_RUNS_COLLECTION).where("ran_at", ">=", start).where("ran_at", "<", end), ["ran_at", "decision", "uid"]);
   const stamps: string[] = [];
   let found = 0;
   for (const doc of snap.docs) {
     const data = doc.data() as Record<string, unknown>;
     const at = str(data.ran_at);
+    // Only agents members set up: the example portfolio's own agents (system uid) are not members' work.
+    if (data.uid === "example-portfolio") continue;
     if (!onDay(at, day) || (data.decision !== "notify" && data.decision !== "nothing")) continue;
     stamps.push(at);
     if (data.decision === "notify") found += 1;

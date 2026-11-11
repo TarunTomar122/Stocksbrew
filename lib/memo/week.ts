@@ -94,6 +94,24 @@ export function weekdayName(day: string): string {
   return WEEKDAYS[weekdayOf(day)]!;
 }
 
+/**
+ * How a holding's move over the memo's week is labelled: "this week" once the week is done, "so far this week"
+ * while it runs. Measured from the close before Monday, so it is not the trailing five-session move the stock
+ * page and the call reasons give.
+ */
+export function weekMoveWords(complete: boolean): string {
+  return complete ? "this week" : "so far this week";
+}
+
+/**
+ * "since Friday's close": the close a running week is measured from (the memo curve's first point), so a partial
+ * week's figure reads as what it is. Empty once the week is done, or when the day is unknown.
+ */
+export function sinceCloseWords(baseDay: string | null | undefined, complete: boolean): string {
+  if (complete || !baseDay || !isIsoDay(baseDay)) return "";
+  return `since ${weekdayName(baseDay)}'s close`;
+}
+
 /** "Thursday, Nov 13" */
 export function longDay(day: string): string {
   return `${weekdayName(day)}, ${shortDay(day)}`;

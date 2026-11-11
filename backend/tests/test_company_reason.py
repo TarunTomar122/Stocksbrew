@@ -416,6 +416,28 @@ class NamesTest(unittest.TestCase):
         self.assertEqual(peer_label("", ""), ("", ""))
 
 
+class WeekWindowTest(unittest.TestCase):
+    def test_the_trailing_week_is_said_in_trading_days(self):
+        out = compose_company_reason(dict(NVDA, ret_1w_sessions=5), today=TODAY)
+        assert out is not None
+        self.assertTrue(out["text"].startswith("NVIDIA fell 18% over the past five trading days, far more than other chip stocks"), out["text"])
+        four = compose_company_reason(dict(NVDA, ret_1w_sessions=4), today=TODAY)
+        assert four is not None
+        self.assertIn("over the past four trading days", four["text"])
+
+    def test_a_row_without_the_count_keeps_the_calendar_week(self):
+        out = compose_company_reason(NVDA, today=TODAY)
+        assert out is not None
+        self.assertIn("over the past week", out["text"])
+        odd = compose_company_reason(dict(NVDA, ret_1w_sessions=6), today=TODAY)
+        assert odd is not None
+        self.assertIn("over the past week", odd["text"])
+
+    def test_the_screener_passes_the_count_through(self):
+        facts = screener.reason_facts({"symbol": "NVDA", "ret_1w": -18.3, "ret_1w_sessions": 5}, None, peers=None, report=None, today="2026-11-11")
+        self.assertEqual(facts["ret_1w_sessions"], 5)
+
+
 class ScreenerWiringTest(unittest.TestCase):
     def rows(self):
         base = {"industry": "Semiconductors", "sector": "Technology"}

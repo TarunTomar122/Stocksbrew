@@ -8,6 +8,8 @@ import { pickInsights, type TheRead as TheReadData } from "@/lib/insights";
 import { ogImage } from "@/lib/og/url";
 import { companyFirstMove, firstFullSentence, plainFinance, sentenceCase, shortCompanyName } from "@/lib/plain-copy";
 import { longDay, moveHref, moversDayHref } from "@/lib/seo/families";
+import { staleMoveClock } from "@/lib/move-clock";
+import { pricedAt } from "@/lib/quote-time";
 import { getRecentMoves, type MoveRef } from "@/lib/seo/family-data";
 import Link from "next/link";
 
@@ -67,20 +69,6 @@ function hubRead(moves: readonly MoveRef[], latest: string | null): TheReadData 
   };
 }
 
-/**
- * "at 9:41 AM ET": when a move was measured, if that was during its own day.
- * The briefing shows the live change, so the same stock can read -16.5% there
- * and -11.1% here; the time keeps the two from looking like a contradiction.
- */
-function measuredAt(move: MoveRef): string | null {
-  if (!move.researchedAt) return null;
-  const date = new Date(move.researchedAt);
-  if (Number.isNaN(date.getTime())) return null;
-  const day = date.toLocaleDateString("en-CA", { timeZone: "America/New_York" });
-  if (day !== move.day) return null;
-  return `at ${date.toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" })} ET`;
-}
-
 function firstSentence(text: string | null | undefined): string {
   // A reason the feed clipped ("...") ends where the words end; no ellipsis on screen.
   return plainFinance(sentenceCase(firstFullSentence(text)))
@@ -99,9 +87,14 @@ const PHONE_ROWS = 3;
  */
 function biggestLine(move: MoveRef, latest: string): string {
   const reason = firstSentence(move.headline);
+  const name = (move.name ? shortCompanyName(move.name) : "") || move.ticker;
+  // A morning price read after the close says its own time, so it never stands in for the day's result (ship 28 QA).
+  const clock = staleMoveClock(move.priceAsOf ?? null);
+  if (clock) {
+    return `By ${clock}, ${name} was ${move.pct >= 0 ? "up" : "down"} ${Math.abs(move.pct).toFixed(1)}%, the biggest move on ${fmtDay(latest)}. ${reason}.`;
+  }
   const turned = companyFirstMove(reason, move.pct, { withPct: true, company: { name: move.name, ticker: move.ticker } });
   if (turned) return `${turned}, the biggest move on ${fmtDay(latest)}.`;
-  const name = (move.name ? shortCompanyName(move.name) : "") || move.ticker;
   return `The biggest move on ${fmtDay(latest)}: ${name} ${move.pct >= 0 ? "rose" : "fell"} ${Math.abs(move.pct).toFixed(1)}%. ${reason}.`;
 }
 
@@ -143,15 +136,10 @@ export default async function MoversPage() {
   const latestMoves = latest ? latest[1] : [];
   const gains = latestMoves.filter((move) => move.pct >= 0).sort((a, b) => b.pct - a.pct);
   const drops = latestMoves.filter((move) => move.pct < 0).sort((a, b) => a.pct - b.pct);
-  // The researcher measures a day's moves in one pass, so they usually share a
-  // time: say it once in the header. Rows carry their own only when they differ.
-  // The most common time goes in the header; only a row measured at another time carries its own.
-  const timeCounts = new Map<string, number>();
-  for (const move of latestMoves) {
-    const at = measuredAt(move);
-    if (at) timeCounts.set(at, (timeCounts.get(at) ?? 0) + 1);
-  }
-  const sharedTime = [...timeCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+  // When the day's numbers were priced, said once in each panel's header: the quote time, not the time the reasons
+  // were researched (a few minutes later). The briefing shows the live change, so the same stock can read +23.9%
+  // there at 3:03 PM and +18.9% here at 9:56 AM; each number carries its own time (lib/quote-time.ts).
+  const sharedTime = latest ? pricedAt(latestMoves.map((move) => move.priceAsOf), latest[0]) : null;
 
   return (
     <AppPage>
@@ -169,7 +157,7 @@ export default async function MoversPage() {
               flush
               fill
               label={side.label}
-              right={<span className={NUM}>{`${fmtDay(latest[0])}${sharedTime ? `, ${sharedTime.replace(/^at /, "")}` : ""}`}</span>}
+              right={<span className={NUM}>{`${fmtDay(latest[0])}${sharedTime ? `, ${sharedTime}` : ""}`}</span>}
             >
               {side.rows.length ? (
                 // About eight rows tall, then it scrolls inside the panel (no scrollbar shown), so the page stays short.

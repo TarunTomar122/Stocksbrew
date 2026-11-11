@@ -1,8 +1,10 @@
 import Link from "next/link";
 
+import { sourceTime } from "@/components/briefing/format";
 import { StockCard, StockCardGrid, stockGridFill } from "@/components/briefing/stock-card";
 import { getLandingAnomalies } from "@/components/landing-data";
 import { moveReason } from "@/lib/briefing";
+import { oldestStamp } from "@/lib/quote-time";
 import { isCircularReason } from "@/lib/reason-quality";
 
 import { heroTicker } from "./hero-briefing";
@@ -28,6 +30,9 @@ export async function TodayMoves() {
     .sort((a, b) => Math.abs(b.day_change_pct) - Math.abs(a.day_change_pct))
     .slice(0, ROWS);
   if (rows.length === 0) return null;
+  // The moves are live quotes (lib/daily-anomalies.ts re-prices the feed), so they carry the time they were priced
+  // (the oldest of the three), the way the briefing dates the same numbers.
+  const pricedAt = sourceTime(oldestStamp(rows.map((item) => item.price_as_of)));
 
   return (
     <section id="live" className="scroll-mt-24">
@@ -58,6 +63,7 @@ export async function TodayMoves() {
           />
         ))}
       </StockCardGrid>
+      {pricedAt ? <p className="mt-3 text-[13px] text-oa-muted-fg">As of {pricedAt}</p> : null}
     </section>
   );
 }

@@ -1089,3 +1089,28 @@ describe("stocks the agent does not cover (Free)", () => {
     expect(briefing.locked_moves).toBeUndefined();
   });
 });
+
+describe("market strip time", () => {
+  it("is when the shown moves were priced, not when the movers feed ran", () => {
+    const briefing = buildBriefing(
+      input({
+        mode: "market",
+        movers_as_of: "2026-11-09T14:58:00.000Z",
+        movers: [
+          mover({ ticker: "CRWV", day_change_pct: 23.95, price_as_of: "2026-11-09T20:03:00+00:00" }),
+          mover({ ticker: "SOXL", day_change_pct: 20.01, price_as_of: "2026-11-09T20:02:00+00:00" }),
+          mover({ ticker: "LAC", day_change_pct: -9.8, price_as_of: "2026-11-09T20:01:00Z" }),
+        ],
+      }),
+    );
+    // The oldest of the shown quotes: no move is dated later than it was priced.
+    expect(briefing.market.as_of).toBe("2026-11-09T20:01:00Z");
+  });
+
+  it("falls back to the feed's time when no move carries its own", () => {
+    const briefing = buildBriefing(
+      input({ mode: "market", movers_as_of: "2026-11-09T14:58:00.000Z", movers: [mover({ ticker: "CRWV", day_change_pct: 18.9, price_as_of: null })] }),
+    );
+    expect(briefing.market.as_of).toBe("2026-11-09T14:58:00.000Z");
+  });
+});

@@ -137,6 +137,85 @@ def test_story_banks_quoted_for_a_view_are_not_the_subject():
     assert matcher.match_story("Bank of America sends stark warning on travel sites", target="BAC") == []
 
 
+JPM_UNIVERSE = [
+    *STORY_UNIVERSE,
+    Instrument("JPM", "JPMorgan Chase & Co.", ("JPM", "JPMorgan Chase")),
+    Instrument("META", "Meta Platforms, Inc.", ("META", "Meta Platforms")),
+    Instrument("AVGO", "Broadcom Inc.", ("AVGO", "Broadcom")),
+    Instrument("IREN", "IREN Limited", ("IREN",)),
+]
+
+
+def test_analyst_firm_stories_do_not_attach_to_the_firm():
+    """The JPM stock page carried JPMorgan-the-analyst stories about Strategy, Meta, Broadcom and IREN (Nov 11)."""
+    matcher = nf.TickerMatcher(JPM_UNIVERSE)
+    for title in (
+        "JPMorgan Says Strategy Could Face $2.8 Billion in Forced Selling. What Would That Do to the Bitcoin Price?",
+        "JPMorgan grows wary on AI-exposed industrials, lowers price targets",
+        "JPMorgan reaffirms its top mid-cap pick in telecom",
+        "JPMorgan Cut Its IREN Target to $55. It Still Sees 148% Upside",
+        "JPMorgan Names Dividend Giant Its Top Stock Pick for a Rocky Market",
+        "JPMorgan Drops 'Bullish' Stance On US Stocks After Warsh's Hawkish Tone",
+        "A $13 Billion Fund Dumps These 3 Stocks",
+    ):
+        assert "JPM" not in matcher.match_story(title, "", target="JPM"), title
+    assert matcher.match_story("Meta Platforms (META) Wins JPMorgan Backing, Is It Still 37% Below Fair Value?", "", target="JPM") == ["META"]
+    assert matcher.match_story("JPMorgan Just Added Meta Platforms to Its Analyst Focus List", "", target="JPM") == ["META"]
+    # Benzinga's tag list at the end of the headline is not the subject.
+    assert matcher.match_story(
+        "Broadcom Shares Rise 2.20% After Hours - Broadcom (NASDAQ:AVGO), JPMorgan Chase (NYSE:JPM) - Benzinga", "", target="JPM"
+    ) == ["AVGO"]
+
+
+def test_stories_about_the_bank_itself_still_count():
+    matcher = nf.TickerMatcher(JPM_UNIVERSE)
+    for title in (
+        "JPMorgan Partners With OpenAI: What It Means for JPM's AI Strategy",
+        "JPMorgan Chase (JPM) Takes Lead Role In A Major AI IPO",
+        "JPMorgan May Sell $2 Billion of Qualtrics Debt at About 85 Cents on the Dollar",
+        "ETFs Are Net Sellers of JPMorgan Chase (JPM) on Nov. 5",
+        "JPMorgan raises its dividend by 7%",
+        "JPMorgan cuts 1,000 jobs in its investment bank",
+    ):
+        assert "JPM" in matcher.match_story(title, "", target="JPM"), title
+    assert matcher.match_story("JPMorgan vs. Bank of America: Which Dividend Stock Is Better for Retirement?", "", target="JPM") == ["JPM", "BAC"]
+
+
+def test_a_bank_speaking_about_itself_or_rated_by_others_stays():
+    """The quality pass found these dropped by the first version of the rule."""
+    for ticker, title in (
+        ("JPM", "JPMorgan says third-quarter profit rose 12% on trading"),
+        ("WFC", "Wells Fargo says Fed lifted its asset cap"),
+        ("C", "Citi warns expenses will rise next year"),
+        ("BAC", "Bank of America sees net interest income rising"),
+        ("GS", "Goldman Sachs expects to cut jobs"),
+        ("JPM", "JPMorgan raises net interest income forecast"),
+        ("GS", "Goldman Sachs lifts outlook as dealmaking rebounds"),
+        ("JPM", "Baird upgrades JPMorgan Chase to outperform"),
+        ("MS", "KBW upgrades Morgan Stanley"),
+        ("C", "Citigroup gets upgrade from KBW"),
+        ("JPM", "Analysts upgrade JPMorgan after strong quarter"),
+        ("JPM", "Jamie Dimon warns of cockroaches in private credit"),
+        ("MS", "Morgan Stanley Sees Wealth Margin Near 30% Goal Despite Q4 Costs"),
+    ):
+        assert nf.firm_is_subject(ticker, title), title
+    # A view about the market or another company is still the analyst speaking.
+    assert nf.firm_is_subject("UBS", "UBS Sees Bank of Canada Hiking Rates by 100bps") is False
+    assert nf.firm_is_subject("JPM", "JPMorgan says Strategy could face forced selling", others=True) is False
+    assert nf.firm_is_subject("JEF", "Compass Pathways could win approval by 2027, Jefferies says") is False
+
+
+def test_firm_is_subject_for_any_bank_and_passes_other_stocks():
+    assert nf.firm_is_subject("GS", "Goldman Sachs upgrades Nvidia to buy") is False
+    assert nf.firm_is_subject("GS", "Goldman Sachs profit jumps on trading") is True
+    assert nf.firm_is_subject("C", "Citi lifts S&P 500 year-end target to 7,000") is False
+    assert nf.firm_is_subject("C", "Citigroup to cut 20,000 jobs") is True
+    assert nf.firm_is_subject("WFC", "Apple price target raised by Wells Fargo") is False
+    assert nf.firm_is_subject("BAC", "BofA strategists see a bubble in AI stocks") is False
+    assert nf.firm_is_subject("MS", "Morgan Stanley adds transfer agent Vinyl Equity in wealth push") is True
+    assert nf.firm_is_subject("AAPL", "Goldman Sachs upgrades Apple") is True
+
+
 def test_story_research_reports_and_other_companies():
     matcher = nf.TickerMatcher(STORY_UNIVERSE)
     assert matcher.match_story("Global CRISPR Screening Market Report 2026 | Capitalize on 17.7% CAGR as Thermo Fisher, Merck lead") == []

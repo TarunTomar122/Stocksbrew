@@ -11,6 +11,7 @@ import { getSessionUser } from "@/lib/auth-server";
 import { getFilings, getFilingsMeta, getFilingsStream } from "@/lib/filings";
 import { buildFilingsRead } from "@/lib/filings-insights";
 import { getInsiderBuys, getInsiderTrades } from "@/lib/follow";
+import { INSIDER_BUY_ROWS, INSIDER_TRADE_ROWS } from "@/lib/insider-balance";
 import {
   FILING_GROUPS,
   FILING_GROUP_HINTS,
@@ -145,10 +146,11 @@ async function FilingsStream({ search }: { search: Search }) {
     getFilings({ group, tickers: mine ? myTickers : null, limit: rows }).catch(() => null),
     getFilingsMeta().catch(() => null),
     getFilingsStream().catch(() => []),
-    getInsiderTrades(1500).catch(() => []),
-    getInsiderBuys(400).catch(() => []),
+    getInsiderTrades(INSIDER_TRADE_ROWS).catch(() => null),
+    getInsiderBuys(INSIDER_BUY_ROWS).catch(() => []),
   ]);
-  const read = buildFilingsRead({ stream, trades, buys, mine: session && myTickers.size ? myTickers : null, now: Date.now(), asOf: meta?.updatedAt ?? null });
+  // A failed trade read (null) holds no week of sales, so the limit of 0 keeps the balance out rather than counting buys alone.
+  const read = buildFilingsRead({ stream, trades: trades ?? [], buys, mine: session && myTickers.size ? myTickers : null, now: Date.now(), asOf: meta?.updatedAt ?? null, tradesLimit: trades ? INSIDER_TRADE_ROWS : 0 });
 
   const total = page ? FILING_GROUPS.reduce((sum, key) => sum + page.counts[key], 0) : 0;
   const days = page ? groupFilingsByDay(page.filings) : [];

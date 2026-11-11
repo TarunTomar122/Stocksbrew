@@ -1,3 +1,4 @@
+import { noteDegradedRender } from "@/lib/next-render";
 import type { Metadata } from "next";
 
 import { ClusterRows } from "@/components/follow/insider-rows";
@@ -16,6 +17,7 @@ import {
   getInsiderTrades,
   type InsiderTrade,
 } from "@/lib/follow";
+import { INSIDER_BUY_ROWS, INSIDER_TRADE_ROWS, nyDay } from "@/lib/insider-balance";
 import { ogImage } from "@/lib/og/url";
 import Link from "next/link";
 
@@ -33,21 +35,26 @@ export function generateMetadata(): Metadata {
 
 export const revalidate = 600;
 
+/** The table carries the newest sales only; every row it holds goes to the browser. */
+const TABLE_RECENT_ROWS = 900;
+
 export default async function InsidersPage() {
   const [summary, buys, recent, sectors] = await Promise.all([
-    getInsiderSummary().catch(() => ({ clusters: [], meta: null })),
-    getInsiderBuys(500).catch(() => [] as InsiderTrade[]),
-    getInsiderTrades(900).catch(() => [] as InsiderTrade[]),
+    getInsiderSummary().catch(() => (noteDegradedRender(), { clusters: [], meta: null })),
+    getInsiderBuys(INSIDER_BUY_ROWS).catch(() => (noteDegradedRender(), [] as InsiderTrade[])),
+    // The same rows /filings reads, so the dollar balance both pages quote is one number.
+    getInsiderTrades(INSIDER_TRADE_ROWS).catch(() => (noteDegradedRender(), [] as InsiderTrade[])),
     getSectorMap(),
   ]);
   const { clusters, meta } = summary;
-  const read = buildInsiderRead({ buys, recent, sectors, today: new Date().toISOString().slice(0, 10) });
+  const now = Date.now();
+  const read = buildInsiderRead({ buys, recent, sectors, today: nyDay(now), now, recentLimit: INSIDER_TRADE_ROWS });
   const topBought = read.tallies.slice(0, 6);
   const byValue = [...read.tallies].sort((a, b) => (b.value ?? 0) - (a.value ?? 0)).slice(0, 6);
 
   // Every buy in the window plus the most recent sales, newest filing first, without repeats.
   const byId = new Map<string, InsiderTrade>();
-  for (const trade of [...buys, ...recent]) byId.set(trade.id, trade);
+  for (const trade of [...buys, ...recent.slice(0, TABLE_RECENT_ROWS)]) byId.set(trade.id, trade);
   const trades = [...byId.values()].sort((a, b) =>
     a.filed_at < b.filed_at ? 1 : a.filed_at > b.filed_at ? -1 : 0,
   );

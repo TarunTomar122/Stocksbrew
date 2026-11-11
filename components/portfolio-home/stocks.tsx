@@ -67,11 +67,12 @@ export async function BookLead({ load }: { load: HomeLoad }) {
     );
   }
   if (lead.week) {
+    // The last five sessions (weekMove), said as trading days so it is not read as the memo's week so far.
     const { dollars, pct, marketPct } = lead.week;
     stats.push(
       dollars !== null
-        ? { key: "week", caption: "Past week", figure: signedDollars(dollars), figureTone: dollars, sub: versus(pct, marketPct) }
-        : { key: "week", caption: "Past week, on average", figure: signedPct(pct), figureTone: pct, sub: versus(null, marketPct) },
+        ? { key: "week", caption: "Past 5 trading days", figure: signedDollars(dollars), figureTone: dollars, sub: versus(pct, marketPct) }
+        : { key: "week", caption: "Past 5 trading days, on average", figure: signedPct(pct), figureTone: pct, sub: versus(null, marketPct) },
     );
   }
   if (lead.gain) {

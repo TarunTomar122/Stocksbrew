@@ -158,12 +158,53 @@ export function cashFlowReading(facts: StockFacts | null | undefined, currency =
   return { statement: `It generated ${compactMoney(fcf, currency)} of free cash flow in ${when}.`, tone: "good", verdict: "Makes cash" };
 }
 
+/**
+ * Return on equity, the profit measure that works for a bank or an insurer. Used in place
+ * of the cash-flow and net-cash readings for them (lib/financial-company.ts).
+ */
+export function returnOnEquityReading(facts: StockFacts | null | undefined): Reading | null {
+  const roe = facts?.quality?.roe_pct;
+  if (!fin(roe)) return null;
+  if (roe < 0) return { statement: `It lost ${roundPct(roe)} of shareholders' equity over the last twelve months.`, tone: "bad", verdict: "Losing money" };
+  return {
+    statement: `It earned ${roundPct(roe)} on shareholders' equity over the last twelve months.`,
+    // The same edges as THRESHOLDS.roe in lib/tone, so this chip and the mark in Key figures agree.
+    tone: roe >= 15 ? "good" : "neutral",
+    verdict: roe >= 15 ? "High return" : roe >= 8 ? "Fair return" : "Low return",
+  };
+}
+
+/** The dividend and how much of profit it takes. Null without both the dividend and the payout ratio. */
+export function payoutReading(facts: StockFacts | null | undefined, currency = "$"): Reading | null {
+  const dividend = facts?.dividends?.annual_dividend;
+  const payout = facts?.dividends?.payout_ratio_pct;
+  if (!fin(dividend) || dividend <= 0 || !fin(payout) || payout <= 0) return null;
+  const years = facts?.dividends?.growth_years;
+  const raised = fin(years) && years >= 2 ? `, and it has raised it ${Math.round(years)} years in a row` : "";
+  return {
+    statement: `It pays ${currency}${dividend.toFixed(2)} a share in dividends, ${roundPct(payout)} of its earnings${raised}.`,
+    tone: payout > 90 ? "bad" : payout <= 60 ? "good" : "neutral",
+    verdict: payout > 90 ? "Stretched payout" : payout <= 60 ? "Covered payout" : "High payout",
+  };
+}
+
+/**
+ * The readings under "In plain numbers". For a bank, insurer or lender (`balanceSheet`), free
+ * cash flow and cash minus debt mislead, so return on equity and the payout take their place.
+ */
+export function overviewReadings(facts: StockFacts | null | undefined, currency = "$", balanceSheet = false): Array<Reading | null> {
+  if (balanceSheet) return [growthReading(facts, currency), returnOnEquityReading(facts), payoutReading(facts, currency)];
+  return [growthReading(facts, currency), marginReading(facts), cashFlowReading(facts, currency), balanceReading(facts, currency)];
+}
+
 /** The section headline: the two readings that say the most, in one sentence. */
-export function businessHeadline(facts: StockFacts | null | undefined): string | null {
+export function businessHeadline(facts: StockFacts | null | undefined, balanceSheet = false): string | null {
   const growth = facts?.financials?.revenue_growth_yoy_pct;
   const rows = chronologicalHistory(facts?.financial_history);
-  const margin = [...rows].reverse().find((row) => fin(row.operating_margin_pct))?.operating_margin_pct;
-  const fcfRow = [...rows].reverse().find((row) => fin(row.free_cash_flow));
+  const margin = balanceSheet ? undefined : [...rows].reverse().find((row) => fin(row.operating_margin_pct))?.operating_margin_pct;
+  // A bank's free cash flow moves with its loan book; its return on equity says how profitable it is.
+  const fcfRow = balanceSheet ? undefined : [...rows].reverse().find((row) => fin(row.free_cash_flow));
+  const roe = balanceSheet ? facts?.quality?.roe_pct : undefined;
 
   const growthPart = fin(growth)
     ? growth >= 0.5
@@ -181,7 +222,11 @@ export function businessHeadline(facts: StockFacts | null | undefined): string |
     ? fcfRow.free_cash_flow >= 0
       ? "it produces free cash"
       : "it is burning cash"
-    : null;
+    : fin(roe)
+      ? roe >= 0
+        ? `it earns ${roundPct(roe)} on its equity`
+        : `it lost ${roundPct(roe)} of its equity`
+      : null;
 
   if (growthPart && marginPart) {
     const sameDirection = (growth! >= 0.5 && margin! >= 0) || (growth! <= -0.5 && margin! < 0);

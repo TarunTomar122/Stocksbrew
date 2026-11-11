@@ -18,6 +18,7 @@ from backend.call_engine_pipeline import (
     resolve_directive,
 )
 from backend import call_stability
+from backend.agentdata.analyst_firms import firm_is_subject
 from backend.call_reason import attach_call_reason, coerce_model_reasons, validated_model_reasons
 from backend.directive_v2 import build_directive_v2
 from backend.evidence_history import (
@@ -3692,6 +3693,12 @@ def build_stock_intelligence_docs(
     )
 
     for article in articles:
+        article_title = str(getattr(article, "title", "") or "")
+        mentioned = {
+            str(mention.get("ticker", "")).upper().strip()
+            for mention in article.entity_mentions
+            if mention.get("type") == "stock" and str(mention.get("mention_role", "secondary")).lower() != "incidental"
+        }
         # Keep a raw per-instrument map before quality gating so we can avoid
         # false "no news" states when fresh but lower-confidence coverage exists.
         for mention in article.entity_mentions:
@@ -3701,7 +3708,9 @@ def build_stock_intelligence_docs(
                 continue
             ticker = str(mention.get("ticker", "")).upper().strip()
             instrument = instruments_by_ticker.get(ticker)
-            if instrument:
+            # "JPMorgan says Strategy could face forced selling" is about Strategy: a bank or broker
+            # quoted as the analyst is not the subject, so the story stays off its brief and timeline.
+            if instrument and firm_is_subject(ticker, article_title, others=bool(mentioned - {ticker})):
                 raw_articles_by_instrument[instrument["instrument_id"]].append(article)
 
         if str(article.sentiment_label or "").lower() == "unscored":
@@ -3717,6 +3726,8 @@ def build_stock_intelligence_docs(
                 continue
             ticker = str(mention.get("ticker", "")).upper().strip()
             instrument = instruments_by_ticker.get(ticker)
+            if instrument and not firm_is_subject(ticker, article_title, others=bool(mentioned - {ticker})):
+                continue
             quality_score = _article_quality_score(article, ticker)
             if instrument and quality_score >= 25:
                 matched_ids.add(instrument["instrument_id"])

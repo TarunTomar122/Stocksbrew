@@ -1,8 +1,13 @@
 import { unstable_cache } from "next/cache";
 
 import { adminFirestore } from "@/lib/firebase-admin";
+import { getScreenerRows } from "@/lib/screener";
+import type { ScreenerRow } from "@/lib/screener-shared";
 import {
   normalizeFollowed,
+  clusterIsOffPrice,
+  slimInsiderTrade,
+  type WeekRange,
   type CongressProfile,
   type FollowActivity,
   type FollowSource,
@@ -155,34 +160,37 @@ export const getFollowProfile = (slug: string) =>
     revalidate: REVALIDATE,
   })();
 
+/**
+ * symbol -> 52-week range from the screener, to check rows stored before the Form 4 job checked
+ * prices. Only the symbols asked for: a few are looked up one by one, more read the snapshot once.
+ */
+export async function weekRanges(symbols: Iterable<string>): Promise<Map<string, WeekRange>> {
+  const ranges = new Map<string, WeekRange>();
+  const wanted = [...new Set([...symbols].map((symbol) => symbol.trim().toUpperCase()).filter(Boolean))];
+  if (!wanted.length) return ranges;
+  const rows = await getScreenerRows(wanted).catch(() => new Map<string, ScreenerRow>());
+  for (const [symbol, row] of rows) {
+    if (typeof row.lo_52w === "number" && typeof row.hi_52w === "number") ranges.set(symbol.toUpperCase(), { lo: row.lo_52w, hi: row.hi_52w });
+  }
+  return ranges;
+}
+
+/** A stored row the Form 4 job has not price-checked yet (written before it did). */
+export function needsPriceCheck(raw: Record<string, unknown>): boolean {
+  return raw.price_comparable === undefined && raw.foreign_line !== true && typeof raw.price === "number";
+}
+
 /** Only the fields the pages show, so a couple of thousand rows stay well under the cache entry limit. */
-function slimTrade(raw: Record<string, unknown>): InsiderTrade {
-  const text = (key: string) =>
-    typeof raw[key] === "string" ? (raw[key] as string) : "";
-  const num = (key: string) =>
-    typeof raw[key] === "number" && Number.isFinite(raw[key] as number)
-      ? (raw[key] as number)
-      : null;
-  return {
-    id: text("id"),
-    symbol: text("symbol"),
-    company: text("company"),
-    insider: text("insider"),
-    insider_id: text("insider_id"),
-    role: text("role"),
-    tx_type: raw.tx_type === "buy" ? "buy" : "sell",
-    shares: num("shares") ?? 0,
-    price: num("price"),
-    value: num("value"),
-    transaction_date: text("transaction_date"),
-    filing_date: text("filing_date"),
-    filed_at: text("filed_at"),
-    lag_days: num("lag_days"),
-    shares_after: num("shares_after"),
-    ownership: text("ownership"),
-    plan_10b5_1: raw.plan_10b5_1 === true,
-    url: text("url"),
-  };
+async function slimTrades(docs: ReadonlyArray<{ data(): unknown }>): Promise<InsiderTrade[]> {
+  const raws = docs.map((doc) => doc.data() as Record<string, unknown>);
+  // Once the job has re-read the window every row carries its own check, and no screener read is needed.
+  const ranges = await weekRanges(raws.filter(needsPriceCheck).map((raw) => String(raw.symbol ?? "")));
+  const out: InsiderTrade[] = [];
+  for (const raw of raws) {
+    const trade = slimInsiderTrade(raw, ranges.get(String(raw.symbol ?? "").toUpperCase()));
+    if (trade) out.push(trade);
+  }
+  return out;
 }
 
 async function loadInsiderTrades(limit: number): Promise<InsiderTrade[]> {
@@ -191,15 +199,13 @@ async function loadInsiderTrades(limit: number): Promise<InsiderTrade[]> {
     .orderBy("filed_at", "desc")
     .limit(limit)
     .get();
-  return snap.docs
-    .map((doc) => slimTrade(doc.data() as Record<string, unknown>))
-    .filter((trade) => trade.id && trade.symbol);
+  return slimTrades(snap.docs);
 }
 
 export const getInsiderTrades = (limit = 1500) =>
   unstable_cache(
     () => loadInsiderTrades(limit),
-    ["insider-trades-v3", String(limit)],
+    ["insider-trades-v4", String(limit)],
     { revalidate: REVALIDATE },
   )();
 
@@ -210,16 +216,14 @@ async function loadInsiderBuys(limit: number): Promise<InsiderTrade[]> {
     .orderBy("filed_at", "desc")
     .limit(limit)
     .get();
-  return snap.docs
-    .map((doc) => slimTrade(doc.data() as Record<string, unknown>))
-    .filter((trade) => trade.id && trade.symbol);
+  return slimTrades(snap.docs);
 }
 
 /** Buys are rare next to sales, so they get their own query rather than a slice of the mixed list. */
 export const getInsiderBuys = (limit = 400) =>
   unstable_cache(
     () => loadInsiderBuys(limit),
-    ["insider-buys-v3", String(limit)],
+    ["insider-buys-v4", String(limit)],
     { revalidate: REVALIDATE },
   )();
 
@@ -231,16 +235,14 @@ async function loadSymbolInsiderTrades(
     .where("symbol", "==", symbol)
     .limit(200)
     .get();
-  return snap.docs
-    .map((doc) => slimTrade(doc.data() as Record<string, unknown>))
-    .sort((a, b) => (a.filed_at < b.filed_at ? 1 : -1));
+  return (await slimTrades(snap.docs)).sort((a, b) => (a.filed_at < b.filed_at ? 1 : -1));
 }
 
 /** Open-market insider trades for one stock, newest first. For the stock page. */
 export const getInsiderTradesForSymbol = (symbol: string) =>
   unstable_cache(
     () => loadSymbolInsiderTrades(symbol.toUpperCase()),
-    ["insider-symbol-v3", symbol.toUpperCase()],
+    ["insider-symbol-v4", symbol.toUpperCase()],
     {
       revalidate: REVALIDATE,
     },
@@ -254,18 +256,18 @@ async function loadInsiderSummary(): Promise<{
     adminFirestore.collection("tm_insider_meta").doc("clusters").get(),
     adminFirestore.collection("tm_insider_meta").doc("run").get(),
   ]);
-  const list = clusters.exists
-    ? ((clusters.data() as { clusters?: InsiderCluster[] }).clusters ?? [])
-    : [];
+  const stored = clusters.exists ? ((clusters.data() as { clusters?: InsiderCluster[] }).clusters ?? []) : [];
+  const list = Array.isArray(stored) ? stored : [];
+  const ranges = await weekRanges(list.map((cluster) => String(cluster.symbol ?? "")));
   return {
-    clusters: Array.isArray(list) ? list : [],
+    clusters: list.filter((cluster) => !clusterIsOffPrice(cluster, ranges.get(String(cluster.symbol ?? "").toUpperCase()))),
     meta: run.exists ? (run.data() as InsiderMeta) : null,
   };
 }
 
 export const getInsiderSummary = unstable_cache(
   loadInsiderSummary,
-  ["insider-summary-v3"],
+  ["insider-summary-v4"],
   { revalidate: REVALIDATE },
 );
 

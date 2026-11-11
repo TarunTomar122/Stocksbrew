@@ -7,7 +7,7 @@ import { MoversTab, PolicyTab, RedditTab, SignalsBar, TodayTab } from "@/compone
 import { clipByAge } from "@/lib/entitlements";
 import { getViewer } from "@/lib/entitlements-server";
 import { loadMovers, loadPolicy, loadReddit } from "@/lib/signals";
-import { buildMoversRead, buildPolicyRead, buildRedditRead, buildSignalsTodayRead } from "@/lib/signals-insights";
+import { buildMoversRead, buildPolicyRead, buildRedditRead, buildSignalsTodayRead, moversPricedAt } from "@/lib/signals-insights";
 import { SIGNALS_TABS, parseSignalsFilters, pickToday, signalsHref } from "@/lib/signals-shared";
 import { ogImage } from "@/lib/og/url";
 import { loadUpcomingReports, todayET, withReports } from "@/app/(app)/explore/desk-data";
@@ -65,18 +65,20 @@ export default async function SignalsPage({ searchParams }: { searchParams?: Sea
   const counts = { today: null, movers: movers.movers.length, reddit: reddit.names.length, policy: policy.posts.length } as const;
   const tabs = SIGNALS_TABS.map((tab) => ({ id: tab.id, label: tab.label, href: signalsHref(filters, { tab: tab.id }), count: counts[tab.id] }));
 
-  // Intraday moves are the only thing here where the time matters to the reader.
-  const source = filters.tab === "today" || filters.tab === "movers" ? <SourceLine asOf={fmtStampET(movers.generatedAt)} /> : null;
+  // Intraday moves are the only thing here where the time matters to the reader: the time they were priced, not when
+  // the feed was last written up (a reason found at 11 AM does not make a 9:58 AM move any newer).
+  const movesAt = moversPricedAt(movers.movers, movers.generatedAt);
+  const source = filters.tab === "today" || filters.tab === "movers" ? <SourceLine asOf={fmtStampET(movesAt)} /> : null;
 
   // The read for the tab: what the rows below add up to, computed from them.
   const read =
     filters.tab === "movers"
-      ? buildMoversRead(movers.movers, movers.generatedAt)
+      ? buildMoversRead(movers.movers, movers.generatedAt, now)
       : filters.tab === "reddit"
         ? buildRedditRead(reddit.names, reddit.generatedAt)
         : filters.tab === "policy"
           ? buildPolicyRead(policy.posts, now, policy.generatedAt)
-          : buildSignalsTodayRead(movers.movers, reddit.names, policy.posts, now, movers.generatedAt);
+          : buildSignalsTodayRead(movers.movers, reddit.names, policy.posts, now, movers.generatedAt, reddit.generatedAt);
 
   return (
     <AppPage>

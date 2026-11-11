@@ -318,6 +318,72 @@ export type InsiderTrade = {
   url: string;
 };
 
+/** A price this far outside the stock's own 52-week range is not a price of the listed share (backend/agentdata/insiders_form4.py). */
+export const PRICE_RANGE_SLACK = 2;
+export type WeekRange = { lo: number; hi: number };
+
+/** Whether a per-share price cannot be a price of the listed share: more than twice outside its 52-week range. */
+export function priceIsOff(price: number | null | undefined, range: WeekRange | null | undefined): boolean {
+  if (typeof price !== "number" || !(price > 0) || !range || !(range.lo > 0) || !(range.hi >= range.lo)) return false;
+  return price < range.lo / PRICE_RANGE_SLACK || price > range.hi * PRICE_RANGE_SLACK;
+}
+
+/**
+ * Cluster cards stored before the Form 4 job checked prices: a cluster whose listed members mostly
+ * bought at a price the listing never traded at (TSMC's monthly employee plan, priced per Taiwan
+ * share) is not a cluster of open-market buys. The job's next run rebuilds the clusters.
+ */
+export function clusterIsOffPrice(cluster: Pick<InsiderCluster, "members">, range: WeekRange | null | undefined): boolean {
+  const priced = cluster.members.filter((member) => member.value != null && member.shares > 0);
+  if (!range || priced.length === 0) return false;
+  const off = priced.filter((member) => priceIsOff((member.value as number) / member.shares, range)).length;
+  return off * 2 > priced.length;
+}
+
+/**
+ * One stored Form 4 line (`tm_insider_trades`) as the pages use it, or null
+ * when it must not be shown. The Form 4 job marks a line `price_comparable:
+ * false` when its per-share price is not a price of the US-listed share: a
+ * foreign issuer's home-market shares (TSMC reports Taiwan shares, five to an
+ * ADR) keep their dollar value but lose the price, and any other line priced
+ * far outside the stock's own range is a mapping error and is left out.
+ * Anything that is not an open-market buy or sale is left out too. A row
+ * stored before the job checked prices is checked here against `range`.
+ */
+export function slimInsiderTrade(raw: Record<string, unknown>, range?: WeekRange | null): InsiderTrade | null {
+  const text = (key: string) => (typeof raw[key] === "string" ? (raw[key] as string) : "");
+  const num = (key: string) => (typeof raw[key] === "number" && Number.isFinite(raw[key] as number) ? (raw[key] as number) : null);
+  const side = raw.tx_type;
+  if (side !== "buy" && side !== "sell") return null;
+  const id = text("id");
+  const symbol = text("symbol");
+  if (!id || !symbol) return null;
+  const comparable = raw.price_comparable !== false;
+  if (!comparable && raw.foreign_line !== true) return null;
+  // A row stored before the job checked prices carries no flag: check it here the same way.
+  if (raw.price_comparable === undefined && raw.foreign_line !== true && priceIsOff(num("price"), range)) return null;
+  return {
+    id,
+    symbol,
+    company: text("company"),
+    insider: text("insider"),
+    insider_id: text("insider_id"),
+    role: text("role"),
+    tx_type: side,
+    shares: num("shares") ?? 0,
+    price: comparable ? num("price") : null,
+    value: num("value"),
+    transaction_date: text("transaction_date"),
+    filing_date: text("filing_date"),
+    filed_at: text("filed_at"),
+    lag_days: num("lag_days"),
+    shares_after: num("shares_after"),
+    ownership: text("ownership"),
+    plan_10b5_1: raw.plan_10b5_1 === true,
+    url: text("url"),
+  };
+}
+
 export type InsiderCluster = {
   symbol: string;
   company: string;

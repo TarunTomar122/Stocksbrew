@@ -2,8 +2,9 @@
 
 import * as React from "react";
 
-import { InsiderRow, InsiderTableHead } from "@/components/follow/insider-rows";
+import { InsiderGroupRow, InsiderRow, InsiderTableHead } from "@/components/follow/insider-rows";
 import type { InsiderTrade } from "@/lib/follow-shared";
+import { groupInsiderTrades } from "@/lib/insider-groups";
 
 type Side = "all" | "buy" | "sell";
 const SIDES: { id: Side; label: string }[] = [
@@ -23,9 +24,12 @@ const PAGE = 60;
 export function InsiderTable({
   trades,
   initialSide = "buy",
+  group = true,
 }: {
   trades: InsiderTrade[];
   initialSide?: Side;
+  /** Fold near-identical rows into one. Off on a stock's own insider page, which lists every filing. */
+  group?: boolean;
 }) {
   const [side, setSide] = React.useState<Side>(initialSide);
   const [minValue, setMinValue] = React.useState(0);
@@ -50,7 +54,9 @@ export function InsiderTable({
     }
     return true;
   });
-  const visible = filtered.slice(0, shown);
+  // Near-identical rows (a dozen vice presidents buying through one window) fold into one row.
+  const items = group ? groupInsiderTrades(filtered) : filtered.map((trade) => ({ kind: "trade" as const, trade }));
+  const visible = items.slice(0, shown);
 
   function reset<T>(setter: (value: T) => void) {
     return (value: T) => {
@@ -138,18 +144,22 @@ export function InsiderTable({
           </p>
         ) : (
           <ul className="divide-y divide-oa-border">
-            {visible.map((trade) => (
-              <InsiderRow key={trade.id} trade={trade} showSide={side === "all"} />
-            ))}
+            {visible.map((item) =>
+              item.kind === "group" ? (
+                <InsiderGroupRow key={item.key} group={item} showSide={side === "all"} />
+              ) : (
+                <InsiderRow key={item.trade.id} trade={item.trade} showSide={side === "all"} />
+              ),
+            )}
           </ul>
         )}
-        {filtered.length > shown ? (
+        {items.length > shown ? (
           <button
             type="button"
             onClick={() => setShown((current) => current + PAGE * 2)}
             className="flex h-10 w-full items-center justify-center border-t border-oa-border text-[13px] font-medium text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent"
           >
-            Show more ({filtered.length - shown} left)
+            Show more ({items.length - shown} left)
           </button>
         ) : null}
       </div>

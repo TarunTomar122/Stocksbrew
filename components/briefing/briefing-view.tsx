@@ -58,6 +58,8 @@ export type BriefingViewProps = {
   agentLog?: React.ReactNode;
   /** Held stocks that reported overnight, by ticker: the card's fact becomes the result (lib/results). */
   resultFacts?: Readonly<Record<string, string>>;
+  /** When the server rendered the page (ms). The read dates old moves against it, so server and browser agree. */
+  renderedAt?: number;
 };
 
 const CARD = "oa-surface overflow-hidden border border-oa-border bg-oa-card";
@@ -238,7 +240,7 @@ function MoverRows({ title, rows, asOf }: { title: string; rows: BriefingMarketM
                 </span>
                 {/* Ticker and move only: no size bar, and nothing written when there is no reason (owner, Nov 11). */}
                 <span className={`oa-mono w-[4.25rem] text-right tabular-nums ${row.day_change_pct >= 0 ? "text-signal-bullish" : "text-signal-bearish"}`}>
-                  {signedPct(row.day_change_pct)}
+                  {signedPct(row.day_change_pct, 1)}
                 </span>
               </Link>
             </li>
@@ -265,7 +267,10 @@ export function BriefingView({
   locked = null,
   agentLog = null,
   resultFacts,
+  renderedAt,
 }: BriefingViewProps) {
+  // One clock for the whole life of the view: the server's, so the hydrated read matches the one sent as HTML.
+  const [now] = React.useState(() => renderedAt ?? Date.now());
   const [state, setState] = React.useState<BriefingStateMap>(initialState);
   const [busy, setBusy] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -281,7 +286,7 @@ export function BriefingView({
   // Your own briefing reads holdings first, then what you watch, then the market (lib/briefing-read.ts).
   const grouped = personal ? holdingsFirst(groupBriefingSections(sections, briefing.mode)) : groupBriefingSections(sections, briefing.mode);
   // The read, with its next steps beside the findings (lib/next-steps.ts).
-  const read = briefingSteps(briefingRead(briefing, grouped, personal ? null : session), {
+  const read = briefingSteps(briefingRead(briefing, grouped, personal ? null : session, now), {
     mode: personal ? "personal" : "market",
     lead: personal ? null : briefingLead(grouped.needs_you),
   });
@@ -522,7 +527,7 @@ export function BriefingView({
                     <Link prefetch={false} href={`/stock/${encodeURIComponent(group.ticker as string)}`} className="whitespace-nowrap text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
                       <span className="oa-mono font-semibold">{group.ticker}</span>{" "}
                       {group.day_change_pct != null ? (
-                        <span className={`oa-mono tabular-nums ${group.day_change_pct >= 0 ? "text-signal-bullish" : "text-signal-bearish"}`}>{signedPct(group.day_change_pct)}</span>
+                        <span className={`oa-mono tabular-nums ${group.day_change_pct >= 0 ? "text-signal-bullish" : "text-signal-bearish"}`}>{signedPct(group.day_change_pct, 1)}</span>
                       ) : null}
                     </Link>
                   </React.Fragment>
@@ -588,7 +593,7 @@ export function BriefingView({
                           </span>
                           {name.day_change_pct != null ? (
                             <span className={`oa-mono tabular-nums ${name.day_change_pct >= 0 ? "text-signal-bullish" : "text-signal-bearish"}`}>
-                              {signedPct(name.day_change_pct)}
+                              {signedPct(name.day_change_pct, 1)}
                             </span>
                           ) : null}
                         </Link>

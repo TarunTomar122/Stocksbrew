@@ -213,6 +213,16 @@ def window_returns(series: list[tuple[str, float]], last_price: float, last_day:
         change = pct_change(last_price, base[1] if base else None)
         if change is not None:
             out[key] = round(change, 2)
+            if key == "ret_1w" and base:
+                # How many trading days the week's move spans (five, or four around a holiday), so the reason
+                # can say "over the past five trading days" and never be read as this week so far.
+                sessions = sum(1 for day, _ in series if base[0] < day <= last_day)
+                if last_day > series[-1][0] and date.fromisoformat(last_day).weekday() < 5:
+                    sessions += 1  # a fresher quote than the last stored close is one more session
+                # Seven calendar days hold four or five sessions. Any other count means a quote stamped on a weekend
+                # or holiday, or closes that lag, so no count is given and the reason keeps "over the past week".
+                if sessions in (4, 5):
+                    out["ret_1w_sessions"] = sessions
     return out
 
 
@@ -861,7 +871,7 @@ def reason_facts(
         key: row.get(key)
         for key in (
             "name", "symbol", "pe", "pe_hist_median", "pe_hist_days", "pe_hist_from", "pe_hist_to", "rev_growth",
-            "eps_next_y", "ret_1w", "ret_1m", "buys_chg_3m", "div_yield", "div_growth_years", "from_hi_pct",
+            "eps_next_y", "ret_1w", "ret_1w_sessions", "ret_1m", "buys_chg_3m", "div_yield", "div_growth_years", "from_hi_pct",
         )
     }
     if name and str(facts.get("name") or "").upper() == str(row.get("symbol") or "").upper():

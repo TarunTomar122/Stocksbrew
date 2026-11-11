@@ -82,8 +82,11 @@ export function toneText(tone: BriefingItem["tone"]): string {
   return "text-oa-fg";
 }
 
+/** "+23.9%", "−0.4%". A move that rounds to zero carries no sign, so −0.04 never reads as a red "−0.0%". */
 export function signedPct(value: number, digits = 2): string {
-  return `${value >= 0 ? "+" : "−"}${Math.abs(value).toFixed(digits)}%`;
+  const shown = Math.abs(value).toFixed(digits);
+  const sign = Number(shown) === 0 ? "" : value >= 0 ? "+" : "−";
+  return `${sign}${shown}%`;
 }
 
 export function signedMoney(value: number): string {

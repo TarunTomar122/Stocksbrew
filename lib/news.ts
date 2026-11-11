@@ -1,5 +1,6 @@
 import { unstable_cache } from "next/cache";
 
+import { firmIsSubject } from "@/lib/analyst-firms";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { getAiUniverse } from "@/lib/firestore";
 
@@ -339,12 +340,15 @@ async function getNewsForTickerUncached(
     const publishedMs = new Date(article.published_at).getTime();
     return Number.isFinite(publishedMs) && publishedMs >= cutoffMs;
   });
-  return mergeNewestFirst([freshInWindow, filterTickerNews(rows, market, upper, cutoffMs, limit)], limit);
+  // A bank quoted as the analyst ("JPMorgan says Strategy could face...") is not the story's subject.
+  // The feeds now tag these correctly; this keeps rows stored before that off the bank's page.
+  const aboutIt = (article: NewsArticle) => firmIsSubject(upper, article.title, article.tickers.some((other) => other !== upper));
+  return mergeNewestFirst([freshInWindow.filter(aboutIt), filterTickerNews(rows, market, upper, cutoffMs, limit * 2).filter(aboutIt)], limit);
 }
 
 const getNewsForTickerCached = unstable_cache(
   getNewsForTickerUncached,
-  ["news-for-ticker-v3"],
+  ["news-for-ticker-v4"],
   { revalidate: 120 },
 );
 

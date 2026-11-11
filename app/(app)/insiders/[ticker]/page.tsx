@@ -1,3 +1,4 @@
+import { noteDegradedRender } from "@/lib/next-render";
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 
@@ -33,7 +34,7 @@ const BASE = "https://www.stocksbrew.online";
 async function resolve(raw: string) {
   const ticker = cleanTicker(raw);
   if (!ticker) return null;
-  const [coverage, all] = await Promise.all([getCoverage(), getInsiderTradesForSymbol(ticker).catch(() => [] as InsiderTrade[])]);
+  const [coverage, all] = await Promise.all([getCoverage(), getInsiderTradesForSymbol(ticker).catch(() => (noteDegradedRender(), [] as InsiderTrade[]))]);
   const row = coverage.bySymbol.get(ticker) ?? null;
   if (!row && all.length === 0) return null;
   const trades = insiderWindow(all, todayET());
@@ -120,7 +121,7 @@ export default async function InsiderStockPage({ params }: Props) {
             ]}
           />
           <section aria-label="Trades" className="mb-4">
-            <InsiderTable trades={sorted} initialSide="all" />
+            <InsiderTable trades={sorted} initialSide="all" group={false} />
           </section>
         </>
       ) : null}
