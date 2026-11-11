@@ -4,3 +4,4 @@ requests
 trafilatura
 yfinance
 beautifulsoup4
+Pillow
