@@ -103,6 +103,9 @@ function biggestLine(move: MoveRef, latest: string): string {
   return `The biggest move on ${fmtDay(latest)}: ${name} ${move.pct >= 0 ? "rose" : "fell"} ${Math.abs(move.pct).toFixed(1)}%. ${reason}.`;
 }
 
+/** A list about eight rows tall that scrolls inside itself; the next row peeks out so it reads as scrollable. */
+const ROWS_SCROLL = "max-h-[34rem] overflow-y-auto overscroll-auto";
+
 function MoveRow({ move, max, headerTime }: { move: MoveRef; max: number; headerTime: string | null }) {
   // Company first where the feed wrote the cause first; the number is already on the row.
   const raw = firstSentence(move.headline);
@@ -125,7 +128,8 @@ function MoveRow({ move, max, headerTime }: { move: MoveRef; max: number; header
           href={moveHref(move.ticker, move.day)}
           className="group mt-0.5 block max-w-[68ch] text-pretty rounded pl-7 text-[14px] leading-5 text-oa-muted-fg outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
         >
-          {reason}. <span className="whitespace-nowrap font-medium text-oa-fg group-hover:text-oa-primary group-hover:underline">Why it moved →</span>
+          {/* The reason is the link; no "Why it moved" on every row (owner, Nov 11). */}
+          <span className="group-hover:text-oa-fg group-hover:underline">{reason}.</span>
         </a>
       ) : null}
     </li>
@@ -171,22 +175,12 @@ export default async function MoversPage() {
               right={<span className={NUM}>{`${fmtDay(latest[0])}${sharedTime ? `, ${sharedTime.replace(/^at /, "")}` : ""}`}</span>}
             >
               {side.rows.length ? (
-                <>
-                  <ul>
-                    {side.rows.slice(0, PHONE_ROWS).map((move) => (
-                      <MoveRow key={`${move.ticker}-${move.day}`} move={move} max={max} headerTime={sharedTime} />
-                    ))}
-                  </ul>
-                  {side.rows.length > PHONE_ROWS ? (
-                    <ShowMore label={`Show ${side.rows.length - PHONE_ROWS} more ${side.label === "Biggest gains" ? "gain" : "drop"}${side.rows.length - PHONE_ROWS === 1 ? "" : "s"}`} className="max-lg:px-4 max-lg:pb-3">
-                      <ul className="border-t border-oa-border">
-                        {side.rows.slice(PHONE_ROWS).map((move) => (
-                          <MoveRow key={`${move.ticker}-${move.day}`} move={move} max={max} headerTime={sharedTime} />
-                        ))}
-                      </ul>
-                    </ShowMore>
-                  ) : null}
-                </>
+                // About eight rows tall, then it scrolls inside the panel (no scrollbar shown), so the page stays short.
+                <ul className={ROWS_SCROLL}>
+                  {side.rows.map((move) => (
+                    <MoveRow key={`${move.ticker}-${move.day}`} move={move} max={max} headerTime={sharedTime} />
+                  ))}
+                </ul>
               ) : (
                 <p className="px-4 py-6 text-center text-[14px] text-oa-muted-fg">None on this day.</p>
               )}

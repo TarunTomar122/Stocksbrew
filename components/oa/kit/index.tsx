@@ -3,7 +3,7 @@ import * as React from "react";
 
 import { interTight } from "@/components/oa/font";
 import { OaSiteHeader } from "@/components/oa/oa-site-header";
-import { PlaceTrail } from "@/components/oa/place-nav";
+import { PageIcon, PlaceTrail } from "@/components/oa/place-nav";
 import { StockLogo } from "@/components/stock-logo";
 import { shortCompanyName } from "@/lib/plain-copy";
 
@@ -141,7 +141,10 @@ export function PageHead({
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 sm:flex-nowrap">
         <div className={`min-w-0 flex-1 ${inline ? "basis-0" : "basis-full sm:basis-0"}`}>
           <PlaceTrail crumb={crumb} />
-          <h1 className="text-balance text-[19px] font-semibold leading-6 tracking-[-0.01em] text-oa-fg sm:text-[22px] sm:leading-7">{title}</h1>
+          <div className="flex items-center gap-2.5">
+            <PageIcon />
+            <h1 className="min-w-0 text-balance text-[19px] font-semibold leading-6 tracking-[-0.01em] text-oa-fg sm:text-[22px] sm:leading-7">{title}</h1>
+          </div>
         </div>
         {compact ? (
           <div className="oa-head-compact min-w-0 max-w-full truncate text-[12.5px] leading-4 text-oa-muted-fg sm:max-w-[45%] sm:shrink-0 sm:text-right [&>*]:truncate">

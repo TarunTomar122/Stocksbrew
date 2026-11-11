@@ -14,6 +14,22 @@ export function when(iso: string): string {
   return etDay(iso) === etDay(Date.now()) ? time : `${ET_WEEKDAY.format(new Date(iso))} ${time}`;
 }
 
+/** "75% negative": whichever side is larger, as a share of all the stories (neutral ones included). */
+export function leanWords(counts: ToneCounts, total: number = totalOf(counts)): string {
+  if (total <= 0) return "";
+  if (counts.positive === 0 && counts.negative === 0) return "No clear lean";
+  if (counts.positive === counts.negative) return "Evenly split";
+  const positive = counts.positive > counts.negative;
+  const share = Math.round(((positive ? counts.positive : counts.negative) / total) * 100);
+  return `${share}% ${positive ? "positive" : "negative"}`;
+}
+
+function leanText(counts: ToneCounts): string {
+  if (counts.positive > counts.negative) return "text-signal-bullish";
+  if (counts.negative > counts.positive) return "text-signal-bearish";
+  return "";
+}
+
 /**
  * How the news on something leans, as a short bar split good / routine / bad
  * with the counts beside it. Nothing at all when there are no labelled stories.
@@ -27,7 +43,7 @@ export function ToneBar({ counts, className = "", showWord = false }: { counts: 
   const label = `${counts.positive} positive, ${counts.negative} negative, ${counts.neutral} neutral`;
   return (
     <span className={`inline-flex items-center gap-2 ${className}`} title={label}>
-      {showWord ? <span className="text-[13px] font-medium text-oa-fg">{word}</span> : null}
+      {showWord && lean === "mixed" ? <span className="text-[13px] font-medium text-oa-fg">{word}</span> : null}
       <span aria-hidden="true" className="flex h-1.5 w-14 shrink-0 overflow-hidden rounded-full bg-oa-bg">
         <span style={{ width: `${pct.positive}%`, background: "var(--signal-bullish)" }} />
         <span style={{ width: `${pct.neutral}%`, background: "color-mix(in srgb, var(--oa-muted-fg) 35%, transparent)" }} />
@@ -35,9 +51,9 @@ export function ToneBar({ counts, className = "", showWord = false }: { counts: 
       </span>
       <span className={`${NUM} inline-flex items-center gap-1.5 text-[12.5px] leading-[18px] text-oa-muted-fg`}>
         <span className="sr-only">{label}</span>
-        {/* Words, not bare triangles: readers could not tell what the counts were. */}
-        <span aria-hidden="true">
-          {counts.positive} good, {counts.negative} bad
+        {/* One figure, not two counts to compare (owner, Nov 11): the larger side as a share of all the stories. */}
+        <span aria-hidden="true" className={leanText(counts)}>
+          {leanWords(counts, total)}
         </span>
       </span>
     </span>

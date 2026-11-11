@@ -85,6 +85,8 @@ export function RadarBatchEditModal({
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [items, setItems] = useState<StagedItem[]>(() => [...initialItems]);
+  // What is typed in each row's shares box, kept as text so "3." or an empty box can be typed freely.
+  const [shareDrafts, setShareDrafts] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -93,9 +95,13 @@ export function RadarBatchEditModal({
   // Track which IDs existed when modal opened — anything else is "newly added this session"
   const originalIds = useRef<Set<string>>(new Set());
 
+  const wasOpen = useRef(false);
   useEffect(() => {
-    if (!open) return;
+    const opening = open && !wasOpen.current;
+    wasOpen.current = open;
+    if (!opening) return;
     setItems([...initialItems]);
+    setShareDrafts({});
     originalIds.current = new Set(initialItems.map((i) => i.instrument_id));
     setQuery("");
     setError(null);
@@ -200,11 +206,36 @@ export function RadarBatchEditModal({
     });
   }
 
+  function setShares(instrumentId: string, raw: string) {
+    setShareDrafts((prev) => ({ ...prev, [instrumentId]: raw }));
+  }
+
+  /** The typed share count when it is a real number, else null: an empty or bad box keeps the saved count. */
+  function typedShares(instrumentId: string): number | null {
+    const raw = shareDrafts[instrumentId];
+    if (raw === undefined) return null;
+    const text = raw.replace(/,/g, "").trim();
+    if (text === "") return null;
+    const value = Number(text);
+    return Number.isFinite(value) && value >= 0 && value <= 1_000_000_000 ? value : null;
+  }
+
+  function clearDraft(instrumentId: string) {
+    setShareDrafts((prev) => {
+      if (!(instrumentId in prev)) return prev;
+      const next = { ...prev };
+      delete next[instrumentId];
+      return next;
+    });
+  }
+
   function remove(instrumentId: string) {
+    clearDraft(instrumentId);
     setItems((prev) => prev.filter((i) => i.instrument_id !== instrumentId));
   }
 
   function setPosition(instrumentId: string, positionType: PositionType) {
+    if (positionType === "watchlist") clearDraft(instrumentId);
     setItems((prev) =>
       prev.map((i) =>
         i.instrument_id === instrumentId
@@ -236,8 +267,10 @@ export function RadarBatchEditModal({
         body: JSON.stringify({
           items: items.map((i) => {
             const initial = initialItems.find((x) => x.instrument_id === i.instrument_id);
-            const holding =
-              i.position_type === "holding" ? i.holding ?? initial?.holding : undefined;
+            const saved = i.position_type === "holding" ? i.holding ?? initial?.holding : undefined;
+            const typed = i.position_type === "holding" ? typedShares(i.instrument_id) : null;
+            // A typed count replaces the saved one; everything else on the holding (its average cost) is kept.
+            const holding = typed !== null ? { ...(saved ?? {}), quantity: typed } : saved;
             return {
               instrument_id: i.instrument_id,
               position_type: i.position_type,
@@ -367,6 +400,23 @@ export function RadarBatchEditModal({
                           </div>
                           <p className="truncate text-[11px] text-on-surface-variant">{item.name}</p>
                         </div>
+                        {item.position_type === "holding" ? (
+                          <label className="flex shrink-0 flex-col items-end gap-0.5">
+                            <span className="text-[10px] font-medium uppercase tracking-wide text-on-surface-variant">Shares</span>
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              autoComplete="off"
+                              placeholder="0"
+                              aria-label={`Shares of ${item.ticker}`}
+                              value={shareDrafts[item.instrument_id] ?? (item.holding?.quantity != null ? String(item.holding.quantity) : "")}
+                              onChange={(event) => setShares(item.instrument_id, event.target.value)}
+                              aria-invalid={Boolean(shareDrafts[item.instrument_id]?.trim()) && typedShares(item.instrument_id) === null}
+                              title="Leave it empty to keep the saved number"
+                              className="w-[76px] rounded-lg border border-outline-variant bg-surface px-2 py-1 text-right text-[13px] tabular-nums text-on-surface outline-none focus:border-on-surface aria-[invalid=true]:border-[#ef4444]"
+                            />
+                          </label>
+                        ) : null}
                         <PositionSwitch
                           value={item.position_type}
                           onChange={(positionType) => setPosition(item.instrument_id, positionType)}

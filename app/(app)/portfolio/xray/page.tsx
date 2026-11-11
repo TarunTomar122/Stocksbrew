@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { AppPage, PageHead, SourceLine } from "@/components/oa/kit";
-import { ExampleNote, XrayEmpty, XrayView } from "@/components/xray/xray-view";
+import { NoFundsNote, ExampleNote, XrayEmpty, XrayView } from "@/components/xray/xray-view";
 import { ShareButton } from "@/components/share/share-button";
 import { getSessionUser } from "@/lib/auth-server";
 import { pricesWords } from "@/lib/portfolio-prices";
@@ -40,11 +40,16 @@ export default async function XrayPage() {
   const mine = userDoc ? await loadUserXray(userDoc).catch(() => null) : null;
   const hasFunds = Boolean(mine && mine.xray.funds.length > 0 && mine.xray.total > 0);
 
-  if (mine && hasFunds) {
+  // Someone signed in with priced holdings sees their own page, funds or not: with no funds it still shows
+  // their biggest companies and sectors against the S&P 500, and says plainly that nothing is hidden in funds.
+  if (mine && mine.xray.total > 0) {
     return (
       <AppPage>
-        <PageHead title="What you really own" meta={<Source view={mine} />} actions={<ShareButton kind="xray" />} />
-        <XrayView xray={mine.xray} read={mine.read} example={false} />
+        <PageHead title="What you really own" meta={<Source view={mine} />} actions={hasFunds ? <ShareButton kind="xray" /> : undefined} />
+        <div className="flex flex-col gap-3">
+          {hasFunds ? null : <NoFundsNote coveredFunds={mine.coveredFunds ?? []} />}
+          <XrayView xray={mine.xray} read={mine.read} example={false} />
+        </div>
       </AppPage>
     );
   }

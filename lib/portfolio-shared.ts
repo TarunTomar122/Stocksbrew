@@ -9,6 +9,8 @@
  * shows a dash. A holding with no share count has no value, no weight and no
  * gain; it is never counted as zero.
  */
+import { callWord } from "@/lib/stock-chart";
+
 
 export type PositionKind = "holding" | "watchlist";
 
@@ -147,19 +149,22 @@ function positive(value: unknown): number | null {
   return fin(value) && value > 0 ? value : null;
 }
 
-/** "Add below $180" / "Trim above $240", from the call's own price zones. */
+/**
+ * The one price that goes with the call (owner, Nov 11): "Buy more below $180" only when the call is to buy
+ * more, "Sell some above $240" only when it is to sell some, nothing for Keep. A level more than half the
+ * price away says little about today and is left out, as on the stock page.
+ */
 export function zoneFor(row: Pick<PortfolioRowInput, "stance" | "zones" | "price">): PortfolioPosition["zone"] {
   const zones = row.zones;
   if (!zones) return null;
-  const stance = (row.stance ?? "").toLowerCase();
+  const call = callWord(row.stance);
+  const money = (n: number) => `$${n.toLocaleString("en-US", { maximumFractionDigits: n >= 100 ? 0 : 2 })}`;
+  const price = positive(row.price);
+  const near = (level: number) => !price || Math.abs(level - price) / price <= 0.5;
   const add = positive(zones.accumulate_below);
   const trim = positive(zones.trim_above);
-  const breakout = positive(zones.breakout_above);
-  const money = (n: number) => `$${n.toLocaleString("en-US", { maximumFractionDigits: n >= 100 ? 0 : 2 })}`;
-  if ((stance === "trim" || stance === "avoid") && trim) return { label: `Trim above ${money(trim)}`, tone: "bear" };
-  if (add) return { label: `Add below ${money(add)}`, tone: "bull" };
-  if (trim) return { label: `Trim above ${money(trim)}`, tone: "bear" };
-  if (breakout) return { label: `Breakout above ${money(breakout)}`, tone: "neutral" };
+  if (call === "Add" && add && near(add)) return { label: `Buy more below ${money(add)}`, tone: "bull" };
+  if (call === "Trim" && trim && near(trim)) return { label: `Sell some above ${money(trim)}`, tone: "bear" };
   return null;
 }
 

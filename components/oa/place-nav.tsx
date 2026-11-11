@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import * as React from "react";
 
-import { placeFor, sectionFor, trailFor, type Crumb } from "@/components/oa/nav-items";
+import { iconFor, placeFor, sectionFor, trailFor, type Crumb } from "@/components/oa/nav-items";
+import { NavIcon } from "@/components/oa/nav-icon";
 
 const FOCUS =
   "outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]";
@@ -162,5 +163,20 @@ export function PlaceTrail({
     >
       {body}
     </nav>
+  );
+}
+
+/** The small icon beside a page title: the same one the menu and the Market today list use for this place. */
+export function PageIcon({ className = "" }: { className?: string }) {
+  const pathname = usePathname() ?? "/";
+  const icon = iconFor(pathname);
+  if (!icon) return null;
+  return (
+    <span
+      aria-hidden="true"
+      className={`inline-flex size-8 shrink-0 items-center justify-center rounded-lg border border-oa-border bg-oa-card text-oa-primary sm:size-9 ${className}`}
+    >
+      <NavIcon name={icon} className="size-[18px] sm:size-5" />
+    </span>
   );
 }

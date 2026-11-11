@@ -1,5 +1,7 @@
 "use client";
 
+import { CALL_PLAIN } from "@/lib/plain-copy";
+import { callWord } from "@/lib/stock-chart";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -37,6 +39,11 @@ function describe(alert: PortfolioAlert): string {
     return `Price ${alert.condition} ${fmtMoney(alert.target_price)}`;
   }
   return KIND_LABEL[alert.kind] ?? alert.kind.replace(/_/g, " ");
+}
+
+function plainCallWord(stance: string | null | undefined): string {
+  const call = callWord(stance);
+  return call ? CALL_PLAIN[call] : String(stance ?? "");
 }
 
 export function AlertsTab({
@@ -247,7 +254,7 @@ export function AlertsTab({
                   <Link href={`/stock/${position.ticker}`} className="grid min-h-10 grid-cols-[4.5rem_minmax(0,1fr)_auto] items-center gap-x-3 px-3 py-1.5 hover:bg-oa-accent">
                     <span className="oa-mono text-[13px] font-medium text-oa-fg">{position.ticker}</span>
                     <span className="truncate text-[13px] text-oa-fg">
-                      <span className="capitalize">{position.stance}</span>
+                      <span>{plainCallWord(position.stance)}</span>
                       {position.zone ? <span className="text-oa-muted-fg"> · {position.zone.label}</span> : null}
                     </span>
                     <span className={`${NUM} text-[12.5px] text-oa-fg`}>{position.price !== null ? fmtMoney(position.price) : ""}</span>

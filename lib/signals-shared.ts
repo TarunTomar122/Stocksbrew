@@ -31,6 +31,11 @@ function first(value: ParamValue): string {
   return (Array.isArray(value) ? value[0] : value) ?? "";
 }
 
+/** What each tab shows before anyone picks a filter: the movers list opens on the moves we could explain. */
+export function defaultShow(tab: string): string {
+  return tab === "movers" ? "explained" : "all";
+}
+
 export function parseSignalsFilters(params: Record<string, ParamValue> | undefined): SignalsFilters {
   const tabRaw = first(params?.tab).toLowerCase();
   const tab = SIGNALS_TABS.find((entry) => entry.id === tabRaw)?.id ?? "today";
@@ -39,7 +44,7 @@ export function parseSignalsFilters(params: Record<string, ParamValue> | undefin
   const n = Number.parseInt(first(params?.n), 10);
   return {
     tab,
-    show: allowed.includes(showRaw) ? showRaw : "all",
+    show: allowed.includes(showRaw) ? showRaw : defaultShow(tab),
     limit: Number.isFinite(n) ? Math.min(400, Math.max(POLICY_PAGE_SIZE, n)) : POLICY_PAGE_SIZE,
   };
 }
@@ -48,12 +53,12 @@ export function signalsHref(filters: SignalsFilters, patch: Partial<SignalsFilte
   const next = { ...filters, ...patch };
   // A filter belongs to its tab; switching tabs starts clean.
   if (patch.tab && patch.tab !== filters.tab) {
-    next.show = "all";
+    next.show = defaultShow(next.tab);
     next.limit = POLICY_PAGE_SIZE;
   }
   const query = new URLSearchParams();
   if (next.tab !== "today") query.set("tab", next.tab);
-  if (next.show !== "all") query.set("show", next.show);
+  if (next.show !== defaultShow(next.tab)) query.set("show", next.show);
   if (next.limit > POLICY_PAGE_SIZE) query.set("n", String(next.limit));
   const text = query.toString();
   return text ? `/signals?${text}` : "/signals";

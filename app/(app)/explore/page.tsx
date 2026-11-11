@@ -1,3 +1,5 @@
+import { NavIcon } from "@/components/oa/nav-icon";
+import { iconFor } from "@/components/oa/nav-items";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
@@ -123,8 +125,14 @@ async function Directory({ brief, sectors }: { brief: Promise<DeskBrief>; sector
             <ul>
               {column.map((entry) => (
                 <li key={entry.href} className="border-b border-oa-border last:border-b-0">
-                  <a href={entry.href} className={`group flex items-start justify-between gap-3 px-4 py-3 transition-colors hover:bg-oa-accent ${FOCUS}`}>
-                    <span className="min-w-0">
+                  <a href={entry.href} className={`group flex items-start gap-3 px-4 py-3 transition-colors hover:bg-oa-accent ${FOCUS}`}>
+                    {/* The same icon the place has in the menu and beside its own title. */}
+                    {iconFor(entry.href) ? (
+                      <span aria-hidden="true" className="mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-lg border border-oa-border bg-oa-card text-oa-primary">
+                        <NavIcon name={iconFor(entry.href)!} className="size-[18px]" />
+                      </span>
+                    ) : null}
+                    <span className="min-w-0 flex-1">
                       <span className="block text-[15px] font-medium leading-6 text-oa-fg">{entry.title}</span>
                       <span className="block text-pretty text-[14px] leading-5 text-oa-muted-fg">{entry.line}</span>
                     </span>

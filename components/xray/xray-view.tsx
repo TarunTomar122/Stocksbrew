@@ -315,6 +315,20 @@ export function XrayEmpty({ coveredFunds, reason }: { coveredFunds: string[]; re
   );
 }
 
+/** Above a signed-in person's own page when none of their holdings is a fund: one line, not a dead end. */
+export function NoFundsNote({ coveredFunds }: { coveredFunds: string[] }) {
+  return (
+    <p className="px-2 text-pretty text-[14px] leading-5 text-oa-muted-fg sm:px-0">
+      None of your holdings is a fund, so this shows only the companies you bought directly.{" "}
+      {coveredFunds.length > 0 ? `If you hold ${joinList(coveredFunds.slice(0, 4))} or another fund we can open, ` : "If you hold a fund, "}
+      <Link href="/watchlist" className="font-medium text-oa-primary underline-offset-2 hover:underline">
+        mark it as a holding with its share count
+      </Link>{" "}
+      and this page adds every company inside it.
+    </p>
+  );
+}
+
 /** "Example: made-up shares on real prices." with the prices date ("the Nov 10 close", lib/portfolio-prices). */
 export function ExampleNote({ pricesWords, signedIn }: { pricesWords: string | null; signedIn: boolean }) {
   return (
@@ -322,7 +336,7 @@ export function ExampleNote({ pricesWords, signedIn }: { pricesWords: string | n
       This is an example portfolio: the shares are made up, and the prices are the same quotes as the stock pages ({pricesWords ?? "the latest close"}).{" "}
       {signedIn ? (
         <Link href="/watchlist" className="font-medium text-oa-primary underline-offset-2 hover:underline">
-          Add your holdings to see yours.
+          Add share counts to your holdings to see yours.
         </Link>
       ) : (
         <XraySignIn>Sign in to see yours.</XraySignIn>

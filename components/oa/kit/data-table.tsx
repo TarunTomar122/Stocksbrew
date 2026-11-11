@@ -32,6 +32,7 @@ export function DataTable({
   empty,
   pageSize,
   stickyHeader = true,
+  maxRows = 8,
   compact = false,
 }: {
   columns: DataColumn[];
@@ -41,6 +42,8 @@ export function DataTable({
   /** Show this many rows, with a "Show more" control for the rest. */
   pageSize?: number;
   stickyHeader?: boolean;
+  /** Rows shown before the table scrolls inside itself (owner rule: about eight, no visible scrollbar). 0 turns it off. */
+  maxRows?: number;
   /** Tighter cell padding, for wide tables that must fit the content column at 1280. */
   compact?: boolean;
 }) {
@@ -71,7 +74,7 @@ export function DataTable({
 
   return (
     <div className="min-w-0">
-      <div className="overflow-x-auto">
+      <div className={`overflow-x-auto ${maxRows > 0 && visible.length > maxRows ? "overflow-y-auto" : ""}`} style={maxRows > 0 && visible.length > maxRows ? { maxHeight: `${2.6 + maxRows * 2.75 + 1.4}rem` } : undefined}>
         <table className="w-full border-collapse text-[14px]">
           <thead>
             <tr>

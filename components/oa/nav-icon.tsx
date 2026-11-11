@@ -19,6 +19,8 @@ const PATHS: Record<NavIconName, string[]> = {
   screener: ["M4 5h16l-6 7.5V19l-4-2v-4.5L4 5Z"],
   themes: ["M12 3 3 8l9 5 9-5-9-5Z", "m3 12.5 9 5 9-5", "m3 17 9 5 9-5"],
   signals: ["M4 18v-3M9 18V9M14 18v-6M19 18V5"],
+  movers: ["M7 20V5", "m3.5 8.5 3.5-3.5 3.5 3.5", "M17 4v15", "m13.5 15.5 3.5 3.5 3.5-3.5"],
+  sectors: ["M12 3a9 9 0 1 0 9 9h-9V3Z", "M15 3.5A9 9 0 0 1 20.5 9H15V3.5Z"],
   compare: ["M8 4v16M16 4v16", "M4 8h8M12 16h8"],
   docs: ["M5 4h9a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3V4Z", "M17 20h2V7", "M8.5 9h5M8.5 13h5"],
   practice: ["M4 7h16v12H4z", "M4 11h16", "M8 15h3"],

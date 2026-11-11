@@ -177,8 +177,11 @@ describe("stats helpers", () => {
 
 describe("zoneFor", () => {
   it("picks the zone that matches the call", () => {
-    expect(zoneFor({ stance: "Accumulate", price: 1, zones: { accumulate_below: 40.66, trim_above: 60 } })?.label).toBe("Add below $40.66");
-    expect(zoneFor({ stance: "Trim", price: 1, zones: { accumulate_below: 40, trim_above: 250 } })).toEqual({ label: "Trim above $250", tone: "bear" });
+    expect(zoneFor({ stance: "Accumulate", price: 42, zones: { accumulate_below: 40.66, trim_above: 60 } })?.label).toBe("Buy more below $40.66");
+    expect(zoneFor({ stance: "Trim", price: 230, zones: { accumulate_below: 40, trim_above: 250 } })).toEqual({ label: "Sell some above $250", tone: "bear" });
+    // A Keep call has no level of its own; neither does a level more than half the price away.
+    expect(zoneFor({ stance: "Hold", price: 120, zones: { accumulate_below: 118, trim_above: 160 } })).toBeNull();
+    expect(zoneFor({ stance: "Accumulate", price: 100, zones: { accumulate_below: 40 } })).toBeNull();
     expect(zoneFor({ stance: "Hold", price: 1, zones: {} })).toBeNull();
     expect(zoneFor({ stance: "Hold", price: 1, zones: null })).toBeNull();
   });

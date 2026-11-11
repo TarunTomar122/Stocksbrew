@@ -29,6 +29,11 @@ export function whenWord(day: string, today: string): string {
   return shortDay(day);
 }
 
+/** "on Thursday", "on Nov 19", but plain "today" and "tomorrow". */
+function onWhen(when: string): string {
+  return when === "today" || when === "tomorrow" ? when : `on ${when}`;
+}
+
 function timeWord(item: EarningsItem): string {
   return SESSION_WORDS[item.session] ?? "";
 }
@@ -275,7 +280,7 @@ export function buildCalendarRead(input: CalendarReadInput): TheRead | null {
     const leaders = upcoming.slice(0, 2);
     const sameDay = leaders.length === 2 && leaders[0]!.date === leaders[1]!.date;
     const leadText = sameDay
-      ? `${listNames(leaders.map(displayName))} on ${whenWord(leaders[0]!.date, input.today)}`
+      ? `${listNames(leaders.map(displayName))} ${onWhen(whenWord(leaders[0]!.date, input.today))}`
       : listNames(leaders.map((item) => `${displayName(item)} ${whenWord(item.date, input.today)}`));
     const still = reported.length > 0 ? " still" : "";
     parts.push(

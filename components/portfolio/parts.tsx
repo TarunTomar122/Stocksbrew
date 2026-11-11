@@ -1,3 +1,5 @@
+import { callWord } from "@/lib/stock-chart";
+import { CALL_PLAIN } from "@/lib/plain-copy";
 import * as React from "react";
 
 import { ToneGlyph } from "@/components/oa/kit/tone";
@@ -49,19 +51,25 @@ const TONE_TEXT: Record<Tone, string> = {
   neutral: "text-oa-fg",
 };
 
-/** Our call and its price zone on one line: "Hold · Add below $180". */
+/** The call in the words the rest of the app uses: "Buy more", "Keep", "Sell some". */
+function plainCall(stance: string): string {
+  const call = callWord(stance);
+  return call ? CALL_PLAIN[call] : stance;
+}
+
+/** Our call and the one price that goes with it: "Buy more" and "Buy more below $180". */
 export function CallCell({ position }: { position: Pick<PortfolioPosition, "stance" | "zone" | "needsAttention"> }) {
   if (!position.stance) return <Dash />;
   const tone = stanceTone(position.stance);
   return (
     <span className="inline-flex items-center gap-2">
       <span
-        className={`inline-flex h-[20px] items-center rounded border px-1.5 text-[12px] font-medium capitalize ${TONE_TEXT[tone]} ${
+        className={`inline-flex h-[20px] items-center rounded border px-1.5 text-[12px] font-medium whitespace-nowrap ${TONE_TEXT[tone]} ${
           position.needsAttention ? "border-current" : "border-oa-border"
         }`}
         title={position.needsAttention ? "The price is inside this call's zone now" : undefined}
       >
-        {position.stance}
+        {plainCall(position.stance)}
       </span>
       {position.zone ? (
         <span className={`${NUM} whitespace-nowrap text-[12px] text-oa-muted-fg`}>{position.zone.label}</span>

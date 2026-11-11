@@ -106,16 +106,7 @@ function StanceWord({ stance, className = "" }: { stance: Stance | string | null
  * and the sources sit behind a click, because thirty of them at once is a
  * wall nobody reads.
  */
-const MOVER_COLS = "lg:grid lg:grid-cols-[1.75rem_minmax(0,13rem)_4.5rem_9rem_minmax(0,11rem)_minmax(0,1fr)_1.25rem] lg:items-center lg:gap-x-4";
-
-function MoveBar({ pct, max, always = false }: { pct: number; max: number; /** Show on a phone too. */ always?: boolean }) {
-  const width = max > 0 ? Math.max(6, Math.round((Math.abs(pct) / max) * 100)) : 0;
-  return (
-    <span aria-hidden="true" className={`${always ? "block w-10 lg:w-12" : "hidden w-12 lg:block"} h-1.5 shrink-0 overflow-hidden rounded-full bg-oa-bg`}>
-      <span className={`block h-full rounded-full ${pct >= 0 ? "bg-signal-bullish" : "bg-signal-bearish"}`} style={{ width: `${width}%` }} />
-    </span>
-  );
-}
+const MOVER_COLS = "lg:grid lg:grid-cols-[1.75rem_minmax(0,13rem)_4.5rem_5rem_minmax(0,11rem)_minmax(0,1fr)_1.25rem] lg:items-center lg:gap-x-4";
 
 function Chevron() {
   return (
@@ -141,15 +132,13 @@ function MoverLine({ mover, rank, max }: { mover: Mover; rank: number; max: numb
         </span>
         <Ticker symbol={mover.ticker} name={mover.name} size={20} className="min-w-0 flex-1 lg:flex-none" />
         <span className={`${NUM} hidden text-right text-[13px] text-oa-muted-fg lg:block`}>{mover.price !== null ? fmtMoney(mover.price) : ""}</span>
-        <span className="flex shrink-0 items-center justify-end gap-2.5">
-          <MoveBar pct={mover.pct} max={max} />
-          <Delta value={mover.pct} className="text-[15px] font-semibold lg:w-[4.75rem] lg:text-right" />
-        </span>
+        <Delta value={mover.pct} className="shrink-0 text-[15px] font-semibold lg:w-[4.75rem] lg:text-right" />
       </div>
       {/* what kind of news, then the headline */}
-      <p className={`mt-1.5 flex min-w-0 items-center gap-1.5 pl-7 text-[13px] leading-5 lg:mt-0 lg:pl-0 ${mover.explained ? "text-oa-fg" : "text-oa-muted-fg"}`}>
-        <span aria-hidden="true" className={`size-1.5 shrink-0 rounded-full ${mover.explained ? "bg-oa-primary" : "bg-oa-border"}`} />
-        <span className="truncate">{cause}</span>
+      <p className={`mt-1.5 flex min-w-0 items-baseline gap-1.5 pl-7 text-[13px] leading-5 lg:mt-0 lg:pl-0 ${mover.explained ? "text-oa-fg" : "text-oa-muted-fg"}`}>
+        <span aria-hidden="true" className={`size-1.5 shrink-0 translate-y-[-1px] rounded-full ${mover.explained ? "bg-oa-primary" : "bg-oa-border"}`} />
+        {/* Wraps instead of cutting off: "Earnings miss and analyst target cut" reads whole. */}
+        <span className="min-w-0 text-pretty">{cause}</span>
       </p>
       <p className={`mt-0.5 min-w-0 pl-7 text-[14px] leading-[21px] lg:mt-0 lg:pl-0 ${mover.explained ? "font-medium text-oa-fg" : "text-oa-muted-fg"}`}>
         {plainFinance(sentenceCase(headline))}

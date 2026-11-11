@@ -296,14 +296,17 @@ function StockCell({ position, inline = false }: { position: PortfolioPosition; 
     <div className="flex min-w-0 items-center gap-2.5">
       <StockLogo ticker={position.ticker} market="US" size={inline ? 20 : 24} circle className="shrink-0" />
       <div className={inline ? "flex min-w-0 items-baseline gap-2" : "min-w-0"}>
+        {/* Ticker only: long company names wrapped over several lines and pushed the numbers apart (owner, Nov 11).
+            The name stays on hover and for screen readers. */}
         <Link
           href={`/stock/${position.ticker}`}
           onClick={(event) => event.stopPropagation()}
+          title={position.name || undefined}
+          aria-label={position.name ? `${position.ticker}, ${position.name}` : position.ticker}
           className={`oa-mono block text-[14px] font-medium leading-5 text-oa-fg hover:underline ${FOCUS}`}
         >
           {position.ticker}
         </Link>
-        <span className="block max-w-[14rem] text-pretty text-[13px] leading-[18px] text-oa-muted-fg">{position.name}</span>
       </div>
     </div>
   );

@@ -28,6 +28,8 @@ export type NavIcon =
   | "screener"
   | "themes"
   | "signals"
+  | "movers"
+  | "sectors"
   | "compare"
   | "docs"
   | "api";
@@ -69,7 +71,7 @@ export const PLACES: NavPlace[] = [
     sections: [
       section("Briefing", "/briefing", "briefing"),
       section("Market today", "/explore", "explore"),
-      section("Why stocks moved", "/movers", "signals"),
+      section("Why stocks moved", "/movers", "movers"),
       section("Signals", "/signals", "signals"),
       section("News", "/news", "news"),
       section("Calendar", "/calendar", "calendar"),
@@ -106,7 +108,7 @@ export const PLACES: NavPlace[] = [
       section("Find stocks", "/screener", "screener"),
       section("Best stock lists", "/best", "screener"),
       section("Build a basket", "/baskets/new", "themes", ["/baskets"]),
-      section("Sectors", "/sectors", "markets"),
+      section("Sectors", "/sectors", "sectors"),
       section("Compare", "/compare", "compare"),
       section("Markets", "/markets", "markets"),
       section("Filings", "/filings", "filings"),
@@ -191,6 +193,12 @@ export function sectionFor(pathname: string, place: NavPlace | null = placeFor(p
     }
   }
   return best;
+}
+
+/** The icon of the section (or place) that owns a path: page titles and link lists use it, so a place looks the same everywhere. */
+export function iconFor(pathname: string): NavIcon | null {
+  const place = placeFor(pathname);
+  return sectionFor(pathname, place)?.icon ?? place?.icon ?? null;
 }
 
 export type Crumb = { label: string; href: string };
