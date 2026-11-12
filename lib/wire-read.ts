@@ -14,7 +14,7 @@
 
 import { balancePct, pickInsights, sharePct, type Insight, type InsightTone, type TheRead } from "@/lib/insights";
 import { better, isForeignLanguage, labelFor, storyRelevance, storyWeight, titleKey } from "@/lib/wire-companies";
-import { sentenceCase, shortCompanyName } from "@/lib/plain-copy";
+import { headlineCase, shortCompanyName } from "@/lib/plain-copy";
 import { themeKey, wireHref, WIRE_PAGE_SIZE, type WireFilters, type WireItem } from "@/lib/wire-shared";
 
 export type NewsTone = "positive" | "negative" | "neutral";
@@ -285,16 +285,6 @@ export function newsThemes(stories: WireItem[], options: { labels: NewsLabels; q
   return limit ? out.slice(0, limit) : out;
 }
 
-/**
- * The themes to show beside the read: a theme whose only stock is the one the read leads with is left out, since
- * the read's first card already tells that stock (owner rule 1).
- */
-export function themesBesideRead(themes: NewsTheme[], read: TheRead | null): NewsTheme[] {
-  const lead = read?.insights[0]?.tickers?.[0];
-  if (!lead) return themes;
-  return themes.filter((theme) => !(theme.tickers.length === 1 && theme.tickers[0]!.ticker === lead));
-}
-
 /* ── The read ──────────────────────────────────────────────────────────── */
 
 function signed(pct: number, digits = 1): string {
@@ -347,12 +337,11 @@ function isSurge(count: number, prev: number): boolean {
 }
 
 /**
- * "9 times": how many times the day before's coverage, rounded down so it is never overstated. Only for a surge
- * against a real day before (at least three stories), so the headline and the card never disagree.
+ * A surge against a real day before (at least three stories), so the headline's "up from" and the card never
+ * disagree; a jump from one or two stories is noise and the headline uses the share instead.
  */
-function timesWord(count: number, prev: number): string | null {
-  if (prev < 3 || !isSurge(count, prev)) return null;
-  return `${Math.floor(count / prev)} times`;
+function surgeFromRealDay(count: number, prev: number): boolean {
+  return prev >= 3 && isSurge(count, prev);
 }
 
 /** "against 12 the day before", "none the day before". */
@@ -371,7 +360,7 @@ function rose(pct: number): string {
 
 /** The lead headline as a person would write it, quoted, for "the top story" lines. */
 function topStory(row: StockBuzz, lead = "The top story"): string | null {
-  const title = sentenceCase(row.lead.title, row.name ?? "").replace(/[.!]+$/, "");
+  const title = headlineCase(row.lead.title, row.name ?? "").replace(/[.!]+$/, "");
   return title ? `${lead}: “${title}”.` : null;
 }
 
@@ -390,12 +379,13 @@ export function marketRead(input: MarketReadInput): TheRead | null {
   const insights: Array<Insight | null> = [];
   const headlinesOf = (ticker: string) => wireHref({ ...filters, limit: WIRE_PAGE_SIZE }, { ticker });
 
-  // The headline: who leads the news, with one number (owner rule 8).
+  // The headline: who leads the news, with its count against the day before as plain numbers (owner rule 8): "NVDA has
+  // 168 stories today, up from 22", never "7 times the stories it got the day before".
   const leaderName = spokenName(leader);
-  const times = timesWord(leader.count, leader.prevCount);
-  const headline = times
-    ? `${leaderName} leads the news today, with ${times} the stories it got the day before.`
-    : `${leaderName} leads the news today, with ${leader.share}% of all company coverage.`;
+  const surgeHeadline = surgeFromRealDay(leader.count, leader.prevCount);
+  const headline = surgeHeadline
+    ? `${leader.ticker} has ${leader.count} stories today, up from ${leader.prevCount}.`
+    : `${leader.ticker} leads the news today, with ${leader.share}% of all company coverage.`;
 
   // 1. The leader: its coverage against the day before, its move, and what the two together say.
   {
@@ -427,7 +417,11 @@ export function marketRead(input: MarketReadInput): TheRead | null {
     insights.push({
       id: "leader",
       tone: leader.pct === null ? "flat" : leader.pct >= 0 ? "up" : "down",
-      figure: { value: String(leader.count), label: leader.prevCount > 0 ? `stories, ${leader.prevCount} the day before` : "stories, none the day before" },
+      // The headline already gives the count against the day before when it surged, so the card's figure is its share
+      // of the day's company news instead of the same two numbers again (owner rule 1).
+      figure: surgeHeadline
+        ? { value: `${leader.share}%`, label: "of all company coverage today" }
+        : { value: String(leader.count), label: leader.prevCount > 0 ? `stories, ${leader.prevCount} the day before` : "stories, none the day before" },
       text,
       soWhat,
       tickers: [leader.ticker],
@@ -448,7 +442,7 @@ export function marketRead(input: MarketReadInput): TheRead | null {
       id: "theme",
       tone: side.tone,
       figure: { value: String(top.count), label: top.prevCount > 0 ? `stories, ${top.prevCount} the day before` : "stories, all new today" },
-      text: `${lead.ticker}: ${topIndex === 0 ? "the biggest story" : "another big story"} is ${top.name}, ${side.text}.`,
+      text: `${lead.ticker}: ${topIndex === 0 ? "the biggest story" : "another big story"} is ${headlineCase(top.name)}, ${side.text}.`,
       soWhat: moveClause(lead.ticker, lead.pct) ?? undefined,
       tickers: [lead.ticker],
       action: { label: "Read them", href: wireHref({ ...filters, limit: WIRE_PAGE_SIZE }, { theme: top.name }) },

@@ -32,6 +32,8 @@ import { classifyMover } from "@/lib/signals-shared";
 import { listStrategies, type StrategySummary } from "@/lib/strategies";
 import { getTrumpLogic } from "@/lib/trump-logic";
 import { sharedCache } from "@/lib/shared-cache";
+import { moveFacts, type CloseSeries } from "@/lib/briefing-move-facts";
+import { adminFirestore } from "@/lib/firebase-admin";
 import { isTrumpMentionRecent } from "@/lib/trump-logic-format";
 import { loadWire, modelLabel } from "@/lib/wire";
 import { readTheWire, type ToneCounts } from "@/lib/wire-read";
@@ -227,6 +229,88 @@ export const loadDeskMovers = section<DeskData["movers"]>(
   },
   { up: [], down: [], asOf: null, day: null, thresholdPct: null, takeaway: null },
 );
+
+/* ── Price facts for moves with no confirmed reason ─────────────────────── */
+
+/** About three years of sessions: enough for "its biggest gain since …" and a stock's normal day. */
+const FACT_SESSIONS = 760;
+/** Most moves read for one page; the smallest moves past it go without a fact (and so are not shown). */
+const FACT_MAX_STOCKS = 30;
+/** How long the moves wait for the closes before the moves without a reason show as before. */
+const FACT_BUDGET_MS = 1500;
+/** The most cards one kind of fact sentence may lead, while a stock has another fact to give. */
+const FACT_KIND_MAX = 3;
+
+async function readClosesUncached(ticker: string): Promise<CloseSeries | null> {
+  const snap = await adminFirestore.collection("tm_price_history_daily").doc(ticker.replace(/\//g, "-")).get();
+  if (!snap.exists) return null;
+  const raw = snap.data() as { dates?: unknown; closes?: unknown };
+  const dates = Array.isArray(raw.dates) ? raw.dates : [];
+  const closes = Array.isArray(raw.closes) ? raw.closes : [];
+  const n = Math.min(dates.length, closes.length);
+  const out: CloseSeries = { dates: [], closes: [] };
+  for (let index = Math.max(0, n - FACT_SESSIONS); index < n; index += 1) {
+    const date = dates[index];
+    const close = closes[index];
+    if (typeof date === "string" && typeof close === "number" && Number.isFinite(close) && close > 0) {
+      out.dates.push(date.slice(0, 10));
+      out.closes.push(close);
+    }
+  }
+  return out;
+}
+
+// The series gains one close a day; a few hours of staleness changes nothing a card says.
+const readCloses = sharedCache(readClosesUncached, ["explore-move-closes-v1"], { revalidate: 6 * 3600 });
+
+/**
+ * One measured price fact for each move with no confirmed reason ("Its biggest gain since Sep 9", "About three
+ * times a normal 1.1% day"; lib/briefing-move-facts.ts), the most telling one no other move already says, so each
+ * card on Market today carries a fact of its own (owner rule 3) and never a reason we could not confirm (rule 7).
+ * Within FACT_BUDGET_MS: a stock whose closes are slow or missing has no entry. Null when none came back at all, so
+ * the page keeps its moves as chips rather than dropping every one.
+ */
+export async function loadMoveFacts(rows: DeskMover[], fallbackDay: string): Promise<Record<string, string> | null> {
+  const picked = rows.slice(0, FACT_MAX_STOCKS);
+  if (picked.length === 0) return null;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<"late">((resolve) => {
+    timer = setTimeout(() => resolve("late"), FACT_BUDGET_MS);
+  });
+  try {
+    const series = await Promise.all(
+      picked.map((row) =>
+        Promise.race([
+          readCloses(row.ticker).catch((error) => {
+            console.warn(`[explore] closes for ${row.ticker} failed:`, error instanceof Error ? error.message : error);
+            return null;
+          }),
+          late,
+        ]),
+      ),
+    );
+    const said = new Set<string>();
+    // How many cards already use each kind of sentence ("About # times a normal #% day"): a kind used FACT_KIND_MAX
+    // times gives way to the stock's next fact, so the cards do not read as one sentence with new numbers (owner rule 1).
+    const kinds = new Map<string, number>();
+    const kindOf = (line: string) => line.replace(/\d[\d.,]*%?/g, "#").replace(/\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) #(?:, #)?/g, "D");
+    const out: Record<string, string> = {};
+    picked.forEach((row, index) => {
+      const closes = series[index];
+      if (!closes || closes === "late") return;
+      const quoted = etDayOfStamp(row.priceAsOf);
+      const unsaid = moveFacts(row.changePct, closes, quoted ?? fallbackDay, { exactDay: quoted !== null }).filter((line) => !said.has(line));
+      const fact = unsaid.find((line) => (kinds.get(kindOf(line)) ?? 0) < FACT_KIND_MAX) ?? unsaid[0];
+      if (!fact) return;
+      said.add(fact);
+      kinds.set(kindOf(fact), (kinds.get(kindOf(fact)) ?? 0) + 1);
+      out[row.ticker] = fact;
+    });
+    return Object.keys(out).length > 0 ? out : null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 /**
  * The reports on the calendar in the next three weeks, for a read's "Watch next" line on News and Signals (the same

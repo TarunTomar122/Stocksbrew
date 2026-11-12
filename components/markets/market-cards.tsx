@@ -60,25 +60,6 @@ function name(asset: MarketAsset): string {
 
 /* ── the small pictures ─────────────────────────────────────────────────── */
 
-/** Probability bars for a market's leading outcomes: the outcome and its odds, then the bar under them. */
-function OddsBars({ outcomes }: { outcomes: Array<{ label: string; probability: number }> }) {
-  return (
-    <ul className="flex flex-col gap-1.5">
-      {outcomes.map((outcome) => (
-        <li key={outcome.label} className="text-[12px] leading-4 text-oa-muted-fg">
-          <span className="flex items-baseline justify-between gap-2">
-            <span className="min-w-0 text-pretty">{outcome.label}</span>
-            <span className="oa-mono shrink-0 tabular-nums">{formatProbability(outcome.probability)}</span>
-          </span>
-          <span className="relative mt-1 block h-1.5 overflow-hidden rounded-full bg-oa-border">
-            <span className="absolute inset-y-0 left-0 rounded-full bg-oa-primary" style={{ width: `${Math.round(outcome.probability * 100)}%` }} />
-          </span>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 /** The Treasury curve today (solid) and a month ago (dashed), short maturities on the left. */
 function CurveLines({ curve }: { curve: TreasuryCurve }) {
   const points = [...curve.points].sort((a, b) => a.months - b.months);
@@ -324,8 +305,8 @@ function predictionsCard(data: MarketsData): Card | null {
     tone: "flat",
     label: `chance of ${yes ? "yes" : headline.label}, on ${lead.source_name}`,
     text: question,
+    // No odds bars under it (owner rule 5): the figure and the next outcome already say the odds in numbers.
     more: !yes && second && second.probability >= 0.05 ? `Next is ${second.label}, at ${formatProbability(second.probability)}.` : null,
-    visual: <OddsBars outcomes={ranked.slice(0, 3)} />,
   };
 }
 

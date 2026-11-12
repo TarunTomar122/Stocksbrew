@@ -8,12 +8,14 @@ import * as React from "react";
  * last row that fits, and a list only a little taller than the box shows whole rather than hiding a sliver. Rows are
  * the elements marked `data-row`, or else the items of the first list inside; items side by side in a grid end level,
  * so a row of cards counts as one. The class's own max height (keep it the same as `rem`) holds until the page has
- * measured it.
+ * measured it. With `cue`, the box's last row fades out while more rows wait below it, so a list that scrolls inside
+ * says so without a scrollbar; the fade goes once the list is scrolled to its end.
  */
 export function WholeRows({
   rem,
   wideRem,
   minWidth = 0,
+  cue = false,
   className = "",
   children,
 }: {
@@ -23,11 +25,26 @@ export function WholeRows({
   wideRem?: number;
   /** From this viewport width up (px); below it the list is not cut. */
   minWidth?: number;
+  /** Fade the bottom edge while rows are hidden below it. */
+  cue?: boolean;
   className?: string;
   children: React.ReactNode;
 }) {
   const box = React.useRef<HTMLDivElement>(null);
   const [max, setMax] = React.useState<number | "none" | null>(null);
+  const [more, setMore] = React.useState(false);
+
+  // Rows hidden below the box: checked on scroll and whenever the box's height is set.
+  const look = React.useCallback(() => {
+    const node = box.current;
+    if (!cue || !node) return;
+    setMore(node.scrollHeight - node.scrollTop - node.clientHeight > 4);
+  }, [cue]);
+
+  // After every render, once the box has its height: cheap, and never left stale by a measure that ran before it.
+  React.useLayoutEffect(() => {
+    look();
+  });
 
   React.useLayoutEffect(() => {
     const node = box.current;
@@ -64,13 +81,19 @@ export function WholeRows({
     let frame = 0;
     const later = () => {
       cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(measure);
+      frame = requestAnimationFrame(() => {
+        measure();
+        // More rows can arrive with the box's height unchanged ("More companies"): look again.
+        look();
+      });
     };
     // The box's width and its list: a late web font or logo can change a row's height.
     const observer = new ResizeObserver(later);
     observer.observe(node);
     const list = node.querySelector("ul, ol");
     if (list) observer.observe(list);
+    // Its own content too, when the list sits inside other markup (a grid of cards, a stream of days).
+    if (node.firstElementChild && node.firstElementChild !== list) observer.observe(node.firstElementChild);
     active.addEventListener("change", later);
     wide.addEventListener("change", later);
     return () => {
@@ -79,10 +102,15 @@ export function WholeRows({
       active.removeEventListener("change", later);
       wide.removeEventListener("change", later);
     };
-  }, [rem, wideRem, minWidth]);
+  }, [rem, wideRem, minWidth, look]);
 
+  const fade = cue && more ? "linear-gradient(to bottom, #000 calc(100% - 2.5rem), transparent)" : undefined;
+  const style: React.CSSProperties = {
+    ...(max === null ? {} : { maxHeight: max === "none" ? "none" : max }),
+    ...(fade ? { maskImage: fade, WebkitMaskImage: fade } : {}),
+  };
   return (
-    <div ref={box} className={className} style={max === null ? undefined : { maxHeight: max === "none" ? "none" : max }}>
+    <div ref={box} className={className} style={style} onScroll={cue ? look : undefined}>
       {children}
     </div>
   );

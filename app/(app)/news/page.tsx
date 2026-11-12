@@ -4,7 +4,7 @@ import { AppPage, PageHead, fmtStampET } from "@/components/oa/kit";
 import { MarketingSchema } from "@/components/seo/marketing-schema";
 import { TheRead } from "@/components/oa/insight";
 import { CompanyFeed } from "@/components/wire/company-feed";
-import { TalkedAbout, ThemesPanel } from "@/components/wire/news-read";
+import { TalkedAbout } from "@/components/wire/news-read";
 import { TickerStrip, WireFilterBar, WireSearch, WireStream } from "@/components/wire/wire-view";
 import { getSessionUser } from "@/lib/auth-server";
 import { getTrackedStocks } from "@/lib/watchlist";
@@ -12,7 +12,7 @@ import { loadWire, modelLabel } from "@/lib/wire";
 import { COMPANY_PAGE, groupByCompany, labelFor } from "@/lib/wire-companies";
 import { caseWireHeadlines } from "@/lib/wire-casing";
 import { withHeadlineTones } from "@/lib/wire-headline-tone";
-import { countTones, readTheWire, storiesBetween, themesBesideRead } from "@/lib/wire-read";
+import { countTones, readTheWire, storiesBetween } from "@/lib/wire-read";
 import {
   WIRE_TOPICS,
   filterWire,
@@ -127,8 +127,6 @@ export default async function NewsPage({ searchParams }: { searchParams?: Search
           },
           { nowMs: now, filters: effective, buzzLimit: 14, themeLimit: 5 },
         );
-  // The stories beside the read, without one that is only about the stock the read already leads with.
-  const themes = reading ? themesBesideRead(reading.themes, reading.read) : [];
   // Each "more" step shows another page of companies; the URL's row limit caps how many steps there are.
   const step = Math.max(1, Math.round(effective.limit / WIRE_PAGE_SIZE));
   const shownCompanies = COMPANY_PAGE * step;
@@ -158,14 +156,10 @@ export default async function NewsPage({ searchParams }: { searchParams?: Search
 
       {reading?.read ? <TheRead read={withReports(reading.read, upcoming, today)} label="The read" className="mb-4" /> : null}
 
-      {reading && (themes.length || reading.buzz.length) ? (
-        // Side by side only when both have something; one alone takes the whole row instead of leaving half of it empty.
-        // Each card is as tall as its own content (owner rule 4), never stretched to its neighbour.
-        <div className={`mb-6 grid items-start gap-4 lg:gap-5 ${themes.length && reading.buzz.length ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,25rem)]" : ""}`}>
-          <ThemesPanel themes={themes} filters={effective} />
-          <TalkedAbout rows={reading.buzz} filters={effective} wide={themes.length === 0} />
-        </div>
-      ) : null}
+      {/* Stocks first (owner rule 7): the most talked about stocks, each with its top story, then every company's
+          headlines in its own card below. No separate list of stories by theme: it showed the same headlines again,
+          away from their stocks; a theme the read names is still one click away from its card. */}
+      {reading?.buzz.length ? <TalkedAbout rows={reading.buzz} filters={effective} wide className="mb-6" /> : null}
 
       <WireFilterBar filters={effective} topicCounts={topicCounts} mineCount={mineCount} signedIn={Boolean(session)} />
 

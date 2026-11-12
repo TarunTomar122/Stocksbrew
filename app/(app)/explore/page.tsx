@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
-import { loadDeskBrief, loadDeskMarketsData, loadDeskMovers, loadDeskSectors, loadDeskWire, todayET, type DeskBrief, type DeskData, type DeskSector } from "@/app/(app)/explore/desk-data";
+import { loadDeskBrief, loadDeskMarketsData, loadDeskMovers, loadDeskSectors, loadDeskWire, loadMoveFacts, todayET, type DeskBrief, type DeskData, type DeskSector } from "@/app/(app)/explore/desk-data";
 import { MarketCardsGhost, MovesGhost, StripGhost } from "@/app/(app)/explore/ghosts";
 import { hasMarketsData } from "@/components/markets/overview-sections";
 import { MarketCards } from "@/components/markets/market-cards";
@@ -122,18 +122,30 @@ function sessionMoves(
  * left with only a figure. This is the one list of the day's moves: every move priced in the session shows (cards and
  * chips each scroll inside after a few whole rows), from the same live quotes the briefing and the home page use, under
  * the read's one clock. Older days are a row of links to their own pages under it.
+ *
+ * With `facts` (one measured price fact per move with no reason, `loadMoveFacts`), those moves are cards too, after
+ * the ones with a reason, each with its own fact ("Its biggest gain since Sep 9"), and a move with no fact is left out
+ * rather than shown as a ticker and a figure alone. Without them (still loading, or none came back) they stay chips.
  */
-function StockMoves({ movers, today }: { movers: DeskData["movers"]; today: string }) {
+function StockMoves({ movers, today, facts = null }: { movers: DeskData["movers"]; today: string; facts?: Record<string, string> | null }) {
   const session = sessionMoves(movers, today, Date.now());
   const rows = [...session.rows].sort((a, b) => Math.abs(b.changePct) - Math.abs(a.changePct));
   const told = rows.filter((row) => row.reason);
-  const bare = rows.filter((row) => !row.reason);
+  const factual = facts ? rows.filter((row) => !row.reason && facts[row.ticker]) : [];
+  const bare = facts ? [] : rows.filter((row) => !row.reason);
+  // Reasons first, then the moves we can only measure: one list of cards, every one with something to read.
+  const cards = [
+    ...told.map((row) => ({ row, sentence: unTitle(row.reason!, row.name) })),
+    ...factual.map((row) => ({ row, sentence: `${facts![row.ticker]}.` })),
+  ];
   if (rows.length === 0) return null;
   // Only moves from an earlier day name it, or today's when every quote stopped early; the rest sit under the read's clock.
   const clock = session.day && session.day !== today ? fmtDay(session.day) : session.clock;
-  // The takeaway was written over every move: it is left out when it names one the list no longer shows.
+  // The takeaway was written over every move: it is left out when it names one the list no longer shows (a stale
+  // quote, or a move with no reason and no price fact once the facts are in).
+  const hidden = [...session.dropped, ...(facts ? rows.filter((row) => !row.reason && !facts[row.ticker]).map((row) => row.ticker) : [])];
   const takeaway =
-    movers.takeaway && !session.dropped.some((ticker) => new RegExp(`(?<![A-Z0-9.])${ticker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![A-Z0-9])`).test(movers.takeaway!))
+    movers.takeaway && !hidden.some((ticker) => new RegExp(`(?<![A-Z0-9.])${ticker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![A-Z0-9])`).test(movers.takeaway!))
       ? movers.takeaway
       : null;
   // "today" only for today's moves: before the open, or on a weekend, they are the last session's.
@@ -142,26 +154,27 @@ function StockMoves({ movers, today }: { movers: DeskData["movers"]; today: stri
     <>
       <div className="flex items-baseline justify-between gap-3 px-2 pb-1 sm:px-3">
         <h2 id="stock-moves" className="text-[17px] font-medium tracking-tight text-oa-fg">
-          {/* The why is only promised when at least one move has a confirmed reason. */}
-          {told.length > 0 ? "Why stocks moved" : "Biggest stock moves"}
+          {/* Cards carry a confirmed reason or a measured price fact, so the heading promises the moves, not a why for each. */}
+          Biggest stock moves
         </h2>
         {clock ? <span className="oa-mono shrink-0 text-[12.5px] tabular-nums text-oa-muted-fg">{clock}</span> : null}
       </div>
       {/* With one move the takeaway only repeats it ("AIRJW moved most, −11.8%"); it says something once there are several. */}
       {takeaway && rows.length > 1 ? <p className="text-pretty px-2 pb-2 text-[14px] leading-5 text-oa-muted-fg sm:px-3">{takeaway}</p> : null}
-      {told.length > 0 ? (
-        // About three rows of cards, then they scroll inside (no bar shown) in a box that ends on a whole row.
-        <WholeRows rem={30} wideRem={24} className="max-h-[30rem] overflow-y-auto overscroll-contain scrollbar-hide sm:max-h-[24rem]">
+      {cards.length > 0 ? (
+        // About three rows of cards, then they scroll inside (no bar shown) in a box that ends on a whole row, its
+        // bottom edge fading while more cards wait below, so a phone showing four of them still says there are more.
+        <WholeRows rem={30} wideRem={24} cue className="max-h-[30rem] overflow-y-auto overscroll-contain scrollbar-hide sm:max-h-[24rem]">
           <StockCardGrid wide>
-            {told.map((row, index) => (
+            {cards.map(({ row, sentence }, index) => (
               <StockCard
                 key={row.ticker}
                 ticker={row.ticker}
                 name={row.name || row.ticker}
                 figure={signedPct(row.changePct, 1)}
                 tone={row.changePct >= 0 ? "up" : "down"}
-                sentence={unTitle(row.reason!, row.name)}
-                fill={stockGridFill(index, told.length, true)}
+                sentence={sentence}
+                fill={stockGridFill(index, cards.length, true)}
                 cover={
                   <Link
                     href={`/stock/${encodeURIComponent(row.ticker)}`}
@@ -269,12 +282,23 @@ async function MovesSlot({ movers, today }: { movers: Promise<DeskData["movers"]
   return (
     // With no moves the section has no heading of its own (the earlier days' row names itself), so it is not labelled.
     <section id="moves" aria-labelledby={any ? "stock-moves" : undefined} className="scroll-mt-20">
-      <StockMoves movers={data} today={today} />
+      {/* The moves show at once, those with no reason as chips; their price facts follow, turning them into cards. */}
+      <Suspense fallback={<StockMoves movers={data} today={today} />}>
+        <MovesWithFacts movers={data} today={today} />
+      </Suspense>
       <Suspense fallback={null}>
         <EarlierDays movers={data} today={today} titled={!any} />
       </Suspense>
     </section>
   );
+}
+
+/** The moves once the price facts for those with no confirmed reason are in (or have run out of time). */
+async function MovesWithFacts({ movers, today }: { movers: DeskData["movers"]; today: string }) {
+  const session = sessionMoves(movers, today, Date.now());
+  const bare = session.rows.filter((row) => !row.reason).sort((a, b) => Math.abs(b.changePct) - Math.abs(a.changePct));
+  const facts = bare.length ? await loadMoveFacts(bare, session.day ?? today).catch(() => null) : null;
+  return <StockMoves movers={movers} today={today} facts={facts} />;
 }
 
 /** Every sector's day, under the moves. */

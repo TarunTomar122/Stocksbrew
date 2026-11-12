@@ -185,7 +185,38 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
-### 2026-11-12 ~03:45 UTC, ship 41 live (944afae): an agent log that reads in two seconds everywhere, a full example inbox, one Start free per page (lead, overnight loop)
+### 2026-11-12 ~03:15 UTC, ship 42 live (2d9a92d): calls with their own level, What changed says what changed, sign-ins that say what they do (lead, overnight loop)
+
+- Ship 42 (round 15B + lead):
+  - Stock page:
+    - The call heading is the call word. The next line gives the level against today's price. Signed out, the server sends only which side of the level today's price is on, never the number (tested): "We'd wait for a dip from today's $343 before buying more." plus one quiet link to the gate.
+    - Chart dots removed (E boxes stay).
+    - What changed opens with a deterministic subject line ("Three of the 14 stories on JPM in the past week are about AI.").
+    - Ledger rows use the call words.
+  - Compare: a one-number headline ("NVDA keeps 65¢ of each sales dollar as operating profit, against 18¢ for AMD."), no "rows won", the table ends on whole rows, call cards show their own level where the plan allows.
+  - Backtest: a cost sentence instead of mechanics, and a new drawdown card.
+  - Insiders: cluster rows are ticker only. The read ends with "Start with LBRT …" plus two links.
+  - Lead: in-page sign-ins name their action.
+  - 2863 tests in both modes. VPS pulled. 9 pages return 200.
+- **Judges on live 42** (scratchpad/judge42):
+  - **Codex:** UI 7, UX 7, usability 7, wording 7, agent feel 6, similarity 6, sell 6, overall 7.
+  - **Cursor:** UI 6, UX 7, usability 7, wording 6, agent feel 6, similarity 5, sell 7, overall 6.
+  - **Codex's top issue:** one example portfolio everywhere. LLY shows on the briefing but not in My stocks, and weekly figures differ.
+  - **Other asks:**
+    - News should be stock-grouped and bounded.
+    - Mobile movers set; facts on the extra movers; prediction-market bars.
+    - Calendar column heights.
+    - Inbox holdings as plain lines.
+    - Briefing chips need facts; the agent log needs flagged logo chips.
+    - My stocks: hollow last card and the rail.
+    - Landing: kicker and two Start frees.
+    - JPM: wall of text, two locks, What changed should lead with the development.
+    - Compare: one number.
+    - Backtest: three tiles and the replay caveat.
+    - Insiders: scroll discoverability.
+- **Running:** rounds 16A (news, explore, calendar), 16B (briefing, inbox, My stocks, landing, one example book), 16C (stock page, compare, backtest, insiders).
+
+### 2026-11-12 ~03:05 UTC, ship 41 live (944afae): an agent log that reads in two seconds everywhere, a full example inbox, one Start free per page (lead, overnight loop)
 
 - Ship 41 (round 15A + lead):
   - Agent log: phone uses the same status rows as desktop; labels are whole words.
@@ -198,7 +229,7 @@ Newest first. One entry per tick: what changed, what was verified (with screensh
 - In the main tree for the next ship: in-page sign-ins say what they do: "Keep asking", "See your own stocks", "See your own taxes", "See your own mix", "See ideas for your own stocks", "Show only your stocks".
 - Running: round 15B (stock page, compare, backtest, insiders).
 
-### 2026-11-12 ~03:20 UTC, ship 40 live (bcdb5ac): Today pages that read like a person wrote them (lead, overnight loop)
+### 2026-11-12 ~02:55 UTC, ship 40 live (bcdb5ac): Today pages that read like a person wrote them (lead, overnight loop)
 
 - Ship 40 (round 14 + lead): an audit of /explore, /premarket, /news and /calendar against the rubric, and fixes.
   - /news: headlines learn their casing from the day's own wire (lib/wire-casing.ts). The two read panels and the company cards end on whole rows (components/wire/whole-rows.tsx). Tone sits in the card header. The "About this page" note is gone. 16 cards.

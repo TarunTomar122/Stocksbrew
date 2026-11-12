@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Delta, Empty, FOCUS, NUM, Panel, Ticker } from "@/components/oa/kit";
 import { StockLogo } from "@/components/stock-logo";
 import { ToneBar, headlineWords, leanWords } from "@/components/wire/news-read";
+import { WholeRows } from "@/components/wire/whole-rows";
 import type { WireQuote } from "@/lib/wire";
 import type { ToneCounts } from "@/lib/wire-read";
 import {
@@ -125,7 +126,7 @@ function WireRow({ item, quotes, filters }: { item: WireItem; quotes: Record<str
   const extra = item.tickers.length - shown.length;
   const kind = item.sourceKind === "official" ? "official release" : item.sourceKind === "press_release" ? "press release" : null;
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)] gap-x-3 border-b border-oa-border px-4 py-2.5 last:border-b-0 hover:bg-oa-accent lg:grid-cols-[4.25rem_8rem_minmax(0,1fr)_auto] lg:items-baseline lg:py-2">
+    <div data-row="" className="grid grid-cols-[minmax(0,1fr)] gap-x-3 border-b border-oa-border px-4 py-2.5 last:border-b-0 hover:bg-oa-accent lg:grid-cols-[4.25rem_8rem_minmax(0,1fr)_auto] lg:items-baseline lg:py-2">
       <p className={`${NUM} flex gap-x-2 text-[12.5px] leading-5 text-oa-muted-fg lg:contents`}>
         <time dateTime={item.publishedAt} className="shrink-0">
           {etTime(item.publishedAt)}
@@ -181,29 +182,33 @@ export function WireStream({
   }
   return (
     <Panel flush>
-      {days.map((group) => (
-        <div key={group.day}>
-          {/* Not the kit's sticky StreamDay: inside a Panel (overflow hidden) its mobile offset covers the first row. */}
-          <h2 className="oa-caption flex items-center justify-between gap-3 border-b border-oa-border bg-oa-bg px-4 py-1.5">
-            <span>{group.label}</span>
-            <span className={`${NUM} text-oa-muted-fg`}>{group.items.length}</span>
-          </h2>
-          {group.items.map((item) => (
-            <WireRow key={item.id} item={item} quotes={quotes} filters={filters} />
-          ))}
-        </div>
-      ))}
-      {shown < total ? (
-        <div className="border-t border-oa-border p-2 text-center">
-          <Link
-            href={wireHref(filters, { limit: filters.limit + WIRE_PAGE_SIZE })}
-            scroll={false}
-            className={`inline-block rounded-md px-3 py-1.5 text-[14px] font-medium text-oa-muted-fg hover:bg-oa-accent hover:text-oa-fg ${FOCUS}`}
-          >
-            Show {Math.min(WIRE_PAGE_SIZE, total - shown)} more of {total - shown}
-          </Link>
-        </div>
-      ) : null}
+      {/* About eight headlines at a time, the rest scrolling inside (owner rule 5), so one stock's two weeks of news never
+          make the page endless on a phone. "Show more" is the box's last row, so new headlines land where the reader is. */}
+      <WholeRows rem={36} cue className="scrollbar-hide max-h-[36rem] overflow-y-auto overscroll-contain">
+        {days.map((group) => (
+          <div key={group.day}>
+            {/* Not the kit's sticky StreamDay: inside a Panel (overflow hidden) its mobile offset covers the first row. */}
+            <h2 className="oa-caption flex items-center justify-between gap-3 border-b border-oa-border bg-oa-bg px-4 py-1.5">
+              <span>{group.label}</span>
+              <span className={`${NUM} text-oa-muted-fg`}>{group.items.length}</span>
+            </h2>
+            {group.items.map((item) => (
+              <WireRow key={item.id} item={item} quotes={quotes} filters={filters} />
+            ))}
+          </div>
+        ))}
+        {shown < total ? (
+          <div className="border-t border-oa-border p-2 text-center">
+            <Link
+              href={wireHref(filters, { limit: filters.limit + WIRE_PAGE_SIZE })}
+              scroll={false}
+              className={`inline-block rounded-md px-3 py-1.5 text-[14px] font-medium text-oa-muted-fg hover:bg-oa-accent hover:text-oa-fg ${FOCUS}`}
+            >
+              Show {Math.min(WIRE_PAGE_SIZE, total - shown)} more of {total - shown}
+            </Link>
+          </div>
+        ) : null}
+      </WholeRows>
     </Panel>
   );
 }

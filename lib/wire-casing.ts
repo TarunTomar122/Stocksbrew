@@ -13,6 +13,28 @@ const WORD = /[A-Za-z](?:[A-Za-z]|['’](?=[A-Za-z]))*/g;
 /** A capitalised ordinary-looking word: "Solar", "Driving", "Tech's". Not an acronym (AI) or a brand (iPhone, SpaceX). */
 const TITLED = /^[A-Z][a-z]+(?:['’]s)?$/;
 
+/**
+ * Ordinary words that wire headlines capitalise mid-sentence ("Dear Nebius stock Fans, Mark your Calendars", "Lisa Su
+ * just Delivered Fantastic news", "a $411 billion Anthropic Windfall", "13 Big funds") and that are seldom a name on
+ * their own. Lowered like the words the day's wire teaches (`learnLowerWords`), so with the same guards: a word beside
+ * a capital the wire never lowers, or beside a word only the day's wire knows, keeps its capital ("Mark Zuckerberg",
+ * "Big Lots"), and so does one inside a company name on the page. Not "power", "energy", "tech", "trade", "real",
+ * "progress" or "fourth": names and holidays lean on them too often ("The Trade Desk", "Fourth of July").
+ */
+const WIRE_ORDINARY = new Set(
+  (
+    "big bigger biggest fan fans mark calendar calendars deliver delivers delivered delivering fantastic upcoming " +
+    "flight flights jitters windfall techs profitable unprofitable extremely racks rack cools package " +
+    "packages vote votes voting pay stock stocks share shares jump jumps jumped soar soars soared slide slides slid " +
+    "slip slips slipped fall falls rise rises climb climbs climbed tumble tumbles plunge plunges surge surges sink " +
+    "sinks drop drops gain gains futures investors investor earnings results guidance outlook forecast demand " +
+    "growth sales revenue profit rally record report reports market markets rate rates hike hikes cut cuts deal deals " +
+    "why what how next move moves higher lower year week today price chip chips maker makers rival rivals boost " +
+    "fears fear worries concerns bubble upside downside analyst analysts data center centers " +
+    "quarter quarterly backlog outweigh outweighs ousting ignite ignites"
+  ).split(" "),
+);
+
 /** Days and months: "in May", "could March higher" are too close to call, so they always keep their capital. */
 const DAY_OR_MONTH = /^(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|january|february|march|april|may|june|july|august|september|october|november|december)$/;
 
@@ -28,7 +50,8 @@ function tokens(text: string): Token[] {
 
 /** True when the word starts a clause: the headline's first word, or after a colon, full stop, bracket, quote or dash. */
 function startsClause(text: string, list: Token[], index: number): boolean {
-  if (index === 0) return true;
+  // The first word starts the headline, unless a figure comes before it ("13 Big funds sold…").
+  if (index === 0) return !/\d[\d,.%]*\s+$/.test(text.slice(0, list[0]!.offset));
   const prev = list[index - 1]!;
   const gap = text.slice(prev.offset + prev.word.length, list[index]!.offset);
   return /[:.!?(“"‘'—–|]\s*$/.test(gap) || /(?:^|\s)-{1,2}\s*$/.test(gap);
@@ -102,23 +125,53 @@ function namedByShape(text: string, list: Token[]): Set<number> {
 }
 
 /**
- * One headline with the capitals `lowerWords` marks as ordinary lowered. A word keeps its capital when it starts a
- * clause, is joined to a figure or by a hyphen ("Q3", "Data-Center"), is a day, a month or a brand-like word
- * ("Target"), sits inside a company name on the page or a name shaped like one (before a bracketed ticker or a
- * legal ending like "Inc." or "Group"), or stands beside a capitalised word the wire never writes in
- * lower case (that pair may be a name: "General Motors", "Rocket Lab").
+ * One headline with the capitals `lowerWords` (the day's learned words) or `fixedWords` (WIRE_ORDINARY) mark as
+ * ordinary lowered. A word keeps its capital when it starts a clause, is joined to a figure ("Q3") or by a hyphen to a
+ * word that is not ordinary ("Coca-Cola"; a run of ordinary words like "Data-Center" is lowered whole), is a day, a
+ * month or a brand-like word ("Target"), sits inside a company name on the page or a name shaped like one (before a
+ * bracketed ticker or a legal ending like "Inc." or "Group"), stands beside a capitalised word the wire never writes
+ * in lower case (that pair may be a name: "General Motors", "Rocket Lab"), or stands beside a capitalised ordinary
+ * word only the other list knows ("Big Lots", "Progress Software": a fixed word beside a learned one may be a name).
  */
-export function lowerOrdinaryCapitals(text: string, lowerWords: ReadonlySet<string>, names: readonly string[] | RegExp | null = []): string {
-  if (!text || lowerWords.size === 0) return text;
+export function lowerOrdinaryCapitals(
+  text: string,
+  lowerWords: ReadonlySet<string>,
+  names: readonly string[] | RegExp | null = [],
+  fixedWords: ReadonlySet<string> = new Set(),
+): string {
+  if (!text || (lowerWords.size === 0 && fixedWords.size === 0)) return text;
   const list = tokens(text);
   const spans = nameSpans(text, Array.isArray(names) ? namePattern(names) : (names as RegExp | null));
   const shaped = namedByShape(text, list);
   const inName = (token: Token) => spans.some(([from, to]) => token.offset >= from && token.offset + token.word.length <= to);
-  const ordinary = (token: Token | undefined) => Boolean(token) && TITLED.test(token!.word) && lowerWords.has(bare(token!.word));
+  const learned = (token: Token) => lowerWords.has(bare(token.word));
+  const fixed = (token: Token) => fixedWords.has(bare(token.word));
+  const ordinary = (token: Token | undefined) => Boolean(token) && TITLED.test(token!.word) && (learned(token!) || fixed(token!));
+  // Two capitalised ordinary words side by side are lowered only when one list knows both ("Flight Jitters", or two
+  // learned words), never on the word of one list and the word of the other, which may be a name ("Big Lots").
+  const mixedPair = (token: Token, other: Token | undefined, gap: string) =>
+    Boolean(other) && /^ $/.test(gap) && ordinary(other) && !((learned(token) && learned(other!)) || (fixed(token) && fixed(other!)));
   // A capitalised neighbour the wire never lowers, joined by a single space: possibly the rest of a name ("Model Y"
   // too). Not an acronym ("100 GW Solar", "AI Firms"): beside one, an ordinary word is still ordinary.
   const nameBeside = (token: Token | undefined, gap: string) =>
     Boolean(token) && /^ $/.test(gap) && /^[A-Z](?:[a-z]|$)/.test(token!.word) && !ordinary(token) && !DAY_OR_MONTH.test(bare(token!.word));
+  // Capitalised words joined by hyphens ("Data-Center", "Fourth-Quarter") are lowered together when every part is an
+  // ordinary word and the run neither starts a clause nor sits in a name; otherwise the hyphen keeps them ("Coca-Cola").
+  const compound = list.map(() => false);
+  for (let start = 0; start < list.length; ) {
+    let end = start;
+    while (end + 1 < list.length && text.slice(list[end]!.offset + list[end]!.word.length, list[end + 1]!.offset) === "-") end += 1;
+    if (end > start) {
+      const run = list.slice(start, end + 1);
+      const lowerRun =
+        run.every((token) => ordinary(token) && !isBrandWord(token.word) && !inName(token)) &&
+        !startsClause(text, list, start) &&
+        !/\d-?$/.test(text.slice(0, run[0]!.offset)) &&
+        !shaped.has(start);
+      if (lowerRun) for (let index = start; index <= end; index += 1) compound[index] = true;
+    }
+    start = end + 1;
+  }
   const out: string[] = [];
   let cursor = 0;
   list.forEach((token, index) => {
@@ -128,7 +181,8 @@ export function lowerOrdinaryCapitals(text: string, lowerWords: ReadonlySet<stri
     const after = next ? text.slice(token.offset + token.word.length, next.offset) : "";
     const end = token.offset + token.word.length;
     const lower =
-      ordinary(token) &&
+      compound[index] ||
+      (ordinary(token) &&
       !startsClause(text, list, index) &&
       !/[\d-]$/.test(text.slice(0, token.offset)) &&
       !/^[\d-]/.test(text.slice(end)) &&
@@ -142,8 +196,10 @@ export function lowerOrdinaryCapitals(text: string, lowerWords: ReadonlySet<stri
       !(index === 1 && /^[A-Z]{2,}$/.test(list[0]!.word)) &&
       !nameBeside(prev, before) &&
       !nameBeside(next, after) &&
+      !mixedPair(token, prev, before) &&
+      !mixedPair(token, next, after) &&
       // "Bank of Japan", "Department of Energy": a capital before "of" and a name is part of that name.
-      !(next && after === " " && next.word === "of" && nameBeside(list[index + 2], list[index + 2] ? text.slice(next.offset + 2, list[index + 2]!.offset) : ""));
+      !(next && after === " " && next.word === "of" && nameBeside(list[index + 2], list[index + 2] ? text.slice(next.offset + 2, list[index + 2]!.offset) : "")));
     out.push(text.slice(cursor, token.offset), lower ? token.word.toLowerCase() : token.word);
     cursor = end;
   });
@@ -186,7 +242,8 @@ export function caseWireHeadlines<T extends { title: string; tickers: string[]; 
     // A company's own release is full of its product and program names ("Rocket Alumni Solutions", "Bare Metal"),
     // which no wire vocabulary can tell from ordinary words: it gets the shared casing only.
     const own = item.sourceKind === "press_release" || item.sourceKind === "official";
-    const title = own ? first : lowerOrdinaryCapitals(first, lowerWords, pattern);
+    // The day's own vocabulary, then the wire's usual ordinary words (WIRE_ORDINARY) as a second list.
+    const title = own ? first : lowerOrdinaryCapitals(first, lowerWords, pattern, WIRE_ORDINARY);
     return title === item.title ? item : { ...item, title };
   });
 }

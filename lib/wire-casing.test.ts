@@ -65,6 +65,34 @@ describe("caseWireHeadlines", () => {
     expect(out.at(-1)).toBe("Nvidia board meets to decide CEO Huang's future, source says");
   });
 
+  it("lowers the wire's usual ordinary words without a corpus, beside names it keeps them", () => {
+    const out = run([
+      "Dear Nebius stock Fans, Mark your Calendars for November 12",
+      "13 Big funds sold Applied Materials. Should you follow them before earnings?",
+      "SpaceX shares slip amid Upcoming Starship test Flight Jitters",
+      "Oracle stock just surged after CoreWeave earnings, built for the Data-Center backlash",
+      "Mark Zuckerberg says Meta will spend more",
+      "Coca-Cola raises its outlook",
+      "Stores close for the Fourth of July",
+    ]);
+    expect(out[0]).toBe("Dear Nebius stock fans, mark your calendars for November 12");
+    expect(out[1]).toBe("13 big funds sold Applied Materials. Should you follow them before earnings?");
+    // "Upcoming" stands beside "Starship", a capital the wire never lowers: possibly a name, so it stays.
+    expect(out[2]).toBe("SpaceX shares slip amid Upcoming Starship test flight jitters");
+    expect(out[3]).toBe("Oracle stock just surged after CoreWeave earnings, built for the data-center backlash");
+    expect(out[4]).toBe("Mark Zuckerberg says Meta will spend more");
+    expect(out[5]).toBe("Coca-Cola raises its outlook");
+    expect(out[6]).toBe("Stores close for the Fourth of July");
+  });
+
+  it("keeps a pair of one fixed word and one learned word, which may be a name", () => {
+    const corpus = ["Retailers sell lots of software", "There is lots of software in the deal", "A trading desk and a brokerage"];
+    const out = run([...corpus, "Shares of Big Lots jump", "Investors cheer Progress Software results", "Funds like The Trade Desk again"]);
+    expect(out.at(-3)).toBe("Shares of Big Lots jump");
+    expect(out.at(-2)).toBe("Investors cheer Progress Software results");
+    expect(out.at(-1)).toBe("Funds like The Trade Desk again");
+  });
+
   it("does nothing without a vocabulary", () => {
     expect(lowerOrdinaryCapitals("A Solar Line", new Set())).toBe("A Solar Line");
   });

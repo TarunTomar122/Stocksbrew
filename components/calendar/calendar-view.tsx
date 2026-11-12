@@ -497,9 +497,10 @@ function DividendLine({ item }: { item: DividendItem }) {
 
 /**
  * A day's column scrolls inside a box of about this height, ending on a whole row, with every event in it (owner
- * rule 5: all of them, not the first few and a "+ 8 more" link under each group).
+ * rule 5: all of them, not the first few and a "+ 8 more" link under each group). Short enough that a busy day and a
+ * quiet one end close to level instead of one running on beside a blank column (owner rule 4).
  */
-const DAY_REM = 34;
+const DAY_REM = 26;
 
 function More({ count, href }: { count: number; href: string }) {
   if (count <= 0) return null;
@@ -639,7 +640,7 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
  */
 function DayBody({ past, children }: { past: boolean; children: React.ReactNode }) {
   return (
-    <WholeRows rem={DAY_REM} minWidth={1024} className={`scrollbar-hide lg:max-h-[34rem] lg:overflow-y-auto lg:overscroll-contain ${past ? "max-lg:hidden" : ""}`}>
+    <WholeRows rem={DAY_REM} minWidth={1024} cue className={`scrollbar-hide lg:max-h-[26rem] lg:overflow-y-auto lg:overscroll-contain ${past ? "max-lg:hidden" : ""}`}>
       {children}
     </WholeRows>
   );

@@ -1,7 +1,9 @@
 import Link from "next/link";
+import type * as React from "react";
 
 import { CardGrid, Delta, Empty, FOCUS, Ticker } from "@/components/oa/kit";
 import { HeadlineLine, ToneBar, leanWords } from "@/components/wire/news-read";
+import { WholeRows } from "@/components/wire/whole-rows";
 import type { CompanyGroup } from "@/lib/wire-companies";
 import { WIRE_PAGE_SIZE, wireHref, type WireFilters } from "@/lib/wire-shared";
 
@@ -9,17 +11,24 @@ import { WIRE_PAGE_SIZE, wireHref, type WireFilters } from "@/lib/wire-shared";
  * The wire read by company, stock first (owner rule 7). One card per company in the news: who it is and how the
  * stock is moving, how its news leans (said once per card, never as a mark on every headline), and the few
  * headlines worth opening as the evidence, whole and in sentence case. The whole card opens all its stories.
+ * This is the page's one feed: every list of cards shows about three rows at a time and scrolls inside (owner rule 5),
+ * so a phone is never handed an endless page, and every company stays one scroll away: "More companies" is the box's
+ * last row, so the cards it brings land right where the reader already is.
  */
+
+/** The feed's box: about two cards on a phone, a little over two rows of cards wider up, ending on a whole row. */
+const FEED_REM = 34;
+const FEED_WIDE_REM = 50;
 
 /** The headlines a card shows; the rest are one click away. */
 const HEADLINE_SLOTS = 3;
 
-function CompanyCard({ group, filters }: { group: CompanyGroup; filters: WireFilters }) {
+function CompanyCard({ group, filters, fill = "" }: { group: CompanyGroup; filters: WireFilters; fill?: string }) {
   const items = group.items.slice(0, HEADLINE_SLOTS);
   return (
     // The whole card opens the company's stories; the stock and each headline keep their own links above it.
     // No "see more" arrow repeated on every card (owner, Nov 11).
-    <article className="oa-surface relative flex h-full min-w-0 flex-col border border-oa-border bg-oa-card transition-colors hover:border-[color-mix(in_srgb,var(--oa-fg)_25%,transparent)]">
+    <article data-row="" className={`oa-surface relative flex h-full min-w-0 flex-col border ${fill} border-oa-border bg-oa-card transition-colors hover:border-[color-mix(in_srgb,var(--oa-fg)_25%,transparent)]`}>
       {/* The move and, only when the news clearly leans, its tone, both on the title row: a separate tone strip on some
           cards and not others left their neighbours with an empty band at the bottom (owner rule 4). */}
       <header className="flex items-center justify-between gap-3 border-b border-oa-border px-4 py-2.5">
@@ -31,8 +40,9 @@ function CompanyCard({ group, filters }: { group: CompanyGroup; filters: WireFil
       </header>
       {/* No footer count: the tone above is the card's one figure (owner rule 5), and the card itself opens the rest. */}
       <ul className="flex flex-1 flex-col gap-2.5 px-4 py-3">
-        {items.map((item) => (
-          <li key={item.id}>
+        {items.map((item, index) => (
+          // A phone shows two headlines a card, so its bounded feed holds more than one company at a time.
+          <li key={item.id} className={index >= 2 ? "max-sm:hidden" : undefined}>
             <HeadlineLine item={item} companyName={group.name ?? ""} className="relative z-10" />
           </li>
         ))}
@@ -47,13 +57,27 @@ function CompanyCard({ group, filters }: { group: CompanyGroup; filters: WireFil
   );
 }
 
-function CompanyGrid({ groups, filters }: { groups: CompanyGroup[]; filters: WireFilters }) {
+/** One list of company cards in its bounded box; a lone last card takes its whole row (owner rule 4). */
+function CompanyGrid({ groups, filters, more = null }: { groups: CompanyGroup[]; filters: WireFilters; more?: React.ReactNode }) {
   return (
-    <CardGrid cols={2}>
-      {groups.map((group) => (
-        <CompanyCard key={group.ticker} group={group} filters={filters} />
-      ))}
-    </CardGrid>
+    <WholeRows
+      rem={FEED_REM}
+      wideRem={FEED_WIDE_REM}
+      cue
+      className="scrollbar-hide overflow-y-auto overscroll-contain max-h-[34rem] sm:max-h-[50rem]"
+    >
+      <CardGrid cols={2}>
+        {groups.map((group, index) => (
+          <CompanyCard
+            key={group.ticker}
+            group={group}
+            filters={filters}
+            fill={index === groups.length - 1 && groups.length % 2 === 1 ? "md:col-span-2" : ""}
+          />
+        ))}
+      </CardGrid>
+      {more}
+    </WholeRows>
   );
 }
 
@@ -93,17 +117,22 @@ export function CompanyFeed({
       {rest.length ? (
         <section>
           {mine.length || signedIn ? <h2 className="oa-label mb-2.5">{filters.mine ? "Your companies" : "In the news today"}</h2> : null}
-          <CompanyGrid groups={rest} filters={filters} />
-          {canShowMore && total > rest.length ? (
-            <Link
-              href={wireHref(filters, { limit: filters.limit + WIRE_PAGE_SIZE })}
-              prefetch={false}
-              scroll={false}
-              className={`mt-3 flex h-10 items-center justify-center rounded-md border border-oa-border bg-oa-card text-[14px] font-medium text-oa-fg hover:bg-oa-accent ${FOCUS}`}
-            >
-              More companies ({total - rest.length})
-            </Link>
-          ) : null}
+          <CompanyGrid
+            groups={rest}
+            filters={filters}
+            more={
+              canShowMore && total > rest.length ? (
+                <Link
+                  href={wireHref(filters, { limit: filters.limit + WIRE_PAGE_SIZE })}
+                  prefetch={false}
+                  scroll={false}
+                  className={`mt-3 flex h-10 items-center justify-center rounded-md border border-oa-border bg-oa-card text-[14px] font-medium text-oa-fg hover:bg-oa-accent ${FOCUS}`}
+                >
+                  More companies ({total - rest.length})
+                </Link>
+              ) : null
+            }
+          />
         </section>
       ) : null}
     </div>

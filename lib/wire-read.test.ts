@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { countTones, leanOf, marketRead, newsThemes, readTheWire, stockBuzz, storiesBetween, themesBesideRead, type NewsLabels, type NewsTheme } from "@/lib/wire-read";
+import { countTones, leanOf, marketRead, newsThemes, readTheWire, stockBuzz, storiesBetween, type NewsLabels } from "@/lib/wire-read";
 import { parseWireFilters, type WireItem } from "@/lib/wire-shared";
 
 const NOW = Date.parse("2026-11-10T16:00:00Z");
@@ -143,10 +143,11 @@ describe("the read", () => {
     });
     const r = reading.read!;
     // One idea, one number (owner rule 8).
-    expect(r.headline).toBe("NVIDIA leads the news today, with 7 times the stories it got the day before.");
+    expect(r.headline).toBe("NVDA has 21 stories today, up from 3.");
     expect(r.insights.map((insight) => insight.id)).toEqual(["leader", "mover", "jump"]);
     expect(r.insights[0]!.text).toBe("NVDA fell 4.0% today on 21 stories.");
-    expect(r.insights[0]!.figure).toEqual({ value: "21", label: "stories, 3 the day before" });
+    // The headline has the count against the day before, so the card's figure is the share, not the same numbers again.
+    expect(r.insights[0]!.figure).toEqual({ value: "62%", label: "of all company coverage today" });
     expect(r.insights[0]!.soWhat).toBe("Big news and a big move together: check what changed before you trade it.");
     expect(r.insights[1]!.text).toBe("CRWV rose 20.0% today, the biggest move in the news, on 4 stories that are all new today.");
     expect(r.insights[1]!.soWhat).toMatch(/^The top story: “Headline number \d+ about markets”\.$/);
@@ -163,7 +164,7 @@ describe("the read", () => {
   it("never says the headline's coverage jump when the card calls it ongoing", () => {
     // 20 stories against 8 is 2.5 times: not a surge, so the headline uses the share and the card says so plainly.
     const reading = read([...stories(20, "NVDA", 1), ...stories(8, "NVDA", 30)], { NVDA: { pct: 0.5, name: "NVIDIA" } });
-    expect(reading.read!.headline).toBe("NVIDIA leads the news today, with 100% of all company coverage.");
+    expect(reading.read!.headline).toBe("NVDA leads the news today, with 100% of all company coverage.");
     expect(reading.read!.insights[0]!.soWhat).toBe("A bit more coverage than the day before: still an ongoing story.");
   });
 
@@ -192,24 +193,5 @@ describe("the read", () => {
     expect(theme.text).toBe("TSLA: the biggest story is Tesla recall, 100% negative.");
     expect(theme.soWhat).toBe("TSLA is down 2.0% today.");
     expect(theme.action!.href).toBe("/news?theme=Tesla+recall");
-  });
-});
-
-describe("themes beside the read", () => {
-  const theme = (name: string, tickers: string[]): NewsTheme => ({
-    name,
-    count: 4,
-    prevCount: 0,
-    tones: { positive: 0, negative: 0, neutral: 0 },
-    tickers: tickers.map((ticker) => ({ ticker, count: 1, pct: null })),
-    items: [],
-    market: false,
-    latestAt: "",
-  });
-  const read = { headline: "NVIDIA leads the news today.", insights: [{ id: "leader", tone: "up" as const, text: "NVDA rose.", tickers: ["NVDA"] }] };
-  it("leaves out a theme whose only stock is the one the read leads with", () => {
-    const themes = [theme("Nvidia governance", ["NVDA"]), theme("Chips", ["NVDA", "AMD"]), theme("Inflation", [])];
-    expect(themesBesideRead(themes, read).map((row) => row.name)).toEqual(["Chips", "Inflation"]);
-    expect(themesBesideRead(themes, null)).toHaveLength(3);
   });
 });
