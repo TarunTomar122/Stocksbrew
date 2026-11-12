@@ -30,7 +30,6 @@ export async function TodayMoves() {
     <section id="live" className="scroll-mt-24">
       <SectionHead
         title="Why stocks moved today."
-        lede="Every market day we look for the reason behind each big move, and show it only when a source backs it."
         href="/explore#moves"
         hrefLabel="See every move today"
       />

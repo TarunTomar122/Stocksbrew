@@ -42,7 +42,19 @@ function listWords(items: string[]): string {
   return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
 }
 
-export function LandingTaste({ proof, footnote }: { proof: string | null; footnote: string | null }) {
+export function LandingTaste({
+  lead,
+  demo,
+  proof,
+  footnote,
+}: {
+  /** The hero's headline and line under it (server-rendered by the landing), above the search. */
+  lead: React.ReactNode;
+  /** The live demo card (components/oa/landing/hero-demo.tsx) in the right column until someone picks a stock. */
+  demo: React.ReactNode;
+  proof: string | null;
+  footnote: string | null;
+}) {
   const { user, initialAuthed } = useUser();
   const signedIn = Boolean(user || initialAuthed);
   const [index, setIndex] = useState<SearchEntry[]>(() => getClientSearchIndex("US"));
@@ -246,167 +258,181 @@ export function LandingTaste({ proof, footnote }: { proof: string | null; footno
   const watchLabel = ready.length === 1 ? `Watch ${ready[0]!.ticker} for me` : "Watch these for me";
 
   return (
-    // The cards come first and the action under them, on every screen. On a phone, three cards can push it below the
-    // fold, so a slim copy of it sits just above the bottom tab bar while the cards are on screen and the real one is
-    // not (StickyWatch). From md up there is the one button only.
-    <div className="mx-auto flex w-full max-w-[60rem] flex-col">
-      <div ref={boxRef} className="relative mx-auto w-full max-w-xl">
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            submit();
-          }}
-          onClick={() => inputRef.current?.focus()}
-          className="flex min-h-14 flex-wrap items-center gap-1.5 rounded-[28px] border border-oa-border bg-oa-card py-2 pl-4 pr-2 text-left shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition-colors focus-within:border-[color-mix(in_srgb,var(--ink)_28%,transparent)]"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true" className="mr-1 size-5 shrink-0 text-oa-muted-fg">
-            <circle cx="11" cy="11" r="7" />
-            <path d="m20 20-3.5-3.5" />
-          </svg>
-          {picks.map((ticker) => (
-            <span key={ticker} className="inline-flex h-9 items-center gap-1.5 rounded-full border border-oa-border bg-oa-bg pl-1.5 pr-1">
-              <StockLogo ticker={ticker} size={22} circle eager />
-              <span className="oa-mono text-[14px] font-semibold text-oa-fg">{ticker}</span>
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  remove(ticker);
-                }}
-                aria-label={`Remove ${ticker}`}
-                className="flex size-6 items-center justify-center rounded-full text-oa-muted-fg outline-none hover:bg-oa-accent hover:text-oa-fg focus-visible:bg-oa-accent"
-              >
-                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true" className="size-3">
-                  <path d="m4 4 8 8M12 4l-8 8" />
-                </svg>
-              </button>
-            </span>
-          ))}
-          {full ? null : (
-            <input
-              ref={inputRef}
-              type="text"
-              role="combobox"
-              aria-expanded={showList}
-              aria-controls={showList ? "taste-options" : undefined}
-              aria-activedescendant={showList && results[active] ? `taste-option-${active}` : undefined}
-              aria-autocomplete="list"
-              aria-label="Type a ticker you own or follow"
-              value={query}
-              onChange={(event) => {
-                setQuery(event.target.value);
-                setOpen(true);
-              }}
-              onFocus={() => {
-                setOpen(true);
-                loadIndex();
-              }}
-              onPointerEnter={loadIndex}
-              onKeyDown={(event) => {
-                if (event.key === "ArrowDown" && results.length) {
-                  event.preventDefault();
-                  setActive((i) => (i + 1) % results.length);
-                } else if (event.key === "ArrowUp" && results.length) {
-                  event.preventDefault();
-                  setActive((i) => (i - 1 + results.length) % results.length);
-                } else if (event.key === "Escape") {
-                  setOpen(false);
-                } else if (event.key === "Backspace" && !query && picks.length) {
-                  remove(picks[picks.length - 1]!);
-                }
-              }}
-              placeholder={picks.length === 0 ? "Type a stock you own, like NVDA" : "Add another"}
-              autoComplete="off"
-              autoCapitalize="characters"
-              spellCheck={false}
-              className="h-9 min-w-[8rem] flex-1 bg-transparent text-base text-oa-fg outline-none placeholder:text-oa-muted-fg"
-            />
-          )}
-        </form>
-
-        {showList ? (
-          <ul id="taste-options" role="listbox" className="absolute inset-x-0 top-full z-30 mt-2 overflow-hidden rounded-2xl border border-oa-border bg-oa-card py-1.5 text-left shadow-[0_8px_24px_rgba(0,0,0,0.08)]">
-            {results.length === 0 ? (
-              <li className="px-5 py-3 text-[15px] text-oa-muted-fg">
-                Press Enter to look up <span className="oa-mono font-medium text-oa-fg">{query.trim().toUpperCase()}</span>.
-              </li>
-            ) : (
-              results.map((entry, i) => (
-                <li key={entry.instrument_id} id={`taste-option-${i}`} role="option" aria-selected={i === active}>
-                  <button
-                    type="button"
-                    onMouseDown={(event) => {
-                      event.preventDefault();
-                      choose(entry.ticker);
-                    }}
-                    onMouseEnter={() => setActive(i)}
-                    className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors ${i === active ? "bg-oa-accent" : ""}`}
-                  >
-                    <StockLogo ticker={entry.ticker} size={24} circle />
-                    <span className="oa-mono w-16 shrink-0 font-semibold text-oa-fg">{entry.ticker}</span>
-                    <span className="min-w-0 flex-1 truncate text-oa-muted-fg">{entry.name}</span>
-                  </button>
-                </li>
-              ))
-            )}
-          </ul>
-        ) : null}
-      </div>
-
-      {picks.length === 0 ? (
-        <p className="mt-3 text-center text-[15px] leading-6 text-oa-muted-fg">
-          Or try{" "}
-          <button
-            type="button"
-            onClick={() => SUGGESTED.forEach((ticker) => add(ticker))}
-            className="font-medium text-oa-fg underline decoration-oa-border underline-offset-4 hover:decoration-oa-fg"
+    // Two columns from lg: the headline and the search on the left, and on the right the live demo card, which the
+    // visitor's own picks replace as soon as there is one (so the call they asked for shows where the demo was). On a
+    // phone the right column stacks under the search. The cards come first and the action under them; three cards can
+    // push it below the fold on a phone, so a slim copy sits just above the bottom tab bar while the cards are on
+    // screen and the real one is not (StickyWatch). With no demo and no picks the right column is empty and hides,
+    // and the left one takes the row. Top-aligned with a fixed inset rather than centred, so the headline and the
+    // field do not jump when picks make the right column taller.
+    <div className="flex w-full flex-col gap-8 lg:flex-row lg:items-start lg:gap-12 xl:gap-16">
+      <div className="min-w-0 lg:flex-1 lg:pt-12">
+        {lead}
+        <div ref={boxRef} className="relative mt-6 w-full max-w-xl sm:mt-8">
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              submit();
+            }}
+            onClick={() => inputRef.current?.focus()}
+            className="flex min-h-14 flex-wrap items-center gap-1.5 rounded-[28px] border border-oa-border bg-oa-card py-2 pl-4 pr-2 text-left shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition-colors focus-within:border-[color-mix(in_srgb,var(--ink)_28%,transparent)]"
           >
-            {listWords(SUGGESTED)}
-          </button>
-        </p>
-      ) : null}
-      {limited ? (
-        <p role="status" className="mt-3 text-center text-[14px] leading-5 text-oa-muted-fg">
-          {TASTE_RATE_LIMITED}
-        </p>
-      ) : null}
-      {missing.length ? (
-        <p className="mt-3 text-center text-[14px] leading-5 text-oa-muted-fg">
-          We don&apos;t cover {listWords(missing)} yet.
-        </p>
-      ) : null}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true" className="mr-1 size-5 shrink-0 text-oa-muted-fg">
+              <circle cx="11" cy="11" r="7" />
+              <path d="m20 20-3.5-3.5" />
+            </svg>
+            {picks.map((ticker) => (
+              <span key={ticker} className="inline-flex h-9 items-center gap-1.5 rounded-full border border-oa-border bg-oa-bg pl-1.5 pr-1">
+                <StockLogo ticker={ticker} size={22} circle eager />
+                <span className="oa-mono text-[14px] font-semibold text-oa-fg">{ticker}</span>
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    remove(ticker);
+                  }}
+                  aria-label={`Remove ${ticker}`}
+                  className="flex size-6 items-center justify-center rounded-full text-oa-muted-fg outline-none hover:bg-oa-accent hover:text-oa-fg focus-visible:bg-oa-accent"
+                >
+                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true" className="size-3">
+                    <path d="m4 4 8 8M12 4l-8 8" />
+                  </svg>
+                </button>
+              </span>
+            ))}
+            {full ? null : (
+              <input
+                ref={inputRef}
+                type="text"
+                role="combobox"
+                aria-expanded={showList}
+                aria-controls={showList ? "taste-options" : undefined}
+                aria-activedescendant={showList && results[active] ? `taste-option-${active}` : undefined}
+                aria-autocomplete="list"
+                aria-label="Type a ticker you own or follow"
+                value={query}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                  setOpen(true);
+                }}
+                onFocus={() => {
+                  setOpen(true);
+                  loadIndex();
+                }}
+                onPointerEnter={loadIndex}
+                onKeyDown={(event) => {
+                  if (event.key === "ArrowDown" && results.length) {
+                    event.preventDefault();
+                    setActive((i) => (i + 1) % results.length);
+                  } else if (event.key === "ArrowUp" && results.length) {
+                    event.preventDefault();
+                    setActive((i) => (i - 1 + results.length) % results.length);
+                  } else if (event.key === "Escape") {
+                    setOpen(false);
+                  } else if (event.key === "Backspace" && !query && picks.length) {
+                    remove(picks[picks.length - 1]!);
+                  }
+                }}
+                placeholder={picks.length === 0 ? "Type a stock you own, like NVDA" : "Add another"}
+                autoComplete="off"
+                autoCapitalize="characters"
+                spellCheck={false}
+                className="h-9 min-w-[8rem] flex-1 bg-transparent text-base text-oa-fg outline-none placeholder:text-oa-muted-fg"
+              />
+            )}
+          </form>
 
-      {picks.length ? (
-        <ul
-          ref={cardsRef}
-          aria-live="polite"
-          className={`mx-auto mt-6 grid w-full grid-cols-1 gap-3 text-left ${
-            picks.length === 1 ? "max-w-md" : picks.length === 2 ? "max-w-3xl md:grid-cols-2" : "md:grid-cols-3"
-          }`}
-        >
-          {picks.map((ticker) => (
-            <TasteSlot key={ticker} ticker={ticker} slot={slots[ticker]} line={lineFor.get(ticker) ?? null} onRetry={() => fetchCard(ticker)} />
-          ))}
-        </ul>
-      ) : null}
-
-      {pricedAt ? <p className="mt-2 text-center text-[13px] leading-5 text-oa-muted-fg">Moves as of {pricedAt}</p> : null}
-
-      {ready.length ? (
-        <div ref={actionRef} className="mt-5 flex flex-col items-center gap-2">
-          <OaButton size="md" loading={busy} onClick={() => void watch()} className="h-11 px-6 text-[15px]">
-            {watchLabel}
-          </OaButton>
-          {!signedIn && footnote ? <p className="text-center text-[14px] leading-5 text-oa-muted-fg">{footnote}</p> : null}
-          {error ? (
-            <p role="alert" className="text-center text-[14px] leading-5 text-signal-bearish">
-              {error}
-            </p>
+          {showList ? (
+            <ul id="taste-options" role="listbox" className="absolute inset-x-0 top-full z-30 mt-2 overflow-hidden rounded-2xl border border-oa-border bg-oa-card py-1.5 text-left shadow-[0_8px_24px_rgba(0,0,0,0.08)]">
+              {results.length === 0 ? (
+                <li className="px-5 py-3 text-[15px] text-oa-muted-fg">
+                  Press Enter to look up <span className="oa-mono font-medium text-oa-fg">{query.trim().toUpperCase()}</span>.
+                </li>
+              ) : (
+                results.map((entry, i) => (
+                  <li key={entry.instrument_id} id={`taste-option-${i}`} role="option" aria-selected={i === active}>
+                    <button
+                      type="button"
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                        choose(entry.ticker);
+                      }}
+                      onMouseEnter={() => setActive(i)}
+                      className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors ${i === active ? "bg-oa-accent" : ""}`}
+                    >
+                      <StockLogo ticker={entry.ticker} size={24} circle />
+                      <span className="oa-mono w-16 shrink-0 font-semibold text-oa-fg">{entry.ticker}</span>
+                      <span className="min-w-0 flex-1 truncate text-oa-muted-fg">{entry.name}</span>
+                    </button>
+                  </li>
+                ))
+              )}
+            </ul>
           ) : null}
         </div>
-      ) : null}
 
-      {proof ? <p className="mt-5 text-center text-[14px] leading-5 text-oa-muted-fg">{proof}</p> : null}
+        {picks.length === 0 ? (
+          <p className="mt-3 text-[15px] leading-6 text-oa-muted-fg">
+            Or try{" "}
+            <button
+              type="button"
+              onClick={() => SUGGESTED.forEach((ticker) => add(ticker))}
+              className="font-medium text-oa-fg underline decoration-oa-border underline-offset-4 hover:decoration-oa-fg"
+            >
+              {listWords(SUGGESTED)}
+            </button>
+          </p>
+        ) : null}
+        {limited ? (
+          <p role="status" className="mt-3 text-[14px] leading-5 text-oa-muted-fg">
+            {TASTE_RATE_LIMITED}
+          </p>
+        ) : null}
+        {missing.length ? (
+          <p className="mt-3 text-[14px] leading-5 text-oa-muted-fg">
+            We don&apos;t cover {listWords(missing)} yet.
+          </p>
+        ) : null}
+
+        {/* Not on a phone: the demo card under the search makes the same point, and is worth the room. */}
+        {proof ? <p className="mt-5 hidden text-[14px] leading-5 text-oa-muted-fg sm:block">{proof}</p> : null}
+      </div>
+
+      <div className="min-w-0 empty:hidden lg:w-[440px] lg:shrink-0">
+        {picks.length ? (
+          <>
+            <ul
+              ref={cardsRef}
+              aria-live="polite"
+              className={`grid w-full grid-cols-1 gap-3 text-left lg:grid-cols-1 ${
+                picks.length === 2 ? "md:grid-cols-2" : picks.length === 3 ? "md:grid-cols-3" : "md:max-w-md"
+              }`}
+            >
+              {picks.map((ticker) => (
+                <TasteSlot key={ticker} ticker={ticker} slot={slots[ticker]} line={lineFor.get(ticker) ?? null} onRetry={() => fetchCard(ticker)} />
+              ))}
+            </ul>
+
+            {pricedAt ? <p className="mt-2 text-[13px] leading-5 text-oa-muted-fg">Moves as of {pricedAt}</p> : null}
+
+            {ready.length ? (
+              <div ref={actionRef} className="mt-4 flex flex-col items-start gap-2">
+                <OaButton size="md" loading={busy} onClick={() => void watch()} className="h-11 px-6 text-[15px]">
+                  {watchLabel}
+                </OaButton>
+                {!signedIn && footnote ? <p className="text-[14px] leading-5 text-oa-muted-fg">{footnote}</p> : null}
+                {error ? (
+                  <p role="alert" className="text-[14px] leading-5 text-signal-bearish">
+                    {error}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+          </>
+        ) : (
+          demo
+        )}
+      </div>
       {ready.length ? <StickyWatch cardsRef={cardsRef} actionRef={actionRef} label={watchLabel} busy={busy} error={error} onWatch={() => void watch("sticky")} /> : null}
     </div>
   );

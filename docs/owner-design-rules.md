@@ -20,7 +20,7 @@ The rule the owner has repeated most, and is angriest about: "repeating the same
 ## 3. Cards, not tables, for stock items
 
 - Stock items in the briefing, memo, market summaries and similar lists are small cards side by side, with the logo, one big figure and one highlighted fact. "Instead of having this in a table with rows, turn them into small cards ... each stock gets a card with some information that we need highlighted."
-- Reads and summaries are visual, not paragraphs: "I don't want to read text." Insights are cards with one big figure, and the weekly memo is charts and cards.
+- Summaries are visual, not paragraphs: "I don't want to read text." The weekly memo is charts and cards.
 - Cards in a row are equal height.
 - Ranked lists with several facts per stock (Signals' Reddit names, News' most talked about) stay compact tables, not cards: "this table was better off earlier without cards". Each row still carries its signal: the mood or tone (positive/negative talk, as one figure or word) and one highlight (what is being said, the top story), not just a ticker and a number ("where info about positive or negative talk and highlight?").
 - Dense data tables (screener, holdings) can stay tables, but tickers only (no long names), names on one line cut with "…", and short column words ("Avg cost").
@@ -28,7 +28,10 @@ The rule the owner has repeated most, and is angriest about: "repeating the same
 ## 4. No empty space
 
 - "Those weird empty spaces look so bad on the right when there is no card ... It's just so bad."
-- No half-empty card rows: a lone card fills its row, and an odd last card spans the row.
+- Cards in a grid keep one fixed width: an odd last card stays one column wide, never stretched over the row (REVERSED Nov 12: "not a good idea to stretch this card it should be fixed width").
+- A stock card shows the stock's price and today's % under it, nothing about the position's dollars ("4 numbers are super confusing"). Portfolio dollars live in the positions table.
+- A list that has a "N need a look" count shows those N first; the rest fold behind one quiet toggle ("why show me all when only 6 needs a look").
+- One primary button per header; extra actions go in a menu off it ("do we need 5 buttons at once???").
 - No side rail that ends halfway down while the main column goes on. No card stretched tall over a short list ("hate the empty space here wtf is this ugly").
 - No card padded out to match a taller neighbour: fill it with more real content, or size both lists to the same scroll height.
 
@@ -49,7 +52,8 @@ The rule the owner has repeated most, and is angriest about: "repeating the same
 
 ## 6. Visual style
 
-- No coloured top borders on cards: "I simply don't like top borders."
+- No coloured top borders on cards: "I simply don't like top borders." This covers share cards and link-preview (OG) images too ("u also need to remove the top colored borders from those cards i told u i hate them", Nov 12).
+- Share cards and link previews are visual: logos, one big number, a small chart, coloured movers. A text-only card is a break ("these shared cards look ugly as fuck with no visuals").
 - No small labels above big headings ("i dont like these sub headings in small words on bigger headings").
 - Quiet focus states: no thick coloured focus line on inputs.
 - Section and nav group labels are quiet and must not look clickable.
@@ -57,9 +61,9 @@ The rule the owner has repeated most, and is angriest about: "repeating the same
 - Charts must be readable without a legend lesson ("no clue how to make sense of these red green dots"). Plain numbers beat clever encodings.
 - Each place has one icon, used in the nav and beside its own page title.
 
-## 7. Insights first, real data only
+## 7. Details first, real data only
 
-- "I want insights, that's what a user will pay for ... don't just show data, show insights." Every page opens with a read: a headline plus up to 3 insights, each with a number compared with a baseline, the stocks it touches, and what to do. Tables are evidence underneath.
+- No "read" block on any page (owner, Nov 12, replacing the old "every page opens with a read" rule): "on all the pages I see this, like a main card with some highlighter… it's super useless to me. Unless I force myself I never actually pay attention to any of this… I would rather just go into the details myself… You might have to remove it from all the places." A page opens straight on its real content: the lists, tables and cards. No headline-plus-insight-cards summary at the top, and its content is not moved into some other summary card. Where it held the page's only "as of" time, one quiet timestamp sits near the data.
 - Stocks first, not news first: headlines are evidence attached to a stock, grouped by stock.
 - Nothing stale presented as news: "it's 2026 and this is from last year??" A year-old event never leads a page.
 - Nothing simulated or made up shown as real. When a reason isn't confirmed, write nothing ("why show no confirmed reason, just not write anything").
@@ -68,7 +72,12 @@ The rule the owner has repeated most, and is angriest about: "repeating the same
 
 - Reads like a person wrote it: full sentences, plain words, no AI-sounding phrasing, no truncated sentences. (Don't remove the word "AI" itself.)
 - No mechanics copy: no footnotes explaining how the UI, the data or the rule works ("stupid technical details"), and no "what would change it: revisit if momentum breaks..." boilerplate.
-- Headlines are short: one idea, about 12-18 words, one number. Caveats go underneath.
+- Word budget, hard limits (owner, Nov 12: "this is like too much text how are you shipping too much text"):
+  - a page title or headline is at most 10 words;
+  - no paragraph under a page title: at most one line of 15 words, and only when it says something the content below doesn't;
+  - a card is a big figure, a label of a few words saying what it is, and at most ONE line (≤15 words), only when it adds something; never a second, muted sentence ("all of these cards are giving too much sentences instead u could just tell me in one line cant u??");
+  - never restate in prose what the cards, table or plan list right below already show.
+  When in doubt, cut. A judge counts words and flags every breach as a rule-8 break.
 - Call words are always Buy more / Keep / Sell some, never Hold / Accumulate / Avoid / Trim. A call shows only its own price level.
 - Headlines from sources are not shown in Scraped Title Case.
 

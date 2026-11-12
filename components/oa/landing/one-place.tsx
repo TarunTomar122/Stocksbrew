@@ -20,17 +20,6 @@ const CALL_CHIP: Record<PlainCall, string> = {
 };
 
 /**
- * One column on a phone, two from `sm`, three from `lg`. The last card stretches over whatever its row leaves empty,
- * so no row ends with a gap (owner rule 4).
- */
-function cellClass(index: number, count: number): string {
-  if (index !== count - 1) return "min-w-0";
-  const sm = count % 2 === 1 ? " sm:col-span-2" : "";
-  const lg = ["lg:col-span-1", "lg:col-span-3", "lg:col-span-2"][count % 3];
-  return `min-w-0${sm} ${lg}`;
-}
-
-/**
  * Proof two: one call on each stock you own. The example portfolio from My stocks (/portfolio), with the same
  * loaders (lib/portfolio-home/stocks-server.ts and the ideas and reason checks it reads), so the holdings, their
  * value, the day's move and each stock's line here are the ones /portfolio shows. Share counts are made up; prices
@@ -81,8 +70,8 @@ export async function OnePlace() {
         </div>
         {/* Small stock cards, as on My stocks (owner rule 3): logo, the call, the day's move and one fact. */}
         <ul className="grid grid-cols-1 gap-2.5 p-3 sm:grid-cols-2 sm:p-4 lg:grid-cols-3">
-          {view.rows.map((row, index) => (
-            <li key={row.ticker} className={cellClass(index, view.rows.length)}>
+          {view.rows.map((row) => (
+            <li key={row.ticker} className="min-w-0">
               <Link
                 prefetch={false}
                 href={`/stock/${encodeURIComponent(row.ticker)}`}

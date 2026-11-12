@@ -221,11 +221,8 @@ export default async function PricingPage({ searchParams }: Props) {
 
       <header className="mb-5 px-2 pt-2 sm:mb-6 sm:px-0 sm:pt-4">
         <h1 className="text-balance text-[28px] font-semibold leading-[34px] tracking-[-0.02em] text-oa-fg sm:text-[36px] sm:leading-[44px]">
-          Our call on {CALL_COVERAGE} is free. Pro adds the full report on all of them.
+          Our calls are free. Pro gets you the full report.
         </h1>
-        <p className="mt-2 max-w-[46rem] text-pretty text-[16px] leading-6 text-oa-muted-fg">
-          Whether we&apos;d buy more, keep or sell some, why, and what would change it is free to read on every stock. A free account also gets the full report on {FREE_COVERED_WORD} stocks you pick: the prices where we&apos;d act, the whole brief, and how the call has moved.
-        </p>
       </header>
 
       {callbackSuccess && !viewer.isSubscribed ? (

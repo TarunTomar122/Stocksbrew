@@ -1,12 +1,10 @@
 import * as React from "react";
 import { Suspense } from "react";
 
-import { AgentLog, AgentLogGhost } from "@/components/agent-log/agent-log";
 import { OaSiteHeader } from "@/components/oa/oa-site-header";
 import { interTight } from "@/components/oa/font";
 import { Reveal } from "@/components/reveal";
 import {
-  CALL_COVERAGE,
   HERO_FOOTNOTE,
   HERO_HEADLINE_EMPHASIS,
   HERO_HEADLINE_LEAD,
@@ -16,14 +14,14 @@ import {
 import { getCallCount } from "@/lib/landing-taste";
 import { aboutCount } from "@/lib/landing-taste-shared";
 import { CONTACT_EMAIL } from "@/lib/docs/site";
-import { limitFor } from "@/lib/entitlements";
-import { countWord } from "@/lib/plain-copy";
 import { getViewer } from "@/lib/entitlements-server";
 import { getLandingUserContext } from "@/components/landing-data";
 import { pricingMarket } from "@/lib/pricing";
 import { headers } from "next/headers";
 
 import { AgentDoes } from "./landing/agent-does";
+import { HeroDemo, HeroDemoGhost } from "./landing/hero-demo";
+import { MarketTiles, MarketTilesGhost } from "./landing/market-tiles";
 import { OnePlace } from "./landing/one-place";
 import { PlansSection } from "./landing/plans-section";
 import { FRAME, SectionHead } from "./landing/shared";
@@ -81,26 +79,36 @@ export async function OaLanding() {
       <OaSiteHeader variant="marketing" />
 
       <div className={FRAME}>
-        {/* The hero is the taste: type two or three stocks, read our call on each right here, then watch them. One
-            action, centred, so there is no second hero button and no half-empty column beside it. */}
-        <section className="pb-4 pt-6 text-center sm:pt-16 lg:pt-20">
-          <h1 className="mx-auto max-w-[46rem] text-balance font-medium tracking-tight text-oa-fg text-[1.875rem] leading-[1.1] sm:text-[3.5rem] sm:leading-[1.05]">
-            {HERO_HEADLINE_LEAD}{" "}
-            <span className="text-oa-muted-fg">{HERO_HEADLINE_EMPHASIS}</span>
-          </h1>
-          <p className="text-pretty mx-auto mt-3 max-w-xl text-[15px] leading-6 text-oa-fg/85 sm:mt-5 sm:text-[17px] sm:leading-7">
-            {HERO_SUBHEAD}
-          </p>
-          <div className="mt-5 sm:mt-8">
-            <LandingTaste proof={heroProof(callCount ? aboutCount(callCount) : null)} footnote={HERO_FOOTNOTE} />
-          </div>
+        {/* The hero, in two columns from lg: the headline and the taste's search on the left (type a stock, read our
+            call on it), and a live demo card on the right that flips between today's stand-out stocks. The visitor's
+            own picks take the demo's place. On a phone the demo stacks under the search. */}
+        <section className="pb-4 pt-6 sm:pt-14 lg:pt-16">
+          <LandingTaste
+            lead={
+              <>
+                <h1 className="max-w-[40rem] text-balance font-medium tracking-tight text-oa-fg text-[2rem] leading-[1.08] sm:text-[3rem] sm:leading-[1.04] xl:text-[3.5rem]">
+                  {HERO_HEADLINE_LEAD}{" "}
+                  <span className="text-oa-muted-fg">{HERO_HEADLINE_EMPHASIS}</span>
+                </h1>
+                <p className="text-pretty mt-3 max-w-xl text-[15px] leading-6 text-oa-fg/85 sm:mt-5 sm:text-[17px] sm:leading-7">
+                  {HERO_SUBHEAD}
+                </p>
+              </>
+            }
+            demo={
+              <Suspense fallback={<HeroDemoGhost />}>
+                <HeroDemo />
+              </Suspense>
+            }
+            proof={heroProof(callCount ? aboutCount(callCount) : null)}
+            footnote={HERO_FOOTNOTE}
+          />
         </section>
 
-        {/* Under the hero: the daily check of the whole market, from the jobs' own records, titled as that check so it
-            never reads as more agents beside the example's three below (judges, ship 47). Nothing at all when there is
-            no log yet, so no empty box. */}
-        <Suspense fallback={<AgentLogGhost compact className="mt-4 sm:mt-10" />}>
-          <AgentLog compact market className="mt-4 sm:mt-10" />
+        {/* Under the hero: the day's check of the whole market as figure tiles, from the jobs' own records. Nothing at
+            all when there are not two checks to show, so no empty box. */}
+        <Suspense fallback={<MarketTilesGhost className="mt-8 sm:mt-12" />}>
+          <MarketTiles className="mt-8 sm:mt-12" />
         </Suspense>
 
         {/* one story below the hero: short proofs with real data, one link each, then the questions answered in the open */}
@@ -113,7 +121,7 @@ export async function OaLanding() {
           <section id="portfolio" className="scroll-mt-24">
             <SectionHead
               title="What we'd do with each stock you own."
-              lede="Add your stocks and we tell you, for each one, whether we'd buy more, keep it or sell some, and why. There is no broker login, so nothing here can touch your money."
+              lede="No broker login, so nothing here can touch your money."
               href="/portfolio?tab=holdings"
               hrefLabel="Add your stocks"
             />
@@ -126,7 +134,6 @@ export async function OaLanding() {
           <section id="what-it-does" className="scroll-mt-24">
             <SectionHead
               title="Three agents watch the example portfolio."
-              lede="On top of our daily check of the whole market, these three look only at the example's stocks, every market day, and write only when they find something. Here is what each found on its last run. Set them up on your stocks and they do the same for you."
               href="/agents"
               hrefLabel="Set one up"
             />
@@ -139,7 +146,6 @@ export async function OaLanding() {
               <SectionHead
                 // One heading, one idea (owner rule 6, judges ship 42): the two plans in one sentence.
                 title="Our calls are free, and Pro adds the full report."
-                lede={`Our call on ${CALL_COVERAGE}, why we made it and what would change it are free. A free account also gets the full report on ${countWord(limitFor("covered_stocks", "free"))} stocks you pick, with the prices where we'd buy more or sell some.`}
                 href="/pricing"
                 hrefLabel="Compare the plans"
               />
