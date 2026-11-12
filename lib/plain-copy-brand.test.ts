@@ -56,3 +56,10 @@ describe("surnames after first names", () => {
     expect(headlineCase("Mark Your Calendars For Nvidia Earnings", "")).toMatch(/^Mark your /);
   });
 });
+
+describe("opinion pieces", () => {
+  it("drops a Cramer's stance headline", () => {
+    const stock = { ticker: "NVDA", name: "NVIDIA Corporation", day_change_pct: 2.9 };
+    expect(newsRank({ title: "Cramer's stance on Nvidia's stock amid reports that CEO Jensen Huang may be ousted", summary: "Cramer weighed in." }, stock)).toBeNull();
+  });
+});

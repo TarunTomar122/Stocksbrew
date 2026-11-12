@@ -104,6 +104,22 @@ describe("briefingRead", () => {
     expect(held?.sub).toBe("NVDA (+2.9%) moved most.");
   });
 
+  it("reads a held stock's report against its usual move and a normal day, with the step to take", () => {
+    const nvda = item({ id: "e", kind: "earnings_upcoming", ticker: "NVDA", relation: "holding", headline: "NVDA reports earnings on Tuesday after the close", deadline_days: 6 });
+    const grouped = groupBriefingSections({ needs_you: [], worth_knowing: [], coming_up: [nvda], kept: [], dismissed: [] });
+    const plain = briefingRead({ ...base, date: "2026-11-11" }, grouped)!.insights[0]!;
+    expect(plain.figure).toBeUndefined();
+    const reports = { NVDA: { usualPct: 5.94, usualKind: "median" as const, normalPct: 2.02, vsDay: "about three times a normal day" } };
+    const card = briefingRead({ ...base, date: "2026-11-11" }, grouped, null, Date.now(), { reports })!.insights[0]!;
+    expect(card.text).toBe("NVDA reports earnings on Tuesday after the close.");
+    expect(card.figure).toEqual({ value: "5.9%", label: "its usual move on a report" });
+    expect(card.soWhat).toBe("That is about three times NVDA's normal day of about 2.0%. Check our call on it before the report.");
+    // One report is not a pattern: its move, the normal day, no "times".
+    const single = briefingRead({ ...base, date: "2026-11-11" }, grouped, null, Date.now(), { reports: { NVDA: { usualPct: 12.4, usualKind: "single", normalPct: 2, vsDay: null } } })!.insights[0]!;
+    expect(single.figure).toEqual({ value: "12%", label: "its move after its last report" });
+    expect(single.soWhat).toBe("A normal day for NVDA is a move of about 2.0%. Check our call on it before the report.");
+  });
+
   it("names the decisions when there is no holdings figure", () => {
     const read = briefingRead(base, groupBriefingSections(sections([orcl])));
     expect(read?.headline).toBe("One stock needs a decision today: ORCL.");

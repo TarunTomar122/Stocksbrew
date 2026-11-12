@@ -13,18 +13,16 @@ import {
 } from "@/lib/briefing";
 
 import { TheRead } from "@/components/oa/insight";
-import { StartFreeButton } from "@/components/oa/start-free-button";
 import { StockLogo } from "@/components/stock-logo";
 import {
   groupBriefingSections,
   type BriefingGroup,
 } from "@/lib/briefing-groups";
-import { briefingRead, comingUpAfterRead, earlierSession, holdingsFirst, readEarningsTickers, type BriefingSession } from "@/lib/briefing-read";
+import { briefingRead, comingUpAfterRead, earlierSession, holdingsFirst, readEarningsTickers, type BriefingReportHistory, type BriefingSession } from "@/lib/briefing-read";
 import { anchorGroups, WORTH_KNOWING_FIRST } from "@/lib/briefing-anchors";
 import type { ExampleBriefingExtras } from "@/lib/briefing-example";
 import { briefingLead, briefingSteps } from "@/lib/next-steps";
 import { etClock, etDayOfStamp } from "@/lib/quote-time";
-import { countWord } from "@/lib/read-format";
 
 import { readAskContext } from "./ask";
 import { BriefingGroupCard, type GroupActions } from "./briefing-group";
@@ -67,6 +65,8 @@ export type BriefingViewProps = {
    * of its own still gets a card with one ("Its biggest gain since Sep 9"), not a bare chip (owner rule 3).
    */
   moveFacts?: Readonly<Record<string, readonly string[]>>;
+  /** Held stocks' report histories by ticker (lib/briefing-report-history-server.ts): the read's earnings card figure. */
+  reportHistory?: Readonly<Record<string, BriefingReportHistory>>;
   /** When the server rendered the page (ms). The read dates old moves against it, so server and browser agree. */
   renderedAt?: number;
 };
@@ -145,19 +145,12 @@ function SessionStrip({ sectors }: { sectors: BriefingSession["sectors"] }) {
 }
 
 /**
- * "Nothing new on seven stocks you hold and two you watch": held and watched said apart, so the counts add up with My
- * stocks (holdings there, the watchlist on its own tab).
+ * "Your other stocks today": what the card is (the stocks with no card above, each with its move), not a count of
+ * what did not happen (judges, ship 39). An earlier session's prices say their day, never "today".
  */
-function quietHead(names: ReadonlyArray<{ relation?: string | null }>): string {
-  const held = names.filter((name) => name.relation === "holding").length;
-  const watched = names.filter((name) => name.relation === "watching").length;
-  const word = (n: number) => countWord(n).toLowerCase();
-  if (held + watched !== names.length || held === 0 || watched === 0) {
-    const n = names.length;
-    const what = held === n ? (n === 1 ? "stock you hold" : "stocks you hold") : watched === n ? (n === 1 ? "stock you watch" : "stocks you watch") : n === 1 ? "other stock" : "other stocks";
-    return `Nothing new on ${word(n)} ${what}`;
-  }
-  return `Nothing new on ${word(held)} ${held === 1 ? "stock" : "stocks"} you hold and ${word(watched)} you watch`;
+function quietHead(asOf: string | null | undefined, date: string, archived: boolean): string {
+  // A saved briefing from an earlier day read as it was then: "that day", never "today".
+  return `Your other stocks${earlierSession(asOf, date) || (archived ? " that day" : " today")}`;
 }
 
 // Written out whole so Tailwind finds them.
@@ -201,6 +194,8 @@ function GroupCards({
   // Nothing on the card, and nothing more to open on it (./card-words.ts).
   const bare = (group: BriefingGroup) => chips && Boolean(group.ticker) && words.cards.get(group.key)!.bare;
   const cards = groups.filter((group) => !bare(group));
+  // Every company in the section keeps its capitals in an opened card's sources too, as on the card faces.
+  const names = groups.filter((group) => group.ticker).map((group) => group.name).filter(Boolean);
   const chipped = groups.filter(bare);
   return (
     <>
@@ -237,6 +232,7 @@ function GroupCards({
               key={group.key}
               group={group}
               words={words.cards.get(group.key)!}
+              names={names}
               actions={actions}
               anchor={anchors?.has(group) ?? false}
               fill={stockGridFill(index, cards.length)}
@@ -334,15 +330,15 @@ export function exampleMarketWords(market: ExampleBriefingExtras["market"], date
   return `${when}: S&P 500 ${signedPct(market.pct, 1)}${market.leader ? `, ${market.leader} led` : ""}`;
 }
 
-/** The example's head: what this is, once, the one clock, the market in a line, and the one way to get your own. */
+/**
+ * The example's head: what this is, once, the one clock and the market in a line. No button: the shell's Start free
+ * (the sidebar, or the top bar on a phone) is the view's one (judges, ship 39).
+ */
 function ExampleHead({ date, marketState, example, staleNote, degraded }: { date: string; marketState: string; example: ExampleBriefingExtras; staleNote: string | null; degraded: boolean }) {
   const market = exampleMarketWords(example.market, date);
   return (
     <header className="col-span-full min-w-0 px-2 sm:px-0">
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <h1 className="min-w-0 text-pretty text-[15px] font-semibold leading-6 text-oa-fg">Example briefing for a made-up portfolio of real stocks</h1>
-        <StartFreeButton surface="briefing_example" size="sm" className="shrink-0" />
-      </div>
+      <h1 className="min-w-0 text-pretty text-[15px] font-semibold leading-6 text-oa-fg">Example briefing for a made-up portfolio of real stocks</h1>
       <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-pretty text-[13px] leading-5 text-oa-muted-fg">
         <span>
           {longDay(date)} · {exampleClock(marketState, example.pricedAt, staleNote, date)}.
@@ -387,6 +383,7 @@ export function BriefingView({
   example = null,
   resultFacts,
   moveFacts,
+  reportHistory,
   renderedAt,
 }: BriefingViewProps) {
   // One clock for the whole life of the view: the server's, so the hydrated read matches the one sent as HTML.
@@ -405,7 +402,7 @@ export function BriefingView({
   // Your own briefing reads holdings first, then what you watch, then the market (lib/briefing-read.ts).
   const grouped = personal ? holdingsFirst(groupBriefingSections(sections, briefing.mode)) : groupBriefingSections(sections, briefing.mode);
   // The read, with its next steps beside the findings (lib/next-steps.ts).
-  const read = briefingSteps(briefingRead(briefing, grouped, personal ? null : session, now, { example: Boolean(example), marketPct: example?.market?.pct ?? null }), {
+  const read = briefingSteps(briefingRead(briefing, grouped, personal ? null : session, now, { example: Boolean(example), marketPct: example?.market?.pct ?? null, reports: reportHistory }), {
     mode: personal ? "personal" : "market",
     lead: personal ? null : briefingLead(grouped.needs_you),
   });
@@ -760,7 +757,7 @@ export function BriefingView({
         {personal && briefing.quiet.names.length > 0 ? (
           <section aria-labelledby="quiet-head" className={`${CARD} px-4 pb-3.5 pt-3`}>
             <h2 id="quiet-head" className="text-pretty text-[15px] font-semibold leading-6 text-oa-fg">
-              {quietHead(briefing.quiet.names)}
+              {quietHead(briefing.portfolio?.as_of, briefing.date, archived)}
             </h2>
             {/* About eight rows at most; a long list scrolls inside with no visible bar (owner rule 5). */}
             <ul className="scrollbar-hide mt-2.5 grid max-h-[23.5rem] grid-cols-2 gap-2 overflow-y-auto overscroll-contain sm:grid-cols-4 lg:grid-cols-2">

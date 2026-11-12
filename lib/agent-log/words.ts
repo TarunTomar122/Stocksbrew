@@ -133,7 +133,7 @@ function callsRow(facts: CallsFacts, looked: number): { kind: string; status: st
   const changed = facts.changes.filter((change) => change.ticker && CALL_WORDS[change.to]).length;
   return changed > 0
     ? { kind: "Calls", status: `${count(changed)} of ${count(facts.reviewed)} changed` }
-    : { kind: "Calls", status: `${count(Math.max(looked, facts.reviewed))} checked, none changed` };
+    : { kind: "Calls", status: `none of ${count(Math.max(looked, facts.reviewed))} changed` };
 }
 
 const callsHref = (one: string | null) => (one ? `/stock/${encodeURIComponent(one)}` : "/screener");

@@ -68,9 +68,33 @@ function useGate(feature: FeatureId, plan: Plan, ticker?: string) {
   return { step, act, busy: busy || signingIn };
 }
 
-function ctaLabel(step: "sign_in" | "upgrade" | null, trialEligible: boolean): string {
-  // The one signed-out label site-wide (the header, the landing and every lock say the same).
-  if (step === "sign_in") return "Start free";
+/**
+ * A signed-out lock's button says what signing in gets you here ("Read the full report"), never a second "Start free":
+ * the shell's Start free (the sidebar, or the top bar on a phone) is the view's one (judges, ship 39). It still signs in.
+ */
+const SIGN_IN_ACTION: Partial<Record<FeatureId, string>> = {
+  tracked_stocks: "Track this stock",
+  covered_stocks: "Cover your stocks",
+  stock_zones: "Read the full report",
+  briefing_personal: "See your whole briefing",
+  reason_watch: "Watch your reasons",
+  portfolio_analytics: "See your analytics",
+  practice_account: "Open a practice account",
+  pre_earnings_read: "Open the pre-earnings read",
+  saved_screens: "Save this screen",
+  deep_research: "Run more research",
+  ask: "Ask more questions",
+  followed_sources: "Follow more investors",
+  backtest: "Run more backtests",
+  agents: "Run this agent",
+  agent_events: "Run this agent",
+  price_alerts: "Keep more alerts",
+  email_market: "Get the market email",
+  email_briefing: "Get the daily email",
+};
+
+function ctaLabel(feature: FeatureId, step: "sign_in" | "upgrade" | null, trialEligible: boolean): string {
+  if (step === "sign_in") return SIGN_IN_ACTION[feature] ?? "Sign in to see it";
   return trialEligible ? "Try Pro free for 3 days" : `Get Pro for $${US_PRO_MONTHLY} a month`;
 }
 
@@ -116,7 +140,7 @@ export function LockCard({
       <div className={`flex shrink-0 flex-wrap items-center gap-3 pl-10 ${stacked ? "" : "sm:pl-0"}`}>
         {/* 44px tall on phones: this is the unlock tap target. */}
         <OaButton size="sm" loading={busy} onClick={act} className="max-sm:min-h-11 max-sm:px-4">
-          {ctaLabel(step, trialEligible)}
+          {ctaLabel(feature, step, trialEligible)}
         </OaButton>
         {/* The trial is real but asks for a card: say so where the button promises it. */}
         {step === "upgrade" && trialEligible ? <span className="text-[13px] text-oa-muted-fg">The trial asks for a card.</span> : null}
@@ -166,7 +190,7 @@ export function MoreLocked({
         </span>
       </p>
       <OaButton size="xs" variant="secondary" loading={busy} onClick={act} className="shrink-0 self-start sm:self-auto">
-        {ctaLabel(step, trialEligible)}
+        {ctaLabel(feature, step, trialEligible)}
       </OaButton>
     </div>
   );

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { badgeText, dayLabel, effectiveSeenAt, groupByDay, instantOf, isUnread, mergeInbox, nyDay, unreadCount } from "./merge";
-import { inboxRead, signedMove } from "./read";
+import { inboxRead, inboxReadTold, rowsAfterRead, signedMove } from "./read";
 import type { InboxItem } from "./types";
 import {
   agentItem,
@@ -88,6 +88,21 @@ describe("wording", () => {
     expect(quiet[0]!.text).toBe("2 example agents checked on Nov 10 and found nothing that needs a look.");
     const items = mergeInbox([[agentItem(run(), "example")!]], SINCE, NOW);
     expect(inboxRead(items, null, true)!.headline).toContain("the example portfolio's agents flagged 1 thing");
+  });
+
+  it("hides a quiet check under the read unless it is the only row left", () => {
+    const quiet = quietItems([run({ decision: "nothing", jobId: "aaaaaa1" }), run({ decision: "nothing", jobId: "bbbbbb2" })], "example");
+    const told = { moveIds: [], reasonIds: [], reports: [], reportDays: [] };
+    // The example never shows it.
+    expect(rowsAfterRead(quiet, [], told, "2026-11-11", { example: true }).items[0]!.told).toBe(true);
+    // Your own inbox keeps it when it is the one row, so the page still says the agents ran.
+    const mine = quietItems([run({ decision: "nothing", jobId: "aaaaaa1" })], "mine");
+    expect(rowsAfterRead(mine, [], told, "2026-11-11").items[0]!.told).toBeUndefined();
+    // Beside anything else it goes.
+    const flagged = mergeInbox([[agentItem(run(), "mine")!, ...mine]], SINCE, NOW);
+    const rows = rowsAfterRead(flagged, [], inboxReadTold(flagged, null, false).told, "2026-11-11");
+    expect(rows.items.filter((item) => item.quiet).every((item) => item.told)).toBe(true);
+    expect(rows.items.some((item) => !item.quiet && !item.told)).toBe(true);
   });
 
   it("says how a call moved and what that means for shares the person owns or watches", () => {

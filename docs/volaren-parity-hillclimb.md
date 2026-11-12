@@ -185,6 +185,24 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-12 ~03:20 UTC, ship 40 live (bcdb5ac): Today pages that read like a person wrote them (lead, overnight loop)
+
+- Ship 40 (round 14 + lead): an audit of /explore, /premarket, /news and /calendar against the rubric, and fixes.
+  - /news: headlines learn their casing from the day's own wire (lib/wire-casing.ts). The two read panels and the company cards end on whole rows (components/wire/whole-rows.tsx). Tone sits in the card header. The "About this page" note is gone. 16 cards.
+  - /explore: one-idea headline ("The S&P 500 gained 1.31% today, with sectors split."), one clock, and stale moves dropped instead of footnoted.
+  - /premarket: no lede or footnote, and no "Show N more" (all gappers scroll inside).
+  - /calendar: leads with the week ("Cisco Systems and Applied Materials report tomorrow, the biggest of 24 companies still to report this week."), with cards for the biggest coming reports (last-report move against a normal day). Nothing folded, and no coloured edge.
+  - Lead: plain-copy keeps a surname after a common first name ("Steve Jobs"). Shared-casing words added.
+  - Live sizes: news 327KB, calendar 334KB, explore 255KB, premarket 149KB.
+  - 2852 tests in both modes; tsc and eslint clean. VPS pulled.
+- Open (round 14):
+  - Tech sector −1.15% on /explore while chips led (sector feed may be stale; pipeline unchecked).
+  - /news?ticker=X is about 418KB.
+  - The calendar list view still has "+N more".
+  - Three whole-rows helpers to merge.
+  - Strays like "Delivered Fantastic".
+- Running: round 15A (briefing, inbox, one Start free per view) and round 15B (stock page, compare, backtest, insiders).
+
 ### 2026-11-12 ~02:35 UTC, ships 38 (46ed8ba) and 39 (13145d8) live (lead, overnight loop)
 
 - **Ship 38 (round 13A):**

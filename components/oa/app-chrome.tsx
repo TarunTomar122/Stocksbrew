@@ -27,8 +27,9 @@ function CornerGhost({ wide }: { wide: boolean }) {
 
 async function SidebarAccount() {
   const user = await getLandingUserContext();
-  // An outline: the page beside the sidebar owns the view's one filled button.
-  if (!user.signedIn) return <StartFreeButton surface="header" size="sm" variant="outline" label="Start free" className="w-full" />;
+  // The view's one Start free (judges, ship 39): pages and their example banners carry none, and a lock says what it
+  // opens instead ("Read the full report"), so this one is filled.
+  if (!user.signedIn) return <StartFreeButton surface="header" size="sm" label="Start free" className="w-full" />;
   return (
     <>
       <OaProfileButton />
@@ -48,7 +49,8 @@ async function SidebarAccount() {
 
 async function TopBarAccount() {
   const user = await getLandingUserContext();
-  return user.signedIn ? <OaProfileButton /> : <StartFreeButton surface="header" size="sm" variant="outline" label="Start free" />;
+  // Below `lg` the top bar's Start free is the view's one, as the sidebar's is on a wide screen.
+  return user.signedIn ? <OaProfileButton /> : <StartFreeButton surface="header" size="sm" label="Start free" />;
 }
 
 /** The marketing bar's corner: open the app when signed in, start free (as an outline) when not. */

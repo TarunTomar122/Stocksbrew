@@ -71,6 +71,13 @@ describe("unTitle on half-Title-Case headlines (round 6)", () => {
   });
   it("leaves brands and the other companies on the page alone", () => {
     expect(unTitle("Sales at Target rose while Best Buy fell", "Costco")).toBe("Sales at Target rose while Best Buy fell");
+    // Ship 39's Worth knowing card on AMD, and NVDA's.
+    expect(unTitle("Nvidia Stock Sinks As Jensen Huang Ouster Report Sends Investors Toward AMD, Broadcom", "Advanced Micro Devices", ["NVIDIA"])).toBe(
+      "Nvidia stock sinks as Jensen Huang ouster report sends investors toward AMD, Broadcom",
+    );
+    expect(unTitle("Cramer's Stance On Nvidia's Stock Amid Reports That CEO Jensen Huang May Be Ousted", "NVIDIA")).toBe(
+      "Cramer's stance on Nvidia's stock amid reports that CEO Jensen Huang may be ousted",
+    );
     expect(unTitle("Shares of The Trade Desk fell after Five Below beat", "Costco")).toBe("Shares of The Trade Desk fell after Five Below beat");
     expect(unTitle("AMD gains as Advanced Micro Devices wins Board approval", "Nvidia", ["Advanced Micro Devices"])).toBe("AMD gains as Advanced Micro Devices wins board approval");
   });

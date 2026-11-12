@@ -8,7 +8,7 @@ import { reasonSource, type BriefingGroup, type BriefingLine } from "@/lib/brief
 
 import { briefAskHref, briefContext } from "./ask";
 import { compactTime, signedPct, sourceTime } from "./format";
-import { plainCardText, rowWords, type CardWords } from "./card-words";
+import { plainCardText, rowWords, unTitle, type CardWords } from "./card-words";
 import { verdictFor } from "./item-metric";
 import { StockCard } from "./stock-card";
 import { trackBriefingItemOpened } from "@/lib/product-analytics";
@@ -48,7 +48,12 @@ function sharedStatus(items: BriefingItem[], actions: GroupActions): BriefingIte
   return statuses.every((status) => status === "dismissed") ? "dismissed" : "kept";
 }
 
-function Sources({ items }: { items: BriefingItem[] }) {
+/** A source's headline as a sentence, the same casing path as the card face (./card-words.ts unTitle, owner rule 8). */
+function sourceTitle(label: string, company: string, names: readonly string[]): string {
+  return unTitle(label, company, names) || label;
+}
+
+function Sources({ items, company, names }: { items: BriefingItem[]; company: string; names: readonly string[] }) {
   const seen = new Set<string>();
   const entries = items
     .flatMap((item) => item.evidence)
@@ -67,10 +72,10 @@ function Sources({ items }: { items: BriefingItem[] }) {
           <li key={`${entry.label}-${index}`} className="flex flex-col gap-x-3 text-[13px] leading-5 sm:flex-row sm:items-baseline sm:justify-between">
             {entry.url ? (
               <AppLink href={entry.url} {...(isExternal(entry.url) ? { target: "_blank", rel: "noopener noreferrer" } : {})} className={`min-w-0 truncate ${SOFT} ${LINK}`}>
-                {entry.label}
+                {sourceTitle(entry.label, company, names)}
               </AppLink>
             ) : (
-              <span className={`min-w-0 truncate ${SOFT}`}>{entry.label}</span>
+              <span className={`min-w-0 truncate ${SOFT}`}>{sourceTitle(entry.label, company, names)}</span>
             )}
             <span className="shrink-0 whitespace-nowrap text-[12px] text-oa-muted-fg">
               {entry.source}
@@ -84,7 +89,22 @@ function Sources({ items }: { items: BriefingItem[] }) {
 }
 
 /** What opens under a line: where it comes from, the reason, the next step, the sources and the actions. */
-function LinePanel({ id, line, group, actions, stockLink = false }: { id: string; line: BriefingLine; group: BriefingGroup; actions: GroupActions; stockLink?: boolean }) {
+function LinePanel({
+  id,
+  line,
+  group,
+  actions,
+  names,
+  stockLink = false,
+}: {
+  id: string;
+  line: BriefingLine;
+  group: BriefingGroup;
+  actions: GroupActions;
+  /** The section's company names, kept capitalised in source titles. */
+  names: readonly string[];
+  stockLink?: boolean;
+}) {
   const { item } = line;
   const members = [item, ...line.folded];
   const status = sharedStatus(members, actions);
@@ -117,10 +137,10 @@ function LinePanel({ id, line, group, actions, stockLink = false }: { id: string
             <dd className="mt-0.5">
               {story.url ? (
                 <AppLink href={story.url} {...(isExternal(story.url) ? { target: "_blank", rel: "noopener noreferrer" } : {})} className={`${SOFT} ${LINK}`}>
-                  {story.label}
+                  {sourceTitle(story.label, group.name, names)}
                 </AppLink>
               ) : (
-                <span className={SOFT}>{story.label}</span>
+                <span className={SOFT}>{sourceTitle(story.label, group.name, names)}</span>
               )}
             </dd>
           </div>
@@ -138,7 +158,7 @@ function LinePanel({ id, line, group, actions, stockLink = false }: { id: string
           </div>
         ) : null}
       </dl>
-      <Sources items={members} />
+      <Sources items={members} company={group.name} names={names} />
       <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
         {actions.readOnly ? null : status === "open" ? (
           <>
@@ -180,7 +200,7 @@ function LinePanel({ id, line, group, actions, stockLink = false }: { id: string
   );
 }
 
-function LineRow({ line, group, actions }: { line: BriefingLine; group: BriefingGroup; actions: GroupActions }) {
+function LineRow({ line, group, actions, names }: { line: BriefingLine; group: BriefingGroup; actions: GroupActions; names: readonly string[] }) {
   const [open, setOpen] = React.useState(false);
   const panelId = React.useId();
   const settled = sharedStatus([line.item, ...line.folded], actions) !== "open";
@@ -205,7 +225,7 @@ function LineRow({ line, group, actions }: { line: BriefingLine; group: Briefing
         {/* Who reported the reason, named beside it; the link and the time are one tap away in the panel. */}
         {reasonSource(line.item) ? <span className="ml-1.5 whitespace-nowrap text-[12px] text-oa-muted-fg">{reasonSource(line.item)}</span> : null}
       </button>
-      {open ? <LinePanel id={panelId} line={line} group={group} actions={actions} /> : null}
+      {open ? <LinePanel id={panelId} line={line} group={group} actions={actions} names={names} /> : null}
     </li>
   );
 }
@@ -220,12 +240,15 @@ export function BriefingGroupCard({
   group,
   words,
   actions,
+  names = [],
   anchor = false,
   fill = "",
 }: {
   group: BriefingGroup;
   words: CardWords;
   actions: GroupActions;
+  /** The section's company names: an opened card's source titles keep their capitals, as the card faces do. */
+  names?: readonly string[];
   /** Spans that let the last card fill its row (./stock-card.tsx `stockGridFill`). */
   fill?: string;
   /** The first open card of its stock on the page: it carries the `brief-<ticker>` id the agents strip links to. */
@@ -284,11 +307,11 @@ export function BriefingGroupCard({
     >
       {expanded ? (
         <div id={panelId}>
-          {main ? <LinePanel id={`${panelId}-main`} line={main} group={group} actions={actions} stockLink /> : null}
+          {main ? <LinePanel id={`${panelId}-main`} line={main} group={group} actions={actions} names={names} stockLink /> : null}
           {others.length > 0 ? (
             <ul className={main ? "mt-1 border-t border-oa-border pt-1.5" : ""}>
               {others.map((line) => (
-                <LineRow key={line.id} line={line} group={group} actions={actions} />
+                <LineRow key={line.id} line={line} group={group} actions={actions} names={names} />
               ))}
             </ul>
           ) : null}

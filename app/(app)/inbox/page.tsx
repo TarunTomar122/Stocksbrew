@@ -5,17 +5,19 @@ import { AskPageHint } from "@/components/ask/ask-page-hint";
 import { EmptyInbox } from "@/components/inbox/inbox-empty";
 import { InboxList } from "@/components/inbox/inbox-list";
 import { InboxSkeleton } from "@/components/inbox/inbox-skeleton";
-import { InboxSignIn } from "@/components/inbox/sign-in-prompt";
+import { ExampleHoldingRows } from "@/components/inbox/holding-rows";
 import { InboxStockCard } from "@/components/inbox/stock-read";
 import { TheRead } from "@/components/oa/insight";
 import { AppPage, PageHead } from "@/components/oa/kit";
 import { getSessionUser } from "@/lib/auth-server";
 import { getViewer } from "@/lib/entitlements-server";
+import { exampleHoldings } from "@/lib/inbox/example-holdings";
 import { forClient } from "@/lib/inbox/merge";
 import { inboxReadTold, rowsAfterRead } from "@/lib/inbox/read";
 import { loadExampleInbox, loadUserInbox, readState } from "@/lib/inbox/server";
 import { INBOX_KINDS, type InboxKind, type InboxStockRead } from "@/lib/inbox/types";
 import type { TheRead as TheReadData } from "@/lib/insights";
+import { loadExamplePortfolio } from "@/lib/portfolio-data";
 import { getUserDoc } from "@/lib/watchlist";
 
 export const dynamic = "force-dynamic";
@@ -73,20 +75,31 @@ function ReadAndList({
 }
 
 async function ExampleInbox({ kind }: { kind: InboxKind | null }) {
-  const inbox = await loadExampleInbox();
+  // The portfolio is the example's shared cached copy (the same one My stocks and the briefing read); a failed read
+  // only leaves out the holdings under the read.
+  const [inbox, portfolio] = await Promise.all([loadExampleInbox(), loadExamplePortfolio().catch(() => null)]);
   // The read first; the rows under it then leave out what it already says (owner rule 1).
   const exampleRead = inboxReadTold(inbox.items, null, true, { upcoming: inbox.upcoming, today: inbox.today });
-  const exampleRows = rowsAfterRead(inbox.items, inbox.upcoming, exampleRead.told, inbox.today);
+  const exampleRows = rowsAfterRead(inbox.items, inbox.upcoming, exampleRead.told, inbox.today, { example: true });
+  // Under it, the holdings nothing above talks about, one line each, so the page shows what a full inbox holds.
+  const said = [
+    ...(exampleRead.stock ? [exampleRead.stock.ticker] : []),
+    ...(exampleRead.read?.insights ?? []).flatMap((insight) => insight.tickers ?? []),
+    ...exampleRows.items.filter((item) => !item.told).flatMap((item) => item.tickers),
+    ...exampleRows.upcoming.map((report) => report.ticker),
+  ];
+  const holdings = exampleHoldings(portfolio, said);
+  const empty = inbox.items.length === 0 && inbox.upcoming.length === 0;
   return (
     <div className="flex flex-col gap-3 sm:gap-4">
-      <div className="oa-surface flex flex-wrap items-center justify-between gap-3 border border-oa-border bg-oa-card px-4 py-3">
-        <p className="min-w-0 basis-full text-pretty text-[14px] leading-5 text-oa-fg sm:basis-0 sm:flex-1">
+      {/* No button: the shell's Start free (the sidebar, or the top bar on a phone) is the view's one (judges, ship 39). */}
+      <div className="oa-surface border border-oa-border bg-oa-card px-4 py-3">
+        <p className="min-w-0 text-pretty text-[14px] leading-5 text-oa-fg">
           {EXAMPLE_TAG}
           This is the example portfolio&apos;s inbox. Sign in and yours fills with your own agents, the calls on your stocks and the investors you follow.
         </p>
-        <InboxSignIn />
       </div>
-      {inbox.items.length === 0 && inbox.upcoming.length === 0 ? (
+      {empty ? (
         <EmptyInbox example unavailable={readFailed(inbox.missing)} />
       ) : (
         <>
@@ -99,6 +112,7 @@ async function ExampleInbox({ kind }: { kind: InboxKind | null }) {
           <AskPageHint context="ex.portfolio" />
         </>
       )}
+      {holdings ? <ExampleHoldingRows holdings={holdings} /> : null}
     </div>
   );
 }

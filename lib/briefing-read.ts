@@ -113,13 +113,52 @@ function explainedMoveInsight(item: BriefingItem, date?: string, name?: string |
   };
 }
 
-function earningsInsight(item: BriefingItem): Insight | null {
+/**
+ * How a held stock has moved on its past reports (lib/briefing-report-history-server.ts, the same sums as the inbox's
+ * report rows): the usual size of the move, unsigned, and a normal day's move to read it against.
+ */
+export type BriefingReportHistory = {
+  usualPct: number;
+  /** "single": one measured report; "mean" for a few; "median" once there are enough. */
+  usualKind: "single" | "mean" | "median";
+  /** A normal day's move, percent (the average absolute daily move over 120 sessions), or null. */
+  normalPct: number | null;
+  /** "about three times a normal day", or null (one report, or no normal day). */
+  vsDay: string | null;
+};
+
+/** "5.9%", "16%": whole numbers once a move is big, as the inbox and the calendar say it. */
+function usualWord(value: number): string {
+  return Math.abs(value) >= 10 ? `${Math.round(Math.abs(value))}%` : `${Math.abs(value).toFixed(1).replace(/\.0$/, "")}%`;
+}
+
+/**
+ * A held stock's report coming up. With its report history it is a finding, not a date: its usual move on a report
+ * as the figure, read against a normal day for it, and the step to take before the report (owner rule 7).
+ */
+function earningsInsight(item: BriefingItem, history?: BriefingReportHistory | null): Insight | null {
   if (item.kind !== "earnings_upcoming" || !item.ticker) return null;
   const rest = item.headline.startsWith(`${item.ticker} `) ? item.headline.slice(item.ticker.length + 1) : item.headline;
+  const step = "Check our call on it before the report.";
+  const normal = history?.normalPct != null ? `${history.normalPct.toFixed(1)}%` : null;
+  const baseline = !history || !normal
+    ? null
+    : history.vsDay
+      ? `That is ${history.vsDay.replace(/ a normal day$/, ` ${item.ticker}'s normal day`)} of about ${normal}.`
+      : `A normal day for ${item.ticker} is a move of about ${normal}.`;
   return {
     id: `earnings-${item.id}`,
     tone: "flat",
     text: `${item.ticker} ${rest.replace(/\.$/, "")}.`,
+    ...(history
+      ? {
+          figure: {
+            value: usualWord(history.usualPct),
+            label: history.usualKind === "single" ? "its move after its last report" : history.usualKind === "mean" ? "its average move on a report" : "its usual move on a report",
+          },
+          soWhat: [baseline, step].filter(Boolean).join(" "),
+        }
+      : {}),
     tickers: [item.ticker],
     action: { label: "Read before the report", href: stockHref(item.ticker) },
   };
@@ -321,7 +360,12 @@ export function briefingRead(
    * headline says the day its prices are from and sets the move against the S&P 500 (`marketPct`, the same figure as
    * the page's market line), and the read carries no time of its own: the page's header says the one clock.
    */
-  options: { example?: boolean; marketPct?: number | null } = {},
+  options: {
+    example?: boolean;
+    marketPct?: number | null;
+    /** Held stocks' report histories by ticker (lib/briefing-report-history-server.ts), for the earnings card. */
+    reports?: Readonly<Record<string, BriefingReportHistory>>;
+  } = {},
 ): TheRead | null {
   const open = [...grouped.needs_you, ...grouped.worth_knowing, ...grouped.coming_up];
   const items = open.flatMap((group) => group.items);
@@ -523,7 +567,7 @@ export function briefingRead(
     .filter((item) => item.kind === "earnings_upcoming" && item.relation === "holding" && !deciding.has(item.ticker))
     .sort((a, b) => (a.deadline_days ?? 99) - (b.deadline_days ?? 99))[0];
   // Holdings first (their move, its reason, their next report), then what you watch.
-  candidates.push(nextEarnings ? earningsInsight(nextEarnings) : null);
+  candidates.push(nextEarnings ? earningsInsight(nextEarnings, options.reports?.[nextEarnings.ticker]) : null);
   candidates.push(addZoneInsight(items, index));
   // One insight per stock: a second line on the same ticker is noise.
   // Without a decision, the decisions' place goes to what the research changed on what you watch.

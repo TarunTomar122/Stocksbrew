@@ -392,7 +392,24 @@ export function inboxReadTold(
  * yesterday.", no normal-day comparison or reason, which the read gives), and a report the read tells is just its day.
  * Upcoming reports come as finished sentences, so the browser never loads the wording.
  */
-export function rowsAfterRead(items: InboxItem[], upcoming: UpcomingReport[], told: InboxTold, today: string): { items: InboxItem[]; upcoming: UpcomingLine[] } {
+export function rowsAfterRead(
+  items: InboxItem[],
+  upcoming: UpcomingReport[],
+  told: InboxTold,
+  today: string,
+  options: { example?: boolean } = {},
+): { items: InboxItem[]; upcoming: UpcomingLine[] } {
+  const rows = rowsAfterReadAll(items, upcoming, told, today);
+  // "2 example agents checked … and found nothing" says nothing a reader can use (judges, ship 39): the example never
+  // shows it, and your own inbox shows it only when it is the one row left, so an empty-looking day still says the
+  // agents ran. It still counts as shown, so opening the page reads it.
+  const quiet = (item: InboxItem) => item.kind === "agent" && Boolean(item.quiet) && !item.told;
+  const others = rows.items.some((item) => !item.told && !quiet(item)) || rows.upcoming.length > 0;
+  if (!options.example && !others) return rows;
+  return { ...rows, items: rows.items.map((item) => (quiet(item) ? { ...item, told: true } : item)) };
+}
+
+function rowsAfterReadAll(items: InboxItem[], upcoming: UpcomingReport[], told: InboxTold, today: string): { items: InboxItem[]; upcoming: UpcomingLine[] } {
   const moveIds = new Set(told.moveIds);
   const reasonIds = new Set(told.reasonIds);
   const reports = new Set(told.reports);

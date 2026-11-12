@@ -152,7 +152,7 @@ describe("the day's log", () => {
       ["Agents", "1 of 3 flagged"],
       ["Premarket", "24 of 72 moving"],
       ["Big moves", "15 of 30 explained"],
-      ["Calls", "146 checked, none changed"],
+      ["Calls", "none of 146 changed"],
       ["Filings", "1 of 12 flagged"],
     ]);
     expect(buildAgentLog({ day: DAY, when: "today", ongoing: false, facts, movesHref: "/explore#moves" })?.lead.startsWith("Today the agent found")).toBe(true);
