@@ -340,6 +340,17 @@ export function formatBps(value: number): string {
   return `${sign}${rounded} bps`;
 }
 
+/**
+ * A yield's move in plain words, for the headline strip (owner rule 8): "+10 bps" is "up 0.10 points", since a basis
+ * point is a hundredth of a percentage point. The dense tables keep "+10 bps".
+ */
+export function formatBpsPlain(value: number): string {
+  // Rounded as changeTone rounds it, so the words and their colour always agree (−0.5 bps is "unchanged", flat).
+  const rounded = Math.round(value);
+  if (rounded === 0) return "unchanged";
+  return `${rounded > 0 ? "up" : "down"} ${(Math.abs(rounded) / 100).toFixed(2)} points`;
+}
+
 /** A change in the asset's own terms. Null when the change is not known. */
 export function formatChange(value: number | null | undefined, mode: ChangeMode): string | null {
   if (!isNumber(value)) return null;
@@ -827,10 +838,11 @@ export function putCallReading(asset: Pick<MarketAsset, "price" | "average_20d" 
   const diff = asset.price - asset.average_20d;
   const average = asset.average_20d.toFixed(2);
   const now = asset.price.toFixed(2);
-  if (Math.abs(diff) < 0.03) return `Puts and calls traded in their usual mix, ${now} against a 20-day average of ${average}.`;
+  // Puts are bets on a fall and calls bets on a rise, said as Market today's Options card says them (owner rule 8).
+  if (Math.abs(diff) < 0.03) return `Bets on a rise and on a fall traded in their usual mix: ${now} bets on a fall for each bet on a rise, against ${average} on a usual day.`;
   return diff > 0
-    ? `More puts than usual traded against calls, ${now} against a 20-day average of ${average}.`
-    : `More calls than usual traded against puts, ${now} against a 20-day average of ${average}.`;
+    ? `More bets on a fall than usual: ${now} for each bet on a rise, against ${average} on a usual day.`
+    : `Fewer bets on a fall than usual: ${now} for each bet on a rise, against ${average} on a usual day.`;
 }
 
 /** The largest one-day percent moves across every priced asset, biggest first. */
@@ -984,7 +996,8 @@ export function buildMarketsOverview(data: MarketsData, now: Date = new Date()):
       name: asset.name,
       symbol: asset.symbol,
       level: formatLevel(asset.price, asset.unit),
-      change: formatChange(asset.change.d1, asset.change_mode),
+      // A yield's move in words ("up 0.10 points"), not "+10 bps"; prices and ratios keep their signed figure.
+      change: asset.change_mode === "bps" && isNumber(asset.change.d1) ? formatBpsPlain(asset.change.d1) : formatChange(asset.change.d1, asset.change_mode),
       changeLabel: dayChangeLabel(asset, now),
       tone: changeTone(asset.change.d1, asset.change_mode),
       spark: asset.spark,

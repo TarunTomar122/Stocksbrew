@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { AGENT_LIST, AgentFoot, AgentRow } from "@/components/agent-watch/agent-rows";
+import { AGENT_LIST, AgentFoot, AgentLead, AgentRow } from "@/components/agent-watch/agent-rows";
 import { WATCH_LINK } from "@/components/agent-watch/watch-list";
 import { Bar } from "@/components/oa/kit/skeleton";
 import { describeWatch, nextCheckWords } from "@/lib/agent-watch";
@@ -11,9 +11,9 @@ import type { AgentsSource } from "@/lib/portfolio-home/log";
 import type { Loaded } from "@/lib/portfolio-home/pick";
 
 /**
- * The briefing rail's agents card: the signed-in person's active agents as compact rows (components/agent-watch/
- * agent-rows.tsx): kind, short name, what the last run came to, and the stocks it flagged as chips. Signed out the
- * rail has the example portfolio's own agents instead (BriefingExampleAgents): the signed-out briefing is one cached
+ * The briefing rail's agents card: one sentence on what the agents' latest runs came to, then the signed-in person's
+ * active agents as compact rows (components/agent-watch/agent-rows.tsx): kind, short name, what the last run came
+ * to, and the stocks it flagged as chips. Signed out the rail has the example portfolio's own agents instead (BriefingExampleAgents): the signed-out briefing is one cached
  * page for everyone (app/(app)/anon/[v]/briefing), so it never reads a cookie or anyone's data. Server components;
  * the watches are one small read with its own time limit (lib/agent-watch-server.ts), streamed in their own Suspense,
  * and nothing here calls a model.
@@ -77,7 +77,7 @@ export function BriefingAgentsCard({ loaded, today }: StripProps & { loaded: Loa
     );
   }
 
-  const { lines, paused, next } = agentLines(loaded.value, today, { describe: describeWatch });
+  const { lines, paused, next, lead } = agentLines(loaded.value, today, { describe: describeWatch });
   return (
     <section aria-labelledby="briefing-agents-label" className={CARD}>
       <Head manage>Your agents</Head>
@@ -87,6 +87,7 @@ export function BriefingAgentsCard({ loaded, today }: StripProps & { loaded: Loa
         </p>
       ) : (
         <>
+          <AgentLead text={lead} />
           <ul className={`${AGENT_LIST} border-t border-oa-border`}>
             {lines.map((line) => (
               <AgentRow key={line.id} line={line} ranToday={today} />
@@ -107,12 +108,13 @@ export function BriefingAgentsCard({ loaded, today }: StripProps & { loaded: Loa
 export async function BriefingExampleAgents({ today, className = "" }: { today: string; className?: string }) {
   const source = await loadExampleAgentsSource().catch(() => null);
   if (!source) return null;
-  const { lines, next } = agentLines(source, today, { hrefFor: () => "/agents" });
+  const { lines, next, lead } = agentLines(source, today, { hrefFor: () => "/agents" });
   if (lines.length === 0) return null;
   return (
     <section aria-labelledby="briefing-agents-label" className={`${CARD} ${className}`}>
       {/* "Your", as the read under the example says "Your agent flagged NVDA's 5.5% drop". */}
       <Head>Your agents</Head>
+      <AgentLead text={lead} />
       <ul className={`${AGENT_LIST} border-t border-oa-border`}>
         {lines.map((line) => (
           <AgentRow key={line.id} line={line} ranToday={today} />

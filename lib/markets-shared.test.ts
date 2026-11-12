@@ -10,6 +10,7 @@ import {
   classInfoBySlug,
   formatAbs,
   formatBps,
+  formatBpsPlain,
   formatChange,
   formatCompactUsd,
   formatLevel,
@@ -169,6 +170,11 @@ describe("formatting", () => {
     expect(formatPct(-0.001)).toBe("0.00%");
     expect(formatBps(-3.4)).toBe("−3 bps");
     expect(formatBps(0.2)).toBe("0 bps");
+    // The headline strip says a yield's move in words, its sign rounded as its colour is.
+    expect(formatBpsPlain(10)).toBe("up 0.10 points");
+    expect(formatBpsPlain(-3.4)).toBe("down 0.03 points");
+    expect(formatBpsPlain(-0.5)).toBe("unchanged");
+    expect(formatBpsPlain(0.2)).toBe("unchanged");
     expect(formatAbs(-0.3)).toBe("−0.30");
     expect(formatChange(0.19, "abs")).toBe("+0.19");
     expect(formatChange(5, "bps")).toBe("+5 bps");
@@ -286,9 +292,11 @@ describe("readings", () => {
   });
 
   it("compares a put/call ratio with its own average", () => {
-    expect(putCallReading({ price: 0.59, average_20d: 0.61, unit: "ratio" })).toBe("Puts and calls traded in their usual mix, 0.59 against a 20-day average of 0.61.");
-    expect(putCallReading({ price: 1.26, average_20d: 1.03, unit: "ratio" })).toContain("More puts than usual");
-    expect(putCallReading({ price: 0.4, average_20d: 0.61, unit: "ratio" })).toContain("More calls than usual");
+    expect(putCallReading({ price: 0.59, average_20d: 0.61, unit: "ratio" })).toBe(
+      "Bets on a rise and on a fall traded in their usual mix: 0.59 bets on a fall for each bet on a rise, against 0.61 on a usual day.",
+    );
+    expect(putCallReading({ price: 1.26, average_20d: 1.03, unit: "ratio" })).toContain("More bets on a fall than usual");
+    expect(putCallReading({ price: 0.4, average_20d: 0.61, unit: "ratio" })).toContain("Fewer bets on a fall than usual");
     expect(putCallReading({ price: 0.59, average_20d: null, unit: "ratio" })).toBeNull();
     expect(putCallReading({ price: 100, average_20d: 90, unit: "USD" })).toBeNull();
   });

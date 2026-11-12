@@ -454,6 +454,14 @@ export function flagReportStep(ticker: string): string {
   return `Check our call on ${ticker} before the report.`;
 }
 
+/**
+ * The step after a flag on My stocks, in the words the briefing's card and the inbox's read use for it: "Check our
+ * call on NVDA before the report." with a report in the next two weeks, else "Check our call on NVDA.".
+ */
+export function flagStep(ticker: string, reportAhead: boolean): string {
+  return reportAhead ? flagReportStep(ticker) : `Check our call on ${ticker}.`;
+}
+
 /** Where that step goes: the stock's page at our call (components/stock-report/report.tsx `#call`). */
 export function callHref(ticker: string): string {
   return `/stock/${encodeURIComponent(ticker)}#call`;

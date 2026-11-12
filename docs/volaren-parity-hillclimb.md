@@ -185,6 +185,31 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-12 ~07:45 UTC, ship 53 live (4c3ab0a): the agent log back in the rail, shared comparisons said once (lead, overnight loop)
+
+- **Ship 53 (round 22A).**
+  - **Briefing:** the agent log is back in the right rail (owner rule 10). The read runs full width; Worth knowing and "Your other stocks" (3 across) sit beside a rail of "Your agents" plus the log, and the columns end within ~13px.
+  - **Shared comparison said once:** "Compared with each stock's normal day:" sits above the grid, and each card shows only its multiple; a highlight line only when it's the card's own (a report soon, a big outlier month). The S&P month is said once on My stocks. No more "for it".
+  - **Inbox (example):** NVDA appears once, in the read. The other stocks show their last report (date, move, "Beat by 39%" / "Reports Dec 10"), with "Seven beat profit forecasts; JPM missed." said once.
+  - **My stocks:** Nov 17 is only on the NVDA card. Memo movers are cards with a contribution bar.
+  - **Flags end with the price:** "drop to $168.89 on Nov 10".
+  - **Checks:** 2940 tests in both modes. VPS pulled.
+- **Alert email first run with the new code:** 07:15 UTC, `{'checked': 165, 'nothing': 165}`, clean.
+- **Judges on live 53** (scratchpad/judge53):
+  - Codex: UI 7, UX 7.5, usability 7, wording 7.5, agent feel 7, similarity 7, sell 7, overall 7.
+  - Cursor: UI 7, UX 7, usability 7, wording 8, agent feel 6, similarity 6, sell 7, overall 7.
+  - Both flag the JPM line "Buy more on a dip below today's $343" next to the locked level (reads as the threshold).
+  - Other asks:
+    - Memo bars repeat the numbers.
+    - Calendar: "after its last report" per card, collapsed phone days, IPO logos.
+    - News: missing tones; the feed restarts the same tickers.
+    - Plain words: "+10 bps", "puts per call", "Return per unit of swing".
+    - Backtest headline should have one number.
+    - Agent rail: needs a lead sentence; row names are cut.
+    - The "1.3×" multiple on ordinary moves.
+  - Routed to rounds 23A and 23B.
+- **Owner asks (Nov 12 morning).** Show before/after screenshots of each update in chat, with the changed spot highlighted. Done for ships 50→53 (scratchpad/ba/*.png, make.py with --boxA/--boxB); saved to memory.
+
 ### 2026-11-12 ~07:25 UTC, ship 52 live (ccd2c88): plain words for market jargon, figures that say when (lead, overnight loop)
 
 - **Ship 52 (round 22B).**

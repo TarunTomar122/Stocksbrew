@@ -87,8 +87,10 @@ function ResultView({ run, example }: { run: BacktestRun; example: boolean }) {
   const b = run.summary.benchmark;
   const read = React.useMemo(() => {
     const base = buildBacktestRead({ ...run, benchmark }, example ? "the 60/40 mix" : "this mix");
-    // The hindsight caveat sits right under the number it qualifies, as one sentence, and only on your own picks.
-    const sub = hindsightSentence(run.caveats, example);
+    // The hindsight caveat sits right under the number it qualifies, as one sentence, and only on your own picks,
+    // after the money line ("$10,000 → $11,960") rather than in its place.
+    const hindsight = hindsightSentence(run.caveats, example);
+    const sub = [base.sub, hindsight].filter(Boolean).join(". ") || undefined;
     return { ...base, ...(sub ? { sub } : {}), source: `Prices through ${longDay(run.price_as_of)}` };
   }, [run, benchmark, example]);
   // The chart in money: what $10,000 became on each day, in the mix and in the comparison fund. The thinned curve

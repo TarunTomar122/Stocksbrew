@@ -117,7 +117,8 @@ describe("quietFacts", () => {
       { ticker: "COST", pct: 2.01, facts: ["About twice a normal 1.0% day", "Up 14.1% over the past month"] },
       { ticker: "JPM", pct: 0.38, facts: ["A normal day moves it about 1.0%", "Up 3.6% over the past month"] },
     ]);
-    expect([...picked.values()]).toEqual(["Down 4.1% in a month", "One and a half times its normal 1.3% day", "Up 14.1% in a month", "Under half its normal 1.0% day"]);
+    // An ordinary move has no multiple (judges, ship 53): AAPL's 1.6x day and JPM's small one say their month instead.
+    expect([...picked.values()]).toEqual(["Down 4.1% in a month", "Up 4.3% in a month", "About twice its normal 1.0% day", "Up 3.6% in a month"]);
   });
 
   it("leads with a report in the next two weeks and gives a confirmed reason no fact", async () => {
@@ -143,13 +144,17 @@ describe("quietFacts", () => {
     expect([...picked.values()]).toEqual(["Up 4.0% in a month", null, null]);
   });
 
-  it("words the move against a normal day at every size, and a report only within two weeks", async () => {
-    const { normalDayWords, reportSoonWords } = await import("./briefing-move-facts");
-    expect(normalDayWords(3.1, 1)).toBe("Three times its normal 1.0% day");
-    expect(normalDayWords(-2, 1)).toBe("Twice its normal 1.0% day");
-    expect(normalDayWords(1, 1)).toBe("About its normal 1.0% day");
-    expect(normalDayWords(0.6, 1)).toBe("Smaller than its normal 1.0% day");
-    expect(normalDayWords(0.2, 1)).toBe("Under half its normal 1.0% day");
+  it("words a move against a normal day only from about twice up, and a report only within two weeks", async () => {
+    const { bigVsDayWords, normalDayWords, reportSoonWords } = await import("./briefing-move-facts");
+    expect(normalDayWords(3.1, 1)).toBe("About three times its normal 1.0% day");
+    expect(normalDayWords(-2, 1)).toBe("About twice its normal 1.0% day");
+    expect(normalDayWords(1.8, 1)).toBe("About twice its normal 1.0% day");
+    expect(normalDayWords(1.6, 1)).toBeNull();
+    expect(normalDayWords(1, 1)).toBeNull();
+    expect(normalDayWords(0.2, 1)).toBeNull();
+    expect(bigVsDayWords(1.6)).toBeNull();
+    expect(bigVsDayWords(2.1)).toBe("about twice a normal day");
+    expect(bigVsDayWords(null)).toBeNull();
     expect(reportSoonWords({ date: "2026-11-17", time: "amc" }, "2026-11-12")).toBe("Reports Nov 17 after the close");
     expect(reportSoonWords({ date: "2026-11-13", time: "bmo" }, "2026-11-12")).toBe("Reports tomorrow before the open");
     expect(reportSoonWords({ date: "2026-12-10", time: null }, "2026-11-12")).toBeNull();
@@ -160,19 +165,27 @@ describe("quietFacts", () => {
 });
 
 describe("quietCardsWords", () => {
-  it("says the normal-day comparison once and keeps a chip only for what differs (judges, ship 50)", async () => {
-    const { quietCardsWords, NORMAL_DAY_LINE } = await import("./briefing-move-facts");
+  it("shows an ordinary move as its percent alone and words a big one (judges, ship 53)", async () => {
+    const { quietCardsWords } = await import("./briefing-move-facts");
     const words = quietCardsWords([
       { ticker: "MSFT", pct: -2.24, facts: ["A normal day moves it about 1.7%", "Down 4.1% over the past month"] },
       { ticker: "AAPL", pct: 2.09, facts: ["A normal day moves it about 1.3%", "Up 4.3% over the past month"] },
       { ticker: "COST", pct: 2.01, facts: ["About twice a normal 1.0% day", "Up 14.1% over the past month"] },
+      { ticker: "VOO", pct: 1.3, facts: ["A normal day moves it about 0.6%"] },
       { ticker: "LLY", pct: 0.38, facts: ["A normal day moves it about 1.5%", "Up 23.3% over the past month"] },
       { ticker: "NVDA", pct: 2.9, facts: ["Its biggest gain since Sep 2", "A normal day moves it about 2.0%"], report: "Reports Nov 17 after the close" },
     ]);
-    expect(words.shared).toBe(NORMAL_DAY_LINE);
-    expect(Object.fromEntries(words.versus)).toEqual({ MSFT: "1.3×", AAPL: "1.6×", COST: "2.0×", LLY: "0.3×", NVDA: "1.4×" });
-    // An ordinary month is no chip; an outlier one is, and a report soon comes first.
-    expect(Object.fromEntries(words.facts)).toEqual({ MSFT: null, AAPL: null, COST: "Up 14.1% in a month", LLY: "Up 23.3% in a month", NVDA: "Reports Nov 17 after the close" });
+    expect("shared" in words).toBe(false);
+    // No multiple under about twice a normal day; an ordinary month is nothing, an outlier one is, a report soon first.
+    expect(Object.fromEntries(words.facts)).toEqual({
+      MSFT: null,
+      AAPL: null,
+      COST: "About twice its normal 1.0% day",
+      VOO: "About twice its normal 0.6% day",
+      LLY: "Up 23.3% in a month",
+      NVDA: "Reports Nov 17 after the close",
+    });
+    expect([...words.facts.values()].some((fact) => /×/.test(fact ?? ""))).toBe(false);
   });
 
   it("falls back to one fact per card when most cards have no normal day", async () => {
@@ -182,8 +195,7 @@ describe("quietCardsWords", () => {
       { ticker: "B", pct: 1, facts: ["Up 4.0% over the past month"] },
       { ticker: "C", pct: 1, facts: ["Down 3.0% over the past month"] },
     ]);
-    expect(words.shared).toBeNull();
-    expect(words.versus.size).toBe(0);
+    expect(words.facts.get("A")).toBeNull();
     expect(words.facts.get("B")).toBe("Up 4.0% in a month");
   });
 });

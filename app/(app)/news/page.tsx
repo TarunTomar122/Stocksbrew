@@ -127,9 +127,15 @@ export default async function NewsPage({ searchParams }: { searchParams?: Search
           { nowMs: now, filters: effective, buzzLimit: 14, themeLimit: 5 },
         );
   // "My stocks" keeps stories that name a followed company; a roundup naming others must not put them under "Your companies".
-  // Under "Most talked about", the feed shows each company's next stories, not the top ones already listed above it.
+  // Under "Most talked about", the feed goes on with the next companies rather than starting the same tickers over
+  // (judges, ship 53): a stock ranked above is one tap away from its own stories. Followed stocks stay, so "your
+  // companies" never loses one; their top story already listed above is left out of their card.
   const shownAbove = reading?.buzz.flatMap((row) => (row.lead ? [row.lead] : [])) ?? [];
-  const companies = withoutShown(effective.mine ? grouped.filter((group) => group.mine) : grouped, shownAbove);
+  const rankedAbove = new Set(reading?.buzz.map((row) => row.ticker) ?? []);
+  const candidates = effective.mine ? grouped.filter((group) => group.mine) : grouped;
+  const next = candidates.filter((group) => group.mine || !rankedAbove.has(group.ticker));
+  // On a quiet day every company may already be ranked above; the feed then keeps them rather than saying none.
+  const companies = withoutShown(next.length ? next : candidates, shownAbove);
   // Each "more" step shows another page of companies; the URL's row limit caps how many steps there are.
   const step = Math.max(1, Math.round(effective.limit / WIRE_PAGE_SIZE));
   const shownCompanies = COMPANY_PAGE * step;

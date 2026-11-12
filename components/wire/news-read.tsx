@@ -4,7 +4,7 @@ import { Delta, FOCUS, NUM, Panel } from "@/components/oa/kit";
 import { StockLogo } from "@/components/stock-logo";
 import { WholeRows } from "@/components/wire/whole-rows";
 import { headlineCase } from "@/lib/plain-copy";
-import { toneLean, toneWord, type StockBuzz, type ToneCounts } from "@/lib/wire-read";
+import { rowTone, toneLean, toneWord, type StockBuzz, type ToneCounts } from "@/lib/wire-read";
 import { WIRE_PAGE_SIZE, etDay, etTime, wireHref, type WireFilters, type WireItem } from "@/lib/wire-shared";
 
 const ET_WEEKDAY = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short" });
@@ -86,14 +86,16 @@ export function buzzHighlight(row: Pick<StockBuzz, "lead" | "name">): string {
   return row.lead ? headlineWords(row.lead.title, row.name ?? "").replace(/[.!]+$/, "") : "";
 }
 
-/** A ranked row's tone ("75% negative", "62% neutral"), coloured by side, with the counts for screen readers. */
+/**
+ * A ranked row's tone ("75% negative", "62% neutral", "Mixed", "No clear lean"), coloured by side, with the counts for
+ * screen readers. Every row says one (owner rule 3); where the stories cannot support a tone it says so plainly.
+ */
 function RowTone({ counts, stories }: { counts: ToneCounts; stories: number }) {
-  const word = toneWord(counts, stories);
-  if (!word) return null;
+  const word = rowTone(counts, stories);
   const label = `${counts.positive} positive, ${counts.negative} negative, ${counts.neutral} neutral of ${stories} ${stories === 1 ? "story" : "stories"}`;
   const colour = word.side === "positive" ? "text-signal-bullish" : word.side === "negative" ? "text-signal-bearish" : "text-oa-muted-fg";
   return (
-    <span className={`${NUM} inline-flex items-center whitespace-nowrap text-[12.5px] leading-[18px]`} title={label}>
+    <span className={`${NUM} inline-flex items-center text-right text-[12.5px] leading-[18px]`} title={label}>
       <span className="sr-only">{label}</span>
       <span aria-hidden="true" className={colour}>
         {word.text}
@@ -104,8 +106,8 @@ function RowTone({ counts, stories }: { counts: ToneCounts; stories: number }) {
 
 /**
  * The stocks with the most coverage right now, most first (owner, Nov 11: "where info about positive or negative talk
- * and highlight?"). Each row: rank, logo and ticker, the tone of its news where the labels support one (toneWord: "75%
- * negative", "62% neutral"; an empty cell otherwise), the day's move, and its top story written out underneath. No coverage bars (owner rule 5): the order already
+ * and highlight?"). Each row: rank, logo and ticker, the tone of its news (rowTone: "75% negative", "62% neutral", or
+ * plainly "No clear lean"), the day's move, and its top story written out underneath. No coverage bars (owner rule 5): the order already
  * says who is talked about most. Every stock shows, about eight rows at a time with the rest scrolling inside.
  */
 export function TalkedAbout({
@@ -121,12 +123,13 @@ export function TalkedAbout({
   className?: string;
 }) {
   if (rows.length === 0) return null;
-  // The tone column only when some stock's news has a tone the labels support; otherwise the moves sit right after the ticker.
-  const toned = rows.some((row) => toneWord(row.tones, row.count) !== null);
   // About eight stocks in view, the rest scrolling inside and the box ending on a whole row (owner rule 5).
   // Full width: two columns read across (1 and 2, then 3 and 4), so the eight in view are the top eight and scrolling
   // brings the next pair, never the bottom of one column beside the top of the other.
   const list = wide ? "lg:grid lg:grid-cols-2" : "";
+  // The tone column once any stock's news has a tone the labels support; then every row says one. With none (the
+  // labeller behind), the same "No clear lean" on every row would say nothing many times (owner rule 1).
+  const toned = rows.some((row) => toneWord(row.tones, row.count) !== null);
   const cols = toned ? "grid-cols-[1.25rem_minmax(0,1fr)_auto_3.75rem]" : "grid-cols-[1.25rem_minmax(0,1fr)_3.75rem]";
   return (
     <Panel flush label="Most talked about" className={className}>
@@ -153,7 +156,6 @@ export function TalkedAbout({
                   </span>
                   {toned ? (
                     <span className="text-right">
-                      {/* The tone where the labels support one; an empty cell, not a dash, where they do not. */}
                       <RowTone counts={row.tones} stories={row.count} />
                     </span>
                   ) : null}

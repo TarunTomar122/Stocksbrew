@@ -458,6 +458,14 @@ export function leadParts(lead: BookLead, example: boolean): ReadPart[][] {
 /** A report this many days ahead or closer is the lead's next step. */
 const STEP_REPORT_DAYS = 14;
 
+/** A report close enough to be the step (within STEP_REPORT_DAYS); one today counts only after the close. */
+export function reportAhead(next: { date: string; time?: string | null } | null | undefined, today: string): boolean {
+  if (!next || !/^\d{4}-\d{2}-\d{2}$/.test(next.date) || !/^\d{4}-\d{2}-\d{2}$/.test(today)) return false;
+  const gap = Math.round((Date.parse(`${next.date}T12:00:00Z`) - Date.parse(`${today}T12:00:00Z`)) / 86_400_000);
+  // A report today counts only after the close: before the open it may already be out.
+  return gap >= 0 && gap <= STEP_REPORT_DAYS && !(gap === 0 && next.time !== "amc");
+}
+
 /**
  * The next step under the lead when no agent flag gives one: the soonest report on a holding in the next two weeks
  * ("NVDA reports on Nov 17 after the close. Check our call on it before then."), else null. Funds have no report.
@@ -466,10 +474,7 @@ export function nextReportStep(source: Pick<BookSource, "portfolio" | "today">):
   let best: { ticker: string; date: string; time: string | null; weight: number } | null = null;
   for (const position of source.portfolio.positions) {
     const next = position.nextEarnings;
-    if (position.kind !== "holding" || !next || !/^\d{4}-\d{2}-\d{2}$/.test(next.date)) continue;
-    const gap = Math.round((Date.parse(`${next.date}T12:00:00Z`) - Date.parse(`${source.today}T12:00:00Z`)) / 86_400_000);
-    // A report today counts only after the close: before the open it may already be out.
-    if (gap < 0 || gap > STEP_REPORT_DAYS || (gap === 0 && next.time !== "amc")) continue;
+    if (position.kind !== "holding" || !next || !reportAhead(next, source.today)) continue;
     // The soonest; on one day, the bigger holding.
     const weight = fin(position.weight) ? position.weight : 0;
     if (!best || next.date < best.date || (next.date === best.date && weight > best.weight)) best = { ticker: position.ticker, date: next.date, time: next.time ?? null, weight };

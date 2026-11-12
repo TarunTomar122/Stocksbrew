@@ -1,8 +1,9 @@
 import { ToneGlyph } from "@/components/oa/kit/tone";
 import type { Caveat, CurveStats, YearRow } from "@/lib/backtest/types";
-import { beatShare, markFor } from "@/lib/tone";
+import { beatYearsSentence, swingSentence } from "@/lib/backtest-insights";
+import { markFor } from "@/lib/tone";
 
-import { longDay, plainPct, ratio, signedPct, toneOf } from "./format";
+import { longDay, plainPct, signedPct, toneOf } from "./format";
 
 /** The label every backtested number sits under. */
 export function BacktestedBadge({ start, end, className = "" }: { start: string; end: string; className?: string }) {
@@ -129,10 +130,14 @@ export function StatGrid({
   headline?: boolean;
 }) {
   const vs = (text: string) => `${benchmarkLabel} ${text}`;
+  // The return for its swing and the years it beat the index read as sentences, not "0.35" and "0 of 4" (owner rule 8).
+  const sentences = [beatYearsSentence(hitRate, benchmarkLabel), swingSentence(strategy.sharpe, benchmark.sharpe, benchmarkLabel)].filter(
+    (line): line is string => Boolean(line),
+  );
   return (
     <div
       className={`oa-surface grid grid-cols-2 gap-px overflow-hidden border border-oa-border bg-oa-border ${
-        headline ? "sm:grid-cols-4" : "sm:grid-cols-3 2xl:grid-cols-6"
+        headline ? "sm:grid-cols-3" : "lg:grid-cols-4"
       }`}
     >
       {headline ? (
@@ -146,10 +151,8 @@ export function StatGrid({
           <Cell label="Worst fall" value={signedPct(strategy.max_drawdown)} sub={vs(signedPct(benchmark.max_drawdown))} mark={fallMark(strategy.max_drawdown)} />
         </>
       ) : null}
-      {/* Plain words for the Sharpe ratio and volatility (owner rule 8): the yearly return for each point of swing, and
-          how far it typically swings in a year. */}
-      <Cell label="Return per unit of swing" value={ratio(strategy.sharpe)} sub={vs(ratio(benchmark.sharpe))} mark={markFor("sharpe", strategy.sharpe)} />
-      <Cell label="Typical swing in a year" value={plainPct(strategy.volatility)} sub={vs(plainPct(benchmark.volatility))} />
+      {/* Plain words for volatility (owner rule 8): how far it typically swings in a year. */}
+      <Cell label="Typical yearly swing" value={plainPct(strategy.volatility)} sub={vs(plainPct(benchmark.volatility))} />
       <Cell
         label="Worst year"
         value={worstYear ? signedPct(worstYear.strategy) : "–"}
@@ -163,16 +166,19 @@ export function StatGrid({
         tone={toneOf(bestYear?.strategy)}
       />
       <Cell
-        label={`Beat ${benchmarkLabel}`}
-        value={hitRate.years > 0 ? `${hitRate.beat} of ${hitRate.years}` : "–"}
-        sub={hitRate.complete_years_only ? "full years" : "part years only"}
-        mark={beatShare(hitRate.beat, hitRate.years)}
-      />
-      <Cell
         label="Mix traded a year"
         value={turnover === null ? "–" : plainPct(turnover, 0)}
         sub={turnover === null ? "needs a full year" : "sold and rebought"}
       />
+      {sentences.length ? (
+        <div className="col-span-full bg-oa-card px-3.5 py-3">
+          {sentences.map((line) => (
+            <p key={line} className="text-pretty text-[14px] leading-5 text-oa-fg">
+              {line}
+            </p>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

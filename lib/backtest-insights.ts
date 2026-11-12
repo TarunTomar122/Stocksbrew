@@ -38,6 +38,7 @@ export type BacktestReadInput = {
 /** The comparison funds by what people call them; anything else keeps its ticker. */
 const BENCHMARK_NAMES: Record<string, string> = {
   SPY: "the S&P 500",
+  "S&P 500": "the S&P 500",
   QQQ: "the Nasdaq 100",
   IWM: "small US companies (IWM)",
   RSP: "the equal-weight S&P 500",
@@ -57,6 +58,44 @@ export function grownTo(totalReturn: number, start = START_MONEY): string {
   return `$${value.toLocaleString("en-US")}`;
 }
 
+function ratioWords(value: number): string {
+  return `${value < 0 ? MINUS : ""}${Math.abs(value).toFixed(2)}`;
+}
+
+/**
+ * The Sharpe ratio as a sentence (owner rule 8: "Return per unit of swing" was code): "It gained 0.35 points for each
+ * point it swung, against 0.73 for the S&P 500." "Swung" matches the "Typical yearly swing" figure beside it. Null
+ * without the mix's own figure.
+ */
+export function swingSentence(mine: number | null | undefined, theirs: number | null | undefined, benchmark: string): string | null {
+  if (mine == null || !Number.isFinite(mine)) return null;
+  const known = theirs != null && Number.isFinite(theirs);
+  const bench = benchmarkName(benchmark);
+  if (Number(mine.toFixed(2)) <= 0) {
+    if (!known) return "It swung around with nothing gained for it.";
+    return Number(theirs.toFixed(2)) > 0
+      ? `It swung around with nothing gained for it, while ${bench} gained ${ratioWords(theirs)} points for each point it swung.`
+      : `It swung around with nothing gained for it, and so did ${bench}.`;
+  }
+  return `It gained ${ratioWords(mine)} points for each point it swung${known ? `, against ${ratioWords(theirs)} for ${bench}` : ""}.`;
+}
+
+/**
+ * How many years it beat the index, in words instead of "0 of 4": "It trailed the S&P 500 in every full year." Part
+ * years count only when the test has no full year, and the sentence says so. Null with no year to count.
+ */
+export function beatYearsSentence(hitRate: { beat: number; years: number; complete_years_only: boolean }, benchmark: string): string | null {
+  const { beat, years } = hitRate;
+  if (!(years > 0) || beat < 0 || beat > years) return null;
+  const bench = benchmarkName(benchmark);
+  const kind = hitRate.complete_years_only ? "full year" : "year of the test";
+  const plural = hitRate.complete_years_only ? "full years" : "years of the test";
+  if (years === 1) return `It ${beat === 1 ? "beat" : "trailed"} ${bench} in its one ${kind}.`;
+  if (beat === 0) return `It trailed ${bench} in every ${kind}.`;
+  if (beat === years) return `It beat ${bench} in every ${kind}.`;
+  return `It beat ${bench} in ${countWord(beat)} of ${countWord(years)} ${plural}.`;
+}
+
 export function buildBacktestRead(run: BacktestReadInput, mixLabel = "this mix"): TheRead {
   const s = run.summary.strategy;
   const b = run.summary.benchmark;
@@ -67,9 +106,15 @@ export function buildBacktestRead(run: BacktestReadInput, mixLabel = "this mix")
   const bench = benchmarkName(run.benchmark);
   const mix = `${mixLabel.charAt(0).toUpperCase()}${mixLabel.slice(1)}`;
 
-  // The result as money, the way people think about it: $10,000 in, what came out, against the index, and the worst drop.
-  // One idea, one number (owner rule 8); the index and the worst drop are in the result card underneath.
-  const headline = `${mix} would have turned $${START_MONEY.toLocaleString("en-US")} into ${grownTo(s.total_return)} since ${monthYear(run.period.start)}.`;
+  // One idea, one number (owner rule 8): what the mix gained since it started. The same result as money, $10,000 in
+  // and what came out, is the quiet line under it; the index and the worst drop are in the cards underneath.
+  const total = Math.abs(s.total_return) < 0.0005 ? null : s.total_return;
+  const totalWords = total === null ? null : signedPct(Math.abs(total), Math.abs(total) >= 0.9995 ? 0 : 1).replace(/^\+/, "");
+  const headline =
+    total === null
+      ? `${mix} ended about where it started in ${monthYear(run.period.start)}.`
+      : `${mix} ${total > 0 ? "gained" : "lost"} ${totalWords} since ${monthYear(run.period.start)}.`;
+  const sub = `$${START_MONEY.toLocaleString("en-US")} → ${grownTo(s.total_return)}`;
 
   // Each card leads with one number and one short takeaway, with its context in one line under it (owner rules 3, 8).
   const result: Insight = {
@@ -163,6 +208,7 @@ export function buildBacktestRead(run: BacktestReadInput, mixLabel = "this mix")
 
   return {
     headline,
+    sub,
     // Three cards (owner rule 7): the result against the index, what it cost at its worst, and which holding carried
     // it. Full years ahead or behind is the fallback, since the figures under the chart already count them.
     insights: pickInsights([result, tradeOff, carry, years], 3),

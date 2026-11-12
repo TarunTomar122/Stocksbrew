@@ -9,9 +9,9 @@ import { fmtPlanDay } from "@/lib/dividend-plan";
 import { memoFacts, toolHref, type MemoFact } from "@/lib/portfolio-home/focus";
 import { TOOL_GROUPS, toolCard, type ToolId } from "@/lib/portfolio-home/pick";
 import { feedSources, type HomeLoad } from "@/lib/portfolio-home/server";
-import { callHref, flaggedMove, flagWords } from "@/lib/portfolio-home/example-check";
+import { callHref, flaggedMove, flagStep, flagWords } from "@/lib/portfolio-home/example-check";
 import { loadExampleChecks } from "@/lib/portfolio-home/example-check-server";
-import { ATTENTION, bookLead, extraFacts, leadParts, nextReportStep, sayMonthOnce, signedDollars, signedPct, stockCards, type BookSource, type StockCard } from "@/lib/portfolio-home/stocks";
+import { ATTENTION, bookLead, extraFacts, leadParts, nextReportStep, reportAhead, sayMonthOnce, signedDollars, signedPct, stockCards, type BookSource, type StockCard } from "@/lib/portfolio-home/stocks";
 
 /**
  * My stocks, about the person's stocks (owner, Nov 11): one read on how they did today and over the past week against
@@ -38,7 +38,7 @@ const STEP_MS = 1200;
 
 /**
  * The step after the lead: the example agents' flag ending on its price, then our call ("Your agent flagged NVDA's
- * 5.5% drop to $168.89 on Nov 10. Check our call on it."), else, for your own stocks, the soonest report on a holding.
+ * 5.5% drop to $168.89 on Nov 10. Check our call on NVDA before the report."), else, for your own stocks, the soonest report on a holding.
  * The example's report day is its NVDA card's ("Reports Nov 17, after the close."), so the lead does not say it again
  * (owner rule 1, judges ship 50), and with no flag there is no step.
  */
@@ -51,8 +51,10 @@ async function leadStep(source: BookSource): Promise<{ ticker: string; step: str
     const flag = await Promise.race([loadExampleChecks().catch(() => null), late]).finally(() => clearTimeout(timer));
     const move = flaggedMove(flag, source.today);
     // Only a holding of the example's: a flag on a stock it does not hold is not this list's step.
-    if (!move || !source.portfolio.positions.some((position) => position.ticker === move.ticker && position.kind === "holding")) return null;
-    return { ticker: move.ticker, step: `${flagWords(move)} Check our call on it.` };
+    const held = move ? source.portfolio.positions.find((position) => position.ticker === move.ticker && position.kind === "holding") : undefined;
+    if (!move || !held) return null;
+    // The same words as the briefing's card and the inbox's read on this flag: the flag, then the step.
+    return { ticker: move.ticker, step: `${flagWords(move)} ${flagStep(move.ticker, reportAhead(held.nextEarnings, source.today))}` };
   }
   return nextReportStep(source);
 }
@@ -370,7 +372,7 @@ function moverPoints(points: number): string {
 
 /**
  * The memo in the rail: the main risk as a figure, then the holdings that moved the week most, as small cards two
- * across (logo, ticker, its points of the portfolio's week, and a bar of that share beside its own move), the
+ * across (logo, ticker, its points of the portfolio's week, and its own move under them), the
  * biggest share first, up or down. On a wide screen the card sits in a box that ends with the holdings beside it
  * (my-stocks.tsx `[data-memo-box]`): the cards fill what the box leaves and the rest scroll inside, so the rail and the
  * holdings end together (owner rule 4). The week itself is the lead's, so it is not repeated. Nothing when the memo has neither.
@@ -387,8 +389,6 @@ export async function MemoFigures({ load }: { load: HomeLoad }) {
           .sort((a, b) => Math.abs(b.move.points) - Math.abs(a.move.points) || a.index - b.index)
           .map(({ move }) => move)
       : [];
-  // The biggest share of the week's move, which each mover's bar is drawn against.
-  const biggest = Math.max(...movers.map((move) => Math.abs(move.points)), 0.05);
   // With the movers listed, the biggest of them is their first row rather than a figure of its own.
   const facts = railMemoFacts(memo).filter((fact) => !(movers.length > 0 && fact.id === "driver"));
   if (memo.state !== "ready" || (facts.length === 0 && movers.length === 0)) return null;
@@ -423,13 +423,12 @@ export async function MemoFigures({ load }: { load: HomeLoad }) {
         <>
           <span className="mt-3 block shrink-0 text-[12.5px] leading-[17px] text-oa-muted-fg">{complete ? "What moved the week" : "What moved the week so far"}</span>
           {/* Each mover a small card side by side (owner rule 3: the memo is cards and charts): the stock, its points of
-              the portfolio's week as the figure, and a bar of that share against the biggest mover's. An odd last card
+              the portfolio's week as the figure, and its own move under them. An odd last card
               takes the row (owner rule 4). On a wide screen the rows that fit show whole and the rest scroll inside, with
               no visible bar (../agent-log/fit-rows.tsx). */}
           <FitRows box="[data-memo-box]" className="mt-1.5 grid grid-cols-2 gap-1.5 scrollbar-hide lg:min-h-0 lg:overflow-y-auto">
             {movers.map((move, index) => {
               const up = move.points >= 0;
-              const share = Math.max(4, Math.round((Math.abs(move.points) / biggest) * 100));
               const own = Math.abs(move.pct) < 0.05 ? "barely moved" : `${move.pct > 0 ? "rose" : "fell"} ${Math.abs(move.pct).toFixed(1)}%`;
               return (
                 <li
@@ -441,13 +440,8 @@ export async function MemoFigures({ load }: { load: HomeLoad }) {
                     <span className="oa-mono min-w-0 truncate font-semibold text-oa-fg">{move.ticker}</span>
                     <span className={`oa-mono ml-auto shrink-0 font-semibold tabular-nums ${up ? "text-signal-bullish" : "text-signal-bearish"}`}>{moverPoints(move.points)}</span>
                   </span>
-                  {/* Its own move beside the bar of its share, so nothing is left to a hover (owner rule 2). */}
-                  <span className="mt-1 flex items-center gap-2">
-                    <span aria-hidden="true" className="block h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--oa-border)_70%,transparent)]">
-                      <span className={`block h-full rounded-full ${up ? "bg-signal-bullish" : "bg-signal-bearish"}`} style={{ width: `${share}%` }} />
-                    </span>
-                    <span className="oa-mono shrink-0 text-[11.5px] leading-4 tabular-nums text-oa-muted-fg">{own}</span>
-                  </span>
+                  {/* Its own move under the points, as a figure: no bar beside it, since the numbers already say it (owner rule 5). */}
+                  <span className="oa-mono mt-0.5 block text-[12px] leading-4 tabular-nums text-oa-muted-fg">{own}</span>
                 </li>
               );
             })}

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 
-import { AGENT_LIST, AgentFoot, AgentRow } from "@/components/agent-watch/agent-rows";
+import { AGENT_LIST, AgentFoot, AgentLead, AgentRow } from "@/components/agent-watch/agent-rows";
 import { WATCH_LINK, WATCH_LIST, WouldWatchRow } from "@/components/agent-watch/watch-list";
 import { Bar } from "@/components/oa/kit/skeleton";
 import { describeWatch, nextCheckWords } from "@/lib/agent-watch";
@@ -14,8 +14,8 @@ import { feedSources, type HomeLoad } from "@/lib/portfolio-home/server";
 import type { Verdict } from "@/lib/thesis-watch/rules";
 
 /**
- * "Your agents" on My stocks, in the side rail: one compact row per agent (its kind, a short name, what the last run
- * came to and when, and the stocks it flagged as chips), opening the agent on /agents where what it checked lives.
+ * "Your agents" on My stocks, in the side rail: one sentence on what their latest runs came to, then one compact row
+ * per agent (its kind, a short name, what the last run came to and when, and the stocks it flagged as chips), opening the agent on /agents where what it checked lives.
  * The reason watcher is one more row when the person gave reasons. Signed out, the example portfolio's own agents
  * with their real latest runs; signed in with none, the watches the person's stocks would want. It waits only for the
  * person's agents (one small read with its own time limit) and, without them, the example's cached runs.
@@ -115,7 +115,7 @@ export async function AgentsPanel({ load }: { load: HomeLoad }) {
 
   const own = signedIn && agents.state === "ready" && agents.value.jobs.length > 0 ? agents.value : null;
   if (own) {
-    const { lines, paused, next } = agentLines(own, today, { describe: describeWatch });
+    const { lines, paused, next, lead } = agentLines(own, today, { describe: describeWatch });
     return (
       <section aria-labelledby="agents-head" className={CARD}>
         <Head manage>Your agents</Head>
@@ -125,7 +125,8 @@ export async function AgentsPanel({ load }: { load: HomeLoad }) {
           </p>
         ) : (
           <>
-            <ul className={AGENT_LIST}>
+            <AgentLead text={lead} />
+            <ul className={`${AGENT_LIST} border-t border-oa-border`}>
               {/* Each row says when it ran, even when they all ran together (owner rule 10). */}
               {lines.map((line) => (
                 <AgentRow key={line.id} line={line} ranToday={today} />
@@ -147,7 +148,7 @@ export async function AgentsPanel({ load }: { load: HomeLoad }) {
   // step after the flag (its report, then our call) is the lead's, at the top of the page, so it is not said twice.
   const example = !signedIn ? await loadExampleAgentsSource() : null;
   if (example) {
-    const { lines, next } = agentLines(example, today, { hrefFor: () => "/agents" });
+    const { lines, next, lead } = agentLines(example, today, { hrefFor: () => "/agents" });
     return (
       <section aria-labelledby="agents-head" className={CARD}>
         <Head>
@@ -155,7 +156,8 @@ export async function AgentsPanel({ load }: { load: HomeLoad }) {
           {EXAMPLE_TAG}
           Agents
         </Head>
-        <ul className={AGENT_LIST}>
+        <AgentLead text={lead} />
+        <ul className={`${AGENT_LIST} border-t border-oa-border`}>
           {/* Each row says when it ran, even when they all ran together (owner rule 10). */}
           {lines.map((line) => (
             <AgentRow key={line.id} line={line} ranToday={today} />

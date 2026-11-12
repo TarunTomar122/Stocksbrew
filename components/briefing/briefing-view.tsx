@@ -159,10 +159,10 @@ function quietHead(asOf: string | null | undefined, date: string, archived: bool
 /**
  * "Your other stocks today": the stocks with no card above, as small cards like Worth knowing's (owner rule 3): the
  * logo, the move as the big figure and what is its own (judges, ship 44). What you hold first, then what you watch,
- * said once above the cards when there are several, so no tag repeats on each (owner rule 1). When most cards know
- * their stock's normal day, that comparison is said once above them and each card shows only its own multiple
- * ("1.6×"), with a chip only for what is different about it: a report soon, its biggest move in a while, an outlier
- * month (judges, ship 50). An odd last card spans what its row has left (owner rule 4). Each card opens its stock.
+ * said once above the cards when there are several, so no tag repeats on each (owner rule 1). An ordinary move is
+ * its percent alone; a card says one thing only for what is different about it: a report soon, its biggest move in a
+ * while, a move of about twice its normal day or more, a month far outside its range (judges, ship 50 and 53). An odd
+ * last card spans what its row has left (owner rule 4). Each card opens its stock.
  */
 function QuietCards({
   head,
@@ -193,7 +193,7 @@ function QuietCards({
     held.length > 0 && watchTickers.length > 1
       ? `${watchTickers.slice(0, -1).join(", ")} and ${watchTickers[watchTickers.length - 1]} are stocks you watch rather than hold.`
       : null;
-  const intro = [watchLine, words.shared].filter(Boolean).join(" ");
+  const intro = watchLine;
   return (
     <Section id="quiet" label={head}>
       {intro ? <p className="mb-2.5 text-pretty px-2 text-[13.5px] leading-5 text-oa-muted-fg sm:px-0">{intro}</p> : null}
@@ -201,7 +201,6 @@ function QuietCards({
         {ordered.map((name, index) => {
           const move = name.day_change_pct;
           const fact = words.facts.get(name.ticker) ?? null;
-          const versus = words.versus.get(name.ticker) ?? null;
           const figure = move != null ? signedPct(move, 1) : null;
           return (
             <StockCard
@@ -211,18 +210,16 @@ function QuietCards({
               eagerLogo
               figure={figure}
               tone={move == null ? "flat" : move >= 0 ? "up" : "down"}
-              // With the comparison said once above, the card's own fact is a line under its ticker, so every card in
-              // the grid is the same short height (owner rule 4); otherwise it is the usual chip.
-              note={words.shared ? fact : null}
-              fact={words.shared ? null : fact}
-              subFigure={versus}
+              // The card's own fact is a short line under its ticker, so the grid's cards stay one short height (owner
+              // rule 4). An ordinary move has none: its percent says it (judges, ship 53).
+              note={fact}
               tag={held.length > 0 && watchTickers.length === 1 && name.relation === "watching" ? `You watch ${name.ticker}.` : null}
               fill={stockGridFill(index, ordered.length, false, true)}
               cover={
                 <Link
                   prefetch={false}
                   href={`/stock/${encodeURIComponent(name.ticker)}`}
-                  aria-label={[name.ticker, figure, versus ? `${versus} its normal day` : null, fact].filter(Boolean).join(", ")}
+                  aria-label={[name.ticker, figure, fact].filter(Boolean).join(", ")}
                   className="absolute inset-0 rounded-[inherit] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
                 />
               }

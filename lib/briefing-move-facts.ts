@@ -16,8 +16,20 @@ export type CloseSeries = { dates: string[]; closes: number[] };
 const SINCE_MIN_SESSIONS = 40;
 /** A same-sized move is "this one" when the last close already holds it (prices taken after the close). */
 const SAME_MOVE_PP = 0.2;
-/** A move at least this many times a normal day says so ("About twice a normal day"). */
-const VS_DAY_MIN = 1.75;
+/**
+ * A move at least this many times a normal day says so ("About twice a normal day"); anything smaller is an ordinary
+ * move, shown as its percent alone (judges, ship 53: "1.3×" stamped on an ordinary move said nothing).
+ */
+export const VS_DAY_MIN = 1.75;
+
+/**
+ * "about twice a normal day", "about four times a normal day": a multiple of a normal day only once it means
+ * something (from about 2×), so the briefing, the inbox and My stocks never call an ordinary move "one and a half
+ * times" anything. Null under that.
+ */
+export function bigVsDayWords(ratio: number | null | undefined): string | null {
+  return typeof ratio === "number" && Number.isFinite(ratio) && ratio >= VS_DAY_MIN ? vsDayWords(ratio) : null;
+}
 /** The month is the last 21 sessions, today's included. */
 export const MONTH_SESSIONS = 21;
 /** A month that moved less than this says nothing worth a card. */
@@ -168,22 +180,15 @@ export type FactShape = "report" | "since" | "day" | "month" | "reason";
 /** One stock on a quiet list: its move, its price facts (moveFacts) and its report day in words, when within two weeks. */
 export type QuietStock = { ticker: string; pct: number | null; facts?: readonly string[] | null; report?: string | null };
 
-const TIMES = ["", "", "Twice", "Three times", "Four times", "Five times", "Six times", "Seven times", "Eight times", "Nine times", "Ten times"];
-
 /**
- * The move against the stock's own normal day, in words with the normal day's size: "Twice its normal 1.0% day",
- * "Under half its normal 1.3% day". Every size says something real, so a small move on a quiet list has a fact too.
+ * The move against the stock's own normal day, in words with the normal day's size, only when it means something:
+ * "About twice its normal 1.0% day", "About four times its normal 1.3% day". Null for an ordinary move (under about
+ * twice a normal day), which is shown as its percent alone (judges, ship 53).
  */
 export function normalDayWords(pct: number, normal: number): string | null {
   if (!Number.isFinite(pct) || !Number.isFinite(normal) || normal <= 0) return null;
-  const ratio = Math.abs(pct) / normal;
-  const day = `its normal ${normal.toFixed(1)}% day`;
-  if (ratio >= 2.5) return `${TIMES[Math.round(ratio)] ?? `${Math.round(ratio)} times`} ${day}`;
-  if (ratio >= VS_DAY_MIN) return `Twice ${day}`;
-  if (ratio >= 1.25) return `One and a half times ${day}`;
-  if (ratio >= 0.75) return `About ${day}`;
-  if (ratio >= 0.5) return `Smaller than ${day}`;
-  return `Under half ${day}`;
+  const words = bigVsDayWords(Math.abs(pct) / normal);
+  return words ? capitalise(words.replace(/ a normal day$/, ` its normal ${normal.toFixed(1)}% day`)) : null;
 }
 
 type Candidate = { shape: FactShape; text: string; rank: number };
@@ -207,10 +212,9 @@ function candidates(stock: QuietStock): Candidate[] {
     // "About twice a normal 1.0% day" or "A normal day moves it about 1.3%": the normal day, read against the move.
     const normal = /normal ([\d.]+)% day$/.exec(fact) ?? /^A normal day moves it about ([\d.]+)%$/.exec(fact);
     if (normal && stock.pct !== null && Number.isFinite(stock.pct)) {
-      const size = Number(normal[1]);
-      const words = normalDayWords(stock.pct, size);
-      const ratio = Math.abs(stock.pct) / size;
-      if (words) out.push({ shape: "day", text: words, rank: ratio >= VS_DAY_MIN ? 2 : ratio >= 1.25 ? 3.5 : ratio < 0.5 ? 4 : 5 });
+      // Only a move of about twice its normal day or more: an ordinary move has no multiple.
+      const words = normalDayWords(stock.pct, Number(normal[1]));
+      if (words) out.push({ shape: "day", text: words, rank: 2 });
     }
   }
   return out.sort((a, b) => a.rank - b.rank);
@@ -268,10 +272,7 @@ export function reportSoonWords(report: { date: string; time?: string | null } |
   return `Reports ${whenWords(report.date, today).replace(/^on /, "")}${session}`;
 }
 
-/* ── one comparison said once ──────────────────────────────────────────── */
-
-/** "Compared with each stock's normal day": said once above a grid whose cards each carry their own ratio. */
-export const NORMAL_DAY_LINE = "Compared with each stock's normal day:";
+/* ── the quiet grid's cards ───────────────────────────────────────────── */
 
 /** The normal day a stock's facts carry ("About twice a normal 1.1% day", "A normal day moves it about 1.3%"), or null. */
 export function normalDayOf(facts: readonly string[] | null | undefined): number | null {
@@ -283,14 +284,6 @@ export function normalDayOf(facts: readonly string[] | null | undefined): number
   return null;
 }
 
-/** "1.6×", "0.3×", "12×": a move as a multiple of the stock's normal day, read under the line above the grid. */
-export function timesWords(ratio: number): string {
-  return ratio >= 9.95 ? `${Math.round(ratio)}×` : `${ratio.toFixed(1)}×`;
-}
-
-/** Under this multiple the move rounds to "0.0×", which says nothing: no figure. */
-const MIN_TIMES = 0.05;
-
 /** A month at least this big, and well past what the stock's normal day adds up to, is worth its own chip. */
 const OUTLIER_MONTH_PCT = 10;
 
@@ -301,20 +294,17 @@ function outlierMonth(month: number, normal: number | null): boolean {
 }
 
 export type QuietCardsWords = {
-  /** The comparison most cards share, said once above them; null when the cards say their own facts as before. */
-  shared: string | null;
-  /** Each card's own figure for the shared comparison ("1.6×"), by ticker. */
-  versus: Map<string, string>;
-  /** Each card's one fact of its own, by ticker: a report soon, its biggest move in a while, an outlier month. */
+  /** Each card's one fact of its own, by ticker: a report soon, its biggest move in a while, a big move against its normal day, an outlier month. */
   facts: Map<string, string | null>;
 };
 
 /**
- * The words for a quiet list's cards (the briefing's other stocks), with one comparison said once (owner rule 1,
- * judges ship 50: nearly every chip was "N times its normal x% day" or "Up x% in a month"). When most cards know their
- * stock's normal day, the list says "Compared with each stock's normal day:" once, each card shows only its own
- * multiple ("1.6×"), and a card keeps a chip only for what is different about it: a report soon, its biggest move in a
- * while, or a month far outside its usual range. Otherwise each card picks one fact as quietFacts does. Pure.
+ * The words for a quiet list's cards (the briefing's other stocks). An ordinary move is its percent alone: no
+ * "1.3×" stamped on it, and no line above the grid explaining a multiple (judges, ship 53). A card keeps one fact only
+ * for what is different about it: a report soon, its biggest move in a while, a move of about twice its normal day or
+ * more, worded as Worth knowing words it ("About twice its normal 1.1% day"), or a month far outside its usual range.
+ * When most cards do not know their stock's normal day, each card picks one fact as quietFacts does. Never two cards
+ * with the same words. Pure.
  */
 export function quietCardsWords(stocks: readonly QuietStock[], reasons: ReadonlySet<string> = new Set()): QuietCardsWords {
   const normals = new Map<string, number>();
@@ -322,25 +312,24 @@ export function quietCardsWords(stocks: readonly QuietStock[], reasons: Readonly
     const normal = normalDayOf(stock.facts);
     if (normal !== null && stock.pct !== null && Number.isFinite(stock.pct)) normals.set(stock.ticker, normal);
   }
-  // "Most": more than half the cards, and at least three, so a pair of cards never gets a line of its own above them.
-  if (normals.size < 3 || normals.size * 2 <= stocks.length) return { shared: null, versus: new Map(), facts: quietFacts(stocks, reasons) };
-  const versus = new Map<string, string>();
+  // "Most": more than half the cards, and at least three; otherwise each card says its own most telling fact.
+  if (normals.size < 3 || normals.size * 2 <= stocks.length) return { facts: quietFacts(stocks, reasons) };
   const facts = new Map<string, string | null>();
   const used = new Set<string>();
   for (const stock of stocks) {
-    const normal = normals.get(stock.ticker) ?? null;
-    const ratio = normal !== null ? Math.abs(stock.pct!) / normal : null;
-    if (ratio !== null && ratio >= MIN_TIMES) versus.set(stock.ticker, timesWords(ratio));
     if (reasons.has(stock.ticker)) {
       facts.set(stock.ticker, null);
       continue;
     }
+    const normal = normals.get(stock.ticker) ?? null;
     const own: string[] = [];
     if (stock.report) own.push(stock.report);
     for (const fact of stock.facts ?? []) {
       const since = /^Its biggest (gain|drop) (.+)$/.exec(fact);
       if (since) own.push(`Biggest ${since[1]} ${since[2]}`);
     }
+    const big = normal !== null ? normalDayWords(stock.pct!, normal) : null;
+    if (big) own.push(big);
     for (const fact of stock.facts ?? []) {
       const month = /^(?:Still )?(up|down) ([\d.]+)% over the past month$/i.exec(fact);
       if (month && outlierMonth(Number(month[2]), normal)) own.push(`${month[1]!.charAt(0).toUpperCase()}${month[1]!.slice(1).toLowerCase()} ${month[2]}% in a month`);
@@ -349,5 +338,5 @@ export function quietCardsWords(stocks: readonly QuietStock[], reasons: Readonly
     if (pick) used.add(pick);
     facts.set(stock.ticker, pick);
   }
-  return { shared: NORMAL_DAY_LINE, versus, facts };
+  return { facts };
 }

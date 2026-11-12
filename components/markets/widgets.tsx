@@ -203,8 +203,10 @@ export function MarketTickerStrip({ tiles, className = "" }: { tiles: MarketsOve
                 <Sparkline values={tile.spark} tone={tile.tone} width={TILE_SPARK_WIDTH} height={16} />
               </span>
               <span className={`${MONO} text-[15px] font-medium leading-5 text-oa-fg`}>{tile.level}</span>
-              <span className={`${MONO} whitespace-nowrap text-[12.5px] leading-4 ${toneText(tile.tone)}`}>
-                {tile.change ?? "·"} <span className="text-oa-muted-fg">{tile.changeLabel}</span>
+              {/* A yield's "up 0.10 points" is longer than a price's "+1.31%": its "last session" wraps under it. */}
+              <span className={`${MONO} flex flex-wrap gap-x-1 text-[12.5px] leading-4 ${toneText(tile.tone)}`}>
+                <span className="whitespace-nowrap">{tile.change ?? "·"}</span>
+                <span className="whitespace-nowrap text-oa-muted-fg">{tile.changeLabel}</span>
               </span>
             </AppLink>
           </li>

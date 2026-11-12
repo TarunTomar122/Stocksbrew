@@ -268,10 +268,10 @@ function optionsCard(data: MarketsData): Card | null {
   const diff = average != null && average > 0 ? ratio.price - average : null;
   const text =
     diff == null || Math.abs(diff) < 0.03
-      ? "Puts and calls on single stocks traded in their usual mix."
+      ? "Bets on a rise and on a fall in single stocks traded in their usual mix."
       : diff > 0
-        ? "More puts than usual traded on single stocks: traders paid for protection against a fall."
-        : "More calls than usual traded on single stocks: traders leaned toward a rise.";
+        ? "More bets on a fall than usual in single stocks: traders paid for protection."
+        : "Fewer bets on a fall than usual in single stocks: traders leaned toward a rise.";
   return {
     key: "options",
     title: "Options",
@@ -279,7 +279,11 @@ function optionsCard(data: MarketsData): Card | null {
     linkLabel: "Open options",
     figure: ratio.price.toFixed(2),
     tone: "flat",
-    label: average != null && average > 0 ? `puts per call, 20-day average ${average.toFixed(2)}` : "puts per call",
+    // The put/call ratio in plain words (owner rule 8): a put is a bet on a fall, a call a bet on a rise.
+    label:
+      average != null && average > 0
+        ? `bets on a fall for each bet on a rise, against ${average.toFixed(2)} on a usual day`
+        : "bets on a fall for each bet on a rise",
     text,
     visual: ratio.spark.length > 1 ? <Sparkline values={ratio.spark} tone="flat" width={96} height={28} /> : null,
   };

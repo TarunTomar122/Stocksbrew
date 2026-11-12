@@ -1,13 +1,15 @@
 import { DIGEST_DAILY_MOVE_PCT, shortDate, type AgentDecision, type AgentScope, type AgentTrigger } from "@/lib/agent-jobs";
 import { agentHref, latestRunByJob, nextCheckFor } from "@/lib/agent-watch";
 
+import { findingClose } from "./example-check";
 import type { AgentsSource } from "./log";
 
 /**
  * A person's agents as rows that read in two seconds (owner, Nov 11: "what is this design and why is it so text"):
- * an icon for the kind of watch, a short name ("Big moves · 5%"), what the last run came to as a figure ("5 flagged",
- * "quiet"), the day it ran, and the stocks it flagged as small chips with their move. What it checked and its sources
- * stay on /agents, which the row opens. Built only from the stored jobs and runs. Pure.
+ * an icon for the kind of watch, a short name ("Big moves over 5%"), what the last run came to as a figure ("5 flagged",
+ * "quiet"), the day it ran, and the stocks it flagged as small chips with their move, under one sentence that says
+ * what they came to ("Flagged NVDA, down 5.5% to $168.89 on Nov 10. Earnings and filings were quiet."). What it
+ * checked and its sources stay on /agents, which the row opens. Built only from the stored jobs and runs. Pure.
  */
 
 export type AgentKind = "digest" | "weekly" | "move" | "price" | "zone" | "earnings" | "reported" | "congress" | "insider" | "fund" | "filing" | "news" | "movers" | "reasons";
@@ -24,6 +26,8 @@ export type AgentChip = {
   when?: string | null;
   /** YYYY-MM-DD of the move (the finding's own date), for `when`; unset when it is not a move. */
   moveDay?: string | null;
+  /** The close the move ended at, from the run's own evidence; unset when it did not say or it is not a move. */
+  close?: number | null;
 };
 
 export type AgentStatus = "flagged" | "quiet" | "failed" | "waiting";
@@ -32,7 +36,7 @@ export type AgentLine = {
   id: string;
   href: string;
   kind: AgentKind;
-  /** Short: "Big moves · 5%", "Earnings · 3 days ahead", "Congress trades". */
+  /** Short and whole: "Big moves over 5%", "Earnings, 3 days ahead", "Congress trades". */
   name: string;
   /** The full rule, for the row's title. */
   rule: string;
@@ -60,6 +64,8 @@ export type AgentLines = {
   sharedTime: string | null;
   /** The earliest next after-close check, when the run log proves the runner is checking. */
   next: string | null;
+  /** What the latest runs came to as one sentence, for the top of the card; null when there is nothing to say. */
+  lead: string | null;
 };
 
 /** Stock chips shown per row; the rest are a count. */
@@ -106,29 +112,35 @@ export function agentKind(trigger: AgentTrigger | undefined): AgentKind {
 
 const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+/** "insider trades" after a ticker ("AMD insider trades"); names that start with a proper noun keep their capital. */
+function afterTicker(name: string): string {
+  return /^(Congress|SEC)\b/.test(name) ? name : `${name.charAt(0).toLowerCase()}${name.slice(1)}`;
+}
+
 /**
- * A watch's short name: what it watches and its one setting ("Big moves · 5%", "NVDA below $180",
- * "Earnings · 3 days ahead"), with the stock when it watches just one. Falls back to the name the person gave it.
+ * A watch's short name in plain words, said whole (judges, ship 53: "Earnings · 3 days…" was cut): what it watches
+ * and its one setting ("Big moves over 5%", "NVDA below $180", "Earnings, 3 days ahead"), with the stock first when
+ * it watches just one ("AMD insider trades"). Falls back to the name the person gave it.
  */
 export function shortAgentName(job: { name: string; trigger?: AgentTrigger; scope?: AgentScope }): string {
   const trigger = job.trigger;
   if (!trigger) return job.name;
   const tickers = scopeTickers(job.scope);
   const one = tickers.length === 1 ? tickers[0]! : null;
-  const on = (name: string) => (one ? `${name} · ${one}` : name);
+  const on = (name: string) => (one ? `${one} ${afterTicker(name)}` : name);
   if (trigger.type === "schedule") {
-    return trigger.cadence === "weekly" ? `Weekly review · ${WEEKDAY[trigger.weekday ?? 1] ?? "Mon"}` : `Daily check · ${DIGEST_DAILY_MOVE_PCT}% moves`;
+    return trigger.cadence === "weekly" ? `Weekly review on ${WEEKDAY[trigger.weekday ?? 1] ?? "Mon"}` : `Daily check, ${DIGEST_DAILY_MOVE_PCT}% moves`;
   }
   if (trigger.type === "price") {
     const who = one ?? (tickers.length > 1 ? `${tickers.length} stocks` : "Your stocks");
     if (trigger.rule === "crosses_above" && typeof trigger.level === "number") return `${who} above ${money(trigger.level)}`;
     if (trigger.rule === "crosses_below" && typeof trigger.level === "number") return `${who} below ${money(trigger.level)}`;
-    if (trigger.rule === "moves_pct") return on(`Big moves · ${trigger.pct ?? 5}%`);
+    if (trigger.rule === "moves_pct") return on(`Big moves over ${trigger.pct ?? 5}%`);
     return on("Buy-more level");
   }
   switch (trigger.event) {
     case "earnings_approaching":
-      return on(`Earnings · ${plural(trigger.days_before ?? 3, "day")} ahead`);
+      return on(`Earnings, ${plural(trigger.days_before ?? 3, "day")} ahead`);
     case "earnings_reported":
       return on("Earnings results");
     case "congress_trade":
@@ -175,11 +187,13 @@ function chipFor(finding: Finding, kind: AgentKind): AgentChip | null {
   const move = moveOf(finding, kind);
   if (move !== null) {
     const rounded = Math.abs(move) < 0.05 ? 0 : move;
+    const close = findingClose(finding);
     return {
       ticker,
       figure: `${rounded >= 0 ? "+" : "−"}${Math.abs(rounded).toFixed(1)}%`,
       tone: rounded > 0 ? "up" : rounded < 0 ? "down" : null,
       moveDay: DAY.test(finding.at ?? "") ? finding.at : null,
+      ...(close !== null ? { close } : {}),
     };
   }
   // A report coming up: its day.
@@ -243,9 +257,12 @@ export function agentLines(source: AgentsSource, today: string, options: { hrefF
     const findings = run?.detail?.findings ?? [];
     const runDay = run && DAY.test(run.day) ? run.day : null;
     // A move from before today says its day: the finding's own date, else the day the run was.
-    const chips = (status === "flagged" ? agentChips(findings, kind) : []).map(({ moveDay, ...chip }) => {
-      const when = moveDay !== undefined ? chipDay(moveDay ?? runDay, today) : null;
-      return when ? { ...chip, when } : chip;
+    const chips = (status === "flagged" ? agentChips(findings, kind) : []).map((chip) => {
+      if (chip.moveDay === undefined) return chip;
+      // The move's own day, else the run's, kept for the lead's "on Nov 10".
+      const moveDay = chip.moveDay ?? runDay;
+      const when = chipDay(moveDay, today);
+      return { ...chip, moveDay, ...(when ? { when } : {}) };
     });
     // How many it flagged: a daily or weekly check counts its moves, reports and trades (it keeps only the biggest
     // as findings); any other watch, the stocks its findings name.
@@ -273,5 +290,121 @@ export function agentLines(source: AgentsSource, today: string, options: { hrefF
   const times = new Set(lines.map((line) => line.time ?? ""));
   const ownTimes = lines.length > 1 && times.size > 1 && lines.every((line) => line.time);
   const sharedTime = sharedDay && times.size === 1 && lines[0]!.time ? lines[0]!.time : null;
-  return { lines, paused: source.jobs.length - active.length, sharedDay, ownTimes, sharedTime, next: nexts.sort()[0] ?? null };
+  return { lines, paused: source.jobs.length - active.length, sharedDay, ownTimes, sharedTime, next: nexts.sort()[0] ?? null, lead: agentsLead(lines, today) };
+}
+
+/* ── the one sentence over the rows ────────────────────────────────────── */
+
+/** What each kind of watch looks at, as the lead names it: "Earnings and filings were quiet." */
+const KIND_NOUN: Record<AgentKind, { noun: string; one?: boolean }> = {
+  digest: { noun: "the daily check", one: true },
+  weekly: { noun: "the weekly review", one: true },
+  move: { noun: "big moves" },
+  movers: { noun: "movers" },
+  price: { noun: "price levels" },
+  zone: { noun: "buy-more levels" },
+  earnings: { noun: "earnings" },
+  reported: { noun: "earnings results" },
+  congress: { noun: "Congress trades" },
+  insider: { noun: "insider trades" },
+  fund: { noun: "fund filings" },
+  filing: { noun: "filings" },
+  news: { noun: "the news", one: true },
+  reasons: { noun: "your reasons" },
+};
+
+function capital(text: string): string {
+  return text ? `${text.charAt(0).toUpperCase()}${text.slice(1)}` : text;
+}
+
+function andList(items: string[]): string {
+  if (items.length <= 1) return items[0] ?? "";
+  if (items.length === 2) return `${items[0]} and ${items[1]}`;
+  return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
+}
+
+/** "$168.89", "$1,234.50", as the flag on the briefing and in the inbox says a close. */
+function priceWords(price: number): string {
+  return `$${price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/** " today", " on Nov 10": the day of a move, as the flag's own words say it. */
+function onDay(day: string | null | undefined, today: string): string {
+  if (!day || !DAY.test(day)) return "";
+  return day === today ? " today" : ` on ${shortDate(day)}`;
+}
+
+/** The size of a chip's move ("−5.5%" is 5.5), for ordering. */
+function chipSize(chip: AgentChip): number {
+  const value = Number((chip.figure ?? "").replace(/[+−%]/g, ""));
+  return Number.isFinite(value) ? value : 0;
+}
+
+/** Stocks named in the lead; past these, a count. */
+const LEAD_NAMES = 2;
+
+/**
+ * The agents' latest runs as one sentence over their rows, as the inbox opens with one (judges, ship 53): the moves
+ * they flagged with where a lone one closed ("Flagged NVDA, down 5.5% to $168.89 on Nov 10."), any other stocks they
+ * flagged, then what was quiet ("Earnings and filings were quiet.") and what could not be checked. Only from the
+ * rows' own figures, so it never says more than the rows show. Null when no agent has run. Pure.
+ */
+export function agentsLead(lines: readonly AgentLine[], today: string): string | null {
+  const sentences: string[] = [];
+  const named = new Set<string>();
+  const flagged = lines.filter((line) => line.status === "flagged");
+  const isMove = (chip: AgentChip) => chip.moveDay !== undefined && Boolean(chip.figure);
+  // Moves first, biggest first across every agent, one per stock: the biggest move a stock has on any row.
+  const moves: AgentChip[] = [];
+  for (const chip of flagged.flatMap((line) => line.chips.filter(isMove)).sort((a, b) => chipSize(b) - chipSize(a))) {
+    if (named.has(chip.ticker)) continue;
+    named.add(chip.ticker);
+    moves.push(chip);
+  }
+  const moveRows = flagged.filter((line) => line.chips.some(isMove));
+  if (moves.length > 0) {
+    const shown = moves.slice(0, LEAD_NAMES);
+    const oneDay = shown.every((chip) => chip.moveDay === shown[0]!.moveDay) ? (shown[0]!.moveDay ?? null) : null;
+    const words = shown.map((chip) => {
+      const size = chip.figure!.replace(/^[+−]/, "");
+      const way = chip.tone === "down" ? `down ${size}` : chip.tone === "up" ? `up ${size}` : "unchanged";
+      // The close only when one stock is named: two prices in one sentence is too much to read at a glance.
+      const close = shown.length === 1 && typeof chip.close === "number" && chip.close > 0 ? ` to ${priceWords(chip.close)}` : "";
+      return `${chip.ticker}, ${way}${close}${oneDay ? "" : onDay(chip.moveDay, today)}`;
+    });
+    // Everything else those rows flagged: moves past the named two, their other chips, and the rows' own counts.
+    const otherChips = new Set(moveRows.flatMap((line) => line.chips.filter((chip) => !isMove(chip) && !named.has(chip.ticker)).map((chip) => chip.ticker)));
+    otherChips.forEach((ticker) => named.add(ticker));
+    const rest = moves.length - shown.length + otherChips.size + moveRows.reduce((sum, line) => sum + line.more, 0);
+    // The day goes with the moves it belongs to, before "and 3 more", which may be from other days.
+    const list = `${words.join(words.length === 2 && rest === 0 ? ", and " : ", ")}${oneDay ? onDay(oneDay, today) : ""}`;
+    sentences.push(`Flagged ${list}${rest > 0 ? `, and ${rest} more` : ""}.`);
+  }
+  // Stocks flagged for something other than a move: "Flagged AMD on insider trades."
+  for (const line of flagged) {
+    if (moveRows.includes(line)) continue;
+    const noun = KIND_NOUN[line.kind].noun;
+    const others = line.chips.map((chip) => chip.ticker).filter((ticker) => !named.has(ticker));
+    others.forEach((ticker) => named.add(ticker));
+    if (others.length > 0) {
+      const more = line.more + Math.max(0, others.length - LEAD_NAMES);
+      sentences.push(`Flagged ${andList([...others.slice(0, LEAD_NAMES), ...(more > 0 ? [`${more} more`] : [])])} on ${noun}.`);
+    } else if (line.chips.length === 0) {
+      // No stocks to name: what it came to, in words ("Your filings agent found 3 things.").
+      const found = /^(\d+) (?:flagged|found)$/.exec(line.figure);
+      const count = found ? Number(found[1]) : null;
+      sentences.push(`Your ${noun.replace(/^the /, "")} agent found ${count !== null ? `${count} ${count === 1 ? "thing" : "things"}` : "something"}.`);
+    }
+  }
+  // A kind that flagged on one agent is not also "quiet" because a second agent of that kind was.
+  const flaggedKinds = new Set(flagged.map((line) => line.kind));
+  const quiet = [...new Set(lines.filter((line) => line.status === "quiet" && !flaggedKinds.has(line.kind)).map((line) => KIND_NOUN[line.kind]))];
+  if (quiet.length > 0) {
+    const nouns = [...new Set(quiet.map((kind) => kind.noun))];
+    const singular = nouns.length === 1 && quiet[0]!.one === true;
+    sentences.push(`${capital(andList(nouns))} ${singular ? "was" : "were"} quiet.`);
+  }
+  const failed = [...new Set(lines.filter((line) => line.status === "failed").map((line) => KIND_NOUN[line.kind].noun))];
+  if (failed.length > 0) sentences.push(`We could not check ${andList(failed)} this time.`);
+  return sentences.length > 0 ? sentences.join(" ") : null;
 }

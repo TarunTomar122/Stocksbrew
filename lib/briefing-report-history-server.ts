@@ -1,6 +1,7 @@
 import type { Briefing } from "@/lib/briefing";
 import type { BriefingReportHistory } from "@/lib/briefing-read";
-import { moveStats, vsDayWords } from "@/lib/earnings-season";
+import { bigVsDayWords } from "@/lib/briefing-move-facts";
+import { moveStats } from "@/lib/earnings-season";
 import { loadTickerEarnings } from "@/lib/earnings-season-data";
 import { noteDegradedRender } from "@/lib/next-render";
 
@@ -54,7 +55,7 @@ export async function briefingReportHistory(briefing: Briefing, today: string): 
         usualKind: stats.usualKind,
         normalPct: typeof normal === "number" && Number.isFinite(normal) && normal > 0 ? normal : null,
         // One report is not a pattern: no "times a normal day" from it (lib/earnings-season.ts does the same).
-        vsDay: stats.usualKind === "single" ? null : vsDayWords(stats.vsNormalDay),
+        vsDay: stats.usualKind === "single" ? null : bigVsDayWords(stats.vsNormalDay),
       };
     }
     return Object.keys(out).length > 0 ? out : undefined;

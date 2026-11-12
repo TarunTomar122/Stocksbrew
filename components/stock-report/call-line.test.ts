@@ -47,18 +47,23 @@ describe("callLine", () => {
 
   it("says what a hidden level waits for without its number, and points to the gate once", () => {
     const line = callLine({ ...base, plan: "anon", hidden: { label: "We'd buy more below", reached: false } });
-    expect(line).toEqual({ text: "Buy more on a dip below today's $343.37.", gate: "The price we'd buy at comes with a free account." });
+    expect(line).toEqual({ text: "Buy more on a dip to our buy price, which is under today's $343.37.", gate: "The price we'd buy at comes with a free account." });
     expect(callLine({ ...base, hidden: { label: "We'd buy more below", reached: true } })).toEqual({
       text: "Buy more at today's $343.37, already under our buy price.",
       gate: "The price we'd buy at is in the full report.",
     });
     const sell = callLine({ ...base, callWord: "Sell some", hidden: { label: "We'd sell some above", reached: false } });
-    expect(sell?.text).toBe("Sell some if it rises from today's $343.37.");
+    expect(sell?.text).toBe("Sell some if it rises to our sell price, which is over today's $343.37.");
     expect(sell?.gate).toBe("The price we'd sell at is in the full report.");
     // With the ticker, the gate names the stock: it is the lock's title.
     expect(callLine({ ...base, plan: "anon", ticker: "JPM", hidden: { label: "We'd buy more below", reached: false } })?.gate).toBe(
       "The price we'd buy JPM at comes with a free account.",
     );
+    // Today's price is never said as the level itself ("on a dip below today's $343" read as the threshold).
+    expect(callLine({ ...base, hidden: { label: "We'd buy more above", reached: false } })?.text).toBe("Buy more once it climbs to our buy price, which is over today's $343.37.");
+    for (const label of ["We'd buy more below", "We'd buy more above", "We'd sell some above"] as const) {
+      expect(callLine({ ...base, hidden: { label, reached: false } })?.text).not.toMatch(/(?:below|above|from) today's/);
+    }
     // No dollar figure in a hidden line besides today's price.
     for (const hidden of [
       { label: "We'd buy more above", reached: false },

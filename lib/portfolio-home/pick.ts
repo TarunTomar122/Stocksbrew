@@ -1,6 +1,7 @@
 import { watchEarningsHref, watchMoveHref, earningsRequest, moveRequest } from "@/lib/agents-plain/ask-links";
 import { fmtDollars, fmtPerShare, fmtPlanDay, type DividendPlan } from "@/lib/dividend-plan";
-import { historyWords, oneToWatch, sessionWords, vsDayWords, whenWords, type SeasonStock } from "@/lib/earnings-season";
+import { bigVsDayWords } from "@/lib/briefing-move-facts";
+import { historyWords, oneToWatch, sessionWords, whenWords, type SeasonStock } from "@/lib/earnings-season";
 import type { SeasonView } from "@/lib/earnings-season-data";
 import { yearlyOf } from "@/lib/goal/bootstrap";
 import type { GoalData } from "@/lib/goal/data";
@@ -282,7 +283,7 @@ function earningsItem(view: SeasonView): Noticed | null {
       ? `${watch.name} reports ${when}, the only one of ${example ? "the example's" : "your"} holdings to report in the next six weeks${watch.weight !== null ? `, and it is ${weightWords(watch.weight)} of ${whose}` : ""}.`
       : `${watch.name}'s report ${when} matters most${watch.weight !== null ? `: it is ${weightWords(watch.weight)} of ${whose}` : ""}.`;
   const history = historyWords(watch.stats, watch.past, today);
-  const vsDay = watch.stats.usualKind === "single" ? null : vsDayWords(watch.stats.vsNormalDay);
+  const vsDay = watch.stats.usualKind === "single" ? null : bigVsDayWords(watch.stats.vsNormalDay);
   const past = history ? `It ${history}${vsDay ? `, ${vsDay}` : ""}.` : "We have no record of how it moved on past reports.";
   const others = holdings.length > 1 ? ` ${countWord(holdings.length)} of ${example ? "the example's" : "your"} holdings report in the next six weeks.` : "";
   const share = watch.weight !== null ? `It is ${weightWords(watch.weight)} of ${whose}` : null;

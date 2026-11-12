@@ -107,6 +107,23 @@ export function toneWord(counts: ToneCounts, stories: number = totalOf(counts)):
   return null;
 }
 
+/**
+ * A ranked row's tone, always said once the list has a tone column (owner rule 3, judges on ship 53: a blank cell read
+ * as missing data). The supported tone when there is one (`toneWord`); "Mixed" when most stories have a tone and both
+ * sides have at least two with neither leading; "Too few stories to say" when the stock has fewer stories than a tone
+ * needs; and "No clear lean" otherwise (enough stories, but not enough of them lean one way to call it). Never a
+ * made-up lean.
+ */
+export function rowTone(counts: ToneCounts, stories: number = totalOf(counts)): { text: string; side: "positive" | "negative" | "neutral" | "unsaid" } {
+  const word = toneWord(counts, stories);
+  if (word) return word;
+  const labelled = totalOf(counts);
+  const base = Math.max(stories, labelled);
+  if (labelled >= MIN_TONED && labelled * 2 >= base && counts.positive >= 2 && counts.negative >= 2) return { text: "Mixed", side: "unsaid" };
+  if (base < MIN_TONED) return { text: "Too few stories to say", side: "unsaid" };
+  return { text: "No clear lean", side: "unsaid" };
+}
+
 export function leanTone(counts: ToneCounts): InsightTone {
   const lean = leanOf(counts);
   return lean === "positive" ? "up" : lean === "negative" ? "down" : "flat";

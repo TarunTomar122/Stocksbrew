@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildBacktestRead } from "@/lib/backtest-insights";
+import { beatYearsSentence, buildBacktestRead, swingSentence } from "@/lib/backtest-insights";
 
 const stats = (annual: number, dd: number, final = 200) => ({
   total_return: final / 100 - 1,
@@ -27,7 +27,8 @@ describe("backtest read", () => {
         { symbol: "TLT", weight: 0.4, end_weight: 0.1, first_date: "", last_price_date: null, total_return: -0.3 },
       ],
     });
-    expect(read.headline).toBe("This mix would have turned $10,000 into $46,000 since Jan 2016.");
+    expect(read.headline).toBe("This mix gained 360% since Jan 2016.");
+    expect(read.sub).toBe("$10,000 → $46,000");
     expect(read.insights[0].text).toBe("3.2 points a year ahead of the S&P 500, which made +12.0% a year.");
     expect(read.insights[0].figure).toEqual({ value: "+15.2%", label: "a year" });
     expect(read.insights[0].soWhat).toBe("The same $10,000 in the S&P 500 would be $34,000.");
@@ -50,7 +51,8 @@ describe("backtest read", () => {
       years: [year(2019, 0.1, 0.31), year(2020, 0.1, 0.15), year(2021, 0.2, 0.28)],
       holdings: [],
     });
-    expect(read.headline).toBe("This mix would have turned $10,000 into $20,000 since Jan 2016.");
+    expect(read.headline).toBe("This mix gained 100% since Jan 2016.");
+    expect(read.sub).toBe("$10,000 → $20,000");
     expect(read.insights[2].text).toBe("Behind the S&P 500 in all three full years, most in 2019: +10% against +31%.");
     expect(read.insights[2].figure).toEqual({ value: "−21.0 pts", label: "in 2019" });
     expect(read.insights[2].tone).toBe("down");
@@ -111,6 +113,46 @@ describe("backtest read", () => {
       years: [],
       holdings: [],
     });
-    expect(read.headline).toBe("This mix would have turned $10,000 into $0 since Mar 2024.");
+    expect(read.headline).toBe("This mix lost 100% since Mar 2024.");
+    expect(read.sub).toBe("$10,000 → $0");
+  });
+});
+
+describe("backtest figures in words", () => {
+  it("says one number in the headline, with the money under it", () => {
+    const read = (final: number) =>
+      buildBacktestRead(
+        {
+          benchmark: "SPY",
+          period: { start: "2021-11-12", end: "2026-11-11", years: 5 },
+          summary: { strategy: stats(0.036, -0.28, final), benchmark: stats(0.117, -0.24, 174) },
+          years: [],
+          holdings: [],
+        },
+        "the 60/40 mix",
+      );
+    expect(read(119.6).headline).toBe("The 60/40 mix gained 19.6% since Nov 2021.");
+    expect(read(119.6).sub).toBe("$10,000 → $11,960");
+    expect(read(88).headline).toBe("The 60/40 mix lost 12.0% since Nov 2021.");
+    expect(read(100.01).headline).toBe("The 60/40 mix ended about where it started in Nov 2021.");
+    // A total that rounds to 100% says it without a stray decimal.
+    expect(read(199.97).headline).toBe("The 60/40 mix gained 100% since Nov 2021.");
+  });
+
+  it("says the return for its swing as a sentence", () => {
+    expect(swingSentence(0.35, 0.73, "SPY")).toBe("It gained 0.35 points for each point it swung, against 0.73 for the S&P 500.");
+    expect(swingSentence(0.35, null, "S&P 500")).toBe("It gained 0.35 points for each point it swung.");
+    expect(swingSentence(-0.2, 0.73, "QQQ")).toBe("It swung around with nothing gained for it, while the Nasdaq 100 gained 0.73 points for each point it swung.");
+    expect(swingSentence(0.001, -0.1, "SPY")).toBe("It swung around with nothing gained for it, and so did the S&P 500.");
+    expect(swingSentence(null, 0.73, "SPY")).toBeNull();
+  });
+
+  it("counts the years it beat the index in words", () => {
+    expect(beatYearsSentence({ beat: 0, years: 4, complete_years_only: true }, "SPY")).toBe("It trailed the S&P 500 in every full year.");
+    expect(beatYearsSentence({ beat: 4, years: 4, complete_years_only: true }, "S&P 500")).toBe("It beat the S&P 500 in every full year.");
+    expect(beatYearsSentence({ beat: 2, years: 4, complete_years_only: true }, "SPY")).toBe("It beat the S&P 500 in two of four full years.");
+    expect(beatYearsSentence({ beat: 1, years: 1, complete_years_only: true }, "SPY")).toBe("It beat the S&P 500 in its one full year.");
+    expect(beatYearsSentence({ beat: 0, years: 2, complete_years_only: false }, "SPY")).toBe("It trailed the S&P 500 in every year of the test.");
+    expect(beatYearsSentence({ beat: 0, years: 0, complete_years_only: true }, "SPY")).toBeNull();
   });
 });

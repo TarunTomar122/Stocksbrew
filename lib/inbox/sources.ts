@@ -5,7 +5,8 @@ import { runTickers } from "@/lib/agent-watch";
 import { moveReason } from "@/lib/briefing";
 import { normalizeEarnings } from "@/lib/calendar-shared";
 import { getDailyAnomalyTickers } from "@/lib/daily-anomalies";
-import { historyWords, moveStats, vsDayWords } from "@/lib/earnings-season";
+import { bigVsDayWords } from "@/lib/briefing-move-facts";
+import { historyWords, moveStats } from "@/lib/earnings-season";
 import { loadTickerEarnings } from "@/lib/earnings-season-data";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { getInsiderBuys, getSourceActivity } from "@/lib/follow";
@@ -270,7 +271,7 @@ export async function reportsSource(stocks: InboxStock[], today: string): Promis
       session: row.session,
       history: stats && history ? historyWords(stats, history.past, today) : null,
       usualPct: stats?.usual ?? null,
-      vsDay: stats ? vsDayWords(stats.vsNormalDay) : null,
+      vsDay: stats ? bigVsDayWords(stats.vsNormalDay) : null,
     });
   }
   return out;

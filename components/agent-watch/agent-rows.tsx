@@ -7,9 +7,10 @@ import { fmtPlanDay } from "@/lib/dividend-plan";
 import type { AgentChip, AgentKind, AgentLine } from "@/lib/portfolio-home/agent-lines";
 
 /**
- * The person's agents as compact rows (lib/portfolio-home/agent-lines.ts): the kind's icon, a short name, the last
- * run as a figure and when it ran, and the stocks it flagged as logo chips with their move. The row is the link (to the
- * agent on /agents, where what it checked and its sources are). Used by My stocks and the Today briefing rail.
+ * The person's agents as compact rows (lib/portfolio-home/agent-lines.ts) under one sentence that says what they came
+ * to (AgentLead): the kind's icon, a short name said whole, the last run as a figure and when it ran, and the stocks
+ * it flagged as logo chips with their move. The row is the link (to the agent on /agents, where what it checked and
+ * its sources are). Used by My stocks and the Today briefing rail.
  * Server-safe: no hooks.
  */
 
@@ -90,14 +91,16 @@ export function AgentRow({
         prefetch={false}
         title={line.rule}
         data-track-target="agent-run"
-        className={`grid grid-cols-[1.125rem_minmax(0,1fr)_auto] items-center gap-x-2.5 px-4 py-2.5 transition-colors hover:bg-oa-accent ${FOCUS}`}
+        className={`grid grid-cols-[1.125rem_minmax(0,1fr)_auto] items-start gap-x-2.5 px-4 py-2.5 transition-colors hover:bg-oa-accent ${FOCUS}`}
       >
-        <NavIcon name={ICON[line.kind]} className="size-[18px] text-oa-muted-fg" />
-        <span className="truncate text-[13.5px] font-medium leading-5 text-oa-fg">{line.name}</span>
-        <span className="oa-mono flex flex-col items-end whitespace-nowrap text-[12.5px] leading-5 tabular-nums">
-          <span className={STATUS_TONE[line.status]}>{line.figure}</span>
-          {ran ? <span className="text-[11.5px] leading-4 text-oa-muted-fg">{ran}</span> : null}
+        <NavIcon name={ICON[line.kind]} className="mt-px size-[18px] text-oa-muted-fg" />
+        {/* The whole name, wrapping if it must, never cut (judges, ship 53: "Earnings · 3 days…"); when it ran sits
+            under it, so the figure on the right keeps its own short column. */}
+        <span className="min-w-0">
+          <span className="block text-pretty break-words text-[13.5px] font-medium leading-5 text-oa-fg">{line.name}</span>
+          {ran ? <span className="oa-mono block text-[11.5px] leading-4 tabular-nums text-oa-muted-fg">{ran}</span> : null}
         </span>
+        <span className={`oa-mono whitespace-nowrap text-[12.5px] leading-5 tabular-nums ${STATUS_TONE[line.status]}`}>{line.figure}</span>
         {chips.length > 0 ? (
           // The whole width under the row, so the chips fit on one line in the side rail.
           <span className="col-span-3 mt-1.5 flex flex-wrap gap-1">
@@ -111,6 +114,15 @@ export function AgentRow({
       </Link>
     </li>
   );
+}
+
+/**
+ * What the agents' latest runs came to, as one sentence over their rows (lib/portfolio-home/agent-lines.ts
+ * agentsLead): "Flagged NVDA, down 5.5% to $168.89 on Nov 10. Earnings and filings were quiet."
+ */
+export function AgentLead({ text }: { text: string | null }) {
+  if (!text) return null;
+  return <p className="px-4 pb-2.5 text-pretty text-[14px] leading-5 text-oa-fg">{text}</p>;
 }
 
 /** The next check and how many agents are paused, once under the list; each row says when it ran itself. */

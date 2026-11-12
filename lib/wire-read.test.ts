@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { countTones, leanOf, marketRead, newsThemes, readTheWire, stockBuzz, storiesBetween, toneWord, type NewsLabels } from "@/lib/wire-read";
+import { countTones, leanOf, marketRead, newsThemes, readTheWire, rowTone, stockBuzz, storiesBetween, toneWord, type NewsLabels } from "@/lib/wire-read";
 import { parseWireFilters, type WireItem } from "@/lib/wire-shared";
 
 const NOW = Date.parse("2026-11-10T16:00:00Z");
@@ -205,5 +205,20 @@ describe("toneWord", () => {
     expect(toneWord({ positive: 3, negative: 2, neutral: 1 }, 6)).toBeNull();
     // Too few toned stories say nothing: the cell stays empty.
     expect(toneWord({ positive: 1, negative: 0, neutral: 1 }, 20)).toBeNull();
+  });
+});
+
+describe("rowTone", () => {
+  it("always says something: the tone, a mixed read, or that there is too little to say", () => {
+    expect(rowTone({ positive: 6, negative: 1, neutral: 1 }, 8)).toEqual({ text: "75% positive", side: "positive" });
+    expect(rowTone({ positive: 3, negative: 2, neutral: 1 }, 6)).toEqual({ text: "Mixed", side: "unsaid" });
+    // One side and some neutral stories is not mixed.
+    expect(rowTone({ positive: 1, negative: 0, neutral: 2 }, 6).text).toBe("No clear lean");
+    expect(rowTone({ positive: 1, negative: 0, neutral: 1 }, 20)).toEqual({ text: "No clear lean", side: "unsaid" });
+    // Toned stories that are a sliver of the coverage are too few to call it mixed.
+    expect(rowTone({ positive: 2, negative: 2, neutral: 1 }, 30).text).toBe("No clear lean");
+    // Only a stock with fewer stories than a tone needs is "too few stories".
+    expect(rowTone({ positive: 1, negative: 0, neutral: 0 }, 2)).toEqual({ text: "Too few stories to say", side: "unsaid" });
+    expect(rowTone({ positive: 0, negative: 0, neutral: 0 }, 0).text).toBe("Too few stories to say");
   });
 });

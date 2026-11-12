@@ -163,7 +163,7 @@ export function PeriodNav({ filters, today, className = "" }: { filters: Calenda
 
 /**
  * Phone only: the week as five tap targets with earlier / later at the ends.
- * Today and later days jump down the page; a day that has passed opens its results.
+ * Each day jumps down the page to its list, a day that has passed included.
  */
 function DayStrip({ filters, today, days }: { filters: CalendarFilters; today: string; days: Map<string, DayBuckets> }) {
   const thisWeek = filters.week === defaultWeekStart(today);
@@ -180,7 +180,7 @@ function DayStrip({ filters, today, days }: { filters: CalendarFilters; today: s
           return (
             <AppLink
               key={day}
-              href={past ? calendarHref(filters, today, { view: "list", day }) : `#d-${day}`}
+              href={`#d-${day}`}
               aria-current={isToday ? "date" : undefined}
               aria-label={`${weekdayName(day, true)}, ${fmtShortDay(day)}: ${bucket.total} event${bucket.total === 1 ? "" : "s"}`}
               className={`flex h-[52px] flex-col items-center justify-center border-l border-oa-border hover:bg-oa-accent ${FOCUS} ${
@@ -213,7 +213,8 @@ function DayStrip({ filters, today, days }: { filters: CalendarFilters; today: s
 
 /**
  * What matters this week before the grid (owner rule 7): the biggest companies still to report, a card each, with the
- * move after its last report as the one figure and when it reports. Each card opens the company's earnings page.
+ * move after its last report as the one figure and when it reports. What the figure is gets said once under the
+ * heading, not under every card (owner rule 1). Each card opens the company's earnings page.
  */
 export function BiggestReports({ reports, className = "" }: { reports: BigReport[]; className?: string }) {
   if (reports.length === 0) return null;
@@ -224,6 +225,10 @@ export function BiggestReports({ reports, className = "" }: { reports: BigReport
       <h2 id="biggest-reports" className="px-2 pb-2 text-[17px] font-medium tracking-tight text-oa-fg sm:px-3">
         {shared ? `The biggest reports, ${shared}` : "The biggest reports still to come"}
       </h2>
+      {/* Said once for every card, so −8.4% is not read as today's move (judges, ships 50 and 53). */}
+      <p className="-mt-1 px-2 pb-2.5 text-[14px] leading-5 text-oa-muted-fg sm:px-3">
+        {reports.length === 1 ? "The figure is how the stock moved after its last report." : "Each figure is how the stock moved after its last report."}
+      </p>
       {/* Two reports sit side by side as halves; three or more run three across, a short last row filled. */}
       <ul className={`grid grid-flow-row-dense grid-cols-1 gap-3 sm:grid-cols-2 ${reports.length >= 3 ? "lg:grid-cols-3" : ""}`}>
         {reports.map(({ item, lastPct, when, size, expect }, index) => {
@@ -242,13 +247,10 @@ export function BiggestReports({ reports, className = "" }: { reports: BigReport
                     {short && short.toUpperCase() !== item.ticker.toUpperCase() ? <p className="truncate text-[12.5px] leading-4 text-oa-muted-fg">{short}</p> : null}
                   </div>
                 </div>
-                {/* The move says what it is beside the number, so −8.4% is not read as today's move (judges, ship 50). */}
-                <div className="shrink-0 text-right">
-                  <p className={`oa-mono text-[20px] font-semibold leading-7 tracking-[-0.01em] tabular-nums ${tone}`}>
-                    {`${shown > 0 ? "+" : shown < 0 ? "−" : ""}${Math.abs(shown).toFixed(1)}%`}
-                  </p>
-                  <p className="text-[12.5px] leading-4 text-oa-muted-fg">after its last report</p>
-                </div>
+                <p className={`oa-mono shrink-0 text-right text-[20px] font-semibold leading-7 tracking-[-0.01em] tabular-nums ${tone}`}>
+                  {`${shown > 0 ? "+" : shown < 0 ? "−" : ""}${Math.abs(shown).toFixed(1)}%`}
+                  <span className="sr-only"> after its last report</span>
+                </p>
               </div>
               <p className="mt-2 text-pretty text-[14px] leading-5 text-oa-fg">{shared ? size : `Reports ${when}. ${size}`}</p>
               {expect ? <p className="mt-1.5 text-pretty text-[13px] leading-[18px] text-oa-muted-fg">{expect}</p> : null}
@@ -368,9 +370,9 @@ function EarningsLine({
   quiet: boolean;
   mark: boolean;
   /**
-   * A day that has passed, in a narrow column: a phone never shows it (its day is one header line there), so the row
-   * is only what the desktop column shows (ticker, result mark and move), without the hidden name, chip and figures
-   * that made the page heavy (owner rule 11).
+   * A day that has passed, in a narrow column: the row is only the ticker, the result and the move, without the name
+   * and figures that made the page heavy (owner rule 11). The result is a mark on the desktop column and its word on a
+   * phone, where the row has the room.
    */
   desktopOnly?: boolean;
 }) {
@@ -385,13 +387,14 @@ function EarningsLine({
       : "";
   if (desktopOnly && narrow) {
     return (
-      <Link prefetch={false} data-row="" href={earningsHref(item.ticker)} title={[item.company, result].filter(Boolean).join(": ")} className={`flex min-h-[30px] items-center gap-x-2 px-3 py-0.5 hover:bg-oa-accent ${FOCUS}`}>
+      <Link prefetch={false} data-row="" href={earningsHref(item.ticker)} title={[item.company, result].filter(Boolean).join(": ")} className={`flex min-h-10 items-center gap-x-2 px-3 py-0.5 hover:bg-oa-accent lg:min-h-[30px] ${FOCUS}`}>
         <span className={`${NUM} inline-flex shrink-0 items-center gap-1.5 text-[14px] font-medium text-oa-fg`}>
           <StockLogo ticker={item.ticker} size={16} atOnce />
           {item.ticker}
         </span>
         {reported ? <ResultMark item={item} /> : null}
-        <span className="ml-auto flex shrink-0 items-baseline text-[14px]">
+        <span className="ml-auto flex shrink-0 items-baseline gap-2 text-[14px]">
+          {reported ? <ResultWord item={item} compact /> : null}
           {reported ? (
             <ReactionValue item={item} narrow />
           ) : item.epsEstimate !== null ? (
@@ -475,7 +478,12 @@ function IpoLine({ item }: { item: IpoItem }) {
     <div data-row="" className="px-3 py-1.5">
       <span className="flex items-center justify-between gap-2">
         <span className="min-w-0 text-pretty text-[14px] font-medium leading-5 text-oa-fg">{readableName(item.company)}</span>
-        {item.ticker ? <span className={`${NUM} shrink-0 text-[12.5px] text-oa-muted-fg`}>{item.ticker}</span> : null}
+        {item.ticker ? (
+          <span className={`${NUM} inline-flex shrink-0 items-center gap-1.5 text-[12.5px] text-oa-muted-fg`}>
+            <StockLogo ticker={item.ticker} size={16} atOnce />
+            {item.ticker}
+          </span>
+        ) : null}
       </span>
       <span className={`${NUM} mt-0.5 block text-pretty text-[12.5px] leading-4 text-oa-muted-fg`}>
         {[
@@ -555,7 +563,7 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
       <AppLink
         href={dayHref}
         className={`flex min-h-10 flex-wrap items-center justify-between gap-x-2 border-b border-oa-border px-3 py-2 hover:bg-oa-accent ${FOCUS} ${
-          past ? "max-lg:border-b-0" : isToday ? "" : "bg-oa-bg"
+          past || isToday ? "" : "bg-oa-bg"
         }`}
       >
         {/* Today is said in its own words and colour, not with a coloured edge on the column (owner rule 6). */}
@@ -585,7 +593,7 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
           ) : (
             ""
           )}
-          {/* Phone: a day that has passed is one line. Its results open from here. */}
+          {/* Phone: a day that has passed counts its beats and misses once, over its list. */}
           {past && reports ? (
             <span className="lg:hidden">
               {beats ? ` · ${beats} beat` : ""}
@@ -595,7 +603,7 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
         </span>
       </AppLink>
 
-      <DayBody past={past}>
+      <DayBody>
         {bucket.total === 0 ? <p className="px-3 py-4 text-[14px] text-oa-muted-fg">Nothing scheduled.</p> : null}
 
         {bucket.economic.length ? (
@@ -667,11 +675,12 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
 /**
  * A day's events, every one, in a box that ends on a whole row and scrolls inside (owner rule 5): a desktop column, or
  * about 12 reports on a phone, so a busy Thursday does not run the page. No overscroll-contain, so the page moves on
- * once the list ends. On a phone a day that has passed stays a one-line header (its results open from there).
+ * once the list ends. A day that has passed shows its reports too, on a phone as well (owner rule 2: no tapping a day
+ * open to read it).
  */
-function DayBody({ past, children }: { past: boolean; children: React.ReactNode }) {
+function DayBody({ children }: { children: React.ReactNode }) {
   return (
-    <WholeRows rem={PHONE_DAY_REM} wideRem={DAY_REM} wideFrom={1024} cue className={`scrollbar-hide max-h-[36rem] overflow-y-auto lg:max-h-[30rem] ${past ? "max-lg:hidden" : ""}`}>
+    <WholeRows rem={PHONE_DAY_REM} wideRem={DAY_REM} wideFrom={1024} cue className="scrollbar-hide max-h-[36rem] overflow-y-auto lg:max-h-[30rem]">
       {children}
     </WholeRows>
   );

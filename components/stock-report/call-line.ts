@@ -70,7 +70,8 @@ function instruction(label: CallLevel["label"]): string {
 /**
  * The line under the call word, one instruction that goes with it (owner rule 9: "Buy more" beside "wait for a dip"
  * read as two). With the level: "Buy more below $330.00, 3.9% under today's $343.37." Without it on this plan: the
- * same instruction without the number ("Buy more on a dip below today's $343.37.") and the gate, never the number.
+ * same instruction without the number ("Buy more on a dip to our buy price, which is under today's $343.37.": today's
+ * price is never said as if it were the level) and the gate, never the number.
  * With no level at all: what the call means, when that says more than the word.
  */
 export function callLine(input: {
@@ -103,14 +104,14 @@ export function callLine(input: {
       hidden.label === "We'd buy more below"
         ? hidden.reached
           ? `Buy more at ${at}, already under our buy price.`
-          : `Buy more on a dip below ${at}.`
+          : `Buy more on a dip to our buy price, which is under ${at}.`
         : hidden.label === "We'd buy more above"
           ? hidden.reached
             ? `Buy more at ${at}, already over our buy price.`
-            : `Buy more once it breaks out above ${at}.`
+            : `Buy more once it climbs to our buy price, which is over ${at}.`
           : hidden.reached
             ? `Sell some at ${at}, already over our sell price.`
-            : `Sell some if it rises from ${at}.`;
+            : `Sell some if it rises to our sell price, which is over ${at}.`;
     const stock = input.ticker ? `${input.ticker} ` : "";
     const what = hidden.label === "We'd sell some above" ? `The price we'd sell ${stock}at` : `The price we'd buy ${stock}at`;
     return { text, gate: input.plan === "anon" ? `${what} comes with a free account.` : `${what} is in the full report.` };

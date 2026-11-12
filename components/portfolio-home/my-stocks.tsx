@@ -45,7 +45,8 @@ export function MyStocksBody({ load }: { load: HomeLoad }) {
           <Suspense fallback={null}>
             <ToolLinks load={load} />
           </Suspense>
-          <div data-memo-box className="relative min-w-0 lg:min-h-[12rem] lg:!shrink lg:flex-1 [&:not(:has(a))]:hidden">
+          {/* At least the memo's header, its figure and one whole row of movers (13rem), so the card is never cut mid-row. */}
+          <div data-memo-box className="relative min-w-0 lg:min-h-[13rem] lg:!shrink lg:flex-1 [&:not(:has(a))]:hidden">
             <div className="lg:absolute lg:inset-x-0 lg:top-0 lg:flex lg:max-h-full lg:flex-col">
               <Suspense fallback={null}>
                 <MemoFigures load={load} />
