@@ -16,12 +16,15 @@ import { WIRE_PAGE_SIZE, wireHref, type WireFilters } from "@/lib/wire-shared";
  * last row, so the cards it brings land right where the reader already is.
  */
 
-/** The feed's box: about two cards on a phone, a little over two rows of cards wider up, ending on a whole row. */
-const FEED_REM = 34;
-const FEED_WIDE_REM = 50;
+/**
+ * The feed's box: about three cards on a phone, and four rows of two (eight companies) wider up (owner rule 5: about
+ * eight in view, the rest in the same scroll), ending on a whole row.
+ */
+const FEED_REM = 40;
+const FEED_WIDE_REM = 56;
 
-/** The headlines a card shows; the rest are one click away. */
-const HEADLINE_SLOTS = 3;
+/** The headlines a card shows, so eight companies fit in view; the card itself opens the rest. */
+const HEADLINE_SLOTS = 2;
 
 function CompanyCard({ group, filters, fill = "" }: { group: CompanyGroup; filters: WireFilters; fill?: string }) {
   const items = group.items.slice(0, HEADLINE_SLOTS);
@@ -42,9 +45,8 @@ function CompanyCard({ group, filters, fill = "" }: { group: CompanyGroup; filte
       {/* A followed company whose stories were all bait keeps its card (lib/wire-companies.ts) with no empty list band. */}
       {items.length ? (
         <ul className="flex flex-1 flex-col gap-2.5 px-4 py-3">
-          {items.map((item, index) => (
-            // A phone shows two headlines a card, so its bounded feed holds more than one company at a time.
-            <li key={item.id} className={index >= 2 ? "max-sm:hidden" : undefined}>
+          {items.map((item) => (
+            <li key={item.id}>
               <HeadlineLine item={item} companyName={group.name ?? ""} className="relative z-10" />
             </li>
           ))}
@@ -67,7 +69,7 @@ function CompanyGrid({ groups, filters, more = null }: { groups: CompanyGroup[];
       rem={FEED_REM}
       wideRem={FEED_WIDE_REM}
       cue
-      className="scrollbar-hide overflow-y-auto max-h-[34rem] sm:max-h-[50rem]"
+      className="scrollbar-hide overflow-y-auto max-h-[40rem] sm:max-h-[56rem]"
     >
       <CardGrid cols={2}>
         {groups.map((group, index) => (

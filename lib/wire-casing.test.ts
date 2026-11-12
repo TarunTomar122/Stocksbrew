@@ -96,4 +96,11 @@ describe("caseWireHeadlines", () => {
   it("does nothing without a vocabulary", () => {
     expect(lowerOrdinaryCapitals("A Solar Line", new Set())).toBe("A Solar Line");
   });
+
+  it("lowers a hyphen run of ordinary words and a stray after a company name (Nov 12)", () => {
+    const out = run(["Nvidia fallout: Taiwan reportedly revokes Re-Entry of alleged spy involved with Huang", "Nvidia Turmoil lifts AMD as chip stocks rebound"], { NVDA: "NVIDIA Corporation", AMD: "Advanced Micro Devices, Inc." });
+    expect(out[0]).toBe("Nvidia fallout: Taiwan reportedly revokes re-entry of alleged spy involved with Huang");
+    expect(out[1]).toBe("Nvidia turmoil lifts AMD as chip stocks rebound");
+    expect(run(["Re/Max shares slide after Re/Max earnings miss"])[0]).toBe("Re/Max shares slide after Re/Max earnings miss");
+  });
 });

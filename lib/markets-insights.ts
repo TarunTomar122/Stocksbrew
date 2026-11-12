@@ -455,18 +455,30 @@ export function withWatchNext(
   });
 }
 
+/**
+ * What analysts expect the report to show, as the card's second line, so the card says what to look for beside its
+ * figure and ends level with its neighbours in real words (owner rules 3 and 4): "Analysts expect a profit of $1.15
+ * a share." Nothing without an estimate.
+ */
+function expectLine(estimate: number | null | undefined): string | undefined {
+  if (typeof estimate !== "number" || !Number.isFinite(estimate)) return undefined;
+  const amount = `$${Math.abs(estimate).toFixed(2)}`;
+  if (Math.abs(estimate) < 0.005) return "Analysts expect it to break even.";
+  return estimate > 0 ? `Analysts expect a profit of ${amount} a share.` : `Analysts expect a loss of ${amount} a share.`;
+}
+
 /** The stock's last report and its normal day, as the calendar loads them (lib/calendar.ts ReportContext). */
 export type LastReport = { last: { pct: number } | null; typicalDayPct: number | null } | undefined;
 
 /**
  * The calendar's "biggest company still to report" card, short (owner rules 3 and 8): the stock's move after its
- * last report as the one figure, and one sentence with when it reports and how that move compares with a normal day.
- * Without a past move, the day it reports is the figure.
+ * last report as the one figure, one sentence with when it reports and how that move compares with a normal day, and,
+ * with an estimate, what analysts expect as the second line. Without a past move, the day it reports is the figure.
  */
-export function reportCard(insight: Insight, report: UpcomingReport, context: LastReport, today: string): Insight {
+export function reportCard(insight: Insight, report: UpcomingReport & { epsEstimate?: number | null }, context: LastReport, today: string): Insight {
   const when = reportsWhen(report, today);
   const last = context?.last ?? null;
-  const base = { ...insight, id: "report", tickers: [report.ticker], soWhat: undefined };
+  const base = { ...insight, id: "report", tickers: [report.ticker], soWhat: expectLine(report.epsEstimate) };
   if (!last || !isNum(last.pct)) {
     const day = dayWord(report.date, today).replace(/^on /, "");
     return {

@@ -200,4 +200,11 @@ describe("Market today: what to watch next", () => {
     expect(plain.text).toBe("CSCO reports tomorrow after the close, the biggest company still to report this week.");
     expect(plain.figure).toEqual({ value: "Tomorrow", label: "after the close" });
   });
+
+  it("says what analysts expect from a report still to come, and nothing without an estimate", () => {
+    const long = { id: "biggest", tone: "flat" as const, text: "Cisco reports tomorrow.", tickers: ["CSCO"] };
+    expect(reportCard(long, { ...reports.get("CSCO")!, epsEstimate: 1.15 }, { last: { pct: -8.4 }, typicalDayPct: 1.6 }, today).soWhat).toBe("Analysts expect a profit of $1.15 a share.");
+    expect(reportCard(long, { ...reports.get("CSCO")!, epsEstimate: -0.13 }, undefined, today).soWhat).toBe("Analysts expect a loss of $0.13 a share.");
+    expect(reportCard(long, { ...reports.get("CSCO")!, epsEstimate: null }, undefined, today).soWhat).toBeUndefined();
+  });
 });

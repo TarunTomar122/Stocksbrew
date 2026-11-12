@@ -599,7 +599,13 @@ export const loadDeskBrief = section<DeskBrief>(
       : undefined;
     const calendarPick =
       biggest && biggestItem
-        ? reportCard(biggest, { ticker: biggestItem.ticker, date: biggestItem.date, time: biggestItem.session }, context[biggestItem.ticker], today)
+        ? reportCard(
+            biggest,
+            // What analysts expect, only while the report is still to come.
+            { ticker: biggestItem.ticker, date: biggestItem.date, time: biggestItem.session, epsEstimate: biggestItem.epsActual === null ? biggestItem.epsEstimate : null },
+            context[biggestItem.ticker],
+            today,
+          )
         : biggest ?? calendarRead?.insights[0];
     const read: TheRead | null = marketRead || moverRead
       ? {

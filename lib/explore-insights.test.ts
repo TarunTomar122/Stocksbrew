@@ -84,12 +84,13 @@ describe("buildGiantsRead", () => {
   it("weights the biggest companies by size and names the one that pulled hardest", () => {
     const read = buildGiantsRead([giant("AAPL", 5, -0.6), giant("NVDA", 4.6, -5.5), giant("GOOGL", 4.2, -0.3), giant("MSFT", 2.9, -2.2), giant("AMZN", 2.4, 1.5)])!;
     expect(read.line).toBe("The 5 biggest companies lost 1.7% of their combined value; 1 of the 5 rose.");
-    expect(read.insight.text).toContain("NVDA (−5.5%) did the most to pull down the group.");
+    expect(read.insight.text).toBe("The 5 biggest companies lost 1.7% together, and 1 of them rose. NVDA (−5.5%) did the most to pull down the group.");
     expect(read.insight.tickers).toEqual(["NVDA"]);
   });
   it("says so when the weighted move and the count disagree", () => {
     const read = buildGiantsRead([giant("AAPL", 5, 0.2), giant("NVDA", 4.6, -5.5), giant("GOOGL", 4.2, 0.1), giant("MSFT", 2.9, 0.3), giant("AMZN", 2.4, 0.2)])!;
     expect(read.line).toBe("The 5 biggest companies lost 1.2% of their combined value, even though 4 of them rose.");
+    expect(read.insight.text).toMatch(/^The 5 biggest companies lost 1\.2% together, even though 4 of them rose\. /);
   });
   it("needs five companies", () => {
     expect(buildGiantsRead([giant("AAPL", 5, 1)])).toBeNull();

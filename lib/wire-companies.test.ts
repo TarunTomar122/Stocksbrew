@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { groupByCompany, isBaitTitle, isForeignLanguage, marketHeadlines, plainStory, titleKey } from "@/lib/wire-companies";
+import { better, groupByCompany, isAwardTitle, isBaitTitle, isForeignLanguage, marketHeadlines, namesPastYear, plainStory, titleKey } from "@/lib/wire-companies";
 import type { WireItem } from "@/lib/wire-shared";
 
 const NOW = Date.parse("2026-11-10T12:00:00Z");
@@ -176,5 +176,60 @@ describe("bait headlines", () => {
     );
     expect(groups[0]?.count).toBe(2);
     expect(groups[0]?.items.map((story) => story.title)).toEqual(["Nebius signs a $3 billion capacity deal with Meta"]);
+  });
+
+  it("leaves a story that names a past year as its news off the company's card", () => {
+    const groups = groupByCompany(
+      [
+        item({ tickers: ["MSFT"], title: "SHI recognized as the winner of 2025 Microsoft Americas Regional Device Partner of the year" }),
+        item({ tickers: ["MSFT"], title: "Microsoft plans to pay its own way to power data centers" }),
+      ],
+      { sinceMs: SINCE, quotes: { MSFT: { pct: -2.2, name: "Microsoft" } } },
+    );
+    expect(groups[0]?.count).toBe(1);
+    expect(groups[0]?.items.map((story) => story.title)).toEqual(["Microsoft plans to pay its own way to power data centers"]);
+  });
+});
+
+describe("namesPastYear", () => {
+  const nov = Date.parse("2026-11-12T12:00:00Z");
+  const jan = Date.parse("2027-01-04T15:00:00Z");
+  it("flags a past year told as the news", () => {
+    expect(namesPastYear("SHI recognized as the winner of 2025 Microsoft Americas Regional Device Partner of the year", nov)).toBe(true);
+    expect(namesPastYear("Acme posts Q3 2025 results", nov)).toBe(true);
+    expect(namesPastYear("Acme's FY2024 report is out", nov)).toBe(true);
+  });
+  it("keeps this year, a later year, comparisons and history", () => {
+    expect(namesPastYear("SHI recognized as the winner of 2026 Microsoft Partner of the year", nov)).toBe(false);
+    expect(namesPastYear("Tesla extends Cybertruck run through summer 2027", nov)).toBe(false);
+    expect(namesPastYear("Guidance for 2025 to 2027 raised", nov)).toBe(false);
+    expect(namesPastYear("Stocks have their best week since 2024", nov)).toBe(false);
+    expect(namesPastYear("Chip stocks fall back to 2025 levels", nov)).toBe(false);
+    expect(namesPastYear("Is this 2000 all over again?", nov)).toBe(false);
+    expect(namesPastYear("Nvidia sells $2025 million of bonds", nov)).toBe(false);
+    expect(namesPastYear("Acme to cut 2,025 jobs", nov)).toBe(false);
+    expect(namesPastYear("No year at all", nov)).toBe(false);
+    for (const title of ["Worst day since April 2025", "Up 200% since Jan. 2025", "Highest since its 2021 IPO", "Rivian falls below 2021 IPO price", "Stock trades at 2024's high", "Shares back near mid-2025 prices"]) {
+      expect(namesPastYear(title, nov)).toBe(false);
+    }
+    // Last year's fourth quarter or fiscal year can still be news well into this one.
+    expect(namesPastYear("Toyota FY2025 results beat", Date.parse("2026-05-10T12:00:00Z"))).toBe(false);
+  });
+  it("lets the year just ended stay news until March", () => {
+    expect(namesPastYear("The best stocks of 2026", jan)).toBe(false);
+    expect(namesPastYear("The best stocks of 2025", jan)).toBe(true);
+    expect(namesPastYear("The best stocks of 2026", Date.parse("2027-04-01T15:00:00Z"))).toBe(true);
+  });
+});
+
+describe("award notes", () => {
+  it("are told apart and never lead a company's stories", () => {
+    expect(isAwardTitle("SHI recognized as the winner of 2026 Microsoft Americas Regional Device Partner of the year")).toBe(true);
+    expect(isAwardTitle("Acme wins 2026 Best Places to Work award")).toBe(true);
+    expect(isAwardTitle("Microsoft stock suddenly has an Anthropic problem")).toBe(false);
+    expect(isAwardTitle("Lockheed wins $2 billion Army contract award")).toBe(false);
+    const award = item({ tickers: ["MSFT"], title: "SHI recognized as the winner of 2026 Microsoft Partner of the year", publishedAt: new Date(NOW - 3_600_000).toISOString() });
+    const story = item({ tickers: ["MSFT"], title: "Microsoft stock suddenly has an Anthropic problem", publishedAt: new Date(NOW - 5 * 3_600_000).toISOString() });
+    expect([award, story].sort(better)[0]).toBe(story);
   });
 });

@@ -18,10 +18,10 @@ export function when(iso: string): string {
 /**
  * About eight stocks of Most talked about in view (owner rule 5), the rest scrolling inside a box cut back to its last
  * whole row (WholeRows): eight rows of one column on a phone (each row is the ticker line and its top story, about
- * 5rem), and four rows of two columns on a wide screen.
+ * 5.5rem), and four rows of two columns on a wide screen (about 5.25rem a row), so the top eight are in view.
  */
-const LIST_REM = 42;
-const LIST_WIDE_REM = 18;
+const LIST_REM = 46;
+const LIST_WIDE_REM = 22;
 
 /**
  * "75% negative" (or "Leans negative" when the side is a clear lean of fewer than half the stories), only when the
@@ -135,7 +135,7 @@ export function TalkedAbout({
         wideRem={wide ? LIST_WIDE_REM : undefined}
         wideFrom={wide ? 1024 : undefined}
         cue
-        className={`scrollbar-hide overflow-y-auto max-h-[42rem] ${wide ? "lg:max-h-[18rem]" : ""}`}
+        className={`scrollbar-hide overflow-y-auto max-h-[46rem] ${wide ? "lg:max-h-[22rem]" : ""}`}
       >
         <ol className={list}>
           {rows.map((row, index) => (

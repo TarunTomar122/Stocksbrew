@@ -141,9 +141,61 @@ export function storyWeight(item: WireItem): number {
   return item.sourceKind === "press_release" ? PRESS_RELEASE_WEIGHT : 1;
 }
 
-/** A story about one company beats a roundup naming five; a publisher story beats a press release. */
+const ET_YEAR_MONTH = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", year: "numeric", month: "numeric" });
+
+/** Words before a year that make it a comparison or a span ("since 2022", "up from 2025 levels"), not the story's own news. */
+const MONTH_WORD = "jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?";
+const YEAR_COMPARED = new RegExp(
+  `\\b(?:since|than|from|before|after|until|till|through|vs\\.?|versus|compared (?:with|to)|like|to|over|between|and|below|above|near|pre-|post-)\\s*(?:(?:the|its|their|early|late|mid-?|${MONTH_WORD})\\.?\\s*)*$`,
+  "i",
+);
+/** Words after a year that make it a reference point: "2022 lows", "the 2008 crisis". */
+const YEAR_REFERENCE = /^(?:['’]s)?\s*(?:levels?|highs?|lows?|peak|bottom|crash|crisis|bear|bull|sell-?off|playbook|election|ipo|debut|listing|record|prices?|vs\.?|-\s?20\d\d)\b/i;
+
+/**
+ * True when a headline names a past year as its own news (owner rule 7: "it's 2026 and this is from last year??"):
+ * "SHI recognized as the winner of 2025 Microsoft Partner of the year", "Q3 2025 results", read in 2026. A headline
+ * that also names this year or a later one is current ("2025 to 2027 guidance"), and a past year used as a
+ * comparison ("highest since 2022", "below 2025 levels") is not its news. Last year counts only from March on, so a
+ * January recap of the year just ended is still news. `nowMs` sets the year, in New York.
+ */
+export function namesPastYear(title: string, nowMs: number): boolean {
+  if (!Number.isFinite(nowMs)) return false;
+  const parts = ET_YEAR_MONTH.formatToParts(new Date(nowMs));
+  const year = Number(parts.find((part) => part.type === "year")?.value);
+  const month = Number(parts.find((part) => part.type === "month")?.value);
+  if (!year) return false;
+  const years = [...title.matchAll(/(?<![\d$.,])(?:FY\s?)?((?:19|20)\d\d)(?![\d%]|[,.]\d)/g)];
+  if (!years.length || years.some((match) => Number(match[1]) >= year)) return false;
+  return years.some((match) => {
+    const value = Number(match[1]);
+    // The year just ended is recent news until March; anything older names an old event.
+    if (value === year - 1 && month < 3) return false;
+    // Last year's fourth quarter, fiscal year or annual report lands well into this one (10-Ks run to March, a fiscal
+    // year can end in the spring), so it is still news.
+    if (value === year - 1 && /\b(?:q4|fourth[- ]quarter|fiscal|annual report|10-k|full[- ]year)\b|\bfy\s?(?:20)?\d\d\b/i.test(title)) return false;
+    // Older than five years is history being compared with ("like 2000"), not news being repeated.
+    if (value < year - 5) return false;
+    const at = match.index ?? 0;
+    if (YEAR_COMPARED.test(title.slice(0, at))) return false;
+    if (YEAR_REFERENCE.test(title.slice(at + match[0].length))) return false;
+    return true;
+  });
+}
+
+/**
+ * A partner award or a "recognized as" note: the winner's own news, seldom about the stock it names ("SHI recognized
+ * as the winner of Microsoft Americas Regional Device Partner of the year" is about SHI). Never a stock's lead story.
+ */
+const AWARD = /\b(?:recogni[sz]ed (?:as|by|for|with|in)|named (?:a |an |the )?(?:winner|leader|finalist)|\bawards?\b.{0,20}\b(?:winner|honou?ree)|partner of the year|(?:company|employer|workplace)s? of the year|best places? to work)\b/i;
+
+export function isAwardTitle(title: string): boolean {
+  return AWARD.test(title);
+}
+
+/** A story about one company beats a roundup naming five; a publisher story beats a press release; an award note comes last. */
 export function storyRelevance(item: WireItem): number {
-  return storyWeight(item) - 0.2 * Math.max(0, item.tickers.length - 1);
+  return storyWeight(item) - 0.2 * Math.max(0, item.tickers.length - 1) - (isAwardTitle(item.title) ? 0.8 : 0);
 }
 
 /** Sort order for headlines: the most relevant first, then the newest. */
@@ -178,7 +230,8 @@ export function groupByCompany(
   for (const item of items) {
     const at = Date.parse(item.publishedAt);
     if (!Number.isFinite(at) || at < sinceMs || !item.tickers.length) continue;
-    if (isForeignLanguage(item.title)) continue;
+    // A last-year story recirculating today is not news about the company now (owner rule 7): left out of its card.
+    if (isForeignLanguage(item.title) || namesPastYear(item.title, at)) continue;
     const key = titleKey(item.title);
     if (!key) continue;
     for (const ticker of item.tickers) {

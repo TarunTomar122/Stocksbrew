@@ -159,12 +159,18 @@ export function buildGiantsRead(
     : sameWay
     ? `${puller.name} (${signedPct(puller.day)}) did the most to ${average > 0 ? "lift" : "pull down"} the group.`
     : `${puller.name} (${signedPct(puller.day)}) moved the other way.`;
+  // The card's sentence in fewer words than `line` (it also stands alone on the share card), so the card ends level
+  // with its neighbours (owner rule 3).
+  const flat = Math.abs(average) < 0.05;
+  const together = `The ${n} biggest companies ${flat ? "were worth about the same together as the day before" : `${average > 0 ? "gained" : "lost"} ${Math.abs(average).toFixed(1)}% together`}`;
+  const risers = up === 0 ? "none of them rose" : up === n ? `all ${n} rose` : `${up} of them rose`;
+  const count = against ? `${together}, even though ${risers}.` : flat ? `${together}; ${risers}.` : `${together}, and ${risers}.`;
   return {
     line,
     insight: {
       id: "giants",
       tone: Math.abs(average) < 0.05 ? "flat" : average > 0 ? "up" : "down",
-      text: `${line} ${pull}`,
+      text: `${count} ${pull}`,
       figure: Math.abs(average) < 0.05 ? { value: `${up} of ${n}`, label: "rose" } : { value: signedPct(average, 1), label: `the ${n} biggest, together` },
       soWhat: "They carry the most weight in the S&P 500.",
       tickers: [puller.symbol],

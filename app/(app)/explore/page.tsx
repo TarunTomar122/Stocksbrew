@@ -60,8 +60,9 @@ async function ReadSlot({
   const shown = marketTodaySteps(marketTodayRead(read, news, sectorLine));
   if (!shown) return null;
   // Every point shows, on a phone too: there are at most three, and none waits behind a button (owner rule 2).
-  // Each card as tall as its own words (owner rule 4): a short card is not padded out to its longest neighbour.
-  return <TheRead read={shown} label="Today's read" className="[&_ul]:items-start" />;
+  // The cards in a row end level (owner rule 3), each filled with its own next step (a report to watch, what analysts
+  // expect, our call) rather than padding (owner rule 4).
+  return <TheRead read={shown} label="Today's read" />;
 }
 
 /**

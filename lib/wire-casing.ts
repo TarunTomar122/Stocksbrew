@@ -31,7 +31,9 @@ const WIRE_ORDINARY = new Set(
     "growth sales revenue profit rally record report reports market markets rate rates hike hikes cut cuts deal deals " +
     "why what how next move moves higher lower year week today price chip chips maker makers rival rivals boost " +
     "fears fear worries concerns bubble upside downside analyst analysts data center centers " +
-    "quarter quarterly backlog outweigh outweighs ousting ignite ignites"
+    "quarter quarterly backlog outweigh outweighs ousting ignite ignites " +
+    // Nov 12: "revokes Re-Entry of alleged spy" (a hyphen run of ordinary words is lowered whole), "Nvidia Turmoil".
+    "re entry turmoil"
   ).split(" "),
 );
 
@@ -182,7 +184,9 @@ export function lowerOrdinaryCapitals(
     const end = token.offset + token.word.length;
     const lower =
       compound[index] ||
+      // "Re" only ever inside a hyphen run of ordinary words ("Re-Entry"); alone it may be a name ("Re/Max", "Everest Re").
       (ordinary(token) &&
+      bare(token.word) !== "re" &&
       !startsClause(text, list, index) &&
       !/[\d-]$/.test(text.slice(0, token.offset)) &&
       !/^[\d-]/.test(text.slice(end)) &&

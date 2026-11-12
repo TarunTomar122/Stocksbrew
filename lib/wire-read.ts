@@ -13,7 +13,7 @@
  */
 
 import { balancePct, pickInsights, sharePct, type Insight, type InsightTone, type TheRead } from "@/lib/insights";
-import { better, isForeignLanguage, labelFor, plainStory, storyRelevance, storyWeight, titleKey } from "@/lib/wire-companies";
+import { better, isForeignLanguage, labelFor, namesPastYear, plainStory, storyRelevance, storyWeight, titleKey } from "@/lib/wire-companies";
 import { headlineCase, shortCompanyName } from "@/lib/plain-copy";
 import { themeKey, wireHref, WIRE_PAGE_SIZE, type WireFilters, type WireItem } from "@/lib/wire-shared";
 
@@ -132,7 +132,8 @@ export function storiesBetween(items: WireItem[], labels: NewsLabels, sinceMs: n
   for (const item of items) {
     const at = Date.parse(item.publishedAt);
     if (!Number.isFinite(at) || at < sinceMs || at >= untilMs) continue;
-    if (isForeignLanguage(item.title)) continue;
+    // A story naming a past year as its news ("winner of 2025 …" read in 2026) neither leads nor counts (owner rule 7).
+    if (isForeignLanguage(item.title) || namesPastYear(item.title, at)) continue;
     const key = titleKey(item.title);
     if (!key) continue;
     const seen = byKey.get(key);

@@ -500,7 +500,15 @@ function DividendLine({ item }: { item: DividendItem }) {
  * rule 5: all of them, not the first few and a "+ 8 more" link under each group). Short enough that a busy day and a
  * quiet one end close to level instead of one running on beside a blank column (owner rule 4).
  */
-const DAY_REM = 26;
+const DAY_REM = 30;
+
+/** A day's session heading: the full words, or a short form for a narrow desktop week column. */
+const SESSION_SHORT: Record<Session, string> = { bmo: "Before the open", amc: "After the close", unknown: "Time not set" };
+
+function sessionWords(session: Session, past: boolean, short = false): string {
+  if (session === "unknown" && past) return "Time not given";
+  return short ? SESSION_SHORT[session] : SESSION_LABEL[session];
+}
 
 function More({ count, href }: { count: number; href: string }) {
   if (count <= 0) return null;
@@ -594,7 +602,16 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
             <div key={session}>
               <h3 className={`${SECTION} flex items-baseline justify-between gap-2`}>
                 <span>
-                  {session === "unknown" && past ? "Time not given" : SESSION_LABEL[session]}
+                  {/* A narrow desktop column says the session in a few words, on one line ("Time not announced yet"
+                      wrapped into the ticker under it); a phone and today's wide column keep the full words. */}
+                  {isToday ? (
+                    sessionWords(session, past)
+                  ) : (
+                    <>
+                      <span className="lg:hidden">{sessionWords(session, past)}</span>
+                      <span className="whitespace-nowrap max-lg:hidden">{sessionWords(session, past, true)}</span>
+                    </>
+                  )}
                   {/* Once per group, for the numbers on its rows, instead of "expected … a share" on every row. */}
                   {sayExpected ? <span className="block font-normal">Expected profit a share</span> : null}
                 </span>
@@ -640,7 +657,7 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
  */
 function DayBody({ past, children }: { past: boolean; children: React.ReactNode }) {
   return (
-    <WholeRows rem={DAY_REM} minWidth={1024} cue className={`scrollbar-hide lg:max-h-[26rem] lg:overflow-y-auto ${past ? "max-lg:hidden" : ""}`}>
+    <WholeRows rem={DAY_REM} minWidth={1024} cue className={`scrollbar-hide lg:max-h-[30rem] lg:overflow-y-auto ${past ? "max-lg:hidden" : ""}`}>
       {children}
     </WholeRows>
   );
