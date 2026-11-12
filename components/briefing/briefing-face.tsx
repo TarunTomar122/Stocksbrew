@@ -3,6 +3,7 @@ import * as React from "react";
 
 import { Sparkline } from "@/components/markets/widgets";
 import { PairBar } from "@/components/oa/kit/tone";
+import { TileLabel, Treemap, tileClass, type TreemapLayout, type TreemapWords } from "@/components/oa/kit/treemap";
 import { KindIcon } from "@/components/oa/nav-icon";
 import { ShowMoreGrid } from "@/components/oa/kit/show-more-grid";
 import { StockLogo } from "@/components/stock-logo";
@@ -21,7 +22,7 @@ import type {
   Tone,
   WeekDay,
 } from "@/lib/briefing-face";
-import { dayLabel, gridColumns, heatLayout, levelsTitle, lineStatesCall, weekTitle, type LevelFact } from "@/lib/briefing-face";
+import { dayLabel, gridColumns, levelsTitle, lineStatesCall, weekTitle, type LevelFact } from "@/lib/briefing-face";
 import type { TopStory } from "@/lib/briefing-top-news";
 import { capitalize, onDayWords } from "@/lib/day-words";
 import { shortCompanyName } from "@/lib/plain-copy";
@@ -492,78 +493,9 @@ function heatTint(cell: HeatCell): string {
   return `color-mix(in srgb, var(${cell.tone === "up" ? "--signal-bullish" : "--signal-bearish"}) ${share}%, var(--oa-card))`;
 }
 
-/** A holding as one small chip: logo, ticker, price and move. The heat's row under the map uses it. */
-function HeatChip({ cell }: { cell: HeatCell }) {
-  return (
-    <li className="min-w-0">
-      <Link
-        href={cell.href}
-        prefetch={false}
-        title={shortCompanyName(cell.name) || cell.ticker}
-        style={{ background: heatTint(cell) }}
-        className={`${FOCUS} flex h-8 items-center gap-1.5 rounded-md border border-oa-border px-2 transition-[filter] hover:brightness-[0.97] dark:hover:brightness-110`}
-      >
-        <StockLogo ticker={cell.ticker} size={16} eager />
-        <span className="oa-mono text-[12.5px] font-semibold text-oa-fg">{cell.ticker}</span>
-        {sharePrice(cell.price) ? <span className="oa-mono text-[12px] tabular-nums text-oa-muted-fg">{sharePrice(cell.price)}</span> : null}
-        <span className={`oa-mono text-[12.5px] font-semibold tabular-nums ${toneText(cell.tone)}`}>{signedPct(cell.pct, 1)}</span>
-      </Link>
-    </li>
-  );
-}
-
-/**
- * Every holding's move as a true treemap (owner, Nov 12: "cards need to be the size depending on the percentage
- * change"): each tile's AREA is in proportion to the size of its move, laid out by lib/treemap.ts so the tiles fill the
- * box with no gaps. Every tile shows its logo, full ticker, price and move; a move too small for such a tile sits in a
- * chip row under the map, biggest first (lib/briefing-face.ts heatLayout). `width` x `height` are the proportions it
- * is laid out for, and the smallest size it is drawn at, so a tile never comes out smaller than its content.
- */
-function HeatMap({ cells, width, height, minW, minH, className, fill }: { cells: HeatCell[]; width: number; height: number; minW: number; minH: number; className: string; fill: boolean }) {
-  const { tiles, chips } = heatLayout(cells, width, height, minW, minH);
-  return (
-    <div className={`flex-col gap-1.5 ${fill ? "lg:h-full" : ""} ${className}`}>
-      <ul
-        aria-label="Your holdings today"
-        className={`relative w-full ${fill ? "lg:aspect-auto lg:min-h-[10rem] lg:flex-1" : ""} aspect-[var(--heat-ratio)]`}
-        style={{ "--heat-ratio": `${width} / ${height}` } as React.CSSProperties}
-      >
-        {tiles.map(({ cell, x, y, w, h }) => {
-          const big = (w / 100) * width >= 170 && (h / 100) * height >= 104;
-          return (
-            <li key={cell.ticker} className="absolute p-[2px]" style={{ left: `${x}%`, top: `${y}%`, width: `${w}%`, height: `${h}%` }}>
-              <Link
-                href={cell.href}
-                prefetch={false}
-                aria-label={`${cell.ticker}${sharePrice(cell.price) ? ` ${sharePrice(cell.price)}` : ""}, ${signedPct(cell.pct, 1)} today`}
-                title={shortCompanyName(cell.name) || cell.ticker}
-                style={{ background: heatTint(cell) }}
-                className={`${FOCUS} flex h-full w-full flex-col justify-between overflow-hidden rounded-md border border-oa-border px-2.5 py-2 transition-[filter] hover:brightness-[0.97] dark:hover:brightness-110`}
-              >
-                <span className="flex min-w-0 items-center gap-1.5">
-                  <StockLogo ticker={cell.ticker} size={18} eager />
-                  <span className="oa-mono text-[13px] font-semibold leading-4 text-oa-fg">{cell.ticker}</span>
-                </span>
-                <span className="flex min-w-0 flex-col">
-                  {sharePrice(cell.price) ? <span className="oa-mono text-[12px] leading-4 tabular-nums text-oa-muted-fg">{sharePrice(cell.price)}</span> : null}
-                  <span className={`oa-mono font-semibold tabular-nums tracking-[-0.01em] ${toneText(cell.tone)} ${big ? "text-[22px] leading-7" : "text-[15px] leading-5"}`}>
-                    {signedPct(cell.pct, 1)}
-                  </span>
-                </span>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-      {chips.length > 0 ? (
-        <ul aria-label="Smaller moves" className="flex shrink-0 flex-wrap gap-1.5">
-          {chips.map((cell) => (
-            <HeatChip key={cell.ticker} cell={cell} />
-          ))}
-        </ul>
-      ) : null}
-    </div>
-  );
+/** A holding's words on its tile: logo and ticker, its move, and its price where the tile has room. */
+function heatWords(cell: HeatCell): TreemapWords {
+  return { full: cell.ticker, short: cell.ticker, mono: true, move: signedPct(cell.pct, 1), price: sharePrice(cell.price) || undefined };
 }
 
 /**
@@ -579,26 +511,64 @@ function doColumnHeight(cards: readonly DoCard[]): number {
 }
 
 /**
- * Three layouts of the same map, for a phone, a tablet and a wide screen, so none is squashed. Each is laid out at
- * about the narrowest it is drawn (a 375 phone, a 640 tablet, a 1280 screen), so its tiles only grow from there.
- * Beside Do today it takes that column's height (`height`, the column's own estimate, sets the proportions).
+ * The map across the page, laid out at the narrowest width each is drawn at: a 320 phone (less its 8px gutters), a tablet, the column beside
+ * the sidebar on a 1024 screen, and on a 1280 one. Each map's height follows its tile count (lib/treemap.ts).
+ */
+/** Every holding is a tile with its price (owner, Nov 12): the map grows as tall as that takes rather than leave one off. */
+const HEAT_LAYOUTS: TreemapLayout[] = [
+  { width: 304, className: "sm:hidden", keepAll: true },
+  { width: 592, className: "hidden sm:block lg:hidden", keepAll: true },
+  { width: 736, className: "hidden lg:block xl:hidden", keepAll: true },
+  { width: 992, className: "hidden xl:block", keepAll: true },
+];
+/** Beside Do today the map is laid out at eight of the twelve columns; past this many holdings it runs across instead. */
+const HEAT_BESIDE_MAX = 14;
+
+/**
+ * Every holding's move as a true treemap (owner, Nov 12: "cards need to be the size depending on the percentage
+ * change", then "why did u give so much height to some of these and why some are as chips below wtf"): every holding
+ * is a tile, its area by the square root of its move, each with its logo, ticker, move and price, in a map whose
+ * height follows how many tiles it holds (components/oa/kit/treemap.tsx). Beside Do today, from 1024px, it is at least
+ * that column's height (`height`, the column's own estimate) at eight of the twelve columns' width, taller if its
+ * holdings need it; with more than HEAT_BESIDE_MAX holdings it runs across the page instead.
  */
 function Heat({ cells, beside, height }: { cells: HeatCell[]; beside: boolean; height: number }) {
-  // Beside Do today the map and its chip rows share the column's height: the map is laid out for what the chips leave
-  // (about four chips to a 40px row at this width), settled in two passes since fewer rows leave a taller map.
-  const besideHeight = () => {
-    const fit = (chipRows: number) => Math.min(Math.max(height - chipRows * 40, 150), 420);
-    let mapHeight = fit(1);
-    for (let pass = 0; pass < 2; pass += 1) mapHeight = fit(Math.ceil(heatLayout(cells, 640, mapHeight, 104, 70).chips.length / 4));
-    return mapHeight;
-  };
-  const wideHeight = beside ? besideHeight() : 260;
-  const phoneHeight = Math.min(Math.max(Math.ceil(cells.length / 2) * 84, 252), 420);
+  // At least the column's height, taller when the holdings need it (never one left off), and filling the row.
+  const besideShape = { minHeight: Math.min(Math.max(height, 180), 560) };
+  const layouts: TreemapLayout[] = beside
+    ? [
+        HEAT_LAYOUTS[0]!,
+        HEAT_LAYOUTS[1]!,
+        { width: 482, fill: true, keepAll: true, shape: besideShape, className: "hidden lg:block xl:hidden" },
+        { width: 653, fill: true, keepAll: true, shape: besideShape, className: "hidden xl:block" },
+      ]
+    : HEAT_LAYOUTS;
   return (
     <div className="min-w-0 lg:h-full">
-      <HeatMap cells={cells} width={beside ? 640 : 980} height={wideHeight} minW={104} minH={70} className="hidden lg:flex" fill={beside} />
-      <HeatMap cells={cells} width={600} height={260} minW={104} minH={70} className="hidden sm:flex lg:hidden" fill={false} />
-      <HeatMap cells={cells} width={340} height={phoneHeight} minW={100} minH={70} className="flex sm:hidden" fill={false} />
+      <Treemap
+        items={cells}
+        keyOf={(cell) => cell.ticker}
+        moveOf={(cell) => cell.pct}
+        wordsOf={heatWords}
+        layouts={layouts}
+        gap={4}
+        label="Your holdings today"
+        renderTile={(cell) => {
+          const words = heatWords(cell);
+          return (
+            <Link
+              href={cell.href}
+              prefetch={false}
+              aria-label={`${cell.ticker}${words.price ? ` ${words.price}` : ""}, ${words.move} today`}
+              title={shortCompanyName(cell.name) || cell.ticker}
+              style={{ background: heatTint(cell) }}
+              className={`${FOCUS} block h-full w-full rounded-md border border-oa-border transition-[filter] hover:brightness-[0.97] dark:hover:brightness-110 ${tileClass(words)}`}
+            >
+              <TileLabel icon={<StockLogo ticker={cell.ticker} size={14} eager />} words={words} moveClassName={toneText(cell.tone)} />
+            </Link>
+          );
+        }}
+      />
     </div>
   );
 }
@@ -807,7 +777,7 @@ function MarketNote({ viewer, pendingTracked }: { viewer: BriefingFaceProps["vie
       </Link>
     );
   return (
-    <Link prefetch={false} href="/portfolio?tab=holdings" className={LINK}>
+    <Link prefetch={false} href="/portfolio" className={LINK}>
       Add a stock you hold or watch
     </Link>
   );
@@ -821,9 +791,10 @@ export function BriefingFace(props: BriefingFaceProps) {
   const showDo = personal && doToday !== null;
   const showHeat = personal && heat.length > 0;
   const doCards = doToday?.kind === "cards" ? doToday.cards : [];
-  // Do today sits beside the money only with two or more cards to match its height; one card (or a quiet line) runs
-  // across the page above it, so nothing is stretched to fit (judges, Nov 12).
-  const doBeside = showHeat && doCards.length >= 2;
+  // Do today sits beside the money only with two or more cards to match its height, and a book small enough for the
+  // narrower map; one card (or a quiet line) runs across the page above it, so nothing is stretched to fit (judges,
+  // Nov 12), and a big book's map gets the page's width.
+  const doBeside = showHeat && doCards.length >= 2 && heat.length <= HEAT_BESIDE_MAX;
   const showMoved = moved.length > 0;
   const showWeek = week.length > 0;
   const showSince = Boolean(since && since.cards.length > 0);

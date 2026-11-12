@@ -18,7 +18,6 @@ import {
   ownLevel,
   LINE_WORDS,
   gridColumns,
-  heatLayout,
   levelCandidates,
   levelFact,
   levelsTitle,
@@ -349,27 +348,6 @@ describe("lineStatesCall", () => {
     expect(lineStatesCall("Our call moved to Keep", null)).toBe(false);
     // A word that only contains the call is not the call.
     expect(lineStatesCall("Keeps rising", "Keep")).toBe(false);
-  });
-});
-
-describe("heatLayout", () => {
-  const cell = (ticker: string, pct: number) => ({ ticker, name: ticker, price: 100, pct, tone: (pct > 0 ? "up" : "down") as "up" | "down", size: 1 as const, href: `/stock/${ticker}` });
-  it("keeps tiles in proportion to their moves and sends moves too small for a full tile to the chip row", () => {
-    const cells = [cell("BIG", -6.7), cell("MID", 4.9), cell("ONE", -2.9), cell("TINY", 0.7), cell("WEE", 0.3)];
-    const { tiles, chips } = heatLayout(cells, 640, 260, 104, 70);
-    expect(chips.map((entry) => entry.ticker)).toEqual(["TINY", "WEE"]);
-    // Every tile in the map is at least the minimum size, and the areas follow the moves exactly.
-    for (const tile of tiles) {
-      expect((tile.w / 100) * 640).toBeGreaterThanOrEqual(104 - 0.01);
-      expect((tile.h / 100) * 260).toBeGreaterThanOrEqual(70 - 0.01);
-    }
-    const area = (ticker: string) => tiles.find((tile) => tile.cell.ticker === ticker)!;
-    const ratio = (area("BIG").w * area("BIG").h) / (area("MID").w * area("MID").h);
-    expect(ratio).toBeCloseTo(6.7 / 4.9, 5);
-  });
-
-  it("always keeps the biggest move in the map", () => {
-    expect(heatLayout([cell("A", 1), cell("B", 0.01)], 300, 100, 290, 90).tiles.map((tile) => tile.cell.ticker)).toEqual(["A"]);
   });
 });
 

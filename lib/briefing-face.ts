@@ -7,7 +7,7 @@
  *   the strip      you vs the S&P 500 (with the last few sessions as a line), then the 10-year and the VIX;
  *   Top news       the market's three biggest stories today (lib/briefing-top-news.ts);
  *   Do today       at most three stocks that need a decision;
- *   the heat       every holding's move as a treemap, each tile's area by the size of its move;
+ *   the heat       every holding's move as a treemap (components/oa/kit/treemap.tsx), sized by its move;
  *   Levels         names at their own call's price, each with one measured fact;
  *   Why it moved   moves with a confirmed reason only;
  *   Reports        the week's earnings, by day;
@@ -33,7 +33,6 @@ import { etWallTimeToUtcMs, isNyseHoliday, type MarketSessionKind } from "@/lib/
 import { asSentence, firstFullSentence } from "@/lib/plain-copy";
 import { vixDayVerdict, yieldDayVerdict, type VerdictLine } from "@/lib/market-verdict";
 import type { ResultRead } from "@/lib/results/types";
-import { squarify } from "@/lib/treemap";
 
 export type Tone = "up" | "down" | "flat";
 export type CallWord = "Buy more" | "Keep" | "Sell some";
@@ -540,40 +539,6 @@ export function heatCells(
       size: Math.abs(pct) >= 1.5 && Math.abs(pct) >= 2 * median ? 2 : 1,
       href: `/stock/${encodeURIComponent(upper(position.ticker))}`,
     }));
-}
-
-export type HeatLayout = {
-  /** The tiles in the map, each placed in percent of the map (lib/treemap.ts), with its cell. */
-  tiles: Array<{ cell: HeatCell; x: number; y: number; w: number; h: number }>;
-  /** The holdings too small a move for a tile that shows logo, ticker, price and move: a row under the map. */
-  chips: HeatCell[];
-};
-
-/**
- * The heat as a true treemap (owner, Nov 12: "cards need to be the size depending on the percentage change") where
- * every tile is big enough to show its logo, full ticker, price and move (judges, Nov 12). Tiles take area strictly in
- * proportion to their moves; while the smallest would be under `minW` x `minH` (in the units of `width` x `height`),
- * the smallest move leaves the map for the chip row under it, biggest move first. Pure.
- */
-export function heatLayout(cells: readonly HeatCell[], width: number, height: number, minW: number, minH: number): HeatLayout {
-  const ordered = [...cells].sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct) || a.ticker.localeCompare(b.ticker));
-  for (let keep = ordered.length; keep >= 1; keep -= 1) {
-    const inMap = ordered.slice(0, keep);
-    const boxes = squarify(
-      inMap.map((cell) => ({ key: cell.ticker, weight: cell.pct })),
-      width,
-      height,
-      0,
-    );
-    const fits = boxes.length === keep && boxes.every((box) => (box.w / 100) * width >= minW - 0.01 && (box.h / 100) * height >= minH - 0.01);
-    if (!fits && keep > 1) continue;
-    const byTicker = new Map(inMap.map((cell) => [cell.ticker, cell]));
-    return {
-      tiles: boxes.map((box) => ({ cell: byTicker.get(box.key)!, x: box.x, y: box.y, w: box.w, h: box.h })),
-      chips: ordered.slice(keep),
-    };
-  }
-  return { tiles: [], chips: ordered };
 }
 
 /* ── At your levels ─────────────────────────────────────────────────────── */

@@ -338,17 +338,26 @@ export function AssetClassCard({
 /* ── sector heat grid ───────────────────────────────────────────────────── */
 
 /**
- * In a card beside others: fill the card's height on a tablet or wider (at least 200px, leaving room for the label
- * chips under it so the card ends level with its neighbours), keep a phone's shape below.
+ * In a card beside others, laid out at the narrowest width each is drawn at (one column on a phone, two from 768px,
+ * three from 1280px), the card's 4px padding and border taken off. From 768px the map is held to about the height of
+ * the cards beside it (its biggest movers, when not every sector fits there in a tile that names it), and fills the
+ * card's height when a neighbour is taller.
  */
+const CARD_SHAPE = { maxHeight: 340 };
+/** Two columns of cards (768 to 1279px): taller, so the day's biggest sector is visibly the biggest tile. */
+const TWO_UP_SHAPE = { maxHeight: 480 };
 const CARD_HEAT_LAYOUTS: TreemapLayout[] = [
-  { width: 320, height: 210, className: "hidden min-h-[200px] flex-1 sm:block", fill: true },
-  { width: 360, height: 340, className: "sm:hidden" },
+  { width: 294, className: "md:hidden", short: true },
+  { width: 344, className: "hidden flex-1 md:block lg:hidden", fill: true, shape: TWO_UP_SHAPE },
+  { width: 352, className: "hidden flex-1 lg:block xl:hidden", fill: true, shape: TWO_UP_SHAPE },
+  { width: 312, className: "hidden flex-1 xl:block", fill: true, shape: CARD_SHAPE },
 ];
-/** With the page's width to itself (/markets/etfs). */
+/** With the page's width to itself (/markets/etfs): the page's own layouts, less the card's padding and border. */
 const WIDE_HEAT_LAYOUTS: TreemapLayout[] = [
-  { width: 1000, height: 300, className: "hidden sm:block" },
-  { width: 360, height: 400, className: "sm:hidden" },
+  { width: 294, className: "sm:hidden", short: true },
+  { width: 582, className: "hidden sm:block lg:hidden" },
+  { width: 726, className: "hidden lg:block xl:hidden" },
+  { width: 982, className: "hidden xl:block" },
 ];
 
 /** Sector ETFs as a treemap tinted by the day's change, each tile as big as its move. */
@@ -387,9 +396,8 @@ export function SectorHeatGrid({
               <NoteLine text={takeaway} />
             </div>
           ) : null}
-          {/* A true treemap, each tile's area the size of its fund's move (owner, Nov 12), the same map as Market
-              today's. Beside other cards it fills the card's height; with the page to itself it keeps its shape. */}
-          {/* No min-h-0: the card grows with the map and its labels instead of letting them run under the footer. */}
+          {/* A true treemap, each tile's area by its fund's move (owner, Nov 12), the same map as Market today's.
+              Beside other cards it fills the card's height; with the page to itself it keeps its shape. */}
           <div className="flex flex-1 flex-col p-1">
             <SectorHeatmap
               rows={sectors.map((asset) => ({
@@ -404,8 +412,6 @@ export function SectorHeatGrid({
               }))}
               layouts={wide ? WIDE_HEAT_LAYOUTS : CARD_HEAT_LAYOUTS}
               gap={4}
-              denseLabels={!wide}
-              rootClassName="flex flex-1 flex-col"
               label="Sector funds sized by how far they moved"
             />
           </div>

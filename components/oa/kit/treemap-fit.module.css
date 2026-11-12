@@ -1,971 +1,762 @@
 /*
- * Treemap tiles that decide what they show from their own rendered size (council, Nov 12: "the browser decides from
- * the rendered size, so nothing clips at any width"). Each tile is a size container; the server gives it, per part,
- * the width that part needs (rounded up to 10px, from components/oa/kit/treemap-fit.ts), and the rules below hide
- * the part when the tile is narrower, or step a figure up to a bigger size only when the tile is wide enough for that
- * size of that very figure. Heights are fixed per kind of tile. A stock tile drops its price, then its move, then its
- * logo and ticker together; a sector tile drops its full name for its short one, then the name, then its move; the
- * sector icon stays. Generated in 10px steps from 30px to 300px (FIT_MIN and FIT_MAX in lib/treemap-fit-math.ts).
+ * Treemap tiles (owner, Nov 12: "why did u give so much height to some of these and why some are as chips below"):
+ * every tile shows one centred label, its icon or logo with its name or ticker on one line, the move as the big figure
+ * under it, and the price small under that where the tile has room. Each tile is a size container: the type steps up
+ * with the tile (STEPS in lib/treemap-fit-math.ts, the same numbers), a tile narrower than its full name shows its
+ * short one (nf), and a tile too small for its price drops the price only (pw, and the height rule). The layouts make
+ * every tile big enough for the smallest step (lib/treemap.ts planTreemap), so the name and move always show.
+ * Generated: the nf, pw and bm classes run in 10px steps from 30px to 300px (FIT_MIN and FIT_MAX).
  */
 
 .tile {
   container-type: size;
 }
 
-.short {
-  display: none;
-}
-
-/* The tile's inside: its padding and arrangement also follow the tile's size. */
 .body {
   display: flex;
   flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
   width: 100%;
   height: 100%;
   overflow: hidden;
-}
-.kSector .body {
-  justify-content: space-between;
-  gap: 4px;
-  padding: 8px 10px;
-}
-@container (max-width: 89.98px), (max-height: 47.98px) {
-  .kSector .body {
-    justify-content: center;
-    gap: 2px;
-    padding: 4px 6px;
-  }
-}
-@container (max-width: 39.98px), (max-height: 29.98px) {
-  .kSector .body {
-    align-items: center;
-    padding: 2px;
-  }
-}
-.kStock .body {
-  align-items: center;
-  justify-content: center;
-  gap: 1px;
-  padding: 3px 4px;
+  padding: 4px 6px;
   text-align: center;
 }
-.kBar .body {
-  flex-direction: row;
+
+.head {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  max-width: 100%;
+  white-space: nowrap;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+}
+.icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+}
+.icon > * {
+  width: 100% !important;
+  height: 100% !important;
+}
+.move {
+  white-space: nowrap;
+  font-size: 14px;
+  line-height: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.price {
+  display: none;
+  white-space: nowrap;
+  font-size: 11px;
+  line-height: 14px;
+}
+.full {
+  display: none;
+}
+
+@container (min-width: 110px) and (min-height: 66px) {
+  .head {
+    font-size: 12px;
+    line-height: 16px;
+  }
+  .icon {
+    width: 14px;
+    height: 14px;
+  }
+  .move {
+    font-size: 17px;
+    line-height: 21px;
+  }
+  .price {
+    font-size: 11px;
+    line-height: 14px;
+  }
+}
+
+@container (min-width: 150px) and (min-height: 90px) {
+  .head {
+    font-size: 13px;
+    line-height: 17px;
+  }
+  .icon {
+    width: 15px;
+    height: 15px;
+  }
+  .move {
+    font-size: 20px;
+    line-height: 24px;
+  }
+  .price {
+    font-size: 11px;
+    line-height: 14px;
+  }
+}
+
+@container (min-width: 200px) and (min-height: 120px) {
+  .head {
+    font-size: 14px;
+    line-height: 18px;
+  }
+  .icon {
+    width: 16px;
+    height: 16px;
+  }
+  .move {
+    font-size: 24px;
+    line-height: 28px;
+  }
+  .price {
+    font-size: 12px;
+    line-height: 15px;
+  }
+}
+
+@container (min-width: 270px) and (min-height: 160px) {
+  .head {
+    font-size: 15px;
+    line-height: 19px;
+  }
+  .icon {
+    width: 18px;
+    height: 18px;
+  }
+  .move {
+    font-size: 28px;
+    line-height: 32px;
+  }
+  .price {
+    font-size: 12px;
+    line-height: 15px;
+  }
+}
+
+/* The price shows on a tile tall enough for a third line (63px) and as wide as this price needs (pw). */
+
+@container (min-width: 30px) and (min-height: 63px) {
+  .pw30 .price {
+    display: block;
+  }
+}
+
+@container (min-width: 40px) and (min-height: 63px) {
+  .pw40 .price {
+    display: block;
+  }
+}
+
+@container (min-width: 50px) and (min-height: 63px) {
+  .pw50 .price {
+    display: block;
+  }
+}
+
+@container (min-width: 60px) and (min-height: 63px) {
+  .pw60 .price {
+    display: block;
+  }
+}
+
+@container (min-width: 70px) and (min-height: 63px) {
+  .pw70 .price {
+    display: block;
+  }
+}
+
+@container (min-width: 80px) and (min-height: 63px) {
+  .pw80 .price {
+    display: block;
+  }
+}
+
+@container (min-width: 90px) and (min-height: 63px) {
+  .pw90 .price {
+    display: block;
+  }
+}
+
+@container (min-width: 100px) and (min-height: 63px) {
+  .pw100 .price {
+    display: block;
+  }
+}
+
+@container (min-width: 110px) and (min-height: 63px) {
+  .pw110 .price {
+    display: block;
+  }
+}
+
+@container (min-width: 120px) and (min-height: 63px) {
+  .pw120 .price {
+    display: block;
+  }
+}
+
+@container (min-width: 130px) and (min-height: 63px) {
+  .pw130 .price {
+    display: block;
+  }
+}
+
+@container (min-width: 140px) and (min-height: 63px) {
+  .pw140 .price {
+    display: block;
+  }
+}
+
+@container (min-width: 150px) and (min-height: 63px) {
+  .pw150 .price {
+    display: block;
+  }
+}
+
+@container (min-width: 160px) and (min-height: 63px) {
+  .pw160 .price {
+    display: block;
+  }
+}
+
+@container (min-width: 170px) and (min-height: 63px) {
+  .pw170 .price {
+    display: block;
+  }
+}
+
+@container (min-width: 180px) and (min-height: 63px) {
+  .pw180 .price {
+    display: block;
+  }
+}
+
+@container (min-width: 190px) and (min-height: 63px) {
+  .pw190 .price {
+    display: block;
+  }
+}
+
+@container (min-width: 200px) and (min-height: 63px) {
+  .pw200 .price {
+    display: block;
+  }
+}
+
+@container (min-width: 210px) and (min-height: 63px) {
+  .pw210 .price {
+    display: block;
+  }
+}
+
+@container (min-width: 220px) and (min-height: 63px) {
+  .pw220 .price {
+    display: block;
+  }
+}
+
+@container (min-width: 230px) and (min-height: 63px) {
+  .pw230 .price {
+    display: block;
+  }
+}
+
+@container (min-width: 240px) and (min-height: 63px) {
+  .pw240 .price {
+    display: block;
+  }
+}
+
+@container (min-width: 250px) and (min-height: 63px) {
+  .pw250 .price {
+    display: block;
+  }
+}
+
+@container (min-width: 260px) and (min-height: 63px) {
+  .pw260 .price {
+    display: block;
+  }
+}
+
+@container (min-width: 270px) and (min-height: 63px) {
+  .pw270 .price {
+    display: block;
+  }
+}
+
+@container (min-width: 280px) and (min-height: 63px) {
+  .pw280 .price {
+    display: block;
+  }
+}
+
+@container (min-width: 290px) and (min-height: 63px) {
+  .pw290 .price {
+    display: block;
+  }
+}
+
+@container (min-width: 300px) and (min-height: 63px) {
+  .pw300 .price {
+    display: block;
+  }
+}
+
+/* The full name shows from the width it fits at every step above (nf); a narrower tile shows the short name. */
+
+@container (min-width: 30px) {
+  .nf30 .full {
+    display: inline;
+  }
+  .nf30 .short {
+    display: none;
+  }
+}
+
+@container (min-width: 40px) {
+  .nf40 .full {
+    display: inline;
+  }
+  .nf40 .short {
+    display: none;
+  }
+}
+
+@container (min-width: 50px) {
+  .nf50 .full {
+    display: inline;
+  }
+  .nf50 .short {
+    display: none;
+  }
+}
+
+@container (min-width: 60px) {
+  .nf60 .full {
+    display: inline;
+  }
+  .nf60 .short {
+    display: none;
+  }
+}
+
+@container (min-width: 70px) {
+  .nf70 .full {
+    display: inline;
+  }
+  .nf70 .short {
+    display: none;
+  }
+}
+
+@container (min-width: 80px) {
+  .nf80 .full {
+    display: inline;
+  }
+  .nf80 .short {
+    display: none;
+  }
+}
+
+@container (min-width: 90px) {
+  .nf90 .full {
+    display: inline;
+  }
+  .nf90 .short {
+    display: none;
+  }
+}
+
+@container (min-width: 100px) {
+  .nf100 .full {
+    display: inline;
+  }
+  .nf100 .short {
+    display: none;
+  }
+}
+
+@container (min-width: 110px) {
+  .nf110 .full {
+    display: inline;
+  }
+  .nf110 .short {
+    display: none;
+  }
+}
+
+@container (min-width: 120px) {
+  .nf120 .full {
+    display: inline;
+  }
+  .nf120 .short {
+    display: none;
+  }
+}
+
+@container (min-width: 130px) {
+  .nf130 .full {
+    display: inline;
+  }
+  .nf130 .short {
+    display: none;
+  }
+}
+
+@container (min-width: 140px) {
+  .nf140 .full {
+    display: inline;
+  }
+  .nf140 .short {
+    display: none;
+  }
+}
+
+@container (min-width: 150px) {
+  .nf150 .full {
+    display: inline;
+  }
+  .nf150 .short {
+    display: none;
+  }
+}
+
+@container (min-width: 160px) {
+  .nf160 .full {
+    display: inline;
+  }
+  .nf160 .short {
+    display: none;
+  }
+}
+
+@container (min-width: 170px) {
+  .nf170 .full {
+    display: inline;
+  }
+  .nf170 .short {
+    display: none;
+  }
+}
+
+@container (min-width: 180px) {
+  .nf180 .full {
+    display: inline;
+  }
+  .nf180 .short {
+    display: none;
+  }
+}
+
+@container (min-width: 190px) {
+  .nf190 .full {
+    display: inline;
+  }
+  .nf190 .short {
+    display: none;
+  }
+}
+
+@container (min-width: 200px) {
+  .nf200 .full {
+    display: inline;
+  }
+  .nf200 .short {
+    display: none;
+  }
+}
+
+@container (min-width: 210px) {
+  .nf210 .full {
+    display: inline;
+  }
+  .nf210 .short {
+    display: none;
+  }
+}
+
+@container (min-width: 220px) {
+  .nf220 .full {
+    display: inline;
+  }
+  .nf220 .short {
+    display: none;
+  }
+}
+
+@container (min-width: 230px) {
+  .nf230 .full {
+    display: inline;
+  }
+  .nf230 .short {
+    display: none;
+  }
+}
+
+@container (min-width: 240px) {
+  .nf240 .full {
+    display: inline;
+  }
+  .nf240 .short {
+    display: none;
+  }
+}
+
+@container (min-width: 250px) {
+  .nf250 .full {
+    display: inline;
+  }
+  .nf250 .short {
+    display: none;
+  }
+}
+
+@container (min-width: 260px) {
+  .nf260 .full {
+    display: inline;
+  }
+  .nf260 .short {
+    display: none;
+  }
+}
+
+@container (min-width: 270px) {
+  .nf270 .full {
+    display: inline;
+  }
+  .nf270 .short {
+    display: none;
+  }
+}
+
+@container (min-width: 280px) {
+  .nf280 .full {
+    display: inline;
+  }
+  .nf280 .short {
+    display: none;
+  }
+}
+
+@container (min-width: 290px) {
+  .nf290 .full {
+    display: inline;
+  }
+  .nf290 .short {
+    display: none;
+  }
+}
+
+@container (min-width: 300px) {
+  .nf300 .full {
+    display: inline;
+  }
+  .nf300 .short {
+    display: none;
+  }
+}
+
+/*
+ * A sector bar over a block of the screener's map: icon and name on one line, the move at the right end when the bar
+ * is wide enough for both (bm). The layout makes every bar wide enough for its short name.
+ */
+.bar {
+  container-type: size;
+}
+.barBody {
+  display: flex;
   align-items: center;
   gap: 5px;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
   padding: 0 6px;
   white-space: nowrap;
 }
-.kBar .move {
+.barMove {
+  display: none;
   margin-left: auto;
 }
 
-/* Stock tiles: logo and ticker, over price, over move; 12px at the least. */
-.kStock .tick {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  line-height: 14px;
-  font-weight: 600;
-}
-.kStock .price,
-.kStock .move {
-  font-size: 12px;
-  line-height: 14px;
-}
-@container (min-width: 120px) and (min-height: 80px) {
-  .kStock .tick {
-    font-size: 14px;
-    line-height: 17px;
-  }
-  .kStock .price,
-  .kStock .move {
-    font-size: 13px;
-    line-height: 16px;
-  }
-}
-@container (min-width: 160px) and (min-height: 110px) {
-  .kStock .tick {
-    font-size: 16px;
-    line-height: 19px;
-  }
-  .kStock .price,
-  .kStock .move {
-    font-size: 14px;
-    line-height: 17px;
-  }
-}
-@container (max-height: 49.98px) {
-  .kStock .price {
-    display: none;
-  }
-}
-@container (max-height: 33.98px) {
-  .kStock .move {
-    display: none;
-  }
-}
-@container (max-height: 17.98px) {
-  .kStock .tick {
-    display: none;
+@container (min-width: 30px) {
+  .bm30 .barMove {
+    display: inline;
   }
 }
 
-/* Sector tiles: icon and name over the move. The move is 12px unless the tile is wide enough for it bigger (mf). */
-.kSector .move {
-  font-size: 12px;
-  line-height: 16px;
-}
-@container (max-height: 47.98px) {
-  .kSector .name,
-  .kSector .short {
-    display: none !important;
-  }
-}
-@container (max-height: 29.98px) {
-  .kSector .move {
-    display: none;
+@container (min-width: 40px) {
+  .bm40 .barMove {
+    display: inline;
   }
 }
 
-@container (min-width: 30px) and (min-height: 48px) {
-  .kSector.mf30 .move {
-    font-size: 15px;
-    line-height: 20px;
-  }
-}
-@container (min-width: 40px) and (min-height: 48px) {
-  .kSector.mf40 .move {
-    font-size: 15px;
-    line-height: 20px;
-  }
-}
-@container (min-width: 50px) and (min-height: 48px) {
-  .kSector.mf50 .move {
-    font-size: 15px;
-    line-height: 20px;
-  }
-}
-@container (min-width: 60px) and (min-height: 48px) {
-  .kSector.mf60 .move {
-    font-size: 15px;
-    line-height: 20px;
-  }
-}
-@container (min-width: 70px) and (min-height: 48px) {
-  .kSector.mf70 .move {
-    font-size: 15px;
-    line-height: 20px;
-  }
-}
-@container (min-width: 80px) and (min-height: 48px) {
-  .kSector.mf80 .move {
-    font-size: 15px;
-    line-height: 20px;
-  }
-}
-@container (min-width: 90px) and (min-height: 48px) {
-  .kSector.mf90 .move {
-    font-size: 15px;
-    line-height: 20px;
-  }
-}
-@container (min-width: 100px) and (min-height: 48px) {
-  .kSector.mf100 .move {
-    font-size: 15px;
-    line-height: 20px;
-  }
-}
-@container (min-width: 110px) and (min-height: 48px) {
-  .kSector.mf110 .move {
-    font-size: 15px;
-    line-height: 20px;
-  }
-}
-@container (min-width: 120px) and (min-height: 48px) {
-  .kSector.mf120 .move {
-    font-size: 15px;
-    line-height: 20px;
-  }
-}
-@container (min-width: 130px) and (min-height: 48px) {
-  .kSector.mf130 .move {
-    font-size: 15px;
-    line-height: 20px;
-  }
-}
-@container (min-width: 140px) and (min-height: 48px) {
-  .kSector.mf140 .move {
-    font-size: 15px;
-    line-height: 20px;
-  }
-}
-@container (min-width: 150px) and (min-height: 48px) {
-  .kSector.mf150 .move {
-    font-size: 15px;
-    line-height: 20px;
-  }
-}
-@container (min-width: 160px) and (min-height: 48px) {
-  .kSector.mf160 .move {
-    font-size: 15px;
-    line-height: 20px;
-  }
-}
-@container (min-width: 170px) and (min-height: 48px) {
-  .kSector.mf170 .move {
-    font-size: 15px;
-    line-height: 20px;
-  }
-}
-@container (min-width: 180px) and (min-height: 48px) {
-  .kSector.mf180 .move {
-    font-size: 15px;
-    line-height: 20px;
-  }
-}
-@container (min-width: 190px) and (min-height: 48px) {
-  .kSector.mf190 .move {
-    font-size: 15px;
-    line-height: 20px;
-  }
-}
-@container (min-width: 200px) and (min-height: 48px) {
-  .kSector.mf200 .move {
-    font-size: 15px;
-    line-height: 20px;
-  }
-}
-@container (min-width: 210px) and (min-height: 48px) {
-  .kSector.mf210 .move {
-    font-size: 15px;
-    line-height: 20px;
-  }
-}
-@container (min-width: 220px) and (min-height: 48px) {
-  .kSector.mf220 .move {
-    font-size: 15px;
-    line-height: 20px;
-  }
-}
-@container (min-width: 230px) and (min-height: 48px) {
-  .kSector.mf230 .move {
-    font-size: 15px;
-    line-height: 20px;
-  }
-}
-@container (min-width: 240px) and (min-height: 48px) {
-  .kSector.mf240 .move {
-    font-size: 15px;
-    line-height: 20px;
-  }
-}
-@container (min-width: 250px) and (min-height: 48px) {
-  .kSector.mf250 .move {
-    font-size: 15px;
-    line-height: 20px;
-  }
-}
-@container (min-width: 260px) and (min-height: 48px) {
-  .kSector.mf260 .move {
-    font-size: 15px;
-    line-height: 20px;
-  }
-}
-@container (min-width: 270px) and (min-height: 48px) {
-  .kSector.mf270 .move {
-    font-size: 15px;
-    line-height: 20px;
-  }
-}
-@container (min-width: 280px) and (min-height: 48px) {
-  .kSector.mf280 .move {
-    font-size: 15px;
-    line-height: 20px;
-  }
-}
-@container (min-width: 290px) and (min-height: 48px) {
-  .kSector.mf290 .move {
-    font-size: 15px;
-    line-height: 20px;
-  }
-}
-@container (min-width: 300px) and (min-height: 48px) {
-  .kSector.mf300 .move {
-    font-size: 15px;
-    line-height: 20px;
-  }
-}
-@container (min-width: 30px) and (min-height: 70px) {
-  .kSector.mg30 .move {
-    font-size: 22px;
-    line-height: 28px;
-  }
-}
-@container (min-width: 40px) and (min-height: 70px) {
-  .kSector.mg40 .move {
-    font-size: 22px;
-    line-height: 28px;
-  }
-}
-@container (min-width: 50px) and (min-height: 70px) {
-  .kSector.mg50 .move {
-    font-size: 22px;
-    line-height: 28px;
-  }
-}
-@container (min-width: 60px) and (min-height: 70px) {
-  .kSector.mg60 .move {
-    font-size: 22px;
-    line-height: 28px;
-  }
-}
-@container (min-width: 70px) and (min-height: 70px) {
-  .kSector.mg70 .move {
-    font-size: 22px;
-    line-height: 28px;
-  }
-}
-@container (min-width: 80px) and (min-height: 70px) {
-  .kSector.mg80 .move {
-    font-size: 22px;
-    line-height: 28px;
-  }
-}
-@container (min-width: 90px) and (min-height: 70px) {
-  .kSector.mg90 .move {
-    font-size: 22px;
-    line-height: 28px;
-  }
-}
-@container (min-width: 100px) and (min-height: 70px) {
-  .kSector.mg100 .move {
-    font-size: 22px;
-    line-height: 28px;
-  }
-}
-@container (min-width: 110px) and (min-height: 70px) {
-  .kSector.mg110 .move {
-    font-size: 22px;
-    line-height: 28px;
-  }
-}
-@container (min-width: 120px) and (min-height: 70px) {
-  .kSector.mg120 .move {
-    font-size: 22px;
-    line-height: 28px;
-  }
-}
-@container (min-width: 130px) and (min-height: 70px) {
-  .kSector.mg130 .move {
-    font-size: 22px;
-    line-height: 28px;
-  }
-}
-@container (min-width: 140px) and (min-height: 70px) {
-  .kSector.mg140 .move {
-    font-size: 22px;
-    line-height: 28px;
-  }
-}
-@container (min-width: 150px) and (min-height: 70px) {
-  .kSector.mg150 .move {
-    font-size: 22px;
-    line-height: 28px;
-  }
-}
-@container (min-width: 160px) and (min-height: 70px) {
-  .kSector.mg160 .move {
-    font-size: 22px;
-    line-height: 28px;
-  }
-}
-@container (min-width: 170px) and (min-height: 70px) {
-  .kSector.mg170 .move {
-    font-size: 22px;
-    line-height: 28px;
-  }
-}
-@container (min-width: 180px) and (min-height: 70px) {
-  .kSector.mg180 .move {
-    font-size: 22px;
-    line-height: 28px;
-  }
-}
-@container (min-width: 190px) and (min-height: 70px) {
-  .kSector.mg190 .move {
-    font-size: 22px;
-    line-height: 28px;
-  }
-}
-@container (min-width: 200px) and (min-height: 70px) {
-  .kSector.mg200 .move {
-    font-size: 22px;
-    line-height: 28px;
-  }
-}
-@container (min-width: 210px) and (min-height: 70px) {
-  .kSector.mg210 .move {
-    font-size: 22px;
-    line-height: 28px;
-  }
-}
-@container (min-width: 220px) and (min-height: 70px) {
-  .kSector.mg220 .move {
-    font-size: 22px;
-    line-height: 28px;
-  }
-}
-@container (min-width: 230px) and (min-height: 70px) {
-  .kSector.mg230 .move {
-    font-size: 22px;
-    line-height: 28px;
-  }
-}
-@container (min-width: 240px) and (min-height: 70px) {
-  .kSector.mg240 .move {
-    font-size: 22px;
-    line-height: 28px;
-  }
-}
-@container (min-width: 250px) and (min-height: 70px) {
-  .kSector.mg250 .move {
-    font-size: 22px;
-    line-height: 28px;
-  }
-}
-@container (min-width: 260px) and (min-height: 70px) {
-  .kSector.mg260 .move {
-    font-size: 22px;
-    line-height: 28px;
-  }
-}
-@container (min-width: 270px) and (min-height: 70px) {
-  .kSector.mg270 .move {
-    font-size: 22px;
-    line-height: 28px;
-  }
-}
-@container (min-width: 280px) and (min-height: 70px) {
-  .kSector.mg280 .move {
-    font-size: 22px;
-    line-height: 28px;
-  }
-}
-@container (min-width: 290px) and (min-height: 70px) {
-  .kSector.mg290 .move {
-    font-size: 22px;
-    line-height: 28px;
-  }
-}
-@container (min-width: 300px) and (min-height: 70px) {
-  .kSector.mg300 .move {
-    font-size: 22px;
-    line-height: 28px;
-  }
-}
-@container (max-width: 29.98px) {
-  .wf30 .name {
-    display: none;
-  }
-  .wf30 .short {
+@container (min-width: 50px) {
+  .bm50 .barMove {
     display: inline;
   }
-  .wm30 .move,
-  .wp30 .price {
-    display: none;
-  }
 }
-@container (max-width: 39.98px) {
-  .wf40 .name {
-    display: none;
-  }
-  .wf40 .short {
+
+@container (min-width: 60px) {
+  .bm60 .barMove {
     display: inline;
   }
-  .wm40 .move,
-  .wp40 .price {
-    display: none;
-  }
 }
-@container (max-width: 49.98px) {
-  .wf50 .name {
-    display: none;
-  }
-  .wf50 .short {
+
+@container (min-width: 70px) {
+  .bm70 .barMove {
     display: inline;
   }
-  .wm50 .move,
-  .wp50 .price {
-    display: none;
-  }
 }
-@container (max-width: 59.98px) {
-  .wf60 .name {
-    display: none;
-  }
-  .wf60 .short {
+
+@container (min-width: 80px) {
+  .bm80 .barMove {
     display: inline;
   }
-  .wm60 .move,
-  .wp60 .price {
-    display: none;
-  }
 }
-@container (max-width: 69.98px) {
-  .wf70 .name {
-    display: none;
-  }
-  .wf70 .short {
+
+@container (min-width: 90px) {
+  .bm90 .barMove {
     display: inline;
   }
-  .wm70 .move,
-  .wp70 .price {
-    display: none;
-  }
 }
-@container (max-width: 79.98px) {
-  .wf80 .name {
-    display: none;
-  }
-  .wf80 .short {
+
+@container (min-width: 100px) {
+  .bm100 .barMove {
     display: inline;
   }
-  .wm80 .move,
-  .wp80 .price {
-    display: none;
-  }
 }
-@container (max-width: 89.98px) {
-  .wf90 .name {
-    display: none;
-  }
-  .wf90 .short {
+
+@container (min-width: 110px) {
+  .bm110 .barMove {
     display: inline;
   }
-  .wm90 .move,
-  .wp90 .price {
-    display: none;
-  }
 }
-@container (max-width: 99.98px) {
-  .wf100 .name {
-    display: none;
-  }
-  .wf100 .short {
+
+@container (min-width: 120px) {
+  .bm120 .barMove {
     display: inline;
   }
-  .wm100 .move,
-  .wp100 .price {
-    display: none;
-  }
 }
-@container (max-width: 109.98px) {
-  .wf110 .name {
-    display: none;
-  }
-  .wf110 .short {
+
+@container (min-width: 130px) {
+  .bm130 .barMove {
     display: inline;
   }
-  .wm110 .move,
-  .wp110 .price {
-    display: none;
-  }
 }
-@container (max-width: 119.98px) {
-  .wf120 .name {
-    display: none;
-  }
-  .wf120 .short {
+
+@container (min-width: 140px) {
+  .bm140 .barMove {
     display: inline;
   }
-  .wm120 .move,
-  .wp120 .price {
-    display: none;
-  }
 }
-@container (max-width: 129.98px) {
-  .wf130 .name {
-    display: none;
-  }
-  .wf130 .short {
+
+@container (min-width: 150px) {
+  .bm150 .barMove {
     display: inline;
   }
-  .wm130 .move,
-  .wp130 .price {
-    display: none;
-  }
 }
-@container (max-width: 139.98px) {
-  .wf140 .name {
-    display: none;
-  }
-  .wf140 .short {
+
+@container (min-width: 160px) {
+  .bm160 .barMove {
     display: inline;
   }
-  .wm140 .move,
-  .wp140 .price {
-    display: none;
-  }
 }
-@container (max-width: 149.98px) {
-  .wf150 .name {
-    display: none;
-  }
-  .wf150 .short {
+
+@container (min-width: 170px) {
+  .bm170 .barMove {
     display: inline;
   }
-  .wm150 .move,
-  .wp150 .price {
-    display: none;
-  }
 }
-@container (max-width: 159.98px) {
-  .wf160 .name {
-    display: none;
-  }
-  .wf160 .short {
+
+@container (min-width: 180px) {
+  .bm180 .barMove {
     display: inline;
   }
-  .wm160 .move,
-  .wp160 .price {
-    display: none;
-  }
 }
-@container (max-width: 169.98px) {
-  .wf170 .name {
-    display: none;
-  }
-  .wf170 .short {
+
+@container (min-width: 190px) {
+  .bm190 .barMove {
     display: inline;
   }
-  .wm170 .move,
-  .wp170 .price {
-    display: none;
-  }
 }
-@container (max-width: 179.98px) {
-  .wf180 .name {
-    display: none;
-  }
-  .wf180 .short {
+
+@container (min-width: 200px) {
+  .bm200 .barMove {
     display: inline;
   }
-  .wm180 .move,
-  .wp180 .price {
-    display: none;
-  }
 }
-@container (max-width: 189.98px) {
-  .wf190 .name {
-    display: none;
-  }
-  .wf190 .short {
+
+@container (min-width: 210px) {
+  .bm210 .barMove {
     display: inline;
   }
-  .wm190 .move,
-  .wp190 .price {
-    display: none;
-  }
 }
-@container (max-width: 199.98px) {
-  .wf200 .name {
-    display: none;
-  }
-  .wf200 .short {
+
+@container (min-width: 220px) {
+  .bm220 .barMove {
     display: inline;
   }
-  .wm200 .move,
-  .wp200 .price {
-    display: none;
-  }
 }
-@container (max-width: 209.98px) {
-  .wf210 .name {
-    display: none;
-  }
-  .wf210 .short {
+
+@container (min-width: 230px) {
+  .bm230 .barMove {
     display: inline;
   }
-  .wm210 .move,
-  .wp210 .price {
-    display: none;
-  }
 }
-@container (max-width: 219.98px) {
-  .wf220 .name {
-    display: none;
-  }
-  .wf220 .short {
+
+@container (min-width: 240px) {
+  .bm240 .barMove {
     display: inline;
   }
-  .wm220 .move,
-  .wp220 .price {
-    display: none;
-  }
 }
-@container (max-width: 229.98px) {
-  .wf230 .name {
-    display: none;
-  }
-  .wf230 .short {
+
+@container (min-width: 250px) {
+  .bm250 .barMove {
     display: inline;
   }
-  .wm230 .move,
-  .wp230 .price {
-    display: none;
-  }
 }
-@container (max-width: 239.98px) {
-  .wf240 .name {
-    display: none;
-  }
-  .wf240 .short {
+
+@container (min-width: 260px) {
+  .bm260 .barMove {
     display: inline;
   }
-  .wm240 .move,
-  .wp240 .price {
-    display: none;
-  }
 }
-@container (max-width: 249.98px) {
-  .wf250 .name {
-    display: none;
-  }
-  .wf250 .short {
+
+@container (min-width: 270px) {
+  .bm270 .barMove {
     display: inline;
   }
-  .wm250 .move,
-  .wp250 .price {
-    display: none;
-  }
 }
-@container (max-width: 259.98px) {
-  .wf260 .name {
-    display: none;
-  }
-  .wf260 .short {
+
+@container (min-width: 280px) {
+  .bm280 .barMove {
     display: inline;
   }
-  .wm260 .move,
-  .wp260 .price {
-    display: none;
-  }
 }
-@container (max-width: 269.98px) {
-  .wf270 .name {
-    display: none;
-  }
-  .wf270 .short {
+
+@container (min-width: 290px) {
+  .bm290 .barMove {
     display: inline;
   }
-  .wm270 .move,
-  .wp270 .price {
-    display: none;
-  }
 }
-@container (max-width: 279.98px) {
-  .wf280 .name {
-    display: none;
-  }
-  .wf280 .short {
+
+@container (min-width: 300px) {
+  .bm300 .barMove {
     display: inline;
   }
-  .wm280 .move,
-  .wp280 .price {
-    display: none;
-  }
 }
-@container (max-width: 289.98px) {
-  .wf290 .name {
-    display: none;
-  }
-  .wf290 .short {
-    display: inline;
-  }
-  .wm290 .move,
-  .wp290 .price {
-    display: none;
-  }
+
+/* A map that always prints short names (a phone's): "Staples", never "Consumer staples". */
+.shortOnly .full {
+  display: none !important;
 }
-@container (max-width: 299.98px) {
-  .wf300 .name {
-    display: none;
-  }
-  .wf300 .short {
-    display: inline;
-  }
-  .wm300 .move,
-  .wp300 .price {
-    display: none;
-  }
-}
-@container (max-width: 29.98px) {
-  .ws30 .short,
-  .wt30 .tick {
-    display: none !important;
-  }
-}
-@container (max-width: 39.98px) {
-  .ws40 .short,
-  .wt40 .tick {
-    display: none !important;
-  }
-}
-@container (max-width: 49.98px) {
-  .ws50 .short,
-  .wt50 .tick {
-    display: none !important;
-  }
-}
-@container (max-width: 59.98px) {
-  .ws60 .short,
-  .wt60 .tick {
-    display: none !important;
-  }
-}
-@container (max-width: 69.98px) {
-  .ws70 .short,
-  .wt70 .tick {
-    display: none !important;
-  }
-}
-@container (max-width: 79.98px) {
-  .ws80 .short,
-  .wt80 .tick {
-    display: none !important;
-  }
-}
-@container (max-width: 89.98px) {
-  .ws90 .short,
-  .wt90 .tick {
-    display: none !important;
-  }
-}
-@container (max-width: 99.98px) {
-  .ws100 .short,
-  .wt100 .tick {
-    display: none !important;
-  }
-}
-@container (max-width: 109.98px) {
-  .ws110 .short,
-  .wt110 .tick {
-    display: none !important;
-  }
-}
-@container (max-width: 119.98px) {
-  .ws120 .short,
-  .wt120 .tick {
-    display: none !important;
-  }
-}
-@container (max-width: 129.98px) {
-  .ws130 .short,
-  .wt130 .tick {
-    display: none !important;
-  }
-}
-@container (max-width: 139.98px) {
-  .ws140 .short,
-  .wt140 .tick {
-    display: none !important;
-  }
-}
-@container (max-width: 149.98px) {
-  .ws150 .short,
-  .wt150 .tick {
-    display: none !important;
-  }
-}
-@container (max-width: 159.98px) {
-  .ws160 .short,
-  .wt160 .tick {
-    display: none !important;
-  }
-}
-@container (max-width: 169.98px) {
-  .ws170 .short,
-  .wt170 .tick {
-    display: none !important;
-  }
-}
-@container (max-width: 179.98px) {
-  .ws180 .short,
-  .wt180 .tick {
-    display: none !important;
-  }
-}
-@container (max-width: 189.98px) {
-  .ws190 .short,
-  .wt190 .tick {
-    display: none !important;
-  }
-}
-@container (max-width: 199.98px) {
-  .ws200 .short,
-  .wt200 .tick {
-    display: none !important;
-  }
-}
-@container (max-width: 209.98px) {
-  .ws210 .short,
-  .wt210 .tick {
-    display: none !important;
-  }
-}
-@container (max-width: 219.98px) {
-  .ws220 .short,
-  .wt220 .tick {
-    display: none !important;
-  }
-}
-@container (max-width: 229.98px) {
-  .ws230 .short,
-  .wt230 .tick {
-    display: none !important;
-  }
-}
-@container (max-width: 239.98px) {
-  .ws240 .short,
-  .wt240 .tick {
-    display: none !important;
-  }
-}
-@container (max-width: 249.98px) {
-  .ws250 .short,
-  .wt250 .tick {
-    display: none !important;
-  }
-}
-@container (max-width: 259.98px) {
-  .ws260 .short,
-  .wt260 .tick {
-    display: none !important;
-  }
-}
-@container (max-width: 269.98px) {
-  .ws270 .short,
-  .wt270 .tick {
-    display: none !important;
-  }
-}
-@container (max-width: 279.98px) {
-  .ws280 .short,
-  .wt280 .tick {
-    display: none !important;
-  }
-}
-@container (max-width: 289.98px) {
-  .ws290 .short,
-  .wt290 .tick {
-    display: none !important;
-  }
-}
-@container (max-width: 299.98px) {
-  .ws300 .short,
-  .wt300 .tick {
-    display: none !important;
-  }
+.shortOnly .short {
+  display: inline !important;
 }

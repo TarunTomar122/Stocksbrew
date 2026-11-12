@@ -1,8 +1,7 @@
 import Link from "next/link";
 import * as React from "react";
 
-import { Treemap, type TreemapLayout } from "@/components/oa/kit/treemap";
-import { part, sectorTileClass } from "@/components/oa/kit/treemap-fit";
+import { TileLabel, Treemap, tileClass, type TreemapLayout } from "@/components/oa/kit/treemap";
 import { SectorIcon } from "@/components/oa/sector-icon";
 
 /**
@@ -28,15 +27,25 @@ export type HeatmapSector = {
 
 const MINUS = "−";
 
-/** Short names for the long sectors, as traders say them. */
+/**
+ * Short names for the long sectors, as traders say them (owner, Nov 12: every tile names its sector, "Health",
+ * "Staples", "Tech", "Industrials", never an icon alone). A tile too narrow for the full name prints this one.
+ */
 const SHORT: Record<string, string> = {
   "communication services": "Communication",
   "consumer discretionary": "Discretionary",
+  "consumer cyclical": "Discretionary",
   "consumer staples": "Staples",
+  "consumer defensive": "Staples",
   "information technology": "Tech",
+  technology: "Tech",
+  "health care": "Health",
+  healthcare: "Health",
+  "financial services": "Financials",
+  "basic materials": "Materials",
 };
 
-/** "Discretionary" for "Consumer Discretionary": the trade's short name for a long sector, else the name itself. */
+/** "Health" for "Health care": the trade's short name for a long sector, else the name itself. */
 export function shortSectorName(name: string): string {
   return SHORT[name.toLowerCase()] ?? name;
 }
@@ -62,111 +71,60 @@ function tint(day: number | null): string {
   return `color-mix(in srgb, var(${day > 0 ? "--signal-bullish" : "--signal-bearish"}) ${share}%, var(--oa-card))`;
 }
 
-/** A wide screen's proportions and a phone's, for a map with the page's width to itself. */
-const PAGE_LAYOUTS: TreemapLayout[] = [
-  { width: 1000, height: 340, className: "hidden sm:block" },
-  { width: 360, height: 440, className: "sm:hidden" },
-];
-
-/** The shortest tile that prints a name. */
-const NAMED_H = 48;
 /**
- * A first guess, from a layout's own units, at the name a tile prints whole: the full name, else the short one, else
- * none. Only the server's guess at which tiles the labels list before the page measures; the tile itself decides
- * from its rendered size (components/oa/kit/treemap-fit.ts).
+ * A map with the page's width to itself, laid out at the narrowest width each is drawn at: a 320 phone, a tablet, the
+ * content column beside the sidebar on a 1024 screen, and on a 1280 one (lib/treemap.ts sets each one's height).
  */
-export function tileName(name: string, w: number, h: number): string | null {
-  if (h < NAMED_H) return null;
-  return [name, shortSectorName(name)].find((text) => text.length * 6.9 + 42 <= w) ?? null;
-}
-/** The smallest tile that still prints its move; a smaller one shows only its icon. */
-const FIGURE_W = 58;
-const FIGURE_H = 38;
+export const PAGE_LAYOUTS: TreemapLayout[] = [
+  { width: 304, className: "sm:hidden", short: true },
+  { width: 592, className: "hidden sm:block lg:hidden" },
+  { width: 736, className: "hidden lg:block xl:hidden" },
+  { width: 992, className: "hidden xl:block" },
+];
 
 function rowHref(row: HeatmapSector): string {
   return row.href ?? (row.slug ? `/sectors/${row.slug}` : "/sectors");
 }
 
 /**
- * A true treemap (owner, Nov 12: "not looking like a true heat map; cards need to be the size depending on the
- * percentage change"): each tile's AREA follows the size of its move (components/oa/kit/treemap.tsx), so the boxes fill
- * the whole map. A small tile keeps its move and drops the name (it stays in the label and the hover title); a big one
- * spells the sector out in full and prints its move large.
+ * A true treemap of the sectors (components/oa/kit/treemap.tsx): each tile's area by the size of its move, every tile
+ * with its icon, its name (the short one when the full one does not fit) and its move, centred.
  */
 export function SectorHeatmap({
   rows,
   layouts = PAGE_LAYOUTS,
   gap = 6,
   label = "Sectors sized by how far they moved today",
-  floorShare,
-  denseLabels = false,
-  rootClassName,
 }: {
   rows: HeatmapSector[];
   layouts?: readonly TreemapLayout[];
   /** Space between tiles, in CSS pixels. */
   gap?: number;
   label?: string;
-  /** The smallest tile's share of the map (lib/treemap.ts); a small map raises it so a flat sector stays readable. */
-  floorShare?: number;
-  /** Smaller label chips, for a map in a narrow card where most tiles are too small for their name. */
-  denseLabels?: boolean;
-  /** The wrapper around the map and its labels: "flex flex-1 flex-col" when the map fills a card. */
-  rootClassName?: string;
 }) {
   if (rows.length === 0) return null;
+  const wordsOf = (row: HeatmapSector) => ({ full: row.name, short: shortSectorName(row.name), mono: false, move: signedPct(row.day) });
   return (
     <Treemap
       items={rows}
       keyOf={(row) => row.id}
-      weightOf={(row) => row.day}
+      moveOf={(row) => row.day}
+      wordsOf={wordsOf}
       layouts={layouts}
       gap={gap}
-      floorShare={floorShare}
       label={label}
-      labels={{
-        dense: denseLabels,
-        className: "mt-1 px-[3px]",
-        rootClassName,
-        chip: (row) => ({
-          key: row.id,
-          href: rowHref(row),
-          icon: <SectorIcon id={row.icon ?? row.id} size={13} />,
-          name: shortSectorName(row.name),
-          figure: signedPct(row.day),
-          background: tint(row.day),
-        }),
-        guess: (row, { w, h }) => tileName(row.name, w, h) === null || w < FIGURE_W || h < FIGURE_H,
-      }}
       renderTile={(row) => {
-        // The tile decides from its rendered size what it shows (components/oa/kit/treemap-fit.ts): the full name and
-        // a big figure, then the short name, then the icon and the move, then the icon alone; the icon always stays
-        // (owner VISUALS CHECK). A tile without its name or move is listed in the labels under the map.
-        const move = signedPct(row.day);
-        const short = shortSectorName(row.name);
+        const words = wordsOf(row);
         return (
           <Link
             prefetch={false}
             href={rowHref(row)}
-            aria-label={`${row.name}, ${move === "·" ? "no move yet" : `${move} today`}`}
-            title={`${row.title ?? row.name} ${move}`}
+            aria-label={`${row.name}, ${words.move === "·" ? "no move yet" : `${words.move} today`}`}
+            title={`${row.title ?? row.name} ${words.move}`}
             style={{ background: tint(row.day) }}
-            className={`oa-surface block h-full w-full border border-oa-border outline-none transition-[filter] hover:brightness-[0.97] focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)] dark:hover:brightness-110 ${sectorTileClass({ name: row.name, short, move })}`}
+            className={`oa-surface block h-full w-full border border-oa-border outline-none transition-[filter] hover:brightness-[0.97] focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)] dark:hover:brightness-110 ${tileClass(words)}`}
           >
-            <span data-clip className={part.body}>
-              <span className="flex min-w-0 items-center gap-1.5 text-[13px] font-medium leading-[18px] text-oa-fg">
-                <SectorIcon id={row.icon ?? row.id} size={14} />
-                <span data-need="name" className={`whitespace-nowrap ${part.name}`}>
-                  {row.name}
-                </span>
-                <span data-need="name" className={`whitespace-nowrap ${part.short}`}>
-                  {short}
-                </span>
-              </span>
-              <span data-need="move" className={`oa-mono whitespace-nowrap font-semibold tracking-[-0.01em] tabular-nums text-oa-fg ${part.move}`}>
-                {move}
-              </span>
-            </span>
+            <TileLabel icon={<SectorIcon id={row.icon ?? row.id} size={14} />} words={words} moveClassName="text-oa-fg" />
           </Link>
         );
       }}
