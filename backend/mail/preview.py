@@ -16,9 +16,9 @@ from pathlib import Path
 
 from backend.mail import alerts, daily, lifecycle, rebalance, weekly
 from backend.mail.data import load_person, stocks_by_id, tracked_counts
-from backend.subscription_entitlement import FREE_COVERED_STOCKS
 from backend.mail.kit import Email
-from backend.subscription_entitlement import FREE_COVERED_WORD, PAYWALL_V2
+from backend.mail.weekly import WEEK_NEWS_HOURS
+from backend.subscription_entitlement import FREE_COVERED_STOCKS, FREE_COVERED_WORD, PAYWALL_V2
 
 FREE_AGENTS = 1 if PAYWALL_V2 else 2  # lib/entitlements.ts: agents, free
 
@@ -36,9 +36,9 @@ def _source():
     return StoreSource(TraceMoneyStore().db)
 
 
-def render_all(uid: str, now: datetime | None = None) -> tuple[list[tuple[str, Email | None, str]], dict]:
+def render_all(uid: str, now: datetime | None = None, src=None) -> tuple[list[tuple[str, Email | None, str]], dict]:
     now = now or datetime.now(timezone.utc)
-    src = _source()
+    src = src or _source()
     person = load_person(src, uid, now=now)
     if person is None:
         raise SystemExit(f"no user {uid}")
@@ -55,32 +55,21 @@ def render_all(uid: str, now: datetime | None = None) -> tuple[list[tuple[str, E
     out: list[tuple[str, Email | None, str]] = []
     out.append(("1 · Daily brief (Pro)", daily.build_daily(person, now=now, market=market), "Trading days, about 8:30am ET, only when something changed"))
     out.append(("1b · Daily brief (Free)", daily.build_daily(free_view, now=now, market=market), f"Same email for a Free account: covered {FREE_COVERED_WORD} only, plus what's outside"))
-    out.append(("2 · Weekly recap", weekly.build_weekly(person, market=market, now=now), "Saturdays, 9am ET"))
+    week_person = load_person(src, uid, now=now, news_hours=WEEK_NEWS_HOURS)
+    out.append(("2 · Weekly memo", weekly.build_weekly(week_person, market=market, now=now), "Saturdays, 9am ET"))
     findings = alerts.load_findings(src, uid, since=now - timedelta(days=3))
-    out.append(("3 · Alerts", alerts.build_alerts(person, findings), "When an agent job finds something, bundled over 15 minutes"))
-    out.append(("3b · Strategy rebalance (Pro)", rebalance.build_note(_rebalance_sample(src, uid)),
+    out.append(("3 · Alerts", alerts.build_alerts(person, findings, now=now), "When an agent job finds something, bundled over 15 minutes"))
+    out.append(("3b · Strategy rebalance (Pro)", rebalance.build_note(_rebalance_sample(src, uid, now), tracked={s.ticker for s in person.stocks}),
                 "Pro, the evening a strategy you follow rebalances (STRATEGY_REBALANCE_NOTES=1)"))
     new_user = copy.deepcopy(person)
     new_user.stocks, new_user.tracked_ids, new_user.covered_ids, new_user.is_pro = [], [], [], False
-    out.append(("4 · Welcome", lifecycle.build_welcome(new_user, popular), "Right after signup"))
-    out.append(("4b · Setup nudge, day 2", lifecycle.build_setup_nudge(new_user, popular, day=2), "Day 2, only if the watchlist is empty"))
-    # day 5 shows a real stock with its research, so load the most-moved popular stock in full
-    moved = sorted([s for s in popular if s.change_pct is not None], key=lambda s: -abs(s.change_pct or 0))
-    if moved:
-        from backend.mail.data import _apply_calls, _apply_news, _num
+    # the welcome and day-5 nudge show one real card, so load the most-moved popular stock in full
+    from backend.mail.data import with_example
 
-        lead = moved[0]
-        _apply_calls(src, [lead], now)
-        if lead.calls:
-            latest = lead.calls[-1]
-            lead.call_text, lead.call_reason = latest.text, latest.reason
-            raw = src.get(f"tm_directive_history/{lead.id}/calls/{latest.day}") or {}
-            if raw.get("trigger_type") == "price_below":
-                lead.add_below = _num(raw.get("trigger_value"))
-            elif raw.get("trigger_type") == "price_above":
-                lead.trim_above = _num(raw.get("trigger_value"))
-        _apply_news(src, [lead], now, hours=30)
-    out.append(("4c · Setup nudge, day 5", lifecycle.build_setup_nudge(new_user, moved or popular, day=5), "Day 5, only if still empty. Last setup email"))
+    moved = with_example(src, popular, now)
+    out.append(("4 · Welcome", lifecycle.build_welcome(new_user, moved, now=now), "Right after signup"))
+    out.append(("4b · Setup nudge, day 2", lifecycle.build_setup_nudge(new_user, moved, day=2, now=now), "Day 2, only if the watchlist is empty"))
+    out.append(("4c · Setup nudge, day 5", lifecycle.build_setup_nudge(new_user, moved, day=5, now=now), "Day 5, only if still empty. Last setup email"))
     out.append(("5 · Pro welcome", lifecycle.build_pro_welcome(person), "Right after upgrading"))
     out.append(("6a · Weekly swap open (Free)", lifecycle.build_swap_open(free_view), "Free only, when the weekly swap opens and an uncovered stock moved"))
     out.append(("6b · Limit reached (Free)", lifecycle.build_limit_reached(
@@ -96,9 +85,9 @@ def render_all(uid: str, now: datetime | None = None) -> tuple[list[tuple[str, E
     return out, info
 
 
-def _rebalance_sample(src, uid: str) -> list[dict]:
+def _rebalance_sample(src, uid: str, now: datetime) -> list[dict]:
     """The latest rebalance day: the person's followed strategies if any rebalanced then, otherwise every one (a sample)."""
-    since = (datetime.now(timezone.utc) - timedelta(days=62)).date().isoformat()
+    since = (now - timedelta(days=62)).date().isoformat()
     rows = [data for _, data in src.query(rebalance.COLLECTION, [("date", ">=", since)], limit=500) if data.get("slug") and data.get("date")]
     if not rows:
         return []
@@ -141,8 +130,18 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--uid", required=True)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--snapshot", help="record reads to this JSON file, or replay it if it exists (same data before and after a change)")
+    ap.add_argument("--now", help="render as of this ISO time, e.g. 2026-11-11T13:30:00+00:00 (use with --snapshot)")
     args = ap.parse_args()
-    rendered, info = render_all(args.uid)
+    now = datetime.fromisoformat(args.now) if args.now else None
+    src = None
+    if args.snapshot:
+        from backend.mail.source import SnapshotSource
+
+        src = SnapshotSource(args.snapshot) if Path(args.snapshot).exists() else SnapshotSource(args.snapshot, _source())
+    rendered, info = render_all(args.uid, now=now, src=src)
+    if src is not None:
+        src.save()
     index = write(Path(args.out), rendered, info)
     for label, email, _ in rendered:
         print(f"{label:34} {'(quiet, not sent)' if email is None else email.subject}")

@@ -58,6 +58,11 @@ class HttpSource:
                 if err.code not in (502, 503, 504) or attempt == 2:
                     raise
                 time.sleep(2 * (attempt + 1))
+            except urllib.error.URLError:
+                # a dropped TLS handshake through the proxy; the same read usually works a moment later
+                if attempt == 2:
+                    raise
+                time.sleep(5 * (attempt + 1))
         raise RuntimeError("unreachable")
 
     def get(self, path: str) -> dict[str, Any] | None:
@@ -130,3 +135,52 @@ class StoreSource:
     def children(self, parent_path, collection, *, limit=200):
         q = self._ref(parent_path).collection(collection).limit(limit)
         return [(snap.reference.path, snap.to_dict() or {}) for snap in q.stream()]
+
+
+class SnapshotSource:
+    """Records every read of another source to a JSON file, or replays one.
+
+    For previews only: render the same data before and after a template change
+    (`python -m backend.mail.preview --snapshot file.json --now <iso>`). Replay never
+    touches the network; a read the snapshot doesn't have returns nothing.
+    """
+
+    def __init__(self, path: str, inner: Source | None = None):
+        self.path = path
+        self.inner = inner
+        self.data: dict[str, Any] = {}
+        # replay mode reads the file; record mode with a file already there keeps it and adds what's missing
+        if inner is None or os.path.exists(path):
+            with open(path) as fh:
+                self.data = json.load(fh)
+
+    def _key(self, *parts: Any) -> str:
+        return json.dumps(parts, sort_keys=True, default=str)
+
+    def _through(self, key: str, fn):
+        if self.inner is None or key in self.data:
+            return self.data.get(key)
+        value = fn()
+        self.data[key] = value
+        return value
+
+    def get(self, path):
+        return self._through(self._key("get", path), lambda: self.inner.get(path))
+
+    def get_many(self, paths):
+        return self._through(self._key("get_many", paths), lambda: self.inner.get_many(paths)) or {}
+
+    def query(self, collection, filters=None, *, limit=None, select=None):
+        key = self._key("query", collection, filters or [], limit, select)
+        rows = self._through(key, lambda: self.inner.query(collection, filters, limit=limit, select=select)) or []
+        return [tuple(r) for r in rows]
+
+    def children(self, parent_path, collection, *, limit=200):
+        rows = self._through(self._key("children", parent_path, collection, limit),
+                             lambda: self.inner.children(parent_path, collection, limit=limit)) or []
+        return [tuple(r) for r in rows]
+
+    def save(self) -> None:
+        if self.inner is not None:
+            with open(self.path, "w") as fh:
+                json.dump(self.data, fh, default=str)

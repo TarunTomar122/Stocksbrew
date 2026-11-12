@@ -34,10 +34,25 @@ DOWN_WASH = "#f8e4e0"
 CAUTION = "#6f5210"  # --oa-label
 CAUTION_WASH = "#f5ecd3"
 
-# level bar zones: stronger than the washes so the bar reads at a glance
-ZONE_ADD = "#9fd0b4"
-ZONE_HOLD = "#e2dacb"
-ZONE_TRIM = "#e6c98a"
+# small charts: a bar that is neither up nor down, and the zero line
+BAR_FLAT = "#cfc6b5"
+
+# dark mode, for clients that honour prefers-color-scheme (Apple Mail, iOS, Outlook for Mac).
+# Gmail ignores it and inverts on its own, so the light values above stay the inline default.
+D_PAGE = "#14120f"
+D_CARD = "#1d1a16"
+D_WELL = "#26221c"
+D_INK = "#f3ede2"
+D_BODY = "#ddd5c7"
+D_MUTED = "#b3a998"
+D_BORDER = "#3a342b"
+D_COPPER = "#e39a62"
+D_UP = "#5fc795"
+D_DOWN = "#f08a7c"
+D_UP_WASH = "#173326"
+D_DOWN_WASH = "#3a1c18"
+D_CAUTION = "#e3c06e"
+D_CAUTION_WASH = "#352a12"
 
 FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif"
 MONO = "'SF Mono',Menlo,Consolas,'Liberation Mono',monospace"
@@ -52,3 +67,4 @@ TEXT_XL = 26
 RADIUS = 14
 RADIUS_SM = 10
 WIDTH = 600
+COL_GAP = 10  # between cards side by side

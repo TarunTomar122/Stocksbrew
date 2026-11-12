@@ -95,6 +95,7 @@ class Stock:
     week_change_pct: float | None = None
     earnings_date: date | None = None
     earnings_time: str = ""
+    premarket_pct: float | None = None  # this morning's pre-market move, when today's snapshot has it
     news: list[Headline] = field(default_factory=list)
     calls: list[Call] = field(default_factory=list)
     dates: list[str] = field(default_factory=list, repr=False)
@@ -188,7 +189,8 @@ def covered_ids(user: dict[str, Any], tracked: list[str], is_pro: bool) -> list[
 
 # ---------------------------------------------------------------- loaders
 
-def load_person(src: Source, uid: str, *, now: datetime | None = None, with_news: bool = True, with_calls: bool = True) -> Person | None:
+def load_person(src: Source, uid: str, *, now: datetime | None = None, with_news: bool = True, with_calls: bool = True,
+                news_hours: int = 80) -> Person | None:
     now = now or datetime.now(timezone.utc)
     user = src.get(f"users/{uid}")
     if not user:
@@ -239,8 +241,9 @@ def load_person(src: Source, uid: str, *, now: datetime | None = None, with_news
     if with_calls:
         _apply_calls(src, person.stocks, now)
     _apply_earnings(src, person.stocks, now)
+    _apply_premarket(src, person.stocks, now)
     if with_news:
-        _apply_news(src, person.stocks, now)
+        _apply_news(src, person.stocks, now, hours=news_hours)
     return person
 
 
@@ -336,6 +339,33 @@ def _apply_earnings(src: Source, stocks: list[Stock], now: datetime) -> None:
             s.earnings_date, s.earnings_time = by_ticker[s.ticker]
 
 
+PREMARKET_MAX_AGE_HOURS = 4
+
+
+def _apply_premarket(src: Source, stocks: list[Stock], now: datetime) -> None:
+    """This morning's pre-market move per stock, from the snapshot the premarket job writes.
+
+    Only today's snapshot (Eastern date) taken in the last few hours counts, so an
+    evening or weekend run never shows yesterday's pre-market as news.
+    """
+    try:
+        doc = src.get("tm_premarket_movers/US__latest") or {}
+    except Exception:  # the brief must still go out without it
+        return
+    at = parse_ts(doc.get("generated_at"))
+    if at is None or now - at > timedelta(hours=PREMARKET_MAX_AGE_HOURS) or at > now + timedelta(minutes=5):
+        return
+    if str(doc.get("date") or "")[:10] != now.astimezone(ET).date().isoformat():
+        return
+    by_ticker = doc.get("by_ticker") or {}
+    if not isinstance(by_ticker, dict):
+        return
+    for s in stocks:
+        hit = by_ticker.get(s.ticker)
+        if isinstance(hit, dict) and isinstance(hit.get("pre_market_change_pct"), (int, float)):
+            s.premarket_pct = float(hit["pre_market_change_pct"])
+
+
 def _apply_news(src: Source, stocks: list[Stock], now: datetime, hours: int = 80) -> None:
     cutoff = (now - timedelta(hours=hours)).isoformat()
     by_ticker = {s.ticker: s for s in stocks}
@@ -345,7 +375,7 @@ def _apply_news(src: Source, stocks: list[Stock], now: datetime, hours: int = 80
         rows = src.query(
             "tm_agent_news",
             [("stock_tickers", "array-contains-any", chunk), ("published_at", ">=", cutoff)],
-            limit=300,
+            limit=300 if hours <= 80 else 800,
             select=["title", "source_name", "stock_tickers", "published_at", "url", "summary"],
         )
         for _, d in rows:
@@ -367,7 +397,7 @@ def _apply_news(src: Source, stocks: list[Stock], now: datetime, hours: int = 80
             if key not in seen:
                 seen.add(key)
                 unique.append(h)
-        s.news = unique[:6]
+        s.news = unique[:30]  # enough for a week; callers pick by time window
 
 
 LISTICLE = re.compile(
@@ -378,19 +408,23 @@ LISTICLE = re.compile(
     r"\b(adds|buys|sells|trims)\b.{0,60}\bon (monday|tuesday|wednesday|thursday|friday)\b|"
     # chart-reading pieces describe a price, they don't explain it
     r"support and resistance|levels? to watch|price prediction|technical analysis|\bcharts?\b|"
+    # machine summaries and transcripts restate a call, they don't explain a move
+    r"\bsummary of\b|\btranscript\b|"
     # valuation opinion columns
-    r"really (expensive|cheap)|steal of a deal|\b(over|under)valued\?|"
+    r"really (expensive|cheap)|steal of a deal|\b(over|under)valued\b|"
     # "Analyzing X as a beneficiary of ..." is a thesis column, not a report
     r"^\s*analy[sz]ing\b)",
     re.I,
 )
 # a question headline ("Is X really expensive?", "Should you buy Y?") is an opinion, not a reason
+# a headline that opens on a quote is somebody's opinion ("'When Greed Is Good,' Says Top Investor")
+QUOTED = re.compile(r"^\s*[‘'\"“]")
 QUESTION = re.compile(r"\?\s*$|^\s*(is|are|should|can|could|will|would|why|what|how|does|do)\b[^?]{0,120}\?", re.I)
 
 
 def is_reason_headline(title: str) -> bool:
     """Listicles, questions and chart-reading columns mention a company without explaining a move."""
-    return not (LISTICLE.search(title) or QUESTION.search(title))
+    return not (LISTICLE.search(title) or QUESTION.search(title) or QUOTED.search(title))
 
 
 def _mentions(title: str, stock: Stock) -> bool:
@@ -409,6 +443,25 @@ def tracked_counts(src: Source, limit: int = 12) -> list[tuple[str, int]]:
     rows = src.query("tm_tracked_instruments", [("market", "==", "US")], limit=5000, select=["instrument_id", "tracked_count"])
     ranked = sorted(((d.get("instrument_id") or p.split("/")[-1], int(d.get("tracked_count") or 0)) for p, d in rows), key=lambda r: -r[1])
     return ranked[:limit]
+
+
+def with_example(src: Source, popular: list[Stock], now: datetime) -> list[Stock]:
+    """Popular stocks, most moved first, with the first one loaded in full (call, level, news) so the
+    welcome and setup emails can show one real card the way the daily brief draws it."""
+    moved = sorted([s for s in popular if s.change_pct is not None], key=lambda s: -abs(s.change_pct or 0))
+    if not moved:
+        return popular
+    lead = moved[0]
+    _apply_calls(src, [lead], now)
+    if lead.calls:
+        latest = lead.calls[-1]
+        lead.stance, lead.call_text, lead.call_reason = latest.stance, latest.text, latest.reason
+        if latest.trigger_type == "price_below":
+            lead.add_below = latest.trigger_value
+        elif latest.trigger_type == "price_above":
+            lead.trim_above = latest.trigger_value
+    _apply_news(src, [lead], now, hours=30)
+    return moved + [s for s in popular if s.change_pct is None]
 
 
 def stocks_by_id(src: Source, ids: list[str], *, now: datetime | None = None) -> list[Stock]:

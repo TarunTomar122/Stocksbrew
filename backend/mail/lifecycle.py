@@ -6,13 +6,13 @@ about us.
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timezone
 
 from backend.mail import kit
 from backend.subscription_entitlement import FREE_COVERED_WORD
 from backend.mail.data import ET, FREE_COVERED_STOCKS, Person, Stock, direction
 
-WINBACK_AFTER_DAYS = 21
+SWAP_MIN_MOVE_PCT = 3.0  # the swap email only goes out when a stock outside the covered ones moved this much
 
 
 def _hello(person: Person) -> str:
@@ -21,79 +21,88 @@ def _hello(person: Person) -> str:
 
 # --------------------------------------------------------------- welcome
 
-def build_welcome(person: Person, popular: list[Stock], *, unsubscribe_token: str | None = None) -> kit.Email:
+def example_card(stock: Stock, now: datetime | None = None) -> kit.Card:
+    """One real stock drawn the way the daily brief draws it: the move, the reason if we have one, our call."""
+    from backend.mail.daily import session_word, times, why_line
+
+    today = (now or datetime.now(timezone.utc)).astimezone(ET).date()
+    up = (stock.change_pct or 0) > 0
+    moved = f"{'Rose' if up else 'Fell'} {kit.pct(stock.change_pct, signed=False)} {session_word(stock.price_at, today)}."
+    typical = stock.typical_move_pct
+    why, _ = why_line(stock)
+    label = kit.call_label(stock.stance, stock.call_text)
+    return kit.Card(
+        ticker=stock.ticker,
+        figure=kit.pct(stock.change_pct) if stock.change_pct is not None else "",
+        figure_value=stock.change_pct,
+        # a stock the reader doesn't track yet shows the call, not its price level
+        call=label,
+        line=why or moved,
+        meta=" · ".join(x for x in (
+            f"{times(abs(stock.change_pct or 0) / typical)} a normal day for {stock.ticker}" if typical else "",
+            f"{stock.price_at.astimezone(ET).strftime('%b %-d')} close" if stock.price_at else "") if x),
+        fallback=kit.recent_move(stock.closes),
+    )
+
+
+def build_welcome(person: Person, popular: list[Stock], *, unsubscribe_token: str | None = None,
+                  now: datetime | None = None) -> kit.Email:
     doc = kit.Doc()
-    doc.eyebrow("Welcome to stocksbrew")
-    doc.h1("Track a few stocks and we'll keep up with them for you")
-    doc.p(
-        f"{_hello(person)} stocksbrew researches the US stocks you care about and tells you when something "
-        "important changes: a big move and the reason for it, a new call, an earnings date, a price level reached."
-    )
-    doc.steps([
-        ("Look up a stock you own", "Financials, valuation, filings, analyst targets and news, all on one page.", kit.app_url("/explore")),
-        ("Add it to your watchlist", "Holdings and stocks you're watching go in the same list. There's no limit on how many.", kit.app_url("/watchlist")),
-        ("Get one email when it matters", "A short brief before the US open, only on days something changed. Nothing on quiet days.", kit.settings_url()),
-    ])
-    picks = [s for s in popular if s.price is not None][:4]
-    if picks:
-        doc.h2("Where other people start", aside="most tracked")
-        doc.movers([(s.ticker, kit._short_name(s.name), s.change_pct) for s in picks])
-    doc.button("Build your watchlist", kit.app_url("/watchlist"))
-    doc.p(
-        f"On Free, we cover {FREE_COVERED_STOCKS} of the stocks you track in full: price levels, the reasons behind each call "
-        "and explained moves. Pro covers everything you track.",
-        muted=True,
-        size=14,
-    )
-    return kit.render(doc, kind="welcome", category="product", subject="Welcome to stocksbrew. Start with one stock",
-                      preheader="Add the stocks you own and we'll tell you when something changes.",
-                      unsubscribe_token=unsubscribe_token)
+    picks = [s for s in popular if s.price is not None][:8]
+    lead = next((s for s in picks if s.change_pct is not None), None)
+    first = f"Welcome, {person.first_name}." if person.first_name else "Welcome to stocksbrew."
+    doc.h1(f"{first} Add a stock you own, and you'll get a card like this when it moves.")
+    doc.p("One short email before the US open, and only on days something changed in your stocks.",
+          muted=True, size=kit.t.TEXT_SM)
+    if lead is not None:
+        doc.cards([example_card(lead, now)])
+    rest = [s for s in picks if s is not lead]
+    if rest:
+        when = max((s.price_at for s in rest if s.price_at), default=None)
+        doc.h2("Where most people start", aside=f"{when.astimezone(ET).strftime('%b %-d')} close" if when else None)
+        doc.chips([(s.ticker, s.change_pct) for s in rest])
+    doc.button("Add your first stock", kit.app_url("/watchlist"))
+    return kit.render(doc, kind="welcome", category="product", subject="Welcome to stocksbrew: add one stock you own",
+                      preheader="We'll tell you when it moves, why, and what our call is.",
+                      unsubscribe_token=unsubscribe_token, dateline="Welcome")
 
 
-def build_setup_nudge(person: Person, popular: list[Stock], *, day: int, unsubscribe_token: str | None = None) -> kit.Email:
+def build_setup_nudge(person: Person, popular: list[Stock], *, day: int, unsubscribe_token: str | None = None,
+                      now: datetime | None = None) -> kit.Email:
     """Day 2 and day 5 after signup, only while the watchlist is still empty."""
     doc = kit.Doc()
     movers = sorted([s for s in popular if s.change_pct is not None], key=lambda s: -abs(s.change_pct or 0))
     if day <= 2:
-        doc.eyebrow("Your watchlist is empty")
-        doc.h1("Add the stocks you own and the first brief writes itself")
-        doc.p(
-            f"{_hello(person)} you signed up but haven't added a stock yet. It takes a minute: search for one you own, "
-            "press Track, and we start following it."
-        )
-        if movers:
-            doc.h2("Popular stocks, last close")
-            doc.movers([(s.ticker, kit._short_name(s.name), s.change_pct) for s in movers[:5]])
+        lead = movers[0] if movers else None
+        if lead:
+            doc.h1(f"{lead.ticker} {kit.verb(lead.change_pct)} {kit.pct(lead.change_pct, signed=False)} in the last session.")
+            doc.p(f"{_hello(person)} add the stocks you own and we'll watch them like this, with the reason and our call.",
+                  muted=True, size=kit.t.TEXT_SM)
+            doc.cards([example_card(lead, now)])
+        else:
+            doc.h1("Add the stocks you own and we'll start watching them.")
+        rest = movers[1:8]
+        if rest:
+            when = max((s.price_at for s in rest if s.price_at), default=None)
+            doc.h2("Other popular stocks", aside=f"{when.astimezone(ET).strftime('%b %-d')} close" if when else None)
+            doc.chips([(s.ticker, s.change_pct) for s in rest])
         doc.button("Add your first stock", kit.app_url("/watchlist"))
         subject = "Your watchlist is still empty"
         pre = "Add one stock you own and we'll start following it."
     else:
-        doc.eyebrow("What you'd have heard")
         lead = movers[0] if movers else None
         if lead:
-            from backend.mail.daily import big_move_threshold, why_line
-
-            up = (lead.change_pct or 0) > 0
-            has_levels = bool(lead.add_below or lead.trim_above)
-            doc.h1(f"{lead.ticker} {'rose' if up else 'fell'} {kit.pct(lead.change_pct, signed=False)} in the last session")
-            doc.p(
-                f"{_hello(person)} if {lead.ticker} were on your watchlist, this morning's email would have looked for the reason "
-                + ("and shown where it sits against the prices where we'd buy more or sell some. " if has_levels else "behind the move. ")
-                + "Here's what that looks like."
-            )
-            why, source = why_line(lead)
-            big = abs(lead.change_pct or 0) >= big_move_threshold(lead)
-            doc.stock(source=source, ticker=lead.ticker, name=lead.name, price=lead.price, change_pct=lead.change_pct,
-                      tag="Big move" if big else None, tag_tone="up" if up else "down", headline=why, detail=lead.call_reason,
-                      levels=(lead.add_below, lead.trim_above) if has_levels else None)
+            doc.h1(f"{lead.ticker} {kit.verb(lead.change_pct)} {kit.pct(lead.change_pct, signed=False)} in the last session.")
+            doc.p(f"{_hello(person)} if {lead.ticker} were on your watchlist, this is the card you'd have got this morning.",
+                  muted=True, size=kit.t.TEXT_SM)
+            doc.cards([example_card(lead, now)])
         else:
-            doc.h1("This is what a morning brief looks like")
+            doc.h1("This is what a morning brief looks like.")
         doc.button("Track your own stocks", kit.app_url("/watchlist"))
-        doc.p("This is the last setup email we'll send.", muted=True, size=14)
-        subject = f"What {lead.ticker}'s move would have looked like in your inbox" if lead else "What your morning brief would look like"
-        pre = "One example from the last session, with the reason and our levels."
+        subject = f"{lead.ticker} {kit.pct(lead.change_pct)}: what that would have looked like" if lead else "What your morning brief would look like"
+        pre = "One real card from the last session: the move, the reason, our call."
     return kit.render(doc, kind=f"setup_nudge_d{day}", category="product", subject=subject, preheader=pre,
-                      unsubscribe_token=unsubscribe_token)
+                      unsubscribe_token=unsubscribe_token, dateline="Getting started")
 
 
 # ------------------------------------------------------------- pro welcome
@@ -102,50 +111,55 @@ def build_pro_welcome(person: Person, *, unsubscribe_token: str | None = None) -
     n = len(person.tracked_ids)
     newly = max(0, n - FREE_COVERED_STOCKS)
     doc = kit.Doc()
-    doc.eyebrow("You're on Pro")
     if n == 1:
-        doc.h1("The stock you track is covered now")
+        doc.h1("You're on Pro, and the stock you track is covered now.")
     else:
-        doc.h1(f"All {n} stocks you track are covered now" if n else "Pro is on")
+        doc.h1(f"You're on Pro. All {n} stocks you track are covered now." if n else "You're on Pro.")
     lead = (
-        f"{_hello(person)} thanks for going Pro. {kit.plural(newly, 'stock')} that Free didn't cover "
-        f"now {'gets' if newly == 1 else 'get'} the full read."
+        f"{_hello(person)} thanks for going Pro. {kit.plural(newly, 'more stock')} now {'shows' if newly == 1 else 'show'} up "
+        f"in your morning brief and weekly memo with our call, its price and the reason."
         if newly
         else f"{_hello(person)} thanks for going Pro. Every stock you add from now on gets the full read."
     )
-    doc.p(lead)
-    doc.bullets([
-        "Price levels and the reasons behind every call, on every stock you track",
-        f"Every stock you track in the daily brief and the weekly recap, not just {FREE_COVERED_WORD}",
-        "Up to 20 agent jobs watching your stocks, with what they find sent to your inbox",
-        "Screening by our call, unlimited saved screens, and data export",
-    ])
+    doc.p(lead, muted=True, size=kit.t.TEXT_SM)
     newly_covered = [s for s in person.stocks if s.id not in set(person.tracked_ids[:FREE_COVERED_STOCKS])]
-    # show calls that ask for something (add or trim), closest to their level first
+
+    # calls that ask for something (buy more or sell some), closest to their own level first
+    def level_of(s: Stock) -> float | None:
+        return kit.call_level(kit.call_label(s.stance, s.call_text), s.add_below, s.trim_above)
+
     def gap(s: Stock) -> float:
-        lvl = s.add_below if direction(s.stance) == "bullish" else s.trim_above
+        lvl = level_of(s)
         return abs(s.price - lvl) / lvl if lvl and s.price else 9.0
 
-    with_levels = sorted([s for s in newly_covered if s.price and (s.add_below or s.trim_above)
-                          and direction(s.stance) != "neutral"], key=gap)[:2]
+    with_levels = sorted([s for s in newly_covered if s.price and direction(s.stance) != "neutral" and level_of(s)], key=gap)[:2]
     if with_levels:
-        doc.h2("Two you couldn't see before" if len(with_levels) == 2 else "One you couldn't see before")
+        rows = []
         for s in with_levels:
-            doc.stock(ticker=s.ticker, name=s.name, price=s.price, change_pct=s.change_pct,
-                      headline=s.call_text or "", detail=s.call_reason, levels=(s.add_below, s.trim_above))
-    doc.button("Set up your first agent job", kit.app_url("/agents/jobs"))
-    doc.link("Manage your plan", kit.plan_url())
+            label = kit.call_label(s.stance, s.call_text)
+            lvl = level_of(s)
+            g = (s.price - lvl) / lvl * 100
+            # within 0.2% is usually a level set at that close, which says nothing on its own
+            line = "" if abs(g) <= 0.2 else (f"{kit.pct(abs(g), signed=False)} {'under' if g < 0 else 'over'} our "
+                                             f"{'buy-more' if label == kit.BUY else 'sell-some'} price.")
+            rows.append((s, label, lvl, kit.cap(line)))
+        doc.h2("Two you couldn't see before" if len(rows) == 2 else "One you couldn't see before")
+        doc.cards([kit.Card(ticker=s.ticker, figure=kit.pct(s.change_pct) if s.change_pct is not None else kit.money(s.price),
+                            figure_value=s.change_pct, call=kit.call_pill_text(label, lvl),
+                            line=line or kit.recent_move(s.closes), why=kit.recent_move(s.closes) if line else "")
+                   for s, label, lvl, line in rows])
+    doc.button("Open today's briefing", kit.app_url("/briefing"))
     return kit.render(doc, kind="pro_welcome", category="product",
                       subject=(f"Pro is on: all {n} of your stocks are covered" if n > 1
                                else "Pro is on: your stock is covered" if n == 1 else "Pro is on"),
-                      preheader="What changed, and the two-minute setup that's worth doing first.",
-                      unsubscribe_token=unsubscribe_token)
+                      preheader="Every stock you track now gets the call, its price and the reason.",
+                      unsubscribe_token=unsubscribe_token, dateline="Pro")
 
 
 # ----------------------------------------------------------- plan heads-ups
 
 def build_swap_open(person: Person, *, unsubscribe_token: str | None = None) -> kit.Email | None:
-    """Free only: the weekly swap is available and a stock outside the five moved."""
+    """Free only: the weekly swap is available and a stock outside the covered ones moved."""
     if person.is_pro:
         return None
     covered = [s for s in person.stocks if s.id in set(person.covered_ids)]
@@ -153,24 +167,30 @@ def build_swap_open(person: Person, *, unsubscribe_token: str | None = None) -> 
     if not outside:
         return None
     pick = max(outside, key=lambda s: abs(s.week_change_pct or 0))
+    if abs(pick.week_change_pct or 0) < SWAP_MIN_MOVE_PCT:
+        return None  # nothing outside the covered stocks moved enough to be worth an email
     doc = kit.Doc()
-    doc.eyebrow("Your weekly swap is open")
-    doc.h1(f"{pick.ticker} {kit.verb(pick.week_change_pct)} {kit.pct(pick.week_change_pct, signed=False)} this week and isn't covered")
+    doc.h1(f"{pick.ticker} {kit.verb(pick.week_change_pct)} {kit.pct(pick.week_change_pct, signed=False)} this week, "
+           "and it isn't one of your covered stocks.")
     doc.p(
-        f"{_hello(person)} on Free we cover {FREE_COVERED_STOCKS} of your stocks in full, and you can swap one each week. "
-        f"Your swap is available now. {pick.ticker} had the biggest week of the stocks outside your {FREE_COVERED_WORD}."
+        f"{_hello(person)} this week you can swap one of your {FREE_COVERED_STOCKS} covered stocks for {pick.ticker}, "
+        "or for any other stock you track."
     )
+    end = max((s.dates[-1] for s in person.stocks if s.dates), default="")
+    week = f"week to {date.fromisoformat(end).strftime('%b %-d')}" if end else "this week"
+    doc.h2(f"Biggest weeks outside your {FREE_COVERED_WORD}", aside=week)
+    doc.tiles([(s.ticker, s.week_change_pct, "") for s in sorted(outside, key=lambda s: -abs(s.week_change_pct or 0))[:4]])
     if covered:
-        doc.h2("Covered now")
-        doc.movers([(s.ticker, "Covered", s.week_change_pct) for s in covered])
-    doc.h2(f"Biggest weeks outside your {FREE_COVERED_WORD}")
-    doc.movers([(s.ticker, "Not covered", s.week_change_pct) for s in sorted(outside, key=lambda s: -abs(s.week_change_pct or 0))[:3]])
+        calls = {kit.call_label(s.stance, s.call_text) for s in covered}
+        same = calls.pop() if len(calls) == 1 else ""
+        doc.h2("Covered now", aside=f"{week} · every one is {same}" if same and len(covered) > 1 else week)
+        doc.tiles([(s.ticker, s.week_change_pct, "" if same else kit.call_label(s.stance, s.call_text)) for s in covered])
     doc.button("Choose this week's swap", kit.app_url("/watchlist"))
-    doc.link("Or cover everything with Pro", kit.app_url("/pricing"))
+    doc.link("Or cover every stock with Pro", kit.app_url("/pricing"))
     return kit.render(doc, kind="swap_open", category="product",
-                      subject=f"Your swap is open. {pick.ticker} moved {kit.pct(pick.week_change_pct)} outside your {FREE_COVERED_WORD}",
-                      preheader="Swap one covered stock this week, or cover them all with Pro.",
-                      unsubscribe_token=unsubscribe_token)
+                      subject=f"{pick.ticker} {kit.pct(pick.week_change_pct)} this week, outside your {FREE_COVERED_WORD}",
+                      preheader="Your weekly swap is open: cover it instead of one of your current stocks.",
+                      unsubscribe_token=unsubscribe_token, dateline="Your weekly swap")
 
 
 def build_limit_reached(person: Person, *, title: str, body: str, used: int, cap: int, pro_cap: int | None = None,
@@ -180,18 +200,18 @@ def build_limit_reached(person: Person, *, title: str, body: str, used: int, cap
     `pro_cap` is the Pro limit from lib/entitlements.ts (agents: 20); None means Pro has no limit.
     """
     doc = kit.Doc()
-    doc.eyebrow("You reached a Free limit")
-    doc.h1(title)
+    doc.h1(title.rstrip(".") + ".")
     # "Hi Tarun, you tried..." reads right; a body that starts with a name keeps its capital
     if body.split(" ", 1)[0] in {"You", "Your"}:
         body = body[:1].lower() + body[1:]
     doc.p(f"{_hello(person)} {body}")
-    doc.stats([("Used", str(used), None), ("Free allows", str(cap), None),
-               ("On Pro", "No limit" if pro_cap is None else f"Up to {pro_cap}", kit.t.COPPER)])
+    pro = "has no limit" if pro_cap is None else f"allows up to {pro_cap}"
+    doc.p(f"You're using {used} of {cap} on Free, and Pro {pro}. Nothing you've saved is deleted.", muted=True, size=kit.t.TEXT_SM)
     doc.button("Compare Free and Pro", kit.app_url("/pricing"))
-    doc.p("Nothing you've saved is deleted, and everything else keeps working.", muted=True, size=14)
+    doc.link("Or manage what's running", kit.app_url("/agents/jobs"))
     return kit.render(doc, kind="limit_reached", category="product", subject=title,
-                      preheader="What the limit is, and what Pro changes.", unsubscribe_token=unsubscribe_token)
+                      preheader="What the limit is, and what Pro changes.", unsubscribe_token=unsubscribe_token,
+                      dateline="Your plan")
 
 
 # --------------------------------------------------------------- win-back
@@ -207,26 +227,27 @@ def build_winback(person: Person, *, now: datetime | None = None, unsubscribe_to
         return (s.closes[-1] - s.closes[-1 - sessions]) / s.closes[-1 - sessions] * 100
 
     ranked = sorted(stocks, key=lambda s: -abs(change(s)))
-    since = (now.astimezone(ET).date() - timedelta(days=21))
-    def stance_on(s: Stock, day: str) -> str:
-        before = [c for c in s.calls if c.day <= day]
-        return before[-1].stance if before else ""
-
-    # count a change only when the direction moved (say from hold to add), not a rewording
-    new_calls = [s for s in stocks if s.calls and stance_on(s, since.isoformat())
-                 and direction(stance_on(s, since.isoformat())) != direction(s.calls[-1].stance)]
     doc = kit.Doc()
-    doc.eyebrow("While you were away")
     lead = ranked[0]
-    doc.h1(f"{lead.ticker} {kit.verb(change(lead))} {kit.pct(change(lead), signed=False)} in the three weeks since you last checked")
-    doc.p(
-        f"{_hello(person)} here's what happened in your stocks over the last three weeks. "
-        + (f"Our call changed on {kit.plural(len(new_calls), 'stock')}." if new_calls else "None of our calls changed.")
-    )
-    doc.movers([(s.ticker, s.call_text or s.name, change(s)) for s in ranked[:6]])
+    start_day = date.fromisoformat(lead.dates[-1 - sessions]) if len(lead.dates) > sessions else None
+    end_day = date.fromisoformat(lead.dates[-1]) if lead.dates else None
+    span = f"from {start_day.strftime('%b %-d')} to {end_day.strftime('%b %-d')}" if start_day and end_day else "in three weeks"
+    doc.h1(f"{lead.ticker} {kit.verb(change(lead))} {kit.pct(change(lead), signed=False)} while you were away.")
+    avg = sum(change(s) for s in stocks) / len(stocks)
+    rose = sum(1 for s in stocks if round(change(s), 1) > 0)
+    doc.p(f"{_hello(person)} here's your list {span}: your {kit.plural(len(stocks), 'stock')} averaged {kit.pct(avg)} and "
+          f"{rose} rose.",
+          muted=True, size=kit.t.TEXT_SM)
+    doc.h2("Biggest moves", aside=span)
+    doc.tiles([(s.ticker, change(s), kit.call_label(s.stance, s.call_text)) for s in ranked[:8]])
     doc.button("Catch up on your watchlist", kit.app_url("/watchlist"))
-    doc.p("This is the only reminder we'll send.", muted=True, size=14)
+    doc.rich(
+        f"This is the only reminder we'll send. If the morning brief is too much, "
+        f"<a class='sbk' href='{kit.esc(kit.settings_url())}' style='color:{kit.t.COPPER};text-decoration:underline'>switch to the weekly memo only</a>.",
+        f"This is the only reminder we'll send. If the morning brief is too much, switch to the weekly memo only: {kit.settings_url()}",
+        size=kit.t.TEXT_SM, muted=True,
+    )
     return kit.render(doc, kind="winback", category="product",
-                      subject=f"{lead.ticker} {kit.pct(change(lead))} and more since your last visit",
+                      subject=f"{lead.ticker} {kit.pct(change(lead))} since your last visit",
                       preheader=f"Three weeks in your {kit.plural(len(stocks), 'stock')}, in one minute.",
-                      unsubscribe_token=unsubscribe_token)
+                      unsubscribe_token=unsubscribe_token, dateline="While you were away")

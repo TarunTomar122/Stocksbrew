@@ -60,7 +60,7 @@ def test_big_move_is_relative_to_the_stocks_normal_day():
     p = person([calm])
     email = daily.build_daily(p, now=NOW)
     assert email is not None and "CALM up 4.5%" in email.subject
-    assert "its usual daily move" in email.text  # the move is read against the stock's normal day
+    assert "a normal day" in email.text  # the move is read against the stock's normal day
     wild = stock("WILD", change_pct=4.5)
     days, vals = closes(step=6.0)  # swings ~12% a day
     wild.dates, wild.closes = days, vals
@@ -73,7 +73,7 @@ def test_level_crossing_uses_the_level_set_before_the_session():
     s.calls = calls("accumulate", "accumulate", trigger=("price_below", 98.0))
     s.calls[-1].day = "2026-11-08"  # standing call from before Monday's session
     items = daily.items_for(person([s]), NOW)
-    assert items and items[0].kind == "level_add" and "$98.00" in items[0].detail
+    assert items and items[0].kind == "level_add" and "$98.00" in items[0].headline
 
 
 def test_no_add_zone_when_the_call_no_longer_says_add():
@@ -138,7 +138,8 @@ def test_alerts_bundle_and_list_busy_jobs():
     f = [alerts.Finding("Big daily moves", f"T{i}", f"T{i} rose 9% in the last session", "", "Daily closing prices", "2026-11-06", "")
          for i in range(5)]
     email = alerts.build_alerts(person([]), f)
-    assert email.subject.startswith("T0 rose 9%") and "4 more alerts" in email.subject
+    # a batch of moves is one headline: how many, how big, who led
+    assert email.subject == "5 of your stocks rose 9% or more on Nov 6, led by T0 at +9.0%"
     assert alerts.build_alerts(person([]), []) is None
 
 
@@ -146,7 +147,7 @@ def test_every_email_has_one_button_text_part_and_no_tiny_type():
     s = stock("ALL", change_pct=8.0, position="holding", week_change_pct=2.0, stance="accumulate",
               add_below=90.0, trim_above=130.0, call_text="Accumulate")
     s.calls = calls("hold", "hold", "hold", "accumulate")
-    p = person([s] + [stock(f"X{i}", week_change_pct=-1.0) for i in range(6)])
+    p = person([s] + [stock(f"X{i}", week_change_pct=-4.0) for i in range(6)])
     free = person(p.stocks, pro=False)
     emails = [
         daily.build_daily(p, now=NOW),
@@ -177,7 +178,7 @@ def test_second_button_is_refused():
 def test_user_text_is_escaped():
     s = stock("ESC", change_pct=9.0)
     s.name = "<img src=x onerror=alert(1)>"
-    s.news = [Headline("<b>ESC</b> jumps", "x", "", CLOSE - timedelta(hours=1))]
+    s.news = [Headline("<b>ESC</b> jumps after deal", "x", "", CLOSE - timedelta(hours=1))]
     e = daily.build_daily(person([s]), now=NOW)
     assert "<img src=x" not in e.html and "&lt;b&gt;ESC" in e.html
 
@@ -189,19 +190,74 @@ def test_pct_never_prints_negative_zero():
     assert kit.pct(-0.05, digits=0) == "0%" and kit.pct(-1.26) == "−1.3%"
 
 
-def test_level_at_the_close_is_not_in_the_zone():
-    # a new call that sets its add level at the close is "at" the level, not "in the add zone"
-    bar = kit.level_bar(59.38, 59.38, 103.67)
-    assert "Below our buy-more price" not in bar and "At our buy-more price" in bar
-    assert "Below our buy-more price" in kit.level_bar(55.0, 59.38, 103.67)
-    assert "Above our sell-some price" not in kit.level_bar(103.67, 59.38, 103.67)
+def test_level_at_the_close_is_not_under_it():
+    # a new call that sets its add level at the close is "at" the level, not under it
+    assert "right at our buy-more price" in kit.level_phrase(59.38, 59.38, "add")
+    assert "7.4% under our buy-more price of $59.38" in kit.level_phrase(55.0, 59.38, "add")
+    assert "right at our sell-some price" in kit.level_phrase(103.67, 103.67, "trim")
 
 
-def test_inverted_levels_are_not_drawn():
-    assert kit.level_bar(100.0, 120.0, 110.0) == ""
-    assert kit.level_text(100.0, 120.0, 110.0) == ""
-    d = kit.Doc().stock(ticker="INV", price=100.0, levels=(120.0, 110.0))
-    assert not any(line.startswith("Levels:") for line in d.text)
+def test_inverted_levels_are_not_used():
+    assert not kit.levels_valid(120.0, 110.0)
+    assert kit.call_level(kit.BUY, 120.0, 110.0) is None
+
+
+def test_a_call_shows_only_its_own_level_and_only_three_words():
+    assert kit.call_level(kit.BUY, 90.0, 130.0) == 90.0
+    assert kit.call_level(kit.SELL, 90.0, 130.0) == 130.0
+    assert kit.call_level(kit.KEEP, 90.0, 130.0) is None
+    assert kit.call_pill_text(kit.BUY, 90.0) == "Buy more under $90.00"
+    for stance, text, want in [("accumulate", "Accumulate on pullbacks", "Buy more"), ("hold", "Hold here", "Keep"),
+                               ("avoid", "Avoid for now", "Sell some"), ("", "Trim into strength", "Sell some"), ("", "", "")]:
+        assert kit.call_label(stance, text) == want
+
+
+def test_title_case_headlines_read_as_sentences():
+    assert kit.sentence_case("Microsoft Stock Fell After Anthropic Launches Claude Sheets to Rival Excel") == \
+        "Microsoft stock fell after Anthropic launches Claude Sheets to rival Excel"
+    assert kit.sentence_case("NWS jumps after FDA approval") == "NWS jumps after FDA approval"
+
+
+def test_no_reason_means_no_filler():
+    s = stock("QUI", price=110.0, prev_close=100.0, change_pct=10.0)
+    why, src = daily.why_line(s)
+    assert why == "" and src == ""
+    e = daily.build_daily(person([s]), now=NOW)
+    assert "confirmed reason" not in e.text and "haven't found" not in e.text
+
+
+def test_cards_repeat_no_link_text_and_odd_card_spans_the_row():
+    stocks = [stock(f"M{i}", price=110.0, prev_close=100.0, change_pct=10.0 + i,
+                    news=[Headline(f"M{i} jumps after deal {i}", "Reuters", "", CLOSE - timedelta(hours=2))]) for i in range(3)]
+    e = daily.build_daily(person(stocks), now=NOW)
+    assert "Open research" not in e.html and "&rarr;" not in e.html
+    assert "colspan='3'" in e.html  # the third card fills its row (two cards and the gutter)
+
+
+def test_an_unexplained_move_is_a_tile_not_a_card():
+    s = stock("BAR", price=110.0, prev_close=100.0, change_pct=10.0)
+    e = daily.build_daily(person([s]), now=NOW)
+    assert "sbtile" in e.html and "Also moved more than usual" in e.text
+
+
+def test_big_list_stays_under_gmail_clip():
+    stocks = [stock(f"T{i:02d}", price=110.0, prev_close=100.0, change_pct=(i % 9) - 4.5, position="holding" if i % 3 else "watchlist")
+              for i in range(60)]
+    for s in stocks[:10]:
+        s.change_pct = 12.0
+    e = daily.build_daily(person(stocks), now=NOW)
+    assert len(e.html.encode()) < 90_000
+
+
+def test_premarket_move_is_news_before_the_open():
+    s = stock("PRE", premarket_pct=8.0)
+    e = daily.build_daily(person([s]), now=NOW)
+    assert e is not None and "PRE up 8.0% pre-market" in e.subject and "before the open" in e.text
+
+
+def test_dark_mode_and_bgcolor_fallbacks():
+    e = daily.build_daily(person([stock("DRK", price=110.0, prev_close=100.0, change_pct=10.0)]), now=NOW)
+    assert "prefers-color-scheme: dark" in e.html and "bgcolor=" in e.html
 
 
 def test_calendar_row_without_ticker_has_no_stock_link():
@@ -231,14 +287,6 @@ def test_daily_copy_is_singular_for_one_stock():
     assert "your 1 covered stock " in free.text
 
 
-def test_market_line_only_says_the_list_followed_when_it_did():
-    spy = stock("SPY", change_pct=2.4)
-    with_market = [stock("A", change_pct=1.0), stock("B", change_pct=2.0), stock("C", change_pct=-1.0)]
-    against = [stock("A", change_pct=-1.0), stock("B", change_pct=-2.0), stock("C", change_pct=1.0)]
-    assert "most of your stocks moved the same way" in daily.market_line(spy, NOW.date(), with_market)
-    assert "most of your stocks" not in daily.market_line(spy, NOW.date(), against)
-
-
 def test_a_big_mover_keeps_its_earnings_date():
     s = stock("ERN", change_pct=9.0, earnings_date=date(2026, 11, 11), earnings_time="amc")
     e = daily.build_daily(person([s]), now=NOW)
@@ -250,7 +298,7 @@ def test_free_note_uses_the_plan_number_and_inclusive_wording():
     stocks[0].change_pct = 9.0
     stocks[6].change_pct = 4.0
     e = daily.build_daily(person(stocks, pro=False), now=NOW)
-    assert "Free covers 5 of them" in e.text and "S6 moved 4% or more" in e.text
+    assert "Free covers 5 of them" in e.text and "S6 (+4.0%) moved 4% or more" in e.text
 
 
 def test_weekly_with_one_stock_does_not_call_it_best_and_worst():
@@ -292,13 +340,13 @@ def test_alert_source_has_no_trailing_comma():
 
 def test_limit_reached_states_the_real_pro_limit():
     e = lifecycle.build_limit_reached(person([]), title="Free runs two agents", body="B.", used=2, cap=2, pro_cap=20)
-    assert "Up to 20" in e.text and "No limit" not in e.text
-    assert "No limit" in lifecycle.build_limit_reached(person([]), title="T", body="B.", used=5, cap=5).text
+    assert "allows up to 20" in e.text and "no limit" not in e.text
+    assert "has no limit" in lifecycle.build_limit_reached(person([]), title="T", body="B.", used=5, cap=5).text
 
 
 def test_pro_welcome_grammar_for_one_stock():
     e = lifecycle.build_pro_welcome(person([stock("ONE")]))
-    assert "The stock you track is covered now" in e.text and "all 1" not in e.subject
+    assert "the stock you track is covered now" in e.text and "all 1" not in e.subject
 
 
 def test_winback_survives_a_zero_close_and_points_at_settings():
@@ -345,7 +393,91 @@ def test_close_and_level_never_print_as_the_same_price():
     assert kit.money_pair(35.85, 36.33) == ("$35.85", "$36.33")
 
 
-def test_alert_source_date_reads_like_the_rest():
-    f = [alerts.Finding("Job", "AAA", "AAA reports soon", "detail", "Earnings calendar", "2026-11-12", "")]
-    e = alerts.build_alerts(person([]), f)
-    assert "Earnings calendar, Nov 12" in e.text and "2026-11-12" not in e.text
+def test_alert_report_says_when_without_a_date_column():
+    f = [alerts.Finding("Job", "AAA", "AAA reports soon", "Scheduled for Nov 12 before the open.", "Earnings calendar", "2026-11-12", "")]
+    e = alerts.build_alerts(person([]), f, now=NOW)  # Tuesday Nov 10
+    assert "Reports Thursday before the open" in e.text and "2026-11-12" not in e.text and "11/12" not in e.text
+
+
+def _zone(ticker, change, close, level, at="2026-11-09", **kw):
+    return alerts.Finding("Names entering their add zone", ticker, f"{ticker} closed in its add zone, at or below ${level}", "",
+                          alerts.PRICE_SOURCE, at, "", kind="level", change_pct=change, close=close, zone="add", level=level,
+                          run_day="2026-11-09", run_close="2026-11-09", **kw)
+
+
+def test_zone_alert_says_the_move_the_close_and_the_buy_more_level():
+    p = person([stock("SPCX", name="Space Exploration Technologies Corp.")])
+    e = alerts.build_alerts(p, [_zone("SPCX", -4.21, 139.8, 142.07)], now=NOW)
+    assert e.subject == "SPCX fell 4.2% to $139.80, below its $142.07 buy-more level"
+    assert "Below its $142.07 buy-more level" in e.html and "Space Exploration" in e.html
+    assert "add zone" not in e.text and "Names entering" not in e.text  # the old default name reads in the call's words
+    assert "Nov 9 close" in e.text and "11/09" not in e.text
+    assert kit.esc(kit.logo_src("SPCX")) in e.html
+
+
+def test_zones_lead_then_moves_and_a_stale_quote_is_left_out():
+    sessions = person([stock("AAA")])
+    morning = dict(run_day="2026-11-09", run_close="2026-11-09")
+    f = [
+        alerts.Finding("Morning check", "BIG", "BIG rose 12.0% in the last session", "", alerts.PRICE_SOURCE, "2026-11-09", "", kind="move", change_pct=12.0, close=50.0, **morning),
+        # its price stopped updating on Nov 5: not the last session's news
+        alerts.Finding("Morning check", "OLD", "OLD rose 9.4% in the last session", "", alerts.PRICE_SOURCE, "2026-11-05", "", kind="move", change_pct=9.4, close=10.0, **morning),
+        alerts.Finding("Morning check", "MID", "MID fell 5.0% in the last session", "", alerts.PRICE_SOURCE, "2026-11-09", "", kind="move", change_pct=-5.0, close=20.0, **morning),
+        alerts.Finding("Morning check", "MID", "MID reports earnings tomorrow", "Scheduled for Nov 11 after the close.", "Earnings calendar", "2026-11-11", "", kind="earnings", time="amc", **morning),
+        _zone("ZZZ", -1.0, 9.9, 10.0),
+    ]
+    e = alerts.build_alerts(sessions, f, now=NOW)
+    assert "OLD" not in e.text
+    text = e.text
+    assert text.index("ZZZ") < text.index("BIG") < text.index("MID")
+    assert "Reports tomorrow after the close" in text  # merged into MID's row, said once
+    assert text.count("\n  MID ") == 1
+
+
+def test_reasons_never_contradict_the_card():
+    up = stock("MU", name="Micron Technology", price=108.6, prev_close=100.0, change_pct=8.6)
+    up.news = [Headline("Micron Technology Stocks Slip as Hot CPI Overshadows Bet", "Yahoo", "", CLOSE - timedelta(hours=3))]
+    assert daily.why_line(up) == ("", "")  # a "slip" headline can't explain a +8.6% day
+    peer = stock("NBIS", name="Nebius Group N.V.", price=114.9, prev_close=100.0, change_pct=14.9)
+    peer.news = [Headline("CoreWeave Surges 16% as Beat-and-Raise Quarter Eases Financing Fears; Nebius Gains 13%, Oracle Advances 5%",
+                          "Yahoo", "", CLOSE - timedelta(hours=3))]
+    # Nebius's own clause names no cause, so the headline is not a reason for NBIS (no invented link)
+    assert daily.why_line(peer) == ("", "")
+    own = stock("SNDK", name="Sandisk Corporation", price=112.3, prev_close=100.0, change_pct=12.3)
+    own.news = [Headline("Seagate Spikes 9%, Sandisk Surges 8% as CoreWeave’s Results Revive AI Trade; Micron Climbs 7%",
+                         "Yahoo", "", CLOSE - timedelta(hours=3))]
+    # its own clause, with the intraday 8% that disagrees with the +12.3% close dropped
+    assert daily.why_line(own)[0] == "Sandisk surges as CoreWeave’s results revive AI trade"
+
+
+def test_swap_email_needs_a_real_move_outside_the_covered_stocks():
+    flat = person([stock(f"F{i}", week_change_pct=0.4) for i in range(7)], pro=False)
+    assert lifecycle.build_swap_open(flat) is None
+
+
+def test_free_alerts_show_no_call_for_uncovered_stocks():
+    stocks = [stock(f"C{i}", stance="accumulate", add_below=90.0) for i in range(7)]
+    f = [alerts.Finding("Job", "C6", "C6 jumps after deal", "Detail about C6.", "News", "2026-11-10", "")]
+    e = alerts.build_alerts(person(stocks, pro=False), f)
+    assert "Buy more" not in e.text
+    assert "Buy more" in alerts.build_alerts(person(stocks), f).text
+
+
+def test_zone_rows_keep_their_span_their_cents_and_the_report_said_once():
+    big = alerts.Finding("Weekly", "BKNG", "BKNG fell 6.00% over five sessions", "", alerts.PRICE_SOURCE, "2026-11-09", "",
+                         kind="move", change_pct=-6.0, close=1410.6, zone="add", level=1411.2, run_day="2026-11-09", run_close="2026-11-09")
+    e = alerts.build_alerts(person([]), [big], now=NOW)
+    # five sessions, not a day; and a close that never reads the same as the level it is under
+    assert e.subject == "BKNG fell 6.0% over five sessions to $1,410.60, below its $1,411.20 buy-more level"
+    assert "$1,410.60" in e.html
+    morning = dict(run_day="2026-11-09", run_close="2026-11-09")
+    f = [
+        _zone("MID", -5.0, 9.5, 10.0),
+        alerts.Finding("Morning check", "MID", "MID fell 5.0% in the last session", "", alerts.PRICE_SOURCE, "2026-11-09", "", kind="move", change_pct=-5.0, close=9.5, **morning),
+        alerts.Finding("Morning check", "MID", "MID reports earnings tomorrow", "", "Earnings calendar", "2026-11-11", "", kind="earnings", time="amc", **morning),
+        # already reported: not a heads-up any more
+        alerts.Finding("Morning check", "OLD", "OLD reports earnings", "", "Earnings calendar", "2026-11-05", "", kind="earnings", **morning),
+    ]
+    text = alerts.build_alerts(person([]), f, now=NOW).text
+    assert text.count("\n  MID ") == 2 and "Reports tomorrow after the close" in text
+    assert "OLD" not in text

@@ -22,8 +22,9 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Iterable
 
 from backend.mail import alerts, daily, lifecycle, rebalance, send, weekly
-from backend.mail.data import ET, load_person, parse_ts, stocks_by_id, tracked_counts
+from backend.mail.data import ET, load_person, parse_ts, stocks_by_id, tracked_counts, with_example
 from backend.mail.source import HttpSource, Source, StoreSource
+from backend.mail.weekly import WEEK_NEWS_HOURS
 from backend.subscription_entitlement import is_pro_user
 
 USER_FIELDS = [
@@ -67,6 +68,10 @@ def run(job: str, *, dry_run: bool, only_uid: str | None, to: str | None, limit:
         return stats
     if job == "lifecycle":
         popular = stocks_by_id(src, [i for i, _ in tracked_counts(src, limit=8)], now=now)
+        try:
+            popular = with_example(src, popular, now)  # one real card for the welcome and setup emails
+        except Exception as exc:  # the example is a nice-to-have; the emails read fine without it
+            print(f"[mail] example stock skipped: {exc!r}")
     # The note at each rebalance rides on the alerts run (rebalance.py); read the records once per run.
     rebalances: list = []
     if job == "alerts" and rebalance.enabled():
@@ -135,7 +140,8 @@ def _daily(src, uid, user, now, market):
 def _weekly(src, uid, user, now, market):
     if not (user.get("tracked_stocks") or []):
         return []
-    person = load_person(src, uid, now=now, with_news=False)
+    # a week of news, so the memo can say what drove the best and worst stock
+    person = load_person(src, uid, now=now, news_hours=WEEK_NEWS_HOURS)
     email = weekly.build_weekly(person, market=market, now=now) if person else None
     year, week, _ = now.astimezone(ET).isocalendar()
     return [(email, f"weekly_{year}-W{week:02d}")] if email else []
@@ -151,7 +157,7 @@ def _alerts(src, uid, user, now, hist, clock: Callable[[], datetime] | None = No
     if not findings:
         return []
     person = load_person(src, uid, now=now, with_news=False, with_calls=False)
-    email = alerts.build_alerts(person, findings) if person else None
+    email = alerts.build_alerts(person, findings, now=now) if person else None
     if email is None:
         return []
     email.meta["until"] = until.isoformat()
@@ -175,7 +181,7 @@ def _rebalance_note(user, now, hist, records):
     key = rebalance.dedupe_key(day)
     if key in hist.keys:
         return []  # sent on an earlier run; checked here so the log is not a skipped line every 15 minutes
-    email = rebalance.build_note(picked)
+    email = rebalance.build_note(picked, tracked=rebalance.tracked_tickers(user))
     return [(email, key)] if email else []
 
 
@@ -192,14 +198,14 @@ def _lifecycle(src, uid, user, now, hist, popular):
     if age is not None and age <= timedelta(hours=48) and "welcome" not in hist.keys:
         p = person(with_news=False, with_calls=False)
         if p:
-            out.append((lifecycle.build_welcome(p, popular), "welcome"))
+            out.append((lifecycle.build_welcome(p, popular, now=now), "welcome"))
     if not tracked and age is not None:
         for day in (2, 5):
             key = f"setup_nudge_d{day}"
             if timedelta(days=day) <= age < timedelta(days=day + 1) and key not in hist.keys:
                 p = person(with_news=False, with_calls=False)
                 if p:
-                    out.append((lifecycle.build_setup_nudge(p, popular, day=day), key))
+                    out.append((lifecycle.build_setup_nudge(p, popular, day=day, now=now), key))
     if is_pro_user(user) and "pro_welcome" not in hist.keys and _converted_recently(src, uid, now):
         p = person(with_news=False)
         if p:

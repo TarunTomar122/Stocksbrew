@@ -262,7 +262,7 @@ def test_alerts_bundle_starts_where_the_last_one_stopped(monkeypatch):
 
     monkeypatch.setattr(jobs.alerts, "load_findings", fake_findings)
     monkeypatch.setattr(jobs, "load_person", lambda *a, **k: object())
-    monkeypatch.setattr(jobs.alerts, "build_alerts", lambda p, f: email("alerts", "alerts"))
+    monkeypatch.setattr(jobs.alerts, "build_alerts", lambda p, f, **kw: email("alerts", "alerts"))
     cursor = NOW - timedelta(hours=1)
     hist = send.History(set(), {}, {"alerts": NOW - timedelta(minutes=50)}, alerts_until=cursor)
     clock = NOW + timedelta(seconds=5)
