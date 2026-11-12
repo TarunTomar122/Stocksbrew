@@ -10,6 +10,7 @@ import { getSessionUser } from "@/lib/auth-server";
 import { getTrackedStocks } from "@/lib/watchlist";
 import { loadWire, modelLabel } from "@/lib/wire";
 import { COMPANY_PAGE, groupByCompany, labelFor } from "@/lib/wire-companies";
+import { caseWireHeadlines } from "@/lib/wire-casing";
 import { withHeadlineTones } from "@/lib/wire-headline-tone";
 import { countTones, readTheWire, storiesBetween, themesBesideRead } from "@/lib/wire-read";
 import {
@@ -19,6 +20,7 @@ import {
   WIRE_MAX_ROWS,
   WIRE_PAGE_SIZE,
   parseWireFilters,
+  themeKey,
   type WireTopic,
 } from "@/lib/wire-shared";
 import { ogImage } from "@/lib/og/url";
@@ -59,12 +61,31 @@ export default async function NewsPage({ searchParams }: { searchParams?: Search
 
   const session = await getSessionUser().catch(() => null);
   const today = todayET(new Date(now));
-  const [wire, tracked, upcoming] = await Promise.all([
+  const [loaded, tracked, upcoming] = await Promise.all([
     loadWire({ ticker: filters.ticker, now }),
     session ? getTrackedStocks(session.uid).catch(() => []) : Promise.resolve([] as string[]),
     // The next three weeks of reports, for a read card's "Watch next" line (cached with Market today's).
     loadUpcomingReports(today),
   ]);
+  // Read by company: the last 24 hours, anchored on the newest headline so a quiet weekend still shows something.
+  // Never later than now, so one headline stamped in the future cannot push the window past real news.
+  const anchor = loaded.freshness.newestAt ? Math.min(now, Date.parse(loaded.freshness.newestAt)) : now;
+  const since = anchor - 24 * 3_600_000;
+  // Every headline the page can show in sentence case, before anything reads or groups them (owner rule 8): the
+  // scraped capitals the shared casing cannot judge alone are lowered where the day's other writing has the word in
+  // lower case (lib/wire-casing.ts). Only the last two days' stories, or a filtered stock's or theme's, reach the page.
+  const names = Object.fromEntries(Object.entries(loaded.quotes).map(([ticker, quote]) => [ticker, quote.name]));
+  const wire = {
+    ...loaded,
+    items: caseWireHeadlines(loaded.items, names, {
+      // The same wire gives the same words: its newest time, size, first and last story, and the stock it was read for.
+      key: [loaded.freshness.newestAt ?? "", loaded.items.length, loaded.items[0]?.id ?? "", loaded.items.at(-1)?.id ?? "", filters.ticker ?? ""].join("|"),
+      shown: (item) =>
+        (filters.ticker ? item.tickers.includes(filters.ticker) : false) ||
+        (filters.theme ? themeKey(loaded.labels[item.id]?.theme ?? "") === themeKey(filters.theme) : false) ||
+        Date.parse(item.publishedAt) >= anchor - 48 * 3_600_000,
+    }),
+  };
   // Tracked ids look like "US_NVDA".
   const mine = new Set(tracked.map((id) => id.replace(/^[A-Z]{2}_/, "").toUpperCase()));
   const mineSet = session && mine.size > 0 ? mine : null;
@@ -83,13 +104,8 @@ export default async function NewsPage({ searchParams }: { searchParams?: Search
   ) as Record<WireTopic, number>;
   const mineCount = mineSet ? filterWire(wire.items, { ...effective, mine: true }, mineSet, themeOf).length : null;
 
-  // Read by company: the last 24 hours, anchored on the newest headline so a quiet weekend still shows something.
-  // Never later than now, so one headline stamped in the future cannot push the window past real news.
-  const anchor = wire.freshness.newestAt ? Math.min(now, Date.parse(wire.freshness.newestAt)) : now;
-  const since = anchor - 24 * 3_600_000;
   // The model labels, plus a tone from the headline's own words for the last two days' stories it has not read, so
   // a stock's news can be said to lean even when the labeller is behind (lib/wire-headline-tone.ts; kept apart).
-  const names = Object.fromEntries(Object.entries(wire.quotes).map(([ticker, quote]) => [ticker, quote.name]));
   const labels = withHeadlineTones(wire.items, wire.labels, { sinceMs: anchor - 48 * 3_600_000, names });
   // A ticker or a theme reads as one time-ordered stream; everything else is read by stock.
   const streamView = Boolean(effective.ticker || effective.theme);
@@ -130,9 +146,7 @@ export default async function NewsPage({ searchParams }: { searchParams?: Search
       />
       <PageHead
         title="News"
-        lede="Which companies are in the news today, how they are moving, and the headlines worth reading."
         inline
-        className="[&_.oa-head-lede]:hidden"
         actions={<WireSearch filters={effective} />}
       />
 

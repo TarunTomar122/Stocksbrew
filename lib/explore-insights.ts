@@ -4,7 +4,9 @@
  */
 import type { ActivityItem, FollowActivity } from "@/lib/follow-shared";
 import type { Insight, TheRead } from "@/lib/insights";
-import { listNames, signedPct } from "@/lib/read-format";
+import { sectorBreadth } from "@/lib/markets-insights";
+import type { MarketsData } from "@/lib/markets-shared";
+import { absPct, listNames, sessionName, signedPct } from "@/lib/read-format";
 
 export type ScreenForRead = { title: string; matches: Array<{ ticker: string; changePct: number | null }> };
 
@@ -169,4 +171,35 @@ export function buildGiantsRead(
       action: { label: `${puller.name}'s report`, href: `/stock/${encodeURIComponent(puller.symbol)}` },
     },
   };
+}
+
+/**
+ * Market today's headline: one idea and one number (owner rule 8), the S&P 500's day, with how the sectors went said
+ * in words rather than as a second count ("The S&P 500 gained 1.31% today, with sectors split."). The cards under it
+ * carry the other figures. Null without an S&P 500 price for the day.
+ */
+export function deskHeadline(data: MarketsData, now: Date = new Date()): string | null {
+  const spx = data.assets.find((asset) => asset.id === "sp500") ?? data.assets.find((asset) => asset.id === "spy");
+  const day = spx?.change.d1;
+  if (!spx || typeof day !== "number" || !Number.isFinite(day)) return null;
+  const breadth = sectorBreadth(data.assets);
+  const { up, down, total } = breadth;
+  const rose = day >= 0;
+  const sectors =
+    total < 8
+      ? ""
+      : up === total
+        ? ", with every sector up"
+        : down === total
+          ? ", with every sector down"
+          : rose && down > total / 2
+            ? ", even though most sectors fell"
+            : !rose && up > total / 2
+              ? ", even though most sectors rose"
+              : (rose ? up : down) >= total * 0.7
+                ? `, with most sectors ${rose ? "up" : "down"}`
+                : ", with sectors split";
+  // A move that rounds to 0.00% is no gain or loss, and "even though most sectors fell" would have nothing to contrast.
+  if (Math.abs(day) < 0.005) return `The S&P 500 was flat ${sessionName(spx.as_of, now)}.`;
+  return `The S&P 500 ${rose ? "gained" : "lost"} ${absPct(day, 2)} ${sessionName(spx.as_of, now)}${sectors}.`;
 }

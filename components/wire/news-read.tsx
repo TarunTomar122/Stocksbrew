@@ -3,6 +3,7 @@ import type * as React from "react";
 
 import { Delta, FOCUS, NUM, Panel, Ticker } from "@/components/oa/kit";
 import { StockLogo } from "@/components/stock-logo";
+import { WholeRows } from "@/components/wire/whole-rows";
 import { headlineCase } from "@/lib/plain-copy";
 import { toneLean, type NewsTheme, type StockBuzz, type ToneCounts } from "@/lib/wire-read";
 import { WIRE_PAGE_SIZE, etDay, etTime, wireHref, type WireFilters, type WireItem } from "@/lib/wire-shared";
@@ -17,8 +18,9 @@ export function when(iso: string): string {
 
 /**
  * About eight rows of Most talked about (each with its top story under it): the one scroll height both cards of the
- * news read share on a wide screen, so they end level.
+ * news read share on a wide screen, so they end close to level. Each is cut back to its last whole row (WholeRows).
  */
+const LIST_REM = 32;
 const LIST_HEIGHT_LG = "lg:max-h-[32rem]";
 
 /**
@@ -64,11 +66,12 @@ export function headlineWords(title: string, companyName = ""): string {
 
 /**
  * One headline: linked, whole (never cut off), in sentence case, with its source and time. No tone mark on every
- * line (owner rule 1): the card or theme it sits in says the tone once.
+ * line (owner rule 1): the card or theme it sits in says the tone once. No excerpt tooltip: it was a fifth of the
+ * page's weight for text nobody sees without hovering (owner rule 11).
  */
 export function HeadlineLine({ item, companyName = "", className = "" }: { item: WireItem; companyName?: string; className?: string }) {
   return (
-    <a href={item.url} target="_blank" rel="noopener noreferrer" title={item.excerpt || undefined} className={`group block rounded ${FOCUS} ${className}`}>
+    <a href={item.url} target="_blank" rel="noopener noreferrer" className={`group block rounded ${FOCUS} ${className}`}>
       <span className="block text-pretty text-[14px] leading-5 text-oa-fg group-hover:underline">{headlineWords(item.title, companyName)}</span>
       <span className={`${NUM} mt-0.5 block text-[12.5px] leading-[18px] text-oa-muted-fg`}>
         {item.source || "Unknown source"}
@@ -90,49 +93,52 @@ export function ThemesPanel({ themes, filters, className = "" }: { themes: NewsT
   const perTheme = themes.length === 1 ? 8 : themes.length === 2 ? 5 : themes.length === 3 ? 4 : 3;
   return (
     <Panel flush label="What is driving the news" className={className}>
-      <ol className={`scrollbar-hide divide-y divide-oa-border lg:overflow-y-auto lg:overscroll-contain ${LIST_HEIGHT_LG}`}>
-        {themes.map((theme) => {
-          const href = wireHref({ ...filters, limit: WIRE_PAGE_SIZE }, { theme: theme.name, ticker: null, topic: null, q: "", mine: false });
-          const lean = leanWords(theme.tones, theme.count);
-          const fresh = theme.prevCount === 0;
-          return (
-            <li key={theme.name} className="px-4 py-3">
-              {theme.tickers.length ? (
-                <div className="mb-1.5 flex flex-wrap items-center gap-x-4 gap-y-1">
-                  {theme.tickers.slice(0, 5).map((row, index) => (
-                    <span key={row.ticker} className="inline-flex items-center gap-1.5">
-                      <Ticker symbol={row.ticker} size={index === 0 ? 22 : 16} className={index === 0 ? "text-[15px] font-semibold" : ""} />
-                      {row.pct !== null ? <Delta value={row.pct} digits={1} className={index === 0 ? "text-[14px] font-medium" : "text-[12.5px]"} /> : null}
-                    </span>
-                  ))}
-                </div>
-              ) : null}
-              <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
-                <h3 className="min-w-0 text-pretty text-[15px] font-semibold leading-[22px] text-oa-fg">
-                  <Link href={href} prefetch={false} className={`rounded hover:underline ${FOCUS}`}>
-                    {theme.name}
-                  </Link>
-                </h3>
-                {/* One figure, the lean (owner rule 5); "new today" is said in words, not as a second count. */}
-                {lean || fresh ? (
-                  <span className={`${NUM} shrink-0 text-[12.5px] leading-[18px] text-oa-muted-fg`}>
-                    {lean ? <span className={leanText(theme.tones, theme.count)}>{lean}</span> : null}
-                    {lean && fresh ? " · " : null}
-                    {fresh ? "new today" : null}
-                  </span>
+      {/* A wide screen cuts the list after a whole headline, never through one; a phone shows every theme. */}
+      <WholeRows rem={LIST_REM} minWidth={1024} className={`scrollbar-hide lg:overflow-y-auto lg:overscroll-contain ${LIST_HEIGHT_LG}`}>
+        <ol className="divide-y divide-oa-border">
+          {themes.map((theme) => {
+            const href = wireHref({ ...filters, limit: WIRE_PAGE_SIZE }, { theme: theme.name, ticker: null, topic: null, q: "", mine: false });
+            const lean = leanWords(theme.tones, theme.count);
+            const fresh = theme.prevCount === 0;
+            return (
+              <li key={theme.name} className="px-4 py-3">
+                {theme.tickers.length ? (
+                  <div className="mb-1.5 flex flex-wrap items-center gap-x-4 gap-y-1">
+                    {theme.tickers.slice(0, 5).map((row, index) => (
+                      <span key={row.ticker} className="inline-flex items-center gap-1.5">
+                        <Ticker symbol={row.ticker} size={index === 0 ? 22 : 16} className={index === 0 ? "text-[15px] font-semibold" : ""} />
+                        {row.pct !== null ? <Delta value={row.pct} digits={1} className={index === 0 ? "text-[14px] font-medium" : "text-[12.5px]"} /> : null}
+                      </span>
+                    ))}
+                  </div>
                 ) : null}
-              </div>
-              <ul className="mt-2 flex flex-col gap-2.5">
-                {theme.items.slice(0, perTheme).map((item) => (
-                  <li key={item.id}>
-                    <HeadlineLine item={item} />
-                  </li>
-                ))}
-              </ul>
-            </li>
-          );
-        })}
-      </ol>
+                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+                  <h3 className="min-w-0 text-pretty text-[15px] font-semibold leading-[22px] text-oa-fg">
+                    <Link href={href} prefetch={false} className={`rounded hover:underline ${FOCUS}`}>
+                      {theme.name}
+                    </Link>
+                  </h3>
+                  {/* One figure, the lean (owner rule 5); "new today" is said in words, not as a second count. */}
+                  {lean || fresh ? (
+                    <span className={`${NUM} shrink-0 text-[12.5px] leading-[18px] text-oa-muted-fg`}>
+                      {lean ? <span className={leanText(theme.tones, theme.count)}>{lean}</span> : null}
+                      {lean && fresh ? " · " : null}
+                      {fresh ? "new today" : null}
+                    </span>
+                  ) : null}
+                </div>
+                <ul className="mt-2 flex flex-col gap-2.5">
+                  {theme.items.slice(0, perTheme).map((item) => (
+                    <li key={item.id} data-row="">
+                      <HeadlineLine item={item} />
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            );
+          })}
+        </ol>
+      </WholeRows>
     </Panel>
   );
 }
@@ -163,15 +169,15 @@ export function TalkedAbout({
   if (rows.length === 0) return null;
   // The tone column only when some stock's news leans; otherwise the moves sit right after the ticker.
   const toned = rows.some((row) => leanWords(row.tones, row.count) !== "");
-  // About eight rows in view, the rest scrolling inside (owner rule 5).
-  const frame = `max-h-[34rem] ${LIST_HEIGHT_LG}`;
+  // About eight rows in view, the rest scrolling inside and the box ending on a whole row (owner rule 5).
+  const frame = "max-h-[32rem]";
   // Alone on its row: two columns read top to bottom (1 to 7, then 8 on), in a grid so the rows of both columns line up.
   const half = Math.ceil(rows.length / 2);
   const list = wide ? "lg:grid lg:grid-flow-col lg:grid-cols-2 lg:grid-rows-[repeat(var(--rows),auto)]" : "";
   const cols = toned ? "grid-cols-[1.25rem_minmax(0,1fr)_auto_3.75rem]" : "grid-cols-[1.25rem_minmax(0,1fr)_3.75rem]";
   return (
     <Panel flush label="Most talked about" className={className}>
-      <div className={`scrollbar-hide overflow-y-auto overscroll-contain ${frame}`}>
+      <WholeRows rem={LIST_REM} className={`scrollbar-hide overflow-y-auto overscroll-contain ${frame}`}>
         <ol className={list} style={wide ? ({ "--rows": half } as React.CSSProperties) : undefined}>
           {rows.map((row, index) => (
             <li key={row.ticker} className={`border-b border-oa-border hover:bg-oa-accent ${wide ? (index >= half ? "lg:border-l" : "") : "last:border-b-0"}`}>
@@ -183,7 +189,7 @@ export function TalkedAbout({
                 <span className={`grid min-h-6 ${cols} items-center gap-x-3`}>
                   <span className={`${NUM} text-[12.5px] text-oa-muted-fg`}>{index + 1}</span>
                   <span className="flex min-w-0 items-center gap-2">
-                    <StockLogo ticker={row.ticker} size={18} eager={index < 8} />
+                    <StockLogo ticker={row.ticker} size={18} eager={index < 8} atOnce />
                     <span className={`${NUM} text-[14px] font-medium text-oa-fg`}>{row.ticker}</span>
                   </span>
                   {toned ? (
@@ -207,7 +213,7 @@ export function TalkedAbout({
             </li>
           ))}
         </ol>
-      </div>
+      </WholeRows>
     </Panel>
   );
 }

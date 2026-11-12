@@ -30,7 +30,9 @@ const COMMON = new Set(
     "hiding hot important interest invested jumped keeps know lawsuit leans lift margin million " +
     "much pile placement privacy rebound rebounds reckoning recovery reversal scrutiny selloff " +
     "shrugs sink sinks sank snapshot sold spy sticky still stir summary surprising test tied transcript trillion " +
-    "underneath valuation went wins worries worth"
+    "underneath valuation went wins worries worth " +
+    // Left in Title Case on the briefing's cards (ship 39: "Jensen Huang Ouster report Sends investors", "Cramer's Stance").
+    "ouster send sends stance toward towards"
   )
     .split(" ")
     .filter(Boolean),
@@ -92,6 +94,16 @@ const KNOWN_NAMES = new Set(
 
 // Small words in a company's legal name that are ordinary words in a headline ("Bank of America Corporation").
 const OWN_NAME_SMALL_WORDS = new Set(["a", "an", "and", "of", "the", "for", "in", "on", "inc", "corp", "co", "company", "corporation", "ltd", "plc", "group", "holdings"]);
+
+// Common first names: the capitalised word after one is a surname, even when it is also an ordinary word ("Steve
+// Jobs", "Tim Cook"). Not words that are also verbs at a headline start ("Mark", "Bill", "Jack").
+const FIRST_NAMES = new Set(
+  (
+    "steve tim elon jeff warren satya sundar sam lisa jamie andy jerome jensen larry sergey marc michael " +
+    "john james robert david peter paul mary jane susan karen brian kevin chris christopher daniel matthew ryan cathie " +
+    "ken charlie tom joe donald kamala janet scott jay"
+  ).split(" "),
+);
 
 // Endings of common words ("Following", "Investment", "Slashed", "Sharply"). A word with one of these endings is
 // lowered only when no unknown capitalised word stands beside it, since that pair may be a name ("Constellation
@@ -203,6 +215,8 @@ export function sentenceCase(text: string | null | undefined, companyName = ""):
       (/^ ?& ?$/.test(gapBefore) && /^[A-Z]/.test(prev?.word ?? "") && !COMMON.has(bareOf(prev?.word ?? ""))) ||
       (/^ ?& ?$/.test(gapAfter) && /^[A-Z]/.test(next?.word ?? "") && !COMMON.has(bareOf(next?.word ?? "")));
     if (keep) return out.push(word);
+    // A surname after a first name keeps its capital ("Steve Jobs").
+    if (prev && /^\s+$/.test(gapBefore) && FIRST_NAMES.has(bareOf(prev.word)) && /^[A-Z]/.test(prev.word)) return out.push(word);
     if (COMMON.has(bare) || compound[index] === "lower") return out.push(word.toLowerCase());
     // Only neighbours joined by a space or hyphen count: "Following, Apple" is two clauses.
     const joinedPrev = prev && /^[\s-]+$/.test(gapBefore);
@@ -858,6 +872,7 @@ function lowerStrays(value: string, companyName: string): string {
     const prev = tokens[index - 1];
     const next = tokens[index + 1];
     if (index > 0 && titled(word) && MIXED_NAME_RISK.has(bare) && brandUsedAsWord(bare, prev?.word, next?.word)) return "lower";
+    if (prev && titled(word) && FIRST_NAMES.has(bareOf(prev.word)) && /^[A-Z]/.test(prev.word) && /^\s+$/.test(value.slice(prev.offset + prev.word.length, offset))) return "keep";
     const gapBefore = prev ? value.slice(prev.offset + prev.word.length, offset) : value.slice(0, offset);
     const gapAfter = next ? value.slice(end, next.offset) : "";
     const keep =

@@ -18,7 +18,7 @@ import { getThematicScreens } from "@/lib/screens";
 import { addDays, weekStart, type EarningsItem } from "@/lib/calendar-shared";
 import { loadCalendarRange, loadReportContext } from "@/lib/calendar";
 import { buildCalendarRead, readTickers } from "@/lib/calendar-insights";
-import { buildGiantsRead, screensTakeaway, type GiantForRead } from "@/lib/explore-insights";
+import { buildGiantsRead, deskHeadline, screensTakeaway, type GiantForRead } from "@/lib/explore-insights";
 import { etDayOf, quoteDay } from "@/lib/benchmark-day";
 import { getScreenerSnapshot } from "@/lib/screener";
 import { etDayOfStamp, oldestStamp } from "@/lib/quote-time";
@@ -489,7 +489,7 @@ export const loadDeskBrief = section<DeskBrief>(
         : biggest ?? calendarRead?.insights[0];
     const read: TheRead | null = marketRead || moverRead
       ? {
-          headline: marketRead?.headline ?? moverRead!.headline,
+          headline: (marketRead && markets ? deskHeadline(markets) : null) ?? marketRead?.headline ?? moverRead!.headline,
           // The read is about the market: the biggest companies, not the day's biggest movers (the list under it has those).
           // Each card ends with the next real thing to watch on its stocks, when there is one (owner rule 7).
           insights: withWatchNext(

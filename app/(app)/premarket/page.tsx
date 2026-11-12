@@ -5,7 +5,8 @@ import { StockCard, StockCardGrid, fillLastRow, stockGridFill } from "@/componen
 import { MarketingSchema } from "@/components/seo/marketing-schema";
 import { StockLogo } from "@/components/stock-logo";
 import { TheRead } from "@/components/oa/insight";
-import { AppPage, Empty, PageHead, ShowMore, SourceLine, fmtStampET } from "@/components/oa/kit";
+import { AppPage, Empty, PageHead, SourceLine, fmtStampET } from "@/components/oa/kit";
+import { WholeRows } from "@/components/wire/whole-rows";
 import { ogImage } from "@/lib/og/url";
 import { getPremarketMovers } from "@/lib/premarket";
 import { getPremarketOpeningReport } from "@/lib/premarket-opening";
@@ -39,9 +40,6 @@ export function generateMetadata(): Metadata {
     twitter: { card: "summary_large_image", title: `${TITLE} · stocksbrew`, description: DESCRIPTION, images: [shareImage] },
   };
 }
-
-/** Gappers shown before "Show all": two rows of three. */
-const FIRST = 6;
 
 function SectionHead({ id, title, count }: { id?: string; title: string; count?: string }) {
   return (
@@ -123,32 +121,24 @@ function GapperChip({ row }: { row: Gapper }) {
 
 function GapperList({ id, title, rows, verb }: { id: string; title: string; rows: Gapper[]; verb: string }) {
   if (rows.length === 0) return null;
-  // The gaps with a story get cards; the rest share one strip of chips under them, biggest first as they came.
+  // The gaps with a story get cards, all of them, scrolling inside a box that ends on a whole row (owner rules 2 and 5:
+  // nothing waits behind a "show more" button); the rest share one strip of chips under them, biggest first.
   const told = rows.filter((row) => row.reason);
   const bare = rows.filter((row) => !row.reason);
-  const first = told.slice(0, FIRST);
-  const rest = told.slice(FIRST);
   return (
     <section id={id} aria-labelledby={`${id}-label`} className="scroll-mt-20">
       <SectionHead id={`${id}-label`} title={title} count={`${rows.length} ${rows.length === 1 ? "stock" : "stocks"}`} />
-      {first.length > 0 ? (
-        <StockCardGrid wide>
-          {first.map((row, index) => (
-            <GapperCard key={row.ticker} row={row} fill={stockGridFill(index, first.length, true)} />
-          ))}
-        </StockCardGrid>
-      ) : null}
-      {rest.length > 0 ? (
-        <ShowMore always label={`Show ${rest.length} more ${verb}`} less="Show fewer">
-          <StockCardGrid wide className="mt-3">
-            {rest.map((row, index) => (
-              <GapperCard key={row.ticker} row={row} fill={stockGridFill(index, rest.length, true)} />
+      {told.length > 0 ? (
+        <WholeRows rem={30} className="max-h-[30rem] overflow-y-auto overscroll-contain scrollbar-hide">
+          <StockCardGrid wide>
+            {told.map((row, index) => (
+              <GapperCard key={row.ticker} row={row} fill={stockGridFill(index, told.length, true)} />
             ))}
           </StockCardGrid>
-        </ShowMore>
+        </WholeRows>
       ) : null}
       {bare.length > 0 ? (
-        <ul aria-label={first.length > 0 ? `Also ${verb}` : title} className={`flex flex-wrap gap-2 px-2 sm:px-0 ${first.length > 0 ? "mt-3" : ""}`}>
+        <ul aria-label={told.length > 0 ? `Also ${verb}` : title} className={`flex flex-wrap gap-2 px-2 sm:px-0 ${told.length > 0 ? "mt-3" : ""}`}>
           {bare.map((row) => (
             <GapperChip key={row.ticker} row={row} />
           ))}
@@ -175,10 +165,11 @@ export default async function PremarketPage() {
       <MarketingSchema path="/premarket" name={TITLE} description={DESCRIPTION} breadcrumbLabel="Premarket" />
       <PageHead
         title="Premarket"
-        lede="How the US open is set up before 9:30 ET: futures, markets abroad, and the stocks gapping up and down with the news behind them."
         meta={stamp ? <SourceLine asOf={stamp} /> : undefined}
       />
-      {when.note ? <p className="-mt-1 mb-3 px-2 text-pretty text-[14px] leading-5 text-oa-fg sm:px-0">{when.note}</p> : null}
+      {/* The read's headline already says when its numbers are from ("This morning, futures pointed…", "On Tuesday…")
+          and the title row carries the one clock, so the note is only for the morning today's numbers are late. */}
+      {when.note && when.phase === "live" && !when.today ? <p className="-mt-1 mb-3 px-2 text-pretty text-[14px] leading-5 text-oa-fg sm:px-0">{when.note}</p> : null}
 
       {empty ? (
         <Empty title="No premarket numbers yet">
@@ -205,7 +196,6 @@ export default async function PremarketPage() {
           <GapperList id="gapping-down" title="Gapping down" rows={down} verb="gapping down" />
         </>
       )}
-      <p className="mt-6 px-2 text-[12px] leading-5 text-oa-muted-fg sm:px-0">Premarket prices are thin and can change a lot by the open. Nothing here is advice to trade.</p>
     </AppPage>
   );
 }

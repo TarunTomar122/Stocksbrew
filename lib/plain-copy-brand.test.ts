@@ -49,3 +49,10 @@ describe("futures columns", () => {
     expect(newsRank({ title: "Wall St futures fall as Nvidia slides on report of possible CEO ouster", summary: "Futures fell." }, stock)).toBeNull();
   });
 });
+
+describe("surnames after first names", () => {
+  it("keeps Steve Jobs whole", () => {
+    expect(headlineCase("Apple CEO echoes Steve Jobs on AI", "")).toBe("Apple CEO echoes Steve Jobs on AI");
+    expect(headlineCase("Mark Your Calendars For Nvidia Earnings", "")).toMatch(/^Mark your /);
+  });
+});

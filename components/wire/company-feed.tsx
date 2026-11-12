@@ -20,16 +20,15 @@ function CompanyCard({ group, filters }: { group: CompanyGroup; filters: WireFil
     // The whole card opens the company's stories; the stock and each headline keep their own links above it.
     // No "see more" arrow repeated on every card (owner, Nov 11).
     <article className="oa-surface relative flex h-full min-w-0 flex-col border border-oa-border bg-oa-card transition-colors hover:border-[color-mix(in_srgb,var(--oa-fg)_25%,transparent)]">
+      {/* The move and, only when the news clearly leans, its tone, both on the title row: a separate tone strip on some
+          cards and not others left their neighbours with an empty band at the bottom (owner rule 4). */}
       <header className="flex items-center justify-between gap-3 border-b border-oa-border px-4 py-2.5">
         <Ticker symbol={group.ticker} name={group.name} size={22} className="relative z-10 min-w-0" />
-        {group.pct !== null ? <Delta value={group.pct} digits={1} className="shrink-0 text-[14px] font-medium" /> : null}
+        <span className="flex shrink-0 items-baseline gap-3">
+          {leanWords(group.tones, group.count) ? <ToneBar counts={group.tones} stories={group.count} /> : null}
+          {group.pct !== null ? <Delta value={group.pct} digits={1} className="text-[14px] font-medium" /> : null}
+        </span>
       </header>
-      {/* The tone only when the news clearly leans; a card whose news doesn't lean says nothing about it (owner rule 1). */}
-      {leanWords(group.tones, group.count) ? (
-        <div className="flex min-h-9 items-center border-b border-oa-border bg-oa-bg px-4 py-1.5">
-          <ToneBar counts={group.tones} stories={group.count} />
-        </div>
-      ) : null}
       {/* No footer count: the tone above is the card's one figure (owner rule 5), and the card itself opens the rest. */}
       <ul className="flex flex-1 flex-col gap-2.5 px-4 py-3">
         {items.map((item) => (

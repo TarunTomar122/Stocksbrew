@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 
-import { CalendarControls, ListView, MonthView, PeriodNav, WeekView, preReadIsException } from "@/components/calendar/calendar-view";
+import { BiggestReports, CalendarControls, ListView, MonthView, PeriodNav, WeekView, preReadIsException } from "@/components/calendar/calendar-view";
 import { TheRead } from "@/components/oa/insight";
 import { AppPage, Empty, PageHead, Panel, Segmented } from "@/components/oa/kit";
 import { MarketingSchema } from "@/components/seo/marketing-schema";
 import { getSessionUser } from "@/lib/auth-server";
 import { loadCalendarRange, loadReportContext } from "@/lib/calendar";
-import { buildCalendarRead, readTickers } from "@/lib/calendar-insights";
+import { bigReportTickers, biggestReports, buildCalendarRead, readTickers } from "@/lib/calendar-insights";
 import {
   CALENDAR_TYPES,
   addDays,
@@ -127,8 +127,11 @@ export default async function CalendarPage({ searchParams }: { searchParams?: Se
 
   const markPreRead = preReadIsException(days);
 
-  // The read covers every kind of event (the type chips filter the agenda below, not the read).
-  const context = data.failed ? {} : await loadReportContext(readTickers(scoped, today, mineSet), today);
+  // The read covers every kind of event (the type chips filter the agenda below, not the read). The history it reads
+  // also serves the cards of the biggest reports still to come (the loader takes eight names at most).
+  const contextTickers = [...new Set([...readTickers(scoped, today, mineSet), ...bigReportTickers(scoped, today)])].slice(0, 8);
+  const context = data.failed ? {} : await loadReportContext(contextTickers, today);
+  const big = data.failed || effective.type === "economic" || effective.type === "ipo" || effective.type === "dividend" ? [] : biggestReports(scoped, today, context);
   const read = data.failed
     ? null
     : buildCalendarRead({
@@ -138,6 +141,9 @@ export default async function CalendarPage({ searchParams }: { searchParams?: Se
         mine: effective.mine ? null : mineSet,
         context,
         mineHref: mineSet ? calendarHref(effective, today, { mine: true }) : undefined,
+        // The cards under the read say the biggest reports, so the read does not say them again.
+        biggestShown: big.length > 0,
+        onlyMine: effective.mine,
       });
 
   const tabs = (["week", "month", "list"] as const).map((view) => ({
@@ -157,9 +163,7 @@ export default async function CalendarPage({ searchParams }: { searchParams?: Se
       />
       <PageHead
         title="Calendar"
-        lede="Earnings, economic releases, IPOs and ex-dividend dates on one agenda. Past days show the result and how the stock moved."
         inline
-        className="[&_.oa-head-lede]:hidden"
         actions={
           <>
             <Segmented items={tabs} current={effective.view} label="Calendar view" />
@@ -168,7 +172,9 @@ export default async function CalendarPage({ searchParams }: { searchParams?: Se
         }
       />
       <CalendarControls filters={effective} today={today} counts={counts} mineAvailable={mineSet !== null} days={days} />
-      <TheRead read={read} label="This week, in short" fold="phone" foldLabel="Show more about this week" className="mb-4" />
+      {/* Every point shows, on a phone too: nothing waits behind a button (owner rule 2). */}
+      <TheRead read={read} label="This week, in short" className="mb-4" />
+      <BiggestReports reports={big} className="mb-5" />
 
       {data.failed ? (
         <Panel>

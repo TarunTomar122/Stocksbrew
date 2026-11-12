@@ -25,6 +25,7 @@ import { JsonLd } from "@/components/docs/json-ld";
 import { toolPageLd, toolPageMetadata } from "@/lib/seo/tool-pages";
 import Link from "next/link";
 import { AppLink } from "@/components/oa/app-link";
+import { WholeRows } from "@/components/wire/whole-rows";
 
 export const dynamic = "force-dynamic";
 
@@ -91,49 +92,50 @@ function SectorList({ rows }: { rows: DeskSector[] }) {
 }
 
 /**
- * When the day's moves were priced, said once over the list (owner, Nov 11: rows never carry their own time): the
- * oldest quote time on the moves' own New York day (lib/quote-time.ts), so no number is dated later than it was
- * measured, with the day in front when the moves are not from today ("Nov 10, 4:00 PM ET"). A few thinly traded
- * names (warrants, mostly) keep a morning quote all day; those are named once under the list with their own time
- * (lib/move-clock.ts), so one stale quote does not date every other move to the morning.
+ * The day's moves, without the few whose quote stopped hours before the close (thinly traded warrants, mostly; see
+ * lib/move-clock.ts), and the day they are from. Today's moves sit under the read's one clock, so they carry no time
+ * of their own (owner: one as-of clock per page); a quote left from the morning would be dated wrong by it, so it is
+ * left out rather than explained in a footnote. Moves from another day say that day over the list instead.
  */
-function movesClock(movers: DeskData["movers"], today: string, now: number): { clock: string | null; stale: { tickers: string[]; clock: string } | null } {
-  const day = movers.day;
-  if (!day) return { clock: null, stale: null };
+function sessionMoves(
+  movers: DeskData["movers"],
+  today: string,
+  now: number,
+): { rows: DeskData["movers"]["up"]; day: string | null; dropped: string[]; clock: string | null } {
   const rows = [...movers.up, ...movers.down];
-  const late = day === today ? rows.filter((row) => staleMoveClock(row.priceAsOf, now)) : [];
-  const fresh = late.length < rows.length ? rows.filter((row) => !late.includes(row)) : rows;
-  const clock = pricedAt(fresh.map((row) => row.priceAsOf), day);
-  if (day !== today) return { clock: clock ? `${fmtDay(day)}, ${clock}` : fmtDay(day), stale: null };
-  const lateClock = fresh === rows ? null : pricedAt(late.map((row) => row.priceAsOf), day);
-  return {
-    clock: clock ? `As of ${clock}` : null,
-    stale: lateClock ? { tickers: late.sort((a, b) => Math.abs(b.changePct) - Math.abs(a.changePct)).map((row) => row.ticker), clock: lateClock } : null,
-  };
-}
-
-/** "AIRJW", "AIRJW and RVMDW", "AIRJW, RVMDW and 3 more". */
-function tickerList(tickers: string[]): string {
-  if (tickers.length <= 1) return tickers[0] ?? "";
-  if (tickers.length === 2) return `${tickers[0]} and ${tickers[1]}`;
-  if (tickers.length === 3) return `${tickers[0]}, ${tickers[1]} and ${tickers[2]}`;
-  return `${tickers[0]}, ${tickers[1]} and ${tickers.length - 2} more`;
+  const day = movers.day;
+  if (!day || day !== today) return { rows, day: day ?? null, dropped: [], clock: null };
+  const fresh = rows.filter((row) => !staleMoveClock(row.priceAsOf, now));
+  // Never empty the list over quote times: with nothing fresh the moves still show, with their own time over them,
+  // so a morning quote is never read as the close.
+  if (fresh.length === 0) {
+    const at = pricedAt(rows.map((row) => row.priceAsOf), day);
+    return { rows, day, dropped: [], clock: at ? `As of ${at}` : null };
+  }
+  return { rows: fresh, day, dropped: rows.filter((row) => !fresh.includes(row)).map((row) => row.ticker), clock: null };
 }
 
 /**
  * The day's unusual stock moves (owner rule 3): the logo and ticker, the move as the one big figure, and the reason
  * when a source confirmed one (lib/reason-quality: nothing is written when none was, and a sentence that only says the
  * move again is no reason). Moves with a reason are cards, largest first; the rest are chips under them, so no card is
- * left with only a figure. This is the one list of the day's moves: every move the feed holds shows (cards and chips
- * each scroll inside after a few rows), priced from the same live quotes the briefing and the home page use, with one
- * time over the list. Older days are a row of links to their own pages under it.
+ * left with only a figure. This is the one list of the day's moves: every move priced in the session shows (cards and
+ * chips each scroll inside after a few whole rows), from the same live quotes the briefing and the home page use, under
+ * the read's one clock. Older days are a row of links to their own pages under it.
  */
 function StockMoves({ movers, today }: { movers: DeskData["movers"]; today: string }) {
-  const rows = [...movers.up, ...movers.down].sort((a, b) => Math.abs(b.changePct) - Math.abs(a.changePct));
+  const session = sessionMoves(movers, today, Date.now());
+  const rows = [...session.rows].sort((a, b) => Math.abs(b.changePct) - Math.abs(a.changePct));
   const told = rows.filter((row) => row.reason);
   const bare = rows.filter((row) => !row.reason);
   if (rows.length === 0) return null;
-  const { clock, stale } = movesClock(movers, today, Date.now());
+  // Only moves from an earlier day name it, or today's when every quote stopped early; the rest sit under the read's clock.
+  const clock = session.day && session.day !== today ? fmtDay(session.day) : session.clock;
+  // The takeaway was written over every move: it is left out when it names one the list no longer shows.
+  const takeaway =
+    movers.takeaway && !session.dropped.some((ticker) => new RegExp(`(?<![A-Z0-9.])${ticker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![A-Z0-9])`).test(movers.takeaway!))
+      ? movers.takeaway
+      : null;
   // "today" only for today's moves: before the open, or on a weekend, they are the last session's.
   const when = movers.day && movers.day !== today ? `on ${fmtDay(movers.day)}` : "today";
   return (
@@ -146,10 +148,10 @@ function StockMoves({ movers, today }: { movers: DeskData["movers"]; today: stri
         {clock ? <span className="oa-mono shrink-0 text-[12.5px] tabular-nums text-oa-muted-fg">{clock}</span> : null}
       </div>
       {/* With one move the takeaway only repeats it ("AIRJW moved most, −11.8%"); it says something once there are several. */}
-      {movers.takeaway && rows.length > 1 ? <p className="text-pretty px-2 pb-2 text-[14px] leading-5 text-oa-muted-fg sm:px-3">{movers.takeaway}</p> : null}
+      {takeaway && rows.length > 1 ? <p className="text-pretty px-2 pb-2 text-[14px] leading-5 text-oa-muted-fg sm:px-3">{takeaway}</p> : null}
       {told.length > 0 ? (
-        // About three rows of cards, then they scroll inside (no bar shown), so the page stays short.
-        <div className="max-h-[30rem] overflow-y-auto overscroll-contain scrollbar-hide sm:max-h-[24rem]">
+        // About three rows of cards, then they scroll inside (no bar shown) in a box that ends on a whole row.
+        <WholeRows rem={30} wideRem={24} className="max-h-[30rem] overflow-y-auto overscroll-contain scrollbar-hide sm:max-h-[24rem]">
           <StockCardGrid wide>
             {told.map((row, index) => (
               <StockCard
@@ -171,11 +173,12 @@ function StockMoves({ movers, today }: { movers: DeskData["movers"]; today: stri
               />
             ))}
           </StockCardGrid>
-        </div>
+        </WholeRows>
       ) : null}
-      {/* Moves with no reason we could confirm: a chip each, not an empty card (owner rules 4 and 7). */}
+      {/* Moves with no reason we could confirm: a chip each, not an empty card (owner rules 4 and 7). Three whole rows of
+          chips, the rest scrolling inside. */}
       {bare.length > 0 ? (
-        <div className={`max-h-[9.5rem] overflow-y-auto overscroll-contain scrollbar-hide ${told.length > 0 ? "mt-3" : ""}`}>
+        <WholeRows rem={8.5} className={`max-h-[8.5rem] overflow-y-auto overscroll-contain scrollbar-hide ${told.length > 0 ? "mt-3" : ""}`}>
           <StockChipRow label={told.length > 0 ? "Also moved" : "Biggest stock moves"}>
             {bare.map((row) => (
               <StockChip
@@ -188,12 +191,7 @@ function StockMoves({ movers, today }: { movers: DeskData["movers"]; today: stri
               />
             ))}
           </StockChipRow>
-        </div>
-      ) : null}
-      {stale ? (
-        <p className="text-pretty px-2 pt-2 text-[13px] leading-5 text-oa-muted-fg sm:px-3">
-          {`${tickerList(stale.tickers)} last traded by ${stale.clock}, so ${stale.tickers.length === 1 ? "its move is" : "their moves are"} from then.`}
-        </p>
+        </WholeRows>
       ) : null}
     </>
   );

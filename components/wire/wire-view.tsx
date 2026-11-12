@@ -118,8 +118,7 @@ function TickerMove({ ticker, quote, filters }: { ticker: string; quote: WireQuo
 
 /**
  * One headline, one line: time, source, headline, the tickers it names with
- * today's move. The excerpt is the link's tooltip; a press release is said in
- * a word, because most rows are not one.
+ * today's move. A press release is said in a word, because most rows are not one.
  */
 function WireRow({ item, quotes, filters }: { item: WireItem; quotes: Record<string, WireQuote>; filters: WireFilters }) {
   const shown = item.tickers.slice(0, 3);
@@ -137,7 +136,7 @@ function WireRow({ item, quotes, filters }: { item: WireItem; quotes: Record<str
       </p>
       {/* The whole headline in sentence case (owner rule 8); its tone is said once above the stream, not on every row. */}
       <p className="min-w-0 text-pretty text-[15px] font-medium leading-[22px] text-oa-fg lg:text-[14px] lg:leading-5">
-        <a href={item.url} target="_blank" rel="noopener noreferrer" title={item.excerpt || undefined} className={`rounded hover:underline ${FOCUS}`}>
+        <a href={item.url} target="_blank" rel="noopener noreferrer" className={`rounded hover:underline ${FOCUS}`}>
           {headlineWords(item.title)}
         </a>
         {kind ? <span className="ml-2 whitespace-nowrap text-[12.5px] font-normal text-oa-muted-fg">{kind}</span> : null}

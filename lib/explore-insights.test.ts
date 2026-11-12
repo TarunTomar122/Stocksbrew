@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { buildGiantsRead, followTakeaway, marketTodayRead, mergeDeskRead, screensTakeaway, strategiesTakeaway } from "@/lib/explore-insights";
+import { buildGiantsRead, deskHeadline, followTakeaway, marketTodayRead, mergeDeskRead, screensTakeaway, strategiesTakeaway } from "@/lib/explore-insights";
+import { SECTOR_IDS } from "@/lib/markets-insights";
+import type { MarketAsset, MarketsData } from "@/lib/markets-shared";
 import type { Insight } from "@/lib/insights";
 import type { FollowActivity } from "@/lib/follow-shared";
 
@@ -113,5 +115,35 @@ describe("marketTodayRead", () => {
     expect(read?.headline).toBe("6 of 11 sectors rose.");
     expect(read?.insights.map((insight) => insight.id)).toEqual(["theme"]);
     expect(marketTodayRead(null, news, null)).toBeNull();
+  });
+});
+
+describe("deskHeadline", () => {
+  const asset = (id: string, d1: number | null) =>
+    ({ id, change: { d1, w1: null, m1: null, ytd: null, y1: null }, as_of: "2026-11-11T21:00:00Z" }) as unknown as MarketAsset;
+  const desk = (spx: number | null, moves: number[]): MarketsData => ({
+    as_of: null,
+    assets: [asset("sp500", spx), ...SECTOR_IDS.map((id, index) => asset(id, moves[index] ?? 0))],
+    predictions: [],
+    treasury: null,
+    volCurve: null,
+  });
+  const NOW = new Date("2026-11-11T22:00:00Z");
+
+  it("leads with one number and says the sectors in words", () => {
+    expect(deskHeadline(desk(1.31, [1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1]), NOW)).toBe("The S&P 500 gained 1.31% today, with sectors split.");
+    expect(deskHeadline(desk(0.8, Array(11).fill(0.5)), NOW)).toBe("The S&P 500 gained 0.80% today, with every sector up.");
+    expect(deskHeadline(desk(0.4, [1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1]), NOW)).toBe("The S&P 500 gained 0.40% today, even though most sectors fell.");
+    expect(deskHeadline(desk(-1.2, [-1, -1, -1, -1, -1, -1, -1, -1, 1, 1, 1]), NOW)).toBe("The S&P 500 lost 1.20% today, with most sectors down.");
+  });
+
+  it("calls a 0.00% day flat and is null without the index", () => {
+    expect(deskHeadline(desk(0.001, [1, -1]), NOW)).toBe("The S&P 500 was flat today.");
+    expect(deskHeadline(desk(null, []), NOW)).toBeNull();
+  });
+
+  it("leaves the sectors out when too few are priced", () => {
+    const thin: MarketsData = { as_of: null, assets: [asset("sp500", 0.5), asset(SECTOR_IDS[0]!, 1)], predictions: [], treasury: null, volCurve: null };
+    expect(deskHeadline(thin, NOW)).toBe("The S&P 500 gained 0.50% today.");
   });
 });

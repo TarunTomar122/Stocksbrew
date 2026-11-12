@@ -76,6 +76,10 @@ export type CalendarReadInput = {
   mineHref?: string;
   /** The current time, so a release earlier today reads in the past tense. Defaults to now. */
   now?: Date;
+  /** The page shows the biggest reports still to come as cards of their own, so the read leaves out its card on them. */
+  biggestShown?: boolean;
+  /** The agenda is filtered to the person's own stocks, so the headline's count is "of your stocks". */
+  onlyMine?: boolean;
 };
 
 function upcomingEarnings(items: CalendarItem[], today: string): EarningsItem[] {
@@ -279,15 +283,28 @@ export function buildCalendarRead(input: CalendarReadInput): TheRead | null {
     ? `${econToday.title.trim()} numbers ${releasedAlready(econToday, input.today, input.now ?? new Date()) ? "came" : "come"} out today${econToday.timeEt ? ` at ${fmtClock(econToday.timeEt)} ET` : ""}`
     : null;
   if (upcoming.length) {
+    // One idea, one number (owner rule 8): the biggest names and when, then how many are left as the one figure.
+    // "Cisco Systems and Applied Materials report tomorrow, the biggest of 24 companies still to report this week."
     const leaders = upcoming.slice(0, 2);
     const sameDay = leaders.length === 2 && leaders[0]!.date === leaders[1]!.date;
-    const leadText = sameDay
-      ? `${listNames(leaders.map(displayName))} ${onWhen(whenWord(leaders[0]!.date, input.today))}`
-      : listNames(leaders.map((item) => `${displayName(item)} ${whenWord(item.date, input.today)}`));
-    const still = reported.length > 0 ? " still" : "";
-    parts.push(
-      `${upcoming.length} ${upcoming.length === 1 ? `company${still} reports earnings` : `companies${still} report earnings`} ${input.period}. The biggest ${leaders.length === 1 ? "is" : "are"} ${leadText}`,
-    );
+    const day = (item: EarningsItem) => whenWord(item.date, input.today);
+    const leadText =
+      leaders.length === 1
+        ? `${displayName(leaders[0]!)} reports ${onWhen(day(leaders[0]!))}`
+        : sameDay
+          ? `${listNames(leaders.map(displayName))} report ${onWhen(day(leaders[0]!))}`
+          : `${displayName(leaders[0]!)} reports ${onWhen(day(leaders[0]!))} and ${displayName(leaders[1]!)} ${onWhen(day(leaders[1]!))}`;
+    const still = reported.length > 0 ? "still to report" : "reporting";
+    // Filtered to the person's own stocks, the count is theirs, not the market's.
+    const one = input.onlyMine ? "one of your stocks" : "company";
+    const many = input.onlyMine ? "of your stocks" : "companies";
+    const rest =
+      upcoming.length === 1
+        ? `the only ${one} ${still} ${input.period}`
+        : upcoming.length === 2
+          ? `the only two ${many} ${still} ${input.period}`
+          : `the biggest of ${upcoming.length} ${many} ${still} ${input.period}`;
+    parts.push(`${leadText}, ${rest}`);
   } else if (reported.length) {
     const beats = reported.filter((item) => surpriseOf(item)?.label === "beat").length;
     parts.push(`${reported.length} companies reported, ${beats} beat estimates`);
@@ -313,13 +330,58 @@ export function buildCalendarRead(input: CalendarReadInput): TheRead | null {
     insights: pickInsights([
       mine,
       econPoint,
-      biggestInsight(input, skip),
+      input.biggestShown ? null : biggestInsight(input, skip),
       resultsInsight(input),
       // The week's other big releases still get their line when today's is already said.
       econPoint ? (economic && !economic.text.startsWith("One big") ? { ...economic, id: "economic-week", soWhat: econToday && /cpi|ppi|pce|inflation/i.test(econToday.title) ? undefined : economic.soWhat } : null) : economic,
       ipoInsight(input),
     ], econPoint ? 4 : 3),
   };
+}
+
+/* ── the biggest reports still to come, as cards ───────────────────────── */
+
+export type BigReport = {
+  item: EarningsItem;
+  /** The stock's move after its last report: the card's one figure. */
+  lastPct: number;
+  /** When it reports: "tomorrow after the close", "Thursday before the open". */
+  when: string;
+  /** How big its last report was against a normal day, without the figure the card already shows. */
+  size: string;
+};
+
+/** The tickers the cards want history for: the biggest reports still to come, after the read's own. */
+export function bigReportTickers(items: CalendarItem[], today: string, max = 6): string[] {
+  return upcomingEarnings(items, today).slice(0, max).map((item) => item.ticker);
+}
+
+/**
+ * The biggest companies still to report in the window, by market value, each with the move after its last report as
+ * its one figure, when it reports, and how that move compares with a normal day (owner rules 3 and 7). Only the `max`
+ * biggest are looked at, so a small company never stands in for one whose history is missing; a report with no last
+ * move we hold gets no card rather than an empty one (rule 4).
+ */
+export function biggestReports(items: CalendarItem[], today: string, context: Record<string, ReportContext>, max = 6): BigReport[] {
+  const out: BigReport[] = [];
+  for (const item of upcomingEarnings(items, today).slice(0, max)) {
+    const known = context[item.ticker];
+    if (!known?.last || !isNum(known.last.pct)) continue;
+    const last = known.last;
+    const multiple = isNum(known.typicalDayPct) && known.typicalDayPct > 0 ? Math.abs(last.pct) / known.typicalDayPct : null;
+    // The figure already says the move, so the words say only how big it was (owner: each move said once).
+    const on = `Its last report, on ${shortDay(last.eventDate)},`;
+    const size =
+      multiple === null
+        ? `Its last report was on ${shortDay(last.eventDate)}.`
+        : multiple >= 1.5
+          ? `${on} moved it about ${Math.round(multiple)} times as much as a normal day.`
+          : multiple < 0.8
+            ? `${on} moved it less than a normal day does.`
+            : `${on} moved it about as much as a normal day.`;
+    out.push({ item, lastPct: last.pct, when: [whenWord(item.date, today), timeWord(item)].filter(Boolean).join(" "), size });
+  }
+  return out;
 }
 
 /* ── one company's earnings page ───────────────────────────────────────── */

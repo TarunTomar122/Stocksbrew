@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildCalendarRead, buildEarningsDetailRead, pastMoveText, readTickers, surpriseOf, typicalDailyMove, whenWord } from "@/lib/calendar-insights";
+import { bigReportTickers, biggestReports, buildCalendarRead, buildEarningsDetailRead, pastMoveText, readTickers, surpriseOf, typicalDailyMove, whenWord } from "@/lib/calendar-insights";
 import type { CalendarItem, EarningsItem } from "@/lib/calendar-shared";
 
 const TODAY = "2026-11-10";
@@ -60,7 +60,7 @@ describe("buildCalendarRead", () => {
       items, today: TODAY, period: "this week", mine: null, now: new Date(`${TODAY}T12:00:00Z`),
       context: { CSCO: { last: { pct: -5.8, basis: "2d", toDate: "2026-08-13", eventDate: "2026-08-12" }, typicalDayPct: 1.75 } },
     })!;
-    expect(read.headline).toBe("3 companies still report earnings this week. The biggest are CSCO and AMAT on Thursday.");
+    expect(read.headline).toBe("CSCO and AMAT report on Thursday, the biggest of 3 companies still to report this week.");
     // Today's release is the first line under the earnings headline.
     expect(read.insights[0]!.id).toBe("economic");
     expect(read.insights[0]!.text).toBe("CPI inflation numbers come out today at 8:30 AM ET.");
@@ -68,6 +68,20 @@ describe("buildCalendarRead", () => {
     expect(read.insights[1]!.id).toBe("biggest");
     expect(read.insights[1]!.text).toContain("about 3 times its normal daily move");
     expect(read.insights[2]!.text).toBe("So far 3 of 3 companies beat what analysts expected (100%), and none fell short. Biggest moves after: CNH +13.5% and CEG +9.5%.");
+  });
+
+  it("leads with one idea and one number whatever the count", () => {
+    const one = buildCalendarRead({ items: [earn("CSCO", "2026-11-12", 443e9)], today: TODAY, period: "this week", mine: null })!;
+    expect(one.headline).toBe("CSCO reports on Thursday, the only company reporting this week.");
+    const apart = buildCalendarRead({ items: [earn("CSCO", "2026-11-12", 443e9), earn("NVDA", "2026-11-11", 4e12), earn("ONON", TODAY, 1e9)], today: TODAY, period: "this week", mine: null })!;
+    expect(apart.headline).toBe("NVDA reports tomorrow and CSCO on Thursday, the biggest of 3 companies reporting this week.");
+    const mine = buildCalendarRead({ items: [earn("CSCO", "2026-11-12", 443e9), earn("ONON", TODAY, 1e9)], today: TODAY, period: "this week", mine: null, onlyMine: true })!;
+    expect(mine.headline).toBe("CSCO reports on Thursday and ONON today, the only two of your stocks reporting this week.");
+  });
+
+  it("leaves the biggest-report card out when the page shows those reports as cards", () => {
+    const read = buildCalendarRead({ items, today: TODAY, period: "this week", mine: null, biggestShown: true })!;
+    expect(read.insights.some((insight) => insight.id === "biggest")).toBe(false);
   });
 
   it("says a release earlier today came out, by New York time", () => {
@@ -93,6 +107,31 @@ describe("buildCalendarRead", () => {
   it("falls back to what already reported when nothing of theirs is left", () => {
     const read = buildCalendarRead({ items, today: TODAY, period: "this week", mine: new Set(["CEG"]) })!;
     expect(read.insights[0]!.text).toBe("One of your stocks has reported this week and none is still to come: CEG beat, +9.5%.");
+  });
+});
+
+describe("biggestReports", () => {
+  const items: CalendarItem[] = [earn("CSCO", "2026-11-12", 443e9), earn("AMAT", "2026-11-11", 346e9, { session: "bmo" }), earn("NEW", "2026-11-12", 500e9), earn("TINY", "2026-11-12", 1e6), beat("CEG", 9.5)];
+  const context = {
+    CSCO: { last: { pct: -8.4, basis: "1d" as const, toDate: "2026-08-13", eventDate: "2026-08-12" }, typicalDayPct: 1.7 },
+    AMAT: { last: { pct: 2, basis: "1d" as const, toDate: "2026-08-15", eventDate: "2026-08-14" }, typicalDayPct: null },
+    TINY: { last: { pct: 30, basis: "1d" as const, toDate: "2026-08-15", eventDate: "2026-08-14" }, typicalDayPct: 3 },
+  };
+  it("picks the biggest still to report with a last move, largest first, and says each move once", () => {
+    expect(bigReportTickers(items, TODAY)).toEqual(["NEW", "CSCO", "AMAT", "TINY"]);
+    const cards = biggestReports(items, TODAY, context);
+    // NEW has no report we hold, so it gets no empty card.
+    expect(cards.map((card) => card.item.ticker)).toEqual(["CSCO", "AMAT", "TINY"]);
+    expect(cards[0]!.lastPct).toBe(-8.4);
+    expect(cards[0]!.when).toBe("Thursday after the close");
+    expect(cards[0]!.size).toBe("Its last report, on Aug 12, moved it about 5 times as much as a normal day.");
+    expect(cards[1]!.when).toBe("tomorrow before the open");
+    expect(cards[1]!.size).toBe("Its last report was on Aug 14.");
+    expect(cards[0]!.size).not.toContain("8.4");
+  });
+
+  it("never reaches past the biggest few for a small company", () => {
+    expect(biggestReports(items, TODAY, context, 3).map((card) => card.item.ticker)).toEqual(["CSCO", "AMAT"]);
   });
 });
 

@@ -24,8 +24,8 @@ export type CompanyGroup = {
 };
 
 const PER_COMPANY = 3;
-/** Company cards per "more" step on the wire. */
-export const COMPANY_PAGE = 24;
+/** Company cards per "more" step on the wire: eight rows of two (owner rule 5: about eight rows), the rest a step away. */
+export const COMPANY_PAGE = 16;
 /** A press release counts for less than a story a publisher chose to write. */
 const PRESS_RELEASE_WEIGHT = 0.3;
 /** Below this a company is not worth a card (a single press release on a quiet stock), unless the viewer follows it. */

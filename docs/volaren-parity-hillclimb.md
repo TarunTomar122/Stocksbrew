@@ -185,7 +185,39 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
-### 2026-11-12 ~05:20 UTC, ship 37 live (fb443bf); judges on 37; round 13 building (lead, overnight loop)
+### 2026-11-12 ~02:35 UTC, ships 38 (46ed8ba) and 39 (13145d8) live (lead, overnight loop)
+
+- **Ship 38 (round 13A):**
+  - **Worth knowing:** every stock is a card with a real price fact from its own closes ("Its biggest gain since Sep 2", "About twice a normal 3.8% day", "Still down 7.2% over the past month"). It is never an unconfirmed reason, and a fact two cards would share is dropped. No count labels.
+  - **Desktop rail log:** one status row per run (kind, figure, time).
+  - **Inbox:** the headline is one idea with the report date underneath. The same stock's cards merge into one with two figures. Rows the read already told are hidden but still marked read.
+  - **My stocks:** all 9 holdings show, and the scroll ends on whole cards.
+  - **Lead:** "Wall St futures…" columns count as roundups.
+  - **Checks:** 2834 tests.
+- **Ship 39 (round 13B + lead):**
+  - **Compare:** the two calls, each with its number, sit under the headline. "Where they differ" is 7 one-figure rows. "What our research says" and the "All the numbers" label are gone.
+  - **Backtest:** the columns end level, the cards lead with one number, and the copy says "Behind the S&P 500 in all four full years".
+  - **Stock page:** What changed goes through headlineCase. Signed-out pages have one action.
+  - **Insiders:** the lists are ticker only and the table ends on whole rows.
+  - **One signed-out label sitewide:** "Start free".
+  - **Lead:** plain-copy learns major/strategy/live/stream/vote/tonight/capture/wealth.
+  - **Checks:** 2838 tests in both modes; the VPS is pulled.
+- **Judges on live 39** (scratchpad/judge39):
+  - Codex: UI 7, UX 7, usability 6.5, wording 7, agent feel 6.5, similarity 7, sell 6.5, overall 7.
+  - Cursor: UI 6, UX 7, usability 7, wording 6, agent feel 7, similarity 6, sell 6, overall 6.
+  - Asks:
+    - Briefing: phone agent log as status rows, opening read with an insight plus a next step.
+    - Card headline casing.
+    - Inbox example: the page is empty after the read.
+    - Three "Start free" buttons per view.
+    - JPM: call wording, chart dots and What changed.
+    - Compare: the "rows won" line and an unquantified headline.
+    - Backtest: rebalance mechanics.
+    - Insiders: the cluster name and the next step.
+  - All routed to rounds 15A and 15B.
+- **Running:** round 14 (Today pages), round 15A (briefing, inbox, shell CTA), round 15B (stock page, compare, backtest, insiders).
+
+### 2026-11-12 ~02:00 UTC, ship 37 live (fb443bf); judges on 37; round 13 building (lead, overnight loop)
 
 - **Ship 37 live:** rounds 11 + 12 plus a shorter backtest headline. Nine pages return 200; the VPS is pulled. Cold-load blips on the local server: the backtest example and compare briefs read empty once, then fine on retry.
 - **Judges on live 37** (scratchpad/judge37):
@@ -202,7 +234,7 @@ Newest first. One entry per tick: what changed, what was verified (with screensh
     - Sitewide: five different signed-out CTA labels.
 - **Round 13A** (briefing, agent log, inbox, My stocks) and **round 13B** (stock page, compare, backtest, insiders, one CTA label) are building.
 
-### 2026-11-12 ~04:30 UTC, ships 35 (e671df3) and 36 (991501c) live; ship 37 frozen (fb443bf) (lead, overnight loop)
+### 2026-11-12 ~01:45 UTC, ships 35 (e671df3) and 36 (991501c) live; ship 37 frozen (fb443bf) (lead, overnight loop)
 
 - A usage limit moved the session to another account mid-round. Every builder was resumed from its transcript; no work was lost.
 - **Ship 35 (round 10): the inbox.**
@@ -221,7 +253,7 @@ Newest first. One entry per tick: what changed, what was verified (with screensh
   - /compare opens on NVDA vs AMD with its read. /backtest opens on a cached 60/40 example with the read ("The 60/40 mix would have turned $10,000 into $11,960 since Nov 2021"; the index and worst drop are in the card). Mechanics copy removed.
   - 2824 tests in both modes, tsc and eslint clean.
 
-### 2026-11-12 ~02:45 UTC, ship 34 live (29a5047): landing cards that lead with a number, briefing cards that show everything, a tighter stock page (lead, overnight loop)
+### 2026-11-12 ~01:05 UTC, ship 34 live (29a5047): landing cards that lead with a number, briefing cards that show everything, a tighter stock page (lead, overnight loop)
 
 - **Ship 34 (round 8, from the judges on 31):**
   - **Landing:** the example portfolio is now stock cards. All 9 "watches" cards lead with a big number (lib/lead-percent.ts; a range dash is not a minus), with no "Show all". The FAQ is printed with no folds.
@@ -251,7 +283,7 @@ Newest first. One entry per tick: what changed, what was verified (with screensh
   - round 9 (speed on filings/follow/screener/xray/agents), fixing its QA
   - round 10 (inbox)
 
-### 2026-11-12 ~01:40 UTC, ship 33 live (e05a6d0): a briefing that picks real news per stock and says each move once (lead, overnight loop)
+### 2026-11-12 ~00:35 UTC, ship 33 live (e05a6d0): a briefing that picks real news per stock and says each move once (lead, overnight loop)
 
 - **Ship 33 (round 6 + QA fixes):**
   - lib/briefing-news.ts picks one story per stock, preferring the reason for the move. It drops roundups, opinion, rumours, explainers, clickbait and headlines that contradict the move. After-hours and later stories are kept.
@@ -262,7 +294,7 @@ Newest first. One entry per tick: what changed, what was verified (with screensh
 - **Open (→ round 8):** two briefing cards repeat the Reddit sentence (rule 1); AMD's +7.3% card has no reason line. Mixed headlines like "Lisa Su just Delivered Fantastic news" stay as written (the casing is conservative next to unknown capitals).
 - **Running:** round 8 (judge findings on landing, briefing, JPM, insiders, signals, My stocks); round 9 (speed: /filings, /follow, /screener, /portfolio/xray, /agents).
 
-### 2026-11-12 ~00:55 UTC, ship 32 live (d0f06f3); ship 33 frozen (9a3b624); judges on 31 (lead, overnight loop)
+### 2026-11-12 ~00:20 UTC, ship 32 live (d0f06f3); ship 33 frozen (9a3b624); judges on 31 (lead, overnight loop)
 
 - **Ship 32 (round 7): midday movers rebuild.**
   - New units: tikrr-midday-movers-price.timer at 12:30 and 14:30 ET on weekdays (price_core_intraday lane, mid_check), with OnSuccess tikrr-midday-anomalies.service. They run at :30 to stay clear of reddit-buzz at 14:20. Installed on the VPS; first run Nov 12 17:30 UTC.
@@ -282,7 +314,7 @@ Newest first. One entry per tick: what changed, what was verified (with screensh
   - Cursor: UI 7, UX 7, usability 8, wording 7, agent feel 7, similarity 7, sell 7, overall 7 (up from 6).
   - Remaining asks (→ round 8): "1 more" on every briefing card and the Quiet Show toggle; landing example book as rows, a watches grid with a hole and "Show all", folded FAQ; JPM's small labels, the long "What changed" list, two locks and the phone "Show more"; the insiders table at 60 rows plus Show more; Signals Reddit showing 8 of 16 and SPY mood "—"; My stocks agents sharing one last-run line and the desktop rail ending early.
 
-### 2026-11-12 ~00:25 UTC, ship 31 live (a106d69): stock page in one column, one nav on phones, real insider clusters, an example briefing (lead, overnight loop)
+### 2026-11-12 ~00:06 UTC, ship 31 live (a106d69): stock page in one column, one nav on phones, real insider clusters, an example briefing (lead, overnight loop)
 
 - Ship 31 (rounds 4 + 5 + lead fixes):
   - **Stock page:** one column, with no Follow rail, "Why:" label, bars, coloured edges or per-row NEWS label. Sentence-case "What changed". The "call stands until" line and the market-wide S&P conditions are gone (backend/call_stability.py; older stored text is cleaned on read by lib/rule-copy.ts, with one "or" at the end). The sales line reads "faster than its 6.4% growth in fiscal 2025".

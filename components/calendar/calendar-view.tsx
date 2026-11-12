@@ -1,8 +1,10 @@
 import * as React from "react";
 
 import { DataTable, type DataColumn, type DataRow } from "@/components/oa/kit/data-table";
-import { Delta, Empty, FOCUS, NUM, Panel, ShowMore, Tag, Ticker, ToneGlyph, Verdict, fmtCompact } from "@/components/oa/kit";
+import { Delta, Empty, FOCUS, NUM, Panel, Tag, Ticker, ToneGlyph, Verdict, fmtCompact } from "@/components/oa/kit";
+import { StockCard, stockGridFill } from "@/components/briefing/stock-card";
 import { StockLogo } from "@/components/stock-logo";
+import type { BigReport } from "@/lib/calendar-insights";
 import { shortCompanyName } from "@/lib/plain-copy";
 import {
   CALENDAR_TYPES,
@@ -40,6 +42,7 @@ import {
 } from "@/lib/calendar-shared";
 import Link from "next/link";
 import { AppLink } from "@/components/oa/app-link";
+import { WholeRows } from "@/components/wire/whole-rows";
 
 const CHIP =
   "inline-flex h-10 shrink-0 items-center gap-1.5 rounded-md border px-3 text-[14px] transition-colors lg:h-8 " + FOCUS;
@@ -206,6 +209,51 @@ function DayStrip({ filters, today, days }: { filters: CalendarFilters; today: s
   );
 }
 
+/* ── The biggest reports still to come ─────────────────────────────────── */
+
+/**
+ * What matters this week before the grid (owner rule 7): the biggest companies still to report, a card each, with the
+ * move after its last report as the one figure and when it reports. Each card opens the company's earnings page.
+ */
+export function BiggestReports({ reports, className = "" }: { reports: BigReport[]; className?: string }) {
+  if (reports.length === 0) return null;
+  // When every card reports at the same time, the heading says it once instead of each card (owner rule 1).
+  const shared = reports.every((report) => report.when === reports[0]!.when) ? reports[0]!.when : null;
+  return (
+    <section aria-labelledby="biggest-reports" className={className}>
+      <h2 id="biggest-reports" className="px-2 pb-2 text-[17px] font-medium tracking-tight text-oa-fg sm:px-3">
+        {shared ? `The biggest reports, ${shared}` : "The biggest reports still to come"}
+      </h2>
+      {/* Two reports sit side by side as halves; three or more run three across, a short last row filled. */}
+      <ul className={`grid grid-flow-row-dense grid-cols-1 gap-3 sm:grid-cols-2 ${reports.length >= 3 ? "lg:grid-cols-3" : ""}`}>
+        {reports.map(({ item, lastPct, when, size }, index) => {
+          // Rounded first, so a move that shows as 0.0% carries no sign or colour.
+          const shown = Math.round(lastPct * 10) / 10;
+          return (
+            <StockCard
+              key={item.id}
+              ticker={item.ticker}
+              name={item.company}
+              figure={`${shown > 0 ? "+" : shown < 0 ? "−" : ""}${Math.abs(shown).toFixed(1)}%`}
+              tone={shown > 0 ? "up" : shown < 0 ? "down" : "flat"}
+              sentence={shared ? size : `Reports ${when}. ${size}`}
+              fill={reports.length >= 3 ? stockGridFill(index, reports.length, true) : reports.length === 1 ? "sm:col-span-2" : ""}
+              cover={
+                <Link
+                  href={earningsHref(item.ticker)}
+                  prefetch={false}
+                  aria-label={`${item.ticker} earnings`}
+                  className="absolute inset-0 z-0 rounded-[inherit] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
+                />
+              }
+            />
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
 /* ── Rows shared by the week and list views ────────────────────────────── */
 
 // Beat, missed or in line lives in lib/calendar-shared (pure, so it is unit-tested); re-exported for the detail page.
@@ -299,6 +347,7 @@ function EarningsLine({
   narrow = compact,
   quiet,
   mark,
+  desktopOnly = false,
 }: {
   item: EarningsItem;
   compact: boolean;
@@ -306,6 +355,12 @@ function EarningsLine({
   narrow?: boolean;
   quiet: boolean;
   mark: boolean;
+  /**
+   * A day that has passed, in a narrow column: a phone never shows it (its day is one header line there), so the row
+   * is only what the desktop column shows (ticker, result mark and move), without the hidden name, chip and figures
+   * that made the page heavy (owner rule 11).
+   */
+  desktopOnly?: boolean;
 }) {
   const reported = item.epsActual !== null;
   const detail = compact ? "lg:hidden" : "";
@@ -316,14 +371,33 @@ function EarningsLine({
     : item.epsEstimate !== null
       ? `expected ${fmtEps(item.epsEstimate)} a share`
       : "";
+  if (desktopOnly && narrow) {
+    return (
+      <Link prefetch={false} data-row="" href={earningsHref(item.ticker)} title={[item.company, result].filter(Boolean).join(": ")} className={`flex min-h-[30px] items-center gap-x-2 px-3 py-0.5 hover:bg-oa-accent ${FOCUS}`}>
+        <span className={`${NUM} inline-flex shrink-0 items-center gap-1.5 text-[14px] font-medium text-oa-fg`}>
+          <StockLogo ticker={item.ticker} size={16} atOnce />
+          {item.ticker}
+        </span>
+        {reported ? <ResultMark item={item} /> : null}
+        <span className="ml-auto flex shrink-0 items-baseline text-[14px]">
+          {reported ? (
+            <ReactionValue item={item} narrow />
+          ) : item.epsEstimate !== null ? (
+            <span className={`${NUM} text-oa-muted-fg`}>{fmtEps(item.epsEstimate)}</span>
+          ) : null}
+        </span>
+      </Link>
+    );
+  }
   return (
     <Link prefetch={false}
+      data-row=""
       href={earningsHref(item.ticker)}
       title={[item.company, result].filter(Boolean).join(": ")}
       className={`flex min-h-10 items-center gap-x-2 px-3 py-1 hover:bg-oa-accent lg:min-h-[30px] lg:py-0.5 ${narrow ? "" : "flex-wrap"} ${FOCUS}`}
     >
       <span className={`${NUM} inline-flex shrink-0 items-center gap-1.5 text-[14px] ${quiet ? "font-medium text-oa-fg" : "font-semibold text-oa-fg"} ${compact ? "" : narrow ? "min-w-[4.5rem] lg:min-w-0" : "min-w-[4.5rem]"}`}>
-        <StockLogo ticker={item.ticker} size={16} />
+        <StockLogo ticker={item.ticker} size={16} atOnce />
         {item.ticker}
       </span>
       {narrow && reported ? <ResultMark item={item} /> : null}
@@ -358,6 +432,7 @@ function EarningsLine({
 function EconomicLine({ item }: { item: EconomicItem }) {
   return (
     <a
+      data-row=""
       href={item.sourceUrl || undefined}
       target="_blank"
       rel="noopener noreferrer"
@@ -385,7 +460,7 @@ function readableName(name: string): string {
 function IpoLine({ item }: { item: IpoItem }) {
   const price = fmtIpoPrice(item.priceLow, item.priceHigh);
   return (
-    <div className="px-3 py-1.5">
+    <div data-row="" className="px-3 py-1.5">
       <span className="flex items-center justify-between gap-2">
         <span className="min-w-0 text-pretty text-[14px] font-medium leading-5 text-oa-fg">{readableName(item.company)}</span>
         {item.ticker ? <span className={`${NUM} shrink-0 text-[12.5px] text-oa-muted-fg`}>{item.ticker}</span> : null}
@@ -406,9 +481,9 @@ function IpoLine({ item }: { item: IpoItem }) {
 /** Ex-dividend rows sit under an "Ex-dividend" heading, so the row says only who, how much and when it pays. */
 function DividendLine({ item }: { item: DividendItem }) {
   return (
-    <Link prefetch={false} href={`/stock/${encodeURIComponent(item.ticker)}`} title={item.paymentDate ? `${item.ticker} pays ${fmtShortDay(item.paymentDate)}` : undefined} className={`flex min-h-10 items-center gap-2 px-3 py-1 hover:bg-oa-accent lg:min-h-[30px] lg:py-0.5 ${FOCUS}`}>
+    <Link prefetch={false} data-row="" href={`/stock/${encodeURIComponent(item.ticker)}`} title={item.paymentDate ? `${item.ticker} pays ${fmtShortDay(item.paymentDate)}` : undefined} className={`flex min-h-10 items-center gap-2 px-3 py-1 hover:bg-oa-accent lg:min-h-[30px] lg:py-0.5 ${FOCUS}`}>
       <span className={`${NUM} inline-flex shrink-0 items-center gap-1.5 text-[14px] font-medium text-oa-fg`}>
-        <StockLogo ticker={item.ticker} size={16} />
+        <StockLogo ticker={item.ticker} size={16} atOnce />
         {item.ticker}
       </span>
       {/* The pay date is in the tooltip, not "pays …" written on every row (owner, Nov 11). */}
@@ -420,9 +495,11 @@ function DividendLine({ item }: { item: DividendItem }) {
 
 /* ── Week ──────────────────────────────────────────────────────────────── */
 
-const WEEK_SESSION_ROWS = 7;
-const WEEK_LEAD_ROWS = 12;
-const WEEK_OTHER_ROWS = 4;
+/**
+ * A day's column scrolls inside a box of about this height, ending on a whole row, with every event in it (owner
+ * rule 5: all of them, not the first few and a "+ 8 more" link under each group).
+ */
+const DAY_REM = 34;
 
 function More({ count, href }: { count: number; href: string }) {
   if (count <= 0) return null;
@@ -444,7 +521,6 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
   const all = [...bucket.earnings.bmo, ...bucket.earnings.amc, ...bucket.earnings.unknown];
   const beats = all.filter((item) => resultWord(item)?.tone === "up").length;
   const misses = all.filter((item) => resultWord(item)?.tone === "down").length;
-  const sessionRows = isToday ? WEEK_LEAD_ROWS : WEEK_SESSION_ROWS;
   return (
     <section
       id={`d-${bucket.day}`}
@@ -455,12 +531,13 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
     >
       <AppLink
         href={dayHref}
-        className={`flex min-h-10 items-center justify-between gap-2 border-b border-oa-border px-3 py-2 hover:bg-oa-accent ${FOCUS} ${
-          isToday ? "shadow-[inset_0_2px_0_var(--oa-primary)]" : past ? "max-lg:border-b-0" : "bg-oa-bg"
+        className={`flex min-h-10 flex-wrap items-center justify-between gap-x-2 border-b border-oa-border px-3 py-2 hover:bg-oa-accent ${FOCUS} ${
+          past ? "max-lg:border-b-0" : isToday ? "" : "bg-oa-bg"
         }`}
       >
+        {/* Today is said in its own words and colour, not with a coloured edge on the column (owner rule 6). */}
         <span className="flex items-baseline gap-2 whitespace-nowrap">
-          <span className={isToday ? "text-[15px] font-semibold text-oa-fg" : `text-[14px] font-medium ${past ? "text-oa-muted-fg" : "text-oa-fg"}`}>
+          <span className={isToday ? "text-[15px] font-semibold text-oa-primary" : `text-[14px] font-medium ${past ? "text-oa-muted-fg" : "text-oa-fg"}`}>
             {isToday ? "Today" : weekdayName(bucket.day)}
           </span>
           <span className={`${NUM} text-[12.5px] text-oa-muted-fg`}>
@@ -495,7 +572,7 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
         </span>
       </AppLink>
 
-      <DayBody fold={!isToday && !past && bucket.total > 0} past={past} label={`Show ${dayCount(bucket)}`}>
+      <DayBody past={past}>
         {bucket.total === 0 ? <p className="px-3 py-4 text-[14px] text-oa-muted-fg">Nothing scheduled.</p> : null}
 
         {bucket.economic.length ? (
@@ -507,24 +584,24 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
           </div>
         ) : null}
 
-        {sessions.map((session) => {
+        {sessions.map((session, sessionIndex) => {
           const rows = bucket.earnings[session];
+          // "Expected profit a share" once per day, over the first group whose numbers are estimates (owner rule 1).
+          const estimates = (list: EarningsItem[]) => list.some((item) => item.epsActual === null && item.epsEstimate !== null);
+          const sayExpected = estimates(rows) && !sessions.slice(0, sessionIndex).some((earlier) => estimates(bucket.earnings[earlier]));
           return (
             <div key={session}>
               <h3 className={`${SECTION} flex items-baseline justify-between gap-2`}>
                 <span>
                   {session === "unknown" && past ? "Time not given" : SESSION_LABEL[session]}
                   {/* Once per group, for the numbers on its rows, instead of "expected … a share" on every row. */}
-                  {rows.some((item) => item.epsActual === null && item.epsEstimate !== null) ? (
-                    <span className="block font-normal">Expected profit a share</span>
-                  ) : null}
+                  {sayExpected ? <span className="block font-normal">Expected profit a share</span> : null}
                 </span>
                 <span className={`${NUM} shrink-0`}>{rows.length}</span>
               </h3>
-              {rows.slice(0, sessionRows).map((item) => (
-                <EarningsLine key={item.id} item={item} compact={compact} narrow={!isToday} quiet={past} mark={mark} />
+              {rows.map((item) => (
+                <EarningsLine key={item.id} item={item} compact={compact} narrow={!isToday} quiet={past} mark={mark} desktopOnly={past && compact} />
               ))}
-              <More count={rows.length - sessionRows} href={dayHref} />
             </div>
           );
         })}
@@ -532,10 +609,9 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
         {bucket.ipos.length ? (
           <div>
             <h3 className={SECTION}>IPOs</h3>
-            {bucket.ipos.slice(0, WEEK_OTHER_ROWS).map((item) => (
+            {bucket.ipos.map((item) => (
               <IpoLine key={item.id} item={item} />
             ))}
-            <More count={bucket.ipos.length - WEEK_OTHER_ROWS} href={dayHref} />
           </div>
         ) : null}
 
@@ -545,10 +621,9 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
               <span>Buy before this day to get the dividend</span>
               <span className={NUM}>{bucket.dividends.length}</span>
             </h3>
-            {bucket.dividends.slice(0, WEEK_OTHER_ROWS).map((item) => (
+            {bucket.dividends.map((item) => (
               <DividendLine key={item.id} item={item} />
             ))}
-            <More count={bucket.dividends.length - WEEK_OTHER_ROWS} href={dayHref} />
           </div>
         ) : null}
         <div className="h-2" />
@@ -558,46 +633,16 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
 }
 
 /**
- * "Cisco Systems, Applied Materials and 16 more reports, 1 IPO and 4 dividends":
- * what a folded day holds, for its button. The two biggest companies are named,
- * so a day the read talks about shows those names before it is opened.
+ * A day's events, every one. From `lg` up each column scrolls inside a box that ends on a whole row; on a phone a day
+ * still to come shows whole, none behind a button or a hidden scroll (owner rule 2), and a day that has passed stays a
+ * one-line header (its results open from there).
  */
-function dayCount(bucket: DayBuckets): string {
-  const reports = earningsCount(bucket);
-  const biggest = [...bucket.earnings.bmo, ...bucket.earnings.amc, ...bucket.earnings.unknown]
-    .filter((item) => item.marketCap != null && item.marketCap > 0)
-    .sort((a, b) => (b.marketCap ?? 0) - (a.marketCap ?? 0))
-    .slice(0, reports > 2 ? 2 : 0)
-    .map((item) => shortCompanyName(item.company) || item.ticker);
-  const rest = reports - biggest.length;
-  const reportPart = !reports
-    ? ""
-    : biggest.length
-      ? `${biggest.join(", ")} and ${rest} more ${rest === 1 ? "report" : "reports"}`
-      : `${reports} earnings ${reports === 1 ? "report" : "reports"}`;
-  const parts = [
-    bucket.economic.length ? `${bucket.economic.length} economic release${bucket.economic.length === 1 ? "" : "s"}` : "",
-    reportPart,
-    bucket.ipos.length ? `${bucket.ipos.length} IPO${bucket.ipos.length === 1 ? "" : "s"}` : "",
-    bucket.dividends.length ? `${bucket.dividends.length} dividend${bucket.dividends.length === 1 ? "" : "s"}` : "",
-  ].filter(Boolean);
-  return parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}` : parts[0] ?? "nothing scheduled";
-}
-
-/**
- * A day's events. On a phone, a day still to come waits behind one button so
- * today stays the first thing to read; a day that has passed stays a one-line
- * header (its results open from there). From `lg` up every day shows.
- */
-function DayBody({ fold, past, label, children }: { fold: boolean; past: boolean; label: string; children: React.ReactNode }) {
-  if (fold) {
-    return (
-      <ShowMore label={label} className="max-lg:px-3 max-lg:pb-3">
-        {children}
-      </ShowMore>
-    );
-  }
-  return <div className={past ? "max-lg:hidden" : ""}>{children}</div>;
+function DayBody({ past, children }: { past: boolean; children: React.ReactNode }) {
+  return (
+    <WholeRows rem={DAY_REM} minWidth={1024} className={`scrollbar-hide lg:max-h-[34rem] lg:overflow-y-auto lg:overscroll-contain ${past ? "max-lg:hidden" : ""}`}>
+      {children}
+    </WholeRows>
+  );
 }
 
 /**
