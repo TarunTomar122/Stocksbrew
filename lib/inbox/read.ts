@@ -1,7 +1,7 @@
 import type { Insight, TheRead } from "@/lib/insights";
 
 import { isUnread, shortDay } from "./merge";
-import type { InboxItem, UpcomingLine, UpcomingReport } from "./types";
+import type { InboxItem, InboxStockRead, UpcomingLine, UpcomingReport } from "./types";
 import { listTickers, moveSentence, pastWhen, reportSentence, UNUSUAL_MOVE } from "./words";
 
 /**
@@ -262,7 +262,7 @@ function investorsCard(items: InboxItem[]): Insight | null {
  * The headline's lead when the news is about prices: how many stocks moved at least twice their normal day on the
  * newest day (one stock: its move itself), and the soonest report coming up. Null when neither applies.
  */
-type PriceLead = { text: string; moveTicker: string | null; moveId: string | null; reportTicker: string | null };
+type PriceLead = { text: string; sub: string | null; moveTicker: string | null; moveId: string | null; reportTicker: string | null };
 
 function priceLead(fresh: InboxItem[], upcoming: UpcomingReport[], today: string | null, example: boolean): PriceLead | null {
   const whose = example ? "the example portfolio's" : "your";
@@ -283,11 +283,13 @@ function priceLead(fresh: InboxItem[], upcoming: UpcomingReport[], today: string
   // The report card tells the one to watch; the headline says when the week's reports start, or how many there are.
   const named = next && today && (upcoming.length === 1 || !moves);
   let report = next && today ? (named ? reportSentence({ ...next, history: null }, today).replace(/\.$/, "") + (upcoming.length > 1 ? `, the first of ${upcoming.length} reports on ${whose} stocks in the next week` : "") : `${upcoming.length} of ${whose} stocks report earnings in the next week`) : null;
-  // "NVDA fell 5.5% yesterday, …, and it reports on Nov 17", not NVDA twice.
-  if (report && named && moveTicker === next!.ticker) report = report.replace(new RegExp(`^${next!.ticker} `), "it ");
+  // One idea in the headline (owner rule 8): the unusual move leads, and the report date goes in the line under it,
+  // "It reports on Nov 17 after the close.", not NVDA twice.
+  if (report && moves && named && moveTicker === next!.ticker) report = report.replace(new RegExp(`^${next!.ticker} `), "it ");
   const reportTicker = named ? next!.ticker : null;
-  const text = moves && report ? `${moves}, and ${report}.` : moves ? `${moves}.` : report ? `${report}.` : null;
-  return text ? { text, moveTicker, moveId, reportTicker } : null;
+  const text = moves ? `${moves}.` : report ? `${report}.` : null;
+  const sub = moves && report ? `${capitalise(report)}.` : null;
+  return text ? { text, sub, moveTicker, moveId, reportTicker } : null;
 }
 
 /**
@@ -296,7 +298,41 @@ function priceLead(fresh: InboxItem[], upcoming: UpcomingReport[], today: string
  * stocks whose report history the reports card gives (`reports`). A report only the headline names keeps its history
  * in its row, since the headline says only the day.
  */
-export type InboxTold = { moveIds: string[]; reasonIds: string[]; reports: string[] };
+export type InboxTold = {
+  moveIds: string[];
+  reasonIds: string[];
+  reports: string[];
+  /** Stocks whose report day the headline or the line under it names. */
+  reportDays?: string[];
+};
+
+/**
+ * The move and the report coming up on one stock, when the read tells both: one card for the stock with its two
+ * figures (the move against a normal day, the usual move on a report) instead of two cards wearing the same logo
+ * (owner rule 1). Null otherwise.
+ */
+function stockRead(moves: Insight | null, reports: Insight | null, items: InboxItem[], upcoming: UpcomingReport[]): InboxStockRead | null {
+  const ticker = moves?.tickers?.[0];
+  if (!moves || !reports || !ticker || reports.tickers?.[0] !== ticker) return null;
+  const lead = latestMoves(items)?.moves[0];
+  const report = upcoming.find((entry) => entry.ticker === ticker);
+  if (!lead?.move || lead.tickers[0] !== ticker || !report || report.usualPct === null) return null;
+  const move = lead.move;
+  return {
+    ticker,
+    href: `/stock/${encodeURIComponent(ticker)}`,
+    figures: [
+      {
+        value: signedPct(move.pct),
+        tone: move.pct > 0 ? "up" : move.pct < 0 ? "down" : "flat",
+        text: move.normalPct !== null ? `A normal day is a move of about ${move.normalPct.toFixed(1)}% either way.` : moves.text,
+      },
+      { value: usualWord(report.usualPct), tone: "flat", text: "Its usual move on a report." },
+    ],
+    // What else the two cards said: a confirmed reason, other unusual moves, the week's other reports.
+    note: [moves.soWhat, reports.soWhat].filter(Boolean).join(" ") || null,
+  };
+}
 
 export function inboxRead(
   items: InboxItem[],
@@ -312,11 +348,11 @@ export function inboxReadTold(
   seenAt: string | null,
   example: boolean,
   context: { upcoming?: UpcomingReport[]; today?: string } = {},
-): { read: TheRead | null; told: InboxTold } {
-  const told: InboxTold = { moveIds: [], reasonIds: [], reports: [] };
+): { read: TheRead | null; told: InboxTold; stock: InboxStockRead | null } {
+  const told: InboxTold = { moveIds: [], reasonIds: [], reports: [], reportDays: [] };
   const today = context.today ?? null;
   const upcoming = today ? (context.upcoming ?? []) : [];
-  if (items.length === 0 && upcoming.length === 0) return { read: null, told };
+  if (items.length === 0 && upcoming.length === 0) return { read: null, told, stock: null };
   const fresh = example || !seenAt ? items : items.filter((item) => isUnread(item, seenAt));
   // Two things at most, so the headline stays one short line; the cards and the list carry the rest.
   const said = parts(fresh, example).slice(0, 2);
@@ -334,18 +370,21 @@ export function inboxReadTold(
   const moves = movesCard(items, today, lead?.moveTicker ?? null);
   const reports = today ? reportsCard(upcoming, today, lead?.reportTicker ?? null) : null;
   const rest = [callsCard(items, example), moves ? null : agentsCard(items, example), investorsCard(items)].filter((card): card is Insight => card !== null);
-  const insights = [moves, reports, ...rest].filter((card): card is Insight => card !== null).slice(0, 3);
+  // The move and the report on the same stock are one card with two figures, not two cards with one logo.
+  const stock = stockRead(moves, reports, items, upcoming);
+  const insights = (stock ? rest : [moves, reports, ...rest]).filter((card): card is Insight => card !== null).slice(0, stock ? 2 : 3);
   if (lead?.moveId) told.moveIds.push(lead.moveId);
-  if (moves && insights.includes(moves)) {
+  if (lead?.reportTicker) told.reportDays!.push(lead.reportTicker);
+  if (moves && (stock || insights.includes(moves))) {
     const leadMove = latestMoves(items)?.moves[0];
     if (leadMove && !told.moveIds.includes(leadMove.id)) told.moveIds.push(leadMove.id);
     // The card gives the lead's confirmed reason (movesCard's soWhat); the headline never does.
     if (leadMove?.id.startsWith("move:") && leadMove.detail) told.reasonIds.push(leadMove.id);
   }
   // The card tells the history only when it has one (reportsCard): then its row says just the day.
-  const reportLead = reports && insights.includes(reports) ? upcoming.find((report) => report.ticker === reports.tickers?.[0]) : undefined;
+  const reportLead = reports && (stock || insights.includes(reports)) ? upcoming.find((report) => report.ticker === reports.tickers?.[0]) : undefined;
   if (reportLead?.history) told.reports.push(reportLead.ticker);
-  return { read: { headline: capitalise(headline), insights }, told };
+  return { read: { headline: capitalise(headline), ...(lead?.sub ? { sub: lead.sub } : {}), insights }, told, stock };
 }
 
 /**
@@ -357,16 +396,22 @@ export function rowsAfterRead(items: InboxItem[], upcoming: UpcomingReport[], to
   const moveIds = new Set(told.moveIds);
   const reasonIds = new Set(told.reasonIds);
   const reports = new Set(told.reports);
+  const days = new Set(told.reportDays ?? []);
   return {
-    items: items.map((item) =>
-      moveIds.has(item.id) && item.id.startsWith("move:") && item.move && item.tickers.length === 1
-        ? { ...item, text: moveSentence(item.tickers[0]!, item.move.pct, item.move.day, null, today), detail: reasonIds.has(item.id) ? null : item.detail }
-        : item,
-    ),
-    upcoming: upcoming.map((report) =>
-      reports.has(report.ticker)
-        ? { ticker: report.ticker, date: report.date, text: reportSentence({ ...report, history: null }, today), note: null }
-        : { ticker: report.ticker, date: report.date, text: reportSentence(report, today), note: report.vsDay ? `That is ${report.vsDay} for it.` : null },
-    ),
+    items: items.map((item) => {
+      if (!(moveIds.has(item.id) && item.id.startsWith("move:") && item.move && item.tickers.length === 1)) return item;
+      const detail = reasonIds.has(item.id) ? null : item.detail;
+      // Nothing left that the read does not say (the move, and its reason when it has one): no row for it (owner
+      // rule 1). It still counts as shown, so opening the page reads it.
+      return { ...item, text: moveSentence(item.tickers[0]!, item.move.pct, item.move.day, null, today), detail, ...(detail ? {} : { told: true }) };
+    }),
+    upcoming: upcoming
+      // The read names its day, and gives its history or it has none: the row would only say it again.
+      .filter((report) => !(days.has(report.ticker) && (reports.has(report.ticker) || !report.history)))
+      .map((report) =>
+        reports.has(report.ticker)
+          ? { ticker: report.ticker, date: report.date, text: reportSentence({ ...report, history: null }, today), note: null }
+          : { ticker: report.ticker, date: report.date, text: reportSentence(report, today), note: report.vsDay ? `That is ${report.vsDay} for it.` : null },
+      ),
   };
 }

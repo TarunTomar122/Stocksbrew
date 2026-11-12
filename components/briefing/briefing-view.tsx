@@ -17,7 +17,6 @@ import { StartFreeButton } from "@/components/oa/start-free-button";
 import { StockLogo } from "@/components/stock-logo";
 import {
   groupBriefingSections,
-  groupCountLabel,
   type BriefingGroup,
 } from "@/lib/briefing-groups";
 import { briefingRead, comingUpAfterRead, earlierSession, holdingsFirst, readEarningsTickers, type BriefingSession } from "@/lib/briefing-read";
@@ -63,6 +62,11 @@ export type BriefingViewProps = {
   example?: ExampleBriefingExtras | null;
   /** Held stocks that reported overnight, by ticker: the card's fact becomes the result (lib/results). */
   resultFacts?: Readonly<Record<string, string>>;
+  /**
+   * Price facts by ticker, most telling first (lib/briefing-move-facts.ts): a Worth knowing stock with no other fact
+   * of its own still gets a card with one ("Its biggest gain since Sep 9"), not a bare chip (owner rule 3).
+   */
+  moveFacts?: Readonly<Record<string, readonly string[]>>;
   /** When the server rendered the page (ms). The read dates old moves against it, so server and browser agree. */
   renderedAt?: number;
 };
@@ -180,6 +184,7 @@ function GroupCards({
   chips = false,
   results,
   readEarnings,
+  moveFacts,
 }: {
   groups: BriefingGroup[];
   actions: GroupActions;
@@ -189,8 +194,9 @@ function GroupCards({
   results?: Readonly<Record<string, string>>;
   /** Stocks whose report the read already names, so no card says it again. */
   readEarnings?: ReadonlySet<string>;
+  moveFacts?: Readonly<Record<string, readonly string[]>>;
 }) {
-  const words = React.useMemo(() => sectionWords(groups, { personal, results, readEarnings }), [groups, personal, results, readEarnings]);
+  const words = React.useMemo(() => sectionWords(groups, { personal, results, readEarnings, moveFacts }), [groups, personal, results, readEarnings, moveFacts]);
   if (groups.length === 0) return null;
   // Nothing on the card, and nothing more to open on it (./card-words.ts).
   const bare = (group: BriefingGroup) => chips && Boolean(group.ticker) && words.cards.get(group.key)!.bare;
@@ -380,6 +386,7 @@ export function BriefingView({
   agentLog = null,
   example = null,
   resultFacts,
+  moveFacts,
   renderedAt,
 }: BriefingViewProps) {
   // One clock for the whole life of the view: the server's, so the hydrated read matches the one sent as HTML.
@@ -501,8 +508,8 @@ export function BriefingView({
   // Keyed on the tickers, so the cards' words are not worked out again on every render (the read is rebuilt each time).
   const readEarningsKey = personal ? [...readEarningsTickers(read)].sort().join(",") : "";
   const readEarnings = React.useMemo(() => new Set(readEarningsKey.split(",").filter(Boolean)), [readEarningsKey]);
-  const groupCards = (groups: BriefingGroup[], chips = false) => (
-    <GroupCards groups={groups} actions={actions} anchors={anchors} personal={personal} chips={chips} results={resultFacts} readEarnings={readEarnings} />
+  const groupCards = (groups: BriefingGroup[], chips = false, prices?: BriefingViewProps["moveFacts"]) => (
+    <GroupCards groups={groups} actions={actions} anchors={anchors} personal={personal} chips={chips} results={resultFacts} readEarnings={readEarnings} moveFacts={prices} />
   );
 
   return (
@@ -603,7 +610,7 @@ export function BriefingView({
 
         {/* Only when something needs a decision: a card saying there is nothing is a card without data (owner rule 4). */}
         {personal && grouped.needs_you.length > 0 ? (
-          <Section id="needs-you" label="Needs you" count={groupCountLabel(grouped.needs_you)}>
+          <Section id="needs-you" label="Needs you">
             {/* One card per stock: its main update and the next one on the face; opening it shows the reason and the rest. */}
             {groupCards(grouped.needs_you)}
           </Section>
@@ -613,10 +620,10 @@ export function BriefingView({
           <Section
             id="worth-knowing"
             label={personal ? "Worth knowing" : worthAll.length > 0 ? "Other big moves, with the reason" : "Other big moves"}
-            count={personal ? groupCountLabel(worthListed) : worthAll.length > 0 ? `${worthAll.length} ${worthAll.length === 1 ? "stock" : "stocks"}` : undefined}
           >
-            {/* Your own stocks with nothing confirmed to say are chips with their move, not empty cards (owner rules 4, 7). */}
-            {groupCards(worth, personal)}
+            {/* No count beside the heading (owner rule 6). Each stock is a card with a fact of its own, a measured price
+                fact when nothing else is confirmed (owner rules 3, 7); only a stock with no fact at all is a chip. */}
+            {groupCards(worth, personal, personal ? moveFacts : undefined)}
             {worthAll.length > WORTH_KNOWING_FIRST ? (
               <button
                 type="button"

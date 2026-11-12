@@ -14,7 +14,7 @@ const FILLER =
   /\?\s*$|\b(?:facts? worth knowing|surpasses (?:the )?market returns|outpaces (?:the )?stock market|outpaced the stock market|declines while market improves|some information for investors|what you should know|what to know|here['’]?s (?:why|what|how)|should you buy|is it time to buy|time to buy|key facts|beats? (?:the )?market:|key takeaways|jim cramer|cramer says|made a (?:big|huge|bold) (?:move|bet)|(?:sends?|sent) a (?:strong |\$[\d.]+ \w+ )?signal|shot in the arm|\d+-year-old|i['’]m \d+|how much tax)\b/i;
 /** A wire's market roundup or futures column: the stock is one name in a story about the day. */
 const ROUNDUP =
-  /^(?:stock market today|dow jones futures|stock market news|stocks? (?:making|to watch)|(?:midday|premarket|pre-market|after-hours) (?:movers|stocks)|market wrap|here are the|what['’]?s moving|top (?:gainers|losers)|biggest (?:movers|stock movers))\b|\b(?:stocks making the biggest moves|biggest movers)\b|^(?:nasdaq|s&p|dow)[\w\s&-]{0,20}futures\b|\bin focus\s*[.!]?\s*$/i;
+  /^(?:stock market today|dow jones futures|stock market news|stocks? (?:making|to watch)|(?:midday|premarket|pre-market|after-hours) (?:movers|stocks)|market wrap|here are the|what['’]?s moving|top (?:gainers|losers)|biggest (?:movers|stock movers))\b|\b(?:stocks making the biggest moves|biggest movers)\b|^(?:nasdaq|s&p|dow)[\w\s&-]{0,20}futures\b|\b(?:wall st(?:reet)?|stock|us|u\.s\.|index) futures\b|\bin focus\s*[.!]?\s*$/i;
 /** A headline that names three or more tickers in a row ("NVDA, TSLA, SNDK, CAPR, CRWV") is about the day, not one stock. */
 const TICKER_LIST = /\b[A-Z]{2,5}(?:\s*,\s*[A-Z]{2,5}){2,}\b/;
 /** A list of stocks or tips: "3 Stocks Tied To…", "5 reasons", "Which … is a better buy". */

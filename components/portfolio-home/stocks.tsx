@@ -2,6 +2,7 @@ import Link from "next/link";
 import * as React from "react";
 
 import { Bar } from "@/components/oa/kit/skeleton";
+import { FitCards } from "@/components/portfolio-home/fit-cards";
 import { StockLogo } from "@/components/stock-logo";
 import { fmtPlanDay } from "@/lib/dividend-plan";
 import { memoFacts, toolHref, type MemoFact } from "@/lib/portfolio-home/focus";
@@ -174,8 +175,15 @@ function cellClass(index: number, count: number): string {
   return index === count - 1 && count % 2 === 1 ? "min-w-0 sm:col-span-2" : "min-w-0";
 }
 
-/** More cards than this and the list fills the height the side rail sets (see StockList). */
-const FILL_FROM = 4;
+/**
+ * The list's height before the page measures it (./fit-cards.tsx): none when every card will show (ten or fewer on a
+ * phone, seven rows side by side), else about the measured box, so a long list does not paint long and then jump.
+ */
+function firstCap(count: number): string {
+  const phone = count > 10 ? "max-h-[62rem]" : "";
+  const wide = count > 14 ? "sm:max-h-[42rem]" : "sm:max-h-none";
+  return `${phone} ${wide}`;
+}
 
 /** "2 need a look" or nothing: the count of cards whose one thing asks for the person. */
 function needWords(cards: StockCard[]): string | null {
@@ -205,23 +213,8 @@ export async function StockList({ load }: { load: HomeLoad }) {
   const watching = book.value.portfolio.watching.length;
   const funds = cards.some((card) => card.fund);
   const noun = cards.length === 1 ? "holding" : "holdings";
-  // With more cards than a short rail is tall, the list on a wide screen ends where the rail ends (it fills the space
-  // the row gives it and scrolls inside), keeping at least about four cards in view, so neither column ends far above
-  // the other (owner rule 4). A short list just sits at its own height.
-  const fill = cards.length > FILL_FROM;
-  const list = (
-    <ul
-      className={`scrollbar-hide grid max-h-[47rem] grid-cols-1 content-start gap-2.5 overflow-y-auto overscroll-contain sm:max-h-[44rem] sm:grid-cols-2 ${
-        fill ? "lg:absolute lg:inset-0 lg:max-h-none" : ""
-      }`}
-    >
-      {cards.map((card, index) => (
-        <StockCardView key={card.ticker} card={card} className={cellClass(index, cards.length)} />
-      ))}
-    </ul>
-  );
   return (
-    <section aria-labelledby="stocks-head" className={`min-w-0 ${fill ? "lg:flex lg:flex-1 lg:flex-col" : ""}`}>
+    <section aria-labelledby="stocks-head" className="min-w-0">
       <h2 id="stocks-head" className="px-1 pb-2.5 text-[14.5px] font-semibold leading-5 text-oa-fg">
         {example ? "The example's" : "Your"} {cards.length} {noun}
         {need ? <span className="font-normal text-oa-muted-fg"> · {need}</span> : null}
@@ -236,8 +229,14 @@ export async function StockList({ load }: { load: HomeLoad }) {
         {/* Said once for the list, not on each fund's card (owner rule 1). */}
         {funds ? <span className="font-normal text-oa-muted-fg"> · no calls on funds</span> : null}
       </h2>
-      {/* About eight cards in view on a phone, twelve side by side; the rest scroll inside, with no visible bar (owner rule 5). */}
-      {fill ? <div className="relative min-w-0 lg:min-h-[22rem] lg:flex-1">{list}</div> : list}
+      {/* Every holding the header counts is in view: about eight cards on a phone and five rows side by side, the rest
+          scrolling inside a box that ends on a whole row, with no visible bar (owner rule 5). The cap before the page
+          measures it is close to the measured one (firstCap). */}
+      <FitCards className={`scrollbar-hide grid grid-cols-1 content-start gap-2.5 overflow-y-auto overscroll-contain sm:grid-cols-2 ${firstCap(cards.length)}`}>
+        {cards.map((card, index) => (
+          <StockCardView key={card.ticker} card={card} className={cellClass(index, cards.length)} />
+        ))}
+      </FitCards>
     </section>
   );
 }

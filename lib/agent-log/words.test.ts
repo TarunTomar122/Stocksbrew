@@ -147,6 +147,14 @@ describe("the day's log", () => {
     expect(log?.entries.map((line) => line.source)).toEqual(["agents", "premarket", "moves", "calls", "filings"]);
     expect(log?.entries.map((line) => line.time)).toEqual(["6:19 AM", "7:30 AM", "9:58 AM", "12:11 PM", "12:20 PM"]);
     expect(sentence(log!.entries[3]!)).toBe("146 stock briefs brought up to date, 121 with fresh news; no call changed.");
+    // The side rail's status rows: what ran and its one figure, in a word or two each.
+    expect(log?.entries.map((line) => [line.kind, line.status])).toEqual([
+      ["Agents", "1 of 3 flagged"],
+      ["Premarket", "24 of 72 moving"],
+      ["Big moves", "15 of 30 explained"],
+      ["Calls", "146 checked, none changed"],
+      ["Filings", "1 of 12 flagged"],
+    ]);
     expect(buildAgentLog({ day: DAY, when: "today", ongoing: false, facts, movesHref: "/explore#moves" })?.lead.startsWith("Today the agent found")).toBe(true);
     expect(buildAgentLog({ day: "2026-11-10", when: "yesterday", ongoing: false, facts: { briefs: { at: "2026-11-10T21:00:00Z", count: 9, withNews: null } }, movesHref: "/movers/2026-11-10" })?.lead).toBe(
       "Yesterday the agent brought 9 stock briefs up to date.",

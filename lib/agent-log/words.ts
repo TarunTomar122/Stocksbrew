@@ -76,10 +76,10 @@ const TRIGGER_WORDS: Record<string, string> = {
 
 const valid = (value: number | null | undefined): value is number => typeof value === "number" && Number.isFinite(value) && value > 0;
 
-function entry(source: AgentLogSource, at: string, figure: number, rest: string, href: string, quiet = false): AgentLogEntry | null {
+function entry(source: AgentLogSource, at: string, figure: number, rest: string, href: string, row: { kind: string; status: string }, quiet = false): AgentLogEntry | null {
   const time = nyTime(at);
   if (!time) return null;
-  return { source, at, time, figure: count(figure), rest, href, quiet };
+  return { source, at, time, figure: count(figure), rest, href, quiet, kind: row.kind, status: row.status };
 }
 
 /* ── one line per source ─────────────────────────────────────────────────── */
@@ -92,7 +92,10 @@ export function premarketEntry(facts: PremarketFacts): AgentLogEntry | null {
     big === 0
       ? `none was moving ${PREMARKET_GAP_PCT}% or more`
       : `${count(big)} ${big === 1 ? "was" : "were"} moving ${PREMARKET_GAP_PCT}% or more${leader ? `, led by ${moved(leader.ticker, leader.pct)}` : ""}`;
-  return entry("premarket", facts.at, facts.scanned, `${facts.scanned === 1 ? "stock" : "stocks"} checked before the open; ${found}.`, "/premarket");
+  return entry("premarket", facts.at, facts.scanned, `${facts.scanned === 1 ? "stock" : "stocks"} checked before the open; ${found}.`, "/premarket", {
+    kind: "Premarket",
+    status: big > 0 ? `${count(big)} of ${count(facts.scanned)} moving` : `${count(facts.scanned)} checked`,
+  });
 }
 
 function briefsWords(facts: BriefsFacts): string {
@@ -103,7 +106,7 @@ function briefsWords(facts: BriefsFacts): string {
 
 export function briefsEntry(facts: BriefsFacts): AgentLogEntry | null {
   if (!valid(facts.count)) return null;
-  return entry("briefs", facts.at, facts.count, `${briefsWords(facts)}.`, "/screener");
+  return entry("briefs", facts.at, facts.count, `${briefsWords(facts)}.`, "/screener", { kind: "Briefs", status: `${count(facts.count)} updated` });
 }
 
 function changeWords(change: CallChange): string {
@@ -125,12 +128,20 @@ function callWords(facts: CallsFacts, standalone: boolean): { text: string; one:
   return { text: `${count(changes.length)}${noun} changed: ${joinAnd([...named, ...more])}`, one: changes.length === 1 ? changes[0]!.ticker : null };
 }
 
+/** The rail row for the calls: how many changed when any did, else how many were looked at. */
+function callsRow(facts: CallsFacts, looked: number): { kind: string; status: string } {
+  const changed = facts.changes.filter((change) => change.ticker && CALL_WORDS[change.to]).length;
+  return changed > 0
+    ? { kind: "Calls", status: `${count(changed)} of ${count(facts.reviewed)} changed` }
+    : { kind: "Calls", status: `${count(Math.max(looked, facts.reviewed))} checked, none changed` };
+}
+
 const callsHref = (one: string | null) => (one ? `/stock/${encodeURIComponent(one)}` : "/screener");
 
 export function callsEntry(facts: CallsFacts): AgentLogEntry | null {
   if (!valid(facts.reviewed)) return null;
   const words = callWords(facts, true);
-  return entry("calls", facts.at, facts.reviewed, `${facts.reviewed === 1 ? "call" : "calls"} reviewed; ${words.text}.`, callsHref(words.one));
+  return entry("calls", facts.at, facts.reviewed, `${facts.reviewed === 1 ? "call" : "calls"} reviewed; ${words.text}.`, callsHref(words.one), callsRow(facts, facts.reviewed));
 }
 
 /**
@@ -142,7 +153,7 @@ export function reviewEntry(briefs: BriefsFacts, calls: CallsFacts): AgentLogEnt
   if (!valid(calls.reviewed)) return briefsEntry(briefs);
   const words = callWords(calls, false);
   const at = Date.parse(calls.at) > Date.parse(briefs.at) ? calls.at : briefs.at;
-  return entry("calls", at, briefs.count, `${briefsWords(briefs)}; ${words.text}.`, callsHref(words.one));
+  return entry("calls", at, briefs.count, `${briefsWords(briefs)}; ${words.text}.`, callsHref(words.one), callsRow(calls, briefs.count));
 }
 
 export function movesEntry(facts: MovesFacts, whose: string, href: string): AgentLogEntry | null {
@@ -154,20 +165,26 @@ export function movesEntry(facts: MovesFacts, whose: string, href: string): Agen
   // live quote elsewhere on the page has moved on since.
   const biggest = leader ? `, including ${leader.ticker}'s, the biggest` : "";
   if (!facts.screened) {
-    return entry("moves", facts.at, facts.explained, `big ${facts.explained === 1 ? "move" : "moves"} explained with a reason we could confirm${biggest}.`, href);
+    return entry("moves", facts.at, facts.explained, `big ${facts.explained === 1 ? "move" : "moves"} explained with a reason we could confirm${biggest}.`, href, {
+      kind: "Big moves",
+      status: `${count(facts.explained)} explained`,
+    });
   }
   const reasons = facts.explained === 1 ? "has a reason we could confirm" : "have a reason we could confirm";
-  return entry("moves", facts.at, total, `of ${whose} biggest moves looked into; ${count(facts.explained)} ${reasons}${biggest}.`, href);
+  return entry("moves", facts.at, total, `of ${whose} biggest moves looked into; ${count(facts.explained)} ${reasons}${biggest}.`, href, {
+    kind: "Big moves",
+    status: `${count(facts.explained)} of ${count(total)} explained`,
+  });
 }
 
 export function filingsEntry(facts: FilingsFacts): AgentLogEntry | null {
   if (!valid(facts.count)) {
     if (!valid(facts.companies)) return null;
-    return entry("filings", facts.at, facts.companies, `companies checked for new SEC filings; none had filed anything new.`, "/filings", true);
+    return entry("filings", facts.at, facts.companies, `companies checked for new SEC filings; none had filed anything new.`, "/filings", { kind: "Filings", status: "none new" }, true);
   }
   const flagged = facts.flagged.filter((filing) => filing.ticker && filing.what);
   const noun = facts.count === 1 ? "new SEC filing" : "new SEC filings";
-  if (flagged.length === 0) return entry("filings", facts.at, facts.count, `${noun} read; none was big enough to flag.`, "/filings");
+  if (flagged.length === 0) return entry("filings", facts.at, facts.count, `${noun} read; none was big enough to flag.`, "/filings", { kind: "Filings", status: `${count(facts.count)} read` });
   const named = flagged.slice(0, 2).map((filing) => `${filing.what} at ${filing.ticker}`);
   const verb = flagged.length === 1 ? "was" : "were";
   const tail = flagged.length > 2 ? `, including ${joinAnd(named)}` : `: ${joinAnd(named)}`;
@@ -177,6 +194,7 @@ export function filingsEntry(facts: FilingsFacts): AgentLogEntry | null {
     facts.count,
     `${noun} read; ${count(flagged.length)} ${verb} big enough to flag${tail}.`,
     "/filings",
+    { kind: "Filings", status: `${count(flagged.length)} of ${count(facts.count)} flagged` },
   );
 }
 
@@ -184,7 +202,7 @@ export function insidersEntry(facts: InsidersFacts): AgentLogEntry | null {
   if (!valid(facts.trades)) return null;
   const buys = Math.max(0, Math.round(facts.buys));
   const noun = facts.trades === 1 ? "insider trade" : "insider trades";
-  if (buys === 0) return entry("insiders", facts.at, facts.trades, `${noun} read from Form 4 filings; none was a buy on the open market.`, "/insiders");
+  if (buys === 0) return entry("insiders", facts.at, facts.trades, `${noun} read from Form 4 filings; none was a buy on the open market.`, "/insiders", { kind: "Insiders", status: `${count(facts.trades)} read` });
   const biggest = facts.biggest && valid(facts.biggest.value) ? `, the largest ${money(facts.biggest.value)} at ${facts.biggest.ticker}` : "";
   return entry(
     "insiders",
@@ -192,6 +210,7 @@ export function insidersEntry(facts: InsidersFacts): AgentLogEntry | null {
     facts.trades,
     `${noun} read from Form 4 filings; ${count(buys)} ${buys === 1 ? "was a buy" : "were buys"} on the open market${biggest}.`,
     "/insiders",
+    { kind: "Insiders", status: `${count(buys)} of ${count(facts.trades)} buys` },
   );
 }
 
@@ -199,14 +218,20 @@ export function earningsEntry(facts: EarningsFacts): AgentLogEntry | null {
   if (!valid(facts.count)) return null;
   const parts = [facts.beat > 0 ? `${count(facts.beat)} beat` : null, facts.missed > 0 ? `${count(facts.missed)} missed` : null].filter((part): part is string => part !== null);
   const tail = parts.length ? `; ${joinAnd(parts)}` : "";
-  return entry("earnings", facts.at, facts.count, `earnings ${facts.count === 1 ? "report" : "reports"} checked against estimates${tail}.`, "/calendar");
+  return entry("earnings", facts.at, facts.count, `earnings ${facts.count === 1 ? "report" : "reports"} checked against estimates${tail}.`, "/calendar", {
+    kind: "Earnings",
+    status: parts.length ? parts.join(", ") : `${count(facts.count)} checked`,
+  });
 }
 
 export function agentsEntry(facts: AgentRunsFacts): AgentLogEntry | null {
   if (!valid(facts.runs)) return null;
   const found = Math.max(0, Math.round(facts.found));
   const tail = found === 0 ? "none found anything to report" : `${count(found)} found something to report`;
-  return entry("agents", facts.at, facts.runs, `${facts.runs === 1 ? "agent" : "agents"} set up by members ran ${facts.runs === 1 ? "its" : "their"} checks; ${tail}.`, "/agents");
+  return entry("agents", facts.at, facts.runs, `${facts.runs === 1 ? "agent" : "agents"} set up by members ran ${facts.runs === 1 ? "its" : "their"} checks; ${tail}.`, "/agents", {
+    kind: "Agents",
+    status: `${count(found)} of ${count(facts.runs)} flagged`,
+  });
 }
 
 /* ── the day ─────────────────────────────────────────────────────────────── */

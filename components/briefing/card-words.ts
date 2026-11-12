@@ -246,6 +246,19 @@ function levelFact(item: BriefingItem): string | null {
   return null;
 }
 
+/**
+ * A price fact (lib/briefing-move-facts.ts) as a card's sentence, when the card has nothing else to say: "That is
+ * about twice a normal 1.1% day for it.", "It was its biggest gain since Sep 2.", "It is still down 7.2% over the
+ * past month." Whole sentences (owner rule 8).
+ */
+export function factSentence(fact: string): string {
+  const lower = `${fact.charAt(0).toLowerCase()}${fact.slice(1)}`;
+  if (/^About /.test(fact)) return `That is ${lower} for it.`;
+  if (/^Its biggest /.test(fact)) return `It was ${lower}.`;
+  if (/^(?:Still )?(?:up|down|Up|Down) /.test(fact)) return `It is ${lower}.`;
+  return /[.!?]$/.test(fact) ? fact : `${fact}.`;
+}
+
 /** Facts worth one chip, most useful first, leaving out anything the sentence already says. */
 function factCandidates(
   group: BriefingGroup,
@@ -255,6 +268,8 @@ function factCandidates(
   results: Readonly<Record<string, string>> = {},
   /** Stocks whose upcoming report the read above names. */
   readEarnings: ReadonlySet<string> = new Set(),
+  /** The stock's price facts, most telling first (lib/briefing-move-facts.ts). */
+  prices: readonly string[] = [],
 ): string[] {
   // What the card says, and what the section said for it above the cards.
   const said = `${above} ${sentence}`.toLowerCase();
@@ -284,6 +299,10 @@ function factCandidates(
       break;
     }
   }
+  // Measured from the stock's own closes, so a move with no confirmed reason still has a fact of its own (owner rules
+  // 3 and 7): its biggest move in a while, or how it compares with a normal day. All of them, so a card can fall back
+  // to the next when a neighbour says the same words.
+  for (const fact of prices) if (!said.includes(fact.toLowerCase())) out.push(fact);
   if (group.relation === "holding" && !/\byou hold\b/.test(said)) out.push("You hold it");
   return out;
 }
@@ -300,6 +319,8 @@ export function sectionWords(
     results?: Readonly<Record<string, string>>;
     /** Stocks whose upcoming report the read above already names: their cards do not say it again (owner rule 1). */
     readEarnings?: ReadonlySet<string>;
+    /** Price facts by ticker (lib/briefing-move-facts.ts), for a card with no other fact of its own. */
+    moveFacts?: Readonly<Record<string, readonly string[]>>;
   },
 ): SectionWords {
   const readEarnings = options.readEarnings ?? new Set<string>();
@@ -384,14 +405,21 @@ export function sectionWords(
     const more = next ? lineWords(next, group, names) : null;
     cards.set(group.key, { line, sentence, fact: null, more, moreLine: next ?? null, bare: false });
     // The chip must not repeat the next-update line either ("Reports on Tuesday" under "…reports on Tuesday").
-    facts.set(group.key, factCandidates(group, more ? `${sentence} ${more}` : sentence, options.personal, sharedKeys.get(group.key), options.results, readEarnings));
+    facts.set(group.key, factCandidates(group, more ? `${sentence} ${more}` : sentence, options.personal, sharedKeys.get(group.key), options.results, readEarnings, group.ticker ? options.moveFacts?.[group.ticker.toUpperCase()] : undefined));
   }
   // A fact on two or more cards is not news on any of them (owner: no identical badge on several cards).
   const count = new Map<string, number>();
   for (const list of facts.values()) for (const fact of new Set(list)) count.set(fact, (count.get(fact) ?? 0) + 1);
   for (const group of groups) {
     const words = cards.get(group.key)!;
-    words.fact = (facts.get(group.key) ?? []).find((fact) => (count.get(fact) ?? 0) < 2) ?? null;
+    const own = (facts.get(group.key) ?? []).filter((fact) => (count.get(fact) ?? 0) < 2);
+    // A card with nothing confirmed to say leads with its price fact as its sentence ("That is about twice a normal
+    // 1.1% day for it."), and the next one is its highlighted fact, so the card is not an empty box beside its neighbours (owner
+    // rules 3, 4). Never a reason: only what the closes measure (lib/briefing-move-facts.ts).
+    const prices = group.ticker ? options.moveFacts?.[group.ticker.toUpperCase()] ?? [] : [];
+    const lead = !words.sentence && !words.more ? own.find((fact) => prices.includes(fact)) : undefined;
+    if (lead) words.sentence = factSentence(lead);
+    words.fact = own.find((fact) => fact !== lead) ?? null;
     // Bare: nothing on the face, and nothing past Reddit talk, a report the read names or a pointer to open when opened.
     words.bare =
       Boolean(group.ticker) &&

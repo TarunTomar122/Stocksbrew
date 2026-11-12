@@ -14,6 +14,7 @@ import { MarketingSchema } from "@/components/seo/marketing-schema";
 import { loadWatches } from "@/lib/agent-watch-server";
 import { getSessionUser } from "@/lib/auth-server";
 import { briefingAnchorTickers } from "@/lib/briefing-anchors";
+import { briefingMoveFacts } from "@/lib/briefing-move-facts-server";
 import { getViewer } from "@/lib/entitlements-server";
 import { loadBriefingPage, type BriefingPageData } from "@/lib/briefing-data";
 import { loadExampleBriefing, type ExampleBriefingExtras } from "@/lib/briefing-example";
@@ -129,6 +130,18 @@ async function resultFacts(data: BriefingPageData, day: string | null): Promise<
   });
 }
 
+/**
+ * Price facts for the cards (lib/briefing-move-facts.ts), from each moving stock's cached closes. Today's personal
+ * briefing only (the example's too); a slow or failed read leaves the cards as they were.
+ */
+async function priceFacts(data: BriefingPageData, day: string | null): Promise<Record<string, string[]> | undefined> {
+  if (day || data.archived || data.briefing.mode !== "personal") return undefined;
+  return briefingMoveFacts(data.briefing).catch((error) => {
+    console.warn("[briefing] price facts failed:", error instanceof Error ? error.message : error);
+    return undefined;
+  });
+}
+
 /** Free: the moves on stocks the agent does not cover, named with no explanation (lib/briefing.ts locked_moves). */
 async function lockedSlot(data: BriefingPageData) {
   const moves = data.briefing.locked_moves ?? [];
@@ -162,8 +175,8 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
         })
       : null;
 
-  // Both are cached reads; they run side by side.
-  const [locked, facts] = await Promise.all([lockedSlot(data), resultFacts(data, day)]);
+  // All cached reads; they run side by side.
+  const [locked, facts, prices] = await Promise.all([lockedSlot(data), resultFacts(data, day), priceFacts(data, day)]);
 
   return (
     <AppPage>
@@ -190,6 +203,7 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
           }
           locked={locked}
           resultFacts={facts}
+          moveFacts={prices}
           agentLog={
             day || data.archived ? null : (
               <Suspense fallback={<AgentLogGhost narrow className="lg:max-h-full" />}>

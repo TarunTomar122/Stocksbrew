@@ -69,17 +69,19 @@ export function InboxList({
   const clears = !example && wouldClear(items, mark);
   const auto = useMarkSeen({ auto: clears, at: newest, signedIn: !example, account });
 
+  // What the read above already says in full is not drawn again (owner rule 1); it still counts as shown for the read mark.
+  const listed = React.useMemo(() => items.filter((item) => !item.told), [items]);
   const chips = React.useMemo(() => {
     const counts = new Map<InboxKind, number>();
     // The reports coming up count under the earnings chip, first, since they lead the list.
     if (upcoming.length > 0) counts.set("results", upcoming.length);
-    for (const { kind: k, count } of kindCounts(items)) counts.set(chipOf(k), (counts.get(chipOf(k)) ?? 0) + count);
+    for (const { kind: k, count } of kindCounts(listed)) counts.set(chipOf(k), (counts.get(chipOf(k)) ?? 0) + count);
     return [...counts.entries()].map(([k, count]) => ({ kind: k, count, label: k === "follow" ? "Investors and insiders" : KIND_LABEL[k] }));
-  }, [items, upcoming.length]);
+  }, [listed, upcoming.length]);
   // One kind (or none): no filter row, and no filter left on from the address with no way to clear it.
   const filtering = chips.length > 1;
   const active = filtering ? kind : null;
-  const shown = active ? items.filter((item) => chipOf(item.kind) === active) : items;
+  const shown = active ? listed.filter((item) => chipOf(item.kind) === active) : listed;
   const ahead = !active || active === "results" ? upcoming : [];
   const days = groupByDay(shown, today).map((group) => ({ ...group, rows: groupByStock(group.items) }));
   const unreadOf = (item: InboxItem) => Boolean(mark && isUnread(item, mark));
@@ -108,6 +110,8 @@ export function InboxList({
   };
   // Only when something can still be unread: the automatic save failed and nothing cleared it since.
   const offerMarkAll = !example && unread > 0 && (auto.state === "failed" || saving !== "idle");
+  // Everything was said by the read above: no empty list under it saying "Nothing in the last two weeks".
+  if (items.length > 0 && listed.length === 0 && upcoming.length === 0 && !heading && !offerMarkAll) return null;
 
   return (
     <section aria-label="Inbox" className="oa-surface min-w-0 overflow-hidden border border-oa-border bg-oa-card">
@@ -120,7 +124,7 @@ export function InboxList({
             <div role="group" aria-label="Show" className="scrollbar-hide -mx-1 flex min-w-0 basis-full gap-2 overflow-x-auto px-1 sm:basis-0 sm:flex-1">
               <button type="button" aria-pressed={active === null} onClick={() => choose(null)} className={chipClass(active === null)}>
                 All
-                <span className="oa-mono text-[12.5px] tabular-nums text-oa-muted-fg">{items.length + upcoming.length}</span>
+                <span className="oa-mono text-[12.5px] tabular-nums text-oa-muted-fg">{listed.length + upcoming.length}</span>
               </button>
               {chips.map((chip) => (
                 <button key={chip.kind} type="button" aria-pressed={active === chip.kind} onClick={() => choose(chip.kind)} className={chipClass(active === chip.kind)}>
@@ -146,7 +150,10 @@ export function InboxList({
         </div>
       ) : null}
       {days.length === 0 && ahead.length === 0 ? (
-        <p className="px-4 py-6 text-[14px] text-oa-muted-fg">{active ? "Nothing of this kind in the last two weeks." : "Nothing in the last two weeks."}</p>
+        // Rows the read above already said are not "nothing": then the list has no line to add.
+        active || listed.length === items.length ? (
+          <p className="px-4 py-6 text-[14px] text-oa-muted-fg">{active ? "Nothing of this kind in the last two weeks." : "Nothing in the last two weeks."}</p>
+        ) : null
       ) : (
         <div className="scrollbar-hide max-h-[min(36rem,calc(100dvh-14rem))] overflow-y-auto overscroll-contain">
           {ahead.length > 0 ? (

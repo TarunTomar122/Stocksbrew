@@ -56,6 +56,20 @@ export type InboxItem = {
    * moves against that baseline.
    */
   move?: InboxMove | null;
+  /**
+   * The read above the list already says all of it (lib/inbox/read.ts rowsAfterRead): the page draws no row for it,
+   * but it still counts as shown, so opening the page reads it.
+   */
+  told?: boolean;
+};
+
+/** One stock the read tells two things about (its move, its report coming up): one card with both figures. */
+export type InboxStockRead = {
+  ticker: string;
+  href: string;
+  figures: Array<{ value: string; tone: InboxTone; text: string }>;
+  /** What else the read says about it and the rest of the week, in a quiet line; null when nothing. */
+  note: string | null;
 };
 
 export type InboxMove = { pct: number; day: string; normalPct: number | null };

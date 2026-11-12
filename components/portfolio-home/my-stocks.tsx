@@ -26,9 +26,8 @@ export function MyStocksBody({ load }: { load: HomeLoad }) {
       </div>
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_21rem] xl:grid-cols-[minmax(0,1fr)_23rem]">
         {/* Both columns are `contents` on a phone, so their parts join one column in this order. */}
-        {/* The main column stretches to the row, so the stock list ends where the rail ends (./stocks.tsx StockList):
-            neither column ends above the other (owner rule 4). */}
-        <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-5 lg:self-stretch">
+        {/* Every holding shows (./stocks.tsx StockList, a long list scrolls inside on whole rows of cards). */}
+        <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-5">
           <Suspense fallback={<StockListGhost />}>
             <StockList load={load} />
           </Suspense>

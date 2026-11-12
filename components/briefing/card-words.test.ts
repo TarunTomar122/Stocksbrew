@@ -241,3 +241,30 @@ describe("Reddit talk and the next update on the card face (round 8)", () => {
     expect(card.sentence).not.toMatch(/People are posting/);
   });
 });
+
+describe("price facts for a move with no confirmed reason (round 13)", () => {
+  const discussion = (ticker: string) =>
+    item({ id: `talk-${ticker}`, kind: "discussion_spike", ticker, relation: "watching", headline: `${ticker} is one of the most discussed stocks on Reddit: 4 posts in 5 days, mostly bearish`, next_step: "Treat it as what people are saying." });
+
+  it("gives a stock with only Reddit talk a card: its price fact as the sentence, the next one as its fact", () => {
+    const groups = groupBriefingItems([discussion("QQQ")]);
+    const words = sectionWords(groups, { personal: true, moveFacts: { QQQ: ["About twice a normal 1.1% day", "Still down 7.2% over the past month"] } });
+    const card = words.cards.get(groups[0]!.key)!;
+    expect(card).toMatchObject({ sentence: "That is about twice a normal 1.1% day for it.", fact: "Still down 7.2% over the past month", bare: false });
+    // Without the facts it stays a chip.
+    expect(sectionWords(groups, { personal: true }).cards.get(groups[0]!.key)!.bare).toBe(true);
+  });
+
+  it("never puts the same price fact on two cards, and never writes a reason", () => {
+    const groups = groupBriefingItems([move("QQQ", 2.3), move("AMD", 7.3)]);
+    const words = sectionWords(groups, {
+      personal: true,
+      moveFacts: { QQQ: ["Its biggest gain since Sep 2", "About twice a normal 1.1% day"], AMD: ["Its biggest gain since Sep 2", "About twice a normal 3.8% day"] },
+    });
+    const said = groups.map((group) => [words.cards.get(group.key)!.sentence, words.cards.get(group.key)!.fact]);
+    for (const [sentence] of said) expect(sentence ?? "").not.toMatch(/because|after|on news/i);
+    const facts = said.flat().filter(Boolean);
+    expect(new Set(facts).size).toBe(facts.length);
+    expect(facts).not.toContain("Its biggest gain since Sep 2");
+  });
+});

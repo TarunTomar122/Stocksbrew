@@ -16,6 +16,10 @@ export type AgentLogEntry = {
   figure: string;
   /** The rest of the sentence after the figure, ending in a full stop. */
   rest: string;
+  /** What ran, in a word or two, for the side rail's status row: "Premarket", "Big moves". */
+  kind: string;
+  /** The run's outcome as one short figure for that row: "72 checked", "17 of 30 explained". */
+  status: string;
   /** Where the evidence is. */
   href: string;
   /** A check that ran and found nothing new: kept only when the log has room. */

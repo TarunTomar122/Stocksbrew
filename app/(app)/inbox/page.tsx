@@ -6,6 +6,7 @@ import { EmptyInbox } from "@/components/inbox/inbox-empty";
 import { InboxList } from "@/components/inbox/inbox-list";
 import { InboxSkeleton } from "@/components/inbox/inbox-skeleton";
 import { InboxSignIn } from "@/components/inbox/sign-in-prompt";
+import { InboxStockCard } from "@/components/inbox/stock-read";
 import { TheRead } from "@/components/oa/insight";
 import { AppPage, PageHead } from "@/components/oa/kit";
 import { getSessionUser } from "@/lib/auth-server";
@@ -13,7 +14,7 @@ import { getViewer } from "@/lib/entitlements-server";
 import { forClient } from "@/lib/inbox/merge";
 import { inboxReadTold, rowsAfterRead } from "@/lib/inbox/read";
 import { loadExampleInbox, loadUserInbox, readState } from "@/lib/inbox/server";
-import { INBOX_KINDS, type InboxKind } from "@/lib/inbox/types";
+import { INBOX_KINDS, type InboxKind, type InboxStockRead } from "@/lib/inbox/types";
 import type { TheRead as TheReadData } from "@/lib/insights";
 import { getUserDoc } from "@/lib/watchlist";
 
@@ -46,13 +47,24 @@ const EXAMPLE_TAG = (
 
 /**
  * The read, then the list. When the read has no cards of its own (every card would only repeat a row below), its
- * headline heads the list instead of standing alone in a card of its own.
+ * headline heads the list instead of standing alone in a card of its own. A stock the read tells two things about is
+ * one card under the headline (./stock-read.tsx), ahead of the other cards.
  */
-function ReadAndList({ read, label, children }: { read: TheReadData | null; label: string; children: (heading: string | null) => React.ReactNode }) {
-  if (!read || read.insights.length > 0) {
+function ReadAndList({
+  read,
+  stock,
+  label,
+  children,
+}: {
+  read: TheReadData | null;
+  stock: InboxStockRead | null;
+  label: string;
+  children: (heading: string | null) => React.ReactNode;
+}) {
+  if (!read || read.insights.length > 0 || stock) {
     return (
       <>
-        <TheRead read={read} label={label} askContext={false} />
+        <TheRead read={read} label={label} askContext={false} visual={stock ? <InboxStockCard stock={stock} /> : undefined} />
         {children(null)}
       </>
     );
@@ -78,7 +90,7 @@ async function ExampleInbox({ kind }: { kind: InboxKind | null }) {
         <EmptyInbox example unavailable={readFailed(inbox.missing)} />
       ) : (
         <>
-          <ReadAndList read={exampleRead.read} label="The example's inbox">
+          <ReadAndList read={exampleRead.read} stock={exampleRead.stock} label="The example's inbox">
             {(heading) => (
               <InboxList items={exampleRows.items.map(forClient)} upcoming={exampleRows.upcoming} seenAt={null} today={inbox.today} example initialKind={kind} heading={heading} />
             )}
@@ -99,11 +111,11 @@ async function UserInbox({ uid, kind }: { uid: string; kind: InboxKind | null })
   if (inbox.items.length === 0 && inbox.upcoming.length === 0) return <EmptyInbox unavailable={readFailed(inbox.missing)} />;
   const { seenAt } = readState(inbox.items, doc, inbox.today);
   // The read first; the rows under it then leave out what it already says (owner rule 1).
-  const { read, told } = inboxReadTold(inbox.items, seenAt, false, { upcoming: inbox.upcoming, today: inbox.today });
+  const { read, told, stock } = inboxReadTold(inbox.items, seenAt, false, { upcoming: inbox.upcoming, today: inbox.today });
   const rows = rowsAfterRead(inbox.items, inbox.upcoming, told, inbox.today);
   return (
     <div className="flex flex-col gap-3 sm:gap-4">
-      <ReadAndList read={read} label="Your inbox">
+      <ReadAndList read={read} stock={stock} label="Your inbox">
         {(heading) => (
           <InboxList
             items={rows.items.map(forClient)}

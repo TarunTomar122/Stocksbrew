@@ -185,6 +185,42 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-12 ~05:20 UTC, ship 37 live (fb443bf); judges on 37; round 13 building (lead, overnight loop)
+
+- **Ship 37 live:** rounds 11 + 12 plus a shorter backtest headline. Nine pages return 200; the VPS is pulled. Cold-load blips on the local server: the backtest example and compare briefs read empty once, then fine on retry.
+- **Judges on live 37** (scratchpad/judge37):
+  - Codex: UI 7, UX 7, usability 6.5, wording 7, agent feel 6.5, similarity 6.5, sell 6.5, overall 7.
+  - Cursor: UI 6, UX 7, usability 6, wording 7, agent feel 6, similarity 6, sell 6, overall 6.
+  - Asks:
+    - Briefing: QQQ/AMD as bare chips (they want cards with a real fact); the desktop log shows 2 runs plus a paragraph.
+    - Inbox: the hero repeats the Today row; two NVDA cards; a two-idea headline.
+    - My stocks: shows 8 of "9 holdings".
+    - Stock page (JPM): What changed still in title case; two signed-out actions.
+    - Compare: calls and numbers under the headline; drop the label; short rows.
+    - Backtest: columns end unevenly; paragraph cards; "0 of 4 full years ahead".
+    - Insiders: lists show long names; scroll boxes end mid-row.
+    - Sitewide: five different signed-out CTA labels.
+- **Round 13A** (briefing, agent log, inbox, My stocks) and **round 13B** (stock page, compare, backtest, insiders, one CTA label) are building.
+
+### 2026-11-12 ~04:30 UTC, ships 35 (e671df3) and 36 (991501c) live; ship 37 frozen (fb443bf) (lead, overnight loop)
+
+- A usage limit moved the session to another account mid-round. Every builder was resumed from its transcript; no work was lost.
+- **Ship 35 (round 10): the inbox.**
+  - It reads your stocks first. Example: "4 of your stocks moved at least twice as much as usual today, and 4 of your stocks report earnings in the next week", with cards for the biggest move against its normal day, the report to watch (its usual move on a report, only when measured), and insiders or calls.
+  - Each stock gets one plain sentence per day. A reason shows only when it's confirmed for the same day and direction. Coming up comes from the calendar.
+  - Rows the read already told show the bare fact (rule 1).
+  - Stale quotes are dropped from Today.
+  - The bell counts rows, not items, and auto-reads only when `clearable` (QA found that the split-by-stock runs never cleared and showed "9+").
+  - 2 QA passes. 2822 tests in both modes.
+- **Ship 36 (round 9): speed.**
+  - Live sizes: /filings 747→286KB, /screener 734→325KB, /portfolio/xray 578→241KB, /follow 738→446KB (the 40 directory rows kept), /agents reads in parallel.
+  - Repeated 300-character utility strings became short classes in globals.css (each one states its floored font size). Big lists are sent as data and drawn in the browser.
+  - QA regressions fixed: Follow button size, tabular-nums, PAGE 40, hover title.
+- **Ship 37 frozen (rounds 11 + 12 + lead):**
+  - The judges' ship 34 findings: insiders rows paint (no content-visibility), unit in the head, one-idea headline, no About note; briefing with no "N other updates", the Reddit mood said once per section, no hedgy Reddit summaries as card text, a one-idea headline with movers underneath, whole-row rail log; example counts agree (9 held + 3 watched); My stocks columns end level and funds say "no calls" once; the stock page has one call heading, What changed in the first phone tab, and one next step signed out; Signals is plain about bearish share, has no stubs, and shows only President posts that lean; shorter FAQ answers.
+  - /compare opens on NVDA vs AMD with its read. /backtest opens on a cached 60/40 example with the read ("The 60/40 mix would have turned $10,000 into $11,960 since Nov 2021"; the index and worst drop are in the card). Mechanics copy removed.
+  - 2824 tests in both modes, tsc and eslint clean.
+
 ### 2026-11-12 ~02:45 UTC, ship 34 live (29a5047): landing cards that lead with a number, briefing cards that show everything, a tighter stock page (lead, overnight loop)
 
 - **Ship 34 (round 8, from the judges on 31):**

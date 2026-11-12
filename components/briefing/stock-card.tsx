@@ -14,27 +14,36 @@ import { shortCompanyName } from "@/lib/plain-copy";
  */
 
 /**
- * Cards side by side: 1 on a phone, 2 on a tablet, 3 from `xl` (or `lg` on a full-width page). Rows share one
- * height, and an opened card (which takes the whole row) lets the cards after it fill the gap it leaves.
+ * Cards side by side. On a full-width page (`wide`): 1 on a phone, 2 on a tablet, 3 from `lg`. Otherwise by the
+ * column's own width (a container query), since the same list sits full width or beside a side rail: 2 from 30rem,
+ * 3 from 44rem, so three cards never squeeze into a narrow column. Rows share one height, and an opened card (which
+ * takes the whole row) lets the cards after it fill the gap it leaves.
  */
 export function StockCardGrid({ children, wide = false, className = "" }: { children: React.ReactNode; wide?: boolean; className?: string }) {
-  return <ul className={`grid grid-flow-row-dense grid-cols-1 gap-3 sm:grid-cols-2 ${wide ? "lg:grid-cols-3" : "xl:grid-cols-3"} ${className}`}>{children}</ul>;
+  if (wide) return <ul className={`grid grid-flow-row-dense grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 ${className}`}>{children}</ul>;
+  return (
+    <div className={`[container-type:inline-size] ${className}`}>
+      <ul className="grid grid-flow-row-dense grid-cols-1 gap-3 [@container(min-width:30rem)]:grid-cols-2 [@container(min-width:44rem)]:grid-cols-3">{children}</ul>
+    </div>
+  );
 }
 
-// Written out whole so Tailwind finds them: [breakpoint][span - 1].
+// Written out whole so Tailwind finds them: [breakpoint][span - 1]. `c2` and `c3` are StockCardGrid's container widths.
 const SPANS: Record<string, string[]> = {
   sm: ["sm:col-span-1", "sm:col-span-2"],
   lg: ["lg:col-span-1", "lg:col-span-2", "lg:col-span-3", "lg:col-span-4", "lg:col-span-5"],
   xl: ["xl:col-span-1", "xl:col-span-2", "xl:col-span-3"],
+  c2: ["[@container(min-width:30rem)]:col-span-1", "[@container(min-width:30rem)]:col-span-2"],
+  c3: ["[@container(min-width:44rem)]:col-span-1", "[@container(min-width:44rem)]:col-span-2", "[@container(min-width:44rem)]:col-span-3"],
 };
 
 /**
  * No half-empty rows (owner rule): the last card stretches over what its row has left, at each breakpoint's column
  * count. `cols` maps a breakpoint to its columns, smallest first, e.g. { sm: 2, xl: 3 }.
  */
-export function fillLastRow(index: number, count: number, cols: Partial<Record<"sm" | "lg" | "xl", number>>): string {
+export function fillLastRow(index: number, count: number, cols: Partial<Record<"sm" | "lg" | "xl" | "c2" | "c3", number>>): string {
   if (index !== count - 1) return "";
-  return (Object.entries(cols) as Array<["sm" | "lg" | "xl", number]>)
+  return (Object.entries(cols) as Array<["sm" | "lg" | "xl" | "c2" | "c3", number]>)
     .map(([breakpoint, columns]) => {
       const left = count % columns;
       return SPANS[breakpoint]![(left === 0 ? 1 : columns - left + 1) - 1] ?? "";
@@ -44,7 +53,7 @@ export function fillLastRow(index: number, count: number, cols: Partial<Record<"
 
 /** The spans for StockCardGrid's own columns. */
 export function stockGridFill(index: number, count: number, wide = false): string {
-  return fillLastRow(index, count, wide ? { sm: 2, lg: 3 } : { sm: 2, xl: 3 });
+  return fillLastRow(index, count, wide ? { sm: 2, lg: 3 } : { c2: 2, c3: 3 });
 }
 
 export const CARD_HOVER = "transition-colors hover:border-[color-mix(in_srgb,var(--oa-fg)_25%,transparent)] hover:bg-oa-accent";

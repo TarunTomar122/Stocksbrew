@@ -32,6 +32,9 @@ export function agentLogTitle(log: Pick<AgentLog, "when">): string {
 const FIT_CARD = "lg:flex lg:max-h-full lg:min-h-0 lg:flex-col";
 const FIT_LIST = "lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain scrollbar-hide";
 
+/** The wide rail's status line: what ran, its figure, when. Three columns from `lg`; below it the sentence grid holds. */
+const STATUS_ROW = "lg:grid-cols-[minmax(0,1fr)_auto_3.6rem] lg:items-baseline lg:py-2 lg:min-h-9";
+
 /** In a fixed-height rail box the list is cut to whole rows (./fit-rows.tsx); anywhere else it is a plain list. */
 function ListOf({ fit, className, children }: { fit: boolean; className: string; children: React.ReactNode }) {
   return fit ? <FitRows className={className}>{children}</FitRows> : <ol className={className}>{children}</ol>;
@@ -52,12 +55,15 @@ export function AgentLogView({
 }) {
   const grid = narrow ? ROW_GRID_NARROW : ROW_GRID;
   if (!log || log.entries.length === 0) return null;
+  // Only the wide side rail (`fit`) uses the status line, and only for entries that carry one.
+  const status = (entry: AgentLog["entries"][number]) => fit && Boolean(entry.kind && entry.status);
   const title = agentLogTitle(log);
   return (
     <section aria-label={title} className={`${CARD} ${fit ? FIT_CARD : ""} ${className}`}>
       <header className={`shrink-0 ${compact ? "px-4 pb-2 pt-3" : "px-4 pb-2.5 pt-3.5 sm:px-5"}`}>
         <h2 className="text-[15px] font-semibold leading-6 text-oa-fg">{title}</h2>
-        <p className="mt-0.5 text-pretty text-[14px] leading-5 text-oa-muted-fg">{log.lead}</p>
+        {/* In the wide rail the rows are status lines that read in two seconds (owner rule 10): no lead paragraph. */}
+        <p className={`mt-0.5 text-pretty text-[14px] leading-5 text-oa-muted-fg ${fit ? "lg:hidden" : ""}`}>{log.lead}</p>
       </header>
       <ListOf fit={fit} className={`border-t border-oa-border ${fit ? FIT_LIST : ""}`}>
         {/* The compact log (home page) leaves out members' own agents: a handful of runs is true but reads small there. */}
@@ -67,17 +73,30 @@ export function AgentLogView({
               prefetch={false}
               href={entry.href}
               aria-label={`${entry.time}: ${entrySentence(entry)}`}
-              className={`${grid} min-h-11 px-4 py-2 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent sm:px-5 ${compact ? "" : "sm:py-2.5"}`}
+              className={`${grid} min-h-11 px-4 py-2 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent sm:px-5 ${compact ? "" : "sm:py-2.5"} ${
+                status(entry) ? STATUS_ROW : ""
+              }`}
             >
+              {status(entry) ? (
+                // The wide rail's status line: what ran, its one figure and when (owner rule 10). Below `lg` the
+                // sentence row under it shows instead.
+                <span className="hidden min-w-0 lg:contents">
+                  <span className="min-w-0 truncate text-[14px] leading-5 text-oa-fg">{entry.kind}</span>
+                  <span className="oa-mono whitespace-nowrap text-right text-[13px] font-semibold tabular-nums leading-5 text-oa-fg">{entry.status}</span>
+                  <time dateTime={entry.at} className="oa-mono whitespace-nowrap text-right text-[12px] tabular-nums leading-5 text-oa-muted-fg">
+                    {entry.time}
+                  </time>
+                </span>
+              ) : null}
               <time dateTime={entry.at} className={`oa-mono hidden pt-px text-[12.5px] tabular-nums leading-5 text-oa-muted-fg ${narrow ? "" : "sm:block"}`}>
                 {entry.time}
               </time>
-              <span className={`flex flex-col ${narrow ? "" : "sm:items-end"}`}>
+              <span className={`flex flex-col ${narrow ? "" : "sm:items-end"} ${status(entry) ? "lg:hidden" : ""}`}>
                 <span className="oa-mono text-[15px] font-semibold tabular-nums leading-5 text-oa-fg">{entry.figure}</span>
                 <span className={`oa-mono whitespace-nowrap text-[11px] tabular-nums leading-4 text-oa-muted-fg ${narrow ? "" : "sm:hidden"}`}>{entry.time}</span>
               </span>
               {/* Time, figure and sentence only: no logo or icon on every row (owner rule 1); the sentence names the stock. */}
-              <span className="min-w-0 text-pretty text-[14px] leading-5 text-oa-fg">{entry.rest}</span>
+              <span className={`min-w-0 text-pretty text-[14px] leading-5 text-oa-fg ${status(entry) ? "lg:hidden" : ""}`}>{entry.rest}</span>
             </Link>
           </li>
         ))}

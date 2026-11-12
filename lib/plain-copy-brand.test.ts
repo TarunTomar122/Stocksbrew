@@ -42,3 +42,10 @@ describe("roundups stay off a stock's card", () => {
     expect(newsRank({ title: "Nasdaq 100 Futures drop as reports relating to Jensen Huang's Ousting Outweigh CoreWeave's strong outlook — NVDA, TSLA, SNDK, CAPR, CRWV in Focus", summary: "Futures fell." }, stock)).toBeNull();
   });
 });
+
+describe("futures columns", () => {
+  it("drops a Wall St futures story from a stock's card", () => {
+    const stock = { ticker: "NVDA", name: "NVIDIA Corporation", day_change_pct: 2.9 };
+    expect(newsRank({ title: "Wall St futures fall as Nvidia slides on report of possible CEO ouster", summary: "Futures fell." }, stock)).toBeNull();
+  });
+});
