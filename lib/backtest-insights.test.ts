@@ -31,11 +31,15 @@ describe("backtest read", () => {
     expect(read.insights[0].text).toBe("3.2 points a year ahead of the S&P 500, which made +12.0% a year.");
     expect(read.insights[0].figure).toEqual({ value: "+15.2%", label: "a year" });
     expect(read.insights[0].soWhat).toBe("The same $10,000 in the S&P 500 would be $34,000.");
-    expect(read.insights[1].text).toBe("Ahead of the S&P 500 in two of four full years, most in 2020: +45% against +18%.");
-    expect(read.insights[1].figure).toEqual({ value: "+27.0 pts", label: "in 2020" });
-    expect(read.insights[2].text).toBe("NVDA did the heavy lifting: +2,400% at a 20% weight.");
-    expect(read.insights[2].tickers).toEqual(["NVDA", "TLT"]);
+    expect(read.insights[2].text).toBe("Ahead of the S&P 500 in two of four full years, most in 2020: +45% against +18%.");
+    expect(read.insights[2].figure).toEqual({ value: "+27.0 pts", label: "in 2020" });
+    expect(read.insights[3].text).toBe("NVDA did the heavy lifting: +2,400% at a 20% weight.");
+    expect(read.insights[3].tickers).toEqual(["NVDA", "TLT"]);
     expect(read.source).toBe("Backtested, not traded · Jan 2016 to Nov 2026");
+    // The takeaway: what the extra return cost at the worst moment.
+    expect(read.insights[1].text).toBe("The extra return came with a deeper worst fall: −38% against −24% for the S&P 500.");
+    expect(read.insights[1].figure).toEqual({ value: "−38%", label: "at its worst" });
+    expect(read.insights[1].tone).toBe("down");
   });
 
   it("explains a lag by the years it fell behind", () => {
@@ -47,9 +51,23 @@ describe("backtest read", () => {
       holdings: [],
     });
     expect(read.headline).toBe("This mix would have turned $10,000 into $20,000 since Jan 2016.");
-    expect(read.insights[1].text).toBe("Behind the S&P 500 in all three full years, most in 2019: +10% against +31%.");
-    expect(read.insights[1].figure).toEqual({ value: "−21.0 pts", label: "in 2019" });
-    expect(read.insights[1].tone).toBe("down");
+    expect(read.insights[2].text).toBe("Behind the S&P 500 in all three full years, most in 2019: +10% against +31%.");
+    expect(read.insights[2].figure).toEqual({ value: "−21.0 pts", label: "in 2019" });
+    expect(read.insights[2].tone).toBe("down");
+  });
+
+  it("says what trailing the index bought at the worst moment", () => {
+    const read = (mine: number, theirs: number) =>
+      buildBacktestRead({
+        benchmark: "SPY",
+        period: { start: "2016-01-04", end: "2026-11-09", years: 10.8 },
+        summary: { strategy: stats(0.08, mine), benchmark: stats(0.12, theirs) },
+        years: [],
+        holdings: [],
+      }).insights[1]?.text;
+    expect(read(-0.2, -0.34)).toBe("Trailing the S&P 500 bought a smaller worst fall: −20% against −34%.");
+    expect(read(-0.27, -0.24)).toBe("It trailed the S&P 500 and still fell further at its worst: −27% against −24%.");
+    expect(read(-0.25, -0.24)).toBe("It trailed the S&P 500 with about the same worst fall: −25% against −24%.");
   });
 
   it("counts the years on the side of the overall result, so the card never contradicts itself", () => {
@@ -60,8 +78,8 @@ describe("backtest read", () => {
       years: [year(2019, 0.1, 0.31), year(2020, 0.2, 0.15), year(2021, 0.3, 0.28), year(2022, -0.2, -0.1)],
       holdings: [],
     });
-    expect(behind.insights[1].text).toBe("Behind the S&P 500 in two of four full years, most in 2019: +10% against +31%.");
-    expect(behind.insights[1].tone).toBe("down");
+    expect(behind.insights[2].text).toBe("Behind the S&P 500 in two of four full years, most in 2019: +10% against +31%.");
+    expect(behind.insights[2].tone).toBe("down");
     const ahead = buildBacktestRead({
       benchmark: "SPY",
       period: { start: "2016-01-04", end: "2026-11-09", years: 10.8 },
@@ -69,9 +87,9 @@ describe("backtest read", () => {
       years: [year(2019, 0.5, 0.31), year(2020, 0.1, 0.15), year(2021, 0.2, 0.28)],
       holdings: [],
     });
-    expect(ahead.insights[1].text).toBe("Ahead of the S&P 500 in one of three full years, in 2019: +50% against +31%.");
-    expect(ahead.insights[1].figure).toEqual({ value: "+19.0 pts", label: "in 2019" });
-    expect(ahead.insights[1].tone).toBe("up");
+    expect(ahead.insights[2].text).toBe("Ahead of the S&P 500 in one of three full years, in 2019: +50% against +31%.");
+    expect(ahead.insights[2].figure).toEqual({ value: "+19.0 pts", label: "in 2019" });
+    expect(ahead.insights[2].tone).toBe("up");
   });
 
   it("says level when the mix matched the index", () => {

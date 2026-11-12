@@ -72,7 +72,6 @@ export function buildBacktestRead(run: BacktestReadInput, mixLabel = "this mix")
   const headline = `${mix} would have turned $${START_MONEY.toLocaleString("en-US")} into ${grownTo(s.total_return)} since ${monthYear(run.period.start)}.`;
 
   // Each card leads with one number and one short takeaway, with its context in one line under it (owner rules 3, 8).
-  // The worst drop is drawn under the curve, so it is not said again here.
   const result: Insight = {
     id: "result",
     tone: toneOfChange(gap, 0.002),
@@ -126,9 +125,45 @@ export function buildBacktestRead(run: BacktestReadInput, mixLabel = "this mix")
     };
   }
 
+  // The takeaway for the mix: what its return against the index bought or cost at its worst moment. The worst fall
+  // is drawn under the curve; this says what it means next to the gap.
+  let tradeOff: Insight | null = null;
+  const mineDrop = s.max_drawdown;
+  const theirDrop = b.max_drawdown;
+  if (Number.isFinite(mineDrop) && Number.isFinite(theirDrop) && mineDrop < 0 && theirDrop < 0) {
+    // Positive when the mix fell less than the index at its worst; within 2 points counts as the same.
+    const shallower = mineDrop - theirDrop;
+    const same = Math.abs(shallower) < 0.02;
+    // The index is named in each sentence already, except the one that says "the extra return".
+    const drops = `${signedPct(mineDrop, 0)} against ${signedPct(theirDrop, 0)}`;
+    const behind = gap < -0.0005;
+    const ahead = gap > 0.0005;
+    const text = behind
+      ? shallower >= 0.02
+        ? `Trailing ${bench} bought a smaller worst fall: ${drops}.`
+        : same
+          ? `It trailed ${bench} with about the same worst fall: ${drops}.`
+          : `It trailed ${bench} and still fell further at its worst: ${drops}.`
+      : ahead
+        ? shallower >= 0.02
+          ? `It beat ${bench} and fell less at its worst: ${drops}.`
+          : same
+            ? `It beat ${bench} with about the same worst fall: ${drops}.`
+            : `The extra return came with a deeper worst fall: ${drops} for ${bench}.`
+        : shallower >= 0.02
+          ? `Level with ${bench}, with a smaller worst fall: ${drops}.`
+          : `Level with ${bench}, and no gentler at its worst: ${drops}.`;
+    tradeOff = {
+      id: "trade-off",
+      tone: shallower >= 0.02 ? "up" : same ? "flat" : "down",
+      text,
+      figure: { value: signedPct(mineDrop, 0), label: "at its worst" },
+    };
+  }
+
   return {
     headline,
-    insights: pickInsights([result, years, carry]),
+    insights: pickInsights([result, tradeOff, years, carry], 4),
     source: `Backtested, not traded · ${monthYear(run.period.start)} to ${monthYear(run.period.end)}`,
   };
 }

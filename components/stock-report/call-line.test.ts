@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { callHeading, callMeaning } from "./call-line";
+import { callLine, callMeaning } from "./call-line";
 
 describe("callMeaning", () => {
   it("says a known action another way when it starts with the call word, as a full sentence", () => {
@@ -27,29 +27,48 @@ describe("callMeaning", () => {
   });
 });
 
-describe("callHeading", () => {
-  it("says the call word and what it means as one sentence", () => {
-    expect(callHeading("Buy more", "Buy more on a dip, not here")).toEqual({ word: "Buy more", rest: " on a dip, not at today's price." });
-    expect(callHeading("Keep", "Keep what you own, don't buy more now")).toEqual({ word: "Keep", rest: " what you own, but don't buy more for now." });
-    expect(callHeading("Sell some", "Sell some if it rises")).toEqual({ word: "Sell some", rest: " if the price rises." });
+const money = (value: number) => `$${value.toFixed(2)}`;
+const base = { callWord: "Buy more", callAction: "Buy more on a dip, not here", level: null, hidden: null, price: 343.37, money, plan: "free" };
+
+describe("callLine", () => {
+  it("says the call's own price against today's in plain words", () => {
+    expect(callLine({ ...base, level: { label: "We'd buy more below", price: 330 } })).toEqual({ text: "We'd buy more below $330.00, 3.9% under today's $343.37.", gate: null });
+    expect(callLine({ ...base, callWord: "Sell some", level: { label: "We'd sell some above", price: 420 } })?.text).toBe("We'd sell some above $420.00, 22% over today's $343.37.");
+    expect(callLine({ ...base, level: { label: "We'd buy more below", price: 350 } })?.text).toBe("We'd buy more below $350.00, and today's $343.37 is already under it.");
+    expect(callLine({ ...base, level: { label: "We'd buy more below", price: 344 } })?.text).toBe("We'd buy more below $344.00, right about today's $343.37.");
+    expect(callLine({ ...base, price: null, level: { label: "We'd buy more above", price: 360 } })?.text).toBe("We'd buy more above $360.00.");
   });
 
-  it("goes on from the word for any other action that starts with it", () => {
-    expect(callHeading("Keep", "Keep, for now")).toEqual({ word: "Keep", rest: ", for now." });
-    expect(callHeading("Sell some", "Sell some: it ran too far")).toEqual({ word: "Sell some", rest: ": it ran too far." });
+  it("says what a hidden level waits for without its number, and points to the gate once", () => {
+    const line = callLine({ ...base, plan: "anon", hidden: { label: "We'd buy more below", reached: false } });
+    expect(line).toEqual({ text: "We'd wait for a dip from today's $343.37 before buying more.", gate: "The price we'd buy at comes with a free account." });
+    expect(callLine({ ...base, hidden: { label: "We'd buy more below", reached: true } })).toEqual({
+      text: "Today's $343.37 is low enough that we'd buy more.",
+      gate: "The price we'd buy at is in the full report.",
+    });
+    const sell = callLine({ ...base, callWord: "Sell some", hidden: { label: "We'd sell some above", reached: false } });
+    expect(sell?.text).toBe("We'd sell some if it rises from today's $343.37.");
+    expect(sell?.gate).toBe("The price we'd sell at is in the full report.");
+    // No dollar figure in a hidden line besides today's price.
+    for (const hidden of [
+      { label: "We'd buy more above", reached: false },
+      { label: "We'd buy more above", reached: true },
+      { label: "We'd sell some above", reached: true },
+    ] as const) {
+      expect(JSON.stringify(callLine({ ...base, hidden }))).not.toMatch(/\$(?!343\.37)\d/);
+    }
   });
 
-  it("puts an action that does not start with the word after it as its own sentence", () => {
-    expect(callHeading("Keep", "Wait and watch")).toEqual({ word: "Keep", rest: ". Wait and watch." });
-    expect(callHeading("Keep", null)).toEqual({ word: "Keep", rest: "" });
-    expect(callHeading("Keep", "Keep.")).toEqual({ word: "Keep", rest: "" });
-  });
-
-  it("never says the call twice for the default meanings", () => {
-    expect(callHeading("Buy more", "We'd buy more")).toEqual({ word: "Buy more", rest: "." });
-    expect(callHeading("Keep", "We'd keep it, not buy more")).toEqual({ word: "Keep", rest: " what you own, but don't buy more for now." });
-    expect(callHeading("Buy more", "A good price to buy more")).toEqual({ word: "Buy more", rest: ": today's price is a good one to add at." });
-    expect(callHeading("Sell some", "We'd sell some, not buy more")).toEqual({ word: "Sell some", rest: ", and don't buy more." });
-    expect(callHeading("Sell some", "Don't buy more at this price")).toEqual({ word: "Sell some", rest: ", but don't buy more at this price." });
+  it("says what the call means when there is no level, and nothing when that only repeats the word", () => {
+    expect(callLine(base)).toEqual({ text: "Wait for a dip before adding.", gate: null });
+    expect(callLine({ ...base, callWord: "Keep", callAction: "Keep what you own, don't buy more now" })?.text).toBe("Keep what you own, but don't buy more for now.");
+    expect(callLine({ ...base, callAction: "We'd buy more" })).toBeNull();
+    expect(callLine({ ...base, callAction: "A good price to buy more" })?.text).toBe("Today's $343.37 is a good price to buy more at.");
+    // A meaning that says not to buy more never sits under Buy more.
+    expect(callLine({ ...base, callAction: "We'd keep it, not buy more" })).toBeNull();
+    expect(callLine({ ...base, callAction: "We'd sell some, not buy more" })).toBeNull();
+    expect(callLine({ ...base, callAction: "Don't buy more at this price" })).toBeNull();
+    expect(callLine({ ...base, callWord: "Keep", callAction: "We'd keep it, not buy more" })?.text).toBe("Keep what you own, but don't buy more for now.");
+    expect(callLine({ ...base, callAction: null })).toBeNull();
   });
 });

@@ -397,19 +397,8 @@ export function PricePanel({
             </span>
           ))}
 
-          {/* dots on the line where something happened */}
-          {markers.map((marker) => (
-            <span
-              key={`dot-${marker.index}`}
-              aria-hidden="true"
-              className="pointer-events-none absolute size-[7px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-oa-card"
-              style={{
-                left: `${x(marker.index)}%`,
-                top: `${y(points[marker.index]!.close)}%`,
-                background: marker.kind === "call" ? "var(--oa-primary)" : "var(--oa-fg)",
-              }}
-            />
-          ))}
+          {/* No dot on the line where something happened (owner rule 6: "no clue how to make sense of these dots"):
+              the thin rule runs down to its lettered box in the lane, and the caption under the chart names each letter. */}
 
           {hoverPoint ? (
             <>

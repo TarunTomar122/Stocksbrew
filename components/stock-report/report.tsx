@@ -16,7 +16,7 @@ import { TheRead } from "@/components/oa/insight";
 import { packChartRanges, type CallWord, type ChartRange, type PackedChartRanges } from "@/lib/stock-chart";
 
 import { AlertControls, type SuggestedAlert } from "./alert-controls";
-import { callHeading, callMeaning } from "./call-line";
+import { callLine, callMeaning } from "./call-line";
 import { capTier, compactMoney, daysBetween, fin, fmtDate, fmtStamp, levelFormatter, moneyFormatter, relativeDays, signedPct } from "./format";
 import { PricePanel, type PanelZone } from "./price-panel";
 import { LockIcon, Missing, MoreLink, NUM, Panel, PROSE, Tag, TONE_COLOR, type Tone } from "./primitives";
@@ -213,13 +213,6 @@ function packedOrRanges(ranges: ChartRange[]): { packed: PackedChartRanges } | {
   return packed ? { packed } : { ranges };
 }
 
-/** The call block's short words for its own level. */
-const CALL_LEVEL_WORDS: Record<CallLevel["label"], string> = {
-  "We'd buy more below": "Buy more below",
-  "We'd buy more above": "Buy more above",
-  "We'd sell some above": "Sell some above",
-};
-
 export function StockReport({
   data,
   related,
@@ -324,10 +317,6 @@ export function StockReport({
   const ready = readState === "ready" && read ? read : null;
   // A missing or zero quote must not turn into "Infinity% from here".
   const hasPrice = fin(stock.price) && stock.price > 0;
-  const fromHere = (price: number) => (hasPrice ? signedPct(((price - stock.price) / stock.price) * 100) : null);
-  // A call shows only the price that goes with it (`own`, above): where we'd buy more on Buy more, where we'd sell
-  // some on Sell some, and none on Keep; the chart and the alert suggestions use the same level.
-  const callLevels = ready && own ? [{ label: CALL_LEVEL_WORDS[own.label], price: own.price }] : [];
   // A call written weeks ago keeps its date in view: its horizon ("the next few weeks") ran from then, and a reason
   // rewritten from newer numbers says so beside it.
   const writtenMs = ready?.writtenAt ? Date.parse(ready.writtenAt) : NaN;
@@ -375,27 +364,23 @@ export function StockReport({
   const briefFirst = briefBody ? wholeSentences(briefBody, 1) : "";
   const briefLead = briefFirst || ready?.headline || "";
   const briefRest = briefFirst && briefBody.startsWith(briefFirst) ? briefBody.slice(briefFirst.length).trim() : briefFirst ? "" : briefBody;
-  // A level more than half the price away says little about today (the engine still sets some that far out); the landing card uses the same rule.
-  const nearLevel = (value: number) => hasPrice && Math.abs(value - stock.price) / stock.price <= 0.5;
-  const nearLevels = callLevels.filter((item) => nearLevel(item.price));
-  // Where today's price sits against the level: past it, right at it, or how far off ("−0.0% from here" said nothing).
-  const levelNote = (item: { label: string; price: number }): ReactNode => {
-    if (!hasPrice) return null;
-    const below = item.label.endsWith("below");
-    if (below ? stock.price <= item.price : stock.price >= item.price) return "The price is there now";
-    if (Math.abs(item.price - stock.price) / stock.price < 0.005) return "Right at today's price";
-    return (
-      <>
-        <span className={NUM}>{fromHere(item.price)}</span> from here
-      </>
-    );
-  };
   const callWord = ready?.call ? (CALL_PLAIN[ready.call as keyof typeof CALL_PLAIN] ?? ready.call) : null;
   const callAction = ready ? plainAction(ready.actionLabel, ready.call) : null;
-  // One heading: the call word, toned, inside the sentence that says what it means ("[Buy more] on a dip, not at
-  // today's price."), so the call is said once (./call-line.ts). `meaning` is the line when there is no call word.
+  // The heading is the call word alone (Buy more, Keep, Sell some); the line under it is the call's own price against
+  // today's, in plain words, or, where the plan does not show the price, what the call waits for (./call-line.ts).
+  // `meaning` is the heading when there is no call word.
   const meaning = callMeaning(callWord, callAction);
-  const callHeadline = callWord ? callHeading(callWord, callAction) : null;
+  const callUnder = ready
+    ? callLine({
+        callWord,
+        callAction,
+        level: own,
+        hidden: data.gate.levels ? null : data.gate.hiddenLevel ?? null,
+        price: hasPrice ? stock.price : null,
+        money: level,
+        plan: data.gate.plan,
+      })
+    : null;
   // What would change the call, set apart from the reasons so it reads as the conditions to watch.
   const changeBlock = (lines: string[]) => (
     // Capped on a wide screen so the box never widens the price column at the call's expense.
@@ -502,23 +487,35 @@ export function StockReport({
                   ) : null}
                   {ready ? (
                     <>
-                      {/* One heading (owner rule 6): the call word, toned, inside the sentence that says what it means
-                          ("Buy more on a dip, not at today's price."), never a small chip over a second heading. */}
+                      {/* The heading is the call word alone, toned (owner rule 8); what it means for today's price is
+                          the line under it, never a small chip over a second heading (owner rule 6). */}
                       {callWord ? (
-                        <h2 className="mt-1.5 text-pretty text-[17px] font-medium leading-7 tracking-tight text-oa-fg">
+                        <h2 className="mt-1 text-[20px] font-semibold leading-7 tracking-tight">
                           <span
-                            className="whitespace-nowrap rounded-md px-1.5 py-0.5 font-semibold [box-decoration-break:clone]"
+                            className="rounded-md px-1.5 py-0.5"
                             style={{
                               color: callTone ? TONE_COLOR[callTone] : "var(--oa-fg)",
                               background: `color-mix(in srgb, ${callTone ? TONE_COLOR[callTone] : "var(--oa-fg)"} 12%, transparent)`,
                             }}
                           >
-                            {callHeadline!.word}
+                            {callWord}
                           </span>
-                          {callHeadline!.rest}
                         </h2>
                       ) : meaning ? (
                         <h2 className="mt-1.5 text-pretty text-[17px] font-medium leading-6 tracking-tight text-oa-fg">{meaning}</h2>
+                      ) : null}
+                      {callWord && callUnder ? (
+                        <>
+                          <p className="mt-2 max-w-[62ch] text-pretty text-[16px] font-medium leading-6 text-oa-fg">{callUnder.text}</p>
+                          {/* The one pointer to the gate: the full-report box after the reasons (id "call"). */}
+                          {callUnder.gate ? (
+                            <p className="mt-0.5 text-[14px] leading-5">
+                              <a href="#call" className="text-oa-primary hover:underline">
+                                {callUnder.gate}
+                              </a>
+                            </p>
+                          ) : null}
+                        </>
                       ) : null}
                       {/* How long the call has stood (a call that keeps its date is one you can hold us to) and when we last
                           looked at it again: the brief is rewritten, and the call decided, at that time. */}
@@ -602,27 +599,14 @@ export function StockReport({
                     </p>
                   )}
                 </section>
-                {/* Under the price on a wide screen (after the call on a phone): the price that goes with the call, and
-                    what to do next. The call column keeps only the call and its reasons (owner, Nov 11: "left empty, right too much text"). */}
-                {ready && (hasChangeBox || nearLevels.length > 0 || callSteps) ? (
+                {/* Under the price on a wide screen (after the call on a phone): what would change the call, and what to
+                    do next. The call's own price is the line under the call word, so it is said once. */}
+                {ready && (hasChangeBox || callSteps) ? (
                   <div className="flex min-w-0 flex-col gap-3 border-t border-oa-border pt-3 md:col-start-1 md:row-start-2 md:border-t-0 md:pt-0">
                   {/* What would change the call, under the price where the left side has room: measured conditions first,
                       the steady call's own sentence when there are none. The company reason's "if sales slow sharply"
                       line is never shown: it names nothing anyone can check. */}
                   {conditions.length ? changeBlock(conditions) : ruleChange ? changeBlock([ruleChange]) : null}
-                  {nearLevels.length ? (
-                    <dl className="flex flex-wrap gap-x-6 gap-y-2">
-                      {nearLevels.map((item) => (
-                        <div key={item.label} className="min-w-0">
-                          <dt className="text-[12.5px] leading-4 text-oa-muted-fg">{item.label}</dt>
-                          <dd className="mt-0.5 flex flex-wrap items-baseline gap-x-2">
-                            <span className={`${NUM} text-[15px] font-medium leading-[22px] text-oa-fg`}>{level(item.price)}</span>
-                            {levelNote(item) ? <span className="text-[12.5px] leading-4 text-oa-muted-fg">{levelNote(item)}</span> : null}
-                          </dd>
-                        </div>
-                      ))}
-                    </dl>
-                  ) : null}
                   {/* No lock line here: the page has one lock, the full-report box after the reasons (owner, Nov 12). */}
                   {callSteps ? (
                     <div className={hasChangeBox ? "md:hidden" : undefined}>

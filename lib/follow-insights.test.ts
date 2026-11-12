@@ -8,6 +8,7 @@ import {
   dominantPeriod,
   fundIsStale,
   fundStaleLine,
+  insiderNextStep,
   insiderPace,
   memberIsStale,
   memberStaleLine,
@@ -16,6 +17,7 @@ import {
   mostSold,
   tallyCongress,
   tallyFundMoves,
+  tallyInsiderBuys,
   type CongressTradeLite,
   type FundDigest,
 } from "@/lib/follow-insights";
@@ -176,6 +178,27 @@ describe("insiders", () => {
     ];
     const read = buildInsiderRead({ buys, recent: buys, sectors: {}, today: "2026-11-10" });
     expect(read.headline).toBe("3 insiders bought LKQ in two weeks, the most of any stock.");
+  });
+
+  it("ends the read on where to start, tied to the stocks it names", () => {
+    const buys = [
+      buy("LKQ", "2026-11-05", "a", { value: 400_000 }),
+      buy("LKQ", "2026-11-04", "b", { value: 200_000, role: "Chief Executive Officer" }),
+      buy("LKQ", "2026-11-03", "c", { value: 100_000 }),
+      buy("LRN", "2026-11-05", "d"),
+      buy("LRN", "2026-11-04", "e"),
+    ];
+    const read = buildInsiderRead({ buys, recent: buys, sectors: {}, today: "2026-11-10" });
+    // The headline already gives LKQ's count, so only the links go under it.
+    expect(read.sub).toBeUndefined();
+    expect(read.actions).toEqual([
+      { label: "Who bought LKQ", href: "/insiders/LKQ" },
+      { label: "Our call on LKQ", href: "/stock/LKQ" },
+    ]);
+    // Preferring a stock the busy sector names, with its boss among the buyers when it is.
+    expect(insiderNextStep(tallyInsiderBuys(buys, "2026-10-27"), ["LKQ"])?.sub).toBe("Start with LKQ: three insiders bought it in two weeks, its chief executive among them, $700K in all.");
+    expect(insiderNextStep(tallyInsiderBuys(buys.slice(3), "2026-10-27"), ["XOM"])?.ticker).toBe("LRN");
+    expect(insiderNextStep(tallyInsiderBuys(buys.slice(0, 1), "2026-10-27"))).toBeNull();
   });
 });
 

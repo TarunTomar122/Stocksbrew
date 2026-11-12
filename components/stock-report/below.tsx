@@ -1,4 +1,5 @@
 import { todayET } from "@/lib/calendar-shared";
+import { weekChange } from "@/lib/stock-timeline";
 
 import { ChangedTimeline } from "./changed-timeline";
 import { daysBetween, fmtDate, relativeDays } from "./format";
@@ -32,12 +33,17 @@ export function StockReportBelow({ data, extras }: { data: ReportData; extras: R
     }));
 
   // A headline's row shows no summary (timeline-row.tsx), so the summary is not sent either.
+  // One line on what actually changed for the stock this week, from the same rows (lib/stock-timeline.ts), so the
+  // panel opens on a read and the headlines sit under it as evidence. No model call: the rows are grouped by subject.
+  const nowDate = new Date(Number.isFinite(Date.parse(nowIso)) ? Date.parse(nowIso) : Date.now());
+  const changeLine = weekChange(extras.timeline.items, { ticker: stock.ticker, companyName: stock.name, now: nowDate });
   const timelineItems = extras.timeline.items.slice(0, TIMELINE_MAX).map((item) => (item.kind === "news" && item.detail ? { ...item, detail: undefined } : item));
 
   return (
     <>
       <div data-phone-section="view" className="min-w-0">
         <Panel id="changed" label="What changed" className="scroll-mt-16 lg:scroll-mt-4">
+          {changeLine ? <p className="text-pretty border-b border-oa-border px-3.5 py-2.5 text-[15px] font-medium leading-[22px] text-oa-fg sm:px-4">{changeLine}</p> : null}
           {extras.timeline.upcoming.length ? (
             <div className="border-b border-oa-border bg-oa-bg">
               {extras.timeline.upcoming.map((item) => {

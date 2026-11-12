@@ -185,6 +185,19 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-12 ~03:45 UTC, ship 41 live (944afae): an agent log that reads in two seconds everywhere, a full example inbox, one Start free per page (lead, overnight loop)
+
+- Ship 41 (round 15A + lead):
+  - Agent log: phone uses the same status rows as desktop; labels are whole words.
+  - Opening read: the earnings card carries NVDA's usual 3.2% report move, 1.5× a normal day, as the next step.
+  - Rail: "Your other stocks today".
+  - Example inbox: lists every other holding in one table (weight, since added, day) and drops the "found nothing" row.
+  - Start free: shown once per view (shell only); locks name their own action ("Read the full report").
+  - Lead: "Cramer's stance/says/take" counts as filler.
+  - Checks: 2857 tests in both modes. VPS pulled.
+- In the main tree for the next ship: in-page sign-ins say what they do: "Keep asking", "See your own stocks", "See your own taxes", "See your own mix", "See ideas for your own stocks", "Show only your stocks".
+- Running: round 15B (stock page, compare, backtest, insiders).
+
 ### 2026-11-12 ~03:20 UTC, ship 40 live (bcdb5ac): Today pages that read like a person wrote them (lead, overnight loop)
 
 - Ship 40 (round 14 + lead): an audit of /explore, /premarket, /news and /calendar against the rubric, and fixes.

@@ -150,11 +150,12 @@ function ResultSide({ run, example }: { run: BacktestRun; example: boolean }) {
       </Panel>
       <Panel title="What each holding did">
         <HoldingCards run={run} />
-        <p className="border-t border-oa-border px-3.5 py-2 text-[12.5px] leading-5 text-oa-muted-fg">
-          {run.turnover.rebalances === 0
-            ? "Never rebalanced, so the end weights show how far the mix drifted."
-            : `Reset to the target weights ${run.turnover.rebalances} times. Trading costs took about ${(run.costs.total_drag * 100).toFixed(1)}% in total.`}
-        </p>
+        {/* Only what it cost the investor, not how the test traded (owner rule 8); nothing when the cost rounds to nothing. */}
+        {run.costs.total_drag >= 0.0005 ? (
+          <p className="border-t border-oa-border px-3.5 py-2 text-[12.5px] leading-5 text-oa-muted-fg">
+            Trading costs took about {(run.costs.total_drag * 100).toFixed(1)}% of the money over the whole test.
+          </p>
+        ) : null}
       </Panel>
     </>
   );

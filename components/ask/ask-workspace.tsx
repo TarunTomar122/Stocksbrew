@@ -195,7 +195,7 @@ function LimitNotice({ limit, onSignIn }: { limit: AskLimitReached; onSignIn: ()
       <div className="mt-3 flex flex-wrap gap-2">
         {limit.next_step === "sign_in" ? (
           <OaButton size="sm" onClick={onSignIn}>
-            Start free
+            Keep asking
           </OaButton>
         ) : null}
         {limit.next_step === "upgrade" ? (

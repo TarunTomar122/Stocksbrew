@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { analystTrendChanges, buildStockTimeline, parseLooseDate, parseMonthPeriod, prettyDay, timelineHeadline, timelineSortMs } from "@/lib/stock-timeline";
+import { analystTrendChanges, buildStockTimeline, parseLooseDate, parseMonthPeriod, prettyDay, timelineHeadline, timelineSortMs, weekChange, type StockTimelineItem } from "@/lib/stock-timeline";
 import type { NewsArticle } from "@/lib/news";
 import type { PowerTrade } from "@/lib/power-trades";
 import type { TimelineEvent } from "@/lib/stock";
@@ -91,7 +91,7 @@ describe("buildStockTimeline", () => {
     });
     expect(items.map((item) => item.id)).toEqual(["move", "news-a1", "call-2026-10-02", "earnings-2026-08-26", "congress-t1"]);
     expect(items[2]).toMatchObject({
-      title: "Our call moved from hold to add",
+      title: "Our call moved from Keep to Buy more",
       detail: "Add on dips. NVDA was at $201.50.",
       source: "stocksbrew call ledger",
       tone: "up",
@@ -180,5 +180,52 @@ describe("timelineHeadline", () => {
       news: [article({ title: "JPMorgan Announces Cash Distributions For The JPMorgan ETFs", source_name: "Yahoo Finance", published_at: "2026-11-09T12:00:00Z" })],
     });
     expect(items.find((item) => item.kind === "news")?.title).toBe("JPMorgan announces cash distributions for the JPMorgan ETFs");
+  });
+});
+
+describe("weekChange", () => {
+  const now = new Date("2026-11-12T07:00:00Z");
+  const news = (title: string, at: string): StockTimelineItem => ({ id: title, kind: "news", at, precision: "time", title, source: "Yahoo Finance" });
+  const jpm = [
+    news("Here’s how much you would have made owning JPMorgan Chase stock in the last 5 years", "2026-11-11T20:00:00Z"),
+    news("JPMorgan partners with OpenAI: What it means for JPM's AI strategy", "2026-11-11T15:00:00Z"),
+    news("JPMorgan Chase (JPM) takes lead role in a major AI IPO", "2026-11-10T20:00:00Z"),
+    news("JPMorgan may sell $2 billion of Qualtrics debt at about 85 cents on the dollar", "2026-11-10T18:00:00Z"),
+    news("JPMorgan Chase & Co. (JPM) is attracting investor attention: Here is what you should know", "2026-11-10T16:00:00Z"),
+    news("JPMorgan announces cash distributions for the JPMorgan ETFs", "2026-11-10T14:00:00Z"),
+    news("JPMorgan (JPM) stock may be 31% undervalued on Senate probe news", "2026-11-10T13:00:00Z"),
+    news("Anthropic plans IPO live stream with Amodei, JPMorgan CEO Dimon", "2026-11-09T13:00:00Z"),
+    news("JPMorgan beats on trading revenue", "2026-10-20T13:00:00Z"),
+  ];
+
+  it("names the subject most of the week's stories share, counting AI under its company names", () => {
+    expect(weekChange(jpm, { ticker: "JPM", companyName: "JPMorgan Chase & Co.", now })).toBe("Three of the eight stories on JPM in the past week are about AI.");
+  });
+
+  it("prefers a named subject to a broad topic and writes the name out in full", () => {
+    const nvda = [
+      news("Dow Jones futures rise, techs fall as Nvidia may oust CEO Huang after CoreWeave leads rally", "2026-11-11T20:00:00Z"),
+      news("Trump’s ties to Nvidia CEO Jensen Huang in the spotlight", "2026-11-11T19:00:00Z"),
+      news("Nvidia board meets to decide CEO Huang’s future, source says", "2026-11-11T18:00:00Z"),
+      news("Nasdaq-100 futures slide as the Nvidia sell-off resumes", "2026-11-11T17:00:00Z"),
+    ];
+    expect(weekChange(nvda, { ticker: "NVDA", companyName: "NVIDIA Corporation", now })).toBe("Three of the four stories on NVDA in the past week are about Jensen Huang.");
+  });
+
+  it("leads with a report, and with our own call when the news shares no subject", () => {
+    const call: StockTimelineItem = { id: "call-2026-11-09", kind: "call", at: "2026-11-09", precision: "day", title: "Our call moved from Keep to Buy more", source: "stocksbrew call ledger" };
+    expect(weekChange([...jpm, call], { ticker: "JPM", companyName: "JPMorgan Chase & Co.", now })).toBe("Three of the eight stories on JPM in the past week are about AI.");
+    expect(weekChange([jpm[0]!, call], { ticker: "JPM", companyName: "JPMorgan Chase & Co.", now })).toBe("Our call moved from Keep to Buy more on Nov 9.");
+    const report: StockTimelineItem = { id: "earnings", kind: "earnings", at: "2026-11-10", precision: "day", title: "JPM reported earnings", source: "Earnings calendar" };
+    expect(weekChange([report], { ticker: "JPM", now })).toBe("JPM reported earnings on Nov 10.");
+  });
+
+  it("is null when the stories share no subject, and on a quiet week", () => {
+    const mixed = [news("Bank names a new head of trading", "2026-11-11T10:00:00Z"), news("Card spending rose in October", "2026-11-10T10:00:00Z")];
+    expect(weekChange(mixed, { ticker: "JPM", now })).toBeNull();
+    // Market words and stock-tip headlines are no subject.
+    const noise = [news("3 bank stocks to buy now as the Fed holds", "2026-11-11T10:00:00Z"), news("U.S. banks rally as the Fed signals a pause", "2026-11-10T10:00:00Z")];
+    expect(weekChange(noise, { ticker: "JPM", now })).toBeNull();
+    expect(weekChange([news("Old story", "2026-10-01T10:00:00Z")], { ticker: "JPM", now })).toBeNull();
   });
 });

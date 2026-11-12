@@ -152,7 +152,7 @@ async function FilingsStream({ search }: { search: Search }) {
           </>
         ) : (
           <Link href="/portfolio?tab=holdings" className="ml-auto shrink-0 whitespace-nowrap pl-2 text-[14px] text-oa-muted-fg underline decoration-oa-border underline-offset-2 hover:text-oa-fg max-lg:hidden">
-            Start free to see only your stocks
+            Show only your stocks
           </Link>
         )}
       </nav>

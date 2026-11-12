@@ -1,3 +1,4 @@
+import type { HiddenLevel } from "./call-line";
 import type { ReactNode } from "react";
 
 import type { EarningsEvent } from "@/lib/earnings";
@@ -45,6 +46,11 @@ export type ReportData = {
     slotsLeft: number;
     /** The levels are open only because this is one of the showcase stocks, not the viewer's plan: label it as an example. */
     example?: boolean;
+    /**
+     * When `levels` is false and the call has its own price: which call it goes with and whether today's price has
+     * reached it, never the number, so the call can say what it is waiting for (./call-line.ts).
+     */
+    hiddenLevel?: HiddenLevel | null;
   };
   subscribed: boolean;
   isTracked: boolean;

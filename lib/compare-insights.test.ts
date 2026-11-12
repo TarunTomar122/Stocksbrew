@@ -8,11 +8,10 @@ const AMD: ScreenerRow = { symbol: "AMD", fwd_pe: 30, rev_growth: 40, op_margin:
 const SPY: ScreenerRow = { symbol: "SPY", ret_1y: 14, day_pct: 1, benchmark: true };
 
 describe("compare read", () => {
-  it("says who wins on what, folding a repeated subject", () => {
+  it("leads with the biggest difference as one quantified comparison, then the others", () => {
     const read = buildCompareRead({ rows: [NVDA, AMD], benchmark: SPY });
-    expect(read?.headline).toBe("NVDA keeps more of each sale as profit, grows faster and costs less for its profit.");
-    expect(read?.insights.slice(0, 3).map((item) => item.text)).toEqual([
-      "AMD keeps less of each sales dollar as profit than NVDA (18% against 65%).",
+    expect(read?.headline).toBe("NVDA keeps 65¢ of each sales dollar as operating profit, against 18¢ for AMD.");
+    expect(read?.insights.slice(0, 2).map((item) => item.text)).toEqual([
       "NVDA grows revenue 2x faster than AMD (+83% a year against +40%).",
       "NVDA costs less than AMD for each $1 of next year's expected profit ($15 against $30).",
     ]);
@@ -20,7 +19,7 @@ describe("compare read", () => {
 
   it("puts the call and the year against the S&P 500 under the differences", () => {
     const read = buildCompareRead({ rows: [NVDA, AMD], benchmark: SPY });
-    expect(read?.insights.map((item) => item.id)).toEqual(["diff-margin", "diff-growth", "diff-cheap"]);
+    expect(read?.insights.map((item) => item.id)).toEqual(["diff-growth", "diff-cheap", "calls"]);
     // With no big differences the year has room.
     const close = buildCompareRead({ rows: [{ ...NVDA, fwd_pe: 20, rev_growth: 40, op_margin: 30 }, { ...AMD, fwd_pe: 20, rev_growth: 40, op_margin: 30 }], benchmark: SPY });
     expect(close?.headline).toBe("We'd keep NVDA without adding and buy more AMD.");
@@ -51,21 +50,28 @@ describe("compare read", () => {
     expect(buildCompareRead({ rows: [NVDA, null] })).toBeNull();
   });
 
+  it("writes each kind of difference as a headline with its numbers", () => {
+    const lead = (a: ScreenerRow, b: ScreenerRow) => winnerClauses([a, b])[0]?.lead;
+    expect(lead({ symbol: "A", rev_growth: 30 }, { symbol: "B", rev_growth: -6 })).toBe("A's sales grew 30% over the past year, while B's fell 6.0%.");
+    expect(lead({ symbol: "A", fwd_pe: 12 }, { symbol: "B", fwd_pe: 40 })).toBe("A costs $12 for each $1 of next year's expected profit, against $40 for B.");
+    expect(lead({ symbol: "A", op_margin: 30 }, { symbol: "B", op_margin: -8 })).toBe("A keeps 30¢ of each sales dollar as operating profit, while B loses money on its day-to-day business.");
+  });
+
   it("ignores differences too small to matter", () => {
     expect(winnerClauses([{ symbol: "A", fwd_pe: 20, rev_growth: 10, op_margin: 30 }, { symbol: "B", fwd_pe: 21, rev_growth: 11, op_margin: 31 }])).toEqual([]);
     expect(joinClauses([{ text: "A is cheaper", symbols: ["A"] }])).toBe("A is cheaper.");
   });
 
-  it("mixes the strongest difference, the year and the calls on the desk", () => {
+  it("mixes the year, the calls and the next difference on the desk", () => {
     const read = buildCompareRead({ rows: [NVDA, AMD], benchmark: SPY, spread: true });
-    expect(read?.headline).toBe("NVDA keeps more of each sale as profit, grows faster and costs less for its profit.");
-    expect(read?.insights.map((item) => item.id)).toEqual(["diff-margin", "year", "calls"]);
+    expect(read?.headline).toBe("NVDA keeps 65¢ of each sales dollar as operating profit, against 18¢ for AMD.");
+    expect(read?.insights.map((item) => item.id)).toEqual(["year", "calls", "diff-growth"]);
   });
 
   it("swaps the call for the price against each stock's own past when the calls show on their own", () => {
     const read = buildCompareRead({ rows: [{ ...NVDA, pe_hist_pctile: 0 }, { ...AMD, pe_hist_pctile: 23 }], benchmark: SPY, spread: true, calls: false });
-    expect(read?.insights.map((item) => item.id)).toEqual(["diff-margin", "year", "history"]);
-    const history = read?.insights[2];
+    expect(read?.insights.map((item) => item.id)).toEqual(["year", "history", "diff-growth"]);
+    const history = read?.insights[1];
     expect(history?.text).toBe("NVDA is cheaper against its own earnings history than AMD: 0 out of 100, where 0 is the cheapest it has been, against 23.");
     expect(history?.figure).toEqual({ value: "0 of 100" });
   });

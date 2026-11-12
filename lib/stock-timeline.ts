@@ -15,7 +15,10 @@ import type { EarningsIntelDoc } from "@/lib/earnings-intel";
 import type { NewsArticle } from "@/lib/news";
 import type { PowerTrade } from "@/lib/power-trades";
 import type { StockFacts, TimelineEvent } from "@/lib/stock";
-import { headlineCase, plainAction } from "@/lib/plain-copy";
+import { CALL_PLAIN, headlineCase, plainAction } from "@/lib/plain-copy";
+
+/** The ledger's call ("Add") as a reader sees it ("Buy more"); anything else as it came. */
+const callWord = (call: string): string => CALL_PLAIN[call as keyof typeof CALL_PLAIN] ?? call;
 
 export type StockTimelineKind =
   | "move"
@@ -308,9 +311,10 @@ export function buildStockTimeline(input: StockTimelineInput): {
       kind: "call",
       at: day,
       precision: "day",
+      // Call words are always Buy more / Keep / Sell some (owner rule 8), never the ledger's Add / Hold / Trim.
       title: change.from
-        ? `Our call moved from ${change.from.toLowerCase()} to ${change.to.toLowerCase()}`
-        : `We started covering ${ticker} with a ${change.to.toLowerCase()} call`,
+        ? `Our call moved from ${callWord(change.from)} to ${callWord(change.to)}`
+        : `We started covering ${ticker} with a ${callWord(change.to)} call`,
       detail: [label ? `${label}.` : "", price].filter(Boolean).join(" ") || undefined,
       source: "stocksbrew call ledger",
       tone: change.to === "Add" ? "up" : change.to === "Trim" ? "down" : "flat",
@@ -502,4 +506,136 @@ export function buildStockTimeline(input: StockTimelineInput): {
   upcoming.sort((a, b) => a.date.localeCompare(b.date));
 
   return { items, upcoming };
+}
+
+// ── what changed this week, in one line ─────────────────────────────────────
+
+/** Subjects that run through several headlines under different words: OpenAI and Anthropic stories are AI stories. */
+const TOPICS: Array<{ label: string; re: RegExp }> = [
+  { label: "AI", re: /\b(?:AI|OpenAI|Anthropic|ChatGPT|artificial intelligence|generative)\b|\bA\.I\.(?!\w)/i },
+  { label: "its results", re: /\b(?:earnings|quarterly results|Q[1-4] results|beats? estimates|misse[sd] estimates|EPS)\b/i },
+  { label: "dividends and buybacks", re: /\b(?:dividends?|buybacks?|repurchases?|distributions?)\b/i },
+  { label: "deals", re: /\b(?:acquir(?:e|es|ed|ing)|acquisitions?|mergers?|takeover|buyout|agrees to buy)\b/i },
+  { label: "IPOs", re: /\bIPOs?\b/ },
+  { label: "legal and regulatory questions", re: /\b(?:lawsuits?|probes?|investigations?|antitrust|regulators?|sued|subpoena)\b/i },
+  { label: "analyst ratings", re: /\b(?:upgrades?|upgraded|downgrades?|downgraded|price targets?|outperform|underperform|overweight|underweight)\b/i },
+  { label: "tariffs", re: /\btariffs?\b/i },
+  { label: "layoffs", re: /\b(?:layoffs?|job cuts)\b/i },
+];
+
+/** Capitalised words that name no subject: market words, filler and the parts of a company's name. */
+const NOT_A_SUBJECT = new Set(
+  (
+    "a an the and or of for in on at to by with from as is are was be it its this that these those here what why how who when where which " +
+    "i we you they he she new top best big stock stocks shares share market markets wall street dow jones nasdaq nasdaq-100 nyse s&p sp " +
+    "inc corp corporation co company ltd plc llc group holdings etf etfs fund funds ceo cfo coo chair chairman president director board " +
+    "us u.s usa america american fed live update updates news report reports week today year quarter fy q1 q2 q3 q4 buy sell hold " +
+    "zacks motley fool benzinga yahoo finance reuters bloomberg cnbc marketwatch investing.com barron " +
+    "january february march april may june july august september october november december monday tuesday wednesday thursday friday"
+  ).split(" "),
+);
+
+/** "Nvidia's" → "Nvidia"; trailing punctuation off. */
+function bareWord(word: string): string {
+  return word.replace(/[’']s$/i, "").replace(/^[^\w&]+|[^\w&]+$/g, "");
+}
+
+/**
+ * The proper names in a headline (people, companies, places), as runs of capitalised words: "Jensen Huang",
+ * "Qualtrics". The first word of each sentence counts only when it is an acronym or has an inner capital (OpenAI),
+ * or when `proper` already knows it as a name from the middle of another headline.
+ */
+function namesIn(title: string, skip: Set<string>, proper?: Set<string>): string[][] {
+  const runs: string[][] = [];
+  let run: string[] = [];
+  let start = true;
+  for (const raw of title.split(/\s+/)) {
+    const word = bareWord(raw);
+    const lower = word.toLowerCase();
+    const capital = /^[A-Z]/.test(word);
+    const special = /^[A-Z]{2,}$/.test(word) || /^[A-Z][a-z]+[A-Z]/.test(word);
+    const counts = capital && word.length > 1 && !skip.has(lower) && !NOT_A_SUBJECT.has(lower) && (!start || special || Boolean(proper?.has(word)));
+    if (counts) run.push(word);
+    else if (run.length) {
+      runs.push(run);
+      run = [];
+    }
+    // A run stops at punctuation, so "OpenAI: What" is two pieces.
+    if (run.length && /[:;,.!?—–|-]$/.test(raw)) {
+      runs.push(run);
+      run = [];
+    }
+    start = /[:.!?—–|]$/.test(raw) || /^[—–|-]$/.test(raw);
+  }
+  if (run.length) runs.push(run);
+  return runs;
+}
+
+/**
+ * One line that says what changed for the stock in the past week, built from the timeline rows the page already
+ * has (no model call): a results report, else the subject most of the week's stories share ("Three of the eight
+ * stories on JPM in the past week are about AI."), else our call moving. Null when the week has nothing to say:
+ * a count of unrelated stories is not a read.
+ */
+export function weekChange(items: StockTimelineItem[], input: { ticker: string; companyName?: string | null; now: Date }): string | null {
+  const { ticker, now } = input;
+  const nowMs = now.getTime();
+  const week = items.filter((item) => {
+    const ms = timelineSortMs(item, now);
+    return ms > 0 && ms <= nowMs + 60_000 && nowMs - ms <= 7 * DAY_MS;
+  });
+  const sentence = (text: string) => (/[.!?]$/.test(text.trim()) ? text.trim() : `${text.trim()}.`);
+  const day = (item: StockTimelineItem) => prettyDay(item.at.slice(0, 10), now);
+
+  // A results report is the change; then the subject most stories share; then our own call moving (the read above
+  // the list already says that, so it leads here only when the news has no subject of its own).
+  const earnings = week.find((item) => item.kind === "earnings");
+  if (earnings) return earnings.title === `${ticker} reported earnings` ? `${ticker} reported earnings on ${day(earnings)}.` : sentence(earnings.title);
+  const call = week.find((item) => item.kind === "call");
+  const callLine = call ? `${call.title.replace(/[.]$/, "")} on ${day(call)}.` : null;
+
+  const stories = week.filter((item) => item.kind === "news");
+  if (stories.length === 0) return callLine;
+  if (stories.length === 1) return callLine;
+
+  // Names that are part of the company's own name or ticker never make a subject ("JPMorgan", "Chase").
+  const skip = new Set(
+    [ticker, ...(input.companyName ?? "").split(/[\s,.&()]+/)]
+      .map((word) => bareWord(word).toLowerCase())
+      .filter((word) => word.length > 1),
+  );
+  const proper = new Set<string>();
+  for (const story of stories) for (const run of namesIn(story.title, skip)) for (const word of run) proper.add(word);
+
+  // Each candidate subject with the stories it appears in, newest first, so a tie goes to the newer subject.
+  const hits = new Map<string, { label: string; stories: Set<number>; newest: number; topic: boolean }>();
+  const add = (key: string, label: string, index: number, topic: boolean) => {
+    const entry = hits.get(key) ?? { label, stories: new Set<number>(), newest: index, topic };
+    entry.stories.add(index);
+    entry.newest = Math.min(entry.newest, index);
+    // The longest way the name was written ("Jensen Huang" over "Huang").
+    if (label.length > entry.label.length) entry.label = label;
+    hits.set(key, entry);
+  };
+  stories.forEach((story, index) => {
+    for (const topic of TOPICS) if (topic.re.test(story.title)) add(`topic:${topic.label}`, topic.label, index, true);
+    for (const run of namesIn(story.title, skip, proper)) {
+      const label = run.join(" ");
+      // A name a topic already covers ("OpenAI" under AI) is counted there.
+      if (TOPICS.some((topic) => topic.re.test(label))) continue;
+      for (const word of run) add(`name:${word.toLowerCase()}`, label, index, false);
+    }
+  });
+  const best = [...hits.values()]
+    .filter((entry) => entry.stories.size >= 2)
+    // Most stories first; on a tie the named subject beats the broad topic, then the newer one.
+    .sort((a, b) => b.stories.size - a.stories.size || Number(a.topic) - Number(b.topic) || a.newest - b.newest)[0];
+
+  const total = stories.length;
+  const totalWord = total <= 10 ? ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"][total] : String(total);
+  if (!best) return callLine;
+  const k = best.stories.size;
+  const kWord = k <= 10 ? ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"][k] : String(k);
+  if (k === total) return `${total === 2 ? "Both" : `All ${totalWord}`} stories on ${ticker} in the past week are about ${best.label}.`;
+  return `${kWord.charAt(0).toUpperCase()}${kWord.slice(1)} of the ${totalWord} stories on ${ticker} in the past week are about ${best.label}.`;
 }

@@ -1,5 +1,5 @@
 /**
- * The read at the top of /compare: who wins on what, in one line, then the
+ * The read at the top of /compare: the biggest difference as one quantified line, then the
  * few differences that matter most (the year against the S&P 500, how far
  * each sits from its high, a report coming up, where the call stands).
  *
@@ -46,8 +46,17 @@ export function joinClauses(clauses: Array<{ text: string; symbols: string[] }>)
 }
 
 /** One short clause per dimension where the names really differ, strongest first. */
-export function winnerClauses(rows: ScreenerRow[]): Array<{ id: string; text: string; symbols: string[]; strength: number }> {
-  const out: Array<{ id: string; text: string; symbols: string[]; strength: number }> = [];
+export type WinnerClause = {
+  id: string;
+  text: string;
+  /** The same difference as a headline: the winner first, one comparison, its numbers ("NVDA keeps 65¢ ..."). */
+  lead: string;
+  symbols: string[];
+  strength: number;
+};
+
+export function winnerClauses(rows: ScreenerRow[]): WinnerClause[] {
+  const out: WinnerClause[] = [];
   const pair = rows.length === 2;
 
   const forward = ends(values(rows, "fwd_pe", (value) => value > 0));
@@ -61,6 +70,7 @@ export function winnerClauses(rows: ScreenerRow[]): Array<{ id: string; text: st
       text: pair
         ? `${multiple.bottom.symbol} costs less than ${multiple.top.symbol} for each $1 of ${forward ? "next year's expected " : ""}profit ($${multiple.bottom.value.toFixed(0)} against $${multiple.top.value.toFixed(0)})`
         : `${multiple.bottom.symbol} costs the least for each $1 of ${forward ? "next year's expected " : ""}profit ($${multiple.bottom.value.toFixed(0)})`,
+      lead: `${multiple.bottom.symbol} costs $${multiple.bottom.value.toFixed(0)} for each $1 of ${forward ? "next year's expected profit" : "last year's profit"}, against $${multiple.top.value.toFixed(0)} for ${multiple.top.symbol}.`,
       symbols: [multiple.bottom.symbol, multiple.top.symbol],
       strength: Math.min(3, ratio - 1),
     });
@@ -77,6 +87,12 @@ export function winnerClauses(rows: ScreenerRow[]): Array<{ id: string; text: st
           : growth.bottom.value < 0
             ? `${growth.top.symbol} grows revenue (${signedPct(growth.top.value)}) while ${growth.bottom.symbol}'s shrinks`
             : `${growth.top.symbol} grows fastest (${signedPct(growth.top.value)} a year)`,
+      lead:
+        growth.top.value <= 0
+          ? `${growth.top.symbol}'s sales fell the least over the past year, ${pct(growth.top.value)} against ${pct(growth.bottom.value)} for ${growth.bottom.symbol}.`
+          : growth.bottom.value < 0
+            ? `${growth.top.symbol}'s sales grew ${pct(growth.top.value)} over the past year, while ${growth.bottom.symbol}'s fell ${pct(growth.bottom.value)}.`
+            : `${growth.top.symbol}'s sales grew ${pct(growth.top.value)} over the past year, against ${pct(growth.bottom.value)} for ${growth.bottom.symbol}.`,
       symbols: [growth.top.symbol, growth.bottom.symbol],
       strength: Math.min(3, (growth.top.value - growth.bottom.value) / 15),
     });
@@ -90,6 +106,13 @@ export function winnerClauses(rows: ScreenerRow[]): Array<{ id: string; text: st
         margin.bottom.value < 0
           ? `${margin.bottom.symbol} loses money on its day-to-day business`
           : `${margin.bottom.symbol} keeps less of each sales dollar as profit than ${margin.top.symbol} (${pct(margin.bottom.value, 0)} against ${pct(margin.top.value, 0)})`,
+      // Cents of each sales dollar, as "Where they differ" says it.
+      lead:
+        margin.top.value <= 0
+          ? `${margin.bottom.symbol} loses more on its day-to-day business than ${margin.top.symbol}.`
+          : margin.bottom.value < 0
+            ? `${margin.top.symbol} keeps ${margin.top.value.toFixed(0)}¢ of each sales dollar as operating profit, while ${margin.bottom.symbol} loses money on its day-to-day business.`
+            : `${margin.top.symbol} keeps ${margin.top.value.toFixed(0)}¢ of each sales dollar as operating profit, against ${margin.bottom.value.toFixed(0)}¢ for ${margin.bottom.symbol}.`,
       symbols: [margin.bottom.symbol, margin.top.symbol],
       strength: Math.min(3, (margin.top.value - margin.bottom.value) / 12),
     });
@@ -100,37 +123,13 @@ export function winnerClauses(rows: ScreenerRow[]): Array<{ id: string; text: st
     out.push({
       id: "balance",
       text: `${cash.top.symbol} has net cash (${cash.bottom.symbol} has net debt)`,
+      lead: `${cash.top.symbol} has more cash than debt, while ${cash.bottom.symbol} owes more than it holds.`,
       symbols: [cash.top.symbol, cash.bottom.symbol],
       strength: 0.5,
     });
   }
 
   return out.sort((a, b) => b.strength - a.strength);
-}
-
-// Who comes out ahead on each difference, and the plain words for it.
-const WIN_WORDS: Record<string, string> = {
-  cheap: "costs less for its profit",
-  growth: "grows faster",
-  margin: "keeps more of each sale as profit",
-  balance: "has more cash than debt",
-};
-
-function winnerOf(clause: { id: string; symbols: string[] }): string | undefined {
-  // The margin clause names the weaker company first; every other names the winner first.
-  return clause.id === "margin" ? clause.symbols[1] : clause.symbols[0];
-}
-
-/** "NVDA keeps more of each sale as profit and grows faster. AMD costs less for its profit." */
-export function verdict(clauses: Array<{ id: string; symbols: string[] }>): string {
-  const byWinner = new Map<string, string[]>();
-  for (const clause of clauses) {
-    const winner = winnerOf(clause);
-    const words = WIN_WORDS[clause.id];
-    if (!winner || !words) continue;
-    byWinner.set(winner, [...(byWinner.get(winner) ?? []), words]);
-  }
-  return [...byWinner.entries()].map(([symbol, words]) => `${symbol} ${joinNames(words)}.`).join(" ");
 }
 
 // Our call on one stock, as what we would do with it.
@@ -150,9 +149,9 @@ export function buildCompareRead(input: {
   benchmark?: ScreenerRow | null;
   asOf?: string | null;
   /**
-   * The compare desk's mix: the headline already names every difference, so the cards show the strongest one with
-   * its numbers, then the year against the S&P 500 and our call on each, then the price against each stock's own
-   * past when there is room (it moves up when `calls` is false). Off, the differences lead.
+   * The compare desk's mix: the headline is the strongest difference, so the cards show the year against the S&P
+   * 500 and our call on each, then the price against each stock's own past (it moves up when `calls` is false), then
+   * the other differences when there is room. Off, the other differences lead.
    */
   spread?: boolean;
   /** false when the page shows the calls on their own (the pair page's call cards). */
@@ -162,10 +161,11 @@ export function buildCompareRead(input: {
   if (rows.length < 2) return null;
 
   const clauses = winnerClauses(rows).slice(0, 3);
-  // The short answer first ("NVDA keeps more of each sale as profit and grows
-  // faster."), then each difference as its own line with the numbers.
-  let headline = clauses.length ? verdict(clauses) : "";
-  const clauseInsights: Insight[] = clauses.map((clause) => ({
+  // The headline is the strongest difference as one quantified comparison ("NVDA keeps 65¢ of each sales dollar as
+  // operating profit, against 18¢ for AMD."): one idea, its numbers (owner rule 8). The other differences follow as
+  // their own lines; the first is the headline, so it is not said again under it.
+  let headline = clauses[0]?.lead ?? "";
+  const clauseInsights: Insight[] = clauses.slice(1).map((clause) => ({
     id: `diff-${clause.id}`,
     tone: "flat",
     text: `${clause.text.charAt(0).toUpperCase()}${clause.text.slice(1)}.`,
@@ -275,10 +275,10 @@ export function buildCompareRead(input: {
   }
 
   const showCalls = input.calls === false ? null : calls;
-  // The desk's mix: the strongest difference with its numbers, the year against the S&P 500, then the call.
-  // Otherwise the differences lead and the call and the year follow when there is room.
+  // The desk's mix: the year against the S&P 500, then the call, then the other differences. Otherwise the other
+  // differences lead and the call and the year follow when there is room.
   const insights = input.spread
-    ? pickInsights([clauseInsights[0], year, showCalls, history, ...clauseInsights.slice(1), highs, earnings], 4)
+    ? pickInsights([year, showCalls, history, ...clauseInsights, highs, earnings], 4)
     : pickInsights([...clauseInsights, showCalls, year, highs, earnings], 4);
   if (!headline) {
     const lead = insights.shift();

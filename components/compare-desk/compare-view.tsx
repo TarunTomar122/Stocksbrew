@@ -11,7 +11,10 @@ import { CallTag, EarningsDate, MarkSlot, Unknown, ZoneTag, fieldHasMark, fieldM
 import { StockLogo } from "@/components/stock-logo";
 import { getCompareData, getCompareDataCached } from "@/lib/compare";
 import { buildCompareRead } from "@/lib/compare-insights";
-import { buildCompareTable, describeDifferences, tallyWins, type CompareTableGroup } from "@/lib/compare-shared";
+import { buildCompareTable, describeDifferences, type CompareTableGroup } from "@/lib/compare-shared";
+import { ownCallLevel } from "@/lib/call-level";
+import { callLine } from "@/components/stock-report/call-line";
+import { WholeRowsBox } from "./whole-rows-box";
 import { canSeeLevels, type Viewer } from "@/lib/entitlements-server";
 import { getScreenerRows } from "@/lib/screener";
 import { withoutZones, type ScreenerRow } from "@/lib/screener-shared";
@@ -81,6 +84,19 @@ function NumberRows({ group, rows }: { group: CompareTableGroup; rows: ReadonlyA
   );
 }
 
+/** "We'd buy more below $160.00, 8.0% under today's $173.85.": the call's own level, when this row carries one. */
+function levelLine(row: ScreenerRow | null | undefined): string | null {
+  if (!row?.call) return null;
+  const price = typeof row.price === "number" && row.price > 0 ? row.price : null;
+  // Within half the price, the stock page's rule; a sell-some price under the buy-more price is not a level.
+  const near = (value: number | undefined) => (value && (!price || Math.abs(value - price) / price <= 0.5) ? value : null);
+  const addBelow = near(row.add_below);
+  const trimAbove = near(row.trim_above);
+  const own = ownCallLevel(row.call, { addBelow, trimAbove: trimAbove && (!addBelow || trimAbove > addBelow) ? trimAbove : null });
+  if (!own) return null;
+  return callLine({ callWord: null, callAction: null, level: own, hidden: null, price, money: fmtMoney, plan: "" })?.text ?? null;
+}
+
 /**
  * Our call on each stock, right under the read's headline: the call, the one figure its evidence leads with and that
  * evidence as one sentence, which carries its own baseline ("while other chip stocks rose 5.8%"). The card opens the
@@ -97,6 +113,9 @@ function CallCards({ symbols, rows, className = "mt-3" }: { symbols: string[]; r
         const reason = row?.call_reason ? wholeSentences(plainCallReason(withoutVagueChange(row.call_reason)), 1) : "";
         const figure = reason ? deriveFigure(reason) : null;
         const sign = figure && /[1-9]/.test(figure.value) ? /^[+\u2212-]/.exec(figure.value)?.[0] : undefined;
+        // The call's own price against today's, as on the stock page (components/stock-report/call-line.ts), only when
+        // the row still has it: rows arrive with levels stripped where the viewer's plan does not show them.
+        const level = levelLine(row);
         return (
           <li
             key={symbol}
@@ -119,7 +138,8 @@ function CallCards({ symbols, rows, className = "mt-3" }: { symbols: string[]; r
                 </span>
               ) : null}
             </div>
-            {reason ? <p className="mt-2 text-pretty text-[14.5px] leading-[21px] text-oa-fg">{reason}</p> : null}
+            {level ? <p className="mt-2 text-pretty text-[14.5px] font-medium leading-[21px] text-oa-fg">{level}</p> : null}
+            {reason ? <p className={`${level ? "mt-1" : "mt-2"} text-pretty text-[14.5px] leading-[21px] text-oa-fg`}>{reason}</p> : null}
             <Link
               href={`/stock/${encodeURIComponent(symbol)}`}
               prefetch={false}
@@ -153,7 +173,6 @@ export async function CompareView({
   // The call is open to everyone; price zones only on stocks this viewer covers.
   const rows: Array<ScreenerRow | null> = data.rows.map((row) => (row && !canSeeLevels(viewer, row.symbol) ? withoutZones(row) : row));
   const groups = buildCompareTable(rows);
-  const wins = tallyWins(groups, symbols.length);
   const benchmark = benchmarkRows.get("SPY") ?? null;
   const differences = describeDifferences(rows, benchmark);
   // The read: who wins on what, then the few differences that matter. Built on the zone-stripped rows. Our call on
@@ -245,7 +264,7 @@ export async function CompareView({
       <Panel flush>
         {/* About eight rows tall and scrolls inside (no visible bar), with the stocks pinned on top so every row stays
             readable. The better figure in each row is in bold. */}
-        <div className="scrollbar-hide relative max-h-[27rem] overflow-auto overscroll-contain">
+        <WholeRowsBox className="scrollbar-hide relative max-h-[27rem] overflow-auto overscroll-contain">
           <table className="w-full border-collapse max-sm:table-fixed" style={{ minWidth: `${7 + symbols.length * 6.5}rem` }}>
             <thead>
               <tr>
@@ -264,9 +283,6 @@ export async function CompareView({
                         </span>
                         <span className="max-w-[5.75rem] text-pretty text-right text-[12.5px] leading-4 text-oa-muted-fg sm:max-w-[11rem]">{row?.name ? shortCompanyName(row.name) : "Not covered"}</span>
                       </Link>
-                      <div className={`${NUM} mt-1 text-[11px] text-oa-muted-fg`}>
-                        {row ? `${wins[index]} ${wins[index] === 1 ? "row" : "rows"} won` : ""}
-                      </div>
                     </th>
                   );
                 })}
@@ -316,8 +332,9 @@ export async function CompareView({
                                 <ZoneTag zone={row.zone} />
                                 {/* Phones get fixed 6.5rem columns, too narrow for "add under $535.93" on one line, so it wraps there instead of running into the next column. */}
                                 <span className={`${NUM} flex flex-col items-end text-right text-[11.5px] leading-4 text-oa-muted-fg sm:whitespace-nowrap`}>
-                                  {row.add_below !== undefined ? <span>buy more under {fmtMoney(row.add_below)}</span> : null}
-                                  {row.trim_above !== undefined ? <span>sell some over {fmtMoney(row.trim_above)}</span> : null}
+                                  {/* Only the call's own level (owner rule 8): the buy-more price on Buy more, the sell-some price on Sell some, none on Keep. */}
+                                  {row.call === "Add" && row.add_below !== undefined ? <span>buy more under {fmtMoney(row.add_below)}</span> : null}
+                                  {row.call === "Trim" && row.trim_above !== undefined ? <span>sell some over {fmtMoney(row.trim_above)}</span> : null}
                                 </span>
                               </span>
                             ) : data.rows[index]?.zone ? (
@@ -367,7 +384,7 @@ export async function CompareView({
               ) : null}
             </tbody>
           </table>
-        </div>
+        </WholeRowsBox>
       </Panel>
         );
         // Chart and the differences side by side at the same height when there are enough rows to stand beside the

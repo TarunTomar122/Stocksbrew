@@ -50,7 +50,7 @@ export function TaxSignIn() {
             }}
             className="inline-flex h-10 cursor-pointer items-center rounded border border-oa-primary bg-oa-primary px-4 text-[14px] font-medium text-oa-primary-fg outline-none hover:brightness-110 focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)] disabled:opacity-60 sm:h-9"
           >
-            {busy ? "Signing in" : "Start free"}
+            {busy ? "Signing in" : "See your own taxes"}
           </button>
         </div>
       </div>

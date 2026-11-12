@@ -38,7 +38,7 @@ export function clusterMembersLine(cluster: InsiderCluster, shown = 3): string {
 const insiderHref = (symbol: string) => `/insiders/${encodeURIComponent(symbol)}`;
 
 /**
- * Logo, ticker and name, linking to the stock's insider page; its hit area
+ * Logo and ticker (owner rule 3: tickers only, the name is on hover), linking to the stock's insider page; its hit area
  * stretches over the nearest `relative` ancestor, so the whole row or card is
  * the link. (Not the kit's Ticker: this file is also used by a client component.)
  */
@@ -47,14 +47,11 @@ function ClusterStock({ cluster, size }: { cluster: InsiderCluster; size: number
     <Link
       prefetch={false}
       href={insiderHref(cluster.symbol)}
+      title={cluster.company ? shortCompanyName(cluster.company) : undefined}
       className="inline-flex min-w-0 items-center gap-2 rounded outline-none after:absolute after:inset-0 after:content-[''] hover:underline focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]"
     >
       <StockLogo ticker={cluster.symbol} size={size} />
       <span className="oa-mono text-[14px] font-medium text-oa-fg">{cluster.symbol}</span>
-      {/* No name when it is just the ticker again ("LKQ LKQ"). */}
-      {cluster.company && shortCompanyName(cluster.company).toUpperCase() !== cluster.symbol.toUpperCase() ? (
-        <span title={cluster.company} className="min-w-0 truncate text-[14px] text-oa-muted-fg">{shortCompanyName(cluster.company)}</span>
-      ) : null}
     </Link>
   );
 }

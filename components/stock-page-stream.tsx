@@ -10,6 +10,8 @@ import { StockReport } from "@/components/stock-report/report";
 import { dayInET, fmtDate } from "@/components/stock-report/format";
 import { Suspense } from "react";
 import type { ReportData, ReportExtras } from "@/components/stock-report/types";
+import type { HiddenLevel } from "@/components/stock-report/call-line";
+import { ownCallLevel } from "@/lib/call-level";
 import { StockReportBelow } from "@/components/stock-report/below";
 import { StockBelowSkeleton } from "@/components/stock-report/skeleton";
 import { StockRelatedRow } from "@/components/seo/stock-family-links";
@@ -454,6 +456,23 @@ export async function StockPageStream({ params }: Props) {
           zones: { addBelow: null, addAbove: null, trimAbove: null },
         }
       : fullRead;
+  // The call's own price on a stock this viewer does not see levels on: only which call it goes with and whether
+  // today's price has reached it leave the server, so the call can say what it waits for without the number.
+  const hiddenLevel = ((): HiddenLevel | null => {
+    if (!fullRead || hasLevels || isBrokenRead || !(fin(stock.price) && stock.price > 0)) return null;
+    // The same rule as the page's own level (components/stock-report/report.tsx): within half the price.
+    const within = (value: number | null | undefined) => (value && Math.abs(value - stock.price) / stock.price <= 0.5 ? value : null);
+    const addBelow = within(fullRead.zones.addBelow);
+    const trimAbove = within(fullRead.zones.trimAbove);
+    const own = ownCallLevel(fullRead.call, {
+      addBelow,
+      addAbove: within(fullRead.zones.addAbove),
+      trimAbove: trimAbove && (!addBelow || trimAbove > addBelow) ? trimAbove : null,
+    });
+    if (!own) return null;
+    const reached = own.label === "We'd buy more below" ? stock.price <= own.price : stock.price >= own.price;
+    return { label: own.label, reached };
+  })();
   const readState: ReportData["readState"] = !hasFullAnalysisAccess
     ? "locked"
     : isPriceStaleBrief
@@ -640,6 +659,7 @@ export async function StockPageStream({ params }: Props) {
       trialEligible: viewer.trialEligible,
       levels: hasLevels,
       example: hasLevels && !isCovered(viewer, stock.instrument_id),
+      hiddenLevel,
       slotsLeft: Number.isFinite(coveredSlotsLeft(viewer)) ? coveredSlotsLeft(viewer) : 0,
     },
     subscribed,

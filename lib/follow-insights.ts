@@ -23,7 +23,7 @@ import {
   type PerfCard,
 } from "@/lib/follow-shared";
 import { buildCopyRead, copyHref, copyPace, fmtPointsWord, isFullRecord, possessive, stoppedMonth, type CopyRecord } from "@/lib/copy-trades-shared";
-import { shortCompanyName } from "@/lib/plain-copy";
+import { countWord, shortCompanyName } from "@/lib/plain-copy";
 
 // ── shapes the loaders produce ─────────────────────────────────────────────
 
@@ -593,7 +593,18 @@ export function buildInsiderRead(input: {
         }
       : null;
 
-  const insights = pickInsights([first, multi ?? chiefInsight, balance]);
+  // The next step under the headline, tied to its stocks (below). On /insiders a card that opens /insiders goes
+  // nowhere: the pace card opens its lead stock's insider page instead, unless the headline's "Who bought" already
+  // goes there (owner rule 1: no two controls for one thing).
+  const next = insiderNextStep(tallies, pace?.hotSector?.tickers ?? []);
+  const firstLead = first?.tickers?.[0];
+  const opened =
+    first && firstLead && first.action?.href === "/insiders"
+      ? next?.ticker === firstLead
+        ? { ...first, action: undefined }
+        : { ...first, action: { label: `${firstLead} insider buys`, href: `/insiders/${encodeURIComponent(firstLead)}` } }
+      : first;
+  const insights = pickInsights([opened, multi ?? chiefInsight, balance]);
   // The stock most insiders bought: the first in the tally (most buyers first), not the multi card's, which skips it.
   const top = tallies.find((row) => row.buyers.length >= 2) ?? null;
   // One idea and one number (owner rule 8): the unusual pace when there is one, else the stock most insiders bought.
@@ -606,7 +617,41 @@ export function buildInsiderRead(input: {
       : top
         ? `${plural(top.buyers.length, "insider")} bought ${top.ticker} in two weeks, the most of any stock.`
         : "";
-  return { headline, insights, source: "Insiders' own filings at the SEC, open-market buys and sells", tallies };
+  // When the headline already is the next step's stock count, only the links go under it, so it is not said twice.
+  const saidAlready = Boolean(next && headline.includes(` bought ${next.ticker} in two weeks`));
+  return {
+    headline,
+    ...(next ? { ...(saidAlready ? {} : { sub: next.sub }), actions: next.actions } : {}),
+    insights,
+    source: "Insiders' own filings at the SEC, open-market buys and sells",
+    tallies,
+  };
+}
+
+/**
+ * Where to start, under the insiders headline: the stock with the most insiders buying, preferring one in the busy
+ * sector the headline names, with who bought and how much, then its insider page and our call on it. A stock with a
+ * single buyer is no lead; null then.
+ */
+export function insiderNextStep(
+  tallies: StockTally[],
+  named: string[] = [],
+): { ticker: string; sub: string; actions: Array<{ label: string; href: string }> } | null {
+  const several = tallies.filter((row) => row.buyers.length >= 2);
+  const lead = several.find((row) => named.includes(row.ticker)) ?? several[0];
+  if (!lead) return null;
+  // The company's boss among the buyers is the strongest part of the story, so it is said when it is there.
+  const boss = lead.buyers.find((buyer) => /\b(?:ceo|chief executive)\b/i.test(buyer.detail ?? ""));
+  const money = (lead.value ?? 0) > 0 ? `, ${usd(lead.value ?? 0)} in all` : "";
+  const sub = `Start with ${lead.ticker}: ${countWord(lead.buyers.length)} insiders bought it in two weeks${boss ? ", its chief executive among them" : ""}${money}.`;
+  return {
+    ticker: lead.ticker,
+    sub,
+    actions: [
+      { label: `Who bought ${lead.ticker}`, href: `/insiders/${encodeURIComponent(lead.ticker)}` },
+      { label: `Our call on ${lead.ticker}`, href: `/stock/${encodeURIComponent(lead.ticker)}` },
+    ],
+  };
 }
 
 function usd(value: number): string {
