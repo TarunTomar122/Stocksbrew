@@ -19,6 +19,7 @@ from backend.call_engine_pipeline import (
 )
 from backend import call_stability
 from backend.agentdata.analyst_firms import firm_is_subject
+from backend.brief_lead import BODY_LEAD_PROMPT_RULES, fix_coverage_lead
 from backend.call_reason import attach_call_reason, coerce_model_reasons, validated_model_reasons
 from backend.directive_v2 import build_directive_v2
 from backend.evidence_history import (
@@ -44,7 +45,7 @@ from backend.providers.options_scrape import fetch_alphaquery_options_digest
 
 logger = logging.getLogger(__name__)
 
-STOCK_BRIEF_CACHE_VERSION = "2026-11-10-stock-brief-v23-call-reasons"
+STOCK_BRIEF_CACHE_VERSION = "2026-11-12-stock-brief-v24-company-lead"
 DEFAULT_STOCK_BRIEF_MODEL = "gpt-5.6-luna"
 
 
@@ -444,7 +445,7 @@ Fields to write:
 
 - **headline**: Under 12 words. An insight, not a price move. BAD: "NVDA rises on earnings." GOOD: "Data-center demand is outpacing bull-case estimates."
 
-- **body**: A simple, factual NEWS OVERVIEW of what is actually happening with this stock RIGHT NOW. Write 1-2 complete sentences, 35-55 words total. Ground every sentence in the dated `recent_news` items (and `reddit_buzz` if present). Plain English, current, no jargon. If `recent_news` is empty or every item is more than ~4 days older than `today`, say coverage has gone quiet and briefly note the last real development. Do NOT narrate the price. Never open with "[Company] has seen..." - lead with the actual development. End on a complete sentence.
+- **body**: A simple, factual overview of what is actually happening to the company RIGHT NOW. Write 1-2 complete sentences, 35-55 words total, one idea per sentence. The first sentence says what happened to the company, with a concrete fact: a number, a date, or a named event (see BODY FIRST SENTENCE below). Ground every sentence in the dated `recent_news` items (and `reddit_buzz` if present). Plain English, current, no jargon. If `recent_news` is empty or every item is more than ~4 days older than `today`, lead with the last real development and its date, then say plainly that nothing newer has been reported. Do NOT narrate the price. Never open with "[Company] has seen..." - lead with the actual development. End on a complete sentence.
 
 - **key_findings**: 2-4 short, punchy takeaways. Each one a different insight the user wouldn't get from the chart. Frame facts as implications: not "analyst set $200 target" but "Street consensus is 15% above current price - the market hasn't caught up to the upgrade cycle yet."
 
@@ -471,6 +472,7 @@ Fields to write:
   - detail: ONE standalone English sentence (16-30 words) explaining what can go wrong and why that would hurt the company or stock. Never write fragments or metric shorthand.
   - trigger, severity (1-5)
 
+""" + BODY_LEAD_PROMPT_RULES + """
 DIRECTIVE REASONS - THE FIRST TWO CARDS ARE USER-FACING:
 - A downstream policy turns this evidence into a directive. The stock page shows `drivers[0:2]` beneath accumulate/hold calls and `risk_cards[0:2]` beneath trim/avoid calls.
 - Write and rank those cards as the REASONS the matching directive holds, not as a loose list of facts about the company.
@@ -498,7 +500,7 @@ STYLE:
 - NO: "investors should monitor", "well-positioned", "could potentially", "it's worth noting"
 - Never use trader shorthand such as "the tape", "quiet tape", "calm", "print", or "risk-on" in user-facing prose.
 - Avoid reversal templates such as "this is not X, it is Y" and "not just X, but Y".
-- If evidence is thin, say what the silence means - not just "limited coverage"
+- If evidence is thin, lead with the last concrete fact about the company and say what the silence means - never just "limited coverage"
 - Do not repeat the same sentence across headline/body/key_findings/thesis/drivers/catalyst/risk.
 - The cards should support the thesis with distinct causal implications. Reusing a core fact for that purpose is fine; copying the same wording is not.
 
@@ -543,7 +545,7 @@ MARKET REGIME - USE IT:
 RECENCY - THIS IS CRITICAL:
 - Today's date is in the payload as `today`. The payload includes `recent_news`: an array of the freshest articles, each with its own `date`, `title`, and `summary`.
 - The `body` overview must describe what is happening NOW, anchored to `recent_news`. Only treat something as "recent"/"this week" if its `date` is within ~4 days of `today`.
-- NEVER reference a date that is not present in `recent_news`. NEVER invent "as of <month>" phrasing. If the freshest item is old, say coverage has quieted rather than implying fresh activity.
+- NEVER reference a date that is not present in `recent_news`. NEVER invent "as of <month>" phrasing. If the freshest item is old, give the last development with its date and say nothing newer has been reported, rather than implying fresh activity.
 
 ANOMALY ALIGNMENT:
 - The payload may include `anomaly_digest` when this stock is one of today's unusual movers.
@@ -651,7 +653,7 @@ STOCK_BRIEF_SCHEMA = {
             },
             "body": {
                 "type": "string",
-                "description": "2-3 sentences synthesizing what happened, why it matters, what to watch.",
+                "description": "1-2 sentences. The first says what happened to the company, with a number, a date or a named event; never what the coverage says.",
             },
             "key_findings": {
                 "type": "array",
@@ -1114,7 +1116,7 @@ NO_NEWS_BRIEF_SYSTEM_PROMPT = """You explain one US stock in clear, ordinary lan
 The user sees the price chart. Don't describe the price. Tell them what the quiet means.
 
 - **headline**: Under 12 words. Describe the remaining business or valuation question without pretending silence is a development.
-- **body**: 1-2 complete sentences, 35-55 words total. State that no company-specific development was verified, then explain the technical or analyst context with the supplied evidence. End on a complete sentence.
+- **body**: 1-2 complete sentences, 35-55 words total, one idea per sentence. The first sentence states one concrete fact about the company from the payload, with its number: the analyst rating and the gap to the average target, how far the shares sit below their 52-week high, or the `tape_event`. The second may say in plain words that no new company news was found, then what that means. Say what a technical reading means instead of quoting it: "the shares have fallen faster than usual lately", not "RSI14 at 27.11". End on a complete sentence.
 - **key_findings**: 2-3 punchy insights from the numbers - analyst target gap, RSI, distance from highs, what these imply.
 - **catalyst**: What could break the silence. Be specific.
 - **risk**: What the lack of coverage might be hiding.
@@ -1135,11 +1137,21 @@ Write for a normal stock owner, not an analyst. Use familiar words and complete 
 STYLE: Direct, concrete, and easy to read aloud. Keep user-facing fields naturally short through writing, not truncation. Never use "tape", "calm", "coiled", "the street", or newsroom/trader shorthand. Avoid "this is not X, it is Y" constructions.
 Do not copy the same sentence across fields. Cards may use core thesis evidence when they add a distinct causal implication.
 
-If `tape_event` is present, it contains factual price-action data that made this brief worth refreshing. You may describe that setup using its exact numbers, but it is NOT a company catalyst. Never say the tape event "caused", "explains", or "continues" the move. State that no company-specific catalyst was verified when relevant.
-"""
+If `tape_event` is present, it contains factual price-action data that made this brief worth refreshing. You may describe that setup using its exact numbers, but it is NOT a company catalyst. Never say the tape event "caused", "explains", or "continues" the move. When relevant, say after the first sentence that no company news explains it.
+
+""" + BODY_LEAD_PROMPT_RULES
 NO_NEWS_BRIEF_SYSTEM_PROMPT += CALL_REASONS_PROMPT_SECTION
 
-NO_NEWS_BRIEF_CACHE_VERSION = "2026-11-10-no-news-brief-v9-call-reasons"
+NO_NEWS_BRIEF_CACHE_VERSION = "2026-11-12-no-news-brief-v10-company-lead"
+
+# Capitalised words a no-news brief may use that are not some other company's ticker. Anything else in capitals
+# is read as a wrong ticker and the brief falls back to the fixed text in build_no_news_intelligence_doc.
+NOT_OTHER_TICKERS = frozenset({
+    "AI", "CEO", "CFO", "COO", "CTO", "EPS", "ETF", "ETFS", "IPO", "Q1", "Q2", "Q3", "Q4", "TTM", "YOY",
+    "RSI", "US", "USA", "UK", "EU", "GAAP", "FDA", "SEC", "FTC", "DOJ", "FAA", "FCC", "EPA", "NYSE", "REIT",
+    "REITS", "EV", "EVS", "LNG", "GDP", "CPI", "FY", "EBIT", "EBITDA", "FCF", "ROE", "ROIC", "PEG", "ESG", "OPEC",
+    "GLP", "GPU", "GPUS", "CPU", "AWS", "ADR", "NAV", "AUM", "ARR", "OTC", "SMA", "MACD",
+})
 
 
 def _nn_to_float(value: Any) -> float | None:
@@ -1418,7 +1430,9 @@ def build_no_news_intelligence_doc(
         risk_cards = _fundamental_risk_cards(_summarize_intel_pro(intel_pro_doc), limit=2)
     def _mentions_wrong_ticker(value: str) -> bool:
         symbols = set(re.findall(r"\b[A-Z]{2,5}\b", str(value or "")))
-        allowed = {ticker, "AI", "CEO", "CFO", "EPS", "ETF", "IPO", "Q1", "Q2", "Q3", "Q4", "TTM", "YoY"}
+        # The share-class root ("BRK" for "BRK.B") and common capitalised words are not other tickers. "RSI"
+        # alone used to replace almost every no-news brief with the "coverage is thin" text below.
+        allowed = {ticker, ticker.split(".")[0].split("-")[0], *NOT_OTHER_TICKERS}
         return bool(symbols - allowed)
 
     if _mentions_wrong_ticker(" ".join([headline, body, thesis])):
@@ -1439,6 +1453,10 @@ def build_no_news_intelligence_doc(
         )
     if not thesis:
         thesis = headline
+    # The page leads with the body's first sentence: a coverage-only opener goes when the rest stands, otherwise
+    # the brief keeps its words and is flagged for a rewrite (backend/brief_lead.py).
+    lead_fix = fix_coverage_lead(body)
+    body = lead_fix.body
     if not drivers:
         drivers = [{
             "label": "Quiet tape",
@@ -1481,6 +1499,9 @@ def build_no_news_intelligence_doc(
         "as_of": now_utc.isoformat(),
         "headline": headline,
         "body": body,
+        # Always written, so a clean rewrite clears an old flag on the merged doc.
+        "body_lead_issue": lead_fix.issue,
+        "body_lead_dropped": list(lead_fix.dropped),
         "thesis": thesis,
         "setup_state": setup_state,
         "catalyst": catalyst,
@@ -4238,6 +4259,10 @@ def build_stock_intelligence_docs(
             )
         if thesis and _has_invalid_earnings_timing(thesis, earnings_ctx):
             thesis = headline
+        # The page leads with the body's first sentence: a coverage-only opener goes when the rest stands,
+        # otherwise the brief keeps its words and is flagged for a rewrite (backend/brief_lead.py).
+        lead_fix = fix_coverage_lead(body)
+        body = lead_fix.body
 
         # Keep key points non-repetitive versus thesis/headline/body.
         dedupe_base = " ".join([thesis, headline, body]).lower()
@@ -4346,6 +4371,9 @@ def build_stock_intelligence_docs(
             "as_of": now_utc.isoformat(),
             "headline": headline,
             "body": body,
+            # Always written, so a clean rewrite clears an old flag on the merged doc.
+            "body_lead_issue": lead_fix.issue,
+            "body_lead_dropped": list(lead_fix.dropped),
             "thesis": thesis or headline,
             "setup_state": setup_state,
             "catalyst": catalyst,

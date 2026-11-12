@@ -185,6 +185,56 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-12 ~03:50 UTC, ships 43 (858a40b) and 44 (f1a8435) live (lead, overnight loop)
+
+- **Ship 43 (round 16A + lead)**
+  - /news: stock-first. The duplicate ungrouped panel is gone; Most talked about runs full width, then the company feed. Every list is a fixed-height inner scroll with a fade where more lies below. Phone page 17,598px → ~2,900px. Lede: "NVDA has 177 stories today, up from 23."
+  - /explore: every move card carries a confirmed reason or a measured price fact. Phones get the full set in the scroll. Prediction-market bars removed. Heading "Biggest stock moves" (lead).
+  - /calendar: day columns share a height and scroll inside.
+- **Ship 44 (rounds 16B + 16C)**
+  - Example portfolio: one snapshot read by the briefing, inbox, My stocks and landing. Watched names are labelled. Landing weekly matches My stocks (−2.5%).
+  - Agent feel: "Your agent flagged its 5.5% drop yesterday … Check our call on it before the report." on the briefing, My stocks and landing.
+  - Briefing:
+    - Other stocks each get one fact.
+    - The agent log shows flagged logo chips with their move.
+    - Stories our own numbers contradict are dropped.
+  - Inbox: one line per stock and a one-line banner.
+  - My stocks: the hollow last card is fixed.
+  - Landing: one pricing heading; the Free button says "Pick your five stocks".
+  - Stock page:
+    - The call word, one level line and tight reasons.
+    - One lock beside the level it hides.
+    - What changed opens with the development ("JPMorgan partnered with OpenAI on Nov 11.").
+    - Stored "fresh news centers on…" briefs are cleaned on read.
+    - Doubled words are collapsed.
+  - Compare: one-figure leads.
+  - Backtest: three cards; the replay caveat is gone.
+  - Insiders: the scroll fade, with all 162 rows reachable.
+  - 2883 tests in both modes. VPS pulled. 9 pages return 200.
+- **Open**
+  - About 270 of 722 stored briefs open with "recent coverage highlights…" (fix belongs in the brief prompt, pipeline side).
+  - The agent log chips show the move as of the run.
+  - /portfolio/memo uses its own week numbers.
+  - Backtest no longer states costs/short-record caveats (owner's call).
+- **Judges on live 44** (scratchpad/judge44):
+  - Codex: UI 7, UX 7, usability 7, wording 7, agent feel 6.5, similarity 6.5, sell 6.5, overall 7.
+  - Cursor: UI 7, UX 7, usability 7, wording 8, agent feel 7, similarity 6, sell 7, overall 7 (up from 6). Cursor called the flagged NVDA plus next step "the first real agent beat".
+  - Asks → round 18A:
+    - The NVDA flag should carry from briefing to inbox to stock page in one tap.
+    - Briefing other stocks as cards; NVDA once; the agents row's chips should be the flagged holding; a measured Reddit figure.
+    - Inbox lines with facts.
+    - The UNH span.
+    - Funds without "Keep" on the landing.
+    - Two Start free buttons on desktop.
+  - Asks → round 18B:
+    - JPM: call as heading, one instruction, rows as links, the development once, delete the mechanics line, a tangible Pro lock.
+    - News: tone dash and casing.
+    - Calendar: blank cards and the hollow Friday.
+    - Compare: caption.
+    - Market today: a next step.
+- Capture gotcha: a zsh `for spec … set -- $spec` loop doesn't word-split, so captures silently skipped; use a bash script with `perl -e 'alarm 150; exec …'` around shotq.
+- Running: 17 (brief prompt opener, backend), 18A, 18B.
+
 ### 2026-11-12 ~03:15 UTC, ship 42 live (2d9a92d): calls with their own level, What changed says what changed, sign-ins that say what they do (lead, overnight loop)
 
 - Ship 42 (round 15B + lead):
