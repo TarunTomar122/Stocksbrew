@@ -18,6 +18,8 @@ import { capWords, fmtPct, signedPct } from "./words";
 
 export const LOSS_PCT = 5;
 export const LOSS_MIN = 100;
+/** How many look-alikes a loss carries. */
+export const LOOK_ALIKES = 5;
 /** A look-alike stock in the same industry may be up to this many times bigger or smaller. */
 const INDUSTRY_SIZE = 5;
 /** Outside the industry it must be closer in size. */
@@ -82,6 +84,8 @@ export function similarStocks(target: IdeaHolding, universe: readonly ScreenerRo
       why: `${where}, ${size}.${year}`,
       call: row.call ?? null,
       held: held.has(row.symbol),
+      marketCap: row.market_cap!,
+      ret1y: fin(row.ret_1y) ? row.ret_1y : null,
     };
   });
 }
@@ -115,7 +119,7 @@ export function similarFunds(ticker: string, funds: Readonly<Record<string, Fund
   return picks
     .sort((a, b) => b.overlap - a.overlap)
     .slice(0, max)
-    .map(({ overlap: _overlap, ...pick }) => pick);
+    .map((pick) => pick);
 }
 
 export function buildLosses(input: {
@@ -180,7 +184,10 @@ export function buildLosses(input: {
       buyBackFrom: addDays(today, WASH_DAYS + 1),
       call: holding.call,
       callReason: holding.callReason,
-      similar: holding.fund ? similarFunds(holding.ticker, input.funds, held) : similarStocks(holding, input.universe, held),
+      // Up to five: the card shows the first three, the losses panel all of them beside the stock.
+      similar: holding.fund ? similarFunds(holding.ticker, input.funds, held, LOOK_ALIKES) : similarStocks(holding, input.universe, held, LOOK_ALIKES),
+      marketCap: holding.marketCap,
+      ret1y: holding.ret1y,
       watch: watch ? { label: `Tell me if ${holding.name} falls another 5%`, href: watch } : null,
     });
   }

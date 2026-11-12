@@ -193,4 +193,50 @@ export const PORTFOLIO_GUIDES: Guide[] = [
     ],
     related: ["strategies/what-a-backtest-tells-you", "strategies/running-your-own-backtest", "tools/position-size"],
   },
+  {
+    section: "portfolio",
+    slug: "rebalancing-ideas",
+    title: "Rebalancing and tax-loss ideas",
+    summary: "How the ideas page decides what to sell for size, where the money could go, which losses could be sold for tax, and what the tax figures assume.",
+    updated: "2026-11-12",
+    surface: { label: "Open the ideas", href: "/portfolio/ideas" },
+    blocks: [
+      p(
+        "The ideas page works out, from your holdings and our calls, whether anything is too big for the portfolio and which losses could be sold for tax. These are ideas from the numbers, not advice and not tax advice. Nothing on the page buys or sells; any trade is yours to make at your broker.",
+      ),
+      h2("When a stock is too big"),
+      ul(
+        "A company is over the line at **10%** of the portfolio, counting what your funds hold of it.",
+        "A trim sells back to the line, at most **half** the holding, for the **three** biggest companies over it. Any others over the line are named, not sized.",
+        "A sector more than **15 points** above its S&P 500 weight, or a stock that has grown to well past its share of the money put in, can get a trim too.",
+        "No trim sells a stock our call says to **keep** or **buy more** of. Those are shown over the line with no sale.",
+        "We leave out any sale under **$500** or under **2 points** of the portfolio: too small to be worth the trade.",
+        "Funds are never trimmed. They are already spread out.",
+      ),
+      h2("Where the money could go"),
+      p(
+        "The money raised goes, on paper, only to stocks our call says to buy more of, in sectors that are not already heavy, up to **8%** of the portfolio each, and never to a stock listed as a loss to sell. Whatever is left is shown as cash.",
+      ),
+      h2("Losses you could sell for tax"),
+      ul(
+        "A loss shows when a holding is at least **5%** and **$100** below what was paid.",
+        "The tax saved assumes you have gains to set the loss against.",
+        "The wash-sale rule: if you buy the same stock, or one that is substantially identical, within 30 days before or after selling it at a loss, the loss is put off until you sell the new shares. Each loss card shows the first day it is safe to buy back.",
+        "The look-alikes are similar by our data (same industry and size for a stock, shared holdings for a fund), not a recommendation. They will not move exactly the same way.",
+      ),
+      h2("What the tax figures assume"),
+      ul(
+        "US federal rules made simple: the two rates you pick, no state tax, and the oldest shares sold first.",
+        "Short-term gains (held a year or less) are taxed like income, so pick your bracket. Long-term gains are taxed at 0%, 15% or 20%; 15% is the usual one.",
+        "Where you entered lots on the Taxes page we use them. Otherwise a holding counts from the day you saved it, at its average cost, so shares bought earlier may already be long term, and a holding with no cost gets no estimate.",
+        "We do not see your whole tax year.",
+      ),
+      h2("The bars under each stock"),
+      p(
+        "Each card shows the stock's sales growth over four quarters, its five-day move against similar companies, and its P/E against its usual level. A labelled tick marks the level our call is measured against, and the line under it says it in words.",
+      ),
+      warn("These are worked out from what you entered and our data. They are not a statement of your account and not tax advice.", "Before you act"),
+    ],
+    related: ["portfolio/adding-holdings", "portfolio/analytics", "methodology/data-sources"],
+  },
 ];

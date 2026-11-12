@@ -28,6 +28,8 @@ export type IdeaHolding = {
   price: number | null;
   /** shares x price, else a value the person typed in, else null. */
   value: number | null;
+  /** Today's move in percent, from the same quote as `price`; null when the price is an older close. */
+  dayPct?: number | null;
   /** Open lots; empty when the cost is unknown. */
   lots: IdeaLot[];
   /** Where the lots come from: the Taxes page, the average cost and saved day, or nowhere. */
@@ -159,6 +161,11 @@ export type SimilarPick = {
   why: string;
   call: CallWord | null;
   held: boolean;
+  /** For a stock: its size and past-year move, for the side-by-side bars. */
+  marketCap?: number | null;
+  ret1y?: number | null;
+  /** For a fund: how much of the two funds is in the same companies, percent. */
+  overlap?: number | null;
 };
 
 export type LossIdea = {
@@ -190,6 +197,9 @@ export type LossIdea = {
   call: CallWord | null;
   callReason: string | null;
   similar: SimilarPick[];
+  /** The holding's own size and past-year move, beside its look-alikes'. */
+  marketCap?: number | null;
+  ret1y?: number | null;
   /** "Tell me if UNH falls another 5%": a ready request for the agents page. */
   watch: { label: string; href: string } | null;
 };

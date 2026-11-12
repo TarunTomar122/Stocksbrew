@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 
-import { AppPage, PageHead, SourceLine, fmtDay } from "@/components/oa/kit";
+import { AppPage, PageHead, SourceLine } from "@/components/oa/kit";
 import { IdeasGhost } from "@/components/portfolio-ideas/ghost";
 import { IdeasView } from "@/components/portfolio-ideas/ideas-view";
 import { XraySignIn } from "@/components/xray/xray-sign-in";
@@ -66,29 +66,28 @@ async function IdeasBody({ rates }: { rates: TaxRates }) {
   });
   const markedHoldings = (userDoc?.tracked_stocks ?? []).filter((id) => userDoc?.watchlist_positions?.[id] === "holding").length;
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
+      {/* One line, at most 15 words: why this is the example, and the way to your own. */}
       <p className="px-2 text-pretty text-[14px] leading-5 text-oa-muted-fg sm:px-0">
         {session && readFailed ? (
-          <>We could not load your holdings just now, so this is the example portfolio. Try again in a minute.</>
+          <>Your holdings did not load, so this is the example. Try again in a minute.</>
         ) : session && markedHoldings > 0 ? (
           <>
-            None of your holdings is a US stock or fund with a share count and a price we can use yet, so this is the example portfolio.{" "}
+            The example portfolio, until your holdings have share counts.{" "}
             <Link href="/portfolio" className="font-medium text-oa-primary hover:underline">
-              Add share counts in Portfolio
-            </Link>{" "}
-            to see ideas for yours.
+              Add share counts
+            </Link>
           </>
         ) : session ? (
           <>
-            You have no holdings marked yet, so this is the example portfolio.{" "}
+            The example portfolio, until you mark what you own.{" "}
             <Link href="/portfolio" className="font-medium text-oa-primary hover:underline">
-              Mark the stocks you own in Portfolio
-            </Link>{" "}
-            to see ideas for yours.
+              Mark your stocks
+            </Link>
           </>
         ) : (
           <>
-            This is an example portfolio{example?.pricesAsOf ? ` at the ${fmtDay(example.pricesAsOf)} close` : ""}: the shares and buy days are made up, the prices and our calls are real.{" "}
+            An example portfolio: made-up shares, real prices and calls.{" "}
             <XraySignIn>See ideas for your own stocks.</XraySignIn>
           </>
         )}

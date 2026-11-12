@@ -7,7 +7,7 @@ import { getSnapshotFacts } from "@/lib/insight-data";
 import { getInstrumentLabels } from "@/lib/instrument-resolver";
 import type { TheRead } from "@/lib/insights";
 import { shortCompanyName } from "@/lib/plain-copy";
-import { FUNDS_SECTOR, loadDailySeries, loadExamplePortfolio, newYorkToday } from "@/lib/portfolio-data";
+import { BENCHMARK_SYMBOL, FUNDS_SECTOR, loadDailySeries, loadExamplePortfolio, newYorkToday } from "@/lib/portfolio-data";
 import { computeInstrument, isIsoDay, readTaxLotsField } from "@/lib/portfolio-tax";
 import { getScreenerSnapshot } from "@/lib/screener";
 import type { ScreenerRow } from "@/lib/screener-shared";
@@ -16,8 +16,11 @@ import type { UserDoc } from "@/lib/watchlist";
 import { buildXray, fmtFilingDay, type FundDoc, type XrayPositionInput } from "@/lib/xray";
 import { loadFunds } from "@/lib/xray-data";
 
+import { cardFacts, peerMoves, type CardFacts } from "./facts";
 import { buildLosses } from "./losses";
+import { fundRows, sectorMix, weightRows, type FundRow, type SectorRow, type WeightRow } from "./mix";
 import { buildIdeasRead } from "./read";
+import { sessionDayMove } from "./quote-move";
 import { buildRebalance } from "./rebalance";
 import { WASH_DAYS, addDays } from "./tax";
 import type { CallWord, IdeaHolding, IdeaLot, IdeasResult, IdeasSubject, TaxRates } from "./types";
@@ -39,6 +42,18 @@ export type IdeasView = IdeasResult & {
   pricesAsOf: string | null;
   /** Day the screener snapshot (calls, sectors, sizes) is from. */
   snapshotDay: string | null;
+  /** The concentration chart: companies held (funds counted), biggest first, and the funds held. */
+  weights: WeightRow[];
+  funds: FundRow[];
+  /** Sectors before and after the ideas. */
+  sectors: SectorRow[];
+  /** The figure rows on each idea card, and the stock's price and today's move (one quote), by ticker. */
+  /**
+   * Past-year moves to set the cards' stocks against: the S&P 500 (SPY's line in the snapshot) and today's holdings
+   * weighted by value (what this mix did over the year, not a record of the account). Null when unknown.
+   */
+  yearMarks: { sp500: number | null; mix: number | null };
+  facts: Record<string, CardFacts & { price: number | null; dayPct: number | null; nextReport: string | null; spark: number[] | null; ret3m: number | null; ret1y: number | null }>;
 };
 
 const fin = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
@@ -126,7 +141,60 @@ async function finish(
     read.source = snapshotDay ? `${prices}; our calls and company sizes from the ${fmtFilingDay(snapshotDay)} close` : prices;
     read.asOf = pricesAsOf ? null : pricesAt;
   }
-  return { ...result, read, pricesAsOf, snapshotDay };
+  // Figure rows only for the stocks that get a card: trims, adds, the ones over the line we would keep, and losses.
+  const carded = new Set<string>([
+    ...plan.trims.map((trim) => trim.ticker),
+    ...plan.adds.map((add) => add.ticker),
+    ...plan.buyMoreOver.map((row) => row.ticker),
+    ...losses.map((loss) => loss.ticker),
+  ]);
+  const peers = peerMoves(snapshot?.rows ?? [], carded);
+  const cardFactsBy: IdeasView["facts"] = {};
+  for (const ticker of carded) {
+    const holding = holdings.find((row) => row.ticker === ticker);
+    if (!holding) continue;
+    const row = rows.get(ticker);
+    // The change sentence counts only while it still stands in the reason shown for today's call.
+    const change = row?.call_change?.trim() ?? "";
+    const standing = change && holding.callReason?.includes(change) ? change : null;
+    cardFactsBy[ticker] = { ...cardFacts(row, peers.get(ticker), holding.call, standing), price: holding.price,
+      dayPct: holding.dayPct ?? null,
+      // The next results day, only when it is still ahead.
+      nextReport: typeof row?.earnings_date === "string" && row.earnings_date.slice(0, 10) >= today ? row.earnings_date.slice(0, 10) : null,
+      // The screener snapshot's three-month price line (already loaded, no extra read), for the card's trend.
+      spark: Array.isArray(row?.spark) && row!.spark!.length >= 2 ? row!.spark! : null,
+      ret3m: fin(row?.ret_3m) ? row!.ret_3m! : null,
+      ret1y: holding.ret1y,
+    };
+  }
+  // The mix: each valued holding's past-year move, weighted by its value today; only when most of the money has one.
+  let weighted = 0;
+  let covered = 0;
+  let valued = 0;
+  for (const holding of holdings) {
+    if (!fin(holding.value) || holding.value <= 0) continue;
+    valued += holding.value;
+    if (fin(holding.ret1y)) {
+      weighted += holding.ret1y * holding.value;
+      covered += holding.value;
+    }
+  }
+  const spy = rows.get(BENCHMARK_SYMBOL);
+  const yearMarks = {
+    sp500: fin(spy?.ret_1y) ? spy!.ret_1y! : null,
+    mix: valued > 0 && covered / valued >= 0.8 ? weighted / covered : null,
+  };
+  return {
+    ...result,
+    read,
+    yearMarks,
+    pricesAsOf,
+    snapshotDay,
+    weights: weightRows(xray, holdings),
+    funds: fundRows(xray),
+    sectors: sectorMix(xray, plan, holdings, facts.spSectorWeights),
+    facts: cardFactsBy,
+  };
 }
 
 /** The example portfolio the Portfolio page shows visitors: invented shares, saved days and costs at the close on those days. */
@@ -147,6 +215,8 @@ export async function loadExampleIdeas(rates: TaxRates): Promise<IdeasView | nul
         fund: position.sector === FUNDS_SECTOR,
         shares: position.shares,
         price: position.price,
+        // The example's move only when its quote is from the current or most recent session.
+        dayPct: sessionDayMove(position.dayPct, example.quotedAt[position.ticker]),
         value: position.value,
         lots,
         basis: lots.length > 0 ? "saved" : "none",
@@ -194,6 +264,10 @@ export async function loadUserIdeas(userDoc: UserDoc | null, rates: TaxRates, no
     const at = typeof quote?.captured_at === "string" ? quote.captured_at : typeof quote?.updated_at === "string" ? quote.updated_at : null;
     if (fin(quoted) && at && (!pricesAt || at < pricesAt)) pricesAt = at;
     const price = fin(quoted) && quoted > 0 ? quoted : series ? series.closes[series.closes.length - 1] ?? null : null;
+    // Today's move only from the quote the price came from; a stored close has none.
+    const quotedDay = quote?.quote?.day_change_pct;
+    // A quote from an older session (a stuck feed, a delisted stock) keeps its price but not its move.
+    const dayPct = fin(quoted) && quoted > 0 ? sessionDayMove(quotedDay, at, now) : null;
     const quantity = fin(holding?.quantity) && holding!.quantity! > 0 ? holding!.quantity! : null;
     const typed = fin(holding?.market_value) && holding!.market_value! > 0 ? holding!.market_value! : null;
     const entry = taxLots[id];
@@ -222,6 +296,7 @@ export async function loadUserIdeas(userDoc: UserDoc | null, rates: TaxRates, no
       fund: FUND_NAME.test(label?.name ?? ""),
       shares,
       price: fin(price) && price > 0 ? price : null,
+      dayPct,
       value,
       lots,
       basis,

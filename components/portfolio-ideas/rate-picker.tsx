@@ -7,9 +7,9 @@ import { LONG_RATES, SHORT_RATES } from "@/lib/portfolio-ideas/tax";
 import type { TaxRates } from "@/lib/portfolio-ideas/types";
 
 /**
- * The two rates the tax estimates assume. A change rewrites the address
- * (?short=24&long=15) so the server recomputes every estimate and the read
- * from the same numbers, and the link keeps the person's choice.
+ * The two rates the tax figures assume, as two small selects in a section header ("Short-term 24%", "Long-term
+ * 15%"). A change rewrites the address (?short=24&long=15) so the server works every figure out again, and the link
+ * keeps the choice. What the rates mean lives in the page's "How we work these out".
  */
 export function RatePicker({ rates }: { rates: TaxRates }) {
   const router = useRouter();
@@ -22,36 +22,30 @@ export function RatePicker({ rates }: { rates: TaxRates }) {
     setShown(next);
     start(() => router.replace(`${pathname}?short=${next.short}&long=${next.long}`, { scroll: false }));
   };
-  const select = `outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)] oa-mono h-9 w-full rounded border border-oa-border bg-oa-bg px-2 text-[14px] tabular-nums text-oa-fg`;
+  const select =
+    "oa-mono h-7 cursor-pointer rounded border border-oa-border bg-oa-bg pl-1.5 pr-1 text-[13px] tabular-nums text-oa-fg outline-none focus-visible:border-oa-fg";
   return (
-    <div className="flex flex-col gap-3" aria-busy={pending}>
-      <div className="grid grid-cols-2 gap-3">
-        <label className="flex min-w-0 flex-col gap-1">
-          <span className="text-[13px] leading-[18px] text-oa-muted-fg">Held a year or less</span>
-          <select className={select} value={shown.short} onChange={(event) => go({ ...shown, short: Number(event.target.value) })}>
-            {SHORT_RATES.map((rate) => (
-              <option key={rate} value={rate}>
-                {rate}%
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex min-w-0 flex-col gap-1">
-          <span className="text-[13px] leading-[18px] text-oa-muted-fg">Held over a year</span>
-          <select className={select} value={shown.long} onChange={(event) => go({ ...shown, long: Number(event.target.value) })}>
-            {LONG_RATES.map((rate) => (
-              <option key={rate} value={rate}>
-                {rate}%
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-      <p className="text-pretty text-[13px] leading-[18px] text-oa-muted-fg">
-        {pending
-          ? "Working out the tax again at these rates."
-          : "Short-term gains are taxed like income, so pick your income bracket on the left. Long-term gains are taxed at 0%, 15% or 20% by income, and 15% is the usual one."}
-      </p>
+    <div className={`flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[13px] text-oa-muted-fg ${pending ? "opacity-60" : ""}`} aria-busy={pending}>
+      <label className="flex items-center gap-1.5" title="Gains on shares held a year or less are taxed like income: pick your bracket.">
+        Short-term
+        <select className={select} value={shown.short} onChange={(event) => go({ ...shown, short: Number(event.target.value) })}>
+          {SHORT_RATES.map((rate) => (
+            <option key={rate} value={rate}>
+              {rate}%
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="flex items-center gap-1.5" title="Gains on shares held over a year are taxed at 0%, 15% or 20%; 15% is the usual one.">
+        Long-term
+        <select className={select} value={shown.long} onChange={(event) => go({ ...shown, long: Number(event.target.value) })}>
+          {LONG_RATES.map((rate) => (
+            <option key={rate} value={rate}>
+              {rate}%
+            </option>
+          ))}
+        </select>
+      </label>
     </div>
   );
 }
