@@ -94,10 +94,11 @@ export async function OaLanding() {
           </div>
         </section>
 
-        {/* Under the hero: the work the agent did across the market today, from the jobs' own records. Nothing at all
-            when there is no log yet, so no empty box. */}
+        {/* Under the hero: the daily check of the whole market, from the jobs' own records, titled as that check so it
+            never reads as more agents beside the example's three below (judges, ship 47). Nothing at all when there is
+            no log yet, so no empty box. */}
         <Suspense fallback={<AgentLogGhost compact className="mt-4 sm:mt-10" />}>
-          <AgentLog compact className="mt-4 sm:mt-10" />
+          <AgentLog compact market className="mt-4 sm:mt-10" />
         </Suspense>
 
         {/* one story below the hero: short proofs with real data, one link each, then the questions answered in the open */}
@@ -123,7 +124,7 @@ export async function OaLanding() {
           <section id="what-it-does" className="scroll-mt-24">
             <SectionHead
               title="Three agents watch the example portfolio."
-              lede="Each one checks the example's stocks every market day and writes only when it finds something. Here is what each found on its last run. Set them up on your stocks and they do the same for you."
+              lede="On top of our daily check of the whole market, these three look only at the example's stocks, every market day, and write only when they find something. Here is what each found on its last run. Set them up on your stocks and they do the same for you."
               href="/agents"
               hrefLabel="Set one up"
             />

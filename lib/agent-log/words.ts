@@ -357,18 +357,24 @@ export function buildAgentLog(input: { day: string; when: string; ongoing: boole
 
   const rank = (line: AgentLogEntry) => (line.quiet ? 100 : 0) + PRIORITY.indexOf(line.source);
   const kept = [...lines].sort((a, b) => rank(a) - rank(b)).slice(0, MAX_ENTRIES);
-  const phrases = kept
-    .filter((line) => !line.quiet)
-    .map((line) => leadPhrase(line, facts))
-    .filter((phrase): phrase is string => Boolean(phrase))
-    .slice(0, 3);
+  const phrasesOf = (lines: AgentLogEntry[]) =>
+    lines
+      .filter((line) => !line.quiet)
+      .map((line) => leadPhrase(line, facts))
+      .filter((phrase): phrase is string => Boolean(phrase))
+      .slice(0, 3);
+  const phrases = phrasesOf(kept);
   if (phrases.length === 0) return null;
   const opener = when === "today" ? (input.ongoing ? "So far today, the agent" : "Today the agent") : `${capitalise(when)} the agent`;
   const lead = `${opener} ${joinAnd(phrases)}.`;
+  // The landing's lead: the market's own work, said as "we" (members' agents are left out there).
+  const market = phrasesOf(kept.filter((line) => line.source !== "agents"));
+  const weOpener = when === "today" ? (input.ongoing ? "So far today we" : "Today we") : `${capitalise(when)} we`;
   return {
     day: input.day,
     when,
     lead,
+    ...(market.length ? { marketLead: `${weOpener} ${joinAnd(market)}.` } : {}),
     entries: kept.sort((a, b) => Date.parse(a.at) - Date.parse(b.at) || PRIORITY.indexOf(a.source) - PRIORITY.indexOf(b.source)),
   };
 }
@@ -376,4 +382,24 @@ export function buildAgentLog(input: { day: string; when: string; ongoing: boole
 /** The whole line as one sentence, for screen readers and tests: "72 stocks checked before the open; …". */
 export function entrySentence(line: Pick<AgentLogEntry, "figure" | "rest">): string {
   return `${line.figure} ${line.rest}`;
+}
+
+/**
+ * The landing's title for the same log: there the pitch is the example's three agents, so this says plainly that it is
+ * the daily check of the whole market, not a fourth or fifth agent (judges, ship 47).
+ */
+export function marketCheckTitle(log: Pick<AgentLog, "when">): string {
+  if (log.when === "today") return "Today's check of the whole market";
+  if (log.when === "yesterday") return "Yesterday's check of the whole market";
+  return `${log.when}'s check of the whole market`;
+}
+
+/** The lead in the landing's words: "we", since "the agent" would read as one more agent beside the three. */
+export function marketCheckLead(log: Pick<AgentLog, "lead">): string {
+  return log.lead.replace(/^(So far today|Today|[A-Z][a-z]+),? the agent /, (_, when: string) => `${when} we `);
+}
+
+/** Columns for the strip's tiles: one per run up to six, else two rows of them. */
+export function stripColumns(count: number): number {
+  return count <= 6 ? Math.max(1, count) : Math.ceil(count / 2);
 }

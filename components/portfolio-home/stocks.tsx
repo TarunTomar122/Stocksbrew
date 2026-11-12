@@ -2,6 +2,7 @@ import Link from "next/link";
 import * as React from "react";
 
 import { Bar } from "@/components/oa/kit/skeleton";
+import { FitRows } from "@/components/agent-log/fit-rows";
 import { FitCards } from "@/components/portfolio-home/fit-cards";
 import { StockLogo } from "@/components/stock-logo";
 import { fmtPlanDay } from "@/lib/dividend-plan";
@@ -352,27 +353,48 @@ function railMemoFacts(memo: Awaited<HomeLoad["sources"]["memo"]> | undefined): 
   return memo?.state === "ready" ? memoFacts(memo.value.memo).filter((fact) => fact.id !== "week") : [];
 }
 
+/** "+1.0 pts", "−0.3 pts": a holding's share of the week's move, in points of the portfolio. */
+function moverPoints(points: number): string {
+  return `${points >= 0 ? "+" : "−"}${Math.abs(points).toFixed(1)} pts`;
+}
+
 /**
- * The memo's two figures the stock cards do not say: the holding that moved the week most and the main risk. The week
- * itself is the lead's, so it is not repeated. Nothing when the memo has neither.
+ * The memo in the rail: the main risk as a figure, then the holdings that moved the week most, as rows (logo, ticker,
+ * its own move, its points of the portfolio's), the biggest share of the week's move first, up or down.
+ * On a wide screen the card sits in a box that ends with the holdings beside it (my-stocks.tsx `[data-memo-box]`):
+ * the rows fill what the box leaves and the rest scroll inside on whole rows, so the rail and the holdings end
+ * together (owner rule 4). The week itself is the lead's, so it is not repeated. Nothing when the memo has neither.
  */
 export async function MemoFigures({ load }: { load: HomeLoad }) {
   const memo = await load.sources.memo;
-  const facts = railMemoFacts(memo);
-  if (memo.state !== "ready" || facts.length === 0) return null;
+  // Biggest share of the week's move first, up or down, so the rows in view are the ones that mattered most when the
+  // rest scroll inside.
+  const movers =
+    memo.state === "ready"
+      ? (memo.value.memo.view?.movers ?? [])
+          .filter((move) => Math.abs(move.points) >= 0.05)
+          .map((move, index) => ({ move, index }))
+          .sort((a, b) => Math.abs(b.move.points) - Math.abs(a.move.points) || a.index - b.index)
+          .map(({ move }) => move)
+      : [];
+  // With the movers listed, the biggest of them is their first row rather than a figure of its own.
+  const facts = railMemoFacts(memo).filter((fact) => !(movers.length > 0 && fact.id === "driver"));
+  if (memo.state !== "ready" || (facts.length === 0 && movers.length === 0)) return null;
+  const complete = memo.value.memo.complete;
   return (
     <Link
       href="/portfolio/memo"
       prefetch={false}
       data-track-links="insight_clicked"
       data-track-insight-kind="home-memo"
-      className={`${CARD} block px-4 py-3 transition-colors hover:bg-oa-accent ${FOCUS}`}
+      className={`${CARD} block px-4 py-3 transition-colors hover:bg-oa-accent lg:flex lg:max-h-full lg:min-h-0 lg:flex-col ${FOCUS}`}
     >
-      <span className="flex items-baseline justify-between gap-3">
+      <span className="flex shrink-0 items-baseline justify-between gap-3">
         <span className="text-[14px] font-semibold leading-5 text-oa-fg">Weekly memo</span>
         <span className="oa-mono shrink-0 text-[12px] tabular-nums text-oa-muted-fg">Week of {fmtPlanDay(memo.value.memo.monday)}</span>
       </span>
-      <span className={`mt-2 grid gap-x-4 ${facts.length === 1 ? "grid-cols-1" : "grid-cols-2"}`}>
+      {facts.length > 0 ? (
+      <span className={`mt-2 grid shrink-0 gap-x-4 ${facts.length === 1 ? "grid-cols-1" : "grid-cols-2"}`}>
         {facts.map((fact) => (
           <span key={fact.id} className="block min-w-0">
             <span className="block text-[12.5px] leading-[17px] text-oa-muted-fg">{fact.caption}</span>
@@ -384,6 +406,26 @@ export async function MemoFigures({ load }: { load: HomeLoad }) {
           </span>
         ))}
       </span>
+      ) : null}
+      {movers.length > 0 ? (
+        <>
+          <span className="mt-3 block shrink-0 text-[12.5px] leading-[17px] text-oa-muted-fg">{complete ? "What moved the week" : "What moved the week so far"}</span>
+          <FitRows box="[data-memo-box]" className="mt-1 scrollbar-hide lg:min-h-0 lg:overflow-y-auto">
+            {movers.map((move) => (
+              <li key={move.ticker} className="grid min-h-8 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 border-t border-oa-border first:border-t-0">
+                <span className="flex min-w-0 items-center gap-2 text-[13px] leading-5">
+                  <StockLogo ticker={move.ticker} size={16} />
+                  <span className="oa-mono font-semibold text-oa-fg">{move.ticker}</span>
+                  <span className="min-w-0 truncate text-oa-muted-fg">
+                    {Math.abs(move.pct) < 0.05 ? "barely moved" : `${move.pct > 0 ? "rose" : "fell"} ${Math.abs(move.pct).toFixed(1)}%`}
+                  </span>
+                </span>
+                <span className={`oa-mono text-[13px] font-semibold tabular-nums ${move.points >= 0 ? "text-signal-bullish" : "text-signal-bearish"}`}>{moverPoints(move.points)}</span>
+              </li>
+            ))}
+          </FitRows>
+        </>
+      ) : null}
     </Link>
   );
 }

@@ -215,6 +215,9 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
   // All cached reads; they run side by side.
   const [locked, facts, prices, reports, checks] = await Promise.all([lockedSlot(data), resultFacts(data, day), priceFacts(data, day), reportHistory(data, day), exampleChecks(data, day)]);
   const flags = exampleFlags(data, checks);
+  // Signed in, the rail has the person's agents in it (and, on their own briefing, the market card) for the log to sit
+  // under. The example's rail has nothing else after the open, so its log goes across the page.
+  const logInRail = signedIn && !data.example;
 
   return (
     <AppPage>
@@ -244,11 +247,20 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
           moveFacts={prices}
           reportHistory={reports}
           flags={flags}
+          // A member's rail has their agents in it, and the log fills what they leave. The example has nothing else in
+          // the rail after the open, so the log goes across the page under the stocks instead.
           agentLog={
-            day || data.archived ? null : (
+            day || data.archived || !logInRail ? null : (
               <Suspense fallback={<AgentLogGhost narrow className="lg:max-h-full" />}>
+                <AgentLog narrow fit />
+              </Suspense>
+            )
+          }
+          agentStrip={
+            day || data.archived || logInRail ? null : (
+              <Suspense fallback={<AgentLogGhost strip />}>
                 {/* The example's Agents row is its own agents, with the holdings they flagged as chips. */}
-                <AgentLog narrow fit own={exampleAgentRuns(checks)} />
+                <AgentLog strip own={exampleAgentRuns(checks)} />
               </Suspense>
             )
           }

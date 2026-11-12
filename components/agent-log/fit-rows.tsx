@@ -3,17 +3,18 @@
 import * as React from "react";
 
 /**
- * The log's rows inside a rail box of fixed height (`fit`): the list is cut to the whole rows that fit, so the box
+ * The log's rows inside a rail box of fixed height (`fit`; `box` names it, the briefing's `[data-rail-log]` by default,
+ * My stocks' memo box too): the list is cut to the whole rows that fit, so the box
  * never ends halfway through a row (owner rule 5). The rest scroll inside. Only on a wide screen, where the rail has
  * that fixed height (the `[data-rail-log]` box); elsewhere the list is its natural height.
  */
-export function FitRows({ className, children }: { className: string; children: React.ReactNode }) {
+export function FitRows({ className, box: boxSelector = "[data-rail-log]", children }: { className: string; box?: string; children: React.ReactNode }) {
   const list = React.useRef<HTMLOListElement>(null);
   const [max, setMax] = React.useState<number | null>(null);
 
   React.useLayoutEffect(() => {
     const node = list.current;
-    const box = node?.closest<HTMLElement>("[data-rail-log]");
+    const box = node?.closest<HTMLElement>(boxSelector);
     if (!node || !box) return;
     const wide = window.matchMedia("(min-width: 1024px)");
     const measure = () => {
@@ -23,7 +24,13 @@ export function FitRows({ className, children }: { className: string; children: 
       }
       // The room the list has: the box, less everything in the card above the list (its header and border).
       const top = node.getBoundingClientRect().top - box.getBoundingClientRect().top;
-      const room = box.clientHeight - top - node.clientTop;
+      // Less what the card keeps under the list (its bottom padding and borders), so the last row is never cut by it.
+      let below = 0;
+      for (let el = node.parentElement; el && el !== box; el = el.parentElement) {
+        const style = getComputedStyle(el);
+        below += (parseFloat(style.paddingBottom) || 0) + (parseFloat(style.borderBottomWidth) || 0);
+      }
+      const room = box.clientHeight - top - node.clientTop - below;
       let used = 0;
       for (const row of Array.from(node.children) as HTMLElement[]) {
         if (used + row.offsetHeight > room + 0.5) break;
@@ -45,7 +52,7 @@ export function FitRows({ className, children }: { className: string; children: 
       observer.disconnect();
       wide.removeEventListener("change", measure);
     };
-  }, []);
+  }, [boxSelector]);
 
   return (
     <ol ref={list} className={className} style={max !== null ? { maxHeight: max } : undefined}>

@@ -275,3 +275,11 @@ describe("price facts for a move with no confirmed reason (round 13)", () => {
     expect(facts).not.toContain("Its biggest gain since Sep 2");
   });
 });
+
+describe("scraped headline casing on a Worth knowing card", () => {
+  it("reads the AMD story as a plain sentence (judges, ship 47)", () => {
+    expect(unTitle("Nvidia Turmoil lifts AMD, Broadcom on bets for business gains", "Advanced Micro Devices, Inc.", ["NVIDIA Corporation"])).toBe(
+      "Nvidia turmoil lifts AMD, Broadcom on bets for business gains",
+    );
+  });
+});

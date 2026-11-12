@@ -36,16 +36,22 @@ export function MyStocksBody({ load }: { load: HomeLoad }) {
             <FollowedRebalances />
           </Suspense>
         </div>
-        <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-4">
+        {/* On a wide screen the rail stretches to the holdings' height and the memo, last, fills what is left: its rows
+            of the week's movers scroll inside on whole rows, so the rail and the holdings end together (owner rule 4). */}
+        <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-4 lg:self-stretch [&>*]:shrink-0">
           <Suspense fallback={<AgentsPanelGhost />}>
             <AgentsPanel load={load} />
           </Suspense>
           <Suspense fallback={null}>
-            <MemoFigures load={load} />
-          </Suspense>
-          <Suspense fallback={null}>
             <ToolLinks load={load} />
           </Suspense>
+          <div data-memo-box className="relative min-w-0 lg:min-h-[12rem] lg:!shrink lg:flex-1 [&:not(:has(a))]:hidden">
+            <div className="lg:absolute lg:inset-x-0 lg:top-0 lg:flex lg:max-h-full lg:flex-col">
+              <Suspense fallback={null}>
+                <MemoFigures load={load} />
+              </Suspense>
+            </div>
+          </div>
           {/* No Ask box here: the shell's Ask opens on this page's stocks with its questions (owner rule 1). */}
           <Suspense fallback={null}>
             <PortfolioAskHint load={load} />

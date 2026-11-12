@@ -47,6 +47,8 @@ export type ResultsReport = {
   periodEnd: string | null;
   /** "10-Q" or "10-K" when the report says which periodic filing followed. */
   form: string | null;
+  /** The results release on SEC EDGAR (the 8-K), when stored. */
+  url?: string | null;
 };
 
 /** A row of the earnings calendar (`tm_earnings_events`), past or upcoming. */
@@ -103,11 +105,28 @@ export type EvidenceLine = {
   source: string;
 };
 
+/**
+ * One thing that would change the call, on its own short line (owner rules 3 and 9): which way it would move the
+ * call, the threshold as a figure, the sentence, and where the number comes from. `href` is the results release on
+ * SEC EDGAR behind a sales figure (the 8-K, not the 10-Q the source names), linked under its own words.
+ */
+export type ChangeCheck = {
+  way: "raise" | "lower";
+  /** The threshold: "7%", "$4.85". */
+  figure: string;
+  text: string;
+  /** Empty only when the figures carry no date at all; the check is still listed. */
+  source: string;
+  href: string | null;
+};
+
 export type CallEvidence = {
   /** Two or three lines, most telling first. */
   evidence: EvidenceLine[];
   /** What would change the call, each a sentence with a number in it. */
   conditions: string[];
+  /** The same conditions taken apart: one check per line, each with its figure and source. */
+  checks: ChangeCheck[];
 };
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -251,6 +270,14 @@ function salesLine(input: CallEvidenceInput): EvidenceLine | null {
     else text += `, about the same as its ${pct(g1)} growth in fiscal ${year.year}`;
   }
   text += ".";
+  const source = salesSource(input)?.source ?? "";
+  return source ? { id: "sales", text, source } : null;
+}
+
+/** Where the four-quarter sales figures come from, and the results release's link on SEC EDGAR when stored. */
+function salesSource(input: CallEvidenceInput): { source: string; href: string | null } | null {
+  const sales = input.sales;
+  if (!sales) return null;
   const report = reportBehind(input.reports, sales.capturedAt);
   const source = report
     ? report.periodEnd
@@ -259,7 +286,15 @@ function salesLine(input: CallEvidenceInput): EvidenceLine | null {
     : sales.capturedAt
       ? `From company filings, as of ${day(sales.capturedAt, input.today)}`
       : "";
-  return source ? { id: "sales", text, source } : null;
+  if (!source) return null;
+  const href = report?.url && /^https:\/\/www\.sec\.gov\//.test(report.url) ? report.url : null;
+  return { source, href };
+}
+
+/** Where the forecast for the next report comes from: the calendar row for that day. */
+function forecastSource(input: CallEvidenceInput, date: string): string {
+  const row = input.calendar.find((item) => item.event_date.slice(0, 10) === date);
+  return /nasdaq/i.test(row?.source ?? "") ? "Analysts' forecast on the Nasdaq earnings calendar" : "Analysts' forecast on the earnings calendar";
 }
 
 function closeOn(benchmark: ReadonlyArray<DailyClose>, date: string): number | null {
@@ -405,9 +440,9 @@ export function growthBars(growthPct: number | null | undefined, lastYearPct: nu
   return { up, down, recover };
 }
 
-function conditionLines(input: CallEvidenceInput, swing: number | null): string[] {
+function conditionLines(input: CallEvidenceInput, swing: number | null): { lines: string[]; checks: ChangeCheck[] } {
   const call = input.call;
-  if (!call) return [];
+  if (!call) return { lines: [], checks: [] };
   const t = input.ticker;
   const next = input.nextReport;
   const until = next ? daysBetween(input.today, next.date) : null;
@@ -459,35 +494,72 @@ function conditionLines(input: CallEvidenceInput, swing: number | null): string[
   // backend rule, but it says nothing about this stock, so it is not listed (council, Nov 11).
   const moves = fallsCount ? ownMoves : [];
 
+  // Where each number comes from, for the checks: the filing behind the sales bars, the calendar behind the forecast,
+  // and the daily closes behind the moves.
+  const salesFrom = salesSource(input);
+  const forecastFrom = dated && eps !== null ? forecastSource(input, next.date) : "";
+  const closes = (input.series ?? []).filter((point) => fin(point.close) && point.close > 0);
+  const lastClose = closes[closes.length - 1];
+  const pricesFrom = lastClose ? priceSourceNote(input, lastClose.date) : "";
+  const checks: ChangeCheck[] = [];
+  // Every condition said above becomes a check, so the list never says less than the sentences would.
+  const check = (way: ChangeCheck["way"], figure: string, text: string, from: { source: string; href?: string | null } | null) => {
+    checks.push({ way, figure, text, source: from?.source ?? "", href: from?.href ?? null });
+  };
+  const both = (a: string, b: { source: string; href: string | null } | null) => (b ? { source: `${a}; ${b.source.charAt(0).toLowerCase()}${b.source.slice(1)}`, href: b.href } : { source: a, href: null });
+  const shortDay = usual !== null && times ? `, about ${times} the ${usual}% it usually moves apart from the index` : "";
+  const moveChecks = () => {
+    if (!moves.length || dayBar === null || weekBar === null) return;
+    check("lower", `${dayBar}%`, `${t} falls ${dayBar}% more than the S&P 500 in a day${shortDay}.`, { source: pricesFrom });
+    check("lower", `${weekBar}%`, `${t} falls ${weekBar}% more than the S&P 500 in a week.`, { source: pricesFrom });
+  };
+
   // Phrased as what would change the call, never as a second call: the other call words are not named.
   const lines: string[] = [];
   if (call === "Hold") {
     const holds = bars.up !== null ? `sales growth stays above ${bars.up}%${paceOf(bars.up)}` : "";
-    if (forecast && holds) lines.push(`${Report} could raise the call if it beats ${forecast} and ${holds}.`);
-    else if (forecast) lines.push(`${Report} could raise the call if it beats ${forecast}.`);
-    else if (bars.up !== null) lines.push(`${Report} could raise the call if it keeps sales growth above ${bars.up}%${paceOf(bars.up)}.`);
+    if (forecast && holds) {
+      lines.push(`${Report} could raise the call if it beats ${forecast} and ${holds}.`);
+      check("raise", dollars(eps!), `${Report} beats ${forecast} and ${holds}.`, both(forecastFrom, salesFrom));
+    } else if (forecast) {
+      lines.push(`${Report} could raise the call if it beats ${forecast}.`);
+      check("raise", dollars(eps!), `${Report} beats ${forecast}.`, { source: forecastFrom });
+    } else if (bars.up !== null) {
+      lines.push(`${Report} could raise the call if it keeps sales growth above ${bars.up}%${paceOf(bars.up)}.`);
+      check("raise", `${bars.up}%`, `${Report} keeps sales growth above ${bars.up}%${paceOf(bars.up)}.`, salesFrom);
+    }
   }
   if (call === "Add" || call === "Hold") {
     const lower = [missed, slowdown].filter(Boolean);
     if (lower.length) {
       lines.push(`${lines.length ? "It" : Report} could lower the call if it ${lower.join(" or ")}.`);
       if (moves.length) lines.push(`So could ${joinOr(moves)}.`);
+      if (missed) check("lower", dollars(eps!), `${Report} ${missed}.`, { source: forecastFrom });
+      if (slowdown) check("lower", bars.down ? `${bars.down}%` : "0%", `${Report} ${slowdown}.`, salesFrom);
+      moveChecks();
     } else if (ownMoves.length) {
       // Without a report line, only the stock's own moves are worth a line; the market drop alone says nothing about it.
       lines.push(`${upperFirst(joinOr(moves))} could lower the call.`);
+      moveChecks();
     }
   }
   if (call === "Trim") {
-    if (forecast && bars.recover !== null) {
-      lines.push(`${Report} could raise the call if it beats ${forecast} and ${bars.recover === 0 ? "sales start growing again" : `sales growth gets back above ${bars.recover}%${paceOf(bars.recover)}`}.`);
-    } else if (forecast) lines.push(`${Report} could raise the call if it beats ${forecast}.`);
-    else if (bars.recover !== null) {
-      lines.push(`${Report} could raise the call if it ${bars.recover === 0 ? "shows sales growing again" : `shows sales growth back above ${bars.recover}%${paceOf(bars.recover)}`}.`);
+    const back = bars.recover === null ? "" : bars.recover === 0 ? "sales start growing again" : `sales growth gets back above ${bars.recover}%${paceOf(bars.recover)}`;
+    if (forecast && back) {
+      lines.push(`${Report} could raise the call if it beats ${forecast} and ${back}.`);
+      check("raise", dollars(eps!), `${Report} beats ${forecast} and ${back}.`, both(forecastFrom, salesFrom));
+    } else if (forecast) {
+      lines.push(`${Report} could raise the call if it beats ${forecast}.`);
+      check("raise", dollars(eps!), `${Report} beats ${forecast}.`, { source: forecastFrom });
+    } else if (bars.recover !== null) {
+      const shows = bars.recover === 0 ? "shows sales growing again" : `shows sales growth back above ${bars.recover}%${paceOf(bars.recover)}`;
+      lines.push(`${Report} could raise the call if it ${shows}.`);
+      check("raise", `${bars.recover}%`, `${Report} ${shows}.`, salesFrom);
     }
   }
   // No "Short of that, the call stands until at least Nov 25." after these: it explains the steady-call rule rather
   // than saying what would change the call (owner rule 8: no mechanics copy).
-  return lines;
+  return { lines, checks };
 }
 
 function joinOr(items: string[]): string {
@@ -518,5 +590,6 @@ export function buildCallEvidence(input: CallEvidenceInput): CallEvidence {
   const candidates = [salesLine(input), move && !leansAgainst(move, input.call) ? move : highLine(input), epsLine(input), dividendLine(input), valuationLine(input)];
   // The "Why" under a call: only lines that back it, so the next one in line takes the place of one that argues against it.
   const evidence = candidates.filter((line): line is EvidenceLine => line !== null && !leansAgainst(line, input.call)).slice(0, 3);
-  return { evidence, conditions: conditionLines(input, swing) };
+  const { lines, checks } = conditionLines(input, swing);
+  return { evidence, conditions: lines, checks };
 }

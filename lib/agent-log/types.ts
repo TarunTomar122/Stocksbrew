@@ -40,6 +40,11 @@ export type AgentLog = {
   when: string;
   /** One sentence summing up the day. */
   lead: string;
+  /**
+   * The same in the landing's words ("Yesterday we found…"), from the market's own work only: members' agents are not
+   * in it, so it never reads as more agents beside the example's three. Missing on logs cached before it existed.
+   */
+  marketLead?: string;
   /** Oldest first, as a timeline. */
   entries: AgentLogEntry[];
 };

@@ -188,6 +188,39 @@ describe("buildCallEvidence", () => {
     expect(conditions.join(" ")).not.toMatch(/buy more|sell some|keep/i);
   });
 
+  it("takes the conditions apart into checks, each with its threshold and where the number comes from", () => {
+    const reports = [{ date: "2026-08-26", periodEnd: "2026-07-26", form: "10-Q", url: "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000150/nvda-8k.htm" }];
+    const { checks } = buildCallEvidence(base({ reports }));
+    expect(checks.map((check) => [check.way, check.figure])).toEqual([
+      ["raise", "$2.49"],
+      ["lower", "$2.49"],
+      ["lower", "42%"],
+      ["lower", "4%"],
+      ["lower", "9%"],
+    ]);
+    const slowdown = checks[2]!;
+    expect(slowdown.text).toBe("The Nov\u00a017 report shows sales growth below 42%, half its 83% growth over the four quarters to Jul\u00a026.");
+    expect(slowdown.source).toBe("From the 10-Q for the quarter to Jul\u00a026, reported Aug\u00a026");
+    expect(slowdown.href).toBe(reports[0]!.url);
+    expect(checks[3]!.text).toBe("NVDA falls 4% more than the S&P 500 in a day, about four times the 1% it usually moves apart from the index.");
+    expect(checks[3]!.source).toMatch(/daily closes to /);
+    // Every check has a source, and none names a second call.
+    expect(checks.every((check) => check.source.length > 0)).toBe(true);
+    expect(checks.map((check) => check.text).join(" ")).not.toMatch(/buy more|sell some|keep/i);
+  });
+
+  it("keeps a condition as a check even when its figures carry no date", () => {
+    const { conditions, checks } = buildCallEvidence(base({ call: "Add", reports: [], sales: { ...base().sales!, capturedAt: null } }));
+    expect(checks.length).toBeGreaterThanOrEqual(conditions.length);
+    expect(checks.some((check) => check.figure === "42%" && check.source === "")).toBe(true);
+  });
+
+  it("never links a check to anything but SEC EDGAR", () => {
+    const reports = [{ date: "2026-08-26", periodEnd: "2026-07-26", form: "10-Q", url: "https://example.com/nvda" }];
+    const { checks } = buildCallEvidence(base({ reports }));
+    expect(checks.every((check) => check.href === null)).toBe(true);
+  });
+
   it("moves Buy more only one step, to Keep", () => {
     const { conditions } = buildCallEvidence(base({ call: "Add" }));
     expect(conditions[0]).toBe("The Nov\u00a017 report could lower the call if it misses the $2.49 forecast or shows sales growth below 42%, half its 83% growth over the four quarters to Jul\u00a026.");

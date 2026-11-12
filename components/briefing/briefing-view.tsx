@@ -57,6 +57,12 @@ export type BriefingViewProps = {
   locked?: React.ReactNode;
   /** What the agent did today across the market (components/agent-log), streamed into the side rail: secondary (owner rule 10). */
   agentLog?: React.ReactNode;
+  /**
+   * The same log across the page under the stocks, as one tile per run, when the rail would hold nothing else (the
+   * example and the market view): a rail with only the log in it ended beside Worth knowing and left the stock grid
+   * under it without a right column (owner rule 4, judges ship 47). The page passes one or the other.
+   */
+  agentStrip?: React.ReactNode;
   /** Signed out: the briefing is the example portfolio's (lib/briefing-example.ts), with its market line and clock. */
   example?: ExampleBriefingExtras | null;
   /** Held stocks that reported overnight, by ticker: the card's fact becomes the result (lib/results). */
@@ -448,6 +454,7 @@ export function BriefingView({
   beforeOpen = null,
   locked = null,
   agentLog = null,
+  agentStrip = null,
   example = null,
   resultFacts,
   moveFacts,
@@ -842,6 +849,9 @@ export function BriefingView({
           </div>
         ) : null}
       </aside>
+
+      {/* The agent's day across the page, last: secondary (owner rule 10), and a row of tiles that ends with the grid. */}
+      {agentStrip ? <div className="col-span-full min-w-0 [&:not(:has(section,[aria-hidden=true]))]:hidden">{agentStrip}</div> : null}
 
       <p className="col-span-full px-2 text-[12px] leading-5 text-oa-muted-fg sm:px-1">Prices are delayed. Nothing here is advice to trade.</p>
 

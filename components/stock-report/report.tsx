@@ -302,6 +302,8 @@ export function StockReport({
   // it (lib/call-evidence.ts). Both are open on every stock, for every reader, like the call itself.
   const evidence = ready ? data.callEvidence?.evidence ?? [] : [];
   const conditions = ready ? data.callEvidence?.conditions ?? [] : [];
+  // The same conditions as separate checks, each with its threshold and source (a stored page may not have them).
+  const checks = ready ? data.callEvidence?.checks ?? [] : [];
   // Without measured conditions, the steady call's own sentence, when it is published.
   const ruleChange = ready && !conditions.length ? ready.whatWouldChange : null;
   // The brief's written "what would change our mind" list, only when the call block has no measured conditions.
@@ -362,9 +364,66 @@ export function StockReport({
       </div>
     </div>
   );
+  // Each condition on its own short line (owner rules 3 and 9): the threshold as a figure, the sentence, and under it
+  // where the number comes from, linked to the filing when we have its address. Said once per direction: "Any of
+  // these could lower the call".
+  // `wide`: across the strip under the header, the checks side by side (up to three a row), so the box is no taller
+  // than the reasons beside it would be and nothing leaves an empty column (owner rule 4).
+  const checksBlock = (list: NonNullable<typeof checks>, wide: boolean) => {
+    const ways = (["raise", "lower"] as const).filter((way) => list.some((item) => item.way === way));
+    const COLS = ["", "md:grid-cols-1", "md:grid-cols-2", "md:grid-cols-3", "md:grid-cols-2"] as const;
+    return (
+      <div className={`${wide ? "" : "max-w-[62ch]"} rounded-lg border border-oa-border bg-oa-bg px-3 py-2.5 text-[14px] leading-5 text-oa-fg`}>
+        <p className="font-medium">What would change it</p>
+        {ways.map((way) => {
+          const items = list.filter((item) => item.way === way);
+          const dupe = (index: number) => items[index + 1]?.source === items[index]!.source && !items[index]!.href;
+          const verb = way === "raise" ? "raise" : "lower";
+          return (
+            <div key={way} className="mt-1.5">
+              <p className="text-[13px] leading-[18px] text-oa-muted-fg">
+                {items.length === 1 ? `This could ${verb} the call:` : `Any of these could ${verb} the call:`}
+              </p>
+              <ul role="list" className={`mt-1.5 grid gap-2 ${wide ? `md:gap-x-5 ${COLS[Math.min(items.length, 4)]}` : ""}`}>
+                {items.map((item, index) => (
+                  <li key={item.text} className="grid grid-cols-[minmax(3.25rem,auto)_minmax(0,1fr)] gap-x-2">
+                    <span className="oa-mono text-[15px] font-semibold tabular-nums leading-5 text-oa-fg">{item.figure}</span>
+                    <span className="min-w-0">
+                      <span className="block text-pretty">{item.text}</span>
+                      {/* A source shared by the next check too (the day and the week, from the same closes) is said
+                          once, under the last of them (owner rule 1). The link is the results release on SEC EDGAR
+                          behind the figures, under its own words, since the source names the 10-Q. */}
+                      {dupe(index) || !item.source ? null : (
+                        <span className="mt-0.5 block text-pretty text-[12.5px] leading-[17px] text-oa-muted-fg">
+                          {item.source}
+                          {item.href ? (
+                            <>
+                              {" · "}
+                              <a
+                                href={item.href}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="underline decoration-oa-border underline-offset-2 hover:text-oa-fg hover:decoration-oa-fg"
+                              >
+                                results release
+                              </a>
+                            </>
+                          ) : null}
+                        </span>
+                      )}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
   // Measured conditions first, the steady call's own sentence when there are none. The company reason's "if sales slow
   // sharply" line is never shown: it names nothing anyone can check.
-  const changeBox = conditions.length ? changeBlock(conditions) : ruleChange ? changeBlock([ruleChange]) : null;
+  const changeBox = checks.length ? checksBlock(checks, false) : conditions.length ? changeBlock(conditions) : ruleChange ? changeBlock([ruleChange]) : null;
 
   // What the call rests on, under the header (no "Why:" label over it, owner rule 6): the evidence lines with their
   // source and date, else the company reason taken apart into dated facts, else that reason as one paragraph.
@@ -428,7 +487,9 @@ export function StockReport({
     : null;
 
   // What would change the call goes in the strip under the header, unless it is the side column's only content.
-  const stripChange = showLock || callSteps ? changeBox : null;
+  const stripChange = showLock || callSteps ? (checks.length ? checksBlock(checks, true) : changeBox) : null;
+  // The checks go across the strip under the reasons, not in a narrow column beside them (owner rule 4).
+  const stripStacked = Boolean(stripChange) && checks.length > 0;
 
   const stats = headerStats.length ? <StatGrid items={headerStats} /> : null;
   // On a phone the page below the chart is one part at a time (PhoneSections).
@@ -589,7 +650,7 @@ export function StockReport({
             {ready && (reasonsBlock || stripChange || (callSteps && showLock)) ? (
               <div
                 className={`grid gap-x-6 gap-y-3 border-t border-oa-border px-3.5 py-3 sm:px-4 md:items-start ${
-                  reasonsBlock && (stripChange || (callSteps && showLock)) ? "md:grid-cols-[minmax(0,1fr)_minmax(17rem,23rem)]" : ""
+                  reasonsBlock && (stripChange || (callSteps && showLock)) && !stripStacked ? "md:grid-cols-[minmax(0,1fr)_minmax(17rem,23rem)]" : ""
                 }`}
               >
                 {reasonsBlock ? <div className="min-w-0">{reasonsBlock}</div> : null}

@@ -32,11 +32,13 @@ export const getResultsReports = sharedCache(
       if (row.release === false || !/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
       const periodEnd = String(row.period_end ?? "").slice(0, 10);
       const form = typeof row.periodic_form === "string" && /^10-[QK]$/.test(row.periodic_form) ? row.periodic_form : null;
-      out.push({ date, periodEnd: /^\d{4}-\d{2}-\d{2}$/.test(periodEnd) ? periodEnd : null, form });
+      // The results release on SEC EDGAR, linked beside a condition its numbers back (lib/call-evidence.ts).
+      const url = typeof row.url === "string" && /^https:\/\/www\.sec\.gov\//.test(row.url) ? row.url : null;
+      out.push({ date, periodEnd: /^\d{4}-\d{2}-\d{2}$/.test(periodEnd) ? periodEnd : null, form, url });
     }
     return out.sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8);
   },
-  ["call-evidence-results-reports-v1"],
+  ["call-evidence-results-reports-v2"],
   { revalidate: 6 * 3600 },
 );
 

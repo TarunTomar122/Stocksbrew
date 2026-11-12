@@ -125,6 +125,8 @@ describe("agent log lines", () => {
     expect(buildAgentLog({ day: DAY, when: "today", ongoing: false, facts: { agents: { at: at("11:19"), runs: 1, found: 0 } }, movesHref: "/explore#moves" })?.lead).toBe(
       "Today the agent ran 1 agent a member set up.",
     );
+    // A day with only members' agents has no market lead of its own.
+    expect(buildAgentLog({ day: DAY, when: "today", ongoing: false, facts: { agents: { at: at("11:19"), runs: 1, found: 0 } }, movesHref: "/explore#moves" })?.marketLead).toBeUndefined();
     expect(agentsEntry({ at: at("11:19"), runs: 0, found: 0 })).toBeNull();
   });
 });
@@ -144,6 +146,8 @@ describe("the day's log", () => {
   it("leads with the three most telling lines and lists the rest oldest first", () => {
     const log = buildAgentLog({ day: DAY, when: "today", ongoing: true, facts, movesHref: "/explore#moves" });
     expect(log?.lead).toBe("So far today, the agent found the reason for 15 big moves, reviewed 146 calls and read 12 SEC filings.");
+    // The landing's lead says "we" and never counts members' agents beside the example's three.
+    expect(log?.marketLead).toBe("So far today we found the reason for 15 big moves, reviewed 146 calls and read 12 SEC filings.");
     // The briefs and the calls from the same run are one line.
     expect(log?.entries.map((line) => line.source)).toEqual(["agents", "premarket", "moves", "calls", "filings"]);
     expect(log?.entries.map((line) => line.time)).toEqual(["6:19 AM", "7:30 AM", "9:58 AM", "12:11 PM", "12:20 PM"]);
@@ -244,5 +248,22 @@ describe("one portfolio's own agents on the log (judges, ship 44)", () => {
     expect(withOwnAgents(log, { at: "2026-11-10T11:19:08Z", runs: 3, found: 1, stocks: [], href: "/portfolio" })).toBe(log);
     expect(withOwnAgents(log, null)).toBe(log);
     expect(withOwnAgents(null, { at: "2026-11-11T11:19:08Z", runs: 3, found: 1, stocks: [], href: "/portfolio" })).toBeNull();
+  });
+});
+
+describe("the landing's market check and the briefing's strip", () => {
+  it("titles the log as the daily check of the whole market, in our own voice", async () => {
+    const { marketCheckLead, marketCheckTitle } = await import("./words");
+    expect(marketCheckTitle({ when: "yesterday" })).toBe("Yesterday's check of the whole market");
+    expect(marketCheckTitle({ when: "today" })).toBe("Today's check of the whole market");
+    expect(marketCheckTitle({ when: "Friday" })).toBe("Friday's check of the whole market");
+    expect(marketCheckLead({ lead: "Yesterday the agent found the reason for 17 big moves." })).toBe("Yesterday we found the reason for 17 big moves.");
+    expect(marketCheckLead({ lead: "So far today, the agent checked 72 stocks before the open." })).toBe("So far today we checked 72 stocks before the open.");
+    expect(marketCheckLead({ lead: "Friday the agent read 3 SEC filings." })).toBe("Friday we read 3 SEC filings.");
+  });
+
+  it("puts every run in one row up to six, else two rows", async () => {
+    const { stripColumns } = await import("./words");
+    expect([1, 4, 5, 6, 7].map(stripColumns)).toEqual([1, 4, 5, 6, 4]);
   });
 });

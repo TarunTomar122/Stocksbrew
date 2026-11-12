@@ -185,6 +185,26 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-12 ~06:20 UTC, ships 48 (2b47556) and 49 (4e3f73c) live; agent email waits on the owner (lead, overnight loop)
+
+- **Judges on live 47** (scratchpad/judge47):
+  - Codex: UI 7, UX 7.5, usability 7, wording 7.5, agent feel 7, similarity 7, sell 7, overall 7.
+  - Cursor: UI 7, UX 7, usability 7, wording 6, agent feel 7, similarity 6, sell 6, overall 7.
+  - "NVIDA" was a judge misread; the page says NVIDIA.
+- **Ship 48 (round 20, web part).** /agents run view and findings, from the owner's screenshots of the alert email.
+  - One row per stock: logo, ticker and name, close, % move coloured, one short line.
+  - Zone rows say "Below its $142.07 buy-more level". "Add zone" is renamed "buy-more level".
+  - The date is said once per section; stale findings (NBIS Nov 9) are dropped.
+  - Order: buy-more entries, then the biggest moves, then reports.
+  - 2917 tests.
+- **Email part not shipped.** backend/mail/alerts.py and tests are in the main tree, but the alert email rides on the held email redesign (kit/theme), which waits on the owner's yes and a postal address. Preview: scratchpad/round20/email-preview.html. Once approved, the VPS cron `backend.mail.jobs alerts` picks it up after a pull.
+- **Ship 49 (round 21A).**
+  - News: 8 rows in Most talked about and 8 company cards (two headlines each). Stories that name a past year as their news are dropped from ranking and leads; comparisons and fresh annual results are kept. Casing fixed ("re-entry", "turmoil") with names kept (RE/MAX, Apple Pay).
+  - Calendar: day columns show 10–13 rows, then scroll inside; short headers.
+  - Market today: equal-height cards; the report card adds the analyst estimate.
+  - 2924 tests in both modes.
+- **Running:** round 21B (briefing/My stocks reflow, landing agent story, stock page change conditions, identical NVDA next step).
+
 ### 2026-11-12 ~05:45 UTC, ship 47 live (95dee86): owner fixes (scroll, premarket, chart) + rounds 19A/19B (lead, overnight loop)
 
 - **Owner feedback, live, this hour:**
