@@ -65,7 +65,7 @@ describe("tool page search and share metadata", () => {
     const [webPage, crumbs] = toolPageLd("/portfolio/xray") as Array<Record<string, unknown>>;
     expect(webPage).toMatchObject({ "@type": "WebPage", url: "https://www.stocksbrew.online/portfolio/xray", isPartOf: { "@id": "https://www.stocksbrew.online/#website" } });
     const items = (crumbs as { itemListElement: Array<{ name: string; item: string; position: number }> }).itemListElement;
-    expect(items.map((item) => item.name)).toEqual(["Home", "My stocks", "What you really own"]);
+    expect(items.map((item) => item.name)).toEqual(["Home", "My stocks", "Analysis"]);
     expect(items[0]!.item).toBe("https://www.stocksbrew.online");
     expect(items.map((item) => item.position)).toEqual([1, 2, 3]);
     expect(pageLd({ name: "n", description: "d", path: "/a", crumbs: [] })).toHaveLength(2);

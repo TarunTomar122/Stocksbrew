@@ -11,7 +11,8 @@ import { STEADY_CALLS_SINCE } from "@/lib/inbox/sources";
 import { etDay } from "@/lib/insight-format";
 import { getMarketDay } from "@/lib/insight-data";
 import { getInstrumentLabels } from "@/lib/instrument-resolver";
-import { BENCHMARK_SYMBOL, loadDailySeries, loadDatedPrices, loadExamplePortfolio, loadNextEarnings, newYorkToday } from "@/lib/portfolio-data";
+import { getFundCatalog } from "@/lib/funds/server";
+import { BENCHMARK_SYMBOL, FUNDS_SECTOR, loadDailySeries, loadDatedPrices, loadExamplePortfolio, loadNextEarnings, newYorkToday } from "@/lib/portfolio-data";
 import { onOneDay } from "@/lib/portfolio-prices";
 import type { CallWord } from "@/lib/portfolio-ideas/types";
 import { buildPortfolio, type PortfolioRowInput } from "@/lib/portfolio-shared";
@@ -204,7 +205,7 @@ export async function loadUserBook(userDoc: UserDoc, viewer: Viewer, now: Date =
     if (![...tickerOf.values()].includes(ticker)) tickerOf.set(id, ticker);
   }
   const tickers = [...new Set(tickerOf.values())];
-  const [dated, rows, series, earnings, market] = await Promise.all([
+  const [dated, rows, series, earnings, market, funds] = await Promise.all([
     loadDatedPrices([...tickers, BENCHMARK_SYMBOL]),
     getScreenerRows(tickers).catch(() => {
       // The cards go without calls this once. A signed-in page is rendered live, so this only matters if the render
@@ -215,6 +216,7 @@ export async function loadUserBook(userDoc: UserDoc, viewer: Viewer, now: Date =
     loadDailySeries([...tickers, BENCHMARK_SYMBOL]),
     loadNextEarnings(today),
     getMarketDay(),
+    getFundCatalog().catch(() => new Map<string, string>()),
   ]);
   const { day, prices } = onOneDay(dated);
   const levels = (ticker: string) => canSeeLevels(viewer, `US_${ticker}`);
@@ -222,12 +224,15 @@ export async function loadUserBook(userDoc: UserDoc, viewer: Viewer, now: Date =
   const inputs: PortfolioRowInput[] = [...tickerOf.keys()].map((id) => {
     const ticker = tickerOf.get(id)!;
     const quote = prices.get(ticker);
-    const call = calls[ticker];
+    // A fund carries no call of ours (the list says "no calls on funds" once), even if the screener wrote one.
+    const fund = funds.has(ticker);
+    const call = fund ? undefined : calls[ticker];
     return {
       instrument_id: id,
       ticker,
-      name: labels.get(id)?.name || rows.get(ticker)?.name || ticker,
-      sector: rows.get(ticker)?.sector ?? null,
+      // A fund registered from a stock request is named by its ticker alone; the fund list has its real name.
+      name: (labels.get(id)?.name !== ticker ? labels.get(id)?.name : null) || funds.get(ticker) || rows.get(ticker)?.name || ticker,
+      sector: fund ? FUNDS_SECTOR : rows.get(ticker)?.sector ?? null,
       kind: "holding",
       price: quote?.price ?? null,
       day_change_pct: quote?.dayPct ?? null,
@@ -253,6 +258,13 @@ export async function loadUserBook(userDoc: UserDoc, viewer: Viewer, now: Date =
     marketPct,
     week: weekMove({ positions: portfolio.positions, series, benchmark: series.get(BENCHMARK_SYMBOL) ?? null, pricesDay: day, marketPct }),
     month: monthMoves({ positions: portfolio.positions, series, benchmark: series.get(BENCHMARK_SYMBOL) ?? null, pricesDay: day, marketPct }),
-    facts: await facts({ tickers, ids: [...tickerOf.keys()], pricesDay: day, today, calls, levels }),
+    facts: await facts({
+      tickers,
+      ids: [...tickerOf.keys()],
+      pricesDay: day,
+      today,
+      calls: Object.fromEntries(Object.entries(calls).filter(([ticker]) => !funds.has(ticker))),
+      levels,
+    }),
   };
 }

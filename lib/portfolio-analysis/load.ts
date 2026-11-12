@@ -14,7 +14,8 @@ import { FUNDS_SECTOR, buildPortfolio, type Portfolio, type PortfolioRowInput } 
 import { getScreenerRows, getScreenerSnapshot, isCompleteSnapshot } from "@/lib/screener";
 import type { ScreenerRow } from "@/lib/screener-shared";
 import { sharedCache } from "@/lib/shared-cache";
-import { buildStressView } from "@/lib/stress-test-data";
+import { EPISODES, episodeCloses, type EpisodeCloses } from "@/lib/stress-test";
+import { stressViewFrom } from "@/lib/stress-test-data";
 import { getUserDoc, type UserDoc } from "@/lib/watchlist";
 import { buildXray, type FundDoc, type FundStatus, type XrayPositionInput } from "@/lib/xray";
 
@@ -28,7 +29,7 @@ import type { DeepModuleId, PortfolioAnalysis } from "./types";
  * The server side of the analysis on /portfolio/xray. Read-only.
  *
  * The heavy part (a year of daily closes per holding, fund filings, the crash windows, the screener) depends only
- * on the mix and the day, so it is worked out once per mix (tickers, weights rounded to 0.1%, the price day) and
+ * on the mix and the day, so it is worked out once per mix (tickers, weights to a tenth of a percent, the price day) and
  * kept in the shared data cache for every visitor with that mix (`sharedCache`, keyed by its argument). The small
  * per-person parts (our calls and their levels by plan, the earnings dates, dividends from share counts) are done
  * per request. Pro and Free differ only in which finished modules are sent: the Free plan never receives the
@@ -45,9 +46,33 @@ const DEEP: DeepModuleId[] = ["overlap", "risk", "correlation", "crashes", "attr
 
 const fin = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
 
+/* ── reads, a few at a time ─────────────────────────────────────────────── */
+
+/** How many store reads one mix has in flight at once: a 40-holding mix should not open 80 requests to the store. */
+const READS_AT_ONCE = 8;
+
+/** Runs the jobs it is given at most `max` at a time, in the order they come. */
+function readLimiter(max: number) {
+  let active = 0;
+  const waiting: Array<() => void> = [];
+  return async function run<T>(job: () => Promise<T>): Promise<T> {
+    if (active >= max) await new Promise<void>((resolve) => waiting.push(resolve));
+    active += 1;
+    try {
+      return await job();
+    } finally {
+      active -= 1;
+      waiting.shift()?.();
+    }
+  };
+}
+
+type Limit = ReturnType<typeof readLimiter>;
+
 /* ── closes, with whether they are adjusted ─────────────────────────────── */
 
-type StoredSeries = CloseSeries & { fund: boolean };
+/** A year of closes, and the closes at each past crash's edges cut from the same read (for the crash replay). */
+type StoredSeries = CloseSeries & { fund: boolean; episodes: EpisodeCloses };
 
 class NoSeries extends Error {
   name = "NoSeries";
@@ -59,31 +84,40 @@ async function readSeries(symbol: string): Promise<StoredSeries> {
   const dates = Array.isArray(raw?.dates) ? raw!.dates : [];
   const closes = Array.isArray(raw?.closes) ? raw!.closes : [];
   const n = Math.min(dates.length, closes.length);
-  const out: StoredSeries = { dates: [], closes: [], adjusted: raw?.adjusted !== false, fund: raw?.instrument_type === "ETF" || raw?.instrument_type === "MUTUALFUND" };
-  for (let i = Math.max(0, n - SERIES_POINTS); i < n; i++) {
+  const fund = raw?.instrument_type === "ETF" || raw?.instrument_type === "MUTUALFUND";
+  const all = { dates: [] as string[], closes: [] as number[] };
+  for (let i = 0; i < n; i++) {
     const date = dates[i];
     const close = closes[i];
     if (typeof date === "string" && fin(close) && close > 0) {
-      out.dates.push(date);
-      out.closes.push(close);
+      all.dates.push(date);
+      all.closes.push(close);
     }
   }
   // Thrown, not returned, so a symbol the price job has not reached yet is not cached as "no history".
-  if (out.dates.length < 2) throw new NoSeries(symbol);
-  return out;
+  if (all.dates.length < 2) throw new NoSeries(symbol);
+  return {
+    dates: all.dates.slice(-SERIES_POINTS),
+    closes: all.closes.slice(-SERIES_POINTS),
+    adjusted: raw?.adjusted !== false,
+    fund,
+    episodes: episodeCloses(all, EPISODES, fund),
+  };
 }
 
-const getSeries = unstable_cache(readSeries, ["portfolio-analysis-series-v1"], { revalidate: 3 * 3600 });
+// The episode windows are part of the key, so editing EPISODES never serves edges cut for the old list.
+const EPISODE_KEY = EPISODES.map((episode) => `${episode.id}:${episode.start}:${episode.end}`).join(",");
+const getSeries = unstable_cache(readSeries, ["portfolio-analysis-series-v2", EPISODE_KEY], { revalidate: 3 * 3600 });
 
 /**
  * Closes per symbol; null for a symbol with no stored history. A read that fails (the store is unreachable) throws,
  * so a half-loaded mix is never kept in the shared cache: the next visit tries again.
  */
-async function loadSeries(symbols: string[]): Promise<Record<string, StoredSeries | null>> {
+async function loadSeries(symbols: string[], limit: Limit): Promise<Record<string, StoredSeries | null>> {
   const unique = [...new Set(symbols)];
   const loaded = await Promise.all(
     unique.map((symbol) =>
-      getSeries(symbol).catch((error: unknown) => {
+      limit(() => getSeries(symbol)).catch((error: unknown) => {
         if (error instanceof NoSeries || (error instanceof Error && error.name === "NoSeries") || String(error).includes("NoSeries")) return null;
         throw error;
       }),
@@ -125,9 +159,9 @@ async function readFund(ticker: string): Promise<FundDoc | null> {
 
 const getFund = unstable_cache(readFund, ["portfolio-analysis-fund-v1"], { revalidate: 3600 });
 
-async function loadFundsStrict(tickers: string[]): Promise<Record<string, FundDoc>> {
+async function loadFundsStrict(tickers: string[], limit: Limit): Promise<Record<string, FundDoc>> {
   const unique = [...new Set(tickers)];
-  const docs = await Promise.all(unique.map((ticker) => getFund(ticker)));
+  const docs = await Promise.all(unique.map((ticker) => limit(() => getFund(ticker))));
   const out: Record<string, FundDoc> = {};
   unique.forEach((ticker, index) => {
     const doc = docs[index];
@@ -138,14 +172,25 @@ async function loadFundsStrict(tickers: string[]): Promise<Record<string, FundDo
 
 /* ── the shared, mix-only part ──────────────────────────────────────────── */
 
-type MixKey = { v: number; day: string; lines: Array<[ticker: string, name: string, weight: number, sector: string | null]> };
+type MixKey = { v: number; day: string; lines: Array<[ticker: string, weight: number]> };
+
+type MixLineInput = { ticker: string; name: string; weight: number; sector: string | null };
+
+/**
+ * The names and sectors of the mix being worked out, by key. They are not part of the key, so two people whose mixes
+ * differ only in how a name is written share one entry; the first one's words are what the entry keeps. Set for the
+ * length of the call that may fill the cache (loadMix), read by computeMix.
+ */
+const mixWords = new Map<string, Map<string, Pick<MixLineInput, "name" | "sector">>>();
 
 async function computeMix(key: string): Promise<MarketAnalysis> {
   const mix = JSON.parse(key) as MixKey;
+  const words = mixWords.get(key);
   const tickers = mix.lines.map(([ticker]) => ticker);
+  const limit = readLimiter(READS_AT_ONCE);
   const [rawSeries, funds, snapshot, facts] = await Promise.all([
-    loadSeries([...tickers, BENCHMARK_SYMBOL]),
-    loadFundsStrict([...tickers, ...SP500_FUNDS]),
+    loadSeries([...tickers, BENCHMARK_SYMBOL], limit),
+    loadFundsStrict([...tickers, ...SP500_FUNDS], limit),
     getScreenerSnapshot(),
     getSnapshotFacts([]),
   ]);
@@ -157,13 +202,12 @@ async function computeMix(key: string): Promise<MarketAnalysis> {
 
   const rowOf = new Map<string, ScreenerRow>();
   for (const row of [...snapshot.rows, ...snapshot.extras]) if (row.symbol && !rowOf.has(row.symbol)) rowOf.set(row.symbol, row);
-  const lines: MixLine[] = mix.lines.map(([ticker, name, weight, sector]) => ({
-    ticker,
-    name,
-    weight,
-    sector,
-    fund: sector === FUNDS_SECTOR || Boolean(series[ticker]?.fund) || Boolean(funds[ticker]) || FUND_NAME.test(name),
-  }));
+  const lines: MixLine[] = mix.lines.map(([ticker, weight]) => {
+    const row = rowOf.get(ticker);
+    const name = words?.get(ticker)?.name || row?.name || ticker;
+    const sector = words?.get(ticker)?.sector ?? row?.sector ?? (FUND_NAME.test(name) ? FUNDS_SECTOR : null);
+    return { ticker, name, weight, sector, fund: sector === FUNDS_SECTOR || Boolean(series[ticker]?.fund) || Boolean(funds[ticker]) || FUND_NAME.test(name) };
+  });
 
   const positions: XrayPositionInput[] = lines.map((line) => ({ ticker: line.ticker, name: line.name, value: line.weight, looksLikeFund: line.fund }));
   const sectorOf: Record<string, string> = {};
@@ -179,11 +223,14 @@ async function computeMix(key: string): Promise<MarketAnalysis> {
     ? buildXray(positions, { funds: ownFunds, sectorOf, nameOf, benchmarkSectors: facts.spSectorWeights, benchmark: benchmarkFund })
     : null;
 
-  // A failed read here throws through, so the mix is not cached without its crashes.
-  const stress = await buildStressView(
+  // The crash replay from the same reads as the year of closes (their episode edges), not a second read per holding.
+  const edges = new Map<string, EpisodeCloses>();
+  for (const [symbol, value] of Object.entries(rawSeries)) if (value) edges.set(symbol.toUpperCase(), value.episodes);
+  const stress = stressViewFrom(
     lines.map((line) => ({ ticker: line.ticker, name: line.name, value: line.weight })),
     "live",
     null,
+    edges,
   );
 
   // A holding the screener does not carry (some funds) takes its returns from its own closes, so it is not left out.
@@ -216,22 +263,41 @@ async function computeMix(key: string): Promise<MarketAnalysis> {
 const cachedMix = sharedCache(computeMix, [`portfolio-analysis-mix-v${ANALYSIS_VERSION}`], { revalidate: 3 * 3600 });
 
 /** The mix, tried twice: a read that drops once (the store is across the network) should not blank the page. */
-async function loadMix(key: string): Promise<MarketAnalysis | null> {
-  for (let attempt = 1; attempt <= 2; attempt++) {
-    try {
-      return await cachedMix(key);
-    } catch (error) {
-      console.warn(`[portfolio-analysis] mix failed (try ${attempt}):`, error instanceof Error ? error.message : error);
+async function loadMix(day: string, lines: ReadonlyArray<MixLineInput>): Promise<MarketAnalysis | null> {
+  const key = mixKey(day, lines);
+  const words = new Map(lines.map((line) => [line.ticker.toUpperCase(), { name: line.name, sector: line.sector }]));
+  mixWords.set(key, words);
+  try {
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        return await cachedMix(key);
+      } catch (error) {
+        console.warn(`[portfolio-analysis] mix failed (try ${attempt}):`, error instanceof Error ? error.message : error);
+      }
     }
+    return null;
+  } finally {
+    // Another request for the same key may have set its own words meanwhile; only ours are taken back.
+    if (mixWords.get(key) === words) mixWords.delete(key);
   }
-  return null;
 }
 
-/** The key for one mix: tickers in order, weights to 0.1%, so a few cents of price drift share one entry. */
-export function mixKey(day: string, lines: ReadonlyArray<{ ticker: string; name: string; weight: number; sector: string | null }>): string {
+/**
+ * A weight in the key, to a tenth of a percent. The cached result is worked out from these weights, so whole
+ * percents were too coarse: NVDA at 17.4% and MSFT at 16.7% both became 17% and the "largest" flipped to MSFT.
+ */
+function keyWeight(weight: number): number {
+  return Math.round(weight * 10) / 10;
+}
+
+/**
+ * The key for one mix: tickers in order and weights to 0.1% (names and sectors left out), so mixes that differ by a
+ * little price drift or a name written another way share one entry.
+ */
+export function mixKey(day: string, lines: ReadonlyArray<Pick<MixLineInput, "ticker" | "weight">>): string {
   const rounded = lines
-    .map((line) => [line.ticker.toUpperCase(), line.name, Math.round(line.weight * 10) / 10, line.sector] as MixKey["lines"][number])
-    .filter(([, , weight]) => weight > 0)
+    .map((line) => [line.ticker.toUpperCase(), keyWeight(line.weight)] as MixKey["lines"][number])
+    .filter(([, weight]) => weight > 0)
     .sort((a, b) => a[0].localeCompare(b[0]));
   return JSON.stringify({ v: ANALYSIS_VERSION, day, lines: rounded } satisfies MixKey);
 }
@@ -345,7 +411,7 @@ export async function buildAnalysis(base: Base, deep: boolean): Promise<Portfoli
 
   const seeds: HoldingSeed[] = holdings.map((position) => ({ ticker: position.ticker, name: position.name, shares: position.shares, avgCost: position.avgCost, price: position.price }));
   const [market, dividends] = await Promise.all([
-    lines.length > 0 ? loadMix(mixKey(day, lines)) : Promise.resolve(null),
+    lines.length > 0 ? loadMix(day, lines) : Promise.resolve(null),
     seeds.some((seed) => fin(seed.shares) && seed.shares! > 0) ? loadDividendPlan(seeds).catch(() => null) : Promise.resolve(null),
   ]);
 

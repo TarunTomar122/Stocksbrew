@@ -249,3 +249,35 @@ describe("job order", () => {
     expect(statuses.map((status) => status.job.id)).toEqual(["a", "q", "p"]);
   });
 });
+
+describe("sell zone and call changes read back", () => {
+  const base = { id: "u__s__2026-11-12", job_id: "s", uid: "u", job_name: "ORCL: time to sell some", day: "2026-11-12", ran_at: "2026-11-12T21:30:00Z", checked: [] };
+
+  it("our call turning to Sell some leads, with what to do", () => {
+    const run: AgentRun = {
+      ...base,
+      decision: "notify",
+      summary: "Our call on ORCL moved from Keep to Sell some.",
+      findings: [{ ticker: "ORCL", headline: "Our call on ORCL moved from Keep to Sell some", detail: "Ran past fair value.", source: "Our research call", url: "/stock/ORCL", at: "2026-11-12", kind: "call", call_from: "Keep", call_to: "Sell some" }],
+    };
+    const view = presentRun(run, job("s", "sell-zone"));
+    expect(view.verdict).toBe("act");
+    expect(view.headline).toBe("Our call on ORCL moved from Keep to Sell some.");
+    expect(view.todo).toBe("Our call says this is where to sell some. Your call.");
+    expect(view.notes).toEqual([{ title: "Our call on ORCL moved from Keep to Sell some", detail: "Ran past fair value.", source: "Our research call", url: "/stock/ORCL", at: "2026-11-12" }]);
+  });
+
+  it("a close at the sell-some price reads like the buy zone's, and a quiet day says both checks", () => {
+    const run: AgentRun = {
+      ...base,
+      decision: "notify",
+      summary: "ORCL rose 3.0% to $251, above its $250 sell-some level.",
+      latest_close: "2026-11-12",
+      counts: { names: 1, priced: 1, moves: 1, up: 1, down: 0 },
+      findings: [{ ticker: "ORCL", headline: "ORCL rose 3.0% to $251, above its $250 sell-some level", detail: "", source: "Daily closing prices", url: "/stock/ORCL", at: "2026-11-12", kind: "level", zone: "trim", level: 250, close: 251, change_pct: 3 }],
+    };
+    expect(presentRun(run, job("s", "sell-zone")).headline).toBe("ORCL rose 3.0% to $251 today, above its $250 sell-some level.");
+    const quiet: AgentRun = { ...base, decision: "nothing", summary: "Checked, nothing to do.", latest_close: "2026-11-12", counts: { names: 1, priced: 1, moves: 0 }, findings: [] };
+    expect(presentRun(quiet, job("s", "sell-zone")).headline).toBe("Our call did not say to sell it today.");
+  });
+});

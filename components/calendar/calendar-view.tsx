@@ -2,9 +2,7 @@ import * as React from "react";
 
 import { DataTable, type DataColumn, type DataRow } from "@/components/oa/kit/data-table";
 import { Delta, Empty, FOCUS, NUM, Panel, Tag, Ticker, ToneGlyph, Verdict, fmtCompact } from "@/components/oa/kit";
-import { CARD_HOVER, stockGridFill } from "@/components/briefing/stock-card";
 import { StockLogo } from "@/components/stock-logo";
-import type { BigReport } from "@/lib/calendar-insights";
 import { shortCompanyName } from "@/lib/plain-copy";
 import {
   CALENDAR_TYPES,
@@ -209,65 +207,6 @@ function DayStrip({ filters, today, days }: { filters: CalendarFilters; today: s
   );
 }
 
-/* ── The biggest reports still to come ─────────────────────────────────── */
-
-/**
- * What matters this week before the grid (owner rule 7): the biggest companies still to report, a card each, with the
- * move after its last report as the one figure and when it reports. What the figure is gets said once under the
- * heading, not under every card (owner rule 1). Each card opens the company's earnings page.
- */
-export function BiggestReports({ reports, className = "" }: { reports: BigReport[]; className?: string }) {
-  if (reports.length === 0) return null;
-  // When every card reports at the same time, the heading says it once instead of each card (owner rule 1).
-  const shared = reports.every((report) => report.when === reports[0]!.when) ? reports[0]!.when : null;
-  return (
-    <section aria-labelledby="biggest-reports" className={className}>
-      <h2 id="biggest-reports" className="px-2 pb-2 text-[17px] font-medium tracking-tight text-oa-fg sm:px-3">
-        {shared ? `The biggest reports, ${shared}` : "The biggest reports still to come"}
-      </h2>
-      {/* Said once for every card, so −8.4% is not read as today's move (judges, ships 50 and 53). */}
-      <p className="-mt-1 px-2 pb-2.5 text-[14px] leading-5 text-oa-muted-fg sm:px-3">
-        {reports.length === 1 ? "The figure is how the stock moved after its last report." : "Each figure is how the stock moved after its last report."}
-      </p>
-      {/* Two reports sit side by side as halves; three or more run three across, a short last row filled. */}
-      <ul className={`grid grid-flow-row-dense grid-cols-1 gap-3 sm:grid-cols-2 ${reports.length >= 3 ? "lg:grid-cols-3" : ""}`}>
-        {reports.map(({ item, lastPct, when, size, expect }, index) => {
-          // Rounded first, so a move that shows as 0.0% carries no sign or colour.
-          const shown = Math.round(lastPct * 10) / 10;
-          const tone = shown > 0 ? "text-signal-bullish" : shown < 0 ? "text-signal-bearish" : "text-oa-fg";
-          const short = shortCompanyName(item.company);
-          const fill = reports.length >= 3 ? stockGridFill(index, reports.length, true) : reports.length === 1 ? "sm:col-span-2" : "";
-          return (
-            <li key={item.id} className={`oa-surface relative flex min-w-0 flex-col border border-oa-border bg-oa-card px-3.5 pb-3 pt-3 ${CARD_HOVER} ${fill}`}>
-              <div className="flex min-w-0 items-start justify-between gap-3">
-                <div className="flex min-w-0 items-center gap-2.5">
-                  <StockLogo ticker={item.ticker} size={28} eager />
-                  <div className="min-w-0 leading-5">
-                    <p className="oa-mono text-[14px] font-semibold text-oa-fg">{item.ticker}</p>
-                    {short && short.toUpperCase() !== item.ticker.toUpperCase() ? <p className="truncate text-[12.5px] leading-4 text-oa-muted-fg">{short}</p> : null}
-                  </div>
-                </div>
-                <p className={`oa-mono shrink-0 text-right text-[20px] font-semibold leading-7 tracking-[-0.01em] tabular-nums ${tone}`}>
-                  {`${shown > 0 ? "+" : shown < 0 ? "−" : ""}${Math.abs(shown).toFixed(1)}%`}
-                  <span className="sr-only"> after its last report</span>
-                </p>
-              </div>
-              <p className="mt-2 text-pretty text-[14px] leading-5 text-oa-fg">{shared ? size : `Reports ${when}. ${size}`}</p>
-              {expect ? <p className="mt-1.5 text-pretty text-[13px] leading-[18px] text-oa-muted-fg">{expect}</p> : null}
-              <Link
-                href={earningsHref(item.ticker)}
-                prefetch={false}
-                aria-label={`${item.ticker} earnings`}
-                className="absolute inset-0 z-0 rounded-[inherit] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
-              />
-            </li>
-          );
-        })}
-      </ul>
-    </section>
-  );
-}
-
 /* ── Rows shared by the week and list views ────────────────────────────── */
 
 // Beat, missed or in line lives in lib/calendar-shared (pure, so it is unit-tested); re-exported for the detail page.
@@ -348,6 +287,20 @@ function ResultMark({ item }: { item: EarningsItem }) {
 }
 
 /**
+ * How the stock moved after its last report, on an upcoming report's own row (the biggest companies only): "last
+ * report −8.4%", with the move against a normal day in the hover title.
+ */
+function LastReport({ item, className = "" }: { item: EarningsItem; className?: string }) {
+  if (!item.lastReport) return null;
+  return (
+    <span title={item.lastReport.note} className={`items-baseline gap-1 text-[12.5px] leading-[18px] ${className}`}>
+      <span className="text-oa-muted-fg">last report</span>
+      <Delta value={item.lastReport.pct} digits={1} />
+    </span>
+  );
+}
+
+/**
  * One report, one line. `compact` (the narrow columns beside today's lead)
  * keeps the ticker and the one number; the lead column and the phone add the
  * company and, once reported, actual against estimate. `narrow` (every desktop
@@ -418,7 +371,11 @@ function EarningsLine({
       {narrow && reported ? <ResultMark item={item} /> : null}
       {/* Wraps on a phone rather than cutting the name; the narrow desktop columns still clip. */}
       {/* Wide rows wrap the result under the name rather than letting the two overlap. */}
-      <span className={`min-w-0 flex-1 text-pretty text-[14px] leading-5 text-oa-muted-fg ${narrow ? "lg:truncate" : "min-w-[6rem]"} ${detail} ${narrow && reported ? "lg:hidden" : ""}`}>{shortCompanyName(item.company)}</span>
+      <span className={`min-w-0 flex-1 text-pretty text-[14px] leading-5 text-oa-muted-fg ${narrow ? "lg:truncate" : "min-w-[6rem]"} ${detail} ${narrow && reported ? "lg:hidden" : ""}`}>
+        {shortCompanyName(item.company)}
+        {/* Under the name, so the estimate keeps its place on the line (the narrow desktop columns have no room). */}
+        {!reported && item.lastReport ? <LastReport item={item} className={`flex ${narrow ? "lg:hidden" : ""}`} /> : null}
+      </span>
       <span className="ml-auto flex shrink-0 items-baseline gap-2 text-[14px]">
         {mark && !reported && item.hasPreRead ? <PreReadMark className="self-center" /> : null}
         {reported ? (
@@ -430,7 +387,8 @@ function EarningsLine({
             </span>
             <ReactionValue item={item} narrow={narrow} />
           </>
-        ) : item.epsEstimate !== null ? (
+        ) : null}
+        {reported ? null : item.epsEstimate !== null ? (
           <span className={`${NUM} text-oa-muted-fg`}>
             {/* The number alone: the session heading says once what it is ("Expected profit a share"), so the words
                 are not repeated on every row (owner, Nov 11). Screen readers still get them. */}

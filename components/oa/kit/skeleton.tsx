@@ -121,13 +121,14 @@ export function SkeletonFrame({
   label,
 }: {
   children: React.ReactNode;
-  width?: "wide" | "read";
+  /** Same widths as AppPage ("dash": the 90rem 12-column frame). */
+  width?: "wide" | "read" | "dash";
   /** Same escape hatch as AppPage: a page that narrows its frame passes the same class here. */
   className?: string;
   /** What is loading, for screen readers. */
   label?: string;
 }) {
-  const max = width === "read" ? "max-w-[47rem]" : "max-w-[84rem]";
+  const max = width === "read" ? "max-w-[47rem]" : width === "dash" ? "max-w-[90rem]" : "max-w-[84rem]";
   return (
     <main
       className={`oa-landing ${interTight.variable} min-w-0 flex-grow overflow-x-clip`}

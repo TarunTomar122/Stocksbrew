@@ -71,7 +71,7 @@ export const PORTFOLIO_TOOL_PAGES: Record<PortfolioOgTool, ToolPage> = {
   },
   xray: {
     path: "/portfolio/xray",
-    label: "What you really own",
+    label: "Analysis",
     title: "Your funds hold companies too",
     sub: "Add what is inside your ETFs to the stocks you bought, from each fund's own SEC filing.",
   },
@@ -82,8 +82,9 @@ export const PORTFOLIO_TOOL_PAGES: Record<PortfolioOgTool, ToolPage> = {
     sub: "Announced dividends with their pay dates, kept apart from estimates based on last year's payments.",
   },
   stress: {
-    path: "/portfolio/stress",
-    label: "Stress test",
+    // Printed on the card: the crash replay lives on Analysis now.
+    path: "/portfolio/xray",
+    label: "Past crashes",
     title: "How your stocks did in real market shocks",
     sub: "The Covid crash, the 2022 rate-hike slide, the 2023 bank scare and the 2025 tariff shock, each against the S&P 500.",
   },

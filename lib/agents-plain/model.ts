@@ -30,6 +30,8 @@ const WATCH = z.object({
   items: z.array(z.string()).nullable().describe("sec_filing: 8-K item codes asked for, like \"1.01\" (a deal), \"2.02\" (results), \"5.02\" (an executive change)."),
   major: z.boolean().nullable().describe("sec_filing: true when they asked for anything big or important rather than a form."),
   news: z.enum(NEWS_WATCHES).nullable().describe("news_change: busy (much more news than usual), negative, positive, tone (either way) or any (any of these)."),
+  // Nullable, never optional: OpenAI's strict JSON schema needs every field listed as required.
+  call_to: z.enum(["buy_more", "keep", "sell_some"]).nullable().describe("call_change: the call it should turn to, when they named one."),
 });
 
 const SCHEMA = z.object({
@@ -53,16 +55,19 @@ Watch kinds:
 - congress_trade: a member of Congress discloses a trade.
 - insider_trade: an executive, director or other insider reports a trade.
 - movers_list: a stock is on the day's list of biggest movers.
-- buy_zone: a stock reaches the price where our research says we would buy more.
+- buy_zone: a stock reaches the price where our research says we would buy more ("tell me when to buy X", "when should I buy more X", "when X is cheap").
+- sell_zone: a stock reaches our sell-some price, or our call on it turns to Sell some ("tell me when to sell X", "when should I sell X", "when it's time to trim X", "when anything I own hits a sell price").
+- call_change: our call on a stock changes ("tell me when your call on X changes"). Set "call_to" when they name the call it should turn to.
 - daily_check: a summary every market day.
 - weekly_review: a summary once a week (weekday).
 - sec_filing: a company files something with the SEC: an 8-K (with item codes when they name what it is about), a 10-K, a 10-Q, a share offering (S-1), a stake above 5% (13D/G), or "something big" (major). Form 4 is insider_trade and 13F is fund_13f.
 - news_change: the news about a stock gets much heavier than usual or turns clearly negative or positive (news).
 
 Rules:
-- Use only these kinds. Anything else goes in "cannot" with the closest reason: news (one kind of story, like an FDA decision, a merger or a lawsuit), intraday (real time, during the day), chart_signals (moving averages, RSI, volume, 52-week highs), fundamentals (P/E, revenue, valuation), analyst_ratings, call_change, dividends, trading (buy or sell for me, stop-loss), cost_basis (from what I paid), multi_day_move (a percent over a week or month), not_a_us_stock (crypto, forex, foreign markets), weekend, unclear, other.
+- Use only these kinds. Anything else goes in "cannot" with the closest reason: news (one kind of story, like an FDA decision, a merger or a lawsuit), intraday (real time, during the day), chart_signals (moving averages, RSI, volume, 52-week highs), fundamentals (P/E, revenue, valuation), analyst_ratings, call_change, dividends, trading (only an order placed for them: "sell my X", "buy 10 X for me", a stop-loss), cost_basis (from what I paid), multi_day_move (a percent over a week or month), not_a_us_stock (crypto, forex, foreign markets), weekend, unclear, other.
 - Copy stock names exactly as written. Never guess a ticker for a company that was not named. "it" or "them" refers to the stocks named earlier in the request.
 - A request may hold several watches ("or", "and"). Make one watch per thing to watch.
+- Asking WHEN to buy or sell, or to be told when it's time, is buy_zone or sell_zone, never trading. A price the person names themselves ("my sell price of 200") is price_above or price_below.
 - Never invent numbers. If no number was given, use null.`;
 
 const TIMEOUT_MS = 12_000;

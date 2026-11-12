@@ -128,13 +128,6 @@ export function premarketWhen(generatedAt: string | null, now: Date = new Date()
 }
 
 /**
- * The briefing's "Before the open" card shows only before 9:30 ET on a market day, and only with today's numbers.
- */
-export function showBeforeOpen(generatedAt: string | null, now: Date = new Date()): boolean {
-  return getMarketSessionState(now).kind === "premarket" && etDayOf(generatedAt) === marketDateIso("US", now);
-}
-
-/**
  * Whether /premarket has anything to show: this morning's numbers, before the open, with at least one market cue or
  * gapper (owner, Nov 12: "we shouldnt show premarket unless we have it for today"). The page and the nav's readiness
  * check (app/api/premarket/quotes) both ask this, so the nav never offers a page that would send you away.
@@ -192,14 +185,6 @@ export function openingHeadline(cues: readonly CueInput[], when: Pick<PremarketW
   return live
     ? `Futures point to a ${way} open, led by ${lead.label} ${moveWords(lead.change_pct)}.`
     : `${past} pointed to a ${way} open, led by ${lead.label} ${moveWords(lead.change_pct)}.`;
-}
-
-/** The briefing card's futures, one phrase each: ["S&P 500 futures +0.86%", "Nasdaq 100 +1.90%"]. Empty without futures. */
-export function futuresLine(cues: readonly CueInput[]): string[] {
-  // "futures" once: the first label says it, the second reads as its name.
-  return futuresCues(cues)
-    .slice(0, 2)
-    .map((cue, index) => `${index > 0 ? cue.label.replace(/\s+futures$/i, "") : cue.label} ${gapPct(cue.change_pct)}`);
 }
 
 const ROSE_WORDS = /\b(?:rose|rises|rising|jump(?:s|ed)?|surg(?:e|es|ed|ing)|soar(?:s|ed|ing)?|gain(?:s|ed)?|climb(?:s|ed)?|rall(?:y|ies|ied)|spik(?:e|es|ed)|rebound(?:s|ed)?|higher)\b|\bup \d[\d.]*%/i;

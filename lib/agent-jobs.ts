@@ -39,8 +39,23 @@ export type AgentEventKind =
   /** A stock in scope filed a new SEC form (lib/agent-events-filings.ts). */
   | "sec_filing"
   /** The news about a stock in scope got much heavier or turned one way (lib/agent-events-news.ts). */
-  | "news";
-export type AgentPriceRule = "crosses_above" | "crosses_below" | "moves_pct" | "enters_buy_zone";
+  | "news"
+  /** Our call on a stock in scope changed (tm_call_stability's own change list). */
+  | "call_change";
+/**
+ * `enters_sell_zone`: a close at or above the sell-some price of a Sell some call, or our call turning to Sell some.
+ * It is how "tell me when to sell X" is watched: a signal, never a trade.
+ */
+export type AgentPriceRule = "crosses_above" | "crosses_below" | "moves_pct" | "enters_buy_zone" | "enters_sell_zone";
+
+/** Our call in the pipeline's words: Add is Buy more, Hold is Keep, Trim is Sell some. */
+export type AgentCall = "Add" | "Hold" | "Trim";
+
+export const CALL_WORDS: Record<AgentCall, string> = { Add: "Buy more", Hold: "Keep", Trim: "Sell some" };
+
+export function isAgentCall(value: unknown): value is AgentCall {
+  return value === "Add" || value === "Hold" || value === "Trim";
+}
 
 export type AgentTrigger =
   | { type: "schedule"; cadence: AgentScheduleCadence; /** 1 = Monday … 5 = Friday. Weekly only. */ weekday?: number }
@@ -53,6 +68,8 @@ export type AgentTrigger =
       filings?: FilingFilter;
       /** news only: heavier than usual, a tone, or either. */
       news?: NewsWatch;
+      /** call_change only: just a change to this call. None means any change. */
+      to?: AgentCall;
     }
   | { type: "price"; rule: AgentPriceRule; level?: number; pct?: number };
 
@@ -99,11 +116,16 @@ export type AgentJob = AgentJobDraft & {
   last_checked_day?: string | null;
   /** The newest closing price date a run has already read. */
   last_close_seen?: string | null;
+  /**
+   * The call on each stock as the last run saw it, for agents that watch our call (sell zone, call change). A call
+   * that differs from this on the next run is a change, whenever in the day the pipeline wrote it.
+   */
+  calls_seen?: Record<string, AgentCall> | null;
 };
 
 export type AgentDecision = "notify" | "nothing" | "could_not_check";
 
-export type AgentFindingKind = "move" | "level" | "earnings" | "congress" | "insider" | "filing" | "mover" | "news";
+export type AgentFindingKind = "move" | "level" | "earnings" | "congress" | "insider" | "filing" | "mover" | "news" | "call";
 
 export type AgentFinding = {
   ticker: string | null;
@@ -138,6 +160,9 @@ export type AgentFinding = {
   /** News only: the side the news leaned, and the share of read stories on it. */
   tone?: "negative" | "positive" | null;
   tone_pct?: number | null;
+  /** Call changes only, in plain words ("Keep", "Sell some"). `call_from` is null when the plan does not cover the stock. */
+  call_from?: string | null;
+  call_to?: string;
 };
 
 /** How many things a run found in total, before the list was capped. */
@@ -165,6 +190,8 @@ export type AgentEvaluation = {
   /** The newest closing price date the run read, when it read prices. */
   latest_close?: string | null;
   counts?: AgentRunCounts;
+  /** Agents that watch our call: the call on each stock now, for the job to remember (AgentJob.calls_seen). */
+  calls_seen?: Record<string, AgentCall>;
 };
 
 export type AgentRun = AgentEvaluation & {
@@ -217,6 +244,12 @@ export type AgentFacts = {
   /** Headlines naming the names in scope, with their tone labels (tm_agent_news, tm_agent_news_tone). */
   news?: NewsFacts;
   /**
+   * Our call on each name in scope today and the changes it made, oldest first (tm_call_stability). Read only for
+   * agents that watch the call. `locked`: the plan does not cover the stock, so the earlier call and the reason
+   * are left out (the call itself is free).
+   */
+  calls?: Record<string, AgentCallFacts>;
+  /**
    * Whether each source has been collected at all. A source we do not have is
    * reported as "could not check", never as "nothing happened".
    */
@@ -229,8 +262,13 @@ export type AgentFacts = {
     earnings_reports?: boolean;
     filings?: boolean;
     news?: boolean;
+    calls?: boolean;
   };
 };
+
+export type AgentCallChange = { date: string; from: AgentCall | null; to: AgentCall; reason?: string | null };
+
+export type AgentCallFacts = { call: AgentCall | null; changes: AgentCallChange[]; locked?: true };
 
 export const EMPTY_FACTS: AgentFacts = {
   prices: {},
@@ -582,6 +620,34 @@ export const AGENT_TEMPLATES: AgentTemplate[] = [
       scope: { kind: "watchlist" },
     },
   },
+  {
+    id: "sell-zone",
+    group: "Price",
+    title: "When to sell some",
+    ask: "Tell me when to sell: when one of my names reaches our sell-some price, or our call on it turns to Sell some.",
+    tells: "When one of your stocks closes at or above our sell-some price, or our call on it turns to Sell some.",
+    fields: [],
+    defaults: {
+      template: "sell-zone",
+      name: "When to sell some",
+      trigger: { type: "price", rule: "enters_sell_zone" },
+      scope: { kind: "watchlist" },
+    },
+  },
+  {
+    id: "call-change",
+    group: "Event",
+    title: "Our call changes",
+    ask: "Tell me when our call on one of my names changes.",
+    tells: "When our call on one of your stocks changes, say from Keep to Sell some.",
+    fields: [],
+    defaults: {
+      template: "call-change",
+      name: "Our call changes",
+      trigger: { type: "event", event: "call_change" },
+      scope: { kind: "watchlist" },
+    },
+  },
 ];
 
 /** Names the app gave agents by default before it used the call's own words; a name a person typed stays as typed. */
@@ -644,8 +710,10 @@ export function triggerLabel(trigger: AgentTrigger): string {
     if (trigger.rule === "crosses_above") return `Closes above ${price(trigger.level ?? 0)}`;
     if (trigger.rule === "crosses_below") return `Closes below ${price(trigger.level ?? 0)}`;
     if (trigger.rule === "moves_pct") return `Moves ${trigger.pct ?? 5}% or more in a day`;
+    if (trigger.rule === "enters_sell_zone") return "When our call says sell some";
     return "Closes at its buy-more level";
   }
+  if (trigger.event === "call_change") return trigger.to ? `Our call turns to ${CALL_WORDS[trigger.to]}` : "Our call changes";
   if (trigger.event === "fund_13f") return "New 13F filing";
   if (trigger.event === "congress_trade") return "Congressional disclosure";
   if (trigger.event === "insider_trade") return "Insider trade";
@@ -675,7 +743,13 @@ export function describeJob(job: Pick<AgentJobDraft, "trigger" | "scope">): stri
     if (trigger.rule === "moves_pct") {
       return `Tell me when ${anyOf(job.scope, who)} closes ${trigger.pct ?? 5}% or more away from the day before.`;
     }
+    if (trigger.rule === "enters_sell_zone") {
+      return `Tell me when ${anyOf(job.scope, who)} closes at or above our sell-some price, or our call turns to Sell some.`;
+    }
     return `Tell me when ${anyOf(job.scope, who)} closes at or below the buy-more level in its call.`;
+  }
+  if (trigger.event === "call_change") {
+    return trigger.to ? `Tell me when our call on ${anyOf(job.scope, who)} turns to ${CALL_WORDS[trigger.to]}.` : `Tell me when our call on ${anyOf(job.scope, who)} changes.`;
   }
   if (trigger.event === "fund_13f") {
     return job.scope.kind === "any"
@@ -774,6 +848,8 @@ export function parseJobDraft(raw: unknown, options: { hidden?: string[] } = {})
         return { ok: false, error: "Enter a move between 1% and 50%." };
       }
       trigger = { type: "price", rule: "moves_pct", pct: Math.round(pct * 10) / 10 };
+    } else if (template.id === "sell-zone") {
+      trigger = { type: "price", rule: "enters_sell_zone" };
     } else {
       trigger = { type: "price", rule: "enters_buy_zone" };
     }
@@ -792,11 +868,15 @@ export function parseJobDraft(raw: unknown, options: { hidden?: string[] } = {})
       if (scope.kind === "any" && !filingFilterAllowsAnyStock(filings)) scope = { kind: "watchlist" };
     } else if (event === "news") {
       trigger = { type: "event", event, news: cleanNewsWatch(rawTrigger.news) };
+    } else if (event === "call_change") {
+      trigger = isAgentCall(rawTrigger.to) ? { type: "event", event, to: rawTrigger.to } : { type: "event", event };
     } else {
       trigger = { type: "event", event };
     }
-    // Earnings, movers and news are about names the person follows; "any" would be the whole market.
-    if (scope.kind === "any" && (event === "earnings_approaching" || event === "earnings_reported" || event === "mover" || event === "news")) scope = { kind: "watchlist" };
+    // Earnings, movers, news and our calls are about names the person follows; "any" would be the whole market.
+    if (scope.kind === "any" && (event === "earnings_approaching" || event === "earnings_reported" || event === "mover" || event === "news" || event === "call_change")) {
+      scope = { kind: "watchlist" };
+    }
   }
 
   const typed = typeof input.name === "string" ? input.name.replace(/\s+/g, " ").trim().slice(0, 80) : "";
@@ -822,6 +902,11 @@ export type EvaluateOptions = {
    * Defaults to `since`.
    */
   price_since?: string | null;
+  /**
+   * A live run of an agent that watches our call: the call on each stock as the job's last run saw it
+   * (AgentJob.calls_seen). Left out by a replay, which reads the dated change list instead.
+   */
+  calls_seen?: Record<string, AgentCall> | null;
 };
 
 function capFindings(findings: AgentFinding[]): AgentFinding[] {
@@ -908,6 +993,69 @@ function dropBehind(findings: AgentFinding[], prices: AgentFacts["prices"], last
   return dropped.filter(Boolean);
 }
 
+/** Our call on `day`: today's, unless the change list shows it was something else then (a replayed day). */
+export function callAsOf(entry: AgentCallFacts | undefined, day: string): AgentCall | null {
+  if (!entry) return null;
+  const later = entry.changes.filter((change) => change.date.slice(0, 10) > day);
+  return later.length ? later[0].from : entry.call;
+}
+
+/**
+ * Our call turning on the names in scope. A live run compares today's call with the one the job last saw, so a
+ * change the pipeline wrote after yesterday's check is still caught once; a name the job has not seen yet, and every
+ * replayed day, reads the dated change list instead (only changes dated in the window, never after `day`).
+ * `to` keeps only changes to that call. Returns the findings, newest first, and the calls to remember.
+ */
+export function callTurns(
+  facts: AgentFacts,
+  options: Pick<EvaluateOptions, "day" | "since" | "tickers" | "calls_seen">,
+  to?: AgentCall,
+): { findings: AgentFinding[]; seen: Record<string, AgentCall>; read: number } {
+  const { day, since, tickers } = options;
+  const findings: AgentFinding[] = [];
+  const seen: Record<string, AgentCall> = {};
+  let read = 0;
+  for (const ticker of tickers) {
+    const entry = facts.calls?.[ticker];
+    if (!entry) continue;
+    const logged = entry.changes.filter((change) => change.date.slice(0, 10) <= day && change.from !== change.to);
+    let change: AgentCallChange | null = null;
+    const before = options.calls_seen?.[ticker];
+    if (options.calls_seen && entry.call) {
+      read += 1;
+      seen[ticker] = entry.call;
+      if (before && before !== entry.call) {
+        // Its date and reason come from the change list only when that change is this one (since the last check).
+        const last = [...logged].reverse().find((row) => row.to === entry.call && (since == null || row.date.slice(0, 10) >= since));
+        change = { date: last?.date.slice(0, 10) ?? day, from: before, to: entry.call, reason: last?.reason ?? null };
+      } else if (!before) {
+        change = [...logged].reverse().find((row) => inWindow(row.date, since, day) && (!to || row.to === to)) ?? null;
+        // The change list is behind the call itself: only a change to today's call counts.
+        if (change && change.to !== entry.call) change = null;
+      }
+    } else if (!options.calls_seen) {
+      read += 1;
+      change = [...logged].reverse().find((row) => inWindow(row.date, since, day) && (!to || row.to === to)) ?? null;
+    }
+    if (!change || (to && change.to !== to)) continue;
+    const from = entry.locked ? null : change.from;
+    const word = CALL_WORDS[change.to];
+    findings.push({
+      ticker,
+      headline: from ? `Our call on ${ticker} moved from ${CALL_WORDS[from]} to ${word}` : `Our call on ${ticker} turned to ${word}`,
+      detail: (!entry.locked && change.reason?.trim()) || "",
+      source: "Our research call",
+      url: `/stock/${ticker}`,
+      at: change.date.slice(0, 10),
+      kind: "call",
+      call_from: from ? CALL_WORDS[from] : null,
+      call_to: word,
+    });
+  }
+  findings.sort((a, b) => b.at.localeCompare(a.at) || (a.ticker ?? "").localeCompare(b.ticker ?? ""));
+  return { findings, seen, read };
+}
+
 function evaluatePrice(
   trigger: Extract<AgentTrigger, { type: "price" }>,
   facts: AgentFacts,
@@ -973,6 +1121,17 @@ function evaluatePrice(
           level: zone?.level ?? null,
         });
       }
+    } else if (trigger.rule === "enters_sell_zone") {
+      // A sell-some price belongs to a Sell some call (owner rule 8); under Keep or Buy more only a turn of the call counts.
+      const call = callAsOf(facts.calls?.[ticker], quote.date);
+      const trimAbove = facts.levels[ticker]?.trim_above ?? null;
+      if (facts.levels[ticker]?.locked) {
+        notCovered.push(ticker);
+      } else if (call !== "Trim" || trimAbove == null || !(trimAbove > 0)) {
+        noLevel.push(ticker);
+      } else if (quote.prev < trimAbove && quote.close >= trimAbove) {
+        push(zoneHeadline(ticker, changePct, quote.close, "trim", trimAbove), { kind: "level", zone: "trim", level: trimAbove });
+      }
     } else {
       const addBelow = facts.levels[ticker]?.add_below ?? null;
       if (facts.levels[ticker]?.locked) {
@@ -985,11 +1144,12 @@ function evaluatePrice(
     }
   }
 
+  const sellZone = trigger.rule === "enters_sell_zone";
   const checked = [
     `Daily closes for ${plural(fresh, "name")}${lastDate ? `, latest ${shortDate(lastDate)}` : ""}`,
     ...(stale.length ? [`No new close since the last check: ${listNames(stale)}`] : []),
     ...(missing.length ? [`No price history: ${listNames(missing)}`] : []),
-    ...(noLevel.length ? [`No add level in the research call: ${listNames(noLevel)}`] : []),
+    ...(noLevel.length ? [sellZone ? `No sell-some price in our call: ${listNames(noLevel)}` : `No add level in the research call: ${listNames(noLevel)}`] : []),
     ...(notCovered.length ? [`Not covered on your plan, so not checked: ${listNames(notCovered)}`] : []),
   ];
 
@@ -998,14 +1158,28 @@ function evaluatePrice(
   if (behind.length) checked.push(`Price not updated for the latest session: ${listNames(behind)}`);
   // A name that reached its level leads, then the biggest moves.
   findings.sort((a, b) => Number(Boolean(b.zone)) - Number(Boolean(a.zone)) || Math.abs(b.change_pct ?? 0) - Math.abs(a.change_pct ?? 0));
+  const priceFindings = findings.length;
+
+  // "When to sell" also means our call turning to Sell some, whether or not there was a new close.
+  const turns = sellZone ? callTurns(facts, options, "Trim") : null;
+  if (turns) {
+    checked.push(facts.available.calls ? `Our calls read for ${plural(turns.read, "name")}` : "Our calls: unavailable");
+    // A stock that turned to Sell some and crossed its price on the same day is said once, as the turn.
+    const turned = new Set(turns.findings.map((finding) => finding.ticker));
+    for (let index = findings.length - 1; index >= 0; index -= 1) if (turned.has(findings[index].ticker)) findings.splice(index, 1);
+    findings.unshift(...turns.findings);
+  }
+  const remember = turns && options.calls_seen ? { calls_seen: turns.seen } : {};
+
   if (findings.length > 0) {
+    const moved = findings.filter((f) => f.kind !== "call");
     return {
       counts: {
         names: tickers.length,
         priced: fresh,
-        moves: findings.length,
-        up: findings.filter((f) => (f.change_pct ?? 0) > 0).length,
-        down: findings.filter((f) => (f.change_pct ?? 0) < 0).length,
+        moves: sellZone ? moved.length : priceFindings,
+        up: moved.filter((f) => (f.change_pct ?? 0) > 0).length,
+        down: moved.filter((f) => (f.change_pct ?? 0) < 0).length,
         ...(trigger.rule === "moves_pct" ? { threshold: trigger.pct ?? 5 } : {}),
       },
       ...notify(
@@ -1014,6 +1188,22 @@ function evaluatePrice(
         checked,
       ),
       latest_close,
+      ...remember,
+    };
+  }
+  if (sellZone) {
+    // Without our calls a quiet day can't be told from one we could not read: the call is half of this watch.
+    if (!facts.available.calls) return { ...couldNot("Could not check: our calls were not available.", checked), latest_close };
+    const names = tickers.length;
+    // Said without a sell-some price: a Keep or Buy more call has none (owner rule 8).
+    return {
+      ...nothing(
+        `Checked, nothing to do. Our call did not say to sell ${names === 1 ? "it" : `any of the ${names} names`}${lastDate ? ` on ${shortDate(lastDate)}` : ""}.`,
+        checked,
+      ),
+      latest_close,
+      counts: { names, priced: fresh, moves: 0 },
+      ...remember,
     };
   }
   if (fresh === 0 && stale.length === 0) {
@@ -1180,6 +1370,27 @@ function evaluateEvent(
     );
   }
 
+  if (trigger.event === "call_change") {
+    if (!facts.available.calls) return couldNot("Could not check: our calls were not available.", ["Our calls: unavailable", namesNote]);
+    const turns = callTurns(facts, options, trigger.to);
+    const remember = options.calls_seen ? { calls_seen: turns.seen } : {};
+    const checked = [`Our calls read for ${plural(turns.read, "name")}`, namesNote];
+    const target = trigger.to ? ` to ${CALL_WORDS[trigger.to]}` : "";
+    if (turns.findings.length === 0) {
+      return {
+        ...nothing(
+          tickers.length === 1 ? `Checked, nothing to do. Our call on ${tickers[0]} did not change${target} on ${span}.` : `Checked, nothing to do. Our call on none of your ${tickers.length} names changed${target} on ${span}.`,
+          checked,
+        ),
+        ...remember,
+      };
+    }
+    const findings = turns.findings;
+    return {
+      ...notify(findings.length === 1 ? `${findings[0].headline}.` : `Our call changed on ${plural(findings.length, "name")}: ${listNames(findings.map((f) => f.ticker ?? ""))}.`, findings, checked),
+      ...remember,
+    };
+  }
   if (trigger.event === "earnings_reported") return evaluateEarningsReported(facts, { day, since, tickers }, MAX_FINDINGS);
   if (trigger.event === "sec_filing") return evaluateFilingEvent(trigger.filings, scope, facts, { day, since, tickers }, MAX_FINDINGS);
   if (trigger.event === "news") return evaluateNewsEvent(trigger.news ?? "any", scope, facts, { day, since, tickers }, MAX_FINDINGS);
@@ -1461,6 +1672,12 @@ export function replayJob(
   }
   if (trigger.type === "price" && trigger.rule === "enters_buy_zone") {
     notes.push("The add level is the one in today's research call. We do not keep past levels, so earlier days are checked against today's.");
+  }
+  if (trigger.type === "price" && trigger.rule === "enters_sell_zone") {
+    notes.push("The sell-some price is the one in today's call. We do not keep past levels, so earlier days are checked against today's, under the call as it was that day.");
+  }
+  if ((trigger.type === "price" && trigger.rule === "enters_sell_zone") || (trigger.type === "event" && trigger.event === "call_change")) {
+    notes.push("Call changes are placed on the day the call changed. Only changes since steady calls began count.");
   }
   if (trigger.type === "event" && trigger.event === "earnings_approaching") {
     notes.push("Earnings dates are the ones on the calendar today. A date that was moved shows where it ended up.");

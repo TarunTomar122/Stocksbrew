@@ -23,13 +23,14 @@ import {
   type BriefingPosition,
 } from "@/lib/briefing";
 import { unTitle } from "@/components/briefing/card-words";
+import { capitalize, dayWords } from "@/lib/day-words";
 import { newsRank } from "@/lib/briefing-news";
 import { isDecision, moveRowText, plainCallWord } from "@/lib/briefing-groups";
 import { premarketMove } from "@/lib/memo/premarket-leg";
 import { addDays, weekdayOf } from "@/lib/memo/week";
 import { etWallTimeToUtcMs, isNyseHoliday, type MarketSessionKind } from "@/lib/market-session";
 import { asSentence, firstFullSentence } from "@/lib/plain-copy";
-import { vixVerdict, yieldVerdict, type VerdictLine } from "@/lib/market-verdict";
+import { vixDayVerdict, yieldDayVerdict, type VerdictLine } from "@/lib/market-verdict";
 import type { ResultRead } from "@/lib/results/types";
 
 export type Tone = "up" | "down" | "flat";
@@ -181,21 +182,15 @@ export function youFigure(
 
 /**
  * One figure in the strip: the day's change and what it is a change of, coloured by what it means for stocks
- * (lib/market-verdict.ts): the indexes by their direction, the 10-year by its month and the VIX by its level.
+ * (lib/market-verdict.ts): the indexes by their direction, the 10-year yield and the VIX by what their day's move means
+ * (a rise in either is bad for stocks). Never by the sign alone; with no verdict the figure is plain.
  */
 export type MarketTile = { key: string; label: string; figure: string; pct: number | null; good: Tone };
 
-/** `monthChange` is the change over the past month in the asset's own change mode (basis points for a yield). */
-export type MarketExtra = { id: "vix" | "us10y"; price: number; change: number | null; changeMode: "pct" | "bps" | "abs"; monthChange?: number | null };
+export type MarketExtra = { id: "vix" | "us10y"; price: number; change: number | null; changeMode: "pct" | "bps" | "abs" };
 
 /** A good/bad-for-stocks verdict as the strip's colour: good is green, bad is red, neutral or unknown is plain. */
 const verdictTone = (line: VerdictLine | null): Tone => (line?.verdict === "good" ? "up" : line?.verdict === "bad" ? "down" : "flat");
-
-/** A change in the asset's mode as percentage points of yield (the verdict's unit); null for a percent change. */
-function yieldPoints(change: number | null | undefined, mode: MarketExtra["changeMode"]): number | null {
-  if (!fin(change)) return null;
-  return mode === "bps" ? change / 100 : mode === "abs" ? change : null;
-}
 
 function signed(value: number, digits = 1): string {
   const fixed = Math.abs(value).toFixed(digits);
@@ -206,8 +201,8 @@ function signed(value: number, digits = 1): string {
 /**
  * The market figures after the S&P 500: the Nasdaq 100's day, the 10-year yield's day in basis points and the VIX's
  * day in percent, each with its level in the label ("10-yr 5.0%", "VIX 18.2"). One decimal throughout. A figure with
- * no change for the day is left out rather than shown as a bare level. Rising yields over the month and a fearful VIX
- * read as bad for stocks (lib/market-verdict.ts), whatever the sign of the day's change.
+ * no change for the day is left out rather than shown as a bare level. The colour is the day's verdict for stocks
+ * (lib/market-verdict.ts): yields or the VIX rising read as bad, falling as good, a small move as plain.
  */
 export function marketTiles(indices: readonly BriefingIndex[], extras: readonly MarketExtra[]): MarketTile[] {
   const out: MarketTile[] = [];
@@ -218,13 +213,12 @@ export function marketTiles(indices: readonly BriefingIndex[], extras: readonly 
   if (ten && fin(ten.price) && bps != null) {
     const shown = Math.round(bps * 10) / 10;
     const figure = Math.abs(shown) < 0.05 ? "0.0 bps" : `${shown > 0 ? "+" : "−"}${Math.abs(shown).toFixed(1)} bps`;
-    // The verdict reads the month's change; without it, the day's change stands in for it.
-    const month = yieldPoints(ten.monthChange, ten.changeMode);
-    out.push({ key: "us10y", label: `10-yr ${ten.price.toFixed(1)}%`, figure, pct: null, good: verdictTone(yieldVerdict(month ?? bps / 100)) });
+    // Coloured by the figure it sits beside, the day's move: "+10 bps" is bad for stocks even when the month fell.
+    out.push({ key: "us10y", label: `10-yr ${ten.price.toFixed(1)}%`, figure, pct: null, good: verdictTone(yieldDayVerdict(bps / 100)) });
   }
   const vix = extras.find((extra) => extra.id === "vix");
   if (vix && fin(vix.price) && vix.changeMode === "pct" && fin(vix.change)) {
-    out.push({ key: "vix", label: `VIX ${vix.price.toFixed(1)}`, figure: signed(vix.change), pct: vix.change, good: verdictTone(vixVerdict(vix.price)) });
+    out.push({ key: "vix", label: `VIX ${vix.price.toFixed(1)}`, figure: signed(vix.change), pct: vix.change, good: verdictTone(vixDayVerdict(vix.change)) });
   }
   return out;
 }
@@ -290,16 +284,26 @@ function earningsWhen(days: number, time: BriefingPosition["earnings_time"]): st
   return `Reports ${day}`;
 }
 
-function stockOf(item: BriefingItem, position: BriefingPosition | undefined, pct: number | null): FaceStock {
+function stockOf(item: BriefingItem, position: BriefingPosition | undefined, pct: number | null, prices: Readonly<Record<string, number>> | null = null): FaceStock {
   const ticker = upper(item.ticker);
   return {
     ticker,
     name: position?.name || item.name || ticker,
-    price: position?.price ?? item.price ?? null,
+    price: shownPrice(position, item.price ?? null, prices),
     pct,
     call: callWordOf(position?.stance ?? item.call ?? null),
     href: `/stock/${encodeURIComponent(ticker)}`,
   };
+}
+
+/**
+ * The price a card shows: this morning's premarket price before the open (`prices` is given only then), else the
+ * stock's last price. A stock with no premarket quote keeps its last price.
+ */
+export function shownPrice(position: Pick<BriefingPosition, "ticker" | "price"> | undefined, fallback: number | null, prices: Readonly<Record<string, number>> | null): number | null {
+  const pre = position && prices ? prices[upper(position.ticker)] : undefined;
+  if (fin(pre) && pre > 0) return pre;
+  return position?.price ?? fallback;
 }
 
 /** The day's % a card shows: this morning's premarket move before the open, else the session's. */
@@ -325,6 +329,7 @@ export function doToday(input: {
   positions: readonly BriefingPosition[];
   degraded: readonly string[];
   premarket?: Readonly<Record<string, number>> | null;
+  premarketPrices?: Readonly<Record<string, number>> | null;
 }): DoToday {
   const byTicker = new Map(input.positions.map((position) => [upper(position.ticker), position]));
   const best = new Map<string, DoCard>();
@@ -364,7 +369,7 @@ export function doToday(input: {
       default:
         continue;
     }
-    const card: DoCard = { ...stockOf(item, position, shownPct(position, item.day_change_pct, input.premarket ?? null)), reason, line };
+    const card: DoCard = { ...stockOf(item, position, shownPct(position, item.day_change_pct, input.premarket ?? null), input.premarketPrices ?? null), reason, line };
     const held = best.get(ticker);
     if (!held || DO_RANK[reason] < DO_RANK[held.reason]) best.set(ticker, card);
   }
@@ -377,14 +382,17 @@ export function doToday(input: {
 
 /* ── the heat ───────────────────────────────────────────────────────────── */
 
-export type HeatCell = { ticker: string; name: string; pct: number; tone: Tone; size: 1 | 2; href: string };
+export type HeatCell = { ticker: string; name: string; price: number | null; pct: number; tone: Tone; size: 1 | 2; href: string };
 
 /**
- * Every holding with a move, biggest money first. A cell is twice as wide when the holding is worth at least twice
- * the median holding, and only when every holding has a value; otherwise all cells are one size. A holding with no
- * move is left out. Watched names stay out: this is where the money moved.
+ * Every holding with a move, from the biggest gain to the biggest fall, sized by the size of its move. A holding with
+ * no move is left out. Watched names stay out: this is where the money moved.
  */
-export function heatCells(positions: readonly BriefingPosition[], premarket: Readonly<Record<string, number>> | null = null): HeatCell[] {
+export function heatCells(
+  positions: readonly BriefingPosition[],
+  premarket: Readonly<Record<string, number>> | null = null,
+  premarketPrices: Readonly<Record<string, number>> | null = null,
+): HeatCell[] {
   const holdings = positions.filter((position) => position.relation === "holding");
   const valued = holdings.length > 0 && holdings.every((position) => holdingValue(position) != null);
   const seen = new Set<string>();
@@ -397,17 +405,21 @@ export function heatCells(positions: readonly BriefingPosition[], premarket: Rea
       seen.add(key);
       return true;
     });
-  const values = shown.map((entry) => entry.value).sort((a, b) => a - b);
-  const mid = values.length / 2;
-  const median = values.length === 0 ? 0 : values.length % 2 ? values[Math.floor(mid)]! : (values[mid - 1]! + values[mid]!) / 2;
+  // Sized and ordered by the move, not by the money (owner, Nov 12: "shouldn't the sizes be decided by increase
+  // decrease?"): the biggest gain first, down to the biggest fall, and a cell twice as wide when its move is at least
+  // twice the typical move of the day and at least 1.5%.
+  const moves = shown.map((entry) => Math.abs(entry.pct)).sort((a, b) => a - b);
+  const mid = moves.length / 2;
+  const median = moves.length === 0 ? 0 : moves.length % 2 ? moves[Math.floor(mid)]! : (moves[mid - 1]! + moves[mid]!) / 2;
   return shown
-    .sort((a, b) => b.value - a.value || Math.abs(b.pct) - Math.abs(a.pct) || a.position.ticker.localeCompare(b.position.ticker))
-    .map(({ position, pct, value }) => ({
+    .sort((a, b) => b.pct - a.pct || b.value - a.value || a.position.ticker.localeCompare(b.position.ticker))
+    .map(({ position, pct }) => ({
       ticker: upper(position.ticker),
       name: position.name,
+      price: shownPrice(position, null, premarketPrices),
       pct,
       tone: toneOf(pct),
-      size: valued && median > 0 && value >= 2 * median ? 2 : 1,
+      size: Math.abs(pct) >= 1.5 && Math.abs(pct) >= 2 * median ? 2 : 1,
       href: `/stock/${encodeURIComponent(upper(position.ticker))}`,
     }));
 }
@@ -417,19 +429,26 @@ export function heatCells(positions: readonly BriefingPosition[], premarket: Rea
 export type LevelRow = FaceStock & { level: OwnLevel; line: string; held: boolean };
 
 /** Names within NEAR_LEVEL_PCT of their own call's level, closest first; stocks already in Do today are left out. */
-export function atYourLevels(positions: readonly BriefingPosition[], exclude: ReadonlySet<string>, premarket: Readonly<Record<string, number>> | null = null): LevelRow[] {
+export function atYourLevels(
+  positions: readonly BriefingPosition[],
+  exclude: ReadonlySet<string>,
+  premarket: Readonly<Record<string, number>> | null = null,
+  premarketPrices: Readonly<Record<string, number>> | null = null,
+): LevelRow[] {
   const seen = new Set<string>();
   const rows: LevelRow[] = [];
   for (const position of positions) {
     const ticker = upper(position.ticker);
     if (!ticker || exclude.has(ticker) || seen.has(ticker)) continue;
-    const level = ownLevel(position);
+    // Before the open the distance is from this morning's price, the same price the card shows.
+    const price = shownPrice(position, null, premarketPrices);
+    const level = ownLevel({ ...position, price });
     if (!level || Math.abs(level.gapPct) > NEAR_LEVEL_PCT) continue;
     seen.add(ticker);
     rows.push({
       ticker,
       name: position.name,
-      price: position.price,
+      price,
       pct: shownPct(position, null, premarket),
       call: level.call,
       href: `/stock/${encodeURIComponent(ticker)}`,
@@ -584,16 +603,9 @@ export function tradingDayBefore(day: string): string {
   return at;
 }
 
-const SHORT_MONTH = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-/** "Today", "Tomorrow", "Yesterday", or "Mon 17". */
+/** "Today", "Tomorrow", "Yesterday", "Monday" within six days, else "Nov 3" (lib/day-words.ts, owner rule 4). */
 export function dayLabel(day: string, today: string): string {
-  const diff = daysBetween(today, day);
-  if (diff === 0) return "Today";
-  if (diff === 1) return "Tomorrow";
-  if (diff === -1) return "Yesterday";
-  const month = SHORT_MONTH[Number(day.slice(5, 7)) - 1] ?? "";
-  return diff != null && Math.abs(diff) <= 6 ? `${WEEKDAY_SHORT[weekdayOf(day)]} ${Number(day.slice(8, 10))}` : `${month} ${Number(day.slice(8, 10))}`;
+  return capitalize(dayWords(day, today));
 }
 
 const VERDICT: Record<string, "Beat" | "Miss" | "In line"> = { beat: "Beat", miss: "Miss", in_line: "In line" };
@@ -683,7 +695,8 @@ export function sinceLastOpened(input: {
 }): Since | null {
   const since = input.since ? Date.parse(input.since) : NaN;
   if (!Number.isFinite(since)) return null;
-  const byTicker = new Map(input.positions.map((position) => [upper(position.ticker), position]));
+  // A stock the plan does not cover gets no call or report read here, the same as in whyItMoved.
+  const byTicker = new Map(input.positions.filter((position) => position.covered !== false).map((position) => [upper(position.ticker), position]));
   const events: SinceCard[] = [];
   const seen = new Set<string>();
   for (const change of input.callChanges) {

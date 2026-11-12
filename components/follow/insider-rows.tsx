@@ -14,6 +14,7 @@ import {
   type InsiderTradeRow,
 } from "@/lib/follow-shared";
 import type { InsiderGroup } from "@/lib/insider-groups";
+import { capitalize, dayWords, etToday } from "@/lib/day-words";
 
 function spanWords(cluster: InsiderCluster): string {
   return cluster.first_date === cluster.last_date
@@ -23,16 +24,6 @@ function spanWords(cluster: InsiderCluster): string {
 
 function memberAmount(member: InsiderCluster["members"][number]): string {
   return member.value != null ? fmtUsd(member.value) : `${fmtShares(member.shares)} shares`;
-}
-
-/** "Jane Doe (CEO) $1.2M, John Roe (Director) $310K and 4 more": who bought, in one line. */
-export function clusterMembersLine(cluster: InsiderCluster, shown = 3): string {
-  const named = cluster.members.slice(0, shown).map((member) => `${member.insider} (${member.role}) ${memberAmount(member)}`);
-  const rest = Math.max(0, cluster.insiders - named.length);
-  if (named.length === 0) return "";
-  if (rest > 0) return `${named.join(", ")} and ${rest} more`;
-  if (named.length === 1) return named[0]!;
-  return `${named.slice(0, -1).join(", ")} and ${named[named.length - 1]}`;
 }
 
 const insiderHref = (symbol: string) => `/insiders/${encodeURIComponent(symbol)}`;
@@ -92,30 +83,57 @@ export function ClusterCard({ cluster }: { cluster: InsiderCluster }) {
   );
 }
 
+/** "Andrew C. Clarke" → "Clarke": a surname reads as a name in a compact row; the full name and role are on hover. A firm keeps its name. */
+function surname(name: string): string {
+  // A fund or firm ("Vanguard Capital LP") keeps its whole name: its last word is not a surname.
+  if (/\b(?:llc|l\.?p\.?|inc\.?|corp\.?|co\.?|ltd\.?|fund|funds|trust|capital|partners|holdings|management|group|advisors|investments)\b/i.test(name)) return name;
+  const parts = name.replace(/,?\s+(?:jr\.?|sr\.?|ii|iii|iv)$/i, "").trim().split(/\s+/);
+  return parts[parts.length - 1] || name;
+}
+
+/** "Oct 30 to Nov 4", or day words for recent days ("Monday to yesterday"). */
+function spanDayWords(cluster: InsiderCluster, today: string): string {
+  const first = dayWords(cluster.first_date, today);
+  const last = dayWords(cluster.last_date, today);
+  if (!first || !last) return spanWords(cluster);
+  return cluster.first_date === cluster.last_date ? capitalize(last) : `${capitalize(first)} to ${last}`;
+}
+
 /**
- * Cluster buys as a ranked list, every one in view: the stock and the money on
- * the line, who bought and when written out under it (owner rule 2: nothing to
- * open to read it). About eight rows show; the rest scroll inside with no bar.
- * The row opens the stock's insider page, which has every filing.
+ * Cluster buys as a ranked list, every one in view and compact (owner rule 8): the stock, "3 insiders bought $793K"
+ * and when, then who bought how much as short name-and-amount pairs (full name and role on hover). About eight rows
+ * show; the rest scroll inside with no bar. The row opens the stock's insider page, which has every filing.
  */
-export function ClusterRows({ clusters }: { clusters: InsiderCluster[] }) {
+export function ClusterRows({ clusters, today = etToday() }: { clusters: InsiderCluster[]; today?: string }) {
   return (
     <ul className="max-h-[31rem] divide-y divide-oa-border overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {clusters.map((cluster) => {
-        const who = clusterMembersLine(cluster);
+        const shown = cluster.members.slice(0, 4);
+        const rest = Math.max(0, cluster.insiders - shown.length);
         return (
           <li key={cluster.symbol} className="relative px-4 py-2.5 transition-colors hover:bg-oa-accent">
-            <div className="flex items-center justify-between gap-3">
-              <ClusterStock cluster={cluster} size={20} />
-              <span className={`oa-mono shrink-0 text-[14px] font-medium ${UP}`}>{cluster.total_value != null ? fmtUsd(cluster.total_value) : ""}</span>
-            </div>
-            <p className="mt-1 text-pretty pl-7 text-[13.5px] leading-5 text-oa-muted-fg">
-              <span className="text-oa-fg">
-                {cluster.insiders} insiders bought, {spanWords(cluster)}
-                {who ? ": " : "."}
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+              <span className="flex min-w-0 items-baseline gap-2.5">
+                <span className="self-center">
+                  <ClusterStock cluster={cluster} size={20} />
+                </span>
+                <span className="text-[14px] leading-5 text-oa-fg">
+                  {cluster.insiders} insiders bought
+                  {cluster.total_value != null ? <span className={`oa-mono ml-1 font-medium ${UP}`}>{fmtUsd(cluster.total_value)}</span> : null}
+                </span>
               </span>
-              {who ? `${who}.` : null}
-            </p>
+              <span className="oa-mono shrink-0 text-[12.5px] leading-5 text-oa-muted-fg">{spanDayWords(cluster, today)}</span>
+            </div>
+            {shown.length ? (
+              <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 pl-7 text-[12.5px] leading-[18px] text-oa-muted-fg">
+                {shown.map((member) => (
+                  <span key={`${member.insider}-${member.role}`} title={`${member.insider}, ${member.role}`} className="whitespace-nowrap">
+                    {surname(member.insider)} <span className="oa-mono text-oa-fg">{memberAmount(member)}</span>
+                  </span>
+                ))}
+                {rest > 0 ? <span>+{rest} more</span> : null}
+              </p>
+            ) : null}
           </li>
         );
       })}

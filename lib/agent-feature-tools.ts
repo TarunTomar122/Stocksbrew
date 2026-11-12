@@ -140,7 +140,7 @@ export async function getAgentWhatYouOwn(uid: string, input: { limit?: number } 
   const limit = Math.min(50, Math.max(1, Math.floor(input.limit || 15)));
   const userDoc = await memberDoc(uid);
   const view = await loadUserXray(userDoc);
-  if (!view) return envelope(noHoldings(userDoc, "What you own", "/portfolio/xray"), null, FRESHNESS.prices);
+  if (!view) return envelope(noHoldings(userDoc, "The analysis", "/portfolio/xray"), null, FRESHNESS.prices);
   const { xray } = view;
   const footnote = xrayFootnote(xray);
   // The same reasons the page gives (emptyReason in app/(app)/portfolio/xray/page.tsx).
@@ -308,7 +308,7 @@ function moveOut(move: HoldingMove | null) {
 export async function getAgentStressTest(uid: string, input: { holdings?: boolean } = {}) {
   const userDoc = await memberDoc(uid);
   const view = await loadUserStress(userDoc);
-  if (!view) return envelope(noHoldings(userDoc, "The stress test", "/portfolio/stress"), null, FRESHNESS.prices);
+  if (!view) return envelope(noHoldings(userDoc, "The crash replay", "/portfolio/xray#crashes"), null, FRESHNESS.prices);
   const { result } = view;
   const notes = [
     "Each holding is held at your weights today from the first close of an episode to its last, and the S&P 500 is SPY over the same closes.",
@@ -343,7 +343,7 @@ export async function getAgentStressTest(uid: string, input: { holdings?: boolea
       ...(input.holdings ? { moves: episode.moves.map(moveOut) } : {}),
     })),
     sources: [{ name: "Daily closes with dividends, from Yahoo Finance", as_of: view.history.last, from: view.history.first }],
-    link: link("/portfolio/stress"),
+    link: link("/portfolio/xray#crashes"),
   }, view.history.last, FRESHNESS.prices);
 }
 

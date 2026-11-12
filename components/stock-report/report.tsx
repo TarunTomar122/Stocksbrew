@@ -3,7 +3,7 @@ import { todayET } from "@/lib/calendar-shared";
 
 import { MarketStatusInline } from "@/components/market-status";
 import { RangeBar } from "@/components/oa/kit";
-import { CALL_PLAIN, countWord, plainAction, plainCallReason } from "@/lib/plain-copy";
+import { CALL_PLAIN, countWord, plainAction, plainCallReason, wholeSentences } from "@/lib/plain-copy";
 import { callBasis, factHasDate, lastReportOn } from "@/lib/call-basis";
 import { CoverButton, LockCard } from "@/components/oa/gate";
 import { ProCheckoutButton } from "@/components/oa/pro-checkout-button";
@@ -17,9 +17,9 @@ import { packChartRanges, type CallWord, type ChartRange, type PackedChartRanges
 
 import { AlertControls, type SuggestedAlert } from "./alert-controls";
 import { callLine, callMeaning } from "./call-line";
-import { briefLeadOf, capTier, compactMoney, daysBetween, fin, fmtDate, fmtStamp, levelFormatter, moneyFormatter, priceStamp, relativeDays, signedPct } from "./format";
+import { briefFacts, briefLeadOf, capTier, compactMoney, daysBetween, fin, fmtDate, fmtStamp, levelFormatter, moneyFormatter, priceStamp, relativeDays, shortFact, signedPct } from "./format";
 import { PricePanel, type PanelZone } from "./price-panel";
-import { LockIcon, Missing, MoreLink, NUM, Panel, PROSE, StatGrid, Tag, TONE_COLOR, type Tone } from "./primitives";
+import { LockIcon, Missing, MoreLink, NUM, Panel, StatGrid, Tag, TONE_COLOR, type Tone } from "./primitives";
 import { PhoneSections } from "./phone-sections";
 import { NO_EXTRAS, toSectionData } from "./section-data";
 import { sectionAvailability } from "./sections";
@@ -297,8 +297,8 @@ export function StockReport({
   // Without measured conditions, the steady call's own sentence, when it is published.
   const ruleChange = ready && !conditions.length ? ready.whatWouldChange : null;
   // The brief's written "what would change our mind" list, only when the call block has no measured conditions.
-  const showChangers = Boolean(ready?.changers.length) && !conditions.length;
-  const showReasons = Boolean(ready?.reasons.length);
+  // Each line one fact of at most 15 words (owner rule 8); a line with no clause that short is left out.
+  const changers = ready && !conditions.length ? ready.changers.map((item) => shortFact(item)).filter(Boolean) : [];
   // The company reason taken apart: the facts the call rests on, each dated, then what would change it (lib/call-basis.ts).
   // Only for the reason written from the company's own numbers; any other reason stays one paragraph.
   const callReason = ready ? plainCallReason(ready.actionSummary) : "";
@@ -319,7 +319,13 @@ export function StockReport({
   // engine's title ("AI growth remains powerful as scrutiny raises the proof required"); the title is the fallback.
   // The lead goes through plainBriefLead (./format.ts): a sentence that only describes the coverage ("Recent coverage is
   // thin for AA.") is dropped and the next one leads; "X's fresh news centers on a partnership..." says what happened.
-  const { lead: briefLead, rest: briefRest } = briefLeadOf(ready);
+  const { lead: briefLead } = briefLeadOf(ready);
+  // "The news behind our call" as rows: the lead and the reasons, one specific fact each, with the story behind it.
+  const shortFacts = briefFacts(ready, briefLead, { ticker: stock.ticker, companyName: stock.name ?? "" });
+  // A brief with no clause short enough still says its lead's first sentence, rather than leave the panel empty.
+  const leadSentence = shortFacts.length ? "" : wholeSentences(briefLead, 1);
+  const newsFacts = leadSentence ? [{ text: leadSentence, source: null }] : shortFacts;
+  const changeReason = shortFact(ready?.changed?.reason);
   const callWord = ready?.call ? (CALL_PLAIN[ready.call as keyof typeof CALL_PLAIN] ?? ready.call) : null;
   const callAction = ready ? plainAction(ready.actionLabel, ready.call) : null;
   // The heading is the call word alone (Buy more, Keep, Sell some); the line under it is the call's own price against
@@ -698,7 +704,7 @@ export function StockReport({
           {/* Results night: the latest report's figures, move and call for ten days after it (components/results). */}
           {market === "US" ? (
             <Suspense fallback={null}>
-              <LatestResults ticker={stock.ticker} name={stock.name} call={callWord} />
+              <LatestResults ticker={stock.ticker} call={callWord} />
             </Suspense>
           ) : null}
           <Panel
@@ -720,51 +726,49 @@ export function StockReport({
           >
             {ready ? (
               <div>
-                <div className="px-3.5 py-4 sm:px-4">
-                  {ready.changed ? (
-                    <p className="mb-2 flex flex-wrap items-center gap-2">
+                {ready.changed ? (
+                  <div className="flex flex-col gap-2 border-b border-oa-border px-3.5 py-3 sm:px-4">
+                    <p className="flex flex-wrap items-center gap-2">
                       <Tag tone="primary" className="!font-sans !text-[12.5px] !normal-case !tracking-normal">
                         {ready.changed.from && callWord
                           ? `We changed our call from ${CALL_PLAIN[ready.changed.from as keyof typeof CALL_PLAIN] ?? ready.changed.from} to ${callWord}`
                           : "We changed our call"}
                       </Tag>
                     </p>
-                  ) : null}
-                  {briefLead ? (
-                    // Body text, not a second headline: the call's "Why" leads the page, so the news reads as evidence under it.
-                    <p className="max-w-[66ch] text-pretty text-[16px] font-medium leading-6 text-oa-fg">{briefLead}</p>
-                  ) : null}
-                  {briefRest ? <p className={`mt-2.5 max-w-[66ch] ${PROSE}`}>{briefRest}</p> : null}
-                  {ready.changed?.reason ? (
-                    <p className="mt-2.5 max-w-[66ch] text-[14px] leading-5 text-oa-muted-fg">
-                      <span className="font-medium text-oa-fg">Why the call changed: </span>
-                      {ready.changed.reason}
-                    </p>
-                  ) : null}
-                  {/* Zero-size marker: `read_viewed` once the end of the brief is on screen. */}
-                  <TrackView event="read_viewed" properties={{ ticker: stock.ticker, full_read: data.gate.levels, call: ready.call ?? null }} />
-                </div>
-                {showReasons || showChangers ? (
-                  <div className={`grid border-t border-oa-border ${showReasons && showChangers ? "md:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]" : ""}`}>
-                    {showReasons ? (
-                      <div className={`px-3.5 py-3 sm:px-4 ${showChangers ? "border-b border-oa-border md:border-b-0 md:border-r" : ""}`}>
-                        {/* No small label over the list (owner rule 6): the numbered lines stand alone. */}
-                        <ol aria-label={`Why we made the call on ${stock.ticker}`} className="flex flex-col gap-2.5">
-                          {ready.reasons.map((reason, index) => (
-                            <li key={index} className="grid grid-cols-[1.25rem_minmax(0,1fr)] gap-x-1.5 text-[14px] leading-5 text-oa-fg">
-                              <span className="oa-mono text-[12px] leading-5 text-oa-muted-fg">{index + 1}</span>
-                              <span className="max-w-[60ch] text-pretty">{reason}</span>
-                            </li>
-                          ))}
-                        </ol>
-                      </div>
+                    {changeReason ? <p className="max-w-[66ch] text-pretty text-[14px] leading-5 text-oa-fg">{changeReason}</p> : null}
+                  </div>
+                ) : null}
+                {newsFacts.length || changers.length ? (
+                  <div className={`grid ${newsFacts.length && changers.length ? "md:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]" : ""}`}>
+                    {newsFacts.length ? (
+                      // One specific fact per row, at most 15 words (owner rule 8); the story behind it is the row's link
+                      // and its title, never a source line under it (rule 4).
+                      <ul aria-label={`Why we made the call on ${stock.ticker}`} className={`flex flex-col ${changers.length ? "border-b border-oa-border md:border-b-0 md:border-r" : ""}`}>
+                        {newsFacts.map((fact, index) => (
+                          <li key={index} className="border-b border-oa-border last:border-b-0">
+                            {fact.source ? (
+                              <a
+                                href={fact.source.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title={fact.source.source ? `${fact.source.source}: ${fact.source.title}` : fact.source.title}
+                                className="block px-3.5 py-2.5 text-pretty text-[14.5px] leading-5 text-oa-fg outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent sm:px-4"
+                              >
+                                {fact.text}
+                              </a>
+                            ) : (
+                              <p className="px-3.5 py-2.5 text-pretty text-[14.5px] leading-5 text-oa-fg sm:px-4">{fact.text}</p>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
                     ) : null}
                     {/* The measured conditions in the call block replace these written ones; two lists of what would
                         change the call would disagree. */}
-                    {showChangers ? (
+                    {changers.length ? (
                       <div className="px-3.5 py-3 sm:px-4">
                         <ul aria-label="What would change our mind" className="flex flex-col gap-2.5">
-                          {ready.changers.map((item, index) => (
+                          {changers.map((item, index) => (
                             <li key={index} className="grid grid-cols-[1.25rem_minmax(0,1fr)] gap-x-1.5 text-[14px] leading-5 text-oa-fg">
                               <span aria-hidden="true" className="oa-mono text-[12px] leading-5 text-oa-muted-fg">
                                 ↯
@@ -777,6 +781,8 @@ export function StockReport({
                     ) : null}
                   </div>
                 ) : null}
+                {/* Zero-size marker: `read_viewed` once the end of the brief is on screen. */}
+                <TrackView event="read_viewed" properties={{ ticker: stock.ticker, full_read: data.gate.levels, call: ready.call ?? null }} />
               </div>
             ) : readState === "locked" ? (
               <ProLock ticker={stock.ticker} market={market} what={`The written brief on ${stock.ticker}, with the reasons behind the call and what would change it, is part of Pro.`} />

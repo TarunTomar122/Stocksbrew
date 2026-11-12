@@ -104,8 +104,6 @@ describe("share images in page metadata", { timeout: 120_000 }, () => {
     const xray = await import("@/app/(app)/portfolio/xray/page");
     expectShareImage(xray.metadata, "/portfolio/xray");
     expect(xray.metadata.openGraph?.url).toBe("https://www.stocksbrew.online/portfolio/xray");
-    const stress = await import("@/app/(app)/portfolio/stress/page");
-    expectShareImage(stress.metadata, "/portfolio/stress");
     const agents = await import("@/app/(app)/agents/page");
     expectShareImage(agents.metadata, "/page/agents");
     const explore = await import("@/app/(app)/explore/page");

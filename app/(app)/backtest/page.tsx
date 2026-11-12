@@ -9,7 +9,7 @@ import { loadPriceSeries } from "@/lib/backtest";
 import { earliestBacktestStart, runGatedBacktest, type GatedBacktestResponse } from "@/lib/backtest/gated";
 import { can } from "@/lib/entitlements";
 import { getViewer } from "@/lib/entitlements-server";
-import { EXAMPLE_MIX, getExampleBacktest } from "@/lib/backtest/example";
+import { getExampleBacktest } from "@/lib/backtest/example";
 import { EXAMPLE_MIXES } from "@/lib/backtest/examples";
 import { DEFAULT_SETUP, parseSetup, setupHref, type BacktestSetup } from "@/lib/backtest/setup";
 import { getStrategy, listStrategies } from "@/lib/strategies";
@@ -67,7 +67,7 @@ export default async function BacktestPage({ searchParams }: { searchParams: Que
     // Loading a strategy's basket shows what it holds now, which is part of Pro.
     const seesHoldings = can("strategy_holdings", viewer.plan);
     if (strategy && !seesHoldings) {
-      notice = `What ${strategy.name} holds now is part of Pro. Its own backtest is on the strategy page, free.`;
+      notice = `What ${strategy.name} holds is part of Pro; its own backtest is free on its page.`;
     } else if (strategy && strategy.basket.holdings.length > 0) {
       setup = {
         ...setup,
@@ -76,7 +76,7 @@ export default async function BacktestPage({ searchParams }: { searchParams: Que
         cost_bps: strategy.cost_bps,
       };
       activePreset = `/backtest?strategy=${strategy.slug}`;
-      notice = `This is the basket ${strategy.name} holds today, tested as a fixed mix. It is not the strategy's own backtest: these names were picked with today's data, so running them over the past mostly shows that today's picks did well before they were picked.`;
+      notice = `${strategy.name}'s basket today as a fixed mix: picked today, so the past flatters it.`;
     } else if (strategy) {
       notice = `${strategy.name} holds cash right now, so there is no basket to load.`;
     }
@@ -85,7 +85,7 @@ export default async function BacktestPage({ searchParams }: { searchParams: Que
       setup = { ...setup, holdings: mine };
       activePreset = "/backtest?watchlist=1";
       const sized = mine.some((item) => item.weight !== mine[0].weight);
-      notice = `Loaded ${mine.length} US stocks from your watchlist${sized ? ", weighted by the position sizes you saved" : " in equal weights"}. You chose these knowing how they have done, so treat the result as a description of the past.`;
+      notice = `Loaded ${mine.length} US stocks from your watchlist${sized ? ", weighted by your position sizes" : " in equal weights"}.`;
     } else {
       notice = session ? "Your watchlist has no US stocks yet." : "Sign in to load your watchlist.";
     }
@@ -121,11 +121,8 @@ export default async function BacktestPage({ searchParams }: { searchParams: Que
   const firstDate = dates[0] ? (earliest && earliest > dates[0] ? earliest : dates[0]) : null;
 
   const lede = "Test a mix of US stocks and funds on past prices, against the market.";
-  if (exampleRun) {
-    activePreset = "/backtest";
-    // Said in the workbench, so it goes away once you run a mix of your own.
-    notice = `An example to start from: ${EXAMPLE_MIX.words}. Change the mix to test your own.`;
-  }
+  // The example opens with no notice above it: the picked preset and the form beside the chart already say the mix.
+  if (exampleRun) activePreset = "/backtest";
 
   return (
     <main className={`oa-landing ${interTight.variable} min-w-0 flex-grow overflow-x-clip`}>

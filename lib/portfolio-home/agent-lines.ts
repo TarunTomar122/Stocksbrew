@@ -13,7 +13,7 @@ import type { AgentsSource } from "./log";
  * checked and its sources stay on /agents, which the row opens. Built only from the stored jobs and runs. Pure.
  */
 
-export type AgentKind = "digest" | "weekly" | "move" | "price" | "zone" | "earnings" | "reported" | "congress" | "insider" | "fund" | "filing" | "news" | "movers" | "reasons";
+export type AgentKind = "digest" | "weekly" | "move" | "price" | "zone" | "sell" | "call" | "earnings" | "reported" | "congress" | "insider" | "fund" | "filing" | "news" | "movers" | "reasons";
 
 export type AgentChip = {
   ticker: string;
@@ -90,8 +90,12 @@ function money(value: number): string {
 export function agentKind(trigger: AgentTrigger | undefined): AgentKind {
   if (!trigger) return "digest";
   if (trigger.type === "schedule") return trigger.cadence === "weekly" ? "weekly" : "digest";
-  if (trigger.type === "price") return trigger.rule === "moves_pct" ? "move" : trigger.rule === "enters_buy_zone" ? "zone" : "price";
+  if (trigger.type === "price") {
+    return trigger.rule === "moves_pct" ? "move" : trigger.rule === "enters_buy_zone" ? "zone" : trigger.rule === "enters_sell_zone" ? "sell" : "price";
+  }
   switch (trigger.event) {
+    case "call_change":
+      return "call";
     case "earnings_approaching":
       return "earnings";
     case "earnings_reported":
@@ -137,9 +141,12 @@ export function shortAgentName(job: { name: string; trigger?: AgentTrigger; scop
     if (trigger.rule === "crosses_above" && typeof trigger.level === "number") return `${who} above ${money(trigger.level)}`;
     if (trigger.rule === "crosses_below" && typeof trigger.level === "number") return `${who} below ${money(trigger.level)}`;
     if (trigger.rule === "moves_pct") return on(`Big moves over ${trigger.pct ?? 5}%`);
+    if (trigger.rule === "enters_sell_zone") return on("Sell-some watch");
     return on("Buy-more level");
   }
   switch (trigger.event) {
+    case "call_change":
+      return on(trigger.to === "Trim" ? "Call turns to Sell some" : trigger.to === "Add" ? "Call turns to Buy more" : trigger.to === "Hold" ? "Call turns to Keep" : "Call changes");
     case "earnings_approaching":
       return on(`Earnings, ${plural(trigger.days_before ?? 3, "day")} ahead`);
     case "earnings_reported":
@@ -304,6 +311,8 @@ const KIND_NOUN: Record<AgentKind, { noun: string; one?: boolean }> = {
   movers: { noun: "movers" },
   price: { noun: "price levels" },
   zone: { noun: "buy-more levels" },
+  sell: { noun: "sell-some prices" },
+  call: { noun: "our calls" },
   earnings: { noun: "earnings" },
   reported: { noun: "earnings results" },
   congress: { noun: "Congress trades" },

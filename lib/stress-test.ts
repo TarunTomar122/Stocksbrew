@@ -673,9 +673,3 @@ export function episodeSentence(result: EpisodeResult, subject = "this portfolio
   if (cover) text += ` ${sentenceCase(cover)}.`;
   return text;
 }
-
-/** For the row's side column when there is no figure. */
-export function noFigureShort(result: EpisodeResult): string {
-  if (result.covered <= 0) return result.moves.every((move) => move.status === "not-yet") ? "None of it was trading yet" : "No prices for these dates";
-  return `Only ${coveredPct(result)}% had prices then`;
-}

@@ -54,7 +54,7 @@ export function checkIdOf(item: Pick<Noticed, "id" | "tool">): string | null {
   if (item.tool === "earnings") return "calendar";
   if (item.id.startsWith("reason")) return "reasons";
   if (item.tool === "memo") return item.id;
-  if (item.tool === "ideas" || item.tool === "xray" || item.tool === "stress") return "prices";
+  if (item.tool === "ideas" || item.tool === "xray") return "prices";
   return null;
 }
 

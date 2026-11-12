@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { StockCard, StockCardGrid, stockGridFill } from "@/components/briefing/stock-card";
+import { StockCard, StockCardGrid } from "@/components/briefing/stock-card";
 import type { ExampleReports } from "@/lib/inbox/example-reports";
 import { listNames, shortDay } from "@/lib/read-format";
 
@@ -34,7 +34,7 @@ export function ExampleReportCards({ reports }: { reports: ExampleReports }) {
       </h2>
       {intro ? <p className="mb-2.5 text-pretty px-1 text-[13.5px] leading-5 text-oa-muted-fg">{intro}</p> : null}
       <StockCardGrid dense>
-        {reports.cards.map((card, index) => {
+        {reports.cards.map((card) => {
           const figure = card.move !== null ? signed(card.move) : null;
           const day = shortDay(card.day);
           return (
@@ -47,7 +47,6 @@ export function ExampleReportCards({ reports }: { reports: ExampleReports }) {
               tone={card.move === null || Math.abs(card.move) < 0.05 ? "flat" : card.move > 0 ? "up" : "down"}
               tag={day}
               note={card.fact}
-              fill={stockGridFill(index, reports.cards.length, false, true)}
               cover={
                 <Link
                   prefetch={false}

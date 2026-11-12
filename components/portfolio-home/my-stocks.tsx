@@ -4,13 +4,13 @@ import { PortfolioAskHint } from "@/components/ask/portfolio-ask-hint";
 import { SharesPrompt } from "@/components/import/shares-prompt";
 import { AgentsPanel, AgentsPanelGhost } from "@/components/portfolio-home/agents-panel";
 import { ExampleLine } from "@/components/portfolio-home/home";
-import { MemoFigures, StockList, StockListGhost, ToolsCard } from "@/components/portfolio-home/stocks";
+import { MemoFigures, StockList, StockListGhost } from "@/components/portfolio-home/stocks";
 import { FollowedRebalances } from "@/components/strategies/rebalance-notice";
 import type { HomeLoad } from "@/lib/portfolio-home/server";
 
 /**
  * The My stocks overview under its title: every holding as a card with the one thing that matters for it; in the
- * side rail, the person's agents, the weekly memo's figures and a card of tools. Phones get
+ * side rail, the person's agents and the weekly memo's figures. Phones get
  * one column in that order. Each part streams in as soon as its own sources answer.
  */
 export function MyStocksBody({ load }: { load: HomeLoad }) {
@@ -50,10 +50,7 @@ export function MyStocksBody({ load }: { load: HomeLoad }) {
               </Suspense>
             </div>
           </div>
-          {/* The tools last, as one card of small tiles (owner, Nov 12), under the memo on a phone too. */}
-          <Suspense fallback={null}>
-            <ToolsCard load={load} />
-          </Suspense>
+          {/* No tools card: the tools are in the nav (owner, Nov 12: "remove this"). */}
           {/* No Ask box here: the shell's Ask opens on this page's stocks with its questions (owner rule 1). */}
           <Suspense fallback={null}>
             <PortfolioAskHint load={load} />

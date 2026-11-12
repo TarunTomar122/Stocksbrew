@@ -83,6 +83,11 @@ class ScheduleTest(unittest.TestCase):
         self.assertEqual(labels.index("senate trade reports"), labels.index("house trade reports") + 1)
         self.assertLess(labels.index("senate trade reports"), labels.index("copy trade tests"))
 
+    def test_fund_facts_run_before_fund_instruments_and_etf_holdings(self):
+        labels = [label for label, _ in schedule.GROUPS["weekly"]]
+        self.assertEqual(labels.index("fund instruments"), labels.index("fund facts") + 1)
+        self.assertLess(labels.index("fund instruments"), labels.index("ETF holdings"))
+
     def test_node_jobs_use_the_jobs_config_not_the_test_config(self):
         self.assertTrue((schedule._ROOT / schedule.NODE_JOBS_CONFIG).exists())
         command = schedule.command_for(["node:scripts/run-agent-jobs.ts"])

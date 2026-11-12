@@ -20,9 +20,11 @@
 import { cleanFilingFilter, filingFilterAllowsAnyStock, filingWhen, type FilingFilter } from "@/lib/agent-events-filings";
 import { cleanNewsWatch, newsWatchPhrase, type NewsWatch } from "@/lib/agent-events-news";
 import {
+  CALL_WORDS,
   MAX_SCOPE_TICKERS,
   hiddenTemplateIds,
   parseJobDraft,
+  type AgentCall,
   type AgentJobDraft,
   type AgentScope,
 } from "@/lib/agent-jobs";
@@ -47,6 +49,10 @@ export const WATCH_KINDS = [
   "insider_trade",
   "movers_list",
   "buy_zone",
+  /** "Tell me when to sell X": a close at our sell-some price, or our call turning to Sell some. A signal, never a trade. */
+  "sell_zone",
+  /** "Tell me when your call on X changes", optionally to one call (`to`). */
+  "call_change",
   "daily_check",
   "weekly_review",
   "sec_filing",
@@ -110,6 +116,10 @@ export type Intent = {
   news?: NewsWatch | null;
   /** news_change: they named one kind of story ("an FDA decision"), which agents can't pick out. */
   topic?: boolean;
+  /** call_change: only a change to this call ("turns to Sell some"). */
+  to?: AgentCall | null;
+  /** Our calls from the build context, set by buildIntent so the read-back can name a real price. */
+  calls?: Record<string, PlainCall>;
 };
 
 export type PlainCannot = {
@@ -148,9 +158,20 @@ export type PlainSpec = {
   uses_watchlist: boolean;
 };
 
+/**
+ * Our call on a stock as the person may see it, for the read-back of a buy or sell watch. `call` null: no call yet.
+ * The levels are null where the plan does not cover the stock (`locked`).
+ */
+export type PlainCall = { call: AgentCall | null; add_below: number | null; trim_above: number | null; locked?: boolean };
+
 export type BuildContext = {
   /** Template ids switched off on the server (hiddenTemplateIds). */
   hidden?: string[];
+  /**
+   * Our call on the stocks a buy or sell watch names, by ticker (lib/agents-plain/server.ts plainCallLookup). A
+   * ticker left out was not looked up, and the read-back says the price without a figure.
+   */
+  calls?: Record<string, PlainCall>;
 };
 
 /* ── copy ───────────────────────────────────────────────────────────────── */
@@ -176,9 +197,9 @@ const REASONS: Record<CannotCode, string> = {
   chart_signals: "agents don't track chart signals like moving averages, volume or 52-week highs. A price level works, like “NVDA closes below 150”.",
   fundamentals: "agents don't track valuation numbers like the P/E ratio or market value.",
   analyst_ratings: "agents don't follow analyst ratings or price targets.",
-  call_change: "agents don't watch for our call on a stock changing. The stock page shows the call and when it last changed.",
+  call_change: "agents can tell you when our call on a stock changes, like “tell me when your call on NVDA changes”.",
   dividends: "agents don't watch dividend announcements.",
-  trading: "agents never buy or sell for you. They tell you what happened and you decide.",
+  trading: "agents never buy or sell for you. I can tell you when a stock reaches our buy-more or sell-some price instead.",
   cost_basis: "agents measure a move from one day's close to the next, not from the price you paid.",
   multi_day_move: "agents measure a move from one day's close to the next. A weekly review lists moves of 5% or more over five days.",
   not_a_us_stock: "agents only watch the US stocks and funds we cover.",
@@ -205,8 +226,41 @@ export function cannotLine(code: CannotCode, what: string | null, detail?: strin
   return `I can't watch that yet: ${detail ?? REASONS[code]}`;
 }
 
-function cannot(code: CannotCode, what: string | null, options: { detail?: string; suggest?: string | null } = {}): PlainCannot {
-  return { code, what, line: cannotLine(code, what, options.detail), suggest: options.suggest ?? null };
+function cannot(code: CannotCode, what: string | null, options: { detail?: string; suggest?: string | null; line?: string } = {}): PlainCannot {
+  return { code, what, line: options.line ?? cannotLine(code, what, options.detail), suggest: options.suggest ?? null };
+}
+
+/**
+ * A request to place a trade ("sell my ORCL"), refused in one friendly line that offers the watch we can do, with
+ * that watch as one tap: "I can't place trades. I can tell you when Oracle reaches our sell-some price. Want that?"
+ */
+export function tradeCannot(what: string | null, stocks: PlainStock[], side: "buy" | "sell"): PlainCannot {
+  const who = stocks.length ? listStockNames(stocks.slice(0, 3), "or") : null;
+  // "When our call says to sell some", never "its sell-some price": a Keep call has none (owner rule 8).
+  const offer =
+    side === "sell"
+      ? `our call says to sell some ${who ?? "of your stocks"}`
+      : `${who ?? "one of your stocks"} drops to our buy-more price`;
+  const suggest = who
+    ? `Tell me when to ${side} ${listStockNames(stocks.slice(0, 3), "and")}`
+    : side === "sell"
+      ? "Tell me when anything I own hits a sell price"
+      : "Tell me when to buy more of my stocks";
+  return cannot("trading", what, { line: `I can't place trades. I can tell you when ${offer}. Want that?`, suggest });
+}
+
+/** "Sell some", "trim", "avoid" are Trim; "keep", "hold" are Hold; "buy more", "add" are Add. */
+function callOfWord(word: string | undefined): AgentCall | null {
+  const key = (word ?? "").toLowerCase();
+  if (/^(?:buy|add|accumulate)/.test(key)) return "Add";
+  if (/^(?:keep|hold)/.test(key)) return "Hold";
+  if (/^(?:sell|trim|reduce|avoid)/.test(key)) return "Trim";
+  return null;
+}
+
+/** Which side a trade request is on: "sell my ORCL", "short it", "dump it" and a stop-loss sell; anything else buys. */
+function tradeSide(text: string): "buy" | "sell" {
+  return /\b(?:sell|sold|short|dump|trim|exit|unload|get out|stop[- ]loss)\b/i.test(text) ? "sell" : "buy";
 }
 
 /* ── turning an intent into agent drafts ────────────────────────────────── */
@@ -273,6 +327,10 @@ function jobName(kind: WatchKind, subject: Subject, intent: Intent): string {
       return `${prefix}on the movers list`;
     case "buy_zone":
       return `${prefix}reaches our buy price`;
+    case "sell_zone":
+      return `${prefix}${prefix ? "when" : "When"} to sell some`;
+    case "call_change":
+      return `${prefix}${prefix ? "our" : "Our"} call ${intent.to ? `turns to ${CALL_WORDS[intent.to]}` : "changes"}`;
     case "daily_check":
       return label ? `Morning check on ${label}` : "Morning check on my names";
     case "weekly_review":
@@ -339,8 +397,21 @@ function watchLine(kind: WatchKind, subject: Subject, intent: Intent, short: boo
       return `when ${who} reports earnings, with the numbers against what was expected and how the stock reacted`;
     case "movers_list":
       return `when ${who} lands on the day's list of biggest movers`;
-    case "buy_zone":
-      return `when ${who} drops to the price where our research says we'd buy more`;
+    case "buy_zone": {
+      const level = oneLevel(subject, intent, "buy");
+      return level != null
+        ? `when ${who} drops to our buy-more price (${money(level)})`
+        : `when ${who} drops to the price where our research says we'd buy more`;
+    }
+    case "sell_zone": {
+      const level = oneLevel(subject, intent, "sell");
+      const subjectWords = subject.kind === "watchlist" && !short ? "a stock you track" : who;
+      // A sell-some price exists only under a Sell some call, so the call has nothing left to turn to.
+      if (level != null) return `when ${subjectWords} reaches our sell-some price (${money(level)})`;
+      return noSellPrice(subject, intent) ? `if our call on ${who} turns to Sell some` : `when ${subjectWords} reaches our sell-some price or our call turns to Sell some`;
+    }
+    case "call_change":
+      return intent.to ? `when our call on ${inWhat(subject, short)} turns to ${CALL_WORDS[intent.to]}` : `when our call on ${inWhat(subject, short)} changes`;
     case "fund_13f":
       if (subject.kind === "any") return "when a fund we track files a new 13F";
       return subject.kind === "watchlist"
@@ -363,6 +434,49 @@ function watchLine(kind: WatchKind, subject: Subject, intent: Intent, short: boo
     case "news_change":
       return `when ${newsWatchPhrase(intent.news ?? "any", subject.kind === "tickers" && subject.stocks.length === 1 && !short ? subject.stocks[0].name : who)}`;
   }
+}
+
+/**
+ * The one price a buy or sell watch can name (owner rule 8: a call shows only its own level): the sell-some price of
+ * a Sell some call, the buy-more price of a Buy more call, for one stock the plan covers. Null otherwise.
+ */
+function oneLevel(subject: Subject, intent: Intent, side: "buy" | "sell"): number | null {
+  if (subject.kind !== "tickers" || subject.stocks.length !== 1) return null;
+  const call = intent.calls?.[subject.stocks[0].ticker];
+  if (!call || call.locked) return null;
+  const level = side === "sell" ? (call.call === "Trim" ? call.trim_above : null) : call.call === "Add" ? call.add_below : null;
+  return level != null && Number.isFinite(level) && level > 0 ? level : null;
+}
+
+/**
+ * A sell watch on one stock whose call is already Sell some but has no price it can watch (none set, or not on this
+ * plan): there is nothing left to wait for but a change of the call, so that is what is watched and said.
+ */
+function alreadySelling(intent: Intent): boolean {
+  if (intent.kind !== "sell_zone" || intent.stocks.length !== 1) return false;
+  const call = intent.calls?.[intent.stocks[0].ticker];
+  return call?.call === "Trim" && (call.locked || !(call.trim_above != null && call.trim_above > 0));
+}
+
+/** One stock we looked up whose call has no sell-some price today: Keep, Buy more, no call yet, or not on this plan. */
+function noSellPrice(subject: Subject, intent: Intent): boolean {
+  if (subject.kind !== "tickers" || subject.stocks.length !== 1) return false;
+  const call = intent.calls?.[subject.stocks[0].ticker];
+  return Boolean(call) && oneLevel(subject, intent, "sell") == null;
+}
+
+/**
+ * The read-back for one stock whose call we looked up, at most 20 words: "Oracle has no sell-some price right now;
+ * I'll tell you if our call turns to Sell some." When the call is already Sell some, it says so first.
+ */
+function sellLead(subject: Subject, intent: Intent): string | null {
+  if (subject.kind !== "tickers" || subject.stocks.length !== 1) return null;
+  const stock = subject.stocks[0];
+  const call = intent.calls?.[stock.ticker];
+  if (!call) return null;
+  const level = oneLevel(subject, intent, "sell");
+  if (call.call === "Trim" && level != null) return `Our call on ${stock.name} is already Sell some; I'll tell you when it reaches our sell-some price (${money(level)}).`;
+  return `${stock.name} has no sell-some price right now; I'll tell you if our call turns to Sell some.`;
 }
 
 function noteFor(kind: WatchKind, subject: Subject, intent: Intent): string | null {
@@ -409,7 +523,14 @@ function noteFor(kind: WatchKind, subject: Subject, intent: Intent): string | nu
   if (kind === "congress_trade") {
     notes.push("Members have up to 45 days to disclose a trade, so you'll hear when it's disclosed, not when it happened.");
   }
-  if (kind === "buy_zone") notes.push("Only stocks with a research call have a buy price.");
+  if (kind === "buy_zone" && oneLevel(subject, intent, "buy") == null) notes.push("Only stocks with a research call have a buy price.");
+  if (kind === "sell_zone") {
+    const level = oneLevel(subject, intent, "sell");
+    const price = single?.price ?? null;
+    if (level != null && price != null && price >= level) {
+      notes.push(`${single!.name} is already above ${money(level)}, so you'll hear only after it dips back below and closes above again.`);
+    }
+  }
   if (kind === "sec_filing") {
     const filter = intent.filings ?? null;
     if (intent.shelf) notes.push("Shelf offerings on form S-3 aren't collected yet, so this watches S-1 offerings only.");
@@ -425,7 +546,8 @@ function noteFor(kind: WatchKind, subject: Subject, intent: Intent): string | nu
   return notes.length ? notes.join(" ") : null;
 }
 
-type BuiltWatch = PlainWatch & { subject: Subject };
+/** `alone`: the whole read-back when this is the only watch, for the ones that read better said their own way. */
+type BuiltWatch = PlainWatch & { subject: Subject; alone?: string | null };
 
 const TEMPLATE_OF: Record<WatchKind, string> = {
   price_below: "price-level",
@@ -438,6 +560,8 @@ const TEMPLATE_OF: Record<WatchKind, string> = {
   insider_trade: "insider-trade",
   movers_list: "mover",
   buy_zone: "buy-zone",
+  sell_zone: "sell-zone",
+  call_change: "call-change",
   daily_check: "morning-check",
   weekly_review: "weekly-review",
   sec_filing: "sec-filing",
@@ -502,8 +626,12 @@ function buildIntent(intent: Intent, ctx: BuildContext): { watches: BuiltWatch[]
       ? intent.stocks.map((stock) => ({ kind: "tickers" as const, stocks: [stock] }))
       : [subjectFor(intent)];
 
+  // "When to sell Oracle" when our call on Oracle is already Sell some, with no price to watch: watch the call instead.
+  const selling = alreadySelling({ ...intent, calls: ctx.calls });
+  if (selling) intent = { ...intent, kind: "call_change", to: null };
+
   for (const subject of subjects) {
-    const settled: Intent = { ...intent, pct: intent.pct ?? 5, days: intent.days ?? 3, weekday: intent.weekday ?? 1 };
+    const settled: Intent = { ...intent, pct: intent.pct ?? 5, days: intent.days ?? 3, weekday: intent.weekday ?? 1, calls: ctx.calls };
     const trigger: Record<string, unknown> = {
       rule: intent.kind === "price_above" ? "crosses_above" : "crosses_below",
       level: settled.level,
@@ -512,6 +640,7 @@ function buildIntent(intent: Intent, ctx: BuildContext): { watches: BuiltWatch[]
       weekday: settled.weekday,
       filings: intent.filings ?? undefined,
       news: intent.news ?? undefined,
+      to: intent.to ?? undefined,
     };
     const parsed = parseJobDraft(
       { template: TEMPLATE_OF[intent.kind], name: jobName(intent.kind, subject, settled), scope: scopeOf(subject), trigger },
@@ -524,12 +653,22 @@ function buildIntent(intent: Intent, ctx: BuildContext): { watches: BuiltWatch[]
     // Tell the person what the job will actually do, which parseJobDraft may have narrowed.
     const effective: Subject =
       parsed.draft.scope.kind === "tickers" ? subject : { kind: parsed.draft.scope.kind, stocks: [] };
+    const full = watchLine(intent.kind, effective, settled, false);
     out.watches.push({
       draft: parsed.draft,
       line: watchLine(intent.kind, effective, settled, true),
-      full: watchLine(intent.kind, effective, settled, false),
-      note: noteFor(intent.kind, effective, intent),
+      full,
+      // The intent as read (a size left out is noted as picked), with our calls for the price it names.
+      note: noteFor(intent.kind, effective, { ...intent, calls: ctx.calls }),
       subject: effective,
+      // "I'll tell you when Oracle reaches our sell-some price ($250) or our call turns to Sell some."
+      alone: selling
+        ? `Our call on ${intent.stocks[0].name} is already Sell some; I'll tell you when it changes.`
+        : intent.kind === "sell_zone"
+          ? sellLead(effective, settled) ?? `I'll tell you ${full}.`
+          : intent.kind === "buy_zone" && oneLevel(effective, settled, "buy") != null
+            ? `I'll tell you ${full}.`
+            : null,
     });
   }
   return out;
@@ -593,6 +732,8 @@ export function buildSpec(input: string, intents: Intent[], cannots: PlainCannot
     if (schedulesOnly) {
       // "every Monday, a review of …" becomes "Every Monday, I'll send you a review of …".
       lead = `${capitalise(only.full.replace(/^(every [^,]+), (.*)$/, "$1, I'll send you $2"))}.`;
+    } else if (only.alone) {
+      lead = only.alone;
     } else if (shared) {
       lead = `I'll watch ${subjectName} and tell you ${only.line}.`;
     } else {
@@ -613,7 +754,7 @@ export function buildSpec(input: string, intents: Intent[], cannots: PlainCannot
     via,
     lead,
     sentence,
-    watches: watches.map(({ subject: _subject, ...watch }) => ({
+    watches: watches.map(({ subject: _subject, alone: _alone, ...watch }) => ({
       ...watch,
       // In a list under a shared subject the short form reads right; otherwise the full one.
       line: shared && watch.draft.trigger.type !== "schedule" ? watch.line : watch.full,
@@ -730,7 +871,36 @@ const CHART_RE =
   /\bmoving averages?\b|\b\d+[- ]?day (?:ma|sma|ema|average|moving average)\b|\b(?:50|100|200)[- ]?(?:dma|sma|ema)\b|\brsi\b|\bmacd\b|\bbollinger\b|\bvolume\b|\b(?:all[- ]time|52[- ]week|yearly|annual|record)\s+(?:highs?|lows?)\b|\bnew (?:highs?|lows?)\b|\bgolden cross\b|\bdeath cross\b|\boversold\b|\boverbought\b|\bsupport\b|\bresistance\b|\bvolatility\b|\bvix\b|\bshort interest\b|\bunusual options\b|\boptions? (?:flow|activity|volume)\b|\bimplied volatility\b|\bgaps? (?:up|down)\b/gi;
 const FUNDAMENTALS_RE = /\bp\/?e(?: ratio)?\b|\bvaluation\b|\bmarket (?:cap|value)\b|\bprice to (?:earnings|sales|book)\b|\bdebt\b|\bmargins?\b|\brevenue\b|\bcash flow\b/gi;
 const ANALYST_RE = /\banalysts?\b|\bupgrade[sd]?\b|\bdowngrade[sd]?\b|\bprice targets?\b|\b(?:buy|sell|hold) ratings?\b|\bratings?\b|\bwall street\b/gi;
-const CALL_RE = /\b(?:your|our|the) (?:call|rating|verdict)\b|\bcall changes\b|\bchanges? (?:the|its|your) call\b|\bflips? to (?:add|trim|hold|buy|sell)\b/gi;
+// Our call on a stock changing ("tell me when your call on NVDA changes"), which is a watch, not a refusal.
+const CALL_RE =
+  /\b(?:your|our|the|its|stocksbrew'?s?) (?:call|rating|verdict|recommendation|stance)s?\b(?!\s+(?:options?|spreads?|premiums?|volume|sweeps?))|\bcalls? chang\w*\b|\bchanges? (?:the|its|your|our) call\b|\bflips? to (?:add|trim|hold|buy|sell|keep)\b/gi;
+// "…turns to Sell some": the call it should change to.
+const CALL_TO_RE =
+  /\b(?:(?:turns?|turned|flips?|flipped|changes?|changed|moves?|moved|goes|went|switch(?:es|ed)?|gets?)\s+(?:to|into)|(?:is|becomes?|says)(?:\s+(?:to|a))?)\s+(buy more|buy|add|accumulate|keep|hold|sell some|sell|trim|reduce|avoid)\b/gi;
+// "What's your call on Oracle?" is a question; a watch needs the call to change.
+const CHANGE_WORD_RE = /\bchang\w*|\bflip\w*|\bturns?\b|\bturned\b|\bswitch\w*|\bmoves?\b|\bmoved\b|\bupdat\w*|\bdifferent\b|\bgoes\b|\bbecomes?\b|\bis (?:a )?(?:buy|sell|keep|hold|trim|add)/i;
+const CALL_GLUE_RE = /\b(?:on|for|changes?|changed|changing|turns?|turned|flips?|flipped|moves?|moved|goes|switch(?:es|ed)?|updates?|updated|different)\b/gi;
+
+// Asking WHEN to sell or buy is a request for a signal, never a trade: "tell me when to sell ORCL", "when should I
+// sell oracle", "let me know when it's time to sell NVDA", "when to trim AMD", "anything I own hits a sell price".
+const ASK_LEAD = String.raw`(?:when|if|once)\s+(?:(?:i|we)\s+should|should\s+(?:i|we)|(?:i|we)\s+(?:need|ought|have)\s+to|(?:it'?s|it\s+is|is\s+it|its)\s+(?:a\s+good\s+|the\s+right\s+|the\s+best\s+|the\s+)?time\s+to|(?:it'?s|it\s+is)\s+(?:a\s+good\s+(?:idea|moment)|smart|worth\s+it)\s+to|(?:is\s+)?(?:a\s+)?good\s+(?:time\s+)?to|to)\s+`;
+const SELL_VERBS = String.raw`(?:sell|trim|take\s+(?:some\s+)?profits?|cash\s+out|exit|get\s+out|dump|unload|lighten\s+up|reduce)`;
+const BUY_VERBS = String.raw`(?:buy|add|get\s+in|load\s+up|accumulate|pick\s+up)`;
+const BOTH_VERBS = String.raw`(?:buy_(?:or|and)_sell|sell_(?:or|and)_buy|buy\/sell|sell\/buy)`;
+const ASK_TAIL = String.raw`(?:\s+(?:some|a\s+bit|part|half|more))?(?:\s+(?:of|on|to|into))?(?:\s+(?:my|it|them|some|more))?\b`;
+const SELL_ASK_RE = new RegExp(
+  String.raw`\b${ASK_LEAD}(?:${SELL_VERBS}|${BOTH_VERBS})${ASK_TAIL}|\b(?:good|right|best)\s+(?:time|moment|point|price)\s+to\s+${SELL_VERBS}\b|\btime\s+to\s+${SELL_VERBS}${ASK_TAIL}|(?<!\bmy\s)\bsell(?:[- ]some)?\s+(?:signals?|zones?|prices?|levels?|points?|targets?)\b|\bshould\s+(?:i|we)\s+${SELL_VERBS}${ASK_TAIL}|\b(?:worth|time)\s+selling\b`,
+  "gi",
+);
+const BUY_ASK_RE = new RegExp(
+  String.raw`\b${ASK_LEAD}(?:${BUY_VERBS}|${BOTH_VERBS})${ASK_TAIL}|\btime\s+to\s+${BUY_VERBS}${ASK_TAIL}|(?<!\bmy\s)\bbuy(?:[- ]more)?\s+(?:signals?|prices?)\b|\bshould\s+(?:i|we)\s+${BUY_VERBS}${ASK_TAIL}|\b(?:is|gets?|looks?|goes)\s+cheap\b|\bcheap\s+enough\b`,
+  "gi",
+);
+// A clause that does something to a stock ("add NVDA to my watchlist", "buy NVDA now") rather than naming more of them.
+const ACTION_RE = /^\s*(?:please\s+)?(?:add|put|remove|delete|drop|buy|sell|short|purchase|dump)\b/i;
+// After "tell me when to sell ORCL", "…and buy NVDA" is the same kind of ask, not an order. Not "…and add NVDA to my
+// watchlist", and not an order in so many words ("buy NVDA now", "buy it for me").
+const FOLLOW_ASK_RE = new RegExp(String.raw`^\s*(?:(sell|trim)|(buy(?:\s+more)?))${ASK_TAIL}(?!.*\b(?:now|today|right away|for me|immediately)\b)`, "i");
 const DIVIDEND_RE = /\bdividends?\b|\bpayouts?\b|\bex-?div\w*\b|\byield\b/gi;
 const TRADING_RE =
   /\b(?:buy|sell|short|trade|purchase)\b[^.,;]{0,25}\bfor me\b|\b(?:automatically|auto)[- ]?(?:buy|sell|trade)\w*\b|\bplace (?:an? )?(?:order|trade)\b|\bstop[- ]loss\b|\blimit orders?\b|\bexecute\b|^(?:please\s+)?(?:then\s+)?(?:sell|buy|short)\b(?:\s+(?:it|them|all|some|more|my|the|shares?|everything|out))*/gi;
@@ -812,6 +982,10 @@ function prepare(text: string): string {
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, MAX_REQUEST_CHARS)
+    // "when to buy or sell NVDA" asks for both signals on NVDA: kept as one piece, before "buy or sell" becomes "trades".
+    .replace(/\b(?:when (?:to|should (?:i|we)|(?:i|we) should)|time to|should (?:i|we)) (?:buy|sell) (?:or|and) (?:buy|sell)\b/gi, (m) =>
+      m.replace(/ (or|and) (\w+)$/i, "_$1_$2"),
+    )
     .replace(/\bup (?:or|and|\/) down\b|\bdown (?:or|and|\/) up\b/gi, (m) => "either way".padEnd(m.length, " "))
     .replace(/\b(buys?|buying|bought) (?:or|and|\/) (sells?|selling|sold)\b|\b(sells?|selling|sold) (?:or|and|\/) (buys?|buying|bought)\b/gi, (m) =>
       "trades".padEnd(m.length, " "),
@@ -882,6 +1056,9 @@ export function parseByRules(raw: string, catalog: StockCatalog, ctx: BuildConte
   let lastMine = false;
   // The intents of the last clause that had a trigger, for "…or 140" and "…AMD too".
   let previous: Intent[] = [];
+  // The last clause with a trigger asked when to buy or sell, so "…and buy NVDA" asks the same.
+  let askBefore = false;
+  let lastEnd = 0;
   const restricted: Array<{ intent: Intent; what: string }> = [];
   const pieces = clauses(text);
 
@@ -964,11 +1141,26 @@ export function parseByRules(raw: string, catalog: StockCatalog, ctx: BuildConte
     const clauseIntents: Intent[] = [];
     const clauseCannots: PlainCannot[] = [];
 
-    // Refusals first: a stop-loss is not a price alert, and a dividend is not earnings.
-    if (has(TRADING_RE) && !has(FUND_RE) && !has(INSIDER_RE) && !has(CONGRESS_RE)) {
-      // Quote only the trade ("sell NVDA for me"), not the price alert beside it that we did take.
-      const trade = mark(TRADING_RE)[0]?.match[0].trim() ?? local.trim();
-      clauseCannots.push(cannot("trading", trade));
+    // Asking when to sell or buy is a signal to watch, never an order ("tell me when to sell oracle").
+    const sellAsk = has(SELL_ASK_RE);
+    const buyAsk = has(BUY_ASK_RE);
+    // A full stop between them ends the ask: "…when to sell oracle. Buy NVDA" is an order.
+    const follow = !sellAsk && !buyAsk && askBefore && !/[.;!?]/.test(text.slice(lastEnd, piece.start)) ? FOLLOW_ASK_RE.exec(local) : null;
+    const asks = sellAsk || buyAsk || follow !== null;
+    const callAsk = has(CALL_RE);
+
+    // Refusals first: a stop-loss is not a price alert, and a dividend is not earnings. Beside an ask, only an
+    // order in so many words ("place an order", "a stop-loss") is a trade: "when to sell it for me" is still an ask.
+    const trades = collect(TRADING_RE, local).filter((hit) => !asks || !/\bfor me\b|^(?:please\s+)?(?:then\s+)?(?:sell|buy|short)\b/i.test(hit.match[0]));
+    if (trades.length > 0 && !has(FUND_RE) && !has(INSIDER_RE) && !has(CONGRESS_RE)) {
+      for (const hit of trades) spans.push(at(hit.span));
+      // Quote only the trade ("sell NVDA for me"), not the price alert beside it that we did take. A bare "sell my"
+      // runs on through the stock it names, so the quote is "sell my oracle", not "sell my".
+      const first = trades[0];
+      const stockEnd = found.hits.find((hit) => hit.start >= at(first.span).end && hit.start - at(first.span).end <= 2)?.end ?? null;
+      const trade = (stockEnd != null ? text.slice(at(first.span).start, stockEnd) : first.match[0]).trim() || local.trim();
+      const about = named.length > 0 ? named : pending.length > 0 ? pending : last;
+      clauseCannots.push(tradeCannot(trade, about, tradeSide(trade)));
     }
     if (has(COST_RE)) {
       mark(COST_RE);
@@ -986,13 +1178,18 @@ export function parseByRules(raw: string, catalog: StockCatalog, ctx: BuildConte
       mark(FUNDAMENTALS_RE);
       clauseCannots.push(cannot("fundamentals", local.trim()));
     }
-    if (has(ANALYST_RE)) {
+    // "your rating on NVDA" is our call; analysts' ratings are something else.
+    if (has(ANALYST_RE) && !(callAsk && collect(ANALYST_RE, local).every((hit) => /^ratings?$/i.test(hit.match[0])))) {
       mark(ANALYST_RE);
       clauseCannots.push(cannot("analyst_ratings", local.trim()));
     }
-    if (has(CALL_RE)) {
+    if (callAsk && CHANGE_WORD_RE.test(local)) {
       mark(CALL_RE);
-      clauseCannots.push(cannot("call_change", local.trim()));
+      const toHit = mark(CALL_TO_RE)[0];
+      mark(CALL_GLUE_RE);
+      const to = toHit ? callOfWord(toHit.match[1]) : null;
+      // "…says it's time to sell NVDA" is the sell watch, which already covers the call turning to Sell some.
+      if (!(sellAsk && to === "Trim")) clauseIntents.push({ kind: "call_change", stocks: [], to });
     }
     if (has(DIVIDEND_RE)) {
       mark(DIVIDEND_RE);
@@ -1026,7 +1223,7 @@ export function parseByRules(raw: string, catalog: StockCatalog, ctx: BuildConte
 
     // A stop-loss is still a price worth hearing about. A P/E below 30, a price target, a dividend yield,
     // a move from what you paid or a bitcoin crash is not a price level on the stock, so nothing is read from it.
-    const BLOCKING: CannotCode[] = ["cost_basis", "chart_signals", "fundamentals", "analyst_ratings", "call_change", "dividends", "not_a_us_stock"];
+    const BLOCKING: CannotCode[] = ["cost_basis", "chart_signals", "fundamentals", "analyst_ratings", "dividends", "not_a_us_stock"];
     const blocked = clauseCannots.some((entry) => BLOCKING.includes(entry.code)) || secClause || newsClause;
 
     // Prices.
@@ -1142,9 +1339,17 @@ export function parseByRules(raw: string, catalog: StockCatalog, ctx: BuildConte
       mark(/\b(?:lands?|shows? up|appears?|makes?|is|gets?) (?:on|in)\b|\bbiggest\b|\btop\b/gi);
       clauseIntents.push({ kind: "movers_list", stocks: [] });
     }
-    if (has(BUY_ZONE_RE)) {
+    if (sellAsk || follow?.[1]) {
+      mark(SELL_ASK_RE);
+      if (follow) spans.push(at({ start: follow.index, end: follow.index + follow[0].length }));
+      mark(/\b(?:reach(?:es)?|hits?|gets? to|rises? to|climbs? to|enters?|is in|is at)\b/gi);
+      clauseIntents.push({ kind: "sell_zone", stocks: [] });
+    }
+    if (has(BUY_ZONE_RE) || buyAsk || follow?.[2]) {
       mark(BUY_ZONE_RE);
-      mark(/\b(?:reaches|hits|gets to|drops to|falls to|enters|is in)\b/gi);
+      mark(BUY_ASK_RE);
+      if (follow) spans.push(at({ start: follow.index, end: follow.index + follow[0].length }));
+      mark(/\b(?:reach(?:es)?|hits?|gets? to|drops? to|falls? to|enters?|is in)\b/gi);
       clauseIntents.push({ kind: "buy_zone", stocks: [] });
     }
 
@@ -1187,6 +1392,7 @@ export function parseByRules(raw: string, catalog: StockCatalog, ctx: BuildConte
     }
     if (clauseIntents.length > 0) {
       pendingUnresolved = false;
+      askBefore = clauseIntents.some((intent) => intent.kind === "sell_zone" || intent.kind === "buy_zone");
       const stocks = named.length > 0 ? [...pending.filter((p) => !named.some((n) => n.ticker === p.ticker)), ...named] : mine ? [] : pending.length > 0 ? pending : lastMine ? [] : last;
       const useMine: boolean = mine || (named.length === 0 && pending.length === 0 && last.length === 0 && lastMine);
       for (const intent of clauseIntents) {
@@ -1203,6 +1409,12 @@ export function parseByRules(raw: string, catalog: StockCatalog, ctx: BuildConte
       lastMine = useMine;
       pending = [];
       previous = clauseIntents;
+    } else if (named.length > 0 && ACTION_RE.test(local)) {
+      // "…and add NVDA to my watchlist", "…. Buy NVDA now": a stock someone wants to act on is not more stocks for
+      // the agents just read. An order was refused above; anything else is said, never dropped.
+      if (clauseCannots.length === 0) {
+        clauseCannots.push(cannot("other", local.trim(), { line: `I can't change your list from here. Track ${listStockNames(named)} from ${named.length === 1 ? "its" : "their"} stock page.` }));
+      }
     } else if (named.length > 0 && previous.length > 0 && !STARTER_RE.test(local) && !unresolvedIn(range)) {
       // "…insiders buy NVDA or AMD", "…drops below 150, AMD too": more stocks for the agents just read.
       for (const intent of previous) {
@@ -1218,6 +1430,13 @@ export function parseByRules(raw: string, catalog: StockCatalog, ctx: BuildConte
       lastMine = true;
     }
     cannots.push(...clauseCannots);
+    lastEnd = range.end;
+  }
+
+  // "when to sell, trim or hold NVDA": the same watch read twice, once with no stock. The one on NVDA stands.
+  for (const kind of ["sell_zone", "buy_zone"] as const) {
+    if (!intents.some((intent) => intent.kind === kind && intent.stocks.length > 0)) continue;
+    for (let i = intents.length - 1; i >= 0; i -= 1) if (intents[i].kind === kind && intents[i].stocks.length === 0 && intents[i].implicit) intents.splice(i, 1);
   }
 
   // Stocks left at the end ("tell me if it drops below 150: NVDA or AMD") belong to the agents read just before them.
@@ -1334,6 +1553,8 @@ export type ModelWatch = {
   major?: boolean | null;
   /** news_change: which change. */
   news?: string | null;
+  /** call_change: the call it should turn to. */
+  call_to?: "buy_more" | "keep" | "sell_some" | null;
 };
 
 export type ModelCannot = { quote: string; reason: CannotCode };
@@ -1417,6 +1638,7 @@ export function specFromModel(input: string, parsed: ModelParse, catalog: StockC
       intraday: INTRADAY_RE.test(input) ? true : undefined,
       ...(watch.kind === "sec_filing" ? { filings: cleanFilingFilter({ forms: watch.forms ?? [], items: watch.items ?? [], major: watch.major === true }) ?? null, shelf: /\bs-?3\b/i.test(input) } : {}),
       ...(watch.kind === "news_change" ? { news: cleanNewsWatch(watch.news) } : {}),
+      ...(watch.kind === "call_change" ? { to: watch.call_to === "buy_more" ? "Add" : watch.call_to === "keep" ? "Hold" : watch.call_to === "sell_some" ? "Trim" : null } : {}),
     });
     INTRADAY_RE.lastIndex = 0;
   }
@@ -1424,6 +1646,24 @@ export function specFromModel(input: string, parsed: ModelParse, catalog: StockC
     if (!entry) continue;
     const code = (codes.has(entry.reason) ? entry.reason : "other") as CannotCode;
     const what = inRequest(entry.quote, input);
+    if (code === "trading") {
+      // Asking when to sell or buy is a signal, whatever the model called it ("tell me when to sell oracle").
+      const named = findStocks(input, catalog).hits.filter((stock, index, all) => all.findIndex((s) => s.ticker === stock.ticker) === index);
+      const sell = SELL_ASK_RE.test(input);
+      SELL_ASK_RE.lastIndex = 0;
+      const buy = BUY_ASK_RE.test(input);
+      BUY_ASK_RE.lastIndex = 0;
+      if (sell || buy) {
+        const stocks = named.map(({ ticker, name, price }) => ({ ticker, name, price })).slice(0, MAX_SCOPE_TICKERS);
+        const mine = stocks.length === 0;
+        for (const kind of [...(sell ? (["sell_zone"] as const) : []), ...(buy ? (["buy_zone"] as const) : [])]) {
+          if (!intents.some((intent) => intent.kind === kind)) intents.push({ kind, stocks, mine });
+        }
+        continue;
+      }
+      cannots.push(tradeCannot(what, named, tradeSide(what ?? input)));
+      continue;
+    }
     cannots.push(cannot(code, what, code === "not_a_us_stock" && !what ? { detail: REASONS.not_a_us_stock } : code === "multi_day_move" ? { suggest: "Every Monday, sum up my week" } : {}));
   }
   return buildSpec(input.trim().slice(0, MAX_REQUEST_CHARS), intents, cannots, "model", ctx);
@@ -1447,22 +1687,45 @@ export class ModelLimitError extends Error {
  * the model reads the whole request instead. If the model fails, the rules'
  * reading stands, with the unexplained part said out loud.
  */
+/** Our call on these tickers for the person asking (lib/agents-plain/server.ts plainCallLookup). */
+export type CallLookup = (tickers: string[]) => Promise<Record<string, PlainCall>>;
+
+/** The stocks a buy or sell watch names one by one: the ones whose call the read-back can say. */
+function zoneTickers(spec: PlainSpec): string[] {
+  const out = new Set<string>();
+  for (const watch of spec.watches) {
+    if ((watch.draft.template === "sell-zone" || watch.draft.template === "buy-zone") && watch.draft.scope.kind === "tickers") {
+      for (const ticker of watch.draft.scope.tickers) out.add(ticker);
+    }
+  }
+  return [...out];
+}
+
 export async function parsePlainRequest(
   raw: string,
   catalog: StockCatalog,
-  options: BuildContext & { model?: ModelReader | null; rules?: RuleResult } = {},
+  options: Omit<BuildContext, "calls"> & { model?: ModelReader | null; rules?: RuleResult; callLookup?: CallLookup | null } = {},
 ): Promise<PlainParseResult> {
   const input = raw.replace(/\s+/g, " ").trim().slice(0, MAX_REQUEST_CHARS);
-  const rules = options.rules ?? parseByRules(input, catalog, options);
-  if (rules.confident || !options.model) return withLeftover(input, rules, options);
+  const { callLookup: lookup, model: _model, rules: _rules, ...base } = options as typeof options & BuildContext;
+  const rules = options.rules ?? parseByRules(input, catalog, base);
+  // Read again with our calls when a buy or sell watch names a stock, so the read-back can say the real price.
+  const withCalls = async <T extends PlainSpec>(spec: T, again: (ctx: BuildContext) => T): Promise<T> => {
+    const tickers = lookup ? zoneTickers(spec) : [];
+    if (!lookup || tickers.length === 0) return spec;
+    const calls = await lookup(tickers).catch(() => null);
+    return calls && Object.keys(calls).length ? again({ ...base, calls }) : spec;
+  };
+  const fromRules = (ctx: BuildContext) => withLeftover(input, ctx === base ? rules : parseByRules(input, catalog, ctx), ctx);
+  if (rules.confident || !options.model) return withCalls(fromRules(base), fromRules);
   try {
     const parsed = await options.model(input);
-    const spec = specFromModel(input, parsed, catalog, options);
+    const spec = specFromModel(input, parsed, catalog, base);
     // A model that understood nothing is no better than the rules.
-    if (spec.watches.length === 0 && rules.spec.watches.length > 0) return withLeftover(input, rules, options);
-    return spec;
+    if (spec.watches.length === 0 && rules.spec.watches.length > 0) return withCalls(fromRules(base), fromRules);
+    return withCalls(spec, (ctx) => specFromModel(input, parsed, catalog, ctx));
   } catch (error) {
-    const result = withLeftover(input, rules, options);
+    const result = await withCalls(fromRules(base), fromRules);
     return error instanceof ModelLimitError ? { ...result, limited: true } : result;
   }
 }

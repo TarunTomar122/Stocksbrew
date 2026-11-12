@@ -268,42 +268,6 @@ export function reportDescription(report: EarningsDayReport): string {
   return text.length > 300 ? `${text.slice(0, 297).replace(/\s+\S*$/, "")}…` : text;
 }
 
-/* ── delivery ───────────────────────────────────────────────────────────── */
-
-export type EarningsDayBriefingItem = {
-  ticker: string;
-  company: string;
-  day: string;
-  href: string;
-  title: string;
-  /** Only for covered names; null means the read is not sent to this viewer. */
-  headline: string | null;
-  insights: EarningsDayInsight[];
-  tone: "up" | "down" | "flat";
-  filedAt: string | null;
-  covered: boolean;
-};
-
-/**
- * What a briefing may carry for one report. Run on the server: an uncovered
- * name on Free gets the public title and the link, and the read stays behind.
- */
-export function briefingItemFor(report: EarningsDayReport, covered: boolean): EarningsDayBriefingItem {
-  const tone = toneOfVerdict(report.eps?.verdict) !== "flat" ? toneOfVerdict(report.eps?.verdict) : toneOfGuidance(report.guidance?.change);
-  return {
-    ticker: report.ticker,
-    company: report.company,
-    day: report.event_date,
-    href: earningsDayHref(report.ticker, report.event_date),
-    title: report.read?.title ?? `${report.company} earnings`,
-    headline: covered ? report.read?.headline ?? null : null,
-    insights: covered ? (report.read?.insights ?? []).slice(0, 2) : [],
-    tone,
-    filedAt: report.filing?.filed_at ?? null,
-    covered,
-  };
-}
-
 /** The newest report per ticker, newest first. */
 export function latestPerTicker(reports: readonly EarningsDayReport[]): EarningsDayReport[] {
   const best = new Map<string, EarningsDayReport>();

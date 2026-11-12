@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { loadDeskMovers, todayET } from "@/app/(app)/explore/desk-data";
 import { signedPct, sourceTime } from "@/components/briefing/format";
-import { StockCard, StockCardGrid, stockGridFill } from "@/components/briefing/stock-card";
+import { StockCard, StockCardGrid } from "@/components/briefing/stock-card";
 import { oldestStamp } from "@/lib/quote-time";
 
 import { SectionHead } from "./shared";
@@ -34,7 +34,7 @@ export async function TodayMoves() {
         hrefLabel="See every move today"
       />
       <StockCardGrid wide>
-        {rows.map((row, index) => (
+        {rows.map((row) => (
           <StockCard
             key={row.ticker}
             ticker={row.ticker}
@@ -42,7 +42,6 @@ export async function TodayMoves() {
             figure={signedPct(row.changePct, 1)}
             tone={row.changePct >= 0 ? "up" : "down"}
             sentence={row.reason}
-            fill={stockGridFill(index, rows.length, true)}
             cover={
               <Link
                 prefetch={false}

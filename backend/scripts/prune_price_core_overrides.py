@@ -2,13 +2,17 @@
 
 Retention:
 - Add and keep any instrument currently tracked by at least one user.
+- Add and keep every popular fund we have an instrument for (backend/config/popular_funds.json),
+  so fund pages keep a fresh price whether or not anyone holds the fund yet.
 - Add and keep any instrument viewed recently in tm_stock_views (N days window).
 - Keep newest tail floor (never prune below floor count).
 """
 from __future__ import annotations
 
 import argparse
+import json
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 from backend.storage import TraceMoneyStore
 
@@ -29,6 +33,24 @@ def _tracked_ids(store: TraceMoneyStore, market: str) -> set[str]:
         if iid.startswith(prefix):
             out.add(iid)
     return out
+
+
+_POPULAR_FUNDS_PATH = Path(__file__).resolve().parents[1] / "config" / "popular_funds.json"
+
+
+def popular_fund_ids(market: str) -> set[str]:
+    """Instrument ids of the popular funds (US only): always kept in the price cohort."""
+    if market.upper() != "US":
+        return set()
+    try:
+        payload = json.loads(_POPULAR_FUNDS_PATH.read_text())
+    except (OSError, json.JSONDecodeError):
+        return set()
+    return {
+        f"US_{str(row.get('ticker') or '').strip().upper().replace('.', '_')}"
+        for row in payload.get("funds") or []
+        if str(row.get("ticker") or "").strip()
+    }
 
 
 def _recent_view_ids(store: TraceMoneyStore, market: str, days: int) -> set[str]:
@@ -125,6 +147,8 @@ def main() -> None:
     ]
     keep_tracked = _tracked_ids(store, market)
     keep_recent = _recent_view_ids(store, market, args.recent_days)
+    # Popular funds are protected like tracked stocks; only ones with an instrument count (valid_ids below).
+    keep_tracked |= popular_fund_ids(market)
     keep_tracked &= valid_ids
     keep_recent &= valid_ids
     kept = retained_override_ids(

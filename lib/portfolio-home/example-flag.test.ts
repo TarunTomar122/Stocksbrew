@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { callHref, exampleAgentRuns, flaggedMove, flagReportStep, flagStepWords, flagWords } from "./example-check";
+import { exampleAgentRuns, flaggedMove, flagReportStep, flagStepWords, flagWords } from "./example-check";
 
 const view = (over: Record<string, unknown> = {}) =>
   ({
@@ -73,6 +73,5 @@ describe("the example's agents as the log's Agents row", () => {
       href: "/portfolio",
     });
     expect(exampleAgentRuns(null)).toBeNull();
-    expect(callHref("BRK.B")).toBe("/stock/BRK.B#call");
   });
 });

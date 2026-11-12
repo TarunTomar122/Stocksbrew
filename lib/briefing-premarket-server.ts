@@ -13,7 +13,10 @@ import { marketDateIso } from "@/lib/premarket-shared";
 
 export type BriefingPremarket = {
   at: string;
+  /** This morning's move per ticker, percent from the last close. */
   stocks: Record<string, number>;
+  /** This morning's price per ticker, for the same tickers as `stocks`. */
+  prices: Record<string, number>;
   sp500: { pct: number; source: "SPY" | "futures" } | null;
 };
 
@@ -41,19 +44,27 @@ export async function briefingPremarket(tickers: readonly string[], now: Date = 
   const [movers, report] = await Promise.all([within(getPremarketMovers("US"), READ_TIMEOUT_MS), within(getPremarketOpeningReport(), READ_TIMEOUT_MS)]);
   if (!movers) return null;
   const stocks: Record<string, number> = {};
+  const prices: Record<string, number> = {};
   for (const ticker of new Set(tickers.map((value) => value.trim().toUpperCase()).filter(Boolean))) {
     const quote = getLivePremarketQuote(movers, ticker, "US", now);
-    if (quote) stocks[ticker] = quote.changePct;
+    if (!quote) continue;
+    stocks[ticker] = quote.changePct;
+    prices[ticker] = quote.price;
   }
   if (Object.keys(stocks).length === 0) return null;
-  const today = marketDateIso("US", now);
-  let sp500: BriefingPremarket["sp500"] = null;
+  return { at: movers.generated_at, stocks, prices, sp500: premarketSp500(movers, report, now) };
+}
+
+type Movers = NonNullable<Awaited<ReturnType<typeof getPremarketMovers>>>;
+type OpeningReport = Awaited<ReturnType<typeof getPremarketOpeningReport>>;
+
+/** The S&P 500 this morning: SPY's premarket move, else today's S&P 500 futures from the opening report, else null. */
+export function premarketSp500(movers: Movers, report: OpeningReport | null, now: Date): BriefingPremarket["sp500"] {
   const spy = getLivePremarketQuote(movers, "SPY", "US", now);
-  if (spy) sp500 = { pct: spy.changePct, source: "SPY" };
-  else if (report) {
-    const sameDay = (iso: string | undefined) => Boolean(iso) && Number.isFinite(Date.parse(iso!)) && marketDateIso("US", new Date(iso!)) === today;
-    const es = futuresCues(report.global_cues).find((cue) => cue.id.toUpperCase().endsWith("_ES") || cue.ticker.toUpperCase().startsWith("ES="));
-    if (es && sameDay(report.generated_at) && sameDay(es.captured_at ?? report.generated_at)) sp500 = { pct: es.change_pct, source: "futures" };
-  }
-  return { at: movers.generated_at, stocks, sp500 };
+  if (spy) return { pct: spy.changePct, source: "SPY" };
+  if (!report) return null;
+  const today = marketDateIso("US", now);
+  const sameDay = (iso: string | undefined) => Boolean(iso) && Number.isFinite(Date.parse(iso!)) && marketDateIso("US", new Date(iso!)) === today;
+  const es = futuresCues(report.global_cues).find((cue) => cue.id.toUpperCase().endsWith("_ES") || cue.ticker.toUpperCase().startsWith("ES="));
+  return es && sameDay(report.generated_at) && sameDay(es.captured_at ?? report.generated_at) ? { pct: es.change_pct, source: "futures" } : null;
 }

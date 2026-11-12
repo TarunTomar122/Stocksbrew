@@ -28,6 +28,7 @@ type Mine = { id: string; kind: string; headline: string; createdAt: string };
 const ERRORS: Record<string, string> = {
   unauthenticated: "Sign in to share a card.",
   no_holdings: "There is nothing of yours to share on this page yet. It needs your own holdings, with share counts, to make a card.",
+  locked: "Cards from inside your funds and past crashes come with Pro.",
   read_failed: "We could not read your holdings just now. Try again in a minute.",
   too_many: `You have ${MAX_SHARES_PER_USER} shared cards already. Delete one below to make room.`,
   write_failed: "The link could not be saved just now. Try again in a minute.",

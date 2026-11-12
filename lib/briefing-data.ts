@@ -628,11 +628,13 @@ export async function loadBriefingPage(
   }
 
   const uid = session.uid;
-  const [userDoc, view, stateDocs] = await Promise.all([
+  const [userDoc, view, stateRead] = await Promise.all([
     getUserDoc(uid).catch(() => null),
     getWatchlistView(uid).catch(() => null),
-    loadStateDocs(uid, today).catch(() => new Map<string, BriefingStateDoc>()),
+    loadStateDocs(uid, today).catch(() => null),
   ]);
+  // A failed read shows the page without its saved days, but must not be mistaken for "no visit today" (recordVisit).
+  const stateDocs = stateRead ?? new Map<string, BriefingStateDoc>();
   const tracked = Array.isArray(userDoc?.tracked_stocks)
     ? userDoc.tracked_stocks.filter((id): id is string => typeof id === "string")
     : [];
@@ -725,7 +727,8 @@ export async function loadBriefingPage(
   if (options.persist) {
     // Bookkeeping for reopening this day later and for "Since you last opened": it never holds the page.
     afterResponse("briefing snapshot", saveSnapshot(uid, briefing, positions, todayDoc, now));
-    afterResponse("briefing visit", recordVisit(uid, today, todayDoc, lastVisit, now));
+    // Only from a state read that worked: a failed one would look like the day's first open and rewrite since_at.
+    if (stateRead) afterResponse("briefing visit", recordVisit(uid, today, todayDoc, lastVisit, now));
   }
 
   return {

@@ -50,7 +50,7 @@ export const FREE_TOOL_GROUPS: FreeToolGroup[] = [
       },
       {
         href: "/portfolio/xray",
-        title: "What you really own",
+        title: "Analysis",
         description: "See the stocks inside your funds and where your money really sits.",
         icon: "pie_chart",
         accent: "#7c3aed",

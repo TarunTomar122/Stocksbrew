@@ -1,3 +1,4 @@
+import { can } from "@/lib/entitlements";
 import type { Viewer } from "@/lib/entitlements-server";
 import { getLatestPriceQuotes } from "@/lib/firestore";
 import { normalizeSectorName } from "@/lib/gics-sector";
@@ -155,7 +156,7 @@ const FUND_NAME = /\b(ETF|ETN|Fund|SPDR|iShares|ProShares|Direxion)\b/i;
  * watchlist view; here they come straight from the holdings, with the same
  * quotes, names and sectors.
  */
-export async function portfolioFacts(userDoc: UserDoc): Promise<PortfolioFacts | null> {
+export async function portfolioFacts(userDoc: UserDoc, deep: boolean): Promise<PortfolioFacts | null> {
   const tracked = Array.isArray(userDoc.tracked_stocks) ? userDoc.tracked_stocks : [];
   const kinds = userDoc.watchlist_positions ?? {};
   const ids = tracked.filter((id) => kinds[id] === "holding");
@@ -208,9 +209,10 @@ export async function portfolioFacts(userDoc: UserDoc): Promise<PortfolioFacts |
     top3: analytics.top3,
     sectors,
     hasFunds: portfolio.positions.some((position) => position.sector === FUNDS_SECTOR),
-    beta: analytics.beta,
-    volatility: analytics.volatility,
-    benchmarkVolatility: analytics.benchmarkVolatility,
+    // The swings (beta, a year's volatility) are the deeper analysis's, so a Free card leaves them out.
+    beta: deep ? analytics.beta : null,
+    volatility: deep ? analytics.volatility : null,
+    benchmarkVolatility: deep ? analytics.benchmarkVolatility : null,
     pricesAsOf: analytics.pricesAsOf,
   };
 }
@@ -238,7 +240,7 @@ export async function loadShareFacts(kind: ShareKind, input: { viewer: Viewer; u
       return facts ? { facts: { kind, facts }, asOf } : null;
     }
     case "portfolio": {
-      const facts = await portfolioFacts(input.userDoc);
+      const facts = await portfolioFacts(input.userDoc, can("portfolio_analysis_deep", input.viewer.plan));
       return facts ? { facts: { kind, facts }, asOf } : null;
     }
   }

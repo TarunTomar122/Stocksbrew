@@ -203,7 +203,9 @@ export function AskPanelButton({ variant }: { variant: "row" | "pill" }) {
         aria-haspopup="dialog"
         aria-expanded={expanded}
         aria-controls={expanded ? ASK_PANEL_ID : undefined}
-        className="mt-1.5 flex h-9 w-full items-center gap-2.5 rounded-lg border border-oa-border bg-oa-card px-3 text-left text-[14px] text-oa-muted-fg outline-none transition-colors hover:text-oa-fg focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]"
+        // Lit on /ask, the way a nav item is on its page: the button is Ask's one place in the nav.
+        data-active={pathname === "/ask" || undefined}
+        className="mt-1.5 flex h-9 w-full items-center gap-2.5 rounded-lg border border-oa-border bg-oa-card px-3 text-left text-[14px] text-oa-muted-fg outline-none transition-colors hover:text-oa-fg focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)] data-[active]:bg-oa-accent data-[active]:font-medium data-[active]:text-oa-fg"
       >
         {icon}
         <span className="flex-1 truncate">Ask a question</span>
@@ -221,7 +223,8 @@ export function AskPanelButton({ variant }: { variant: "row" | "pill" }) {
       aria-expanded={expanded}
       aria-controls={expanded ? ASK_PANEL_ID : undefined}
       aria-label="Ask a question"
-      className="inline-flex h-9 items-center gap-1.5 rounded-full border border-oa-border bg-oa-card px-3 text-[14px] font-medium text-oa-fg outline-none transition-colors hover:bg-oa-accent focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]"
+      data-active={pathname === "/ask" || undefined}
+      className="inline-flex h-9 items-center gap-1.5 rounded-full border border-oa-border bg-oa-card px-3 text-[14px] font-medium text-oa-fg outline-none transition-colors hover:bg-oa-accent focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)] data-[active]:bg-oa-accent"
     >
       {icon}
       Ask

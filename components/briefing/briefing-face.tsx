@@ -1,6 +1,7 @@
 import Link from "next/link";
 import * as React from "react";
 
+import { ShowMoreGrid } from "@/components/oa/kit/show-more-grid";
 import { StockLogo } from "@/components/stock-logo";
 import type {
   CallWord,
@@ -18,14 +19,14 @@ import type {
 import { gapWords } from "@/lib/briefing-face";
 import { shortCompanyName } from "@/lib/plain-copy";
 
-import { longDay, shortDay, signedPct } from "./format";
+import { longDay, sharePrice, shortDay, signedPct } from "./format";
 
 /**
  * The daily briefing, one column (owner, Nov 12): the strip (you against the S&P 500 and a few market figures), Do
  * today, the heat of your money, the names at their levels, why things moved, the week's reports and what changed
  * since the last visit. Each module is gone when it has nothing (no empty cards); each stock shows once. Cards are
  * a figure, a few-word label and at most one line; the card is its own link and nothing repeats on every card.
- * Server-rendered: the only client code is the logos.
+ * Server-rendered: the only client code is the logos and the "Show N more" toggles under the longer grids.
  */
 
 export type BriefingFaceProps = {
@@ -56,22 +57,23 @@ export type BriefingFaceProps = {
 const CARD = "oa-surface border border-oa-border bg-oa-card";
 const HOVER = "transition-colors hover:border-[color-mix(in_srgb,var(--oa-fg)_25%,transparent)] hover:bg-oa-accent";
 const FOCUS = "outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]";
-/** Fixed-width cards: one per row on a phone, then a fixed 17rem; an odd last card never stretches. */
-const CARD_W = "w-full sm:w-[17rem]";
-/** An inner list that scrolls without a bar and hands the scroll back to the page at its ends (no overscroll-contain). */
-const INNER_SCROLL = "overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
+/**
+ * Card grids fill their module's width in equal columns (owner rule 4): no fixed pixel widths that leave the right
+ * side empty, and an odd last card keeps its one column. THREE is a module across the page, PAIR one beside another.
+ */
+const THREE = "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4";
+const PAIR = "grid grid-cols-1 gap-3 sm:grid-cols-2";
+const ONE = "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1";
+/** A module's share of the page's 12 columns from `lg`; below that every module takes the one column. */
+const SPAN = { all: "lg:col-span-12", narrow: "lg:col-span-4", wide: "lg:col-span-8" } as const;
 
 const toneText = (tone: Tone) => (tone === "up" ? "text-signal-bullish" : tone === "down" ? "text-signal-bearish" : "text-oa-fg");
 const toneOf = (pct: number | null | undefined): Tone => (pct == null || Math.abs(pct) < 0.005 ? "flat" : pct > 0 ? "up" : "down");
 
-function price(value: number | null): string | null {
-  if (value == null || !Number.isFinite(value)) return null;
-  return `$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
 
-function Section({ id, title, count, children }: { id: string; title: string; count?: string | null; children: React.ReactNode }) {
+function Section({ id, title, count, span = SPAN.all, children }: { id: string; title: string; count?: string | null; span?: string; children: React.ReactNode }) {
   return (
-    <section aria-labelledby={`${id}-title`} className="min-w-0">
+    <section aria-labelledby={`${id}-title`} className={`min-w-0 ${span}`}>
       <h2 id={`${id}-title`} className="flex items-baseline gap-2 px-2 pb-2 text-[14px] font-semibold leading-6 text-oa-fg sm:px-0">
         {title}
         {count ? <span className="oa-mono text-[12px] font-normal text-oa-muted-fg">{count}</span> : null}
@@ -98,7 +100,7 @@ function StockTile({ stock, line, source }: { stock: DoCard | MovedCard | SinceC
   const named = short && short.toUpperCase() !== stock.ticker ? short : null;
   const tone = toneOf(stock.pct);
   return (
-    <li className={`${CARD_W} min-w-0`}>
+    <li className="min-w-0">
       <Link
         href={stock.href}
         prefetch={false}
@@ -114,7 +116,7 @@ function StockTile({ stock, line, source }: { stock: DoCard | MovedCard | SinceC
           </span>
           <span className="flex shrink-0 flex-col items-end leading-5">
             {stock.pct != null ? <span className={`oa-mono text-[18px] font-semibold tabular-nums tracking-[-0.01em] ${toneText(tone)}`}>{signedPct(stock.pct, 1)}</span> : null}
-            {price(stock.price) ? <span className="oa-mono text-[12px] tabular-nums text-oa-muted-fg">{price(stock.price)}</span> : null}
+            {sharePrice(stock.price) ? <span className="oa-mono text-[12px] tabular-nums text-oa-muted-fg">{sharePrice(stock.price)}</span> : null}
           </span>
         </span>
         {/* The line sits right under the header on every card; the call keeps to the bottom corner. */}
@@ -160,24 +162,16 @@ function SharedNotes({ notes }: { notes: string[] }) {
   );
 }
 
-function Cards({ children, label }: { children: React.ReactNode; label: string }) {
-  return (
-    <ul aria-label={label} className="flex flex-wrap gap-3">
-      {children}
-    </ul>
-  );
-}
-
-function SharedCards({ cards, label }: { cards: ReadonlyArray<DoCard | SinceCard>; label: string }) {
+function SharedCards({ cards, label, grid = THREE }: { cards: ReadonlyArray<DoCard | SinceCard>; label: string; grid?: string }) {
   const split = sharedLines(cards);
   return (
     <>
       <SharedNotes notes={split.notes} />
-      <Cards label={label}>
+      <ShowMoreGrid count={split.cards.length} label={label} className={grid}>
         {split.cards.map((card) => (
           <StockTile key={card.ticker} stock={card} line={card.shownLine} />
         ))}
-      </Cards>
+      </ShowMoreGrid>
     </>
   );
 }
@@ -237,28 +231,30 @@ function heatBackground(cell: HeatCell): string {
 
 function Heat({ cells }: { cells: HeatCell[] }) {
   return (
-    // About three rows show; more scroll inside, and the page takes the scroll back at either end.
-    <div className={`max-h-[14.25rem] ${INNER_SCROLL}`}>
-      <ul aria-label="Your holdings today" className="grid grid-flow-row-dense grid-cols-[repeat(auto-fill,minmax(6.75rem,1fr))] gap-1.5">
-        {cells.map((cell) => (
-          <li key={cell.ticker} className={cell.size === 2 ? "col-span-2" : ""}>
-            <Link
-              href={cell.href}
-              prefetch={false}
-              title={shortCompanyName(cell.name) || cell.ticker}
-              style={{ background: heatBackground(cell) }}
-              className={`${FOCUS} flex h-[4.25rem] flex-col justify-between rounded-md border border-oa-border px-2.5 py-2 transition-[filter] hover:brightness-[0.97] dark:hover:brightness-110`}
-            >
-              <span className="flex min-w-0 items-center gap-1.5">
-                <StockLogo ticker={cell.ticker} size={18} eager />
-                <span className="oa-mono truncate text-[12.5px] font-semibold text-oa-fg">{cell.ticker}</span>
-              </span>
-              <span className={`oa-mono text-[16px] font-semibold tabular-nums ${toneText(cell.tone)}`}>{signedPct(cell.pct, 1)}</span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </div>
+    // About three rows show; the rest open under one "Show N more" (no inner scroll: owner, Nov 12).
+    <ShowMoreGrid count={cells.length} cut="tiles" label="Your holdings today" className="grid grid-flow-row-dense grid-cols-[repeat(auto-fill,minmax(6.75rem,1fr))] gap-1.5">
+      {cells.map((cell) => (
+        <li key={cell.ticker} className={cell.size === 2 ? "col-span-2" : ""}>
+          <Link
+            href={cell.href}
+            prefetch={false}
+            title={shortCompanyName(cell.name) || cell.ticker}
+            style={{ background: heatBackground(cell) }}
+            className={`${FOCUS} flex h-[4.75rem] flex-col justify-between rounded-md border border-oa-border px-2.5 py-2 transition-[filter] hover:brightness-[0.97] dark:hover:brightness-110`}
+          >
+            <span className="flex min-w-0 items-center gap-1.5">
+              <StockLogo ticker={cell.ticker} size={18} eager />
+              <span className="oa-mono truncate text-[12.5px] font-semibold text-oa-fg">{cell.ticker}</span>
+            </span>
+            {/* The ticker, its price, then the day's move. */}
+            <span className="flex min-w-0 flex-col">
+              {sharePrice(cell.price) ? <span className="oa-mono truncate text-[11.5px] leading-4 tabular-nums text-oa-muted-fg">{sharePrice(cell.price)}</span> : null}
+              <span className={`oa-mono text-[16px] font-semibold leading-5 tabular-nums ${toneText(cell.tone)}`}>{signedPct(cell.pct, 1)}</span>
+            </span>
+          </Link>
+        </li>
+      ))}
+    </ShowMoreGrid>
   );
 }
 
@@ -266,71 +262,92 @@ function Heat({ cells }: { cells: HeatCell[] }) {
 
 function Levels({ rows }: { rows: LevelRow[] }) {
   return (
-    // About eight names show (eight rows on a phone, three rows of three wider), the rest scroll inside.
-    <div className={`max-h-[33rem] sm:max-h-[13.25rem] ${INNER_SCROLL}`}>
-      <ul aria-label="Close to their levels" className="flex flex-wrap gap-3">
-        {rows.map((row) => {
-          const away = Math.abs(row.level.gapPct);
-          const which = row.level.call === "Buy more" ? "buy-more" : "sell-some";
-          const label = away < 0.05 ? `At the ${which} price` : `${row.level.gapPct < 0 ? "Under" : "Over"} the ${which} price`;
-          return (
-            <li key={row.ticker} className={`${CARD_W} min-w-0`}>
-              <Link href={row.href} prefetch={false} className={`${CARD} ${HOVER} ${FOCUS} flex items-center justify-between gap-3 px-3.5 py-2.5`}>
-                <span className="flex min-w-0 items-center gap-2.5">
-                  <StockLogo ticker={row.ticker} size={24} eager />
-                  <span className="min-w-0 leading-5">
-                    <span className="oa-mono block text-[14px] font-semibold text-oa-fg">{row.ticker}</span>
-                    <span className="block truncate text-[12.5px] leading-4 text-oa-muted-fg">{label}</span>
-                  </span>
+    // Three rows of three show (four cards on a phone); the rest open under one "Show N more".
+    <ShowMoreGrid count={rows.length} label="Close to their levels" className={THREE}>
+      {rows.map((row) => {
+        const away = Math.abs(row.level.gapPct);
+        const which = row.level.call === "Buy more" ? "buy-more" : "sell-some";
+        const label = away < 0.05 ? `At the ${which} price` : `${row.level.gapPct < 0 ? "Under" : "Over"} the ${which} price`;
+        return (
+          <li key={row.ticker} className="min-w-0">
+            <Link href={row.href} prefetch={false} className={`${CARD} ${HOVER} ${FOCUS} flex h-full items-center justify-between gap-3 px-3.5 py-2.5`}>
+              <span className="flex min-w-0 items-center gap-2.5">
+                <StockLogo ticker={row.ticker} size={24} eager />
+                <span className="min-w-0 leading-5">
+                  <span className="oa-mono block text-[14px] font-semibold text-oa-fg">{row.ticker}</span>
+                  <span className="block truncate text-[12.5px] leading-4 text-oa-muted-fg">{label}</span>
                 </span>
-                <span className={`oa-mono shrink-0 text-[18px] font-semibold tabular-nums ${row.level.crossed ? "text-oa-primary" : "text-oa-fg"}`}>
+              </span>
+              <span className="flex shrink-0 flex-col items-end leading-5">
+                <span className={`oa-mono text-[18px] font-semibold tabular-nums ${row.level.crossed ? "text-oa-primary" : "text-oa-fg"}`}>
                   {away < 0.05 ? "At" : `${away.toFixed(1)}%`}
                 </span>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </div>
+                {sharePrice(row.price) ? <span className="oa-mono text-[12px] tabular-nums text-oa-muted-fg">{sharePrice(row.price)}</span> : null}
+              </span>
+            </Link>
+          </li>
+        );
+      })}
+    </ShowMoreGrid>
   );
 }
 
 /* ── the week's reports ────────────────────────────────────────────────── */
 
-function Week({ days }: { days: WeekDay[] }) {
+function DayStocks({ day }: { day: WeekDay }) {
   return (
-    <div className="min-w-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      <ol aria-label="Reports by day" className="flex w-max items-start gap-3">
+    <ul className="flex flex-col gap-1">
+      {day.stocks.map((stock) => {
+        const result = stock.result;
+        return (
+          <li key={stock.ticker}>
+            <Link href={stock.href} prefetch={false} className={`${FOCUS} -mx-1.5 flex h-9 items-center justify-between gap-2 rounded px-1.5 transition-colors hover:bg-oa-accent`}>
+              <span className="flex min-w-0 items-center gap-1.5">
+                <StockLogo ticker={stock.ticker} size={20} eager />
+                <span className={`oa-mono text-[13px] font-semibold ${stock.held ? "text-oa-fg" : "text-oa-muted-fg"}`}>{stock.ticker}</span>
+              </span>
+              {result ? (
+                <span className="flex shrink-0 items-baseline gap-1.5 text-[12px]">
+                  {result.verdict ? <span className={result.verdict === "Beat" ? "text-signal-bullish" : result.verdict === "Miss" ? "text-signal-bearish" : "text-oa-muted-fg"}>{result.verdict}</span> : null}
+                  {result.pct != null ? <span className={`oa-mono tabular-nums ${toneText(toneOf(result.pct))}`}>{signedPct(result.pct, 1)}</span> : null}
+                </span>
+              ) : stock.when ? (
+                <span className="shrink-0 text-[12px] text-oa-muted-fg">{stock.when === "before the open" ? "Before open" : "After close"}</span>
+              ) : null}
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/**
+ * The week's reports by day. Beside another module it is one card with the days down it; on its own it is a card per
+ * day in equal columns, so it neither stretches one card over the page nor leaves the row half empty on a phone.
+ */
+function Week({ days, beside }: { days: WeekDay[]; beside: boolean }) {
+  if (beside) {
+    return (
+      <ol aria-label="Reports by day" className={`${CARD} divide-y divide-oa-border`}>
         {days.map((day) => (
-          <li key={day.day} className={`${CARD} w-[11rem] shrink-0 px-3 py-2.5`}>
-            <p className="pb-1.5 text-[12.5px] font-medium leading-5 text-oa-muted-fg">{day.label}</p>
-            <ul className="flex flex-col gap-1">
-              {day.stocks.map((stock) => {
-                const result = stock.result;
-                return (
-                  <li key={stock.ticker}>
-                    <Link href={stock.href} prefetch={false} className={`${FOCUS} -mx-1.5 flex h-9 items-center justify-between gap-2 rounded px-1.5 transition-colors hover:bg-oa-accent`}>
-                      <span className="flex min-w-0 items-center gap-1.5">
-                        <StockLogo ticker={stock.ticker} size={20} eager />
-                        <span className={`oa-mono text-[13px] font-semibold ${stock.held ? "text-oa-fg" : "text-oa-muted-fg"}`}>{stock.ticker}</span>
-                      </span>
-                      {result ? (
-                        <span className="flex shrink-0 items-baseline gap-1.5 text-[12px]">
-                          {result.verdict ? <span className={result.verdict === "Beat" ? "text-signal-bullish" : result.verdict === "Miss" ? "text-signal-bearish" : "text-oa-muted-fg"}>{result.verdict}</span> : null}
-                          {result.pct != null ? <span className={`oa-mono tabular-nums ${toneText(toneOf(result.pct))}`}>{signedPct(result.pct, 1)}</span> : null}
-                        </span>
-                      ) : stock.when ? (
-                        <span className="shrink-0 text-[12px] text-oa-muted-fg">{stock.when === "before the open" ? "Before open" : "After close"}</span>
-                      ) : null}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
+          <li key={day.day} className="px-3.5 py-2.5">
+            <p className="pb-1 text-[12.5px] font-medium leading-5 text-oa-muted-fg">{day.label}</p>
+            <DayStocks day={day} />
           </li>
         ))}
       </ol>
-    </div>
+    );
+  }
+  return (
+    <ol aria-label="Reports by day" className="grid grid-cols-1 items-start gap-3 min-[420px]:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-6">
+      {days.map((day) => (
+        <li key={day.day} className={`${CARD} min-w-0 px-3 py-2.5`}>
+          <p className="pb-1.5 text-[12.5px] font-medium leading-5 text-oa-muted-fg">{day.label}</p>
+          <DayStocks day={day} />
+        </li>
+      ))}
+    </ol>
   );
 }
 
@@ -381,10 +398,22 @@ export function BriefingFace(props: BriefingFaceProps) {
   const { mode, viewer, date, clock, days, archived, degraded, example, strip, doToday, heat, levels, moved, week, since, agentFindings, locked } = props;
   const personal = mode === "personal";
   const title = example ? "Example briefing for a made-up portfolio of real stocks" : personal ? "Your briefing" : "Market briefing";
+  // Which modules have something, so a pair that lost one side gives the other the whole row.
+  const showDo = personal && doToday !== null;
+  const showHeat = personal && heat.length > 0;
+  const showMoved = moved.length > 0;
+  const showWeek = week.length > 0;
+  const showSince = Boolean(since && since.cards.length > 0);
+  // The week sits beside Why it moved. With nothing moved for a reason it goes under Do today, beside the money (which
+  // then spans both rows), else beside Since you last opened; only on its own does it take the row.
+  const weekUnderDo = showWeek && !showMoved && showDo && showHeat;
+  const sinceBeside = showSince && showWeek && !showMoved && !weekUnderDo;
+  const weekBeside = showWeek && (showMoved || sinceBeside || weekUnderDo);
   return (
-    // One column, left-aligned with the nav (owner, Nov 12: no right rail). The bottom padding clears a phone's tab bar.
-    <div className="flex max-w-[60rem] flex-col gap-6 pb-20 lg:pb-4">
-      <header className="flex min-w-0 flex-col gap-1 px-2 sm:px-0">
+    // Twelve columns from `lg` with related modules side by side (owner, Nov 12: no empty right side, and no card
+    // stretched for no reason); one column below that, in reading order. The bottom padding clears a phone's tab bar.
+    <div className={`grid grid-cols-1 items-start gap-6 pb-20 lg:grid-cols-12 lg:pb-4 ${weekUnderDo ? "lg:grid-flow-row-dense" : ""}`}>
+      <header className={`flex min-w-0 flex-col gap-1 px-2 sm:px-0 ${SPAN.all}`}>
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
           <h1 className="flex min-w-0 flex-wrap items-baseline gap-x-2 text-[15px] font-semibold leading-6 text-oa-fg">
             {title}
@@ -421,12 +450,14 @@ export function BriefingFace(props: BriefingFaceProps) {
         ) : null}
       </header>
 
-      <MarketStrip strip={strip} clock={clock} />
+      <div className={`min-w-0 ${SPAN.all}`}>
+        <MarketStrip strip={strip} clock={clock} />
+      </div>
 
-      {personal && doToday ? (
-        <Section id="do-today" title={archived ? "Needed you that day" : "Do today"}>
+      {showDo && doToday ? (
+        <Section id="do-today" title={archived ? "Needed you that day" : "Do today"} span={showHeat ? SPAN.narrow : SPAN.all}>
           {doToday.kind === "cards" ? (
-            <SharedCards cards={doToday.cards} label="Stocks that need a decision" />
+            <SharedCards cards={doToday.cards} label="Stocks that need a decision" grid={showHeat ? ONE : THREE} />
           ) : (
             <p className="px-2 text-[13.5px] leading-5 text-oa-muted-fg sm:px-0">
               {doToday.kind === "quiet" ? "Nothing needs you today." : "What needs you couldn't load just now."}
@@ -435,8 +466,8 @@ export function BriefingFace(props: BriefingFaceProps) {
         </Section>
       ) : null}
 
-      {personal && heat.length > 0 ? (
-        <Section id="heat" title="Where your money moved">
+      {showHeat ? (
+        <Section id="heat" title="Where your money moved" span={showDo ? `${SPAN.wide} ${weekUnderDo ? "lg:row-span-2" : ""}` : SPAN.all}>
           <Heat cells={heat} />
         </Section>
       ) : null}
@@ -447,33 +478,29 @@ export function BriefingFace(props: BriefingFaceProps) {
         </Section>
       ) : null}
 
-      {moved.length > 0 ? (
-        <Section id="moved" title="Why it moved">
-          {/* About eight show; the rest scroll inside and hand the scroll back to the page at the ends. */}
-          <div className={`max-h-[40rem] sm:max-h-[29rem] ${INNER_SCROLL}`}>
-            <Cards label="Moves with a confirmed reason">
-              {moved.map((card) => (
-                <StockTile key={card.ticker} stock={card} line={card.line} source={sourceWords(card)} />
-              ))}
-            </Cards>
-          </div>
+      {showMoved ? (
+        <Section id="moved" title="Why it moved" span={showWeek ? SPAN.wide : SPAN.all}>
+          <ShowMoreGrid count={moved.length} cut={showWeek ? "pairs" : "cards"} label="Moves with a confirmed reason" className={showWeek ? PAIR : THREE}>
+            {moved.map((card) => (
+              <StockTile key={card.ticker} stock={card} line={card.line} source={sourceWords(card)} />
+            ))}
+          </ShowMoreGrid>
         </Section>
       ) : null}
 
-      {personal && locked ? locked : null}
+      {personal && locked ? <div className={`min-w-0 ${SPAN.all}`}>{locked}</div> : null}
 
-      {week.length > 0 ? (
-        <Section id="week" title="Reports this week">
-          <Week days={week} />
+      {showWeek ? (
+        <Section id="week" title="Reports this week" span={weekBeside ? `${SPAN.narrow} ${weekUnderDo ? "lg:col-start-1" : ""}` : SPAN.all}>
+          <Week days={week} beside={weekBeside} />
         </Section>
       ) : null}
 
-      {since && since.cards.length > 0 ? (
-        <Section id="since" title="Since you last opened" count={`${since.count} new`}>
-          <SharedCards cards={since.cards} label="New since your last visit" />
+      {since && showSince ? (
+        <Section id="since" title="Since you last opened" count={`${since.count} new`} span={sinceBeside ? SPAN.wide : SPAN.all}>
+          <SharedCards cards={since.cards} label="New since your last visit" grid={sinceBeside ? PAIR : THREE} />
         </Section>
       ) : null}
-
     </div>
   );
 }

@@ -179,3 +179,48 @@ describe("the runner and the example account", () => {
     expect(runs.every((key) => key.startsWith("tm_agent_runs/example-portfolio__"))).toBe(true);
   });
 });
+
+describe("agents that watch our call", () => {
+  const STATE = (call: string, trim: number, changes: unknown[] = []) => ({ call, levels: { accumulate_below: 100, trim_above: trim }, changes });
+
+  it("reads our call for each name, levels from the call's state for a stock not on the list, and keeps the reason off uncovered stocks", async () => {
+    seedUser({ tracked_stocks: ["US_NVDA", "US_TSLA"], covered_stocks: ["US_NVDA"] });
+    store.docs.set("tm_call_stability/US_NVDA", STATE("Trim", 230, [{ date: "2026-11-11", from: "Hold", to: "Trim", reason: "Ran past fair value." }]));
+    store.docs.set("tm_call_stability/US_TSLA", STATE("Hold", 320, [{ date: "2026-11-11", from: "Add", to: "Hold", reason: "Secret reason." }]));
+    store.docs.set("tm_call_stability/US_ORCL", STATE("Trim", 250));
+    const { resolveScope } = await import("./agent-jobs-data");
+    const mine = await resolveScope("u1", { kind: "watchlist" }, { calls: true });
+    expect(mine.calls?.NVDA).toEqual({ call: "Trim", changes: [{ date: "2026-11-11", from: "Hold", to: "Trim", reason: "Ran past fair value." }] });
+    expect(mine.calls?.TSLA).toEqual({ call: "Hold", changes: [{ date: "2026-11-11", from: "Add", to: "Hold", reason: null }], locked: true });
+    // The list's own levels win; nothing new is added for a listed stock.
+    expect(mine.levels.NVDA).toEqual({ add_below: 150, trim_above: 220 });
+
+    const named = await resolveScope("u1", { kind: "tickers", tickers: ["ORCL"] }, { calls: true });
+    // Free and ORCL is not covered: the call is free, its levels are not.
+    expect(named.calls?.ORCL).toMatchObject({ call: "Trim", locked: true });
+    expect(named.levels.ORCL).toEqual({ add_below: null, trim_above: null, locked: true });
+
+    seedUser({ tracked_stocks: ["US_NVDA"], isSubscribed: true, subscriptionStatus: "active" });
+    const pro = await resolveScope("u1", { kind: "tickers", tickers: ["ORCL", "AMD"] }, { calls: true });
+    expect(pro.levels.ORCL).toEqual({ add_below: 100, trim_above: 250 });
+    expect(pro.calls?.AMD).toEqual({ call: null, changes: [] });
+    // Without the option nothing extra is read.
+    expect((await resolveScope("u1", { kind: "tickers", tickers: ["ORCL"] })).calls).toBeUndefined();
+  });
+
+  it("a run remembers the calls it saw on the job, and a dry run writes nothing", async () => {
+    seedUser({ tracked_stocks: ["US_NVDA"], isSubscribed: true, subscriptionStatus: "active" });
+    store.docs.set("tm_call_stability/US_NVDA", STATE("Trim", 230));
+    const { createJob, runJob, getJob } = await import("./agent-jobs-data");
+    const draft = { template: "sell-zone", name: "When to sell some", trigger: { type: "price" as const, rule: "enters_sell_zone" as const }, scope: { kind: "tickers" as const, tickers: ["NVDA"] } };
+    const job = await createJob("u1", draft, new Date("2026-11-11T12:00:00Z"), 20, "pro");
+    const now = new Date("2026-11-12T22:00:00Z");
+    await runJob(job, now, { dryRun: true });
+    expect((await getJob("u1", job.id))?.calls_seen).toBeUndefined();
+    const outcome = await runJob(job, now);
+    expect(outcome.status).toBe("recorded");
+    expect((await getJob("u1", job.id))?.calls_seen).toEqual({ NVDA: "Trim" });
+    // The run record itself does not carry the memory.
+    if (outcome.status === "recorded") expect("calls_seen" in outcome.run).toBe(false);
+  });
+});

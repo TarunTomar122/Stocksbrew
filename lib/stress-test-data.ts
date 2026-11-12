@@ -18,7 +18,7 @@ import {
 import type { UserDoc } from "@/lib/watchlist";
 
 /**
- * Server inputs for /portfolio/stress: each holding's adjusted daily closes
+ * Server inputs for the crash replay on Analysis (/portfolio/xray#crashes): each holding's adjusted daily closes
  * from `tm_price_history_daily` (backend/agentdata/prices.py), cut down to the
  * closes at each episode's edges, and today's weights from the example
  * portfolio or the signed-in person's holdings. Read-only.
@@ -83,6 +83,22 @@ export async function buildStressView(
   const weighted = weightHoldings(input);
   if (weighted.holdings.length === 0) return null;
   const closes = await loadEpisodeCloses([...weighted.holdings.map((holding) => holding.ticker), BENCHMARK_SYMBOL]);
+  return stressViewFrom(input, mode, pricesAsOf, closes);
+}
+
+/**
+ * The same view from episode edges a caller already has (Analysis reads each holding's whole history once and
+ * cuts both its year of closes and these edges from it, lib/portfolio-analysis/load.ts). Keyed by upper-case symbol,
+ * with the S&P 500 (SPY) among them; a symbol missing from the map has no history.
+ */
+export function stressViewFrom(
+  input: Array<{ ticker: string; name: string; value: number | null }>,
+  mode: StressView["mode"],
+  pricesAsOf: string | null,
+  closes: ReadonlyMap<string, EpisodeCloses>,
+): StressView | null {
+  const weighted = weightHoldings(input);
+  if (weighted.holdings.length === 0) return null;
   const benchmark = closes.get(BENCHMARK_SYMBOL) ?? null;
   const result = runStressTest(weighted, closes, benchmark);
   return {

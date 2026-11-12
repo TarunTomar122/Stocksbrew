@@ -1,5 +1,4 @@
 import Link from "next/link";
-import * as React from "react";
 
 import { Bar } from "@/components/oa/kit/skeleton";
 import { FitRows } from "@/components/agent-log/fit-rows";
@@ -7,23 +6,18 @@ import { FitCards } from "@/components/portfolio-home/fit-cards";
 import { FoldCards } from "@/components/portfolio-home/fold-cards";
 import { StockLogo } from "@/components/stock-logo";
 import { fmtPlanDay } from "@/lib/dividend-plan";
-import { memoFacts, toolHref, type MemoFact } from "@/lib/portfolio-home/focus";
-import { TOOL_GROUPS, toolCard, type ToolId } from "@/lib/portfolio-home/pick";
-import { feedSources, type HomeLoad } from "@/lib/portfolio-home/server";
-import { callHref, flaggedMove, flagStep, flagWords } from "@/lib/portfolio-home/example-check";
-import { loadExampleChecks } from "@/lib/portfolio-home/example-check-server";
-import { ATTENTION, bookLead, extraFacts, leadParts, nextReportStep, reportAhead, sayMonthOnce, signedPct, stockCards, type BookSource, type StockCard } from "@/lib/portfolio-home/stocks";
+import { memoFacts, type MemoFact } from "@/lib/portfolio-home/focus";
+import type { HomeLoad } from "@/lib/portfolio-home/server";
+import { ATTENTION, extraFacts, sayMonthOnce, signedPct, stockCards, type StockCard } from "@/lib/portfolio-home/stocks";
 
 /**
- * My stocks, about the person's stocks (owner, Nov 11): one read on how they did today and over the past week against
- * the S&P 500 with the next step, then every holding as a small card (move, gain, our call with its own level, and the one thing that
- * matters for it now), the ones that need the person first and the quiet rest folded under them. The portfolio tools
- * are one card of small tiles at the foot of the rail. Each part waits only for its own sources (lib/portfolio-home/server.ts).
+ * My stocks, about the person's stocks (owner, Nov 11): every holding as a small card (move, gain, our call with its own level, and the one thing that
+ * matters for it now), the ones that need the person first and the quiet rest folded under them, and the weekly memo's
+ * figures in the rail. Each part waits only for its own sources (lib/portfolio-home/server.ts).
  */
 
 const FOCUS = "outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]";
 const CARD = "oa-surface min-w-0 overflow-hidden border border-oa-border bg-oa-card";
-const H2 = "text-pretty text-[16px] font-semibold leading-[22px] tracking-[-0.005em] text-oa-fg sm:text-[17px] sm:leading-6";
 
 /** "$91.85", "$1,204": a share price, with cents under $1,000. */
 function sharePrice(value: number): string {
@@ -34,106 +28,6 @@ function sharePrice(value: number): string {
 function tone(value: number | null): string {
   if (value === null || Math.abs(value) < 0.005) return "text-oa-fg";
   return value > 0 ? "text-signal-bullish" : "text-signal-bearish";
-}
-
-/* ── the lead: how the stocks did ──────────────────────────────────────── */
-
-const TONE_TEXT = { up: "text-signal-bullish", down: "text-signal-bearish" } as const;
-
-/** How long the lead waits for the example agents' flag before its step falls back to the next report. */
-const STEP_MS = 1200;
-
-/**
- * The step after the lead: the example agents' flag ending on its price, then our call ("Your agent flagged NVDA's
- * 5.5% drop to $168.89 on Nov 10. Check our call on NVDA before the report."), else, for your own stocks, the soonest report on a holding.
- * The example's report day is its NVDA card's ("Reports Nov 17, after the close."), so the lead does not say it again
- * (owner rule 1, judges ship 50), and with no flag there is no step.
- */
-async function leadStep(source: BookSource): Promise<{ ticker: string; step: string } | null> {
-  if (source.mode === "example") {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const late = new Promise<null>((resolve) => {
-      timer = setTimeout(() => resolve(null), STEP_MS);
-    });
-    const flag = await Promise.race([loadExampleChecks().catch(() => null), late]).finally(() => clearTimeout(timer));
-    const move = flaggedMove(flag, source.today);
-    // Only a holding of the example's: a flag on a stock it does not hold is not this list's step.
-    const held = move ? source.portfolio.positions.find((position) => position.ticker === move.ticker && position.kind === "holding") : undefined;
-    if (!move || !held) return null;
-    // The same words as the briefing's card and the inbox's read on this flag: the flag, then the step.
-    return { ticker: move.ticker, step: `${flagWords(move, null, source.today)} ${flagStep(move.ticker, reportAhead(held.nextEarnings, source.today))}` };
-  }
-  return nextReportStep(source);
-}
-
-/**
- * How the stocks did, as one read (judges, ship 46: three money tiles were counts, not a read): the headline against
- * the S&P 500, the day, the last five trading days and the total gain inside plain sentences, each with its baseline,
- * and the next step (the flagged holding's report, or the soonest report on one), which opens that stock at our call.
- */
-export async function BookLead({ load }: { load: HomeLoad }) {
-  const book = await load.book;
-  if (book.state !== "ready") return null;
-  const lead = bookLead(book.value);
-  if (!lead) return null;
-  const parts = leadParts(lead, book.value.mode === "example");
-  return (
-    <section aria-labelledby="book-head" className={`${CARD} px-4 py-3.5 sm:px-5`}>
-      <h2 id="book-head" className={H2}>
-        {lead.headline}
-      </h2>
-      {parts.length > 0 ? (
-        <p className="mt-1.5 text-pretty text-[14px] leading-[21px] text-oa-muted-fg">
-          {parts.map((sentence, index) => (
-            <React.Fragment key={index}>
-              {index > 0 ? " " : null}
-              {sentence.map((part, at) =>
-                part.tone ? (
-                  <span key={at} className={`oa-mono font-semibold tabular-nums ${TONE_TEXT[part.tone]}`}>
-                    {part.text}
-                  </span>
-                ) : (
-                  <React.Fragment key={at}>{part.text}</React.Fragment>
-                ),
-              )}
-            </React.Fragment>
-          ))}
-        </p>
-      ) : null}
-      {/* The step streams in on its own, so the read never waits on the agents' runs (owner rule 11). */}
-      <React.Suspense fallback={null}>
-        <LeadStep source={book.value} />
-      </React.Suspense>
-    </section>
-  );
-}
-
-async function LeadStep({ source }: { source: BookSource }) {
-  const step = await leadStep(source);
-  if (!step) return null;
-  return (
-    <Link
-      href={callHref(step.ticker)}
-      prefetch={false}
-      data-track-links="insight_clicked"
-      data-track-insight-kind="home-lead-step"
-      className={`-mx-4 -mb-3.5 mt-3 flex items-center gap-2.5 border-t border-oa-border px-4 py-2.5 text-pretty text-[14px] leading-5 text-oa-fg transition-colors hover:bg-oa-accent sm:-mx-5 sm:px-5 ${FOCUS}`}
-    >
-      <StockLogo ticker={step.ticker} size={20} eager />
-      <span className="min-w-0">{step.step}</span>
-    </Link>
-  );
-}
-
-export function BookLeadGhost() {
-  return (
-    <div aria-hidden="true" className={`${CARD} px-4 py-3.5 sm:px-5`}>
-      <Bar className="h-5 w-80 max-w-full" />
-      <Bar className="mt-2.5 h-3.5 w-full" />
-      <Bar className="mt-1.5 h-3.5 w-2/3" />
-      <Bar className="mt-4 h-4 w-3/4" />
-    </div>
-  );
 }
 
 /* ── the stocks ────────────────────────────────────────────────────────── */
@@ -287,59 +181,11 @@ export function StockListGhost() {
   );
 }
 
-/* ── the tools, at the foot of the rail ────────────────────────────────── */
-
-/** "$62" reads as the year's dividends only with the words. */
-function toolFigure(id: ToolId, figure: string): string {
-  return id === "dividends" ? `${figure} a year` : figure;
-}
-
-/**
- * The portfolio tools that have something to show, as one card at the foot of the rail (owner, Nov 12: a loose strip
- * of links between two cards was "wtf is that"): small tiles two across, each the tool's name with its figure under
- * it ("Stress test", "−32%"), the tile itself the link. An odd last tile keeps its one column (owner rule 3). Tools with
- * nothing to show, or only an empty state ("Nothing to trim"), are left to the menu (owner rule 4). The weekly memo is
- * left out when its own figures sit in the rail (`MemoFigures`), so it is not linked twice.
- */
-export async function ToolsCard({ load }: { load: HomeLoad }) {
-  const [{ mode }, sources, goal] = await Promise.all([load.context, feedSources(load), load.sources.goal]);
-  const all = { ...sources, goal };
-  const memoShown = railMemoFacts(sources.memo).length > 0;
-  const tools = TOOL_GROUPS.flatMap((group) => group.tools)
-    .filter((id) => !(id === "memo" && memoShown))
-    .map((id) => ({ id, card: toolCard(id, all, mode) }))
-    .filter(({ card }) => card.figure !== null && !card.empty);
-  if (tools.length === 0) return null;
-  return (
-    <nav aria-labelledby="tools-head" className={`${CARD} px-4 py-3`}>
-      <h2 id="tools-head" className="text-[14px] font-semibold leading-5 text-oa-fg">
-        Tools
-      </h2>
-      <ul className="mt-2 grid grid-cols-2 gap-1.5">
-        {tools.map(({ id, card }) => (
-          <li key={id} className="min-w-0">
-            <Link
-              href={toolHref(id, mode)}
-              prefetch={false}
-              data-track-links="insight_clicked"
-              data-track-insight-kind={`home-tool-${id}`}
-              className={`block h-full rounded-lg border border-oa-border bg-oa-bg px-2.5 py-2 transition-colors hover:bg-oa-accent ${FOCUS}`}
-            >
-              <span className="block truncate text-[13px] font-medium leading-5 text-oa-fg">{card.title}</span>
-              <span className="oa-mono mt-0.5 block truncate text-[12px] leading-4 tabular-nums text-oa-muted-fg">{toolFigure(id, card.figure!)}</span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </nav>
-  );
-}
-
 /* ── the weekly memo, in the rail ─────────────────────────────────────── */
 
 const FACT_TONE: Record<MemoFact["tone"], string> = { up: "text-signal-bullish", down: "text-signal-bearish", flat: "text-oa-fg" };
 
-/** The memo facts the rail shows: all but the week, which is the lead's. None when the memo is not ready. */
+/** The memo facts the rail shows: all but the week's own return (no summary figure, owner rule 7). None when the memo is not ready. */
 function railMemoFacts(memo: Awaited<HomeLoad["sources"]["memo"]> | undefined): MemoFact[] {
   return memo?.state === "ready" ? memoFacts(memo.value.memo).filter((fact) => fact.id !== "week") : [];
 }
@@ -354,7 +200,7 @@ function moverPoints(points: number): string {
  * across (logo, ticker, its points of the portfolio's week, and its own move under them), the
  * biggest share first, up or down. On a wide screen the card sits in a box that ends with the holdings beside it
  * (my-stocks.tsx `[data-memo-box]`): the cards fill what the box leaves and the rest scroll inside, so the rail and the
- * holdings end together (owner rule 4). The week itself is the lead's, so it is not repeated. Nothing when the memo has neither.
+ * holdings end together (owner rule 4). The week's own return is left out (owner rule 7). Nothing when the memo has neither.
  */
 export async function MemoFigures({ load }: { load: HomeLoad }) {
   const memo = await load.sources.memo;
@@ -403,17 +249,14 @@ export async function MemoFigures({ load }: { load: HomeLoad }) {
           <span className="mt-3 block shrink-0 text-[12.5px] leading-[17px] text-oa-muted-fg">{complete ? "What moved the week" : "What moved the week so far"}</span>
           {/* Each mover a small card side by side (owner rule 3: the memo is cards and charts): the stock, its points of
               the portfolio's week as the figure, and its own move under them. An odd last card
-              takes the row (owner rule 4). On a wide screen the rows that fit show whole and the rest scroll inside, with
+              keeps its one column (owner rule 4). On a wide screen the rows that fit show whole and the rest scroll inside, with
               no visible bar (../agent-log/fit-rows.tsx). */}
           <FitRows box="[data-memo-box]" className="mt-1.5 grid grid-cols-2 gap-1.5 scrollbar-hide lg:min-h-0 lg:overflow-y-auto">
-            {movers.map((move, index) => {
+            {movers.map((move) => {
               const up = move.points >= 0;
               const own = Math.abs(move.pct) < 0.05 ? "barely moved" : `${move.pct > 0 ? "rose" : "fell"} ${Math.abs(move.pct).toFixed(1)}%`;
               return (
-                <li
-                  key={move.ticker}
-                  className={`rounded-lg border border-oa-border bg-oa-bg px-2.5 py-2 ${index === movers.length - 1 && movers.length % 2 === 1 ? "col-span-2" : ""}`}
-                >
+                <li key={move.ticker} className="rounded-lg border border-oa-border bg-oa-bg px-2.5 py-2">
                   <span className="flex min-w-0 items-center gap-1.5 text-[13px] leading-5">
                     <StockLogo ticker={move.ticker} size={16} />
                     <span className="oa-mono min-w-0 truncate font-semibold text-oa-fg">{move.ticker}</span>

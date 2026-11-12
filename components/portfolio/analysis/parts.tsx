@@ -4,19 +4,27 @@ import * as React from "react";
 import { StockLogo } from "@/components/stock-logo";
 
 /**
- * The analysis page's building blocks. One fixed card width (304px) for a figure, two (624px) for a chart, in a
- * grid that wraps and never stretches a card to fill a row; one column on a phone. A figure card is a few-word
- * label, one big number and at most one short line. Lists show about eight rows and scroll inside, then hand the
- * scroll back to the page (no overscroll containment).
+ * The analysis page's building blocks. Each module is a 12-column grid that fills the page frame (90rem at most,
+ * centred), with related panels paired side by side (7/5, 8/4) and a lone panel taking the row; one column on a
+ * phone. Rows align at the top, so a short panel is never stretched down to a tall neighbour. A figure is a few-word
+ * label, one big number and at most one short line. Dense tables show about eight rows and scroll inside, then hand
+ * the scroll back to the page (no overscroll containment); card lists fold behind "Show N more" instead.
  */
 
 export const NUM = "oa-mono tabular-nums";
 export const CARD = "oa-surface flex min-w-0 flex-col border border-oa-border bg-oa-card";
-export const WIDE = "md:col-span-2";
-/** A chart that must start its own row, so it never sits beside (and stretches) a figure card. */
-export const NEW_ROW = "md:col-start-1";
-/** About eight 32px rows. */
+/** About eight 32px rows, cut so a part of the next one shows. */
 export const LIST = "max-h-[16.5rem] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
+
+/** Column spans on the 12-column grid, written out whole so Tailwind finds them. */
+export const SPAN = {
+  4: "lg:col-span-4",
+  5: "lg:col-span-5",
+  6: "lg:col-span-6",
+  7: "lg:col-span-7",
+  8: "lg:col-span-8",
+  12: "lg:col-span-12",
+} as const;
 
 export const UP = "var(--signal-bullish)";
 export const DOWN = "var(--signal-bearish)";
@@ -68,13 +76,39 @@ export function monthName(month: string): string {
   return MONTHS[Number(month.slice(5, 7)) - 1] ?? month;
 }
 
-/** One module: a quiet title and its cards in the fixed-width grid. */
+/**
+ * One module: a quiet title and its panels on the 12-column grid. Each child says its own span (SPAN); rows align
+ * at the top. The scroll margin clears the sticky section links (and, on a phone, the app bar above them).
+ */
 export function Module({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   return (
-    <section id={id} aria-label={title} className="scroll-mt-20">
+    <section id={id} aria-label={title} className="scroll-mt-28 lg:scroll-mt-16">
       <h2 className="mb-2 px-2 text-[15px] font-medium leading-5 text-oa-fg sm:px-0">{title}</h2>
-      <div className="grid grid-cols-1 gap-3 md:[grid-template-columns:repeat(auto-fill,304px)] md:gap-4">{children}</div>
+      <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-12 lg:gap-4">{children}</div>
     </section>
+  );
+}
+
+export type Cell = { key: string; label: React.ReactNode; figure: React.ReactNode; line?: React.ReactNode; tone?: number | null };
+
+/**
+ * Several figures in ONE card, divided by hairlines (the swings, the mix): label, big number, one line each. `cols`
+ * is the grid's own column classes. The -1px margins tuck each cell's right and bottom hairline under the card's
+ * edge, so only the lines between cells show at any column count.
+ */
+export function FigureStrip({ cells, cols, label, className = "" }: { cells: Cell[]; cols: string; label: string; className?: string }) {
+  return (
+    <div className={`${CARD} overflow-hidden ${className}`}>
+      <dl aria-label={label} className={`grid ${cols}`}>
+        {cells.map((cell) => (
+          <div key={cell.key} className="-mb-px -mr-px flex min-w-0 flex-col gap-1 border-b border-r border-oa-border px-4 py-3">
+            <dt className="text-[12.5px] leading-4 text-oa-muted-fg">{cell.label}</dt>
+            <dd className={`${NUM} text-[28px] font-medium leading-9 tracking-[-0.01em] ${cell.tone === undefined ? "text-oa-fg" : toneClass(cell.tone)}`}>{cell.figure}</dd>
+            {cell.line ? <dd className="text-[13px] leading-[18px] text-oa-muted-fg">{cell.line}</dd> : null}
+          </div>
+        ))}
+      </dl>
+    </div>
   );
 }
 
@@ -104,26 +138,22 @@ export function FigureCard({
   );
 }
 
-/** A titled card for a chart or a list. `wide` takes two columns from md up. */
+/** A titled card for a chart or a list. Its span on the module grid comes in `className` (SPAN). */
 export function ChartCard({
   title,
   aside,
-  wide = true,
   flush = false,
-  newRow = false,
   children,
   className = "",
 }: {
   title: React.ReactNode;
   aside?: React.ReactNode;
-  wide?: boolean;
   flush?: boolean;
-  newRow?: boolean;
   children: React.ReactNode;
   className?: string;
 }) {
   return (
-    <div className={`${CARD} ${wide ? WIDE : ""} ${newRow ? NEW_ROW : ""} ${className}`}>
+    <div className={`${CARD} ${className}`}>
       <div className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-oa-border px-4 py-2">
         <h3 className="min-w-0 text-[14px] font-medium leading-5 text-oa-fg">{title}</h3>
         {aside ? <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px] text-oa-muted-fg">{aside}</div> : null}

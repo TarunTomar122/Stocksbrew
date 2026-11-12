@@ -15,7 +15,6 @@ import {
 import { captureEvent } from "@/lib/posthog";
 import { trackAlertCreated, trackLimitHit } from "@/lib/product-analytics";
 import { signInWithGoogle } from "@/lib/sign-in";
-import { limitFor } from "@/lib/entitlements";
 
 /**
  * Alerts for one stock: the levels from our call, the next earnings date, and
@@ -298,11 +297,13 @@ export function AlertControls({
         </button>
       </form>
 
+      {/* Only a status after an action (saved, limit reached, error); no standing explainer line (owner, Nov 12). The
+          role="status" region stays mounted so screen readers announce the result. */}
       <p
         role="status"
-        className={`px-3.5 pb-2.5 text-[12px] leading-4 sm:px-4 ${wide && !split ? "md:py-2.5" : ""} ${status?.tone === "error" ? "text-signal-bearish" : "text-oa-muted-fg"}`}
+        className={`px-3.5 text-[12px] leading-4 sm:px-4 ${status?.text ? `pb-2.5 ${wide && !split ? "md:py-2.5" : ""}` : ""} ${status?.tone === "error" ? "text-signal-bearish" : "text-oa-muted-fg"}`}
       >
-        {status?.text ?? `Alerts arrive by email. Free keeps ${limitFor("price_alerts", "free")} price alerts; earnings and call-change alerts are part of Pro.`}
+        {status?.text ?? ""}
       </p>
       </div>
     </div>

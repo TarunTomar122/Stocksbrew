@@ -172,10 +172,10 @@ const TABLE = {
     pro: open,
     lock: {
       title: "Sign in to see your analytics",
-      body: "Allocation, concentration and performance against the S&P 500 for whatever you add. Free.",
+      body: "How your money sits, what reports soon and our calls on your holdings are free. Pro adds the rest.",
     },
   },
-  // What you own (/portfolio/xray): how the money sits, what reports soon and our calls stay free; the work of
+  // Analysis (/portfolio/xray): how the money sits, what reports soon and our calls stay free; the work of
   // opening funds and walking the mix through a year of prices and past crashes is what Pro adds.
   portfolio_analysis_deep: {
     name: "Deeper portfolio analysis: inside your funds, share of the swings, names that move together, past crashes, what made the money",

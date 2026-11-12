@@ -50,18 +50,14 @@ export async function OnePlace() {
     <Reveal delay={60}>
       <div className="oa-surface overflow-hidden border border-oa-border bg-oa-card">
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-oa-border px-4 py-3.5 sm:px-5">
-          <p className="text-[15px] leading-6 text-oa-fg">
-            {view.value} across {view.count}
+          {/* The portfolio's value and the day's move only: the cards below already say what it holds (owner rule 8). */}
+          <p className="oa-mono flex items-baseline gap-2.5 tabular-nums">
+            <span className="text-[22px] font-semibold leading-7 tracking-[-0.01em] text-oa-fg">{view.value}</span>
             {view.day ? (
-              <>
-                , <span className={`font-medium tabular-nums ${tone}`}>{view.day.text}</span> {view.day.when}.
-              </>
-            ) : (
-              "."
-            )}
-            {view.calls ? ` ${view.calls}` : ""}
-            {view.pending ? ` ${view.pending}` : ""}
-            {view.watching ? ` ${view.watching}` : ""}
+              <span className="text-[15px] leading-6">
+                <span className={`font-medium ${tone}`}>{view.day.text}</span> <span className="font-sans text-oa-muted-fg">{view.day.when}</span>
+              </span>
+            ) : null}
           </p>
           {/* The snapshot's day, said once: the same prices as /portfolio, /briefing and /inbox (judges, ship 42). */}
           <p className="text-[13px] leading-5 text-oa-muted-fg">

@@ -53,11 +53,30 @@ CUSIP_COLLECTION = "tm_etf_cusip_map"
 META_PATH = "tm_etf_meta/latest"
 SCHEMA_VERSION = 1
 
-# The biggest US equity ETFs by assets plus the sector funds people ask about.
-DEFAULT_ETFS = [
-    "SPY", "VOO", "IVV", "VTI", "QQQ", "DIA", "IWM", "XLK",
-    "SMH", "SOXX", "VUG", "VGT", "SCHD", "VYM", "ARKK",
-]
+# The biggest US equity ETFs by assets plus the sector funds people ask about, then
+# every fund in backend/config/popular_funds.json (the list the fund pages cover).
+_POPULAR_FUNDS_PATH = Path(__file__).resolve().parents[1] / "config" / "popular_funds.json"
+
+
+def _popular_fund_tickers() -> list[str]:
+    try:
+        payload = json.loads(_POPULAR_FUNDS_PATH.read_text())
+    except (OSError, json.JSONDecodeError):
+        return []
+    return [str(row.get("ticker") or "").strip().upper() for row in payload.get("funds") or [] if str(row.get("ticker") or "").strip()]
+
+
+DEFAULT_ETFS = list(
+    dict.fromkeys(
+        [
+            "SPY", "VOO", "IVV", "VTI", "QQQ", "DIA", "IWM", "XLK",
+            "SMH", "SOXX", "VUG", "VGT", "SCHD", "VYM", "ARKK",
+            *_popular_fund_tickers(),
+        ]
+    )
+)
+# Funds the fund facts job confirmed (backend/agentdata/fund_facts.py), held ones included.
+FUND_META_PATH = "tm_fund_meta/latest"
 
 # ETFs organised as unit investment trusts have no series id in the SEC's fund
 # ticker file; their N-PORT filings sit under the trust's own CIK.
@@ -689,6 +708,8 @@ def main(argv: list[str] | None = None) -> int:
     tickers = [ticker.strip().upper() for ticker in args.etfs.split(",")] if args.etfs else list(DEFAULT_ETFS)
     if not args.etfs and not args.no_tracked:
         extra = [ticker for ticker in tracked_fund_tickers(store, fund_series_by_ticker()) if ticker not in tickers]
+        confirmed = sorted(str(ticker).upper() for ticker in ((store.get(FUND_META_PATH) or {}).get("funds") or {}))
+        extra += [ticker for ticker in confirmed if ticker not in tickers and ticker not in extra]
         if extra:
             log(f"adding funds users track: {', '.join(extra)}")
         tickers += extra

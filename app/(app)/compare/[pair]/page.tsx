@@ -4,7 +4,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { CompareView } from "@/components/compare-desk/compare-view";
 import { JsonLd, breadcrumbLd } from "@/components/docs/json-ld";
 import { closeWords } from "@/lib/benchmark-day";
-import { AppPage, CardGrid, PageHead, Panel, SourceLine, fmtDay } from "@/components/oa/kit";
+import { AppPage, PageHead, Panel, SourceLine, fmtDay } from "@/components/oa/kit";
 import { todayET } from "@/lib/calendar-shared";
 import { getViewer } from "@/lib/entitlements-server";
 import { ogImage } from "@/lib/og/url";
@@ -142,9 +142,11 @@ export default async function PairPage({ params, searchParams }: Props) {
         viewer={viewer}
       />
 
-      <CardGrid cols={3} className="mt-5">
+      {/* Each list ends where it ends: no card padded to a taller neighbour's height (owner rule 4). A plain grid, not
+          CardGrid, whose cards stretch to the row on purpose. */}
+      <div className="mt-5 grid grid-cols-1 items-start gap-3 md:grid-cols-2 xl:grid-cols-3">
         {more.map(({ row, pairs }) => (
-          <Panel key={row.symbol} flush fill label={`${row.symbol} against its other rivals`}>
+          <Panel key={row.symbol} flush label={`${row.symbol} against its other rivals`}>
             {pairs.length ? (
               <LinkList items={pairs.map((item) => ({ href: pairHref(item.a, item.b), label: label(item) }))} />
             ) : (
@@ -152,7 +154,7 @@ export default async function PairPage({ params, searchParams }: Props) {
             )}
           </Panel>
         ))}
-        <Panel flush fill label="More on these two">
+        <Panel flush label="More on these two">
           <LinkList
             items={[
               { href: `/stock/${encodeURIComponent(first.symbol)}`, label: `${stockLabel(first.name, first.symbol)} report` },
@@ -165,7 +167,7 @@ export default async function PairPage({ params, searchParams }: Props) {
             ]}
           />
         </Panel>
-      </CardGrid>
+      </div>
     </AppPage>
   );
 }

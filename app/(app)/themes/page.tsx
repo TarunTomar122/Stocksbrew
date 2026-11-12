@@ -5,6 +5,8 @@ import { BASKET_BENCHMARK, BASKET_WINDOWS, getBaskets, type Basket, type BasketW
 import { ogImage } from "@/lib/og/url";
 import Link from "next/link";
 
+import { StockLogo } from "@/components/stock-logo";
+
 // Prices behind the basket returns move during the day; never freeze this page at build time.
 export const revalidate = 300;
 
@@ -26,7 +28,8 @@ export function generateMetadata(): Metadata {
 }
 
 /** One grid for the head row, the S&P 500 row and every basket, so the numbers line up in columns. */
-const ROW = "lg:grid lg:grid-cols-[1.75rem_minmax(0,1fr)_repeat(4,4.75rem)] lg:items-center lg:gap-x-4 xl:grid-cols-[1.75rem_minmax(0,1fr)_15rem_repeat(4,5.25rem)]";
+// The idea column is capped so the leading names, with their logos, take the room (owner, Nov 12: "reduce first column width and add logos").
+const ROW = "lg:grid lg:grid-cols-[1.75rem_minmax(12rem,17rem)_minmax(0,1fr)_repeat(4,4.75rem)] lg:items-center lg:gap-x-4 xl:grid-cols-[1.75rem_minmax(14rem,20rem)_minmax(0,1fr)_repeat(4,5.25rem)]";
 const LEAD_WINDOW: BasketWindow = "ret_ytd";
 
 function Pct({ value, lead = false }: { value: number | null | undefined; lead?: boolean }) {
@@ -51,8 +54,8 @@ function BasketRow({ basket, index }: { basket: Basket; index: number }) {
               <Pct value={basket.perf[LEAD_WINDOW]?.pct} lead />
             </span>
           </span>
-          <span className="line-clamp-2 max-w-[70ch] text-[14px] leading-5 text-oa-muted-fg lg:line-clamp-1">{basket.thesis}</span>
-          <span className={`${NUM} mt-1 block truncate text-[12.5px] leading-[18px] text-oa-muted-fg xl:hidden`}>
+          <span className="line-clamp-2 max-w-[70ch] text-[13.5px] leading-5 text-oa-muted-fg lg:line-clamp-1" title={basket.thesis}>{basket.thesis}</span>
+          <span className={`${NUM} mt-1 block truncate text-[12.5px] leading-[18px] text-oa-muted-fg lg:hidden`}>
             {tickers}
             {more}
             {partial ? ` · ${priced} of ${basket.size} lines priced` : ""}
@@ -65,10 +68,18 @@ function BasketRow({ basket, index }: { basket: Basket; index: number }) {
             ))}
           </span>
         </span>
-        <span className={`${NUM} hidden min-w-0 truncate text-[12.5px] text-oa-muted-fg xl:block`}>
-          <span className="text-oa-fg">{tickers}</span>
-          {more}
-          {partial ? ` · ${priced}/${basket.size} priced` : ""}
+        <span className={`${NUM} hidden min-w-0 items-center gap-x-3 overflow-hidden text-[13px] text-oa-muted-fg lg:flex`}>
+          {/* Two names at lg, three at xl, four on wide screens: whole names only, never one cut off at the edge. */}
+          {basket.lead.map((item, i) => (
+            <span key={item.ticker} className={`shrink-0 items-center gap-1.5 text-oa-fg ${i < 2 ? "flex" : i < 3 ? "hidden xl:flex" : "hidden 2xl:flex"}`}>
+              <StockLogo ticker={item.ticker} size={18} circle eager />
+              {item.ticker}
+            </span>
+          ))}
+          {basket.size > 2 ? <span className="shrink-0 xl:hidden">+{basket.size - 2}</span> : null}
+          {basket.size > 3 ? <span className="hidden shrink-0 xl:inline 2xl:hidden">+{basket.size - 3}</span> : null}
+          {basket.size > 4 ? <span className="hidden shrink-0 2xl:inline">+{basket.size - 4}</span> : null}
+          {partial ? <span className="shrink-0">{`${priced}/${basket.size} priced`}</span> : null}
         </span>
         {BASKET_WINDOWS.map((window) => (
           <span key={window.id} className="hidden text-right lg:block">
@@ -118,7 +129,7 @@ export default async function ThemesPage() {
               <span>
                 {baskets.length} ideas, {lines} lines
               </span>
-              <span className="hidden xl:block">Leading names</span>
+              <span className="hidden lg:block">Leading names</span>
               {BASKET_WINDOWS.map((window) => (
                 <span key={window.id} className={`text-right ${window.id === LEAD_WINDOW ? "text-oa-fg" : ""}`}>
                   {window.label}
@@ -138,7 +149,7 @@ export default async function ThemesPage() {
                     <Pct value={benchmark[LEAD_WINDOW]} />
                   </span>
                 </span>
-                <span className="hidden xl:block" />
+                <span className="hidden lg:block" />
                 {BASKET_WINDOWS.map((window) => (
                   <span key={window.id} className={`${NUM} hidden text-right lg:block`}>
                     {benchmark[window.id] == null ? "n/a" : `${benchmark[window.id]! > 0 ? "+" : benchmark[window.id]! < 0 ? "−" : ""}${Math.abs(benchmark[window.id]!).toFixed(1)}%`}

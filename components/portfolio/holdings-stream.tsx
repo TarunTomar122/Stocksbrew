@@ -18,7 +18,8 @@ import { getLatestEarningsIntelForInstruments } from "@/lib/earnings-intel";
 import { buildHealthProps, buildIdeas, enrichIdeas, collectIdeaInstrumentIds } from "@/lib/radar-next-data";
 import { getInstrumentLabels } from "@/lib/instrument-resolver";
 import { buildHubRows } from "@/lib/watchlist-hub-data";
-import { loadExamplePortfolio, loadPortfolio, newYorkToday } from "@/lib/portfolio-data";
+import { FUNDS_SECTOR, loadExamplePortfolio, loadPortfolio, newYorkToday } from "@/lib/portfolio-data";
+import { getFundCatalog } from "@/lib/funds/server";
 import { pricesWords } from "@/lib/portfolio-prices";
 import { getMarketDay } from "@/lib/insight-data";
 import type { PortfolioRowInput, PortfolioTab } from "@/lib/portfolio-shared";
@@ -147,7 +148,7 @@ export async function HoldingsStream({ tab }: { tab: PortfolioTab }) {
 
   const ideasBase = buildIdeas(watchlistView?.suggestions);
   const ideaIds = collectIdeaInstrumentIds(ideasBase);
-  const [rowsPriced, labelsById, radarStockStates, earningsDocs, anomaliesByTicker, ideaMarket, premarketDoc, userAlerts] =
+  const [rowsPriced, labelsById, radarStockStates, earningsDocs, anomaliesByTicker, ideaMarket, premarketDoc, userAlerts, funds] =
     await Promise.all([
       overlayLatestPrices(rowsBase).catch(() => rowsBase),
       getInstrumentLabels(instrumentIds).catch(() => new Map()),
@@ -157,6 +158,7 @@ export async function HoldingsStream({ tab }: { tab: PortfolioTab }) {
       getIdeaMarketData(ideaIds).catch(() => new Map()),
       getPremarketMovers("US").catch(() => null),
       listStockAlerts(uid, { limit: 100 }).catch(() => []),
+      getFundCatalog().catch(() => new Map<string, string>()),
     ]);
   // Price zones are part of covering a stock. A Free account that follows more
   // than its covered limit (accounts from before the limit, or after Pro ends)
@@ -184,16 +186,18 @@ export async function HoldingsStream({ tab }: { tab: PortfolioTab }) {
   const inputs: PortfolioRowInput[] = hubRows.map((hub) => {
     const raw = rawById.get(hub.instrument_id);
     const directive = raw?.directive_v2 ?? raw?.ai_directive;
-    const levels = canSeeLevels(viewer, hub.instrument_id);
+    // A fund gets no call of ours and counts as a fund, not a sector (lib/funds).
+    const fund = funds.has(hub.ticker.toUpperCase());
+    const levels = !fund && canSeeLevels(viewer, hub.instrument_id);
     return {
       instrument_id: hub.instrument_id,
       ticker: hub.ticker,
-      name: hub.name,
-      sector: asString(raw?.sector_label) ?? asString(raw?.instrument_sector),
+      name: fund && hub.name.toUpperCase() === hub.ticker.toUpperCase() ? funds.get(hub.ticker.toUpperCase()) ?? hub.name : hub.name,
+      sector: fund ? FUNDS_SECTOR : asString(raw?.sector_label) ?? asString(raw?.instrument_sector),
       kind: hub.position_type,
       price: hub.price,
       day_change_pct: hub.day_change_pct,
-      stance: hub.stance,
+      stance: fund ? null : hub.stance,
       zones: levels ? directive?.zones ?? null : null,
       // "In its zone" is the zone itself, so it is only said for covered stocks.
       needs_attention: levels ? hub.needs_attention : false,

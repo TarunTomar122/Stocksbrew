@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { StockCard, StockCardGrid, fillLastRow, stockGridFill } from "@/components/briefing/stock-card";
+import { StockCard, StockCardGrid } from "@/components/briefing/stock-card";
 import { MarketingSchema } from "@/components/seo/marketing-schema";
 import { StockLogo } from "@/components/stock-logo";
 import { AppPage, PageHead, SourceLine, fmtStampET } from "@/components/oa/kit";
@@ -54,10 +54,10 @@ function SectionHead({ id, title, count }: { id?: string; title: string; count?:
 }
 
 /** A market that sets up the open, as a figure card: the change big, the level and where it trades under it. */
-function CueCard({ cue, fill = "" }: { cue: CueInput; fill?: string }) {
+function CueCard({ cue }: { cue: CueInput }) {
   const tone = cue.change_pct > 0 ? "text-signal-bullish" : cue.change_pct < 0 ? "text-signal-bearish" : "text-oa-fg";
   return (
-    <li className={`oa-surface flex min-w-0 flex-col border border-oa-border bg-oa-card px-3.5 py-3 ${fill}`}>
+    <li className={`oa-surface flex min-w-0 flex-col border border-oa-border bg-oa-card px-3.5 py-3`}>
       <p className="text-[13.5px] font-medium leading-5 text-oa-fg">{cue.label}</p>
       <p className={`oa-mono mt-1 text-[20px] font-semibold leading-7 tracking-[-0.01em] tabular-nums ${tone}`}>{gapPct(cue.change_pct)}</p>
       <p className="oa-mono mt-auto pt-0.5 text-[12.5px] tabular-nums leading-[18px] text-oa-muted-fg">
@@ -68,21 +68,20 @@ function CueCard({ cue, fill = "" }: { cue: CueInput; fill?: string }) {
   );
 }
 
-/** Two across on a phone, five from `lg`; the last card fills what its row has left. */
+/** Two across on a phone, five from `lg`; every card keeps one column (owner rule 4). */
 function CueGrid({ cues }: { cues: CueInput[] }) {
   return (
     <ul className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-      {cues.map((cue, index) => (
-        <CueCard key={cue.id} cue={cue} fill={index === cues.length - 1 && cues.length % 2 === 1 ? `col-span-2 ${fillLastRow(index, cues.length, { lg: 5 })}` : fillLastRow(index, cues.length, { lg: 5 })} />
+      {cues.map((cue) => (
+        <CueCard key={cue.id} cue={cue} />
       ))}
     </ul>
   );
 }
 
-function GapperCard({ row, fill }: { row: Gapper; fill: string }) {
+function GapperCard({ row }: { row: Gapper }) {
   return (
     <StockCard
-      fill={fill}
       ticker={row.ticker}
       name={row.name}
       figure={gapPct(row.pct, 1)}
@@ -134,8 +133,8 @@ function GapperList({ id, title, rows, verb }: { id: string; title: string; rows
       {told.length > 0 ? (
         <WholeRows rem={30} className="max-h-[30rem] overflow-y-auto scrollbar-hide">
           <StockCardGrid wide>
-            {told.map((row, index) => (
-              <GapperCard key={row.ticker} row={row} fill={stockGridFill(index, told.length, true)} />
+            {told.map((row) => (
+              <GapperCard key={row.ticker} row={row} />
             ))}
           </StockCardGrid>
         </WholeRows>

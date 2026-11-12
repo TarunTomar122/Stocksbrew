@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { captureEvent } from "@/lib/posthog";
 import { cancelSearchNoResults, trackSearchNoResults, trackSearchPerformed } from "@/lib/product-analytics";
 import type { SearchEntry } from "@/lib/search";
+import { FundTag } from "@/components/fund-page/fund-tag";
 import { getClientSearchIndex, prefetchSearchIndex } from "@/lib/search-index-client";
 import { formatSearchPct, scoreSearchEntry } from "@/lib/ticker-search-utils";
 
@@ -251,6 +252,7 @@ export function OaHeaderSearchButton({ trigger = "icon" }: { trigger?: "icon" | 
                             >
                               <span className="w-16 shrink-0 font-medium tabular-nums text-oa-fg">{r.ticker}</span>
                               <span className="min-w-0 flex-1 truncate text-oa-muted-fg">{r.name}</span>
+                              {r.fund ? <FundTag /> : null}
                               {typeof r.price === "number" ? (
                                 <span className="shrink-0 tabular-nums text-oa-fg">
                                   {r.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}

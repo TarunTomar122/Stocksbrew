@@ -7,7 +7,7 @@ import type { Memo, MemoMover } from "@/lib/memo/types";
 import { weekMoveWords } from "@/lib/memo/week";
 
 import { explainMover } from "./explain";
-import { MEMO_CARD, memoCell, memoGrid } from "./rows";
+import { MEMO_CARD, memoGrid } from "./rows";
 
 /**
  * Who moved the week, as small stock cards (owner rule 3): the logo and ticker, the holding's share of the
@@ -28,12 +28,12 @@ export function Movers({ movers, memo, example }: { movers: MemoMover[]; memo: P
         <p className="text-[12.5px] leading-5 text-oa-muted-fg">Points each added to or took off the week</p>
       </div>
       <ul className={`oa-card-grid ${memoGrid(movers.length)}`}>
-        {movers.map((mover, index) => {
+        {movers.map((mover) => {
           const explain = explainMover(memo, mover, example);
           const href = explain.evidence?.href ?? mover.href;
           const tone = mover.points >= 0 ? "text-signal-bullish" : "text-signal-bearish";
           return (
-            <li key={mover.ticker} className={memoCell(index, movers.length)}>
+            <li key={mover.ticker} className="min-w-0">
               <Link
                 href={href}
                 prefetch={false}

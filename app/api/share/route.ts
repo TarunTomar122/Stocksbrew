@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { can } from "@/lib/entitlements";
 import { getViewer } from "@/lib/entitlements-server";
 import { buildCandidates, pickVariant } from "@/lib/share/cards";
 import { loadShareFacts } from "@/lib/share/facts";
@@ -40,9 +41,14 @@ export async function GET() {
   return NextResponse.json({ shares }, { headers: NO_STORE });
 }
 
+/** Cards built from the Pro-only part of Analysis (/portfolio/xray). */
+const DEEP_KINDS: ReadonlySet<ShareKind> = new Set<ShareKind>(["xray", "stress"]);
+
 async function candidatesFor(kind: ShareKind, week: string | null): Promise<{ candidates: ShareCandidate[]; uid: string } | { error: string; status: number }> {
   const viewer = await getViewer();
   if (!viewer.uid) return { error: "unauthenticated", status: 401 };
+  // Analysis's look-through and past crashes are Pro work; a share must not hand them out on Free.
+  if (DEEP_KINDS.has(kind) && !can("portfolio_analysis_deep", viewer.plan)) return { error: "locked", status: 403 };
   const userDoc = await getUserDoc(viewer.uid).catch(() => null);
   if (!userDoc) return { error: "no_holdings", status: 404 };
   const loaded = await loadShareFacts(kind, { viewer, userDoc, week }).catch((error) => {

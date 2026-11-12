@@ -157,10 +157,10 @@ export async function OaLanding() {
 
           <section id="faq" className="scroll-mt-24">
             <h2 className="text-[20px] font-medium tracking-tight text-oa-fg">Questions</h2>
-            {/* Two columns from `md`; the founder note, last and odd, takes the whole row so no row ends half empty. */}
+            {/* Two columns from `md`, each answer one column wide, the last one included (owner rule 4). */}
             <dl className="mt-4 grid grid-cols-1 gap-x-10 gap-y-6 md:grid-cols-2">
-              {FAQS.map((item, index) => (
-                <div key={item.q} className={index === FAQS.length - 1 && FAQS.length % 2 === 1 ? "min-w-0 md:col-span-2 md:max-w-3xl" : "min-w-0"}>
+              {FAQS.map((item) => (
+                <div key={item.q} className="min-w-0">
                   <dt className="text-pretty text-[16px] font-medium leading-6 text-oa-fg">{item.q}</dt>
                   <dd className="mt-1.5 text-pretty text-[15px] leading-6 text-oa-muted-fg">{item.a}</dd>
                 </div>

@@ -6,7 +6,7 @@ import type { Portfolio } from "@/lib/portfolio-shared";
 
 /**
  * Under the holdings on My stocks: how the money sits in three figures, and the way into the full analysis on
- * What you own (/portfolio/xray), which works the rest out on the server. Nothing here repeats that page.
+ * Analysis (/portfolio/xray), which works the rest out on the server. Nothing here repeats that page.
  * `health` is still passed by the view; the old score read it fed is gone.
  */
 export function AnalyticsTab({
@@ -25,7 +25,7 @@ export function AnalyticsTab({
       prefetch={false}
       className="inline-flex min-h-9 items-center self-start rounded border border-oa-border bg-oa-card px-3 text-[13px] font-medium text-oa-fg hover:border-oa-fg/30"
     >
-      See what you own
+      See the analysis
     </Link>
   );
   // Equal weights are made up, so they get no figures: only the way to the page that can still say something.

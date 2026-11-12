@@ -5,6 +5,7 @@ import { CardGrid, Delta, Empty, FOCUS, Ticker } from "@/components/oa/kit";
 import { HeadlineLine, ToneBar, leanWords } from "@/components/wire/news-read";
 import { WholeRows } from "@/components/wire/whole-rows";
 import type { CompanyGroup } from "@/lib/wire-companies";
+import { cardHeadline } from "@/lib/wire-read";
 import { WIRE_PAGE_SIZE, wireHref, type WireFilters } from "@/lib/wire-shared";
 
 /**
@@ -17,21 +18,19 @@ import { WIRE_PAGE_SIZE, wireHref, type WireFilters } from "@/lib/wire-shared";
  */
 
 /**
- * The feed's box: about three cards on a phone, and four rows of two (eight companies) wider up (owner rule 5: about
- * eight in view, the rest in the same scroll), ending on a whole row.
+ * The feed's box: about five one-headline cards on a phone, and four rows of two (eight companies) wider up (owner
+ * rule 5: about eight in view, the rest in the same scroll), ending on a whole row.
  */
 const FEED_REM = 40;
-const FEED_WIDE_REM = 56;
+const FEED_WIDE_REM = 34;
 
-/** The headlines a card shows, so eight companies fit in view; the card itself opens the rest. */
-const HEADLINE_SLOTS = 2;
-
-function CompanyCard({ group, filters, fill = "" }: { group: CompanyGroup; filters: WireFilters; fill?: string }) {
-  const items = group.items.slice(0, HEADLINE_SLOTS);
+function CompanyCard({ group, filters }: { group: CompanyGroup; filters: WireFilters }) {
+  // One headline per card, at most 15 words (owner rule 8); the card itself opens the rest.
+  const lead = cardHeadline(group.items, group.name ?? "");
   return (
     // The whole card opens the company's stories; the stock and each headline keep their own links above it.
     // No "see more" arrow repeated on every card (owner, Nov 11).
-    <article data-row="" className={`oa-surface relative flex h-full min-w-0 flex-col border ${fill} border-oa-border bg-oa-card transition-colors hover:border-[color-mix(in_srgb,var(--oa-fg)_25%,transparent)]`}>
+    <article data-row="" className={`oa-surface relative flex h-full min-w-0 flex-col border border-oa-border bg-oa-card transition-colors hover:border-[color-mix(in_srgb,var(--oa-fg)_25%,transparent)]`}>
       {/* The move and, only when the news clearly leans, its tone, both on the title row: a separate tone strip on some
           cards and not others left their neighbours with an empty band at the bottom (owner rule 4). */}
       <header className="flex items-center justify-between gap-3 border-b border-oa-border px-4 py-2.5">
@@ -43,14 +42,10 @@ function CompanyCard({ group, filters, fill = "" }: { group: CompanyGroup; filte
       </header>
       {/* No footer count: the tone above is the card's one figure (owner rule 5), and the card itself opens the rest. */}
       {/* A followed company whose stories were all bait keeps its card (lib/wire-companies.ts) with no empty list band. */}
-      {items.length ? (
-        <ul className="flex flex-1 flex-col gap-2.5 px-4 py-3">
-          {items.map((item) => (
-            <li key={item.id}>
-              <HeadlineLine item={item} companyName={group.name ?? ""} className="relative z-10" />
-            </li>
-          ))}
-        </ul>
+      {lead ? (
+        <div className="flex-1 px-4 py-3">
+          <HeadlineLine item={lead} companyName={group.name ?? ""} className="relative z-10" />
+        </div>
       ) : null}
       <Link
         href={wireHref({ ...filters, limit: WIRE_PAGE_SIZE }, { ticker: group.ticker, theme: null })}
@@ -69,16 +64,11 @@ function CompanyGrid({ groups, filters, more = null }: { groups: CompanyGroup[];
       rem={FEED_REM}
       wideRem={FEED_WIDE_REM}
       cue
-      className="scrollbar-hide overflow-y-auto max-h-[40rem] sm:max-h-[56rem]"
+      className="scrollbar-hide overflow-y-auto max-h-[40rem] sm:max-h-[34rem]"
     >
       <CardGrid cols={2}>
-        {groups.map((group, index) => (
-          <CompanyCard
-            key={group.ticker}
-            group={group}
-            filters={filters}
-            fill={index === groups.length - 1 && groups.length % 2 === 1 ? "md:col-span-2" : ""}
-          />
+        {groups.map((group) => (
+          <CompanyCard key={group.ticker} group={group} filters={filters} />
         ))}
       </CardGrid>
       {more}

@@ -15,8 +15,8 @@ import { isLogoKey, logoKey, stockLogoSources } from "@/lib/stock-logo-sources";
  * minutes, and no card ever waits more than about 2.5 seconds for its logos.
  *
  * Satori cannot read the size of a WebP image, so stored WebP tiles are
- * turned into PNG with sharp (already installed with @vercel/og). Where sharp
- * cannot load, the remote PNG chain is used instead.
+ * turned into PNG with sharp (a dependency of its own). Where sharp cannot
+ * load, the tile's own source PNG and then the remote chain are used instead.
  *
  * Server only.
  */
@@ -48,12 +48,34 @@ function recall(key: string): string | null | undefined {
 type Sharp = (input: Buffer) => { png: (options?: { compressionLevel?: number }) => { toBuffer: () => Promise<Buffer> } };
 let sharpLoad: Promise<Sharp | null> | null = null;
 
+declare const __non_webpack_require__: NodeRequire | undefined;
+
+/**
+ * The installed `@img` packages (sharp's native binary and libvips), named in the warning when sharp cannot load.
+ *
+ * The literal read is also what ships them: sharp picks its binary by a computed path (`@img/sharp-${platform}`),
+ * which the build's file tracer cannot follow, so the Vercel functions had sharp's code without its binary and every
+ * logo fell back to letters. A plain `require("fs").readdirSync(process.cwd() + "/node_modules/@img")` in the
+ * built route is a path the tracer does follow, so the folder goes into the function. `__non_webpack_require__`
+ * keeps that `require` as written in the bundle; outside webpack (tests) there is nothing to trace.
+ */
+function imgPackages(): string[] {
+  if (typeof __non_webpack_require__ !== "function") return [];
+  try {
+    const fs = __non_webpack_require__("fs") as typeof import("fs");
+    return fs.readdirSync(process.cwd() + "/node_modules/@img");
+  } catch {
+    return [];
+  }
+}
+
 function loadSharp(): Promise<Sharp | null> {
   if (!sharpLoad) {
+    const installed = imgPackages();
     sharpLoad = import("sharp")
       .then((mod) => ((mod as unknown as { default?: Sharp }).default ?? (mod as unknown as Sharp)) as Sharp)
       .catch((error) => {
-        console.warn("[og] sharp unavailable, logos fall back to remote PNGs:", error instanceof Error ? error.message : error);
+        console.warn("[og] sharp unavailable, logos fall back to remote PNGs:", error instanceof Error ? error.message : error, "@img:", installed.join(",") || "none");
         return null;
       });
   }
@@ -86,14 +108,17 @@ async function within<T>(work: Promise<T>, ms: number): Promise<T | null> {
   }
 }
 
-type StoredLogo = { status?: string; mime?: string; data_b64?: string };
+type StoredLogo = { status?: string; mime?: string; data_b64?: string; source_url?: string };
+
+/** What the store had: drawable tiles, and for a tile that could not be drawn, the PNG it was made from. */
+type StoreRead = { tiles: Map<string, string>; sources: Map<string, string> };
 
 /** Stored tiles that came out nearly blank: the same list as BLANK_STORED_SHAS in app/api/logo/[symbol]/route.ts. */
 const BLANK_TILES = new Set(["c102515c0096e1b7"]);
 
 /** Stored tiles for these keys, in one read. Missing or unusable ones are left out. */
-async function readStore(keys: string[]): Promise<Map<string, string>> {
-  const out = new Map<string, string>();
+async function readStore(keys: string[]): Promise<StoreRead> {
+  const out: StoreRead = { tiles: new Map(), sources: new Map() };
   if (keys.length === 0) return out;
   const refs = keys.map((key) => adminFirestore.collection(COLLECTION).doc(key));
   const snaps = await adminFirestore.getAll(...refs);
@@ -105,7 +130,8 @@ async function readStore(keys: string[]): Promise<Map<string, string>> {
       if (doc.status !== "ok" || !doc.data_b64 || doc.data_b64.length < 400) return;
       if (BLANK_TILES.has(createHash("sha256").update(Buffer.from(doc.data_b64, "base64")).digest("hex").slice(0, 16))) return;
       const uri = await drawable((doc.mime || "image/webp").toLowerCase(), doc.data_b64);
-      if (uri) out.set(snap.id, uri);
+      if (uri) out.tiles.set(snap.id, uri);
+      else if (typeof doc.source_url === "string" && /^https:\/\//.test(doc.source_url)) out.sources.set(snap.id, doc.source_url);
     }),
   );
   return out;
@@ -154,12 +180,12 @@ export async function loadLogos(tickers: readonly string[]): Promise<Record<stri
   const work = (async () => {
     const keys = [...wanted.keys()];
     let storeFailed = false;
-    const stored = await readStore(keys).catch(() => {
+    const stored = await readStore(keys).catch((): StoreRead => {
       storeFailed = true;
-      return new Map<string, string>();
+      return { tiles: new Map(), sources: new Map() };
     });
-    const remote = await Promise.all(keys.filter((key) => !stored.has(key)).map(async (key) => [key, await remoteLogo(key)] as const));
-    const found = new Map<string, string | null>([...stored.entries(), ...remote]);
+    const remote = await Promise.all(keys.filter((key) => !stored.tiles.has(key)).map(async (key) => [key, await remoteLogo(key, stored.sources.get(key))] as const));
+    const found = new Map<string, string | null>([...stored.tiles.entries(), ...remote]);
     // A miss is remembered only when the store answered; a failed read is tried again on the next card.
     for (const key of keys) {
       const value = found.get(key) ?? null;
@@ -189,7 +215,7 @@ export async function loadLogo(ticker: string, logoUrl?: string | null): Promise
     }),
     BUDGET_MS,
   );
-  const value = read?.get(key) ?? (await within(remoteLogo(key, logoUrl), BUDGET_MS));
+  const value = read?.tiles.get(key) ?? (await within(remoteLogo(key, read?.sources.get(key) ?? logoUrl), BUDGET_MS));
   if (value || (read !== null && !storeFailed)) remember(key, value);
   return value;
 }

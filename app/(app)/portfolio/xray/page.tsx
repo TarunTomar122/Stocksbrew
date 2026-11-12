@@ -15,11 +15,11 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = toolPageMetadata("/portfolio/xray");
 
 /**
- * What you own: the analysis of the holdings (lib/portfolio-analysis), the person's own when they have any and the
+ * Analysis: the analysis of the holdings (lib/portfolio-analysis), the person's own when they have any and the
  * example otherwise. It took in the old x-ray (sectors and companies inside funds) and the stress test
- * (/portfolio/stress now lands on #crashes here).
+ * (next.config.js sends /portfolio/stress to #crashes here).
  */
-export default async function WhatYouOwnPage() {
+export default async function AnalysisPage() {
   const page = await loadAnalysisPage().catch((error) => {
     console.warn("[portfolio/xray] analysis failed:", error instanceof Error ? error.message : error);
     return null;
@@ -41,10 +41,10 @@ export default async function WhatYouOwnPage() {
     <ShareButton kind="xray" />
   ) : undefined;
   return (
-    <AppPage>
+    <AppPage width="dash">
       <JsonLd data={toolPageLd("/portfolio/xray")} />
       <PageHead
-        title="What you own"
+        title="Analysis"
         meta={analysis ? <SourceLine source={example ? "Example portfolio, made-up shares" : undefined} note={prices ? `prices from ${prices}` : undefined} /> : undefined}
         actions={action}
       />

@@ -59,6 +59,7 @@ from .store import DocStore
 
 _ROOT = Path(__file__).resolve().parents[2]
 _UNIVERSE_PATH = _ROOT / "backend" / "config" / "instrument_universe.json"
+_POPULAR_FUNDS_PATH = _ROOT / "backend" / "config" / "popular_funds.json"
 COVERAGE_UNIVERSE = "us_core_155"
 BENCHMARK = "SPY"
 COST_BPS = 10
@@ -525,6 +526,15 @@ def completed_sessions(document: dict[str, Any]) -> tuple[list[str], list[float]
         closes.pop()
     return dates, closes
 
+
+
+def popular_fund_tickers() -> list[str]:
+    """Tickers in backend/config/popular_funds.json, the funds the fund pages cover."""
+    try:
+        payload = json.loads(_POPULAR_FUNDS_PATH.read_text())
+    except (OSError, json.JSONDecodeError):
+        return []
+    return [str(row.get("ticker") or "").strip().upper() for row in payload.get("funds") or [] if str(row.get("ticker") or "").strip()]
 
 
 def load_instruments() -> list[dict[str, Any]]:
@@ -1490,7 +1500,9 @@ def main(argv: list[str] | None = None) -> int:
     names.update(FUND_NAMES)
     sectors = {item["ticker"]: item.get("sector") or "" for item in instruments}
 
-    wanted = list(dict.fromkeys([BENCHMARK] + sorted(FUND_NAMES) + tickers))
+    # The popular funds ride along so their pages (1-year return, chart) stay current; the
+    # strategies never read them (build_groups below only takes covered stocks).
+    wanted = list(dict.fromkeys([BENCHMARK] + sorted(FUND_NAMES) + tickers + popular_fund_tickers()))
     log(f"prices: {len(wanted)} symbols")
     fetch_started = time.monotonic()
     series = prices.load_many(wanted, log=False)

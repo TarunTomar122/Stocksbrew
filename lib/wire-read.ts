@@ -649,3 +649,17 @@ export function readTheWire(source: WireReadSource, options: { nowMs: number; fi
   const toned = today.filter((item) => source.labels[item.id]).length;
   return { today, yesterday, buzz, themes, read, labelledShare: sharePct(labelled, today.length), tonedShare: sharePct(toned, today.length) };
 }
+
+/** The most a news card's one headline may say (owner rule 8). */
+const HEADLINE_WORDS = 15;
+
+/**
+ * The one headline a stock's news card shows, in sentence case as the card prints it: the newest that says it in at
+ * most 15 words, else the shortest. The card itself opens the rest.
+ */
+export function cardHeadline<T extends { title: string }>(items: readonly T[], companyName = ""): T | null {
+  const titled = items.filter((item) => item.title.trim());
+  if (titled.length === 0) return null;
+  const words = (item: T) => headlineCase(item.title, companyName).split(/\s+/).filter(Boolean).length;
+  return titled.find((item) => words(item) <= HEADLINE_WORDS) ?? [...titled].sort((a, b) => words(a) - words(b))[0]!;
+}

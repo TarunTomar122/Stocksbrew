@@ -18,6 +18,13 @@ export const KIND_LABEL: Record<BriefingKind, string> = {
   agent_job: "Your job",
 };
 
+/** A share price the one way the briefing shows it: "$173.85", and no cents from $1,000 up ("$1,204"). Null without one. */
+export function sharePrice(value: number | null | undefined): string | null {
+  if (value == null || !Number.isFinite(value) || value <= 0) return null;
+  const cents = value < 1000 ? 2 : 0;
+  return `$${value.toLocaleString("en-US", { minimumFractionDigits: cents, maximumFractionDigits: cents })}`;
+}
+
 /** "2026-11-09" -> "Mon, Nov 9". Parsed by hand so no timezone can shift the day. */
 export function longDay(day: string): string {
   const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(day ?? "");

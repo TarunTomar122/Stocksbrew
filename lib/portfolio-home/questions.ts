@@ -37,8 +37,8 @@ export function questionFor(item: Noticed): string | null {
   if (item.tool === "earnings") return beforeReport(ticker);
   if (item.id.startsWith("reason-")) return latestNews(ticker);
   if (item.id.startsWith("ideas-loss-")) return latestNews(ticker);
+  // The x-ray's company and the crash replay's hardest-hit stock are both on Analysis.
   if (item.id.startsWith("ideas-trim-") || item.tool === "xray") return vsMarket(ticker);
-  if (item.tool === "stress") return vsMarket(ticker);
   return null;
 }
 

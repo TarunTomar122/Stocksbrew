@@ -7,7 +7,7 @@ import { CALL_CHIP, callShows } from "@/lib/memo/view";
 import { shortDay, weekdayName } from "@/lib/memo/week";
 
 import { callReasonText, explainCall } from "./explain";
-import { MEMO_CARD, memoCell, memoGrid } from "./rows";
+import { MEMO_CARD, memoGrid } from "./rows";
 
 /** A call in its plain words, coloured by what it asks of you. */
 export function CallChip({ call }: { call: CallWord }) {
@@ -46,10 +46,10 @@ export function CallChanges({ calls, memo, example }: { calls: MemoCallChange[];
         </h2>
       </div>
       <ul className={`oa-card-grid ${memoGrid(cards.length)}`}>
-        {cards.map(({ call, was, reason }, index) => {
+        {cards.map(({ call, was, reason }) => {
           const day = `${weekdayName(call.date).slice(0, 3)} ${shortDay(call.date)}`;
           return (
-            <li key={`${call.ticker}:${call.date}`} className={memoCell(index, cards.length)}>
+            <li key={`${call.ticker}:${call.date}`} className="min-w-0">
               <Link
                 href={`/stock/${encodeURIComponent(call.ticker)}`}
                 prefetch={false}

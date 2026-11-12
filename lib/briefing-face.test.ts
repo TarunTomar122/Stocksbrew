@@ -207,16 +207,20 @@ describe("the strip", () => {
 
   it("shows the day's change of the 10-year and the VIX, one decimal, coloured by what it means for stocks", () => {
     const tiles = marketTiles(indices, [
-      { id: "us10y", price: 4.31, change: 6, changeMode: "bps", monthChange: 20 },
+      { id: "us10y", price: 4.31, change: 6, changeMode: "bps" },
       { id: "vix", price: 27.2, change: -8, changeMode: "pct" },
     ]);
-    // Yields up 0.2 points on the month and a VIX over 25 are bad for stocks, even on a day the VIX fell.
+    // The colour is what the day's move means for stocks: yields up is bad, the VIX down is good.
     expect(tiles.map((tile) => [tile.key, tile.figure, tile.label, tile.good])).toEqual([
       ["ndx", "−1.8%", "Nasdaq 100", "down"],
       ["us10y", "+6.0 bps", "10-yr 4.3%", "down"],
-      ["vix", "−8.0%", "VIX 27.2", "down"],
+      ["vix", "−8.0%", "VIX 27.2", "up"],
     ]);
-    expect(marketTiles([], [{ id: "us10y", price: 4.3, change: -2, changeMode: "bps", monthChange: -15 }, { id: "vix", price: 13, change: 4, changeMode: "pct" }]).map((tile) => tile.good)).toEqual(["up", "up"]);
+    // The live bug: +10 bps and a VIX up 4.5% read green. A rise in either is never good for stocks.
+    expect(marketTiles([], [{ id: "us10y", price: 4.98, change: 10, changeMode: "bps" }, { id: "vix", price: 13, change: 4.5, changeMode: "pct" }]).map((tile) => tile.good)).toEqual(["down", "down"]);
+    expect(marketTiles([], [{ id: "us10y", price: 4.3, change: -5, changeMode: "bps" }, { id: "vix", price: 30, change: -3, changeMode: "pct" }]).map((tile) => tile.good)).toEqual(["up", "up"]);
+    // A small move has no verdict: plain, not coloured by its sign.
+    expect(marketTiles([], [{ id: "us10y", price: 4.3, change: 1, changeMode: "bps" }, { id: "vix", price: 17, change: 0.6, changeMode: "pct" }]).map((tile) => tile.good)).toEqual(["flat", "flat"]);
     // No change for the day: no bare level.
     expect(marketTiles([], [{ id: "vix", price: 17.2, change: null, changeMode: "pct" }])).toEqual([]);
   });
@@ -244,7 +248,7 @@ describe("the strip", () => {
 });
 
 describe("heatCells", () => {
-  it("holdings only, biggest money first, wide cells for the big ones", () => {
+  it("holdings only, biggest gain first, wide cells for the big moves", () => {
     const cells = heatCells([
       position({ ticker: "BIG", quantity: 100, price: 100, day_change_pct: 1 }),
       position({ ticker: "MID", quantity: 10, price: 100, day_change_pct: -2 }),
@@ -253,9 +257,9 @@ describe("heatCells", () => {
       position({ ticker: "NOP", quantity: 1, day_change_pct: null }),
     ]);
     expect(cells.map((cell) => [cell.ticker, cell.size, cell.tone])).toEqual([
-      ["BIG", 2, "up"],
-      ["MID", 1, "down"],
+      ["BIG", 1, "up"],
       ["SML", 1, "flat"],
+      ["MID", 2, "down"],
     ]);
   });
 
@@ -265,6 +269,11 @@ describe("heatCells", () => {
     expect(cells.find((cell) => cell.ticker === "B")?.pct).toBe(-4);
     // Before the open, a holding with no premarket quote is left out, not shown at yesterday's move.
     expect(cells.map((cell) => cell.ticker)).toEqual(["B"]);
+  });
+
+  it("carries each holding's price, this morning's before the open", () => {
+    expect(heatCells([position({ ticker: "A", price: 173.85 })])[0]?.price).toBe(173.85);
+    expect(heatCells([position({ ticker: "A", price: 173.85 })], { A: 1.2 }, { A: 175.94 })[0]?.price).toBe(175.94);
   });
 });
 
@@ -284,6 +293,11 @@ describe("atYourLevels", () => {
       ["IN", "1.0% under the buy-more price"],
       ["NEAR", "3.0% over the buy-more price"],
     ]);
+  });
+
+  it("measures from this morning's price before the open, the price the card shows", () => {
+    const [row] = atYourLevels([position({ ticker: "A", stance: "accumulate", price: 110, add_below: 100 })], new Set(), { A: -7 }, { A: 102 });
+    expect(row).toMatchObject({ ticker: "A", price: 102, line: "2.0% over the buy-more price" });
   });
 });
 
@@ -373,7 +387,7 @@ describe("earningsWeek", () => {
     expect(days.map((day) => [day.label, day.stocks.map((stock) => stock.ticker)])).toEqual([
       ["Yesterday", ["ASTS"]],
       ["Today", ["CBRS"]],
-      ["Tue 17", ["NVDA", "XPEV"]],
+      ["Tuesday", ["NVDA", "XPEV"]],
     ]);
     expect(days[0]!.stocks[0]!.result).toEqual({ verdict: "Beat", pct: 8.7 });
     expect(days[2]!.stocks[1]!.when).toBe("before the open");
@@ -408,6 +422,12 @@ describe("sinceLastOpened", () => {
     expect(sinceLastOpened({ since: "2026-11-11T19:00:00Z", callChanges: [], results: [read], positions, exclude: new Set() })?.count).toBe(1);
     // Visited at 6 PM ET: already out.
     expect(sinceLastOpened({ since: "2026-11-11T23:00:00Z", callChanges: [], results: [read], positions, exclude: new Set() })).toBeNull();
+  });
+
+  it("says nothing about a stock the plan does not cover, the same as why it moved", () => {
+    const read = result({ ticker: "TSM", reportDate: "2026-11-11", session: "amc" });
+    const uncovered = [position({ ticker: "AMD", stance: "accumulate", covered: false }), position({ ticker: "TSM", covered: false })];
+    expect(sinceLastOpened({ since: "2026-11-10T12:00:00Z", callChanges: changes, results: [read], positions: uncovered, exclude: new Set() })).toBeNull();
   });
 
   it("keeps the window steady across reloads on the same day", () => {

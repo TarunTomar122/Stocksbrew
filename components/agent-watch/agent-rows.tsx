@@ -27,6 +27,8 @@ const ICON: Record<AgentKind, NavIconName> = {
   movers: "movers",
   price: "markets",
   zone: "markets",
+  sell: "markets",
+  call: "portfolio",
   earnings: "calendar",
   reported: "calendar",
   congress: "follow",

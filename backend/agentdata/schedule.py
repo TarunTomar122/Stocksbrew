@@ -21,7 +21,7 @@ Groups and what they keep fresh:
 * ``weekly``       13F fund portfolios, who holds each stock, House trade reports, Senate
                    trade reports (off until ``SENATE_PTR_ENABLED=1``),
                    then the copy tests built from them (off until ``COPY_TRADES_ENABLED=1``),
-                   ETF holdings and stock logo tiles
+                   fund facts and fund instruments, ETF holdings and stock logo tiles
 * ``earnings_day`` the report on each covered stock that filed earnings today
                    (every 10 minutes on weekdays; the job itself stays off until
                    ``EARNINGS_DAY_ENABLED=1``)
@@ -106,6 +106,12 @@ GROUPS: dict[str, list[tuple[str, list[str]]]] = {
         # Copy tests for every fund and member, from the 13F and House jobs above. Off until
         # COPY_TRADES_ENABLED=1; the job itself exits early without it.
         ("copy trade tests", ["backend.agentdata.copy_trades"]),
+        # The fund pages: expense ratio, size, yield and inception from Yahoo for the popular funds
+        # (backend/config/popular_funds.json) and every fund users hold, then register any of them that
+        # has no instrument yet (create-only, plus a search entry and a first price). The second step
+        # writes tm_instruments through TraceMoneyStore and stops unless LOCALDB_PATH is set.
+        ("fund facts", ["backend.agentdata.fund_facts"]),
+        ("fund instruments", ["backend.scripts.register_fund_instruments"]),
         # What each ETF holds, from its latest SEC N-PORT filing (the x-ray page). Funds whose
         # filing has not changed are skipped, so most runs are a few dozen SEC requests.
         ("ETF holdings", ["backend.agentdata.etf_holdings"]),
@@ -144,6 +150,9 @@ STEP_TIMEOUT_SECONDS: dict[tuple[str, str], int] = {
     # limits are generous guesses; tighten them once the journal shows a few nights.
     ("after_close", "standing agents"): 20 * 60,
     ("after_close", "reason checks"): 15 * 60,
+    # [~50 funds, two or three Yahoo requests each, ~1 min]
+    ("weekly", "fund facts"): 15 * 60,
+    ("weekly", "fund instruments"): 10 * 60,
 }
 
 

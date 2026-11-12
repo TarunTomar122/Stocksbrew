@@ -3,6 +3,7 @@ import { fmtDollars, fmtPerShare, fmtPlanDay, type DividendPlan } from "@/lib/di
 import { bigVsDayWords } from "@/lib/briefing-move-facts";
 import { historyWords, oneToWatch, sessionWords, whenWords, type SeasonStock } from "@/lib/earnings-season";
 import type { SeasonView } from "@/lib/earnings-season-data";
+import { can, type Plan } from "@/lib/entitlements";
 import { yearlyOf } from "@/lib/goal/bootstrap";
 import type { GoalData } from "@/lib/goal/data";
 import { discounted, HINDSIGHT_DISCOUNT, monthWords } from "@/lib/goal/series";
@@ -13,7 +14,7 @@ import type { IdeasView } from "@/lib/portfolio-ideas/server";
 import type { CallWord } from "@/lib/portfolio-ideas/types";
 import { usd } from "@/lib/portfolio-ideas/words";
 import { countWord } from "@/lib/read-format";
-import { coveredPct, signedPct as stressPct } from "@/lib/stress-test";
+import { signedPct as stressPct } from "@/lib/stress-test";
 import type { StressView } from "@/lib/stress-test-data";
 import { VERDICT_RANK, whatChanged, type Verdict } from "@/lib/thesis-watch/rules";
 import type { CheckView } from "@/lib/thesis-watch/server";
@@ -23,7 +24,7 @@ import type { XrayView } from "@/lib/xray-data";
 /**
  * The My stocks overview: "what your agent noticed this week". Each portfolio
  * tool already writes its own read from real numbers (the memo, the x-ray, the
- * earnings planner, the dividend planner, the stress test, the goal planner,
+ * earnings planner, the dividend planner, past crashes, the goal planner,
  * the rebalancing ideas). These rules only pick from what those loaders
  * returned and say it once, with where to see the evidence and, where an agent
  * can do it, a ready "watch this for me" request. No number is worked out
@@ -59,7 +60,7 @@ export type ReasonsSource = {
 
 export type HomeMode = "mine" | "example";
 
-export type ToolId = "portfolio" | "memo" | "xray" | "earnings" | "dividends" | "goal" | "stress" | "ideas" | "taxes";
+export type ToolId = "portfolio" | "memo" | "xray" | "earnings" | "dividends" | "goal" | "ideas" | "taxes";
 
 export type Noticed = {
   id: string;
@@ -112,11 +113,10 @@ export const MIN_NOTICED = 3;
 const CAPTIONS: Record<ToolId, string> = {
   portfolio: "Holdings",
   memo: "Weekly memo",
-  xray: "What you own",
+  xray: "Analysis",
   earnings: "Earnings season",
   dividends: "Dividends",
   goal: "Goal planner",
-  stress: "Stress test",
   ideas: "Rebalancing ideas",
   taxes: "Taxes",
 };
@@ -128,7 +128,6 @@ export const TOOL_HREF: Record<ToolId, string> = {
   earnings: "/portfolio/earnings",
   dividends: "/portfolio/dividends",
   goal: "/portfolio/goal",
-  stress: "/portfolio/stress",
   ideas: "/portfolio/ideas",
   taxes: "/portfolio/taxes",
 };
@@ -247,7 +246,7 @@ function xrayItem(view: XrayView): Noticed | null {
         ? `${top.name}: ${top.direct > 0 ? `${fmtPct(top.directPct)} bought directly and ` : ""}${fmtPct(top.fundPct)} through ${joinList(top.via.slice(0, 3).map((slice) => slice.fund))}. ${sentence(xrayFootnote(xray))}`
         : sentence(xrayFootnote(xray)),
     ticker: lead,
-    open: { label: "See what you really own", href: TOOL_HREF.xray },
+    open: { label: "See the analysis", href: TOOL_HREF.xray },
     watch: moveWatch(lead),
     priority: top.pct >= 10 ? 75 : 70,
     needsYou: top.pct >= 10,
@@ -357,7 +356,10 @@ function dividendItem(source: DividendSource, example: boolean): Noticed | null 
   };
 }
 
-/* ── the stress test ───────────────────────────────────────────────────── */
+/* ── past crashes (Analysis) ───────────────────────────────────────────── */
+
+/** The crash replay's place on Analysis (the stress test's own page is gone). */
+const CRASHES_HREF = `${TOOL_HREF.xray}#crashes`;
 
 function stressItem(view: StressView): Noticed | null {
   const read = view.read;
@@ -373,8 +375,8 @@ function stressItem(view: StressView): Noticed | null {
     .sort((a, b) => a.portfolio! - b.portfolio!)[0];
   return {
     id: "stress-worst",
-    tool: "stress",
-    caption: CAPTIONS.stress,
+    tool: "xray",
+    caption: "Past crashes",
     tone: together?.tone ?? "flat",
     text: read.headline,
     headline: read.headline,
@@ -383,7 +385,7 @@ function stressItem(view: StressView): Noticed | null {
     evidence: together?.text ?? null,
     source: sourceOf("Daily closes for the holdings and the S&P 500", view.history?.last),
     ticker: lead,
-    open: { label: "Run the stress test", href: TOOL_HREF.stress },
+    open: { label: "See past crashes", href: CRASHES_HREF },
     watch: moveWatch(lead),
     priority: together?.tone === "down" ? 55 : 50,
   };
@@ -661,7 +663,7 @@ export type ToolGroup = { label: string; tools: ToolId[] };
 /** The same three groups as the My stocks navigation (components/oa/nav-items.ts). */
 export const TOOL_GROUPS: ToolGroup[] = [
   { label: "Your stocks", tools: ["portfolio", "memo", "xray"] },
-  { label: "Plan ahead", tools: ["earnings", "dividends", "goal", "stress"] },
+  { label: "Plan ahead", tools: ["earnings", "dividends", "goal"] },
   { label: "Act", tools: ["ideas", "taxes"] },
 ];
 
@@ -669,11 +671,10 @@ export const TOOL_GROUPS: ToolGroup[] = [
 export const TOOL_TITLES: Record<ToolId, string> = {
   portfolio: "Holdings",
   memo: "Weekly memo",
-  xray: "What you own",
+  xray: "Analysis",
   earnings: "Earnings season",
   dividends: "Dividends",
   goal: "Goal planner",
-  stress: "Stress test",
   ideas: "Rebalancing ideas",
   taxes: "Taxes",
 };
@@ -686,7 +687,6 @@ export const SOURCE_OF: Record<ToolId, keyof HomeSources> = {
   earnings: "season",
   dividends: "dividends",
   goal: "goal",
-  stress: "stress",
   ideas: "ideas",
   taxes: "ideas",
 };
@@ -705,7 +705,24 @@ export function goalYearly(goal: GoalData): number | null {
   return spy ? yearlyOf(discounted(own.returns, spy.returns, HINDSIGHT_DISCOUNT)) : own.yearly;
 }
 
-function figureFor(id: ToolId, sources: Partial<HomeSources>, mode: HomeMode): (Pick<ToolCard, "figure" | "detail"> & { empty?: true }) | null {
+/**
+ * Whether the deeper Analysis work (inside funds, past crashes) is shown: the example always, as on its page
+ * (lib/portfolio-analysis/load.ts), and a person's own holdings on Pro.
+ */
+export function deepAnalysis(mode: HomeMode, plan: Plan): boolean {
+  return mode === "example" || can("portfolio_analysis_deep", plan);
+}
+
+/** The largest line as the person typed it (a stock or a whole fund), with its share of the portfolio. */
+function largestAsTyped(view: XrayView): { ticker: string; pct: number } | null {
+  const lines = [
+    ...view.xray.companies.filter((company) => company.direct > 0).map((company) => ({ ticker: company.ticker, pct: company.directPct })),
+    ...view.xray.funds.filter((fund) => fund.value > 0).map((fund) => ({ ticker: fund.ticker, pct: fund.pct })),
+  ];
+  return lines.sort((a, b) => b.pct - a.pct)[0] ?? null;
+}
+
+function figureFor(id: ToolId, sources: Partial<HomeSources>, mode: HomeMode, plan: Plan): (Pick<ToolCard, "figure" | "detail"> & { empty?: true }) | null {
   const example = mode === "example";
   const your = example ? "the example's" : "your";
   switch (id) {
@@ -735,8 +752,14 @@ function figureFor(id: ToolId, sources: Partial<HomeSources>, mode: HomeMode): (
       };
     }
     case "xray": {
-      const xray = ready(sources.xray)?.xray;
-      if (!xray) return null;
+      const view = ready(sources.xray);
+      if (!view) return null;
+      // Free reads its lines as entered, as on the page: opening the funds is the deeper look.
+      if (!deepAnalysis(mode, plan)) {
+        const largest = largestAsTyped(view);
+        return largest ? { figure: `${largest.ticker} ${fmtPct(largest.pct)}`, detail: "Your biggest holding." } : null;
+      }
+      const xray = view.xray;
       const top = xray.companies[0];
       if (!xray.funds.some((fund) => fund.status === "ok") || !top) {
         return { figure: null, detail: xray.funds.length === 0 ? `None of ${your} holdings is a fund, so there is nothing hidden to add up.` : "We cannot see inside these funds yet." };
@@ -771,19 +794,6 @@ function figureFor(id: ToolId, sources: Partial<HomeSources>, mode: HomeMode): (
         detail: `Before inflation, from how ${your} holdings did since ${monthWords(goal.span.first)}.`,
       };
     }
-    case "stress": {
-      const result = ready(sources.stress)?.result;
-      if (!result) return null;
-      const worst = result.episodes
-        .filter((item) => item.episode.kind === "fall" && item.portfolio !== null && item.market !== null)
-        .sort((a, b) => a.portfolio! - b.portfolio!)[0];
-      if (!worst) return null;
-      const covered = coveredPct(worst);
-      return {
-        figure: stressPct(worst.portfolio),
-        detail: `In the ${worst.episode.name}, against ${stressPct(worst.market)} for the S&P 500${covered < 100 ? `, for the ${covered}% of ${your} holdings we have prices for then` : ""}.`,
-      };
-    }
     case "ideas": {
       const ideas = ready(sources.ideas);
       if (!ideas || !(ideas.plan.total > 0)) return null;
@@ -809,8 +819,8 @@ function figureFor(id: ToolId, sources: Partial<HomeSources>, mode: HomeMode): (
 }
 
 /** One tool's card; `sources` needs only the tool's own source (SOURCE_OF), and a missing one reads as slow. */
-export function toolCard(id: ToolId, sources: Partial<HomeSources>, mode: HomeMode): ToolCard {
-  const figure = figureFor(id, sources, mode);
+export function toolCard(id: ToolId, sources: Partial<HomeSources>, mode: HomeMode, plan: Plan): ToolCard {
+  const figure = figureFor(id, sources, mode, plan);
   const state = sources[SOURCE_OF[id]]?.state ?? "slow";
   return {
     id,

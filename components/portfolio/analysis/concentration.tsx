@@ -1,14 +1,20 @@
+import { SectorIcon } from "@/components/oa/sector-icon";
 import type { ConcentrationModule } from "@/lib/portfolio-analysis/types";
 
-import { ChartCard, FigureCard, Key, LIST, MINE, Module, NUM, SP, Tick, pct } from "./parts";
+import { ChartCard, FigureCard, LIST, Module, NUM, SPAN, Tick, pct } from "./parts";
 
-/** How the money sits: largest, top five and spread against the S&P 500, then sectors side by side. */
+/**
+ * How the money sits: the sectors table (7 columns) beside the three figures stacked (5), about the same height,
+ * so neither column ends halfway. On a phone the figures come first. Without sectors the figures sit in a row.
+ */
 export function Concentration({ module, example }: { module: ConcentrationModule; example: boolean }) {
   const sp = module.sp;
   const lines = module.basis === "look-through" ? "companies" : "holdings";
   const spread = module.equalBets >= 9.95 ? Math.round(module.equalBets).toString() : module.equalBets.toFixed(1);
+  const sectors = module.sectors.length > 0;
   return (
     <Module id="concentration" title={example ? "How the money sits" : "How your money sits"}>
+      <div className={`grid min-w-0 grid-cols-1 gap-3 lg:gap-4 ${sectors ? `${SPAN[5]} lg:order-2` : `${SPAN[12]} lg:grid-cols-3`}`}>
       {module.largest ? (
         <FigureCard
           label={
@@ -40,43 +46,36 @@ export function Concentration({ module, example }: { module: ConcentrationModule
           line={sp.equalBets !== null ? `The S&P 500 spreads like ${Math.round(sp.equalBets)}` : undefined}
         />
       ) : null}
-      {module.sectors.length > 0 ? <Sectors module={module} /> : null}
+      </div>
+      {sectors ? <Sectors module={module} /> : null}
     </Module>
   );
 }
 
+/**
+ * Sectors as a compact table: the share of the money and the S&P 500's beside it. No bars: they only drew the two
+ * numbers printed next to them (owner rule 5).
+ */
 function Sectors({ module }: { module: ConcentrationModule }) {
   const rows = module.sectors;
-  const max = Math.max(1, ...rows.map((row) => Math.max(row.pct, row.spPct ?? 0)));
   const anySp = rows.some((row) => row.spPct !== null);
+  const grid = "grid grid-cols-[minmax(0,1fr)_4.5rem_4.5rem] items-center gap-3";
   return (
-    <ChartCard
-      title={module.basis === "look-through" ? "Sectors, funds opened" : "Sectors"}
-      aside={
-        anySp ? (
-          <>
-            <Key color={MINE}>You</Key>
-            <Key color={SP}>S&amp;P 500</Key>
-          </>
-        ) : undefined
-      }
-      flush
-      newRow
-    >
-      <ul className={`${LIST} px-4 py-3`}>
+    <ChartCard title={module.basis === "look-through" ? "Sectors, funds opened" : "Sectors"} flush className={`${SPAN[7]} lg:order-1`}>
+      <div className={`${grid} border-b border-oa-border px-4 py-1.5 text-[12px] leading-4 text-oa-muted-fg`}>
+        <span>Sector</span>
+        <span className="text-right">You</span>
+        <span className="text-right">{anySp ? "S&P 500" : ""}</span>
+      </div>
+      <ul className={`${LIST} px-4 py-1`}>
         {rows.map((row) => (
-          <li key={row.sector} className="grid grid-cols-[minmax(0,8.5rem)_minmax(0,1fr)_5.5rem] items-center gap-3 py-1 sm:grid-cols-[minmax(0,11rem)_minmax(0,1fr)_6rem]">
-            <span className="truncate text-[13px] leading-5 text-oa-fg" title={row.sector}>
-              {row.sector}
+          <li key={row.sector} className={`${grid} h-8`}>
+            <span className="flex min-w-0 items-center gap-2 text-[13px] leading-5 text-oa-fg" title={row.sector}>
+              <SectorIcon id={row.sector} size={15} />
+              <span className="truncate">{row.sector}</span>
             </span>
-            <span className="flex flex-col gap-[3px]" role="img" aria-label={`${row.sector}: ${pct(row.pct)}${row.spPct !== null ? `, S&P 500 ${pct(row.spPct)}` : ""}`}>
-              <span className="h-2 rounded-[2px]" style={{ width: `${Math.max(row.pct > 0 ? 1 : 0, (row.pct / max) * 100)}%`, background: MINE }} />
-              {row.spPct !== null ? <span className="h-2 rounded-[2px]" style={{ width: `${Math.max(row.spPct > 0 ? 1 : 0, (row.spPct / max) * 100)}%`, background: SP }} /> : null}
-            </span>
-            <span className={`${NUM} text-right text-[12.5px] leading-4`}>
-              <span className="text-oa-fg">{pct(row.pct)}</span>
-              {row.spPct !== null ? <span className="text-oa-muted-fg"> · {pct(row.spPct)}</span> : null}
-            </span>
+            <span className={`${NUM} text-right text-[13px] text-oa-fg`}>{pct(row.pct)}</span>
+            <span className={`${NUM} text-right text-[13px] text-oa-muted-fg`}>{row.spPct !== null ? pct(row.spPct) : anySp ? "–" : ""}</span>
           </li>
         ))}
       </ul>

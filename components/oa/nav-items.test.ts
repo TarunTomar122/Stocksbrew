@@ -13,10 +13,18 @@ describe("the five places", () => {
     for (const item of PLACES) expect(item.short.length).toBeLessThanOrEqual(9);
   });
 
+  it("names every page once, and leaves Ask to the button above the places", () => {
+    const all = PLACES.flatMap((item) => [item, ...item.sections]);
+    const labels = PLACES.flatMap((item) => item.sections.map((sub) => sub.label));
+    expect(new Set(labels).size).toBe(labels.length);
+    expect(all.some((item) => item.href === "/ask" || item.label === "Ask")).toBe(false);
+    expect(placeFor("/ask")).toBeNull();
+  });
+
   it("lists every app route under exactly one place", () => {
     const hrefs = PLACES.flatMap((item) => item.sections.map((sub) => sub.href));
     expect(new Set(hrefs).size).toBe(hrefs.length);
-    for (const href of ["/briefing", "/explore", "/signals", "/news", "/calendar", "/portfolio", "/portfolio/taxes", "/practice", "/screener", "/best", "/sectors", "/compare", "/markets", "/filings", "/ask", "/themes", "/strategies", "/backtest", "/follow", "/insiders", "/agents", "/inbox", "/agent"]) {
+    for (const href of ["/briefing", "/explore", "/signals", "/news", "/calendar", "/portfolio", "/portfolio/taxes", "/practice", "/screener", "/best", "/sectors", "/compare", "/markets", "/filings", "/themes", "/strategies", "/backtest", "/follow", "/insiders", "/agents", "/inbox", "/agent"]) {
       expect(hrefs).toContain(href);
     }
   });
@@ -65,7 +73,7 @@ describe("placeFor and sectionFor", () => {
     expect(PLACES.find((item) => item.label === "My stocks")!.href).toBe("/portfolio");
     expect(sectionOf("/portfolio")).toBe("Overview");
     expect(sectionOf("/portfolio/memo")).toBe("Weekly memo");
-    expect(sectionOf("/portfolio/xray")).toBe("What you own");
+    expect(sectionOf("/portfolio/xray")).toBe("Analysis");
     expect(sectionOf("/portfolio/earnings")).toBe("Earnings season");
     expect(sectionOf("/portfolio/goal")).toBe("Goal planner");
     expect(sectionOf("/portfolio/ideas")).toBe("Rebalancing ideas");
@@ -79,11 +87,10 @@ describe("placeFor and sectionFor", () => {
     expect(sections.map((item) => [item.label, item.group ?? null])).toEqual([
       ["Overview", null],
       ["Weekly memo", "Your stocks"],
-      ["What you own", "Your stocks"],
+      ["Analysis", "Your stocks"],
       ["Earnings season", "Plan ahead"],
       ["Dividends", "Plan ahead"],
       ["Goal planner", "Plan ahead"],
-      ["Stress test", "Plan ahead"],
       ["Rebalancing ideas", "Act"],
       ["Taxes", "Act"],
       ["Practice account", "Act"],

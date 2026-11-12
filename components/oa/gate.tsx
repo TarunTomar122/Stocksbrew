@@ -108,6 +108,7 @@ export function LockCard({
   body,
   stacked = false,
   className = "",
+  id,
 }: {
   feature: FeatureId;
   plan: Plan;
@@ -120,12 +121,15 @@ export function LockCard({
   title?: React.ReactNode;
   body?: React.ReactNode;
   className?: string;
+  /** An anchor a link can land on (Analysis's #crashes, which Free sees as this card). */
+  id?: string;
 }) {
   const { step, act, busy } = useGate(feature, plan, ticker);
   if (step === null) return null;
   const copy = lockCopy(feature);
   return (
     <div
+      id={id}
       className={`oa-surface flex flex-col gap-3 border border-dashed border-[color-mix(in_srgb,var(--oa-primary)_45%,transparent)] bg-[color-mix(in_srgb,var(--oa-primary)_5%,var(--oa-card))] p-4 ${stacked ? "" : "sm:flex-row sm:items-center sm:justify-between"} ${className}`}
     >
       <div className="flex min-w-0 gap-3">

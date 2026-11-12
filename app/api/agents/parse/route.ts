@@ -7,7 +7,7 @@ import { anonymousPlainSubject, consumePlainParse } from "@/lib/agents-plain/lim
 import { plainModelReader } from "@/lib/agents-plain/model";
 import { MAX_REQUEST_CHARS, parseByRules, parsePlainRequest } from "@/lib/agents-plain/parse";
 import { sameJob } from "@/lib/agents-plain/save";
-import { plainCatalog } from "@/lib/agents-plain/server";
+import { plainCallLookup, plainCatalog } from "@/lib/agents-plain/server";
 import { limitFor } from "@/lib/entitlements";
 import { getViewer } from "@/lib/entitlements-server";
 
@@ -41,7 +41,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "That's a lot of requests for one day. Try again tomorrow." }, { status: 429 });
   }
 
-  const spec = await parsePlainRequest(text, catalog, { hidden, rules, model: meter.model ? reader : null });
+  // Our call on any stock a buy or sell watch names, so the read-back can say the real sell-some or buy-more price.
+  const spec = await parsePlainRequest(text, catalog, { hidden, rules, model: meter.model ? reader : null, callLookup: plainCallLookup(viewer) });
   // No model read this time: the rules' reading stands, and the page says why it may be partial.
   // "model" is this person's own daily reads; anything else (the shared ceiling, a counter outage) is "busy".
   const limited = Boolean(reader) && !meter.model ? (meter.reason === "model" ? "model" : "busy") : null;

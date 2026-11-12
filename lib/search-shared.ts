@@ -4,6 +4,8 @@ export type SearchEntry = {
   name: string;
   price?: number;
   day_change_pct?: number;
+  /** An ETF or other fund (lib/funds): search shows a small "Fund" tag. */
+  fund?: boolean;
 };
 
 /** Drop alternate share classes when the canonical ticker is already indexed. */

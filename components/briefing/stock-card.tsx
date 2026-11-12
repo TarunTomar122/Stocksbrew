@@ -36,36 +36,6 @@ export function StockCardGrid({ children, wide = false, dense = false, className
   );
 }
 
-// Written out whole so Tailwind finds them: [breakpoint][span - 1]. `c2` and `c3` are StockCardGrid's container widths.
-const SPANS = {
-  sm: ["sm:col-span-1", "sm:col-span-2"],
-  lg: ["lg:col-span-1", "lg:col-span-2", "lg:col-span-3", "lg:col-span-4", "lg:col-span-5"],
-  xl: ["xl:col-span-1", "xl:col-span-2", "xl:col-span-3"],
-  c2: ["[@container(min-width:30rem)]:col-span-1", "[@container(min-width:30rem)]:col-span-2"],
-  c3: ["[@container(min-width:44rem)]:col-span-1", "[@container(min-width:44rem)]:col-span-2", "[@container(min-width:44rem)]:col-span-3"],
-  d2: ["[@container(min-width:20rem)]:col-span-1", "[@container(min-width:20rem)]:col-span-2"],
-  d3: ["[@container(min-width:36rem)]:col-span-1", "[@container(min-width:36rem)]:col-span-2", "[@container(min-width:36rem)]:col-span-3"],
-} satisfies Record<string, string[]>;
-
-/**
- * No half-empty rows (owner rule): the last card stretches over what its row has left, at each breakpoint's column
- * count. `cols` maps a breakpoint to its columns, smallest first, e.g. { sm: 2, xl: 3 }.
- */
-export function fillLastRow(index: number, count: number, cols: Partial<Record<keyof typeof SPANS, number>>): string {
-  if (index !== count - 1) return "";
-  return (Object.entries(cols) as Array<[keyof typeof SPANS, number]>)
-    .map(([breakpoint, columns]) => {
-      const left = count % columns;
-      return (SPANS[breakpoint] as string[])[(left === 0 ? 1 : columns - left + 1) - 1] ?? "";
-    })
-    .join(" ");
-}
-
-/** The spans for StockCardGrid's own columns. */
-export function stockGridFill(index: number, count: number, wide = false, dense = false): string {
-  return fillLastRow(index, count, wide ? { sm: 2, lg: 3 } : dense ? { d2: 2, d3: 3 } : { c2: 2, c3: 3 });
-}
-
 export const CARD_HOVER = "transition-colors hover:border-[color-mix(in_srgb,var(--oa-fg)_25%,transparent)] hover:bg-oa-accent";
 
 /** The one fact worth highlighting on a card: "Reports tomorrow after the close", "You hold it". */
@@ -90,7 +60,6 @@ export function StockCard({
   children,
   muted = false,
   expanded = false,
-  fill = "",
   tag,
   note,
   eagerLogo = false,
@@ -115,8 +84,6 @@ export function StockCard({
   children?: React.ReactNode;
   muted?: boolean;
   expanded?: boolean;
-  /** Spans that stretch the last card over its row's empty columns (`stockGridFill`); an opened card takes the row anyway. */
-  fill?: string;
   /** A short line under the ticker, e.g. "You watch AMD." on a stock the person watches rather than holds. */
   tag?: string | null;
   /** The card's one highlighted fact as a short line under the header rather than a chip ("Up 14.1% in a month"). */
@@ -131,7 +98,7 @@ export function StockCard({
   return (
     <li
       {...rest}
-      className={`oa-surface relative flex min-w-0 flex-col border border-oa-border bg-oa-card px-3.5 pb-3 pt-3 ${cover ? CARD_HOVER : ""} ${expanded ? "col-span-full" : fill} ${muted ? "opacity-75" : ""} ${className}`}
+      className={`oa-surface relative flex min-w-0 flex-col border border-oa-border bg-oa-card px-3.5 pb-3 pt-3 ${cover ? CARD_HOVER : ""} ${expanded ? "col-span-full" : ""} ${muted ? "opacity-75" : ""} ${className}`}
     >
       <div className="flex min-w-0 items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2.5">

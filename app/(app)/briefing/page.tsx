@@ -103,7 +103,7 @@ async function marketExtras(): Promise<MarketExtra[]> {
   const out: MarketExtra[] = [];
   for (const id of ["us10y", "vix"] as const) {
     const asset = data?.assets.find((entry) => entry.id === id);
-    if (asset && Number.isFinite(asset.price)) out.push({ id, price: asset.price, change: asset.change.d1 ?? null, changeMode: asset.change_mode, monthChange: asset.change.m1 ?? null });
+    if (asset && Number.isFinite(asset.price)) out.push({ id, price: asset.price, change: asset.change.d1 ?? null, changeMode: asset.change_mode });
   }
   return out;
 }
@@ -147,18 +147,19 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
   const pricesAt = priceDay ? oldestStamp(stamps.filter((stamp) => etDayOfStamp(stamp) === priceDay)) : null;
   const clock = clockWords(mode, etDayOfStamp(pricesAt), etClock(pricesAt));
   const pre = mode === "premarket" ? premarket?.stocks ?? null : null;
+  const prePrices = mode === "premarket" ? premarket?.prices ?? null : null;
   const resultFact = (read: ResultRead) => briefingResultFact(read, today);
   const items = stockItems(briefing);
 
   const strip = marketStrip({ briefing, positions, mode, premarket, extras });
   // Each stock shows once, in the first module that wants it: Do today, then Why it moved, then the levels.
   // A saved earlier day keeps its decision cards, but never says "Nothing needs you today" about that day.
-  const decided = personal ? doToday({ items, positions, degraded: data.archived ? [] : data.degraded, premarket: pre }) : null;
+  const decided = personal ? doToday({ items, positions, degraded: data.archived ? [] : data.degraded, premarket: pre, premarketPrices: prePrices }) : null;
   const todo = data.archived && decided?.kind !== "cards" ? null : decided;
   const shown = new Set(todo?.kind === "cards" ? todo.cards.map((card) => card.ticker) : []);
   const moved = personal ? whyItMoved({ items, positions, results, exclude: shown, today, resultFact }) : marketMoved(briefing.market);
   for (const card of moved) shown.add(card.ticker);
-  const levels = personal ? atYourLevels(positions, shown, pre) : [];
+  const levels = personal ? atYourLevels(positions, shown, pre, prePrices) : [];
   for (const row of levels) shown.add(row.ticker);
   // The week is a calendar: only a report Do today already names ("Reports today after the close") is left out of it.
   const reportsInDo = new Set(todo?.kind === "cards" ? todo.cards.filter((card) => card.reason === "earnings").map((card) => card.ticker) : []);
@@ -171,7 +172,7 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
       : null;
 
   return (
-    <AppPage>
+    <AppPage width="dash">
       <MarketingSchema path="/briefing" name={TITLE} description={DESCRIPTION} breadcrumbLabel="Briefing" />
       <BriefingFace
         mode={briefing.mode}
@@ -185,7 +186,7 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
         example={Boolean(data.example)}
         strip={strip}
         doToday={todo}
-        heat={personal ? heatCells(positions, pre) : []}
+        heat={personal ? heatCells(positions, pre, prePrices) : []}
         levels={levels}
         moved={moved}
         week={week}

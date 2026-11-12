@@ -211,6 +211,11 @@ export type EarningsItem = {
   reaction: Reaction | null;
   /** True when a pre-earnings read exists for this exact report date. */
   hasPreRead: boolean;
+  /**
+   * An upcoming report of one of the biggest companies: how the stock moved after its last report, and that move in
+   * words for the row's hover title. Set by the calendar page (lib/calendar-insights.ts biggestReports).
+   */
+  lastReport?: { pct: number; note: string } | null;
 };
 
 export type EconomicItem = {

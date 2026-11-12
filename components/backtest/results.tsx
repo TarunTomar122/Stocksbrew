@@ -131,10 +131,12 @@ export function StatGrid({
   headline?: boolean;
 }) {
   const vs = (text: string) => `${benchmarkLabel} ${text}`;
-  // The return for its swing and the years it beat the index read as sentences, not "0.35" and "0 of 4" (owner rule 8).
-  const sentences = [beatYearsSentence(hitRate, benchmarkLabel), swingSentence(strategy.sharpe, benchmark.sharpe, benchmarkLabel)].filter(
-    (line): line is string => Boolean(line),
-  );
+  // One takeaway under the figures, at most 15 words (owner rule 8): the years it beat the index, else its return for
+  // its swing, as a sentence rather than "0 of 4" or "0.35".
+  const takeaway =
+    [beatYearsSentence(hitRate, benchmarkLabel), swingSentence(strategy.sharpe, benchmark.sharpe, benchmarkLabel)].find(
+      (line): line is string => Boolean(line) && line!.split(/\s+/).filter(Boolean).length <= 15,
+    ) ?? null;
   return (
     <div
       className={`oa-surface grid grid-cols-2 gap-px overflow-hidden border border-oa-border bg-oa-border ${
@@ -171,14 +173,8 @@ export function StatGrid({
         value={turnover === null ? "–" : plainPct(turnover, 0)}
         sub={turnover === null ? "needs a full year" : "sold and rebought"}
       />
-      {sentences.length ? (
-        <div className="col-span-full bg-oa-card px-3.5 py-3">
-          {sentences.map((line) => (
-            <p key={line} className="text-pretty text-[14px] leading-5 text-oa-fg">
-              {line}
-            </p>
-          ))}
-        </div>
+      {takeaway ? (
+        <p className="col-span-full bg-oa-card px-3.5 py-3 text-pretty text-[14px] leading-5 text-oa-fg">{takeaway}</p>
       ) : null}
     </div>
   );

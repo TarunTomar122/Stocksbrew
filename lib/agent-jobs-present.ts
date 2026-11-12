@@ -432,6 +432,9 @@ export function presentRun(
         headline = priced === 1 ? `No move of ${threshold}% or more ${when}.` : `None of ${job?.scope?.kind === "tickers" ? "these" : "your"} ${priced} names moved ${threshold}% or more ${when}.`;
       } else if (trigger.rule === "enters_buy_zone") {
         headline = priced === 1 ? `It did not close at its buy-more level ${when}.` : `None of your ${priced} names closed at their buy-more levels ${when}.`;
+      } else if (trigger.rule === "enters_sell_zone") {
+        // Never "did not reach our sell-some price": a Keep call has none (owner rule 8).
+        headline = priced === 1 ? `Our call did not say to sell it ${when}.` : `Our call did not say to sell any of your ${priced} names ${when}.`;
       } else {
         headline = `It did not close ${trigger.rule === "crosses_above" ? "above" : "below"} ${money(trigger.level ?? 0)} ${when}.`;
       }
@@ -467,6 +470,24 @@ export function presentRun(
     // The headline already names the stocks and the level, so the zone line is not said again.
     todo = "Our call says this is where to buy more. Your call.";
     act = true;
+  } else if (trigger?.type === "price" && trigger.rule === "enters_sell_zone") {
+    // Our call turning to Sell some leads; a close at the sell-some price is the same headline as the buy zone's.
+    const turns = findings.filter((finding) => finding.kind === "call");
+    const one = moves[0];
+    const list = [...new Set([...turns.map((finding) => finding.ticker ?? ""), ...moves.map((row) => row.ticker)])].filter(Boolean);
+    headline =
+      list.length === 1 && turns.length === 1
+        ? `${turns[0].headline}.`
+        : list.length === 1 && one && one.change_pct != null && one.close != null && one.level != null
+          ? `${one.ticker} ${one.change_pct >= 0 ? "rose" : "fell"} ${Math.abs(one.change_pct).toFixed(1)}% to ${money(one.close)} ${when}, ${levelWhere(one.close, one.level, "trim")}.`
+          : list.length > 1
+            ? `${names(list)} reached our sell-some price or turned to Sell some.`
+            : run.summary;
+    todo = "Our call says this is where to sell some. Your call.";
+    act = true;
+  } else if (trigger?.type === "event" && trigger.event === "call_change") {
+    todo = findings.some((finding) => finding.call_to === "Sell some" || finding.call_to === "Buy more") ? "Your call." : "Worth a look.";
+    act = findings.some((finding) => finding.call_to === "Sell some" || finding.call_to === "Buy more");
   } else if (moves.length > 0 && (trigger?.type === "schedule" || trigger?.type === "price" || !trigger)) {
     const lead = [...moves].sort((a, b) => Math.abs(b.change_pct ?? 0) - Math.abs(a.change_pct ?? 0))[0];
     const span = weekly ? `in the week to ${closeDate ? weekday(closeDate) : "the last close"}` : when;
@@ -508,7 +529,7 @@ export function presentRun(
     }
   }
   if (!todo) todo = zoneLine || "No action needed.";
-  else if (zoneLine && !(trigger?.type === "price" && trigger.rule === "enters_buy_zone")) todo = `${zoneLine} ${todo}`;
+  else if (zoneLine && !(trigger?.type === "price" && (trigger.rule === "enters_buy_zone" || trigger.rule === "enters_sell_zone"))) todo = `${zoneLine} ${todo}`;
   if (extra.length) todo = `${todo} ${extra.join(" ")}`;
   if (!act && (trigger?.type === "event" && trigger.event !== "earnings_approaching") && todo === "No action needed.") {
     todo = "Worth a look.";

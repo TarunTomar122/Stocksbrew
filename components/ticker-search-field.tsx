@@ -8,6 +8,7 @@ import { StockRequestModal } from "@/components/stock-request-modal";
 import { TrackButton } from "@/components/track-button";
 import { captureEvent } from "@/lib/posthog";
 import type { SearchEntry } from "@/lib/search";
+import { FundTag } from "@/components/fund-page/fund-tag";
 import { prefetchSearchIndex } from "@/lib/search-index-client";
 import { formatSearchPct, scoreSearchEntry } from "@/lib/ticker-search-utils";
 import type { Market } from "@/lib/types";
@@ -227,7 +228,10 @@ export function TickerSearchField({
                     }}
                     className="min-w-0 flex-1 text-left"
                   >
-                    <div className="text-[14px] font-semibold text-on-surface">{r.ticker}</div>
+                    <div className="flex items-center gap-1.5 text-[14px] font-semibold text-on-surface">
+                      {r.ticker}
+                      {r.fund ? <FundTag /> : null}
+                    </div>
                     <div className="truncate text-[13px] text-on-surface-variant">{r.name}</div>
                   </button>
                   <div className="flex shrink-0 flex-col items-end">

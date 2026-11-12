@@ -27,9 +27,9 @@ export async function PortfolioAskHint({ load }: { load: HomeLoad }) {
 }
 
 async function PortfolioQuestions({ load, context }: { load: HomeLoad; context: string }) {
-  const [{ mode }, sources] = await Promise.all([load.context, feedSources(load)]);
-  const noticed = focusNoticed(sources, mode);
-  const { lead } = prioritise(noticed, sources, mode);
+  const [{ mode, viewer }, sources] = await Promise.all([load.context, feedSources(load)]);
+  const noticed = focusNoticed(sources, mode, viewer.plan);
+  const { lead } = prioritise(noticed, sources, mode, viewer.plan);
   const leadIds = new Set(lead.map((item) => item.id));
   const fromLead = lead
     .map((item) => askFor(item, mode))

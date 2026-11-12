@@ -12,6 +12,7 @@ import type { ShareFacts } from "@/lib/share/cards";
 type Doc = Record<string, unknown>;
 const state = vi.hoisted(() => ({
   uid: null as string | null,
+  plan: "pro" as "free" | "pro",
   docs: new Map<string, Doc>(),
   writes: [] as Array<{ op: string; path: string }>,
   facts: null as ShareFacts | null,
@@ -19,7 +20,7 @@ const state = vi.hoisted(() => ({
   landThenFail: false,
 }));
 
-vi.mock("@/lib/entitlements-server", () => ({ getViewer: async () => ({ uid: state.uid, signedIn: Boolean(state.uid), plan: "free" }) }));
+vi.mock("@/lib/entitlements-server", () => ({ getViewer: async () => ({ uid: state.uid, signedIn: Boolean(state.uid), plan: state.uid ? state.plan : "anon" }) }));
 vi.mock("@/lib/auth-server", () => ({ getSessionUser: async () => (state.uid ? { uid: state.uid } : null) }));
 vi.mock("@/lib/watchlist", () => ({ getUserDoc: async (uid: string) => ({ uid, tracked_stocks: ["US_NVDA"] }) }));
 vi.mock("@/lib/share/facts", () => ({ loadShareFacts: async () => (state.facts ? { facts: state.facts, asOf: "2026-11-11" } : null) }));
@@ -87,6 +88,7 @@ async function draft() {
 
 beforeEach(() => {
   state.uid = "test-uid-share-1";
+  state.plan = "pro";
   state.docs = new Map();
   state.writes = [];
   state.facts = structuredClone(FACTS);
@@ -100,6 +102,19 @@ describe("/api/share", () => {
     expect((await POST(post({ action: "draft", kind: "xray" }))).status).toBe(401);
     expect((await POST(post({ action: "create", kind: "xray", cardId: "top", hash: "x" }))).status).toBe(401);
     expect(state.writes).toEqual([]);
+  });
+
+  it("keeps Analysis's look-through and crash cards for Pro", async () => {
+    state.plan = "free";
+    for (const kind of ["xray", "stress"]) {
+      const res = await POST(post({ action: "draft", kind }));
+      expect(res.status).toBe(403);
+      expect((await res.json()).error).toBe("locked");
+      expect((await POST(post({ action: "create", kind, cardId: "top", hash: "x" }))).status).toBe(403);
+    }
+    expect(state.writes).toEqual([]);
+    state.plan = "pro";
+    expect((await draft()).res.status).toBe(200);
   });
 
   it("refuses an unknown page or action", async () => {

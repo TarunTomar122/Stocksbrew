@@ -1,4 +1,5 @@
 import { AppLink } from "@/components/oa/app-link";
+import { capitalize, dayWords, daysFromToday, etToday } from "@/lib/day-words";
 import { wholeSentences } from "@/lib/plain-copy";
 import type { StockTimelineItem, StockTimelineKind } from "@/lib/stock-timeline";
 
@@ -28,6 +29,12 @@ export function timelineDate(item: Pick<StockTimelineItem, "at" | "precision">, 
     const text = fmtDate(item.at, true);
     return text.replace(/ \d+,/, "");
   }
+  // A recent day in words ("Today", "Yesterday", "Monday"), counted from the render's own time so server and browser
+  // agree (owner rule 4); anything older keeps its date.
+  const nowMs = Date.parse(nowIso);
+  const today = etToday(Number.isFinite(nowMs) ? nowMs : Date.now());
+  const gap = daysFromToday(item.at, today);
+  if (gap !== null && gap <= 0 && gap >= -6) return capitalize(dayWords(item.at, today));
   const sameYear = item.at.slice(0, 4) === nowIso.slice(0, 4);
   if (item.precision === "day") return fmtDate(item.at, !sameYear);
   return new Date(item.at).toLocaleDateString("en-US", {

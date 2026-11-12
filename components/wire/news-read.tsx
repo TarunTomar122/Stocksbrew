@@ -65,18 +65,15 @@ export function headlineWords(title: string, companyName = ""): string {
 }
 
 /**
- * One headline: linked, whole (never cut off), in sentence case, with its source and time. No tone mark on every
- * line (owner rule 1): the card or theme it sits in says the tone once. No excerpt tooltip: it was a fifth of the
- * page's weight for text nobody sees without hovering (owner rule 11).
+ * One headline: linked, whole (never cut off), in sentence case. Its source and time are the link's title, not a line
+ * under it (owner rule 4). No tone mark on every line (owner rule 1): the card it sits in says the tone once.
  */
 export function HeadlineLine({ item, companyName = "", className = "" }: { item: WireItem; companyName?: string; className?: string }) {
+  const source = `${item.source || "Unknown source"}${item.sourceKind === "press_release" ? ", release" : ""} · ${when(item.publishedAt)}`;
   return (
-    <a href={item.url} target="_blank" rel="noopener noreferrer" className={`group block rounded ${FOCUS} ${className}`}>
-      <span className="block text-pretty text-[14px] leading-5 text-oa-fg group-hover:underline">{headlineWords(item.title, companyName)}</span>
-      <span className={`${NUM} mt-0.5 block text-[12.5px] leading-[18px] text-oa-muted-fg`}>
-        {item.source || "Unknown source"}
-        {item.sourceKind === "press_release" ? " · release" : ""} · {when(item.publishedAt)}
-      </span>
+    <a href={item.url} target="_blank" rel="noopener noreferrer" title={source} className={`group block rounded ${FOCUS} ${className}`}>
+      <span className="block text-pretty text-[14.5px] leading-5 text-oa-fg group-hover:underline">{headlineWords(item.title, companyName)}</span>
+      <span className="sr-only"> ({source})</span>
     </a>
   );
 }

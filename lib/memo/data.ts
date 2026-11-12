@@ -330,7 +330,12 @@ function stressOf(result: Awaited<ReturnType<typeof buildStressView>>): MemoStre
   return latest ? { name: latest.episode.name, start: latest.episode.start, end: latest.episode.end, portfolio: latest.portfolio!, market: latest.market! } : null;
 }
 
-export async function loadShapeFacts(source: HoldingSource, series: Map<string, DailySeries>): Promise<ShapeFacts> {
+/**
+ * The portfolio-shape facts for the current week. `deep` is the deeper Analysis work (inside the funds, past
+ * crashes, lib/entitlements.ts portfolio_analysis_deep): without it the funds are not opened and no crash is replayed,
+ * so a Free memo carries neither. Dividends are free either way.
+ */
+export async function loadShapeFacts(source: HoldingSource, series: Map<string, DailySeries>, deep: boolean): Promise<ShapeFacts> {
   const lastClose = (ticker: string) => {
     const closes = series.get(ticker)?.closes;
     return closes && closes.length > 0 ? closes[closes.length - 1]! : null;
@@ -346,9 +351,9 @@ export async function loadShapeFacts(source: HoldingSource, series: Map<string, 
     avgCost: null,
   }));
   const [xray, dividends, stress] = await Promise.all([
-    (source.subject === "example" ? loadExampleXray() : loadUserXray(source.userDoc)).catch(() => null),
+    deep ? (source.subject === "example" ? loadExampleXray() : loadUserXray(source.userDoc)).catch(() => null) : null,
     dividendsOf(seeds).catch(() => [] as MemoDividend[]),
-    buildStressView(valued, source.subject === "example" ? "example" : "live", null).catch(() => null),
+    deep ? buildStressView(valued, source.subject === "example" ? "example" : "live", null).catch(() => null) : null,
   ]);
   return { exposure: exposureOf(xray), dividends, stress: stressOf(stress) };
 }

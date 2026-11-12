@@ -98,12 +98,13 @@ function levelLine(row: ScreenerRow | null | undefined): string | null {
 /**
  * Our call on each stock, first on the page: the call, the one figure its evidence leads with and what it is, then
  * one line, the call's own level when the plan shows it, else the evidence as one sentence. The card opens the
- * stock. Only stocks with a call get a card (owner rule 4: no card without data); a lone card takes the row.
+ * stock. Only stocks with a call get a card (owner rule 4: no card without data).
  */
 function CallCards({ symbols, rows, className = "mt-3" }: { symbols: string[]; rows: ReadonlyArray<ScreenerRow | null>; className?: string }) {
   const called = symbols.filter((_, index) => rows[index]?.call);
   if (called.length === 0) return null;
-  const cols = called.length === 1 ? "" : called.length === 3 ? "lg:grid-cols-3" : "sm:grid-cols-2";
+  // A lone card keeps a card's width rather than stretching over the row (owner rule 4).
+  const cols = called.length === 3 ? "lg:grid-cols-3" : "sm:grid-cols-2";
   return (
     <ul aria-label="Our call on each" className={`grid grid-cols-1 gap-3 ${cols} ${className}`}>
       {called.map((symbol) => {

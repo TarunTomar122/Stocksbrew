@@ -7,13 +7,19 @@ import { StockLogo } from "@/components/stock-logo";
 /**
  * The day's biggest moves as two tables side by side (owner, Nov 12: "do table here left side gainers right side
  * losers"): gainers on the left, losers on the right, stacked gainers first on a phone. Each row is the logo, the
- * ticker, its one line (a confirmed reason, else a measured price fact, else nothing) cut to two lines at most, and
+ * ticker, its confirmed reason (moves without one are not listed) cut to two lines at most, and the price over
  * the move. Each table scrolls inside a box about seven and a half rows tall, so the half row at the foot says there
  * is more; the header row stays put while it scrolls, and the scroll hands back to the page at either end (no
  * overscroll containment). Both boxes are the same height. Server-rendered, no hooks.
  */
 
-export type MoveRow = { ticker: string; name: string; changePct: number; line: string | null };
+export type MoveRow = { ticker: string; name: string; changePct: number; price: number | null; line: string | null };
+
+/** "$173.85", "$1,204": a share price, with cents under $1,000. */
+function sharePrice(value: number): string {
+  const cents = value < 1000 ? 2 : 0;
+  return `$${value.toLocaleString("en-US", { minimumFractionDigits: cents, maximumFractionDigits: cents })}`;
+}
 
 /** One row's height, in rem (each item's `h-[3.25rem]`, its 1px border inside it): two lines of the reason plus padding, so the cut is exact. */
 const ROW_REM = 3.25;
@@ -66,8 +72,12 @@ function MoveTable({ title, rows, side, heightRem, when }: { title: string; rows
                   <span className="oa-mono truncate text-[13.5px] font-semibold text-oa-fg">{row.ticker}</span>
                 </span>
                 <span className="line-clamp-2 text-pretty text-[13px] leading-[18px] text-oa-muted-fg">{row.line ?? ""}</span>
-                <span className={`oa-mono text-right text-[14px] font-semibold tabular-nums ${side === "up" ? "text-signal-bullish" : "text-signal-bearish"}`}>
-                  {signedPct(row.changePct)}
+                {/* The price, then the move under it (owner, Nov 12: the current price on every stock). */}
+                <span className="flex flex-col items-end">
+                  {row.price !== null ? <span className="oa-mono text-[13px] tabular-nums text-oa-fg">{sharePrice(row.price)}</span> : null}
+                  <span className={`oa-mono text-right text-[14px] font-semibold tabular-nums ${side === "up" ? "text-signal-bullish" : "text-signal-bearish"}`}>
+                    {signedPct(row.changePct)}
+                  </span>
                 </span>
               </Link>
             </li>

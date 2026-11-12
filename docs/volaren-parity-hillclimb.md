@@ -185,6 +185,35 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-12 ~11:30 ET: ships 58-61 live (5a86f97 landing, 7b1f3d7 stock page, 3f1b85f premarket job, 00455f9 morning batch)
+
+- **Ship 58 (5a86f97): the landing page.** The split hero is back, with a live "What stood out" demo card (logo tabs; price; call with its own level; ≤15-word why; 3-month sparkline with the level) and the market check as four figure tiles. The /pricing h1 is cut to one line.
+- **Ship 59 (7b1f3d7): the stock page.** No read block, no source lines under the facts and checks (they move to hover titles), no "Our call since…" line, and the What would change it bullets drop the bare threshold figure and use plain wording. The landing search opens the stock page. A TDZ crash (`bullet`) was caught on the local screenshot before the deploy.
+- **Backend (3f1b85f, deployed with deploy-code.sh):** the premarket job now quotes SPY and QQQ, the example portfolio and users' holdings and watchlists, capped at 600, so the memo's dotted leg can show.
+- **Ship 60 (00455f9): the morning batch, 294 files.**
+  - Read blocks are gone everywhere (TheRead deleted).
+  - The briefing is rebuilt as one column: you/S&P/gap/10-yr/VIX strip with verdict colours, Do today, a money heat grid, close to your levels, why it moved with confirmed reasons only, reports this week, and since you last opened (`last_briefing_at` / `since_at`, additive).
+  - **What you own** at /portfolio/xray: concentration vs the S&P with fund look-through, overlap, swing drivers (own 252-day regression), a weight-vs-swing scatter, correlation clusters and heatmap, past shocks, what made the money, mix vs the S&P, earnings and calls, and dividends. Free/Pro split by `portfolio_analysis_deep`. /portfolio/stress redirects to it.
+  - Visual share cards and OG images with logos, a chart and one big number, and no top borders.
+  - Compare scoreboard (who wins each row).
+  - Every table capped. The positions columns are reordered. Attention rows come first. Alerts are grouped by stock, and the "already below" fix is in.
+  - Explore gets gainers/losers tables, a sector heatmap, and More markets verdict chips (lib/market-verdict.ts).
+  - My stocks: price + day cards, a need-a-look fold with at least 4 cards showing, a Tools card, and a one-button menu.
+  - Recent days are written in words (lib/day-words.ts).
+  - The memo has a dotted premarket leg. Premarket hides unless today's data is in.
+- **Verified:** on the frozen tree, tsc clean, vitest 3074/3074 both plain and PAYWALL_V2, eslint 0 errors. Builders' screenshots at 1280 and 390, light and dark. Live smoke test: every page 200, stress and premarket 307. Signed-in live captures of /briefing and /portfolio/xray read back (scratchpad live58/).
+- **Judges on ship 60:** Codex rated UI 7, UX 6.5, usability 6.5, wording 6, agent feel 6, Volaren similarity 7, easy to sell 6.5, **overall 6.5**. Cursor failed on a network error. Codex's top fixes: stock-page and insider prose down to one fact each; movers as cards (not done, the owner wants tables); the fold (overruled, the owner wants at least 4 cards); duplicated calendar highlights; readable X-ray correlation. A judge-fix builder is on all of them except the two owner overrides.
+- **Ship 61 (c3f2532):** plain numbers. A near-zero margin now reads "about breaks even", not "loses 0 cents"; a loss larger than the sale reads in dollars.
+- **In flight:** the integration-fix builder (paywall leaks in the share API, Tools card and memo; stress links; stretched cards; briefing strip colours; share logos; dead code); the **funds builder** (funds as first-class: ETF coverage, tm_fund_facts, fund pages, import coverage); the judge-fix builder.
+- **Open:**
+  - The integration QA subagent is running.
+  - The briefing strip colours a rising VIX/10-yr green on live; check the verdict wiring.
+  - "Reports this week" shows "Mon 16" instead of the day word.
+  - The share-card logos fell back to letters in the builder's shots.
+  - The nav still lists Stress test (it redirects).
+  - Dead code to delete: xray-view, components/stress, BookLead, EarningsDayBriefing, BeforeOpenCard.
+  - The analysis builder printed the LocalDB token into its own transcript; the owner may want to rotate it.
+
 ### 2026-11-12 ~10:00 ET: tick in flight, three big rebuilds plus the owner's fix batch (nothing shipped yet this tick)
 
 - **Owner feedback this morning, now in owner-design-rules.md and memory:**

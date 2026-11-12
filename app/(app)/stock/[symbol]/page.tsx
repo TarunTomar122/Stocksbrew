@@ -5,6 +5,7 @@ import { Suspense, cache } from "react";
 import { EarningsDayStockEntry } from "@/components/earnings-day/stock-entry";
 import { StockReason } from "@/components/thesis/stock-reason";
 import { StockPageStream } from "@/components/stock-page-stream";
+import { FundPageStream } from "@/components/fund-page/fund-page-stream";
 import { StockReportSkeleton } from "@/components/stock-report/skeleton";
 import { StockFamilyLinks } from "@/components/seo/stock-family-links";
 import { interTight } from "@/components/oa/font";
@@ -12,6 +13,7 @@ import { OaSiteHeader } from "@/components/oa/oa-site-header";
 import { todayET } from "@/lib/calendar-shared";
 import { getCurrentMarket } from "@/lib/market";
 import { getStockSummary, normalizeStockSymbolParam } from "@/lib/stock";
+import { fundListing } from "@/lib/funds/server";
 import { stockShareLine } from "@/lib/og/data";
 import { ogImage } from "@/lib/og/url";
 import { getStockFamily } from "@/lib/seo/family-data";
@@ -64,9 +66,28 @@ const stockExists = cache(async (symbol: string): Promise<"yes" | "no" | "unknow
   }
 });
 
+/** A fund we cover (lib/funds): it gets the fund page, whether or not the price job has quoted it yet. */
+const fundAt = cache(async (symbol: string) => {
+  const normalized = normalizeStockSymbolParam(symbol);
+  return normalized ? fundListing(normalized).catch(() => null) : null;
+});
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { symbol } = await params;
   const normalized = normalizeStockSymbolParam(symbol);
+  const fund = await fundAt(symbol);
+  if (fund) {
+    const title = `${fund.ticker}: ${fund.name} price, holdings and cost`;
+    const description = `${fund.name} (${fund.ticker}): price, what it costs a year, its biggest holdings and sectors against the S&P 500.`;
+    return {
+      title,
+      description,
+      alternates: { canonical: `/stock/${fund.ticker}` },
+      robots: { index: true, follow: true },
+      openGraph: { title: `${title} · stocksbrew`, description, url: `https://www.stocksbrew.online/stock/${fund.ticker}` },
+      twitter: { card: "summary", title: `${title} · stocksbrew`, description },
+    };
+  }
   const label =
     normalized ?? (symbol.trim().toUpperCase().slice(0, 16) || symbol.toUpperCase());
   const upper = label.toUpperCase();
@@ -143,6 +164,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function StockPage({ params }: Props) {
   const { symbol } = await params;
   const ticker = normalizeStockSymbolParam(symbol) ?? symbol.toUpperCase();
+  // A fund gets its own page (components/fund-page): price, costs, holdings, no call.
+  const fund = await fundAt(symbol);
+  if (fund) {
+    return (
+      <main className={`oa-landing stock-report-page ${interTight.variable} min-w-0 flex-grow overflow-x-clip`}>
+        <style>{STICKY_FIX}</style>
+        <OaSiteHeader />
+        <Suspense fallback={<StockReportSkeleton />}>
+          <FundPageStream ticker={fund.ticker} name={fund.name} />
+        </Suspense>
+      </main>
+    );
+  }
   // Only symbols outside the catalogue wait for the store before anything streams (a real 404, see stockExists).
   // The 500 catalogued stocks always exist, so their shell goes out at once. If one were ever missing from the
   // store, the report would show its "not covered yet" view (with a 200) instead of the 404 page.

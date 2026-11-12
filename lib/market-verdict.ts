@@ -13,6 +13,9 @@
  * - The dollar index at (within 1% of the range from) its one-year high is mildly bad (it shrinks big US companies'
  *   overseas sales); anything else is neutral.
  * - Fed odds on a prediction market: a hike is bad, a cut is good, no change is neutral. Other markets get no verdict.
+ * - A day's move, where a page shows the day's change rather than the level (the briefing's strip): the 10-year yield up
+ *   more than 0.02 points (2 bps) is bad and down as much is good; the VIX up more than 1% is bad and down as much is
+ *   good; anything smaller is neutral. A rising yield or a rising VIX is never read as good, whatever the month did.
  * - What moved: of the stock indexes and funds among the biggest moves across markets, 70% or more gains is good,
  *   30% or less is bad, else neutral (three or more of them, or no verdict).
  */
@@ -25,6 +28,10 @@ export const VIX_CALM = 15;
 export const VIX_FEAR = 25;
 /** Percentage points the 10-year yield must move over the month to count. */
 export const YIELD_FLAT = 0.05;
+/** Percentage points the 10-year yield must move in a day to count (2 bps). */
+export const YIELD_DAY_FLAT = 0.02;
+/** Percent the VIX must move in a day to count. */
+export const VIX_DAY_FLAT = 1;
 /** How far the put/call ratio must sit from its usual level to count. */
 export const PUT_CALL_FLAT = 0.03;
 /** Gold's one-month gain that reads as a rush to safety, percent. */
@@ -47,6 +54,22 @@ export function yieldVerdict(change: number | null | undefined): VerdictLine | n
   if (change < -YIELD_FLAT) return { verdict: "good", why: "Lower than a month ago: cheaper borrowing." };
   if (change > YIELD_FLAT) return { verdict: "bad", why: "Higher than a month ago: costlier borrowing." };
   return { verdict: "neutral", why: "About where it was a month ago." };
+}
+
+/** `change` is the yield's move over the day, in percentage points: a rise makes borrowing dearer, so it is bad for stocks. */
+export function yieldDayVerdict(change: number | null | undefined): VerdictLine | null {
+  if (!finite(change)) return null;
+  if (change < -YIELD_DAY_FLAT) return { verdict: "good", why: "Yields fell today: cheaper borrowing." };
+  if (change > YIELD_DAY_FLAT) return { verdict: "bad", why: "Yields rose today: costlier borrowing." };
+  return { verdict: "neutral", why: "Yields barely moved today." };
+}
+
+/** `changePct` is the VIX's move over the day, percent: a rising fear gauge is bad for stocks. */
+export function vixDayVerdict(changePct: number | null | undefined): VerdictLine | null {
+  if (!finite(changePct)) return null;
+  if (changePct < -VIX_DAY_FLAT) return { verdict: "good", why: "Fear eased today." };
+  if (changePct > VIX_DAY_FLAT) return { verdict: "bad", why: "Fear rose today." };
+  return { verdict: "neutral", why: "Fear barely moved today." };
 }
 
 export function putCallVerdict(ratio: number | null | undefined, usual: number | null | undefined): VerdictLine | null {

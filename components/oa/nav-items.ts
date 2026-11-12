@@ -6,7 +6,9 @@
  * place lists its pages as sections (the sidebar under the lit place, the
  * strip and its "More" menu under the phone top bar).
  *
- * Routes never change here: only names, grouping and which item lights up.
+ * Routes never change here: only names, grouping and which item lights up. /ask has no section of its own: the
+ * "Ask a question" button above the places is its one way in (owner, Nov 12: "why is ask in two places"), and it
+ * lights up on /ask (components/ask/ask-panel-host.tsx).
  */
 export type NavIcon =
   | "ask"
@@ -102,11 +104,10 @@ export const PLACES: NavPlace[] = [
     sections: [
       section("Overview", "/portfolio", "portfolio", ["/import"]),
       section("Weekly memo", "/portfolio/memo", "briefing", [], "Your stocks"),
-      section("What you own", "/portfolio/xray", "portfolio", [], "Your stocks"),
+      section("Analysis", "/portfolio/xray", "portfolio", [], "Your stocks"),
       section("Earnings season", "/portfolio/earnings", "calendar", [], "Plan ahead"),
       section("Dividends", "/portfolio/dividends", "calendar", [], "Plan ahead"),
       section("Goal planner", "/portfolio/goal", "backtest", [], "Plan ahead"),
-      section("Stress test", "/portfolio/stress", "backtest", [], "Plan ahead"),
       section("Rebalancing ideas", "/portfolio/ideas", "filings", [], "Act"),
       section("Taxes", "/portfolio/taxes", "filings", [], "Act"),
       section("Practice account", "/practice", "practice", [], "Act"),
@@ -127,7 +128,6 @@ export const PLACES: NavPlace[] = [
       section("Compare", "/compare", "compare"),
       section("Markets", "/markets", "markets"),
       section("Filings", "/filings", "filings"),
-      section("Ask", "/ask", "ask"),
       section("Themes", "/themes", "themes", [], "Test ideas"),
       section("Strategies", "/strategies", "strategies", [], "Test ideas"),
       section("Backtest", "/backtest", "backtest", [], "Test ideas"),

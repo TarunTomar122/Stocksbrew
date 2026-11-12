@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { buildPortfolio, type DailySeries, type PortfolioRowInput } from "@/lib/portfolio-shared";
-import { bookLead, callLevel, extraFacts, firstSentence, leadHeadline, leadParts, monthMoves, nextReportStep, monthWords, signedDollars, signedPct, stockCards, stockFacts, weekMove, type BookSource, type CallInfo } from "@/lib/portfolio-home/stocks";
+import { bookLead, callLevel, extraFacts, firstSentence, leadHeadline, monthMoves, monthWords, signedDollars, signedPct, stockCards, stockFacts, weekMove, type BookSource, type CallInfo } from "@/lib/portfolio-home/stocks";
 
 const TODAY = "2026-11-11";
 
@@ -162,28 +162,6 @@ describe("the lead line", () => {
     expect(bare.today?.dollars).toBeNull();
     expect(bare.today?.pct).toBeCloseTo((4 - 1 + 0.5) / 3);
     expect(bare.gain).toBeNull();
-  });
-});
-
-describe("the lead as one read", () => {
-  const text = (parts: ReturnType<typeof leadParts>) => parts.map((sentence) => sentence.map((part) => part.text).join("")).join(" ");
-  it("puts the day, the five days and the total gain in sentences, each against its baseline", () => {
-    const lead = { headline: "", today: { pct: 1.2, dollars: 1549, marketPct: 1.3, label: "Today" }, week: { from: "2026-11-04", to: TODAY, pct: -2.5, dollars: -3293, marketPct: -0.9 }, gain: { dollars: 13150, pct: 11.3, counted: 9, of: 9 } };
-    const parts = leadParts(lead, true);
-    expect(text(parts)).toBe("They made $1,549 today. Over the last five trading days they lost $3,293 (2.5%), against a 0.9% fall for the S&P 500. In all they are up $13,150, or 11.3%.");
-    expect(parts[0]!.find((part) => part.tone)).toEqual({ text: "$1,549", tone: "up" });
-    expect(parts[1]!.find((part) => part.tone)?.tone).toBe("down");
-  });
-
-  it("says the plain average without share counts, and only the stocks with a cost", () => {
-    const lead = { headline: "", today: { pct: 0.4, dollars: null, marketPct: 0.2, label: "Nov 10" }, week: { from: "2026-11-03", to: "2026-11-10", pct: 1.04, dollars: null, marketPct: 0.04 }, gain: { dollars: -50, pct: -2, counted: 2, of: 3 } };
-    expect(text(leadParts(lead, false))).toBe("Over the last five trading days your stocks rose 1.0% on average, against a flat S&P 500. In all, the 2 of 3 with a known cost are down $50, or 2.0%.");
-  });
-
-  it("steps to the soonest report on a holding within two weeks", () => {
-    expect(nextReportStep(source({ portfolio: portfolio({ earnings: { NVDA: "2026-11-17", AAPL: "2026-11-13" } }) }))).toEqual({ ticker: "AAPL", step: "AAPL reports on Friday after the close. Check our call on it before then." });
-    expect(nextReportStep(source({ portfolio: portfolio({ earnings: { NVDA: "2026-12-17" } }) }))).toBeNull();
-    expect(nextReportStep(source())).toBeNull();
   });
 });
 

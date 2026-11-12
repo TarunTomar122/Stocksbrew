@@ -1,8 +1,8 @@
+import { premarketSp500, within } from "@/lib/briefing-premarket-server";
 import { getMarketSessionState } from "@/lib/market-session";
 import { getLivePremarketQuote, getPremarketMovers } from "@/lib/premarket";
 import { getPremarketOpeningReport } from "@/lib/premarket-opening";
-import { futuresCues, hasTodaysPremarket, premarketInputFrom } from "@/lib/premarket-read";
-import { marketDateIso } from "@/lib/premarket-shared";
+import { hasTodaysPremarket, premarketInputFrom } from "@/lib/premarket-read";
 
 /**
  * This morning's premarket moves for a list of tickers, plus the S&P 500's (SPY's premarket price, else S&P 500
@@ -19,22 +19,6 @@ const MAX_TICKERS = 200;
 const TICKER = /^[A-Z0-9][A-Z0-9.\-]{0,11}$/;
 /** The page never waits on this, but the route still gives up on a slow read rather than hold a connection. */
 const READ_TIMEOUT_MS = 2500;
-
-function within<T>(promise: Promise<T>, ms: number): Promise<T | null> {
-  return new Promise((resolve) => {
-    const timer = setTimeout(() => resolve(null), ms);
-    promise.then(
-      (value) => {
-        clearTimeout(timer);
-        resolve(value);
-      },
-      () => {
-        clearTimeout(timer);
-        resolve(null);
-      },
-    );
-  });
-}
 
 function json(body: unknown, maxAge: number) {
   return Response.json(body, { headers: { "Cache-Control": `public, max-age=0, s-maxage=${maxAge}, stale-while-revalidate=${maxAge}` } });
@@ -53,7 +37,6 @@ export async function GET(request: Request) {
     within(getPremarketMovers("US"), READ_TIMEOUT_MS),
     within(getPremarketOpeningReport(), READ_TIMEOUT_MS),
   ]);
-  const today = marketDateIso("US", now);
   if (!asked) {
     // The page's own rule (app/(app)/premarket/page.tsx), so the nav never offers a page that would send you away.
     return json({ live: hasTodaysPremarket(premarketInputFrom(report, movers), now) }, 60);
@@ -67,14 +50,6 @@ export async function GET(request: Request) {
   // No live stock quotes, no leg: the S&P 500 alone is not drawn.
   if (!movers || Object.keys(stocks).length === 0) return json({ live: false }, 60);
   const at = movers.generated_at;
-
-  let sp500: { pct: number; source: "SPY" | "futures" } | null = null;
-  const spy = getLivePremarketQuote(movers, "SPY", "US", now);
-  if (spy) sp500 = { pct: spy.changePct, source: "SPY" };
-  else if (report) {
-    const sameDay = (iso: string | undefined) => Boolean(iso) && Number.isFinite(Date.parse(iso!)) && marketDateIso("US", new Date(iso!)) === today;
-    const es = futuresCues(report.global_cues).find((cue) => cue.id.toUpperCase().endsWith("_ES") || cue.ticker.toUpperCase().startsWith("ES="));
-    if (es && sameDay(report.generated_at) && sameDay(es.captured_at ?? report.generated_at)) sp500 = { pct: es.change_pct, source: "futures" };
-  }
+  const sp500 = premarketSp500(movers, report, now);
   return json({ live: true, at, stocks, sp500 }, 60);
 }

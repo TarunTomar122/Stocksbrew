@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { BiggestReports, CalendarControls, ListView, MonthView, PeriodNav, WeekView, preReadIsException } from "@/components/calendar/calendar-view";
+import { CalendarControls, ListView, MonthView, PeriodNav, WeekView, preReadIsException } from "@/components/calendar/calendar-view";
 import { AppPage, Empty, PageHead, Panel, Segmented } from "@/components/oa/kit";
 import { MarketingSchema } from "@/components/seo/marketing-schema";
 import { getSessionUser } from "@/lib/auth-server";
@@ -104,16 +104,21 @@ export default async function CalendarPage({ searchParams }: { searchParams?: Se
   const counts = Object.fromEntries(
     CALENDAR_TYPES.map((type) => [type.id, scoped.filter((item) => item.kind === type.id).length]),
   ) as Record<CalendarType, number>;
-  const days = bucketByDay(filterItems(data.items, effective, mineSet));
-
-  const markPreRead = preReadIsException(days);
-
-  // The history behind the cards of the biggest reports still to come (the loader takes eight names at most).
+  // The biggest reports still to come carry the move after their last report on their own row (owner rules 7 and 8:
+  // no separate cards repeating the stocks listed right below). The loader takes eight names at most.
   const contextTickers = bigReportTickers(scoped, today).slice(0, 8);
   const big =
     data.failed || effective.type === "economic" || effective.type === "ipo" || effective.type === "dividend"
       ? []
       : biggestReports(scoped, today, await loadReportContext(contextTickers, today));
+  const lastReports = new Map(big.map((report) => [report.item.id, { pct: report.lastPct, note: report.size }]));
+  const days = bucketByDay(
+    filterItems(data.items, effective, mineSet).map((item) =>
+      item.kind === "earnings" && lastReports.has(item.id) ? { ...item, lastReport: lastReports.get(item.id)! } : item,
+    ),
+  );
+
+  const markPreRead = preReadIsException(days);
 
   const tabs = (["week", "month", "list"] as const).map((view) => ({
     id: view,
@@ -141,7 +146,6 @@ export default async function CalendarPage({ searchParams }: { searchParams?: Se
         }
       />
       <CalendarControls filters={effective} today={today} counts={counts} mineAvailable={mineSet !== null} days={days} />
-      <BiggestReports reports={big} className="mb-5" />
 
       {data.failed ? (
         <Panel>

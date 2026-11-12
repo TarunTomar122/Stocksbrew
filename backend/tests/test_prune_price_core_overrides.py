@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from backend.scripts.prune_price_core_overrides import retained_override_ids
+from backend.scripts.prune_price_core_overrides import popular_fund_ids, retained_override_ids
 
 
 class RetainedOverrideIdsTests(unittest.TestCase):
@@ -29,6 +29,14 @@ class RetainedOverrideIdsTests(unittest.TestCase):
         )
 
         self.assertEqual(result, ["US_A", "US_B", "US_C"])
+
+
+class PopularFundIdsTests(unittest.TestCase):
+    def test_popular_funds_are_us_instrument_ids(self) -> None:
+        ids = popular_fund_ids("US")
+        self.assertIn("US_VOO", ids)
+        self.assertIn("US_SCHD", ids)
+        self.assertEqual(popular_fund_ids("IN"), set())
 
 
 if __name__ == "__main__":

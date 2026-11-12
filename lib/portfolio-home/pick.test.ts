@@ -102,7 +102,8 @@ describe("pickNoticed", () => {
 
   it("drops the x-ray when the trim idea is about the same company", () => {
     const items = pickNoticed(sources({ xray: xray("AAPL"), ideas: ideas("trim", "AAPL"), stress: stress() }), "mine");
-    expect(items.map((item) => item.tool)).toEqual(["ideas", "stress"]);
+    expect(items.map((item) => item.id)).toEqual(["ideas-trim-AAPL", "stress-worst"]);
+    expect(items[1]!.open.href).toBe("/portfolio/xray#crashes");
   });
 
   it("offers each watch request once", () => {
@@ -165,15 +166,23 @@ describe("nextPayment", () => {
 
 describe("toolCard", () => {
   it("says plainly when its source was slow or broke, and never shows a made-up figure", () => {
-    expect(toolCard("memo", { memo: { state: "slow" } }, "mine")).toMatchObject({ figure: null, detail: "Still working this out; open it to see." });
-    expect(toolCard("stress", { stress: { state: "failed" } }, "mine").figure).toBeNull();
-    expect(toolCard("goal", {}, "mine").detail).toBe("Still working this out; open it to see.");
+    expect(toolCard("memo", { memo: { state: "slow" } }, "mine", "pro")).toMatchObject({ figure: null, detail: "Still working this out; open it to see." });
+    expect(toolCard("xray", { xray: { state: "failed" } }, "mine", "pro").figure).toBeNull();
+    expect(toolCard("goal", {}, "mine", "pro").detail).toBe("Still working this out; open it to see.");
   });
 
   it("gives each tool one live figure from its own loader", () => {
-    expect(toolCard("dividends", { dividends: dividends() }, "mine")).toMatchObject({ figure: "$1,220", href: "/portfolio/dividends" });
-    expect(toolCard("xray", { xray: xray() }, "mine").figure).toBe("AAPL 17%");
-    expect(toolCard("earnings", { season: season([stock("NVDA", "NVIDIA", "2026-11-17", 11)]) }, "mine")).toMatchObject({ figure: "1 report" });
+    expect(toolCard("dividends", { dividends: dividends() }, "mine", "pro")).toMatchObject({ figure: "$1,220", href: "/portfolio/dividends" });
+    expect(toolCard("xray", { xray: xray() }, "mine", "pro").figure).toBe("AAPL 17%");
+    expect(toolCard("earnings", { season: season([stock("NVDA", "NVIDIA", "2026-11-17", 11)]) }, "mine", "pro")).toMatchObject({ figure: "1 report" });
+  });
+
+  it("gives Free the largest holding as typed, not the company inside its funds", () => {
+    const card = toolCard("xray", { xray: xray() }, "mine", "free");
+    // 12% bought directly; the 17% counts what QQQ holds of Apple too.
+    expect(card).toMatchObject({ figure: "AAPL 12%", detail: "Your biggest holding." });
+    // The example is open on every plan, as on its page.
+    expect(toolCard("xray", { xray: xray() }, "example", "free").figure).toBe("AAPL 17%");
   });
 });
 

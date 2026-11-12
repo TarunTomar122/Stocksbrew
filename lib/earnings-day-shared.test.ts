@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  briefingItemFor,
   cleanReportTicker,
   earningsDayHref,
   fmtEps,
@@ -45,18 +44,6 @@ describe("earnings day report rules", () => {
     expect(isIndexable({ ...base, eps: { ...base.eps!, verdict: "pending", actual: null }, revenue: null })).toBe(false);
     expect(isIndexable({ ...base, eps: { ...base.eps!, verdict: "pending", actual: null } })).toBe(true);
     expect(isIndexable(null)).toBe(false);
-  });
-
-  it("sends the read of an uncovered stock nowhere", () => {
-    const covered = briefingItemFor(base, true);
-    expect(covered.headline).toBe(base.read!.headline);
-    expect(covered.insights).toHaveLength(2);
-    expect(covered.href).toBe("/stock/QLYS/earnings/2026-11-09");
-    const locked = briefingItemFor(base, false);
-    expect(locked.headline).toBeNull();
-    expect(locked.insights).toEqual([]);
-    expect(JSON.stringify(locked)).not.toContain("14.4%");
-    expect(locked.title).toBe(base.read!.title);
   });
 
   it("parses stored documents defensively", () => {

@@ -65,8 +65,8 @@ export function AppPage({
   className = "",
 }: {
   children: React.ReactNode;
-  /** "wide" for tables and dashboards, "read" for prose. */
-  width?: "wide" | "read" | "full";
+  /** "wide" for tables and dashboards, "read" for prose, "dash" for a 12-column page that pairs modules (the briefing). */
+  width?: "wide" | "read" | "full" | "dash";
   /**
    * The page is mostly text that sits straight on the page (docs, an
    * article), so a phone keeps a 16px gutter instead of the 8px that lets
@@ -75,7 +75,7 @@ export function AppPage({
   prose?: boolean;
   className?: string;
 }) {
-  const max = width === "read" ? "max-w-[47rem]" : width === "full" ? "max-w-none" : "max-w-[84rem]";
+  const max = width === "read" ? "max-w-[47rem]" : width === "full" ? "max-w-none" : width === "dash" ? "max-w-[90rem]" : "max-w-[84rem]";
   const head = findHead(children);
   const noted = head != null && head.note !== false && !head.full && (head.lede != null || head.meta != null);
   // The head shows the full lede from sm up unless the page hides it there, so the note only repeats it on a phone.
@@ -442,7 +442,7 @@ export function StatStrip({ stats, className = "" }: { stats: StatItem[]; classN
   if (stats.length === 0) return null;
   return (
     <dl
-      className={`oa-surface grid grid-cols-2 overflow-hidden border border-oa-border bg-oa-card max-sm:[&>*:last-child:nth-child(odd)]:col-span-2 sm:grid-cols-3 lg:grid-flow-col lg:auto-cols-fr lg:grid-cols-none ${className}`}
+      className={`oa-surface grid grid-cols-2 overflow-hidden border border-oa-border bg-oa-card sm:grid-cols-3 lg:grid-flow-col lg:auto-cols-fr lg:grid-cols-none ${className}`}
     >
       {stats.map((stat, index) => (
         <div key={index} className="-mb-px -mr-px border-b border-r border-oa-border px-4 py-3">

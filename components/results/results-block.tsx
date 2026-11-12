@@ -2,12 +2,12 @@ import Link from "next/link";
 
 import { Panel } from "@/components/stock-report/primitives";
 import type { ResultRead } from "@/lib/results/types";
-import { callLine, figureCells, reportedWords, resultSentence, stampWords } from "@/lib/results/words";
+import { callLine, figureCells, reportedWords, stampWords } from "@/lib/results/words";
 
 /**
  * The latest results on one stock: the figures as one compact row (EPS against the estimate, revenue and the
- * outlook when the release states them, the stock's move against its usual report move), one sentence, whether our
- * call moved, and where each number came from. Server-rendered, no state.
+ * outlook when the release states them, the stock's move against its usual report move), whether our call moved,
+ * and where each number came from. No sentence restating the figures (owner rule 8). Server-rendered, no state.
  *
  * `call` is the call word the page itself shows (null when the viewer's plan hides it): the call line is only said
  * when it matches the read's call, so the block never shows a call the page does not, or a different one.
@@ -25,10 +25,9 @@ export function figureColumns(count: number): string {
   return COLUMNS[Math.min(Math.max(count, 1), 4)]!;
 }
 
-export function ResultsBlock({ read, name, call, today }: { read: ResultRead; name: string; call: string | null; today: string }) {
+export function ResultsBlock({ read, call, today }: { read: ResultRead; call: string | null; today: string }) {
   const cells = figureCells(read, today);
-  const sentence = resultSentence(read, name, today);
-  if (cells.length === 0 || !sentence) return null;
+  if (cells.length === 0) return null;
   const showCall = read.call && call && read.call.call === call ? read.call : null;
   const reason = showCall?.status === "changed" ? showCall.reason : null;
   return (
@@ -37,7 +36,7 @@ export function ResultsBlock({ read, name, call, today }: { read: ResultRead; na
       meta={`${reportedWords(read, today)}${read.period ? `, ${read.period}` : ""}`}
       bodyClassName="flex flex-col"
     >
-      <dl className={`grid ${figureColumns(cells.length)} border-b border-oa-border max-sm:[&>*:last-child:nth-child(odd)]:col-span-2`}>
+      <dl className={`grid ${figureColumns(cells.length)} border-b border-oa-border`}>
         {cells.map((cell) => (
           <div key={cell.label} className="-mb-px border-b border-r border-oa-border px-3.5 py-2.5 last:border-r-0 max-sm:even:border-r-0 sm:px-4">
             <dt className="oa-caption">{cell.label}</dt>
@@ -47,7 +46,6 @@ export function ResultsBlock({ read, name, call, today }: { read: ResultRead; na
         ))}
       </dl>
       <div className="flex flex-col gap-1.5 px-3.5 py-3 sm:px-4">
-        <p className="max-w-[68ch] text-pretty text-[15px] leading-6 text-oa-fg">{sentence}</p>
         {showCall ? (
           <p className="text-pretty text-[14px] font-medium leading-5 text-oa-fg">
             {callLine(showCall, today)}

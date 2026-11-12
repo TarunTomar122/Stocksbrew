@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { signedPct } from "./format";
+import { sharePrice, signedPct } from "./format";
 
 describe("signedPct", () => {
   it("signs a move at the digits asked for", () => {
@@ -14,5 +14,15 @@ describe("signedPct", () => {
     expect(signedPct(-0.04, 1)).toBe("0.0%");
     expect(signedPct(0.004)).toBe("0.00%");
     expect(signedPct(0, 1)).toBe("0.0%");
+  });
+});
+
+describe("sharePrice", () => {
+  it("shows cents under $1,000 and none from $1,000 up", () => {
+    expect(sharePrice(173.85)).toBe("$173.85");
+    expect(sharePrice(9.5)).toBe("$9.50");
+    expect(sharePrice(1204.4)).toBe("$1,204");
+    expect(sharePrice(null)).toBeNull();
+    expect(sharePrice(0)).toBeNull();
   });
 });

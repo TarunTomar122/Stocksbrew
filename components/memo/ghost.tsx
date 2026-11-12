@@ -12,7 +12,7 @@ export function MemoGhost() {
         </div>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
           {[0, 1, 2, 3, 4].map((card) => (
-            <div key={card} className={`oa-surface border border-oa-border bg-oa-card p-3.5 ${card === 4 ? "col-span-2 lg:col-span-1" : ""}`}>
+            <div key={card} className="oa-surface border border-oa-border bg-oa-card p-3.5">
               <Bar className="h-4 w-14" />
               <Bar className="mt-3 h-6 w-16" />
               <Bar className="mt-2 h-3 w-20" />

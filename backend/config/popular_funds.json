@@ -1,0 +1,255 @@
+{
+  "_comment": "Popular US funds we cover as funds: an instrument, prices, holdings (N-PORT) and fund facts. Read by backend/agentdata/fund_facts.py, backend/scripts/register_fund_instruments.py, etf_holdings.py, the after-close price step and lib/funds/catalog.ts. Add a fund here and the next run registers it (never overwrites an existing instrument).",
+  "funds": [
+    {
+      "ticker": "SPY",
+      "name": "SPDR S&P 500 ETF Trust",
+      "exchange": "NYSE Arca"
+    },
+    {
+      "ticker": "VOO",
+      "name": "Vanguard S&P 500 ETF",
+      "exchange": "NYSE Arca"
+    },
+    {
+      "ticker": "IVV",
+      "name": "iShares Core S&P 500 ETF",
+      "exchange": "NYSE Arca"
+    },
+    {
+      "ticker": "VTI",
+      "name": "Vanguard Total Stock Market ETF",
+      "exchange": "NYSE Arca"
+    },
+    {
+      "ticker": "QQQ",
+      "name": "Invesco QQQ Trust",
+      "exchange": "NASDAQ"
+    },
+    {
+      "ticker": "QQQM",
+      "name": "Invesco NASDAQ 100 ETF",
+      "exchange": "NASDAQ"
+    },
+    {
+      "ticker": "SCHD",
+      "name": "Schwab U.S. Dividend Equity ETF",
+      "exchange": "NYSE Arca"
+    },
+    {
+      "ticker": "VIG",
+      "name": "Vanguard Dividend Appreciation ETF",
+      "exchange": "NYSE Arca"
+    },
+    {
+      "ticker": "VYM",
+      "name": "Vanguard High Dividend Yield ETF",
+      "exchange": "NYSE Arca"
+    },
+    {
+      "ticker": "VXUS",
+      "name": "Vanguard Total International Stock ETF",
+      "exchange": "NASDAQ"
+    },
+    {
+      "ticker": "VEA",
+      "name": "Vanguard FTSE Developed Markets ETF",
+      "exchange": "NYSE Arca"
+    },
+    {
+      "ticker": "VWO",
+      "name": "Vanguard FTSE Emerging Markets ETF",
+      "exchange": "NYSE Arca"
+    },
+    {
+      "ticker": "VT",
+      "name": "Vanguard Total World Stock ETF",
+      "exchange": "NYSE Arca"
+    },
+    {
+      "ticker": "BND",
+      "name": "Vanguard Total Bond Market ETF",
+      "exchange": "NASDAQ"
+    },
+    {
+      "ticker": "AGG",
+      "name": "iShares Core U.S. Aggregate Bond ETF",
+      "exchange": "NYSE Arca"
+    },
+    {
+      "ticker": "TLT",
+      "name": "iShares 20+ Year Treasury Bond ETF",
+      "exchange": "NASDAQ"
+    },
+    {
+      "ticker": "IWM",
+      "name": "iShares Russell 2000 ETF",
+      "exchange": "NYSE Arca"
+    },
+    {
+      "ticker": "DIA",
+      "name": "SPDR Dow Jones Industrial Average ETF Trust",
+      "exchange": "NYSE Arca"
+    },
+    {
+      "ticker": "RSP",
+      "name": "Invesco S&P 500 Equal Weight ETF",
+      "exchange": "NYSE Arca"
+    },
+    {
+      "ticker": "ITOT",
+      "name": "iShares Core S&P Total U.S. Stock Market ETF",
+      "exchange": "NYSE Arca"
+    },
+    {
+      "ticker": "SCHB",
+      "name": "Schwab U.S. Broad Market ETF",
+      "exchange": "NYSE Arca"
+    },
+    {
+      "ticker": "SCHX",
+      "name": "Schwab U.S. Large-Cap ETF",
+      "exchange": "NYSE Arca"
+    },
+    {
+      "ticker": "SCHG",
+      "name": "Schwab U.S. Large-Cap Growth ETF",
+      "exchange": "NYSE Arca"
+    },
+    {
+      "ticker": "VUG",
+      "name": "Vanguard Growth ETF",
+      "exchange": "NYSE Arca"
+    },
+    {
+      "ticker": "VTV",
+      "name": "Vanguard Value ETF",
+      "exchange": "NYSE Arca"
+    },
+    {
+      "ticker": "VO",
+      "name": "Vanguard Mid-Cap ETF",
+      "exchange": "NYSE Arca"
+    },
+    {
+      "ticker": "VB",
+      "name": "Vanguard Small-Cap ETF",
+      "exchange": "NYSE Arca"
+    },
+    {
+      "ticker": "IJH",
+      "name": "iShares Core S&P Mid-Cap ETF",
+      "exchange": "NYSE Arca"
+    },
+    {
+      "ticker": "IJR",
+      "name": "iShares Core S&P Small-Cap ETF",
+      "exchange": "NYSE Arca"
+    },
+    {
+      "ticker": "IEFA",
+      "name": "iShares Core MSCI EAFE ETF",
+      "exchange": "Cboe BZX"
+    },
+    {
+      "ticker": "IEMG",
+      "name": "iShares Core MSCI Emerging Markets ETF",
+      "exchange": "NYSE Arca"
+    },
+    {
+      "ticker": "VGT",
+      "name": "Vanguard Information Technology ETF",
+      "exchange": "NYSE Arca"
+    },
+    {
+      "ticker": "XLK",
+      "name": "Technology Select Sector SPDR Fund",
+      "exchange": "NYSE Arca"
+    },
+    {
+      "ticker": "XLF",
+      "name": "Financial Select Sector SPDR Fund",
+      "exchange": "NYSE Arca"
+    },
+    {
+      "ticker": "XLE",
+      "name": "Energy Select Sector SPDR Fund",
+      "exchange": "NYSE Arca"
+    },
+    {
+      "ticker": "XLV",
+      "name": "Health Care Select Sector SPDR Fund",
+      "exchange": "NYSE Arca"
+    },
+    {
+      "ticker": "XLY",
+      "name": "Consumer Discretionary Select Sector SPDR Fund",
+      "exchange": "NYSE Arca"
+    },
+    {
+      "ticker": "XLP",
+      "name": "Consumer Staples Select Sector SPDR Fund",
+      "exchange": "NYSE Arca"
+    },
+    {
+      "ticker": "XLI",
+      "name": "Industrial Select Sector SPDR Fund",
+      "exchange": "NYSE Arca"
+    },
+    {
+      "ticker": "XLC",
+      "name": "Communication Services Select Sector SPDR Fund",
+      "exchange": "NYSE Arca"
+    },
+    {
+      "ticker": "XLU",
+      "name": "Utilities Select Sector SPDR Fund",
+      "exchange": "NYSE Arca"
+    },
+    {
+      "ticker": "VNQ",
+      "name": "Vanguard Real Estate ETF",
+      "exchange": "NYSE Arca"
+    },
+    {
+      "ticker": "SMH",
+      "name": "VanEck Semiconductor ETF",
+      "exchange": "NASDAQ"
+    },
+    {
+      "ticker": "SOXX",
+      "name": "iShares Semiconductor ETF",
+      "exchange": "NASDAQ"
+    },
+    {
+      "ticker": "ARKK",
+      "name": "ARK Innovation ETF",
+      "exchange": "Cboe BZX"
+    },
+    {
+      "ticker": "JEPI",
+      "name": "JPMorgan Equity Premium Income ETF",
+      "exchange": "NYSE Arca"
+    },
+    {
+      "ticker": "JEPQ",
+      "name": "JPMorgan Nasdaq Equity Premium Income ETF",
+      "exchange": "NASDAQ"
+    },
+    {
+      "ticker": "GLD",
+      "name": "SPDR Gold Shares",
+      "exchange": "NYSE Arca"
+    },
+    {
+      "ticker": "TQQQ",
+      "name": "ProShares UltraPro QQQ",
+      "exchange": "NASDAQ"
+    },
+    {
+      "ticker": "SOXL",
+      "name": "Direxion Daily Semiconductor Bull 3X Shares",
+      "exchange": "NYSE Arca"
+    }
+  ]
+}

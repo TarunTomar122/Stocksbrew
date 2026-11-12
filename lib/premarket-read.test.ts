@@ -1,13 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  futuresLine,
   gappers,
   openingHeadline,
   premarketInputFrom,
   premarketRead,
   premarketWhen,
-  showBeforeOpen,
   type CueInput,
 } from "@/lib/premarket-read";
 
@@ -54,17 +52,6 @@ describe("premarketWhen", () => {
   });
 });
 
-describe("showBeforeOpen", () => {
-  it("shows only before 9:30 ET on a market day, with today's numbers", () => {
-    expect(showBeforeOpen(GENERATED, at("2026-11-11T14:29:00Z"))).toBe(true);
-    expect(showBeforeOpen(GENERATED, at("2026-11-11T14:30:00Z"))).toBe(false);
-    expect(showBeforeOpen(GENERATED, at("2026-11-12T13:00:00Z"))).toBe(false);
-    // Saturday morning: no premarket.
-    expect(showBeforeOpen("2026-11-14T12:30:00Z", at("2026-11-14T13:00:00Z"))).toBe(false);
-    expect(showBeforeOpen(null, at("2026-11-11T14:00:00Z"))).toBe(false);
-  });
-});
-
 describe("the read", () => {
   it("leads with where futures point, in the present before the bell and the past after", () => {
     expect(openingHeadline(CUES, { phase: "live", today: true })).toBe("Futures point to a higher open, led by Nasdaq 100 futures up 1.9%.");
@@ -75,10 +62,6 @@ describe("the read", () => {
     expect(openingHeadline([], { phase: "live", today: true })).toBeNull();
     // An earlier day's numbers are never told in the present tense, even before the bell.
     expect(openingHeadline(CUES, { phase: "live", today: false, weekday: "Friday" })).toBe("On Friday, futures pointed to a higher open, led by Nasdaq 100 futures up 1.9%.");
-  });
-
-  it("says futures once on the briefing's line", () => {
-    expect(futuresLine(CUES)).toEqual(["S&P 500 futures +0.86%", "Nasdaq 100 +1.90%"]);
   });
 
   it("puts a story on a gap only when it is big enough, and keeps each side to its own direction", () => {

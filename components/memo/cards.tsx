@@ -192,9 +192,9 @@ export function MemoCards({
       </div>
       {items.length > 0 ? (
         <ul
-          // No empty half-rows: a lone or odd last card takes the whole row on tablets, and on wide screens the
-          // columns are only as many as the cards (auto-fit), so one card spans the row and two share it.
-          className="oa-card-grid grid grid-cols-1 gap-3 sm:grid-cols-2 sm:[&>li:last-child:nth-child(odd)]:col-span-2 lg:[grid-template-columns:repeat(auto-fit,minmax(16rem,1fr))] lg:[&>li:last-child:nth-child(odd)]:col-span-1"
+          // Every card one column wide (owner rule 4): an odd last card keeps its width, and on wide screens the
+          // columns are as many as fit (auto-fill), so a lone card does not stretch over the row.
+          className="oa-card-grid grid grid-cols-1 gap-3 sm:grid-cols-2 lg:[grid-template-columns:repeat(auto-fill,minmax(16rem,1fr))]"
         >
           {items.map((item) => (
             <Card key={item.id} item={item} example={example} />

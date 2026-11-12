@@ -123,11 +123,15 @@ for (const word of (
   "pill pills provide provides thousands veteran veterans military spouse spouses entrepreneur entrepreneurs business " +
   "businesses compete competes contract contracts create creates techs hang hangs warn challenge challenges playbook " +
   "forgive ruthless intensify intensifies revoke revokes entry passport threat threats fewer collide collides cheapest " +
-  "sellers inflows outflows merchant merchants adopt adopts agent agents agentic"
+  "sellers inflows outflows merchant merchants adopt adopts agent agents agentic " +
+  // The stock page's "What changed", Nov 12 ("Wall Street made a Mistake", "the Real Loser in OpenAI's cash burn",
+  // "Futures Mixed as Tech rebounds despite Nvidia CEO Crisis", "AMAT in Focus").
+  "mistake mistakes loser losers real ride rides gigawatt gigawatts mixed focus crisis crises newest bull bulls bear bears " +
+  "shockwave shockwaves overtake overtakes"
 ).split(" ")) {
   if (word) COMMON.add(word);
 }
-for (const word of ["future", "futures", "forward", "heat", "man", "net", "path", "balance", "commerce"]) NAME_PRONE.add(word);
+for (const word of ["future", "futures", "forward", "heat", "man", "net", "path", "balance", "commerce", "artificial", "intelligence"]) NAME_PRONE.add(word);
 for (const word of ["taiwan", "hong", "kong", "wegovy", "ozempic", "zepbound", "mounjaro"]) KNOWN_NAMES.add(word);
 
 // A wire service's desk tag in front of a headline ("Analysis-", "EXCLUSIVE:", "UPDATE 2-", "BREAKINGVIEWS-").

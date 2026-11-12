@@ -24,6 +24,7 @@ function normalizeEntries(raw: unknown): SearchEntry[] {
         price: typeof row.price === "number" ? row.price : undefined,
         day_change_pct:
           typeof row.day_change_pct === "number" ? row.day_change_pct : undefined,
+        ...(row.fund === true ? { fund: true } : {}),
       };
     })
     .filter((entry) => entry.instrument_id && entry.ticker);

@@ -76,8 +76,8 @@ async function ReasonRow({ load, ranToday }: { load: HomeLoad; ranToday: string 
 
 /** The watches the person's stocks would want, from the findings on their holdings; none when nothing calls for one. */
 async function WouldWatchRows({ load, mine }: { load: HomeLoad; mine: boolean }) {
-  const [{ mode }, sources, goal] = await Promise.all([load.context, feedSources(load), load.sources.goal]);
-  const lead = prioritise(focusNoticed(sources, mode), { ...sources, goal }, mode).lead;
+  const [{ mode, viewer }, sources, goal] = await Promise.all([load.context, feedSources(load), load.sources.goal]);
+  const lead = prioritise(focusNoticed(sources, mode, viewer.plan), { ...sources, goal }, mode, viewer.plan).lead;
   const plans = lead
     .map((item) => watchPlan(item, mine ? "mine" : "example"))
     .filter((plan): plan is Extract<NonNullable<ReturnType<typeof watchPlan>>, { kind: "agent" }> => plan?.kind === "agent");

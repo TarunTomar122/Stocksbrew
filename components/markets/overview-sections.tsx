@@ -64,7 +64,6 @@ export function StocksAndFundsSection({ data, sectors = true, label = true }: { 
           assets={themes}
           limit={5}
           note={listTakeaway(themes, "theme funds")}
-          className={sectors ? "md:col-span-2 xl:col-span-1" : ""}
         />
       </div>
     </>
@@ -79,7 +78,7 @@ export function RatesAndVolatilitySection({ data, label = true }: { data: Market
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         <YieldCurveChart curve={data.treasury} />
         <AssetClassCard title="Treasury yields" href={classHref("rates")} assets={ofClass(data, "rate")} limit={7} note={yieldCurveShiftReading(data.treasury)} />
-        <VolCurveChart curve={data.volCurve} className="md:col-span-2 xl:col-span-1" />
+        <VolCurveChart curve={data.volCurve} />
       </div>
     </>
   );
@@ -105,7 +104,6 @@ export function CommoditiesCurrenciesCryptoSection({ data, label = true }: { dat
           assets={crypto}
           limit={6}
           note={listTakeaway(crypto, "coins") ?? (btcReading ? `Bitcoin: ${btcReading}` : null)}
-          className="md:col-span-2 xl:col-span-1"
         />
       </div>
     </>

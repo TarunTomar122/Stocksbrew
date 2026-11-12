@@ -237,3 +237,118 @@ export function briefLeadOf(read: { body?: string | null; headline?: string | nu
   }
   return { lead: plainBriefLead(first) ?? "", rest };
 }
+
+/** Words in a line, the way the owner's word budget counts them. */
+export function wordCount(text: string): number {
+  return text.split(/\s+/).filter(Boolean).length;
+}
+
+/** The most a fact row may say (owner rule 8: one line of at most 15 words). */
+export const FACT_WORDS = 15;
+
+// Where a long sentence's main clause ends, most telling first: a trailing clause after a comma ("…, which can…",
+// "…, giving investors…"), a contrast ("… while …"), a semicolon or dash, then a second verb ("… and creates…").
+const CLAUSE_CUTS: RegExp[] = [
+  /,\s+(?:which|who|giving|making|helping|leaving|letting|adding|signal(?:l)?ing|suggesting|underscoring|highlighting|while|as|but|although|though|even as|because|since|with)\b/i,
+  /\s+(?:while|whereas|although|though|even as)\s+/i,
+  /\s*;\s+/,
+  /\s+[—–]\s+|\s+--?\s+/,
+  // A second verb, not a plural noun ("servers and chips"): only verbs a brief writes.
+  /\s+and\s+(?=(?:creates|expects|plans|adds|gives|makes|leaves|raises|lowers|cuts|keeps|helps|supports|offers|opens|signals|suggests|puts|lifts|weighs|faces|remains|could|can|may|might|will|should)\b)/,
+];
+
+/** The text is cut off mid-sentence by its feed ("…", "..."), so it is not a fact to show. */
+const TRUNCATED = /(?:…|\.\.\.)\s*["”']?$/;
+
+/** Quotes and brackets that open and close in the text, so a cut never leaves one hanging. */
+function balanced(text: string): boolean {
+  const straight = (text.match(/"/g) ?? []).length % 2 === 0;
+  const curly = (text.match(/“/g) ?? []).length === (text.match(/”/g) ?? []).length;
+  const parens = (text.match(/\(/g) ?? []).length === (text.match(/\)/g) ?? []).length;
+  return straight && curly && parens;
+}
+
+/**
+ * A written reason as one fact of at most 15 words: its first sentence, cut to its main clause when it runs long.
+ * The cut is at a clause boundary, so the fact is still a whole sentence. Empty when no clause fits.
+ */
+export function shortFact(text: string | null | undefined, max = FACT_WORDS): string {
+  const clean = (text ?? "").replace(/\s+/g, " ").trim();
+  // A feed cut it off mid-sentence: nothing whole to show (owner rule 8: no truncated sentences).
+  if (!clean || TRUNCATED.test(clean)) return "";
+  // A reason written without its full stop is still one sentence.
+  const sentence = wholeSentences(clean, 1) || (/[.!?]["”']?$/.test(clean) ? "" : clean);
+  if (!sentence) return "";
+  if (wordCount(sentence) <= max) return sentence;
+  for (const cut of CLAUSE_CUTS) {
+    const match = cut.exec(sentence);
+    if (!match || match.index === undefined) continue;
+    const head = sentence.slice(0, match.index).replace(/[\s,;:—–-]+$/, "");
+    const words = wordCount(head);
+    if (words >= 4 && words <= max && balanced(head)) return /[.!?]$/.test(head) ? head : `${head}.`;
+  }
+  return "";
+}
+
+// Words too common in market news to tie a fact to one story: matching on them would link the wrong article.
+const FACT_STOP = new Set(
+  ("the a an and or of to in on for from with its it is are was were be been has have had as at by that this than their his her our more most can could will would may into over after about while " +
+    "stock share shares analyst analysts investor investors gain gains price prices market markets revenue company year quarter")
+    .split(" "),
+);
+
+function factTokens(text: string, own: Set<string>): Set<string> {
+  const out = new Set<string>();
+  for (const raw of text.toLowerCase().split(/[^a-z0-9%$.]+/)) {
+    const word = raw.replace(/^\.+|\.+$/g, "").replace(/'s$/, "").replace(/(?<=[a-z]{3})s$/, "");
+    if (word.length >= 3 && !FACT_STOP.has(word) && !own.has(word)) out.add(word);
+  }
+  return out;
+}
+
+function overlap(a: Set<string>, b: Set<string>): number {
+  let shared = 0;
+  for (const word of a) if (b.has(word)) shared += 1;
+  return shared;
+}
+
+export type BriefFact = { text: string; source: { title: string; url: string; source: string } | null };
+
+/**
+ * "The news behind our call" as rows: the brief's lead, then its reasons, each one specific fact of at most 15 words
+ * (shortFact), the same fact said once, with the story behind it when one of the brief's sources shares at least two
+ * of its words (the company's own name aside). At most `max` rows.
+ */
+export function briefFacts(
+  read: { reasons: string[]; sources?: Array<{ title: string; url: string; source: string }> } | null | undefined,
+  lead: string,
+  options: { ticker?: string; companyName?: string; max?: number } = {},
+): BriefFact[] {
+  if (!read) return [];
+  // The company's own words, cut the way the facts' words are ("Devices" → "device"), never count as a match.
+  const own = factTokens(`${options.ticker ?? ""} ${options.companyName ?? ""}`, new Set());
+  const sources = (read.sources ?? []).map((source) => ({ source, tokens: factTokens(source.title, own) }));
+  const used = new Set<string>();
+  const kept: Array<{ fact: BriefFact; tokens: Set<string> }> = [];
+  for (const candidate of [lead, ...read.reasons]) {
+    const text = shortFact(candidate);
+    if (!text) continue;
+    const tokens = factTokens(text, own);
+    // The same development in other words ("is gaining share" and "is taking share") is said once.
+    if (kept.some((row) => overlap(row.tokens, tokens) >= Math.max(2, 0.6 * Math.min(row.tokens.size, tokens.size)))) continue;
+    let best: (typeof sources)[number] | null = null;
+    let bestScore = 1;
+    for (const entry of sources) {
+      if (used.has(entry.source.url)) continue;
+      const score = overlap(tokens, entry.tokens);
+      if (score > bestScore) {
+        best = entry;
+        bestScore = score;
+      }
+    }
+    if (best) used.add(best.source.url);
+    kept.push({ fact: { text, source: best?.source ?? null }, tokens });
+    if (kept.length >= (options.max ?? 4)) break;
+  }
+  return kept.map((row) => row.fact);
+}

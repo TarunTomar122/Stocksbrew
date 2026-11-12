@@ -63,7 +63,28 @@ export type StockRead = {
    * call ledger can say.
    */
   steadyStep: -1 | 0 | 1 | null;
+  /** The stories the brief was written from (its timeline), so each fact can link the one behind it. */
+  sources?: ReadSource[];
 };
+
+/** One story behind the brief: its headline, link and publisher. */
+export type ReadSource = { title: string; url: string; source: string };
+
+/** The brief's stories with a real link, newest first as stored, at most `max`, each link once. */
+export function readSources(timeline: unknown, max = 12): ReadSource[] {
+  const out: ReadSource[] = [];
+  const seen = new Set<string>();
+  for (const event of Array.isArray(timeline) ? timeline : []) {
+    const row = (event ?? {}) as { title?: unknown; article_url?: unknown; source_name?: unknown };
+    const title = clean(row.title);
+    const url = clean(row.article_url);
+    if (!title || !/^https?:\/\//i.test(url) || seen.has(url)) continue;
+    seen.add(url);
+    out.push({ title, url, source: clean(row.source_name) });
+    if (out.length >= max) break;
+  }
+  return out;
+}
 
 type Evidence = { text?: unknown; type?: unknown };
 
@@ -336,6 +357,8 @@ export function buildStockRead(
           ? 0
           : null
         : stepFromState(options.steadyState, clean(stability.since)),
+    // Stories about other companies are not this brief's evidence either.
+    sources: offTopic ? [] : readSources((doc as { timeline?: unknown }).timeline),
   };
 }
 

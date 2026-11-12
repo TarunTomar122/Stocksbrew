@@ -17,6 +17,7 @@ import { earningsDayHref, toneOfGuidance, toneOfVerdict } from "@/lib/earnings-d
 import { limitFor, systemPlanOf, type Plan } from "@/lib/entitlements";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { isCovered, viewerFromUserDoc } from "@/lib/entitlements-server";
+import { callWord } from "@/lib/stock-chart";
 import { getUserDoc, resolveIsSubscribed, type UserDoc } from "@/lib/watchlist";
 import {
   AGENT_JOB_ID_RE,
@@ -31,6 +32,9 @@ import {
   PRO_EVENTS_PAUSED,
   replayJob,
   runDocId,
+  isAgentCall,
+  type AgentCall,
+  type AgentCallChange,
   type AgentFacts,
   type AgentJob,
   type AgentJobDraft,
@@ -123,7 +127,19 @@ function jobFromDoc(data: Record<string, unknown> | undefined, uid: string): Age
     updated_at: text(data.updated_at),
     last_checked_day: text(data.last_checked_day) || null,
     last_close_seen: text(data.last_close_seen) || null,
+    ...(data.calls_seen && typeof data.calls_seen === "object" ? { calls_seen: cleanCallsSeen(data.calls_seen) } : {}),
   };
+}
+
+function cleanCallsSeen(raw: unknown): Record<string, AgentCall> {
+  const out: Record<string, AgentCall> = {};
+  for (const [ticker, call] of Object.entries((raw ?? {}) as Record<string, unknown>)) if (isAgentCall(call)) out[ticker.toUpperCase()] = call;
+  return out;
+}
+
+/** Whether a job reads our calls: the sell zone and the call-change agent. */
+export function watchesCalls(trigger: AgentTrigger | undefined): boolean {
+  return (trigger?.type === "price" && trigger.rule === "enters_sell_zone") || (trigger?.type === "event" && trigger.event === "call_change");
 }
 
 export type StoredJob = AgentJob;
@@ -251,7 +267,56 @@ export type ResolvedScope = {
   levels: AgentFacts["levels"];
   /** Company names by ticker from the person's list, as filed ("Meta Platforms, Inc."). Only for a signed-in person. */
   names?: Record<string, string>;
+  /** Our call on each ticker, when asked for (`options.calls`). Null when the calls could not be read. */
+  calls?: AgentFacts["calls"] | null;
 };
+
+/** "BRK.B" is filed as US_BRK_B. */
+function instrumentIdOf(ticker: string): string {
+  return `US_${ticker.toUpperCase().replace(/\./g, "_")}`;
+}
+
+/**
+ * Our call on each ticker today and the changes it made (tm_call_stability, the call people see), plus its kept
+ * levels for the ones the plan covers and the person's list did not already give. The call itself is free; the
+ * earlier call and the reason are left out (`locked`) where the plan does not cover the stock, as in the inbox.
+ * Null when the store could not be read, so a run says "could not check" rather than "nothing changed".
+ */
+async function loadCalls(
+  tickers: string[],
+  idOf: (ticker: string) => string,
+  covered: (id: string) => boolean,
+  levels: AgentFacts["levels"],
+  stances: Map<string, AgentCall>,
+): Promise<AgentFacts["calls"] | null> {
+  if (tickers.length === 0) return {};
+  const collection = adminFirestore.collection("tm_call_stability");
+  const snaps = await adminFirestore.getAll(...tickers.map((ticker) => collection.doc(idOf(ticker)))).catch(() => null);
+  if (!snaps) return null;
+  const calls: NonNullable<AgentFacts["calls"]> = {};
+  tickers.forEach((ticker, index) => {
+    const snap = snaps[index];
+    const open = covered(idOf(ticker));
+    const data = snap?.exists ? ((snap.data() ?? {}) as Record<string, unknown>) : null;
+    const changes: AgentCallChange[] = [];
+    for (const raw of Array.isArray(data?.changes) ? (data!.changes as Array<Record<string, unknown>>) : []) {
+      const date = text(raw?.date).slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !isAgentCall(raw?.to)) continue;
+      changes.push({ date, from: isAgentCall(raw?.from) ? raw.from : null, to: raw.to, reason: open ? text(raw?.reason) || null : null });
+    }
+    changes.sort((a, b) => a.date.localeCompare(b.date));
+    const call = isAgentCall(data?.call) ? data!.call : stances.get(ticker) ?? null;
+    calls[ticker] = { call, changes, ...(open ? {} : { locked: true as const }) };
+    // A stock named outright that is not on the person's list: its levels come from the call's own state.
+    if (!levels[ticker]) {
+      const kept = (data?.levels ?? null) as { accumulate_below?: unknown; trim_above?: unknown } | null;
+      const add = finite(kept?.accumulate_below);
+      const trim = finite(kept?.trim_above);
+      levels[ticker] = open ? { add_below: add != null && add > 0 ? add : null, trim_above: trim != null && trim > 0 ? trim : null } : { add_below: null, trim_above: null, locked: true };
+    }
+  });
+  return calls;
+}
 
 /**
  * The tickers a scope means for this person right now, with add levels from
@@ -262,11 +327,19 @@ export type ResolvedScope = {
  * stock carries `locked` and no numbers, so neither the page, a run, nor an
  * email can name its level.
  */
-export async function resolveScope(uid: string | null, scope: AgentScope): Promise<ResolvedScope> {
+export async function resolveScope(
+  uid: string | null,
+  scope: AgentScope,
+  options: {
+    /** Also read our call on each ticker (agents that watch the call: watchesCalls). */
+    calls?: boolean;
+  } = {},
+): Promise<ResolvedScope> {
   if (scope.kind === "any") return { tickers: [], levels: {} };
   const levels: AgentFacts["levels"] = {};
   let tickers: string[] = scope.kind === "tickers" ? scope.tickers.slice(0, MAX_SCOPE_TICKERS) : [];
-  if (!uid) return { tickers, levels };
+  // Signed out (a replay on the page): the call is free, its levels are not.
+  if (!uid) return options.calls ? { tickers, levels, calls: await loadCalls(tickers, instrumentIdOf, () => false, levels, new Map()) } : { tickers, levels };
 
   const [userSnap, viewSnap] = await adminFirestore.getAll(
     adminFirestore.collection("users").doc(uid),
@@ -279,6 +352,7 @@ export async function resolveScope(uid: string | null, scope: AgentScope): Promi
   const viewer = viewerFromUserDoc(uid, userSnap.exists ? ({ ...(userSnap.data() as Record<string, unknown>), uid } as UserDoc) : null);
   const tickerById = new Map<string, string>();
   const names: Record<string, string> = {};
+  const stances = new Map<string, AgentCall>();
   for (const row of rows) {
     const ticker = text(row.ticker).toUpperCase();
     const id = text(row.instrument_id);
@@ -286,11 +360,13 @@ export async function resolveScope(uid: string | null, scope: AgentScope): Promi
     if (id) tickerById.set(id, ticker);
     const name = text(row.instrument_name);
     if (name) names[ticker] = name;
+    const directive = (row.directive_v2 ?? row.ai_directive) as { stance?: unknown; zones?: { accumulate_below?: unknown; trim_above?: unknown } } | undefined;
+    const stance = callWord(text(directive?.stance));
+    if (stance) stances.set(ticker, stance);
     if (!isCovered(viewer, id || ticker)) {
       levels[ticker] = { add_below: null, trim_above: null, locked: true };
       continue;
     }
-    const directive = (row.directive_v2 ?? row.ai_directive) as { zones?: { accumulate_below?: unknown; trim_above?: unknown } } | undefined;
     const addBelow = finite(directive?.zones?.accumulate_below);
     const trimAbove = finite(directive?.zones?.trim_above);
     levels[ticker] = {
@@ -306,7 +382,11 @@ export async function resolveScope(uid: string | null, scope: AgentScope): Promi
       .filter((ticker, index, list) => ticker && list.indexOf(ticker) === index)
       .slice(0, MAX_WATCHLIST_TICKERS);
   }
-  return { tickers, levels, names };
+  if (!options.calls) return { tickers, levels, names };
+  const idByTicker = new Map([...tickerById].map(([id, ticker]) => [ticker, id]));
+  const idOf = (ticker: string) => idByTicker.get(ticker) ?? instrumentIdOf(ticker);
+  const calls = await loadCalls(tickers, idOf, (id) => isCovered(viewer, id), levels, stances);
+  return { tickers, levels, names, calls };
 }
 
 async function loadPrices(tickers: string[], end: string): Promise<{ prices: AgentFacts["prices"]; calendar: string[] }> {
@@ -447,7 +527,15 @@ async function loadMovers(): Promise<{ movers: AgentFacts["movers"]; days: strin
  */
 export async function loadFacts(
   tickers: string[],
-  options: { end: string; levels?: AgentFacts["levels"]; now?: Date; trigger?: AgentTrigger; purpose?: "run" | "replay" },
+  options: {
+    end: string;
+    levels?: AgentFacts["levels"];
+    /** Our calls, from resolveScope with `calls`: null when they could not be read, left out when not wanted. */
+    calls?: AgentFacts["calls"] | null;
+    now?: Date;
+    trigger?: AgentTrigger;
+    purpose?: "run" | "replay";
+  },
 ): Promise<{ facts: AgentFacts; calendar: string[] }> {
   const from = addDays(options.end, -EVENT_LOOKBACK_DAYS);
   const settled = lastSettledDay(options.now ?? new Date());
@@ -520,6 +608,7 @@ export async function loadFacts(
     earnings_reports: earningsReports ?? [],
     ...(filings ? { filings } : {}),
     ...(news ? { news } : {}),
+    ...(options.calls ? { calls: options.calls } : {}),
     available: {
       congress: congressDocs != null && congressDocs.length > 0,
       fund_filings: (fundDocs ?? []).length > 0,
@@ -529,6 +618,7 @@ export async function loadFacts(
       earnings_reports: earningsReports != null,
       ...(wantsFilings ? { filings: filings != null && filings.length > 0 } : {}),
       ...(wantsNews ? { news: news != null && news.coverage_from != null } : {}),
+      ...(options.calls !== undefined ? { calls: options.calls != null } : {}),
     },
   };
   return { facts, calendar };
@@ -541,8 +631,8 @@ export type ReplayResult = AgentReplay & { tickers: string[]; available: AgentFa
 /** Replay a draft over the last four weeks for this person. Reads only; writes nothing. */
 export async function replayDraft(uid: string | null, draft: AgentJobDraft, now = new Date()): Promise<ReplayResult> {
   const end = agentMarketDay(now);
-  const scope = await resolveScope(uid, draft.scope);
-  const { facts, calendar } = await loadFacts(scope.tickers, { end, levels: scope.levels, now, trigger: draft.trigger, purpose: "replay" });
+  const scope = await resolveScope(uid, draft.scope, { calls: watchesCalls(draft.trigger) });
+  const { facts, calendar } = await loadFacts(scope.tickers, { end, levels: scope.levels, calls: scope.calls, now, trigger: draft.trigger, purpose: "replay" });
   // Replay through the last session whose close is final; today is still moving.
   const last = calendar[calendar.length - 1] ?? end;
   const replay = replayJob(draft, facts, { end: last, tickers: scope.tickers, calendar });
@@ -567,8 +657,9 @@ export async function runJob(job: StoredJob, now = new Date(), options: { dryRun
     if (run) return { status: "already_ran", run };
   }
 
-  const scope = await resolveScope(job.uid, job.scope);
-  const { facts } = await loadFacts(scope.tickers, { end: day, levels: scope.levels, now, trigger: job.trigger, purpose: "run" });
+  const readsCalls = watchesCalls(job.trigger);
+  const scope = await resolveScope(job.uid, job.scope, { calls: readsCalls });
+  const { facts } = await loadFacts(scope.tickers, { end: day, levels: scope.levels, calls: scope.calls, now, trigger: job.trigger, purpose: "run" });
   const evaluation = evaluateJob(job, facts, {
     day,
     // Null on a first run: events dated today count, last week's do not, and an
@@ -577,12 +668,15 @@ export async function runJob(job: StoredJob, now = new Date(), options: { dryRun
     // Null on a first run: the newest close is fair game, nothing has read it yet.
     price_since: job.last_close_seen ?? null,
     tickers: scope.tickers,
+    // A live run of an agent that watches our call compares with what it last saw (empty on a first run).
+    ...(readsCalls ? { calls_seen: job.calls_seen ?? {} } : {}),
   });
   if (!evaluation) return { status: "not_due" };
 
   const stamp = now.toISOString();
+  const { calls_seen: callsSeen, ...result } = evaluation;
   const run: AgentRun = {
-    ...evaluation,
+    ...result,
     latest_close: evaluation.latest_close ?? null,
     id: runDocId(job.uid, job.id, day),
     job_id: job.id,
@@ -601,6 +695,8 @@ export async function runJob(job: StoredJob, now = new Date(), options: { dryRun
       {
         last_checked_day: day,
         ...(evaluation.latest_close ? { last_close_seen: evaluation.latest_close } : {}),
+        // Only the stocks in scope today: one that left the list and came back is read fresh, not against a months-old call.
+        ...(callsSeen && Object.keys(callsSeen).length ? { calls_seen: callsSeen } : {}),
         updated_at: stamp,
       },
       { merge: true },

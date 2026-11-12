@@ -33,42 +33,42 @@ const reason = item({ id: "reason-JPM-weaker", tool: "portfolio", ticker: "JPM",
 const trim = item({ id: "ideas-trim-MSFT", tool: "ideas", ticker: "MSFT", priority: 80, needsYou: true, open: { label: "See where to sell some", href: "/portfolio/ideas" } });
 const xray = item({ id: "xray-AAPL", tool: "xray", ticker: "AAPL", priority: 75, needsYou: true });
 const dividend = item({ id: "dividend-COST-2026-11-13", tool: "dividends", ticker: "COST", priority: 65 });
-const stress = item({ id: "stress-worst", tool: "stress", ticker: "AAPL", priority: 50 });
+const stress = item({ id: "stress-worst", tool: "xray", ticker: "AAPL", priority: 50 });
 
 const empty = { state: "empty" } as const;
 const sources = (overrides: Partial<HomeSources> = {}): HomeSources => ({ memo: empty, xray: empty, season: empty, dividends: empty, stress: empty, goal: empty, ideas: empty, ...overrides });
 
 describe("prioritise", () => {
   it("leads with at most three changes that need the person, in rank order, each with one step", () => {
-    const { lead } = prioritise([memo, report, reason, trim, xray, stress], sources(), "mine");
+    const { lead } = prioritise([memo, report, reason, trim, xray, stress], sources(), "mine", "pro");
     expect(lead.map((row) => row.id)).toEqual(["earnings-NVDA", "reason-JPM-weaker", "ideas-trim-MSFT"]);
     expect(lead).toHaveLength(MAX_LEAD);
     expect(lead.every((row) => row.action.label && row.action.href)).toBe(true);
   });
 
   it("puts everything else behind the fold, and names each tool once", () => {
-    const { lead, fold } = prioritise([memo, report, reason, trim, xray, stress], sources(), "mine");
+    const { lead, fold } = prioritise([memo, report, reason, trim, xray, stress], sources(), "mine", "pro");
     const leadIds = new Set(lead.map((row) => row.id));
     expect(fold.some((row) => leadIds.has(row.key))).toBe(false);
     // The leftover findings first, then every tool no finding speaks for.
     expect(fold.map((row) => row.key)).toEqual(["memo-2026-W46", "xray-AAPL", "stress-worst", "tool-portfolio", "tool-dividends", "tool-goal", "tool-taxes"]);
     expect(fold[0]!.text).toBe("memo-2026-W46 text.");
     const tools = fold.map((row) => row.tool);
-    for (const said of ["memo", "earnings", "ideas", "xray", "stress"]) expect(fold.filter((row) => row.key === `tool-${said}`)).toHaveLength(0);
+    for (const said of ["memo", "earnings", "ideas", "xray"]) expect(fold.filter((row) => row.key === `tool-${said}`)).toHaveLength(0);
     expect(tools).toContain("goal");
   });
 
   it("does not repeat the x-ray's figure under a trim idea, or the tax figure under a tax-loss idea", () => {
-    expect(prioritise([trim], sources(), "mine").fold.map((row) => row.key)).not.toContain("tool-xray");
+    expect(prioritise([trim], sources(), "mine", "pro").fold.map((row) => row.key)).not.toContain("tool-xray");
     const loss = item({ id: "ideas-loss-UNH", tool: "ideas", ticker: "UNH", priority: 75, needsYou: true });
-    const keys = prioritise([loss], sources(), "mine").fold.map((row) => row.key);
+    const keys = prioritise([loss], sources(), "mine", "pro").fold.map((row) => row.key);
     expect(keys).not.toContain("tool-taxes");
     expect(keys).toContain("tool-xray");
   });
 
   it("keeps the memo's week on its line in the fold, since a stored memo can be from an older week", () => {
     const old = { ...memo, evidence: "From the memo for the week of Nov 2, written from closes through Nov 6. It lists 1 thing to watch." };
-    const [row] = prioritise([report, old], sources(), "mine").fold;
+    const [row] = prioritise([report, old], sources(), "mine", "pro").fold;
     expect(row!.text).toBe("memo-2026-W46 text. From the memo for the week of Nov 2, written from closes through Nov 6.");
   });
 
@@ -77,32 +77,40 @@ describe("prioritise", () => {
       plan: { today: "2026-11-11", total: 1, stocks: [{ ticker: "KO", name: "Coca-Cola", next: { payDate: "2026-11-13", payDateKnown: true, amount: 40, perShare: 0.5, status: "confirmed", paid: false } }] },
       read: null,
     });
-    const picked = focusNoticed({ memo: empty, xray: empty, season: empty, dividends: dividendSource, stress: empty, ideas: empty }, "mine");
+    const picked = focusNoticed({ memo: empty, xray: empty, season: empty, dividends: dividendSource, stress: empty, ideas: empty }, "mine", "pro");
     expect(picked.some((row) => row.tool === "dividends")).toBe(false);
   });
 
+  it("leaves out what only the deeper analysis finds for a Free person's own holdings", () => {
+    const view = ok<never>({ mode: "live", xray: { total: 1000, funds: [{ status: "ok" }], companies: [{ ticker: "AAPL", name: "Apple", pct: 17, direct: 120, directPct: 12, fundPct: 5, via: [{ fund: "QQQ", value: 50 }] }], asOfDates: ["2026-09-30"] }, read: { headline: "Apple is 17% of everything you own.", insights: [], headlineTickers: ["AAPL"] } });
+    const all = { memo: empty, xray: view, season: empty, dividends: empty, stress: empty, ideas: empty };
+    expect(focusNoticed(all, "mine", "free").some((row) => row.tool === "xray")).toBe(false);
+    expect(focusNoticed(all, "mine", "pro").some((row) => row.tool === "xray")).toBe(true);
+    expect(focusNoticed(all, "example", "free").some((row) => row.tool === "xray")).toBe(true);
+  });
+
   it("leaves the next dividend to the log and shows the dividends tool instead", () => {
-    const { lead, fold } = prioritise([dividend], sources(), "mine");
+    const { lead, fold } = prioritise([dividend], sources(), "mine", "pro");
     expect(lead).toEqual([]);
     expect(fold.map((row) => row.key)).toContain("tool-dividends");
     expect(fold.map((row) => row.key)).not.toContain(dividend.id);
   });
 
   it("with nothing that needs the person, leads with the top finding alone", () => {
-    const { lead, fold } = prioritise([memo, stress], sources(), "example");
+    const { lead, fold } = prioritise([memo, stress], sources(), "example", "pro");
     expect(lead.map((row) => row.id)).toEqual(["memo-2026-W46"]);
     expect(lead[0]!.action).toEqual({ label: "Open it", href: "/portfolio/memo", kind: "open" });
     expect(fold[0]!.key).toBe("stress-worst");
   });
 
   it("sends the example's tax row to the ideas page, where the example's losses are shown", () => {
-    const { fold } = prioritise([], sources(), "example");
+    const { fold } = prioritise([], sources(), "example", "pro");
     expect(fold.find((row) => row.key === "tool-taxes")?.href).toBe("/portfolio/ideas");
-    expect(prioritise([], sources(), "mine").fold.find((row) => row.key === "tool-taxes")?.href).toBe("/portfolio/taxes");
+    expect(prioritise([], sources(), "mine", "pro").fold.find((row) => row.key === "tool-taxes")?.href).toBe("/portfolio/taxes");
   });
 
   it("says plainly when a tool did not answer in time", () => {
-    const { fold } = prioritise([], sources({ goal: { state: "slow" } }), "mine");
+    const { fold } = prioritise([], sources({ goal: { state: "slow" } }), "mine", "pro");
     expect(fold.find((row) => row.key === "tool-goal")).toMatchObject({ figure: null, text: "Still working this out; open it to see." });
   });
 });

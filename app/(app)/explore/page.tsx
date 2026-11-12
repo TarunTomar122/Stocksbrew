@@ -2,7 +2,7 @@ import { capitalize, dayWords, onDayWords } from "@/lib/day-words";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
-import { loadDeskMarketsData, loadDeskMovers, loadDeskSectors, loadMoveFacts, todayET, type DeskData, type DeskSector } from "@/app/(app)/explore/desk-data";
+import { loadDeskMarketsData, loadDeskMovers, loadDeskSectors, todayET, type DeskData, type DeskSector } from "@/app/(app)/explore/desk-data";
 import { MarketCardsGhost, MovesGhost, StripGhost } from "@/app/(app)/explore/ghosts";
 import { MoveTables, type MoveRow } from "@/app/(app)/explore/move-tables";
 import { hasMarketsData } from "@/components/markets/overview-sections";
@@ -79,14 +79,21 @@ function sessionMoves(
  * nothing. Every move priced in the session shows, from the same live quotes the briefing and the home page use, with
  * one quiet time over the tables. Older days are a row of links to their own pages under it.
  */
-function StockMoves({ movers, today, facts = null }: { movers: DeskData["movers"]; today: string; facts?: Record<string, string> | null }) {
+function StockMoves({ movers, today }: { movers: DeskData["movers"]; today: string }) {
   const session = sessionMoves(movers, today, Date.now());
-  if (session.rows.length === 0) return null;
-  const line = (row: DeskData["movers"]["up"][number]): string | null =>
-    row.reason ? unTitle(row.reason, row.name) : facts?.[row.ticker] ? `${facts[row.ticker]}.` : null;
-  const toRow = (row: DeskData["movers"]["up"][number]): MoveRow => ({ ticker: row.ticker, name: row.name, changePct: row.changePct, line: line(row) });
-  const up = session.rows.filter((row) => row.changePct > 0).sort((a, b) => b.changePct - a.changePct).map(toRow);
-  const down = session.rows.filter((row) => row.changePct < 0).sort((a, b) => a.changePct - b.changePct).map(toRow);
+  // Only moves with a confirmed reason (owner, Nov 12: "don't show stocks that don't have a reason, skip them"). A
+  // measured price fact ("Its biggest drop since Feb 12", "A normal day moves it about 5%") is not a reason.
+  const reasoned = session.rows.filter((row) => Boolean(row.reason));
+  if (reasoned.length === 0) return null;
+  const toRow = (row: DeskData["movers"]["up"][number]): MoveRow => ({
+    ticker: row.ticker,
+    name: row.name,
+    changePct: row.changePct,
+    price: row.price,
+    line: unTitle(row.reason!, row.name),
+  });
+  const up = reasoned.filter((row) => row.changePct > 0).sort((a, b) => b.changePct - a.changePct).map(toRow);
+  const down = reasoned.filter((row) => row.changePct < 0).sort((a, b) => a.changePct - b.changePct).map(toRow);
   // One quiet time over the tables: the day for moves from an earlier session, else when today's quotes are from.
   const clock =
     session.day && session.day !== today
@@ -163,27 +170,17 @@ async function StripSlot({ markets }: { markets: Promise<MarketsData> }) {
  */
 async function MovesSlot({ movers, today }: { movers: Promise<DeskData["movers"]>; today: string }) {
   const data = await movers;
-  const any = data.up.length + data.down.length > 0;
+  // Only reasoned moves are drawn, so "any" counts those.
+  const any = [...data.up, ...data.down].some((row) => Boolean(row.reason));
   return (
     // With no moves the section has no heading of its own (the earlier days' row names itself), so it is not labelled.
     <section id="moves" aria-labelledby={any ? "stock-moves" : undefined} className="scroll-mt-20">
-      {/* The moves show at once, those with no reason without a line; their price facts follow and fill that line in. */}
-      <Suspense fallback={<StockMoves movers={data} today={today} />}>
-        <MovesWithFacts movers={data} today={today} />
-      </Suspense>
+      <StockMoves movers={data} today={today} />
       <Suspense fallback={null}>
         <EarlierDays movers={data} today={today} titled={!any} />
       </Suspense>
     </section>
   );
-}
-
-/** The moves once the price facts for those with no confirmed reason are in (or have run out of time). */
-async function MovesWithFacts({ movers, today }: { movers: DeskData["movers"]; today: string }) {
-  const session = sessionMoves(movers, today, Date.now());
-  const bare = session.rows.filter((row) => !row.reason).sort((a, b) => Math.abs(b.changePct) - Math.abs(a.changePct));
-  const facts = bare.length ? await loadMoveFacts(bare, session.day ?? today).catch(() => null) : null;
-  return <StockMoves movers={movers} today={today} facts={facts} />;
 }
 
 /** Every sector's day, under the moves. */

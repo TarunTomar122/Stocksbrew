@@ -14,6 +14,7 @@ import { addPicks, clearPendingPicks, savePendingPicks, type PendingPick } from 
 import { CALL_PLAIN } from "@/lib/plain-copy";
 import { captureEvent } from "@/lib/posthog";
 import type { SearchEntry } from "@/lib/search";
+import { FundTag } from "@/components/fund-page/fund-tag";
 import { getClientSearchIndex, prefetchSearchIndex } from "@/lib/search-index-client";
 import { signInWithGoogle } from "@/lib/sign-in";
 import { scoreSearchEntry } from "@/lib/ticker-search-utils";
@@ -367,6 +368,7 @@ export function LandingTaste({
                       <StockLogo ticker={entry.ticker} size={24} circle />
                       <span className="oa-mono w-16 shrink-0 font-semibold text-oa-fg">{entry.ticker}</span>
                       <span className="min-w-0 flex-1 truncate text-oa-muted-fg">{entry.name}</span>
+                      {entry.fund ? <FundTag /> : null}
                     </button>
                   </li>
                 ))

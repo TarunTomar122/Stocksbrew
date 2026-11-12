@@ -1,45 +1,54 @@
 import type { OverlapModule } from "@/lib/portfolio-analysis/types";
 import { StockLogo } from "@/components/stock-logo";
 
-import { ChartCard, FigureCard, Key, LIST, MINE, Module, NUM, Tick, pct } from "./parts";
+import { ChartCard, Key, LIST, MINE, Module, NUM, SPAN, Tick, pct } from "./parts";
 
 const VIA = "color-mix(in srgb, var(--oa-primary) 35%, transparent)";
 
-/** Same stocks inside the funds: what the funds add to each company, and how much the funds repeat each other. */
+/**
+ * Same stocks inside the funds: what the funds add to each company (7 columns) beside how much the funds repeat each
+ * other (5). Two funds are one number, which sits in the company card's head rather than as a short card that would
+ * end halfway down beside the list; three or more get the grid.
+ */
 export function Overlap({ module, example }: { module: OverlapModule; example: boolean }) {
+  const pair = module.matrix && module.matrix.funds.length === 2 ? module.matrix : null;
+  const grid = module.matrix && module.matrix.funds.length > 2 ? module.matrix : null;
+  const companies = module.companies.length > 0;
   return (
     <Module id="overlap" title={example ? "What the funds add" : "What your funds add"}>
-      {/* Two funds are one number; three or more get the grid. */}
-      {module.matrix && module.matrix.funds.length === 2 ? (
-        <FigureCard
-          label={`${module.matrix.funds[0]} and ${module.matrix.funds[1]} share`}
-          figure={pct(module.matrix.pct[0]![1]!)}
-          line="of each fund sits in the same companies"
+      {companies ? (
+        <Companies
+          module={module}
+          className={grid ? SPAN[7] : SPAN[12]}
+          shared={pair ? `${pair.funds[0]} and ${pair.funds[1]} share ${pct(pair.pct[0]![1]!)}` : null}
+          // Alone on the row, the list runs in two columns rather than stretching each bar across the page.
+          split={!grid}
         />
       ) : null}
-      {module.companies.length > 0 ? <Companies module={module} /> : null}
-      {module.matrix && module.matrix.funds.length > 2 ? <Matrix matrix={module.matrix} /> : null}
+      {grid ? <Matrix matrix={grid} className={companies ? SPAN[5] : `${SPAN[5]} lg:col-start-1`} /> : null}
     </Module>
   );
 }
 
-function Companies({ module }: { module: OverlapModule }) {
+function Companies({ module, className, shared, split }: { module: OverlapModule; className: string; shared: string | null; split: boolean }) {
   const max = Math.max(1, ...module.companies.map((row) => row.weight));
   return (
     <ChartCard
       title="By company"
-      newRow
+      className={className}
       aside={
         <>
+          {shared ? <span className={`${NUM} text-oa-fg`}>{shared}</span> : null}
           <Key color={MINE}>Bought</Key>
           <Key color={VIA}>Through funds</Key>
         </>
       }
       flush
     >
-      <ul className={`${LIST} px-4 py-2`}>
+      {/* Alone on the row it runs in two columns, whole (a height cap would spill CSS columns sideways); beside the grid it is a capped table. */}
+      <ul className={`px-4 py-2 ${split ? "max-lg:max-h-[16.5rem] max-lg:overflow-y-auto max-lg:[scrollbar-width:none] lg:columns-2 lg:gap-x-10 [&::-webkit-scrollbar]:hidden" : LIST}`}>
         {module.companies.map((row) => (
-          <li key={row.ticker} className="grid h-8 grid-cols-[5.5rem_minmax(0,1fr)_3rem] items-center gap-3 sm:grid-cols-[6rem_minmax(0,1fr)_3rem]">
+          <li key={row.ticker} className="grid h-8 break-inside-avoid grid-cols-[5.5rem_minmax(0,1fr)_3rem] items-center gap-3 sm:grid-cols-[6rem_minmax(0,1fr)_3rem]">
             <Tick ticker={row.ticker} />
             <span className="flex h-2.5 overflow-hidden rounded-[2px] bg-oa-bg" role="img" aria-label={`${row.ticker}: ${pct(row.directPct)} bought, ${pct(row.fundPct)} through ${row.via.join(", ")}`}>
               <span style={{ width: `${(row.directPct / max) * 100}%`, background: MINE }} />
@@ -58,12 +67,12 @@ function Companies({ module }: { module: OverlapModule }) {
   );
 }
 
-function Matrix({ matrix }: { matrix: NonNullable<OverlapModule["matrix"]> }) {
+function Matrix({ matrix, className }: { matrix: NonNullable<OverlapModule["matrix"]>; className: string }) {
   const n = matrix.funds.length;
   return (
-    <ChartCard title="How much the funds repeat" wide={n > 3}>
+    <ChartCard title="How much the funds repeat" className={className}>
       <div className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <div className="grid w-max gap-[2px]" style={{ gridTemplateColumns: `52px repeat(${n}, 52px)` }} role="table" aria-label="Fund overlap">
+        <div className="mx-auto grid w-max gap-[2px]" style={{ gridTemplateColumns: `52px repeat(${n}, 52px)` }} role="table" aria-label="Fund overlap">
           <span />
           {matrix.funds.map((fund) => (
             <span key={`h-${fund}`} className="flex flex-col items-center gap-0.5 pb-1" role="columnheader">

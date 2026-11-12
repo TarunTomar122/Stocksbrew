@@ -2,7 +2,9 @@ import { plainLeftOut, signedPct, signedPoints, pct } from "@/lib/memo/format";
 import type { Memo } from "@/lib/memo/types";
 import { fmtPlanDay } from "@/lib/dividend-plan";
 
-import { pickNoticed, TOOL_GROUPS, TOOL_HREF, TOOL_TITLES, toolCard, type HomeMode, type HomeSources, type Noticed, type ToolId } from "./pick";
+import type { Plan } from "@/lib/entitlements";
+
+import { deepAnalysis, pickNoticed, TOOL_GROUPS, TOOL_HREF, TOOL_TITLES, toolCard, type HomeMode, type HomeSources, type Noticed, type ToolId } from "./pick";
 
 /**
  * What the My stocks overview leads with. Of everything the agent noticed
@@ -91,10 +93,12 @@ function toolsOf(item: Noticed): ToolId[] {
 /**
  * The findings for the overview: pickNoticed without the next dividend, which is a date rather than a
  * decision. The log's "Coming up" says it (./log.ts) and the dividends tool row with the year's total stands
- * in for it here, so it should not take one of the five places.
+ * in for it here, so it should not take one of the five places. On Free, a person's own holdings also leave
+ * out what only the deeper analysis finds (the company inside their funds, past crashes).
  */
-export function focusNoticed(sources: Omit<HomeSources, "goal">, mode: HomeMode): Noticed[] {
-  return pickNoticed({ ...sources, dividends: { state: "empty" } }, mode);
+export function focusNoticed(sources: Omit<HomeSources, "goal">, mode: HomeMode, plan: Plan): Noticed[] {
+  const deep = deepAnalysis(mode, plan);
+  return pickNoticed({ ...sources, dividends: { state: "empty" }, ...(deep ? {} : { xray: { state: "empty" }, stress: { state: "empty" } }) }, mode);
 }
 
 /**
@@ -160,7 +164,7 @@ export function focusHeadline(count: number, mode: HomeMode): string {
  * (usually the memo's line on the week) leads on its own, so the page still
  * opens on a read rather than a blank.
  */
-export function prioritise(all: Noticed[], sources: Partial<HomeSources>, mode: HomeMode): Focus {
+export function prioritise(all: Noticed[], sources: Partial<HomeSources>, mode: HomeMode, plan: Plan): Focus {
   // In case a caller passes pickNoticed's list: the next dividend belongs to the log (see focusNoticed).
   const noticed = all.filter((item) => item.tool !== "dividends");
   const urgent = noticed.filter((item) => item.needsYou).slice(0, MAX_LEAD);
@@ -185,7 +189,7 @@ export function prioritise(all: Noticed[], sources: Partial<HomeSources>, mode: 
   const toolRows: FoldRow[] = TOOL_GROUPS.flatMap((group) => group.tools)
     .filter((id) => !said.has(id))
     .map((id) => {
-      const card = toolCard(id, sources, mode);
+      const card = toolCard(id, sources, mode, plan);
       return { key: `tool-${id}`, title: TOOL_TITLES[id], href: toolHref(id, mode), ticker: null, figure: card.figure, text: card.detail, tone: null, tool: id };
     });
   return { lead, fold: [...findingRows, ...toolRows] };

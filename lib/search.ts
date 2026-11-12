@@ -2,6 +2,7 @@ import { unstable_cache } from "next/cache";
 import { cache } from "react";
 
 import { adminFirestore } from "@/lib/firebase-admin";
+import { getFundCatalog } from "@/lib/funds/server";
 import { getHomeView } from "@/lib/home-view";
 import {
   dedupeSearchEntries,
@@ -15,7 +16,34 @@ export {
   scoreSearchEntry,
 } from "@/lib/search-shared";
 
-async function getSearchIndexUncached(
+/**
+ * Funds we cover get a "Fund" tag, and any of them the index does not hold yet
+ * (registered by backend/scripts/register_fund_instruments.py, rebuilt nightly)
+ * is added, so search and the import know VOO before its first price lands.
+ */
+async function withFunds(entries: SearchEntry[], market: "US" | "IN"): Promise<SearchEntry[]> {
+  if (market !== "US") return entries;
+  const funds = await getFundCatalog().catch(() => new Map<string, string>());
+  if (funds.size === 0) return entries;
+  const seen = new Set(entries.map((entry) => entry.ticker));
+  // A fund registered from a stock request can be named by its ticker alone ("SCHD"); the fund list has its name.
+  const tagged = entries.map((entry) => {
+    const name = funds.get(entry.ticker);
+    if (name === undefined) return entry;
+    return { ...entry, name: entry.name && entry.name !== entry.ticker ? entry.name : name, fund: true };
+  });
+  for (const [ticker, name] of funds) {
+    if (!seen.has(ticker)) tagged.push({ instrument_id: `US_${ticker.replace(/\./g, "_")}`, ticker, name, fund: true });
+  }
+  tagged.sort((a, b) => a.ticker.localeCompare(b.ticker));
+  return tagged;
+}
+
+async function getSearchIndexUncached(market: "US" | "IN" = "US"): Promise<SearchEntry[]> {
+  return withFunds(await getSearchIndexBase(market), market);
+}
+
+async function getSearchIndexBase(
   market: "US" | "IN" = "US"
 ): Promise<SearchEntry[]> {
   const searchDoc = await adminFirestore.collection("tm_search_index").doc(market).get();
@@ -59,7 +87,7 @@ export const getSearchIndex = cache(getSearchIndexUncached);
 export function getSearchIndexForApi(market: "US" | "IN" = "US"): Promise<SearchEntry[]> {
   return unstable_cache(
     async () => getSearchIndexUncached(market),
-    ["search-index-api-v2", market],
+    ["search-index-api-v3", market],
     { revalidate: 60 },
   )();
 }

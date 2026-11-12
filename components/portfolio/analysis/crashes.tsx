@@ -1,18 +1,18 @@
 import type { CrashModule } from "@/lib/portfolio-analysis/types";
 
-import { ChartCard, DOWN, Key, LIST, MINE, Module, NUM, SP, Tick, UP, signedPct, signedPts } from "./parts";
+import { ChartCard, DOWN, LIST, Module, NUM, SPAN, Tick, UP, signedPct, signedPts } from "./parts";
 
 /**
- * Past crashes: today's mix and the S&P 500 through each episode as a pair of bars from a zero line, then the
- * holdings that did the most damage in the worst one. What today's mix would have done, not what anyone earned.
+ * Past crashes: today's mix and the S&P 500 through each episode (7 columns), beside the holdings that did the
+ * most damage in the worst one (5), about the same height. What today's mix would have done, not what anyone earned.
  */
 export function Crashes({ module }: { module: CrashModule }) {
   const worst = module.worst ? module.episodes.find((episode) => episode.id === module.worst!.id) : null;
   return (
     <Module id="crashes" title="Today's mix through past shocks">
-      <Episodes module={module} />
+      <Episodes module={module} className={worst && module.worst ? SPAN[7] : SPAN[12]} />
       {worst && module.worst ? (
-        <ChartCard title={`What fell in the ${worst.name}`} wide={false} flush>
+        <ChartCard title={`What fell in the ${worst.name}`} flush className={SPAN[5]}>
           <ul className={`${LIST} px-4 py-2`}>
             {module.worst.drivers.map((driver) => (
               <li key={driver.ticker} className="grid h-8 grid-cols-[minmax(0,1fr)_4rem_4.5rem] items-center gap-2">
@@ -28,50 +28,29 @@ export function Crashes({ module }: { module: CrashModule }) {
   );
 }
 
-function Episodes({ module }: { module: CrashModule }) {
-  // The zero line sits where the falls end and the rises begin, so most of the width goes to what happened.
-  const values = module.episodes.flatMap((episode) => [episode.book, episode.sp ?? 0]);
-  const fall = Math.max(0, ...values.map((value) => -value));
-  const rise = Math.max(0, ...values);
-  const span = Math.max(1, fall + rise);
-  const zero = (fall / span) * 100;
-  const bar = (value: number, color: string) => {
-    const width = (Math.abs(value) / span) * 100;
-    return (
-      <span className="relative block h-2.5">
-        <span
-          className="absolute inset-y-0 rounded-[2px]"
-          style={{ left: value < 0 ? `${zero - width}%` : `${zero}%`, width: `${Math.max(0.5, width)}%`, background: color }}
-        />
-      </span>
-    );
-  };
+/**
+ * Each shock as a compact table row: today's mix and the S&P 500 through it. No bars: they only drew the two numbers
+ * printed beside them (owner rule 5).
+ */
+function Episodes({ module, className }: { module: CrashModule; className: string }) {
+  const grid = "grid grid-cols-[minmax(0,1fr)_4.25rem_4.25rem] items-center gap-3";
   return (
-    <ChartCard
-      title="Each shock"
-      aside={
-        <>
-          <Key color={MINE}>You</Key>
-          <Key color={SP}>S&amp;P 500</Key>
-        </>
-      }
-      flush
-    >
-      <ul className="flex flex-col px-4 py-2">
+    <ChartCard title="Each shock" flush className={className}>
+      <div className={`${grid} border-b border-oa-border px-4 py-1.5 text-[12px] leading-4 text-oa-muted-fg`}>
+        <span>Shock</span>
+        <span className="text-right">You</span>
+        <span className="text-right">S&amp;P 500</span>
+      </div>
+      <ul className="flex flex-col px-4 py-1">
         {module.episodes.map((episode) => (
-          <li key={episode.id} className="grid grid-cols-[minmax(0,7.5rem)_minmax(0,1fr)_3.75rem] items-center gap-3 border-b border-oa-border py-2 last:border-b-0 sm:grid-cols-[minmax(0,10rem)_minmax(0,1fr)_4.25rem]">
-            <span className="min-w-0 text-[13px] leading-[17px] text-oa-fg">
+          <li key={episode.id} className={`${grid} h-8 border-b border-oa-border last:border-b-0`}>
+            <span className="min-w-0 truncate text-[13px] leading-5 text-oa-fg" title={episode.name}>
               {episode.name.replace(/^./, (c) => c.toUpperCase())}
             </span>
-            <span className="relative flex flex-col gap-[3px]" role="img" aria-label={`${episode.name}: you ${signedPct(episode.book)}, S&P 500 ${episode.sp === null ? "unknown" : signedPct(episode.sp)}`}>
-              <span aria-hidden="true" className="absolute inset-y-[-4px] w-px bg-oa-border" style={{ left: `${zero}%` }} />
-              {bar(episode.book, MINE)}
-              {episode.sp !== null ? bar(episode.sp, SP) : null}
+            <span className={`${NUM} text-right text-[13px]`} style={{ color: episode.book < 0 ? DOWN : UP }}>
+              {signedPct(episode.book, 0)}
             </span>
-            <span className={`${NUM} flex flex-col items-end text-[12.5px] leading-[15px]`}>
-              <span style={{ color: episode.book < 0 ? DOWN : UP }}>{signedPct(episode.book, 0)}</span>
-              {episode.sp !== null ? <span className="text-oa-muted-fg">{signedPct(episode.sp, 0)}</span> : null}
-            </span>
+            <span className={`${NUM} text-right text-[13px] text-oa-muted-fg`}>{episode.sp !== null ? signedPct(episode.sp, 0) : "–"}</span>
           </li>
         ))}
       </ul>

@@ -52,13 +52,13 @@ export const TOOL_PAGE_SEO = {
     crumbs: [MY_STOCKS, { name: "Weekly memo", path: "/portfolio/memo" }],
   },
   "/portfolio/xray": {
-    title: "ETF overlap checker: what you really own",
+    title: "Portfolio analysis: spread, fund overlap and risk",
     description:
       "Add what is inside your ETFs to the stocks you bought: your real stake in each company and sector, and how much your funds overlap, from SEC filings.",
     card: ["portfolio", "xray"],
     alt: "What the example portfolio really owns once its funds are opened up",
     daily: true,
-    crumbs: [MY_STOCKS, { name: "What you really own", path: "/portfolio/xray" }],
+    crumbs: [MY_STOCKS, { name: "Analysis", path: "/portfolio/xray" }],
   },
   "/portfolio/dividends": {
     title: "Dividend planner: your next 12 months of income",
@@ -68,15 +68,6 @@ export const TOOL_PAGE_SEO = {
     alt: "What the example portfolio should pay in dividends over the next year",
     daily: true,
     crumbs: [MY_STOCKS, { name: "Dividends", path: "/portfolio/dividends" }],
-  },
-  "/portfolio/stress": {
-    title: "Portfolio stress test: Covid, 2022 and tariffs",
-    description:
-      "How your stocks did in real market shocks: the Covid crash, the 2022 rate-hike slide, the 2023 bank scare and the 2025 tariff shock, against the S&P 500.",
-    card: ["portfolio", "stress"],
-    alt: "How the example portfolio did in past market shocks",
-    daily: true,
-    crumbs: [MY_STOCKS, { name: "Stress test", path: "/portfolio/stress" }],
   },
   "/portfolio/earnings": {
     title: "Earnings calendar for the stocks you own",

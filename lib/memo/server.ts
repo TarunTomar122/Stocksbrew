@@ -1,5 +1,6 @@
 import { unstable_cache } from "next/cache";
 
+import { can } from "@/lib/entitlements";
 import { canSeeLevels, type Viewer } from "@/lib/entitlements-server";
 import { BENCHMARK_SYMBOL } from "@/lib/portfolio-data";
 import { isFeaturedStockTicker } from "@/lib/seo/stock-pages";
@@ -21,6 +22,7 @@ import {
 } from "./data";
 import { memoModelReader } from "./model";
 import { historyRow, listMemos, readMemo, saveMemo, type MemoHistoryRow, type StoredMemo } from "./store";
+import { withoutDeepItems } from "./deep";
 import type { DailySeries, Memo, MemoInputs, MemoReason } from "./types";
 import type { MemoWeek } from "./week";
 import { applyWording, wordingPayload } from "./word";
@@ -85,7 +87,8 @@ async function exampleMemosUncached(_day: string, worded = true): Promise<Memo[]
   for (let i = 1; i < EXAMPLE_WEEKS; i++) weeks.push(previousWeek(weeks[i - 1]!, current.series.get(BENCHMARK_SYMBOL)));
   const [events, shape] = await Promise.all([
     loadSpanEvents(source.holdings, spanOf(weeks, current.today)),
-    loadShapeFacts(source, current.series).catch(() => NO_SHAPE),
+    // The example shows everything on every plan, as its Analysis page does.
+    loadShapeFacts(source, current.series, true).catch(() => NO_SHAPE),
   ]);
   return Promise.all(weeks.map((week, index) => writeMemo(source, week, current.today, current.series, events, index === 0 ? shape : NO_SHAPE, now, worded)));
 }
@@ -166,7 +169,11 @@ export async function loadUserMemo(viewer: Viewer, userDoc: UserDoc | null, week
   const { week, series, today } = current;
   // Reasons that weakened or broke go under "What could hurt"; a changed verdict rewrites the week.
   const reasons = await memoReasons(viewer, userDoc, source.holdings.map((holding) => holding.ticker));
-  const signature = reasons.length > 0 ? `${source.signature}|${reasons.map((reason) => `${reason.ticker}:${reason.verdict}`).join(",")}` : source.signature;
+  // Free gets no look-through or crash replay in the memo (portfolio_analysis_deep). The plan is in the signature, so a
+  // memo written on the other plan is written again rather than shown; Pro's signature is unchanged from before.
+  const deep = can("portfolio_analysis_deep", viewer.plan);
+  const base = reasons.length > 0 ? `${source.signature}|${reasons.map((reason) => `${reason.ticker}:${reason.verdict}`).join(",")}` : source.signature;
+  const signature = deep ? base : `${base}|free`;
   const prev = previousWeek(week, series.get("SPY"));
 
   const [stored, storedPrev] = await Promise.all([
@@ -182,7 +189,7 @@ export async function loadUserMemo(viewer: Viewer, userDoc: UserDoc | null, week
     const weeks = prevNeeded ? [prev, week] : [week];
     const [events, shape] = await Promise.all([
       loadSpanEvents(source.holdings, spanOf(weeks, today)),
-      loadShapeFacts(source, series)
+      loadShapeFacts(source, series, deep)
         .catch(() => NO_SHAPE)
         .then((facts) => ({ ...facts, reasons })),
     ]);
@@ -206,10 +213,12 @@ export async function loadUserMemo(viewer: Viewer, userDoc: UserDoc | null, week
   }
   if (!latest) return null;
 
+  // An earlier week stays as it was written, which may have been on Pro: on Free its deeper items are left out.
+  const shown = (memo: Memo) => (deep ? memo : withoutDeepItems(memo));
   if (weekKey && weekKey !== latest.weekKey) {
     const asked = await readMemo(uid, weekKey).catch(() => null);
-    if (asked) return { mode: "mine", memo: asked.memo, history, missingWeek: false };
-    return { mode: "mine", memo: latest, history, missingWeek: true };
+    if (asked) return { mode: "mine", memo: shown(asked.memo), history, missingWeek: false };
+    return { mode: "mine", memo: shown(latest), history, missingWeek: true };
   }
-  return { mode: "mine", memo: latest, history, missingWeek: false };
+  return { mode: "mine", memo: shown(latest), history, missingWeek: false };
 }

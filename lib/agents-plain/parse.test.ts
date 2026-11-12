@@ -527,3 +527,172 @@ describe("rules: SEC filings and news", () => {
 function modelWatch(kind: ModelWatch["kind"], stocks: string[]): ModelWatch {
   return { kind, stocks, my_stocks: false, any_stock: false, level: null, pct: null, direction: null, days_before: null, weekday: null, side: null, person: null };
 }
+
+describe("when to sell or buy is a signal, never a trade", () => {
+  const withOracle = buildCatalog([
+    { ticker: "ORCL", name: "Oracle Corporation", aliases: ["ORCL", "Oracle"], price: 210 },
+    { ticker: "NVDA", name: "NVIDIA Corporation", aliases: ["NVDA", "NVIDIA"], price: 168.79 },
+    { ticker: "AMD", name: "AMD", aliases: ["AMD"], price: 240 },
+  ]);
+  const read = (text: string, ctx: Parameters<typeof parseByRules>[2] = EARNINGS_OFF) => parseByRules(text, withOracle, ctx);
+  const watched = (text: string) =>
+    read(text).spec.watches.map((watch) => `${watch.draft.template}:${watch.draft.scope.kind === "tickers" ? watch.draft.scope.tickers.join(",") : watch.draft.scope.kind}`);
+
+  it("the owner's request: “tell me when to sell oracle :)” is a sell watch on Oracle, read without the model", () => {
+    const result = read("tell me when to sell oracle :)");
+    expect(result.confident).toBe(true);
+    expect(result.spec.cannot).toEqual([]);
+    expect(result.spec.watches.map((watch) => watch.draft)).toEqual([
+      { template: "sell-zone", name: "ORCL: when to sell some", trigger: { type: "price", rule: "enters_sell_zone" }, scope: { kind: "tickers", tickers: ["ORCL"] } },
+    ]);
+    expect(result.spec.lead).toBe("I'll tell you when Oracle reaches our sell-some price or our call turns to Sell some.");
+  });
+
+  it("asking when to sell, trim or take profits is the sell watch", () => {
+    for (const [text, expected] of [
+      ["tell me when to sell ORCL", "sell-zone:ORCL"],
+      ["when should I sell oracle", "sell-zone:ORCL"],
+      ["let me know when it's time to sell NVDA", "sell-zone:NVDA"],
+      ["when to trim AMD", "sell-zone:AMD"],
+      ["tell me when to take profits on NVDA", "sell-zone:NVDA"],
+      ["let me know when to cash out of oracle", "sell-zone:ORCL"],
+      ["alert me when nvda hits a sell signal", "sell-zone:NVDA"],
+      ["tell me when anything I own hits a sell price", "sell-zone:watchlist"],
+    ] as const) {
+      expect(watched(text), text).toEqual([expected]);
+      expect(read(text).spec.cannot, text).toEqual([]);
+      expect(read(text).confident, text).toBe(true);
+    }
+  });
+
+  it("asking when to buy is the buy watch, on the stocks named", () => {
+    for (const [text, expected] of [
+      ["tell me when to buy NVDA", "buy-zone:NVDA"],
+      ["when should I buy more AMD", "buy-zone:AMD"],
+      ["let me know when oracle is cheap", "buy-zone:ORCL"],
+      ["ping me when it's time to buy more AMD", "buy-zone:AMD"],
+      ["tell me when anything I own is worth buying", "buy-zone:watchlist"],
+    ] as const) {
+      expect(watched(text), text).toEqual([expected]);
+      expect(read(text).spec.cannot, text).toEqual([]);
+    }
+    expect(watched("tell me when to buy or sell NVDA")).toEqual(["sell-zone:NVDA", "buy-zone:NVDA"]);
+    expect(watched("tell me when to sell ORCL and buy NVDA")).toEqual(["sell-zone:ORCL", "buy-zone:NVDA"]);
+  });
+
+  it("an order is still refused, friendlier, with the watch we can do as one tap", () => {
+    const sell = read("sell my ORCL");
+    expect(sell.spec.watches).toEqual([]);
+    expect(sell.spec.cannot).toEqual([
+      {
+        code: "trading",
+        what: "sell my ORCL",
+        line: "I can't place trades. I can tell you when our call says to sell some Oracle. Want that?",
+        suggest: "Tell me when to sell Oracle",
+      },
+    ]);
+    expect(read("buy 10 NVDA for me").spec.cannot[0]).toMatchObject({ code: "trading", suggest: "Tell me when to buy NVIDIA" });
+    expect(read("place an order").spec.cannot[0]).toMatchObject({ code: "trading", suggest: "Tell me when to buy more of my stocks" });
+    expect(read("please sell everything").spec.cannot[0]).toMatchObject({ code: "trading", suggest: "Tell me when anything I own hits a sell price" });
+    // The chip's own words read back as the watch it offers.
+    for (const entry of [sell, read("buy 10 NVDA for me"), read("place an order"), read("please sell everything")].map((r) => r.spec.cannot[0])) {
+      const offered = read(entry.suggest!);
+      expect(offered.spec.cannot, entry.suggest!).toEqual([]);
+      expect(offered.spec.watches.map((watch) => watch.draft.template), entry.suggest!).toEqual([entry.line.includes("sell some") ? "sell-zone" : "buy-zone"]);
+    }
+  });
+
+  it("says the real sell-some price when our call has one, and says so plainly when it has none", () => {
+    const trim = { ORCL: { call: "Trim" as const, add_below: null, trim_above: 250, locked: false } };
+    // A sell-some price belongs to a Sell some call (owner rule 8), so the call is said first.
+    expect(read("tell me when to sell oracle", { ...EARNINGS_OFF, calls: trim }).spec.lead).toBe(
+      "Our call on Oracle is already Sell some; I'll tell you when it reaches our sell-some price ($250).",
+    );
+    // Already Sell some with no price to watch: nothing is left to wait for but a change of the call, so that is the watch.
+    const selling = read("tell me when to sell oracle", { ...EARNINGS_OFF, calls: { ORCL: { call: "Trim", add_below: null, trim_above: null } } });
+    expect(selling.spec.lead).toBe("Our call on Oracle is already Sell some; I'll tell you when it changes.");
+    expect(selling.spec.watches.map((watch) => watch.draft.trigger)).toEqual([{ type: "event", event: "call_change" }]);
+    const keep = { ORCL: { call: "Hold" as const, add_below: 180, trim_above: 250 } };
+    const kept = read("tell me when to sell oracle", { ...EARNINGS_OFF, calls: keep });
+    expect(kept.spec.lead).toBe("Oracle has no sell-some price right now; I'll tell you if our call turns to Sell some.");
+    // Still saved: the same sell watch.
+    expect(kept.spec.watches[0].draft.template).toBe("sell-zone");
+    const none = read("tell me when to sell oracle", { ...EARNINGS_OFF, calls: { ORCL: { call: null, add_below: null, trim_above: null } } });
+    expect(none.spec.lead).toBe("Oracle has no sell-some price right now; I'll tell you if our call turns to Sell some.");
+    // A level the plan does not cover is never said.
+    const locked = read("tell me when to sell oracle", { ...EARNINGS_OFF, calls: { ORCL: { call: "Trim", add_below: null, trim_above: null, locked: true } } });
+    expect(locked.spec.lead).not.toMatch(/\$/);
+    expect(locked.spec.lead).toBe("Our call on Oracle is already Sell some; I'll tell you when it changes.");
+    // A buy-more price, only for a Buy more call.
+    expect(read("tell me when to buy NVDA", { ...EARNINGS_OFF, calls: { NVDA: { call: "Add", add_below: 140, trim_above: null } } }).spec.lead).toBe(
+      "I'll tell you when NVIDIA drops to our buy-more price ($140).",
+    );
+    // Every read-back stays within 20 words.
+    for (const lead of [read("tell me when to sell oracle", { ...EARNINGS_OFF, calls: trim }).spec.lead, kept.spec.lead, locked.spec.lead, none.spec.lead, read("tell me when anything I own hits a sell price").spec.lead]) {
+      expect(lead.split(/\s+/).length, lead).toBeLessThanOrEqual(20);
+    }
+  });
+
+  it("our call changing is a watch now, to any call or to one", () => {
+    const any = read("tell me when your call on NVDA changes");
+    expect(any.spec.cannot).toEqual([]);
+    expect(any.spec.watches[0].draft).toMatchObject({ template: "call-change", trigger: { type: "event", event: "call_change" }, scope: { kind: "tickers", tickers: ["NVDA"] } });
+    expect(any.spec.lead).toBe("I'll watch NVIDIA (NVDA) and tell you when our call on it changes.");
+    const to = read("tell me when our call on AMD turns to sell some");
+    expect(to.spec.watches[0].draft.trigger).toEqual({ type: "event", event: "call_change", to: "Trim" });
+    expect(to.spec.lead).toBe("I'll watch AMD and tell you when our call on it turns to Sell some.");
+    expect(read("tell me if the call on oracle flips to buy more").spec.watches[0].draft.trigger).toEqual({ type: "event", event: "call_change", to: "Add" });
+    expect(read("tell me when your call on my stocks changes").spec.watches[0].draft.scope).toEqual({ kind: "watchlist" });
+  });
+
+  it("found in review: questions, call options, a later order or list change stay apart from the sell watch", () => {
+    expect(watched("tell me when to sell oracle and add NVDA to my watchlist")).toEqual(["sell-zone:ORCL"]);
+    expect(read("tell me when to sell oracle and add NVDA to my watchlist").spec.cannot[0].line).toBe("I can't change your list from here. Track NVIDIA from its stock page.");
+    for (const text of ["tell me when to sell oracle. buy NVDA now", "tell me when to sell oracle, and buy nvda for me"]) {
+      expect(watched(text), text).toEqual(["sell-zone:ORCL"]);
+      expect(read(text).spec.cannot.map((entry) => entry.code), text).toEqual(["trading"]);
+    }
+    expect(watched("tell me when the call options on NVDA spike")).not.toContain("call-change:NVDA");
+    expect(watched("whats your call on oracle")).toEqual([]);
+    expect(watched("tell me when to sell, trim, or hold NVDA")).toEqual(["sell-zone:NVDA"]);
+    // A price the person names is theirs, not ours: left to the model, never read as our sell-some price.
+    expect(watched("alert me when NVDA hits my sell price of 200")).toEqual([]);
+    expect(read("tell me when your call on NVDA is buy").spec.watches[0].draft.trigger).toEqual({ type: "event", event: "call_change", to: "Add" });
+  });
+
+  it("every new watch passes the agents API's own validation", () => {
+    for (const text of ["tell me when to sell oracle", "tell me when to buy NVDA", "tell me when your call on NVDA changes", "tell me when anything I own hits a sell price"]) {
+      for (const watch of read(text).spec.watches) expect(parseJobDraft(watch.draft, EARNINGS_OFF), text).toMatchObject({ ok: true, draft: watch.draft });
+    }
+  });
+
+  it("the model calling “when to sell” a trade is overruled; a real order from the model gets the friendly line", () => {
+    const spec = specFromModel("tell me when to sell oracle :)", { watches: [], cannot: [{ quote: "sell oracle", reason: "trading" }] }, withOracle, EARNINGS_OFF);
+    expect(spec.cannot).toEqual([]);
+    expect(spec.watches.map((watch) => watch.draft.template)).toEqual(["sell-zone"]);
+    const order = specFromModel("dump all my oracle shares right now", { watches: [], cannot: [{ quote: "dump all my oracle shares", reason: "trading" }] }, withOracle, EARNINGS_OFF);
+    expect(order.cannot[0]).toMatchObject({ code: "trading", suggest: "Tell me when to sell Oracle" });
+    const callModel = specFromModel("ping me if you flip oracle to keep", { watches: [{ ...modelWatch("call_change", ["oracle"]), call_to: "keep" }], cannot: [] }, withOracle, EARNINGS_OFF);
+    expect(callModel.watches[0].draft.trigger).toEqual({ type: "event", event: "call_change", to: "Hold" });
+  });
+
+  it("looks up our call only for stocks a buy or sell watch names, and reads without it if the lookup fails", async () => {
+    const asked: string[][] = [];
+    const callLookup = async (tickers: string[]) => {
+      asked.push(tickers);
+      return { ORCL: { call: "Trim" as const, add_below: null, trim_above: 250 } };
+    };
+    const spec = await parsePlainRequest("tell me when to sell oracle", withOracle, { ...EARNINGS_OFF, callLookup });
+    expect(spec.lead).toBe("Our call on Oracle is already Sell some; I'll tell you when it reaches our sell-some price ($250).");
+    expect(asked).toEqual([["ORCL"]]);
+    await parsePlainRequest("tell me if NVDA drops below 150", withOracle, { ...EARNINGS_OFF, callLookup });
+    expect(asked).toHaveLength(1);
+    const failed = await parsePlainRequest("tell me when to sell oracle", withOracle, {
+      ...EARNINGS_OFF,
+      callLookup: async () => {
+        throw new Error("store down");
+      },
+    });
+    expect(failed.lead).toBe("I'll tell you when Oracle reaches our sell-some price or our call turns to Sell some.");
+  });
+});

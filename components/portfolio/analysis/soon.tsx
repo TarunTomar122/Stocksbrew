@@ -3,11 +3,15 @@ import Link from "next/link";
 import type { CallsModule, EarningsModule, IncomeModule } from "@/lib/portfolio-analysis/types";
 import { StockLogo } from "@/components/stock-logo";
 
-import { ChartCard, DOWN, FLAT, Key, LIST, MINE, Module, NUM, Tick, UP, day, money, monthName, pct, signedPct } from "./parts";
+import { ChartCard, DOWN, FLAT, Key, LIST, MINE, Module, NUM, SPAN, Tick, UP, day, money, monthName, pct, signedPct } from "./parts";
 
 const WEEKDAY = ["S", "M", "T", "W", "T", "F", "S"];
 
-/** What reports soon, where our calls sit and what the holdings should pay: the free part about the person's own lines. */
+/**
+ * What reports soon, where our calls sit and what the holdings should pay: the free part about the person's own
+ * lines. The two-week strip (7 columns) beside the calls (5), the dividends across the page under them. When nothing
+ * reports for two weeks the earnings card is one short line, so it takes the narrow side and the calls the wide one.
+ */
 export function Ahead({
   earnings,
   calls,
@@ -22,20 +26,23 @@ export function Ahead({
   showUpsell: boolean;
 }) {
   if (!earnings && !calls && !income) return null;
+  const quiet = Boolean(earnings?.next);
+  const both = Boolean(earnings && calls);
   return (
     <Module id="ahead" title="Coming up, and our calls">
-      {earnings ? <Earnings module={earnings} example={example} /> : null}
-      {calls ? <Calls module={calls} showUpsell={showUpsell} example={example} /> : null}
+      {earnings ? <Earnings module={earnings} example={example} className={!both ? SPAN[12] : quiet ? SPAN[5] : SPAN[7]} /> : null}
+      {calls ? <Calls module={calls} showUpsell={showUpsell} example={example} className={!both ? SPAN[12] : quiet ? SPAN[7] : SPAN[5]} /> : null}
       {income ? <Income module={income} /> : null}
     </Module>
   );
 }
 
-function Earnings({ module, example }: { module: EarningsModule; example: boolean }) {
+function Earnings({ module, example, className }: { module: EarningsModule; example: boolean; className: string }) {
   const money_ = example ? "the money" : "your money";
   return (
     <ChartCard
       title="Reports in the next two weeks"
+      className={className}
       aside={module.next ? undefined : <span className={NUM}>{pct(module.reportingPct)} of {money_}</span>}
     >
       {module.next ? (
@@ -50,14 +57,15 @@ function Earnings({ module, example }: { module: EarningsModule; example: boolea
         </div>
       ) : (
         <>
-          <ol className="grid grid-cols-[repeat(14,minmax(0,1fr))] gap-0.5 sm:gap-1">
+          {/* Two rows of seven on a phone, one row of fourteen from sm. */}
+          <ol className="grid grid-cols-7 gap-1 sm:grid-cols-[repeat(14,minmax(0,1fr))]">
             {module.days.map((slot) => {
               const weekday = new Date(`${slot.date}T00:00:00Z`).getUTCDay();
               const weekend = weekday === 0 || weekday === 6;
               return (
                 <li
                   key={slot.date}
-                  className={`flex min-h-[6.25rem] flex-col items-center gap-1 rounded-[4px] px-0.5 pb-1.5 pt-1 ${slot.tickers.length > 0 ? "bg-[color-mix(in_srgb,var(--oa-primary)_10%,transparent)]" : weekend ? "opacity-50" : "bg-oa-bg"}`}
+                  className={`flex min-h-[5.5rem] flex-col sm:min-h-[6.25rem] items-center gap-1 rounded-[4px] px-0.5 pb-1.5 pt-1 ${slot.tickers.length > 0 ? "bg-[color-mix(in_srgb,var(--oa-primary)_10%,transparent)]" : weekend ? "opacity-50" : "bg-oa-bg"}`}
                   aria-label={`${day(slot.date)}: ${slot.tickers.length > 0 ? slot.tickers.map((t) => t.ticker).join(", ") : "nothing"}`}
                 >
                   <span className="text-[10.5px] leading-3 text-oa-muted-fg">{WEEKDAY[weekday]}</span>
@@ -91,7 +99,7 @@ function Earnings({ module, example }: { module: EarningsModule; example: boolea
 
 const CALL_COLOR = { "Buy more": UP, Keep: FLAT, "Sell some": DOWN } as const;
 
-function Calls({ module, showUpsell, example }: { module: CallsModule; showUpsell: boolean; example: boolean }) {
+function Calls({ module, showUpsell, example, className }: { module: CallsModule; showUpsell: boolean; example: boolean; className: string }) {
   const parts = [
     { label: "Buy more", value: module.split.buyMore, color: UP },
     { label: "Keep", value: module.split.keep, color: FLAT },
@@ -99,7 +107,7 @@ function Calls({ module, showUpsell, example }: { module: CallsModule; showUpsel
     { label: "No call", value: module.split.none, color: "var(--oa-border)" },
   ].filter((part) => part.value > 0);
   return (
-    <ChartCard title={example ? "Our calls on this mix" : "Our calls on your money"} wide={false} flush>
+    <ChartCard title={example ? "Our calls on this mix" : "Our calls on your money"} flush className={className}>
       <div className="px-4 pt-3">
         <div className="flex h-3 overflow-hidden rounded-[3px]" role="img" aria-label={parts.map((part) => `${part.label} ${pct(part.value)}`).join(", ")}>
           {parts.map((part) => (
@@ -149,7 +157,7 @@ function Income({ module }: { module: IncomeModule }) {
   return (
     <ChartCard
       title={`Dividends, next 12 months: ${money(module.total)}`}
-      newRow
+      className={SPAN[12]}
       aside={
         anyEstimate ? (
           <>
@@ -159,11 +167,11 @@ function Income({ module }: { module: IncomeModule }) {
         ) : undefined
       }
     >
-      <div className="grid h-[120px] grid-cols-12 items-end gap-1.5" role="img" aria-label={module.months.map((month) => `${monthName(month.month)} ${money(month.confirmed + month.estimated)}`).join(", ")}>
+      <div className="grid h-[120px] grid-cols-12 items-end gap-1.5 lg:h-[160px] lg:gap-4" role="img" aria-label={module.months.map((month) => `${monthName(month.month)} ${money(month.confirmed + month.estimated)}`).join(", ")}>
         {module.months.map((month) => {
           const total = month.confirmed + month.estimated;
           return (
-            <span key={month.month} className="flex h-full flex-col justify-end" title={`${monthName(month.month)}: ${money(total)}`}>
+            <span key={month.month} className="mx-auto flex h-full w-full max-w-14 flex-col justify-end" title={`${monthName(month.month)}: ${money(total)}`}>
               {total > 0 ? <span className={`${NUM} mb-0.5 text-center text-[10px] leading-3 text-oa-muted-fg`}>{total >= 1000 ? `${(total / 1000).toFixed(1)}k` : Math.round(total)}</span> : null}
               <span className="w-full rounded-t-[2px]" style={{ height: `${(month.estimated / max) * 85}%`, background: soft }} />
               <span className="w-full" style={{ height: `${(month.confirmed / max) * 85}%`, background: MINE }} />
@@ -171,7 +179,7 @@ function Income({ module }: { module: IncomeModule }) {
           );
         })}
       </div>
-      <div className="mt-1 grid grid-cols-12 gap-1.5">
+      <div className="mt-1 grid grid-cols-12 gap-1.5 lg:gap-4">
         {module.months.map((month) => (
           <span key={month.month} className="text-center text-[10.5px] text-oa-muted-fg">
             {monthName(month.month)}

@@ -85,6 +85,8 @@ const nextConfig = {
       { source: "/watchlist/next", destination: "/portfolio", permanent: true },
       { source: "/watchlist/portfolio", destination: "/portfolio", permanent: true },
       { source: "/portfolio/analyze", destination: "/portfolio/xray", permanent: true },
+      // The stress test is a module of What you own now: past crashes replayed on today's mix.
+      { source: "/portfolio/stress", destination: "/portfolio/xray#crashes", permanent: true },
       { source: "/profile/subscribe", destination: "/pricing", permanent: true },
       // The old investing guides were articles, so they go to the blog, not to
       // the product docs.

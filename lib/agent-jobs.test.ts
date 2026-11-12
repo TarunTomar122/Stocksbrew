@@ -407,11 +407,131 @@ describe("drafts", () => {
       const text = describeJob(template.defaults);
       expect(text.length).toBeGreaterThan(20);
       // A level of our call ("its buy-more level") is a price to watch, not a trade.
-      expect(text.replace(/\b(buy-more|sell-some) (level|price)\b/gi, "")).not.toMatch(/\b(buy|sell|order|execute)\b/i);
+      // So are our call's own words ("our call turns to Sell some").
+      expect(text.replace(/\b(buy-more|sell-some) (level|price)\b/gi, "").replace(/\b(Buy more|Sell some)\b/g, "")).not.toMatch(/\b(buy|sell|order|execute)\b/i);
     }
   });
 
   it("keys a run by job and day so a second run the same day replaces nothing new", () => {
     expect(runDocId("u1", "abc123", "2026-10-13")).toBe("u1__abc123__2026-10-13");
+  });
+});
+
+describe("sell zone and call changes", () => {
+  const day = "2026-10-13";
+  const prices = { AAA: series({ "2026-10-13": 111 }), BBB: series({ "2026-10-13": 111 }) };
+  const turned = (date: string, from: "Add" | "Hold" | "Trim" | null, to: "Add" | "Hold" | "Trim", reason: string | null = null) => ({ date, from, to, reason });
+  const withCalls = (calls: AgentFacts["calls"], levels: AgentFacts["levels"] = {}) =>
+    facts({ prices, levels, calls, available: { ...facts().available, calls: true } });
+
+  it("fires on a close at or above the sell-some price of a Sell some call, never under Keep or Buy more", () => {
+    const sell = job("sell-zone");
+    const levels = { AAA: { add_below: 80, trim_above: 110 }, BBB: { add_below: 80, trim_above: 110 } };
+    const calls = { AAA: { call: "Trim" as const, changes: [] }, BBB: { call: "Hold" as const, changes: [] } };
+    const result = evaluateJob(sell, withCalls(calls, levels), { day, since: "2026-10-12", tickers: ["AAA", "BBB"], calls_seen: { AAA: "Trim", BBB: "Hold" } });
+    expect(result?.decision).toBe("notify");
+    expect(result?.findings).toHaveLength(1);
+    expect(result?.findings[0]).toMatchObject({ ticker: "AAA", kind: "level", zone: "trim", level: 110, close: 111 });
+    expect(result?.findings[0].headline).toBe("AAA rose 11.0% to $111, above its $110 sell-some level");
+    expect(result?.checked.join(" ")).toContain("No sell-some price in our call: BBB");
+    expect(result?.calls_seen).toEqual({ AAA: "Trim", BBB: "Hold" });
+  });
+
+  it("fires when our call turns to Sell some, even without a new close, and only once", () => {
+    const sell = job("sell-zone");
+    const calls = { AAA: { call: "Trim" as const, changes: [turned("2026-10-12", "Hold", "Trim", "Results missed and guidance was cut.")] } };
+    // Yesterday's run saw Keep; the change was written after it ran.
+    const first = evaluateJob(sell, withCalls(calls), { day, since: "2026-10-12", price_since: day, tickers: ["AAA"], calls_seen: { AAA: "Hold" } });
+    expect(first?.decision).toBe("notify");
+    expect(first?.summary).toMatch(/^Our call on AAA moved from Keep to Sell some/);
+    expect(first?.findings[0]).toMatchObject({ kind: "call", call_from: "Keep", call_to: "Sell some", at: "2026-10-12", detail: "Results missed and guidance was cut." });
+    expect(first?.calls_seen).toEqual({ AAA: "Trim" });
+    const again = evaluateJob(sell, withCalls(calls), { day, since: day, price_since: day, tickers: ["AAA"], calls_seen: first!.calls_seen });
+    expect(again?.decision).toBe("nothing");
+    expect(again?.summary).toBe("Checked, nothing to do. Our call did not say to sell it.");
+  });
+
+  it("a turn to Keep or Buy more is not a sell signal; a stock the plan does not cover never says its earlier call or the reason", () => {
+    const sell = job("sell-zone");
+    const toKeep = { AAA: { call: "Hold" as const, changes: [turned(day, "Trim", "Hold")] } };
+    expect(evaluateJob(sell, withCalls(toKeep), { day, since: "2026-10-12", tickers: ["AAA"], calls_seen: { AAA: "Trim" } })?.decision).toBe("nothing");
+    const locked = { AAA: { call: "Trim" as const, changes: [turned(day, "Hold", "Trim", null)], locked: true as const } };
+    const result = evaluateJob(sell, withCalls(locked, { AAA: { add_below: null, trim_above: null, locked: true } }), { day, since: "2026-10-12", tickers: ["AAA"], calls_seen: { AAA: "Hold" } });
+    expect(result?.findings[0]).toMatchObject({ headline: "Our call on AAA turned to Sell some", call_from: null, detail: "" });
+    expect(JSON.stringify(result)).not.toMatch(/Keep/);
+  });
+
+  it("a first run reads only today's dated change; a replay places each change on its day", () => {
+    const sell = job("sell-zone");
+    const calls = { AAA: { call: "Trim" as const, changes: [turned("2026-10-07", "Hold", "Trim")] } };
+    expect(evaluateJob(sell, withCalls(calls), { day, since: null, tickers: ["AAA"], calls_seen: {} })?.decision).toBe("nothing");
+    const replay = replayJob(sell, withCalls(calls), { end: "2026-10-16", tickers: ["AAA"], weeks: 2 });
+    expect(replay.runs.filter((run) => run.decision === "notify").map((run) => run.day)).toEqual(["2026-10-07"]);
+    expect(replay.notes.join(" ")).toMatch(/sell-some price is the one in today's call/);
+  });
+
+  it("says it could not check when neither our calls nor a price could be read", () => {
+    const sell = job("sell-zone");
+    const blind = facts({ prices: {}, available: { ...facts().available, calls: false } });
+    expect(evaluateJob(sell, blind, { day, since: "2026-10-12", tickers: ["AAA"], calls_seen: {} })?.decision).toBe("could_not_check");
+  });
+
+  it("the call-change agent: any change, or only a change to one call", () => {
+    const calls = {
+      AAA: { call: "Add" as const, changes: [turned(day, "Hold", "Add")] },
+      BBB: { call: "Trim" as const, changes: [turned(day, "Hold", "Trim")] },
+    };
+    const any = evaluateJob(job("call-change"), withCalls(calls), { day, since: "2026-10-12", tickers: ["AAA", "BBB"], calls_seen: { AAA: "Hold", BBB: "Hold" } });
+    expect(any?.decision).toBe("notify");
+    expect(any?.findings.map((finding) => finding.call_to)).toEqual(["Buy more", "Sell some"]);
+    expect(any?.summary).toBe("Our call changed on 2 names: AAA and BBB.");
+    const onlyTrim = evaluateJob(job("call-change", { trigger: { type: "event", event: "call_change", to: "Trim" } }), withCalls(calls), {
+      day,
+      since: "2026-10-12",
+      tickers: ["AAA", "BBB"],
+      calls_seen: { AAA: "Hold", BBB: "Hold" },
+    });
+    expect(onlyTrim?.findings.map((finding) => finding.ticker)).toEqual(["BBB"]);
+    const quiet = evaluateJob(job("call-change"), withCalls(calls), { day, since: "2026-10-12", tickers: ["AAA"], calls_seen: { AAA: "Add" } });
+    expect(quiet?.summary).toBe(`Checked, nothing to do. Our call on AAA did not change on Oct 13.`);
+    const blind = evaluateJob(job("call-change"), facts(), { day, since: "2026-10-12", tickers: ["AAA"], calls_seen: {} });
+    expect(blind?.decision).toBe("could_not_check");
+  });
+
+  it("validates both new templates and keeps them on the person's names", () => {
+    expect(parseJobDraft({ template: "sell-zone", scope: { kind: "tickers", tickers: ["orcl"] } })).toEqual({
+      ok: true,
+      draft: { template: "sell-zone", name: "When to sell some", trigger: { type: "price", rule: "enters_sell_zone" }, scope: { kind: "tickers", tickers: ["ORCL"] } },
+    });
+    expect(parseJobDraft({ template: "call-change", scope: { kind: "any" }, trigger: { to: "Trim" } })).toMatchObject({
+      ok: true,
+      draft: { trigger: { type: "event", event: "call_change", to: "Trim" }, scope: { kind: "watchlist" } },
+    });
+    expect(parseJobDraft({ template: "call-change", trigger: { to: "Sell" } })).toMatchObject({ ok: true, draft: { trigger: { type: "event", event: "call_change" } } });
+  });
+});
+
+describe("sell zone: found in review", () => {
+  const day = "2026-10-13";
+  const prices = { AAA: series({ "2026-10-13": 111 }) };
+  const turned = (date: string, from: "Add" | "Hold" | "Trim" | null, to: "Add" | "Hold" | "Trim", reason: string | null = null) => ({ date, from, to, reason });
+
+  it("says it could not check, not that the call held, when our calls were unavailable", () => {
+    const result = evaluateJob(job("sell-zone"), facts({ prices, levels: { AAA: { add_below: 80, trim_above: 200 } } }), { day, since: "2026-10-12", tickers: ["AAA"], calls_seen: {} });
+    expect(result?.decision).toBe("could_not_check");
+    expect(result?.summary).toBe("Could not check: our calls were not available.");
+  });
+
+  it("never dates a live change by an old one to the same call", () => {
+    const calls = { AAA: { call: "Trim" as const, changes: [turned("2026-08-01", "Hold", "Trim", "old reason"), turned("2026-09-01", "Trim", "Hold")] } };
+    const result = evaluateJob(job("sell-zone"), facts({ prices, calls, available: { ...facts().available, calls: true } }), { day, since: "2026-10-12", tickers: ["AAA"], calls_seen: { AAA: "Hold" } });
+    expect(result?.findings[0]).toMatchObject({ kind: "call", at: day, detail: "" });
+  });
+
+  it("a replayed day before the call turned to Sell some is checked under the call it had then", () => {
+    const calls = { AAA: { call: "Trim" as const, changes: [turned("2026-10-14", "Hold", "Trim")] } };
+    const levels = { AAA: { add_below: 80, trim_above: 110 } };
+    const before = evaluateJob(job("sell-zone"), facts({ prices, levels, calls, available: { ...facts().available, calls: true } }), { day, since: "2026-10-12", tickers: ["AAA"] });
+    expect(before?.findings).toEqual([]);
   });
 });
