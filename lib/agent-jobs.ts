@@ -572,17 +572,25 @@ export const AGENT_TEMPLATES: AgentTemplate[] = [
     id: "buy-zone",
     group: "Price",
     title: "Reaches our buy price",
-    ask: "Tell me when one of my names closes at or below the add level from its research call.",
+    ask: "Tell me when one of my names closes at or below the buy-more level in its call.",
     tells: "When one of your stocks closes at or below the price where our call says we'd buy more.",
     fields: [],
     defaults: {
       template: "buy-zone",
-      name: "Names entering their add zone",
+      name: "Stocks reaching their buy-more level",
       trigger: { type: "price", rule: "enters_buy_zone" },
       scope: { kind: "watchlist" },
     },
   },
 ];
+
+/** Names the app gave agents by default before it used the call's own words; a name a person typed stays as typed. */
+const OLD_DEFAULT_NAMES: Record<string, string> = { "Names entering their add zone": "Stocks reaching their buy-more level" };
+
+/** An agent's name as shown: an old default name in today's words (backend/mail/alerts.py does the same). */
+export function jobDisplayName(name: string): string {
+  return OLD_DEFAULT_NAMES[name] ?? name;
+}
 
 export function templateById(id: string): AgentTemplate | null {
   return AGENT_TEMPLATES.find((template) => template.id === id) ?? null;
@@ -636,7 +644,7 @@ export function triggerLabel(trigger: AgentTrigger): string {
     if (trigger.rule === "crosses_above") return `Closes above ${price(trigger.level ?? 0)}`;
     if (trigger.rule === "crosses_below") return `Closes below ${price(trigger.level ?? 0)}`;
     if (trigger.rule === "moves_pct") return `Moves ${trigger.pct ?? 5}% or more in a day`;
-    return "Closes in its add zone";
+    return "Closes at its buy-more level";
   }
   if (trigger.event === "fund_13f") return "New 13F filing";
   if (trigger.event === "congress_trade") return "Congressional disclosure";
@@ -667,7 +675,7 @@ export function describeJob(job: Pick<AgentJobDraft, "trigger" | "scope">): stri
     if (trigger.rule === "moves_pct") {
       return `Tell me when ${anyOf(job.scope, who)} closes ${trigger.pct ?? 5}% or more away from the day before.`;
     }
-    return `Tell me when ${anyOf(job.scope, who)} closes at or below the add level from its research call.`;
+    return `Tell me when ${anyOf(job.scope, who)} closes at or below the buy-more level in its call.`;
   }
   if (trigger.event === "fund_13f") {
     return job.scope.kind === "any"
@@ -855,6 +863,51 @@ function reportWatch(facts: AgentFacts, ticker: string | null | undefined, day: 
   return next ? `, and reports on ${shortDate(next.date)}` : "";
 }
 
+/**
+ * "SPCX fell 2.3% to $139.75, below its $142.07 buy-more level": the move that brought a stock to a level of its
+ * call, said with the close and the level. "at" when the close is the level to the cent.
+ */
+export function zoneHeadline(ticker: string, changePct: number, close: number, zone: "add" | "trim", level: number): string {
+  const where = price(close) === price(level) ? "at" : zone === "add" ? "below" : "above";
+  const word = zone === "add" ? "buy-more" : "sell-some";
+  return `${ticker} ${changePct >= 0 ? "rose" : "fell"} ${Math.abs(changePct).toFixed(1)}% to ${price(close)}, ${where} its ${price(level)} ${word} level`;
+}
+
+/** The session before `date` in the closes the run read (the newest date before it in any series), or null. */
+function sessionBeforeIn(prices: AgentFacts["prices"], date: string): string | null {
+  let best: string | null = null;
+  for (const series of Object.values(prices)) {
+    const dates = series?.dates ?? [];
+    for (let index = dates.length - 1; index >= 0; index -= 1) {
+      if (dates[index] < date) {
+        if (best == null || dates[index] > best) best = dates[index];
+        break;
+      }
+    }
+  }
+  return best;
+}
+
+/**
+ * Takes out (in place) the price findings older than the session before the newest close the run read: a stock
+ * whose price stopped updating, whose "last session" is days behind the others. Said as today's news it would
+ * mislead, the way the inbox leaves it out. Returns the tickers taken out.
+ */
+function dropBehind(findings: AgentFinding[], prices: AgentFacts["prices"], lastDate: string): string[] {
+  if (!lastDate) return [];
+  const floor = sessionBeforeIn(prices, lastDate);
+  if (!floor) return [];
+  const dropped: string[] = [];
+  for (let index = findings.length - 1; index >= 0; index -= 1) {
+    const finding = findings[index];
+    if (finding.at < floor) {
+      dropped.unshift(finding.ticker ?? "");
+      findings.splice(index, 1);
+    }
+  }
+  return dropped.filter(Boolean);
+}
+
 function evaluatePrice(
   trigger: Extract<AgentTrigger, { type: "price" }>,
   facts: AgentFacts,
@@ -927,7 +980,7 @@ function evaluatePrice(
       } else if (addBelow == null || !(addBelow > 0)) {
         noLevel.push(ticker);
       } else if (quote.prev > addBelow && quote.close <= addBelow) {
-        push(`${ticker} closed in its add zone, at or below ${price(addBelow)}`, { kind: "level", zone: "add", level: addBelow });
+        push(zoneHeadline(ticker, changePct, quote.close, "add", addBelow), { kind: "level", zone: "add", level: addBelow });
       }
     }
   }
@@ -941,7 +994,10 @@ function evaluatePrice(
   ];
 
   const latest_close = lastDate || null;
-  findings.sort((a, b) => Math.abs(b.change_pct ?? 0) - Math.abs(a.change_pct ?? 0));
+  const behind = dropBehind(findings, facts.prices, lastDate);
+  if (behind.length) checked.push(`Price not updated for the latest session: ${listNames(behind)}`);
+  // A name that reached its level leads, then the biggest moves.
+  findings.sort((a, b) => Number(Boolean(b.zone)) - Number(Boolean(a.zone)) || Math.abs(b.change_pct ?? 0) - Math.abs(a.change_pct ?? 0));
   if (findings.length > 0) {
     return {
       counts: {
@@ -1266,6 +1322,7 @@ function evaluateSchedule(
       }
     }
   }
+  const behind = dropBehind(findings, facts.prices, lastDate);
   // A name in its add or trim zone leads, then the biggest moves.
   findings.sort((a, b) => Number(Boolean(b.zone)) - Number(Boolean(a.zone)) || Math.abs(b.change_pct ?? 0) - Math.abs(a.change_pct ?? 0));
   const moves = findings.length;
@@ -1294,6 +1351,7 @@ function evaluateSchedule(
     `Daily closes for ${plural(priced, "name")} of ${tickers.length}${lastDate ? `, latest ${shortDate(lastDate)}` : ""}`,
     facts.available.earnings ? `Earnings in the next 7 days: ${upcoming.length}` : "Earnings calendar: unavailable",
     facts.available.congress ? `Congressional disclosures in your names: ${trades.length}` : "Congressional disclosures: unavailable",
+    ...(behind.length ? [`Price not updated for the latest session: ${listNames(behind)}`] : []),
   ];
 
   const latest_close = lastDate || null;

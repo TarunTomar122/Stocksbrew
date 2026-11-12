@@ -12,6 +12,7 @@ import { afterCloseDayWords, afterCloseTimeEt, nextAfterCloseRun } from "@/lib/a
 import { parseByRules } from "@/lib/agents-plain/parse";
 import { plainCatalog } from "@/lib/agents-plain/server";
 import { getSessionUser } from "@/lib/auth-server";
+import { shortCompanyName } from "@/lib/plain-copy";
 import { getCoverage } from "@/lib/seo/family-data";
 
 export const dynamic = "force-dynamic";
@@ -118,6 +119,10 @@ export default async function AgentJobsPage({
   ]);
   // A visitor who came with an agent of their own sees that one instead, so the example is not read at all.
   const sample = noLinkedAgent ? early : wantsSample && !linked ? await sampleFrom() : null;
+  // Names for the rows of a run ("SPCX Space Exploration"), from the read above: no read of their own.
+  const names = Object.fromEntries(
+    Object.entries(("names" in scope && scope.names) || {}).map(([ticker, name]) => [ticker, shortCompanyName(name)] as const).filter(([, name]) => name),
+  );
 
   return (
     <AppPage width="wide" className="max-w-[68rem]">
@@ -128,6 +133,7 @@ export default async function AgentJobsPage({
           initialRuns={runs}
           available={sources}
           tracked={scope.tickers.length}
+          names={names}
           levels={scope.levels}
           today={day}
           focusJobId={focus}

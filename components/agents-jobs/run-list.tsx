@@ -35,113 +35,65 @@ function money(value: number | null): string {
   return `$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-function StockCell({ ticker }: { ticker: string }) {
-  return (
-    <Link
-      href={`/stock/${encodeURIComponent(ticker)}`}
-      prefetch={false}
-      className="inline-flex min-w-0 items-center gap-2 rounded text-oa-fg outline-none hover:underline focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]"
-    >
-      <StockLogo ticker={ticker} size={18} />
-      <span className={`${NUM} text-[13.5px] font-medium`}>{ticker}</span>
-    </Link>
-  );
-}
+/**
+ * Company names by ticker, from the person's own list, so a row can say "SPCX Space Exploration" without a read of
+ * its own. Empty for the signed-out example: the row then shows the ticker alone.
+ */
+export const StockNamesContext = React.createContext<Readonly<Record<string, string>>>({});
 
-const SHOW = 5;
-
-/** The moves a run found, as a table: the biggest few, then the rest on request. */
-function MovesTable({ view }: { view: RunView }) {
-  const [all, setAll] = React.useState(false);
-  const zoned = view.moves.some((row) => row.zone);
-  const rows = all ? view.moves : view.moves.slice(0, SHOW);
-  const hidden = view.moves.length - rows.length;
+/**
+ * The stocks a run found, one row each and the row is the link: logo, ticker and name, one short line (the level it
+ * reached or when it reports), and on the right the close with the move into it. The run's date is said once, in the
+ * line under the list (asOf), so no row carries one. About eight rows show, then the list scrolls.
+ */
+function StockRows({ view }: { view: RunView }) {
+  const names = React.useContext(StockNamesContext);
   const unlisted = view.movesTotal - view.moves.length;
+  const unlistedDates = view.datesTotal - view.dates.length;
+  const more = [
+    unlisted > 0 ? `${unlisted} smaller ${unlisted === 1 ? "move" : "moves"}` : "",
+    unlistedDates > 0 ? `${unlistedDates} more ${unlistedDates === 1 ? "report" : "reports"}` : "",
+  ].filter(Boolean);
   return (
     <div className="overflow-hidden rounded-lg border border-oa-border bg-oa-card">
-      <table className="w-full table-fixed border-collapse text-[13.5px]">
-        <thead>
-          <tr className="border-b border-oa-border text-left">
-            <th scope="col" className="oa-caption h-8 px-3 font-normal">Stock</th>
-            <th scope="col" className="oa-caption h-8 w-[5.5rem] px-3 text-right font-normal">Move</th>
-            <th scope="col" className="oa-caption h-8 w-[6.5rem] px-3 text-right font-normal">Close</th>
-            {zoned ? <th scope="col" className="oa-caption hidden h-8 w-[11rem] px-3 text-right font-normal sm:table-cell">Level</th> : null}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.ticker} className="border-b border-oa-border last:border-b-0 hover:bg-oa-accent">
-              <td className="h-9 px-3">
-                <span className="flex min-w-0 flex-wrap items-center gap-x-2">
-                  <StockCell ticker={row.ticker} />
-                  {row.zone ? <ZoneNote zone={row.zone} level={row.level} className="sm:hidden" /> : null}
+      <ul className="scrollbar-hide max-h-[27rem] divide-y divide-oa-border overflow-y-auto">
+        {view.rows.map((row) => (
+          <li key={row.ticker}>
+            <Link
+              href={`/stock/${encodeURIComponent(row.ticker)}`}
+              prefetch={false}
+              className="grid min-h-[52px] grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-x-3 px-3 py-2 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent"
+            >
+              <StockLogo ticker={row.ticker} size={28} atOnce />
+              <span className="min-w-0">
+                <span className="flex min-w-0 items-baseline gap-1.5">
+                  <span className={`${NUM} shrink-0 text-[13.5px] font-semibold text-oa-fg`}>{row.ticker}</span>
+                  {names[row.ticker] ? <span className="min-w-0 truncate text-[12.5px] text-oa-muted-fg">{names[row.ticker]}</span> : null}
                 </span>
-              </td>
-              <td
-                className={`${NUM} h-9 px-3 text-right ${
-                  row.change_pct == null ? "text-oa-muted-fg" : row.change_pct >= 0 ? "text-signal-bullish" : "text-signal-bearish"
-                }`}
-              >
-                {row.change_pct == null ? "" : signedPct(row.change_pct)}
-              </td>
-              <td className={`${NUM} h-9 px-3 text-right text-oa-fg`}>{money(row.close)}</td>
-              {zoned ? <td className="hidden h-9 px-3 text-right sm:table-cell">{row.zone ? <ZoneNote zone={row.zone} level={row.level} /> : null}</td> : null}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {hidden > 0 || unlisted > 0 ? (
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-oa-border px-3 py-1.5 text-[12.5px] text-oa-muted-fg">
-          {hidden > 0 ? (
-            <button type="button" onClick={() => setAll(true)} className="cursor-pointer font-medium text-oa-fg hover:underline">
-              {hidden} more
-            </button>
-          ) : (
-            <span />
-          )}
-          {unlisted > 0 && (all || hidden === 0) ? <span>{unlisted} smaller moves not listed</span> : null}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function ZoneNote({ zone, level, className = "" }: { zone: "add" | "trim"; level: number | null; className?: string }) {
-  return (
-    <span className={`oa-mono whitespace-nowrap text-[12px] font-medium text-oa-primary ${className}`}>
-      {zone === "trim" ? "past trim" : "into add zone"}
-      {level != null ? ` ${money(level)}` : ""}
-    </span>
-  );
-}
-
-function DatesTable({ view }: { view: RunView }) {
-  return (
-    <div className="overflow-hidden rounded-lg border border-oa-border bg-oa-card">
-      <table className="w-full table-fixed border-collapse text-[13.5px]">
-        <thead>
-          <tr className="border-b border-oa-border text-left">
-            <th scope="col" className="oa-caption h-8 px-3 font-normal">Reports earnings</th>
-            <th scope="col" className="oa-caption h-8 w-[7rem] px-3 text-right font-normal">When</th>
-            <th scope="col" className="oa-caption hidden h-8 w-[9rem] px-3 text-right font-normal sm:table-cell">Time</th>
-          </tr>
-        </thead>
-        <tbody>
-          {view.dates.map((row) => (
-            <tr key={`${row.ticker}-${row.date}`} className="border-b border-oa-border last:border-b-0 hover:bg-oa-accent">
-              <td className="h-9 px-3">
-                <StockCell ticker={row.ticker} />
-              </td>
-              <td className={`${NUM} h-9 px-3 text-right text-oa-fg`}>
-                {/^[A-Z][a-z]+day$/.test(row.when) ? `${row.when.slice(0, 3)} ${shortDate(row.date)}` : row.when === "today" || row.when === "tomorrow" ? row.when : shortDate(row.date)}
-              </td>
-              <td className="hidden h-9 px-3 text-right text-oa-muted-fg sm:table-cell">{row.time ?? ""}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {view.datesTotal > view.dates.length ? (
-        <p className="border-t border-oa-border px-3 py-1.5 text-[12.5px] text-oa-muted-fg">{view.datesTotal - view.dates.length} more not listed</p>
+                {row.line ? (
+                  <span className={`block text-pretty text-[12.5px] leading-[17px] ${row.zone ? "font-medium text-oa-primary" : "text-oa-muted-fg"}`}>{row.line}</span>
+                ) : null}
+              </span>
+              {row.close != null || row.change_pct != null ? (
+                <span className="text-right leading-[18px]">
+                  <span className={`${NUM} block text-[13.5px] text-oa-fg`}>{money(row.close)}</span>
+                  {row.change_pct != null ? (
+                    <span className={`${NUM} block text-[12.5px] ${row.change_pct > 0 ? "text-signal-bullish" : row.change_pct < 0 ? "text-signal-bearish" : "text-oa-muted-fg"}`}>
+                      {signedPct(row.change_pct)}
+                    </span>
+                  ) : null}
+                </span>
+              ) : (
+                <span />
+              )}
+            </Link>
+          </li>
+        ))}
+      </ul>
+      {more.length > 0 ? (
+        <p className="border-t border-oa-border px-3 py-1.5 text-[12.5px] text-oa-muted-fg">
+          {more.join(" and ")} not listed
+        </p>
       ) : null}
     </div>
   );
@@ -160,8 +112,7 @@ export function RunReport({ view, showHeadline = true }: { view: RunView; showHe
           <p className="mt-0.5 text-pretty text-[14px] leading-5 text-oa-muted-fg">{view.todo}</p>
         </div>
       ) : null}
-      {view.moves.length > 0 ? <MovesTable view={view} /> : null}
-      {view.dates.length > 0 ? <DatesTable view={view} /> : null}
+      {view.rows.length > 0 ? <StockRows view={view} /> : null}
       {view.notes.length > 0 ? (
         <ul className="divide-y divide-oa-border overflow-hidden rounded-lg border border-oa-border bg-oa-card">
           {view.notes.map((note, index) => (

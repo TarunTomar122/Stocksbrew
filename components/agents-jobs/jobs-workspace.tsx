@@ -12,6 +12,7 @@ import { TheRead } from "@/components/oa/insight";
 import {
   AGENT_TEMPLATES,
   describeJob,
+  jobDisplayName,
   parseJobDraft,
   planMayRun,
   PRO_EVENTS_PAUSED,
@@ -31,7 +32,7 @@ import type { Plan } from "@/lib/entitlements";
 import { getFirebaseAuth } from "@/lib/firebase-client";
 import { POST_SIGNUP_ONBOARDING_PENDING, signInWithGoogle, syncServerSession } from "@/lib/sign-in";
 
-import { RunList, RunReport, VerdictChip, type RunRow } from "./run-list";
+import { RunList, RunReport, StockNamesContext, VerdictChip, type RunRow } from "./run-list";
 import { checksWhenShort, earningsWhen, tellsShort, watchSummary } from "./summary";
 import { trackAgentPreviewed, trackAgentReportOpened, trackAgentSwitchedOn, trackLimitHit } from "@/lib/product-analytics";
 
@@ -49,6 +50,8 @@ export type JobsWorkspaceProps = {
   tracked: number;
   /** The person's research levels today, so the latest run can say when a name sits past one. */
   levels?: AgentFacts["levels"];
+  /** Company names by ticker for the rows of a run, short form ("Meta Platforms"). */
+  names?: Readonly<Record<string, string>>;
   /** The market day today, YYYY-MM-DD (US Eastern). */
   today: string;
   /** A job to open on arrival, from the briefing link. */
@@ -64,6 +67,8 @@ export type JobsWorkspaceProps = {
   /** Shown under the intro, above everything else (the plain-English agent box). */
   lead?: React.ReactNode;
 };
+
+const NO_NAMES: Readonly<Record<string, string>> = {};
 
 const CARD = "oa-surface overflow-hidden border border-oa-border bg-oa-card";
 const INPUT =
@@ -338,6 +343,7 @@ export function JobsWorkspace({
   available,
   tracked,
   levels,
+  names,
   today,
   focusJobId,
   sample,
@@ -977,6 +983,7 @@ export function JobsWorkspace({
 
   return (
     <PlainAgentReadContext.Provider value={onPlainRead}>
+    <StockNamesContext.Provider value={names ?? NO_NAMES}>
     <div className="flex min-w-0 flex-col gap-3 sm:gap-4">
       <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 px-2 sm:px-0">
         {/* The place's icon beside its title, as in the nav (owner rule 6), the same way PageHead draws it. */}
@@ -1108,6 +1115,7 @@ export function JobsWorkspace({
       ) : null}
 
     </div>
+    </StockNamesContext.Provider>
     </PlainAgentReadContext.Provider>
   );
 }
@@ -1156,7 +1164,7 @@ function JobRow({
                 Not run yet
               </span>
             )}
-            <span className="text-[15px] font-medium leading-[22px] text-oa-fg">{job.name}</span>
+            <span className="text-[15px] font-medium leading-[22px] text-oa-fg">{jobDisplayName(job.name)}</span>
             <span className="text-[12.5px] text-oa-muted-fg">
               {triggerLabel(job.trigger)} · {scopeWords(job, tracked)}
             </span>

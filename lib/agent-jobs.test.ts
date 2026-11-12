@@ -142,6 +142,9 @@ describe("price rules", () => {
     expect(withLevel?.decision).toBe("notify");
     expect(withLevel?.findings).toHaveLength(1);
     expect(withLevel?.checked.join(" ")).toContain("No add level in the research call: BBB");
+    // The move that brought it there, its close and the level, in the call's own words.
+    expect(withLevel?.findings[0]).toMatchObject({ kind: "level", zone: "add", level: 90, close: 89, change_pct: -11 });
+    expect(withLevel?.findings[0].headline).toBe("AAA fell 11.0% to $89.00, below its $90.00 buy-more level");
 
     const without = evaluateJob(zone, facts({ prices }), { day: "2026-10-13", since: "2026-10-12", tickers: ["AAA", "BBB"] });
     expect(without?.decision).toBe("could_not_check");
@@ -303,6 +306,19 @@ describe("scheduled jobs", () => {
     ]);
   });
 
+  it("leaves out a stock whose price stopped updating, instead of calling its old move the last session", () => {
+    const upTo = (end: string, closes: Record<string, number>) => {
+      const dates = DAYS.filter((day) => day <= end);
+      return { dates, closes: dates.map((day) => closes[day] ?? 100) };
+    };
+    // AAA has the Oct 13 close; BBB's last close is Oct 9, two sessions behind.
+    const data = facts({ prices: { AAA: series({ "2026-10-13": 106 }), BBB: upTo("2026-10-09", { "2026-10-09": 110 }) } });
+    const result = evaluateJob(job("morning-check"), data, { day: "2026-10-13", since: "2026-10-08", tickers: ["AAA", "BBB"] });
+    expect(result?.findings.map((finding) => finding.ticker)).toEqual(["AAA"]);
+    expect(result?.counts?.moves).toBe(1);
+    expect(result?.checked.join(" ")).toContain("Price not updated for the latest session: BBB");
+  });
+
   it("gathers moves, earnings and disclosures into one morning note", () => {
     const data = facts({
       prices: { AAA: series({ "2026-10-13": 104 }), BBB: series({}) },
@@ -390,7 +406,8 @@ describe("drafts", () => {
     for (const template of AGENT_TEMPLATES) {
       const text = describeJob(template.defaults);
       expect(text.length).toBeGreaterThan(20);
-      expect(text).not.toMatch(/\b(buy|sell|order|execute)\b/i);
+      // A level of our call ("its buy-more level") is a price to watch, not a trade.
+      expect(text.replace(/\b(buy-more|sell-some) (level|price)\b/gi, "")).not.toMatch(/\b(buy|sell|order|execute)\b/i);
     }
   });
 

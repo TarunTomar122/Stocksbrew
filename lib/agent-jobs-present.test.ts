@@ -40,6 +40,83 @@ const OLD_MORNING: AgentRun = {
   checked: ["Daily closes for 35 names of 41, latest Nov 6", "Earnings in the next 7 days: 6", "Congressional disclosures in your names: 0"],
 };
 
+/** The owner's Nov 11 runs: a buy-zone run and a morning check with a stale quote (NBIS, Nov 9) and two reports. */
+const ZONE_RUN: AgentRun = {
+  id: "u__z__2026-11-11",
+  job_id: "z",
+  uid: "u",
+  job_name: "Names entering their add zone",
+  day: "2026-11-11",
+  ran_at: "2026-11-11T22:51:36.613Z",
+  decision: "notify",
+  summary: "2 names met the rule: SPCX and OUST.",
+  latest_close: "2026-11-11",
+  counts: { names: 30, priced: 30, moves: 2, up: 0, down: 2 },
+  findings: [
+    { ticker: "SPCX", headline: "SPCX closed in its add zone, at or below $142.07", detail: "", source: "Daily closing prices", url: "/stock/SPCX", at: "2026-11-11", kind: "level", change_pct: -2.33, close: 139.75, from_close: 143.09, zone: "add", level: 142.07 },
+    { ticker: "OUST", headline: "OUST closed in its add zone, at or below $38.22", detail: "", source: "Daily closing prices", url: "/stock/OUST", at: "2026-11-10", kind: "level", change_pct: -0.91, close: 38.22, from_close: 38.57, zone: "add", level: 38.22 },
+  ],
+  checked: ["Daily closes for 30 names, latest Nov 11"],
+};
+
+const MORNING_RUN: AgentRun = {
+  id: "u__m__2026-11-11",
+  job_id: "m",
+  uid: "u",
+  job_name: "Morning check on my names",
+  day: "2026-11-11",
+  ran_at: "2026-11-11T22:51:36.613Z",
+  decision: "notify",
+  summary: "3 names moved and 2 names report within a week.",
+  latest_close: "2026-11-11",
+  counts: { names: 30, priced: 30, moves: 3, up: 2, down: 1, earnings: 2, threshold: 3 },
+  findings: [
+    { ticker: "MU", headline: "MU rose 11.89% in the last session", detail: "", source: "Daily closing prices", url: "/stock/MU", at: "2026-11-11", kind: "move", change_pct: 11.89, close: 811.3 },
+    { ticker: "NBIS", headline: "NBIS rose 9.36% in the last session", detail: "", source: "Daily closing prices", url: "/stock/NBIS", at: "2026-11-09", kind: "move", change_pct: 9.36, close: 141.61 },
+    { ticker: "ORCL", headline: "ORCL fell 8.82% in the last session", detail: "", source: "Daily closing prices", url: "/stock/ORCL", at: "2026-11-11", kind: "move", change_pct: -8.82, close: 128.38 },
+    { ticker: "CBRS", headline: "CBRS reports earnings tomorrow", detail: "Scheduled for Nov 12 after the close.", source: "Earnings calendar", url: "/stock/CBRS", at: "2026-11-12", kind: "earnings", time: "amc" },
+    { ticker: "MU", headline: "MU reports earnings in 6 days", detail: "Scheduled for Nov 17 before the open.", source: "Earnings calendar", url: "/stock/MU", at: "2026-11-17", kind: "earnings", time: "bmo" },
+  ],
+  checked: ["Daily closes for 30 names of 30, latest Nov 11"],
+};
+
+describe("stock rows", () => {
+  it("says the move into a buy-more level with the close and the level, and dates only an earlier session", () => {
+    const view = presentRun(ZONE_RUN, job("z", "buy-zone"));
+    expect(view.rows).toEqual([
+      { ticker: "SPCX", close: 139.75, change_pct: -2.33, zone: "add", line: "Below its $142.07 buy-more level" },
+      { ticker: "OUST", close: 38.22, change_pct: -0.91, zone: "add", line: "Closed Nov 10, at its $38.22 buy-more level" },
+    ]);
+    expect(view.headline).toBe("SPCX and OUST closed at their buy-more levels today.");
+    expect(view.todo).toBe("Our call says this is where to buy more. Your call.");
+  });
+
+  it("drops a stale quote, keeps one row per stock, and says reports without a date", () => {
+    const view = presentRun(MORNING_RUN, job("m", "morning-check"));
+    expect(view.rows.map((row) => [row.ticker, row.line])).toEqual([
+      ["MU", "Reports Tuesday before the open"],
+      ["ORCL", ""],
+      ["CBRS", "Reports tomorrow after the close"],
+    ]);
+    expect(view.moves.map((row) => row.ticker)).not.toContain("NBIS");
+    expect(view.movesTotal).toBe(2);
+    expect(view.headline).toMatch(/^2 of your 30 names moved 3% or more today \(1 up, 1 down\), led by MU/);
+  });
+
+  it("reads a run whose only finding was a stale quote as a quiet run", () => {
+    const stale = { ...MORNING_RUN, findings: MORNING_RUN.findings.filter((finding) => finding.ticker === "NBIS" && finding.kind === "move") };
+    const view = presentRun(stale, job("m", "morning-check"));
+    expect(view.verdict).toBe("quiet");
+    expect(view.rows).toEqual([]);
+    expect(view.headline).not.toContain("NBIS");
+  });
+
+  it("says one stock's move into its level as a sentence", () => {
+    const view = presentRun({ ...ZONE_RUN, findings: ZONE_RUN.findings.slice(0, 1) }, job("z", "buy-zone"));
+    expect(view.headline).toBe("SPCX fell 2.3% to $139.75 today, below its $142.07 buy-more level.");
+  });
+});
+
 describe("dates in plain words", () => {
   it("says Friday's close for a Monday run, and flags a close that is behind", () => {
     expect(pastWhen("2026-11-06", "2026-11-09")).toBe("on Friday");
@@ -79,7 +156,7 @@ describe("presentRun", () => {
     const view = presentRun(OLD_MORNING, job("a", "morning-check"), { levels: { IREN: { add_below: 12, trim_above: 21 } } });
     expect(view.verdict).toBe("act");
     expect(view.label).toBe("Needs you");
-    expect(view.todo).toMatch(/^IREN went past its trim level \(\$21\.00\)\. Your call\./);
+    expect(view.todo).toMatch(/^IREN went past its sell-some level \(\$21\.00\)\. Your call\./);
     // Already past it before the move: not news.
     expect(presentRun(OLD_MORNING, job("a", "morning-check"), { levels: { IREN: { add_below: null, trim_above: 17 } } }).verdict).toBe("look");
   });
@@ -124,7 +201,7 @@ describe("presentRun", () => {
     };
     const view = presentRun(quiet, job("b", "buy-zone"));
     expect(view.label).toBe("All quiet");
-    expect(view.headline).toBe("None of your 35 names closed in their add zones on Friday.");
+    expect(view.headline).toBe("None of your 35 names closed at their buy-more levels on Friday.");
     expect(view.todo).toBe("Nothing to do.");
   });
 

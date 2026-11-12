@@ -185,6 +185,30 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-12 ~05:45 UTC, ship 47 live (95dee86): owner fixes (scroll, premarket, chart) + rounds 19A/19B (lead, overnight loop)
+
+- **Owner feedback, live, this hour:**
+  - **Inner lists trapped the scroll.** They carried `overscroll-contain`, so reaching the end of a list never scrolled the page, on phones or desktop. Removed from every page list; kept on popovers, sheets and dialogs. Proved with a CDP touch and wheel gesture past the end of a list (scratchpad/scrollchain*.mjs). Live before: the page moved 0px. Live after: 376–402px on /insiders, /news and /signals, phone and desktop.
+  - **Premarket only before the open.** The nav adds it only from 4:00 to 9:30 ET on a trading day (components/oa/use-premarket-open.ts, after mount, so cached HTML never disagrees). The middleware sends /premarket to /explore at any other time (307, checked live).
+  - **Stock chart month labels.** The marker lane only takes room when there are markers; the labels hang right under the plot, and the chart keeps a gap before the stats.
+  - **Market today card.** "SOXX today" became "SOXX on the day".
+- **Round 19A:**
+  - One month figure (`monthChange`, SPY's 21 sessions) on My stocks, the briefing, the inbox and the landing; VOO reads −2.4% everywhere.
+  - Inbox other stocks are fact cards with varied fact shapes.
+  - Fragments are full sentences.
+  - My stocks: one read instead of the money tiles, each agent row with its own time.
+  - Landing: the three agents that ran, instead of a 9-card grid.
+- **Round 19B:**
+  - Stock page: the call and the name on one line; key facts as one-line rows under What changed; no legal line under the call; sourced change conditions ("half its 14% growth…", "about four times the 1.1% it usually moves apart from the index").
+  - News: no motive inference, no bare "Mixed", 8-row lists, clickbait dropped or replaced by the publisher's own plain sentence.
+  - Phone lists show 8 rows.
+  - Compare: figures labelled; chart and table returns agree.
+  - Market today: cards sized to their content.
+  - Backtest: the date fields are filled.
+- **Checks:** 2912 tests in both modes, tsc and eslint clean.
+- **Rules doc updated:** scroll hand-off, premarket hours, chart axis, alert email rows.
+- **Running:** round 20, the agent alert email. Zone rows say the move that reached the zone; rows show logo, ticker, name, price and %; the date is said once (owner screenshots).
+
 ### 2026-11-12 ~04:50 UTC, ship 46 live (6fb1a48): the call as the stock page heading, one NVDA flag from briefing to inbox to the call (lead, overnight loop)
 
 - **Round 18A:**

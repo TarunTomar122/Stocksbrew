@@ -42,6 +42,7 @@ The rule the owner has repeated most, and is angriest about: "repeating the same
 - No decorative bars where the number already says it. Tone summaries use one figure ("75% negative"), not two counts.
 
 ## 5b. Emails
+- An alert row says what the stock did to get there: "fell 4.2% to $139.80, below its $142.07 buy-more level", because the move "changes my decisions a lot". Rows carry logo, ticker, name, price and the % move; the date is said once, never a date column ("why so many dates? it's confusing").
 
 - No list of every other stock ("the rest of your stocks" chips): "remove the rest part, it's too crowded and useless for an email." An email shows only what happened that matters, then one button to the app.
 - Tile grids fill every row on phone and desktop (no lone tile beside an empty slot).
@@ -52,6 +53,7 @@ The rule the owner has repeated most, and is angriest about: "repeating the same
 - No small labels above big headings ("i dont like these sub headings in small words on bigger headings").
 - Quiet focus states: no thick coloured focus line on inputs.
 - Section and nav group labels are quiet and must not look clickable.
+- A chart's axis labels sit right under the line, with space between them and whatever comes next (the owner caught month labels drifting down onto the stats below).
 - Charts must be readable without a legend lesson ("no clue how to make sense of these red green dots"). Plain numbers beat clever encodings.
 - Each place has one icon, used in the nav and beside its own page title.
 
@@ -79,7 +81,7 @@ The rule the owner has repeated most, and is angriest about: "repeating the same
 ## 10. Layout and placement
 
 - Secondary material goes in the right rail, not the main column ("this should be in sidebar on right, cz it's not super important"; e.g. Your agents on the briefing).
-- Today includes Premarket ("where is premarket??? need that in today").
+- Today includes Premarket ("where is premarket??? need that in today"), but only before the open: from 4:00 ET until 9:30 on a trading day. After that the nav hides it and /premarket goes to Market today ("premarket should only be shown until the stock market opens that day").
 - A stock page header must not have an empty left side and too much text on the right.
 
 - My stocks is about the person's stocks, not the tools: "a lot of useless insights, I'd rather have more useful stuff about my stocks". Each holding with its move, gain, call and the one thing that matters for it; tools (stress test, goal planner, dividends) are links, not cards.

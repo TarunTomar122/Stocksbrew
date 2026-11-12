@@ -9,7 +9,9 @@
  */
 
 import type { Insight, TheRead } from "@/lib/insights";
+import { isNyseHoliday } from "@/lib/market-session";
 import {
+  jobDisplayName,
   shortDate,
   zoneOf,
   type AgentDecision,
@@ -43,6 +45,20 @@ export type MoveRow = {
 
 export type DateRow = { ticker: string; date: string; when: string; time: string | null };
 
+/**
+ * One stock in a run's report, the way the email lists it too: its close and the move into it, and one short plain
+ * line (the level it reached, or when it reports). One row per stock, so a stock that moved and reports soon is
+ * said once.
+ */
+export type StockRow = {
+  ticker: string;
+  close: number | null;
+  change_pct: number | null;
+  zone: "add" | "trim" | null;
+  /** One short sentence, or "" when the price and the move say it all. */
+  line: string;
+};
+
 export type NoteRow = { title: string; detail: string; source: string; url: string | null; at: string };
 
 export type RunView = {
@@ -57,6 +73,8 @@ export type RunView = {
   movesTotal: number;
   dates: DateRow[];
   datesTotal: number;
+  /** Moves and report dates as one list, one row per stock, what matters most first. */
+  rows: StockRow[];
   notes: NoteRow[];
   tickers: string[];
   tone: "up" | "down" | "flat";
@@ -119,6 +137,19 @@ export function aheadWhen(date: string, runDay: string): string {
   if (gap === 1) return "tomorrow";
   if (gap != null && gap > 1 && gap < 7) return weekday(date);
   return shortDate(date);
+}
+
+/** The market session before `day`: weekends and NYSE holidays skipped. */
+export function sessionBefore(day: string): string {
+  const value = ms(day);
+  if (value == null) return day;
+  const date = new Date(value);
+  for (let step = 0; step < 10; step += 1) {
+    date.setUTCDate(date.getUTCDate() - 1);
+    const key = date.toISOString().slice(0, 10);
+    if (date.getUTCDay() !== 0 && date.getUTCDay() !== 6 && !isNyseHoliday(key)) return key;
+  }
+  return date.toISOString().slice(0, 10);
 }
 
 function money(value: number): string {
@@ -203,11 +234,60 @@ function zoneSentence(rows: MoveRow[]): string {
   const trim = rows.filter((row) => row.zone === "trim");
   const add = rows.filter((row) => row.zone === "add");
   const parts: string[] = [];
-  if (trim.length === 1) parts.push(`${trim[0].ticker} went past its trim level (${money(trim[0].level ?? 0)})`);
-  else if (trim.length > 1) parts.push(`${names(trim.map((row) => row.ticker))} went past their trim levels`);
-  if (add.length === 1) parts.push(`${add[0].ticker} dropped into its add zone (under ${money(add[0].level ?? 0)})`);
-  else if (add.length > 1) parts.push(`${names(add.map((row) => row.ticker))} dropped into their add zones`);
+  if (trim.length === 1) parts.push(`${trim[0].ticker} went past its sell-some level (${money(trim[0].level ?? 0)})`);
+  else if (trim.length > 1) parts.push(`${names(trim.map((row) => row.ticker))} went past their sell-some levels`);
+  if (add.length === 1) parts.push(`${add[0].ticker} dropped to its buy-more level (${money(add[0].level ?? 0)})`);
+  else if (add.length > 1) parts.push(`${names(add.map((row) => row.ticker))} dropped to their buy-more levels`);
   return parts.length ? `${capital(parts.join(", and "))}. Your call.` : "";
+}
+
+/** "below its $142.07 buy-more level", or "at" it when the close is the level to the cent. */
+export function levelWhere(close: number, level: number, zone: "add" | "trim"): string {
+  const where = money(close) === money(level) ? "at" : zone === "add" ? "below" : "above";
+  return `${where} its ${money(level)} ${zone === "add" ? "buy-more" : "sell-some"} level`;
+}
+
+/** "Reports tomorrow before the open", "Reports Thursday", "Reports on Nov 20". */
+export function reportLine(row: Pick<DateRow, "when" | "time">): string {
+  const when = row.when === "today" || row.when === "tomorrow" || /^[A-Z][a-z]+day$/.test(row.when) ? row.when : `on ${row.when}`;
+  return `Reports ${when}${row.time ? ` ${row.time}` : ""}`;
+}
+
+/** The scale words a big-move headline carries ("…in a day, about four times a normal day"), as a line of their own. */
+function scaleWords(headline: string): string {
+  const match = /\bin a day, (.+)$/.exec(headline.trim().replace(/\.$/, ""));
+  return match ? capital(match[1]) : "";
+}
+
+/**
+ * Moves and report dates as one list, one row per stock: a stock that reached a level of its call first, then the
+ * biggest moves, then reports by date. A close from before the run's own session says its day; nothing else does.
+ */
+function stockRows(findings: AgentFinding[], moves: MoveRow[], dates: DateRow[], closeDate: string | null): StockRow[] {
+  const out = new Map<string, StockRow & { at: string; order: number }>();
+  moves.forEach((move, index) => {
+    if (!move.ticker || out.has(move.ticker)) return;
+    const finding = findings.find((entry) => entry.ticker === move.ticker && (entry.kind === "move" || entry.kind === "mover" || entry.kind === "level"));
+    const at = finding?.at ?? "";
+    let line = move.zone && move.level != null && move.close != null ? capital(levelWhere(move.close, move.level, move.zone)) : scaleWords(finding?.headline ?? "");
+    if (closeDate && /^\d{4}-\d{2}-\d{2}/.test(at) && at < closeDate && finding?.kind !== "mover") {
+      line = `Closed ${shortDate(at)}${line ? `, ${line.replace(/^./, (char) => char.toLowerCase())}` : ""}`;
+    }
+    out.set(move.ticker, { ticker: move.ticker, close: move.close, change_pct: move.change_pct, zone: move.zone, line, at, order: index });
+  });
+  for (const date of dates) {
+    const said = reportLine(date);
+    const row = out.get(date.ticker);
+    if (row) {
+      if (!/Reports /.test(row.line)) row.line = row.line ? `${row.line}, ${said.replace(/^R/, "r")}` : said;
+      continue;
+    }
+    out.set(date.ticker, { ticker: date.ticker, close: null, change_pct: null, zone: null, line: said, at: date.date, order: out.size });
+  }
+  const rank = (row: StockRow) => (row.zone ? 0 : row.change_pct != null ? 1 : 2);
+  return [...out.values()]
+    .sort((a, b) => rank(a) - rank(b) || Math.abs(b.change_pct ?? 0) - Math.abs(a.change_pct ?? 0) || a.order - b.order)
+    .map(({ at: _at, order: _order, ...row }) => row);
 }
 
 /* ── one run ────────────────────────────────────────────────────────────── */
@@ -263,9 +343,20 @@ export function presentRun(
   } = {},
 ): RunView {
   const trigger = job?.trigger;
-  const findings = run.findings.map(structured);
   const counts = run.counts ?? {};
   const checkedText = run.checked.join(" · ");
+  const read = run.findings.map(structured);
+  const isPrice = (finding: AgentFinding) => finding.kind === "move" || finding.kind === "level";
+  // A close older than the session before the run's newest close is a stock whose price stopped updating, not this
+  // run's news (the inbox leaves it out the same way). Runs from before the evaluator dropped these still have them.
+  const newest = run.latest_close || read.filter(isPrice).map((finding) => finding.at).sort().pop() || "";
+  const floor = newest ? sessionBefore(newest) : "";
+  const behind = floor ? read.filter((finding) => isPrice(finding) && /^\d{4}-\d{2}-\d{2}/.test(finding.at) && finding.at < floor) : [];
+  const findings = behind.length ? read.filter((finding) => !behind.includes(finding)) : read;
+  // Everything it found was a stale quote: nothing new happened, so it reads as a quiet run.
+  if (behind.length && findings.length === 0 && run.decision === "notify") {
+    return presentRun({ ...run, decision: "nothing", findings: [], counts: { ...counts, moves: 0, up: 0, down: 0 } }, job, options);
+  }
 
   const moves = findings
     .filter((finding) => (finding.kind === "move" || finding.kind === "mover" || finding.kind === "level") && finding.ticker)
@@ -286,13 +377,13 @@ export function presentRun(
   // The close the run read: stored, or the newest move, or its own "latest Nov 6".
   const closeDate =
     run.latest_close ||
-    findings.find((finding) => finding.kind === "move" || finding.kind === "level")?.at ||
+    newest ||
     (/latest (\w{3} \d{1,2})/.test(checkedText) ? dateFromShort(/latest (\w{3} \d{1,2})/.exec(checkedText)?.[1] ?? "", run.day) : null);
   const readsPrices = trigger ? trigger.type !== "event" : closeDate != null;
   const when = closeDate ? (options.replay ? `on ${shortDate(closeDate)}` : pastWhen(closeDate, run.day)) : "";
 
   const priced = counts.priced ?? countFrom(checkedText, /Daily closes for (\d+) names?/) ?? null;
-  const movesTotal = Math.max(moves.length, counts.moves ?? countFrom(run.summary, /^(\d+) names? (?:moved|met)/) ?? moves.length);
+  const movesTotal = Math.max(moves.length, (counts.moves ?? countFrom(run.summary, /^(\d+) names? (?:moved|met)/) ?? moves.length) - behind.length);
   const datesTotal = Math.max(dates.length, counts.earnings ?? countFrom(run.summary, /(\d+) names? reports? within a week/) ?? dates.length);
   const weekly = trigger?.type === "schedule" && trigger.cadence === "weekly";
   const threshold =
@@ -300,8 +391,9 @@ export function presentRun(
     (trigger?.type === "price" && trigger.rule === "moves_pct" ? trigger.pct ?? 5 : weekly ? 5 : 3);
 
   const zoned = moves.filter((row) => row.zone);
-  const up = counts.up ?? (moves.length === movesTotal ? moves.filter((row) => (row.change_pct ?? 0) > 0).length : null);
-  const down = counts.down ?? (up != null ? movesTotal - up : null);
+  const behindUp = behind.filter((finding) => (finding.change_pct ?? 0) > 0).length;
+  const up = counts.up != null ? Math.max(0, counts.up - behindUp) : moves.length === movesTotal ? moves.filter((row) => (row.change_pct ?? 0) > 0).length : null;
+  const down = counts.down != null ? Math.max(0, counts.down - (behind.length - behindUp)) : up != null ? movesTotal - up : null;
   const tone: RunView["tone"] = up != null && down != null && up !== down ? (up > down ? "up" : "down") : "flat";
 
   const ran = ranLabel(run.ran_at);
@@ -310,7 +402,8 @@ export function presentRun(
     : [readsPrices && closeDate ? closeLabel(closeDate, run.day) : sourceFor(trigger, findings), ran ? `checked ${ran}` : `checked ${shortDate(run.day)}`].join(" · ");
   const tickers = [...new Set([...zoned.map((row) => row.ticker), ...moves.map((row) => row.ticker), ...dates.map((row) => row.ticker), ...findings.map((f) => f.ticker ?? "")])].filter(Boolean);
 
-  const base = { moves, movesTotal, dates, datesTotal, notes, tickers, tone, asOf };
+  const rows = stockRows(findings, moves, dates, closeDate ?? null);
+  const base = { moves, movesTotal, dates, datesTotal, rows, notes, tickers, tone, asOf };
   const verdictOf = (decision: AgentDecision, act: boolean): AgentVerdict =>
     decision === "could_not_check" ? "blocked" : decision === "nothing" ? "quiet" : act ? "act" : "look";
 
@@ -340,7 +433,7 @@ export function presentRun(
       if (trigger.rule === "moves_pct") {
         headline = priced === 1 ? `No move of ${threshold}% or more ${when}.` : `None of ${job?.scope?.kind === "tickers" ? "these" : "your"} ${priced} names moved ${threshold}% or more ${when}.`;
       } else if (trigger.rule === "enters_buy_zone") {
-        headline = priced === 1 ? `It did not close in its add zone ${when}.` : `None of your ${priced} names closed in their add zones ${when}.`;
+        headline = priced === 1 ? `It did not close at its buy-more level ${when}.` : `None of your ${priced} names closed at their buy-more levels ${when}.`;
       } else {
         headline = `It did not close ${trigger.rule === "crosses_above" ? "above" : "below"} ${money(trigger.level ?? 0)} ${when}.`;
       }
@@ -364,11 +457,17 @@ export function presentRun(
     act = true;
   } else if (trigger?.type === "price" && trigger.rule === "enters_buy_zone") {
     const list = moves.map((row) => row.ticker);
+    const one = moves[0];
     headline =
-      list.length === 1
-        ? `${list[0]} closed in its add zone ${when}${moves[0].close != null ? `, at ${money(moves[0].close)}` : ""}${moves[0].level != null ? ` (under ${money(moves[0].level)})` : ""}.`
-        : `${names(list)} closed in their add zones ${when}.`;
-    todo = "The research call says this is where to add. Your call.";
+      list.length === 0
+        ? run.summary
+        : list.length === 1 && one && one.change_pct != null && one.close != null && one.level != null
+        ? `${one.ticker} ${one.change_pct >= 0 ? "rose" : "fell"} ${Math.abs(one.change_pct).toFixed(1)}% to ${money(one.close)} ${when}, ${levelWhere(one.close, one.level, "add")}.`
+        : list.length === 1
+          ? `${list[0]} closed at its buy-more level ${when}${one?.close != null ? `, at ${money(one.close)}` : ""}.`
+          : `${names(list)} closed at their buy-more levels ${when}.`;
+    // The headline already names the stocks and the level, so the zone line is not said again.
+    todo = "Our call says this is where to buy more. Your call.";
     act = true;
   } else if (moves.length > 0 && (trigger?.type === "schedule" || trigger?.type === "price" || !trigger)) {
     const lead = [...moves].sort((a, b) => Math.abs(b.change_pct ?? 0) - Math.abs(a.change_pct ?? 0))[0];
@@ -411,7 +510,7 @@ export function presentRun(
     }
   }
   if (!todo) todo = zoneLine || "No action needed.";
-  else if (zoneLine) todo = `${zoneLine} ${todo}`;
+  else if (zoneLine && !(trigger?.type === "price" && trigger.rule === "enters_buy_zone")) todo = `${zoneLine} ${todo}`;
   if (extra.length) todo = `${todo} ${extra.join(" ")}`;
   if (!act && (trigger?.type === "event" && trigger.event !== "earnings_approaching") && todo === "No action needed.") {
     todo = "Worth a look.";
@@ -470,7 +569,7 @@ export function agentsRead(statuses: JobStatus[], today: string): TheRead | null
       return {
         id: status.job.id,
         tone: view.tone,
-        text: `${status.job.name}: ${view.headline}`,
+        text: `${jobDisplayName(status.job.name)}: ${view.headline}`,
         soWhat: view.todo,
         tickers: view.tickers.slice(0, 4),
         action: { label: "Open", href: `#job-${status.job.id}` },

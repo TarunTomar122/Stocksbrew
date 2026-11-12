@@ -249,6 +249,8 @@ export async function listRuns(uid: string, limit = MAX_RUNS_LISTED): Promise<Ag
 export type ResolvedScope = {
   tickers: string[];
   levels: AgentFacts["levels"];
+  /** Company names by ticker from the person's list, as filed ("Meta Platforms, Inc."). Only for a signed-in person. */
+  names?: Record<string, string>;
 };
 
 /**
@@ -276,11 +278,14 @@ export async function resolveScope(uid: string | null, scope: AgentScope): Promi
   const rows = viewSnap.exists ? ((viewSnap.data()?.rows as Array<Record<string, unknown>>) ?? []) : [];
   const viewer = viewerFromUserDoc(uid, userSnap.exists ? ({ ...(userSnap.data() as Record<string, unknown>), uid } as UserDoc) : null);
   const tickerById = new Map<string, string>();
+  const names: Record<string, string> = {};
   for (const row of rows) {
     const ticker = text(row.ticker).toUpperCase();
     const id = text(row.instrument_id);
     if (!ticker) continue;
     if (id) tickerById.set(id, ticker);
+    const name = text(row.instrument_name);
+    if (name) names[ticker] = name;
     if (!isCovered(viewer, id || ticker)) {
       levels[ticker] = { add_below: null, trim_above: null, locked: true };
       continue;
@@ -301,7 +306,7 @@ export async function resolveScope(uid: string | null, scope: AgentScope): Promi
       .filter((ticker, index, list) => ticker && list.indexOf(ticker) === index)
       .slice(0, MAX_WATCHLIST_TICKERS);
   }
-  return { tickers, levels };
+  return { tickers, levels, names };
 }
 
 async function loadPrices(tickers: string[], end: string): Promise<{ prices: AgentFacts["prices"]; calendar: string[] }> {
