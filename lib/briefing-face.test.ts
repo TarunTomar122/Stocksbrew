@@ -4,6 +4,7 @@ import type { BriefingItem, BriefingPosition } from "@/lib/briefing";
 import {
   atYourLevels,
   clockWords,
+  dayLabel,
   doToday,
   earningsWeek,
   faceMode,
@@ -15,12 +16,24 @@ import {
   marketStrip,
   marketTiles,
   ownLevel,
-  shortReason,
+  LINE_WORDS,
+  gridColumns,
+  heatLayout,
+  levelCandidates,
+  levelFact,
+  levelsTitle,
+  lineStatesCall,
+  pickLevelFacts,
+  sessionOpened,
+  weekTitle,
+  youVsMarketPath,
+  type LevelFact,
   sinceLastOpened,
   sinceStart,
   stockItems,
   whyItMoved,
 } from "@/lib/briefing-face";
+import { buildCallEvidence, type CallEvidenceInput } from "@/lib/call-evidence";
 import type { ResultRead } from "@/lib/results/types";
 
 const TODAY = "2026-11-12"; // a Thursday
@@ -226,6 +239,14 @@ describe("the strip", () => {
     expect(marketTiles([], [{ id: "vix", price: 17.2, change: null, changeMode: "pct" }])).toEqual([]);
   });
 
+  it("gives a tile its line only from a real series, never a made-up one", () => {
+    const month = [17, 17.4, 18.1, 17.8, 18.6, 19];
+    const [vix] = marketTiles([], [{ id: "vix", price: 19, change: 4, changeMode: "pct", spark: month }]);
+    expect(vix?.spark).toEqual(month);
+    expect(marketTiles([], [{ id: "vix", price: 19, change: 4, changeMode: "pct", spark: [18, 19] }])[0]?.spark).toBeNull();
+    expect(marketTiles([], [{ id: "vix", price: 19, change: 4, changeMode: "pct" }])[0]?.spark).toBeNull();
+  });
+
   it("before the open, never puts yesterday's S&P 500 beside this morning's quotes", () => {
     const strip = marketStrip({
       briefing: { market: { indices, gainers: [], losers: [], as_of: null }, portfolio: null },
@@ -236,6 +257,44 @@ describe("the strip", () => {
     });
     expect(strip.sp500).toBeNull();
     expect(strip.gap).toBeNull();
+  });
+
+  describe("you against the S&P 500 over the last sessions", () => {
+    // Five closes before today (Thu Nov 12): Thu 5, Fri 6, Mon 9, Tue 10, Wed 11.
+    const days = ["2026-11-05", "2026-11-06", "2026-11-09", "2026-11-10", "2026-11-11"];
+    const closes = (values: number[]) => days.map((date, index) => ({ date, close: values[index]! }));
+    const series = {
+      SPY: closes([100, 101, 102, 101, 102]),
+      A: closes([50, 51, 52, 53, 54]),
+      B: closes([20, 20, 19, 19, 18]),
+    };
+    const holdings = [position({ ticker: "A", quantity: 10, price: 54, day_change_pct: 2 }), position({ ticker: "B", quantity: 25, price: 18, day_change_pct: -1 })];
+
+    it("holds today's shares through the days and ends on today's move", () => {
+      const path = youVsMarketPath({ holdings, series, today: TODAY, todayPct: (p) => p.day_change_pct, marketToday: -0.5 })!;
+      expect(path.map((point) => point.day)).toEqual([...days, TODAY]);
+      // 10 A + 25 B: 1000 at the first close, 990 at the last, then A +2% and B −1% today.
+      expect(path[0]).toEqual({ day: days[0], you: 0, market: 0 });
+      expect(path[4]).toEqual({ day: days[4], you: -1, market: 2 });
+      expect(path[5]?.you).toBeCloseTo(((540 * 1.02 + 450 * 0.99) / 1000 - 1) * 100, 1);
+      expect(path[5]?.market).toBeCloseTo(1.49, 2);
+    });
+
+    it("draws nothing when the closes are stale or missing for too much of the money", () => {
+      const stale = { ...series, SPY: series.SPY.slice(0, 4) };
+      expect(youVsMarketPath({ holdings, series: stale, today: TODAY, todayPct: (p) => p.day_change_pct, marketToday: 0 })).toBeNull();
+      const noA = { SPY: series.SPY, B: series.B };
+      expect(youVsMarketPath({ holdings, series: noA, today: TODAY, todayPct: (p) => p.day_change_pct, marketToday: 0 })).toBeNull();
+      expect(youVsMarketPath({ holdings, series, today: TODAY, todayPct: (p) => p.day_change_pct, marketToday: null })).toBeNull();
+    });
+
+    it("rides on the strip, which draws it only when it has the closes", () => {
+      const briefing = { market: { indices, gainers: [], losers: [], as_of: null }, portfolio: { value: 990, day_change_value: 0, day_change_pct: 0.66, counted: 2, holdings: 2, as_of: null } };
+      expect(marketStrip({ briefing, positions: holdings, mode: "close", premarket: null, extras: [] }).path).toBeNull();
+      const strip = marketStrip({ briefing, positions: holdings, mode: "close", premarket: null, extras: [], series, today: TODAY });
+      expect(strip.path).toHaveLength(6);
+      expect(strip.path?.[5]?.market).toBeCloseTo(((102 * (1 - 0.0131)) / 100 - 1) * 100, 1);
+    });
   });
 
   it("names one clock", () => {
@@ -278,37 +337,224 @@ describe("heatCells", () => {
   });
 });
 
-describe("atYourLevels", () => {
-  const why = "Sales grew 42% over the past year, faster than peers.";
-  it("only names at or through their own call's price, with the call's reason; never one already in Do today", () => {
-    const rows = atYourLevels(
-      [
-        position({ ticker: "NEAR", stance: "accumulate", price: 103, add_below: 100, call_summary: why }),
-        position({ ticker: "IN", stance: "accumulate", price: 99, add_below: 100, relation: "watching", call_summary: why }),
-        position({ ticker: "AT", stance: "accumulate", price: 100.3, add_below: 100, call_summary: why }),
-        position({ ticker: "NOWHY", stance: "accumulate", price: 95, add_below: 100, call_summary: null }),
-        position({ ticker: "KEEP", stance: "hold", price: 99, add_below: 100, call_summary: why }),
-        position({ ticker: "DONE", stance: "accumulate", price: 98, add_below: 100, call_summary: why }),
-      ],
-      new Set(["DONE"]),
-    );
-    expect(rows.map((row) => [row.ticker, row.reason])).toEqual([
-      ["IN", why],
-      ["AT", why],
-    ]);
-  });
-
-  it("measures from this morning's price before the open, the price the card shows", () => {
-    const [row] = atYourLevels([position({ ticker: "A", stance: "accumulate", price: 110, add_below: 100, call_summary: why })], new Set(), { A: -7 }, { A: 99 });
-    expect(row).toMatchObject({ ticker: "A", price: 99, line: "1.0% under the buy-more price" });
+describe("lineStatesCall", () => {
+  it("drops a card's badge only when the shared line itself states that call", () => {
+    // The past day: "Our call moved to Keep on ASTS, NVDA and SMR" says Keep, so the Keep badges go.
+    expect(lineStatesCall("Our call moved to Keep", "Keep")).toBe(true);
+    expect(lineStatesCall("Our call moved to Buy more", "Buy more")).toBe(true);
+    // Two Keep stocks under "Reported results": the line names no call, so both keep their badge.
+    expect(lineStatesCall("Reported results", "Keep")).toBe(false);
+    // A line naming another call, or no call on the card, hides nothing.
+    expect(lineStatesCall("Our call moved to Keep", "Sell some")).toBe(false);
+    expect(lineStatesCall("Our call moved to Keep", null)).toBe(false);
+    // A word that only contains the call is not the call.
+    expect(lineStatesCall("Keeps rising", "Keep")).toBe(false);
   });
 });
 
-describe("shortReason", () => {
-  it("keeps a short first sentence and cuts a long one at its first clause", () => {
-    expect(shortReason("Sales grew 42%. More follows.")).toBe("Sales grew 42%.");
-    expect(shortReason("Revenue rose 42% over the last four quarters to $45.4B, faster than the 34% pace it showed in fiscal 2025 and ahead of peers")).toBe("Revenue rose 42% over the last four quarters to $45.4B.");
-    expect(shortReason(null)).toBeNull();
+describe("heatLayout", () => {
+  const cell = (ticker: string, pct: number) => ({ ticker, name: ticker, price: 100, pct, tone: (pct > 0 ? "up" : "down") as "up" | "down", size: 1 as const, href: `/stock/${ticker}` });
+  it("keeps tiles in proportion to their moves and sends moves too small for a full tile to the chip row", () => {
+    const cells = [cell("BIG", -6.7), cell("MID", 4.9), cell("ONE", -2.9), cell("TINY", 0.7), cell("WEE", 0.3)];
+    const { tiles, chips } = heatLayout(cells, 640, 260, 104, 70);
+    expect(chips.map((entry) => entry.ticker)).toEqual(["TINY", "WEE"]);
+    // Every tile in the map is at least the minimum size, and the areas follow the moves exactly.
+    for (const tile of tiles) {
+      expect((tile.w / 100) * 640).toBeGreaterThanOrEqual(104 - 0.01);
+      expect((tile.h / 100) * 260).toBeGreaterThanOrEqual(70 - 0.01);
+    }
+    const area = (ticker: string) => tiles.find((tile) => tile.cell.ticker === ticker)!;
+    const ratio = (area("BIG").w * area("BIG").h) / (area("MID").w * area("MID").h);
+    expect(ratio).toBeCloseTo(6.7 / 4.9, 5);
+  });
+
+  it("always keeps the biggest move in the map", () => {
+    expect(heatLayout([cell("A", 1), cell("B", 0.01)], 300, 100, 290, 90).tiles.map((tile) => tile.cell.ticker)).toEqual(["A"]);
+  });
+});
+
+describe("atYourLevels", () => {
+  const fact = (kind: LevelFact["kind"], weight: number, label: string = kind): LevelFact => ({ kind, figure: "+42%", label, line: null, tone: "up", weight });
+  const why = [fact("sales", 2.5)];
+  const vague = "The setup is still constructive; add on pullbacks rather than chasing.";
+  it("only names at or through their own call's price with a measured fact; never one already in Do today", () => {
+    const rows = atYourLevels(
+      [
+        position({ ticker: "NEAR", stance: "accumulate", price: 103, add_below: 100 }),
+        position({ ticker: "IN", stance: "accumulate", price: 99, add_below: 100, relation: "watching" }),
+        position({ ticker: "AT", stance: "accumulate", price: 100.3, add_below: 100 }),
+        position({ ticker: "NOWHY", stance: "accumulate", price: 95, add_below: 100, call_summary: vague }),
+        position({ ticker: "KEEP", stance: "hold", price: 99, add_below: 100 }),
+        position({ ticker: "DONE", stance: "accumulate", price: 98, add_below: 100 }),
+      ],
+      new Set(["DONE"]),
+      { NEAR: why, IN: why, AT: why, KEEP: why, DONE: why, NOWHY: [] },
+    );
+    // NOWHY has only the call's summary: it is never used in place of a measured fact. AT's only fact would say what
+    // IN's card says, so AT is listed without one rather than carded with a repeat.
+    expect(rows.map((row) => [row.ticker, row.fact?.kind ?? null])).toEqual([
+      ["IN", "sales"],
+      ["AT", null],
+    ]);
+  });
+
+  it("picks one card per kind of fact first, then only labels no card has used; a repeat is listed, not carded", () => {
+    const at = (ticker: string, price: number) => position({ ticker, stance: "accumulate", price, add_below: 100 });
+    // Through the level, closest first: A, B, C, D. The facts are picked in that order.
+    const rows = atYourLevels([at("D", 96), at("C", 97), at("B", 98), at("A", 99)], new Set(), {
+      A: [fact("sales", 3), fact("eps", 2.6)],
+      B: [fact("sales", 3), fact("valuation", 2.2)],
+      C: [fact("sales", 2.8), fact("dividend", 2)],
+      D: [fact("sales", 2)],
+    });
+    expect(rows.map((row) => [row.ticker, row.fact?.kind ?? null])).toEqual([
+      ["A", "sales"],
+      ["B", "valuation"],
+      ["C", "dividend"],
+      ["D", null],
+    ]);
+    // A second sales card is fine when it says something else ("growth sped up" against "sales growth").
+    const picked = pickLevelFacts(["A", "B"], { A: [fact("sales", 3, "sales growth")], B: [fact("sales", 2.5, "growth sped up")] });
+    expect([picked.get("A")?.label, picked.get("B")?.label]).toEqual(["sales growth", "growth sped up"]);
+    // On its own, the strongest wins.
+    expect(pickLevelFacts(["A"], { A: [fact("sales", 3), fact("eps", 2.6)] }).get("A")?.kind).toBe("sales");
+  });
+
+  it("measures from this morning's price before the open, the price the card shows", () => {
+    const [row] = atYourLevels([position({ ticker: "A", stance: "accumulate", price: 110, add_below: 100 })], new Set(), { A: why }, { A: -7 }, { A: 99 });
+    expect(row).toMatchObject({ ticker: "A", price: 99, line: "1.0% under the buy-more price" });
+  });
+
+  it("says the call once in the title, and fills the last row as best the columns allow", () => {
+    const row = (call: "Buy more" | "Sell some") => ({ level: { call } as never });
+    expect(levelsTitle([row("Buy more"), row("Buy more")])).toBe("Buy more levels");
+    expect(levelsTitle([row("Buy more"), row("Sell some")])).toBe("At our buy and sell levels");
+    expect(levelsTitle([row("Sell some")])).toBe("Sell some levels");
+    // Seven cards: 4 + 3 rather than 3 + 3 + 1; six: two rows of three; five at 2xl: one row.
+    expect(gridColumns(7, [3, 4])).toBe(4);
+    expect(gridColumns(6, [3, 4])).toBe(3);
+    expect(gridColumns(8, [3, 4])).toBe(4);
+    expect(gridColumns(5, [4, 5])).toBe(5);
+  });
+});
+
+describe("levelCandidates", () => {
+  it("reads only US names at their level, a few percent wider before the open, closest first", () => {
+    const positions = [
+      position({ ticker: "FAR", stance: "accumulate", price: 110, add_below: 100 }),
+      position({ ticker: "NEAR", stance: "accumulate", price: 102, add_below: 100 }),
+      position({ ticker: "AT", stance: "accumulate", price: 100.2, add_below: 100 }),
+      position({ ticker: "IN", stance: "accumulate", price: 95, add_below: 100 }),
+      position({ ticker: "SELL", stance: "trim", price: 121, trim_above: 120 }),
+      position({ ticker: "KEEP", stance: "hold", price: 99, add_below: 100 }),
+      position({ ticker: "TCS", instrument_id: "IN_TCS", stance: "accumulate", price: 95, add_below: 100 }),
+    ];
+    expect(levelCandidates(positions, false)).toEqual([
+      { ticker: "IN", instrumentId: "US_IN", call: "Buy more" },
+      { ticker: "SELL", instrumentId: "US_SELL", call: "Sell some" },
+      { ticker: "AT", instrumentId: "US_AT", call: "Buy more" },
+    ]);
+    expect(levelCandidates(positions, true).map((row) => row.ticker)).toEqual(["IN", "SELL", "AT", "NEAR"]);
+  });
+});
+
+describe("levelFact", () => {
+  // Lines as lib/call-evidence.ts writes them, so a change to its wording shows up here.
+  const evidence = (overrides: Partial<CallEvidenceInput>, call: CallEvidenceInput["call"] = "Add") =>
+    buildCallEvidence({
+      ticker: "AMD",
+      call,
+      today: TODAY,
+      sales: null,
+      reports: [],
+      calendar: [],
+      nextReport: null,
+      series: null,
+      benchmark: null,
+      valuation: null,
+      dividend: null,
+      steady: null,
+      sayDays: true,
+      ...overrides,
+    }).evidence;
+  const sales = (growthPct: number, lastYear: number) => ({
+    revenue: 45_400_000_000,
+    growthPct,
+    history: [
+      { period: "FY 2025", revenue: 100 * (1 + lastYear / 100) },
+      { period: "FY 2024", revenue: 100 },
+    ],
+    capturedAt: "2026-11-08T08:00:00Z",
+  });
+
+  const shown = (fact: LevelFact | null) => (fact ? [fact.figure, fact.label, fact.line] : null);
+  // A report's day keeps its non-breaking space ("Nov 4"), so it never splits across lines.
+  const nb = (text: string) => text.replace(/(Nov|Oct) (\d)/g, "$1 $2");
+
+  it("says sales as a figure, with the year's comparison as the line when it helps the call", () => {
+    const [faster] = evidence({ sales: sales(16, 8.7) });
+    expect(faster?.text).toMatch(/^AMD's sales rose 16% over the last four quarters, to \$45\.4B, faster than/);
+    expect(shown(levelFact(faster!, "Buy more", TODAY))).toEqual(["+16%", "growth sped up", "Up 7 pts from 8.7% in fiscal 2025."]);
+    const [same] = evidence({ sales: sales(46, 45) });
+    expect(shown(levelFact(same!, "Buy more", TODAY))).toEqual(["+46%", "steady sales growth", "About the same as its 45% in fiscal 2025."]);
+    // "Slower than" never sits under a Buy more: the line says the period instead.
+    const [slower] = evidence({ sales: sales(25, 88) });
+    expect(shown(levelFact(slower!, "Buy more", TODAY))).toEqual(["+25%", "sales growth", "Over the past four quarters."]);
+    // Rising sales are no reason to sell some; falling sales are.
+    expect(levelFact(faster!, "Sell some", TODAY)).toBeNull();
+    const [fell] = evidence({ sales: sales(-6, 3) }, "Trim");
+    expect(shown(levelFact(fell!, "Sell some", TODAY))).toEqual(["−6%", "sales turned down", "Down from 3% growth in fiscal 2025."]);
+    expect(levelFact(fell!, "Buy more", TODAY)).toBeNull();
+    // Growth more than twice last year's says so.
+    const [doubled] = evidence({ sales: sales(49, 19) });
+    expect(shown(levelFact(doubled!, "Buy more", TODAY))).toEqual(["+49%", "growth more than doubled", "Up 30 pts from 19% in fiscal 2025."]);
+    // Faster growth weighs more than the same growth said plainly.
+    const plain = levelFact({ id: "sales", text: "AMD's sales rose 16% over the last four quarters, to $45.4B." }, "Buy more", TODAY);
+    expect(levelFact(faster!, "Buy more", TODAY)!.weight).toBeGreaterThan(plain!.weight);
+  });
+
+  it("says a report's beat or miss with the day in words, fresher reports weighing more", () => {
+    const calendar = [{ event_date: "2026-11-04", reported_eps: 0.53, estimated_eps: 0.51 }];
+    const [beat] = evidence({ calendar });
+    expect(beat?.text).toBe(nb("In its Nov 4 report, AMD's earnings per share of $0.53 beat the $0.51 analysts expected."));
+    expect(shown(levelFact(beat!, "Buy more", TODAY))).toEqual(["$0.53", "beat the forecast", nb("$0.51 expected, reported on Nov 4.")]);
+    expect(levelFact(beat!, "Sell some", TODAY)).toBeNull();
+    const [recent] = evidence({ calendar: [{ event_date: "2026-11-10", reported_eps: 0.53, estimated_eps: 0.51 }] });
+    expect(levelFact(recent!, "Buy more", TODAY)?.line).toBe("$0.51 expected, reported on Tuesday.");
+    const [loss] = evidence({ calendar: [{ event_date: "2026-11-04", reported_eps: -0.12, estimated_eps: -0.2 }] });
+    expect(shown(levelFact(loss!, "Buy more", TODAY))).toEqual(["−$0.12", "smaller loss than forecast", nb("A $0.20 loss expected, reported on Nov 4.")]);
+    const old = levelFact({ id: "eps", text: "In its Jul 20 report, AMD's earnings per share of $0.53 beat the $0.51 analysts expected." }, "Buy more", TODAY);
+    expect(levelFact(recent!, "Buy more", TODAY)!.weight).toBeGreaterThan(old!.weight);
+  });
+
+  it("says the price, the dividend and the P/E, each only for the call it backs; a fall from the high never counts", () => {
+    expect(shown(levelFact({ id: "move", text: "OUST rose 32% in the five trading days to Tuesday's close, while the S&P 500 fell 0.6%." }, "Buy more", TODAY))).toEqual([
+      "+32%",
+      "five trading days",
+      "The S&P 500 fell 0.6% over the same days.",
+    ]);
+    const fell = { id: "move", text: "LLY fell 12% in the month to yesterday's close, while the S&P 500 rose 2.3%." };
+    expect(shown(levelFact(fell, "Sell some", TODAY))).toEqual(["−12%", "past month", "The S&P 500 rose 2.3% over the same month."]);
+    expect(levelFact(fell, "Buy more", TODAY)).toBeNull();
+    const high = { id: "high", text: "XPEV closed at $10.22 on Monday, 64% below its high of $28.07 on Nov 11, 2025." };
+    expect(levelFact(high, "Buy more", TODAY)).toBeNull();
+    const [dividend] = evidence({ dividend: { annual: 2.4, price: 100, growthYears: 12, capturedAt: "2026-11-08T00:00:00Z" } });
+    expect(shown(levelFact(dividend!, "Buy more", TODAY))).toEqual(["2.4%", "dividend yield", "Raised 12 years in a row."]);
+    const valuation = (pe: number) => evidence({ valuation: { pe, medianPe: 30, from: "2025-11-12", to: "2026-11-11", days: 250 } }, "Hold");
+    const [cheap] = valuation(22);
+    expect(levelFact(cheap!, "Buy more", TODAY)?.figure).toBe("22×");
+    expect(levelFact(cheap!, "Buy more", TODAY)?.label).toBe("P/E under its usual");
+    expect(levelFact(cheap!, "Buy more", TODAY)?.line).toMatch(/^Its median P\/E is 30 since Nov.12, 2025\.$/);
+    expect(levelFact(valuation(40)[0]!, "Sell some", TODAY)?.label).toBe("P/E over its usual");
+    expect(levelFact(valuation(40)[0]!, "Buy more", TODAY)).toBeNull();
+  });
+
+  it("never passes on a line it does not recognise, and keeps every line in the word budget", () => {
+    expect(levelFact({ id: "sales", text: "The setup is constructive, but the cleaner entry is a pullback." }, "Buy more", TODAY)).toBeNull();
+    expect(levelFact({ id: "other", text: "Sales rose 42%." }, "Buy more", TODAY)).toBeNull();
+    const fact = levelFact({ id: "eps", text: nb("In its Oct 21 report, BRK.B's earnings per share of $7.40 beat the $6.52 analysts expected.") }, "Buy more", TODAY);
+    expect(fact?.line).toBe(nb("$6.52 expected, reported on Oct 21."));
+    expect(fact!.line!.split(/\s+/).length).toBeLessThanOrEqual(LINE_WORDS);
   });
 });
 
@@ -398,10 +644,49 @@ describe("earningsWeek", () => {
     expect(days.map((day) => [day.label, day.stocks.map((stock) => stock.ticker)])).toEqual([
       ["Yesterday", ["ASTS"]],
       ["Today", ["CBRS"]],
-      ["Tuesday", ["NVDA", "XPEV"]],
+      // A day in next week says so, so a Thursday's list never reads as if Tuesday came first.
+      ["Tuesday, next week", ["NVDA", "XPEV"]],
     ]);
     expect(days[0]!.stocks[0]!.result).toEqual({ verdict: "Beat", pct: 8.7 });
+    // Every stock carries its price and today's move.
+    expect(days[1]!.stocks[0]).toMatchObject({ ticker: "CBRS", price: 100, pct: 1 });
     expect(days[2]!.stocks[1]!.when).toBe("before the open");
+  });
+
+  it("says days in words: the date tabs and the week alike", () => {
+    expect(["2026-11-11", "2026-11-10", "2026-11-09", "2026-11-13", "2026-11-16", "2026-11-03"].map((day) => dayLabel(day, TODAY))).toEqual([
+      "Yesterday",
+      "Tuesday",
+      "Monday",
+      "Tomorrow",
+      "Monday, next week",
+      "Nov 3",
+    ]);
+  });
+
+  it("calls a before-the-open report out only once the session has opened, or once its result is in", () => {
+    const stock = (when: "before the open" | "after the close", withResult = false) => ({
+      ticker: "NBIS",
+      name: "Nebius",
+      held: true,
+      when,
+      price: 128,
+      pct: -17,
+      result: withResult ? { verdict: "Miss" as const, pct: -17 } : null,
+      href: "/stock/NBIS",
+    });
+    const week = (when: "before the open" | "after the close", withResult = false) => [{ day: TODAY, label: "Today", stocks: [stock(when, withResult)] }];
+    // Thursday Nov 12 is standard time: 9:30 ET is 14:30 UTC.
+    const before = sessionOpened(TODAY, Date.parse("2026-11-12T14:29:00Z"));
+    const after = sessionOpened(TODAY, Date.parse("2026-11-12T14:30:00Z"));
+    expect([before, after]).toEqual([false, true]);
+    expect(weekTitle(week("before the open"), TODAY, before)).toBe("Reports coming up");
+    expect(weekTitle(week("before the open"), TODAY, after)).toBe("Recent and upcoming reports");
+    // A result in hand counts as out at any hour; an after-the-close report is still ahead after the open.
+    expect(weekTitle(week("before the open", true), TODAY, before)).toBe("Recent and upcoming reports");
+    expect(weekTitle(week("after the close"), TODAY, after)).toBe("Reports coming up");
+    // A past day is out.
+    expect(weekTitle([{ day: "2026-11-11", label: "Yesterday", stocks: [stock("after the close")] }], TODAY, before)).toBe("Recent and upcoming reports");
   });
 
   it("is empty when nothing reports", () => {

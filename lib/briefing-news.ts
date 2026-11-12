@@ -48,12 +48,15 @@ const EXTENDED_HOURS = /\b(?:after[- ]hours|after the (?:bell|close)|post-?marke
 
 export type NewsJunk = "no summary" | "filler" | "roundup" | "listicle" | "opinion" | "rumour" | "explainer" | "law firm";
 
-/** Why a story can never lead a card, whatever stock it is on; null when it can. */
-export function newsJunk(article: Pick<BriefingNews, "title" | "summary">): NewsJunk | null {
+/**
+ * Why a story can never lead a card, whatever stock it is on; null when it can. `headlineOnly` judges the headline
+ * alone, for a card that shows only the headline and links out (the briefing's top market news).
+ */
+export function newsJunk(article: Pick<BriefingNews, "title" | "summary">, options: { headlineOnly?: boolean } = {}): NewsJunk | null {
   const title = article.title.replace(/\s+/g, " ").trim();
   const summary = article.summary ?? "";
   // A card that could only say "read it": no summary to open.
-  if (summary.trim().length < 40 || BOILERPLATE_SUMMARY.test(summary)) return "no summary";
+  if (!options.headlineOnly && (summary.trim().length < 40 || BOILERPLATE_SUMMARY.test(summary))) return "no summary";
   // Checked on the raw title too, so a wire's "Analysis-" or "Update:" tag still counts.
   if (LAW_FIRM.test(title)) return "law firm";
   if (ROUNDUP.test(title) || TICKER_LIST.test(title)) return "roundup";
@@ -73,8 +76,9 @@ export function newsJunk(article: Pick<BriefingNews, "title" | "summary">): News
 export function newsRank(
   article: Pick<BriefingNews, "title" | "summary"> & { published_at?: string },
   stock: { ticker: string; name: string; day_change_pct: number | null; price_as_of?: string | null },
+  options: { headlineOnly?: boolean } = {},
 ): 1 | 2 | null {
-  if (newsJunk(article)) return null;
+  if (newsJunk(article, options)) return null;
   const title = article.title.replace(/\s+/g, " ").trim();
   if (!headlineNamesStock(title, stock.ticker, stock.name)) return null;
   const move = stock.day_change_pct;

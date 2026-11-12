@@ -18,20 +18,29 @@ import {
   earningsWeek,
   faceMode,
   heatCells,
+  levelCandidates,
   marketMoved,
   marketStrip,
   marketWeek,
+  sessionOpened,
+  shownPct,
+  shownPrice,
   positionsFromBriefing,
   sinceLastOpened,
   stockItems,
   tradingDayBefore,
   whyItMoved,
+  type LevelFact,
   type MarketExtra,
 } from "@/lib/briefing-face";
+import { loadLevelFacts } from "@/lib/briefing-level-reasons";
 import { briefingPremarket, within } from "@/lib/briefing-premarket-server";
+import type { TopStory } from "@/lib/briefing-top-news";
+import { loadTopNews } from "@/lib/briefing-top-news-server";
 import { getViewer } from "@/lib/entitlements-server";
 import { getMarketSessionState } from "@/lib/market-session";
-import { getMarketsData } from "@/lib/markets";
+import { getMarketSeries, getMarketsData } from "@/lib/markets";
+import { getDailySeries } from "@/lib/screener-series";
 import { noteDegradedRender } from "@/lib/next-render";
 import { ogImage } from "@/lib/og/url";
 import { etDayOfStamp, etClock, newestStamp, oldestStamp } from "@/lib/quote-time";
@@ -97,15 +106,40 @@ async function weekResults(tickers: string[], today: string, since: string | nul
   return reads ?? [];
 }
 
-/** The 10-year yield and the VIX for the strip, from the cached markets read the briefing's indices already came from. */
+/** Daily levels on a strip tile's line: about a month. */
+const TILE_SESSIONS = 22;
+
+/**
+ * The 10-year yield and the VIX for the strip, from the cached markets read the briefing's indices already came from,
+ * each with its last month of daily levels for the tile's line (the stored series, ending on today's level). A missing
+ * series leaves the tile with its figure and no line.
+ */
 async function marketExtras(): Promise<MarketExtra[]> {
-  const data = await within(getMarketsData(), SIDE_READ_MS);
+  const ids = ["us10y", "vix"] as const;
+  const [data, ...series] = await Promise.all([within(getMarketsData(), SIDE_READ_MS), ...ids.map((id) => within(getMarketSeries(id), SIDE_READ_MS))]);
   const out: MarketExtra[] = [];
-  for (const id of ["us10y", "vix"] as const) {
+  ids.forEach((id, index) => {
     const asset = data?.assets.find((entry) => entry.id === id);
-    if (asset && Number.isFinite(asset.price)) out.push({ id, price: asset.price, change: asset.change.d1 ?? null, changeMode: asset.change_mode });
-  }
+    if (!asset || !Number.isFinite(asset.price)) return;
+    const stored = series[index];
+    const today = etDayOfStamp(asset.as_of);
+    let spark: number[] | null = null;
+    if (stored && stored.dates.length === stored.values.length && today) {
+      // The stored days before today, then today's level, so the line ends on the figure beside it.
+      const before = stored.values.filter((_, at) => stored.dates[at]!.slice(0, 10) < today);
+      spark = [...before.slice(-(TILE_SESSIONS - 1)), asset.price];
+    }
+    out.push({ id, price: asset.price, change: asset.change.d1 ?? null, changeMode: asset.change_mode, spark });
+  });
   return out;
+}
+
+/** Daily closes for the holdings and SPY, for the strip's you-against-the-S&P line; null when the read is slow or fails. */
+async function stripSeries(tickers: string[]): Promise<Record<string, Array<{ date: string; close: number }>> | null> {
+  if (tickers.length === 0) return null;
+  // SPY first: the read keeps the first 40 symbols.
+  const set = await within(getDailySeries(["SPY", ...tickers]), SIDE_READ_MS);
+  return set?.series ?? null;
 }
 
 export default async function BriefingPage({ searchParams }: { searchParams?: { day?: string | string[] } }) {
@@ -131,15 +165,25 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
   const tickers = [...new Set(positions.map((position) => position.ticker.toUpperCase()))];
   const today = briefing.date;
 
+  const session = getMarketSessionState(now);
+  // The measured reason behind each name at its own call's price, read only for the few that can show (before the
+  // open, a few percent wider, since this morning's price decides).
+  const levelReads = live && personal ? levelCandidates(positions, session.kind === "premarket") : [];
+
+  const holdingTickers = [...new Set(positions.filter((position) => position.relation === "holding").map((position) => position.ticker.toUpperCase()))];
+
   // All cached reads, side by side; each fails soft.
-  const [locked, results, premarket, extras] = await Promise.all([
+  const [locked, results, premarket, extras, levelFacts, series, marketNews] = await Promise.all([
     lockedSlot(data),
     live && personal ? weekResults(tickers, today, data.since) : Promise.resolve([] as ResultRead[]),
     live ? briefingPremarket(personal ? tickers : ["SPY"], now).catch(() => null) : Promise.resolve(null),
     live ? marketExtras() : Promise.resolve([] as MarketExtra[]),
+    loadLevelFacts(levelReads, today).catch(() => ({}) as Record<string, LevelFact[]>),
+    live && personal ? stripSeries(holdingTickers) : Promise.resolve(null),
+    // The market's top stories are the same for everyone: one cached read, a few seconds at most when it is cold.
+    live ? within(loadTopNews(today), SIDE_READ_MS).then((stories) => stories ?? []) : Promise.resolve([] as TopStory[]),
   ]);
 
-  const session = getMarketSessionState(now);
   const mode = live ? faceMode(session.kind, premarket != null) : "close";
   // The one clock: the oldest quote time on the newest price day, so every figure on the page is at least that fresh.
   const stamps = positions.map((position) => position.price_as_of).concat(briefing.market.indices.map((index) => index.as_of ?? null));
@@ -151,19 +195,34 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
   const resultFact = (read: ResultRead) => briefingResultFact(read, today);
   const items = stockItems(briefing);
 
-  const strip = marketStrip({ briefing, positions, mode, premarket, extras });
+  // Before the open the strip's figures are this morning's, for the market's day; later, for the prices' own day.
+  const stripDay = mode === "premarket" ? today : priceDay ?? today;
+  const strip = marketStrip({ briefing, positions, mode, premarket, extras, series, today: stripDay });
   // Each stock shows once, in the first module that wants it: Do today, then Why it moved, then the levels.
   // A saved earlier day keeps its decision cards, but never says "Nothing needs you today" about that day.
   const decided = personal ? doToday({ items, positions, degraded: data.archived ? [] : data.degraded, premarket: pre, premarketPrices: prePrices }) : null;
   const todo = data.archived && decided?.kind !== "cards" ? null : decided;
   const shown = new Set(todo?.kind === "cards" ? todo.cards.map((card) => card.ticker) : []);
-  const moved = personal ? whyItMoved({ items, positions, results, exclude: shown, today, resultFact }) : marketMoved(briefing.market);
+  // A stock whose story leads the market's top news is told there, not again under Why it moved.
+  // A story on a stock the page already prices shows the page's own price and move, so one stock never shows two.
+  // Before the open the story keeps the move its headline was matched to (the last session's): this morning's
+  // premarket move beside "jumps on…" could say the opposite of the headline.
+  const topNews = marketNews.map((story) => {
+    const position = story.ticker && mode !== "premarket" ? positions.find((entry) => entry.ticker.toUpperCase() === story.ticker) : undefined;
+    const pct = position ? shownPct(position, null, pre) : null;
+    const price = position ? shownPrice(position, null, prePrices) : null;
+    return pct != null && price != null ? { ...story, reaction: { ...story.reaction, pct, price } } : story;
+  });
+  const inTopNews = new Set(topNews.flatMap((story) => (story.ticker ? [story.ticker] : [])));
+  const moved = (personal ? whyItMoved({ items, positions, results, exclude: new Set([...shown, ...inTopNews]), today, resultFact }) : marketMoved(briefing.market)).filter(
+    (card) => !inTopNews.has(card.ticker),
+  );
   for (const card of moved) shown.add(card.ticker);
-  const levels = personal ? atYourLevels(positions, shown, pre, prePrices) : [];
+  const levels = personal ? atYourLevels(positions, shown, levelFacts, pre, prePrices) : [];
   for (const row of levels) shown.add(row.ticker);
   // The week is a calendar: only a report Do today already names ("Reports today after the close") is left out of it.
   const reportsInDo = new Set(todo?.kind === "cards" ? todo.cards.filter((card) => card.reason === "earnings").map((card) => card.ticker) : []);
-  const week = (personal ? earningsWeek({ positions, items, results, today }) : marketWeek([...briefing.needs_you, ...briefing.also_today], today))
+  const week = (personal ? earningsWeek({ positions, items, results, today, premarket: pre, premarketPrices: prePrices }) : marketWeek([...briefing.needs_you, ...briefing.also_today], today))
     .map((entry) => ({ ...entry, stocks: entry.stocks.filter((stock) => !reportsInDo.has(stock.ticker)) }))
     .filter((entry) => entry.stocks.length > 0);
   const since =
@@ -185,6 +244,7 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
         degraded={data.degraded.length > 0}
         example={Boolean(data.example)}
         strip={strip}
+        topNews={topNews}
         doToday={todo}
         heat={personal ? heatCells(positions, pre, prePrices) : []}
         levels={levels}
@@ -193,6 +253,7 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
         since={since}
         agentFindings={live ? agentFindingCount([...briefing.needs_you, ...briefing.also_today]) : 0}
         locked={locked}
+        sessionOpened={!live || sessionOpened(today, now.getTime())}
       />
       {askHint(data)}
     </AppPage>

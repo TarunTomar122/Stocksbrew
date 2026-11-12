@@ -4,10 +4,11 @@
  * Pure: no React, no I/O, no clock, so every rule here is tested on its own (lib/briefing-face.test.ts).
  *
  * The page, top to bottom (owner, Nov 12: no read block, no rail, nothing repeated per card):
- *   the strip      you vs the S&P 500, then a few market figures;
+ *   the strip      you vs the S&P 500 (with the last few sessions as a line), then the 10-year and the VIX;
+ *   Top news       the market's three biggest stories today (lib/briefing-top-news.ts);
  *   Do today       at most three stocks that need a decision;
- *   the heat       every holding's move, sized by money when we know it;
- *   At your levels names close to their own call's price;
+ *   the heat       every holding's move as a treemap, each tile's area by the size of its move;
+ *   Levels         names at their own call's price, each with one measured fact;
  *   Why it moved   moves with a confirmed reason only;
  *   Reports        the week's earnings, by day;
  *   Since you last opened  what changed since the last visit.
@@ -32,6 +33,7 @@ import { etWallTimeToUtcMs, isNyseHoliday, type MarketSessionKind } from "@/lib/
 import { asSentence, firstFullSentence } from "@/lib/plain-copy";
 import { vixDayVerdict, yieldDayVerdict, type VerdictLine } from "@/lib/market-verdict";
 import type { ResultRead } from "@/lib/results/types";
+import { squarify } from "@/lib/treemap";
 
 export type Tone = "up" | "down" | "flat";
 export type CallWord = "Buy more" | "Keep" | "Sell some";
@@ -45,8 +47,6 @@ const words = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
 export const LINE_WORDS = 15;
 /** Gaps smaller than this, in points, read as "Flat" against the S&P 500. */
 export const GAP_FLAT_PTS = 0.15;
-/** At your levels: names within this percent of their own call's price. */
-export const NEAR_LEVEL_PCT = 5;
 /** Do today holds at most this many cards. */
 export const DO_TODAY_MAX = 3;
 /** Earnings this close on a holding are a decision. */
@@ -185,9 +185,31 @@ export function youFigure(
  * (lib/market-verdict.ts): the indexes by their direction, the 10-year yield and the VIX by what their day's move means
  * (a rise in either is bad for stocks). Never by the sign alone; with no verdict the figure is plain.
  */
-export type MarketTile = { key: string; label: string; figure: string; pct: number | null; good: Tone };
+export type MarketTile = {
+  key: string;
+  label: string;
+  figure: string;
+  pct: number | null;
+  good: Tone;
+  /** The last month or so of daily levels, oldest first, for the tile's line; null when there is no stored series. */
+  spark: number[] | null;
+};
 
-export type MarketExtra = { id: "vix" | "us10y"; price: number; change: number | null; changeMode: "pct" | "bps" | "abs" };
+export type MarketExtra = {
+  id: "vix" | "us10y";
+  price: number;
+  change: number | null;
+  changeMode: "pct" | "bps" | "abs";
+  /** Daily levels, oldest first, ending today (lib/markets getMarketSeries); absent when the series is missing. */
+  spark?: number[] | null;
+};
+
+/** A tile's line needs at least this many daily levels. */
+const SPARK_MIN = 5;
+const sparkOf = (extra: MarketExtra | undefined): number[] | null => {
+  const values = (extra?.spark ?? []).filter(fin);
+  return values.length >= SPARK_MIN ? values : null;
+};
 
 /** A good/bad-for-stocks verdict as the strip's colour: good is green, bad is red, neutral or unknown is plain. */
 const verdictTone = (line: VerdictLine | null): Tone => (line?.verdict === "good" ? "up" : line?.verdict === "bad" ? "down" : "flat");
@@ -207,20 +229,96 @@ function signed(value: number, digits = 1): string {
 export function marketTiles(indices: readonly BriefingIndex[], extras: readonly MarketExtra[]): MarketTile[] {
   const out: MarketTile[] = [];
   const nasdaq = indices.find((index) => index.name === "Nasdaq 100");
-  if (nasdaq && fin(nasdaq.change_pct)) out.push({ key: "ndx", label: "Nasdaq 100", figure: signed(nasdaq.change_pct), pct: nasdaq.change_pct, good: toneOf(nasdaq.change_pct) });
+  if (nasdaq && fin(nasdaq.change_pct)) out.push({ key: "ndx", label: "Nasdaq 100", figure: signed(nasdaq.change_pct), pct: nasdaq.change_pct, good: toneOf(nasdaq.change_pct), spark: null });
   const ten = extras.find((extra) => extra.id === "us10y");
   const bps = ten && fin(ten.change) ? (ten.changeMode === "bps" ? ten.change : ten.changeMode === "abs" ? ten.change * 100 : null) : null;
   if (ten && fin(ten.price) && bps != null) {
     const shown = Math.round(bps * 10) / 10;
     const figure = Math.abs(shown) < 0.05 ? "0.0 bps" : `${shown > 0 ? "+" : "−"}${Math.abs(shown).toFixed(1)} bps`;
     // Coloured by the figure it sits beside, the day's move: "+10 bps" is bad for stocks even when the month fell.
-    out.push({ key: "us10y", label: `10-yr ${ten.price.toFixed(1)}%`, figure, pct: null, good: verdictTone(yieldDayVerdict(bps / 100)) });
+    out.push({ key: "us10y", label: `10-yr ${ten.price.toFixed(1)}%`, figure, pct: null, good: verdictTone(yieldDayVerdict(bps / 100)), spark: sparkOf(ten) });
   }
   const vix = extras.find((extra) => extra.id === "vix");
   if (vix && fin(vix.price) && vix.changeMode === "pct" && fin(vix.change)) {
-    out.push({ key: "vix", label: `VIX ${vix.price.toFixed(1)}`, figure: signed(vix.change), pct: vix.change, good: verdictTone(vixDayVerdict(vix.change)) });
+    out.push({ key: "vix", label: `VIX ${vix.price.toFixed(1)}`, figure: signed(vix.change), pct: vix.change, good: verdictTone(vixDayVerdict(vix.change)), spark: sparkOf(vix) });
   }
   return out;
+}
+
+/** One day on the you-against-the-S&P line: percent from the close the line starts at. */
+export type PathPoint = { day: string; you: number; market: number };
+
+/** Sessions on the line: the close it starts from, then the days to today. */
+export const PATH_SESSIONS = 5;
+/**
+ * Holdings with fresh stored closes must carry at least this share of the money (or of the names, unweighted); the
+ * line is those holdings'. A new listing or a lagging series leaves a small holding out rather than the whole chart.
+ */
+const PATH_COVERAGE = 0.75;
+
+/**
+ * You against the S&P 500 over the last few sessions, as two lines from the same close (owner, Nov 12: "make it
+ * visual"). There is no intraday series on file, so the line is daily: the stored closes (lib/screener-series.ts) for
+ * the sessions before today, then today's move on top of the last close, so the line ends where the strip's figures
+ * say. Your line holds today's shares through the days (money-weighted when every holding has a size, else each
+ * name equally). Null, and no chart, when the closes are stale or missing for too much of the money: never a line
+ * made up to fill the gap.
+ */
+export function youVsMarketPath(input: {
+  holdings: readonly BriefingPosition[];
+  series: Readonly<Record<string, ReadonlyArray<{ date: string; close: number }>>>;
+  /** The New York day the strip's figures are for. */
+  today: string;
+  /** Today's move per holding, as the strip counts it (premarket before the open). */
+  todayPct: (position: BriefingPosition) => number | null;
+  marketToday: number | null;
+}): PathPoint[] | null {
+  const { holdings, series, today, todayPct, marketToday } = input;
+  if (!fin(marketToday) || holdings.length === 0) return null;
+  const spy = (series.SPY ?? []).filter((point) => point.date < today && fin(point.close) && point.close > 0);
+  const days = spy.slice(-PATH_SESSIONS).map((point) => point.date);
+  if (days.length < PATH_SESSIONS || days[days.length - 1] !== tradingDayBefore(today)) return null;
+  const closesOn = (points: ReadonlyArray<{ date: string; close: number }> | undefined) => {
+    const byDay = new Map((points ?? []).map((point) => [point.date, point.close]));
+    const closes = days.map((day) => byDay.get(day));
+    return closes.every((close): close is number => fin(close) && close > 0) ? closes : null;
+  };
+  // Shares held: the quantity, or the holding's value over today's price when only the value is on file.
+  const sharesOf = (position: BriefingPosition): number | null => {
+    if (fin(position.quantity) && position.quantity > 0) return position.quantity;
+    const worth = holdingValue(position);
+    return worth != null && fin(position.price) && position.price > 0 ? worth / position.price : null;
+  };
+  const valued = holdings.every((position) => sharesOf(position) != null);
+  const legs: Array<{ closes: number[]; weight: number; pct: number }> = [];
+  let total = 0;
+  let covered = 0;
+  const seen = new Set<string>();
+  for (const position of holdings) {
+    const ticker = upper(position.ticker);
+    if (seen.has(ticker)) continue;
+    seen.add(ticker);
+    const share = valued ? (holdingValue(position) as number) : 1;
+    total += share;
+    const closes = closesOn(series[ticker]);
+    const pct = todayPct(position);
+    if (!closes || !fin(pct)) continue;
+    covered += share;
+    // Money-weighted: today's shares held through the days; else one unit of each name's own line.
+    legs.push({ closes, weight: valued ? (sharesOf(position) as number) : 1 / closes[0]!, pct });
+  }
+  if (legs.length === 0 || covered < total * PATH_COVERAGE) return null;
+  const value = (index: number) => legs.reduce((sum, leg) => sum + leg.weight * leg.closes[index]!, 0);
+  const last = days.length - 1;
+  const youValues = [...days.map((_, index) => value(index)), legs.reduce((sum, leg) => sum + leg.weight * leg.closes[last]! * (1 + leg.pct / 100), 0)];
+  const spyCloses = closesOn(series.SPY)!;
+  const marketValues = [...spyCloses, spyCloses[last]! * (1 + marketToday / 100)];
+  const round = (value: number) => Math.round(value * 100) / 100;
+  return [...days, today].map((day, index) => ({
+    day,
+    you: round((youValues[index]! / youValues[0]! - 1) * 100),
+    market: round((marketValues[index]! / marketValues[0]! - 1) * 100),
+  }));
 }
 
 export type Strip = {
@@ -229,6 +327,10 @@ export type Strip = {
   sp500: { pct: number; source: "index" | "SPY" | "futures" } | null;
   gap: Gap | null;
   tiles: MarketTile[];
+  /** You and the S&P 500 over the last few sessions, for the strip's chart; null when the closes are not there. */
+  path: PathPoint[] | null;
+  /** The New York day the figures are for (a weekend or overnight page shows the last session's); absent when unknown. */
+  day?: string | null;
 };
 
 export function marketStrip(input: {
@@ -237,6 +339,10 @@ export function marketStrip(input: {
   mode: FaceMode;
   premarket: { stocks: Readonly<Record<string, number>>; sp500: { pct: number; source: "SPY" | "futures" } | null } | null;
   extras: readonly MarketExtra[];
+  /** Daily closes for the holdings and SPY (lib/screener-series.ts), for the chart; absent leaves the strip without one. */
+  series?: Readonly<Record<string, ReadonlyArray<{ date: string; close: number }>>> | null;
+  /** The New York day today's figures are for. */
+  today?: string | null;
 }): Strip {
   const { briefing, positions, mode, premarket, extras } = input;
   const holdings = positions.filter((position) => position.relation === "holding");
@@ -253,7 +359,19 @@ export function marketStrip(input: {
         : null;
   // Before the open the other figures are yesterday's: only the premarket pair is shown then.
   const tiles = mode === "premarket" ? [] : marketTiles(briefing.market.indices, extras);
-  return { you, sp500, gap: gapOf(you?.pct, sp500?.pct), tiles };
+  const premarketStocks = mode === "premarket" ? premarket?.stocks ?? null : null;
+  const path =
+    input.series && input.today && you
+      ? youVsMarketPath({
+          // The line follows the same figure as "You": money-weighted only when the strip's figure is.
+          holdings: you.label === "You" ? holdings : holdings.map((position) => ({ ...position, quantity: null, market_value: null })),
+          series: input.series,
+          today: input.today,
+          todayPct: (position) => shownPct(position, null, premarketStocks),
+          marketToday: sp500?.pct ?? null,
+        })
+      : null;
+  return { you, sp500, gap: gapOf(you?.pct, sp500?.pct), tiles, path, day: input.today ?? null };
 }
 
 /* ── Do today ───────────────────────────────────────────────────────────── */
@@ -424,49 +542,309 @@ export function heatCells(
     }));
 }
 
-/* ── At your levels ─────────────────────────────────────────────────────── */
-
-export type LevelRow = FaceStock & { level: OwnLevel; line: string; held: boolean; reason: string };
+export type HeatLayout = {
+  /** The tiles in the map, each placed in percent of the map (lib/treemap.ts), with its cell. */
+  tiles: Array<{ cell: HeatCell; x: number; y: number; w: number; h: number }>;
+  /** The holdings too small a move for a tile that shows logo, ticker, price and move: a row under the map. */
+  chips: HeatCell[];
+};
 
 /**
- * The call's reason as one short clause (≤15 words): the first sentence, cut at its first clause break. Null when even
- * that runs long, so a card never shows half a thought.
+ * The heat as a true treemap (owner, Nov 12: "cards need to be the size depending on the percentage change") where
+ * every tile is big enough to show its logo, full ticker, price and move (judges, Nov 12). Tiles take area strictly in
+ * proportion to their moves; while the smallest would be under `minW` x `minH` (in the units of `width` x `height`),
+ * the smallest move leaves the map for the chip row under it, biggest move first. Pure.
  */
-export function shortReason(summary: string | null | undefined): string | null {
-  const first = (summary ?? "").trim().split(/(?<=[.!?])\s+/)[0]?.trim() ?? "";
-  if (!first) return null;
-  const words = (text: string) => text.split(/\s+/).filter(Boolean).length;
-  const clean = (text: string) => {
-    const t = text.trim().replace(/[,;:]+$/, "");
-    return /[.!?]$/.test(t) ? t : `${t}.`;
-  };
-  if (words(first) <= 15) return clean(first);
-  const clause = first.split(/[,;:—]|\s(?:but|while|although|though|as|and)\s/)[0] ?? "";
-  return words(clause) >= 4 && words(clause) <= 15 ? clean(clause) : null;
+export function heatLayout(cells: readonly HeatCell[], width: number, height: number, minW: number, minH: number): HeatLayout {
+  const ordered = [...cells].sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct) || a.ticker.localeCompare(b.ticker));
+  for (let keep = ordered.length; keep >= 1; keep -= 1) {
+    const inMap = ordered.slice(0, keep);
+    const boxes = squarify(
+      inMap.map((cell) => ({ key: cell.ticker, weight: cell.pct })),
+      width,
+      height,
+      0,
+    );
+    const fits = boxes.length === keep && boxes.every((box) => (box.w / 100) * width >= minW - 0.01 && (box.h / 100) * height >= minH - 0.01);
+    if (!fits && keep > 1) continue;
+    const byTicker = new Map(inMap.map((cell) => [cell.ticker, cell]));
+    return {
+      tiles: boxes.map((box) => ({ cell: byTicker.get(box.key)!, x: box.x, y: box.y, w: box.w, h: box.h })),
+      chips: ordered.slice(keep),
+    };
+  }
+  return { tiles: [], chips: ordered };
+}
+
+/* ── At your levels ─────────────────────────────────────────────────────── */
+
+export type LevelFactKind = "sales" | "eps" | "dividend" | "valuation" | "move";
+
+/**
+ * One measured fact behind a call at its level, as a card shows it: a big figure ("+16%"), a few words saying what it
+ * is ("sales growth"), and at most one line (≤15 words). `weight` is how strongly it backs the call, for picking.
+ */
+export type LevelFact = { kind: LevelFactKind; figure: string; label: string; line: string | null; tone: Tone; weight: number };
+
+/**
+ * `fact` is the card's fact, null for a stock whose facts all say what another card already says: it is listed, not
+ * carded, with `best` (its strongest fact, which may repeat a card's kind) as a short figure.
+ */
+export type LevelRow = FaceStock & { level: OwnLevel; line: string; held: boolean; fact: LevelFact | null; best: LevelFact };
+
+/** A card shows once the price is through its level, or this close to it (percent). */
+export const AT_LEVEL_PCT = 0.5;
+/** Before the open, reasons are read for names this much further out too: this morning's price can still cross. */
+const PREMARKET_SLACK_PCT = 3;
+/** At most this many reasons are read for one briefing. */
+const MAX_LEVEL_READS = 16;
+
+export type LevelCandidate = { ticker: string; instrumentId: string; call: OwnLevel["call"] };
+
+/**
+ * The US names whose reason is worth reading before the page knows which cards it shows: at or through their own
+ * call's level on the last price, or (before the open, when this morning's price decides) within a few percent of it.
+ * Closest first, capped, so a long watchlist never fans out into many reads.
+ */
+export function levelCandidates(positions: readonly BriefingPosition[], beforeOpen: boolean): LevelCandidate[] {
+  const near = AT_LEVEL_PCT + (beforeOpen ? PREMARKET_SLACK_PCT : 0);
+  const seen = new Set<string>();
+  const out: Array<LevelCandidate & { gap: number }> = [];
+  for (const position of positions) {
+    const ticker = upper(position.ticker);
+    if (!ticker || seen.has(ticker) || !position.instrument_id?.startsWith("US_")) continue;
+    const level = ownLevel(position);
+    if (!level || !(level.crossed || Math.abs(level.gapPct) < near)) continue;
+    seen.add(ticker);
+    out.push({ ticker, instrumentId: position.instrument_id, call: level.call, gap: level.crossed ? 0 : Math.abs(level.gapPct) });
+  }
+  return out
+    .sort((a, b) => a.gap - b.gap || a.ticker.localeCompare(b.ticker))
+    .slice(0, MAX_LEVEL_READS)
+    .map(({ ticker, instrumentId, call }) => ({ ticker, instrumentId, call }));
+}
+
+const MONTH_INDEX: Record<string, number> = { Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6, Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12 };
+
+/** "Nov 4" or "Dec 22, 2025" (lib/call-evidence.ts `day`) back to a day, said as the briefing says days: "On Monday". */
+function reportDayWords(label: string, today: string): string | null {
+  const match = /^([A-Z][a-z]{2})\s(\d{1,2})(?:,\s(\d{4}))?$/.exec(label.trim());
+  const month = match ? MONTH_INDEX[match[1]!] : undefined;
+  if (!match || !month) return null;
+  const iso = `${match[3] ?? today.slice(0, 4)}-${String(month).padStart(2, "0")}-${match[2]!.padStart(2, "0")}`;
+  const said = dayWords(iso, today);
+  if (!said) return null;
+  // "Nov 4" keeps its non-breaking space, so a date never splits across lines.
+  return capitalize(said === "today" || said === "yesterday" ? said : `on ${said.replace(/ (\d)/, " $1")}`);
+}
+
+/** "On Nov 4" → "on Nov 4", "Today" → "today": the report's day inside a line. */
+function reportOnDay(label: string, today: string): string | null {
+  const said = reportDayWords(label, today);
+  return said ? said.charAt(0).toLowerCase() + said.slice(1) : null;
+}
+
+const percentOf = (text: string) => Number(text.replace(/[%,]/g, ""));
+const signedFigure = (text: string, up: boolean) => `${up ? "+" : "−"}${text.replace(/^[+−-]/, "")}`;
+
+/**
+ * A stock-page evidence line (lib/call-evidence.ts `buildCallEvidence`) as a card's fact: one figure, a few words and
+ * at most one line, for the call it backs. Rising sales, a beat, a dividend raised for years or a cheaper P/E back a
+ * Buy more; falling sales, a miss or a richer P/E back a Sell some; a move backs the call it goes with. A fall from the
+ * year's high is context, not a reason (judges, Nov 12), so it never makes a card. Null for anything else, including
+ * wording we do not recognise, so a card never shows half a thought or a reason for the other call.
+ */
+export function levelFact(line: { id: string; text: string }, call: OwnLevel["call"], today: string): LevelFact | null {
+  const buy = call === "Buy more";
+  const text = line.text.trim();
+  const fits = (sentence: string | null) => (sentence && words(sentence) <= LINE_WORDS ? sentence : null);
+  switch (line.id) {
+    case "sales": {
+      const m = /^\S+'s sales (rose|fell|were flat)(?: (\S+%))? over the last four quarters, to \S+?(?:, (.+))?\.$/.exec(text);
+      if (!m || !m[2] || m[1] === "were flat" || (buy ? m[1] !== "rose" : m[1] !== "fell")) return null;
+      const growth = percentOf(m[2]);
+      const tail = m[3] ?? "";
+      // Each shape of the year's comparison has its own label, so two sales cards rarely say the same words.
+      let label = buy ? "sales growth" : "sales fell";
+      let said: string | null = null;
+      let faster = false;
+      let t: RegExpExecArray | null;
+      if ((t = /^faster than its (\S+) growth in fiscal (\d{4})$/.exec(tail))) {
+        const before = percentOf(t[1]!);
+        const delta = Math.round(growth - before);
+        // Growth more than twice last year's reads as such; else the step up in points.
+        label = before > 0 && growth >= 2 * before ? "growth more than doubled" : "growth sped up";
+        said = `Up ${delta} pts from ${t[1]} in fiscal ${t[2]}.`;
+        faster = true;
+      } else if ((t = /^about the same as its (\S+) growth in fiscal (\d{4})$/.exec(tail))) {
+        label = "steady sales growth";
+        said = `About the same as its ${t[1]} in fiscal ${t[2]}.`;
+      } else if ((t = /^after flat sales in fiscal (\d{4})$/.exec(tail))) {
+        label = buy ? "sales back to growth" : "sales turned down";
+        said = `${buy ? "Up" : "Down"} from flat sales in fiscal ${t[1]}.`;
+      } else if ((t = /^after (falling|growing) (\S+) in fiscal (\d{4})$/.exec(tail))) {
+        label = t[1] === "falling" ? (buy ? "sales back to growth" : "sales still falling") : "sales turned down";
+        said = t[1] === "falling" ? `After a ${t[2]} fall in fiscal ${t[3]}.` : `Down from ${t[2]} growth in fiscal ${t[3]}.`;
+      }
+      // "Slower than" never sits under a Buy more; with no comparison the line says the period.
+      return {
+        kind: "sales",
+        figure: signedFigure(m[2], buy),
+        label,
+        line: fits(said) ?? "Over the past four quarters.",
+        tone: buy ? "up" : "down",
+        weight: buy ? 1.5 + Math.min(growth, 60) / 40 + (faster ? 0.5 : 0) : 1.5 + Math.min(growth, 30) / 20,
+      };
+    }
+    case "eps": {
+      const won = /^In its (.+?) report, \S+'s earnings per share of (\S+) (beat|missed|matched) the (\S+) analysts expected\.$/.exec(text);
+      const lost = won ? null : /^In its (.+?) report, \S+ (lost|earned) (\S+) a share, (better than|worse than|in line with) the (\S+) (loss|profit) analysts expected\.$/.exec(text);
+      const good = won ? won[3] === "beat" : lost ? lost[4] === "better than" : null;
+      const bad = won ? won[3] === "missed" : lost ? lost[4] === "worse than" : null;
+      if (good === null || (buy ? !good : !bad)) return null;
+      const label = (won ?? lost)![1]!;
+      const when = reportOnDay(label, today);
+      if (!when) return null;
+      // Fresher reports and bigger surprises weigh more.
+      const match = /^([A-Z][a-z]{2})\s(\d{1,2})(?:,\s(\d{4}))?$/.exec(label.trim());
+      const iso = match ? `${match[3] ?? today.slice(0, 4)}-${String(MONTH_INDEX[match[1]!] ?? 1).padStart(2, "0")}-${match[2]!.padStart(2, "0")}` : today;
+      const age = daysBetween(iso, today) ?? 90;
+      const money = (value: string) => Number(value.replace(/[$,−-]/g, ""));
+      const actual = won ? money(won[2]!) : money(lost![3]!);
+      const forecast = won ? money(won[4]!) : money(lost![5]!);
+      const surprise = forecast > 0 ? Math.min(Math.abs(actual - forecast) / forecast, 0.5) : 0.25;
+      const weight = 2.5 + (age <= 30 ? 1 : age <= 60 ? 0.5 : 0) + surprise;
+      // The label says how the report went; the line says against what, and when.
+      if (won) {
+        const beat = won[3] === "beat";
+        return {
+          kind: "eps",
+          figure: won[2]!,
+          label: beat ? "beat the forecast" : "missed the forecast",
+          line: fits(`${won[4]} expected, reported ${when}.`),
+          tone: buy ? "up" : "down",
+          weight,
+        };
+      }
+      const lossNow = lost![2] === "lost";
+      const better = lost![4] === "better than";
+      return {
+        kind: "eps",
+        figure: lossNow ? `−${lost![3]!.replace(/^[−-]/, "")}` : lost![3]!,
+        label: lossNow ? (better ? "smaller loss than forecast" : "bigger loss than forecast") : better ? "better than forecast" : "worse than forecast",
+        line: fits(`A ${lost![5]} ${lost![6]} expected, reported ${when}.`),
+        tone: buy ? "up" : "down",
+        weight,
+      };
+    }
+    case "move": {
+      const m = /^\S+ (rose|fell) (\S+) in the (\w+ trading days|month) to [^,]+, while (the S&P 500 (?:rose \S+|fell \S+|was flat))\.$/.exec(text);
+      if (!m || (buy ? m[1] !== "rose" : m[1] !== "fell")) return null;
+      return {
+        kind: "move",
+        figure: signedFigure(m[2]!, m[1] === "rose"),
+        label: m[3] === "month" ? "past month" : m[3]!,
+        line: fits(`${capitalize(m[4]!)} over the same ${m[3] === "month" ? "month" : "days"}.`),
+        tone: m[1] === "rose" ? "up" : "down",
+        weight: 0.8,
+      };
+    }
+    case "dividend": {
+      const m = /^\S+ pays \S+ a share a year, (\S+) of today's price, and has raised its dividend (\d+) years in a row\.$/.exec(text);
+      if (!m || !buy) return null;
+      const years = Number(m[2]);
+      return { kind: "dividend", figure: m[1]!, label: "dividend yield", line: fits(`Raised ${years} years in a row.`), tone: "flat", weight: 1.6 + (years >= 10 ? 0.4 : 0) + Math.min(percentOf(m[1]!), 6) / 10 };
+    }
+    case "valuation": {
+      const m = /^At (\S+) times its past year's earnings, \S+ is (cheaper|more expensive) than its median of (\S+) from (.+?) to .+\.$/.exec(text);
+      if (!m || (buy ? m[2] !== "cheaper" : m[2] !== "more expensive")) return null;
+      const off = Math.abs(Number(m[1]) / Number(m[3]) - 1);
+      return {
+        kind: "valuation",
+        figure: `${m[1]}×`,
+        label: buy ? "P/E under its usual" : "P/E over its usual",
+        line: fits(`Its median P/E is ${m[3]} since ${m[4]}.`),
+        tone: "flat",
+        weight: 1.5 + (Number.isFinite(off) ? Math.min(off, 0.5) * 2 : 0),
+      };
+    }
+    default:
+      return null;
+  }
 }
 
 /**
- * Only the names where the price has reached its own call's level (crossed it, or within half a percent) AND our
- * call says why (owner, Nov 12: "instead of saying over or under buy more, show me the ones where you concretely know
- * why to buy more"). Crossed first, then the closest; stocks already in Do today are left out.
+ * One fact per card, and no two cards saying the same thing (judges, Nov 12: "sales growth" on four cards in a row).
+ * The strongest facts go first across the whole section: first one card per kind of fact (sales, a report, the
+ * dividend, the P/E, the move), then any fact whose label no card has used yet. A stock left with only labels already
+ * taken gets no card: it shows in the section's short list instead (with its price and move), never with a repeat.
+ */
+export function pickLevelFacts(tickers: readonly string[], facts: Readonly<Record<string, readonly LevelFact[]>>): Map<string, LevelFact> {
+  const pairs = tickers
+    .flatMap((ticker, order) => (facts[ticker] ?? []).map((fact) => ({ ticker, fact, order })))
+    .sort((a, b) => b.fact.weight - a.fact.weight || a.order - b.order);
+  const out = new Map<string, LevelFact>();
+  const kinds = new Set<LevelFactKind>();
+  const labels = new Set<string>();
+  for (const pass of ["kind", "label"] as const) {
+    for (const { ticker, fact } of pairs) {
+      if (out.has(ticker) || labels.has(fact.label) || (pass === "kind" && kinds.has(fact.kind))) continue;
+      out.set(ticker, fact);
+      kinds.add(fact.kind);
+      labels.add(fact.label);
+    }
+  }
+  return out;
+}
+
+/** The section's title: one word for the call when every card shares it, so no card needs a call chip. */
+export function levelsTitle(rows: ReadonlyArray<Pick<LevelRow, "level">>): string {
+  const sells = rows.some((row) => row.level.call === "Sell some");
+  const buys = rows.some((row) => row.level.call === "Buy more");
+  return sells && buys ? "At our buy and sell levels" : sells ? "Sell some levels" : "Buy more levels";
+}
+
+/**
+ * How many equal columns a row of `count` cards takes, from the widths the screen allows: the one that leaves the
+ * fewest empty slots in the last row, the wider grid on a tie (7 cards: 4 + 3, not 3 + 3 + 1).
+ */
+export function gridColumns(count: number, choices: readonly number[]): number {
+  let best = choices[0] ?? 1;
+  let bestEmpty = Infinity;
+  for (const columns of choices) {
+    const empty = count <= 0 ? 0 : (columns - (count % columns)) % columns;
+    if (empty < bestEmpty || (empty === bestEmpty && columns > best)) {
+      best = columns;
+      bestEmpty = empty;
+    }
+  }
+  return best;
+}
+
+/**
+ * Only the names where the price has reached its own call's level (crossed it, or within half a percent) AND we can
+ * say concretely why (owner, Nov 12: "show me the ones where you concretely know why to buy more"): one measured fact
+ * from the stock page's evidence (`facts`, by ticker, from lib/briefing-level-reasons.ts), picked so the cards don't
+ * repeat one kind of fact (`pickLevelFacts`), never the call's summary. A name without one is left out. Crossed
+ * first, then the closest; stocks already in Do today are left out.
  */
 export function atYourLevels(
   positions: readonly BriefingPosition[],
   exclude: ReadonlySet<string>,
+  facts: Readonly<Record<string, readonly LevelFact[]>>,
   premarket: Readonly<Record<string, number>> | null = null,
   premarketPrices: Readonly<Record<string, number>> | null = null,
 ): LevelRow[] {
   const seen = new Set<string>();
-  const rows: LevelRow[] = [];
+  const rows: Array<Omit<LevelRow, "fact" | "best">> = [];
   for (const position of positions) {
     const ticker = upper(position.ticker);
     if (!ticker || exclude.has(ticker) || seen.has(ticker)) continue;
     // Before the open the distance is from this morning's price, the same price the card shows.
     const price = shownPrice(position, null, premarketPrices);
     const level = ownLevel({ ...position, price });
-    if (!level || !(level.crossed || Math.abs(level.gapPct) < 0.5)) continue;
-    const reason = shortReason(position.call_summary);
-    if (!reason) continue;
+    if (!level || !(level.crossed || Math.abs(level.gapPct) < AT_LEVEL_PCT)) continue;
+    if (!(facts[ticker]?.length)) continue;
     seen.add(ticker);
     rows.push({
       ticker,
@@ -478,13 +856,18 @@ export function atYourLevels(
       level,
       line: levelLine(level),
       held: position.relation === "holding",
-      reason,
     });
   }
-  // Crossed first, then the closest; holdings before watched names on a tie.
-  return rows.sort(
+  // Crossed first, then the closest; holdings before watched names on a tie. The facts are picked in that order.
+  rows.sort(
     (a, b) => Number(b.level.crossed) - Number(a.level.crossed) || Math.abs(a.level.gapPct) - Math.abs(b.level.gapPct) || Number(b.held) - Number(a.held) || a.ticker.localeCompare(b.ticker),
   );
+  const picked = pickLevelFacts(
+    rows.map((row) => row.ticker),
+    facts,
+  );
+  const strongest = (ticker: string) => [...(facts[ticker] ?? [])].sort((a, b) => b.weight - a.weight)[0]!;
+  return rows.map((row) => ({ ...row, fact: picked.get(row.ticker) ?? null, best: strongest(row.ticker) }));
 }
 
 /* ── Why it moved ───────────────────────────────────────────────────────── */
@@ -610,6 +993,9 @@ export type WeekStock = {
   name: string;
   held: boolean;
   when: "before the open" | "after the close" | null;
+  /** The stock's price and today's move, as every stock on the page shows them. */
+  price: number | null;
+  pct: number | null;
   /** After the report: beat, miss or in line, and the reaction. */
   result: { verdict: "Beat" | "Miss" | "In line" | null; pct: number | null } | null;
   href: string;
@@ -627,9 +1013,46 @@ export function tradingDayBefore(day: string): string {
   return at;
 }
 
-/** "Today", "Tomorrow", "Yesterday", "Monday" within six days, else "Nov 3" (lib/day-words.ts, owner rule 4). */
+/**
+ * "Today", "Tomorrow", "Yesterday", "Monday" within six days, else "Nov 3" (lib/day-words.ts, owner rule 4). A day in
+ * next week says so ("Monday, next week"), so a Thursday's list never reads as if Monday came first (judges, Nov 12).
+ */
 export function dayLabel(day: string, today: string): string {
-  return capitalize(dayWords(day, today));
+  const said = capitalize(dayWords(day, today));
+  const mondayOf = (value: string) => addDays(value, -weekdayOf(value));
+  const nextWeek = day > today && mondayOf(day) > mondayOf(today) && !/^(?:Today|Tomorrow)$/.test(said) && /^[A-Z][a-z]+day$/.test(said);
+  return nextWeek ? `${said}, next week` : said;
+}
+
+/**
+ * Whether a line shared above several cards already states this card's call ("Our call moved to Keep on ASTS, NVDA
+ * and SMR" says Keep), so the card can drop its call badge without hiding the call (owner rule 1). A shared line that
+ * names no call ("Reported results") says nothing about it: the card keeps its badge.
+ */
+export function lineStatesCall(line: string, call: CallWord | null): boolean {
+  if (!call) return false;
+  const escaped = call.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`\\b${escaped}\\b`, "i").test(line);
+}
+
+/** Whether `today`'s regular session has opened (9:30 ET) by `nowMs`. */
+export function sessionOpened(today: string, nowMs: number): boolean {
+  const [year, month, day] = today.split("-").map(Number);
+  if (!year || !month || !day) return true;
+  return nowMs >= etWallTimeToUtcMs(year, month, day, 9, 30);
+}
+
+/**
+ * The week's heading, true to what it holds (judges, Nov 12): "Reports coming up" when every report is still ahead,
+ * "Recent and upcoming reports" when one already out is in the list too. Out means a past day, a report with its
+ * result, or today's before-the-open report once the session has opened (`opened`); before 9:30 that one may not be
+ * out yet.
+ */
+export function weekTitle(days: readonly WeekDay[], today: string, opened: boolean): string {
+  const out = days.some(
+    (day) => day.day < today || day.stocks.some((stock) => stock.result !== null || (opened && day.day === today && stock.when === "before the open")),
+  );
+  return out ? "Recent and upcoming reports" : "Reports coming up";
 }
 
 const VERDICT: Record<string, "Beat" | "Miss" | "In line"> = { beat: "Beat", miss: "Miss", in_line: "In line" };
@@ -643,8 +1066,15 @@ export function earningsWeek(input: {
   items: readonly BriefingItem[];
   results: readonly ResultRead[];
   today: string;
+  /** Before the open, this morning's moves and prices (the same the rest of the page shows). */
+  premarket?: Readonly<Record<string, number>> | null;
+  premarketPrices?: Readonly<Record<string, number>> | null;
 }): WeekDay[] {
   const { positions, today } = input;
+  const quote = (position: BriefingPosition | undefined, fallback: { price: number | null; pct: number | null } = { price: null, pct: null }) => ({
+    price: position ? shownPrice(position, fallback.price, input.premarketPrices ?? null) : fallback.price,
+    pct: position ? shownPct(position, fallback.pct, input.premarket ?? null) : fallback.pct,
+  });
   const from = tradingDayBefore(today);
   const to = addDays(today, 6);
   const inWindow = (day: string | null | undefined): day is string => Boolean(day) && /^\d{4}-\d{2}-\d{2}$/.test(day!) && day! >= from && day! <= to;
@@ -672,20 +1102,20 @@ export function earningsWeek(input: {
     if (!ticker || !inWindow(day)) continue;
     const position = byTicker.get(ticker);
     reported.add(ticker);
-    add(day, { ticker, name: position?.name ?? item.name, held: position?.relation === "holding", when: timeWords(results.get(ticker)?.session), result: resultOf(ticker, day), href: `/stock/${encodeURIComponent(ticker)}` });
+    add(day, { ticker, name: position?.name ?? item.name, held: position?.relation === "holding", when: timeWords(results.get(ticker)?.session), ...quote(position, { price: item.price, pct: item.day_change_pct }), result: resultOf(ticker, day), href: `/stock/${encodeURIComponent(ticker)}` });
   }
   for (const read of input.results) {
     const ticker = upper(read.ticker);
     const position = byTicker.get(ticker);
     if (!position || !inWindow(read.reportDate) || read.reportDate > today) continue;
     reported.add(ticker);
-    add(read.reportDate, { ticker, name: position.name, held: position.relation === "holding", when: timeWords(read.session), result: resultOf(ticker, read.reportDate), href: read.reportHref ?? `/stock/${encodeURIComponent(ticker)}` });
+    add(read.reportDate, { ticker, name: position.name, held: position.relation === "holding", when: timeWords(read.session), ...quote(position), result: resultOf(ticker, read.reportDate), href: read.reportHref ?? `/stock/${encodeURIComponent(ticker)}` });
   }
   // Reports coming up, from each stock's next report date.
   for (const position of positions) {
     const ticker = upper(position.ticker);
     if (!ticker || reported.has(ticker) || !inWindow(position.earnings_date) || position.earnings_date < today) continue;
-    add(position.earnings_date, { ticker, name: position.name, held: position.relation === "holding", when: timeWords(position.earnings_time), result: null, href: `/stock/${encodeURIComponent(ticker)}` });
+    add(position.earnings_date, { ticker, name: position.name, held: position.relation === "holding", when: timeWords(position.earnings_time), ...quote(position), result: null, href: `/stock/${encodeURIComponent(ticker)}` });
   }
   return [...days.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
@@ -846,8 +1276,9 @@ export function marketWeek(items: readonly BriefingItem[], today: string): WeekD
       ticker: upper(item.ticker),
       name: item.name,
       relation: "watching" as const,
-      price: null,
-      day_change_pct: null,
+      // The item's own quote, so the week shows each name's price and move like the rest of the page.
+      price: fin(item.price) ? item.price : null,
+      day_change_pct: fin(item.day_change_pct) ? item.day_change_pct : null,
       price_as_of: null,
       stance: null,
       call_summary: null,
