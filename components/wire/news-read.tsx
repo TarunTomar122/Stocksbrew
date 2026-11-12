@@ -1,10 +1,10 @@
 import Link from "next/link";
 
-import { Delta, FOCUS, NUM, Panel } from "@/components/oa/kit";
+import { Delta, FOCUS, NUM, Panel, fmtMoney } from "@/components/oa/kit";
 import { StockLogo } from "@/components/stock-logo";
-import { WholeRows } from "@/components/wire/whole-rows";
+import { ToneColumns } from "@/components/wire/tone-columns";
 import { headlineCase } from "@/lib/plain-copy";
-import { rowTone, toneLean, toneWord, type StockBuzz, type ToneCounts } from "@/lib/wire-read";
+import { rowTone, splitByTone, toneLean, toneWord, type StockBuzz, type ToneCounts } from "@/lib/wire-read";
 import { WIRE_PAGE_SIZE, etDay, etTime, wireHref, type WireFilters, type WireItem } from "@/lib/wire-shared";
 
 const ET_WEEKDAY = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short" });
@@ -14,14 +14,6 @@ export function when(iso: string): string {
   const time = etTime(iso);
   return etDay(iso) === etDay(Date.now()) ? time : `${ET_WEEKDAY.format(new Date(iso))} ${time}`;
 }
-
-/**
- * About eight stocks of Most talked about in view (owner rule 5), the rest scrolling inside a box cut back to its last
- * whole row (WholeRows): eight rows of one column on a phone (each row is the ticker line and its top story, about
- * 5.5rem), and four rows of two columns on a wide screen (about 5.25rem a row), so the top eight are in view.
- */
-const LIST_REM = 46;
-const LIST_WIDE_REM = 22;
 
 /**
  * "75% negative" (or "Leans negative" when the side is a clear lean of fewer than half the stories), only when the
@@ -87,7 +79,7 @@ export function buzzHighlight(row: Pick<StockBuzz, "lead" | "name">): string {
  * A ranked row's tone ("75% negative", "62% neutral", "Mixed", "No clear lean"), coloured by side, with the counts for
  * screen readers. Every row says one (owner rule 3); where the stories cannot support a tone it says so plainly.
  */
-function RowTone({ counts, stories }: { counts: ToneCounts; stories: number }) {
+export function RowTone({ counts, stories }: { counts: ToneCounts; stories: number }) {
   const word = rowTone(counts, stories);
   const label = `${counts.positive} positive, ${counts.negative} negative, ${counts.neutral} neutral of ${stories} ${stories === 1 ? "story" : "stories"}`;
   const colour = word.side === "positive" ? "text-signal-bullish" : word.side === "negative" ? "text-signal-bearish" : "text-oa-muted-fg";
@@ -105,66 +97,58 @@ function RowTone({ counts, stories }: { counts: ToneCounts; stories: number }) {
  * The stocks with the most coverage right now, most first (owner, Nov 11: "where info about positive or negative talk
  * and highlight?"). Each row: rank, logo and ticker, the tone of its news (rowTone: "75% negative", "62% neutral", or
  * plainly "No clear lean"), the day's move, and its top story written out underneath. No coverage bars (owner rule 5): the order already
- * says who is talked about most. Every stock shows, about eight rows at a time with the rest scrolling inside.
+ * says who is talked about most. Good news sits in the left column and mixed or bad in the right (owner, Nov 12),
+ * each keeping its rank number, five a column in view and the rest behind one "Show N more".
  */
-export function TalkedAbout({
-  rows,
-  filters,
-  wide = false,
-  className = "",
-}: {
-  rows: StockBuzz[];
-  filters: WireFilters;
-  /** Full width (the news page): two columns on a wide screen, so the card is never half empty. */
-  wide?: boolean;
-  className?: string;
-}) {
+export function TalkedAbout({ rows, filters, className = "" }: { rows: StockBuzz[]; filters: WireFilters; className?: string }) {
   if (rows.length === 0) return null;
-  // About eight stocks in view, the rest scrolling inside and the box ending on a whole row (owner rule 5).
-  // Full width: two columns read across (1 and 2, then 3 and 4), so the eight in view are the top eight and scrolling
-  // brings the next pair, never the bottom of one column beside the top of the other.
-  const list = wide ? "lg:grid lg:grid-cols-2" : "";
   // The tone column once any stock's news has a tone the labels support; then every row says one. With none (the
   // labeller behind), the same "No clear lean" on every row would say nothing many times (owner rule 1).
   const toned = rows.some((row) => toneWord(row.tones, row.count) !== null);
-  const cols = toned ? "grid-cols-[1.25rem_minmax(0,1fr)_auto_3.75rem]" : "grid-cols-[1.25rem_minmax(0,1fr)_3.75rem]";
+  // The last column holds the price and the move: wide enough for "$1,234.56 −16.6%" so the rows line up.
+  // On a phone the ticker keeps its width and the tone takes what is left, so the two never run together.
+  const cols = toned
+    ? "grid-cols-[1.25rem_auto_minmax(0,1fr)_auto] sm:grid-cols-[1.25rem_minmax(0,1fr)_auto_minmax(8.5rem,auto)]"
+    : "grid-cols-[1.25rem_minmax(0,1fr)_auto] sm:grid-cols-[1.25rem_minmax(0,1fr)_minmax(8.5rem,auto)]";
+  const rank = new Map(rows.map((row, index) => [row.ticker, index + 1]));
+  const item = (row: StockBuzz, index: number) => {
+    const place = rank.get(row.ticker) ?? 0;
+    return (
+      // Each column is its own list, so the item carries its overall rank for screen readers too.
+      <li key={row.ticker} value={place} className="hover:bg-oa-accent">
+        <Link href={wireHref({ ...filters, limit: WIRE_PAGE_SIZE }, { ticker: row.ticker, theme: null })} prefetch={false} className={`block px-4 py-2 ${FOCUS}`}>
+          <span className={`grid min-h-6 ${cols} items-center gap-x-3`}>
+            <span className={`${NUM} text-[12.5px] text-oa-muted-fg`}>{place}</span>
+            <span className="flex min-w-0 items-center gap-2">
+              <StockLogo ticker={row.ticker} size={18} eager={index < 5} atOnce />
+              <span className={`${NUM} text-[14px] font-medium text-oa-fg`}>{row.ticker}</span>
+            </span>
+            {toned ? (
+              <span className="text-right">
+                <RowTone counts={row.tones} stories={row.count} />
+              </span>
+            ) : null}
+            {/* Today's price beside its move (owner rule 4), from the stock's latest quote. */}
+            <span className="flex items-baseline justify-end gap-2 whitespace-nowrap">
+              {row.price != null ? (
+                <span className={`${NUM} text-[14px] text-oa-fg`}>
+                  {fmtMoney(row.price)}
+                </span>
+              ) : null}
+              {row.pct !== null ? <Delta value={row.pct} digits={1} className="text-[14px] font-medium" /> : null}
+              {row.priceDay ? <span className="-ml-1 text-[12.5px] text-oa-muted-fg">{row.priceDay}</span> : null}
+            </span>
+          </span>
+          {/* The top story, whole and in sentence case, so the row says what the talk is about. */}
+          {row.lead ? <span className="mt-0.5 block text-pretty pl-[2rem] text-[13px] leading-[19px] text-oa-muted-fg">{buzzHighlight(row)}</span> : null}
+        </Link>
+      </li>
+    );
+  };
+  const { good, bad, unread } = splitByTone(rows);
   return (
     <Panel flush label="Most talked about" className={className}>
-      <WholeRows
-        rem={LIST_REM}
-        wideRem={wide ? LIST_WIDE_REM : undefined}
-        wideFrom={wide ? 1024 : undefined}
-        cue
-        className={`scrollbar-hide overflow-y-auto max-h-[46rem] ${wide ? "lg:max-h-[22rem]" : ""}`}
-      >
-        <ol className={list}>
-          {rows.map((row, index) => (
-            <li key={row.ticker} className={`border-b border-oa-border hover:bg-oa-accent ${wide ? (index % 2 === 1 ? "lg:border-l" : "") : "last:border-b-0"}`}>
-              <Link
-                href={wireHref({ ...filters, limit: WIRE_PAGE_SIZE }, { ticker: row.ticker, theme: null })}
-                prefetch={false}
-                className={`block px-4 py-2 ${FOCUS}`}
-              >
-                <span className={`grid min-h-6 ${cols} items-center gap-x-3`}>
-                  <span className={`${NUM} text-[12.5px] text-oa-muted-fg`}>{index + 1}</span>
-                  <span className="flex min-w-0 items-center gap-2">
-                    <StockLogo ticker={row.ticker} size={18} eager={index < 8} atOnce />
-                    <span className={`${NUM} text-[14px] font-medium text-oa-fg`}>{row.ticker}</span>
-                  </span>
-                  {toned ? (
-                    <span className="text-right">
-                      <RowTone counts={row.tones} stories={row.count} />
-                    </span>
-                  ) : null}
-                  <span className="text-right">{row.pct !== null ? <Delta value={row.pct} digits={1} className="text-[14px] font-medium" /> : null}</span>
-                </span>
-                {/* The top story, whole and in sentence case, so the row says what the talk is about. */}
-                {row.lead ? <span className="mt-0.5 block text-pretty pl-[2rem] text-[13px] leading-[19px] text-oa-muted-fg">{buzzHighlight(row)}</span> : null}
-              </Link>
-            </li>
-          ))}
-        </ol>
-      </WholeRows>
+      <ToneColumns good={good.map(item)} bad={bad.map(item)} unread={unread.map(item)} cut={5} variant="rows" label="Most talked about" ordered />
     </Panel>
   );
 }

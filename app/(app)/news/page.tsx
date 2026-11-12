@@ -11,7 +11,9 @@ import { loadWire, modelLabel } from "@/lib/wire";
 import { COMPANY_PAGE, groupByCompany, labelFor, withoutShown } from "@/lib/wire-companies";
 import { caseWireHeadlines } from "@/lib/wire-casing";
 import { withHeadlineTones } from "@/lib/wire-headline-tone";
-import { countTones, readTheWire, storiesBetween } from "@/lib/wire-read";
+import { withLivePrices } from "@/lib/wire-prices";
+import { loadLivePrices } from "@/lib/wire-prices-server";
+import { countTones, hasCardHeadline, readTheWire, storiesBetween } from "@/lib/wire-read";
 import {
   WIRE_TOPICS,
   filterWire,
@@ -129,13 +131,34 @@ export default async function NewsPage({ searchParams }: { searchParams?: Search
   const candidates = effective.mine ? grouped.filter((group) => group.mine) : grouped;
   const next = candidates.filter((group) => group.mine || !rankedAbove.has(group.ticker));
   // On a quiet day every company may already be ranked above; the feed then keeps them rather than saying none.
-  const companies = withoutShown(next.length ? next : candidates, shownAbove);
+  // A card with no headline worth showing (every story bait, or none that fits 15 words) is left out first, counts
+  // included, so the cards picked for prices below are exactly the ones the feed shows.
+  // One stock, one tone on the page (council, Nov 12): a company also ranked in Most talked about takes that row's tone
+  // and story count, so its card and its row say the same words and sit in the same column.
+  const rankedTone = new Map((reading?.buzz ?? []).map((row) => [row.ticker, { tones: row.tones, count: row.count }]));
+  const companies = withoutShown(next.length ? next : candidates, shownAbove)
+    .filter(hasCardHeadline)
+    .map((group) => {
+      const ranked = rankedTone.get(group.ticker);
+      return ranked ? { ...group, ...ranked } : group;
+    });
   // Each "more" step shows another page of companies; the URL's row limit caps how many steps there are.
   const step = Math.max(1, Math.round(effective.limit / WIRE_PAGE_SIZE));
   const shownCompanies = COMPANY_PAGE * step;
   const canShowMore = effective.limit < WIRE_MAX_ROWS;
   // One stock's lean over the same last day the rest of the page reads, every story counted.
   const tickerDay = effective.ticker ? storiesBetween(wire.items, labels, since, anchor + 1) : [];
+  // Today's price and move on every card and row shown (owner rule 4), from each stock's latest quote, the one the stock
+  // page reads, not the wire's snapshot, which can still hold yesterday's move. One batch read, bounded; only the cards
+  // the feed shows (your companies, then this page of the rest) and the ranked rows.
+  // The same cut CompanyFeed makes: your companies whole, then this page of the rest.
+  const visibleCompanies = effective.mine
+    ? companies.slice(0, shownCompanies)
+    : [...companies.filter((group) => group.mine), ...companies.filter((group) => !group.mine).slice(0, shownCompanies)];
+  const pricedTickers = [...visibleCompanies, ...(reading?.buzz ?? [])].map((row) => row.ticker);
+  const live = streamView ? new Map() : await loadLivePrices(pricedTickers);
+  const pricedCompanies = withLivePrices(companies, live);
+  const buzz = reading ? withLivePrices(reading.buzz, live) : [];
 
   return (
     <AppPage>
@@ -160,7 +183,7 @@ export default async function NewsPage({ searchParams }: { searchParams?: Search
       {/* Stocks first (owner rule 7): the most talked about stocks, each with its top story, then every company's
           headlines in its own card below. No separate list of stories by theme: it showed the same headlines again,
           away from their stocks. */}
-      {reading?.buzz.length ? <TalkedAbout rows={reading.buzz} filters={effective} wide className="mb-6" /> : null}
+      {buzz.length ? <TalkedAbout rows={buzz} filters={effective} className="mb-6" /> : null}
 
       <WireFilterBar filters={effective} topicCounts={topicCounts} mineCount={mineCount} signedIn={Boolean(session)} />
 
@@ -184,7 +207,7 @@ export default async function NewsPage({ searchParams }: { searchParams?: Search
       {streamView ? (
         <WireStream days={days} quotes={wire.quotes} filters={effective} shown={visible.length} total={matched.length} />
       ) : (
-        <CompanyFeed groups={companies} filters={effective} shown={shownCompanies} canShowMore={canShowMore} signedIn={Boolean(session)} />
+        <CompanyFeed groups={pricedCompanies} filters={effective} shown={shownCompanies} canShowMore={canShowMore} signedIn={Boolean(session)} />
       )}
     </AppPage>
   );

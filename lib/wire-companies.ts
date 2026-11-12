@@ -13,6 +13,10 @@ export type CompanyGroup = {
   name: string | null;
   /** Today's move in percent, when the snapshot has one. */
   pct: number | null;
+  /** The latest price, from the stock's latest quote (lib/wire-prices.ts), when the page has read it. */
+  price?: number | null;
+  /** The price's day in words ("yesterday") when it is not from today; null for today's. */
+  priceDay?: string | null;
   /** Stories about this company in the window, after duplicates are removed. */
   count: number;
   /** The headlines to show, best first: publisher stories before press releases, newest first. */

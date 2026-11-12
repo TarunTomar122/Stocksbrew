@@ -119,6 +119,7 @@ describe("caseWireHeadlines", () => {
         "Sioux Falls plant to close",
         "Samsung Galaxy S25 Edge sales top forecasts",
         "Kitchen Sinks maker files for IPO",
+        "Bank of America Revamps AMD stock price target for 2027",
       ],
       { INTC: "Intel Corporation", RKLB: "Rocket Lab USA, Inc.", MSFT: "Microsoft Corporation" },
     );
@@ -135,6 +136,7 @@ describe("caseWireHeadlines", () => {
       "Sioux Falls plant to close",
       "Samsung Galaxy S25 Edge sales top forecasts",
       "Kitchen Sinks maker files for IPO",
+      "Bank of America revamps AMD stock price target for 2027",
     ]);
   });
 });

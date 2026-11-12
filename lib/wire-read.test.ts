@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { countTones, leanOf, marketRead, newsThemes, readTheWire, rowTone, stockBuzz, storiesBetween, toneWord, type NewsLabels } from "@/lib/wire-read";
+import { countTones, leanOf, marketRead, newsThemes, readTheWire, rowTone, splitByTone, stockBuzz, storiesBetween, toneWord, type NewsLabels } from "@/lib/wire-read";
 import { parseWireFilters, type WireItem } from "@/lib/wire-shared";
 
 const NOW = Date.parse("2026-11-10T16:00:00Z");
@@ -86,6 +86,24 @@ describe("stocks in the news", () => {
     expect(rows[0]!.share + rows[1]!.share + rows[2]!.share).toBeLessThanOrEqual(101);
     expect(rows[0]!.pct).toBe(-3.2);
     expect(rows[2]!.pct).toBeNull();
+  });
+
+  it("caps a row's headline at 15 words: a whole one that fits, else a clause, else none with the row kept", () => {
+    const long =
+      "His California public pension once cost him up to $643 a month in Social Security. A federal law erased the cut and his fund now gains";
+    const fits = "SpaceX announces $74 billion AI data-center expansions in Texas, Arizona";
+    const noClause = "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen";
+    const quotes = { SPCX: { pct: 1, name: "SpaceX" } };
+    const lead = (titles: string[]) =>
+      stockBuzz(
+        titles.map((title, index) => item({ tickers: ["SPCX"], hoursAgo: index + 1, title })),
+        { labels: {}, quotes, nowMs: NOW },
+      )[0]!;
+    expect(lead([long, fits]).lead?.title).toBe(fits);
+    expect(lead([long]).lead?.title).toBe("His California public pension once cost him up to $643 a month in Social Security");
+    const bare = lead([noClause]);
+    expect(bare.ticker).toBe("SPCX");
+    expect(bare.lead).toBeNull();
   });
 
   it("leaves out stories labelled off-topic", () => {
@@ -218,7 +236,35 @@ describe("rowTone", () => {
     // Toned stories that are a sliver of the coverage are too few to call it mixed.
     expect(rowTone({ positive: 2, negative: 2, neutral: 1 }, 30).text).toBe("No clear lean");
     // Only a stock with fewer stories than a tone needs is "too few stories".
-    expect(rowTone({ positive: 1, negative: 0, neutral: 0 }, 2)).toEqual({ text: "Too few stories to say", side: "unsaid" });
-    expect(rowTone({ positive: 0, negative: 0, neutral: 0 }, 0).text).toBe("Too few stories to say");
+    expect(rowTone({ positive: 1, negative: 0, neutral: 0 }, 2)).toEqual({ text: "Too few to say", side: "unsaid" });
+    expect(rowTone({ positive: 0, negative: 0, neutral: 0 }, 0).text).toBe("Too few to say");
+    // Every story read neutral says so (a muted word, not "too few").
+    expect(rowTone({ positive: 0, negative: 0, neutral: 2 }, 2)).toEqual({ text: "Neutral", side: "neutral" });
+  });
+});
+
+describe("splitByTone", () => {
+  const row = (ticker: string, positive: number, negative: number, neutral: number, count = positive + negative + neutral) => ({
+    ticker,
+    tones: { positive, negative, neutral },
+    count,
+  });
+
+  it("puts clearly positive news left, toned rest right, unread apart, each in its order", () => {
+    const rows = [row("NVDA", 1, 5, 2), row("AMD", 4, 1, 3), row("NBIS", 2, 2, 1), row("AVGO", 5, 0, 4), row("SPCX", 0, 0, 0, 3), row("YETI", 0, 0, 0, 1)];
+    const { good, bad, unread } = splitByTone(rows);
+    expect(good.map((r) => r.ticker)).toEqual(["AMD", "AVGO"]);
+    expect(bad.map((r) => r.ticker)).toEqual(["NVDA", "NBIS"]);
+    expect(unread.map((r) => r.ticker)).toEqual(["SPCX", "YETI"]);
+  });
+
+  it("sends leans-positive left; neutral, mixed and too-few-to-call right; never unread when any tone is read", () => {
+    // 4 of 10 positive, none negative: "Leans positive".
+    expect(splitByTone([row("MSFT", 4, 0, 1, 10)]).good).toHaveLength(1);
+    // Mostly neutral.
+    expect(splitByTone([row("AAPL", 1, 0, 6)]).bad).toHaveLength(1);
+    // Two positive stories alone are too few to call: read, but not good.
+    expect(splitByTone([row("TSLA", 2, 0, 0)]).bad).toHaveLength(1);
+    expect(splitByTone([])).toEqual({ good: [], bad: [], unread: [] });
   });
 });

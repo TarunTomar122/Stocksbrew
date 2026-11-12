@@ -110,8 +110,8 @@ export function toneWord(counts: ToneCounts, stories: number = totalOf(counts)):
 /**
  * A ranked row's tone, always said once the list has a tone column (owner rule 3, judges on ship 53: a blank cell read
  * as missing data). The supported tone when there is one (`toneWord`); "Mixed" when most stories have a tone and both
- * sides have at least two with neither leading; "Too few stories to say" when the stock has fewer stories than a tone
- * needs; and "No clear lean" otherwise (enough stories, but not enough of them lean one way to call it). Never a
+ * sides have at least two with neither leading; "Neutral" when every story read is neutral; "Too few to say" when the
+ * stock has fewer stories than a tone needs; and "No clear lean" otherwise (enough stories, but not enough of them lean one way to call it). Never a
  * made-up lean.
  */
 export function rowTone(counts: ToneCounts, stories: number = totalOf(counts)): { text: string; side: "positive" | "negative" | "neutral" | "unsaid" } {
@@ -120,8 +120,29 @@ export function rowTone(counts: ToneCounts, stories: number = totalOf(counts)): 
   const labelled = totalOf(counts);
   const base = Math.max(stories, labelled);
   if (labelled >= MIN_TONED && labelled * 2 >= base && counts.positive >= 2 && counts.negative >= 2) return { text: "Mixed", side: "unsaid" };
-  if (base < MIN_TONED) return { text: "Too few stories to say", side: "unsaid" };
+  // Every story read is neutral: say so, quietly, rather than that there is too little to say.
+  if (labelled > 0 && counts.positive === 0 && counts.negative === 0) return { text: "Neutral", side: "neutral" };
+  if (base < MIN_TONED) return { text: "Too few to say", side: "unsaid" };
   return { text: "No clear lean", side: "unsaid" };
+}
+
+/**
+ * The News page's two columns (owner, Nov 12): good news on the left, mixed or bad on the right. A stock goes left
+ * only when its stories clearly lean positive, the same lean its card or row shows ("50% positive", "Leans positive",
+ * `toneLean`). Stories with a tone that does not lean positive (negative, mixed, neutral) go right. Stories with no
+ * tone read at all are kept apart (`unread`), shown at the foot of the right column as "No read yet" and never counted
+ * as bad (council, Nov 12). Decided from the stories' tone, never the price move. Each group keeps the list's order.
+ */
+export function splitByTone<T extends { tones: ToneCounts; count: number }>(rows: readonly T[]): { good: T[]; bad: T[]; unread: T[] } {
+  const good: T[] = [];
+  const bad: T[] = [];
+  const unread: T[] = [];
+  for (const row of rows) {
+    if (totalOf(row.tones) === 0) unread.push(row);
+    else if (toneLean(row.tones, row.count)?.side === "positive") good.push(row);
+    else bad.push(row);
+  }
+  return { good, bad, unread };
 }
 
 export function leanTone(counts: ToneCounts): InsightTone {
@@ -188,6 +209,10 @@ export type StockBuzz = {
   ticker: string;
   name: string | null;
   pct: number | null;
+  /** The latest price, from the stock's latest quote (lib/wire-prices.ts), when the page has read it. */
+  price?: number | null;
+  /** The price's day in words ("yesterday") when it is not from today; null for today's. */
+  priceDay?: string | null;
   /** Distinct stories naming the stock in the window. */
   count: number;
   /** Stories naming it in the window before, for "up from" comparisons. */
@@ -241,7 +266,10 @@ export function stockBuzz(
     const pull = (item: WireItem) => storyRelevance(item) + ((labelFor(labels, item, ticker)?.tone ?? "neutral") !== "neutral" ? 0.3 : 0);
     // Bait headlines ("Dear Nebius stock fans…") never lead: told by the publisher's plain first sentence, or skipped.
     const plain = group.items.map(plainStory).filter((item): item is WireItem => item !== null);
-    const lead = plain.sort((a, b) => pull(b) - pull(a) || (a.publishedAt < b.publishedAt ? 1 : a.publishedAt > b.publishedAt ? -1 : 0))[0] ?? null;
+    // At most 15 words, as on the company cards (`cardHeadline`): the best whole headline that fits, else the shortest
+    // cut at a clause boundary, else none (the row stays, with its rank, tone and move).
+    const ranked = plain.sort((a, b) => pull(b) - pull(a) || (a.publishedAt < b.publishedAt ? 1 : a.publishedAt > b.publishedAt ? -1 : 0));
+    const lead = cardHeadline(ranked, nameOf(quotes, ticker) ?? "");
     rows.push({
       ticker,
       name: nameOf(quotes, ticker),
@@ -653,13 +681,54 @@ export function readTheWire(source: WireReadSource, options: { nowMs: number; fi
 /** The most a news card's one headline may say (owner rule 8). */
 const HEADLINE_WORDS = 15;
 
+/** The fewest words a headline cut at a clause boundary may keep and still say something on its own. */
+const MIN_CLAUSE_WORDS = 4;
+
 /**
- * The one headline a stock's news card shows, in sentence case as the card prints it: the newest that says it in at
- * most 15 words, else the shortest. The card itself opens the rest.
+ * A long headline cut back to its first whole clause of at most `HEADLINE_WORDS` words: at a colon, semicolon, dash,
+ * question mark or full stop, else a comma. The longest such clause wins; no ellipsis. Null when no clause boundary
+ * leaves at least `MIN_CLAUSE_WORDS` words under the cap.
+ */
+export function headlineClause(title: string): string | null {
+  const text = title.trim().replace(/\s+/g, " ");
+  const strong = /[:;?!]\s|\.\s|\s[—–-]\s/g;
+  const weak = /,\s/g;
+  const count = (value: string) => value.split(" ").filter(Boolean).length;
+  for (const pattern of [strong, weak]) {
+    let best: string | null = null;
+    for (const match of text.matchAll(pattern)) {
+      const index = match.index ?? 0;
+      // Keep a question or exclamation mark with its clause; leave a colon, dash, comma or semicolon behind.
+      const end = /^[?!]/.test(match[0]) ? index + 1 : index;
+      const clause = text.slice(0, end).trim().replace(/[,;:]$/, "");
+      const words = count(clause);
+      if (words >= MIN_CLAUSE_WORDS && words <= HEADLINE_WORDS) best = clause;
+    }
+    if (best) return best;
+  }
+  return null;
+}
+
+/**
+ * The one headline a stock's news card shows, at most 15 words as the card prints it (owner rule 8): the newest whole
+ * headline that fits; else the shortest headline cut at a clause boundary (`headlineClause`, no ellipsis, the item
+ * returned with that title); else null, and the card is not shown. The card itself opens the rest.
  */
 export function cardHeadline<T extends { title: string }>(items: readonly T[], companyName = ""): T | null {
   const titled = items.filter((item) => item.title.trim());
   if (titled.length === 0) return null;
   const words = (item: T) => headlineCase(item.title, companyName).split(/\s+/).filter(Boolean).length;
-  return titled.find((item) => words(item) <= HEADLINE_WORDS) ?? [...titled].sort((a, b) => words(a) - words(b))[0]!;
+  const whole = titled.find((item) => words(item) <= HEADLINE_WORDS);
+  if (whole) return whole;
+  for (const item of [...titled].sort((a, b) => words(a) - words(b))) {
+    const clause = headlineClause(item.title);
+    if (clause) return { ...item, title: clause };
+  }
+  return null;
+}
+
+/** Whether a company's news card has a headline to show (`cardHeadline`), not just its ticker over an empty body. */
+export function hasCardHeadline(group: { items: readonly { title: string }[]; name?: string | null }): boolean {
+  const lead = cardHeadline(group.items, group.name ?? "");
+  return Boolean(lead && headlineCase(lead.title, group.name ?? "").trim());
 }
