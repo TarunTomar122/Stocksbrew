@@ -582,3 +582,39 @@ export function extraFacts(input: {
   const reasons = (input.reasons ?? []).map((check) => ({ ticker: check.ticker.toUpperCase(), verdict: check.verdict, signal: check.signals[0]?.text?.trim() || null }));
   return { ideas, reasons };
 }
+
+/* ── the month, compared once ─────────────────────────────────────────── */
+
+/** "down 7.2% this month, 4.9 points behind": monthWords with the S&P 500 left to the line above the cards. */
+function monthShortWords(month: MonthMove): string {
+  return monthWords(month)
+    .replace(" over the past month", " this month")
+    .replace(/ (behind|ahead of) the S&P 500$/, (_whole, side: string) => ` ${side === "behind" ? "behind" : "ahead"}`)
+    .replace(/, in line with the S&P 500$/, ", in line");
+}
+
+/**
+ * When most cards' one thing is their month against the S&P 500, the S&P 500's month is said once above them and
+ * each card keeps only its own figures ("Down 7.2% this month, 4.9 points behind."), rather than "… behind the S&P
+ * 500" on six cards (owner rule 1, judges ship 50). Otherwise the cards are as they were and there is no line. Pure.
+ */
+export function sayMonthOnce(cards: StockCard[], month: BookSource["month"]): { line: string | null; cards: StockCard[] } {
+  const monthly = cards.filter((card) => card.fact?.kind === "month" && month?.[card.ticker]);
+  const market = monthly.map((card) => month![card.ticker]!.marketPct).find((value): value is number => fin(value));
+  if (market === undefined || monthly.length < 3 || monthly.length * 2 <= cards.length) return { line: null, cards };
+  const line = Math.abs(market) < 0.05 ? "Over the past month the S&P 500 was flat." : `Over the past month the S&P 500 ${market > 0 ? "rose" : "fell"} ${Math.abs(market).toFixed(1)}%.`;
+  return {
+    line,
+    cards: cards.map((card) => {
+      const own = month?.[card.ticker];
+      if (!card.fact || !own || own.marketPct === null || !fin(own.marketPct)) return card;
+      const long = monthWords(own);
+      const at = card.fact.text.toLowerCase().indexOf(long.toLowerCase());
+      if (at < 0) return card;
+      const short = monthShortWords(own);
+      // Keep the capital when the month starts the sentence.
+      const words = at === 0 ? capital(short) : short;
+      return { ...card, fact: { ...card.fact, text: `${card.fact.text.slice(0, at)}${words}${card.fact.text.slice(at + long.length)}` } };
+    }),
+  };
+}

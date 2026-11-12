@@ -261,9 +261,4 @@ describe("the landing's market check and the briefing's strip", () => {
     expect(marketCheckLead({ lead: "So far today, the agent checked 72 stocks before the open." })).toBe("So far today we checked 72 stocks before the open.");
     expect(marketCheckLead({ lead: "Friday the agent read 3 SEC filings." })).toBe("Friday we read 3 SEC filings.");
   });
-
-  it("puts every run in one row up to six, else two rows", async () => {
-    const { stripColumns } = await import("./words");
-    expect([1, 4, 5, 6, 7].map(stripColumns)).toEqual([1, 4, 5, 6, 4]);
-  });
 });

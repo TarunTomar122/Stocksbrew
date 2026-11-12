@@ -398,8 +398,3 @@ export function marketCheckTitle(log: Pick<AgentLog, "when">): string {
 export function marketCheckLead(log: Pick<AgentLog, "lead">): string {
   return log.lead.replace(/^(So far today|Today|[A-Z][a-z]+),? the agent /, (_, when: string) => `${when} we `);
 }
-
-/** Columns for the strip's tiles: one per run up to six, else two rows of them. */
-export function stripColumns(count: number): number {
-  return count <= 6 ? Math.max(1, count) : Math.ceil(count / 2);
-}

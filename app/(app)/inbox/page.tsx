@@ -5,22 +5,20 @@ import { AskPageHint } from "@/components/ask/ask-page-hint";
 import { EmptyInbox } from "@/components/inbox/inbox-empty";
 import { InboxList } from "@/components/inbox/inbox-list";
 import { InboxSkeleton } from "@/components/inbox/inbox-skeleton";
-import { ExampleHoldingRows } from "@/components/inbox/holding-rows";
+import { ExampleReportCards } from "@/components/inbox/report-cards";
 import { InboxStockCard } from "@/components/inbox/stock-read";
 import { TheRead } from "@/components/oa/insight";
 import { AppPage, PageHead } from "@/components/oa/kit";
 import { getSessionUser } from "@/lib/auth-server";
 import { getViewer } from "@/lib/entitlements-server";
-import { exampleHoldings } from "@/lib/inbox/example-holdings";
+import { exampleReports, type ExampleReportStock } from "@/lib/inbox/example-reports";
 import { forClient } from "@/lib/inbox/merge";
 import { inboxReadTold, rowsAfterRead } from "@/lib/inbox/read";
 import { loadExampleInbox, loadUserInbox, readState } from "@/lib/inbox/server";
 import { INBOX_KINDS, type InboxKind, type InboxStockRead } from "@/lib/inbox/types";
 import type { TheRead as TheReadData } from "@/lib/insights";
 import { loadExamplePortfolio } from "@/lib/portfolio-data";
-import { moveReasons } from "@/lib/portfolio-home/stocks-server";
-import { stockMoveFacts, type MoveToMeasure } from "@/lib/briefing-move-facts-server";
-import { etDayOfStamp } from "@/lib/quote-time";
+import { loadTickerEarnings } from "@/lib/earnings-season-data";
 import { getUserDoc } from "@/lib/watchlist";
 
 export const dynamic = "force-dynamic";
@@ -77,22 +75,29 @@ function ReadAndList({
   return <>{children(read.headline || null)}</>;
 }
 
+/** How long the example's report histories may take before the page goes without its cards. */
+const REPORTS_MS = 1500;
+
 /**
- * The example's moves on its priced day, by ticker, less the stocks the page already talks about: what the inbox's
- * other-stocks lines measure. Each move is dated by its own quote when it has one, as the briefing dates its stocks.
+ * The example's stocks the page does not already talk about, with their report histories: what the cards under the
+ * read show (lib/inbox/example-reports.ts). The same shared cached read as the calendar and Earnings season; slow or
+ * failed, the page goes without them.
  */
-function exampleMoves(portfolio: NonNullable<Awaited<ReturnType<typeof loadExamplePortfolio>>>, said: readonly string[]): Map<string, MoveToMeasure> {
+async function exampleReportStocks(portfolio: Awaited<ReturnType<typeof loadExamplePortfolio>> | null, said: readonly string[], today: string): Promise<ExampleReportStock[]> {
+  if (!portfolio) return [];
   const skip = new Set(said.map((ticker) => ticker.toUpperCase()));
-  const moves = new Map<string, MoveToMeasure>();
-  if (!portfolio.pricesAsOf) return moves;
-  for (const position of [...portfolio.portfolio.positions, ...portfolio.portfolio.watching]) {
-    const ticker = position.ticker.toUpperCase();
-    if (skip.has(ticker) || moves.has(ticker) || typeof position.dayPct !== "number" || !Number.isFinite(position.dayPct)) continue;
-    const quoted = etDayOfStamp(portfolio.quotedAt[position.ticker] ?? null);
-    // Its price ends its month, so the month is the one My stocks shows (lib/briefing-move-facts.ts monthChange).
-    moves.set(ticker, { pct: position.dayPct, day: quoted ?? portfolio.pricesAsOf, exactDay: quoted !== null, price: position.price });
-  }
-  return moves;
+  const positions = [...portfolio.portfolio.positions, ...portfolio.portfolio.watching].filter((position) => !skip.has(position.ticker.toUpperCase()));
+  if (positions.length === 0) return [];
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), REPORTS_MS);
+  });
+  const loaded = await Promise.race([loadTickerEarnings(positions.map((position) => position.ticker), today).catch(() => null), late]).finally(() => clearTimeout(timer));
+  if (!loaded) return [];
+  return positions.flatMap((position) => {
+    const entry = loaded.get(position.ticker.toUpperCase());
+    return entry ? [{ ticker: position.ticker, kind: position.kind === "watchlist" ? ("watching" as const) : ("holding" as const), fund: entry.fund, history: entry.history }] : [];
+  });
 }
 
 async function ExampleInbox({ kind }: { kind: InboxKind | null }) {
@@ -102,30 +107,15 @@ async function ExampleInbox({ kind }: { kind: InboxKind | null }) {
   // The read first; the rows under it then leave out what it already says (owner rule 1).
   const exampleRead = inboxReadTold(inbox.items, null, true, { upcoming: inbox.upcoming, today: inbox.today });
   const exampleRows = rowsAfterRead(inbox.items, inbox.upcoming, exampleRead.told, inbox.today, { example: true });
-  // Under it, the holdings nothing above talks about, one line each, so the page shows what a full inbox holds.
+  // The stocks the read and the rows already talk about: no card says them again (owner rule 1).
   const said = [
     ...(exampleRead.stock ? [exampleRead.stock.ticker] : []),
     ...(exampleRead.read?.insights ?? []).flatMap((insight) => insight.tickers ?? []),
     ...exampleRows.items.filter((item) => !item.told).flatMap((item) => item.tickers),
     ...exampleRows.upcoming.map((report) => report.ticker),
   ];
-  // The confirmed reasons for the day's moves, from the same research as My stocks' cards; a failed read leaves them out.
-  const tickers = portfolio ? [...portfolio.portfolio.positions, ...portfolio.portfolio.watching].map((position) => position.ticker) : [];
-  // Within 1.5 seconds, else the lines go without reasons.
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const late = new Promise<Record<string, string>>((resolve) => {
-    timer = setTimeout(() => resolve({}), 1500);
-  });
-  // Beside them, each stock's measured price facts (the briefing's own, lib/briefing-move-facts-server.ts), for the
-  // lines with no confirmed reason; a slow read leaves those lines with their move alone.
-  const [reasons, facts] =
-    portfolio && tickers.length > 0
-      ? await Promise.all([
-          Promise.race([moveReasons(tickers, portfolio.pricesAsOf).catch(() => ({})), late]).finally(() => clearTimeout(timer)),
-          stockMoveFacts(exampleMoves(portfolio, said)).catch(() => undefined),
-        ])
-      : [{}, undefined];
-  const holdings = exampleHoldings(portfolio, said, reasons, facts ?? {}, inbox.today);
+  // Under it, the dated record: each other stock's last report, not the day's moves the briefing already shows.
+  const reports = exampleReports(await exampleReportStocks(portfolio, said, inbox.today), said, inbox.today);
   const empty = inbox.items.length === 0 && inbox.upcoming.length === 0;
   return (
     <div className="flex flex-col gap-3 sm:gap-4">
@@ -148,7 +138,7 @@ async function ExampleInbox({ kind }: { kind: InboxKind | null }) {
           <AskPageHint context="ex.portfolio" />
         </>
       )}
-      {holdings ? <ExampleHoldingRows holdings={holdings} /> : null}
+      {reports ? <ExampleReportCards reports={reports} /> : null}
     </div>
   );
 }

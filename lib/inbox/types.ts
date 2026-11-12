@@ -72,7 +72,8 @@ export type InboxStockRead = {
   note: string | null;
 };
 
-export type InboxMove = { pct: number; day: string; normalPct: number | null };
+/** `close`: the price the move ended at, when the finding said it, so the read can end on it (judges, ship 50). */
+export type InboxMove = { pct: number; day: string; normalPct: number | null; close?: number | null };
 
 /** A report coming up as the list draws it: the finished sentence, and a second line when there is one. */
 export type UpcomingLine = { ticker: string; date: string; text: string; note: string | null };

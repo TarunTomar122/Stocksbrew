@@ -283,9 +283,9 @@ function priceLead(fresh: InboxItem[], upcoming: UpcomingReport[], today: string
       moveTicker = only.tickers[0]!;
       moveId = only.id;
       // A move an agent flagged is said as the flag, word for word as the briefing's card says it ("Your agent flagged
-      // NVDA's 5.5% drop on Nov 10."), so the two pages read as one thread (judges, ship 44). Its normal day is on
+      // NVDA's 5.5% drop to $168.89 on Nov 10."), so the two pages read as one thread (judges, ship 44). Its normal day is on
       // the card under the headline when that card is about it.
-      moves = (isFlaggedMove(only) ? flagWords({ ticker: moveTicker, pct: only.move!.pct, day: only.move!.day }) : moveSentence(moveTicker, only.move!.pct, latest.day, only.move!.normalPct, today)).replace(/\.$/, "");
+      moves = (isFlaggedMove(only) ? flagWords({ ticker: moveTicker, pct: only.move!.pct, day: only.move!.day, close: only.move!.close ?? null }) : moveSentence(moveTicker, only.move!.pct, latest.day, only.move!.normalPct, today)).replace(/\.$/, "");
     }
     else if (unusual.length > 1) moves = `${unusual.length} of ${whose} stocks moved at least twice as much as usual ${pastWhen(latest.day, today)}`;
   }
@@ -441,7 +441,7 @@ function rowsAfterReadAll(items: InboxItem[], upcoming: UpcomingReport[], told: 
       .map((report) =>
         reports.has(report.ticker)
           ? { ticker: report.ticker, date: report.date, text: reportSentence({ ...report, history: null }, today), note: null }
-          : { ticker: report.ticker, date: report.date, text: reportSentence(report, today), note: report.vsDay ? `That is ${report.vsDay} for it.` : null },
+          : { ticker: report.ticker, date: report.date, text: reportSentence(report, today), note: report.vsDay ? `That is ${report.vsDay.replace(/ a normal day$/, " its normal day")}.` : null },
       ),
   };
 }

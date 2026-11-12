@@ -137,10 +137,12 @@ describe("reports coming up", () => {
   });
 
   it("never says the headline's sentence again: one move and its report are one stock card with both figures", () => {
-    const items = mergeInbox([findingItems(run([move("NVDA", -5.47, "2026-11-10")]), "example", new Map([["NVDA", { normalPct: 2.02, reason: null }]]), TODAY)!], SINCE, NOW);
+    const flagged = { ...move("NVDA", -5.47, "2026-11-10"), detail: "Closed at $168.89 on Nov 10, down 5.47% from $178.67 the day before." };
+    const items = mergeInbox([findingItems(run([flagged]), "example", new Map([["NVDA", { normalPct: 2.02, reason: null }]]), TODAY)!], SINCE, NOW);
     const { read, stock } = inboxReadTold(items, null, true, { upcoming: [report()], today: TODAY });
-    // The agent's flag in the briefing card's own words, with its date (judges, ship 44: one thread across pages).
-    expect(read!.headline).toBe("Your agent flagged NVDA's 5.5% drop on Nov 10.");
+    // The agent's flag in the briefing card's own words, with its date (judges, ship 44: one thread across pages),
+    // ending on the price the move took it to (judges, ship 50).
+    expect(read!.headline).toBe("Your agent flagged NVDA's 5.5% drop to $168.89 on Nov 10.");
     expect(read!.sub).toBe("It reports on Nov 17 after the close.");
     // One card for NVDA, not two cards wearing the same logo.
     expect(read!.insights).toEqual([]);

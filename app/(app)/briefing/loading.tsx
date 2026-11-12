@@ -1,6 +1,6 @@
 import { Bar, PanelGhost, SkeletonFrame } from "@/components/oa/kit/skeleton";
 
-/** The briefing's shape: the head with the day's figures, the item list on the left, the market rail on the right. */
+/** The briefing's shape: the head, the read across the page, then the stocks on the left and the rail on the right. */
 export default function Loading() {
   return (
     <SkeletonFrame label="Loading your briefing">
@@ -9,8 +9,11 @@ export default function Loading() {
           <Bar className="h-6 w-80 max-w-full" />
           <Bar className="mt-3 h-3.5 w-96 max-w-full" />
         </div>
+        {/* The read across the page, then the stocks beside the rail, as the page lays them out. */}
+        <div className="min-w-0 lg:col-span-2">
+          <PanelGhost rows={2} lines={2} />
+        </div>
         <div className="flex min-w-0 flex-col gap-4">
-          <PanelGhost rows={4} lines={3} />
           <PanelGhost rows={3} lines={2} />
         </div>
         <div className="flex min-w-0 flex-col gap-4">

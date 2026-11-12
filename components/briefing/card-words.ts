@@ -229,12 +229,13 @@ function levelFact(item: BriefingItem): string | null {
 
 /**
  * A price fact (lib/briefing-move-facts.ts) as a card's sentence, when the card has nothing else to say: "That is
- * about twice a normal 1.1% day for it.", "It was its biggest gain since Sep 2.", "It is still down 7.2% over the
+ * about twice its normal 1.1% day.", "It was its biggest gain since Sep 2.", "It is still down 7.2% over the
  * past month." Whole sentences (owner rule 8).
  */
 export function factSentence(fact: string): string {
   const lower = `${fact.charAt(0).toLowerCase()}${fact.slice(1)}`;
-  if (/^About /.test(fact)) return `That is ${lower} for it.`;
+  // "its normal day", with no trailing "for it" (judges, ship 50).
+  if (/^About /.test(fact)) return `That is ${lower.replace(/ a normal /, " its normal ")}.`;
   if (/^Its biggest /.test(fact)) return `It was ${lower}.`;
   if (/^(?:Still )?(?:up|down|Up|Down) /.test(fact)) return `It is ${lower}.`;
   return /[.!?]$/.test(fact) ? fact : `${fact}.`;
@@ -393,8 +394,8 @@ export function sectionWords(
   for (const group of groups) {
     const words = cards.get(group.key)!;
     const own = (facts.get(group.key) ?? []).filter((fact) => (count.get(fact) ?? 0) < 2);
-    // A card with nothing confirmed to say leads with its price fact as its sentence ("That is about twice a normal
-    // 1.1% day for it."), and the next one is its highlighted fact, so the card is not an empty box beside its neighbours (owner
+    // A card with nothing confirmed to say leads with its price fact as its sentence ("That is about twice its normal
+    // 1.1% day."), and the next one is its highlighted fact, so the card is not an empty box beside its neighbours (owner
     // rules 3, 4). Never a reason: only what the closes measure (lib/briefing-move-facts.ts).
     const prices = group.ticker ? options.moveFacts?.[group.ticker.toUpperCase()] ?? [] : [];
     const lead = !words.sentence && !words.more ? own.find((fact) => prices.includes(fact)) : undefined;

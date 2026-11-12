@@ -81,6 +81,7 @@ export function StockCard({
   ticker,
   name,
   figure,
+  subFigure,
   tone = "flat",
   sentence,
   extra,
@@ -92,6 +93,7 @@ export function StockCard({
   expanded = false,
   fill = "",
   tag,
+  note,
   eagerLogo = false,
   className = "",
   ...rest
@@ -101,6 +103,8 @@ export function StockCard({
   name: string;
   /** The one big number: the day's move, the gap. Nothing when there is none. */
   figure?: string | null;
+  /** A small figure under the big one, for a comparison the list says once above its cards ("1.6×"), on the note's line. */
+  subFigure?: string | null;
   tone?: "up" | "down" | "flat";
   sentence?: React.ReactNode;
   /** A second, smaller line under the sentence: the stock's next update, shown rather than folded. */
@@ -118,6 +122,11 @@ export function StockCard({
   fill?: string;
   /** A short line under the ticker, e.g. "You watch AMD." on a stock the person watches rather than holds. */
   tag?: string | null;
+  /**
+   * The card's one highlighted fact as a short line under the header rather than a chip ("Up 14.1% in a month"), beside
+   * `subFigure`: small cards with and without one stay the same height.
+   */
+  note?: string | null;
   /** Load the logo with the page (owner rule 5: logos load at once), for cards in the first screens. */
   eagerLogo?: boolean;
   className?: string;
@@ -150,6 +159,14 @@ export function StockCard({
         </div>
         {figure ? <p className={`oa-mono shrink-0 text-[20px] font-semibold leading-7 tracking-[-0.01em] tabular-nums ${figureTone}`}>{figure}</p> : null}
       </div>
+      {/* The note on the left and the small figure under the big one, on one line, so every card has it and cards with
+          and without a note are the same height (owner rule 4). */}
+      {note || subFigure ? (
+        <p className="mt-1.5 flex min-w-0 items-baseline justify-between gap-3 text-[12.5px] leading-[18px]">
+          <span className="min-w-0 text-pretty font-medium text-oa-primary">{note}</span>
+          {subFigure ? <span className="oa-mono shrink-0 tabular-nums text-oa-muted-fg">{subFigure}</span> : null}
+        </p>
+      ) : null}
       {sentence ? <p className="mt-2 text-pretty text-[14px] leading-5 text-oa-fg">{sentence}</p> : null}
       {extra ? <p className="mt-1.5 text-pretty text-[13px] leading-[18px] text-oa-muted-fg">{extra}</p> : null}
       {fact || foot ? (

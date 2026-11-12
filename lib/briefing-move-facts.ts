@@ -267,3 +267,87 @@ export function reportSoonWords(report: { date: string; time?: string | null } |
   if (gap === 0 && report.time !== "amc") return null;
   return `Reports ${whenWords(report.date, today).replace(/^on /, "")}${session}`;
 }
+
+/* ── one comparison said once ──────────────────────────────────────────── */
+
+/** "Compared with each stock's normal day": said once above a grid whose cards each carry their own ratio. */
+export const NORMAL_DAY_LINE = "Compared with each stock's normal day:";
+
+/** The normal day a stock's facts carry ("About twice a normal 1.1% day", "A normal day moves it about 1.3%"), or null. */
+export function normalDayOf(facts: readonly string[] | null | undefined): number | null {
+  for (const fact of facts ?? []) {
+    const match = /normal ([\d.]+)% day$/.exec(fact) ?? /^A normal day moves it about ([\d.]+)%$/.exec(fact);
+    const value = match ? Number(match[1]) : NaN;
+    if (Number.isFinite(value) && value > 0) return value;
+  }
+  return null;
+}
+
+/** "1.6×", "0.3×", "12×": a move as a multiple of the stock's normal day, read under the line above the grid. */
+export function timesWords(ratio: number): string {
+  return ratio >= 9.95 ? `${Math.round(ratio)}×` : `${ratio.toFixed(1)}×`;
+}
+
+/** Under this multiple the move rounds to "0.0×", which says nothing: no figure. */
+const MIN_TIMES = 0.05;
+
+/** A month at least this big, and well past what the stock's normal day adds up to, is worth its own chip. */
+const OUTLIER_MONTH_PCT = 10;
+
+/** A month is an outlier when it is past OUTLIER_MONTH_PCT and one and a half times a normal day's month (√21 days). */
+function outlierMonth(month: number, normal: number | null): boolean {
+  const size = Math.abs(month);
+  return size >= OUTLIER_MONTH_PCT && (normal === null || size >= 1.5 * normal * Math.sqrt(MONTH_SESSIONS));
+}
+
+export type QuietCardsWords = {
+  /** The comparison most cards share, said once above them; null when the cards say their own facts as before. */
+  shared: string | null;
+  /** Each card's own figure for the shared comparison ("1.6×"), by ticker. */
+  versus: Map<string, string>;
+  /** Each card's one fact of its own, by ticker: a report soon, its biggest move in a while, an outlier month. */
+  facts: Map<string, string | null>;
+};
+
+/**
+ * The words for a quiet list's cards (the briefing's other stocks), with one comparison said once (owner rule 1,
+ * judges ship 50: nearly every chip was "N times its normal x% day" or "Up x% in a month"). When most cards know their
+ * stock's normal day, the list says "Compared with each stock's normal day:" once, each card shows only its own
+ * multiple ("1.6×"), and a card keeps a chip only for what is different about it: a report soon, its biggest move in a
+ * while, or a month far outside its usual range. Otherwise each card picks one fact as quietFacts does. Pure.
+ */
+export function quietCardsWords(stocks: readonly QuietStock[], reasons: ReadonlySet<string> = new Set()): QuietCardsWords {
+  const normals = new Map<string, number>();
+  for (const stock of stocks) {
+    const normal = normalDayOf(stock.facts);
+    if (normal !== null && stock.pct !== null && Number.isFinite(stock.pct)) normals.set(stock.ticker, normal);
+  }
+  // "Most": more than half the cards, and at least three, so a pair of cards never gets a line of its own above them.
+  if (normals.size < 3 || normals.size * 2 <= stocks.length) return { shared: null, versus: new Map(), facts: quietFacts(stocks, reasons) };
+  const versus = new Map<string, string>();
+  const facts = new Map<string, string | null>();
+  const used = new Set<string>();
+  for (const stock of stocks) {
+    const normal = normals.get(stock.ticker) ?? null;
+    const ratio = normal !== null ? Math.abs(stock.pct!) / normal : null;
+    if (ratio !== null && ratio >= MIN_TIMES) versus.set(stock.ticker, timesWords(ratio));
+    if (reasons.has(stock.ticker)) {
+      facts.set(stock.ticker, null);
+      continue;
+    }
+    const own: string[] = [];
+    if (stock.report) own.push(stock.report);
+    for (const fact of stock.facts ?? []) {
+      const since = /^Its biggest (gain|drop) (.+)$/.exec(fact);
+      if (since) own.push(`Biggest ${since[1]} ${since[2]}`);
+    }
+    for (const fact of stock.facts ?? []) {
+      const month = /^(?:Still )?(up|down) ([\d.]+)% over the past month$/i.exec(fact);
+      if (month && outlierMonth(Number(month[2]), normal)) own.push(`${month[1]!.charAt(0).toUpperCase()}${month[1]!.slice(1).toLowerCase()} ${month[2]}% in a month`);
+    }
+    const pick = own.find((text) => !used.has(text)) ?? null;
+    if (pick) used.add(pick);
+    facts.set(stock.ticker, pick);
+  }
+  return { shared: NORMAL_DAY_LINE, versus, facts };
+}

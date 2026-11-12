@@ -282,3 +282,25 @@ describe("a bare next-report date", () => {
     expect(cards.find((card) => card.ticker === "MSFT")!.fact?.text).toBe("Next report Dec 10; up 2.1% over the past month, 3.4 points ahead of the S&P 500.");
   });
 });
+
+describe("the month said once", () => {
+  it("says the S&P 500's month once when most cards lead with their month, and keeps each card's own figures", async () => {
+    const { sayMonthOnce } = await import("@/lib/portfolio-home/stocks");
+    const month = { NVDA: { pct: 5.2, marketPct: -2.3 }, AAPL: { pct: -7.2, marketPct: -2.3 }, MSFT: { pct: -2.4, marketPct: -2.3 } };
+    const cards = stockCards(source({ month }), NONE);
+    expect(cards.every((card) => card.fact?.kind === "month")).toBe(true);
+    const out = sayMonthOnce(cards, month);
+    expect(out.line).toBe("Over the past month the S&P 500 fell 2.3%.");
+    const text = Object.fromEntries(out.cards.map((card) => [card.ticker, card.fact?.text]));
+    expect(text.AAPL).toMatch(/of your money, down 7\.2% this month, 4\.9 points behind\.$/);
+    expect(text.MSFT).toMatch(/of your money, down 2\.4% this month, in line\.$/);
+    expect(Object.values(text).some((words) => /S&P 500/.test(words ?? ""))).toBe(false);
+  });
+
+  it("leaves the cards alone when few of them lead with their month", async () => {
+    const { sayMonthOnce } = await import("@/lib/portfolio-home/stocks");
+    const month = { MSFT: { pct: -4.1, marketPct: -2.3 } };
+    const cards = stockCards(source({ month }), NONE);
+    expect(sayMonthOnce(cards, month)).toEqual({ line: null, cards });
+  });
+});

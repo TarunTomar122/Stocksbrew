@@ -185,6 +185,20 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-12 ~07:25 UTC, ship 52 live (ccd2c88): plain words for market jargon, figures that say when (lead, overnight loop)
+
+- **Ship 52 (round 22B).**
+  - **Market today:** "chance the Fed raises rates by 0.25 percentage points"; "Later gold contracts cost more…" with no "contango"; CSCO −8.4% labelled "after its last report".
+  - **Backtest:** "Return per unit of swing", "Typical swing in a year", "Mix traded a year"; cost in % a trade; no bars in the year table.
+  - **Compare:** "NVDA keeps 65¢ of each sales dollar as operating profit." with AMD underneath; "Where they differ" is a big figure, logo and a few words per row.
+  - **News:** lede "191 stories on NVDA today."; the feed drops stories already in Most talked about.
+  - **Calendar:** phones show ~12 a day with an inner scroll that hands off; report cards carry the analyst estimate.
+  - **Insiders:** long buyer names cut.
+  - **Stock page:** no extra Follow on phones when signed out.
+  - **Checks:** 2935 tests in both modes. VPS pulled. 8 pages return 200.
+- **Open.** lib/backtest/caveats.json is shared with the Python engine, so strategy caveats still say "basis points" and "Sharpe".
+- **Running.** Round 22A (briefing log back in the rail, shared chips said once, inbox distinct, My stocks memo cards, findings end with the price).
+
 ### 2026-11-12 ~07:15 UTC, ship 51 (f3d1a43, backend only): every email rebuilt and switched on (owner: "fix all emails"; postal address later) (lead)
 
 - **Owner's go.** "fix all emails no????" and "u dont need [the postal address] rn just make it work for now". backend/mail is committed after being held since Nov 11.

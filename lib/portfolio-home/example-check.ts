@@ -19,7 +19,7 @@ export type StoredCheck = {
   ran_at: string;
   decision: AgentDecision;
   summary: string;
-  findings: Array<Pick<AgentFinding, "ticker" | "headline" | "detail" | "source" | "url" | "at"> & Partial<Pick<AgentFinding, "kind" | "change_pct">>>;
+  findings: Array<Pick<AgentFinding, "ticker" | "headline" | "detail" | "source" | "url" | "at"> & Partial<Pick<AgentFinding, "kind" | "change_pct" | "close">>>;
   /** Every finding the run stored, when more were kept than `findings` holds. */
   findingCount?: number;
   checked: string[];
@@ -379,7 +379,16 @@ export function exampleAgentsSource(agents: Array<{ id: string; draft: Pick<Agen
 /* ── one flagged move, tied to what comes next ─────────────────────────── */
 
 /** A move an agent flagged on one stock: its size and the day it closed there. */
-export type FlaggedMove = { ticker: string; pct: number; day: string };
+/** `close`: the price the flagged move ended at, from the run's own evidence, or null when it did not say. */
+export type FlaggedMove = { ticker: string; pct: number; day: string; close: number | null };
+
+/** The close a price finding ended at: its own field, else its evidence line ("Closed at $168.89 on Nov 10, ..."). */
+export function findingClose(finding: { close?: number | null; detail?: string | null }): number | null {
+  if (typeof finding.close === "number" && Number.isFinite(finding.close) && finding.close > 0) return finding.close;
+  const match = /^Closed at \$([\d,]+(?:\.\d+)?)\b/.exec((finding.detail ?? "").trim());
+  const value = match ? Number(match[1]!.replace(/,/g, "")) : NaN;
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
 
 /** A flag older than this many days is not "lately": nothing is tied to it. */
 const FLAG_MAX_DAYS = 5;
@@ -398,18 +407,46 @@ export function flaggedMove(checks: Pick<ExampleChecksView, "featured" | "others
     const finding = moves[0]!;
     const day = DAY.test(finding.at ?? "") ? finding.at! : view.day;
     if (today && DAY.test(today) && DAY.test(day) && (Date.parse(`${today}T12:00:00Z`) - Date.parse(`${day}T12:00:00Z`)) / 86_400_000 > FLAG_MAX_DAYS) return null;
-    return { ticker: finding.ticker!.toUpperCase(), pct: finding.change_pct!, day };
+    return { ticker: finding.ticker!.toUpperCase(), pct: finding.change_pct!, day, close: findingClose(finding) };
   }
   return null;
 }
 
+/** "$168.89", "$1,234.50". */
+function priceWords(price: number): string {
+  return `$${price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/** Within this many percent of a call level, the close is "near" it. */
+const NEAR_LEVEL_PCT = 3;
+
 /**
- * "Your agent flagged NVDA's 5.5% drop on Nov 10.": the flag as the briefing's card and the inbox's read both say it,
- * word for word, with the close's own date (never "yesterday", which a page cached past midnight would get wrong).
+ * Where the close sits against the call's own level: ", below the buy-more level", ", near the sell-some level", or
+ * nothing when it is far from it. Only a level the reader may see is passed in (lib/entitlements: signed out, none).
  */
-export function flagWords(flag: Pick<FlaggedMove, "ticker" | "pct" | "day">): string {
+function levelWords(close: number, level: { call: "Buy more" | "Sell some"; price: number }): string {
+  if (!Number.isFinite(level.price) || level.price <= 0) return "";
+  const away = ((close - level.price) / level.price) * 100;
+  if (level.call === "Buy more") return away <= 0 ? ", below the buy-more level" : away <= NEAR_LEVEL_PCT ? ", near the buy-more level" : "";
+  return away >= 0 ? ", above the sell-some level" : away >= -NEAR_LEVEL_PCT ? ", near the sell-some level" : "";
+}
+
+/**
+ * "Your agent flagged NVDA's 5.5% drop to $168.89 on Nov 10.": the flag as the briefing's card and the inbox's read
+ * both say it, word for word, ending on the price the move took it to (judges, ship 50), with the close's own date
+ * (never "yesterday", which a page cached past midnight would get wrong). With a call level the reader may see, where
+ * the close sits against it: "...to $168.89 on Nov 10, below the buy-more level." Never a level a signed-out reader
+ * could not see: the caller passes none.
+ */
+export function flagWords(
+  flag: Pick<FlaggedMove, "ticker" | "pct" | "day"> & { close?: number | null },
+  level: { call: "Buy more" | "Sell some"; price: number } | null = null,
+): string {
   const when = DAY.test(flag.day) ? ` on ${shortDate(flag.day)}` : "";
-  return `Your agent flagged ${flag.ticker}'s ${Math.abs(flag.pct).toFixed(1)}% ${flag.pct < 0 ? "drop" : "jump"}${when}.`;
+  const close = typeof flag.close === "number" && Number.isFinite(flag.close) && flag.close > 0 ? flag.close : null;
+  const to = close !== null ? ` to ${priceWords(close)}` : "";
+  const near = close !== null && level ? levelWords(close, level) : "";
+  return `Your agent flagged ${flag.ticker}'s ${Math.abs(flag.pct).toFixed(1)}% ${flag.pct < 0 ? "drop" : "jump"}${to}${when}${near}.`;
 }
 
 /** The one step after a flag with a report ahead, said the same on the briefing and in the inbox. */

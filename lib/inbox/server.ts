@@ -192,7 +192,7 @@ async function buildExampleInbox(today: string): Promise<InboxResult> {
   return result;
 }
 
-const cachedExampleInbox = unstable_cache(buildExampleInbox, ["inbox-example-v2"], { revalidate: 600 });
+const cachedExampleInbox = unstable_cache(buildExampleInbox, ["inbox-example-v3"], { revalidate: 600 });
 
 /** The example portfolio's inbox, the same for every visitor: shared and cached for ten minutes. */
 export async function loadExampleInbox(now: Date = new Date()): Promise<InboxResult> {

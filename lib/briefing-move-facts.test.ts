@@ -158,3 +158,32 @@ describe("quietFacts", () => {
     expect(reportSoonWords({ date: "2026-11-12", time: "amc" }, "2026-11-12")).toBe("Reports today after the close");
   });
 });
+
+describe("quietCardsWords", () => {
+  it("says the normal-day comparison once and keeps a chip only for what differs (judges, ship 50)", async () => {
+    const { quietCardsWords, NORMAL_DAY_LINE } = await import("./briefing-move-facts");
+    const words = quietCardsWords([
+      { ticker: "MSFT", pct: -2.24, facts: ["A normal day moves it about 1.7%", "Down 4.1% over the past month"] },
+      { ticker: "AAPL", pct: 2.09, facts: ["A normal day moves it about 1.3%", "Up 4.3% over the past month"] },
+      { ticker: "COST", pct: 2.01, facts: ["About twice a normal 1.0% day", "Up 14.1% over the past month"] },
+      { ticker: "LLY", pct: 0.38, facts: ["A normal day moves it about 1.5%", "Up 23.3% over the past month"] },
+      { ticker: "NVDA", pct: 2.9, facts: ["Its biggest gain since Sep 2", "A normal day moves it about 2.0%"], report: "Reports Nov 17 after the close" },
+    ]);
+    expect(words.shared).toBe(NORMAL_DAY_LINE);
+    expect(Object.fromEntries(words.versus)).toEqual({ MSFT: "1.3×", AAPL: "1.6×", COST: "2.0×", LLY: "0.3×", NVDA: "1.4×" });
+    // An ordinary month is no chip; an outlier one is, and a report soon comes first.
+    expect(Object.fromEntries(words.facts)).toEqual({ MSFT: null, AAPL: null, COST: "Up 14.1% in a month", LLY: "Up 23.3% in a month", NVDA: "Reports Nov 17 after the close" });
+  });
+
+  it("falls back to one fact per card when most cards have no normal day", async () => {
+    const { quietCardsWords } = await import("./briefing-move-facts");
+    const words = quietCardsWords([
+      { ticker: "A", pct: 1, facts: ["A normal day moves it about 1.0%"] },
+      { ticker: "B", pct: 1, facts: ["Up 4.0% over the past month"] },
+      { ticker: "C", pct: 1, facts: ["Down 3.0% over the past month"] },
+    ]);
+    expect(words.shared).toBeNull();
+    expect(words.versus.size).toBe(0);
+    expect(words.facts.get("B")).toBe("Up 4.0% in a month");
+  });
+});

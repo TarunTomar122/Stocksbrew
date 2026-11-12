@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { AskPageHint } from "@/components/ask/ask-page-hint";
-import { BriefingAgentsGhost, BriefingAgentsStrip } from "@/components/briefing/agents-strip";
+import { BriefingAgentsGhost, BriefingAgentsStrip, BriefingExampleAgents } from "@/components/briefing/agents-strip";
 import { BriefingView } from "@/components/briefing/briefing-view";
 import { BriefingLockedMoves } from "@/components/briefing/locked-moves";
 import { withoutCircularReasons } from "@/components/briefing/real-reasons";
@@ -106,10 +106,18 @@ function askHint(data: BriefingPageData): React.ReactNode {
  * The side rail's agents card: signed in, the person's watches with their latest outcomes, streamed in its own
  * Suspense (one small read). Not the lead of the page (owner, Nov 11), so it sits beside the briefing, not under it.
  */
-function railSlot(data: BriefingPageData): React.ReactNode {
+function railSlot(data: BriefingPageData & { example?: ExampleBriefingExtras | null }): React.ReactNode {
   if (data.archived) return null;
   const viewer = data.viewer;
-  if (viewer.kind === "signed_out") return null;
+  if (viewer.kind === "signed_out") {
+    // The example's own agents, as a member's sit here; the cached signed-out page reads no one's data for them.
+    // A wide screen's only: a phone keeps the log's Agents row, as it was.
+    return "example" in data && data.example ? (
+      <Suspense fallback={<BriefingAgentsGhost className="hidden lg:block" />}>
+        <BriefingExampleAgents today={newYorkToday()} className="hidden lg:block" />
+      </Suspense>
+    ) : null;
+  }
   // Stocks with an open, visible card in a personal briefing, so a flagged stock can jump to it.
   const inBriefing = briefingAnchorTickers(data.briefing, data.state);
   return (
@@ -215,10 +223,6 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
   // All cached reads; they run side by side.
   const [locked, facts, prices, reports, checks] = await Promise.all([lockedSlot(data), resultFacts(data, day), priceFacts(data, day), reportHistory(data, day), exampleChecks(data, day)]);
   const flags = exampleFlags(data, checks);
-  // Signed in, the rail has the person's agents in it (and, on their own briefing, the market card) for the log to sit
-  // under. The example's rail has nothing else after the open, so its log goes across the page.
-  const logInRail = signedIn && !data.example;
-
   return (
     <AppPage>
       <MarketingSchema path="/briefing" name={TITLE} description={DESCRIPTION} breadcrumbLabel="Briefing" />
@@ -247,20 +251,14 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
           moveFacts={prices}
           reportHistory={reports}
           flags={flags}
-          // A member's rail has their agents in it, and the log fills what they leave. The example has nothing else in
-          // the rail after the open, so the log goes across the page under the stocks instead.
+          // The agent's day in the rail for everyone (owner rule 10: "Your agents on the briefing" is secondary), beside
+          // the whole briefing, the other stocks included, so the two columns end together (owner rule 4).
           agentLog={
-            day || data.archived || !logInRail ? null : (
+            day || data.archived ? null : (
               <Suspense fallback={<AgentLogGhost narrow className="lg:max-h-full" />}>
-                <AgentLog narrow fit />
-              </Suspense>
-            )
-          }
-          agentStrip={
-            day || data.archived || logInRail ? null : (
-              <Suspense fallback={<AgentLogGhost strip />}>
-                {/* The example's Agents row is its own agents, with the holdings they flagged as chips. */}
-                <AgentLog strip own={exampleAgentRuns(checks)} />
+                {/* The example's Agents row is its own agents, with the holdings they flagged as chips; on a wide screen
+                    they have their own card just above (railSlot), so the row is a phone's only. */}
+                <AgentLog narrow fit own={data.example ? exampleAgentRuns(checks) : null} agentsOnPhone={Boolean(data.example)} />
               </Suspense>
             )
           }

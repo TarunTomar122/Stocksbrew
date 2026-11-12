@@ -9,9 +9,9 @@ import { fmtPlanDay } from "@/lib/dividend-plan";
 import { memoFacts, toolHref, type MemoFact } from "@/lib/portfolio-home/focus";
 import { TOOL_GROUPS, toolCard, type ToolId } from "@/lib/portfolio-home/pick";
 import { feedSources, type HomeLoad } from "@/lib/portfolio-home/server";
-import { callHref } from "@/lib/portfolio-home/example-check";
-import { loadExampleFlagStep } from "@/lib/portfolio-home/example-check-server";
-import { ATTENTION, bookLead, extraFacts, leadParts, nextReportStep, signedDollars, signedPct, stockCards, type BookSource, type StockCard } from "@/lib/portfolio-home/stocks";
+import { callHref, flaggedMove, flagWords } from "@/lib/portfolio-home/example-check";
+import { loadExampleChecks } from "@/lib/portfolio-home/example-check-server";
+import { ATTENTION, bookLead, extraFacts, leadParts, nextReportStep, sayMonthOnce, signedDollars, signedPct, stockCards, type BookSource, type StockCard } from "@/lib/portfolio-home/stocks";
 
 /**
  * My stocks, about the person's stocks (owner, Nov 11): one read on how they did today and over the past week against
@@ -36,15 +36,23 @@ const TONE_TEXT = { up: "text-signal-bullish", down: "text-signal-bearish" } as 
 /** How long the lead waits for the example agents' flag before its step falls back to the next report. */
 const STEP_MS = 1200;
 
-/** The step after the lead: the example agents' flag and what to do about it, else the soonest report on a holding. */
+/**
+ * The step after the lead: the example agents' flag ending on its price, then our call ("Your agent flagged NVDA's
+ * 5.5% drop to $168.89 on Nov 10. Check our call on it."), else, for your own stocks, the soonest report on a holding.
+ * The example's report day is its NVDA card's ("Reports Nov 17, after the close."), so the lead does not say it again
+ * (owner rule 1, judges ship 50), and with no flag there is no step.
+ */
 async function leadStep(source: BookSource): Promise<{ ticker: string; step: string } | null> {
   if (source.mode === "example") {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const late = new Promise<null>((resolve) => {
       timer = setTimeout(() => resolve(null), STEP_MS);
     });
-    const flag = await Promise.race([loadExampleFlagStep().catch(() => null), late]).finally(() => clearTimeout(timer));
-    if (flag) return { ticker: flag.ticker, step: flag.step };
+    const flag = await Promise.race([loadExampleChecks().catch(() => null), late]).finally(() => clearTimeout(timer));
+    const move = flaggedMove(flag, source.today);
+    // Only a holding of the example's: a flag on a stock it does not hold is not this list's step.
+    if (!move || !source.portfolio.positions.some((position) => position.ticker === move.ticker && position.kind === "holding")) return null;
+    return { ticker: move.ticker, step: `${flagWords(move)} Check our call on it.` };
   }
   return nextReportStep(source);
 }
@@ -253,7 +261,8 @@ export async function StockList({ load }: { load: HomeLoad }) {
     ideas: ideas.state === "ready" ? ideas.value : null,
     reasons: reasons?.state === "ready" ? reasons.value.checks : null,
   });
-  const cards = stockCards(book.value, extra);
+  // The S&P 500's month said once above the cards when most of them lead with their month (owner rule 1).
+  const { line: monthLine, cards } = sayMonthOnce(stockCards(book.value, extra), book.value.month);
   if (cards.length === 0) return null;
   const example = book.value.mode === "example";
   const need = needWords(cards);
@@ -277,6 +286,7 @@ export async function StockList({ load }: { load: HomeLoad }) {
         {/* Said once for the list, not on each fund's card (owner rule 1). */}
         {funds ? <span className="font-normal text-oa-muted-fg"> · no calls on funds</span> : null}
       </h2>
+      {monthLine ? <p className="-mt-1 px-1 pb-2.5 text-pretty text-[13.5px] leading-5 text-oa-muted-fg">{monthLine}</p> : null}
       {/* Every holding the header counts is in view: about eight cards on a phone and five rows side by side, the rest
           scrolling inside a box that ends on a whole row, with no visible bar (owner rule 5). The cap before the page
           measures it is close to the measured one (firstCap). */}
@@ -359,11 +369,11 @@ function moverPoints(points: number): string {
 }
 
 /**
- * The memo in the rail: the main risk as a figure, then the holdings that moved the week most, as rows (logo, ticker,
- * its own move, its points of the portfolio's), the biggest share of the week's move first, up or down.
- * On a wide screen the card sits in a box that ends with the holdings beside it (my-stocks.tsx `[data-memo-box]`):
- * the rows fill what the box leaves and the rest scroll inside on whole rows, so the rail and the holdings end
- * together (owner rule 4). The week itself is the lead's, so it is not repeated. Nothing when the memo has neither.
+ * The memo in the rail: the main risk as a figure, then the holdings that moved the week most, as small cards two
+ * across (logo, ticker, its points of the portfolio's week, and a bar of that share beside its own move), the
+ * biggest share first, up or down. On a wide screen the card sits in a box that ends with the holdings beside it
+ * (my-stocks.tsx `[data-memo-box]`): the cards fill what the box leaves and the rest scroll inside, so the rail and the
+ * holdings end together (owner rule 4). The week itself is the lead's, so it is not repeated. Nothing when the memo has neither.
  */
 export async function MemoFigures({ load }: { load: HomeLoad }) {
   const memo = await load.sources.memo;
@@ -377,6 +387,8 @@ export async function MemoFigures({ load }: { load: HomeLoad }) {
           .sort((a, b) => Math.abs(b.move.points) - Math.abs(a.move.points) || a.index - b.index)
           .map(({ move }) => move)
       : [];
+  // The biggest share of the week's move, which each mover's bar is drawn against.
+  const biggest = Math.max(...movers.map((move) => Math.abs(move.points)), 0.05);
   // With the movers listed, the biggest of them is their first row rather than a figure of its own.
   const facts = railMemoFacts(memo).filter((fact) => !(movers.length > 0 && fact.id === "driver"));
   if (memo.state !== "ready" || (facts.length === 0 && movers.length === 0)) return null;
@@ -410,19 +422,35 @@ export async function MemoFigures({ load }: { load: HomeLoad }) {
       {movers.length > 0 ? (
         <>
           <span className="mt-3 block shrink-0 text-[12.5px] leading-[17px] text-oa-muted-fg">{complete ? "What moved the week" : "What moved the week so far"}</span>
-          <FitRows box="[data-memo-box]" className="mt-1 scrollbar-hide lg:min-h-0 lg:overflow-y-auto">
-            {movers.map((move) => (
-              <li key={move.ticker} className="grid min-h-8 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 border-t border-oa-border first:border-t-0">
-                <span className="flex min-w-0 items-center gap-2 text-[13px] leading-5">
-                  <StockLogo ticker={move.ticker} size={16} />
-                  <span className="oa-mono font-semibold text-oa-fg">{move.ticker}</span>
-                  <span className="min-w-0 truncate text-oa-muted-fg">
-                    {Math.abs(move.pct) < 0.05 ? "barely moved" : `${move.pct > 0 ? "rose" : "fell"} ${Math.abs(move.pct).toFixed(1)}%`}
+          {/* Each mover a small card side by side (owner rule 3: the memo is cards and charts): the stock, its points of
+              the portfolio's week as the figure, and a bar of that share against the biggest mover's. An odd last card
+              takes the row (owner rule 4). On a wide screen the rows that fit show whole and the rest scroll inside, with
+              no visible bar (../agent-log/fit-rows.tsx). */}
+          <FitRows box="[data-memo-box]" className="mt-1.5 grid grid-cols-2 gap-1.5 scrollbar-hide lg:min-h-0 lg:overflow-y-auto">
+            {movers.map((move, index) => {
+              const up = move.points >= 0;
+              const share = Math.max(4, Math.round((Math.abs(move.points) / biggest) * 100));
+              const own = Math.abs(move.pct) < 0.05 ? "barely moved" : `${move.pct > 0 ? "rose" : "fell"} ${Math.abs(move.pct).toFixed(1)}%`;
+              return (
+                <li
+                  key={move.ticker}
+                  className={`rounded-lg border border-oa-border bg-oa-bg px-2.5 py-2 ${index === movers.length - 1 && movers.length % 2 === 1 ? "col-span-2" : ""}`}
+                >
+                  <span className="flex min-w-0 items-center gap-1.5 text-[13px] leading-5">
+                    <StockLogo ticker={move.ticker} size={16} />
+                    <span className="oa-mono min-w-0 truncate font-semibold text-oa-fg">{move.ticker}</span>
+                    <span className={`oa-mono ml-auto shrink-0 font-semibold tabular-nums ${up ? "text-signal-bullish" : "text-signal-bearish"}`}>{moverPoints(move.points)}</span>
                   </span>
-                </span>
-                <span className={`oa-mono text-[13px] font-semibold tabular-nums ${move.points >= 0 ? "text-signal-bullish" : "text-signal-bearish"}`}>{moverPoints(move.points)}</span>
-              </li>
-            ))}
+                  {/* Its own move beside the bar of its share, so nothing is left to a hover (owner rule 2). */}
+                  <span className="mt-1 flex items-center gap-2">
+                    <span aria-hidden="true" className="block h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--oa-border)_70%,transparent)]">
+                      <span className={`block h-full rounded-full ${up ? "bg-signal-bullish" : "bg-signal-bearish"}`} style={{ width: `${share}%` }} />
+                    </span>
+                    <span className="oa-mono shrink-0 text-[11.5px] leading-4 tabular-nums text-oa-muted-fg">{own}</span>
+                  </span>
+                </li>
+              );
+            })}
           </FitRows>
         </>
       ) : null}

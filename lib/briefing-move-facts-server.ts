@@ -70,7 +70,7 @@ export async function briefingMoveFacts(briefing: Briefing): Promise<Record<stri
  * One stock's move to measure: its percent, the day it closed there, whether that day is known (a quote time), and
  * its price on that day, which ends its month (lib/briefing-move-facts.ts monthChange) as on My stocks.
  */
-export type MoveToMeasure = { pct: number; day: string; exactDay: boolean; price?: number | null };
+type MoveToMeasure = { pct: number; day: string; exactDay: boolean; price?: number | null };
 
 /** The S&P 500 fund whose sessions count every stock's month, as on My stocks (lib/portfolio-data.ts BENCHMARK_SYMBOL). */
 const BENCHMARK = "SPY";
@@ -84,10 +84,10 @@ function closeBefore(series: CloseSeries, day: string): number | null {
 }
 
 /**
- * Price facts for each stock's move, most telling first (lib/briefing-move-facts.ts), from its cached closes: the
- * briefing's cards and the inbox's other stocks read the same facts. Within BUDGET_MS, else nothing for the late ones.
+ * Price facts for each stock's move, most telling first (lib/briefing-move-facts.ts), from its cached closes, for the
+ * briefing's cards. Within BUDGET_MS, else nothing for the late ones.
  */
-export async function stockMoveFacts(moves: ReadonlyMap<string, MoveToMeasure>): Promise<Record<string, string[]> | undefined> {
+async function stockMoveFacts(moves: ReadonlyMap<string, MoveToMeasure>): Promise<Record<string, string[]> | undefined> {
   const tickers = [...moves.keys()].slice(0, MAX_STOCKS);
   if (tickers.length === 0) return undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;

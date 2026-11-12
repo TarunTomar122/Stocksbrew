@@ -3,6 +3,7 @@ import { sessionWords, vsDayWords, whenWords as reportWhen } from "@/lib/earning
 import { isNyseHoliday } from "@/lib/market-session";
 import type { ResultRead } from "@/lib/results/types";
 import { callLine, resultSentence, resultTone } from "@/lib/results/words";
+import { findingClose } from "@/lib/portfolio-home/example-check";
 
 import type { InboxItem, InboxMove, UpcomingReport } from "./types";
 
@@ -264,7 +265,9 @@ export function findingItems(run: AgentRunRecord, mode: Mode, context: ReadonlyM
     const href = `/stock/${encodeURIComponent(ticker)}`;
     const pct = findingPct(finding);
     const normalPct = context.get(ticker)?.normalPct ?? null;
-    const move: InboxMove | null = pct !== null && DAY_RE.test(day) ? { pct, day, normalPct } : null;
+    // The close the move ended at, so the read can end on it: the finding's own field, else its evidence line.
+    const close = findingClose(finding);
+    const move: InboxMove | null = pct !== null && DAY_RE.test(day) ? { pct, day, normalPct, close } : null;
     let item: InboxItem | null = null;
     // A price older than the session before the run is a stale quote (a stock whose price stopped updating), not
     // this run's news: filed under the run's day it would read as today's move.

@@ -4,7 +4,7 @@ import * as React from "react";
 
 /**
  * The log's rows inside a rail box of fixed height (`fit`; `box` names it, the briefing's `[data-rail-log]` by default,
- * My stocks' memo box too): the list is cut to the whole rows that fit, so the box
+ * My stocks' memo box too, whose cards sit two across): the list is cut to the whole rows that fit, so the box
  * never ends halfway through a row (owner rule 5). The rest scroll inside. Only on a wide screen, where the rail has
  * that fixed height (the `[data-rail-log]` box); elsewhere the list is its natural height.
  */
@@ -30,17 +30,22 @@ export function FitRows({ className, box: boxSelector = "[data-rail-log]", child
         const style = getComputedStyle(el);
         below += (parseFloat(style.paddingBottom) || 0) + (parseFloat(style.borderBottomWidth) || 0);
       }
-      const room = box.clientHeight - top - node.clientTop - below;
-      let used = 0;
-      for (const row of Array.from(node.children) as HTMLElement[]) {
-        if (used + row.offsetHeight > room + 0.5) break;
-        used += row.offsetHeight;
+      const room = box.clientHeight - top - below;
+      // Each row's bottom edge inside the list (its top border included), so a grid of cards side by side is cut on
+      // whole rows too, with the gaps between them counted. A row hidden at this width (display: none, e.g. the
+      // example's Agents row, a phone's only) has no box and is left out, or its zero rect would count as a bottom.
+      const listTop = node.getBoundingClientRect().top - node.scrollTop;
+      const bottoms = (Array.from(node.children) as HTMLElement[])
+        .filter((row) => row.getClientRects().length > 0)
+        .map((row) => row.getBoundingClientRect().bottom - listTop);
+      if (bottoms.length === 0) {
+        setMax(null);
+        return;
       }
+      const all = Math.max(...bottoms);
+      const used = Math.max(0, ...bottoms.filter((bottom) => bottom <= room + 0.5));
       // At least one whole row, and no limit when every row fits.
-      const all = Array.from(node.children).reduce((sum, row) => sum + (row as HTMLElement).offsetHeight, 0);
-      const first = (node.children[0] as HTMLElement | undefined)?.offsetHeight ?? 0;
-      // Border-box sizing: the list's own top border counts toward its height.
-      setMax(used >= all ? null : Math.max(used, first) + node.clientTop);
+      setMax(all <= room + 0.5 ? null : Math.max(used, bottoms[0]!));
     };
     measure();
     // The box, and each row: a late web font can change a row's height without the box changing.

@@ -257,7 +257,7 @@ describe("price facts for a move with no confirmed reason (round 13)", () => {
     const groups = groupBriefingItems([discussion("QQQ")]);
     const words = sectionWords(groups, { personal: true, moveFacts: { QQQ: ["About twice a normal 1.1% day", "Still down 7.2% over the past month"] } });
     const card = words.cards.get(groups[0]!.key)!;
-    expect(card).toMatchObject({ sentence: "That is about twice a normal 1.1% day for it.", fact: "Still down 7.2% over the past month", bare: false });
+    expect(card).toMatchObject({ sentence: "That is about twice its normal 1.1% day.", fact: "Still down 7.2% over the past month", bare: false });
     // Without the facts it stays a chip.
     expect(sectionWords(groups, { personal: true }).cards.get(groups[0]!.key)!.bare).toBe(true);
   });

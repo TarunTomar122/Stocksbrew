@@ -28,7 +28,7 @@ import { readAskContext } from "./ask";
 import { BriefingGroupCard, type GroupActions } from "./briefing-group";
 import { sectionWords } from "./card-words";
 import { StockCard, StockCardGrid, StockChip, StockChipRow, stockGridFill } from "./stock-card";
-import { quietFacts, reportSoonWords } from "@/lib/briefing-move-facts";
+import { quietCardsWords, reportSoonWords } from "@/lib/briefing-move-facts";
 import { longDay, pricesLine, shortDay, signedPct, sourceTime } from "./format";
 import Link from "next/link";
 
@@ -57,12 +57,6 @@ export type BriefingViewProps = {
   locked?: React.ReactNode;
   /** What the agent did today across the market (components/agent-log), streamed into the side rail: secondary (owner rule 10). */
   agentLog?: React.ReactNode;
-  /**
-   * The same log across the page under the stocks, as one tile per run, when the rail would hold nothing else (the
-   * example and the market view): a rail with only the log in it ended beside Worth knowing and left the stock grid
-   * under it without a right column (owner rule 4, judges ship 47). The page passes one or the other.
-   */
-  agentStrip?: React.ReactNode;
   /** Signed out: the briefing is the example portfolio's (lib/briefing-example.ts), with its market line and clock. */
   example?: ExampleBriefingExtras | null;
   /** Held stocks that reported overnight, by ticker: the card's fact becomes the result (lib/results). */
@@ -164,9 +158,11 @@ function quietHead(asOf: string | null | undefined, date: string, archived: bool
 
 /**
  * "Your other stocks today": the stocks with no card above, as small cards like Worth knowing's (owner rule 3): the
- * logo, the move as the big figure and one short fact of its own (judges, ship 44). What you hold first, then what
- * you watch, said once above the cards when there are several, so no tag repeats on each (owner rule 1). An odd last
- * card spans what its row has left (owner rule 4). Each card opens its stock.
+ * logo, the move as the big figure and what is its own (judges, ship 44). What you hold first, then what you watch,
+ * said once above the cards when there are several, so no tag repeats on each (owner rule 1). When most cards know
+ * their stock's normal day, that comparison is said once above them and each card shows only its own multiple
+ * ("1.6×"), with a chip only for what is different about it: a report soon, its biggest move in a while, an outlier
+ * month (judges, ship 50). An odd last card spans what its row has left (owner rule 4). Each card opens its stock.
  */
 function QuietCards({
   head,
@@ -183,9 +179,8 @@ function QuietCards({
   const held = names.filter((name) => name.relation !== "watching");
   const watched = names.filter((name) => name.relation === "watching");
   const ordered = [...held, ...watched];
-  // Worked out in the order shown, so no two cards say the same words and neighbours say different kinds of thing
-  // (owner rule 1, judges ship 46): a report soon, its biggest move in a while, against a normal day, or its month.
-  const factBy = quietFacts(
+  // Worked out in the order shown, so no two cards say the same words (lib/briefing-move-facts.ts quietCardsWords).
+  const words = quietCardsWords(
     ordered.map((name) => ({
       ticker: name.ticker,
       pct: name.day_change_pct,
@@ -198,13 +193,15 @@ function QuietCards({
     held.length > 0 && watchTickers.length > 1
       ? `${watchTickers.slice(0, -1).join(", ")} and ${watchTickers[watchTickers.length - 1]} are stocks you watch rather than hold.`
       : null;
+  const intro = [watchLine, words.shared].filter(Boolean).join(" ");
   return (
     <Section id="quiet" label={head}>
-      {watchLine ? <p className="mb-2.5 text-pretty px-2 text-[13.5px] leading-5 text-oa-muted-fg sm:px-0">{watchLine}</p> : null}
+      {intro ? <p className="mb-2.5 text-pretty px-2 text-[13.5px] leading-5 text-oa-muted-fg sm:px-0">{intro}</p> : null}
       <StockCardGrid dense>
         {ordered.map((name, index) => {
           const move = name.day_change_pct;
-          const fact = factBy.get(name.ticker) ?? null;
+          const fact = words.facts.get(name.ticker) ?? null;
+          const versus = words.versus.get(name.ticker) ?? null;
           const figure = move != null ? signedPct(move, 1) : null;
           return (
             <StockCard
@@ -214,14 +211,18 @@ function QuietCards({
               eagerLogo
               figure={figure}
               tone={move == null ? "flat" : move >= 0 ? "up" : "down"}
-              fact={fact}
+              // With the comparison said once above, the card's own fact is a line under its ticker, so every card in
+              // the grid is the same short height (owner rule 4); otherwise it is the usual chip.
+              note={words.shared ? fact : null}
+              fact={words.shared ? null : fact}
+              subFigure={versus}
               tag={held.length > 0 && watchTickers.length === 1 && name.relation === "watching" ? `You watch ${name.ticker}.` : null}
               fill={stockGridFill(index, ordered.length, false, true)}
               cover={
                 <Link
                   prefetch={false}
                   href={`/stock/${encodeURIComponent(name.ticker)}`}
-                  aria-label={[name.ticker, figure, fact].filter(Boolean).join(", ")}
+                  aria-label={[name.ticker, figure, versus ? `${versus} its normal day` : null, fact].filter(Boolean).join(", ")}
                   className="absolute inset-0 rounded-[inherit] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
                 />
               }
@@ -454,7 +455,6 @@ export function BriefingView({
   beforeOpen = null,
   locked = null,
   agentLog = null,
-  agentStrip = null,
   example = null,
   resultFacts,
   moveFacts,
@@ -667,7 +667,9 @@ export function BriefingView({
       </header>
       )}
 
-      <div className="flex min-w-0 flex-col gap-4">
+      {/* The read across the page, then the stocks beside the rail: the rail starts level with Worth knowing, so its
+          agents and their day sit beside the stock cards and the two columns end together (owner rules 4 and 10). */}
+      <div className="col-span-full flex min-w-0 flex-col gap-4">
         <TheRead
           read={read}
           label={personal ? "Today for you" : "Today in the market"}
@@ -675,7 +677,9 @@ export function BriefingView({
           visual={showSession && session ? <SessionStrip sectors={session.sectors} /> : null}
         />
         {earnings}
+      </div>
 
+      <div className="flex min-w-0 flex-col gap-4">
         {error ? (
           <p role="alert" className="rounded-lg border border-[color:color-mix(in_srgb,var(--signal-bearish)_40%,transparent)] bg-oa-card px-3.5 py-2 text-[13px] text-signal-bearish">
             {error}
@@ -780,26 +784,21 @@ export function BriefingView({
           </section>
         ) : null}
 
-      </div>
-
-      {/* The stocks with nothing new today, each a small card with its move and one short fact of its own (judges,
-          ship 44: cards like Worth knowing's, not rows). Under both columns, the whole width, so the rail and the main
-          column end together above it (owner rule 4). Before the rail in the page, so a phone (and the keyboard)
-          reaches it first; on a wide screen the rail is pinned beside the main column. Nothing when every stock has a
-          card above. */}
-      {personal && briefing.quiet.names.length > 0 ? (
-        <div className="col-span-full min-w-0">
+        {/* The stocks with nothing new today, each a small card with its move and what is its own. In the main column
+            beside the rail, so the rail's agent log sits next to the whole briefing and neither column ends far above
+            the other (owner rules 4 and 10, judges ship 50). Before the rail in the page, so a phone reaches it first.
+            Nothing when every stock has a card above. */}
+        {personal && briefing.quiet.names.length > 0 ? (
           <QuietCards head={quietHead(briefing.portfolio?.as_of, briefing.date, archived)} names={briefing.quiet.names} facts={archived ? undefined : moveFacts} today={archived ? null : briefing.date} />
-        </div>
-      ) : null}
-
+        ) : null}
+      </div>
 
       {/* Side rail: the market as context, not the lead. Only what earns it (before the open, the market, your
           agents, the agent's day). On a wide screen it stretches to the main column's height, and
           the agent's day, last, fills what is left: it is never taller than that space (its rows scroll inside), and
           it keeps at least a header and a few rows, so neither column ends far above the other (owner rule 4). The
           other cards keep their height ([&>*]:shrink-0). Hidden when nothing in it has content. */}
-      <aside className="flex min-w-0 flex-col gap-4 lg:col-start-2 lg:row-start-2 [&>*]:shrink-0 [&:not(:has(>:not(template):not([data-rail-log]),>[data-rail-log]_section,>[data-rail-log]_[aria-hidden=true]))]:hidden lg:self-stretch">
+      <aside className="flex min-w-0 flex-col gap-4 lg:col-start-2 lg:row-start-3 [&>*]:shrink-0 [&:not(:has(>:not(template):not([data-rail-log]),>[data-rail-log]_section,>[data-rail-log]_[aria-hidden=true]))]:hidden lg:self-stretch">
         {/* Before the bell, how the open is set up leads the rail; after 9:30 ET it renders nothing. */}
         {beforeOpen}
         {/* The market view's read already says how the index did and leads with the same moves, so this card is for
@@ -849,9 +848,6 @@ export function BriefingView({
           </div>
         ) : null}
       </aside>
-
-      {/* The agent's day across the page, last: secondary (owner rule 10), and a row of tiles that ends with the grid. */}
-      {agentStrip ? <div className="col-span-full min-w-0 [&:not(:has(section,[aria-hidden=true]))]:hidden">{agentStrip}</div> : null}
 
       <p className="col-span-full px-2 text-[12px] leading-5 text-oa-muted-fg sm:px-1">Prices are delayed. Nothing here is advice to trade.</p>
 
