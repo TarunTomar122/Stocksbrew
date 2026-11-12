@@ -98,7 +98,7 @@ function SectionBlock({ section, sources }: { section: Section; sources: Map<str
   );
 }
 
-export function ResearchReportView({ report, actions }: { report: PublicReport; actions?: React.ReactNode }) {
+export function ResearchReportView({ report, actions, afterReport }: { report: PublicReport; actions?: React.ReactNode; /** Shown right under the full report, after "What to watch next". */ afterReport?: React.ReactNode }) {
   const body = report.body;
   if (!body) return null;
   const sources = new Map(report.sources.map((source) => [source.id, source]));
@@ -213,6 +213,8 @@ export function ResearchReportView({ report, actions }: { report: PublicReport; 
           </ul>
         </details>
       </section>
+
+      {afterReport}
 
       {report.missing.length > 0 ? (
         <section className="oa-surface border border-oa-border bg-oa-card px-4 py-3.5 sm:px-5">

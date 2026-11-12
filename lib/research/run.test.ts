@@ -95,7 +95,7 @@ describe("a research run", () => {
     expect(report.usage).toMatchObject({ input_tokens: 20000, output_tokens: 5000, cost_usd: 0.0045 });
     expect(h.saved[0]!.status).toBe("running");
     expect(h.saved[h.saved.length - 1]!.status).toBe("ready");
-    expect(h.consume).toHaveBeenCalledWith("20261110T153012Z");
+    expect(h.consume).toHaveBeenCalledWith("NVDA:20261110T153012Z");
 
     expect(h.events[0]).toMatchObject({ type: "start", key: "20261110T153012Z" });
     expect(h.events[h.events.length - 1]).toEqual({ type: "done", key: "20261110T153012Z", href: "/stock/NVDA/research/20261110T153012Z", removed: 1 });

@@ -10,6 +10,12 @@
 
 export const RESEARCH_COLLECTION = "tm_research_reports";
 export const RESEARCH_SHARES_COLLECTION = "tm_research_shares";
+/**
+ * The newest finished report on each stock, with nothing about the person who ran it, so the next person who asks
+ * gets it at once while it is fresh (lib/research/freshness.ts). `{TICKER}` holds the report; `{TICKER}__running`
+ * says a run on that stock is under way, so two people asking at once start one run.
+ */
+export const RESEARCH_SHARED_COLLECTION = "tm_research_shared";
 
 /** A run that has said nothing for this long is treated as stopped. */
 export const RESEARCH_STALE_MS = 6 * 60 * 1000;
@@ -173,6 +179,11 @@ export type ResearchReport = {
   error: string | null;
   /** Set while the report has a public link. */
   share_id: string | null;
+  /**
+   * Set when this is the stored report on the stock handed to this person instead of a new run: the key of the
+   * run that wrote it. Its created_at and finished_at are that run's, so "Written …" says when it was written.
+   */
+  shared_from?: string | null;
 };
 
 export type ResearchIndexItem = {
@@ -188,7 +199,7 @@ export type ResearchIndexItem = {
 export type ResearchEvent =
   | { type: "start"; key: string; ticker: string; steps: ResearchStep[] }
   | { type: "step"; step: ResearchStep }
-  | { type: "done"; key: string; href: string; removed: number }
+  | { type: "done"; key: string; href: string; removed: number; /** The stored report was handed over; nothing new was written. */ cached?: boolean }
   | { type: "error"; code: string; message: string };
 
 const KEY_RE = /^\d{8}T\d{6}Z$/;

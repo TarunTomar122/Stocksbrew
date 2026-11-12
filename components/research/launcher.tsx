@@ -79,7 +79,8 @@ export function ResearchLauncher({
       const response = await fetch("/api/research", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ ticker }),
+        // "Run it again" asks for a new run; the first report on a stock may be the fresh one someone already ran.
+        body: JSON.stringify({ ticker, fresh: again }),
       });
       if (!response.ok || !response.body) {
         const data = (await response.json().catch(() => ({}))) as { code?: string; message?: string; key?: string; ticker?: string; limit?: number };

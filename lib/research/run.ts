@@ -315,7 +315,9 @@ export async function runResearch(input: RunInput, deps: RunDeps, emit: (event: 
       throw new ResearchError("save_failed", "The report was written but could not be saved. Nothing was counted. Try again in a minute.");
     }
     // Counted only once the report is saved, so a failure never costs a person a report.
-    await deps.consume(key).catch((error) => log("research_meter_failed", { error: String(error) }));
+    // Charged under "TICKER:key", the same key a hand-over of this report uses (lib/research/handover.ts), so nobody
+    // pays twice for one report, and two stocks' reports started in the same second never share a charge.
+    await deps.consume(`${input.ticker}:${key}`).catch((error) => log("research_meter_failed", { error: String(error) }));
     log("research_usage", {
       ticker: input.ticker,
       via: written.via,

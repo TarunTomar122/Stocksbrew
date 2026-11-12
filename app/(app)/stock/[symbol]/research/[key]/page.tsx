@@ -6,9 +6,13 @@ import { AppPage, PageHead, SourceLine } from "@/components/oa/kit";
 import { ResearchPoller } from "@/components/research/poller";
 import { ResearchReportView, publicReport } from "@/components/research/report-view";
 import { ShareControl } from "@/components/research/share-control";
+import { WatchAgents } from "@/components/research/watch-agents";
 import { getSessionUser } from "@/lib/auth-server";
+import { dayWords } from "@/lib/day-words";
+import { getViewer } from "@/lib/entitlements-server";
 import { day } from "@/lib/research/format";
 import { researchStore } from "@/lib/research/store";
+import { watchAgentChips } from "@/lib/research/watch-agents-server";
 import { cleanTicker, isReportKey, isStale } from "@/lib/research/types";
 
 /** One saved research report, for the person who ran it. A public copy lives at /stock/T/research/s/{share_id}. */
@@ -66,17 +70,27 @@ export default async function ResearchReportPage({ params }: Props) {
   }
 
   const checked = report.audit ? `${report.audit.checked} figures checked against their sources` : null;
+  const viewer = await getViewer();
+  const chips = await watchAgentChips(report, { uid: session.uid, plan: viewer.plan }).catch(() => []);
+  // "Written yesterday", "Written Monday", else the date: worked out per request (the page is dynamic).
+  const written = dayWords(report.finished_at ?? report.created_at);
   return (
     <AppPage width="read">
       <PageHead
         crumb={crumb}
         title={`${report.name}: the long research report`}
-        meta={<SourceLine source={`${report.sources.length} sources`} asOf={day(report.finished_at ?? report.created_at)} note={checked} />}
+        meta={<SourceLine source={`${report.sources.length} sources`} asOf={written} note={checked} />}
         note={false}
       />
-      <ResearchReportView report={publicReport(report)} actions={<ShareControl ticker={ticker} reportKey={report.key} shareId={report.share_id} />} />
+      <ResearchReportView
+        report={publicReport(report)}
+        actions={<ShareControl ticker={ticker} reportKey={report.key} shareId={report.share_id} />}
+        afterReport={chips.length > 0 ? <WatchAgents chips={chips} plan={viewer.plan} /> : null}
+      />
       <p className="mt-4 px-2 text-[13px] leading-5 text-oa-muted-fg sm:px-0">
-        Written {day(report.finished_at ?? report.created_at)} from what was on file that day. <Link href={hub} className="font-medium text-oa-primary hover:underline">Run a fresh one</Link> when things change.
+        {/* A report handed over from someone else's run says so: it was not written for this person's click. */}
+        Written {written}
+        {report.shared_from ? " by a fresh run" : null} from what was on file then. <Link href={hub} className="font-medium text-oa-primary hover:underline">Run a fresh one</Link> when things change.
       </p>
     </AppPage>
   );

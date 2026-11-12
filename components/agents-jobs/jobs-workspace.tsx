@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import * as React from "react";
 
 import { PlainAgentReadContext } from "@/components/agents-plain/plain-agent-box";
-import { KindIcon, type KindIconName } from "@/components/oa/nav-icon";
+import { TEMPLATE_ICON } from "@/components/agents-jobs/template-icons";
+import { KindIcon } from "@/components/oa/nav-icon";
 import { PageIcon } from "@/components/oa/place-nav";
 import { OaButton } from "@/components/oa/button";
 import { LockCard, ProMark } from "@/components/oa/gate";
@@ -306,24 +307,6 @@ const GROUP_LABEL: Record<AgentTemplate["group"], string> = {
   Price: "When a price moves",
 };
 const GROUPS: AgentTemplate["group"][] = ["Schedule", "Event", "Price"];
-/** Each kind of agent has its own icon, on its card and its saved row (owner VISUALS CHECK). Keyed by template id. */
-const TEMPLATE_ICON: Record<string, KindIconName> = {
-  "morning-check": "today",
-  "weekly-review": "briefing",
-  "fund-filing": "briefcase",
-  "congress-trade": "capitol",
-  "insider-trade": "person",
-  "earnings-ahead": "calendar",
-  "earnings-out": "alerts",
-  mover: "movers",
-  "sec-filing": "filings",
-  news: "news",
-  "price-level": "tag",
-  "big-move": "pulse",
-  "buy-zone": "target",
-  "sell-zone": "coins",
-  "call-change": "research",
-};
 // A phone shows the first few agents; the rest wait behind one button.
 const PHONE_TEMPLATES = 4;
 
