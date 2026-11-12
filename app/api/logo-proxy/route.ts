@@ -1,4 +1,8 @@
+import { createElement } from "react";
+import { ImageResponse } from "next/dist/server/web/spec-extension/image-response";
 import { NextRequest, NextResponse } from "next/server";
+
+export const runtime = "nodejs";
 
 /**
  * Server-side logo proxy for emails and OG images.
@@ -69,6 +73,45 @@ function fallbackColor(ticker: string): string {
   }
   const hue = hash % 360;
   return `hsl(${hue} 62% 28%)`;
+}
+
+/**
+ * The fallback as a PNG: Gmail and Outlook do not show SVG images, so an email logo for a ticker with no
+ * logo would otherwise be blank. Same look as monogramSvg (initials on a colour from the ticker).
+ */
+function monogramPng(ticker: string, size = 64): Response {
+  const symbol = ticker.toUpperCase();
+  const initials = symbol.replace(/[^A-Z0-9]/g, "").slice(0, 2) || "?";
+  return new ImageResponse(
+    createElement(
+      "div",
+      {
+        style: {
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: fallbackColor(symbol),
+          borderRadius: 8,
+          color: "#ffffff",
+          fontSize: initials.length > 1 ? Math.round(size * 0.34) : Math.round(size * 0.45),
+          fontWeight: 700,
+        },
+      },
+      initials,
+    ),
+    {
+      width: size,
+      height: size,
+      headers: {
+        // lowercase so it replaces ImageResponse's own year-long immutable default (a ticker that gets a real logo
+        // later must not keep its monogram)
+        "cache-control": "public, max-age=86400, stale-while-revalidate=604800",
+        "Access-Control-Allow-Origin": "*",
+      },
+    },
+  );
 }
 
 function monogramSvg(ticker: string, size = 64): string {
@@ -156,6 +199,8 @@ export async function GET(req: NextRequest) {
       }
     }
     if (useFallback) {
+      // emails ask for the PNG; a page can still ask for the lighter SVG with format=svg
+      if (req.nextUrl.searchParams.get("format") !== "svg") return monogramPng(ticker);
       const svg = monogramSvg(ticker);
       return new NextResponse(svg, {
         headers: {

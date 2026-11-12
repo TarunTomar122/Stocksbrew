@@ -6,9 +6,9 @@ changed, it moved a lot (in the last session or before today's open), or it
 reports earnings today or tomorrow. Headlines ride along as the "why" but
 never trigger a send on their own.
 
-The email leads with one line about what matters most to this person today,
-then up to three insight cards (each a figure against a baseline), then a card
-per stock: what happened, why it matters to them, our call, one number.
+The email opens on its headline and goes straight to the stocks (no summary
+block): a card per stock with its logo, company, price and labelled move, our
+call and one line, then the most meaningful of the rest and the reports coming up.
 """
 from __future__ import annotations
 
@@ -17,13 +17,15 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 
 from backend.mail import kit
-from backend.mail.data import ET, FREE_COVERED_STOCKS, Headline, Person, Stock, _mentions, direction, is_reason_headline
+from backend.mail.headline_case import headline_case
+from backend.mail.data import ET, Headline, Person, Stock, _mentions, direction, is_reason_headline
 
 BIG_MOVE_PCT = 4.0  # floor for any stock
 BIG_MOVE_HOLDING_PCT = 3.0  # floor for holdings
 BIG_MOVE_TYPICAL_MULT = 2.5  # and at least this many times the stock's normal day
 PREMARKET_MOVE_PCT = 4.0  # a pre-market move this big is news on its own (and 2.5x the normal day)
 MAX_CARDS = 8
+ALSO_CARDS = 4  # "also moved" cards after the main sections
 
 @dataclass
 class Item:
@@ -111,7 +113,8 @@ def reason_text(h: Headline, stock: Stock, move: float | None = None) -> str:
                 and not first.endswith("…") and is_reason_headline(first)):
             text = first
     if not text:
-        text = own_clause(kit.sentence_case(title, h.summary), stock)
+        # sentence case, then the stray capitals a half-fixed headline still has (the web's headlineCase)
+        text = own_clause(headline_case(title, stock.name, h.summary), stock)
     text = fix_numbers(text, stock, move)
     if not _CAUSE.search(text) or not agrees(text, stock, move):
         return ""
@@ -169,7 +172,7 @@ def first_reason(stock: Stock, start: datetime, end: datetime, move: float | Non
     """The newest headline published between start and end that explains `move`, with its source."""
     for h in sorted((h for h in stock.news if start <= h.published_at <= end), key=lambda h: h.published_at, reverse=True):
         text = reason_text(h, stock, move)
-        if text:
+        if text and kit.fits(text):  # a card line is 15 words or fewer; a longer reason is skipped, never cut
             return text, source_line(h)
     return "", ""
 
@@ -368,89 +371,44 @@ def headline_for(items: list[Item], today: date) -> str:
     return f"{st.ticker} reports {earnings_when(st.earnings_date, st.earnings_time, today)}." if st.earnings_date else f"{st.ticker} reports soon."
 
 
-def _avg(values: list[float]) -> float | None:
-    vals = [v for v in values if v is not None]
-    return sum(vals) / len(vals) if vals else None
-
-
-def insights_for(person: Person, items: list[Item], spy: Stock | None, today: date) -> list[kit.Insight]:
-    stocks = [s for s in person.emailed_stocks() if s.change_pct is not None]
-    out: list[kit.Insight] = []
-    if len(stocks) >= 2:
-        avg = _avg([s.change_pct for s in stocks])
-        rose = sum(1 for s in stocks if round(s.change_pct or 0, 1) > 0)
-        top = max(stocks, key=lambda s: abs(s.change_pct or 0))
-        when = session_word(max((s.price_at for s in stocks if s.price_at), default=None), today)
-        vs = f", against {kit.pct(spy.change_pct)} for the S&P 500" if spy and spy.change_pct is not None else ""
-        out.append(kit.Insight(kit.pct(avg), f"Your {len(stocks)} stocks {when}{vs}. {rose} rose; {top.ticker} moved most, "
-                               f"{kit.pct(top.change_pct)}.", avg))
-    holdings = [s for s in stocks if s.position == "holding"]
-    if len(holdings) >= 2 and len(holdings) < len(stocks):
-        h_avg = _avg([s.change_pct for s in holdings])
-        lead = max(holdings, key=lambda s: abs(s.change_pct or 0))
-        out.append(kit.Insight(kit.pct(h_avg), f"The {len(holdings)} you hold. {lead.ticker} moved most, {kit.pct(lead.change_pct)}.", h_avg))
-    pre = [s for s in person.emailed_stocks() if s.premarket_pct is not None and abs(s.premarket_pct) >= 1]
-    if pre:
-        top = max(pre, key=lambda s: abs(s.premarket_pct or 0))
-        others = len(pre) - 1
-        tail = f" {kit.plural(others, 'other')} of yours {'is' if others == 1 else 'are'} moving 1% or more." if others else ""
-        out.append(kit.Insight(kit.pct(top.premarket_pct), f"{top.ticker} before the open, your biggest pre-market move.{tail}",
-                               top.premarket_pct))
-    week_end = today + timedelta(days=(4 - today.weekday()) if today.weekday() < 5 else 6)
-    reporting = sorted([s for s in person.emailed_stocks() if s.earnings_date and today <= s.earnings_date <= week_end],
-                       key=lambda s: (s.earnings_date, s.ticker))
-    earnings_cards = {i.stock.id for i in items[:MAX_CARDS] if i.kind == "earnings"}
-    if reporting and len(out) < 3 and reporting[0].id not in earnings_cards:
-        first = reporting[0]
-        label = _call(first)
-        call = kit.call_pill_text(label, kit.call_level(label, first.add_below, first.trim_above))
-        more = f" {kit.plural(len(reporting) - 1, 'more')} of yours report by Friday." if len(reporting) > 1 else ""
-        out.append(kit.Insight(kit.cap(earnings_day(first.earnings_date, today)),
-                               f"{first.ticker} reports{' ' + {'bmo': 'before the open', 'amc': 'after the close'}.get(first.earnings_time, '') if first.earnings_time in ('bmo', 'amc') else ''}."
-                               f"{' Our call going in: ' + call + '.' if call else ''}{more}"))
-    if len(out) < 3:
-        near = []
-        for s in person.emailed_stocks():
-            if not s.price or _call(s) != kit.BUY:
-                continue
-            lvl = kit.call_level(kit.BUY, s.add_below, s.trim_above)
-            if lvl and s.price <= lvl * 1.02:
-                near.append((s.price / lvl - 1, s))
-        near.sort(key=lambda x: x[0])
-        if near:
-            tickers = [s.ticker for _, s in near]
-            names = kit.join_words(tickers) if len(tickers) <= 3 else f"{', '.join(tickers[:3])} and {len(tickers) - 3} more"
-            out.append(kit.Insight(str(len(near)), f"of your stocks {'is' if len(near) == 1 else 'are'} at, under or within 2% of "
-                                   f"our buy-more price: {names}."))
-    return out[:3]
-
-
 def card_for(i: Item, today: date) -> kit.Card:
     s = i.stock
     label = _call(s)
     add, trim = s.add_below, s.trim_above
     level = i.level if i.kind in ("level_add", "level_trim") else kit.call_level(label, add, trim)
-    if i.kind == "premarket":
-        figure, value = kit.pct(s.premarket_pct), s.premarket_pct
-    else:
-        figure, value = (kit.pct(s.change_pct), s.change_pct) if s.change_pct is not None else ("", None)
+    value, period = ((s.premarket_pct, "before the open") if i.kind == "premarket"
+                     else (s.change_pct, session_word(s.price_at, today).removeprefix("on ")))
     line, why = i.headline, i.detail
-    if i.kind in ("level_add", "level_trim"):
-        when = session_word(s.price_at, today)
-        line = f"Closed at {kit.money_pair(s.price, i.level)[0]} {when}." if s.price and i.level else i.headline
+    if i.kind in ("level_add", "level_trim") and s.price and i.level:
+        # the whole fact in one line, as the alert email says it: the move, the close and the level it reached
+        word = "buy-more" if i.kind == "level_add" else "sell-some"
+        close, lvl = kit.money_pair(s.price, i.level)
+        where = "at" if close == lvl else "below" if s.price < i.level else "above"
+        move = (f"{kit.cap(kit.verb(s.change_pct))} {kit.pct(s.change_pct, signed=False)} to {close}"
+                if s.change_pct is not None and round(s.change_pct, 1) != 0 else f"Closed at {close}")
+        # the same words as the alert email (owner rule 5b)
+        line, why = f"{move}, {where} its {lvl} {word} level.", i.detail
     if i.kind == "big_move":
         # the figure already says how much; the card leads with why, when we know it
         line, why = (i.detail, "") if i.detail else (i.headline, "")
     if i.kind in ("level_add", "level_trim", "earnings") and s.premarket_pct is not None and abs(s.premarket_pct) >= 1:
-        why = f"{why} {kit.pct(s.premarket_pct)} before the open this morning.".strip()
+        # this morning's move is the freshest fact: it takes the card's one line, and the rest waits behind it
+        move = f"{'Up' if s.premarket_pct > 0 else 'Down'} {kit.pct(s.premarket_pct, signed=False)}"
+        line, why = ((f"{move} before the open this morning.", line) if i.kind != "earnings"
+                     else (f"{line} {move} so far this morning.", why))
     return kit.Card(
         ticker=s.ticker,
-        figure=figure,
-        figure_value=value,
+        name=s.name,
+        move=value,
+        period=period,
+        # a pre-market move sits under no price: the last close is yesterday's, and the two would read as one quote
+        price=None if i.kind == "premarket" else s.price,
         call=kit.call_pill_text(label, level),
         line=line,
         why=why,
-        meta=i.meta if i.kind == "earnings" else "",  # the section header carries the move's baseline
+        meta=i.meta if i.kind == "earnings" else "",
+        # how unusual the move was, as a verdict beside the call
+        tag=i.meta.split(" for ")[0] if i.kind in ("big_move", "premarket") and i.meta else "",
         fallback=i.fallback or kit.recent_move(s.closes),
     )
 
@@ -478,48 +436,28 @@ def build_daily(person: Person, *, now: datetime | None = None, market: dict[str
     shown = items[:MAX_CARDS]
     rest = items[MAX_CARDS:]
     doc = kit.Doc()
-    hello = f"Morning {person.first_name}. " if person.first_name else ""
+    # straight from the headline to the stocks: no summary paragraph or insight cards (owner, Nov 12)
     doc.h1(headline_for(items, today))
-    covered = len(person.emailed_ids)
-    closed = max((s.price_at for s in person.emailed_stocks() if s.price_at), default=None)
-    close_word = f"the {closed.astimezone(ET).strftime('%b %-d')} close" if closed else "the last close"
-    moved = [s for s in person.emailed_stocks() if s.change_pct is not None]
-    if len(moved) >= 2:
-        avg = _avg([s.change_pct for s in moved])
-        rose = sum(1 for s in moved if round(s.change_pct or 0, 1) > 0)
-        vs = f", against {kit.pct(spy.change_pct)} for the S&P 500" if spy and spy.change_pct is not None else ""
-        whose = f"the {kit.plural(covered, 'stock')} you track" if person.is_pro else f"your {kit.plural(covered, 'covered stock')}"
-        read = (f"{hello}Across {whose} the average move was {kit.pct(avg)}{vs}, and {rose} of {len(moved)} rose. "
-                f"Prices are to {close_word}.")
-    else:
-        scope = f"the {kit.plural(covered, 'stock')} you track" if person.is_pro else f"your {kit.plural(covered, 'covered stock')}"
-        read = f"{hello}Here's what changed in {scope} since {close_word}."
-    doc.p(read, muted=True, size=kit.t.TEXT_SM)
-    doc.insights(insights_for(person, items, spy, today)[1:] if len(moved) >= 2 else insights_for(person, items, spy, today))
-
     # a big move we can't explain is just a number: it goes in the tiles, not a card of its own
     unexplained = [i for i in shown if i.kind in ("big_move", "premarket") and not i.detail]
     for kind, title in SECTIONS:
         group = [i for i in shown if i.kind == kind and i not in unexplained]
         if not group:
             continue
-        aside = None
-        if kind in ("big_move", "premarket"):
-            mults = sorted(float(i.meta.split("x ")[0]) for i in group if i.meta and i.meta.split("x ")[0].replace(".", "").isdigit())
-            sources = sorted({i.source.split(" · ")[0] for i in group if i.source})
-            span = (f"{times(mults[0])} to {times(mults[-1])} a normal day" if len(mults) > 1 and mults[0] != mults[-1]
-                    else f"{times(mults[0])} a normal day" if mults else "")
-            aside = " · ".join(x for x in (span, f"via {kit.join_words(sources)}" if sources else "") if x) or None
-        doc.h2(title, aside=aside)
+        # no source line: each card says how unusual its own move was
+        doc.h2(title)
         doc.cards([card_for(i, today) for i in group])
-    rest = unexplained + rest
-    if rest:
-        doc.h2("Also moved more than usual" if all(i.kind in ("big_move", "premarket") for i in rest) else "Also moved or changed",
-               aside=kit.plural(len(rest), "stock"))
-        doc.tiles([(i.stock.ticker, i.stock.premarket_pct if i.kind == "premarket" else i.stock.change_pct, _call(i.stock))
-                   for i in rest[:8]])
-        if len(rest) > 8:
-            doc.p(f"And {len(rest) - 8} more in the app.", muted=True, size=kit.t.TEXT_SM)
+    # the most meaningful of the rest as cards (an even number, so every row is full); the app has the others
+    rest = sorted(unexplained + rest, key=lambda i: (-i.score, i.stock.ticker))
+    keep = rest[:ALSO_CARDS]  # an odd count goes one per row, so no row is left half empty
+    if keep:
+        doc.h2("Also moved more than usual" if all(i.kind in ("big_move", "premarket") for i in keep) else "Also moved or changed")
+        also = []
+        for i in keep:
+            c = card_for(i, today)
+            # an unexplained move has nothing to say beyond its number and how unusual it was
+            also.append(kit.Card(**{**c.__dict__, "line": "" if i in unexplained else c.line, "why": ""}))
+        doc.cards(also)
 
     # No "rest of your stocks" list: a wall of quiet tickers crowds the email and says nothing (owner, Nov 11).
 
@@ -532,26 +470,19 @@ def build_daily(person: Person, *, now: datetime | None = None, market: dict[str
     )[:4]
     if coming:
         doc.h2("Earnings coming up")
-        slots = {"bmo": "before the open", "amc": "after the close", "during": "during market hours"}
-        doc.calendar([(s.earnings_date.strftime("%a %b %-d"), s.ticker,
-                       kit.cap(f"{slots.get(s.earnings_time, 'time not confirmed')} · {_call(s)}" if _call(s)
-                               else slots.get(s.earnings_time, "time not confirmed")))
-                      for s in coming])
+        doc.cards([kit.Card(ticker=s.ticker, name=s.name, price=s.price, move=s.change_pct,
+                            period=session_word(s.price_at, today).removeprefix("on "),
+                            call=kit.call_pill_text(_call(s), kit.call_level(_call(s), s.add_below, s.trim_above)),
+                            line=f"Reports {earnings_when(s.earnings_date, s.earnings_time, today)}.", own=True)
+                   for s in coming[:4]])
 
     doc.button("Open today's briefing", kit.app_url("/briefing"))
 
     if not person.is_pro:
         hidden = person.uncovered_stocks()
-        moved = [s for s in hidden if s.change_pct is not None and abs(s.change_pct) >= BIG_MOVE_PCT]
         if hidden:
-            moved.sort(key=lambda s: -abs(s.change_pct or 0))
-            extra = (f" {kit.join_words([f'{s.ticker} ({kit.pct(s.change_pct)})' for s in moved[:3]])} "
-                     f"moved {BIG_MOVE_PCT:.0f}% or more and {'isn’t' if len(moved[:3]) == 1 else 'aren’t'} in this email.") if moved else ""
-            doc.note(
-                f"You track {len(person.tracked_ids)} stocks and Free covers {FREE_COVERED_STOCKS} of them.{extra}",
-                tone="copper",
-                link=("Pro covers every stock you track", kit.app_url("/pricing")),
-            )
+            # one quiet line under the button; the briefing button stays the one action
+            doc.link("Cover all your stocks with Pro.", kit.app_url("/pricing"))
 
     pre_bits = []
     if spy and spy.change_pct is not None:
@@ -566,5 +497,5 @@ def build_daily(person: Person, *, now: datetime | None = None, market: dict[str
         preheader=preheader,
         unsubscribe_token=unsubscribe_token,
         meta={"date": today.isoformat(), "items": [(i.stock.ticker, i.kind) for i in items]},
-        dateline=f"{today.strftime('%a, %b %-d')} · before the open",
+        dateline=f"{today.strftime('%A')} · before the open",
     )

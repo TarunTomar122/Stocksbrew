@@ -1,14 +1,17 @@
 """Alert emails: what your agent jobs found, bundled.
 
-Price alerts you set by hand still go out one by one from backend/price_alerts.py
-and obey the same email_alerts_enabled switch.
-
 Runs that land within the bundling window go out as one email. Each
-agent gets a section headed by its name and the close it read ("Nov 11
-close"), and each stock one row: logo, ticker and name, its close and the
-move into it, and one short line (the level of our call it reached, or when
-it reports). No row carries a date of its own unless it is from an earlier
-session, and a stock whose price stopped updating is left out.
+agent gets a section headed by its name and the close it read ("Yesterday's
+close"), and each stock one card: logo, ticker and company, its price and the
+move into it labelled with its day, and one short line (the level of our call
+it reached, our call that changed, or when it reports). A stock whose price
+stopped updating is left out.
+
+Price alerts set by hand (tm_alerts) are here too, one email per alert that
+fires (`build_price_alert`), under the same email_alerts_enabled switch.
+
+The two agents that answer "tell me when to sell" read in plain words:
+"Oracle reached our sell-some price, $255.76" and "Our call on AMD changed to Sell some".
 """
 from __future__ import annotations
 
@@ -18,8 +21,8 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 
 from backend.mail import kit
-from backend.mail import theme as t_
-from backend.mail.data import ET, Person, parse_ts
+from backend.mail.data import ET, Person, last_day_move, parse_ts
+from backend.mail.nyse import last_closed_session, previous_session, session_close, trading_day
 from backend.mail.source import Source
 
 BUNDLE_WINDOW_MIN = 15
@@ -45,6 +48,8 @@ class Finding:
     time: str = ""  # earnings: "bmo" or "amc"
     run_day: str = ""  # the market day the run evaluated
     run_close: str = ""  # the newest close the run read
+    call_from: str = ""  # call changes: the call before, in reader words ("Keep"); "" when the plan hid it
+    call_to: str = ""  # call changes: the call now ("Sell some")
 
 
 # Job names the app gave by default before it used the call's own words. A name a person typed stays as typed.
@@ -81,6 +86,8 @@ def load_findings(src: Source, uid: str, *, since: datetime) -> list[Finding]:
                     time=str(f.get("time") or ""),
                     run_day=str(run.get("day") or "")[:10],
                     run_close=str(run.get("latest_close") or "")[:10],
+                    call_from=kit.call_label(text=str(f.get("call_from") or "")) if f.get("call_from") else "",
+                    call_to=kit.call_label(text=str(f.get("call_to") or "")) if f.get("call_to") else "",
                 )
             )
     return out
@@ -121,14 +128,11 @@ def _move_figure(text: str) -> tuple[float | None, str]:
 
 # ------------------------------------------------------------------ stock rows
 
-_WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-
-
 @dataclass
 class Row:
     """One stock in a section: what the email shows for it, and the sentence that says it."""
     ticker: str
-    kind: str  # "zone", "move", "report" or "other"
+    kind: str  # "zone", "call", "move", "report" or "other"
     at: str
     close: float | None = None
     change: float | None = None
@@ -140,27 +144,39 @@ class Row:
     span: bool = False  # a move over five sessions, not one
     quote_at: str = ""  # a report row's close, from the stored daily closes
     price: str = ""  # the close as written in the sentence, when it must differ from kit.money's rounding
+    call_to: str = ""  # call rows: our call now, shown as its pill
+    call_from: str = ""  # call rows: the call before, shown once as "Buy more → Keep"
+    base_line: str = ""  # the line before a report date was merged into it
 
 
 def _quote_reports(rows: list[Row], quotes: dict) -> None:
-    """A stock that reports soon gets its close and that day's move from the stored daily closes, on the same
-    session as the moves beside it (or its latest close in a section of reports only). Nothing when we have none."""
+    """A stock that reports soon, or whose call changed, gets its close and that day's move from the stored daily
+    closes, on the same session as the moves beside it (or its latest close in a section without moves). When the
+    stored closes stop short of that session, the latest quote counts if it is from the same session. Nothing
+    when we have neither."""
     prices = [r.at for r in rows if r.kind in ("zone", "move") and r.at]
     newest = max(prices) if prices else ""
     for r in rows:
         s = quotes.get(r.ticker)
-        if r.kind != "report" or s is None or len(s.closes) < 2:
+        if r.kind not in ("report", "call") or s is None:
             continue
         i = len(s.dates) - 1
         while i > 0 and newest and s.dates[i] > newest:
             i -= 1
-        if i < 1 or (newest and s.dates[i] != newest) or not s.closes[i - 1]:
+        if len(s.closes) >= 2 and i >= 1 and (not newest or s.dates[i] == newest) and s.closes[i - 1]:
+            r.close, r.change, r.quote_at = s.closes[i], (s.closes[i] / s.closes[i - 1] - 1) * 100, s.dates[i]
             continue
-        r.close, r.change, r.quote_at = s.closes[i], (s.closes[i] / s.closes[i - 1] - 1) * 100, s.dates[i]
+        quoted = s.price_at.astimezone(ET).date().isoformat() if s.price_at else ""
+        if newest and quoted == newest and s.price is not None:
+            r.close, r.change, r.quote_at = s.price, s.change_pct, quoted
 
 
 def _is_price(f: Finding) -> bool:
     return f.kind in ("move", "level") or (not f.kind and f.source == PRICE_SOURCE)
+
+
+def _is_call(f: Finding) -> bool:
+    return f.kind == "call" and bool(f.call_to)
 
 
 def _is_report(f: Finding) -> bool:
@@ -174,14 +190,6 @@ def _date(iso: str) -> date | None:
         return None
 
 
-# NYSE full-day closures, for when the stored closes do not reach a run's day (lib/market-session.ts has the rule)
-_NYSE_CLOSED = {
-    "2026-01-01", "2026-01-19", "2026-02-16", "2026-04-03", "2026-05-25", "2026-06-19", "2026-07-03", "2026-09-07",
-    "2026-11-26", "2026-12-25", "2027-01-01", "2027-01-18", "2027-02-15", "2027-03-26", "2027-05-31", "2027-06-18",
-    "2027-07-05", "2027-09-06", "2027-11-25", "2027-12-24", "2027-12-31",
-}
-
-
 def _session_before(day: str, sessions: list[str]) -> str:
     """The trading day before `day`: from the stored closes when they reach it, else the weekday before."""
     earlier = [d for d in sessions if d < day]
@@ -191,7 +199,7 @@ def _session_before(day: str, sessions: list[str]) -> str:
     if d is None:
         return ""
     d -= timedelta(days=1)
-    while d.weekday() >= 5 or d.isoformat() in _NYSE_CLOSED:
+    while not trading_day(d):
         d -= timedelta(days=1)
     return d.isoformat()
 
@@ -238,7 +246,8 @@ def _report_words(f: Finding, today: date) -> str:
     gap = (on - run).days
     if gap < 0:
         return ""  # already reported: no longer a heads-up
-    when = "today" if gap == 0 else "tomorrow" if gap == 1 else _WEEKDAYS[on.weekday()] if 1 < gap < 7 else f"on {_day(f.at)}"
+    when = kit.day_word(on, run)
+    when = when if gap < 7 else f"on {when}"
     return f"Reports {when}{tail}"
 
 
@@ -266,18 +275,32 @@ def _row(f: Finding, today: date) -> Row:
             shown, where = _level_where(close, level, zone)
             over = " over five sessions" if span else ""
             move = f"{kit.verb(change)} {kit.pct(change, signed=False)}{over} to {shown}" if change is not None else f"closed at {shown}"
+            # the card says the whole fact (owner rule 5b): "Fell 2.3% to $139.75, below its $142.07 buy-more level."
             return Row(ticker=t, kind="zone", at=f.at, close=close, change=change, zone=zone, level=level,
-                       line=kit.cap(where), sentence=f"{t} {move}, {where}", span=span, price=shown)
+                       line=f"{kit.cap(move)}, {where}.", sentence=f"{t} {move}, {where}", span=span, price=shown)
         # "…in a day, about four times a normal day": the measured scale is the row's line
         scale = re.match(r"in a day, (.+)$", rest.rstrip("."))
         move = f"{kit.verb(change)} {kit.pct(change, signed=False)}" if change is not None else ""
         sentence = f"{t} {move}{' to ' + kit.money(close) if close is not None and move else ''}{' over five sessions' if span else ''}" if move else _tidy(f.headline)
         return Row(ticker=t, kind="move", at=f.at, close=close, change=change,
                    line=kit.cap(scale.group(1)) if scale else "", sentence=sentence, span=span)
+    if _is_call(f):
+        # "Our call on AMD changed to Sell some": the row shows the new call as its pill, "was Keep" beside it,
+        # and the reason under it when it is short and in plain words
+        was = f" from {f.call_from}" if f.call_from and f.call_from != f.call_to else ""
+        reason = _tidy(f.detail) if kit.fits(f.detail) and not _DESK_WORDS.search(f.detail) else ""
+        return Row(ticker=t, kind="call", at=f.at, call_to=f.call_to, line=kit.cap(reason),
+                   call_from=f.call_from if was else "",
+                   sentence=f"Our call on {t} changed{was} to {f.call_to}" if t else f"Our call changed to {f.call_to}")
     return Row(ticker=t, kind="other", at=f.at, line=_tidy(_short(f)), sentence=_tidy(f.headline))
 
 
-_RANK = {"zone": 0, "move": 1, "report": 2, "other": 3}
+# A call's stored reason written in trading-desk words ("the setup", "reduce exposure", "avoid adding") is left
+# out of the email; the row still says what the call was and is.
+_DESK_WORDS = re.compile(r"\bset-?up\b|exposure|risk/reward|\bavoid\b|\btrim|accumulat|\bhold\b|\badd(ing)?\b|\bbounce\b", re.I)
+
+
+_RANK = {"zone": 0, "call": 1, "move": 2, "report": 3, "other": 4}
 
 
 def _section_rows(items: list[Finding], today: date) -> list[Row]:
@@ -293,16 +316,20 @@ def _section_rows(items: list[Finding], today: date) -> list[Row]:
         if r.kind == "report":
             reports.append(r)
             continue
-        if r.ticker and r.kind in ("zone", "move"):
+        if r.ticker and r.kind in ("zone", "move", "call"):
             if r.ticker in by_ticker:
                 continue
             by_ticker[r.ticker] = r
         rows.append(r)
     for r in sorted(reports, key=lambda x: (x.at, x.ticker)):
         price = by_ticker.get(r.ticker)
-        if price and not price.report:
+        if price and price.kind != "call" and not price.report:
             price.report = r.report
-            price.line = f"{price.line}, {r.report[:1].lower()}{r.report[1:]}" if price.line else r.report
+            # "…below its $142.07 buy-more level, reports tomorrow": one line; the level alone waits behind it
+            # in case the two together run past 15 words
+            price.base_line = price.line
+            merged = price.line.rstrip(".")
+            price.line = f"{merged}, {r.report[:1].lower()}{r.report[1:]}." if merged else r.report
             continue
         rows.append(r)
     order = {id(r): i for i, r in enumerate(rows)}
@@ -310,62 +337,21 @@ def _section_rows(items: list[Finding], today: date) -> list[Row]:
                                        r.at if r.kind == "report" else "", order[id(r)]))
 
 
-def _short_name(name: str, ticker: str) -> str:
-    n = kit._short_name(name)
-    if not n or n.upper() == ticker:
-        return ""
-    # a name that fits beside the ticker on a phone: whole words, no "…"
-    if len(n) > 26:
-        cut = n[:26].rsplit(" ", 1)[0].rstrip(",&-")
-        n = cut if len(cut) >= 4 else n[:26]
-    return n
-
-
-def _rows_html(rows: list[Row], names: dict[str, str], newest: str) -> tuple[str, list[str]]:
-    """Stock rows as one table: logo, ticker and name over the short line, and on the right the close over the move.
-    Each cell links to the stock, so the whole row is the link (an <a> cannot wrap a table row in email)."""
-    trs, text = [], []
-    for i, r in enumerate(rows):
-        border = f"border-top:1px solid {t_.DIVIDER};" if i else ""
-        url = kit.stock_url(r.ticker) if r.ticker else ""
-        line = r.line
-        # a close from an earlier session than the section's says its day; no other row carries a date
-        closed = r.at if r.kind in ("zone", "move") else r.quote_at
-        if newest and closed and closed < newest:
-            line = f"Closed {_day(closed)}" + (f", {line[:1].lower()}{line[1:]}" if line else "")
-        link = (lambda inner: f"<a href='{kit.esc(url)}' style='text-decoration:none;color:{t_.INK}'>{inner}</a>") if url else (lambda inner: inner)
-        logo = (link(f"<img src='{kit.esc(kit.logo_src(r.ticker))}' width='28' height='28' alt='' "
-                     f"style='display:block;width:28px;height:28px;border-radius:14px;background:#ffffff' />") if r.ticker else "")
-        name = names.get(r.ticker, "")
-        head = link(
-            f"<span class='sbi' style='font-size:{t_.TEXT_MD}px;font-weight:700;color:{t_.INK}'>{kit.esc(r.ticker)}</span>"
-            + (f"&nbsp;&nbsp;<span class='sbm' style='font-size:{t_.TEXT_XS}px;color:{t_.MUTED}'>{kit.esc(name)}</span>" if name else "")
-        ) if r.ticker else ""
-        tone = "sbk" if r.kind == "zone" else "sbt"
-        color = t_.COPPER if r.kind == "zone" else t_.BODY
-        weight = 600 if r.kind == "zone" else 400
-        sub = (f"<div class='{tone}' style='margin-top:2px;font-size:{t_.TEXT_SM}px;line-height:1.45;font-weight:{weight};color:{color}'>"
-               f"{kit.esc(line)}</div>") if line else ""
-        figure = ""
-        if r.close is not None or r.change is not None:
-            figure = link(
-                (f"<div class='sbi' style='font-size:{t_.TEXT_MD}px;font-weight:700;color:{t_.INK};font-variant-numeric:tabular-nums'>{kit.esc(r.price or kit.money(r.close))}</div>"
-                 if r.close is not None else "")
-                + (f"<div style='margin-top:2px'>{kit.change(r.change)}</div>" if r.change is not None else "")
-            )
-        trs.append(
-            "<tr>"
-            f"<td width='40' valign='top' style='{border}padding:12px 0'>{logo}</td>"
-            # no close to show: the name and its line take the whole width
-            + (f"<td valign='top' style='{border}padding:12px 10px 12px 0'>{head}{sub}</td>"
-               f"<td valign='top' align='right' style='{border}padding:12px 0;white-space:nowrap'>{figure}</td>"
-               if figure else f"<td valign='top' colspan='2' style='{border}padding:12px 0'>{head}{sub}</td>")
-            + "</tr>"
-        )
-        fig = " ".join(x for x in ((r.price or kit.money(r.close)) if r.close is not None else "", kit.pct(r.change) if r.change is not None else "") if x)
-        text.append(f"  {r.ticker:<6} {fig:>16}  {line}".rstrip() if r.ticker else f"  {line}")
-    html_ = kit._panel(f"<table role='presentation' width='100%' cellpadding='0' cellspacing='0'>{''.join(trs)}</table>", pad="2px 16px")
-    return html_, text
+def _cards(rows: list[Row], names: dict[str, str], today: date) -> list[kit.Card]:
+    """One card per row: logo, ticker and company, the close, the move labelled with its day, and one line. The
+    section header says the close once; a card from an earlier session names its own day in its label."""
+    out = []
+    for r in rows:
+        at = r.at if r.kind in ("zone", "move") else r.quote_at
+        period = "over five sessions" if r.span else (_day(at, today) if at else "")
+        call = ""
+        if r.kind == "call":
+            call = f"{r.call_from} → {r.call_to}" if r.call_from else r.call_to
+        out.append(kit.Card(ticker=r.ticker, name=names.get(r.ticker, ""), price=r.close, move=r.change, period=period,
+                            call=call, line=r.line, why=r.base_line, link=bool(r.ticker),
+                            # a report date or a level is this stock's own fact, even when another card says the same words
+                            own=r.kind in ("report", "zone") or bool(r.report)))
+    return out
 
 
 def _names_list(tickers: list[str], max_: int = 4) -> str:
@@ -374,29 +360,54 @@ def _names_list(tickers: list[str], max_: int = 4) -> str:
     return f"{', '.join(tickers[:max_ - 1])} and {len(tickers) - max_ + 1} more"
 
 
-def _headline(rows: list[Row], first: list[Row]) -> str:
-    """The email's one headline: stocks that reached a level of our call first, then a batch of moves, then the top row."""
+def _headline(rows: list[Row], first: list[Row], names: dict[str, str], today: date) -> str:
+    """The email's one headline, ten words at most (owner rule 8): a level of our call first, then a call that
+    changed, then a batch of moves, then the top row. A sentence that runs long falls back to a shorter one."""
     zones = [r for r in rows if r.kind == "zone"]
-    if len(zones) == 1:
-        return zones[0].sentence + "."
+    if len(zones) == 1 and zones[0].level is not None:
+        z = zones[0]
+        # the level printed as the row prints it, so $1,411.20 never reads as $1,411 beside a $1,410.60 close
+        level = kit.money_pair(z.close, z.level)[1] if z.close is not None else kit.money(z.level)
+        reached = f"{kit.short_name(names.get(z.ticker, ''), z.ticker) or z.ticker} reached our {'sell-some' if z.zone == 'trim' else 'buy-more'} price, {level}."
+        # a sell-some hit reads in the owner's words; a buy-more hit says the move that got it there when that fits
+        if z.zone == "trim":
+            return reached if kit.word_count(reached) <= 10 else f"{z.ticker} reached our sell-some price, {level}."
+        said = z.sentence + "."
+        return said if kit.word_count(said) <= 10 else reached if kit.word_count(reached) <= 10 else \
+            f"{z.ticker} reached our buy-more price, {level}."
     if zones:
         parts = []
         for zone, verb_, word in (("add", "fell", "buy-more"), ("trim", "rose", "sell-some")):
-            names = [r.ticker for r in zones if r.zone == zone]
-            if names:
-                parts.append(f"{_names_list(names)} {verb_} to {'its' if len(names) == 1 else 'their'} {word} level{'s' if len(names) > 1 else ''}")
-        return kit.cap(" and ".join(parts)) + "."
+            tickers = [r.ticker for r in zones if r.zone == zone]
+            if tickers:
+                parts.append(f"{_names_list(tickers, 3)} {verb_} to {'its' if len(tickers) == 1 else 'their'} {word} "
+                             f"level{'s' if len(tickers) > 1 else ''}")
+        said = kit.cap(" and ".join(parts)) + "."
+        return said if kit.word_count(said) <= 10 else f"{len(zones)} of your stocks reached a price in our call."
+    calls = [r for r in rows if r.kind == "call" and r.ticker]
+    if len(calls) == 1:
+        return f"Our call on {calls[0].ticker} changed to {calls[0].call_to}."
+    if calls:
+        return f"Our calls on {_names_list([r.ticker for r in calls], 3)} changed."
     moves = [r for r in first if r.kind == "move" and r.change is not None]
     if len(moves) >= 3 and not any(r.span for r in moves):
         top = max(moves, key=lambda r: abs(r.change or 0))
         ups, downs = all((r.change or 0) > 0 for r in moves), all((r.change or 0) < 0 for r in moves)
         floor = math.floor(min(abs(r.change or 0) for r in moves))  # "9% or more" must hold for every stock listed
         verb_ = "rose" if ups else "fell" if downs else "moved"
-        day = _day(top.at) if top.at else ""
-        return (f"{len(moves)} of your stocks {verb_} {floor}% or more{' on ' + day if day else ''}, led by "
-                f"{top.ticker} at {kit.pct(top.change)}.")
+        day = _day(top.at, today) if top.at else ""
+        day = f" on {day}" if day and day not in ("today", "yesterday") else f" {day}" if day else ""
+        return f"{len(moves)} of your stocks {verb_} {floor}% or more{day}."
     lead = first[0] if first else rows[0]
-    return kit.cap(lead.sentence.rstrip(".")) + "."
+    return _fit_title(kit.cap(lead.sentence.rstrip(".")) + ".", [r.ticker for r in rows if r.ticker])
+
+
+def _fit_title(title: str, tickers: list[str]) -> str:
+    """A headline over ten words (owner rule 8) becomes the stocks it is about."""
+    if kit.word_count(title) <= 10:
+        return title
+    names = list(dict.fromkeys(tickers))
+    return f"News on {_names_list(names, 3)} from your agents." if names else "Your agents found something new."
 
 
 def build_alerts(person: Person, findings: list[Finding], *, unsubscribe_token: str | None = None,
@@ -409,7 +420,7 @@ def build_alerts(person: Person, findings: list[Finding], *, unsubscribe_token: 
         return None
     # calls and levels only for stocks this account's plan covers; others show the finding alone
     by_ticker = {s.ticker: s for s in person.emailed_stocks()}
-    names = {s.ticker: _short_name(s.name, s.ticker) for s in person.stocks}
+    names = {s.ticker: s.name for s in person.stocks}
     quotes = {s.ticker: s for s in person.stocks}
     jobs: dict[str, list[Finding]] = {}
     for f in findings:
@@ -418,10 +429,10 @@ def build_alerts(person: Person, findings: list[Finding], *, unsubscribe_token: 
     # each agent's stocks as rows; a stock's move already shown under one agent is not shown again under another
     sections: list[tuple[str, list[Finding], list[Row]]] = []
     for job, items in jobs.items():
-        tabled = any(_is_price(f) or _is_report(f) or f.kind == "mover" for f in items)
+        tabled = any(_is_price(f) or _is_report(f) or _is_call(f) or f.kind == "mover" for f in items)
         sections.append((job, items, _section_rows(items, today) if tabled else []))
     # the agent with a stock at a level of our call first, then the one with the biggest move
-    sections.sort(key=lambda s: (0 if any(r.kind == "zone" for r in s[2]) else 1 if s[2] else 2,
+    sections.sort(key=lambda s: (0 if any(r.kind in ("zone", "call") for r in s[2]) else 1 if s[2] else 2,
                                  -max((abs(r.change or 0) for r in s[2]), default=0)))
     shown: set[tuple[str, str]] = set()
     kept: list[tuple[str, list[Finding], list[Row]]] = []
@@ -447,32 +458,30 @@ def build_alerts(person: Person, findings: list[Finding], *, unsubscribe_token: 
         _quote_reports(rows, quotes)
 
     doc = kit.Doc()
-    first_job, first_items, first_rows = kept[0]
-    h1 = _headline(all_rows, first_rows) if all_rows else kit.cap(first_items[0].headline.rstrip(".")) + "."
+    _, first_items, first_rows = kept[0]
+    h1 = (_headline(all_rows, first_rows, names, today) if all_rows
+          else _fit_title(kit.cap(first_items[0].headline.rstrip(".")) + ".", [f.ticker for f in findings if f.ticker]))
+    # the headline, then straight into the sections: no "also in here" summary (owner, Nov 12)
     doc.h1(_tidy(h1))
-    others = kept[1:]
-    if others:
-        # say what else is in the email, by name, instead of a count
-        also = "; ".join(f"{kit.join_words([r.ticker for r in rows][:4]) or kit.join_words([f.ticker for f in items if f.ticker][:4]) or kit.plural(len(items), 'finding')} "
-                         f"from “{j}”" for j, items, rows in others)
-        doc.p(f"Also in here: {also}.", muted=True, size=kit.t.TEXT_SM)
-    elif n == 1:
-        doc.p(f"Found by your agent “{first_job}”.", muted=True, size=kit.t.TEXT_SM)
 
     for job, items, rows in kept:
+        # a reason shared by two calls says nothing about either (owner rule 1)
+        reasons = [r.line for r in rows if r.kind == "call" and r.line]
+        for r in rows:
+            if r.kind == "call" and reasons.count(r.line) > 1:
+                r.line = ""
         if rows:
             prices = [r.at for r in rows if r.kind in ("zone", "move") and r.at] or [r.quote_at for r in rows if r.quote_at]
             newest = max(prices) if prices else ""
             span = any(r.span for r in rows)
             # the run's close, said once for the section, so no row needs a date
-            aside = (f"Five sessions to {_day(newest)}" if span else f"{_day(newest)} close") if newest else None
+            aside = (f"Five sessions to {_day(newest, today)}" if span else kit.close_word(newest, today)) if newest else None
             doc.h2(job, aside=aside)
-            html_, text = _rows_html(rows[:MAX_LISTED], names, newest)
-            doc.raw(html_, "\n".join(text))
+            doc.cards(_cards(rows[:MAX_LISTED], names, today))
             if len(rows) > MAX_LISTED:
                 doc.p(f"Plus {len(rows) - MAX_LISTED} more in the app.", muted=True, size=kit.t.TEXT_SM)
             continue
-        _other_section(doc, job, items, by_ticker)
+        _other_section(doc, job, items, by_ticker, quotes, names, today)
 
     doc.button("See what your agents found", kit.app_url("/agents/jobs"))
 
@@ -488,39 +497,37 @@ def build_alerts(person: Person, findings: list[Finding], *, unsubscribe_token: 
                       dateline="Agent alert")
 
 
-def _other_section(doc: kit.Doc, job: str, items: list[Finding], by_ticker: dict) -> None:
-    """Filings, trades and news: a few as cards with our call, more as one line each."""
-    srcs = sorted({f.source for f in items if f.source})
-    doc.h2(job, aside=", ".join(srcs[:2]) or None)
-    shorts = [_short(f) for f in items]
-    with_detail = [f for f in items if f.ticker and f.detail]
-    if len(items) <= 4 and with_detail:
-        cards = []
-        for f in items:
-            s = by_ticker.get(f.ticker or "")
-            if not f.ticker:
-                doc.note(f.detail, title=f.headline)
-                continue
-            label = kit.call_label(s.stance, s.call_text) if s else ""
-            cards.append(kit.Card(
-                ticker=f.ticker,
-                call=kit.call_pill_text(label, kit.call_level(label, s.add_below, s.trim_above)) if s else "",
-                line=_short(f),
-                why=f.detail,
-            ))
-        doc.cards(cards)
-    else:
-        doc.rows([(f.ticker or "", short if f.ticker else f.headline, "") for f, short in zip(items[:MAX_LISTED], shorts)])
+def _other_section(doc: kit.Doc, job: str, items: list[Finding], by_ticker: dict, quotes: dict, names: dict[str, str],
+                   today: date) -> None:
+    """Filings, trades and news: a card per stock with our call and the finding as its line. No source line under
+    the heading (owner rule): the link to the stock carries it."""
+    doc.h2(job)
+    cards = []
+    for f in items[:MAX_LISTED]:
+        if not f.ticker:
+            doc.note(f.detail or f.headline, title=f.headline if f.detail else None)
+            continue
+        s = by_ticker.get(f.ticker)
+        label = kit.call_label(s.stance, s.call_text) if s else ""
+        q = quotes.get(f.ticker)
+        cards.append(kit.Card(
+            ticker=f.ticker,
+            name=names.get(f.ticker, ""),
+            price=q.price if q else None,
+            move=q.change_pct if q else None,
+            period=_day(q.price_at.astimezone(ET).date().isoformat(), today) if q and q.price_at else "",
+            call=kit.call_pill_text(label, kit.call_level(label, s.add_below, s.trim_above)) if s else "",
+            line=_tidy(_short(f)),
+            why=_tidy(f.detail),
+        ))
+    doc.cards(cards)
     if len(items) > MAX_LISTED:
         doc.p(f"Plus {len(items) - MAX_LISTED} more in the app.", muted=True, size=kit.t.TEXT_SM)
 
 
-def _day(iso: str) -> str:
-    """2026-11-12 -> Nov 12, the way dates read everywhere else in the emails."""
-    try:
-        return date.fromisoformat(iso[:10]).strftime("%b %-d")
-    except ValueError:
-        return iso
+def _day(iso: str, today: date) -> str:
+    """"yesterday", "Tuesday", or "Nov 3" beyond a week (kit.day_word)."""
+    return kit.day_word(iso, today)
 
 
 def bundle_since(last_sent_at: datetime | None, now: datetime | None = None) -> datetime:
@@ -528,3 +535,93 @@ def bundle_since(last_sent_at: datetime | None, now: datetime | None = None) -> 
     now = now or datetime.now(timezone.utc)
     floor = now - timedelta(days=1)
     return max(last_sent_at, floor) if last_sent_at else floor
+
+
+# ------------------------------------------------------------- hand-set price alerts
+
+PRICE_ALERTS = "tm_alerts"
+
+
+def _whole_money(value: float) -> str:
+    """$142 for a round alert price, $142.50 otherwise: the price as the person typed it."""
+    return f"${value:,.0f}" if abs(value - round(value)) < 0.005 else kit.money(value, digits=2)
+
+
+def load_price_alerts(src: Source) -> dict[str, list[dict]]:
+    """Every live hand-set price alert, by account: active, not yet fired, a below/above rule and a price.
+    The web app writes them (lib/create-alert.ts, kind "price_threshold"; older ones have no kind)."""
+    out: dict[str, list[dict]] = {}
+    for path, a in src.query(PRICE_ALERTS, [("active", "==", True), ("triggered", "==", False)], limit=5000):
+        if a.get("kind") not in (None, "", "price_threshold") or a.get("condition") not in ("below", "above"):
+            continue
+        target, uid = _number(a.get("target_price")), str(a.get("uid") or "")
+        if not target or target <= 0 or not uid or not a.get("ticker"):
+            continue
+        out.setdefault(uid, []).append({**a, "id": path.rsplit("/", 1)[-1], "target_price": target})
+    return out
+
+
+QUOTE_FRESH_MIN = 30  # a price alert fires only on a quote this fresh during market hours
+
+
+def alert_price(stock, now: datetime) -> tuple[float, float | None, date] | None:
+    """The price a hand-set alert is judged on, with its move and the day it is from, or None when we have none
+    fresh enough. During the regular session: the live quote, at most 30 minutes old. Outside it: the actual close of
+    the latest session that has ended (4pm ET, 1pm on a half day), from the stored daily closes, never a quote taken
+    before the bell, since the price can turn in the last half hour. The shared loader keeps quotes up to 80 hours
+    old, which suits a brief but not "your price was crossed"."""
+    et = now.astimezone(ET)
+    today = et.date()
+    open_ = et.replace(hour=9, minute=30, second=0, microsecond=0)
+    if trading_day(today) and open_ <= et < session_close(today):
+        at = stock.price_at
+        # taken in today's session (never a premarket quote at 9:30) and at most 30 minutes old
+        if (stock.price is None or at is None or at < open_ or at > now + timedelta(minutes=5)
+                or now - at > timedelta(minutes=QUOTE_FRESH_MIN)):
+            return None
+        # the day move against the stored close of the previous NYSE session, never the quote's own figure, whose
+        # baseline we can't check; no stored close for that session, no move
+        prev_day = previous_session(today).isoformat()
+        base = stock.closes[stock.dates.index(prev_day)] if prev_day in stock.dates else None
+        return stock.price, ((stock.price / base - 1) * 100 if base else None), today
+    session = last_closed_session(now)
+    if not stock.dates or stock.dates[-1] != session.isoformat() or not stock.closes:
+        return None  # the close for that session isn't stored yet: wait for it rather than guess
+    # the day move only when the close before it is the previous session's; a gap would be several days' move
+    move = last_day_move(stock)
+    return stock.closes[-1], (move[0] if move else None), session
+
+
+def price_alert_hit(alert: dict, price: float | None) -> bool:
+    if price is None:
+        return False
+    target = float(alert["target_price"])
+    return price <= target if alert.get("condition") == "below" else price >= target
+
+
+def build_price_alert(stock, alert: dict, *, now: datetime | None = None,
+                      unsubscribe_token: str | None = None) -> kit.Email | None:
+    """One hand-set alert that fired: "SPCX is below your $142 alert." and one card that says the move,
+    with one button to the stock. None when the price has not reached the alert, or the quote is not fresh
+    (`quote_fresh`), so a stale price never fires an alert or marks it done."""
+    now = now or datetime.now(timezone.utc)
+    judged = alert_price(stock, now)
+    if judged is None or not price_alert_hit(alert, judged[0]):
+        return None
+    price, change, day = judged
+    today = now.astimezone(ET).date()
+    target = float(alert["target_price"])
+    # a price right on the alert reads "at", never "below" or "above"
+    where = "at" if round(price, 2) == round(target, 2) else "below" if alert.get("condition") == "below" else "above"
+    move = (f"{kit.cap(kit.verb(change))} {kit.pct(change, signed=False)} to {kit.money(price)}"
+            if change is not None and round(change, 1) != 0 else f"At {kit.money(price)}")
+    line = f"{move}, {where} your {_whole_money(target)} alert."
+    period = _day(day.isoformat(), today)
+    doc = kit.Doc()
+    title = f"{stock.ticker} is {where} your {_whole_money(target)} alert"
+    doc.h1(title + ".")
+    doc.cards([kit.Card(ticker=stock.ticker, name=stock.name, price=price, move=change, period=period, line=line)])
+    doc.button(f"Open {stock.ticker}", kit.stock_url(stock.ticker))
+    return kit.render(doc, kind="price_alert", category="alerts", subject=title, preheader=line,
+                      unsubscribe_token=unsubscribe_token, meta={"ticker": stock.ticker, "alert": str(alert.get("id") or "")},
+                      reason="You get this because you set a price alert on stocksbrew.", dateline="Price alert")

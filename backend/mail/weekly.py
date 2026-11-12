@@ -1,8 +1,9 @@
 """The Saturday memo: how your stocks did this week, what it means, and what's next.
 
-Leads with one line (your week against the S&P 500), then up to three insight
-cards, a day-by-day chart, the biggest moves as bars, the calls we changed and
-next week's earnings. No record of our past calls (owner, Nov 11).
+Opens on the headline and one verdict against the S&P 500, then straight into
+the content (no summary block, owner Nov 12): best and worst weeks as cards with
+price and move, the day-by-day chart, the calls we changed and next week's
+reports. No record of our past calls (owner, Nov 11).
 """
 from __future__ import annotations
 
@@ -10,7 +11,7 @@ from datetime import date, datetime, time, timedelta, timezone
 
 from backend.mail import kit
 from backend.subscription_entitlement import FREE_COVERED_WORD
-from backend.mail.data import ET, Person, Stock, direction
+from backend.mail.data import ET, Person, Stock, direction, last_day_move
 
 # a week of news plus the weekend before it, so the biggest day of the week has its headlines
 WEEK_NEWS_HOURS = 216
@@ -62,6 +63,16 @@ def calls_changed(stocks: list[Stock], since: str, *, settled: int = 3) -> list[
     return out
 
 
+def week_card(s: Stock, today: date, **kw) -> kit.Card:
+    """The memo's stock card: the price, the week's move labelled "this week", and the last day's move under it
+    labelled with its day, so the two periods never read as one."""
+    # the last day's move only when the close before it is the previous session's (no gap read as one day)
+    move = last_day_move(s)
+    day = (move[0], kit.day_word(move[1], today)) if move else None
+    return kit.Card(ticker=s.ticker, name=s.name, price=s.closes[-1] if s.closes else s.price, move=s.week_change_pct,
+                    period="this week", second=day, **kw)
+
+
 def _reason_for_week(s: Stock, days: list[str]) -> tuple[str, str]:
     """A reason for this stock's biggest day of the week: news from the day before that session up to its
     close, that agrees with that day's move. ("", "") when none does."""
@@ -90,7 +101,6 @@ def build_weekly(person: Person, *, market: dict[str, Stock] | None = None, now:
     spy = market.get("SPY")
 
     week_avg = avg([s.week_change_pct for s in stocks])
-    holdings = [s for s in stocks if s.position == "holding"]
     ranked = sorted(stocks, key=lambda s: s.week_change_pct or 0, reverse=True)
     best, worst = ranked[0], ranked[-1]
     spy_week = spy.week_change_pct if spy else None
@@ -104,43 +114,15 @@ def build_weekly(person: Person, *, market: dict[str, Stock] | None = None, now:
         doc.h1("Your stocks were flat this week.")
     else:
         doc.h1(f"Your stocks {'rose' if shown_avg > 0 else 'fell'} {kit.pct(week_avg, signed=False)} this week.")
-    bits = []
     if gap is not None:
-        bits.append("That's in line with the S&P 500." if gap == 0 else
-                    f"That's {kit.pct(abs(gap), signed=False).rstrip('%')} points {'ahead of' if gap > 0 else 'behind'} the S&P 500 "
-                    f"({kit.pct(spy_week)}).")
-    if len(stocks) > 1:
-        bits.append(f"{best.ticker} did best and {worst.ticker} did worst.")
-    bits.append(f"Prices to the {end_day.strftime('%b %-d')} close.")
-    doc.p(" ".join(bits), muted=True, size=kit.t.TEXT_SM)
+        # the market figure gets a good-or-bad word, so the reader never has to work out which way is good
+        word = ("In line with the S&P 500" if gap == 0 else
+                f"{kit.pct(abs(gap), signed=False).rstrip('%')} pts {'ahead of' if gap > 0 else 'behind'} the S&P 500")
+        doc.raw(f"<div style='margin:0 0 6px'>{kit.verdict(word, 'up' if gap > 0 else 'down' if gap < 0 else 'flat')}</div>",
+                f"{word} ({kit.pct(spy_week)} for the S&P 500).")
 
-    # the read: up to three figures, each against a baseline
-    insights: list[kit.Insight] = []
-    if len(stocks) >= 2:
-        rose = sum(1 for s in stocks if round(s.week_change_pct or 0, 1) > 0)
-        beat = sum(1 for s in stocks if spy_week is not None and (s.week_change_pct or 0) > spy_week)
-        tail = f" {beat} did better than the S&P 500." if spy_week is not None else ""
-        insights.append(kit.Insight(f"{rose} of {len(stocks)}", f"rose this week.{tail}"))
-    if holdings and len(holdings) < len(stocks):
-        h_avg = avg([s.week_change_pct for s in holdings])
-        w_avg = avg([s.week_change_pct for s in stocks if s.position != "holding"])
-        insights.append(kit.Insight(kit.pct(h_avg), f"The {kit.plural(len(holdings), 'stock')} you hold, against "
-                                    f"{kit.pct(w_avg)} for the ones you only watch.", h_avg))
-    if len(stocks) >= 4 and week_avg is not None:
-        # how much of the week came from the two biggest moves
-        big_two = sorted(stocks, key=lambda s: -abs(s.week_change_pct or 0))[:2]
-        share = sum(abs(s.week_change_pct or 0) for s in big_two) / max(1e-9, sum(abs(s.week_change_pct or 0) for s in stocks)) * 100
-        if share >= 25:
-            insights.append(kit.Insight(f"{share:.0f}%", f"of the week's movement came from just {kit.join_words([s.ticker for s in big_two])}."))
     week_ago = (end_day - timedelta(days=6)).isoformat()
     changed = calls_changed(stocks, week_ago)
-    if changed and len(insights) < 3:
-        to_buy = sum(1 for _, _, after in changed if after == kit.BUY)
-        to_sell = sum(1 for _, _, after in changed if after == kit.SELL)
-        parts = [f"{to_buy} to Buy more" if to_buy else "", f"{to_sell} to Sell some" if to_sell else ""]
-        detail = f": {kit.join_words([b for b in parts if b])}" if any(parts) else ""
-        insights.append(kit.Insight(str(len(changed)), f"{'call' if len(changed) == 1 else 'calls'} changed this week{detail}."))
-    doc.insights(insights)
 
     # what moved the week: the two best and two worst, each with the news behind its biggest day
     days = week_days(stocks, last)
@@ -148,11 +130,9 @@ def build_weekly(person: Person, *, market: dict[str, Stock] | None = None, now:
     downs = [s for s in ranked[::-1] if (s.week_change_pct or 0) < 0 and s not in ups][:2]
     picks = ups + downs if len(stocks) > 1 else ranked[:1]
     if picks:
-        cards, sources = [], set()
+        cards = []
         for s in picks:
-            why, src = _reason_for_week(s, days)
-            if src:
-                sources.add(src.split(" · ")[0])
+            why, _ = _reason_for_week(s, days)
             moves = _daily_changes(s, days)
             big_day = max(moves, key=lambda d: abs(moves[d])) if moves else None
             # the reason leads when we have one; then where it now sits against our call's own price
@@ -167,14 +147,13 @@ def build_weekly(person: Person, *, market: dict[str, Stock] | None = None, now:
             day_line = (f"Its biggest day was {date.fromisoformat(big_day).strftime('%A')}, {kit.pct(moves[big_day])}."
                         if big_day else "")
             line, why = (why, where) if why else (where or day_line, day_line if where else "")
-            cards.append(kit.Card(ticker=s.ticker, figure=kit.pct(s.week_change_pct), figure_value=s.week_change_pct,
-                                  call=kit.call_pill_text(label, kit.call_level(label, s.add_below, s.trim_above)),
-                                  line=line, why=why, fallback=kit.recent_move(s.closes)))
+            cards.append(week_card(s, today, call=kit.call_pill_text(label, kit.call_level(label, s.add_below, s.trim_above)),
+                               line=line, why=why, fallback=kit.recent_move(s.closes)))
         # two cards saying the same thing ("Now right at our buy-more price") say the day that made their week instead
         lines = [c.line for c in cards]
         cards = [kit.Card(**{**c.__dict__, "line": c.why or c.line, "why": ""}) if lines.count(c.line) > 1 and c.why else c
                  for c in cards]
-        doc.h2("Best and worst weeks", aside=f"via {kit.join_words(sorted(sources))}" if sources else None)
+        doc.h2("Best and worst weeks")
         doc.cards(cards)
 
     # day by day: the equal-weight average of your stocks, with the S&P 500 under it
@@ -190,15 +169,12 @@ def build_weekly(person: Person, *, market: dict[str, Stock] | None = None, now:
 
     if changed:
         doc.h2("Calls we changed")
-        rows = []
-        reasons = [(s.calls[-1].reason or s.call_reason) for s, _, _ in changed[:5]]
-        for (s, before, after), reason in zip(changed[:5], reasons):
-            # a canned reason shared by several calls says nothing about this one
-            reason = reason if reasons.count(reason) == 1 else ""
-            rows.append((s.ticker, f"{before} → {after}. {reason}".strip(), kit.change(s.week_change_pct)))
-        doc.rows(rows)
-        if len(changed) > 5:
-            doc.p(f"And {len(changed) - 5} more in the app.", muted=True, size=kit.t.TEXT_SM)
+        # "Buy more → Keep" once per stock as its pill, and the reason as its line when it is short and its own
+        # (the card drops a reason shared by several, or one over 15 words)
+        doc.cards([week_card(s, today, call=f"{before} → {after}", line=s.calls[-1].reason or s.call_reason)
+                   for s, before, after in changed[:4]])
+        if len(changed) > 4:
+            doc.p(f"And {len(changed) - 4} more in the app.", muted=True, size=kit.t.TEXT_SM)
 
     # Monday to Friday of the coming week (from a Saturday: two to six days out)
     week_start = today + timedelta(days=7 - today.weekday())
@@ -207,11 +183,10 @@ def build_weekly(person: Person, *, market: dict[str, Stock] | None = None, now:
                     key=lambda s: (s.earnings_date, s.ticker))
     if coming:
         doc.h2("Coming up next week")
-        slots = {"bmo": "Earnings before the open", "amc": "Earnings after the close"}
-        doc.calendar([(s.earnings_date.strftime("%a %b %-d"), s.ticker,
-                       f"{slots.get(s.earnings_time, 'Earnings')} · {kit.call_label(s.stance, s.call_text)}"
-                       if kit.call_label(s.stance, s.call_text) else slots.get(s.earnings_time, "Earnings"))
-                      for s in coming[:6]])
+        slots = {"bmo": " before the open", "amc": " after the close"}
+        doc.cards([week_card(s, today, call=kit.call_label(s.stance, s.call_text),
+                         line=f"Reports {kit.day_word(s.earnings_date, today)}{slots.get(s.earnings_time, '')}.", own=True)
+                   for s in coming[:4]])
 
     doc.button("Read the full memo", kit.app_url("/portfolio/memo"))
 
@@ -220,8 +195,7 @@ def build_weekly(person: Person, *, market: dict[str, Stock] | None = None, now:
         if hidden:
             big = max(hidden, key=lambda s: abs(s.week_change_pct or 0))
             doc.note(
-                f"{kit.plural(len(hidden), 'stock')} you track {'isn’t' if len(hidden) == 1 else 'aren’t'} covered on Free. "
-                f"The biggest mover among them was {big.ticker} at {kit.pct(big.week_change_pct)}.",
+                f"{big.ticker} moved {kit.pct(big.week_change_pct)} this week, one of {kit.plural(len(hidden), 'stock')} Free doesn’t cover.",
                 tone="copper",
                 title=f"Outside your covered {FREE_COVERED_WORD}",
                 link=("Pro covers everything you track", kit.app_url("/pricing")),
@@ -239,4 +213,4 @@ def build_weekly(person: Person, *, market: dict[str, Stock] | None = None, now:
     preheader = (". ".join(bits) + ".") if bits else f"Five trading days in your {kit.plural(len(stocks), 'stock')}."
     return kit.render(doc, kind="weekly_recap", category="weekly", subject=subject, preheader=preheader,
                       unsubscribe_token=unsubscribe_token, meta={"week_avg": week_avg},
-                      dateline=f"Week to {end_day.strftime('%b %-d')}")
+                      dateline=f"Week to {end_day.strftime('%A') if 0 <= (today - end_day).days < 7 else end_day.strftime('%b %-d')}")

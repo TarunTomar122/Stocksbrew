@@ -34,6 +34,8 @@ PREF_FIELD = {
 ALWAYS = {"welcome", "pro_welcome"}
 
 DAILY_CAP = {"alerts": 4, "product": 1}
+# a hand-set price alert fires once and the person asked for it: the alert cap never holds it back
+UNCAPPED = {"price_alert"}
 
 
 def wants(user: dict[str, Any], category: str, kind: str = "") -> bool:
@@ -108,7 +110,8 @@ class History:
                 last[kind] = at
             meta = r.get("meta") if isinstance(r.get("meta"), dict) else {}
             cat = str(meta.get("category") or "")
-            if cat and at and at.astimezone(ET).date() == day:
+            # a hand-set price alert never counts toward the alert cap, so it can't crowd out the agent bundle
+            if cat and at and at.astimezone(ET).date() == day and kind not in UNCAPPED:
                 per_cat[cat] = per_cat.get(cat, 0) + 1
             if kind == "alerts":
                 until = _ts(meta.get("until")) or at
@@ -195,7 +198,8 @@ def deliver(
         if dedupe_key in history.keys:
             return Outcome("skipped_dupe", email.subject)
         cap = DAILY_CAP.get(email.category)
-        if cap is not None and email.kind not in ALWAYS and history.by_category_today.get(email.category, 0) >= cap:
+        if (cap is not None and email.kind not in ALWAYS | UNCAPPED
+                and history.by_category_today.get(email.category, 0) >= cap):
             return Outcome("skipped_cap", email.subject)
     if dry_run:
         return Outcome("dry_run", email.subject)
@@ -221,7 +225,8 @@ def deliver(
             # would resend it on the next run, so the job has to stop here.
             raise LogFailed(f"sent but not logged ({email.kind}, {uid[:6]}): {exc!r}") from exc
         history.keys.add(dedupe_key)
-        history.by_category_today[email.category] = history.by_category_today.get(email.category, 0) + 1
+        if email.kind not in UNCAPPED:
+            history.by_category_today[email.category] = history.by_category_today.get(email.category, 0) + 1
     return Outcome("sent" if ok else "failed", email.subject)
 
 

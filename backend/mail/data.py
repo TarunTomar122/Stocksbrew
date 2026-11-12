@@ -20,6 +20,9 @@ ET = ZoneInfo("America/New_York")
 PRICE_MAX_AGE_HOURS = 80  # a Friday close is still "the last close" on Monday morning
 VIEW_MAX_AGE_HOURS = 72
 
+from backend.mail.nyse import previous_session  # noqa: E402  (the trading calendar, by rule for any year)
+
+
 BULLISH = {"accumulate", "buy", "add"}
 BEARISH = {"trim", "avoid", "sell", "reduce"}
 
@@ -142,6 +145,17 @@ class Stock:
                 j = i + sessions - 1
                 return self.closes[j] if j < len(self.closes) else None
         return None
+
+
+def last_day_move(s: "Stock") -> tuple[float, date] | None:
+    """The last stored close's move from the session before it, and that close's date. None when the close before
+    it is not the previous NYSE session (a gap in the history), so a move over several days never reads as one day's."""
+    if len(s.closes) < 2 or len(s.dates) < 2 or not s.closes[-2]:
+        return None
+    last = date.fromisoformat(s.dates[-1][:10])
+    if s.dates[-2][:10] != previous_session(last).isoformat():
+        return None
+    return (s.closes[-1] / s.closes[-2] - 1) * 100, last
 
 
 @dataclass

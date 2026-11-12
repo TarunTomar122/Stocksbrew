@@ -216,13 +216,16 @@ def test_one_email_per_rebalance_day():
 
 
 def test_the_note_reads_plainly_and_follows_the_kit_rules():
-    single = rebalance.build_note([_record()])
+    evening = datetime(2026, 12, 1, 23, 0, tzinfo=timezone.utc)  # the evening of the rebalance
+    single = rebalance.build_note([_record()], now=evening)
     assert single.subject == "Momentum leaders swapped 2 of its 25 stocks"
     assert single.kind == "strategy_rebalance" and single.category == "alerts"
     assert "NVDA" in single.text and "Out  AVGO" in single.text and "In   NVDA" in single.text
     assert "You get this because you follow a strategy on stocksbrew." in single.text
-    assert "The rules' picks at the close on Nov 30, not trades made for you." in single.text
-    many = rebalance.build_note([_record(), _record(slug="quality", name="Quality", market_ok=False, added=[], kept=[])])
+    assert "The rules' picks at yesterday's close, not trades made for you." in single.text
+    assert single.text.startswith("Rebalance · Today")
+    many = rebalance.build_note([_record(), _record(slug="quality", name="Quality", market_ok=False, added=[], kept=[])], now=evening)
+    assert "2 strategies you follow rebalanced today." in many.text
     assert many.subject.startswith("2 of your strategies rebalanced: Momentum leaders and Quality")
     assert "Quality sold everything and moved to cash" in many.text
     for email in (single, many):
@@ -237,14 +240,14 @@ def test_the_note_reads_plainly_and_follows_the_kit_rules():
 def test_long_changes_point_at_the_page():
     added = [{"symbol": f"S{i}", "weight": 0.04, "reason": ""} for i in range(30)]
     email = rebalance.build_note([_record(added=added)])
-    assert "Plus 8 more on the strategy page." in email.text
+    assert "Plus 6 more on the strategy page." in email.text and "And 26 more on the strategy page." in email.text
     # the two that left still show next to the thirty that came in
     assert "Out  AVGO" in email.text and "Out  MU" in email.text
 
 
 def test_a_bad_record_costs_only_the_note():
     hist = send.History(keys=set(), by_category_today={}, last_by_kind={})
-    assert jobs._rebalance_notes(_user(), NOW, hist, [{"slug": "momentum-12-1", "date": "2026-12-01", "generated_at": 5}]) == []
+    assert jobs._rebalance_notes(None, _user(), NOW, hist, [{"slug": "momentum-12-1", "date": "2026-12-01", "generated_at": 5}]) == []
 
 
 def test_funds_are_not_linked_to_a_stock_page():
@@ -256,7 +259,7 @@ def test_funds_are_not_linked_to_a_stock_page():
 def test_the_alerts_job_adds_the_note_once_and_respects_preferences(monkeypatch):
     records = [_record()]
     hist = send.History(keys=set(), by_category_today={}, last_by_kind={})
-    planned = jobs._rebalance_notes(_user(), NOW, hist, records)
+    planned = jobs._rebalance_notes(None, _user(), NOW, hist, records)
     assert len(planned) == 1 and planned[0][1] == "strategy_rebalance_2026-12-01"
     email, key = planned[0]
     # alerts switched off: the same preference as every alert email
@@ -265,8 +268,8 @@ def test_the_alerts_job_adds_the_note_once_and_respects_preferences(monkeypatch)
     out = send.deliver(store=None, uid="u1", user=_user(), email=email, dedupe_key=key, history=hist, dry_run=True)
     assert out.status == "dry_run"
     hist.keys.add(key)
-    assert jobs._rebalance_notes(_user(), NOW, hist, records) == []
-    assert jobs._rebalance_notes(_user(pro=False), NOW, send.History(set(), {}, {}), records) == []
+    assert jobs._rebalance_notes(None, _user(), NOW, hist, records) == []
+    assert jobs._rebalance_notes(None, _user(pro=False), NOW, send.History(set(), {}, {}), records) == []
 
 
 def test_the_note_is_off_unless_switched_on(monkeypatch):

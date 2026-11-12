@@ -57,9 +57,21 @@ def render_all(uid: str, now: datetime | None = None, src=None) -> tuple[list[tu
     out.append(("1b · Daily brief (Free)", daily.build_daily(free_view, now=now, market=market), f"Same email for a Free account: covered {FREE_COVERED_WORD} only, plus what's outside"))
     week_person = load_person(src, uid, now=now, news_hours=WEEK_NEWS_HOURS)
     out.append(("2 · Weekly memo", weekly.build_weekly(week_person, market=market, now=now), "Saturdays, 9am ET"))
-    findings = alerts.load_findings(src, uid, since=now - timedelta(days=3))
+    findings = alerts.load_findings(src, uid, since=alerts.bundle_since(None, now))  # the same window the alerts job reads
     out.append(("3 · Alerts", alerts.build_alerts(person, findings, now=now), "When an agent job finds something, bundled over 15 minutes"))
-    out.append(("3b · Strategy rebalance (Pro)", rebalance.build_note(_rebalance_sample(src, uid, now), tracked={s.ticker for s in person.stocks}),
+    sell, calls = sample_findings(person)
+    out.append(("3b · Alert: sell-some price (sample)", alerts.build_alerts(person, sell, now=now) if sell else None,
+                "A 'When to sell some' agent. A real Sell some call and its real sell-some price; when no close has reached "
+                "it yet, a what-if close set right at it"))
+    out.append(("3c · Alert: call changed (sample)", alerts.build_alerts(person, calls, now=now) if calls else None,
+                "An 'Our call changes' agent. Sample from real call changes this week; no such run has fired yet"))
+    out.append(("3f · Price alert you set", _price_alert_sample(src, uid, person, now),
+                "Within 15 minutes of a hand-set price alert being crossed (alerts job). Your real alert when one has "
+                "fired; otherwise a what-if alert set just past the latest price"))
+    out.append(("3d · Research ready", _brief_ready_sample(person),
+                "When a stock someone asked about gets its first research (backend/brief_ready_alerts.py)"))
+    out.append(("3e · Strategy rebalance (Pro)", rebalance.build_note(rb := _rebalance_sample(src, uid, now), tracked={s.ticker for s in person.stocks}, now=now,
+                                         quotes=rebalance.quotes_for(src, rb, now, {s.ticker for s in person.stocks})),
                 "Pro, the evening a strategy you follow rebalances (STRATEGY_REBALANCE_NOTES=1)"))
     new_user = copy.deepcopy(person)
     new_user.stocks, new_user.tracked_ids, new_user.covered_ids, new_user.is_pro = [], [], [], False
@@ -70,8 +82,8 @@ def render_all(uid: str, now: datetime | None = None, src=None) -> tuple[list[tu
     out.append(("4 · Welcome", lifecycle.build_welcome(new_user, moved, now=now), "Right after signup"))
     out.append(("4b · Setup nudge, day 2", lifecycle.build_setup_nudge(new_user, moved, day=2, now=now), "Day 2, only if the watchlist is empty"))
     out.append(("4c · Setup nudge, day 5", lifecycle.build_setup_nudge(new_user, moved, day=5, now=now), "Day 5, only if still empty. Last setup email"))
-    out.append(("5 · Pro welcome", lifecycle.build_pro_welcome(person), "Right after upgrading"))
-    out.append(("6a · Weekly swap open (Free)", lifecycle.build_swap_open(free_view), "Free only, when the weekly swap opens and an uncovered stock moved"))
+    out.append(("5 · Pro welcome", lifecycle.build_pro_welcome(person, now=now), "Right after upgrading"))
+    out.append(("6a · Weekly swap open (Free)", lifecycle.build_swap_open(free_view, now=now), "Free only, when the weekly swap opens and an uncovered stock moved"))
     out.append(("6b · Limit reached (Free)", lifecycle.build_limit_reached(
         free_view, title="Free runs one agent at a time" if PAYWALL_V2 else "Free runs two agents at a time",
         body=(
@@ -80,9 +92,113 @@ def render_all(uid: str, now: datetime | None = None, src=None) -> tuple[list[tu
             "You tried to start a third agent job. Your other two keep running, and the new one is saved and paused until you turn one off."
         ),
         used=FREE_AGENTS, cap=FREE_AGENTS, pro_cap=20), "Free only, the first time a limit is hit each month"))
-    out.append(("7 · We miss you", lifecycle.build_winback(person, now=now), "Once, after 21 days without a visit"))
+    out.append(("7 · We miss you", lifecycle.build_winback(_away(person, now), now=now), "Once, after 21 days without a visit"))
     info = {"uid": uid[:6], "tracked": len(person.tracked_ids), "pro": person.is_pro, "generated_at": now.isoformat()}
     return out, info
+
+
+def _away(person, now: datetime):
+    """The account as the win-back sees it: last here 21 days ago (the job sends it 21 to 60 days after a visit)."""
+    import copy
+
+    away = copy.deepcopy(person)
+    away.last_seen = now - timedelta(days=21)
+    return away
+
+
+def _finding(**values) -> alerts.Finding:
+    """A Finding from keyword values, keeping only the fields this version of alerts.Finding has."""
+    from dataclasses import fields
+
+    names = {f.name for f in fields(alerts.Finding)}
+    return alerts.Finding(**{k: v for k, v in values.items() if k in names})
+
+
+def sample_findings(person) -> tuple[list[alerts.Finding], list[alerts.Finding]]:
+    """What a sell-some agent and a call-change agent would report for this person, from their real data.
+
+    Sell some: a stock whose current call is Sell some (never one we say to buy or keep), at its real
+    sell-some price. A real close at or over it is used when there is one; otherwise the stock closest to its
+    price is shown closing right at it, which is a what-if and labelled so in the gallery. Call changes: the
+    stocks whose call word changed in the last week, with the day it changed. Either list can be empty.
+    """
+    from backend.mail import kit
+
+    sell: list[alerts.Finding] = []
+    candidates = [s for s in person.stocks if kit.call_label(s.stance, s.call_text) == kit.SELL and s.trim_above
+                  and len(s.closes) >= 2 and s.closes[-2]]
+    hit = next((s for s in candidates if s.closes[-1] >= (s.trim_above or 0)), None)
+    pick = hit or min(candidates, key=lambda s: (s.trim_above or 0) / s.closes[-1], default=None)
+    if pick is not None:
+        level = pick.trim_above or 0.0
+        close = pick.closes[-1] if hit else level
+        # a real hit moves from the close before it; a what-if moves from the latest real close
+        move = (close / pick.closes[-2 if hit else -1] - 1) * 100
+        day = pick.dates[-1]
+        sell.append(_finding(job_name="When to sell some", ticker=pick.ticker, kind="level", zone="trim", level=level,
+                             close=close, change_pct=move, at=day, run_day=day, run_close=day, source="Daily closing prices",
+                             headline=f"{pick.ticker} {kit.verb(move)} {abs(move):.1f}% to {kit.money(close)}, at its {kit.money(level)} sell-some level",
+                             detail="", url=f"/stock/{pick.ticker}"))
+    calls: list[alerts.Finding] = []
+    latest = max((s.dates[-1] for s in person.stocks if s.dates), default="")
+    for s in person.stocks:
+        labels = [kit.call_label(c.stance) for c in s.calls]
+        if len(labels) < 2 or not labels[-1]:
+            continue
+        i = len(labels) - 1
+        while i > 0 and labels[i - 1] == labels[-1]:
+            i -= 1
+        if i == 0 or not labels[i - 1]:
+            continue
+        day = s.calls[i].day
+        if not latest or day < _days_before(latest, 7):
+            continue
+        before, after = labels[i - 1], labels[-1]
+        calls.append(_finding(job_name="Our call changes", ticker=s.ticker, kind="call", call_from=before, call_to=after,
+                              headline=f"Our call on {s.ticker} moved from {before} to {after}", detail=s.calls[i].reason,
+                              source="Our research call", at=day, url=f"/stock/{s.ticker}"))
+    calls.sort(key=lambda f: (f.at, f.ticker or ""), reverse=True)
+    return sell, calls[:4]
+
+
+def _days_before(iso: str, days: int) -> str:
+    from datetime import date
+
+    try:
+        return (date.fromisoformat(iso[:10]) - timedelta(days=days)).isoformat()
+    except ValueError:
+        return ""
+
+
+def _price_alert_sample(src, uid: str, person, now: datetime) -> Email | None:
+    """The person's own hand-set price alert that has fired, or, when none has, a what-if: their first alert's
+    stock with the alert price set just past its latest price (so the email shows real price and move)."""
+    from backend.mail.data import stocks_by_id
+
+    mine = alerts.load_price_alerts(src).get(uid, [])
+    for a in mine:
+        stock = next(iter(stocks_by_id(src, [str(a.get("instrument_id") or f"US_{a.get('ticker')}")], now=now)), None)
+        email = alerts.build_price_alert(stock, a, now=now) if stock else None
+        if email:
+            return email
+    stock = next((s for s in person.stocks if s.price and s.change_pct is not None and s.change_pct < 0), None)
+    if stock is None:
+        return None
+    what_if = {"id": "what-if", "condition": "below", "target_price": float(round(stock.price * 1.01))}
+    return alerts.build_price_alert(stock, what_if, now=now)
+
+
+def _brief_ready_sample(person) -> Email | None:
+    """The research-ready email through its live entry point (backend/emails/brief_ready.py), for one real stock."""
+    from backend.emails.brief_ready import build_brief_ready_email
+
+    s = next((x for x in person.stocks if x.price is not None and x.news), None) or next((x for x in person.stocks if x.price), None)
+    if s is None:
+        return None
+    built = build_brief_ready_email(ticker=s.ticker, headline=s.news[0].title if s.news else None, company_name=s.name,
+                                    price=s.price, day_change_pct=s.change_pct)
+    subject, page = built
+    return Email(kind="brief_ready", category="alerts", subject=subject, preheader="", html=page, text="", meta={})
 
 
 def _rebalance_sample(src, uid: str, now: datetime) -> list[dict]:

@@ -12,6 +12,9 @@ Rules the kit enforces so templates do not have to remember them:
 - every number that is a move gets its sign and colour from `change()`
 - stock cards carry no per-card link text or icons: the card itself links
 - calls are only ever Buy more, Keep or Sell some (`call_label()`)
+- every stock is a card (`Card`): logo, ticker and company, price, a labelled move, one line
+- a card says at most one line, of 15 words or fewer (`fits()`); a longer one is left out, never cut
+- recent days are words ("yesterday", "Tuesday"), a date only beyond a week (`day_word()`)
 """
 from __future__ import annotations
 
@@ -19,6 +22,7 @@ import html
 import os
 import re
 from dataclasses import dataclass, field
+from datetime import date
 from typing import Sequence
 from urllib.parse import quote, urlencode
 
@@ -111,6 +115,67 @@ def change(value: float | None, *, digits: int = 1, size: int = t.TEXT_SM, weigh
     return (
         f"<span class='{_tone_class(value)}' style='color:{tone_color(value)};font-weight:{weight};font-size:{size}px;"
         f"font-variant-numeric:tabular-nums;white-space:nowrap'>{esc(pct(value, digits=digits))}</span>"
+    )
+
+
+# ----------------------------------------------------------------- days
+
+_WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
+
+def _as_date(day: object) -> date | None:
+    if isinstance(day, date):
+        return day
+    try:
+        return date.fromisoformat(str(day or "")[:10])
+    except ValueError:
+        return None
+
+
+def day_word(day: object, today: date) -> str:
+    """A day the way a person says it: "today", "yesterday", "tomorrow", the weekday within a week either side,
+    and "Nov 3" only further out (owner: "these dates like nov 11 is so weird ... say yesterday")."""
+    d = _as_date(day)
+    if d is None:
+        return str(day or "")
+    gap = (d - today).days
+    if gap == 0:
+        return "today"
+    if gap == -1:
+        return "yesterday"
+    if gap == 1:
+        return "tomorrow"
+    if -7 < gap < 7:
+        return _WEEKDAYS[d.weekday()]
+    return d.strftime("%b %-d")
+
+
+def close_word(day: object, today: date) -> str:
+    """"Yesterday's close", "Monday's close", "Oct 30 close"."""
+    word = day_word(day, today)
+    if word in ("today", "yesterday", "tomorrow") or word in _WEEKDAYS:
+        return f"{cap(word)}'s close"
+    return f"{word} close"
+
+
+def word_count(text: str) -> int:
+    return len(re.findall(r"\S+", text or ""))
+
+
+def fits(text: str, words: int = 15) -> bool:
+    """A card line is one line of 15 words or fewer (owner rule 8); a longer sentence is dropped, never cut."""
+    return bool(text) and word_count(text) <= words
+
+
+def verdict(word: str, tone: str) -> str:
+    """A short good-or-bad word on a soft tint, with an arrow so the colour is never the only signal
+    (the app's <Verdict>). tone is "up", "down" or "flat"."""
+    bg, fg, cls = {"up": (t.UP_WASH, t.UP, "sbpu"), "down": (t.DOWN_WASH, t.DOWN, "sbpd")}.get(tone, (t.WELL, t.BODY, "sbpk"))
+    mark = {"up": "&#9650;", "down": "&#9660;"}.get(tone, "&#9675;")
+    return (
+        f"<span class='{cls}' style='display:inline-block;padding:3px 9px;border-radius:999px;background:{bg};color:{fg};"
+        f"font-size:{t.TEXT_XS}px;font-weight:600;line-height:1.35;white-space:nowrap'>"
+        f"{mark}&nbsp;{esc(word)}</span>"
     )
 
 
@@ -231,6 +296,7 @@ strong stronger weaker soft softer upbeat downbeat solid mixed record-breaking s
 climbing jumping soaring plunging tumbling sinking gaining losing allegedly fail fails failed provide
 provides provided during amid ahead behind toward towards against within unveils unveil
 unveiled opens open opened closes close closed rolls roll rolled delays delay delayed
+premarket pre-market outpaces outpace outpaced investment investments board
 """.split())
 
 
@@ -300,23 +366,26 @@ class Email:
 
 @dataclass
 class Card:
-    """One stock in a grid of cards: what happened, why it matters to you, our call, one number."""
+    """One stock: logo, ticker and company name, its price, its move with the period it covers, our call, one line.
+
+    The council's shared card (Nov 12): the move is always labelled ("−1.7% yesterday", "+31.9% this week"), and a
+    second labelled move can sit under it. The card says ONE line (owner rule 8): the first of `line`, `why`,
+    `fallback` and `meta` that is set, not shared with another card in the grid, and 15 words or fewer.
+    """
     ticker: str
-    figure: str = ""  # the one big number, e.g. "+5.8%"
-    figure_value: float | None = None  # colours the figure; None keeps it ink
-    call: str = ""  # Buy more / Keep / Sell some, with its own level
-    line: str = ""  # what happened
-    why: str = ""  # why it matters to this person
-    meta: str = ""  # one small line that differs per card, e.g. "3.4x a normal day"
+    name: str = ""  # the company, said once under the ticker
+    price: float | None = None
+    move: float | None = None  # percent
+    period: str = ""  # what the move covers: "today", "yesterday", "Tuesday", "this week", "since your last visit"
+    second: tuple[float, str] | None = None  # another labelled move, e.g. (−0.2, "yesterday") under a week's move
+    call: str = ""  # Buy more / Keep / Sell some with its own level, or "Buy more → Keep" for a change
+    tag: str = ""  # a short verdict beside the call, e.g. "3.4x a normal day", toned by the move's direction
+    line: str = ""  # what happened, or why
+    why: str = ""  # the next choice for the one line
+    meta: str = ""  # the last choice for the one line
+    fallback: str = ""  # used when the lines above are shared with another card or too long
+    own: bool = False  # the line is this stock's own fact (a report date) and stays even when another card says the same
     link: bool = True
-    fallback: str = ""  # used instead of `why` when other cards in the grid share the same `why`
-
-
-@dataclass
-class Insight:
-    figure: str
-    text: str
-    value: float | None = None  # colours the figure when it is a move
 
 
 @dataclass
@@ -418,25 +487,6 @@ class Doc:
             self.text.append(f"{link[0]}: {link[1]}")
         return self
 
-    def insights(self, items: list[Insight]) -> "Doc":
-        """The read: up to three cards, each one big figure and the sentence that explains it."""
-        items = [i for i in items if i.figure and i.text][:3]
-        if not items:
-            return self
-        cells = []
-        for i in items:
-            color = tone_color(i.value) if i.value is not None else t.INK
-            cls = _tone_class(i.value) if i.value is not None else "sbi"
-            cells.append(
-                f"<div class='{cls}' style='font-size:22px;line-height:1.15;font-weight:700;color:{color};"
-                f"font-variant-numeric:tabular-nums;letter-spacing:-0.01em'>{esc(i.figure)}</div>"
-                f"<div class='sbt' style='margin-top:6px;font-size:{t.TEXT_SM}px;line-height:1.45;color:{t.BODY}'>{esc(i.text)}</div>"
-            )
-            # "10 of your stocks are..." reads on; "Your stocks..." gets a colon
-            self.text.append(f"* {i.figure} {i.text}" if i.text[:1].islower() else f"* {i.figure}: {i.text}")
-        self.parts.append(_grid(cells, cols=len(cells), well=True, margin="6px 0 4px"))
-        return self
-
     def divider(self) -> "Doc":
         self.parts.append(f"<div class='sbl' style='height:1px;background:{t.DIVIDER};margin:20px 0;font-size:0'>&nbsp;</div>")
         self.text.append("")
@@ -449,89 +499,32 @@ class Doc:
         return self
 
     # -- stocks
-    def cards(self, cards: list[Card], *, cols: int = 2) -> "Doc":
-        """Stock cards side by side (two on desktop, one per row on a phone), equal height.
-
-        An odd last card spans the row, so a row never has a hole in it.
-        """
+    def cards(self, cards: list[Card]) -> "Doc":
+        """Stock cards, equal height, every row full: two side by side for an even count, one per row for an odd
+        count (no card stretched over a row, no empty slot beside it), and one per row on a phone."""
         # a sentence shared by several cards says nothing about any one of them (owner rule 1): drop it from all,
         # whether it sits in the bold line or under it, and let the card's own fallback fill in
-        said = [x for c in cards for x in (c.line, c.why) if x]
+        said = [x for c in cards for x in dict.fromkeys((c.line, c.why, c.fallback, c.meta)) if x]
         shared = {x for x in said if said.count(x) > 1}
-        if shared:
-            fixed = []
-            for c in cards:
-                line, why = (c.line if c.line not in shared else ""), (c.why if c.why not in shared else "")
-                if not line:
-                    line, why = (why, "") if why else (c.fallback if c.fallback not in shared else "", "")
-                fixed.append(Card(**{**c.__dict__, "line": line, "why": why}))
-            cards = fixed
+        # one line per card: the first choice that is its own and fits in 15 words
+        cards = [Card(**{**c.__dict__, "why": "", "meta": "", "fallback": "",
+                         "line": next((x for x in (c.line, c.why, c.fallback, c.meta)
+                                       if x and (c.own and x == c.line or x not in shared) and fits(x)), "")})
+                 for c in cards]
         cells = []
         for c in cards:
             cells.append(_card_html(c))
             self.text.append("")
-            head = c.ticker + (f"  {c.figure}" if c.figure else "") + (f"  [{c.call}]" if c.call else "")
-            self.text.append(head)
-            for line in (c.line, c.why, c.meta):
-                if line:
-                    self.text.append(line)
+            moves = "; ".join(f"{pct(v)} {p}".strip() for v, p in ((c.move, c.period), c.second or (None, "")) if v is not None)
+            head = " ".join(x for x in (c.ticker, short_name(c.name, c.ticker), money(c.price) if c.price is not None else "",
+                                         moves) if x)
+            self.text.append(head + (f"  [{c.call}]" if c.call else "") + (f"  ({c.tag})" if c.tag else ""))
+            if c.line:
+                self.text.append(c.line)
             if c.link:
                 self.text.append(stock_url(c.ticker))
         if cells:
-            self.parts.append(_grid(cells, cols=cols, margin="0 0 4px"))
-        return self
-
-    def chips(self, rows: list[tuple[str, float | None]], *, more: str = "", link: bool = True) -> "Doc":
-        """Many stocks at a glance: logo, ticker and its move, wrapping to as many lines as it needs."""
-        bits = []
-        for ticker, chg in rows:
-            inner = (
-                f"<img src='{esc(logo_src(ticker))}' width='16' height='16' alt='' "
-                f"style='display:inline-block;width:16px;height:16px;border-radius:8px;vertical-align:-3px;background:#ffffff' />"
-                f"&nbsp;<span class='sbi' style='font-weight:700;color:{t.INK}'>{esc(ticker)}</span>"
-                + (f"&nbsp;&nbsp;{change(chg, size=t.TEXT_XS)}" if chg is not None else "")
-            )
-            if link:
-                inner = f"<a href='{esc(stock_url(ticker))}' style='text-decoration:none;color:{t.INK}'>{inner}</a>"
-            bits.append(
-                f"<span class='sbw' style='display:inline-block;margin:0 6px 6px 0;padding:6px 10px;border-radius:999px;"
-                f"background:{t.WELL};font-size:{t.TEXT_XS}px;line-height:1.3;white-space:nowrap'>{inner}</span>"
-            )
-        if more:
-            bits.append(
-                f"<span class='sbm' style='display:inline-block;margin:0 0 6px;padding:6px 4px;font-size:{t.TEXT_XS}px;"
-                f"line-height:1.3;color:{t.MUTED}'>{esc(more)}</span>"
-            )
-        self.parts.append(f"<div style='margin:0 0 4px;line-height:1'>{''.join(bits)}</div>")
-        line = ", ".join(f"{tk} {pct(chg)}" if chg is not None else tk for tk, chg in rows)
-        self.text.append(line + (f". {more}" if more else ""))
-        return self
-
-    def tiles(self, rows: list[tuple[str, float | None, str]], *, link: bool = True, per_row: int = 4) -> "Doc":
-        """Small equal cards for many stocks at once: logo, ticker, one big move, one short word under it
-        (usually the call). Four to a row on desktop, two on a phone."""
-        cells = []
-        for ticker, value, under in rows:
-            name = (f"<a href='{esc(stock_url(ticker))}' class='sbi' style='font-weight:700;color:{t.INK};text-decoration:none'>{esc(ticker)}</a>"
-                    if link else f"<span class='sbi' style='font-weight:700;color:{t.INK}'>{esc(ticker)}</span>")
-            cells.append(
-                f"<img src='{esc(logo_src(ticker))}' width='20' height='20' alt='' style='display:inline-block;width:20px;height:20px;"
-                f"border-radius:10px;vertical-align:-5px;background:#ffffff' />&nbsp;<span style='font-size:{t.TEXT_SM}px'>{name}</span>"
-                f"<div style='margin-top:6px'>{change(value, size=20, weight=700) if value is not None else ''}</div>"
-                + (f"<div class='sbm' style='margin-top:2px;font-size:{t.TEXT_XS}px;color:{t.MUTED};white-space:nowrap'>{esc(under)}</div>" if under else "")
-            )
-            self.text.append(f"  {ticker:<6} {pct(value) if value is not None else '':>8}  {under}".rstrip())
-        if cells:
-            # pick the row length (3 to 5, preferring `per_row`) that leaves the fewest empty slots
-            # at most four to a row, so a client that drops the phone styles still has room for the number
-            n = len(cells)
-            # Phones show two to a row, so an even count uses an even row length (4, else 2) and every row fills on
-            # both screens; no lone tile beside an empty slot (owner rule: no empty half rows).
-            if n % 2 == 0:
-                cols = 4 if n % 4 == 0 else 2
-            else:
-                cols = n if n <= 4 else min((per_row, 3), key=lambda c: ((-n) % c, c != per_row))
-            self.parts.append(_grid(cells, cols=cols, margin="0 0 4px", tile=True, pad="10px 12px"))
+            self.parts.append(_grid(cells, cols=2 if len(cells) % 2 == 0 else 1, margin="0 0 4px"))
         return self
 
     def days(self, labels: list[str], yours: list[float], market: list[float] | None = None) -> "Doc":
@@ -582,51 +575,6 @@ class Doc:
             self.text.append("  S&P 500: " + "  ".join(f"{l} {pct(v)}" for l, v in zip(labels, market)))
         return self
 
-    def rows(self, rows: list[tuple[str, str, str]], *, link: bool = True) -> "Doc":
-        """A plain list of stocks with one line each: (ticker, sentence, right-hand figure or "")."""
-        trs = []
-        for i, (ticker, line, figure) in enumerate(rows):
-            border = f"border-top:1px solid {t.DIVIDER};" if i else ""
-            name = (
-                f"<a href='{esc(stock_url(ticker))}' class='sbi' style='font-weight:700;color:{t.INK};text-decoration:none'>{esc(ticker)}</a>"
-                if link and ticker else f"<span class='sbi' style='font-weight:700;color:{t.INK}'>{esc(ticker)}</span>"
-            )
-            logo = (
-                f"<img src='{esc(logo_src(ticker))}' width='22' height='22' alt='' "
-                f"style='display:block;width:22px;height:22px;border-radius:11px;background:#ffffff' />" if ticker else ""
-            )
-            trs.append(
-                "<tr>"
-                f"<td width='32' valign='top' style='{border}padding:10px 0'>{logo}</td>"
-                f"<td valign='top' class='sbt' style='{border}padding:11px 10px 10px 0;font-size:{t.TEXT_SM}px;line-height:1.45;color:{t.BODY}'>"
-                f"{name}{'&nbsp; ' if ticker else ''}{esc(line)}</td>"
-                + (f"<td valign='top' align='right' style='{border}padding:11px 0 10px;white-space:nowrap;font-size:{t.TEXT_SM}px'>{figure}</td>" if figure else f"<td style='{border}'></td>")
-                + "</tr>"
-            )
-            fig_text = re.sub(r"<[^>]+>", "", figure)
-            self.text.append(f"  {ticker:<6} {html.unescape(fig_text):>8}  {line}".rstrip() if ticker else f"  {line}")
-        self.parts.append(_panel(f"<table role='presentation' width='100%' cellpadding='0' cellspacing='0'>{''.join(trs)}</table>", pad="2px 16px"))
-        return self
-
-    def calendar(self, rows: list[tuple[str, str, str]]) -> "Doc":
-        """Upcoming dated items: (day label, ticker, what)."""
-        trs = []
-        for i, (day, ticker, what) in enumerate(rows):
-            border = f"border-top:1px solid {t.DIVIDER};" if i else ""
-            trs.append(
-                "<tr>"
-                f"<td width='96' class='sbi' style='{border}padding:10px 0;font-size:{t.TEXT_XS}px;font-weight:700;color:{t.INK};white-space:nowrap'>{esc(day)}</td>"
-                + (f"<td width='28' style='{border}padding:8px 0'><img src='{esc(logo_src(ticker))}' width='20' height='20' alt='' "
-                   f"style='display:block;width:20px;height:20px;border-radius:10px;background:#ffffff' /></td>" if ticker else f"<td width='28' style='{border}'></td>")
-                + f"<td class='sbt' style='{border}padding:10px 0;font-size:{t.TEXT_SM}px;color:{t.BODY}'>"
-                + (f"<a href='{esc(stock_url(ticker))}' class='sbi' style='font-weight:700;color:{t.INK};text-decoration:none'>{esc(ticker)}</a>&nbsp; " if ticker else "")
-                + f"{esc(what)}</td>"
-                "</tr>"
-            )
-            self.text.append(f"  {day:<12} {ticker:<6} {what}" if ticker else f"  {day:<12} {what}")
-        self.parts.append(_panel(f"<table role='presentation' width='100%' cellpadding='0' cellspacing='0'>{''.join(trs)}</table>", pad="2px 16px"))
-        return self
-
     def html_body(self) -> str:
         return "".join(self.parts)
 
@@ -642,17 +590,14 @@ def _panel(inner: str, *, pad: str) -> str:
     )
 
 
-def _grid(cells: list[str], *, cols: int, well: bool = False, margin: str = "0", tile: bool = False, pad: str = "14px 16px") -> str:
+def _grid(cells: list[str], *, cols: int, margin: str = "0", pad: str = "12px 14px") -> str:
     """Cells side by side in rows of ``cols``. Each cell is itself the card (border and background on the
-    td), so cards in a row always share one height.
-
-    Cards: an odd last card spans the rest of its row, so a row never has a hole. Tiles: a short last row
-    keeps tile widths. On phones cards stack one per row (`.sbcol`), tiles go two per row (`.sbtile`),
-    and the gutters (`.sbgap`) go away.
+    td), so cards in a row always share one height. A short last row keeps its cell widths: no card is
+    stretched over a row. On phones cards stack one per row (`.sbcol`) and the gutters (`.sbgap`) go away.
     """
     cols = max(1, cols)
-    bg, cls = (t.WELL, "sbw") if well else (t.CARD, "sbc")
-    border = "" if well else f"border:1px solid {t.BORDER};"
+    bg, cls = t.CARD, "sbc"
+    border = f"border:1px solid {t.BORDER};"
     gap = t.COL_GAP
     span_total = cols * 2 - 1  # cards plus the gutters between them
     gap_td = f"<td class='sbgap' width='{gap}' style='width:{gap}px;font-size:0;line-height:0'>&nbsp;</td>"
@@ -661,21 +606,16 @@ def _grid(cells: list[str], *, cols: int, well: bool = False, margin: str = "0",
         chunk = cells[start:start + cols]
         tds = []
         for j, cell in enumerate(chunk):
-            last = j == len(chunk) - 1
-            stretch = last and not tile
-            span = span_total - 2 * j if stretch else 1
-            pct_w = round(100 * (cols - j) / cols) if stretch else round(100 / cols)
             tds.append(
-                f"<td class='{'sbtile' if tile else 'sbcol'} {cls}' width='{pct_w}%' valign='top' colspan='{span}' bgcolor='{bg}' "
-                f"style='{border}border-radius:{t.RADIUS_SM if tile else t.RADIUS}px;background:{bg};padding:{pad}'>{cell}</td>"
+                f"<td class='sbcol {cls}' width='{round(100 / cols)}%' valign='top' bgcolor='{bg}' "
+                f"style='{border}border-radius:{t.RADIUS}px;background:{bg};padding:{pad}'>{cell}</td>"
             )
-            if not stretch and j < cols - 1:
+            if j < cols - 1:
                 tds.append(gap_td)
-        if tile:
-            for k in range(len(chunk), cols):
-                tds.append(f"<td class='sbgap' width='{round(100 / cols)}%' style='font-size:0'>&nbsp;</td>")
-                if k < cols - 1:
-                    tds.append(gap_td)
+        for k in range(len(chunk), cols):
+            tds.append(f"<td class='sbgap' width='{round(100 / cols)}%' style='font-size:0'>&nbsp;</td>")
+            if k < cols - 1:
+                tds.append(gap_td)
         if rows:
             rows.append(f"<tr class='sbgap'><td colspan='{span_total}' height='{gap}' style='height:{gap}px;font-size:0;line-height:0'>&nbsp;</td></tr>")
         rows.append(f"<tr>{''.join(tds)}</tr>")
@@ -686,7 +626,7 @@ def _grid(cells: list[str], *, cols: int, well: bool = False, margin: str = "0",
 
 
 def _pill(label: str) -> str:
-    base = label.split(" under ")[0].split(" over ")[0]
+    base = label.split("→")[-1].strip().split(" under ")[0].split(" over ")[0]
     bg, fg, cls = {
         BUY: (t.UP_WASH, t.UP, "sbpu"),
         SELL: (t.CAUTION_WASH, t.CAUTION, "sbpc"),
@@ -697,37 +637,56 @@ def _pill(label: str) -> str:
     )
 
 
+def _move_html(value: float | None, period: str) -> str:
+    """"−2.3% yesterday": the move and the period it covers, kept together on one line."""
+    if value is None:
+        return ""
+    label = f"<span class='sbm' style='font-weight:400;color:{t.MUTED}'>&nbsp;{esc(period)}</span>" if period else ""
+    return (f"<span class='{_tone_class(value)}' style='display:inline-block;margin-right:10px;font-size:{t.TEXT_XS}px;font-weight:600;"
+            f"color:{tone_color(value)};font-variant-numeric:tabular-nums;white-space:nowrap'>{esc(pct(value))}{label}</span>")
+
+
 def _card_html(c: Card) -> str:
+    """Ticker and company on top, then the price with its labelled moves on the line under it, so a card two to a
+    row (about 240px inside) wraps instead of running into its neighbour."""
     url = stock_url(c.ticker)
     tick = (
         f"<a href='{esc(url)}' class='sbi' style='font-size:{t.TEXT_MD}px;font-weight:700;color:{t.INK};text-decoration:none'>{esc(c.ticker)}</a>"
         if c.link else f"<span class='sbi' style='font-size:{t.TEXT_MD}px;font-weight:700;color:{t.INK}'>{esc(c.ticker)}</span>"
     )
-    if c.figure_value is not None:
-        fig_color, fig_cls = tone_color(c.figure_value), _tone_class(c.figure_value)
-    else:
-        fig_color, fig_cls = t.INK, "sbi"
-    figure = (
-        f"<td align='right' valign='middle' class='{fig_cls}' style='padding-left:8px;font-size:22px;font-weight:700;color:{fig_color};"
-        f"font-variant-numeric:tabular-nums;white-space:nowrap;letter-spacing:-0.01em'>{esc(c.figure)}</td>"
-        if c.figure else ""
-    )
+    name = short_name(c.name, c.ticker)
+    name_html = (f"<div class='sbm' style='margin-top:1px;font-size:{t.TEXT_XS}px;line-height:1.3;color:{t.MUTED}'>{esc(name)}</div>"
+                 if name else "")
+    price = (f"<span class='sbi' style='display:inline-block;margin-right:10px;font-size:18px;line-height:1.3;font-weight:700;color:{t.INK};"
+             f"font-variant-numeric:tabular-nums;white-space:nowrap'>{esc(money(c.price))}</span>") if c.price is not None else ""
+    moves = _move_html(c.move, c.period) + (_move_html(c.second[0], c.second[1]) if c.second else "")
     head = (
         "<table role='presentation' width='100%' cellpadding='0' cellspacing='0'><tr>"
-        f"<td width='36' valign='middle'><img src='{esc(logo_src(c.ticker))}' width='28' height='28' alt='{esc(c.ticker)}' "
-        f"style='display:block;width:28px;height:28px;border-radius:14px;background:#ffffff;font-size:{t.TEXT_XS}px' /></td>"
-        f"<td valign='middle' style='white-space:nowrap'>{tick}</td>{figure}</tr></table>"
+        f"<td width='36' valign='top' style='width:36px;min-width:36px;padding-top:2px'><img src='{esc(logo_src(c.ticker))}' width='28' "
+        f"height='28' alt='{esc(c.ticker)}' style='display:block;width:28px;height:28px;border-radius:14px;background:#ffffff;"
+        f"font-size:{t.TEXT_XS}px' /></td>"
+        f"<td valign='top'>{tick}{name_html}</td></tr></table>"
     )
-    body = ""
-    if c.call:
-        body += f"<div style='margin-top:10px'>{_pill(c.call)}</div>"
+    body = f"<div style='margin-top:6px;line-height:1.5'>{price}{moves}</div>" if price or moves else ""
+    tone = "up" if (c.move or 0) > 0 else "down" if (c.move or 0) < 0 else "flat"
+    chips = " ".join(x for x in (_pill(c.call) if c.call else "", verdict(c.tag, tone) if c.tag else "") if x)
+    if chips:
+        body += f"<div style='margin-top:6px;line-height:1.9'>{chips}</div>"
     if c.line:
-        body += f"<div class='sbi' style='margin-top:10px;font-size:15px;line-height:1.45;font-weight:600;color:{t.INK}'>{esc(c.line)}</div>"
-    if c.why:
-        body += f"<div class='sbt' style='margin-top:4px;font-size:{t.TEXT_SM}px;line-height:1.5;color:{t.BODY}'>{esc(c.why)}</div>"
-    if c.meta:
-        body += f"<div class='sbm' style='margin-top:8px;font-size:{t.TEXT_XS}px;line-height:1.4;color:{t.MUTED}'>{esc(c.meta)}</div>"
+        body += f"<div class='sbi' style='margin-top:6px;font-size:{t.TEXT_SM}px;line-height:1.45;font-weight:600;color:{t.INK}'>{esc(c.line)}</div>"
     return head + body
+
+
+def short_name(name: str, ticker: str = "", limit: int = 24) -> str:
+    """"Space Exploration Technologies Corp." -> "Space Exploration": whole words that fit beside a price on a
+    phone, never cut mid-word, and nothing when it only repeats the ticker."""
+    n = _short_name(name)
+    if not n or n.upper() == ticker.upper():
+        return ""
+    if len(n) > limit:
+        cut = n[:limit].rsplit(" ", 1)[0].rstrip(",&-")
+        n = cut if len(cut) >= 4 else n[:limit]
+    return n
 
 
 def _short_name(name: str) -> str:
@@ -780,6 +739,7 @@ _DARK_CSS = f"""
     .sbl {{ background:{t.D_BORDER} !important; }}
     .sbpu {{ background:{t.D_UP_WASH} !important; color:{t.D_UP} !important; }}
     .sbpc {{ background:{t.D_CAUTION_WASH} !important; color:{t.D_CAUTION} !important; }}
+    .sbpd {{ background:{t.D_DOWN_WASH} !important; color:{t.D_DOWN} !important; }}
     .sbpk {{ background:{t.D_WELL} !important; color:{t.D_BODY} !important; }}
   }}"""
 
@@ -839,7 +799,6 @@ def render(
     .sbgap {{ display:none !important; }}
     .sbh2, .sbaside {{ display:block !important; width:100% !important; text-align:left !important; }}
     .sbaside {{ padding:2px 0 0 !important; }}
-    .sbtile {{ display:inline-block !important; width:48% !important; margin:0 2% 8px 0 !important; box-sizing:border-box; }}
   }}{_DARK_CSS}
 </style>
 </head>

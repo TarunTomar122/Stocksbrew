@@ -6,11 +6,12 @@ about us.
 """
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from backend.mail import kit
 from backend.subscription_entitlement import FREE_COVERED_WORD
-from backend.mail.data import ET, FREE_COVERED_STOCKS, Person, Stock, direction
+from backend.mail.data import ET, FREE_COVERED_STOCKS, Person, Stock, direction, last_day_move
+from backend.mail import nyse
 
 SWAP_MIN_MOVE_PCT = 3.0  # the swap email only goes out when a stock outside the covered ones moved this much
 
@@ -22,7 +23,8 @@ def _hello(person: Person) -> str:
 # --------------------------------------------------------------- welcome
 
 def example_card(stock: Stock, now: datetime | None = None) -> kit.Card:
-    """One real stock drawn the way the daily brief draws it: the move, the reason if we have one, our call."""
+    """One real stock drawn the way the daily brief draws it: price and move, our call, how unusual the move was,
+    and the reason if we have one."""
     from backend.mail.daily import session_word, times, why_line
 
     today = (now or datetime.now(timezone.utc)).astimezone(ET).date()
@@ -33,14 +35,14 @@ def example_card(stock: Stock, now: datetime | None = None) -> kit.Card:
     label = kit.call_label(stock.stance, stock.call_text)
     return kit.Card(
         ticker=stock.ticker,
-        figure=kit.pct(stock.change_pct) if stock.change_pct is not None else "",
-        figure_value=stock.change_pct,
+        name=stock.name,
+        price=stock.price,
+        move=stock.change_pct,
+        period=session_word(stock.price_at, today).removeprefix("on "),
         # a stock the reader doesn't track yet shows the call, not its price level
         call=label,
+        tag=f"{times(abs(stock.change_pct or 0) / typical)} a normal day" if typical and stock.change_pct else "",
         line=why or moved,
-        meta=" · ".join(x for x in (
-            f"{times(abs(stock.change_pct or 0) / typical)} a normal day for {stock.ticker}" if typical else "",
-            f"{stock.price_at.astimezone(ET).strftime('%b %-d')} close" if stock.price_at else "") if x),
         fallback=kit.recent_move(stock.closes),
     )
 
@@ -51,16 +53,11 @@ def build_welcome(person: Person, popular: list[Stock], *, unsubscribe_token: st
     picks = [s for s in popular if s.price is not None][:8]
     lead = next((s for s in picks if s.change_pct is not None), None)
     first = f"Welcome, {person.first_name}." if person.first_name else "Welcome to stocksbrew."
-    doc.h1(f"{first} Add a stock you own, and you'll get a card like this when it moves.")
-    doc.p("One short email before the US open, and only on days something changed in your stocks.",
-          muted=True, size=kit.t.TEXT_SM)
+    doc.h1(f"{first} Here's what your stocks will look like.")
+    doc.p("One short email before the US open, only on days your stocks change.", muted=True, size=kit.t.TEXT_SM)
+    # one real example and one action (council, Nov 12): no list of popular stocks
     if lead is not None:
         doc.cards([example_card(lead, now)])
-    rest = [s for s in picks if s is not lead]
-    if rest:
-        when = max((s.price_at for s in rest if s.price_at), default=None)
-        doc.h2("Where most people start", aside=f"{when.astimezone(ET).strftime('%b %-d')} close" if when else None)
-        doc.chips([(s.ticker, s.change_pct) for s in rest])
     doc.button("Add your first stock", kit.app_url("/watchlist"))
     return kit.render(doc, kind="welcome", category="product", subject="Welcome to stocksbrew: add one stock you own",
                       preheader="We'll tell you when it moves, why, and what our call is.",
@@ -71,30 +68,28 @@ def build_setup_nudge(person: Person, popular: list[Stock], *, day: int, unsubsc
                       now: datetime | None = None) -> kit.Email:
     """Day 2 and day 5 after signup, only while the watchlist is still empty."""
     doc = kit.Doc()
+    today = (now or datetime.now(timezone.utc)).astimezone(ET).date()
+
+    def session_word(at: datetime | None, today: date) -> str:
+        word = kit.day_word(at.astimezone(ET).date(), today) if at else ""
+        return word if word in ("today", "yesterday", "") else f"on {word}"
     movers = sorted([s for s in popular if s.change_pct is not None], key=lambda s: -abs(s.change_pct or 0))
     if day <= 2:
         lead = movers[0] if movers else None
         if lead:
-            doc.h1(f"{lead.ticker} {kit.verb(lead.change_pct)} {kit.pct(lead.change_pct, signed=False)} in the last session.")
-            doc.p(f"{_hello(person)} add the stocks you own and we'll watch them like this, with the reason and our call.",
+            doc.h1(f"{lead.ticker} {kit.verb(lead.change_pct)} {kit.pct(lead.change_pct, signed=False)} {session_word(lead.price_at, today)}.")
+            doc.p(f"{_hello(person)} add the stocks you own and we'll watch them like this.",
                   muted=True, size=kit.t.TEXT_SM)
             doc.cards([example_card(lead, now)])
         else:
             doc.h1("Add the stocks you own and we'll start watching them.")
-        rest = movers[1:8]
-        if rest:
-            when = max((s.price_at for s in rest if s.price_at), default=None)
-            doc.h2("Other popular stocks", aside=f"{when.astimezone(ET).strftime('%b %-d')} close" if when else None)
-            doc.chips([(s.ticker, s.change_pct) for s in rest])
         doc.button("Add your first stock", kit.app_url("/watchlist"))
         subject = "Your watchlist is still empty"
         pre = "Add one stock you own and we'll start following it."
     else:
         lead = movers[0] if movers else None
         if lead:
-            doc.h1(f"{lead.ticker} {kit.verb(lead.change_pct)} {kit.pct(lead.change_pct, signed=False)} in the last session.")
-            doc.p(f"{_hello(person)} if {lead.ticker} were on your watchlist, this is the card you'd have got this morning.",
-                  muted=True, size=kit.t.TEXT_SM)
+            doc.h1("Here's what you missed.")
             doc.cards([example_card(lead, now)])
         else:
             doc.h1("This is what a morning brief looks like.")
@@ -107,21 +102,11 @@ def build_setup_nudge(person: Person, popular: list[Stock], *, day: int, unsubsc
 
 # ------------------------------------------------------------- pro welcome
 
-def build_pro_welcome(person: Person, *, unsubscribe_token: str | None = None) -> kit.Email:
+def build_pro_welcome(person: Person, *, unsubscribe_token: str | None = None, now: datetime | None = None) -> kit.Email:
     n = len(person.tracked_ids)
-    newly = max(0, n - FREE_COVERED_STOCKS)
     doc = kit.Doc()
-    if n == 1:
-        doc.h1("You're on Pro, and the stock you track is covered now.")
-    else:
-        doc.h1(f"You're on Pro. All {n} stocks you track are covered now." if n else "You're on Pro.")
-    lead = (
-        f"{_hello(person)} thanks for going Pro. {kit.plural(newly, 'more stock')} now {'shows' if newly == 1 else 'show'} up "
-        f"in your morning brief and weekly memo with our call, its price and the reason."
-        if newly
-        else f"{_hello(person)} thanks for going Pro. Every stock you add from now on gets the full read."
-    )
-    doc.p(lead, muted=True, size=kit.t.TEXT_SM)
+    # the coverage said once, in the headline (council, Nov 12)
+    doc.h1("You're on Pro. Your stocks are now covered." if n else "You're on Pro.")
     newly_covered = [s for s in person.stocks if s.id not in set(person.tracked_ids[:FREE_COVERED_STOCKS])]
 
     # calls that ask for something (buy more or sell some), closest to their own level first
@@ -144,8 +129,10 @@ def build_pro_welcome(person: Person, *, unsubscribe_token: str | None = None) -
                                              f"{'buy-more' if label == kit.BUY else 'sell-some'} price.")
             rows.append((s, label, lvl, kit.cap(line)))
         doc.h2("Two you couldn't see before" if len(rows) == 2 else "One you couldn't see before")
-        doc.cards([kit.Card(ticker=s.ticker, figure=kit.pct(s.change_pct) if s.change_pct is not None else kit.money(s.price),
-                            figure_value=s.change_pct, call=kit.call_pill_text(label, lvl),
+        doc.cards([kit.Card(ticker=s.ticker, name=s.name, price=s.price, move=s.change_pct,
+                            period=kit.day_word(s.price_at.astimezone(ET).date(),
+                                                (now or datetime.now(timezone.utc)).astimezone(ET).date()) if s.price_at else "",
+                            call=kit.call_pill_text(label, lvl),
                             line=line or kit.recent_move(s.closes), why=kit.recent_move(s.closes) if line else "")
                    for s, label, lvl, line in rows])
     doc.button("Open today's briefing", kit.app_url("/briefing"))
@@ -158,11 +145,10 @@ def build_pro_welcome(person: Person, *, unsubscribe_token: str | None = None) -
 
 # ----------------------------------------------------------- plan heads-ups
 
-def build_swap_open(person: Person, *, unsubscribe_token: str | None = None) -> kit.Email | None:
+def build_swap_open(person: Person, *, unsubscribe_token: str | None = None, now: datetime | None = None) -> kit.Email | None:
     """Free only: the weekly swap is available and a stock outside the covered ones moved."""
     if person.is_pro:
         return None
-    covered = [s for s in person.stocks if s.id in set(person.covered_ids)]
     outside = [s for s in person.uncovered_stocks() if s.week_change_pct is not None]
     if not outside:
         return None
@@ -171,22 +157,14 @@ def build_swap_open(person: Person, *, unsubscribe_token: str | None = None) -> 
         return None  # nothing outside the covered stocks moved enough to be worth an email
     doc = kit.Doc()
     doc.h1(f"{pick.ticker} {kit.verb(pick.week_change_pct)} {kit.pct(pick.week_change_pct, signed=False)} this week, "
-           "and it isn't one of your covered stocks.")
-    doc.p(
-        f"{_hello(person)} this week you can swap one of your {FREE_COVERED_STOCKS} covered stocks for {pick.ticker}, "
-        "or for any other stock you track."
-    )
-    end = max((s.dates[-1] for s in person.stocks if s.dates), default="")
-    week = f"week to {date.fromisoformat(end).strftime('%b %-d')}" if end else "this week"
-    doc.h2(f"Biggest weeks outside your {FREE_COVERED_WORD}", aside=week)
-    doc.tiles([(s.ticker, s.week_change_pct, "") for s in sorted(outside, key=lambda s: -abs(s.week_change_pct or 0))[:4]])
-    if covered:
-        calls = {kit.call_label(s.stance, s.call_text) for s in covered}
-        same = calls.pop() if len(calls) == 1 else ""
-        doc.h2("Covered now", aside=f"{week} · every one is {same}" if same and len(covered) > 1 else week)
-        doc.tiles([(s.ticker, s.week_change_pct, "" if same else kit.call_label(s.stance, s.call_text)) for s in covered])
+           "outside your covered stocks.")
+    doc.p(f"{_hello(person)} this week you can swap one of your {FREE_COVERED_STOCKS} covered stocks for it.")
+    # one card for the stock worth swapping in, and one action (council, Nov 12: no tile lists, no second link)
+    from backend.mail.weekly import week_card
+
+    doc.cards([week_card(pick, (now or datetime.now(timezone.utc)).astimezone(ET).date(),
+                         call=kit.call_label(pick.stance, pick.call_text))])
     doc.button("Choose this week's swap", kit.app_url("/watchlist"))
-    doc.link("Or cover every stock with Pro", kit.app_url("/pricing"))
     return kit.render(doc, kind="swap_open", category="product",
                       subject=f"{pick.ticker} {kit.pct(pick.week_change_pct)} this week, outside your {FREE_COVERED_WORD}",
                       preheader="Your weekly swap is open: cover it instead of one of your current stocks.",
@@ -205,10 +183,9 @@ def build_limit_reached(person: Person, *, title: str, body: str, used: int, cap
     if body.split(" ", 1)[0] in {"You", "Your"}:
         body = body[:1].lower() + body[1:]
     doc.p(f"{_hello(person)} {body}")
-    pro = "has no limit" if pro_cap is None else f"allows up to {pro_cap}"
-    doc.p(f"You're using {used} of {cap} on Free, and Pro {pro}. Nothing you've saved is deleted.", muted=True, size=kit.t.TEXT_SM)
+    pro = "has no limit" if pro_cap is None else f"allows {pro_cap}"
+    doc.p(f"You're using {used} of {cap} on Free. Pro {pro}.", muted=True, size=kit.t.TEXT_SM)
     doc.button("Compare Free and Pro", kit.app_url("/pricing"))
-    doc.link("Or manage what's running", kit.app_url("/agents/jobs"))
     return kit.render(doc, kind="limit_reached", category="product", subject=title,
                       preheader="What the limit is, and what Pro changes.", unsubscribe_token=unsubscribe_token,
                       dateline="Your plan")
@@ -217,37 +194,86 @@ def build_limit_reached(person: Person, *, title: str, body: str, used: int, cap
 # --------------------------------------------------------------- win-back
 
 def build_winback(person: Person, *, now: datetime | None = None, unsubscribe_token: str | None = None) -> kit.Email | None:
+    """Since the last visit: the biggest moves in the person's stocks from the first close on or after the visit
+    (what they had already seen is not counted), or over the last three weeks when we don't know the visit or it is
+    older than the stored prices. A few cards, with the last day's move under each."""
     now = now or datetime.now(timezone.utc)
-    stocks = [s for s in person.emailed_stocks() if len(s.closes) >= 16 and s.closes[-16]]
+    today = now.astimezone(ET).date()
+    seen = person.last_seen
+
+    # every stock is measured to the same, latest finished session; one whose prices stopped earlier is left out
+    end = nyse.last_closed_session(now).isoformat()
+
+    def base(s: Stock) -> int | None:
+        if not s.dates or s.dates[-1] != end:
+            return None
+        if seen:
+            # the first close at or after the visit (10am: that day's; the evening: the next session's), which must be
+            # in this stock's stored closes: a history that starts later or has a gap there is left out, not guessed
+            day = nyse.first_close_at_or_after(seen).isoformat()
+        else:
+            # three calendar weeks: the session on or before the day 21 days ago, exactly
+            day = nyse.session_on_or_before(today - timedelta(days=21)).isoformat()
+        i = s.dates.index(day) if day in s.dates else None
+        return i if i is not None and i < len(s.closes) - 1 and s.closes[i] else None
+
+    # no stock's history covers the visit: say three weeks instead of claiming a visit baseline
+    if seen and not any(base(s) is not None for s in person.emailed_stocks()):
+        seen = None
+
+    starts = {s.id: base(s) for s in person.emailed_stocks()}
+    stocks = [s for s in person.emailed_stocks() if starts[s.id] is not None]
     if not stocks:
         return None
-    sessions = 15
+    # a known visit is the baseline; without one the email says plainly that it covers three weeks
+    period = "since your last visit" if seen else "over the past three weeks"
 
     def change(s: Stock) -> float:
-        return (s.closes[-1] - s.closes[-1 - sessions]) / s.closes[-1 - sessions] * 100
+        b = starts[s.id]
+        return (s.closes[-1] - s.closes[b]) / s.closes[b] * 100
 
     ranked = sorted(stocks, key=lambda s: -abs(change(s)))
-    doc = kit.Doc()
     lead = ranked[0]
-    start_day = date.fromisoformat(lead.dates[-1 - sessions]) if len(lead.dates) > sessions else None
-    end_day = date.fromisoformat(lead.dates[-1]) if lead.dates else None
-    span = f"from {start_day.strftime('%b %-d')} to {end_day.strftime('%b %-d')}" if start_day and end_day else "in three weeks"
-    doc.h1(f"{lead.ticker} {kit.verb(change(lead))} {kit.pct(change(lead), signed=False)} while you were away.")
-    avg = sum(change(s) for s in stocks) / len(stocks)
-    rose = sum(1 for s in stocks if round(change(s), 1) > 0)
-    doc.p(f"{_hello(person)} here's your list {span}: your {kit.plural(len(stocks), 'stock')} averaged {kit.pct(avg)} and "
-          f"{rose} rose.",
-          muted=True, size=kit.t.TEXT_SM)
-    doc.h2("Biggest moves", aside=span)
-    doc.tiles([(s.ticker, change(s), kit.call_label(s.stance, s.call_text)) for s in ranked[:8]])
+    doc = kit.Doc()
+    doc.h1(f"{lead.ticker} {kit.verb(change(lead))} {kit.pct(change(lead), signed=False)} "
+           + ("while you were away." if seen else "over the past three weeks."))
+    doc.h2("Biggest moves")
+    picks = ranked[:4]
+    doc.cards([kit.Card(ticker=s.ticker, name=s.name, price=s.closes[-1], move=change(s), period=period,
+                        second=(m[0], kit.day_word(m[1], today)) if (m := last_day_move(s)) else None,
+                        call=kit.call_label(s.stance, s.call_text)) for s in picks])
     doc.button("Catch up on your watchlist", kit.app_url("/watchlist"))
     doc.rich(
-        f"This is the only reminder we'll send. If the morning brief is too much, "
-        f"<a class='sbk' href='{kit.esc(kit.settings_url())}' style='color:{kit.t.COPPER};text-decoration:underline'>switch to the weekly memo only</a>.",
-        f"This is the only reminder we'll send. If the morning brief is too much, switch to the weekly memo only: {kit.settings_url()}",
+        f"This is our only reminder. Too much email? "
+        f"<a class='sbk' href='{kit.esc(kit.settings_url())}' style='color:{kit.t.COPPER};text-decoration:underline'>Get the weekly memo only</a>.",
+        f"This is our only reminder. Too much email? Get the weekly memo only: {kit.settings_url()}",
         size=kit.t.TEXT_SM, muted=True,
     )
     return kit.render(doc, kind="winback", category="product",
-                      subject=f"{lead.ticker} {kit.pct(change(lead))} since your last visit",
-                      preheader=f"Three weeks in your {kit.plural(len(stocks), 'stock')}, in one minute.",
-                      unsubscribe_token=unsubscribe_token, dateline="While you were away")
+                      subject=f"{lead.ticker} {kit.pct(change(lead))} {period}",
+                      preheader=f"The biggest moves in your {kit.plural(len(stocks), 'stock')} {period}.",
+                      unsubscribe_token=unsubscribe_token,
+                      dateline="Since your last visit" if seen else "Over the past three weeks")
+
+
+# ------------------------------------------------------------ research ready
+
+def build_brief_ready(*, ticker: str, name: str = "", price: float | None = None, change_pct: float | None = None,
+                      headline: str = "", unsubscribe_token: str | None = None) -> kit.Email:
+    """The stock someone asked about has its first research (backend/brief_ready_alerts.py sends it). ``price`` is in
+    dollars; pass None for any other currency rather than print it with a $."""
+    ticker = str(ticker or "").strip().upper()
+    short = kit._short_name(name) if name and name.upper() != ticker else ""
+    doc = kit.Doc()
+    doc.h1(f"Our research on {short or ticker} is ready.")
+    from backend.mail.headline_case import headline_case
+
+    line = headline_case(headline, name) if headline else ""
+    line = "" if kit.is_title_case(line) else line  # a scraped Title Case headline is not shown (owner rule 8)
+    # the latest quote's move; it may be from the last session rather than today, so it says so
+    doc.cards([kit.Card(ticker=ticker, name=name, price=price, move=change_pct, period="last session", line=line)])
+    doc.button(f"Open {ticker}", kit.stock_url(ticker))
+    return kit.render(doc, kind="brief_ready", category="alerts", subject=f"Our research on {ticker} is ready",
+                      preheader=line or f"Financials, news and our call on {short or ticker}.",
+                      unsubscribe_token=unsubscribe_token, reason="You get this because you asked to hear when this research was ready.",
+                      dateline="Research ready")
