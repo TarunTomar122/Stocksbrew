@@ -1,7 +1,7 @@
 import * as React from "react";
 
 import { LockCard, ProMark } from "@/components/oa/gate";
-import { ToneGlyph } from "@/components/oa/kit/tone";
+import { SignedBar, ToneGlyph, barDomain } from "@/components/oa/kit/tone";
 import { NUM, Panel, fmtMoney, fmtStampET } from "@/components/oa/kit";
 import { BasketActions } from "@/components/screener/basket-actions";
 import { LINE_COLORS } from "@/components/screener/controls";
@@ -12,6 +12,8 @@ import { getCompareData, getCompareDataCached } from "@/lib/compare";
 import { buildCompareTable, buildScoreboard, figureLabel, withChartReturns, type CompareTableGroup } from "@/lib/compare-shared";
 import { ownCallLevel } from "@/lib/call-level";
 import { callLine } from "@/components/stock-report/call-line";
+import { buildComparePick } from "@/lib/compare-pick";
+import { PickCard } from "./pick-card";
 import { ScoreboardPanel } from "./scoreboard";
 import { WholeRowsBox } from "./whole-rows-box";
 import { canSeeLevels, type Viewer } from "@/lib/entitlements-server";
@@ -37,7 +39,8 @@ function GroupHead({ label, span, right }: { label: string; span: number; right?
     <tr>
       <th colSpan={span} scope="colgroup" className="border-y border-oa-border bg-oa-bg px-4 py-1.5 text-left">
         <span className="flex items-center justify-between gap-3">
-          <span className="oa-caption">{label}</span>
+          {/* Bigger than the rows under it (owner: headings bigger than the table text). */}
+          <span className="text-[15px] font-semibold leading-5 text-oa-fg">{label}</span>
           {right ? <span className="text-[12px] font-normal text-oa-muted-fg">{right}</span> : null}
         </span>
       </th>
@@ -45,13 +48,17 @@ function GroupHead({ label, span, right }: { label: string; span: number; right?
   );
 }
 
-function NumberRows({ group, rows }: { group: CompareTableGroup; rows: ReadonlyArray<ScreenerRow | null> }) {
+function NumberRows({ group, rows, bars = false }: { group: CompareTableGroup; rows: ReadonlyArray<ScreenerRow | null>; bars?: boolean }) {
   return (
     <>
       {group.rows.map((row) => {
         // Margins, returns on capital, debt and our scores also get a good-or-bad mark of their own,
         // from the same thresholds as the stock page: the dot only says which is better of these names.
         const marked = fieldHasMark(row.id);
+        // A signed change (the returns) also gets a bar under each figure, every stock's on one scale with one zero
+        // line, in its line's colour from the chart (owner VISUALS CHECK: a comparison of numbers gets a bar).
+        const signed = bars && row.cells.some((cell) => cell.tone !== null);
+        const domain = signed ? barDomain(row.cells.map((cell) => cell.value)) : null;
         return (
           <tr key={row.id} className="border-b border-oa-border last:border-b-0 hover:bg-oa-accent">
             <th scope="row" title={row.hint} className={`${LABEL_CELL} group-hover:bg-transparent`}>
@@ -73,6 +80,9 @@ function NumberRows({ group, rows }: { group: CompareTableGroup; rows: ReadonlyA
                     {marked ? <MarkSlot tone={fieldMark(row.id, cell.value, rows[index] ?? undefined)} /> : null}
                   </span>
                 )}
+                {domain && cell.value !== null ? (
+                  <SignedBar value={cell.value} domain={domain} color={LINE_COLORS[index % LINE_COLORS.length]} className="ml-auto mt-1.5 h-1.5 w-full max-w-[7rem]" />
+                ) : null}
               </td>
             ))}
           </tr>
@@ -178,6 +188,9 @@ export async function CompareView({
   const groups = buildCompareTable(rows);
   const benchmark = benchmarkRows.get("SPY") ?? null;
   const scoreboard = buildScoreboard(rows, benchmark);
+  // Our pick of these, from the same figures as the table; nothing when the data is too thin to pick honestly.
+  const pick = buildComparePick(rows, benchmark);
+  const names = Object.fromEntries(rows.flatMap((row) => (row ? [[row.symbol, row.name]] : [])));
   const showCalls = rows.some((row) => row?.call);
   // The one time on the page: when the first covered stock was priced.
   const pricedAt = rows.find((row) => row?.price_at)?.price_at ?? null;
@@ -263,7 +276,7 @@ export async function CompareView({
                 .map((item) => (
                   <React.Fragment key={item.id}>
                     <GroupHead label={item.label} span={span} />
-                    <NumberRows group={item} rows={rows} />
+                    <NumberRows group={item} rows={rows} bars={item.id === "price"} />
                   </React.Fragment>
                 ))}
 
@@ -373,6 +386,7 @@ export async function CompareView({
               </>
             )}
             {tablePanel}
+            {pick ? <PickCard pick={pick} names={names} /> : null}
           </div>
         );
       })()}
