@@ -567,6 +567,65 @@ table tbody tr:hover > * {
     font-size: 13px;
   }
 }
+/* Small text, a tenth bigger (owner, Nov 12: "increase only the smallest
+   fonts size by 1.1x", after a side-by-side). Only the small tiers move, so
+   headings and figures keep their size and the page keeps its hierarchy:
+   13 (and everything floored to 13 above) to 14.3, 13.5 to 14.85, 14 to
+   15.4. Page content only: the app chrome (top bar, sidebar, place pills,
+   tab bar) sits outside <main>, and a marketing page's own header is left
+   out (.oa-topbar, and any nav), so the navigation keeps its size and nothing in it gets pushed off a
+   phone screen. Elements with their own responsive size are moved at that
+   breakpoint below instead. Left as they are: text in a fixed small box (h-4,
+   h-5, h-[16px], h-[18px] chips and counts, leading-3 labels), and anything
+   under .oa-type-fixed or in a heatmap tile ([data-tile], [data-need]),
+   which is text that code measures at its set size. */
+main.oa-landing :is(.text-xs, .text-\[10px\], .text-\[10\.5px\], .text-\[11px\], .text-\[11\.5px\], .text-\[12px\], .text-\[12\.5px\], .text-\[13px\]):not([class*=":text-["]):not(.oa-topbar *, nav *, .oa-type-fixed, .oa-type-fixed *, [data-tile], [data-tile] *, [data-need], .h-4, .h-5, .h-\[16px\], .h-\[18px\], .leading-3) {
+  font-size: 14.3px;
+}
+main.oa-landing .text-\[13\.5px\]:not([class*=":text-["]):not(.oa-topbar *, nav *, .oa-type-fixed, .oa-type-fixed *, [data-tile], [data-tile] *, [data-need], .h-4, .h-5, .h-\[16px\], .h-\[18px\], .leading-3) {
+  font-size: 14.85px;
+}
+main.oa-landing :is(.text-sm, .text-\[14px\]):not([class*=":text-["]):not(.oa-topbar *, nav *, .oa-type-fixed, .oa-type-fixed *, [data-tile], [data-tile] *, [data-need], .h-4, .h-5, .h-\[16px\], .h-\[18px\], .leading-3) {
+  font-size: 15.4px;
+}
+main.oa-landing :is(.\!text-xs, .\!text-\[10px\], .\!text-\[10\.5px\], .\!text-\[11px\], .\!text-\[11\.5px\], .\!text-\[12px\], .\!text-\[12\.5px\], .\!text-\[13px\]):not(.oa-topbar *, nav *, .oa-type-fixed, .oa-type-fixed *, [data-tile], [data-tile] *, [data-need], .h-4, .h-5, .h-\[16px\], .h-\[18px\], .leading-3) {
+  font-size: 14.3px !important;
+}
+main.oa-landing .\!text-\[13\.5px\]:not(.oa-topbar *, nav *, .oa-type-fixed, .oa-type-fixed *, [data-tile], [data-tile] *, [data-need], .h-4, .h-5, .h-\[16px\], .h-\[18px\], .leading-3) {
+  font-size: 14.85px !important;
+}
+main.oa-landing :is(.\!text-sm, .\!text-\[14px\]):not(.oa-topbar *, nav *, .oa-type-fixed, .oa-type-fixed *, [data-tile], [data-tile] *, [data-need], .h-4, .h-5, .h-\[16px\], .h-\[18px\], .leading-3) {
+  font-size: 15.4px !important;
+}
+@media (min-width: 640px) {
+  main.oa-landing :is(.sm\:text-\[10\.5px\], .sm\:text-\[12px\], .sm\:text-\[12\.5px\], .sm\:text-\[13px\]):not(.oa-topbar *, nav *, .oa-type-fixed, .oa-type-fixed *, [data-tile], [data-tile] *, [data-need], .h-4, .h-5, .h-\[16px\], .h-\[18px\], .leading-3) {
+    font-size: 14.3px;
+  }
+  main.oa-landing .sm\:text-\[13\.5px\]:not(.oa-topbar *, nav *, .oa-type-fixed, .oa-type-fixed *, [data-tile], [data-tile] *, [data-need], .h-4, .h-5, .h-\[16px\], .h-\[18px\], .leading-3) {
+    font-size: 14.85px;
+  }
+  main.oa-landing .sm\:text-\[14px\]:not(.oa-topbar *, nav *, .oa-type-fixed, .oa-type-fixed *, [data-tile], [data-tile] *, [data-need], .h-4, .h-5, .h-\[16px\], .h-\[18px\], .leading-3) {
+    font-size: 15.4px;
+  }
+}
+@media (min-width: 768px) {
+  main.oa-landing .md\:text-\[12px\]:not(.oa-topbar *, nav *, .oa-type-fixed, .oa-type-fixed *, [data-tile], [data-tile] *, [data-need], .h-4, .h-5, .h-\[16px\], .h-\[18px\], .leading-3) {
+    font-size: 14.3px;
+  }
+}
+@media (min-width: 1024px) {
+  main.oa-landing .lg\:text-\[12px\]:not(.oa-topbar *, nav *, .oa-type-fixed, .oa-type-fixed *, [data-tile], [data-tile] *, [data-need], .h-4, .h-5, .h-\[16px\], .h-\[18px\], .leading-3) {
+    font-size: 14.3px;
+  }
+  main.oa-landing .lg\:text-\[14px\]:not(.oa-topbar *, nav *, .oa-type-fixed, .oa-type-fixed *, [data-tile], [data-tile] *, [data-need], .h-4, .h-5, .h-\[16px\], .h-\[18px\], .leading-3) {
+    font-size: 15.4px;
+  }
+}
+@media (min-width: 1280px) {
+  main.oa-landing .xl\:text-\[14px\]:not(.oa-topbar *, nav *, .oa-type-fixed, .oa-type-fixed *, [data-tile], [data-tile] *, [data-need], .h-4, .h-5, .h-\[16px\], .h-\[18px\], .leading-3) {
+    font-size: 15.4px;
+  }
+}
 /* Secondary text is never fainter than the muted ink (7:1 on cream, 8:1 in
    the dark). Faded variants of it were the small grey print the reviewers
    could not read. */
