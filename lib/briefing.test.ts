@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { groupBriefingItems } from "@/lib/briefing-groups";
 import type { AnomalyItem } from "@/lib/daily-anomalies";
 import {
   NOTHING_NEEDS_YOU,
@@ -602,7 +603,7 @@ describe("buildBriefing: other sources", () => {
     const briefing = buildBriefing(
       input({
         positions: [
-          position({ ticker: "AAPL", stance: "hold" }),
+          position({ ticker: "AAPL", name: "Apple Inc.", stance: "hold" }),
           position({ ticker: "NVDA", day_change_pct: -4.85 }),
         ],
         movers: [mover({ ticker: "NVDA", day_change_pct: -4.85, move_explanation: CONFIRMED })],
@@ -617,6 +618,66 @@ describe("buildBriefing: other sources", () => {
       next_step: "Read it, then check whether it changes our call, which is Keep today.",
     });
     expect(news[0].evidence[0]).toMatchObject({ source: "Example Wire", at: "2026-11-09T14:00:00.000Z" });
+  });
+
+  it("picks a reason line on the stock over a newer roundup, opinion, rumour or explainer, and none when only those are left (round 6)", () => {
+    const story = (id: string, title: string, tickers: string[], hour: number) => ({
+      id,
+      title,
+      url: `https://example.com/${id}`,
+      source_name: "Example Wire",
+      published_at: `2026-11-09T${String(hour).padStart(2, "0")}:00:00.000Z`,
+      summary: "A summary long enough for the opened card to show it in full.",
+      tickers,
+    });
+    const briefing = buildBriefing(
+      input({
+        positions: [
+          position({ ticker: "AMD", name: "Advanced Micro Devices", day_change_pct: 1.2 }),
+          position({ ticker: "CAT", name: "Caterpillar Inc.", day_change_pct: 2.9 }),
+          position({ ticker: "QQQ", name: "Invesco QQQ Trust", day_change_pct: 2.3 }),
+        ],
+        news: [
+          story("a1", "Stock Market Today, Nov. 9: Advanced Micro Devices Jumps -- and Not Only Because of CoreWeave", ["AMD"], 17),
+          story("a2", "AMD raises its data-center revenue forecast", ["AMD"], 12),
+          story("c1", "Caterpillar (CAT) Stock Looks Like A Bargain On Its 222% Run", ["CAT"], 16),
+          story("q1", "Every December the Nasdaq-100 Reshuffles. QQQ Holders Feel It Even If They Never Trade", ["QQQ"], 16),
+          story("q2", "Invesco QQQ is reportedly planning a fee cut", ["QQQ"], 15),
+        ],
+      }),
+    );
+    const news = briefing.also_today.filter((item) => item.kind === "news");
+    expect(news.map((item) => [item.ticker, item.headline])).toEqual([["AMD", "News on AMD: AMD raises its data-center revenue forecast"]]);
+  });
+
+  it("gives every update on a tracked stock the stock's move, a Reddit mention included (round 6)", () => {
+    const briefing = buildBriefing(
+      input({
+        positions: [position({ ticker: "QQQ", day_change_pct: 2.3 })],
+        discussion: {
+          generated_at: "2026-11-09T18:20:00.000Z",
+          window_hours: 120,
+          tickers: [{ ticker: "QQQ", company_name: "Invesco QQQ Trust", mention_count: 9, sentiment: "bearish", summary: "People argue about the rebalance.", latest_post_at: "2026-11-09T18:00:00.000Z" }],
+        },
+      }),
+    );
+    const reddit = [...briefing.needs_you, ...briefing.also_today].find((item) => item.kind === "discussion_spike");
+    expect(reddit?.day_change_pct).toBe(2.3);
+    // The move keeps its quote time apart from the post's, so the card's figure is not dated by the post.
+    expect(reddit?.price_as_of).toBe("2026-11-09T18:20:00.000Z");
+    expect(groupBriefingItems([reddit!])[0]!.as_of).toBe("2026-11-09T18:20:00.000Z");
+  });
+
+  it("leaves the move off an uncovered stock's update, and off a move too big to be real", () => {
+    const discussion = (ticker: string) => ({
+      generated_at: "2026-11-09T18:20:00.000Z",
+      window_hours: 120,
+      tickers: [{ ticker, company_name: ticker, mention_count: 9, sentiment: "bullish", summary: "People like it.", latest_post_at: "2026-11-09T08:00:00.000Z" }],
+    });
+    const uncovered = buildBriefing(input({ positions: [position({ ticker: "PLTR", day_change_pct: 2.5, covered: false })], discussion: discussion("PLTR") }));
+    expect([...uncovered.needs_you, ...uncovered.also_today].find((item) => item.kind === "discussion_spike")?.day_change_pct).toBeNull();
+    const huge = buildBriefing(input({ positions: [position({ ticker: "XYZ", day_change_pct: 450 })], discussion: discussion("XYZ") }));
+    expect([...huge.needs_you, ...huge.also_today].find((item) => item.kind === "discussion_spike")?.day_change_pct).toBeNull();
   });
 
   it("reports Reddit discussion on a tracked name without calling it a signal", () => {
@@ -1105,6 +1166,19 @@ describe("market strip time", () => {
     );
     // The oldest of the shown quotes: no move is dated later than it was priced.
     expect(briefing.market.as_of).toBe("2026-11-09T20:01:00Z");
+  });
+
+  it("does not let one thinly traded name's morning quote date the rest (AIRJW at 12:33 PM after the close)", () => {
+    const movers = [
+      mover({ ticker: "AIRJW", day_change_pct: 35.9, price_as_of: "2026-11-09T17:33:00Z" }),
+      mover({ ticker: "CRWV", day_change_pct: 24.9, price_as_of: "2026-11-09T21:00:00Z" }),
+      mover({ ticker: "LAC", day_change_pct: -12.3, price_as_of: "2026-11-09T20:59:00Z" }),
+    ];
+    const after = buildBriefing(input({ mode: "market", now: "2026-11-09T22:00:00.000Z", movers }));
+    expect(after.market.as_of).toBe("2026-11-09T20:59:00Z");
+    // Every quote shown that old: the strip says so rather than inventing a later time.
+    const allLate = buildBriefing(input({ mode: "market", now: "2026-11-09T22:00:00.000Z", movers: [movers[0]!] }));
+    expect(allLate.market.as_of).toBe("2026-11-09T17:33:00Z");
   });
 
   it("falls back to the feed's time when no move carries its own", () => {

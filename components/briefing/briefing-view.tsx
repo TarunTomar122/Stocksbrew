@@ -20,7 +20,7 @@ import {
   groupCountLabel,
   type BriefingGroup,
 } from "@/lib/briefing-groups";
-import { briefingRead, earlierSession, holdingsFirst, type BriefingSession } from "@/lib/briefing-read";
+import { briefingRead, comingUpAfterRead, earlierSession, holdingsFirst, readEarningsTickers, type BriefingSession } from "@/lib/briefing-read";
 import { anchorGroups, WORTH_KNOWING_FIRST } from "@/lib/briefing-anchors";
 import type { ExampleBriefingExtras } from "@/lib/briefing-example";
 import { briefingLead, briefingSteps } from "@/lib/next-steps";
@@ -137,10 +137,6 @@ function SessionStrip({ sectors }: { sectors: BriefingSession["sectors"] }) {
       ))}
     </ul>
   );
-}
-
-function EmptyLine({ children }: { children: React.ReactNode }) {
-  return <p className={`${CARD} px-4 py-2.5 text-[14px] leading-6 text-oa-muted-fg`}>{children}</p>;
 }
 
 /**
@@ -300,7 +296,8 @@ function etMinutes(stamp: string | null | undefined): number | null {
 export function exampleMarketWords(market: ExampleBriefingExtras["market"], date: string): string | null {
   if (!market || !Number.isFinite(market.pct)) return null;
   const when = market.day && market.day < date ? `Market on ${weekdayOf(market.day)}` : "Market today";
-  return `${when}: S&P 500 ${signedPct(market.pct)}${market.leader ? `, ${market.leader} led` : ""}`;
+  // One decimal, like the read's headline under it.
+  return `${when}: S&P 500 ${signedPct(market.pct, 1)}${market.leader ? `, ${market.leader} led` : ""}`;
 }
 
 /** The example's head: what this is, once, the one clock, the market in a line, and the one way to get your own. */
@@ -470,8 +467,10 @@ export function BriefingView({
   // The sector strip belongs to the session headline: today's live sectors under the index line they explain.
   const showSession = !personal && Boolean(session) && Boolean(read) && !read?.headlineTickers && briefing.market.indices.length > 0 && !earlierSession(briefing.market.as_of, briefing.date);
   const worth = showAllWorth ? worthAll : worthAll.slice(0, WORTH_KNOWING_FIRST);
+  // A report the read already names is not said again under Coming up (owner, round 6).
+  const comingUp = personal ? comingUpAfterRead(grouped.coming_up, readEarningsTickers(read)) : grouped.coming_up;
   // Only a personal briefing's cards are linked from the agents strip (lib/briefing-anchors.ts); settled ones never.
-  const anchors: ReadonlySet<BriefingGroup> = personal ? anchorGroups([...grouped.needs_you, ...worth, ...grouped.coming_up]) : new Set();
+  const anchors: ReadonlySet<BriefingGroup> = personal ? anchorGroups([...grouped.needs_you, ...worth, ...comingUp]) : new Set();
   const groupCards = (groups: BriefingGroup[], chips = false) => <GroupCards groups={groups} actions={actions} anchors={anchors} personal={personal} chips={chips} results={resultFacts} />;
 
   return (
@@ -569,15 +568,11 @@ export function BriefingView({
           </p>
         ) : null}
 
-        {/* The example has no decisions to make, so its "Needs you" would only ever be empty (owner rule 4). */}
-        {personal && !(example && grouped.needs_you.length === 0) ? (
-          <Section id="needs-you" label="Needs you" count={grouped.needs_you.length > 0 ? groupCountLabel(grouped.needs_you) : undefined}>
-            {grouped.needs_you.length > 0 ? (
-              // One card per stock; its other updates wait behind "N more" and open in place.
-              groupCards(grouped.needs_you)
-            ) : (
-              <EmptyLine>No decisions today. The rest is below.</EmptyLine>
-            )}
+        {/* Only when something needs a decision: a card saying there is nothing is a card without data (owner rule 4). */}
+        {personal && grouped.needs_you.length > 0 ? (
+          <Section id="needs-you" label="Needs you" count={groupCountLabel(grouped.needs_you)}>
+            {/* One card per stock; its other updates wait behind "N more" and open in place. */}
+            {groupCards(grouped.needs_you)}
           </Section>
         ) : null}
 
@@ -635,17 +630,12 @@ export function BriefingView({
 
         {personal && locked ? locked : null}
 
-        <Section id="coming-up" label="Coming up" count={grouped.coming_up.length > 0 ? "next 7 days" : undefined}>
-          {grouped.coming_up.length > 0 ? (
-            groupCards(grouped.coming_up, true)
-          ) : (
-            <EmptyLine>
-              {personal
-                ? "None of your stocks reports earnings in the next 7 days."
-                : "None of the most followed stocks reports earnings in the next 7 days."}
-            </EmptyLine>
-          )}
-        </Section>
+        {/* Hidden when empty, like Needs you: the calendar page owns "nothing reports this week". */}
+        {comingUp.length > 0 ? (
+          <Section id="coming-up" label="Coming up" count="next 7 days">
+            {groupCards(comingUp, true)}
+          </Section>
+        ) : null}
 
         {personal ? (
           <section aria-labelledby="quiet-label" className={CARD}>

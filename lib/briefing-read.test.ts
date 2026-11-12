@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Briefing, BriefingItem } from "@/lib/briefing";
 import { groupBriefingSections } from "@/lib/briefing-groups";
-import { briefingRead, firstSentence, holdingsFirst, sessionLine } from "@/lib/briefing-read";
+import { briefingRead, comingUpAfterRead, firstSentence, holdingsFirst, readEarningsTickers, sessionLine } from "@/lib/briefing-read";
 import type { BriefingGroup } from "@/lib/briefing-groups";
 
 function item(overrides: Partial<BriefingItem> & Pick<BriefingItem, "id" | "kind" | "ticker">): BriefingItem {
@@ -49,24 +49,53 @@ describe("briefingRead", () => {
       { ...base, portfolio: { value: 1000, day_change_value: 21, day_change_pct: 2.1, counted: 3, holdings: 3, as_of: null } },
       groupBriefingSections(sections([orcl, cbrs, asts])),
     );
-    expect(read?.headline).toBe("Your holdings are up 2.1% today; ASTS (+14.1%) and CBRS (+7.9%) moved most.");
+    expect(read?.headline).toBe("Your holdings are up 2.1% today; ASTS and CBRS moved most.");
     expect(read?.insights.map((insight) => insight.text)).toEqual([
       "One stock needs a decision: ORCL.",
       "ASTS is up 14.1% today, against +2.3% for the S&P 500.",
       "CBRS is up 7.9%: Cerebras signed a cloud deal.",
     ]);
     expect(read?.insights[1].soWhat).toBeUndefined();
+    // A holding with no card of its own (in Quiet) keeps its figure in the headline: nowhere else shows it.
+    const quiet = briefingRead(
+      { ...base, portfolio: { value: 1000, day_change_value: 21, day_change_pct: 2.1, counted: 3, holdings: 3, as_of: null }, quiet: { text: "", names: [{ ticker: "AAPL", relation: "holding", day_change_pct: 20 }] } },
+      groupBriefingSections(sections([orcl, cbrs, asts])),
+    );
+    expect(quiet?.headline).toBe("Your holdings are up 2.1% today; AAPL (+20.0%) and ASTS moved most.");
     expect(read?.insights[2].action).toEqual({ label: "Our view on CBRS", href: "/stock/CBRS" });
   });
 
   it("reads the example against the S&P 500, on its own price day, with no clock of its own", () => {
     const portfolio = { value: 1000, day_change_value: 21, day_change_pct: 2.1, counted: 3, holdings: 3, as_of: "2026-11-11T20:59:00.000Z" };
     const today = briefingRead({ ...base, date: "2026-11-11", portfolio }, groupBriefingSections(sections([orcl, cbrs, asts])), null, Date.parse("2026-11-11T22:00:00Z"), { example: true, marketPct: 1.31 });
-    expect(today?.headline).toBe("Your holdings are up 2.1% today, against +1.31% for the S&P 500; ASTS (+14.1%) and CBRS (+7.9%) moved most.");
+    expect(today?.headline).toBe("Your holdings are up 2.1% today, against +1.3% for the S&P 500; ASTS and CBRS moved most.");
     expect(today?.asOf).toBeNull();
     // Before Thursday's open the example still shows Wednesday's prices: it says so instead of "today".
     const before = briefingRead({ ...base, date: "2026-11-12", portfolio }, groupBriefingSections(sections([orcl, cbrs, asts])), null, Date.parse("2026-11-12T12:00:00Z"), { example: true });
-    expect(before?.headline).toBe("Your holdings are up 2.1% on Wednesday; ASTS (+14.1%) and CBRS (+7.9%) moved most.");
+    expect(before?.headline).toBe("Your holdings are up 2.1% on Wednesday; ASTS and CBRS moved most.");
+  });
+
+  it("says the earlier session's day for a member too, when the prices are from the last close", () => {
+    const portfolio = { value: 1000, day_change_value: 21, day_change_pct: 2.1, counted: 3, holdings: 3, as_of: "2026-11-11T20:59:00.000Z" };
+    const thursday = briefingRead({ ...base, date: "2026-11-12", portfolio }, groupBriefingSections(sections([orcl, cbrs, asts])), null, Date.parse("2026-11-12T12:00:00Z"));
+    expect(thursday?.headline).toBe("Your holdings are up 2.1% on Wednesday; ASTS and CBRS moved most.");
+    const same = briefingRead({ ...base, date: "2026-11-11", portfolio }, groupBriefingSections(sections([orcl, cbrs, asts])), null, Date.parse("2026-11-11T22:00:00Z"));
+    expect(same?.headline).toBe("Your holdings are up 2.1% today; ASTS and CBRS moved most.");
+  });
+
+  it("leaves a stock out of Coming up when the read already names its report", () => {
+    const nvda = item({ id: "e", kind: "earnings_upcoming", ticker: "NVDA", relation: "holding", headline: "NVDA reports earnings on Tuesday after the close", deadline_days: 6 });
+    const aapl = item({ id: "e2", kind: "earnings_upcoming", ticker: "AAPL", relation: "watching", headline: "AAPL reports earnings on Thursday", deadline_days: 1 });
+    const grouped = groupBriefingSections({ needs_you: [], worth_knowing: [], coming_up: [nvda, aapl], kept: [], dismissed: [] });
+    const read = briefingRead({ ...base, date: "2026-11-11" }, grouped);
+    const named = readEarningsTickers(read);
+    expect([...named]).toEqual(["NVDA"]);
+    expect(comingUpAfterRead(grouped.coming_up, named).map((group) => group.ticker)).toEqual(["AAPL"]);
+    expect(comingUpAfterRead(grouped.coming_up, new Set())).toHaveLength(2);
+    // With a holdings headline, NVDA has no card left once the read names its report: its figure stays in the headline.
+    const portfolio = { value: 1000, day_change_value: 12, day_change_pct: 1.2, counted: 1, holdings: 1, as_of: null };
+    const held = briefingRead({ ...base, date: "2026-11-11", portfolio }, groupBriefingSections({ needs_you: [], worth_knowing: [], coming_up: [{ ...nvda, day_change_pct: 2.9 }], kept: [], dismissed: [] }));
+    expect(held?.headline).toBe("Your holdings are up 1.2% today; NVDA (+2.9%) moved most.");
   });
 
   it("names the decisions when there is no holdings figure", () => {

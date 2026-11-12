@@ -1,4 +1,4 @@
-import { buildBriefing, marketDay, type Briefing, type BriefingNews, type BriefingPosition } from "@/lib/briefing";
+import { buildBriefing, marketDay, type Briefing, type BriefingPosition } from "@/lib/briefing";
 import { loadMarketInputs, marketBriefing, type BriefingPageData } from "@/lib/briefing-data";
 import { earningsReportFromDoc, newsFromArticle } from "@/lib/briefing-inputs";
 import { getLatestEarningsIntelForInstruments } from "@/lib/earnings-intel";
@@ -64,37 +64,6 @@ export function exampleMarketLine(
   const led = sectors.length >= 4 && Math.abs(pct) >= 0.05 && top && Math.sign(top.change.d1 as number) === Math.sign(pct) ? top : null;
   const name = led ? FUND_TOPIC[led.id] ?? null : null;
   return { pct, day: pricesDay, leader: name ? name.charAt(0).toLowerCase() + name.slice(1) : null };
-}
-
-/**
- * Headlines that say nothing about the company: SEO filler ("Some facts worth knowing", "Surpasses market returns"),
- * a rumour column ("Market Chatter:"), or a question ("Can Caterpillar Stock Hit $820?").
- */
-const FILLER_TITLE = /\bmarket chatter:|\?\s*$|\b(?:facts? worth knowing|surpasses (?:the )?market returns|outpaces (?:the )?stock market|what you should know|here'?s why|should you buy|is it time to buy|key facts|beats? (?:the )?market:)\b/i;
-/** A feed's footer standing in for a summary ("For questions about this article … email help@…"). */
-const BOILERPLATE_SUMMARY = /^\s*(?:for questions about|\(updates? )|\S+@\S+\.\w+/i;
-/** A headline that says the stock fell, or rose: checked against the stock's own move on the day. */
-const SAYS_DOWN = /\b(?:sinks?|sank|falls?|fell|drops?|dropped|dives?|dived|plunges?|plunged|slides?|slid|tumbles?|tumbled|slumps?|slumped|crash(?:es|ed)?)\b/i;
-const SAYS_UP = /\b(?:soars?|soared|jumps?|jumped|surges?|surged|rall(?:y|ies|ied)|climbs?|climbed|rises?|rose|spikes?|spiked|pops?|popped)\b/i;
-
-/**
- * The news the example's cards may lead with. It is the first thing a visitor reads about our briefings, so a story
- * is left out when it has no summary to show (the card would only say "read it"), when its headline is filler or a
- * rumour column, and off a stock that went the other way that day by more than 1% ("stock sinks" on NVDA's +2.9%
- * day; per stock, so the same story can stay on another). Pure.
- */
-export function exampleNews(news: BriefingNews[], dayMove: ReadonlyMap<string, number | null>): BriefingNews[] {
-  return news
-    .filter((article) => article.summary.trim().length >= 40 && !BOILERPLATE_SUMMARY.test(article.summary) && !FILLER_TITLE.test(article.title.trim()))
-    .map((article) => ({
-      ...article,
-      tickers: article.tickers.filter((ticker) => {
-        const move = dayMove.get(ticker.toUpperCase());
-        if (move == null || !Number.isFinite(move) || Math.abs(move) < 1) return true;
-        return move > 0 ? !(SAYS_DOWN.test(article.title) && !SAYS_UP.test(article.title)) : !(SAYS_UP.test(article.title) && !SAYS_DOWN.test(article.title));
-      }),
-    }))
-    .filter((article) => article.tickers.length > 0);
 }
 
 /** The example's briefing for `now`, with the reads that failed named in `degraded` (the page then is not kept long). */
@@ -174,7 +143,8 @@ export async function loadExampleBriefing(now: Date = new Date()): Promise<Examp
     mode: "personal",
     positions,
     earnings_reports: reports.map(earningsReportFromDoc).filter((report): report is NonNullable<typeof report> => report !== null),
-    news: exampleNews(news.map(newsFromArticle), new Map(positions.map((position) => [position.ticker, position.day_change_pct]))),
+    // The builder picks each card's story the same way as for members (lib/briefing-news.ts).
+    news: news.map(newsFromArticle),
     alerts: [],
     call_changes: [],
     attention: [],

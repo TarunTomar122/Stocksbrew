@@ -732,3 +732,176 @@ export function companyFirstMove(reason: string | null | undefined, pct: number 
   const split = splitMoveReason(reason, pct, options);
   return split ? `${split.subject} ${split.predicate}` : null;
 }
+
+// Words a scraped headline leaves capitalised mid-sentence that are almost never part of a name ("Nvidia's Board
+// is reportedly planning to Oust Jensen Huang", "QQQ Holders Feel it even If they Never trade", "looks Like a
+// Bargain"). Only `mixedCase` reads this list, so a Title Case headline's casing elsewhere stays as it was.
+const MIXED_COMMON = new Set(
+  (
+    "board boards oust ousts ousted employee employees staff misconduct investigation investigations allegation allegations " +
+    "affair affairs scandal resignation removal remove removes removed replace replaces replaced fire fires fired fraud " +
+    "spying sue sues sued like likes unlike bargain bargains cheap cheaper pricey expensive fair holders holder owners owner " +
+    "feel feels felt think thinks thought tell tells told put puts let lets lose loses lost won win never ever always often " +
+    "already almost enough too if unless though although per via versus onto upon around beyond few many several small " +
+    "smaller large larger good bad worse worst great little opportunity chance reason reasons way ways thing things " +
+    "everything nothing something anything everyone nobody people reshuffle reshuffles reshuffled rebalance rebalances " +
+    "these those he she his her who whom whose which where our it's prepare prepares prepared plan plans planning consider considers considering weigh weighs weighing seek seeking"
+  ).split(" "),
+);
+
+// Common words that are also brands ("Target", "Best Buy"): `mixedCase` leaves their capital alone, since in an
+// ordinary sentence a capital on them usually means the company.
+const MIXED_NAME_RISK = new Set(["target", "best", "gap", "block", "visa", "snap", "square", "match", "chewy", "shift"]);
+
+const AUXILIARY = new Set(["will", "to", "would", "could", "may", "might", "can", "cannot", "not", "won't", "should", "must"]);
+
+/**
+ * A brand-risk word used as the ordinary word, judged from its neighbours: "price Target", "will Block", "to Match",
+ * "Gap up". Lowered even when that brand is a company on the page.
+ */
+function brandUsedAsWord(bare: string, prev: string | undefined, next: string | undefined): boolean {
+  const before = (prev ?? "").toLowerCase().replace(/’/g, "'");
+  const after = (next ?? "").toLowerCase();
+  if (bare === "target") return before === "price" || before === "sales" || before === "earnings";
+  if (bare === "gap" && ["up", "down", "higher", "lower"].includes(after)) return true;
+  if (["block", "gap", "match", "shift", "snap", "square"].includes(bare)) return AUXILIARY.has(before);
+  return false;
+}
+
+/** True for a common word that is also a brand ("Target", "Best"): left capitalised by `mixedCase` and its callers. */
+export function isBrandWord(word: string): boolean {
+  return MIXED_NAME_RISK.has(word.toLowerCase().replace(/['’]s$/, ""));
+}
+
+/**
+ * A headline that is neither Title Case nor a sentence, with its stray capitals lowered (owner rule 8): "Caterpillar
+ * (CAT) stock looks Like a Bargain on its 222% run" -> "... looks like a bargain on its 222% run". `sentenceCase`
+ * handles a whole Title Case headline; this handles what it leaves alone. Conservative with names: a word keeps its
+ * capital unless it is on a common-word list (or has a common ending), and it always keeps it when it is the first
+ * word, starts a clause (after a colon, a full stop, an opening bracket or quote), is an acronym, has an inner capital,
+ * is glued to digits or joined by a hyphen, is a known name, a day or month, a word of `companyName` or of any of
+ * `names` (the other companies on the page), or sits beside a capitalised word nothing here knows (that pair may be a
+ * name: "The Trade Desk", "Five Below").
+ */
+export function mixedCase(text: string | null | undefined, companyName = "", names: Iterable<string> = []): string {
+  const value = text ?? "";
+  if (!value.trim() || isTitleCase(value)) return value;
+  return withNamesMasked(value, names, (masked) => lowerStrays(masked, companyName));
+}
+
+/**
+ * Runs `fix` with every whole name of `names` in the text swapped for a placeholder that reads as an unknown name,
+ * then puts the names back as the text wrote them. A name protects only itself, as a phrase ("Best Buy", "Five
+ * Below"), and the words beside it keep their capitals as they would beside any name; a lone "Buy" or "Below"
+ * elsewhere is an ordinary word.
+ */
+function withNamesMasked(value: string, names: Iterable<string>, fix: (masked: string) => string): string {
+  const phrases = [...new Set([...names].map((name) => shortCompanyName(name)).filter((name) => name.length >= 3 && /[A-Za-z]/.test(name)))].sort((a, b) => b.length - a.length);
+  const found: string[] = [];
+  let masked = value;
+  for (const phrase of phrases) {
+    const re = new RegExp(`(?<![A-Za-z0-9])${phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![A-Za-z0-9])`, "gi");
+    masked = masked.replace(re, (match: string, offset: number, whole: string) => {
+      // A one-word brand used as the ordinary word ("price Target", "will Block") is not the company.
+      if (!/\s/.test(phrase) && MIXED_NAME_RISK.has(phrase.toLowerCase())) {
+        const prev = whole.slice(0, offset).match(/([A-Za-z'’]+)\W*$/)?.[1];
+        const next = whole.slice(offset + match.length).match(/^\W*([A-Za-z'’]+)/)?.[1];
+        if (brandUsedAsWord(phrase.toLowerCase(), prev, next)) return match;
+      }
+      found.push(match);
+      return placeholder(found.length - 1);
+    });
+  }
+  if (found.length === 0) return fix(value);
+  return fix(masked).replace(/Qzxq([a-z]+)\b/g, (whole, code: string) => found[placeholderIndex(code)] ?? whole);
+}
+
+/** "Qzxqa", "Qzxqb", …: a capitalised word no list knows, so casing treats it like a name. */
+function placeholder(index: number): string {
+  let code = "";
+  let rest = index;
+  do {
+    code = String.fromCharCode(97 + (rest % 26)) + code;
+    rest = Math.floor(rest / 26) - 1;
+  } while (rest >= 0);
+  return `Qzxq${code}`;
+}
+
+function placeholderIndex(code: string): number {
+  let index = 0;
+  for (const letter of code) index = index * 26 + (letter.charCodeAt(0) - 96);
+  return index - 1;
+}
+
+/** `mixedCase` without its Title Case gate: lowers the stray common words of any text. */
+function lowerStrays(value: string, companyName: string): string {
+  const own = new Set<string>();
+  for (const part of companyName.toLowerCase().split(/[^a-z0-9'’&-]+/)) if (part && !OWN_NAME_SMALL_WORDS.has(part)) own.add(part.replace(/['’]s$/, ""));
+  const tokens = [...value.matchAll(/[A-Za-z](?:[A-Za-z]|['’](?=[A-Za-z]))*/g)].map((match) => ({ word: match[0], offset: match.index ?? 0 }));
+  const bareOf = (word: string) => word.toLowerCase().replace(/’/g, "'").replace(/'s$/, "");
+  const titled = (word: string) => /^[A-Z][a-z]+(?:['’]s)?$/.test(word);
+  // A masked name (withNamesMasked) counts as a known name: the words beside it are judged on their own.
+  const named = (bare: string, word: string) => KNOWN_NAMES.has(bare) || own.has(bare) || /^qzxq[a-z]+$/.test(bare) || Object.hasOwn(NAME_WORDS, bare) || DAY_OR_MONTH.test(word.replace(/['’]s$/, ""));
+  const listed = (bare: string) => COMMON.has(bare) || MIXED_COMMON.has(bare);
+  // A capitalised word nothing here knows: possibly part of a name, so a common word beside it keeps its capital.
+  const unknown = (word: string | undefined) => {
+    if (!word || !titled(word)) return false;
+    const bare = bareOf(word);
+    if (MIXED_NAME_RISK.has(bare)) return true;
+    return !listed(bare) && !named(bare, word) && !COMMON_ENDING.test(bare) && !NAME_PRONE.has(bare);
+  };
+  // Per word: "keep", "lower", or "name" (kept only because it stands beside a word that may be a name).
+  const decision = tokens.map(({ word, offset }, index): "keep" | "lower" | "name" => {
+    const end = offset + word.length;
+    const bare = bareOf(word);
+    const prev = tokens[index - 1];
+    const next = tokens[index + 1];
+    if (index > 0 && titled(word) && MIXED_NAME_RISK.has(bare) && brandUsedAsWord(bare, prev?.word, next?.word)) return "lower";
+    const gapBefore = prev ? value.slice(prev.offset + prev.word.length, offset) : value.slice(0, offset);
+    const gapAfter = next ? value.slice(end, next.offset) : "";
+    const keep =
+      index === 0 ||
+      !titled(word) ||
+      /[:.!?(“"‘'—–]\s*$/.test(gapBefore) ||
+      /(?:^|\s)-{1,2}\s*$/.test(gapBefore) ||
+      /\d$/.test(value.slice(0, offset)) ||
+      /^\d/.test(value.slice(end)) ||
+      gapBefore === "-" ||
+      gapAfter === "-" ||
+      named(bare, word) ||
+      MIXED_NAME_RISK.has(bare);
+    if (keep) return "keep";
+    const common = listed(bare) || COMMON_ENDING.test(bare) || NAME_PRONE.has(bare);
+    if (!common) return "keep";
+    // The first word counts as a possible name too: "Best Buy shares jump", "Five Below's sales".
+    const joinedPrev = Boolean(prev) && /^\s+$/.test(gapBefore);
+    const joinedNext = Boolean(next) && /^\s+$/.test(gapAfter);
+    return (joinedPrev && unknown(prev!.word)) || (joinedNext && unknown(next!.word)) ? "name" : "lower";
+  });
+  // A common word in front of one kept for a name is part of that name too ("shares of The Trade Desk").
+  for (let index = tokens.length - 2; index >= 0; index -= 1) {
+    const gap = value.slice(tokens[index]!.offset + tokens[index]!.word.length, tokens[index + 1]!.offset);
+    if (decision[index] === "lower" && decision[index + 1] === "name" && /^\s+$/.test(gap)) decision[index] = "name";
+  }
+  const out: string[] = [];
+  let cursor = 0;
+  tokens.forEach(({ word, offset }, index) => {
+    out.push(value.slice(cursor, offset), decision[index] === "lower" ? word.toLowerCase() : word);
+    cursor = offset + word.length;
+  });
+  out.push(value.slice(cursor));
+  return out.join("");
+}
+
+/**
+ * A source headline as a sentence, whatever casing it arrived in: a Title Case headline through `sentenceCase`,
+ * then any capitals left over (or a mixed-case headline's strays) through `mixedCase`.
+ */
+export function headlineCase(text: string | null | undefined, companyName = "", names: Iterable<string> = []): string {
+  const value = withoutSourceTag(text).replace(/\s+/g, " ");
+  if (!value.trim()) return value;
+  // Title Case is judged on the source as it came: once sentenceCase has run, the strays it left are lowered even
+  // when most words still have capitals ("…as Board Reportedly prepares to Oust CEO Jensen Huang").
+  const title = isTitleCase(value);
+  return withNamesMasked(value, [companyName, ...names], (masked) => lowerStrays(title ? sentenceCase(masked, companyName) : masked, companyName));
+}

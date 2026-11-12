@@ -3,7 +3,7 @@ import type * as React from "react";
 
 import { Delta, FOCUS, NUM, Panel, Ticker } from "@/components/oa/kit";
 import { StockLogo } from "@/components/stock-logo";
-import { sentenceCase } from "@/lib/plain-copy";
+import { headlineCase } from "@/lib/plain-copy";
 import { toneLean, type NewsTheme, type StockBuzz, type ToneCounts } from "@/lib/wire-read";
 import { WIRE_PAGE_SIZE, etDay, etTime, wireHref, type WireFilters, type WireItem } from "@/lib/wire-shared";
 
@@ -54,14 +54,12 @@ export function ToneBar({ counts, stories, className = "" }: { counts: ToneCount
 }
 
 /**
- * A source headline as a person would write it: a Scraped Title Case headline goes to sentence case (owner rule 8)
- * through the shared `sentenceCase`, the step the briefing's `unTitle` (components/briefing/card-words.ts) starts
- * with. `unTitle`'s second step, which lowers the last word of a capitalised run inside an ordinary headline, is
- * left out here: in the wire's headlines that run is usually a person ("Jensen Huang faces scrutiny" came out as
- * "Jensen huang"). A headline already written as a sentence stays exactly as its source wrote it.
+ * A source headline as a person would write it (owner rule 8), through the shared `headlineCase`: Scraped Title Case
+ * goes to sentence case, and a mixed headline's stray capitals ("Lisa Su just Delivered Fantastic news") are lowered,
+ * while names stay ("Jensen Huang", "Best Buy"). A headline already written as a sentence stays as its source wrote it.
  */
 export function headlineWords(title: string, companyName = ""): string {
-  return sentenceCase(title, companyName);
+  return headlineCase(title, companyName);
 }
 
 /**

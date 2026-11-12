@@ -5,7 +5,7 @@
  */
 import type { BriefingItem } from "@/lib/briefing";
 import { moveRowText, plainCallWord, type BriefingGroup, type BriefingLine } from "@/lib/briefing-groups";
-import { asSentence, firstFullSentence, hasTitleCaseLeftover, isTitleCase, sentenceCase } from "@/lib/plain-copy";
+import { asSentence, firstFullSentence, hasTitleCaseLeftover, headlineCase, isBrandWord } from "@/lib/plain-copy";
 
 export type CardWords = {
   /** The line the sentence comes from (it opens first when the card is opened). Null when it says nothing. */
@@ -23,16 +23,18 @@ export type SectionWords = {
 const DAY_OR_MONTH = /^(?:Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day$|^(?:January|February|March|April|May|June|July|August|September|October|November|December)$/;
 
 /**
- * A headline in sentence case. A whole Title Case headline goes through `sentenceCase` (it lowercases only common
- * words, so names like Anthropic stay). A leftover run ("Take-Two rose after GTA VI Preorders.") loses the capital
- * on the run's last word only: acronyms, inner capitals, days, months and the company's own name stay as written.
+ * A headline in sentence case. It goes through `headlineCase` first: a whole Title Case headline through
+ * `sentenceCase`, then stray capitals in a mixed one ("QQQ Holders Feel it even If they Never trade") through
+ * `mixedCase`; both lower only common words, so names like Anthropic stay, and `names` (the other companies on the
+ * page) keep theirs too. A leftover run ("Take-Two rose after GTA VI Preorders.") then loses the capital on the run's
+ * last word only: acronyms, inner capitals, days, months, brands and the company's own name stay as written.
  */
 const COMMON_ENDING = /(?:[^s]s|ing|ed|tion|sion|ment|ness|ity|ers)$/;
 
-export function unTitle(input: string, companyName = ""): string {
-  const text = isTitleCase(input) ? sentenceCase(input, companyName) : input;
+export function unTitle(input: string, companyName = "", names: readonly string[] = []): string {
+  const text = headlineCase(input, companyName, names);
   if (!hasTitleCaseLeftover(text, companyName)) return text;
-  const own = new Set(companyName.toLowerCase().split(/[^a-z0-9'’-]+/).filter(Boolean));
+  const own = new Set([companyName, ...names].join(" ").toLowerCase().split(/[^a-z0-9'’-]+/).filter(Boolean));
   const words = text.split(/(\s+)/);
   const out = [...words];
   const positions = words.map((_, index) => index).filter((index) => index % 2 === 0 && words[index]);
@@ -44,7 +46,7 @@ export function unTitle(input: string, companyName = ""): string {
     if (run.length >= 2 && last != null) {
       const raw = words[last]!;
       const bare = raw.replace(/^["“(]+|["”),.;:!?]+$/g, "");
-      if (/^[A-Z][a-z’'-]{3,}$/.test(bare) && COMMON_ENDING.test(bare) && !own.has(bare.toLowerCase()) && !DAY_OR_MONTH.test(bare)) {
+      if (/^[A-Z][a-z’'-]{3,}$/.test(bare) && COMMON_ENDING.test(bare) && !own.has(bare.toLowerCase()) && !DAY_OR_MONTH.test(bare) && !isBrandWord(bare)) {
         out[last] = raw.replace(bare, bare.toLowerCase());
       }
     }
@@ -56,22 +58,13 @@ export function unTitle(input: string, companyName = ""): string {
     const bare = raw.replace(/^["“(]+|["”),.;:!?]+$/g, "");
     const previous = words[positions[order - 1]!] ?? "";
     if (!/^[A-Z]/.test(bare) || /[.!?:]$/.test(previous)) return flush();
-    // Common words lose their capital anywhere in the run ("Board Approves $1B Investment" -> "board approves ...").
-    if (/^[A-Z][a-z’'-]+$/.test(bare) && !own.has(bare.toLowerCase())) out[index] = raw.replace(bare, commonLower(bare));
+    // Common words elsewhere in the run were already lowered by headlineCase, which knows when a run is a name
+    // ("The Trade Desk", "Best Buy"); this pass only looks at the run's last word.
     run.push(index);
     if (/[,.;:!?)]$/.test(raw)) flush();
   });
   flush();
   return out.join("");
-}
-
-/**
- * The word in lower case when it is a common English word, as `sentenceCase` decides (it only lowers words on its
- * list, so names stay). `sentenceCase` only acts on a Title Case text, so the word is read inside one.
- */
-function commonLower(word: string): string {
-  const probe = sentenceCase(`Xxxx Yyyy Zzzz ${word}`);
-  return probe.startsWith("Xxxx Yyyy Zzzz ") ? probe.slice(15) : word;
 }
 
 /** Mechanics and questions the cards never say (owner, Nov 11): "What would change it: ...", "Review?". */
@@ -102,10 +95,19 @@ export function plainCardText(text: string): string {
   return "";
 }
 
-/** The line's words for a card: the decision, or a confirmed move company first, in sentence case. */
-function lineWords(line: BriefingLine, group: BriefingGroup): string {
+/** Kinds whose line is a sentence we write ourselves, never a source's headline. */
+const OWN_WORDS = new Set<BriefingItem["kind"]>(["call_changed", "zone_entered", "earnings_upcoming", "alert_triggered", "discussion_spike", "congress_trade", "agent_job"]);
+
+/**
+ * The line's words for a card: the decision, or a confirmed move company first, in sentence case. `names` are the
+ * other companies in the section, so a headline naming one of them keeps its capitals.
+ */
+function lineWords(line: BriefingLine, group: BriefingGroup, names: readonly string[] = []): string {
   const raw = line.decision ? line.text : moveRowText(line.item, { name: group.name, ticker: group.ticker }, group.day_change_pct);
-  const text = raw ? plainCardText(unTitle(raw, group.name)) : "";
+  // Only words from a source (a headline, a researched reason) are re-cased: our own sentences capitalise the call
+  // words on purpose ("Our call moved to Keep").
+  const own = line.decision || OWN_WORDS.has(line.item.kind);
+  const text = raw ? plainCardText(own ? raw : unTitle(raw, group.name, names)) : "";
   // Trim to Avoid reads "Sell some to Sell some" in plain words: no change to tell.
   const call = /\bfrom (Buy more|Keep|Sell some) to (Buy more|Keep|Sell some)\b/.exec(text);
   return call && call[1] === call[2] ? "" : text;
@@ -121,11 +123,11 @@ export function rowWords(line: BriefingLine, group: BriefingGroup): string {
  * own. Other kinds' reasons are often the same sentence for every stock ("one of the most followed stocks"), so
  * they are not used.
  */
-function whyWords(item: BriefingItem, group: BriefingGroup): string {
+function whyWords(item: BriefingItem, group: BriefingGroup, names: readonly string[] = []): string {
   if (item.kind !== "call_changed") return "";
   const why = item.why.replace(/^The new call:\s*/i, "").trim();
   const first = asSentence(firstFullSentence(why));
-  const text = first ? plainCardText(unTitle(first, group.name)) : "";
+  const text = first ? plainCardText(unTitle(first, group.name, names)) : "";
   return text ? text.charAt(0).toUpperCase() + text.slice(1) : "";
 }
 
@@ -209,20 +211,25 @@ export function sectionWords(
   options: { personal: boolean; /** Overnight results on held stocks by ticker (lib/results), the cards' first fact. */ results?: Readonly<Record<string, string>> },
 ): SectionWords {
   const first = new Map<string, { line: BriefingLine | null; sentence: string }>();
+  // Every company in the section: a headline that names one keeps its capitals (headlineCase).
+  const names = groups.filter((group) => group.ticker).map((group) => group.name).filter(Boolean);
   for (const group of groups) {
     let line: BriefingLine | null = null;
     let sentence = "";
     for (const candidate of group.lines) {
-      sentence = lineWords(candidate, group);
+      sentence = lineWords(candidate, group, names);
       if (sentence) {
         line = candidate;
         break;
       }
     }
-    // A stock whose only news is a move with no reason: its next step, so the card still says what to do.
+    // A stock whose only news is a move with no reason: its next step when that is a fact (how far the price is from
+    // its level, when it reports). A bare pointer ("Open AMD to check the latest news", "Read why our call is Keep")
+    // is not news: the card then shows the move and its one fact, with no sentence (owner, round 6).
     if (!sentence && group.ticker && group.lines[0]) {
       line = group.lines[0];
-      sentence = levelSentence(plainCardText(group.lines[0].item.next_step.trim()));
+      const step = levelSentence(plainCardText(group.lines[0].item.next_step.trim()));
+      sentence = /^(?:Open|Read)\b/.test(step) ? "" : step;
     }
     first.set(group.key, { line, sentence });
   }
@@ -263,9 +270,9 @@ export function sectionWords(
     let { line, sentence } = first.get(group.key)!;
     if (sharedKeys.has(group.key)) {
       // Said above: this card shows its next update, or the reason behind the shared one.
-      const other = group.lines.find((candidate) => candidate !== line && lineWords(candidate, group));
-      const fallback = line ? whyWords(line.item, group) : "";
-      sentence = other ? lineWords(other, group) : fallback && normal(fallback) !== normal(sentence) ? fallback : "";
+      const other = group.lines.find((candidate) => candidate !== line && lineWords(candidate, group, names));
+      const fallback = line ? whyWords(line.item, group, names) : "";
+      sentence = other ? lineWords(other, group, names) : fallback && normal(fallback) !== normal(sentence) ? fallback : "";
       if (other) line = other;
     }
     cards.set(group.key, { line, sentence, fact: null });

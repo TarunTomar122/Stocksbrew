@@ -185,11 +185,37 @@ const ALIASES: Record<string, string[]> = {
   TSM: ["tsmc"],
   "BRK.B": ["berkshire"],
   "BRK.A": ["berkshire"],
+  DIS: ["disney"],
+  LLY: ["lilly"],
+  TTD: ["trade desk"],
+  JPM: ["jpmorgan"],
+  XOM: ["exxon"],
+  UNH: ["unitedhealth"],
+  BAC: ["bank of america"],
+  KO: ["coca-cola"],
+  WMT: ["walmart"],
+  CRM: ["salesforce"],
+  SMCI: ["super micro", "supermicro"],
+  JNJ: ["j&j", "johnson & johnson"],
+  PG: ["p&g", "procter & gamble"],
 };
+
+/**
+ * True when the headline names the stock: its ticker in capitals, its short name, a distinctive first word of the
+ * name, or a known other name ("Google" for Alphabet, "Disney", "Lilly"). Shared with the briefing's story pick
+ * (lib/briefing-news.ts).
+ */
+export function headlineNamesStock(title: string, ticker: string, name: string | null | undefined): boolean {
+  const cased = evened(title);
+  return mentionAt(cased, cased.toLowerCase(), ticker.toUpperCase(), name) >= 0;
+}
 
 function escaped(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
+
+/** Two-letter tickers that are also words or common abbreviations at the start of a headline ("AI", "US"). */
+const TWO_LETTER_WORDS = new Set(["AI", "US", "UK", "EU", "IT", "TV", "PC", "AM", "PM", "IS", "AS", "AT", "BE", "BY", "DO", "GO", "IF", "IN", "ON", "OR", "SO", "UP", "WE", "NO", "OK", "VR", "AR", "EV", "HR", "PR", "IP", "QE"]);
 
 /** First words of company names that are ordinary words in a headline: "Applied", "General", "American". */
 const GENERIC_FIRST = new Set(
@@ -215,6 +241,8 @@ function mentionAt(cased: string, lower: string, ticker: string, name: string | 
   const word = (text: string, value: string) => value && find(text, `(?<![\\w$])${escaped(value)}(?![\\w])`);
   if (ticker.length >= 3) find(cased, `(?<![\\w])\\$?${escaped(ticker)}(?![\\w])`);
   else if (ticker.length === 2) find(cased, `(?:\\(|\\$)${escaped(ticker)}(?![\\w])`);
+  // A two-letter ticker that opens the headline is the company ("GM beats on earnings"), unless it is a common word.
+  if (ticker.length === 2 && !TWO_LETTER_WORDS.has(ticker)) find(cased, `^ ${escaped(ticker)}(?=[\\s'’:])`);
   const short = shortCompanyName(name ?? "").toLowerCase();
   if (short) {
     word(lower, short);

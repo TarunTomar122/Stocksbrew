@@ -1,5 +1,6 @@
 import { briefingSections, type Briefing, type BriefingStateMap } from "@/lib/briefing";
 import { groupBriefingSections, type BriefingGroup } from "@/lib/briefing-groups";
+import { briefingRead, comingUpAfterRead, holdingsFirst, readEarningsTickers, WORTH_KNOWING_FIRST } from "@/lib/briefing-read";
 
 /**
  * Which stock cards in a personal briefing can be jumped to from the agents
@@ -11,8 +12,7 @@ import { groupBriefingSections, type BriefingGroup } from "@/lib/briefing-groups
  * both use this. Pure.
  */
 
-/** Worth knowing shows this many stocks before "Show all". */
-export const WORTH_KNOWING_FIRST = 8;
+export { WORTH_KNOWING_FIRST };
 
 /** The first card of each stock among `ordered` (the cards in page order), by object. */
 export function anchorGroups(ordered: readonly BriefingGroup[]): Set<BriefingGroup> {
@@ -26,10 +26,18 @@ export function anchorGroups(ordered: readonly BriefingGroup[]): Set<BriefingGro
   return out;
 }
 
-/** The tickers of a personal briefing's first-load open, visible cards, for the strip's links. Empty in the market view. */
-export function briefingAnchorTickers(briefing: Pick<Briefing, "mode" | "needs_you" | "also_today">, state: BriefingStateMap | null | undefined): string[] {
+/**
+ * The tickers of a personal briefing's first-load open, visible cards, for the strip's links. Empty in the market view.
+ * Coming up leaves out the stocks whose report the read already names, as the view does (lib/briefing-read.ts).
+ */
+export function briefingAnchorTickers(
+  briefing: Pick<Briefing, "mode" | "needs_you" | "also_today" | "portfolio" | "market" | "quiet" | "date">,
+  state: BriefingStateMap | null | undefined,
+  now: number = Date.now(),
+): string[] {
   if (briefing.mode !== "personal") return [];
-  const grouped = groupBriefingSections(briefingSections(briefing, state), "personal");
-  const ordered = [...grouped.needs_you, ...grouped.worth_knowing.slice(0, WORTH_KNOWING_FIRST), ...grouped.coming_up];
+  const grouped = holdingsFirst(groupBriefingSections(briefingSections(briefing, state), "personal"));
+  const comingUp = comingUpAfterRead(grouped.coming_up, readEarningsTickers(briefingRead(briefing, grouped, null, now)));
+  const ordered = [...grouped.needs_you, ...grouped.worth_knowing.slice(0, WORTH_KNOWING_FIRST), ...comingUp];
   return [...anchorGroups(ordered)].map((group) => group.ticker as string);
 }

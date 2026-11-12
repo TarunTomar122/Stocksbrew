@@ -440,18 +440,27 @@ export function briefingRead(
 
   let headline = "";
   const portfolio = briefing.portfolio ?? null;
+  // The holdings headline names its leaders once the insights are known (below): a leader with a card of its own
+  // drops its figure, and a Coming up card the read replaces is not a card.
+  let holdingsLine: ((carded: ReadonlySet<string>) => string) | null = null;
   if (portfolio && Number.isFinite(portfolio.day_change_pct)) {
     const direction = portfolio.day_change_pct >= 0 ? 1 : -1;
-    const leaders = [...held.entries()]
-      .filter(([, move]) => Math.sign(move) === direction && Math.abs(move) >= 1)
-      .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
-      .slice(0, 2)
-      .map(([ticker, move]) => `${ticker} (${signed(move)})`);
-    // The example's prices can be an earlier session's (before the open, a weekend): it says that day, never "today".
-    const when = options.example ? earlierSession(portfolio.as_of, briefing.date) || " today" : " today";
+    // Prices from an earlier session (before the open, a weekend, a holiday) say that day, never "today": for members
+    // and the example alike.
+    const when = earlierSession(portfolio.as_of, briefing.date) || " today";
     const marketPct = options.example && options.marketPct != null && Number.isFinite(options.marketPct) ? options.marketPct : null;
-    const baseline = marketPct != null ? `, against ${signed(marketPct, 2)} for the S&P 500` : "";
-    headline = `Your holdings are ${direction > 0 ? "up" : "down"} ${pct(portfolio.day_change_pct)}${when}${baseline}${leaders.length ? `; ${joinAnd(leaders)} moved most` : ""}.`;
+    // One decimal, like the holdings figure beside it.
+    const baseline = marketPct != null ? `, against ${signed(marketPct)} for the S&P 500` : "";
+    holdingsLine = (carded) => {
+      const leaders = [...held.entries()]
+        .filter(([, move]) => Math.sign(move) === direction && Math.abs(move) >= 1)
+        .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+        .slice(0, 2)
+        // A stock with its own card below shows its move there; the headline names it once without the figure (owner
+        // rule 1). One in Quiet has no card, so its move stays here.
+        .map(([ticker, move]) => (carded.has(ticker) ? ticker : `${ticker} (${signed(move)})`));
+      return `Your holdings are ${direction > 0 ? "up" : "down"} ${pct(portfolio.day_change_pct)}${when}${baseline}${leaders.length ? `; ${joinAnd(leaders)} moved most` : ""}.`;
+    };
   } else if (decisions.length > 0) {
     const names = decisions.slice(0, 3).map((group) => group.ticker as string);
     const more = decisions.length - names.length;
@@ -520,6 +529,31 @@ export function briefingRead(
       return true;
     }),
   );
+  if (holdingsLine) {
+    // The cards the page shows: every open section, less the Coming up cards this read's earnings line replaces.
+    const shown = [...grouped.needs_you, ...grouped.worth_knowing.slice(0, WORTH_KNOWING_FIRST), ...comingUpAfterRead(grouped.coming_up, readEarningsTickers({ insights }))];
+    headline = holdingsLine(new Set(stockGroups(shown).map((group) => group.key)));
+  }
   if (!headline && insights.length === 0) return null;
   return { headline, insights, asOf: options.example ? null : asOf };
+}
+
+/** Worth knowing shows this many stocks before "Show all" (re-exported by lib/briefing-anchors.ts). */
+export const WORTH_KNOWING_FIRST = 8;
+
+/**
+ * Stocks whose upcoming report the read already names ("NVDA reports earnings on Tuesday after the close"), so the
+ * Coming up list does not say it a second time (owner, round 6).
+ */
+export function readEarningsTickers(read: Pick<TheRead, "insights"> | null | undefined): Set<string> {
+  return new Set((read?.insights ?? []).filter((insight) => insight.id.startsWith("earnings-")).flatMap((insight) => insight.tickers ?? []));
+}
+
+/**
+ * Coming up without the stocks the read already named for their report. A stock with something else in the list
+ * stays; one whose only entry is that report leaves it.
+ */
+export function comingUpAfterRead(groups: BriefingGroup[], named: ReadonlySet<string>): BriefingGroup[] {
+  if (named.size === 0) return groups;
+  return groups.filter((group) => !(group.ticker && named.has(group.ticker) && group.items.every((item) => item.kind === "earnings_upcoming")));
 }

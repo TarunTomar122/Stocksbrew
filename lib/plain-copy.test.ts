@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { asSentence, companyFirstMove, countWord, firstFullSentence, hasTitleCaseLeftover, isTitleCase, sentenceCase, shortCompanyName, splitMoveReason, withoutSourceTag } from "./plain-copy";
+import { asSentence, companyFirstMove, countWord, firstFullSentence, headlineCase, hasTitleCaseLeftover, isTitleCase, mixedCase, sentenceCase, shortCompanyName, splitMoveReason, withoutSourceTag } from "./plain-copy";
 
 describe("sentenceCase", () => {
   it("undoes Title Case but keeps names and acronyms", () => {
@@ -72,6 +72,39 @@ describe("sentenceCase", () => {
   });
   it("starts a new clause after a colon", () => {
     expect(sentenceCase("Earnings Preview: What To Expect From Micron Report")).toBe("Earnings preview: What to expect from Micron report");
+  });
+});
+
+describe("mixedCase and headlineCase", () => {
+  it("lowers common words left capitalised in a mixed-case headline", () => {
+    expect(mixedCase("QQQ Holders Feel it even If they Never trade")).toBe("QQQ holders feel it even if they never trade");
+    expect(mixedCase("Caterpillar (CAT) stock looks Like a Bargain on its 222% run", "Caterpillar")).toBe("Caterpillar (CAT) stock looks like a bargain on its 222% run");
+    expect(mixedCase("Nvidia's Board is reportedly planning to Oust Jensen Huang over Chinese spy, Employee Misconduct investigation")).toBe(
+      "Nvidia's board is reportedly planning to oust Jensen Huang over Chinese spy, employee misconduct investigation",
+    );
+  });
+  it("keeps names, acronyms, clause starts, brands and words beside an unknown name", () => {
+    expect(mixedCase("Michael Burry just made a big move on Caterpillar stock")).toBe("Michael Burry just made a big move on Caterpillar stock");
+    expect(mixedCase("Fed says the Federal Reserve Board will cut in December")).toBe("Fed says the Federal Reserve Board will cut in December");
+    expect(mixedCase("Stock market today, Nov. 11: Board approves the deal")).toBe("Stock market today, Nov. 11: Board approves the deal");
+    expect(mixedCase("Sales at Target rose while Best Buy fell")).toBe("Sales at Target rose while Best Buy fell");
+    expect(mixedCase("Strategy shares fall after MSCI drops it", "Strategy")).toBe("Strategy shares fall after MSCI drops it");
+  });
+  it("counts the first word as a possible name for the word after it", () => {
+    expect(mixedCase("Best Buy shares jump after a strong quarter")).toBe("Best Buy shares jump after a strong quarter");
+    expect(mixedCase("Five Below's sales rise")).toBe("Five Below's sales rise");
+  });
+  it("protects the page's company names as whole phrases only", () => {
+    const names = ["Best Buy Co., Inc.", "Five Below, Inc."];
+    expect(headlineCase("Analysts see a strong Buy Below $200 for Best Buy", "Costco", names)).toBe("Analysts see a strong buy below $200 for Best Buy");
+    expect(headlineCase("Five Below Feel the pinch", "Costco", names)).toBe("Five Below feel the pinch");
+  });
+  it("lowers the strays sentenceCase leaves even when most words keep a capital", () => {
+    expect(headlineCase("Nvidia Stock Tumbles As Board Reportedly Prepares To Oust CEO Jensen Huang", "NVIDIA")).toBe("Nvidia stock tumbles as board reportedly prepares to oust CEO Jensen Huang");
+  });
+  it("leaves a whole Title Case headline to sentenceCase, and headlineCase does both", () => {
+    expect(mixedCase("Caterpillar Stock Looks Like A Bargain On Its Run")).toBe("Caterpillar Stock Looks Like A Bargain On Its Run");
+    expect(headlineCase("Caterpillar (CAT) Stock Looks Like A Bargain On Its 222% Run", "Caterpillar")).toBe("Caterpillar (CAT) stock looks like a bargain on its 222% run");
   });
 });
 

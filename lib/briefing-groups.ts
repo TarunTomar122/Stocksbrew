@@ -406,7 +406,8 @@ function buildGroup(key: string, items: BriefingItem[]): BriefingGroup {
     call: sorted.find((item) => item.call)?.call ?? null,
     day_change_pct: isMarket ? null : carrier?.day_change_pct ?? null,
     price: isMarket ? null : carrier?.price ?? null,
-    as_of: isMarket ? null : carrier?.as_of ?? null,
+    // The quote's own time: an update that only carries the move (a story, a Reddit post) has its own time in as_of.
+    as_of: isMarket ? null : carrier ? (carrier.price_as_of !== undefined ? carrier.price_as_of : carrier.as_of) : null,
     headerMove,
     lines,
     items: sorted,

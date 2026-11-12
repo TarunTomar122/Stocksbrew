@@ -18,9 +18,9 @@ describe("the example briefing's one clock", () => {
 
 describe("exampleMarketWords", () => {
   it("is one line, or nothing", () => {
-    expect(exampleMarketWords({ pct: 1.31, day: "2026-11-11", leader: "tech" }, "2026-11-11")).toBe("Market today: S&P 500 +1.31%, tech led");
-    expect(exampleMarketWords({ pct: -0.4, day: "2026-11-11", leader: null }, "2026-11-11")).toBe("Market today: S&P 500 −0.40%");
-    expect(exampleMarketWords({ pct: 0.6, day: "2026-11-13", leader: "energy" }, "2026-11-14")).toBe("Market on Friday: S&P 500 +0.60%, energy led");
+    expect(exampleMarketWords({ pct: 1.31, day: "2026-11-11", leader: "tech" }, "2026-11-11")).toBe("Market today: S&P 500 +1.3%, tech led");
+    expect(exampleMarketWords({ pct: -0.4, day: "2026-11-11", leader: null }, "2026-11-11")).toBe("Market today: S&P 500 −0.4%");
+    expect(exampleMarketWords({ pct: 0.6, day: "2026-11-13", leader: "energy" }, "2026-11-14")).toBe("Market on Friday: S&P 500 +0.6%, energy led");
     expect(exampleMarketWords(null, "2026-11-11")).toBeNull();
   });
 });

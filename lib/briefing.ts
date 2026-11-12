@@ -13,11 +13,14 @@
  * - a next step is a thing to check or read, never an instruction to trade
  */
 
+import { pickStockNews } from "@/lib/briefing-news";
 import { isCircularReason } from "@/lib/reason-quality";
 import { hasResearchBackedNarrative } from "@/components/daily-anomalies-shared";
 import type { AnomalyItem } from "@/lib/daily-anomalies";
 import { redactOurLevels } from "@/lib/entitlements";
+import { staleMoveClock } from "@/lib/move-clock";
 import { oldestStamp } from "@/lib/quote-time";
+import { nyDayOf } from "@/lib/agent-log/time";
 import { callShift } from "@/lib/tone";
 
 export type BriefingKind =
@@ -99,6 +102,11 @@ export type BriefingItem = {
    * view; absent on briefings saved before it existed.
    */
   call?: string | null;
+  /**
+   * When `day_change_pct` was priced, for an update whose own time (`as_of`) is something else: a news story's
+   * publish time, a Reddit post's. Absent when `as_of` is the quote time, and on briefings saved before it existed.
+   */
+  price_as_of?: string | null;
 };
 
 /** What the person's holdings did today, from the sizes they entered. */
@@ -1199,6 +1207,7 @@ function newsItem(article: BriefingNews, position: BriefingPosition, date: strin
       },
     ],
     as_of: article.published_at,
+    price_as_of: position.price_as_of ?? null,
     deadline_days: null,
     price: position.price,
     day_change_pct: position.day_change_pct,
@@ -1346,6 +1355,17 @@ function stripMover(anomaly: AnomalyItem): BriefingMarketMover {
   };
 }
 
+/** The strip's one time: the oldest current quote among its movers, leaving out quotes hours older than the rest. */
+function stripAsOf(rows: Array<{ as_of: string | null }>, now: string): string | null {
+  const at = Date.parse(now);
+  const all = rows.map((row) => row.as_of).filter((stamp): stamp is string => Boolean(stamp));
+  // A thin name still on an earlier day's quote does not date the strip: only the newest New York day counts.
+  const newestDay = all.map((stamp) => nyDayOf(stamp)).filter((day): day is string => Boolean(day)).sort().pop();
+  const stamps = newestDay ? all.filter((stamp) => nyDayOf(stamp) === newestDay) : all;
+  const fresh = stamps.filter((stamp) => !staleMoveClock(stamp, at));
+  return oldestStamp(fresh.length > 0 ? fresh : stamps);
+}
+
 function buildMarketStrip(input: BriefingInput): Briefing["market"] {
   const movers = input.movers.filter(displayable);
   const gainers = movers
@@ -1364,8 +1384,10 @@ function buildMarketStrip(input: BriefingInput): Briefing["market"] {
     losers,
     // When the moves shown were priced (the oldest of their quotes, so none is dated later than it was measured). The
     // movers are re-priced from the live quotes (lib/daily-anomalies.ts), so the feed's own run time
-    // (`movers_as_of`) would label a 3 PM move "as of 9:58 AM"; it is only the fallback.
-    as_of: oldestStamp([...gainers, ...losers].map((mover) => mover.as_of)) ?? input.movers_as_of,
+    // (`movers_as_of`) would label a 3 PM move "as of 9:58 AM"; it is only the fallback. A thinly traded name (a
+    // warrant, mostly) can keep its morning quote all day: like /explore's list, such a quote does not date the rest
+    // (lib/move-clock.ts), unless every quote shown is like that.
+    as_of: stripAsOf([...gainers, ...losers], input.now) ?? input.movers_as_of,
   };
 }
 
@@ -1555,18 +1577,24 @@ function buildPersonalItems(input: BriefingInput, sessionDay: string, lockedMove
     out.push(congressItem(trades, position.relation, position.name, position.instrument_id, date));
   }
 
-  // News: newest article per tracked name, skipped when a confirmed move reason already tells the story.
+  // News: the best story per tracked name (lib/briefing-news.ts: a reason line on that stock, never a roundup,
+  // listicle, valuation opinion, rumour or explainer), skipped when a confirmed move reason already tells the story.
   const explained = new Set(
     out.filter((item) => item.kind === "price_move" && item.reason_status === "confirmed").map((item) => item.ticker),
   );
-  const newsByTicker = new Map<string, BriefingNews>();
-  for (const article of [...input.news].sort((a, b) => b.published_at.localeCompare(a.published_at))) {
+  const storiesByTicker = new Map<string, BriefingNews[]>();
+  for (const article of input.news) {
     if (!isRecent(article.published_at, now, NEWS_MAX_AGE_HOURS)) continue;
-    for (const raw of article.tickers) {
-      const ticker = clean(raw).toUpperCase();
-      if (!byTicker.has(ticker) || explained.has(ticker) || newsByTicker.has(ticker)) continue;
-      newsByTicker.set(ticker, article);
+    for (const raw of new Set(article.tickers.map((ticker) => clean(ticker).toUpperCase()))) {
+      if (!byTicker.has(raw) || explained.has(raw)) continue;
+      storiesByTicker.set(raw, [...(storiesByTicker.get(raw) ?? []), article]);
     }
+  }
+  const newsByTicker = new Map<string, BriefingNews>();
+  for (const [ticker, stories] of storiesByTicker) {
+    const position = byTicker.get(ticker) as BriefingPosition;
+    const pick = pickStockNews(stories, { ticker: position.ticker, name: position.name, day_change_pct: position.day_change_pct, price_as_of: position.price_as_of });
+    if (pick) newsByTicker.set(ticker, pick);
   }
   const newsItems = [...newsByTicker.entries()]
     .map(([ticker, article]) => newsItem(article, byTicker.get(ticker) as BriefingPosition, date))
@@ -1595,7 +1623,17 @@ function buildPersonalItems(input: BriefingInput, sessionDay: string, lockedMove
     out.push(item);
   }
 
-  return out;
+  // Every card about a tracked stock shows its move (owner, round 6): an update that does not carry it (a Reddit
+  // mention, a Congress trade, a call change) takes the stock's own quote, so no card is left without its figure.
+  // A stock the plan does not cover keeps its move in the "rest of your stocks" line only, and a move too big to be
+  // real is never shown (the same cap as a move card).
+  return out.map((item) => {
+    if (item.day_change_pct != null) return item;
+    const position = byTicker.get(clean(item.ticker).toUpperCase());
+    const move = position?.day_change_pct;
+    if (!position || position.covered === false || move == null || !Number.isFinite(move) || Math.abs(move) > MAX_DISPLAY_MOVE_PCT) return item;
+    return { ...item, day_change_pct: move, price: item.price ?? position.price, price_as_of: position.price_as_of ?? null };
+  });
 }
 
 /* ── standing jobs and the week ahead ───────────────────────────────────── */

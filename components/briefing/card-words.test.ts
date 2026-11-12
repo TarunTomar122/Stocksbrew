@@ -52,6 +52,30 @@ describe("unTitle", () => {
   });
 });
 
+describe("unTitle on half-Title-Case headlines (round 6)", () => {
+  it("lowers stray capitals but keeps names, tickers and the company's own name", () => {
+    expect(unTitle("Nvidia's Board is reportedly planning to Oust Jensen Huang over Chinese spy, Employee Misconduct investigation", "NVIDIA")).toBe(
+      "Nvidia's board is reportedly planning to oust Jensen Huang over Chinese spy, employee misconduct investigation",
+    );
+    expect(unTitle("QQQ Holders Feel it even If they Never trade", "Invesco QQQ Trust")).toBe("QQQ holders feel it even if they never trade");
+    expect(unTitle("Caterpillar (CAT) stock looks Like a Bargain on its 222% run", "Caterpillar")).toBe("Caterpillar (CAT) stock looks like a bargain on its 222% run");
+  });
+  it("reads the same headlines from their scraped Title Case", () => {
+    expect(unTitle("Nvidia’s Board Is Reportedly Planning To Oust Jensen Huang Over Chinese Spy, Employee Misconduct Investigation", "NVIDIA")).toBe(
+      "Nvidia’s board is reportedly planning to oust Jensen Huang over Chinese spy, employee misconduct investigation",
+    );
+    expect(unTitle("Every December the Nasdaq-100 Reshuffles. QQQ Holders Feel It Even If They Never Trade", "Invesco QQQ Trust")).toBe(
+      "Every December the Nasdaq-100 reshuffles. QQQ holders feel it even if they never trade",
+    );
+    expect(unTitle("Caterpillar (CAT) Stock Looks Like A Bargain On Its 222% Run", "Caterpillar")).toBe("Caterpillar (CAT) stock looks like a bargain on its 222% run");
+  });
+  it("leaves brands and the other companies on the page alone", () => {
+    expect(unTitle("Sales at Target rose while Best Buy fell", "Costco")).toBe("Sales at Target rose while Best Buy fell");
+    expect(unTitle("Shares of The Trade Desk fell after Five Below beat", "Costco")).toBe("Shares of The Trade Desk fell after Five Below beat");
+    expect(unTitle("AMD gains as Advanced Micro Devices wins Board approval", "Nvidia", ["Advanced Micro Devices"])).toBe("AMD gains as Advanced Micro Devices wins board approval");
+  });
+});
+
 describe("plainCardText", () => {
   it("drops question endings and what-would-change notes", () => {
     expect(plainCardText("Our call moved to Trim, and you hold it. Review?")).toBe("Our call moved to Sell some, and you hold it.");
