@@ -4,8 +4,10 @@ import argparse
 import json
 import math
 import os
+import re
 import subprocess
 import sys
+from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -344,6 +346,149 @@ def merge_explained_day(existing: list[dict[str, Any]], current: list[dict[str, 
         merged[ticker] = row
     rows = sorted(merged.values(), key=lambda row: -abs(float(row.get("day_change_pct") or 0)))
     return rows, sorted(added)
+
+
+# Midday rebuilds (`mid_check`) re-select the movers from the fresh tape. A
+# source-backed reason researched earlier the same session still explains a
+# stock that is moving the same way, so it is carried over instead of being
+# dropped and researched again. Only reasons written intraday qualify: a
+# post-close reason says "closed", and an intraday one must not open the close.
+CARRY_REASON_FROM_PHASES = frozenset({"open_check", "mid_check"})
+# A reason that quotes the day's move ("the 11.85% gain") is carried only while
+# that figure still describes the current move, to the nearest half point.
+# Rounded figures ("up 12%" for 11.3%) get a whole point.
+CARRY_MOVE_FIGURE_TOLERANCE_PCT = 0.5
+CARRY_ROUNDED_FIGURE_TOLERANCE_PCT = 1.0
+# A move that has grown well past the one the reason was written for may have a
+# new cause (an upgrade at 2%, a takeover at 18%), so it is researched again.
+CARRY_MAX_GROWTH_PCT_POINTS = 3.0
+CARRY_MAX_GROWTH_RATIO = 0.5
+# Every narrative field the reason pass owns (research_daily_anomaly_reasons).
+CARRIED_REASON_FIELDS = (
+    "narrative_status",
+    "narrative_as_of",
+    "move_explanation",
+    "headline",
+    "thesis",
+    "today_brief",
+    "catalyst",
+    "risk",
+    "key_points",
+    "visual_summary",
+    "overall_verdict",
+    "comparative_context",
+)
+_PERCENT_FIGURE = re.compile(r"(?<![\d.])(\d+(?:\.(\d+))?)\s?(?:%|percent\b)", re.IGNORECASE)
+
+
+def is_carryable_reason(row: dict[str, Any]) -> bool:
+    """A reason worth keeping across an intraday rebuild: verified and source-backed.
+
+    Tape reads (`internal_tape_*`) and "no verified catalyst" rows quote the
+    snapshot's own numbers or say nothing, so the next pass redoes them.
+    """
+    if not isinstance(row, dict) or row.get("narrative_status") != "verified" or not _has_sourced_explanation(row):
+        return False
+    explanation = row["move_explanation"]
+    cause = str(explanation.get("cause_type") or "").strip().lower()
+    if not cause or cause in _UNEXPLAINED_CAUSES or cause == "price_context":
+        return False
+    return not str(explanation.get("external_source") or "").startswith("internal_tape")
+
+
+def _market_day(value: Any, market: str) -> str | None:
+    """The market's local day for a stamp; a midnight-UTC daily-bar label keeps its own date."""
+    parsed = _parse_timestamp(value)
+    if parsed is None:
+        return None
+    if parsed.time() == datetime.min.time():
+        # Yahoo daily bars label the trading day as midnight UTC (see
+        # price_pipeline_contract.is_current_market_timestamp); shifting that
+        # into New York would make it the day before.
+        return parsed.date().isoformat()
+    return parsed.astimezone(MARKET_TIMEZONES.get(market.upper(), timezone.utc)).date().isoformat()
+
+
+def _reason_still_fits_move(explanation: dict[str, Any], written_for_pct: float, current_pct: float) -> bool:
+    """Whether a reason written for one move size still reads true for the current one.
+
+    False when the move has grown well past it (it may have a new cause), or
+    when the text quotes the old size ("the 11.85% gain") and that figure no
+    longer describes the move.
+    """
+    written, current = abs(written_for_pct), abs(current_pct)
+    if current - written > max(CARRY_MAX_GROWTH_PCT_POINTS, CARRY_MAX_GROWTH_RATIO * written):
+        return False
+    text = f"{explanation.get('headline') or ''} {explanation.get('why_it_matters') or ''}"
+    for match in _PERCENT_FIGURE.finditer(text):
+        figure = float(match.group(1))
+        tolerance = CARRY_MOVE_FIGURE_TOLERANCE_PCT if match.group(2) else CARRY_ROUNDED_FIGURE_TOLERANCE_PCT
+        if abs(figure - written) <= tolerance and abs(figure - current) > tolerance:
+            return False
+    return True
+
+
+def _carry_key(row: dict[str, Any]) -> str:
+    return str(row.get("instrument_id") or row.get("ticker") or "").strip().upper()
+
+
+def carry_session_reasons(
+    previous: dict[str, Any] | None,
+    rows: list[dict[str, Any]],
+    *,
+    market: str,
+    archived: dict[str, Any] | None = None,
+) -> list[str]:
+    """Copy same-session, same-direction verified reasons from earlier today onto `rows`.
+
+    `previous` is the feed being replaced; `archived` is the day's dated copy
+    (archive_explained_day), which also holds a stock that dropped out of the
+    previous feed and came back. Mutates `rows` in place and returns the
+    carried tickers. A reason is never carried across New York days (its
+    quote, its research and the new quote must share one market day), from a
+    post-close feed, onto a stock whose move flipped direction, or onto a move
+    that has outgrown it. Rows left without a reason are what the reason pass
+    researches next (`--only-unresolved`).
+    """
+    earlier: dict[str, dict[str, Any]] = {}
+    # The archive has no phase of its own. Read it only when the feed it sits
+    # beside is intraday: before 15:30 ET (the midday window) the day's archive
+    # holds intraday research only, and the day checks below do the rest.
+    if not isinstance(previous, dict) or previous.get("price_session_phase") not in CARRY_REASON_FROM_PHASES:
+        return []
+    for source in (archived, previous):
+        for row in (source or {}).get("anomalies") or []:
+            if is_carryable_reason(row) and _carry_key(row):
+                earlier[_carry_key(row)] = row  # the live feed wins over the archive
+    carried: list[str] = []
+    for row in rows:
+        key = _carry_key(row)
+        before = earlier.get(key)
+        if not before or row.get("narrative_status") == "verified":
+            continue
+        day = _market_day(row.get("price_as_of"), market)
+        if (
+            day is None
+            or _market_day(before.get("price_as_of"), market) != day
+            or _market_day(before.get("narrative_as_of"), market) != day
+        ):
+            continue
+        current_pct = _to_float(row.get("day_change_pct"))
+        previous_pct = _to_float(before.get("day_change_pct"))
+        if current_pct is None or previous_pct is None:
+            continue
+        if row.get("direction") != before.get("direction") or (current_pct >= 0) != (previous_pct >= 0):
+            continue
+        explanation = before["move_explanation"]
+        written_for = _to_float(explanation.get("researched_day_change_pct"))
+        if written_for is None or (written_for >= 0) != (previous_pct >= 0):
+            written_for = previous_pct  # reasons researched before this field existed
+        if not _reason_still_fits_move(explanation, written_for, current_pct):
+            continue
+        for field in CARRIED_REASON_FIELDS:
+            row[field] = deepcopy(before.get(field))
+        carried.append(str(row.get("ticker") or key).strip().upper())
+    return carried
 
 
 def archive_explained_day(store: TraceMoneyStore, market: str, payload: dict[str, Any]) -> list[str]:
@@ -1314,7 +1459,30 @@ def main() -> None:
         help="Maximum tm_latest_prices age when --require-price-session-phase is set.",
     )
     parser.add_argument("--require-web-revalidate", action="store_true")
+    parser.add_argument(
+        "--carry-session-reasons",
+        action="store_true",
+        help=(
+            "Midday rebuild: keep the previous feed's source-backed reasons for stocks still moving "
+            "the same way this session. Requires --require-price-session-phase mid_check."
+        ),
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Read everything and print what would be published; write nothing and skip the web refresh.",
+    )
     args = parser.parse_args()
+    if args.carry_session_reasons and (
+        args.require_price_session_phase != "mid_check" or not args.mover_reasoning_only
+    ):
+        parser.error(
+            "--carry-session-reasons only applies with --mover-reasoning-only "
+            "and --require-price-session-phase mid_check"
+        )
+    if args.dry_run and (args.enrich_missing or args.explain_hard_moves):
+        # Both write stock intelligence or call models before the feed write.
+        parser.error("--dry-run cannot be combined with --enrich-missing or --explain-hard-moves")
 
     store = TraceMoneyStore()
     universe_id = args.universe or store.get_active_price_universe(args.market) or ""
@@ -1461,6 +1629,21 @@ def main() -> None:
         if row:
             rows.append(row)
 
+    feed_ref = store.db.collection("tm_daily_anomalies").document(f"{args.market}__latest")
+    carried_tickers: list[str] = []
+    if args.carry_session_reasons and rows:
+        previous_snapshot = feed_ref.get()
+        previous_feed = previous_snapshot.to_dict() if previous_snapshot.exists else None
+        archive_snapshot = (
+            store.db.collection("tm_daily_anomalies").document(f"{args.market}__{_today_utc()}").get()
+        )
+        carried_tickers = carry_session_reasons(
+            previous_feed,
+            rows,
+            market=args.market,
+            archived=archive_snapshot.to_dict() if archive_snapshot.exists else None,
+        )
+
     up_count = sum(1 for row in rows if str(row.get("direction")) == "up")
     down_count = sum(1 for row in rows if str(row.get("direction")) == "down")
     sector_summary, sector_price_as_of, sector_quoted_count = fresh_sector_summary_from_prices(instruments, prices)
@@ -1485,8 +1668,34 @@ def main() -> None:
         "price_session_phase": args.require_price_session_phase,
         "reasoning_mode": "mover_evidence" if args.mover_reasoning_only else "stock_brief_join",
     }
-    store.db.collection("tm_daily_anomalies").document(f"{args.market}__latest").set(payload)
+    if args.carry_session_reasons:
+        payload["carried_reason_count"] = len(carried_tickers)
+    if args.dry_run:
+        print(
+            {
+                "dry_run": True,
+                "market": args.market,
+                "price_session_phase": args.require_price_session_phase,
+                "scanned": len(instrument_ids),
+                "selected": len(selected_ids),
+                "written": 0,
+                "would_write": len(rows),
+                "stale_price_count": len(stale_price_ids),
+                "carried": carried_tickers,
+                "to_research": [
+                    str(row.get("ticker") or "") for row in rows if row.get("narrative_status") != "verified"
+                ],
+                "oldest_price_as_of": min((str(row.get("price_as_of") or "") for row in rows), default=None),
+            }
+        )
+        return
+    feed_ref.set(payload)
     _write_ticker_read_models(store, args.market, payload)
+    carry_metadata = (
+        {"carried_reason_count": len(carried_tickers), "carried_reason_tickers": carried_tickers[:50]}
+        if args.carry_session_reasons
+        else {}
+    )
     store.save_stage_watermark(
         market=args.market,
         stage_key="build_daily_anomalies",
@@ -1507,13 +1716,22 @@ def main() -> None:
             "unverified_narrative_count": sum(
                 1 for row in rows if row.get("narrative_status") != "verified"
             ),
+            **carry_metadata,
         },
     )
 
     revalidated = trigger_web_revalidate(ANOMALY_REVALIDATE_PATHS, force=True)
     if args.require_web_revalidate and not revalidated:
         raise RuntimeError("anomaly feed was saved, but the web refresh failed")
-    print({"market": args.market, "scanned": len(instrument_ids), "selected": len(selected_ids), "written": len(rows)})
+    print(
+        {
+            "market": args.market,
+            "scanned": len(instrument_ids),
+            "selected": len(selected_ids),
+            "written": len(rows),
+            **({"carried_reason_count": len(carried_tickers)} if args.carry_session_reasons else {}),
+        }
+    )
 
 
 if __name__ == "__main__":

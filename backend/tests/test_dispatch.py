@@ -19,6 +19,7 @@ from backend.cloudrun.orchestrator.dispatch import (
     _run_single_job_lane,
     _tracked_ids,
     _tracked_lane_extra_args,
+    price_stage_phase,
 )
 from backend.cloudrun.orchestrator.local_api import LocalJobsClient
 
@@ -241,6 +242,23 @@ class _FakeState:
 
     def mark_shard_finished(self, *args, **kwargs) -> None:
         raise AssertionError("async dispatch should not wait for shard completion")
+
+
+class PriceStageTest(unittest.TestCase):
+    def test_open_and_close_batches_keep_recording_their_price_stage(self) -> None:
+        self.assertTrue(price_stage_phase("price_core_open", "open_check"))
+        self.assertTrue(price_stage_phase("price_core_open", "post_close"))
+
+    def test_midday_price_batch_records_the_stage_its_anomaly_pass_waits_on(self) -> None:
+        self.assertTrue(price_stage_phase("price_core_intraday", "mid_check"))
+        self.assertTrue(price_stage_phase("price_core_open", "mid_check"))
+
+    def test_other_lanes_and_phases_record_nothing(self) -> None:
+        self.assertFalse(price_stage_phase("price_core_open", "manual"))
+        self.assertFalse(price_stage_phase("price_core_intraday", "open_check"))
+        self.assertFalse(price_stage_phase("price_core_intraday", "manual"))
+        self.assertFalse(price_stage_phase("tracked_open_briefs", "mid_check"))
+        self.assertFalse(price_stage_phase("open_anomalies", "mid_check"))
 
 
 class DispatchAsyncTest(unittest.TestCase):

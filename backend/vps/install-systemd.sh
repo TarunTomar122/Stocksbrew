@@ -132,6 +132,15 @@ write_pair data-health-open "Mon..Fri *-*-* 10:50:00 America/New_York" data_heal
 write_pair market-events-close "Mon..Fri *-*-* 18:30:00 America/New_York" market_events
 write_pair data-health-close "Mon..Fri *-*-* 18:40:00 America/New_York" data_health
 write_pair intraday-price-hourly "Mon..Fri *-*-* 10..15:00:00 America/New_York" price_core_intraday "--session-phase mid_check --limit 500 --max-parallel 1 --max-workers 2 --shard-size 700"
+# Midday movers. Without this the movers list stays the 09:50 one all
+# afternoon. At 12:30 and 14:30 a price batch re-selects the movers from the
+# fresh tape. It runs on the intraday lane, so the lane lock keeps it off the
+# hourly batch, and :30 leaves reddit-buzz (14:20) room for the SQLite write
+# lock. The anomaly pass keeps the morning's sourced reasons for stocks still
+# moving the same way, researches only the rest, and sends no email. It skips
+# itself outside the session (Persistent catch-up after downtime).
+write_pair midday-movers-price "Mon..Fri *-*-* 12,14:30:00 America/New_York" price_core_intraday "--session-phase mid_check --limit 500 --max-parallel 1 --max-workers 2 --shard-size 700" "tikrr-midday-anomalies.service" "3min"
+write_service midday-anomalies open_anomalies "--price-session-phase mid_check" "" "5min"
 # Closing price/read-model work feeds briefs, which feed the final anomaly
 # pass. They are separate products but no longer race each other.
 write_service close-anomalies open_anomalies "--price-session-phase post_close" "" "5min"

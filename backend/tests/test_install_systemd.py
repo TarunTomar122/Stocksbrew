@@ -25,6 +25,7 @@ EXPECTED_CALENDARS = {
     "radar-materialize-open": "Mon..Fri *-*-* 09:43:00 America/New_York",
     "open-movers-price": "Mon..Fri *-*-* 09:50:00 America/New_York",
     "intraday-price-hourly": "Mon..Fri *-*-* 10..15:00:00 America/New_York",
+    "midday-movers-price": "Mon..Fri *-*-* 12,14:30:00 America/New_York",
     "market-discovery-open": "Mon..Fri *-*-* 10:30:00 America/New_York",
     "contrarian-calls-open": "Mon..Fri *-*-* 10:35:00 America/New_York",
     "market-events-open": "Mon..Fri *-*-* 10:40:00 America/New_York",
@@ -137,6 +138,24 @@ class InstallSystemdTest(unittest.TestCase):
         self.assertIn("--brief-cap 160", briefs)
         self.assertNotIn("open-briefs", self.timers)
         self.assertNotIn("open-anomalies", self.timers)
+
+    def test_midday_movers_rebuild_hangs_off_its_own_price_batch(self) -> None:
+        price = self._service("midday-movers-price")
+        self.assertEqual(_unit_value(price, "OnSuccess"), "tikrr-midday-anomalies.service")
+        exec_start = _unit_value(price, "ExecStart")
+        # The intraday lane shares its lock with the hourly batch, so the two never overlap.
+        self.assertIn("run-dispatch.sh price_core_intraday --session-phase mid_check", exec_start)
+        self.assertIn("--limit 500", exec_start)
+        anomalies = self._service("midday-anomalies")
+        self.assertIn(
+            "run-dispatch.sh open_anomalies --price-session-phase mid_check",
+            _unit_value(anomalies, "ExecStart"),
+        )
+        self.assertEqual(_unit_value(anomalies, "Restart"), "on-failure")
+        self.assertNotIn("midday-anomalies", self.timers)
+        # The hourly batch must not start the rebuild every hour.
+        self.assertEqual(_unit_value(self._service("intraday-price-hourly"), "OnSuccess"), "")
+        self.assertIn("tikrr-midday-movers-price.timer", self.systemctl_log.read_text())
 
     def test_evening_chain_is_unchanged(self) -> None:
         self.assertEqual(_unit_value(self._service("postclose"), "OnSuccess"), "tikrr-close-briefs.service")

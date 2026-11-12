@@ -1,8 +1,9 @@
 /**
- * Whether a day's move is an old number. The movers feed is priced once after
- * the open (~9:58 AM ET) and re-priced only for stocks with a fresher quote, so
- * at 3 PM a read could say "CoreWeave rose 23.9%" next to a live index when the
- * 23.9% is five hours old. A move whose quote is more than two hours behind
+ * Whether a day's move is an old number. The movers feed is rebuilt after the
+ * open (~9:58 AM ET), at 12:30 and 2:30 PM, and after the close; in between,
+ * only stocks with a fresher quote are re-priced, and a thinly traded name can
+ * keep a morning quote all day. So a read could say "CoreWeave rose 23.9%" next
+ * to a live index when the 23.9% is hours old. A move whose quote is more than two hours behind
  * (behind the close, once the session is over) says its own time instead:
  * "By 9:58 AM, CoreWeave was up 23.9%".
  */

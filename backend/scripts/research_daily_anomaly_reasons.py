@@ -927,6 +927,10 @@ def main() -> None:
         explanation = explanations.get(ticker)
         if not explanation:
             continue
+        # The move this reason was written for. A midday rebuild that carries
+        # the reason forward compares the later move against it.
+        if isinstance(row.get("day_change_pct"), (int, float)):
+            explanation["researched_day_change_pct"] = float(row["day_change_pct"])
         row["move_explanation"] = explanation
         row["narrative_status"] = "verified"
         row["narrative_as_of"] = now_iso

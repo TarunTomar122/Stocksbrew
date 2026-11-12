@@ -185,6 +185,22 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-12 ~00:25 UTC, ship 31 live (a106d69): stock page in one column, one nav on phones, real insider clusters, an example briefing (lead, overnight loop)
+
+- Ship 31 (rounds 4 + 5 + lead fixes):
+  - **Stock page:** one column, with no Follow rail, "Why:" label, bars, coloured edges or per-row NEWS label. Sentence-case "What changed". The "call stands until" line and the market-wide S&P conditions are gone (backend/call_stability.py; older stored text is cleaned on read by lib/rule-copy.ts, with one "or" at the end). The sales line reads "faster than its 6.4% growth in fiscal 2025".
+  - **Phones:** My stocks tabs are pills in the place strip, so there is one nav.
+  - **/insiders:** cluster buys are counted from stored buys (LKQ 3, LBRT 3). The money list shows dollars and doesn't repeat the buyers list. The cards lead with numbers. backend/agentdata/insiders_form4.py now counts 30 days of stored buys (`cluster_pool`; checked read-only on the VPS: 69 buys, LKQ and LBRT found).
+  - **Landing (phones):** cards first, with a sticky "Watch these for me" bar.
+  - **Agent log:** no per-row logos.
+  - **/strategies:** full descriptions, and the headline gap is computed from the shown figures.
+  - **/signals:** no "0" on empty tabs, and no "while Nvidia declined" on an up day.
+  - **My stocks:** quiet cards show their share of the money and the month vs the S&P; "Last 5 days"; tools as one line of links.
+  - **Briefing (signed out):** an example briefing of a made-up portfolio of real stocks (round 5). It shows no empty "Needs you", and falls back to the market view with a "Try it on your stocks" link if the example fails.
+- **Verified:** tsc 0, vitest 2752 in both modes, eslint clean, pytest with the 4 known failures. QA qp31: 4 bugs fixed (money list with no money, signed-out fallback, empty Needs you, cluster read not limited to buys). Screenshots in scratchpad/qp31, qp31b, judge31. VPS pulled.
+- **Open, with round 6:** headline casing on the example ("Holders Feel it even If they Never trade"), NVDA repeated on the briefing, and mixed decimals.
+- **Open, with round 7 (building):** a midday movers rebuild at 12:20 and 14:20 ET, so the afternoon briefing stops leading with 9:58 AM figures.
+
 ### 2026-11-11 ~22:35 UTC, ship 30 live (8900e63): one read of the market day, one home for your stocks (lead, overnight loop)
 
 - Ship 30 (round 3): /explore is the single list of the day's moves (#moves; reason rule shared via lib/move-line.ts so a stock reads the same everywhere; one "As of" time, stale thin names named once; earlier days link to /movers/[date] archive). /movers hub, /anomalies, /signals?tab=movers → 308 /explore#moves; Signals keeps Reddit + President only; home and briefing use the same loader; nav loses "Why stocks moved". /portfolio is the one My stocks home with tabs (Overview, Holdings, Watching, Alerts, Taxes); /watchlist → 308 /portfolio (query kept), /watchlist/tax → /portfolio/taxes; holdings rows open the editor by click or keyboard; ~40 files repointed. tsc 0, vitest 2713 both modes, eslint clean; builder QA findings fixed; redirects curl-checked; screenshots scratchpad/round3, s30. Live, VPS pulled.

@@ -309,4 +309,6 @@ class DailyAnomalyReasoningTest(unittest.TestCase):
         self.assertEqual(row["price_as_of"], "2026-07-28T20:10:00+00:00")
         self.assertEqual(row["move_explanation"]["headline"], explanation["headline"])
         self.assertEqual(row["move_explanation"]["why_it_matters"], explanation["why_it_matters"])
+        # A midday rebuild compares later moves against the one this reason was written for.
+        self.assertEqual(row["move_explanation"]["researched_day_change_pct"], 7.5)
         self.assertEqual(row["narrative_status"], "verified")

@@ -586,6 +586,21 @@ def _refresh_watchlist_views(
     }
 
 
+def price_stage_phase(lane: str, session_phase: str) -> bool:
+    """Whether a successful price batch records the session's `price` stage.
+
+    The open and close batches have always gated their anomaly passes. The
+    midday mover rebuild (12:30 and 14:30 ET) runs on the intraday lane with
+    `mid_check`, and its anomaly pass waits on this stage. The hourly intraday
+    batches record it too; nothing else reads the mid_check session record.
+    """
+    if lane == "price_core_open":
+        return session_phase in {"open_check", "mid_check", "post_close"}
+    if lane == "price_core_intraday":
+        return session_phase == "mid_check"
+    return False
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Tikrr lane dispatcher")
     parser.add_argument(
@@ -1135,10 +1150,7 @@ def main() -> None:
     else:
         if status == "success":
             session_state = MarketSessionState(store)
-            if args.lane == "price_core_open" and args.session_phase in {
-                "open_check",
-                "post_close",
-            }:
+            if price_stage_phase(args.lane, args.session_phase):
                 session_state.record_stage(
                     market=args.market,
                     phase=args.session_phase,

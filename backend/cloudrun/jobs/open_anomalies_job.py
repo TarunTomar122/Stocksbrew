@@ -39,6 +39,10 @@ def _wait_until_after_open(market: str, minutes: int) -> None:
         time.sleep(wait_seconds)
 
 
+# Phases whose mover pass hangs off a price batch only (no brief stage first).
+MOVER_ONLY_PHASES = frozenset({"open_check", "mid_check"})
+
+
 def barrier_stages(phase: str) -> list[str]:
     """Stages that must be done before this anomaly pass may select movers.
 
@@ -46,8 +50,33 @@ def barrier_stages(phase: str) -> list[str]:
     Open: the 09:50 price batch starts anomalies and the morning briefs side
     by side, and the briefs wait for these reasons so they can cite them.
     Waiting on briefs here would deadlock that order.
+    Midday (12:30 and 14:30 ET): a price batch alone re-selects the movers. No
+    brief run exists at midday, so waiting on one would hang, then fail.
     """
-    return ["price"] if phase == "open_check" else ["price", "briefs"]
+    return ["price"] if phase in MOVER_ONLY_PHASES else ["price", "briefs"]
+
+
+# Session hours in local market time, and how long before the close a midday
+# rebuild may still start (it must finish well before the close chain).
+SESSION_HOURS = {"US": ((9, 30), (16, 0)), "IN": ((9, 15), (15, 30))}
+MIDDAY_LAST_START_BEFORE_CLOSE = timedelta(minutes=30)
+
+
+def midday_rebuild_allowed(market: str, now: datetime | None = None) -> bool:
+    """Whether a mid_check rebuild may replace the feed now.
+
+    The midday timers are Persistent, so a VPS that was down at 14:30 would
+    fire the missed run on boot, possibly after the close. A mid_check feed
+    must never replace the post-close one, so outside the session it skips.
+    """
+    zone = ZoneInfo("America/New_York" if market == "US" else "Asia/Kolkata")
+    local = (now or datetime.now(zone)).astimezone(zone)
+    if local.weekday() >= 5:
+        return False
+    (open_hour, open_minute), (close_hour, close_minute) = SESSION_HOURS.get(market, SESSION_HOURS["US"])
+    opens = local.replace(hour=open_hour, minute=open_minute, second=0, microsecond=0)
+    last_start = local.replace(hour=close_hour, minute=close_minute, second=0, microsecond=0) - MIDDAY_LAST_START_BEFORE_CLOSE
+    return opens <= local < last_start
 
 
 def main() -> None:
@@ -85,6 +114,9 @@ def main() -> None:
         help="Require selected mover prices to be fresh for this session phase.",
     )
     args = parser.parse_args()
+    if args.price_session_phase == "mid_check" and not midday_rebuild_allowed(args.market):
+        print({"stage": "skip_midday_rebuild_outside_session", "market": args.market}, flush=True)
+        return
     _wait_until_after_open(args.market, max(0, args.not_before_minutes_after_open))
     barrier = None if args.skip_session_barrier else MarketSessionState()
     if args.price_session_phase and barrier is not None:
@@ -94,6 +126,10 @@ def main() -> None:
             stages=barrier_stages(args.price_session_phase),
             timeout_seconds=max(0, args.barrier_timeout_seconds),
         )
+        # The wait can be long; never start a midday rebuild after the window.
+        if args.price_session_phase == "mid_check" and not midday_rebuild_allowed(args.market):
+            print({"stage": "skip_midday_rebuild_after_barrier_wait", "market": args.market}, flush=True)
+            return
 
     # `build_daily_anomalies` accepts `--universe`; the others below take only
     # `--market` + `--ai-universe` / `--price-universe`. Passing `--universe`
@@ -120,6 +156,10 @@ def main() -> None:
     ]
     if args.price_session_phase:
         anomaly_cmd.extend(["--require-price-session-phase", args.price_session_phase])
+    if args.price_session_phase == "mid_check":
+        # Keep the morning's source-backed reasons for stocks still moving the
+        # same way; the research pass below then only covers what is new.
+        anomaly_cmd.append("--carry-session-reasons")
 
     # First materialize the session's movers from canonical prices. Reasons are
     # deliberately a separate job: a stock brief is broad product context,
@@ -152,7 +192,8 @@ def main() -> None:
     # The feed and its evidence-backed explanations are complete at this
     # point. Send the opening email before the optional discovery read models
     # below: heat/divergence/sentiment can take many minutes and must never
-    # delay a fresh 20-minute-after-open report.
+    # delay a fresh 20-minute-after-open report. Only the open sends mail; the
+    # midday and close rebuilds refresh the feed silently.
     if args.price_session_phase == "open_check":
         if barrier is not None:
             barrier.wait_for_stages(

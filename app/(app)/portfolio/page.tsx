@@ -36,7 +36,7 @@ export default function PortfolioHomePage({ searchParams }: { searchParams?: Sea
     return (
       <AppPage>
         <JsonLd data={toolPageLd("/portfolio")} />
-        <PageHead title="My stocks" lede={LEDE} />
+        <PageHead title="My stocks" lede={LEDE} note={false} />
         <Suspense fallback={<PortfolioGhost />}>
           <HoldingsStream tab={tab} />
         </Suspense>
@@ -47,7 +47,7 @@ export default function PortfolioHomePage({ searchParams }: { searchParams?: Sea
   return (
     <AppPage>
       <JsonLd data={toolPageLd("/portfolio")} />
-      <PageHead title="My stocks" lede={LEDE} />
+      <PageHead title="My stocks" lede={LEDE} note={false} />
       <MyStocksTabs current="overview" />
       <MyStocksBody load={load} />
     </AppPage>
