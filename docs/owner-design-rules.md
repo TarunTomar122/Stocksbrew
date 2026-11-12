@@ -32,6 +32,9 @@ The rule the owner has repeated most, and is angriest about: "repeating the same
 - A stock card shows the stock's price and today's % under it, nothing about the position's dollars ("4 numbers are super confusing"). Portfolio dollars live in the positions table.
 - A list that has a "N need a look" count shows those N first; the rest fold behind one quiet toggle ("why show me all when only 6 needs a look").
 - One primary button per header; extra actions go in a menu off it ("do we need 5 buttons at once???").
+- Recent days in words, not dates: "today", "yesterday", the weekday name within the last week ("on Monday"), and a date only for anything older ("these dates like nov 11 is so weird like who cares... say yesterday"). Times stay only where the hour matters (premarket, an alert that fired).
+- No source lines under facts or checks, and no "Our call since …, last reviewed …" line: the source goes in a hover title or behind the link ("remove those sources, that's taking space for no reason").
+- No bare threshold figures beside a sentence that already says them ("what do those percentages even mean").
 - No side rail that ends halfway down while the main column goes on. No card stretched tall over a short list ("hate the empty space here wtf is this ugly").
 - No card padded out to match a taller neighbour: fill it with more real content, or size both lists to the same scroll height.
 

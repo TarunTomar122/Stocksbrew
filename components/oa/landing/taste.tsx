@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { StockCard } from "@/components/briefing/stock-card";
@@ -58,6 +59,7 @@ export function LandingTaste({
   const { user, initialAuthed } = useUser();
   const signedIn = Boolean(user || initialAuthed);
   const [index, setIndex] = useState<SearchEntry[]>(() => getClientSearchIndex("US"));
+  const router = useRouter();
   const [picks, setPicks] = useState<string[]>([]);
   const [slots, setSlots] = useState<Record<string, Slot>>({});
   const [missing, setMissing] = useState<string[]>([]);
@@ -179,11 +181,13 @@ export function LandingTaste({
 
   useEffect(() => setActive(0), [query]);
 
+  /** One stock picked from the search opens its page (owner, Nov 12: "this search should lead to the actual stock page"). */
   function choose(ticker: string) {
-    add(ticker);
-    setQuery("");
+    const symbol = ticker.trim().toUpperCase();
+    if (!symbol) return;
+    captureEvent("landing_search_opened_stock", { ticker: symbol });
     setOpen(false);
-    inputRef.current?.focus();
+    router.push(`/stock/${encodeURIComponent(symbol)}`);
   }
 
   function submit() {
@@ -374,13 +378,14 @@ export function LandingTaste({
         {picks.length === 0 ? (
           <p className="mt-3 text-[15px] leading-6 text-oa-muted-fg">
             Or try{" "}
-            <button
-              type="button"
-              onClick={() => SUGGESTED.forEach((ticker) => add(ticker))}
-              className="font-medium text-oa-fg underline decoration-oa-border underline-offset-4 hover:decoration-oa-fg"
-            >
-              {listWords(SUGGESTED)}
-            </button>
+            {SUGGESTED.map((ticker, i) => (
+              <span key={ticker}>
+                {i === 0 ? "" : i === SUGGESTED.length - 1 ? " or " : ", "}
+                <Link prefetch={false} href={`/stock/${ticker}`} className="font-medium text-oa-fg underline decoration-oa-border underline-offset-4 hover:decoration-oa-fg">
+                  {ticker}
+                </Link>
+              </span>
+            ))}
           </p>
         ) : null}
         {limited ? (

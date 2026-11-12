@@ -202,7 +202,7 @@ describe("buildCallEvidence", () => {
     expect(slowdown.text).toBe("The Nov\u00a017 report shows sales growth below 42%, half its 83% growth over the four quarters to Jul\u00a026.");
     expect(slowdown.source).toBe("From the 10-Q for the quarter to Jul\u00a026, reported Aug\u00a026");
     expect(slowdown.href).toBe(reports[0]!.url);
-    expect(checks[3]!.text).toBe("NVDA falls 4% more than the S&P 500 in a day, about four times the 1% it usually moves apart from the index.");
+    expect(checks[3]!.text).toBe("NVDA has a day 4% worse than the S&P 500 (a normal day's gap is about 1%).");
     expect(checks[3]!.source).toMatch(/daily closes to /);
     // Every check has a source, and none names a second call.
     expect(checks.every((check) => check.source.length > 0)).toBe(true);

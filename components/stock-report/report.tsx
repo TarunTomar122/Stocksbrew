@@ -12,7 +12,6 @@ import { StockPremarketQuote } from "@/components/stock-premarket-quote";
 import { TrackButton } from "@/components/track-button";
 import { TrackView } from "@/components/track-view";
 import { AskPageHint } from "@/components/ask/ask-page-hint";
-import { TheRead } from "@/components/oa/insight";
 import { packChartRanges, type CallWord, type ChartRange, type PackedChartRanges } from "@/lib/stock-chart";
 
 import { AlertControls, type SuggestedAlert } from "./alert-controls";
@@ -283,21 +282,11 @@ export function StockReport({
   const ready = readState === "ready" && read ? read : null;
   // A missing or zero quote must not turn into "Infinity% from here".
   const hasPrice = fin(stock.price) && stock.price > 0;
-  // A call written weeks ago keeps its date in view: its horizon ("the next few weeks") ran from then, and a reason
-  // rewritten from newer numbers says so beside it.
+  // A reason rewritten from newer numbers than the call says so beside it. The call's own dates ("Our call since …,
+  // last reviewed …") are not printed (owner, Nov 12: remove).
   const writtenMs = ready?.writtenAt ? Date.parse(ready.writtenAt) : NaN;
   const callDay = Number.isFinite(writtenMs) ? todayET(writtenMs) : null;
-  const callAge = callDay ? daysBetween(callDay, today) : null;
-  const callIsOld = callAge != null && callAge > 14;
   const reasonIsNewer = Boolean(callDay && ready?.reasonAsOf && ready.reasonAsOf > callDay);
-  const sinceWords = ready?.since ? fmtDate(ready.since, ready.since.slice(0, 4) !== today.slice(0, 4)) : "";
-  const reviewedWords = ready?.writtenAt ? fmtStamp(ready.writtenAt) : "";
-  // "Our call since Nov 9, last reviewed Nov 10, 4:30 PM ET." One sentence instead of two small labels.
-  const callDates = sinceWords
-    ? `Our call since ${sinceWords}${reviewedWords ? `, last reviewed ${reviewedWords}` : ""}.`
-    : reviewedWords
-      ? `${callIsOld || reasonIsNewer ? "Last reviewed" : "Reviewed"} ${reviewedWords}.`
-      : "";
   // The evidence under the call (each line with its source and date) and the measurable conditions that would change
   // it (lib/call-evidence.ts). Both are open on every stock, for every reader, like the call itself.
   const evidence = ready ? data.callEvidence?.evidence ?? [] : [];
@@ -369,6 +358,8 @@ export function StockReport({
   // these could lower the call".
   // `wide`: across the strip under the header, the checks side by side (up to three a row), so the box is no taller
   // than the reasons beside it would be and nothing leaves an empty column (owner rule 4).
+  // Defined before the blocks that use it: checksBlock runs while the page renders, before anything declared below it.
+  const bullet = <span aria-hidden="true" className="mt-[7.5px] size-[5px] shrink-0 rounded-full bg-oa-muted-fg" />;
   const checksBlock = (list: NonNullable<typeof checks>, wide: boolean) => {
     const ways = (["raise", "lower"] as const).filter((way) => list.some((item) => item.way === way));
     const COLS = ["", "md:grid-cols-1", "md:grid-cols-2", "md:grid-cols-3", "md:grid-cols-2"] as const;
@@ -377,7 +368,6 @@ export function StockReport({
         <p className="font-medium">What would change it</p>
         {ways.map((way) => {
           const items = list.filter((item) => item.way === way);
-          const dupe = (index: number) => items[index + 1]?.source === items[index]!.source && !items[index]!.href;
           const verb = way === "raise" ? "raise" : "lower";
           return (
             <div key={way} className="mt-1.5">
@@ -385,32 +375,13 @@ export function StockReport({
                 {items.length === 1 ? `This could ${verb} the call:` : `Any of these could ${verb} the call:`}
               </p>
               <ul role="list" className={`mt-1.5 grid gap-2 ${wide ? `md:gap-x-5 ${COLS[Math.min(items.length, 4)]}` : ""}`}>
-                {items.map((item, index) => (
-                  <li key={item.text} className="grid grid-cols-[minmax(3.25rem,auto)_minmax(0,1fr)] gap-x-2">
-                    <span className="oa-mono text-[15px] font-semibold tabular-nums leading-5 text-oa-fg">{item.figure}</span>
-                    <span className="min-w-0">
-                      <span className="block text-pretty">{item.text}</span>
-                      {/* A source shared by the next check too (the day and the week, from the same closes) is said
-                          once, under the last of them (owner rule 1). The link is the results release on SEC EDGAR
-                          behind the figures, under its own words, since the source names the 10-Q. */}
-                      {dupe(index) || !item.source ? null : (
-                        <span className="mt-0.5 block text-pretty text-[12.5px] leading-[17px] text-oa-muted-fg">
-                          {item.source}
-                          {item.href ? (
-                            <>
-                              {" · "}
-                              <a
-                                href={item.href}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="underline decoration-oa-border underline-offset-2 hover:text-oa-fg hover:decoration-oa-fg"
-                              >
-                                results release
-                              </a>
-                            </>
-                          ) : null}
-                        </span>
-                      )}
+                {items.map((item) => (
+                  // The sentence alone, as a bullet. No threshold figure beside it: the sentence already says it, and
+                  // a bare "21%" read as meaningless (owner, Nov 12). The source sits in the hover title.
+                  <li key={item.text} className="flex gap-2.5">
+                    {bullet}
+                    <span className="min-w-0 text-pretty" title={item.source || undefined}>
+                      {item.text}
                     </span>
                   </li>
                 ))}
@@ -427,14 +398,14 @@ export function StockReport({
 
   // What the call rests on, under the header (no "Why:" label over it, owner rule 6): the evidence lines with their
   // source and date, else the company reason taken apart into dated facts, else that reason as one paragraph.
-  const bullet = <span aria-hidden="true" className="mt-[7.5px] size-[5px] shrink-0 rounded-full bg-oa-muted-fg" />;
   const reasonsBlock = !ready ? null : evidence.length ? (
     <ul role="list" aria-label={`Why we say ${callWord ?? "this"}`} className="flex max-w-[62ch] flex-col gap-1 text-[14px] leading-5 text-oa-fg">
       {evidence.map((line) => (
         <li key={line.id} className="flex gap-2.5">
           {bullet}
-          <span className="min-w-0 text-pretty">
-            {line.text} <span className="text-[12.5px] leading-[18px] text-oa-muted-fg">{line.source}.</span>
+          {/* The fact only; its source sits in the hover title (owner, Nov 12: "remove those sources, that's taking space"). */}
+          <span className="min-w-0 text-pretty" title={line.source}>
+            {line.text}
           </span>
         </li>
       ))}
@@ -595,7 +566,6 @@ export function StockReport({
                     </div>
                   </div>
                   {/* How long the call has stood and when we last looked at it again, quiet under the price. */}
-                  {ready && callDates ? <p className="mt-2 text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg">{callDates}</p> : null}
                   {ready && callWord && subline ? <p className="mt-0.5 text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg">{subline}</p> : null}
                 </section>
 
@@ -721,7 +691,7 @@ export function StockReport({
           {askStock ? <AskPageHint context={formatAskContext(askStock)} /> : null}
         </aside>
 
-        {/* ── the read: what today means, what is coming, then our brief ──── */}
+        {/* ── the latest results, when there are any, then our brief ──── */}
         <div className="order-2 flex min-w-0 flex-col gap-4">
           <div data-phone-section="view" className="flex min-w-0 flex-col gap-4">
           {/* Results night: the latest report's figures, move and call for ten days after it (components/results). */}
@@ -730,7 +700,6 @@ export function StockReport({
               <LatestResults ticker={stock.ticker} name={stock.name} call={callWord} />
             </Suspense>
           ) : null}
-          <TheRead read={data.insightRead} label={`The read on ${stock.ticker}`} />
           <Panel
             id="read"
             // The call card above is the one opinion on the page; this panel is the news and the reasons under it.

@@ -15,7 +15,6 @@ import type { StockRead } from "@/lib/stock-read";
 import type { StockTimelineItem, StockTimelineUpcoming } from "@/lib/stock-timeline";
 import type { StockTechnicals } from "@/lib/technicals";
 import type { StockIntelPro } from "@/lib/types";
-import type { TheRead } from "@/lib/insights";
 import type { CallEvidence } from "@/lib/call-evidence";
 
 /**
@@ -89,8 +88,6 @@ export type ReportData = {
   };
 
   premarketQuote: LivePremarketQuote | null;
-  /** The page's read: today's move in context, what is coming, where the price sits against the call. */
-  insightRead: TheRead | null;
   /**
    * The evidence under the call and what would change it (lib/call-evidence.ts), from stored numbers only. The
    * conditions are open on every stock, like the call and its reasons. Null when there is no call to show or the stock is not a US stock.

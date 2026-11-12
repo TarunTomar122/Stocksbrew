@@ -507,11 +507,13 @@ function conditionLines(input: CallEvidenceInput, swing: number | null): { lines
     checks.push({ way, figure, text, source: from?.source ?? "", href: from?.href ?? null });
   };
   const both = (a: string, b: { source: string; href: string | null } | null) => (b ? { source: `${a}; ${b.source.charAt(0).toLowerCase()}${b.source.slice(1)}`, href: b.href } : { source: a, href: null });
-  const shortDay = usual !== null && times ? `, about ${times} the ${usual}% it usually moves apart from the index` : "";
+  // Plain words for the checks list (owner, Nov 12: "what do those percentages even mean"): a day or a week that much
+  // worse than the S&P 500, with the stock's normal gap beside the day.
+  const shortDay = usual !== null && times ? ` (a normal day's gap is about ${usual}%)` : "";
   const moveChecks = () => {
     if (!moves.length || dayBar === null || weekBar === null) return;
-    check("lower", `${dayBar}%`, `${t} falls ${dayBar}% more than the S&P 500 in a day${shortDay}.`, { source: pricesFrom });
-    check("lower", `${weekBar}%`, `${t} falls ${weekBar}% more than the S&P 500 in a week.`, { source: pricesFrom });
+    check("lower", `${dayBar}%`, `${t} has a day ${dayBar}% worse than the S&P 500${shortDay}.`, { source: pricesFrom });
+    check("lower", `${weekBar}%`, `${t} has a week ${weekBar}% worse than the S&P 500.`, { source: pricesFrom });
   };
 
   // Phrased as what would change the call, never as a second call: the other call words are not named.

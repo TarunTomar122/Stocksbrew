@@ -77,9 +77,7 @@ import { getStockOwnership, type StockOwnership } from "@/lib/stock-ownership";
 import { CALL_PLAIN, wholeSentences } from "@/lib/plain-copy";
 import { buildStockRead, readLooksBroken } from "@/lib/stock-read";
 import { buildStockTimeline } from "@/lib/stock-timeline";
-import { buildStockRead as buildStockInsightRead } from "@/lib/stock-insights";
-import { getGroupMove, getMarketDay, getStockGroup } from "@/lib/insight-data";
-import { etDay, fin } from "@/lib/insight-format";
+import { fin } from "@/lib/insight-format";
 import { getDailySeries } from "@/lib/screener-series";
 import { getScreenerSymbolContext } from "@/lib/screener";
 import { buildCallEvidence, type CalendarReport, type ResultsReport } from "@/lib/call-evidence";
@@ -291,18 +289,9 @@ export async function StockPageStream({ params }: Props) {
   const screenerContextPromise = isUS ? getScreenerSymbolContext(stock.ticker).catch(() => null) : Promise.resolve(null);
   // The results reports the call's sales figure is dated by (lib/call-evidence.ts). US only, like the filings.
   const resultsReportsPromise = isUS ? getResultsReports(stock.ticker).catch(() => [] as ResultsReport[]) : Promise.resolve([] as ResultsReport[]);
-  // The read's baselines (stored closes for the stock and SPY, SPY's live move, the stock's group's move).
-  // US only: SPY is the wrong yardstick for an Indian stock.
-  const quoteDay = etDay(stock.captured_at);
-  const insightBasePromise = isUS
-    ? Promise.all([
-        getDailySeries([stock.ticker, "SPY"]).catch(() => null),
-        getMarketDay(),
-        getStockGroup(stock.ticker)
-          .catch(() => null)
-          .then((group) => (group ? getGroupMove(group.kind, group.name, quoteDay, stock.ticker).catch(() => null) : null)),
-      ])
-    : Promise.resolve(null);
+  // Stored closes for the stock and SPY, for the call's evidence and the chart's facts. US only: SPY is the wrong
+  // yardstick for an Indian stock.
+  const insightBasePromise = isUS ? Promise.all([getDailySeries([stock.ticker, "SPY"]).catch(() => null)]) : Promise.resolve(null);
 
   // Reads only the lower half uses (what changed, the sections, the priority notice) start now too, but the
   // top of the page (price, call, chart, the read) never waits for them: they stream in under it.
@@ -593,38 +582,7 @@ export async function StockPageStream({ params }: Props) {
     });
   };
 
-  // ── the read at the top: plain rules over numbers already loaded ─────────
-  const groupMove = insightBase?.[2] ?? null;
-  const marketDay = insightBase?.[1] ?? null;
   const dailySeries = insightBase?.[0]?.series ?? {};
-  const lastChange = hasLevels ? [...changes].reverse().find((change) => change.from) ?? null : null;
-  const anomalyDay = displayAnomaly ? etDay(displayAnomaly.price_as_of ?? stock.captured_at) : null;
-  const realReason =
-    moveHeadline && moveHeadline !== "--" && anomalyDay === quoteDay &&
-    !/^\S+ is (up|down) [\d.]+% today$/i.test(moveHeadline) && !/moved sharply today$/i.test(moveHeadline)
-      ? moveHeadline
-      : null;
-  const insightRead = buildStockInsightRead({
-    ticker: stock.ticker,
-    // The call is the card right above the read; the read says what the day did.
-    callInHeadline: false,
-    today: etDay(nowIso) ?? today,
-    quoteDay,
-    price: fin(stock.price) ? stock.price : null,
-    dayPct: fin(stock.day_change_pct) ? stock.day_change_pct : null,
-    group: groupMove ? { label: groupMove.name, medianPct: groupMove.medianPct, count: groupMove.count } : null,
-    marketPct: marketDay && marketDay.day === quoteDay ? marketDay.pct : null,
-    series: dailySeries[stock.ticker] ?? null,
-    benchmark: dailySeries.SPY ?? null,
-    moveReason: realReason,
-    nextEarnings: nextEarnings ? { date: nextEarnings.event_date, time: nextEarnings.time ?? null } : null,
-    pastEarnings: pastEarnings.map((event) => ({ date: event.event_date, time: event.time ?? null })),
-    call: read?.call ? { word: read.call, writtenAt: read.writtenAt } : null,
-    // Levels and the call's history are part of covering a stock; nothing about them goes in for anyone else.
-    levels: hasLevels && read ? { addBelow: read.zones.addBelow, trimAbove: read.zones.trimAbove } : null,
-    lastChange: lastChange ? { date: lastChange.date, from: lastChange.from, to: lastChange.to, priceAtCall: lastChange.priceAtCall } : null,
-    asOf: stock.captured_at ?? null,
-  });
 
   // The evidence under the call and what would change it, from stored numbers only (lib/call-evidence.ts). Both are
   // open on every stock; neither carries our price levels.
@@ -703,7 +661,6 @@ export async function StockPageStream({ params }: Props) {
       pre: activePreEarningsIntel,
     },
     premarketQuote,
-    insightRead,
     callEvidence,
   };
 
