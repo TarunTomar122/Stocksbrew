@@ -320,15 +320,15 @@ describe("readings", () => {
       later_months_out: 12,
       spread_pct: 5,
     };
-    expect(structureReading({ structure })).toBe("Dec 2027 delivery costs 5.0% more than Dec 2026: the curve is in contango.");
+    expect(structureReading({ structure })).toBe("Dec 2027 delivery costs 5.0% more than Dec 2026.");
     expect(structureReading({ structure }, "Gold")).toBe(
-      "Gold for Dec 2027 delivery costs 5.0% more than for Dec 2026: the curve is in contango.",
+      "Gold for Dec 2027 delivery costs 5.0% more than for Dec 2026.",
     );
     expect(structureReading({ structure: { ...structure, state: "backwardation", spread_pct: -2 } }, "WTI crude oil")).toBe(
-      "WTI crude oil for Dec 2027 delivery costs 2.0% less than for Dec 2026: the curve is in backwardation.",
+      "WTI crude oil for Dec 2027 delivery costs 2.0% less than for Dec 2026.",
     );
     expect(structureReading({ structure: { ...structure, state: "flat", spread_pct: 0.2 } }, "Gold")).toBe(
-      "Gold's Dec 2026 and Dec 2027 contracts trade within 0.2% of each other: the curve is flat.",
+      "Gold's Dec 2026 and Dec 2027 contracts trade within 0.2% of each other.",
     );
     expect(structureReading({ structure: null })).toBeNull();
   });

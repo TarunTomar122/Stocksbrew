@@ -687,9 +687,10 @@ export function StockReport({
         {/* ── follow and alerts: in the page's one column, after the read. No side rail: a rail that ended halfway
             down the page left an empty column beside the rest (owner rule 4). Follow lives in the header from sm up,
             so on a phone it sits here, once; Compare is the panel at the foot of the page, once (owner rule 1). ── */}
-        {/* Signed out there are no alerts to set: only the phone's Follow is left, at the end of the read (the header has
-            Follow from sm up, so the aside is gone there and leaves no gap of its own). */}
-        <aside data-phone-section={anon ? undefined : "alerts"} className={`flex min-w-0 flex-col gap-4 ${anon ? "order-5 sm:hidden" : "order-3"}`}>
+        {/* Signed out there are no alerts to set and the one step is the report under the call (judges, ship 50), so no
+            second Follow here: the aside only carries the Ask hint and takes no room. */}
+        <aside data-phone-section={anon ? undefined : "alerts"} className={anon ? "hidden" : "order-3 flex min-w-0 flex-col gap-4"}>
+          {anon ? null : (
           <div className="oa-track-outline flex flex-col gap-2 sm:hidden [&_button]:w-full">
             <TrackButton
               ticker={stock.ticker}
@@ -702,6 +703,7 @@ export function StockReport({
             />
             <p className="px-1 text-[12.5px] leading-4 text-oa-muted-fg">Stocks you follow show up in your briefing.</p>
           </div>
+          )}
           {anon ? null : (
           <Panel label={`Alerts on ${stock.ticker} by email`}>
             <AlertControls

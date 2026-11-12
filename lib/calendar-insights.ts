@@ -7,6 +7,7 @@
 import type { ReportContext } from "@/lib/calendar";
 import { byMarketCap, resultWord, surprisePctOf, type CalendarItem, type EarningsItem, type EconomicItem, type IpoItem } from "@/lib/calendar-shared";
 import { pickInsights, type Insight, type TheRead } from "@/lib/insights";
+import { expectLine } from "@/lib/markets-insights";
 import { absPct, compactMoney, countWord, isNum, listNames, shortDay, signedPct, weekdayOf } from "@/lib/read-format";
 
 /** Mean absolute daily return over the last `sessions` closes. Null with too little history. */
@@ -395,6 +396,8 @@ export type BigReport = {
   when: string;
   /** How big its last report was against a normal day, without the figure the card already shows. */
   size: string;
+  /** What analysts expect, as Market today says it: "Analysts expect a profit of $1.15 a share." Null without an estimate. */
+  expect: string | null;
 };
 
 /** The tickers the cards want history for: the biggest reports still to come, after the read's own. */
@@ -425,7 +428,13 @@ export function biggestReports(items: CalendarItem[], today: string, context: Re
           : multiple < 0.8
             ? `${on} moved it less than a normal day does.`
             : `${on} moved it about as much as a normal day.`;
-    out.push({ item, lastPct: last.pct, when: [whenWord(item.date, today), timeWord(item)].filter(Boolean).join(" "), size });
+    out.push({
+      item,
+      lastPct: last.pct,
+      when: [whenWord(item.date, today), timeWord(item)].filter(Boolean).join(" "),
+      size,
+      expect: expectLine(item.epsEstimate) ?? null,
+    });
   }
   return out;
 }

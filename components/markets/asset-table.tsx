@@ -63,8 +63,8 @@ function extraColumns(assetClass: MarketAsset["class"]): ExtraColumn[] {
   if (assetClass === "commodity") {
     return [
       {
-        label: "Curve",
-        title: "Later delivery against the front month. Above zero is contango, below is backwardation.",
+        label: "Later vs now",
+        title: "What a later contract costs against the nearest one. Above zero, later contracts cost more; below zero, they cost less.",
         value: (asset) => asset.structure?.spread_pct ?? null,
         text: (asset) =>
           asset.structure ? `${asset.structure.spread_pct > 0 ? "+" : asset.structure.spread_pct < 0 ? "−" : ""}${Math.abs(asset.structure.spread_pct).toFixed(1)}%` : null,

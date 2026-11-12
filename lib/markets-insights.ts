@@ -219,6 +219,36 @@ function volInsight(byId: Map<string, MarketAsset>, regime: MarketRegime): Insig
   };
 }
 
+/**
+ * A Fed outcome as a person says it (owner rule 8): "Hike 25bps" is "raises rates by 0.25 percentage points",
+ * "Cut >25bps" is "cuts rates by more than 0.25 percentage points", "No change" is "holds rates where they are".
+ * Null for a label that is not a rate move, so the caller keeps the venue's own words.
+ */
+export function fedOutcomeWords(label: string): string | null {
+  const text = label.trim().replace(/^(?:the )?fed\s+/i, "");
+  if (/^(?:hold|holds|no change|unchanged|pause|pauses|maintain|maintains|keeps? rates?)\b/i.test(text)) return "holds rates where they are";
+  // "Hike 25bps", "Cut >25bps", "Cut 50+bps", and the number first: "25 bps decrease", "50+ bps cut".
+  const verbFirst = /^(hike|raise|increase|cut|lower|decrease)\s*(>|≥|over|more than|above)?\s*(\d+(?:\.\d+)?)\s*(\+)?\s*(?:bps?|basis points?)\s*(\+)?$/i.exec(text);
+  const numberFirst = verbFirst ? null : /^(>|≥|over|more than|above)?\s*(\d+(?:\.\d+)?)\s*(\+)?\s*(?:bps?|basis points?)\s*(\+)?\s+(hike|raise|increase|cut|lower|decrease)$/i.exec(text);
+  const move = verbFirst
+    ? { verb: verbFirst[1]!, more: Boolean(verbFirst[2] || verbFirst[4] || verbFirst[5]), bps: verbFirst[3]! }
+    : numberFirst
+      ? { verb: numberFirst[5]!, more: Boolean(numberFirst[1] || numberFirst[3] || numberFirst[4]), bps: numberFirst[2]! }
+      : null;
+  if (!move) return null;
+  const up = /^(?:hike|raise|increase)$/i.test(move.verb);
+  const more = move.more;
+  const points = Number(move.bps) / 100;
+  if (!Number.isFinite(points) || points <= 0) return null;
+  const amount = `${Number(points.toFixed(2))} percentage point${points === 1 ? "" : "s"}`;
+  return `${up ? "raises" : "cuts"} rates by ${more ? "more than " : ""}${amount}`;
+}
+
+/** "an 81%", "an 11%", "a 60%": the article before a whole number read aloud. */
+function anFor(n: number): "a" | "an" {
+  return /^8/.test(String(n)) || n === 11 || n === 18 ? "an" : "a";
+}
+
 function fedInsight(predictions: PredictionMarket[]): Insight | null {
   const fed = predictions.find((market) => market.topic === "fed" && market.kind === "exclusive");
   if (!fed) return null;
@@ -230,7 +260,9 @@ function fedInsight(predictions: PredictionMarket[]): Insight | null {
   return {
     id: "fed",
     tone: hike ? "down" : cut ? "up" : "flat",
-    text: `${fed.source_name} traders put ${Math.round(top.probability * 100)}% on "${top.label}" at the next Fed meeting, ${change > 0 ? "up" : "down"} ${Math.abs(change)} pts in a day.`,
+    text: fedOutcomeWords(top.label)
+      ? `${fed.source_name} traders give ${anFor(Math.round(top.probability * 100))} ${Math.round(top.probability * 100)}% chance that the Fed ${fedOutcomeWords(top.label)} at its next meeting, ${change > 0 ? "up" : "down"} ${Math.abs(change)} points in a day.`
+      : `${fed.source_name} traders put ${Math.round(top.probability * 100)}% on "${top.label}" at the next Fed meeting, ${change > 0 ? "up" : "down"} ${Math.abs(change)} points in a day.`,
     action: { label: "Open the odds", href: `/markets/predictions/${encodeURIComponent(fed.id)}` },
   };
 }
@@ -460,7 +492,7 @@ export function withWatchNext(
  * figure and ends level with its neighbours in real words (owner rules 3 and 4): "Analysts expect a profit of $1.15
  * a share." Nothing without an estimate.
  */
-function expectLine(estimate: number | null | undefined): string | undefined {
+export function expectLine(estimate: number | null | undefined): string | undefined {
   if (typeof estimate !== "number" || !Number.isFinite(estimate)) return undefined;
   const amount = `$${Math.abs(estimate).toFixed(2)}`;
   if (Math.abs(estimate) < 0.005) return "Analysts expect it to break even.";
@@ -472,7 +504,8 @@ export type LastReport = { last: { pct: number } | null; typicalDayPct: number |
 
 /**
  * The calendar's "biggest company still to report" card, short (owner rules 3 and 8): the stock's move after its
- * last report as the one figure, one sentence with when it reports and how that move compares with a normal day, and,
+ * last report as the one figure, labelled as such, one sentence with when it reports and how that move compares with a
+ * normal day, and,
  * with an estimate, what analysts expect as the second line. Without a past move, the day it reports is the figure.
  */
 export function reportCard(insight: Insight, report: UpcomingReport & { epsEstimate?: number | null }, context: LastReport, today: string): Insight {
@@ -489,11 +522,18 @@ export function reportCard(insight: Insight, report: UpcomingReport & { epsEstim
   }
   const typical = context?.typicalDayPct;
   const multiple = isNum(typical) && typical > 0 ? Math.abs(last.pct) / typical : null;
-  const size = multiple !== null && multiple >= 1.5 ? `, about ${Math.round(multiple)} times a normal day` : multiple !== null && multiple < 0.8 ? ", less than a normal day" : "";
+  // The sentence never repeats the figure, so "after its last report" stays beside the number and the −8.4% cannot be
+  // read as today's move (judges, ship 50).
+  const size =
+    multiple !== null && multiple >= 1.5
+      ? `; its last report moved it about ${Math.round(multiple)} times as much as a normal day`
+      : multiple !== null && multiple < 0.8
+        ? "; its last report moved it less than a normal day does"
+        : "";
   return {
     ...base,
     tone: last.pct >= 0 ? "up" : "down",
     figure: { value: signedPct(last.pct), label: "after its last report", tone: last.pct >= 0 ? "up" : "down" },
-    text: `${report.ticker} ${when}; after its last report the stock ${last.pct >= 0 ? "rose" : "fell"} ${absPct(last.pct)}${size}.`,
+    text: `${report.ticker} ${when}${size}.`,
   };
 }

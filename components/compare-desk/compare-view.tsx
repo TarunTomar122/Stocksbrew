@@ -250,20 +250,38 @@ export async function CompareView({
         );
         const separatesPanel = (
         <Panel flush fill label="Where they differ">
-          {/* One figure per row, then whose it is against the other name's number. */}
+          {/* One big figure per row with whose it is and a few words on what it measures; the other name's number sits
+              at the right as the baseline (judges, ship 50: visual, short words). The table under it is the evidence. */}
           <ul className="flex flex-1 flex-col">
             {differences.map((item) => (
-              <li key={item.topic} className="grid flex-1 grid-cols-[4.75rem_minmax(0,1fr)] items-center gap-x-3 border-b border-oa-border px-4 py-2 last:border-b-0">
-                  <span className={`${NUM} inline-flex items-center gap-1 text-[16px] font-semibold leading-6 text-oa-fg`}>
-                    {item.figure}
-                    {item.tone ? <ToneGlyph tone={item.tone} className="size-2" decorative /> : null}
-                  </span>
-                  <span className="text-pretty text-[13.5px] leading-5 text-oa-fg">
-                    <span className="sr-only">{item.topic}: </span>
-                    {item.text}
-                  </span>
-                </li>
-              ))}
+              <li key={item.topic} className="flex flex-1 items-center justify-between gap-x-3 border-b border-oa-border px-4 py-1.5 last:border-b-0">
+                <p className="sr-only">
+                  {item.topic}: {item.figure}. {item.text}
+                </p>
+                <div aria-hidden="true" className="min-w-0">
+                  <p className="flex items-center gap-2">
+                    <span className={`${NUM} inline-flex items-center gap-1 text-[20px] font-semibold leading-7 tracking-[-0.01em] text-oa-fg`}>
+                      {item.figure}
+                      {item.tone ? <ToneGlyph tone={item.tone} className="size-2.5" decorative /> : null}
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <StockLogo ticker={item.leader} size={16} />
+                      <span className={`${NUM} text-[13px] font-medium text-oa-fg`}>{item.leader}</span>
+                    </span>
+                  </p>
+                  <p className="text-pretty text-[13px] leading-[18px] text-oa-muted-fg">{item.words}</p>
+                </div>
+                <ul aria-hidden="true" className="flex shrink-0 flex-col items-end gap-0.5">
+                  {item.others.map((other) => (
+                    <li key={other.label} className="inline-flex items-center gap-1 whitespace-nowrap">
+                      {other.logo === false ? null : <StockLogo ticker={other.label} size={14} />}
+                      <span className="text-[12.5px] text-oa-muted-fg">{other.label}</span>
+                      <span className={`${NUM} text-[13.5px] font-medium text-oa-fg`}>{other.value}</span>
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            ))}
           </ul>
         </Panel>
         );

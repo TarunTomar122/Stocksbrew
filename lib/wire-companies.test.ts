@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { better, groupByCompany, isAwardTitle, isBaitTitle, isForeignLanguage, marketHeadlines, namesPastYear, plainStory, titleKey } from "@/lib/wire-companies";
+import { better, groupByCompany, isAwardTitle, isBaitTitle, isForeignLanguage, marketHeadlines, namesPastYear, plainStory, titleKey, withoutShown } from "@/lib/wire-companies";
 import type { WireItem } from "@/lib/wire-shared";
 
 const NOW = Date.parse("2026-11-10T12:00:00Z");
@@ -231,5 +231,25 @@ describe("award notes", () => {
     const award = item({ tickers: ["MSFT"], title: "SHI recognized as the winner of 2026 Microsoft Partner of the year", publishedAt: new Date(NOW - 3_600_000).toISOString() });
     const story = item({ tickers: ["MSFT"], title: "Microsoft stock suddenly has an Anthropic problem", publishedAt: new Date(NOW - 5 * 3_600_000).toISOString() });
     expect([award, story].sort(better)[0]).toBe(story);
+  });
+});
+
+describe("withoutShown", () => {
+  const base = { name: null, pct: null, count: 3, latestAt: "", mine: false, tones: { positive: 0, negative: 0, neutral: 0 } };
+  it("takes out the stories already shown above, by id and by title, and drops a card left empty", () => {
+    const top = item({ title: "Nvidia faces governance risks", tickers: ["NVDA"] });
+    const next = item({ title: "Nvidia fallout in Taiwan", tickers: ["NVDA"] });
+    const copy = item({ title: "Nvidia faces governance risks - Reuters", tickers: ["NVDA"] });
+    const lone = item({ title: "SpaceX investors confront a reality", tickers: ["SPCX"] });
+    const groups = [
+      { ...base, ticker: "NVDA", items: [top, copy, next] },
+      { ...base, ticker: "SPCX", items: [lone] },
+      { ...base, ticker: "MINE", mine: true, items: [lone] },
+    ];
+    const out = withoutShown(groups, [top, lone]);
+    expect(out.map((group) => group.ticker)).toEqual(["NVDA", "MINE"]);
+    expect(out[0]!.items.map((story) => story.title)).toEqual(["Nvidia fallout in Taiwan"]);
+    expect(out[1]!.items).toEqual([]);
+    expect(withoutShown(groups, [])).toBe(groups);
   });
 });

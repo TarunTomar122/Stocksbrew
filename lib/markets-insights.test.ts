@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildClassRead, buildMarketsRead, listTakeaway, marketRegime, moversTakeaway, nextReports, outlier, reportCard, reportsWhen, sectorBreadth, sectorTakeaway, SECTOR_IDS, usHoldings, withWatchNext } from "@/lib/markets-insights";
+import { buildClassRead, buildMarketsRead, fedOutcomeWords, listTakeaway, marketRegime, moversTakeaway, nextReports, outlier, reportCard, reportsWhen, sectorBreadth, sectorTakeaway, SECTOR_IDS, usHoldings, withWatchNext } from "@/lib/markets-insights";
 import type { MarketAsset, MarketsData } from "@/lib/markets-shared";
 
 function asset(id: string, d1: number | null, extra: Partial<MarketAsset> = {}): MarketAsset {
@@ -193,7 +193,7 @@ describe("Market today: what to watch next", () => {
   it("shortens the biggest report still to come to its figure and one sentence", () => {
     const long = { id: "biggest", tone: "flat" as const, text: "Cisco Systems ($443.3B) is the biggest company still to report this week, tomorrow after the close. Last time it fell 8.4% the day after its Aug 12 report, about 5 times its normal daily move. The next biggest is NU, tomorrow.", tickers: ["CSCO", "NU"] };
     const card = reportCard(long, reports.get("CSCO")!, { last: { pct: -8.4 }, typicalDayPct: 1.6 }, today);
-    expect(card.text).toBe("CSCO reports tomorrow after the close; after its last report the stock fell 8.4%, about 5 times a normal day.");
+    expect(card.text).toBe("CSCO reports tomorrow after the close; its last report moved it about 5 times as much as a normal day.");
     expect(card.figure).toEqual({ value: "−8.4%", label: "after its last report", tone: "down" });
     expect(card.tickers).toEqual(["CSCO"]);
     const plain = reportCard(long, reports.get("CSCO")!, undefined, today);
@@ -206,5 +206,20 @@ describe("Market today: what to watch next", () => {
     expect(reportCard(long, { ...reports.get("CSCO")!, epsEstimate: 1.15 }, { last: { pct: -8.4 }, typicalDayPct: 1.6 }, today).soWhat).toBe("Analysts expect a profit of $1.15 a share.");
     expect(reportCard(long, { ...reports.get("CSCO")!, epsEstimate: -0.13 }, undefined, today).soWhat).toBe("Analysts expect a loss of $0.13 a share.");
     expect(reportCard(long, { ...reports.get("CSCO")!, epsEstimate: null }, undefined, today).soWhat).toBeUndefined();
+  });
+});
+
+describe("fedOutcomeWords", () => {
+  it("says a Fed outcome in plain words", () => {
+    expect(fedOutcomeWords("Hike 25bps")).toBe("raises rates by 0.25 percentage points");
+    expect(fedOutcomeWords("Hike >25bps")).toBe("raises rates by more than 0.25 percentage points");
+    expect(fedOutcomeWords("Cut 50 bps")).toBe("cuts rates by 0.5 percentage points");
+    expect(fedOutcomeWords("Cut 100bps")).toBe("cuts rates by 1 percentage point");
+    expect(fedOutcomeWords("No change")).toBe("holds rates where they are");
+    expect(fedOutcomeWords("Fed maintains rate")).toBe("holds rates where they are");
+    expect(fedOutcomeWords("Cut 50+bps")).toBe("cuts rates by more than 0.5 percentage points");
+    expect(fedOutcomeWords("25 bps decrease")).toBe("cuts rates by 0.25 percentage points");
+    expect(fedOutcomeWords("50+ bps decrease")).toBe("cuts rates by more than 0.5 percentage points");
+    expect(fedOutcomeWords("Yes")).toBeNull();
   });
 });

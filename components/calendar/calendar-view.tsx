@@ -2,7 +2,7 @@ import * as React from "react";
 
 import { DataTable, type DataColumn, type DataRow } from "@/components/oa/kit/data-table";
 import { Delta, Empty, FOCUS, NUM, Panel, Tag, Ticker, ToneGlyph, Verdict, fmtCompact } from "@/components/oa/kit";
-import { StockCard, stockGridFill } from "@/components/briefing/stock-card";
+import { CARD_HOVER, stockGridFill } from "@/components/briefing/stock-card";
 import { StockLogo } from "@/components/stock-logo";
 import type { BigReport } from "@/lib/calendar-insights";
 import { shortCompanyName } from "@/lib/plain-copy";
@@ -226,27 +226,39 @@ export function BiggestReports({ reports, className = "" }: { reports: BigReport
       </h2>
       {/* Two reports sit side by side as halves; three or more run three across, a short last row filled. */}
       <ul className={`grid grid-flow-row-dense grid-cols-1 gap-3 sm:grid-cols-2 ${reports.length >= 3 ? "lg:grid-cols-3" : ""}`}>
-        {reports.map(({ item, lastPct, when, size }, index) => {
+        {reports.map(({ item, lastPct, when, size, expect }, index) => {
           // Rounded first, so a move that shows as 0.0% carries no sign or colour.
           const shown = Math.round(lastPct * 10) / 10;
+          const tone = shown > 0 ? "text-signal-bullish" : shown < 0 ? "text-signal-bearish" : "text-oa-fg";
+          const short = shortCompanyName(item.company);
+          const fill = reports.length >= 3 ? stockGridFill(index, reports.length, true) : reports.length === 1 ? "sm:col-span-2" : "";
           return (
-            <StockCard
-              key={item.id}
-              ticker={item.ticker}
-              name={item.company}
-              figure={`${shown > 0 ? "+" : shown < 0 ? "−" : ""}${Math.abs(shown).toFixed(1)}%`}
-              tone={shown > 0 ? "up" : shown < 0 ? "down" : "flat"}
-              sentence={shared ? size : `Reports ${when}. ${size}`}
-              fill={reports.length >= 3 ? stockGridFill(index, reports.length, true) : reports.length === 1 ? "sm:col-span-2" : ""}
-              cover={
-                <Link
-                  href={earningsHref(item.ticker)}
-                  prefetch={false}
-                  aria-label={`${item.ticker} earnings`}
-                  className="absolute inset-0 z-0 rounded-[inherit] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
-                />
-              }
-            />
+            <li key={item.id} className={`oa-surface relative flex min-w-0 flex-col border border-oa-border bg-oa-card px-3.5 pb-3 pt-3 ${CARD_HOVER} ${fill}`}>
+              <div className="flex min-w-0 items-start justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <StockLogo ticker={item.ticker} size={28} eager />
+                  <div className="min-w-0 leading-5">
+                    <p className="oa-mono text-[14px] font-semibold text-oa-fg">{item.ticker}</p>
+                    {short && short.toUpperCase() !== item.ticker.toUpperCase() ? <p className="truncate text-[12.5px] leading-4 text-oa-muted-fg">{short}</p> : null}
+                  </div>
+                </div>
+                {/* The move says what it is beside the number, so −8.4% is not read as today's move (judges, ship 50). */}
+                <div className="shrink-0 text-right">
+                  <p className={`oa-mono text-[20px] font-semibold leading-7 tracking-[-0.01em] tabular-nums ${tone}`}>
+                    {`${shown > 0 ? "+" : shown < 0 ? "−" : ""}${Math.abs(shown).toFixed(1)}%`}
+                  </p>
+                  <p className="text-[12.5px] leading-4 text-oa-muted-fg">after its last report</p>
+                </div>
+              </div>
+              <p className="mt-2 text-pretty text-[14px] leading-5 text-oa-fg">{shared ? size : `Reports ${when}. ${size}`}</p>
+              {expect ? <p className="mt-1.5 text-pretty text-[13px] leading-[18px] text-oa-muted-fg">{expect}</p> : null}
+              <Link
+                href={earningsHref(item.ticker)}
+                prefetch={false}
+                aria-label={`${item.ticker} earnings`}
+                className="absolute inset-0 z-0 rounded-[inherit] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
+              />
+            </li>
           );
         })}
       </ul>
@@ -501,6 +513,8 @@ function DividendLine({ item }: { item: DividendItem }) {
  * quiet one end close to level instead of one running on beside a blank column (owner rule 4).
  */
 const DAY_REM = 30;
+/** A phone day shows about 12 reports, then scrolls inside and hands the scroll back to the page at its end. */
+const PHONE_DAY_REM = 36;
 
 /** A day's session heading: the full words, or a short form for a narrow desktop week column. */
 const SESSION_SHORT: Record<Session, string> = { bmo: "Before the open", amc: "After the close", unknown: "Time not set" };
@@ -651,13 +665,13 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
 }
 
 /**
- * A day's events, every one. From `lg` up each column scrolls inside a box that ends on a whole row; on a phone a day
- * still to come shows whole, none behind a button or a hidden scroll (owner rule 2), and a day that has passed stays a
- * one-line header (its results open from there).
+ * A day's events, every one, in a box that ends on a whole row and scrolls inside (owner rule 5): a desktop column, or
+ * about 12 reports on a phone, so a busy Thursday does not run the page. No overscroll-contain, so the page moves on
+ * once the list ends. On a phone a day that has passed stays a one-line header (its results open from there).
  */
 function DayBody({ past, children }: { past: boolean; children: React.ReactNode }) {
   return (
-    <WholeRows rem={DAY_REM} minWidth={1024} cue className={`scrollbar-hide lg:max-h-[30rem] lg:overflow-y-auto ${past ? "max-lg:hidden" : ""}`}>
+    <WholeRows rem={PHONE_DAY_REM} wideRem={DAY_REM} wideFrom={1024} cue className={`scrollbar-hide max-h-[36rem] overflow-y-auto lg:max-h-[30rem] ${past ? "max-lg:hidden" : ""}`}>
       {children}
     </WholeRows>
   );

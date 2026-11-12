@@ -143,9 +143,10 @@ describe("the read", () => {
     });
     const r = reading.read!;
     // One idea, one number (owner rule 8).
-    expect(r.headline).toBe("NVDA has 21 stories today, up from 3.");
+    expect(r.headline).toBe("21 stories on NVDA today.");
+    expect(r.sub).toBe("Up from 3 the day before.");
     expect(r.insights.map((insight) => insight.id)).toEqual(["leader", "mover", "jump"]);
-    expect(r.insights[0]!.text).toBe("NVDA fell 4.0% today on 21 stories.");
+    expect(r.insights[0]!.text).toBe("NVDA fell 4.0% today.");
     // The headline has the count against the day before, so the card's figure is the share, not the same numbers again.
     expect(r.insights[0]!.figure).toEqual({ value: "62%", label: "of all company coverage today" });
     expect(r.insights[0]!.soWhat).toBe("Big news and a big move together: check what changed before you trade it.");

@@ -185,6 +185,49 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-12 ~07:15 UTC, ship 51 (f3d1a43, backend only): every email rebuilt and switched on (owner: "fix all emails"; postal address later) (lead)
+
+- **Owner's go.** "fix all emails no????" and "u dont need [the postal address] rn just make it work for now". backend/mail is committed after being held since Nov 11.
+  - The alert email has the round 20 rows: logo, ticker and name, close, % move, the buy-more level, one date per section, stale findings dropped.
+  - The daily is buy-more level first, then reports and moves more than usual, with no "rest of your stocks".
+  - The weekly is best and worst weeks, day-by-day bars, next week's reports.
+  - The footer shows the address only if STOCKSBREW_POSTAL_ADDRESS is set (unset for now).
+- **Verified.**
+  - Backend pytest: 1297 passed, 3 known failures; strategy_rebalance_notes now passes.
+  - Rendered every email from the saved snapshot (scratchpad/email51) and read back daily, weekly and alert at 680 and 390.
+  - VPS pulled, mail imports OK.
+  - Timers: alerts every 15 min (next 07:15 UTC), daily 13:30 UTC, weekly Sat 14:00 UTC.
+- **Open.**
+  - Set STOCKSBREW_POSTAL_ADDRESS in /etc/tikrr/backend.env when the owner has one.
+  - SOXL's logo renders blank in one email tile.
+
+### 2026-11-12 ~06:45 UTC, ship 50 live (5b2cef7): conditions you can check with their source, a briefing that uses the whole width (lead, overnight loop)
+
+- **Ship 50 (round 21B).**
+  - **Example briefing.** The agent log runs full width under the stock grid as one row of tiles (kind, time, figure, flagged chips). There's no rail beside short content, so nothing ends early. Members keep the log in their rail.
+  - **My stocks.** The rail stretches to the holdings, and the memo fills it with the week's movers (whole-row inner scroll, hands the scroll back).
+  - **Landing.** The log is "Yesterday's check of the whole market". The agents section names its three agents as watching only the example's stocks.
+  - **/stock/JPM.** Each change condition is its own block with a big threshold (7%, 4%, 10%) and its source ("From the 10-Q for the quarter to Sep 30, reported Oct 13" plus a results-release filing link). A source shared by two conditions is said once.
+  - **Checks.** 2930 tests in both modes; tsc and eslint clean; QA found 6 issues, all fixed. VPS pulled.
+- **Report.** The morning report artifact link broke after the account move; republished at https://claude.ai/artifact/PimEQ2tSUHUWmpAPXvrNMM.
+- **Judges on live 50** (scratchpad/judge50):
+  - Codex: UI 7, UX 7, usability 7, wording 7, agent feel 6.5, similarity 7, sell 7, overall 7.
+  - Cursor: 7 on everything except similarity, which is 6.
+- **Asks:**
+  - Codex flags the full-width agent log as a rule 10 break: the owner's rule puts secondary material in the rail. The owner's rule wins, so the log goes back to the rail and the grid is rebalanced.
+  - Repeated chip shapes should be said once (rule 1).
+  - The inbox shouldn't restate the briefing.
+  - My stocks: Nov 17 is said twice; the memo should be cards with charts.
+  - Finding cards should end with the price.
+  - Jargon: contango, Hike 25bps, Sharpe, bps.
+  - "After its last report" labels.
+  - Compare: one number in the headline.
+  - News: one-figure lede; the feed repeats stories.
+  - Calendar: the phone list is too long.
+  - Insiders: names.
+  - Stock page: an extra Follow on phone.
+- **Routed:** rounds 22A and 22B.
+
 ### 2026-11-12 ~06:20 UTC, ships 48 (2b47556) and 49 (4e3f73c) live; agent email waits on the owner (lead, overnight loop)
 
 - **Judges on live 47** (scratchpad/judge47):

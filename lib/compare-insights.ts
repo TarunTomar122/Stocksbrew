@@ -63,9 +63,9 @@ export function joinClauses(clauses: Array<{ text: string; symbols: string[] }>)
 export type WinnerClause = {
   id: string;
   text: string;
-  /** The same difference as a headline with one figure: "NVDA keeps more than three times AMD's operating profit per sales dollar." */
+  /** The same difference as a headline with one figure: "NVDA keeps 65¢ of each sales dollar as operating profit." */
   lead: string;
-  /** The two numbers behind a one-figure headline, said once under it ("NVDA keeps 65¢ of each sales dollar ...; AMD keeps 18¢."). */
+  /** The other number behind a one-figure headline, said once under it ("AMD keeps 18¢."). */
   sub?: string;
   symbols: string[];
   strength: number;
@@ -73,8 +73,8 @@ export type WinnerClause = {
 
 type Lead = { lead: string; sub?: string };
 
-// Each headline carries one figure (owner rule 8): how many times one is the other. The two numbers go under it.
-// When the two are too close for that, the headline keeps both, as before.
+// Each headline carries one figure (owner rule 8). Far apart, it is the leader's own number and the other's goes under
+// it; close together, it is the gap, with the two numbers under it.
 
 function cheapLead(multiple: { top: Pick; bottom: Pick }, what: string): Lead {
   const ratio = multiple.top.value / multiple.bottom.value;
@@ -84,8 +84,9 @@ function cheapLead(multiple: { top: Pick; bottom: Pick }, what: string): Lead {
   const words = ratio >= 1.9 && part ? `${ratio - whole >= 0.25 || whole > 5 ? "less than" : "about"} ${part}` : null;
   return words
     ? {
-        lead: `${multiple.bottom.symbol} costs ${words} as much as ${multiple.top.symbol} for each $1 of ${what}.`,
-        sub: `${multiple.bottom.symbol} costs $${multiple.bottom.value.toFixed(0)} for each $1 of ${what}; ${multiple.top.symbol} costs $${multiple.top.value.toFixed(0)}.`,
+        // Far apart: the cheaper one's own figure is the headline, the other's goes under it.
+        lead: `${multiple.bottom.symbol} costs $${multiple.bottom.value.toFixed(0)} for each $1 of ${what}.`,
+        sub: `${multiple.top.symbol} costs $${multiple.top.value.toFixed(0)}.`,
       }
     : {
         // Closer than half: how much less it costs, as one share.
@@ -105,8 +106,8 @@ function growthLead(growth: { top: Pick; bottom: Pick }, ratio: number | null): 
   const words = ratio && ratio >= 1.9 ? timesWords(ratio) : null;
   return words
     ? {
-        lead: `${growth.top.symbol}'s sales grew ${words} as fast as ${growth.bottom.symbol}'s over the past year.`,
-        sub: `${growth.top.symbol}'s sales grew ${pct(growth.top.value)}; ${growth.bottom.symbol}'s grew ${pct(growth.bottom.value)}.`,
+        lead: `${growth.top.symbol}'s sales grew ${pct(growth.top.value)} over the past year.`,
+        sub: `${growth.bottom.symbol}'s grew ${pct(growth.bottom.value)}.`,
       }
     : {
         // Closer than twice: the gap in points, as one figure.
@@ -127,11 +128,10 @@ function marginLead(margin: { top: Pick; bottom: Pick }): Lead {
       lead: `${top.symbol} keeps ${Math.round(top.value - bottom.value)}¢ more of each sales dollar as operating profit than ${bottom.symbol}.`,
       sub: `${top.symbol} keeps ${top.value.toFixed(0)}¢ of each sales dollar as operating profit; ${bottom.symbol} keeps ${bottom.value.toFixed(0)}¢.`,
     };
+  // Far apart: one idea, one number ("NVDA keeps 65¢ of each sales dollar as operating profit."), the other's under it.
   return {
-    lead: words.endsWith("more")
-      ? `${top.symbol} keeps ${words} operating profit per sales dollar than ${bottom.symbol}.`
-      : `${top.symbol} keeps ${words} ${bottom.symbol}'s operating profit per sales dollar.`,
-    sub: `${top.symbol} keeps ${top.value.toFixed(0)}¢ of each sales dollar as operating profit; ${bottom.symbol} keeps ${bottom.value.toFixed(0)}¢.`,
+    lead: `${top.symbol} keeps ${top.value.toFixed(0)}¢ of each sales dollar as operating profit.`,
+    sub: `${bottom.symbol} keeps ${bottom.value.toFixed(0)}¢.`,
   };
 }
 
@@ -231,8 +231,8 @@ export function buildCompareRead(input: {
   if (rows.length < 2) return null;
 
   const clauses = winnerClauses(rows).slice(0, 3);
-  // The headline is the strongest difference as one figure ("NVDA keeps more than three times AMD's operating profit
-  // per sales dollar."), with the two numbers under it (owner rule 8). The other differences follow as their own
+  // The headline is the strongest difference as one figure ("NVDA keeps 65¢ of each sales dollar as operating
+  // profit."), with the other's number under it (owner rule 8). The other differences follow as their own
   // lines; the first is the headline, so it is not said again under it.
   let headline = clauses[0]?.lead ?? "";
   // The two numbers behind a one-figure headline, once, right under it.

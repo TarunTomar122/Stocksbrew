@@ -35,6 +35,11 @@ const FIELD =
   "h-9 w-full min-w-0 rounded-md border border-oa-border bg-oa-page px-2.5 text-[14px] text-oa-fg outline-none placeholder:text-oa-muted-fg focus:border-oa-primary";
 
 let nextId = 1;
+/** 10 basis points as the field shows them: "0.1" (percent of each trade). */
+function costPercent(bps: number): string {
+  return String(Math.round(bps) / 100);
+}
+
 function makeRows(holdings: { symbol: string; weight: number }[]): Row[] {
   return holdings.map((item) => ({ id: nextId++, symbol: item.symbol, weight: String(Math.round(item.weight * 100) / 100) }));
 }
@@ -145,7 +150,7 @@ function ResultSide({ run, example }: { run: BacktestRun; example: boolean }) {
       <Panel title="Year by year">
         {/* About eight years tall; older years scroll inside. */}
         <div className="max-h-[21rem] overflow-y-auto">
-          <YearTable years={run.years} benchmarkLabel={benchmark} strategyLabel={example ? "60/40" : "Your mix"} bars={false} />
+          <YearTable years={run.years} benchmarkLabel={benchmark} strategyLabel={example ? "60/40" : "Your mix"} />
         </div>
       </Panel>
       <Panel title="What each holding did">
@@ -189,7 +194,8 @@ export function BacktestWorkbench({
   const [end, setEnd] = React.useState(initialSetup.end ?? "");
   const [rebalance, setRebalance] = React.useState<WeightsRebalance>(initialSetup.rebalance);
   const [benchmark, setBenchmark] = React.useState(initialSetup.benchmark);
-  const [cost, setCost] = React.useState(String(initialSetup.cost_bps));
+  // Said in percent of each trade ("0.1"), not basis points (owner rule 8); the setup still carries basis points.
+  const [cost, setCost] = React.useState(costPercent(initialSetup.cost_bps));
   const [response, setResponse] = React.useState<GatedBacktestResponse | null>(initialResponse);
   // Dates left open run from the first day both have prices to the latest close. Until someone types in a field it
   // shows the day the run on screen really used rather than an empty dd/mm/yyyy (judges, ship 46); once typed in, it
@@ -236,8 +242,11 @@ export function BacktestWorkbench({
       holdings.push({ symbol, weight });
     }
     if (holdings.length === 0) return setFormError("Add at least one ticker.");
-    const costValue = Number(cost);
-    if (!Number.isInteger(costValue) || costValue < 0 || costValue > 200) return setFormError("Cost per trade must be a whole number from 0 to 200.");
+    const costPct = cost.trim() === "" ? Number.NaN : Number(cost);
+    const costValue = Math.round(costPct * 100);
+    if (!Number.isFinite(costPct) || costValue < 0 || costValue > 200 || Math.abs(costPct * 100 - costValue) > 1e-6) {
+      return setFormError("Cost per trade must be a percent from 0 to 2, such as 0.1.");
+    }
     if (start && end && start >= end) return setFormError("The start date must be before the end date.");
 
     const setup: BacktestSetup = { holdings, start: start || null, end: end || null, rebalance, benchmark, cost_bps: costValue };
@@ -433,8 +442,8 @@ export function BacktestWorkbench({
           <label className="min-w-0">
             <span className="oa-caption">Cost per trade</span>
             <span className="relative mt-1 block">
-              <input title="10 bps is 0.1% of each trade" className={`${FIELD} oa-mono pr-9 text-right tabular-nums`} inputMode="numeric" value={cost} onChange={(event) => setCost(event.target.value.replace(/[^0-9]/g, ""))} />
-              <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[12px] text-oa-muted-fg">bps</span>
+              <input aria-label="Cost per trade, in percent of each trade" className={`${FIELD} oa-mono pr-[4.5rem] text-right tabular-nums`} inputMode="decimal" value={cost} onChange={(event) => setCost(event.target.value.replace(/[^0-9.]/g, "").replace(/(\..*)\./g, "$1"))} />
+              <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[12px] text-oa-muted-fg">% a trade</span>
             </span>
           </label>
         </div>

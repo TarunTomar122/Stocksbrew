@@ -9,7 +9,7 @@ import { TickerStrip, WireFilterBar, WireSearch, WireStream } from "@/components
 import { getSessionUser } from "@/lib/auth-server";
 import { getTrackedStocks } from "@/lib/watchlist";
 import { loadWire, modelLabel } from "@/lib/wire";
-import { COMPANY_PAGE, groupByCompany, labelFor } from "@/lib/wire-companies";
+import { COMPANY_PAGE, groupByCompany, labelFor, withoutShown } from "@/lib/wire-companies";
 import { caseWireHeadlines } from "@/lib/wire-casing";
 import { withHeadlineTones } from "@/lib/wire-headline-tone";
 import { countTones, readTheWire, storiesBetween } from "@/lib/wire-read";
@@ -111,8 +111,6 @@ export default async function NewsPage({ searchParams }: { searchParams?: Search
   // A ticker or a theme reads as one time-ordered stream; everything else is read by stock.
   const streamView = Boolean(effective.ticker || effective.theme);
   const grouped = streamView ? [] : groupByCompany(matched, { sinceMs: since, quotes: wire.quotes, mine: mineSet, labels });
-  // "My stocks" keeps stories that name a followed company; a roundup naming others must not put them under "Your companies".
-  const companies = effective.mine ? grouped.filter((group) => group.mine) : grouped;
   // The read is about the whole market, so it only leads the unfiltered wire.
   const reading =
     streamView || hasNarrowing(effective)
@@ -128,6 +126,10 @@ export default async function NewsPage({ searchParams }: { searchParams?: Search
           },
           { nowMs: now, filters: effective, buzzLimit: 14, themeLimit: 5 },
         );
+  // "My stocks" keeps stories that name a followed company; a roundup naming others must not put them under "Your companies".
+  // Under "Most talked about", the feed shows each company's next stories, not the top ones already listed above it.
+  const shownAbove = reading?.buzz.flatMap((row) => (row.lead ? [row.lead] : [])) ?? [];
+  const companies = withoutShown(effective.mine ? grouped.filter((group) => group.mine) : grouped, shownAbove);
   // Each "more" step shows another page of companies; the URL's row limit caps how many steps there are.
   const step = Math.max(1, Math.round(effective.limit / WIRE_PAGE_SIZE));
   const shownCompanies = COMPANY_PAGE * step;

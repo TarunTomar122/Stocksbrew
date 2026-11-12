@@ -614,7 +614,6 @@ export function yieldCurveShiftReading(curve: TreasuryCurve | null): string | nu
   return `${scope} ${direction} than a month ago, by ${Math.round(Math.abs(average))} bps on average.`;
 }
 
-/** Contango or backwardation, said plainly, from the stored futures curve. */
 /** "Dec 26" is a contract month and a two-digit year. Spell the year so it cannot be read as a day. */
 function contractMonth(label: string): string {
   const match = /^([A-Z][a-z]{2}) (\d{2})$/.exec(label.trim());
@@ -622,8 +621,8 @@ function contractMonth(label: string): string {
 }
 
 /**
- * Pass `subject` ("Gold") when the sentence stands on its own, away from the
- * asset's name, so it says what it is about.
+ * Whether later contracts cost more or less, said plainly (no "contango" or "backwardation": owner rule 8). Pass
+ * `subject` ("Gold") when the sentence stands on its own, away from the asset's name, so it says what it is about.
  */
 export function structureReading(asset: Pick<MarketAsset, "structure">, subject?: string): string | null {
   const structure = asset.structure;
@@ -634,11 +633,11 @@ export function structureReading(asset: Pick<MarketAsset, "structure">, subject?
   if (structure.state === "contango" || structure.state === "backwardation") {
     const shape = structure.state === "contango" ? "more than" : "less than";
     const delivery = subject ? `${subject} for ${later} delivery costs ${gap} ${shape} for ${front}` : `${later} delivery costs ${gap} ${shape} ${front}`;
-    return `${delivery}: the curve is in ${structure.state}.`;
+    return `${delivery}.`;
   }
   return subject
-    ? `${subject}'s ${front} and ${later} contracts trade within ${gap} of each other: the curve is flat.`
-    : `${front} and ${later} trade within ${gap} of each other: the curve is flat.`;
+    ? `${subject}'s ${front} and ${later} contracts trade within ${gap} of each other.`
+    : `${front} and ${later} trade within ${gap} of each other.`;
 }
 
 /**

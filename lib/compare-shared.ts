@@ -232,9 +232,21 @@ export function tallyWins(groups: ReadonlyArray<CompareTableGroup>, count: numbe
 
 /**
  * One row of "Where they differ": a topic, the one figure that leads it (the leader's number), whether that figure
- * reads as up or down, and a short line naming whose figure it is, against the other name's.
+ * reads as up or down, whose figure it is, a few words on what it measures, the other names' numbers beside it, and
+ * the same as one sentence for a screen reader.
  */
-export type Difference = { topic: string; figure: string; tone?: "up" | "down"; text: string };
+export type Difference = {
+  topic: string;
+  figure: string;
+  tone?: "up" | "down";
+  /** The stock the figure belongs to. */
+  leader: string;
+  /** What the figure measures, in a few words: "operating profit per sales dollar". */
+  words: string;
+  /** The baseline beside it: the other name's number ("AMD", "18¢"); `logo: false` for the S&P 500. */
+  others: Array<{ label: string; value: string; logo?: boolean }>;
+  text: string;
+};
 
 type Known = { symbol: string; value: number };
 
@@ -292,6 +304,9 @@ export function describeDifferences(input: ReadonlyArray<ScreenerRow | null>, be
     out.push({
       topic: "Size",
       figure: ratioText(size.top.value / size.bottom.value),
+      leader: size.top.symbol,
+      words: `bigger by market value, at ${money(size.top.value)}`,
+      others: [{ label: size.bottom.symbol, value: money(size.bottom.value) }],
       text: `How much bigger ${size.top.symbol} is than ${size.bottom.symbol}, at ${money(size.top.value)} against ${money(size.bottom.value)}.`,
     });
   }
@@ -302,6 +317,9 @@ export function describeDifferences(input: ReadonlyArray<ScreenerRow | null>, be
       topic: "Growth",
       figure: short(growth.top.value, true),
       tone: growth.top.value >= 0 ? "up" : "down",
+      leader: growth.top.symbol,
+      words: "sales growth over a year",
+      others: [{ label: growth.bottom.symbol, value: short(growth.bottom.value, true) }],
       text:
         growth.bottom.value < 0
           ? `${growth.top.symbol}'s sales growth over a year, while ${growth.bottom.symbol}'s sales shrank ${short(Math.abs(growth.bottom.value))}.`
@@ -317,6 +335,9 @@ export function describeDifferences(input: ReadonlyArray<ScreenerRow | null>, be
       topic: "Price",
       // "15.4x" said as what you pay for each dollar of profit.
       figure: `$${multiple.bottom.value.toFixed(0)}`,
+      leader: multiple.bottom.symbol,
+      words: `paid for each $1 of ${forward ? "next year's expected profit" : "last year's profit"}`,
+      others: [{ label: multiple.top.symbol, value: `$${multiple.top.value.toFixed(0)}` }],
       text: `What you pay for $1 of ${multiple.bottom.symbol}'s ${forward ? "expected profit next year" : "profit over the last year"}, against $${multiple.top.value.toFixed(0)} for ${multiple.top.symbol}.`,
     });
   }
@@ -327,6 +348,15 @@ export function describeDifferences(input: ReadonlyArray<ScreenerRow | null>, be
     out.push({
       topic: "Profit",
       figure: margin.top.value < 0 ? short(margin.top.value) : cents(margin.top.value),
+      leader: margin.top.symbol,
+      words: margin.top.value < 0 ? "operating margin" : "operating profit per sales dollar",
+      // Same unit as the figure: cents beside cents; a loss beside a profit is said as a loss, not as a percent.
+      others: [
+        {
+          label: margin.bottom.symbol,
+          value: margin.top.value < 0 ? short(margin.bottom.value) : margin.bottom.value < 0 ? "loses money" : cents(margin.bottom.value),
+        },
+      ],
       text:
         margin.top.value < 0
           ? `${margin.top.symbol}'s operating margin, against ${short(margin.bottom.value)} for ${margin.bottom.symbol}. Both lose money running the business.`
@@ -341,6 +371,9 @@ export function describeDifferences(input: ReadonlyArray<ScreenerRow | null>, be
     out.push({
       topic: "Balance sheet",
       figure: money(cash.top.value),
+      leader: cash.top.symbol,
+      words: "more cash than debt",
+      others: [{ label: cash.bottom.symbol, value: `owes ${money(cash.bottom.value)} more` }],
       text: `${cash.top.symbol}'s cash beyond its debt, while ${cash.bottom.symbol} owes ${money(cash.bottom.value)} more than it holds.`,
     });
   } else {
@@ -349,6 +382,9 @@ export function describeDifferences(input: ReadonlyArray<ScreenerRow | null>, be
       out.push({
         topic: "Balance sheet",
         figure: fmt("debt_equity", leverage.top.value),
+        leader: leverage.top.symbol,
+        words: "debt for each $1 of equity",
+        others: [{ label: leverage.bottom.symbol, value: fmt("debt_equity", leverage.bottom.value) }],
         text: `${leverage.top.symbol}'s debt for each dollar of equity, next to ${fmt("debt_equity", leverage.bottom.value)} for ${leverage.bottom.symbol}.`,
       });
     }
@@ -360,6 +396,12 @@ export function describeDifferences(input: ReadonlyArray<ScreenerRow | null>, be
       topic: "The last year",
       figure: short(year.top.value, true),
       tone: year.top.value >= 0 ? "up" : "down",
+      leader: year.top.symbol,
+      words: "move over the past year",
+      others: [
+        { label: year.bottom.symbol, value: short(year.bottom.value, true) },
+        ...(benchmark && isFiniteNumber(benchmark.ret_1y) ? [{ label: "S&P 500", value: short(benchmark.ret_1y, true), logo: false }] : []),
+      ],
       // The S&P 500 as a second baseline when we have it, so the row says whether either kept up with the market.
       text: `${year.top.symbol}'s move in the year to the last close, against ${short(year.bottom.value, true)} for ${year.bottom.symbol}${
         benchmark && isFiniteNumber(benchmark.ret_1y) ? ` and ${short(benchmark.ret_1y, true)} for the S&P 500` : ""
@@ -372,6 +414,9 @@ export function describeDifferences(input: ReadonlyArray<ScreenerRow | null>, be
     out.push({
       topic: "Risk",
       figure: short(swing.top.value),
+      leader: swing.top.symbol,
+      words: "typical price swing in a year",
+      others: [{ label: swing.bottom.symbol, value: short(swing.bottom.value) }],
       text: `How much ${swing.top.symbol}'s price swings in a year, against ${short(swing.bottom.value)} for ${swing.bottom.symbol}.`,
     });
   }
@@ -384,6 +429,9 @@ export function describeDifferences(input: ReadonlyArray<ScreenerRow | null>, be
       topic: "Analysts",
       figure: short(target.top.value, true),
       tone: target.top.value >= 0 ? "up" : "down",
+      leader: target.top.symbol,
+      words: `analysts' average target ${target.top.value >= 0 ? "above" : "below"} the price`,
+      others: [{ label: target.bottom.symbol, value: short(target.bottom.value, true) }],
       text: `How far analysts' average target sits ${target.top.value >= 0 ? "above" : "below"} ${target.top.symbol}'s price. For ${target.bottom.symbol} it is ${side(target.bottom.value)}.`,
     });
   }

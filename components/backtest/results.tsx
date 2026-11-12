@@ -97,7 +97,7 @@ function fallMark(fall: number | null | undefined) {
 function Cell({ label, value, sub, tone, mark }: { label: string; value: string; sub?: string; tone?: string; mark?: "up" | "down" | "flat" | null }) {
   return (
     <div className="min-w-0 bg-oa-card px-3.5 py-3">
-      <p className="oa-caption truncate">{label}</p>
+      <p className="oa-caption text-pretty">{label}</p>
       <p className={`oa-mono mt-1 flex items-center gap-1.5 text-[17px] font-medium leading-6 tabular-nums ${tone ?? "text-oa-fg"}`}>
         <span className="min-w-0 truncate">{value}</span>
         <Mark tone={mark} />
@@ -146,8 +146,10 @@ export function StatGrid({
           <Cell label="Worst fall" value={signedPct(strategy.max_drawdown)} sub={vs(signedPct(benchmark.max_drawdown))} mark={fallMark(strategy.max_drawdown)} />
         </>
       ) : null}
-      <Cell label="Sharpe" value={ratio(strategy.sharpe)} sub={vs(ratio(benchmark.sharpe))} mark={markFor("sharpe", strategy.sharpe)} />
-      <Cell label="Volatility" value={plainPct(strategy.volatility)} sub={vs(plainPct(benchmark.volatility))} />
+      {/* Plain words for the Sharpe ratio and volatility (owner rule 8): the yearly return for each point of swing, and
+          how far it typically swings in a year. */}
+      <Cell label="Return per unit of swing" value={ratio(strategy.sharpe)} sub={vs(ratio(benchmark.sharpe))} mark={markFor("sharpe", strategy.sharpe)} />
+      <Cell label="Typical swing in a year" value={plainPct(strategy.volatility)} sub={vs(plainPct(benchmark.volatility))} />
       <Cell
         label="Worst year"
         value={worstYear ? signedPct(worstYear.strategy) : "–"}
@@ -167,9 +169,9 @@ export function StatGrid({
         mark={beatShare(hitRate.beat, hitRate.years)}
       />
       <Cell
-        label="Turnover a year"
+        label="Mix traded a year"
         value={turnover === null ? "–" : plainPct(turnover, 0)}
-        sub={turnover === null ? "needs a full year" : "of holdings replaced"}
+        sub={turnover === null ? "needs a full year" : "sold and rebought"}
       />
     </div>
   );
@@ -179,16 +181,13 @@ export function YearTable({
   years,
   benchmarkLabel,
   strategyLabel = "Strategy",
-  bars = true,
 }: {
   years: YearRow[];
   benchmarkLabel: string;
   strategyLabel?: string;
-  /** false drops the bar column, which only repeats the numbers beside it. */
-  bars?: boolean;
 }) {
+  // No bar beside each year: the percent already says it (owner rule 5).
   const rows = [...years].reverse();
-  const scale = Math.max(0.05, ...years.map((row) => Math.max(Math.abs(row.strategy), Math.abs(row.benchmark))));
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[20rem] border-collapse text-[13px]">
@@ -198,13 +197,11 @@ export function YearTable({
             <th className="oa-caption px-2 py-2 text-right">{strategyLabel}</th>
             <th className="oa-caption px-2 py-2 text-right">{benchmarkLabel}</th>
             <th className="oa-caption px-3.5 py-2 text-right">Gap</th>
-            {bars ? <th className="hidden w-[28%] min-w-[6rem] px-3.5 py-2 sm:table-cell" aria-hidden="true" /> : null}
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => {
             const gap = row.strategy - row.benchmark;
-            const size = Math.min(100, (Math.abs(row.strategy) / scale) * 100);
             return (
               <tr key={row.year} className="h-9 border-b border-oa-border last:border-0 hover:bg-oa-accent">
                 <td className="oa-mono px-3.5 tabular-nums text-oa-fg">
@@ -214,17 +211,6 @@ export function YearTable({
                 <td className={`oa-mono px-2 text-right tabular-nums ${toneOf(row.strategy)}`}>{signedPct(row.strategy)}</td>
                 <td className="oa-mono px-2 text-right tabular-nums text-oa-muted-fg">{signedPct(row.benchmark)}</td>
                 <td className={`oa-mono px-3.5 text-right tabular-nums ${toneOf(gap)}`}>{signedPct(gap)}</td>
-                {bars ? (
-                <td className="hidden px-3.5 sm:table-cell" aria-hidden="true">
-                  <div className="relative h-2">
-                    <div className="absolute inset-y-0 left-1/2 w-px bg-oa-border" />
-                    <div
-                      className={`absolute inset-y-0 rounded-[2px] ${row.strategy >= 0 ? "left-1/2 bg-signal-bullish" : "right-1/2 bg-signal-bearish"}`}
-                      style={{ width: `${size / 2}%`, opacity: 0.75 }}
-                    />
-                  </div>
-                </td>
-                ) : null}
               </tr>
             );
           })}

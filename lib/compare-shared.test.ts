@@ -132,6 +132,13 @@ describe("what separates them", () => {
     expect(rows).toContain("58% | How much AMD's price swings in a year, against 46% for NVDA.");
   });
 
+  it("names whose figure leads each row and the other's number beside it", () => {
+    const profit = describeDifferences([NVDA, AMD]).find((item) => item.topic === "Profit");
+    expect(profit).toMatchObject({ figure: "65¢", leader: "NVDA", words: "operating profit per sales dollar", others: [{ label: "AMD", value: "10¢" }] });
+    const price = describeDifferences([NVDA, AMD]).find((item) => item.topic === "Price");
+    expect(price).toMatchObject({ leader: "NVDA", others: [{ label: "AMD", value: "$31" }] });
+  });
+
   it("puts the S&P 500 beside the year when it is known", () => {
     const year = describeDifferences([NVDA, AMD], { symbol: "SPY", ret_1y: 12.4 }).find((item) => item.topic === "The last year");
     expect(year?.text).toBe("AMD's move in the year to the last close, against −0.8% for NVDA and +12% for the S&P 500.");

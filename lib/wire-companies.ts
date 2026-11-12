@@ -24,7 +24,8 @@ export type CompanyGroup = {
   tones: ToneCounts;
 };
 
-const PER_COMPANY = 3;
+/** Headlines kept per company: enough that a card still has its next stories once the ones shown above are taken out. */
+const PER_COMPANY = 5;
 /** Company cards per "more" step on the wire: eight rows of two (owner rule 5: about eight rows), the rest a step away. */
 export const COMPANY_PAGE = 16;
 /** A press release counts for less than a story a publisher chose to write. */
@@ -286,6 +287,25 @@ export function groupByCompany(
         a.ticker.localeCompare(b.ticker),
     )
     .map(({ score: _score, ...group }) => group);
+}
+
+/**
+ * The company cards without the stories the page already shows above them (the ranked list's top story for each stock,
+ * which the read's cards quote too), so the feed carries the next stories rather than the same headlines again
+ * (judges, ship 50). Matched by id and by title, since the same story can arrive from two feeds. A card left with no
+ * story goes, unless the viewer follows it (its card still shows its move).
+ */
+export function withoutShown(groups: CompanyGroup[], shown: ReadonlyArray<Pick<WireItem, "id" | "title">>): CompanyGroup[] {
+  if (shown.length === 0) return groups;
+  const ids = new Set(shown.map((item) => item.id));
+  const keys = new Set(shown.map((item) => titleKey(item.title)).filter(Boolean));
+  const out: CompanyGroup[] = [];
+  for (const group of groups) {
+    const items = group.items.filter((item) => !ids.has(item.id) && !keys.has(titleKey(item.title)));
+    if (items.length === 0 && group.items.length > 0 && !group.mine) continue;
+    out.push(items.length === group.items.length ? group : { ...group, items });
+  }
+  return out;
 }
 
 /**

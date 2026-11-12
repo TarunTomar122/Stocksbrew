@@ -400,13 +400,14 @@ export function marketRead(input: MarketReadInput): TheRead | null {
   const insights: Array<Insight | null> = [];
   const headlinesOf = (ticker: string) => wireHref({ ...filters, limit: WIRE_PAGE_SIZE }, { ticker });
 
-  // The headline: who leads the news, with its count against the day before as plain numbers (owner rule 8): "NVDA has
-  // 168 stories today, up from 22", never "7 times the stories it got the day before".
+  // The headline: who leads the news, as one figure (owner rule 8): "190 stories on NVDA today." The day before goes
+  // under it ("Up from 28 the day before."), never "7 times the stories it got the day before".
   const leaderName = spokenName(leader);
   const surgeHeadline = surgeFromRealDay(leader.count, leader.prevCount);
   const headline = surgeHeadline
-    ? `${leader.ticker} has ${leader.count} stories today, up from ${leader.prevCount}.`
+    ? `${leader.count} stories on ${leader.ticker} today.`
     : `${leader.ticker} leads the news today, with ${leader.share}% of all company coverage.`;
+  const sub = surgeHeadline ? `Up from ${leader.prevCount} the day before.` : undefined;
 
   // 1. The leader: its coverage against the day before, its move, and what the two together say.
   {
@@ -414,10 +415,16 @@ export function marketRead(input: MarketReadInput): TheRead | null {
     const surge = isSurge(leader.count, leader.prevCount);
     const toneBit = lean ? (lean.pct >= 50 ? `, ${lean.pct}% of them ${lean.side}` : `, with the news leaning ${lean.side}`) : "";
     // The baseline is in the figure's label ("stories, 12 the day before"), so the sentence does not say it again.
+    // The headline already gives the count ("191 stories on NVDA today."), so the card says the move and the tone
+    // without the same figure again (owner rule 1).
     const text =
-      leader.pct !== null
-        ? `${leader.ticker} ${rose(leader.pct)} today on ${leader.count} stories${toneBit}.`
-        : `${leader.ticker} drew ${leader.count} stories in the last day${toneBit}.`;
+      leader.pct !== null && surgeHeadline
+        ? `${leader.ticker} ${rose(leader.pct)} today${lean ? (lean.pct >= 50 ? `, with ${lean.pct}% of its stories ${lean.side}` : `, with its news leaning ${lean.side}`) : ""}.`
+        : leader.pct !== null
+          ? `${leader.ticker} ${rose(leader.pct)} today on ${leader.count} stories${toneBit}.`
+          : surgeHeadline && lean
+            ? `${lean.pct >= 50 ? `${lean.pct}% of ${leader.ticker}'s stories are ${lean.side}` : `${leader.ticker}'s news leans ${lean.side}`}.`
+            : `${leader.ticker} drew ${leader.count} stories in the last day${toneBit}.`;
     let soWhat: string | undefined;
     // A price and a tone pointing opposite ways: the sentence above already says both, and nothing more is said, since
     // why buyers or sellers did it ("looking past the bad headlines") is a motive the figures do not show (owner rule 7).
@@ -569,7 +576,7 @@ export function marketRead(input: MarketReadInput): TheRead | null {
   const stories = today.length;
   // The source and the time only: how each headline's tone was read is mechanics, not news (owner rule 8).
   const source = `${stories.toLocaleString("en-US")} stories from ${input.sources} ${input.sources === 1 ? "source" : "sources"}`;
-  return { headline, headlineTickers: [leader.ticker], insights: shown, source, asOf: input.asOf };
+  return { headline, ...(sub ? { sub } : {}), headlineTickers: [leader.ticker], insights: shown, source, asOf: input.asOf };
 }
 
 /* ── Everything at once ────────────────────────────────────────────────── */

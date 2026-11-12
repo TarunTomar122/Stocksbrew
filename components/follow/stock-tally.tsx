@@ -3,6 +3,7 @@ import * as React from "react";
 import { NUM, Panel, Ticker } from "@/components/oa/kit";
 import type { StockTally } from "@/lib/follow-insights";
 import { alsoClassesLabel, oneRowPerCompany } from "@/lib/share-class";
+import { shortBuyerName } from "@/lib/buyer-name";
 
 /**
  * "Most bought by funds" style list: one row per stock, how many of them were
@@ -42,14 +43,16 @@ export function StockTallyPanel({
           {shown.map((row) => {
             const who = side === "buy" ? row.buyers : row.sellers;
             const other = side === "buy" ? row.sellers.length : row.buyers.length;
-            const names = who.slice(0, 2).map((entry) => entry.name);
+            const full = who.slice(0, 2).map((entry) => entry.name);
+            const names = full.map((name) => shortBuyerName(name));
             const more = who.length - names.length;
             return (
               <li key={row.ticker} className="relative grid min-h-11 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 px-4 py-1.5 transition-colors hover:bg-oa-accent">
                 <div className="min-w-0">
                   {/* Ticker only in a dense list (owner rule 3); the company is a hover away on its page. */}
                   <Ticker symbol={row.ticker} size={18} stretch className="max-w-full" />
-                  <p className="mt-0.5 text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg">
+                  {/* Who bought, on one line, a long name cut with "…" so it never reads as the company's (judges, ship 50). */}
+                  <p className="mt-0.5 truncate text-[12.5px] leading-[18px] text-oa-muted-fg" title={full.join(", ")}>
                     {names.join(", ")}
                     {more > 0 ? ` and ${more} more` : ""}
                     {alsoClassesLabel(also, row.ticker) ? <span className={NUM}> · {alsoClassesLabel(also, row.ticker)}</span> : null}

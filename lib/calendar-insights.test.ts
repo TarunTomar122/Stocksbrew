@@ -128,6 +128,12 @@ describe("biggestReports", () => {
     expect(cards[1]!.when).toBe("tomorrow before the open");
     expect(cards[1]!.size).toBe("Its last report was on Aug 14.");
     expect(cards[0]!.size).not.toContain("8.4");
+    expect(cards[0]!.expect).toBe("Analysts expect a profit of $1.00 a share.");
+  });
+
+  it("says no estimate when analysts have none", () => {
+    const bare = [earn("CSCO", "2026-11-12", 443e9, { epsEstimate: null })];
+    expect(biggestReports(bare, TODAY, context)[0]!.expect).toBeNull();
   });
 
   it("never reaches past the biggest few for a small company", () => {

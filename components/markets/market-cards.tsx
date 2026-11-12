@@ -10,7 +10,7 @@ import type * as React from "react";
 
 import { ToneGlyph } from "@/components/oa/kit/tone";
 import { StockLogo } from "@/components/stock-logo";
-import { FUND_TOPIC } from "@/lib/markets-insights";
+import { FUND_TOPIC, fedOutcomeWords } from "@/lib/markets-insights";
 import {
   biggestMoves,
   changeTone,
@@ -226,11 +226,13 @@ function commoditiesCard(data: MarketsData): Card | null {
     const front = contractMonth(structure.front_label);
     const subject = commodityName(lead);
     const gap = Math.abs(structure.spread_pct).toFixed(1);
+    // "Later gold contracts cost more", not "contango" (owner rule 8). Brent and WTI are names and keep their capitals.
+    const noun = /^(?:Gold|Silver|Copper|Natural gas)$/.test(subject) ? subject.charAt(0).toLowerCase() + subject.slice(1) : subject;
     const text =
       structure.state === "contango"
-        ? `${subject} for ${later} delivery costs ${gap}% more than for ${front}: buyers pay extra to take it later.`
+        ? `Later ${noun} contracts cost more: ${later} delivery is ${gap}% above ${front}.`
         : structure.state === "backwardation"
-          ? `${subject} for ${later} delivery costs ${gap}% less than for ${front}: buyers pay extra to have it now.`
+          ? `Later ${noun} contracts cost less: ${later} delivery is ${gap}% below ${front}, so buyers pay extra to have it now.`
           : `${subject} for ${front} and ${later} delivery trade within ${gap}% of each other.`;
     return {
       key: "commodities",
@@ -296,6 +298,10 @@ function predictionsCard(data: MarketsData): Card | null {
   const yes = lead.kind === "binary" ? ranked.find((outcome) => outcome.label.toLowerCase() === "yes") : null;
   const headline = yes ?? top;
   const second = ranked.find((outcome) => outcome !== headline);
+  // Only a Fed market's outcomes are rate moves; another market's "No change" stays in its own words.
+  const fed = lead.topic === "fed";
+  const headlineWords = fed && !yes ? fedOutcomeWords(headline.label) : null;
+  const secondWords = fed && second ? fedOutcomeWords(second.label) : null;
   return {
     key: "predictions",
     title: "Prediction markets",
@@ -303,10 +309,16 @@ function predictionsCard(data: MarketsData): Card | null {
     linkLabel: "Open prediction markets",
     figure: formatProbability(headline.probability),
     tone: "flat",
-    label: `chance of ${yes ? "yes" : headline.label}, on ${lead.source_name}`,
+    // "Hike 25bps" in plain words: "chance the Fed raises rates by 0.25 percentage points" (owner rule 8).
+    label: headlineWords ? `chance the Fed ${headlineWords}, on ${lead.source_name}` : `chance of ${yes ? "yes" : headline.label}, on ${lead.source_name}`,
     text: question,
     // No odds bars under it (owner rule 5): the figure and the next outcome already say the odds in numbers.
-    more: !yes && second && second.probability >= 0.05 ? `Next is ${second.label}, at ${formatProbability(second.probability)}.` : null,
+    more:
+      !yes && second && second.probability >= 0.05
+        ? secondWords
+          ? `The next most likely is that it ${secondWords}, at ${formatProbability(second.probability)}.`
+          : `Next is ${second.label}, at ${formatProbability(second.probability)}.`
+        : null,
   };
 }
 
