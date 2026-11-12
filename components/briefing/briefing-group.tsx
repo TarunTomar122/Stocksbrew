@@ -237,7 +237,9 @@ export function BriefingGroupCard({
   const move = group.day_change_pct;
   const ticker = group.ticker;
   const main = words.line;
-  const others = group.lines.filter((line) => line !== main && rowWords(line, group));
+  // Closed, the face says the main line and the next update (words.more). Opened, every other update is a row with
+  // its reason, sources and actions, the next update included, and the face's extra line steps aside.
+  const others = group.lines.filter((line) => line !== main && rowWords(line, group) && (expanded || line !== words.moreLine));
   const subject = ticker ?? group.name;
 
   return (
@@ -251,8 +253,11 @@ export function BriefingGroupCard({
       figure={move != null ? signedPct(move, 1) : null}
       tone={move == null ? "flat" : move >= 0 ? "up" : "down"}
       sentence={words.sentence || null}
+      extra={expanded ? null : words.more}
       fact={words.fact}
-      foot={expanded ? "Show less" : others.length > 0 ? `${others.length} more` : null}
+      // Updates past the two on the face are named only when there are some, so nothing is hidden without a cue
+      // and no card carries a foot it does not need (owner rules 1, 2).
+      foot={expanded ? "Show less" : others.length > 0 ? `${others.length} other ${others.length === 1 ? "update" : "updates"}` : null}
       muted={settled}
       expanded={expanded}
       fill={fill}
@@ -265,8 +270,8 @@ export function BriefingGroupCard({
             subject,
             move != null ? signedPct(move, 1) : null,
             words.sentence || null,
+            words.more,
             words.fact,
-            others.length > 0 && !expanded ? `${others.length} more` : null,
           ]
             .filter(Boolean)
             .join(", ")}

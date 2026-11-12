@@ -64,6 +64,7 @@ export function StockCard({
   figure,
   tone = "flat",
   sentence,
+  extra,
   fact,
   foot,
   cover,
@@ -81,8 +82,10 @@ export function StockCard({
   figure?: string | null;
   tone?: "up" | "down" | "flat";
   sentence?: React.ReactNode;
+  /** A second, smaller line under the sentence: the stock's next update, shown rather than folded. */
+  extra?: React.ReactNode;
   fact?: React.ReactNode;
-  /** Small muted text at the foot, e.g. "2 more" on a card that folds more updates. */
+  /** Small muted text at the foot, e.g. "Show less" on an opened card. Never the same words on every card. */
   foot?: React.ReactNode;
   /** The card's one link or button, absolutely positioned over the card (`absolute inset-0`). */
   cover?: React.ReactNode;
@@ -119,6 +122,7 @@ export function StockCard({
         {figure ? <p className={`oa-mono shrink-0 text-[20px] font-semibold leading-7 tracking-[-0.01em] tabular-nums ${figureTone}`}>{figure}</p> : null}
       </div>
       {sentence ? <p className="mt-2 text-pretty text-[14px] leading-5 text-oa-fg">{sentence}</p> : null}
+      {extra ? <p className="mt-1.5 text-pretty text-[13px] leading-[18px] text-oa-muted-fg">{extra}</p> : null}
       {fact || foot ? (
         <div className="mt-auto flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 pt-2.5">
           {fact ? <FactChip>{fact}</FactChip> : <span />}

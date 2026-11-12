@@ -8,7 +8,7 @@ import { NO_EXTRAS, toSectionData } from "./section-data";
 import { sectionAvailability } from "./sections";
 import type { ReportData, ReportExtras } from "./types";
 
-/** At most this many entries go to the browser: 7 shown, the rest folded (changed-timeline.tsx). */
+/** At most this many entries go to the browser, all in the list's inner scroll (changed-timeline.tsx). */
 const TIMELINE_MAX = 40;
 
 /**
@@ -30,6 +30,9 @@ export function StockReportBelow({ data, extras }: { data: ReportData; extras: R
       label: SECTION_LABELS[id],
       count: id === "news" ? sectionData.news.length : id === "peers" ? sectionData.peers.length : null,
     }));
+
+  // A headline's row shows no summary (timeline-row.tsx), so the summary is not sent either.
+  const timelineItems = extras.timeline.items.slice(0, TIMELINE_MAX).map((item) => (item.kind === "news" && item.detail ? { ...item, detail: undefined } : item));
 
   return (
     <>
@@ -54,7 +57,7 @@ export function StockReportBelow({ data, extras }: { data: ReportData; extras: R
               })}
             </div>
           ) : null}
-          <ChangedTimeline items={extras.timeline.items.slice(0, TIMELINE_MAX)} nowIso={nowIso} ticker={stock.ticker} />
+          <ChangedTimeline items={timelineItems} nowIso={nowIso} ticker={stock.ticker} />
         </Panel>
       </div>
 

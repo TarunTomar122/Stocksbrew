@@ -41,6 +41,8 @@ export type AgentLine = {
   figure: string;
   /** YYYY-MM-DD of the last run, or null when it has not run. */
   day: string | null;
+  /** When the last run finished, New York time ("6:12 PM"), from the run's own stamp; null without one. */
+  time?: string | null;
   chips: AgentChip[];
   /** Flagged stocks past the chips. */
   more: number;
@@ -52,6 +54,10 @@ export type AgentLines = {
   paused: number;
   /** The day every line last ran, when they all share one: said once for the list instead of on each row. */
   sharedDay: string | null;
+  /** True when the rows' run times differ, so each row says its own; one shared time is not repeated on every row. */
+  ownTimes: boolean;
+  /** The one time every row ran at ("6:19 AM"), said once under the list with the shared day; null otherwise. */
+  sharedTime: string | null;
   /** The earliest next after-close check, when the run log proves the runner is checking. */
   next: string | null;
 };
@@ -201,6 +207,14 @@ export function agentChips(findings: Finding[], kind: AgentKind): AgentChip[] {
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+/** "6:12 PM" in New York time from a run's ISO stamp; null when it has no time of day. */
+export function runTime(at: string | null | undefined): string | null {
+  if (!at || !at.includes("T")) return null;
+  const date = new Date(at);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" }).format(date);
+}
+
 /** "Tue" for a day in the past week, "Nov 3" before that, null for today (or a day that cannot be read). */
 export function chipDay(day: string | null, today: string): string | null {
   if (!day || !DAY.test(day) || !DAY.test(today) || day >= today) return null;
@@ -248,6 +262,7 @@ export function agentLines(source: AgentsSource, today: string, options: { hrefF
       status,
       figure: status === "flagged" ? (flagged > 0 ? `${flagged} flagged` : count > 0 ? `${count} found` : "found something") : STATUS_FIGURE[status],
       day: runDay,
+      time: runDay ? runTime(run?.ran_at) : null,
       chips: chips.slice(0, MAX_CHIPS),
       more: Math.max(0, flagged - Math.min(MAX_CHIPS, chips.length)),
     };
@@ -255,5 +270,8 @@ export function agentLines(source: AgentsSource, today: string, options: { hrefF
   const days = new Set(lines.map((line) => line.day ?? ""));
   const sharedDay = lines.length > 1 && days.size === 1 && lines[0]!.day ? lines[0]!.day : null;
   const nexts = active.map((job) => nextCheckFor(job, source.runs.filter((run) => run.job_id === job.id), today)).filter((day): day is string => Boolean(day));
-  return { lines, paused: source.jobs.length - active.length, sharedDay, next: nexts.sort()[0] ?? null };
+  const times = new Set(lines.map((line) => line.time ?? ""));
+  const ownTimes = lines.length > 1 && times.size > 1 && lines.every((line) => line.time);
+  const sharedTime = sharedDay && times.size === 1 && lines[0]!.time ? lines[0]!.time : null;
+  return { lines, paused: source.jobs.length - active.length, sharedDay, ownTimes, sharedTime, next: nexts.sort()[0] ?? null };
 }

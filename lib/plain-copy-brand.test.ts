@@ -35,3 +35,10 @@ describe("newsRank and extended hours", () => {
     expect(newsRank({ title: "Nvidia shares slide after the bell as it guides lower", summary: "Nvidia fell in late trading after its outlook.", published_at: "2026-11-11T10:00:00Z" }, stock)).not.toBeNull();
   });
 });
+
+describe("roundups stay off a stock's card", () => {
+  it("drops a futures column that lists several tickers", () => {
+    const stock = { ticker: "NVDA", name: "NVIDIA Corporation", day_change_pct: 2.9 };
+    expect(newsRank({ title: "Nasdaq 100 Futures drop as reports relating to Jensen Huang's Ousting Outweigh CoreWeave's strong outlook — NVDA, TSLA, SNDK, CAPR, CRWV in Focus", summary: "Futures fell." }, stock)).toBeNull();
+  });
+});

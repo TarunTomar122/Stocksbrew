@@ -174,6 +174,9 @@ function cellClass(index: number, count: number): string {
   return index === count - 1 && count % 2 === 1 ? "min-w-0 sm:col-span-2" : "min-w-0";
 }
 
+/** More cards than this and the list fills the height the side rail sets (see StockList). */
+const FILL_FROM = 6;
+
 /** "2 need a look" or nothing: the count of cards whose one thing asks for the person. */
 function needWords(cards: StockCard[]): string | null {
   const n = cards.filter((card) => card.fact !== null && card.fact.priority >= ATTENTION).length;
@@ -198,18 +201,29 @@ export async function StockList({ load }: { load: HomeLoad }) {
   if (cards.length === 0) return null;
   const example = book.value.mode === "example";
   const need = needWords(cards);
+  // With more cards than a short rail is tall, the list on a wide screen ends where the rail ends (it fills the space
+  // the row gives it and scrolls inside), keeping at least about six cards in view, so neither column ends far above
+  // the other (owner rule 4). A short list just sits at its own height.
+  const fill = cards.length > FILL_FROM;
+  const list = (
+    <ul
+      className={`scrollbar-hide grid max-h-[47rem] grid-cols-1 content-start gap-2.5 overflow-y-auto overscroll-contain sm:max-h-[44rem] sm:grid-cols-2 ${
+        fill ? "lg:absolute lg:inset-0 lg:max-h-none" : ""
+      }`}
+    >
+      {cards.map((card, index) => (
+        <StockCardView key={card.ticker} card={card} className={cellClass(index, cards.length)} />
+      ))}
+    </ul>
+  );
   return (
-    <section aria-labelledby="stocks-head" className="min-w-0">
+    <section aria-labelledby="stocks-head" className={`min-w-0 ${fill ? "lg:flex lg:flex-1 lg:flex-col" : ""}`}>
       <h2 id="stocks-head" className="px-1 pb-2.5 text-[14.5px] font-semibold leading-5 text-oa-fg">
         {example ? "The example's" : "Your"} {cards.length} {cards.length === 1 ? "stock" : "stocks"}
         {need ? <span className="font-normal text-oa-muted-fg"> · {need}</span> : null}
       </h2>
       {/* About eight cards in view on a phone, twelve side by side; the rest scroll inside, with no visible bar (owner rule 5). */}
-      <ul className="scrollbar-hide grid max-h-[47rem] grid-cols-1 gap-2.5 overflow-y-auto overscroll-contain sm:max-h-[44rem] sm:grid-cols-2">
-        {cards.map((card, index) => (
-          <StockCardView key={card.ticker} card={card} className={cellClass(index, cards.length)} />
-        ))}
-      </ul>
+      {fill ? <div className="relative min-w-0 lg:min-h-[27rem] lg:flex-1">{list}</div> : list}
     </section>
   );
 }

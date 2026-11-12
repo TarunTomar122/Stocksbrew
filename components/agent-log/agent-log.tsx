@@ -24,17 +24,36 @@ export function agentLogTitle(log: Pick<AgentLog, "when">): string {
   return `What the agent did on ${log.when}`;
 }
 
-export function AgentLogView({ log, compact = false, narrow = false, className = "" }: { log: AgentLog | null; compact?: boolean; narrow?: boolean; className?: string }) {
+/**
+ * `fit`: in a wide side rail inside a box of fixed height (the briefing's rail ends with its main column), the card
+ * is no taller than the box: its header stays and the rows scroll inside, with no visible bar (owner rule 5).
+ */
+const FIT_CARD = "lg:flex lg:max-h-full lg:min-h-0 lg:flex-col";
+const FIT_LIST = "lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain scrollbar-hide";
+
+export function AgentLogView({
+  log,
+  compact = false,
+  narrow = false,
+  fit = false,
+  className = "",
+}: {
+  log: AgentLog | null;
+  compact?: boolean;
+  narrow?: boolean;
+  fit?: boolean;
+  className?: string;
+}) {
   const grid = narrow ? ROW_GRID_NARROW : ROW_GRID;
   if (!log || log.entries.length === 0) return null;
   const title = agentLogTitle(log);
   return (
-    <section aria-label={title} className={`${CARD} ${className}`}>
-      <header className={compact ? "px-4 pb-2 pt-3" : "px-4 pb-2.5 pt-3.5 sm:px-5"}>
+    <section aria-label={title} className={`${CARD} ${fit ? FIT_CARD : ""} ${className}`}>
+      <header className={`shrink-0 ${compact ? "px-4 pb-2 pt-3" : "px-4 pb-2.5 pt-3.5 sm:px-5"}`}>
         <h2 className="text-[15px] font-semibold leading-6 text-oa-fg">{title}</h2>
         <p className="mt-0.5 text-pretty text-[14px] leading-5 text-oa-muted-fg">{log.lead}</p>
       </header>
-      <ol className="border-t border-oa-border">
+      <ol className={`border-t border-oa-border ${fit ? FIT_LIST : ""}`}>
         {/* The compact log (home page) leaves out members' own agents: a handful of runs is true but reads small there. */}
         {log.entries.filter((entry) => !(compact && entry.source === "agents")).map((entry) => (
           <li key={entry.source} className="border-b border-oa-border last:border-b-0">
@@ -62,8 +81,8 @@ export function AgentLogView({ log, compact = false, narrow = false, className =
 }
 
 /** The log, read from its shared cache. Stream it inside <Suspense fallback={<AgentLogGhost />}>. */
-export async function AgentLog({ compact = false, narrow = false, className = "" }: { compact?: boolean; narrow?: boolean; className?: string }) {
-  return <AgentLogView log={await getAgentLog()} compact={compact} narrow={narrow} className={className} />;
+export async function AgentLog({ compact = false, narrow = false, fit = false, className = "" }: { compact?: boolean; narrow?: boolean; fit?: boolean; className?: string }) {
+  return <AgentLogView log={await getAgentLog()} compact={compact} narrow={narrow} fit={fit} className={className} />;
 }
 
 /** The log's shape while it loads: the same header and rows, so nothing jumps when it arrives. */

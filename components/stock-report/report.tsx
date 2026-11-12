@@ -3,7 +3,7 @@ import { todayET } from "@/lib/calendar-shared";
 
 import { MarketStatusInline } from "@/components/market-status";
 import { RangeBar } from "@/components/oa/kit";
-import { CALL_PLAIN, plainAction, plainCallReason, wholeSentences } from "@/lib/plain-copy";
+import { CALL_PLAIN, countWord, plainAction, plainCallReason, wholeSentences } from "@/lib/plain-copy";
 import { callBasis, factHasDate, lastReportOn } from "@/lib/call-basis";
 import { CoverButton, LockCard } from "@/components/oa/gate";
 import { ProCheckoutButton } from "@/components/oa/pro-checkout-button";
@@ -30,18 +30,50 @@ import { AppLink } from "@/components/oa/app-link";
 import { ownCallLevel, type CallLevel } from "@/lib/call-level";
 import { askContext, formatAskContext } from "@/lib/ask-context";
 import { FREE_COVERED_WORD } from "@/lib/paywall-flag";
+import { limitFor } from "@/lib/entitlements";
 import { LatestResults } from "@/components/results/latest-results";
 
 const CALL_TONE: Record<CallWord, Tone | null> = { Add: "up", Hold: null, Trim: "down" };
 
+/** Long research reports a free account gets each month (lib/entitlements.ts). */
+const LONG_REPORTS_FREE = limitFor("deep_research", "free");
+
+/**
+ * The long research report on a US stock, for a signed-in reader, who can run it on their plan's monthly allowance.
+ * Not for a signed-out reader who sees the full-report box: it says the long report comes with a free account, so the
+ * page keeps one lock.
+ */
+function LongReportLink({ ticker }: { ticker: string }) {
+  return (
+    <Link
+      href={`/stock/${encodeURIComponent(ticker)}/research`}
+      prefetch={false}
+      data-track="research_entry_clicked"
+      data-track-ticker={ticker}
+      className="oa-surface flex items-center gap-3 border border-oa-border bg-oa-card px-3.5 py-3 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent sm:px-4"
+    >
+      <svg viewBox="0 0 16 16" aria-hidden="true" className="size-4 shrink-0 text-oa-primary" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 2.5h7l3 3v8H3z" />
+        <path d="M10 2.5v3h3M5.5 8.5h5M5.5 11h3.5" />
+      </svg>
+      <span className="min-w-0 text-pretty text-[14px] leading-5 text-oa-fg">
+        <span className="font-medium">Read a long, sourced report on {ticker}.</span>{" "}
+        <span className="text-oa-muted-fg">The business, the case for and against, valuation against peers and what to watch.</span>
+      </span>
+    </Link>
+  );
+}
+
 /** Shown where the price zones would be, on a stock the viewer's agent does not cover. */
-function LevelsLock({ ticker, instrumentId, tracked, gate }: { ticker: string; instrumentId: string; tracked: boolean; gate: ReportData["gate"] }) {
+function LevelsLock({ ticker, instrumentId, tracked, gate, market }: { ticker: string; instrumentId: string; tracked: boolean; gate: ReportData["gate"]; market: "US" | "IN" }) {
   // "Covering" is our word; readers get "the full report on five (three on PAYWALL_V2) stocks you pick".
   const left = `${gate.slotsLeft} of your ${FREE_COVERED_WORD} free full reports ${gate.slotsLeft === 1 ? "is" : "are"} left`;
   const title = gate.plan === "anon" ? `Sign in to read the full report on ${ticker}` : `Get the full report on ${ticker}`;
   const body =
     gate.plan === "anon"
-      ? `Our call, why we made it and what would change it are free for everyone. A free account also gets the full report on ${FREE_COVERED_WORD} stocks you pick: the prices where we'd buy more or sell some, the whole brief and a note before earnings. You can follow as many stocks as you like.`
+      ? // The page's one lock (owner, Nov 12): the long research report, which also needs an account, is said here
+        // instead of in a second box at the foot of the page.
+        `Our call, why we made it and what would change it are free for everyone. A free account also gets the full report on ${FREE_COVERED_WORD} stocks you pick, with the prices where we'd buy more or sell some and a note before earnings${market === "US" && LONG_REPORTS_FREE > 0 ? `, and ${countWord(LONG_REPORTS_FREE).toLowerCase()} long research ${LONG_REPORTS_FREE === 1 ? "report" : "reports"} a month on any stock` : ""}.`
       : !tracked
         ? gate.slotsLeft > 0
           ? `Add ${ticker} to your portfolio and it gets one of your free full reports: the prices where we'd act, the whole brief and a note before earnings. ${left}.`
@@ -565,7 +597,7 @@ export function StockReport({
                 </section>
                 {/* Under the price on a wide screen (after the call on a phone): the price that goes with the call, and
                     what to do next. The call column keeps only the call and its reasons (owner, Nov 11: "left empty, right too much text"). */}
-                {ready ? (
+                {ready && (hasChangeBox || nearLevels.length > 0 || callSteps) ? (
                   <div className="flex min-w-0 flex-col gap-3 border-t border-oa-border pt-3 md:col-start-1 md:row-start-2 md:border-t-0 md:pt-0">
                   {/* What would change the call, under the price where the left side has room: measured conditions first,
                       the steady call's own sentence when there are none. The company reason's "if sales slow sharply"
@@ -584,25 +616,7 @@ export function StockReport({
                       ))}
                     </dl>
                   ) : null}
-                  {!data.gate.levels ? (
-                    <p className="flex items-start gap-2 text-[13.5px] leading-5 text-oa-muted-fg">
-                      <span className="mt-0.5 text-oa-primary">
-                        <LockIcon />
-                      </span>
-                      <span>
-                        {/* Says the next step for this reader: sign in first, or pick the stock if signed in. */}
-                        {/* One short pointer here; the one place that explains the free account is the full-report box below. */}
-                        {ready.call === "Add"
-                          ? "The price where we'd buy more is in the full report."
-                          : ready.call === "Trim"
-                            ? "The price where we'd sell some is in the full report."
-                            : "The prices where we'd buy more or sell some are in the full report."}{" "}
-                        <a href="#call" className="font-medium text-oa-primary hover:underline">
-                          {data.gate.plan === "anon" ? "Get it free" : `Pick ${stock.ticker} for it`}
-                        </a>
-                      </span>
-                    </p>
-                  ) : null}
+                  {/* No lock line here: the page has one lock, the full-report box after the reasons (owner, Nov 12). */}
                   {callSteps ? (
                     <div className={hasChangeBox ? "md:hidden" : undefined}>
                       <CallNextSteps ticker={stock.ticker} steps={callSteps} stacked />
@@ -675,7 +689,7 @@ export function StockReport({
               <LatestResults ticker={stock.ticker} name={stock.name} call={callWord} />
             </Suspense>
           ) : null}
-          <TheRead read={data.insightRead} label={`The read on ${stock.ticker}`} fold="phone" foldLabel={`Show more on ${stock.ticker} today`} />
+          <TheRead read={data.insightRead} label={`The read on ${stock.ticker}`} />
           <Panel
             id="read"
             // The call card above is the one opinion on the page; this panel is the news and the reasons under it.
@@ -722,8 +736,8 @@ export function StockReport({
                   <div className={`grid border-t border-oa-border ${showReasons && showChangers ? "md:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]" : ""}`}>
                     {showReasons ? (
                       <div className={`px-3.5 py-3 sm:px-4 ${showChangers ? "border-b border-oa-border md:border-b-0 md:border-r" : ""}`}>
-                        <h3 className="oa-label">{ready.reasons.length === 1 ? "The reason" : `The ${["", "", "two", "three"][ready.reasons.length] ?? ready.reasons.length} reasons`}</h3>
-                        <ol className="mt-2 flex flex-col gap-2.5">
+                        {/* No small label over the list (owner rule 6): the numbered lines stand alone. */}
+                        <ol aria-label={`Why we made the call on ${stock.ticker}`} className="flex flex-col gap-2.5">
                           {ready.reasons.map((reason, index) => (
                             <li key={index} className="grid grid-cols-[1.25rem_minmax(0,1fr)] gap-x-1.5 text-[14px] leading-5 text-oa-fg">
                               <span className="oa-mono text-[12px] leading-5 text-oa-muted-fg">{index + 1}</span>
@@ -737,8 +751,7 @@ export function StockReport({
                         change the call would disagree. */}
                     {showChangers ? (
                       <div className="px-3.5 py-3 sm:px-4">
-                        <h3 className="oa-label">What would change our mind</h3>
-                        <ul className="mt-2 flex flex-col gap-2.5">
+                        <ul aria-label="What would change our mind" className="flex flex-col gap-2.5">
                           {ready.changers.map((item, index) => (
                             <li key={index} className="grid grid-cols-[1.25rem_minmax(0,1fr)] gap-x-1.5 text-[14px] leading-5 text-oa-fg">
                               <span aria-hidden="true" className="oa-mono text-[12px] leading-5 text-oa-muted-fg">
@@ -755,7 +768,7 @@ export function StockReport({
                 {/* After the reasons, which are open on every stock: only the full report is behind this. */}
                 {!data.gate.levels ? (
                   <div id="call" className="scroll-mt-16 border-t border-oa-border p-3 lg:scroll-mt-4">
-                    <LevelsLock ticker={stock.ticker} instrumentId={stock.instrument_id} tracked={data.isTracked} gate={data.gate} />
+                    <LevelsLock ticker={stock.ticker} instrumentId={stock.instrument_id} tracked={data.isTracked} gate={data.gate} market={market} />
                   </div>
                 ) : null}
               </div>
@@ -785,6 +798,10 @@ export function StockReport({
         {/* ── what changed, then the sections: streamed in under the rest (below.tsx) ── */}
         <div className="order-4 flex min-w-0 flex-col gap-4">
           {below}
+
+          {/* Signed out, the full-report box is the one lock and it names the long report; with no box (an open stock),
+              the link is the way in. */}
+          {market === "US" && (data.gate.plan !== "anon" || data.gate.levels) ? <LongReportLink ticker={stock.ticker} /> : null}
 
           <p className="px-2 text-[12px] leading-5 text-oa-muted-fg sm:px-0">
             {/* The one legal line, at the foot of the page, linked to how calls are made. */}

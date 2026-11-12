@@ -318,6 +318,46 @@ export type InsiderTrade = {
   url: string;
 };
 
+/**
+ * What an insider trade list draws, and nothing else: the trade without the fields no row shows (who filed for
+ * whom, holdings after, the filing day beside the filing time). A full InsiderTrade fits it as it is.
+ */
+export type InsiderTradeRow = Pick<
+  InsiderTrade,
+  "id" | "symbol" | "company" | "insider" | "role" | "tx_type" | "shares" | "price" | "value" | "transaction_date" | "filed_at" | "lag_days" | "plan_10b5_1" | "url"
+> & { insider_id?: string };
+
+const SEC_ARCHIVE = "https://www.sec.gov/Archives/edgar/data/";
+
+/**
+ * The slim row /insiders sends for each of its ~1,000 trades. The Form 4 link drops the SEC archive prefix every
+ * one of them shares (formUrl puts it back), which with the dropped fields takes about a third off each row.
+ */
+export function insiderTradeRow(trade: InsiderTrade): InsiderTradeRow {
+  return {
+    id: trade.id,
+    symbol: trade.symbol,
+    company: trade.company,
+    insider: trade.insider,
+    insider_id: trade.insider_id || undefined,
+    role: trade.role,
+    tx_type: trade.tx_type,
+    shares: trade.shares,
+    price: trade.price,
+    value: trade.value,
+    transaction_date: trade.transaction_date,
+    filed_at: trade.filed_at,
+    lag_days: trade.lag_days,
+    plan_10b5_1: trade.plan_10b5_1,
+    url: trade.url.startsWith(SEC_ARCHIVE) ? trade.url.slice(SEC_ARCHIVE.length) : trade.url,
+  };
+}
+
+/** The Form 4's full address, from a full URL or the short one insiderTradeRow leaves. */
+export function formUrl(url: string): string {
+  return !url || /^https?:\/\//i.test(url) ? url : `${SEC_ARCHIVE}${url}`;
+}
+
 /** A price this far outside the stock's own 52-week range is not a price of the listed share (backend/agentdata/insiders_form4.py). */
 export const PRICE_RANGE_SLACK = 2;
 export type WeekRange = { lo: number; hi: number };

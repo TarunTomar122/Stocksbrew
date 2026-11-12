@@ -9,6 +9,7 @@ import type { Plan } from "@/lib/entitlements";
 import {
   POLICY_PAGE_SIZE,
   filterPolicy,
+  inRedditList,
   moverCounts,
   rankReddit,
   redditHighlight,
@@ -234,7 +235,7 @@ function ThreadList({ threads }: { threads: RedditThread[] }) {
 }
 
 export function RedditTab({ data }: { data: RedditData }) {
-  const names = rankReddit(data.names);
+  const names = rankReddit(data.names.filter(inRedditList));
   const days = Math.round(data.windowHours / 24);
   return (
     <>
@@ -463,6 +464,7 @@ export function TodayTab({
   now: number;
 }) {
   const counts = moverCounts(movers.movers);
+  const listed = reddit.names.filter(inRedditList).length;
   const newestPost = policy.posts[0];
   // A card with nothing in it is not drawn (owner rule 4): the other one takes the row, and the gap is said in a line below.
   const showReddit = pick.reddit.length > 0 || pick.policy.length === 0;
@@ -478,8 +480,8 @@ export function TodayTab({
             fill
             label="What Reddit is talking about"
             right={
-              // Only when the card holds fewer names than there are; it scrolls every one it holds.
-              reddit.names.length > pick.reddit.length ? <SeeAll href={signalsHref(filters, { tab: "reddit" })}>All {reddit.names.length} names</SeeAll> : null
+              // Only when the card holds fewer names than the Reddit tab lists; it scrolls every one it holds.
+              listed > pick.reddit.length ? <SeeAll href={signalsHref(filters, { tab: "reddit" })}>All {listed} names</SeeAll> : null
             }
             flush
           >

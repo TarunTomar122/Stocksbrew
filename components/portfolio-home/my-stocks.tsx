@@ -20,7 +20,8 @@ export function MyStocksBody({ load }: { load: HomeLoad }) {
       </Suspense>
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_21rem] xl:grid-cols-[minmax(0,1fr)_23rem]">
         {/* Both columns are `contents` on a phone, so their parts join one column in this order. */}
-        <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-5">
+        {/* The main column stretches to the row, so the stock list can end where the rail ends (./stocks.tsx StockList). */}
+        <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-5 lg:self-stretch">
           <Suspense fallback={<BookLeadGhost />}>
             <BookLead load={load} />
           </Suspense>

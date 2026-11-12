@@ -330,6 +330,22 @@ export function redditMovesToday(names: ReadonlyArray<Pick<RedditName, "ticker" 
   return moves;
 }
 
+/** Funds and indices people talk about are not stocks: they are kept out of "which stock". */
+const NOT_STOCKS = new Set(["SPY", "QQQ", "SPX", "VOO", "VTI", "IWM", "DIA", "NDX", "SCHD", "SOXL", "TQQQ", "SQQQ", "UVXY", "VIX"]);
+
+export function isStockName(ticker: string): boolean {
+  return !NOT_STOCKS.has(ticker.toUpperCase());
+}
+
+/**
+ * Whether a name earns a row in the Reddit lists. A fund or an index (SPY, SPX, SCHD) is there only when the posts
+ * about it lean one way: a row with neither a company nor a mood says nothing (owner rule 3: every row carries its
+ * mood). Stocks always stay, mood or not.
+ */
+export function inRedditList(name: RedditName): boolean {
+  return isStockName(name.ticker) || (name.stanceRead && (name.stance === "bullish" || name.stance === "bearish"));
+}
+
 /** Loudest first: posts in the scan, then how hard it is accelerating. */
 export function rankReddit(names: RedditName[]): RedditName[] {
   return [...names].sort(
@@ -481,7 +497,7 @@ export function pickToday(movers: Mover[], reddit: RedditName[], policy: PolicyP
   return {
     movers: bySize.filter((mover) => mover.explained).slice(0, 5),
     unexplained: bySize.filter((mover) => !mover.explained).slice(0, 4),
-    reddit: rankReddit(reddit).slice(0, 20),
+    reddit: rankReddit(reddit.filter(inRedditList)).slice(0, 20),
     policy: picked.sort((a, b) => (a.publishedAt < b.publishedAt ? 1 : -1)),
   };
 }

@@ -7,7 +7,8 @@
 import { pickInsights, sharePct, type Insight, type TheRead } from "@/lib/insights";
 import { shortCompanyName } from "@/lib/plain-copy";
 import { absPct, cap, countWord, isNum, listNames, plural, shortDay, signedPct } from "@/lib/read-format";
-import { rankReddit, type Mover, type PolicyPost, type RedditName } from "@/lib/signals-shared";
+import { isStockName, rankReddit, type Mover, type PolicyPost, type RedditName } from "@/lib/signals-shared";
+
 import { staleMoveClock } from "@/lib/move-clock";
 import { etDayOfStamp, newestStamp, oldestStamp } from "@/lib/quote-time";
 
@@ -268,13 +269,6 @@ export function buildMoversRead(movers: MoverForRead[], asOf: string | null = nu
 }
 
 /* ── reddit ─────────────────────────────────────────────────────────────── */
-
-/** Funds and indices people talk about are not stocks: they are kept out of "which stock". */
-const NOT_STOCKS = new Set(["SPY", "QQQ", "SPX", "VOO", "VTI", "IWM", "DIA", "NDX", "SCHD", "SOXL", "TQQQ", "SQQQ", "UVXY", "VIX"]);
-
-export function isStockName(ticker: string): boolean {
-  return !NOT_STOCKS.has(ticker.toUpperCase());
-}
 
 function stanceAgainstPrice(name: RedditName): boolean {
   if (!name.stanceRead || !isNum(name.dayPct)) return false;

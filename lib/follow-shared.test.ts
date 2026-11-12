@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   MAX_FOLLOWED,
   slimInsiderTrade,
+  insiderTradeRow,
+  formUrl,
   activitySize,
   chamberOf,
   congressNoun,
@@ -324,5 +326,44 @@ describe("slimInsiderTrade", () => {
     expect(slimInsiderTrade({ ...base, price_comparable: false })).toBeNull();
     expect(slimInsiderTrade({ ...base, tx_type: "plan_buy" })).toBeNull();
     expect(slimInsiderTrade({ ...base, id: "" })).toBeNull();
+  });
+});
+
+describe("insiderTradeRow", () => {
+  const trade = {
+    id: "0001-26-1__1__P",
+    symbol: "LKQ",
+    company: "LKQ Corp",
+    insider: "Jane Doe",
+    insider_id: "1",
+    role: "Director",
+    tx_type: "buy" as const,
+    shares: 100,
+    price: 40,
+    value: 4000,
+    transaction_date: "2026-11-06",
+    filing_date: "2026-11-07",
+    filed_at: "2026-11-07T16:00:00",
+    lag_days: 1,
+    shares_after: 1000,
+    ownership: "direct",
+    plan_10b5_1: false,
+    url: "https://www.sec.gov/Archives/edgar/data/1065696/000106569626000001/0001-26-1-index.htm",
+  };
+
+  it("keeps what a row shows and drops the rest", () => {
+    const row = insiderTradeRow(trade);
+    expect(row).not.toHaveProperty("shares_after");
+    expect(row).not.toHaveProperty("filing_date");
+    expect(row).not.toHaveProperty("ownership");
+    expect(row.insider_id).toBe("1");
+  });
+
+  it("shortens the SEC link and formUrl puts it back", () => {
+    const row = insiderTradeRow(trade);
+    expect(row.url.startsWith("http")).toBe(false);
+    expect(formUrl(row.url)).toBe(trade.url);
+    expect(formUrl("https://example.com/x")).toBe("https://example.com/x");
+    expect(insiderTradeRow({ ...trade, url: "https://example.com/x" }).url).toBe("https://example.com/x");
   });
 });

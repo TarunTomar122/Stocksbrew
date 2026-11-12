@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { Suspense, cache } from "react";
 
 import { EarningsDayStockEntry } from "@/components/earnings-day/stock-entry";
-import { ResearchStockEntry } from "@/components/research/stock-entry";
 import { StockReason } from "@/components/thesis/stock-reason";
 import { StockPageStream } from "@/components/stock-page-stream";
 import { StockReportSkeleton } from "@/components/stock-report/skeleton";
@@ -161,10 +160,8 @@ export default async function StockPage({ params }: Props) {
       <Suspense fallback={<StockReportSkeleton />}>
         <StockPageStream params={params} />
       </Suspense>
-      {/* The full research report on this stock (components/research). */}
-      <Suspense fallback={null}>
-        <ResearchStockEntry ticker={ticker} />
-      </Suspense>
+      {/* The long research report is offered inside the report (components/stock-report/report.tsx): in the one
+          full-report box for a signed-out reader, as a plain link for a signed-in one. */}
       <Suspense fallback={null}>
         <StockFamilyLinks ticker={ticker} />
       </Suspense>

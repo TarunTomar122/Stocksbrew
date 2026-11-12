@@ -9,7 +9,7 @@ import { extraFacts, type PlainCall } from "@/lib/portfolio-home/stocks";
 import { loadExampleBook } from "@/lib/portfolio-home/stocks-server";
 import { exampleReasonChecks } from "@/lib/thesis-watch/server";
 
-import { ChangeText, EmptyRow, fmtPrice } from "./shared";
+import { ChangeText, EmptyRow } from "./shared";
 import Link from "next/link";
 
 const CALL_CHIP: Record<PlainCall, string> = {
@@ -17,6 +17,17 @@ const CALL_CHIP: Record<PlainCall, string> = {
   Keep: "bg-oa-accent text-oa-fg",
   "Sell some": "bg-amber-500/15 text-amber-900 dark:text-amber-300",
 };
+
+/**
+ * One column on a phone, two from `sm`, three from `lg`. The last card stretches over whatever its row leaves empty,
+ * so no row ends with a gap (owner rule 4).
+ */
+function cellClass(index: number, count: number): string {
+  if (index !== count - 1) return "min-w-0";
+  const sm = count % 2 === 1 ? " sm:col-span-2" : "";
+  const lg = ["lg:col-span-1", "lg:col-span-3", "lg:col-span-2"][count % 3];
+  return `min-w-0${sm} ${lg}`;
+}
 
 /**
  * Proof two: one call on each stock you own. The example portfolio from My stocks (/portfolio), with the same
@@ -62,28 +73,23 @@ export async function OnePlace() {
           </p>
           <p className="text-[13px] leading-5 text-oa-muted-fg">Example portfolio, not real money.</p>
         </div>
-        <ul className="divide-y divide-oa-border">
-          {view.rows.map((row) => (
-            <li key={row.ticker}>
+        {/* Small stock cards, as on My stocks (owner rule 3): logo, the call, the day's move and one fact. */}
+        <ul className="grid grid-cols-1 gap-2.5 p-3 sm:grid-cols-2 sm:p-4 lg:grid-cols-3">
+          {view.rows.map((row, index) => (
+            <li key={row.ticker} className={cellClass(index, view.rows.length)}>
               <Link
                 prefetch={false}
                 href={`/stock/${encodeURIComponent(row.ticker)}`}
-                className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent sm:px-5"
+                className="oa-surface flex h-full flex-col border border-oa-border bg-oa-bg px-3.5 py-3 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent"
               >
-                <StockLogo ticker={row.ticker} size={28} circle />
-                <span className="min-w-0">
-                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <span className="oa-mono text-[15px] text-oa-fg">{row.ticker}</span>
-                    {row.shares !== null ? <span className="text-[13px] text-oa-muted-fg">{row.shares} shares</span> : null}
-                    {row.call ? <span className={`rounded-full px-2 py-0.5 text-[12px] font-medium ${CALL_CHIP[row.call]}`}>{row.call}</span> : null}
-                  </span>
-                  {/* The chip says the call; the line is the one thing that matters for it now, as on its /portfolio card. */}
-                  {row.line ? <span className="mt-0.5 block text-pretty text-[15px] leading-6 text-oa-muted-fg">{row.line}</span> : null}
+                <span className="flex min-w-0 items-center gap-2">
+                  <StockLogo ticker={row.ticker} size={22} circle />
+                  <span className="oa-mono text-[14.5px] font-semibold text-oa-fg">{row.ticker}</span>
+                  {row.call ? <span className={`rounded-full px-2 py-0.5 text-[12px] font-medium ${CALL_CHIP[row.call]}`}>{row.call}</span> : null}
+                  {row.dayPct !== null ? <ChangeText pct={row.dayPct} className="oa-mono ml-auto text-[16px] font-semibold" /> : null}
                 </span>
-                <span className="flex flex-col items-end text-[15px] tabular-nums">
-                  {row.price !== null ? <span className="text-oa-fg">{fmtPrice(row.price)}</span> : null}
-                  {row.dayPct !== null ? <ChangeText pct={row.dayPct} /> : null}
-                </span>
+                {/* The chip says the call; the line is the one thing that matters for it now, as on its /portfolio card. */}
+                {row.line ? <span className="mt-1.5 block text-pretty text-[13.5px] leading-[19px] text-oa-muted-fg">{row.line}</span> : null}
               </Link>
             </li>
           ))}

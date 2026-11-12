@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { redditHighlight, redditMovesToday, withoutContradictedClause } from "@/lib/signals-shared";
+import { inRedditList, redditHighlight, redditMovesToday, withoutContradictedClause, type RedditName } from "@/lib/signals-shared";
 
 const moves = redditMovesToday([
   { ticker: "NVDA", company: "NVIDIA Corporation", dayPct: 2.9 },
@@ -57,5 +57,22 @@ describe("a stock whose ticker is its name", () => {
     const keyed = redditMovesToday([{ ticker: "META", company: "Meta Platforms", dayPct: -1.5 }]);
     expect(keyed.get("meta")).toBe(-1.5);
     expect(withoutContradictedClause("Ad pricing holds while Meta rallied", keyed)).toBe("Ad pricing holds");
+  });
+});
+
+describe("inRedditList", () => {
+  const name = (ticker: string, stance: RedditName["stance"], stanceRead = true) =>
+    ({ ticker, stance, stanceRead }) as RedditName;
+
+  it("drops a fund or index with no mood, keeps one that leans", () => {
+    expect(inRedditList(name("SPY", "neutral"))).toBe(false);
+    expect(inRedditList(name("SPY", "mixed" as RedditName["stance"]))).toBe(false);
+    expect(inRedditList(name("SPX", "bullish", false))).toBe(false);
+    expect(inRedditList(name("QQQ", "bearish"))).toBe(true);
+  });
+
+  it("keeps every stock, mood or not", () => {
+    expect(inRedditList(name("APLD", "neutral", false))).toBe(true);
+    expect(inRedditList(name("NVDA", "bearish"))).toBe(true);
   });
 });

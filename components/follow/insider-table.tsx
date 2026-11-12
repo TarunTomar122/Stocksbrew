@@ -3,7 +3,7 @@
 import * as React from "react";
 
 import { InsiderGroupRow, InsiderRow, InsiderTableHead } from "@/components/follow/insider-rows";
-import type { InsiderTrade } from "@/lib/follow-shared";
+import type { InsiderTradeRow } from "@/lib/follow-shared";
 import { groupInsiderTrades } from "@/lib/insider-groups";
 
 type Side = "all" | "buy" | "sell";
@@ -18,15 +18,22 @@ const SIZES: { value: number; label: string }[] = [
   { value: 1_000_000, label: "$1M and up" },
   { value: 10_000_000, label: "$10M and up" },
 ];
-const PAGE = 60;
+/**
+ * Rows in the server HTML. The rest join the scroll right after the page loads, so every trade is in the list
+ * without the page's HTML carrying a thousand rows of markup.
+ */
+const FIRST_PAINT = 24;
 
-/** Recent open-market insider trades with the three filters people reach for. */
+/**
+ * Recent open-market insider trades with the three filters people reach for. Every matching row is in the list,
+ * about eight in view, the rest scrolling inside it with no bar and nothing to click to see more (owner rule 5).
+ */
 export function InsiderTable({
   trades,
   initialSide = "buy",
   group = true,
 }: {
-  trades: InsiderTrade[];
+  trades: InsiderTradeRow[];
   initialSide?: Side;
   /** Fold near-identical rows into one. Off on a stock's own insider page, which lists every filing. */
   group?: boolean;
@@ -35,9 +42,12 @@ export function InsiderTable({
   const [minValue, setMinValue] = React.useState(0);
   const [hidePlans, setHidePlans] = React.useState(false);
   const [query, setQuery] = React.useState("");
-  const [shown, setShown] = React.useState(PAGE);
+  const [mounted, setMounted] = React.useState(false);
+  const scroller = React.useRef<HTMLUListElement>(null);
+  React.useEffect(() => setMounted(true), []);
 
-  const needle = query.trim().toLowerCase();
+  // Typing stays quick with a thousand rows in the list: the list catches up a moment after the keystroke.
+  const needle = React.useDeferredValue(query).trim().toLowerCase();
   const filtered = trades.filter((trade) => {
     if (side !== "all" && trade.tx_type !== side) return false;
     if (minValue > 0 && (trade.value ?? 0) < minValue) return false;
@@ -56,12 +66,13 @@ export function InsiderTable({
   });
   // Near-identical rows (a dozen vice presidents buying through one window) fold into one row.
   const items = group ? groupInsiderTrades(filtered) : filtered.map((trade) => ({ kind: "trade" as const, trade }));
-  const visible = items.slice(0, shown);
+  const visible = mounted ? items : items.slice(0, FIRST_PAINT);
 
+  // A new filter starts its list from the top.
   function reset<T>(setter: (value: T) => void) {
     return (value: T) => {
       setter(value);
-      setShown(PAGE);
+      if (scroller.current) scroller.current.scrollTop = 0;
     };
   }
 
@@ -143,25 +154,21 @@ export function InsiderTable({
               : "No trade matches those filters."}
           </p>
         ) : (
-          <ul className="divide-y divide-oa-border">
-            {visible.map((item) =>
+          <ul
+            ref={scroller}
+            // relative: the rows' screen-reader-only text is absolutely placed, and without a positioned scroller it
+            // would sit at its row's place far below and stretch the page by the whole hidden list.
+            className="relative max-h-[36rem] divide-y divide-oa-border overflow-y-auto overscroll-contain [scrollbar-width:none] md:max-h-[23.5rem] [&::-webkit-scrollbar]:hidden"
+          >
+            {visible.map((item, index) =>
               item.kind === "group" ? (
-                <InsiderGroupRow key={item.key} group={item} showSide={side === "all"} />
+                <InsiderGroupRow key={item.key} group={item} showSide={side === "all"} logoAtOnce={index < FIRST_PAINT} />
               ) : (
-                <InsiderRow key={item.trade.id} trade={item.trade} showSide={side === "all"} />
+                <InsiderRow key={item.trade.id} trade={item.trade} showSide={side === "all"} logoAtOnce={index < FIRST_PAINT} />
               ),
             )}
           </ul>
         )}
-        {items.length > shown ? (
-          <button
-            type="button"
-            onClick={() => setShown((current) => current + PAGE * 2)}
-            className="flex h-10 w-full items-center justify-center border-t border-oa-border text-[13px] font-medium text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent"
-          >
-            Show more ({items.length - shown} left)
-          </button>
-        ) : null}
       </div>
     </div>
   );

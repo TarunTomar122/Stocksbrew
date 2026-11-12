@@ -25,6 +25,7 @@ import { anchorGroups, WORTH_KNOWING_FIRST } from "@/lib/briefing-anchors";
 import type { ExampleBriefingExtras } from "@/lib/briefing-example";
 import { briefingLead, briefingSteps } from "@/lib/next-steps";
 import { etClock, etDayOfStamp } from "@/lib/quote-time";
+import { countWord } from "@/lib/read-format";
 
 import { readAskContext } from "./ask";
 import { BriefingGroupCard, type GroupActions } from "./briefing-group";
@@ -139,6 +140,16 @@ function SessionStrip({ sectors }: { sectors: BriefingSession["sectors"] }) {
   );
 }
 
+// Written out whole so Tailwind finds them.
+const QUIET_SM = ["", "sm:col-span-4", "sm:col-span-3", "sm:col-span-2"];
+
+/** The quiet chips' grid (2 columns, 4 from `sm`, 2 again in the `lg` rail): the last chip fills what its row leaves. */
+function quietChipFill(index: number, count: number): string {
+  if (index !== count - 1) return "min-w-0";
+  const odd = count % 2 === 1;
+  return `min-w-0 ${odd ? "col-span-2" : ""} ${QUIET_SM[count % 4]} ${odd ? "lg:col-span-2" : "lg:col-span-1"}`;
+}
+
 /**
  * A section's stocks as cards. The words are worked out for the section as a whole (./card-words.ts): an update
  * several stocks share is said once above the cards, and each card says only what is its own. With `chips`, a stock
@@ -166,7 +177,7 @@ function GroupCards({
     if (!chips || !group.ticker) return false;
     const card = words.cards.get(group.key)!;
     // Nothing on the card, and nothing more to open on it.
-    return !card.sentence && !card.fact && group.lines.every((line) => line === card.line || !rowWords(line, group));
+    return !card.sentence && !card.fact && !card.more && group.lines.every((line) => line === card.line || !rowWords(line, group));
   };
   const cards = groups.filter((group) => !bare(group));
   const chipped = groups.filter(bare);
@@ -360,7 +371,6 @@ export function BriefingView({
   const [busy, setBusy] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [showSettled, setShowSettled] = React.useState(false);
-  const [showQuiet, setShowQuiet] = React.useState(false);
   const [showAllWorth, setShowAllWorth] = React.useState(false);
 
   const personal = briefing.mode === "personal";
@@ -475,8 +485,9 @@ export function BriefingView({
 
   return (
     // Two columns only while the rail has something in it (owner rule 4: no rail that leaves a void): on an earlier
-    // day, or when the agent log has nothing, it can be empty and the briefing takes the whole width.
-    <div className="grid gap-4 lg:items-start lg:gap-x-5 lg:has-[>aside>:not(template)]:grid-cols-[minmax(0,1fr)_19rem]">
+    // day, or when the agent log has nothing, it can be empty and the briefing takes the whole width. The test is the
+    // aside's own hide rule below: an empty agent-log wrapper does not count.
+    <div className="grid gap-4 lg:items-start lg:gap-x-5 lg:[&:has(>aside>:not(template):not([data-rail-log]),>aside>[data-rail-log]_section,>aside>[data-rail-log]_[aria-hidden=true])]:grid-cols-[minmax(0,1fr)_19rem]">
       {/* Head: whose briefing, the day, earlier days. One plain status line only when something is off. */}
       {example ? (
         <ExampleHead date={briefing.date} marketState={marketState} example={example} staleNote={briefing.stale_note} degraded={degraded.length > 0} />
@@ -571,7 +582,7 @@ export function BriefingView({
         {/* Only when something needs a decision: a card saying there is nothing is a card without data (owner rule 4). */}
         {personal && grouped.needs_you.length > 0 ? (
           <Section id="needs-you" label="Needs you" count={groupCountLabel(grouped.needs_you)}>
-            {/* One card per stock; its other updates wait behind "N more" and open in place. */}
+            {/* One card per stock: its main update and the next one on the face; opening it shows the reason and the rest. */}
             {groupCards(grouped.needs_you)}
           </Section>
         ) : null}
@@ -637,48 +648,6 @@ export function BriefingView({
           </Section>
         ) : null}
 
-        {personal ? (
-          <section aria-labelledby="quiet-label" className={CARD}>
-            <button
-              type="button"
-              aria-expanded={showQuiet}
-              onClick={() => setShowQuiet((value) => !value)}
-              className="flex min-h-10 w-full cursor-pointer items-center justify-between gap-3 px-4 py-2 text-left outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent"
-            >
-              <span id="quiet-label" className="oa-label flex items-center gap-2">
-                Quiet
-                <span className="oa-mono text-[11.5px] font-normal normal-case tracking-normal text-oa-muted-fg">{briefing.quiet.names.length}</span>
-              </span>
-              <span className="text-right text-[12.5px] leading-4 text-oa-muted-fg">{showQuiet ? "Hide" : "Show"}</span>
-            </button>
-            {showQuiet ? (
-              <div className="px-4 pb-3">
-                {briefing.quiet.names.length > 0 ? (
-                  <ul className="grid grid-cols-2 gap-x-4 gap-y-0.5 sm:grid-cols-3">
-                    {briefing.quiet.names.map((name) => (
-                      <li key={name.ticker}>
-                        <Link prefetch={false} href={`/stock/${name.ticker}`} className="flex items-center justify-between gap-2 rounded px-1 py-1 text-[13px] leading-5 hover:bg-oa-accent">
-                          <span className="oa-mono inline-flex items-center gap-1.5 font-semibold text-oa-fg">
-                            <StockLogo ticker={name.ticker} size={16} />
-                            {name.ticker}
-                          </span>
-                          {name.day_change_pct != null ? (
-                            <span className={`oa-mono tabular-nums ${name.day_change_pct >= 0 ? "text-signal-bullish" : "text-signal-bearish"}`}>
-                              {signedPct(name.day_change_pct, 1)}
-                            </span>
-                          ) : null}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-[14px] leading-6 text-oa-muted-fg">Every stock you track is listed above today.</p>
-                )}
-              </div>
-            ) : null}
-          </section>
-        ) : null}
-
         {settledCount > 0 ? (
           <section aria-labelledby="settled-label">
             <div className={CARD}>
@@ -711,10 +680,11 @@ export function BriefingView({
       </div>
 
       {/* Side rail: the market as context, not the lead. Only what earns it (before the open, the market, your
-          agents, the agent's day), and it stays in view while the main column scrolls on, so no empty strip opens up
-          beside it. Taller than the screen, it scrolls inside; its cards keep their height ([&>*]:shrink-0) rather
-          than being squeezed to fit and cut off. */}
-      <aside className="scrollbar-hide flex min-w-0 flex-col gap-4 [&>*]:shrink-0 [&:not(:has(>:not(template)))]:hidden lg:sticky lg:top-4 lg:-m-1 lg:max-h-[calc(100dvh-1.5rem)] lg:overflow-y-auto lg:overscroll-contain lg:p-1">
+          agents, your quiet stocks, the agent's day). On a wide screen it stretches to the main column's height, and
+          the agent's day, last, fills what is left: it is never taller than that space (its rows scroll inside), and
+          it keeps at least a header and a few rows, so neither column ends far above the other (owner rule 4). The
+          other cards keep their height ([&>*]:shrink-0). Hidden when nothing in it has content. */}
+      <aside className="flex min-w-0 flex-col gap-4 [&>*]:shrink-0 [&:not(:has(>:not(template):not([data-rail-log]),>[data-rail-log]_section,>[data-rail-log]_[aria-hidden=true]))]:hidden lg:self-stretch">
         {/* Before the bell, how the open is set up leads the rail; after 9:30 ET it renders nothing. */}
         {beforeOpen}
         {/* The market view's read already says how the index did and leads with the same moves, so this card is for
@@ -755,8 +725,35 @@ export function BriefingView({
 
         {/* Your agents: useful, but not the lead (owner, Nov 11), so under the market card. */}
         {rail}
-        {/* What the agent did today across the market: secondary, so in the rail (owner rule 10), for everyone. */}
-        {agentLog}
+        {/* The stocks with nothing new today, always in view as logo chips with their move (owner rule 2: no "Show"
+            toggle). Secondary, so in the rail; nothing at all when every stock has a card above. */}
+        {personal && briefing.quiet.names.length > 0 ? (
+          <section aria-labelledby="quiet-head" className={`${CARD} px-4 pb-3.5 pt-3`}>
+            <h2 id="quiet-head" className="text-pretty text-[15px] font-semibold leading-6 text-oa-fg">
+              Nothing new on {briefing.quiet.names.length === 1 ? "one other stock" : `${countWord(briefing.quiet.names.length).toLowerCase()} other stocks`}
+            </h2>
+            {/* About eight rows at most; a long list scrolls inside with no visible bar (owner rule 5). */}
+            <ul className="scrollbar-hide mt-2.5 grid max-h-[23.5rem] grid-cols-2 gap-2 overflow-y-auto overscroll-contain sm:grid-cols-4 lg:grid-cols-2">
+              {briefing.quiet.names.map((name, index) => (
+                <StockChip
+                  key={name.ticker}
+                  className={quietChipFill(index, briefing.quiet.names.length)}
+                  ticker={name.ticker}
+                  figure={name.day_change_pct != null ? signedPct(name.day_change_pct, 1) : null}
+                  tone={name.day_change_pct == null ? "flat" : name.day_change_pct >= 0 ? "up" : "down"}
+                />
+              ))}
+            </ul>
+          </section>
+        ) : null}
+        {/* What the agent did today across the market: secondary, so in the rail (owner rule 10), for everyone. On a wide
+            screen it sits in the space the cards above leave (absolute inside it, so it never makes the rail taller
+            than the main column beyond its own minimum). */}
+        {agentLog ? (
+          <div data-rail-log className="relative min-w-0 lg:min-h-[21rem] lg:flex-1 [&:not(:has(section,[aria-hidden=true]))]:hidden">
+            <div className="lg:absolute lg:inset-x-0 lg:top-0 lg:flex lg:max-h-full lg:flex-col">{agentLog}</div>
+          </div>
+        ) : null}
       </aside>
     </div>
   );

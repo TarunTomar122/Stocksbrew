@@ -14,7 +14,9 @@ const FILLER =
   /\?\s*$|\b(?:facts? worth knowing|surpasses (?:the )?market returns|outpaces (?:the )?stock market|outpaced the stock market|declines while market improves|some information for investors|what you should know|what to know|here['’]?s (?:why|what|how)|should you buy|is it time to buy|time to buy|key facts|beats? (?:the )?market:|key takeaways|jim cramer|cramer says|made a (?:big|huge|bold) (?:move|bet)|(?:sends?|sent) a (?:strong |\$[\d.]+ \w+ )?signal|shot in the arm|\d+-year-old|i['’]m \d+|how much tax)\b/i;
 /** A wire's market roundup or futures column: the stock is one name in a story about the day. */
 const ROUNDUP =
-  /^(?:stock market today|dow jones futures|stock market news|stocks? (?:making|to watch)|(?:midday|premarket|pre-market|after-hours) (?:movers|stocks)|market wrap|here are the|what['’]?s moving|top (?:gainers|losers)|biggest (?:movers|stock movers))\b|\b(?:stocks making the biggest moves|biggest movers)\b/i;
+  /^(?:stock market today|dow jones futures|stock market news|stocks? (?:making|to watch)|(?:midday|premarket|pre-market|after-hours) (?:movers|stocks)|market wrap|here are the|what['’]?s moving|top (?:gainers|losers)|biggest (?:movers|stock movers))\b|\b(?:stocks making the biggest moves|biggest movers)\b|^(?:nasdaq|s&p|dow)[\w\s&-]{0,20}futures\b|\bin focus\s*[.!]?\s*$/i;
+/** A headline that names three or more tickers in a row ("NVDA, TSLA, SNDK, CAPR, CRWV") is about the day, not one stock. */
+const TICKER_LIST = /\b[A-Z]{2,5}(?:\s*,\s*[A-Z]{2,5}){2,}\b/;
 /** A list of stocks or tips: "3 Stocks Tied To…", "5 reasons", "Which … is a better buy". */
 const LISTICLE = /^\d+\s+(?:\w+\s+)?(?:stocks?|reasons?|things|ways|charts?|companies|picks|takeaways)\b|\b(?:better buy|top \d+|best stocks)\b|\bvs\.?\s.+\bwhich\b/i;
 /** Valuation opinion: whether it is cheap or dear is a columnist's view, not news on the company. */
@@ -54,7 +56,7 @@ export function newsJunk(article: Pick<BriefingNews, "title" | "summary">): News
   if (summary.trim().length < 40 || BOILERPLATE_SUMMARY.test(summary)) return "no summary";
   // Checked on the raw title too, so a wire's "Analysis-" or "Update:" tag still counts.
   if (LAW_FIRM.test(title)) return "law firm";
-  if (ROUNDUP.test(title)) return "roundup";
+  if (ROUNDUP.test(title) || TICKER_LIST.test(title)) return "roundup";
   if (RUMOUR.test(title)) return "rumour";
   if (EXPLAINER.test(title) || /^(?:analysis|opinion|commentary)\s*[-:–]/i.test(title)) return "explainer";
   if (LISTICLE.test(title)) return "listicle";

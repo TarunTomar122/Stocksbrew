@@ -185,6 +185,37 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-12 ~01:40 UTC, ship 33 live (e05a6d0): a briefing that picks real news per stock and says each move once (lead, overnight loop)
+
+- **Ship 33 (round 6 + QA fixes):**
+  - lib/briefing-news.ts picks one story per stock, preferring the reason for the move. It drops roundups, opinion, rumours, explainers, clickbait and headlines that contradict the move. After-hours and later stories are kept.
+  - headlineCase is used on the briefing and on /news. Brands are kept as whole phrases, and a brand word used as an ordinary word is lowered ("price target", "will block", "gap up").
+  - Each move is said once, the strip clock ignores stale thin quotes and earlier days, and the headline counts only the cards shown (the first 8).
+  - Aliases added: Super Micro, J&J, P&G, and two-letter tickers that open a headline.
+  - Verified: tsc 0, vitest 2782 in both modes, eslint clean, QA qp33 (2 bugs + 5 gaps fixed), screenshots in scratchpad/s33 and qp33. Live; VPS pulled.
+- **Open (→ round 8):** two briefing cards repeat the Reddit sentence (rule 1); AMD's +7.3% card has no reason line. Mixed headlines like "Lisa Su just Delivered Fantastic news" stay as written (the casing is conservative next to unknown capitals).
+- **Running:** round 8 (judge findings on landing, briefing, JPM, insiders, signals, My stocks); round 9 (speed: /filings, /follow, /screener, /portfolio/xray, /agents).
+
+### 2026-11-12 ~00:55 UTC, ship 32 live (d0f06f3); ship 33 frozen (9a3b624); judges on 31 (lead, overnight loop)
+
+- **Ship 32 (round 7): midday movers rebuild.**
+  - New units: tikrr-midday-movers-price.timer at 12:30 and 14:30 ET on weekdays (price_core_intraday lane, mid_check), with OnSuccess tikrr-midday-anomalies.service. They run at :30 to stay clear of reddit-buzz at 14:20. Installed on the VPS; first run Nov 12 17:30 UTC.
+  - The mid_check barrier waits on price only. Dispatch records the price stage.
+  - build_daily_anomalies `--carry-session-reasons` keeps a verified, sourced reason only if all of these hold: same NY day, same direction, the move hasn't grown well past the one researched, and the quoted % still holds. Simulation: 10 of 31 carried. `--dry-run` writes nothing.
+  - midday_rebuild_allowed() skips outside 09:30–15:30 ET, so a late catch-up never overwrites the close feed. No email on mid_check (tested).
+  - Also: the My stocks phone footnote ("About this page") is gone (rule 8).
+  - Accident fixed: ship 31 had committed a `node_modules` symlink, via `git add -A` in the scratch worktree, where .gitignore's `node_modules/` doesn't match a symlink. Ship 32 removes it. On the VPS, `git rm --cached node_modules` let the pull through, and the real node_modules is intact.
+- **Ship 33 frozen (round 6): briefing news quality.**
+  - A shared per-stock news pick (lib/briefing-news.ts). It prefers reason lines and drops roundups, opinion, rumours, explainers, clickbait and headlines that contradict the move.
+  - Mixed-case headline fix that keeps brands.
+  - Each move is said once. Coming up drops what the read already names.
+  - The strip clock ignores stale thin quotes (AIRJW pinned 12:33 PM).
+  - tsc 0, vitest 2778 in both modes, eslint clean. QA running.
+- **Judges on live 31** (scratchpad/judge31):
+  - Codex: 7 on every score.
+  - Cursor: UI 7, UX 7, usability 8, wording 7, agent feel 7, similarity 7, sell 7, overall 7 (up from 6).
+  - Remaining asks (→ round 8): "1 more" on every briefing card and the Quiet Show toggle; landing example book as rows, a watches grid with a hole and "Show all", folded FAQ; JPM's small labels, the long "What changed" list, two locks and the phone "Show more"; the insiders table at 60 rows plus Show more; Signals Reddit showing 8 of 16 and SPY mood "—"; My stocks agents sharing one last-run line and the desktop rail ending early.
+
 ### 2026-11-12 ~00:25 UTC, ship 31 live (a106d69): stock page in one column, one nav on phones, real insider clusters, an example briefing (lead, overnight loop)
 
 - Ship 31 (rounds 4 + 5 + lead fixes):

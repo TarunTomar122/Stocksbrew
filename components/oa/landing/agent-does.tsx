@@ -1,12 +1,11 @@
 import * as React from "react";
 import { Suspense } from "react";
 
-import { ShowMore } from "@/components/oa/kit";
 import { Bar } from "@/components/oa/kit/skeleton";
 import { NavIcon } from "@/components/oa/nav-icon";
 import { iconFor } from "@/components/oa/nav-items";
 import { Reveal } from "@/components/reveal";
-import { findingWithin, type AgentCardId } from "@/lib/landing-agent-cards";
+import { findingWithin, leadPercent, type AgentCardId } from "@/lib/landing-agent-cards";
 import { loadExampleChecks } from "@/lib/portfolio-home/example-check-server";
 import { AppLink } from "@/components/oa/app-link";
 import { nextCheckWords } from "@/lib/agent-watch";
@@ -88,14 +87,18 @@ const CARDS: CardDef[] = [
 
 const CARDS_BY_ID: Partial<Record<AgentCardId, CardDef>> = Object.fromEntries(CARDS.map((card) => [card.id, card]));
 
-/** Cards shown on a phone before "Show all it does" (the agent check card counts as one). */
-const FIRST = 4;
+/** The card's strongest number, big, so each card leads with it; the sentence under it explains it. */
+function Figure({ value }: { value: string | undefined }) {
+  if (!value) return null;
+  return <p className="oa-mono mb-1.5 text-[26px] font-semibold leading-8 tracking-[-0.02em] tabular-nums text-oa-fg">{value}</p>;
+}
 
 async function Finding({ card }: { card: CardDef }) {
   const found = await findingWithin(card.id);
   if (!found) return <p className="text-pretty text-[15px] leading-[22px] text-oa-fg">{card.plain}</p>;
   return (
     <>
+      <Figure value={found.figure} />
       {found.ask ? (
         <p className="mb-2 w-fit max-w-full rounded-lg border border-oa-border bg-oa-bg px-2.5 py-1.5 text-pretty text-[14px] leading-5 text-oa-fg">
           <span className="sr-only">Someone writes: </span>“{found.ask}”
@@ -137,9 +140,9 @@ function CardHead({ id, href, title }: { id: string; href: string; title: string
   );
 }
 
-function Card({ card }: { card: CardDef }) {
+function Card({ card, className = "min-w-0" }: { card: CardDef; className?: string }) {
   return (
-    <li className="min-w-0">
+    <li className={className}>
       <AppLink href={card.href} aria-labelledby={`landing-card-${card.id}`} aria-describedby={`landing-card-${card.id}-finding`} className={CARD_LINK}>
         <CardHead id={card.id} href={card.href} title={card.title} />
         <div id={`landing-card-${card.id}-finding`} className="mt-3 min-h-[4.25rem]">
@@ -175,6 +178,8 @@ async function AgentCheckCard() {
       <AppLink href={CHECK_HREF} aria-labelledby={`landing-card-${CHECK_ID}`} aria-describedby={`landing-card-${CHECK_ID}-finding`} className={CARD_LINK}>
         <CardHead id={CHECK_ID} href={CHECK_HREF} title={CHECK_TITLE} />
         <div id={`landing-card-${CHECK_ID}-finding`} className="mt-3 min-h-[4.25rem]">
+          {/* Only a run that found something has a figure: "moved 5% or more" in a quiet run is the rule, not a move. */}
+          <Figure value={view.decision === "notify" ? leadPercent(view.outcome, { signedOnly: true }) : undefined} />
           <p className="mb-2 w-fit max-w-full rounded-lg border border-oa-border bg-oa-bg px-2.5 py-1.5 text-pretty text-[14px] leading-5 text-oa-fg">
             <span className="sr-only">The example portfolio&apos;s agent: </span>“{ask}”
           </p>
@@ -204,30 +209,32 @@ function AgentCheckGhost() {
   );
 }
 
+/**
+ * Every card at once, with no "show all" click (owner rule 2). Nine cards fill three rows of three; on two columns
+ * the last card takes the whole row, so no row ends half empty (owner rule 4).
+ */
 export function AgentDoes() {
   // The real agent check leads (it stands in for the "agents" card), so a visitor sees the agent at work first.
   const listed = CARDS.filter((card) => card.id !== "agents");
-  const first = listed.slice(0, FIRST - 1);
-  const rest = listed.slice(FIRST - 1);
+  const count = listed.length + 1;
   return (
     <Reveal delay={60}>
       <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <Suspense fallback={<AgentCheckGhost />}>
           <AgentCheckCard />
         </Suspense>
-        {first.map((card) => (
-          <Card key={card.id} card={card} />
+        {listed.map((card, index) => (
+          <Card key={card.id} card={card} className={lastCell(index + 1, count)} />
         ))}
-        <li className="min-w-0 sm:col-span-2 lg:contents">
-          <ShowMore contents label="Show all it does" less="Show less" className="[&>button]:mt-0">
-            <ul className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:mb-0 lg:contents">
-              {rest.map((card) => (
-                <Card key={card.id} card={card} />
-              ))}
-            </ul>
-          </ShowMore>
-        </li>
       </ul>
     </Reveal>
   );
+}
+
+/** The last card stretches over whatever its row leaves empty on two and on three columns. */
+function lastCell(index: number, count: number): string {
+  if (index !== count - 1) return "min-w-0";
+  const sm = count % 2 === 1 ? " sm:col-span-2" : "";
+  const lg = ["lg:col-span-1", "lg:col-span-3", "lg:col-span-2"][count % 3];
+  return `min-w-0${sm} ${lg}`;
 }

@@ -2,7 +2,6 @@ import * as React from "react";
 import { Suspense } from "react";
 
 import { AgentLog, AgentLogGhost } from "@/components/agent-log/agent-log";
-import { Disclosure } from "@/components/oa/disclosure";
 import { OaSiteHeader } from "@/components/oa/oa-site-header";
 import { interTight } from "@/components/oa/font";
 import { Reveal } from "@/components/reveal";
@@ -30,7 +29,7 @@ import { LandingTaste } from "./landing/taste";
 import { TodayMoves } from "./landing/today-moves";
 import Link from "next/link";
 
-// Folded, all closed: the page proves its points above and answers the rest here. The founder note is the last answer.
+// Printed open, never folded (owner rule 2): each answer is a sentence or two. The founder note is the last answer.
 const FAQS: { q: string; a: React.ReactNode }[] = [
   {
     q: "What is stocksbrew?",
@@ -101,7 +100,7 @@ export async function OaLanding() {
           <AgentLog compact className="mt-4 sm:mt-10" />
         </Suspense>
 
-        {/* one story below the hero: short proofs with real data, one link each, then the questions folded */}
+        {/* one story below the hero: short proofs with real data, one link each, then the questions answered in the open */}
         <div className="flex flex-col gap-14 pb-12 pt-10 sm:gap-20 sm:pb-20 sm:pt-14">
           {/* Renders its own head, and nothing at all on a day with no confirmed reason yet (no empty strip). */}
           <Suspense fallback={null}>
@@ -148,13 +147,15 @@ export async function OaLanding() {
 
           <section id="faq" className="scroll-mt-24">
             <h2 className="text-[20px] font-medium tracking-tight text-oa-fg">Questions</h2>
-            <div className="mt-3 max-w-3xl">
-              {FAQS.map((item) => (
-                <Disclosure key={item.q} question={item.q}>
-                  {item.a}
-                </Disclosure>
+            {/* Two columns from `md`; the founder note, last and odd, takes the whole row so no row ends half empty. */}
+            <dl className="mt-4 grid grid-cols-1 gap-x-10 gap-y-6 md:grid-cols-2">
+              {FAQS.map((item, index) => (
+                <div key={item.q} className={index === FAQS.length - 1 && FAQS.length % 2 === 1 ? "min-w-0 md:col-span-2 md:max-w-3xl" : "min-w-0"}>
+                  <dt className="text-pretty text-[16px] font-medium leading-6 text-oa-fg">{item.q}</dt>
+                  <dd className="mt-1.5 text-pretty text-[15px] leading-6 text-oa-muted-fg">{item.a}</dd>
+                </div>
               ))}
-            </div>
+            </dl>
           </section>
         </div>
       </div>

@@ -8,7 +8,7 @@ import { clipByAge } from "@/lib/entitlements";
 import { getViewer } from "@/lib/entitlements-server";
 import { loadMovers, loadPolicy, loadReddit } from "@/lib/signals";
 import { buildPolicyRead, buildRedditRead, buildSignalsTodayRead } from "@/lib/signals-insights";
-import { SIGNALS_TABS, parseSignalsFilters, pickToday, signalsHref } from "@/lib/signals-shared";
+import { SIGNALS_TABS, inRedditList, parseSignalsFilters, pickToday, signalsHref } from "@/lib/signals-shared";
 import { ogImage } from "@/lib/og/url";
 import { loadUpcomingReports, todayET, withReports } from "@/app/(app)/explore/desk-data";
 
@@ -59,7 +59,7 @@ export default async function SignalsPage({ searchParams }: { searchParams?: Sea
   const policy = { ...policyAll, posts: archive.items };
 
   // No "0" beside an empty tab (owner rule 4): a count only when there is something to count.
-  const counts = { today: null, reddit: reddit.names.length || null, policy: policy.posts.length || null } as const;
+  const counts = { today: null, reddit: reddit.names.filter(inRedditList).length || null, policy: policy.posts.length || null } as const;
   const tabs = SIGNALS_TABS.map((tab) => ({ id: tab.id, label: tab.label, href: signalsHref(filters, { tab: tab.id }), count: counts[tab.id] }));
 
   // The read for the tab: what the rows below add up to, computed from them. The movers only feed the Today tab's

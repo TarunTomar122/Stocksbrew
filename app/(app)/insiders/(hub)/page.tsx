@@ -15,6 +15,7 @@ import {
   getInsiderSummary,
   getSectorMap,
   getInsiderTrades,
+  insiderTradeRow,
   type InsiderTrade,
 } from "@/lib/follow";
 import { INSIDER_BUY_ROWS, INSIDER_TRADE_ROWS, nyDay } from "@/lib/insider-balance";
@@ -35,7 +36,7 @@ export function generateMetadata(): Metadata {
 
 export const revalidate = 600;
 
-/** The table carries the newest sales only; every row it holds goes to the browser. */
+/** The table carries the newest sales only; every row it holds goes to the browser, slimmed to what a row shows. */
 const TABLE_RECENT_ROWS = 900;
 
 export default async function InsidersPage() {
@@ -71,9 +72,10 @@ export default async function InsidersPage() {
   // Every buy in the window plus the most recent sales, newest filing first, without repeats.
   const byId = new Map<string, InsiderTrade>();
   for (const trade of [...buys, ...recent.slice(0, TABLE_RECENT_ROWS)]) byId.set(trade.id, trade);
-  const trades = [...byId.values()].sort((a, b) =>
-    a.filed_at < b.filed_at ? 1 : a.filed_at > b.filed_at ? -1 : 0,
-  );
+  // Slim rows: every trade goes to the browser for the scrolling table, so each carries only what a row shows.
+  const trades = [...byId.values()]
+    .sort((a, b) => (a.filed_at < b.filed_at ? 1 : a.filed_at > b.filed_at ? -1 : 0))
+    .map(insiderTradeRow);
 
   return (
     <AppPage>

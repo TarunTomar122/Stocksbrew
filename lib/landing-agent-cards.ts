@@ -21,9 +21,12 @@ import { buildMemo } from "@/lib/memo/build";
 import { currentWeek, exampleHoldings, loadShapeFacts, loadSpanEvents, spanOf } from "@/lib/memo/data";
 import { BENCHMARK_SYMBOL } from "@/lib/portfolio-data";
 import { isFeaturedStockTicker } from "@/lib/seo/stock-pages";
+import { leadPercent } from "@/lib/lead-percent";
 import { wholeSentences } from "@/lib/plain-copy";
+
+export { leadPercent };
 import { newYorkToday } from "@/lib/portfolio-data";
-import { countWord } from "@/lib/read-format";
+import { countWord, shortDay } from "@/lib/read-format";
 import { sharedCache } from "@/lib/shared-cache";
 import { coveredPct, pctWords } from "@/lib/stress-test";
 import { loadExampleStress } from "@/lib/stress-test-data";
@@ -44,6 +47,8 @@ import { loadExampleXray } from "@/lib/xray-data";
 export type AgentCardId = "memo" | "xray" | "earnings" | "dividends" | "stress" | "goal" | "copy" | "agents" | "basket";
 
 export type AgentFinding = {
+  /** The card's strongest number, shown big above the sentence that explains it ("$1,220", "−32%"). */
+  figure?: string;
   /** One plain sentence with its number. */
   line: string;
   /** A short second line: the caveat or the evidence behind the number. */
@@ -104,7 +109,7 @@ async function memoFinding(_day: string): Promise<AgentFinding> {
   const hurt = memo.hurt.length;
   const look = memo.look.length;
   const parts = [hurt > 0 ? `${say(hurt)} ${hurt === 1 ? "thing that could hurt" : "things that could hurt"}` : null, look > 0 ? `${say(look)} worth a look` : null].filter(Boolean);
-  return { line, note: parts.length > 0 ? `The memo also lists ${parts.join(" and ")}.` : null };
+  return { figure: leadPercent(line), line, note: parts.length > 0 ? `The memo also lists ${parts.join(" and ")}.` : null };
 }
 
 async function xrayFinding(): Promise<AgentFinding> {
@@ -120,7 +125,7 @@ async function xrayFinding(): Promise<AgentFinding> {
   const second = ["xray-top-ten", "xray-sector", "xray-doubled"]
     .map((id) => insights.find((insight) => insight.id === id))
     .find((insight) => insight?.text?.trim());
-  return { line: whose(headline), note: second ? whose(second.text.trim()) : null };
+  return { figure: leadPercent(headline), line: whose(headline), note: second ? whose(second.text.trim()) : null };
 }
 
 async function earningsFinding(day: string): Promise<AgentFinding & { ticker: string | null }> {
@@ -138,7 +143,7 @@ async function earningsFinding(day: string): Promise<AgentFinding & { ticker: st
       ? `${watch.name} reports ${when}, the only one of the example's holdings to report soon${weight}.`
       : `${watch.name}'s report ${when} is the one to watch${weight}.`;
   const note = holdings.length > 1 ? `${countWord(holdings.length)} of the example's holdings report in the next six weeks.` : null;
-  return { line, note, ticker: watch.ticker };
+  return { figure: shortDay(watch.next.date), line, note, ticker: watch.ticker };
 }
 
 async function dividendFinding(): Promise<AgentFinding> {
@@ -151,6 +156,7 @@ async function dividendFinding(): Promise<AgentFinding> {
   const paidSoFar = plan.stocks.some((stock) => stock.payments.some((payment) => payment.paid && payment.payDateKnown && payment.amount != null));
   const announced = plan.confirmed >= 0.5 ? `, and ${fmtDollars(plan.confirmed)} of that is already ${paidSoFar ? "announced or paid" : "announced"}` : "";
   return {
+    figure: fmtDollars(plan.total),
     line: `The example portfolio should pay about ${fmtDollars(plan.total)} in dividends over the next twelve months${announced}.`,
     note: plan.confirmed >= 0.5 ? null : "None of it is announced yet, so every month is an estimate.",
   };
@@ -173,7 +179,7 @@ async function stressFinding(): Promise<AgentFinding> {
     others.length > 1
       ? `It replays ${countWord(others.length).toLowerCase()} other falls the same way, from the ${others[0]!.episode.name} to the ${others[others.length - 1]!.episode.name}.`
       : null;
-  return { line, note: covered < 100 ? `That counts the ${covered}% of today's holdings that were trading then.` : span };
+  return { figure: `${mine < 0 ? "\u2212" : "+"}${pctWords(mine)}`, line, note: covered < 100 ? `That counts the ${covered}% of today's holdings that were trading then.` : span };
 }
 
 async function goalFinding(): Promise<AgentFinding> {
@@ -201,6 +207,8 @@ async function goalFinding(): Promise<AgentFinding> {
   const goal = `${moneyWords(inputs.target)}${inputs.real ? " in today's money" : ""}`;
   const bench = outcome.benchmark ? ` The S&P 500 alone gets there in ${spyChanceWords(outcome.benchmark.chance)}.` : "";
   return {
+    // The share of replays that get there; the sentence under it says it in words.
+    figure: outcome.chance >= 0.995 ? "99%" : outcome.chance < 0.01 ? "under 1%" : `${Math.round(outcome.chance * 100)}%`,
     line: `Adding ${moneyWords(inputs.monthly)} a month, the example portfolio reaches ${goal} within ${years} years ${odds}.`,
     // The planner's own caveat, said plainly: its stocks were chosen knowing how they did.
     note: `We count only half of how far its stocks beat or trailed the S&P 500, since they were picked with hindsight.${bench}`,
@@ -215,11 +223,10 @@ async function copyFinding(): Promise<AgentFinding> {
   const total = funds.length + members.length;
   if (total === 0) nothing("copy");
   const beat = [...funds, ...members].filter((row) => (row.excess_per_year ?? 0) > 0).length;
-  const line =
-    beat * 2 === total
-      ? "Copying the funds and House members we follow was a coin toss against simply owning the S&P 500."
-      : `Copying most of the funds and House members we follow ${beat * 2 < total ? "would not have beaten" : "would have beaten"} simply owning the S&P 500.`;
-  return { line, note: `${beat} of the ${total} we could rank did better.` };
+  // The figure is the count; the sentence says what it counts without repeating it.
+  const rest = beat * 2 === total ? "It was a coin toss." : beat * 2 < total ? "Most did worse." : "Most did better.";
+  const line = `That's how many of the funds and House members we could rank beat simply owning the S&P 500 when copied. ${rest}`;
+  return { figure: `${beat} of ${total}`, line, note: null };
 }
 
 async function agentFinding(ticker: string): Promise<AgentFinding> {
@@ -246,6 +253,7 @@ async function basketFinding(): Promise<AgentFinding> {
     const count = loaded.match.members.length;
     if (count < BASKET_MIN || count > BASKET_MAX) continue;
     return {
+      figure: String(count),
       ask: request,
       line: `It finds ${count} companies that fit today, and says why each one is in.`,
       note: "Then it tests the basket against the S&P 500.",
@@ -255,14 +263,14 @@ async function basketFinding(): Promise<AgentFinding> {
 }
 
 // One cache entry per card; the day is part of the key where the sentence says "today" or "on Thursday".
-const cachedMemo = sharedCache(memoFinding, ["landing-card-memo-v5"], { revalidate: REVALIDATE });
-const cachedEarnings = sharedCache(earningsFinding, ["landing-card-earnings-v2"], { revalidate: REVALIDATE });
-const cachedDividends = sharedCache(dividendFinding, ["landing-card-dividends-v3"], { revalidate: REVALIDATE });
-const cachedStress = sharedCache(stressFinding, ["landing-card-stress-v2"], { revalidate: 6 * 3600 });
-const cachedGoal = sharedCache(goalFinding, ["landing-card-goal-v4"], { revalidate: 6 * 3600 });
-const cachedCopy = sharedCache(copyFinding, ["landing-card-copy-v3"], { revalidate: 3600 });
+const cachedMemo = sharedCache(memoFinding, ["landing-card-memo-v6"], { revalidate: REVALIDATE });
+const cachedEarnings = sharedCache(earningsFinding, ["landing-card-earnings-v3"], { revalidate: REVALIDATE });
+const cachedDividends = sharedCache(dividendFinding, ["landing-card-dividends-v4"], { revalidate: REVALIDATE });
+const cachedStress = sharedCache(stressFinding, ["landing-card-stress-v3"], { revalidate: 6 * 3600 });
+const cachedGoal = sharedCache(goalFinding, ["landing-card-goal-v6"], { revalidate: 6 * 3600 });
+const cachedCopy = sharedCache(copyFinding, ["landing-card-copy-v6"], { revalidate: 3600 });
 const cachedAgent = sharedCache(agentFinding, ["landing-card-agents-v2"], { revalidate: REVALIDATE });
-const cachedBasket = sharedCache(basketFinding, ["landing-card-basket-v3"], { revalidate: REVALIDATE });
+const cachedBasket = sharedCache(basketFinding, ["landing-card-basket-v4"], { revalidate: REVALIDATE });
 
 /** The agent example asks about the stock the earnings card names, so the two cards tell one story. */
 const AGENT_FALLBACK_TICKER = "NVDA";

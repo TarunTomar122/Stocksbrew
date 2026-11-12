@@ -118,4 +118,15 @@ describe("agentLines", () => {
     expect(lines[1]!.href).toBe("/agents");
     expect(sharedDay).toBeNull();
   });
+
+  it("says one shared run time once, and each row's own time when they differ", () => {
+    const shared = agentLines(source, "2026-11-11");
+    expect(shared.ownTimes).toBe(false);
+    expect(shared.sharedTime).toBe("5:30 PM");
+    expect(shared.lines.every((line) => line.time === "5:30 PM")).toBe(true);
+    const apart = agentLines({ ...source, runs: source.runs.map((run, i) => ({ ...run, ran_at: i === 0 ? "2026-11-10T22:30:00Z" : "2026-11-10T23:05:00Z" })) }, "2026-11-11");
+    expect(apart.ownTimes).toBe(true);
+    expect(apart.sharedTime).toBeNull();
+    expect(apart.lines.map((line) => line.time)).toEqual(["5:30 PM", "6:05 PM"]);
+  });
 });

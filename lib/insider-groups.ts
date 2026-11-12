@@ -6,7 +6,7 @@
  * "12 vice presidents" with their total, instead of twelve rows that differ
  * only in the name.
  */
-import type { InsiderTrade } from "@/lib/follow-shared";
+import type { InsiderTradeRow } from "@/lib/follow-shared";
 
 export type RoleKind = "director" | "vp" | "chief" | "owner" | "officer";
 
@@ -22,7 +22,7 @@ export type InsiderGroup = {
   /** "Jun He, Lipen Yuan and 10 more". */
   names: string;
   /** Members, newest filing first. */
-  trades: InsiderTrade[];
+  trades: InsiderTradeRow[];
   shares: number;
   /** Null when no member's filing gave a value. */
   value: number | null;
@@ -35,7 +35,7 @@ export type InsiderGroup = {
   plan_10b5_1: boolean;
 };
 
-export type InsiderListItem = { kind: "trade"; trade: InsiderTrade } | InsiderGroup;
+export type InsiderListItem = { kind: "trade"; trade: InsiderTradeRow } | InsiderGroup;
 
 /** Different insiders needed before their rows fold into one. */
 export const GROUP_MIN = 3;
@@ -66,7 +66,7 @@ function similarPrice(a: number | null, b: number | null): boolean {
   return Math.abs(a - b) <= Math.abs(a) * GROUP_PRICE_TOLERANCE;
 }
 
-function namesLine(trades: InsiderTrade[], shown = 2): string {
+function namesLine(trades: InsiderTradeRow[], shown = 2): string {
   const names = [...new Set(trades.map((trade) => trade.insider).filter(Boolean))];
   const head = names.slice(0, shown);
   const rest = names.length - head.length;
@@ -75,7 +75,7 @@ function namesLine(trades: InsiderTrade[], shown = 2): string {
   return `${head.slice(0, -1).join(", ")} and ${head[head.length - 1]}`;
 }
 
-function toGroup(key: string, role: RoleKind, members: InsiderTrade[]): InsiderGroup {
+function toGroup(key: string, role: RoleKind, members: InsiderTradeRow[]): InsiderGroup {
   const first = members[0]!;
   // The filing time shown and the Form 4 it opens are the same, newest filing.
   const newest = members.reduce((best, trade) => (trade.filed_at > best.filed_at ? trade : best), first);
@@ -109,8 +109,8 @@ function toGroup(key: string, role: RoleKind, members: InsiderTrade[]): InsiderG
  * takes the place of its first row, so the list keeps its order; fewer than
  * GROUP_MIN rows stay as they are.
  */
-export function groupInsiderTrades(trades: ReadonlyArray<InsiderTrade>, min = GROUP_MIN): InsiderListItem[] {
-  type Bucket = { key: string; role: RoleKind; price: number | null; members: InsiderTrade[] };
+export function groupInsiderTrades(trades: ReadonlyArray<InsiderTradeRow>, min = GROUP_MIN): InsiderListItem[] {
+  type Bucket = { key: string; role: RoleKind; price: number | null; members: InsiderTradeRow[] };
   const buckets = new Map<string, Bucket[]>();
   const bucketOf: Bucket[] = [];
   for (const trade of trades) {

@@ -5,6 +5,7 @@ import type { NavIcon as NavIconName } from "@/components/oa/nav-items";
 import { StockLogo } from "@/components/stock-logo";
 import { fmtPlanDay } from "@/lib/dividend-plan";
 import type { AgentChip, AgentKind, AgentLine } from "@/lib/portfolio-home/agent-lines";
+import { countWord } from "@/lib/read-format";
 
 /**
  * The person's agents as compact rows (lib/portfolio-home/agent-lines.ts): the kind's icon, a short name, the last
@@ -58,7 +59,18 @@ function Chip({ chip, showWhen }: { chip: AgentChip; showWhen: boolean }) {
 /** Chips per row in the side rails: two and the count of the rest keep one line at 19 to 23rem. */
 const RAIL_CHIPS = 2;
 
-export function AgentRow({ line, showDay = true, maxChips = RAIL_CHIPS }: { line: AgentLine; showDay?: boolean; maxChips?: number }) {
+export function AgentRow({
+  line,
+  showDay = true,
+  showTime = false,
+  maxChips = RAIL_CHIPS,
+}: {
+  line: AgentLine;
+  showDay?: boolean;
+  /** Its own run time ("6:12 PM"), when the rows ran at different times on the day the foot names. */
+  showTime?: boolean;
+  maxChips?: number;
+}) {
   const chips = line.chips.slice(0, maxChips);
   const more = line.more + (line.chips.length - chips.length);
   // Moves that all share one earlier day say it once after the chips, not in every chip (owner rule 1).
@@ -77,6 +89,7 @@ export function AgentRow({ line, showDay = true, maxChips = RAIL_CHIPS }: { line
         <span className="oa-mono whitespace-nowrap text-[12.5px] leading-5 tabular-nums">
           <span className={STATUS_TONE[line.status]}>{line.figure}</span>
           {showDay && line.day ? <span className="text-oa-muted-fg"> · {fmtPlanDay(line.day)}</span> : null}
+          {showTime && line.time ? <span className="text-oa-muted-fg"> · {line.time}</span> : null}
         </span>
         {chips.length > 0 ? (
           // The whole width under the row, so the chips fit on one line in the side rail.
@@ -93,10 +106,37 @@ export function AgentRow({ line, showDay = true, maxChips = RAIL_CHIPS }: { line
   );
 }
 
-/** "Last run Nov 9." with the next check, once under the list, when every row shares them. */
-export function AgentFoot({ sharedDay, nextWords, paused }: { sharedDay: string | null; nextWords: string | null; paused: number }) {
+/**
+ * "Last run Nov 9." with the next check, once under the list, when every row shares them. With `ownTimes` each row
+ * says its own time, so the foot names only the day they all ran.
+ */
+export function AgentFoot({
+  sharedDay,
+  nextWords,
+  paused,
+  ownTimes = false,
+  sharedTime = null,
+  count = 0,
+}: {
+  sharedDay: string | null;
+  nextWords: string | null;
+  paused: number;
+  ownTimes?: boolean;
+  /** The one time they all ran at, from the runs' own stamps: "All three ran on Nov 11 at 6:19 AM ET." */
+  sharedTime?: string | null;
+  /** How many rows ran, for "All three". */
+  count?: number;
+}) {
+  const all = count === 2 ? "Both" : count > 2 ? `All ${countWord(count).toLowerCase()}` : null;
+  const ran = sharedDay
+    ? ownTimes
+      ? `Ran on ${fmtPlanDay(sharedDay)}.`
+      : sharedTime
+        ? `${all ? `${all} ran` : "Ran"} on ${fmtPlanDay(sharedDay)} at ${sharedTime} ET.`
+        : `Last run ${fmtPlanDay(sharedDay)}.`
+    : null;
   const parts = [
-    sharedDay ? `Last run ${fmtPlanDay(sharedDay)}.` : null,
+    ran,
     nextWords ? `Next check ${nextWords}.` : null,
     paused > 0 ? (paused === 1 ? "One more is paused." : `${paused} more are paused.`) : null,
   ].filter(Boolean);

@@ -192,8 +192,8 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
           resultFacts={facts}
           agentLog={
             day || data.archived ? null : (
-              <Suspense fallback={<AgentLogGhost narrow />}>
-                <AgentLog narrow />
+              <Suspense fallback={<AgentLogGhost narrow className="lg:max-h-full" />}>
+                <AgentLog narrow fit />
               </Suspense>
             )
           }

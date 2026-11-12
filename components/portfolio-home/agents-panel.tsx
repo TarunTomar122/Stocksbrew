@@ -115,7 +115,7 @@ export async function AgentsPanel({ load }: { load: HomeLoad }) {
 
   const own = signedIn && agents.state === "ready" && agents.value.jobs.length > 0 ? agents.value : null;
   if (own) {
-    const { lines, paused, sharedDay, next } = agentLines(own, today, { describe: describeWatch });
+    const { lines, paused, sharedDay, ownTimes, sharedTime, next } = agentLines(own, today, { describe: describeWatch });
     return (
       <section aria-labelledby="agents-head" className={CARD}>
         <Head manage>Your agents</Head>
@@ -127,7 +127,7 @@ export async function AgentsPanel({ load }: { load: HomeLoad }) {
           <>
             <ul className={AGENT_LIST}>
               {lines.map((line) => (
-                <AgentRow key={line.id} line={line} showDay={!sharedDay} />
+                <AgentRow key={line.id} line={line} showDay={!sharedDay} showTime={ownTimes && Boolean(sharedDay)} />
               ))}
               {mine ? (
                 <Suspense fallback={null}>
@@ -135,7 +135,7 @@ export async function AgentsPanel({ load }: { load: HomeLoad }) {
                 </Suspense>
               ) : null}
             </ul>
-            <AgentFoot sharedDay={sharedDay} nextWords={next ? nextCheckWords(next, today) : null} paused={paused} />
+            <AgentFoot sharedDay={sharedDay} nextWords={next ? nextCheckWords(next, today) : null} paused={paused} ownTimes={ownTimes} sharedTime={sharedTime} count={lines.length} />
           </>
         )}
       </section>
@@ -145,7 +145,7 @@ export async function AgentsPanel({ load }: { load: HomeLoad }) {
   // Signed out: the example's own agents, with what their latest real runs found. They open the agents page.
   const example = !signedIn ? await loadExampleAgentsSource() : null;
   if (example) {
-    const { lines, sharedDay, next } = agentLines(example, today, { hrefFor: () => "/agents" });
+    const { lines, sharedDay, ownTimes, sharedTime, next } = agentLines(example, today, { hrefFor: () => "/agents" });
     return (
       <section aria-labelledby="agents-head" className={CARD}>
         <Head>
@@ -155,10 +155,10 @@ export async function AgentsPanel({ load }: { load: HomeLoad }) {
         </Head>
         <ul className={AGENT_LIST}>
           {lines.map((line) => (
-            <AgentRow key={line.id} line={line} showDay={!sharedDay} />
+            <AgentRow key={line.id} line={line} showDay={!sharedDay} showTime={ownTimes && Boolean(sharedDay)} />
           ))}
         </ul>
-        <AgentFoot sharedDay={sharedDay} nextWords={next ? nextCheckWords(next, today) : null} paused={0} />
+        <AgentFoot sharedDay={sharedDay} nextWords={next ? nextCheckWords(next, today) : null} paused={0} ownTimes={ownTimes} sharedTime={sharedTime} count={lines.length} />
         <p className="border-t border-oa-border px-4 py-2.5 text-[13.5px] leading-5">
           <Link href="/agents" prefetch={false} className={WATCH_LINK}>
             Set one up for your stocks

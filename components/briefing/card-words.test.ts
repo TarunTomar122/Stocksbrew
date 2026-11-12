@@ -174,3 +174,53 @@ describe("unTitle names", () => {
     expect(sectionWords(groups, { personal: false, results }).cards.get("CBRS")!.fact).not.toBe("Beat by 8%, up 6% today");
   });
 });
+
+describe("Reddit talk and the next update on the card face (round 8)", () => {
+  const talk = (ticker: string, posts: number, mood: string, why: string) =>
+    item({
+      id: `talk-${ticker}`,
+      kind: "discussion_spike",
+      ticker,
+      severity: "low",
+      headline: `${ticker} is one of the most discussed stocks on Reddit: ${posts} posts in 5 days, mostly ${mood}`,
+      metric: `${posts} posts`,
+      why,
+    });
+  const news = (ticker: string, headline: string) => item({ id: `news-${ticker}`, kind: "news", ticker, severity: "low", headline: `News on ${ticker}: ${headline}` });
+
+  it("never leads two cards with the same Reddit boilerplate: each says what its posts say, the count goes in a chip", () => {
+    const groups = groupBriefingItems([
+      talk("QQQ", 4, "bearish", "QQQ is described as having bounced after a severe decline. Bears remain in control."),
+      talk("AMD", 6, "bullish", "AMD is being positioned as a beneficiary of Nvidia's weakness. Some call it a long-term pick."),
+    ]);
+    const words = sectionWords(groups, { personal: true });
+    const by = (ticker: string) => words.cards.get(groups.find((group) => group.ticker === ticker)!.key)!;
+    expect(by("QQQ").sentence).toBe("QQQ is described as having bounced after a severe decline.");
+    expect(by("AMD").sentence).toBe("AMD is being positioned as a beneficiary of Nvidia's weakness.");
+    expect(by("QQQ").fact).toBe("Reddit: 4 posts, bearish");
+    expect(by("AMD").fact).toBe("Reddit: 6 posts, bullish");
+    expect(words.shared).toEqual([]);
+  });
+
+  it("leads with the news over Reddit talk, and keeps Reddit to its chip rather than a second line", () => {
+    const groups = groupBriefingItems([talk("NVDA", 11, "bearish", "Nvidia is under pressure from board scrutiny."), news("NVDA", "Nvidia and Alphabet agreed to buy Anthropic stock")]);
+    const card = sectionWords(groups, { personal: true }).cards.get(groups[0]!.key)!;
+    expect(card.sentence).toBe("Nvidia and Alphabet agreed to buy Anthropic stock.");
+    expect(card.more).toBeNull();
+    expect(card.fact).toBe("Reddit: 11 posts, bearish");
+  });
+
+  it("puts the stock's next update on the face instead of an 'N more' fold", () => {
+    const groups = groupBriefingItems([news("CBRS", "Cerebras files for its listing"), earnings("CBRS", "tomorrow after the close", 1)]);
+    const card = sectionWords(groups, { personal: true }).cards.get(groups[0]!.key)!;
+    expect(card.sentence).toBeTruthy();
+    expect(card.more).toBeTruthy();
+    expect(card.more).not.toBe(card.sentence);
+  });
+
+  it("says nothing from Reddit when the posts have no summary", () => {
+    const groups = groupBriefingItems([talk("SMCI", 5, "bullish", "People are posting about it, but we do not have a summary of what they are saying yet.")]);
+    const card = sectionWords(groups, { personal: true }).cards.get(groups[0]!.key)!;
+    expect(card.sentence).not.toMatch(/People are posting/);
+  });
+});
