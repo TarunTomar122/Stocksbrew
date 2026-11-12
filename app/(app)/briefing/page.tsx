@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { AskPageHint } from "@/components/ask/ask-page-hint";
 import { BriefingFace } from "@/components/briefing/briefing-face";
 import { BriefingLockedMoves } from "@/components/briefing/locked-moves";
+import { SinceVisit } from "@/components/briefing/since-visit";
+import { VisitBeacon } from "@/components/briefing/since-visit-beacon";
 import { withoutCircularReasons } from "@/components/briefing/real-reasons";
 import { AppPage } from "@/components/oa/kit";
 import { MarketingSchema } from "@/components/seo/marketing-schema";
@@ -26,7 +28,6 @@ import {
   shownPct,
   shownPrice,
   positionsFromBriefing,
-  sinceLastOpened,
   stockItems,
   tradingDayBefore,
   whyItMoved,
@@ -47,6 +48,8 @@ import { etDayOfStamp, etClock, newestStamp, oldestStamp } from "@/lib/quote-tim
 import { resultsFor } from "@/lib/results/server";
 import type { ResultRead } from "@/lib/results/types";
 import { briefingResultFact } from "@/lib/results/words";
+import { buildSinceVisit, sinceShows, toldElsewhere } from "@/lib/since-visit";
+import { loadSinceVisit, type SinceVisitResult } from "@/lib/since-visit-server";
 
 export const dynamic = "force-dynamic";
 
@@ -149,6 +152,9 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
   const signedIn = Boolean(user);
   // Earlier days are a member's own saved briefings; signed out, ?day= shows today's example with everything on it.
   const day = signedIn && typeof searchParams?.day === "string" ? searchParams.day : null;
+  // "Since you last looked" starts reading now, beside the briefing's own load (it needs only the user doc first).
+  // Today's briefing only: a saved earlier day is read as it was.
+  const sinceRead: Promise<SinceVisitResult | null> = user && !day ? loadSinceVisit(user.uid).catch((): SinceVisitResult => ({ kind: "failed" })) : Promise.resolve(null);
   const data: BriefingPageData & { example?: ExampleBriefingExtras | null } = signedIn
     ? await loadBriefingPage({ day, persist: true })
     : await loadExampleBriefing();
@@ -173,7 +179,7 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
   const holdingTickers = [...new Set(positions.filter((position) => position.relation === "holding").map((position) => position.ticker.toUpperCase()))];
 
   // All cached reads, side by side; each fails soft.
-  const [locked, results, premarket, extras, levelFacts, series, marketNews] = await Promise.all([
+  const [locked, results, premarket, extras, levelFacts, series, marketNews, sinceLoad] = await Promise.all([
     lockedSlot(data),
     live && personal ? weekResults(tickers, today, data.since) : Promise.resolve([] as ResultRead[]),
     live ? briefingPremarket(personal ? tickers : ["SPY"], now).catch(() => null) : Promise.resolve(null),
@@ -182,6 +188,7 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
     live && personal ? stripSeries(holdingTickers) : Promise.resolve(null),
     // The market's top stories are the same for everyone: one cached read, a few seconds at most when it is cold.
     live ? within(loadTopNews(today), SIDE_READ_MS).then((stories) => stories ?? []) : Promise.resolve([] as TopStory[]),
+    sinceRead,
   ]);
 
   const mode = live ? faceMode(session.kind, premarket != null) : "close";
@@ -214,25 +221,42 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
     return pct != null && price != null ? { ...story, reaction: { ...story.reaction, pct, price } } : story;
   });
   const inTopNews = new Set(topNews.flatMap((story) => (story.ticker ? [story.ticker] : [])));
-  const moved = (personal ? whyItMoved({ items, positions, results, exclude: new Set([...shown, ...inTopNews]), today, resultFact }) : marketMoved(briefing.market)).filter(
+  const explained = (personal ? whyItMoved({ items, positions, results, exclude: new Set([...shown, ...inTopNews]), today, resultFact }) : marketMoved(briefing.market)).filter(
     (card) => !inTopNews.has(card.ticker),
   );
-  for (const card of moved) shown.add(card.ticker);
-  const levels = personal ? atYourLevels(positions, shown, levelFacts, pre, prePrices) : [];
-  for (const row of levels) shown.add(row.ticker);
   // The week is a calendar: only a report Do today already names ("Reports today after the close") is left out of it.
   const reportsInDo = new Set(todo?.kind === "cards" ? todo.cards.filter((card) => card.reason === "earnings").map((card) => card.ticker) : []);
   const week = (personal ? earningsWeek({ positions, items, results, today, premarket: pre, premarketPrices: prePrices }) : marketWeek([...briefing.needs_you, ...briefing.also_today], today))
     .map((entry) => ({ ...entry, stocks: entry.stocks.filter((stock) => !reportsInDo.has(stock.ticker)) }))
     .filter((entry) => entry.stocks.length > 0);
-  const since =
-    live && personal && data.viewer.kind === "member"
-      ? sinceLastOpened({ since: data.since ?? null, callChanges: data.callChanges ?? [], results, positions, exclude: shown, resultFact })
+  // "Since you last looked" goes first: it skips Do today's stocks, and the stocks it shows are not repeated below.
+  const sinceView =
+    live && personal && data.viewer.kind === "member" && sinceLoad?.kind === "ready"
+      ? buildSinceVisit({
+          ...sinceLoad.load,
+          positions,
+          exclude: shown,
+          // Every stock the other modules would show before this one takes any ("Buy more levels" is worked out again below).
+          told: toldElsewhere({
+            topNews: inTopNews,
+            moved: explained,
+            levels: atYourLevels(positions, new Set([...shown, ...explained.map((card) => card.ticker)]), levelFacts, pre, prePrices),
+            week,
+          }),
+          now,
+        })
       : null;
+  for (const card of sinceView?.cards ?? []) shown.add(card.ticker);
+  const moved = explained.filter((card) => !shown.has(card.ticker));
+  for (const card of moved) shown.add(card.ticker);
+  const levels = personal ? atYourLevels(positions, shown, levelFacts, pre, prePrices) : [];
+  for (const row of levels) shown.add(row.ticker);
 
   return (
     <AppPage width="dash">
       <MarketingSchema path="/briefing" name={TITLE} description={DESCRIPTION} breadcrumbLabel="Briefing" />
+      {/* A view whose reads missed something is not recorded, so the next view still covers what this one could not. */}
+      {live && signedIn && !day && sinceLoad?.kind !== "failed" && sinceView?.complete !== false ? <VisitBeacon /> : null}
       <BriefingFace
         mode={briefing.mode}
         viewer={data.viewer.kind}
@@ -250,7 +274,7 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
         levels={levels}
         moved={moved}
         week={week}
-        since={since}
+        top={sinceShows(sinceView) ? <SinceVisit view={sinceView} /> : null}
         agentFindings={live ? agentFindingCount([...briefing.needs_you, ...briefing.also_today]) : 0}
         locked={locked}
         sessionOpened={!live || sessionOpened(today, now.getTime())}

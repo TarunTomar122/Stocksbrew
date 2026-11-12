@@ -16,8 +16,6 @@ import type {
   MarketTile,
   MovedCard,
   PathPoint,
-  Since,
-  SinceCard,
   Strip,
   Tone,
   WeekDay,
@@ -32,9 +30,10 @@ import { FullRows } from "./full-rows";
 
 /**
  * The daily briefing, one column (owner, Nov 12): the strip (you against the S&P 500 and a few market figures), Do
- * today, the heat of your money, the names at their levels, why things moved, the week's reports and what changed
- * since the last visit. Each module is gone when it has nothing (no empty cards); each stock shows once. Cards are
- * a figure, a few-word label and at most one line; the card is its own link and nothing repeats on every card.
+ * today, the heat of your money, the names at their levels, why things moved and the week's reports. What changed since
+ * the last visit comes in as `top`, under the header. Each module is gone when it has nothing (no empty cards); each
+ * stock shows once. Cards are a figure, a few-word label and at most one line; the card is its own link and nothing
+ * repeats on every card.
  * Server-rendered: the only client code is the logos and the "Show N more" toggles under the longer grids.
  */
 
@@ -58,7 +57,8 @@ export type BriefingFaceProps = {
   levels: LevelRow[];
   moved: MovedCard[];
   week: WeekDay[];
-  since: Since | null;
+  /** Rendered under the header row, above the market band: "Since you looked yesterday" (components/briefing/since-visit.tsx). */
+  top?: React.ReactNode;
   /** Standing-job findings today, for one quiet link to /agent. */
   agentFindings: number;
   /** Whether today's session has opened (9:30 ET), so a before-the-open report counts as out. True on a saved day. */
@@ -114,7 +114,7 @@ function CallChip({ call }: { call: CallWord | null }) {
  * One stock card: logo, ticker and short name, price and the day's %, the call, and one line. The card is the link;
  * where the line came from sits in its hover title, not under it (owner, Nov 12: "remove those sources").
  */
-function StockTile({ stock, line, source, fit = false }: { stock: DoCard | MovedCard | SinceCard; line: string | null; source?: string | null; fit?: boolean }) {
+function StockTile({ stock, line, source, fit = false }: { stock: DoCard | MovedCard; line: string | null; source?: string | null; fit?: boolean }) {
   const short = shortCompanyName(stock.name);
   const named = short && short.toUpperCase() !== stock.ticker ? short : null;
   const tone = toneOf(stock.pct);
@@ -217,7 +217,7 @@ function SharedNotes({ notes }: { notes: string[] }) {
   );
 }
 
-function SharedCards({ cards, label, grid = THREE, fit = false }: { cards: ReadonlyArray<DoCard | SinceCard>; label: string; grid?: string; fit?: boolean }) {
+function SharedCards({ cards, label, grid = THREE, fit = false }: { cards: ReadonlyArray<DoCard>; label: string; grid?: string; fit?: boolean }) {
   const split = sharedLines(cards);
   // A card drops its call badge only when the line shared above it states that call ("Our call moved to Keep on ASTS,
   // NVDA and SMR"), never under a line that names no call ("Reported results"): the call is said once, never hidden.
@@ -784,7 +784,7 @@ function MarketNote({ viewer, pendingTracked }: { viewer: BriefingFaceProps["vie
 }
 
 export function BriefingFace(props: BriefingFaceProps) {
-  const { mode, viewer, date, clock, days, archived, degraded, example, strip, topNews, doToday, heat, levels, moved, week, since, agentFindings, locked, sessionOpened } = props;
+  const { mode, viewer, date, clock, days, archived, degraded, example, strip, topNews, doToday, heat, levels, moved, week, top, agentFindings, locked, sessionOpened } = props;
   const personal = mode === "personal";
   const title = example ? "Example briefing for a made-up portfolio of real stocks" : personal ? "Your briefing" : "Market briefing";
   // Which modules have something, so a pair that lost one side gives the other the whole row.
@@ -797,7 +797,6 @@ export function BriefingFace(props: BriefingFaceProps) {
   const doBeside = showHeat && doCards.length >= 2 && heat.length <= HEAT_BESIDE_MAX;
   const showMoved = moved.length > 0;
   const showWeek = week.length > 0;
-  const showSince = Boolean(since && since.cards.length > 0);
   const movedColumns = { sm: 2, lg: gridColumns(moved.length, [3, 4]), xxl: gridColumns(moved.length, [4, 5]) };
   const movedGrid = `grid grid-cols-1 gap-3 sm:grid-cols-2 ${LG_COLS[movedColumns.lg]} ${XXL_COLS[movedColumns.xxl]}`;
   return (
@@ -841,6 +840,8 @@ export function BriefingFace(props: BriefingFaceProps) {
           </p>
         ) : null}
       </header>
+
+      {top ? <div className={`min-w-0 ${SPAN.all}`}>{top}</div> : null}
 
       <div className={`min-w-0 ${SPAN.all}`}>
         <MarketBand strip={strip} clock={clock} live={!archived} date={date} />
@@ -904,12 +905,6 @@ export function BriefingFace(props: BriefingFaceProps) {
       {showWeek ? (
         <Section id="week" title={weekTitle(week, date, sessionOpened)}>
           <Week days={week} />
-        </Section>
-      ) : null}
-
-      {since && showSince ? (
-        <Section id="since" title="Since you last opened" count={`${since.count} new`}>
-          <SharedCards cards={since.cards} label="New since your last visit" grid={THREE} />
         </Section>
       ) : null}
     </div>

@@ -38,7 +38,6 @@ function face(cards: DoCard[]): string {
     levels: [],
     moved: [],
     week: [],
-    since: null,
     agentFindings: 0,
     sessionOpened: true,
   };

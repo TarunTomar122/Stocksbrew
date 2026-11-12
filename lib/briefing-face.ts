@@ -10,15 +10,14 @@
  *   the heat       every holding's move as a treemap (components/oa/kit/treemap.tsx), sized by its move;
  *   Levels         names at their own call's price, each with one measured fact;
  *   Why it moved   moves with a confirmed reason only;
- *   Reports        the week's earnings, by day;
- *   Since you last opened  what changed since the last visit.
+ *   Reports        the week's earnings, by day.
+ * "Since you last looked" (lib/since-visit.ts) sits under the header, above the strip, and takes its stocks first.
  * A stock shows once, in the first module that wants it.
  */
 
 import {
   daysBetween,
   type Briefing,
-  type BriefingCallChange,
   type BriefingIndex,
   type BriefingItem,
   type BriefingPosition,
@@ -1091,66 +1090,7 @@ export function earningsWeek(input: {
     }));
 }
 
-/* ── Since you last opened ──────────────────────────────────────────────── */
-
-export type SinceCard = FaceStock & { line: string; at: string };
-export type Since = { count: number; cards: SinceCard[] };
-
-/** At most this many cards under "Since you last opened". */
-export const SINCE_MAX = 3;
-
-/**
- * What changed on the person's stocks since their last visit: call changes and results that came out after it.
- * Null on a first visit (no last visit) or when nothing is new. Stocks already on the page above are not repeated
- * as cards, but they still count.
- */
-export function sinceLastOpened(input: {
-  since: string | null;
-  callChanges: readonly BriefingCallChange[];
-  results: readonly ResultRead[];
-  positions: readonly BriefingPosition[];
-  exclude: ReadonlySet<string>;
-  resultFact?: (read: ResultRead) => string | null;
-}): Since | null {
-  const since = input.since ? Date.parse(input.since) : NaN;
-  if (!Number.isFinite(since)) return null;
-  // A stock the plan does not cover gets no call or report read here, the same as in whyItMoved.
-  const byTicker = new Map(input.positions.filter((position) => position.covered !== false).map((position) => [upper(position.ticker), position]));
-  const events: SinceCard[] = [];
-  const seen = new Set<string>();
-  for (const change of input.callChanges) {
-    const ticker = upper(change.ticker);
-    const at = Date.parse(change.at);
-    const position = byTicker.get(ticker);
-    const to = plainCallWord(change.new_stance);
-    const from = plainCallWord(change.prev_stance);
-    if (!position || !Number.isFinite(at) || at <= since || !to || to === from) continue;
-    const key = `call:${ticker}:${to}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    events.push({ ...faceStockOf(position), call: callWordOf(to), line: from ? `Call moved from ${from} to ${to}` : `Call moved to ${to}`, at: change.at });
-  }
-  for (const read of input.results) {
-    const ticker = upper(read.ticker);
-    const position = byTicker.get(ticker);
-    // When the report came out, as a New York instant: before the open, after the close, or (time unknown) the close.
-    const out = reportInstant(read.reportDate, read.session);
-    if (!position || out == null || out <= since) continue;
-    const fact = fittingLine([input.resultFact ? input.resultFact(read) : null]);
-    events.push({ ...faceStockOf(position), line: fact ?? "Reported results", at: new Date(out).toISOString() });
-  }
-  if (events.length === 0) return null;
-  events.sort((a, b) => b.at.localeCompare(a.at) || a.ticker.localeCompare(b.ticker));
-  // One card per stock, and none for a stock already on the page; the count is the stocks that are new here.
-  const shown = new Set<string>();
-  const cards = events.filter((event) => {
-    if (input.exclude.has(event.ticker) || shown.has(event.ticker)) return false;
-    shown.add(event.ticker);
-    return true;
-  });
-  if (cards.length === 0) return null;
-  return { count: cards.length, cards: cards.slice(0, SINCE_MAX) };
-}
+/* ── Report times ───────────────────────────────────────────────────────── */
 
 /** A report's time as an instant: 7:00 ET on its day before the open, 16:00 ET after the close or when unknown. */
 export function reportInstant(day: string, session: string | null | undefined): number | null {
@@ -1158,20 +1098,6 @@ export function reportInstant(day: string, session: string | null | undefined): 
   if (!match) return null;
   const [hour, minute] = session === "bmo" ? [7, 0] : [16, 0];
   return etWallTimeToUtcMs(Number(match[1]), Number(match[2]), Number(match[3]), hour, minute);
-}
-
-function faceStockOf(position: BriefingPosition): FaceStock {
-  const ticker = upper(position.ticker);
-  return { ticker, name: position.name, price: position.price, pct: position.day_change_pct, call: callWordOf(position.stance), href: `/stock/${encodeURIComponent(ticker)}` };
-}
-
-/**
- * Where the "since" window starts for this open: the day's own saved start when the person already opened today
- * (so a reload keeps showing the same changes), else their last visit. Null on a first visit.
- */
-export function sinceStart(todaySince: string | null | undefined, lastVisit: string | null | undefined): string | null {
-  const valid = (value: string | null | undefined) => (value && Number.isFinite(Date.parse(value)) ? value : null);
-  return valid(todaySince) ?? valid(lastVisit);
 }
 
 /** Agent findings in today's briefing (standing jobs that told you), for the one quiet link to /agent. */

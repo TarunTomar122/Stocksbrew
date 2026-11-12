@@ -27,8 +27,6 @@ import {
   weekTitle,
   youVsMarketPath,
   type LevelFact,
-  sinceLastOpened,
-  sinceStart,
   stockItems,
   whyItMoved,
 } from "@/lib/briefing-face";
@@ -669,45 +667,6 @@ describe("earningsWeek", () => {
 
   it("is empty when nothing reports", () => {
     expect(earningsWeek({ today: TODAY, positions: [position({ ticker: "A" })], items: [], results: [] })).toEqual([]);
-  });
-});
-
-describe("sinceLastOpened", () => {
-  const positions = [position({ ticker: "AMD", stance: "accumulate" }), position({ ticker: "TSM" })];
-  const changes = [
-    { ticker: "AMD", instrument_id: "US_AMD", prev_stance: "hold", new_stance: "accumulate", at: "2026-11-11T22:00:00Z", text: null },
-    { ticker: "TSM", instrument_id: "US_TSM", prev_stance: "accumulate", new_stance: "hold", at: "2026-11-09T22:00:00Z", text: null },
-  ];
-
-  it("counts what is new since the last visit, and shows at most three cards", () => {
-    const since = sinceLastOpened({ since: "2026-11-10T12:00:00Z", callChanges: changes, results: [], positions, exclude: new Set() });
-    expect(since).toEqual({ count: 1, cards: [expect.objectContaining({ ticker: "AMD", line: "Call moved from Keep to Buy more" })] });
-  });
-
-  it("is hidden on a first visit or when nothing is new, and still counts a stock shown above", () => {
-    expect(sinceLastOpened({ since: null, callChanges: changes, results: [], positions, exclude: new Set() })).toBeNull();
-    expect(sinceLastOpened({ since: "2026-11-12T00:00:00Z", callChanges: changes, results: [], positions, exclude: new Set() })).toBeNull();
-    expect(sinceLastOpened({ since: "2026-11-10T12:00:00Z", callChanges: changes, results: [], positions, exclude: new Set(["AMD"]) })).toBeNull();
-  });
-
-  it("dates a report by its New York time: after the close is new to a visit that afternoon", () => {
-    const read = result({ ticker: "TSM", reportDate: "2026-11-11", session: "amc" });
-    // Visited at 2 PM ET on the report day: the 4 PM report is new.
-    expect(sinceLastOpened({ since: "2026-11-11T19:00:00Z", callChanges: [], results: [read], positions, exclude: new Set() })?.count).toBe(1);
-    // Visited at 6 PM ET: already out.
-    expect(sinceLastOpened({ since: "2026-11-11T23:00:00Z", callChanges: [], results: [read], positions, exclude: new Set() })).toBeNull();
-  });
-
-  it("says nothing about a stock the plan does not cover, the same as why it moved", () => {
-    const read = result({ ticker: "TSM", reportDate: "2026-11-11", session: "amc" });
-    const uncovered = [position({ ticker: "AMD", stance: "accumulate", covered: false }), position({ ticker: "TSM", covered: false })];
-    expect(sinceLastOpened({ since: "2026-11-10T12:00:00Z", callChanges: changes, results: [read], positions: uncovered, exclude: new Set() })).toBeNull();
-  });
-
-  it("keeps the window steady across reloads on the same day", () => {
-    expect(sinceStart("2026-11-11T08:00:00Z", "2026-11-12T09:59:00Z")).toBe("2026-11-11T08:00:00Z");
-    expect(sinceStart(null, "2026-11-11T08:00:00Z")).toBe("2026-11-11T08:00:00Z");
-    expect(sinceStart(null, null)).toBeNull();
   });
 });
 
