@@ -602,6 +602,8 @@ export async function StockPageStream({ params }: Props) {
             row: screenerRow,
             next: nextEarnings,
             steady: read.steadySince ? { since: read.steadySince, lastStep: read.steadyStep ?? lastStepOn(changes, read.steadySince) } : null,
+            // The stock page renders per request (revalidate 60), so "yesterday" is right when it is read.
+            sayDays: true,
           }),
         )
       : null;

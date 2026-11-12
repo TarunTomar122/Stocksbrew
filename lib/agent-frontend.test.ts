@@ -22,7 +22,7 @@ describe("agent access frontend launch surfaces", () => {
   it("keeps the primary conversion surfaces connected to the agent story", () => {
     // /agents is the standing jobs page now. The connect-your-own-agent story lives at /developers.
     expect(source("app/(app)/agents/page.tsx")).toContain('import AgentJobsPage from "./jobs/page"');
-    expect(source("app/(app)/developers/page.tsx")).toContain("Plug stocksbrew into your agent");
+    expect(source("app/(app)/developers/page.tsx")).toContain("Reads your research and your portfolio. It cannot trade.");
     expect(source("components/pro-plan-picker.tsx")).toContain("Current stock context for your AI");
     expect(source("lib/subscribe-benefits.ts")).toContain("Current stock context for your AI");
     expect(source("app/(app)/profile/page.tsx")).toContain('id="agent-access"');
@@ -39,7 +39,7 @@ describe("agent access frontend launch surfaces", () => {
   });
 
   it("uses an outcome-led explanation and a real missing-research flow", () => {
-    expect(source("app/(app)/developers/page.tsx")).toContain("Plug stocksbrew into your agent");
+    expect(source("app/(app)/developers/page.tsx")).toContain("Reads your research and your portfolio. It cannot trade.");
     expect(source("app/(app)/developers/page.tsx")).toContain("Connect with one prompt");
   });
 

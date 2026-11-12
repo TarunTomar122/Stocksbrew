@@ -1,7 +1,6 @@
-import { fin, joinNames, median, pct, shortDay, signedPct } from "@/lib/insight-format";
-import { pickInsights, type Insight, type TheRead } from "@/lib/insights";
+import { fin, joinNames, pct, shortDay, signedPct } from "@/lib/insight-format";
 import { shortCompanyName } from "@/lib/plain-copy";
-import { sectorSlug, type CallWord, type ScreenerRow } from "@/lib/screener-shared";
+import type { CallWord, ScreenerRow } from "@/lib/screener-shared";
 import { dayMinus, isIsoDay } from "@/lib/seo/families";
 import { isFresh } from "@/lib/seo/stock-pages";
 
@@ -259,10 +258,6 @@ export function fcfYield(row: ScreenerRow): number | null {
 export type Metric = {
   /** Column header: "Dividend yield". */
   label: string;
-  /** The metric inside a sentence: "dividend yield", "distance below the 52-week high". */
-  noun: string;
-  /** A value said in a sentence: "a 6.19% dividend yield", "a P/E of 8.1". */
-  say: (value: number) => string;
   value: (row: ScreenerRow, input: BestInput) => number | null;
   /** The value in a cell: "6.19%", "9.4x". */
   format: (value: number) => string;
@@ -270,14 +265,6 @@ export type Metric = {
   order: "desc" | "asc";
   /** Green up and red down on the bar (returns); otherwise one accent colour. */
   signed?: boolean;
-  /**
-   * What the typical list value is set against in the read: the S&P 500
-   * stocks we cover ("sp500"), the S&P 500 itself (`spy`, for returns), or
-   * nothing when no fair baseline exists.
-   */
-  baseline: "sp500" | "spy" | null;
-  /** Which S&P 500 stocks the baseline counts, when not all of them: "dividend payers". */
-  baselineOf?: string;
 };
 
 const pctCell = (digits: number) => (value: number) => `${value < 0 ? "−" : ""}${Math.abs(value).toFixed(digits)}%`;
@@ -296,113 +283,78 @@ const positive = (value: number) => value > 0;
 const metric = {
   yield: {
     label: "Dividend yield",
-    noun: "dividend yield",
-    say: (value) => `a ${pct(value, 2)} dividend yield`,
     value: field("div_yield", positive),
     format: pctCell(2),
     order: "desc",
-    baseline: "sp500",
-    baselineOf: "dividend payers",
   },
   divGrowth: {
     label: "Dividend growth a year",
-    noun: "dividend growth rate",
-    say: (value) => `dividend growth of ${pct(value)} a year`,
     value: field("div_growth"),
     format: pctCell(1),
     order: "desc",
-    baseline: "sp500",
-    baselineOf: "dividend payers",
   },
   divYears: {
     label: "Years of raises",
-    noun: "run of dividend raises",
-    say: (value) => `${Math.round(value)} years of dividend raises`,
     value: field("div_growth_years", positive),
     format: (value) => `${Math.round(value)} yrs`,
     order: "desc",
-    baseline: "sp500",
-    baselineOf: "dividend payers",
   },
-  pe: { label: "P/E", noun: "P/E", say: (value) => `a P/E of ${value.toFixed(1)}`, value: field("pe", positive), format: timesCell, order: "asc", baseline: "sp500", baselineOf: "profitable companies" },
+  pe: { label: "P/E", value: field("pe", positive), format: timesCell, order: "asc" },
   fwdPe: {
     label: "Forward P/E",
-    noun: "forward P/E",
-    say: (value) => `a forward P/E of ${value.toFixed(1)}`,
     value: field("fwd_pe", positive),
     format: timesCell,
     order: "asc",
-    baseline: "sp500",
-    baselineOf: "companies expected to make a profit",
   },
-  peg: { label: "PEG", noun: "PEG", say: (value) => `a PEG of ${value.toFixed(2)}`, value: field("peg", positive), format: (value) => value.toFixed(2), order: "asc", baseline: "sp500" },
+  peg: { label: "PEG", value: field("peg", positive), format: (value) => value.toFixed(2), order: "asc" },
   fcfYield: {
     label: "Free cash flow yield",
-    noun: "free cash flow yield",
-    say: (value) => `a free cash flow yield of ${pct(value)}`,
     value: (row) => fcfYield(row),
     format: pctCell(1),
     order: "desc",
-    baseline: "sp500",
-    baselineOf: "companies with positive free cash flow",
   },
-  revGrowth: { label: "Sales growth", noun: "sales growth", say: (value) => `sales growth of ${signedPct(value)}`, value: field("rev_growth"), format: signedCell, order: "desc", baseline: "sp500" },
-  ytdBest: { label: "This year", noun: "change this year", say: (value) => `${signedPct(value)} this year`, value: field("ret_ytd"), format: signedCell, order: "desc", signed: true, baseline: "spy" },
-  ytdWorst: { label: "This year", noun: "change this year", say: (value) => `${signedPct(value)} this year`, value: field("ret_ytd"), format: signedCell, order: "asc", signed: true, baseline: "spy" },
+  revGrowth: { label: "Sales growth", value: field("rev_growth"), format: signedCell, order: "desc" },
+  ytdBest: { label: "This year", value: field("ret_ytd"), format: signedCell, order: "desc", signed: true },
+  ytdWorst: { label: "This year", value: field("ret_ytd"), format: signedCell, order: "asc", signed: true },
   fromHigh: {
     label: "Below 52-week high",
-    noun: "distance below the 52-week high",
-    say: (value) => (value < 0.05 ? "a price at its 52-week high" : `a price ${pct(value)} below its 52-week high`),
     // A price above the stored high is a new high: distance 0.
     value: (row) => (fin(row.from_hi_pct) ? Math.max(0, -row.from_hi_pct) : null),
     format: pctCell(1),
     order: "asc",
-    baseline: "sp500",
   },
   fromLow: {
     label: "Above 52-week low",
-    noun: "distance above the 52-week low",
-    say: (value) => (value < 0.05 ? "a price at its 52-week low" : `a price ${pct(value)} above its 52-week low`),
     // A price below the stored low is a new low: distance 0.
     value: (row) => (fin(row.from_lo_pct) ? Math.max(0, row.from_lo_pct) : null),
     format: pctCell(1),
     order: "asc",
-    baseline: "sp500",
   },
-  buyPct: { label: "Buy ratings", noun: "share of buy ratings", say: (value) => `buy ratings from ${Math.round(value)}% of its analysts`, value: field("buy_pct"), format: pctCell(0), order: "desc", baseline: "sp500" },
+  buyPct: { label: "Buy ratings", value: field("buy_pct"), format: pctCell(0), order: "desc" },
   upside: {
     label: "To analyst target",
-    noun: "distance to the average analyst target",
-    say: (value) => `an average analyst target ${pct(value)} ${value >= 0 ? "above" : "below"} the price`,
     value: field("upside"),
     format: signedCell,
     order: "desc",
-    baseline: "sp500",
   },
-  rsi: { label: "RSI", noun: "14-day RSI", say: (value) => `a 14-day RSI of ${Math.round(value)}`, value: field("rsi"), format: (value) => value.toFixed(0), order: "asc", baseline: "sp500" },
-  short: { label: "Sold short", noun: "share of tradable shares sold short", say: (value) => `${pct(value)} of its tradable shares sold short`, value: field("short_float"), format: pctCell(1), order: "desc", baseline: "sp500" },
-  roic: { label: "Return on capital", noun: "return on invested capital", say: (value) => `a ${pct(value)} return on invested capital`, value: field("roic"), format: pctCell(0), order: "desc", baseline: "sp500" },
-  score: { label: "Our score", noun: "score", say: (value) => `a score of ${Math.round(value)} out of 100`, value: field("score"), format: (value) => value.toFixed(0), order: "desc", baseline: "sp500" },
+  rsi: { label: "RSI", value: field("rsi"), format: (value) => value.toFixed(0), order: "asc" },
+  short: { label: "Sold short", value: field("short_float"), format: pctCell(1), order: "desc" },
+  roic: { label: "Return on capital", value: field("roic"), format: pctCell(0), order: "desc" },
+  score: { label: "Our score", value: field("score"), format: (value) => value.toFixed(0), order: "desc" },
   insiderValue: {
     label: "Bought by insiders",
-    noun: "amount bought by insiders",
-    say: (value) => `${moneyWords(value)} bought by insiders`,
     value: (row, input) => input.insiders.get(row.symbol.toUpperCase())?.value ?? null,
     format: moneyShort,
     order: "desc",
-    baseline: null,
   },
   fundCount: {
     label: "Funds buying",
-    noun: "number of funds buying",
-    say: (value) => `${Math.round(value)} funds buying`,
     value: (row, input) => {
       const tally = input.funds.get(row.symbol.toUpperCase());
       return tally ? tally.opened.length + tally.added.length : null;
     },
     format: (value) => String(Math.round(value)),
     order: "desc",
-    baseline: null,
   },
 } satisfies Record<string, Metric>;
 
@@ -960,92 +912,6 @@ function longDayText(day: string): string {
   return `${MONTH_NAMES[Number(match[2]) - 1]} ${Number(match[3])}, ${match[1]}`;
 }
 
-/* ── The read ─────────────────────────────────────────────────────────── */
-
-const sp500 = (rows: readonly ScreenerRow[]) => rows.filter((row) => row.indexes?.includes("S&P 500"));
-
-/** The typical (median) value of a metric across the S&P 500 stocks we cover, or null with fewer than 20 of them. */
-export function sp500Median(metricDef: Metric, input: BestInput): number | null {
-  const values = sp500(input.rows)
-    .map((row) => metricDef.value(row, input))
-    .filter(fin);
-  return values.length >= 20 ? median(values) : null;
-}
-
-/**
- * The read on top of a list: how many qualify and who leads, the typical
- * list value against the S&P 500, how the list has done this year against
- * the index, and where the list is concentrated. Plain rules on the same
- * rows; an insight the numbers cannot back is left out.
- */
-export function buildListRead(built: BuiltList, input: BestInput): TheRead {
-  const { list, ranked, count } = built;
-  const asOf = input.generatedAt;
-  const source = list.source === "insiders" ? "SEC Form 4 filings and prices" : list.source === "funds" ? "13F filings and prices" : "Prices and company data";
-  if (count === 0) {
-    return { headline: "No stock we cover meets this rule today.", insights: [], source, asOf };
-  }
-  const top = ranked[0]!;
-  const metricDef = list.metric;
-  const stocks = count === 1 ? "One stock meets" : `${count} stocks meet`;
-  const headline = `${stocks} this rule today, and ${top.name} ranks first with ${metricDef.say(top.value)}.`;
-
-  const insights: Array<Insight | null> = [];
-  const typical = median(ranked.map((row) => row.value));
-  const spyYtd = fin(input.spy?.ret_ytd) ? (input.spy!.ret_ytd as number) : null;
-
-  // 1. The typical list value against a fair baseline.
-  if (typical !== null && count >= 3) {
-    if (metricDef.baseline === "spy" && spyYtd !== null) {
-      insights.push({
-        id: "baseline",
-        tone: typical >= spyYtd ? "up" : "down",
-        text: `The typical stock here ${typical >= 0 ? "is up" : "is down"} ${pct(typical)} this year, against ${signedPct(spyYtd, 1)} for the S&P 500.`,
-      });
-    } else if (metricDef.baseline === "sp500") {
-      const base = sp500Median(metricDef, input);
-      if (base !== null) {
-        insights.push({
-          id: "baseline",
-          tone: "flat",
-          text: `The typical ${metricDef.noun} on this list is ${metricDef.format(typical)}, against ${metricDef.format(base)} for the typical S&P 500 stock we cover${metricDef.baselineOf ? ` (${metricDef.baselineOf} only)` : ""}.`,
-        });
-      }
-    }
-  }
-
-  // 2. This year against the S&P 500 (skipped when the list is ranked by it).
-  if (metricDef.baseline !== "spy" && spyYtd !== null) {
-    const withYtd = ranked.filter((row) => row.ret_ytd !== null);
-    if (withYtd.length >= 3) {
-      const ahead = withYtd.filter((row) => (row.ret_ytd as number) > spyYtd);
-      const best = [...withYtd].sort((a, b) => (b.ret_ytd as number) - (a.ret_ytd as number))[0]!;
-      insights.push({
-        id: "ytd",
-        tone: ahead.length * 2 >= withYtd.length ? "up" : "down",
-        text: `${ahead.length} of the ${withYtd.length}${withYtd.length < count ? " with prices from the start of the year" : ""} are ahead of the S&P 500 this year (${signedPct(spyYtd, 1)}), led by ${best.name} at ${signedPct(best.ret_ytd as number)}.`,
-        tickers: [best.symbol],
-      });
-    }
-  }
-
-  // 3. Where the list is concentrated.
-  const bySector = new Map<string, number>();
-  for (const row of ranked) if (row.sector) bySector.set(row.sector, (bySector.get(row.sector) ?? 0) + 1);
-  const sectors = [...bySector.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-  if (sectors.length > 0 && count >= 4 && list.group !== "Industries" && list.slug !== "undervalued-tech-stocks") {
-    const [sector, members] = sectors[0]!;
-    const share = members / count;
-    const text =
-      share >= 0.4
-        ? `${members} of the ${count} are ${sector.toLowerCase()} companies, more than any other sector.`
-        : `The list spreads across ${sectors.length} sectors; ${sector.toLowerCase()} has the most with ${members}.`;
-    insights.push({ id: "sector", tone: "flat", text, action: { label: `${sector} stocks`, href: `/sectors/${sectorSlug(sector)}` } });
-  }
-
-  return { headline, insights: pickInsights(insights, 3), source, asOf };
-}
-
 /* ── Insider and fund tallies ─────────────────────────────────────────── */
 
 export type InsiderBuyLike = {
@@ -1129,59 +995,6 @@ export function tallyFundBuys(digests: readonly FundDigestLike[], period: string
 }
 
 /* ── The hub ──────────────────────────────────────────────────────────── */
-
-/** The read on the hub: which stock shows up on the most lists, and the longest and shortest lists today. */
-export function buildHubRead(built: readonly BuiltList[], input: BestInput): TheRead | null {
-  if (built.length === 0) return null;
-  const live = built.filter((item) => item.count >= LIST_MIN_STOCKS);
-  const headline =
-    live.length === built.length
-      ? `All ${built.length} lists have five or more stocks that meet their rule today.`
-      : `${live.length} of our ${built.length} lists have five or more stocks that meet their rule today.`;
-  const appearances = new Map<string, { name: string; lists: string[] }>();
-  for (const item of built) {
-    for (const row of item.shown) {
-      const held = appearances.get(row.symbol) ?? { name: row.name, lists: [] };
-      held.lists.push(inSentence(item.list.name));
-      appearances.set(row.symbol, held);
-    }
-  }
-  const most = [...appearances.entries()].sort((a, b) => b[1].lists.length - a[1].lists.length || a[0].localeCompare(b[0]))[0];
-  const insights: Array<Insight | null> = [];
-  if (most && most[1].lists.length >= 3) {
-    insights.push({
-      id: "most-lists",
-      tone: "flat",
-      text: `${most[1].name} makes ${most[1].lists.length} of the lists, more than any other stock, including ${joinNames(most[1].lists.slice(0, 3))}.`,
-      tickers: [most[0]],
-      action: { label: `Open ${most[0]}`, href: `/stock/${encodeURIComponent(most[0])}` },
-    });
-  }
-  const bySize = [...built].sort((a, b) => b.count - a.count);
-  const longest = bySize[0];
-  if (longest && longest.count > 0) {
-    insights.push({
-      id: "longest",
-      tone: "flat",
-      text: `The longest list is ${inSentence(longest.list.name)}, with ${longest.count} stocks.`,
-      action: { label: "See it", href: bestListHref(longest.list.slug) },
-    });
-  }
-  const thin = built.filter((item) => item.count < LIST_MIN_STOCKS);
-  if (thin.length > 0) {
-    insights.push({
-      id: "thin",
-      tone: "flat",
-      text: `${thin.length === 1 ? "One list has" : `${thin.length} lists have`} fewer than five stocks today: ${joinNames(thin.slice(0, 4).map((item) => `${inSentence(item.list.name)} (${item.count})`))}.`,
-    });
-  }
-  return { headline, insights: pickInsights(insights, 3), source: "Prices, company data and filings", asOf: input.generatedAt };
-}
-
-/** A list name inside a sentence: "Dividend stocks" -> "dividend stocks", while "AI stocks" keeps its capitals. */
-export function inSentence(name: string): string {
-  return /^[A-Z][A-Z0-9/]/.test(name) ? name : `${name.charAt(0).toLowerCase()}${name.slice(1)}`;
-}
 
 /* ── Structured data ──────────────────────────────────────────────────── */
 

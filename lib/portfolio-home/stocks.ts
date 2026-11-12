@@ -1,4 +1,5 @@
 import { MONTH_SESSIONS, closeOnOrBefore, monthChange, windowStart } from "@/lib/briefing-move-facts";
+import { onDayWords } from "@/lib/day-words";
 import { fmtPlanDay } from "@/lib/dividend-plan";
 import { whenWords } from "@/lib/earnings-season";
 import type { CallWord } from "@/lib/portfolio-ideas/types";
@@ -100,6 +101,8 @@ export type StockCard = {
   ticker: string;
   name: string;
   href: string;
+  /** The stock's price on the price day: the card's figure. */
+  price: number | null;
   dayPct: number | null;
   /** Dollars the holding moved on the price day, when its share count is known. */
   dayMove: number | null;
@@ -225,7 +228,7 @@ export function stockFacts(input: {
   if (change && change.to === plain) {
     out.push({
       kind: "call",
-      text: change.from ? `Our call moved from ${change.from} to ${change.to} on ${fmtPlanDay(change.day)}.` : `Our call moved to ${change.to} on ${fmtPlanDay(change.day)}.`,
+      text: change.from ? `Our call moved from ${change.from} to ${change.to} ${onDay(change.day, today)}.` : `Our call moved to ${change.to} ${onDay(change.day, today)}.`,
       priority: 90,
     });
   }
@@ -250,7 +253,7 @@ export function stockFacts(input: {
   if (insider) {
     const value = insider.value !== null && insider.value > 0 ? ` ${bigDollars(insider.value)}` : "";
     const who = insider.count === 1 ? capital(insider.who ?? "an insider") : `${insider.count} insiders`;
-    out.push({ kind: "insider", text: `${who} bought${value} of stock${insider.count === 1 ? ` on ${fmtPlanDay(insider.day)}` : ` by ${fmtPlanDay(insider.day)}`}.`, priority: 70 });
+    out.push({ kind: "insider", text: `${who} bought${value} of stock${insider.count === 1 ? ` ${onDay(insider.day, today)}` : ` by ${fmtPlanDay(insider.day)}`}.`, priority: 70 });
   }
 
   const price = position.price;
@@ -336,6 +339,7 @@ export function stockCards(source: BookSource, extra: Pick<BookFacts, "reasons" 
       ticker: position.ticker,
       name: position.name,
       href: `/stock/${encodeURIComponent(position.ticker)}`,
+      price: fin(position.price) ? position.price : null,
       dayPct: fin(position.dayPct) ? position.dayPct : null,
       dayMove: fin(position.dayMove) ? position.dayMove : null,
       gain: fin(position.gain) ? position.gain : null,
@@ -358,8 +362,19 @@ export function stockCards(source: BookSource, extra: Pick<BookFacts, "reasons" 
 /** Within this many points of the S&P 500, the stocks moved "in line" with it. */
 const IN_LINE_POINTS = 0.15;
 
+/** "today", "yesterday", "on Monday", "on Nov 3" (lib/day-words.ts); the plain date for a day the helper cannot read. */
+function onDay(day: string, today: string): string {
+  return onDayWords(day, today) || `on ${fmtPlanDay(day)}`;
+}
+
+/** "today", "yesterday", "on Monday" within the week, "on Nov 3" before (lib/day-words.ts). */
 function dayLabel(pricesDay: string | null, today: string): string {
-  return !pricesDay || pricesDay === today ? "today" : `on ${fmtPlanDay(pricesDay)}`;
+  return (pricesDay && onDayWords(pricesDay, today)) || "today";
+}
+
+/** The lead's day label ("Today", "Yesterday", "Monday", "Nov 3") back inside a sentence: "today", "on Monday". */
+export function labelWhen(label: string): string {
+  return label === "Today" || label === "Yesterday" ? label.toLowerCase() : `on ${label}`;
 }
 
 function verb(pct: number): string {
@@ -390,7 +405,7 @@ export function bookLead(source: BookSource): BookLead | null {
   const moved = positions.filter((position) => fin(position.dayPct));
   const average = !fin(totals.dayPct) && moved.length > 0;
   const dayPct = fin(totals.dayPct) ? totals.dayPct : average ? moved.reduce((sum, position) => sum + position.dayPct!, 0) / moved.length : null;
-  const today = dayPct !== null ? { pct: dayPct, dollars: fin(totals.dayMove) ? totals.dayMove : null, marketPct: source.marketPct, label: when === "today" ? "Today" : capital(when.replace(/^on /, "")) } : null;
+  const today = dayPct !== null ? { pct: dayPct, dollars: fin(totals.dayMove) ? totals.dayMove : null, marketPct: source.marketPct, label: capital(when.replace(/^on /, "")) } : null;
   const gain = fin(totals.gain) && totals.withCost > 0 ? { dollars: totals.gain, pct: fin(totals.gainPct) ? totals.gainPct : null, counted: totals.withCost, of: totals.holdings } : null;
   const headline = today
     ? leadHeadline({ pct: today.pct, marketPct: today.marketPct, when, example, average })
@@ -425,7 +440,7 @@ export function leadParts(lead: BookLead, example: boolean): ReadPart[][] {
   const out: ReadPart[][] = [];
   const today = lead.today;
   if (today && today.dollars !== null && Math.abs(today.dollars) >= 0.5) {
-    const when = today.label === "Today" ? "today" : `on ${today.label}`;
+    const when = labelWhen(today.label);
     out.push([{ text: `${they} ${today.dollars >= 0 ? "made" : "lost"} ` }, { text: dollars(today.dollars), tone: toneOfValue(today.dollars) }, { text: ` ${when}.` }]);
   }
   const week = lead.week;

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { buildScreenerRead, buildSectorsRead } from "./screener-insights";
-import { sectorStats, type ScreenerRow } from "./screener-shared";
+import { buildScreenerRead } from "./screener-insights";
+import type { ScreenerRow } from "./screener-shared";
 
 const SPY: ScreenerRow = { symbol: "SPY", ret_1y: 14, day_pct: 1, benchmark: true };
 
@@ -29,10 +29,5 @@ describe("screener read", () => {
 
   it("is null for an empty set", () => {
     expect(buildScreenerRead({ matched: [], universe, narrowed: true, priceDay: null })).toBeNull();
-  });
-
-  it("reads the Sectors tab", () => {
-    const read = buildSectorsRead({ stats: sectorStats(universe), priceDay: "2026-11-09" });
-    expect(read?.headline).toMatch(/^Technology led on Nov 9 \(\+\d\.\d%\) and Energy lagged \(−1\.0%\); 1 of 2 sectors rose\.$/);
   });
 });

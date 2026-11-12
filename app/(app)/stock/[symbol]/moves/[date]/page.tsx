@@ -2,12 +2,11 @@ import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 
 import { JsonLd, breadcrumbLd } from "@/components/docs/json-ld";
-import { TheRead } from "@/components/oa/insight";
 import { AppPage, CardGrid, Delta, NUM, PageHead, Panel, SourceLine, Tag, fmtDay, fmtStampET } from "@/components/oa/kit";
 import { CallTag } from "@/components/screener/shared";
 import { StockLogo } from "@/components/stock-logo";
 import { todayET } from "@/lib/calendar-shared";
-import { buildMoveRead, closeOn, sinceClose } from "@/lib/move-page";
+import { closeOn, sinceClose } from "@/lib/move-page";
 import { ogImage } from "@/lib/og/url";
 import { getDailySeries } from "@/lib/screener-series";
 import { sectorSlug } from "@/lib/screener-shared";
@@ -48,11 +47,10 @@ async function resolve(params: Props["params"]) {
   const coverage = await getCoverage();
   const row = coverage.bySymbol.get(ticker) ?? null;
   const name = row?.name ?? getSeoStockPage(ticker)?.name ?? move.name;
-  const { series } = await getDailySeries([ticker, "SPY"]).catch(() => ({ series: {} as Record<string, never> }));
+  const { series } = await getDailySeries([ticker]).catch(() => ({ series: {} as Record<string, never> }));
   const close = closeOn(series[ticker], move.day);
-  const spyClose = closeOn(series.SPY, move.day);
   const since = sinceClose(series[ticker], move.day);
-  return { ticker, move, moves, row, name, close, spyClose, since };
+  return { ticker, move, moves, row, name, close, since };
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -80,11 +78,10 @@ export default async function MovePage({ params }: Props) {
   if (params.symbol !== ticker) permanentRedirect(moveHref(ticker, params.date));
   const found = await resolve(params);
   if (!found) notFound();
-  const { move, moves, row, name, close, spyClose, since } = found;
+  const { move, moves, row, name, close } = found;
   const today = todayET();
   const path = moveHref(ticker, move.day);
   const title = moveTitle({ name, ticker, pct: close?.pct ?? move.pct, day: move.day, today, closed: Boolean(close) });
-  const read = buildMoveRead({ move, close, spyClose, since, call: row?.call ? { word: row.call, at: row.call_at ?? null } : null });
   const others = (await getRecentMoves()).filter((item) => item.ticker === ticker && item.day !== move.day).slice(0, 5);
   const sameDay = moves.filter((item) => item.ticker !== ticker).slice(0, 6);
 
@@ -125,8 +122,6 @@ export default async function MovePage({ params }: Props) {
         meta={<SourceLine source="Researched from news and filings" asOf={move.researchedAt ? fmtStampET(move.researchedAt) : undefined} />}
         note={false}
       />
-
-      <TheRead read={read} label={`${ticker} on ${fmtDay(move.day)}, in short`} className="mb-4" />
 
       <CardGrid cols={2} className="mb-4">
         <Panel fill label="The reason we found">

@@ -4,12 +4,11 @@ import { notFound, permanentRedirect } from "next/navigation";
 
 import { JsonLd, breadcrumbLd } from "@/components/docs/json-ld";
 import { InsiderTable } from "@/components/follow/insider-table";
-import { TheRead } from "@/components/oa/insight";
 import { AppPage, CardGrid, NUM, PageHead, Panel, SourceLine, StatStrip, fmtDay } from "@/components/oa/kit";
 import { StockLogo } from "@/components/stock-logo";
 import { todayET } from "@/lib/calendar-shared";
 import { getInsiderTradesForSymbol, type InsiderTrade } from "@/lib/follow";
-import { buildInsiderPageRead, insiderTotals, usd } from "@/lib/insider-page";
+import { insiderTotals, usd } from "@/lib/insider-page";
 import { ogImage } from "@/lib/og/url";
 import { sectorSlug } from "@/lib/screener-shared";
 import { cleanTicker, insiderHref, insiderIsIndexable, insiderTitle, insiderWindow, pairHref, sectorHref, stockLabel } from "@/lib/seo/families";
@@ -18,9 +17,8 @@ import Link from "next/link";
 import { AppLink } from "@/components/oa/app-link";
 
 /**
- * Insider trades for one stock (/insiders/NVDA), from SEC Form 4: the read,
- * the totals and every open-market trade we hold. The page exists for every
- * stock we cover and for any ticker with a trade on file; anything else is a
+ * Insider trades for one stock (/insiders/NVDA), from SEC Form 4: the totals
+ * and every open-market trade we hold. The page exists for every stock we cover and for any ticker with a trade on file; anything else is a
  * real 404 (no loading.tsx in this segment; the hub's lives in (hub)).
  * Indexable with INSIDER_MIN_TRADES or more trades in the window.
  */
@@ -74,7 +72,6 @@ export default async function InsiderStockPage({ params }: Props) {
   const { coverage, row, trades, name } = found;
   const path = insiderHref(ticker);
   const totals = insiderTotals(trades);
-  const read = buildInsiderPageRead({ ticker, trades, price: row?.price ?? null });
   const sorted = [...trades].sort((a, b) => (a.filed_at < b.filed_at ? 1 : a.filed_at > b.filed_at ? -1 : 0));
   const pairs = pairsFor(stockPairs(coverage), ticker).slice(0, 3);
 
@@ -97,13 +94,11 @@ export default async function InsiderStockPage({ params }: Props) {
         note={false}
       />
 
-      {read ? (
-        <TheRead read={read} label={`${ticker} insiders, in short`} className="mb-4" />
-      ) : (
+      {trades.length === 0 ? (
         <Panel className="mb-4">
           <p className="text-[15px] leading-[22px] text-oa-fg">No open-market insider buys or sales of {ticker} on file in the last 12 months.</p>
         </Panel>
-      )}
+      ) : null}
 
       {trades.length > 0 ? (
         <>

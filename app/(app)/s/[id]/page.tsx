@@ -7,6 +7,7 @@ import { DeleteShare } from "@/components/share/delete-share";
 import { ShareCardView } from "@/components/share/share-card";
 import { getSessionUser } from "@/lib/auth-server";
 import { OG_HEIGHT, OG_SITE_URL, OG_WIDTH } from "@/lib/og/url";
+import { cardSummary } from "@/lib/share/cards";
 import { isShareOwner, readShare } from "@/lib/share/store";
 import { SHARE_CTA, isShareId, type ShareKind } from "@/lib/share/types";
 
@@ -40,8 +41,8 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   if (!share) return { title: "Card not found", robots: NOINDEX };
   const path = `/s/${share.id}`;
   const title = share.card.topic;
-  const description = share.card.headline;
-  const image = { url: `${OG_SITE_URL}/api/og/share/${share.id}`, width: OG_WIDTH, height: OG_HEIGHT, alt: share.card.headline, type: "image/png" };
+  const description = cardSummary(share.card);
+  const image = { url: `${OG_SITE_URL}/api/og/share/${share.id}`, width: OG_WIDTH, height: OG_HEIGHT, alt: description, type: "image/png" };
   return {
     title,
     description,

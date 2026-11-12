@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { TableBox } from "@/components/oa/kit/table-box";
 import Link from "next/link";
 
 import { longDay, ratio, signedPct, toneOf, yearsWords } from "@/components/backtest/format";
@@ -6,14 +7,10 @@ import { Sparkline } from "@/components/backtest/sparkline";
 import { interTight } from "@/components/oa/font";
 import { MarkSlot, PageHead, PageNote, ToneGlyph } from "@/components/oa/kit";
 import { OaSiteHeader } from "@/components/oa/oa-site-header";
-import { TheRead } from "@/components/oa/insight";
 import { LiveLine, PAGE_FRAME, SWINGS_TONE } from "@/components/strategies/shared";
 import { getSessionUser } from "@/lib/auth-server";
-import { can } from "@/lib/entitlements";
-import { getViewer } from "@/lib/entitlements-server";
-import { getScreenerRows } from "@/lib/screener";
 import { listStrategies, liveHasReturn, readTrackedStrategies, type StrategySummary } from "@/lib/strategies";
-import { backtestGap, buildStrategiesRead, strategiesTally, type YtdMap } from "@/lib/strategies-insights";
+import { backtestGap, strategiesTally } from "@/lib/strategies-insights";
 import { markFor } from "@/lib/tone";
 import { getUserDoc } from "@/lib/watchlist";
 import { ogImage } from "@/lib/og/url";
@@ -32,7 +29,7 @@ export function generateMetadata(): Metadata {
 
 export const dynamic = "force-dynamic";
 
-const LEDE = "A short list of rules, applied at each month end, and how they did on past prices. Pro shows what each one holds now.";
+const LEDE = "Simple rules, rebalanced at each month end and tested on past prices.";
 
 /**
  * A figure in a right-aligned column. `mark` is the good-or-bad glyph after it; pass null (not undefined)
@@ -200,20 +197,10 @@ export default async function StrategiesPage() {
   const [items, session] = await Promise.all([listStrategies().catch(() => [] as StrategySummary[]), getSessionUser()]);
   const userDoc = session ? await getUserDoc(session.uid).catch(() => null) : null;
   const tracked = new Set(readTrackedStrategies(userDoc).map((entry) => entry.slug));
-  // One list behind every count on the page: the read's two "beat the S&P 500" counts and the line above the table.
+  // One list behind every count in the line above the table.
   const tally = strategiesTally(items);
   const first = tally.tested.find((item) => (item.backtest?.period.years ?? 0) >= 3)?.backtest ?? tally.tested[0]?.backtest ?? null;
   const liveSince = items[0]?.live.since ?? null;
-
-  // The read names holdings only for plans that see what each strategy holds.
-  const seesHoldings = can("strategy_holdings", (await getViewer()).plan);
-  const ytd: YtdMap = {};
-  if (seesHoldings) {
-    const symbols = [...new Set(items.filter((item) => item.universe.kind === "stocks").flatMap((item) => item.top_holdings.map((holding) => holding.symbol)))];
-    const rows = await getScreenerRows(symbols).catch(() => new Map());
-    for (const [symbol, row] of rows) ytd[symbol] = row.ret_ytd;
-  }
-  const read = buildStrategiesRead(items, { seesHoldings, ytd, tally });
 
   // The live record is one sentence until a session has closed; after that each row gets its own figure.
   // The fill day alone is only the cost of buying in, the same figure on every strategy: not a live return yet.
@@ -254,7 +241,6 @@ export default async function StrategiesPage() {
           </div>
         ) : (
           <div className="flex flex-col gap-6">
-            <TheRead read={read} />
             <section className="oa-surface overflow-hidden border border-oa-border bg-oa-card">
               <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 border-b border-oa-border px-4 py-2 text-[12.5px] leading-[18px] text-oa-muted-fg">
                 <span className="font-medium text-oa-fg">Backtested, not traded</span>
@@ -263,7 +249,7 @@ export default async function StrategiesPage() {
                     {longDay(first.period.start)} to {longDay(first.period.end)}
                   </span>
                 ) : null}
-                {/* The read above already says how many beat the S&P 500; this line says once how many rows have one. */}
+                {/* Said once here, not on each row: how many rows have a backtest, and how many of those beat the S&P 500. */}
                 {tally.untested.length > 0 && tally.tested.length > 0 ? (
                   <>
                     <span aria-hidden="true">·</span>
@@ -271,7 +257,8 @@ export default async function StrategiesPage() {
                       {tally.tested.length} of {tally.total} have a backtest
                     </span>
                   </>
-                ) : !read.headline && tally.tested.length > 0 ? (
+                ) : null}
+                {tally.tested.length > 0 ? (
                   <>
                     <span aria-hidden="true">·</span>
                     <span>
@@ -305,7 +292,8 @@ export default async function StrategiesPage() {
                   How to read<span className="max-sm:hidden"> these</span>
                 </a>
               </p>
-              <div className="hidden lg:block">
+              {/* About eight strategies in view, the rest scroll inside (owner rule 5). */}
+              <TableBox className="hidden lg:block" rowRem={3.5} head="bg-oa-bg">
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="border-b border-oa-border bg-oa-bg text-left">
@@ -335,7 +323,7 @@ export default async function StrategiesPage() {
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </TableBox>
               <div className="lg:hidden">
                 {items.map((item) => (
                   <MobileCard key={item.slug} item={item} tracked={tracked.has(item.slug)} showLive={showLive} liveBare={liveBare} />

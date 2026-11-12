@@ -2,14 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { AppPage, PageHead, SourceLine, fmtStampET } from "@/components/oa/kit";
-import { TheRead } from "@/components/oa/insight";
 import { MyStocksTabs } from "@/components/portfolio/my-stocks-tabs";
 import { TaxView } from "@/components/portfolio-tax/tax-view";
 import { TaxSignIn } from "@/components/portfolio-tax/tax-sign-in";
 import { getSessionUser } from "@/lib/auth-server";
 import { newYorkToday } from "@/lib/portfolio-data";
 import { buildTaxPicture } from "@/lib/portfolio-tax";
-import { buildTaxRead } from "@/lib/portfolio-tax-insights";
 import { loadTaxView, type TaxViewData } from "@/lib/portfolio-tax-data";
 import { getUserDoc } from "@/lib/watchlist";
 
@@ -57,7 +55,6 @@ export default async function PortfolioTaxPage({ searchParams }: { searchParams:
       <MyStocksTabs current="taxes" />
       {session ? (
         <>
-          <TheRead read={buildTaxRead(data.picture, currentYear)} label={`Your taxes in ${currentYear}`} className="mb-3" askContext="portfolio" />
           <p className="mb-3 px-2 text-pretty text-[14px] leading-5 text-oa-muted-fg sm:px-0">
             Wondering what to sell?{" "}
             <Link href="/portfolio/ideas" className="font-medium text-oa-primary hover:underline">

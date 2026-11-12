@@ -11,7 +11,7 @@ import * as React from "react";
 const PHONE_ROWS = 8;
 const WIDE_ROWS = 5;
 
-export function FitCards({ className, children }: { className: string; children: React.ReactNode }) {
+export function FitCards({ id, className, children }: { id?: string; className: string; children: React.ReactNode }) {
   const list = React.useRef<HTMLUListElement>(null);
   const [max, setMax] = React.useState<number | null>(null);
 
@@ -42,7 +42,7 @@ export function FitCards({ className, children }: { className: string; children:
   }, []);
 
   return (
-    <ul ref={list} className={`relative ${className}`} style={max !== null ? { maxHeight: max } : undefined}>
+    <ul ref={list} id={id} className={`relative ${className}`} style={max !== null ? { maxHeight: max } : undefined}>
       {children}
     </ul>
   );

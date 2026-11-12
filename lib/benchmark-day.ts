@@ -12,6 +12,7 @@
  * Pure.
  */
 
+import { daysFromToday, dayPossessive } from "@/lib/day-words";
 import type { MarketAsset } from "@/lib/markets-shared";
 import type { ScreenerRow } from "@/lib/screener-shared";
 
@@ -83,13 +84,17 @@ function withoutReturns(row: ScreenerRow): ScreenerRow {
 const ET_CLOCK = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 
 /**
- * How to say which prices a page shows: "the Nov 10 close", or "Nov 11, during
- * trading" when the quotes are from today and the market has not closed yet
- * (before 4 PM New York time). `label` is the day already formatted.
+ * How to say which prices a page shows: "yesterday's close", "Monday's close"
+ * within the week, "the Nov 3 close" before it, or "today, during trading" when
+ * the quotes are from today and the market has not closed yet (before 4 PM New
+ * York time). `label` is the day already formatted, used only for a day more
+ * than a week back. Worked out against `now`: only for pages cached an hour or less.
  */
 export function closeWords(day: string, label: string, now: number | Date = Date.now()): string {
   const parts = Object.fromEntries(ET_CLOCK.formatToParts(new Date(now)).map((part) => [part.type, part.value]));
   const today = `${parts.year}-${parts.month}-${parts.day}`;
   const beforeClose = Number(parts.hour) < 16;
-  return day === today && beforeClose ? `${label}, during trading` : `the ${label} close`;
+  if (day === today && beforeClose) return "today, during trading";
+  const gap = daysFromToday(day, today);
+  return gap !== null && Math.abs(gap) <= 6 ? `${dayPossessive(day, today)} close` : `the ${label} close`;
 }

@@ -165,7 +165,7 @@ const TABLE = {
     },
   },
   portfolio_analytics: {
-    name: "Portfolio analytics: allocation, concentration, risk, performance vs S&P 500",
+    name: "Portfolio analytics: how the money sits, what reports soon and our calls on your holdings",
     group: "Your stocks",
     anon: locked,
     free: open,
@@ -173,6 +173,19 @@ const TABLE = {
     lock: {
       title: "Sign in to see your analytics",
       body: "Allocation, concentration and performance against the S&P 500 for whatever you add. Free.",
+    },
+  },
+  // What you own (/portfolio/xray): how the money sits, what reports soon and our calls stay free; the work of
+  // opening funds and walking the mix through a year of prices and past crashes is what Pro adds.
+  portfolio_analysis_deep: {
+    name: "Deeper portfolio analysis: inside your funds, share of the swings, names that move together, past crashes, what made the money",
+    group: "Your stocks",
+    anon: locked,
+    free: locked,
+    pro: open,
+    lock: {
+      title: "See what really drives your money",
+      body: "Pro opens your funds and shows the swings, past crashes and what made the money. Free keeps the rest.",
     },
   },
   practice_account: {

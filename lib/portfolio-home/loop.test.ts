@@ -137,17 +137,20 @@ describe("watchStatus", () => {
 
   it("reads the agent's last run back with its real time", () => {
     const match = matchAgent(plan, "NVDA", agents([earningsJob], [{}]), new Set(), TODAY);
-    expect(watchStatus({ plan, match, agents: "ready" })).toBe("Your agent “NVDA earnings” does this. It last ran Nov 10 at 5:40 PM ET and found nothing to tell you.");
+    expect(watchStatus({ plan, match, agents: "ready", today: TODAY })).toBe("Your agent “NVDA earnings” does this. It last ran yesterday at 5:40 PM ET and found nothing to tell you.");
     expect(watchStatus({ plan, match: { ...match!, lastRun: null }, agents: "ready" })).toBe("Your agent “NVDA earnings” does this. It has not run yet.");
     expect(watchStatus({ plan, match: { ...match!, enabled: false }, agents: "ready" })).toBe("Your agent “NVDA earnings” does this, but it is paused.");
   });
 
   it("formats times in New York and days without one", () => {
-    expect(stampWords("2026-11-09T20:13:00.000Z", "2026-11-09")).toBe("Nov 9 at 3:13 PM ET");
-    expect(stampWords(null, "2026-11-10")).toBe("Nov 10");
+    expect(stampWords("2026-11-09T20:13:00.000Z", "2026-11-09", TODAY)).toBe("Monday at 3:13 PM ET");
+    expect(stampWords("2026-11-02T20:13:00.000Z", "2026-11-02", TODAY)).toBe("Nov 2 at 3:13 PM ET");
+    expect(stampWords(null, "2026-11-10", TODAY)).toBe("yesterday");
     expect(stampWords(null, null)).toBe("");
     expect(nextWords(TODAY, TODAY)).toBe("After the close today.");
-    expect(nextWords("2026-11-12", TODAY)).toBe("After the close on Nov 12.");
+    expect(nextWords("2026-11-12", TODAY)).toBe("After the close tomorrow.");
+    expect(nextWords("2026-11-16", TODAY)).toBe("After the close on Monday.");
+    expect(nextWords("2026-11-24", TODAY)).toBe("After the close on Nov 24.");
   });
 });
 
@@ -197,7 +200,7 @@ describe("lead findings speak about the stock they are labelled with", () => {
       },
     });
     const [found] = pickNoticed({ memo: empty, xray: empty, season, dividends: empty, stress: empty, ideas: empty }, "example");
-    expect(found!.headline).toBe("NVIDIA reports on Nov 17 after the close.");
+    expect(found!.headline).toBe("NVIDIA reports on Tuesday after the close.");
     expect(found!.why).toBe("Of the holdings reporting soon, its report matters most: it is 11% of the example portfolio.");
     expect(found!.source).toEqual({ label: "Earnings calendar", day: "2026-11-09", at: "2026-11-09T20:13:00.000Z" });
   });

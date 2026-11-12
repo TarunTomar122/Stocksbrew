@@ -130,7 +130,7 @@ describe("pickNoticed", () => {
 
   it("names the report that matters most and offers a reminder only the agent box can read", () => {
     const [item] = pickNoticed(sources({ season: season([stock("COST", "Costco", "2026-11-12", 4), stock("NVDA", "NVIDIA", "2026-11-17", 11)]) }), "mine");
-    expect(item!.text).toBe("NVIDIA's report on Nov 17 after the close matters most: it is 11% of your portfolio.");
+    expect(item!.text).toBe("NVIDIA's report on Tuesday after the close matters most: it is 11% of your portfolio.");
     expect(item!.evidence).toContain("Two of your holdings report in the next six weeks.");
     expect(item!.watch).toEqual({ href: "/agents?q=Tell%20me%203%20days%20before%20NVDA%20reports%20earnings", request: "Tell me 3 days before NVDA reports earnings" });
   });

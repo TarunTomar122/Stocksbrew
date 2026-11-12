@@ -1,4 +1,5 @@
 import { ToneGlyph } from "@/components/oa/kit/tone";
+import { TableBox } from "@/components/oa/kit/table-box";
 import type { Caveat, CurveStats, YearRow } from "@/lib/backtest/types";
 import { beatYearsSentence, swingSentence } from "@/lib/backtest-insights";
 import { markFor } from "@/lib/tone";
@@ -195,7 +196,7 @@ export function YearTable({
   // No bar beside each year: the percent already says it (owner rule 5).
   const rows = [...years].reverse();
   return (
-    <div className="overflow-x-auto">
+    <TableBox rowRem={2.25}>
       <table className="w-full min-w-[20rem] border-collapse text-[13px]">
         <thead>
           <tr className="border-b border-oa-border text-left">
@@ -222,7 +223,7 @@ export function YearTable({
           })}
         </tbody>
       </table>
-    </div>
+    </TableBox>
   );
 }
 

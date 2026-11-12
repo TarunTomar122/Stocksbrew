@@ -2,10 +2,8 @@ import Link from "next/link";
 import * as React from "react";
 
 import { NUM, Panel, Ticker, fmtDay } from "@/components/oa/kit";
-import { TheRead } from "@/components/oa/insight";
 import { EpisodeToggle } from "@/components/stress/episode-toggle";
 import { watchMoveHref } from "@/lib/agents-plain/ask-links";
-import type { TheRead as TheReadData } from "@/lib/insights";
 import {
   coveredPct,
   episodeSentence,
@@ -21,9 +19,9 @@ import {
 } from "@/lib/stress-test";
 
 /**
- * /portfolio/stress: the read on top, then one row per real market episode
- * with the portfolio's move and the S&P 500's as bars from a shared zero
- * line. A row opens to every holding's move over the same closes.
+ * /portfolio/stress: one row per real market episode with the portfolio's
+ * move and the S&P 500's as bars from a shared zero line. A row opens to
+ * every holding's move over the same closes.
  */
 
 const MARKET_FILL = "bg-[color-mix(in_srgb,var(--oa-muted-fg)_42%,transparent)]";
@@ -172,7 +170,7 @@ function Detail({ result, subject }: { result: EpisodeResult; subject: string })
 }
 
 /**
- * The next step beside the read: an alert on the stock that did the most damage in the worst sell-off, so the
+ * The next step at the top: an alert on the stock that did the most damage in the worst sell-off, so the
  * next big drop in it is not a surprise. Only when that stock lost money there.
  */
 function WatchWorst({ result }: { result: StressResult }) {
@@ -193,12 +191,10 @@ function WatchWorst({ result }: { result: StressResult }) {
 
 export function StressView({
   result,
-  read,
   example,
   historyFirst,
 }: {
   result: StressResult;
-  read: TheReadData | null;
   example: boolean;
   historyFirst: string | null;
 }) {
@@ -207,12 +203,6 @@ export function StressView({
   const subject = example ? "Portfolio" : "Yours";
   return (
     <div className="flex flex-col gap-3">
-      <TheRead
-        read={read ? { ...read, source: "Real closes from each episode, dividends included. This is history, not a forecast." } : null}
-        label={example ? "How this portfolio did in past market shocks" : "How your portfolio did in past market shocks"}
-        fold="phone"
-        askContext={example ? "ex.portfolio" : "portfolio"}
-      />
       <WatchWorst result={result} />
       <Panel
         flush

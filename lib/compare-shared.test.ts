@@ -3,11 +3,13 @@ import { describe, expect, it } from "vitest";
 import {
   bestIndex,
   buildCompareTable,
+  buildScoreboard,
   compareHref,
-  describeDifferences,
   figureLabel,
   legacyCompareSymbols,
   parseCompareSymbols,
+  SCORE_METRICS,
+  scoreWinner,
   tallyWins,
   withChartReturns,
 } from "./compare-shared";
@@ -120,52 +122,91 @@ describe("compare table", () => {
   });
 });
 
-describe("what separates them", () => {
-  it("leads each row with one figure and the other name's number as its baseline", () => {
-    const rows = describeDifferences([NVDA, AMD]).map((item) => `${item.figure} | ${item.text}`);
-    expect(rows).toContain("14× | How much bigger NVDA is than AMD, at $4.60T against $340B.");
-    expect(rows).toContain("+83% | NVDA's sales growth over a year, against +21% for AMD.");
-    expect(rows).toContain("$15 | What you pay for $1 of NVDA's expected profit next year, against $31 for AMD.");
-    expect(rows).toContain("65¢ | NVDA's operating profit on each sales dollar, against 10¢ for AMD.");
-    expect(rows).toContain("$23.6B | NVDA's cash beyond its debt, while AMD owes $1.20B more than it holds.");
-    expect(rows).toContain("+40% | AMD's move in the year to the last close, against −0.8% for NVDA.");
-    expect(rows).toContain("58% | How much AMD's price swings in a year, against 46% for NVDA.");
+describe("where they differ: the scoreboard", () => {
+  it("defines which end wins on every row in one table", () => {
+    const better = Object.fromEntries(SCORE_METRICS.map((metric) => [metric.id, metric.better]));
+    expect(better).toEqual({ size: "neutral", growth: "high", price: "low", margin: "high", cash: "high", year: "high", swing: "low" });
+    const words = Object.fromEntries(SCORE_METRICS.filter((metric) => metric.word).map((metric) => [metric.id, metric.word]));
+    expect(words).toEqual({ size: "bigger", price: "cheaper", swing: "steadier" });
+    // The hover hint stays within eight words.
+    for (const metric of SCORE_METRICS) expect(metric.hint.split(/\s+/).length).toBeLessThanOrEqual(8);
   });
 
-  it("names whose figure leads each row and the other's number beside it", () => {
-    const profit = describeDifferences([NVDA, AMD]).find((item) => item.topic === "Profit");
-    expect(profit).toMatchObject({ figure: "65¢", leader: "NVDA", words: "operating profit per sales dollar", others: [{ label: "AMD", value: "10¢" }] });
-    const price = describeDifferences([NVDA, AMD]).find((item) => item.topic === "Price");
-    expect(price).toMatchObject({ leader: "NVDA", others: [{ label: "AMD", value: "$31" }] });
+  it("scores each row from its own direction and tallies the wins", () => {
+    const board = buildScoreboard([NVDA, AMD], { symbol: "SPY", ret_1y: 12.4 })!;
+    expect(board.symbols).toEqual(["NVDA", "AMD"]);
+    const rows = board.rows.map((row) => `${row.label}: ${row.cells.map((cell) => cell.text).join(" | ")} → ${row.winner < 0 ? "none" : board.symbols[row.winner]}${row.word ? ` (${board.symbols[row.word.index]} ${row.word.text})` : ""}`);
+    expect(rows).toEqual([
+      "Company size: $4.60T | $340B → none (NVDA bigger)",
+      "Sales growth, 1 yr: +83% | +21% → NVDA",
+      "Price for $1 of next year's profit: $15 | $31 → NVDA (NVDA cheaper)",
+      "Profit per $1 of sales: 65¢ | 10¢ → NVDA",
+      "Cash minus debt: +$23.6B | −$1.20B → NVDA",
+      "Price change, 1 yr: −0.8% | +40% → AMD",
+      "How much the price swings: 46% | 58% → NVDA (NVDA steadier)",
+    ]);
+    expect(board.wins).toEqual([5, 1]);
+    expect(board.scored).toBe(6);
+    expect(board.tally).toBe("NVDA leads on 5 of 6");
   });
 
-  it("puts the S&P 500 beside the year when it is known", () => {
-    const year = describeDifferences([NVDA, AMD], { symbol: "SPY", ret_1y: 12.4 }).find((item) => item.topic === "The last year");
-    expect(year?.text).toBe("AMD's move in the year to the last close, against −0.8% for NVDA and +12% for the S&P 500.");
+  it("sizes each side's bar against the row's biggest figure, S&P 500 included", () => {
+    const board = buildScoreboard([NVDA, AMD], { symbol: "SPY", ret_1y: 12.4 })!;
+    const size = board.rows.find((row) => row.id === "size")!;
+    expect(size.cells[0]!.share).toBe(1);
+    expect(size.cells[1]!.share).toBeCloseTo(0.0739, 3);
+    const year = board.rows.find((row) => row.id === "year")!;
+    expect(year.reference).toMatchObject({ label: "S&P 500", text: "+12%" });
+    expect(year.reference!.share).toBeCloseTo(0.31, 2);
+    expect(board.rows.filter((row) => row.reference).map((row) => row.id)).toEqual(["year"]);
   });
 
-  it("stays silent when a number is missing or the gap is small", () => {
-    const a: ScreenerRow = { symbol: "A", rev_growth: 10, pe: 20, op_margin: 15 };
-    const b: ScreenerRow = { symbol: "B", rev_growth: 11, pe: 21, op_margin: 16 };
-    expect(describeDifferences([a, b])).toEqual([]);
-    expect(describeDifferences([NVDA])).toEqual([]);
-    expect(describeDifferences([NVDA, null])).toEqual([]);
+  it("drops a row either side lacks and needs three rows to show at all", () => {
+    const a: ScreenerRow = { symbol: "A", rev_growth: 10, op_margin: 15, vol_90d: 30, ret_1y: 5 };
+    const b: ScreenerRow = { symbol: "B", rev_growth: 20, op_margin: 12, vol_90d: 40 };
+    const board = buildScoreboard([a, b])!;
+    expect(board.rows.map((row) => row.id)).toEqual(["growth", "margin", "swing"]);
+    expect(buildScoreboard([{ ...a, vol_90d: undefined }, b])).toBeNull();
+    expect(buildScoreboard([NVDA])).toBeNull();
+    expect(buildScoreboard([NVDA, null])).toBeNull();
   });
 
-  it("handles shrinking revenue and operating losses in plain words", () => {
-    const grower: ScreenerRow = { symbol: "UP", rev_growth: 12, op_margin: 20 };
-    const shrinker: ScreenerRow = { symbol: "DOWN", rev_growth: -6, op_margin: -8 };
-    const rows = describeDifferences([grower, shrinker]).map((item) => `${item.figure} | ${item.text}`);
-    expect(rows).toContain("+12% | UP's sales growth over a year, while DOWN's sales shrank 6%.");
-    expect(rows).toContain("20¢ | UP's operating profit on each sales dollar, while DOWN loses money running its business.");
+  it("falls back to last year's profit, and drops the price row when either side lost money", () => {
+    const a: ScreenerRow = { symbol: "A", pe: 20, fwd_pe: -5, rev_growth: 1, op_margin: 1, vol_90d: 20 };
+    const b: ScreenerRow = { symbol: "B", pe: 30, fwd_pe: 25, rev_growth: 2, op_margin: 2, vol_90d: 25 };
+    expect(buildScoreboard([a, b])!.rows.find((row) => row.id === "price")?.label).toBe("Price for $1 of last year's profit");
+    expect(buildScoreboard([{ ...a, pe: -3 }, b])!.rows.find((row) => row.id === "price")).toBeUndefined();
   });
 
-  it("says it plainly when both names lose money", () => {
-    const a: ScreenerRow = { symbol: "A", op_margin: -4 };
-    const b: ScreenerRow = { symbol: "B", op_margin: -20 };
-    const [row] = describeDifferences([a, b]);
-    expect(row).toMatchObject({ topic: "Profit", figure: "−4%" });
-    expect(row!.text).toBe("A's operating margin, against −20% for B. Both lose money running the business.");
+  it("marks nobody when the shown figures read the same, and says an even split plainly", () => {
+    expect(scoreWinner([21.04, 21.4], ["+21%", "+21%"], "high")).toBe(-1);
+    expect(scoreWinner([5, 9], ["5", "9"], "neutral")).toBe(-1);
+    expect(scoreWinner([30, 47], ["30%", "47%"], "low")).toBe(0);
+    const a: ScreenerRow = { symbol: "A", rev_growth: 30, op_margin: 5, vol_90d: 40 };
+    const b: ScreenerRow = { symbol: "B", rev_growth: 10, op_margin: 25, vol_90d: 40 };
+    const board = buildScoreboard([a, b])!;
+    expect(board.rows.find((row) => row.id === "swing")).toMatchObject({ winner: -1 });
+    expect(board.rows.find((row) => row.id === "swing")!.word).toBeUndefined();
+    expect(board.tally).toBe("Even, 1 each of 3");
+  });
+
+  it("says losses and debt with a sign", () => {
+    const a: ScreenerRow = { symbol: "A", op_margin: -4.4, net_cash: -2e9, rev_growth: -6 };
+    const b: ScreenerRow = { symbol: "B", op_margin: -20, net_cash: 0, rev_growth: 12 };
+    const board = buildScoreboard([a, b])!;
+    expect(board.rows.map((row) => row.cells.map((cell) => cell.text))).toEqual([
+      ["−6%", "+12%"],
+      ["−4¢", "−20¢"],
+      ["−$2.00B", expect.stringMatching(/^\$0/)],
+    ]);
+    expect(board.rows.map((row) => row.winner)).toEqual([1, 0, 1]);
+  });
+
+  it("scores three or more names the same way", () => {
+    const c: ScreenerRow = { ...AMD, symbol: "INTC", rev_growth: 90 };
+    const board = buildScoreboard([NVDA, AMD, c])!;
+    expect(board.rows.find((row) => row.id === "growth")?.winner).toBe(2);
+    expect(board.wins).toHaveLength(3);
   });
 });
 

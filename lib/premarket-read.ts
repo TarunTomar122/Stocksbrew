@@ -134,6 +134,18 @@ export function showBeforeOpen(generatedAt: string | null, now: Date = new Date(
   return getMarketSessionState(now).kind === "premarket" && etDayOf(generatedAt) === marketDateIso("US", now);
 }
 
+/**
+ * Whether /premarket has anything to show: this morning's numbers, before the open, with at least one market cue or
+ * gapper (owner, Nov 12: "we shouldnt show premarket unless we have it for today"). The page and the nav's readiness
+ * check (app/api/premarket/quotes) both ask this, so the nav never offers a page that would send you away.
+ */
+export function hasTodaysPremarket(input: PremarketInput, now: Date = new Date()): boolean {
+  const when = premarketWhen(input.generatedAt, now);
+  if (when.phase !== "live" || !when.today) return false;
+  const cues = futuresCues(input.cues).length + overseasCues(input.cues).length;
+  return cues + gappers(input.up, "up", []).length + gappers(input.down, "down", []).length > 0;
+}
+
 const FUTURES_ORDER = ["ES", "NQ", "RTY"];
 
 /** US index futures, S&P 500 first. */

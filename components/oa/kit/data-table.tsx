@@ -48,7 +48,7 @@ export function DataTable({
   /** Show this many rows, with a "Show more" control for the rest. */
   pageSize?: number;
   stickyHeader?: boolean;
-  /** Rows shown before the table scrolls inside itself (owner rule: about eight, no visible scrollbar). 0 turns it off. */
+  /** Whole rows shown before the table scrolls inside itself (owner rule: about eight, no visible scrollbar). 0 turns it off. */
   maxRows?: number;
   /** Tighter cell padding, for wide tables that must fit the content column at 1280. */
   compact?: boolean;
@@ -77,10 +77,17 @@ export function DataTable({
   }
 
   const visible = pageSize ? sorted.slice(0, shown) : sorted;
+  const scrolls = maxRows > 0 && visible.length > maxRows;
 
   return (
     <div className="min-w-0">
-      <div className={`overflow-x-auto ${maxRows > 0 && visible.length > maxRows ? "overflow-y-auto" : ""}`} style={maxRows > 0 && visible.length > maxRows ? { maxHeight: `${2.6 + maxRows * 2.75 + 1.4}rem` } : undefined}>
+      {/* A long table scrolls inside a box that ends on a whole row (the header, then `maxRows` rows of h-11 and their
+          1px borders), with no bar shown, and hands the scroll back to the page at either end (no overscroll
+          containment). The header row stays put while it scrolls. */}
+      <div
+        className={`overflow-x-auto ${scrolls ? "overflow-y-auto scrollbar-hide" : ""}`}
+        style={scrolls ? { maxHeight: `calc(2.25rem + 1px + ${maxRows} * (2.75rem + 1px))` } : undefined}
+      >
         {/* Body row and cell styles are .oa-dt in app/globals.css, so each cell carries only its alignment. */}
         <table className={`oa-dt w-full border-collapse text-[14px]${compact ? " oa-dt-compact" : ""}`}>
           <thead>
@@ -96,7 +103,7 @@ export function DataTable({
                     aria-sort={active ? (sort?.dir === "asc" ? "ascending" : "descending") : undefined}
                     className={`oa-caption h-9 whitespace-nowrap border-b border-oa-border bg-oa-bg ${compact ? "px-1.5" : "px-2"} py-0 first:pl-4 last:pr-4 ${align} ${
                       column.hideOnMobile ? "hidden sm:table-cell" : ""
-                    } ${stickyHeader ? "sticky top-0 z-[1]" : ""}`}
+                    } ${stickyHeader || scrolls ? "sticky top-0 z-[1]" : ""}`}
                   >
                     {column.sortable === false ? (
                       column.label

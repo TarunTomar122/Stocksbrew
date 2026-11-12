@@ -140,7 +140,6 @@ export default async function PairPage({ params, searchParams }: Props) {
         symbols={[pair.a, pair.b]}
         range={range}
         viewer={viewer}
-        readLabel="What separates them"
       />
 
       <CardGrid cols={3} className="mt-5">

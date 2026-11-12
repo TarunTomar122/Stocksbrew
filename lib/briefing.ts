@@ -831,25 +831,23 @@ function moveItem(
 
 type ZoneHit = { zone: "add" | "breakout" | "trim"; threshold: number };
 
+/**
+ * A call speaks only for its own level (owner rule 8, lib/call-level.ts): Buy more for its buy-more price (or the
+ * breakout above it when it names no buy-below price), Sell some for its sell-some price. Keep has no level, so a
+ * Keep stock under a stored buy-more price is not "below its buy-more price".
+ */
 function zoneHit(position: BriefingPosition): ZoneHit | null {
   const price = position.price;
   if (price == null) return null;
-  const stance = clean(position.stance).toLowerCase();
-  if (!stance || stance === "avoid") return null;
-  if (stance !== "trim" && position.add_below != null && price <= position.add_below) {
-    return { zone: "add", threshold: position.add_below };
+  const call = stanceLabel(position.stance);
+  if (call === "Buy more") {
+    if (position.add_below != null) return price <= position.add_below ? { zone: "add", threshold: position.add_below } : null;
+    if (position.breakout_above != null && price >= position.breakout_above) return { zone: "breakout", threshold: position.breakout_above };
+    return null;
   }
-  // You cannot trim what you do not own, so the trim zone only speaks to holders.
-  if (position.relation === "holding" && position.trim_above != null && price >= position.trim_above) {
+  // You cannot trim what you do not own, so the trim zone only speaks to holders. "Avoid" names no level of its own.
+  if (call === "Sell some" && clean(position.stance).toLowerCase() !== "avoid" && position.relation === "holding" && position.trim_above != null && price >= position.trim_above) {
     return { zone: "trim", threshold: position.trim_above };
-  }
-  if (
-    (stance === "accumulate" || stance === "watch") &&
-    position.add_below == null &&
-    position.breakout_above != null &&
-    price >= position.breakout_above
-  ) {
-    return { zone: "breakout", threshold: position.breakout_above };
   }
   return null;
 }
@@ -1657,9 +1655,11 @@ function agentRunItem(run: BriefingAgentRun, positions: Map<string, BriefingPosi
   const summary = sentence(run.summary);
   if (!summary || !clean(run.job_id)) return null;
   const first = run.findings[0];
-  const ticker = clean(first?.ticker ?? "").toUpperCase();
+  // A run is about one stock only when every finding is: a run that flagged 21 names is not MU's news (Nov 12).
+  const tickers = new Set(run.findings.map((finding) => clean(finding.ticker ?? "").toUpperCase()));
+  const ticker = tickers.size === 1 ? [...tickers][0]! : "";
   const position = ticker ? positions.get(ticker) ?? null : null;
-  const name = clean(run.job_name) || "Your job";
+  const name = clean(run.job_name) || "Your agent";
   return draft({
     id: itemId(date, "agent_job", run.job_id, run.day),
     kind: "agent_job",
@@ -1670,12 +1670,13 @@ function agentRunItem(run: BriefingAgentRun, positions: Map<string, BriefingPosi
     severity: "medium",
     needs_you: true,
     tone: "flat",
-    headline: `Your job "${name}" found something: ${summary.replace(/\.$/, "")}`,
+    // What it found, in its own words, under the agent's name: no "Your job … found something" template.
+    headline: `${name}: ${summary.replace(/\.$/, "")}`,
     metric: run.findings.length > 1 ? `${run.findings.length} findings` : null,
     why: first ? leadSentences(`${sentence(first.headline)} ${first.detail}`, 3, 320) : summary,
     reason_status: "not_applicable",
     next_step: "Open the job to see everything it checked on this run.",
-    spoken: `your job "${name}" found something`,
+    spoken: `${name} flagged ${summary.replace(/\.$/, "").charAt(0).toLowerCase()}${summary.replace(/\.$/, "").slice(1)}`,
     evidence: run.findings.slice(0, 3).map((finding) => ({
       label: clean(finding.headline),
       source: clean(finding.source) || "Standing job",

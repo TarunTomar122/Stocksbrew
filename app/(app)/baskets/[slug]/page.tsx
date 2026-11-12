@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 
 import { FollowBasketButton } from "@/components/baskets-plain/follow-button";
 import { BacktestBlock, BasketForm, MemberList, RuleCard } from "@/components/baskets-plain/parts";
-import { TheRead } from "@/components/oa/insight";
 import { AppPage, Empty, PageHead, Panel, SourceLine, fmtStampET } from "@/components/oa/kit";
 import { BasketActions } from "@/components/screener/basket-actions";
 import { readFollowedBaskets } from "@/lib/baskets-plain/follow";
@@ -67,7 +66,7 @@ export default async function BasketPage({ params, searchParams }: Props) {
     <AppPage>
       <PageHead
         title={title}
-        lede="The rule is saved, not the list, so the companies are picked again from today's numbers every time this page opens."
+        lede="Picked again from today's numbers every time you open it."
         meta={loaded?.asOf ? <SourceLine asOf={fmtStampET(loaded.asOf)} /> : undefined}
         actions={follow ? <div className="max-sm:hidden">{follow}</div> : undefined}
       />
@@ -88,7 +87,6 @@ export default async function BasketPage({ params, searchParams }: Props) {
       ) : (
         <>
           <RuleCard sentence={loaded.sentence} rank={rankWords(loaded.spec.rank)} cannot={loaded.cannot} count={loaded.match.members.length} covered={loaded.coveredCount} />
-          <TheRead read={loaded.read} className="mt-4" />
 
           {follow ? <div className="mt-4 sm:hidden">{follow}</div> : null}
 
@@ -100,7 +98,7 @@ export default async function BasketPage({ params, searchParams }: Props) {
             {loaded.shown.length > 0 ? (
               <MemberList members={loaded.shown} total={loaded.match.members.length} />
             ) : (
-              <Empty title="Nothing fits every condition today.">Loosen the condition the read names above, or try one of the examples on the baskets page.</Empty>
+              <Empty title="Nothing fits every condition today.">Loosen one of the conditions, or try one of the examples on the baskets page.</Empty>
             )}
           </Panel>
 

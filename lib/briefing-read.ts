@@ -625,37 +625,28 @@ export function withFlags(insights: Insight[], flags: Readonly<Record<string, st
   });
 }
 
-/** The stocks the read has a card of its own about (a card about one stock): Worth knowing leaves them out. */
-export function readOwnedTickers(read: Pick<TheRead, "insights"> | null | undefined): Set<string> {
+/** The stocks the read has a card of its own about (a card about one stock). */
+function readOwnedTickers(read: Pick<TheRead, "insights"> | null | undefined): Set<string> {
   return new Set((read?.insights ?? []).filter((insight) => insight.tickers?.length === 1).map((insight) => insight.tickers![0]!.toUpperCase()));
 }
 
-/**
- * Worth knowing without the stocks the read already has a card about: the read's card owns the stock, so it is not
- * a second card further down (owner rule 1, judges ship 44: NVDA in the read and again under Worth knowing). Pure.
- */
-export function worthAfterRead(groups: BriefingGroup[], read: Pick<TheRead, "insights"> | null | undefined): BriefingGroup[] {
+/** Groups without the stocks the read already has a card about, so a stock is never told twice (owner rule 1). */
+function worthAfterRead(groups: BriefingGroup[], read: Pick<TheRead, "insights"> | null | undefined): BriefingGroup[] {
   const owned = readOwnedTickers(read);
   if (owned.size === 0) return groups;
   return groups.filter((group) => !(group.ticker && owned.has(group.ticker.toUpperCase())));
 }
 
-/** Worth knowing shows this many stocks before "Show all" (re-exported by lib/briefing-anchors.ts). */
-export const WORTH_KNOWING_FIRST = 8;
+/** The stocks a page lists before folding the rest (the read's own count of what is shown). */
+const WORTH_KNOWING_FIRST = 8;
 
-/**
- * Stocks whose upcoming report the read already names ("NVDA reports earnings on Tuesday after the close"), so the
- * Coming up list does not say it a second time (owner, round 6).
- */
-export function readEarningsTickers(read: Pick<TheRead, "insights"> | null | undefined): Set<string> {
+/** Stocks whose upcoming report the read already names, so a list under it does not say it again. */
+function readEarningsTickers(read: Pick<TheRead, "insights"> | null | undefined): Set<string> {
   return new Set((read?.insights ?? []).filter((insight) => insight.id.startsWith("earnings-")).flatMap((insight) => insight.tickers ?? []));
 }
 
-/**
- * Coming up without the stocks the read already named for their report. A stock with something else in the list
- * stays; one whose only entry is that report leaves it.
- */
-export function comingUpAfterRead(groups: BriefingGroup[], named: ReadonlySet<string>): BriefingGroup[] {
+/** Coming up without the stocks the read already named for their report. */
+function comingUpAfterRead(groups: BriefingGroup[], named: ReadonlySet<string>): BriefingGroup[] {
   if (named.size === 0) return groups;
   return groups.filter((group) => !(group.ticker && named.has(group.ticker) && group.items.every((item) => item.kind === "earnings_upcoming")));
 }

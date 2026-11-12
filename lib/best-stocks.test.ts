@@ -6,14 +6,11 @@ import {
   FUND_PERIOD_MAX_AGE_DAYS,
   LIST_MIN_STOCKS,
   LIST_SHOW,
-  buildHubRead,
   buildList,
-  buildListRead,
   bestListHref,
   fcfYield,
   fundQuarter,
   getBestList,
-  inSentence,
   itemListLd,
   listDescription,
   listIsIndexable,
@@ -298,61 +295,10 @@ describe("title and description", () => {
   });
 });
 
-describe("the read", () => {
-  it("leads with the count and the first stock, then the S&P 500 baselines", () => {
-    const rows = [
-      row("AAA", { name: "Alpha Inc.", div_yield: 6, payout: 50, ret_ytd: 20, sector: "Utilities" }),
-      row("BBB", { div_yield: 5, payout: 50, ret_ytd: 2, sector: "Utilities" }),
-      row("CCC", { div_yield: 4.5, payout: 50, ret_ytd: 15, sector: "Energy" }),
-      row("DDD", { div_yield: 4.2, payout: 50, ret_ytd: 1, sector: "Utilities" }),
-      ...Array.from({ length: 20 }, (_, i) => row(`SP${i}`, { div_yield: 1 + i / 10, indexes: ["S&P 500"] })),
-    ];
-    const data = input(rows);
-    const read = buildListRead(buildList(getBestList("high-dividend-yield-stocks")!, data), data);
-    expect(read.headline).toBe("4 stocks meet this rule today, and Alpha ranks first with a 6.00% dividend yield.");
-    const texts = read.insights.map((insight) => insight.text);
-    expect(texts[0]).toBe("The typical dividend yield on this list is 4.75%, against 1.95% for the typical S&P 500 stock we cover (dividend payers only).");
-    expect(texts[1]).toBe("2 of the 4 are ahead of the S&P 500 this year (+11.5%), led by Alpha at +20%.");
-    expect(texts[2]).toBe("3 of the 4 are utilities companies, more than any other sector.");
-    expect(read.insights.length).toBeLessThanOrEqual(3);
-  });
-
-  it("says plainly when nothing qualifies", () => {
-    const data = input([row("X")]);
-    const read = buildListRead(buildList(getBestList("oversold-stocks")!, data), data);
-    expect(read.headline).toBe("No stock we cover meets this rule today.");
-    expect(read.insights).toEqual([]);
-  });
-
-  it("sets a list ranked by this year's change against the S&P 500 itself", () => {
-    const data = input([row("A", { ret_ytd: 40 }), row("B", { ret_ytd: 30 }), row("C", { ret_ytd: 20 })]);
-    const read = buildListRead(buildList(getBestList("best-performing-stocks-this-year")!, data), data);
-    expect(read.insights[0]!.text).toBe("The typical stock here is up 30% this year, against +11.5% for the S&P 500.");
-    expect(read.insights.some((insight) => insight.id === "ytd")).toBe(false);
-  });
-
-  it("finds the stock on the most lists for the hub", () => {
-    const rows = [row("NVDA", { name: "NVIDIA Corporation", rsi: 20, fwd_pe: 20, score: 80, ret_ytd: 40 })];
-    const data = input(rows);
-    const read = buildHubRead(
-      BEST_LISTS.map((list) => buildList(list, data)),
-      data,
-    );
-    expect(read?.insights[0]?.text).toMatch(/^NVIDIA makes \d+ of the lists/);
-    expect(read?.headline).toMatch(/lists have five or more stocks/);
-  });
-});
-
 describe("sentences", () => {
   it("joins reasons into one capitalised sentence", () => {
     expect(whySentence(["pays 5.0% a year in dividends", null, "is up 3.0% this year"])).toBe("Pays 5.0% a year in dividends and is up 3.0% this year.");
     expect(whySentence([null])).toBe("");
-  });
-
-  it("keeps capitals that belong to the name", () => {
-    expect(inSentence("AI stocks")).toBe("AI stocks");
-    expect(inSentence("Dividend stocks under $50")).toBe("dividend stocks under $50");
-    expect(inSentence("Low P/E stocks")).toBe("low P/E stocks");
   });
 
   it("reads free cash flow yield from price to free cash flow, only when cash flow is positive", () => {

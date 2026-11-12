@@ -64,20 +64,20 @@ describe("buildAgentLog", () => {
       ["prices", "2026-11-10"],
       ["calendar", "2026-11-09"],
     ]);
-    expect(log.checked[0]!.text).toBe("Wrote your memo for the week of Nov 9, up to the Nov 10 close.");
+    expect(log.checked[0]!.text).toBe("Wrote your memo for the week of Nov 9, up to yesterday's close.");
     expect(log.checked[0]!.changed).toBe("Found one to watch and three worth a look.");
   });
 
   it("says what changed since an earlier check, and only when one was stored", () => {
     const mine = buildAgentLog({ sources, agents: null, mode: "mine", today: TODAY });
-    expect(mine.checked.find((row) => row.id === "reasons")?.changed).toBe("JPM went from holds to weaker on Nov 5.");
+    expect(mine.checked.find((row) => row.id === "reasons")?.changed).toBe("JPM went from holds to weaker on Thursday.");
     const plain = { ...sources, reasons: ok<never>({ checks: [{ ticker: "AAPL", verdict: "holds", asOf: "2026-11-10", change: null }], withReason: 1, holdings: 1, locked: 0 }) };
     expect(buildAgentLog({ sources: plain, agents: null, mode: "example", today: TODAY }).checked.find((row) => row.id === "reasons")?.changed).toBe("It still holds.");
   });
 
   it("lists the reports and payment still to come for holdings only, soonest first", () => {
     const log = buildAgentLog({ sources, agents: null, mode: "mine", today: TODAY });
-    expect(log.next.map((row) => row.text)).toEqual(["Costco pays about $10 on Nov 13.", "NVIDIA reports on Nov 19 after the close.", "Costco reports on Dec 10."]);
+    expect(log.next.map((row) => row.text)).toEqual(["Costco pays about $10 on Friday.", "NVIDIA reports on Nov 19 after the close.", "Costco reports on Dec 10."]);
   });
 
   it("names each standing agent's newest run, and leaves agents out of the example", () => {

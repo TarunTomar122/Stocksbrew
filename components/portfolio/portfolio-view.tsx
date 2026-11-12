@@ -28,6 +28,7 @@ import {
 import { PositionsTable } from "@/components/portfolio/positions-table";
 import { MY_STOCKS_SELECT_EVENT, MyStocksTabs, type MyStocksTab } from "@/components/portfolio/my-stocks-tabs";
 import { ImportButton } from "@/components/import/import-button";
+import { MORE_ITEM, MoreActions } from "@/components/portfolio/more-actions";
 import { ReasonsStrip } from "@/components/thesis/reasons-sheet";
 import { ShareButton } from "@/components/share/share-button";
 import { RadarBatchEditModal } from "@/components/radar-batch-edit-modal";
@@ -35,6 +36,7 @@ import { StockLogo } from "@/components/stock-logo";
 import { WatchlistAiPromptButton } from "@/components/watchlist-ai-prompt-button";
 import type { IdeaCard } from "@/components/radar-next/types";
 import type { HealthProps } from "@/lib/radar-next-data";
+import { capitalize, daysFromToday, dayWords } from "@/lib/day-words";
 import {
   fmtDay,
   fmtMoney,
@@ -45,9 +47,12 @@ import {
   type PortfolioTab,
 } from "@/lib/portfolio-shared";
 import { signInWithGoogle } from "@/lib/sign-in";
-import type { PortfolioReads } from "@/lib/portfolio-insights";
-import { portfolioSteps } from "@/lib/next-steps";
-import { TheRead } from "@/components/oa/insight";
+
+/** The header's day-change label when the prices are not today's: "Yesterday", "Monday" within the week, else null. */
+function changeLabel(pricesAsOf: string, today: string): string | null {
+  const gap = daysFromToday(pricesAsOf, today);
+  return gap !== null && gap < 0 && gap >= -6 ? capitalize(dayWords(pricesAsOf, today)) : null;
+}
 
 export type PortfolioViewProps = {
   portfolio: Portfolio;
@@ -70,15 +75,12 @@ export type PortfolioViewProps = {
   pricesWords?: string | null;
   /** Live mode: when the page data was read. */
   asOf?: string | null;
-  /** The read on each tab, computed on the server (lib/portfolio-insights). */
-  reads?: PortfolioReads | null;
   /** Shown under the tabs, before the summary: the example's line on how to start. */
   lead?: React.ReactNode;
 };
 
 const BTN = `inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded border px-3 text-[12.5px] font-medium transition-colors ${FOCUS}`;
 const BTN_PRIMARY = `${BTN} border-oa-primary bg-oa-primary text-oa-primary-fg hover:brightness-110`;
-const BTN_PLAIN = `${BTN} border-oa-border bg-oa-card text-oa-fg hover:border-oa-fg/30`;
 
 function fmtClock(iso: string): string {
   const date = new Date(iso);
@@ -239,7 +241,6 @@ export function PortfolioView({
   pricesAsOf = null,
   pricesWords = null,
   asOf = null,
-  reads = null,
   lead = null,
 }: PortfolioViewProps) {
   const router = useRouter();
@@ -294,7 +295,8 @@ export function PortfolioView({
       {lead}
       {/* header: what it is worth, what it did today, what it has made */}
       <section
-        className={CARD}
+        // Not clipped: the actions' menu drops out of this card (./more-actions.tsx).
+        className={`${CARD} !overflow-visible`}
         aria-label={example ? "Example portfolio summary" : "Portfolio summary"}
       >
         <div className="flex flex-col gap-3 px-4 py-3 lg:flex-row lg:items-end lg:justify-between">
@@ -335,7 +337,7 @@ export function PortfolioView({
               {/* Today and total gain wrap as one group, so they never split across rows. */}
               <div className="col-span-2 flex gap-x-8">
                 <HeaderFigure
-                  label={pricesAsOf && pricesAsOf !== today ? `Change on ${fmtDay(pricesAsOf)}` : "Today"}
+                  label={pricesAsOf && pricesAsOf !== today ? changeLabel(pricesAsOf, today) || `Change on ${fmtDay(pricesAsOf)}` : "Today"}
                   note={
                     totals.dayPct !== null ? (
                       <Pct value={totals.dayPct} />
@@ -380,17 +382,20 @@ export function PortfolioView({
           </div>
           <div className="flex flex-col gap-2 lg:items-end">
             {example ? null : (
-              <div className="flex flex-wrap items-center gap-2">
+              // One button, with the other actions behind its chevron (owner, Nov 12: "do we need 5 buttons at once???").
+              <div className="flex items-center">
                 <RadarBatchEditModal
                   initialItems={manageItems(portfolio)}
                   isSubscribed={isSubscribed}
                   freeLimit={freeLimit}
                   ctaLabel="Add or edit stocks"
-                  triggerClassName={BTN_PRIMARY}
+                  triggerClassName={`${BTN_PRIMARY} rounded-r-none`}
                 />
-                <ImportButton className={BTN_PLAIN} positions={everything} />
-                <ShareButton kind="portfolio" className={BTN_PLAIN} />
-                <WatchlistAiPromptButton className={BTN_PLAIN} />
+                <MoreActions className={`${BTN_PRIMARY} rounded-l-none border-l-[color-mix(in_srgb,var(--oa-primary-fg)_35%,transparent)] !px-2`}>
+                  <ImportButton className={MORE_ITEM} positions={everything} />
+                  <ShareButton kind="portfolio" className={MORE_ITEM} />
+                  <WatchlistAiPromptButton className={MORE_ITEM} />
+                </MoreActions>
               </div>
             )}
             <p className="text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg lg:text-right">
@@ -422,23 +427,6 @@ export function PortfolioView({
         aria-label={tab === "watching" ? "Watching" : tab === "alerts" ? "Alerts" : "Holdings"}
         className="flex flex-col gap-3"
       >
-        {/* Each tab leads with what its numbers mean; the table under it is the evidence. */}
-        <TheRead
-          key={tab}
-          read={portfolioSteps(reads?.[tab] ?? null, { tab, positions: everything, today })}
-          askContext={example ? "ex.portfolio" : "portfolio"}
-          label={
-            tab === "positions"
-              ? example
-                ? "How these stocks did"
-                : "How your stocks did"
-              : tab === "watching"
-                ? example
-                  ? "The watched stocks"
-                  : "What you are watching"
-                : "Your alerts"
-          }
-        />
         {tab === "positions" ? (
           <section className={CARD}>
             {positions.length === 0 ? (

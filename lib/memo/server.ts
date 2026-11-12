@@ -90,9 +90,9 @@ async function exampleMemosUncached(_day: string, worded = true): Promise<Memo[]
   return Promise.all(weeks.map((week, index) => writeMemo(source, week, current.today, current.series, events, index === 0 ? shape : NO_SHAPE, now, worded)));
 }
 
-const exampleMemosCached = unstable_cache((day: string) => exampleMemosUncached(day), ["portfolio-memo-example-v13"], { revalidate: 6 * 3600 });
+const exampleMemosCached = unstable_cache((day: string) => exampleMemosUncached(day), ["portfolio-memo-example-v14"], { revalidate: 6 * 3600 });
 /** The same example from the memo's rules only, never the model: for pages that must not start a model call on load. */
-const exampleMemosRulesCached = unstable_cache((day: string) => exampleMemosUncached(day, false), ["portfolio-memo-example-rules-v6"], { revalidate: 6 * 3600 });
+const exampleMemosRulesCached = unstable_cache((day: string) => exampleMemosUncached(day, false), ["portfolio-memo-example-rules-v7"], { revalidate: 6 * 3600 });
 
 export type MemoPageData = {
   mode: "mine" | "example";
@@ -142,6 +142,8 @@ export function isFresh(stored: StoredMemo | null, week: MemoWeek, today: string
   if (stored.signature !== signature) return false;
   // Written before the page went visual: the current week is written again once, with its charts.
   if (!stored.memo.view) return false;
+  // Written before the line's weights were kept: a running week is written again once, so its chart can carry on before the open.
+  if (!week.complete && !stored.memo.view.weights) return false;
   if (stored.memo.complete !== week.complete) return false;
   if ((stored.memo.endDay ?? null) !== (week.endDay ?? null)) return false;
   return week.complete || stored.day === today;

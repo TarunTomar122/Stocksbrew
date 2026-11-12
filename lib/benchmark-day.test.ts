@@ -57,12 +57,15 @@ describe("benchmarkForDay", () => {
 
 describe("closeWords", () => {
   it("says the close once the market has closed", () => {
-    expect(closeWords("2026-11-10", "Nov 10, 2026", new Date("2026-11-10T22:00:00Z"))).toBe("the Nov 10, 2026 close");
+    expect(closeWords("2026-11-10", "Nov 10, 2026", new Date("2026-11-10T22:00:00Z"))).toBe("today's close");
   });
   it("says during trading for today's quotes before 4 PM New York time", () => {
-    expect(closeWords("2026-11-11", "Nov 11, 2026", new Date("2026-11-11T15:00:00Z"))).toBe("Nov 11, 2026, during trading");
+    expect(closeWords("2026-11-11", "Nov 11, 2026", new Date("2026-11-11T15:00:00Z"))).toBe("today, during trading");
   });
-  it("an earlier day is always a close", () => {
-    expect(closeWords("2026-11-10", "Nov 10, 2026", new Date("2026-11-11T15:00:00Z"))).toBe("the Nov 10, 2026 close");
+  it("an earlier day is always a close, in words within the week", () => {
+    expect(closeWords("2026-11-10", "Nov 10, 2026", new Date("2026-11-11T15:00:00Z"))).toBe("yesterday's close");
+    // Monday morning: Friday's close.
+    expect(closeWords("2026-11-13", "Nov 13, 2026", new Date("2026-11-16T14:00:00Z"))).toBe("Friday's close");
+    expect(closeWords("2026-11-03", "Nov 3, 2026", new Date("2026-11-16T14:00:00Z"))).toBe("the Nov 3, 2026 close");
   });
 });

@@ -47,11 +47,11 @@ describe("shapeExampleChecks", () => {
     )!;
     expect(view.featured.id).toBe("examplebigmove");
     expect(view.featured.outcome).toBe("NVDA fell 5.47% in a day.");
-    expect(view.featured.checked).toBe("Nov 10 closing prices for the seven stocks.");
+    expect(view.featured.checked).toBe("Yesterday's closing prices for the seven stocks.");
     expect(view.featured.findings[0]?.url).toBe("/stock/NVDA");
     expect(view.featured.findings[0]?.detail).toBe("Closed at $168.89 on Nov 10, down 5.47% from $178.67 the day before.");
     expect(view.featured.decided).toBe("It decided to tell you.");
-    expect(view.featured.when).toMatch(/^Nov\s10\sat\s5:41/);
+    expect(view.featured.when).toMatch(/^yesterday\sat\s5:41/);
     expect(view.others.map((other) => other.id)).toEqual(["exampleearnings"]);
     expect(view.others[0]?.outcome).toBe("Nothing to report. None of these stocks reports within 3 days.");
     expect(view.others[0]?.checked).toBe("Report dates for the seven stocks over the next 3 days.");
@@ -60,7 +60,7 @@ describe("shapeExampleChecks", () => {
   it("words a quiet price check plainly and names the next check only after a scheduled run", () => {
     const quiet = run({ job_id: "examplebigmove", day: "2026-11-10", latest_close: "2026-11-10", counts: { names: 7, priced: 7, moves: 0 }, summary: "Checked, nothing to do. None of the 7 names met the rule on Nov 10." });
     const view = shapeExampleChecks({ agents: AGENTS, runs: [quiet], tickers: TICKERS }, "2026-11-11")!;
-    expect(view.featured.outcome).toBe("Nothing to report. None of the seven stocks moved 5% or more on Nov 10.");
+    expect(view.featured.outcome).toBe("Nothing to report. None of the seven stocks moved 5% or more yesterday.");
     expect(view.featured.decided).toBe("It stayed quiet. Nothing needed you.");
     // 5:41 PM ET on Nov 10 is the after-close runner, so Nov 11's run is promised.
     expect(view.featured.next).toBe("2026-11-11");
@@ -87,8 +87,8 @@ describe("shapeExampleChecks", () => {
     const told = run({ job_id: "exampleearnings", day: "2026-11-10", summary: "Checked, nothing to do. NVDA reports soon, and you were already told." });
     const view = shapeExampleChecks({ agents: AGENTS, runs: [one, told], tickers: TICKERS }, "2026-11-11")!;
     const byId = Object.fromEntries([view.featured, ...view.others].map((check) => [check.id, check]));
-    expect(byId.examplebigmove?.outcome).toBe("Nothing to report. The one stock with a new close did not move 5% or more on Nov 10.");
-    expect(byId.examplebigmove?.checked).toBe("Nov 10 closing prices for one of the seven stocks.");
+    expect(byId.examplebigmove?.outcome).toBe("Nothing to report. The one stock with a new close did not move 5% or more yesterday.");
+    expect(byId.examplebigmove?.checked).toBe("Yesterday's closing prices for one of the seven stocks.");
     expect(byId.exampleearnings?.outcome).toBe("Nothing to report. NVDA reports soon, which it had already said.");
   });
 
@@ -134,8 +134,10 @@ describe("ranWords", () => {
     expect(ranWords("2026-11-11T04:10:00Z", "2026-11-10", now)).toBe("last night");
     expect(ranWords("2026-11-11T11:20:00Z", "2026-11-11", now)).toBe("this morning");
     expect(ranWords("2026-11-11T22:41:00Z", "2026-11-11", new Date("2026-11-11T23:30:00Z"))).toBe("this evening");
-    expect(ranWords("2026-11-06T22:41:00Z", "2026-11-06", now)).toBe("on Nov 6");
-    expect(ranWords("", "2026-11-06", now)).toBe("on Nov 6");
+    expect(ranWords("2026-11-06T22:41:00Z", "2026-11-06", now)).toBe("on Friday");
+    expect(ranWords("", "2026-11-06", now)).toBe("on Friday");
+    expect(ranWords("2026-11-03T22:41:00Z", "2026-11-03", now)).toBe("on Nov 3");
+    expect(ranWords("2026-11-09T15:00:00Z", "2026-11-09", now)).toBe("on Monday");
   });
 });
 
@@ -179,7 +181,7 @@ describe("ownCheckView", () => {
     expect(stored.detail?.findings).toHaveLength(1);
     const view = ownCheckView(job, [stored], "2026-11-11")!;
     expect(view.ask).toMatch(/NVDA/);
-    expect(view.checked).toBe("Nov 10 closing prices for the two stocks.");
+    expect(view.checked).toBe("Yesterday's closing prices for the two stocks.");
     expect(view.stocks).toEqual(["NVDA", "AAPL"]);
     expect(view.flagged).toEqual(["NVDA"]);
     expect(view.findings[0]?.detail).toBe("Closed at $168.89 on Nov 10, down 5.47% from $178.67 the day before.");
@@ -200,7 +202,7 @@ describe("ownCheckView", () => {
   it("says 'your stocks' when a watchlist rule stored no count", () => {
     const watchlist = { ...job, scope: { kind: "watchlist" as const } };
     const stored = watchRunFromDoc({ ...doc, counts: null, decision: "nothing", findings: [], summary: "Checked, nothing to do." }, "u1")!;
-    expect(ownCheckView(watchlist, [stored], "2026-11-11")!.checked).toBe("Nov 10 closing prices for your stocks.");
+    expect(ownCheckView(watchlist, [stored], "2026-11-11")!.checked).toBe("Yesterday's closing prices for your stocks.");
   });
 });
 

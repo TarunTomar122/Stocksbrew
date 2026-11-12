@@ -289,7 +289,9 @@ describe("words", () => {
     expect(whenWords("2026-11-11", "2026-11-11")).toBe("today");
     expect(whenWords("2026-11-12", "2026-11-11")).toBe("tomorrow");
     expect(whenWords("2026-11-13", "2026-11-11")).toBe("on Friday");
-    expect(whenWords("2026-11-17", "2026-11-11")).toBe("on Nov 17");
+    // The weekday within six days ahead, even past the weekend; the date from a week out.
+    expect(whenWords("2026-11-17", "2026-11-11")).toBe("on Tuesday");
+    expect(whenWords("2026-11-18", "2026-11-11")).toBe("on Nov 18");
     expect(weekName("2026-11-09", "2026-11-11")).toBe("this week");
     expect(weekName("2026-11-16", "2026-11-11")).toBe("next week");
     expect(weekName("2026-11-23", "2026-11-11")).toBe("the week of Nov 23");
@@ -381,7 +383,7 @@ describe("buildSeasonRead", () => {
     );
     const read = buildSeasonRead(season, { example: false })!;
     // One idea in the headline; the numbers are the first line under it.
-    expect(read.headline).toBe("Two of your stocks report in the next six weeks. Nvidia, on Nov 17 after the close, is the one to watch.");
+    expect(read.headline).toBe("Two of your stocks report in the next six weeks. Nvidia, on Tuesday after the close, is the one to watch.");
     expect(read.headlineTickers).toEqual(["NVDA"]);
     expect(read.insights[0]).toMatchObject({
       id: "watch-NVDA",
@@ -448,8 +450,8 @@ describe("buildSeasonRead", () => {
       today,
     );
     const read = buildSeasonRead(season, { example: false })!;
-    expect(read.headline).toBe("None of your holdings report in the next six weeks, but one stock you watch does: AMD on Nov 17.");
-    expect(read.insights[0]!.text).toBe("MSFT is the next holding on the calendar, on Jan 27, after the close.");
+    expect(read.headline).toBe("None of your holdings report in the next six weeks, but one stock you watch does: AMD on Tuesday.");
+    expect(read.insights[0]!.text).toBe("MSFT is the next holding on the calendar, on Jan 27, 2027, after the close.");
   });
 
   it("names the busiest week when it carries more than one holding", () => {
@@ -473,7 +475,7 @@ describe("buildSeasonRead", () => {
       today,
     );
     const read = buildSeasonRead(season, { example: false })!;
-    expect(read.headline).toBe("Two of your stocks report in the next two weeks. Aaa reports first, on Nov 17 after the close.");
+    expect(read.headline).toBe("Two of your stocks report in the next two weeks. Aaa reports first, on Tuesday after the close.");
   });
 
   it("says this week in the right words on a weekend", () => {

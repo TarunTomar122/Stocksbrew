@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = toolPageMetadata("/portfolio/goal");
 
-const LEDE = "Will your holdings and monthly savings reach your goal in time? Thousands of replays of past returns since 2014.";
+const LEDE = "Thousands of replays of past returns since 2014.";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 

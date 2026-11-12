@@ -13,12 +13,10 @@ import { MovesStream } from "@/components/follow/moves-stream";
 import { Panel, PerfTiles, Stat } from "@/components/follow/panel";
 import { RecordChart } from "@/components/follow/record-chart";
 import { ProfileCopyPanel } from "@/components/copy-trades/profile-panel";
-import { getCopyRecord, type CopyRecord } from "@/lib/copy-trades";
 import { JsonLd, breadcrumbLd } from "@/components/docs/json-ld";
 import { AppPage, ShowMore, Verdict } from "@/components/oa/kit";
 import { shortCompanyName } from "@/lib/plain-copy";
-import { TheRead } from "@/components/oa/insight";
-import { buildCongressMemberRead, buildFundRead, fundIsStale, fundStaleLine, memberStaleLine } from "@/lib/follow-insights";
+import { fundIsStale, fundStaleLine, memberStaleLine } from "@/lib/follow-insights";
 import { getSessionUser } from "@/lib/auth-server";
 import {
   STOCK_ACT_DEADLINE_DAYS,
@@ -82,7 +80,7 @@ const TH =
   "oa-mono px-3 py-2 text-[11px] font-normal uppercase tracking-[0.08em] text-oa-muted-fg";
 const TD = "px-3 py-1.5 align-middle";
 
-/** Where our records for a fund or member stop, said before the read when they stopped long ago. */
+/** Where our records for a fund or member stop, said at the top when they stopped long ago. */
 function StaleNote({ line }: { line: string | null }) {
   if (!line) return null;
   return (
@@ -386,13 +384,10 @@ function FundView({
   profile,
   followed,
   activity,
-  copy,
 }: {
   profile: FundProfile;
   followed: boolean;
   activity: Awaited<ReturnType<typeof getSourceActivity>>;
-  /** The copy test, when there is one: the read quotes its numbers, like the record panel. */
-  copy: CopyRecord | null;
 }) {
   const latest = profile.latest;
   const changes = profile.changes;
@@ -438,7 +433,6 @@ function FundView({
       </div>
 
       <StaleNote line={fundStaleLine(profile)} />
-      <TheRead read={buildFundRead(profile, copy)} fold="phone" className="mt-3" />
 
       <div className="mt-4">
         <Panel
@@ -750,11 +744,9 @@ function FundView({
 function CongressView({
   profile,
   followed,
-  copy,
 }: {
   profile: CongressProfile;
   followed: boolean;
-  copy: CopyRecord | null;
 }) {
   const stats = profile.stats;
   const party = partyLabel(profile.party);
@@ -901,7 +893,6 @@ function CongressView({
       </div>
 
       <StaleNote line={memberStaleLine(profile)} />
-      <TheRead read={buildCongressMemberRead(profile, copy)} className="mt-3" />
 
       <div className="mt-4">
         <Panel
@@ -1052,12 +1043,11 @@ export default async function FollowProfilePage({ params }: Props) {
     getSessionUser(),
   ]);
   if (!profile) notFound();
-  const [followed, activity, copy] = await Promise.all([
+  const [followed, activity] = await Promise.all([
     getFollowedSources(session?.uid),
     profile.kind === "fund"
       ? getSourceActivity(profile.slug).catch(() => [])
       : Promise.resolve([]),
-    getCopyRecord(profile.slug).catch(() => null),
   ]);
   const isFollowed = followed.includes(profile.slug);
 
@@ -1088,9 +1078,9 @@ export default async function FollowProfilePage({ params }: Props) {
         ]}
       />
       {profile.kind === "fund" ? (
-        <FundView profile={profile} followed={isFollowed} activity={activity} copy={copy} />
+        <FundView profile={profile} followed={isFollowed} activity={activity} />
       ) : (
-        <CongressView profile={profile} followed={isFollowed} copy={copy} />
+        <CongressView profile={profile} followed={isFollowed} />
       )}
     </AppPage>
   );

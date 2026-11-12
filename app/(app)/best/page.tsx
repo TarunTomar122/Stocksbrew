@@ -1,19 +1,17 @@
 import type { Metadata } from "next";
 
 import { JsonLd, breadcrumbLd } from "@/components/docs/json-ld";
-import { TheRead } from "@/components/oa/insight";
 import { closeWords } from "@/lib/benchmark-day";
 import { AppPage, CardGrid, NUM, PageHead, Panel, SourceLine, fmtDay } from "@/components/oa/kit";
 import { StockLogo } from "@/components/stock-logo";
-import { BEST_LISTS, LIST_GROUPS, bestListHref, buildHubRead, monthYear } from "@/lib/best-stocks";
+import { BEST_LISTS, LIST_GROUPS, bestListHref, monthYear } from "@/lib/best-stocks";
 import { getAllBestLists } from "@/lib/best-stocks-data";
 import { ogImage } from "@/lib/og/url";
 import Link from "next/link";
 import { AppLink } from "@/components/oa/app-link";
 
 /**
- * The hub of the "best stocks for X" lists (/best): the read across all of
- * them, then every list by group with its rule, how many stocks meet it today
+ * The hub of the "best stocks for X" lists (/best): every list by group with its rule, how many stocks meet it today
  * and the first three.
  */
 
@@ -39,10 +37,6 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function BestHubPage() {
   const { input, lists } = await getAllBestLists();
-  const read = buildHubRead(
-    lists.map((item) => item.built),
-    input,
-  );
   const closeDay = input.priceDay ? closeWords(input.priceDay, fmtDay(input.priceDay, true)) : undefined;
 
   return (
@@ -55,10 +49,8 @@ export default async function BestHubPage() {
         note={false}
       />
       <p className="mb-4 max-w-[52rem] px-2 text-pretty text-[15px] leading-[22px] text-oa-fg sm:px-0">
-        Each list is one plain rule applied to every US stock we cover, ranked by one number. Open a list for the rule, the read and the stocks.
+        Each list is one plain rule applied to every US stock we cover, ranked by one number. Open a list for the rule and the stocks.
       </p>
-
-      <TheRead read={read} label="Across the lists" fold="phone" foldLabel="Show what stands out" className="mb-4" />
 
       <CardGrid cols={2} className="mb-4">
         {LIST_GROUPS.map((group) => {

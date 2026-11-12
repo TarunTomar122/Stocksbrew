@@ -1,7 +1,7 @@
 /**
  * The compare desk's pure half: which tickers a URL names, which rows the
- * table shows, which value wins a row, and the plain sentences that say what
- * separates the names. Every sentence is a template filled from stored
+ * table shows, which value wins a row, and the head-to-head scoreboard of
+ * where the names differ. Every word is a template filled from stored
  * numbers; nothing here is written by a model.
  */
 
@@ -228,49 +228,69 @@ export function tallyWins(groups: ReadonlyArray<CompareTableGroup>, count: numbe
   return wins;
 }
 
-/* ── What separates them ───────────────────────────────────────────────── */
+/* ── Where they differ: the head-to-head scoreboard ────────────────────── */
 
-/**
- * One row of "Where they differ": a topic, the one figure that leads it (the leader's number), whether that figure
- * reads as up or down, whose figure it is, a few words on what it measures, the other names' numbers beside it, and
- * the same as one sentence for a screen reader.
- */
-export type Difference = {
-  topic: string;
-  figure: string;
-  tone?: "up" | "down";
-  /** The stock the figure belongs to. */
-  leader: string;
-  /** What the figure measures, in a few words: "operating profit per sales dollar". */
-  words: string;
-  /** The baseline beside it: the other name's number ("AMD", "18¢"); `logo: false` for the S&P 500. */
-  others: Array<{ label: string; value: string; logo?: boolean }>;
-  text: string;
+/** Which end of a metric wins. "neutral" rows are shown without a winner (company size). */
+export type ScoreBetter = "high" | "low" | "neutral";
+
+export type ScoreMetricId = "size" | "growth" | "price" | "margin" | "cash" | "year" | "swing";
+
+export type ScoreMetric = {
+  id: ScoreMetricId;
+  label: string;
+  better: ScoreBetter;
+  /**
+   * A word beside the winning value where the number alone does not say why it wins (a lower price, a smaller swing);
+   * on a neutral row it sits beside the bigger value instead.
+   */
+  word?: string;
+  /** Why it matters, in at most eight words, for the row's hover title only. */
+  hint: string;
 };
 
-type Known = { symbol: string; value: number };
+/** What "better" means on each row of the scoreboard, in the order the rows are shown. */
+export const SCORE_METRICS: readonly ScoreMetric[] = [
+  { id: "size", label: "Company size", better: "neutral", word: "bigger", hint: "Size alone doesn't make a better stock" },
+  { id: "growth", label: "Sales growth, 1 yr", better: "high", hint: "Faster growth can justify a higher price" },
+  { id: "price", label: "Price for $1 of next year's profit", better: "low", word: "cheaper", hint: "Lower means you pay less for profit" },
+  { id: "margin", label: "Profit per $1 of sales", better: "high", hint: "Keeping more of each sale means pricing power" },
+  { id: "cash", label: "Cash minus debt", better: "high", hint: "Spare cash cushions a bad year" },
+  { id: "year", label: "Price change, 1 yr", better: "high", hint: "How holders did over the past year" },
+  { id: "swing", label: "How much the price swings", better: "low", word: "steadier", hint: "Smaller swings make dips easier to sit through" },
+];
 
-function known(rows: ReadonlyArray<ScreenerRow>, id: keyof ScreenerRow): Known[] {
-  return rows
-    .map((row) => ({ symbol: row.symbol, value: row[id] }))
-    .filter((item): item is Known => isFiniteNumber(item.value));
-}
+/** One stock's figure on a row; `share` is its bar's length, 0 to 1 of the row's biggest magnitude. */
+export type ScoreCell = { symbol: string; value: number; text: string; share: number };
 
-function extremes(items: Known[]): { top: Known; bottom: Known } | null {
-  if (items.length < 2) return null;
-  const sorted = [...items].sort((a, b) => b.value - a.value);
-  const top = sorted[0]!;
-  const bottom = sorted[sorted.length - 1]!;
-  return top.value === bottom.value ? null : { top, bottom };
-}
+export type ScoreRow = {
+  id: ScoreMetricId;
+  label: string;
+  hint: string;
+  better: ScoreBetter;
+  cells: ScoreCell[];
+  /** Index of the winning cell, or -1 on a neutral row or when the shown figures tie. */
+  winner: number;
+  /** The word beside one cell ("cheaper", "steadier", "bigger"), when the row has one and a side to put it on. */
+  word?: { index: number; text: string };
+  /** The S&P 500 on the same measure, drawn as a tick on the bar. */
+  reference?: { label: string; value: number; text: string; share: number };
+};
 
-function fmt(id: string, value: number): string {
-  const field = FIELD_BY_ID.get(id);
-  return field ? formatField(field, value) : String(value);
-}
+export type Scoreboard = {
+  symbols: string[];
+  rows: ScoreRow[];
+  /** Rows won by each stock, in `symbols` order. */
+  wins: number[];
+  /** Rows that can be won (every row but the neutral ones). */
+  scored: number;
+  /** "AVGO leads on 4 of 6", "Even, 3 each of 6"; empty when nobody wins a row. */
+  tally: string;
+};
 
 function money(value: number): string {
-  return fmt("market_cap", Math.abs(value));
+  const field = FIELD_BY_ID.get("market_cap");
+  const abs = Math.abs(value);
+  return field ? formatField(field, abs) : `$${abs}`;
 }
 
 /** A percentage for a scan-friendly row: whole from 10 up, one decimal below, signed when asked. */
@@ -284,157 +304,114 @@ function short(value: number, signed = false): string {
   return `${value > 0 ? "+" : "−"}${text}`;
 }
 
-/** "6.6×" for a small ratio, "14×" for a big one. */
-function ratioText(ratio: number): string {
-  return `${ratio >= 10 ? Math.round(ratio) : ratio.toFixed(1).replace(/\.0$/, "")}×`;
+function cents(value: number): string {
+  const rounded = Math.round(value);
+  return rounded === 0 ? "0¢" : `${rounded < 0 ? "−" : ""}${Math.abs(rounded)}¢`;
+}
+
+function signedMoney(value: number): string {
+  const text = money(value);
+  return value === 0 ? text : `${value > 0 ? "+" : "−"}${text}`;
+}
+
+/** Each covered stock's value for a field, or null when any of them lacks it (or fails `ok`). */
+function every(rows: ReadonlyArray<ScreenerRow>, id: keyof ScreenerRow, ok: (value: number) => boolean = () => true): number[] | null {
+  const out: number[] = [];
+  for (const row of rows) {
+    const value = row[id];
+    if (!isFiniteNumber(value) || !ok(value)) return null;
+    out.push(value);
+  }
+  return out;
 }
 
 /**
- * Up to seven rows on where the names differ most, each led by one figure and a short line with the other name's
- * number as its baseline (and the S&P 500's for the year, given `benchmark`). A row is only written when both ends
- * are known and the gap is big enough to matter.
+ * The winning index on a row: -1 on a neutral row, and -1 when the winner's figure reads the same as another's once
+ * rounded for the card ("+21%" against "+21%" is a tie to the reader, so neither side is marked).
  */
-export function describeDifferences(input: ReadonlyArray<ScreenerRow | null>, benchmark?: ScreenerRow | null): Difference[] {
+export function scoreWinner(values: ReadonlyArray<number>, texts: ReadonlyArray<string>, better: ScoreBetter): number {
+  if (better === "neutral") return -1;
+  const index = bestIndex(values, better);
+  if (index < 0) return -1;
+  return texts.some((text, other) => other !== index && text === texts[index]) ? -1 : index;
+}
+
+function tallyText(symbols: ReadonlyArray<string>, wins: ReadonlyArray<number>, scored: number): string {
+  const top = Math.max(0, ...wins);
+  if (top === 0) return "";
+  const leaders = symbols.filter((_, index) => wins[index] === top);
+  if (leaders.length === 1) return `${leaders[0]} leads on ${top} of ${scored}`;
+  if (leaders.length === symbols.length) return `Even, ${top} each of ${scored}`;
+  return `${leaders.slice(0, -1).join(", ")} and ${leaders[leaders.length - 1]} lead on ${top} each of ${scored}`;
+}
+
+/**
+ * "Where they differ" as a head-to-head scoreboard: one row per measure in SCORE_METRICS order, each stock's figure,
+ * which side wins it and how long each side's bar is. A row any stock lacks is dropped; with fewer than three rows
+ * left there is no scoreboard (null). Uncovered stocks (null rows) are left out of it.
+ */
+export function buildScoreboard(input: ReadonlyArray<ScreenerRow | null>, benchmark?: ScreenerRow | null): Scoreboard | null {
   const rows = input.filter((row): row is ScreenerRow => row !== null);
-  if (rows.length < 2) return [];
-  const out: Difference[] = [];
+  if (rows.length < 2) return null;
+  const symbols = rows.map((row) => row.symbol);
+  const out: ScoreRow[] = [];
 
-  const size = extremes(known(rows, "market_cap").filter((item) => item.value > 0));
-  if (size && size.top.value / size.bottom.value >= 1.5) {
-    out.push({
-      topic: "Size",
-      figure: ratioText(size.top.value / size.bottom.value),
-      leader: size.top.symbol,
-      words: `bigger by market value, at ${money(size.top.value)}`,
-      others: [{ label: size.bottom.symbol, value: money(size.bottom.value) }],
-      text: `How much bigger ${size.top.symbol} is than ${size.bottom.symbol}, at ${money(size.top.value)} against ${money(size.bottom.value)}.`,
-    });
-  }
+  for (const metric of SCORE_METRICS) {
+    let values: number[] | null = null;
+    let format: (value: number) => string = (value) => short(value);
+    let label = metric.label;
+    let reference: { label: string; value: number; text: string } | undefined;
 
-  const growth = extremes(known(rows, "rev_growth"));
-  if (growth && growth.top.value - growth.bottom.value >= 3) {
-    out.push({
-      topic: "Growth",
-      figure: short(growth.top.value, true),
-      tone: growth.top.value >= 0 ? "up" : "down",
-      leader: growth.top.symbol,
-      words: "sales growth over a year",
-      others: [{ label: growth.bottom.symbol, value: short(growth.bottom.value, true) }],
-      text:
-        growth.bottom.value < 0
-          ? `${growth.top.symbol}'s sales growth over a year, while ${growth.bottom.symbol}'s sales shrank ${short(Math.abs(growth.bottom.value))}.`
-          : `${growth.top.symbol}'s sales growth over a year, against ${short(growth.bottom.value, true)} for ${growth.bottom.symbol}.`,
-    });
-  }
-
-  const forward = extremes(known(rows, "fwd_pe").filter((item) => item.value > 0));
-  const trailing = extremes(known(rows, "pe").filter((item) => item.value > 0));
-  const multiple = forward ?? trailing;
-  if (multiple && multiple.top.value / multiple.bottom.value >= 1.15) {
-    out.push({
-      topic: "Price",
-      // "15.4x" said as what you pay for each dollar of profit.
-      figure: `$${multiple.bottom.value.toFixed(0)}`,
-      leader: multiple.bottom.symbol,
-      words: `paid for each $1 of ${forward ? "next year's expected profit" : "last year's profit"}`,
-      others: [{ label: multiple.top.symbol, value: `$${multiple.top.value.toFixed(0)}` }],
-      text: `What you pay for $1 of ${multiple.bottom.symbol}'s ${forward ? "expected profit next year" : "profit over the last year"}, against $${multiple.top.value.toFixed(0)} for ${multiple.top.symbol}.`,
-    });
-  }
-
-  const margin = extremes(known(rows, "op_margin"));
-  if (margin && margin.top.value - margin.bottom.value >= 3) {
-    const cents = (value: number) => `${Math.round(value)}¢`;
-    out.push({
-      topic: "Profit",
-      figure: margin.top.value < 0 ? short(margin.top.value) : cents(margin.top.value),
-      leader: margin.top.symbol,
-      words: margin.top.value < 0 ? "operating margin" : "operating profit per sales dollar",
-      // Same unit as the figure: cents beside cents; a loss beside a profit is said as a loss, not as a percent.
-      others: [
-        {
-          label: margin.bottom.symbol,
-          value: margin.top.value < 0 ? short(margin.bottom.value) : margin.bottom.value < 0 ? "loses money" : cents(margin.bottom.value),
-        },
-      ],
-      text:
-        margin.top.value < 0
-          ? `${margin.top.symbol}'s operating margin, against ${short(margin.bottom.value)} for ${margin.bottom.symbol}. Both lose money running the business.`
-          : margin.bottom.value < 0
-            ? `${margin.top.symbol}'s operating profit on each sales dollar, while ${margin.bottom.symbol} loses money running its business.`
-            : `${margin.top.symbol}'s operating profit on each sales dollar, against ${cents(margin.bottom.value)} for ${margin.bottom.symbol}.`,
-    });
-  }
-
-  const cash = extremes(known(rows, "net_cash"));
-  if (cash && cash.top.value > 0 && cash.bottom.value < 0) {
-    out.push({
-      topic: "Balance sheet",
-      figure: money(cash.top.value),
-      leader: cash.top.symbol,
-      words: "more cash than debt",
-      others: [{ label: cash.bottom.symbol, value: `owes ${money(cash.bottom.value)} more` }],
-      text: `${cash.top.symbol}'s cash beyond its debt, while ${cash.bottom.symbol} owes ${money(cash.bottom.value)} more than it holds.`,
-    });
-  } else {
-    const leverage = extremes(known(rows, "debt_equity").filter((item) => item.value >= 0));
-    if (leverage && leverage.top.value - leverage.bottom.value >= 0.3) {
-      out.push({
-        topic: "Balance sheet",
-        figure: fmt("debt_equity", leverage.top.value),
-        leader: leverage.top.symbol,
-        words: "debt for each $1 of equity",
-        others: [{ label: leverage.bottom.symbol, value: fmt("debt_equity", leverage.bottom.value) }],
-        text: `${leverage.top.symbol}'s debt for each dollar of equity, next to ${fmt("debt_equity", leverage.bottom.value)} for ${leverage.bottom.symbol}.`,
-      });
+    if (metric.id === "size") {
+      values = every(rows, "market_cap", (value) => value > 0);
+      format = money;
+    } else if (metric.id === "growth") {
+      values = every(rows, "rev_growth");
+      format = (value) => short(value, true);
+    } else if (metric.id === "price") {
+      // Next year's expected profit when every stock has it, else last year's; a loss has no price for its profit.
+      values = every(rows, "fwd_pe", (value) => value > 0);
+      if (!values) {
+        values = every(rows, "pe", (value) => value > 0);
+        label = "Price for $1 of last year's profit";
+      }
+      format = (value) => `$${Math.round(value)}`;
+    } else if (metric.id === "margin") {
+      values = every(rows, "op_margin");
+      format = cents;
+    } else if (metric.id === "cash") {
+      values = every(rows, "net_cash");
+      format = signedMoney;
+    } else if (metric.id === "year") {
+      values = every(rows, "ret_1y");
+      format = (value) => short(value, true);
+      if (benchmark && isFiniteNumber(benchmark.ret_1y)) reference = { label: "S&P 500", value: benchmark.ret_1y, text: short(benchmark.ret_1y, true) };
+    } else if (metric.id === "swing") {
+      values = every(rows, "vol_90d", (value) => value > 0);
     }
-  }
+    if (!values) continue;
 
-  const year = extremes(known(rows, "ret_1y"));
-  if (year && year.top.value - year.bottom.value >= 5) {
+    const texts = values.map(format);
+    const scale = Math.max(...values.map(Math.abs), reference ? Math.abs(reference.value) : 0);
+    const share = (value: number) => (scale > 0 ? Math.abs(value) / scale : 0);
+    const winner = scoreWinner(values, texts, metric.better);
+    // The word goes beside the winner, or beside the bigger figure on a neutral row (when it is not a tie).
+    const wordAt = metric.better === "neutral" ? scoreWinner(values, texts, "high") : winner;
+
     out.push({
-      topic: "The last year",
-      figure: short(year.top.value, true),
-      tone: year.top.value >= 0 ? "up" : "down",
-      leader: year.top.symbol,
-      words: "move over the past year",
-      others: [
-        { label: year.bottom.symbol, value: short(year.bottom.value, true) },
-        ...(benchmark && isFiniteNumber(benchmark.ret_1y) ? [{ label: "S&P 500", value: short(benchmark.ret_1y, true), logo: false }] : []),
-      ],
-      // The S&P 500 as a second baseline when we have it, so the row says whether either kept up with the market.
-      text: `${year.top.symbol}'s move in the year to the last close, against ${short(year.bottom.value, true)} for ${year.bottom.symbol}${
-        benchmark && isFiniteNumber(benchmark.ret_1y) ? ` and ${short(benchmark.ret_1y, true)} for the S&P 500` : ""
-      }.`,
+      id: metric.id,
+      label,
+      hint: metric.hint,
+      better: metric.better,
+      cells: values.map((value, index) => ({ symbol: symbols[index]!, value, text: texts[index]!, share: share(value) })),
+      winner,
+      ...(metric.word && wordAt >= 0 ? { word: { index: wordAt, text: metric.word } } : {}),
+      ...(reference ? { reference: { ...reference, share: share(reference.value) } } : {}),
     });
   }
 
-  const swing = extremes(known(rows, "vol_90d"));
-  if (swing && swing.top.value - swing.bottom.value >= 5) {
-    out.push({
-      topic: "Risk",
-      figure: short(swing.top.value),
-      leader: swing.top.symbol,
-      words: "typical price swing in a year",
-      others: [{ label: swing.bottom.symbol, value: short(swing.bottom.value) }],
-      text: `How much ${swing.top.symbol}'s price swings in a year, against ${short(swing.bottom.value)} for ${swing.bottom.symbol}.`,
-    });
-  }
-
-  const target = extremes(known(rows, "upside"));
-  if (target && target.top.value - target.bottom.value >= 5) {
-    // How far the analysts' target sits from today's price, said from the price's side: "81% above".
-    const side = (value: number) => `${short(Math.abs(value))} ${value >= 0 ? "above" : "below"}`;
-    out.push({
-      topic: "Analysts",
-      figure: short(target.top.value, true),
-      tone: target.top.value >= 0 ? "up" : "down",
-      leader: target.top.symbol,
-      words: `analysts' average target ${target.top.value >= 0 ? "above" : "below"} the price`,
-      others: [{ label: target.bottom.symbol, value: short(target.bottom.value, true) }],
-      text: `How far analysts' average target sits ${target.top.value >= 0 ? "above" : "below"} ${target.top.symbol}'s price. For ${target.bottom.symbol} it is ${side(target.bottom.value)}.`,
-    });
-  }
-
-  return out.slice(0, 7);
+  if (out.length < 3) return null;
+  const wins = symbols.map((_, index) => out.filter((row) => row.winner === index).length);
+  const scored = out.filter((row) => row.better !== "neutral").length;
+  return { symbols, rows: out, wins, scored, tally: tallyText(symbols, wins, scored) };
 }

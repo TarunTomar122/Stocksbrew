@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildMoversRead, buildPolicyRead, buildRedditRead, buildSignalsTodayRead, causeKind, causeCluster, moverTheme, moversHeadline, oneCardPerStock, praisedRecord, recentInsight, redditHeadline, themeCluster, type MoverForRead } from "@/lib/signals-insights";
+import { buildMoversRead, buildRedditRead, buildSignalsTodayRead, causeKind, causeCluster, moverTheme, moversHeadline, oneCardPerStock, praisedRecord, recentInsight, redditHeadline, themeCluster, type MoverForRead } from "@/lib/signals-insights";
 import type { PolicyPost, RedditName } from "@/lib/signals-shared";
 
 const m = (ticker: string, pct: number, cause: string | null, headline = "", industry: string | null = null): MoverForRead => ({
@@ -153,20 +153,6 @@ describe("policy", () => {
   it("keeps the latest praise per stock and compares with the market", () => {
     const record = praisedRecord([post("a", "2026-10-01T00:00:00Z", "bullish", [["BA", -5]]), post("b", "2026-10-20T00:00:00Z", "bullish", [["BA", 3]])], now);
     expect(record).toEqual([{ ticker: "BA", pct: 3, vsMarket: 2, at: "2026-10-20T00:00:00Z" }]);
-  });
-
-  it("says praised stocks trailed when most did", () => {
-    const posts = [
-      post("1", "2026-10-01T00:00:00Z", "bullish", [["BA", -7]]),
-      post("2", "2026-10-02T00:00:00Z", "bullish", [["NVDA", -10]]),
-      post("3", "2026-10-03T00:00:00Z", "bullish", [["F", -2]]),
-      post("4", "2026-10-04T00:00:00Z", "bullish", [["GM", 8]]),
-    ];
-    expect(buildPolicyRead(posts, now)!.headline).toBe("Stocks the President praised have mostly trailed the market since.");
-  });
-
-  it("is null with no posts", () => {
-    expect(buildPolicyRead([], now)).toBeNull();
   });
 
   it("says the week's tone as one figure, not two counts", () => {

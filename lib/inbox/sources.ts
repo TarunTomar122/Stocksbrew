@@ -187,7 +187,7 @@ export async function agentSource(uid: string, mode: Mode, sinceDay: string, tod
       if (item) items.push(item);
     }
   }
-  return [...items, ...quietItems(records, mode)];
+  return [...items, ...quietItems(records, mode, today)];
 }
 
 function readFindings(raw: unknown[]): RunFinding[] {
@@ -468,7 +468,7 @@ export async function followSource(slugs: string[], stocks: InboxStock[], sinceD
 
 /* ── insider buys in their stocks ───────────────────────────────────────── */
 
-export async function insiderSource(stocks: InboxStock[], sinceDay: string): Promise<InboxItem[]> {
+export async function insiderSource(stocks: InboxStock[], sinceDay: string, today: string | null = null): Promise<InboxItem[]> {
   if (stocks.length === 0) return [];
   const positions = new Map(stocks.map((stock) => [stock.ticker, stock.position]));
   // Open-market buys are rare next to sales, and a planned (10b5-1) buy was decided months before: neither is news here.
@@ -478,6 +478,7 @@ export async function insiderSource(stocks: InboxStock[], sinceDay: string): Pro
       .filter((trade) => positions.has(trade.symbol) && !trade.plan_10b5_1 && (trade.filed_at ?? "").slice(0, 10) >= sinceDay)
       .map((trade) => ({ id: trade.id, ticker: trade.symbol, insider: trade.insider, role: trade.role, value: trade.value, filedAt: trade.filed_at, url: trade.url })),
     positions,
+    today,
   );
 }
 

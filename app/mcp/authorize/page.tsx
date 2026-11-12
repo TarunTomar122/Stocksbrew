@@ -54,7 +54,7 @@ export default async function McpAuthorizePage({ searchParams }: Props) {
         full
         crumb="Connect an agent"
         title={`Let ${validated.client.client_name} use your stocksbrew account?`}
-        lede="It will be able to do what is listed below, and nothing else. It cannot trade, pay, change your plan or delete your account."
+        lede="It cannot trade, pay, change your plan or delete your account."
       />
       <Panel label="It is asking to" right={writes ? <Tag tone="primary">includes changes</Tag> : <Tag>read only</Tag>} flush>
         <ul>

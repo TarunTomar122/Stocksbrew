@@ -19,8 +19,7 @@ import type { WeightsRebalance } from "@/lib/backtest/types";
 
 import { EquityChart } from "./equity-chart";
 import { longDay, plainPct, signedPct, toneOf } from "./format";
-import { TheRead } from "@/components/oa/insight";
-import { START_MONEY, buildBacktestRead } from "@/lib/backtest-insights";
+import { START_MONEY } from "@/lib/backtest-insights";
 import type { Caveat } from "@/lib/backtest/types";
 
 import { Panel, StatGrid, YearTable } from "./results";
@@ -85,16 +84,10 @@ function ResultView({ run, example }: { run: BacktestRun; example: boolean }) {
   const benchmark = run.input.benchmark;
   const s = run.summary.strategy;
   const b = run.summary.benchmark;
-  const read = React.useMemo(() => {
-    const base = buildBacktestRead({ ...run, benchmark }, example ? "the 60/40 mix" : "this mix");
-    // The hindsight caveat sits right under the number it qualifies, as one sentence, and only on your own picks,
-    // after the money line ("$10,000 → $11,960") rather than in its place.
-    const hindsight = hindsightSentence(run.caveats, example);
-    const sub = [base.sub, hindsight].filter(Boolean).join(". ") || undefined;
-    return { ...base, ...(sub ? { sub } : {}), source: `Prices through ${longDay(run.price_as_of)}` };
-  }, [run, benchmark, example]);
+  // The page's one time and, on your own picks, the hindsight caveat, as one quiet line under the chart.
+  const note = [`Prices through ${longDay(run.price_as_of)}.`, hindsightSentence(run.caveats, example)].filter(Boolean).join(" ");
   // The chart in money: what $10,000 became on each day, in the mix and in the comparison fund. The thinned curve
-  // can skip the first day, so the start (the $10,000 itself) is put back, or the legend's change would not match the read.
+  // can skip the first day, so the start (the $10,000 itself) is put back, or the legend's change would not match the figures.
   const curve = React.useMemo(() => {
     const money = (value: number) => (value * START_MONEY) / 100;
     const head = run.curve.dates[0] && run.curve.dates[0] > run.period.start;
@@ -108,7 +101,6 @@ function ResultView({ run, example }: { run: BacktestRun; example: boolean }) {
   }, [run.curve, run.period.start]);
   return (
     <div className="flex min-w-0 flex-col gap-4">
-      <TheRead read={read} askContext={false} />
       <Panel
         title={`What $10,000 became, ${longDay(run.period.start)} to ${longDay(run.period.end)}`}
         aside={
@@ -125,6 +117,7 @@ function ResultView({ run, example }: { run: BacktestRun; example: boolean }) {
             The test starts on {longDay(run.period.start)} because {run.limited_by.symbol} has no price before then.
           </p>
         ) : null}
+        <p className="border-t border-oa-border px-4 py-2.5 text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg">{note}</p>
       </Panel>
 
       <StatGrid

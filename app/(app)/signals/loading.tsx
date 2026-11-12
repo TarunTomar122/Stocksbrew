@@ -4,7 +4,7 @@ import { PageHeadGhost, PanelGhost, SkeletonFrame, TabRowGhost } from "@/compone
 export default function SignalsLoading() {
   return (
     <SkeletonFrame label="Loading signals">
-      <PageHeadGhost meta />
+      <PageHeadGhost lede={0} meta />
       <TabRowGhost count={4} className="!mb-3 lg:!mb-4" />
       <PanelGhost rows={5} lines={2} className="mb-5" />
       <div className="grid items-start gap-5 lg:grid-cols-2">

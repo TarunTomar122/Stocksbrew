@@ -1,5 +1,6 @@
 "use client";
 
+import { TableBox } from "@/components/oa/kit/table-box";
 import * as React from "react";
 
 import { Sparkline, toneText } from "@/components/markets/widgets";
@@ -205,7 +206,7 @@ export function AssetTable({ assets, assetClass }: { assets: MarketAsset[]; asse
         </div>
       ) : null}
       <div className="oa-surface overflow-hidden border border-oa-border bg-oa-card">
-        <div className="overflow-x-auto">
+        <TableBox rowRem={3} head="bg-oa-bg">
           <table className="w-full border-collapse text-[14px] sm:min-w-[720px]">
             <thead>
               <tr>
@@ -265,7 +266,7 @@ export function AssetTable({ assets, assetClass }: { assets: MarketAsset[]; asse
               ))}
             </tbody>
           </table>
-        </div>
+        </TableBox>
       </div>
     </div>
   );

@@ -30,6 +30,8 @@ import { buildGoalRead } from "@/lib/goal/read";
 import { HINDSIGHT_DISCOUNT, discounted } from "@/lib/goal/series";
 import type { TheRead } from "@/lib/insights";
 import { loadExampleMemo } from "@/lib/memo/server";
+import { loadLogos } from "@/lib/og/logos";
+import { signedPct, toneOfPct, weekdayOf } from "@/lib/og/pieces";
 import { newYorkToday } from "@/lib/portfolio-data";
 import { pickNoticed } from "@/lib/portfolio-home/pick";
 import { loadExampleIdeas } from "@/lib/portfolio-ideas/server";
@@ -145,11 +147,37 @@ async function memoCard(): Promise<OgCard | null> {
   // The memo's top line leads when it fits whole; otherwise the week's own result does.
   const headline = whole(memo.topLine, OG_HEADLINE_MAX) ?? whole(memo.week?.text, OG_HEADLINE_MAX);
   if (!headline) return null;
-  return exampleRead(
+  const card = exampleRead(
     "memo",
     { headline, insights: items },
     ogFootnote(ogDayLabel(memo.monday) ? `Week of ${ogDayLabel(memo.monday)}` : null, ogDayLabel(memo.endDay) ? `closes to ${ogDayLabel(memo.endDay)}` : null),
   );
+  // With the page's picture of the week, the card is the same poster as a shared memo: the week's figure, the line
+  // against the S&P 500 and who moved it, with their logos.
+  const view = memo.view;
+  if (!card || !view || typeof view.portfolioPct !== "number" || !Number.isFinite(view.portfolioPct)) return card;
+  const short = whole(view.headline, OG_HEADLINE_MAX);
+  if (!short) return card;
+  const movers = [...view.movers].sort((a, b) => b.points - a.points).slice(0, 6);
+  const logos = await loadLogos(movers.map((mover) => mover.ticker));
+  const curve = view.curve.length >= 2 ? view.curve : [];
+  return {
+    ...card,
+    headline: short,
+    lines: [],
+    figure: { value: signedPct(view.portfolioPct), label: memo.complete ? "the example portfolio this week" : "the example portfolio so far this week", tone: toneOfPct(view.portfolioPct) },
+    curve:
+      curve.length >= 2
+        ? {
+            title: `${memo.complete ? "The week" : "The week so far"}${curve.every((point) => typeof point.market === "number") ? " against the S&P 500" : ""}`,
+            mine: curve.map((point) => point.portfolio),
+            market: curve.every((point) => typeof point.market === "number") ? curve.map((point) => point.market as number) : null,
+            labels: curve.map((point) => weekdayOf(point.day)),
+            mineLabel: "Example",
+          }
+        : null,
+    chips: movers.map((mover) => ({ ticker: mover.ticker, logo: logos[mover.ticker] ?? null, display: signedPct(mover.pct, Math.abs(mover.pct) >= 9.95 ? 0 : 1), tone: toneOfPct(mover.pct) })),
+  };
 }
 
 async function xrayCard(): Promise<OgCard | null> {

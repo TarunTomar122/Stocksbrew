@@ -1,7 +1,8 @@
 /**
  * "More markets" on Market today (/explore): one card per part of the market,
- * each leading with one real figure, a plain sentence under it and a small
- * picture drawn from data already loaded. The whole card opens that part of
+ * each one figure with a few words saying what it is, whether it is good or bad
+ * for stocks with the reason in a few words, and a small picture drawn from data
+ * already loaded. The whole card opens that part of
  * /markets. Server-rendered, no hooks: six cards cost a few kilobytes, where
  * the folded sections they replace sent every table of /markets again.
  */
@@ -13,18 +14,17 @@ import { StockLogo } from "@/components/stock-logo";
 import { FUND_TOPIC, fedOutcomeWords } from "@/lib/markets-insights";
 import {
   biggestMoves,
-  changeTone,
   classHref,
   formatChange,
   formatLevel,
   formatProbability,
-  rangeReading,
-  sessionWord,
   type MarketAsset,
   type MarketsData,
   type PredictionMarket,
   type TreasuryCurve,
 } from "@/lib/markets-shared";
+
+import { dollarVerdict, fedVerdict, goldVerdict, movesVerdict, putCallVerdict, VERDICT_WORDS, verdictTally, vixVerdict, yieldVerdict, type Verdict, type VerdictLine } from "@/lib/market-verdict";
 
 import { pickPredictions } from "./overview-sections";
 import { Sparkline } from "./widgets";
@@ -43,8 +43,8 @@ type Card = {
   label: string;
   /** A fund's ticker, for its logo beside the figure. */
   logo?: string | null;
-  text: string;
-  more?: string | null;
+  /** Is this good or bad for stocks right now, and why in a few words (lib/market-verdict.ts). Null without data. */
+  verdict: VerdictLine | null;
   visual?: React.ReactNode;
 };
 
@@ -90,39 +90,20 @@ function CurveLines({ curve }: { curve: TreasuryCurve }) {
 /* ── the cards ──────────────────────────────────────────────────────────── */
 
 /**
- * Whether the read above already quotes this asset by its ticker ("GDX fell 5.43%"). Only the ticker, matched
- * whole and in capitals: a plain name like "Gold" would also match "Gold miners" and skip the wrong move.
+ * Each card answers one question, is this good or bad for stocks right now (owner, Nov 12): one figure, a label of a
+ * few words saying what it is, then the verdict with its reason in one short line. No verdict without the data.
  */
-function quotedIn(said: string, asset: MarketAsset): boolean {
-  const symbol = asset.symbol?.trim();
-  if (!said || !symbol || symbol.length < 2) return false;
-  return new RegExp(`(^|[^A-Za-z0-9])\\$?${symbol.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^A-Za-z0-9]|$)`).test(said);
-}
 
-function movedCard(data: MarketsData, said: string): Card | null {
+function movedCard(data: MarketsData): Card | null {
   const movers = biggestMoves(data.assets, 7);
-  // The read on top often leads with the day's biggest move ("GDX fell 5.43%"); this card then leads with the
-  // biggest one the read does not quote, so the same figure is never shown twice on the page.
-  // When the read quotes every one of them, the biggest still leads rather than leaving a hole in the grid.
-  const top = movers.find((asset) => !quotedIn(said, asset)) ?? movers[0];
+  const top = movers[0];
   if (!top || top.change.d1 == null) return null;
-  const skipped = top !== movers[0];
   const figure = formatChange(top.change.d1, top.change_mode);
   if (!figure) return null;
-  const up = movers.filter((asset) => (asset.change.d1 ?? 0) > 0).length;
-  const next = movers
-    .filter((asset) => asset !== top && !quotedIn(said, asset))
-    .slice(0, 2)
-    .map((asset) => `${name(asset)} (${formatChange(asset.change.d1, asset.change_mode)})`)
-    .join(" and ");
-  const count =
-    movers.length < 3
-      ? null
-      : up === movers.length
-      ? `All ${movers.length} of the biggest moves across markets were gains.`
-      : up === 0
-        ? `All ${movers.length} of the biggest moves across markets were losses.`
-        : `${up} of the ${movers.length} biggest moves across markets ${up === 1 ? "was a gain" : "were gains"}.`;
+  // The verdict counts only stock indexes and funds among the biggest moves: a rally in gold, the dollar or bitcoin
+  // is not a good day for stocks.
+  const stockMoves = movers.filter((asset) => asset.class === "index" || asset.class === "etf");
+  const gains = stockMoves.filter((asset) => (asset.change.d1 ?? 0) > 0).length;
   return {
     key: "moved",
     title: "What moved",
@@ -130,27 +111,15 @@ function movedCard(data: MarketsData, said: string): Card | null {
     linkLabel: "Open all markets",
     figure,
     tone: top.change.d1 > 0 ? "up" : "down",
-    label: skipped ? `${name(top)}, the next biggest move` : `${name(top)}, the biggest move`,
+    label: name(top),
     logo: top.class === "etf" ? top.symbol : null,
-    text: count ?? (skipped ? `${name(top)} was the next biggest move across markets.` : `${name(top)} moved most across markets.`),
-    more: next ? `Next were ${next}.` : null,
-    // No bar strip: the count sentence already says how many rose (owner rule 5).
+    verdict: movesVerdict(gains, stockMoves.length),
   };
 }
 
 function stocksCard(data: MarketsData): Card | null {
   const vix = data.assets.find((asset) => asset.id === "vix");
   if (!vix || !(vix.price > 0)) return null;
-  const spx = data.assets.find((asset) => asset.id === "sp500");
-  const daily = vix.price / Math.sqrt(252);
-  const when = spx && sessionWord(spx.as_of) === "today" ? "today" : "in the last session";
-  const spxTone = spx ? changeTone(spx.change.d1) : "flat";
-  const spxMove =
-    spx && spx.change.d1 != null
-      ? spxTone === "flat"
-        ? `The S&P 500 was flat ${when}.`
-        : `The S&P 500 ${spxTone === "up" ? "rose" : "fell"} ${Math.abs(spx.change.d1).toFixed(2)}% ${when}.`
-      : null;
   return {
     key: "stocks",
     title: "Indices and funds",
@@ -158,9 +127,8 @@ function stocksCard(data: MarketsData): Card | null {
     linkLabel: "Open indices",
     figure: vix.price.toFixed(1),
     tone: "flat",
-    label: "VIX, the market's fear gauge",
-    text: `Options traders expect the S&P 500 to swing about ${daily.toFixed(1)}% a day.`,
-    more: spxMove,
+    label: "VIX, the fear gauge",
+    verdict: vixVerdict(vix.price),
     visual: vix.spark.length > 1 ? <Sparkline values={vix.spark} tone="flat" width={96} height={28} /> : null,
   };
 }
@@ -168,19 +136,10 @@ function stocksCard(data: MarketsData): Card | null {
 function ratesCard(data: MarketsData): Card | null {
   const curve = data.treasury;
   if (!curve) return null;
-  const moves = curve.points.filter((point) => point.value_1m_ago != null).map((point) => point.value - (point.value_1m_ago as number));
-  if (moves.length < 4) return null;
-  const average = moves.reduce((sum, move) => sum + move, 0) / moves.length;
-  const two = curve.points.find((point) => point.months === 24);
   const ten = curve.points.find((point) => point.months === 120);
-  const shape =
-    two && ten
-      ? ten.value >= two.value
-        ? `The 10-year pays ${ten.value.toFixed(2)}%, ${(ten.value - two.value).toFixed(2)} points more than the 2-year.`
-        : `The 2-year pays ${two.value.toFixed(2)}%, ${(two.value - ten.value).toFixed(2)} points more than the 10-year.`
-      : null;
   if (!ten) return null;
-  const direction = Math.abs(average) < 0.05 ? "about where they were" : average > 0 ? "higher than" : "lower than";
+  const before = ten.value_1m_ago;
+  const change = before != null && Number.isFinite(before) ? ten.value - before : null;
   return {
     key: "rates",
     title: "Rates",
@@ -188,65 +147,30 @@ function ratesCard(data: MarketsData): Card | null {
     linkLabel: "Open Treasury yields",
     figure: `${ten.value.toFixed(2)}%`,
     tone: "flat",
-    label: "the 10-year Treasury yield",
-    text: `Treasury yields are ${direction} a month ago${Math.abs(average) < 0.05 ? "." : `, by ${Math.abs(average).toFixed(2)} percentage points on average.`}`,
-    more: shape,
+    label: "10-year yield",
+    verdict: yieldVerdict(change),
     visual: curve.points.length > 2 ? <CurveLines curve={curve} /> : null,
   };
 }
 
-/** What a futures contract is called in a sentence ("Gold for Dec 2027 delivery"). */
-const COMMODITY_NAME: Record<string, string> = {
-  gold: "Gold",
-  silver: "Silver",
-  copper: "Copper",
-  wti: "WTI crude oil",
-  brent: "Brent crude oil",
-  natgas: "Natural gas",
-};
-
-function commodityName(asset: MarketAsset): string {
-  return COMMODITY_NAME[asset.id] ?? asset.name.replace(/\s*\(.*\)\s*$/, "");
-}
-
-/** "Dec 26" is a contract month and a two-digit year; spell the year. */
-function contractMonth(label: string): string {
-  const match = /^([A-Z][a-z]{2}) (\d{2})$/.exec(label.trim());
-  return match ? `${match[1]} 20${match[2]}` : label;
-}
-
 function commoditiesCard(data: MarketsData): Card | null {
-  const commodities = data.assets.filter((asset) => asset.class === "commodity");
-  const lead = commodities.find((asset) => asset.id === "gold" && asset.structure) ?? commodities.find((asset) => asset.structure);
-  const dxy = data.assets.find((asset) => asset.id === "dxy");
-  const dollar = dxy ? rangeReading(dxy, "The dollar index") : null;
-  if (lead?.structure) {
-    const { structure } = lead;
-    const later = contractMonth(structure.later_label);
-    const front = contractMonth(structure.front_label);
-    const subject = commodityName(lead);
-    const gap = Math.abs(structure.spread_pct).toFixed(1);
-    // "Later gold contracts cost more", not "contango" (owner rule 8). Brent and WTI are names and keep their capitals.
-    const noun = /^(?:Gold|Silver|Copper|Natural gas)$/.test(subject) ? subject.charAt(0).toLowerCase() + subject.slice(1) : subject;
-    const text =
-      structure.state === "contango"
-        ? `Later ${noun} contracts cost more: ${later} delivery is ${gap}% above ${front}.`
-        : structure.state === "backwardation"
-          ? `Later ${noun} contracts cost less: ${later} delivery is ${gap}% below ${front}, so buyers pay extra to have it now.`
-          : `${subject} for ${front} and ${later} delivery trade within ${gap}% of each other.`;
+  // Gold's month first: a rush into gold is the clearest read of fear in this group. The dollar index otherwise.
+  const gold = data.assets.find((asset) => asset.id === "gold");
+  const month = gold?.change.m1;
+  if (gold && typeof month === "number" && Number.isFinite(month)) {
     return {
       key: "commodities",
       title: "Commodities and the dollar",
       href: classHref("commodities"),
       linkLabel: "Open commodities",
-      figure: `${signed(structure.spread_pct, 1)}%`,
+      figure: `${signed(month, 1)}%`,
       tone: "flat",
-      label: `${subject}, ${later} over ${front}`,
-      text,
-      more: dollar,
-      visual: lead.spark.length > 1 ? <Sparkline values={lead.spark} tone="flat" width={96} height={28} /> : null,
+      label: "Gold, past month",
+      verdict: goldVerdict(month),
+      visual: gold.spark.length > 1 ? <Sparkline values={gold.spark} tone="flat" width={96} height={28} /> : null,
     };
   }
+  const dxy = data.assets.find((asset) => asset.id === "dxy");
   if (!dxy) return null;
   return {
     key: "commodities",
@@ -255,8 +179,8 @@ function commoditiesCard(data: MarketsData): Card | null {
     linkLabel: "Open currencies",
     figure: formatLevel(dxy.price, dxy.unit),
     tone: "flat",
-    label: "the dollar index",
-    text: dollar ?? "The dollar against six major currencies.",
+    label: "Dollar index",
+    verdict: dollarVerdict(dxy.price, dxy.low_1y, dxy.high_1y),
     visual: dxy.spark.length > 1 ? <Sparkline values={dxy.spark} tone="flat" width={96} height={28} /> : null,
   };
 }
@@ -265,13 +189,6 @@ function optionsCard(data: MarketsData): Card | null {
   const ratio = data.assets.find((asset) => asset.id === "pc-equity");
   if (!ratio || !(ratio.price > 0)) return null;
   const average = ratio.average_20d;
-  const diff = average != null && average > 0 ? ratio.price - average : null;
-  const text =
-    diff == null || Math.abs(diff) < 0.03
-      ? "Bets on a rise and on a fall in single stocks traded in their usual mix."
-      : diff > 0
-        ? "More bets on a fall than usual in single stocks: traders paid for protection."
-        : "Fewer bets on a fall than usual in single stocks: traders leaned toward a rise.";
   return {
     key: "options",
     title: "Options",
@@ -279,14 +196,18 @@ function optionsCard(data: MarketsData): Card | null {
     linkLabel: "Open options",
     figure: ratio.price.toFixed(2),
     tone: "flat",
-    // The put/call ratio in plain words (owner rule 8): a put is a bet on a fall, a call a bet on a rise.
-    label:
-      average != null && average > 0
-        ? `bets on a fall for each bet on a rise, against ${average.toFixed(2)} on a usual day`
-        : "bets on a fall for each bet on a rise",
-    text,
+    // A put is a bet on a fall, a call a bet on a rise.
+    label: "puts per call",
+    verdict: putCallVerdict(ratio.price, average),
     visual: ratio.spark.length > 1 ? <Sparkline values={ratio.spark} tone="flat" width={96} height={28} /> : null,
   };
+}
+
+/** "raises rates by 0.25 percentage points" -> "of a 0.25-point Fed hike"; "holds rates…" -> "the Fed holds". */
+function fedLabel(words: string): string {
+  const move = /^(raises|cuts) rates by (more than )?([\d.]+) percentage points?$/.exec(words);
+  if (!move) return /^holds\b/.test(words) ? "the Fed holds" : `the Fed ${words}`;
+  return `of a ${move[2] ? "more than " : ""}${move[3]}-point Fed ${move[1] === "raises" ? "hike" : "cut"}`;
 }
 
 function predictionsCard(data: MarketsData): Card | null {
@@ -297,15 +218,12 @@ function predictionsCard(data: MarketsData): Card | null {
   const ranked = lead.outcomes.filter((outcome) => Number.isFinite(outcome.probability)).sort((a, b) => b.probability - a.probability);
   const top = ranked[0];
   if (!top) return null;
-  // "Fed decision in Dec 2026?" stays as it is; a question stored without an end mark gets a full stop.
-  const question = /[.?!]$/.test(lead.question.trim()) ? lead.question.trim() : `${lead.question.trim()}.`;
   const yes = lead.kind === "binary" ? ranked.find((outcome) => outcome.label.toLowerCase() === "yes") : null;
   const headline = yes ?? top;
-  const second = ranked.find((outcome) => outcome !== headline);
   // Only a Fed market's outcomes are rate moves; another market's "No change" stays in its own words.
-  const fed = lead.topic === "fed";
-  const headlineWords = fed && !yes ? fedOutcomeWords(headline.label) : null;
-  const secondWords = fed && second ? fedOutcomeWords(second.label) : null;
+  const words = lead.topic === "fed" && !yes ? fedOutcomeWords(headline.label) : null;
+  // "Fed decision in Dec 2026?" gives the month the odds are for.
+  const month = /\bin ([A-Z][a-z]{2,8})\b/.exec(lead.question)?.[1] ?? null;
   return {
     key: "predictions",
     title: "Prediction markets",
@@ -313,16 +231,8 @@ function predictionsCard(data: MarketsData): Card | null {
     linkLabel: "Open prediction markets",
     figure: formatProbability(headline.probability),
     tone: "flat",
-    // "Hike 25bps" in plain words: "chance the Fed raises rates by 0.25 percentage points" (owner rule 8).
-    label: headlineWords ? `chance the Fed ${headlineWords}, on ${lead.source_name}` : `chance of ${yes ? "yes" : headline.label}, on ${lead.source_name}`,
-    text: question,
-    // No odds bars under it (owner rule 5): the figure and the next outcome already say the odds in numbers.
-    more:
-      !yes && second && second.probability >= 0.05
-        ? secondWords
-          ? `The next most likely is that it ${secondWords}, at ${formatProbability(second.probability)}.`
-          : `Next is ${second.label}, at ${formatProbability(second.probability)}.`
-        : null,
+    label: words ? `chance ${fedLabel(words)}${month ? ` in ${month}` : ""}` : yes ? `chance of yes: ${lead.question.trim().replace(/[.?!]$/, "")}` : `chance of ${headline.label}`,
+    verdict: fedVerdict(words),
   };
 }
 
@@ -346,8 +256,14 @@ function MarketCard({ card }: { card: Card }) {
           <div className="mt-1 shrink-0">{card.visual}</div>
         ) : null}
       </div>
-      <p className="mt-2 text-pretty text-[14.5px] leading-[21px] text-oa-fg">{card.text}</p>
-      {card.more ? <p className="mt-1 text-pretty text-[13.5px] leading-[19px] text-oa-muted-fg">{card.more}</p> : null}
+      {card.verdict ? (
+        <p className="mt-2.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[13.5px] leading-5">
+          <span className={`inline-flex h-6 shrink-0 items-center rounded px-2 text-[12.5px] font-medium ${VERDICT_CHIP[card.verdict.verdict]}`}>
+            {VERDICT_WORDS[card.verdict.verdict]}
+          </span>
+          <span className="min-w-0 text-pretty text-oa-muted-fg">{card.verdict.why}</span>
+        </p>
+      ) : null}
       {/* The whole card opens its part of /markets; no link words repeated on every card. */}
       <Link
         href={card.href}
@@ -359,27 +275,37 @@ function MarketCard({ card }: { card: Card }) {
   );
 }
 
-/** The six cards that have data, three across on a wide screen, two on a tablet, one on a phone. */
-export function MarketCards({
-  data,
-  said = "",
-  className = "",
-}: {
-  data: MarketsData;
-  /** What the page's read already says; the What moved card skips a move it quotes. */
-  said?: string;
-  className?: string;
-}) {
-  const cards = [movedCard(data, said), stocksCard(data), ratesCard(data), commoditiesCard(data), optionsCard(data), predictionsCard(data)].filter(
+/** The verdict chip's colours: the app's up and down tones for good and bad, muted for neutral. */
+const VERDICT_CHIP: Record<Verdict, string> = {
+  good: "bg-[color-mix(in_srgb,var(--signal-bullish)_14%,transparent)] text-signal-bullish",
+  bad: "bg-[color-mix(in_srgb,var(--signal-bearish)_14%,transparent)] text-signal-bearish",
+  neutral: "bg-oa-accent text-oa-muted-fg",
+};
+
+/**
+ * "More markets": its title with one tally beside it ("4 of 6 good for stocks"), then the cards that have data,
+ * three across on a wide screen, two on a tablet, one on a phone.
+ */
+export function MarketCards({ data, className = "" }: { data: MarketsData; className?: string }) {
+  const cards = [movedCard(data), stocksCard(data), ratesCard(data), commoditiesCard(data), optionsCard(data), predictionsCard(data)].filter(
     (card): card is Card => card !== null,
   );
   if (!cards.length) return null;
+  const tally = verdictTally(cards.map((card) => card.verdict?.verdict));
   return (
-    // Each card as tall as its own words (owner rule 4): a short card is not stretched to its longest neighbour.
-    <ul role="list" className={`grid grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-3 ${className}`}>
-      {cards.map((card) => (
-        <MarketCard key={card.key} card={card} />
-      ))}
-    </ul>
+    <section aria-labelledby="more-markets" className={className}>
+      <div className="flex items-baseline justify-between gap-3 px-2 pb-2 sm:px-3">
+        <h2 id="more-markets" className="text-[17px] font-medium tracking-tight text-oa-fg">
+          More markets
+        </h2>
+        {tally ? <span className="shrink-0 text-[13px] text-oa-muted-fg">{tally}</span> : null}
+      </div>
+      {/* Each card as tall as its own words (owner rule 4): a short card is not stretched to its longest neighbour. */}
+      <ul role="list" className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {cards.map((card) => (
+          <MarketCard key={card.key} card={card} />
+        ))}
+      </ul>
+    </section>
   );
 }

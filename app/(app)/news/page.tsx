@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 
 import { AppPage, PageHead, fmtStampET } from "@/components/oa/kit";
 import { MarketingSchema } from "@/components/seo/marketing-schema";
-import { TheRead } from "@/components/oa/insight";
 import { CompanyFeed } from "@/components/wire/company-feed";
 import { TalkedAbout } from "@/components/wire/news-read";
 import { TickerStrip, WireFilterBar, WireSearch, WireStream } from "@/components/wire/wire-view";
@@ -24,8 +23,6 @@ import {
   type WireTopic,
 } from "@/lib/wire-shared";
 import { ogImage } from "@/lib/og/url";
-import { loadCallWords, loadUpcomingReports, todayET, withReports } from "@/app/(app)/explore/desk-data";
-import { callLeads, withCallNext } from "@/lib/explore-insights";
 
 export const dynamic = "force-dynamic";
 
@@ -61,12 +58,9 @@ export default async function NewsPage({ searchParams }: { searchParams?: Search
   const now = Date.now();
 
   const session = await getSessionUser().catch(() => null);
-  const today = todayET(new Date(now));
-  const [loaded, tracked, upcoming] = await Promise.all([
+  const [loaded, tracked] = await Promise.all([
     loadWire({ ticker: filters.ticker, now }),
     session ? getTrackedStocks(session.uid).catch(() => []) : Promise.resolve([] as string[]),
-    // The next three weeks of reports, for a read card's "Watch next" line (cached with Market today's).
-    loadUpcomingReports(today),
   ]);
   // Read by company: the last 24 hours, anchored on the newest headline so a quiet weekend still shows something.
   // Never later than now, so one headline stamped in the future cannot push the window past real news.
@@ -111,7 +105,7 @@ export default async function NewsPage({ searchParams }: { searchParams?: Search
   // A ticker or a theme reads as one time-ordered stream; everything else is read by stock.
   const streamView = Boolean(effective.ticker || effective.theme);
   const grouped = streamView ? [] : groupByCompany(matched, { sinceMs: since, quotes: wire.quotes, mine: mineSet, labels });
-  // The read is about the whole market, so it only leads the unfiltered wire.
+  // The most talked about stocks are about the whole market, so they only lead the unfiltered wire.
   const reading =
     streamView || hasNarrowing(effective)
       ? null
@@ -140,10 +134,6 @@ export default async function NewsPage({ searchParams }: { searchParams?: Search
   const step = Math.max(1, Math.round(effective.limit / WIRE_PAGE_SIZE));
   const shownCompanies = COMPANY_PAGE * step;
   const canShowMore = effective.limit < WIRE_MAX_ROWS;
-  // The read's cards about one stock end with its next report, else with our call on it (owner rule 7: a next step).
-  const reportsRead = reading?.read ? withReports(reading.read, upcoming, today) : null;
-  const calls = reportsRead ? await loadCallWords(callLeads(reportsRead, { singleStock: true })) : new Map<string, string>();
-  const read = reportsRead ? withCallNext(reportsRead, calls, { singleStock: true }) : null;
   // One stock's lean over the same last day the rest of the page reads, every story counted.
   const tickerDay = effective.ticker ? storiesBetween(wire.items, labels, since, anchor + 1) : [];
 
@@ -167,11 +157,9 @@ export default async function NewsPage({ searchParams }: { searchParams?: Search
         </p>
       ) : null}
 
-      {read ? <TheRead read={read} label="The read" className="mb-4" /> : null}
-
       {/* Stocks first (owner rule 7): the most talked about stocks, each with its top story, then every company's
           headlines in its own card below. No separate list of stories by theme: it showed the same headlines again,
-          away from their stocks; a theme the read names is still one click away from its card. */}
+          away from their stocks. */}
       {reading?.buzz.length ? <TalkedAbout rows={reading.buzz} filters={effective} wide className="mb-6" /> : null}
 
       <WireFilterBar filters={effective} topicCounts={topicCounts} mineCount={mineCount} signedIn={Boolean(session)} />

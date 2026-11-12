@@ -3,10 +3,8 @@ import { canSeeLevels, getViewer } from "@/lib/entitlements-server";
 import { notFound } from "next/navigation";
 
 import { EarningsStats, PostEarningsRead, PreEarningsRead, ReportHistory, TickerHeadlines } from "@/components/calendar/earnings-detail";
-import { TheRead } from "@/components/oa/insight";
 import { AppPage, FOCUS, PageHead, Ticker } from "@/components/oa/kit";
-import { loadEarningsDetail, loadReportContext } from "@/lib/calendar";
-import { buildEarningsDetailRead } from "@/lib/calendar-insights";
+import { loadEarningsDetail } from "@/lib/calendar";
 import { summarizeReports, todayET, weekStart } from "@/lib/calendar-shared";
 import { loadWire } from "@/lib/wire";
 import { normalizeTicker } from "@/lib/wire-shared";
@@ -53,13 +51,8 @@ export default async function EarningsDetailPage({ params }: Props) {
   if (!ticker) notFound();
   const today = todayET();
 
-  const [detail, wire, context] = await Promise.all([
-    loadEarningsDetail(ticker),
-    loadWire({ ticker }).catch(() => null),
-    loadReportContext([ticker], today),
-  ]);
+  const [detail, wire] = await Promise.all([loadEarningsDetail(ticker), loadWire({ ticker }).catch(() => null)]);
   if (!detail) notFound();
-  const read = buildEarningsDetailRead({ ticker, name: detail.name, events: detail.events, today, context: context[ticker] });
 
   // The pre-earnings read comes with covering a stock (lib/entitlements.ts: `pre_earnings_read`).
   const entitled = canSeeLevels(await getViewer(), ticker);
@@ -89,7 +82,6 @@ export default async function EarningsDetailPage({ params }: Props) {
             <span className="text-oa-muted-fg">{detail.name !== ticker ? detail.name : "earnings"}</span>
           </span>
         }
-        lede="Next report, what is expected, past results and how the stock moved."
         actions={
           <Link prefetch={false}
             href={`/stock/${encodeURIComponent(ticker)}`}
@@ -100,7 +92,6 @@ export default async function EarningsDetailPage({ params }: Props) {
         }
       />
 
-      <TheRead read={read} className="mb-4" />
       <EarningsStats detail={detail} today={today} />
 
       <div className="mb-5">

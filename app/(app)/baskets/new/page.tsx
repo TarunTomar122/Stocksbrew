@@ -88,7 +88,7 @@ export default async function NewBasketPage({ searchParams }: Props) {
       <JsonLd data={toolPageLd("/baskets/new")} />
       <PageHead
         title="Build a basket in plain English"
-        lede="Describe the stocks you want the way you would say it. We turn it into a rule over the stocks we cover, list every company that fits with the reason it is in, and test the basket against the S&P 500."
+        lede="We list every stock that fits and test the basket against the S&P 500."
       />
       <Panel>
         <BasketForm value={raw} autoFocus={!raw} />

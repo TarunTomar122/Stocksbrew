@@ -7,10 +7,11 @@ import { useMemo, useState } from "react";
 import { CallCell, Dash, EarningsCell, FOCUS, NUM, Pct, signTone, TD, TH } from "@/components/portfolio/parts";
 import { StockLogo } from "@/components/stock-logo";
 import { ThesisLine } from "@/components/thesis/thesis-line";
+import { WholeRows } from "@/components/wire/whole-rows";
+import { attentionFirst } from "@/lib/portfolio-attention";
 import { flushWatchlistRebuild } from "@/lib/radar-client-refresh";
 import {
   fmtMoney,
-  fmtShares,
   fmtSignedMoney,
   sortPositions,
   type PortfolioPosition,
@@ -19,24 +20,20 @@ import {
 } from "@/lib/portfolio-shared";
 
 type Direction = "asc" | "desc";
-/** "avgCost" is shown but not sortable: the sort lives in portfolio-shared and has no key for it. */
-type ColumnKey = SortKey | "avgCost";
-type Column = { key: ColumnKey; label: string; align: "left" | "right"; first: Direction; hideBelow?: "lg" | "xl" | "2xl" };
+type Column = { key: SortKey; label: string; align: "left" | "right"; first: Direction; hideBelow?: "lg" | "xl" | "2xl" };
 
-// The order a brokerage statement uses: what you hold, what it cost, what it is
-// worth now, what it has made. The total sits under the same columns.
+// The owner's order (Nov 12): the stock, its price and day, the overall gain in dollars then percent, our call,
+// then avg cost, value and the next report. Nothing else. The total sits under the same columns.
 const HOLDING_COLUMNS: Column[] = [
   { key: "ticker", label: "Stock", align: "left", first: "asc" },
-  { key: "shares", label: "Shares", align: "right", first: "desc", hideBelow: "lg" },
-  { key: "avgCost", label: "Avg cost", align: "right", first: "desc", hideBelow: "2xl" },
   { key: "price", label: "Price", align: "right", first: "desc" },
   { key: "dayPct", label: "Day", align: "right", first: "desc" },
-  { key: "value", label: "Value", align: "right", first: "desc" },
-  { key: "weight", label: "Share of total", align: "left", first: "desc", hideBelow: "lg" },
-  // Below 2xl the sidebar leaves no room for both gains; the percentage stays, the dollar gain is in the total.
-  { key: "gain", label: "Gain", align: "right", first: "desc", hideBelow: "2xl" },
+  { key: "gain", label: "Gain", align: "right", first: "desc" },
   { key: "gainPct", label: "Gain %", align: "right", first: "desc" },
   { key: "stance", label: "Our call", align: "left", first: "asc" },
+  // Between md and xl the sidebar leaves no room for all nine: cost and the report date wait for a wider screen.
+  { key: "avgCost", label: "Avg cost", align: "right", first: "desc", hideBelow: "xl" },
+  { key: "value", label: "Value", align: "right", first: "desc" },
   { key: "earnings", label: "Earnings", align: "left", first: "asc", hideBelow: "xl" },
 ];
 
@@ -253,6 +250,9 @@ function PositionEditor({ position, onClose }: EditorProps) {
 
 /* ── the table ───────────────────────────────────────────────────────────── */
 
+const STICKY_RULE_BELOW = "shadow-[inset_0_-1px_0_var(--oa-border)]";
+const STICKY_RULE_ABOVE = "shadow-[inset_0_1px_0_var(--oa-border)]";
+
 function SortHeader({
   column,
   active,
@@ -269,13 +269,12 @@ function SortHeader({
   return (
     <th
       scope="col"
-      aria-sort={column.key === "avgCost" ? undefined : active ? (direction === "asc" ? "ascending" : "descending") : "none"}
-      className={`${TH} ${colClass(column)} ${first ? "pl-3" : ""}`}
+      aria-sort={active ? (direction === "asc" ? "ascending" : "descending") : "none"}
+      // The header sticks to the top of the scroll box; a collapsed table border would stay behind, so the rule under it
+      // is drawn on the cell.
+      className={`${TH} ${STICKY_RULE_BELOW} ${colClass(column)} ${first ? "pl-3" : ""}`}
     >
-      {column.key === "avgCost" ? (
-        column.label
-      ) : (
-        <button
+      <button
           type="button"
           onClick={() => onSort(column)}
           className={`inline-flex items-center gap-1 rounded uppercase tracking-[inherit] hover:text-oa-fg ${FOCUS} ${active ? "text-oa-fg" : ""} ${
@@ -287,7 +286,6 @@ function SortHeader({
             {direction === "asc" ? "▲" : "▼"}
           </span>
         </button>
-      )}
     </th>
   );
 }
@@ -320,19 +318,6 @@ function ValueCell({ position }: { position: PortfolioPosition }) {
     <span className={`${NUM} text-oa-fg`} title={position.valueSource === "entered" ? "The value you typed in. Add shares to price it live." : undefined}>
       {fmtMoney(position.value, position.value >= 100_000 ? 0 : 2)}
       {position.valueSource === "entered" ? <span className="text-oa-muted-fg">*</span> : null}
-    </span>
-  );
-}
-
-/** Share of the portfolio as a number and a bar, so the big positions read at a glance. */
-function WeightCell({ weight }: { weight: number | null }) {
-  if (weight === null) return <Dash />;
-  return (
-    <span className="inline-flex items-center gap-2">
-      <span className={`${NUM} w-11 text-right text-oa-fg`}>{weight.toFixed(1)}%</span>
-      <span aria-hidden="true" className="h-1.5 w-14 overflow-hidden rounded-full bg-oa-bg">
-        <span className="block h-full rounded-full bg-[color-mix(in_srgb,var(--oa-fg)_45%,transparent)]" style={{ width: `${Math.min(100, Math.max(2, weight))}%` }} />
-      </span>
     </span>
   );
 }
@@ -379,8 +364,6 @@ export function PositionsTable({
     switch (column.key) {
       case "ticker":
         return true;
-      case "shares":
-        return positions.some((position) => position.shares !== null);
       case "avgCost":
         return positions.some((position) => position.avgCost !== null);
       case "price":
@@ -389,8 +372,6 @@ export function PositionsTable({
         return positions.some((position) => position.dayPct !== null);
       case "value":
         return positions.some((position) => position.value !== null);
-      case "weight":
-        return positions.some((position) => position.weight !== null);
       case "gain":
         return positions.some((position) => position.gain !== null);
       case "gainPct":
@@ -406,22 +387,24 @@ export function PositionsTable({
   const columns = (kind === "holding" ? HOLDING_COLUMNS : WATCH_COLUMNS).filter(filled);
   // The phone rows follow the same rule: say nothing about cost or shares until at least one row has them.
   const anyGain = positions.some((position) => position.gain !== null);
-  const anyShares = positions.some((position) => position.shares !== null);
   // With no shares entered anywhere there is no value to lead with, so a holding row reads like a watch row: price and today's move.
   const anyValue = positions.some((position) => position.value !== null);
-  const sortable = columns.filter((column): column is Column & { key: SortKey } => column.key !== "avgCost");
+  const sortable = columns;
   const [sort, setSort] = useState(defaultSort);
+  // Until a header is clicked, the rows that need a look (an orange report date, a price at its call's level, the
+  // zone tint) come first, each group in the default sort. A chosen sort is a plain sort on that column.
+  const [picked, setPicked] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   // When the sort column is hidden (no row has a value in it), sort by stock instead of silently by nothing.
   const effectiveSort = sortable.some((column) => column.key === sort.key) ? sort : { key: "ticker" as SortKey, direction: "asc" as Direction };
-  const sorted = useMemo(
-    () => sortPositions(positions, effectiveSort.key, effectiveSort.direction),
-    [positions, effectiveSort.key, effectiveSort.direction],
-  );
+  const sorted = useMemo(() => {
+    const plain = sortPositions(positions, effectiveSort.key, effectiveSort.direction);
+    return picked ? plain : attentionFirst(plain, today);
+  }, [positions, effectiveSort.key, effectiveSort.direction, picked, today]);
 
   function onSort(column: Column) {
     const key = column.key;
-    if (key === "avgCost") return;
+    setPicked(true);
     setSort((current) =>
       current.key === key
         ? { key, direction: current.direction === "asc" ? "desc" : "asc" }
@@ -459,11 +442,13 @@ export function PositionsTable({
 
   return (
     <>
-      {/* md and up: the full table */}
-      <div className="hidden overflow-x-auto md:block">
+      {/* md and up: the full table. About eight rows show, the rest scroll inside the box with no scrollbar; the header
+          and the Total stick to its edges, and the cut lands on a whole row (owner rule 5). One box scrolls both ways so
+          the sticky rows work, and the page takes the scroll back at either end (no overscroll-contain). */}
+      <WholeRows rem={31} className="scrollbar-hide hidden max-h-[31rem] overflow-auto md:block">
         <table className="w-full border-collapse text-[14px]">
-          <thead>
-            <tr className="border-b border-oa-border">
+          <thead className="sticky top-0 z-10">
+            <tr>
               {columns.map((column, index) => (
                 <SortHeader
                   key={column.key}
@@ -482,6 +467,7 @@ export function PositionsTable({
               return (
                 <PositionRows key={position.instrument_id}>
                   <tr
+                    data-row
                     onClick={() => choose(position)}
                     // Editable, the row is the way into its editor, so it takes focus and opens with Enter or Space.
                     tabIndex={editable ? 0 : undefined}
@@ -505,12 +491,8 @@ export function PositionsTable({
                           <Pct value={position.dayPct} />
                         ) : column.key === "gainPct" ? (
                           <Pct value={position.gainPct} digits={1} />
-                        ) : column.key === "shares" ? (
-                          position.shares !== null ? <span className={`${NUM} text-oa-fg`}>{fmtShares(position.shares)}</span> : <Dash />
                         ) : column.key === "value" ? (
                           <ValueCell position={position} />
-                        ) : column.key === "weight" ? (
-                          <WeightCell weight={position.weight} />
                         ) : column.key === "gain" ? (
                           <GainCell position={position} />
                         ) : column.key === "stance" ? (
@@ -533,10 +515,10 @@ export function PositionsTable({
             })}
           </tbody>
           {kind === "holding" && totals && totals.value !== null ? (
-            <tfoot>
-              <tr className="h-10 border-t border-oa-border bg-oa-bg font-medium">
+            <tfoot data-sticky-foot className="sticky bottom-0 z-10">
+              <tr className="h-10 font-medium">
                 {columns.map((column, index) => (
-                  <td key={column.key} className={`${TD} ${colClass(column)} ${index === 0 ? "pl-3" : ""}`}>
+                  <td key={column.key} className={`${TD} ${STICKY_RULE_ABOVE} bg-oa-bg ${colClass(column)} ${index === 0 ? "pl-3" : ""}`}>
                     {column.key === "ticker" ? (
                       <span className="text-oa-fg">
                         Total
@@ -559,9 +541,9 @@ export function PositionsTable({
             </tfoot>
           ) : null}
         </table>
-      </div>
+      </WholeRows>
 
-      {/* below md: two-line rows, same data */}
+      {/* below md: stacked rows, same data, in a box of about eight rows like the table */}
       <div className="md:hidden">
         <div className="flex items-center justify-between gap-2 border-b border-oa-border px-3 py-1.5">
           <label className="flex items-center gap-2 text-[13px] text-oa-muted-fg">
@@ -570,7 +552,9 @@ export function PositionsTable({
               value={effectiveSort.key}
               onChange={(event) => {
                 const column = sortable.find((item) => item.key === event.target.value);
-                if (column) setSort({ key: column.key, direction: column.first });
+                if (!column) return;
+                setPicked(true);
+                setSort({ key: column.key, direction: column.first });
               }}
               className={`h-10 rounded border border-oa-border bg-oa-card px-2 text-[14px] text-oa-fg ${FOCUS}`}
             >
@@ -583,17 +567,21 @@ export function PositionsTable({
           </label>
           <button
             type="button"
-            onClick={() => setSort((current) => ({ ...current, direction: current.direction === "asc" ? "desc" : "asc" }))}
+            onClick={() => {
+              setPicked(true);
+              setSort((current) => ({ ...current, direction: current.direction === "asc" ? "desc" : "asc" }));
+            }}
             className={`h-10 rounded border border-oa-border bg-oa-card px-3 text-[14px] text-oa-fg ${FOCUS}`}
           >
             {sort.direction === "asc" ? "Low to high ▲" : "High to low ▼"}
           </button>
         </div>
+        <WholeRows rem={36} className="scrollbar-hide max-h-[36rem] overflow-y-auto">
         <ul className="divide-y divide-oa-border">
           {sorted.map((position) => {
             const isEditing = editing === position.instrument_id;
             return (
-              <li key={position.instrument_id}>
+              <li key={position.instrument_id} data-row>
                 <div
                   role={editable ? "button" : "link"}
                   tabIndex={0}
@@ -605,46 +593,33 @@ export function PositionsTable({
                     isEditing ? "bg-oa-accent" : position.needsAttention ? "bg-[color-mix(in_srgb,var(--oa-primary)_6%,transparent)]" : ""
                   }`}
                 >
+                  {/* Price and day first, then the gain (owner, Nov 12); the value sits beside the gain. */}
                   <div className="flex items-center justify-between gap-3">
                     <StockCell position={position} />
-                    {kind === "holding" && anyValue ? (
-                      <div className="shrink-0 text-right">
-                        <div className="text-[15px] font-medium leading-5">
-                          <ValueCell position={position} />
-                        </div>
-                        <div className="text-[13px] leading-[18px]">
-                          {position.gain !== null ? (
-                            <span className={`${NUM} ${signTone(position.gain)}`}>
-                              {fmtSignedMoney(position.gain, 0)}
-                              {position.gainPct !== null ? ` ${position.gainPct >= 0 ? "+" : "−"}${Math.abs(position.gainPct).toFixed(1)}%` : ""}
-                            </span>
-                          ) : anyGain ? (
-                            <Dash />
-                          ) : null}
-                        </div>
+                    <div className="shrink-0 text-right">
+                      <div className={`${NUM} text-[15px] font-medium leading-5 text-oa-fg`}>
+                        {position.price !== null ? fmtMoney(position.price) : <Dash />}
                       </div>
-                    ) : (
-                      <div className="shrink-0 text-right">
-                        <div className={`${NUM} text-[15px] font-medium leading-5 text-oa-fg`}>
-                          {position.price !== null ? fmtMoney(position.price) : <Dash />}
-                        </div>
-                        <div className="text-[13px] leading-[18px]">
-                          <Pct value={position.dayPct} />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  {kind === "holding" && anyValue ? (
-                    <div className="flex items-baseline justify-between gap-3 pl-[2.125rem] text-[13px] leading-[18px] text-oa-muted-fg">
-                      <span className={NUM}>
-                        {[position.shares !== null ? `${fmtShares(position.shares)} sh` : anyShares ? "–" : null, position.weight !== null ? `${position.weight.toFixed(1)}%` : null]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </span>
-                      <span className={`${NUM} flex items-baseline gap-2`}>
-                        {position.price !== null ? <span>{fmtMoney(position.price)}</span> : null}
+                      <div className="text-[13px] leading-[18px]">
                         <Pct value={position.dayPct} />
-                      </span>
+                      </div>
+                    </div>
+                  </div>
+                  {kind === "holding" && (anyGain || anyValue) ? (
+                    <div className="flex items-baseline justify-between gap-3 pl-[2.125rem] text-[13px] leading-[18px]">
+                      {position.gain !== null ? (
+                        <span className={`${NUM} ${signTone(position.gain)}`}>
+                          {fmtSignedMoney(position.gain, 0)}
+                          {position.gainPct !== null ? ` ${position.gainPct >= 0 ? "+" : "−"}${Math.abs(position.gainPct).toFixed(1)}%` : ""}
+                        </span>
+                      ) : anyGain ? (
+                        <Dash />
+                      ) : (
+                        <span />
+                      )}
+                      {position.value !== null ? (
+                        <span className={`${NUM} text-oa-muted-fg`}>{fmtMoney(position.value, position.value >= 100_000 ? 0 : 2)}</span>
+                      ) : null}
                     </div>
                   ) : null}
                   {position.stance || position.nextEarnings ? (
@@ -665,6 +640,7 @@ export function PositionsTable({
             );
           })}
         </ul>
+        </WholeRows>
       </div>
 
       {hiddenCount > 0 && hiddenNote ? (

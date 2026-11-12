@@ -229,7 +229,7 @@ export default async function DevelopersPage() {
       <PageHead
         label="Developers"
         title="API, MCP server and CLI"
-        lede="Plug stocksbrew into your agent or your own script. One set of tools, three ways in: a remote MCP server for agents, a REST API for code, and a CLI for a terminal. Reads your research and your portfolio. Cannot trade."
+        lede="Reads your research and your portfolio. It cannot trade."
         actions={
           <Link prefetch={false}
             href="/profile#agent-access"

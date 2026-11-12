@@ -2,7 +2,22 @@ import { randomBytes } from "node:crypto";
 
 import { adminFirestore } from "@/lib/firebase-admin";
 
-import { MAX_SHARES_PER_USER, SHARE_COLLECTION, isShareId, isShareKind, type ShareBars, type ShareCard, type ShareLine, type ShareOptions, type ShareTone } from "./types";
+import { cardSummary } from "./cards";
+import {
+  MAX_SHARES_PER_USER,
+  SHARE_BAR_STYLES,
+  SHARE_COLLECTION,
+  isShareId,
+  isShareKind,
+  type ShareBars,
+  type ShareCard,
+  type ShareChip,
+  type ShareCurve,
+  type ShareFigure,
+  type ShareLine,
+  type ShareOptions,
+  type ShareTone,
+} from "./types";
 
 /**
  * Share snapshots: `tm_portfolio_shares/{shareId}`. Only the web app writes
@@ -35,6 +50,9 @@ export type StoredShare = {
 
 const str = (value: unknown): string => (typeof value === "string" ? value : "");
 const tone = (value: unknown): ShareTone => (value === "up" || value === "down" ? value : "flat");
+const finite = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
+/** A stored ticker for a logo: letters, digits and single dots or dashes, nothing else reaches an image URL. */
+const tickerOf = (value: unknown): string | null => (typeof value === "string" && /^[A-Z0-9][A-Z0-9./-]{0,14}$/.test(value) ? value : null);
 
 function readLines(value: unknown): ShareLine[] {
   if (!Array.isArray(value)) return [];
@@ -47,7 +65,7 @@ function readLines(value: unknown): ShareLine[] {
 function readBars(value: unknown): ShareBars | null {
   if (!value || typeof value !== "object") return null;
   const raw = value as Record<string, unknown>;
-  const style = raw.style === "share" || raw.style === "versus" || raw.style === "months" ? raw.style : null;
+  const style = (SHARE_BAR_STYLES as readonly unknown[]).includes(raw.style) ? (raw.style as ShareBars["style"]) : null;
   if (!style || !Array.isArray(raw.rows)) return null;
   const rows = raw.rows
     .map((row) => {
@@ -55,11 +73,49 @@ function readBars(value: unknown): ShareBars | null {
       const r = row as Record<string, unknown>;
       const v = typeof r.value === "number" && Number.isFinite(r.value) ? r.value : null;
       if (v === null) return null;
-      return { label: str(r.label), value: v, display: typeof r.display === "string" ? r.display : null, tone: tone(r.tone), highlight: r.highlight === true };
+      return {
+        label: str(r.label),
+        value: v,
+        display: typeof r.display === "string" ? r.display : null,
+        tone: tone(r.tone),
+        highlight: r.highlight === true,
+        ticker: tickerOf(r.ticker),
+        benchmark: finite(r.benchmark) ? r.benchmark : null,
+      };
     })
     .filter((row): row is NonNullable<typeof row> => row !== null)
     .slice(0, 12);
   return rows.length > 0 ? { title: str(raw.title), style, rows } : null;
+}
+
+function readFigure(value: unknown): ShareFigure | null {
+  if (!value || typeof value !== "object") return null;
+  const raw = value as Record<string, unknown>;
+  return str(raw.value) ? { value: str(raw.value), label: str(raw.label), tone: tone(raw.tone) } : null;
+}
+
+function readCurve(value: unknown): ShareCurve | null {
+  if (!value || typeof value !== "object") return null;
+  const raw = value as Record<string, unknown>;
+  if (!Array.isArray(raw.mine) || !Array.isArray(raw.days)) return null;
+  const mine = raw.mine.slice(0, 40);
+  const days = raw.days.slice(0, 40);
+  if (mine.length < 2 || days.length !== mine.length || !mine.every(finite) || !days.every((day) => typeof day === "string")) return null;
+  const market = Array.isArray(raw.market) && raw.market.length === mine.length && raw.market.every(finite) ? (raw.market as number[]) : null;
+  return { title: str(raw.title), days: days as string[], mine: mine as number[], market };
+}
+
+function readChips(value: unknown): ShareChip[] | null {
+  if (!Array.isArray(value)) return null;
+  const chips = value
+    .map((raw) => {
+      if (!raw || typeof raw !== "object") return null;
+      const r = raw as Record<string, unknown>;
+      return str(r.label) && str(r.display) ? { ticker: tickerOf(r.ticker), label: str(r.label), display: str(r.display), tone: tone(r.tone) } : null;
+    })
+    .filter((chip): chip is ShareChip => chip !== null)
+    .slice(0, 6);
+  return chips.length > 0 ? chips : null;
 }
 
 /** A stored card, or null when the document is missing a required part. */
@@ -75,8 +131,20 @@ export function readCard(value: unknown): ShareCard | null {
     headline: str(raw.headline),
     lines: readLines(raw.lines),
     bars: readBars(raw.bars),
+    figure: readFigure(raw.figure),
+    curve: readCurve(raw.curve),
+    chips: readChips(raw.chips),
     footnote: str(raw.footnote),
     asOf: str(raw.asOf),
+  };
+}
+
+/** The card with every logo taken off (names hidden). */
+export function withoutLogos(card: ShareCard): ShareCard {
+  return {
+    ...card,
+    bars: card.bars ? { ...card.bars, rows: card.bars.rows.map((row) => ({ ...row, ticker: null })) } : null,
+    chips: card.chips ? card.chips.map((chip) => ({ ...chip, ticker: null })) : card.chips,
   };
 }
 
@@ -86,12 +154,15 @@ export async function readShare(id: string): Promise<StoredShare | null> {
   const snap = await adminFirestore.collection(SHARE_COLLECTION).doc(id).get();
   if (!snap.exists) return null;
   const data = (snap.data() ?? {}) as Record<string, unknown>;
-  const card = readCard(data.card);
-  if (!card) return null;
+  const read = readCard(data.card);
+  if (!read) return null;
+  const hideNames = data.hide_names === true;
+  // Belt and braces: a card shared without names never draws a logo, whatever the stored card says.
+  const card = hideNames ? withoutLogos(read) : read;
   return {
     id,
     card,
-    options: { hideNames: data.hide_names === true, showAmounts: data.show_amounts === true },
+    options: { hideNames, showAmounts: data.show_amounts === true },
     createdAt: str(data.created_at),
   };
 }
@@ -112,7 +183,7 @@ export async function listShares(uid: string): Promise<ShareListRow[]> {
     const data = (doc.data() ?? {}) as Record<string, unknown>;
     const card = readCard(data.card);
     if (!card) continue;
-    rows.push({ id: doc.id, kind: card.kind, headline: card.headline, createdAt: str(data.created_at) });
+    rows.push({ id: doc.id, kind: card.kind, headline: cardSummary(card), createdAt: str(data.created_at) });
   }
   return rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }

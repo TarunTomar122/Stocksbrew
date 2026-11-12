@@ -8,8 +8,6 @@
  * always `{uid}__{day}` with the uid taken from the verified session.
  */
 
-import { cache } from "react";
-
 import { adminFirestore } from "@/lib/firebase-admin";
 import { localFirestoreFromEnv } from "@/lib/local-firestore";
 import { getSessionUser } from "@/lib/auth-server";
@@ -48,6 +46,7 @@ import {
   triggeredAlertFromDoc,
 } from "@/lib/briefing-inputs";
 import { listRuns } from "@/lib/agent-jobs-data";
+import { sinceStart } from "@/lib/briefing-face";
 import { getDailyAnomalies } from "@/lib/daily-anomalies";
 import { getEarnings, getNextEarningsCalendarEventCached } from "@/lib/earnings";
 import { getLatestEarningsIntelForInstruments, listAllEarningsIntelDocs } from "@/lib/earnings-intel";
@@ -88,6 +87,11 @@ export type BriefingStateDoc = {
   seen?: string[];
   calls?: Record<string, string>;
   updated_at?: string;
+  /**
+   * Where "Since you last opened" starts for this day: the person's previous visit, set on the day's first open so a
+   * reload keeps showing the same changes. Additive; the person's own document only.
+   */
+  since_at?: string | null;
 };
 
 export type BriefingDayLink = { day: string; available: boolean };
@@ -110,6 +114,12 @@ export type BriefingPageData = {
   archived: boolean;
   /** Set when the loader could not reach part of the data. */
   degraded: string[];
+  /** Today's personal briefing: the tracked stocks with their prices, calls, levels and sizes (levels already gated). */
+  positions?: BriefingPosition[];
+  /** Today's personal briefing: every call change on record for the person, for "Since you last opened". */
+  callChanges?: BriefingCallChange[];
+  /** Where "Since you last opened" starts, or null on a first visit. */
+  since?: string | null;
 };
 
 function stateRef(uid: string, day: string) {
@@ -133,7 +143,7 @@ function cleanState(raw: unknown): BriefingStateMap {
  * reads seven days on every open; the snapshots are whole briefings, so they
  * are only read for the one earlier day someone opens (`loadSavedBriefing`).
  */
-const STATE_FIELDS = ["uid", "date", "items", "snapshot_built_at", "seen", "calls", "updated_at"];
+const STATE_FIELDS = ["uid", "date", "items", "snapshot_built_at", "seen", "calls", "updated_at", "since_at"];
 
 /** The last seven days of this person's briefing documents, newest first, without their snapshots. */
 async function loadStateDocs(uid: string, today: string): Promise<Map<string, BriefingStateDoc>> {
@@ -398,16 +408,21 @@ async function loadTriggeredAlerts(uid: string): Promise<BriefingTriggeredAlert[
     .filter((alert): alert is BriefingTriggeredAlert => alert !== null);
 }
 
+/**
+ * The person's call changes, newest first: the newest 60 from the store when it can order them (LocalDB can; a
+ * Firebase rollback without the composite index answers unordered, and is sorted here).
+ */
 async function loadCallChanges(uid: string): Promise<BriefingCallChange[]> {
-  const snap = await adminFirestore
-    .collection("tm_lifecycle_events")
-    .where("uid", "==", uid)
-    .where("type", "==", "directive_change")
+  const base = adminFirestore.collection("tm_lifecycle_events").where("uid", "==", uid).where("type", "==", "directive_change");
+  const snap = await base
+    .orderBy("created_at", "desc")
     .limit(60)
-    .get();
+    .get()
+    .catch(() => base.limit(60).get());
   return snap.docs
     .map((doc) => callChangeFromEvent(doc.data() as Record<string, unknown>))
-    .filter((change): change is BriefingCallChange => change !== null);
+    .filter((change): change is BriefingCallChange => change !== null)
+    .sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
 }
 
 async function loadEarningsTimes(
@@ -440,7 +455,7 @@ async function buildPersonalBriefing(input: {
   holdings: Record<string, { quantity?: number | null; market_value?: number | null }>;
   /** Whether the agent covers this stock for the account (lib/entitlements: briefing_personal is "covered"). */
   covers: (instrumentId: string) => boolean;
-}): Promise<{ briefing: Briefing; positions: BriefingPosition[]; degraded: string[] }> {
+}): Promise<PersonalBuild> {
   const { uid, rows, now, previous, holdings, covers } = input;
   const today = marketDay(now);
   const ids = rows.map((row) => row.instrument_id);
@@ -517,18 +532,41 @@ async function buildPersonalBriefing(input: {
     seen_before: previous?.doc.seen ?? [],
     agent_runs: agentRuns,
   });
-  return { briefing, positions, degraded: [...new Set(degraded)] };
+  return { briefing, positions, callChanges: lifecycleChanges, degraded: [...new Set(degraded)] };
 }
+
+type PersonalBuild = { briefing: Briefing; positions: BriefingPosition[]; callChanges: BriefingCallChange[]; degraded: string[] };
 
 /**
  * This person's built briefing, kept for a minute in this server's memory (lib/per-user-cache.ts: keyed by uid,
  * never shared between people). A build missing a source is not kept.
  */
-const personalBuilds = perUserCache<{ briefing: Briefing; positions: BriefingPosition[]; degraded: string[] }>({
+const personalBuilds = perUserCache<PersonalBuild>({
   ttlMs: 60_000,
   max: 200,
   keep: (build) => build.degraded.length === 0,
 });
+
+/** Visits closer together than this are one visit: the person's last-visit stamp is not rewritten for them. */
+const VISIT_GAP_MS = 60_000;
+
+const stamp = (value: unknown): string | null => (typeof value === "string" && Number.isFinite(Date.parse(value)) ? value : null);
+
+/**
+ * Note this open for "Since you last opened": the day's first open keeps the previous visit as the day's start
+ * (`since_at` on the person's own briefing document for today), and every open moves `last_briefing_at` on the
+ * person's own user document. Both are single-field merges: nothing else on either document is touched.
+ */
+async function recordVisit(uid: string, day: string, todayDoc: BriefingStateDoc | undefined, lastVisit: string | null, now: Date): Promise<void> {
+  const at = now.toISOString();
+  // The day's start first: if that write fails, the last visit is not moved on, so the next open still knows it.
+  if (!stamp(todayDoc?.since_at)) {
+    await stateRef(uid, day).set({ uid, date: day, since_at: lastVisit ?? at, updated_at: at }, { merge: true });
+  }
+  if (!lastVisit || now.getTime() - Date.parse(lastVisit) >= VISIT_GAP_MS) {
+    await adminFirestore.collection("users").doc(uid).set({ last_briefing_at: at }, { merge: true });
+  }
+}
 
 /** Keep today's briefing so it can be reopened on a later day. Additive, own document only. */
 async function saveSnapshot(
@@ -671,7 +709,7 @@ export async function loadBriefingPage(
     covered: coverage.covered,
     previous: previous ? { day: previous.day, seen: previous.doc.seen ?? [], calls: previous.doc.calls ?? {} } : null,
   });
-  const { briefing, positions, degraded } = await personalBuilds.get(uid, buildKey, () =>
+  const { briefing, positions, callChanges, degraded } = await personalBuilds.get(uid, buildKey, () =>
     buildPersonalBriefing({
       uid,
       rows,
@@ -683,9 +721,11 @@ export async function loadBriefingPage(
   );
 
   const todayDoc = stateDocs.get(today);
+  const lastVisit = stamp((userDoc as Record<string, unknown> | null)?.last_briefing_at);
   if (options.persist) {
-    // Bookkeeping for reopening this day later: it never holds the page.
+    // Bookkeeping for reopening this day later and for "Since you last opened": it never holds the page.
     afterResponse("briefing snapshot", saveSnapshot(uid, briefing, positions, todayDoc, now));
+    afterResponse("briefing visit", recordVisit(uid, today, todayDoc, lastVisit, now));
   }
 
   return {
@@ -695,8 +735,10 @@ export async function loadBriefingPage(
     days: history,
     archived: false,
     degraded,
+    positions,
+    callChanges,
+    // The day's own start when the person already opened today, else their last visit; null on a first visit.
+    since: sinceStart(todayDoc?.since_at, lastVisit),
   };
 }
 
-/** One build per request for surfaces that only need the top of the briefing. */
-export const loadBriefingPreview = cache(async (): Promise<BriefingPageData> => loadBriefingPage());

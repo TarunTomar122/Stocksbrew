@@ -57,6 +57,8 @@ export function callEvidenceInput(parts: {
   steady: CallEvidenceInput["steady"];
   /** The next report as the page already shows it; else the first calendar row from today on. */
   next?: { event_date: string; eps_estimate?: number | null } | null;
+  /** Say recent days in words ("yesterday"); only for a page rendered at request time. */
+  sayDays?: boolean;
 }): CallEvidenceInput {
   const { facts, row } = parts;
   const ticker = parts.ticker.toUpperCase();
@@ -89,6 +91,7 @@ export function callEvidenceInput(parts: {
       ? { annual: facts.dividends.annual_dividend ?? null, price: parts.price, growthYears: facts.dividends.growth_years ?? null, capturedAt: facts.captured_at ?? null }
       : null,
     steady: parts.steady,
+    sayDays: parts.sayDays ?? false,
   };
 }
 

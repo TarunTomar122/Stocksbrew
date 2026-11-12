@@ -102,7 +102,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Sear
       title={example ? "Compare stocks" : symbols.length >= 2 ? symbols.join(" vs ") : "Compare stocks"}
       lede={
         example
-          ? `An example to start from: ${symbols.join(" against ")}, ${EXAMPLE.why.charAt(0).toLowerCase()}${EXAMPLE.why.slice(1)}. Swap either name for your own.`
+          ? `An example: ${symbols.join(" against ")}, ${EXAMPLE.why.charAt(0).toLowerCase()}${EXAMPLE.why.slice(1)}. Swap in your own.`
           : symbols.length < 2
             ? "Put two to four stocks side by side."
             : undefined

@@ -6,17 +6,14 @@ import { EmptyInbox } from "@/components/inbox/inbox-empty";
 import { InboxList } from "@/components/inbox/inbox-list";
 import { InboxSkeleton } from "@/components/inbox/inbox-skeleton";
 import { ExampleReportCards } from "@/components/inbox/report-cards";
-import { InboxStockCard } from "@/components/inbox/stock-read";
-import { TheRead } from "@/components/oa/insight";
 import { AppPage, PageHead } from "@/components/oa/kit";
 import { getSessionUser } from "@/lib/auth-server";
 import { getViewer } from "@/lib/entitlements-server";
 import { exampleReports, type ExampleReportStock } from "@/lib/inbox/example-reports";
 import { forClient } from "@/lib/inbox/merge";
-import { inboxReadTold, rowsAfterRead } from "@/lib/inbox/read";
+import { rowsAfterRead, type InboxTold } from "@/lib/inbox/read";
 import { loadExampleInbox, loadUserInbox, readState } from "@/lib/inbox/server";
-import { INBOX_KINDS, type InboxKind, type InboxStockRead } from "@/lib/inbox/types";
-import type { TheRead as TheReadData } from "@/lib/insights";
+import { INBOX_KINDS, type InboxKind } from "@/lib/inbox/types";
 import { loadExamplePortfolio } from "@/lib/portfolio-data";
 import { loadTickerEarnings } from "@/lib/earnings-season-data";
 import { getUserDoc } from "@/lib/watchlist";
@@ -48,39 +45,15 @@ const EXAMPLE_TAG = (
   </span>
 );
 
-/**
- * The read, then the list. When the read has no cards of its own (every card would only repeat a row below), its
- * headline heads the list instead of standing alone in a card of its own. A stock the read tells two things about is
- * one card under the headline (./stock-read.tsx), ahead of the other cards.
- */
-function ReadAndList({
-  read,
-  stock,
-  label,
-  children,
-}: {
-  read: TheReadData | null;
-  stock: InboxStockRead | null;
-  label: string;
-  children: (heading: string | null) => React.ReactNode;
-}) {
-  if (!read || read.insights.length > 0 || stock) {
-    return (
-      <>
-        <TheRead read={read} label={label} askContext={false} visual={stock ? <InboxStockCard stock={stock} /> : undefined} />
-        {children(null)}
-      </>
-    );
-  }
-  return <>{children(read.headline || null)}</>;
-}
+/** Nothing on the page says a row's news before the list does, so every row keeps all of its words. */
+const NOTHING_TOLD: InboxTold = { moveIds: [], reasonIds: [], reports: [] };
 
 /** How long the example's report histories may take before the page goes without its cards. */
 const REPORTS_MS = 1500;
 
 /**
  * The example's stocks the page does not already talk about, with their report histories: what the cards under the
- * read show (lib/inbox/example-reports.ts). The same shared cached read as the calendar and Earnings season; slow or
+ * list show (lib/inbox/example-reports.ts). The same shared cached read as the calendar and Earnings season; slow or
  * failed, the page goes without them.
  */
 async function exampleReportStocks(portfolio: Awaited<ReturnType<typeof loadExamplePortfolio>> | null, said: readonly string[], today: string): Promise<ExampleReportStock[]> {
@@ -102,15 +75,11 @@ async function exampleReportStocks(portfolio: Awaited<ReturnType<typeof loadExam
 
 async function ExampleInbox({ kind }: { kind: InboxKind | null }) {
   // The portfolio is the example's shared cached copy (the same one My stocks and the briefing read); a failed read
-  // only leaves out the holdings under the read.
+  // only leaves out the report cards under the list.
   const [inbox, portfolio] = await Promise.all([loadExampleInbox(), loadExamplePortfolio().catch(() => null)]);
-  // The read first; the rows under it then leave out what it already says (owner rule 1).
-  const exampleRead = inboxReadTold(inbox.items, null, true, { upcoming: inbox.upcoming, today: inbox.today });
-  const exampleRows = rowsAfterRead(inbox.items, inbox.upcoming, exampleRead.told, inbox.today, { example: true });
-  // The stocks the read and the rows already talk about: no card says them again (owner rule 1).
+  const exampleRows = rowsAfterRead(inbox.items, inbox.upcoming, NOTHING_TOLD, inbox.today, { example: true });
+  // The stocks the rows already talk about: no card says them again (owner rule 1).
   const said = [
-    ...(exampleRead.stock ? [exampleRead.stock.ticker] : []),
-    ...(exampleRead.read?.insights ?? []).flatMap((insight) => insight.tickers ?? []),
     ...exampleRows.items.filter((item) => !item.told).flatMap((item) => item.tickers),
     ...exampleRows.upcoming.map((report) => report.ticker),
   ];
@@ -129,11 +98,7 @@ async function ExampleInbox({ kind }: { kind: InboxKind | null }) {
         <EmptyInbox example unavailable={readFailed(inbox.missing)} />
       ) : (
         <>
-          <ReadAndList read={exampleRead.read} stock={exampleRead.stock} label="The example's inbox">
-            {(heading) => (
-              <InboxList items={exampleRows.items.map(forClient)} upcoming={exampleRows.upcoming} seenAt={null} today={inbox.today} example initialKind={kind} heading={heading} />
-            )}
-          </ReadAndList>
+          <InboxList items={exampleRows.items.map(forClient)} upcoming={exampleRows.upcoming} seenAt={null} today={inbox.today} example initialKind={kind} />
           {/* No Ask box on the page: the shell's Ask opens on the example's stocks (owner rule 1). */}
           <AskPageHint context="ex.portfolio" />
         </>
@@ -150,25 +115,18 @@ async function UserInbox({ uid, kind }: { uid: string; kind: InboxKind | null })
   const inbox = await loadUserInbox(viewer, doc);
   if (inbox.items.length === 0 && inbox.upcoming.length === 0) return <EmptyInbox unavailable={readFailed(inbox.missing)} />;
   const { seenAt } = readState(inbox.items, doc, inbox.today);
-  // The read first; the rows under it then leave out what it already says (owner rule 1).
-  const { read, told, stock } = inboxReadTold(inbox.items, seenAt, false, { upcoming: inbox.upcoming, today: inbox.today });
-  const rows = rowsAfterRead(inbox.items, inbox.upcoming, told, inbox.today);
+  const rows = rowsAfterRead(inbox.items, inbox.upcoming, NOTHING_TOLD, inbox.today);
   return (
     <div className="flex flex-col gap-3 sm:gap-4">
-      <ReadAndList read={read} stock={stock} label="Your inbox">
-        {(heading) => (
-          <InboxList
-            items={rows.items.map(forClient)}
-            upcoming={rows.upcoming}
-            seenAt={seenAt}
-            today={inbox.today}
-            example={false}
-            initialKind={kind}
-            heading={heading}
-            account={uid}
-          />
-        )}
-      </ReadAndList>
+      <InboxList
+        items={rows.items.map(forClient)}
+        upcoming={rows.upcoming}
+        seenAt={seenAt}
+        today={inbox.today}
+        example={false}
+        initialKind={kind}
+        account={uid}
+      />
       {/* No Ask box on the page: the shell's Ask opens on the person's stocks (owner rule 1). */}
       <AskPageHint context="portfolio" />
     </div>

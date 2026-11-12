@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 
 import { AppPage, Delta, Empty, NUM, PageHead, Panel } from "@/components/oa/kit";
-import { TheRead } from "@/components/oa/insight";
-import { buildThemesRead } from "@/lib/themes-insights";
 import { BASKET_BENCHMARK, BASKET_WINDOWS, getBaskets, type Basket, type BasketWindow } from "@/lib/screener-themes";
 import { ogImage } from "@/lib/og/url";
 import Link from "next/link";
@@ -88,7 +86,6 @@ export default async function ThemesPage() {
   const ranked = [...baskets].sort((a, b) => (b.perf[LEAD_WINDOW]?.pct ?? -Infinity) - (a.perf[LEAD_WINDOW]?.pct ?? -Infinity));
   const benchmark = baskets[0]?.benchmark ?? null;
   const lines = baskets.reduce((sum, basket) => sum + basket.size, 0);
-  const read = buildThemesRead(baskets);
 
   const itemList = {
     "@context": "https://schema.org",
@@ -107,11 +104,9 @@ export default async function ThemesPage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemList) }} />
       <PageHead
         title="Idea baskets"
-        lede="One idea per basket: the thesis, the companies that carry it and what would break it."
+        lede="One idea per basket, with what would break it."
         className="[&_.oa-head-lede]:hidden"
       />
-
-      <TheRead read={read} className="mb-4" />
 
       <Panel flush>
         {baskets.length === 0 ? (

@@ -19,15 +19,41 @@ export type ShareTone = "up" | "down" | "flat";
 
 export type ShareLine = { text: string; tone: ShareTone };
 
-/** One bar. `value` sets the length (a share 0 to 100, or a signed change); `display` is what is printed beside it. */
-export type ShareBarRow = { label: string; value: number; display: string | null; tone: ShareTone; highlight?: boolean };
+/**
+ * One bar. `value` sets the length (a share 0 to 100, or a signed change); `display` is what is printed beside it.
+ * `ticker` draws the company's logo beside the label; it is left out when names are hidden. `benchmark` marks the
+ * S&P 500's share on the same scale.
+ */
+export type ShareBarRow = {
+  label: string;
+  value: number;
+  display: string | null;
+  tone: ShareTone;
+  highlight?: boolean;
+  ticker?: string | null;
+  benchmark?: number | null;
+};
 
 /**
  * "share": horizontal bars of a whole (companies, sectors, raises).
  * "versus": two signed bars, mine against the S&P 500.
  * "months": twelve columns, the year's dividends by month.
+ * "signed": bars either side of zero, each holding's part of a move.
  */
-export type ShareBars = { title: string; style: "share" | "versus" | "months"; rows: ShareBarRow[] };
+export const SHARE_BAR_STYLES = ["share", "versus", "months", "signed"] as const;
+export type ShareBars = { title: string; style: (typeof SHARE_BAR_STYLES)[number]; rows: ShareBarRow[] };
+
+/** The one big number a card leads with: "+3.5%" over "my holdings this week". */
+export type ShareFigure = { value: string; label: string; tone: ShareTone };
+
+/**
+ * Two lines over the same days, in percent from the first point (which is 0):
+ * mine against the S&P 500. `days` are YYYY-MM-DD, one per point.
+ */
+export type ShareCurve = { title: string; days: string[]; mine: number[]; market: number[] | null };
+
+/** A stock and its move: the logo comes from `ticker`, which is null when names are hidden. */
+export type ShareChip = { ticker: string | null; label: string; display: string; tone: ShareTone };
 
 export type ShareCard = {
   v: 1;
@@ -41,6 +67,12 @@ export type ShareCard = {
   /** Up to two supporting lines. */
   lines: ShareLine[];
   bars: ShareBars | null;
+  /** The big number. Missing on cards made before the cards had pictures; those draw the words-only layout. */
+  figure?: ShareFigure | null;
+  /** The week's line against the S&P 500 (memo cards). */
+  curve?: ShareCurve | null;
+  /** Up to six stocks as logo chips with their move, best first (memo cards). */
+  chips?: ShareChip[] | null;
   /** Where the numbers come from and when, in words. */
   footnote: string;
   /** New York day the snapshot was taken, YYYY-MM-DD. */

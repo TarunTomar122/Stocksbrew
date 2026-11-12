@@ -1,5 +1,5 @@
 import { FUNDS_SECTOR } from "@/lib/portfolio-shared";
-import { bookLead, signedPct, stockCards, type BookFacts, type BookSource, type PlainCall } from "@/lib/portfolio-home/stocks";
+import { bookLead, labelWhen, signedPct, stockCards, type BookFacts, type BookSource, type PlainCall } from "@/lib/portfolio-home/stocks";
 
 /**
  * The home page's example portfolio block, built from the same book as My stocks (lib/portfolio-home/stocks-server.ts
@@ -68,7 +68,7 @@ export function exampleBookView(source: BookSource, extra: Pick<BookFacts, "reas
 
   const lead = bookLead(source);
   const day = lead?.today
-    ? { pct: lead.today.pct, text: signedPct(lead.today.pct), when: lead.today.label === "Today" ? "today" : `on ${lead.today.label}` }
+    ? { pct: lead.today.pct, text: signedPct(lead.today.pct), when: labelWhen(lead.today.label) }
     : null;
 
   const tally = (["Buy more", "Keep", "Sell some"] as const)

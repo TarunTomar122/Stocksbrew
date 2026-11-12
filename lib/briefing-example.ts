@@ -19,7 +19,7 @@ import type { ScreenerRow } from "@/lib/screener-shared";
  * levels, built by the same builder as a member's briefing (lib/briefing.ts, mode "personal").
  *
  * Left out on purpose: the example account's agent runs (a run from this morning about yesterday's close reads as
- * news beside today's prices; the agent's day is in the rail instead), call changes (signed out, how a call changed
+ * news beside today's prices; the agent's day is on /agent instead), call changes (signed out, how a call changed
  * is the plan's), price levels and pre-earnings reads (plan content). Never calls a model and never writes.
  */
 
@@ -157,6 +157,8 @@ export async function loadExampleBriefing(now: Date = new Date()): Promise<Examp
     days: [],
     archived: false,
     degraded: [...new Set(degraded)],
+    // The example's holdings and watched names, for the heat and the strip (no levels: signed out has none).
+    positions,
     example: { market: exampleMarketLine(markets?.assets ?? [], pricesDay), pricedAt },
   };
 }

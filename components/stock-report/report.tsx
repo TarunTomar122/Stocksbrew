@@ -12,11 +12,12 @@ import { StockPremarketQuote } from "@/components/stock-premarket-quote";
 import { TrackButton } from "@/components/track-button";
 import { TrackView } from "@/components/track-view";
 import { AskPageHint } from "@/components/ask/ask-page-hint";
+import { capitalize } from "@/lib/day-words";
 import { packChartRanges, type CallWord, type ChartRange, type PackedChartRanges } from "@/lib/stock-chart";
 
 import { AlertControls, type SuggestedAlert } from "./alert-controls";
 import { callLine, callMeaning } from "./call-line";
-import { briefLeadOf, capTier, compactMoney, daysBetween, fin, fmtDate, fmtStamp, levelFormatter, moneyFormatter, relativeDays, signedPct } from "./format";
+import { briefLeadOf, capTier, compactMoney, daysBetween, fin, fmtDate, fmtStamp, levelFormatter, moneyFormatter, priceStamp, relativeDays, signedPct } from "./format";
 import { PricePanel, type PanelZone } from "./price-panel";
 import { LockIcon, Missing, MoreLink, NUM, Panel, PROSE, StatGrid, Tag, TONE_COLOR, type Tone } from "./primitives";
 import { PhoneSections } from "./phone-sections";
@@ -560,7 +561,7 @@ export function StockReport({
                     </p>
                     <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
                       {/* Two clocks on one card read as a contradiction; each says what it is the time of. */}
-                      {stock.captured_at ? <p className="text-[12px] leading-4 text-oa-muted-fg">Price at {fmtStamp(stock.captured_at)}</p> : null}
+                      {stock.captured_at ? <p className="text-[12px] leading-4 text-oa-muted-fg">{priceStamp(stock.captured_at)}</p> : null}
                       <MarketStatusInline nowIso={nowIso} surface="stock" />
                       {data.premarketQuote ? <StockPremarketQuote currency={currency} market={market} quote={data.premarketQuote} /> : null}
                     </div>
@@ -708,8 +709,9 @@ export function StockReport({
             meta={
               ready?.writtenAt ? (
                 <>
-                  <span className="max-sm:hidden">written </span>
-                  {fmtStamp(ready.writtenAt)}
+                  {/* "written yesterday, 4:22 PM ET"; on a phone the stamp leads, so it starts with a capital. */}
+                  <span className="max-sm:hidden">written {fmtStamp(ready.writtenAt)}</span>
+                  <span className="sm:hidden">{capitalize(fmtStamp(ready.writtenAt))}</span>
                   {ready.articleCount ? ` · ${ready.articleCount} articles` : ""}
                   {ready.sourceCount ? ` · ${ready.sourceCount} sources` : ""}
                 </>

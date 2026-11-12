@@ -3,6 +3,7 @@ import Link from "next/link";
 import { NavIcon } from "@/components/oa/nav-icon";
 import type { NavIcon as NavIconName } from "@/components/oa/nav-items";
 import { StockLogo } from "@/components/stock-logo";
+import { capitalize, dayWords } from "@/lib/day-words";
 import { fmtPlanDay } from "@/lib/dividend-plan";
 import type { AgentChip, AgentKind, AgentLine } from "@/lib/portfolio-home/agent-lines";
 
@@ -59,10 +60,10 @@ function Chip({ chip, showWhen }: { chip: AgentChip; showWhen: boolean }) {
 /** Chips per row in the side rails: two and the count of the rest keep one line at 19 to 23rem. */
 const RAIL_CHIPS = 2;
 
-/** "Today, 6:19 AM ET", "Nov 11, 6:19 AM ET", or the day alone without a time: when one row last ran. */
+/** "Today, 6:19 AM ET", "Yesterday, 6:19 AM ET", "Monday, …", "Nov 3, …", or the day alone without a time: when one row last ran. */
 export function ranWords(line: Pick<AgentLine, "day" | "time">, today: string): string | null {
   if (!line.day) return null;
-  const day = line.day === today ? "Today" : fmtPlanDay(line.day);
+  const day = capitalize(dayWords(line.day, today)) || fmtPlanDay(line.day);
   return line.time ? `${day}, ${line.time} ET` : day;
 }
 

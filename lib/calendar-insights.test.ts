@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { bigReportTickers, biggestReports, buildCalendarRead, buildEarningsDetailRead, pastMoveText, readTickers, surpriseOf, typicalDailyMove, whenWord } from "@/lib/calendar-insights";
+import { bigReportTickers, biggestReports, buildCalendarRead, pastMoveText, readTickers, surpriseOf, typicalDailyMove, whenWord } from "@/lib/calendar-insights";
 import type { CalendarItem, EarningsItem } from "@/lib/calendar-shared";
 
 const TODAY = "2026-11-10";
@@ -147,25 +147,6 @@ describe("surpriseOf", () => {
     expect(surpriseOf({ epsActual: 1.0, epsEstimate: 1.0, surpriseLabel: null, surprisePct: null })?.label).toBe("in-line");
     expect(surpriseOf({ epsActual: null, epsEstimate: 1, surpriseLabel: "beat", surprisePct: 5 })?.label).toBe("beat");
     expect(surpriseOf({ epsActual: null, epsEstimate: null, surpriseLabel: null, surprisePct: null })).toBeNull();
-  });
-});
-
-describe("buildEarningsDetailRead", () => {
-  it("says when the next report is and how the last one went", () => {
-    const events = [
-      earn("CSCO", "2026-08-12", null, { epsEstimate: 1.17, epsActual: 1.08, surprisePct: 9, surpriseLabel: "beat", reaction: { pct: -5.8, basis: "2d", toDate: "2026-08-13" } }),
-      earn("CSCO", "2026-11-12", null, { epsEstimate: 1.15 }),
-    ];
-    const read = buildEarningsDetailRead({ ticker: "CSCO", name: "Cisco", events, today: TODAY, context: { last: { pct: -5.8, basis: "2d", toDate: "2026-08-13", eventDate: "2026-08-12" }, typicalDayPct: 1.75 } })!;
-    expect(read.headline).toBe("CSCO reports Thursday after the close, with EPS expected at $1.15.");
-    expect(read.insights.map((insight) => insight.text)).toEqual([
-      "The stock fell 5.8% over the two days after its Aug 12 report, about 3 times its normal daily move.",
-      // The stored label says beat, but $1.08 against $1.17 is a miss: the numbers decide.
-      "Last quarter's earnings per share missed the estimate by 8% and the stock fell.",
-    ]);
-  });
-  it("is null with no reports", () => {
-    expect(buildEarningsDetailRead({ ticker: "X", name: "X", events: [], today: TODAY, context: undefined })).toBeNull();
   });
 });
 

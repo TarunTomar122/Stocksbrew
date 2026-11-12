@@ -6,6 +6,7 @@ import { Bar } from "@/components/oa/kit/skeleton";
 import { NavIcon } from "@/components/oa/nav-icon";
 import type { NavIcon as NavIconName } from "@/components/oa/nav-items";
 import { Reveal } from "@/components/reveal";
+import { capitalize } from "@/lib/day-words";
 import { leadPercent } from "@/lib/lead-percent";
 import { EXAMPLE_AGENTS } from "@/lib/portfolio-home/example-agents";
 import type { CheckView } from "@/lib/portfolio-home/example-check";
@@ -70,7 +71,7 @@ function RunBody({ view, step }: { view: CheckView; step: string | null }) {
       {figure ? <p className="oa-mono mb-1.5 text-[26px] font-semibold leading-8 tracking-[-0.02em] tabular-nums text-oa-fg">{figure}</p> : null}
       <Ask ask={view.ask} />
       <p className="text-pretty text-[15px] leading-[22px] text-oa-fg">
-        <span className="oa-mono whitespace-nowrap text-[13px] tabular-nums text-oa-muted-fg">{view.when}</span>
+        <span className="oa-mono whitespace-nowrap text-[13px] tabular-nums text-oa-muted-fg">{capitalize(view.when)}</span>
         {": "}
         {view.outcome}
       </p>

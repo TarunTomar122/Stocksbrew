@@ -20,10 +20,7 @@ import { getInstrumentLabels } from "@/lib/instrument-resolver";
 import { buildHubRows } from "@/lib/watchlist-hub-data";
 import { loadExamplePortfolio, loadPortfolio, newYorkToday } from "@/lib/portfolio-data";
 import { pricesWords } from "@/lib/portfolio-prices";
-import { getGroupMove, getMarketDay, getSnapshotFacts } from "@/lib/insight-data";
-import { buildPortfolioReads, sectorsToLoad } from "@/lib/portfolio-insights";
-import { getStockCallHistory } from "@/lib/stock-events";
-import { callChanges } from "@/lib/stock-chart";
+import { getMarketDay } from "@/lib/insight-data";
 import type { PortfolioRowInput, PortfolioTab } from "@/lib/portfolio-shared";
 import { listStockAlerts } from "@/lib/stock-alerts";
 import { PortfolioHow, PortfolioIntro, PortfolioView } from "@/components/portfolio/portfolio-view";
@@ -62,21 +59,6 @@ async function ExamplePortfolio({ tab, lead }: { tab: PortfolioTab; lead: React.
   const example = await loadExamplePortfolio().catch(() => null);
   if (!example) return <>{lead}</>;
   const today = newYorkToday();
-  const tickers = [...example.portfolio.positions, ...example.portfolio.watching].map((position) => position.ticker);
-  const facts = await getSnapshotFacts(tickers);
-  // The example is priced on the stock pages' quotes; its S&P 500 move is from the same day (lib/portfolio-data).
-  const reads = buildPortfolioReads({
-    portfolio: example.portfolio,
-    today,
-    quoteDay: example.pricesAsOf,
-    marketPct: example.marketPct,
-    sectorOf: facts.sectorOf,
-    spSectorWeights: facts.spSectorWeights,
-    sectorMoves: {},
-    zones: {},
-    callChanges: [],
-    example: true,
-  });
   return (
     <PortfolioView
       // A link to another tab starts the view on that tab; a refresh after an edit keeps the one the person chose.
@@ -88,7 +70,6 @@ async function ExamplePortfolio({ tab, lead }: { tab: PortfolioTab; lead: React.
       lead={lead}
       pricesAsOf={example.pricesAsOf}
       pricesWords={pricesWords(example.pricesAsOf)}
-      reads={reads}
     />
   );
 }
@@ -225,38 +206,8 @@ export async function HoldingsStream({ tab }: { tab: PortfolioTab }) {
 
   const portfolio = await loadPortfolio({ rows: inputs, holdings: userDoc?.watchlist_holdings ?? null, now });
 
-  // ── the reads: baselines for the plain rules in lib/portfolio-insights ──
-  const everyTicker = [...portfolio.positions, ...portfolio.watching].map((position) => position.ticker);
-  const [facts, marketDay] = await Promise.all([getSnapshotFacts(everyTicker), getMarketDay()]);
+  const marketDay = await getMarketDay();
   const quoteDay = marketDay?.day ?? null;
-  const sectorNames = sectorsToLoad(portfolio, facts.sectorOf);
-  const today = newYorkToday(now);
-  const weekAgo = new Date(Date.parse(`${today}T00:00:00Z`) - 7 * 86_400_000).toISOString().slice(0, 10);
-  // Calls and their history are part of covering a stock: only covered holdings are asked for.
-  const coveredHoldings = portfolio.positions.filter((position) => canSeeLevels(viewer, position.instrument_id)).slice(0, 30);
-  const [sectorMoveList, callHistories] = await Promise.all([
-    Promise.all(sectorNames.map((name) => getGroupMove("sector", name, quoteDay).catch(() => null))),
-    Promise.all(coveredHoldings.map((position) => getStockCallHistory(position.instrument_id).catch(() => []))),
-  ]);
-  const sectorMoves: Record<string, number> = {};
-  for (const move of sectorMoveList) if (move) sectorMoves[move.name] = move.medianPct;
-  const recentCallChanges = coveredHoldings.flatMap((position, index) =>
-    callChanges(callHistories[index] ?? [])
-      .filter((change) => change.from && change.date >= weekAgo)
-      .slice(-1)
-      .map((change) => ({ ticker: position.ticker, from: change.from, to: change.to, date: change.date })),
-  );
-  // Zones were already dropped from `inputs` for uncovered stocks, so only covered levels reach the read.
-  const zonesById: Record<string, { addBelow: number | null; trimAbove: number | null }> = {};
-  for (const input of inputs) {
-    if (!input.zones) continue;
-    const add = input.zones.accumulate_below;
-    const trim = input.zones.trim_above;
-    zonesById[input.instrument_id] = {
-      addBelow: typeof add === "number" && Number.isFinite(add) ? add : null,
-      trimAbove: typeof trim === "number" && Number.isFinite(trim) ? trim : null,
-    };
-  }
 
   const alerts: PortfolioAlert[] = userAlerts
     .map((alert) => {
@@ -289,19 +240,6 @@ export async function HoldingsStream({ tab }: { tab: PortfolioTab }) {
         tone: flag.tone,
       }))
       .filter((flag) => flag.title);
-  });
-
-  const reads = buildPortfolioReads({
-    portfolio,
-    today,
-    quoteDay,
-    marketPct: marketDay?.pct ?? null,
-    sectorOf: facts.sectorOf,
-    spSectorWeights: facts.spSectorWeights,
-    sectorMoves,
-    zones: zonesById,
-    callChanges: recentCallChanges,
-    alerts,
   });
 
   const health = buildHealthProps(diagnosis, holdings.length);
@@ -346,7 +284,6 @@ export async function HoldingsStream({ tab }: { tab: PortfolioTab }) {
         asOf={now.toISOString()}
         pricesAsOf={quoteDay}
         pricesWords={pricesWords(quoteDay, now)}
-        reads={reads}
       />
     </>
   );

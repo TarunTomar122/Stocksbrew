@@ -57,7 +57,7 @@ export default function GlossaryPage() {
       <Crumbs items={[{ label: "Docs", href: "/docs" }, { label: "Glossary" }]} />
       <PageHead
         title="Glossary"
-        lede="The words the product uses, defined the way we use them. Where a term has a guide, the link goes to it."
+        lede="Each word defined the way the product uses it."
         meta={<p className="oa-mono text-[11.5px] leading-4 text-oa-muted-fg">{GLOSSARY.length} terms · A to Z</p>}
       />
       <GlossaryList rows={rows} />

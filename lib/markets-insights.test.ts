@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildClassRead, buildMarketsRead, fedOutcomeWords, listTakeaway, marketRegime, moversTakeaway, nextReports, outlier, reportCard, reportsWhen, sectorBreadth, sectorTakeaway, SECTOR_IDS, usHoldings, withWatchNext } from "@/lib/markets-insights";
+import { buildMarketsRead, fedOutcomeWords, listTakeaway, marketRegime, moversTakeaway, nextReports, outlier, reportCard, reportsWhen, sectorBreadth, sectorTakeaway, SECTOR_IDS, usHoldings, withWatchNext } from "@/lib/markets-insights";
 import type { MarketAsset, MarketsData } from "@/lib/markets-shared";
 
 function asset(id: string, d1: number | null, extra: Partial<MarketAsset> = {}): MarketAsset {
@@ -101,42 +101,6 @@ describe("takeaways", () => {
   it("movers line counts gains", () => {
     expect(moversTakeaway([asset("a", 5), asset("b", 4), asset("c", 3)])).toMatch(/^All 3 of the biggest moves were gains/);
     expect(moversTakeaway([asset("a", -5), asset("b", 4), asset("c", 3)])).toMatch(/^2 of the 3 biggest moves were gains/);
-  });
-});
-
-describe("buildClassRead", () => {
-  it("leads with how the class did and names the moves that beat or lagged the S&P 500", () => {
-    const spx = asset("sp500", -0.57, { class: "index" });
-    const coins = [
-      asset("btc", -0.2, { class: "crypto", name: "Bitcoin", symbol: "BTC" }),
-      asset("eth", -1.1, { class: "crypto", name: "Ether", symbol: "ETH" }),
-      asset("sol", -3.11, { class: "crypto", name: "Solana", symbol: "SOL", change: { d1: -3.11, w1: null, m1: -12, ytd: null, y1: null } }),
-      asset("avax", -4.68, { class: "crypto", name: "Avalanche", symbol: "AVAX" }),
-    ];
-    const read = buildClassRead({ slug: "crypto", assets: coins, data: data([spx, ...coins]) })!;
-    expect(read.headline).toBe("All 4 coins fell; Avalanche fell most at \u22124.7%.");
-    expect(read.insights.map((insight) => insight.id)).toEqual(["mover-avax", "mover-sol"]);
-    expect(read.insights[0]!.text).toBe("Avalanche fell 4.68% in 24 hours, 4.5 pts worse than bitcoin (\u22120.20%).");
-    expect(read.insights[1]!.soWhat).toBe("That extends a 12.0% drop over the month.");
-  });
-
-  it("uses the page's own reading as the headline and skips moves close to the baseline", () => {
-    const spx = asset("sp500", 0.4, { class: "index" });
-    const funds = [asset("xlk", 0.9, { group: "sector" }), asset("xle", 0.2, { group: "sector" }), asset("xlf", 0.5, { group: "sector" })];
-    const read = buildClassRead({ slug: "etfs", assets: funds, data: data([spx, ...funds]), reading: "Tech led a calm day." })!;
-    expect(read.headline).toBe("Tech led a calm day.");
-    expect(read.insights).toEqual([]);
-  });
-
-  it("does not measure currencies against the S&P 500", () => {
-    const spx = asset("sp500", -2, { class: "index" });
-    const pairs = [asset("eurusd", 0.35, { class: "fx" }), asset("usdjpy", -1.2, { class: "fx" }), asset("dxy", 0.4, { class: "fx" })];
-    const read = buildClassRead({ slug: "fx", assets: pairs, data: data([spx, ...pairs]) })!;
-    expect(read.insights.map((insight) => insight.text)).toEqual(["USDJPY fell 1.20% today."]);
-  });
-
-  it("is null with nothing to say", () => {
-    expect(buildClassRead({ slug: "fx", assets: [], data: data([]) })).toBeNull();
   });
 });
 

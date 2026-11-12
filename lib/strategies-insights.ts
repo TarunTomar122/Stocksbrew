@@ -1,12 +1,13 @@
 /**
- * The read for /strategies and /strategies/[slug]: which rules are working
- * this year, why (what the basket leans on), and how the long test compares.
+ * Which strategies are working this year, why (what the basket leans on), and
+ * how the long test compares: the tally and gaps /strategies shows, and the
+ * read on its share card.
  * Pure. Every return here is backtested and the text says so. Holdings are
  * named only when the caller says the viewer may see them (Pro).
  */
 
 import { pickInsights, toneOfChange, type Insight, type TheRead } from "@/lib/insights";
-import type { Strategy, StrategySummary } from "@/lib/strategies";
+import type { StrategySummary } from "@/lib/strategies";
 
 const MINUS = "−";
 
@@ -26,11 +27,6 @@ function pct(value: number): string {
 function pts(mine: number, bench: number): string {
   const shown = (value: number) => Number((value * 100).toFixed(1));
   return `${Math.abs(shown(mine) - shown(bench)).toFixed(1)} pts`;
-}
-
-/** A gap shown without the two returns beside it: the same figure as the table's "vs S&P 500" column. */
-function gapPts(gap: number): string {
-  return `${Math.abs(gap * 100).toFixed(1)} pts`;
 }
 
 function sectorWord(sector: string): string {
@@ -206,79 +202,5 @@ export function buildStrategiesRead(
     headline,
     insights: pickInsights(insights),
     source: ranked[0] ? `Backtested, not traded · prices through ${shortDay(ranked[0].through)}` : undefined,
-  };
-}
-
-export function buildStrategyRead(strategy: Strategy, options: { seesHoldings: boolean; ytd?: YtdMap; year?: number }): TheRead {
-  const ytd = options.ytd ?? {};
-  const test = strategy.backtest;
-  const sectors = (() => {
-    const out = new Map<string, number>();
-    for (const holding of strategy.basket.holdings) if (holding.sector) out.set(holding.sector, (out.get(holding.sector) ?? 0) + holding.weight);
-    return [...out.entries()].map(([sector, weight]) => ({ sector, weight })).sort((a, b) => b.weight - a.weight);
-  })();
-  const holdings = [...strategy.basket.holdings].sort((a, b) => b.weight - a.weight).map((holding) => ({ symbol: holding.symbol, weight: holding.weight }));
-  const insights: Array<Insight | null> = [];
-  let headline = "";
-
-  if (test) {
-    const latest = test.years[test.years.length - 1] ?? null;
-    const year = options.year ?? new Date().getUTCFullYear();
-    if (latest && latest.year === year && latest.sessions >= 20) {
-      const gap = latest.strategy - latest.benchmark;
-      const lean = leanText(sectors, holdings, options.seesHoldings, ytd, gap >= 0 ? "up" : "down");
-      insights.push({
-        id: "this-year",
-        tone: toneOfChange(gap, 0.005),
-        text: `This year it is ${signedPct(latest.strategy)} against ${signedPct(latest.benchmark)} for the S&P 500, ${pts(latest.strategy, latest.benchmark)} ${gap >= 0 ? "ahead" : "behind"}.`,
-        soWhat: lean?.text,
-        tickers: lean?.tickers,
-        action: options.seesHoldings ? { label: "What it holds", href: "#basket" } : undefined,
-      });
-    }
-    const mine = test.strategy.annualized_return;
-    const bench = test.benchmark.annualized_return;
-    if (mine != null && bench != null) {
-      const gap = mine - bench;
-      insights.push({
-        id: "long-run",
-        tone: toneOfChange(gap, 0.005),
-        text: `Over ${Math.round(test.period.years)} years it ${gap >= 0 ? "beat" : "trailed"} the S&P 500 by ${gapPts(gap)} a year, with a worst drop of ${signedPct(test.strategy.max_drawdown, 0)} against ${signedPct(test.benchmark.max_drawdown, 0)}.`,
-        soWhat: `It beat the S&P in ${test.hit_rate.beat} of ${test.hit_rate.years} years.`,
-      });
-      headline = `${gap >= 0 ? "Beat" : "Trailed"} the S&P 500 by ${gapPts(gap)} a year over ${Math.round(test.period.years)} years, backtested.`;
-    }
-    // Where the gain came from: the years with the biggest lead over the S&P.
-    const complete = test.years.filter((row) => row.complete);
-    if (complete.length >= 4) {
-      const best = [...complete].sort((a, b) => b.strategy - b.benchmark - (a.strategy - a.benchmark)).slice(0, 2);
-      const worst = [...complete].sort((a, b) => a.strategy - a.benchmark - (b.strategy - b.benchmark))[0];
-      if (best[0] && best[0].strategy - best[0].benchmark > 0.02) {
-        insights.push({
-          id: "years",
-          tone: "flat",
-          text: `Its best years against the S&P 500 were ${listWords(best.map((row) => `${row.year} (${signedPct(row.strategy, 0)} vs ${signedPct(row.benchmark, 0)})`))}.`,
-          soWhat:
-            worst && worst.strategy - worst.benchmark < -0.02
-              ? `Its worst year against the S&P was ${worst.year}: ${signedPct(worst.strategy, 0)} vs ${signedPct(worst.benchmark, 0)}.`
-              : undefined,
-          action: { label: "Year by year", href: "#years" },
-        });
-      }
-    }
-  } else if (sectors[0]) {
-    insights.push({
-      id: "lean",
-      tone: "flat",
-      text: `Today's basket leans on ${sectorWord(sectors[0].sector)}: ${pct(sectors[0].weight)} of it${sectors[1] ? `, then ${sectorWord(sectors[1].sector)} at ${pct(sectors[1].weight)}` : ""}.`,
-      soWhat: "No backtest: these rules need past company financials we do not hold.",
-    });
-  }
-  if (!headline && !test && sectors[0]) headline = `No backtest yet; today's basket leans on ${sectorWord(sectors[0].sector)}.`;
-  if (!headline && insights[0]) headline = insights[0].text;
-  return {
-    headline,
-    insights: pickInsights(insights),
-    source: test ? `Backtested, not traded · ${shortDay(test.period.start)} ${test.period.start.slice(0, 4)} to ${shortDay(test.period.end)} ${test.period.end.slice(0, 4)}` : undefined,
   };
 }

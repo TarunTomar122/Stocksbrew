@@ -3,13 +3,11 @@ import { notFound } from "next/navigation";
 
 import { RankedList } from "@/components/best-stocks/ranked-list";
 import { JsonLd, breadcrumbLd } from "@/components/docs/json-ld";
-import { TheRead } from "@/components/oa/insight";
 import { AppPage, CardGrid, NUM, PageHead, Panel, SourceLine, fmtDay } from "@/components/oa/kit";
 import {
   LIST_MIN_STOCKS,
   LIST_SHOW,
   bestListHref,
-  buildListRead,
   getBestList,
   itemListLd,
   listDescription,
@@ -25,7 +23,7 @@ import { AppLink } from "@/components/oa/app-link";
 
 /**
  * One "best stocks for X" list (/best/dividend-stocks-under-50): the rule in
- * one sentence, the read, then the ranked stocks, rebuilt from the stored
+ * one sentence, then the ranked stocks, rebuilt from the stored
  * screener snapshot (and Form 4 or 13F filings for the two filing lists).
  * No loading.tsx in this segment, so an unknown list is a real 404. A list
  * with fewer than LIST_MIN_STOCKS stocks today still renders, says so, and
@@ -59,9 +57,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function BestListPage({ params }: Props) {
   const list = getBestList(params.slug);
   if (!list || list.slug !== params.slug) notFound();
-  const { built, input } = await getBestListPage(list);
+  const { built } = await getBestListPage(list);
   const path = bestListHref(list.slug);
-  const read = buildListRead(built, input);
   const closeDay = built.day ? `the ${fmtDay(built.day, true)} close` : undefined;
 
   const sectors = new Map<string, number>();
@@ -102,8 +99,6 @@ export default async function BestListPage({ params }: Props) {
             : `Only ${built.count === 1 ? "one stock meets" : `${built.count} stocks meet`} this rule today, which is too few to call it a list. It is rebuilt after every trading day.`}
         </p>
       ) : null}
-
-      <TheRead read={read} label="In short" fold="phone" foldLabel="Show what stands out" className="mb-4" />
 
       {built.shown.length > 0 ? (
         <Panel flush className="mb-4" label={label}>

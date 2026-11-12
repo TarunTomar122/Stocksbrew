@@ -19,7 +19,7 @@ import { getDailySeries } from "@/lib/screener-series";
 import { getGroupMove, getMarketDay, getStockGroup } from "@/lib/insight-data";
 import { buildStockRead as buildStockInsightRead } from "@/lib/stock-insights";
 import { etDay } from "@/lib/insight-format";
-import { stockLogoSources } from "@/lib/stock-logo-sources";
+import { loadLogo, loadLogos } from "@/lib/og/logos";
 import { loadMovers, loadPolicy, loadReddit } from "@/lib/signals";
 import { buildMoversRead, buildSignalsTodayRead } from "@/lib/signals-insights";
 import { getMarketsData } from "@/lib/markets";
@@ -63,11 +63,12 @@ import { GLOSSARY } from "@/lib/docs";
 import { HERO_HEADLINE, HERO_SUBHEAD } from "@/lib/brand-copy";
 import { getPremarketMovers } from "@/lib/premarket";
 import { getPremarketOpeningReport } from "@/lib/premarket-opening";
-import { premarketInputFrom, premarketRead, premarketWhen } from "@/lib/premarket-read";
+import { futuresCues, premarketInputFrom, premarketRead, premarketWhen } from "@/lib/premarket-read";
+import { signedPct } from "@/lib/og/pieces";
 import { LANDING_HERO_BREW_TICKERS } from "@/lib/landing-hero-featured";
 import type { TheRead } from "@/lib/insights";
 import { withoutZones, type ScreenerRow } from "@/lib/screener-shared";
-import { loadDeskBrief, loadDeskWire } from "@/app/(app)/explore/desk-data";
+import { loadMarketBrief, loadWireRead } from "@/lib/og/market-read";
 import { marketTodayRead } from "@/lib/explore-insights";
 
 import {
@@ -127,46 +128,9 @@ function callNote(row: ScreenerRow | null | undefined): string | null {
   return levelFree(row?.thesis) ?? levelFree(row?.call_reason);
 }
 
-/* ── logos: inlined, cached per process, never allowed to slow a card much ── */
+/* ── logos: from the app's logo store, inlined and cached (lib/og/logos.ts) ── */
 
-const LOGO_TTL_MS = 6 * 3600_000;
-const logoCache = new Map<string, { at: number; value: string | null }>();
-
-async function fetchLogo(url: string): Promise<string | null> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 1500);
-  try {
-    const res = await fetch(url, { signal: controller.signal, cache: "force-cache" });
-    if (!res.ok) return null;
-    const type = (res.headers.get("content-type") || "").split(";")[0]!.trim();
-    // Satori decodes PNG and JPEG reliably; anything else falls back to the monogram.
-    if (type !== "image/png" && type !== "image/jpeg") return null;
-    const buf = Buffer.from(await res.arrayBuffer());
-    if (buf.length < 700) return null; // blank placeholder
-    return `data:${type};base64,${buf.toString("base64")}`;
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-/**
- * The first logo that loads, in the same order the site tries them. All are
- * fetched at once so a dead source costs nothing; Clearbit (shut down) and the
- * 64px favicon (too small for a card) are skipped. A miss is remembered for
- * ten minutes only, so a slow moment does not cost a logo for hours.
- */
-export async function loadLogo(ticker: string, logoUrl?: string | null): Promise<string | null> {
-  const key = ticker.toUpperCase();
-  const hit = logoCache.get(key);
-  if (hit && Date.now() - hit.at < (hit.value ? LOGO_TTL_MS : 10 * 60_000)) return hit.value;
-  const sources = stockLogoSources(key, "US", logoUrl).filter((url) => !/clearbit\.com|google\.com\/s2\/favicons/.test(url)).slice(0, 3);
-  const results = await Promise.all(sources.map((url) => fetchLogo(url)));
-  const value = results.find((result) => result !== null) ?? null;
-  logoCache.set(key, { at: Date.now(), value });
-  return value;
-}
+export { loadLogo };
 
 /* ── landing ────────────────────────────────────────────────────────────── */
 
@@ -183,7 +147,7 @@ export async function landingCard(): Promise<OgCard> {
   if (!pick) {
     return { kind: "landing", eyebrow: null, headline: HERO_HEADLINE, sub: HERO_SUBHEAD, row: null, footnote: "Our call is free on every stock" };
   }
-  const [live, logo] = await Promise.all([within(getQuoteCached(pick.symbol), 1500), within(loadLogo(pick.symbol), 1800)]);
+  const [live, logo] = await Promise.all([within(getQuoteCached(pick.symbol), 1500), within(loadLogo(pick.symbol), 2500)]);
   const livePrice = live && finite(live.price) && live.price > 0 ? live : null;
   const price = livePrice ? livePrice.price : pick.price!;
   const dayPct = livePrice && finite(livePrice.day_change_pct) ? livePrice.day_change_pct : pick.day_pct!;
@@ -231,7 +195,7 @@ export async function stockCard(raw: string): Promise<OgCard | null> {
 
   const [group, logo] = await Promise.all([
     groupRef ? within(getGroupMove(groupRef.kind, groupRef.name, quoteDay, symbol), 1500) : Promise.resolve(null),
-    within(loadLogo(symbol, live?.logo_url), 1800),
+    within(loadLogo(symbol, live?.logo_url), 2500),
   ]);
 
   const series = seriesSet?.series[symbol] ?? null;
@@ -305,7 +269,7 @@ export async function compareCard(raw: string): Promise<OgCard | null> {
   });
   if (present.filter(Boolean).length < 2) return null;
   const read = buildCompareRead({ rows: present, benchmark: rows.get("SPY") ?? null });
-  const logos = await Promise.all(symbols.map((symbol) => within(loadLogo(symbol), 1800)));
+  const logos = await Promise.all(symbols.map((symbol) => within(loadLogo(symbol), 2500)));
   const priceAt = present.find((row) => row?.price_at)?.price_at ?? null;
   return {
     kind: "compare",
@@ -343,6 +307,7 @@ async function briefingCard(): Promise<OgCard | null> {
   const marketRead = markets && markets.assets.length ? buildMarketsRead(markets) : null;
   const moverRead = buildMoversRead(list, movers?.generatedAt ?? null);
   const ranked = [...list].sort((a, b) => Number(b.explained) - Number(a.explained) || Math.abs(b.pct) - Math.abs(a.pct)).slice(0, 3);
+  const logos = await loadLogos(ranked.map((mover) => mover.ticker));
   return {
     kind: "list",
     eyebrow: ogEyebrow("Briefing", ogDayLabel(movers?.day ?? null)),
@@ -353,6 +318,8 @@ async function briefingCard(): Promise<OgCard | null> {
       value: ogSignedPct(mover.pct),
       tone: ogTone(mover.pct),
       note: mover.explained ? mover.headline ?? mover.cause ?? "" : "",
+      ticker: mover.ticker,
+      logo: logos[mover.ticker] ?? null,
     })),
     footnote: ogFootnote(movers?.generatedAt ? `Movers as of ${ogStamp(movers.generatedAt)}` : null),
   };
@@ -377,14 +344,26 @@ async function premarketCard(): Promise<OgCard | null> {
   // The same read the page leads with (lib/premarket-read.ts), from the same two cached documents.
   const [report, movers] = await Promise.all([within(getPremarketOpeningReport(), 2500), within(getPremarketMovers("US"), 2500)]);
   const input = premarketInputFrom(report, movers);
-  return readCard("premarket", "Premarket", "/premarket", premarketRead(input, premarketWhen(input.generatedAt)));
+  const card = readCard("premarket", "Premarket", "/premarket", premarketRead(input, premarketWhen(input.generatedAt)));
+  if (!card) return null;
+  // The big number is S&P 500 futures (the read leads with futures); the gappers each way are logo chips.
+  const lead = futuresCues(input.cues)[0] ?? null;
+  const up = [...input.up].filter((row) => finite(row.gap_pct)).sort((a, b) => b.gap_pct - a.gap_pct).slice(0, 3);
+  const down = [...input.down].filter((row) => finite(row.gap_pct)).sort((a, b) => a.gap_pct - b.gap_pct).slice(0, 2);
+  const gappers = [...up, ...down];
+  const logos = gappers.length ? await loadLogos(gappers.map((row) => row.ticker)) : {};
+  return {
+    ...card,
+    figure: lead ? { value: signedPct(lead.change_pct, 2), label: `${lead.label} before the open`, tone: ogTone(lead.change_pct) } : null,
+    chips: gappers.map((row) => ({ ticker: row.ticker, logo: logos[row.ticker] ?? null, display: signedPct(row.gap_pct), tone: ogTone(row.gap_pct) })),
+  };
 }
 
 async function exploreCard(): Promise<OgCard | null> {
   const today = todayET();
   // The same read the page shows (lib/explore-insights.ts marketTodayRead): the brief's three points, no tone lines.
-  const [brief, wire] = await Promise.all([within(loadDeskBrief(today), 4000), within(loadDeskWire(today), 4000)]);
-  return readCard("explore", "Market today", "/explore", marketTodayRead(brief?.read, wire?.read, brief?.marketsLine ?? null), { day: ogDayLabel(today) });
+  const [brief, wire] = await Promise.all([within(loadMarketBrief(today), 4000), within(loadWireRead(today), 4000)]);
+  return readCard("explore", "Market today", "/explore", marketTodayRead(brief?.read, wire, brief?.marketsLine ?? null), { day: ogDayLabel(today) });
 }
 
 async function newsCard(): Promise<OgCard | null> {

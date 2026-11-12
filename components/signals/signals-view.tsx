@@ -1,7 +1,7 @@
 import * as React from "react";
 import Link from "next/link";
 
-import { Delta, Empty, FOCUS, NUM, Panel, TabBar, Ticker, Verdict, fmtAgo, fmtDay, fmtStampET, type TabItem } from "@/components/oa/kit";
+import { Delta, Empty, FOCUS, NUM, Panel, TabBar, Ticker, Verdict, fmtAgo, fmtDay, fmtStampETDate, type TabItem } from "@/components/oa/kit";
 import type { MoversData, PolicyData, RedditData, RedditThread } from "@/lib/signals";
 import { MoreLocked } from "@/components/oa/gate";
 import { StockLogo } from "@/components/stock-logo";
@@ -270,7 +270,8 @@ const POLICY_COLS = "lg:grid lg:grid-cols-[6.5rem_minmax(0,1fr)_minmax(0,11rem)_
 const POLICY_COLS_COMPACT = "lg:grid lg:grid-cols-[4rem_minmax(0,1fr)_4.5rem] lg:items-center lg:gap-x-3";
 
 function PolicyLine({ post, compact }: { post: PolicyPost; compact: boolean }) {
-  const stamp = fmtStampET(post.publishedAt).replace(" ET", "");
+  // A column of many posts keeps each one's date (and `compact` cuts it to the day).
+  const stamp = fmtStampETDate(post.publishedAt).replace(" ET", "");
   return (
     <div className={`px-4 py-2.5 lg:py-2 ${compact ? POLICY_COLS_COMPACT : POLICY_COLS}`}>
       <div className="flex items-baseline justify-between gap-3 lg:contents">
@@ -338,7 +339,7 @@ function PolicyDetail({ post, compact }: { post: PolicyPost; compact: boolean })
         </div>
       ) : null}
       <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12.5px] leading-[18px] text-oa-muted-fg">
-        <span>{fmtStampET(post.publishedAt)}</span>
+        <span>{fmtStampETDate(post.publishedAt)}</span>
         {post.market ? (
           <span title={`SPY from the ${fmtDay(post.market.fromDate)} close to ${fmtDay(post.market.toDate)}`}>
             · S&amp;P 500 since <Delta value={post.market.pct} className="text-[12.5px]" />

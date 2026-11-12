@@ -1,4 +1,5 @@
 import { leansAgainst } from "@/lib/call-evidence";
+import { stampWords } from "@/lib/day-words";
 import type { CallWord } from "@/lib/stock-chart";
 
 /** What the landing's taste shows for one ticker (lib/landing-taste.ts builds it, /api/taste sends it). */
@@ -66,16 +67,10 @@ export function aboutCount(count: number): string | null {
 }
 
 /**
- * When the move was measured, in New York time: "4:00 PM ET" today, "Nov 10, 4:00 PM ET" on another day.
+ * When the move was measured, in New York time: "4:00 PM ET" today, "yesterday, 4:00 PM ET", "Monday, 4:00 PM ET"
+ * within the week, "Nov 3, 4:00 PM ET" before (lib/day-words.ts). Lowercase; a label that starts with it capitalizes.
  * Empty without a usable time.
  */
 export function moveStamp(iso: string | null | undefined, now: Date = new Date()): string {
-  const at = iso ? new Date(iso) : null;
-  if (!at || Number.isNaN(at.getTime())) return "";
-  const zone = "America/New_York";
-  const time = at.toLocaleTimeString("en-US", { timeZone: zone, hour: "numeric", minute: "2-digit" });
-  const day = (date: Date) => date.toLocaleDateString("en-US", { timeZone: zone, year: "numeric", month: "short", day: "numeric" });
-  if (day(at) === day(now)) return `${time} ET`;
-  const short = at.toLocaleDateString("en-US", { timeZone: zone, month: "short", day: "numeric" });
-  return `${short}, ${time} ET`;
+  return stampWords(iso, now);
 }

@@ -147,7 +147,7 @@ describe("/api/share", () => {
     expect(res.status).toBe(409);
     const again = await res.json();
     expect(again.error).toBe("changed");
-    expect(again.candidates[0].variants["named-pct"].card.headline).toContain("16%");
+    expect(again.candidates[0].variants["named-pct"].card.figure.value).toBe("16%");
     expect(state.writes).toEqual([]);
   });
 

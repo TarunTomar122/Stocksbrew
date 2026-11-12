@@ -81,8 +81,6 @@ export function morningFrom(data: BriefingPageData | ExampleBriefingPage | null,
   if (!read) return null;
   return {
     headline: read.headline,
-    sub: read.sub ?? null,
-    insights: read.insights,
     sessionDay,
     pct: portfolio && Number.isFinite(portfolio.day_change_pct) ? portfolio.day_change_pct : null,
   };

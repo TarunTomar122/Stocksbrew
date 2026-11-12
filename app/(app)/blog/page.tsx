@@ -94,7 +94,7 @@ export default function BlogPage() {
       <PageHead
         label="Blog"
         title="Longer reads on analysing stocks"
-        lede="Guides to reading a company, a report and the news around it, and honest looks at the tools people use. For how stocksbrew itself works, read the docs."
+        lede="For how stocksbrew itself works, read the docs."
         meta={
           <p className="oa-mono text-[11.5px] leading-4 text-oa-muted-fg">
             {posts.length} posts · reviewed before they are listed ·{" "}

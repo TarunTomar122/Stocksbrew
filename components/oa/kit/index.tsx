@@ -5,6 +5,7 @@ import { interTight } from "@/components/oa/font";
 import { OaSiteHeader } from "@/components/oa/oa-site-header";
 import { PageIcon, PlaceTrail } from "@/components/oa/place-nav";
 import { StockLogo } from "@/components/stock-logo";
+import { stampWords } from "@/lib/day-words";
 import { shortCompanyName } from "@/lib/plain-copy";
 
 import { PAGE_PAD, PAGE_PAD_PROSE } from "./skeleton";
@@ -657,8 +658,18 @@ export function fmtCompact(value: number | null | undefined, prefix = ""): strin
   return `${sign}${prefix}${abs.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
 }
 
-/** An instant as "Nov 9, 4:05 PM ET". */
-export function fmtStampET(iso: string | null | undefined): string {
+/**
+ * An "as of" stamp read now (lib/day-words.ts): "4:05 PM ET" today, "yesterday, 4:05 PM ET", "Monday, 4:05 PM ET"
+ * within the week, "Nov 3, 4:05 PM ET" before. Lowercase; a label that starts with it capitalizes. A list of many
+ * stamps, or a filing citation, keeps the date with `fmtStampETDate`.
+ */
+export function fmtStampET(iso: string | null | undefined, now: number | Date = Date.now()): string {
+  if (!iso) return "";
+  return stampWords(iso, now) || fmtStampETDate(iso);
+}
+
+/** An instant as "Nov 9, 4:05 PM ET": the date itself, for a list of many stamps or a citation. */
+export function fmtStampETDate(iso: string | null | undefined): string {
   if (!iso) return "";
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "";

@@ -29,7 +29,7 @@ export default async function ResearchReportPage({ params }: Props) {
   if (!session) {
     return (
       <AppPage width="read">
-        <PageHead full crumb={<Link href={`/stock/${encodeURIComponent(ticker)}`}>{ticker}</Link>} title="Sign in to open this report" lede="Saved research reports open for the account that ran them. If someone shared a report with you, use the link they sent." />
+        <PageHead full crumb={<Link href={`/stock/${encodeURIComponent(ticker)}`}>{ticker}</Link>} title="Sign in to open this report" lede="Reports open only for the account that ran them, or through a shared link." />
       </AppPage>
     );
   }

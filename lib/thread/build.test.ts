@@ -168,7 +168,7 @@ describe("event notes", () => {
 describe("reports coming up", () => {
   it("is the stock's own note when there is one", () => {
     const note = upcomingNote([report({ ticker: "NVDA", date: "2026-11-17", usualPct: 6.2, history: "has moved 6.2% on a typical report" })], TODAY, { NVDA: { word: "Buy more", level: "below $142.07" } })!;
-    expect(note.text).toMatch(/^NVDA reports on Nov 17 after the close, and it has moved 6\.2% on a typical report\.$/);
+    expect(note.text).toMatch(/^NVDA reports on Tuesday after the close, and it has moved 6\.2% on a typical report\.$/);
     expect(note.figure).toEqual({ value: "6.2%", tone: "flat", label: "usual report move" });
     expect(note.call).toEqual({ ticker: "NVDA", word: "Buy more", level: "below $142.07" });
     expect(note.step!.href).toBe("/stock/NVDA#call");
@@ -189,16 +189,11 @@ describe("reports coming up", () => {
 describe("the thread", () => {
   const morning = {
     headline: "Your holdings fell 1.2% today, 1.5 points worse than the S&P 500.",
-    sub: "NVDA moved most.",
-    insights: [
-      { id: "mover-NVDA", tone: "down" as const, text: "NVDA is down 4.1% today: chip export limits widened.", tickers: ["NVDA"], figure: { value: "−4.1%" }, action: { label: "Our view on NVDA", href: "/stock/NVDA" } },
-      { id: "decisions", tone: "flat" as const, text: "One stock needs a decision: AMD.", tickers: ["AMD"], soWhat: "They are first below." },
-    ],
     sessionDay: TODAY,
     pct: -1.2,
   };
 
-  it("opens today with the morning read, its points as cards that are their own links", () => {
+  it("opens today with the morning read as one line, with no cards under it", () => {
     const thread = buildThread(input({ morning }));
     const today = thread.days[thread.days.length - 1]!;
     expect(today.label).toBe("Today");
@@ -206,9 +201,7 @@ describe("the thread", () => {
     expect(opener.kind).toBe("opener");
     expect(opener.text).toBe(morning.headline);
     expect(opener.figure).toEqual({ value: "−1.2%", tone: "down" });
-    expect(opener.points.map((point) => point.href)).toEqual(["/stock/NVDA", "/briefing"]);
-    // "They are first below." is the briefing's own layout talking; it is not said here.
-    expect(opener.points[1]!.soWhat).toBeNull();
+    expect(opener.sub).toBeNull();
     expect(opener.step).toEqual({ label: "Open today's briefing", href: "/briefing" });
   });
 
@@ -236,10 +229,10 @@ describe("the thread", () => {
     expect(notes[0]!.recent).toEqual([{ day: TODAY, label: "Today", value: "−0.6%", tone: "down" }]);
   });
 
-  it("does not repeat as its own note a move the morning read already tells", () => {
+  it("keeps today's move as its own note now that the morning note is one line", () => {
     const todayDrop = item({ ...NVDA_DROP, id: "move:NVDA:today", day: TODAY, at: "2026-11-12T15:00:00.000Z", move: { pct: -4.1, day: TODAY, normalPct: 1.8 } });
     const thread = buildThread(input({ items: [todayDrop], morning }));
-    expect(thread.days.flatMap((day) => day.notes).map((note) => note.id)).not.toContain("move:NVDA:today");
+    expect(thread.days.flatMap((day) => day.notes).map((note) => note.id)).toContain("move:NVDA:today");
   });
 
   it("says our call once, beside the newest note on the stock, and a step once", () => {
@@ -251,15 +244,15 @@ describe("the thread", () => {
     expect(notes.map((note) => note.step?.label ?? null)).toEqual([null, null, "Check our call on NVDA before Tuesday"]);
   });
 
-  it("closes today with what is coming up, unless the morning read already told it", () => {
+  it("closes today with what is coming up", () => {
     const upcoming = [report({ ticker: "AAPL", date: "2026-11-16" })];
     const thread = buildThread(input({ upcoming }));
     const last = thread.days[thread.days.length - 1]!;
     expect(last.day).toBe(TODAY);
     expect(last.notes[last.notes.length - 1]!.kind).toBe("upcoming");
 
-    const told = buildThread(input({ upcoming, morning: { ...morning, insights: [{ id: "earnings-x", tone: "flat", text: "AAPL reports on Monday.", tickers: ["AAPL"] }] } }));
-    expect(told.days.flatMap((day) => day.notes).some((note) => note.kind === "upcoming")).toBe(false);
+    const withMorning = buildThread(input({ upcoming, morning }));
+    expect(withMorning.days.flatMap((day) => day.notes).some((note) => note.kind === "upcoming")).toBe(true);
   });
 
   it("folds a past day with nothing but its close into a chip on today's opener", () => {

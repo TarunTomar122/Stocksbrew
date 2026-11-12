@@ -49,7 +49,7 @@ export default function DocsIndexPage() {
       />
       <PageHead
         title="How stocksbrew works"
-        lede="A course in ten parts. Read it in order the first time, then come back for the page you need. Every guide describes what the product actually does, including what it does not."
+        lede="Read it in order once, then come back for the page you need."
         meta={
           <p className="text-[12.5px] leading-4 text-oa-muted-fg">
             {GUIDES.length} guides · about {totalMinutes} minutes in all · {GLOSSARY.length} glossary terms · 3 calculators

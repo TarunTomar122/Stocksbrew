@@ -74,7 +74,8 @@ export type PortfolioPosition = {
   /** Share of the valued holdings, 0 to 100. */
   weight: number | null;
   stance: string | null;
-  zone: { label: string; tone: Tone } | null;
+  /** The call's one level ("Below $296") and its number, for Buy more or Sell some only. */
+  zone: { label: string; tone: Tone; level: number } | null;
   needsAttention: boolean;
   attentionDirection: "bullish" | "bearish" | "neutral" | null;
   reason: string | null;
@@ -164,8 +165,8 @@ export function zoneFor(row: Pick<PortfolioRowInput, "stance" | "zones" | "price
   const add = positive(zones.accumulate_below);
   const trim = positive(zones.trim_above);
   // The call's chip sits beside it, so the level says only where: "Below $296".
-  if (call === "Add" && add && near(add)) return { label: `Below ${money(add)}`, tone: "bull" };
-  if (call === "Trim" && trim && near(trim)) return { label: `Above ${money(trim)}`, tone: "bear" };
+  if (call === "Add" && add && near(add)) return { label: `Below ${money(add)}`, tone: "bull", level: add };
+  if (call === "Trim" && trim && near(trim)) return { label: `Above ${money(trim)}`, tone: "bear", level: trim };
   return null;
 }
 
@@ -454,6 +455,7 @@ export type SortKey =
   | "price"
   | "dayPct"
   | "shares"
+  | "avgCost"
   | "value"
   | "weight"
   | "gain"
@@ -473,6 +475,8 @@ function sortValue(position: PortfolioPosition, key: SortKey): number | string |
       return position.dayPct;
     case "shares":
       return position.shares;
+    case "avgCost":
+      return position.avgCost;
     case "value":
       return position.value;
     case "weight":

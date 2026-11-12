@@ -1,25 +1,19 @@
 import type { Metadata } from "next";
 
 import { BiggestReports, CalendarControls, ListView, MonthView, PeriodNav, WeekView, preReadIsException } from "@/components/calendar/calendar-view";
-import { TheRead } from "@/components/oa/insight";
 import { AppPage, Empty, PageHead, Panel, Segmented } from "@/components/oa/kit";
 import { MarketingSchema } from "@/components/seo/marketing-schema";
 import { getSessionUser } from "@/lib/auth-server";
 import { loadCalendarRange, loadReportContext } from "@/lib/calendar";
-import { bigReportTickers, biggestReports, buildCalendarRead, readTickers } from "@/lib/calendar-insights";
+import { bigReportTickers, biggestReports } from "@/lib/calendar-insights";
 import {
   CALENDAR_TYPES,
-  addDays,
   bucketByDay,
   calendarHref,
   filterItems,
   parseCalendarFilters,
-  fmtMonth,
-  fmtShortDay,
   todayET,
   viewRange,
-  weekStart,
-  type CalendarFilters,
   type CalendarType,
 } from "@/lib/calendar-shared";
 import { getTrackedStocks } from "@/lib/watchlist";
@@ -91,19 +85,6 @@ export function generateMetadata({ searchParams }: { searchParams?: SearchParams
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
-/** The window the agenda shows, as a reader would say it: "this week", "next week", "in December". */
-function periodWord(filters: CalendarFilters, range: { from: string; to: string }, today: string): string {
-  if (filters.view === "week") {
-    const thisWeek = weekStart(today);
-    if (range.from === thisWeek) return "this week";
-    if (range.from === addDays(thisWeek, 7)) return "next week";
-    if (range.from === addDays(thisWeek, -7)) return "last week";
-    return `the week of ${fmtShortDay(range.from)}`;
-  }
-  if (filters.view === "month") return today.slice(0, 7) === filters.month ? "this month" : `in ${fmtMonth(filters.month)}`;
-  return range.from <= today && today <= range.to ? "over the next three weeks" : `from ${fmtShortDay(range.from)}`;
-}
-
 export default async function CalendarPage({ searchParams }: { searchParams?: SearchParams }) {
   const today = todayET();
   const filters = parseCalendarFilters(searchParams, today);
@@ -127,24 +108,12 @@ export default async function CalendarPage({ searchParams }: { searchParams?: Se
 
   const markPreRead = preReadIsException(days);
 
-  // The read covers every kind of event (the type chips filter the agenda below, not the read). The history it reads
-  // also serves the cards of the biggest reports still to come (the loader takes eight names at most).
-  const contextTickers = [...new Set([...readTickers(scoped, today, mineSet), ...bigReportTickers(scoped, today)])].slice(0, 8);
-  const context = data.failed ? {} : await loadReportContext(contextTickers, today);
-  const big = data.failed || effective.type === "economic" || effective.type === "ipo" || effective.type === "dividend" ? [] : biggestReports(scoped, today, context);
-  const read = data.failed
-    ? null
-    : buildCalendarRead({
-        items: scoped,
-        today,
-        period: periodWord(effective, range, today),
-        mine: effective.mine ? null : mineSet,
-        context,
-        mineHref: mineSet ? calendarHref(effective, today, { mine: true }) : undefined,
-        // The cards under the read say the biggest reports, so the read does not say them again.
-        biggestShown: big.length > 0,
-        onlyMine: effective.mine,
-      });
+  // The history behind the cards of the biggest reports still to come (the loader takes eight names at most).
+  const contextTickers = bigReportTickers(scoped, today).slice(0, 8);
+  const big =
+    data.failed || effective.type === "economic" || effective.type === "ipo" || effective.type === "dividend"
+      ? []
+      : biggestReports(scoped, today, await loadReportContext(contextTickers, today));
 
   const tabs = (["week", "month", "list"] as const).map((view) => ({
     id: view,
@@ -172,8 +141,6 @@ export default async function CalendarPage({ searchParams }: { searchParams?: Se
         }
       />
       <CalendarControls filters={effective} today={today} counts={counts} mineAvailable={mineSet !== null} days={days} />
-      {/* Every point shows, on a phone too: nothing waits behind a button (owner rule 2). */}
-      <TheRead read={read} label="This week, in short" className="mb-4" />
       <BiggestReports reports={big} className="mb-5" />
 
       {data.failed ? (

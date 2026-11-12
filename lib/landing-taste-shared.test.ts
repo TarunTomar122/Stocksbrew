@@ -23,7 +23,9 @@ describe("landing taste", () => {
   it("dates the move in New York time, with the day when it is not today", () => {
     const now = new Date("2026-11-11T22:00:00Z");
     expect(moveStamp("2026-11-11T20:59:00+00:00", now)).toBe("3:59 PM ET");
-    expect(moveStamp("2026-11-10T21:00:00Z", now)).toBe("Nov 10, 4:00 PM ET");
+    expect(moveStamp("2026-11-10T21:00:00Z", now)).toBe("yesterday, 4:00 PM ET");
+    expect(moveStamp("2026-11-06T21:00:00Z", now)).toBe("Friday, 4:00 PM ET");
+    expect(moveStamp("2026-11-03T21:00:00Z", now)).toBe("Nov 3, 4:00 PM ET");
     expect(moveStamp("not a date", now)).toBe("");
   });
 

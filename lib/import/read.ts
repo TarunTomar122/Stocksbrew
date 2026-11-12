@@ -1,5 +1,5 @@
 import { getLatestPriceQuotes, type LatestPriceQuote } from "@/lib/firestore";
-import { getMarketDay, getSnapshotFacts, type SnapshotFacts } from "@/lib/insight-data";
+import { getSnapshotFacts, type SnapshotFacts } from "@/lib/insight-data";
 import type { Directory } from "@/lib/import/resolve";
 import { firstSentence, type ReadCall, type ReadFacts, type ReadStock } from "@/lib/import/read-shared";
 import { levelFree } from "@/lib/og/format";
@@ -33,11 +33,10 @@ export async function loadReadFacts(ids: string[], directory: Directory, now: Da
   const wanted = [...new Set(ids)].filter((id) => byId.has(id)).slice(0, MAX_READ_STOCKS);
   const tickers = wanted.map((id) => byId.get(id)!.ticker);
   const today = newYorkToday(now);
-  const [rows, quotes, earnings, market, facts] = await Promise.all([
+  const [rows, quotes, earnings, facts] = await Promise.all([
     getScreenerRows(tickers).catch(() => new Map<string, ScreenerRow>()),
     getLatestPriceQuotes(wanted).catch(() => new Map<string, LatestPriceQuote>()),
     loadNextEarnings(today).catch(() => new Map<string, EarningsDate>()),
-    getMarketDay().catch(() => null),
     getSnapshotFacts(tickers).catch((): SnapshotFacts => ({ sectorOf: {}, spSectorWeights: {}, priceDay: null })),
   ]);
   const stocks: ReadStock[] = wanted.map((id) => {
@@ -68,8 +67,6 @@ export async function loadReadFacts(ids: string[], directory: Directory, now: Da
   });
   return {
     stocks,
-    market_pct: market?.pct ?? null,
-    sp_weights: facts.spSectorWeights,
     today,
     as_of: now.toISOString(),
   };

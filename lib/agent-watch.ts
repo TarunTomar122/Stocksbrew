@@ -1,5 +1,6 @@
 import { AGENT_JOB_ID_RE, describeJob, runDocId, scheduleDue, type AgentDecision, type AgentFindingKind, type AgentJob, type AgentRunCounts } from "@/lib/agent-jobs";
 import { afterCloseRunOn, afterCloseTimeEt } from "@/lib/agent-schedule";
+import { dayWords, etToday, onDayWords } from "@/lib/day-words";
 import { fmtPlanDay } from "@/lib/dividend-plan";
 import { nextRunDay, previousMarketDay, runnerDay, scheduledRunDay, type AgentsSource, type RunDetail } from "@/lib/portfolio-home/log";
 
@@ -56,18 +57,28 @@ export function agentHref(jobId: string): string {
   return `/agents?job=${encodeURIComponent(jobId)}`;
 }
 
-/** "Nov 10 at 5:41 PM ET", or the day alone when there is no time. */
-export function stampWords(at: string | null, day: string | null): string {
+/**
+ * When a run happened, against `today` (New York, YYYY-MM-DD; lib/day-words.ts): "today at 5:41 PM ET", "yesterday at
+ * 5:41 PM ET", "Monday at 5:41 PM ET", "Nov 3 at 5:41 PM ET", or the day alone when there is no time. Lowercase: it
+ * sits inside a sentence.
+ */
+export function stampWords(at: string | null, day: string | null, today: string = etToday()): string {
   if (at) {
     const date = new Date(at);
     if (!Number.isNaN(date.getTime()) && at.includes("T")) {
-      const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).formatToParts(date);
+      const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" }).formatToParts(date);
       const get = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
-      // No-break spaces keep "3:13 PM ET" on one line.
-      return `${get("month")} ${get("day")} at ${get("hour")}:${get("minute")} ${get("dayPeriod")} ET`;
+      const words = dayWords(date, today).replace(/ /g, " ");
+      // No-break spaces keep "Nov 3" and "3:13 PM ET" on one line.
+      return `${words} at ${get("hour")}:${get("minute")} ${get("dayPeriod")} ET`;
     }
   }
-  return day && /^\d{4}-\d{2}-\d{2}/.test(day) ? fmtPlanDay(day) : "";
+  return day && /^\d{4}-\d{2}-\d{2}/.test(day) ? dayWords(day.slice(0, 10), today) || fmtPlanDay(day) : "";
+}
+
+/** A `stampWords` stamp after a verb: "today at …" and "yesterday at …" as they are, "on Monday at …" otherwise. */
+export function onStamp(stamp: string): string {
+  return !stamp || /^(today|yesterday|tomorrow)\b/.test(stamp) ? stamp : `on ${stamp}`;
 }
 
 /** The run's outcome in one short sentence: "Nothing to report." when it found nothing. */
@@ -137,14 +148,13 @@ export function nextCheckFor(job: Pick<SourceJob, "enabled" | "trigger">, runs: 
   return null;
 }
 
-/** "after the close today, from 5:30 PM ET" / "after the close tomorrow" / "after the close on Nov 16". */
+/** "after the close today, from 5:30 PM ET" / "after the close tomorrow" / "after the close on Monday" / "on Nov 24". */
 export function nextCheckWords(day: string, today: string): string {
   if (day === today) {
     const run = afterCloseRunOn(day);
     return `after the close today${run ? `, from ${afterCloseTimeEt(run)}` : ""}`;
   }
-  if (day === shiftDay(today, 1)) return "after the close tomorrow";
-  return `after the close on ${fmtPlanDay(day)}`;
+  return `after the close ${onDayWords(day, today) || `on ${fmtPlanDay(day)}`}`;
 }
 
 /** What an agent watches, as one plain sentence ("Tell me 3 days before NVDA reports earnings."), else its name. */
@@ -167,7 +177,7 @@ export function activeWatches(agents: AgentsSource, today: string): WatchSummary
       last: run
         ? {
             day: run.day,
-            when: stampWords(run.ran_at || null, run.day),
+            when: stampWords(run.ran_at || null, run.day, today),
             decision: run.decision,
             outcome: outcomeWords(run),
             tickers: run.decision === "notify" ? [...new Set((run.tickers ?? []).map((ticker) => ticker.toUpperCase()))] : [],

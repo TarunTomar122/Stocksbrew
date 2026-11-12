@@ -5,10 +5,8 @@ import { AssetTable } from "@/components/markets/asset-table";
 import { MarketsPageFrame } from "@/components/markets/page-frame";
 import { PredictionTable } from "@/components/markets/prediction-table";
 import { AsOfLine, ClassTabs, SectorHeatGrid, VolCurveChart, YieldCurveChart } from "@/components/markets/widgets";
-import { TheRead } from "@/components/oa/insight";
 import { PageHead, PageNote } from "@/components/oa/kit";
 import { getMarketsData } from "@/lib/markets";
-import { buildClassRead } from "@/lib/markets-insights";
 import {
   assetAsOfText,
   assetHref,
@@ -16,9 +14,6 @@ import {
   formatAsOf,
   MARKET_CLASSES,
   predictionHref,
-  sectorReading,
-  yieldCurveReading,
-  yieldCurveShiftReading,
   type MarketAsset,
 } from "@/lib/markets-shared";
 import { ogImage, shareMetadata } from "@/lib/og/url";
@@ -67,16 +62,6 @@ export default async function MarketClassPage({ params }: Props) {
   }
   const latest = assets.reduce<MarketAsset | null>((best, asset) => (!best || asset.as_of > best.as_of ? asset : best), null);
 
-  // The read's headline. The rates and options charts already carry their curve reading, so
-  // rates leads with how the curve moved and options with how the gauges moved (the class line).
-  const headline =
-    info.slug === "rates"
-      ? yieldCurveShiftReading(data.treasury) ?? yieldCurveReading(data.treasury)
-      : info.slug === "etfs"
-        ? sectorReading(data.assets)
-        : null;
-  const read = buildClassRead({ slug: info.slug, assets, data, reading: headline });
-
   const refreshed = data.as_of ? <p className="text-[12.5px] leading-[18px] text-oa-muted-fg">Refreshed {formatAsOf(data.as_of)}</p> : null;
 
   return (
@@ -84,8 +69,6 @@ export default async function MarketClassPage({ params }: Props) {
       <PageHead note={false} className="!mb-0" title={info.title} meta={refreshed} />
 
       <ClassTabs classes={MARKET_CLASSES} active={info.slug} counts={counts} />
-
-      <TheRead read={read} />
 
       {info.slug === "rates" ? <YieldCurveChart curve={data.treasury} href={null} wide /> : null}
       {info.slug === "options" ? <VolCurveChart curve={data.volCurve} href={null} /> : null}

@@ -40,7 +40,7 @@ describe("activeWatches", () => {
     expect(moves!.what).toBe("Tell me when NVDA closes 5% or more away from the day before.");
     expect(moves!.href).toBe("/agents?job=moves");
     expect(moves!.last).toMatchObject({ day: "2026-11-10", decision: "nothing", outcome: "Nothing to report.", tickers: [] });
-    expect(moves!.last!.when).toBe("Nov 10 at 5:40 PM ET");
+    expect(moves!.last!.when).toBe("yesterday at 5:40 PM ET");
     // The runner ran for yesterday's close, so the next check is after today's.
     expect(moves!.next).toBe(TODAY);
     expect(earn!.last).toMatchObject({ decision: "notify", outcome: "NVDA reports in 3 days.", tickers: ["NVDA"] });
@@ -119,11 +119,19 @@ describe("words", () => {
   it("names the next check from the real schedule", () => {
     expect(nextCheckWords(TODAY, TODAY)).toBe("after the close today, from 5:30 PM ET");
     expect(nextCheckWords("2026-11-12", TODAY)).toBe("after the close tomorrow");
-    expect(nextCheckWords("2026-11-16", TODAY)).toBe("after the close on Nov 16");
+    expect(nextCheckWords("2026-11-16", TODAY)).toBe("after the close on Monday");
+    expect(nextCheckWords("2026-11-20", TODAY)).toBe("after the close on Nov 20");
   });
 
   it("falls back to the day when a run has no time", () => {
-    expect(stampWords("", "2026-11-10")).toBe("Nov 10");
+    expect(stampWords("", "2026-11-10", TODAY)).toBe("yesterday");
+    expect(stampWords("", "2026-11-03", TODAY)).toBe("Nov 3");
+  });
+
+  it("says the run's day in words before its time", () => {
+    expect(stampWords("2026-11-11T22:40:00Z", "2026-11-11", TODAY)).toBe("today at 5:40 PM ET");
+    expect(stampWords("2026-11-09T22:40:00Z", "2026-11-09", TODAY)).toBe("Monday at 5:40 PM ET");
+    expect(stampWords("2026-11-03T22:40:00Z", "2026-11-03", TODAY)).toBe("Nov 3 at 5:40 PM ET");
   });
 });
 
@@ -166,7 +174,7 @@ describe("findingWatchLine", () => {
     const match = matchAgent(plan, "NVDA", agents, new Set(), TODAY);
     const line = findingWatchLine({ plan, match, ticker: "NVDA", agents: { state: "ready", value: agents }, mine: true, reasonDay: null, today: TODAY });
     expect(line).toMatchObject({ fired: true, link: { href: "/agents?job=moves" } });
-    expect(line!.text).toContain("“Big daily moves” flagged this on Nov");
+    expect(line!.text).toContain("“Big daily moves” flagged this yesterday at 5:40");
   });
 
   it("does not say it flagged this stock when the agent's run flagged another one", () => {
@@ -193,7 +201,7 @@ describe("findingWatchLine", () => {
     const item = lead({ watch: null } as Partial<Lead>);
     const agents = source([run("earn", "2026-11-10", { decision: "notify", tickers: ["NVDA"] })]);
     const line = findingWatchLine({ plan: watchPlan(item, "mine"), match: null, ticker: "NVDA", agents: { state: "ready", value: agents }, mine: true, reasonDay: null, today: TODAY });
-    expect(line).toMatchObject({ fired: true, text: "Your agent “Earnings coming up” flagged NVDA on Nov 10.", link: { href: "/agents?job=earn" } });
+    expect(line).toMatchObject({ fired: true, text: "Your agent “Earnings coming up” flagged NVDA yesterday.", link: { href: "/agents?job=earn" } });
   });
 
   it("never reads the person's agents onto the example", () => {
@@ -206,7 +214,7 @@ describe("findingWatchLine", () => {
   it("dates the reason watcher's last check on a reason finding", () => {
     const item = lead({ id: "reason-NVDA", watch: null } as Partial<Lead>);
     const line = findingWatchLine({ plan: watchPlan(item, "mine"), match: null, ticker: "NVDA", agents: { state: "empty" }, mine: true, reasonDay: "2026-11-10", today: TODAY });
-    expect(line).toEqual({ text: "The reason watcher last checked this on Nov 10.", link: null, fired: false });
+    expect(line).toEqual({ text: "The reason watcher last checked this yesterday.", link: null, fired: false });
   });
 
   it("says so when the agents could not be read", () => {

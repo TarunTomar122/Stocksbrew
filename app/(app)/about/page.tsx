@@ -35,7 +35,7 @@ export default function AboutPage() {
     <ReadPage
       label="About"
       title="Why we built it"
-      lede="A research tool for people who follow US stocks and make their own decisions. It reads so you do not have to reopen the same tabs every day."
+      lede="A research tool for people who pick their own US stocks."
       blocks={ABOUT_BLOCKS}
       contents={false}
       before={

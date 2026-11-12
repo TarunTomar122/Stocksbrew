@@ -3,15 +3,11 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { interTight } from "@/components/oa/font";
-import { TheRead } from "@/components/oa/insight";
-import { PageHead, PageNote } from "@/components/oa/kit";
+import { PageHead, PageNote, fmtStampET } from "@/components/oa/kit";
 import { OaSiteHeader } from "@/components/oa/oa-site-header";
 import { FilingDays, type FilingDay, type FilingLine } from "@/components/filings/filing-days";
 import { getSessionUser } from "@/lib/auth-server";
-import { getFilings, getFilingsMeta, getFilingsStream } from "@/lib/filings";
-import { buildFilingsRead } from "@/lib/filings-insights";
-import { getInsiderBuys, getInsiderTrades } from "@/lib/follow";
-import { INSIDER_BUY_ROWS, INSIDER_TRADE_ROWS } from "@/lib/insider-balance";
+import { getFilings, getFilingsMeta } from "@/lib/filings";
 import {
   FILING_GROUPS,
   EDGAR_DATA,
@@ -105,15 +101,11 @@ async function FilingsStream({ search }: { search: Search }) {
   );
   const mine = wantsMine && Boolean(session);
 
-  const [page, meta, stream, trades, buys] = await Promise.all([
+  const [page, meta] = await Promise.all([
     getFilings({ group, tickers: mine ? myTickers : null, limit: rows }).catch(() => null),
     getFilingsMeta().catch(() => null),
-    getFilingsStream().catch(() => []),
-    getInsiderTrades(INSIDER_TRADE_ROWS).catch(() => null),
-    getInsiderBuys(INSIDER_BUY_ROWS).catch(() => []),
   ]);
-  // A failed trade read (null) holds no week of sales, so the limit of 0 keeps the balance out rather than counting buys alone.
-  const read = buildFilingsRead({ stream, trades: trades ?? [], buys, mine: session && myTickers.size ? myTickers : null, now: Date.now(), asOf: meta?.updatedAt ?? null, tradesLimit: trades ? INSIDER_TRADE_ROWS : 0 });
+  const asOf = fmtStampET(meta?.updatedAt);
 
   const total = page ? FILING_GROUPS.reduce((sum, key) => sum + page.counts[key], 0) : 0;
   const days: FilingDay[] = page
@@ -122,7 +114,6 @@ async function FilingsStream({ search }: { search: Search }) {
 
   return (
     <>
-      <TheRead read={read} />
       {/* One row: the form filter, then whose filings. */}
       <nav aria-label="Filter filings" className="oa-scroll-fade -mx-2 flex items-center gap-2 overflow-x-auto px-4 pr-9 [scrollbar-width:none] sm:mx-0 sm:px-0 lg:flex-wrap [&::-webkit-scrollbar]:hidden">
         <Link href={hrefFor(null, mine)} aria-current={group === null ? "true" : undefined} className={`${CHIP} ${group === null ? CHIP_ON : CHIP_OFF}`}>
@@ -198,6 +189,7 @@ async function FilingsStream({ search }: { search: Search }) {
               ) : null}
             </div>
           ) : null}
+          {asOf ? <p className="px-2 text-[12.5px] leading-[18px] text-oa-muted-fg sm:px-0">As of {asOf}</p> : null}
           {session ? null : (
             <p className="px-2 text-[14px] leading-5 text-oa-muted-fg sm:px-0 lg:hidden">
               <Link href="/portfolio?tab=holdings" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">

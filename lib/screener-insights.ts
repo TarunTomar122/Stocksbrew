@@ -1,9 +1,7 @@
 /**
- * The read at the top of /screener: what the current result set says. How
- * many match and what they are mostly made of, how they moved on the last
- * session against everything we cover, how many sit near an add, what reports
- * soon. On the Sectors tab: which sector led, which lagged, and how broad the
- * move was.
+ * What a screener result set says, for the screener's share image: how many
+ * match and what they are mostly made of, how they moved on the last session
+ * against everything we cover, how many sit near an add, what reports soon.
  *
  * Pure. Rows arrive zone-stripped for stocks the viewer does not cover, so
  * the zone count only ever counts covered stocks.
@@ -11,7 +9,7 @@
 
 import { pickInsights, type Insight, type TheRead } from "@/lib/insights";
 import { fin, joinNames, median, pct, plural, shortDay, signedPct } from "@/lib/insight-format";
-import type { ScreenerRow, SectorStat } from "@/lib/screener-shared";
+import type { ScreenerRow } from "@/lib/screener-shared";
 
 function bySize(rows: readonly ScreenerRow[]): ScreenerRow[] {
   return [...rows].sort((a, b) => (b.market_cap ?? 0) - (a.market_cap ?? 0));
@@ -141,57 +139,4 @@ export function buildScreenerRead(input: {
   if (movers && aside) movers = { ...movers, soWhat: aside };
   const asidePoint: Insight | null = !movers && aside ? { id: "context", tone: "flat", text: aside } : null;
   return { headline, insights: pickInsights([tilt, movers ?? asidePoint, zones, earnings, value], 3), asOf: input.asOf ?? null };
-}
-
-/** The Sectors tab: who led, who lagged, how broad. */
-export function buildSectorsRead(input: { stats: readonly SectorStat[]; priceDay: string | null; asOf?: string | null }): TheRead | null {
-  const stats = input.stats.filter((stat) => fin(stat.change.day_pct));
-  if (stats.length < 2) return null;
-  const on = input.priceDay ? `on ${shortDay(input.priceDay)}` : "on the last session";
-  const ranked = [...stats].sort((a, b) => b.change.day_pct! - a.change.day_pct!);
-  const lead = ranked[0]!;
-  const lag = ranked[ranked.length - 1]!;
-  const up = stats.filter((stat) => stat.change.day_pct! > 0).length;
-  const lagWord = lag.change.day_pct! > 0 ? "rose least" : "lagged";
-  const headline = `${lead.name} led ${on} (${signedPct(lead.change.day_pct!)}) and ${lag.name} ${lagWord} (${signedPct(lag.change.day_pct!)}); ${up === stats.length ? `all ${stats.length}` : `${up} of ${stats.length}`} sectors rose.`;
-
-  const breadth = stats.filter((stat) => stat.advancing !== null);
-  const broad = [...breadth].sort((a, b) => b.advancing! - a.advancing!)[0];
-  const narrow = [...breadth].sort((a, b) => a.advancing! - b.advancing!)[0];
-  const breadthInsight: Insight | null =
-    broad && narrow && broad !== narrow
-      ? {
-          id: "breadth",
-          tone: "flat",
-          text: `${Math.round(broad.advancing!)}% of ${broad.name} stocks rose, the broadest move; in ${narrow.name} only ${Math.round(narrow.advancing!)}% did.`,
-          action: { label: `Screen ${broad.name}`, href: `/screener?sector=${broad.slug}` },
-        }
-      : null;
-
-  const leaders = ranked
-    .slice(0, 2)
-    .map((stat) => (stat.best ? { ...stat.best, sector: stat.name } : null))
-    .filter((best): best is NonNullable<SectorStat["best"]> & { sector: string } => best !== null);
-  const leadersInsight: Insight | null = leaders.length
-    ? {
-        id: "leaders",
-        tone: "up",
-        text: `The biggest movers in the leading ${leaders.length === 1 ? "sector" : "sectors"}: ${joinNames(leaders.map((best) => `${best.symbol} ${signedPct(best.pct)} (${best.sector})`))}.`,
-        tickers: leaders.map((best) => best.symbol),
-        action: { label: `Why ${leaders[0]!.symbol} moved`, href: `/stock/${leaders[0]!.symbol}` },
-      }
-    : null;
-
-  const ytd = stats.filter((stat) => fin(stat.change.ret_ytd)).sort((a, b) => b.change.ret_ytd! - a.change.ret_ytd!);
-  const yearInsight: Insight | null =
-    ytd.length >= 2
-      ? {
-          id: "ytd",
-          tone: "flat",
-          text: `This year ${ytd[0]!.name} leads at ${signedPct(ytd[0]!.change.ret_ytd!)}; ${ytd[ytd.length - 1]!.name} trails at ${signedPct(ytd[ytd.length - 1]!.change.ret_ytd!)}.`,
-          action: { label: `Screen ${ytd[0]!.name}`, href: `/screener?sector=${ytd[0]!.slug}` },
-        }
-      : null;
-
-  return { headline, insights: pickInsights([breadthInsight, leadersInsight, yearInsight], 3), asOf: input.asOf ?? null };
 }

@@ -4,7 +4,6 @@ import type { Metadata } from "next";
 import { ClusterRows } from "@/components/follow/insider-rows";
 import { InsiderTable } from "@/components/follow/insider-table";
 import { AppPage, CardGrid, PageHead, Panel } from "@/components/oa/kit";
-import { TheRead } from "@/components/oa/insight";
 import { StockTallyPanel } from "@/components/follow/stock-tally";
 import { buildInsiderRead } from "@/lib/follow-insights";
 import { MarketingSchema } from "@/components/seo/marketing-schema";
@@ -49,11 +48,12 @@ export default async function InsidersPage() {
   ]);
   const { clusters, meta } = summary;
   const now = Date.now();
-  const read = buildInsiderRead({ buys, recent, sectors, today: nyDay(now), now, recentLimit: INSIDER_TRADE_ROWS });
-  const topBought = read.tallies.slice(0, 6);
+  // Each stock's buyers and money in over the window (the tallies behind the two lists below).
+  const { tallies } = buildInsiderRead({ buys, recent, sectors, today: nyDay(now), now, recentLimit: INSIDER_TRADE_ROWS });
+  const topBought = tallies.slice(0, 6);
   // The money list leaves out the stocks already in the buyers list, so no stock is listed twice side by side
   // (owner rule 1). Its sentence says where its top stock ranks among all of them by money.
-  const ranked = [...read.tallies].sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
+  const ranked = [...tallies].sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
   const inBought = new Set(topBought.map((row) => row.ticker));
   const byValue = ranked.filter((row) => !inBought.has(row.ticker)).slice(0, 6);
   const moneyTop = byValue[0];
@@ -92,8 +92,6 @@ export default async function InsidersPage() {
         title="What company insiders bought and sold"
         note={false}
       />
-
-      <TheRead read={read} className="mb-4" />
 
       {/* The money list only when it has stocks of its own; then the buyers list fills the row alone (owner rule 4). */}
       <CardGrid cols={2} className={`mb-4 ${byValue.length ? "" : "md:!grid-cols-1"}`}>

@@ -1,5 +1,6 @@
 import type { AgentFinding, AgentJob, AgentRun, AgentRunCounts } from "@/lib/agent-jobs";
 import { AFTER_CLOSE_RUN_ET, afterCloseRunOn, afterCloseTimeEt } from "@/lib/agent-schedule";
+import { dayPossessive, onDayWords } from "@/lib/day-words";
 import { fmtDollars, fmtPlanDay } from "@/lib/dividend-plan";
 import { sessionWords, whenWords } from "@/lib/earnings-season";
 import type { InsightTone } from "@/lib/insights";
@@ -111,14 +112,19 @@ export function nyDay(value: string): string {
 
 /* ── checked ───────────────────────────────────────────────────────────── */
 
-function memoRow(sources: Partial<HomeSources>, mode: HomeMode): LogRow | null {
+/** "yesterday's close", "Monday's close", "the Nov 3 close" (lib/day-words.ts). */
+function closeOf(day: string, today: string): string {
+  return `${dayPossessive(day, today) || `the ${fmtPlanDay(day)}`} close`;
+}
+
+function memoRow(sources: Partial<HomeSources>, mode: HomeMode, today: string): LogRow | null {
   const memo = ready(sources.memo)?.memo;
   if (!memo) return null;
   const mine = mode === "mine";
   const written = mine && DAY.test(memo.writtenAt ?? "") ? memo.writtenAt : null;
   const day = written ? nyDay(written) : (memo.endDay ?? memo.monday);
   if (!DAY.test(day ?? "")) return null;
-  const through = memo.endDay ? `, up to the ${fmtPlanDay(memo.endDay)} close` : "";
+  const through = memo.endDay ? `, up to ${closeOf(memo.endDay, today)}` : "";
   const watch = memo.hurt.length;
   const look = memo.look.length;
   const found =
@@ -137,7 +143,7 @@ function memoRow(sources: Partial<HomeSources>, mode: HomeMode): LogRow | null {
   };
 }
 
-function reasonsRow(sources: Partial<HomeSources>, mode: HomeMode): LogRow | null {
+function reasonsRow(sources: Partial<HomeSources>, mode: HomeMode, today: string): LogRow | null {
   const source = ready(sources.reasons);
   const checks = source?.checks ?? [];
   const days = checks.map((check) => check.asOf ?? "").filter((day) => DAY.test(day)).sort();
@@ -150,7 +156,7 @@ function reasonsRow(sources: Partial<HomeSources>, mode: HomeMode): LogRow | nul
     .filter((check) => check.change && DAY.test(check.change.day))
     .sort((a, b) => b.change!.day.localeCompare(a.change!.day))
     .slice(0, 2)
-    .map((check) => `${check.ticker} went from ${VERDICT_WORDS[check.change!.from]} to ${VERDICT_WORDS[check.verdict]} on ${fmtPlanDay(check.change!.day)}`);
+    .map((check) => `${check.ticker} went from ${VERDICT_WORDS[check.change!.from]} to ${VERDICT_WORDS[check.verdict]} ${onDayWords(check.change!.day, today) || `on ${fmtPlanDay(check.change!.day)}`}`);
   const standing =
     holding === n ? (n === 1 ? "It still holds." : n === 2 ? "Both still hold." : `All ${n} still hold.`) : n === 1 ? "It no longer holds." : `${countWord(holding)} of ${countWord(n).toLowerCase()} still hold.`;
   return {
@@ -187,7 +193,7 @@ function calendarRow(sources: Partial<HomeSources>, mode: HomeMode): LogRow | nu
   };
 }
 
-function pricesRow(sources: Partial<HomeSources>, mode: HomeMode): LogRow | null {
+function pricesRow(sources: Partial<HomeSources>, mode: HomeMode, today: string): LogRow | null {
   const goal = ready(sources.goal);
   if (!goal?.pricesAsOf || !DAY.test(goal.pricesAsOf)) return null;
   const example = mode === "example";
@@ -195,7 +201,7 @@ function pricesRow(sources: Partial<HomeSources>, mode: HomeMode): LogRow | null
     id: "prices",
     day: goal.pricesAsOf.slice(0, 10),
     at: null,
-    text: `Priced ${example ? "the example's" : "your"} holdings at the ${fmtPlanDay(goal.pricesAsOf)} close.`,
+    text: `Priced ${example ? "the example's" : "your"} holdings at ${closeOf(goal.pricesAsOf.slice(0, 10), today)}.`,
     changed: goal.portfolioValue !== null ? `${example ? "They were" : "Your holdings were"} worth ${usd(goal.portfolioValue)}${goal.unvalued.length > 0 ? `, leaving out ${goal.unvalued.length} without a share count` : ""}.` : null,
     tone: "flat",
     ticker: null,
@@ -266,7 +272,7 @@ function dividendRow(sources: Partial<HomeSources>, today: string): LogRow | nul
     id: `dividend-${stock.ticker}`,
     day: payment.payDate,
     at: null,
-    text: `${stock.name} pays ${amount} ${payment.payDateKnown ? "on" : "around"} ${fmtPlanDay(payment.payDate)}${payment.status === "estimate" ? ", estimated from its past payments" : ""}.`,
+    text: `${stock.name} pays ${amount} ${payment.payDateKnown ? onDayWords(payment.payDate, today) || `on ${fmtPlanDay(payment.payDate)}` : `around ${fmtPlanDay(payment.payDate)}`}${payment.status === "estimate" ? ", estimated from its past payments" : ""}.`,
     changed: null,
     tone: "up",
     ticker: stock.ticker,
@@ -365,7 +371,7 @@ function newestFirst(a: LogRow, b: LogRow): number {
  * finding to show the one that explains it ("Checked the earnings calendar … Nov 9, 3:13 PM ET").
  */
 export function dataChecks(sources: Partial<HomeSources>, mode: HomeMode, today: string): Map<string, LogRow> {
-  const rows = [memoRow(sources, mode), reasonsRow(sources, mode), calendarRow(sources, mode), pricesRow(sources, mode)];
+  const rows = [memoRow(sources, mode, today), reasonsRow(sources, mode, today), calendarRow(sources, mode), pricesRow(sources, mode, today)];
   return new Map(rows.filter((row): row is LogRow => row !== null && row.day <= today).map((row) => [row.id, row]));
 }
 
@@ -379,7 +385,7 @@ export function buildAgentLog(input: {
 }): AgentLog {
   const { sources, mode, today } = input;
   const agents = mode === "mine" ? ready(input.agents ?? undefined) : null;
-  const checked = [memoRow(sources, mode), reasonsRow(sources, mode), calendarRow(sources, mode), pricesRow(sources, mode), ...agentRows(agents)]
+  const checked = [memoRow(sources, mode, today), reasonsRow(sources, mode, today), calendarRow(sources, mode), pricesRow(sources, mode, today), ...agentRows(agents)]
     .filter((row): row is LogRow => row !== null && row.day <= today && !input.omit?.has(row.id))
     .sort(newestFirst)
     .slice(0, MAX_CHECKED);

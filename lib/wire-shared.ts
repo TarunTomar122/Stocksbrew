@@ -4,6 +4,8 @@
  * unit tested and safe to import from a client component.
  */
 
+import { capitalize, dayWords } from "@/lib/day-words";
+
 export type WireTopic = "earnings" | "analyst" | "mna" | "macro" | "policy" | "product";
 
 export const WIRE_TOPICS: Array<{ id: WireTopic; label: string }> = [
@@ -212,13 +214,10 @@ export function etTime(iso: string): string {
   return Number.isNaN(date.getTime()) ? "" : ET_TIME.format(date);
 }
 
-/** "Today", "Yesterday" or "Fri, Nov 6" for a YYYY-MM-DD day, relative to `today`. */
+/** "Today", "Yesterday", "Friday" within the week or "Nov 3" before, for a YYYY-MM-DD day relative to `today` (lib/day-words.ts). */
 export function dayLabel(day: string, today: string): string {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return "Date unknown";
-  if (day === today) return "Today";
-  const gap = Math.round((Date.parse(`${today}T00:00:00Z`) - Date.parse(`${day}T00:00:00Z`)) / 86_400_000);
-  const label = ET_LABEL.format(new Date(`${day}T00:00:00Z`));
-  return gap === 1 ? `Yesterday · ${label}` : label;
+  return capitalize(dayWords(day, today)) || ET_LABEL.format(new Date(`${day}T00:00:00Z`));
 }
 
 export type WireDay = { day: string; label: string; items: WireItem[] };

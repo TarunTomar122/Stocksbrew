@@ -1,6 +1,7 @@
 import { Bar } from "@/components/oa/kit/skeleton";
 import { ownCallLevel } from "@/lib/call-level";
 import { getDailyAnomalies } from "@/lib/daily-anomalies";
+import { capitalize } from "@/lib/day-words";
 import { fitWhy, levelIsNear, rankStandOut, threeMonthCloses, type HeroDemoStock } from "@/lib/landing-hero-demo";
 import { getTasteCard } from "@/lib/landing-taste";
 import { moveStamp, pickLines, type TasteLine } from "@/lib/landing-taste-shared";
@@ -85,7 +86,7 @@ export async function HeroDemo() {
   const stocks = await getHeroDemo().catch(() => null);
   if (!stocks || stocks.length === 0) return null;
   // When each price was taken, worded here on the server so the client renders the same text it hydrates.
-  return <HeroDemoCard stocks={stocks} stamps={stocks.map((stock) => moveStamp(stock.priceAt))} />;
+  return <HeroDemoCard stocks={stocks} stamps={stocks.map((stock) => capitalize(moveStamp(stock.priceAt)))} />;
 }
 
 /** The card's shape while today's data loads: the same frame and height, so nothing jumps when it arrives. */

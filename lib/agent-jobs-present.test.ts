@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { AGENT_TEMPLATES, EMPTY_FACTS, MAX_FINDINGS, evaluateJob, type AgentFacts, type AgentJob, type AgentRun } from "@/lib/agent-jobs";
-import { agentsRead, aheadWhen, closeLabel, orderJobs, pastWhen, presentRun, ranLabel, structured } from "@/lib/agent-jobs-present";
+import { aheadWhen, closeLabel, orderJobs, pastWhen, presentRun, ranLabel, structured } from "@/lib/agent-jobs-present";
 
 function template(id: string) {
   const found = AGENT_TEMPLATES.find((entry) => entry.id === id);
@@ -237,8 +237,8 @@ describe("presentRun", () => {
   });
 });
 
-describe("the page read", () => {
-  it("orders what needs you first and counts it in the headline", () => {
+describe("job order", () => {
+  it("puts what needs you first and paused jobs last", () => {
     const jobs = [job("q", "congress-trade"), job("a", "morning-check", { created_at: "2026-11-02T00:00:00Z" }), job("p", "big-move", { enabled: false })];
     const quiet: AgentRun = { ...OLD_MORNING, id: "q1", job_id: "q", decision: "nothing", summary: "Checked, nothing to do. No congressional trades were disclosed on Nov 9.", findings: [], checked: [] };
     const runs = new Map([
@@ -247,13 +247,5 @@ describe("the page read", () => {
     ]);
     const statuses = orderJobs(jobs, runs, { IREN: { add_below: null, trim_above: 20 } });
     expect(statuses.map((status) => status.job.id)).toEqual(["a", "q", "p"]);
-    const read = agentsRead(statuses, "2026-11-10");
-    expect(read?.headline).toBe("One agent needs you.");
-    expect(read?.insights).toHaveLength(1);
-    expect(read?.source).toBe("2 of 3 agents on · last checked yesterday");
-  });
-
-  it("has no read before anything has run", () => {
-    expect(agentsRead(orderJobs([job("a", "morning-check")], new Map()), "2026-11-10")).toBeNull();
   });
 });

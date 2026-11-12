@@ -8,6 +8,7 @@
  * the stock's usual report move only when it has at least MIN_USUAL of them.
  */
 import { fmtEps } from "@/lib/calendar-shared";
+import { dayWords as dayWordsOf, onDayWords } from "@/lib/day-words";
 import { shortDay } from "@/lib/read-format";
 
 import type { ResultCall, ResultEps, ResultGuidance, ResultMove, ResultRead, ResultSummary } from "./types";
@@ -103,11 +104,9 @@ function flat(pct: number): boolean {
   return Math.abs(pct) < 0.05;
 }
 
-/** "today", "yesterday", "on Nov 6": a day said so it reads right wherever the line is shown. */
+/** "today", "yesterday", "on Monday" within the week, "on Nov 3" before (lib/day-words.ts). */
 function dayWords(day: string, today: string): string {
-  if (day === today) return "today";
-  const gap = Math.round((Date.parse(`${today}T12:00:00Z`) - Date.parse(`${day}T12:00:00Z`)) / 86_400_000);
-  return gap === 1 ? "yesterday" : `on ${shortDay(day)}`;
+  return onDayWords(day, today) || `on ${shortDay(day)}`;
 }
 
 /**
@@ -197,7 +196,7 @@ export function resultSentence(read: ResultRead, name: string, today: string): s
 
 /** The call line: whether the results moved our call. */
 export function callLine(call: ResultCall, today: string): string {
-  if (call.status === "changed") return `We moved our call from ${call.from} to ${call.call} ${call.on === today ? "today" : `on ${shortDay(call.on)}`} after the results.`;
+  if (call.status === "changed") return `We moved our call from ${call.from} to ${call.call} ${dayWords(call.on, today)} after the results.`;
   if (call.status === "held") return `Our call is still ${call.call} after the results.`;
   return `Our call is ${call.call}.`;
 }
@@ -322,9 +321,9 @@ export function stampWords(at: string | null): string {
   return `${date.toLocaleString("en-US", { timeZone: "America/New_York", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} ET`;
 }
 
-/** "Reported Nov 10 after the close" / "Reported today before the open". */
+/** "Reported today before the open" / "Reported yesterday after the close" / "Reported Monday" / "Reported Nov 3". */
 export function reportedWords(read: Pick<ResultRead, "reportDate" | "session">, today: string): string {
-  const day = read.reportDate === today ? "today" : shortDay(read.reportDate);
+  const day = dayWordsOf(read.reportDate, today) || shortDay(read.reportDate);
   const when = read.session === "amc" ? " after the close" : read.session === "bmo" ? " before the open" : "";
   return `Reported ${day}${when}`;
 }

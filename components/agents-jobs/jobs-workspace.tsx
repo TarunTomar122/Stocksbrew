@@ -8,7 +8,6 @@ import { PlainAgentReadContext } from "@/components/agents-plain/plain-agent-box
 import { PageIcon } from "@/components/oa/place-nav";
 import { OaButton } from "@/components/oa/button";
 import { LockCard, ProMark } from "@/components/oa/gate";
-import { TheRead } from "@/components/oa/insight";
 import {
   AGENT_TEMPLATES,
   describeJob,
@@ -26,7 +25,7 @@ import {
   type AgentTemplate,
 } from "@/lib/agent-jobs";
 import { draftHref, type LinkedDraft } from "@/lib/agent-jobs-link";
-import { agentsRead, orderJobs, presentRun, type JobStatus } from "@/lib/agent-jobs-present";
+import { orderJobs, presentRun, type JobStatus } from "@/lib/agent-jobs-present";
 import { sameJob } from "@/lib/agents-plain/save";
 import type { Plan } from "@/lib/entitlements";
 import { getFirebaseAuth } from "@/lib/firebase-client";
@@ -52,8 +51,6 @@ export type JobsWorkspaceProps = {
   levels?: AgentFacts["levels"];
   /** Company names by ticker for the rows of a run, short form ("Meta Platforms"). */
   names?: Readonly<Record<string, string>>;
-  /** The market day today, YYYY-MM-DD (US Eastern). */
-  today: string;
   /** A job to open on arrival, from the briefing link. */
   focusJobId?: string | null;
   /** A replay computed on the server for the signed-out example. */
@@ -344,7 +341,6 @@ export function JobsWorkspace({
   tracked,
   levels,
   names,
-  today,
   focusJobId,
   sample,
   linked,
@@ -463,11 +459,10 @@ export function JobsWorkspace({
     return map;
   }, [runs]);
   const statuses = React.useMemo(() => orderJobs(jobs, runsByJob, levels), [jobs, runsByJob, levels]);
-  const read = React.useMemo(() => agentsRead(statuses, today), [statuses, today]);
 
   React.useEffect(() => {
     if (focusJobId) document.getElementById(`job-${focusJobId}`)?.scrollIntoView({ block: "start" });
-    // The read's "Open" links are #job-… anchors: open that job without reloading the page.
+    // Links to one agent (#job-…, from the inbox or an email) open that job without reloading the page.
     const onHash = () => {
       const id = /^#job-([a-z0-9]+)$/.exec(window.location.hash)?.[1];
       if (id) setOpenJob(id);
@@ -993,8 +988,7 @@ export function JobsWorkspace({
         </div>
       </header>
       <p className="-mt-1 max-w-[62ch] text-pretty px-2 text-[15px] leading-[22px] text-oa-muted-fg sm:-mt-2 sm:px-0">
-        An agent watches your stocks for one thing you pick, like a big daily move or an earnings date, and reports here and by email when it
-        happens. Agents never trade.
+        Each agent watches your stocks for one thing and tells you. Agents never trade.
       </p>
 
       {/* An agent from a link comes first: it is what the person came here for. */}
@@ -1004,8 +998,6 @@ export function JobsWorkspace({
       {lead}
 
       {linkedOpen ? null : messages}
-
-      {hasJobs ? <TheRead read={read} label="What your agents found" askContext="portfolio" /> : null}
 
       {hasJobs ? (
         <section aria-labelledby="jobs-label" className={CARD}>

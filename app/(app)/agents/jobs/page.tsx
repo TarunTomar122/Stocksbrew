@@ -135,7 +135,6 @@ export default async function AgentJobsPage({
           tracked={scope.tickers.length}
           names={names}
           levels={scope.levels}
-          today={day}
           focusJobId={focus}
           sample={sample}
           linked={linked}

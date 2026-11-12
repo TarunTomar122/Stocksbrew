@@ -352,6 +352,16 @@ describe("buildCallEvidence", () => {
     expect(evidence[0]?.text).toMatch(/below its high of \$[\d.]+ on [A-Z][a-z]{2}\u00a0\d+, 2025\.$/);
   });
 
+  it("says the last close in words on a page rendered now, and keeps the date for Ask", () => {
+    const prices = closes("2026-11-10", 260, Array.from({ length: 200 }, () => -0.004));
+    const input = base({ sales: null, series: prices.series, benchmark: prices.series.map((point) => ({ ...point })) });
+    const page = buildCallEvidence({ ...input, sayDays: true }).evidence[0]?.text ?? "";
+    expect(page).toMatch(/closed at \$[\d.]+ yesterday, /);
+    // A high from last year is still said by its date.
+    expect(page).toMatch(/below its high of \$[\d.]+ on [A-Z][a-z]{2}\u00a0\d+, 2025\.$/);
+    expect(buildCallEvidence(input).evidence[0]?.text).toMatch(/closed at \$[\d.]+ on Nov\u00a010, /);
+  });
+
   it("states a long dividend record over today's price", () => {
     const { evidence } = buildCallEvidence(
       base({ ticker: "JPM", sales: null, dividend: { annual: 6.6, price: 342.11, growthYears: 15, capturedAt: "2026-11-08T08:41:01Z" } }),

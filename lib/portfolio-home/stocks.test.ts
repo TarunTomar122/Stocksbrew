@@ -76,7 +76,7 @@ describe("the one thing per stock", () => {
     const stale = stockCards(source({}, { calls, callChanges: { AAPL: { day: "2026-11-11", from: "Keep", to: "Sell some" } } }), NONE).find((card) => card.ticker === "AAPL")!;
     expect(stale.fact?.kind).not.toBe("call");
     const fresh = stockCards(source({}, { calls, callChanges: { AAPL: { day: "2026-11-11", from: "Buy more", to: "Keep" } } }), NONE).find((card) => card.ticker === "AAPL")!;
-    expect(fresh.fact?.text).toBe("Our call moved from Buy more to Keep on Nov 11.");
+    expect(fresh.fact?.text).toBe("Our call moved from Buy more to Keep today.");
   });
 
   it("names a big move only with a confirmed reason, and only when it is big", () => {

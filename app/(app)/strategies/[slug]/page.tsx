@@ -5,7 +5,6 @@ import { notFound } from "next/navigation";
 import { EquityChart } from "@/components/backtest/equity-chart";
 import { longDay, plainPct, signedPct, toneOf, yearsWords } from "@/components/backtest/format";
 import { CaveatLine, Panel, ResultLead, StatGrid, YearTable } from "@/components/backtest/results";
-import { TheRead } from "@/components/oa/insight";
 import { interTight } from "@/components/oa/font";
 import { PageHead, PageNote } from "@/components/oa/kit";
 import { OaSiteHeader } from "@/components/oa/oa-site-header";
@@ -18,9 +17,7 @@ import { getSessionUser } from "@/lib/auth-server";
 import { setupHref } from "@/lib/backtest/setup";
 import { can } from "@/lib/entitlements";
 import { getViewer } from "@/lib/entitlements-server";
-import { getScreenerRows } from "@/lib/screener";
 import { getStrategy, liveHasReturn, readTrackedStrategies } from "@/lib/strategies";
-import { buildStrategyRead, type YtdMap } from "@/lib/strategies-insights";
 import { getLatestRebalance } from "@/lib/strategies-rebalances";
 import { getUserDoc } from "@/lib/watchlist";
 import { ogImage } from "@/lib/og/url";
@@ -75,14 +72,6 @@ export default async function StrategyPage({ params }: { params: { slug: string 
         })
       : "/backtest";
 
-  // This year's returns of today's holdings name what is carrying the basket; only for plans that see the names.
-  const ytd: YtdMap = {};
-  if (seesHoldings && stocks && basket.holdings.length > 0) {
-    const rows = await getScreenerRows(basket.holdings.map((holding) => holding.symbol)).catch(() => new Map());
-    for (const [symbol, row] of rows) ytd[symbol] = row.ret_ytd;
-  }
-  const read = buildStrategyRead(strategy, { seesHoldings: seesHoldings && stocks, ytd });
-
   const headlineReturn = test ? test.strategy.annualized_return ?? test.strategy.total_return : null;
   const benchReturn = test ? test.benchmark.annualized_return ?? test.benchmark.total_return : null;
 
@@ -110,8 +99,6 @@ export default async function StrategyPage({ params }: { params: { slug: string 
             </>
           }
         />
-
-        <TheRead read={read} className="mb-4" />
 
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
           <div className="flex min-w-0 flex-col gap-4">

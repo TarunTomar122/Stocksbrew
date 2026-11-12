@@ -2,7 +2,8 @@
  * The share cards, drawn with Satori (`next/server` ImageResponse) at
  * 1200x630 in the brew style: cream paper, espresso ink, one copper accent,
  * Instrument Sans for words and Geist Mono for numbers, tickers and labels.
- * Green and red only ever mean a gain or a loss.
+ * Green and red only ever mean a gain or a loss. No coloured edges or strips:
+ * the owner does not want them on any card. Stocks show their logos.
  *
  * Every card is a pure function of an `OgCard` spec built in `lib/og/data.ts`
  * from real data. A field the data cannot fill is null, and the card leaves
@@ -16,6 +17,7 @@
 import type * as React from "react";
 
 import type {
+  OgListRow,
   OgCard,
   OgCompareCard,
   OgLandingCard,
@@ -29,23 +31,11 @@ import type {
   OgTextCard,
   OgTone,
 } from "@/lib/og/types";
+import { CALL_PLAIN } from "@/lib/plain-copy";
+import { C, LineChart, LogoTile, Mark, MoverChip } from "@/lib/og/pieces";
 import { OG_HEIGHT, OG_WIDTH } from "@/lib/og/url";
 
-export const C = {
-  page: "#f0eadd",
-  card: "#fffdf9",
-  well: "#f4efe4",
-  ink: "#1c1915",
-  muted: "#564f44",
-  faint: "#8a8173",
-  border: "#dcd4c4",
-  copper: "#9a4816",
-  copperTint: "#f3e4d6",
-  up: "#1f6b45",
-  upTint: "#e2eee5",
-  down: "#b3261e",
-  downTint: "#f6e1dd",
-} as const;
+export { C, Mark };
 
 const SANS = "Instrument Sans";
 const MONO = "Geist Mono";
@@ -85,20 +75,6 @@ function toneColor(tone: OgTone | undefined): string {
 }
 
 /* ── pieces ─────────────────────────────────────────────────────────────── */
-
-export function Mark({ size = 36, color = C.ink }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 56 56" fill="none" style={{ display: "flex" }}>
-      <path d="M38 10C26.5 10 17.4 14.8 15.6 23.3C14.1 30.1 16.8 35.8 22.2 38.2" stroke={color} strokeWidth="7.5" strokeLinecap="round" />
-      <path
-        d="M27.3 22.4C31.2 18.2 36.9 20.8 39 26.2C42.8 36.1 35.5 45.2 24.3 46C21 46.2 18 46 14.8 45.5"
-        stroke={color}
-        strokeWidth="7.5"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
 
 function ToneGlyph({ tone, size = 22 }: { tone: OgTone; size?: number }) {
   if (tone === "flat") {
@@ -150,8 +126,10 @@ const CALL_STYLE: Record<string, { bg: string; fg: string }> = {
   Hold: { bg: C.copperTint, fg: C.copper },
 };
 
+/** Our call in the words people read (Buy more / Keep / Sell some), in its tone. */
 export function CallPill({ call, size = 26, prefix = "Our call" }: { call: string; size?: number; prefix?: string | null }) {
   const style = CALL_STYLE[call] ?? CALL_STYLE.Hold;
+  const words = (CALL_PLAIN as Record<string, string>)[call] ?? call;
   return (
     <div
       style={{
@@ -169,53 +147,13 @@ export function CallPill({ call, size = 26, prefix = "Our call" }: { call: strin
       }}
     >
       {prefix ? <span style={{ fontWeight: 600, opacity: 0.8 }}>{prefix}</span> : null}
-      <span>{call}</span>
+      <span>{words}</span>
     </div>
   );
 }
 
 function Logo({ ticker, logo, size }: { ticker: string; logo: string | null; size: number }) {
-  if (logo) {
-    return (
-      <div
-        style={{
-          display: "flex",
-          width: size,
-          height: size,
-          borderRadius: size * 0.24,
-          background: "#ffffff",
-          border: `1.5px solid ${C.border}`,
-          alignItems: "center",
-          justifyContent: "center",
-          overflow: "hidden",
-          flexShrink: 0,
-        }}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={logo} width={size * 0.78} height={size * 0.78} style={{ objectFit: "contain" }} alt="" />
-      </div>
-    );
-  }
-  const letters = ticker.replace(/[^A-Z0-9]/gi, "").slice(0, ticker.length > 4 ? 3 : 4);
-  return (
-    <div
-      style={{
-        display: "flex",
-        width: size,
-        height: size,
-        borderRadius: size * 0.24,
-        background: C.ink,
-        color: C.page,
-        alignItems: "center",
-        justifyContent: "center",
-        fontFamily: MONO,
-        fontSize: Math.round(size * (letters.length > 3 ? 0.26 : 0.32)),
-        flexShrink: 0,
-      }}
-    >
-      {letters}
-    </div>
-  );
+  return <LogoTile ticker={ticker} src={logo} size={size} />;
 }
 
 /** A plain line chart of closes, green when the window ended higher, red when lower. */
@@ -262,14 +200,12 @@ function Frame({ eyebrow, path, footnote, children }: { eyebrow: string | null; 
         position: "relative",
       }}
     >
-      {/* the copper rule: the one accent, top edge */}
-      <div style={{ display: "flex", position: "absolute", top: 0, left: 0, width: OG_WIDTH, height: 10, background: C.copper }} />
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: `40px ${PAD_X}px 0` }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: `34px ${PAD_X}px 0` }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <Mark size={38} />
-          <span style={{ fontSize: 32, fontWeight: 600, letterSpacing: "-0.02em" }}>stocksbrew</span>
+          <Mark size={34} />
+          <span style={{ fontSize: 29, fontWeight: 600, letterSpacing: "-0.02em" }}>stocksbrew</span>
         </div>
-        {eyebrow ? <Label size={21}>{eyebrow}</Label> : null}
+        {eyebrow ? <span style={{ fontSize: 23, color: C.muted }}>{fit(eyebrow, 40)}</span> : null}
       </div>
       <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, padding: `0 ${PAD_X}px` }}>{children}</div>
       <div
@@ -341,7 +277,58 @@ function StatRow({ stats }: { stats: OgStat[] }) {
 
 /* ── cards ──────────────────────────────────────────────────────────────── */
 
+/** "S&P 500" never breaks across lines. */
+function keep(text: string): string {
+  return text.replace(/S&P 500/g, "S&P\u00a0500");
+}
+
+/**
+ * A read with a big number: the number, its label and the headline on the left; the curve (or the read's first
+ * line) on the right; the stocks as logo chips underneath. Same layout as the portfolio share cards.
+ */
+function PosterRead({ card }: { card: OgReadCard }) {
+  const figure = card.figure!;
+  const chips = (card.chips ?? []).slice(0, 6);
+  const curve = card.curve && card.curve.mine.length > 1 ? card.curve : null;
+  const leftW = curve ? 440 : OG_WIDTH - PAD_X * 2;
+  const panelW = OG_WIDTH - PAD_X * 2 - leftW - 40;
+  const bodyH = chips.length > 0 ? 318 : 400;
+  const valueSize = figure.value.length > 7 ? 92 : figure.value.length > 5 ? 108 : 124;
+  const headline = keep(fit(card.headline, curve ? 130 : 150));
+  const size = curve ? headlineSize(headline, [[44, 38], [64, 33], [90, 29], [110, 26]], 24) : headlineSize(headline, [[60, 46], [100, 40]], 34);
+  return (
+    <Frame eyebrow={card.eyebrow} path={card.path} footnote={card.footnote}>
+      <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, justifyContent: "center", gap: 22 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 40, height: bodyH }}>
+          <div style={{ display: "flex", flexDirection: "column", width: leftW, gap: 14 }}>
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              <span style={{ fontSize: valueSize, fontWeight: 700, lineHeight: 1, letterSpacing: "-0.045em", color: toneColor(figure.tone) }}>{figure.value}</span>
+              <span style={{ fontSize: 24, color: C.muted, lineHeight: 1.25, marginTop: 10 }}>{keep(fit(figure.label, 110))}</span>
+            </div>
+            <span style={{ fontSize: size, fontWeight: 600, lineHeight: 1.18, letterSpacing: "-0.015em" }}>{headline}</span>
+            {!curve && card.lines[0] && chips.length === 0 ? <Lines lines={card.lines} max={1} size={24} chars={110} /> : null}
+          </div>
+          {curve ? (
+            <div style={{ display: "flex", flexDirection: "column", width: panelW, height: bodyH, background: C.card, border: `1.5px solid ${C.border}`, borderRadius: 24, padding: "22px 26px 14px", gap: 12 }}>
+              <span style={{ fontSize: 21, color: C.muted }}>{fit(curve.title, 48)}</span>
+              <LineChart mine={curve.mine} market={curve.market} labels={curve.labels} width={panelW - 52} height={bodyH - 22 - 14 - 21 - 12 - 4} mineLabel={curve.mineLabel} />
+            </div>
+          ) : null}
+        </div>
+        {chips.length > 0 ? (
+          <div style={{ display: "flex", gap: 12 }}>
+            {chips.map((chip, index) => (
+              <MoverChip key={index} ticker={chip.ticker} label={chip.ticker} display={chip.display} tone={chip.tone} logo={chip.logo} size={chips.length > 5 ? 19 : 21} />
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </Frame>
+  );
+}
+
 function ReadCard({ card }: { card: OgReadCard }) {
+  if (card.figure) return <PosterRead card={card} />;
   // 140 characters still fit at the smallest size with two lines under them (lib/og/tool-cards.ts OG_HEADLINE_MAX).
   const headline = fit(card.headline, 140);
   const size = headlineSize(headline, [[48, 70], [80, 62], [100, 56], [120, 50]], 46);
@@ -425,7 +412,7 @@ function QuoteCard({ card }: { card: OgQuoteCard }) {
           {headline ? <span style={{ fontSize: size, fontWeight: 600, lineHeight: 1.12, letterSpacing: "-0.02em" }}>{headline}</span> : null}
           {card.call || card.note ? (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 12 }}>
-              {card.call ? <CallPill call={card.call} size={23} /> : null}
+              {card.call ? <CallPill call={card.call} size={30} /> : null}
               {card.note ? <span style={{ fontSize: 24, color: C.muted, lineHeight: 1.3 }}>{fit(card.note, 100)}</span> : null}
             </div>
           ) : null}
@@ -531,7 +518,41 @@ function CompareCard({ card }: { card: OgCompareCard }) {
   );
 }
 
+/** Stocks side by side as equal cards: logo and ticker, the move as the big number, the reason under it. */
+function StockCards({ rows }: { rows: OgListRow[] }) {
+  const list = rows.slice(0, 3);
+  return (
+    <div style={{ display: "flex", gap: 18 }}>
+      {list.map((row, index) => (
+        <div
+          key={`${row.label}-${index}`}
+          style={{ display: "flex", flexDirection: "column", flex: 1, background: C.card, border: `1.5px solid ${C.border}`, borderRadius: 20, padding: "20px 22px", gap: 10, height: 236 }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <LogoTile ticker={row.ticker ?? row.label} src={row.logo} size={46} />
+            <span style={{ fontFamily: MONO, fontSize: 28 }}>{row.label}</span>
+          </div>
+          {row.value ? <span style={{ fontSize: 54, fontWeight: 700, letterSpacing: "-0.04em", lineHeight: 1, color: toneColor(row.tone) }}>{row.value}</span> : null}
+          {row.note ? <span style={{ fontSize: 21, color: C.ink, lineHeight: 1.28 }}>{fit(row.note, 78)}</span> : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function ListCard({ card }: { card: OgListCard }) {
+  if (card.rows.some((row) => row.ticker)) {
+    const headline = keep(fit(card.headline, 110));
+    const size = headlineSize(headline, [[50, 50], [80, 44]], 40);
+    return (
+      <Frame eyebrow={card.eyebrow} path={card.path} footnote={card.footnote}>
+        <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, justifyContent: "center", gap: 26, paddingBottom: 6 }}>
+          <span style={{ fontSize: size, fontWeight: 700, lineHeight: 1.08, letterSpacing: "-0.03em" }}>{headline}</span>
+          <StockCards rows={card.rows} />
+        </div>
+      </Frame>
+    );
+  }
   const headline = fit(card.headline, 100);
   const size = headlineSize(headline, [[45, 60], [75, 52]], 46);
   return (

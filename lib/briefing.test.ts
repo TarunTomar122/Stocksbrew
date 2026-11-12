@@ -415,13 +415,18 @@ describe("buildBriefing: zones, calls and alerts", () => {
   });
 
   it("only shows a trim zone to someone who holds the stock", () => {
-    const zones = { price: 530, stance: "hold", trim_above: 520 };
+    const zones = { price: 530, stance: "trim", trim_above: 520 };
     const holder = buildBriefing(input({ positions: [position({ ticker: "MSFT", ...zones })] }));
     expect(holder.needs_you[0].headline).toBe("MSFT is above its sell-some price: $530.00, over $520");
     const watcher = buildBriefing(
       input({ positions: [position({ ticker: "MSFT", relation: "watching", ...zones })] }),
     );
     expect([...watcher.needs_you, ...watcher.also_today]).toEqual([]);
+  });
+
+  it("names no level on a Keep call: a stored buy-more or sell-some price is not its own", () => {
+    const keep = buildBriefing(input({ positions: [position({ ticker: "ORCL", price: 120, stance: "hold", add_below: 128.43, trim_above: 110 })] }));
+    expect([...keep.needs_you, ...keep.also_today].filter((item) => item.kind === "zone_entered")).toEqual([]);
   });
 
   it("reports a changed call and ignores old or unchanged ones", () => {
@@ -1033,11 +1038,23 @@ describe("standing jobs and the week ahead", () => {
   it("puts a job that found something under needs you, linked to its run log", () => {
     const briefing = buildBriefing(input({ positions: [position({ ticker: "AAA" })], agent_runs: [run()] }));
     const item = briefing.needs_you.find((entry) => entry.kind === "agent_job");
-    expect(item?.headline).toBe('Your job "Big daily moves" found something: AAA fell 6.00% in a day');
+    expect(item?.headline).toBe("Big daily moves: AAA fell 6.00% in a day");
+    expect(item?.ticker).toBe("AAA");
     expect(item?.href).toBe("/agents?job=abc123def456");
     expect(item?.evidence[0].source).toBe("Daily closing prices");
     // The job item mentions AAA, so AAA is not also listed as quiet.
     expect(briefing.quiet.names).toEqual([]);
+  });
+
+  it("pins a run to a stock only when every finding is about that stock", () => {
+    const wide = run({
+      findings: [
+        { ticker: "AAA", headline: "AAA fell 6%", detail: "", source: "Daily closing prices", url: null, at: "2026-11-06" },
+        { ticker: "BBB", headline: "BBB rose 7%", detail: "", source: "Daily closing prices", url: null, at: "2026-11-06" },
+      ],
+    });
+    const briefing = buildBriefing(input({ positions: [position({ ticker: "AAA" }), position({ ticker: "BBB" })], agent_runs: [wide] }));
+    expect(briefing.needs_you.find((entry) => entry.kind === "agent_job")?.ticker).toBe("");
   });
 
   it("shows one item per job, ignores old runs and survives the needs-you cap", () => {

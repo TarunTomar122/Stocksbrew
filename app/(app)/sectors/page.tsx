@@ -1,19 +1,17 @@
 import type { Metadata } from "next";
 
 import { JsonLd, breadcrumbLd } from "@/components/docs/json-ld";
-import { TheRead } from "@/components/oa/insight";
 import { closeWords } from "@/lib/benchmark-day";
 import { AppPage, Delta, NUM, PageHead, Panel, SourceLine, fmtCompact, fmtDay } from "@/components/oa/kit";
 import { DataTable, type DataColumn, type DataRow } from "@/components/oa/kit/data-table";
 import { ogImage } from "@/lib/og/url";
-import { buildSectorsRead } from "@/lib/screener-insights";
 import { sectorStats } from "@/lib/screener-shared";
 import { callCounts } from "@/lib/sector-insights";
 import { sectorHref } from "@/lib/seo/families";
 import { getCoverage, sectorGroups } from "@/lib/seo/family-data";
 import Link from "next/link";
 
-/** Every sector we cover, with the read on how they moved. Each row opens /sectors/[slug]. */
+/** Every sector we cover and how they moved. Each row opens /sectors/[slug]. */
 
 export const revalidate = 900;
 
@@ -38,18 +36,6 @@ export default async function SectorsPage() {
   const coverage = await getCoverage();
   const stats = sectorStats(coverage.rows);
   const groups = new Map(sectorGroups(coverage).map((group) => [group.slug, group]));
-  const read = buildSectorsRead({ stats, priceDay: coverage.priceDay, asOf: coverage.generatedAt });
-  // The sectors read links its insights to the screener; the sector pages are the better landing now.
-  const sectorRead = read
-    ? {
-        ...read,
-        insights: read.insights.map((insight) =>
-          insight.action?.href.startsWith("/screener?sector=")
-            ? { ...insight, action: { label: insight.action.label.replace(/^Screen /, "Open "), href: sectorHref(insight.action.href.slice("/screener?sector=".length)) } }
-            : insight,
-        ),
-      }
-    : null;
 
   const columns: DataColumn[] = [
     { id: "sector", label: "Sector" },
@@ -97,7 +83,6 @@ export default async function SectorsPage() {
         }
         note={false}
       />
-      <TheRead read={sectorRead} label="Sectors, in short" className="mb-4" />
       <Panel flush>
         <DataTable columns={columns} rows={rows} initialSort={{ id: "cap", dir: "desc" }} stickyHeader={false} />
       </Panel>

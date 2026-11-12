@@ -28,7 +28,7 @@ export default function SecurityPage() {
     <ReadPage
       label="Security"
       title="How accounts, data and money are handled"
-      lede="No brokerage connection, no trading, no password. Below is what we store, where it goes, and the things we have not built yet."
+      lede="No brokerage connection, no trading, no password."
       meta="Written from the code · last reviewed Nov 10, 2026"
       blocks={SECURITY_BLOCKS}
       intro={

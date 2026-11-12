@@ -1,8 +1,8 @@
 /**
- * The read at the top of /calendar and of a company's earnings page: what is
- * coming that matters, what has already happened, and how big a report
- * usually is for the stock. Plain rules over the agenda rows and the stored
- * reactions; nothing here is estimated.
+ * What is coming on the calendar that matters, what has already happened, and
+ * how big a report usually is for the stock. The calendar share card uses the
+ * read, and /calendar uses the biggest-reports cards. Plain rules over the
+ * agenda rows and the stored reactions; nothing here is estimated.
  */
 import type { ReportContext } from "@/lib/calendar";
 import { byMarketCap, resultWord, surprisePctOf, type CalendarItem, type EarningsItem, type EconomicItem, type IpoItem } from "@/lib/calendar-shared";
@@ -209,10 +209,6 @@ function resultsInsight(input: CalendarReadInput): Insight | null {
     tickers: moved.map((item) => item.ticker),
     action: { label: "See results", href: "/calendar?view=list&type=earnings" },
   };
-}
-
-function plural(count: number, one: string, many: string): string {
-  return `${count} ${count === 1 ? one : many}`;
 }
 
 const INFLATION_NOTE = "Inflation numbers often move the whole market on the day they come out.";
@@ -437,62 +433,4 @@ export function biggestReports(items: CalendarItem[], today: string, context: Re
     });
   }
   return out;
-}
-
-/* ── one company's earnings page ───────────────────────────────────────── */
-
-export function buildEarningsDetailRead(input: {
-  ticker: string;
-  name: string;
-  events: EarningsItem[];
-  today: string;
-  context: ReportContext | undefined;
-}): TheRead | null {
-  const { ticker, events, today, context } = input;
-  const next = events.filter((item) => item.date >= today && item.epsActual === null).sort((a, b) => a.date.localeCompare(b.date))[0];
-  const past = events.filter((item) => item.epsActual !== null).sort((a, b) => b.date.localeCompare(a.date));
-  const last = past[0];
-  const parts: string[] = [];
-  if (next) {
-    const gap = Math.round((Date.parse(`${next.date}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000);
-    const when = gap <= 6 ? whenWord(next.date, today) : `on ${shortDay(next.date)}, in ${gap} days`;
-    parts.push(`${ticker} reports ${when}${timeWord(next) ? ` ${timeWord(next)}` : ""}${isNum(next.epsEstimate) ? `, with EPS expected at $${next.epsEstimate.toFixed(2)}` : ""}`);
-  } else if (last) {
-    const outcome = surpriseOf(last)?.label;
-    parts.push(`${ticker} last reported on ${shortDay(last.date)}${outcome === "beat" || outcome === "miss" ? ` and ${outcome === "beat" ? "beat" : "missed"} the estimate` : ""}`);
-  }
-  if (parts.length === 0) return null;
-
-  const insights: Array<Insight | null> = [];
-  const move = pastMoveText(context);
-  if (move) {
-    insights.push({
-      id: "last-move",
-      tone: context!.last!.pct >= 0 ? "up" : "down",
-      text: `The stock ${move}.`,
-    });
-  }
-  const surprise = last ? surpriseOf(last) : null;
-  if (last && surprise) {
-    const reaction = last.reaction;
-    const disagree = reaction && ((surprise.label === "beat" && reaction.pct < 0) || (surprise.label === "miss" && reaction.pct > 0));
-    const verb = surprise.label === "beat" ? "beat" : surprise.label === "miss" ? "missed" : "matched";
-    const size = surprise.label !== "in-line" && isNum(surprise.pct) ? ` by ${absPct(surprise.pct, 0)}` : "";
-    insights.push({
-      id: "surprise",
-      tone: surprise.label === "beat" ? "up" : surprise.label === "miss" ? "down" : "flat",
-      text: `Last quarter's earnings per share ${verb} the estimate${size}${
-        reaction ? `${disagree ? ", yet" : " and"} the stock ${reaction.pct >= 0 ? "rose" : "fell"}${move ? "" : ` ${absPct(reaction.pct)}`}` : ""
-      }.`,
-      soWhat: disagree ? "The headline number was not what the market traded on." : undefined,
-    });
-  }
-  if (!move && isNum(context?.typicalDayPct)) {
-    insights.push({
-      id: "normal",
-      tone: "flat",
-      text: `Over the last six months ${ticker} has moved about ${context!.typicalDayPct!.toFixed(1)}% on a normal day.`,
-    });
-  }
-  return { headline: `${parts[0]}.`, insights: pickInsights(insights) };
 }

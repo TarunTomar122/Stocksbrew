@@ -34,7 +34,7 @@ export default async function EmailUnsubscribePage({ searchParams }: Props) {
         <PageHead
           full
           title="This link has expired or isn't complete"
-          lede="Sign in and open your account to choose which emails you get. Every email also has its own stop link at the bottom."
+          lede="Sign in to choose your emails, or use the stop link in any email."
         />
         <div className="mt-6 flex flex-wrap gap-3">
           <Link href="/profile#notifications" className={`${BUTTON} bg-oa-primary text-oa-primary-fg hover:opacity-95`}>
@@ -58,7 +58,7 @@ export default async function EmailUnsubscribePage({ searchParams }: Props) {
   if (done === "off") {
     return (
       <AppPage width="read">
-        <PageHead full title={`You won't get ${cat.label} anymore`} lede={`We've stopped ${cat.blurb}. Other emails you've kept on aren't affected.`} />
+        <PageHead full title={`You won't get ${cat.label} anymore`} lede="Your other emails stay as they are." />
         <Panel className="mt-6">
           <form method="post" action="/api/email/unsubscribe" className="flex flex-wrap items-center justify-between gap-3">
             {hidden}
@@ -79,14 +79,14 @@ export default async function EmailUnsubscribePage({ searchParams }: Props) {
   if (done === "on") {
     return (
       <AppPage width="read">
-        <PageHead full title={`You'll get ${cat.label} again`} lede={`Turned back on: ${cat.blurb}.`} />
+        <PageHead full title={`You'll get ${cat.label} again`} />
       </AppPage>
     );
   }
 
   return (
     <AppPage width="read">
-      <PageHead full title={`Stop ${cat.label}?`} lede={`This turns off ${cat.blurb}. Your watchlist, alerts in the app and other emails stay as they are.`} />
+      <PageHead full title={`Stop ${cat.label}?`} lede="Your watchlist, in-app alerts and other emails stay as they are." />
       <Panel className="mt-6">
         <form method="post" action="/api/email/unsubscribe" className="flex flex-wrap items-center gap-3">
           {hidden}

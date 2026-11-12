@@ -50,7 +50,7 @@ describe("the move", () => {
   it("says when the move happened", () => {
     expect(moveShort(move({}), TODAY)).toBe("up 25% today");
     expect(moveShort(move({ kind: "day", day: "2026-11-10", pct: -13.51 }), TODAY)).toBe("down 14% yesterday");
-    expect(moveShort(move({ kind: "day", day: "2026-11-09", nextDay: false, pct: 10.46 }), TODAY)).toBe("up 10% on Nov 9");
+    expect(moveShort(move({ kind: "day", day: "2026-11-09", nextDay: false, pct: 10.46 }), TODAY)).toBe("up 10% on Monday");
     expect(moveShort(move({ kind: "before_open", pct: 4.2 }), TODAY)).toBe("up 4.2% before the open");
     expect(moveShort(move({ pct: 0.01 }), TODAY)).toBe("flat today");
   });
@@ -111,7 +111,7 @@ describe("the call and the card", () => {
     expect(callLine({ status: "held", call: "Keep", asOf: null }, TODAY)).toBe("Our call is still Keep after the results.");
     expect(callLine({ status: "pending", call: "Keep", asOf: null }, TODAY)).toBe("Our call is Keep.");
     expect(callLine({ status: "changed", call: "Buy more", from: "Keep", on: TODAY, reason: null, asOf: null }, TODAY)).toBe("We moved our call from Keep to Buy more today after the results.");
-    expect(callLine({ status: "changed", call: "Keep", from: "Buy more", on: "2026-11-10", reason: null, asOf: null }, TODAY)).toBe("We moved our call from Buy more to Keep on Nov 10 after the results.");
+    expect(callLine({ status: "changed", call: "Keep", from: "Buy more", on: "2026-11-10", reason: null, asOf: null }, TODAY)).toBe("We moved our call from Buy more to Keep yesterday after the results.");
   });
 
   it("gives the card one fact and the row its figures", () => {
@@ -120,6 +120,6 @@ describe("the call and the card", () => {
       { label: "EPS", value: "−$1.27", sub: "vs −$1.55 expected, beat by 18%", tone: "up" },
       { label: "The stock", value: "+25%", sub: "Today, usually 17%", tone: "up" },
     ]);
-    expect(reportedWords(read(), TODAY)).toBe("Reported Nov 10 after the close");
+    expect(reportedWords(read(), TODAY)).toBe("Reported yesterday after the close");
   });
 });

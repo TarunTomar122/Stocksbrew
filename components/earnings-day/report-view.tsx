@@ -1,7 +1,6 @@
 import * as React from "react";
 
 import { EpsBars, ReactionStrip } from "@/components/earnings-day/charts";
-import { TheRead } from "@/components/oa/insight";
 import {
   CardGrid,
   NUM,
@@ -9,6 +8,7 @@ import {
   Tag,
   fmtDay,
   fmtStampET,
+  fmtStampETDate,
 } from "@/components/oa/kit";
 import {
   fmtEps,
@@ -22,13 +22,11 @@ import {
   verdictWord,
   type EarningsDayReport,
 } from "@/lib/earnings-day-shared";
-import type { TheRead as TheReadData } from "@/lib/insights";
 
 /**
- * The earnings day report: the read on top (what happened against what was
- * expected, the outlook, the stock's move), then the evidence: the numbers
- * next to their source, the outlook table, what management said, what to
- * watch. Every missing piece says so in a sentence instead of showing a zero.
+ * The earnings day report: the numbers against what was expected, next to
+ * their source, the stock's move, the outlook table, what management said and
+ * what to watch. Every missing piece says so in a sentence instead of showing a zero.
  */
 
 function SourceLink({
@@ -95,23 +93,6 @@ function Row({
       </dd>
     </div>
   );
-}
-
-export function reportRead(report: EarningsDayReport): TheReadData {
-  const read = report.read;
-  return {
-    headline: read?.headline ?? "",
-    insights: (read?.insights ?? []).slice(0, 4).map((insight) => ({
-      id: insight.id,
-      tone: insight.tone,
-      text: insight.text,
-      soWhat: insight.so_what ?? undefined,
-    })),
-    source: report.filing
-      ? `From the ${report.filing.form} ${report.company} filed with the SEC`
-      : "From the earnings calendar; the release is not on SEC EDGAR yet",
-    asOf: report.updated_at ?? null,
-  };
 }
 
 function ExpectationsPanel({ report }: { report: EarningsDayReport }) {
@@ -520,11 +501,6 @@ export function EarningsDayReportView({
 }) {
   return (
     <>
-      <TheRead
-        read={reportRead(report)}
-        label={`${report.ticker} earnings, in short`}
-        className="mb-4"
-      />
       {!report.filing ? (
         <p className="oa-surface mb-4 border border-oa-border bg-oa-card px-4 py-3 text-[14px] leading-5 text-oa-muted-fg">
           The company&apos;s earnings release is not on SEC EDGAR yet. The
@@ -570,7 +546,7 @@ export function EarningsDayReportView({
           </ul>
           {report.filing ? (
             <p className="border-t border-oa-border px-4 py-2.5 text-[12.5px] leading-[18px] text-oa-muted-fg">
-              Filed {fmtStampET(report.filing.filed_at)}
+              Filed {fmtStampETDate(report.filing.filed_at)}
               {report.updated_at
                 ? ` · updated ${fmtStampET(report.updated_at)}`
                 : ""}

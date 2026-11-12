@@ -6,8 +6,6 @@ import { AppPage, Delta, NUM, PageHead, Panel, StatStrip, type StatItem } from "
 import { BasketActions } from "@/components/screener/basket-actions";
 import { OverlayChart, type OverlayRange } from "@/components/screener/overlay-chart";
 import { BookHead, BookLine } from "@/components/themes-book/book";
-import { TheRead } from "@/components/oa/insight";
-import { buildThemeRead } from "@/lib/themes-insights";
 import { limitFor } from "@/lib/entitlements";
 import { canSeeLevels, getViewer } from "@/lib/entitlements-server";
 import { INVESTMENT_THEMES } from "@/lib/investment-themes";
@@ -86,7 +84,6 @@ export default async function ThemeBookPage({ params }: Props) {
     });
   }
 
-  const read = buildThemeRead({ ...basket, lines });
   const calls = { Add: 0, Hold: 0, Trim: 0 };
   for (const line of lines) if (line.row?.call) calls[line.row.call] += 1;
   const called = calls.Add + calls.Hold + calls.Trim;
@@ -128,8 +125,6 @@ export default async function ThemeBookPage({ params }: Props) {
           </div>
         }
       />
-
-      <TheRead read={read} className="mb-4" />
 
       {/* The numbers lead: returns, then the chart. The words that explain them support on the right (below on a phone). */}
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] lg:gap-5">

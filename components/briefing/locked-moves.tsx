@@ -33,7 +33,6 @@ export function BriefingLockedMoves({
   if (plan === "pro" || moves.length === 0) return null;
   const named = moves.slice(0, NAMED);
   const more = moves.length - named.length;
-  const verb = moves.length === 1 ? "moved" : moves.length === 2 ? "both moved" : "all moved";
   const when = archived ? "that day" : "today";
   const body = (
     <>
@@ -47,7 +46,8 @@ export function BriefingLockedMoves({
         </React.Fragment>
       ))}
       {more > 0 ? `, and ${more} more` : ""}
-      {` ${verb} enough to matter ${when}. Your agent explains the ${FREE_COVERED_WORD} stocks it covers for you. ${moves.length === 1 ? "Swap it in" : "Swap one of these in"} (one swap a week on Free), or go Pro and it explains every stock you own.`}
+      {/* One line (owner rule 8): the moves, then what Pro adds. */}
+      {`. Pro explains every stock you own, not just ${FREE_COVERED_WORD}.`}
     </>
   );
   return (

@@ -6,10 +6,11 @@ import * as React from "react";
  * A list that scrolls inside a box ending on a whole row, never halfway through one (owner rule 5). The box is about
  * `rem` tall (`wideRem` from `wideFrom`, the `sm` width by default, up; nothing is cut below `minWidth`): it is cut back to the bottom of the
  * last row that fits, and a list only a little taller than the box shows whole rather than hiding a sliver. Rows are
- * the elements marked `data-row`, or else the items of the first list inside; items side by side in a grid end level,
+ * the elements marked `data-row`, or else the items of the first list inside, or else a table's body rows; items side by side in a grid end level,
  * so a row of cards counts as one. The class's own max height (keep it the same as `rem`) holds until the page has
  * measured it. With `cue`, the box's last row fades out while more rows wait below it, so a list that scrolls inside
- * says so without a scrollbar; the fade goes once the list is scrolled to its end.
+ * says so without a scrollbar; the fade goes once the list is scrolled to its end. A footer that sticks to the box's
+ * bottom (marked `data-sticky-foot`, a table's Total row) is kept clear of: the rows above it still end whole.
  */
 export function WholeRows({
   rem,
@@ -60,7 +61,9 @@ export function WholeRows({
         return;
       }
       const marked = Array.from(node.querySelectorAll<HTMLElement>("[data-row]"));
-      const rows = marked.length ? marked : (Array.from(node.querySelector("ul, ol")?.children ?? []) as HTMLElement[]);
+      const listed = Array.from(node.querySelector("ul, ol")?.children ?? []) as HTMLElement[];
+      // A table's body rows when there is no list (components/oa/kit/table-box.tsx).
+      const rows = marked.length ? marked : listed.length ? listed : Array.from(node.querySelectorAll<HTMLElement>("tbody > tr"));
       // Nothing to cut on ("Nothing scheduled"): the class's height stands.
       if (rows.length === 0) {
         setMax(null);
@@ -75,8 +78,10 @@ export function WholeRows({
         setMax("none");
         return;
       }
-      const fits = bottoms.filter((bottom) => bottom <= budget + 0.5);
-      setMax(Math.ceil(fits.length ? Math.max(...fits) : Math.min(...bottoms)));
+      // A sticky footer covers the bottom of the box, so the cut leaves room for it under the last whole row.
+      const foot = node.querySelector<HTMLElement>("[data-sticky-foot]")?.offsetHeight ?? 0;
+      const fits = bottoms.filter((bottom) => bottom <= budget - foot + 0.5);
+      setMax(Math.ceil((fits.length ? Math.max(...fits) : Math.min(...bottoms)) + foot));
     };
     measure();
     // Measured a frame later when something resizes, so setting the box's height never feeds back into the observer

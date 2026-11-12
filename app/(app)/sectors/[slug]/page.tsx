@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 
 import { JsonLd, breadcrumbLd } from "@/components/docs/json-ld";
-import { TheRead } from "@/components/oa/insight";
 import { closeWords } from "@/lib/benchmark-day";
 import { AppPage, CardGrid, Delta, MoveBar, NUM, PageHead, Panel, ShowMore, SourceLine, StatStrip, Ticker, fmtCompact, fmtDay, fmtMoney } from "@/components/oa/kit";
 import { asSentence } from "@/lib/plain-copy";
@@ -13,16 +12,16 @@ import { todayET } from "@/lib/calendar-shared";
 import { INVESTMENT_THEMES } from "@/lib/investment-themes";
 import { ogImage } from "@/lib/og/url";
 import { canonicalSectorSlug, type ScreenerRow } from "@/lib/screener-shared";
-import { buildSectorRead, medianPe, ranked, weightedChange } from "@/lib/sector-insights";
+import { medianPe, ranked, weightedChange } from "@/lib/sector-insights";
 import { moveHref, pairHref, sectorHref, sectorIsIndexable, sectorTitle } from "@/lib/seo/families";
 import { getCoverage, getMovesDay, sectorGroups, stockPairs } from "@/lib/seo/family-data";
 import { alsoClassesLabel, oneRowPerCompany } from "@/lib/share-class";
 import Link from "next/link";
 
 /**
- * One page per sector (/sectors/technology): the read, the sector against the
- * S&P 500, leaders and laggards over three periods, and every covered stock in
- * it. Built from the screener snapshot. No loading.tsx in this segment, so an
+ * One page per sector (/sectors/technology): the sector against the S&P 500,
+ * leaders and laggards over three periods, and every covered stock in it.
+ * Built from the screener snapshot. No loading.tsx in this segment, so an
  * unknown sector is a real 404.
  */
 
@@ -104,14 +103,12 @@ export default async function SectorPage({ params }: Props) {
   }
   const today = todayET();
   const path = sectorHref(group.slug);
-  // The read's leaders and laggards are from the snapshot's close, so only that day's reasons may be attached to them.
+  // The moves from the snapshot's close, and today's when the snapshot is older, for the "why they moved" list.
   const [closeMoves, latestMoves] = await Promise.all([
     coverage.priceDay ? getMovesDay(coverage.priceDay) : Promise.resolve([]),
     coverage.priceDay === today ? Promise.resolve(null) : getMovesDay(today),
   ]);
   const inSector = (ticker: string) => group.rows.some((row) => row.symbol === ticker);
-  const moveHrefs = new Map(closeMoves.filter((move) => inSector(move.ticker)).map((move) => [move.ticker, moveHref(move.ticker, move.day)]));
-  const read = buildSectorRead({ name: group.name, rows: group.rows, all: coverage.rows, spy: coverage.spy, priceDay: coverage.priceDay, moveHrefs, asOf: coverage.generatedAt });
   const spy = coverage.spy;
   const pe = medianPe(group.rows);
   const allPe = medianPe(coverage.rows);
@@ -183,8 +180,6 @@ export default async function SectorPage({ params }: Props) {
         meta={<SourceLine source="Prices and company data" asOf={coverage.priceDay ? closeWords(coverage.priceDay, fmtDay(coverage.priceDay, true)) : undefined} />}
         note={false}
       />
-
-      <TheRead read={read} label={`${group.name}, in short`} fold="phone" foldLabel={`Show more on ${group.name.toLowerCase()} stocks`} className="mb-4" />
 
       <StatStrip
         className="mb-4"

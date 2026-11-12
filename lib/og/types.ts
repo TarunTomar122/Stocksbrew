@@ -19,8 +19,28 @@ type Base = {
   transient?: boolean;
 };
 
-/** A page led by its read: the headline is the hero, one or two insights under it. */
-export type OgReadCard = Base & { kind: "read"; headline: string; lines: OgLine[]; stats?: OgStat[] };
+/** The one big number a card leads with: "+0.9%" over "S&P 500 futures before the open". */
+export type OgFigure = { value: string; label: string; tone: OgTone };
+
+/** A stock and its move, drawn as a logo chip. `logo` is a data URI (lib/og/logos.ts) or null for the lettered tile. */
+export type OgChip = { ticker: string; logo: string | null; display: string; tone: OgTone };
+
+/** Mine (or the example's) against the S&P 500 over the same days, percent from the first point. */
+export type OgCurve = { title: string; mine: number[]; market: number[] | null; labels: string[] | null; mineLabel: string };
+
+/**
+ * A page led by its read: the headline is the hero, one or two insights under it. With a `figure` the card is
+ * drawn as a poster instead: the big number and the headline, the curve beside them, the stocks as logo chips.
+ */
+export type OgReadCard = Base & {
+  kind: "read";
+  headline: string;
+  lines: OgLine[];
+  stats?: OgStat[];
+  figure?: OgFigure | null;
+  curve?: OgCurve | null;
+  chips?: OgChip[] | null;
+};
 
 export type OgQuote = {
   level: string | null;
@@ -69,7 +89,8 @@ export type OgCompareColumn = {
 
 export type OgCompareCard = Base & { kind: "compare"; headline: string | null; columns: OgCompareColumn[] };
 
-export type OgListRow = { label: string; value: string | null; tone: OgTone; note: string };
+/** One row; with a `ticker` the row is a stock and is drawn as a card with its logo. */
+export type OgListRow = { label: string; value: string | null; tone: OgTone; note: string; ticker?: string | null; logo?: string | null };
 
 export type OgListCard = Base & { kind: "list"; headline: string; rows: OgListRow[] };
 

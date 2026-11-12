@@ -2,16 +2,13 @@ import Link from "next/link";
 import * as React from "react";
 
 import { CardGrid, NUM, Panel, StatStrip, Ticker, fmtCompact } from "@/components/oa/kit";
-import { TheRead } from "@/components/oa/insight";
 import { CompanyTable, type CompanyLine } from "@/components/xray/company-table";
 import { shortCompanyName } from "@/lib/plain-copy";
 import { XraySignIn } from "@/components/xray/xray-sign-in";
-import type { TheRead as TheReadData } from "@/lib/insights";
 import { fmtFilingDay, fmtPct, joinList, type CompanyExposure, type FundSummary, type Xray } from "@/lib/xray";
 
 /**
- * /portfolio/xray: the read on top, then the ten biggest companies as a
- * stacked bar (bought directly, through funds), sectors and funds side by
+ * /portfolio/xray: the ten biggest companies as a stacked bar (bought directly, through funds), sectors and funds side by
  * side, and every company in a table folded underneath.
  */
 
@@ -24,12 +21,11 @@ function money(value: number): string {
   return Math.abs(value) < 1000 ? `$${Math.round(value).toLocaleString("en-US")}` : fmtCompact(value, "$");
 }
 
-export function XrayView({ xray, read, example }: { xray: Xray; read: TheReadData | null; example: boolean }) {
+export function XrayView({ xray, example }: { xray: Xray; example: boolean }) {
   const top = xray.companies.slice(0, 10);
   const hasFunds = xray.funds.length > 0;
   return (
     <div className="flex flex-col gap-3">
-      <TheRead read={read} label={example ? "What this portfolio really owns" : "What you really own"} fold="phone" askContext={example ? "ex.portfolio" : "portfolio"} />
       {hasFunds ? (
         <StatStrip
           stats={[

@@ -10,7 +10,7 @@ const PLACES: Array<{ href: string; label: string; what: string }> = [
 export default function EarningsReportNotFound() {
   return (
     <AppPage width="read">
-      <PageHead full crumb={<a href="/calendar">Calendar</a>} title="No earnings report at this address" lede="We write a report once a company we cover has reported and its release is on SEC EDGAR." />
+      <PageHead full crumb={<a href="/calendar">Calendar</a>} title="No earnings report at this address" lede="We write one once the company has reported and its release is on EDGAR." />
       <Panel flush>
         <ul>
           {PLACES.map((place) => (

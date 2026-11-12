@@ -26,7 +26,7 @@ export default async function ImportPage() {
       <PageHead
         full
         title="Bring your holdings in"
-        lede="Upload the CSV your broker exports, paste lines like NVDA 25 @ 120, or add a screenshot. You check every row before anything is saved, then My stocks shows what they are worth and what you made."
+        lede="Nothing is saved until you check every row."
       />
       <ImportWorkspace signedIn={Boolean(session)} held={heldFromUserDoc(doc as Record<string, unknown> | null)} />
     </AppPage>

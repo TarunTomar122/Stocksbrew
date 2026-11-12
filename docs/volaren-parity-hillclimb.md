@@ -185,6 +185,43 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-12 ~10:00 ET: tick in flight, three big rebuilds plus the owner's fix batch (nothing shipped yet this tick)
+
+- **Owner feedback this morning, now in owner-design-rules.md and memory:**
+  - grid cards keep a fixed width, with no stretched last card
+  - stock cards show the price and today's % only
+  - show the N that "need a look" and fold the rest
+  - one primary button with a menu
+  - the positions table column order
+  - attention rows go first
+  - alerts are grouped by stock
+  - premarket shows only when today's data is in
+  - More markets cards each give a good/bad-for-stocks verdict
+  - plans mix familiar features with our own
+- **Done in the tree (coordinator):**
+  - the My stocks cards show the price plus day % only
+  - the wide odd card is removed (My stocks and the landing one-place)
+  - the /pricing h1 is cut to one line
+- **Builders running:**
+  - (1) owner fixes: read removal on the main pages, table max-heights, positions columns, attention-first sort, alerts grouping, empty cards, word budget, /explore gainers/losers + sector heatmap + More markets verdicts
+  - (2) visual share cards and OG images without top borders
+  - (3) the memo chart's dotted premarket leg, and premarket hidden unless today's data is in
+  - (4) My stocks: the need-a-look fold, the Tools card, one-button menu
+  - (5) the landing page: the split hero with a live demo card, back by owner request
+  - (6) a ground-up **briefing rebuild** (plan: scratchpad council-briefing/plan.md, from the codex and cursor plans and a web research brief)
+  - (7) a **deep portfolio analysis tab** (lib/portfolio-analysis: concentration vs S&P with ETF look-through, overlap, risk contribution, correlation clusters, past-year swings, crash tests, earnings exposure, calls rolled up, income)
+- **Open:** integrate, verify, ship each batch with boxed before/after shots, then the judges.
+
+### 2026-11-12 ~09:30 UTC (owner's morning), ship 57 live (348ce54); owner reverses "a read on every page" (lead)
+
+- **Ship 57.** One currency on the plan cards. Visitors from India saw "$0" Free next to "₹99" Pro (a user reported it to the owner). Free now follows the market (₹0 or $0) on /pricing and on the landing's plans. The landing's Pro price and trial line now match /pricing (rupees for IN, no trial promise outside US checkout). Added `pricingMarket()` and `IN_PRO_MONTHLY_LABEL` in lib/pricing.ts. Live check passed.
+- **Owner feedback (screenshots of reads on briefing, My stocks, agents, inbox and Market today).** "a main card with some highlighter... super useless to me... I would rather just go into the details myself... You might have to remove it from all the places." Rule 7 ("every page opens with a read") is reversed: the read block comes off every page.
+- **Also from the owner:**
+  - The positions/watchlist table had no max height. All tables get one (~8 rows, sticky header, hands the scroll back).
+  - The memo's "Calls that changed" showed empty cards (NVDA Keep with nothing else). Cards with no information are dropped.
+- **Signed-in checking.** The owner authorised using their account. A session cookie was minted server-side for their uid via the service account, kept at chmod 600 in scratchpad/signedin/cookie and never printed. scratchpad/signedin/shot.sh takes signed-in screenshots, and EXTRA_COUNTRY=IN fakes the country header.
+- **Running.** One builder on all three owner items (scratchpad/ownerfix).
+
 ### 2026-11-12 ~09:30 UTC, ships 55 (020ee17) and 56 (af5df1b) live: your agent as a thread, results night on, bring your holdings in (lead)
 
 - **Ship 55, "Your agent" (/agent, build A).** One dated conversation from the agent, oldest day at the top, scrolling to today on open.

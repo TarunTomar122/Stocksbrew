@@ -11,7 +11,7 @@ import type { AgentsSource } from "@/lib/portfolio-home/log";
 import type { Loaded } from "@/lib/portfolio-home/pick";
 
 /**
- * The briefing rail's agents card: one sentence on what the agents' latest runs came to, then the signed-in person's
+ * The agents card (on /agent): one sentence on what the agents' latest runs came to, then the signed-in person's
  * active agents as compact rows (components/agent-watch/agent-rows.tsx): kind, short name, what the last run came
  * to, and the stocks it flagged as chips. Signed out the rail has the example portfolio's own agents instead (BriefingExampleAgents): the signed-out briefing is one cached
  * page for everyone (app/(app)/anon/[v]/briefing), so it never reads a cookie or anyone's data. Server components;
@@ -45,7 +45,7 @@ type StripProps = {
   portfolio: boolean;
 };
 
-/** Signed in: the person's active agents and their latest outcomes, for the side rail. */
+/** Signed in: the person's active agents and their latest outcomes. */
 export async function BriefingAgentsStrip({ uid, ...props }: StripProps & { uid: string }) {
   const loaded = await loadWatches(uid, props.today);
   return <BriefingAgentsCard loaded={loaded} {...props} />;

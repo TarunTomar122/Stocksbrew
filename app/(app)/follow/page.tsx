@@ -385,15 +385,15 @@ async function ReadBlock({ read, tab }: { read: Promise<FollowRead | null>; tab:
 const TAB_HEAD: Record<DirectoryTab, { title: string; lede: string }> = {
   funds: {
     title: "What big funds bought and sold",
-    lede: "Big funds report what they own once a quarter, about six weeks after the quarter ends, so these moves are weeks old by the time anyone sees them.",
+    lede: "Funds file once a quarter, about six weeks late, so these moves are dated.",
   },
   congress: {
     title: "What members of Congress bought and sold",
-    lede: "Members of Congress report their trades within about six weeks, as a range of dollar amounts rather than exact figures.",
+    lede: "Members report within about six weeks, as dollar ranges, not exact amounts.",
   },
   insiders: {
     title: "What company insiders bought",
-    lede: "Executives and directors report buying their own company's stock within two business days, so this is the freshest of the three.",
+    lede: "Insiders report within two business days, the freshest of the three.",
   },
 };
 

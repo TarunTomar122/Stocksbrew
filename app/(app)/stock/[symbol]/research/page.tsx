@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { AppPage, NUM, PageHead, fmtStampET } from "@/components/oa/kit";
+import { AppPage, NUM, PageHead, fmtStampETDate } from "@/components/oa/kit";
 import { ResearchLauncher } from "@/components/research/launcher";
 import { getViewer, peekMeter } from "@/lib/entitlements-server";
 import { limitFor, ruleFor } from "@/lib/entitlements";
@@ -116,7 +116,7 @@ export default async function ResearchHubPage({ params }: Props) {
                     className="group flex items-start gap-3 px-4 py-3 outline-none hover:bg-oa-accent focus-visible:bg-oa-accent sm:px-5"
                   >
                     <span className="flex min-w-0 flex-1 flex-col gap-0.5 sm:flex-row sm:gap-3">
-                      <span className={`${NUM} shrink-0 pt-0.5 text-[12.5px] text-oa-muted-fg sm:w-[9.5rem]`}>{fmtStampET(item.created_at)}</span>
+                      <span className={`${NUM} shrink-0 pt-0.5 text-[12.5px] text-oa-muted-fg sm:w-[9.5rem]`}>{fmtStampETDate(item.created_at)}</span>
                       <span className={`min-w-0 flex-1 text-pretty text-[14.5px] leading-[21px] ${item.status === "ready" ? "text-oa-fg" : "text-oa-muted-fg"}`}>{statusLine(item)}</span>
                     </span>
                     <span aria-hidden="true" className="shrink-0 text-oa-muted-fg group-hover:text-oa-primary">

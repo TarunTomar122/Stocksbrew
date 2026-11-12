@@ -25,6 +25,7 @@
  * slowdown means growth halves.
  */
 
+import { dayPossessive, daysFromToday, onDayWords } from "@/lib/day-words";
 import type { CallWord } from "@/lib/stock-chart";
 
 // The steady-call rule's numbers (backend/call_stability.py `Rules`). call-evidence.test.ts checks they still match.
@@ -96,6 +97,11 @@ export type CallEvidenceInput = {
    * it, -1 down to it, 0 when it never changed). Null when calls are not held steady.
    */
   steady: { since: string | null; lastStep: -1 | 0 | 1 } | null;
+  /**
+   * Say the last close's day in words ("closed at $552.90 yesterday", lib/day-words.ts). Only for a page rendered at
+   * request time: Ask's answers are kept and read later, so they keep the date. Sources always keep the date.
+   */
+  sayDays?: boolean;
 };
 
 export type EvidenceLine = {
@@ -143,6 +149,18 @@ function day(iso: string | null | undefined, today: string): string {
   // A non-breaking space, so "Nov 17" never splits across lines.
   const text = `${month}\u00a0${Number(match[3])}`;
   return match[1] === today.slice(0, 4) ? text : `${text}, ${match[1]}`;
+}
+
+/** "Nov 17", or with `sayDays` a close within the week in words: "yesterday's close", "Monday's close". */
+function closeDay(iso: string | null | undefined, input: Pick<CallEvidenceInput, "today" | "sayDays">): string {
+  const gap = input.sayDays ? daysFromToday(iso, input.today) : null;
+  return gap !== null && gap <= 0 && gap >= -6 ? `${dayPossessive(iso, input.today)} close` : day(iso, input.today);
+}
+
+/** "on Nov 17", or with `sayDays` the recent day in words: "yesterday", "on Monday" (lib/day-words.ts). */
+function onDay(iso: string | null | undefined, input: Pick<CallEvidenceInput, "today" | "sayDays">): string {
+  const words = input.sayDays ? onDayWords(iso, input.today) : "";
+  return words ? words.replace(/ (\d)/, " $1") : `on ${day(iso, input.today)}`;
 }
 
 function dayMs(iso: string): number {
@@ -335,7 +353,7 @@ function moveLine(input: CallEvidenceInput, swing: number | null): EvidenceLine 
   const marketWords = Math.abs(best.market) < 0.05 ? "the S&P 500 was flat" : `the S&P 500 ${best.market > 0 ? "rose" : "fell"} ${pct(best.market)}`;
   return {
     id: "move",
-    text: `${input.ticker} ${best.stock > 0 ? "rose" : "fell"} ${pct(best.stock)} in the ${window} to ${day(last.date, input.today)}, while ${marketWords}.`,
+    text: `${input.ticker} ${best.stock > 0 ? "rose" : "fell"} ${pct(best.stock)} in the ${window} to ${closeDay(last.date, input)}, while ${marketWords}.`,
     source: priceSourceNote(input, last.date),
   };
 }
@@ -353,7 +371,7 @@ function highLine(input: CallEvidenceInput): EvidenceLine | null {
   if (below > -10) return null;
   return {
     id: "high",
-    text: `${input.ticker} closed at ${dollars(last.close)} on ${day(last.date, input.today)}, ${pct(below)} below its high of ${dollars(high.close)} on ${day(high.date, input.today)}.`,
+    text: `${input.ticker} closed at ${dollars(last.close)} ${onDay(last.date, input)}, ${pct(below)} below its high of ${dollars(high.close)} ${onDay(high.date, input)}.`,
     source: priceSourceNote(input, last.date),
   };
 }

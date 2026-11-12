@@ -1,16 +1,13 @@
 import type { Metadata } from "next";
 
-import { TheRead } from "@/components/oa/insight";
-import { AppPage, PageHead } from "@/components/oa/kit";
+import { AppPage, PageHead, fmtStampET } from "@/components/oa/kit";
 import { MarketingSchema } from "@/components/seo/marketing-schema";
 import { PolicyTab, RedditTab, SignalsBar, TodayTab } from "@/components/signals/signals-view";
 import { clipByAge } from "@/lib/entitlements";
 import { getViewer } from "@/lib/entitlements-server";
 import { loadMovers, loadPolicy, loadReddit } from "@/lib/signals";
-import { buildPolicyRead, buildRedditRead, buildSignalsTodayRead } from "@/lib/signals-insights";
 import { SIGNALS_TABS, inRedditList, parseSignalsFilters, pickToday, signalsHref } from "@/lib/signals-shared";
 import { ogImage } from "@/lib/og/url";
-import { loadUpcomingReports, todayET, withReports } from "@/app/(app)/explore/desk-data";
 
 export const dynamic = "force-dynamic";
 
@@ -50,9 +47,7 @@ type SearchParams = Record<string, string | string[] | undefined>;
 export default async function SignalsPage({ searchParams }: { searchParams?: SearchParams }) {
   const filters = parseSignalsFilters(searchParams);
   const now = Date.now();
-  const today = todayET(new Date(now));
-  // The next three weeks of reports ride along, for a read card's "Watch next" line (cached with Market today's).
-  const [movers, reddit, policyAll, viewer, upcoming] = await Promise.all([loadMovers(), loadReddit(now), loadPolicy(), getViewer(), loadUpcomingReports(today)]);
+  const [movers, reddit, policyAll, viewer] = await Promise.all([loadMovers(), loadReddit(now), loadPolicy(), getViewer()]);
   // The archive past seven days is Pro (lib/entitlements.ts: signals_archive). Older rows are dropped here, on the
   // server, and only their count goes to the page.
   const archive = clipByAge("signals_archive", viewer.plan, policyAll.posts, (post) => post.publishedAt, now);
@@ -62,24 +57,13 @@ export default async function SignalsPage({ searchParams }: { searchParams?: Sea
   const counts = { today: null, reddit: reddit.names.filter(inRedditList).length || null, policy: policy.posts.length || null } as const;
   const tabs = SIGNALS_TABS.map((tab) => ({ id: tab.id, label: tab.label, href: signalsHref(filters, { tab: tab.id }), count: counts[tab.id] }));
 
-  // The read for the tab: what the rows below add up to, computed from them. The movers only feed the Today tab's
-  // one line about the day's moves (the list itself is on Market today).
-  const read =
-    filters.tab === "reddit"
-      ? buildRedditRead(reddit.names, reddit.generatedAt)
-      : filters.tab === "policy"
-        ? buildPolicyRead(policy.posts, now, policy.generatedAt)
-        : buildSignalsTodayRead(movers.movers, reddit.names, policy.posts, now, movers.generatedAt, reddit.generatedAt);
+  const asOf = filters.tab === "reddit" ? reddit.generatedAt : filters.tab === "policy" ? policy.generatedAt : (reddit.generatedAt ?? movers.generatedAt);
 
   return (
     <AppPage>
       <MarketingSchema path="/signals" name="Market Signals" description={DESCRIPTION} breadcrumbLabel="Signals" />
-      <PageHead
-        title="Signals: what people are saying about stocks"
-        lede="What Reddit is talking about and what the President posted about the market. The day's big moves and their reasons are on Market today."
-      />
+      <PageHead title="Signals: what people are saying about stocks" />
       <SignalsBar tabs={tabs} filters={filters} policy={policy} />
-      <TheRead read={read ? withReports(read, upcoming, today) : read} className="mb-4" />
       {filters.tab === "today" ? (
         <TodayTab pick={pickToday(movers.movers, reddit.names, policy.posts, now)} movers={movers} reddit={reddit} policy={policy} filters={filters} now={now} />
       ) : null}
@@ -91,6 +75,8 @@ export default async function SignalsPage({ searchParams }: { searchParams?: Sea
           archive={archive.hidden > 0 ? { hidden: archive.hidden, days: archive.days ?? 7, plan: viewer.plan, trialEligible: viewer.trialEligible } : null}
         />
       ) : null}
+      {/* The tab's one time, quiet, under its rows. */}
+      {asOf ? <p className="mt-3 px-2 text-[12.5px] leading-[18px] text-oa-muted-fg sm:px-0">As of {fmtStampET(asOf)}</p> : null}
     </AppPage>
   );
 }

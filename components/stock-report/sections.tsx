@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { todayET } from "@/lib/calendar-shared";
+import { absoluteDay, onDayWords } from "@/lib/day-words";
 
 import { StockLogo } from "@/components/stock-logo";
 import { multiplePercentile } from "@/lib/stock-chart";
@@ -30,7 +31,7 @@ import {
   daysBetween,
   fin,
   fmtDate,
-  fmtStamp,
+  fmtStampDate,
   levelFormatter,
   moneyFormatter,
   multiple,
@@ -550,9 +551,10 @@ export function EarningsSection({ data }: SectionProps) {
     .pop();
   const lede =
     next && nextIn != null && nextIn >= 0
-      ? `${stock.ticker} reports ${relativeDays(nextIn)}, on ${fmtDate(next.event_date)}${next.time === "bmo" ? " before the market opens" : next.time === "amc" ? " after the close" : ""}.`
+      ? // "reports tomorrow", "reports on Tuesday" within the week; "reports in 12 days, on Nov 24" past it (lib/day-words.ts).
+        `${stock.ticker} reports ${nextIn <= 6 ? onDayWords(next.event_date, today) : `${relativeDays(nextIn)}, on ${absoluteDay(next.event_date, today)}`}${next.time === "bmo" ? " before the market opens" : next.time === "amc" ? " after the close" : ""}.`
       : lastReported
-        ? `${stock.ticker} last reported on ${fmtDate(lastReported)}. We do not have the next date yet.`
+        ? `${stock.ticker} last reported ${onDayWords(lastReported, today)}. We do not have the next date yet.`
         : null;
 
   return (
@@ -1005,7 +1007,7 @@ function NewsRow({ article }: { article: SectionData["news"][number] }) {
       <span className="block text-pretty text-[14px] font-medium leading-5 text-oa-fg">{article.title}</span>
       <span className="oa-mono mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] leading-4 text-oa-muted-fg">
         <span>{article.source_name || "News"}</span>
-        <span>{fmtStamp(article.published_at)}</span>
+        <span>{fmtStampDate(article.published_at)}</span>
         {tone ? (
           <span className="inline-flex items-center gap-1">
             <ToneGlyph tone={tone} />

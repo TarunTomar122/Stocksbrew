@@ -3,10 +3,9 @@ import { shortDay } from "@/lib/inbox/merge";
 import { signedMove } from "@/lib/inbox/read";
 import type { InboxItem, UpcomingReport } from "@/lib/inbox/types";
 import { reportSentence } from "@/lib/inbox/words";
-import { figureOf, type Insight } from "@/lib/insights";
 import type { DailySeries } from "@/lib/portfolio-shared";
 
-import type { PlainCallWord, Thread, ThreadCall, ThreadDay, ThreadFigure, ThreadNote, ThreadPoint, ThreadStatus, ThreadStep } from "./types";
+import type { PlainCallWord, Thread, ThreadCall, ThreadDay, ThreadFigure, ThreadNote, ThreadStatus, ThreadStep } from "./types";
 
 /**
  * The agent thread, built from records the app already reads (the morning briefing's read, the inbox's items and
@@ -31,8 +30,6 @@ export type SessionMove = {
 /** The morning briefing's read for the thread's today (lib/briefing-read.ts briefingRead). */
 export type MorningRead = {
   headline: string;
-  sub: string | null;
-  insights: Insight[];
   /** The New York day the read's prices are from: an earlier session before the open or on a weekend. */
   sessionDay: string;
   /** The holdings' move in the headline, percent, when the person's sizes give one. */
@@ -211,29 +208,12 @@ function emptyNote(partial: Pick<ThreadNote, "id" | "kind" | "text"> & Partial<T
     reason: null,
     call: null,
     step: null,
-    points: [],
     recent: [],
     reports: [],
     source: null,
     locked: false,
     morning: false,
     ...partial,
-  };
-}
-
-function pointOf(insight: Insight): ThreadPoint {
-  const figure = figureOf(insight);
-  const tickers = insight.tickers ?? [];
-  // "They are first below." points at the briefing's own layout; here the briefing is one tap away instead.
-  const decisions = insight.id === "decisions";
-  return {
-    id: insight.id,
-    text: insight.text,
-    soWhat: decisions ? null : insight.soWhat?.trim() || null,
-    figure: figure ? { value: figure.value, tone: figure.tone ?? insight.tone, ...(figure.label ? { label: figure.label } : {}) } : null,
-    tickers,
-    leadName: insight.leadName ?? null,
-    href: decisions ? "/briefing" : insight.action?.href ?? (tickers[0] ? `/stock/${encodeURIComponent(tickers[0])}` : null),
   };
 }
 
@@ -353,20 +333,19 @@ export function upcomingNote(reports: readonly UpcomingReport[], today: string, 
   });
 }
 
-/** The day's opening note from the morning read: how the stocks did against the S&P 500, then what matters. */
+/**
+ * The day's opening note from the morning read: one line on how the stocks did against the S&P 500, with the
+ * briefing one tap away. No cards of what matters under it (owner, Nov 12: the read blocks were "super useless").
+ */
 function morningNote(morning: MorningRead, session: SessionMove | null, input: ThreadInput): ThreadNote {
-  const points = morning.insights.slice(0, 3).map(pointOf);
-  // A read without the holdings' move (no sizes entered) leads with the closes' line, and says its own headline under it.
+  // A read without the holdings' move (no sizes entered) leads with the closes' line instead.
   const lead = morning.pct === null && session ? sessionSentence(session, input.today, input.group) : morning.headline;
-  const sub = morning.pct === null && session ? [morning.headline, morning.sub].filter(Boolean).join(" ") : morning.sub;
   const figureMove = morning.pct ?? session?.pct ?? null;
   return emptyNote({
     id: `opener:${input.today}`,
     kind: "opener",
     text: lead,
-    sub: sub || null,
     figure: figureMove !== null && Number.isFinite(figureMove) ? { value: signedPct(figureMove), tone: toneOf(figureMove) } : null,
-    points,
     step: { label: input.example ? "Open the example's briefing" : "Open today's briefing", href: "/briefing" },
     morning: true,
   });
@@ -447,13 +426,8 @@ export function buildThread(input: ThreadInput): Thread {
     add(session.day, sessionNote(session, input));
   }
 
-  // What the morning read already says is not said again as its own note (owner rule 1).
-  const pointTickers = new Set((opener?.points ?? []).flatMap((point) => point.tickers));
-  const earningsTold = new Set((opener?.points ?? []).filter((point) => point.id.startsWith("earnings-")).flatMap((point) => point.tickers));
-
   for (const item of input.items) {
     if (!DAY_RE.test(item.day) || item.day > today) continue;
-    if (morning && item.kind === "agent" && item.move && item.move.day === morning.sessionDay && item.tickers.length === 1 && pointTickers.has(item.tickers[0]!)) continue;
     const note = eventNote(item, input, reportsAhead);
     if (note) add(item.day, note);
   }
@@ -484,11 +458,7 @@ export function buildThread(input: ThreadInput): Thread {
   });
 
   // What is coming up closes today: the newest thing in the conversation is what to do next.
-  const upcoming = upcomingNote(
-    input.upcoming.filter((report) => !earningsTold.has(report.ticker)),
-    today,
-    input.calls,
-  );
+  const upcoming = upcomingNote(input.upcoming, today, input.calls);
   if (upcoming) {
     const last = out[out.length - 1];
     if (last && last.day === today) last.notes.push(upcoming);

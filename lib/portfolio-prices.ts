@@ -21,7 +21,7 @@
  */
 
 import { etDayOf, quoteDay } from "@/lib/benchmark-day";
-import { shortDay } from "@/lib/insight-format";
+import { dayPossessive } from "@/lib/day-words";
 
 export type DatedPrice = {
   price: number;
@@ -83,18 +83,20 @@ export function onOneDay(prices: Map<string, DatedPrice>): { day: string | null;
 const ET_CLOCK = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", weekday: "short", hourCycle: "h23" });
 
 /**
- * Which prices a page shows, said so it fits after "Prices from": "the Nov 10
- * close", or "Nov 11, while the market is open" between 9:30 and 4 PM New York
- * time on a weekday when the quotes are that day's ("Nov 11, before the open" earlier that morning).
+ * Which prices a page shows, said so it fits after "Prices from": "yesterday's
+ * close", "Monday's close" within the week, "the Nov 3 close" before, or "today,
+ * while the market is open" between 9:30 and 4 PM New York time on a weekday when
+ * the quotes are that day's ("today, before the open" earlier that morning).
+ * Worked out against `now`, so only for a page rendered at request time.
  */
 export function pricesWords(day: string | null, now: number | Date = Date.now()): string | null {
   if (!day) return null;
-  const label = shortDay(day);
-  if (!label) return null;
   const parts = Object.fromEntries(ET_CLOCK.formatToParts(new Date(now)).map((part) => [part.type, part.value]));
   const today = `${parts.year}-${parts.month}-${parts.day}`;
+  const close = dayPossessive(day, today);
+  if (!close) return null;
   const minutes = Number(parts.hour) * 60 + Number(parts.minute);
   const weekday = parts.weekday !== "Sat" && parts.weekday !== "Sun";
-  if (day === today && weekday && minutes < 16 * 60) return minutes >= 9 * 60 + 30 ? `${label}, while the market is open` : `${label}, before the open`;
-  return `the ${label} close`;
+  if (day === today && weekday && minutes < 16 * 60) return minutes >= 9 * 60 + 30 ? "today, while the market is open" : "today, before the open";
+  return `${close} close`;
 }

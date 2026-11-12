@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = toolPageMetadata("/portfolio/earnings");
 
-const LEDE = "Reports coming for your stocks in the next six weeks, and how each moved after past reports. Past moves are history, not a forecast.";
+const LEDE = "Past moves after reports are history, not a forecast.";
 const SOURCE = "Nasdaq earnings calendar, SEC 8-K filings, daily closes";
 
 export default function EarningsSeasonPage() {
@@ -58,7 +58,7 @@ async function View({ view }: { view: SeasonData }) {
     console.warn("[earnings-season] results read failed:", error instanceof Error ? error.message : error);
     return {};
   });
-  return <SeasonView season={view.season} read={view.read} example={view.mode === "example"} source={sourceFor(view)} missing={view.missing} results={results} />;
+  return <SeasonView season={view.season} source={sourceFor(view)} missing={view.missing} results={results} />;
 }
 
 async function Planner() {

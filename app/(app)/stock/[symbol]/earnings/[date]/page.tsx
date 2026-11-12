@@ -3,7 +3,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 
 import { JsonLd, breadcrumbLd } from "@/components/docs/json-ld";
 import { EarningsDayReportView } from "@/components/earnings-day/report-view";
-import { AppPage, PageHead, SourceLine, fmtDay, fmtStampET } from "@/components/oa/kit";
+import { AppPage, PageHead, SourceLine, fmtDay, fmtStampETDate } from "@/components/oa/kit";
 import { getEarningsDayReportCached } from "@/lib/earnings-day";
 import { cleanReportTicker, earningsDayHref, isIndexable, isReportDay, reportDescription } from "@/lib/earnings-day-shared";
 import { ogImage } from "@/lib/og/url";
@@ -92,7 +92,7 @@ export default async function EarningsReportPage({ params }: Props) {
           </>
         }
         title={title}
-        meta={<SourceLine source={report.filing ? "SEC EDGAR filing" : "Earnings calendar"} href={report.filing?.url} asOf={report.filing ? fmtStampET(report.filing.filed_at) : undefined} />}
+        meta={<SourceLine source={report.filing ? "SEC EDGAR filing" : "Earnings calendar"} href={report.filing?.url} asOf={report.filing ? fmtStampETDate(report.filing.filed_at) : undefined} />}
         note={false}
       />
       <EarningsDayReportView report={report} />

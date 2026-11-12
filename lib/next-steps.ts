@@ -1,32 +1,23 @@
 /**
- * Next steps offered right where a finding is: the page notices something, says
- * what it means, and offers to keep going. Two kinds of step, both prefilled and
- * both waiting for the person:
+ * Next steps under the call on a stock page: two questions and one thing to
+ * watch, both prefilled and both waiting for the person.
  *
- * - a question for Ask (/ask?q=...), which asks it on arrival. Only questions
+ * - A question for Ask (/ask?q=...), which asks it on arrival. Only questions
  *   Ask's tools can answer: news and moves (get_news), our call and what would
  *   change it (get_stock), returns against the S&P 500 (get_price_history).
- * - a request for the agent box (/agents?q=...), read back before anything is
+ * - A request for the agent box (/agents?q=...), read back before anything is
  *   saved. Only the two shapes ./agents-plain/ask-links.ts builds, which the
  *   rule reader is tested to turn into an agent.
  *
- * Each finding gets two steps at most. The builders that write a page's read
- * stay as they are; these decorate the finished read by insight id, so the
- * wording of the read and its steps change independently.
+ * It also holds askHref, the prefilled link to Ask that My stocks uses too.
  */
 
 import { watchEarningsHref, watchMoveHref } from "@/lib/agents-plain/ask-links";
 import { ASK_MAX_QUESTION_CHARS } from "@/lib/ask-config";
 import { formatAskContext, parseAskContext, type AskContext } from "@/lib/ask-context";
-import { MARKET_GROUP_KEY, type BriefingGroup } from "@/lib/briefing-groups";
-import { dayGap } from "@/lib/insight-format";
-import type { Insight, InsightAction, TheRead } from "@/lib/insights";
+import type { InsightAction } from "@/lib/insights";
 
 const TICKER = /^[A-Z][A-Z0-9.-]{0,9}$/;
-
-/** Where "Does this affect my stocks?" goes: the My stocks overview, which shows the example to anyone without holdings. */
-export const MY_STOCKS_HREF = "/portfolio";
-export const AFFECT_LABEL = "Does this affect my stocks?";
 
 /**
  * Ask, with the question filled in and asked on arrival. `context` names the
@@ -69,14 +60,6 @@ export function earningsReminder(ticker: string, daysAway: number | null | undef
   return href ? { days, href } : null;
 }
 
-/** Adds a step to a finding: its first when it has none, its second when it has one, never a third. */
-export function withStep(insight: Insight, step: InsightAction | null): Insight {
-  if (!step) return insight;
-  if (!insight.action) return { ...insight, action: step };
-  if (insight.secondAction || insight.action.href === step.href) return insight;
-  return { ...insight, secondAction: step };
-}
-
 /* ── the stock page: under our call ────────────────────────────────────── */
 
 export type CallSteps = { ask: InsightAction[]; watch: InsightAction | null };
@@ -111,125 +94,4 @@ export function stockCallSteps(input: {
         ? { label: `Tell me when ${ticker} moves 5% in a day`, href: move }
         : null,
   };
-}
-
-/* ── the briefing ───────────────────────────────────────────────────────── */
-
-/**
- * The market view's lead story: the biggest move among the stocks that need
- * you, the same pick lib/briefing-read.ts makes for its headline.
- */
-export function briefingLead(needsYou: ReadonlyArray<Pick<BriefingGroup, "key" | "ticker" | "day_change_pct">>): { ticker: string; pct: number | null } | null {
-  const lead = needsYou
-    .filter((group) => group.key !== MARKET_GROUP_KEY && group.ticker)
-    .reduce<(typeof needsYou)[number] | null>((best, group) => (!best || Math.abs(group.day_change_pct ?? 0) > Math.abs(best.day_change_pct ?? 0) ? group : best), null);
-  return lead?.ticker ? { ticker: lead.ticker, pct: lead.day_change_pct } : null;
-}
-
-const isStoryRow = (insight: Insight) => insight.id.startsWith("move-") || insight.id.startsWith("mover-");
-
-/**
- * The briefing's steps. In the market view the lead story (the biggest move
- * with a confirmed reason) gets "Why did it fall?" and "Watch HIMS for me", on
- * its row or, when the headline tells it, under the headline; and the read gets
- * "Does this affect my stocks?" on the index line (a read about the whole session
- * has none, so it gets nothing). In your own briefing each move on your stocks
- * gets a question for Ask beside its link.
- */
-export function briefingSteps(
-  read: TheRead | null,
-  input: { mode: "market" | "personal"; lead: { ticker: string | null; pct: number | null } | null },
-): TheRead | null {
-  if (!read) return read;
-  if (input.mode === "personal") {
-    return {
-      ...read,
-      insights: read.insights.map((insight) => {
-        const ticker = insight.tickers?.length === 1 ? cleanTicker(insight.tickers[0]) : null;
-        if (!ticker || !isStoryRow(insight)) return insight;
-        return withStep(insight, { label: "Ask why it moved", href: askHref(whyMovedQuestion(ticker, null), `stock:${ticker}`) });
-      }),
-    };
-  }
-
-  const ticker = cleanTicker(input.lead?.ticker);
-  const pct = input.lead?.pct ?? null;
-  const leadSteps: InsightAction[] = [];
-  if (ticker) {
-    leadSteps.push({
-      label: pct != null && Number.isFinite(pct) && Math.abs(pct) >= 0.05 ? `Why did it ${pct > 0 ? "rise" : "fall"}?` : "Why did it move?",
-      href: askHref(whyMovedQuestion(ticker, pct), `stock:${ticker}`),
-    });
-    const watch = watchMoveHref(ticker, 5);
-    if (watch) leadSteps.push({ label: `Watch ${ticker} for me`, href: watch });
-  }
-  const affect: InsightAction = { label: AFFECT_LABEL, href: MY_STOCKS_HREF };
-
-  let insights = read.insights;
-  let actions: InsightAction[] = [];
-  const leadRow = ticker ? insights.findIndex((insight) => insight.id.startsWith("move-") && insight.tickers?.[0] === ticker) : -1;
-  if (leadRow >= 0) {
-    // The row's company name already opens the stock page, so its two steps are the question and the watch.
-    insights = insights.map((insight, index) => (index === leadRow ? { ...insight, action: leadSteps[0], secondAction: leadSteps[1] } : insight));
-  } else if (ticker && read.headlineTickers?.includes(ticker)) {
-    actions = leadSteps;
-  }
-  // "Does this affect my stocks?" is the index card itself (the card is the link, no link words: owner rule 1). A
-  // read about the whole session has no index card, and a line of link text under its headline would be one more
-  // thing to read, so it gets none: the page head already offers the briefing about your own stocks.
-  const indexRow = insights.findIndex((insight) => insight.id === "index");
-  if (indexRow >= 0) insights = insights.map((insight, index) => (index === indexRow ? withStep(insight, affect) : insight));
-  // Steps show under a headline, so a read without one keeps none.
-  return { ...read, insights, ...(actions.length > 0 && read.headline ? { actions } : {}) };
-}
-
-/* ── the watchlist ──────────────────────────────────────────────────────── */
-
-/**
- * The watchlist's steps: an earnings line gets a reminder before the first
- * report it names, and a line about who moved gets a question for Ask.
- */
-export function portfolioSteps(
-  read: TheRead | null,
-  input: {
-    /** Which tab the read is for. Only Holdings and Watching talk about today's moves and reports; Analytics reuses ids like "contributors" for gains on cost. */
-    tab: string;
-    positions: ReadonlyArray<{ ticker: string; dayPct: number | null; nextEarnings: { date: string } | null }>;
-    today: string;
-  },
-): TheRead | null {
-  if (!read || (input.tab !== "positions" && input.tab !== "watching")) return read;
-  const byTicker = new Map(input.positions.map((position) => [position.ticker.toUpperCase(), position]));
-  return {
-    ...read,
-    insights: read.insights.map((insight) => {
-      const first = cleanTicker(insight.tickers?.[0]);
-      const position = first ? byTicker.get(first) : undefined;
-      if (!first || !position) return insight;
-      if (insight.id === "earnings") {
-        const gap = position.nextEarnings ? dayGap(input.today, position.nextEarnings.date) : null;
-        const reminder = earningsReminder(first, gap);
-        if (!reminder) return insight;
-        const many = (insight.tickers?.length ?? 0) > 1;
-        const when = reminder.days === 3 ? "3 days" : "the day";
-        return withStep(insight, { label: `Remind me ${when} before ${many ? `${first} reports` : "it reports"}`, href: reminder.href });
-      }
-      if (insight.id === "contributors" || insight.id === "movers") {
-        const pct = position.dayPct;
-        const verb = pct == null || !Number.isFinite(pct) || Math.abs(pct) < 0.05 ? "moved" : pct > 0 ? "rose" : "fell";
-        // The row's own link is "Why NVDA moved" (our page); this one asks, so it says so and names the direction.
-        return withStep(insight, { label: `Ask why ${first} ${verb}`, href: askHref(whyMovedQuestion(first, pct), `stock:${first}`) });
-      }
-      return insight;
-    }),
-  };
-}
-
-/* ── Market today ──────────────────────────────────────────────────────── */
-
-/** Market today's top development gets "Does this affect my stocks?". */
-export function marketTodaySteps(read: TheRead | null): TheRead | null {
-  if (!read || read.insights.length === 0) return read;
-  const [top, ...rest] = read.insights;
-  return { ...read, insights: [withStep(top!, { label: AFFECT_LABEL, href: MY_STOCKS_HREF }), ...rest] };
 }

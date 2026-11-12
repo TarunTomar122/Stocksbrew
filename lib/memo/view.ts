@@ -1,6 +1,6 @@
 import { leftOutSentence, netCallChanges, type WeekPerformance } from "./facts";
 import { pct, points, weekGap } from "./format";
-import type { CallFlip, CallWord, MemoCallChange, MemoItemCard, MemoCurvePoint, MemoInputs, MemoMover, MemoView, MemoVisual } from "./types";
+import type { CallFlip, CallWord, MemoCallChange, MemoItemCard, MemoCurvePoint, MemoInputs, MemoMover, MemoView, MemoVisual, MemoWeight } from "./types";
 
 /**
  * What the memo page draws, shaped from the same facts as the memo's
@@ -110,6 +110,7 @@ export function buildView(inputs: MemoInputs, perf: WeekPerformance | null): Mem
     portfolioPct: perf?.portfolioPct ?? null,
     marketPct: perf?.marketPct ?? null,
     curve: perf && perf.daily.length >= 2 ? perf.daily : [],
+    weights: perf && perf.daily.length >= 2 ? perf.moves.filter((move) => move.weight > 0).map((move) => ({ ticker: move.ticker, weight: move.weight })) : [],
     movers,
     calls,
     footnote: perf ? leftOutSentence(perf) || null : null,
@@ -166,6 +167,12 @@ export function readView(raw: unknown): MemoView | null {
     curve.push({ day: p.day, portfolio: p.portfolio, market: num(p.market) ? p.market : null });
   }
   if (Array.isArray(row.curve) && curve.length !== row.curve.length) curve = [];
+  // A bad weight drops them all: a premarket leg priced on part of the line would mislead.
+  const rawWeights = rows(row.weights);
+  let weights: MemoWeight[] = rawWeights
+    .filter((w) => str(w.ticker) && num(w.weight) && w.weight > 0)
+    .map((w) => ({ ticker: w.ticker as string, weight: w.weight as number }));
+  if (!Array.isArray(row.weights) || weights.length !== row.weights.length) weights = [];
   const movers: MemoMover[] = rows(row.movers)
     .filter((m) => str(m.ticker) && num(m.pct) && num(m.points) && str(m.href))
     .map((m) => ({ ticker: m.ticker as string, name: str(m.name) ? m.name : (m.ticker as string), pct: m.pct as number, points: m.points as number, href: m.href as string }));
@@ -184,6 +191,7 @@ export function readView(raw: unknown): MemoView | null {
     portfolioPct: num(row.portfolioPct) ? row.portfolioPct : null,
     marketPct: num(row.marketPct) ? row.marketPct : null,
     curve,
+    ...(Array.isArray(row.weights) ? { weights } : {}),
     movers,
     calls,
     footnote: str(row.footnote) ? row.footnote : null,

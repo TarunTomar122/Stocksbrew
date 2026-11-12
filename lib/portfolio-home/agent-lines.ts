@@ -1,5 +1,6 @@
 import { DIGEST_DAILY_MOVE_PCT, shortDate, type AgentDecision, type AgentScope, type AgentTrigger } from "@/lib/agent-jobs";
 import { agentHref, latestRunByJob, nextCheckFor } from "@/lib/agent-watch";
+import { onDayWords } from "@/lib/day-words";
 
 import { findingClose } from "./example-check";
 import type { AgentsSource } from "./log";
@@ -328,10 +329,11 @@ function priceWords(price: number): string {
   return `$${price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-/** " today", " on Nov 10": the day of a move, as the flag's own words say it. */
+/** " today", " yesterday", " on Tuesday", " on Nov 3": the day of a move (lib/day-words.ts). */
 function onDay(day: string | null | undefined, today: string): string {
   if (!day || !DAY.test(day)) return "";
-  return day === today ? " today" : ` on ${shortDate(day)}`;
+  const words = onDayWords(day, today);
+  return words ? ` ${words}` : ` on ${shortDate(day)}`;
 }
 
 /** The size of a chip's move ("−5.5%" is 5.5), for ordering. */

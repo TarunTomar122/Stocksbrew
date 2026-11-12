@@ -4,6 +4,7 @@ import * as React from "react";
 import { Bar } from "@/components/oa/kit/skeleton";
 import { FitRows } from "@/components/agent-log/fit-rows";
 import { FitCards } from "@/components/portfolio-home/fit-cards";
+import { FoldCards } from "@/components/portfolio-home/fold-cards";
 import { StockLogo } from "@/components/stock-logo";
 import { fmtPlanDay } from "@/lib/dividend-plan";
 import { memoFacts, toolHref, type MemoFact } from "@/lib/portfolio-home/focus";
@@ -11,18 +12,24 @@ import { TOOL_GROUPS, toolCard, type ToolId } from "@/lib/portfolio-home/pick";
 import { feedSources, type HomeLoad } from "@/lib/portfolio-home/server";
 import { callHref, flaggedMove, flagStep, flagWords } from "@/lib/portfolio-home/example-check";
 import { loadExampleChecks } from "@/lib/portfolio-home/example-check-server";
-import { ATTENTION, bookLead, extraFacts, leadParts, nextReportStep, reportAhead, sayMonthOnce, signedDollars, signedPct, stockCards, type BookSource, type StockCard } from "@/lib/portfolio-home/stocks";
+import { ATTENTION, bookLead, extraFacts, leadParts, nextReportStep, reportAhead, sayMonthOnce, signedPct, stockCards, type BookSource, type StockCard } from "@/lib/portfolio-home/stocks";
 
 /**
  * My stocks, about the person's stocks (owner, Nov 11): one read on how they did today and over the past week against
  * the S&P 500 with the next step, then every holding as a small card (move, gain, our call with its own level, and the one thing that
- * matters for it now), the ones that need the person first. The portfolio tools are a quiet line of links with
- * their figures at the bottom, not cards. Each part waits only for its own sources (lib/portfolio-home/server.ts).
+ * matters for it now), the ones that need the person first and the quiet rest folded under them. The portfolio tools
+ * are one card of small tiles at the foot of the rail. Each part waits only for its own sources (lib/portfolio-home/server.ts).
  */
 
 const FOCUS = "outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]";
 const CARD = "oa-surface min-w-0 overflow-hidden border border-oa-border bg-oa-card";
 const H2 = "text-pretty text-[16px] font-semibold leading-[22px] tracking-[-0.005em] text-oa-fg sm:text-[17px] sm:leading-6";
+
+/** "$91.85", "$1,204": a share price, with cents under $1,000. */
+function sharePrice(value: number): string {
+  const cents = value < 1000 ? 2 : 0;
+  return `$${value.toLocaleString("en-US", { minimumFractionDigits: cents, maximumFractionDigits: cents })}`;
+}
 
 function tone(value: number | null): string {
   if (value === null || Math.abs(value) < 0.005) return "text-oa-fg";
@@ -54,7 +61,7 @@ async function leadStep(source: BookSource): Promise<{ ticker: string; step: str
     const held = move ? source.portfolio.positions.find((position) => position.ticker === move.ticker && position.kind === "holding") : undefined;
     if (!move || !held) return null;
     // The same words as the briefing's card and the inbox's read on this flag: the flag, then the step.
-    return { ticker: move.ticker, step: `${flagWords(move)} ${flagStep(move.ticker, reportAhead(held.nextEarnings, source.today))}` };
+    return { ticker: move.ticker, step: `${flagWords(move, null, source.today)} ${flagStep(move.ticker, reportAhead(held.nextEarnings, source.today))}` };
   }
   return nextReportStep(source);
 }
@@ -141,58 +148,18 @@ function CallLine({ card }: { card: StockCard }) {
   );
 }
 
-/**
- * The odd last card, which spans its row (owner rule 4): from `sm` one row of three parts (the stock and its call,
- * its fact across the middle, its figures on the right), so the wide card is full end to end with no hollow half
- * (judges, ship 44). On a phone it reads like every other card: the stock and its figures, the fact under them.
- */
-function WideStockCardView({ card, className }: { card: StockCard; className: string }) {
-  const attention = card.fact !== null && card.fact.priority >= ATTENTION;
-  return (
-    <li className={className}>
-      <Link
-        href={card.href}
-        prefetch={false}
-        title={card.name}
-        data-track-links="insight_clicked"
-        data-track-insight-kind={`home-stock-${card.fact?.kind ?? "none"}`}
-        className={`${CARD} grid h-full grid-cols-[minmax(0,1fr)_auto] gap-x-3 px-3.5 py-2.5 transition-colors [grid-template-areas:'name_figs'_'fact_fact'] hover:bg-oa-accent sm:grid-cols-[minmax(0,auto)_minmax(0,1fr)_auto] sm:items-center sm:gap-x-5 sm:[grid-template-areas:'name_fact_figs'] ${FOCUS}`}
-      >
-        <span className="block min-w-0 [grid-area:name]">
-          <span className="flex min-w-0 items-center gap-2">
-            <StockLogo ticker={card.ticker} size={22} eager />
-            <span className="oa-mono text-[14.5px] font-semibold tabular-nums text-oa-fg">{card.ticker}</span>
-          </span>
-          <span className="mt-0.5 flex min-w-0 text-[13px] leading-[18px]">
-            <CallLine card={card} />
-          </span>
-        </span>
-        <span className="flex flex-col items-end [grid-area:figs]">
-          <span className="flex items-baseline gap-2">
-            {card.dayMove !== null ? <span className={`oa-mono text-[12px] tabular-nums ${tone(card.dayMove)}`}>{signedDollars(card.dayMove)}</span> : null}
-            <span className={`oa-mono text-[16px] font-semibold leading-6 tabular-nums ${tone(card.dayPct)}`}>{card.dayPct !== null ? signedPct(card.dayPct, 2) : "–"}</span>
-          </span>
-          {card.gain !== null ? (
-            <span className={`oa-mono mt-0.5 text-[12.5px] leading-[18px] tabular-nums ${tone(card.gain)}`}>
-              {signedDollars(card.gain)}
-              {card.gainPct !== null ? <span className="text-oa-muted-fg"> {signedPct(card.gainPct, Math.abs(card.gainPct) < 0.5 ? 1 : 0)}</span> : null}
-            </span>
-          ) : null}
-        </span>
-        {card.fact ? (
-          <span className={`mt-1.5 block text-pretty text-[13px] leading-[18px] [grid-area:fact] sm:mt-0 sm:border-l sm:border-oa-border sm:pl-5 ${attention ? "font-medium text-oa-fg" : "text-oa-muted-fg"}`}>{card.fact.text}</span>
-        ) : null}
-      </Link>
-    </li>
-  );
+/** The fewest cards the grid shows with a fold: two full rows side by side. */
+const MIN_SHOWN = 4;
+
+/** Whether a card's one thing asks for the person: these lead, and the quiet rest can fold away (./fold-cards.tsx). */
+function needsLook(card: StockCard): boolean {
+  return card.fact !== null && card.fact.priority >= ATTENTION;
 }
 
-function StockCardView({ card, className, wide = false }: { card: StockCard; className: string; wide?: boolean }) {
-  // With no fact there is no middle part: the usual card, stretched over the row, already fills it.
-  if (wide && card.fact) return <WideStockCardView card={card} className={className} />;
-  const attention = card.fact !== null && card.fact.priority >= ATTENTION;
+function StockCardView({ card, rest = false, className = "min-w-0" }: { card: StockCard; rest?: boolean; className?: string }) {
+  const attention = needsLook(card);
   return (
-    <li className={className}>
+    <li className={className} data-rest={rest || undefined}>
       <Link
         href={card.href}
         prefetch={false}
@@ -205,19 +172,12 @@ function StockCardView({ card, className, wide = false }: { card: StockCard; cla
           <span className="flex min-w-0 items-center gap-2">
             <StockLogo ticker={card.ticker} size={22} eager />
             <span className="oa-mono text-[14.5px] font-semibold tabular-nums text-oa-fg">{card.ticker}</span>
-            <span className="ml-auto flex shrink-0 items-baseline gap-2">
-              {card.dayMove !== null ? <span className={`oa-mono text-[12px] tabular-nums ${tone(card.dayMove)}`}>{signedDollars(card.dayMove)}</span> : null}
-              <span className={`oa-mono text-[16px] font-semibold leading-6 tabular-nums ${tone(card.dayPct)}`}>{card.dayPct !== null ? signedPct(card.dayPct, 2) : "–"}</span>
-            </span>
+            {/* The stock's own price, and its day under it; not the holding's dollars (owner, Nov 12: "4 numbers are super confusing"). */}
+            <span className="oa-mono ml-auto shrink-0 text-[16px] font-semibold leading-6 tabular-nums text-oa-fg">{card.price !== null ? sharePrice(card.price) : "–"}</span>
           </span>
           <span className="mt-0.5 flex min-w-0 items-baseline justify-between gap-3 text-[13px] leading-[18px]">
             <CallLine card={card} />
-            {card.gain !== null ? (
-              <span className={`oa-mono shrink-0 text-[12.5px] tabular-nums ${tone(card.gain)}`}>
-                {signedDollars(card.gain)}
-                {card.gainPct !== null ? <span className="text-oa-muted-fg"> {signedPct(card.gainPct, Math.abs(card.gainPct) < 0.5 ? 1 : 0)}</span> : null}
-              </span>
-            ) : null}
+            {card.dayPct !== null ? <span className={`oa-mono shrink-0 text-[13px] font-medium tabular-nums ${tone(card.dayPct)}`}>{signedPct(card.dayPct, 2)}</span> : null}
           </span>
         </span>
         {card.fact ? (
@@ -228,10 +188,6 @@ function StockCardView({ card, className, wide = false }: { card: StockCard; cla
   );
 }
 
-/** Two columns from `sm`; an odd last card takes the whole row, so no row ends half empty (owner rule 4). */
-function cellClass(index: number, count: number): string {
-  return index === count - 1 && count % 2 === 1 ? "min-w-0 sm:col-span-2" : "min-w-0";
-}
 
 /**
  * The list's height before the page measures it (./fit-cards.tsx): none when every card will show (ten or fewer on a
@@ -243,10 +199,16 @@ function firstCap(count: number): string {
   return `${phone} ${wide}`;
 }
 
-/** "2 need a look" or nothing: the count of cards whose one thing asks for the person. */
-function needWords(cards: StockCard[]): string | null {
-  const n = cards.filter((card) => card.fact !== null && card.fact.priority >= ATTENTION).length;
-  return n === 0 ? null : `${n} ${n === 1 ? "needs" : "need"} a look`;
+/**
+ * The list's headline, saying what the grid shows: "6 of your 11 holdings need a look" when the rest are folded away,
+ * else the count ("Your 11 holdings", "All 4 of your holdings need a look").
+ */
+function stocksHead(total: number, need: number, example: boolean): string {
+  const whose = example ? "the example's" : "your";
+  const Whose = example ? "The example's" : "Your";
+  if (need === 0) return `${Whose} ${total} ${total === 1 ? "holding" : "holdings"}`;
+  if (need === total) return total === 1 ? `${Whose} one holding needs a look` : `All ${total} of ${whose} holdings need a look`;
+  return `${need} of ${whose} ${total} holdings ${need === 1 ? "needs" : "need"} a look`;
 }
 
 export async function StockList({ load }: { load: HomeLoad }) {
@@ -267,16 +229,21 @@ export async function StockList({ load }: { load: HomeLoad }) {
   const { line: monthLine, cards } = sayMonthOnce(stockCards(book.value, extra), book.value.month);
   if (cards.length === 0) return null;
   const example = book.value.mode === "example";
-  const need = needWords(cards);
+  // The cards come sorted by urgency, then weight, so the ones that need a look lead; when some, but not all, need a
+  // look, the rest fold away under the grid (owner, Nov 12: "why show me all when only 6 needs a look???"). At least
+  // two full rows stay in view, topped up with the next cards in that order, so one lone card never sits by the rail.
+  const need = cards.filter(needsLook).length;
+  const shown = need > 0 && need < cards.length ? Math.max(need, MIN_SHOWN) : cards.length;
+  const folded = Math.max(0, cards.length - shown);
   // Held and watched said apart, so the counts agree with the briefing's ("seven you hold and two you watch").
   const watching = book.value.portfolio.watching.length;
   const funds = cards.some((card) => card.fund);
-  const noun = cards.length === 1 ? "holding" : "holdings";
+  const grid = `scrollbar-hide grid grid-cols-1 content-start gap-2.5 overflow-y-auto sm:grid-cols-2 ${firstCap(shown)}`;
+  const items = cards.map((card, index) => <StockCardView key={card.ticker} card={card} rest={index >= shown} />);
   return (
     <section aria-labelledby="stocks-head" className="min-w-0">
       <h2 id="stocks-head" className="px-1 pb-2.5 text-[14.5px] font-semibold leading-5 text-oa-fg">
-        {example ? "The example's" : "Your"} {cards.length} {noun}
-        {need ? <span className="font-normal text-oa-muted-fg"> · {need}</span> : null}
+        {stocksHead(cards.length, need, example)}
         {watching > 0 ? (
           <span className="font-normal text-oa-muted-fg">
             {" · "}
@@ -289,14 +256,16 @@ export async function StockList({ load }: { load: HomeLoad }) {
         {funds ? <span className="font-normal text-oa-muted-fg"> · no calls on funds</span> : null}
       </h2>
       {monthLine ? <p className="-mt-1 px-1 pb-2.5 text-pretty text-[13.5px] leading-5 text-oa-muted-fg">{monthLine}</p> : null}
-      {/* Every holding the header counts is in view: about eight cards on a phone and five rows side by side, the rest
-          scrolling inside a box that ends on a whole row, with no visible bar (owner rule 5). The cap before the page
-          measures it is close to the measured one (firstCap). */}
-      <FitCards className={`scrollbar-hide grid grid-cols-1 content-start gap-2.5 overflow-y-auto sm:grid-cols-2 ${firstCap(cards.length)}`}>
-        {cards.map((card, index) => (
-          <StockCardView key={card.ticker} card={card} className={cellClass(index, cards.length)} wide={index === cards.length - 1 && cards.length % 2 === 1} />
-        ))}
-      </FitCards>
+      {/* About eight cards on a phone and five rows side by side, the rest scrolling inside a box that ends on a whole
+          row, with no visible bar (owner rule 5). The cap before the page measures it is close to the measured one
+          (firstCap). With a fold, the quiet cards sit in the same grid, hidden until the toggle under it opens them. */}
+      {folded > 0 ? (
+        <FoldCards className={grid} rest={folded}>
+          {items}
+        </FoldCards>
+      ) : (
+        <FitCards className={grid}>{items}</FitCards>
+      )}
     </section>
   );
 }
@@ -318,7 +287,7 @@ export function StockListGhost() {
   );
 }
 
-/* ── the tools, as links ───────────────────────────────────────────────── */
+/* ── the tools, at the foot of the rail ────────────────────────────────── */
 
 /** "$62" reads as the year's dividends only with the words. */
 function toolFigure(id: ToolId, figure: string): string {
@@ -326,12 +295,13 @@ function toolFigure(id: ToolId, figure: string): string {
 }
 
 /**
- * The portfolio tools that have something to show, as one quiet line of links under the rail (owner rule 10: tools
- * are links, not cards). Each keeps its figure in small type after its name ("Stress test −32%"), so the line still
- * says something. Tools with nothing to show, or only an empty state ("Nothing to trim"), are left to the menu (owner
- * rule 4). The weekly memo is left out when its own figures sit above (`MemoFigures`), so it is not linked twice.
+ * The portfolio tools that have something to show, as one card at the foot of the rail (owner, Nov 12: a loose strip
+ * of links between two cards was "wtf is that"): small tiles two across, each the tool's name with its figure under
+ * it ("Stress test", "−32%"), the tile itself the link. An odd last tile keeps its one column (owner rule 3). Tools with
+ * nothing to show, or only an empty state ("Nothing to trim"), are left to the menu (owner rule 4). The weekly memo is
+ * left out when its own figures sit in the rail (`MemoFigures`), so it is not linked twice.
  */
-export async function ToolLinks({ load }: { load: HomeLoad }) {
+export async function ToolsCard({ load }: { load: HomeLoad }) {
   const [{ mode }, sources, goal] = await Promise.all([load.context, feedSources(load), load.sources.goal]);
   const all = { ...sources, goal };
   const memoShown = railMemoFacts(sources.memo).length > 0;
@@ -341,14 +311,23 @@ export async function ToolLinks({ load }: { load: HomeLoad }) {
     .filter(({ card }) => card.figure !== null && !card.empty);
   if (tools.length === 0) return null;
   return (
-    <nav aria-label={mode === "example" ? "The example's tools" : "Your tools"} className="px-1 text-[13px] leading-6 text-oa-muted-fg">
-      <ul className="flex flex-wrap gap-x-3 gap-y-0.5">
+    <nav aria-labelledby="tools-head" className={`${CARD} px-4 py-3`}>
+      <h2 id="tools-head" className="text-[14px] font-semibold leading-5 text-oa-fg">
+        Tools
+      </h2>
+      <ul className="mt-2 grid grid-cols-2 gap-1.5">
         {tools.map(({ id, card }) => (
-          <li key={id} className="whitespace-nowrap">
-            <Link href={toolHref(id, mode)} prefetch={false} className={`rounded text-oa-fg underline decoration-oa-border underline-offset-[3px] hover:decoration-oa-fg ${FOCUS}`}>
-              {card.title}
-            </Link>{" "}
-            <span className="oa-mono text-[12px] tabular-nums">{toolFigure(id, card.figure!)}</span>
+          <li key={id} className="min-w-0">
+            <Link
+              href={toolHref(id, mode)}
+              prefetch={false}
+              data-track-links="insight_clicked"
+              data-track-insight-kind={`home-tool-${id}`}
+              className={`block h-full rounded-lg border border-oa-border bg-oa-bg px-2.5 py-2 transition-colors hover:bg-oa-accent ${FOCUS}`}
+            >
+              <span className="block truncate text-[13px] font-medium leading-5 text-oa-fg">{card.title}</span>
+              <span className="oa-mono mt-0.5 block truncate text-[12px] leading-4 tabular-nums text-oa-muted-fg">{toolFigure(id, card.figure!)}</span>
+            </Link>
           </li>
         ))}
       </ul>

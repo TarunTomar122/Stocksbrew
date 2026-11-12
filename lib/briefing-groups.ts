@@ -251,12 +251,20 @@ function plainZone(text: string): string {
     .replace(/\bits add level\b/, "its buy-more level");
 }
 
-/** "below its buy-more price: $20.00, under $21" -> "At $20.00, it is under the buy-more price of $21." */
+/**
+ * "below its buy-more price: $20.00, under $21" -> "4.8% under the buy-more price." One percent, never two dollar
+ * figures side by side (owner, Nov 12: "At $128.43, it is under the buy-more price of $128.43" read as a contradiction).
+ */
 function zoneSentence(text: string): string {
-  const match = /^(still )?(below|above) its (buy-more|sell-some) price: (\$[\d,.]+), (?:under|over) (\$[\d,.]+)$/.exec(text);
+  const match = /^(still )?(below|above) its (buy-more|sell-some) price: \$([\d,.]+), (?:under|over) \$([\d,.]+)$/.exec(text);
   if (!match) return `${capitalise(text)}.`;
-  const [, still = "", side, which, price, level] = match;
-  return `At ${price}, it is ${still}${side === "below" ? "under" : "over"} the ${which} price of ${level}.`;
+  const [, still = "", side, which, priceText, levelText] = match;
+  const price = Number(priceText!.replace(/,/g, ""));
+  const level = Number(levelText!.replace(/,/g, ""));
+  const away = Number.isFinite(price) && Number.isFinite(level) && level > 0 ? Math.abs(((price - level) / level) * 100) : NaN;
+  if (!Number.isFinite(away)) return `${capitalise(text)}.`;
+  if (away < 0.05) return `${still ? "Still at" : "At"} the ${which} price.`;
+  return `${still ? "Still " : ""}${away.toFixed(1)}% ${side === "below" ? "under" : "over"} the ${which} price.`;
 }
 
 /** The headline as a predicate of the ticker beside it: "CBRS is in its add zone: $20" -> "In its add zone: $20". */
@@ -275,14 +283,14 @@ export function decisionText(item: BriefingItem): string | null {
   switch (item.kind) {
     case "call_changed": {
       const to = plainCallWord(item.metric);
-      return to ? `Our call moved to ${to}, and you hold it.` : "Our call changed, and you hold it.";
+      return to ? `Our call moved to ${to}.` : "Our call changed.";
     }
     case "zone_entered":
       return zoneSentence(plainZone(stripTicker(item)));
     case "alert_triggered":
       return `${capitalise(stripTicker(item))}. Your alert fired.`;
     case "earnings_upcoming":
-      return `${capitalise(stripTicker(item))}, and you hold it.`;
+      return `${capitalise(stripTicker(item))}.`;
     default:
       return null;
   }

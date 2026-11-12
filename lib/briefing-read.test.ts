@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Briefing, BriefingItem } from "@/lib/briefing";
 import { groupBriefingSections } from "@/lib/briefing-groups";
-import { briefingRead, comingUpAfterRead, firstSentence, holdingsFirst, readEarningsTickers, readOwnedTickers, sessionLine, worthAfterRead } from "@/lib/briefing-read";
+import { briefingRead, firstSentence, holdingsFirst, sessionLine } from "@/lib/briefing-read";
 import type { BriefingGroup } from "@/lib/briefing-groups";
 
 function item(overrides: Partial<BriefingItem> & Pick<BriefingItem, "id" | "kind" | "ticker">): BriefingItem {
@@ -90,15 +90,8 @@ describe("briefingRead", () => {
     expect(same?.headline).toBe("Your holdings rose 2.1% today.");
   });
 
-  it("leaves a stock out of Coming up when the read already names its report", () => {
+  it("keeps a held report's figure in the headline", () => {
     const nvda = item({ id: "e", kind: "earnings_upcoming", ticker: "NVDA", relation: "holding", headline: "NVDA reports earnings on Tuesday after the close", deadline_days: 6 });
-    const aapl = item({ id: "e2", kind: "earnings_upcoming", ticker: "AAPL", relation: "watching", headline: "AAPL reports earnings on Thursday", deadline_days: 1 });
-    const grouped = groupBriefingSections({ needs_you: [], worth_knowing: [], coming_up: [nvda, aapl], kept: [], dismissed: [] });
-    const read = briefingRead({ ...base, date: "2026-11-11" }, grouped);
-    const named = readEarningsTickers(read);
-    expect([...named]).toEqual(["NVDA"]);
-    expect(comingUpAfterRead(grouped.coming_up, named).map((group) => group.ticker)).toEqual(["AAPL"]);
-    expect(comingUpAfterRead(grouped.coming_up, new Set())).toHaveLength(2);
     // With a holdings headline, NVDA has no card left once the read names its report: its figure stays in the headline.
     const portfolio = { value: 1000, day_change_value: 12, day_change_pct: 1.2, counted: 1, holdings: 1, as_of: null };
     const held = briefingRead({ ...base, date: "2026-11-11", portfolio }, groupBriefingSections({ needs_you: [], worth_knowing: [], coming_up: [{ ...nvda, day_change_pct: 2.9 }], kept: [], dismissed: [] }));
@@ -124,7 +117,7 @@ describe("briefingRead", () => {
     expect(single.soWhat).toBe("A normal day for NVDA is a move of about 2.0%. Check our call on NVDA before the report.");
   });
 
-  it("leads a flagged stock's card with the flag, opens it at our call, and keeps it out of Worth knowing (judges, ship 44)", () => {
+  it("leads a flagged stock's card with the flag and opens it at our call (judges, ship 44)", () => {
     const report = item({ id: "e", kind: "earnings_upcoming", ticker: "NVDA", relation: "holding", headline: "NVDA reports earnings on Nov 17 after the close", deadline_days: 6 });
     const news = item({ id: "n", kind: "news", ticker: "NVDA", relation: "holding", headline: "Why Bernstein downgraded Nvidia stock", day_change_pct: 2.9 });
     const amd = item({ id: "x", kind: "news", ticker: "AMD", relation: "watching", headline: "AMD rose", day_change_pct: 7.3 });
@@ -134,10 +127,6 @@ describe("briefingRead", () => {
     const card = read.insights.find((insight) => insight.tickers?.[0] === "NVDA")!;
     expect(card.soWhat).toBe("Your agent flagged NVDA's 5.5% drop on Nov 10. Check our call on NVDA before the report.");
     expect(card.action).toEqual({ label: "Our call on NVDA", href: "/stock/NVDA#call" });
-    expect(readOwnedTickers(read).has("NVDA")).toBe(true);
-    expect(worthAfterRead(grouped.worth_knowing, read).map((group) => group.ticker)).toEqual(["AMD"]);
-    // A card about several stocks owns none of them.
-    expect(worthAfterRead(grouped.worth_knowing, { insights: [{ id: "d", tone: "flat", text: "x", tickers: ["NVDA", "AMD"] }] })).toHaveLength(2);
   });
 
   it("names the decisions when there is no holdings figure", () => {

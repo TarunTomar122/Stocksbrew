@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { StockCard, StockCardGrid, fillLastRow, stockGridFill } from "@/components/briefing/stock-card";
 import { MarketingSchema } from "@/components/seo/marketing-schema";
 import { StockLogo } from "@/components/stock-logo";
-import { TheRead } from "@/components/oa/insight";
-import { AppPage, Empty, PageHead, SourceLine, fmtStampET } from "@/components/oa/kit";
+import { AppPage, PageHead, SourceLine, fmtStampET } from "@/components/oa/kit";
 import { WholeRows } from "@/components/wire/whole-rows";
 import { ogImage } from "@/lib/og/url";
 import { getPremarketMovers } from "@/lib/premarket";
@@ -15,15 +15,18 @@ import {
   gapPct,
   gappers,
   overseasCues,
+  hasTodaysPremarket,
   premarketInputFrom,
-  premarketRead,
-  premarketWhen,
   type CueInput,
   type Gapper,
 } from "@/lib/premarket-read";
 
-/** Both reads are cached for a minute (lib/premarket.ts, lib/premarket-opening.ts); the page follows them. */
-export const revalidate = 60;
+/**
+ * Rendered on each visit: whether there is a page at all depends on the clock and on whether this morning's numbers
+ * are in, and a cached redirect would outlive both. Both reads are cached for a minute (lib/premarket.ts,
+ * lib/premarket-opening.ts), so this stays cheap.
+ */
+export const dynamic = "force-dynamic";
 
 const BASE = "https://www.stocksbrew.online";
 const TITLE = "Premarket Today: Futures, Gappers and How the Open Is Set Up";
@@ -152,13 +155,13 @@ export default async function PremarketPage() {
   const [report, movers] = await Promise.all([getPremarketOpeningReport().catch(() => null), getPremarketMovers("US").catch(() => null)]);
   const input = premarketInputFrom(report, movers);
   const generatedAt = input.generatedAt;
-  const when = premarketWhen(generatedAt);
-  const read = premarketRead(input, when);
+  // Only this morning's numbers, before the open. middleware.ts already sends the address to Market today outside
+  // 4:00-9:30 ET; this covers the morning before today's numbers are in, and a morning with nothing in them.
+  if (!hasTodaysPremarket(input)) redirect("/explore");
   const cues = [...futuresCues(input.cues), ...overseasCues(input.cues)];
   const up = gappers(input.up, "up", input.news);
   const down = gappers(input.down, "down", input.news);
   const stamp = fmtStampET(generatedAt);
-  const empty = !read && cues.length === 0 && up.length === 0 && down.length === 0;
 
   return (
     <AppPage>
@@ -167,35 +170,16 @@ export default async function PremarketPage() {
         title="Premarket"
         meta={stamp ? <SourceLine asOf={stamp} /> : undefined}
       />
-      {/* The read's headline already says when its numbers are from ("This morning, futures pointed…", "On Tuesday…")
-          and the title row carries the one clock, so the note is only for the morning today's numbers are late. */}
-      {when.note && when.phase === "live" && !when.today ? <p className="-mt-1 mb-3 px-2 text-pretty text-[14px] leading-5 text-oa-fg sm:px-0">{when.note}</p> : null}
+      {/* Futures first, then the markets abroad, oil and the VIX: one grid, so the rows fill. */}
+      {cues.length > 0 ? (
+        <section aria-label="Futures, markets abroad, oil and the VIX">
+          <SectionHead title="Futures and markets abroad" />
+          <CueGrid cues={cues} />
+        </section>
+      ) : null}
 
-      {empty ? (
-        <Empty title="No premarket numbers yet">
-          They come in each market day from 4:00 AM ET. Until then, the{" "}
-          <Link prefetch={false} href="/briefing" className="text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
-            briefing
-          </Link>{" "}
-          has how the last session went.
-        </Empty>
-      ) : (
-        <>
-          {/* The head already says when the numbers are from, so the read does not repeat it. */}
-          <TheRead read={read ? { ...read, asOf: null } : null} label="How the open is set up" askContext={false} />
-
-          {/* Futures first, then the markets abroad, oil and the VIX: one grid, so the rows fill. */}
-          {cues.length > 0 ? (
-            <section aria-label="Futures, markets abroad, oil and the VIX">
-              <SectionHead title="Futures and markets abroad" />
-              <CueGrid cues={cues} />
-            </section>
-          ) : null}
-
-          <GapperList id="gapping-up" title="Gapping up" rows={up} verb="gapping up" />
-          <GapperList id="gapping-down" title="Gapping down" rows={down} verb="gapping down" />
-        </>
-      )}
+      <GapperList id="gapping-up" title="Gapping up" rows={up} verb="gapping up" />
+      <GapperList id="gapping-down" title="Gapping down" rows={down} verb="gapping down" />
     </AppPage>
   );
 }

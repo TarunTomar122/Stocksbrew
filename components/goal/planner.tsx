@@ -3,7 +3,6 @@
 import * as React from "react";
 
 import { FanChart, FanLegend } from "@/components/goal/fan-chart";
-import { TheRead } from "@/components/oa/insight";
 import { Card as Panel, NUM, Stats, dayWords } from "@/components/goal/card";
 import { ShowMore } from "@/components/oa/kit/more";
 import { StockLogo } from "@/components/stock-logo";
@@ -11,8 +10,20 @@ import { INFLATION, PATHS, BLOCK_MONTHS, replay, yearlyOf } from "@/lib/goal/boo
 import type { GoalData, GoalMix } from "@/lib/goal/data";
 import { LIMITS, inputProblem, inputsQuery, parseAmount, type GoalInputs, type MixId } from "@/lib/goal/inputs";
 import { planOutcome, type Outcome } from "@/lib/goal/plan";
-import { buildGoalRead, moneyWords, monthlyWords, pctWords } from "@/lib/goal/read";
+import { dayPossessive, etToday } from "@/lib/day-words";
+import { moneyWords, monthlyWords, pctWords } from "@/lib/goal/read";
 import { HINDSIGHT_DISCOUNT, discounted, monthWords, type PartHistory } from "@/lib/goal/series";
+
+/**
+ * "today", "yesterday's close", "Monday's close", "the Nov 3 close". By the day alone (no market-hours clock), so the
+ * server and the browser only disagree across midnight, not at the open or the close.
+ */
+function pricesFrom(day: string): string {
+  const today = etToday();
+  if (day.slice(0, 10) === today) return "today";
+  const close = dayPossessive(day, today);
+  return close ? `${close} close` : dayWords(day);
+}
 
 /**
  * /portfolio/goal in the browser: the replays run here from the monthly
@@ -65,7 +76,6 @@ export function GoalPlanner({
   const outcome = React.useMemo(() => (problem ? null : planOutcome(replays, inputs, spyReplays)), [problem, replays, inputs, spyReplays]);
   // The full replay flatters the holdings only when their full past beat the S&P 500's.
   const fullFlatters = own?.yearly != null && spy?.yearly != null ? own.yearly > spy.yearly : true;
-  const read = outcome ? buildGoalRead(outcome, inputs, { example, parts: mix.parts, span: data.span, paths: PATHS, fullFlatters }) : null;
 
   // Keep the address in step so a plan can be reloaded or shared. Next's own history state is kept.
   React.useEffect(() => {
@@ -87,21 +97,12 @@ export function GoalPlanner({
 
   return (
     <div className="flex flex-col gap-3">
-      {read ? (
-        <TheRead
-          read={read}
-          label={label}
-          fold="phone"
-          foldKeep={2}
-          foldLabel={read.insights.length === 3 ? "Show 1 more point" : `Show ${read.insights.length - 2} more points`}
-          askContext={false}
-        />
-      ) : (
+      {problem ? (
         <section className="oa-surface border border-oa-border bg-oa-card px-4 py-3.5 sm:px-5">
           <p className="oa-label">{label}</p>
           <p className="mt-1 text-[15px] leading-[22px] text-oa-fg">{problem}</p>
         </section>
-      )}
+      ) : null}
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_21rem]">
         <div className="flex min-w-0 flex-col gap-3">
@@ -518,7 +519,7 @@ function Details({ data, mix, inputs, outcome }: { data: GoalData; mix: GoalMix;
 
       <p className="px-2 text-[12.5px] leading-[18px] text-oa-muted-fg sm:px-0">
         Daily closes with dividends from Yahoo Finance, turned into month-end returns
-        {data.pricesAsOf ? `. Today's weights use the prices from ${dayWords(data.pricesAsOf)}` : ""}.
+        {data.pricesAsOf ? `. Today's weights use the prices from ${pricesFrom(data.pricesAsOf)}` : ""}.
       </p>
     </div>
   );

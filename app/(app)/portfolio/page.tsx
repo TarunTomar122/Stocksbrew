@@ -16,8 +16,6 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = toolPageMetadata("/portfolio");
 
-const LEDE = "How your stocks did, and the one thing that matters for each of them right now.";
-
 type Search = Record<string, string | string[] | undefined>;
 
 /**
@@ -36,7 +34,7 @@ export default function PortfolioHomePage({ searchParams }: { searchParams?: Sea
     return (
       <AppPage>
         <JsonLd data={toolPageLd("/portfolio")} />
-        <PageHead title="My stocks" lede={LEDE} note={false} />
+        <PageHead title="My stocks" note={false} />
         <Suspense fallback={<PortfolioGhost />}>
           <HoldingsStream tab={tab} />
         </Suspense>
@@ -47,7 +45,7 @@ export default function PortfolioHomePage({ searchParams }: { searchParams?: Sea
   return (
     <AppPage>
       <JsonLd data={toolPageLd("/portfolio")} />
-      <PageHead title="My stocks" lede={LEDE} note={false} />
+      <PageHead title="My stocks" note={false} />
       <MyStocksTabs current="overview" />
       <MyStocksBody load={load} />
     </AppPage>

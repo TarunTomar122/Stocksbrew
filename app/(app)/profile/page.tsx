@@ -31,7 +31,7 @@ export default async function AccountPage({ searchParams }: Props) {
 
   return (
     <AppPage width="read">
-      <PageHead full title="Sign in to see your account" lede="Your plan, your emails, your agents and tokens, and your data live here once you are signed in." />
+      <PageHead full title="Sign in to see your account" lede="Your plan, emails, agents, tokens and data live here." />
       <Panel>
         <div className="flex flex-col gap-4">
           <p className="text-pretty text-[15.5px] leading-7 text-oa-fg/90">

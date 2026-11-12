@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { badgeText, dayLabel, effectiveSeenAt, groupByDay, instantOf, isUnread, mergeInbox, nyDay, unreadCount } from "./merge";
-import { inboxRead, inboxReadTold, rowsAfterRead, signedMove } from "./read";
+import { rowsAfterRead, signedMove } from "./read";
 import type { InboxItem } from "./types";
 import {
   agentItem,
@@ -86,11 +86,9 @@ describe("wording", () => {
   it("calls the example portfolio's agents example agents, never the example's agents", () => {
     const quiet = quietItems([run({ decision: "nothing", jobId: "aaaaaa1" }), run({ decision: "nothing", jobId: "bbbbbb2" })], "example");
     expect(quiet[0]!.text).toBe("2 example agents checked on Nov 10 and found nothing that needs a look.");
-    const items = mergeInbox([[agentItem(run(), "example")!]], SINCE, NOW);
-    expect(inboxRead(items, null, true)!.headline).toContain("the example portfolio's agents flagged 1 thing");
   });
 
-  it("hides a quiet check under the read unless it is the only row left", () => {
+  it("hides a quiet check unless it is the only row left", () => {
     const quiet = quietItems([run({ decision: "nothing", jobId: "aaaaaa1" }), run({ decision: "nothing", jobId: "bbbbbb2" })], "example");
     const told = { moveIds: [], reasonIds: [], reports: [], reportDays: [] };
     // The example never shows it.
@@ -100,7 +98,7 @@ describe("wording", () => {
     expect(rowsAfterRead(mine, [], told, "2026-11-11").items[0]!.told).toBeUndefined();
     // Beside anything else it goes.
     const flagged = mergeInbox([[agentItem(run(), "mine")!, ...mine]], SINCE, NOW);
-    const rows = rowsAfterRead(flagged, [], inboxReadTold(flagged, null, false).told, "2026-11-11");
+    const rows = rowsAfterRead(flagged, [], told, "2026-11-11");
     expect(rows.items.filter((item) => item.quiet).every((item) => item.told)).toBe(true);
     expect(rows.items.some((item) => !item.quiet && !item.told)).toBe(true);
   });
@@ -278,7 +276,8 @@ describe("days", () => {
   it("labels today, yesterday and earlier days", () => {
     expect(dayLabel("2026-11-11", "2026-11-11")).toBe("Today");
     expect(dayLabel("2026-11-10", "2026-11-11")).toBe("Yesterday");
-    expect(dayLabel("2026-11-06", "2026-11-11")).toBe("Friday, Nov 6");
+    expect(dayLabel("2026-11-06", "2026-11-11")).toBe("Friday");
+    expect(dayLabel("2026-11-03", "2026-11-11")).toBe("Nov 3");
   });
 
   it("groups newest-first items by day in order", () => {
@@ -286,41 +285,17 @@ describe("days", () => {
     const days = groupByDay(items, "2026-11-11");
     expect(days.map((day) => [day.label, day.items.length])).toEqual([
       ["Today", 2],
-      ["Monday, Nov 9", 1],
+      ["Monday", 1],
     ]);
   });
 });
 
-describe("the read", () => {
-  it("leads with what is new since the person last looked, counted from the rows", () => {
-    const items = mergeInbox([[call({ at: "2026-11-11T13:00:00Z" }), call({ ticker: "MSFT", at: "2026-11-11T14:00:00Z", from: "Keep", to: "Buy more" }), agentItem(run(), "mine")!]], SINCE, NOW);
-    const read = inboxRead(items, "2026-11-01T00:00:00Z", false)!;
-    expect(read.headline).toBe("Since you last looked, our call moved on 2 of your stocks and your agents flagged 1 thing.");
-    expect(read.insights[0]!.text).toBe("Our call moved on 2 of your stocks in the last two weeks: 1 toward Buy more and 1 toward Sell some.");
-    expect(inboxRead(items, "2026-11-11T17:00:00Z", false)!.headline).toBe("Nothing new since you last looked.");
-    expect(inboxRead([], null, false)).toBeNull();
-  });
-
-  it("puts the agent's latest finding on its card, not the count the headline already says", () => {
-    const earlier = agentItem(run({ jobId: "older123x", day: "2026-11-09", ranAt: "2026-11-09T22:40:00Z", summary: "AMD rose 6.1% in a day.", tickers: ["AMD"] }), "mine")!;
-    const items = mergeInbox([[agentItem(run(), "mine")!, earlier]], SINCE, NOW);
-    const card = inboxRead(items, "2026-11-01T00:00:00Z", false)!.insights.find((insight) => insight.id === "inbox-agents")!;
-    expect(card.text).toBe("NVDA fell 5.47% in a day.");
-    expect(card.figure).toEqual({ value: "−5.47%", label: "latest of 2 flags", tone: "down" });
-    expect(card.tickers).toEqual(["NVDA"]);
-    // The direction word nearest the number signs it.
+describe("signed moves", () => {
+  it("signs a finding's percent by the direction word nearest it", () => {
+    expect(signedMove("NVDA fell 5.47% in a day.")).toEqual({ value: "−5.47%", tone: "down" });
     expect(signedMove("After a lower open, NVDA rose 4.2% by noon.")).toEqual({ value: "+4.2%", tone: "up" });
     expect(signedMove("NVDA, down early, finished up 3.1%.")).toEqual({ value: "+3.1%", tone: "up" });
     expect(signedMove("NVDA moved 3% today.")).toBeNull();
-    // No percent in the finding: no figure, rather than a count.
-    const plain = mergeInbox([[agentItem(run({ summary: "AMD's CFO sold shares on Monday.", tickers: ["AMD"] }), "mine")!, earlier]], SINCE, NOW);
-    expect(inboxRead(plain, null, false)!.insights.find((insight) => insight.id === "inbox-agents")!.figure).toBeNull();
-  });
-
-  it("leaves out the agents card when its one finding is already a row in the list", () => {
-    const items = mergeInbox([[agentItem(run(), "mine")!]], SINCE, NOW);
-    const read = inboxRead(items, "2026-11-01T00:00:00Z", false)!;
-    expect(read.headline).toBe("Since you last looked, your agents flagged 1 thing.");
-    expect(read.insights.find((insight) => insight.id === "inbox-agents")).toBeUndefined();
+    expect(signedMove("AMD's CFO sold shares on Monday.")).toBeNull();
   });
 });

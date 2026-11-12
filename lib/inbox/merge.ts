@@ -1,3 +1,5 @@
+import { capitalize, dayWords } from "@/lib/day-words";
+
 import { DEDUPE_WINDOW_MS, FIRST_SEEN_DAYS, MAX_ITEMS, POPOVER_ROWS, type InboxItem, type InboxKind } from "./types";
 
 /**
@@ -134,7 +136,6 @@ export function badgeText(count: number): string {
 }
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 /** "Nov 9", parsed by hand so no time zone can move the day. */
 export function shortDay(day: string): string {
@@ -143,18 +144,9 @@ export function shortDay(day: string): string {
   return `${MONTHS[Number(match[2]) - 1] ?? ""} ${Number(match[3])}`;
 }
 
-function shiftDay(day: string, days: number): string {
-  const date = new Date(`${day}T12:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-}
-
-/** "Today", "Yesterday", "Monday, Nov 9". */
+/** "Today", "Yesterday", "Monday" within the week, "Nov 3" before (lib/day-words.ts). */
 export function dayLabel(day: string, today: string): string {
-  if (day === today) return "Today";
-  if (day === shiftDay(today, -1)) return "Yesterday";
-  const weekday = WEEKDAYS[new Date(`${day}T12:00:00Z`).getUTCDay()];
-  return weekday ? `${weekday}, ${shortDay(day)}` : shortDay(day);
+  return capitalize(dayWords(day, today)) || shortDay(day);
 }
 
 export type InboxDay = { day: string; label: string; items: InboxItem[] };

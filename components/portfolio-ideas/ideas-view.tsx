@@ -2,7 +2,6 @@ import Link from "next/link";
 import * as React from "react";
 
 import { FOCUS, NUM, Panel, Tag, Ticker, fmtDay } from "@/components/oa/kit";
-import { TheRead } from "@/components/oa/insight";
 import { RatePicker } from "@/components/portfolio-ideas/rate-picker";
 import { LOSS_MIN, LOSS_PCT } from "@/lib/portfolio-ideas/losses";
 import { watchDropsHref } from "@/lib/portfolio-ideas/watch";
@@ -13,10 +12,10 @@ import { callPlain, fmtPct, joinList, portfolioWord, sharesWord, usd } from "@/l
 import { fmtShares } from "@/lib/portfolio-shared";
 
 /**
- * /portfolio/ideas: the read on top, then "trim this, add that" with the tax
- * on each sale, then losses that could be sold for tax with look-alikes to
- * hold meanwhile. The rates and the caveats sit beside them on a wide screen
- * and under the read on a phone. Nothing here places a trade.
+ * /portfolio/ideas: "trim this, add that" with the tax on each sale, then
+ * losses that could be sold for tax with look-alikes to hold meanwhile. The
+ * rates and the caveats sit beside them on a wide screen and under them on a
+ * phone. Nothing here places a trade.
  */
 
 export const WASH_SALE_SENTENCE =
@@ -135,8 +134,8 @@ function TrimRow({ trim, rates, example }: { trim: TrimIdea; rates: TaxRates; ex
 
 /**
  * Above the line, but our call is Buy more or Keep: said as information, with no sale
- * and no share count. `brief` when the quiet line above already said it is
- * above the line and why we would not sell.
+ * and no share count. `brief` when the panel's quiet line just above already said
+ * it is above the line and why we would not sell.
  */
 function HeldRow({ row, where, brief }: { row: RebalancePlan["buyMoreOver"][number]; where: string; brief: boolean }) {
   return (
@@ -206,8 +205,8 @@ function RebalancePanel({ view }: { view: IdeasData }) {
       {plan.trims.length === 0 ? (
         <>
           <div className="px-4 py-4">
-            {/* The read above already says why (plan.quiet), so the panel says it once, briefly. */}
             <p className="text-pretty text-[15px] leading-[22px] text-oa-fg">Nothing to sell for size.</p>
+            {plan.quiet ? <p className="mt-1 text-pretty text-[15px] leading-[22px] text-oa-fg">{plan.quiet}</p> : null}
             <p className="mt-1 text-[13.5px] leading-5 text-oa-muted-fg">Doing nothing costs no tax and no trading fees, and it is often the right call.</p>
           </div>
           <HeldList plan={plan} where={where} brief />
@@ -432,7 +431,6 @@ function Aside({ view }: { view: IdeasData }) {
 export function IdeasView({ view }: { view: IdeasData }) {
   return (
     <div className="flex flex-col gap-3">
-      <TheRead read={view.read} label={view.subject === "example" ? "The read on this portfolio" : "The read on your portfolio"} askContext={view.subject === "example" ? "ex.portfolio" : "portfolio"} />
       {/* On a phone the caveats sit after both panels, so the short version comes first. */}
       <p className="px-2 text-pretty text-[13px] leading-5 text-oa-muted-fg sm:px-0 lg:hidden">
         Ideas worked out from the numbers, not advice and not tax advice. Nothing here buys or sells.

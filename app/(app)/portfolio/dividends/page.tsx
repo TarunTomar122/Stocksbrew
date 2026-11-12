@@ -8,10 +8,8 @@ import { DividendIdeasSection } from "@/components/dividends/ideas";
 import { MonthChart } from "@/components/dividends/month-chart";
 import { StockList } from "@/components/dividends/stock-list";
 import { AppPage, PageHead, SourceLine, fmtDay, fmtStampET } from "@/components/oa/kit";
-import { TheRead } from "@/components/oa/insight";
 import { ShareButton } from "@/components/share/share-button";
 import { getSessionUser } from "@/lib/auth-server";
-import { buildDividendRead } from "@/lib/dividend-plan";
 import { exampleSeeds, holdingSeeds, loadDividendPlan, type HoldingSeed } from "@/lib/dividend-plan-data";
 import { getUserDoc } from "@/lib/watchlist";
 import { JsonLd } from "@/components/docs/json-ld";
@@ -21,7 +19,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = toolPageMetadata("/portfolio/dividends");
 
-const LEDE = "What your holdings should pay over the next twelve months, with announced dividends kept apart from estimates.";
+const LEDE = "Announced dividends are kept apart from estimates.";
 
 export default async function DividendsPage() {
   const session = await getSessionUser();
@@ -99,13 +97,13 @@ async function Planner() {
 
 async function Plan({ seeds, example }: { seeds: HoldingSeed[]; example: boolean }) {
   const { plan, pricesAsOf, calendarOk } = await loadDividendPlan(seeds);
-  const read = buildDividendRead(plan, { example, editHref: "/portfolio?tab=holdings" });
-  const asOf = [plan.asOf ? `dividends as of ${fmtStampET(plan.asOf)}` : null, pricesAsOf ? `prices from ${closeWords(pricesAsOf, fmtDay(pricesAsOf))}` : null]
+  const stamps = [plan.asOf ? `dividends as of ${fmtStampET(plan.asOf)}` : null, pricesAsOf ? `prices from ${closeWords(pricesAsOf, fmtDay(pricesAsOf))}` : null]
     .filter(Boolean)
     .join(" · ");
+  // The one time stamp on the plan, said quietly under the stocks.
+  const asOf = stamps ? stamps[0]!.toUpperCase() + stamps.slice(1) : "";
   return (
     <div className="flex flex-col gap-3">
-      <TheRead read={read ? { ...read, source: asOf || undefined } : null} label={example ? "The example's dividends" : "Your dividends"} askContext={example ? "ex.portfolio" : "portfolio"} />
       {!calendarOk ? (
         <p className="px-2 text-[13px] text-signal-bearish sm:px-0">
           The dividend calendar could not be read just now, so announced payments may be shown as estimates.
@@ -116,6 +114,7 @@ async function Plan({ seeds, example }: { seeds: HoldingSeed[]; example: boolean
         <DividendIdeasSection plan={plan} example={example} />
       </Suspense>
       <StockList stocks={plan.stocks} example={example} />
+      {asOf ? <p className="px-2 text-[12.5px] leading-[18px] text-oa-muted-fg sm:px-0">{asOf}</p> : null}
     </div>
   );
 }

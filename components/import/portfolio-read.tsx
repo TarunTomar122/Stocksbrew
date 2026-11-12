@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 
-import { TheRead } from "@/components/oa/insight";
 import { Verdict } from "@/components/oa/kit/tone";
 import { StockLogo } from "@/components/stock-logo";
 import type { PortfolioReadResult, ReadCall, ReadStock } from "@/lib/import/read-shared";
+import { dayWords } from "@/lib/day-words";
 import { CALL_MEANING, CALL_PLAIN } from "@/lib/plain-copy";
 
 const NUM = "oa-mono tabular-nums";
@@ -105,11 +105,11 @@ function StockRow({ stock, today }: { stock: ReadStock; today: string }) {
             </Verdict>
           ) : null}
           <p className="min-w-0 flex-1 text-pretty text-[14px] leading-5 text-oa-fg">
-            {stock.call ? stock.reason ?? `${CALL_MEANING[stock.call]}${stock.call_at ? `, our call since ${fmtDayShort(stock.call_at)}` : ""}.` : "We do not have a call on this one yet."}
+            {stock.call ? stock.reason ?? `${CALL_MEANING[stock.call]}${stock.call_at ? `, our call since ${dayWords(stock.call_at.slice(0, 10), today) || fmtDayShort(stock.call_at)}` : ""}.` : "We do not have a call on this one yet."}
           </p>
         </div>
         <p className="text-[12.5px] leading-4 text-oa-muted-fg">
-          {[stock.sector, stock.earnings_date && days !== null ? `Reports ${days <= 1 ? (days === 0 ? "today" : "tomorrow") : fmtDayShort(stock.earnings_date)}` : null]
+          {[stock.sector, stock.earnings_date && days !== null ? `Reports ${dayWords(stock.earnings_date, today) || fmtDayShort(stock.earnings_date)}` : null]
             .filter(Boolean)
             .join(" · ")}
         </p>
@@ -118,9 +118,17 @@ function StockRow({ stock, today }: { stock: ReadStock; today: string }) {
   );
 }
 
+/** "Nov 12, 4:05 PM ET", or null for a missing or broken time. Kept here so this client file does not pull in the kit. */
+function stampET(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  return `${date.toLocaleString("en-US", { timeZone: "America/New_York", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} ET`;
+}
+
 /**
- * What we think of a pasted portfolio: the read first, then where the money
- * sits, then each stock with our call and why, then what reports soon.
+ * What we think of a pasted portfolio: where the money sits, then each stock
+ * with our call and why, then what reports soon.
  */
 export function PortfolioReadView({
   result,
@@ -137,9 +145,9 @@ export function PortfolioReadView({
   // Trims first, then adds, then holds: the ones that need a decision lead.
   const order: Record<string, number> = { Trim: 0, Add: 1, Hold: 2 };
   const sorted = [...stocks].sort((a, b) => (order[a.call ?? ""] ?? 3) - (order[b.call ?? ""] ?? 3) || a.ticker.localeCompare(b.ticker));
+  const asOf = stampET(result.asOf);
   return (
     <div className="flex flex-col gap-3">
-      <TheRead read={result.read} label="Our read on your stocks" askContext={false} />
       <SectorMix result={result} />
       <section aria-label="Each stock" className="oa-surface overflow-hidden border border-oa-border bg-oa-card">
         <div className="flex min-h-11 items-center justify-between gap-3 border-b border-oa-border px-4 py-2 sm:px-5">
@@ -177,9 +185,10 @@ export function PortfolioReadView({
       ) : null}
       {unknown.length > 0 ? (
         <p className="px-2 text-pretty text-[13px] leading-5 text-oa-muted-fg sm:px-0">
-          We do not cover {unknown.join(", ")} yet, so {unknown.length === 1 ? "it is" : "they are"} not in this read.
+          We do not cover {unknown.join(", ")} yet, so {unknown.length === 1 ? "it is" : "they are"} left out above.
         </p>
       ) : null}
+      {asOf ? <p className="px-2 text-[12.5px] leading-[18px] text-oa-muted-fg sm:px-0">As of {asOf}</p> : null}
     </div>
   );
 }

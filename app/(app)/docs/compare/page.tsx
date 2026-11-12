@@ -37,7 +37,7 @@ export default function DocsCompareIndexPage() {
       <Crumbs items={[{ label: "Docs", href: "/docs" }, { label: "Comparisons" }]} />
       <PageHead
         title="stocksbrew next to other tools"
-        lede="We are a party to every comparison here, so read them knowing that. Each one says what the other product is built for and where it is stronger, and links to its official pages."
+        lede="We are a party to every comparison here, so read them knowing that."
         meta={<p className="oa-mono text-[11.5px] leading-4 text-oa-muted-fg">{DOC_COMPARISONS.length} comparisons · desk research from official pages unless a page says otherwise</p>}
       />
       <ul className="oa-surface border border-oa-border bg-oa-card">

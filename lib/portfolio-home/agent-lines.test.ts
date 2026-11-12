@@ -85,7 +85,7 @@ describe("agentLines", () => {
   });
 
   it("leads with one sentence: the moves it flagged, then what was quiet (judges, ship 53)", () => {
-    expect(agentLines(source, "2026-11-11").lead).toBe("Flagged IREN, up 20.0%, RKLB, up 19.0% on Nov 10, and 3 more. Earnings were quiet.");
+    expect(agentLines(source, "2026-11-11").lead).toBe("Flagged IREN, up 20.0%, RKLB, up 19.0% yesterday, and 3 more. Earnings were quiet.");
     const nvda: AgentsSource = {
       jobs: [
         { id: "earnings1", name: "Earnings", enabled: true, trigger: { type: "event", event: "earnings_approaching", days_before: 3 }, scope: { kind: "watchlist" } },
@@ -114,12 +114,12 @@ describe("agentLines", () => {
       ],
     };
     const lines = agentLines(nvda, "2026-11-12");
-    expect(lines.lead).toBe("Flagged NVDA, down 5.5% to $168.89 on Nov 10. Earnings and filings were quiet.");
+    expect(lines.lead).toBe("Flagged NVDA, down 5.5% to $168.89 on Tuesday. Earnings and filings were quiet.");
     // The rows stay under it, each with its own time.
     expect(lines.lines.map((line) => line.name)).toEqual(["Earnings, 3 days ahead", "Big moves over 5%", "Big SEC filings"]);
     expect(lines.lines.every((line) => line.time === "6:19 AM")).toBe(true);
     const failed = agentLines({ ...nvda, runs: nvda.runs.map((run) => (run.job_id === "filings11" ? { ...run, decision: "could_not_check" as const } : run)) }, "2026-11-12");
-    expect(failed.lead).toBe("Flagged NVDA, down 5.5% to $168.89 on Nov 10. Earnings were quiet. We could not check filings this time.");
+    expect(failed.lead).toBe("Flagged NVDA, down 5.5% to $168.89 on Tuesday. Earnings were quiet. We could not check filings this time.");
     expect(agentLines({ ...nvda, runs: [] }, "2026-11-12").lead).toBeNull();
     // The bigger move when two agents flag one stock; a kind that flagged is not also "quiet"; a run with no stocks
     // says what it came to in words.
@@ -132,7 +132,7 @@ describe("agentLines", () => {
       ],
       "2026-11-12",
     );
-    expect(lead).toBe("Flagged NVDA, down 6.0%, and AMD, up 3.0% on Nov 11. Your filings agent found 3 things.");
+    expect(lead).toBe("Flagged NVDA, down 6.0%, and AMD, up 3.0% yesterday. Your filings agent found 3 things.");
   });
 
   it("says a chip's day as a weekday within the week and a date before it", () => {

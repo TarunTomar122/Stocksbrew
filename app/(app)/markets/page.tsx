@@ -8,9 +8,7 @@ import { MarketsOverviewBody } from "@/components/markets/overview-client";
 import { hasMarketsData } from "@/components/markets/overview-sections";
 import { ClassTabs } from "@/components/markets/widgets";
 import { PageHead, PageNote } from "@/components/oa/kit";
-import { TheRead } from "@/components/oa/insight";
 import { getMarketsData } from "@/lib/markets";
-import { buildMarketsRead } from "@/lib/markets-insights";
 import { buildMarketsOverview, formatAsOf, MARKET_CLASSES, type MarketAsset } from "@/lib/markets-shared";
 import { toolPageLd, toolPageMetadata } from "@/lib/seo/tool-pages";
 
@@ -31,7 +29,6 @@ export default async function MarketsPage() {
   for (const item of MARKET_CLASSES) {
     if (item.assetClass) counts[item.slug] = of(item.assetClass).length;
   }
-  const read = buildMarketsRead(data);
 
   const refreshed = data.as_of ? <p className="text-[12.5px] leading-[18px] text-oa-muted-fg">Refreshed {formatAsOf(data.as_of)}</p> : null;
 
@@ -48,11 +45,8 @@ export default async function MarketsPage() {
           <p className="mt-1 text-[14px] text-oa-muted-fg">Try again in a few minutes.</p>
         </div>
       ) : (
-        <>
-          <TheRead read={read} className="mb-3" />
-          {/* Every card below draws in the browser from the data, sent once and cut to what the cards show. */}
-          <MarketsOverviewBody packed={packMarkets(data)} overview={compactOverview(overview)} builtAt={new Date().toISOString()} />
-        </>
+        // Every card below draws in the browser from the data, sent once and cut to what the cards show.
+        <MarketsOverviewBody packed={packMarkets(data)} overview={compactOverview(overview)} builtAt={new Date().toISOString()} />
       )}
       <PageNote className="!mt-4" lede={LEDE} source={refreshed} />
     </MarketsPageFrame>

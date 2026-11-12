@@ -20,8 +20,6 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = toolPageMetadata("/portfolio/memo");
 
-const LEDE = "Your week in one look: how your stocks did against the S&P 500, who moved them, what changed and what could hurt.";
-
 type Search = Record<string, string | string[] | undefined>;
 
 function weekParam(search: Search): string | null {
@@ -43,7 +41,6 @@ export default async function MemoPage({ searchParams }: { searchParams: Promise
             Portfolio
           </Link>
         }
-        lede={LEDE}
         meta={<SourceLine source="Prices, calls, filings and earnings" />}
         actions={session ? <ShareButton kind="memo" week={week} /> : null}
       />

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { clearableBy, groupByStock, mergeInbox, popoverItems, unreadRows } from "./merge";
-import { inboxRead, inboxReadTold, rowsAfterRead } from "./read";
+import { rowsAfterRead } from "./read";
 import type { UpcomingReport } from "./types";
 import { findingItems, moveSentence, pastWhen, reportSentence, sessionBefore, type AgentRunRecord, type MoveContext, type RunFinding } from "./words";
 
@@ -112,52 +112,9 @@ describe("reports coming up", () => {
   const report = (over: Partial<UpcomingReport> = {}): UpcomingReport => ({ ticker: "NVDA", date: "2026-11-17", session: "amc", history: "has moved 3.2% on a typical report", usualPct: 3.2, vsDay: null, ...over });
 
   it("reads as prep, with the history only when it is measured", () => {
-    expect(reportSentence(report(), TODAY)).toBe("NVDA reports on Nov 17 after the close, and it has moved 3.2% on a typical report.");
+    expect(reportSentence(report(), TODAY)).toBe("NVDA reports on Tuesday after the close, and it has moved 3.2% on a typical report.");
     expect(reportSentence(report({ ticker: "NBIS", date: "2026-11-12", session: "bmo", history: null }), TODAY)).toBe("NBIS reports tomorrow before the open.");
     expect(reportSentence(report({ date: "2026-11-13", session: "unknown" }), TODAY)).toBe("NVDA reports on Friday, and it has moved 3.2% on a typical report.");
-  });
-
-  it("leads the read with unusual moves and the week's reports, and cards the report that moves most", () => {
-    const items = mergeInbox([findingItems(run([move("MU", 11.89), move("DELL", 11.75), move("ASTS", 8.7)]), "mine", context, TODAY)!], SINCE, NOW);
-    const upcoming = [report({ ticker: "NBIS", date: "2026-11-12", session: "bmo", history: null, usualPct: null }), report({ ticker: "CBRS", date: "2026-11-12", history: "moved 16% on average after its last two reports", usualPct: 15.7 }), report()];
-    const read = inboxRead(items, "2026-11-01T00:00:00Z", false, { upcoming, today: TODAY })!;
-    // One idea in the headline: the moves lead, the week's reports go underneath.
-    expect(read.headline).toBe("2 of your stocks moved at least twice as much as usual today.");
-    expect(read.sub).toBe("3 of your stocks report earnings in the next week.");
-    const [moves, reports] = read.insights;
-    expect(moves).toMatchObject({ id: "inbox-moves", text: "MU rose 11.9% today, about three times a normal day.", soWhat: "DELL also moved at least twice as much as usual.", tickers: ["MU", "DELL"], figure: { value: "+11.9%", tone: "up" } });
-    expect(reports).toMatchObject({ id: "inbox-reports", text: "CBRS reports tomorrow after the close, and it moved 16% on average after its last two reports.", figure: { value: "16%" } });
-    expect(reports!.soWhat).toBe("NBIS and NVDA also report in the next week.");
-  });
-
-  it("says the soonest report in the headline when nothing moved, and a read with only reports still shows", () => {
-    const read = inboxRead([], null, false, { upcoming: [report({ ticker: "NBIS", date: "2026-11-12", session: "bmo", history: null, usualPct: null }), report()], today: TODAY })!;
-    expect(read.headline).toBe("NBIS reports tomorrow before the open, the first of 2 reports on your stocks in the next week.");
-    expect(read.insights.map((insight) => insight.id)).toEqual(["inbox-reports"]);
-  });
-
-  it("never says the headline's sentence again: one move and its report are one stock card with both figures", () => {
-    const flagged = { ...move("NVDA", -5.47, "2026-11-10"), detail: "Closed at $168.89 on Nov 10, down 5.47% from $178.67 the day before." };
-    const items = mergeInbox([findingItems(run([flagged]), "example", new Map([["NVDA", { normalPct: 2.02, reason: null }]]), TODAY)!], SINCE, NOW);
-    const { read, stock } = inboxReadTold(items, null, true, { upcoming: [report()], today: TODAY });
-    // The agent's flag in the briefing card's own words, with its date (judges, ship 44: one thread across pages),
-    // ending on the price the move took it to (judges, ship 50).
-    expect(read!.headline).toBe("Your agent flagged NVDA's 5.5% drop to $168.89 on Nov 10.");
-    expect(read!.sub).toBe("It reports on Nov 17 after the close.");
-    // One card for NVDA, not two cards wearing the same logo.
-    expect(read!.insights).toEqual([]);
-    expect(stock).toEqual({
-      ticker: "NVDA",
-      // One tap from the flag to our call, as from the briefing's card.
-      href: "/stock/NVDA#call",
-      figures: [
-        { value: "−5.5%", tone: "down", text: "A normal day is a move of about 2.0% either way." },
-        { value: "3.2%", tone: "flat", text: "A report usually moves NVDA about 3.2%." },
-      ],
-      note: "Check our call on NVDA before the report.",
-    });
-    // Nothing more to say about a report with no history: no card.
-    expect(inboxRead(items, null, true, { upcoming: [report({ history: null, usualPct: null })], today: TODAY })!.insights.map((insight) => insight.id)).toEqual(["inbox-moves"]);
   });
 });
 
@@ -195,51 +152,39 @@ describe("QA round: stale quotes, rows, the bell", () => {
     expect(clearableBy([older], [], "2026-11-01T00:00:00Z")).toBe(false);
   });
 
-  it("leaves out of the rows what the read already says", () => {
+  it("leaves out of the rows what is already told", () => {
     const items = mergeInbox([findingItems(run([move("NVDA", -5.47, "2026-11-10")]), "example", new Map([["NVDA", { normalPct: 2.02, reason: null }]]), TODAY)!], SINCE, NOW);
     const upcoming: UpcomingReport[] = [{ ticker: "NVDA", date: "2026-11-17", session: "amc", history: "has moved 3.2% on a typical report", usualPct: 3.2, vsDay: "about one and a half times a normal day" }];
-    const { stock, told } = inboxReadTold(items, null, true, { upcoming, today: TODAY });
-    expect(stock!.figures[1]!.value).toBe("3.2%");
+    const told = { moveIds: [items[0]!.id], reasonIds: [], reports: ["NVDA"], reportDays: ["NVDA"] };
     const rows = rowsAfterRead(items, upcoming, told, TODAY);
-    // The read says the move and the report in full: no row for either, but the move still counts as shown.
+    // The move and the report are told in full: no row for either, but the move still counts as shown.
     expect(rows.items[0]).toMatchObject({ text: "NVDA fell 5.5% yesterday.", detail: null, told: true });
     expect(rows.upcoming).toEqual([]);
   });
 
-  it("drops the report card when the headline already says the report and there is no history to add", () => {
-    const upcoming: UpcomingReport[] = ["NBIS", "XPEV"].map((ticker) => ({ ticker, date: "2026-11-12", session: "bmo" as const, history: null, usualPct: null, vsDay: null }));
-    const read = inboxRead([], null, false, { upcoming, today: TODAY })!;
-    expect(read.headline).toBe("NBIS reports tomorrow before the open, the first of 2 reports on your stocks in the next week.");
-    expect(read.insights).toEqual([]);
-  });
-
-  it("keeps a reason the card does not give, and the history of a report only the headline names", () => {
+  it("keeps a reason that is not told, and the history of a report whose day alone is named", () => {
     const ctx = new Map<string, MoveContext>([
       ["MU", { normalPct: 8, reason: { day: TODAY, pct: 13, line: "Micron rose on record memory prices." } }],
       ["AMD", { normalPct: 1, reason: { day: TODAY, pct: 3, line: "AMD rose after a new chip deal." } }],
     ]);
-    // AMD is the one unusual move (headline); MU is the biggest (card), with its reason on the card.
+    // Both moves are told; only MU's reason is.
     const items = mergeInbox([findingItems(run([move("MU", 13), move("AMD", 3)]), "mine", ctx, TODAY)!], SINCE, NOW);
     const upcoming: UpcomingReport[] = [{ ticker: "NBIS", date: "2026-11-12", session: "bmo", history: "rose 4.6% after its last report", usualPct: 4.6, vsDay: null }];
-    const { told } = inboxReadTold(items, "2026-11-01T00:00:00Z", false, { upcoming, today: TODAY });
+    const idOf = (ticker: string) => items.find((item) => item.tickers[0] === ticker && item.id.startsWith("move:"))!.id;
+    const told = { moveIds: [idOf("MU"), idOf("AMD")], reasonIds: [idOf("MU")], reports: ["NBIS"], reportDays: ["NBIS"] };
     const rows = rowsAfterRead(items, upcoming, told, TODAY);
-    // The card tells MU's move and its reason: no row left to draw.
+    // MU's move and its reason are told: no row left to draw.
     expect(rows.items.find((item) => item.tickers[0] === "MU")).toMatchObject({ text: "MU rose 13.0% today.", detail: null, told: true });
-    // The headline says AMD's move but never its reason: the row keeps it.
+    // AMD's move is told but not its reason: the row keeps it.
     const amd = rows.items.find((item) => item.tickers[0] === "AMD")!;
     expect(amd).toMatchObject({ text: "AMD rose 3.0% today.", detail: "AMD rose after a new chip deal." });
     expect(amd.told).toBeUndefined();
-    // NBIS's day is under the headline and its history on its card: no row says either again.
+    // NBIS's day and its history are told: no row says either again.
     expect(rows.upcoming).toEqual([]);
-    // Carded only (the day not named above): the row says only the day.
+    // Its history told but not its day: the row says only the day.
     expect(rowsAfterRead(items, upcoming, { ...told, reportDays: [] }, TODAY).upcoming[0]!.text).toBe("NBIS reports tomorrow before the open.");
-    // Named above with no history carded: the row keeps the history.
+    // Its day named with no history told: the row keeps the history.
     const onlyHeadline = rowsAfterRead(items, upcoming, { ...told, reports: [], reportDays: [] }, TODAY);
     expect(onlyHeadline.upcoming[0]!.text).toBe("NBIS reports tomorrow before the open, and it rose 4.6% after its last report.");
-  });
-
-  it("says one flagged move in the singular", () => {
-    const items = mergeInbox([findingItems(run([move("MU", 4)]), "mine", new Map(), TODAY)!], SINCE, NOW);
-    expect(inboxRead(items, "2026-11-01T00:00:00Z", false)!.headline).toBe("Since you last looked, your agents flagged a move in one of your stocks.");
   });
 });

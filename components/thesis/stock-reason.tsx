@@ -7,6 +7,7 @@ import { ToneGlyph } from "@/components/oa/kit/tone";
 import { ReasonsSheet } from "@/components/thesis/reasons-sheet";
 import { getCheck, loadChecks, loadTheses, useAllTheses, useCheck, useHeld } from "@/components/thesis/store";
 import { useUser } from "@/lib/auth-context";
+import { dayWords as sayDay } from "@/lib/day-words";
 import { lockCopy } from "@/lib/entitlements";
 import { thesisSentence } from "@/lib/thesis";
 import { dayWords, type Signal, type Verdict } from "@/lib/thesis-watch/rules";
@@ -155,7 +156,7 @@ export function StockReason({ ticker, preview = false }: { ticker: string; /** L
           <div className="mt-2.5 flex flex-col gap-1 border-t border-oa-border pt-2.5">
             {evidence.length > 0 ? <Sources signals={evidence} today={today} /> : null}
             {check?.change ? (
-              <p className="text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg">{`${WAS[check.change.from]} until ${dayWords(check.change.day, today)}.`}</p>
+              <p className="text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg">{`${WAS[check.change.from]} until ${sayDay(check.change.day, today) || dayWords(check.change.day, today)}.`}</p>
             ) : null}
           </div>
         ) : null}

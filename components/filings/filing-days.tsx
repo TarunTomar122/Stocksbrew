@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import { StockLogo } from "@/components/stock-logo";
+import { WholeRows } from "@/components/wire/whole-rows";
 import { EDGAR_DATA, FILING_GROUP_HINTS, type FilingGroup } from "@/lib/filings-shared";
 
 /**
@@ -76,16 +77,20 @@ export function FilingDays({ days }: { days: FilingDay[] }) {
     <>
       {days.map((day) => (
         <section key={day.day} aria-label={day.label} className="oa-surface overflow-hidden border border-oa-border bg-oa-card">
-          <h2 className="oa-label sticky top-0 z-[1] flex items-center justify-between border-b border-oa-border bg-oa-bg px-4 py-2">
-            <span>{day.label}</span>
-            <span className="oa-mono text-[12.5px] font-normal tabular-nums text-oa-muted-fg">{day.filings.length}</span>
-          </h2>
-          <ul className="divide-y divide-oa-border">
-            {day.filings.map((filing) => (
-              // A ticker and its EDGAR path name one filing (the same accession can list two tickers).
-              <FilingRow key={`${filing.ticker} ${filing.path}`} filing={filing} />
-            ))}
-          </ul>
+          {/* About eight filings in view, the rest scroll inside on whole rows with no bar shown, the day's heading kept
+              on top; the scroll hands back to the page at either end (owner rule 5). */}
+          <WholeRows rem={28} className="max-h-[28rem] overflow-y-auto scrollbar-hide">
+            <h2 className="oa-label sticky top-0 z-[1] flex items-center justify-between border-b border-oa-border bg-oa-bg px-4 py-2">
+              <span>{day.label}</span>
+              <span className="oa-mono text-[12.5px] font-normal tabular-nums text-oa-muted-fg">{day.filings.length}</span>
+            </h2>
+            <ul className="divide-y divide-oa-border">
+              {day.filings.map((filing) => (
+                // A ticker and its EDGAR path name one filing (the same accession can list two tickers).
+                <FilingRow key={`${filing.ticker} ${filing.path}`} filing={filing} />
+              ))}
+            </ul>
+          </WholeRows>
         </section>
       ))}
     </>

@@ -50,7 +50,6 @@ export default function DocsSectionPage({ params }: Props) {
       <PageHead
         crumb={`Part ${index + 1} of ${SECTIONS.length}`}
         title={section.title}
-        lede={section.blurb}
         meta={
           <p className="oa-mono text-[11.5px] leading-4 text-oa-muted-fg">
             {guides.length} {guides.length === 1 ? "guide" : "guides"} · about {guides.reduce((sum, guide) => sum + readingMinutes(guide), 0)} minutes

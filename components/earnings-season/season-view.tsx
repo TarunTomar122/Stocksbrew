@@ -2,7 +2,6 @@ import Link from "next/link";
 import * as React from "react";
 
 import { NUM, Panel, Ticker, fmtDay } from "@/components/oa/kit";
-import { TheRead } from "@/components/oa/insight";
 import { watchEarningsHref } from "@/lib/agents-plain/ask-links";
 import { dayDiff, fmtEps, type Session } from "@/lib/calendar-shared";
 import {
@@ -16,13 +15,12 @@ import {
   type SeasonStock,
   type SeasonWeek,
 } from "@/lib/earnings-season";
-import type { TheRead as TheReadData } from "@/lib/insights";
 import type { ResultSummary } from "@/lib/results/types";
 import { ResultLine } from "@/components/results/result-line";
 import { isNum, signedPct, weekdayOf } from "@/lib/read-format";
 
 /**
- * /portfolio/earnings: the read on top, then the six weeks as a strip with
+ * /portfolio/earnings: the six weeks as a strip with
  * each stock on its report day (sized by its share of the portfolio), then
  * every report week by week, each row with its last result in view; the row
  * opens the stock's earnings page with every past report.
@@ -377,7 +375,7 @@ function Later({ season, results }: { season: Season; results: Readonly<Record<s
 }
 
 /**
- * The next step beside the read: an agent that says when the one to watch is about to report. Opens the agent
+ * The next step at the top: an agent that says when the one to watch is about to report. Opens the agent
  * box with the request filled in; nothing is saved until the person says so.
  */
 function WatchNext({ season }: { season: Season }) {
@@ -398,15 +396,12 @@ function WatchNext({ season }: { season: Season }) {
 
 export function SeasonView({
   season,
-  read,
-  example,
   source,
   missing,
   results = {},
 }: {
   season: Season;
-  read: TheReadData | null;
-  example: boolean;
+  /** The calendar's time and what the shares are of, said once in a quiet line under the reports. */
   source: string;
   missing: string[];
   /** Stocks that reported in the last ten days, by ticker (lib/results). */
@@ -414,7 +409,6 @@ export function SeasonView({
 }) {
   return (
     <div className="flex flex-col gap-3">
-      <TheRead read={read ? { ...read, source } : null} label={example ? "The example's earnings season" : "Your earnings season"} askContext={example ? "ex.portfolio" : "portfolio"} />
       <WatchNext season={season} />
       {missing.length > 0 ? (
         <p className="px-2 text-[13px] leading-5 text-signal-bearish sm:px-0">
@@ -425,6 +419,7 @@ export function SeasonView({
       <Timeline season={season} />
       {season.reporting.length > 0 ? <Reports season={season} results={results} /> : null}
       <Later season={season} results={results} />
+      {source ? <p className="px-2 text-[12.5px] leading-[18px] text-oa-muted-fg sm:px-0">{source}</p> : null}
     </div>
   );
 }

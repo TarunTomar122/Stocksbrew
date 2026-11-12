@@ -10,8 +10,6 @@ import { StockLogo } from "@/components/stock-logo";
 import { getFirebaseAuth } from "@/lib/firebase-client";
 import type { PracticePayload, PracticeTradeResponse } from "@/lib/practice-store";
 import { signInWithGoogle } from "@/lib/sign-in";
-import { TheRead } from "@/components/oa/insight";
-import { buildPracticeRead } from "@/lib/practice-insights";
 
 const FIELD =
   "h-9 w-full min-w-0 rounded-md border border-oa-border bg-oa-page px-2.5 text-[14px] text-oa-fg outline-none placeholder:text-oa-muted-fg focus:border-oa-primary disabled:opacity-60";
@@ -36,7 +34,6 @@ export function PracticeDesk({ initial, mode }: { initial: PracticePayload; mode
   const bench = view.benchmark;
   const gap = bench.return === null ? null : view.total_return - bench.return;
   const curve = view.curve && view.curve.dates.length >= 2 ? view.curve : null;
-  const read = React.useMemo(() => buildPracticeRead(view, { example }), [view, example]);
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -95,7 +92,6 @@ export function PracticeDesk({ initial, mode }: { initial: PracticePayload; mode
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
-      <TheRead read={read} askContext={false} />
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
         <div className="flex min-w-0 flex-col gap-4">
           {/* The lead: what the account is worth, then what is in it. */}

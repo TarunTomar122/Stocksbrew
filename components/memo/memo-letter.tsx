@@ -85,7 +85,7 @@ export function MemoLetter({ memo, example, plan, rail = null }: { memo: Memo; e
           {view ? <DriverLine movers={view.movers} since={sinceCloseWords(view.curve[0]?.day, memo.complete)} /> : null}
           {view && view.curve.length >= 2 ? (
             <div className="mt-3">
-              <WeekChart curve={view.curve} subject={memo.subject} days={explainDays(memo, view.curve)} />
+              <WeekChart curve={view.curve} subject={memo.subject} days={explainDays(memo, view.curve)} weights={view.weights} />
             </div>
           ) : null}
           {view?.footnote ? <p className="mt-2 text-[12.5px] leading-[18px] text-oa-muted-fg">{plainFootnote(view.footnote)}</p> : null}

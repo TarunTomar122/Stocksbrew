@@ -1,5 +1,6 @@
 import type { AgentScope, AgentTrigger } from "@/lib/agent-jobs";
-import { agentHref, firedFor, nextCheckFor, stampWords } from "@/lib/agent-watch";
+import { agentHref, firedFor, nextCheckFor, onStamp, stampWords } from "@/lib/agent-watch";
+import { onDayWords } from "@/lib/day-words";
 import { fmtPlanDay } from "@/lib/dividend-plan";
 
 import { previousMarketDay, type AgentsSource, type LogRow } from "./log";
@@ -167,24 +168,26 @@ export function watchStatus(input: {
   match: AgentMatch | null;
   /** How the person's agents came back; "none" for the example, which has no agents. */
   agents: Loaded<AgentsSource>["state"] | "none";
+  /** New York day the run time is said against ("yesterday at 5:41 PM ET"); now when left out. */
+  today?: string;
 }): string | null {
-  const { plan, match, agents } = input;
+  const { plan, match, agents, today } = input;
   if (!plan || plan.kind !== "agent") return null;
   if (agents === "slow" || agents === "failed") return "We could not read your agents just now.";
   if (match) {
     const name = `“${match.name}”`;
     if (!match.enabled) return `Your agent ${name} does this, but it is paused.`;
     const run = match.lastRun;
-    const ran = run ? stampWords(run.ran_at, run.day) : "";
+    const ran = run ? stampWords(run.ran_at, run.day, today) : "";
     return run && ran ? `Your agent ${name} does this. It last ran ${ran} ${RAN[run.decision]}.` : `Your agent ${name} does this. It has not run yet.`;
   }
   if (plan.shape === "other" && agents === "ready") return null;
   return agents === "none" ? "No agent watches this yet." : "None of your agents does this yet.";
 }
 
-/** "After the close today", "After the close on Nov 12". */
+/** "After the close today.", "After the close tomorrow.", "After the close on Monday.", "After the close on Nov 24." */
 export function nextWords(day: string, today: string): string {
-  return day === today ? "After the close today." : `After the close on ${fmtPlanDay(day)}.`;
+  return `After the close ${onDayWords(day, today) || `on ${fmtPlanDay(day)}`}.`;
 }
 
 /** The one line a finding shows beside it, closed or open: whether a watch covers it and what that watch last found. */
@@ -216,15 +219,15 @@ export function findingWatchLine(input: {
 }): FindingWatchLine | null {
   const { plan, match, ticker, agents, mine, reasonDay, today } = input;
   if (plan?.kind === "reasons") {
-    return reasonDay ? { text: `The reason watcher last checked this on ${fmtPlanDay(reasonDay)}.`, link: null, fired: false } : null;
+    return reasonDay ? { text: `The reason watcher last checked this ${onDayWords(reasonDay, today) || `on ${fmtPlanDay(reasonDay)}`}.`, link: null, fired: false } : null;
   }
   const ready = mine && agents.state === "ready" ? agents.value : null;
   const symbol = ticker ? ticker.toUpperCase() : null;
   // Only when its latest run named this stock: a watchlist agent that flagged AMD says nothing about NVDA.
   if (match?.enabled && match.lastRun?.decision === "notify" && match.lastRun.day >= previousMarketDay(today) && symbol && (match.lastRun.tickers ?? []).some((one) => one.toUpperCase() === symbol)) {
-    const ran = stampWords(match.lastRun.ran_at, match.lastRun.day);
+    const ran = stampWords(match.lastRun.ran_at, match.lastRun.day, today);
     return {
-      text: `Your agent “${match.name}” flagged this${ran ? ` on ${ran}` : ""}.`,
+      text: `Your agent “${match.name}” flagged this${ran ? ` ${onStamp(ran)}` : ""}.`,
       link: { label: "See what it found", href: agentHref(match.id) },
       fired: true,
     };
@@ -233,13 +236,13 @@ export function findingWatchLine(input: {
     const fired = firedFor(ticker, ready, today);
     if (fired) {
       return {
-        text: `Your agent “${fired.job.name}” flagged ${ticker!.toUpperCase()} on ${fmtPlanDay(fired.run.day)}.`,
+        text: `Your agent “${fired.job.name}” flagged ${ticker!.toUpperCase()} ${onDayWords(fired.run.day, today) || `on ${fmtPlanDay(fired.run.day)}`}.`,
         link: { label: "See what it found", href: agentHref(fired.job.id) },
         fired: true,
       };
     }
   }
-  const status = watchStatus({ plan, match, agents: mine ? agents.state : "none" });
+  const status = watchStatus({ plan, match, agents: mine ? agents.state : "none", today });
   return status ? { text: status, link: null, fired: false } : null;
 }
 

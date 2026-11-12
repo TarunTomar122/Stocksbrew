@@ -28,7 +28,7 @@ export default function NotFound() {
         full
         crumb="404"
         title="There is no page at this address"
-        lede="It may have moved in the rebuild, or the link may be wrong. Search for a ticker with the search button (or ⌘K), or start from one of these."
+        lede="The link may be wrong. Search a ticker with ⌘K, or start below."
       />
       <Panel flush>
         <ul>

@@ -36,7 +36,8 @@ const move = (patch: Partial<ResultMove>): ResultMove => ({ ...read().move!, ...
 describe("bug 2: a move is said with its own day, never an undated 'the next day'", () => {
   it("dates the move", () => {
     expect(moveShort(move({}), TODAY)).toBe("up 25% yesterday");
-    expect(moveShort(move({ day: "2026-11-10" }), TODAY)).toBe("up 25% on Nov 10");
+    expect(moveShort(move({ day: "2026-11-10" }), TODAY)).toBe("up 25% on Tuesday");
+    expect(moveShort(move({ day: "2026-11-03" }), TODAY)).toBe("up 25% on Nov 3");
     const sentence = resultSentence(read(), "CRWV", TODAY);
     expect(sentence).toContain("rose 25% yesterday");
     expect(sentence).not.toContain("the next day");

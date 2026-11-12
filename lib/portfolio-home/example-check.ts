@@ -1,5 +1,6 @@
 import { shortDate, type AgentDecision, type AgentFinding, type AgentJobDraft, type AgentRunCounts, type AgentScope, type AgentTrigger } from "@/lib/agent-jobs";
 import { agentHref, describeWatch, nextCheckFor, runDetailFromDoc, runTickers, stampWords } from "@/lib/agent-watch";
+import { capitalize, dayPossessive, daysFromToday, onDayWords } from "@/lib/day-words";
 import type { AgentsSource } from "@/lib/portfolio-home/log";
 import { countWord } from "@/lib/read-format";
 
@@ -113,7 +114,7 @@ function wordsFor(audience: CheckAudience): (text: string) => string {
   return audience === "example" ? forExample : plainStocks;
 }
 
-function outcomeOf(run: StoredCheck, trigger: AgentTrigger | undefined, audience: CheckAudience = "example"): string {
+function outcomeOf(run: StoredCheck, trigger: AgentTrigger | undefined, today: string, audience: CheckAudience = "example"): string {
   const say = wordsFor(audience);
   if (run.decision === "could_not_check") return sentence(say(run.summary.replace(/^Could not check:\s*/i, "It could not check: "))) || "It could not check this time.";
   if (trigger?.type === "price" && trigger.rule === "moves_pct") {
@@ -123,9 +124,10 @@ function outcomeOf(run: StoredCheck, trigger: AgentTrigger | undefined, audience
     }
     if (run.decision === "nothing") {
       const priced = run.counts?.priced ?? 0;
-      if (run.latest_close && priced === 1) return `Nothing to report. The one stock with a new close did not move ${pct}% or more on ${shortDate(run.latest_close)}.`;
+      const on = run.latest_close ? onDayWords(run.latest_close, today) || `on ${shortDate(run.latest_close)}` : "";
+      if (run.latest_close && priced === 1) return `Nothing to report. The one stock with a new close did not move ${pct}% or more ${on}.`;
       if (run.latest_close && priced > 1) {
-        return `Nothing to report. None of the ${stocksWord(priced)} moved ${pct}% or more on ${shortDate(run.latest_close)}.`;
+        return `Nothing to report. None of the ${stocksWord(priced)} moved ${pct}% or more ${on}.`;
       }
       return "Nothing to report. There was no new close to check.";
     }
@@ -137,7 +139,7 @@ function outcomeOf(run: StoredCheck, trigger: AgentTrigger | undefined, audience
   return sentence(say(run.summary)) || "It found something to tell you.";
 }
 
-function checkedOf(run: StoredCheck, trigger: AgentTrigger | undefined, watched: number, audience: CheckAudience = "example"): string {
+function checkedOf(run: StoredCheck, trigger: AgentTrigger | undefined, watched: number, today: string, audience: CheckAudience = "example"): string {
   const say = wordsFor(audience);
   const these = audience === "example" ? "these" : "your";
   if (trigger?.type === "event" && trigger.event === "earnings_approaching") {
@@ -153,7 +155,11 @@ function checkedOf(run: StoredCheck, trigger: AgentTrigger | undefined, watched:
         : priced == null || priced === names
           ? `the ${stocksWord(names)}`
           : `${countWord(priced).toLowerCase()} of the ${stocksWord(names)}`;
-    return run.latest_close ? `${shortDate(run.latest_close)} closing prices for ${which}.` : `Closing prices for ${which}.`;
+    if (!run.latest_close) return `Closing prices for ${which}.`;
+    // "Yesterday's closing prices", "Monday's" within the week; "Nov 3 closing prices" before.
+    const gap = daysFromToday(run.latest_close, today);
+    const day = gap !== null && Math.abs(gap) <= 6 ? capitalize(dayPossessive(run.latest_close, today)) : shortDate(run.latest_close);
+    return `${day} closing prices for ${which}.`;
   }
   if (trigger?.type === "event" && trigger.event === "sec_filing") {
     const all = /^SEC filings from (.+?): (\d+) filings? across/.exec(run.checked[0] ?? "");
@@ -203,11 +209,11 @@ export function checkView(
     id: agent.id,
     ask: agent.ask,
     day: latest.day,
-    when: stampWords(latest.ran_at || null, latest.day),
+    when: stampWords(latest.ran_at || null, latest.day, today),
     ranAt: latest.ran_at,
     decision: latest.decision,
-    outcome: outcomeOf(latest, agent.trigger, options.audience),
-    checked: checkedOf(latest, agent.trigger, total, options.audience),
+    outcome: outcomeOf(latest, agent.trigger, today, options.audience),
+    checked: checkedOf(latest, agent.trigger, total, today, options.audience),
     findings: shown,
     more: latest.decision === "notify" ? Math.max(0, (latest.findingCount ?? latest.findings.length) - shown.length) : 0,
     decided: DECIDED[latest.decision],
@@ -329,7 +335,7 @@ export function storedCheckFromDoc(data: Record<string, unknown> | undefined, ui
 
 /**
  * When the check ran, said the way a person would, from `now` (New York time): "last night", "this
- * morning", "this evening", "today" or "on Nov 7".
+ * morning", "this evening", "today", "yesterday", "on Monday" within the week or "on Nov 3".
  */
 export function ranWords(ranAt: string, day: string, now: Date = new Date()): string {
   const at = new Date(ranAt);
@@ -341,9 +347,9 @@ export function ranWords(ranAt: string, day: string, now: Date = new Date()): st
     );
     return { day: `${parts.year}-${parts.month}-${parts.day}`, hour: Number(parts.hour) };
   };
-  if (Number.isNaN(at.getTime())) return DAY.test(day) ? `on ${shortDate(day)}` : "recently";
-  const ran = clock(at);
   const today = clock(now).day;
+  if (Number.isNaN(at.getTime())) return DAY.test(day) ? onDayWords(day, today) || `on ${shortDate(day)}` : "recently";
+  const ran = clock(at);
   const yesterday = new Date(`${today}T12:00:00Z`);
   yesterday.setUTCDate(yesterday.getUTCDate() - 1);
   const yesterdayDay = yesterday.toISOString().slice(0, 10);
@@ -354,7 +360,7 @@ export function ranWords(ranAt: string, day: string, now: Date = new Date()): st
     return "today";
   }
   if (ran.day === yesterdayDay && ran.hour >= 17) return "last night";
-  return `on ${shortDate(ran.day)}`;
+  return onDayWords(ran.day, today) || `on ${shortDate(ran.day)}`;
 }
 
 /**
@@ -433,16 +439,18 @@ function levelWords(close: number, level: { call: "Buy more" | "Sell some"; pric
 
 /**
  * "Your agent flagged NVDA's 5.5% drop to $168.89 on Nov 10.": the flag as the briefing's card and the inbox's read
- * both say it, word for word, ending on the price the move took it to (judges, ship 50), with the close's own date
- * (never "yesterday", which a page cached past midnight would get wrong). With a call level the reader may see, where
- * the close sits against it: "...to $168.89 on Nov 10, below the buy-more level." Never a level a signed-out reader
- * could not see: the caller passes none.
+ * both say it, word for word, ending on the price the move took it to (judges, ship 50). With `today` (a page rendered
+ * at request time) the day is said in words, "yesterday" or "on Tuesday" (lib/day-words.ts); without it, the close's
+ * own date, for anything cached or stored. With a call level the reader may see, where the close sits against it:
+ * "...to $168.89 on Nov 10, below the buy-more level." Never a level a signed-out reader could not see: the caller
+ * passes none.
  */
 export function flagWords(
   flag: Pick<FlaggedMove, "ticker" | "pct" | "day"> & { close?: number | null },
   level: { call: "Buy more" | "Sell some"; price: number } | null = null,
+  today: string | null = null,
 ): string {
-  const when = DAY.test(flag.day) ? ` on ${shortDate(flag.day)}` : "";
+  const when = DAY.test(flag.day) ? ` ${(today && onDayWords(flag.day, today)) || `on ${shortDate(flag.day)}`}` : "";
   const close = typeof flag.close === "number" && Number.isFinite(flag.close) && flag.close > 0 ? flag.close : null;
   const to = close !== null ? ` to ${priceWords(close)}` : "";
   const near = close !== null && level ? levelWords(close, level) : "";

@@ -16,19 +16,6 @@ export type ThreadStep = { label: string; href: string; external?: boolean };
 
 export type ThreadFigure = { value: string; tone: ThreadTone; label?: string };
 
-/** One of the 1-3 things the morning note says matter, drawn as a small card that is itself the link. */
-export type ThreadPoint = {
-  id: string;
-  text: string;
-  /** A second sentence on what it means, when the read has one. */
-  soWhat: string | null;
-  figure: ThreadFigure | null;
-  tickers: string[];
-  /** The lead stock's everyday name, shown beside its logo. */
-  leadName: string | null;
-  href: string | null;
-};
-
 /** A report coming up, as one row of a "coming up" note. */
 export type ThreadReport = { ticker: string; date: string; text: string };
 
@@ -57,8 +44,6 @@ export type ThreadNote = {
   reason: string | null;
   call: ThreadCall | null;
   step: ThreadStep | null;
-  /** Opener only: the 1-3 things that matter. */
-  points: ThreadPoint[];
   /** Today's opener: the sessions before it that had nothing else to say, oldest first. */
   recent: ThreadSession[];
   /** "upcoming" with several reports: one row each. */

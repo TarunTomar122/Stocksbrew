@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { Strategy, StrategySummary } from "@/lib/strategies";
-import { backtestGap, buildStrategiesRead, buildStrategyRead, strategiesTally } from "@/lib/strategies-insights";
+import type { StrategySummary } from "@/lib/strategies";
+import { backtestGap, buildStrategiesRead, strategiesTally } from "@/lib/strategies-insights";
 
 function summary(slug: string, name: string, mine: number, bench: number, extra: Partial<StrategySummary> = {}): StrategySummary {
   return {
@@ -129,35 +129,5 @@ describe("one tally behind every count", () => {
     const mixed = summary("mixed", "Mixed", 0.3, 0.1);
     mixed.backtest = { ...mixed.backtest!, benchmark: { ...mixed.backtest!.benchmark, annualized_return: null, total_return: 0.8 } };
     expect(backtestGap(mixed)).toBeCloseTo(0.2);
-  });
-});
-
-describe("one strategy", () => {
-  it("reads this year, the long run and the years that made it", () => {
-    const strategy = {
-      basket: { holdings: [{ symbol: "MU", weight: 0.5, sector: "Technology" }, { symbol: "KO", weight: 0.5, sector: "Consumer Staples" }] },
-      backtest: {
-        period: { start: "2015-12-01", end: "2026-11-09", years: 10.9 },
-        strategy: { annualized_return: 0.2, max_drawdown: -0.39 },
-        benchmark: { annualized_return: 0.14, max_drawdown: -0.34 },
-        hit_rate: { beat: 7, years: 10 },
-        years: [
-          { year: 2020, strategy: 0.37, benchmark: 0.18, complete: true, sessions: 252, beat: true },
-          { year: 2021, strategy: 0.27, benchmark: 0.29, complete: true, sessions: 252, beat: false },
-          { year: 2023, strategy: 0.2, benchmark: 0.26, complete: true, sessions: 252, beat: false },
-          { year: 2024, strategy: 0.58, benchmark: 0.25, complete: true, sessions: 252, beat: true },
-          { year: 2026, strategy: 0.355, benchmark: 0.112, complete: false, sessions: 215, beat: true },
-        ],
-      },
-    } as unknown as Strategy;
-    const read = buildStrategyRead(strategy, { seesHoldings: false, year: 2026 });
-    expect(read.headline).toBe("Beat the S&P 500 by 6.0 pts a year over 11 years, backtested.");
-    expect(read.insights.map((insight) => insight.text)).toEqual([
-      "This year it is +35.5% against +11.2% for the S&P 500, 24.3 pts ahead.",
-      "Over 11 years it beat the S&P 500 by 6.0 pts a year, with a worst drop of −39% against −34%.",
-      "Its best years against the S&P 500 were 2024 (+58% vs +25%) and 2020 (+37% vs +18%).",
-    ]);
-    expect(read.insights[2].soWhat).toBe("Its worst year against the S&P was 2023: +20% vs +26%.");
-    expect(read.source).toBe("Backtested, not traded · Dec 1 2015 to Nov 9 2026");
   });
 });

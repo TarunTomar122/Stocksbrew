@@ -3,6 +3,7 @@ import { CALL_PLAIN } from "@/lib/plain-copy";
 import * as React from "react";
 
 import { ToneGlyph } from "@/components/oa/kit/tone";
+import { reportSoon } from "@/lib/portfolio-attention";
 
 import {
   fmtDay,
@@ -87,7 +88,8 @@ const TIME_LABEL: Record<NonNullable<EarningsDate["time"]>, string> = {
 export function EarningsCell({ next, today }: { next: EarningsDate | null; today: string }) {
   if (!next) return <Dash />;
   const days = Math.round((Date.parse(`${next.date}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000);
-  const soon = days >= 0 && days <= 7;
+  // The same line the tables use to lift a row to the top (lib/portfolio-attention.ts).
+  const soon = reportSoon(next, today);
   const when = days === 0 ? "today" : days === 1 ? "tomorrow" : `in ${days} days`;
   const time = next.time ? TIME_LABEL[next.time] : "";
   return (

@@ -1,6 +1,7 @@
 /**
- * The reads on /signals (and the movers panel on /explore): what the day's
- * unusual moves, Reddit chatter and policy posts add up to. Plain rules over
+ * The reads behind the signals and market share cards (and the movers line on
+ * /explore): what the day's unusual moves, Reddit chatter and policy posts add
+ * up to. Plain rules over
  * the rows the page already loads; a sentence is left out when the data
  * cannot carry it.
  */
@@ -517,29 +518,6 @@ function latestNamedInsight(posts: PolicyPost[], now: number): Insight | null {
     tickers: post.names.map((row) => row.ticker),
     action: { label: "Read the post", href: "/signals?tab=policy&show=named" },
   };
-}
-
-export function buildPolicyRead(posts: PolicyPost[], now: number, asOf: string | null = null): TheRead | null {
-  if (posts.length === 0) return null;
-  const praised = praisedInsight(posts, now);
-  const recent = recentInsight(posts, now);
-  const headline = praised
-    ? praised.tone === "down"
-      ? "Stocks the President praised have mostly trailed the market since."
-      : "Stocks the President praised have mostly beaten the market since."
-    : recent
-      ? recent.text
-      : "No market posts in the last week.";
-  return {
-    headline,
-    insights: pickInsights([praised, recent && recent.text !== headline ? recent : null, latestNamedInsight(posts, now)]),
-    asOf,
-  };
-}
-
-/** One sentence on the policy posts, for a panel's first row. */
-export function policyTakeaway(posts: PolicyPost[], now: number): string | null {
-  return (praisedInsight(posts, now) ?? latestNamedInsight(posts, now) ?? recentInsight(posts, now))?.text ?? null;
 }
 
 /* ── the Today tab: one line from each stream ───────────────────────────── */

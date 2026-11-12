@@ -16,8 +16,9 @@
  */
 import { addDays, defaultWeekStart, resultWord, surprisePctOf, weekdayIndex, type EarningsItem, type Session } from "@/lib/calendar-shared";
 import { typicalDailyMove } from "@/lib/calendar-insights";
+import { onDayWords } from "@/lib/day-words";
 import { pickInsights, type Insight, type TheRead } from "@/lib/insights";
-import { absPct, countWord, isNum, listNames, shortDay, weekdayOf } from "@/lib/read-format";
+import { absPct, countWord, isNum, listNames, shortDay } from "@/lib/read-format";
 
 /** Weeks the planner looks ahead, starting with the current one (the coming one on a weekend). */
 export const SEASON_WEEKS = 6;
@@ -470,13 +471,9 @@ export function sessionWords(session: Session): string {
   return SESSION_WORDS[session];
 }
 
-/** "today", "tomorrow", "on Thursday" this week, "on Nov 20" beyond. */
+/** "today", "tomorrow", "on Tuesday" within six days, "on Nov 20" beyond (lib/day-words.ts). */
 export function whenWords(day: string, today: string): string {
-  const gap = dayGap(day, today);
-  if (gap === 0) return "today";
-  if (gap === 1) return "tomorrow";
-  if (gap > 1 && gap < 7 && weekdayIndex(day) > weekdayIndex(today)) return `on ${weekdayOf(day)}`;
-  return `on ${shortDay(day)}`;
+  return onDayWords(day, today) || `on ${shortDay(day)}`;
 }
 
 /** "Nov 16 to 20", "Nov 30 to Dec 4". */

@@ -24,9 +24,20 @@ export function CallChip({ call }: { call: CallWord }) {
  * it changed. Owner rule 9: a call stays put, and a sale never sits beside Keep or Buy more. So the call it replaced
  * ("was Keep") shows only for a one-step move between Keep and Buy more; a flip (a skipped step, a reversal within
  * five sessions, two changes in a week) shows the call now and its date, and the reason when the memo has one
- * (lib/memo/view.ts callShows). The card opens the stock, where the call lives.
+ * (lib/memo/view.ts callShows). A call with neither shows no card. The card opens the stock, where the call lives.
  */
 export function CallChanges({ calls, memo, example }: { calls: MemoCallChange[]; memo: Pick<Memo, "changed" | "hurt" | "look">; example: boolean }) {
+  // Only a call that ended somewhere else and has something to say: the call it replaced or the reason. A card that
+  // could only say "Keep" says nothing (owner, Nov 12: "Empty cards are useless. Remove them").
+  const cards = calls.flatMap((call) => {
+    if (call.from === call.to) return [];
+    const explain = explainCall(memo, call, example);
+    const reason = explain.text ? callReasonText(explain.text) : null;
+    const { was } = callShows(call);
+    return was || reason ? [{ call, was, reason }] : [];
+  });
+  // Nothing to say: no section, not a card saying none changed (owner rule 4).
+  if (cards.length === 0) return null;
   return (
     <section aria-labelledby="memo-calls" className="min-w-0">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-1 pb-2">
@@ -34,39 +45,32 @@ export function CallChanges({ calls, memo, example }: { calls: MemoCallChange[];
           Calls that changed
         </h2>
       </div>
-      {calls.length === 0 ? (
-        <p className="oa-surface border border-oa-border bg-oa-card px-4 py-3 text-[14px] leading-5 text-oa-muted-fg">None of our calls on these holdings changed this week.</p>
-      ) : (
-        <ul className={`oa-card-grid ${memoGrid(calls.length)}`}>
-          {calls.map((call, index) => {
-            const explain = explainCall(memo, call, example);
-            const reason = explain.text ? callReasonText(explain.text) : null;
-            const { was } = callShows(call);
-            const day = `${weekdayName(call.date).slice(0, 3)} ${shortDay(call.date)}`;
-            return (
-              <li key={`${call.ticker}:${call.date}`} className={memoCell(index, calls.length)}>
-                <Link
-                  href={`/stock/${encodeURIComponent(call.ticker)}`}
-                  prefetch={false}
-                  title={`${call.name}: ${CALL_CHIP[call.to].label}${was ? `, was ${CALL_CHIP[was].label}` : ""}, since ${weekdayName(call.date)}, ${shortDay(call.date)}`}
-                  className={`${MEMO_CARD} ${FOCUS}`}
-                >
-                  <span className="flex min-w-0 items-center gap-2">
-                    <StockLogo ticker={call.ticker} size={20} eager />
-                    <span className={`${NUM} text-[13.5px] font-medium text-oa-fg`}>{call.ticker}</span>
-                    <span className={`${NUM} ml-auto shrink-0 whitespace-nowrap text-[12.5px] text-oa-muted-fg`}>{day}</span>
-                  </span>
-                  <span className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <CallChip call={call.to} />
-                    {was ? <span className="whitespace-nowrap text-[12.5px] text-oa-muted-fg">was {CALL_CHIP[was].label}</span> : null}
-                  </span>
-                  {reason ? <span className="mt-2 block text-pretty text-[13px] leading-[19px] text-oa-fg">{reason}</span> : null}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      <ul className={`oa-card-grid ${memoGrid(cards.length)}`}>
+        {cards.map(({ call, was, reason }, index) => {
+          const day = `${weekdayName(call.date).slice(0, 3)} ${shortDay(call.date)}`;
+          return (
+            <li key={`${call.ticker}:${call.date}`} className={memoCell(index, cards.length)}>
+              <Link
+                href={`/stock/${encodeURIComponent(call.ticker)}`}
+                prefetch={false}
+                title={`${call.name}: ${CALL_CHIP[call.to].label}${was ? `, was ${CALL_CHIP[was].label}` : ""}, since ${weekdayName(call.date)}, ${shortDay(call.date)}`}
+                className={`${MEMO_CARD} ${FOCUS}`}
+              >
+                <span className="flex min-w-0 items-center gap-2">
+                  <StockLogo ticker={call.ticker} size={20} eager />
+                  <span className={`${NUM} text-[13.5px] font-medium text-oa-fg`}>{call.ticker}</span>
+                  <span className={`${NUM} ml-auto shrink-0 whitespace-nowrap text-[12.5px] text-oa-muted-fg`}>{day}</span>
+                </span>
+                <span className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <CallChip call={call.to} />
+                  {was ? <span className="whitespace-nowrap text-[12.5px] text-oa-muted-fg">was {CALL_CHIP[was].label}</span> : null}
+                </span>
+                {reason ? <span className="mt-2 block text-pretty text-[13px] leading-[19px] text-oa-fg">{reason}</span> : null}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
     </section>
   );
 }

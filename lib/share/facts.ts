@@ -76,7 +76,7 @@ export function stressFactsOf(result: StressResult): StressFacts {
           ratio: item.ratio,
           coveredPct: coveredPct(item),
           missing: missing.length === 0 ? null : missing.every((move) => move.status === "not-yet") ? "not-yet" : "no-prices",
-          lead: lead && lead.pct !== null ? { name: lead.name, pct: lead.pct, fund: lead.fund } : null,
+          lead: lead && lead.pct !== null ? { name: lead.name, ticker: lead.ticker, pct: lead.pct, fund: lead.fund } : null,
         };
       }),
   };
@@ -111,7 +111,7 @@ export async function dividendFacts(userDoc: UserDoc): Promise<DividendFacts | n
       // 100% and up is a tiny or first payment a year ago; the page says those as amounts, so the card leaves them out.
       .filter((stock) => stock.changePct != null && stock.changePct >= 3 && stock.changePct < 100)
       .sort((a, b) => b.changePct! - a.changePct!)
-      .map((stock) => ({ name: stock.name || stock.ticker, changePct: stock.changePct! })),
+      .map((stock) => ({ name: stock.name || stock.ticker, ticker: stock.ticker, changePct: stock.changePct! })),
     comparable: payers.filter((stock) => stock.changePct != null).length,
     asOf: plan.asOf,
   };
@@ -125,6 +125,7 @@ export async function memoFacts(viewer: Viewer, userDoc: UserDoc, week: string |
   // Newer memos keep the week's return out of "What changed" (the top line says it) and on `memo.week`.
   const performance = memo.week ?? items.find((item) => item.kind === "performance");
   if (!performance) return null;
+  const view = memo.view ?? null;
   return {
     weekKey: memo.weekKey,
     monday: memo.monday,
@@ -132,6 +133,16 @@ export async function memoFacts(viewer: Viewer, userDoc: UserDoc, week: string |
     complete: memo.complete,
     performance: performance.text,
     drivers: items.find((item) => item.kind === "drivers")?.text ?? null,
+    // The page's own picture of the week, percentages only. Older memos have no view; the card then has words only.
+    week: view
+      ? {
+          headline: view.headline,
+          portfolioPct: num(view.portfolioPct) ? view.portfolioPct : null,
+          marketPct: num(view.marketPct) ? view.marketPct : null,
+          curve: view.curve.filter((point) => num(point.portfolio)).map((point) => ({ day: point.day, portfolio: point.portfolio, market: num(point.market) ? point.market : null })),
+          movers: view.movers.filter((mover) => num(mover.pct) && num(mover.points)).map((mover) => ({ ticker: mover.ticker, name: shortCompanyName(mover.name) || mover.ticker, pct: mover.pct, points: mover.points })),
+        }
+      : null,
   };
 }
 
@@ -189,6 +200,7 @@ export async function portfolioFacts(userDoc: UserDoc): Promise<PortfolioFacts |
       const position = byTicker.get(slice.label);
       return {
         name: shortCompanyName(position?.name) || slice.label,
+        ticker: position ? position.ticker : null,
         sector: position?.sector && position.sector !== FUNDS_SECTOR ? position.sector : position?.sector === FUNDS_SECTOR ? "Fund" : null,
         pct: slice.weight,
       };

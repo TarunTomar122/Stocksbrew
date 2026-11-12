@@ -28,8 +28,6 @@ import { StockDirectory, type DirectoryGroup } from "@/components/screener/stock
 import { CONTROL, Unknown } from "@/components/screener/shared";
 import { can, limitFor } from "@/lib/entitlements";
 import { canSeeLevels, getViewer } from "@/lib/entitlements-server";
-import { benchmarkForDay, quoteDay } from "@/lib/benchmark-day";
-import { getMarketsData } from "@/lib/markets";
 import { getScreenerSnapshot } from "@/lib/screener";
 import { readSavedScreens, type SavedScreen } from "@/lib/screener-saved";
 import {
@@ -62,8 +60,6 @@ import {
   type SectorStat,
 } from "@/lib/screener-shared";
 import { StockLogo } from "@/components/stock-logo";
-import { TheRead } from "@/components/oa/insight";
-import { buildScreenerRead, buildSectorsRead } from "@/lib/screener-insights";
 import { alsoClassesLabel, oneRowPerCompany } from "@/lib/share-class";
 import { getUserDoc } from "@/lib/watchlist";
 import { ogImage } from "@/lib/og/url";
@@ -236,7 +232,7 @@ function SectorStrip({ stat }: { stat: SectorStat }) {
 }
 
 export default async function ScreenerPage({ searchParams }: { searchParams: SearchParams }) {
-  const [snapshot, viewer, markets] = await Promise.all([getScreenerSnapshot().catch(() => null), getViewer(), getMarketsData().catch(() => null)]);
+  const [snapshot, viewer] = await Promise.all([getScreenerSnapshot().catch(() => null), getViewer()]);
 
   if (!snapshot) {
     return (
@@ -274,13 +270,6 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
     .map(([id]) => id);
 
   const asOf = fmtStampET(meta.generated_at);
-  // Day moves come from the latest quotes; the price history (and its SPY row) can end a session earlier.
-  const priceDay = quoteDay(snapshot.rows, meta.price_history_to ?? null);
-  const spy = benchmarkForDay(
-    snapshot.extras.find((row) => row.symbol === "SPY") ?? null,
-    priceDay,
-    markets?.assets.find((asset) => asset.id === "sp500") ?? null,
-  );
   const tabs = [
     { id: "screen", label: "Screen", href: viewHref({ ...view, tab: "screen" }), count: meta.row_count },
     { id: "sectors", label: "Sectors", href: viewHref({ ...view, tab: "sectors" }), count: sectorOptions.length },
@@ -290,11 +279,7 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
   const head = (
     <PageHead
       title={view.tab === "sectors" ? "Stock sectors" : "Find stocks"}
-      lede={
-        view.tab === "sectors"
-          ? "Sized by market value, coloured by the move. Pick a sector to screen it."
-          : "Filter by price action, valuation, growth, quality and our call."
-      }
+      lede={view.tab === "sectors" ? "Sized by market value, coloured by the move. Pick a sector to screen it." : undefined}
       meta={<SourceLine asOf={asOf} />}
       inline
       className={`max-sm:[&_.oa-head-compact]:hidden ${view.tab === "sectors" ? "" : "[&_.oa-head-lede]:hidden"}`}
@@ -307,7 +292,6 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
     const stats = sectorStats(rows, view.period);
     const sectorHref = (slug: string) => viewHref({ ...view, tab: "screen", preset: null, filters: { ...EMPTY_FILTERS, sectors: [slug] }, sort: DEFAULT_SORT });
     const periodLabel = SECTOR_PERIODS.find((item) => item.id === view.period)?.label ?? "Today";
-    const sectorsRead = buildSectorsRead({ stats: sectorStats(rows), priceDay });
     const sectorColumns: DataColumn[] = [
       { id: "sector", label: "Sector" },
       { id: "count", label: "Stocks", align: "right", hideOnMobile: true },
@@ -359,7 +343,6 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
     return (
       <AppPage>
         {head}
-        <TheRead read={sectorsRead} label="Sectors, in short" className="mb-4" />
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <Chips
             current={view.period}
@@ -421,15 +404,6 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
   const onlySector =
     view.filters.sectors.length === 1 ? sectorStats(rows).find((stat) => stat.slug === view.filters.sectors[0]) ?? null : null;
 
-  const screenRead = lockedByCall
-    ? null
-    : buildScreenerRead({
-        matched,
-        universe: rows,
-        narrowed: hasScreen,
-        priceDay,
-        spy,
-      });
   const columns: DataColumn[] = [
     { id: "_select", label: <SelectAllCheck symbols={shown.map((row) => row.symbol)} />, sortable: false },
     { id: "symbol", label: <SortLabel view={{ ...view, sort }} id="symbol" numeric={false}>Stock</SortLabel>, sortable: false },
@@ -677,9 +651,6 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
           )}
         </Panel>
       </SelectionProvider>
-
-      {/* The list is the point of this page; the read about it comes after the stocks, folded to its headline. */}
-      <TheRead read={screenRead} label={hasScreen ? "What this list says" : "The market today, in short"} fold="always" foldLabel={hasScreen ? "Show what else this list says" : "Show what else stands out"} className="mt-4" />
 
       {showDirectory ? (
         <details className="oa-surface mt-6 border border-oa-border bg-oa-card">

@@ -65,15 +65,6 @@ export type InboxItem = {
   told?: boolean;
 };
 
-/** One stock the read tells two things about (its move, its report coming up): one card with both figures. */
-export type InboxStockRead = {
-  ticker: string;
-  href: string;
-  figures: Array<{ value: string; tone: InboxTone; text: string }>;
-  /** What else the read says about it and the rest of the week, in a quiet line; null when nothing. */
-  note: string | null;
-};
-
 /**
  * What the read needs from a results row (lib/results): its short headline, the row's sentence without the move (for
  * when the headline says the move), the signed move for ranking, the move in a few words, and where our call stands.

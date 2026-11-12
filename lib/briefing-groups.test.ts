@@ -252,11 +252,14 @@ describe("decisions", () => {
   });
 
   it("says what to decide in one plain sentence", () => {
-    expect(decisionText(call("ORCL", { relation: "holding", metric: "Trim" }))).toBe("Our call moved to Sell some, and you hold it.");
-    expect(decisionText(earnings("CBRS", 2))).toBe("Reports earnings Thursday after the close, and you hold it.");
+    expect(decisionText(call("ORCL", { relation: "holding", metric: "Trim" }))).toBe("Our call moved to Sell some.");
+    expect(decisionText(earnings("CBRS", 2))).toBe("Reports earnings Thursday after the close.");
     expect(decisionText(move("CBRS", 9))).toBeNull();
     expect(decisionText(item({ id: "z", kind: "zone_entered", ticker: "VST", relation: "holding", needs_you: true, headline: "VST is in its add zone: $133.90, below $133.91" }))).toBe(
-      "At $133.90, it is under the buy-more price of $133.91.",
+      "At the buy-more price.",
+    );
+    expect(decisionText(item({ id: "z2", kind: "zone_entered", ticker: "VST", relation: "holding", needs_you: true, headline: "VST is below its buy-more price: $127.00, under $130" }))).toBe(
+      "2.3% under the buy-more price.",
     );
   });
 });

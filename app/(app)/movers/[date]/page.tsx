@@ -2,12 +2,9 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { JsonLd, breadcrumbLd } from "@/components/docs/json-ld";
-import { TheRead } from "@/components/oa/insight";
 import { AppPage, CardGrid, Delta, NUM, PageHead, Panel, SourceLine, fmtDay, fmtStampET } from "@/components/oa/kit";
 import { StockLogo } from "@/components/stock-logo";
-import { buildMoversDayRead, closeOn } from "@/lib/move-page";
 import { ogImage } from "@/lib/og/url";
-import { getDailySeries } from "@/lib/screener-series";
 import { MOVERS_DAY_MIN_MOVES, isIsoDay, longDay, moveHref, moversDayHref, moversDayTitle } from "@/lib/seo/families";
 import { getMovesDay, getRecentMoves, type ExplainedMove } from "@/lib/seo/family-data";
 import Link from "next/link";
@@ -77,8 +74,6 @@ export default async function MoversDayPage({ params }: Props) {
   if (!moves) notFound();
   const day = params.date;
   const path = moversDayHref(day);
-  const { series } = await getDailySeries(["SPY"]).catch(() => ({ series: {} as Record<string, never> }));
-  const read = buildMoversDayRead({ day, moves, spyClose: closeOn(series.SPY, day) });
   const up = moves.filter((move) => move.pct >= 0);
   const down = moves.filter((move) => move.pct < 0);
   const days = [...new Set((await getRecentMoves()).map((move) => move.day))].sort();
@@ -115,7 +110,6 @@ export default async function MoversDayPage({ params }: Props) {
         }
         note={false}
       />
-      <TheRead read={read} label="The day, in short" className="mb-4" />
       <CardGrid cols={2}>
         <Panel flush fill label={`Up ${up.length}`}>
           {up.length ? <MoveRows moves={up} /> : <p className="px-4 py-3 text-[14px] text-oa-muted-fg">No explained gains this day.</p>}

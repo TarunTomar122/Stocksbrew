@@ -29,7 +29,7 @@ export default async function PracticePage() {
 
   const lede = (
     <>
-      Buy and sell US stocks and funds with paper money and compare with holding the S&amp;P 500. Test a mix on past prices with the{" "}
+      Trade US stocks with paper money. For past prices, use the{" "}
       <Link href="/backtest" className="text-oa-fg underline decoration-oa-border underline-offset-4 hover:decoration-oa-primary">
         backtester
       </Link>

@@ -357,69 +357,6 @@ export function moversTakeaway(movers: MarketAsset[]): string | null {
   return `${up} of the ${movers.length} biggest moves ${up === 1 ? "was a gain" : "were gains"}. ${lead}`;
 }
 
-/* ── the read for one class page (/markets/indices, /markets/crypto, ...) ── */
-
-const CLASS_NOUN: Record<string, string> = { indices: "indices", etfs: "funds", commodities: "commodities", fx: "currencies", crypto: "coins", options: "volatility gauges" };
-
-/** A move this far from the baseline is worth a line on a class page. */
-const CLASS_GAP = 1;
-
-function classMoverInsight(asset: MarketAsset, base: { name: string; day: number } | null, window: string): Insight | null {
-  const move = asset.change.d1;
-  if (!isNum(move)) return null;
-  const gap = base ? move - base.day : move;
-  if (Math.abs(gap) < CLASS_GAP) return null;
-  const baseText = base ? `, ${pts(Math.abs(gap))} ${gap > 0 ? "better" : "worse"} than ${base.name} (${signedPct(base.day, 2)})` : "";
-  const month = asset.change.m1;
-  const holdings = asset.class === "etf" ? usHoldings(asset) : [];
-  const monthText =
-    isNum(month) && Math.abs(month) >= 5
-      ? Math.sign(month) === Math.sign(move)
-        ? `That extends a ${absPct(month)} ${month > 0 ? "gain" : "drop"} over the month.`
-        : `It is still ${month > 0 ? "up" : "down"} ${absPct(month)} over the month.`
-      : undefined;
-  return {
-    id: `mover-${asset.id}`,
-    tone: move > 0 ? "up" : "down",
-    text: `${topic(asset)} ${move > 0 ? "rose" : "fell"} ${absPct(move, 2)} ${window}${baseText}.`,
-    soWhat: monthText ?? (holdings.length ? `Its biggest holdings are ${listNames(holdings)}.` : undefined),
-    tickers: holdings,
-    action: { label: `Open ${asset.symbol}`, href: assetHref(asset) },
-  };
-}
-
-/**
- * The read on a class page: the class in one line (the curve or sector
- * reading when the page has one, else how many rose and who led), then the
- * moves that stood out against the S&P 500 (bitcoin for coins). Rates and
- * options use the same yield and VIX lines as the overview.
- */
-export function buildClassRead(input: { slug: string; assets: MarketAsset[]; data: MarketsData; reading?: string | null }): TheRead | null {
-  const { slug, assets, data } = input;
-  const byId = new Map(data.assets.map((asset) => [asset.id, asset]));
-  const noun = CLASS_NOUN[slug];
-  const headline = input.reading?.trim() || (noun ? listTakeaway(assets, noun) : null);
-  let insights: Insight[];
-  if (slug === "rates") insights = pickInsights([ratesInsight(byId)]);
-  else if (slug === "options") insights = pickInsights([volInsight(byId, "mixed")]);
-  else {
-    const btc = slug === "crypto" ? assets.find((asset) => asset.id === "btc") : undefined;
-    const spx = byId.get("sp500") ?? byId.get("spy");
-    const baseAsset = btc ?? spx;
-    const baseDay = d1(baseAsset);
-    // Currencies are not measured against stocks: a pair needs a 1% day on its own to make the read.
-    const base = slug !== "fx" && baseAsset && baseDay !== null ? { name: btc ? "bitcoin" : "the S&P 500", day: baseDay } : null;
-    const window = slug === "crypto" ? "in 24 hours" : "today";
-    const movers = assets
-      .filter((asset) => asset.change_mode === "pct" && isNum(asset.change.d1) && asset.id !== baseAsset?.id)
-      .sort((a, b) => Math.abs(b.change.d1! - (base?.day ?? 0)) - Math.abs(a.change.d1! - (base?.day ?? 0)) || a.id.localeCompare(b.id));
-    insights = pickInsights(movers.slice(0, 2).map((asset) => classMoverInsight(asset, base, window)));
-  }
-  if (!headline && insights.length === 0) return null;
-  const latest = assets.reduce<string | null>((best, asset) => (asset.as_of && (!best || asset.as_of > best) ? asset.as_of : best), null);
-  return { headline: headline ? cap(headline) : "", insights, asOf: latest ?? data.as_of ?? null };
-}
-
 /* ── Market today: the next thing to watch ──────────────────────────────── */
 
 /** A report on the calendar: the day and, when known, whether it lands before the open or after the close. */

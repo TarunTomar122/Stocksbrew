@@ -157,7 +157,7 @@ export async function loadUserInbox(viewer: Viewer, doc: UserDoc | null, now: Da
       { name: "alerts", run: () => alertSource(uid, sinceDay) },
       { name: "reasons", run: () => (can("reason_watch", viewer.plan) ? reasonSource(uid, stocks, sinceDay) : Promise.resolve([])) },
       { name: "follow", run: () => followSource(followed, stocks, sinceDay) },
-      { name: "insiders", run: () => insiderSource(stocks, sinceDay) },
+      { name: "insiders", run: () => insiderSource(stocks, sinceDay, today) },
       { name: "strategies", run: () => strategySource(strategies, strategiesLocked, sinceDay) },
       { name: "memo", run: () => memoSource(uid, sinceDay) },
       ]),

@@ -138,7 +138,7 @@ export default async function CopyHubPage() {
         {hub ? (
           <>
             <p className="mt-1 max-w-3xl text-pretty text-[15px] leading-[22px] text-oa-fg">
-              We copied what each fund and member of Congress bought, at the close of the first trading day after it became public, and compared that with simply owning the S&amp;P 500.
+              Each buy copied the day after it went public, against holding the S&amp;P 500.
             </p>
             <p className="mt-1 text-pretty text-[13px] leading-5 text-oa-muted-fg">
               {COPY_FRAMING} Prices to {fmtDate(hub.price_as_of)}.

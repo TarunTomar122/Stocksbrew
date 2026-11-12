@@ -1,5 +1,6 @@
 /** Formatting shared by the stock report. Server and client safe. */
 
+import { etToday, onDayWords, stampWords } from "@/lib/day-words";
 import { wholeSentences } from "@/lib/plain-copy";
 
 export function fin(value: unknown): value is number {
@@ -76,8 +77,27 @@ export function fmtTimeET(iso: string | null | undefined): string {
   return `${date.toLocaleTimeString("en-US", { timeZone: ET, hour: "numeric", minute: "2-digit" })} ET`;
 }
 
-/** "Nov 9, 2:01 PM ET" for timestamps, "Nov 9, 2026" for plain dates. */
-export function fmtStamp(iso: string | null | undefined): string {
+/**
+ * One stamp read now: "2:01 PM ET" today, "yesterday, 2:01 PM ET", "Monday, 2:01 PM ET" within the week, "Nov 3,
+ * 2:01 PM ET" before (lib/day-words.ts); "Nov 9, 2026" for plain dates. A list of many dates uses `fmtStampDate`.
+ */
+export function fmtStamp(iso: string | null | undefined, now: number | Date = Date.now()): string {
+  const text = String(iso ?? "");
+  if (!text) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return fmtDate(text);
+  return stampWords(text, now) || fmtStampDate(text);
+}
+
+/** "Price at 3:59 PM ET", "Price at 3:59 PM ET yesterday", "… on Monday" within the week, "… on Nov 3" before. */
+export function priceStamp(iso: string | null | undefined, now: number | Date = Date.now()): string {
+  const time = fmtTimeET(iso);
+  if (!time) return "";
+  const when = onDayWords(dayInET(iso), etToday(now));
+  return `Price at ${time}${when && when !== "today" ? ` ${when}` : ""}`;
+}
+
+/** "Nov 9, 2:01 PM ET" for timestamps, "Nov 9, 2026" for plain dates: the date itself, for a list of many dates. */
+export function fmtStampDate(iso: string | null | undefined): string {
   const text = String(iso ?? "");
   if (!text) return "";
   if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return fmtDate(text);

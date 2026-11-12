@@ -97,7 +97,7 @@ describe("the home page's example book", () => {
     const view = exampleBookView({ ...source, facts: { ...source.facts, calls } })!;
     expect(view.pending).toBe("We have no call on NVDA yet.");
     expect(view.calls).toBe("We'd buy more of five and keep one.");
-    expect(view.day?.when).toBe("on Nov 10");
+    expect(view.day?.when).toBe("yesterday");
   });
 
   it("is null with nothing valued, so the page shows its plain line", () => {

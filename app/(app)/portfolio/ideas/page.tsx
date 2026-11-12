@@ -18,8 +18,6 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = toolPageMetadata("/portfolio/ideas");
 
-const LEDE = "Where to sell some or buy more in a lopsided portfolio, the tax on each sale, and losses you could sell to save tax.";
-
 type Search = Record<string, string | string[] | undefined>;
 
 export default async function IdeasPage({ searchParams }: { searchParams: Promise<Search> }) {
@@ -34,7 +32,6 @@ export default async function IdeasPage({ searchParams }: { searchParams: Promis
             Portfolio
           </Link>
         }
-        lede={LEDE}
         meta={<SourceLine source="Prices, our calls and fund holdings from SEC filings" />}
       />
       <Suspense fallback={<IdeasGhost />}>

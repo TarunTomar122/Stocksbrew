@@ -1,5 +1,6 @@
 "use client";
 
+import { TableBox } from "@/components/oa/kit/table-box";
 import * as React from "react";
 
 import { ProbabilityBar, toneText } from "@/components/markets/widgets";
@@ -111,7 +112,7 @@ export function PredictionTable({ markets }: { markets: PredictionMarket[] }) {
         </div>
       ) : null}
       <div className="oa-surface overflow-hidden border border-oa-border bg-oa-card">
-        <div className="overflow-x-auto">
+        <TableBox rowRem={3.25} head="bg-oa-bg">
           <table className="w-full min-w-[760px] border-collapse text-[14px]">
             <thead>
               <tr>
@@ -161,7 +162,7 @@ export function PredictionTable({ markets }: { markets: PredictionMarket[] }) {
               })}
             </tbody>
           </table>
-        </div>
+        </TableBox>
       </div>
       <p className="oa-mono text-[12.5px] leading-4 text-oa-muted-fg">
         Volume is in each venue&apos;s own unit: US dollars on Polymarket, contracts (ct) on Kalshi. The two are not comparable, so the column does not sort.

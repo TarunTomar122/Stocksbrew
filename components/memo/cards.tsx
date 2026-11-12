@@ -7,7 +7,6 @@ import { pct } from "@/lib/memo/format";
 import type { FactKind, MemoItem, MemoVisual } from "@/lib/memo/types";
 
 import { MiniBars } from "./mini-bars";
-import { hasReason } from "./explain";
 
 /**
  * A section of the memo as cards: one figure, a short line that reads on
@@ -130,8 +129,6 @@ function Card({ item, example }: { item: MemoItem; example: boolean }) {
   const card = item.card ?? null;
   const single = item.tickers.length === 1 ? item.tickers[0]! : null;
   const figureTone = card?.sign === "up" ? "text-signal-bullish" : card?.sign === "down" ? "text-signal-bearish" : "text-oa-fg";
-  // The full sentence under the figure, unless it only restates it ("AST SpaceMobile fell 8.7% on Tuesday, Nov 10.").
-  const detail = card && hasReason(item) ? item.text : null;
   return (
     <li className="oa-surface relative flex min-w-0 flex-col border border-oa-border bg-oa-card p-3.5 transition-colors hover:border-[color-mix(in_srgb,var(--oa-fg)_25%,transparent)] hover:bg-oa-accent">
       <Link
@@ -152,7 +149,8 @@ function Card({ item, example }: { item: MemoItem; example: boolean }) {
         )}
       </div>
       {card?.visual ? <Visual visual={card.visual} example={example} /> : null}
-      {detail ? <p className="mt-2.5 text-pretty text-[13.5px] leading-5 text-oa-muted-fg">{detail}</p> : null}
+      {/* No paragraph under the figure and its label (owner, Nov 12: a card is a figure, a few words and one line):
+          the card's one line is where it comes from. The full sentence is on the page the card opens. */}
       <p className="mt-auto pt-2.5 text-[12px] leading-4 text-oa-muted-fg">{item.source}</p>
     </li>
   );

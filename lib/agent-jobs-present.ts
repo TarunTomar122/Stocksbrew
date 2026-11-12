@@ -8,10 +8,8 @@
  * numbers are read back from their sentences, so old runs read the same way.
  */
 
-import type { Insight, TheRead } from "@/lib/insights";
 import { isNyseHoliday } from "@/lib/market-session";
 import {
-  jobDisplayName,
   shortDate,
   zoneOf,
   type AgentDecision,
@@ -538,54 +536,4 @@ export function orderJobs(jobs: AgentJob[], runsByJob: Map<string, AgentRun[]>, 
       return { job, last, view: last ? presentRun(last, job, { levels }) : null };
     })
     .sort((a, b) => rank(a) - rank(b) || (b.last?.day ?? "").localeCompare(a.last?.day ?? "") || a.job.created_at.localeCompare(b.job.created_at));
-}
-
-/**
- * The read at the top of the page: what needs the person, then up to three
- * of the newest runs as sentences. Null with no runs, so nothing is padded.
- */
-export function agentsRead(statuses: JobStatus[], today: string): TheRead | null {
-  const ran = statuses.filter((status) => status.view && status.last);
-  if (ran.length === 0) return null;
-  const count = (verdict: AgentVerdict) => ran.filter((status) => status.view?.verdict === verdict).length;
-  const act = count("act");
-  const look = count("look");
-  const on = statuses.filter((status) => status.job.enabled).length;
-  const newest = ran.map((status) => status.last?.day ?? "").sort().pop() ?? "";
-  const ranToday = ran.filter((status) => status.last?.day === today).length;
-
-  const headline =
-    act > 0
-      ? `${act === 1 ? "One agent needs you" : `${act} agents need you`}${look ? `, and ${look === 1 ? "one has a heads-up" : `${look} have heads-ups`}` : ""}.`
-      : look > 0
-        ? `No action needed. ${look === 1 ? "One agent has a heads-up" : `${look} agents have heads-ups`}.`
-        : "All quiet. No action needed.";
-
-  const insights: Insight[] = ran
-    .filter((status) => status.view?.verdict !== "quiet")
-    .slice(0, 3)
-    .map((status) => {
-      const view = status.view as RunView;
-      return {
-        id: status.job.id,
-        tone: view.tone,
-        text: `${jobDisplayName(status.job.name)}: ${view.headline}`,
-        soWhat: view.todo,
-        tickers: view.tickers.slice(0, 4),
-        action: { label: "Open", href: `#job-${status.job.id}` },
-      } satisfies Insight;
-    });
-
-  const lastRun = ran
-    .map((status) => status.last?.ran_at ?? "")
-    .filter(Boolean)
-    .sort()
-    .pop();
-  const checked = ranToday > 0 ? `${ranToday} checked today` : `last checked ${pastWhen(newest, today).replace(/^on /, "")}`;
-  return {
-    headline,
-    insights,
-    source: `${on} of ${statuses.length} ${statuses.length === 1 ? "agent" : "agents"} on · ${checked}`,
-    asOf: lastRun ?? null,
-  };
 }

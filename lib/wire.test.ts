@@ -145,8 +145,9 @@ describe("days in New York", () => {
 
   it("labels today, yesterday and older days", () => {
     expect(dayLabel("2026-11-09", "2026-11-09")).toBe("Today");
-    expect(dayLabel("2026-11-08", "2026-11-09")).toBe("Yesterday · Sun, Nov 8");
-    expect(dayLabel("2026-11-06", "2026-11-09")).toBe("Fri, Nov 6");
+    expect(dayLabel("2026-11-08", "2026-11-09")).toBe("Yesterday");
+    expect(dayLabel("2026-11-06", "2026-11-09")).toBe("Friday");
+    expect(dayLabel("2026-11-02", "2026-11-09")).toBe("Nov 2");
     expect(dayLabel("unknown", "2026-11-09")).toBe("Date unknown");
   });
 
@@ -159,7 +160,7 @@ describe("days in New York", () => {
     const days = groupByDay(rows, Date.parse("2026-11-10T04:00:00Z"));
     expect(days.map((day) => [day.day, day.label, day.items.map((row) => row.id)])).toEqual([
       ["2026-11-09", "Today", ["late", "noon"]],
-      ["2026-11-08", "Yesterday · Sun, Nov 8", ["old"]],
+      ["2026-11-08", "Yesterday", ["old"]],
     ]);
     expect(groupByDay([])).toEqual([]);
   });

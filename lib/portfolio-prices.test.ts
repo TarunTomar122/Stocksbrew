@@ -61,12 +61,19 @@ describe("pricesWords", () => {
   it("says the close for a finished session and 'during trading' while today's is open", () => {
     // 3 PM New York on Nov 11.
     const midSession = Date.parse("2026-11-11T20:00:00Z");
-    expect(pricesWords("2026-11-10", midSession)).toBe("the Nov 10 close");
-    expect(pricesWords("2026-11-11", midSession)).toBe("Nov 11, while the market is open");
+    expect(pricesWords("2026-11-10", midSession)).toBe("yesterday's close");
+    expect(pricesWords("2026-11-11", midSession)).toBe("today, while the market is open");
     // Before the open that day's close has not happened; at weekends there is no session running.
-    expect(pricesWords("2026-11-11", Date.parse("2026-11-11T12:00:00Z"))).toBe("Nov 11, before the open");
-    expect(pricesWords("2026-11-14", Date.parse("2026-11-14T17:00:00Z"))).toBe("the Nov 14 close");
-    expect(pricesWords("2026-11-11", Date.parse("2026-11-11T22:00:00Z"))).toBe("the Nov 11 close");
+    expect(pricesWords("2026-11-11", Date.parse("2026-11-11T12:00:00Z"))).toBe("today, before the open");
+    expect(pricesWords("2026-11-14", Date.parse("2026-11-14T17:00:00Z"))).toBe("today's close");
+    expect(pricesWords("2026-11-11", Date.parse("2026-11-11T22:00:00Z"))).toBe("today's close");
     expect(pricesWords(null)).toBeNull();
+  });
+
+  it("names the close by its weekday within the week and by its date before", () => {
+    // Monday Nov 16, 8 AM New York: Friday's close.
+    expect(pricesWords("2026-11-13", Date.parse("2026-11-16T13:00:00Z"))).toBe("Friday's close");
+    expect(pricesWords("2026-11-03", Date.parse("2026-11-16T13:00:00Z"))).toBe("the Nov 3 close");
+    expect(pricesWords("not a day", Date.parse("2026-11-16T13:00:00Z"))).toBeNull();
   });
 });

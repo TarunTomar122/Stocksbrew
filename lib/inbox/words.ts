@@ -1,4 +1,5 @@
 import { instantOf, isBareDay, nyDay, shortDay } from "./merge";
+import { onDayWords } from "@/lib/day-words";
 import { sessionWords, vsDayWords, whenWords as reportWhen } from "@/lib/earnings-season";
 import { isNyseHoliday } from "@/lib/market-session";
 import type { ResultRead } from "@/lib/results/types";
@@ -208,16 +209,13 @@ export function sessionBefore(day: string): string {
   return date.toISOString().slice(0, 10);
 }
 
-const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-
-/** A past day as a sentence says it: "today", "yesterday", "on Monday" within the week, "on Nov 3" before. */
+/**
+ * A past day as a sentence says it: "today", "yesterday", "on Monday" within the week, "on Nov 3" before
+ * (lib/day-words.ts). Without `today` (text that is kept and read later), always the date.
+ */
 export function pastWhen(day: string, today: string | null): string {
   if (!today) return `on ${shortDay(day)}`;
-  const gap = Math.round((Date.parse(`${today}T12:00:00Z`) - Date.parse(`${day}T12:00:00Z`)) / 86_400_000);
-  if (gap === 0) return "today";
-  if (gap === 1) return "yesterday";
-  if (gap > 1 && gap < 7) return `on ${WEEKDAYS[new Date(`${day}T12:00:00Z`).getUTCDay()]}`;
-  return `on ${shortDay(day)}`;
+  return onDayWords(day, today) || `on ${shortDay(day)}`;
 }
 
 /** A move at least this many times the stock's normal day is "more than usual": the row says so and the read counts it. */
@@ -414,7 +412,7 @@ export function reportSentence(report: Pick<UpcomingReport, "ticker" | "date" | 
  * The runs that found nothing, one line per day: still an answer ("checked, nothing needs you"), listed but never
  * counted as unread.
  */
-export function quietItems(runs: AgentRunRecord[], mode: Mode): InboxItem[] {
+export function quietItems(runs: AgentRunRecord[], mode: Mode, today: string | null = null): InboxItem[] {
   const byDay = new Map<string, AgentRunRecord[]>();
   for (const run of runs) {
     if (run.decision !== "nothing") continue;
@@ -426,12 +424,13 @@ export function quietItems(runs: AgentRunRecord[], mode: Mode): InboxItem[] {
     const latest = timed ?? instantOf(day);
     if (!latest) continue;
     const whose = mode === "mine" ? "Your" : "The example";
+    const on = pastWhen(day, today);
     const text =
       list.length === 1
-        ? `${whose} ${agentName(list[0]!.jobName) || ""} agent checked on ${shortDay(day)} and found nothing that needs ${mode === "mine" ? "you" : "a look"}.`.replace(/\s+/g, " ")
+        ? `${whose} ${agentName(list[0]!.jobName) || ""} agent checked ${on} and found nothing that needs ${mode === "mine" ? "you" : "a look"}.`.replace(/\s+/g, " ")
         : mode === "mine"
-          ? `${list.length} of your agents checked on ${shortDay(day)} and found nothing that needs you.`
-          : `${list.length} example agents checked on ${shortDay(day)} and found nothing that needs a look.`;
+          ? `${list.length} of your agents checked ${on} and found nothing that needs you.`
+          : `${list.length} example agents checked ${on} and found nothing that needs a look.`;
     const item = base({
       id: `quiet:${day}`,
       kind: "agent",
@@ -656,7 +655,7 @@ function roleWords(role: string): string {
  * Open-market buys in one of the person's stocks, one item per stock per filing day: a single buyer is named, a few
  * are counted with their total. Buys under MIN_INSIDER_BUY are left out.
  */
-export function insiderItems(trades: InsiderRecord[], positions: Map<string, Position>): InboxItem[] {
+export function insiderItems(trades: InsiderRecord[], positions: Map<string, Position>, today: string | null = null): InboxItem[] {
   const groups = new Map<string, Array<InsiderRecord & { at: string; day: string; ticker: string }>>();
   for (const trade of trades) {
     const ticker = cleanTicker(trade.ticker);
@@ -678,8 +677,8 @@ export function insiderItems(trades: InsiderRecord[], positions: Map<string, Pos
     const role = roleWords(top.role);
     const text =
       people.size === 1
-        ? `${top.insider.trim()}, ${role ? `${role} at ${ticker}` : `an insider at ${ticker}`}, bought ${usd(total)} of ${ticker} in ${sorted.length === 1 ? "a filing" : "filings"} on ${shortDay(top.day)}, ${yours}.`
-        : `${people.size} insiders at ${ticker} bought ${usd(total)} of the stock in filings on ${shortDay(top.day)}, ${yours}, led by ${top.insider.trim()}.`;
+        ? `${top.insider.trim()}, ${role ? `${role} at ${ticker}` : `an insider at ${ticker}`}, bought ${usd(total)} of ${ticker} in ${sorted.length === 1 ? "a filing" : "filings"} ${pastWhen(top.day, today)}, ${yours}.`
+        : `${people.size} insiders at ${ticker} bought ${usd(total)} of the stock in filings ${pastWhen(top.day, today)}, ${yours}, led by ${top.insider.trim()}.`;
     const external = Boolean(top.url && /^https:\/\//.test(top.url));
     const latest = sorted.map((trade) => trade.at).sort().pop()!;
     const item = base({

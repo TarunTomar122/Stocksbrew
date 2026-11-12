@@ -221,6 +221,9 @@ export type MemoItem = {
 /** One day on the week's chart: percent from the close before Monday. */
 export type MemoCurvePoint = { day: string; portfolio: number; market: number | null };
 
+/** A holding's share of the week's line at its last close, percent (the line's holdings sum to about 100). */
+export type MemoWeight = { ticker: string; weight: number };
+
 /** A holding's share of the week's move. */
 export type MemoMover = {
   ticker: string;
@@ -254,6 +257,11 @@ export type MemoView = {
   marketPct: number | null;
   /** The close before Monday first (at 0), then each close in the week. Empty when the week cannot be priced. */
   curve: MemoCurvePoint[];
+  /**
+   * Each holding in the line, weighted by its value at the last close, so the chart can carry the line on before the
+   * open from the holdings' premarket prices. Missing on memos stored before it was kept.
+   */
+  weights?: MemoWeight[];
   /** Up to three that helped most, then up to three that hurt most. */
   movers: MemoMover[];
   calls: MemoCallChange[];

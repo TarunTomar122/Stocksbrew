@@ -9,6 +9,8 @@ import { MarkSlot } from "@/components/oa/kit/tone";
 import { CARD, EmptyNote, FOCUS, NUM, Pct, SectionTitle } from "@/components/portfolio/parts";
 import { PreferenceToggle } from "@/components/preference-toggle";
 import { StockLogo } from "@/components/stock-logo";
+import { WholeRows } from "@/components/wire/whole-rows";
+import { groupAlerts } from "@/lib/alert-distance";
 import { createStockAlert, deleteStockAlert } from "@/lib/create-alert";
 import { limitFor } from "@/lib/entitlements";
 import { fmtDay, fmtMoney, type PortfolioPosition } from "@/lib/portfolio-shared";
@@ -75,6 +77,8 @@ export function AlertsTab({
   const priceLimit = limitFor("price_alerts", isSubscribed ? "pro" : "free");
   const priceUsed = alerts.filter((alert) => alert.kind === "price_threshold").length;
   const inZone = positions.filter((position) => position.needsAttention && position.stance);
+  // One row per stock, its alerts closest to firing first; an alert whose condition already holds leads.
+  const groups = groupAlerts(alerts, (alert) => priceById.get(alert.instrument_id));
 
   if (example) {
     return (
@@ -145,46 +149,62 @@ export function AlertsTab({
               : `Free keeps ${priceLimit} price alerts: an email when a price you set is crossed. Earnings and call-change alerts are part of Pro.`}
           </EmptyNote>
         ) : (
-          <ul className="divide-y divide-oa-border">
-            {alerts.map((alert) => {
-              const price = priceById.get(alert.instrument_id) ?? null;
-              const distance =
-                alert.kind === "price_threshold" && alert.target_price !== null && price
-                  ? ((alert.target_price - price) / price) * 100
-                  : null;
-              return (
-                <li key={alert.id} className="group grid min-h-11 grid-cols-[5.75rem_minmax(0,1fr)_auto] items-center gap-x-3 px-3 py-1.5 hover:bg-oa-accent">
-                  <Link href={`/stock/${alert.ticker}`} className="oa-mono inline-flex items-center gap-1.5 text-[13px] font-medium text-oa-fg hover:underline">
-                    <StockLogo ticker={alert.ticker} size={18} />
-                    {alert.ticker}
-                  </Link>
-                  <div className="min-w-0">
-                    <p className="truncate text-[13.5px] leading-5 text-oa-fg">{describe(alert)}</p>
-                    <p className="oa-mono truncate text-[11px] leading-4 text-oa-muted-fg">
-                      {distance !== null && price ? (
-                        <>
-                          now {fmtMoney(price)}, <Pct value={distance} digits={1} className="!text-oa-muted-fg" /> away
-                        </>
-                      ) : null}
-                      {distance !== null && alert.created_at ? " · " : null}
-                      {alert.created_at ? `set ${fmtDay(alert.created_at)}` : null}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => void remove(alert)}
-                    disabled={removing === alert.id}
-                    aria-label={`Remove the ${alert.ticker} alert`}
-                    // Not on every row at rest (owner rule 1): it shows on the row under the pointer, or when focused.
-                    // A touch screen has no hover, so there it stays in view.
-                    className={`rounded border border-oa-border px-2 py-1 text-[12px] font-medium text-oa-muted-fg hover:text-signal-bearish disabled:opacity-50 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100 ${removing === alert.id ? "!opacity-100" : ""} ${FOCUS}`}
+          // About eight stocks show; the rest scroll inside with no scrollbar, the title above stays put, and the page
+          // takes the scroll back at the end (owner rule 5).
+          <WholeRows rem={26} className="scrollbar-hide max-h-[26rem] overflow-y-auto">
+            <ul className="divide-y divide-oa-border">
+              {groups.map((group) => (
+                <li key={group.ticker} data-row className="grid grid-cols-[4.75rem_minmax(0,1fr)] gap-x-2 px-3 hover:bg-oa-accent sm:grid-cols-[5.75rem_minmax(0,1fr)] sm:gap-x-3">
+                  <Link
+                    href={`/stock/${group.ticker}`}
+                    className="oa-mono inline-flex min-h-11 items-center gap-1.5 self-start text-[13px] font-medium text-oa-fg hover:underline"
                   >
-                    {removing === alert.id ? "Removing" : "Remove"}
-                  </button>
+                    <StockLogo ticker={group.ticker} size={18} />
+                    {group.ticker}
+                  </Link>
+                  <ul className="min-w-0">
+                    {group.alerts.map(({ alert, distance }) => {
+                      const price = priceById.get(alert.instrument_id) ?? null;
+                      return (
+                        <li key={alert.id} className="group grid min-h-11 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 py-1.5">
+                          <div className="min-w-0">
+                            <p className="truncate text-[13.5px] leading-5 text-oa-fg">{describe(alert)}</p>
+                            <p className="oa-mono text-[11px] leading-4 text-oa-muted-fg sm:truncate">
+                              {distance && price ? (
+                                distance.met ? (
+                                  // The condition is already true: say so, not a distance to a level it has passed.
+                                  <>
+                                    now {fmtMoney(price)}, <span className="font-medium text-oa-primary">already {distance.condition}</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    now {fmtMoney(price)}, <Pct value={distance.pct} digits={1} className="!text-oa-muted-fg" /> away
+                                  </>
+                                )
+                              ) : null}
+                              {distance && alert.created_at ? " · " : null}
+                              {alert.created_at ? `set ${fmtDay(alert.created_at)}` : null}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => void remove(alert)}
+                            disabled={removing === alert.id}
+                            aria-label={`Remove the ${alert.ticker} alert: ${describe(alert)}`}
+                            // Not on every row at rest (owner rule 1): it shows on the line under the pointer, or when focused.
+                            // A touch screen has no hover, so there it stays in view.
+                            className={`rounded border border-oa-border px-2 py-1 text-[12px] font-medium text-oa-muted-fg hover:text-signal-bearish disabled:opacity-50 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100 ${removing === alert.id ? "!opacity-100" : ""} ${FOCUS}`}
+                          >
+                            {removing === alert.id ? "Removing" : "Remove"}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
                 </li>
-              );
-            })}
-          </ul>
+              ))}
+            </ul>
+          </WholeRows>
         )}
         {positions.length > 0 ? (
           <form onSubmit={(event) => void create(event)} className="flex flex-wrap items-end gap-2 border-t border-oa-border bg-oa-bg px-3 py-3">
@@ -253,6 +273,8 @@ export function AlertsTab({
           {inZone.length === 0 ? (
             <EmptyNote title="Nothing is in its zone right now" />
           ) : (
+            // About eight rows, the rest scroll inside on whole rows, handing the scroll back to the page (owner rule 5).
+            <WholeRows rem={22} className="scrollbar-hide max-h-[22rem] overflow-y-auto">
             <ul className="divide-y divide-oa-border">
               {inZone.map((position) => (
                 <li key={position.instrument_id}>
@@ -270,6 +292,7 @@ export function AlertsTab({
                 </li>
               ))}
             </ul>
+            </WholeRows>
           )}
         </section>
 
@@ -278,8 +301,10 @@ export function AlertsTab({
           {signals.length === 0 ? (
             <EmptyNote title="No flags on your stocks today" />
           ) : (
+            // Every flag, about eight in view and the rest scrolling inside, the same height as the zone list beside it.
+            <WholeRows rem={22} className="scrollbar-hide max-h-[22rem] overflow-y-auto">
             <ul className="divide-y divide-oa-border">
-              {signals.slice(0, 12).map((signal, index) => (
+              {signals.map((signal, index) => (
                 <li key={`${signal.ticker}-${index}`}>
                   <Link href={`/stock/${signal.ticker}`} className="grid min-h-10 grid-cols-[5.75rem_minmax(0,1fr)] items-start gap-x-3 px-3 py-2 hover:bg-oa-accent">
                     <span className="oa-mono inline-flex items-center gap-1.5 text-[13px] font-medium leading-5 text-oa-fg">
@@ -296,6 +321,7 @@ export function AlertsTab({
                 </li>
               ))}
             </ul>
+            </WholeRows>
           )}
         </section>
       </div>

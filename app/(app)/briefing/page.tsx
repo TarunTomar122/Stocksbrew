@@ -1,34 +1,43 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 
 import { AskPageHint } from "@/components/ask/ask-page-hint";
-import { BriefingAgentsGhost, BriefingAgentsStrip, BriefingExampleAgents } from "@/components/briefing/agents-strip";
-import { BriefingView } from "@/components/briefing/briefing-view";
+import { BriefingFace } from "@/components/briefing/briefing-face";
 import { BriefingLockedMoves } from "@/components/briefing/locked-moves";
 import { withoutCircularReasons } from "@/components/briefing/real-reasons";
-import { EarningsDayBriefing } from "@/components/earnings-day/briefing-reports";
-import { AgentLog, AgentLogGhost } from "@/components/agent-log/agent-log";
 import { AppPage } from "@/components/oa/kit";
-import { BeforeOpenCard } from "@/components/premarket/before-open";
 import { MarketingSchema } from "@/components/seo/marketing-schema";
-import { loadWatches } from "@/lib/agent-watch-server";
 import { getSessionUser } from "@/lib/auth-server";
-import { briefingAnchorTickers } from "@/lib/briefing-anchors";
-import { briefingMoveFacts } from "@/lib/briefing-move-facts-server";
-import { briefingReportHistory } from "@/lib/briefing-report-history-server";
-import { getViewer } from "@/lib/entitlements-server";
+import type { BriefingPosition } from "@/lib/briefing";
 import { loadBriefingPage, type BriefingPageData } from "@/lib/briefing-data";
 import { loadExampleBriefing, type ExampleBriefingExtras } from "@/lib/briefing-example";
-import type { BriefingSession } from "@/lib/briefing-read";
-import { etDay } from "@/lib/insight-format";
-import { loadDeskGiants, loadDeskSectors } from "../explore/desk-data";
+import {
+  agentFindingCount,
+  atYourLevels,
+  clockWords,
+  doToday,
+  earningsWeek,
+  faceMode,
+  heatCells,
+  marketMoved,
+  marketStrip,
+  marketWeek,
+  positionsFromBriefing,
+  sinceLastOpened,
+  stockItems,
+  tradingDayBefore,
+  whyItMoved,
+  type MarketExtra,
+} from "@/lib/briefing-face";
+import { briefingPremarket, within } from "@/lib/briefing-premarket-server";
+import { getViewer } from "@/lib/entitlements-server";
 import { getMarketSessionState } from "@/lib/market-session";
+import { getMarketsData } from "@/lib/markets";
 import { noteDegradedRender } from "@/lib/next-render";
 import { ogImage } from "@/lib/og/url";
-import { newYorkToday } from "@/lib/portfolio-data";
-import { overnightResultFacts } from "@/lib/results/server";
-import { loadExampleChecks } from "@/lib/portfolio-home/example-check-server";
-import { exampleAgentRuns, flaggedMove, flagWords, type ExampleChecksView } from "@/lib/portfolio-home/example-check";
+import { etDayOfStamp, etClock, newestStamp, oldestStamp } from "@/lib/quote-time";
+import { resultsFor } from "@/lib/results/server";
+import type { ResultRead } from "@/lib/results/types";
+import { briefingResultFact } from "@/lib/results/words";
 
 export const dynamic = "force-dynamic";
 
@@ -48,50 +57,6 @@ export function generateMetadata(): Metadata {
   };
 }
 
-function marketStateLabel(now: Date): string {
-  const session = getMarketSessionState(now);
-  if (session.kind === "open") return "Market is open";
-  if (session.kind === "premarket") return "Before the open";
-  if (session.kind === "afterhours") return "After the close";
-  if (session.kind === "weekend") return "Closed for the weekend";
-  if (session.kind === "holiday") return session.holidayName ? `Closed for ${session.holidayName}` : "Market holiday";
-  return "Market is closed";
-}
-
-/**
- * How the whole session went (each sector, and the biggest companies together), for the market
- * view's headline. Live data, so only when it is from the briefing's own day; null otherwise.
- */
-async function loadSession(day: string, indexAsOf: string | null): Promise<BriefingSession | null> {
-  const today = etDay(new Date().toISOString()) ?? day;
-  const [sectors, giants] = await Promise.all([loadDeskSectors(today), loadDeskGiants(today)]);
-  // No sector list at all is a failed read (the loader hands back an empty one), so this copy is not kept for long.
-  if (sectors.rows.length < 4) {
-    noteDegradedRender();
-    return null;
-  }
-  if (etDay(sectors.asOf) !== day) return null;
-  // The headline puts the sectors next to the index's figure: within 45 minutes of each other, or both after the close.
-  const gap = indexAsOf && sectors.asOf ? Math.abs(Date.parse(sectors.asOf) - Date.parse(indexAsOf)) : NaN;
-  const afterClose = (iso: string | null) => (iso ? Number(new Date(iso).toLocaleString("en-US", { timeZone: "America/New_York", hour: "numeric", hourCycle: "h23" })) >= 16 : false);
-  if (!(gap <= 45 * 60_000) && !(afterClose(indexAsOf) && afterClose(sectors.asOf))) return null;
-  const sameDay = giants.day === day && giants.rows.length >= 5;
-  const cap = giants.rows.reduce((sum, row) => sum + row.cap, 0);
-  return {
-    sectors: sectors.rows.map((row) => ({ name: row.name, day: row.day, slug: row.slug || undefined })),
-    // A size-weighted average is exactly the change in their combined value.
-    giants:
-      sameDay && cap > 0
-        ? {
-            count: giants.rows.length,
-            pct: giants.rows.reduce((sum, row) => sum + row.cap * row.day, 0) / cap,
-            // The company whose move shifted the group's value the most.
-            leader: (([top]) => (top ? { name: top.name, pct: top.day } : null))([...giants.rows].sort((a, b) => Math.abs(b.cap * b.day) - Math.abs(a.cap * a.day))),
-          }
-        : null,
-  };
-}
-
 /**
  * No Ask box on the page (owner rule 1): the shell's Ask is the page's one Ask. Signed in, it starts from the
  * person's stocks (or nothing, when they track none); signed out it is the market's day, which the panel works out
@@ -102,97 +67,45 @@ function askHint(data: BriefingPageData): React.ReactNode {
   return <AskPageHint context={data.viewer.kind === "empty" ? null : "portfolio"} />;
 }
 
-/**
- * The side rail's agents card: signed in, the person's watches with their latest outcomes, streamed in its own
- * Suspense (one small read). Not the lead of the page (owner, Nov 11), so it sits beside the briefing, not under it.
- */
-function railSlot(data: BriefingPageData & { example?: ExampleBriefingExtras | null }): React.ReactNode {
-  if (data.archived) return null;
-  const viewer = data.viewer;
-  if (viewer.kind === "signed_out") {
-    // The example's own agents, as a member's sit here; the cached signed-out page reads no one's data for them.
-    // A wide screen's only: a phone keeps the log's Agents row, as it was.
-    return "example" in data && data.example ? (
-      <Suspense fallback={<BriefingAgentsGhost className="hidden lg:block" />}>
-        <BriefingExampleAgents today={newYorkToday()} className="hidden lg:block" />
-      </Suspense>
-    ) : null;
-  }
-  // Stocks with an open, visible card in a personal briefing, so a flagged stock can jump to it.
-  const inBriefing = briefingAnchorTickers(data.briefing, data.state);
-  return (
-    <Suspense fallback={<BriefingAgentsGhost />}>
-      <BriefingAgentsStrip uid={viewer.uid} today={newYorkToday()} inBriefing={inBriefing} portfolio={viewer.kind !== "empty"} />
-    </Suspense>
-  );
-}
-
-/**
- * Held stocks that reported overnight, for their cards' fact (lib/results): one shared cached list, then a cached
- * read for each held stock that reported. Today's personal briefing only; a failed read leaves the cards as they were.
- */
-async function resultFacts(data: BriefingPageData, day: string | null): Promise<Record<string, string> | undefined> {
-  if (day || data.archived || data.briefing.mode !== "personal") return undefined;
-  const held = [...data.briefing.needs_you, ...data.briefing.also_today].filter((item) => item.relation === "holding").map((item) => item.ticker);
-  if (held.length === 0) return undefined;
-  return overnightResultFacts([...new Set(held)], newYorkToday()).catch((error) => {
-    console.warn("[briefing] results read failed:", error instanceof Error ? error.message : error);
-    return undefined;
-  });
-}
-
-/**
- * Price facts for the cards (lib/briefing-move-facts.ts), from each moving stock's cached closes. Today's personal
- * briefing only (the example's too); a slow or failed read leaves the cards as they were.
- */
-async function priceFacts(data: BriefingPageData, day: string | null): Promise<Record<string, string[]> | undefined> {
-  if (day || data.archived || data.briefing.mode !== "personal") return undefined;
-  return briefingMoveFacts(data.briefing).catch((error) => {
-    console.warn("[briefing] price facts failed:", error instanceof Error ? error.message : error);
-    return undefined;
-  });
-}
-
-/**
- * How each held stock with a report coming up has moved on its past reports, for the read's earnings card. Today's
- * personal briefing only (the example's too); a slow or failed read leaves the card as it was.
- */
-async function reportHistory(data: BriefingPageData, day: string | null) {
-  if (day || data.archived || data.briefing.mode !== "personal") return undefined;
-  return briefingReportHistory(data.briefing, newYorkToday()).catch((error) => {
-    console.warn("[briefing] report history failed:", error instanceof Error ? error.message : error);
-    return undefined;
-  });
-}
-
-/**
- * Signed out: the example's agents' latest checks, for the read's card about the stock they flagged ("Your agent
- * flagged NVDA's 5.5% drop on Nov 10."), so the flag, the stock and its next step read as one, and for the agent log's
- * Agents row. The same cached runs My stocks and the home page show; slow or missing, both are as they were.
- */
-async function exampleChecks(data: BriefingPageData & { example?: ExampleBriefingExtras }, day: string | null): Promise<ExampleChecksView | null> {
-  if (day || data.archived || !data.example || data.briefing.mode !== "personal") return null;
-  // The same 1.5 seconds as the page's other side reads: a slow check leaves the card as it was.
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const late = new Promise<null>((resolve) => {
-    timer = setTimeout(() => resolve(null), 1500);
-  });
-  return Promise.race([loadExampleChecks().catch(() => null), late]).finally(() => clearTimeout(timer));
-}
-
-/** The flag on one of the example's holdings, in the words the inbox's read uses too (lib/portfolio-home/example-check.ts). */
-function exampleFlags(data: BriefingPageData, checks: ExampleChecksView | null): Record<string, string> | undefined {
-  const flag = flaggedMove(checks, newYorkToday());
-  const held = flag && data.briefing.needs_you.concat(data.briefing.also_today).some((item) => item.ticker === flag.ticker && item.relation === "holding");
-  return flag && held ? { [flag.ticker]: flagWords(flag) } : undefined;
-}
-
 /** Free: the moves on stocks the agent does not cover, named with no explanation (lib/briefing.ts locked_moves). */
 async function lockedSlot(data: BriefingPageData) {
   const moves = data.briefing.locked_moves ?? [];
   if (moves.length === 0 || data.viewer.kind !== "member") return null;
   const viewer = await getViewer();
   return <BriefingLockedMoves moves={moves} plan={viewer.plan} trialEligible={viewer.trialEligible} archived={data.archived} />;
+}
+
+/** How long the page waits for a side read (results, the 10-year and the VIX) before going on without it. */
+const SIDE_READ_MS = 1500;
+
+/**
+ * This week's results reads for the tracked stocks (lib/results), from the last trading day, or the last visit when
+ * that is earlier (at most ten days back, the reads' own window). Today's personal briefing only; cached shared
+ * reads, and a failed read leaves the modules without results.
+ */
+async function weekResults(tickers: string[], today: string, since: string | null | undefined): Promise<ResultRead[]> {
+  if (tickers.length === 0) return [];
+  const visitDay = etDayOfStamp(since ?? null);
+  const from = visitDay && visitDay < tradingDayBefore(today) ? visitDay : tradingDayBefore(today);
+  const reads = await within(
+    resultsFor(tickers, { since: from, today }).catch((error) => {
+      console.warn("[briefing] results read failed:", error instanceof Error ? error.message : error);
+      return [] as ResultRead[];
+    }),
+    SIDE_READ_MS,
+  );
+  return reads ?? [];
+}
+
+/** The 10-year yield and the VIX for the strip, from the cached markets read the briefing's indices already came from. */
+async function marketExtras(): Promise<MarketExtra[]> {
+  const data = await within(getMarketsData(), SIDE_READ_MS);
+  const out: MarketExtra[] = [];
+  for (const id of ["us10y", "vix"] as const) {
+    const asset = data?.assets.find((entry) => entry.id === id);
+    if (asset && Number.isFinite(asset.price)) out.push({ id, price: asset.price, change: asset.change.d1 ?? null, changeMode: asset.change_mode, monthChange: asset.change.m1 ?? null });
+  }
+  return out;
 }
 
 export default async function BriefingPage({ searchParams }: { searchParams?: { day?: string | string[] } }) {
@@ -202,75 +115,85 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
   const signedIn = Boolean(user);
   // Earlier days are a member's own saved briefings; signed out, ?day= shows today's example with everything on it.
   const day = signedIn && typeof searchParams?.day === "string" ? searchParams.day : null;
-  // The agents strip's one read starts before the briefing is built (loadWatches is React-cached on uid and day),
-  // so the strip picks up the read already in flight.
-  if (!day && user) void loadWatches(user.uid, newYorkToday()).catch(() => null);
-  const data: BriefingPageData & { example?: ExampleBriefingExtras } = signedIn
+  const data: BriefingPageData & { example?: ExampleBriefingExtras | null } = signedIn
     ? await loadBriefingPage({ day, persist: true })
     : await loadExampleBriefing();
   // A briefing missing a source is not kept as the cached signed-out copy for long (lib/next-render.ts).
   if (data.degraded.length > 0) noteDegradedRender();
-  // A failed session read is a degraded render too (lib/next-render.ts), so the cached signed-out copy does not keep
-  // the market view without its sector list. A session left out on purpose (sectors from another day) is not.
-  const session =
-    !day && !data.archived && data.briefing.mode === "market"
-      ? await loadSession(data.briefing.date, data.briefing.market.indices[0]?.as_of ?? data.briefing.market.as_of).catch(() => {
-          noteDegradedRender();
-          return null;
-        })
+
+  const now = new Date();
+  const briefing = withoutCircularReasons(data.briefing);
+  const personal = briefing.mode === "personal";
+  // Today's briefing, also when it is opened as ?day=<today>; a saved earlier day is read as it was.
+  const live = !data.archived;
+  // A saved earlier day has no positions of its own: what its cards and quiet names said.
+  const positions: BriefingPosition[] = data.positions ?? (personal ? positionsFromBriefing(briefing) : []);
+  const tickers = [...new Set(positions.map((position) => position.ticker.toUpperCase()))];
+  const today = briefing.date;
+
+  // All cached reads, side by side; each fails soft.
+  const [locked, results, premarket, extras] = await Promise.all([
+    lockedSlot(data),
+    live && personal ? weekResults(tickers, today, data.since) : Promise.resolve([] as ResultRead[]),
+    live ? briefingPremarket(personal ? tickers : ["SPY"], now).catch(() => null) : Promise.resolve(null),
+    live ? marketExtras() : Promise.resolve([] as MarketExtra[]),
+  ]);
+
+  const session = getMarketSessionState(now);
+  const mode = live ? faceMode(session.kind, premarket != null) : "close";
+  // The one clock: the oldest quote time on the newest price day, so every figure on the page is at least that fresh.
+  const stamps = positions.map((position) => position.price_as_of).concat(briefing.market.indices.map((index) => index.as_of ?? null));
+  const priceDay = etDayOfStamp(newestStamp(stamps));
+  const pricesAt = priceDay ? oldestStamp(stamps.filter((stamp) => etDayOfStamp(stamp) === priceDay)) : null;
+  const clock = clockWords(mode, etDayOfStamp(pricesAt), etClock(pricesAt));
+  const pre = mode === "premarket" ? premarket?.stocks ?? null : null;
+  const resultFact = (read: ResultRead) => briefingResultFact(read, today);
+  const items = stockItems(briefing);
+
+  const strip = marketStrip({ briefing, positions, mode, premarket, extras });
+  // Each stock shows once, in the first module that wants it: Do today, then Why it moved, then the levels.
+  // A saved earlier day keeps its decision cards, but never says "Nothing needs you today" about that day.
+  const decided = personal ? doToday({ items, positions, degraded: data.archived ? [] : data.degraded, premarket: pre }) : null;
+  const todo = data.archived && decided?.kind !== "cards" ? null : decided;
+  const shown = new Set(todo?.kind === "cards" ? todo.cards.map((card) => card.ticker) : []);
+  const moved = personal ? whyItMoved({ items, positions, results, exclude: shown, today, resultFact }) : marketMoved(briefing.market);
+  for (const card of moved) shown.add(card.ticker);
+  const levels = personal ? atYourLevels(positions, shown, pre) : [];
+  for (const row of levels) shown.add(row.ticker);
+  // The week is a calendar: only a report Do today already names ("Reports today after the close") is left out of it.
+  const reportsInDo = new Set(todo?.kind === "cards" ? todo.cards.filter((card) => card.reason === "earnings").map((card) => card.ticker) : []);
+  const week = (personal ? earningsWeek({ positions, items, results, today }) : marketWeek([...briefing.needs_you, ...briefing.also_today], today))
+    .map((entry) => ({ ...entry, stocks: entry.stocks.filter((stock) => !reportsInDo.has(stock.ticker)) }))
+    .filter((entry) => entry.stocks.length > 0);
+  const since =
+    live && personal && data.viewer.kind === "member"
+      ? sinceLastOpened({ since: data.since ?? null, callChanges: data.callChanges ?? [], results, positions, exclude: shown, resultFact })
       : null;
 
-  // All cached reads; they run side by side.
-  const [locked, facts, prices, reports, checks] = await Promise.all([lockedSlot(data), resultFacts(data, day), priceFacts(data, day), reportHistory(data, day), exampleChecks(data, day)]);
-  const flags = exampleFlags(data, checks);
   return (
     <AppPage>
       <MarketingSchema path="/briefing" name={TITLE} description={DESCRIPTION} breadcrumbLabel="Briefing" />
-        <BriefingView
-          briefing={withoutCircularReasons(data.briefing)}
-          initialState={data.state}
-          viewer={data.viewer.kind}
-          pendingTracked={data.viewer.kind === "pending" ? data.viewer.tracked : 0}
-          days={data.days.map((entry) => ({ day: entry.day }))}
-          archived={data.archived}
-          degraded={data.degraded}
-          marketState={marketStateLabel(new Date())}
-          example={data.example ?? null}
-          renderedAt={Date.now()}
-          session={session}
-          rail={railSlot(data)}
-          beforeOpen={
-            day || data.archived ? null : (
-              <Suspense fallback={null}>
-                <BeforeOpenCard />
-              </Suspense>
-            )
-          }
-          locked={locked}
-          resultFacts={facts}
-          moveFacts={prices}
-          reportHistory={reports}
-          flags={flags}
-          // The agent's day in the rail for everyone (owner rule 10: "Your agents on the briefing" is secondary), beside
-          // the whole briefing, the other stocks included, so the two columns end together (owner rule 4).
-          agentLog={
-            day || data.archived ? null : (
-              <Suspense fallback={<AgentLogGhost narrow className="lg:max-h-full" />}>
-                {/* The example's Agents row is its own agents, with the holdings they flagged as chips; on a wide screen
-                    they have their own card just above (railSlot), so the row is a phone's only. */}
-                <AgentLog narrow fit own={data.example ? exampleAgentRuns(checks) : null} agentsOnPhone={Boolean(data.example)} />
-              </Suspense>
-            )
-          }
-          earnings={
-            day || data.archived ? null : (
-              <Suspense fallback={null}>
-                <EarningsDayBriefing />
-              </Suspense>
-            )
-          }
-        />
-        {askHint(data)}
+      <BriefingFace
+        mode={briefing.mode}
+        viewer={data.viewer.kind}
+        pendingTracked={data.viewer.kind === "pending" ? data.viewer.tracked : 0}
+        date={briefing.date}
+        clock={clock}
+        days={data.days.map((entry) => ({ day: entry.day }))}
+        archived={data.archived}
+        degraded={data.degraded.length > 0}
+        example={Boolean(data.example)}
+        strip={strip}
+        doToday={todo}
+        heat={personal ? heatCells(positions, pre) : []}
+        levels={levels}
+        moved={moved}
+        week={week}
+        since={since}
+        agentFindings={live ? agentFindingCount([...briefing.needs_you, ...briefing.also_today]) : 0}
+        locked={locked}
+      />
+      {askHint(data)}
     </AppPage>
   );
 }

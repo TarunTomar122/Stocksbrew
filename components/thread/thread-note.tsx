@@ -2,7 +2,7 @@ import Link from "next/link";
 import * as React from "react";
 
 import { StockLogo } from "@/components/stock-logo";
-import type { ThreadCall, ThreadFigure, ThreadNote, ThreadPoint, ThreadStep } from "@/lib/thread/types";
+import type { ThreadCall, ThreadFigure, ThreadNote, ThreadStep } from "@/lib/thread/types";
 
 /**
  * One note of the agent thread. No hooks, so the server draws the whole thread and the reply box adds its own notes
@@ -77,39 +77,6 @@ export function StepLink({ step, primary = false }: { step: ThreadStep; primary?
   );
 }
 
-function Point({ point }: { point: ThreadPoint }) {
-  const body = (
-    <>
-      <span className="flex items-start justify-between gap-3">
-        <span className="flex min-w-0 flex-wrap items-center gap-1.5">
-          {point.tickers.slice(0, 3).map((ticker) => (
-            <StockLogo key={ticker} ticker={ticker} size={22} />
-          ))}
-          {point.leadName ? <span className="truncate text-[13px] font-medium text-oa-muted-fg">{point.leadName}</span> : null}
-        </span>
-        {point.figure ? <Figure figure={point.figure} /> : null}
-      </span>
-      <span className="mt-1.5 block text-pretty text-[14px] leading-5 text-oa-fg">{point.text}</span>
-      {point.soWhat ? <span className="mt-1 block text-pretty text-[13px] leading-[18px] text-oa-muted-fg">{point.soWhat}</span> : null}
-    </>
-  );
-  const frame = "flex h-full min-w-0 flex-col rounded-xl border border-oa-border bg-oa-bg p-3";
-  return point.href ? (
-    <Link href={point.href} prefetch={false} className={`${frame} transition-colors hover:bg-oa-accent ${FOCUS}`}>
-      {body}
-    </Link>
-  ) : (
-    <div className={frame}>{body}</div>
-  );
-}
-
-/** Grid columns for 1-3 equal cards: a lone card fills the row (owner rule 4). */
-function pointGrid(count: number): string {
-  if (count >= 3) return "sm:grid-cols-3";
-  if (count === 2) return "sm:grid-cols-2";
-  return "";
-}
-
 function Clock({ clock }: { clock: string | null }) {
   return clock ? <p className="oa-mono mt-1 px-1 text-[11.5px] tabular-nums leading-4 text-oa-muted-fg">{clock}</p> : null;
 }
@@ -164,14 +131,6 @@ export function ThreadNoteView({ note, showClock }: { note: ThreadNote; showCloc
               </li>
             ))}
           </ul>
-        ) : null}
-
-        {note.points.length > 0 ? (
-          <div className={`mt-3 grid gap-2 ${pointGrid(note.points.length)}`}>
-            {note.points.map((point) => (
-              <Point key={point.id} point={point} />
-            ))}
-          </div>
         ) : null}
 
         {note.reports.length > 0 ? (

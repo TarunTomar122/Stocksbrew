@@ -8,7 +8,7 @@ export default function ResearchNotFound() {
         full
         crumb={<a href="/screener">Screener</a>}
         title="No research report at this address"
-        lede="The report may belong to another account, or its shared link was turned off. Open the stock and run your own."
+        lede="It may be private, or its share link was turned off. Run your own."
       />
     </AppPage>
   );

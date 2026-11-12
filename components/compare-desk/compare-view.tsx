@@ -2,18 +2,17 @@ import * as React from "react";
 
 import { LockCard, ProMark } from "@/components/oa/gate";
 import { ToneGlyph } from "@/components/oa/kit/tone";
-import { TheRead } from "@/components/oa/insight";
-import { NUM, Panel, fmtMoney } from "@/components/oa/kit";
+import { NUM, Panel, fmtMoney, fmtStampET } from "@/components/oa/kit";
 import { BasketActions } from "@/components/screener/basket-actions";
 import { LINE_COLORS } from "@/components/screener/controls";
 import { OverlayChart, type OverlayRange } from "@/components/screener/overlay-chart";
 import { CallTag, EarningsDate, MarkSlot, Unknown, ZoneTag, fieldHasMark, fieldMark } from "@/components/screener/shared";
 import { StockLogo } from "@/components/stock-logo";
 import { getCompareData, getCompareDataCached } from "@/lib/compare";
-import { buildCompareRead } from "@/lib/compare-insights";
-import { buildCompareTable, describeDifferences, figureLabel, withChartReturns, type CompareTableGroup } from "@/lib/compare-shared";
+import { buildCompareTable, buildScoreboard, figureLabel, withChartReturns, type CompareTableGroup } from "@/lib/compare-shared";
 import { ownCallLevel } from "@/lib/call-level";
 import { callLine } from "@/components/stock-report/call-line";
+import { ScoreboardPanel } from "./scoreboard";
 import { WholeRowsBox } from "./whole-rows-box";
 import { canSeeLevels, type Viewer } from "@/lib/entitlements-server";
 import { getScreenerRows } from "@/lib/screener";
@@ -24,9 +23,8 @@ import { withoutVagueChange } from "@/lib/call-basis";
 import Link from "next/link";
 
 /**
- * The compare desk's body for two to four stocks: the read with our call on
- * each right under its headline, the rebased price chart beside every
- * difference, then the side-by-side table as evidence. Shared by the desk
+ * The compare desk's body for two to four stocks: our call on each first,
+ * the rebased price chart beside every difference, then the side-by-side table as evidence. Shared by the desk
  * (/compare?symbols=...) and the stock-against-stock pages (/compare/a-vs-b),
  * so both always show the same numbers.
  */
@@ -98,8 +96,8 @@ function levelLine(row: ScreenerRow | null | undefined): string | null {
 }
 
 /**
- * Our call on each stock, right under the read's headline: the call, the one figure its evidence leads with and that
- * evidence as one sentence, which carries its own baseline ("while other chip stocks rose 5.8%"). The card opens the
+ * Our call on each stock, first on the page: the call, the one figure its evidence leads with and what it is, then
+ * one line, the call's own level when the plan shows it, else the evidence as one sentence. The card opens the
  * stock. Only stocks with a call get a card (owner rule 4: no card without data); a lone card takes the row.
  */
 function CallCards({ symbols, rows, className = "mt-3" }: { symbols: string[]; rows: ReadonlyArray<ScreenerRow | null>; className?: string }) {
@@ -144,8 +142,8 @@ function CallCards({ symbols, rows, className = "mt-3" }: { symbols: string[]; r
                 </span>
               ) : null}
             </div>
-            {level ? <p className="mt-2 text-pretty text-[14.5px] font-medium leading-[21px] text-oa-fg">{level}</p> : null}
-            {reason ? <p className={`${level ? "mt-1" : "mt-2"} text-pretty text-[14.5px] leading-[21px] text-oa-fg`}>{reason}</p> : null}
+            {/* One line under the figure (owner, Nov 12): the call's own level when the plan shows it, else its reason. */}
+            {level || reason ? <p className="mt-2 text-pretty text-[14.5px] leading-[21px] text-oa-fg">{level || reason}</p> : null}
             <Link
               href={`/stock/${encodeURIComponent(symbol)}`}
               prefetch={false}
@@ -164,14 +162,11 @@ export async function CompareView({
   symbols,
   range,
   viewer,
-  readLabel,
   cached = false,
 }: {
   symbols: string[];
   range?: string;
   viewer: Viewer;
-  /** The read's label; the desk says "A vs B, in short". */
-  readLabel?: string;
   /** Read the pair as one cached piece (the desk's example, which every visit to /compare opens on). */
   cached?: boolean;
 }) {
@@ -181,21 +176,10 @@ export async function CompareView({
   const rows: Array<ScreenerRow | null> = withChartReturns(data.rows, data.chart.ranges).map((row) => (row && !canSeeLevels(viewer, row.symbol) ? withoutZones(row) : row));
   const groups = buildCompareTable(rows);
   const benchmark = benchmarkRows.get("SPY") ?? null;
-  const differences = describeDifferences(rows, benchmark);
-  // The read: who wins on what, then the few differences that matter. Built on the zone-stripped rows. Our call on
-  // each sits right under its headline as its own cards (CallCards), so the read's cards leave the calls out.
-  const built = buildCompareRead({
-    rows,
-    benchmark,
-    asOf: rows.find((row) => row?.price_at)?.price_at ?? null,
-    spread: true,
-    calls: false,
-  });
+  const scoreboard = buildScoreboard(rows, benchmark);
   const showCalls = rows.some((row) => row?.call);
-  // With our calls under the headline, the read's own difference cards would only repeat rows of "Where they differ"
-  // (the margin, the year), so they go; a report coming up is not in those rows, so it stays. Without a call, the
-  // read keeps every finding.
-  const compareRead = built && showCalls ? { ...built, insights: built.insights.filter((insight) => insight.id === "earnings") } : built;
+  // The one time on the page: when the first covered stock was priced.
+  const pricedAt = rows.find((row) => row?.price_at)?.price_at ?? null;
   const span = symbols.length + 1;
   const zonesLocked = viewer.plan !== "pro" && data.rows.some((row, index) => row?.zone && !rows[index]?.zone);
   const missing = symbols.filter((_, index) => !rows[index]);
@@ -228,14 +212,8 @@ export async function CompareView({
         </p>
       ) : null}
 
-      <TheRead
-        read={compareRead}
-        label={readLabel ?? `${symbols.join(" vs ")}, in short`}
-        className="mb-4"
-        visual={showCalls ? <CallCards symbols={symbols} rows={rows} /> : undefined}
-      />
-      {/* No read (fewer than two covered stocks): the calls still lead the page. */}
-      {!compareRead && showCalls ? <CallCards symbols={symbols} rows={rows} className="mb-4" /> : null}
+      {/* Our call on each stock leads the page. */}
+      {showCalls ? <CallCards symbols={symbols} rows={rows} className="mb-4" /> : null}
 
       {(() => {
         const chartPanel = (
@@ -248,43 +226,8 @@ export async function CompareView({
           />
         </Panel>
         );
-        const separatesPanel = (
-        <Panel flush fill label="Where they differ">
-          {/* One big figure per row with whose it is and a few words on what it measures; the other name's number sits
-              at the right as the baseline (judges, ship 50: visual, short words). The table under it is the evidence. */}
-          <ul className="flex flex-1 flex-col">
-            {differences.map((item) => (
-              <li key={item.topic} className="flex flex-1 items-center justify-between gap-x-3 border-b border-oa-border px-4 py-1.5 last:border-b-0">
-                <p className="sr-only">
-                  {item.topic}: {item.figure}. {item.text}
-                </p>
-                <div aria-hidden="true" className="min-w-0">
-                  <p className="flex items-center gap-2">
-                    <span className={`${NUM} inline-flex items-center gap-1 text-[20px] font-semibold leading-7 tracking-[-0.01em] text-oa-fg`}>
-                      {item.figure}
-                      {item.tone ? <ToneGlyph tone={item.tone} className="size-2.5" decorative /> : null}
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                      <StockLogo ticker={item.leader} size={16} />
-                      <span className={`${NUM} text-[13px] font-medium text-oa-fg`}>{item.leader}</span>
-                    </span>
-                  </p>
-                  <p className="text-pretty text-[13px] leading-[18px] text-oa-muted-fg">{item.words}</p>
-                </div>
-                <ul aria-hidden="true" className="flex shrink-0 flex-col items-end gap-0.5">
-                  {item.others.map((other) => (
-                    <li key={other.label} className="inline-flex items-center gap-1 whitespace-nowrap">
-                      {other.logo === false ? null : <StockLogo ticker={other.label} size={14} />}
-                      <span className="text-[12.5px] text-oa-muted-fg">{other.label}</span>
-                      <span className={`${NUM} text-[13.5px] font-medium text-oa-fg`}>{other.value}</span>
-                    </li>
-                  ))}
-                </ul>
-              </li>
-            ))}
-          </ul>
-        </Panel>
-        );
+        // Who is ahead on what, head to head; the table under it is the evidence.
+        const separatesPanel = scoreboard ? <ScoreboardPanel board={scoreboard} /> : null;
         const tablePanel = (
       <Panel flush>
         {/* About eight rows tall and scrolls inside (no visible bar), with the stocks pinned on top so every row stays
@@ -412,9 +355,9 @@ export async function CompareView({
         </WholeRowsBox>
       </Panel>
         );
-        // Chart and the differences side by side at the same height when there are enough rows to stand beside the
+        // Chart and the scoreboard side by side at the same height when there are enough rows to stand beside the
         // chart; with fewer, they run under it so no row is stretched tall (owner rule 4). The table follows as evidence.
-        const beside = differences.length >= 4;
+        const beside = (scoreboard?.rows.length ?? 0) >= 4;
         return (
           <div className="flex flex-col gap-4 xl:gap-5">
             {beside ? (
@@ -425,7 +368,7 @@ export async function CompareView({
             ) : (
               <>
                 {chartPanel}
-                {differences.length ? separatesPanel : null}
+                {separatesPanel}
               </>
             )}
             {tablePanel}
@@ -439,7 +382,9 @@ export async function CompareView({
           <BasketActions symbols={symbols} compareLimit={0} />
         </div>
       ) : null}
-      <p className="mt-4 max-w-[70ch] text-[12.5px] leading-5 text-oa-muted-fg">A view, not advice.</p>
+      <p className="mt-4 max-w-[70ch] text-[12.5px] leading-5 text-oa-muted-fg">
+        {pricedAt ? `Prices as of ${fmtStampET(pricedAt)}. ` : ""}A view, not advice.
+      </p>
     </>
   );
 }
