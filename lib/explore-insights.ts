@@ -203,3 +203,53 @@ export function deskHeadline(data: MarketsData, now: Date = new Date()): string 
   if (Math.abs(day) < 0.005) return `The S&P 500 was flat ${sessionName(spx.as_of, now)}.`;
   return `The S&P 500 ${rose ? "gained" : "lost"} ${absPct(day, 2)} ${sessionName(spx.as_of, now)}${sectors}.`;
 }
+
+/* ── a next step from our call ──────────────────────────────────────────── */
+
+/** The card's one stock: its only ticker, or, unless `singleStock`, the first of several. */
+function leadOf(insight: Insight, singleStock: boolean): string | null {
+  const tickers = insight.tickers ?? [];
+  if (tickers.length === 0 || (singleStock && tickers.length !== 1)) return null;
+  return tickers[0] ?? null;
+}
+
+/**
+ * The stocks whose call a read would say: the lead stock of each of its first three cards (all a read shows), when the
+ * card has no "Watch next" line already. Three at most, so the lookup stays a few small reads.
+ */
+export function callLeads(read: TheRead | null | undefined, options: { singleStock?: boolean } = {}): string[] {
+  if (!read) return [];
+  const out = new Set<string>();
+  for (const insight of read.insights.slice(0, 3)) {
+    if (/\bWatch next:/.test(insight.soWhat ?? "")) continue;
+    const lead = leadOf(insight, Boolean(options.singleStock));
+    if (lead) out.add(lead);
+  }
+  return [...out];
+}
+
+/**
+ * Each card that has no next step yet ends with our call on its stock, when we have one (owner rule 7: every insight
+ * says what to do; judges, ship 44: "the count and the move lack a useful next step"). The call is open to everyone,
+ * so this never shows a price level. A card about a report says the call going into it; any other says the call. A
+ * card with no link of its own opens the stock, where the call's reasons are. Nothing is added without a real call,
+ * and a stock's call is said once across the read.
+ */
+export function withCallNext(read: TheRead, calls: ReadonlyMap<string, string>, options: { singleStock?: boolean } = {}): TheRead {
+  if (calls.size === 0) return read;
+  const told = new Set<string>();
+  const insights = read.insights.map((insight) => {
+    if (/\bWatch next:/.test(insight.soWhat ?? "")) return insight;
+    const lead = leadOf(insight, Boolean(options.singleStock));
+    const call = lead ? calls.get(lead) : undefined;
+    if (!lead || !call || told.has(lead)) return insight;
+    told.add(lead);
+    const line = insight.id === "report" ? `Our call going into it: ${call}.` : `Our call on ${lead}: ${call}.`;
+    return {
+      ...insight,
+      soWhat: insight.soWhat ? `${insight.soWhat} ${line}` : line,
+      action: insight.action ?? { label: `Our call on ${lead}`, href: `/stock/${encodeURIComponent(lead)}` },
+    };
+  });
+  return { ...read, insights };
+}

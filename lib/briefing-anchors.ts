@@ -1,6 +1,6 @@
 import { briefingSections, type Briefing, type BriefingStateMap } from "@/lib/briefing";
 import { groupBriefingSections, type BriefingGroup } from "@/lib/briefing-groups";
-import { briefingRead, comingUpAfterRead, holdingsFirst, readEarningsTickers, WORTH_KNOWING_FIRST } from "@/lib/briefing-read";
+import { briefingRead, comingUpAfterRead, holdingsFirst, readEarningsTickers, worthAfterRead, WORTH_KNOWING_FIRST } from "@/lib/briefing-read";
 
 /**
  * Which stock cards in a personal briefing can be jumped to from the agents
@@ -37,7 +37,9 @@ export function briefingAnchorTickers(
 ): string[] {
   if (briefing.mode !== "personal") return [];
   const grouped = holdingsFirst(groupBriefingSections(briefingSections(briefing, state), "personal"));
-  const comingUp = comingUpAfterRead(grouped.coming_up, readEarningsTickers(briefingRead(briefing, grouped, null, now)));
-  const ordered = [...grouped.needs_you, ...grouped.worth_knowing.slice(0, WORTH_KNOWING_FIRST), ...comingUp];
+  const read = briefingRead(briefing, grouped, null, now);
+  const comingUp = comingUpAfterRead(grouped.coming_up, readEarningsTickers(read));
+  // Worth knowing leaves out the stocks the read has a card about, as the view does.
+  const ordered = [...grouped.needs_you, ...worthAfterRead(grouped.worth_knowing, read).slice(0, WORTH_KNOWING_FIRST), ...comingUp];
   return [...anchorGroups(ordered)].map((group) => group.ticker as string);
 }

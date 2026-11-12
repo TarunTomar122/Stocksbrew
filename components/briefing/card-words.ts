@@ -30,11 +30,6 @@ export type SectionWords = {
   cards: Map<string, CardWords>;
   /** An update two or more stocks share, said once for the section ("Our call moved to Keep on AAPL and MSFT."). */
   shared: string[];
-  /**
-   * Reddit's mood on the section's stocks, said once above the cards ("Reddit leaned bearish on NVDA and QQQ, and
-   * bullish on AMD.") instead of a chip on every card (owner rule 1). Null when no stock here has Reddit talk.
-   */
-  talk: string | null;
 };
 
 const DAY_OR_MONTH = /^(?:Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day$|^(?:January|February|March|April|May|June|July|August|September|October|November|December)$/;
@@ -128,35 +123,21 @@ function discussionWords(item: BriefingItem): string {
   return plainCardText(asSentence(firstFullSentence(why)));
 }
 
-/** Count and mood of a Reddit item, read from its headline ("… on Reddit: 11 posts in 5 days, mostly bearish"). */
-function discussionCount(item: BriefingItem): { posts: number; days: number; mood: "bullish" | "bearish" | null } | null {
+/** The post count of a Reddit item, read from its headline ("… on Reddit: 11 posts in 5 days, mostly bearish"). */
+function discussionCount(item: BriefingItem): { posts: number; days: number } | null {
   const match = /(\d+) posts in (\d+) days?(?:, mostly (bullish|bearish))?/i.exec(item.headline);
   if (!match) return null;
-  return { posts: Number(match[1]), days: Number(match[2]), mood: match[3] ? (match[3].toLowerCase() as "bullish" | "bearish") : null };
+  return { posts: Number(match[1]), days: Number(match[2]) };
 }
 
-/** "Reddit talk about AMD picked up: 6 posts in 5 days, mostly bullish." The plain words when the talk is the point. */
+/**
+ * "Reddit talk about AMD picked up: 6 posts in 5 days." The plain words when the talk is the point: the measured count
+ * only. The scan's one-word mood for a stock is not a measured share of the posts, so it is not said (judges, ship 44).
+ */
 function discussionPlain(item: BriefingItem): string {
   const count = discussionCount(item);
   if (!count) return "";
-  return `Reddit talk about ${item.ticker} picked up: ${count.posts} posts in ${count.days} days${count.mood ? `, mostly ${count.mood}` : ""}.`;
-}
-
-/** Reddit's mood on a section's stocks, in one sentence. Null when none of them has Reddit talk. */
-export function talkLine(groups: readonly BriefingGroup[]): string | null {
-  const moods = new Map<"bullish" | "bearish" | "none", string[]>();
-  for (const group of groups) {
-    const item = group.items.find((entry) => entry.kind === "discussion_spike");
-    const count = item ? discussionCount(item) : null;
-    if (!count) continue;
-    const key = count.mood ?? "none";
-    moods.set(key, [...(moods.get(key) ?? []), group.ticker ?? group.name]);
-  }
-  if (moods.size === 0) return null;
-  const leaning = (["bearish", "bullish"] as const).filter((mood) => moods.has(mood)).map((mood) => `${mood} on ${joinAnd(moods.get(mood)!)}`);
-  const busy = moods.get("none");
-  if (leaning.length === 0) return `${joinAnd(busy!)} ${busy!.length === 1 ? "was" : "were"} talked about on Reddit, with no clear lean.`;
-  return `Reddit leaned ${leaning.join(", and ")}.${busy ? ` ${joinAnd(busy)} ${busy.length === 1 ? "was" : "were"} talked about with no clear lean.` : ""}`;
+  return `Reddit talk about ${item.ticker} picked up: ${count.posts} posts in ${count.days} days.`;
 }
 
 /** Reddit talk is the weakest thing a card can lead with: every other line is tried first. */
@@ -169,7 +150,7 @@ function byStrength(lines: readonly BriefingLine[]): BriefingLine[] {
  * other companies in the section, so a headline naming one of them keeps its capitals.
  */
 function lineWords(line: BriefingLine, group: BriefingGroup, names: readonly string[] = []): string {
-  // Reddit talk is said once for the section (talkLine); on a card only when it is the card's decision, in plain words.
+  // Reddit talk is not a card's line (its mood is not measured); only when it is the card's decision, as a post count.
   if (line.item.kind === "discussion_spike") return line.decision ? discussionPlain(line.item) : "";
   const raw = line.decision ? line.text : moveRowText(line.item, { name: group.name, ticker: group.ticker }, group.day_change_pct);
   // Only words from a source (a headline, a researched reason) are re-cased: our own sentences capitalise the call
@@ -278,7 +259,6 @@ function factCandidates(
   // A held stock that reported overnight: the result is the fact ("Beat by 8%, up 6% today"), ahead of everything.
   const result = personal && group.relation === "holding" && group.ticker ? results[group.ticker.toUpperCase()] : undefined;
   if (result) out.push(result);
-  // Reddit's count and mood are said once for the section (talkLine), never as a chip on each card (owner rule 1).
   // A report the read above already names is not said again on the card (owner rule 1).
   const earnings = group.items.find((item) => item.kind === "earnings_upcoming" && item.deadline_days != null && item.deadline_days <= 7 && !readEarnings.has(item.ticker));
   if (earnings && !/\b(?:reports?|earnings)\b/.test(said)) {
@@ -394,7 +374,7 @@ export function sectionWords(
       sentence = other ? lineWords(other, group, names) : fallback && normal(fallback) !== normal(sentence) ? fallback : "";
       if (other) line = other;
     }
-    // The next update goes on the face. Reddit talk is said once for the section (talkLine), and nothing the section
+    // The next update goes on the face. Reddit talk is never a card's next update, and nothing the section
     // said above is repeated.
     const above = normal(sharedKeys.get(group.key) ?? "");
     const next = group.lines.find((candidate) => {
@@ -428,5 +408,5 @@ export function sectionWords(
       !words.more &&
       group.lines.every((line) => line === words.line || line.item.kind === "discussion_spike" || saidAbove(line) || POINTER.test(rowWords(line, group)) || !rowWords(line, group));
   }
-  return { cards, shared, talk: talkLine(groups) };
+  return { cards, shared };
 }

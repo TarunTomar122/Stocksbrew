@@ -6,10 +6,10 @@ import { fmtDate } from "./format";
 import { NUM, Tag, ToneGlyph } from "./primitives";
 
 /**
- * One row of "What changed": the headline, then where it came from and the
- * day, said once. Server and client safe. A headline is one line of evidence,
- * so it carries no summary; the rarer rows (a move, a report, our call) keep
- * their one line of detail, since that is the news in them.
+ * One row of "What changed": the headline, then the day, said once. The row itself is the link (owner rule 1: no
+ * "View on Yahoo" on every row); a headline's publisher is named once in the section's head (below.tsx), so a news
+ * row carries only its day. The rarer rows (a move, a report, our call) keep what they are and their one line of
+ * detail, since that is the news in them. Server and client safe.
  */
 
 const KIND_LABEL: Record<StockTimelineKind, string> = {
@@ -40,27 +40,31 @@ export function timelineDate(item: Pick<StockTimelineItem, "at" | "precision">, 
 
 export function TimelineRow({ item, nowIso }: { item: StockTimelineItem; nowIso: string }) {
   const tone = item.tone && item.tone !== "flat" ? item.tone : undefined;
-  // A headline names its publisher; the other rows say what they are. Then the day, once.
-  const meta = [item.kind === "news" ? item.source : KIND_LABEL[item.kind], timelineDate(item, nowIso)].filter(Boolean).join(" · ");
+  // A headline's publisher is in the section head; the other rows say what they are. Then the day, once.
+  const meta = [item.kind === "news" ? null : KIND_LABEL[item.kind], timelineDate(item, nowIso)].filter(Boolean).join(" · ");
   const detail = item.kind === "news" ? "" : wholeSentences(item.detail);
-  // Our own page for the story when there is one (it links the source), else the source itself.
-  const title = item.href ? (
-    <AppLink href={item.href} className="hover:underline">
-      {item.title}
-    </AppLink>
-  ) : item.sourceUrl ? (
-    <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="hover:underline">
-      {item.title}
-    </a>
-  ) : (
-    item.title
-  );
+  // Our own page for the story when there is one (it links the source), else the source itself. The whole row opens
+  // it, through one link stretched over the row that names the headline and its publisher for screen readers.
+  const href = item.href ?? item.sourceUrl ?? null;
+  const label = item.kind === "news" && item.source ? `${item.title} (${item.source})` : item.title;
+  const cover = "absolute inset-0 z-[1] outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-oa-border";
   return (
-    <li className="grid grid-cols-1 gap-x-4 gap-y-0.5 border-b border-oa-border px-3.5 py-2 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:px-4">
+    <li
+      className={`relative grid grid-cols-1 gap-x-4 gap-y-0.5 border-b border-oa-border px-3.5 py-2 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:px-4 ${
+        href ? "transition-colors hover:bg-oa-accent" : ""
+      }`}
+    >
+      {href ? (
+        item.href ? (
+          <AppLink href={item.href} aria-label={label} className={cover} />
+        ) : (
+          <a href={href} target="_blank" rel="noopener noreferrer" aria-label={label} className={cover} />
+        )
+      ) : null}
       <div className="min-w-0">
         <p className="text-pretty text-[14px] font-medium leading-5 text-oa-fg">
           {tone ? <ToneGlyph tone={tone} className="mr-1.5 -translate-y-px align-middle" /> : null}
-          {title}
+          {item.title}
           {item.locked ? (
             <span className="ml-1.5 inline-flex -translate-y-px align-middle">
               <Tag tone="primary">Pro</Tag>

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Briefing, BriefingItem } from "@/lib/briefing";
 import { groupBriefingSections } from "@/lib/briefing-groups";
-import { briefingRead, comingUpAfterRead, firstSentence, holdingsFirst, readEarningsTickers, sessionLine } from "@/lib/briefing-read";
+import { briefingRead, comingUpAfterRead, firstSentence, holdingsFirst, readEarningsTickers, readOwnedTickers, sessionLine, worthAfterRead } from "@/lib/briefing-read";
 import type { BriefingGroup } from "@/lib/briefing-groups";
 
 function item(overrides: Partial<BriefingItem> & Pick<BriefingItem, "id" | "kind" | "ticker">): BriefingItem {
@@ -50,7 +50,9 @@ describe("briefingRead", () => {
       groupBriefingSections(sections([orcl, cbrs, asts])),
     );
     expect(read?.headline).toBe("Your holdings rose 2.1% today.");
-    expect(read?.sub).toBe("ASTS and CBRS moved most.");
+    // Each has a card of its own in the read, which owns it (no second card under Worth knowing), so the headline
+    // keeps their figures.
+    expect(read?.sub).toBe("ASTS (+14.1%) and CBRS (+7.9%) moved most.");
     expect(read?.insights.map((insight) => insight.text)).toEqual([
       "One stock needs a decision: ORCL.",
       "ASTS is up 14.1% today, against +2.3% for the S&P 500.",
@@ -62,7 +64,7 @@ describe("briefingRead", () => {
       { ...base, portfolio: { value: 1000, day_change_value: 21, day_change_pct: 2.1, counted: 3, holdings: 3, as_of: null }, quiet: { text: "", names: [{ ticker: "AAPL", relation: "holding", day_change_pct: 20 }] } },
       groupBriefingSections(sections([orcl, cbrs, asts])),
     );
-    expect(quiet?.sub).toBe("AAPL (+20.0%) and ASTS moved most.");
+    expect(quiet?.sub).toBe("AAPL (+20.0%) and ASTS (+14.1%) moved most.");
     expect(read?.insights[2].action).toEqual({ label: "Our view on CBRS", href: "/stock/CBRS" });
   });
 
@@ -70,7 +72,7 @@ describe("briefingRead", () => {
     const portfolio = { value: 1000, day_change_value: 21, day_change_pct: 2.1, counted: 3, holdings: 3, as_of: "2026-11-11T20:59:00.000Z" };
     const today = briefingRead({ ...base, date: "2026-11-11", portfolio }, groupBriefingSections(sections([orcl, cbrs, asts])), null, Date.parse("2026-11-11T22:00:00Z"), { example: true, marketPct: 1.31 });
     expect(today?.headline).toBe("Your holdings rose 2.1% today, 0.8 points better than the S&P 500.");
-    expect(today?.sub).toBe("ASTS and CBRS moved most.");
+    expect(today?.sub).toBe("ASTS (+14.1%) and CBRS (+7.9%) moved most.");
     // Within a tenth or so of the index, the move is in line with it: one idea, one number (owner rule 8).
     const level = briefingRead({ ...base, date: "2026-11-11", portfolio: { ...portfolio, day_change_pct: 1.2 } }, groupBriefingSections(sections([orcl, cbrs, asts])), null, Date.parse("2026-11-11T22:00:00Z"), { example: true, marketPct: 1.31 });
     expect(level?.headline).toBe("Your holdings rose 1.2% today, in line with the S&P 500.");
@@ -113,11 +115,27 @@ describe("briefingRead", () => {
     const card = briefingRead({ ...base, date: "2026-11-11" }, grouped, null, Date.now(), { reports })!.insights[0]!;
     expect(card.text).toBe("NVDA reports earnings on Tuesday after the close.");
     expect(card.figure).toEqual({ value: "5.9%", label: "its usual move on a report" });
-    expect(card.soWhat).toBe("That is about three times NVDA's normal day of about 2.0%. Check our call on it before the report.");
+    expect(card.soWhat).toBe("Its usual report move is about three times NVDA's normal day of 2.0%. Check our call on NVDA before the report.");
     // One report is not a pattern: its move, the normal day, no "times".
     const single = briefingRead({ ...base, date: "2026-11-11" }, grouped, null, Date.now(), { reports: { NVDA: { usualPct: 12.4, usualKind: "single", normalPct: 2, vsDay: null } } })!.insights[0]!;
     expect(single.figure).toEqual({ value: "12%", label: "its move after its last report" });
-    expect(single.soWhat).toBe("A normal day for NVDA is a move of about 2.0%. Check our call on it before the report.");
+    expect(single.soWhat).toBe("A normal day for NVDA is a move of about 2.0%. Check our call on NVDA before the report.");
+  });
+
+  it("leads a flagged stock's card with the flag, opens it at our call, and keeps it out of Worth knowing (judges, ship 44)", () => {
+    const report = item({ id: "e", kind: "earnings_upcoming", ticker: "NVDA", relation: "holding", headline: "NVDA reports earnings on Nov 17 after the close", deadline_days: 6 });
+    const news = item({ id: "n", kind: "news", ticker: "NVDA", relation: "holding", headline: "Why Bernstein downgraded Nvidia stock", day_change_pct: 2.9 });
+    const amd = item({ id: "x", kind: "news", ticker: "AMD", relation: "watching", headline: "AMD rose", day_change_pct: 7.3 });
+    const grouped = groupBriefingSections({ needs_you: [], worth_knowing: [news, amd], coming_up: [report], kept: [], dismissed: [] });
+    const flags = { NVDA: "Your agent flagged NVDA's 5.5% drop on Nov 10." };
+    const read = briefingRead({ ...base, date: "2026-11-11" }, grouped, null, Date.now(), { flags })!;
+    const card = read.insights.find((insight) => insight.tickers?.[0] === "NVDA")!;
+    expect(card.soWhat).toBe("Your agent flagged NVDA's 5.5% drop on Nov 10. Check our call on NVDA before the report.");
+    expect(card.action).toEqual({ label: "Our call on NVDA", href: "/stock/NVDA#call" });
+    expect(readOwnedTickers(read).has("NVDA")).toBe(true);
+    expect(worthAfterRead(grouped.worth_knowing, read).map((group) => group.ticker)).toEqual(["AMD"]);
+    // A card about several stocks owns none of them.
+    expect(worthAfterRead(grouped.worth_knowing, { insights: [{ id: "d", tone: "flat", text: "x", tickers: ["NVDA", "AMD"] }] })).toHaveLength(2);
   });
 
   it("names the decisions when there is no holdings figure", () => {

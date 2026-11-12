@@ -1,3 +1,4 @@
+import { quietFact } from "@/lib/briefing-move-facts";
 import type { ExamplePortfolio } from "@/lib/portfolio-data";
 
 import { shortDay } from "./merge";
@@ -16,6 +17,11 @@ export type ExampleHoldingRow = {
   dayPct: number;
   /** The confirmed reason for the day's move, from the same research as the stock's page, or null. */
   reason: string | null;
+  /**
+   * With no confirmed reason: one measured fact about the move, the same short words the briefing's other stocks say
+   * ("Twice a normal day", "Down 4.1% in a month", lib/briefing-move-facts.ts quietFact), or null.
+   */
+  fact: string | null;
 };
 
 export type ExampleHoldings = {
@@ -40,6 +46,8 @@ export function exampleHoldings(
   example: Pick<ExamplePortfolio, "portfolio" | "pricesAsOf" | "marketPct"> | null,
   skip: Iterable<string>,
   reasons: Readonly<Record<string, string>> = {},
+  /** Price facts by ticker, most telling first (lib/briefing-move-facts-server.ts stockMoveFacts). */
+  facts: Readonly<Record<string, readonly string[]>> = {},
 ): ExampleHoldings | null {
   if (!example?.pricesAsOf) return null;
   const skipped = new Set([...skip].map((ticker) => ticker.toUpperCase()));
@@ -51,11 +59,20 @@ export function exampleHoldings(
         ticker: position.ticker,
         dayPct: position.dayPct as number,
         reason: reasons[position.ticker.toUpperCase()]?.trim() || null,
+        fact: null as string | null,
       }))
       .sort((a, b) => Math.abs(b.dayPct) - Math.abs(a.dayPct) || a.ticker.localeCompare(b.ticker));
   const rows = lines(example.portfolio.positions, "holding");
   const watching = lines(example.portfolio.watching, "watchlist");
   if (rows.length + watching.length < 2) return null;
+  // A line without a confirmed reason gets one measured fact, worked out in the order shown so no two say the same
+  // words (owner rule 1); a line with a reason keeps just that.
+  const used = new Set<string>();
+  for (const row of [...rows, ...watching]) {
+    if (row.reason) continue;
+    row.fact = quietFact(facts[row.ticker.toUpperCase()], used);
+    if (row.fact) used.add(row.fact);
+  }
   const market = fin(example.marketPct) ? `S&P 500 ${example.marketPct >= 0 ? "+" : "−"}${Math.abs(example.marketPct).toFixed(1)}%` : null;
   return { title: `The example's other stocks on ${shortDay(example.pricesAsOf)}`, market, rows, watching };
 }

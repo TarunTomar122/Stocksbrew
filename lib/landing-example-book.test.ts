@@ -74,6 +74,14 @@ describe("the home page's example book", () => {
     expect(view.rows.find((r) => r.ticker === "AAPL")).toMatchObject({ shares: 55, price: 354.5, dayPct: 1.72, call: "Buy more" });
   });
 
+  it("never puts a call word on a fund, even when the research has one for it (judges, ship 44)", () => {
+    const source = exampleSource();
+    const view = exampleBookView({ ...source, facts: { ...source.facts, calls: { ...source.facts.calls, QQQ: call("Hold"), VOO: call("Hold") } } })!;
+    expect(view.rows.find((r) => r.ticker === "QQQ")?.call).toBeNull();
+    expect(view.rows.find((r) => r.ticker === "VOO")?.call).toBeNull();
+    expect(view.calls).toBe("We'd buy more of five and keep two.");
+  });
+
   it("rounds the day's move the way /portfolio does, and says the calls once", () => {
     const view = exampleBookView(exampleSource())!;
     expect(view.day?.text).toMatch(/^[+−]\d+\.\d%$/);

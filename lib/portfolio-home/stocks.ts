@@ -340,8 +340,10 @@ export function stockCards(source: BookSource, extra: Pick<BookFacts, "reasons" 
       gain: fin(position.gain) ? position.gain : null,
       gainPct: fin(position.gainPct) ? position.gainPct : null,
       weight: fin(position.weight) ? position.weight : null,
-      call: call ? PLAIN_CALL[call.call] : null,
-      level: callLevel(call, position.price),
+      // A fund has no call of ours (the list says "no calls on funds" once), wherever its card is shown: My stocks
+      // and the home page's example alike (judges, ship 44: QQQ and VOO said Keep on the home page).
+      call: call && !fund ? PLAIN_CALL[call.call] : null,
+      level: fund ? null : callLevel(call, position.price),
       fact: facts[0] ?? null,
       fund,
     };

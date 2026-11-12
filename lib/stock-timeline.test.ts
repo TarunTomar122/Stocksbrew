@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { analystTrendChanges, buildStockTimeline, developmentSentence, parseLooseDate, parseMonthPeriod, prettyDay, timelineHeadline, timelineSortMs, weekChange, type StockTimelineItem } from "@/lib/stock-timeline";
+import { analystTrendChanges, buildStockTimeline, developmentSentence, parseLooseDate, parseMonthPeriod, prettyDay, saysSameDevelopment, timelineHeadline, timelineSortMs, weekChange, type StockTimelineItem } from "@/lib/stock-timeline";
 import type { NewsArticle } from "@/lib/news";
 import type { PowerTrade } from "@/lib/power-trades";
 import type { TimelineEvent } from "@/lib/stock";
@@ -268,5 +268,17 @@ describe("weekChange", () => {
     const noise = [news("3 bank stocks to buy now as the Fed holds", "2026-11-11T10:00:00Z"), news("U.S. banks rally as the Fed signals a pause", "2026-11-10T10:00:00Z")];
     expect(weekChange(noise, { ticker: "JPM", now })).toBeNull();
     expect(weekChange([news("Old story", "2026-10-01T10:00:00Z")], { ticker: "JPM", now })).toBeNull();
+  });
+});
+
+describe("saysSameDevelopment", () => {
+  const jpm = { ticker: "JPM", companyName: "JPMorgan Chase & Co." };
+  it("knows the week's line says the brief's lead again when it names the same subject", () => {
+    expect(saysSameDevelopment("JPMorgan partnered with OpenAI on Nov 11.", "JPMorgan has a new partnership with OpenAI to improve coding efficiency.", jpm)).toBe(true);
+  });
+  it("keeps a line about another subject, and one that names nothing", () => {
+    expect(saysSameDevelopment("JPMorgan took the lead role in a major AI IPO on Nov 10.", "JPMorgan has a new partnership with OpenAI.", jpm)).toBe(false);
+    expect(saysSameDevelopment("JPM reported earnings on Nov 10.", "JPMorgan has a new partnership with OpenAI.", jpm)).toBe(false);
+    expect(saysSameDevelopment("JPMorgan partnered with OpenAI on Nov 11.", "", jpm)).toBe(false);
   });
 });

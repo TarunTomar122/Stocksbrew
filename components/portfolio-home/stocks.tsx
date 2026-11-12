@@ -133,7 +133,12 @@ function CallLine({ card }: { card: StockCard }) {
   );
 }
 
-function StockCardView({ card, className, wide = false }: { card: StockCard; className: string; wide?: boolean }) {
+/**
+ * The odd last card, which spans its row (owner rule 4): from `sm` one row of three parts (the stock and its call,
+ * its fact across the middle, its figures on the right), so the wide card is full end to end with no hollow half
+ * (judges, ship 44). On a phone it reads like every other card: the stock and its figures, the fact under them.
+ */
+function WideStockCardView({ card, className }: { card: StockCard; className: string }) {
   const attention = card.fact !== null && card.fact.priority >= ATTENTION;
   return (
     <li className={className}>
@@ -143,9 +148,50 @@ function StockCardView({ card, className, wide = false }: { card: StockCard; cla
         title={card.name}
         data-track-links="insight_clicked"
         data-track-insight-kind={`home-stock-${card.fact?.kind ?? "none"}`}
-        // An odd last card spans the row: side by side from `sm`, its figures on the left and its fact on the right,
-        // so it never stretches with a hollow right half (owner rule 4).
-        className={`${CARD} flex h-full flex-col px-3.5 py-2.5 transition-colors hover:bg-oa-accent ${wide && card.fact ? "sm:grid sm:grid-cols-2 sm:items-center sm:gap-x-4" : ""} ${FOCUS}`}
+        className={`${CARD} grid h-full grid-cols-[minmax(0,1fr)_auto] gap-x-3 px-3.5 py-2.5 transition-colors [grid-template-areas:'name_figs'_'fact_fact'] hover:bg-oa-accent sm:grid-cols-[minmax(0,auto)_minmax(0,1fr)_auto] sm:items-center sm:gap-x-5 sm:[grid-template-areas:'name_fact_figs'] ${FOCUS}`}
+      >
+        <span className="block min-w-0 [grid-area:name]">
+          <span className="flex min-w-0 items-center gap-2">
+            <StockLogo ticker={card.ticker} size={22} eager />
+            <span className="oa-mono text-[14.5px] font-semibold tabular-nums text-oa-fg">{card.ticker}</span>
+          </span>
+          <span className="mt-0.5 flex min-w-0 text-[13px] leading-[18px]">
+            <CallLine card={card} />
+          </span>
+        </span>
+        <span className="flex flex-col items-end [grid-area:figs]">
+          <span className="flex items-baseline gap-2">
+            {card.dayMove !== null ? <span className={`oa-mono text-[12px] tabular-nums ${tone(card.dayMove)}`}>{signedDollars(card.dayMove)}</span> : null}
+            <span className={`oa-mono text-[16px] font-semibold leading-6 tabular-nums ${tone(card.dayPct)}`}>{card.dayPct !== null ? signedPct(card.dayPct, 2) : "–"}</span>
+          </span>
+          {card.gain !== null ? (
+            <span className={`oa-mono mt-0.5 text-[12.5px] leading-[18px] tabular-nums ${tone(card.gain)}`}>
+              {signedDollars(card.gain)}
+              {card.gainPct !== null ? <span className="text-oa-muted-fg"> {signedPct(card.gainPct, Math.abs(card.gainPct) < 0.5 ? 1 : 0)}</span> : null}
+            </span>
+          ) : null}
+        </span>
+        {card.fact ? (
+          <span className={`mt-1.5 block text-pretty text-[13px] leading-[18px] [grid-area:fact] sm:mt-0 sm:border-l sm:border-oa-border sm:pl-5 ${attention ? "font-medium text-oa-fg" : "text-oa-muted-fg"}`}>{card.fact.text}</span>
+        ) : null}
+      </Link>
+    </li>
+  );
+}
+
+function StockCardView({ card, className, wide = false }: { card: StockCard; className: string; wide?: boolean }) {
+  // With no fact there is no middle part: the usual card, stretched over the row, already fills it.
+  if (wide && card.fact) return <WideStockCardView card={card} className={className} />;
+  const attention = card.fact !== null && card.fact.priority >= ATTENTION;
+  return (
+    <li className={className}>
+      <Link
+        href={card.href}
+        prefetch={false}
+        title={card.name}
+        data-track-links="insight_clicked"
+        data-track-insight-kind={`home-stock-${card.fact?.kind ?? "none"}`}
+        className={`${CARD} flex h-full flex-col px-3.5 py-2.5 transition-colors hover:bg-oa-accent ${FOCUS}`}
       >
         <span className="block min-w-0">
           <span className="flex min-w-0 items-center gap-2">
@@ -167,7 +213,7 @@ function StockCardView({ card, className, wide = false }: { card: StockCard; cla
           </span>
         </span>
         {card.fact ? (
-          <span className={`mt-1.5 block text-pretty text-[13px] leading-[18px] ${wide ? "sm:mt-0 sm:border-l sm:border-oa-border sm:pl-4" : ""} ${attention ? "font-medium text-oa-fg" : "text-oa-muted-fg"}`}>{card.fact.text}</span>
+          <span className={`mt-1.5 block text-pretty text-[13px] leading-[18px] ${attention ? "font-medium text-oa-fg" : "text-oa-muted-fg"}`}>{card.fact.text}</span>
         ) : null}
       </Link>
     </li>

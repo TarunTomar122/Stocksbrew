@@ -260,7 +260,7 @@ export function OverlayChart({
       </div>
 
       <p className="oa-mono px-4 pb-3 pt-1 text-[11.5px] leading-4 text-oa-muted-fg">
-        {active !== null ? `${dayLabel(shownDate, true)}, change since ${dayLabel(range.startDate, true)}` : `${dayLabel(range.startDate, true)} to ${dayLabel(range.endDate, true)}, each line starts at 0%`}
+        {active !== null ? `${dayLabel(shownDate, true)}, change since ${dayLabel(range.startDate, true)}` : `${dayLabel(range.startDate, true)} to ${dayLabel(range.endDate, true)}`}
         {range.note ? ` · ${range.note}` : ""}
       </p>
     </div>

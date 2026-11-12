@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { countTones, leanOf, marketRead, newsThemes, readTheWire, stockBuzz, storiesBetween, type NewsLabels } from "@/lib/wire-read";
+import { countTones, leanOf, marketRead, newsThemes, readTheWire, stockBuzz, storiesBetween, toneWord, type NewsLabels } from "@/lib/wire-read";
 import { parseWireFilters, type WireItem } from "@/lib/wire-shared";
 
 const NOW = Date.parse("2026-11-10T16:00:00Z");
@@ -193,5 +193,15 @@ describe("the read", () => {
     expect(theme.text).toBe("TSLA: the biggest story is Tesla recall, 100% negative.");
     expect(theme.soWhat).toBe("TSLA is down 2.0% today.");
     expect(theme.action!.href).toBe("/news?theme=Tesla+recall");
+  });
+});
+
+describe("toneWord", () => {
+  it("says the clear lean, else a neutral majority or a mixed read, else nothing", () => {
+    expect(toneWord({ positive: 6, negative: 1, neutral: 1 }, 8)?.text).toBe("75% positive");
+    expect(toneWord({ positive: 1, negative: 1, neutral: 6 }, 10)).toEqual({ text: "60% neutral", side: "neutral" });
+    expect(toneWord({ positive: 3, negative: 2, neutral: 1 }, 6)).toEqual({ text: "Mixed", side: "mixed" });
+    // Too few toned stories say nothing: the cell stays empty.
+    expect(toneWord({ positive: 1, negative: 0, neutral: 1 }, 20)).toBeNull();
   });
 });

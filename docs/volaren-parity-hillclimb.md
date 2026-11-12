@@ -185,6 +185,21 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-12 ~04:40 UTC, ship 45 (7ceffa3, backend only): stock briefs open on what happened, not on the coverage (lead, overnight loop)
+
+- **Round 17 cause.** 282 of 721 stored briefs open on the coverage. 137 of those were our own fallback ("Recent company-specific coverage is thin for X…"): the wrong-ticker check in `build_no_news_intelligence_doc` read "RSI" as another ticker and threw the model's body away. The no-news prompt also asked for "State that no company-specific development was verified".
+- **Fix.**
+  - backend/brief_lead.py holds the banned openers, the prompt rules and a deterministic check. A coverage-only opener with no number is dropped when the rest stands; anything else is kept verbatim and flagged.
+  - Both prompts now require a first sentence about the company with a number, date or named event, and name the banned phrases.
+  - The wrong-ticker check allows common acronyms.
+  - Cache versions bumped.
+  - 22 new tests. pytest: the 4 known failures only.
+- **VPS.** Pulled and imports OK. The next brief runs (open-briefs ~14:57 UTC) use the new prompt.
+- **Repair script** (backend/scripts/repair_brief_coverage_leads.py). Dry run on the VPS: 282 rows, 58 strippable, 224 to rewrite; nothing written.
+  - Not run: `--strip`. Some "drops" still carry real news, e.g. AAP "restructuring under new management", so a rewrite is safer.
+  - Not run: `--requeue --limit 80`. It must run 09:00–09:45 ET (after the pre-open news run resets the flag), then daily until the 224 are rewritten.
+  - Owner/next tick: `cd /opt/tikrr && LOCALDB_PATH=/srv/tikrr-data/localdb/documents.sqlite3 .venv/bin/python -m backend.scripts.repair_brief_coverage_leads --requeue --limit 80`.
+
 ### 2026-11-12 ~03:50 UTC, ships 43 (858a40b) and 44 (f1a8435) live (lead, overnight loop)
 
 - **Ship 43 (round 16A + lead)**

@@ -22,14 +22,16 @@ describe("the example inbox's other stocks", () => {
       ]),
       ["nvda"],
       { XOM: " Exxon rose with oil after OPEC held output. ", MSFT: "" },
+      { MSFT: ["A normal day moves it about 1.3%", "Still down 4.1% over the past month"], XOM: ["About twice a normal 0.7% day"], AMD: ["About twice a normal 3.8% day"] },
     )!;
     expect(out.title).toBe("The example's other stocks on Nov 11");
     expect(out.market).toBe("S&P 500 +1.3%");
+    // No confirmed reason: one measured fact, in the briefing's short words; a confirmed reason keeps just that.
     expect(out.rows).toEqual([
-      { ticker: "MSFT", dayPct: -2.2, reason: null },
-      { ticker: "XOM", dayPct: 1.3, reason: "Exxon rose with oil after OPEC held output." },
+      { ticker: "MSFT", dayPct: -2.2, reason: null, fact: "Down 4.1% in a month" },
+      { ticker: "XOM", dayPct: 1.3, reason: "Exxon rose with oil after OPEC held output.", fact: null },
     ]);
-    expect(out.watching).toEqual([{ ticker: "AMD", dayPct: 7.3, reason: null }]);
+    expect(out.watching).toEqual([{ ticker: "AMD", dayPct: 7.3, reason: null, fact: "Twice a normal day" }]);
   });
 
   it("is nothing with fewer than two lines, or without a price day", () => {

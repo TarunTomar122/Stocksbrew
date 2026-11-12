@@ -26,6 +26,12 @@ export type InsidersFacts = { at: string; trades: number; buys: number; biggest:
 export type EarningsFacts = { at: string; count: number; beat: number; missed: number };
 export type AgentRunsFacts = { at: string; runs: number; found: number };
 
+/**
+ * One portfolio's own agents (the example's, on the signed-out briefing): how many ran on the day, how many flagged
+ * something, and the stocks they flagged with their moves, for the Agents row's chips.
+ */
+export type OwnAgentRuns = AgentRunsFacts & { stocks: AgentLogStock[]; href: string };
+
 export type AgentLogFacts = {
   premarket?: PremarketFacts | null;
   briefs?: BriefsFacts | null;
@@ -264,6 +270,31 @@ export function agentsEntry(facts: AgentRunsFacts): AgentLogEntry | null {
     kind: "Agents",
     status: `${count(found)} of ${count(facts.runs)} flagged`,
   });
+}
+
+/**
+ * The log with its Agents row about `own` agents instead of every member's: on the example's briefing the row then
+ * says what the example's agents did and carries the holdings they flagged as chips ("1 of 3 flagged", NVDA −5.5%),
+ * not a count of strangers' agents with no stock on it (judges, ship 44). Only a run from the log's own day replaces
+ * the row; otherwise the log is as it was. The rows stay oldest first. Pure.
+ */
+export function withOwnAgents(log: AgentLog | null, own: OwnAgentRuns | null | undefined): AgentLog | null {
+  if (!log || !own || !valid(own.runs) || nyDayOf(own.at) !== log.day) return log;
+  const found = Math.max(0, Math.round(own.found));
+  const line = withStocks(
+    entry(
+      "agents",
+      own.at,
+      own.runs,
+      `${own.runs === 1 ? "agent on this portfolio" : "agents on this portfolio"} ran ${own.runs === 1 ? "its" : "their"} checks; ${found === 0 ? "none found anything to report" : `${count(found)} found something to report`}.`,
+      own.href,
+      { kind: "Your agents", status: `${count(found)} of ${count(own.runs)} flagged` },
+    ),
+    found > 0 ? own.stocks : [],
+  );
+  if (!line) return log;
+  const entries = [...log.entries.filter((item) => item.source !== "agents"), line];
+  return { ...log, entries: entries.sort((a, b) => Date.parse(a.at) - Date.parse(b.at) || PRIORITY.indexOf(a.source) - PRIORITY.indexOf(b.source)) };
 }
 
 /* ── the day ─────────────────────────────────────────────────────────────── */

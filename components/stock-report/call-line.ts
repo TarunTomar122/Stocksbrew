@@ -11,7 +11,8 @@ import type { CallLevel } from "@/lib/call-level";
 // The plain actions (lib/plain-copy.ts) that start with their own call word, said without it.
 const WITHOUT_WORD: Record<string, string> = {
   "keep what you own, don't buy more now": "Keep what you own, but don't buy more for now.",
-  "buy more on a dip, not here": "Wait for a dip before adding.",
+  // One instruction under the word (owner rule 9): never "Buy more" over "wait for a dip".
+  "buy more on a dip, not here": "Buy more on a dip, not at today's price.",
   "sell some if it rises": "Take some profit if the price rises.",
 };
 
@@ -61,10 +62,16 @@ function pctAway(level: number, price: number): string {
   return `${away >= 10 ? Math.round(away) : away.toFixed(1)}%`;
 }
 
+/** "We'd buy more below" said as the instruction it is ("Buy more below"), so the line and the word above it agree. */
+function instruction(label: CallLevel["label"]): string {
+  return label.replace(/^We'd b/, "B").replace(/^We'd s/, "S");
+}
+
 /**
- * The line under the call word. With the level: "We'd buy more below $330.00, 3.9% under today's $343.37." Without
- * it on this plan: what the call waits for ("We'd wait for a dip from today's $343.37 before buying more.") and the
- * gate, never the number. With no level at all: what the call means, when that says more than the word.
+ * The line under the call word, one instruction that goes with it (owner rule 9: "Buy more" beside "wait for a dip"
+ * read as two). With the level: "Buy more below $330.00, 3.9% under today's $343.37." Without it on this plan: the
+ * same instruction without the number ("Buy more on a dip below today's $343.37.") and the gate, never the number.
+ * With no level at all: what the call means, when that says more than the word.
  */
 export function callLine(input: {
   callWord: string | null;
@@ -82,7 +89,7 @@ export function callLine(input: {
   const { level, hidden, price, money } = input;
   const today = price != null && price > 0 ? `today's ${money(price)}` : null;
   if (level) {
-    const head = `${level.label} ${money(level.price)}`;
+    const head = `${instruction(level.label)} ${money(level.price)}`;
     if (!today || price == null) return { text: `${head}.`, gate: null };
     const below = level.label === "We'd buy more below";
     const reached = below ? price <= level.price : price >= level.price;
@@ -92,19 +99,18 @@ export function callLine(input: {
   }
   if (hidden) {
     const at = today ?? "today's price";
-    const At = at.charAt(0).toUpperCase() + at.slice(1);
     const text =
       hidden.label === "We'd buy more below"
         ? hidden.reached
-          ? `${At} is low enough that we'd buy more.`
-          : `We'd wait for a dip from ${at} before buying more.`
+          ? `Buy more at ${at}, already under our buy price.`
+          : `Buy more on a dip below ${at}.`
         : hidden.label === "We'd buy more above"
           ? hidden.reached
-            ? `${At} is high enough that we'd buy more.`
-            : `We'd buy more once it breaks out above ${at}.`
+            ? `Buy more at ${at}, already over our buy price.`
+            : `Buy more once it breaks out above ${at}.`
           : hidden.reached
-            ? `${At} is high enough that we'd sell some.`
-            : `We'd sell some if it rises from ${at}.`;
+            ? `Sell some at ${at}, already over our sell price.`
+            : `Sell some if it rises from ${at}.`;
     const stock = input.ticker ? `${input.ticker} ` : "";
     const what = hidden.label === "We'd sell some above" ? `The price we'd sell ${stock}at` : `The price we'd buy ${stock}at`;
     return { text, gate: input.plan === "anon" ? `${what} comes with a free account.` : `${what} is in the full report.` };

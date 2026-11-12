@@ -131,6 +131,11 @@ describe("date helpers", () => {
     expect(relativeDay("2026-11-12", DATE)).toBe("on Thursday");
     expect(relativeDay("2026-11-06", DATE)).toBe("on Friday");
     expect(relativeDay("2026-11-20", DATE)).toBe("on Nov 20");
+    // Next week's Tuesday, said on a Wednesday, is its date, not "on Tuesday".
+    expect(relativeDay("2026-11-17", "2026-11-11")).toBe("on Nov 17");
+    // A week runs Monday to Sunday: on a Sunday, Tuesday is next week's.
+    expect(relativeDay("2026-11-17", "2026-11-15")).toBe("on Nov 17");
+    expect(relativeDay("2026-11-13", "2026-11-11")).toBe("on Friday");
   });
 
   it("uses the US Eastern day, not the server's", () => {

@@ -526,9 +526,9 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
     <section
       id={`d-${bucket.day}`}
       aria-label={`${weekdayName(bucket.day, true)}, ${fmtShortDay(bucket.day)}`}
-      className={`min-w-0 scroll-mt-16 border-b border-oa-border last:border-b-0 lg:order-none lg:border-b-0 lg:border-r lg:last:border-r-0 ${
-        past ? "order-2 bg-oa-bg" : "order-1"
-      }`}
+      // Each day is its own card, as tall as what it holds (owner rule 4): a quiet day ends where its events end
+      // instead of leaving a hollow cell beside a busy one.
+      className={`oa-surface min-w-0 scroll-mt-16 overflow-hidden border border-oa-border lg:order-none ${past ? "order-2 bg-oa-bg" : "order-1 bg-oa-card"}`}
     >
       <AppLink
         href={dayHref}
@@ -682,13 +682,12 @@ export function WeekView({
   const template = weekdays.map((day) => (!hasLead ? "minmax(0,1fr)" : day === today ? "minmax(0,1.8fr)" : day < today ? "minmax(0,0.9fr)" : "minmax(0,1fr)")).join(" ");
   return (
     <>
-      <Panel flush>
-        <div className="grid lg:[grid-template-columns:var(--cal-cols)]" style={{ "--cal-cols": template } as React.CSSProperties}>
-          {weekdays.map((day) => (
-            <DayColumn key={day} bucket={days.get(day) ?? emptyDay(day)} today={today} filters={filters} hasLead={hasLead} mark={markPreRead} />
-          ))}
-        </div>
-      </Panel>
+      {/* The days size to their own events, side by side from lg, so no day is padded to match a busier one. */}
+      <div className="flex flex-col gap-2 lg:grid lg:items-start lg:[grid-template-columns:var(--cal-cols)]" style={{ "--cal-cols": template } as React.CSSProperties}>
+        {weekdays.map((day) => (
+          <DayColumn key={day} bucket={days.get(day) ?? emptyDay(day)} today={today} filters={filters} hasLead={hasLead} mark={markPreRead} />
+        ))}
+      </div>
       {weekend.length ? (
         <p className="mt-3 text-[14px] text-oa-muted-fg">
           Also that weekend:{" "}

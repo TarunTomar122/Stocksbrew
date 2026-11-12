@@ -6,7 +6,7 @@ import { StockLogo } from "@/components/stock-logo";
 import { Bar } from "@/components/oa/kit/skeleton";
 import { getAgentLog } from "@/lib/agent-log/server";
 import type { AgentLog } from "@/lib/agent-log/types";
-import { entrySentence } from "@/lib/agent-log/words";
+import { entrySentence, withOwnAgents, type OwnAgentRuns } from "@/lib/agent-log/words";
 
 /**
  * "What the agent did today": the day's work across the market as a timeline. Each row is a link to its evidence
@@ -141,9 +141,24 @@ export function AgentLogView({
   );
 }
 
-/** The log, read from its shared cache. Stream it inside <Suspense fallback={<AgentLogGhost />}>. */
-export async function AgentLog({ compact = false, narrow = false, fit = false, className = "" }: { compact?: boolean; narrow?: boolean; fit?: boolean; className?: string }) {
-  return <AgentLogView log={await getAgentLog()} compact={compact} narrow={narrow} fit={fit} className={className} />;
+/**
+ * The log, read from its shared cache. Stream it inside <Suspense fallback={<AgentLogGhost />}>. `own`: one
+ * portfolio's own agents (the example's, on the signed-out briefing), whose run and flagged stocks take the Agents row.
+ */
+export async function AgentLog({
+  compact = false,
+  narrow = false,
+  fit = false,
+  className = "",
+  own = null,
+}: {
+  compact?: boolean;
+  narrow?: boolean;
+  fit?: boolean;
+  className?: string;
+  own?: OwnAgentRuns | null;
+}) {
+  return <AgentLogView log={withOwnAgents(await getAgentLog(), own)} compact={compact} narrow={narrow} fit={fit} className={className} />;
 }
 
 /**

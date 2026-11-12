@@ -19,8 +19,16 @@ import { shortCompanyName } from "@/lib/plain-copy";
  * 3 from 44rem, so three cards never squeeze into a narrow column. Rows share one height, and an opened card (which
  * takes the whole row) lets the cards after it fill the gap it leaves.
  */
-export function StockCardGrid({ children, wide = false, className = "" }: { children: React.ReactNode; wide?: boolean; className?: string }) {
+export function StockCardGrid({ children, wide = false, dense = false, className = "" }: { children: React.ReactNode; wide?: boolean; dense?: boolean; className?: string }) {
   if (wide) return <ul className={`grid grid-flow-row-dense grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 ${className}`}>{children}</ul>;
+  // `dense`: small cards with only a figure and one fact, so they sit closer: 2 from 20rem, 3 from 36rem.
+  if (dense) {
+    return (
+      <div className={`[container-type:inline-size] ${className}`}>
+        <ul className="grid grid-cols-1 gap-3 [@container(min-width:20rem)]:grid-cols-2 [@container(min-width:36rem)]:grid-cols-3">{children}</ul>
+      </div>
+    );
+  }
   return (
     <div className={`[container-type:inline-size] ${className}`}>
       <ul className="grid grid-flow-row-dense grid-cols-1 gap-3 [@container(min-width:30rem)]:grid-cols-2 [@container(min-width:44rem)]:grid-cols-3">{children}</ul>
@@ -29,31 +37,33 @@ export function StockCardGrid({ children, wide = false, className = "" }: { chil
 }
 
 // Written out whole so Tailwind finds them: [breakpoint][span - 1]. `c2` and `c3` are StockCardGrid's container widths.
-const SPANS: Record<string, string[]> = {
+const SPANS = {
   sm: ["sm:col-span-1", "sm:col-span-2"],
   lg: ["lg:col-span-1", "lg:col-span-2", "lg:col-span-3", "lg:col-span-4", "lg:col-span-5"],
   xl: ["xl:col-span-1", "xl:col-span-2", "xl:col-span-3"],
   c2: ["[@container(min-width:30rem)]:col-span-1", "[@container(min-width:30rem)]:col-span-2"],
   c3: ["[@container(min-width:44rem)]:col-span-1", "[@container(min-width:44rem)]:col-span-2", "[@container(min-width:44rem)]:col-span-3"],
-};
+  d2: ["[@container(min-width:20rem)]:col-span-1", "[@container(min-width:20rem)]:col-span-2"],
+  d3: ["[@container(min-width:36rem)]:col-span-1", "[@container(min-width:36rem)]:col-span-2", "[@container(min-width:36rem)]:col-span-3"],
+} satisfies Record<string, string[]>;
 
 /**
  * No half-empty rows (owner rule): the last card stretches over what its row has left, at each breakpoint's column
  * count. `cols` maps a breakpoint to its columns, smallest first, e.g. { sm: 2, xl: 3 }.
  */
-export function fillLastRow(index: number, count: number, cols: Partial<Record<"sm" | "lg" | "xl" | "c2" | "c3", number>>): string {
+export function fillLastRow(index: number, count: number, cols: Partial<Record<keyof typeof SPANS, number>>): string {
   if (index !== count - 1) return "";
-  return (Object.entries(cols) as Array<["sm" | "lg" | "xl" | "c2" | "c3", number]>)
+  return (Object.entries(cols) as Array<[keyof typeof SPANS, number]>)
     .map(([breakpoint, columns]) => {
       const left = count % columns;
-      return SPANS[breakpoint]![(left === 0 ? 1 : columns - left + 1) - 1] ?? "";
+      return (SPANS[breakpoint] as string[])[(left === 0 ? 1 : columns - left + 1) - 1] ?? "";
     })
     .join(" ");
 }
 
 /** The spans for StockCardGrid's own columns. */
-export function stockGridFill(index: number, count: number, wide = false): string {
-  return fillLastRow(index, count, wide ? { sm: 2, lg: 3 } : { c2: 2, c3: 3 });
+export function stockGridFill(index: number, count: number, wide = false, dense = false): string {
+  return fillLastRow(index, count, wide ? { sm: 2, lg: 3 } : dense ? { d2: 2, d3: 3 } : { c2: 2, c3: 3 });
 }
 
 export const CARD_HOVER = "transition-colors hover:border-[color-mix(in_srgb,var(--oa-fg)_25%,transparent)] hover:bg-oa-accent";
@@ -82,6 +92,7 @@ export function StockCard({
   expanded = false,
   fill = "",
   tag,
+  eagerLogo = false,
   className = "",
   ...rest
 }: {
@@ -107,6 +118,8 @@ export function StockCard({
   fill?: string;
   /** A short word after the name, e.g. "you watch it" on a stock the person watches rather than holds. */
   tag?: string | null;
+  /** Load the logo with the page (owner rule 5: logos load at once), for cards in the first screens. */
+  eagerLogo?: boolean;
   className?: string;
 } & Omit<React.HTMLAttributes<HTMLLIElement>, "children">) {
   const short = ticker ? shortCompanyName(name) : name;
@@ -120,7 +133,7 @@ export function StockCard({
       <div className="flex min-w-0 items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2.5">
           {ticker ? (
-            <StockLogo ticker={ticker} size={28} />
+            <StockLogo ticker={ticker} size={28} eager={eagerLogo} />
           ) : (
             <span aria-hidden="true" className="oa-mono flex size-7 shrink-0 items-center justify-center rounded-md bg-oa-bg text-[9px] font-medium text-oa-muted-fg">
               JOB

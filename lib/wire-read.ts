@@ -90,6 +90,24 @@ export function toneLean(counts: ToneCounts, stories: number = totalOf(counts)):
   return { side, pct, text: `Leans ${side}` };
 }
 
+/**
+ * A ranked row's tone (owner rule 3: each row of a ranked list carries its mood), said only where the labels support
+ * one: the clear lean when there is one (`toneLean`, "75% negative"), else, with at least `MIN_TONED` stories toned,
+ * "62% neutral" when most stories are neutral, or "Mixed" when both sides have at least two stories and neither leads
+ * twice over. Null otherwise: too few toned stories say nothing, and the cell is left empty rather than a dash.
+ */
+export function toneWord(counts: ToneCounts, stories: number = totalOf(counts)): { text: string; side: "positive" | "negative" | "neutral" | "mixed" } | null {
+  const lean = toneLean(counts, stories);
+  if (lean) return { text: lean.text, side: lean.side };
+  const labelled = totalOf(counts);
+  if (labelled < MIN_TONED) return null;
+  const base = Math.max(stories, labelled);
+  const neutral = counts.neutral / base;
+  if (neutral >= 0.5) return { text: `${Math.round(neutral * 100)}% neutral`, side: "neutral" };
+  if (counts.positive >= 2 && counts.negative >= 2) return { text: "Mixed", side: "mixed" };
+  return null;
+}
+
 export function leanTone(counts: ToneCounts): InsightTone {
   const lean = leanOf(counts);
   return lean === "positive" ? "up" : lean === "negative" ? "down" : "flat";

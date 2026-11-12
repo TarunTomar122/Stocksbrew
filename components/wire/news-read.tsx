@@ -5,7 +5,7 @@ import { Delta, FOCUS, NUM, Panel } from "@/components/oa/kit";
 import { StockLogo } from "@/components/stock-logo";
 import { WholeRows } from "@/components/wire/whole-rows";
 import { headlineCase } from "@/lib/plain-copy";
-import { toneLean, type StockBuzz, type ToneCounts } from "@/lib/wire-read";
+import { toneLean, toneWord, type StockBuzz, type ToneCounts } from "@/lib/wire-read";
 import { WIRE_PAGE_SIZE, etDay, etTime, wireHref, type WireFilters, type WireItem } from "@/lib/wire-shared";
 
 const ET_WEEKDAY = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short" });
@@ -82,10 +82,26 @@ export function buzzHighlight(row: Pick<StockBuzz, "lead" | "name">): string {
   return headlineWords(row.lead.title, row.name ?? "").replace(/[.!]+$/, "");
 }
 
+/** A ranked row's tone ("75% negative", "62% neutral", "Mixed"), coloured by side, with the counts for screen readers. */
+function RowTone({ counts, stories }: { counts: ToneCounts; stories: number }) {
+  const word = toneWord(counts, stories);
+  if (!word) return null;
+  const label = `${counts.positive} positive, ${counts.negative} negative, ${counts.neutral} neutral of ${stories} ${stories === 1 ? "story" : "stories"}`;
+  const colour = word.side === "positive" ? "text-signal-bullish" : word.side === "negative" ? "text-signal-bearish" : "text-oa-muted-fg";
+  return (
+    <span className={`${NUM} inline-flex items-center whitespace-nowrap text-[12.5px] leading-[18px]`} title={label}>
+      <span className="sr-only">{label}</span>
+      <span aria-hidden="true" className={colour}>
+        {word.text}
+      </span>
+    </span>
+  );
+}
+
 /**
  * The stocks with the most coverage right now, most first (owner, Nov 11: "where info about positive or negative talk
- * and highlight?"). Each row: rank, logo and ticker, how its news leans (one coloured figure, only when it clearly
- * leans), the day's move, and its top story written out underneath. No coverage bars (owner rule 5): the order already
+ * and highlight?"). Each row: rank, logo and ticker, the tone of its news where the labels support one (toneWord: "75%
+ * negative", "62% neutral", "Mixed"; an empty cell otherwise), the day's move, and its top story written out underneath. No coverage bars (owner rule 5): the order already
  * says who is talked about most. Every stock shows, about eight rows at a time with the rest scrolling inside.
  */
 export function TalkedAbout({
@@ -101,8 +117,8 @@ export function TalkedAbout({
   className?: string;
 }) {
   if (rows.length === 0) return null;
-  // The tone column only when some stock's news leans; otherwise the moves sit right after the ticker.
-  const toned = rows.some((row) => leanWords(row.tones, row.count) !== "");
+  // The tone column only when some stock's news has a tone the labels support; otherwise the moves sit right after the ticker.
+  const toned = rows.some((row) => toneWord(row.tones, row.count) !== null);
   // About eight rows in view, the rest scrolling inside and the box ending on a whole row (owner rule 5).
   const frame = "max-h-[32rem]";
   // Full width: two columns read top to bottom (1 to 7, then 8 on), in a grid so the rows of both columns line up.
@@ -128,15 +144,8 @@ export function TalkedAbout({
                   </span>
                   {toned ? (
                     <span className="text-right">
-                      {/* No clear lean: a quiet dash keeps the column lined up instead of a hole beside the move. */}
-                      {leanWords(row.tones, row.count) ? (
-                        <ToneBar counts={row.tones} stories={row.count} />
-                      ) : (
-                        <span className={`${NUM} text-[12.5px] leading-[18px] text-oa-muted-fg`}>
-                          <span aria-hidden="true">–</span>
-                          <span className="sr-only">No clear tone</span>
-                        </span>
-                      )}
+                      {/* The tone where the labels support one; an empty cell, not a dash, where they do not. */}
+                      <RowTone counts={row.tones} stories={row.count} />
                     </span>
                   ) : null}
                   <span className="text-right">{row.pct !== null ? <Delta value={row.pct} digits={1} className="text-[14px] font-medium" /> : null}</span>

@@ -1,5 +1,7 @@
 /** Formatting shared by the stock report. Server and client safe. */
 
+import { wholeSentences } from "@/lib/plain-copy";
+
 export function fin(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
@@ -194,4 +196,24 @@ export function plainBriefLead(sentence: string | null | undefined): string | nu
   // Bad news is something the company faces, not something it has: "Microsoft faces an antitrust probe."
   if (BAD_NEWS.test(rest.split(/[,;]/)[0]!)) return `${match[1]} faces ${match[2]} ${rest}`;
   return `${match[1]} has a new ${rest}`;
+}
+
+/**
+ * The brief's lead and the rest of it, as "The news behind our call" shows them. The brief leads with its own first
+ * sentence (what is happening to the company, in plain facts), not the engine's title; a sentence that only describes
+ * the coverage is dropped and the next one leads (plainBriefLead). Without a body (an uncovered stock), the headline,
+ * which is the body's first sentence there. "What changed" reads the same lead, so it never says it again.
+ */
+export function briefLeadOf(read: { body?: string | null; headline?: string | null } | null | undefined): { lead: string; rest: string } {
+  const body = (read?.body ?? "").trim().replace(/\s+/g, " ");
+  if (!body) return { lead: plainBriefLead(read?.headline) ?? "", rest: "" };
+  const firstOf = (text: string) => (text ? wholeSentences(text, 1) : "");
+  const restAfter = (text: string, first: string) => (first && text.startsWith(first) ? text.slice(first.length).trim() : first ? "" : text);
+  let first = firstOf(body);
+  let rest = restAfter(body, first);
+  for (let guard = 0; guard < 2 && first && !plainBriefLead(first); guard += 1) {
+    first = firstOf(rest);
+    rest = restAfter(rest, first);
+  }
+  return { lead: plainBriefLead(first) ?? "", rest };
 }

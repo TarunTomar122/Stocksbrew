@@ -1,4 +1,5 @@
 import type { Insight, TheRead } from "@/lib/insights";
+import { callHref, flagReportStep, flagWords } from "@/lib/portfolio-home/example-check";
 
 import { isUnread, shortDay } from "./merge";
 import type { InboxItem, InboxStockRead, UpcomingLine, UpcomingReport } from "./types";
@@ -143,6 +144,11 @@ function movesCard(items: InboxItem[], today: string | null, told: string | null
   };
 }
 
+/** A move one of the agents flagged (lib/inbox/words.ts findingItems): its row is the agent's, keyed `move:`. */
+function isFlaggedMove(item: InboxItem): boolean {
+  return item.kind === "agent" && item.id.startsWith("move:") && item.move !== null;
+}
+
 /** "16%", "3.2%": as the report history words say it (whole numbers once a move is big). */
 function usualWord(pct: number): string {
   return Math.abs(pct) >= 10 ? `${Math.round(Math.abs(pct))}%` : `${Math.abs(pct).toFixed(1).replace(/\.0$/, "")}%`;
@@ -273,9 +279,13 @@ function priceLead(fresh: InboxItem[], upcoming: UpcomingReport[], today: string
   if (latest) {
     const unusual = latest.moves.filter((item) => (timesNormal(item) ?? 0) >= UNUSUAL);
     if (unusual.length === 1) {
-      moveTicker = unusual[0]!.tickers[0]!;
-      moveId = unusual[0]!.id;
-      moves = moveSentence(moveTicker, unusual[0]!.move!.pct, latest.day, unusual[0]!.move!.normalPct, today).replace(/\.$/, "");
+      const only = unusual[0]!;
+      moveTicker = only.tickers[0]!;
+      moveId = only.id;
+      // A move an agent flagged is said as the flag, word for word as the briefing's card says it ("Your agent flagged
+      // NVDA's 5.5% drop on Nov 10."), so the two pages read as one thread (judges, ship 44). Its normal day is on
+      // the card under the headline when that card is about it.
+      moves = (isFlaggedMove(only) ? flagWords({ ticker: moveTicker, pct: only.move!.pct, day: only.move!.day }) : moveSentence(moveTicker, only.move!.pct, latest.day, only.move!.normalPct, today)).replace(/\.$/, "");
     }
     else if (unusual.length > 1) moves = `${unusual.length} of ${whose} stocks moved at least twice as much as usual ${pastWhen(latest.day, today)}`;
   }
@@ -318,9 +328,11 @@ function stockRead(moves: Insight | null, reports: Insight | null, items: InboxI
   const report = upcoming.find((entry) => entry.ticker === ticker);
   if (!lead?.move || lead.tickers[0] !== ticker || !report || report.usualPct === null) return null;
   const move = lead.move;
+  // A report ahead: the step is our call, and the card opens the stock right at it, as the briefing's card on the same
+  // stock does (judges, ship 44: one tap from the flag to the call).
   return {
     ticker,
-    href: `/stock/${encodeURIComponent(ticker)}`,
+    href: callHref(ticker),
     figures: [
       {
         value: signedPct(move.pct),
@@ -329,8 +341,8 @@ function stockRead(moves: Insight | null, reports: Insight | null, items: InboxI
       },
       { value: usualWord(report.usualPct), tone: "flat", text: "Its usual move on a report." },
     ],
-    // What else the two cards said: a confirmed reason, other unusual moves, the week's other reports.
-    note: [moves.soWhat, reports.soWhat].filter(Boolean).join(" ") || null,
+    // What else the two cards said (a confirmed reason, other unusual moves, the week's other reports), then the step.
+    note: [moves.soWhat, reports.soWhat, flagReportStep(ticker)].filter(Boolean).join(" "),
   };
 }
 

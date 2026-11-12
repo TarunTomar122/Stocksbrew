@@ -19,6 +19,8 @@ import { INBOX_KINDS, type InboxKind, type InboxStockRead } from "@/lib/inbox/ty
 import type { TheRead as TheReadData } from "@/lib/insights";
 import { loadExamplePortfolio } from "@/lib/portfolio-data";
 import { moveReasons } from "@/lib/portfolio-home/stocks-server";
+import { stockMoveFacts, type MoveToMeasure } from "@/lib/briefing-move-facts-server";
+import { etDayOfStamp } from "@/lib/quote-time";
 import { getUserDoc } from "@/lib/watchlist";
 
 export const dynamic = "force-dynamic";
@@ -75,6 +77,23 @@ function ReadAndList({
   return <>{children(read.headline || null)}</>;
 }
 
+/**
+ * The example's moves on its priced day, by ticker, less the stocks the page already talks about: what the inbox's
+ * other-stocks lines measure. Each move is dated by its own quote when it has one, as the briefing dates its stocks.
+ */
+function exampleMoves(portfolio: NonNullable<Awaited<ReturnType<typeof loadExamplePortfolio>>>, said: readonly string[]): Map<string, MoveToMeasure> {
+  const skip = new Set(said.map((ticker) => ticker.toUpperCase()));
+  const moves = new Map<string, MoveToMeasure>();
+  if (!portfolio.pricesAsOf) return moves;
+  for (const position of [...portfolio.portfolio.positions, ...portfolio.portfolio.watching]) {
+    const ticker = position.ticker.toUpperCase();
+    if (skip.has(ticker) || moves.has(ticker) || typeof position.dayPct !== "number" || !Number.isFinite(position.dayPct)) continue;
+    const quoted = etDayOfStamp(portfolio.quotedAt[position.ticker] ?? null);
+    moves.set(ticker, { pct: position.dayPct, day: quoted ?? portfolio.pricesAsOf, exactDay: quoted !== null });
+  }
+  return moves;
+}
+
 async function ExampleInbox({ kind }: { kind: InboxKind | null }) {
   // The portfolio is the example's shared cached copy (the same one My stocks and the briefing read); a failed read
   // only leaves out the holdings under the read.
@@ -96,11 +115,16 @@ async function ExampleInbox({ kind }: { kind: InboxKind | null }) {
   const late = new Promise<Record<string, string>>((resolve) => {
     timer = setTimeout(() => resolve({}), 1500);
   });
-  const reasons =
+  // Beside them, each stock's measured price facts (the briefing's own, lib/briefing-move-facts-server.ts), for the
+  // lines with no confirmed reason; a slow read leaves those lines with their move alone.
+  const [reasons, facts] =
     portfolio && tickers.length > 0
-      ? await Promise.race([moveReasons(tickers, portfolio.pricesAsOf).catch(() => ({})), late]).finally(() => clearTimeout(timer))
-      : {};
-  const holdings = exampleHoldings(portfolio, said, reasons);
+      ? await Promise.all([
+          Promise.race([moveReasons(tickers, portfolio.pricesAsOf).catch(() => ({})), late]).finally(() => clearTimeout(timer)),
+          stockMoveFacts(exampleMoves(portfolio, said)).catch(() => undefined),
+        ])
+      : [{}, undefined];
+  const holdings = exampleHoldings(portfolio, said, reasons, facts ?? {});
   const empty = inbox.items.length === 0 && inbox.upcoming.length === 0;
   return (
     <div className="flex flex-col gap-3 sm:gap-4">

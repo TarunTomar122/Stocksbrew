@@ -13,6 +13,7 @@ import {
   insidersEntry,
   movesEntry,
   premarketEntry,
+  withOwnAgents,
   type AgentLogFacts,
 } from "./words";
 
@@ -218,5 +219,30 @@ describe("flagged stocks on a log line", () => {
     expect(line?.stocks).toEqual([{ ticker: "COHR", pct: 9.29 }]);
     const quiet = premarketEntry({ at: at("12:30"), scanned: 72, bigMoves: 0, leader: { ticker: "COHR", pct: 1 } });
     expect(quiet?.stocks).toBeUndefined();
+  });
+});
+
+describe("one portfolio's own agents on the log (judges, ship 44)", () => {
+  const facts: AgentLogFacts = {
+    premarket: { at: at("12:30"), scanned: 72, bigMoves: 24, leader: { ticker: "COHR", pct: 9.29 } },
+    moves: { at: at("21:30"), total: 30, explained: 17, screened: true, leader: { ticker: "CRWV", pct: 24.9 } },
+    agents: { at: at("22:51"), runs: 4, found: 2 },
+  };
+  const log = buildAgentLog({ day: DAY, when: "today", ongoing: false, facts, movesHref: "/explore#moves" });
+
+  it("takes the Agents row with its own count and the holdings it flagged as chips, oldest first", () => {
+    const own = withOwnAgents(log, { at: "2026-11-11T11:19:08Z", runs: 3, found: 1, stocks: [{ ticker: "NVDA", pct: -5.47 }], href: "/portfolio" })!;
+    expect(own.entries.map((line) => line.source)).toEqual(["agents", "premarket", "moves"]);
+    const row = own.entries[0]!;
+    expect(row).toMatchObject({ kind: "Your agents", status: "1 of 3 flagged", href: "/portfolio", stocks: [{ ticker: "NVDA", pct: -5.47 }] });
+    expect(entrySentence(row)).toBe("3 agents on this portfolio ran their checks; 1 found something to report.");
+    // Other rows keep their own chips.
+    expect(own.entries[1]!.stocks).toEqual([{ ticker: "COHR", pct: 9.29 }]);
+  });
+
+  it("leaves the log as it was without a run from its own day", () => {
+    expect(withOwnAgents(log, { at: "2026-11-10T11:19:08Z", runs: 3, found: 1, stocks: [], href: "/portfolio" })).toBe(log);
+    expect(withOwnAgents(log, null)).toBe(log);
+    expect(withOwnAgents(null, { at: "2026-11-11T11:19:08Z", runs: 3, found: 1, stocks: [], href: "/portfolio" })).toBeNull();
   });
 });

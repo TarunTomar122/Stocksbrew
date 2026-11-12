@@ -214,31 +214,68 @@ function plural(count: number, one: string, many: string): string {
   return `${count} ${count === 1 ? one : many}`;
 }
 
-function economicInsight(input: CalendarReadInput): Insight | null {
+const INFLATION_NOTE = "Inflation numbers often move the whole market on the day they come out.";
+
+/**
+ * The big releases still to come and the card about them. `afterToday` leaves today's out (the read says today's on
+ * its own line), and a release earlier today that is already out is never "left".
+ */
+function economicInsight(input: CalendarReadInput, options: { afterToday?: boolean } = {}): Insight | null {
+  const now = input.now ?? new Date();
   const big = input.items
-    .filter((item): item is EconomicItem => item.kind === "economic" && item.importance === "high" && item.date >= input.today)
+    .filter(
+      (item): item is EconomicItem =>
+        item.kind === "economic" &&
+        item.importance === "high" &&
+        (item.date > input.today || (item.date === input.today && !options.afterToday && !releasedAlready(item, input.today, now))),
+    )
     .sort((a, b) => a.date.localeCompare(b.date) || (a.timeEt ?? "").localeCompare(b.timeEt ?? ""));
   if (big.length === 0) return null;
-  const list = big.slice(0, 3).map((item) => `${shortTitle(item.title)} ${whenWord(item.date, input.today)}${item.timeEt ? ` at ${fmtClock(item.timeEt)}` : ""}`);
+  const first = big[0]!;
+  const firstDay = whenWord(first.date, input.today);
+  // The big release out in the last six days, as the card's evidence: "It follows CPI on Tuesday."
+  const weekAgo = new Date(Date.parse(`${input.today}T00:00:00Z`) - 6 * 86_400_000).toISOString().slice(0, 10);
+  const earlier = input.items
+    .filter((item): item is EconomicItem => item.kind === "economic" && item.importance === "high" && item.date < input.today && item.date >= weekAgo)
+    .sort((a, b) => b.date.localeCompare(a.date))[0];
+  const inflation = big.some((item) => /cpi|ppi|pce|inflation/i.test(item.title));
+  const text =
+    big.length === 1
+      ? // The figure says when; the sentence says what it is.
+        `${shortTitle(first.title)} is the one big data release ${input.period === "this week" ? "left this week" : input.period}.`
+      : `${countWord(big.length)} big data releases ${input.period}: ${listNames(big.slice(0, 3).map((item) => `${shortTitle(item.title)} ${whenWord(item.date, input.today)}${item.timeEt ? ` at ${fmtClock(item.timeEt)}` : ""}`))}.`;
+  const soWhat = [
+    earlier ? `It follows ${shortTitle(earlier.title)} on ${weekdayOf(earlier.date)}.` : null,
+    inflation ? INFLATION_NOTE : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
   return {
     id: "economic",
     tone: "flat",
-    text: `${big.length === 1 ? "One big data release" : `${countWord(big.length)} big data releases`} ${input.period}: ${listNames(list)}.`,
-    soWhat: big.some((item) => /cpi|ppi|pce|inflation/i.test(item.title)) ? "Inflation numbers often move the whole market on the day they come out." : undefined,
+    // The day the next release lands is the card's one figure, so the card reads like its neighbours (owner rule 3).
+    figure: { value: firstDay.charAt(0).toUpperCase() + firstDay.slice(1), label: first.timeEt ? `${fmtClock(first.timeEt)} ET` : shortTitle(first.title) },
+    text,
+    soWhat: soWhat || undefined,
     action: { label: "Economic calendar", href: "/calendar?type=economic" },
   };
 }
 
 function ipoInsight(input: CalendarReadInput): Insight | null {
-  const ipos = input.items
-    .filter((item): item is IpoItem => item.kind === "ipo" && item.date >= input.today && isNum(item.offerAmount))
-    .sort((a, b) => (b.offerAmount ?? 0) - (a.offerAmount ?? 0));
+  const upcoming = input.items.filter((item): item is IpoItem => item.kind === "ipo" && item.date >= input.today);
+  const ipos = upcoming.filter((item) => isNum(item.offerAmount)).sort((a, b) => (b.offerAmount ?? 0) - (a.offerAmount ?? 0));
   const top = ipos[0];
   if (!top || (top.offerAmount ?? 0) < 100_000_000) return null;
+  // The rest of the window's listings, as the card's evidence: how many there are and the next biggest.
+  const runner = ipos[1];
+  const runnerText = runner
+    ? `; the next biggest is ${runner.company} at ${compactMoney(runner.offerAmount!)}, ${runner.date === top.date ? "the same day" : whenWord(runner.date, input.today)}`
+    : "";
   return {
     id: "ipo",
     tone: "flat",
     text: `${top.company}${top.ticker ? ` (${top.ticker})` : ""} plans a ${compactMoney(top.offerAmount!)} IPO ${whenWord(top.date, input.today)}${isNum(top.priceLow) && isNum(top.priceHigh) ? `, priced at $${top.priceLow} to $${top.priceHigh}` : ""}.`,
+    soWhat: upcoming.length > 1 ? `It is the biggest of ${upcoming.length} IPOs ${input.period}${runnerText}.` : undefined,
     action: { label: "IPO calendar", href: "/calendar?type=ipo" },
   };
 }
@@ -317,12 +354,16 @@ export function buildCalendarRead(input: CalendarReadInput): TheRead | null {
     econLine && parts[0] !== econLine
       ? {
           ...(economic ?? { id: "economic", tone: "flat" as const }),
+          // Today's release is its own line: the next release's figure is not its own.
+          figure: undefined,
           text: `${econLine.charAt(0).toUpperCase()}${econLine.slice(1)}.`,
           // The inflation note belongs to today's line only when today's release is the inflation one.
-          soWhat: econToday && /cpi|ppi|pce|inflation/i.test(econToday.title) ? economic?.soWhat : undefined,
+          soWhat: econToday && /cpi|ppi|pce|inflation/i.test(econToday.title) ? INFLATION_NOTE : undefined,
         }
       : null;
 
+  // With today's release on its own line, the week's card is about the releases after today only.
+  const economicLater = econPoint ? economicInsight(input, { afterToday: true }) : null;
   const mine = mineInsight(input);
   const skip = new Set(mine?.tickers ?? []);
   return {
@@ -333,7 +374,12 @@ export function buildCalendarRead(input: CalendarReadInput): TheRead | null {
       input.biggestShown ? null : biggestInsight(input, skip),
       resultsInsight(input),
       // The week's other big releases still get their line when today's is already said.
-      econPoint ? (economic && !economic.text.startsWith("One big") ? { ...economic, id: "economic-week", soWhat: econToday && /cpi|ppi|pce|inflation/i.test(econToday.title) ? undefined : economic.soWhat } : null) : economic,
+      econPoint
+        ? economicLater
+          ? // The inflation note is said once, on today's line, when today's release is the inflation one.
+            { ...economicLater, id: "economic-week", soWhat: econPoint.soWhat ? economicLater.soWhat?.replace(` ${INFLATION_NOTE}`, "").replace(INFLATION_NOTE, "").trim() || undefined : economicLater.soWhat }
+          : null
+        : economic,
       ipoInsight(input),
     ], econPoint ? 4 : 3),
   };

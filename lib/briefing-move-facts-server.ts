@@ -47,7 +47,7 @@ const readCloses = sharedCache(readClosesUncached, ["briefing-move-closes-v1"], 
 export async function briefingMoveFacts(briefing: Briefing): Promise<Record<string, string[]> | undefined> {
   // Worth knowing's cards (its stocks come from `also_today`), then the quiet stocks in the side rail, which get one
   // short fact each (lib/briefing-move-facts.ts quietFact).
-  const moves = new Map<string, { pct: number; day: string; exactDay: boolean }>();
+  const moves = new Map<string, MoveToMeasure>();
   for (const item of briefing.also_today) {
     const ticker = item.ticker?.trim().toUpperCase();
     if (!ticker || moves.has(ticker) || item.day_change_pct == null || !Number.isFinite(item.day_change_pct)) continue;
@@ -63,6 +63,17 @@ export async function briefingMoveFacts(briefing: Briefing): Promise<Record<stri
     if (!ticker || moves.has(ticker) || name.day_change_pct == null || !Number.isFinite(name.day_change_pct)) continue;
     moves.set(ticker, { pct: name.day_change_pct, day: quietDay, exactDay: quietQuoted !== null });
   }
+  return stockMoveFacts(moves);
+}
+
+/** One stock's move to measure: its percent, the day it closed there, and whether that day is known (a quote time). */
+export type MoveToMeasure = { pct: number; day: string; exactDay: boolean };
+
+/**
+ * Price facts for each stock's move, most telling first (lib/briefing-move-facts.ts), from its cached closes: the
+ * briefing's cards and the inbox's other stocks read the same facts. Within BUDGET_MS, else nothing for the late ones.
+ */
+export async function stockMoveFacts(moves: ReadonlyMap<string, MoveToMeasure>): Promise<Record<string, string[]> | undefined> {
   const tickers = [...moves.keys()].slice(0, MAX_STOCKS);
   if (tickers.length === 0) return undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;

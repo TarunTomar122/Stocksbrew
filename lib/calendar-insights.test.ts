@@ -162,3 +162,52 @@ describe("buildEarningsDetailRead", () => {
     expect(buildEarningsDetailRead({ ticker: "X", name: "X", events: [], today: TODAY, context: undefined })).toBeNull();
   });
 });
+
+describe("the release and IPO cards (judges, ship 44: short cards with evidence)", () => {
+  const econ = (id: string, date: string, title: string): CalendarItem => ({ kind: "economic", id, date, timeEt: "08:30", title, period: "", importance: "high", sourceName: "", sourceUrl: "" });
+  const ipo = (id: string, date: string, company: string, amount: number): CalendarItem => ({
+    kind: "ipo", id, date, ticker: id.toUpperCase(), company, status: "expected", exchange: "NYSE", priceLow: 21, priceHigh: 24, shares: null, offerAmount: amount,
+  });
+
+  it("gives the next big release its day as the figure and the week's earlier one as evidence", () => {
+    const read = buildCalendarRead({
+      items: [earn("CSCO", "2026-11-12", 443e9), econ("cpi", "2026-11-09", "CPI inflation"), econ("ppi", "2026-11-13", "PPI inflation")],
+      today: TODAY,
+      period: "this week",
+      mine: null,
+      biggestShown: true,
+    })!;
+    const card = read.insights.find((insight) => insight.id === "economic")!;
+    expect(card.figure).toEqual({ value: "Friday", label: "8:30 AM ET" });
+    expect(card.text).toBe("PPI is the one big data release left this week.");
+    expect(card.soWhat).toBe("It follows CPI on Monday. Inflation numbers often move the whole market on the day they come out.");
+  });
+
+  it("names how many IPOs there are and the next biggest", () => {
+    const read = buildCalendarRead({
+      items: [earn("CSCO", "2026-11-12", 443e9), ipo("vvvv", "2026-11-13", "vVARDIS", 262.9e6), ipo("rzra", "2026-11-12", "Rezera", 249.2e6), ipo("wwb", "2026-11-13", "Windward", 213e6)],
+      today: TODAY,
+      period: "this week",
+      mine: null,
+      biggestShown: true,
+    })!;
+    const card = read.insights.find((insight) => insight.id === "ipo")!;
+    expect(card.soWhat).toBe("It is the biggest of 3 IPOs this week; the next biggest is Rezera at $249.2M, Thursday.");
+  });
+});
+
+describe("today's release and the week's card", () => {
+  const econ = (id: string, date: string, title: string): CalendarItem => ({ kind: "economic", id, date, timeEt: "08:30", title, period: "", importance: "high", sourceName: "", sourceUrl: "" });
+  it("never says today's release twice, and never calls a release already out 'left'", () => {
+    const read = buildCalendarRead({
+      items: [earn("CSCO", "2026-11-12", 443e9), econ("cpi", TODAY, "CPI inflation"), econ("ppi", "2026-11-13", "PPI inflation")],
+      today: TODAY, period: "this week", mine: null, biggestShown: true, now: new Date(`${TODAY}T18:00:00Z`),
+    })!;
+    const week = read.insights.find((insight) => insight.id === "economic-week")!;
+    expect(week.figure?.value).toBe("Friday");
+    expect(week.text).toBe("PPI is the one big data release left this week.");
+    expect(read.insights.filter((insight) => /Inflation numbers/.test(insight.soWhat ?? "")).length).toBe(1);
+    const alone = buildCalendarRead({ items: [econ("cpi", TODAY, "CPI inflation")], today: TODAY, period: "this week", mine: null, now: new Date(`${TODAY}T18:00:00Z`) })!;
+    expect(alone.insights.some((insight) => /left/.test(insight.text))).toBe(false);
+  });
+});

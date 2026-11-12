@@ -438,6 +438,16 @@ export function relativeDay(target: string, today: string): string {
   if (diff === 0) return "today";
   if (diff === 1) return "tomorrow";
   if (diff === -1) return "yesterday";
+  // A day ahead is named by its weekday only within this same week: next Tuesday, said on a Wednesday, is its date
+  // ("on Nov 17"), as the inbox and the calendar say it (lib/earnings-season.ts whenWords).
+  if (diff > 1 && diff <= 6) {
+    const ahead = dayToUtc(target);
+    const now = dayToUtc(today);
+    // Weeks run Monday to Sunday, as the inbox and the calendar count them (lib/calendar-shared.ts weekdayIndex).
+    const index = (ms: number) => (new Date(ms).getUTCDay() + 6) % 7;
+    if (ahead != null && now != null && index(ahead) > index(now)) return `on ${weekday(target)}`;
+    return `on ${shortDay(target)}`;
+  }
   if (Math.abs(diff) <= 6) return `on ${weekday(target)}`;
   return `on ${shortDay(target)}`;
 }

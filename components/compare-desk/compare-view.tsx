@@ -84,7 +84,7 @@ function NumberRows({ group, rows }: { group: CompareTableGroup; rows: ReadonlyA
   );
 }
 
-/** "We'd buy more below $160.00, 8.0% under today's $173.85.": the call's own level, when this row carries one. */
+/** "Buy more below $160.00, 8.0% under today's $173.85.": the call's own level, when this row carries one. */
 function levelLine(row: ScreenerRow | null | undefined): string | null {
   if (!row?.call) return null;
   const price = typeof row.price === "number" && row.price > 0 ? row.price : null;
@@ -232,7 +232,7 @@ export async function CompareView({
 
       {(() => {
         const chartPanel = (
-        <Panel flush label="Price, both starting at 0%">
+        <Panel flush label="Percent return">
           <OverlayChart
             ranges={ranges}
             initialRange={range ?? "1Y"}

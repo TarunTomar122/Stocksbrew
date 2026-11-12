@@ -139,12 +139,12 @@ function usualWord(value: number): string {
 function earningsInsight(item: BriefingItem, history?: BriefingReportHistory | null): Insight | null {
   if (item.kind !== "earnings_upcoming" || !item.ticker) return null;
   const rest = item.headline.startsWith(`${item.ticker} `) ? item.headline.slice(item.ticker.length + 1) : item.headline;
-  const step = "Check our call on it before the report.";
+  const step = `Check our call on ${item.ticker} before the report.`;
   const normal = history?.normalPct != null ? `${history.normalPct.toFixed(1)}%` : null;
   const baseline = !history || !normal
     ? null
     : history.vsDay
-      ? `That is ${history.vsDay.replace(/ a normal day$/, ` ${item.ticker}'s normal day`)} of about ${normal}.`
+      ? `Its usual report move is ${history.vsDay.replace(/ a normal day$/, ` ${item.ticker}'s normal day`)} of ${normal}.`
       : `A normal day for ${item.ticker} is a move of about ${normal}.`;
   return {
     id: `earnings-${item.id}`,
@@ -593,14 +593,18 @@ export function briefingRead(
   );
   if (holdingsLine) {
     // The cards the page shows: every open section, less the Coming up cards this read's earnings line replaces.
-    const shown = [...grouped.needs_you, ...grouped.worth_knowing.slice(0, WORTH_KNOWING_FIRST), ...comingUpAfterRead(grouped.coming_up, readEarningsTickers({ insights }))];
+    const shown = [...grouped.needs_you, ...worthAfterRead(grouped.worth_knowing, { insights }).slice(0, WORTH_KNOWING_FIRST), ...comingUpAfterRead(grouped.coming_up, readEarningsTickers({ insights }))];
     sub = holdingsLine(new Set(stockGroups(shown).map((group) => group.key))) || undefined;
   }
   if (!headline && insights.length === 0) return null;
   return { headline, sub, insights: withFlags(insights, options.flags), asOf: options.example ? null : asOf };
 }
 
-/** Each card about one flagged stock leads its second line with the flag; the first such card only. Pure. */
+/**
+ * Each card about one flagged stock leads its second line with the flag; the first such card only. The card then opens
+ * the stock at our call (`#call` on the stock page), the one-tap next step the flag asks for, as the inbox's card on
+ * the same flag does. Pure.
+ */
 export function withFlags(insights: Insight[], flags: Readonly<Record<string, string>> | undefined): Insight[] {
   if (!flags) return insights;
   const done = new Set<string>();
@@ -609,8 +613,25 @@ export function withFlags(insights: Insight[], flags: Readonly<Record<string, st
     const flag = ticker ? flags[ticker]?.trim() : undefined;
     if (!ticker || !flag || done.has(ticker)) return insight;
     done.add(ticker);
-    return { ...insight, soWhat: [flag, insight.soWhat].filter(Boolean).join(" ") };
+    // The flag always ends on its step, the one the card opens: a card that had no step of its own gets it.
+    const step = /\bCheck our call\b/.test(insight.soWhat ?? "") ? null : insight.id.startsWith("earnings-") ? `Check our call on ${ticker} before the report.` : `Check our call on ${ticker}.`;
+    return { ...insight, soWhat: [flag, insight.soWhat, step].filter(Boolean).join(" "), action: { label: `Our call on ${ticker}`, href: `${stockHref(ticker)}#call` } };
   });
+}
+
+/** The stocks the read has a card of its own about (a card about one stock): Worth knowing leaves them out. */
+export function readOwnedTickers(read: Pick<TheRead, "insights"> | null | undefined): Set<string> {
+  return new Set((read?.insights ?? []).filter((insight) => insight.tickers?.length === 1).map((insight) => insight.tickers![0]!.toUpperCase()));
+}
+
+/**
+ * Worth knowing without the stocks the read already has a card about: the read's card owns the stock, so it is not
+ * a second card further down (owner rule 1, judges ship 44: NVDA in the read and again under Worth knowing). Pure.
+ */
+export function worthAfterRead(groups: BriefingGroup[], read: Pick<TheRead, "insights"> | null | undefined): BriefingGroup[] {
+  const owned = readOwnedTickers(read);
+  if (owned.size === 0) return groups;
+  return groups.filter((group) => !(group.ticker && owned.has(group.ticker.toUpperCase())));
 }
 
 /** Worth knowing shows this many stocks before "Show all" (re-exported by lib/briefing-anchors.ts). */

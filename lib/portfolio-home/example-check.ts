@@ -384,7 +384,6 @@ export type FlaggedMove = { ticker: string; pct: number; day: string };
 /** A flag older than this many days is not "lately": nothing is tied to it. */
 const FLAG_MAX_DAYS = 5;
 
-const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 /**
  * The newest move the agents flagged on a single stock, from the checks as shown (featured first): its ticker, its
@@ -404,23 +403,23 @@ export function flaggedMove(checks: Pick<ExampleChecksView, "featured" | "others
   return null;
 }
 
-/** "on Tuesday" within the week before `today`, else "on Nov 10". */
-export function flagDayWords(day: string, today: string): string {
-  if (!DAY.test(day) || !DAY.test(today)) return "";
-  const gap = Math.round((Date.parse(`${today}T12:00:00Z`) - Date.parse(`${day}T12:00:00Z`)) / 86_400_000);
-  if (gap === 0) return "today";
-  if (gap === 1) return "yesterday";
-  // A weekday name only for a day earlier this same week: last Friday, said on a Thursday, would read as tomorrow.
-  const weekday = new Date(`${day}T12:00:00Z`).getUTCDay();
-  const todayWeekday = new Date(`${today}T12:00:00Z`).getUTCDay();
-  if (gap > 1 && gap < 7 && weekday < todayWeekday) return `on ${WEEKDAYS[weekday]}`;
-  return `on ${shortDate(day)}`;
+/**
+ * "Your agent flagged NVDA's 5.5% drop on Nov 10.": the flag as the briefing's card and the inbox's read both say it,
+ * word for word, with the close's own date (never "yesterday", which a page cached past midnight would get wrong).
+ */
+export function flagWords(flag: Pick<FlaggedMove, "ticker" | "pct" | "day">): string {
+  const when = DAY.test(flag.day) ? ` on ${shortDate(flag.day)}` : "";
+  return `Your agent flagged ${flag.ticker}'s ${Math.abs(flag.pct).toFixed(1)}% ${flag.pct < 0 ? "drop" : "jump"}${when}.`;
 }
 
-/** "Your agent flagged its 5.5% drop on Tuesday.": the flag in the words of the stock's own card. */
-export function flagWords(flag: FlaggedMove, today: string): string {
-  const when = flagDayWords(flag.day, today);
-  return `Your agent flagged its ${Math.abs(flag.pct).toFixed(1)}% ${flag.pct < 0 ? "drop" : "jump"}${when ? ` ${when}` : ""}.`;
+/** The one step after a flag with a report ahead, said the same on the briefing and in the inbox. */
+export function flagReportStep(ticker: string): string {
+  return `Check our call on ${ticker} before the report.`;
+}
+
+/** Where that step goes: the stock's page at our call (components/stock-report/report.tsx `#call`). */
+export function callHref(ticker: string): string {
+  return `/stock/${encodeURIComponent(ticker)}#call`;
 }
 
 /** A report soon enough to be the step after a flagged move. */
@@ -451,4 +450,34 @@ export function flagStepWords(input: {
     return `${ticker} reports ${report.when}${report.session ? ` ${report.session}` : ""}${usual}. Check our call on it before then.`;
   }
   return `Check our call on ${ticker} before you act on the move.`;
+}
+
+/**
+ * The example agents' newest day as the agent log's Agents row (lib/agent-log/words.ts withOwnAgents): how many ran
+ * that day, how many flagged something, when the last one ran, and the stocks they flagged with the move each found.
+ * The row opens My stocks, where the example's agents are. Null without a run. Pure.
+ */
+export function exampleAgentRuns(checks: Pick<ExampleChecksView, "featured" | "others"> | null | undefined): {
+  at: string;
+  runs: number;
+  found: number;
+  stocks: Array<{ ticker: string; pct: number | null }>;
+  href: string;
+} | null {
+  if (!checks) return null;
+  const views = [checks.featured, ...checks.others];
+  const day = views.reduce((newest, view) => (view.day > newest ? view.day : newest), "");
+  const ran = views.filter((view) => view.day === day && view.decision !== "could_not_check" && !Number.isNaN(Date.parse(view.ranAt)));
+  if (ran.length === 0) return null;
+  const at = ran.map((view) => view.ranAt).sort((a, b) => Date.parse(a) - Date.parse(b)).pop()!;
+  const stocks: Array<{ ticker: string; pct: number | null }> = [];
+  for (const view of ran) {
+    if (view.decision !== "notify") continue;
+    for (const ticker of view.flagged) {
+      if (stocks.some((stock) => stock.ticker === ticker)) continue;
+      const finding = view.findings.find((entry) => entry.ticker?.toUpperCase() === ticker && typeof entry.change_pct === "number" && Number.isFinite(entry.change_pct));
+      stocks.push({ ticker, pct: finding ? finding.change_pct! : null });
+    }
+  }
+  return { at, runs: ran.length, found: ran.filter((view) => view.decision === "notify").length, stocks, href: "/portfolio" };
 }

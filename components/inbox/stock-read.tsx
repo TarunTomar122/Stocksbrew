@@ -8,7 +8,7 @@ import type { InboxStockRead } from "@/lib/inbox/types";
  * One stock the inbox's read tells two things about (its move against a normal day, its usual move on a report
  * coming up): one card with its logo once and both figures side by side, instead of two cards wearing the same logo
  * (owner rule 1). Drawn under the read's headline, in the same card style as the read's other cards; the whole card
- * opens the stock.
+ * opens the stock at our call, the step the note ends on.
  */
 export function InboxStockCard({ stock }: { stock: InboxStockRead }) {
   return (
@@ -39,7 +39,7 @@ export function InboxStockCard({ stock }: { stock: InboxStockRead }) {
           href={stock.href}
           prefetch={false}
           data-track-target="action"
-          aria-label={`Open ${stock.ticker}`}
+          aria-label={`Our call on ${stock.ticker}`}
           className="absolute inset-0 rounded-[inherit] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
         />
       </div>

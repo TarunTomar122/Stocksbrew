@@ -16,7 +16,7 @@ function toneOf(value: number): string {
   return value > 0 ? "text-signal-bullish" : "text-signal-bearish";
 }
 
-/** One stock on one line: logo, ticker, the confirmed reason when there is one, and the day's move. The line opens it. */
+/** One stock on one line: logo, ticker, the confirmed reason or one measured fact, and the day's move. The line opens it. */
 function Line({ row, className = "" }: { row: ExampleHoldingRow; className?: string }) {
   return (
     <li className={`border-b border-oa-border ${className}`}>
@@ -29,8 +29,9 @@ function Line({ row, className = "" }: { row: ExampleHoldingRow; className?: str
           <StockLogo ticker={row.ticker} size={22} />
           <span className="oa-mono text-[14px] font-semibold text-oa-fg">{row.ticker}</span>
         </span>
-        {/* Nothing at all when no reason is confirmed (owner rule 7). */}
-        <span className="min-w-0 text-pretty text-[13.5px] leading-5 text-oa-muted-fg">{row.reason ?? ""}</span>
+        {/* The confirmed reason; without one, a measured fact about the move ("Twice a normal day"), never a guessed
+            reason (owner rule 7); nothing when neither is there. */}
+        <span className="min-w-0 text-pretty text-[13.5px] leading-5 text-oa-muted-fg">{row.reason ?? row.fact ?? ""}</span>
         <span className={`oa-mono text-right text-[14px] font-semibold tabular-nums ${toneOf(row.dayPct)}`}>{signed(row.dayPct)}</span>
       </Link>
     </li>
@@ -39,8 +40,8 @@ function Line({ row, className = "" }: { row: ExampleHoldingRow; className?: str
 
 /**
  * The example's other stocks under the read: one plain line each (logo, ticker, the day's move, and the confirmed
- * reason when there is one). Weight and cost are My stocks', not repeated here (judges, ship 42). What it holds, then
- * what it watches as one line of chips. The day and the S&P 500 are said once, above. About eight lines show; a longer
+ * reason, or else one measured fact about the move, as the briefing's other stocks say it). Weight and cost are My
+ * stocks', not repeated here (judges, ship 42). What it holds, then what it watches as one line of chips. The day and the S&P 500 are said once, above. About eight lines show; a longer
  * list scrolls inside with no visible bar (owner rule 5).
  */
 export function ExampleHoldingRows({ holdings }: { holdings: ExampleHoldings }) {
@@ -72,7 +73,7 @@ export function ExampleHoldingRows({ holdings }: { holdings: ExampleHoldings }) 
               key={row.ticker}
               href={`/stock/${encodeURIComponent(row.ticker)}`}
               prefetch={false}
-              title={row.reason ?? undefined}
+              title={row.reason ?? row.fact ?? undefined}
               className={`inline-flex h-8 items-center gap-1.5 rounded-md border border-oa-border bg-oa-bg pl-1.5 pr-2.5 transition-colors hover:bg-oa-accent ${FOCUS}`}
             >
               <StockLogo ticker={row.ticker} size={18} />

@@ -28,7 +28,7 @@ import { ogImage } from "@/lib/og/url";
 import { newYorkToday } from "@/lib/portfolio-data";
 import { overnightResultFacts } from "@/lib/results/server";
 import { loadExampleChecks } from "@/lib/portfolio-home/example-check-server";
-import { flaggedMove, flagWords } from "@/lib/portfolio-home/example-check";
+import { exampleAgentRuns, flaggedMove, flagWords, type ExampleChecksView } from "@/lib/portfolio-home/example-check";
 
 export const dynamic = "force-dynamic";
 
@@ -158,22 +158,25 @@ async function reportHistory(data: BriefingPageData, day: string | null) {
 }
 
 /**
- * Signed out: the move the example's agents flagged on one of its holdings, for the read's card about that stock
- * ("Your agent flagged its 5.5% drop on Tuesday."), so the flag, the stock and its next step read as one. The checks
- * are the same cached runs My stocks and the home page show; slow or missing, the card is as it was.
+ * Signed out: the example's agents' latest checks, for the read's card about the stock they flagged ("Your agent
+ * flagged NVDA's 5.5% drop on Nov 10."), so the flag, the stock and its next step read as one, and for the agent log's
+ * Agents row. The same cached runs My stocks and the home page show; slow or missing, both are as they were.
  */
-async function exampleFlags(data: BriefingPageData & { example?: ExampleBriefingExtras }, day: string | null): Promise<Record<string, string> | undefined> {
-  if (day || data.archived || !data.example || data.briefing.mode !== "personal") return undefined;
+async function exampleChecks(data: BriefingPageData & { example?: ExampleBriefingExtras }, day: string | null): Promise<ExampleChecksView | null> {
+  if (day || data.archived || !data.example || data.briefing.mode !== "personal") return null;
   // The same 1.5 seconds as the page's other side reads: a slow check leaves the card as it was.
   let timer: ReturnType<typeof setTimeout> | undefined;
   const late = new Promise<null>((resolve) => {
     timer = setTimeout(() => resolve(null), 1500);
   });
-  const checks = await Promise.race([loadExampleChecks().catch(() => null), late]).finally(() => clearTimeout(timer));
-  const today = newYorkToday();
-  const flag = flaggedMove(checks, today);
+  return Promise.race([loadExampleChecks().catch(() => null), late]).finally(() => clearTimeout(timer));
+}
+
+/** The flag on one of the example's holdings, in the words the inbox's read uses too (lib/portfolio-home/example-check.ts). */
+function exampleFlags(data: BriefingPageData, checks: ExampleChecksView | null): Record<string, string> | undefined {
+  const flag = flaggedMove(checks, newYorkToday());
   const held = flag && data.briefing.needs_you.concat(data.briefing.also_today).some((item) => item.ticker === flag.ticker && item.relation === "holding");
-  return flag && held ? { [flag.ticker]: flagWords(flag, today) } : undefined;
+  return flag && held ? { [flag.ticker]: flagWords(flag) } : undefined;
 }
 
 /** Free: the moves on stocks the agent does not cover, named with no explanation (lib/briefing.ts locked_moves). */
@@ -210,7 +213,8 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
       : null;
 
   // All cached reads; they run side by side.
-  const [locked, facts, prices, reports, flags] = await Promise.all([lockedSlot(data), resultFacts(data, day), priceFacts(data, day), reportHistory(data, day), exampleFlags(data, day)]);
+  const [locked, facts, prices, reports, checks] = await Promise.all([lockedSlot(data), resultFacts(data, day), priceFacts(data, day), reportHistory(data, day), exampleChecks(data, day)]);
+  const flags = exampleFlags(data, checks);
 
   return (
     <AppPage>
@@ -243,7 +247,8 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
           agentLog={
             day || data.archived ? null : (
               <Suspense fallback={<AgentLogGhost narrow className="lg:max-h-full" />}>
-                <AgentLog narrow fit />
+                {/* The example's Agents row is its own agents, with the holdings they flagged as chips. */}
+                <AgentLog narrow fit own={exampleAgentRuns(checks)} />
               </Suspense>
             )
           }

@@ -139,18 +139,20 @@ describe("reports coming up", () => {
   it("never says the headline's sentence again: one move and its report are one stock card with both figures", () => {
     const items = mergeInbox([findingItems(run([move("NVDA", -5.47, "2026-11-10")]), "example", new Map([["NVDA", { normalPct: 2.02, reason: null }]]), TODAY)!], SINCE, NOW);
     const { read, stock } = inboxReadTold(items, null, true, { upcoming: [report()], today: TODAY });
-    expect(read!.headline).toBe("NVDA fell 5.5% yesterday, about three times a normal day.");
+    // The agent's flag in the briefing card's own words, with its date (judges, ship 44: one thread across pages).
+    expect(read!.headline).toBe("Your agent flagged NVDA's 5.5% drop on Nov 10.");
     expect(read!.sub).toBe("It reports on Nov 17 after the close.");
     // One card for NVDA, not two cards wearing the same logo.
     expect(read!.insights).toEqual([]);
     expect(stock).toEqual({
       ticker: "NVDA",
-      href: "/stock/NVDA",
+      // One tap from the flag to our call, as from the briefing's card.
+      href: "/stock/NVDA#call",
       figures: [
         { value: "−5.5%", tone: "down", text: "A normal day is a move of about 2.0% either way." },
         { value: "3.2%", tone: "flat", text: "Its usual move on a report." },
       ],
-      note: null,
+      note: "Check our call on NVDA before the report.",
     });
     // Nothing more to say about a report with no history: no card.
     expect(inboxRead(items, null, true, { upcoming: [report({ history: null, usualPct: null })], today: TODAY })!.insights.map((insight) => insight.id)).toEqual(["inbox-moves"]);

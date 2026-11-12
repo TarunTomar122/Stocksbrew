@@ -3,7 +3,7 @@ import { todayET } from "@/lib/calendar-shared";
 
 import { MarketStatusInline } from "@/components/market-status";
 import { RangeBar } from "@/components/oa/kit";
-import { CALL_PLAIN, countWord, plainAction, plainCallReason, wholeSentences } from "@/lib/plain-copy";
+import { CALL_PLAIN, countWord, plainAction, plainCallReason } from "@/lib/plain-copy";
 import { callBasis, factHasDate, lastReportOn } from "@/lib/call-basis";
 import { CoverButton, LockCard } from "@/components/oa/gate";
 import { ProCheckoutButton } from "@/components/oa/pro-checkout-button";
@@ -17,7 +17,7 @@ import { packChartRanges, type CallWord, type ChartRange, type PackedChartRanges
 
 import { AlertControls, type SuggestedAlert } from "./alert-controls";
 import { callLine, callMeaning } from "./call-line";
-import { capTier, compactMoney, daysBetween, fin, fmtDate, fmtStamp, levelFormatter, moneyFormatter, plainBriefLead, relativeDays, signedPct } from "./format";
+import { briefLeadOf, capTier, compactMoney, daysBetween, fin, fmtDate, fmtStamp, levelFormatter, moneyFormatter, relativeDays, signedPct } from "./format";
 import { PricePanel, type PanelZone } from "./price-panel";
 import { LockIcon, Missing, MoreLink, NUM, Panel, PROSE, Tag, TONE_COLOR, type Tone } from "./primitives";
 import { PhoneSections } from "./phone-sections";
@@ -65,19 +65,30 @@ function LongReportLink({ ticker }: { ticker: string }) {
 }
 
 /**
+ * What the full report adds on this stock, in one short line, from what the plan really holds back on the page
+ * (components/stock-page-stream.tsx strips each of them for a stock this viewer does not cover): the call's own price
+ * when it has one, the whole written brief, the scorecard and how the call has moved. lib/entitlements.ts `stock_zones`.
+ */
+function fullReportAdds(hidden: ReportData["gate"]["hiddenLevel"], priceNamed: boolean): string {
+  if (priceNamed) return "It also has the whole brief, the scorecard and how the call has moved.";
+  const price = hidden ? (hidden.label === "We'd sell some above" ? "our sell price, " : "our buy price, ") : "";
+  return `The full report adds ${price}the whole brief, the scorecard and how the call has moved.`;
+}
+
+/**
  * The page's one lock (owner rule 1: one named lock, not a blurb beside a second button), in the stock header beside
- * the call it unlocks. Its title is what it holds ("The price we'd buy JPM at comes with a free account."), and the
- * body is one short sentence on what else comes with it.
+ * the call's level line. Its title is what it holds ("The price we'd buy JPM at comes with a free account."), then one
+ * short line on what the full report adds (judges, ship 44: make the lock tangible), then how to get it.
  */
 function LevelsLock({ ticker, instrumentId, tracked, gate, market, named }: { ticker: string; instrumentId: string; tracked: boolean; gate: ReportData["gate"]; market: "US" | "IN"; named: string | null }) {
   // "Covering" is our word; readers get "the full report on five (three on PAYWALL_V2) stocks you pick".
   const left = `${gate.slotsLeft} of your ${FREE_COVERED_WORD} free full reports ${gate.slotsLeft === 1 ? "is" : "are"} left`;
   const title = named ? named.replace(/\.$/, "") : gate.plan === "anon" ? `Read the full report on ${ticker} with a free account` : `Get the full report on ${ticker}`;
-  const longReports = market === "US" && LONG_REPORTS_FREE > 0 ? ` and ${countWord(LONG_REPORTS_FREE).toLowerCase()} long research ${LONG_REPORTS_FREE === 1 ? "report" : "reports"} a month` : "";
-  const body =
+  const longReports = market === "US" && LONG_REPORTS_FREE > 0 ? `, plus ${countWord(LONG_REPORTS_FREE).toLowerCase()} long research ${LONG_REPORTS_FREE === 1 ? "report" : "reports"} a month` : "";
+  const how =
     gate.plan === "anon"
       ? // The long research report needs an account too, so it is said here instead of in a second box (owner, Nov 12).
-        `A free account gets the full report on ${FREE_COVERED_WORD} stocks you pick${longReports}.`
+        `A free account gets it on ${FREE_COVERED_WORD} stocks you pick${longReports}.`
       : !tracked
         ? gate.slotsLeft > 0
           ? `Add ${ticker} to your portfolio to use one of your free full reports. ${left}.`
@@ -85,6 +96,12 @@ function LevelsLock({ ticker, instrumentId, tracked, gate, market, named }: { ti
         : gate.slotsLeft > 0
           ? `You follow ${ticker}. Turn on its full report to see it. ${left}.`
           : `All ${FREE_COVERED_WORD} of your free full reports are in use. Swap one out in Portfolio to make room for ${ticker}, or go Pro for every stock.`;
+  const body = (
+    <>
+      <span className="block font-medium text-oa-fg">{fullReportAdds(gate.hiddenLevel ?? null, Boolean(named))}</span>
+      <span className="mt-1 block">{how}</span>
+    </>
+  );
   return (
     <div className="flex flex-col gap-2">
       <LockCard feature="stock_zones" plan={gate.plan} trialEligible={gate.trialEligible} ticker={ticker} title={title} body={body} stacked />
@@ -123,62 +140,36 @@ function ProLock({ ticker, market, what, compact = false }: { ticker: string; ma
   );
 }
 
-/** The call's next steps: ask about it, or have an agent watch it. Each opens prefilled; nothing runs or saves on its own. */
-function CallNextSteps({ ticker, steps, stacked = false }: { ticker: string; steps: CallSteps; stacked?: boolean }) {
+/**
+ * The call's next step (a question for Ask, or an agent to watch it), one link per line. Each opens prefilled;
+ * nothing runs or saves on its own. No trailing arrow (owner rule 1): the line itself is the control.
+ */
+function CallNextSteps({ ticker, steps }: { ticker: string; steps: CallSteps }) {
   const link = "rounded font-medium text-oa-primary hover:underline";
-  if (stacked) {
-    // Under the price on a wide screen: one link per line, so the call column keeps only the call and its reasons.
-    return (
-      <ul
-        role="list"
-        data-track-links="insight_clicked"
-        data-track-insight-id="stock-call"
-        data-track-insight-kind="call"
-        data-track-ticker={ticker}
-        className="flex flex-col gap-1.5 text-[13px] leading-5"
-      >
-        {steps.ask.map((step) => (
-          <li key={step.href}>
-            <AppLink href={step.href} data-track-target="ask" className={link}>
-              {/* No trailing arrow (owner rule 1): the line itself is the control. */}
-              {step.label}
-            </AppLink>
-          </li>
-        ))}
-        {steps.watch ? (
-          <li>
-            <AppLink href={steps.watch.href} data-track-target="watch" className={link}>
-              {steps.watch.label}
-            </AppLink>
-          </li>
-        ) : null}
-      </ul>
-    );
-  }
   return (
-    <div
+    <ul
+      role="list"
       data-track-links="insight_clicked"
       data-track-insight-id="stock-call"
       data-track-insight-kind="call"
       data-track-ticker={ticker}
-      className="mt-2.5 border-t border-oa-border pt-2.5 text-[13px] leading-5"
+      className="flex flex-col gap-1.5 text-[13px] leading-5"
     >
-      <p className="flex flex-wrap gap-x-4 gap-y-2 sm:gap-y-1">
-        <span className="text-oa-muted-fg">Ask about this</span>
-        {steps.ask.map((step) => (
-          <AppLink key={step.href} href={step.href} data-track-target="ask" className={link}>
+      {steps.ask.map((step) => (
+        <li key={step.href}>
+          <AppLink href={step.href} data-track-target="ask" className={link}>
             {step.label}
           </AppLink>
-        ))}
-      </p>
+        </li>
+      ))}
       {steps.watch ? (
-        <p className="mt-2 sm:mt-1.5">
+        <li>
           <AppLink href={steps.watch.href} data-track-target="watch" className={link}>
             {steps.watch.label}
           </AppLink>
-        </p>
+        </li>
       ) : null}
-    </div>
+    </ul>
   );
 }
 
@@ -345,7 +336,6 @@ export function StockReport({
   // The brief's written "what would change our mind" list, only when the call block has no measured conditions.
   const showChangers = Boolean(ready?.changers.length) && !conditions.length;
   const showReasons = Boolean(ready?.reasons.length);
-  const hasChangeBox = conditions.length > 0 || Boolean(ruleChange);
   // The company reason taken apart: the facts the call rests on, each dated, then what would change it (lib/call-basis.ts).
   // Only for the reason written from the company's own numbers; any other reason stays one paragraph.
   const callReason = ready ? plainCallReason(ready.actionSummary) : "";
@@ -366,16 +356,7 @@ export function StockReport({
   // engine's title ("AI growth remains powerful as scrutiny raises the proof required"); the title is the fallback.
   // The lead goes through plainBriefLead (./format.ts): a sentence that only describes the coverage ("Recent coverage is
   // thin for AA.") is dropped and the next one leads; "X's fresh news centers on a partnership..." says what happened.
-  const briefBody = (ready?.body ?? "").trim().replace(/\s+/g, " ");
-  const firstOf = (text: string) => (text ? wholeSentences(text, 1) : "");
-  const restAfter = (text: string, first: string) => (first && text.startsWith(first) ? text.slice(first.length).trim() : first ? "" : text);
-  let briefFirst = firstOf(briefBody);
-  let briefRest = restAfter(briefBody, briefFirst);
-  for (let guard = 0; guard < 2 && briefFirst && !plainBriefLead(briefFirst); guard += 1) {
-    briefFirst = firstOf(briefRest);
-    briefRest = restAfter(briefRest, briefFirst);
-  }
-  const briefLead = briefBody ? plainBriefLead(briefFirst) ?? "" : plainBriefLead(ready?.headline) ?? "";
+  const { lead: briefLead, rest: briefRest } = briefLeadOf(ready);
   const callWord = ready?.call ? (CALL_PLAIN[ready.call as keyof typeof CALL_PLAIN] ?? ready.call) : null;
   const callAction = ready ? plainAction(ready.actionLabel, ready.call) : null;
   // The heading is the call word alone (Buy more, Keep, Sell some); the line under it is the call's own price against
@@ -399,8 +380,7 @@ export function StockReport({
   const showLock = Boolean(ready) && !data.gate.levels;
   // What would change the call, set apart from the reasons so it reads as the conditions to watch.
   const changeBlock = (lines: string[]) => (
-    // Capped on a wide screen so the box never widens the price column at the call's expense.
-    <div className="max-w-[62ch] rounded-lg border border-oa-border bg-oa-bg px-3 py-2 text-[14px] leading-5 text-oa-fg md:max-w-[29rem]">
+    <div className="max-w-[62ch] rounded-lg border border-oa-border bg-oa-bg px-3 py-2 text-[14px] leading-5 text-oa-fg">
       <p className="font-medium">What would change it</p>
       <div className="mt-0.5 flex flex-col gap-1">
         {lines.map((line) => (
@@ -411,11 +391,55 @@ export function StockReport({
       </div>
     </div>
   );
-
-  // Where the box goes: under the price, so the left side never sits empty beside the call (owner rule 10); with the
-  // lock there instead, the box joins the call it qualifies, so the two sides stay about the same height.
+  // Measured conditions first, the steady call's own sentence when there are none. The company reason's "if sales slow
+  // sharply" line is never shown: it names nothing anyone can check.
   const changeBox = conditions.length ? changeBlock(conditions) : ruleChange ? changeBlock([ruleChange]) : null;
-  const changeBoxInCall = showLock && Boolean(changeBox);
+
+  // What the call rests on, under the header (no "Why:" label over it, owner rule 6): the evidence lines with their
+  // source and date, else the company reason taken apart into dated facts, else that reason as one paragraph.
+  const bullet = <span aria-hidden="true" className="mt-[7.5px] size-[5px] shrink-0 rounded-full bg-oa-muted-fg" />;
+  const reasonsBlock = !ready ? null : evidence.length ? (
+    <ul role="list" aria-label={`Why we say ${callWord ?? "this"}`} className="flex max-w-[62ch] flex-col gap-1 text-[14px] leading-5 text-oa-fg">
+      {evidence.map((line) => (
+        <li key={line.id} className="flex gap-2.5">
+          {bullet}
+          <span className="min-w-0 text-pretty">
+            {line.text} <span className="text-[12.5px] leading-[18px] text-oa-muted-fg">{line.source}.</span>
+          </span>
+        </li>
+      ))}
+    </ul>
+  ) : basis ? (
+    <div className="max-w-[62ch] text-[14px] leading-5 text-oa-fg">
+      <ul role="list" aria-label={`Why we say ${callWord ?? "this"}`} className="flex flex-col gap-1">
+        {basis.facts.map((fact) => (
+          <li key={fact} className="flex gap-2.5">
+            {bullet}
+            <span className="min-w-0 text-pretty">
+              {basisAsOf && !factHasDate(fact) && basis.facts.some((other) => factHasDate(other)) ? (
+                <>
+                  {fact.replace(/[.!?]$/, "")}
+                  <span className="text-oa-muted-fg">, as of {basisAsOf.replace(" ", "\u00a0")}</span>.
+                </>
+              ) : (
+                // "Nov 2" never splits across lines.
+                fact.replace(/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\d)/g, "$1\u00a0$2")
+              )}
+            </span>
+          </li>
+        ))}
+      </ul>
+      {/* One date for all the reasons when they share it, said once under them instead of a "Why, as of" label. */}
+      {basisAsOf && basis.facts.every((fact) => !factHasDate(fact)) ? (
+        <p className="mt-1 text-[13px] leading-[18px] text-oa-muted-fg">As of {basisAsOf.replace(" ", "\u00a0")}.</p>
+      ) : null}
+    </div>
+  ) : callReason ? (
+    <p className="max-w-[62ch] text-pretty text-[14px] leading-5 text-oa-fg">
+      {callReason}
+      {reasonIsNewer && ready.reasonAsOf ? <span className="text-[13px] text-oa-muted-fg"> This reason uses data to {fmtDate(ready.reasonAsOf, false)}.</span> : null}
+    </p>
+  ) : null;
 
   // Under the call: two questions for Ask and one thing to watch (lib/next-steps.ts). Ask and agents cover US stocks.
   const allSteps =
@@ -431,6 +455,9 @@ export function StockReport({
         ? { ask: [allSteps.ask[allSteps.ask.length - 1]!], watch: null }
         : null
     : null;
+
+  // What would change the call goes in the strip under the header, unless it is the side column's only content.
+  const stripChange = showLock || callSteps ? changeBox : null;
 
   const stats = headerStats.length ? <KeyStats items={headerStats} /> : null;
   // On a phone the page below the chart is one part at a time (PhoneSections).
@@ -479,166 +506,128 @@ export function StockReport({
                 </div>
               </div>
 
-              <div className="mt-3 grid gap-x-6 gap-y-3 md:grid-cols-[minmax(15rem,auto)_minmax(0,1fr)] md:grid-rows-[auto_1fr] md:items-start">
-                <div className="min-w-0 md:col-start-1 md:row-start-1">
-                  <p className="flex flex-wrap items-baseline gap-x-2.5">
-                    <span className={`${NUM} text-[36px] font-semibold leading-[44px] text-oa-fg sm:text-[42px] sm:leading-[48px]`}>{money(stock.price)}</span>
-                    {dayPct != null ? (
-                      <span className={`${NUM} text-[17px] font-medium`} style={{ color: TONE_COLOR[dayTone ?? "flat"] }}>
-                        {dayAbs != null ? `${dayAbs >= 0 ? "+" : "−"}${Math.abs(dayAbs).toFixed(2)} ` : ""}({signedPct(dayPct, 2)})
+              {/* The call is the page's heading (owner rules 8 and 10): the word large, one line under it that says the same
+                  instruction with its level, and today's price as the figure under that. The page's one lock sits beside
+                  the level line; the reasons and what would change the call are the strip under the header. */}
+              <div className={`mt-3 grid gap-x-6 gap-y-3 md:items-start ${!ready || showLock || callSteps || changeBox ? "md:grid-cols-[minmax(0,1fr)_minmax(17rem,23rem)]" : ""}`}>
+                {/* id "call": the briefing and the example check link here. */}
+                <section
+                  id={ready ? "call" : undefined}
+                  aria-label={ready ? `Our call on ${stock.ticker}` : `${stock.ticker} price`}
+                  className="min-w-0 scroll-mt-16 lg:scroll-mt-4"
+                >
+                  {ready && (callWord || meaning) ? (
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      {callWord ? (
+                        <h2
+                          className="text-[34px] font-semibold leading-[40px] tracking-[-0.02em] sm:text-[40px] sm:leading-[46px]"
+                          style={{ color: callTone ? TONE_COLOR[callTone] : "var(--oa-fg)" }}
+                        >
+                          {callWord}
+                        </h2>
+                      ) : (
+                        <h2 className="text-pretty text-[22px] font-semibold leading-7 tracking-tight text-oa-fg">{meaning}</h2>
+                      )}
+                      {/* A showcase stock shows its whole report to everyone; say so, so nobody takes it for the free plan. */}
+                      {data.gate.example ? (
+                        <Tag tone="primary" className="!font-sans !text-[12.5px] !normal-case !tracking-normal">
+                          Example, open to everyone
+                        </Tag>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {/* The one level line: the same instruction as the word, with its price, or without it where this plan
+                      does not show it (the lock beside it names what it holds). */}
+                  {ready && callWord && callUnder ? (
+                    <p className="mt-1 max-w-[62ch] text-pretty text-[17px] font-medium leading-6 text-oa-fg">{callUnder.text}</p>
+                  ) : null}
+                  {/* Today's price, the figure under the call. Without a call it is the heading's neighbour on its own. */}
+                  <div className={ready ? "mt-3" : ""}>
+                    <p className="flex flex-wrap items-baseline gap-x-2.5">
+                      <span className={`${NUM} font-semibold text-oa-fg ${ready ? "text-[26px] leading-8" : "text-[36px] leading-[44px] sm:text-[42px] sm:leading-[48px]"}`}>
+                        {money(stock.price)}
                       </span>
-                    ) : null}
-                  </p>
-                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 md:flex-col md:items-start">
-                    {/* Two clocks on one card read as a contradiction; each says what it is the time of. */}
-                    {stock.captured_at ? <p className="text-[12px] leading-4 text-oa-muted-fg">Price at {fmtStamp(stock.captured_at)}</p> : null}
-                    <MarketStatusInline nowIso={nowIso} surface="stock" />
-                    {data.premarketQuote ? <StockPremarketQuote currency={currency} market={market} quote={data.premarketQuote} /> : null}
+                      {dayPct != null ? (
+                        <span className={`${NUM} text-[16px] font-medium`} style={{ color: TONE_COLOR[dayTone ?? "flat"] }}>
+                          {dayAbs != null ? `${dayAbs >= 0 ? "+" : "−"}${Math.abs(dayAbs).toFixed(2)} ` : ""}({signedPct(dayPct, 2)})
+                        </span>
+                      ) : null}
+                    </p>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+                      {/* Two clocks on one card read as a contradiction; each says what it is the time of. */}
+                      {stock.captured_at ? <p className="text-[12px] leading-4 text-oa-muted-fg">Price at {fmtStamp(stock.captured_at)}</p> : null}
+                      <MarketStatusInline nowIso={nowIso} surface="stock" />
+                      {data.premarketQuote ? <StockPremarketQuote currency={currency} market={market} quote={data.premarketQuote} /> : null}
+                    </div>
                   </div>
-                </div>
+                  {/* How long the call has stood and when we last looked at it again, quiet under the price. */}
+                  {ready && callDates ? <p className="mt-2 text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg">{callDates}</p> : null}
+                </section>
 
-                {/* The call sits beside the price on a wide screen and right under it on a phone. */}
-                <section aria-label={`Our call on ${stock.ticker}`} className="min-w-0 border-t border-oa-border pt-3 md:col-start-2 md:row-span-2 md:row-start-1 md:border-l md:border-t-0 md:pl-6 md:pt-0">
-                  {/* With a call, the chip is the heading and its dates are a sentence under it (no small label above it). */}
-                  {!ready ? (
+                {/* Beside the call: the page's one lock, or, where nothing is locked, the call's next step, or what would
+                    change the call, so the side is never an empty column (owner rules 4 and 10). Without a call, why
+                    there is none. */}
+                {ready ? (
+                  showLock ? (
+                    <div className="min-w-0">
+                      <LevelsLock
+                        ticker={stock.ticker}
+                        instrumentId={stock.instrument_id}
+                        tracked={data.isTracked}
+                        gate={data.gate}
+                        market={market}
+                        named={callUnder?.gate ?? null}
+                      />
+                    </div>
+                  ) : callSteps ? (
+                    <div className="min-w-0 md:pt-2">
+                      <CallNextSteps ticker={stock.ticker} steps={callSteps} />
+                    </div>
+                  ) : changeBox ? (
+                    <div className="min-w-0">{changeBox}</div>
+                  ) : null
+                ) : (
+                  <div className="min-w-0 border-t border-oa-border pt-3 md:border-l md:border-t-0 md:pl-6 md:pt-0">
                     <div className="flex items-baseline justify-between gap-3">
                       <h2 className="oa-caption">Our call</h2>
                       {readState === "locked" ? <Tag tone="primary">Pro</Tag> : null}
                     </div>
-                  ) : null}
-                  {ready ? (
-                    <>
-                      {/* The heading is the call word alone, toned (owner rule 8); what it means for today's price is
-                          the line under it, never a small chip over a second heading (owner rule 6). */}
-                      {callWord ? (
-                        <h2 className="mt-1 text-[20px] font-semibold leading-7 tracking-tight">
-                          <span
-                            className="rounded-md px-1.5 py-0.5"
-                            style={{
-                              color: callTone ? TONE_COLOR[callTone] : "var(--oa-fg)",
-                              background: `color-mix(in srgb, ${callTone ? TONE_COLOR[callTone] : "var(--oa-fg)"} 12%, transparent)`,
-                            }}
-                          >
-                            {callWord}
-                          </span>
-                        </h2>
-                      ) : meaning ? (
-                        <h2 className="mt-1.5 text-pretty text-[17px] font-medium leading-6 tracking-tight text-oa-fg">{meaning}</h2>
-                      ) : null}
-                      {/* The one level line under the call word. Where this plan does not show the price, the lock beside
-                          the call names it; the call column never says it a second time (owner rule 1). */}
-                      {callWord && callUnder ? (
-                        <p className="mt-2 max-w-[62ch] text-pretty text-[16px] font-medium leading-6 text-oa-fg">{callUnder.text}</p>
-                      ) : null}
-                      {/* A showcase stock shows its whole report to everyone; say so, so nobody takes it for the free plan. */}
-                      {data.gate.example ? (
-                        <p className="mt-1.5">
-                          <Tag tone="primary" className="!font-sans !text-[12.5px] !normal-case !tracking-normal">
-                            Example, open to everyone
-                          </Tag>
-                        </p>
-                      ) : null}
-                      {/* What the call rests on (each fact with its source and date), then what would change it.
-                          All of it comes before any price, so a level never reads as more certain than its reasons. */}
-                      {evidence.length ? (
-                        // No "Why:" label over the reasons (owner rule 6: no small labels over content); they follow the call,
-                        // a size down from the level line so the call reads first (owner rule 10).
-                        <div className="mt-2 max-w-[62ch] text-[14px] leading-5 text-oa-fg">
-                          <ul role="list" aria-label={`Why we say ${callWord ?? "this"}`} className="flex flex-col gap-1">
-                            {evidence.map((line) => (
-                              <li key={line.id} className="flex gap-2.5">
-                                <span aria-hidden="true" className="mt-[7.5px] size-[5px] shrink-0 rounded-full bg-oa-muted-fg" />
-                                <span className="min-w-0 text-pretty">
-                                  {line.text} <span className="text-[12.5px] leading-[18px] text-oa-muted-fg">{line.source}.</span>
-                                </span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      ) : basis ? (
-                        <div className="mt-2 max-w-[62ch] text-[14px] leading-5 text-oa-fg">
-                          <ul role="list" aria-label={`Why we say ${callWord ?? "this"}`} className="flex flex-col gap-1">
-                            {basis.facts.map((fact) => (
-                              <li key={fact} className="flex gap-2.5">
-                                <span aria-hidden="true" className="mt-[7.5px] size-[5px] shrink-0 rounded-full bg-oa-muted-fg" />
-                                <span className="min-w-0 text-pretty">
-                                  {basisAsOf && !factHasDate(fact) && basis.facts.some((other) => factHasDate(other)) ? (
-                                    <>
-                                      {fact.replace(/[.!?]$/, "")}
-                                      <span className="text-oa-muted-fg">, as of {basisAsOf.replace(" ", "\u00a0")}</span>.
-                                    </>
-                                  ) : (
-                                    // "Nov 2" never splits across lines.
-                                    fact.replace(/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\d)/g, "$1\u00a0$2")
-                                  )}
-                                </span>
-                              </li>
-                            ))}
-                          </ul>
-                          {/* One date for all the reasons when they share it, said once under them instead of a "Why, as of" label. */}
-                          {basisAsOf && basis.facts.every((fact) => !factHasDate(fact)) ? (
-                            <p className="mt-1 text-[13px] leading-[18px] text-oa-muted-fg">As of {basisAsOf.replace(" ", "\u00a0")}.</p>
-                          ) : null}
-                        </div>
-                      ) : callReason ? (
-                        <p className="mt-2 max-w-[62ch] text-pretty text-[14px] leading-5 text-oa-fg">
-                          {callReason}
-                          {reasonIsNewer && ready.reasonAsOf ? (
-                            <span className="text-[13px] text-oa-muted-fg"> This reason uses data to {fmtDate(ready.reasonAsOf, false)}.</span>
-                          ) : null}
-                        </p>
-                      ) : null}
-                      {changeBoxInCall ? <div className="mt-3 md:[&>div]:max-w-[62ch]">{changeBox}</div> : null}
-                      {/* How long the call has stood (a call that keeps its date is one you can hold us to) and when we last
-                          looked at it again, quiet under the reasons so the call and its level lead. */}
-                      {callDates ? <p className="mt-1.5 text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg">{callDates}</p> : null}
-                      {/* With the conditions box under the price, the next steps move here on a wide screen so the two sides
-                          stay even. On a phone they stay after the box, where they were. */}
-                      {callSteps && hasChangeBox && !changeBoxInCall ? (
-                        <div className="mt-3 hidden md:block">
-                          <CallNextSteps ticker={stock.ticker} steps={callSteps} stacked />
-                        </div>
-                      ) : null}
-                    </>
-                  ) : readState === "locked" ? (
-                    <div className="-mx-3.5 -mb-3">
-                      <ProLock compact ticker={stock.ticker} market={market} what={`Our add, hold or trim call on ${stock.ticker} and its price zones are part of Pro.`} />
-                    </div>
-                  ) : (
-                    <p className="mt-1 text-[14px] leading-5 text-oa-muted-fg">
-                      {readState === "held"
-                        ? `No current call on ${stock.ticker}. A fresh one is on the way.`
-                        : readState === "stale"
-                          ? "The last call predates a big price move, so it is hidden. A fresh one is on the way."
-                          : `We have not written a call on ${stock.ticker} yet.`}
-                    </p>
-                  )}
-                </section>
-                {/* Under the price on a wide screen (after the call on a phone): what would change the call, and what to
-                    do next. The call's own price is the line under the call word, so it is said once. */}
-                {ready && (hasChangeBox || callSteps || showLock) ? (
-                  <div className="flex min-w-0 flex-col gap-3 border-t border-oa-border pt-3 md:col-start-1 md:row-start-2 md:border-t-0 md:pt-0">
-                  {/* What would change the call, under the price where the left side has room: measured conditions first,
-                      the steady call's own sentence when there are none. The company reason's "if sales slow sharply"
-                      line is never shown: it names nothing anyone can check. */}
-                  {changeBoxInCall ? null : changeBox}
-                  {/* The page's one lock, under the price and beside the level it holds (id "call" for links to it).
-                      Capped like the conditions box, so it never widens the price side at the call's expense. */}
-                  {showLock ? (
-                    <div id="call" className="scroll-mt-16 md:max-w-[29rem] lg:scroll-mt-4">
-                      <LevelsLock ticker={stock.ticker} instrumentId={stock.instrument_id} tracked={data.isTracked} gate={data.gate} market={market} named={callUnder?.gate ?? null} />
-                    </div>
-                  ) : null}
-                  {callSteps ? (
-                    // Under the lock when the box sits in the call column: the left side then carries price, lock and step.
-                    <div className={hasChangeBox && !changeBoxInCall ? "md:hidden" : undefined}>
-                      <CallNextSteps ticker={stock.ticker} steps={callSteps} stacked />
-                    </div>
-                  ) : null}
+                    {readState === "locked" ? (
+                      <div className="-mx-3.5 -mb-3">
+                        <ProLock compact ticker={stock.ticker} market={market} what={`Our add, hold or trim call on ${stock.ticker} and its price zones are part of Pro.`} />
+                      </div>
+                    ) : (
+                      <p className="mt-1 text-[14px] leading-5 text-oa-muted-fg">
+                        {readState === "held"
+                          ? `No current call on ${stock.ticker}. A fresh one is on the way.`
+                          : readState === "stale"
+                            ? "The last call predates a big price move, so it is hidden. A fresh one is on the way."
+                            : `We have not written a call on ${stock.ticker} yet.`}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </header>
+
+            {/* Under the header: what the call rests on (each fact with its source and date) and what would change it,
+                side by side, so a level never reads as more certain than its reasons. Open on every stock. */}
+            {ready && (reasonsBlock || stripChange || (callSteps && showLock)) ? (
+              <div
+                className={`grid gap-x-6 gap-y-3 border-t border-oa-border px-3.5 py-3 sm:px-4 md:items-start ${
+                  reasonsBlock && (stripChange || (callSteps && showLock)) ? "md:grid-cols-[minmax(0,1fr)_minmax(17rem,23rem)]" : ""
+                }`}
+              >
+                {reasonsBlock ? <div className="min-w-0">{reasonsBlock}</div> : null}
+                {stripChange || (callSteps && showLock) ? (
+                  <div className="flex min-w-0 flex-col gap-3">
+                    {stripChange}
+                    {/* With the lock beside the call, the call's next step sits here, under what would change it. */}
+                    {callSteps && showLock ? <CallNextSteps ticker={stock.ticker} steps={callSteps} /> : null}
                   </div>
                 ) : null}
               </div>
-            </header>
+            ) : null}
 
             {related}
 

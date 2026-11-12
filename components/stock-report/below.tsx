@@ -1,8 +1,8 @@
 import { todayET } from "@/lib/calendar-shared";
-import { weekChange } from "@/lib/stock-timeline";
+import { saysSameDevelopment, weekChange } from "@/lib/stock-timeline";
 
 import { ChangedTimeline } from "./changed-timeline";
-import { daysBetween, fmtDate, relativeDays } from "./format";
+import { briefLeadOf, daysBetween, fmtDate, relativeDays } from "./format";
 import { NUM, Panel, SECTION_LABELS, type SectionId } from "./primitives";
 import { ReportSections } from "./report-sections";
 import { NO_EXTRAS, toSectionData } from "./section-data";
@@ -11,6 +11,21 @@ import type { ReportData, ReportExtras } from "./types";
 
 /** At most this many entries go to the browser, all in the list's inner scroll (changed-timeline.tsx). */
 const TIMELINE_MAX = 40;
+
+/** "From Yahoo Finance, Benzinga and Finviz": the headlines' publishers, most used first, three named at most. */
+export function publishers(items: Array<{ kind: string; source?: string | null }>): string | null {
+  const counts = new Map<string, number>();
+  for (const item of items) {
+    const source = item.kind === "news" ? (item.source ?? "").trim() : "";
+    if (source) counts.set(source, (counts.get(source) ?? 0) + 1);
+  }
+  const names = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([name]) => name);
+  if (names.length === 0) return null;
+  const shown = names.slice(0, 3);
+  const more = names.length - shown.length;
+  const list = more > 0 ? `${shown.join(", ")} and ${more} more` : shown.length > 1 ? `${shown.slice(0, -1).join(", ")} and ${shown.at(-1)}` : shown[0];
+  return `From ${list}`;
+}
 
 /**
  * The lower half of the stock report: what changed, then the deeper report
@@ -36,13 +51,23 @@ export function StockReportBelow({ data, extras }: { data: ReportData; extras: R
   // One line on what actually changed for the stock this week, from the same rows (lib/stock-timeline.ts), so the
   // panel opens on a read and the headlines sit under it as evidence. No model call: the rows are grouped by subject.
   const nowDate = new Date(Number.isFinite(Date.parse(nowIso)) ? Date.parse(nowIso) : Date.now());
-  const changeLine = weekChange(extras.timeline.items, { ticker: stock.ticker, companyName: stock.name, now: nowDate });
+  const weekLine = weekChange(extras.timeline.items, { ticker: stock.ticker, companyName: stock.name, now: nowDate });
+  // The brief above already leads with the development, so the list does not say it again (owner rules 1 and 7).
+  const briefLead = data.readState === "ready" ? briefLeadOf(data.read).lead : "";
+  const changeLine = saysSameDevelopment(weekLine, briefLead, { ticker: stock.ticker, companyName: stock.name }) ? null : weekLine;
+  // Each headline's publisher, named once in the section head instead of on every row (owner rule 1), most used first.
+  const sources = publishers(extras.timeline.items.slice(0, TIMELINE_MAX));
   const timelineItems = extras.timeline.items.slice(0, TIMELINE_MAX).map((item) => (item.kind === "news" && item.detail ? { ...item, detail: undefined } : item));
 
   return (
     <>
       <div data-phone-section="view" className="min-w-0">
-        <Panel id="changed" label="What changed" className="scroll-mt-16 lg:scroll-mt-4">
+        <Panel
+          id="changed"
+          label="What changed"
+          className="scroll-mt-16 lg:scroll-mt-4"
+          meta={sources ? <span className="font-sans text-[12px]">{sources}</span> : undefined}
+        >
           {changeLine ? <p className="text-pretty border-b border-oa-border px-3.5 py-2.5 text-[15px] font-medium leading-[22px] text-oa-fg sm:px-4">{changeLine}</p> : null}
           {extras.timeline.upcoming.length ? (
             <div className="border-b border-oa-border bg-oa-bg">
@@ -67,7 +92,7 @@ export function StockReportBelow({ data, extras }: { data: ReportData; extras: R
         </Panel>
       </div>
 
-      {/* The deeper report, one part at a time: the order matches SECTION_LABELS. */}
+      {/* The deeper report as tabs, in the order of SECTION_LABELS. */}
       {railSections.length ? (
         <div data-phone-section={reportChip ? "report" : "view"} className="min-w-0">
           <ReportSections sections={railSections} data={sectionData} />

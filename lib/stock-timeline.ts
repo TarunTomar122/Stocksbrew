@@ -738,3 +738,25 @@ export function weekChange(items: StockTimelineItem[], input: { ticker: string; 
   }
   return ongoing ?? callLine;
 }
+
+const SHORT_MONTHS = new Set(["jan", "feb", "mar", "apr", "jun", "jul", "aug", "sep", "sept", "oct", "nov", "dec"]);
+
+/**
+ * Whether the week's one line (`weekChange`) says the same development as the brief's lead above it (owner rules 1
+ * and 7: say a development once). The same development names the same subject: every proper name in the line,
+ * other than the company's own and a date's month, is in the lead ("JPMorgan partnered with OpenAI on Nov 11." under
+ * "JPMorgan has a new partnership with OpenAI..."). A line that names nothing is never taken for a repeat.
+ */
+export function saysSameDevelopment(line: string | null | undefined, lead: string | null | undefined, input: { ticker: string; companyName?: string | null }): boolean {
+  if (!line || !lead) return false;
+  const skip = new Set(
+    [input.ticker, ...(input.companyName ?? "").split(/[\s,.&()]+/)].map((word) => bareWord(word).toLowerCase()).filter((word) => word.length > 1),
+  );
+  // Every word of the line is read as mid-sentence, so its first word (often the company) is judged like the rest.
+  const names = namesIn(`, ${line}`, skip)
+    .flat()
+    .filter((word) => !SHORT_MONTHS.has(word.toLowerCase()));
+  if (names.length === 0) return false;
+  const haystack = lead.toLowerCase();
+  return names.every((word) => new RegExp(`(?:^|[^a-z0-9])${word.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![a-z0-9])`).test(haystack));
+}

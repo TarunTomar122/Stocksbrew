@@ -24,7 +24,8 @@ import {
   type WireTopic,
 } from "@/lib/wire-shared";
 import { ogImage } from "@/lib/og/url";
-import { loadUpcomingReports, todayET, withReports } from "@/app/(app)/explore/desk-data";
+import { loadCallWords, loadUpcomingReports, todayET, withReports } from "@/app/(app)/explore/desk-data";
+import { callLeads, withCallNext } from "@/lib/explore-insights";
 
 export const dynamic = "force-dynamic";
 
@@ -131,6 +132,10 @@ export default async function NewsPage({ searchParams }: { searchParams?: Search
   const step = Math.max(1, Math.round(effective.limit / WIRE_PAGE_SIZE));
   const shownCompanies = COMPANY_PAGE * step;
   const canShowMore = effective.limit < WIRE_MAX_ROWS;
+  // The read's cards about one stock end with its next report, else with our call on it (owner rule 7: a next step).
+  const reportsRead = reading?.read ? withReports(reading.read, upcoming, today) : null;
+  const calls = reportsRead ? await loadCallWords(callLeads(reportsRead, { singleStock: true })) : new Map<string, string>();
+  const read = reportsRead ? withCallNext(reportsRead, calls, { singleStock: true }) : null;
   // One stock's lean over the same last day the rest of the page reads, every story counted.
   const tickerDay = effective.ticker ? storiesBetween(wire.items, labels, since, anchor + 1) : [];
 
@@ -154,7 +159,7 @@ export default async function NewsPage({ searchParams }: { searchParams?: Search
         </p>
       ) : null}
 
-      {reading?.read ? <TheRead read={withReports(reading.read, upcoming, today)} label="The read" className="mb-4" /> : null}
+      {read ? <TheRead read={read} label="The read" className="mb-4" /> : null}
 
       {/* Stocks first (owner rule 7): the most talked about stocks, each with its top story, then every company's
           headlines in its own card below. No separate list of stories by theme: it showed the same headlines again,

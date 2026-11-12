@@ -18,7 +18,7 @@ import {
   groupBriefingSections,
   type BriefingGroup,
 } from "@/lib/briefing-groups";
-import { briefingRead, comingUpAfterRead, earlierSession, holdingsFirst, readEarningsTickers, type BriefingReportHistory, type BriefingSession } from "@/lib/briefing-read";
+import { briefingRead, comingUpAfterRead, earlierSession, holdingsFirst, readEarningsTickers, worthAfterRead, type BriefingReportHistory, type BriefingSession } from "@/lib/briefing-read";
 import { anchorGroups, WORTH_KNOWING_FIRST } from "@/lib/briefing-anchors";
 import type { ExampleBriefingExtras } from "@/lib/briefing-example";
 import { briefingLead, briefingSteps } from "@/lib/next-steps";
@@ -27,7 +27,7 @@ import { etClock, etDayOfStamp } from "@/lib/quote-time";
 import { readAskContext } from "./ask";
 import { BriefingGroupCard, type GroupActions } from "./briefing-group";
 import { sectionWords } from "./card-words";
-import { StockCardGrid, StockChip, StockChipRow, stockGridFill } from "./stock-card";
+import { StockCard, StockCardGrid, StockChip, StockChipRow, stockGridFill } from "./stock-card";
 import { quietFact } from "@/lib/briefing-move-facts";
 import { longDay, pricesLine, shortDay, signedPct, sourceTime } from "./format";
 import Link from "next/link";
@@ -156,69 +156,61 @@ function quietHead(asOf: string | null | undefined, date: string, archived: bool
   return `Your other stocks${earlierSession(asOf, date) || (archived ? " that day" : " today")}`;
 }
 
-/** One quiet stock: logo, ticker and move, and its one short fact beside them. The row opens the stock. */
-function QuietRow({ name, fact }: { name: Briefing["quiet"]["names"][number]; fact: string | null }) {
-  const move = name.day_change_pct;
-  const tone = move == null ? "text-oa-muted-fg" : move >= 0 ? "text-signal-bullish" : "text-signal-bearish";
-  return (
-    <li>
-      <Link
-        prefetch={false}
-        href={`/stock/${encodeURIComponent(name.ticker)}`}
-        className="-mx-2 grid min-h-8 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2 rounded-md px-2 py-1 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent"
-      >
-        <span className="flex items-center gap-1.5">
-          <StockLogo ticker={name.ticker} size={20} />
-          <span className="oa-mono w-11 text-[13.5px] font-semibold text-oa-fg">{name.ticker}</span>
-          <span className={`oa-mono w-[3.1rem] text-right text-[13.5px] tabular-nums ${tone}`}>{move != null ? signedPct(move, 1) : "–"}</span>
-        </span>
-        <span className="min-w-0 text-pretty text-right text-[12px] leading-4 text-oa-muted-fg">{fact ?? ""}</span>
-      </Link>
-    </li>
-  );
-}
-
 /**
- * "Your other stocks today" in the rail: the holdings with nothing new, then the stocks you watch under a quiet
- * label (owner rule 6). About eight rows show; a longer list scrolls inside with no visible bar (owner rule 5).
+ * "Your other stocks today": the stocks with no card above, as small cards like Worth knowing's (owner rule 3): the
+ * logo, the move as the big figure and one short fact of its own (judges, ship 44). What you hold first, then what
+ * you watch, said once above the cards when there are several, so no tag repeats on each (owner rule 1). An odd last
+ * card spans what its row has left (owner rule 4). Each card opens its stock.
  */
-function QuietList({ head, names, facts }: { head: string; names: Briefing["quiet"]["names"]; facts?: Readonly<Record<string, readonly string[]>> }) {
+function QuietCards({ head, names, facts }: { head: string; names: Briefing["quiet"]["names"]; facts?: Readonly<Record<string, readonly string[]>> }) {
   const held = names.filter((name) => name.relation !== "watching");
   const watched = names.filter((name) => name.relation === "watching");
-  // Worked out in the order shown, so no two rows say the same words (owner rule 1).
+  const ordered = [...held, ...watched];
+  // Worked out in the order shown, so no two cards say the same words (owner rule 1).
   const used = new Set<string>();
   const factBy = new Map<string, string | null>();
-  for (const name of [...held, ...watched]) {
+  for (const name of ordered) {
     const fact = quietFact(facts?.[name.ticker.toUpperCase()], used);
     if (fact) used.add(fact);
     factBy.set(name.ticker, fact);
   }
-  const factOf = (ticker: string) => factBy.get(ticker) ?? null;
+  const watchTickers = watched.map((name) => name.ticker);
+  const watchLine =
+    held.length > 0 && watchTickers.length > 1
+      ? `${watchTickers.slice(0, -1).join(", ")} and ${watchTickers[watchTickers.length - 1]} are stocks you watch rather than hold.`
+      : null;
   return (
-    <section aria-labelledby="quiet-head" className={`${CARD} px-4 pb-2.5 pt-3`}>
-      <h2 id="quiet-head" className="text-pretty text-[15px] font-semibold leading-6 text-oa-fg">
-        {head}
-      </h2>
-      <div className="scrollbar-hide mt-1.5 max-h-[25rem] overflow-y-auto overscroll-contain">
-        {held.length > 0 ? (
-          <ul aria-label="You hold">
-            {held.map((name) => (
-              <QuietRow key={name.ticker} name={name} fact={factOf(name.ticker)} />
-            ))}
-          </ul>
-        ) : null}
-        {watched.length > 0 ? (
-          <>
-            <p className={`text-[12.5px] leading-5 text-oa-muted-fg ${held.length > 0 ? "mt-2 border-t border-oa-border pt-2" : ""}`}>You watch</p>
-            <ul aria-label="You watch">
-              {watched.map((name) => (
-                <QuietRow key={name.ticker} name={name} fact={factOf(name.ticker)} />
-              ))}
-            </ul>
-          </>
-        ) : null}
-      </div>
-    </section>
+    <Section id="quiet" label={head}>
+      {watchLine ? <p className="mb-2.5 text-pretty px-2 text-[13.5px] leading-5 text-oa-muted-fg sm:px-0">{watchLine}</p> : null}
+      <StockCardGrid dense>
+        {ordered.map((name, index) => {
+          const move = name.day_change_pct;
+          const fact = factBy.get(name.ticker) ?? null;
+          const figure = move != null ? signedPct(move, 1) : null;
+          return (
+            <StockCard
+              key={name.ticker}
+              ticker={name.ticker}
+              name=""
+              eagerLogo
+              figure={figure}
+              tone={move == null ? "flat" : move >= 0 ? "up" : "down"}
+              fact={fact}
+              tag={held.length > 0 && watchTickers.length === 1 && name.relation === "watching" ? "you watch it" : null}
+              fill={stockGridFill(index, ordered.length, false, true)}
+              cover={
+                <Link
+                  prefetch={false}
+                  href={`/stock/${encodeURIComponent(name.ticker)}`}
+                  aria-label={[name.ticker, figure, fact].filter(Boolean).join(", ")}
+                  className="absolute inset-0 rounded-[inherit] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
+                />
+              }
+            />
+          );
+        })}
+      </StockCardGrid>
+    </Section>
   );
 }
 
@@ -272,8 +264,6 @@ function GroupCards({
           ))}
         </ul>
       ) : null}
-      {/* Reddit's mood on these stocks, once for the section rather than a chip on every card (owner rule 1). */}
-      {words.talk ? <p className="mb-2.5 text-pretty px-2 text-[13.5px] leading-5 text-oa-muted-fg sm:px-0">{words.talk}</p> : null}
       {chipped.length > 0 ? (
         <StockChipRow className={`px-2 sm:px-0 ${cards.length > 0 ? "mb-3" : ""}`}>
           {chipped.map((group) => (
@@ -544,8 +534,9 @@ export function BriefingView({
   const prices = pricesLine(briefing.stale_note);
   // The market view's read already tells the biggest explained moves; the ones it left out lead the list below.
   const inRead = new Set([...(read?.headlineTickers ?? []), ...(read?.insights ?? []).flatMap((insight) => insight.tickers ?? [])]);
+  // The read's card about one stock owns it: that stock has no second card under Worth knowing (owner rule 1).
   const worthListed = personal
-    ? grouped.worth_knowing
+    ? worthAfterRead(grouped.worth_knowing, read)
     : [...grouped.needs_you.filter((group) => !inRead.has(group.key)), ...grouped.worth_knowing];
   // In the market view a move with no confirmed reason has nothing to say but its number, so those
   // share one line at the end of the list instead of a row each.
@@ -769,15 +760,26 @@ export function BriefingView({
           </section>
         ) : null}
 
-        <p className="px-2 text-[12px] leading-5 text-oa-muted-fg sm:px-1">Prices are delayed. Nothing here is advice to trade.</p>
       </div>
 
+      {/* The stocks with nothing new today, each a small card with its move and one short fact of its own (judges,
+          ship 44: cards like Worth knowing's, not rows). Under both columns, the whole width, so the rail and the main
+          column end together above it (owner rule 4). Before the rail in the page, so a phone (and the keyboard)
+          reaches it first; on a wide screen the rail is pinned beside the main column. Nothing when every stock has a
+          card above. */}
+      {personal && briefing.quiet.names.length > 0 ? (
+        <div className="col-span-full min-w-0">
+          <QuietCards head={quietHead(briefing.portfolio?.as_of, briefing.date, archived)} names={briefing.quiet.names} facts={archived ? undefined : moveFacts} />
+        </div>
+      ) : null}
+
+
       {/* Side rail: the market as context, not the lead. Only what earns it (before the open, the market, your
-          agents, your quiet stocks, the agent's day). On a wide screen it stretches to the main column's height, and
+          agents, the agent's day). On a wide screen it stretches to the main column's height, and
           the agent's day, last, fills what is left: it is never taller than that space (its rows scroll inside), and
           it keeps at least a header and a few rows, so neither column ends far above the other (owner rule 4). The
           other cards keep their height ([&>*]:shrink-0). Hidden when nothing in it has content. */}
-      <aside className="flex min-w-0 flex-col gap-4 [&>*]:shrink-0 [&:not(:has(>:not(template):not([data-rail-log]),>[data-rail-log]_section,>[data-rail-log]_[aria-hidden=true]))]:hidden lg:self-stretch">
+      <aside className="flex min-w-0 flex-col gap-4 lg:col-start-2 lg:row-start-2 [&>*]:shrink-0 [&:not(:has(>:not(template):not([data-rail-log]),>[data-rail-log]_section,>[data-rail-log]_[aria-hidden=true]))]:hidden lg:self-stretch">
         {/* Before the bell, how the open is set up leads the rail; after 9:30 ET it renders nothing. */}
         {beforeOpen}
         {/* The market view's read already says how the index did and leads with the same moves, so this card is for
@@ -818,16 +820,6 @@ export function BriefingView({
 
         {/* Your agents: useful, but not the lead (owner, Nov 11), so under the market card. */}
         {rail}
-        {/* The stocks with nothing new today, always in view, each with its move and one short fact of its own
-            (judges, ship 42: a ticker and a number alone said nothing). What you hold first, then what you watch, said
-            apart so the list agrees with My stocks. Secondary, so in the rail; nothing when every stock has a card. */}
-        {personal && briefing.quiet.names.length > 0 ? (
-          <QuietList
-            head={quietHead(briefing.portfolio?.as_of, briefing.date, archived)}
-            names={briefing.quiet.names}
-            facts={archived ? undefined : moveFacts}
-          />
-        ) : null}
         {/* What the agent did today across the market: secondary, so in the rail (owner rule 10), for everyone. On a wide
             screen it sits in the space the cards above leave (absolute inside it, so it never makes the rail taller
             than the main column beyond its own minimum). */}
@@ -837,6 +829,9 @@ export function BriefingView({
           </div>
         ) : null}
       </aside>
+
+      <p className="col-span-full px-2 text-[12px] leading-5 text-oa-muted-fg sm:px-1">Prices are delayed. Nothing here is advice to trade.</p>
+
     </div>
   );
 }

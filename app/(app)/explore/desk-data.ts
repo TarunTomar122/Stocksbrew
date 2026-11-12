@@ -1,7 +1,7 @@
 import { unstable_cache } from "next/cache";
 
 import type { TheRead } from "@/lib/insights";
-import { asSentence, firstFullSentence, shortCompanyName } from "@/lib/plain-copy";
+import { CALL_PLAIN, asSentence, firstFullSentence, shortCompanyName } from "@/lib/plain-copy";
 import { getDailyAnomalies } from "@/lib/daily-anomalies";
 import { getEarnings, type EarningsEvent } from "@/lib/earnings";
 import { getFollowActivity, type FollowActivity } from "@/lib/follow";
@@ -18,9 +18,10 @@ import { getThematicScreens } from "@/lib/screens";
 import { addDays, weekStart, type EarningsItem } from "@/lib/calendar-shared";
 import { loadCalendarRange, loadReportContext } from "@/lib/calendar";
 import { buildCalendarRead, readTickers } from "@/lib/calendar-insights";
-import { buildGiantsRead, deskHeadline, screensTakeaway, type GiantForRead } from "@/lib/explore-insights";
+import { buildGiantsRead, callLeads, deskHeadline, screensTakeaway, withCallNext, type GiantForRead } from "@/lib/explore-insights";
 import { etDayOf, quoteDay } from "@/lib/benchmark-day";
-import { getScreenerSnapshot } from "@/lib/screener";
+import { getScreenerRows, getScreenerSnapshot } from "@/lib/screener";
+import type { ScreenerRow } from "@/lib/screener-shared";
 import { etDayOfStamp, oldestStamp } from "@/lib/quote-time";
 import { oneRowPerCompany } from "@/lib/share-class";
 import { pickInsights } from "@/lib/insights";
@@ -334,6 +335,32 @@ export function withReports(read: TheRead, reports: UpcomingReport[], today: str
   return { ...read, insights: withWatchNext(read.insights, nextReports(reports, today), today, new Set(), { singleStock: true }) };
 }
 
+/** How long a read waits for the calls on its stocks before it goes without the "Our call" line. */
+const CALL_TIMEOUT_MS = 1500;
+
+/**
+ * Our call on each stock, in the reader's words ("Buy more", "Keep", "Sell some"), from the screener's rows (the call
+ * is open to everyone). A slow or failed read gives an empty map: the read then goes without the line, never guessed.
+ */
+export async function loadCallWords(tickers: readonly string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  if (tickers.length === 0) return out;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<Map<string, ScreenerRow>>((resolve) => {
+    timer = setTimeout(() => resolve(new Map()), CALL_TIMEOUT_MS);
+  });
+  try {
+    const rows = await Promise.race([getScreenerRows(tickers).catch((error) => (console.error("explore_source_failed", "calls", error), new Map<string, ScreenerRow>())), timeout]);
+    for (const [ticker, row] of rows) {
+      const word = row.call ? CALL_PLAIN[row.call as keyof typeof CALL_PLAIN] : undefined;
+      if (word) out.set(ticker, word);
+    }
+    return out;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 /** Earnings and IPOs share a panel, so they load together. Either one failing leaves the other standing. */
 export const loadDeskCalendar = section<Pick<DeskData, "earnings" | "ipos">>(
   "calendar",
@@ -585,8 +612,10 @@ export const loadDeskBrief = section<DeskBrief>(
           asOf: marketRead?.asOf ?? null,
         }
       : null;
+    // A card with no report to watch ends with our call on its stock (owner rule 7: each insight says what to do).
+    const calls = read ? await loadCallWords(callLeads(read)) : new Map<string, string>();
     return {
-      read,
+      read: read ? withCallNext(read, calls) : null,
       calendarLine: calendarRead?.headline ?? null,
       signalsLine: redditRead?.headline ?? null,
       marketsLine: markets ? sectorTakeaway(markets.assets) : null,
