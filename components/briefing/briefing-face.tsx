@@ -71,14 +71,18 @@ const toneText = (tone: Tone) => (tone === "up" ? "text-signal-bullish" : tone =
 const toneOf = (pct: number | null | undefined): Tone => (pct == null || Math.abs(pct) < 0.005 ? "flat" : pct > 0 ? "up" : "down");
 
 
-function Section({ id, title, count, span = SPAN.all, children }: { id: string; title: string; count?: string | null; span?: string; children: React.ReactNode }) {
+/**
+ * `fill`: the section stretches to its row's height on a wide screen and hands that height to its content, so two
+ * sections side by side end level (owner, Nov 12: "height issue between left and right area").
+ */
+function Section({ id, title, count, span = SPAN.all, fill = false, children }: { id: string; title: string; count?: string | null; span?: string; fill?: boolean; children: React.ReactNode }) {
   return (
-    <section aria-labelledby={`${id}-title`} className={`min-w-0 ${span}`}>
+    <section aria-labelledby={`${id}-title`} className={`min-w-0 ${span} ${fill ? "lg:flex lg:flex-col lg:self-stretch" : ""}`}>
       <h2 id={`${id}-title`} className="flex items-baseline gap-2 px-2 pb-2 text-[14px] font-semibold leading-6 text-oa-fg sm:px-0">
         {title}
         {count ? <span className="oa-mono text-[12px] font-normal text-oa-muted-fg">{count}</span> : null}
       </h2>
-      {children}
+      {fill ? <div className="lg:flex lg:flex-1 lg:flex-col [&>*]:lg:flex-1">{children}</div> : children}
     </section>
   );
 }
@@ -232,9 +236,12 @@ function heatBackground(cell: HeatCell): string {
 function Heat({ cells }: { cells: HeatCell[] }) {
   return (
     // About three rows show; the rest open under one "Show N more" (no inner scroll: owner, Nov 12).
-    <ShowMoreGrid count={cells.length} cut="tiles" label="Your holdings today" className="grid grid-flow-row-dense grid-cols-[repeat(auto-fill,minmax(6.75rem,1fr))] gap-1.5">
+    // Rows that fill the whole box (owner, Nov 12: "all the cards together cover all that area, no empty space"): each
+    // tile grows from a base width by its weight, so every row, the last one too, ends at the right edge. A big move
+    // weighs twice as much, so it takes twice the room.
+    <ShowMoreGrid count={cells.length} cut="tiles" label="Your holdings today" className="flex flex-wrap content-stretch gap-1.5">
       {cells.map((cell) => (
-        <li key={cell.ticker} className={cell.size === 2 ? "col-span-2" : ""}>
+        <li key={cell.ticker} style={{ flex: `${cell.size === 2 ? 2 : 1} 1 ${cell.size === 2 ? 13.5 : 6.75}rem` }} className="min-w-0">
           <Link
             href={cell.href}
             prefetch={false}
@@ -263,27 +270,27 @@ function Heat({ cells }: { cells: HeatCell[] }) {
 function Levels({ rows }: { rows: LevelRow[] }) {
   return (
     // Three rows of three show (four cards on a phone); the rest open under one "Show N more".
-    <ShowMoreGrid count={rows.length} label="Close to their levels" className={THREE}>
+    // Only names at or through their own call's price, each with the call's reason (lib/briefing-face.ts atYourLevels).
+    <ShowMoreGrid count={rows.length} label="At our price, and why" className={THREE}>
       {rows.map((row) => {
         const away = Math.abs(row.level.gapPct);
-        const which = row.level.call === "Buy more" ? "buy-more" : "sell-some";
-        const label = away < 0.05 ? `At the ${which} price` : `${row.level.gapPct < 0 ? "Under" : "Over"} the ${which} price`;
+        const levelPrice = sharePrice(row.level.level);
+        const where = away < 0.05 ? `At our ${levelPrice}` : `${away.toFixed(1)}% ${row.level.gapPct < 0 ? "under" : "over"} our ${levelPrice}`;
         return (
           <li key={row.ticker} className="min-w-0">
-            <Link href={row.href} prefetch={false} className={`${CARD} ${HOVER} ${FOCUS} flex h-full items-center justify-between gap-3 px-3.5 py-2.5`}>
-              <span className="flex min-w-0 items-center gap-2.5">
-                <StockLogo ticker={row.ticker} size={24} eager />
-                <span className="min-w-0 leading-5">
-                  <span className="oa-mono block text-[14px] font-semibold text-oa-fg">{row.ticker}</span>
-                  <span className="block truncate text-[12.5px] leading-4 text-oa-muted-fg">{label}</span>
+            <Link href={row.href} prefetch={false} className={`${CARD} ${HOVER} ${FOCUS} flex h-full flex-col gap-2 px-3.5 py-3`}>
+              <span className="flex items-start justify-between gap-3">
+                <span className="flex min-w-0 items-center gap-2.5">
+                  <StockLogo ticker={row.ticker} size={24} eager />
+                  <span className="oa-mono text-[14px] font-semibold text-oa-fg">{row.ticker}</span>
+                  <CallChip call={row.level.call} />
+                </span>
+                <span className="flex shrink-0 flex-col items-end leading-5">
+                  {sharePrice(row.price) ? <span className="oa-mono text-[15px] font-semibold tabular-nums text-oa-fg">{sharePrice(row.price)}</span> : null}
+                  <span className="oa-mono text-[11.5px] tabular-nums text-oa-muted-fg">{where}</span>
                 </span>
               </span>
-              <span className="flex shrink-0 flex-col items-end leading-5">
-                <span className={`oa-mono text-[18px] font-semibold tabular-nums ${row.level.crossed ? "text-oa-primary" : "text-oa-fg"}`}>
-                  {away < 0.05 ? "At" : `${away.toFixed(1)}%`}
-                </span>
-                {sharePrice(row.price) ? <span className="oa-mono text-[12px] tabular-nums text-oa-muted-fg">{sharePrice(row.price)}</span> : null}
-              </span>
+              <span className="text-pretty text-[13px] leading-[19px] text-oa-fg">{row.reason}</span>
             </Link>
           </li>
         );
@@ -455,9 +462,9 @@ export function BriefingFace(props: BriefingFaceProps) {
       </div>
 
       {showDo && doToday ? (
-        <Section id="do-today" title={archived ? "Needed you that day" : "Do today"} span={showHeat ? SPAN.narrow : SPAN.all}>
+        <Section id="do-today" title={archived ? "Needed you that day" : "Do today"} span={showHeat ? SPAN.narrow : SPAN.all} fill={showHeat}>
           {doToday.kind === "cards" ? (
-            <SharedCards cards={doToday.cards} label="Stocks that need a decision" grid={showHeat ? ONE : THREE} />
+            <SharedCards cards={doToday.cards} label="Stocks that need a decision" grid={showHeat ? `${ONE} lg:h-full lg:auto-rows-fr` : THREE} />
           ) : (
             <p className="px-2 text-[13.5px] leading-5 text-oa-muted-fg sm:px-0">
               {doToday.kind === "quiet" ? "Nothing needs you today." : "What needs you couldn't load just now."}
@@ -467,13 +474,13 @@ export function BriefingFace(props: BriefingFaceProps) {
       ) : null}
 
       {showHeat ? (
-        <Section id="heat" title="Where your money moved" span={showDo ? `${SPAN.wide} ${weekUnderDo ? "lg:row-span-2" : ""}` : SPAN.all}>
+        <Section id="heat" title="Where your money moved" span={showDo ? `${SPAN.wide} ${weekUnderDo ? "lg:row-span-2" : ""}` : SPAN.all} fill={showDo}>
           <Heat cells={heat} />
         </Section>
       ) : null}
 
       {levels.length > 0 ? (
-        <Section id="levels" title="Close to your levels">
+        <Section id="levels" title="At our price, and why">
           <Levels rows={levels} />
         </Section>
       ) : null}

@@ -15,6 +15,7 @@ import {
   marketStrip,
   marketTiles,
   ownLevel,
+  shortReason,
   sinceLastOpened,
   sinceStart,
   stockItems,
@@ -278,26 +279,36 @@ describe("heatCells", () => {
 });
 
 describe("atYourLevels", () => {
-  it("names within 5% of their own call's level, crossed first, and never one already in Do today", () => {
+  const why = "Sales grew 42% over the past year, faster than peers.";
+  it("only names at or through their own call's price, with the call's reason; never one already in Do today", () => {
     const rows = atYourLevels(
       [
-        position({ ticker: "NEAR", stance: "accumulate", price: 103, add_below: 100 }),
-        position({ ticker: "IN", stance: "accumulate", price: 99, add_below: 100, relation: "watching" }),
-        position({ ticker: "FAR", stance: "accumulate", price: 120, add_below: 100 }),
-        position({ ticker: "KEEP", stance: "hold", price: 101, add_below: 100 }),
-        position({ ticker: "DONE", stance: "accumulate", price: 98, add_below: 100 }),
+        position({ ticker: "NEAR", stance: "accumulate", price: 103, add_below: 100, call_summary: why }),
+        position({ ticker: "IN", stance: "accumulate", price: 99, add_below: 100, relation: "watching", call_summary: why }),
+        position({ ticker: "AT", stance: "accumulate", price: 100.3, add_below: 100, call_summary: why }),
+        position({ ticker: "NOWHY", stance: "accumulate", price: 95, add_below: 100, call_summary: null }),
+        position({ ticker: "KEEP", stance: "hold", price: 99, add_below: 100, call_summary: why }),
+        position({ ticker: "DONE", stance: "accumulate", price: 98, add_below: 100, call_summary: why }),
       ],
       new Set(["DONE"]),
     );
-    expect(rows.map((row) => [row.ticker, row.line])).toEqual([
-      ["IN", "1.0% under the buy-more price"],
-      ["NEAR", "3.0% over the buy-more price"],
+    expect(rows.map((row) => [row.ticker, row.reason])).toEqual([
+      ["IN", why],
+      ["AT", why],
     ]);
   });
 
   it("measures from this morning's price before the open, the price the card shows", () => {
-    const [row] = atYourLevels([position({ ticker: "A", stance: "accumulate", price: 110, add_below: 100 })], new Set(), { A: -7 }, { A: 102 });
-    expect(row).toMatchObject({ ticker: "A", price: 102, line: "2.0% over the buy-more price" });
+    const [row] = atYourLevels([position({ ticker: "A", stance: "accumulate", price: 110, add_below: 100, call_summary: why })], new Set(), { A: -7 }, { A: 99 });
+    expect(row).toMatchObject({ ticker: "A", price: 99, line: "1.0% under the buy-more price" });
+  });
+});
+
+describe("shortReason", () => {
+  it("keeps a short first sentence and cuts a long one at its first clause", () => {
+    expect(shortReason("Sales grew 42%. More follows.")).toBe("Sales grew 42%.");
+    expect(shortReason("Revenue rose 42% over the last four quarters to $45.4B, faster than the 34% pace it showed in fiscal 2025 and ahead of peers")).toBe("Revenue rose 42% over the last four quarters to $45.4B.");
+    expect(shortReason(null)).toBeNull();
   });
 });
 

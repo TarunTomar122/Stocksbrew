@@ -301,7 +301,7 @@ export function MarketCards({ data, className = "" }: { data: MarketsData; class
         {tally ? <span className="shrink-0 text-[13px] text-oa-muted-fg">{tally}</span> : null}
       </div>
       {/* Each card as tall as its own words (owner rule 4): a short card is not stretched to its longest neighbour. */}
-      <ul role="list" className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <ul role="list" className="grid auto-rows-fr grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map((card) => (
           <MarketCard key={card.key} card={card} />
         ))}

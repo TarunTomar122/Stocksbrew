@@ -6,8 +6,8 @@ import { SectorIcon } from "@/components/oa/sector-icon";
 /**
  * The day's sectors as a heatmap (owner, Nov 12: "this would better off being a heatmap with icons and names"): one
  * tile per sector with its icon, name and move, tinted green or red by how far it moved, each opening its sector.
- * Equal tiles, best first, and the last tile spans what its row leaves so the grid has no holes: two across on a
- * phone, three on a tablet, four on a wide screen. Server-rendered, no hooks.
+ * Best first; the big movers are twice as wide (wideSet). Two across on a phone, three on a tablet, four on a wide
+ * screen. Server-rendered, no hooks.
  */
 
 export type HeatmapSector = { id: string; name: string; slug: string; day: number };
@@ -41,12 +41,25 @@ function tint(day: number): string {
   return `color-mix(in srgb, var(${day > 0 ? "--signal-bullish" : "--signal-bearish"}) ${share}%, var(--oa-card))`;
 }
 
+/**
+ * Which tiles are wide (owner, Nov 12: "this again needs sizing depending on percentage"): a sector whose move is at
+ * least twice the day's typical move, and at least 1%, takes two columns. Grid flow is dense, so a wide tile never
+ * leaves a hole behind it.
+ */
+function wideSet(rows: HeatmapSector[]): Set<string> {
+  const moves = rows.map((row) => Math.abs(row.day)).sort((a, b) => a - b);
+  const mid = moves.length / 2;
+  const median = moves.length === 0 ? 0 : moves.length % 2 ? moves[Math.floor(mid)]! : (moves[mid - 1]! + moves[mid]!) / 2;
+  return new Set(rows.filter((row) => Math.abs(row.day) >= 1 && Math.abs(row.day) >= 2 * median).map((row) => row.id));
+}
+
 export function SectorHeatmap({ rows }: { rows: HeatmapSector[] }) {
   if (rows.length === 0) return null;
+  const wide = wideSet(rows);
   return (
-    <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+    <ul className="grid grid-flow-row-dense grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
       {rows.map((row) => (
-        <li key={row.id}>
+        <li key={row.id} className={wide.has(row.id) ? "col-span-2" : undefined}>
           <Link
             prefetch={false}
             href={row.slug ? `/sectors/${row.slug}` : "/sectors"}

@@ -51,26 +51,24 @@ export function StockPremarketQuote({ currency, market, quote }: Props) {
 
   if (!visible) return null;
 
-  const positive = quote.changePct >= 0;
-  const arrow = positive ? "▲" : "▼";
-  const tone = positive ? "var(--signal-bullish)" : "var(--signal-bearish)";
+  const flat = Math.abs(quote.changePct) < 0.005;
+  const tone = flat ? "text-oa-fg" : quote.changePct > 0 ? "text-signal-bullish" : "text-signal-bearish";
+  const sign = flat ? "" : quote.changePct > 0 ? "+" : "−";
 
+  // The same pill as "Opens in …" beside it, in the app's own tokens: plain words, the price, the move in its tone
+  // (owner, Nov 12: the old all-caps chip with arrows was "cooked").
   return (
-    <div
-      className="mt-1.5 inline-flex items-center justify-end gap-1.5 rounded-md border border-outline-variant/60 bg-surface px-2 py-1 font-mono text-[10px] tabular-nums shadow-sm"
+    <span
+      className="inline-flex h-8 items-center gap-2 rounded-full border border-oa-border bg-oa-card px-3 text-[13px] leading-none"
       title={snapshotLabel(quote.generatedAt)}
       aria-label={`${snapshotLabel(quote.generatedAt)}: ${formatPrice(currency, quote.price)}, ${quote.changePct >= 0 ? "up" : "down"} ${Math.abs(quote.changePct).toFixed(2)} percent`}
     >
-      <span className="font-semibold uppercase tracking-[0.08em] text-on-surface-variant">
-        pre-market
+      <span className="text-oa-muted-fg">Before the open</span>
+      <span className="oa-mono font-semibold tabular-nums text-oa-fg">{formatPrice(currency, quote.price)}</span>
+      <span className={`oa-mono font-semibold tabular-nums ${tone}`}>
+        {sign}
+        {Math.abs(quote.changePct).toFixed(2)}%
       </span>
-      <span className="font-bold text-on-surface">
-        {formatPrice(currency, quote.price)}
-      </span>
-      <span className="font-semibold" style={{ color: tone }}>
-        {arrow} {quote.changePct >= 0 ? "+" : ""}
-        {quote.changePct.toFixed(2)}%
-      </span>
-    </div>
+    </span>
   );
 }

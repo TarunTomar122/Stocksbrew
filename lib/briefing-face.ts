@@ -426,9 +426,30 @@ export function heatCells(
 
 /* ── At your levels ─────────────────────────────────────────────────────── */
 
-export type LevelRow = FaceStock & { level: OwnLevel; line: string; held: boolean };
+export type LevelRow = FaceStock & { level: OwnLevel; line: string; held: boolean; reason: string };
 
-/** Names within NEAR_LEVEL_PCT of their own call's level, closest first; stocks already in Do today are left out. */
+/**
+ * The call's reason as one short clause (≤15 words): the first sentence, cut at its first clause break. Null when even
+ * that runs long, so a card never shows half a thought.
+ */
+export function shortReason(summary: string | null | undefined): string | null {
+  const first = (summary ?? "").trim().split(/(?<=[.!?])\s+/)[0]?.trim() ?? "";
+  if (!first) return null;
+  const words = (text: string) => text.split(/\s+/).filter(Boolean).length;
+  const clean = (text: string) => {
+    const t = text.trim().replace(/[,;:]+$/, "");
+    return /[.!?]$/.test(t) ? t : `${t}.`;
+  };
+  if (words(first) <= 15) return clean(first);
+  const clause = first.split(/[,;:—]|\s(?:but|while|although|though|as|and)\s/)[0] ?? "";
+  return words(clause) >= 4 && words(clause) <= 15 ? clean(clause) : null;
+}
+
+/**
+ * Only the names where the price has reached its own call's level (crossed it, or within half a percent) AND our
+ * call says why (owner, Nov 12: "instead of saying over or under buy more, show me the ones where you concretely know
+ * why to buy more"). Crossed first, then the closest; stocks already in Do today are left out.
+ */
 export function atYourLevels(
   positions: readonly BriefingPosition[],
   exclude: ReadonlySet<string>,
@@ -443,7 +464,9 @@ export function atYourLevels(
     // Before the open the distance is from this morning's price, the same price the card shows.
     const price = shownPrice(position, null, premarketPrices);
     const level = ownLevel({ ...position, price });
-    if (!level || Math.abs(level.gapPct) > NEAR_LEVEL_PCT) continue;
+    if (!level || !(level.crossed || Math.abs(level.gapPct) < 0.5)) continue;
+    const reason = shortReason(position.call_summary);
+    if (!reason) continue;
     seen.add(ticker);
     rows.push({
       ticker,
@@ -455,6 +478,7 @@ export function atYourLevels(
       level,
       line: levelLine(level),
       held: position.relation === "holding",
+      reason,
     });
   }
   // Crossed first, then the closest; holdings before watched names on a tie.

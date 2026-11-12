@@ -27,14 +27,14 @@ export function CallChip({ call }: { call: CallWord }) {
  * (lib/memo/view.ts callShows). A call with neither shows no card. The card opens the stock, where the call lives.
  */
 export function CallChanges({ calls, memo, example }: { calls: MemoCallChange[]; memo: Pick<Memo, "changed" | "hurt" | "look">; example: boolean }) {
-  // Only a call that ended somewhere else and has something to say: the call it replaced or the reason. A card that
-  // could only say "Keep" says nothing (owner, Nov 12: "Empty cards are useless. Remove them").
+  // Only a call that ended somewhere else AND says why. "Keep, was Buy more" with no reason tells the reader nothing
+  // (owner, Nov 12: "the last card has no info so why show?").
   const cards = calls.flatMap((call) => {
     if (call.from === call.to) return [];
     const explain = explainCall(memo, call, example);
     const reason = explain.text ? callReasonText(explain.text) : null;
     const { was } = callShows(call);
-    return was || reason ? [{ call, was, reason }] : [];
+    return reason ? [{ call, was, reason }] : [];
   });
   // Nothing to say: no section, not a card saying none changed (owner rule 4).
   if (cards.length === 0) return null;
