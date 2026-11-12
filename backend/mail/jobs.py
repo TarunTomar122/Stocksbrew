@@ -139,7 +139,9 @@ def _run_one(job, build, src, store, uid, user, *, now, dry_run, to, stats: Coun
         print(f"[mail] {job:9} {uid[:6]} {out.status:13} {email.kind:16} {email.subject[:90]}")
         # a step that only follows a real send (a price alert is marked fired): never in a dry run or a --to test,
         # and also on a dupe, so an alert emailed by an earlier run stops being checked
-        if after and store is not None and not dry_run and not to and out.status in ("sent", "skipped_dupe"):
+        # ... and when the person turned alert emails off: the alert still fired, so it resolves and shows as fired in
+        # the app, rather than staying live and mailing an old crossing the day emails come back on
+        if after and store is not None and not dry_run and not to and out.status in ("sent", "skipped_dupe", "skipped_pref"):
             after[0](store)
     if not planned:
         stats["nothing"] += 1

@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 
+import { RADAR_TRACK_CHANGED_EVENT } from "@/lib/radar-track-events";
 import type { Thesis } from "@/lib/thesis";
 import type { CheckView } from "@/lib/thesis-watch/server";
 
@@ -110,8 +111,55 @@ export function loadTheses(options: { checkAll?: boolean } = {}) {
     });
 }
 
+/** Saves and removals made on this page, in order, so a reload that started earlier doesn't undo them. */
+let editSeq = 0;
+let reloadSeq = 0;
+const edits = new Map<string, { seq: number; thesis: Thesis | null }>();
+
+/**
+ * The person's list changed somewhere on the page (lib/radar-track-events.ts): which stocks are held, and which reasons
+ * still count, may have changed with it. Reload the reasons in place of the ones held here, so a removed stock's
+ * reason card goes and a new holding gets its "why do you own it" prompt without a full reload. Nothing happens on a
+ * page that never loaded them.
+ */
+export function reloadTheses() {
+  // Nothing on the page shows reasons (no subscriber), or they never loaded: nothing to bring up to date.
+  if (!started || !thesesReady || listeners.size === 0) return;
+  const all = checkedAll;
+  const reload = ++reloadSeq;
+  const from = editSeq;
+  fetch("/api/thesis", { cache: "no-store" })
+    .then((res) => (res.ok ? res.json() : null))
+    .then((data: { theses?: Record<string, Thesis>; held?: string[] } | null) => {
+      // A later reload is on its way, or this one failed: keep what is on screen.
+      if (!data?.theses || reload !== reloadSeq) return;
+      const next = { ...data.theses };
+      // A save or removal made here after this read started is newer than the server's answer.
+      for (const [id, edit] of edits) {
+        if (edit.seq <= from) continue;
+        if (edit.thesis) next[id] = edit.thesis;
+        else delete next[id];
+      }
+      for (const id of Object.keys(theses)) if (!next[id]) checks.delete(id);
+      theses = next;
+      held = Array.isArray(data.held) ? data.held : [];
+      emit();
+      if (all) loadChecks();
+    })
+    .catch(() => undefined);
+}
+
+let listening = false;
+function listenForBookChanges() {
+  if (listening || typeof window === "undefined") return;
+  listening = true;
+  window.addEventListener(RADAR_TRACK_CHANGED_EVENT, () => reloadTheses());
+}
+listenForBookChanges();
+
 /** After a save: show the new reasons straight away, then check them again. */
 export function putTheses(next: Record<string, Thesis>) {
+  for (const [id, thesis] of Object.entries(next)) edits.set(id, { seq: ++editSeq, thesis });
   theses = { ...theses, ...next };
   emit();
   loadChecks(Object.keys(next));
@@ -119,6 +167,7 @@ export function putTheses(next: Record<string, Thesis>) {
 
 /** After a removal: the reasons and their checks go from the page. */
 export function dropTheses(ids: readonly string[]) {
+  for (const id of ids) edits.set(id, { seq: ++editSeq, thesis: null });
   const next = { ...theses };
   for (const id of ids) {
     delete next[id];
@@ -128,7 +177,8 @@ export function dropTheses(ids: readonly string[]) {
   emit();
 }
 
-function subscribe(listener: () => void) {
+/** Subscribes to every change in the store (what the hooks below use); returns the unsubscribe. */
+export function subscribe(listener: () => void) {
   listeners.add(listener);
   return () => listeners.delete(listener);
 }
@@ -188,6 +238,11 @@ export async function removeReasons(ids: string[]): Promise<void> {
   });
   if (!res.ok) throw new Error(res.status === 401 ? "Sign in again to change your reasons." : "We could not remove it. Try again.");
   dropTheses(ids);
+}
+
+/** One stock's reason, without subscribing (like getCheck). */
+export function getThesis(instrumentId: string): Thesis | null {
+  return theses[instrumentId] ?? null;
 }
 
 /** The latest check on one stock, without subscribing; pair with `useStoreVersion()` to re-render. */

@@ -173,6 +173,14 @@ describe("rebuildWatchlistViewForUser", () => {
     expect(h.sync).toHaveBeenCalledWith("u1", { pause: [], resume: ["US_AAPL"], plan: "free" });
   });
 
+  it("empties the view when every stock was removed, so nothing reads the old rows (bug 13)", async () => {
+    h.store!.docs.set("users/u1", { tracked_stocks: [], watchlist_version: 8 });
+    h.store!.docs.set("tm_watchlist_views/u1", { tracked_ids: ["US_AAPL"], source_version: 7, built_at: "2026-11-12T14:00:00.000Z" });
+    await rebuildWatchlistViewForUser("u1");
+    expect(h.save).toHaveBeenCalledWith("u1", [], {}, false, 8, expect.any(Object));
+    expect(h.sync).toHaveBeenCalledWith("u1", expect.objectContaining({ pause: ["US_AAPL"], resume: [] }));
+  });
+
   it("still builds when the alert sync fails", async () => {
     h.store!.docs.set("users/u1", { tracked_stocks: ["US_AAPL"], watchlist_version: 2 });
     h.sync.mockRejectedValueOnce(new Error("alerts down"));

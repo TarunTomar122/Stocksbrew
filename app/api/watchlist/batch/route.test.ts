@@ -85,4 +85,38 @@ describe("POST /api/watchlist/batch", () => {
     expect(res.status).toBe(200);
     expect(user().tracked_stocks).toEqual(["US_NVDA"]);
   });
+
+  it("keeps the date and extra fields of a holding whose numbers did not change, and restamps an edited one (bug 7)", async () => {
+    state.store!.docs.set("users/me", {
+      tracked_stocks: ["US_AAPL", "US_MSFT"],
+      watchlist_positions: { US_AAPL: "holding", US_MSFT: "holding" },
+      watchlist_holdings: {
+        US_AAPL: { quantity: 10, average_cost: 150, market_value: null, currency: "USD", source: "manual", updated_at: "2026-01-02T00:00:00.000Z", lot_note: "kept" },
+        US_MSFT: { quantity: 4, average_cost: 300, market_value: null, currency: "USD", source: "manual", updated_at: "2026-01-02T00:00:00.000Z" },
+      },
+      watchlist_version: 5,
+    });
+    await POST(post({ base_version: 5, items: [
+      { instrument_id: "US_AAPL", position_type: "holding", holding: { quantity: 10, average_cost: 150 } },
+      { instrument_id: "US_MSFT", position_type: "holding", holding: { quantity: 6, average_cost: 300 } },
+    ] }));
+    const holdings = user().watchlist_holdings as Record<string, Record<string, unknown>>;
+    expect(holdings.US_AAPL).toMatchObject({ quantity: 10, updated_at: "2026-01-02T00:00:00.000Z", lot_note: "kept" });
+    expect(holdings.US_MSFT!.quantity).toBe(6);
+    expect(holdings.US_MSFT!.updated_at).not.toBe("2026-01-02T00:00:00.000Z");
+  });
+
+  it("treats a holding with shares as unchanged on shares and cost, keeping its typed value the sheet sends empty", async () => {
+    state.store!.docs.set("users/me", {
+      tracked_stocks: ["US_AAPL"],
+      watchlist_positions: { US_AAPL: "holding" },
+      watchlist_holdings: { US_AAPL: { quantity: 10, average_cost: 150, market_value: 2300, currency: "USD", source: "manual", updated_at: "2026-01-02T00:00:00.000Z" } },
+      watchlist_version: 5,
+    });
+    await POST(post({ base_version: 5, items: [{ instrument_id: "US_AAPL", position_type: "holding", holding: { quantity: 10, average_cost: 150, market_value: null } }] }));
+    expect((user().watchlist_holdings as Record<string, Record<string, unknown>>).US_AAPL).toMatchObject({
+      quantity: 10, average_cost: 150, market_value: 2300, updated_at: "2026-01-02T00:00:00.000Z",
+    });
+  });
 });
+

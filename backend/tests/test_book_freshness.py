@@ -307,3 +307,23 @@ def test_alerts_run_sends_no_reminder_without_the_flag(monkeypatch):
     monkeypatch.setenv("EARNINGS_REMINDER_ACTIVE", "1")  # the same run with the flag on plans the reminder
     stats = jobs.run("alerts", dry_run=True, only_uid=None, to=None, limit=0, now=NOW)
     assert stats["dry_run"] == 1
+
+
+# ------------------------------------------------------------- bug 17: alerts resolve when alert emails are off
+
+
+def test_a_price_alert_resolves_when_alert_emails_are_off(monkeypatch):
+    from collections import Counter
+
+    from backend.mail import kit
+
+    email = kit.Email(kind="price_alert", category="alerts", subject="AAPL is below your $100 alert", preheader="",
+                      html="", text="", meta={})
+    marked = []
+    planned = [(email, "price_alert:a1", lambda store: marked.append("a1"))]
+    monkeypatch.setattr(send.History, "load", classmethod(lambda cls, src, uid, now: send.History(set(), {}, {})))
+    stats = Counter()
+    jobs._run_one("alerts", lambda *a: planned, None, object(), "u1", {"email": "a@x.com", "email_alerts_enabled": False},
+                  now=NOW, dry_run=False, to=None, stats=stats)
+    assert stats["skipped_pref"] == 1
+    assert marked == ["a1"]  # fired and resolved, shown as fired in the app; nothing was sent

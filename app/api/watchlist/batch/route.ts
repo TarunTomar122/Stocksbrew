@@ -6,6 +6,7 @@ import { getSessionUser } from "@/lib/auth-server";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { coverageAfterTrackChange, effectiveCovered, type CoverageWrite } from "@/lib/entitlements-coverage";
 import { emptySaveAllowed } from "@/lib/holding-drafts";
+import { keepHoldingDates } from "@/lib/holding-dates";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { maybeQueueOnDemandNews } from "@/lib/on-demand-queue";
 import { captureServerEventSafe } from "@/lib/posthog-server-capture";
@@ -203,7 +204,8 @@ export async function POST(req: NextRequest) {
         ...(coverage ?? {}),
         tracked_stocks: nextTracked,
         watchlist_positions: nextPositions,
-        watchlist_holdings: nextHoldings,
+        // Unchanged holdings keep their date (Ideas and Taxes read it as the buy date) and any field the sheet doesn't send.
+        watchlist_holdings: keepHoldingDates(nextHoldings, userData?.watchlist_holdings),
         watchlist_updated_at: mutationToken,
         watchlist_version: sourceVersion,
         last_tracked_at: new Date().toISOString(),

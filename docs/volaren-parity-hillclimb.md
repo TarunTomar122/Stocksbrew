@@ -190,6 +190,68 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-12 ~22:00: ship 82 live; judge (cursor stand-in) 6.5; next wave started
+
+- **82 (f4e0892):** the judge sweep.
+  - logos and comparison bars on backtest, compare, themes, analysis and inbox
+  - prices on inbox and backtest cards
+  - intros cut and a one-line FAQ
+  - VOO whole rows
+  - the 320px top bar and bottom nav fixed
+- **Judge** (scratchpad/judge81/cursor.md; Codex locked until 22:25):
+
+  | Score | /10 |
+  |---|---|
+  | UI | 6.5 |
+  | UX | 6.5 |
+  | usability | 6 |
+  | wording | 6 |
+  | agent feel | 5.5 |
+  | volaren similarity | 5.5 |
+  | sell | 6 |
+  | overall | 6.5 |
+
+  Flat vs 71: the visuals improved, but data disagrees across pages and the word-budget breaks are everywhere.
+  - Its top 5: one quote snapshot per request; a word-budget CI guard; a shared VsBar plus kind icons; Holdings as the agent's desk; bold: agent proposals (the agent drafts an action, you accept or dismiss).
+- **Started:**
+  - agent proposals (tm_agent_proposals, accept/dismiss safe in-app actions)
+  - the one-quote snapshot (compare vs stock page, sectors "Today", inbox day words, VOO after-hours timer, stale options reads)
+  - the word-budget and visuals sweep (VsBar, kind icons, a guard test)
+- **Audit round 2 fixed:** buy dates kept on save, Ask/MCP from live rows, reasons reload, empty-list views, refresh after basket/Ask/import, alerts-tab freshness, account deletion switch-off.
+- **Owner decisions needed:**
+  - bug 10: agents on removed stocks
+  - bug 12: Taxes listing removed stocks' lots
+  - re-added stocks bringing back old reasons and lots
+  - earnings-reminder emails (built, flag off)
+
+### 2026-11-12 late night: ships 78–81 live
+
+- **78 (2f204f2):** stock page.
+  - Positive/Negative on every news headline (the same tone source as /news; neutral rows stay bare).
+  - Technicals as charts: averages on a price line, an RSI gauge, signed return bars with log scale past 250%, support and resistance on the 52-week bar.
+  - A one-line refresh note replaces the modal (shown only when the price is really from before today's open, and both lookups read).
+  - What changed is de-duplicated.
+- **79 (4885440):** compare "our pick" card.
+  - 9 measures with noise bands; our call weighs most; reasons only where the pick beats EVERY stock.
+  - A "too close" group within 5 points; shared wins are no one's lead; 30 tests plus seeded fuzzing.
+- **80 (b80f7fb):** /news.
+  - Good vs mixed-or-bad columns, rows paired to equal height, "No read yet" its own group.
+  - Live prices from the stock page's quote; one tone per company; 15-word sentence-case headlines.
+  - Lead call after 13 rounds: quoted phrases keep the source's casing.
+- **81 (5f77ef7, web + backend via deploy-code.sh):** the data-freshness audit fixes.
+  - Adding a held stock no longer wipes its shares.
+  - Every edit rebuilds the per-user view (a coalescing queue); the guarded Python save never overwrites a newer view.
+  - Removed stocks pause their alerts (additive paused_reason); paused alerts don't count against Free limits.
+  - The edit sheet saves what it shows, with a version check (409 on another tab's change).
+  - Earnings-reminder sender built but OFF (EARNINGS_REMINDER_ACTIVE unset): owner decision.
+  - Holdings: no Edit button; tinted needs-a-look rows lead; alerts newest first.
+- **Councils:** Codex hit its usage limit; cursor-agent --model auto stood in. The backend suite passes 1411 (3 pre-existing failures are unrelated).
+- **Open:**
+  - the /portfolio/ideas visual (round 8)
+  - the judge sweep (320px chrome fix, then ship)
+  - data-freshness-audit bugs 7 and 9–17
+  - the owner decides on earnings-reminder emails
+
 ### 2026-11-12 night: ships 74–77 live; overnight run (owner asleep: "be ambitious, quality bar must not drop")
 
 - **74 (8cc7b56):** research reports.

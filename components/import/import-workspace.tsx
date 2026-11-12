@@ -33,6 +33,7 @@ import type { ImportRow } from "@/lib/import/resolve";
 import { buildPortfolioRead } from "@/lib/import/read-shared";
 import type { CsvMeta } from "@/lib/import/text";
 import { trackImportParsed, trackImportSaved, trackImportStarted } from "@/lib/product-analytics";
+import { announceBookChanged } from "@/lib/radar-track-events";
 import { POST_SIGNUP_ONBOARDING_PENDING, signInWithGoogle } from "@/lib/sign-in";
 
 const FOCUS = "outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]";
@@ -313,6 +314,11 @@ export function ImportWorkspace({
     }
     clearPending();
     setPending(0);
+    // The reasons store and the rest of the page hear that the list changed (lib/radar-track-events.ts).
+    if (res.added.length > 0 || res.updated.length > 0) {
+      // Refreshes now and again once the view is rebuilt, so My stocks and the briefing show the imported stocks.
+      void announceBookChanged(res.added.length > 0 ? { action: "add", count: res.added.length } : { action: "edit" }, router);
+    }
     const withShares = payload.filter((row) => row.shares !== null).length;
     trackImportSaved({ surface: "try", added: res.added.length, updated: res.updated.length, with_shares: withShares, pending: !signedIn || from === "pending" });
     // Share counts mean My stocks can show what they are worth and what they made: go straight there.

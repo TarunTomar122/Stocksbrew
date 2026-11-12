@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: () => undefined, push: () => undefined }) }));
 
-import { AlertsTab, type PortfolioAlert } from "./alerts-tab";
+import { AlertsTab, alertsSignature, type PortfolioAlert } from "./alerts-tab";
 
 // Components written for Next's automatic JSX runtime expect React in scope under vitest.
 (globalThis as { React?: typeof React }).React = React;
@@ -62,6 +62,13 @@ describe("AlertsTab with a removed stock's alerts", () => {
       alert({ id: "a2", target_price: 120, paused: false }),
     ]);
     expect(html).toContain("paused: Free keeps five price alerts");
+  });
+
+  it("tells a fresher server list apart, so router.refresh() replaces the tab's own copy (bug 16)", () => {
+    const before = [alert({})];
+    expect(alertsSignature(before)).toBe(alertsSignature([alert({})]));
+    expect(alertsSignature([alert({}), alert({ id: "a2" })])).not.toBe(alertsSignature(before));
+    expect(alertsSignature([alert({ paused: true, pausedReason: "removed" })])).not.toBe(alertsSignature(before));
   });
 });
 

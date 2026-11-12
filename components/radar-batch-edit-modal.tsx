@@ -318,9 +318,16 @@ export function RadarBatchEditModal({
       if (typeof saved.source_version === "number") savedVersion.current = saved.source_version;
       const initialIds = new Set(initialItems.map((i) => i.instrument_id));
       const addedCount = items.filter((i) => !initialIds.has(i.instrument_id)).length;
-      if (addedCount > 0) {
-        dispatchRadarTrackChanged({ action: "add", count: addedCount });
-      }
+      // Every save tells the page (the reasons store reloads); an add also says how many for the activation survey.
+      const keptIds = new Set(items.map((i) => i.instrument_id));
+      const removedCount = initialItems.filter((i) => !keptIds.has(i.instrument_id)).length;
+      dispatchRadarTrackChanged(
+        addedCount > 0
+          ? { action: "add", count: addedCount }
+          : removedCount > 0
+            ? { action: "remove", count: removedCount }
+            : { action: "edit" },
+      );
       // The saved positions are already durable. Let the expensive view rebuild
       // continue in the background so the user is not blocked by the spinner.
       setModalStatus("success");

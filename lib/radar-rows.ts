@@ -1,7 +1,7 @@
 import { getInstruments } from "@/lib/firestore";
 import { getInstrumentLabels } from "@/lib/instrument-resolver";
 import { getUserDoc } from "@/lib/watchlist";
-import { getWatchlistView, overlayLatestPrices, type WatchlistRow } from "@/lib/watchlist-view";
+import { getWatchlistView, overlayLatestPrices, type WatchlistRow, type WatchlistView } from "@/lib/watchlist-view";
 
 export type RadarRowsPayload = {
   uid: string;
@@ -9,15 +9,21 @@ export type RadarRowsPayload = {
   rows: WatchlistRow[];
   watchlistPositions: Record<string, "holding" | "watchlist">;
   builtAt?: string;
+  /** users/{uid}.watchlist_version: the book these rows were read from. */
+  version: number;
 };
 
 /** Load tracked watchlist rows with profile overrides and fresh prices. */
-export async function loadRadarRowsForUser(uid: string): Promise<RadarRowsPayload | null> {
+export async function loadRadarRowsForUser(
+  uid: string,
+  /** The view when the caller already read it (MCP get_my_radar), so it is not read twice. */
+  view?: WatchlistView | null,
+): Promise<RadarRowsPayload | null> {
   const userDoc = await getUserDoc(uid);
   if (!userDoc) return null;
 
   const tracked = Array.isArray(userDoc.tracked_stocks) ? userDoc.tracked_stocks : [];
-  const watchlistView = await getWatchlistView(uid).catch(() => null);
+  const watchlistView = view !== undefined ? view : await getWatchlistView(uid).catch(() => null);
   const radar = userDoc.radar_v1 || {};
   const materializedRows = (watchlistView?.rows || radar.rows || []) as WatchlistRow[];
   const watchlistPositions =
@@ -67,10 +73,12 @@ export async function loadRadarRowsForUser(uid: string): Promise<RadarRowsPayloa
           : undefined;
 
       if (materialized) {
+        const held = watchlistPositions[instrumentId] === "holding";
         return {
           ...materialized,
-          position_type: watchlistPositions[instrumentId] === "holding" ? "holding" : "watchlist",
-          holding: holdingOverride ?? materialized.holding,
+          position_type: held ? "holding" : "watchlist",
+          // A stock moved to Watching has no holding, whatever the stored row still says.
+          holding: held ? holdingOverride ?? materialized.holding : undefined,
         } as WatchlistRow;
       }
 
@@ -135,5 +143,6 @@ export async function loadRadarRowsForUser(uid: string): Promise<RadarRowsPayloa
     rows,
     watchlistPositions,
     builtAt,
+    version: Number(userDoc.watchlist_version ?? 0) || 0,
   };
 }

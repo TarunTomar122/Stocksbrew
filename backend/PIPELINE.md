@@ -34,7 +34,7 @@ names, not product concepts.
 | **AI briefs + news** | tracked VPS lanes + `build_per_stock_intelligence` | 60-stock runtime core + UNION(current Pro tracked) | AI universe + tracked | Twice per US trading day; model calls only for changed source/material tape fingerprints | `tm_news_runs`, `tm_stock_intelligence` |
 | **Earnings intel** | `build_earnings_intel` | same as AI | same | Daily | `tm_earnings_intel` |
 | **Pre-earnings intel** | `build_pre_earnings_intel` | full supported US market catalog + calendar (7d ahead); **one report per event** (skips if doc exists); `TAVILY_API_KEY` via deploy secret (≤2 searches/new build) | US only | Daily | `tm_pre_earnings_intel` |
-| **User radar views** | `build_watchlist_views` | per-user tracked only | per-user tracked only | Pre-market + on-demand | `tm_watchlist_views` |
+| **User radar views** | `build_watchlist_views` | per-user tracked only | per-user tracked only | Weekdays after the open briefs (~10:00–10:20 ET) and after the close; the web rebuilds a person's view after every edit to their stocks (`lib/watchlist-view-rebuild.ts`); the job never overwrites a newer view (`save_watchlist_view_if_current`) | `tm_watchlist_views` |
 | **On-demand news** | `process_on_demand_news_jobs` | any newly tracked stock | any | Queued by tracking flows; currently processed by scheduled polling | `tm_on_demand_news_jobs` |
 
 Radar extras are the unique union of tracked stocks for users with a current

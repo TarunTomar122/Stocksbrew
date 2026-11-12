@@ -31,6 +31,11 @@ export type PortfolioAlert = {
   pausedReason?: "removed" | "plan_limit";
 };
 
+/** Which alerts the server sent, and whether each is paused: a change means a fresher server render. */
+export function alertsSignature(alerts: readonly PortfolioAlert[]): string {
+  return alerts.map((alert) => `${alert.id}:${alert.paused ? alert.pausedReason ?? "p" : ""}`).join(",");
+}
+
 /** What a paused alert says instead of its distance. */
 function pausedWords(alert: PortfolioAlert): string {
   return alert.pausedReason === "plan_limit" ? `paused: ${lockCopy("price_alerts").title}` : "paused, not in your stocks";
@@ -86,6 +91,14 @@ export function AlertsTab({
   today?: string;
 }) {
   const [alerts, setAlerts] = useState(initialAlerts);
+  // A new server render (router.refresh() after an alert set from a stock page, Ask or another tab) brings a new list:
+  // take it, rather than keep the one this tab started with. Edits made here already match it after their own save.
+  const [seen, setSeen] = useState(() => alertsSignature(initialAlerts));
+  const incoming = alertsSignature(initialAlerts);
+  if (incoming !== seen) {
+    setSeen(incoming);
+    setAlerts(initialAlerts);
+  }
   const [removing, setRemoving] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({ id: positions[0]?.instrument_id ?? "", condition: "below" as "below" | "above", price: "" });

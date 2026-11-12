@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { StockLogo } from "@/components/stock-logo";
 import { RadarAsyncModal } from "@/components/radar-async-modal";
 import { triggerRadarBackgroundRefresh } from "@/lib/radar-client-refresh";
+import { dispatchRadarTrackChanged } from "@/lib/radar-track-events";
 import { buildBookCallHints, type BookCallHint, type RadarCallKind } from "@/lib/radar-hub-data";
 import { compareBookRowsByAttention } from "@/lib/radar-book-sort";
 import { resolveRadarLedgerCell } from "@/lib/radar-ledger-insight";
@@ -1166,7 +1167,10 @@ function RowMenu({ row }: { row: WatchlistRow }) {
         body: JSON.stringify({ instrument_id: instrumentId, position_type: positionType, move: true, skip_refresh: true }),
       });
       setModalStatus(res.ok ? "success" : "error");
-      if (res.ok) triggerRadarBackgroundRefresh(router);
+      if (res.ok) {
+        dispatchRadarTrackChanged({ action: "edit" });
+        triggerRadarBackgroundRefresh(router);
+      }
     } finally {
       setBusy(false);
       setTimeout(() => setModalOpen(false), 900);
@@ -1186,7 +1190,10 @@ function RowMenu({ row }: { row: WatchlistRow }) {
         body: JSON.stringify({ instrument_id: instrumentId, skip_refresh: true }),
       });
       setModalStatus(res.ok ? "success" : "error");
-      if (res.ok) triggerRadarBackgroundRefresh(router);
+      if (res.ok) {
+        dispatchRadarTrackChanged({ action: "remove" });
+        triggerRadarBackgroundRefresh(router);
+      }
     } finally {
       setBusy(false);
       setTimeout(() => setModalOpen(false), 900);

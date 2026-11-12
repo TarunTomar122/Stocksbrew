@@ -52,7 +52,8 @@ import {
   getStockPriceHistory,
   getStockSummary,
 } from "@/lib/stock";
-import { getRadarUserView, getWatchlistView } from "@/lib/watchlist-view";
+import { loadRadarRowsForUser } from "@/lib/radar-rows";
+import { getRadarUserView, getWatchlistView, type WatchlistRow } from "@/lib/watchlist-view";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 
 export type AgentMarket = "US" | "IN";
@@ -562,9 +563,43 @@ export async function getAgentScreens(input: { market?: AgentMarket }) {
   }, doc.generated_at);
 }
 
+/** Rows in the order the view had them (its attention order); stocks it doesn't have yet go last. */
+function orderLike(rows: WatchlistRow[], viewRows: WatchlistRow[]): WatchlistRow[] {
+  const rank = new Map(viewRows.map((row, index) => [row.instrument_id, index]));
+  return [...rows].sort((a, b) => (rank.get(a.instrument_id) ?? Infinity) - (rank.get(b.instrument_id) ?? Infinity));
+}
+
+/** Each holding's value: shares times the live price, else the value entered, else the stored computed value. */
+function liveHoldingValues(rows: WatchlistRow[]): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const row of rows) {
+    if (row.position_type !== "holding" || !row.holding) continue;
+    const entered = row.holding.market_value;
+    const shares = row.holding.quantity;
+    // As My stocks counts it (lib/portfolio-data.ts buildPortfolio): shares at the live price, else the value typed in.
+    const value = typeof shares === "number" && shares > 0 && typeof row.price === "number" && row.price > 0
+      ? shares * row.price
+      : typeof entered === "number" && entered > 0
+        ? entered
+        : row.holding.computed_market_value;
+    if (typeof value === "number" && Number.isFinite(value) && value > 0) out.set(row.instrument_id, Math.round(value * 100) / 100);
+  }
+  return out;
+}
+
+/**
+ * The person's stocks with live numbers, for Ask's portfolio card and MCP get_my_radar. Rows come from the live list
+ * (lib/radar-rows.ts: only stocks still tracked, holding or watching and shares from users/{uid}, fresh prices), in the
+ * view's order; the view adds the call, scores and briefing. Value, gain and weight are worked out from the live
+ * shares and price when the stored row has none, so they never come back empty after a scheduled build.
+ */
 export async function getMyAgentRadar(uid: string, input: { limit?: number; offset?: number } = {}) {
-  const view = await getWatchlistView(uid);
-  if (!view) {
+  const view = await getWatchlistView(uid).catch(() => null);
+  // The view is passed on, so the live rows don't read it a second time.
+  const live = await loadRadarRowsForUser(uid, view).catch(() => null);
+  const liveRows = live ? orderLike(live.rows, view?.rows ?? []) : null;
+  const allRows: WatchlistRow[] = liveRows ?? view?.rows ?? [];
+  if (!view && allRows.length === 0) {
     return envelope({
       data_status: "not_enough_current_evidence",
       evidence_message: "not enough current evidence to load this Watchlist view.",
@@ -574,34 +609,54 @@ export async function getMyAgentRadar(uid: string, input: { limit?: number; offs
       pulse: null,
     }, null);
   }
+  const tracked = new Set(allRows.map((row) => row.instrument_id));
+  // The view's write-ups (brief, pulse, portfolio diagnosis, risks, changes) describe the book it was built from. When
+  // that is not today's book (a stock added, removed or moved since), they are left out rather than describe old stocks.
+  const viewPositions = new Map((view?.rows ?? []).map((row) => [row.instrument_id, row.position_type]));
+  // Same stocks and kinds, and built from this version of the book (a shares or cost edit bumps the version too).
+  const viewCurrent = Boolean(view) && viewPositions.size === allRows.length
+    && allRows.every((row) => viewPositions.get(row.instrument_id) === row.position_type)
+    && (!live || Number(view?.source_version ?? 0) >= live.version);
+  const current = <T,>(value: T | undefined): T | null => (viewCurrent ? value ?? null : null);
+  const holdingsCount = allRows.filter((row) => row.position_type === "holding").length;
+  const values = liveHoldingValues(allRows);
+  const totalValue = [...values.values()].reduce((sum, value) => sum + value, 0);
   const limit = Math.min(100, Math.max(1, Math.floor(input.limit || 50)));
   const offset = Math.max(0, Math.floor(input.offset || 0));
-  const asOf = latestIso([view.updated_at, view.built_at, view.brief?.generated_at, view.today_setup?.generated_at]);
-  const selectedRows = (view.rows ?? []).slice(offset, offset + limit);
+  const asOf = latestIso([view?.updated_at, view?.built_at, view?.brief?.generated_at, view?.today_setup?.generated_at]);
+  const selectedRows = allRows.slice(offset, offset + limit);
   const labelsById = await getInstrumentLabels(selectedRows.map((row) => row.instrument_id)).catch(() => new Map());
+  // A stock removed since the view was built drops out of the view's own lists too.
+  const onList = <T,>(items: T[] | undefined): T[] =>
+    (items ?? []).filter((item) => {
+      const id = (item as { instrument_id?: unknown })?.instrument_id;
+      return typeof id !== "string" || tracked.has(id);
+    });
   return envelope({
     data_status: "available",
-    tracked_count: view.tracked_count,
-    holdings_count: view.holdings_count ?? null,
-    watchlist_count: view.watchlist_count ?? null,
-    pulse: view.pulse ?? null,
-    brief: view.brief ? {
+    tracked_count: allRows.length,
+    holdings_count: holdingsCount,
+    watchlist_count: allRows.length - holdingsCount,
+    /** "current" when the brief, pulse, portfolio, risks and changes below describe this book; otherwise they are null. */
+    view_status: viewCurrent ? "current" : "rebuilding",
+    pulse: current(view?.pulse),
+    brief: viewCurrent && view?.brief ? {
       narrative: view.brief.narrative,
       signals: view.brief.signals,
       status: view.brief.status,
     } : null,
-    today_setup: view.today_setup ?? null,
-    portfolio: view.portfolio ?? null,
-    attention_items: view.attention_items ?? [],
-    suggestions: view.suggestions ?? [],
-    blind_spot_suggestions: view.blind_spot_suggestions ?? [],
-    momentum_lift_suggestions: view.momentum_lift_suggestions ?? [],
-    pillar_lift_suggestions: view.pillar_lift_suggestions ?? null,
-    risk_summary: view.risk_summary ?? null,
-    event_radar: view.event_radar ?? [],
-    changes: view.changes ?? null,
-    returned_count: Math.min(limit, Math.max(0, (view.rows?.length || 0) - offset)),
-    next_offset: offset + limit < (view.rows?.length || 0) ? offset + limit : null,
+    today_setup: current(view?.today_setup),
+    portfolio: current(view?.portfolio),
+    attention_items: onList(view?.attention_items),
+    suggestions: view?.suggestions ?? [],
+    blind_spot_suggestions: view?.blind_spot_suggestions ?? [],
+    momentum_lift_suggestions: view?.momentum_lift_suggestions ?? [],
+    pillar_lift_suggestions: view?.pillar_lift_suggestions ?? null,
+    risk_summary: current(view?.risk_summary),
+    event_radar: onList(view?.event_radar),
+    changes: current(view?.changes),
+    returned_count: Math.min(limit, Math.max(0, allRows.length - offset)),
+    next_offset: offset + limit < allRows.length ? offset + limit : null,
     rows: selectedRows.map((row) => {
       const label = canonicalAgentRadarLabel(row, labelsById.get(row.instrument_id));
       return {
@@ -635,12 +690,19 @@ export async function getMyAgentRadar(uid: string, input: { limit?: number; offs
           reason: row.attention_reason,
           suggested_action: row.suggested_action ?? null,
         } : null,
-        holding: row.holding ? {
+        // Only a holding has numbers: a stock moved to Watching never carries its old shares.
+        holding: row.position_type === "holding" && row.holding ? {
           quantity: row.holding.quantity ?? null,
-          market_value: row.holding.market_value ?? row.holding.computed_market_value ?? null,
+          market_value: values.get(row.instrument_id) ?? null,
           average_cost: row.holding.average_cost ?? null,
-          portfolio_weight_pct: row.holding.portfolio_weight_pct ?? null,
-          unrealized_gain_pct: row.holding.unrealized_gain_pct ?? null,
+          // Weights are worked out across the live values; a holding with no value has no weight.
+          // Never the stored weight: it was worked out on an older book.
+          portfolio_weight_pct: totalValue > 0 && values.has(row.instrument_id)
+            ? Math.round((values.get(row.instrument_id)! / totalValue) * 1000) / 10
+            : null,
+          unrealized_gain_pct: row.holding.average_cost && row.holding.average_cost > 0 && typeof row.price === "number" && row.price > 0
+            ? Math.round((row.price / row.holding.average_cost - 1) * 1000) / 10
+            : row.holding.unrealized_gain_pct ?? null,
         } : null,
         coverage_status: row.coverage_status,
       };

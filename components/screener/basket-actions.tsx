@@ -6,8 +6,10 @@ import { CONTROL } from "@/components/screener/controls";
 import { useUser } from "@/lib/auth-context";
 import { setupHref } from "@/lib/backtest/setup";
 import { compareHref } from "@/lib/compare-shared";
+import { announceBookChanged } from "@/lib/radar-track-events";
 import { signInWithGoogle } from "@/lib/sign-in";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { AppLink } from "@/components/oa/app-link";
 
 /**
@@ -57,6 +59,7 @@ export function WatchlistButton({
 }) {
   const { user } = useUser();
   const [state, setState] = React.useState<WatchState>({ kind: "idle" });
+  const router = useRouter();
   const key = symbols.join(",");
   React.useEffect(() => setState({ kind: "idle" }), [key]);
 
@@ -69,6 +72,13 @@ export function WatchlistButton({
         return;
       }
     }
+    const added = await addAll();
+    // Pages kept in the router cache (My stocks, the briefing) would otherwise show the old list on the way back.
+    if (added > 0) void announceBookChanged({ action: "add", count: added }, router);
+  }
+
+  /** Adds one at a time (each add is a transaction on the same user record); returns how many went in. */
+  async function addAll(): Promise<number> {
     let added = 0;
     setState({ kind: "working", done: 0, total: symbols.length });
     for (const [index, symbol] of symbols.entries()) {
@@ -80,16 +90,17 @@ export function WatchlistButton({
       }
       if (result.status === 401) {
         setState({ kind: "error", message: "Sign in to keep a watchlist." });
-        return;
+        return added;
       }
       if (result.status === 409 && result.reason !== "profile_not_ready") {
         setState({ kind: "limit", added, total: symbols.length, reason: result.reason ?? "The free watchlist is full." });
-        return;
+        return added;
       }
       setState({ kind: "error", message: added > 0 ? `Added ${added}, then something went wrong. Try the rest again.` : "Could not add these right now. Try again." });
-      return;
+      return added;
     }
     setState({ kind: "done", added, total: symbols.length });
+    return added;
   }
 
   const text =
@@ -113,7 +124,7 @@ export function WatchlistButton({
         {text}
       </button>
       {state.kind === "done" ? (
-        <Link prefetch={false} href="/portfolio?tab=holdings" className="text-[13px] text-oa-muted-fg underline decoration-oa-border underline-offset-2 hover:text-oa-fg">
+        <Link prefetch={false} href="/portfolio" className="text-[13px] text-oa-muted-fg underline decoration-oa-border underline-offset-2 hover:text-oa-fg">
           Open watchlist
         </Link>
       ) : null}

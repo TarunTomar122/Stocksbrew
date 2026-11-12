@@ -41,7 +41,9 @@ import type {
 import { beatShare, markFor, priceVsTarget, rsiWord, scoreVerdict, type Tone } from "@/lib/tone";
 import { WATCH_HOW_WORDS, WATCH_WHEN_PLAIN, saveOutcome, watchWhenWords, type SaveResponse, type SaveState } from "@/lib/ask-answer";
 import { lockCopy } from "@/lib/entitlements";
+import { announceBookChanged } from "@/lib/radar-track-events";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { AppLink } from "@/components/oa/app-link";
 
 /**
@@ -980,7 +982,8 @@ function Markets({ card }: { card: MarketsCard }) {
 
 /* ── things that need a yes ─────────────────────────────────────────────── */
 
-type Outcome = { ticker: string; ok: boolean; message: string };
+/** `added` (an add action): false when the stock was already on the list. */
+type Outcome = { ticker: string; ok: boolean; message: string; added?: boolean };
 type RunState = { phase: "idle" } | { phase: "running" } | { phase: "done"; results: Outcome[] } | { phase: "failed"; message: string };
 
 async function postJson(url: string, body: unknown): Promise<{ ok: boolean; status: number; data: Record<string, unknown> }> {
@@ -990,19 +993,29 @@ async function postJson(url: string, body: unknown): Promise<{ ok: boolean; stat
 }
 
 function useAction() {
+  const router = useRouter();
   const [state, setState] = React.useState<RunState>({ phase: "idle" });
   const run = React.useCallback(async (url: string, body: unknown, describe?: (data: Record<string, unknown>) => Outcome[]) => {
     setState({ phase: "running" });
     try {
       const { ok, data } = await postJson(url, body);
       const results = describe ? describe(data) : (data.results as Outcome[] | undefined);
+      const action = (body as { action?: unknown } | null)?.action;
+      // A stock added from Ask: pages kept in the router cache and the reasons store hear about it (lib/radar-track-events.ts).
+      // "Already in your stocks" is not an add.
+      const added = action === "add_to_watchlist" && Array.isArray(results)
+        ? results.filter((row) => row.ok && row.added !== false).length
+        : 0;
+      if (ok && added > 0) void announceBookChanged({ action: "add", count: added }, router);
+      // A price alert set from Ask shows on My stocks' Alerts tab on the next render.
+      else if (ok && action === "create_price_alert") router.refresh();
       if (Array.isArray(results) && results.length > 0) setState({ phase: "done", results });
       else if (ok) setState({ phase: "done", results: [] });
       else setState({ phase: "failed", message: String(data.message ?? data.error ?? "That did not work. Nothing was changed.") });
     } catch {
       setState({ phase: "failed", message: "We could not reach the server. Nothing was changed." });
     }
-  }, []);
+  }, [router]);
   return { state, run };
 }
 

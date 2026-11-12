@@ -14,6 +14,31 @@ async function deleteQueryBatch(query: Query, batchSize = 400): Promise<void> {
   }
 }
 
+/**
+ * Turns off what keeps working for a person after they are gone: their price and earnings alerts (`active: false`, as
+ * removing one does) and their agents (`archived`, as archiving one does), so no job keeps running or emailing on a
+ * deleted account. The docs themselves stay: archiving is what the app does for these, never a delete.
+ */
+export async function switchOffUserAlertsAndAgents(uid: string, now = new Date()): Promise<{ alerts: number; agents: number }> {
+  const stamp = now.toISOString();
+  const [alerts, jobs] = await Promise.all([
+    adminFirestore.collection("tm_alerts").where("uid", "==", uid).get(),
+    adminFirestore.collection("tm_agent_jobs").where("uid", "==", uid).get(),
+  ]);
+  const liveAlerts = alerts.docs.filter((doc) => doc.data()?.active !== false);
+  const liveJobs = jobs.docs.filter((doc) => doc.data()?.archived !== true);
+  const updates = [
+    ...liveAlerts.map((doc) => [doc.ref, { active: false, updated_at: stamp }] as const),
+    ...liveJobs.map((doc) => [doc.ref, { archived: true, enabled: false, updated_at: stamp }] as const),
+  ];
+  for (let start = 0; start < updates.length; start += 400) {
+    const batch = adminFirestore.batch();
+    for (const [ref, data] of updates.slice(start, start + 400)) batch.set(ref, data, { merge: true });
+    await batch.commit();
+  }
+  return { alerts: liveAlerts.length, agents: liveJobs.length };
+}
+
 async function deleteCollection(collection: CollectionReference): Promise<void> {
   await deleteQueryBatch(collection);
 }
@@ -72,6 +97,10 @@ export async function deleteUserAccount(uid: string): Promise<void> {
       : undefined;
 
   await cancelBillableSubscription(subscriptionId);
+  // Best effort, and before anything else that can fail: a failure here must not stop the account from being deleted.
+  await switchOffUserAlertsAndAgents(uid).catch((error: unknown) => {
+    console.warn("[delete-user-account] alerts and agents not switched off:", error instanceof Error ? error.message : error);
+  });
   await decrementTrackedInstruments(trackedStocks);
 
   await deleteCollection(userRef.collection("watchlist_events"));

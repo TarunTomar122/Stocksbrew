@@ -117,9 +117,7 @@ export function TrackButton({
   }
 
   async function triggerBackgroundRefresh(action: "add" | "remove", count = 1) {
-    if (action === "add") {
-      dispatchRadarTrackChanged({ action: "add", count });
-    }
+    dispatchRadarTrackChanged({ action, count });
     await flushWatchlistRebuild(router, 0);
   }
 

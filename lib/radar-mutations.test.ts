@@ -39,6 +39,7 @@ vi.mock("@/lib/instrument-resolver", () => ({
 import { addAgentStockToRadar } from "@/lib/agent-intelligence";
 import { addRadarStock, removeRadarStock } from "@/lib/radar-mutations";
 import { POST as trackPost } from "@/app/api/track/route";
+import { POST as askActionPost } from "@/app/api/ask/action/route";
 
 const AAPL_HOLDING = { quantity: 10, average_cost: 150, market_value: null, currency: "USD", source: "manual", updated_at: "2026-01-01" };
 
@@ -129,6 +130,20 @@ describe("adding a stock that is already followed (bug 1)", () => {
     const result = await addAgentStockToRadar("u1", { ticker: "AAPL", market: "US", positionType: "watchlist" });
     expect(result).toMatchObject({ already_tracked: true, position_type: "holding" });
     expect(user().watchlist_holdings).toEqual({ US_AAPL: AAPL_HOLDING });
+  });
+
+  it("Ask's add button says a held stock is already in your stocks and does not count it as added", async () => {
+    const response = await askActionPost(new NextRequest("http://localhost/api/ask/action", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action: "add_to_watchlist", tickers: ["AAPL", "MSFT"] }),
+    }));
+    const body = await response.json();
+    expect(body.results).toEqual([
+      { ticker: "AAPL", ok: true, added: false, message: "Already in your stocks" },
+      { ticker: "MSFT", ok: true, added: true, message: "Added to your watchlist" },
+    ]);
+    expect(user().watchlist_holdings).toMatchObject({ US_AAPL: AAPL_HOLDING });
   });
 
   it("MCP add_to_radar with holding marks a watched stock as held, like the web", async () => {

@@ -2767,6 +2767,40 @@ export async function buildWatchlistView(
   };
 }
 
+/**
+ * Keeps the previous view's written brief (when this build only has the rules fallback) and its event list (when this
+ * build found none), but only for the same set of stocks: after an add or a removal the old brief and events describe
+ * another list, and an emptied list keeps neither. Changes `view` in place.
+ */
+export function keepPreviousWriteUps(
+  view: Pick<WatchlistView, "brief" | "event_radar">,
+  previous: Pick<WatchlistView, "brief" | "event_radar" | "tracked_ids"> | null,
+  trackedStocks: readonly string[],
+  options?: { preserveBriefIfFallback?: boolean; preserveActivityIfThin?: boolean },
+): void {
+  if (!previous || trackedStocks.length === 0) return;
+  const before = new Set(Array.isArray(previous.tracked_ids) ? previous.tracked_ids : []);
+  const sameStocks = before.size === new Set(trackedStocks).size && trackedStocks.every((id) => before.has(id));
+  if (!sameStocks) return;
+  if (
+    options?.preserveBriefIfFallback &&
+    previous.brief &&
+    previous.brief.source &&
+    isLlmBriefSource(previous.brief.source) &&
+    !isLlmBriefSource(view.brief.source)
+  ) {
+    view.brief = previous.brief;
+  }
+  if (
+    options?.preserveActivityIfThin &&
+    Array.isArray(previous.event_radar) &&
+    previous.event_radar.length > 0 &&
+    (!Array.isArray(view.event_radar) || view.event_radar.length === 0)
+  ) {
+    view.event_radar = previous.event_radar;
+  }
+}
+
 export async function rebuildAndSaveWatchlistView(
   uid: string,
   trackedStocks: string[],
@@ -2783,15 +2817,7 @@ export async function rebuildAndSaveWatchlistView(
   const previous = await ref.get();
   const previousData = previous.exists ? (previous.data() as WatchlistView) : null;
   const view = await buildWatchlistView(uid, trackedStocks, positions, isSubscribed, previousData);
-  if (
-    options?.preserveBriefIfFallback &&
-    previousData?.brief &&
-    previousData.brief.source &&
-    isLlmBriefSource(previousData.brief.source) &&
-    !isLlmBriefSource(view.brief.source)
-  ) {
-    view.brief = previousData.brief;
-  }
+  keepPreviousWriteUps(view, previousData, trackedStocks, options);
   if (options?.preserveDirectivesIfMissing && previousData?.rows?.length) {
     const previousById = new Map(previousData.rows.map((row) => [row.instrument_id, row]));
     view.rows = view.rows.map((row) => {
@@ -2812,15 +2838,6 @@ export async function rebuildAndSaveWatchlistView(
         ai_directive_rationale: prev.ai_directive_rationale,
       };
     });
-  }
-  if (
-    options?.preserveActivityIfThin &&
-    previousData &&
-    Array.isArray(previousData.event_radar) &&
-    previousData.event_radar.length > 0 &&
-    (!Array.isArray(view.event_radar) || view.event_radar.length === 0)
-  ) {
-    view.event_radar = previousData.event_radar;
   }
   if (previousData) {
     const historyId = String(previousData.built_at || previousData.updated_at || new Date().toISOString())

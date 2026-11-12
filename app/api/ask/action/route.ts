@@ -12,7 +12,8 @@ export const dynamic = "force-dynamic";
  * the session, never from the request body.
  */
 
-type TickerOutcome = { ticker: string; ok: boolean; message: string };
+/** `added`: this run put the stock on the list (false when it was already there). */
+type TickerOutcome = { ticker: string; ok: boolean; message: string; added?: boolean };
 
 export async function POST(req: NextRequest) {
   const session = await getSessionUser();
@@ -29,7 +30,7 @@ export async function POST(req: NextRequest) {
     for (const ticker of tickers) {
       try {
         const added = await addAgentStockToRadar(session.uid, { ticker, market: "US", positionType: "watchlist" });
-        results.push({ ticker, ok: true, message: added.already_tracked ? "Already in your stocks" : "Added to your watchlist" });
+        results.push({ ticker, ok: true, added: !added.already_tracked, message: added.already_tracked ? "Already in your stocks" : "Added to your watchlist" });
       } catch (error) {
         results.push({ ticker, ok: false, message: error instanceof AgentDataError ? error.message : "Could not add this one" });
       }
