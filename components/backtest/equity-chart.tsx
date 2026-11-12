@@ -39,12 +39,15 @@ export function EquityChart({
   strategyLabel,
   benchmarkLabel,
   unit = "index",
+  note = true,
 }: {
   curve: EquityChartCurve;
   strategyLabel: string;
   benchmarkLabel: string;
   /** "index": growth of 100. "money": account value in dollars. */
   unit?: "index" | "money";
+  /** false drops the line under the chart that says how to read it (the backtest page says it in its read). */
+  note?: boolean;
 }) {
   const wrap = React.useRef<HTMLDivElement>(null);
   const [width, setWidth] = React.useState(760);
@@ -230,11 +233,13 @@ export function EquityChart({
           </p>
         </div>
       ) : null}
+      {note ? (
       <p className="mt-1 text-[12px] leading-5 text-oa-muted-fg">
         {unit === "index"
           ? "Both lines start at 100. The scale is logarithmic, so the same percentage move is the same height anywhere on the chart."
           : "Account value at each close, against the same starting money held in the comparison fund."}
       </p>
+      ) : null}
     </div>
   );
 }

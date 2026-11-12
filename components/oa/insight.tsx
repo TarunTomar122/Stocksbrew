@@ -73,6 +73,7 @@ export function TheRead({
       {read.headline ? (
         <h2 className="max-w-[46rem] text-pretty text-[17px] font-semibold leading-[24px] tracking-[-0.01em] text-oa-fg sm:text-[19px] sm:leading-[26px]">{read.headline}</h2>
       ) : null}
+      {read.headline && read.sub ? <p className="mt-1 max-w-[46rem] text-pretty text-[14px] leading-5 text-oa-muted-fg">{read.sub}</p> : null}
       {visual}
       {read.headline && read.actions?.length ? (
         // Next steps for the headline's own story, in the same link style as the cards. The read's

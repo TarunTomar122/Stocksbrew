@@ -32,7 +32,8 @@ export function StockTallyPanel({
   // One row per company (Alphabet once, not GOOGL and GOOG); the other class is named on the row.
   const { rows: shown, also } = oneRowPerCompany(rows, (row) => row.ticker);
   return (
-    <Panel flush fill label={label} right={right}>
+    // The head count's unit is said once, as the figure column's head, not on every row (owner rule 1).
+    <Panel flush fill label={label} right={right ?? (figure ? undefined : <span className="text-oa-muted-fg">{`${unit[0]!.toUpperCase()}${unit.slice(1)}s`}</span>)}>
       {takeaway ? <p className="border-b border-oa-border px-4 py-2.5 text-pretty text-[14px] leading-5 text-oa-fg">{takeaway}</p> : null}
       {rows.length === 0 ? (
         <p className="px-4 py-4 text-[14px] leading-5 text-oa-muted-fg">{empty}</p>
@@ -55,7 +56,7 @@ export function StockTallyPanel({
                 </div>
                 <div className="text-right">
                   <p className={`${NUM} text-[14px] font-medium ${side === "buy" ? "text-signal-bullish" : "text-signal-bearish"}`}>
-                    {figure ? figure(row) : `${who.length} ${who.length === 1 ? unit : `${unit}s`}`}
+                    {figure ? figure(row) : who.length}
                   </p>
                   {other > 0 ? (
                     <p className={`${NUM} text-[12px] text-oa-muted-fg`}>

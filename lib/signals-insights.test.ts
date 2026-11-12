@@ -95,7 +95,7 @@ describe("reddit", () => {
   it("skips funds when naming the loudest stock and flags crowd-vs-price splits", () => {
     const read = buildRedditRead(names)!;
     // One idea, one number (owner rule 8); the base goes in the source line.
-    expect(read.headline).toBe("87% of Reddit's stock mentions expect prices to fall.");
+    expect(read.headline).toMatch(/^87% of stock mentions on Reddit were bearish, .+ bullish(?: share)?\.$/);
     expect(read.source).toBe("From 31 stock mentions on Reddit");
     // The most-mentioned stock is the first line under it, not part of the headline.
     expect(read.headline).not.toContain("NVDA");
@@ -117,8 +117,13 @@ describe("reddit", () => {
   });
 
   it("says a split crowd with one number", () => {
-    expect(redditHeadline({ bullish: 13, bearish: 17, total: 50 })).toBe("Reddit leans slightly toward a fall, with 34% of stock mentions expecting one.");
-    expect(redditHeadline({ bullish: 10, bearish: 10, total: 50 })).toBe("Reddit is split evenly: 20% of stock mentions expect a rise, and as many a fall.");
+    expect(redditHeadline({ bullish: 13, bearish: 17, total: 50 })).toBe("Reddit leans slightly bearish, with 34% of stock mentions on that side.");
+    expect(redditHeadline({ bullish: 10, bearish: 45, total: 100 })).toBe("45% of stock mentions on Reddit were bearish, more than four times the bullish share.");
+    expect(redditHeadline({ bullish: 20, bearish: 45, total: 100 })).toBe("45% of stock mentions on Reddit were bearish, more than twice the bullish share.");
+    expect(redditHeadline({ bullish: 15, bearish: 44, total: 100 })).toBe("44% of stock mentions on Reddit were bearish, nearly three times the bullish share.");
+    expect(redditHeadline({ bullish: 15, bearish: 45, total: 100 })).toBe("45% of stock mentions on Reddit were bearish, three times the bullish share.");
+    expect(redditHeadline({ bullish: 0, bearish: 45, total: 100 })).toBe("45% of stock mentions on Reddit were bearish, and almost none were bullish.");
+    expect(redditHeadline({ bullish: 10, bearish: 10, total: 50 })).toBe("Reddit is split evenly: 20% of stock mentions were bullish, and as many bearish.");
     expect(redditHeadline({ bullish: 0, bearish: 0, total: 50 })).toBe("Reddit is talking about stocks without leaning either way.");
   });
 });

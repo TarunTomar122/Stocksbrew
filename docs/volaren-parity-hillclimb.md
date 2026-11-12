@@ -185,6 +185,36 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-12 ~02:45 UTC, ship 34 live (29a5047): landing cards that lead with a number, briefing cards that show everything, a tighter stock page (lead, overnight loop)
+
+- **Ship 34 (round 8, from the judges on 31):**
+  - **Landing:** the example portfolio is now stock cards. All 9 "watches" cards lead with a big number (lib/lead-percent.ts; a range dash is not a minus), with no "Show all". The FAQ is printed with no folds.
+  - **Briefing:**
+    - "1 more" is gone: the next update shows on the card face, with "N other updates" only when more are hidden. Reddit talk is a chip, and a chip never repeats the face.
+    - Quiet stocks are an always-visible chip grid in the rail. The rail log has a 21rem minimum and scrolls inside.
+    - Futures columns and headlines listing three or more tickers count as roundups.
+  - **Stock page:**
+    - No small labels.
+    - "What changed" is one-line rows in an ~8-row inner scroll, with 8 in the HTML.
+    - One lock. The long-report link shows only where no lock box does.
+    - earlier-timeline and research/stock-entry are deleted.
+  - **Insiders:** an 8-row inner scroll. The server sends 24 slim rows and the rest after load.
+  - **Signals:** index rows show only when their posts lean bullish or bearish (not mixed).
+  - **My stocks:** agent times are said once when they're equal.
+- **Verified:**
+  - tsc 0, vitest 2796 in both modes, eslint clean
+  - QA qp34: 3 bugs + 1 likely + the rail clip, all fixed
+  - screenshots in scratchpad/round8, qp34
+  - live 6 pages 200; VPS pulled
+- **Judges on live 34** (scratchpad/judge34):
+  - Codex: UI 7, UX 7, usability 6.5, wording 7, agent feel 7, similarity 7, sell 7, overall 7.
+  - Cursor: 6/6/6/6/6, similarity 5, sell 6, overall 6 (down 1).
+  - Both: the insiders table looks blank on first paint (content-visibility), and "1 other update" is still on the briefing.
+  - Also: the Reddit chip on every card, hedgy Reddit summaries as card text, NVDA earnings said twice, example counts differing between the briefing and My stocks, the My stocks rail ending early, funds with no call, JPM phone What changed behind a tab, two headings over the call, Signals wording and Mixed President rows, and wordy FAQ answers. All routed to round 11.
+- **Running:**
+  - round 9 (speed on filings/follow/screener/xray/agents), fixing its QA
+  - round 10 (inbox)
+
 ### 2026-11-12 ~01:40 UTC, ship 33 live (e05a6d0): a briefing that picks real news per stock and says each move once (lead, overnight loop)
 
 - **Ship 33 (round 6 + QA fixes):**

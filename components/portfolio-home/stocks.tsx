@@ -175,7 +175,7 @@ function cellClass(index: number, count: number): string {
 }
 
 /** More cards than this and the list fills the height the side rail sets (see StockList). */
-const FILL_FROM = 6;
+const FILL_FROM = 4;
 
 /** "2 need a look" or nothing: the count of cards whose one thing asks for the person. */
 function needWords(cards: StockCard[]): string | null {
@@ -201,8 +201,12 @@ export async function StockList({ load }: { load: HomeLoad }) {
   if (cards.length === 0) return null;
   const example = book.value.mode === "example";
   const need = needWords(cards);
+  // Held and watched said apart, so the counts agree with the briefing's ("seven you hold and two you watch").
+  const watching = book.value.portfolio.watching.length;
+  const funds = cards.some((card) => card.fund);
+  const noun = cards.length === 1 ? "holding" : "holdings";
   // With more cards than a short rail is tall, the list on a wide screen ends where the rail ends (it fills the space
-  // the row gives it and scrolls inside), keeping at least about six cards in view, so neither column ends far above
+  // the row gives it and scrolls inside), keeping at least about four cards in view, so neither column ends far above
   // the other (owner rule 4). A short list just sits at its own height.
   const fill = cards.length > FILL_FROM;
   const list = (
@@ -219,11 +223,21 @@ export async function StockList({ load }: { load: HomeLoad }) {
   return (
     <section aria-labelledby="stocks-head" className={`min-w-0 ${fill ? "lg:flex lg:flex-1 lg:flex-col" : ""}`}>
       <h2 id="stocks-head" className="px-1 pb-2.5 text-[14.5px] font-semibold leading-5 text-oa-fg">
-        {example ? "The example's" : "Your"} {cards.length} {cards.length === 1 ? "stock" : "stocks"}
+        {example ? "The example's" : "Your"} {cards.length} {noun}
         {need ? <span className="font-normal text-oa-muted-fg"> · {need}</span> : null}
+        {watching > 0 ? (
+          <span className="font-normal text-oa-muted-fg">
+            {" · "}
+            <Link href="/portfolio?tab=watching" prefetch={false} className={`rounded underline decoration-oa-border underline-offset-[3px] hover:text-oa-fg hover:decoration-oa-fg ${FOCUS}`}>
+              {watching} watched
+            </Link>
+          </span>
+        ) : null}
+        {/* Said once for the list, not on each fund's card (owner rule 1). */}
+        {funds ? <span className="font-normal text-oa-muted-fg"> · no calls on funds</span> : null}
       </h2>
       {/* About eight cards in view on a phone, twelve side by side; the rest scroll inside, with no visible bar (owner rule 5). */}
-      {fill ? <div className="relative min-w-0 lg:min-h-[27rem] lg:flex-1">{list}</div> : list}
+      {fill ? <div className="relative min-w-0 lg:min-h-[22rem] lg:flex-1">{list}</div> : list}
     </section>
   );
 }

@@ -439,6 +439,8 @@ export function briefingRead(
   }
 
   let headline = "";
+  /** The line under the headline: the holdings that moved most. */
+  let sub: string | undefined;
   const portfolio = briefing.portfolio ?? null;
   // The holdings headline names its leaders once the insights are known (below): a leader with a card of its own
   // drops its figure, and a Coming up card the read replaces is not a card.
@@ -449,9 +451,20 @@ export function briefingRead(
     // and the example alike.
     const when = earlierSession(portfolio.as_of, briefing.date) || " today";
     const marketPct = options.example && options.marketPct != null && Number.isFinite(options.marketPct) ? options.marketPct : null;
-    // One decimal, like the holdings figure beside it.
-    const baseline = marketPct != null ? `, against ${signed(marketPct)} for the S&P 500` : "";
+    // One idea and one number (owner rule 8): the move against the S&P 500 in words, the movers in the line under it.
+    const move = portfolio.day_change_pct;
+    const verb = Math.abs(move) < 0.05 ? "were flat" : `${move > 0 ? "rose" : "fell"} ${pct(move)}`;
+    const gap = marketPct != null ? Number((Number(move.toFixed(1)) - Number(marketPct.toFixed(1))).toFixed(1)) : null;
+    const baseline =
+      gap === null
+        ? ""
+        : Math.abs(gap) < 0.15
+          ? ", in line with the S&P 500"
+          : `, ${Math.abs(gap).toFixed(1)} ${Math.abs(gap) === 1 ? "point" : "points"} ${gap > 0 ? "better" : "worse"} than the S&P 500`;
+    headline = `Your holdings ${verb}${when}${baseline}.`;
     holdingsLine = (carded) => {
+      // A flat day has no side to name movers on.
+      if (Math.abs(move) < 0.05) return "";
       const leaders = [...held.entries()]
         .filter(([, move]) => Math.sign(move) === direction && Math.abs(move) >= 1)
         .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
@@ -459,7 +472,7 @@ export function briefingRead(
         // A stock with its own card below shows its move there; the headline names it once without the figure (owner
         // rule 1). One in Quiet has no card, so its move stays here.
         .map(([ticker, move]) => (carded.has(ticker) ? ticker : `${ticker} (${signed(move)})`));
-      return `Your holdings are ${direction > 0 ? "up" : "down"} ${pct(portfolio.day_change_pct)}${when}${baseline}${leaders.length ? `; ${joinAnd(leaders)} moved most` : ""}.`;
+      return leaders.length ? `${joinAnd(leaders)} moved most.` : "";
     };
   } else if (decisions.length > 0) {
     const names = decisions.slice(0, 3).map((group) => group.ticker as string);
@@ -532,10 +545,10 @@ export function briefingRead(
   if (holdingsLine) {
     // The cards the page shows: every open section, less the Coming up cards this read's earnings line replaces.
     const shown = [...grouped.needs_you, ...grouped.worth_knowing.slice(0, WORTH_KNOWING_FIRST), ...comingUpAfterRead(grouped.coming_up, readEarningsTickers({ insights }))];
-    headline = holdingsLine(new Set(stockGroups(shown).map((group) => group.key)));
+    sub = holdingsLine(new Set(stockGroups(shown).map((group) => group.key))) || undefined;
   }
   if (!headline && insights.length === 0) return null;
-  return { headline, insights, asOf: options.example ? null : asOf };
+  return { headline, sub, insights, asOf: options.example ? null : asOf };
 }
 
 /** Worth knowing shows this many stocks before "Show all" (re-exported by lib/briefing-anchors.ts). */

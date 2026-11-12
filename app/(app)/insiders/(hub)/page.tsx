@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 
 import { ClusterRows } from "@/components/follow/insider-rows";
 import { InsiderTable } from "@/components/follow/insider-table";
-import { AppPage, CardGrid, PageHead, PageNote, Panel } from "@/components/oa/kit";
+import { AppPage, CardGrid, PageHead, Panel } from "@/components/oa/kit";
 import { TheRead } from "@/components/oa/insight";
 import { StockTallyPanel } from "@/components/follow/stock-tally";
 import { buildInsiderRead } from "@/lib/follow-insights";
@@ -144,7 +144,6 @@ export default async function InsidersPage() {
           {meta ? `SEC Form 4, filed through ${fmtDate(meta.generated_at)}. ` : ""}Not investment advice.
         </p>
       </section>
-      <PageNote lede="Open-market buys and sales by officers, directors and 10% owners, reported within two business days." />
     </AppPage>
   );
 }

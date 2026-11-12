@@ -88,10 +88,6 @@ function CallCard({ row }: { row: ScreenerRow }) {
           {row.call_reason ? <p className="mt-2 text-pretty text-[14px] leading-[1.45rem] text-oa-fg">{plainCallReason(withoutVagueChange(row.call_reason))}</p> : null}
           <p className={`${NUM} mt-2 text-[12px] text-oa-muted-fg`}>
             {row.call_at ? `Call dated ${fmtDay(row.call_at, true)}` : "Call date not on file"}
-            {" · "}
-            <Link prefetch={false} href={`/stock/${encodeURIComponent(row.symbol)}`} className="underline decoration-oa-border underline-offset-2 hover:text-oa-fg">
-              full report
-            </Link>
           </p>
         </>
       ) : (
@@ -168,6 +164,7 @@ export default async function PairPage({ params, searchParams }: Props) {
         range={range}
         viewer={viewer}
         readLabel="What separates them"
+        readCalls={false}
         afterRead={
           <CardGrid cols={2} className="mb-4">
             <CallCard row={first} />

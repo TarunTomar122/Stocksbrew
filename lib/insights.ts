@@ -51,6 +51,8 @@ export type InsightAction = { label: string; href: string };
 export type TheRead = {
   /** The one-line headline of the page's read: "A risk-on morning, led by chips." */
   headline: string;
+  /** One quiet line under the headline: what the headline leaves out to stay one idea ("NVDA and QQQ moved most."). */
+  sub?: string;
   /** The supporting insights, most important first. Three is plenty. */
   insights: Insight[];
   /** Short source and time line, e.g. "412 stories from 38 sources" / an ISO time. */

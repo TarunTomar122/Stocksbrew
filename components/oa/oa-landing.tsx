@@ -33,7 +33,7 @@ import Link from "next/link";
 const FAQS: { q: string; a: React.ReactNode }[] = [
   {
     q: "What is stocksbrew?",
-    a: "A research site that follows US stocks for you. Every market day it reads the filings, earnings reports and news, says why each stock moved and what we would do with it: buy more, keep or sell some.",
+    a: "A research site that follows US stocks for you. Every market day it reads the filings, earnings and news. Then it says why each stock moved and whether we would buy more, keep or sell some.",
   },
   {
     q: "Does it trade for me or hold my money?",
@@ -41,7 +41,7 @@ const FAQS: { q: string; a: React.ReactNode }[] = [
   },
   {
     q: "Where does the information come from, and who writes it?",
-    a: "Prices, financials and filings come from public sources, and headlines link to the original. The explanations and calls are written by AI from those numbers and that news, and a move only gets a reason when a source backs it.",
+    a: "Public prices, financials, SEC filings and news, each linked to the original. AI writes the explanations and calls from them. A move only gets a reason when a source backs it.",
   },
   {
     q: "Is this investment advice?",

@@ -13,21 +13,42 @@ import { getViewer } from "@/lib/entitlements-server";
 import { getScreenerDirectory } from "@/lib/screener";
 import { ogImage } from "@/lib/og/url";
 import { pairSlug } from "@/lib/seo/families";
-import { getCoverage, stockPairs } from "@/lib/seo/family-data";
+import { getCoverage, pairsFor, stockPairs } from "@/lib/seo/family-data";
 import { AppLink } from "@/components/oa/app-link";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
 const BASE = "https://www.stocksbrew.online";
 
+// Pairs people reach for first. The first is the example the desk opens on when the address names no stocks.
 const STARTERS: Array<{ symbols: string[]; why: string }> = [
-  { symbols: ["NVDA", "AMD"], why: "The two AI chip names" },
+  { symbols: ["NVDA", "AMD"], why: "The two AI chip makers" },
   { symbols: ["AAPL", "MSFT", "GOOGL"], why: "Three of the largest companies" },
   { symbols: ["KO", "PEP"], why: "Two dividend staples" },
   { symbols: ["JPM", "BAC", "WFC"], why: "The big banks" },
   { symbols: ["LLY", "NVO"], why: "The weight-loss drug makers" },
   { symbols: ["XOM", "CVX"], why: "The oil majors" },
 ];
+const EXAMPLE = STARTERS[0]!;
+
+/** Overlapping logos and the tickers, for a pair someone might open next. */
+function PairChip({ symbols, href }: { symbols: string[]; href: string }) {
+  return (
+    <AppLink
+      href={href}
+      className="inline-flex h-8 shrink-0 items-center gap-2 rounded-md border border-oa-border bg-oa-card pl-1.5 pr-2.5 text-[13px] text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent"
+    >
+      <span className="flex">
+        {symbols.map((symbol) => (
+          <span key={symbol} className="-ml-1 rounded-full ring-2 ring-oa-card first:ml-0">
+            <StockLogo ticker={symbol} size={18} circle />
+          </span>
+        ))}
+      </span>
+      <span className={`${NUM} font-medium`}>{symbols.join(" vs ")}</span>
+    </AppLink>
+  );
+}
 
 export async function generateMetadata({ searchParams }: { searchParams: SearchParams }): Promise<Metadata> {
   const symbols = legacyCompareSymbols(searchParams);
@@ -68,20 +89,26 @@ export default async function ComparePage({ searchParams }: { searchParams: Sear
   const limit = Math.min(limitFor("compare", viewer.plan), COMPARE_MAX);
   const proLimit = Math.min(limitFor("compare", "pro"), COMPARE_MAX);
   const requested = legacyCompareSymbols(searchParams);
-  const symbols = requested.slice(0, limit);
-  const trimmed = requested.slice(limit);
+  // No stocks in the address: open on a real comparison, marked as an example, instead of an empty form.
+  const example = requested.length === 0;
+  const symbols = example ? EXAMPLE.symbols.slice(0, limit) : requested.slice(0, limit);
+  const trimmed = example ? [] : requested.slice(limit);
   const range = Array.isArray(searchParams.range) ? searchParams.range[0] : searchParams.range;
 
   const directory = await getScreenerDirectory().catch(() => []);
 
   const head = (
     <PageHead
-      label="Explore"
-      title={symbols.length >= 2 ? symbols.join(" vs ") : "Compare stocks"}
-      lede="Two to four stocks side by side, with the best value in each row marked."
-      className={symbols.length >= 2 ? "[&_.oa-head-lede]:hidden" : ""}
-      // The picker view keeps its one line in the head instead of repeating it at the bottom.
-      full={symbols.length < 2}
+      title={example ? "Compare stocks" : symbols.length >= 2 ? symbols.join(" vs ") : "Compare stocks"}
+      lede={
+        example
+          ? `An example to start from: ${symbols.join(" against ")}, ${EXAMPLE.why.charAt(0).toLowerCase()}${EXAMPLE.why.slice(1)}. Swap either name for your own.`
+          : symbols.length < 2
+            ? "Put two to four stocks side by side."
+            : undefined
+      }
+      // The whole lede stays in the head, so no note repeats it at the foot of the page.
+      full
       actions={symbols.length >= 2 ? <div className="max-sm:hidden"><BasketActions symbols={symbols} compareLimit={0} /></div> : undefined}
     />
   );
@@ -92,25 +119,45 @@ export default async function ComparePage({ searchParams }: { searchParams: Sear
   );
 
   if (symbols.length < 2) {
+    // One stock in: its rivals first (the pairs we have pages for), then the usual starters.
+    const one = symbols[0];
+    const rivals = one
+      ? await getCoverage()
+          .then((coverage) => pairsFor(stockPairs(coverage), one).slice(0, 6))
+          .catch(() => [])
+      : [];
+    const options = one
+      ? rivals.length
+        ? rivals.map((pair) => {
+            // The other company's name: the industry would read the same on every card.
+            const other = pair.a === one ? pair.b : pair.a;
+            return { symbols: [one, other], why: directory.find((entry) => entry.symbol === other)?.name ?? "" };
+          })
+        : STARTERS.filter((starter) => !starter.symbols.includes(one)).map((starter) => {
+            const other = starter.symbols[0]!;
+            return { symbols: [one, other], why: directory.find((entry) => entry.symbol === other)?.name ?? "" };
+          })
+      : STARTERS;
     return (
       <AppPage>
         {head}
         {picker}
-        <Panel flush label={symbols.length === 1 ? `Pick a second stock to put next to ${symbols[0]}` : "Start with a pair"}>
-          <ul className="grid sm:grid-cols-2 lg:grid-cols-3">
-            {STARTERS.map((starter) => (
-              <li key={starter.symbols.join()} className="-mb-px -mr-px border-b border-r border-oa-border">
-                <AppLink href={compareHref(starter.symbols.slice(0, limit))} className="flex h-full items-center gap-3 px-4 py-3.5 outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
+        <Panel flush label={one ? `Pick a second stock to put next to ${one}` : "Start with a pair"}>
+          {/* Rows that wrap and stretch, so a last row of one or two fills the width instead of leaving a hole. */}
+          <ul className="flex flex-wrap">
+            {options.map((option) => (
+              <li key={option.symbols.join()} className="-mb-px -mr-px min-w-[15rem] flex-1 basis-1/3 border-b border-r border-oa-border">
+                <AppLink href={compareHref(option.symbols.slice(0, limit))} className="flex h-full items-center gap-3 px-4 py-3.5 outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
                   <span className="flex shrink-0">
-                    {starter.symbols.slice(0, limit).map((symbol) => (
+                    {option.symbols.slice(0, limit).map((symbol) => (
                       <span key={symbol} className="-ml-1.5 rounded-full ring-2 ring-oa-card first:ml-0">
                         <StockLogo ticker={symbol} size={26} circle />
                       </span>
                     ))}
                   </span>
                   <span className="min-w-0">
-                    <span className={`${NUM} block text-[14px] font-medium text-oa-fg`}>{starter.symbols.slice(0, limit).join(" vs ")}</span>
-                    <span className="block text-[13px] text-oa-muted-fg">{starter.why}</span>
+                    <span className={`${NUM} block text-[14px] font-medium text-oa-fg`}>{option.symbols.slice(0, limit).join(" vs ")}</span>
+                    <span className="block truncate text-[13px] text-oa-muted-fg">{option.why}</span>
                   </span>
                 </AppLink>
               </li>
@@ -125,6 +172,14 @@ export default async function ComparePage({ searchParams }: { searchParams: Sear
     <AppPage>
       {head}
       {picker}
+      {example ? (
+        // Other pairs to open in one tap, on one line that scrolls sideways on a phone.
+        <div className="-mt-1 mb-4 flex gap-2 max-sm:-mx-2 max-sm:overflow-x-auto max-sm:px-2 sm:flex-wrap">
+          {STARTERS.slice(1).map((starter) => (
+            <PairChip key={starter.symbols.join()} symbols={starter.symbols.slice(0, limit)} href={compareHref(starter.symbols.slice(0, limit))} />
+          ))}
+        </div>
+      ) : null}
       {trimmed.length > 0 ? (
         <LockCard
           feature="compare"
@@ -134,7 +189,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Sear
           body={`This link names ${requested.length} stocks. Showing ${symbols.join(", ")}; ${trimmed.join(", ")} ${trimmed.length === 1 ? "is" : "are"} left out.`}
         />
       ) : null}
-      <CompareView symbols={symbols} range={range} viewer={viewer} />
+      <CompareView symbols={symbols} range={range} viewer={viewer} cached={example} />
     </AppPage>
   );
 }

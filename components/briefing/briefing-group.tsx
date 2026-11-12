@@ -255,9 +255,8 @@ export function BriefingGroupCard({
       sentence={words.sentence || null}
       extra={expanded ? null : words.more}
       fact={words.fact}
-      // Updates past the two on the face are named only when there are some, so nothing is hidden without a cue
-      // and no card carries a foot it does not need (owner rules 1, 2).
-      foot={expanded ? "Show less" : others.length > 0 ? `${others.length} other ${others.length === 1 ? "update" : "updates"}` : null}
+      // No "N other updates" foot (owner rules 1, 2): the face says the two things worth saying and the card itself opens.
+      foot={expanded ? "Show less" : null}
       muted={settled}
       expanded={expanded}
       fill={fill}

@@ -121,8 +121,8 @@ function BelowBones() {
 /** The lower half while its reads finish: what changed, then the section tabs (below.tsx). */
 export function StockBelowSkeleton() {
   return (
-    // Marked as the "Changes" part, so on a phone it only shows where what changed will appear.
-    <div data-phone-section="changed" className="flex min-w-0 flex-col gap-4" aria-busy="true" aria-label="Loading what changed">
+    // Marked as the "Our view" part, where what changed appears on a phone.
+    <div data-phone-section="view" className="flex min-w-0 flex-col gap-4" aria-busy="true" aria-label="Loading what changed">
       <BelowBones />
     </div>
   );

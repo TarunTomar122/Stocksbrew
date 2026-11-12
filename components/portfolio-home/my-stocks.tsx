@@ -18,13 +18,17 @@ export function MyStocksBody({ load }: { load: HomeLoad }) {
       <Suspense fallback={null}>
         <ExampleLine load={load} />
       </Suspense>
+      {/* How the stocks did, across the page: the stock list then starts level with the rail and takes its height. */}
+      <div className="mb-4 lg:mb-5">
+        <Suspense fallback={<BookLeadGhost />}>
+          <BookLead load={load} />
+        </Suspense>
+      </div>
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_21rem] xl:grid-cols-[minmax(0,1fr)_23rem]">
         {/* Both columns are `contents` on a phone, so their parts join one column in this order. */}
-        {/* The main column stretches to the row, so the stock list can end where the rail ends (./stocks.tsx StockList). */}
+        {/* The main column stretches to the row, so the stock list ends where the rail ends (./stocks.tsx StockList):
+            neither column ends above the other (owner rule 4). */}
         <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-5 lg:self-stretch">
-          <Suspense fallback={<BookLeadGhost />}>
-            <BookLead load={load} />
-          </Suspense>
           <Suspense fallback={<StockListGhost />}>
             <StockList load={load} />
           </Suspense>

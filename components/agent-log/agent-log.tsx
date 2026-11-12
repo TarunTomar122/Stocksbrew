@@ -1,6 +1,7 @@
 import * as React from "react";
 import Link from "next/link";
 
+import { FitRows } from "@/components/agent-log/fit-rows";
 import { Bar } from "@/components/oa/kit/skeleton";
 import { getAgentLog } from "@/lib/agent-log/server";
 import type { AgentLog } from "@/lib/agent-log/types";
@@ -31,6 +32,11 @@ export function agentLogTitle(log: Pick<AgentLog, "when">): string {
 const FIT_CARD = "lg:flex lg:max-h-full lg:min-h-0 lg:flex-col";
 const FIT_LIST = "lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain scrollbar-hide";
 
+/** In a fixed-height rail box the list is cut to whole rows (./fit-rows.tsx); anywhere else it is a plain list. */
+function ListOf({ fit, className, children }: { fit: boolean; className: string; children: React.ReactNode }) {
+  return fit ? <FitRows className={className}>{children}</FitRows> : <ol className={className}>{children}</ol>;
+}
+
 export function AgentLogView({
   log,
   compact = false,
@@ -53,7 +59,7 @@ export function AgentLogView({
         <h2 className="text-[15px] font-semibold leading-6 text-oa-fg">{title}</h2>
         <p className="mt-0.5 text-pretty text-[14px] leading-5 text-oa-muted-fg">{log.lead}</p>
       </header>
-      <ol className={`border-t border-oa-border ${fit ? FIT_LIST : ""}`}>
+      <ListOf fit={fit} className={`border-t border-oa-border ${fit ? FIT_LIST : ""}`}>
         {/* The compact log (home page) leaves out members' own agents: a handful of runs is true but reads small there. */}
         {log.entries.filter((entry) => !(compact && entry.source === "agents")).map((entry) => (
           <li key={entry.source} className="border-b border-oa-border last:border-b-0">
@@ -75,7 +81,7 @@ export function AgentLogView({
             </Link>
           </li>
         ))}
-      </ol>
+      </ListOf>
     </section>
   );
 }

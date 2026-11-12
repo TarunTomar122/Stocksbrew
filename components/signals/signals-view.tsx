@@ -522,7 +522,8 @@ export function TodayTab({
           </>
         ) : null}
         <SeeAll href="/explore#moves">See each move on Market today</SeeAll>.
-        {showPolicy ? null : " The President has not posted about the market lately."}
+        {/* Today lists only posts that lean (lib/signals-shared.ts pickToday): with posts but none leaning, say that. */}
+        {showPolicy ? null : policy.posts.length > 0 ? " The President's latest market posts did not lean either way." : " The President has not posted about the market lately."}
         {showReddit ? null : " Reddit has not said much about stocks lately."}
       </p>
 

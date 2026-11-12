@@ -19,12 +19,22 @@ export type CardWords = {
   more: string | null;
   /** The line `more` comes from, so an opened card lists it with the rest (and the face stops saying it). */
   moreLine: BriefingLine | null;
+  /**
+   * Nothing of its own to say: no sentence, no fact, no next update and nothing more to open. With `chips`, the stock
+   * is a small chip with its move instead of an empty card (owner rule 4).
+   */
+  bare: boolean;
 };
 
 export type SectionWords = {
   cards: Map<string, CardWords>;
   /** An update two or more stocks share, said once for the section ("Our call moved to Keep on AAPL and MSFT."). */
   shared: string[];
+  /**
+   * Reddit's mood on the section's stocks, said once above the cards ("Reddit leaned bearish on NVDA and QQQ, and
+   * bullish on AMD.") instead of a chip on every card (owner rule 1). Null when no stock here has Reddit talk.
+   */
+  talk: string | null;
 };
 
 const DAY_OR_MONTH = /^(?:Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day$|^(?:January|February|March|April|May|June|July|August|September|October|November|December)$/;
@@ -109,8 +119,8 @@ const OWN_WORDS = new Set<BriefingItem["kind"]>(["call_changed", "zone_entered",
 const NO_DISCUSSION_SUMMARY = /^People are posting about it, but we do not have a summary/i;
 
 /**
- * What the Reddit posts say, from the item's summary: each stock's own words, never the "one of the most discussed
- * stocks on Reddit" line that reads the same on every card (owner rule 1). The count and mood go in a chip.
+ * What the Reddit posts say, from the item's summary, for an opened card only. A summary of posts is talk, not a
+ * confirmed story, so it never leads a card face (owner rule 7): the face says the move and nothing else.
  */
 function discussionWords(item: BriefingItem): string {
   const why = item.why.replace(/\s+/g, " ").trim();
@@ -118,11 +128,35 @@ function discussionWords(item: BriefingItem): string {
   return plainCardText(asSentence(firstFullSentence(why)));
 }
 
-/** "Reddit: 11 posts, bearish" from "NVDA is one of the most discussed stocks on Reddit: 11 posts in 5 days, mostly bearish". Short enough for one chip line. */
-export function discussionFact(item: BriefingItem): string | null {
+/** Count and mood of a Reddit item, read from its headline ("… on Reddit: 11 posts in 5 days, mostly bearish"). */
+function discussionCount(item: BriefingItem): { posts: number; days: number; mood: "bullish" | "bearish" | null } | null {
   const match = /(\d+) posts in (\d+) days?(?:, mostly (bullish|bearish))?/i.exec(item.headline);
   if (!match) return null;
-  return match[3] ? `Reddit: ${match[1]} posts, ${match[3].toLowerCase()}` : `Reddit: ${match[1]} posts in ${match[2]} days`;
+  return { posts: Number(match[1]), days: Number(match[2]), mood: match[3] ? (match[3].toLowerCase() as "bullish" | "bearish") : null };
+}
+
+/** "Reddit talk about AMD picked up: 6 posts in 5 days, mostly bullish." The plain words when the talk is the point. */
+function discussionPlain(item: BriefingItem): string {
+  const count = discussionCount(item);
+  if (!count) return "";
+  return `Reddit talk about ${item.ticker} picked up: ${count.posts} posts in ${count.days} days${count.mood ? `, mostly ${count.mood}` : ""}.`;
+}
+
+/** Reddit's mood on a section's stocks, in one sentence. Null when none of them has Reddit talk. */
+export function talkLine(groups: readonly BriefingGroup[]): string | null {
+  const moods = new Map<"bullish" | "bearish" | "none", string[]>();
+  for (const group of groups) {
+    const item = group.items.find((entry) => entry.kind === "discussion_spike");
+    const count = item ? discussionCount(item) : null;
+    if (!count) continue;
+    const key = count.mood ?? "none";
+    moods.set(key, [...(moods.get(key) ?? []), group.ticker ?? group.name]);
+  }
+  if (moods.size === 0) return null;
+  const leaning = (["bearish", "bullish"] as const).filter((mood) => moods.has(mood)).map((mood) => `${mood} on ${joinAnd(moods.get(mood)!)}`);
+  const busy = moods.get("none");
+  if (leaning.length === 0) return `${joinAnd(busy!)} ${busy!.length === 1 ? "was" : "were"} talked about on Reddit, with no clear lean.`;
+  return `Reddit leaned ${leaning.join(", and ")}.${busy ? ` ${joinAnd(busy)} ${busy.length === 1 ? "was" : "were"} talked about with no clear lean.` : ""}`;
 }
 
 /** Reddit talk is the weakest thing a card can lead with: every other line is tried first. */
@@ -135,7 +169,8 @@ function byStrength(lines: readonly BriefingLine[]): BriefingLine[] {
  * other companies in the section, so a headline naming one of them keeps its capitals.
  */
 function lineWords(line: BriefingLine, group: BriefingGroup, names: readonly string[] = []): string {
-  if (!line.decision && line.item.kind === "discussion_spike") return discussionWords(line.item);
+  // Reddit talk is said once for the section (talkLine); on a card only when it is the card's decision, in plain words.
+  if (line.item.kind === "discussion_spike") return line.decision ? discussionPlain(line.item) : "";
   const raw = line.decision ? line.text : moveRowText(line.item, { name: group.name, ticker: group.ticker }, group.day_change_pct);
   // Only words from a source (a headline, a researched reason) are re-cased: our own sentences capitalise the call
   // words on purpose ("Our call moved to Keep").
@@ -148,8 +183,16 @@ function lineWords(line: BriefingLine, group: BriefingGroup, names: readonly str
 
 /** A line's words inside an opened card: its sentence, or for a stock its next step. Empty when it has none. */
 export function rowWords(line: BriefingLine, group: BriefingGroup): string {
+  // Inside an opened card the Reddit line can say what the posts say, plainly marked as talk.
+  if (line.item.kind === "discussion_spike" && !line.decision) {
+    const said = discussionWords(line.item);
+    return said ? `On Reddit: ${said}` : discussionPlain(line.item);
+  }
   return lineWords(line, group) || (group.ticker ? plainCardText(line.item.next_step.trim()) : "");
 }
+
+/** A next step that only points somewhere ("Open AMD to check the latest news", "Read why our call is Keep") is not news. */
+const POINTER = /^(?:Open|Read|Treat)\b/;
 
 /**
  * For a card whose first line is said for the section: the reason behind a changed call, which is the stock's
@@ -210,8 +253,8 @@ function factCandidates(
   personal: boolean,
   above = "",
   results: Readonly<Record<string, string>> = {},
-  /** The sentence is what the Reddit posts say: the chip naming Reddit comes first, so the sentence reads as talk. */
-  fromTalk = false,
+  /** Stocks whose upcoming report the read above names. */
+  readEarnings: ReadonlySet<string> = new Set(),
 ): string[] {
   // What the card says, and what the section said for it above the cards.
   const said = `${above} ${sentence}`.toLowerCase();
@@ -220,14 +263,9 @@ function factCandidates(
   // A held stock that reported overnight: the result is the fact ("Beat by 8%, up 6% today"), ahead of everything.
   const result = personal && group.relation === "holding" && group.ticker ? results[group.ticker.toUpperCase()] : undefined;
   if (result) out.push(result);
-  // Reddit's count and mood, as a chip rather than a sentence that reads the same on every card.
-  const discussion = group.items.find((item) => item.kind === "discussion_spike");
-  const talk = discussion ? discussionFact(discussion) : null;
-  if (talk && !/\breddit\b/.test(said)) {
-    if (fromTalk) out.unshift(talk);
-    else out.push(talk);
-  }
-  const earnings = group.items.find((item) => item.kind === "earnings_upcoming" && item.deadline_days != null && item.deadline_days <= 7);
+  // Reddit's count and mood are said once for the section (talkLine), never as a chip on each card (owner rule 1).
+  // A report the read above already names is not said again on the card (owner rule 1).
+  const earnings = group.items.find((item) => item.kind === "earnings_upcoming" && item.deadline_days != null && item.deadline_days <= 7 && !readEarnings.has(item.ticker));
   if (earnings && !/\b(?:reports?|earnings)\b/.test(said)) {
     const fact = earningsFact(earnings);
     if (fact) out.push(fact);
@@ -256,8 +294,17 @@ function factCandidates(
  */
 export function sectionWords(
   groups: readonly BriefingGroup[],
-  options: { personal: boolean; /** Overnight results on held stocks by ticker (lib/results), the cards' first fact. */ results?: Readonly<Record<string, string>> },
+  options: {
+    personal: boolean;
+    /** Overnight results on held stocks by ticker (lib/results), the cards' first fact. */
+    results?: Readonly<Record<string, string>>;
+    /** Stocks whose upcoming report the read above already names: their cards do not say it again (owner rule 1). */
+    readEarnings?: ReadonlySet<string>;
+  },
 ): SectionWords {
+  const readEarnings = options.readEarnings ?? new Set<string>();
+  // A line the read above already says (a named report) is not a card's to say.
+  const saidAbove = (line: BriefingLine) => line.item.kind === "earnings_upcoming" && !line.decision && readEarnings.has(line.item.ticker);
   const first = new Map<string, { line: BriefingLine | null; sentence: string }>();
   // Every company in the section: a headline that names one keeps its capitals (headlineCase).
   const names = groups.filter((group) => group.ticker).map((group) => group.name).filter(Boolean);
@@ -265,6 +312,7 @@ export function sectionWords(
     let line: BriefingLine | null = null;
     let sentence = "";
     for (const candidate of byStrength(group.lines)) {
+      if (saidAbove(candidate)) continue;
       sentence = lineWords(candidate, group, names);
       if (sentence) {
         line = candidate;
@@ -274,10 +322,12 @@ export function sectionWords(
     // A stock whose only news is a move with no reason: its next step when that is a fact (how far the price is from
     // its level, when it reports). A bare pointer ("Open AMD to check the latest news", "Read why our call is Keep")
     // is not news: the card then shows the move and its one fact, with no sentence (owner, round 6).
-    if (!sentence && group.ticker && group.lines[0]) {
-      line = group.lines[0];
-      const step = levelSentence(plainCardText(group.lines[0].item.next_step.trim()));
-      sentence = /^(?:Open|Read)\b/.test(step) ? "" : step;
+    // Reddit's next step ("Treat it as what people are saying…") is never a card's sentence.
+    const stepLine = group.lines.find((candidate) => candidate.item.kind !== "discussion_spike" && !saidAbove(candidate));
+    if (!sentence && group.ticker && stepLine) {
+      line = stepLine;
+      const step = levelSentence(plainCardText(stepLine.item.next_step.trim()));
+      sentence = POINTER.test(step) ? "" : step;
     }
     first.set(group.key, { line, sentence });
   }
@@ -323,17 +373,18 @@ export function sectionWords(
       sentence = other ? lineWords(other, group, names) : fallback && normal(fallback) !== normal(sentence) ? fallback : "";
       if (other) line = other;
     }
-    // The next update goes on the face. Reddit talk is left to its chip, and nothing the section said above is repeated.
+    // The next update goes on the face. Reddit talk is said once for the section (talkLine), and nothing the section
+    // said above is repeated.
     const above = normal(sharedKeys.get(group.key) ?? "");
     const next = group.lines.find((candidate) => {
-      if (candidate === line || candidate.item.kind === "discussion_spike") return false;
+      if (candidate === line || candidate.item.kind === "discussion_spike" || saidAbove(candidate)) return false;
       const words = normal(lineWords(candidate, group, names));
       return words !== "" && words !== normal(sentence) && words !== above;
     });
     const more = next ? lineWords(next, group, names) : null;
-    cards.set(group.key, { line, sentence, fact: null, more, moreLine: next ?? null });
+    cards.set(group.key, { line, sentence, fact: null, more, moreLine: next ?? null, bare: false });
     // The chip must not repeat the next-update line either ("Reports on Tuesday" under "…reports on Tuesday").
-    facts.set(group.key, factCandidates(group, more ? `${sentence} ${more}` : sentence, options.personal, sharedKeys.get(group.key), options.results, line?.item.kind === "discussion_spike" && !line.decision));
+    facts.set(group.key, factCandidates(group, more ? `${sentence} ${more}` : sentence, options.personal, sharedKeys.get(group.key), options.results, readEarnings));
   }
   // A fact on two or more cards is not news on any of them (owner: no identical badge on several cards).
   const count = new Map<string, number>();
@@ -341,6 +392,13 @@ export function sectionWords(
   for (const group of groups) {
     const words = cards.get(group.key)!;
     words.fact = (facts.get(group.key) ?? []).find((fact) => (count.get(fact) ?? 0) < 2) ?? null;
+    // Bare: nothing on the face, and nothing past Reddit talk, a report the read names or a pointer to open when opened.
+    words.bare =
+      Boolean(group.ticker) &&
+      !words.sentence &&
+      !words.fact &&
+      !words.more &&
+      group.lines.every((line) => line === words.line || line.item.kind === "discussion_spike" || saidAbove(line) || POINTER.test(rowWords(line, group)) || !rowWords(line, group));
   }
-  return { cards, shared };
+  return { cards, shared, talk: talkLine(groups) };
 }

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   POLICY_PAGE_SIZE,
+  readsAsSentence,
   redditHighlight,
   causeLabel,
   classifyMover,
@@ -240,9 +241,12 @@ describe("policy", () => {
     expect(filterPolicy(posts, "named").map((row) => row.id)).toEqual(["c", "a"]);
 
     const now = Date.parse("2026-11-09T00:00:00Z");
-    const pick = pickToday([], [], posts, now);
-    // The recent post that names a company is kept alongside the newest ones, and the result is newest first.
+    const leaning = posts.map((row) => ({ ...row, stance: "bullish" as const }));
+    const pick = pickToday([], [], [...leaning, { ...post("m", "2026-11-08T12:00:00Z", ["IRAN"]), stance: "mixed" }], now);
+    // The recent post that names a company is kept alongside the newest ones, and the result is newest first. A
+    // post that does not lean (mixed, neutral) is left off Today.
     expect(pick.policy.map((row) => row.id)).toEqual(["b", "c", "a"]);
+    expect(pickToday([], [], posts, now).policy).toEqual([]);
     expect(pick.movers).toEqual([]);
     expect(pick.reddit).toEqual([]);
   });
@@ -267,11 +271,27 @@ describe("pickToday", () => {
 
 describe("reddit highlight", () => {
   it("says what is being said in one line: the first catalyst, else the summary's first sentence", () => {
-    expect(redditHighlight({ catalysts: ["board probe into the CEO", "chip export report"], summary: "Long text. More." })).toBe("Board probe into the CEO.");
+    // A stub is skipped for the next line that is a whole sentence (owner rule 8).
+    expect(redditHighlight({ catalysts: ["board probe into the CEO", "chip export report"], summary: "Holders worry about the CEO probe. More." })).toBe("Holders worry about the CEO probe.");
+    expect(redditHighlight({ catalysts: ["Independent board investigation into Jensen Huang"], summary: null })).toBeNull();
+    expect(redditHighlight({ catalysts: ["traders expect the chip export rules to ease"], summary: null })).toBe("Traders expect the chip export rules to ease.");
     expect(redditHighlight({ catalysts: [], summary: "Holders worry about the CEO probe. Some are buying the dip." })).toBe("Holders worry about the CEO probe.");
-    expect(redditHighlight({ catalysts: ["AI capex fears!"], summary: null })).toBe("AI capex fears.");
+    expect(redditHighlight({ catalysts: ["AI capex fears!"], summary: null })).toBeNull();
     expect(redditHighlight({ catalysts: [], summary: null })).toBeNull();
     expect(redditHighlight({ catalysts: ["  "], summary: null })).toBeNull();
   });
 });
 
+
+describe("readsAsSentence", () => {
+  it("tells a sentence from a headline stub", () => {
+    expect(readsAsSentence("Reported U.S. inquiry into alleged chip smuggling and diversion")).toBe(false);
+    expect(readsAsSentence("Independent board investigation into Jensen Huang")).toBe(false);
+    expect(readsAsSentence("Rocket Lab faces near-term execution concerns as Neutron delays overshadow record revenue")).toBe(true);
+    expect(readsAsSentence("Investors debated whether the dip is a buying chance")).toBe(true);
+    expect(readsAsSentence("Holders worry about the CEO probe")).toBe(true);
+    expect(readsAsSentence("Shares jump after record quarter")).toBe(true);
+    expect(readsAsSentence("Earnings call set for May")).toBe(false);
+    expect(readsAsSentence("6.49% prior weekly drop")).toBe(false);
+  });
+});

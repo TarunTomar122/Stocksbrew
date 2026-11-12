@@ -169,8 +169,9 @@ export function ComparePicker({
                       type="button"
                       onClick={() => add(entry.symbol)}
                       onMouseEnter={() => setCursor(index)}
-                      className={`flex w-full items-baseline gap-2.5 px-3 py-1.5 text-left text-[13.5px] outline-none ${index === cursor ? "bg-oa-accent" : ""}`}
+                      className={`flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-[13.5px] outline-none ${index === cursor ? "bg-oa-accent" : ""}`}
                     >
+                      <StockLogo ticker={entry.symbol} size={18} />
                       <span className="oa-mono w-14 shrink-0 font-medium text-oa-fg">{entry.symbol}</span>
                       <span className="min-w-0 truncate text-oa-muted-fg">{entry.name}</span>
                     </button>

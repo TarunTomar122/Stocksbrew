@@ -1,7 +1,7 @@
 import { fmtPlanDay } from "@/lib/dividend-plan";
 import { whenWords } from "@/lib/earnings-season";
 import type { CallWord } from "@/lib/portfolio-ideas/types";
-import type { DailySeries, Portfolio, PortfolioPosition } from "@/lib/portfolio-shared";
+import { FUNDS_SECTOR, type DailySeries, type Portfolio, type PortfolioPosition } from "@/lib/portfolio-shared";
 import type { Verdict } from "@/lib/thesis-watch/rules";
 
 import type { HomeMode } from "./pick";
@@ -109,6 +109,8 @@ export type StockCard = {
   /** "below $180" for Buy more, "above $240" for Sell some, null for Keep or an uncovered stock. */
   level: string | null;
   fact: StockFact | null;
+  /** An index fund: we make no call on it, said once for the list rather than on its card. */
+  fund: boolean;
 };
 
 export type BookLead = {
@@ -314,9 +316,12 @@ export function stockCards(source: BookSource, extra: Pick<BookFacts, "reasons" 
     // Below the call's own reason: its share of the money and how it did over the past month against the S&P 500, so
     // a fund (no call, no report) or a quiet stock still says something real (owner rule 10).
     const month = source.month?.[position.ticker];
+    const fund = position.sector === FUNDS_SECTOR;
     if (month && fin(month.pct)) {
       const said = monthWords(month);
-      facts.push({ kind: "month", text: size ? `${size}, ${said}.` : `${capital(said)}.`, priority: 8 });
+      // A fund's card keeps the same short face as a stock's: its month against the S&P 500, without its share of the
+      // money (owner rule 10), so it reads as one fact rather than a paragraph.
+      facts.push({ kind: "month", text: size && !fund ? `${size}, ${said}.` : `${capital(said)}.`, priority: 8 });
       // A bare "Next report Dec 10." is thin on its own (council, Nov 11): the month goes with it.
       const report = facts.find((fact) => fact.kind === "next-report");
       if (report && facts.every((fact) => fact === report || fact.priority < report.priority)) {
@@ -338,6 +343,7 @@ export function stockCards(source: BookSource, extra: Pick<BookFacts, "reasons" 
       call: call ? PLAIN_CALL[call.call] : null,
       level: callLevel(call, position.price),
       fact: facts[0] ?? null,
+      fund,
     };
   });
   const urgency = (card: StockCard) => (card.fact && card.fact.priority >= ATTENTION ? card.fact.priority : 0);
@@ -362,7 +368,9 @@ export function leadHeadline(input: { pct: number; marketPct: number | null; whe
   const who = input.example ? "The example's stocks" : "Your stocks";
   const move = `${who} ${verb(input.pct)}${input.average ? " on average" : ""} ${input.when}`;
   if (input.marketPct === null) return `${move}.`;
-  const gap = input.pct - input.marketPct;
+  // The gap between the two figures as shown (one decimal each), so "+0.9% · S&P +1.3%" reads as 0.4 points, never 0.5;
+  // the briefing's read says it the same way (lib/briefing-read.ts).
+  const gap = Number((Number(input.pct.toFixed(1)) - Number(input.marketPct.toFixed(1))).toFixed(1));
   if (Math.abs(gap) < IN_LINE_POINTS) return `${move}, in line with the S&P 500.`;
   const points = `${Math.abs(gap).toFixed(1)} ${Math.abs(gap).toFixed(1) === "1.0" ? "point" : "points"}`;
   return `${move}, ${points} ${gap > 0 ? "better" : "worse"} than the S&P 500.`;

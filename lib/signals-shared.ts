@@ -268,10 +268,35 @@ export function redditHighlight(
   /** Today's move by ticker and by the first word of the company's name, for dropping a clause today contradicts. */
   movesToday?: ReadonlyMap<string, number>,
 ): string | null {
-  const said = name.catalysts.find((line) => line.trim()) ?? (name.summary ? firstFullSentence(name.summary) : null);
-  const clean = withoutContradictedClause(said ? said.trim().replace(/[.!]+$/, "") : "", movesToday);
-  // The line keeps its own capitals ("CEO", "AI", "Nvidia"); only the first letter is raised.
-  return clean ? `${clean.charAt(0).toUpperCase()}${clean.slice(1)}.` : null;
+  // A whole sentence or nothing (owner rule 8): a scraped stub ("Independent board investigation into Jensen Huang")
+  // is skipped for the next line that says something, and a line cut down to a stub by the clause rule is too.
+  const candidates = [...name.catalysts, ...(name.summary ? [firstFullSentence(name.summary)] : [])];
+  for (const said of candidates) {
+    const clean = withoutContradictedClause(said ? said.trim().replace(/[.!]+$/, "") : "", movesToday);
+    // The line keeps its own capitals ("CEO", "AI", "Nvidia"); only the first letter is raised.
+    if (clean && readsAsSentence(clean)) return `${clean.charAt(0).toUpperCase()}${clean.slice(1)}.`;
+  }
+  return null;
+}
+
+/** Words that make a line a sentence rather than a headline stub: a verb people would say it with. */
+const VERB =
+  /\b(?:is|are|was|were|be|been|being|has|have|had|will|would|could|can|might|should|must|do|does|did|says?|said|sees?|saw|expects?|thinks?|worr(?:y|ies)|wants?|buys?|sells?|beats?|rose|rises?|fell|falls?|argues?|warns?|gets?|got|makes?|made|keeps?|looks?|seems?|lost|loses?|won|drives?|lifts?|pushes?|faces?|jumps?|surges?|soars?|plunges?|rall(?:y|ies)|climbs?|drops?|gains?|raises?|reports?|announces?|misses|slides?|sinks?|sank|tumbles?|slumps?|cuts?|trims?|adds?|boosts?|signs?|wins|launches|delays?)\b/i;
+
+/** Past participles a headline uses as adjectives ("Reported inquiry", "alleged smuggling"): not a verb on their own. */
+const ADJECTIVE_ED = /^(?:alleged|reported|expected|unexpected|planned|proposed|related|based|limited|united|rumored|rumoured|added|renewed|increased|reduced|continued|mixed|advanced|detailed|elevated|extended|sustained)$/i;
+
+/** At least four words and a verb: "Holders worry about the CEO probe" yes, "Board probe into the CEO" no. */
+export function readsAsSentence(text: string): boolean {
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  if (words.length < 4) return false;
+  // A known verb anywhere, or a past tense after the first word that is not one of the headline adjectives.
+  // A verb at the very end is usually a noun in a stub ("6.49% prior weekly drop"), so the last word does not count.
+  if (VERB.test(words.slice(0, -1).join(" "))) return true;
+  return words.slice(1).some((word) => {
+    const bare = word.replace(/[^A-Za-z]/g, "");
+    return /^[a-z]{3,}ed$/.test(bare) && !ADJECTIVE_ED.test(bare);
+  });
 }
 
 const FELL = /^(?:declined|declines|fell|falls|dropped|drops|slid|slides|sank|sinks|slumped|slumps|tumbled|tumbles|weakened)$/i;
@@ -485,8 +510,11 @@ export type TodayPick = { movers: Mover[]; unexplained: Mover[]; reddit: RedditN
  * moves nobody could explain, the names Reddit is loudest about, and the
  * newest policy posts (those that name a company first when they are recent).
  */
-export function pickToday(movers: Mover[], reddit: RedditName[], policy: PolicyPost[], now: number): TodayPick {
+export function pickToday(movers: Mover[], reddit: RedditName[], all: PolicyPost[], now: number): TodayPick {
   const bySize = filterMovers(movers, "all");
+  // Only posts that lean one way, as with the Reddit list's index funds: a "Mixed" or neutral post says nothing about
+  // the market on Today (Cursor, round 11). The policy tab still lists every post.
+  const policy = all.filter((post) => post.stance === "bullish" || post.stance === "bearish");
   const recentNamed = policy.filter((post) => post.names.length > 0 && now - Date.parse(post.publishedAt) <= 7 * 86_400_000);
   const newest = filterPolicy(policy, "all");
   const picked: PolicyPost[] = [];

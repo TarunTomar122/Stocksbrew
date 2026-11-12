@@ -188,26 +188,43 @@ describe("Reddit talk and the next update on the card face (round 8)", () => {
     });
   const news = (ticker: string, headline: string) => item({ id: `news-${ticker}`, kind: "news", ticker, severity: "low", headline: `News on ${ticker}: ${headline}` });
 
-  it("never leads two cards with the same Reddit boilerplate: each says what its posts say, the count goes in a chip", () => {
+  it("never puts a summary of Reddit posts on a card face: talk is not a confirmed story (owner rule 7)", () => {
     const groups = groupBriefingItems([
       talk("QQQ", 4, "bearish", "QQQ is described as having bounced after a severe decline. Bears remain in control."),
       talk("AMD", 6, "bullish", "AMD is being positioned as a beneficiary of Nvidia's weakness. Some call it a long-term pick."),
     ]);
     const words = sectionWords(groups, { personal: true });
     const by = (ticker: string) => words.cards.get(groups.find((group) => group.ticker === ticker)!.key)!;
-    expect(by("QQQ").sentence).toBe("QQQ is described as having bounced after a severe decline.");
-    expect(by("AMD").sentence).toBe("AMD is being positioned as a beneficiary of Nvidia's weakness.");
-    expect(by("QQQ").fact).toBe("Reddit: 4 posts, bearish");
-    expect(by("AMD").fact).toBe("Reddit: 6 posts, bullish");
+    expect(by("QQQ").sentence).toBe("");
+    expect(by("AMD").sentence).toBe("");
+    // No Reddit chip on each card (owner rule 1): the mood is said once for the section.
+    expect(by("QQQ").fact ?? "").not.toMatch(/Reddit/);
+    expect(by("AMD").fact ?? "").not.toMatch(/Reddit/);
+    // Nothing left to say: each is a chip with its move rather than an empty card.
+    expect(by("QQQ").bare).toBe(true);
+    expect(by("AMD").bare).toBe(true);
+    expect(words.talk).toBe("Reddit leaned bearish on QQQ, and bullish on AMD.");
     expect(words.shared).toEqual([]);
   });
 
-  it("leads with the news over Reddit talk, and keeps Reddit to its chip rather than a second line", () => {
+  it("leads with the news, and says Reddit's mood once for the section", () => {
     const groups = groupBriefingItems([talk("NVDA", 11, "bearish", "Nvidia is under pressure from board scrutiny."), news("NVDA", "Nvidia and Alphabet agreed to buy Anthropic stock")]);
-    const card = sectionWords(groups, { personal: true }).cards.get(groups[0]!.key)!;
+    const words = sectionWords(groups, { personal: true });
+    const card = words.cards.get(groups[0]!.key)!;
     expect(card.sentence).toBe("Nvidia and Alphabet agreed to buy Anthropic stock.");
     expect(card.more).toBeNull();
-    expect(card.fact).toBe("Reddit: 11 posts, bearish");
+    expect(card.fact ?? "").not.toMatch(/Reddit/);
+    expect(card.bare).toBe(false);
+    expect(words.talk).toBe("Reddit leaned bearish on NVDA.");
+  });
+
+  it("does not say a report the read already names", () => {
+    const groups = groupBriefingItems([news("NVDA", "Nvidia and Alphabet agreed to buy Anthropic stock"), earnings("NVDA", "on Tuesday after the close", 6)]);
+    const plain = sectionWords(groups, { personal: true }).cards.get(groups[0]!.key)!;
+    expect(`${plain.sentence} ${plain.more ?? ""} ${plain.fact ?? ""}`).toMatch(/[Rr]eports/);
+    const card = sectionWords(groups, { personal: true, readEarnings: new Set(["NVDA"]) }).cards.get(groups[0]!.key)!;
+    expect(card.sentence).toBe("Nvidia and Alphabet agreed to buy Anthropic stock.");
+    expect(`${card.more ?? ""} ${card.fact ?? ""}`).not.toMatch(/[Rr]eports/);
   });
 
   it("puts the stock's next update on the face instead of an 'N more' fold", () => {

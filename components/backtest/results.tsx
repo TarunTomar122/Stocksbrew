@@ -175,7 +175,18 @@ export function StatGrid({
   );
 }
 
-export function YearTable({ years, benchmarkLabel, strategyLabel = "Strategy" }: { years: YearRow[]; benchmarkLabel: string; strategyLabel?: string }) {
+export function YearTable({
+  years,
+  benchmarkLabel,
+  strategyLabel = "Strategy",
+  bars = true,
+}: {
+  years: YearRow[];
+  benchmarkLabel: string;
+  strategyLabel?: string;
+  /** false drops the bar column, which only repeats the numbers beside it. */
+  bars?: boolean;
+}) {
   const rows = [...years].reverse();
   const scale = Math.max(0.05, ...years.map((row) => Math.max(Math.abs(row.strategy), Math.abs(row.benchmark))));
   return (
@@ -187,7 +198,7 @@ export function YearTable({ years, benchmarkLabel, strategyLabel = "Strategy" }:
             <th className="oa-caption px-2 py-2 text-right">{strategyLabel}</th>
             <th className="oa-caption px-2 py-2 text-right">{benchmarkLabel}</th>
             <th className="oa-caption px-3.5 py-2 text-right">Gap</th>
-            <th className="hidden w-[28%] min-w-[6rem] px-3.5 py-2 sm:table-cell" aria-hidden="true" />
+            {bars ? <th className="hidden w-[28%] min-w-[6rem] px-3.5 py-2 sm:table-cell" aria-hidden="true" /> : null}
           </tr>
         </thead>
         <tbody>
@@ -203,6 +214,7 @@ export function YearTable({ years, benchmarkLabel, strategyLabel = "Strategy" }:
                 <td className={`oa-mono px-2 text-right tabular-nums ${toneOf(row.strategy)}`}>{signedPct(row.strategy)}</td>
                 <td className="oa-mono px-2 text-right tabular-nums text-oa-muted-fg">{signedPct(row.benchmark)}</td>
                 <td className={`oa-mono px-3.5 text-right tabular-nums ${toneOf(gap)}`}>{signedPct(gap)}</td>
+                {bars ? (
                 <td className="hidden px-3.5 sm:table-cell" aria-hidden="true">
                   <div className="relative h-2">
                     <div className="absolute inset-y-0 left-1/2 w-px bg-oa-border" />
@@ -212,6 +224,7 @@ export function YearTable({ years, benchmarkLabel, strategyLabel = "Strategy" }:
                     />
                   </div>
                 </td>
+                ) : null}
               </tr>
             );
           })}
@@ -267,7 +280,8 @@ export function Panel({
 }
 
 /** The biases that flatter a result, in one short line. The order follows the caveat catalogue. */
-const BIAS_IDS = new Set(["hindsight_picks", "survivorship", "partial_index", "estimated_size", "short_record", "late_start", "costs", "no_costs"]);
+export const BIAS_ORDER = ["hindsight_picks", "survivorship", "partial_index", "estimated_size", "short_record", "late_start", "costs", "no_costs"];
+const BIAS_IDS = new Set(BIAS_ORDER);
 
 export function CaveatLine({ caveats, className = "" }: { caveats: Caveat[]; className?: string }) {
   const titles = caveats.filter((caveat) => BIAS_IDS.has(caveat.id)).map((caveat) => caveat.title.replace(/\.$/, ""));

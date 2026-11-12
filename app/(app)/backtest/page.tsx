@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-
 import { BacktestWorkbench, type Preset } from "@/components/backtest/backtest-workbench";
 import { interTight } from "@/components/oa/font";
-import { PageHead, PageNote } from "@/components/oa/kit";
+import { PageHead } from "@/components/oa/kit";
 import { OaSiteHeader } from "@/components/oa/oa-site-header";
 import { PAGE_FRAME } from "@/components/strategies/shared";
 import { getSessionUser } from "@/lib/auth-server";
@@ -11,7 +9,9 @@ import { loadPriceSeries } from "@/lib/backtest";
 import { earliestBacktestStart, runGatedBacktest, type GatedBacktestResponse } from "@/lib/backtest/gated";
 import { can } from "@/lib/entitlements";
 import { getViewer } from "@/lib/entitlements-server";
-import { parseSetup, type BacktestSetup } from "@/lib/backtest/setup";
+import { EXAMPLE_MIX, getExampleBacktest } from "@/lib/backtest/example";
+import { EXAMPLE_MIXES } from "@/lib/backtest/examples";
+import { DEFAULT_SETUP, parseSetup, setupHref, type BacktestSetup } from "@/lib/backtest/setup";
 import { getStrategy, listStrategies } from "@/lib/strategies";
 import { getUserDoc, type UserDoc } from "@/lib/watchlist";
 import { ogImage } from "@/lib/og/url";
@@ -45,7 +45,10 @@ function watchlistHoldings(userDoc: UserDoc | null): { symbol: string; weight: n
 }
 
 export default async function BacktestPage({ searchParams }: { searchParams: Query }) {
+  // The example needs nothing from the visitor, so it starts at once and is awaited only if the address names no mix.
+  const examplePending = getExampleBacktest();
   const session = await getSessionUser();
+  const viewer = await getViewer();
   const [strategies, userDoc, spy] = await Promise.all([
     listStrategies().catch(() => []),
     session ? getUserDoc(session.uid).catch(() => null) : Promise.resolve(null),
@@ -62,7 +65,7 @@ export default async function BacktestPage({ searchParams }: { searchParams: Que
   if (setup.holdings.length === 0 && strategySlug) {
     const strategy = await getStrategy(strategySlug).catch(() => null);
     // Loading a strategy's basket shows what it holds now, which is part of Pro.
-    const seesHoldings = can("strategy_holdings", (await getViewer()).plan);
+    const seesHoldings = can("strategy_holdings", viewer.plan);
     if (strategy && !seesHoldings) {
       notice = `What ${strategy.name} holds now is part of Pro. Its own backtest is on the strategy page, free.`;
     } else if (strategy && strategy.basket.holdings.length > 0) {
@@ -88,37 +91,47 @@ export default async function BacktestPage({ searchParams }: { searchParams: Que
     }
   }
 
-  const response: GatedBacktestResponse | null = setup.holdings.length > 0 ? await runGatedBacktest(setup) : null;
+  // Nothing asked for: open on a real example run instead of an empty form. It runs outside the daily allowance.
+  const exampleRun = setup.holdings.length === 0 && !strategySlug && !fromWatchlist ? await examplePending : null;
+  if (exampleRun) setup = exampleRun.setup;
+  const response: GatedBacktestResponse | null = exampleRun
+    ? { ok: true, result: exampleRun.run, gate: { plan: viewer.plan, trialEligible: viewer.trialEligible, meter: null, lookback: null } }
+    : setup.holdings.length > 0
+      ? await runGatedBacktest(setup)
+      : null;
 
-  const presets: Preset[] = [];
+  // The first example is the page's own (no mix in the address); the others open as ordinary links.
+  const presets: Preset[] = EXAMPLE_MIXES.map((mix, index) => ({
+    href: index === 0 ? "/backtest" : setupHref({ ...DEFAULT_SETUP, holdings: mix.holdings }),
+    label: mix.label,
+    group: "Examples",
+  }));
+  // An example opened by its link shows as picked.
+  if (!activePreset && !exampleRun) activePreset = presets.find((preset) => preset.href === setupHref(setup))?.href ?? "";
   if (mine.length > 0) presets.push({ href: "/backtest?watchlist=1", label: `My watchlist (${mine.length} stocks)`, group: "Yours" });
   // Today's baskets are part of Pro, so below Pro they are not offered as presets.
-  const presetBaskets = can("strategy_holdings", (await getViewer()).plan);
+  const presetBaskets = can("strategy_holdings", viewer.plan);
   for (const item of presetBaskets ? strategies : []) {
     if (item.holdings > 0) presets.push({ href: `/backtest?strategy=${item.slug}`, label: `${item.name} (${item.holdings})`, group: "Today's strategy baskets" });
   }
 
   const dates = spy.SPY?.dates ?? [];
   // The form says how far back it can go; on a limited plan that is the plan's lookback, not ours.
-  const earliest = earliestBacktestStart((await getViewer()).plan);
+  const earliest = earliestBacktestStart(viewer.plan);
   const firstDate = dates[0] ? (earliest && earliest > dates[0] ? earliest : dates[0]) : null;
 
-  const lede = (
-    <>
-      Pick tickers and weights, a period and how often to rebalance. The test runs on stored daily closes and comes back with the caveats
-      attached. The link in your address bar carries the whole setup, so you can share a run. Looking for rules instead of a fixed mix? See{" "}
-      <Link href="/strategies" className="text-oa-fg underline decoration-oa-border underline-offset-4 hover:decoration-oa-primary">
-        strategies
-      </Link>
-      .
-    </>
-  );
+  const lede = "Test a mix of US stocks and funds on past prices, against the market.";
+  if (exampleRun) {
+    activePreset = "/backtest";
+    // Said in the workbench, so it goes away once you run a mix of your own.
+    notice = `An example to start from: ${EXAMPLE_MIX.words}. Change the mix to test your own.`;
+  }
 
   return (
     <main className={`oa-landing ${interTight.variable} min-w-0 flex-grow overflow-x-clip`}>
       <OaSiteHeader />
       <div className={PAGE_FRAME}>
-        <PageHead note={false} title="Backtest a mix" lede={lede} />
+        <PageHead note={false} full title="Backtest a mix" lede={lede} />
         <BacktestWorkbench
           key={JSON.stringify(setup)}
           initialSetup={setup}
@@ -126,10 +139,10 @@ export default async function BacktestPage({ searchParams }: { searchParams: Que
           presets={presets}
           notice={notice}
           activePreset={activePreset}
+          example={Boolean(exampleRun)}
           firstDate={firstDate}
           lastDate={dates[dates.length - 1] ?? null}
         />
-        <PageNote lede={lede} ledeInHead />
       </div>
     </main>
   );

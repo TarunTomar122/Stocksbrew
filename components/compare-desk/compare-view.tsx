@@ -2,13 +2,13 @@ import * as React from "react";
 
 import { LockCard, ProMark } from "@/components/oa/gate";
 import { TheRead } from "@/components/oa/insight";
-import { NUM, Panel, ShowMore, Ticker, ToneGlyph, fmtMoney } from "@/components/oa/kit";
+import { NUM, Panel, Ticker, fmtMoney } from "@/components/oa/kit";
 import { BasketActions } from "@/components/screener/basket-actions";
 import { LINE_COLORS } from "@/components/screener/controls";
 import { OverlayChart, type OverlayRange } from "@/components/screener/overlay-chart";
 import { CallTag, EarningsDate, MarkSlot, Unknown, ZoneTag, fieldHasMark, fieldMark } from "@/components/screener/shared";
 import { StockLogo } from "@/components/stock-logo";
-import { getCompareData } from "@/lib/compare";
+import { getCompareData, getCompareDataCached } from "@/lib/compare";
 import { buildCompareRead } from "@/lib/compare-insights";
 import { buildCompareTable, describeDifferences, tallyWins, type CompareTableGroup } from "@/lib/compare-shared";
 import { redactLevels } from "@/lib/entitlements";
@@ -18,6 +18,7 @@ import { withoutZones, type ScreenerRow } from "@/lib/screener-shared";
 import { plainCallReason, shortCompanyName, wholeSentences } from "@/lib/plain-copy";
 import Link from "next/link";
 import { FREE_COVERED_WORD } from "@/lib/paywall-flag";
+import { joinNames } from "@/lib/insight-format";
 
 /**
  * The compare desk's body for two to four stocks: the read, the rebased price
@@ -65,7 +66,7 @@ function NumberRows({ group, rows }: { group: CompareTableGroup; rows: ReadonlyA
                       !marked && cell.tone === "up" ? "text-signal-bullish" : !marked && cell.tone === "down" ? "text-signal-bearish" : "text-oa-fg"
                     } ${cell.best ? "font-semibold" : ""}`}
                   >
-                    {cell.best ? <span aria-label="best in this row" title="Best in this row" className="size-1.5 rounded-full bg-oa-primary" /> : null}
+                    {cell.best ? <span className="sr-only">Best in this row: </span> : null}
                     {cell.text}
                     {marked ? <MarkSlot tone={fieldMark(row.id, cell.value, rows[index] ?? undefined)} /> : null}
                   </span>
@@ -85,6 +86,8 @@ export async function CompareView({
   viewer,
   readLabel,
   afterRead,
+  readCalls = true,
+  cached = false,
 }: {
   symbols: string[];
   range?: string;
@@ -93,8 +96,12 @@ export async function CompareView({
   readLabel?: string;
   /** Shown right under the read. */
   afterRead?: React.ReactNode;
+  /** false when the page shows our call on each stock on its own, so the read does not repeat it. */
+  readCalls?: boolean;
+  /** Read the pair as one cached piece (the desk's example, which every visit to /compare opens on). */
+  cached?: boolean;
 }) {
-  const [data, benchmarkRows] = await Promise.all([getCompareData(symbols), getScreenerRows(["SPY"]).catch(() => new Map<string, ScreenerRow>())]);
+  const [data, benchmarkRows] = await Promise.all([cached ? getCompareDataCached([...symbols]).catch(() => getCompareData(symbols)) : getCompareData(symbols), getScreenerRows(["SPY"]).catch(() => new Map<string, ScreenerRow>())]);
   // The call is open to everyone; price zones only on stocks this viewer covers.
   const rows: Array<ScreenerRow | null> = data.rows.map((row) => (row && !canSeeLevels(viewer, row.symbol) ? withoutZones(row) : row));
   const groups = buildCompareTable(rows);
@@ -105,6 +112,8 @@ export async function CompareView({
     rows,
     benchmark: benchmarkRows.get("SPY") ?? null,
     asOf: rows.find((row) => row?.price_at)?.price_at ?? null,
+    spread: true,
+    calls: readCalls,
   });
   const span = symbols.length + 1;
   const zonesLocked = viewer.plan !== "pro" && data.rows.some((row, index) => row?.zone && !rows[index]?.zone);
@@ -146,6 +155,8 @@ export async function CompareView({
       : brief ? { ...brief, locked: false as const } : brief,
   );
   const pair = symbols.length === 2;
+  // Said once under the briefs, not on every card (owner rule 1).
+  const lockedBriefs = symbols.filter((_, index) => briefs[index]?.locked);
 
   return (
     <>
@@ -197,7 +208,7 @@ export async function CompareView({
                 <div key={symbol} className="-mb-px -mr-px min-w-0 border-b border-r border-oa-border p-4">
                   <div className="mb-2 flex flex-wrap items-center gap-2">
                     <span aria-hidden="true" className="size-2 rounded-full" style={{ background: LINE_COLORS[index % LINE_COLORS.length] }} />
-                    <Ticker symbol={symbol} size={18} />
+                    <Ticker symbol={symbol} size={20} />
                     <CallTag call={row?.call} />
                   </div>
                   {brief ? (
@@ -217,14 +228,6 @@ export async function CompareView({
                           <span className="text-oa-fg">Main risk:</span> {brief.risk}
                         </p>
                       ) : null}
-                      {brief.locked ? (
-                        <p className="mt-2 text-pretty text-[13px] leading-5 text-oa-muted-fg">The prices where we&apos;d act and the whole brief are in the full report on {symbol}, free on {FREE_COVERED_WORD} stocks you pick.</p>
-                      ) : null}
-                      <p className={`${NUM} mt-2.5 text-[11px] text-oa-muted-fg`}>
-                        <Link prefetch={false} href={`/stock/${encodeURIComponent(symbol)}`} className="underline decoration-oa-border underline-offset-2 hover:text-oa-fg">
-                          full report
-                        </Link>
-                      </p>
                     </>
                   ) : (
                     <p className="text-[13.5px] leading-5 text-oa-muted-fg">No brief on {symbol} yet.</p>
@@ -234,40 +237,32 @@ export async function CompareView({
             })}
           </div>
         </div>
+        {lockedBriefs.length > 0 ? (
+          <p className="border-t border-oa-border px-4 py-2.5 text-pretty text-[13px] leading-5 text-oa-muted-fg">
+            The prices where we&apos;d act and the whole brief on {joinNames(lockedBriefs)} are in each stock&apos;s full report, free on {FREE_COVERED_WORD} stocks you pick.
+          </p>
+        ) : null}
       </Panel>
         );
         const tablePanel = (
-      <Panel
-        flush
-        label="All the numbers"
-        right={
-          <span className="inline-flex items-center gap-3 max-sm:hidden">
-            <span className="inline-flex items-center gap-1.5">
-              <span className="size-1.5 rounded-full bg-oa-primary" /> best in the row
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <ToneGlyph tone="up" decorative />
-              <ToneGlyph tone="down" decorative />
-              <span className="ml-0.5">good or bad on its own</span>
-            </span>
-          </span>
-        }
-      >
-        <div className="overflow-x-auto">
+      <Panel flush fill={pair} className={pair ? "xl:flex-1" : ""} label="All the numbers, the better one in bold">
+        {/* About eight rows tall and scrolls inside (no visible bar), with the stocks pinned on top so every row stays
+            readable. Beside the pair's words on a wide screen it takes the height the words leave, so neither column ends early. */}
+        <div className={`relative max-h-[27rem] overflow-auto overscroll-contain ${pair ? "xl:max-h-none xl:min-h-[22rem] xl:flex-1 xl:[contain:size]" : ""}`}>
           <table className="w-full border-collapse max-sm:table-fixed" style={{ minWidth: `${7 + symbols.length * 6.5}rem` }}>
             <thead>
               <tr>
-                <th scope="col" className="sticky left-0 z-[1] w-[36%] bg-oa-card px-4 py-3 text-left align-bottom sm:w-[28%]">
+                <th scope="col" className="sticky left-0 top-0 z-[3] w-[36%] bg-oa-card shadow-[inset_0_-1px_0_var(--oa-border)] px-4 py-3 text-left align-bottom sm:w-[28%]">
                   <span className="sr-only">Measure</span>
                 </th>
                 {symbols.map((symbol, index) => {
                   const row = rows[index];
                   return (
-                    <th key={symbol} scope="col" className="px-2 py-3 text-right align-bottom font-normal sm:px-3">
+                    <th key={symbol} scope="col" className="sticky top-0 z-[2] bg-oa-card px-2 shadow-[inset_0_-1px_0_var(--oa-border)] py-3 text-right align-bottom font-normal sm:px-3">
                       <Link prefetch={false} href={`/stock/${encodeURIComponent(symbol)}`} className="group inline-flex flex-col items-end gap-1 outline-none">
                         <span className="inline-flex items-center gap-2">
-                          <span aria-hidden="true" className="size-2 rounded-full" style={{ background: LINE_COLORS[index % LINE_COLORS.length] }} />
-                          <span className="max-sm:hidden"><StockLogo ticker={symbol} size={22} /></span>
+                          <span aria-hidden="true" className="size-2 rounded-full max-sm:hidden" style={{ background: LINE_COLORS[index % LINE_COLORS.length] }} />
+                          <StockLogo ticker={symbol} size={20} />
                           <span className={`${NUM} text-[15px] font-medium text-oa-fg group-hover:underline group-focus-visible:underline`}>{symbol}</span>
                         </span>
                         <span className="max-w-[5.75rem] text-pretty text-right text-[12.5px] leading-4 text-oa-muted-fg sm:max-w-[11rem]">{row?.name ? shortCompanyName(row.name) : "Not covered"}</span>
@@ -381,18 +376,14 @@ export async function CompareView({
         return pair ? (
           // Desktop: chart and table lead on the left, the words support on the right.
           // Phone: chart, the short answer, the table, then the briefs.
-          <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.75fr)_minmax(0,1fr)] xl:gap-5">
+          <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.75fr)_minmax(0,1fr)] xl:items-stretch xl:gap-5">
             <div className="flex min-w-0 flex-col gap-4 max-xl:contents xl:gap-5">
               <div className="min-w-0 max-xl:order-1">{chartPanel}</div>
-              <div className="min-w-0 max-xl:order-3">
-                <ShowMore label="Show all the numbers side by side">{tablePanel}</ShowMore>
-              </div>
+              <div className="min-w-0 max-xl:order-3 xl:flex xl:min-h-0 xl:flex-1 xl:flex-col">{tablePanel}</div>
             </div>
             <div className="flex min-w-0 flex-col gap-4 max-xl:contents xl:gap-5">
               <div className="min-w-0 max-xl:order-2">{separatesPanel}</div>
-              <div className="min-w-0 max-xl:order-4">
-                <ShowMore label="Show what our research says about each">{briefsPanel}</ShowMore>
-              </div>
+              <div className="min-w-0 max-xl:order-4">{briefsPanel}</div>
             </div>
           </div>
         ) : (

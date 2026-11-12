@@ -16,7 +16,7 @@ import { TheRead } from "@/components/oa/insight";
 import { packChartRanges, type CallWord, type ChartRange, type PackedChartRanges } from "@/lib/stock-chart";
 
 import { AlertControls, type SuggestedAlert } from "./alert-controls";
-import { callMeaning } from "./call-line";
+import { callHeading, callMeaning } from "./call-line";
 import { capTier, compactMoney, daysBetween, fin, fmtDate, fmtStamp, levelFormatter, moneyFormatter, relativeDays, signedPct } from "./format";
 import { PricePanel, type PanelZone } from "./price-panel";
 import { LockIcon, Missing, MoreLink, NUM, Panel, PROSE, Tag, TONE_COLOR, type Tone } from "./primitives";
@@ -392,9 +392,10 @@ export function StockReport({
   };
   const callWord = ready?.call ? (CALL_PLAIN[ready.call as keyof typeof CALL_PLAIN] ?? ready.call) : null;
   const callAction = ready ? plainAction(ready.actionLabel, ready.call) : null;
-  // The chip carries the call word; the line says what it means, going on from the chip when the plain action starts
-  // with the word ("[Buy more] on a dip, not here"), so the call is never said twice (./call-line.ts).
+  // One heading: the call word, toned, inside the sentence that says what it means ("[Buy more] on a dip, not at
+  // today's price."), so the call is said once (./call-line.ts). `meaning` is the line when there is no call word.
   const meaning = callMeaning(callWord, callAction);
+  const callHeadline = callWord ? callHeading(callWord, callAction) : null;
   // What would change the call, set apart from the reasons so it reads as the conditions to watch.
   const changeBlock = (lines: string[]) => (
     // Capped on a wide screen so the box never widens the price column at the call's expense.
@@ -427,13 +428,17 @@ export function StockReport({
 
   const stats = headerStats.length ? <KeyStats items={headerStats} /> : null;
   // On a phone the page below the chart is one part at a time (PhoneSections).
+  // Signed out, the lock's "Sign in" is the one next step under the call (owner rule 1): no alerts box beside it,
+  // since setting an alert needs the same account. Follow stays (on a phone, in its own part).
+  const anon = data.gate.plan === "anon";
   const phoneSections = [
-    // Short enough that all five fit across a phone, so none is cut at the edge.
+    // Short enough that all of them fit across a phone, so none is cut at the edge. What changed is in "Our view",
+    // so its rows are on the first screen without tapping a chip (owner rule 2).
     { id: "view", label: "Our view" },
-    { id: "changed", label: "Changes" },
     ...(stats ? [{ id: "facts", label: "Facts" }] : []),
     ...(hasReport ? [{ id: "report", label: "Report" }] : []),
-    { id: "alerts", label: "Alerts" },
+    // Signed out there are no alerts to set: Follow sits at the foot of the read on a phone, not behind a chip.
+    ...(anon ? [] : [{ id: "alerts", label: "Alerts" }]),
   ];
 
   return (
@@ -497,22 +502,24 @@ export function StockReport({
                   ) : null}
                   {ready ? (
                     <>
-                      {/* The call in a word ("Sell some"), then what it means ("Don't buy more at this price"). */}
-                      <p className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1">
-                        {callWord ? (
+                      {/* One heading (owner rule 6): the call word, toned, inside the sentence that says what it means
+                          ("Buy more on a dip, not at today's price."), never a small chip over a second heading. */}
+                      {callWord ? (
+                        <h2 className="mt-1.5 text-pretty text-[17px] font-medium leading-7 tracking-tight text-oa-fg">
                           <span
-                            className="inline-flex h-7 items-center whitespace-nowrap rounded-md px-2.5 text-[15px] font-semibold"
+                            className="whitespace-nowrap rounded-md px-1.5 py-0.5 font-semibold [box-decoration-break:clone]"
                             style={{
                               color: callTone ? TONE_COLOR[callTone] : "var(--oa-fg)",
                               background: `color-mix(in srgb, ${callTone ? TONE_COLOR[callTone] : "var(--oa-fg)"} 12%, transparent)`,
                             }}
                           >
-                            {callWord}
+                            {callHeadline!.word}
                           </span>
-                        ) : null}
-                        {callWord && meaning ? " " : null}
-                        {meaning ? <span className="text-pretty text-[17px] font-medium leading-6 tracking-tight text-oa-fg">{meaning}</span> : null}
-                      </p>
+                          {callHeadline!.rest}
+                        </h2>
+                      ) : meaning ? (
+                        <h2 className="mt-1.5 text-pretty text-[17px] font-medium leading-6 tracking-tight text-oa-fg">{meaning}</h2>
+                      ) : null}
                       {/* How long the call has stood (a call that keeps its date is one you can hold us to) and when we last
                           looked at it again: the brief is rewritten, and the call decided, at that time. */}
                       {callDates ? <p className="mt-1.5 text-pretty text-[13px] leading-[18px] text-oa-muted-fg">{callDates}</p> : null}
@@ -652,7 +659,9 @@ export function StockReport({
         {/* ── follow and alerts: in the page's one column, after the read. No side rail: a rail that ended halfway
             down the page left an empty column beside the rest (owner rule 4). Follow lives in the header from sm up,
             so on a phone it sits here, once; Compare is the panel at the foot of the page, once (owner rule 1). ── */}
-        <aside data-phone-section="alerts" className="order-3 flex min-w-0 flex-col gap-4">
+        {/* Signed out there are no alerts to set: only the phone's Follow is left, at the end of the read (the header has
+            Follow from sm up, so the aside is gone there and leaves no gap of its own). */}
+        <aside data-phone-section={anon ? undefined : "alerts"} className={`flex min-w-0 flex-col gap-4 ${anon ? "order-5 sm:hidden" : "order-3"}`}>
           <div className="oa-track-outline flex flex-col gap-2 sm:hidden [&_button]:w-full">
             <TrackButton
               ticker={stock.ticker}
@@ -665,6 +674,7 @@ export function StockReport({
             />
             <p className="px-1 text-[12.5px] leading-4 text-oa-muted-fg">Stocks you follow show up in your briefing.</p>
           </div>
+          {anon ? null : (
           <Panel label={`Alerts on ${stock.ticker} by email`}>
             <AlertControls
               wide
@@ -676,6 +686,7 @@ export function StockReport({
               earnings={nextEarnings && earningsLabel && earningsIn != null && earningsIn >= 0 ? { eventDate: nextEarnings.event_date, label: earningsLabel, shortLabel: fmtDate(nextEarnings.event_date, false) } : null}
             />
           </Panel>
+          )}
           {/* No Ask link here (owner rule 1): the shell's Ask is the page's one Ask, and this tells it the stock. */}
           {askStock ? <AskPageHint context={formatAskContext(askStock)} /> : null}
         </aside>

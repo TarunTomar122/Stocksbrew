@@ -130,3 +130,17 @@ export async function getCompareData(symbols: readonly string[]): Promise<Compar
     chart,
   };
 }
+
+/**
+ * The same, kept for five minutes as one finished piece (rows, briefs and the rebased chart). The desk's example
+ * pair opens on every visit to /compare, so it should not rebuild the chart each time; the parts underneath are
+ * cached on their own clocks already.
+ */
+async function getCompareDataWhole(symbols: string[]): Promise<CompareData> {
+  const data = await getCompareData(symbols);
+  // getCompareData turns a failed read into empty columns; a half-empty answer is thrown here, not cached for five minutes.
+  if (data.rows.some((row) => row === null) || data.chart.ranges.length === 0) throw new Error("compare data incomplete");
+  return data;
+}
+
+export const getCompareDataCached = unstable_cache(getCompareDataWhole, ["compare-data-v2"], { revalidate: 300 });

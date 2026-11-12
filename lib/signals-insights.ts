@@ -382,12 +382,24 @@ export function oneCardPerStock(items: Array<Insight | null | undefined | false>
 export function redditHeadline(mood: { bullish: number; bearish: number; total: number }): string {
   const bearShare = sharePct(mood.bearish, mood.total) ?? 0;
   const bullShare = sharePct(mood.bullish, mood.total) ?? 0;
-  if (bearShare >= bullShare + 15) return `${bearShare}% of Reddit's stock mentions expect prices to fall.`;
-  if (bullShare >= bearShare + 15) return `${bullShare}% of Reddit's stock mentions expect prices to rise.`;
+  // Mentions do not expect anything; the posts behind them lean one way (Codex, round 11). The comparison is the
+  // other side, said in words so the headline keeps one number.
+  const against = (lead: number, other: number, otherWord: string): string => {
+    if (other === 0) return `, and almost none were ${otherWord}`;
+    // In words that stay true: 44% against 15% is "nearly three times", 45% against 10% "more than four times".
+    const ratio = lead / other;
+    const whole = Math.floor(ratio);
+    const left = ratio - whole;
+    const [hedge, times] = left >= 0.75 ? ["nearly ", whole + 1] : left > 0.1 ? ["more than ", whole] : ["", whole];
+    if (times >= 2) return `, ${hedge}${times === 2 ? "twice" : `${countWord(times).toLowerCase()} times`} the ${otherWord} share`;
+    return `, well ahead of the ${otherWord} share`;
+  };
+  if (bearShare >= bullShare + 15) return `${bearShare}% of stock mentions on Reddit were bearish${against(bearShare, bullShare, "bullish")}.`;
+  if (bullShare >= bearShare + 15) return `${bullShare}% of stock mentions on Reddit were bullish${against(bullShare, bearShare, "bearish")}.`;
   if (bearShare === 0 && bullShare === 0) return "Reddit is talking about stocks without leaning either way.";
-  if (bearShare === bullShare) return `Reddit is split evenly: ${bullShare}% of stock mentions expect a rise, and as many a fall.`;
+  if (bearShare === bullShare) return `Reddit is split evenly: ${bullShare}% of stock mentions were bullish, and as many bearish.`;
   const fall = bearShare > bullShare;
-  return `Reddit leans slightly toward a ${fall ? "fall" : "rise"}, with ${fall ? bearShare : bullShare}% of stock mentions expecting one.`;
+  return `Reddit leans slightly ${fall ? "bearish" : "bullish"}, with ${fall ? bearShare : bullShare}% of stock mentions on that side.`;
 }
 
 export function buildRedditRead(names: RedditName[], asOf: string | null = null): TheRead | null {

@@ -21,7 +21,7 @@ export function StockReportBelow({ data, extras }: { data: ReportData; extras: R
   const today = todayET(Number.isFinite(Date.parse(nowIso)) ? Date.parse(nowIso) : Date.now());
   const sectionData = toSectionData(data, extras);
   const available = sectionAvailability(sectionData);
-  // The same test report.tsx uses for the phone's "Report" chip. Without the chip, the tabs join the "Changes" part.
+  // The same test report.tsx uses for the phone's "Report" chip. Without the chip, the tabs join the "Our view" part.
   const reportChip = Object.values(sectionAvailability(toSectionData(data, NO_EXTRAS))).some(Boolean);
   const railSections = (Object.keys(SECTION_LABELS) as SectionId[])
     .filter((id) => available[id])
@@ -36,7 +36,7 @@ export function StockReportBelow({ data, extras }: { data: ReportData; extras: R
 
   return (
     <>
-      <div data-phone-section="changed" className="min-w-0">
+      <div data-phone-section="view" className="min-w-0">
         <Panel id="changed" label="What changed" className="scroll-mt-16 lg:scroll-mt-4">
           {extras.timeline.upcoming.length ? (
             <div className="border-b border-oa-border bg-oa-bg">
@@ -63,7 +63,7 @@ export function StockReportBelow({ data, extras }: { data: ReportData; extras: R
 
       {/* The deeper report, one part at a time: the order matches SECTION_LABELS. */}
       {railSections.length ? (
-        <div data-phone-section={reportChip ? "report" : "changed"} className="min-w-0">
+        <div data-phone-section={reportChip ? "report" : "view"} className="min-w-0">
           <ReportSections sections={railSections} data={sectionData} />
         </div>
       ) : null}

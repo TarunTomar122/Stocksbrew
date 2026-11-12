@@ -594,12 +594,18 @@ export function buildInsiderRead(input: {
       : null;
 
   const insights = pickInsights([first, multi ?? chiefInsight, balance]);
-  const lead = many[0] ?? tallies.find((row) => row.buyers.length >= 2) ?? null;
-  const parts: string[] = [];
-  if (pace?.hotSector) parts.push(`${sectorWord(pace.hotSector.sector).replace(/^./, (c) => c.toUpperCase())} insiders are buying at an unusual pace`);
-  else if (first?.id === "insider-pace") parts.push(first.text.split(":")[0]);
-  if (lead) parts.push(`${plural(lead.buyers.length, "insider")} bought ${lead.ticker} in two weeks`);
-  const headline = parts.length > 0 ? `${parts.join("; ")}.` : "";
+  // The stock most insiders bought: the first in the tally (most buyers first), not the multi card's, which skips it.
+  const top = tallies.find((row) => row.buyers.length >= 2) ?? null;
+  // One idea and one number (owner rule 8): the unusual pace when there is one, else the stock most insiders bought.
+  // The other facts sit in the cards underneath.
+  const sector = pace?.hotSector ? sectorWord(pace.hotSector.sector).replace(/^./, (c) => c.toUpperCase()) : "";
+  const headline = pace?.hotSector
+    ? `${sector} insiders made ${plural(pace.hotSector.recent, "buy")} in two weeks, far more than their usual pace.`
+    : first?.id === "insider-pace" && pace
+      ? `${first.text.split(":")[0]}, with ${plural(pace.recent, "open-market buy")} in two weeks.`
+      : top
+        ? `${plural(top.buyers.length, "insider")} bought ${top.ticker} in two weeks, the most of any stock.`
+        : "";
   return { headline, insights, source: "Insiders' own filings at the SEC, open-market buys and sells", tallies };
 }
 

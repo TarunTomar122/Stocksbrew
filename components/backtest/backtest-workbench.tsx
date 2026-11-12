@@ -14,24 +14,22 @@ import {
   setupHref,
   type BacktestSetup,
 } from "@/lib/backtest/setup";
+import { EXAMPLE_MIXES } from "@/lib/backtest/examples";
 import type { WeightsRebalance } from "@/lib/backtest/types";
 
 import { EquityChart } from "./equity-chart";
-import { longDay, plainPct, signedPct, toneOf, yearsWords } from "./format";
+import { longDay, plainPct, signedPct, toneOf } from "./format";
 import { TheRead } from "@/components/oa/insight";
-import { buildBacktestRead } from "@/lib/backtest-insights";
+import { START_MONEY, buildBacktestRead } from "@/lib/backtest-insights";
+import type { Caveat } from "@/lib/backtest/types";
 
-import { CaveatLine, Panel, ResultLead, StatGrid, YearTable } from "./results";
+import { BIAS_ORDER, Panel, StatGrid, YearTable } from "./results";
 import { trackBacktestRun, trackLimitHit } from "@/lib/product-analytics";
 
 type Row = { id: number; symbol: string; weight: string };
 export type Preset = { href: string; label: string; group: string };
 
-const EXAMPLES: { label: string; rows: [string, number][] }[] = [
-  { label: "60% stocks, 40% bonds", rows: [["SPY", 60], ["TLT", 40]] },
-  { label: "Five big tech names", rows: [["AAPL", 20], ["MSFT", 20], ["NVDA", 20], ["AMZN", 20], ["GOOGL", 20]] },
-  { label: "Stocks, bonds and gold", rows: [["SPY", 50], ["IEF", 30], ["GLD", 20]] },
-];
+const EXAMPLES = EXAMPLE_MIXES.map((mix) => ({ label: mix.label, rows: mix.holdings.map((item): [string, number] => [item.symbol, item.weight]) }));
 
 const FIELD =
   "h-9 w-full min-w-0 rounded-md border border-oa-border bg-oa-page px-2.5 text-[14px] text-oa-fg outline-none placeholder:text-oa-muted-fg focus:border-oa-primary";
@@ -41,41 +39,86 @@ function makeRows(holdings: { symbol: string; weight: number }[]): Row[] {
   return holdings.map((item) => ({ id: nextId++, symbol: item.symbol, weight: String(Math.round(item.weight * 100) / 100) }));
 }
 
-function ResultView({ run }: { run: BacktestRun }) {
+/** The biases that apply to this run, as one plain sentence next to the result. */
+function caveatSentence(caveats: Caveat[], example: boolean): string {
+  const titles = BIAS_ORDER.map((id) => caveats.find((caveat) => caveat.id === id))
+    // The example is a decades-old rule of thumb, not tickers picked for how they did, so the hindsight warning is the user's own runs only.
+    .filter((caveat): caveat is Caveat => Boolean(caveat) && !(example && caveat!.id === "hindsight_picks"))
+    .map((caveat) => caveat.title.replace(/\.$/, ""));
+  const rest = titles.map((title) => title.charAt(0).toLowerCase() + title.slice(1)).join("; ");
+  return `A replay of past prices, not real trades${rest ? `: ${rest}` : ""}.`;
+}
+
+/** Holdings as cards: the logo, its own return big, and how its share of the mix moved. Rows fill edge to edge. */
+function HoldingCards({ run }: { run: BacktestRun }) {
+  return (
+    <div className="max-h-[22rem] overflow-y-auto overscroll-contain p-3">
+      <ul className="flex flex-wrap gap-2">
+        {run.holdings.map((holding) => (
+          <li key={holding.symbol} className="min-w-[7.75rem] flex-1 basis-[calc(33.333%-0.5rem)]">
+            {/* Not a link: funds such as TLT or GLD have no stock page. */}
+            <div className="h-full rounded-md border border-oa-border bg-oa-bg px-3 py-2.5">
+            <span className="inline-flex items-center gap-1.5 text-[13.5px] font-medium text-oa-fg">
+              <StockLogo ticker={holding.symbol} size={20} />
+              <span className="oa-mono">{holding.symbol}</span>
+            </span>
+            <p className={`oa-mono mt-1.5 text-[20px] font-medium leading-7 tabular-nums ${toneOf(holding.total_return)}`}>{signedPct(holding.total_return, 0)}</p>
+            <p className="oa-mono text-[12.5px] tabular-nums text-oa-muted-fg">
+              {plainPct(holding.weight, 0)} of the mix, {plainPct(holding.end_weight, 0)} at the end
+            </p>
+            {holding.last_price_date && holding.last_price_date < run.period.end ? (
+              <p className="mt-0.5 text-[12px] text-oa-muted-fg">Last price {longDay(holding.last_price_date)}</p>
+            ) : null}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function ResultView({ run, example }: { run: BacktestRun; example: boolean }) {
   const benchmark = run.input.benchmark;
   const s = run.summary.strategy;
   const b = run.summary.benchmark;
-  const perYear = s.annualized_return !== null;
-  const read = React.useMemo(() => buildBacktestRead({ ...run, benchmark }), [run, benchmark]);
+  const read = React.useMemo(() => {
+    const base = buildBacktestRead({ ...run, benchmark }, example ? "the 60/40 mix" : "this mix");
+    // The hindsight caveat sits right under the number it qualifies, as one sentence.
+    return { ...base, sub: caveatSentence(run.caveats, example), source: `Prices through ${longDay(run.price_as_of)}` };
+  }, [run, benchmark, example]);
+  // The chart in money: what $10,000 became on each day, in the mix and in the comparison fund. The thinned curve
+  // can skip the first day, so the start (the $10,000 itself) is put back, or the legend's change would not match the read.
+  const curve = React.useMemo(() => {
+    const money = (value: number) => (value * START_MONEY) / 100;
+    const head = run.curve.dates[0] && run.curve.dates[0] > run.period.start;
+    return {
+      dates: head ? [run.period.start, ...run.curve.dates] : run.curve.dates,
+      strategy: [...(head ? [START_MONEY] : []), ...run.curve.strategy.map(money)],
+      benchmark: [...(head ? [START_MONEY] : []), ...run.curve.benchmark.map(money)],
+      dd_strategy: [...(head ? [0] : []), ...run.curve.dd_strategy],
+      dd_benchmark: [...(head ? [0] : []), ...run.curve.dd_benchmark],
+    };
+  }, [run.curve, run.period.start]);
   return (
     <div className="flex min-w-0 flex-col gap-4">
       <TheRead read={read} askContext={false} />
-      <ResultLead
-        perYear={perYear}
-        years={yearsWords(run.period.years)}
-        ret={perYear ? s.annualized_return : s.total_return}
-        benchRet={perYear ? b.annualized_return : b.total_return}
-        benchmarkLabel={benchmark}
-        worstFall={s.max_drawdown}
-        start={run.period.start}
-        end={run.period.end}
+      <Panel
+        title={`What $10,000 became, ${longDay(run.period.start)} to ${longDay(run.period.end)}`}
         aside={
-          <a href="#mix" className="mt-1 inline-block text-oa-primary underline underline-offset-2 lg:hidden">
+          <a href="#mix" className="text-oa-primary underline underline-offset-2 lg:hidden">
             Change the mix
           </a>
         }
       >
-        <div className="border-t border-oa-border px-4 py-3">
-          <EquityChart curve={run.curve} strategyLabel="Your mix" benchmarkLabel={benchmark} />
+        <div className="px-4 py-3">
+          <EquityChart curve={curve} strategyLabel={example ? "60/40 mix" : "Your mix"} benchmarkLabel={benchmark} unit="money" note={false} />
         </div>
         {run.limited_by ? (
-          <div className="border-t border-oa-border px-4 py-3">
-            <p className="max-w-[78ch] text-[14px] leading-[22px] text-oa-fg">
-              The test starts on {longDay(run.period.start)} because {run.limited_by.symbol} has no price before then.
-            </p>
-          </div>
+          <p className="max-w-[78ch] border-t border-oa-border px-4 py-3 text-[14px] leading-[22px] text-oa-fg">
+            The test starts on {longDay(run.period.start)} because {run.limited_by.symbol} has no price before then.
+          </p>
         ) : null}
-      </ResultLead>
+      </Panel>
 
       <StatGrid
         headline={false}
@@ -89,51 +132,20 @@ function ResultView({ run }: { run: BacktestRun }) {
       />
 
       <div className="grid gap-4 xl:grid-cols-2">
-        <Panel title="Year by year" aside="Backtested">
-          <YearTable years={run.years} benchmarkLabel={benchmark} strategyLabel="Your mix" />
-        </Panel>
-        <Panel title="What each holding did" aside={`${longDay(run.period.start)} to ${longDay(run.period.end)}`}>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[20rem] border-collapse text-[13px]">
-              <thead>
-                <tr className="border-b border-oa-border text-left">
-                  <th className="oa-caption px-3.5 py-2">Ticker</th>
-                  <th className="oa-caption px-2 py-2 text-right">Weight</th>
-                  <th className="oa-caption px-2 py-2 text-right">At the end</th>
-                  <th className="oa-caption px-3.5 py-2 text-right">Own return</th>
-                </tr>
-              </thead>
-              <tbody>
-                {run.holdings.map((holding) => (
-                  <tr key={holding.symbol} className="h-9 border-b border-oa-border last:border-0 hover:bg-oa-accent">
-                    <td className="oa-mono px-3.5 font-medium text-oa-fg">
-                      <span className="inline-flex items-center gap-1.5 align-middle">
-                        <StockLogo ticker={holding.symbol} size={16} />
-                        {holding.symbol}
-                      </span>
-                      {holding.last_price_date && holding.last_price_date < run.period.end ? (
-                        <span className="ml-1.5 font-sans text-[11px] font-normal text-oa-muted-fg">last price {longDay(holding.last_price_date)}</span>
-                      ) : null}
-                    </td>
-                    <td className="oa-mono px-2 text-right tabular-nums text-oa-fg">{plainPct(holding.weight)}</td>
-                    <td className="oa-mono px-2 text-right tabular-nums text-oa-muted-fg">{plainPct(holding.end_weight)}</td>
-                    <td className={`oa-mono px-3.5 text-right tabular-nums ${toneOf(holding.total_return)}`}>{signedPct(holding.total_return)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <Panel title="Year by year">
+          {/* About eight years tall; older years scroll inside. */}
+          <div className="max-h-[21rem] overflow-y-auto overscroll-contain">
+            <YearTable years={run.years} benchmarkLabel={benchmark} strategyLabel={example ? "60/40" : "Your mix"} bars={false} />
           </div>
-          <p className="border-t border-oa-border px-3.5 py-2 text-[12px] leading-5 text-oa-muted-fg">
+        </Panel>
+        <Panel title="What each holding did">
+          <HoldingCards run={run} />
+          <p className="border-t border-oa-border px-3.5 py-2 text-[12.5px] leading-5 text-oa-muted-fg">
             {run.turnover.rebalances === 0
               ? "Never rebalanced, so the end weights show how far the mix drifted."
               : `Reset to the target weights ${run.turnover.rebalances} times. Trading costs took about ${(run.costs.total_drag * 100).toFixed(1)}% in total.`}
           </p>
         </Panel>
-      </div>
-
-      <div className="px-2 sm:px-0">
-        <CaveatLine caveats={run.caveats} />
-        <p className="text-[12.5px] leading-5 text-oa-muted-fg">Prices through {longDay(run.price_as_of)}. Research, not advice.</p>
       </div>
     </div>
   );
@@ -147,6 +159,7 @@ export function BacktestWorkbench({
   activePreset,
   firstDate,
   lastDate,
+  example = false,
 }: {
   initialSetup: BacktestSetup;
   initialResponse: GatedBacktestResponse | null;
@@ -156,6 +169,8 @@ export function BacktestWorkbench({
   activePreset: string;
   firstDate: string | null;
   lastDate: string | null;
+  /** The page opened on its example run (no mix in the address). */
+  example?: boolean;
 }) {
   const [rows, setRows] = React.useState<Row[]>(() =>
     initialSetup.holdings.length > 0 ? makeRows(initialSetup.holdings) : [{ id: nextId++, symbol: "", weight: "" }],
@@ -166,6 +181,10 @@ export function BacktestWorkbench({
   const [benchmark, setBenchmark] = React.useState(initialSetup.benchmark);
   const [cost, setCost] = React.useState(String(initialSetup.cost_bps));
   const [response, setResponse] = React.useState<GatedBacktestResponse | null>(initialResponse);
+  // Still showing the page's example, until the first run of your own.
+  const [showingExample, setShowingExample] = React.useState(example);
+  // Which ready-made mix the form shows as picked; a run of your own clears it.
+  const [preset, setPreset] = React.useState(activePreset);
   const [formError, setFormError] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [copied, setCopied] = React.useState(false);
@@ -225,6 +244,8 @@ export function BacktestWorkbench({
       });
       if (!body.ok && body.error.code === "limit_reached") trackLimitHit({ feature: "backtest", plan: body.gate.plan, limit: body.gate.meter?.limit ?? null, code: "limit_reached" });
       setResponse(body);
+      setShowingExample(false);
+      if (!override) setPreset("");
       const href = setupHref(setup);
       setShareHref(href);
       window.history.replaceState(null, "", href);
@@ -288,8 +309,9 @@ export function BacktestWorkbench({
             <select
               id="bt-preset"
               className={`${FIELD} mt-1`}
-              defaultValue={activePreset}
+              value={preset}
               onChange={(event) => {
+                setPreset(event.target.value);
                 if (event.target.value) window.location.href = event.target.value;
               }}
             >
@@ -360,9 +382,6 @@ export function BacktestWorkbench({
               Equal weights
             </OaButton>
           </div>
-          <p className="mt-2 text-[12.5px] leading-[18px] text-oa-muted-fg">
-            Weights are scaled to add up to 100%. US stocks and funds only.
-          </p>
         </div>
 
         <div className="grid grid-cols-2 gap-x-2 gap-y-2.5 border-t border-oa-border px-3.5 py-2.5">
@@ -397,13 +416,10 @@ export function BacktestWorkbench({
           <label className="min-w-0">
             <span className="oa-caption">Cost per trade</span>
             <span className="relative mt-1 block">
-              <input className={`${FIELD} oa-mono pr-9 text-right tabular-nums`} inputMode="numeric" value={cost} onChange={(event) => setCost(event.target.value.replace(/[^0-9]/g, ""))} />
+              <input title="10 bps is 0.1% of each trade" className={`${FIELD} oa-mono pr-9 text-right tabular-nums`} inputMode="numeric" value={cost} onChange={(event) => setCost(event.target.value.replace(/[^0-9]/g, ""))} />
               <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[12px] text-oa-muted-fg">bps</span>
             </span>
           </label>
-          <p className="col-span-2 text-[12.5px] leading-[18px] text-oa-muted-fg">
-            Leave the dates empty to use all history{firstDate ? `, back to ${longDay(firstDate)}` : ""}. 10 bps is 0.1% of each trade.
-          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 border-t border-oa-border px-3.5 py-2.5">
@@ -424,7 +440,7 @@ export function BacktestWorkbench({
       </form>
 
       <div ref={resultRef} className="min-w-0 scroll-mt-16">
-        {notice ? (
+        {notice && !(example && !showingExample) ? (
           <p className="mb-4 max-w-[78ch] rounded-md border border-oa-border bg-oa-bg px-3.5 py-2.5 text-[14px] leading-[22px] text-oa-fg">{notice}</p>
         ) : null}
         {response === null ? (
@@ -456,7 +472,7 @@ export function BacktestWorkbench({
           </div>
         ) : response.ok ? (
           <>
-            <ResultView run={response.result} />
+            <ResultView run={response.result} example={showingExample} />
             <div className="mt-3 flex flex-col gap-2">
               {response.gate.lookback ? (
                 <LockCard

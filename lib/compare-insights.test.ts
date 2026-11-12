@@ -55,5 +55,18 @@ describe("compare read", () => {
     expect(winnerClauses([{ symbol: "A", fwd_pe: 20, rev_growth: 10, op_margin: 30 }, { symbol: "B", fwd_pe: 21, rev_growth: 11, op_margin: 31 }])).toEqual([]);
     expect(joinClauses([{ text: "A is cheaper", symbols: ["A"] }])).toBe("A is cheaper.");
   });
-});
 
+  it("mixes the strongest difference, the year and the calls on the desk", () => {
+    const read = buildCompareRead({ rows: [NVDA, AMD], benchmark: SPY, spread: true });
+    expect(read?.headline).toBe("NVDA keeps more of each sale as profit, grows faster and costs less for its profit.");
+    expect(read?.insights.map((item) => item.id)).toEqual(["diff-margin", "year", "calls"]);
+  });
+
+  it("swaps the call for the price against each stock's own past when the calls show on their own", () => {
+    const read = buildCompareRead({ rows: [{ ...NVDA, pe_hist_pctile: 0 }, { ...AMD, pe_hist_pctile: 23 }], benchmark: SPY, spread: true, calls: false });
+    expect(read?.insights.map((item) => item.id)).toEqual(["diff-margin", "year", "history"]);
+    const history = read?.insights[2];
+    expect(history?.text).toBe("NVDA is cheaper against its own earnings history than AMD: 0 out of 100, where 0 is the cheapest it has been, against 23.");
+    expect(history?.figure).toEqual({ value: "0 of 100" });
+  });
+});

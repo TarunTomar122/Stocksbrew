@@ -173,7 +173,7 @@ export function InsiderRow({
       : "";
   return (
     <li
-      className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 px-4 py-2 [contain-intrinsic-size:auto_52px] [content-visibility:auto] md:min-h-[44px] md:py-1.5 ${showSide ? TRADE_GRID : TRADE_GRID_ONE_SIDE}`}
+      className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 px-4 py-2 md:min-h-[44px] md:py-1.5 ${showSide ? TRADE_GRID : TRADE_GRID_ONE_SIDE}`}
     >
       <span
         className="oa-mono order-3 col-span-2 text-[11.5px] text-oa-muted-fg md:order-none md:col-span-1 md:text-[12px]"
@@ -261,7 +261,7 @@ export function InsiderGroupRow({ group, showSide = true, logoAtOnce = true }: {
   const tone = buy ? UP : DOWN;
   return (
     <li
-      className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 px-4 py-2 [contain-intrinsic-size:auto_52px] [content-visibility:auto] md:min-h-[44px] md:py-1.5 ${showSide ? TRADE_GRID : TRADE_GRID_ONE_SIDE}`}
+      className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 px-4 py-2 md:min-h-[44px] md:py-1.5 ${showSide ? TRADE_GRID : TRADE_GRID_ONE_SIDE}`}
     >
       <span className="oa-mono order-3 col-span-2 text-[11.5px] text-oa-muted-fg md:order-none md:col-span-1 md:text-[12px]" title={`Filed ${group.filed_at} US Eastern`}>
         <ExternalLink href={formUrl(group.url)} className="-my-1 inline-block py-1">

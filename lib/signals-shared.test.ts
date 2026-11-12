@@ -21,7 +21,9 @@ describe("withoutContradictedClause", () => {
   });
 
   it("runs inside the row's highlight", () => {
-    expect(redditHighlight({ catalysts: ["Relative strength while Nvidia declined."], summary: null }, moves)).toBe("Relative strength.");
+    // Cut down to a stub ("Relative strength"), it says nothing whole, so nothing is shown (owner rule 8).
+    expect(redditHighlight({ catalysts: ["Relative strength while Nvidia declined."], summary: null }, moves)).toBeNull();
+    expect(redditHighlight({ catalysts: ["Holders see relative strength while Nvidia declined."], summary: null }, moves)).toBe("Holders see relative strength.");
   });
 });
 

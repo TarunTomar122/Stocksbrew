@@ -29,7 +29,7 @@ import { countWord } from "@/lib/read-format";
 
 import { readAskContext } from "./ask";
 import { BriefingGroupCard, type GroupActions } from "./briefing-group";
-import { rowWords, sectionWords } from "./card-words";
+import { sectionWords } from "./card-words";
 import { StockCardGrid, StockChip, StockChipRow, stockGridFill } from "./stock-card";
 import { longDay, pricesLine, shortDay, signedPct, sourceTime } from "./format";
 import Link from "next/link";
@@ -140,6 +140,22 @@ function SessionStrip({ sectors }: { sectors: BriefingSession["sectors"] }) {
   );
 }
 
+/**
+ * "Nothing new on seven stocks you hold and two you watch": held and watched said apart, so the counts add up with My
+ * stocks (holdings there, the watchlist on its own tab).
+ */
+function quietHead(names: ReadonlyArray<{ relation?: string | null }>): string {
+  const held = names.filter((name) => name.relation === "holding").length;
+  const watched = names.filter((name) => name.relation === "watching").length;
+  const word = (n: number) => countWord(n).toLowerCase();
+  if (held + watched !== names.length || held === 0 || watched === 0) {
+    const n = names.length;
+    const what = held === n ? (n === 1 ? "stock you hold" : "stocks you hold") : watched === n ? (n === 1 ? "stock you watch" : "stocks you watch") : n === 1 ? "other stock" : "other stocks";
+    return `Nothing new on ${word(n)} ${what}`;
+  }
+  return `Nothing new on ${word(held)} ${held === 1 ? "stock" : "stocks"} you hold and ${word(watched)} you watch`;
+}
+
 // Written out whole so Tailwind finds them.
 const QUIET_SM = ["", "sm:col-span-4", "sm:col-span-3", "sm:col-span-2"];
 
@@ -163,6 +179,7 @@ function GroupCards({
   personal,
   chips = false,
   results,
+  readEarnings,
 }: {
   groups: BriefingGroup[];
   actions: GroupActions;
@@ -170,15 +187,13 @@ function GroupCards({
   personal: boolean;
   chips?: boolean;
   results?: Readonly<Record<string, string>>;
+  /** Stocks whose report the read already names, so no card says it again. */
+  readEarnings?: ReadonlySet<string>;
 }) {
-  const words = React.useMemo(() => sectionWords(groups, { personal, results }), [groups, personal, results]);
+  const words = React.useMemo(() => sectionWords(groups, { personal, results, readEarnings }), [groups, personal, results, readEarnings]);
   if (groups.length === 0) return null;
-  const bare = (group: BriefingGroup) => {
-    if (!chips || !group.ticker) return false;
-    const card = words.cards.get(group.key)!;
-    // Nothing on the card, and nothing more to open on it.
-    return !card.sentence && !card.fact && !card.more && group.lines.every((line) => line === card.line || !rowWords(line, group));
-  };
+  // Nothing on the card, and nothing more to open on it (./card-words.ts).
+  const bare = (group: BriefingGroup) => chips && Boolean(group.ticker) && words.cards.get(group.key)!.bare;
   const cards = groups.filter((group) => !bare(group));
   const chipped = groups.filter(bare);
   return (
@@ -192,6 +207,8 @@ function GroupCards({
           ))}
         </ul>
       ) : null}
+      {/* Reddit's mood on these stocks, once for the section rather than a chip on every card (owner rule 1). */}
+      {words.talk ? <p className="mb-2.5 text-pretty px-2 text-[13.5px] leading-5 text-oa-muted-fg sm:px-0">{words.talk}</p> : null}
       {chipped.length > 0 ? (
         <StockChipRow className={`px-2 sm:px-0 ${cards.length > 0 ? "mb-3" : ""}`}>
           {chipped.map((group) => (
@@ -481,7 +498,12 @@ export function BriefingView({
   const comingUp = personal ? comingUpAfterRead(grouped.coming_up, readEarningsTickers(read)) : grouped.coming_up;
   // Only a personal briefing's cards are linked from the agents strip (lib/briefing-anchors.ts); settled ones never.
   const anchors: ReadonlySet<BriefingGroup> = personal ? anchorGroups([...grouped.needs_you, ...worth, ...comingUp]) : new Set();
-  const groupCards = (groups: BriefingGroup[], chips = false) => <GroupCards groups={groups} actions={actions} anchors={anchors} personal={personal} chips={chips} results={resultFacts} />;
+  // Keyed on the tickers, so the cards' words are not worked out again on every render (the read is rebuilt each time).
+  const readEarningsKey = personal ? [...readEarningsTickers(read)].sort().join(",") : "";
+  const readEarnings = React.useMemo(() => new Set(readEarningsKey.split(",").filter(Boolean)), [readEarningsKey]);
+  const groupCards = (groups: BriefingGroup[], chips = false) => (
+    <GroupCards groups={groups} actions={actions} anchors={anchors} personal={personal} chips={chips} results={resultFacts} readEarnings={readEarnings} />
+  );
 
   return (
     // Two columns only while the rail has something in it (owner rule 4: no rail that leaves a void): on an earlier
@@ -593,7 +615,8 @@ export function BriefingView({
             label={personal ? "Worth knowing" : worthAll.length > 0 ? "Other big moves, with the reason" : "Other big moves"}
             count={personal ? groupCountLabel(worthListed) : worthAll.length > 0 ? `${worthAll.length} ${worthAll.length === 1 ? "stock" : "stocks"}` : undefined}
           >
-            {groupCards(worth)}
+            {/* Your own stocks with nothing confirmed to say are chips with their move, not empty cards (owner rules 4, 7). */}
+            {groupCards(worth, personal)}
             {worthAll.length > WORTH_KNOWING_FIRST ? (
               <button
                 type="button"
@@ -730,7 +753,7 @@ export function BriefingView({
         {personal && briefing.quiet.names.length > 0 ? (
           <section aria-labelledby="quiet-head" className={`${CARD} px-4 pb-3.5 pt-3`}>
             <h2 id="quiet-head" className="text-pretty text-[15px] font-semibold leading-6 text-oa-fg">
-              Nothing new on {briefing.quiet.names.length === 1 ? "one other stock" : `${countWord(briefing.quiet.names.length).toLowerCase()} other stocks`}
+              {quietHead(briefing.quiet.names)}
             </h2>
             {/* About eight rows at most; a long list scrolls inside with no visible bar (owner rule 5). */}
             <ul className="scrollbar-hide mt-2.5 grid max-h-[23.5rem] grid-cols-2 gap-2 overflow-y-auto overscroll-contain sm:grid-cols-4 lg:grid-cols-2">

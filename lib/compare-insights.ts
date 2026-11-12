@@ -145,7 +145,19 @@ const SAME_CALL: Record<NonNullable<ScreenerRow["call"]>, string> = {
   Trim: "sell some of",
 };
 
-export function buildCompareRead(input: { rows: Array<ScreenerRow | null>; benchmark?: ScreenerRow | null; asOf?: string | null }): TheRead | null {
+export function buildCompareRead(input: {
+  rows: Array<ScreenerRow | null>;
+  benchmark?: ScreenerRow | null;
+  asOf?: string | null;
+  /**
+   * The compare desk's mix: the headline already names every difference, so the cards show the strongest one with
+   * its numbers, then the year against the S&P 500 and our call on each, then the price against each stock's own
+   * past when there is room (it moves up when `calls` is false). Off, the differences lead.
+   */
+  spread?: boolean;
+  /** false when the page shows the calls on their own (the pair page's call cards). */
+  calls?: boolean;
+}): TheRead | null {
   const rows = input.rows.filter((row): row is ScreenerRow => row !== null);
   if (rows.length < 2) return null;
 
@@ -247,8 +259,27 @@ export function buildCompareRead(input: { rows: Array<ScreenerRow | null>; bench
     };
   }
 
-  // The differences lead; the call and the year follow when there is room (on the pair page the call cards sit right under the read).
-  const insights = pickInsights([...clauseInsights, calls, year, highs, earnings], 4);
+  // Price for profit against each stock's own past (0 is the cheapest it has been, 100 the dearest).
+  let history: Insight | null = null;
+  const past = ends(values(rows, "pe_hist_pctile"));
+  if (past && past.top.value - past.bottom.value >= 15) {
+    const low = Math.round(past.bottom.value);
+    const high = Math.round(past.top.value);
+    history = {
+      id: "history",
+      tone: "flat",
+      text: `${past.bottom.symbol} is cheaper against its own earnings history than ${past.top.symbol}: ${low} out of 100, where 0 is the cheapest it has been, against ${high}.`,
+      figure: { value: `${low} of 100` },
+      tickers: [past.bottom.symbol, past.top.symbol],
+    };
+  }
+
+  const showCalls = input.calls === false ? null : calls;
+  // The desk's mix: the strongest difference with its numbers, the year against the S&P 500, then the call.
+  // Otherwise the differences lead and the call and the year follow when there is room.
+  const insights = input.spread
+    ? pickInsights([clauseInsights[0], year, showCalls, history, ...clauseInsights.slice(1), highs, earnings], 4)
+    : pickInsights([...clauseInsights, showCalls, year, highs, earnings], 4);
   if (!headline) {
     const lead = insights.shift();
     if (!lead) return null;

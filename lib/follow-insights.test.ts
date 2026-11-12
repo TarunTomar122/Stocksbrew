@@ -165,6 +165,18 @@ describe("insiders", () => {
     // No "selling is normal" explainer after it (owner rule 8: no mechanics copy).
     expect(balance?.soWhat).toBe("None of the selling was under pre-set plans.");
   });
+
+  it("heads the read with the stock most insiders bought, one idea and one number", () => {
+    const buys = [
+      buy("LKQ", "2026-11-05", "a"),
+      buy("LKQ", "2026-11-04", "b"),
+      buy("LKQ", "2026-11-03", "c"),
+      buy("LRN", "2026-11-05", "d"),
+      buy("LRN", "2026-11-04", "e"),
+    ];
+    const read = buildInsiderRead({ buys, recent: buys, sectors: {}, today: "2026-11-10" });
+    expect(read.headline).toBe("3 insiders bought LKQ in two weeks, the most of any stock.");
+  });
 });
 
 describe("one fund, one member", () => {

@@ -12,7 +12,7 @@ const PHONE = "(max-width: 767.98px)";
 /**
  * The stock page on a phone, folded into named sections: the price, the call
  * and the chart stay on top, and under them a sticky switcher shows one part
- * at a time (our view, what changed, key facts, the full report, alerts).
+ * at a time (our view with what changed, key facts, the full report, alerts).
  *
  * The parts stay in the page. Each is marked `data-phone-section="<id>"` and
  * the report's root carries `data-phone-tab`; a CSS rule hides every part but
