@@ -6,7 +6,7 @@ import { interTight } from "@/components/oa/font";
 import { TheRead } from "@/components/oa/insight";
 import { PageHead, PageNote } from "@/components/oa/kit";
 import { OaSiteHeader } from "@/components/oa/oa-site-header";
-import { StockLogo } from "@/components/stock-logo";
+import { FilingDays, type FilingDay, type FilingLine } from "@/components/filings/filing-days";
 import { getSessionUser } from "@/lib/auth-server";
 import { getFilings, getFilingsMeta, getFilingsStream } from "@/lib/filings";
 import { buildFilingsRead } from "@/lib/filings-insights";
@@ -14,6 +14,7 @@ import { getInsiderBuys, getInsiderTrades } from "@/lib/follow";
 import { INSIDER_BUY_ROWS, INSIDER_TRADE_ROWS } from "@/lib/insider-balance";
 import {
   FILING_GROUPS,
+  EDGAR_DATA,
   FILING_GROUP_HINTS,
   type Filing,
   type FilingGroup,
@@ -61,59 +62,21 @@ const CHIP =
 const CHIP_ON = "border-[color-mix(in_srgb,var(--ink)_55%,transparent)] bg-oa-card font-medium text-oa-fg";
 const CHIP_OFF = "border-oa-border text-oa-muted-fg hover:bg-oa-accent hover:text-oa-fg";
 
-/** The form type as plain mono text: it is on every row, so it is a column, not a badge. */
-function FormBadge({ filing }: { filing: Filing }) {
-  return (
-    <span title={FILING_GROUP_HINTS[filing.group]} className="oa-mono shrink-0 text-[12.5px] font-medium text-oa-fg">
-      {filing.group}
-      {filing.amendment ? "/A" : ""}
-    </span>
-  );
-}
-
-/** Time, who, which form, what it says. The whole stream opens sec.gov, so no row carries an arrow. */
-function FilingRow({ filing }: { filing: Filing }) {
+/** Only what a row prints: the stream ships its rows as data, not as a second copy of their markup. */
+function filingLine(filing: Filing): FilingLine {
   const lead = filing.headline.replace(/, amended$/, "");
-  const extra = filing.items.filter((item) => item.label !== lead && item.code !== "9.01");
-  return (
-    <li className="grid grid-cols-[2.75rem_minmax(0,1fr)] items-start gap-x-3 px-4 py-2 transition-colors hover:bg-oa-accent sm:grid-cols-[2.75rem_5.5rem_4.75rem_minmax(0,1fr)] sm:items-baseline lg:grid-cols-[2.75rem_5.5rem_4.75rem_minmax(0,1fr)_15rem]">
-      <time dateTime={filing.filedAt} className="oa-mono pt-0.5 text-[12.5px] tabular-nums text-oa-muted-fg sm:pt-0">
-        {filingTime(filing.filedAt)}
-      </time>
-      <div className="flex min-w-0 items-center gap-2 sm:contents">
-        <Link
-          href={`/stock/${filing.ticker}`}
-          className="flex shrink-0 items-center gap-2 self-center rounded outline-none hover:underline focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)] sm:min-w-0 sm:shrink"
-          title={filing.company}
-        >
-          <StockLogo ticker={filing.ticker} market="US" size={18} circle className="shrink-0" />
-          <span className="oa-mono text-[14px] font-medium text-oa-fg sm:truncate">{filing.ticker}</span>
-        </Link>
-        <span className="self-center">
-          <FormBadge filing={filing} />
-        </span>
-        <span className="min-w-0 truncate text-[12.5px] text-oa-muted-fg sm:hidden">{filing.company}</span>
-      </div>
-      <a
-        href={filing.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="col-start-2 mt-0.5 block min-w-0 rounded py-1 text-[14px] leading-5 outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)] sm:col-start-auto sm:mt-0 sm:py-0"
-      >
-        <span className="font-medium text-oa-fg hover:underline">{filing.headline || filing.form}</span>
-        {extra.length > 0 ? (
-          <span className="text-[12.5px] text-oa-muted-fg">
-            {extra.map((item) => (
-              <span key={item.code} className="ml-2 max-sm:ml-0 max-sm:block">
-                <span className="oa-mono">{item.code}</span> {item.label}
-              </span>
-            ))}
-          </span>
-        ) : null}
-      </a>
-      <span className="hidden truncate text-right text-[12.5px] text-oa-muted-fg lg:block">{filing.company}</span>
-    </li>
-  );
+  const extra = filing.items.filter((item) => item.label !== lead && item.code !== "9.01").map((item): [string, string] => [item.code, item.label]);
+  return {
+    ticker: filing.ticker,
+    company: filing.company,
+    group: filing.group,
+    ...(filing.amendment ? { amendment: true as const } : {}),
+    headline: filing.headline || filing.form,
+    ...(extra.length ? { extra } : {}),
+    filedAt: filing.filedAt,
+    time: filingTime(filing.filedAt),
+    path: filing.url.startsWith(EDGAR_DATA) ? filing.url.slice(EDGAR_DATA.length) : filing.url,
+  };
 }
 
 function StreamSkeleton() {
@@ -153,7 +116,9 @@ async function FilingsStream({ search }: { search: Search }) {
   const read = buildFilingsRead({ stream, trades: trades ?? [], buys, mine: session && myTickers.size ? myTickers : null, now: Date.now(), asOf: meta?.updatedAt ?? null, tradesLimit: trades ? INSIDER_TRADE_ROWS : 0 });
 
   const total = page ? FILING_GROUPS.reduce((sum, key) => sum + page.counts[key], 0) : 0;
-  const days = page ? groupFilingsByDay(page.filings) : [];
+  const days: FilingDay[] = page
+    ? groupFilingsByDay(page.filings).map((day) => ({ day: day.day, label: day.label, filings: day.filings.map(filingLine) }))
+    : [];
 
   return (
     <>
@@ -216,19 +181,7 @@ async function FilingsStream({ search }: { search: Search }) {
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          {days.map((day) => (
-            <section key={day.day} aria-label={day.label} className="oa-surface overflow-hidden border border-oa-border bg-oa-card">
-              <h2 className="oa-label sticky top-0 z-[1] flex items-center justify-between border-b border-oa-border bg-oa-bg px-4 py-2">
-                <span>{day.label}</span>
-                <span className="oa-mono text-[12.5px] font-normal tabular-nums text-oa-muted-fg">{day.filings.length}</span>
-              </h2>
-              <ul className="divide-y divide-oa-border">
-                {day.filings.map((filing) => (
-                  <FilingRow key={filing.id} filing={filing} />
-                ))}
-              </ul>
-            </section>
-          ))}
+          <FilingDays days={days} />
           {page.matched > page.filings.length ? (
             <div className="flex items-center justify-center gap-3 py-1">
               <p className="oa-mono text-[12.5px] text-oa-muted-fg">

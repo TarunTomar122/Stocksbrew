@@ -15,6 +15,7 @@ export function ShowMore({
   always = false,
   fill = false,
   contents = false,
+  lazy = false,
   children,
   className = "",
 }: {
@@ -29,10 +30,17 @@ export function ShowMore({
    * were not there: one button on a phone for several cards side by side.
    */
   contents?: boolean;
+  /**
+   * With `always`: leave the children out of the page until the first open, then keep them.
+   * For a big client-rendered block (a 300-row table) that nobody needs in the first HTML.
+   */
+  lazy?: boolean;
   children: React.ReactNode;
   className?: string;
 }) {
   const [open, setOpen] = React.useState(false);
+  const [opened, setOpened] = React.useState(false);
+  if (open && !opened) setOpened(true);
   const id = React.useId();
   const content = React.useRef<HTMLDivElement>(null);
   const scrollTo = React.useRef<HTMLElement | null>(null);
@@ -65,7 +73,7 @@ export function ShowMore({
   return (
     <div className={`${fill ? "lg:h-full" : ""} ${contents && !always ? "lg:contents" : ""} ${className}`}>
       <div id={id} ref={content} className={`${hide} ${fill && !always ? "lg:h-full" : ""} ${contents && !always ? "lg:contents" : ""}`}>
-        {children}
+        {lazy && always && !opened ? null : children}
       </div>
       <button
         type="button"

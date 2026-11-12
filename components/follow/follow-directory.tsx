@@ -26,8 +26,8 @@ import Link from "next/link";
 
 export type DirectoryTab = "funds" | "congress" | "insiders";
 
-const GRID =
-  "lg:grid-cols-[minmax(160px,1.5fr)_56px_repeat(6,minmax(62px,76px))_minmax(118px,1fr)_50px_72px]";
+// The desktop columns (fund, record, six windows, holdings, filed, follow) are set once in
+// app/globals.css (.fd-head and .fd-row share them), not repeated on every row.
 const PAGE = 40;
 // A phone shows the first few; the rest wait behind the same "Show all" button.
 const PHONE_PAGE = 10;
@@ -200,9 +200,7 @@ export function FollowDirectory({
           <p className="hidden border-b border-oa-border px-4 py-2 text-[12.5px] leading-[18px] text-oa-muted-fg lg:block">
             What you would have made buying what each {tab === "funds" ? "fund" : "member"} reported, from the day it became public. The small number under each return is how many points ahead of or behind the S&amp;P 500 that was.
           </p>
-          <div
-            className={`hidden items-center gap-x-2 border-b border-oa-border bg-oa-bg px-4 lg:grid ${GRID}`}
-          >
+          <div className="fd-head">
             <SortHeader
               label={tab === "funds" ? "Fund" : "Member"}
               active={sortKey === "name"}
@@ -248,15 +246,12 @@ export function FollowDirectory({
                 const isFollowed = followed.has(source.slug);
                 const card = source.performance;
                 return (
+                  // Row, name and date styles are .fd-* in app/globals.css: forty rows print them.
                   <li
                     key={source.slug}
-                    className={`grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 px-4 py-2 lg:min-h-[48px] lg:gap-x-2 lg:py-1.5 ${GRID} ${
-                      !showAll && !needle && rowIndex >= PHONE_PAGE ? "max-lg:hidden" : ""
-                    } ${
-                      isFollowed
-                        ? "bg-[color-mix(in_srgb,var(--oa-primary)_5%,transparent)]"
-                        : ""
-                    }`}
+                    className={`fd-row${
+                      !showAll && !needle && rowIndex >= PHONE_PAGE ? " max-lg:hidden" : ""
+                    }${isFollowed ? " fd-mine" : ""}`}
                   >
                     <div className="min-w-0">
                       <Link prefetch={false}
@@ -264,12 +259,12 @@ export function FollowDirectory({
                         data-track="fund_opened"
                         data-track-slug={source.slug}
                         data-track-list="directory"
-                        className="flex min-w-0 items-center gap-1.5 text-[14px] font-medium leading-5 text-oa-fg outline-none hover:text-oa-primary focus-visible:text-oa-primary"
+                        className="fd-name"
                       >
                         <PartyDot party={source.party} />
                         <span className="text-pretty">{source.name}</span>
                       </Link>
-                      <p className="text-pretty text-[12px] leading-4 text-oa-muted-fg">
+                      <p className="fd-who">
                         {source.person}
                         {!source.active
                           ? ` · last filed ${fmtMonthYear(source.latest_date)}`
@@ -298,21 +293,21 @@ export function FollowDirectory({
                       />
                     </div>
 
+                    {/* Phones show the one window picked above; a desktop shows all six. */}
                     {PERF_WINDOWS.map((window) => (
-                      <div
+                      <ReturnCell
                         key={window.key}
-                        className={`${window.key === mobileKey ? "block" : "hidden"} lg:block`}
-                      >
-                        <ReturnCell
-                          value={card?.fund?.[window.key]}
-                          versus={excess(card, window.key)}
-                          drawdown={window.key === "max_drawdown"}
-                          compact
-                        />
-                      </div>
+                        value={card?.fund?.[window.key]}
+                        versus={excess(card, window.key)}
+                        drawdown={window.key === "max_drawdown"}
+                        compact
+                        className={window.key === mobileKey ? undefined : "max-lg:hidden"}
+                        // Only the phone's one window shows the words; on a desktop the note above says it once.
+                        vsLabel={window.key === mobileKey}
+                      />
                     ))}
 
-                    <div className="hidden min-w-0 flex-wrap gap-1 overflow-hidden lg:flex lg:max-h-6">
+                    <div className="fd-hold">
                       {(({ rows: folded, also }) => folded.slice(0, 3).map((holding, index) => (
                         <HoldingChip
                           key={`${holding.ticker ?? holding.name}-${index}`}
@@ -328,10 +323,7 @@ export function FollowDirectory({
                       )))(oneRowPerCompany(source.top_holdings, (holding) => holding.ticker))}
                     </div>
 
-                    <span
-                      className="oa-mono hidden text-right text-[12px] text-oa-muted-fg lg:block"
-                      title={fmtDate(source.latest_date)}
-                    >
+                    <span className="oa-mono fd-date" title={fmtDate(source.latest_date)}>
                       {fmtDate(source.latest_date, false)}
                     </span>
 

@@ -25,6 +25,12 @@ export type DataRow = {
   href?: string;
 };
 
+/** A body cell's own classes: only what differs from the .oa-dt default (left-aligned, shown everywhere). */
+function cellClass(column: DataColumn | undefined): string | undefined {
+  const parts = [column?.align === "right" ? "text-right" : "", column?.hideOnMobile ? "hidden sm:table-cell" : ""].filter(Boolean);
+  return parts.length ? parts.join(" ") : undefined;
+}
+
 export function DataTable({
   columns,
   rows,
@@ -75,7 +81,8 @@ export function DataTable({
   return (
     <div className="min-w-0">
       <div className={`overflow-x-auto ${maxRows > 0 && visible.length > maxRows ? "overflow-y-auto" : ""}`} style={maxRows > 0 && visible.length > maxRows ? { maxHeight: `${2.6 + maxRows * 2.75 + 1.4}rem` } : undefined}>
-        <table className="w-full border-collapse text-[14px]">
+        {/* Body row and cell styles are .oa-dt in app/globals.css, so each cell carries only its alignment. */}
+        <table className={`oa-dt w-full border-collapse text-[14px]${compact ? " oa-dt-compact" : ""}`}>
           <thead>
             <tr>
               {columns.map((column) => {
@@ -122,7 +129,7 @@ export function DataTable({
             {visible.map((row) => (
               <tr
                 key={row.key}
-                className={`border-b border-oa-border last:border-b-0 hover:bg-oa-accent ${row.href ? "cursor-pointer" : ""}`}
+                className={row.href ? "cursor-pointer" : undefined}
                 onClick={
                   row.href
                     ? (event) => {
@@ -137,9 +144,7 @@ export function DataTable({
                   return (
                     <td
                       key={column?.id ?? index}
-                      className={`h-11 whitespace-nowrap ${compact ? "px-1.5" : "px-2"} py-1 align-middle first:pl-4 last:pr-4 ${
-                        column?.align === "right" ? "text-right" : "text-left"
-                      } ${column?.hideOnMobile ? "hidden sm:table-cell" : ""}`}
+                      className={cellClass(column)}
                     >
                       {cell}
                     </td>

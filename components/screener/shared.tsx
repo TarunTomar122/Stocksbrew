@@ -1,11 +1,13 @@
 import * as React from "react";
 
-import { Delta, MarkSlot, NUM, Tag, fmtDay, type TagTone } from "@/components/oa/kit";
+// From the kit's client-safe modules (not its index), so the client results table can draw these cells too.
+import { Delta, NUM, Tag, fmtDay, type TagTone } from "@/components/oa/kit/cells";
+import { MarkSlot } from "@/components/oa/kit/tone";
 import { CALL_PLAIN } from "@/lib/plain-copy";
 import { FIELD_BY_ID, formatField, isFiniteNumber, type CallWord, type ScreenerRow, type Zone } from "@/lib/screener-shared";
 import { historyJudged, markFor, multipleVsHistory, priceVsTarget, type Metric } from "@/lib/tone";
 
-/** Presentational bits shared by the screener, the idea baskets and the compare desk. Server-safe. */
+/** Presentational bits shared by the screener, the idea baskets and the compare desk. Safe on the server and the client. */
 
 const CALL_TONES: Record<CallWord, TagTone> = { Add: "up", Hold: "neutral", Trim: "down" };
 
@@ -125,17 +127,17 @@ export function FieldValue({
     // Judged figures stay in normal ink with a mark: the worst fall is always negative, so colouring by sign would
     // paint every row red, and +3% revenue growth would read green where the threshold calls it slow.
     return (
-      <span className={`${NUM} inline-flex items-center justify-end gap-1 text-oa-fg ${className}`}>
+      <span className={`${NUM} oa-fv-mark text-oa-fg${className ? ` ${className}` : ""}`}>
         {formatField(field, value)}
         <MarkSlot tone={fieldMark(id, value, row)} />
       </span>
     );
   }
   // Distance to our zones has no good end on its own (the zone tag says where the price sits), so it stays in normal ink.
-  if (field.call) return <span className={`${NUM} text-oa-fg ${className}`}>{formatField(field, value)}</span>;
+  if (field.call) return <span className={`${NUM} text-oa-fg${className ? ` ${className}` : ""}`}>{formatField(field, value)}</span>;
   if (field.unit === "signed_pct") return <Delta value={value} digits={field.digits ?? 2} className={className} />;
   if (field.unit === "count_change") return <Delta value={value} digits={0} suffix="" className={className} />;
-  return <span className={`${NUM} text-oa-fg ${className}`}>{formatField(field, value)}</span>;
+  return <span className={`${NUM} text-oa-fg${className ? ` ${className}` : ""}`}>{formatField(field, value)}</span>;
 }
 
 /** "Nov 17 · after close" */

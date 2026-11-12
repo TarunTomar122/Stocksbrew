@@ -20,7 +20,7 @@ import { MovesStream } from "@/components/follow/moves-stream";
 import { Panel } from "@/components/follow/panel";
 import { getSessionUser } from "@/lib/auth-server";
 import { mostBought, mostSold, type FollowRead } from "@/lib/follow-insights";
-import { quarterLabel } from "@/lib/follow-shared";
+import { PERF_WINDOWS, quarterLabel } from "@/lib/follow-shared";
 import { shortCompanyName } from "@/lib/plain-copy";
 import { getUserDoc } from "@/lib/watchlist";
 import {
@@ -50,6 +50,33 @@ export function generateMetadata(): Metadata {
   };
 }
 
+/** The six windows the table shows, as stored (no rounding, so every printed figure stays the same). */
+function windows(record: Record<string, number | null | undefined> | null | undefined): Record<string, number> | undefined {
+  if (!record) return undefined;
+  const out: Record<string, number> = {};
+  for (const { key } of PERF_WINDOWS) {
+    const value = record[key];
+    if (typeof value === "number" && Number.isFinite(value)) out[key] = value;
+  }
+  return out;
+}
+
+/**
+ * The two chart lines on one 0 to 100 scale, as whole numbers. The row's chart
+ * scales both lines between their joint low and high, so this draws the same
+ * picture (each point within a quarter of a pixel on the 22px chart) from a
+ * fraction of the digits.
+ */
+function sparks(fund?: number[], spy?: number[]): { spark?: number[]; spark_spy?: number[] } {
+  if (!fund) return { spark_spy: spy };
+  const all = [...fund, ...(spy ?? [])];
+  const lo = Math.min(...all);
+  const span = Math.max(...all) - lo;
+  if (!(span > 0)) return { spark: fund, spark_spy: spy };
+  const scale = (values?: number[]) => values?.map((value) => Math.round(((value - lo) / span) * 100));
+  return { spark: scale(fund), spark_spy: scale(spy) };
+}
+
 /** The table only needs a slice of each card; the rest stays on the server. */
 function lean(source: FollowSource): FollowSource {
   const spark = (values?: number[]) => {
@@ -62,31 +89,29 @@ function lean(source: FollowSource): FollowSource {
       out.push(Number(values[values.length - 1].toFixed(3)));
     return out;
   };
+  // The directory reads only these fields (name, slug, kind, person, party, active, dates, value,
+  // holdings, record); the empty strings the full type asks for are left out of the payload.
   return {
-    id: source.slug,
     slug: source.slug,
     kind: source.kind,
     name: source.name,
     person: source.person,
-    style: "",
     active: source.active,
     latest_date: source.latest_date,
-    headline: "",
     stock_value: source.stock_value,
     top_holdings: (source.top_holdings ?? []).slice(0, 3),
+    // Only what the table prints and sorts by: the six windows for the fund and the S&P 500,
+    // the start date for the record's hover, and the two lines of the small chart.
     performance: source.performance
-      ? {
-          ...source.performance,
-          spark: spark(source.performance.spark),
-          spark_spy: spark(source.performance.spark_spy),
-        }
+      ? ({
+          start_date: source.performance.start_date,
+          fund: windows(source.performance.fund),
+          spy: windows(source.performance.spy),
+          ...sparks(spark(source.performance.spark), spark(source.performance.spark_spy)),
+        } as FollowSource["performance"])
       : null,
-    party: source.party,
-    stats: undefined,
-    source: "",
-    source_url: "",
-    updated_at: "",
-  };
+    ...(source.party ? { party: source.party } : {}),
+  } as FollowSource;
 }
 
 function tabOf(value: string | string[] | undefined): DirectoryTab {

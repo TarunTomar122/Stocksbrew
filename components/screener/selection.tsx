@@ -55,13 +55,14 @@ function useSelection(): Selection {
   return value;
 }
 
-const BOX =
-  "peer absolute inset-0 size-full cursor-pointer appearance-none rounded-[4px] border border-oa-border bg-oa-card outline-none transition-colors checked:border-oa-primary checked:bg-oa-primary indeterminate:border-oa-primary indeterminate:bg-oa-primary focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]";
+// The box, tick and dash are .chk-* in app/globals.css: the results table prints one per row.
+// "peer" stays on the input so the tick and dash can follow its checked and indeterminate states.
+const BOX = "peer chk-in";
 
 function Check({ input }: { input: React.ReactNode }) {
   return (
-    <label className="flex size-6 cursor-pointer items-center justify-center">
-      <span className="relative inline-flex size-[15px]">
+    <label className="chk">
+      <span className="chk-box">
         {input}
         <svg
           viewBox="0 0 16 16"
@@ -71,11 +72,11 @@ function Check({ input }: { input: React.ReactNode }) {
           strokeLinecap="round"
           strokeLinejoin="round"
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 hidden size-full p-[1.5px] text-oa-primary-fg peer-checked:block"
+          className="chk-tick"
         >
           <path d="M3.5 8.5l3 3 6-7" />
         </svg>
-        <span aria-hidden="true" className="pointer-events-none absolute inset-x-[3.5px] top-1/2 hidden h-[2px] -translate-y-1/2 rounded bg-oa-primary-fg peer-indeterminate:block" />
+        <span aria-hidden="true" className="chk-dash" />
       </span>
     </label>
   );

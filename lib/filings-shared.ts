@@ -11,6 +11,9 @@ export const FILING_GROUP_HINTS: Record<FilingGroup, string> = {
   "13D/G": "Someone holds more than 5% of the shares",
 };
 
+/** Every filing lives under this EDGAR folder, so the /filings rows carry only the part after it. */
+export const EDGAR_DATA = "https://www.sec.gov/Archives/edgar/data/";
+
 export type FilingItem = { code: string; label: string };
 
 export type Filing = {

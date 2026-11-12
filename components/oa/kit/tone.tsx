@@ -29,7 +29,7 @@ export function ToneGlyph({
       height="10"
       viewBox="0 0 10 10"
       {...(decorative ? { "aria-hidden": true } : { role: "img", "aria-label": tone === "up" ? "good" : tone === "down" ? "bad" : "neutral" })}
-      className={`inline-block shrink-0 ${className}`}
+      className={className ? `inline-block shrink-0 ${className}` : "inline-block shrink-0"}
       style={{ color: TONE_VAR[tone] }}
     >
       {tone === "up" ? (
@@ -67,7 +67,8 @@ export function Verdict({ tone, children, className = "" }: { tone: "up" | "down
  * slot empty: a gray mark beside a number reads as a minus sign.
  */
 export function MarkSlot({ tone, className = "" }: { tone: "up" | "down" | "flat" | null | undefined; className?: string }) {
-  return <span className={`inline-flex w-2.5 shrink-0 justify-center ${className}`}>{tone === "up" || tone === "down" ? <ToneGlyph tone={tone} /> : null}</span>;
+  // .oa-markslot in app/globals.css: a table column prints one on every row.
+  return <span className={className ? `oa-markslot ${className}` : "oa-markslot"}>{tone === "up" || tone === "down" ? <ToneGlyph tone={tone} /> : null}</span>;
 }
 
 /**

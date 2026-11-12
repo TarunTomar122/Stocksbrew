@@ -9,6 +9,10 @@ import { shortCompanyName } from "@/lib/plain-copy";
 
 import { PAGE_PAD, PAGE_PAD_PROSE } from "./skeleton";
 import { AppLink } from "@/components/oa/app-link";
+import { Delta, NUM, Sparkline, Tag, fmtDay, toneOf, toneText, type TagTone } from "./cells";
+
+// The atoms live in ./cells (no server imports) so client tables can use them; pages keep importing them from here.
+export { Delta, NUM, Sparkline, Tag, fmtDay, toneOf, toneText, type TagTone };
 
 /**
  * The page kit. Every app page is assembled from these so the product reads
@@ -22,7 +26,6 @@ import { AppLink } from "@/components/oa/app-link";
  * rather than styling it locally.
  */
 
-export const NUM = "oa-mono tabular-nums";
 export const FOCUS =
   "outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]";
 
@@ -463,79 +466,9 @@ export function Empty({ title, children, className = "" }: { title?: React.React
 
 /* ── Atoms ─────────────────────────────────────────────────────────────── */
 
-export function toneText(tone: "up" | "down" | "flat" | undefined): string {
-  if (tone === "up") return "text-signal-bullish";
-  if (tone === "down") return "text-signal-bearish";
-  return tone === "flat" ? "text-oa-muted-fg" : "text-oa-fg";
-}
-
-export function toneOf(value: number | null | undefined): "up" | "down" | "flat" {
-  if (value == null || !Number.isFinite(value) || value === 0) return "flat";
-  return value > 0 ? "up" : "down";
-}
-
-/** A signed change, coloured. Renders an em-free dash when the value is unknown. */
-export function Delta({
-  value,
-  digits = 2,
-  suffix = "%",
-  className = "",
-}: {
-  value: number | null | undefined;
-  digits?: number;
-  suffix?: string;
-  className?: string;
-}) {
-  if (value == null || !Number.isFinite(value)) {
-    return <span className={`${NUM} text-oa-muted-fg ${className}`}>n/a</span>;
-  }
-  // A move that rounds to zero is flat: "0.0%", never "−0.0%" in red.
-  const shown = Number(value.toFixed(digits));
-  const sign = shown > 0 ? "+" : shown < 0 ? "−" : "";
-  return (
-    <span className={`${NUM} ${toneText(toneOf(shown))} ${className}`}>
-      {sign}
-      {Math.abs(shown).toFixed(digits)}
-      {suffix}
-    </span>
-  );
-}
-
 // The good-or-bad marks live in ./tone (no server imports) so client components can import them directly.
 export { MarkSlot, MoveBar, ToneGlyph, Verdict } from "./tone";
 export { ShowMore } from "./more";
-
-export type TagTone = "neutral" | "up" | "down" | "primary" | "warn";
-
-const TAG_TONES: Record<TagTone, string> = {
-  neutral: "border-oa-border text-oa-muted-fg",
-  up: "border-[color-mix(in_srgb,var(--signal-bullish)_40%,transparent)] bg-[color-mix(in_srgb,var(--signal-bullish)_9%,transparent)] text-signal-bullish",
-  down: "border-[color-mix(in_srgb,var(--signal-bearish)_40%,transparent)] bg-[color-mix(in_srgb,var(--signal-bearish)_9%,transparent)] text-signal-bearish",
-  primary: "border-[color-mix(in_srgb,var(--oa-primary)_45%,transparent)] bg-[color-mix(in_srgb,var(--oa-primary)_7%,transparent)] text-oa-primary",
-  warn: "border-[color-mix(in_srgb,var(--oa-label)_45%,transparent)] text-oa-label",
-};
-
-/** Small uppercase mono tag: form types, calls, statuses. */
-export function Tag({
-  children,
-  tone = "neutral",
-  caps = true,
-  className = "",
-}: {
-  children: React.ReactNode;
-  tone?: TagTone;
-  /** Small capitals for codes and states; `false` for words a person reads ("Buy more", "We changed our call"). */
-  caps?: boolean;
-  className?: string;
-}) {
-  return (
-    <span
-      className={`inline-flex h-[22px] shrink-0 items-center whitespace-nowrap rounded border px-2 font-medium ${caps ? "oa-mono text-[12.5px] uppercase tracking-[0.04em]" : "text-[13px]"} ${TAG_TONES[tone]} ${className}`}
-    >
-      {children}
-    </span>
-  );
-}
 
 /** Logo, ticker and (optionally) the company name, linking to the stock page. */
 export function Ticker({
@@ -568,18 +501,19 @@ export function Ticker({
   const body = (
     <>
       <StockLogo ticker={symbol} size={size} />
-      <span className={`${NUM} text-[14px] font-medium text-oa-fg`}>{symbol}</span>
+      <span className="oa-mono oa-tk-sym">{symbol}</span>
       {/* One line, always (owner, Nov 11): a long name is cut with "…" and the full name shows on hover. */}
-      {label ? <span title={shown} className="min-w-0 truncate text-[14px] text-oa-muted-fg">{label}</span> : null}
+      {label ? <span title={shown} className="oa-tk-name">{label}</span> : null}
     </>
   );
-  const cls = `inline-flex min-w-0 items-center gap-2 ${className}`;
-  if (href === null) return <span className={cls}>{body}</span>;
+  // .oa-tk (app/globals.css) is the row, the link's underline and its focus ring: tables print one per row.
+  const extra = `${className ? ` ${className}` : ""}`;
+  if (href === null) return <span className={`oa-tk-row${extra}`}>{body}</span>;
   return (
     <Link
       href={href ?? `/stock/${encodeURIComponent(symbol)}`}
       prefetch={false}
-      className={`${cls} rounded hover:underline ${FOCUS} ${stretch ? "after:absolute after:inset-0 after:content-['']" : ""}`}
+      className={`oa-tk${extra}${stretch ? " oa-tk-stretch" : ""}`}
     >
       {body}
     </Link>
@@ -620,39 +554,6 @@ export function RangeBar({
         <span>{format(high)}</span>
       </span>
     </span>
-  );
-}
-
-/** Inline SVG sparkline. Draws nothing with fewer than two points. */
-export function Sparkline({
-  values,
-  width = 96,
-  height = 28,
-  tone,
-  className = "",
-}: {
-  values: Array<number | null | undefined>;
-  width?: number;
-  height?: number;
-  tone?: "up" | "down" | "flat";
-  className?: string;
-}) {
-  const points = values.filter((v): v is number => typeof v === "number" && Number.isFinite(v));
-  if (points.length < 2) return null;
-  const min = Math.min(...points);
-  const max = Math.max(...points);
-  const span = max - min || 1;
-  const step = (width - 2) / (points.length - 1);
-  const d = points
-    .map((v, i) => `${i === 0 ? "M" : "L"}${(1 + i * step).toFixed(1)} ${(1 + (height - 2) * (1 - (v - min) / span)).toFixed(1)}`)
-    .join(" ");
-  const resolved = tone ?? toneOf(points[points.length - 1] - points[0]);
-  const stroke =
-    resolved === "up" ? "var(--signal-bullish)" : resolved === "down" ? "var(--signal-bearish)" : "var(--oa-muted-fg)";
-  return (
-    <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height} aria-hidden="true" className={`shrink-0 ${className}`}>
-      <path d={d} fill="none" stroke={stroke} strokeWidth="1.4" strokeLinejoin="round" strokeLinecap="round" />
-    </svg>
   );
 }
 
@@ -754,17 +655,6 @@ export function fmtCompact(value: number | null | undefined, prefix = ""): strin
     }
   }
   return `${sign}${prefix}${abs.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
-}
-
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-/** "2026-11-05" -> "Nov 5" (or "Nov 5, 2025" with the year). Parsed by hand so no timezone can shift the day. */
-export function fmtDay(iso: string | null | undefined, withYear = false): string {
-  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso ?? "");
-  if (!match) return "";
-  const month = MONTHS[Number(match[2]) - 1];
-  if (!month) return "";
-  return withYear ? `${month} ${Number(match[3])}, ${match[1]}` : `${month} ${Number(match[3])}`;
 }
 
 /** An instant as "Nov 9, 4:05 PM ET". */

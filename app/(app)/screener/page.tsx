@@ -12,11 +12,8 @@ import {
   PageHead,
   Panel,
   SourceLine,
-  Sparkline,
   Segmented,
-  ShowMore,
   StatStrip,
-  Ticker,
   fmtCompact,
   fmtStampET,
 } from "@/components/oa/kit";
@@ -25,8 +22,10 @@ import { ColumnPicker, FilterBar, type SectorOption } from "@/components/screene
 import { Menu, MenuLabel } from "@/components/screener/menu";
 import { MyScreens, SaveScreen } from "@/components/screener/save-screen";
 import { HeatLegend, SectorHeatGrid, SectorMap } from "@/components/screener/sector-map";
-import { RowCheck, SelectAllCheck, SelectionBar, SelectionProvider } from "@/components/screener/selection";
-import { CONTROL, CallTag, EarningsDate, FieldValue, Unknown, ZoneTag } from "@/components/screener/shared";
+import { SelectAllCheck, SelectionBar, SelectionProvider } from "@/components/screener/selection";
+import { ScreenerResults, type ResultRow } from "@/components/screener/results";
+import { StockDirectory, type DirectoryGroup } from "@/components/screener/stock-directory";
+import { CONTROL, Unknown } from "@/components/screener/shared";
 import { can, limitFor } from "@/lib/entitlements";
 import { canSeeLevels, getViewer } from "@/lib/entitlements-server";
 import { benchmarkForDay, quoteDay } from "@/lib/benchmark-day";
@@ -46,7 +45,6 @@ import {
   countActiveFilters,
   describeRange,
   hasCallFilters,
-  isFiniteNumber,
   parseView,
   sectorSlug,
   sectorStats,
@@ -148,29 +146,9 @@ function SortLabel({ view, id, numeric, locked = false, children }: { view: Scre
   );
 }
 
-function cellFor(id: string, row: ScreenerRow): React.ReactNode {
-  switch (id) {
-    case "sector":
-      return row.sector ? <span className="text-oa-muted-fg">{row.sector}</span> : <Unknown />;
-    case "industry":
-      return row.industry ? <span className="block max-w-[12rem] truncate text-oa-muted-fg">{row.industry}</span> : <Unknown />;
-    case "spark":
-      return row.spark && row.spark.length > 1 ? <Sparkline values={row.spark} width={72} height={22} className="inline-block align-middle" /> : <Unknown />;
-    case "earnings_date":
-      return <EarningsDate row={row} />;
-    case "analyst_label":
-      return row.analyst_label ? <span className="text-oa-fg">{row.analyst_label}</span> : <Unknown />;
-    case "call":
-      return row.call ? <CallTag call={row.call} /> : null;
-    case "zone":
-      return row.zone ? <ZoneTag zone={row.zone} /> : null;
-    default: {
-      const value = (row as Record<string, unknown>)[id];
-      if (ZONE_COLUMN_IDS.has(id) && !isFiniteNumber(value)) return null;
-      return <FieldValue id={id} value={value} row={row} />;
-    }
-  }
-}
+/** What every result row carries whatever the columns: the stock, the phone row's fixed figures, and the P/E window its mark is judged against. */
+const BASE_FIELDS = ["symbol", "name", "spark", "price", "day_pct", "call", "pe_hist_from", "pe_hist_to"] as const;
+const EARNINGS_FIELDS = ["earnings_date", "earnings_time", "earnings_in_days"] as const;
 
 function columnMeta(id: string): { short: string; hint: string; numeric: boolean; sortable: boolean } {
   const field = FIELD_BY_ID.get(id);
@@ -474,21 +452,6 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
       };
     }),
   ];
-  const tableRows: DataRow[] = shown.map((row) => ({
-    key: row.symbol,
-    href: `/stock/${encodeURIComponent(row.symbol)}`,
-    cells: [
-      <RowCheck key="_select" symbol={row.symbol} />,
-      <div key="symbol" className="sm:max-w-[11.5rem] xl:max-w-[13rem]">
-        <Ticker symbol={row.symbol} name={row.name} wrap className="max-w-full" />
-        {alsoClassesLabel(otherClasses, row.symbol) ? (
-          <span className={`${NUM} ml-7 block text-[12px] leading-4 text-oa-muted-fg`}>{alsoClassesLabel(otherClasses, row.symbol)}</span>
-        ) : null}
-      </div>,
-      ...view.columns.map((id) => <React.Fragment key={id}>{cellFor(id, row)}</React.Fragment>),
-    ],
-  }));
-
   const screensMenu = (label: string, align: "left" | "right") => (
     <Menu label={label} align={align} width="w-[22rem]">
       <div className="pb-1.5">
@@ -514,70 +477,49 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
   // Phone: a list, not a squeezed table. Ticker and name, price over the day's change, our call.
   const PHONE_FIXED = new Set(["symbol", "price", "day_pct", "call", "spark"]);
   const phoneExtra = PHONE_FIXED.has(sort.id) ? null : sort.id;
-  const PHONE_FIRST = 20;
-  const phoneRow = (row: (typeof shown)[number]) => (
-      <li key={row.symbol} className="flex items-center gap-2 border-b border-oa-border px-3 last:border-b-0">
-        {/* No tick boxes on a phone: a row is one tap to the stock; comparing lives on the stock page. */}
-        <Link prefetch={false} href={`/stock/${encodeURIComponent(row.symbol)}`} className="flex min-h-14 min-w-0 flex-1 items-center gap-3 py-2 outline-none focus-visible:bg-oa-accent">
-          <StockLogo ticker={row.symbol} size={28} />
-          <span className="min-w-0 flex-1">
-            {/* The sorted-by figure sits beside the ticker, so the name keeps the second line to itself. */}
-            <span className="flex items-baseline gap-1.5">
-              <span className={`${NUM} text-[15px] font-semibold leading-5 text-oa-fg`}>{row.symbol}</span>
-              {phoneExtra ? <span className="shrink-0 text-[12.5px] text-oa-muted-fg [&_*]:!text-[12.5px]">{cellFor(phoneExtra, row)}</span> : null}
-            </span>
-            {/* One line, cut with an ellipsis if it must (owner, Nov 11); the full name is on hover. */}
-            <span className="flex min-w-0 gap-x-1.5 whitespace-nowrap text-[12.5px] leading-[18px] text-oa-muted-fg">
-              {/* The name keeps its room; "also GOOG" is the part that gets cut when space runs out. */}
-              <span className="max-w-full shrink-0 truncate" title={row.name ?? undefined}>{shortCompanyName(row.name)}</span>
-              {alsoClassesLabel(otherClasses, row.symbol) ? <span className={`${NUM} min-w-0 truncate`}>· {alsoClassesLabel(otherClasses, row.symbol)}</span> : null}
-            </span>
-          </span>
-          {row.spark && row.spark.length > 1 ? (
-            <Sparkline values={row.spark} width={44} height={20} className="max-[359px]:hidden" />
-          ) : (
-            <span aria-hidden="true" className="w-11 shrink-0 max-[359px]:hidden" />
-          )}
-          <span className="shrink-0 text-right">
-            <span className="block text-[14px] leading-5">
-              <FieldValue id="price" value={row.price} />
-            </span>
-            <span className="block text-[12.5px] leading-[18px]">
-              <FieldValue id="day_pct" value={row.day_pct} />
-            </span>
-          </span>
-          <span className="flex w-[4.75rem] shrink-0 justify-end">{row.call ? <CallTag call={row.call} /> : null}</span>
-        </Link>
-      </li>
-  );
-  const phoneList = (
-    <div className="sm:hidden">
-      <div className="oa-caption flex h-9 items-center gap-2 border-b border-oa-border bg-oa-bg px-3">
-        <span className="min-w-0 flex-1">
-          <SortLabel view={{ ...view, sort }} id="symbol" numeric={false}>Stock</SortLabel>
-        </span>
-        <span className="w-11 text-center normal-case tracking-normal max-[359px]:hidden">3 mo</span>
-        <span className="flex items-center gap-2">
-          <SortLabel view={{ ...view, sort }} id="price" numeric>Price</SortLabel>
-          <SortLabel view={{ ...view, sort }} id="day_pct" numeric>Day</SortLabel>
-        </span>
-        <span className="w-[4.75rem] text-right">Our call</span>
-      </div>
-      <ul>{shown.slice(0, PHONE_FIRST).map(phoneRow)}</ul>
-      {/* Twenty is a screen's worth on a phone; the rest of the page is one tap away, not a long scroll. */}
-      {shown.length > PHONE_FIRST ? (
-        <ShowMore label={`Show ${shown.length - PHONE_FIRST} more stocks`} className="pb-3 [&>button]:mx-3 [&>button]:w-[calc(100%-1.5rem)]">
-          <ul className="border-t border-oa-border">{shown.slice(PHONE_FIRST).map(phoneRow)}</ul>
-        </ShowMore>
-      ) : null}
+  const phoneHead = (
+    <div className="oa-caption flex h-9 items-center gap-2 border-b border-oa-border bg-oa-bg px-3">
+      <span className="min-w-0 flex-1">
+        <SortLabel view={{ ...view, sort }} id="symbol" numeric={false}>Stock</SortLabel>
+      </span>
+      <span className="w-11 text-center normal-case tracking-normal max-[359px]:hidden">3 mo</span>
+      <span className="flex items-center gap-2">
+        <SortLabel view={{ ...view, sort }} id="price" numeric>Price</SortLabel>
+        <SortLabel view={{ ...view, sort }} id="day_pct" numeric>Day</SortLabel>
+      </span>
+      <span className="w-[4.75rem] text-right">Our call</span>
     </div>
   );
+  // Each shown row cut to what its cells print: the results table draws the cells on the client (ScreenerResults).
+  const printed = new Set<string>([...BASE_FIELDS, ...view.columns, ...(phoneExtra ? [phoneExtra] : [])]);
+  if (printed.has("earnings_date")) for (const id of EARNINGS_FIELDS) printed.add(id);
+  const resultRows: ResultRow[] = shown.map((row) => {
+    const out: Record<string, unknown> = { short: shortCompanyName(row.name) };
+    for (const id of printed) {
+      const value = (row as Record<string, unknown>)[id];
+      if (value !== undefined && value !== null) out[id] = value;
+    }
+    const also = alsoClassesLabel(otherClasses, row.symbol);
+    if (also) out.also = also;
+    return out as ResultRow;
+  });
 
   const showDirectory = !hasScreen;
-  const directory = showDirectory
-    ? sectorOptions.map((sector) => ({ ...sector, rows: rows.filter((row) => sectorSlug(row.sector) === sector.slug) }))
-    : [];
+  // The A to Z directory as one string per sector: the client list renders the links (see StockDirectory).
+  const stockLines = (list: readonly ScreenerRow[]) =>
+    list.map((row) => `${row.symbol}\t${(row.name ?? "").replace(/\s+/g, " ").trim()}`).join("\n");
   const unsectored = showDirectory ? rows.filter((row) => !row.sector) : [];
+  const directory: DirectoryGroup[] = showDirectory
+    ? [
+        ...sectorOptions.map((sector) => ({
+          slug: sector.slug,
+          name: sector.name,
+          linked: true,
+          stocks: stockLines(rows.filter((row) => sectorSlug(row.sector) === sector.slug)),
+        })),
+        ...(unsectored.length ? [{ slug: "other", name: "Not classified", linked: false, stocks: stockLines(unsectored) }] : []),
+      ]
+    : [];
 
   return (
     <AppPage>
@@ -706,11 +648,7 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
             </Empty>
           ) : (
             <>
-              <div className="hidden sm:block">
-                {/* The screener is for scanning: about 14 rows before it scrolls inside (owner, Nov 11), header pinned. */}
-                <DataTable columns={columns} rows={tableRows} compact maxRows={14} />
-              </div>
-              {phoneList}
+              <ScreenerResults rows={resultRows} columns={columns} columnIds={view.columns} phoneHead={phoneHead} phoneExtra={phoneExtra} />
               {firstList && remaining > 0 ? (
                 <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1 border-t border-oa-border px-4 py-3 text-[14px]">
                   <span className="text-oa-muted-fg">The {shown.length} biggest companies we follow, by company value.</span>
@@ -749,25 +687,7 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
             All stocks, A to Z by sector
             <span className={`${NUM} text-[12px] text-oa-muted-fg`}>{meta.row_count} stocks</span>
           </summary>
-          <div className="flex flex-col gap-4 border-t border-oa-border p-4">
-            {[...directory, ...(unsectored.length ? [{ slug: "other", name: "Not classified", count: unsectored.length, rows: unsectored }] : [])].map((group) => (
-              <section key={group.slug}>
-                <h3 className="oa-caption mb-1.5">
-                  {group.slug === "other" ? group.name : <Link prefetch={false} href={`/screener?sector=${group.slug}`} className="hover:underline">{group.name}</Link>}{" "}
-                  <span className="text-oa-muted-fg">{group.rows.length}</span>
-                </h3>
-                <ul className="flex flex-wrap gap-x-3 gap-y-1">
-                  {group.rows.map((row) => (
-                    <li key={row.symbol}>
-                      <Link prefetch={false} href={`/stock/${encodeURIComponent(row.symbol)}`} title={row.name} className={`${NUM} text-[12.5px] text-oa-fg hover:underline`}>
-                        {row.symbol}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ))}
-          </div>
+          <StockDirectory groups={directory} />
         </details>
       ) : null}
     </AppPage>

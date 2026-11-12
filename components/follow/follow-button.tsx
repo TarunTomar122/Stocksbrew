@@ -88,11 +88,9 @@ export function FollowButton({
     }
   }
 
-  const shape =
-    size === "md" ? "h-10 px-4 text-[14px] sm:h-9" : "h-10 px-3 text-[13px] lg:h-7 lg:px-2.5 lg:text-[12px]";
-  const tone = local
-    ? "border-oa-primary/40 bg-[color-mix(in_srgb,var(--oa-primary)_12%,transparent)] text-oa-primary"
-    : "border-oa-border bg-oa-card text-oa-fg hover:border-oa-fg/40";
+  // Short classes (.fbtn-* in app/globals.css): the directory prints one of these on every row.
+  const shape = size === "md" ? "h-10 px-4 text-[14px] sm:h-9" : "fbtn-sm";
+  const tone = local ? "fbtn-on" : "fbtn-off";
   const button = (
     <button
       type="button"
@@ -101,7 +99,7 @@ export function FollowButton({
       aria-pressed={local}
       aria-label={local ? `Stop following ${name}` : `Follow ${name}`}
       title={notice ?? (error ? "That did not save. Try again." : undefined)}
-      className={`inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-full border font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)] disabled:opacity-60 ${shape} ${tone}`}
+      className={`fbtn oa-focus ${shape} ${tone}`}
     >
       {notice
         ? "Limit reached"

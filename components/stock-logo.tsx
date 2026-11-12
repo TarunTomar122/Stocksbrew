@@ -104,8 +104,9 @@ export function StockLogo({
       {...(eager ? { fetchpriority: "high" } : {})}
       draggable={false}
       onError={() => setFailedSrc(src)}
-      className={`block shrink-0 ${shape} object-contain ring-1 ring-[color-mix(in_srgb,var(--oa-fg,#17181a)_12%,transparent)] ${className}`}
-      style={{ width: dim, height: dim, background: "color-mix(in srgb, var(--oa-fg, #17181a) 8%, transparent)" }}
+      // Block, shape, ring, backdrop and fit are one short class (.oa-logo in app/globals.css): long tables print hundreds of these.
+      className={`oa-logo${circle ? " oa-logo-c" : ""}${className ? ` ${className}` : ""}`}
+      style={{ width: dim, height: dim }}
     />
   );
 }

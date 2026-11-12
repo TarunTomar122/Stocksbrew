@@ -83,44 +83,53 @@ export default async function AgentJobsPage({
 }: {
   searchParams?: { job?: string | string[]; watch?: string | string[]; q?: string | string[]; draft?: string | string[] };
 }) {
-  const session = await getSessionUser().catch(() => null);
-  const focus = typeof searchParams?.job === "string" ? searchParams.job : null;
   const hidden = hiddenTemplateIds();
   const words = askParam(searchParams?.q);
   const next = nextAfterCloseRun(new Date());
   const schedule = { time: afterCloseTimeEt(next), next: afterCloseDayWords(next) };
+  const day = agentMarketDay();
   // Only a stock we follow: an unknown ticker would replay nothing and still be named, and every string would be a cache entry.
   const asked = watchParam(searchParams?.watch);
-  const watch = asked ? await getCoverage().then((coverage) => (coverage.bySymbol.has(asked) ? asked : null)).catch(() => null) : null;
+  // Nothing here waits on anything it does not need: the session, the ?watch= check and the
+  // day's shared reads all start at once, and the per-person reads start as soon as the session is known.
+  const [session, watch, sources] = await Promise.all([
+    getSessionUser().catch(() => null),
+    asked ? getCoverage().then((coverage) => (coverage.bySymbol.has(asked) ? asked : null)).catch(() => null) : null,
+    availableSources(day).catch(() => ({ fund_filings: false, congress: false, insiders: false, earnings: false, movers: false })),
+  ]);
+  const focus = typeof searchParams?.job === "string" ? searchParams.job : null;
   const sampleDraft = parseJobDraft(sampleFor(watch));
+  const sampleFrom = () =>
+    sampleReplay(day, watch ?? "")
+      .then((replay) => (sampleDraft.ok && replay ? { draft: sampleDraft.draft, replay } : null))
+      .catch(() => null);
+  // The example is for signed-out visitors, or anyone who came to watch one stock; it is always labelled as an example.
+  // With no agent in the link (no ?draft=, no ?q=) there is nothing to replace it, so its replay starts with the rest.
+  const wantsSample = (!session || Boolean(watch)) && sampleDraft.ok;
+  const noLinkedAgent = !searchParams?.draft && !words;
 
-  const [linked, jobs, runs, sources, scope] = await Promise.all([
-    linkedDraft(searchParams?.draft, words, hidden).catch(() => null),
+  const [linked, jobs, runs, scope, viewer, early] = await Promise.all([
+    noLinkedAgent ? null : linkedDraft(searchParams?.draft, words, hidden).catch(() => null),
     session ? listJobs(session.uid).catch(() => []) : [],
     session ? listRuns(session.uid).catch(() => []) : [],
-    availableSources(agentMarketDay()).catch(() => ({ fund_filings: false, congress: false, insiders: false, earnings: false, movers: false })),
     session ? resolveScope(session.uid, { kind: "watchlist" }).catch(() => ({ tickers: [], levels: {} })) : { tickers: [], levels: {} },
+    session ? getViewer() : null,
+    wantsSample && noLinkedAgent ? sampleFrom() : null,
   ]);
-  // The example is for signed-out visitors, or anyone who came to watch one stock; it is always labelled as an example.
   // A visitor who came with an agent of their own sees that one instead, so the example is not read at all.
-  const sample =
-    !linked && (!session || watch) && sampleDraft.ok
-      ? await sampleReplay(agentMarketDay(), watch ?? "")
-          .then((replay) => (replay ? { draft: sampleDraft.draft, replay } : null))
-          .catch(() => null)
-      : null;
+  const sample = noLinkedAgent ? early : wantsSample && !linked ? await sampleFrom() : null;
 
   return (
     <AppPage width="wide" className="max-w-[68rem]">
         <JobsWorkspace
           signedIn={Boolean(session)}
-          plan={session ? (await getViewer()).plan : "anon"}
+          plan={viewer ? viewer.plan : "anon"}
           initialJobs={jobs}
           initialRuns={runs}
           available={sources}
           tracked={scope.tickers.length}
           levels={scope.levels}
-          today={agentMarketDay()}
+          today={day}
           focusJobId={focus}
           sample={sample}
           linked={linked}

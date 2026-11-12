@@ -1,9 +1,10 @@
 import Link from "next/link";
 import * as React from "react";
 
-import { CardGrid, NUM, Panel, ShowMore, StatStrip, Ticker, fmtCompact } from "@/components/oa/kit";
-import { DataTable, type DataColumn, type DataRow } from "@/components/oa/kit/data-table";
+import { CardGrid, NUM, Panel, StatStrip, Ticker, fmtCompact } from "@/components/oa/kit";
 import { TheRead } from "@/components/oa/insight";
+import { CompanyTable, type CompanyLine } from "@/components/xray/company-table";
+import { shortCompanyName } from "@/lib/plain-copy";
 import { XraySignIn } from "@/components/xray/xray-sign-in";
 import type { TheRead as TheReadData } from "@/lib/insights";
 import { fmtFilingDay, fmtPct, joinList, type CompanyExposure, type FundSummary, type Xray } from "@/lib/xray";
@@ -236,34 +237,28 @@ function EveryCompany({ xray }: { xray: Xray }) {
   const rows = xray.companies.slice(0, TABLE_ROWS);
   const rest = xray.companies.slice(TABLE_ROWS);
   const restPct = rest.reduce((sum, row) => sum + row.pct, 0);
-  const columns: DataColumn[] = [
-    { id: "company", label: "Company", sortable: true },
-    { id: "direct", label: "Bought directly", align: "right", sortable: true, hideOnMobile: true },
-    { id: "funds", label: "Through funds", align: "right", sortable: true, hideOnMobile: true },
-    { id: "via", label: "Held through", hideOnMobile: true },
-    { id: "pct", label: "Share", align: "right", sortable: true },
-  ];
-  const tableRows: DataRow[] = rows.map((row) => ({
-    key: row.key,
-    cells: [
-      <Ticker key="t" symbol={row.ticker} name={row.name} />,
-      <span key="d" className={NUM}>{row.direct > 0 ? money(row.direct) : "none"}</span>,
-      <span key="f" className={NUM}>{row.viaFunds > 0 ? money(row.viaFunds) : "none"}</span>,
-      <span key="v" className={`${NUM} text-oa-muted-fg`}>{row.via.length > 0 ? row.via.map((slice) => slice.fund).join(", ") : "direct only"}</span>,
-      <span key="p" className={`${NUM} text-oa-fg`}>{fmtPct(row.pct)}</span>,
-    ],
-    sort: [row.name, row.direct, row.viaFunds, row.via.length, row.total],
-  }));
+  // Words and sort values only: the client table builds the cells when the fold opens (company-table.tsx).
+  const lines: CompanyLine[] = rows.map((row) => {
+    const shown = row.name ? shortCompanyName(row.name) : "";
+    return {
+      key: row.key,
+      ticker: row.ticker,
+      label: shown && shown.toUpperCase() !== row.ticker.toUpperCase() ? shown : "",
+      title: shown,
+      direct: row.direct > 0 ? money(row.direct) : "none",
+      funds: row.viaFunds > 0 ? money(row.viaFunds) : "none",
+      via: row.via.length > 0 ? row.via.map((slice) => slice.fund).join(", ") : "direct only",
+      pct: fmtPct(row.pct),
+      sort: [row.name, row.direct, row.viaFunds, row.via.length, row.total],
+    };
+  });
   return (
     <Panel label="Every company" flush>
-      <ShowMore always label={rest.length > 0 ? `Show the biggest ${TABLE_ROWS} companies` : `Show all ${xray.companies.length.toLocaleString("en-US")} companies`} className="[&>button]:mx-4 [&>button]:mb-4 [&>button]:w-[calc(100%-2rem)]">
-        <DataTable columns={columns} rows={tableRows} initialSort={{ id: "pct", dir: "desc" }} pageSize={50} compact />
-        {rest.length > 0 ? (
-          <p className="border-t border-oa-border px-4 py-3 text-[14px] text-oa-muted-fg">
-            {rest.length.toLocaleString("en-US")} smaller companies make up the other {fmtPct(restPct)}.
-          </p>
-        ) : null}
-      </ShowMore>
+      <CompanyTable
+        lines={lines}
+        label={rest.length > 0 ? `Show the biggest ${TABLE_ROWS} companies` : `Show all ${xray.companies.length.toLocaleString("en-US")} companies`}
+        note={rest.length > 0 ? `${rest.length.toLocaleString("en-US")} smaller companies make up the other ${fmtPct(restPct)}.` : null}
+      />
     </Panel>
   );
 }

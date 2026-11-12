@@ -2,7 +2,7 @@ import * as React from "react";
 
 import { ToneGlyph } from "@/components/oa/kit/tone";
 import { StockLogo } from "@/components/stock-logo";
-import { fmtFrac, fmtPoints, sparkPath, stockHref } from "@/lib/follow-shared";
+import { fmtFrac, fmtPoints, stockHref } from "@/lib/follow-shared";
 import { markFor } from "@/lib/tone";
 import Link from "next/link";
 
@@ -32,7 +32,7 @@ export function Ticker({
   return (
     <Link prefetch={false}
       href={stockHref(ticker)}
-      className={`oa-mono inline-flex shrink-0 items-baseline gap-1.5 font-medium text-oa-fg underline decoration-oa-border decoration-1 underline-offset-[3px] outline-none transition-colors hover:text-oa-primary hover:decoration-oa-primary focus-visible:text-oa-primary ${className}`}
+      className={`oa-mono ftk${className ? ` ${className}` : ""}`}
     >
       <StockLogo ticker={ticker} size={logo} className="self-center" atOnce={logoAtOnce} />
       {ticker}
@@ -71,13 +71,13 @@ export function HoldingChip({
       ) : null}
     </>
   );
-  const shape =
-    "inline-flex h-6 items-center gap-1 whitespace-nowrap rounded-md border border-oa-border bg-oa-bg px-1.5 text-[11px] leading-none";
+  // The chip's look is .hchip in app/globals.css: a directory row prints three of these.
+  const shape = "hchip";
   return ticker ? (
     <Link prefetch={false}
       href={stockHref(ticker)}
       title={title ?? name ?? ticker}
-      className={`${shape} outline-none transition-colors hover:border-oa-primary/60 focus-visible:border-oa-primary`}
+      className="hchip hchip-link"
     >
       {inner}
     </Link>
@@ -95,6 +95,8 @@ export function ReturnCell({
   drawdown = false,
   align = "right",
   compact = false,
+  className,
+  vsLabel = true,
 }: {
   value: number | null | undefined;
   versus: number | null | undefined;
@@ -102,9 +104,13 @@ export function ReturnCell({
   align?: "left" | "right";
   /** Table cells drop the "vs S&P" words on wide screens; the table's note explains the second line. */
   compact?: boolean;
+  /** Extra classes on the cell itself, so a grid row needs no wrapper around it. */
+  className?: string;
+  /** Print the "vs S&P" words. A compact cell that is hidden on phones never shows them, so it can leave them out. */
+  vsLabel?: boolean;
 }) {
-  const side =
-    align === "right" ? "items-end text-right" : "items-start text-left";
+  // Short classes (.rc-* in app/globals.css): a directory row prints six of these cells.
+  const side = `${align === "right" ? "rc-r" : "rc-l"}${className ? ` ${className}` : ""}`;
   if (value == null) {
     return (
       <span className={`flex flex-col ${side}`}>
@@ -121,26 +127,40 @@ export function ReturnCell({
   // A zero drawdown is a record too short to have fallen yet, not a good sign.
   const mark = drawdown && value !== 0 ? markFor("drawdown", value * 100) : undefined;
   return (
-    <span className={`flex flex-col leading-tight ${side}`}>
-      <span
-        className={`oa-mono tabular-nums inline-flex items-center gap-1 text-[13px] font-medium ${drawdown ? "text-oa-fg" : toneOf(value)}`}
-      >
+    <span className={`rc ${side}`}>
+      <span className={`oa-mono rc-v ${drawdown ? "text-oa-fg" : toneOf(value)}`}>
         {mark ? <ToneGlyph tone={mark} /> : null}
         {fmtFrac(value, 1, !drawdown)}
       </span>
       {versus != null ? (
         <span
-          className={`oa-mono tabular-nums whitespace-nowrap text-[10.5px] ${toneOf(versus)}`}
+          className={`oa-mono rc-p ${toneOf(versus)}`}
           title="Percentage points against the S&P 500 over the same days"
         >
-          {fmtPoints(versus)}{" "}
-          <span className={`text-oa-muted-fg ${compact ? "lg:hidden" : ""}`}>
-            vs S&amp;P
-          </span>
+          {vsLabel ? `${fmtPoints(versus)} ` : fmtPoints(versus)}
+          {vsLabel ? <span className={compact ? "rc-vs lg:hidden" : "rc-vs"}>vs S&amp;P</span> : null}
         </span>
       ) : null}
     </span>
   );
+}
+
+/** One decimal, without a trailing ".0": a path coordinate as short as it can be. */
+function coord(value: number): string {
+  return String(Math.round(value * 10) / 10);
+}
+
+/**
+ * The same line as sparkPath (lib/follow-shared.ts), written short: one moveto,
+ * then bare coordinate pairs (SVG reads them as linetos). A directory row draws
+ * two of these, so the shorter path is most of what the row weighs.
+ */
+function shortPath(values: number[], width: number, height: number, lo: number, hi: number): string {
+  const span = hi - lo || 1;
+  const last = values.length - 1;
+  return `M${values
+    .map((value, index) => `${coord((index / last) * width)} ${coord(height - ((value - lo) / span) * height)}`)
+    .join(" ")}`;
 }
 
 /** Two tiny lines: the follower's record in copper, the S&P 500 in grey. */
@@ -170,7 +190,7 @@ export function Sparkline({
     >
       {spy && spy.length > 1 ? (
         <path
-          d={sparkPath(spy, width, height, lo, hi)}
+          d={shortPath(spy, width, height, lo, hi)}
           fill="none"
           stroke="var(--oa-muted-fg)"
           strokeOpacity="0.45"
@@ -178,7 +198,7 @@ export function Sparkline({
         />
       ) : null}
       <path
-        d={sparkPath(fund, width, height, lo, hi)}
+        d={shortPath(fund, width, height, lo, hi)}
         fill="none"
         stroke="var(--oa-primary)"
         strokeWidth="1.4"
@@ -236,7 +256,7 @@ export function ExternalLink({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className={`underline decoration-oa-border underline-offset-[3px] outline-none transition-colors hover:text-oa-fg hover:decoration-oa-fg focus-visible:text-oa-fg ${className}`}
+      className={`xlink${className ? ` ${className}` : ""}`}
     >
       {children}
     </a>
