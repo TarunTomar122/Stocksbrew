@@ -104,17 +104,72 @@ export type CallEvidenceInput = {
   sayDays?: boolean;
 };
 
+/** One side of a fact card's comparison bar: "NVDA" at -13.2 shown as "−13%", "S&P 500" at -0.9. */
+export type EvidenceBar = { label: string; value: number; display: string };
+
+/**
+ * A fact as the stock page's card (owner, Nov 12: "these bullet points' issue... It's a very big issue for me"): one
+ * big figure, a label of a few words, at most one short line that adds something the figure and the bars don't, and a
+ * bar pair where the fact compares two numbers (the stock against the S&P 500, now against before). Built from the
+ * same numbers as the sentence, never parsed from it.
+ */
+export type EvidenceCard = {
+  /** The big number: "+83%", "−13%", "$1.23", "2.4%", "18×". */
+  figure: string;
+  /** Which way the figure reads for the company: up (green), down (red), or neither. */
+  tone: "up" | "down" | null;
+  /** What the figure is, lower case, a few words: "sales over four quarters". */
+  label: string;
+  /** At most one short line, or null when the figure, label and bars already say it all. */
+  line: string | null;
+  /** The two numbers the fact compares, the stock's (or today's) first. */
+  compare: [EvidenceBar, EvidenceBar] | null;
+  /**
+   * What the bars are: "change" (a rise or fall, in percent), drawn in the up tone right of zero and the down tone
+   * left of it; "level" (a price, a P/E, earnings per share), drawn in ink, a loss still left of zero.
+   */
+  compareKind: "change" | "level" | null;
+};
+
 export type EvidenceLine = {
   id: "sales" | "move" | "high" | "eps" | "dividend" | "valuation";
   text: string;
   /** Short, with a date: "From the 10-Q for the quarter to Jul 26, reported Aug 26". */
   source: string;
+  /** The same fact taken apart for the stock page's fact card. */
+  card: EvidenceCard;
 };
 
 /**
- * One thing that would change the call, on its own short line (owner rules 3 and 9): which way it would move the
- * call, the threshold as a figure, the sentence, and where the number comes from. `href` is the results release on
- * SEC EDGAR behind a sales figure (the 8-K, not the 10-Q the source names), linked under its own words.
+ * One measurable condition inside a check, built from the same numbers as the check's sentence (never parsed from it).
+ * - `eps`: earnings per share in the next report against analysts' forecast, in dollars a share. A forecast loss stays
+ *   negative: `above -0.12` is a loss smaller than 12 cents (or a profit).
+ * - `sales_growth`: sales growth over four quarters as of the next report, in percent. `below 0` is shrinking sales.
+ * - `relative_return`: the stock's return minus the S&P 500's over `period.sessions` trading days, in percentage
+ *   points. Negative is worse than the index: `below -9` is a day 9 points worse.
+ */
+export type CheckCondition = {
+  kind: "eps" | "sales_growth" | "relative_return";
+  operator: "above" | "below";
+  value: number;
+  unit: "usd_per_share" | "percent" | "points";
+  /** The next results report, or a run of trading sessions ending on any close. */
+  period: { kind: "report" } | { kind: "sessions"; sessions: number };
+  /** What a relative return is measured against; null for report figures. */
+  benchmark: "S&P 500" | null;
+  /** For a one-day relative return: the stock's usual daily gap from the index, in points. Null elsewhere. */
+  usual: number | null;
+};
+
+export type CheckSource = { source: string; href: string | null };
+
+/**
+ * One thing that would change the call (owner rules 3 and 9): which way it would move the call and where to, the
+ * sentence, where the number comes from, and the same condition as structured fields for the stock page's cards.
+ * `href` is the results release on SEC EDGAR behind a sales figure (the 8-K, not the 10-Q the source names).
+ *
+ * Grouping: every condition inside one check must hold together (`join: "and"`, e.g. a beat AND growth above the bar);
+ * checks with the same `way` are alternatives, any one of which could move the call.
  */
 export type ChangeCheck = {
   way: "raise" | "lower";
@@ -124,6 +179,16 @@ export type ChangeCheck = {
   /** Empty only when the figures carry no date at all; the check is still listed. */
   source: string;
   href: string | null;
+  /** The same source taken apart, one entry per figure behind the check (the forecast, the filing), each with its link. */
+  sources: CheckSource[];
+  /** The call it could move to: one step only (Keep to Buy more or Sell some, either of those back to Keep). */
+  to: CallWord;
+  /** What could set it off: the next results report, or a move of the stock's own against the market. */
+  event: "report" | "move";
+  /** The next report's day (YYYY-MM-DD) when the calendar has one within the next 100 days; null otherwise. */
+  eventDate: string | null;
+  join: "and";
+  conditions: CheckCondition[];
 };
 
 export type CallEvidence = {
@@ -181,6 +246,21 @@ function pct(value: number): string {
 
 function dollars(value: number): string {
   return `$${Math.abs(value).toFixed(2)}`;
+}
+
+/** "+83%", "−13%", "0%": a percent with its sign, for a card's figure and its bars. */
+function signedPct(value: number): string {
+  const text = pct(value);
+  return text === "0%" ? text : `${value > 0 ? "+" : "−"}${text}`;
+}
+
+/** "−$0.12" for a loss, "$1.23" otherwise. */
+function signedDollars(value: number): string {
+  return `${value <= -0.005 ? "−" : ""}${dollars(value)}`;
+}
+
+function toneOf(value: number): EvidenceCard["tone"] {
+  return value >= 0.05 ? "up" : value <= -0.05 ? "down" : null;
 }
 
 function bigMoney(value: number): string {
@@ -289,7 +369,34 @@ function salesLine(input: CallEvidenceInput): EvidenceLine | null {
   }
   text += ".";
   const source = salesSource(input)?.source ?? "";
-  return source ? { id: "sales", text, source } : null;
+  if (!source) return null;
+  // The card: the four quarters' growth large, the fiscal year as the second bar, and the sales in dollars with how the
+  // pace compares as the line (the bars carry both percents, so the line does not repeat them).
+  const flat = Math.abs(g0) < 0.5;
+  const yearFlat = !year || Math.abs(year.pct) < 0.5;
+  const pace =
+    !year || flat || yearFlat || g0 < 0 || year.pct < 0
+      ? ""
+      : g0 - year.pct > 2
+        ? `, faster than in fiscal ${year.year}`
+        : year.pct - g0 > 2
+          ? `, slower than in fiscal ${year.year}`
+          : `, about the pace of fiscal ${year.year}`;
+  const card: EvidenceCard = {
+    figure: flat ? "0%" : signedPct(g0),
+    tone: flat ? null : toneOf(g0),
+    label: "sales over four quarters",
+    line: `${bigMoney(sales.revenue)} in sales${pace}.`,
+    compare:
+      year && !(flat && yearFlat)
+        ? [
+            { label: "Past four quarters", value: flat ? 0 : g0, display: flat ? "0%" : signedPct(g0) },
+            { label: `Fiscal ${year.year}`, value: yearFlat ? 0 : year.pct, display: yearFlat ? "0%" : signedPct(year.pct) },
+          ]
+        : null,
+    compareKind: year && !(flat && yearFlat) ? "change" : null,
+  };
+  return { id: "sales", text, source, card };
 }
 
 /** Where the four-quarter sales figures come from, and the results release's link on SEC EDGAR when stored. */
@@ -351,10 +458,24 @@ function moveLine(input: CallEvidenceInput, swing: number | null): EvidenceLine 
   // weekly memo's week, from Friday's close).
   const window = best.span === MOVE_WEEK_SESSIONS ? `${SESSION_WORDS[MOVE_WEEK_SESSIONS] ?? MOVE_WEEK_SESSIONS} trading days` : "month";
   const marketWords = Math.abs(best.market) < 0.05 ? "the S&P 500 was flat" : `the S&P 500 ${best.market > 0 ? "rose" : "fell"} ${pct(best.market)}`;
+  const marketFlat = Math.abs(best.market) < 0.05;
+  const to = closeDay(last.date, input);
   return {
     id: "move",
-    text: `${input.ticker} ${best.stock > 0 ? "rose" : "fell"} ${pct(best.stock)} in the ${window} to ${closeDay(last.date, input)}, while ${marketWords}.`,
+    text: `${input.ticker} ${best.stock > 0 ? "rose" : "fell"} ${pct(best.stock)} in the ${window} to ${to}, while ${marketWords}.`,
     source: priceSourceNote(input, last.date),
+    // The card: the stock's move large, the stock and the S&P 500 as the bars, and the close it runs to as the line.
+    card: {
+      figure: signedPct(best.stock),
+      tone: toneOf(best.stock),
+      label: best.span === MOVE_WEEK_SESSIONS ? window : "past month",
+      line: to ? `To ${to}.` : null,
+      compare: [
+        { label: input.ticker, value: best.stock, display: signedPct(best.stock) },
+        { label: "S&P 500", value: marketFlat ? 0 : best.market, display: marketFlat ? "0%" : signedPct(best.market) },
+      ],
+      compareKind: "change",
+    },
   };
 }
 
@@ -373,6 +494,18 @@ function highLine(input: CallEvidenceInput): EvidenceLine | null {
     id: "high",
     text: `${input.ticker} closed at ${dollars(last.close)} ${onDay(last.date, input)}, ${pct(below)} below its high of ${dollars(high.close)} ${onDay(high.date, input)}.`,
     source: priceSourceNote(input, last.date),
+    // The card: how far below the high, the last close and the high as the bars, and the high's day as the line.
+    card: {
+      figure: signedPct(below),
+      tone: "down",
+      label: "below its past-year high",
+      line: `The high was ${onDay(high.date, input)}.`,
+      compare: [
+        { label: "Last close", value: last.close, display: dollars(last.close) },
+        { label: "High", value: high.close, display: dollars(high.close) },
+      ],
+      compareKind: "level",
+    },
   };
 }
 
@@ -396,6 +529,19 @@ function epsLine(input: CallEvidenceInput): EvidenceLine | null {
   if (fin(row.eps_surprise) && Math.abs(actual - forecast - row.eps_surprise) > 0.015) return null;
   const gap = actual - forecast;
   const when = `In its ${day(date, input.today)} report`;
+  // The card: the reported figure large, reported and forecast as the bars, and the verdict with the report's day.
+  const matched = Math.abs(gap) < 0.005;
+  const card: EvidenceCard = {
+    figure: signedDollars(actual),
+    tone: matched ? null : gap > 0 ? "up" : "down",
+    label: "earnings per share",
+    line: `${matched ? "Matched" : gap > 0 ? "Beat" : "Missed"} the forecast in the ${day(date, input.today)} report.`,
+    compare: [
+      { label: "Reported", value: actual, display: signedDollars(actual) },
+      { label: "Forecast", value: forecast, display: signedDollars(forecast) },
+    ],
+    compareKind: "level",
+  };
   let text: string;
   if (actual >= 0 && forecast >= 0) {
     const said = Math.abs(gap) < 0.005 ? "matched" : gap > 0 ? "beat" : "missed";
@@ -411,6 +557,7 @@ function epsLine(input: CallEvidenceInput): EvidenceLine | null {
     text,
     // The provider the pair came from (backend/agentdata/earnings_day.py `_PROVIDERS`).
     source: `${row.actuals_source === "alphavantage" ? "Alpha Vantage earnings data" : row.actuals_source === "yfinance" ? "Yahoo Finance earnings data" : "Nasdaq earnings calendar"}, ${day(date, input.today)}`,
+    card,
   };
 }
 
@@ -424,6 +571,14 @@ function dividendLine(input: CallEvidenceInput): EvidenceLine | null {
     id: "dividend",
     text: `${input.ticker} pays ${dollars(dividend.annual)} a share a year, ${yieldPct.toFixed(1)}% of today's price, and has raised its dividend ${years} years in a row.`,
     source: `Dividend history, as of ${day(dividend.capturedAt, input.today)}`,
+    card: {
+      figure: `${yieldPct.toFixed(1)}%`,
+      tone: null,
+      label: "dividend yield",
+      line: `${dollars(dividend.annual)} a share a year, raised ${years} years in a row.`,
+      compare: null,
+      compareKind: null,
+    },
   };
 }
 
@@ -440,6 +595,18 @@ function valuationLine(input: CallEvidenceInput): EvidenceLine | null {
     id: "valuation",
     text: `At ${times(v.pe)} times its past year's earnings, ${input.ticker} is ${off < 0 ? "cheaper" : "more expensive"} than its median of ${times(v.medianPe)} from ${day(v.from, input.today)} to ${day(v.to, input.today)}.`,
     source: `Daily P/E on file, ${day(v.from, input.today)} to ${day(v.to, input.today)}`,
+    // The card: today's P/E large, today's and the median as the bars, and the window the median spans as the line.
+    card: {
+      figure: `${times(v.pe)}×`,
+      tone: null,
+      label: "price to past year's earnings",
+      line: `${off < 0 ? "Cheaper" : "Pricier"} than its median from ${day(v.from, input.today)} to ${day(v.to, input.today)}.`,
+      compare: [
+        { label: "Now", value: v.pe, display: `${times(v.pe)}×` },
+        { label: "Median", value: v.medianPe, display: `${times(v.medianPe)}×` },
+      ],
+      compareKind: "level",
+    },
   };
 }
 
@@ -520,18 +687,51 @@ function conditionLines(input: CallEvidenceInput, swing: number | null): { lines
   const lastClose = closes[closes.length - 1];
   const pricesFrom = lastClose ? priceSourceNote(input, lastClose.date) : "";
   const checks: ChangeCheck[] = [];
+  // One step only (backend/call_stability.py): Keep moves to Buy more or Sell some, either of those back to Keep.
+  const destination = (way: ChangeCheck["way"]): CallWord => (way === "raise" ? (call === "Trim" ? "Hold" : "Add") : call === "Add" ? "Hold" : "Trim");
+  const reportDay = dated ? next.date.slice(0, 10) : null;
+  // The structured conditions, from the same numbers as the sentences.
+  const onReport = { kind: "report" } as const;
+  const epsBeats = (operator: CheckCondition["operator"]): CheckCondition => ({ kind: "eps", operator, value: eps!, unit: "usd_per_share", period: onReport, benchmark: null, usual: null });
+  const salesGrowth = (operator: CheckCondition["operator"], value: number): CheckCondition => ({ kind: "sales_growth", operator, value, unit: "percent", period: onReport, benchmark: null, usual: null });
   // Every condition said above becomes a check, so the list never says less than the sentences would.
-  const check = (way: ChangeCheck["way"], figure: string, text: string, from: { source: string; href?: string | null } | null) => {
-    checks.push({ way, figure, text, source: from?.source ?? "", href: from?.href ?? null });
+  type From = { source: string; href?: string | null; parts?: CheckSource[] } | null;
+  const check = (way: ChangeCheck["way"], figure: string, text: string, from: From, conditions: CheckCondition[]) => {
+    const event = conditions.some((item) => item.period.kind === "report") ? "report" : "move";
+    checks.push({
+      way,
+      figure,
+      text,
+      source: from?.source ?? "",
+      href: from?.href ?? null,
+      sources: from?.parts ?? (from?.source ? [{ source: from.source, href: from.href ?? null }] : []),
+      to: destination(way),
+      event,
+      eventDate: event === "report" ? reportDay : null,
+      join: "and",
+      conditions,
+    });
   };
-  const both = (a: string, b: { source: string; href: string | null } | null) => (b ? { source: `${a}; ${b.source.charAt(0).toLowerCase()}${b.source.slice(1)}`, href: b.href } : { source: a, href: null });
+  const both = (a: string, b: { source: string; href: string | null } | null): From =>
+    b
+      ? { source: `${a}; ${b.source.charAt(0).toLowerCase()}${b.source.slice(1)}`, href: b.href, parts: [{ source: a, href: null }, b].filter((part) => part.source) }
+      : { source: a, href: null };
   // Plain words for the checks list (owner, Nov 12: "what do those percentages even mean"): a day or a week that much
   // worse than the S&P 500, with the stock's normal gap beside the day.
   const shortDay = usual !== null && times ? ` (a normal day's gap is about ${usual}%)` : "";
   const moveChecks = () => {
     if (!moves.length || dayBar === null || weekBar === null) return;
-    check("lower", `${dayBar}%`, `${t} has a day ${dayBar}% worse than the S&P 500${shortDay}.`, { source: pricesFrom });
-    check("lower", `${weekBar}%`, `${t} has a week ${weekBar}% worse than the S&P 500.`, { source: pricesFrom });
+    const behind = (sessions: number, bar: number): CheckCondition => ({
+      kind: "relative_return",
+      operator: "below",
+      value: -bar,
+      unit: "points",
+      period: { kind: "sessions", sessions },
+      benchmark: "S&P 500",
+      usual: sessions === 1 && shortDay ? usual : null,
+    });
+    check("lower", `${dayBar}%`, `${t} has a day ${dayBar}% worse than the S&P 500${shortDay}.`, { source: pricesFrom }, [behind(1, dayBar)]);
+    check("lower", `${weekBar}%`, `${t} has a week ${weekBar}% worse than the S&P 500.`, { source: pricesFrom }, [behind(MOVE_WEEK_SESSIONS, weekBar)]);
   };
 
   // Phrased as what would change the call, never as a second call: the other call words are not named.
@@ -540,13 +740,13 @@ function conditionLines(input: CallEvidenceInput, swing: number | null): { lines
     const holds = bars.up !== null ? `sales growth stays above ${bars.up}%${paceOf(bars.up)}` : "";
     if (forecast && holds) {
       lines.push(`${Report} could raise the call if it beats ${forecast} and ${holds}.`);
-      check("raise", dollars(eps!), `${Report} beats ${forecast} and ${holds}.`, both(forecastFrom, salesFrom));
+      check("raise", dollars(eps!), `${Report} beats ${forecast} and ${holds}.`, both(forecastFrom, salesFrom), [epsBeats("above"), salesGrowth("above", bars.up!)]);
     } else if (forecast) {
       lines.push(`${Report} could raise the call if it beats ${forecast}.`);
-      check("raise", dollars(eps!), `${Report} beats ${forecast}.`, { source: forecastFrom });
+      check("raise", dollars(eps!), `${Report} beats ${forecast}.`, { source: forecastFrom }, [epsBeats("above")]);
     } else if (bars.up !== null) {
       lines.push(`${Report} could raise the call if it keeps sales growth above ${bars.up}%${paceOf(bars.up)}.`);
-      check("raise", `${bars.up}%`, `${Report} keeps sales growth above ${bars.up}%${paceOf(bars.up)}.`, salesFrom);
+      check("raise", `${bars.up}%`, `${Report} keeps sales growth above ${bars.up}%${paceOf(bars.up)}.`, salesFrom, [salesGrowth("above", bars.up)]);
     }
   }
   if (call === "Add" || call === "Hold") {
@@ -554,8 +754,8 @@ function conditionLines(input: CallEvidenceInput, swing: number | null): { lines
     if (lower.length) {
       lines.push(`${lines.length ? "It" : Report} could lower the call if it ${lower.join(" or ")}.`);
       if (moves.length) lines.push(`So could ${joinOr(moves)}.`);
-      if (missed) check("lower", dollars(eps!), `${Report} ${missed}.`, { source: forecastFrom });
-      if (slowdown) check("lower", bars.down ? `${bars.down}%` : "0%", `${Report} ${slowdown}.`, salesFrom);
+      if (missed) check("lower", dollars(eps!), `${Report} ${missed}.`, { source: forecastFrom }, [epsBeats("below")]);
+      if (slowdown) check("lower", bars.down ? `${bars.down}%` : "0%", `${Report} ${slowdown}.`, salesFrom, [salesGrowth("below", bars.down ?? 0)]);
       moveChecks();
     } else if (ownMoves.length) {
       // Without a report line, only the stock's own moves are worth a line; the market drop alone says nothing about it.
@@ -567,19 +767,78 @@ function conditionLines(input: CallEvidenceInput, swing: number | null): { lines
     const back = bars.recover === null ? "" : bars.recover === 0 ? "sales start growing again" : `sales growth gets back above ${bars.recover}%${paceOf(bars.recover)}`;
     if (forecast && back) {
       lines.push(`${Report} could raise the call if it beats ${forecast} and ${back}.`);
-      check("raise", dollars(eps!), `${Report} beats ${forecast} and ${back}.`, both(forecastFrom, salesFrom));
+      check("raise", dollars(eps!), `${Report} beats ${forecast} and ${back}.`, both(forecastFrom, salesFrom), [epsBeats("above"), salesGrowth("above", bars.recover!)]);
     } else if (forecast) {
       lines.push(`${Report} could raise the call if it beats ${forecast}.`);
-      check("raise", dollars(eps!), `${Report} beats ${forecast}.`, { source: forecastFrom });
+      check("raise", dollars(eps!), `${Report} beats ${forecast}.`, { source: forecastFrom }, [epsBeats("above")]);
     } else if (bars.recover !== null) {
       const shows = bars.recover === 0 ? "shows sales growing again" : `shows sales growth back above ${bars.recover}%${paceOf(bars.recover)}`;
       lines.push(`${Report} could raise the call if it ${shows}.`);
-      check("raise", `${bars.recover}%`, `${Report} ${shows}.`, salesFrom);
+      check("raise", `${bars.recover}%`, `${Report} ${shows}.`, salesFrom, [salesGrowth("above", bars.recover)]);
     }
   }
   // No "Short of that, the call stands until at least Nov 25." after these: it explains the steady-call rule rather
   // than saying what would change the call (owner rule 8: no mechanics copy).
   return { lines, checks };
+}
+
+/**
+ * A condition in a few words for the stock page's cards, from its fields (never from the sentence), with the key figure
+ * apart so it can be set in bold: "Earnings above " + "$2.49" + " a share", "" + "9 points" + " worse in one day".
+ */
+export function conditionWords(condition: CheckCondition): { lead: string; figure: string; tail: string } {
+  const { kind, operator, value } = condition;
+  if (kind === "eps") {
+    if (value === 0) return { lead: "", figure: operator === "above" ? "A profit" : "A loss", tail: "" };
+    // A forecast loss: beating it is a smaller loss, missing it a bigger one.
+    if (value < 0) return { lead: `Loss ${operator === "above" ? "under" : "over"} `, figure: dollars(value), tail: " a share" };
+    return { lead: `Earnings ${operator} `, figure: dollars(value), tail: " a share" };
+  }
+  if (kind === "sales_growth") {
+    if (value === 0) return { lead: "Sales ", figure: operator === "above" ? "growing" : "shrinking", tail: "" };
+    return { lead: `Sales growth ${operator} `, figure: `${Number(value.toFixed(1))}%`, tail: "" };
+  }
+  const sessions = condition.period.kind === "sessions" ? condition.period.sessions : 1;
+  const size = Number(Math.abs(value).toFixed(1));
+  return {
+    lead: "",
+    figure: `${size} ${size === 1 ? "point" : "points"}`,
+    tail: ` ${value < 0 ? "worse" : "better"} in ${sessions === 1 ? "one day" : `${sessions} trading days`}`,
+  };
+}
+
+/**
+ * A condition as the stock page's figure-led card part, from its fields (never from the sentence): the threshold large,
+ * what it is in a few words under it, and which side of it counts ("above", "below"), or "" when the figure or label
+ * already says it ("9 points" / "worse in one day", "Shrinking" / "sales").
+ */
+export function conditionFigure(condition: CheckCondition): { figure: string; label: string; side: "above" | "below" | "under" | "over" | "" } {
+  const { kind, operator, value } = condition;
+  if (kind === "eps") {
+    if (Math.abs(value) < 0.005) return { figure: operator === "above" ? "A profit" : "A loss", label: "at the report", side: "" };
+    // A forecast loss reads as a loss, never "below −$0.13": beating it is a loss under $0.13, missing it one over.
+    if (value < 0) return { figure: dollars(value), label: "loss per share", side: operator === "above" ? "under" : "over" };
+    return { figure: dollars(value), label: "earnings per share", side: operator };
+  }
+  if (kind === "sales_growth") {
+    if (value === 0) return { figure: operator === "above" ? "Growing" : "Shrinking", label: "sales", side: "" };
+    return { figure: `${Number(value.toFixed(1))}%`, label: "sales growth", side: operator };
+  }
+  const sessions = condition.period.kind === "sessions" ? condition.period.sessions : 1;
+  const size = Number(Math.abs(value).toFixed(1));
+  const span = sessions === 1 ? "one day" : `${SESSION_WORDS[sessions] ?? sessions} trading days`;
+  return { figure: `${size} ${size === 1 ? "point" : "points"}`, label: `${value < 0 ? "worse" : "better"} in ${span}`, side: "" };
+}
+
+/** A check's card as plain text ("Earnings above $2.49 a share AND sales growth above 65%"), for counting and tests. */
+export function checkCardText(check: Pick<ChangeCheck, "conditions">): string {
+  return check.conditions
+    .map((condition, index) => {
+      const { lead, figure, tail } = conditionWords(condition);
+      const text = `${lead}${figure}${tail}`;
+      return index ? text.charAt(0).toLowerCase() + text.slice(1) : text;
+    })
+    .join(" AND ");
 }
 
 function joinOr(items: string[]): string {

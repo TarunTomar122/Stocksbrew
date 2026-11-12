@@ -14,14 +14,12 @@ import {
   growthReading,
   overviewReadings,
   ownershipHeadline,
-  rangeReading,
-  rsiReading,
   trendReading,
   valuationHeadline,
   valuationRows,
   type Reading,
 } from "@/lib/stock-readings";
-import { historyJudged, markFor, moodWord, multipleVsHistory, multipleVsSector, netFlow, priceVsTarget, scoreVerdict, sentenceOutcome, type ToneWord } from "@/lib/tone";
+import { moodWord, scoreVerdict, type ToneWord } from "@/lib/tone";
 
 import { CompareBars, MiniBars, MiniLines, RangeTrack, RatingColumns, ShareRows, Spark, type RangeMarker } from "./charts";
 import {
@@ -42,18 +40,35 @@ import {
   signedPct,
   wholeGap,
 } from "./format";
-import { Details, MarkSlot, Missing, MoreLink, NUM, Panel, PROSE, ReportSection, Row, StatGrid, Tag, TONE_COLOR, ToneGlyph, Verdict, type SectionId, type Tone } from "./primitives";
+import { Details, Missing, MoreLink, NUM, Panel, PROSE, ReportSection, Row, StatGrid, Tag, TONE_COLOR, Verdict, type SectionId, type Tone } from "./primitives";
 import type { SectionData } from "./types";
+import { SignalFigure, VERDICT_COLOR, type SignalsProp } from "./signal-ui";
+import type { SignalId, StockSignal } from "@/lib/stock-signals";
 import Link from "next/link";
 import { AppLink } from "@/components/oa/app-link";
 
-type SectionProps = { data: SectionData };
+/**
+ * `signals`: the page's good and watch signals by id (lib/stock-signals.ts), worked out once on the server. Every
+ * judged figure in the tabs comes from them, coloured with a ▲ or ▼ (./signal-ui.tsx); the tabs never judge a figure
+ * of their own, so a tab's dot and the tally by the call always agree with what the tab shows.
+ */
+type SectionProps = { data: SectionData; signals?: SignalsProp };
 
-const READING_TONE: Record<Reading["tone"], Tone> = { good: "up", bad: "down", neutral: "flat" };
+/** A panel header's judged figure and the period it covers: "▲ +14.1% FY25 vs FY24". */
+function SignalMeta({ signal, prefix }: { signal: StockSignal; prefix?: string }) {
+  const period = signal.period?.replace(/FY20(\d\d)/g, "FY$1") ?? null;
+  return (
+    <span className="inline-flex flex-wrap items-center justify-end gap-x-1.5 font-sans">
+      {prefix ? <span>{prefix}</span> : null}
+      <SignalFigure signal={signal} className="text-[13px]" />
+      {period ? <span>{period}</span> : null}
+    </span>
+  );
+}
 
-/** The header chip of the Multiples table is about the P/E row, so it says so: "P/E pricey vs sector". */
-function peWord(word: ToneWord | null): ToneWord | null {
-  return word ? { tone: word.tone, word: `P/E ${word.word.charAt(0).toLowerCase()}${word.word.slice(1)}` } : null;
+/** One signal by id, or nothing. */
+function signalOf(signals: SignalsProp | undefined, id: SignalId): StockSignal | null {
+  return signals?.byId[id] ?? null;
 }
 
 /** A verdict chip from a lib/tone word, or nothing. */
@@ -71,15 +86,10 @@ function Readings({ items }: { items: Array<Reading | null> }) {
   return (
     <ul className="flex flex-col">
       {rows.map((row) => (
-        <li
-          key={row.statement}
-          className="flex flex-col gap-1.5 border-b border-oa-border px-3.5 py-2.5 text-[14px] leading-5 text-oa-fg last:border-b-0 sm:flex-row sm:items-start sm:justify-between sm:gap-4 sm:px-4"
-        >
-          {/* The chip says the tone in a word; no coloured edge as well (owner rule 6). */}
+        <li key={row.statement} className="border-b border-oa-border px-3.5 py-2.5 text-[14px] leading-5 text-oa-fg last:border-b-0 sm:px-4">
+          {/* The statement only: good and watch come from the page's signals (lib/stock-signals.ts), not from a second
+              set of thresholds here, so the tabs never disagree with the tally by the call. */}
           <span className="min-w-0 text-pretty">{row.statement}</span>
-          <Verdict tone={READING_TONE[row.tone]} className="self-start sm:mt-px">
-            {row.verdict}
-          </Verdict>
         </li>
       ))}
     </ul>
@@ -170,24 +180,20 @@ export function OverviewSection({ data }: SectionProps) {
   const balanceSheet = balanceSheetBusiness(data);
   const readings = overviewReadings(facts, currency, balanceSheet);
 
+  // The key figures plain: none of them is one of the page's signals (those compare fiscal years, sectors and peers),
+  // and Overview never judges a figure a second way (council, Nov 12). A loss still reads as a loss by its sign.
   const stats = [
     fin(fin0?.revenue) ? { label: `Revenue (${fin0?.fiscal_year || "TTM"})`, value: compactMoney(fin0.revenue, currency) } : null,
-    fin(fin0?.revenue_growth_yoy_pct)
-      ? { label: "Revenue growth, 1 year", value: signedPct(fin0.revenue_growth_yoy_pct), tone: markFor("revenueGrowth", fin0.revenue_growth_yoy_pct) }
-      : null,
-    fin(fin0?.net_income) ? { label: "Net income", value: compactMoney(fin0.net_income, currency), tone: fin0.net_income < 0 ? ("down" as Tone) : undefined } : null,
-    fin(fin0?.eps_diluted) ? { label: "EPS (diluted)", value: perShare(fin0.eps_diluted, currency), tone: fin0.eps_diluted < 0 ? ("down" as Tone) : undefined } : null,
-    fin(latest?.gross_margin_pct) ? { label: "Gross margin", value: plainPct(latest.gross_margin_pct), tone: markFor("grossMargin", latest.gross_margin_pct) } : null,
-    fin(latest?.operating_margin_pct)
-      ? { label: "Operating margin", value: plainPct(latest.operating_margin_pct), tone: markFor("operatingMargin", latest.operating_margin_pct) }
-      : null,
-    fin(facts?.quality?.roe_pct) ? { label: "Return on equity", value: plainPct(facts.quality.roe_pct), tone: markFor("roe", facts.quality.roe_pct) } : null,
-    fin(facts?.quality?.roic_pct) ? { label: "Return on capital", value: plainPct(facts.quality.roic_pct), tone: markFor("roic", facts.quality.roic_pct) } : null,
+    fin(fin0?.revenue_growth_yoy_pct) ? { label: "Revenue growth, 1 year", value: signedPct(fin0.revenue_growth_yoy_pct) } : null,
+    fin(fin0?.net_income) ? { label: "Net income", value: compactMoney(fin0.net_income, currency) } : null,
+    fin(fin0?.eps_diluted) ? { label: "EPS (diluted)", value: perShare(fin0.eps_diluted, currency) } : null,
+    fin(latest?.gross_margin_pct) && !balanceSheet ? { label: "Gross margin", value: plainPct(latest.gross_margin_pct) } : null,
+    fin(latest?.operating_margin_pct) ? { label: "Operating margin", value: plainPct(latest.operating_margin_pct) } : null,
+    fin(facts?.quality?.roe_pct) ? { label: "Return on equity", value: plainPct(facts.quality.roe_pct) } : null,
+    fin(facts?.quality?.roic_pct) ? { label: "Return on capital", value: plainPct(facts.quality.roic_pct) } : null,
     // A bank's debt to equity is the leverage it is built on, and it has no current ratio: both read as alarms that are not.
-    !balanceSheet && fin(facts?.quality?.debt_to_equity)
-      ? { label: "Debt / equity", value: facts.quality.debt_to_equity.toFixed(2), tone: markFor("debtToEquity", facts.quality.debt_to_equity) }
-      : null,
-    !balanceSheet && fin(facts?.quality?.current_ratio) ? { label: "Current ratio", value: facts.quality.current_ratio.toFixed(2), tone: markFor("currentRatio", facts.quality.current_ratio) } : null,
+    !balanceSheet && fin(facts?.quality?.debt_to_equity) ? { label: "Debt / equity", value: facts.quality.debt_to_equity.toFixed(2) } : null,
+    !balanceSheet && fin(facts?.quality?.current_ratio) ? { label: "Current ratio", value: facts.quality.current_ratio.toFixed(2) } : null,
     fin(yieldPct) && yieldPct > 0 ? { label: "Dividend yield", value: plainPct(yieldPct, 2) } : null,
     balanceSheet && fin(facts?.dividends?.payout_ratio_pct) && facts.dividends.payout_ratio_pct > 0
       ? { label: "Payout ratio", value: plainPct(facts.dividends.payout_ratio_pct) }
@@ -281,7 +287,7 @@ function ScoreWord({ verdict, className = "" }: { verdict: string | null | undef
 
 // ─── Financials ──────────────────────────────────────────────────────────────
 
-export function FinancialsSection({ data }: SectionProps) {
+export function FinancialsSection({ data, signals }: SectionProps) {
   const { facts, currency } = data;
   const rows = chronologicalHistory(facts?.financial_history).slice(-8);
   const label = (period: string) => shortPeriod(period);
@@ -292,12 +298,21 @@ export function FinancialsSection({ data }: SectionProps) {
   const cash = balanceSheet ? null : cashFlowReading(facts, currency);
   const lede = [growth?.statement, cash?.statement].filter(Boolean).join(" ") || null;
 
-  const bars: Array<{ key: string; title: string; values: Array<number | null | undefined>; format: (value: number) => string; unit: string }> = [
-    { key: "revenue", title: "Revenue", values: rows.map((row) => row.revenue), format: money, unit: currency },
-    { key: "net", title: "Net income", values: rows.map((row) => row.net_income), format: money, unit: currency },
-    { key: "eps", title: "EPS (diluted)", values: rows.map((row) => row.eps_diluted), format: (value: number) => value.toFixed(2), unit: `${currency} per share` },
-    { key: "fcf", title: "Free cash flow", values: rows.map((row) => (balanceSheet ? null : row.free_cash_flow)), format: money, unit: currency },
+  // Each chart's judged figure is its signal (lib/stock-signals.ts): the latest fiscal year against the one before.
+  const bars: Array<{ key: string; title: string; values: Array<number | null | undefined>; format: (value: number) => string; unit: string; signal: StockSignal | null }> = [
+    { key: "revenue", title: "Revenue", values: rows.map((row) => row.revenue), format: money, unit: currency, signal: signalOf(signals, "fin.revenue") },
+    { key: "net", title: "Net income", values: rows.map((row) => row.net_income), format: money, unit: currency, signal: signalOf(signals, "fin.net_income") },
+    {
+      key: "eps",
+      title: "EPS (diluted)",
+      values: rows.map((row) => row.eps_diluted),
+      format: (value: number) => value.toFixed(2),
+      unit: `${currency} per share`,
+      signal: signalOf(signals, "fin.eps"),
+    },
+    { key: "fcf", title: "Free cash flow", values: rows.map((row) => (balanceSheet ? null : row.free_cash_flow)), format: money, unit: currency, signal: null },
   ].filter((chart) => chart.values.filter(fin).length >= 2);
+  const marginSignal = signalOf(signals, "fin.net_margin");
 
   const hasMargins = rows.filter((row) => fin(row.gross_margin_pct) || fin(row.operating_margin_pct) || fin(row.profit_margin_pct)).length >= 2;
   const cashNow = balanceSheet ? null : facts?.balance?.cash_and_investments;
@@ -310,7 +325,23 @@ export function FinancialsSection({ data }: SectionProps) {
         {bars.map((chart) => {
           const latest = [...chart.values].reverse().find(fin);
           return (
-            <Panel key={chart.key} label={chart.title} meta={latest != null ? `${chart.unit} · latest ${chart.format(latest)}` : chart.unit}>
+            <Panel
+              key={chart.key}
+              label={chart.title}
+              // The judged figure first when there is one, then the unit and the latest value as always (council,
+              // Nov 12: the currency and per-share units stay).
+              meta={
+                <span className="inline-flex flex-wrap items-center justify-end gap-x-1.5">
+                  {chart.signal?.eligible && chart.signal.display ? (
+                    <>
+                      <SignalMeta signal={chart.signal} />
+                      <span aria-hidden="true">·</span>
+                    </>
+                  ) : null}
+                  <span>{latest != null ? `${chart.unit} · latest ${chart.format(latest)}` : chart.unit}</span>
+                </span>
+              }
+            >
               <div className="px-3 pb-3 pt-3 sm:px-4">
                 <MiniBars rows={rows.map((row, index) => ({ label: label(row.period), value: chart.values[index] }))} format={chart.format} />
               </div>
@@ -318,7 +349,20 @@ export function FinancialsSection({ data }: SectionProps) {
           );
         })}
         {hasMargins ? (
-          <Panel label="Margins" meta="% of revenue">
+          <Panel
+            label="Margins"
+            meta={
+              marginSignal?.eligible && marginSignal.display ? (
+                <span className="inline-flex flex-wrap items-center justify-end gap-x-1.5">
+                  <SignalMeta signal={marginSignal} prefix="Net" />
+                  <span aria-hidden="true">·</span>
+                  <span>% of revenue</span>
+                </span>
+              ) : (
+                "% of revenue"
+              )
+            }
+          >
             <div className="px-3 pb-3 pt-3 sm:px-4">
               <MiniLines
                 periods={rows.map((row) => label(row.period))}
@@ -342,14 +386,7 @@ export function FinancialsSection({ data }: SectionProps) {
                 ]}
                 format={(value) => compactMoney(value, currency)}
               />
-              {balance ? (
-                <p className="mt-3 flex flex-col items-start gap-1.5 text-[13px] leading-5 text-oa-muted-fg sm:flex-row sm:justify-between sm:gap-4">
-                  <span className="min-w-0 text-pretty">{balance.statement}</span>
-                  <Verdict tone={READING_TONE[balance.tone]} className="sm:mt-px">
-                    {balance.verdict}
-                  </Verdict>
-                </p>
-              ) : null}
+              {balance ? <p className="mt-3 text-pretty text-[13px] leading-5 text-oa-muted-fg">{balance.statement}</p> : null}
             </div>
           </Panel>
         ) : null}
@@ -360,8 +397,12 @@ export function FinancialsSection({ data }: SectionProps) {
 
 // ─── Valuation ───────────────────────────────────────────────────────────────
 
-export function ValuationSection({ data }: SectionProps) {
+export function ValuationSection({ data, signals }: SectionProps) {
   const { stock, facts, fundamentals, currency, multiple: history } = data;
+  const peSector = signalOf(signals, "val.pe_sector");
+  const peHistory = signalOf(signals, "val.pe_history");
+  const targetSignal = signalOf(signals, "val.target");
+  const ratingsSignal = signalOf(signals, "val.ratings");
   const level = levelFormatter(currency);
   const rows = multipleRows(data);
   const peRow = rows.find((row) => row.key === "pe");
@@ -384,8 +425,6 @@ export function ValuationSection({ data }: SectionProps) {
   const peNow = fin(peLive) && peLive > 0 ? peLive : null;
   const pePercentile = history && peNow != null ? multiplePercentile(history, peNow) : null;
   const historyGapDays = history ? daysBetween(history.lastDate, data.nowIso.slice(0, 10)) : null;
-  // Cheap or pricey against its own past only says something over at least a year of data that is still current.
-  const historyIsJudged = history ? historyJudged(history.firstDate, history.lastDate, data.nowIso.slice(0, 10)) : false;
   const trend = (facts?.analyst_trend?.recommendation_trend ?? [])
     .map((row) => ({
       at: parseMonthPeriod(row.period) ?? "",
@@ -406,7 +445,7 @@ export function ValuationSection({ data }: SectionProps) {
   return (
     <ReportSection id="valuation" lede={lede}>
       {rows.length ? (
-        <Panel label="Multiples" meta={peRow?.gapPct != null ? <VerdictOf word={peWord(multipleVsSector(peRow.gapPct))} className="font-sans" /> : undefined}>
+        <Panel label="Multiples">
           <div className={`grid ${anySector ? "grid-cols-[minmax(0,1fr)_4.5rem_4.5rem_5.5rem]" : "grid-cols-[minmax(0,1fr)_5rem]"} gap-x-3 border-b border-oa-border px-3.5 py-1.5 text-[11px] uppercase leading-4 tracking-[0.06em] text-oa-muted-fg sm:px-4`}>
             <span>Multiple</span>
             <span className="text-right">{stock.ticker}</span>
@@ -421,9 +460,7 @@ export function ValuationSection({ data }: SectionProps) {
               <span className="min-w-0 truncate text-oa-muted-fg">{row.label}</span>
               <span className={`${NUM} text-right text-oa-fg`}>{multiple(row.value)}</span>
               {anySector ? <span className={`${NUM} text-right text-oa-muted-fg`}>{row.sector != null ? multiple(row.sector) : ""}</span> : null}
-              {anySector ? (
-                <GapCell gapPct={row.gapPct} />
-              ) : null}
+              {anySector ? <GapCell gapPct={row.gapPct} signal={row.key === "pe" ? peSector : null} /> : null}
             </div>
           ))}
         </Panel>
@@ -456,7 +493,8 @@ export function ValuationSection({ data }: SectionProps) {
                 ) : null}
                 {historyGapDays != null && historyGapDays > 7 ? `Last reading ${fmtDate(history.lastDate)}.` : ""}
               </p>
-              <VerdictOf word={historyIsJudged ? multipleVsHistory(pePercentile) : null} className="sm:mt-px" />
+              {/* Judged only over at least a year of current daily readings (lib/stock-signals.ts); otherwise nothing. */}
+              <SignalFigure signal={peHistory?.verdict === "neutral" ? null : peHistory} className="shrink-0 text-[13px] sm:mt-px" />
               </div>
             </div>
             <dl className="grid grid-cols-4 gap-x-3 sm:grid-cols-2 sm:gap-y-2">
@@ -479,7 +517,7 @@ export function ValuationSection({ data }: SectionProps) {
       {fin(targetMid) || trend.length >= 2 ? (
         <div className="grid gap-3 md:grid-cols-2">
           {fin(targetMid) ? (
-            <Panel label="Analyst price targets" meta={<VerdictOf word={priceVsTarget(((targetMid - stock.price) / stock.price) * 100)} className="font-sans" />}>
+            <Panel label="Analyst price targets" meta={targetSignal?.eligible && targetSignal.verdict !== "neutral" ? <SignalMeta signal={{ ...targetSignal, period: "to the median target" }} /> : undefined}>
               <div className="px-3.5 py-3 sm:px-4">
                 {trackLow != null && trackHigh != null && trackHigh > trackLow ? (
                   <RangeTrack low={trackLow} high={trackHigh} markers={targetMarkers} format={level} />
@@ -504,7 +542,10 @@ export function ValuationSection({ data }: SectionProps) {
             </Panel>
           ) : null}
           {trend.length >= 2 ? (
-            <Panel label="Analyst ratings by month" meta="buy · hold · sell">
+            <Panel
+              label="Analyst ratings by month"
+              meta={ratingsSignal?.eligible && ratingsSignal.verdict !== "neutral" ? <SignalMeta signal={{ ...ratingsSignal, period: "buy share, 3 months" }} /> : "buy · hold · sell"}
+            >
               <div className="px-3 pb-3 pt-3 sm:px-4">
                 <RatingColumns months={trend.slice(-6)} />
               </div>
@@ -521,15 +562,17 @@ export function ValuationSection({ data }: SectionProps) {
  * multiple is pricier, so a red "+40%" would read as good news. The mark says
  * cheap or pricey; within 10% gets none.
  */
-function GapCell({ gapPct }: { gapPct: number | null }) {
+function GapCell({ gapPct, signal }: { gapPct: number | null; signal: StockSignal | null }) {
   if (gapPct == null) return <span />;
-  const word = multipleVsSector(gapPct);
-  return (
-    <span className={`${NUM} inline-flex items-center justify-end gap-1.5 text-right text-oa-fg`} title={word?.word}>
-      {wholeGap(gapPct)}
-      <MarkSlot tone={word?.tone} />
-    </span>
-  );
+  // Only the trailing P/E is judged (lib/stock-signals.ts `val.pe_sector`, 20% either way); the other gaps are plain.
+  if (signal?.eligible && signal.verdict !== "neutral") {
+    return (
+      <span className="flex justify-end text-[14px]">
+        <SignalFigure signal={signal}>{wholeGap(gapPct)}</SignalFigure>
+      </span>
+    );
+  }
+  return <span className={`${NUM} text-right text-oa-fg`}>{wholeGap(gapPct)}</span>;
 }
 
 // ─── Earnings ────────────────────────────────────────────────────────────────
@@ -537,9 +580,14 @@ function GapCell({ gapPct }: { gapPct: number | null }) {
 const OUTLOOK_WORDS: Record<string, string> = { beat: "a beat", inline: "in line", miss: "a miss" };
 const MOVE_WORDS: Record<string, string> = { rally: "a rally", fade: "a selloff", chop: "a choppy reaction" };
 
-export function EarningsSection({ data }: SectionProps) {
+export function EarningsSection({ data, signals }: SectionProps) {
   const { stock, earnings, currency } = data;
   const today = todayET(Number.isFinite(Date.parse(data.nowIso)) ? Date.parse(data.nowIso) : Date.now());
+  // The latest report, judged (lib/stock-signals.ts): EPS against the same report's estimate, and the first full day
+  // after it against the S&P 500. Guidance has no sourced, structured feed yet, so it is never judged here.
+  const surprise = signalOf(signals, "earn.surprise");
+  const reaction = signalOf(signals, "earn.reaction");
+  const surpriseDay = surprise?.eligible && surprise.period ? surprise.period.replace(/^report of /, "") : null;
   const next = earnings.next;
   const nextIn = next ? daysBetween(today, next.event_date) : null;
   const report = earnings.intel?.report;
@@ -569,6 +617,13 @@ export function EarningsSection({ data }: SectionProps) {
               ...(next.fiscal_date_ending ? [{ label: "Quarter ending", value: fmtDate(next.fiscal_date_ending) }] : []),
             ]}
           />
+        </Panel>
+      ) : null}
+
+      {surprise?.eligible || reaction?.eligible ? (
+        <Panel label="Last report" meta={surpriseDay ? fmtDate(surpriseDay) : undefined}>
+          {surprise?.eligible ? <Row label="EPS against the estimate" value={<SignalFigure signal={surprise} />} /> : null}
+          {reaction?.eligible ? <Row label="First day against the S&P 500" value={<SignalFigure signal={reaction} />} /> : null}
         </Panel>
       ) : null}
 
@@ -626,9 +681,10 @@ export function EarningsSection({ data }: SectionProps) {
               </div>
               <div className="border-t border-oa-border">
                 {report.facts?.reported_vs_expected ? (
-                  <FactRow label="Results vs expectations" text={report.facts.reported_vs_expected} word={sentenceOutcome(report.facts.reported_vs_expected, "results")} />
+                  // No chip read from the write-up's words: good and watch come only from the structured figures above.
+                  <FactRow label="Results vs expectations" text={report.facts.reported_vs_expected} />
                 ) : null}
-                {report.facts?.guidance_signal ? <FactRow label="Guidance" text={report.facts.guidance_signal} word={sentenceOutcome(report.facts.guidance_signal, "guidance")} /> : null}
+                {report.facts?.guidance_signal ? <FactRow label="Guidance" text={report.facts.guidance_signal} /> : null}
                 {report.facts?.price_reaction ? <FactRow label="Price reaction" text={report.facts.price_reaction} /> : null}
               </div>
               <p className="border-t border-oa-border px-3.5 py-2 sm:px-4">
@@ -676,7 +732,10 @@ const FUND_ACTION: Record<string, { label: string; tone: Tone | "primary" }> = {
   held: { label: "Held", tone: "flat" },
 };
 
-export function OwnershipSection({ data }: SectionProps) {
+export function OwnershipSection({ data, signals }: SectionProps) {
+  // Insiders over 90 days by dollars, and the followed funds' latest quarter (lib/stock-signals.ts).
+  const insiderSignal = signalOf(signals, "own.insiders");
+  const fundsSignal = signalOf(signals, "own.funds");
   const { stock, facts, ownership, congress, currency } = data;
   const today = todayET(Number.isFinite(Date.parse(data.nowIso)) ? Date.parse(data.nowIso) : Date.now());
   const funds = ownership.funds;
@@ -690,15 +749,6 @@ export function OwnershipSection({ data }: SectionProps) {
   });
   const buys = recentCongress.filter((trade) => trade.tx_type === "buy").length;
   const sells = recentCongress.filter((trade) => trade.tx_type === "sell").length;
-  // Funds: who added or opened against who trimmed or sold out, by count of funds.
-  const fundsFlow = funds ? netFlow(funds.added, funds.cut, "Funds") : null;
-  // Insiders: by dollars, leaving out pre-planned 10b5-1 sales, which are scheduled months ahead and say little.
-  const insiderRows = (insiders?.rows ?? []).filter((row) => !row.planned);
-  // Some filings carry no dollar value; then count trades instead.
-  const insiderSide = (action: "buy" | "sell", dollars: boolean) =>
-    insiderRows.filter((row) => row.action === action).reduce((sum, row) => sum + (dollars ? row.valueUsd ?? 0 : 1), 0);
-  const insiderDollars = insiderSide("buy", true) + insiderSide("sell", true) > 0;
-  const insiderFlow = netFlow(insiderSide("buy", insiderDollars), insiderSide("sell", insiderDollars), "Insiders");
   const lede = ownershipHeadline({
     ticker: stock.ticker,
     institutionalPct: institutions?.ownership_pct ?? facts?.quick_stats?.institutional_ownership_pct,
@@ -712,7 +762,7 @@ export function OwnershipSection({ data }: SectionProps) {
   return (
     <ReportSection id="ownership" lede={lede}>
       {data.market === "US" ? (
-        <Panel label="Funds we follow" meta={<MetaWith word={fundsFlow}>13F filings</MetaWith>}>
+        <Panel label="Funds we follow" meta={<MetaWith signal={fundsSignal}>13F filings</MetaWith>}>
           {!funds ? (
             <Missing>
               No fund holdings for {stock.ticker} yet.{" "}
@@ -788,7 +838,7 @@ export function OwnershipSection({ data }: SectionProps) {
       ) : null}
 
       {congress != null ? (
-        <Panel label="Congress" meta={<MetaWith word={netFlow(buys, sells, "Congress")}>last 12 months</MetaWith>}>
+        <Panel label="Congress" meta="last 12 months">
           {recentCongress.length === 0 ? (
             <Missing>
               No disclosed congressional trades in {stock.ticker} in the last 12 months.{" "}
@@ -844,7 +894,7 @@ export function OwnershipSection({ data }: SectionProps) {
       ) : null}
 
       {data.market === "US" ? (
-        <Panel label="Insiders" meta={<MetaWith word={insiderFlow}>open-market trades</MetaWith>}>
+        <Panel label="Insiders" meta={<MetaWith signal={insiderSignal}>open-market trades</MetaWith>}>
           {!insiders ? (
             <Missing>
               No insider trades for {stock.ticker} yet.{" "}
@@ -945,14 +995,12 @@ export function OwnershipSection({ data }: SectionProps) {
   );
 }
 
-/** A panel's header note with a verdict chip in front of it. */
-function MetaWith({ word, children }: { word: ToneWord | null; children: ReactNode }) {
-  if (!word || word.tone === "flat") return <>{children}</>;
+/** A panel's header note with its judged figure in front of it ("▼ $4.2M sold · open-market trades"), when there is one. */
+function MetaWith({ signal, children }: { signal: StockSignal | null; children: ReactNode }) {
+  if (!signal?.eligible || signal.verdict === "neutral") return <>{children}</>;
   return (
-    <span className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1">
-      <Verdict tone={word.tone} className="font-sans">
-        {word.word}
-      </Verdict>
+    <span className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1 font-sans">
+      <SignalFigure signal={signal} className="text-[13px]" />
       <span>{children}</span>
     </span>
   );
@@ -995,8 +1043,11 @@ export function NewsSection({ data }: SectionProps) {
   );
 }
 
+/**
+ * A headline with its publisher and time. No "reads bullish" mark: a headline's tone is not a verified effect on the
+ * business, so news is judged only from reviewed, sourced events (lib/stock-signals.ts `news.event`), none yet.
+ */
 function NewsRow({ article }: { article: SectionData["news"][number] }) {
-  const tone: Tone | undefined = article.sentiment_label === "bullish" ? "up" : article.sentiment_label === "bearish" ? "down" : undefined;
   return (
     <a
       href={article.url}
@@ -1008,12 +1059,6 @@ function NewsRow({ article }: { article: SectionData["news"][number] }) {
       <span className="oa-mono mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] leading-4 text-oa-muted-fg">
         <span>{article.source_name || "News"}</span>
         <span>{fmtStampDate(article.published_at)}</span>
-        {tone ? (
-          <span className="inline-flex items-center gap-1">
-            <ToneGlyph tone={tone} />
-            reads {article.sentiment_label}
-          </span>
-        ) : null}
       </span>
     </a>
   );
@@ -1021,7 +1066,7 @@ function NewsRow({ article }: { article: SectionData["news"][number] }) {
 
 // ─── Technicals ──────────────────────────────────────────────────────────────
 
-export function TechnicalsSection({ data }: SectionProps) {
+export function TechnicalsSection({ data, signals }: SectionProps) {
   const { stock, technicals, facts, fundamentals, series, currency } = data;
   const money = moneyFormatter(currency);
   const averages = technicals?.moving_averages;
@@ -1030,10 +1075,17 @@ export function TechnicalsSection({ data }: SectionProps) {
   const away = (value: number) => `${Math.abs(((stock.price - value) / value) * 100).toFixed(1)}%`;
   const side = (value: number) => `price is ${away(value)} ${stock.price >= value ? "above" : "below"} it`;
   const averageRows = [
-    { label: "20-day average", value: averages?.sma_20 },
-    { label: "50-day average", value: averages?.sma_50 ?? fundamentals?.fifty_day_average },
-    { label: "200-day average", value: averages?.sma_200 ?? fundamentals?.two_hundred_day_average },
-  ].filter((row): row is { label: string; value: number } => fin(row.value) && row.value > 0);
+    { key: "sma20", label: "20-day average", value: averages?.sma_20 },
+    { key: "sma50", label: "50-day average", value: averages?.sma_50 ?? fundamentals?.fifty_day_average },
+    { key: "sma200", label: "200-day average", value: averages?.sma_200 ?? fundamentals?.two_hundred_day_average },
+  ].filter((row): row is { key: string; label: string; value: number } => fin(row.value) && row.value > 0);
+  // This tab's signals (lib/stock-signals.ts): the 50- and 200-day averages, RSI extremes, the distance from the
+  // 52-week high, and the one-year return against the S&P 500.
+  const sma50 = signalOf(signals, "price.sma50");
+  const sma200 = signalOf(signals, "price.sma200");
+  const rsiSignal = signalOf(signals, "price.rsi");
+  const offHigh = signalOf(signals, "price.off_high");
+  const vsMarket = signalOf(signals, "price.vs_sp500");
   const returns = [
     { label: "1 month", value: facts?.returns?.one_month_pct },
     { label: "3 months", value: facts?.returns?.three_month_pct },
@@ -1051,26 +1103,31 @@ export function TechnicalsSection({ data }: SectionProps) {
       <div className="grid gap-3 md:grid-cols-2">
         {averageRows.length || fin(rsi) ? (
           <Panel label="Trend and momentum">
-            {averageRows.map((row) => (
+            {averageRows.map((row) => {
+              const note = `price is ${away(row.value)} ${stock.price >= row.value ? "above" : "below"}`;
+              // The 50- and 200-day notes carry their signal (2% either way, lib/stock-signals.ts); the 20-day is shown, not judged.
+              const judged = row.key === "sma50" ? sma50 : row.key === "sma200" ? sma200 : null;
+              return (
+                <Row
+                  key={row.label}
+                  label={row.label}
+                  // The mark sits on the "price is above/below" note it judges, not on the average, which it would seem to call rising or falling.
+                  sub={judged?.eligible && judged.verdict !== "neutral" ? <SignalFigure signal={judged} className="font-sans font-normal">{note}</SignalFigure> : note}
+                  value={money(row.value)}
+                />
+              );
+            })}
+            {fin(rsi) ? (
               <Row
-                key={row.label}
-                label={row.label}
-                // The mark sits on the "price is above/below" note it judges, not on the average, which it would seem to call rising or falling.
-                sub={
-                  <span className="inline-flex items-center gap-1">
-                    <ToneGlyph tone={stock.price >= row.value ? "up" : "down"} className="size-2" />
-                    price is {away(row.value)} {stock.price >= row.value ? "above" : "below"}
-                  </span>
-                }
-                value={money(row.value)}
+                label="RSI (14 days)"
+                sub={rsi >= 70 ? "above 70" : rsi <= 30 ? "under 30" : "between 30 and 70"}
+                // Watch at either extreme, never good: neither predicts which way it goes next.
+                value={rsiSignal?.eligible && rsiSignal.verdict !== "neutral" ? <SignalFigure signal={rsiSignal} /> : rsi.toFixed(1)}
               />
-            ))}
-            {fin(rsi) ? <Row label="RSI (14 days)" sub={rsi >= 70 ? "above 70" : rsi <= 30 ? "under 30" : "between 30 and 70"} value={rsi.toFixed(1)} /> : null}
-            {[rsiReading(technicals), rangeReading(technicals)].filter(Boolean).length ? (
-              <div className="border-t border-oa-border">
-                <ReadingsList items={[rsiReading(technicals), rangeReading(technicals)]} />
-              </div>
             ) : null}
+            {offHigh?.eligible ? <Row label="From the 52-week high" value={offHigh.verdict !== "neutral" ? <SignalFigure signal={offHigh} /> : offHigh.display} /> : null}
+            {/* Ahead of or behind the S&P 500 over the same year, dividends in, in points (5 either way is a signal). */}
+            {vsMarket?.eligible ? <Row label="1 year against the S&P 500" value={<SignalFigure signal={vsMarket} />} /> : null}
           </Panel>
         ) : null}
 
@@ -1120,13 +1177,9 @@ function bigPct(value: number): string {
   return `${value >= 0 ? "+" : "−"}${Math.round(Math.abs(value)).toLocaleString("en-US")}%`;
 }
 
-function ReadingsList({ items }: { items: Array<Reading | null> }) {
-  return <Readings items={items} />;
-}
-
 // ─── Peers ───────────────────────────────────────────────────────────────────
 
-export function PeersSection({ data }: SectionProps) {
+export function PeersSection({ data, signals }: SectionProps) {
   const { stock, peers, facts, fundamentals, currency, market } = data;
   const self = {
     instrument_id: stock.instrument_id,
@@ -1141,26 +1194,67 @@ export function PeersSection({ data }: SectionProps) {
   };
   const rows = [self, ...peers.filter((peer) => peer.ticker !== stock.ticker).slice(0, 8).map((peer) => ({ ...peer, isSelf: false }))];
   const cols = "grid-cols-[minmax(0,1fr)_4.75rem_4.25rem] md:grid-cols-[minmax(0,1.5fr)_5rem_4.5rem_5rem_4.75rem_5rem]";
-  // The stock's own P/E against the middle of its peers: the same cheap-or-pricey line as the sector gap.
-  const peerPes = rows
-    .filter((row) => !row.isSelf)
-    .map((row) => row.pe_ttm)
-    .filter((value): value is number => fin(value) && value > 0)
-    .sort((a, b) => a - b);
-  const peerMedian = peerPes.length >= 3 ? (peerPes[(peerPes.length - 1) >> 1]! + peerPes[peerPes.length >> 1]!) / 2 : null;
-  const selfPeWord = peerMedian != null && fin(self.pe_ttm) && self.pe_ttm > 0 ? multipleVsSector(((self.pe_ttm - peerMedian) / peerMedian) * 100) : null;
-  const selfPeMark = selfPeWord && selfPeWord.tone !== "flat" ? selfPeWord.tone : null;
+  // Where the stock ranks among itself and its peers, per metric (lib/stock-signals.ts): top third good, bottom third
+  // to watch. Each metric shows its own track of every value with the stock marked; they are never combined.
+  const ranks = [
+    {
+      id: "peers.revenue_growth" as const,
+      label: "Revenue growth, 1 year",
+      pick: (row: (typeof rows)[number]) => row.revenue_growth_yoy_pct,
+      // Whole percents, and a rounded zero without a sign ("0%", not "−0%").
+      format: (value: number) => (Math.round(value) === 0 ? "0%" : signedPct(value, 0)),
+    },
+    { id: "peers.pe" as const, label: "P/E, lower ranks higher", pick: (row: (typeof rows)[number]) => row.pe_ttm, format: (value: number) => `${value.toFixed(1)}×` },
+  ]
+    .map((metric) => {
+      const signal = signalOf(signals, metric.id);
+      const values = rows
+        .map((row) => ({ ticker: row.ticker, isSelf: row.isSelf, value: metric.pick(row) }))
+        .filter((item): item is { ticker: string; isSelf: boolean; value: number } => fin(item.value) && (metric.id !== "peers.pe" || item.value > 0));
+      return { ...metric, signal, values };
+    })
+    .filter((metric) => metric.signal?.eligible && metric.values.length >= 4);
   return (
     <ReportSection id="peers" lede={`${stock.ticker} beside ${rows.length - 1} ${stock.industry || stock.sector || "sector"} ${rows.length - 1 === 1 ? "peer" : "peers"}.`}>
+      {ranks.length ? (
+        <div className={`grid gap-3 ${ranks.length > 1 ? "md:grid-cols-2" : ""}`}>
+          {ranks.map((metric) => {
+            const own = metric.values.find((item) => item.isSelf)!;
+            const low = Math.min(...metric.values.map((item) => item.value));
+            const high = Math.max(...metric.values.map((item) => item.value));
+            const tone = metric.signal!.verdict === "neutral" ? null : metric.signal!.verdict;
+            return (
+              <Panel key={metric.id} label={metric.label} meta={<SignalFigure signal={metric.signal} className="font-sans text-[13px]" />}>
+                <div className="px-3.5 py-3 sm:px-4">
+                  <RangeTrack
+                    low={low}
+                    high={high}
+                    format={metric.format}
+                    markers={[
+                      ...metric.values
+                        .filter((item) => !item.isSelf)
+                        .map((item) => ({ key: item.ticker, value: item.value, color: "var(--oa-muted-fg)", shape: "tick" as const, label: item.ticker })),
+                      { key: own.ticker, value: own.value, color: tone ? VERDICT_COLOR[tone] : "var(--oa-fg)", shape: "dot" as const, label: own.ticker },
+                    ]}
+                  />
+                  {/* The track labels its own low and high; the stock's value is the one figure said here. */}
+                  <p className={`${NUM} mt-1 text-center text-[12px] leading-4 text-oa-muted-fg`}>
+                    {stock.ticker} <span className="text-oa-fg">{metric.format(own.value)}</span>
+                  </p>
+                </div>
+              </Panel>
+            );
+          })}
+        </div>
+      ) : null}
       <Panel label="Comparison">
         <div className={`grid ${cols} gap-x-3 border-b border-oa-border px-3.5 py-1.5 text-[11px] uppercase leading-4 tracking-[0.06em] text-oa-muted-fg sm:px-4`}>
           <span>Company</span>
           <span className="text-right">Price</span>
           <span className="text-right">Day</span>
           <span className="hidden text-right md:block">Mkt cap</span>
-          {/* pr-3.5 matches the gap and glyph slot after the figures below, so the labels sit over the digits. */}
-          <span className="hidden pr-3.5 text-right md:block">P/E</span>
-          <span className="hidden pr-3.5 text-right md:block">Rev 1Y</span>
+          <span className="hidden text-right md:block">P/E</span>
+          <span className="hidden text-right md:block">Rev 1Y</span>
         </div>
         {rows.map((row) => {
           const cells = (
@@ -1175,15 +1269,9 @@ export function PeersSection({ data }: SectionProps) {
                 {fin(row.day_change_pct) ? signedPct(row.day_change_pct, 2) : ""}
               </span>
               <span className={`${NUM} hidden text-right text-oa-fg md:block`}>{fin(row.market_cap) && row.market_cap > 0 ? compactMoney(row.market_cap, currency) : ""}</span>
-              <span className={`${NUM} hidden items-center justify-end gap-1 text-right text-oa-fg md:flex`} title={row.isSelf && selfPeWord ? `${selfPeWord.word.replace("sector", "peers")}` : undefined}>
-                {fin(row.pe_ttm) && row.pe_ttm > 0 ? row.pe_ttm.toFixed(1) : ""}
-                {/* Only the stock's own P/E is judged, against the peer median; the slot keeps every row's digits aligned. */}
-                <MarkSlot tone={row.isSelf ? selfPeMark : null} />
-              </span>
-              <span className={`${NUM} hidden items-center justify-end gap-1 text-right text-oa-fg md:flex`}>
-                {fin(row.revenue_growth_yoy_pct) ? signedPct(row.revenue_growth_yoy_pct, 0) : ""}
-                <MarkSlot tone={markFor("revenueGrowth", row.revenue_growth_yoy_pct)} />
-              </span>
+              {/* No mark on every row (owner rule 1): where the stock ranks is judged once, in the tracks above. */}
+              <span className={`${NUM} hidden text-right text-oa-fg md:block`}>{fin(row.pe_ttm) && row.pe_ttm > 0 ? row.pe_ttm.toFixed(1) : ""}</span>
+              <span className={`${NUM} hidden text-right text-oa-fg md:block`}>{fin(row.revenue_growth_yoy_pct) ? signedPct(row.revenue_growth_yoy_pct, 0) : ""}</span>
             </>
           );
           const base = `grid ${cols} min-h-10 items-center gap-x-3 border-b border-oa-border px-3.5 py-1.5 text-[14px] leading-5 last:border-b-0 sm:px-4`;

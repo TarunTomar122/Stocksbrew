@@ -10,6 +10,9 @@ import {
   VOL_SESSIONS,
   addSessions,
   buildCallEvidence,
+  checkCardText,
+  conditionFigure,
+  conditionWords,
   dailySwing,
   growthBars,
   reportBehind,
@@ -148,18 +151,92 @@ describe("buildCallEvidence", () => {
       id: "sales",
       text: "NVDA's sales rose 83% over the last four quarters, to $303B, faster than its 65% growth in fiscal 2026.",
       source: "From the 10-Q for the quarter to Jul\u00a026, reported Aug\u00a026",
+      // The fact card (owner, Nov 12: cards, not bullets): built from the numbers, the two growth rates as the bars, and
+      // a line that does not repeat what the bars show.
+      card: {
+        figure: "+83%",
+        tone: "up",
+        label: "sales over four quarters",
+        line: "$303B in sales, faster than in fiscal 2026.",
+        compare: [
+          { label: "Past four quarters", value: 83.38, display: "+83%" },
+          { label: "Fiscal 2026", value: expect.closeTo(65.47, 1), display: "+65%" },
+        ],
+        compareKind: "change",
+      },
     });
+  });
+
+  it("gives every fact card a figure, a short label and at most one line within the word budget", () => {
+    const prices = closes("2026-11-10", 260, Array.from({ length: 200 }, () => -0.004));
+    const calendar = [{ event_date: "2026-10-13", eps_estimate: 5.94, estimated_eps: 5.94, reported_eps: 6.1, eps_surprise: 0.16, source: "nasdaq_calendar", actuals_source: "nasdaq_calendar" }];
+    const { evidence } = buildCallEvidence(
+      base({
+        series: prices.series,
+        benchmark: prices.series.map((point) => ({ ...point })),
+        calendar,
+        reports: [{ date: "2026-10-13", periodEnd: "2026-09-30", form: "10-Q" }],
+        sales: { ...base().sales!, capturedAt: "2026-10-20T00:00:00Z" },
+        dividend: { annual: 6.6, price: 342.11, growthYears: 15, capturedAt: "2026-11-08T08:41:01Z" },
+      }),
+    );
+    expect(evidence.map((line) => line.id)).toEqual(["sales", "high", "eps"]);
+    for (const { card } of evidence) {
+      expect(card.figure).toMatch(/\d/);
+      expect(card.label.split(/\s+/).length).toBeLessThanOrEqual(5);
+      expect(card.label).toBe(card.label.toLowerCase());
+      if (card.line) expect(card.line.split(/\s+/).length).toBeLessThanOrEqual(15);
+    }
+    const high = evidence[1]!.card;
+    expect(high).toMatchObject({ tone: "down", label: "below its past-year high" });
+    expect(high.figure).toMatch(/^\u2212\d+%$/);
+    expect(high.compare!.map((bar) => bar.label)).toEqual(["Last close", "High"]);
+    expect(high.compare![0].value).toBeLessThan(high.compare![1].value);
+    expect(evidence[2]!.card).toEqual({
+      figure: "$6.10",
+      tone: "up",
+      label: "earnings per share",
+      line: "Beat the forecast in the Oct\u00a013 report.",
+      compare: [
+        { label: "Reported", value: 6.1, display: "$6.10" },
+        { label: "Forecast", value: 5.94, display: "$5.94" },
+      ],
+      compareKind: "level",
+    });
+  });
+
+  it("sets the stock against the S&P 500 on a move card, the market's own sign kept", () => {
+    const prices = closes("2026-11-10", 80, [-0.04, -0.04, -0.05, -0.03, -0.04]);
+    const benchmark = prices.benchmark.map((point, index, all) => (index === all.length - 1 ? { ...point, close: 495.5 } : point));
+    const move = buildCallEvidence(base({ series: prices.series, benchmark, sayDays: true })).evidence.find((line) => line.id === "move")!;
+    expect(move.card).toMatchObject({ figure: "\u221218%", tone: "down", label: "five trading days", line: "To yesterday's close." });
+    expect(move.card.compare).toEqual([
+      { label: "NVDA", value: expect.closeTo(-18, 0), display: "\u221218%" },
+      { label: "S&P 500", value: expect.closeTo(-0.9, 1), display: "\u22120.9%" },
+    ]);
+  });
+
+  it("puts a loss on the card as a loss, and a flat market as 0%", () => {
+    const calendar = [{ event_date: "2026-10-13", eps_estimate: -0.2, estimated_eps: -0.2, reported_eps: -0.12, eps_surprise: 0.08, source: "nasdaq_calendar" }];
+    const eps = buildCallEvidence(base({ sales: null, calendar, reports: [], nextReport: null })).evidence.find((line) => line.id === "eps")!;
+    expect(eps.card).toMatchObject({ figure: "\u2212$0.12", tone: "up", line: "Beat the forecast in the Oct\u00a013 report." });
+    expect(eps.card.compare!.map((bar) => bar.display)).toEqual(["\u2212$0.12", "\u2212$0.20"]);
+    const prices = closes("2026-11-10", 80, [-0.04, -0.04, -0.05, -0.03, -0.04]);
+    const move = buildCallEvidence(base({ series: prices.series, benchmark: prices.benchmark })).evidence.find((line) => line.id === "move")!;
+    expect(move.card.compare![1]).toEqual({ label: "S&P 500", value: 0, display: "0%" });
   });
 
   it("compares with the year before when the last report was the annual one", () => {
     const sales = { revenue: 479_000_000_000, growthPct: 15, history: [{ period: "FY 2026", revenue: 479_000_000_000 }, { period: "FY 2025", revenue: 416_000_000_000 }, { period: "FY 2024", revenue: 391_000_000_000 }], capturedAt: "2026-11-08T00:00:00Z" };
     const reports = [{ date: "2026-11-02", periodEnd: "2026-09-26", form: "10-K" }];
     const { evidence } = buildCallEvidence(base({ ticker: "AAPL", sales, reports }));
-    expect(evidence[0]).toEqual({
+    expect(evidence[0]).toMatchObject({
       id: "sales",
       text: "AAPL's sales rose 15% over the last four quarters, to $479B, faster than its 6.4% growth in fiscal 2025.",
       source: "From the 10-K for the year to Sep\u00a026, reported Nov\u00a02",
+      card: { figure: "+15%", line: "$479B in sales, faster than in fiscal 2025." },
     });
+    expect(evidence[0]!.card.compare![1]).toMatchObject({ label: "Fiscal 2025", display: "+6.4%" });
   });
 
   it("names a big five-session move against the market in trading days, with the closes it comes from", () => {
@@ -221,6 +298,96 @@ describe("buildCallEvidence", () => {
     expect(checks.every((check) => check.href === null)).toBe(true);
   });
 
+  it("gives every check structured conditions built from the numbers, for the stock page's cards", () => {
+    const reports = [{ date: "2026-08-26", periodEnd: "2026-07-26", form: "10-Q", url: "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000150/nvda-8k.htm" }];
+    const { checks } = buildCallEvidence(base({ reports }));
+    // Keep moves either way, one step: up to Buy more, down to Sell some.
+    expect(checks.map((check) => [check.way, check.to, check.event, check.eventDate])).toEqual([
+      ["raise", "Add", "report", "2026-11-17"],
+      ["lower", "Trim", "report", "2026-11-17"],
+      ["lower", "Trim", "report", "2026-11-17"],
+      ["lower", "Trim", "move", null],
+      ["lower", "Trim", "move", null],
+    ]);
+    expect(checks[0]!.join).toBe("and");
+    expect(checks[0]!.conditions).toEqual([
+      { kind: "eps", operator: "above", value: 2.49, unit: "usd_per_share", period: { kind: "report" }, benchmark: null, usual: null },
+      { kind: "sales_growth", operator: "above", value: 65, unit: "percent", period: { kind: "report" }, benchmark: null, usual: null },
+    ]);
+    expect(checks[3]!.conditions).toEqual([
+      { kind: "relative_return", operator: "below", value: -4, unit: "points", period: { kind: "sessions", sessions: 1 }, benchmark: "S&P 500", usual: 1 },
+    ]);
+    expect(checks[4]!.conditions[0]).toMatchObject({ value: -9, period: { kind: "sessions", sessions: MOVE_WEEK_SESSIONS }, usual: null });
+    expect(checks.map(checkCardText)).toEqual([
+      "Earnings above $2.49 a share AND sales growth above 65%",
+      "Earnings below $2.49 a share",
+      "Sales growth below 42%",
+      "4 points worse in one day",
+      "9 points worse in 5 trading days",
+    ]);
+    // Owner word budget: a card is a few words.
+    for (const check of checks) expect(checkCardText(check).split(/\s+/).length).toBeLessThanOrEqual(12);
+    // The combined check names both its sources, the filing linked; the sentence-level source stays for other readers.
+    expect(checks[0]!.sources).toEqual([
+      { source: "Analysts' forecast on the Nasdaq earnings calendar", href: null },
+      { source: "From the 10-Q for the quarter to Jul 26, reported Aug 26", href: reports[0]!.url },
+    ]);
+    expect(checks[0]!.source).toBe("Analysts' forecast on the Nasdaq earnings calendar; from the 10-Q for the quarter to Jul 26, reported Aug 26");
+  });
+
+  it("points Buy more and Sell some only at Keep", () => {
+    expect(buildCallEvidence(base({ call: "Add" })).checks.every((check) => check.to === "Hold" && check.way === "lower")).toBe(true);
+    const trim = buildCallEvidence(base({ call: "Trim", sales: { ...base().sales!, growthPct: -6, history: [] } })).checks;
+    expect(trim.map((check) => [check.way, check.to])).toEqual([["raise", "Hold"]]);
+    expect(checkCardText(trim[0]!)).toBe("Earnings above $2.49 a share AND sales growing");
+  });
+
+  it("keeps a forecast loss negative and says it as a loss", () => {
+    const { checks } = buildCallEvidence(base({ calendar: [], nextReport: { date: "2026-11-17", epsEstimate: -0.12 } }));
+    const eps = checks.flatMap((check) => check.conditions).filter((condition) => condition.kind === "eps");
+    expect(eps.map((condition) => [condition.operator, condition.value])).toEqual([
+      ["above", -0.12],
+      ["below", -0.12],
+    ]);
+    expect(conditionWords(eps[0]!)).toEqual({ lead: "Loss under ", figure: "$0.12", tail: " a share" });
+    expect(conditionWords(eps[1]!)).toEqual({ lead: "Loss over ", figure: "$0.12", tail: " a share" });
+  });
+
+  it("gives no report day when the calendar has none in the window", () => {
+    const far = buildCallEvidence(base({ nextReport: { date: "2027-06-01", epsEstimate: 2.49 } })).checks;
+    expect(far.length).toBeGreaterThan(0);
+    expect(far.every((check) => check.eventDate === null)).toBe(true);
+    const none = buildCallEvidence(base({ nextReport: null })).checks;
+    expect(none.filter((check) => check.event === "report").map(checkCardText)).toEqual(["Sales growth above 65%", "Sales growth below 42%"]);
+    expect(none.every((check) => check.eventDate === null)).toBe(true);
+  });
+
+  it("leads every condition card with its figure, its side said small or once for a pair", () => {
+    const { checks } = buildCallEvidence(base());
+    expect(checks.map((check) => check.conditions.map(conditionFigure))).toEqual([
+      [
+        { figure: "$2.49", label: "earnings per share", side: "above" },
+        { figure: "65%", label: "sales growth", side: "above" },
+      ],
+      [{ figure: "$2.49", label: "earnings per share", side: "below" }],
+      [{ figure: "42%", label: "sales growth", side: "below" }],
+      [{ figure: "4 points", label: "worse in one day", side: "" }],
+      [{ figure: "9 points", label: "worse in five trading days", side: "" }],
+    ]);
+    // A forecast loss is a loss, never "below −$0.13".
+    const loss = buildCallEvidence(base({ calendar: [], nextReport: { date: "2026-11-17", epsEstimate: -0.13 } })).checks;
+    const eps = loss.flatMap((check) => check.conditions).filter((condition) => condition.kind === "eps").map(conditionFigure);
+    expect(eps).toEqual([
+      { figure: "$0.13", label: "loss per share", side: "under" },
+      { figure: "$0.13", label: "loss per share", side: "over" },
+    ]);
+  });
+
+  it("says shrinking and growing sales in words, not as 0%", () => {
+    expect(conditionWords({ kind: "sales_growth", operator: "below", value: 0, unit: "percent", period: { kind: "report" }, benchmark: null, usual: null })).toEqual({ lead: "Sales ", figure: "shrinking", tail: "" });
+    expect(conditionWords({ kind: "sales_growth", operator: "above", value: 0, unit: "percent", period: { kind: "report" }, benchmark: null, usual: null })).toEqual({ lead: "Sales ", figure: "growing", tail: "" });
+  });
+
   it("moves Buy more only one step, to Keep", () => {
     const { conditions } = buildCallEvidence(base({ call: "Add" }));
     expect(conditions[0]).toBe("The Nov\u00a017 report could lower the call if it misses the $2.49 forecast or shows sales growth below 42%, half its 83% growth over the four quarters to Jul\u00a026.");
@@ -263,10 +430,11 @@ describe("buildCallEvidence", () => {
     ];
     const reports = [{ date: "2026-10-13", periodEnd: "2026-09-30", form: "10-Q" }];
     const ok = buildCallEvidence(base({ ticker: "JPM", calendar, reports, nextReport: null }));
-    expect(ok.evidence.find((line) => line.id === "eps")).toEqual({
+    expect(ok.evidence.find((line) => line.id === "eps")).toMatchObject({
       id: "eps",
       text: "In its Oct\u00a013 report, JPM's earnings per share of $5.75 missed the $5.94 analysts expected.",
       source: "Nasdaq earnings calendar, Oct\u00a013",
+      card: { figure: "$5.75", tone: "down", line: "Missed the forecast in the Oct\u00a013 report." },
     });
     const mixed = buildCallEvidence(base({ ticker: "JPM", calendar: [{ ...calendar[0]!, eps_estimate: 4.74, estimated_eps: 5.81, eps_surprise: 0.15 }], reports, nextReport: null }));
     expect(mixed.evidence.find((line) => line.id === "eps")).toBeUndefined();
@@ -371,6 +539,7 @@ describe("buildCallEvidence", () => {
         id: "dividend",
         text: "JPM pays $6.60 a share a year, 1.9% of today's price, and has raised its dividend 15 years in a row.",
         source: "Dividend history, as of Nov\u00a08",
+        card: { figure: "1.9%", tone: null, label: "dividend yield", line: "$6.60 a share a year, raised 15 years in a row.", compare: null, compareKind: null },
       },
     ]);
   });
@@ -380,6 +549,17 @@ describe("buildCallEvidence", () => {
     expect(buildCallEvidence(base({ sales: null, valuation })).evidence).toEqual([]);
     const fresh = buildCallEvidence(base({ sales: null, valuation: { ...valuation, from: "2026-08-01", to: "2026-11-07" } }));
     expect(fresh.evidence[0]?.text).toBe("At 29 times its past year's earnings, NVDA is cheaper than its median of 33 from Aug\u00a01 to Nov\u00a07.");
+    expect(fresh.evidence[0]?.card).toEqual({
+      figure: "29\u00d7",
+      tone: null,
+      label: "price to past year's earnings",
+      line: "Cheaper than its median from Aug\u00a01 to Nov\u00a07.",
+      compare: [
+        { label: "Now", value: 29.1, display: "29\u00d7" },
+        { label: "Median", value: 32.9, display: "33\u00d7" },
+      ],
+      compareKind: "level",
+    });
   });
 
   it("gives no conditions without a call", () => {

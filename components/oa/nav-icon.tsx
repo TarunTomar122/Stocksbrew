@@ -49,3 +49,78 @@ export function NavIcon({ name, className = "size-[18px]" }: { name: NavIconName
     </svg>
   );
 }
+
+/**
+ * Icons for kinds of things that are not places: calendar event types, news topics, filing forms, asset classes,
+ * list groups, kinds of investor. Same line style as the nav. Owner rule (VISUALS CHECK): any list of kinds carries its
+ * icon, and each icon names the thing, so it is never the same mark on every row of one list.
+ */
+const KIND_PATHS = {
+  // Money paid out: a stack of coins.
+  coins: ["M9 14a6 6 0 1 0 0-12 6 6 0 0 0 0 12Z", "M18.1 10.4A6 6 0 1 1 10.4 18.1", "M7 6h1v4", "m16.7 13.9.7.7-2.8 2.8"],
+  // The economy: a globe.
+  globe: ["M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z", "M3 12h18", "M12 3c2.5 2.5 3.5 5.5 3.5 9s-1 6.5-3.5 9c-2.5-2.5-3.5-5.5-3.5-9s1-6.5 3.5-9Z"],
+  // A new listing or share offering: a rocket.
+  rocket: [
+    "M4.5 16.5c-1.5 1.3-2 5-2 5s3.7-.5 5-2c.7-.8.7-2.1-.1-2.9a2.2 2.2 0 0 0-2.9-.1Z",
+    "m12 15-3-3a22 22 0 0 1 2-4A12.9 12.9 0 0 1 22 2c0 2.7-.8 7.5-6 11a22.4 22.4 0 0 1-4 2Z",
+    "M9 12H4s.6-3 2-4c1.6-1.1 5 0 5 0",
+    "M12 15v5s3-.6 4-2c1.1-1.6 0-5 0-5",
+  ],
+  // An analyst's rating: a star.
+  star: ["M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9L12 3Z"],
+  // Mergers: two paths joining.
+  merge: ["M6 3v6a6 6 0 0 0 6 6h0a6 6 0 0 1 6 6", "M18 3v6a6 6 0 0 1-6 6", "M3 6l3-3 3 3", "M15 6l3-3 3 3"],
+  // Policy and rules: a balance.
+  scale: ["M12 3v18", "M7 21h10", "M4 7h16", "m6 7-3 7a3.5 3.5 0 0 0 6 0L6 7", "m18 7-3 7a3.5 3.5 0 0 0 6 0l-3-7"],
+  // A product: a box.
+  box: ["M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3Z", "M4 7.5l8 4.5 8-4.5", "M12 12v9"],
+  // A fund: a briefcase.
+  briefcase: ["M4 8h16v11H4z", "M9 8V5h6v3", "M4 13h16"],
+  // Congress: the columns of a capitol.
+  capitol: ["M3 21h18", "M5 21v-9M9.5 21v-9M14.5 21v-9M19 21v-9", "M3 12h18L12 5 3 12Z"],
+  // A company insider: one person.
+  person: ["M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z", "M4.5 21c.8-3.8 3.8-6 7.5-6s6.7 2.2 7.5 6"],
+  // Rates: a percent sign.
+  percent: ["M19 5 5 19", "M6.5 9a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z", "M17.5 20a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"],
+  // Commodities: a drop of oil.
+  drop: ["M12 3c3.5 4 6 7.2 6 10.5a6 6 0 0 1-12 0C6 10.2 8.5 7 12 3Z"],
+  // Currencies: two arrows trading places.
+  exchange: ["M4 8h13", "m14 5 3 3-3 3", "M20 16H7", "m10 13-3 3 3 3"],
+  // Crypto: a hexagon block.
+  block: ["M12 2.5 20.5 7.5v9L12 21.5 3.5 16.5v-9L12 2.5Z", "M12 7.5 16.5 10v5L12 17.5 7.5 15v-5L12 7.5Z"],
+  // Options and volatility: a pulse.
+  pulse: ["M3 12h4l3-8 4 16 3-8h4"],
+  // Prediction markets: a target.
+  target: ["M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z", "M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z", "M12 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"],
+  // Growth: a line going up.
+  growth: ["m3 17 6-6 4 4 8-8", "M15 7h6v6"],
+  // A price: a tag.
+  tag: ["M3 12V4h8l10 10-8 8L3 12Z", "M7.5 8.5h.01"],
+  // Industries: a factory.
+  factory: ["M3 20V10l5 3V10l5 3V6h4l1 14H3zM3 20h18"],
+  // An annual report: a closed book.
+  book: ["M5 4h11a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2V4Z", "M5 18a2 2 0 0 1 2-2h11", "M9 8h5"],
+} satisfies Record<string, string[]>;
+
+export type KindIconName = NavIconName | keyof typeof KIND_PATHS;
+
+export function KindIcon({ name, className = "size-4" }: { name: KindIconName; className?: string }) {
+  const paths = name in KIND_PATHS ? KIND_PATHS[name as keyof typeof KIND_PATHS] : PATHS[name as NavIconName];
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={`shrink-0 ${className}`}
+    >
+      {paths.map((d) => (
+        <path key={d} d={d} />
+      ))}
+    </svg>
+  );
+}

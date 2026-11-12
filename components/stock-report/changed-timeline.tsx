@@ -12,6 +12,8 @@ const useIsoLayoutEffect = typeof window === "undefined" ? useEffect : useLayout
 
 /** Rows the server draws: about what the box shows before it scrolls. */
 const FIRST = 8;
+/** The most entries the list ever holds: the latest 15 (owner, Nov 12: "show only the latest 15 entries"). */
+const LATEST = 15;
 
 /**
  * The "What changed" list: every entry the server sends (below.tsx caps it),
@@ -20,7 +22,8 @@ const FIRST = 8;
  * page is idle, so the page does not send forty rows of markup up front.
  * Drawn from the items as data, so the rows' markup is in the page once.
  */
-export function ChangedTimeline({ items, nowIso, ticker }: { items: StockTimelineItem[]; nowIso: string; ticker: string }) {
+export function ChangedTimeline({ items: all, nowIso, ticker }: { items: StockTimelineItem[]; nowIso: string; ticker: string }) {
+  const items = all.slice(0, LATEST);
   const [drawn, setDrawn] = useState(items.length <= FIRST);
   useEffect(() => {
     if (drawn) return;

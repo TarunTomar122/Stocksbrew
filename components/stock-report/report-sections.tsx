@@ -15,12 +15,14 @@ import {
   ValuationSection,
 } from "./sections";
 import type { SectionData } from "./types";
+import type { TabTone } from "@/lib/stock-signals";
+import { TabDot, type SignalsProp } from "./signal-ui";
 
 /**
  * Each tab's view, in the order of SECTION_LABELS. A new section adds its view here. Memoised: the data never
  * changes after load, so drawing the next tab on an idle moment does not draw the ones already there again.
  */
-const VIEWS: Record<SectionId, ComponentType<{ data: SectionData }>> = {
+const VIEWS: Record<SectionId, ComponentType<{ data: SectionData; signals?: SignalsProp }>> = {
   overview: memo(OverviewSection),
   financials: memo(FinancialsSection),
   valuation: memo(ValuationSection),
@@ -37,13 +39,22 @@ const VIEWS: Record<SectionId, ComponentType<{ data: SectionData }>> = {
  * data once; the other tabs are drawn from that data (section-tabs.tsx), so
  * their markup never travels.
  */
-export function ReportSections({ sections, data }: { sections: Array<{ id: SectionId; label: string; count: number | null }>; data: SectionData }) {
+export function ReportSections({
+  sections,
+  data,
+  signals = null,
+}: {
+  sections: Array<{ id: SectionId; label: string; count: number | null; tone?: TabTone | null }>;
+  data: SectionData;
+  /** The page's good and watch signals by id (lib/stock-signals.ts), one shared result for every tab. */
+  signals?: SignalsProp;
+}) {
   return (
     <SectionTabs
-      sections={sections}
+      sections={sections.map((section) => ({ ...section, mark: <TabDot tone={section.tone} /> }))}
       renderPanel={(id) => {
         const View = VIEWS[id as SectionId];
-        return View ? <View data={data} /> : null;
+        return View ? <View data={data} signals={signals} /> : null;
       }}
     />
   );

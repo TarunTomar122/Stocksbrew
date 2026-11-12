@@ -3,8 +3,7 @@ import { todayET } from "@/lib/calendar-shared";
 
 import { MarketStatusInline } from "@/components/market-status";
 import { RangeBar } from "@/components/oa/kit";
-import { CALL_PLAIN, countWord, plainAction, plainCallReason, wholeSentences } from "@/lib/plain-copy";
-import { callBasis, factHasDate, lastReportOn } from "@/lib/call-basis";
+import { CALL_PLAIN, countWord, plainAction, wholeSentences } from "@/lib/plain-copy";
 import { CoverButton, LockCard } from "@/components/oa/gate";
 import { ProCheckoutButton } from "@/components/oa/pro-checkout-button";
 import { StockLogo } from "@/components/stock-logo";
@@ -17,7 +16,8 @@ import { packChartRanges, type CallWord, type ChartRange, type PackedChartRanges
 
 import { AlertControls, type SuggestedAlert } from "./alert-controls";
 import { callLine, callMeaning } from "./call-line";
-import { briefFacts, briefLeadOf, capTier, compactMoney, daysBetween, fin, fmtDate, fmtStamp, levelFormatter, moneyFormatter, priceStamp, relativeDays, shortFact, signedPct } from "./format";
+import { briefFacts, briefLeadOf, capTier, compactMoney, daysBetween, fin, fmtDate, fmtStamp, levelFormatter, moneyFormatter, priceStamp, relativeDays, shortFact, signedPct } from "./format";import { ChangeChecks } from "./change-checks";
+import { FactCards } from "./fact-cards";
 import { PricePanel, type PanelZone } from "./price-panel";
 import { LockIcon, Missing, MoreLink, NUM, Panel, StatGrid, Tag, TONE_COLOR, type Tone } from "./primitives";
 import { PhoneSections } from "./phone-sections";
@@ -183,8 +183,11 @@ export function StockReport({
   data,
   related,
   below,
+  signals,
 }: {
   data: ReportData;
+  /** The good and watch tally (./signal-ui.tsx `SignalStrip`), streamed in once every section it counts has loaded. */
+  signals?: ReactNode;
   /** Links to the stock's sector, rivals, insiders and earnings pages, streamed in under the head. */
   related?: ReactNode;
   /** What changed and the deeper report (below.tsx), streamed in after the top. */
@@ -283,38 +286,11 @@ export function StockReport({
   const ready = readState === "ready" && read ? read : null;
   // A missing or zero quote must not turn into "Infinity% from here".
   const hasPrice = fin(stock.price) && stock.price > 0;
-  // A reason rewritten from newer numbers than the call says so beside it. The call's own dates ("Our call since …,
-  // last reviewed …") are not printed (owner, Nov 12: remove).
-  const writtenMs = ready?.writtenAt ? Date.parse(ready.writtenAt) : NaN;
-  const callDay = Number.isFinite(writtenMs) ? todayET(writtenMs) : null;
-  const reasonIsNewer = Boolean(callDay && ready?.reasonAsOf && ready.reasonAsOf > callDay);
   // The evidence under the call (each line with its source and date) and the measurable conditions that would change
   // it (lib/call-evidence.ts). Both are open on every stock, for every reader, like the call itself.
   const evidence = ready ? data.callEvidence?.evidence ?? [] : [];
-  const conditions = ready ? data.callEvidence?.conditions ?? [] : [];
-  // The same conditions as separate checks, each with its threshold and source (a stored page may not have them).
+  // The conditions as separate checks, each with its threshold and source; only these are shown (as cards).
   const checks = ready ? data.callEvidence?.checks ?? [] : [];
-  // Without measured conditions, the steady call's own sentence, when it is published.
-  const ruleChange = ready && !conditions.length ? ready.whatWouldChange : null;
-  // The brief's written "what would change our mind" list, only when the call block has no measured conditions.
-  // Each line one fact of at most 15 words (owner rule 8); a line with no clause that short is left out.
-  const changers = ready && !conditions.length ? ready.changers.map((item) => shortFact(item)).filter(Boolean) : [];
-  // The company reason taken apart: the facts the call rests on, each dated, then what would change it (lib/call-basis.ts).
-  // Only for the reason written from the company's own numbers; any other reason stays one paragraph.
-  const callReason = ready ? plainCallReason(ready.actionSummary) : "";
-  const basis =
-    ready?.reasonAsOf && callReason
-      ? callBasis(callReason, {
-          asOf: ready.reasonAsOf,
-          lastReport: lastReportOn(
-            data.earnings.past.map((event) => event.event_date),
-            ready.reasonAsOf,
-            facts?.captured_at ?? null,
-          ),
-        })
-      : null;
-  // A fact with no day of its own ("It pays a 2.2% dividend") gets the day its figures are from.
-  const basisAsOf = basis && ready?.reasonAsOf ? fmtDate(ready.reasonAsOf, false) : "";
   // The brief leads with its own first sentence (what is happening to the company, in plain facts), not the
   // engine's title ("AI growth remains powerful as scrutiny raises the proof required"); the title is the fallback.
   // The lead goes through plainBriefLead (./format.ts): a sentence that only describes the coverage ("Recent coverage is
@@ -347,107 +323,20 @@ export function StockReport({
   // The page's one lock, beside the call it unlocks: only the full report is behind it (the call, its reasons and
   // what would change it are open on every stock).
   const showLock = Boolean(ready) && !data.gate.levels;
-  // What would change the call, set apart from the reasons so it reads as the conditions to watch.
-  const changeBlock = (lines: string[]) => (
-    <div className="max-w-[62ch] rounded-lg border border-oa-border bg-oa-bg px-3 py-2 text-[14px] leading-5 text-oa-fg">
-      <p className="font-medium">What would change it</p>
-      <div className="mt-0.5 flex flex-col gap-1">
-        {lines.map((line) => (
-          <p key={line} className="text-pretty">
-            {line}
-          </p>
-        ))}
-      </div>
-    </div>
-  );
-  // Each condition on its own short line (owner rules 3 and 9): the threshold as a figure, the sentence, and under it
-  // where the number comes from, linked to the filing when we have its address. Said once per direction: "Any of
-  // these could lower the call".
-  // `wide`: across the strip under the header, the checks side by side (up to three a row), so the box is no taller
-  // than the reasons beside it would be and nothing leaves an empty column (owner rule 4).
+  // What would change it as grouped condition cards (./change-checks.tsx): one group per call it could move to, the
+  // shared report day said once, a short card per condition, and one Sources action for the section.
+  // `wide`: across the strip under the header; otherwise capped at a reading width in the side column.
   // Defined before the blocks that use it: checksBlock runs while the page renders, before anything declared below it.
-  const bullet = <span aria-hidden="true" className="mt-[7.5px] size-[5px] shrink-0 rounded-full bg-oa-muted-fg" />;
-  const checksBlock = (list: NonNullable<typeof checks>, wide: boolean) => {
-    const ways = (["raise", "lower"] as const).filter((way) => list.some((item) => item.way === way));
-    const COLS = ["", "md:grid-cols-1", "md:grid-cols-2", "md:grid-cols-3", "md:grid-cols-2"] as const;
-    return (
-      <div className={`${wide ? "" : "max-w-[62ch]"} rounded-lg border border-oa-border bg-oa-bg px-3 py-2.5 text-[14px] leading-5 text-oa-fg`}>
-        <p className="font-medium">What would change it</p>
-        {ways.map((way) => {
-          const items = list.filter((item) => item.way === way);
-          const verb = way === "raise" ? "raise" : "lower";
-          return (
-            <div key={way} className="mt-1.5">
-              <p className="text-[13px] leading-[18px] text-oa-muted-fg">
-                {items.length === 1 ? `This could ${verb} the call:` : `Any of these could ${verb} the call:`}
-              </p>
-              <ul role="list" className={`mt-1.5 grid gap-2 ${wide ? `md:gap-x-5 ${COLS[Math.min(items.length, 4)]}` : ""}`}>
-                {items.map((item) => (
-                  // The sentence alone, as a bullet. No threshold figure beside it: the sentence already says it, and
-                  // a bare "21%" read as meaningless (owner, Nov 12). The source sits in the hover title.
-                  <li key={item.text} className="flex gap-2.5">
-                    {bullet}
-                    <span className="min-w-0 text-pretty" title={item.source || undefined}>
-                      {item.text}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-  // Measured conditions first, the steady call's own sentence when there are none. The company reason's "if sales slow
-  // sharply" line is never shown: it names nothing anyone can check.
-  const changeBox = checks.length ? checksBlock(checks, false) : conditions.length ? changeBlock(conditions) : ruleChange ? changeBlock([ruleChange]) : null;
+  const checksBlock = (list: NonNullable<typeof checks>, wide: boolean) => <ChangeChecks list={list} today={today} wide={wide} />;
+  // Only measured checks, as cards. Without them the section is not shown: no prose fallback, neither the steady
+  // call's sentence nor the conditions as sentences (council, Nov 12).
+  const changeBox = checks.length ? checksBlock(checks, false) : null;
 
-  // What the call rests on, under the header (no "Why:" label over it, owner rule 6): the evidence lines with their
-  // source and date, else the company reason taken apart into dated facts, else that reason as one paragraph.
-  const reasonsBlock = !ready ? null : evidence.length ? (
-    <ul role="list" aria-label={`Why we say ${callWord ?? "this"}`} className="flex max-w-[62ch] flex-col gap-1 text-[14px] leading-5 text-oa-fg">
-      {evidence.map((line) => (
-        <li key={line.id} className="flex gap-2.5">
-          {bullet}
-          {/* The fact only; its source sits in the hover title (owner, Nov 12: "remove those sources, that's taking space"). */}
-          <span className="min-w-0 text-pretty" title={line.source}>
-            {line.text}
-          </span>
-        </li>
-      ))}
-    </ul>
-  ) : basis ? (
-    <div className="max-w-[62ch] text-[14px] leading-5 text-oa-fg">
-      <ul role="list" aria-label={`Why we say ${callWord ?? "this"}`} className="flex flex-col gap-1">
-        {basis.facts.map((fact) => (
-          <li key={fact} className="flex gap-2.5">
-            {bullet}
-            <span className="min-w-0 text-pretty">
-              {basisAsOf && !factHasDate(fact) && basis.facts.some((other) => factHasDate(other)) ? (
-                <>
-                  {fact.replace(/[.!?]$/, "")}
-                  <span className="text-oa-muted-fg">, as of {basisAsOf.replace(" ", "\u00a0")}</span>.
-                </>
-              ) : (
-                // "Nov 2" never splits across lines.
-                fact.replace(/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\d)/g, "$1\u00a0$2")
-              )}
-            </span>
-          </li>
-        ))}
-      </ul>
-      {/* One date for all the reasons when they share it, said once under them instead of a "Why, as of" label. */}
-      {basisAsOf && basis.facts.every((fact) => !factHasDate(fact)) ? (
-        <p className="mt-1 text-[13px] leading-[18px] text-oa-muted-fg">As of {basisAsOf.replace(" ", "\u00a0")}.</p>
-      ) : null}
-    </div>
-  ) : callReason ? (
-    <p className="max-w-[62ch] text-pretty text-[14px] leading-5 text-oa-fg">
-      {callReason}
-      {reasonIsNewer && ready.reasonAsOf ? <span className="text-[13px] text-oa-muted-fg"> This reason uses data to {fmtDate(ready.reasonAsOf, false)}.</span> : null}
-    </p>
-  ) : null;
+  // What the call rests on, under the header (no "Why:" label over it, owner rule 6): fact cards with a big figure,
+  // a short label, one line and bars where two numbers compare (./fact-cards.tsx), each card's source in its hover
+  // title. Only facts with structured figures become cards; without any the row is not shown, and the call's own line
+  // above says what the call is (council, Nov 12: no text-only fact cards). Never a bulleted list (owner, Nov 12).
+  const reasonsBlock = ready && evidence.some((line) => line.card) ? <FactCards lines={evidence} label={`Why we say ${callWord ?? "this"}`} /> : null;
 
   // Under the call: two questions for Ask and one thing to watch (lib/next-steps.ts). Ask and agents cover US stocks.
   const allSteps =
@@ -466,8 +355,13 @@ export function StockReport({
 
   // What would change the call goes in the strip under the header, unless it is the side column's only content.
   const stripChange = showLock || callSteps ? (checks.length ? checksBlock(checks, true) : changeBox) : null;
-  // The checks go across the strip under the reasons, not in a narrow column beside them (owner rule 4).
-  const stripStacked = Boolean(stripChange) && checks.length > 0;
+  // The checks go across the strip under the reasons when there are enough cards to fill it (both ways, or three or
+  // more); one or two cards sit in the column beside the reasons rather than alone across the strip (owner rule 4).
+  const stripStacked = Boolean(stripChange) && (checks.length >= 3 || new Set(checks.map((item) => item.way)).size > 1);
+  // Beside the lock, the side column is a little wider (it fills from 17rem up to 1/2.25 of the row) so the lock's
+  // words wrap less and its card ends near the call's last line; the strip under it uses the same columns so the
+  // checks line up under the lock (owner rule 4: no empty left side beside a tall lock).
+  const sideCols = showLock ? "md:grid-cols-[minmax(0,1.25fr)_minmax(17rem,1fr)]" : "md:grid-cols-[minmax(0,1fr)_minmax(17rem,23rem)]";
 
   const stats = headerStats.length ? <StatGrid items={headerStats} /> : null;
   // On a phone the page below the chart is one part at a time (PhoneSections).
@@ -538,7 +432,7 @@ export function StockReport({
                   that says the same instruction with its level, and today's price as the figure under that. The page's
                   one lock sits beside the level line; the reasons and what would change the call are the strip under
                   the header. */}
-              <div className={`mt-2 grid gap-x-6 gap-y-3 md:items-start ${!ready || showLock || callSteps || changeBox ? "md:grid-cols-[minmax(0,1fr)_minmax(17rem,23rem)]" : ""}`}>
+              <div className={`mt-2 grid gap-x-6 gap-y-3 md:items-start ${!ready || showLock || callSteps || changeBox ? sideCols : ""}`}>
                 {/* id "call": the briefing and the example check link here. */}
                 <section
                   id={ready ? "call" : undefined}
@@ -553,6 +447,8 @@ export function StockReport({
                   {ready && callWord && callUnder ? (
                     <p className="mt-1 max-w-[62ch] text-pretty text-[17px] font-medium leading-6 text-oa-fg">{callUnder.text}</p>
                   ) : null}
+                  {/* The signals' tally by the call: counts and the top name each side, never a sentence (owner rule 7). */}
+                  {ready && signals ? <div className="mt-2 empty:hidden">{signals}</div> : null}
                   {/* Today's price, the figure under the call. Without a call it is the heading's neighbour on its own. */}
                   <div className={ready ? "mt-3" : ""}>
                     <p className="flex flex-wrap items-baseline gap-x-2.5">
@@ -574,6 +470,13 @@ export function StockReport({
                   </div>
                   {/* How long the call has stood and when we last looked at it again, quiet under the price. */}
                   {ready && callWord && subline ? <p className="mt-0.5 text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg">{subline}</p> : null}
+                  {/* With the lock beside the call, the call's next step sits under the price, so the call's side of the
+                      header is not left short beside the taller lock. */}
+                  {callSteps && showLock ? (
+                    <div className="mt-2.5">
+                      <CallNextSteps ticker={stock.ticker} steps={callSteps} />
+                    </div>
+                  ) : null}
                 </section>
 
                 {/* Beside the call: the page's one lock, or, where nothing is locked, the call's next step, or what would
@@ -624,20 +527,16 @@ export function StockReport({
 
             {/* Under the header: what the call rests on (each fact with its source and date) and what would change it,
                 side by side, so a level never reads as more certain than its reasons. Open on every stock. */}
-            {ready && (reasonsBlock || stripChange || (callSteps && showLock)) ? (
+            {ready && (reasonsBlock || stripChange) ? (
               <div
                 className={`grid gap-x-6 gap-y-3 border-t border-oa-border px-3.5 py-3 sm:px-4 md:items-start ${
-                  reasonsBlock && (stripChange || (callSteps && showLock)) && !stripStacked ? "md:grid-cols-[minmax(0,1fr)_minmax(17rem,23rem)]" : ""
+                  reasonsBlock && stripChange && !stripStacked ? sideCols : ""
                 }`}
               >
+                {/* Side by side, each column keeps its own height: a fact card is never padded out to the checks' height
+                    (council, Nov 12). Two fact cards and one check group come out within a line of each other. */}
                 {reasonsBlock ? <div className="min-w-0">{reasonsBlock}</div> : null}
-                {stripChange || (callSteps && showLock) ? (
-                  <div className="flex min-w-0 flex-col gap-3">
-                    {stripChange}
-                    {/* With the lock beside the call, the call's next step sits here, under what would change it. */}
-                    {callSteps && showLock ? <CallNextSteps ticker={stock.ticker} steps={callSteps} /> : null}
-                  </div>
-                ) : null}
+                {stripChange ? <div className="flex min-w-0 flex-col gap-3">{stripChange}</div> : null}
               </div>
             ) : null}
 
@@ -738,12 +637,13 @@ export function StockReport({
                     {changeReason ? <p className="max-w-[66ch] text-pretty text-[14px] leading-5 text-oa-fg">{changeReason}</p> : null}
                   </div>
                 ) : null}
-                {newsFacts.length || changers.length ? (
-                  <div className={`grid ${newsFacts.length && changers.length ? "md:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]" : ""}`}>
-                    {newsFacts.length ? (
-                      // One specific fact per row, at most 15 words (owner rule 8); the story behind it is the row's link
-                      // and its title, never a source line under it (rule 4).
-                      <ul aria-label={`Why we made the call on ${stock.ticker}`} className={`flex flex-col ${changers.length ? "border-b border-oa-border md:border-b-0 md:border-r" : ""}`}>
+                {/* No written "what would change our mind" list here, even without measured checks: what would change
+                    the call is only ever the structured check cards (council, Nov 12: no prose fallback). */}
+                {newsFacts.length ? (
+                  <div>
+                    {/* One specific fact per row, at most 15 words (owner rule 8); the story behind it is the row's link
+                        and its title, never a source line under it (rule 4). */}
+                    <ul aria-label={`Why we made the call on ${stock.ticker}`} className="flex flex-col">
                         {newsFacts.map((fact, index) => (
                           <li key={index} className="border-b border-oa-border last:border-b-0">
                             {fact.source ? (
@@ -762,23 +662,6 @@ export function StockReport({
                           </li>
                         ))}
                       </ul>
-                    ) : null}
-                    {/* The measured conditions in the call block replace these written ones; two lists of what would
-                        change the call would disagree. */}
-                    {changers.length ? (
-                      <div className="px-3.5 py-3 sm:px-4">
-                        <ul aria-label="What would change our mind" className="flex flex-col gap-2.5">
-                          {changers.map((item, index) => (
-                            <li key={index} className="grid grid-cols-[1.25rem_minmax(0,1fr)] gap-x-1.5 text-[14px] leading-5 text-oa-fg">
-                              <span aria-hidden="true" className="oa-mono text-[12px] leading-5 text-oa-muted-fg">
-                                ↯
-                              </span>
-                              <span className="max-w-[60ch] text-pretty">{item}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ) : null}
                   </div>
                 ) : null}
                 {/* Zero-size marker: `read_viewed` once the end of the brief is on screen. */}

@@ -8,6 +8,7 @@ import { ReportSections } from "./report-sections";
 import { NO_EXTRAS, toSectionData } from "./section-data";
 import { sectionAvailability } from "./sections";
 import type { ReportData, ReportExtras } from "./types";
+import type { StockSignals } from "@/lib/stock-signals";
 
 /** At most this many entries go to the browser, all in the list's inner scroll (changed-timeline.tsx). */
 const TIMELINE_MAX = 40;
@@ -32,7 +33,7 @@ export function publishers(items: Array<{ kind: string; source?: string | null }
  * as tabs. It streams in under the call, the price and the read, once the
  * reads only it needs (news, rivals, ownership, technicals) are in.
  */
-export function StockReportBelow({ data, extras }: { data: ReportData; extras: ReportExtras }) {
+export function StockReportBelow({ data, extras, signals = null }: { data: ReportData; extras: ReportExtras; signals?: StockSignals | null }) {
   const { stock, nowIso } = data;
   const today = todayET(Number.isFinite(Date.parse(nowIso)) ? Date.parse(nowIso) : Date.now());
   const sectionData = toSectionData(data, extras);
@@ -45,7 +46,11 @@ export function StockReportBelow({ data, extras }: { data: ReportData; extras: R
       id,
       label: SECTION_LABELS[id],
       count: id === "news" ? sectionData.news.length : id === "peers" ? sectionData.peers.length : null,
+      // One quiet dot per tab from the shared signals (lib/stock-signals.ts); Overview has none of its own.
+      tone: id !== "overview" && signals ? signals.tabs[id] : null,
     }));
+  // Only what the tabs draw goes to the browser: each signal by id and the per-tab counts, not the tally's inputs.
+  const tabSignals = signals ? { byId: signals.byId, tabs: signals.tabs } : null;
 
   // A headline's row shows no summary (timeline-row.tsx), so the summary is not sent either.
   // One line on what actually changed for the stock this week, from the same rows (lib/stock-timeline.ts), so the
@@ -95,7 +100,7 @@ export function StockReportBelow({ data, extras }: { data: ReportData; extras: R
       {/* The deeper report as tabs, in the order of SECTION_LABELS. */}
       {railSections.length ? (
         <div data-phone-section={reportChip ? "report" : "view"} className="order-3 min-w-0">
-          <ReportSections sections={railSections} data={sectionData} />
+          <ReportSections sections={railSections} data={sectionData} signals={tabSignals} />
         </div>
       ) : null}
     </>

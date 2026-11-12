@@ -261,7 +261,7 @@ export function MarketStatusInline({
       <span
         tabIndex={0}
         aria-describedby={`market-status-tip-${surface}`}
-        className="t-tt-trigger inline-flex cursor-default items-center gap-1.5 rounded-full border border-oa-border bg-oa-card px-2.5 py-1 text-[11px] font-medium text-oa-fg/75"
+        className="t-tt-trigger inline-flex cursor-default items-center gap-1.5 text-[12px] leading-4 text-oa-muted-fg"
       >
         <span aria-hidden className="relative flex size-2 shrink-0">
           {open ? (
@@ -273,7 +273,7 @@ export function MarketStatusInline({
             <span className="relative inline-flex size-2 rounded-full bg-oa-muted-fg" />
           )}
         </span>
-        <CssIcon name={open ? "sun" : "sun-moon"} size={13} />
+        {/* Plain words beside the price time, not a pill (owner, Nov 12: "this tab is weird"). */}
         {text}
       </span>
       <span id={`market-status-tip-${surface}`} role="tooltip" className="t-tt">

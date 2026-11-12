@@ -1,8 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 
 import { isLogoKey, LOGO_FALLBACK_INK, logoFallbackColor, logoInitials, logoKey, logoSrc } from "@/lib/stock-logo-sources";
+
+/** The lettered tile drawn over a broken image (see the eager <img> below): its letters, colours and size come from the img. */
+const BROKEN_TILE =
+  "relative overflow-hidden after:absolute after:inset-0 after:flex after:items-center after:justify-center after:bg-[var(--lb)] after:font-mono after:font-semibold after:leading-none after:tracking-[-0.02em] after:content-[attr(data-i)]";
 
 type Props = {
   ticker: string;
@@ -56,17 +60,23 @@ export function StockLogo({
   const shape = circle ? "rounded-full" : "rounded-md";
   const dim = `${size}px`;
 
-  // Only a failed request (store down, offline) falls back to letters here.
-  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  // Only a failed request (store down, offline, a dev server busy compiling) falls back to letters here, after one
+  // retry: a phone on a weak line caught NVDA's header logo as a broken image (council, Nov 12).
+  const [failed, setFailed] = useState<{ src: string; tries: number } | null>(null);
+  const tries = src !== null && failed?.src === src ? failed.tries : 0;
+  const shown = src !== null && tries === 1 ? `${src}&retry=1` : src;
+  const fail = () => {
+    if (src !== null) setFailed({ src, tries: tries + 1 });
+  };
   const ref = useRef<HTMLImageElement>(null);
   useEffect(() => {
     // An error before hydration fires no onError in React 18; check once on mount.
     const img = ref.current;
-    if (img && img.complete && img.naturalWidth === 0) setFailedSrc(img.getAttribute("src"));
+    if (img && img.complete && img.naturalWidth === 0 && src !== null) setFailed({ src, tries: 1 });
   }, [src]);
 
-  if (src === null || failedSrc === src) {
-    const initials = logoInitials(upper);
+  const initials = logoInitials(upper);
+  if (src === null || tries >= 2) {
     return (
       <span
         // The kit's monogram, the same tile the server draws (lib/stock-logo-sources.ts): never an empty square.
@@ -91,7 +101,7 @@ export function StockLogo({
     // eslint-disable-next-line @next/next/no-img-element -- tiny same-origin tiles, already sized; next/image would add a hop
     <img
       ref={ref}
-      src={src}
+      src={shown ?? undefined}
       // Next to its ticker the logo is decoration; reading the ticker twice helps no one.
       alt={labelled ? `${upper} logo` : ""}
       aria-hidden={labelled ? undefined : true}
@@ -103,10 +113,17 @@ export function StockLogo({
       // React 18 does not know fetchPriority; pass the lowercase attribute.
       {...(eager ? { fetchpriority: "high" } : {})}
       draggable={false}
-      onError={() => setFailedSrc(src)}
+      onError={fail}
       // Block, shape, ring, backdrop and fit are one short class (.oa-logo in app/globals.css): long tables print hundreds of these.
-      className={`oa-logo${circle ? " oa-logo-c" : ""}${className ? ` ${className}` : ""}`}
-      style={{ width: dim, height: dim }}
+      // An above-the-fold logo also draws its lettered tile over a broken image with CSS alone (Chrome paints ::after
+      // only on an image that failed), so even before the page's script runs it is never a broken-image icon.
+      className={`oa-logo${circle ? " oa-logo-c" : ""}${eager ? ` ${BROKEN_TILE}` : ""}${className ? ` ${className}` : ""}`}
+      style={
+        eager
+          ? ({ width: dim, height: dim, fontSize: Math.round(size * (initials.length > 1 ? 0.36 : 0.48)), ["--lb" as string]: fallbackBg ?? logoFallbackColor(upper), color: fallbackFg } as CSSProperties)
+          : { width: dim, height: dim }
+      }
+      {...(eager ? { "data-i": initials } : {})}
     />
   );
 }

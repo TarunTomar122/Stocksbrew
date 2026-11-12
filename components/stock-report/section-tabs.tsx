@@ -2,7 +2,8 @@
 
 import * as React from "react";
 
-type Tab = { id: string; label: string; count?: number | null };
+/** `mark`: a quiet mark after the label, such as the tab's signal dot (./signal-ui.tsx `TabDot`). */
+type Tab = { id: string; label: string; count?: number | null; mark?: React.ReactNode };
 
 /**
  * The report's deeper sections as tabs: one section on screen at a time, so
@@ -106,6 +107,7 @@ export function SectionTabs({ sections, renderPanel }: { sections: Tab[]; render
               >
                 {section.label}
                 {section.count ? <span className="oa-mono text-[11px] text-oa-muted-fg">{section.count}</span> : null}
+                {section.mark ?? null}
                 <span
                   aria-hidden="true"
                   className={`absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-oa-primary transition-opacity ${current ? "opacity-100" : "opacity-0"}`}

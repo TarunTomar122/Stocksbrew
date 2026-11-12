@@ -13,6 +13,9 @@ import type { ReportData, ReportExtras } from "@/components/stock-report/types";
 import type { HiddenLevel } from "@/components/stock-report/call-line";
 import { ownCallLevel } from "@/lib/call-level";
 import { StockReportBelow } from "@/components/stock-report/below";
+import { SignalStrip } from "@/components/stock-report/signal-ui";
+import { stockSignalsInput } from "@/components/stock-report/signals-input";
+import { buildStockSignals, type StockSignals } from "@/lib/stock-signals";
 import { StockBelowSkeleton } from "@/components/stock-report/skeleton";
 import { StockRelatedRow } from "@/components/seo/stock-family-links";
 import { StockViewTracker } from "@/components/stock-view-tracker";
@@ -160,20 +163,28 @@ function lockedLead(body: string | null): string | null {
 async function ReportBelowStream({
   data,
   extras,
+  signals,
   analytics,
 }: {
   data: ReportData;
   extras: Promise<ReportExtras>;
+  signals: Promise<StockSignals | null>;
   analytics: Omit<Parameters<typeof StockPageAnalytics>[0], "hasCrowdSignal">;
 }) {
-  const loaded = await extras;
+  const [loaded, judged] = await Promise.all([extras, signals]);
   return (
     <>
       {/* `stock_viewed` says whether the page had a crowd signal, so it goes out with the part that knows. */}
       <StockPageAnalytics {...analytics} hasCrowdSignal={Boolean(loaded.reddit)} />
-      <StockReportBelow data={data} extras={loaded} />
+      <StockReportBelow data={data} extras={loaded} signals={judged} />
     </>
   );
+}
+
+/** The good and watch tally beside the call, once every section it counts has loaded (lib/stock-signals.ts). */
+async function SignalStripStream({ signals }: { signals: Promise<StockSignals | null> }) {
+  const judged = await signals;
+  return judged?.tally ? <SignalStrip tally={judged.tally} /> : null;
 }
 
 /** Whether this stock's price is refreshed less often than the priority set's (a notice explains it); never holds up the page. */
@@ -696,6 +707,21 @@ export async function StockPageStream({ params }: Props) {
       peers: sectorPeers,
     };
   });
+  // Good and watch signals across the tabs, worked out once from what the page loaded (lib/stock-signals.ts): the
+  // tabs and the tally by the call share this one result. Pure, no new reads; a failure only leaves them out.
+  const signalsPromise: Promise<StockSignals | null> = extrasPromise
+    .then((extras) =>
+      buildStockSignals(
+        stockSignalsInput({
+          data,
+          extras,
+          today,
+          closes: isUS ? dailySeries : null,
+          calendar: earningsDates as unknown as Parameters<typeof stockSignalsInput>[0]["calendar"],
+        }),
+      ),
+    )
+    .catch(() => null);
   const analytics = {
     ticker: displayStock.ticker,
     instrumentId: displayStock.instrument_id,
@@ -730,6 +756,13 @@ export async function StockPageStream({ params }: Props) {
       </Suspense>
       <StockReport
         data={data}
+        signals={
+          data.readState === "ready" ? (
+            <Suspense fallback={null}>
+              <SignalStripStream signals={signalsPromise} />
+            </Suspense>
+          ) : null
+        }
         related={
           market === "US" ? (
             <Suspense fallback={null}>
@@ -739,7 +772,7 @@ export async function StockPageStream({ params }: Props) {
         }
         below={
           <Suspense fallback={<StockBelowSkeleton />}>
-            <ReportBelowStream data={data} extras={extrasPromise} analytics={analytics} />
+            <ReportBelowStream data={data} extras={extrasPromise} signals={signalsPromise} analytics={analytics} />
           </Suspense>
         }
       />
