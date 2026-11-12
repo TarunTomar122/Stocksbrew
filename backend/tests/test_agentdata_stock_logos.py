@@ -42,6 +42,16 @@ def test_source_urls_use_dashes_and_googl_prefers_fmp():
     assert [name for name, _ in sl.sources_for("GOOGL")] == ["fmp", "finnhub"]
 
 
+def test_listed_coins_take_the_open_coin_icon_first_and_plain_tickers_do_not():
+    # "DOGE-USD" is the coin; a bare "DOGE" or an unlisted "-USD" pair stays a stock lookup.
+    assert sl.coin_base("DOGE-USD") == "DOGE" and sl.coin_base("doge.usd") == "DOGE"
+    assert sl.coin_base("DOGE") is None and sl.coin_base("FOO-USD") is None
+    names = [name for name, _ in sl.sources_for("DOGE-USD")]
+    assert names == ["cryptocurrency-icons", "finnhub", "fmp"]
+    assert sl.sources_for("DOGE-USD")[0][1].endswith("/cryptocurrency-icons@0.18.1/128/color/doge.png")
+    assert [name for name, _ in sl.sources_for("LINK")] == ["finnhub", "fmp"]
+
+
 def test_opaque_tile_is_resized_to_a_square():
     source = Image.new("RGB", (1000, 1000), (20, 120, 200))
     for x in range(300, 700):
@@ -142,6 +152,7 @@ def test_a_miss_never_replaces_a_stored_logo_unless_forced(monkeypatch):
     monkeypatch.setattr(sl, "resolve", lambda s: {"symbol": s, "key": sl.logo_key(s), "status": "none", "tried": [], "checked_at": "now"})
     monkeypatch.setattr(sl, "_query_instruments", lambda store: [{"ticker": "MSFT", "status": "active"}])
     monkeypatch.setattr(sl, "FUNDS", ())
+    monkeypatch.setattr(sl, "COINS", ())
     summary = sl.run(store)
     assert [p for p, _ in store.writes if p.startswith("tm_stock_logos/")] == []
     assert summary["kept_after_miss"] == 1

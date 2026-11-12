@@ -19,6 +19,9 @@ Sources, in order:
 2. Financial Modeling Prep's image endpoint (``/image-stock/SYM.png``): marks on
    a transparent canvas; covers funds and names Finnhub lacks.
 
+Coins (``COINS``, stored as ``DOGE-USD`` and so on) come first from the open
+cryptocurrency-icons set (CC0-1.0, pinned on jsDelivr), then the two above.
+
 A logo is a company's trademark; we show it only next to that company's ticker
 to identify it, which is how every finance site uses them. The files are kept
 in the store, never committed to the public repo.
@@ -125,7 +128,32 @@ PREFER_FMP = frozenset({"GOOGL"})
 PLACEHOLDER_SHAS = frozenset({"c7fe0cb0ef5982a3"})
 
 
+# The coins the markets page lists (backend/agentdata/markets.py CRYPTO), stored under "<SYMBOL>-USD" so a coin never
+# takes the logo of a stock that shares its letters (DOGE, LINK, SOL are also tickers). The app asks for them that way
+# (components/markets/widgets.tsx AssetRow).
+COINS = ("BTC", "ETH", "SOL", "XRP", "BNB", "DOGE", "ADA", "TRX", "LINK", "AVAX")
+COIN_SUFFIX = "-USD"
+# The open cryptocurrency-icons set (github.com/spothq/cryptocurrency-icons), released under CC0-1.0, pinned to one
+# version on jsDelivr: a 128px colour PNG per coin, the round mark people know.
+COIN_ICONS = "https://cdn.jsdelivr.net/npm/cryptocurrency-icons@0.18.1/128/color/"
+
+
+def coin_base(symbol: str) -> str | None:
+    """The coin in a "<COIN>-USD" symbol we list, else None."""
+    key = logo_key(symbol)
+    base = key[: -len(".USD")] if key.endswith(".USD") else ""
+    return base if base in COINS else None
+
+
+def coin_icon_url(base: str) -> str:
+    return COIN_ICONS + urllib.parse.quote(base.lower()) + ".png"
+
+
 def sources_for(symbol: str) -> list[tuple[str, str]]:
+    coin = coin_base(symbol)
+    if coin:
+        # A coin's own mark first; the stock sources stay as a fallback.
+        return [("cryptocurrency-icons", coin_icon_url(coin)), ("finnhub", finnhub_url(symbol)), ("fmp", fmp_url(symbol))]
     ordered = [("finnhub", finnhub_url(symbol)), ("fmp", fmp_url(symbol))]
     return ordered[::-1] if logo_key(symbol) in PREFER_FMP else ordered
 
@@ -343,6 +371,8 @@ def universe(store: DocStore, extra: Iterable[str] = ()) -> list[str]:
         stocks += 1
     for symbol in FUNDS:
         add(symbol)
+    for coin in COINS:
+        add(coin + COIN_SUFFIX)
     tracked = 0
     try:
         for _path, user in store.list("users", limit=1000):
@@ -355,7 +385,7 @@ def universe(store: DocStore, extra: Iterable[str] = ()) -> list[str]:
         log(f"could not read tracked stocks: {error}")
     for symbol in extra:
         add(symbol)
-    log(f"universe: {stocks} stocks, {len(FUNDS)} funds, {tracked} tracked entries -> {len(seen)} symbols")
+    log(f"universe: {stocks} stocks, {len(FUNDS)} funds, {len(COINS)} coins, {tracked} tracked entries -> {len(seen)} symbols")
     return sorted(seen.values())
 
 
