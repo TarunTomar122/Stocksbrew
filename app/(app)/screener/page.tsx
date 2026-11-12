@@ -22,6 +22,7 @@ import { ColumnPicker, FilterBar, type SectorOption } from "@/components/screene
 import { Menu, MenuLabel } from "@/components/screener/menu";
 import { MyScreens, SaveScreen } from "@/components/screener/save-screen";
 import { HeatLegend, SectorHeatGrid, SectorMap } from "@/components/screener/sector-map";
+import { SectorIcon } from "@/components/oa/sector-icon";
 import { SelectAllCheck, SelectionBar, SelectionProvider } from "@/components/screener/selection";
 import { ScreenerResults, type ResultRow } from "@/components/screener/results";
 import { StockDirectory, type DirectoryGroup } from "@/components/screener/stock-directory";
@@ -94,8 +95,8 @@ export async function generateMetadata({ searchParams }: { searchParams: SearchP
     "Screen US stocks by sector, size, valuation, growth, margins, dividends, analyst targets, volatility and distance from the 52-week range. Every screen is a link you can share.";
   let canonical = "/screener";
   if (view.tab === "sectors") {
-    title = "Stock Market Map by Sector: Every Stock We Cover, Sized by Market Value";
-    description = "Every stock we cover as a tile sized by market value and coloured by its change, grouped by sector. Pick a sector to screen it.";
+    title = "Stock Market Map by Sector: Each Sector's Biggest Movers";
+    description = "The biggest movers in each sector, sized and coloured by how far they moved. Pick a sector to screen it.";
     canonical = "/screener?tab=sectors";
   } else if (preset) {
     title = `${preset.name}: stock screen`;
@@ -279,7 +280,7 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
   const head = (
     <PageHead
       title={view.tab === "sectors" ? "Stock sectors" : "Find stocks"}
-      lede={view.tab === "sectors" ? "Sized by market value, coloured by the move. Pick a sector to screen it." : undefined}
+      lede={view.tab === "sectors" ? "Sized and coloured by the move. Pick a sector to screen it." : undefined}
       meta={<SourceLine asOf={asOf} />}
       inline
       className={`max-sm:[&_.oa-head-compact]:hidden ${view.tab === "sectors" ? "" : "[&_.oa-head-lede]:hidden"}`}
@@ -309,7 +310,8 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
       href: sectorHref(stat.slug),
       sort: [stat.name, stat.count, stat.marketCap, stat.change.day_pct ?? null, stat.change.ret_1w ?? null, stat.change.ret_1m ?? null, stat.change.ret_ytd ?? null, stat.advancing, null, null],
       cells: [
-        <Link prefetch={false} key="s" href={sectorHref(stat.slug)} className="font-medium text-oa-fg hover:underline">
+        <Link prefetch={false} key="s" href={sectorHref(stat.slug)} className="inline-flex items-center gap-2 font-medium text-oa-fg hover:underline">
+          <SectorIcon id={stat.name} size={15} />
           {stat.name}
         </Link>,
         <span key="c" className={NUM}>{stat.count}</span>,
@@ -351,10 +353,17 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
           <HeatLegend period={view.period} />
         </div>
         <Panel flush className="mb-5">
-          <div className="hidden p-1.5 sm:block">
-            <SectorMap rows={rows} stats={stats} period={view.period} sectorHref={sectorHref} />
+          <div className="hidden p-1.5 lg:block">
+            <SectorMap
+              rows={rows}
+              stats={stats}
+              period={view.period}
+              sectorHref={sectorHref}
+              allHref={viewHref({ ...view, tab: "screen", preset: null, filters: EMPTY_FILTERS, sort: DEFAULT_SORT })}
+            />
           </div>
-          <div className="sm:hidden">
+          {/* Below 1024px the stock map's tiles would be too small for their words: the sector map instead. */}
+          <div className="lg:hidden">
             <SectorHeatGrid stats={stats} period={view.period} sectorHref={sectorHref} />
           </div>
         </Panel>

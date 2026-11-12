@@ -1,4 +1,5 @@
 import { NUM, Panel } from "@/components/oa/kit";
+import { StockLogo } from "@/components/stock-logo";
 import { fmtDollars, joinNames, monthName, monthShort, type MonthBucket } from "@/lib/dividend-plan";
 
 /**
@@ -119,7 +120,16 @@ export function MonthChart({ months, label = "The next 12 months" }: { months: M
                           <LegendSwatch kind="estimate" /> Estimate {fmtDollars(month.estimated)}
                         </p>
                       ) : null}
-                      <p className="mt-1 text-[12.5px] leading-[18px] text-oa-muted-fg">From {joinNames(month.tickers.slice(0, 5))}{month.tickers.length > 5 ? ` and ${month.tickers.length - 5} more` : ""}</p>
+                      {/* Who pays, as logo chips; the bar's own label already reads the names out. */}
+                      <p aria-hidden="true" className={`${NUM} mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] leading-4 text-oa-muted-fg`}>
+                        {month.tickers.slice(0, 5).map((ticker) => (
+                          <span key={ticker} className="inline-flex items-center gap-1 text-oa-fg">
+                            <StockLogo ticker={ticker} size={14} />
+                            {ticker}
+                          </span>
+                        ))}
+                        {month.tickers.length > 5 ? <span>+{month.tickers.length - 5}</span> : null}
+                      </p>
                     </>
                   ) : (
                     <p className="mt-1 text-[12.5px] text-oa-muted-fg">Nothing expected</p>

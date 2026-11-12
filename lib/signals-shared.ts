@@ -8,17 +8,14 @@
 import { firstFullSentence } from "@/lib/plain-copy";
 import { isCircularReason } from "@/lib/reason-quality";
 
-/** Signals is what people say about stocks: Reddit and the President. The day's moves live on Market today (/explore#moves). */
-export type SignalsTab = "today" | "reddit" | "policy";
-
-export const SIGNALS_TABS: Array<{ id: SignalsTab; label: string }> = [
-  { id: "today", label: "Today" },
-  { id: "reddit", label: "Reddit" },
-  { id: "policy", label: "Policy" },
-];
+/**
+ * Signals is what people say about stocks, on one page with no tabs (owner, Nov 12: "only one tab... all the Reddit
+ * information first and then the policy information below that"): Reddit's section, then the President's posts. The
+ * day's moves live on Market today (/explore#moves).
+ */
+export type SignalsSection = "reddit" | "policy";
 
 export type SignalsFilters = {
-  tab: SignalsTab;
   /** Policy: "all" | "named". */
   show: string;
   limit: number;
@@ -33,35 +30,38 @@ function first(value: ParamValue): string {
   return (Array.isArray(value) ? value[0] : value) ?? "";
 }
 
-/** What every tab shows before anyone picks a filter. */
+/** What the policy list shows before anyone picks a filter. */
 const DEFAULT_SHOW = "all";
 
 export function parseSignalsFilters(params: Record<string, ParamValue> | undefined): SignalsFilters {
-  const tabRaw = first(params?.tab).toLowerCase();
-  const tab = SIGNALS_TABS.find((entry) => entry.id === tabRaw)?.id ?? "today";
   const showRaw = first(params?.show).toLowerCase();
-  const allowed = tab === "policy" ? POLICY_SHOWS : [];
   const n = Number.parseInt(first(params?.n), 10);
   return {
-    tab,
-    show: allowed.includes(showRaw) ? showRaw : DEFAULT_SHOW,
+    show: POLICY_SHOWS.includes(showRaw) ? showRaw : DEFAULT_SHOW,
     limit: Number.isFinite(n) ? Math.min(400, Math.max(POLICY_PAGE_SIZE, n)) : POLICY_PAGE_SIZE,
   };
 }
 
-export function signalsHref(filters: SignalsFilters, patch: Partial<SignalsFilters> = {}): string {
+/** The page's address with these filters, and `#section` to land on that section. */
+export function signalsHref(filters: SignalsFilters, patch: Partial<SignalsFilters> = {}, section?: SignalsSection): string {
   const next = { ...filters, ...patch };
-  // A filter belongs to its tab; switching tabs starts clean.
-  if (patch.tab && patch.tab !== filters.tab) {
-    next.show = DEFAULT_SHOW;
-    next.limit = POLICY_PAGE_SIZE;
-  }
   const query = new URLSearchParams();
-  if (next.tab !== "today") query.set("tab", next.tab);
   if (next.show !== DEFAULT_SHOW) query.set("show", next.show);
   if (next.limit > POLICY_PAGE_SIZE) query.set("n", String(next.limit));
   const text = query.toString();
-  return text ? `/signals?${text}` : "/signals";
+  return `${text ? `/signals?${text}` : "/signals"}${section ? `#${section}` : ""}`;
+}
+
+/**
+ * Where an old tabbed address goes now (the tabs were Today, Reddit and Policy): `?tab=reddit` to the Reddit section,
+ * `?tab=policy&show=named` to the policy section with its filter kept, `?tab=today` (or any other tab) to the top.
+ * Null when the address has no `tab` and needs no redirect.
+ */
+export function legacySignalsHref(params: Record<string, ParamValue> | undefined): string | null {
+  if (params?.tab === undefined) return null;
+  const tab = first(params.tab).toLowerCase();
+  const section: SignalsSection | undefined = tab === "reddit" || tab === "policy" ? tab : undefined;
+  return signalsHref(parseSignalsFilters(params), {}, section);
 }
 
 /* ── Movers ────────────────────────────────────────────────────────────── */

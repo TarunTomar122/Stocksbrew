@@ -3,17 +3,19 @@ import { notFound, permanentRedirect } from "next/navigation";
 
 import { JsonLd, breadcrumbLd } from "@/components/docs/json-ld";
 import { closeWords } from "@/lib/benchmark-day";
-import { AppPage, CardGrid, Delta, MoveBar, NUM, PageHead, Panel, ShowMore, SourceLine, StatStrip, Ticker, fmtCompact, fmtDay, fmtMoney } from "@/components/oa/kit";
+import { AppPage, CardGrid, Delta, MoveBar, NUM, PageHead, PairBar, Panel, ShowMore, SourceLine, StatStrip, Ticker, fmtCompact, fmtDay, fmtMoney } from "@/components/oa/kit";
 import { asSentence } from "@/lib/plain-copy";
+import { capitalize, dayWords, onDayWords } from "@/lib/day-words";
 import { DataTable, type DataColumn, type DataRow } from "@/components/oa/kit/data-table";
 import { StockLogo } from "@/components/stock-logo";
+import { SectorMore } from "@/components/sectors/sector-more";
 import { CallTag } from "@/components/screener/shared";
 import { todayET } from "@/lib/calendar-shared";
 import { INVESTMENT_THEMES } from "@/lib/investment-themes";
 import { ogImage } from "@/lib/og/url";
 import { canonicalSectorSlug, type ScreenerRow } from "@/lib/screener-shared";
 import { medianPe, ranked, weightedChange } from "@/lib/sector-insights";
-import { moveHref, pairHref, sectorHref, sectorIsIndexable, sectorTitle } from "@/lib/seo/families";
+import { moveHref, sectorHref, sectorIsIndexable, sectorTitle } from "@/lib/seo/families";
 import { getCoverage, getMovesDay, sectorGroups, stockPairs } from "@/lib/seo/family-data";
 import { alsoClassesLabel, oneRowPerCompany } from "@/lib/share-class";
 import Link from "next/link";
@@ -73,8 +75,9 @@ function MoverList({ rows, period }: { rows: ScreenerRow[]; period: Period }) {
   const max = Math.max(...[...top, ...bottom].map((row) => Math.abs(Number(row[period]) || 0)));
   const item = (row: ScreenerRow) => (
     <li key={row.symbol} className="relative flex items-center justify-between gap-3 border-b border-oa-border px-4 py-2 transition-colors last:border-b-0 hover:bg-oa-accent">
-      <span className="min-w-0">
-        <Ticker symbol={row.symbol} name={row.name} size={18} wrap stretch className="min-w-0" />
+      {/* A long name is cut with "…" before the bar instead of running under it. */}
+      <span className="min-w-0 flex-1">
+        <Ticker symbol={row.symbol} name={row.name} size={18} wrap stretch className="min-w-0 max-w-full" />
         {alsoClassesLabel(also, row.symbol) ? <span className={`${NUM} ml-[26px] block text-[12px] leading-4 text-oa-muted-fg`}>{alsoClassesLabel(also, row.symbol)}</span> : null}
       </span>
       <span className="flex shrink-0 items-center gap-2">
@@ -169,7 +172,18 @@ export default async function SectorPage({ params }: Props) {
   const sectorDay = weightedChange(group.rows, "day_pct");
   const sectorMonth = weightedChange(group.rows, "ret_1m");
   const sectorYear = weightedChange(group.rows, "ret_ytd");
-  const spyNote = (value: number | undefined) => (typeof value === "number" ? `S&P 500 ${value >= 0 ? "+" : "−"}${Math.abs(value).toFixed(1)}%` : undefined);
+  // The sector and the S&P 500 as two labelled lines on one scale from zero, each with its figure, so the gap shows
+  // (owner VISUALS CHECK; council, Nov 12: name both series, mark zero, print the index's own return).
+  const pct = (value: number) => `${value > 0 ? "+" : value < 0 ? "−" : ""}${Math.abs(value).toFixed(1)}%`;
+  const spyNote = (sector: number | null | undefined, value: number | undefined) =>
+    typeof value === "number" && typeof sector === "number" ? (
+      <PairBar value={sector} versus={value} labels={["Sector", "S&P 500"]} texts={[pct(sector), pct(value)]} className="mt-1 w-full max-w-[15rem]" />
+    ) : typeof value === "number" ? (
+      `S&P 500 ${pct(value)}`
+    ) : undefined;
+
+  // Recent days in words, not dates (owner rule 4: "say yesterday"): "Today", "Yesterday", "Monday".
+  const priceDayLabel = coverage.priceDay ? capitalize(dayWords(coverage.priceDay)) : "Last trading day";
 
   return (
     <AppPage>
@@ -184,9 +198,9 @@ export default async function SectorPage({ params }: Props) {
       <StatStrip
         className="mb-4"
         stats={[
-          { label: coverage.priceDay ? fmtDay(coverage.priceDay) : "Last trading day", value: <Delta value={sectorDay} digits={1} />, sub: spyNote(spy?.day_pct) },
-          { label: "1 month", value: <Delta value={sectorMonth} digits={1} />, sub: spyNote(spy?.ret_1m) },
-          { label: "This year", value: <Delta value={sectorYear} digits={1} />, sub: spyNote(spy?.ret_ytd) },
+          { label: priceDayLabel, value: <Delta value={sectorDay} digits={1} />, sub: spyNote(sectorDay, spy?.day_pct) },
+          { label: "1 month", value: <Delta value={sectorMonth} digits={1} />, sub: spyNote(sectorMonth, spy?.ret_1m) },
+          { label: "This year", value: <Delta value={sectorYear} digits={1} />, sub: spyNote(sectorYear, spy?.ret_ytd) },
           {
             label: "Price for $1 of yearly profit",
             value: pe ? <span className={NUM}>${pe.value.toFixed(0)}</span> : <span className={NUM}>n/a</span>,
@@ -196,7 +210,7 @@ export default async function SectorPage({ params }: Props) {
       />
 
       <CardGrid cols={3} className="mb-4">
-        <Panel flush fill label={coverage.priceDay ? fmtDay(coverage.priceDay) : "Last trading day"}>
+        <Panel flush fill label={priceDayLabel}>
           <MoverList rows={group.rows} period="day_pct" />
         </Panel>
         <ShowMore contents label="Show the best and worst over a month and this year">
@@ -210,7 +224,7 @@ export default async function SectorPage({ params }: Props) {
       </CardGrid>
 
       {explained.length > 0 ? (
-        <Panel flush className="mb-4" label={`Why they moved on ${fmtDay(explained[0]!.day)}`}>
+        <Panel flush className="mb-4" label={`Why they moved ${onDayWords(explained[0]!.day)}`}>
           <ul>
             {explained.slice(0, 6).map((move) => (
               <li key={move.ticker} className="border-b border-oa-border last:border-b-0">
@@ -242,61 +256,13 @@ export default async function SectorPage({ params }: Props) {
         </Panel>
       </ShowMore>
 
-      <CardGrid cols={3}>
-        <ShowMore contents label="Show rival comparisons and themes">
-        <Panel flush fill label="Rivals side by side" className="max-lg:mb-3">
-          {pairs.length ? (
-            <ul>
-              {pairs.map((pair) => (
-                <li key={pair.slug} className="border-b border-oa-border last:border-b-0">
-                  <Link prefetch={false} href={pairHref(pair.a, pair.b)} className="flex items-center justify-between gap-3 px-4 py-2.5 text-[14px] text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
-                    <span className={NUM}>
-                      {pair.a} vs {pair.b}
-                    </span>
-                    <span className="min-w-0 text-pretty text-right text-[12.5px] text-oa-muted-fg">{pair.group}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="px-4 py-3 text-[14px] text-oa-muted-fg">No comparison pages in this sector yet.</p>
-          )}
-        </Panel>
-        <Panel flush fill label="Themes with these stocks">
-          {themes.length ? (
-            <ul>
-              {themes.map(({ theme, members }) => (
-                <li key={theme.slug} className="border-b border-oa-border last:border-b-0">
-                  <Link prefetch={false} href={`/themes/${theme.slug}`} className="flex items-center justify-between gap-3 px-4 py-2.5 text-[14px] text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
-                    <span className="min-w-0 text-pretty">{theme.name}</span>
-                    <span className={`${NUM} shrink-0 text-[12.5px] text-oa-muted-fg`}>{members.slice(0, 3).join(", ")}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="px-4 py-3 text-[14px] text-oa-muted-fg">No theme holds two or more of these stocks.</p>
-          )}
-        </Panel>
-        </ShowMore>
-        <Panel flush fill label="Other sectors">
-          <ul>
-            {groups
-              .filter((item) => item.slug !== group.slug)
-              .map((item) => (
-                <li key={item.slug} className="border-b border-oa-border last:border-b-0">
-                  <Link prefetch={false} href={sectorHref(item.slug)} className="flex items-center justify-between gap-3 px-4 py-2 text-[14px] text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
-                    <span className="min-w-0 truncate">{item.name}</span>
-                    <Delta value={weightedChange(item.rows, "day_pct")} digits={1} className="shrink-0 text-[13px]" />
-                  </Link>
-                </li>
-              ))}
-          </ul>
-          <Link prefetch={false} href="/best" className="oa-card-foot mt-auto block border-t border-oa-border px-4 py-2.5 text-[14px] text-oa-primary outline-none hover:bg-oa-accent hover:underline focus-visible:bg-oa-accent">
-            Best stock lists: dividends, value, growth →
-          </Link>
-        </Panel>
-      </CardGrid>
+      <SectorMore
+        pairs={pairs}
+        themes={themes.map(({ theme, members }) => ({ slug: theme.slug, name: theme.name, members }))}
+        others={groups
+          .filter((item) => item.slug !== group.slug)
+          .map((item) => ({ slug: item.slug, name: item.name, change: weightedChange(item.rows, "day_pct") }))}
+      />
     </AppPage>
   );
 }

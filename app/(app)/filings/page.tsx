@@ -4,6 +4,7 @@ import { Suspense } from "react";
 
 import { interTight } from "@/components/oa/font";
 import { PageHead, PageNote, fmtStampET } from "@/components/oa/kit";
+import { KindIcon, type KindIconName } from "@/components/oa/nav-icon";
 import { OaSiteHeader } from "@/components/oa/oa-site-header";
 import { FilingDays, type FilingDay, type FilingLine } from "@/components/filings/filing-days";
 import { getSessionUser } from "@/lib/auth-server";
@@ -57,6 +58,9 @@ const CHIP =
   "inline-flex h-10 shrink-0 items-center gap-1.5 rounded-md border px-3 text-[14px] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)] lg:h-8";
 const CHIP_ON = "border-[color-mix(in_srgb,var(--ink)_55%,transparent)] bg-oa-card font-medium text-oa-fg";
 const CHIP_OFF = "border-oa-border text-oa-muted-fg hover:bg-oa-accent hover:text-oa-fg";
+
+/** What each form is, as an icon on its chip (owner VISUALS CHECK): news, the quarter, the year, an offering, a big stake. */
+const FORM_ICON: Record<FilingGroup, KindIconName> = { "8-K": "alerts", "10-Q": "calendar", "10-K": "book", "S-1": "rocket", "13D/G": "sectors" };
 
 /** Only what a row prints: the stream ships its rows as data, not as a second copy of their markup. */
 function filingLine(filing: Filing): FilingLine {
@@ -127,6 +131,7 @@ async function FilingsStream({ search }: { search: Search }) {
             title={FILING_GROUP_HINTS[key]}
             className={`${CHIP} ${group === key ? CHIP_ON : CHIP_OFF}`}
           >
+            <KindIcon name={FORM_ICON[key]} className="size-4" />
             <span className="oa-mono">{key}</span>
             <span className="oa-mono text-[12.5px] tabular-nums text-oa-muted-fg">{page?.counts[key] ?? 0}</span>
           </Link>

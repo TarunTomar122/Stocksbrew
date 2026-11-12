@@ -2,6 +2,7 @@ import * as React from "react";
 
 import { DataTable, type DataColumn, type DataRow } from "@/components/oa/kit/data-table";
 import { Delta, Empty, FOCUS, NUM, Panel, Tag, Ticker, ToneGlyph, Verdict, fmtCompact } from "@/components/oa/kit";
+import { KindIcon, type KindIconName } from "@/components/oa/nav-icon";
 import { StockLogo } from "@/components/stock-logo";
 import { shortCompanyName } from "@/lib/plain-copy";
 import {
@@ -51,6 +52,9 @@ const NAV_BUTTON =
   FOCUS;
 const SECTION = "oa-caption px-3 pb-1 pt-3";
 
+/** Each kind of event has its own icon on its chip (owner VISUALS CHECK). */
+const TYPE_ICON: Record<CalendarType, KindIconName> = { earnings: "briefing", economic: "globe", ipo: "rocket", dividend: "coins" };
+
 export function earningsHref(ticker: string): string {
   return `/calendar/earnings/${encodeURIComponent(ticker)}`;
 }
@@ -93,6 +97,7 @@ export function CalendarControls({
               aria-current={active ? "true" : undefined}
               className={`${CHIP} ${active ? CHIP_ON : CHIP_OFF}`}
             >
+              <KindIcon name={TYPE_ICON[type.id]} className="size-4" />
               {type.label}
               <span className={`${NUM} text-[12.5px] text-oa-muted-fg`}>{counts[type.id]}</span>
             </Link>
@@ -768,8 +773,10 @@ export function MonthView({ days, filters, today }: { days: Map<string, DayBucke
                 {top.length ? (
                   <span className={`${NUM} flex flex-col text-[11.5px] leading-4 text-oa-fg sm:flex-row sm:flex-wrap sm:gap-x-1.5`}>
                     {top.map((item, index) => (
-                      <span key={item.id} className={index > 1 ? "hidden sm:inline" : ""}>
-                        {item.ticker}
+                      <span key={item.id} className={`min-w-0 items-center gap-0.5 sm:gap-1 ${index > 1 ? "hidden sm:inline-flex" : "inline-flex"}`}>
+                        {/* Logo and ticker on a phone too (council, Nov 12): a smaller logo and a long ticker cut with "…". */}
+                        <StockLogo ticker={item.ticker} size={12} atOnce className="max-sm:!size-[11px]" />
+                        <span className="min-w-0 truncate max-sm:text-[10.5px]">{item.ticker}</span>
                       </span>
                     ))}
                   </span>

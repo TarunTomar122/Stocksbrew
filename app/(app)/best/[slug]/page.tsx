@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { RankedList } from "@/components/best-stocks/ranked-list";
 import { JsonLd, breadcrumbLd } from "@/components/docs/json-ld";
 import { AppPage, CardGrid, NUM, PageHead, Panel, SourceLine, fmtDay } from "@/components/oa/kit";
+import { SectorIcon } from "@/components/oa/sector-icon";
 import {
   LIST_MIN_STOCKS,
   LIST_SHOW,
@@ -64,7 +65,9 @@ export default async function BestListPage({ params }: Props) {
   const sectors = new Map<string, number>();
   for (const row of built.ranked) if (row.sector) sectors.set(row.sector, (sectors.get(row.sector) ?? 0) + 1);
   const sectorList = [...sectors.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-  const related = relatedLists(list);
+  // As many related lists as there are sector rows beside them (at least four), so the two cards end level with real
+  // rows rather than one stretched over empty space (owner rule 4).
+  const related = relatedLists(list, Math.max(4, sectorList.length));
 
   const label =
     built.count === 0
@@ -141,7 +144,10 @@ export default async function BestListPage({ params }: Props) {
                     href={sectorHref(sectorSlug(sector))}
                     className="flex items-center justify-between gap-3 px-4 py-2.5 text-[14px] text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent"
                   >
-                    <span className="min-w-0 text-pretty">{sector} stocks</span>
+                    <span className="flex min-w-0 items-center gap-2 text-pretty">
+                      <SectorIcon id={sector} size={15} />
+                      {sector} stocks
+                    </span>
                     <span className={`${NUM} shrink-0 text-[12.5px] text-oa-muted-fg`}>{count} on this list</span>
                   </Link>
                 </li>

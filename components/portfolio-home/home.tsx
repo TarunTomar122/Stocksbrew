@@ -19,20 +19,26 @@ const MARK = (
   </Link>
 );
 
-function reasonWords(reason: ExampleReason): React.ReactNode {
+/**
+ * Why the page shows the example, within the owner's budget of one line of at most 15 words (rule 8), and how many
+ * words it takes, so the prices' date is added only when the whole line still fits.
+ */
+function reasonWords(reason: ExampleReason): { node: React.ReactNode; words: number } {
   switch (reason) {
     case "read-failed":
-      return <>We could not load your holdings just now, so this is the example portfolio. Try again in a minute.</>;
+      return { node: <>We could not load your holdings, so this is the example. Try again soon.</>, words: 14 };
     case "no-us-holdings":
-      return <>These tools cover US stocks and funds, and none of your holdings is one yet, so this is the example portfolio.</>;
+      return { node: <>None of your holdings is a US stock yet, so this is the example.</>, words: 14 };
     case "watching-only":
-      return <>You watch stocks but have not marked any as owned, so this is the example portfolio. {MARK} from your broker and this page is about yours.</>;
+      return { node: <>You only watch stocks, so this is the example. {MARK}.</>, words: 13 };
     case "no-holdings":
-      return <>You have no holdings marked yet, so this is the example portfolio. {MARK} from your broker and this page is about yours.</>;
+      return { node: <>No holdings marked yet, so this is the example. {MARK}.</>, words: 13 };
     case "signed-out":
-      return <>This is an example portfolio of real stocks and funds with made-up share counts.</>;
+      return { node: <>An example portfolio of real stocks with made-up share counts.</>, words: 10 };
   }
 }
+
+const LINE_WORDS = 15;
 
 /**
  * Says plainly when the page is about the example, with the one way to make it yours, and dates its prices once
@@ -44,14 +50,18 @@ export async function ExampleLine({ load }: { load: HomeLoad }) {
   if (mode === "mine" || !reason) return null;
   const book = await load.book;
   const prices = book.state === "ready" ? pricesWords(book.value.pricesDay) : null;
+  const why = reasonWords(reason);
+  // "Prices from the Nov 11 close." only when the line stays within its 15 words.
+  const dated = prices ? `Prices from ${prices}.` : null;
+  const fits = dated !== null && why.words + dated.split(/\s+/).length <= LINE_WORDS;
   return (
     <div className="mb-3 px-2 sm:px-0">
       <p className="text-pretty text-[14px] leading-5 text-oa-muted-fg">
         <span className="mr-2 inline-flex h-[22px] items-center rounded border border-[color-mix(in_srgb,var(--oa-primary)_45%,transparent)] bg-[color-mix(in_srgb,var(--oa-primary)_7%,transparent)] px-2 align-[1px] text-[13px] font-medium text-oa-primary">
           Example
         </span>
-        {reasonWords(reason)}
-        {prices ? ` Prices from ${prices}.` : null}
+        {why.node}
+        {fits ? ` ${dated}` : null}
       </p>
     </div>
   );

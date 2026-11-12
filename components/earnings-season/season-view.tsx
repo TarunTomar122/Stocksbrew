@@ -2,6 +2,7 @@ import Link from "next/link";
 import * as React from "react";
 
 import { NUM, Panel, Ticker, fmtDay } from "@/components/oa/kit";
+import { StockLogo } from "@/components/stock-logo";
 import { watchEarningsHref } from "@/lib/agents-plain/ask-links";
 import { dayDiff, fmtEps, type Session } from "@/lib/calendar-shared";
 import {
@@ -116,10 +117,13 @@ function WeekCell({ week, today, maxWeight, weighted }: { week: SeasonWeek; toda
                     title={dotTitle(stock)}
                     className="group flex min-w-0 flex-col items-center gap-0.5 rounded outline-none focus-visible:ring-2 focus-visible:ring-oa-ring"
                   >
-                    <span
-                      aria-hidden="true"
-                      className={`block shrink-0 rounded-full ${stock.kind === "watching" ? "border-[1.5px] border-oa-primary" : HOLDING_FILL}`}
-                      style={{ width: size, height: size }}
+                    {/* The company's logo, sized by its weight in the portfolio; a name only watched is dimmed (owner VISUALS CHECK). */}
+                    <StockLogo
+                      ticker={stock.ticker}
+                      size={Math.max(16, size)}
+                      circle
+                      atOnce
+                      className={stock.kind === "watching" ? "opacity-55" : ""}
                     />
                     <span className={`${NUM} whitespace-nowrap text-[10.5px] font-medium leading-3 text-oa-fg group-hover:underline`}>{stock.ticker}</span>
                   </a>
@@ -142,12 +146,13 @@ function Timeline({ season }: { season: Season }) {
       right={
         <span className="flex items-center gap-3">
           <span className="inline-flex items-center gap-1.5">
-            <span aria-hidden="true" className={`inline-block size-2.5 rounded-full ${HOLDING_FILL}`} />
+            <span aria-hidden="true" className="inline-block size-2.5 rounded-full bg-oa-fg/70" />
             {season.weighted ? "Sized by share of the portfolio" : "Holding"}
           </span>
           {watching ? (
             <span className="hidden items-center gap-1.5 sm:inline-flex">
-              <span aria-hidden="true" className="inline-block size-2.5 rounded-full border-[1.5px] border-oa-primary" />
+              {/* Watched names' logos are dimmed on the timeline. */}
+              <span aria-hidden="true" className="inline-block size-2.5 rounded-full bg-oa-fg/70 opacity-55" />
               Watching
             </span>
           ) : null}

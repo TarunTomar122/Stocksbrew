@@ -1035,7 +1035,7 @@ export function NewsSection({ data }: SectionProps) {
           <p className="px-3.5 py-3 text-[14px] leading-5 text-oa-fg sm:px-4">
             {reddit.postCount} {reddit.postCount === 1 ? "post" : "posts"} mentioned {stock.ticker} recently.
             {reddit.summary ? <span className="text-oa-muted-fg"> {reddit.summary}</span> : null}{" "}
-            <MoreLink href="/signals?tab=reddit">What Reddit is talking about</MoreLink>
+            <MoreLink href="/signals#reddit">What Reddit is talking about</MoreLink>
           </p>
         </Panel>
       ) : null}

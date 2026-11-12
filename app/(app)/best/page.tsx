@@ -3,8 +3,9 @@ import type { Metadata } from "next";
 import { JsonLd, breadcrumbLd } from "@/components/docs/json-ld";
 import { closeWords } from "@/lib/benchmark-day";
 import { AppPage, CardGrid, NUM, PageHead, Panel, SourceLine, fmtDay } from "@/components/oa/kit";
+import { KindIcon, type KindIconName } from "@/components/oa/nav-icon";
 import { StockLogo } from "@/components/stock-logo";
-import { BEST_LISTS, LIST_GROUPS, bestListHref, monthYear } from "@/lib/best-stocks";
+import { BEST_LISTS, LIST_GROUPS, bestListHref, monthYear, type ListGroup } from "@/lib/best-stocks";
 import { getAllBestLists } from "@/lib/best-stocks-data";
 import { ogImage } from "@/lib/og/url";
 import Link from "next/link";
@@ -16,6 +17,28 @@ import { AppLink } from "@/components/oa/app-link";
  */
 
 export const revalidate = 900;
+
+/** Each group of lists is a kind, so it carries its icon (owner VISUALS CHECK). */
+const GROUP_ICON: Record<ListGroup, KindIconName> = {
+  Dividends: "coins",
+  Value: "scale",
+  "Growth and momentum": "growth",
+  "Analysts and trading": "star",
+  "By share price": "tag",
+  Industries: "factory",
+  "Insiders and funds": "follow",
+};
+
+/**
+ * The hub's order: groups with as many lists side by side, so each pair of cards ends level with no empty band under
+ * the shorter one (owner rule 4). The three-list group goes last, alone and one column wide. A group not named here
+ * keeps its place after these.
+ */
+const HUB_ORDER: ListGroup[] = ["Dividends", "Value", "Growth and momentum", "Analysts and trading", "Industries", "Insiders and funds", "By share price"];
+const hubOrder = (group: ListGroup) => {
+  const at = HUB_ORDER.indexOf(group);
+  return at === -1 ? HUB_ORDER.length : at;
+};
 
 const BASE = "https://www.stocksbrew.online";
 
@@ -53,11 +76,21 @@ export default async function BestHubPage() {
       </p>
 
       <CardGrid cols={2} className="mb-4">
-        {LIST_GROUPS.map((group) => {
+        {[...LIST_GROUPS].sort((a, b) => hubOrder(a) - hubOrder(b)).map((group) => {
           const members = lists.filter((item) => item.built.list.group === group);
           if (members.length === 0) return null;
           return (
-            <Panel key={group} flush fill label={group}>
+            <Panel
+              key={group}
+              flush
+              fill
+              label={
+                <span className="inline-flex items-center gap-2">
+                  <KindIcon name={GROUP_ICON[group]} className="size-4 text-oa-muted-fg" />
+                  {group}
+                </span>
+              }
+            >
               <ul>
                 {members.map(({ built }) => (
                   <li key={built.list.slug} className="border-b border-oa-border last:border-b-0">

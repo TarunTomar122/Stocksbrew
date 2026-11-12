@@ -4,6 +4,7 @@ import { JsonLd, breadcrumbLd } from "@/components/docs/json-ld";
 import { closeWords } from "@/lib/benchmark-day";
 import { AppPage, Delta, NUM, PageHead, Panel, SourceLine, fmtCompact, fmtDay } from "@/components/oa/kit";
 import { DataTable, type DataColumn, type DataRow } from "@/components/oa/kit/data-table";
+import { SectorIcon } from "@/components/oa/sector-icon";
 import { ogImage } from "@/lib/og/url";
 import { sectorStats } from "@/lib/screener-shared";
 import { callCounts } from "@/lib/sector-insights";
@@ -54,7 +55,8 @@ export default async function SectorsPage() {
       key: stat.slug,
       href: sectorHref(stat.slug),
       cells: [
-        <Link prefetch={false} key="s" href={sectorHref(stat.slug)} className="font-medium text-oa-fg hover:underline">
+        <Link prefetch={false} key="s" href={sectorHref(stat.slug)} className="inline-flex items-center gap-2 font-medium text-oa-fg hover:underline">
+          <SectorIcon id={stat.name} size={16} />
           {stat.name}
         </Link>,
         <span key="n" className={`${NUM} text-[13.5px]`}>{stat.count}</span>,

@@ -284,7 +284,7 @@ export async function TrackGrid({ only, rows = 8 }: { only?: string[]; rows?: nu
       key: "reddit",
       hasData: buzz.length > 0,
       node: (
-        <SquircleCard title="What investors are saying" seeAllHref="/signals?tab=reddit" contentClassName={INSET}>
+        <SquircleCard title="What investors are saying" seeAllHref="/signals#reddit" contentClassName={INSET}>
           {buzz.length > 0 ? (
             buzz.map((item) => (
               <RowLink
@@ -344,14 +344,14 @@ export async function TrackGrid({ only, rows = 8 }: { only?: string[]; rows?: nu
       key: "trump",
       hasData: posts.length > 0,
       node: (
-        <SquircleCard title="Trump posts that name a stock" seeAllHref="/signals?tab=policy" contentClassName={INSET}>
+        <SquircleCard title="Trump posts that name a stock" seeAllHref="/signals?show=named#policy" contentClassName={INSET}>
           {posts.length > 0 ? (
             posts.map((post) => {
               const move = post.ticker_moves?.find((m) => m.change_since_pct != null);
               return (
                 <RowLink
                   key={post.post_id}
-                  href="/signals?tab=policy"
+                  href="/signals?show=named#policy"
                   label={
                     <>
                       <Ticker symbol={post.tickers[0] ?? ""} />

@@ -85,9 +85,8 @@ const PAGES = [
   "/news",
   "/calendar",
   ...CALENDAR_TYPES.map((type) => `/calendar?type=${type.id}`),
+  // One page since Nov 12: the old ?tab= addresses redirect to its sections.
   "/signals",
-  "/signals?tab=reddit",
-  "/signals?tab=policy",
   "/screener",
   "/screener?tab=sectors",
   "/compare",

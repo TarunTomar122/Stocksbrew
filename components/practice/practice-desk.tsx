@@ -6,6 +6,7 @@ import { EquityChart } from "@/components/backtest/equity-chart";
 import { longDay, money, plainPct, signedMoney, signedPct, toneOf } from "@/components/backtest/format";
 import { Panel } from "@/components/backtest/results";
 import { OaButton } from "@/components/oa/button";
+import { PairBar } from "@/components/oa/kit/tone";
 import { StockLogo } from "@/components/stock-logo";
 import { getFirebaseAuth } from "@/lib/firebase-client";
 import type { PracticePayload, PracticeTradeResponse } from "@/lib/practice-store";
@@ -128,6 +129,15 @@ export function PracticeDesk({ initial, mode }: { initial: PracticePayload; mode
                 <p className="oa-caption">Cash</p>
                 <p className="oa-mono mt-1 text-[17px] font-medium leading-7 tabular-nums text-oa-fg">{money(view.cash, 0)}</p>
               </div>
+              {/* Your return and the fund's, named and on one scale from zero, under the figures (owner VISUALS CHECK;
+                  council, Nov 12). */}
+              <PairBar
+                value={view.total_return}
+                versus={bench.return}
+                labels={["You", bench.symbol]}
+                texts={[signedPct(view.total_return, 2), signedPct(bench.return, 2)]}
+                className="col-span-2 mb-1 mt-1 w-full max-w-sm sm:col-span-4"
+              />
             </div>
             <p className="border-t border-oa-border px-4 py-2 text-[12.5px] leading-[18px] text-oa-muted-fg">
               From {money(view.start_cash, 0)} of paper money on {longDay(bench.start_date)}.{" "}

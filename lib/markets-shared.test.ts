@@ -30,6 +30,7 @@ import {
   sliceSeries,
   sparkPoints,
   structureReading,
+  tileTone,
   volCurveReading,
   volCurveVerdict,
   yieldCurveReading,
@@ -433,6 +434,22 @@ describe("overview", () => {
     expect(lines[1].verdict).toEqual({ tone: "up", word: "Normal" });
     expect(lines[3].verdict).toEqual({ tone: "down", word: "Stressed" });
     expect(headlineReadings({ as_of: null, assets: [], predictions: [], treasury: null, volCurve: null }, NOW)).toEqual([]);
+  });
+
+  it("colours a yield tile by what its day's move means for stocks, not by its sign", () => {
+    const change = (d1: number | null) => ({ d1, w1: null, m1: null, ytd: null, y1: null });
+    const rate = (d1: number | null, unit = "%") => ({ class: "rate" as const, unit, change_mode: "bps" as const, change: change(d1) });
+    // Up 0.10 points is costlier borrowing: bad for stocks, red.
+    expect(tileTone(rate(10))).toBe("down");
+    expect(tileTone(rate(-10))).toBe("up");
+    // 2 bps or less is no verdict: plain, judged on the whole bps that are printed (2.4 shows as "+2 bps").
+    expect(tileTone(rate(2))).toBe("flat");
+    expect(tileTone(rate(2.4))).toBe("flat");
+    expect(tileTone(rate(null))).toBe("flat");
+    // A spread between two yields is not borrowing costs: it keeps its sign.
+    expect(tileTone(rate(10, "pp"))).toBe("up");
+    // Prices keep their sign.
+    expect(tileTone({ class: "index", unit: "pts", change_mode: "pct", change: change(1.2) })).toBe("up");
   });
 });
 

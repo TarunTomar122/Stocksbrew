@@ -445,7 +445,8 @@ export function TaxView({
             <li
               key={`${issue.instrumentId}:${issue.sellId}:${issue.kind === "pick_short" ? issue.lotId : ""}`}
             >
-              <span className="oa-mono font-medium text-oa-fg">
+              <span className="oa-mono inline-flex items-center gap-1 align-middle font-medium text-oa-fg">
+                <StockLogo ticker={issue.ticker} size={14} />
                 {issue.ticker}
               </span>{" "}
               sell on {fmtDay(issue.date, true)}: the lot you picked did not

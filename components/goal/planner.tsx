@@ -5,6 +5,7 @@ import * as React from "react";
 import { FanChart, FanLegend } from "@/components/goal/fan-chart";
 import { Card as Panel, NUM, Stats, dayWords } from "@/components/goal/card";
 import { ShowMore } from "@/components/oa/kit/more";
+import { MoveBar } from "@/components/oa/kit/tone";
 import { StockLogo } from "@/components/stock-logo";
 import { INFLATION, PATHS, BLOCK_MONTHS, replay, yearlyOf } from "@/lib/goal/bootstrap";
 import type { GoalData, GoalMix } from "@/lib/goal/data";
@@ -286,6 +287,8 @@ function Inputs({
 }) {
   const years = inputs.byAge - inputs.age;
   const goalYear = thisYear + years;
+  // One scale for every mix's bar: the largest yearly figure fills it.
+  const bestYearly = Math.max(0, ...mixes.map((item) => Math.abs((item.id === "own" ? ownYearly : item.yearly) ?? 0)));
   return (
     <Panel label="Your plan" className="lg:self-start">
       <div className="grid grid-cols-2 gap-x-3 gap-y-3">
@@ -359,7 +362,13 @@ function Inputs({
                 }`}
               >
                 <span className="min-w-0">{item.label}</span>
-                {yearly !== null ? <span className={`${NUM} shrink-0 text-[12.5px] font-normal text-oa-muted-fg`}>{pct1(yearly)} a year</span> : null}
+                {yearly !== null ? (
+                  <span className="flex shrink-0 items-center gap-2">
+                    {/* The mixes' yearly returns on one scale, so the bigger past reads at a glance (owner VISUALS CHECK). */}
+                    <MoveBar value={yearly} max={bestYearly} width={44} />
+                    <span className={`${NUM} text-[12.5px] font-normal text-oa-muted-fg`}>{pct1(yearly)} a year</span>
+                  </span>
+                ) : null}
               </button>
             );
           })}

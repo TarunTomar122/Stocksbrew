@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Delta, Empty, FOCUS, NUM, Panel, Ticker } from "@/components/oa/kit";
+import { KindIcon, type KindIconName } from "@/components/oa/nav-icon";
 import { StockLogo } from "@/components/stock-logo";
 import { ToneBar, headlineWords, leanWords } from "@/components/wire/news-read";
 import { WholeRows } from "@/components/wire/whole-rows";
@@ -23,6 +24,9 @@ const CHIP =
 const CHIP_ON = "border-[color-mix(in_srgb,var(--ink)_55%,transparent)] bg-oa-card font-medium text-oa-fg";
 const CHIP_OFF = "border-oa-border text-oa-muted-fg hover:bg-oa-accent hover:text-oa-fg";
 const FIELD = "h-10 rounded-md border border-oa-border bg-oa-card px-3 text-[14px] text-oa-fg placeholder:text-oa-muted-fg lg:h-8 " + FOCUS;
+
+/** Each kind of story has its own icon on its chip (owner VISUALS CHECK). */
+const TOPIC_ICON: Record<WireTopic, KindIconName> = { earnings: "briefing", analyst: "star", mna: "merge", macro: "globe", policy: "scale", product: "box" };
 
 /* ── Filters ───────────────────────────────────────────────────────────── */
 
@@ -81,6 +85,7 @@ export function WireFilterBar({
         const active = filters.topic === topic.id;
         return (
           <Link prefetch={false} key={topic.id} href={wireHref(base, { topic: active ? null : topic.id })} aria-current={active ? "true" : undefined} className={`${CHIP} ${active ? CHIP_ON : CHIP_OFF}`}>
+            <KindIcon name={TOPIC_ICON[topic.id]} className="size-4" />
             {topic.label}
             <span className={`${NUM} text-[12.5px] text-oa-muted-fg`}>{topicCounts[topic.id]}</span>
           </Link>

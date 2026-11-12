@@ -1,27 +1,22 @@
 import * as React from "react";
 
+import { shortSectorName, tileName } from "@/components/markets/sector-heatmap";
 import { Delta, NUM } from "@/components/oa/kit";
-import {
-  SECTOR_PERIODS,
-  isFiniteNumber,
-  squarify,
-  type ScreenerRow,
-  type SectorPeriod,
-  type SectorStat,
-} from "@/lib/screener-shared";
+import { Treemap, type TreemapChip, type TreemapLayout } from "@/components/oa/kit/treemap";
+import { part, sectorBarClass, sectorTileClass, stockTileClass } from "@/components/oa/kit/treemap-fit";
+import { TreemapLabelled } from "@/components/oa/kit/treemap-labels";
+import { SectorIcon } from "@/components/oa/sector-icon";
+import { StockLogo } from "@/components/stock-logo";
+import { MAP_GAP, MAP_HEAD, marketMapLayout, signedMove } from "@/lib/market-map";
+import { SECTOR_PERIODS, isFiniteNumber, type ScreenerRow, type SectorPeriod, type SectorStat } from "@/lib/screener-shared";
 import Link from "next/link";
 
 /**
- * The market map: every covered stock as a tile sized by market value and
- * coloured by its change over the chosen period, grouped into sector blocks.
- * A sector's header applies that sector as a screener filter; a tile opens
- * the stock. Laid out on the server, drawn as plain SVG.
+ * The market map: each sector's biggest movers over the chosen period as tiles sized by how far they moved and
+ * coloured by it, grouped into sector blocks, every tile with its ticker, price and move. A sector's bar applies that
+ * sector as a screener filter; a tile opens the stock; one link under the map opens every stock. Laid out on the
+ * server (lib/market-map.ts), drawn as HTML boxes placed by percent, so the words are real pixels.
  */
-
-const W = 1200;
-const H = 640;
-const HEAD = 19;
-const GAP = 2;
 
 /** The move that gets the full colour, per period. */
 const FULL_SCALE: Record<SectorPeriod, number> = { day_pct: 3, ret_1w: 6, ret_1m: 12, ret_ytd: 40 };
@@ -34,153 +29,253 @@ export function heatFill(change: number | null | undefined, period: SectorPeriod
   return `color-mix(in srgb, var(${change > 0 ? "--signal-bullish" : "--signal-bearish"}) ${pct}%, var(--oa-card))`;
 }
 
-function signed(value: number, digits = 1): string {
-  return `${value > 0 ? "+" : value < 0 ? "−" : ""}${Math.abs(value).toFixed(digits)}%`;
+/**
+ * A tile's size: the size of its move, up or down. A flat stock, or one with no figure for the period, keeps a sliver
+ * (2% of the full-colour move: 0.06% on a day) so it is still on the map, small, rather than drawn as big as a mover.
+ */
+export function moveWeight(change: number | null | undefined, period: SectorPeriod): number {
+  const floor = FULL_SCALE[period] * 0.02;
+  return isFiniteNumber(change) ? Math.max(Math.abs(change), floor) : floor;
 }
+
 
 export function SectorMap({
   rows,
   stats,
   period,
   sectorHref,
+  allHref,
 }: {
   rows: readonly ScreenerRow[];
   stats: readonly SectorStat[];
   period: SectorPeriod;
   sectorHref: (slug: string) => string;
+  /** The screen with every stock, for the ones the map leaves out. */
+  allHref: string;
 }) {
-  const bySector = new Map<string, ScreenerRow[]>();
-  for (const row of rows) {
-    if (!row.sector || !isFiniteNumber(row.market_cap) || row.market_cap <= 0) continue;
-    const list = bySector.get(row.sector) ?? [];
-    list.push(row);
-    bySector.set(row.sector, list);
+  // Each stock's tile is as big as its move over the period (owner, Nov 12). The layout draws each sector's biggest
+  // movers that hold their ticker, price and move at the narrowest width each layout is shown at (lib/market-map.ts);
+  // the tiles then decide from their rendered size what they show (components/oa/kit/treemap-fit.ts), and any tile or
+  // bar hiding words is listed under the map. The rest of the stocks are one link away.
+  const weight = (row: ScreenerRow) => moveWeight(row[period], period);
+  const layouts = DESK_LAYOUTS.map((layout) => ({ ...layout, map: marketMapLayout(rows, stats, period, weight, layout.width) }));
+  const chips: TreemapChip[] = [];
+  const seen = new Set<string>();
+  for (const { map } of layouts) {
+    for (const block of map.blocks) {
+      const change = block.stat.change[period];
+      const barKey = `b:${block.stat.slug}`;
+      if (!seen.has(barKey)) {
+        seen.add(barKey);
+        chips.push({
+          key: barKey,
+          href: sectorHref(block.stat.slug),
+          icon: <SectorIcon id={block.stat.name} size={13} />,
+          name: shortSectorName(block.stat.name),
+          figure: isFiniteNumber(change) ? signedMove(change) : "",
+          background: "var(--oa-card)",
+        });
+      }
+      for (const tile of block.tiles) {
+        const key = `s:${tile.row.symbol}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        chips.push({
+          key,
+          href: `/stock/${encodeURIComponent(tile.row.symbol)}`,
+          icon: <StockLogo ticker={tile.row.symbol} size={14} />,
+          name: tile.text.symbol,
+          figure: [tile.text.price, tile.text.move].filter(Boolean).join(" "),
+          background: heatFill(tile.row[period], period),
+        });
+      }
+    }
   }
-  const blocks = squarify(
-    stats.filter((stat) => stat.marketCap > 0).map((stat) => ({ value: stat.marketCap, data: stat })),
-    0,
-    0,
-    W,
-    H,
-  );
+  const total = layouts[0]?.map.total ?? 0;
+  const drawn = Math.min(...layouts.map(({ map }) => map.drawn));
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Market map: stocks sized by market value, coloured by change, grouped by sector" className="block h-auto w-full">
-      {blocks.map((block) => {
-        const stat = block.data;
-        const inner = { x: block.x + GAP, y: block.y + GAP + HEAD, w: block.w - GAP * 2, h: block.h - GAP * 2 - HEAD };
-        const tiles =
-          inner.w > 8 && inner.h > 8
-            ? squarify(
-                (bySector.get(stat.name) ?? []).map((row) => ({ value: row.market_cap as number, data: row })),
-                inner.x,
-                inner.y,
-                inner.w,
-                inner.h,
-              )
-            : [];
-        const change = stat.change[period];
-        const headText = block.w > 150 ? stat.name : block.w > 84 ? stat.name.split(" ")[0]! : "";
-        return (
-          <g key={stat.slug}>
-            <a href={sectorHref(stat.slug)}>
-              <title>{`${stat.name}: ${stat.count} stocks${isFiniteNumber(change) ? `, ${signed(change, 2)}` : ""}. Screen this sector.`}</title>
-              <rect x={block.x + GAP} y={block.y + GAP} width={Math.max(0, block.w - GAP * 2)} height={HEAD} fill="var(--oa-fg)" />
-              {headText ? (
-                <text x={block.x + GAP + 6} y={block.y + GAP + 13.5} fontSize="11" fontWeight="600" letterSpacing="0.05em" fill="var(--oa-page)" style={{ fontFamily: "var(--font-geist-mono, ui-monospace, monospace)", textTransform: "uppercase" }}>
-                  {headText}
-                </text>
-              ) : null}
-              {isFiniteNumber(change) && block.w > (headText ? headText.length * 7.6 + 62 : 60) ? (
-                <text x={block.x + block.w - GAP - 6} y={block.y + GAP + 13.5} fontSize="11" textAnchor="end" fill="var(--oa-page)" style={{ fontFamily: "var(--font-geist-mono, ui-monospace, monospace)" }}>
-                  {signed(change)}
-                </text>
-              ) : null}
-            </a>
-            {tiles.map((tile) => {
-              const row = tile.data;
-              const value = row[period];
-              const showSymbol = tile.w > 34 && tile.h > 17;
-              const showChange = tile.w > 44 && tile.h > 33 && isFiniteNumber(value);
-              const size = tile.w > 120 && tile.h > 70 ? 17 : tile.w > 70 && tile.h > 44 ? 13 : 10.5;
-              const cx = tile.x + tile.w / 2;
-              const cy = tile.y + tile.h / 2;
+    <>
+      <TreemapLabelled chips={chips} initial={[]} chipsClassName="mt-1.5 px-0.5">
+        {layouts.map(({ map, className }) => (
+          <div
+            key={map.width}
+            role="group"
+            aria-label="Market map: each sector's biggest movers, sized by how far they moved and coloured by it"
+            className={`relative w-full ${className}`}
+            style={{ aspectRatio: `${map.width} / ${map.height}` }}
+          >
+            {map.blocks.map((block) => {
+              const stat = block.stat;
+              const change = stat.change[period];
+              const moved = isFiniteNumber(change) ? signedMove(change) : "";
+              const short = shortSectorName(stat.name);
+              const pct = (x: number, y: number, w: number, h: number) => ({
+                left: `${(x / map.width) * 100}%`,
+                top: `${(y / map.height) * 100}%`,
+                width: `${(w / map.width) * 100}%`,
+                height: `${(h / map.height) * 100}%`,
+              });
               return (
-                <Link prefetch={false} key={row.symbol} href={`/stock/${encodeURIComponent(row.symbol)}`}>
-                  <title>{`${row.symbol} ${row.name ?? ""}${isFiniteNumber(value) ? `: ${signed(value, 2)}` : ""}`}</title>
-                  <rect
-                    x={tile.x + 0.5}
-                    y={tile.y + 0.5}
-                    width={Math.max(0, tile.w - 1)}
-                    height={Math.max(0, tile.h - 1)}
-                    fill={heatFill(value, period)}
-                    className="transition-opacity hover:opacity-75"
-                  />
-                  {showSymbol ? (
-                    <text
-                      x={cx}
-                      y={showChange ? cy - 1 : cy + size * 0.35}
-                      fontSize={size}
-                      fontWeight="600"
-                      textAnchor="middle"
-                      fill="var(--oa-fg)"
-                      pointerEvents="none"
-                      style={{ fontFamily: "var(--font-geist-mono, ui-monospace, monospace)" }}
-                    >
-                      {row.symbol}
-                    </text>
-                  ) : null}
-                  {showChange ? (
-                    <text
-                      x={cx}
-                      y={cy + size * 0.95}
-                      fontSize={Math.max(9.5, size - 3)}
-                      textAnchor="middle"
-                      fill="var(--oa-fg)"
-                      opacity="0.8"
-                      pointerEvents="none"
-                      style={{ fontFamily: "var(--font-geist-mono, ui-monospace, monospace)" }}
-                    >
-                      {signed(value as number)}
-                    </text>
-                  ) : null}
-                </Link>
+                <React.Fragment key={stat.slug}>
+                  {/* The sector's bar: icon, then its name and move as they fit, decided from its rendered width. */}
+                  <Link
+                    prefetch={false}
+                    href={sectorHref(stat.slug)}
+                    data-tile={`b:${stat.slug}`}
+                    title={`${stat.name}: ${stat.count} stocks${moved ? `, ${signedMove(change as number, 2)}` : ""}. Screen this sector.`}
+                    style={pct(block.x + MAP_GAP, block.y + MAP_GAP, Math.max(0, block.w - MAP_GAP * 2), MAP_HEAD)}
+                    className={`absolute bg-oa-fg text-[12px] font-semibold uppercase leading-none tracking-[0.04em] text-oa-page outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-oa-ring ${sectorBarClass({ name: stat.name, short, move: moved })}`}
+                  >
+                    <span data-clip className={`${part.body} oa-mono`}>
+                      <SectorIcon id={stat.name} size={12} className="![color:var(--oa-page)] !opacity-100" />
+                      <span data-need="name" className={part.name}>
+                        {stat.name}
+                      </span>
+                      <span data-need="name" className={part.short}>
+                        {short}
+                      </span>
+                      {moved ? (
+                        <span data-need="move" className={`font-normal normal-case ${part.move}`}>
+                          {moved}
+                        </span>
+                      ) : null}
+                    </span>
+                  </Link>
+                  {block.tiles.map((tile) => {
+                    const row = tile.row;
+                    const value = row[period];
+                    const { symbol, price, move } = tile.text;
+                    return (
+                      <div key={row.symbol} className="absolute p-px" style={pct(tile.x, tile.y, tile.w, tile.h)} data-tile={`s:${row.symbol}`}>
+                        <Link
+                          prefetch={false}
+                          href={`/stock/${encodeURIComponent(row.symbol)}`}
+                          title={`${row.symbol} ${row.name ?? ""}${price ? `, ${price}` : ""}${isFiniteNumber(value) ? `: ${signedMove(value, 2)}` : ""}`}
+                          style={{ background: heatFill(value, period) }}
+                          className={`block h-full w-full text-oa-fg outline-none transition-[filter] hover:brightness-95 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-oa-ring dark:hover:brightness-110 ${stockTileClass(tile.text)}`}
+                        >
+                          <span data-clip className={`${part.body} oa-mono tabular-nums`}>
+                            {/* The logo rides with the ticker on every tile (owner rule 4); a tile too small for both is listed under the map. */}
+                            <span data-need="tick" className={`whitespace-nowrap ${part.tick}`}>
+                              <StockLogo ticker={row.symbol} size={13} />
+                              {symbol}
+                            </span>
+                            {price ? (
+                              <span data-need="price" className={`whitespace-nowrap ${part.price}`}>
+                                {price}
+                              </span>
+                            ) : null}
+                            {move ? (
+                              <span data-need="move" className={`whitespace-nowrap font-semibold ${part.move}`}>
+                                {move}
+                              </span>
+                            ) : null}
+                          </span>
+                        </Link>
+                      </div>
+                    );
+                  })}
+                </React.Fragment>
               );
             })}
-          </g>
-        );
-      })}
-    </svg>
+          </div>
+        ))}
+      </TreemapLabelled>
+      {/* One way to the rest, not a link per sector (owner rule 1): the full screen, every stock. */}
+      {drawn < total ? (
+        <p className="mt-1.5 flex justify-end px-1 text-[13px]">
+          <Link prefetch={false} href={allHref} className="rounded font-medium text-oa-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oa-ring">
+            See all {rows.length} stocks →
+          </Link>
+        </p>
+      ) : null}
+    </>
   );
 }
 
-/** Phones get the sector level only: eleven tiles they can read and tap. */
+/**
+ * The desktop map's two layouts, each laid out for the narrowest width it is shown at (the content column on a
+ * 1024px and a 1280px screen), so a tile only grows on a wider one. Below 1024px the sector map takes over.
+ */
+const DESK_LAYOUTS = [
+  { width: 700, className: "hidden lg:block xl:hidden" },
+  { width: 940, className: "hidden xl:block" },
+];
+
+/**
+ * Phones and tablets get the sector level only, as a treemap: each sector's tile as big as its move over the period
+ * (owner, Nov 12), coloured by it. Each tile decides from its rendered size what it shows (the full name, then the
+ * short one, then the icon and move, then the icon alone; components/oa/kit/treemap-fit.ts), and any tile hiding its
+ * name or move is listed under the map.
+ */
 export function SectorHeatGrid({ stats, period, sectorHref }: { stats: readonly SectorStat[]; period: SectorPeriod; sectorHref: (slug: string) => string }) {
-  const total = stats.reduce((sum, stat) => sum + stat.marketCap, 0);
   return (
-    <div className="grid grid-cols-2 gap-px bg-oa-border">
-      {stats.map((stat) => {
-        const change = stat.change[period];
-        return (
-          <Link prefetch={false}
-            key={stat.slug}
-            href={sectorHref(stat.slug)}
-            className="flex min-h-[4.75rem] flex-col justify-between p-3 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-oa-ring"
-            style={{ background: heatFill(change, period) }}
-          >
-            <span className="text-[13px] font-medium leading-4 text-oa-fg">{stat.name}</span>
-            <span className="flex items-baseline justify-between gap-2">
-              <Delta value={change} digits={2} className="!text-oa-fg text-[15px] font-medium" />
-              <span className={`${NUM} text-[11px] text-oa-fg opacity-70`}>
-                {total > 0 ? `${((stat.marketCap / total) * 100).toFixed(0)}% of cap` : ""}
+    <div className="p-1">
+      <Treemap
+        items={stats}
+        keyOf={(stat) => stat.slug}
+        weightOf={(stat) => stat.change[period]}
+        layouts={NARROW_LAYOUTS}
+        gap={3}
+        label="Sectors sized and coloured by how far they moved"
+        labels={{
+          className: "mt-1 px-[1.5px]",
+          chip: (stat) => {
+            const change = stat.change[period];
+            return {
+              key: stat.slug,
+              href: sectorHref(stat.slug),
+              icon: <SectorIcon id={stat.name} size={13} />,
+              name: shortSectorName(stat.name),
+              figure: isFiniteNumber(change) ? signedMove(change, 2) : "·",
+              background: heatFill(change, period),
+            };
+          },
+          guess: (stat, { w, h }) => tileName(stat.name, w, h) === null,
+        }}
+        renderTile={(stat) => {
+          const change = stat.change[period];
+          const move = isFiniteNumber(change) ? signedMove(change, 2) : "";
+          const short = shortSectorName(stat.name);
+          return (
+            <Link
+              prefetch={false}
+              href={sectorHref(stat.slug)}
+              aria-label={`${stat.name}, ${move || "no move yet"}`}
+              title={`${stat.name} ${move}`}
+              className={`block h-full w-full border border-oa-border outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-oa-ring ${sectorTileClass({ name: stat.name, short, move })}`}
+              style={{ background: heatFill(change, period) }}
+            >
+              <span data-clip className={part.body}>
+                <span className="flex min-w-0 items-center gap-1.5 text-[13px] font-medium leading-4 text-oa-fg">
+                  <SectorIcon id={stat.name} size={14} />
+                  <span data-need="name" className={`whitespace-nowrap ${part.name}`}>
+                    {stat.name}
+                  </span>
+                  <span data-need="name" className={`whitespace-nowrap ${part.short}`}>
+                    {short}
+                  </span>
+                </span>
+                {move ? (
+                  <span data-need="move" className={`oa-mono whitespace-nowrap font-medium tabular-nums text-oa-fg ${part.move}`}>
+                    {move}
+                  </span>
+                ) : null}
               </span>
-            </span>
-          </Link>
-        );
-      })}
+            </Link>
+          );
+        }}
+      />
     </div>
   );
 }
+
+/** A phone's proportions and a tablet's for the sector treemap (below 1024px, where the stock map takes over). */
+const NARROW_LAYOUTS: TreemapLayout[] = [
+  { width: 360, height: 420, className: "md:hidden" },
+  { width: 700, height: 380, className: "hidden md:block" },
+];
 
 export function HeatLegend({ period }: { period: SectorPeriod }) {
   const full = FULL_SCALE[period];
@@ -195,7 +290,7 @@ export function HeatLegend({ period }: { period: SectorPeriod }) {
           </span>
         ))}
       </span>
-      <span>Colour is the change over {label.toLowerCase()}. Size is market value.</span>
+      <span>Colour is the change over {label.toLowerCase()}. Size is the move.</span>
     </div>
   );
 }

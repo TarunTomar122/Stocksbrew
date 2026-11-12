@@ -1,4 +1,4 @@
-import { ToneGlyph } from "@/components/oa/kit/tone";
+import { PairBar, ToneGlyph } from "@/components/oa/kit/tone";
 import { TableBox } from "@/components/oa/kit/table-box";
 import type { Caveat, CurveStats, YearRow } from "@/lib/backtest/types";
 import { beatYearsSentence, swingSentence } from "@/lib/backtest-insights";
@@ -80,6 +80,15 @@ export function ResultLead({
           </p>
           {aside}
         </div>
+        {/* Both returns, named and on one scale from zero, under the figures: the gap is seen and the index's own
+            return is read too (owner VISUALS CHECK; council, Nov 12). */}
+        <PairBar
+          value={ret}
+          versus={benchRet}
+          labels={["Strategy", benchmarkLabel]}
+          texts={[signedPct(ret), signedPct(benchRet)]}
+          className="col-span-2 w-full max-w-sm sm:col-span-4"
+        />
       </div>
       {children}
     </section>
@@ -96,7 +105,27 @@ function fallMark(fall: number | null | undefined) {
   return markFor("drawdown", fall == null ? null : fall * 100);
 }
 
-function Cell({ label, value, sub, tone, mark }: { label: string; value: string; sub?: string; tone?: string; mark?: "up" | "down" | "flat" | null }) {
+type Pair = { values: [number | null | undefined, number | null | undefined]; texts: [string, string] };
+
+function Cell({
+  label,
+  value,
+  sub,
+  tone,
+  mark,
+  pair,
+  names,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  tone?: string;
+  mark?: "up" | "down" | "flat" | null;
+  /** The figure and the benchmark's, as two named bars with their figures under the big one. */
+  pair?: Pair;
+  /** What the two bars are: the strategy, then the benchmark. */
+  names: [string, string];
+}) {
   return (
     <div className="min-w-0 bg-oa-card px-3.5 py-3">
       <p className="oa-caption text-pretty">{label}</p>
@@ -105,11 +134,12 @@ function Cell({ label, value, sub, tone, mark }: { label: string; value: string;
         <Mark tone={mark} />
       </p>
       {sub ? <p className="oa-mono mt-0.5 truncate text-[12.5px] tabular-nums text-oa-muted-fg">{sub}</p> : null}
+      {pair ? <PairBar value={pair.values[0]} versus={pair.values[1]} labels={names} texts={pair.texts} className="mt-2 w-full" /> : null}
     </div>
   );
 }
 
-/** Headline figures with the benchmark's figure under each one. */
+/** Headline figures, each drawn against the benchmark's as two named bars with their figures. */
 export function StatGrid({
   strategy,
   benchmark,
@@ -119,7 +149,10 @@ export function StatGrid({
   hitRate,
   turnover,
   headline = true,
+  strategyLabel = "Strategy",
 }: {
+  /** What the copper bars are ("Strategy", "Your mix"). */
+  strategyLabel?: string;
   strategy: CurveStats;
   benchmark: CurveStats;
   benchmarkLabel: string;
@@ -130,13 +163,17 @@ export function StatGrid({
   /** false when the page already shows return and worst fall as its lead numbers. */
   headline?: boolean;
 }) {
-  const vs = (text: string) => `${benchmarkLabel} ${text}`;
+  const names: [string, string] = [strategyLabel, benchmarkLabel];
   // One takeaway under the figures, at most 15 words (owner rule 8): the years it beat the index, else its return for
   // its swing, as a sentence rather than "0 of 4" or "0.35".
   const takeaway =
     [beatYearsSentence(hitRate, benchmarkLabel), swingSentence(strategy.sharpe, benchmark.sharpe, benchmarkLabel)].find(
       (line): line is string => Boolean(line) && line!.split(/\s+/).filter(Boolean).length <= 15,
     ) ?? null;
+  const perYear = strategy.annualized_return !== null;
+  const ret: [number | null | undefined, number | null | undefined] = perYear
+    ? [strategy.annualized_return, benchmark.annualized_return ?? benchmark.total_return]
+    : [strategy.total_return, benchmark.total_return];
   return (
     <div
       className={`oa-surface grid grid-cols-2 gap-px overflow-hidden border border-oa-border bg-oa-border ${
@@ -147,31 +184,48 @@ export function StatGrid({
         <>
           <Cell
             label="Return per year"
-            value={strategy.annualized_return === null ? signedPct(strategy.total_return) : signedPct(strategy.annualized_return)}
-            sub={vs(benchmark.annualized_return === null ? signedPct(benchmark.total_return) : signedPct(benchmark.annualized_return))}
-            tone={toneOf(strategy.annualized_return ?? strategy.total_return)}
+            value={signedPct(ret[0])}
+            tone={toneOf(ret[0])}
+            names={names}
+            pair={{ values: ret, texts: [signedPct(ret[0]), signedPct(ret[1])] }}
           />
-          <Cell label="Worst fall" value={signedPct(strategy.max_drawdown)} sub={vs(signedPct(benchmark.max_drawdown))} mark={fallMark(strategy.max_drawdown)} />
+          <Cell
+            label="Worst fall"
+            value={signedPct(strategy.max_drawdown)}
+            mark={fallMark(strategy.max_drawdown)}
+            names={names}
+            pair={{ values: [strategy.max_drawdown, benchmark.max_drawdown], texts: [signedPct(strategy.max_drawdown), signedPct(benchmark.max_drawdown)] }}
+          />
         </>
       ) : null}
       {/* Plain words for volatility (owner rule 8): how far it typically swings in a year. */}
-      <Cell label="Typical yearly swing" value={plainPct(strategy.volatility)} sub={vs(plainPct(benchmark.volatility))} />
+      <Cell
+        label="Typical yearly swing"
+        value={plainPct(strategy.volatility)}
+        names={names}
+        pair={{ values: [strategy.volatility, benchmark.volatility], texts: [plainPct(strategy.volatility), plainPct(benchmark.volatility)] }}
+      />
       <Cell
         label="Worst year"
         value={worstYear ? signedPct(worstYear.strategy) : "–"}
-        sub={worstYear ? `${worstYear.year}, ${vs(signedPct(worstYear.benchmark))}` : undefined}
+        sub={worstYear ? String(worstYear.year) : undefined}
         tone={toneOf(worstYear?.strategy)}
+        names={names}
+        pair={worstYear ? { values: [worstYear.strategy, worstYear.benchmark], texts: [signedPct(worstYear.strategy), signedPct(worstYear.benchmark)] } : undefined}
       />
       <Cell
         label="Best year"
         value={bestYear ? signedPct(bestYear.strategy) : "–"}
-        sub={bestYear ? `${bestYear.year}, ${vs(signedPct(bestYear.benchmark))}` : undefined}
+        sub={bestYear ? String(bestYear.year) : undefined}
         tone={toneOf(bestYear?.strategy)}
+        names={names}
+        pair={bestYear ? { values: [bestYear.strategy, bestYear.benchmark], texts: [signedPct(bestYear.strategy), signedPct(bestYear.benchmark)] } : undefined}
       />
       <Cell
         label="Mix traded a year"
         value={turnover === null ? "–" : plainPct(turnover, 0)}
         sub={turnover === null ? "needs a full year" : "sold and rebought"}
+        names={names}
       />
       {takeaway ? (
         <p className="col-span-full bg-oa-card px-3.5 py-3 text-pretty text-[14px] leading-5 text-oa-fg">{takeaway}</p>

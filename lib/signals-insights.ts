@@ -294,7 +294,7 @@ function loudestInsight(names: RedditName[]): Insight | null {
     tone: top.stance === "bullish" ? "up" : top.stance === "bearish" ? "down" : "flat",
     text: `${top.ticker} is the stock Reddit talks about most: ${top.mentions} of ${total} mentions (${share}%)${pace}.${price}${stance}`,
     tickers: [top.ticker],
-    action: { label: "Read the threads", href: "/signals?tab=reddit" },
+    action: { label: "Read the threads", href: "/signals#reddit" },
   };
 }
 
@@ -310,7 +310,7 @@ function concentrationInsight(names: RedditName[]): Insight | null {
     tone: "flat",
     text: `Chatter is concentrated: ${listNames(top.map((name) => name.ticker))} hold ${share}% of ${total} mentions across ${ranked.length} names.`,
     tickers: top.filter((name) => isStockName(name.ticker)).map((name) => name.ticker),
-    action: { label: "All names", href: "/signals?tab=reddit" },
+    action: { label: "All names", href: "/signals#reddit" },
   };
 }
 
@@ -325,7 +325,7 @@ function againstInsight(names: RedditName[], skip: ReadonlySet<string> = new Set
     tone: stance === "bearish" ? "up" : "down",
     text: `Reddit and the price disagree: people expected ${listNames(same.map((name) => name.ticker))} to ${stance === "bearish" ? "fall" : "rise"}, but ${same.length === 1 ? "it" : "they"} ${stance === "bearish" ? "rose" : "fell"} (${moves.join(", ")}).`,
     tickers: same.map((name) => name.ticker),
-    action: { label: "Read the threads", href: "/signals?tab=reddit" },
+    action: { label: "Read the threads", href: "/signals#reddit" },
   };
 }
 
@@ -453,7 +453,7 @@ function praisedInsight(posts: PolicyPost[], now: number): Insight | null {
     text: `${group.length} of the ${record.length} stocks his posts praised in the last 90 days have ${lagging ? "trailed" : "beaten"} the S&P 500 since the post. ${lagging ? "Furthest behind" : "Furthest ahead"}: ${listNames(leaders)} against the market.`,
     soWhat: lagging ? "Praise in a post has not been a buy signal." : undefined,
     tickers: group.slice(0, 3).map((row) => row.ticker),
-    action: { label: "See the posts", href: "/signals?tab=policy&show=named" },
+    action: { label: "See the posts", href: "/signals?show=named#policy" },
   };
 }
 
@@ -500,7 +500,7 @@ export function recentInsight(posts: PolicyPost[], now: number): Insight | null 
     figure,
     text,
     tickers,
-    action: { label: "Read the posts", href: "/signals?tab=policy" },
+    action: { label: "Read the posts", href: "/signals#policy" },
   };
 }
 
@@ -516,7 +516,7 @@ function latestNamedInsight(posts: PolicyPost[], now: number): Insight | null {
     tone: name.since!.pct >= 0 ? "up" : "down",
     text: `His last post naming a company was on ${shortDay(post.publishedAt.slice(0, 10))}, about ${name.ticker}; it is ${signedPct(name.since!.pct)} since${vs !== null ? `, ${signedPct(vs)} against the S&P 500` : ""}.`,
     tickers: post.names.map((row) => row.ticker),
-    action: { label: "Read the post", href: "/signals?tab=policy&show=named" },
+    action: { label: "Read the post", href: "/signals?show=named#policy" },
   };
 }
 

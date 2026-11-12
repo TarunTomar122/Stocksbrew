@@ -1,31 +1,31 @@
 import Link from "next/link";
 
 import { Bar } from "@/components/oa/kit/skeleton";
-import { FitRows } from "@/components/agent-log/fit-rows";
-import { FitCards } from "@/components/portfolio-home/fit-cards";
-import { FoldCards } from "@/components/portfolio-home/fold-cards";
+import { COLS, holdingsShown, showAt } from "@/components/portfolio-home/fit";
+import { FoldButton } from "@/components/portfolio-home/fold-cards";
+import { cardLine, sayOnce, type CardLine } from "@/components/portfolio-home/lines";
 import { StockLogo } from "@/components/stock-logo";
-import { fmtPlanDay } from "@/lib/dividend-plan";
-import { memoFacts, type MemoFact } from "@/lib/portfolio-home/focus";
 import type { HomeLoad } from "@/lib/portfolio-home/server";
-import { ATTENTION, extraFacts, sayMonthOnce, signedPct, stockCards, type StockCard } from "@/lib/portfolio-home/stocks";
+import { ATTENTION, extraFacts, signedPct, stockCards, type MonthMove, type StockCard } from "@/lib/portfolio-home/stocks";
 
 /**
- * My stocks, about the person's stocks (owner, Nov 11): every holding as a small card (move, gain, our call with its own level, and the one thing that
- * matters for it now), the ones that need the person first and the quiet rest folded under them, and the weekly memo's
- * figures in the rail. Each part waits only for its own sources (lib/portfolio-home/server.ts).
+ * My stocks, about the person's stocks (owner, Nov 11): every holding as a small card (its price and day, our call with
+ * its own level, and the one thing that matters for it now), the ones that need the person first and the quiet rest
+ * behind one button (./fit.ts says how many show at each width). The cards are cells of the overview's one grid
+ * (./fold-cards.tsx FoldScope), so the memo and agents start in whatever the holdings leave of their last row.
+ * It waits only for its own sources (lib/portfolio-home/server.ts).
  */
 
-const FOCUS = "outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]";
-const CARD = "oa-surface min-w-0 overflow-hidden border border-oa-border bg-oa-card";
+export const FOCUS = "outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]";
+export const CARD = "oa-surface min-w-0 overflow-hidden border border-oa-border bg-oa-card";
 
 /** "$91.85", "$1,204": a share price, with cents under $1,000. */
-function sharePrice(value: number): string {
+export function sharePrice(value: number): string {
   const cents = value < 1000 ? 2 : 0;
   return `$${value.toLocaleString("en-US", { minimumFractionDigits: cents, maximumFractionDigits: cents })}`;
 }
 
-function tone(value: number | null): string {
+export function tone(value: number | null): string {
   if (value === null || Math.abs(value) < 0.005) return "text-oa-fg";
   return value > 0 ? "text-signal-bullish" : "text-signal-bearish";
 }
@@ -42,18 +42,47 @@ function CallLine({ card }: { card: StockCard }) {
   );
 }
 
-/** The fewest cards the grid shows with a fold: two full rows side by side. */
-const MIN_SHOWN = 4;
-
 /** Whether a card's one thing asks for the person: these lead, and the quiet rest can fold away (./fold-cards.tsx). */
 function needsLook(card: StockCard): boolean {
   return card.fact !== null && card.fact.priority >= ATTENTION;
 }
 
-function StockCardView({ card, rest = false, className = "min-w-0" }: { card: StockCard; rest?: boolean; className?: string }) {
+/* ── the month bars ────────────────────────────────────────────────────── */
+
+/** "−5.7%": a month move as a figure. */
+const monthPct = (value: number) => signedPct(value, 1);
+
+function MonthBar({ label, value, scale, strong }: { label: string; value: number; scale: number; strong: boolean }) {
+  // From the middle: right for up, left for down, as far as the bigger of the two moves goes.
+  const width = `${Math.min(50, (Math.abs(value) / scale) * 50)}%`;
+  const fill = strong ? (value >= 0 ? "bg-signal-bullish" : "bg-signal-bearish") : "bg-oa-muted-fg/50";
+  return (
+    <span className="grid grid-cols-[3.75rem_minmax(0,1fr)_3rem] items-center gap-2 text-[11.5px] leading-4">
+      <span className={`oa-mono truncate ${strong ? "text-oa-fg" : "text-oa-muted-fg"}`}>{label}</span>
+      <span className="relative h-1.5 rounded-full bg-oa-muted">
+        <span className="absolute inset-y-0 left-1/2 w-px bg-oa-border" />
+        <span className={`absolute inset-y-0 rounded-full ${fill}`} style={value >= 0 ? { left: "50%", width } : { right: "50%", width }} />
+      </span>
+      <span className={`oa-mono text-right tabular-nums ${strong ? "text-oa-fg" : "text-oa-muted-fg"}`}>{monthPct(value)}</span>
+    </span>
+  );
+}
+
+/** The stock's past month against the S&P 500 over the same days, as two bars from a middle line. */
+export function MonthBars({ ticker, move }: { ticker: string; move: MonthMove }) {
+  const scale = Math.max(1, Math.abs(move.pct), Math.abs(move.marketPct ?? 0));
+  return (
+    <span className="mt-1.5 grid gap-1" title={`${ticker} ${monthPct(move.pct)} over the past month${move.marketPct !== null ? `, the S&P 500 ${monthPct(move.marketPct)}` : ""}`}>
+      <MonthBar label="Month" value={move.pct} scale={scale} strong />
+      {move.marketPct !== null ? <MonthBar label="S&P 500" value={move.marketPct} scale={scale} strong={false} /> : null}
+    </span>
+  );
+}
+
+function StockCardView({ card, line, className, textClass }: { card: StockCard; line: CardLine; className: string; textClass: string }) {
   const attention = needsLook(card);
   return (
-    <li className={className} data-rest={rest || undefined}>
+    <div className={`min-w-0 ${className}`}>
       <Link
         href={card.href}
         prefetch={false}
@@ -64,7 +93,8 @@ function StockCardView({ card, rest = false, className = "min-w-0" }: { card: St
       >
         <span className="block min-w-0">
           <span className="flex min-w-0 items-center gap-2">
-            <StockLogo ticker={card.ticker} size={22} eager />
+            {/* atOnce, not eager: eager adds a `fetchpriority` attribute React 18 warns about in development. */}
+            <StockLogo ticker={card.ticker} size={22} atOnce />
             <span className="oa-mono text-[14.5px] font-semibold tabular-nums text-oa-fg">{card.ticker}</span>
             {/* The stock's own price, and its day under it; not the holding's dollars (owner, Nov 12: "4 numbers are super confusing"). */}
             <span className="oa-mono ml-auto shrink-0 text-[16px] font-semibold leading-6 tabular-nums text-oa-fg">{card.price !== null ? sharePrice(card.price) : "–"}</span>
@@ -74,24 +104,16 @@ function StockCardView({ card, rest = false, className = "min-w-0" }: { card: St
             {card.dayPct !== null ? <span className={`oa-mono shrink-0 text-[13px] font-medium tabular-nums ${tone(card.dayPct)}`}>{signedPct(card.dayPct, 2)}</span> : null}
           </span>
         </span>
-        {card.fact ? (
-          <span className={`mt-1.5 block text-pretty text-[13px] leading-[18px] ${attention ? "font-medium text-oa-fg" : "text-oa-muted-fg"}`}>{card.fact.text}</span>
+        {line.text ? (
+          // Hidden where the same sentence is said once above the cards (./lines.ts sayOnce).
+          <span className={`mt-1.5 block text-pretty text-[13px] leading-[18px] ${attention ? "font-medium text-oa-fg" : "text-oa-muted-fg"} ${textClass}`}>{line.text}</span>
         ) : null}
+        {line.month ? <MonthBars ticker={card.ticker} move={line.month} /> : null}
       </Link>
-    </li>
+    </div>
   );
 }
 
-
-/**
- * The list's height before the page measures it (./fit-cards.tsx): none when every card will show (ten or fewer on a
- * phone, seven rows side by side), else about the measured box, so a long list does not paint long and then jump.
- */
-function firstCap(count: number): string {
-  const phone = count > 10 ? "max-h-[62rem]" : "";
-  const wide = count > 14 ? "sm:max-h-[42rem]" : "sm:max-h-none";
-  return `${phone} ${wide}`;
-}
 
 /**
  * The list's headline, saying what the grid shows: "6 of your 11 holdings need a look" when the rest are folded away,
@@ -105,171 +127,135 @@ function stocksHead(total: number, need: number, example: boolean): string {
   return `${need} of ${whose} ${total} holdings ${need === 1 ? "needs" : "need"} a look`;
 }
 
-export async function StockList({ load }: { load: HomeLoad }) {
+/** The holdings as the overview needs them: the cards in order, how many need a look, and each one's month. */
+export type Holdings = {
+  cards: StockCard[];
+  need: number;
+  example: boolean;
+  watching: number;
+  month: Record<string, MonthMove> | null;
+};
+
+/**
+ * The holdings, or why there are none to show ("empty": no book at all). StockList and the memo and agents after it
+ * (./week.tsx, which needs how many holding cards come first) both read it; the reads are the page's shared promises.
+ */
+export async function loadHoldings(load: HomeLoad): Promise<Holdings | "empty" | "slow" | "failed"> {
   const [book, ideas, reasons] = await Promise.all([load.book, load.sources.ideas, load.sources.reasons]);
-  if (book.state !== "ready") {
-    if (book.state === "empty") return null;
-    return (
-      <p className={`${CARD} px-4 py-3 text-pretty text-[14px] leading-5 text-oa-muted-fg`}>
-        {book.state === "slow" ? "The stocks took too long to load just now. Reload in a minute." : "The stocks could not be loaded just now. Reload in a minute."}
-      </p>
-    );
-  }
+  if (book.state !== "ready") return book.state;
   const extra = extraFacts({
     ideas: ideas.state === "ready" ? ideas.value : null,
     reasons: reasons?.state === "ready" ? reasons.value.checks : null,
   });
-  // The S&P 500's month said once above the cards when most of them lead with their month (owner rule 1).
-  const { line: monthLine, cards } = sayMonthOnce(stockCards(book.value, extra), book.value.month);
+  const cards = stockCards(book.value, extra);
+  return { cards, need: cards.filter(needsLook).length, example: book.value.mode === "example", watching: book.value.portfolio.watching.length, month: book.value.month ?? null };
+}
+
+/** How many holding cards show at each width, folded and open. */
+export function holdingsCounts(holdings: Holdings | null): { shown: number[]; open: number[] } {
+  const total = holdings?.cards.length ?? 0;
+  return { shown: COLS.map((cols) => holdingsShown(total, holdings?.need ?? 0, cols)), open: COLS.map(() => total) };
+}
+
+const HEAD_ROW = "col-span-full flex min-w-0 items-center justify-between gap-3 px-1";
+
+export async function StockList({ load }: { load: HomeLoad }) {
+  const holdings = await loadHoldings(load);
+  if (holdings === "empty") return null;
+  if (holdings === "slow" || holdings === "failed") {
+    return (
+      <p className={`${CARD} col-span-full px-4 py-3 text-pretty text-[14px] leading-5 text-oa-muted-fg`}>
+        {holdings === "slow" ? "The stocks took too long to load just now. Reload in a minute." : "The stocks could not be loaded just now. Reload in a minute."}
+      </p>
+    );
+  }
+  return <StockCells holdings={holdings} />;
+}
+
+/** The holdings' heading and cards, as cells of the overview's grid: no reads of its own, so any counts can be rendered. */
+export function StockCells({ holdings }: { holdings: Holdings }) {
+  const { cards, need, example, watching, month } = holdings;
   if (cards.length === 0) return null;
-  const example = book.value.mode === "example";
-  // The cards come sorted by urgency, then weight, so the ones that need a look lead; when some, but not all, need a
-  // look, the rest fold away under the grid (owner, Nov 12: "why show me all when only 6 needs a look???"). At least
-  // two full rows stay in view, topped up with the next cards in that order, so one lone card never sits by the rail.
-  const need = cards.filter(needsLook).length;
-  const shown = need > 0 && need < cards.length ? Math.max(need, MIN_SHOWN) : cards.length;
-  const folded = Math.max(0, cards.length - shown);
-  // Held and watched said apart, so the counts agree with the briefing's ("seven you hold and two you watch").
-  const watching = book.value.portfolio.watching.length;
+  // The cards come sorted by urgency, then weight, so the ones that need a look lead and every one of them shows; the
+  // quiet rest wait behind the one button (owner, Nov 12: "why show me all when only 6 needs a look???"). With none
+  // that need a look, the count depends on the cards across (./fit.ts), so each card says at which widths it shows:
+  // nothing is measured, and nothing moves after the first paint.
+  const { shown } = holdingsCounts(holdings);
+  const folded = shown.map((count) => cards.length - count);
   const funds = cards.some((card) => card.fund);
-  const grid = `scrollbar-hide grid grid-cols-1 content-start gap-2.5 overflow-y-auto sm:grid-cols-2 ${firstCap(shown)}`;
-  const items = cards.map((card, index) => <StockCardView key={card.ticker} card={card} rest={index >= shown} />);
+  // The same sentence on several cards on screen is said once, over them (owner rule 1): each width folded, then
+  // each width open, as which cards show.
+  const views = [...shown.map((count) => cards.map((_, index) => index < count)), ...COLS.map(() => cards.map(() => true))];
+  const { lines, shared, saidAbove } = sayOnce(
+    cards.map((card) => cardLine(card, month)),
+    cards,
+    month,
+    views,
+  );
+  // Folded and open halves of a per-view list, as showAt takes them.
+  const split = (perView: boolean[]) => [perView.slice(0, COLS.length), perView.slice(COLS.length)] as const;
+  const shownAt = (perView: boolean[], display: "block" | "flex" | "inline-flex") => {
+    const [closed, open] = split(perView);
+    return showAt(closed, display, open);
+  };
   return (
-    <section aria-labelledby="stocks-head" className="min-w-0">
-      <h2 id="stocks-head" className="px-1 pb-2.5 text-[14.5px] font-semibold leading-5 text-oa-fg">
-        {stocksHead(cards.length, need, example)}
-        {watching > 0 ? (
-          <span className="font-normal text-oa-muted-fg">
-            {" · "}
-            <Link href="/portfolio?tab=watching" prefetch={false} className={`rounded underline decoration-oa-border underline-offset-[3px] hover:text-oa-fg hover:decoration-oa-fg ${FOCUS}`}>
-              {watching} watched
-            </Link>
-          </span>
-        ) : null}
-        {/* Said once for the list, not on each fund's card (owner rule 1). */}
-        {funds ? <span className="font-normal text-oa-muted-fg"> · no calls on funds</span> : null}
-      </h2>
-      {monthLine ? <p className="-mt-1 px-1 pb-2.5 text-pretty text-[13.5px] leading-5 text-oa-muted-fg">{monthLine}</p> : null}
-      {/* About eight cards on a phone and five rows side by side, the rest scrolling inside a box that ends on a whole
-          row, with no visible bar (owner rule 5). The cap before the page measures it is close to the measured one
-          (firstCap). With a fold, the quiet cards sit in the same grid, hidden until the toggle under it opens them. */}
-      {folded > 0 ? (
-        <FoldCards className={grid} rest={folded}>
-          {items}
-        </FoldCards>
-      ) : (
-        <FitCards className={grid}>{items}</FitCards>
-      )}
-    </section>
+    <>
+      <div className={`${HEAD_ROW} flex-wrap`}>
+        <h2 id="stocks-head" className="min-w-0 text-[14.5px] font-semibold leading-5 text-oa-fg">
+          {stocksHead(cards.length, need, example)}
+          {/* Held and watched said apart, so the counts agree with the briefing's ("seven you hold and two you watch"). */}
+          {watching > 0 ? (
+            <span className="font-normal text-oa-muted-fg">
+              {" · "}
+              <Link href="/portfolio?tab=watching" prefetch={false} className={`rounded underline decoration-oa-border underline-offset-[3px] hover:text-oa-fg hover:decoration-oa-fg ${FOCUS}`}>
+                {watching} watched
+              </Link>
+            </span>
+          ) : null}
+          {/* Said once for the list, not on each fund's card (owner rule 1). */}
+          {funds ? <span className="font-normal text-oa-muted-fg"> · no calls on funds</span> : null}
+        </h2>
+        <FoldButton rest={folded} />
+      </div>
+      {shared.map((group) => (
+        // Only where two or more of its cards are on screen, naming only those (never a folded card).
+        <p key={group.text} className={`col-span-full -mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 px-1 text-[13.5px] leading-5 text-oa-fg ${shownAt(group.shown, "flex")}`}>
+          <span className="font-medium">{group.text.replace(/\.$/, "")}:</span>
+          {group.members.map((index) => (
+            <span key={cards[index]!.ticker} className={`inline-flex items-center gap-1 ${shownAt(views.map((view) => view[index]!), "inline-flex")}`}>
+              <StockLogo ticker={cards[index]!.ticker} size={16} atOnce />
+              <span className="oa-mono text-[13px] font-semibold">{cards[index]!.ticker}</span>
+            </span>
+          ))}
+        </p>
+      ))}
+      {cards.map((card, index) => (
+        <StockCardView
+          key={card.ticker}
+          card={card}
+          line={lines[index]!}
+          className={showAt(shown.map((count) => index < count), "block", COLS.map(() => true))}
+          textClass={shownAt(saidAbove[index]!.map((above) => !above), "block")}
+        />
+      ))}
+    </>
   );
 }
 
 export function StockListGhost() {
   return (
-    <div aria-hidden="true" className="min-w-0">
-      <Bar className="mx-1 mb-3 mt-1 h-3.5 w-40" />
-      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-        {[0, 1, 2, 3, 4, 5].map((card) => (
-          <div key={card} className={`${CARD} px-3.5 py-3`}>
-            <Bar className="h-4 w-24" />
-            <Bar className="mt-2 h-3 w-40" />
-            <Bar className="mt-2 h-3 w-full" />
-          </div>
-        ))}
+    <>
+      <div aria-hidden="true" className={HEAD_ROW}>
+        <Bar className="my-0.5 h-3.5 w-40" />
       </div>
-    </div>
-  );
-}
-
-/* ── the weekly memo, in the rail ─────────────────────────────────────── */
-
-const FACT_TONE: Record<MemoFact["tone"], string> = { up: "text-signal-bullish", down: "text-signal-bearish", flat: "text-oa-fg" };
-
-/** The memo facts the rail shows: all but the week's own return (no summary figure, owner rule 7). None when the memo is not ready. */
-function railMemoFacts(memo: Awaited<HomeLoad["sources"]["memo"]> | undefined): MemoFact[] {
-  return memo?.state === "ready" ? memoFacts(memo.value.memo).filter((fact) => fact.id !== "week") : [];
-}
-
-/** "+1.0 pts", "−0.3 pts": a holding's share of the week's move, in points of the portfolio. */
-function moverPoints(points: number): string {
-  return `${points >= 0 ? "+" : "−"}${Math.abs(points).toFixed(1)} pts`;
-}
-
-/**
- * The memo in the rail: the main risk as a figure, then the holdings that moved the week most, as small cards two
- * across (logo, ticker, its points of the portfolio's week, and its own move under them), the
- * biggest share first, up or down. On a wide screen the card sits in a box that ends with the holdings beside it
- * (my-stocks.tsx `[data-memo-box]`): the cards fill what the box leaves and the rest scroll inside, so the rail and the
- * holdings end together (owner rule 4). The week's own return is left out (owner rule 7). Nothing when the memo has neither.
- */
-export async function MemoFigures({ load }: { load: HomeLoad }) {
-  const memo = await load.sources.memo;
-  // Biggest share of the week's move first, up or down, so the rows in view are the ones that mattered most when the
-  // rest scroll inside.
-  const movers =
-    memo.state === "ready"
-      ? (memo.value.memo.view?.movers ?? [])
-          .filter((move) => Math.abs(move.points) >= 0.05)
-          .map((move, index) => ({ move, index }))
-          .sort((a, b) => Math.abs(b.move.points) - Math.abs(a.move.points) || a.index - b.index)
-          .map(({ move }) => move)
-      : [];
-  // With the movers listed, the biggest of them is their first row rather than a figure of its own.
-  const facts = railMemoFacts(memo).filter((fact) => !(movers.length > 0 && fact.id === "driver"));
-  if (memo.state !== "ready" || (facts.length === 0 && movers.length === 0)) return null;
-  const complete = memo.value.memo.complete;
-  return (
-    <Link
-      href="/portfolio/memo"
-      prefetch={false}
-      data-track-links="insight_clicked"
-      data-track-insight-kind="home-memo"
-      className={`${CARD} block px-4 py-3 transition-colors hover:bg-oa-accent lg:flex lg:max-h-full lg:min-h-0 lg:flex-col ${FOCUS}`}
-    >
-      <span className="flex shrink-0 items-baseline justify-between gap-3">
-        <span className="text-[14px] font-semibold leading-5 text-oa-fg">Weekly memo</span>
-        <span className="oa-mono shrink-0 text-[12px] tabular-nums text-oa-muted-fg">Week of {fmtPlanDay(memo.value.memo.monday)}</span>
-      </span>
-      {facts.length > 0 ? (
-      <span className={`mt-2 grid shrink-0 gap-x-4 ${facts.length === 1 ? "grid-cols-1" : "grid-cols-2"}`}>
-        {facts.map((fact) => (
-          <span key={fact.id} className="block min-w-0">
-            <span className="block text-[12.5px] leading-[17px] text-oa-muted-fg">{fact.caption}</span>
-            <span className={`oa-mono block text-[18px] font-semibold leading-6 tabular-nums ${FACT_TONE[fact.tone]}`}>{fact.figure}</span>
-            <span className="flex min-w-0 items-start gap-1.5 text-pretty text-[12.5px] leading-[17px] text-oa-muted-fg">
-              {fact.ticker ? <StockLogo ticker={fact.ticker} size={14} className="mt-px" /> : null}
-              <span className="min-w-0">{fact.label}</span>
-            </span>
-          </span>
-        ))}
-      </span>
-      ) : null}
-      {movers.length > 0 ? (
-        <>
-          <span className="mt-3 block shrink-0 text-[12.5px] leading-[17px] text-oa-muted-fg">{complete ? "What moved the week" : "What moved the week so far"}</span>
-          {/* Each mover a small card side by side (owner rule 3: the memo is cards and charts): the stock, its points of
-              the portfolio's week as the figure, and its own move under them. An odd last card
-              keeps its one column (owner rule 4). On a wide screen the rows that fit show whole and the rest scroll inside, with
-              no visible bar (../agent-log/fit-rows.tsx). */}
-          <FitRows box="[data-memo-box]" className="mt-1.5 grid grid-cols-2 gap-1.5 scrollbar-hide lg:min-h-0 lg:overflow-y-auto">
-            {movers.map((move) => {
-              const up = move.points >= 0;
-              const own = Math.abs(move.pct) < 0.05 ? "barely moved" : `${move.pct > 0 ? "rose" : "fell"} ${Math.abs(move.pct).toFixed(1)}%`;
-              return (
-                <li key={move.ticker} className="rounded-lg border border-oa-border bg-oa-bg px-2.5 py-2">
-                  <span className="flex min-w-0 items-center gap-1.5 text-[13px] leading-5">
-                    <StockLogo ticker={move.ticker} size={16} />
-                    <span className="oa-mono min-w-0 truncate font-semibold text-oa-fg">{move.ticker}</span>
-                    <span className={`oa-mono ml-auto shrink-0 font-semibold tabular-nums ${up ? "text-signal-bullish" : "text-signal-bearish"}`}>{moverPoints(move.points)}</span>
-                  </span>
-                  {/* Its own move under the points, as a figure: no bar beside it, since the numbers already say it (owner rule 5). */}
-                  <span className="oa-mono mt-0.5 block text-[12px] leading-4 tabular-nums text-oa-muted-fg">{own}</span>
-                </li>
-              );
-            })}
-          </FitRows>
-        </>
-      ) : null}
-    </Link>
+      {/* About what the page shows at each width: the six that need a look, or two rows. */}
+      {[0, 1, 2, 3, 4, 5, 6, 7].map((card) => (
+        <div key={card} aria-hidden="true" className={`${CARD} px-3.5 py-3 ${showAt(COLS.map((cols) => card < Math.max(4, Math.ceil(6 / cols) * cols)))}`}>
+          <Bar className="h-4 w-24" />
+          <Bar className="mt-2 h-3 w-40" />
+          <Bar className="mt-2 h-3 w-full" />
+        </div>
+      ))}
+    </>
   );
 }

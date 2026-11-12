@@ -53,6 +53,19 @@ export function middleware(request: NextRequest) {
     return response;
   }
 
+  // Signals is one page since Nov 12 (owner: "You don't need tabs for this"): Reddit, then the President's posts. An
+  // old tab address lands on its section, keeping the policy filters (?tab=policy&show=named -> ?show=named#policy).
+  // app/(app)/signals/page.tsx redirects the same way (lib/signals-shared.ts legacySignalsHref) if this is bypassed.
+  if (request.nextUrl.pathname === "/signals" && request.nextUrl.searchParams.has("tab")) {
+    const tab = request.nextUrl.searchParams.get("tab")?.toLowerCase();
+    const sectionUrl = request.nextUrl.clone();
+    sectionUrl.searchParams.delete("tab");
+    sectionUrl.hash = tab === "reddit" || tab === "policy" ? tab : "";
+    const response = NextResponse.redirect(sectionUrl, 308);
+    appendVaryAccept(response.headers);
+    return response;
+  }
+
   const acceptHeader = request.headers.get("accept");
   const chosen = preferredType(acceptHeader);
   if (chosen === "text/markdown") {

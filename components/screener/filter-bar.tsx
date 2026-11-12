@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import * as React from "react";
 
 import { LockCard, ProMark } from "@/components/oa/gate";
+import { SectorIcon } from "@/components/oa/sector-icon";
 import { Menu, MenuCheck, MenuLabel } from "@/components/screener/menu";
 import { CONTROL } from "@/components/screener/controls";
 import { CALL_PLAIN } from "@/lib/plain-copy";
@@ -298,7 +299,10 @@ export function FilterBar({ view, sectors, availableFields, capCounts, plan, can
                 onChange={() => setFilters({ sectors: toggle(filters.sectors, sector.slug) })}
                 hint={sector.count}
               >
-                {sector.name}
+                <span className="inline-flex items-center gap-1.5">
+                  <SectorIcon id={sector.name} size={14} />
+                  {sector.name}
+                </span>
               </MenuCheck>
             ))}
           </div>

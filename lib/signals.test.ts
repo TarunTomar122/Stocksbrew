@@ -10,6 +10,7 @@ import {
   etDayHour,
   filterMovers,
   filterPolicy,
+  legacySignalsHref,
   mentionVelocity,
   moveSince,
   moverCounts,
@@ -28,23 +29,32 @@ import {
 } from "@/lib/signals-shared";
 
 describe("filters in the URL", () => {
-  it("defaults to today and only accepts a filter that belongs to the tab", () => {
-    expect(parseSignalsFilters(undefined)).toEqual({ tab: "today", show: "all", limit: POLICY_PAGE_SIZE });
-    // The movers tab is gone (its list is Market today's, /explore#moves); an old link lands on Today.
-    expect(parseSignalsFilters({ tab: "Movers", show: "unexplained" })).toMatchObject({ tab: "today", show: "all" });
-    expect(parseSignalsFilters({ tab: "reddit", show: "unexplained" }).show).toBe("all");
-    expect(parseSignalsFilters({ tab: "policy", show: "named", n: "9999" })).toEqual({ tab: "policy", show: "named", limit: 400 });
-    expect(parseSignalsFilters({ tab: "astrology" }).tab).toBe("today");
+  it("defaults to every post and only accepts a known filter", () => {
+    expect(parseSignalsFilters(undefined)).toEqual({ show: "all", limit: POLICY_PAGE_SIZE });
+    expect(parseSignalsFilters({ show: "unexplained" }).show).toBe("all");
+    expect(parseSignalsFilters({ show: "Named", n: "9999" })).toEqual({ show: "named", limit: 400 });
+    expect(parseSignalsFilters({ n: "3" }).limit).toBe(POLICY_PAGE_SIZE);
   });
 
-  it("builds links and resets the filter when the tab changes", () => {
+  it("builds links, with a section to land on", () => {
     const base = parseSignalsFilters(undefined);
     expect(signalsHref(base)).toBe("/signals");
-    expect(signalsHref(base, { tab: "reddit" })).toBe("/signals?tab=reddit");
-    const named = parseSignalsFilters({ tab: "policy", show: "named" });
-    expect(signalsHref(named)).toBe("/signals?tab=policy&show=named");
-    expect(signalsHref(named, { tab: "reddit" })).toBe("/signals?tab=reddit");
-    expect(signalsHref(parseSignalsFilters({ tab: "policy" }), { limit: 80 })).toBe("/signals?tab=policy&n=80");
+    expect(signalsHref(base, {}, "reddit")).toBe("/signals#reddit");
+    const named = parseSignalsFilters({ show: "named" });
+    expect(signalsHref(named, {}, "policy")).toBe("/signals?show=named#policy");
+    expect(signalsHref(named, { show: "all" }, "policy")).toBe("/signals#policy");
+    expect(signalsHref(base, { limit: 80 }, "policy")).toBe("/signals?n=80#policy");
+  });
+
+  it("sends the old tabbed addresses to their section of the one page", () => {
+    expect(legacySignalsHref(undefined)).toBeNull();
+    expect(legacySignalsHref({ show: "named" })).toBeNull();
+    expect(legacySignalsHref({ tab: "reddit" })).toBe("/signals#reddit");
+    expect(legacySignalsHref({ tab: "Policy", show: "named", n: "80" })).toBe("/signals?show=named&n=80#policy");
+    expect(legacySignalsHref({ tab: "today" })).toBe("/signals");
+    // The movers tab went earlier (its list is Market today's); an old link lands on the top of the page.
+    expect(legacySignalsHref({ tab: "movers" })).toBe("/signals");
+    expect(legacySignalsHref({ tab: "" })).toBe("/signals");
   });
 });
 

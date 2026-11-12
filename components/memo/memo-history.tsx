@@ -1,17 +1,16 @@
 import Link from "next/link";
 
-import { FOCUS } from "@/components/oa/kit";
+import { FOCUS, PairBar } from "@/components/oa/kit";
 import { firstFullSentence } from "@/lib/plain-copy";
-import { pct, signedPct } from "@/lib/memo/format";
+import { signedPct } from "@/lib/memo/format";
 import type { MemoHistoryRow } from "@/lib/memo/store";
-import { gapWords } from "@/lib/memo/view";
 import { weekTitle } from "@/lib/memo/week";
 
 /**
- * Every week's memo, newest first, each one tap away: the portfolio's week as
- * one figure and the gap to the S&P 500 in a line under it (no bars beside the
- * numbers, owner rule 5). Weeks written before the memo had figures show their
- * first sentence. The one on screen is marked.
+ * Every week's memo, newest first, each one tap away: the portfolio's week and the
+ * S&P 500's as two named bars with their figures, on one scale through zero (a
+ * comparison gets a bar, owner VISUALS CHECK; council, Nov 12). Weeks written before
+ * the memo had figures show their first sentence. The one on screen is marked.
  */
 export function MemoHistory({ rows, current, latestKey, example }: { rows: MemoHistoryRow[]; current: string; latestKey: string; example: boolean }) {
   if (rows.length <= 1) return null;
@@ -40,14 +39,23 @@ export function MemoHistory({ rows, current, latestKey, example }: { rows: MemoH
                     {weekTitle(row)}
                     {row.complete ? null : <span className="font-normal text-oa-muted-fg"> so far</span>}
                   </span>
-                  {mine !== null ? (
+                  {/* With both weeks the bars below carry the figures; alone, the week's figure stays here. */}
+                  {mine !== null && market === null ? (
                     <span className={`oa-mono shrink-0 text-[14px] font-medium tabular-nums ${mine > 0 ? "text-signal-bullish" : mine < 0 ? "text-signal-bearish" : "text-oa-fg"}`}>{signedPct(mine)}</span>
                   ) : null}
                 </span>
-                {mine !== null ? (
-                  <span className="mt-0.5 block text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg">
-                    {market !== null ? `${capital(gapWords(mine, market))}, which ${marketWords(market)}.` : "No S&P 500 figure for this week."}
-                  </span>
+                {mine !== null && market !== null ? (
+                  // The week and the S&P 500's, each named with its figure on one scale through zero (owner VISUALS CHECK;
+                  // council, Nov 12), in place of the sentence that said the same.
+                  <PairBar
+                    value={mine}
+                    versus={market}
+                    labels={[example ? "Example" : "You", "S&P 500"]}
+                    texts={[signedPct(mine), signedPct(market)]}
+                    className="mt-1.5 w-full"
+                  />
+                ) : mine !== null ? (
+                  <span className="mt-0.5 block text-[12.5px] leading-[18px] text-oa-muted-fg">No S&amp;P 500 figure for this week.</span>
                 ) : (
                   <span className="mt-0.5 block text-pretty text-[13px] leading-[19px] text-oa-muted-fg">{row.headline || firstFullSentence(row.topLine)}</span>
                 )}
@@ -59,8 +67,3 @@ export function MemoHistory({ rows, current, latestKey, example }: { rows: MemoH
     </nav>
   );
 }
-
-/** "rose 2.0%", "fell 0.6%", "was flat". */
-const marketWords = (value: number) => (Math.abs(value) < 0.05 ? "was flat" : `${value > 0 ? "rose" : "fell"} ${pct(Math.abs(value))}`);
-
-const capital = (text: string) => (text ? text.charAt(0).toUpperCase() + text.slice(1) : text);

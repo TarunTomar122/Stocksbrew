@@ -39,7 +39,7 @@ export function MarketsMovedSection({ data, overview = buildMarketsOverview(data
   return (
     <div className="grid gap-3 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
       <MarketReadings readings={overview.readings} asOf={data.as_of} />
-      <AssetClassCard title="Biggest moves" assets={movers} limit={7} note={moversTakeaway(movers)} emptyText="No moves to rank yet." />
+      <AssetClassCard title="Biggest moves" icon="movers" assets={movers} limit={7} note={moversTakeaway(movers)} emptyText="No moves to rank yet." />
     </div>
   );
 }
@@ -56,10 +56,11 @@ export function StocksAndFundsSection({ data, sectors = true, label = true }: { 
     <>
       {label ? <SectionLabel aside="US indices and funds">Stocks and funds</SectionLabel> : null}
       <div className={`grid gap-3 md:grid-cols-2 ${sectors ? "xl:grid-cols-3" : ""}`}>
-        <AssetClassCard title="Indices" href={classHref("indices")} assets={ofClass(data, "index")} limit={5} note={vix ? assetReading(vix) : null} noteVerdict={vix ? vixWord(vix.price) : null} />
+        <AssetClassCard title="Indices" icon="markets" href={classHref("indices")} assets={ofClass(data, "index")} limit={5} note={vix ? assetReading(vix) : null} noteVerdict={vix ? vixWord(vix.price) : null} />
         {sectors ? <SectorHeatGrid assets={etfs} takeaway={sectorTakeaway(etfs)} /> : null}
         <AssetClassCard
           title="Themes"
+          icon="themes"
           href={classHref("etfs")}
           assets={themes}
           limit={5}
@@ -77,7 +78,7 @@ export function RatesAndVolatilitySection({ data, label = true }: { data: Market
       {label ? <SectionLabel aside="Treasury yields and what options price">Rates and volatility</SectionLabel> : null}
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         <YieldCurveChart curve={data.treasury} />
-        <AssetClassCard title="Treasury yields" href={classHref("rates")} assets={ofClass(data, "rate")} limit={7} note={yieldCurveShiftReading(data.treasury)} />
+        <AssetClassCard title="Treasury yields" icon="percent" href={classHref("rates")} assets={ofClass(data, "rate")} limit={7} note={yieldCurveShiftReading(data.treasury)} />
         <VolCurveChart curve={data.volCurve} />
       </div>
     </>
@@ -96,10 +97,11 @@ export function CommoditiesCurrenciesCryptoSection({ data, label = true }: { dat
     <>
       {label ? <SectionLabel aside="Futures, currencies, coins">Commodities, currencies and crypto</SectionLabel> : null}
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        <AssetClassCard title="Commodities" href={classHref("commodities")} assets={commodities} limit={6} note={commodityNote} />
-        <AssetClassCard title="Currencies" href={classHref("fx")} assets={ofClass(data, "fx")} limit={6} note={dxy ? assetReading(dxy, "The dollar index") : null} />
+        <AssetClassCard title="Commodities" icon="drop" href={classHref("commodities")} assets={commodities} limit={6} note={commodityNote} />
+        <AssetClassCard title="Currencies" icon="exchange" href={classHref("fx")} assets={ofClass(data, "fx")} limit={6} note={dxy ? assetReading(dxy, "The dollar index") : null} />
         <AssetClassCard
           title="Crypto"
+          icon="block"
           href={classHref("crypto")}
           assets={crypto}
           limit={6}
@@ -125,8 +127,8 @@ export function OptionsSection({ data, label = true }: { data: MarketsData; labe
     <>
       {label ? <SectionLabel aside="Put/call and volatility">Options</SectionLabel> : null}
       <div className="grid gap-3 md:grid-cols-2">
-        <AssetClassCard title="Put/call ratios" href={classHref("options")} assets={putCall} limit={4} note={equityReading ? `Single-stock options: ${equityReading}` : null} />
-        <AssetClassCard title="Volatility indices" href={classHref("options")} assets={options.filter((asset) => asset.group === "volatility")} limit={6} />
+        <AssetClassCard title="Put/call ratios" icon="scale" href={classHref("options")} assets={putCall} limit={4} note={equityReading ? `Single-stock options: ${equityReading}` : null} />
+        <AssetClassCard title="Volatility indices" icon="pulse" href={classHref("options")} assets={options.filter((asset) => asset.group === "volatility")} limit={6} />
       </div>
     </>
   );

@@ -8,6 +8,7 @@ import {
 } from "@/components/follow/follow-directory";
 import { AppPage, PageHead, PageNote, ShowMore, TabBar, type TabItem } from "@/components/oa/kit";
 import { InsightRow } from "@/components/oa/insight";
+import { KindIcon } from "@/components/oa/nav-icon";
 import { TallyBars } from "@/components/follow/stock-tally";
 import { MarketingSchema } from "@/components/seo/marketing-schema";
 import { Bar, PanelGhost } from "@/components/oa/kit/skeleton";
@@ -137,9 +138,9 @@ function splitSources(sources: FollowSource[]) {
 
 function tabItems(counts?: { funds: number; congress: number }): TabItem[] {
   return [
-    { id: "funds", label: "Funds", href: "/follow", count: counts?.funds || null },
-    { id: "congress", label: "Congress", href: "/follow?tab=congress", count: counts?.congress || null },
-    { id: "insiders", label: "Insiders", href: "/follow?tab=insiders" },
+    { id: "funds", label: "Funds", href: "/follow", count: counts?.funds || null, icon: <KindIcon name="briefcase" /> },
+    { id: "congress", label: "Congress", href: "/follow?tab=congress", count: counts?.congress || null, icon: <KindIcon name="capitol" /> },
+    { id: "insiders", label: "Insiders", href: "/follow?tab=insiders", icon: <KindIcon name="person" /> },
   ];
 }
 

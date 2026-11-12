@@ -671,7 +671,7 @@ export const loadSocial: StepLoader = async (ctx) => {
   const redditUseful = reddit && (reddit.cue.mention_count > 0 || reddit.top_posts.length > 0);
   if (!redditUseful && posts.length === 0) return { status: "empty", detail: "No Reddit threads or policy posts name it.", facts: null };
   const redditSource = redditUseful
-    ? ctx.book.cite({ label: `Reddit scan of investing subreddits mentioning ${ctx.ticker}`, url: `/signals?tab=reddit`, kind: "social", as_of: reddit!.generated_at || null })
+    ? ctx.book.cite({ label: `Reddit scan of investing subreddits mentioning ${ctx.ticker}`, url: `/signals#reddit`, kind: "social", as_of: reddit!.generated_at || null })
     : null;
   return {
     status: "done",

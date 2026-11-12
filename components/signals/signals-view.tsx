@@ -1,16 +1,18 @@
 import * as React from "react";
 import Link from "next/link";
 
-import { Delta, Empty, FOCUS, NUM, Panel, TabBar, Ticker, Verdict, fmtAgo, fmtDay, fmtStampETDate, type TabItem } from "@/components/oa/kit";
-import type { MoversData, PolicyData, RedditData, RedditThread } from "@/lib/signals";
+import { Delta, Empty, FOCUS, NUM, Panel, Ticker, Verdict, fmtAgo, fmtDay } from "@/components/oa/kit";
+import { capitalize, stampWords } from "@/lib/day-words";
+import type { PolicyData, RedditData, RedditThread } from "@/lib/signals";
 import { MoreLocked } from "@/components/oa/gate";
+import { KindIcon } from "@/components/oa/nav-icon";
+import { RedditMark } from "@/components/reddit-mark";
 import { StockLogo } from "@/components/stock-logo";
 import type { Plan } from "@/lib/entitlements";
 import {
   POLICY_PAGE_SIZE,
   filterPolicy,
   inRedditList,
-  moverCounts,
   rankReddit,
   redditHighlight,
   redditMovesToday,
@@ -20,7 +22,6 @@ import {
   type RedditName,
   type SignalsFilters,
   type Stance,
-  type TodayPick,
 } from "@/lib/signals-shared";
 import { moodWord } from "@/lib/tone";
 import { sentenceCase } from "@/lib/plain-copy";
@@ -29,7 +30,6 @@ import { AppLink } from "@/components/oa/app-link";
 const CHIP = "inline-flex h-10 shrink-0 items-center gap-1.5 rounded-md border px-3 text-[14px] transition-colors sm:h-8 " + FOCUS;
 const CHIP_ON = "border-[color-mix(in_srgb,var(--ink)_55%,transparent)] bg-oa-card font-medium text-oa-fg";
 const CHIP_OFF = "border-oa-border text-oa-muted-fg hover:bg-oa-accent hover:text-oa-fg";
-const LINK = "rounded text-oa-primary hover:underline " + FOCUS;
 
 type ChipItem = { id: string; label: string; href: string; count?: number };
 
@@ -42,36 +42,6 @@ function ChipRow({ items, current, className = "" }: { items: ChipItem[]; curren
           {item.count != null ? <span className={`${NUM} text-[12.5px] text-oa-muted-fg`}>{item.count}</span> : null}
         </AppLink>
       ))}
-    </div>
-  );
-}
-
-/**
- * The one row of controls: the tabs, and on a desktop the current tab's
- * filters at the right end of the same line. On a phone the filters are a
- * second, sideways-scrolling row.
- */
-export function SignalsBar({
-  tabs,
-  filters,
-  policy,
-}: {
-  tabs: TabItem[];
-  filters: SignalsFilters;
-  policy: PolicyData;
-}) {
-  let chips: ChipItem[] = [];
-  if (filters.tab === "policy") {
-    const named = policy.posts.filter((post) => post.names.length > 0).length;
-    chips = [
-      { id: "all", label: "All market posts", count: policy.posts.length, href: signalsHref(filters, { show: "all", limit: POLICY_PAGE_SIZE }) },
-      { id: "named", label: "Names a company", count: named, href: signalsHref(filters, { show: "named", limit: POLICY_PAGE_SIZE }) },
-    ];
-  }
-  return (
-    <div className="mb-3 lg:mb-4 lg:flex lg:items-center lg:gap-6 lg:border-b lg:border-oa-border">
-      <TabBar tabs={tabs} current={filters.tab} className="!mb-0 min-w-0 lg:flex-1 lg:!border-b-0" />
-      {chips.length ? <ChipRow items={chips} current={filters.show} className="mt-2 lg:mt-0 lg:shrink-0" /> : null}
     </div>
   );
 }
@@ -210,7 +180,7 @@ function RedditTable({ names, wide = false, all = names }: { names: RedditName[]
 }
 
 // About eight rows in view, then the list scrolls inside with no bar showing (owner rule 5).
-const REDDIT_SCROLL = "max-h-[36rem] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
+const LIST_SCROLL = "max-h-[36rem] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
 
 function ThreadList({ threads }: { threads: RedditThread[] }) {
   if (!threads.length) return null;
@@ -225,7 +195,17 @@ function ThreadList({ threads }: { threads: RedditThread[] }) {
             <p className="mt-0.5 flex flex-wrap gap-x-2 text-[12.5px] leading-[18px] text-oa-muted-fg">
               <span>r/{thread.subreddit}</span>
               {thread.published ? <span>· {fmtAgo(thread.published)} ago</span> : null}
-              {thread.tickers.length ? <span className={NUM}>· {thread.tickers.join(" ")}</span> : null}
+              {thread.tickers.length ? (
+                <span className={`${NUM} inline-flex flex-wrap items-center gap-x-1.5`}>
+                  ·
+                  {thread.tickers.map((ticker) => (
+                    <span key={ticker} className="inline-flex items-center gap-1">
+                      <StockLogo ticker={ticker} size={13} />
+                      {ticker}
+                    </span>
+                  ))}
+                </span>
+              ) : null}
             </p>
           </li>
         ))}
@@ -234,13 +214,28 @@ function ThreadList({ threads }: { threads: RedditThread[] }) {
   );
 }
 
-export function RedditTab({ data }: { data: RedditData }) {
+/** A section title with its kind's mark (owner VISUALS CHECK): Reddit's own mark, the scales for policy. */
+function SectionTitle({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <span className="flex min-w-0 items-center gap-2">
+      <span className="flex shrink-0 text-oa-muted-fg">{icon}</span>
+      <span className="truncate">{children}</span>
+    </span>
+  );
+}
+
+/**
+ * Reddit first (owner, Nov 12): every name Reddit is talking about in one ranked table, then the threads behind the
+ * counts. The old Today tab's Reddit card was the top of this same list, so it is drawn once, here.
+ */
+export function RedditSection({ data }: { data: RedditData }) {
   const names = rankReddit(data.names.filter(inRedditList));
   const days = Math.round(data.windowHours / 24);
   return (
     <>
       <Panel
-        label="Loudest names on Reddit"
+        id="reddit"
+        label={<SectionTitle icon={<RedditMark size={16} />}>What Reddit is talking about</SectionTitle>}
         right={
           // No "0 posts" over an empty list (owner rule 4).
           data.postCount > 0 ? (
@@ -252,11 +247,11 @@ export function RedditTab({ data }: { data: RedditData }) {
         flush
       >
         {names.length ? (
-          <div className={REDDIT_SCROLL}>
-            <RedditTable names={names} wide />
+          <div className={LIST_SCROLL}>
+            <RedditTable names={names} all={data.names} wide />
           </div>
         ) : (
-          <Empty title="Nothing yet">No Reddit names to show yet.</Empty>
+          <Empty className="!py-6">Reddit has not said much about stocks lately.</Empty>
         )}
       </Panel>
       <ThreadList threads={data.threads} />
@@ -266,17 +261,25 @@ export function RedditTab({ data }: { data: RedditData }) {
 
 /* ── Policy ────────────────────────────────────────────────────────────── */
 
-const POLICY_COLS = "lg:grid lg:grid-cols-[6.5rem_minmax(0,1fr)_minmax(0,11rem)_5.5rem] lg:items-center lg:gap-x-4";
-const POLICY_COLS_COMPACT = "lg:grid lg:grid-cols-[4rem_minmax(0,1fr)_4.5rem] lg:items-center lg:gap-x-3";
+const POLICY_COLS = "lg:grid lg:grid-cols-[8.5rem_minmax(0,1fr)_minmax(0,11rem)_5.5rem] lg:items-center lg:gap-x-4";
 
-function PolicyLine({ post, compact }: { post: PolicyPost; compact: boolean }) {
-  // A column of many posts keeps each one's date (and `compact` cuts it to the day).
-  const stamp = fmtStampETDate(post.publishedAt).replace(" ET", "");
+/**
+ * When a post went up, in day words (owner rule 4: "say yesterday"): "Today, 7:04 AM", "Yesterday, 1:47 AM",
+ * "Monday, 4:29 PM", and the date only past six days ("Nov 5, 7:02 PM"). The time stays: a post's hour against the
+ * market's open matters. Worked out at request time (the page is dynamic), so "today" is never a day stale.
+ */
+function postedWords(iso: string): string {
+  const stamp = stampWords(iso).replace(/ ET$/, "");
+  // stampWords gives only the time for today.
+  return /^\d/.test(stamp) ? `Today, ${stamp}` : capitalize(stamp);
+}
+function PolicyLine({ post }: { post: PolicyPost }) {
+  const stamp = postedWords(post.publishedAt);
   return (
-    <div className={`px-4 py-2.5 lg:py-2 ${compact ? POLICY_COLS_COMPACT : POLICY_COLS}`}>
+    <div className={`px-4 py-2.5 lg:py-2 ${POLICY_COLS}`}>
       <div className="flex items-baseline justify-between gap-3 lg:contents">
         <time dateTime={post.publishedAt} className={`${NUM} whitespace-nowrap text-[12.5px] leading-5 text-oa-muted-fg`}>
-          {compact ? stamp.split(", ")[0] : stamp}
+          {stamp}
         </time>
         <span className="text-right text-[13px] lg:order-last lg:hidden">
           {post.market ? (
@@ -294,18 +297,16 @@ function PolicyLine({ post, compact }: { post: PolicyPost; compact: boolean }) {
         ) : null}
         {post.summary}
       </p>
-      {compact ? null : (
-        <span className="hidden min-w-0 items-center gap-x-3 overflow-hidden whitespace-nowrap text-[12.5px] lg:flex">
-          {post.names.slice(0, 2).map((name) => (
-            <span key={name.ticker} className="inline-flex items-baseline gap-1.5">
-              <StockLogo ticker={name.ticker} size={14} className="self-center" />
-              <span className={`${NUM} font-medium text-oa-fg`}>{name.ticker}</span>
-              {name.since ? <Delta value={name.since.pct} className="text-[12.5px]" /> : null}
-            </span>
-          ))}
-          {post.names.length > 2 ? <span className="text-oa-muted-fg">+{post.names.length - 2}</span> : null}
-        </span>
-      )}
+      <span className="hidden min-w-0 items-center gap-x-3 overflow-hidden whitespace-nowrap text-[12.5px] lg:flex">
+        {post.names.slice(0, 2).map((name) => (
+          <span key={name.ticker} className="inline-flex items-baseline gap-1.5">
+            <StockLogo ticker={name.ticker} size={14} className="self-center" />
+            <span className={`${NUM} font-medium text-oa-fg`}>{name.ticker}</span>
+            {name.since ? <Delta value={name.since.pct} className="text-[12.5px]" /> : null}
+          </span>
+        ))}
+        {post.names.length > 2 ? <span className="text-oa-muted-fg">+{post.names.length - 2}</span> : null}
+      </span>
       <span
         className="hidden text-right lg:block"
         title={post.market ? `SPY from the ${fmtDay(post.market.fromDate)} close to ${fmtDay(post.market.toDate)}` : undefined}
@@ -317,9 +318,9 @@ function PolicyLine({ post, compact }: { post: PolicyPost; compact: boolean }) {
   );
 }
 
-function PolicyDetail({ post, compact }: { post: PolicyPost; compact: boolean }) {
+function PolicyDetail({ post }: { post: PolicyPost }) {
   return (
-    <div className={`border-t border-oa-border bg-oa-bg px-4 py-3 ${compact ? "lg:pl-[5.75rem]" : "lg:pl-[8.5rem]"}`}>
+    <div className="border-t border-oa-border bg-oa-bg px-4 py-3 lg:pl-[10.5rem]">
       <p className="max-w-[70ch] text-pretty text-[14px] leading-[22px] text-oa-fg">{post.summary}</p>
       {post.names.length ? (
         <div className="mt-2 flex flex-wrap gap-1.5">
@@ -339,7 +340,7 @@ function PolicyDetail({ post, compact }: { post: PolicyPost; compact: boolean })
         </div>
       ) : null}
       <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12.5px] leading-[18px] text-oa-muted-fg">
-        <span>{fmtStampETDate(post.publishedAt)}</span>
+        <span>{postedWords(post.publishedAt)} ET</span>
         {post.market ? (
           <span title={`SPY from the ${fmtDay(post.market.fromDate)} close to ${fmtDay(post.market.toDate)}`}>
             · S&amp;P 500 since <Delta value={post.market.pct} className="text-[12.5px]" />
@@ -360,18 +361,21 @@ function PolicyDetail({ post, compact }: { post: PolicyPost; compact: boolean })
   );
 }
 
-/** Posts newest first: one line each, the full text, the names and the links behind a click. */
-function PolicyList({ posts, compact = false }: { posts: PolicyPost[]; compact?: boolean }) {
+/**
+ * Posts newest first: one line each, the full text, the names and the links behind a click. The column words stay put
+ * at the top of the list's scroll box.
+ */
+function PolicyList({ posts }: { posts: PolicyPost[] }) {
   return (
     <>
-      <div className={`hidden border-b border-oa-border bg-oa-bg px-4 py-2 ${compact ? `sticky top-0 z-[1] ${POLICY_COLS_COMPACT}` : POLICY_COLS}`}>
+      <div className={`sticky top-0 z-[2] hidden border-b border-oa-border bg-oa-bg px-4 py-2 ${POLICY_COLS}`}>
         <span className="oa-caption">Posted</span>
         <span className="oa-caption">What it said</span>
-        {compact ? null : <span className="oa-caption">Names, since</span>}
-        <span className="oa-caption text-right">{compact ? "S&P" : "S&P since"}</span>
+        <span className="oa-caption">Names, since</span>
+        <span className="oa-caption text-right">S&amp;P since</span>
       </div>
       {/* Phone: the column words once, not "S&P since" on every row (owner, Nov 11). */}
-      <div className={`flex items-center justify-between gap-3 border-b border-oa-border bg-oa-bg px-4 py-2 lg:hidden ${compact ? "sticky top-0 z-[1]" : ""}`}>
+      <div className="sticky top-0 z-[2] flex items-center justify-between gap-3 border-b border-oa-border bg-oa-bg px-4 py-2 lg:hidden">
         <span className="oa-caption">Posted, what it said</span>
         <span className="oa-caption">S&amp;P 500 since</span>
       </div>
@@ -380,9 +384,9 @@ function PolicyList({ posts, compact = false }: { posts: PolicyPost[]; compact?:
           <li key={post.id} className="border-b border-oa-border last:border-b-0">
             <details className="group">
               <summary data-track="signal_opened" data-track-kind="policy" className={`cursor-pointer list-none hover:bg-oa-accent group-open:bg-oa-bg group-open:hover:bg-oa-accent [&::-webkit-details-marker]:hidden ${FOCUS}`}>
-                <PolicyLine post={post} compact={compact} />
+                <PolicyLine post={post} />
               </summary>
-              <PolicyDetail post={post} compact={compact} />
+              <PolicyDetail post={post} />
             </details>
           </li>
         ))}
@@ -391,26 +395,56 @@ function PolicyList({ posts, compact = false }: { posts: PolicyPost[]; compact?:
   );
 }
 
-export function PolicyTab({
+/**
+ * The President's market posts, under Reddit (owner, Nov 12), newest first, with the two filters in the card's head
+ * (on a phone, on their own row under it). About eight posts in view, then the list scrolls inside (owner rule 5).
+ */
+export function PolicySection({
   data,
   filters,
   archive = null,
+  className = "",
 }: {
   data: PolicyData;
   filters: SignalsFilters;
   /** Posts older than the plan's archive, counted on the server and never sent. */
   archive?: { hidden: number; days: number; plan: Plan; trialEligible: boolean } | null;
+  className?: string;
 }) {
   const rows = filterPolicy(data.posts, filters.show);
   const visible = rows.slice(0, filters.limit);
+  const named = data.posts.filter((post) => post.names.length > 0).length;
+  // Filters only when the filter picks out something different (owner rule 4: no "Names a company 0" chip), or when it
+  // is already on, so there is a way back to every post.
+  const chips: ChipItem[] = (named > 0 && named < data.posts.length) || filters.show !== "all"
+    ? [
+        { id: "all", label: "All market posts", count: data.posts.length, href: signalsHref(filters, { show: "all", limit: POLICY_PAGE_SIZE }, "policy") },
+        { id: "named", label: "Names a company", count: named, href: signalsHref(filters, { show: "named", limit: POLICY_PAGE_SIZE }, "policy") },
+      ]
+    : [];
   return (
     <>
-      <Panel flush>
-        {visible.length ? <PolicyList posts={visible} /> : <Empty title="No posts yet">No market-related posts in this window.</Empty>}
+      <Panel
+        id="policy"
+        className={className}
+        label={<SectionTitle icon={<KindIcon name="scale" />}>What the President posted</SectionTitle>}
+        right={chips.length ? <ChipRow items={chips} current={filters.show} className="hidden sm:flex" /> : undefined}
+        flush
+      >
+        {chips.length ? <ChipRow items={chips} current={filters.show} className="!mx-0 border-b border-oa-border py-2 sm:hidden" /> : null}
+        {visible.length ? (
+          <div className={LIST_SCROLL}>
+            <PolicyList posts={visible} />
+          </div>
+        ) : (
+          <Empty className="!py-6">
+            {data.posts.length ? "None of these posts named a company." : "The President has not posted about the market lately."}
+          </Empty>
+        )}
         {visible.length < rows.length ? (
           <div className="border-t border-oa-border p-2 text-center">
             <Link
-              href={signalsHref(filters, { limit: filters.limit + POLICY_PAGE_SIZE })}
+              href={signalsHref(filters, { limit: filters.limit + POLICY_PAGE_SIZE }, "policy")}
               scroll={false}
               className={`inline-flex min-h-10 items-center rounded-md px-3 text-[14px] font-medium text-oa-muted-fg hover:bg-oa-accent hover:text-oa-fg ${FOCUS}`}
             >
@@ -432,102 +466,3 @@ export function PolicyTab({
   );
 }
 
-/* ── Today ─────────────────────────────────────────────────────────────── */
-
-function SeeAll({ href, children }: { href: string; children: React.ReactNode }) {
-  return (
-    <AppLink href={href} className={LINK}>
-      {children}
-    </AppLink>
-  );
-}
-
-
-/**
- * The Today cards' lists: one fixed height, about eight Reddit rows (each with its line of what is said), scrolling inside with no bar showing (owner
- * rule), so the two cards end level and neither leaves an empty block under its rows.
- */
-const TODAY_SCROLL = "max-h-[32rem] overflow-y-auto lg:h-[32rem] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
-
-export function TodayTab({
-  pick,
-  movers,
-  reddit,
-  policy,
-  filters,
-  now,
-}: {
-  pick: TodayPick;
-  movers: MoversData;
-  reddit: RedditData;
-  policy: PolicyData;
-  filters: SignalsFilters;
-  now: number;
-}) {
-  const counts = moverCounts(movers.movers);
-  const listed = reddit.names.filter(inRedditList).length;
-  const newestPost = policy.posts[0];
-  // A card with nothing in it is not drawn (owner rule 4): the other one takes the row, and the gap is said in a line below.
-  const showReddit = pick.reddit.length > 0 || pick.policy.length === 0;
-  const showPolicy = pick.policy.length > 0;
-  const pair = showReddit && showPolicy;
-  // Side by side, both lists take one fixed height so the cards end level; alone, a list is as tall as its rows (up to the cap).
-  const scroll = pair ? TODAY_SCROLL : TODAY_SCROLL.replace(" lg:h-[32rem]", "");
-  return (
-    <>
-      <div className={`mb-5 grid items-stretch gap-5 ${pair ? "lg:grid-cols-2" : ""}`}>
-        {showReddit ? (
-          <Panel
-            fill
-            label="What Reddit is talking about"
-            right={
-              // Only when the card holds fewer names than the Reddit tab lists; it scrolls every one it holds.
-              listed > pick.reddit.length ? <SeeAll href={signalsHref(filters, { tab: "reddit" })}>All {listed} names</SeeAll> : null
-            }
-            flush
-          >
-            {pick.reddit.length ? (
-              <div className={scroll}>
-                <RedditTable names={pick.reddit} all={reddit.names} wide={!pair} />
-              </div>
-            ) : (
-              <Empty className="!py-6">Nothing yet.</Empty>
-            )}
-          </Panel>
-        ) : null}
-        {showPolicy ? (
-          <Panel
-            fill
-            label="What the President posted"
-            right={
-              <>
-                {newestPost ? <span className="hidden sm:inline">latest {fmtAgo(newestPost.publishedAt, now)} ago</span> : null}
-                {/* Only when the card holds fewer than there are: a card that already scrolls every post needs no "all" link. */}
-                {policy.posts.length > pick.policy.length ? <SeeAll href={signalsHref(filters, { tab: "policy" })}>All {policy.posts.length} posts</SeeAll> : null}
-              </>
-            }
-            flush
-          >
-            <div className={scroll}>
-              <PolicyList posts={pick.policy} compact />
-            </div>
-          </Panel>
-        ) : null}
-      </div>
-      {/* Signals is what people are saying. The day's moves and their reasons live on Market today, so they are one line here, not a second copy of the same list. */}
-      <p className="text-[14px] leading-5 text-oa-muted-fg">
-        {counts.all ? (
-          <>
-            {counts.all} {counts.all === 1 ? "stock" : "stocks"} moved{movers.thresholdPct ? ` ${movers.thresholdPct}% or more` : " a lot"} today (
-            <span className="text-signal-bullish">{counts.up} up</span>, <span className="text-signal-bearish">{counts.down} down</span>).{" "}
-          </>
-        ) : null}
-        <SeeAll href="/explore#moves">See each move on Market today</SeeAll>.
-        {/* Today lists only posts that lean (lib/signals-shared.ts pickToday): with posts but none leaning, say that. */}
-        {showPolicy ? null : policy.posts.length > 0 ? " The President's latest market posts did not lean either way." : " The President has not posted about the market lately."}
-        {showReddit ? null : " Reddit has not said much about stocks lately."}
-      </p>
-
-    </>
-  );
-}

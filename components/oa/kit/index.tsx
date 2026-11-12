@@ -262,7 +262,14 @@ export function SourceLine({
 
 /* ── Navigation inside a page ──────────────────────────────────────────── */
 
-export type TabItem = { label: React.ReactNode; href: string; id: string; count?: number | null };
+export type TabItem = {
+  label: React.ReactNode;
+  href: string;
+  id: string;
+  count?: number | null;
+  /** The kind's icon (components/oa/nav-icon.tsx KindIcon), when the tabs are kinds of thing. */
+  icon?: React.ReactNode;
+};
 
 /** Underline tabs driven by the URL (links, not state), scrollable on phones. */
 export function TabBar({ tabs, current, className = "" }: { tabs: TabItem[]; current: string; className?: string }) {
@@ -284,6 +291,7 @@ export function TabBar({ tabs, current, className = "" }: { tabs: TabItem[]; cur
                 : "border-transparent text-oa-muted-fg hover:text-oa-fg"
             }`}
           >
+            {tab.icon ? <span className="-mr-0.5 inline-flex">{tab.icon}</span> : null}
             {tab.label}
             {tab.count != null ? <span className={`${NUM} text-[12.5px] text-oa-muted-fg`}>{tab.count}</span> : null}
           </Link>
@@ -468,7 +476,7 @@ export function Empty({ title, children, className = "" }: { title?: React.React
 /* ── Atoms ─────────────────────────────────────────────────────────────── */
 
 // The good-or-bad marks live in ./tone (no server imports) so client components can import them directly.
-export { MarkSlot, MoveBar, ToneGlyph, Verdict } from "./tone";
+export { MarkSlot, MoveBar, PairBar, ToneGlyph, Verdict } from "./tone";
 export { ShowMore } from "./more";
 
 /** Logo, ticker and (optionally) the company name, linking to the stock page. */

@@ -98,7 +98,7 @@ The rule the owner has repeated most, and is angriest about: "repeating the same
 
 ## 10. Layout and placement
 
-- Secondary material goes in the right rail, not the main column ("this should be in sidebar on right, cz it's not super important"; e.g. Your agents on the briefing).
+- Secondary material goes in the right rail, not the main column ("this should be in sidebar on right, cz it's not super important"; e.g. Your agents on the briefing). But a rail must still pass the BALANCE CHECK (rule 4): where its height can't match the main column across the data cases, it moves under the main content instead. My stocks (Nov 12, "empty space on left side, u didn't fix all possible cases") has no rail: the weekly memo and Your agents are cards after the holdings, in the same columns, laid out so their rows end full.
 - Today includes Premarket ("where is premarket??? need that in today"), but only before the open: from 4:00 ET until 9:30 on a trading day. After that the nav hides it and /premarket goes to Market today ("premarket should only be shown until the stock market opens that day").
 - A stock page header must not have an empty left side and too much text on the right.
 

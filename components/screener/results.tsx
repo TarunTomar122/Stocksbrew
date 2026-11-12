@@ -6,6 +6,7 @@ import * as React from "react";
 import { Sparkline } from "@/components/oa/kit/cells";
 import { DataTable, type DataColumn, type DataRow } from "@/components/oa/kit/data-table";
 import { ShowMore } from "@/components/oa/kit/more";
+import { SectorIcon } from "@/components/oa/sector-icon";
 import { RowCheck } from "@/components/screener/selection";
 import { CallTag, EarningsDate, FieldValue, Unknown, ZoneTag } from "@/components/screener/shared";
 import { StockLogo } from "@/components/stock-logo";
@@ -25,7 +26,14 @@ export type ResultRow = Partial<ScreenerRow> & { symbol: string; short: string; 
 export function cellFor(id: string, row: Partial<ScreenerRow>): React.ReactNode {
   switch (id) {
     case "sector":
-      return row.sector ? <span className="text-oa-muted-fg">{row.sector}</span> : <Unknown />;
+      return row.sector ? (
+        <span className="inline-flex items-center gap-1.5 text-oa-muted-fg">
+          <SectorIcon id={row.sector} size={14} />
+          {row.sector}
+        </span>
+      ) : (
+        <Unknown />
+      );
     case "industry":
       return row.industry ? <span className="block max-w-[12rem] truncate text-oa-muted-fg">{row.industry}</span> : <Unknown />;
     case "spark":

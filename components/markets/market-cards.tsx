@@ -10,6 +10,7 @@ import Link from "next/link";
 import type * as React from "react";
 
 import { ToneGlyph } from "@/components/oa/kit/tone";
+import { KindIcon, type KindIconName } from "@/components/oa/nav-icon";
 import { StockLogo } from "@/components/stock-logo";
 import { FUND_TOPIC, fedOutcomeWords } from "@/lib/markets-insights";
 import {
@@ -41,10 +42,12 @@ type Card = {
   /** Up or down only when the figure is a signed move. */
   tone: "up" | "down" | "flat";
   label: string;
-  /** A fund's ticker, for its logo beside the figure. */
-  logo?: string | null;
+  /** A logo or icon beside the figure, saying what the figure is about. */
+  mark?: React.ReactNode;
   /** Is this good or bad for stocks right now, and why in a few words (lib/market-verdict.ts). Null without data. */
   verdict: VerdictLine | null;
+  /** The card's one line when it is not the verdict's reason; the reason then sits in the chip's hover title. */
+  line?: string | null;
   visual?: React.ReactNode;
 };
 
@@ -94,6 +97,50 @@ function CurveLines({ curve }: { curve: TreasuryCurve }) {
  * few words saying what it is, then the verdict with its reason in one short line. No verdict without the data.
  */
 
+/**
+ * What the biggest mover is, when its name alone does not say (owner, Nov 12: "What is this one-line Dogecoin?"):
+ * "Dogecoin, a crypto coin", "Natural gas, a commodity". A stock index or fund already says what it is.
+ */
+export function moverLabel(asset: MarketAsset): string {
+  const kind = asset.class === "crypto" ? "a crypto coin" : asset.class === "commodity" ? "a commodity" : asset.class === "fx" ? "a currency" : null;
+  const own = name(asset);
+  // A fund named by its topic ("Tech") says it is a fund and which one.
+  if (asset.class === "etf" && FUND_TOPIC[asset.id]) return `${own} fund, ${asset.symbol}`;
+  return kind ? `${own}, ${kind}` : own;
+}
+
+/** "Bitcoin −1.5% and Tech −1.1% were next": the moves after the biggest, so one figure is not left on its own. */
+export function nextMovesLine(rest: readonly MarketAsset[]): string | null {
+  const parts = rest
+    .filter((asset) => asset.change.d1 != null && Number.isFinite(asset.change.d1))
+    .slice(0, 2)
+    .map((asset) => `${name(asset)} ${signed(asset.change.d1 as number, 1)}%`);
+  if (parts.length === 0) return null;
+  return parts.length === 1 ? `${parts[0]} was next.` : `${parts[0]} and ${parts[1]} were next.`;
+}
+
+/** The mover's own mark: a fund's logo, a coin's image, or the icon of its kind of market. */
+function MoverMark({ asset }: { asset: MarketAsset }) {
+  if (asset.class === "etf") return <StockLogo ticker={asset.symbol} size={24} eager className="mt-1 shrink-0" />;
+  if (asset.class === "crypto" && asset.image) {
+    // eslint-disable-next-line @next/next/no-img-element -- a 24px coin mark from the market data, not worth the image optimiser
+    return <img src={asset.image} alt="" width={24} height={24} loading="eager" className="mt-1 size-6 shrink-0 rounded-full" />;
+  }
+  return (
+    <span className="mt-1 inline-flex size-6 shrink-0 items-center justify-center rounded-full border border-oa-border bg-oa-card text-oa-muted-fg">
+      <KindIcon name={MOVER_ICON[asset.class] ?? "markets"} className="size-3.5" />
+    </span>
+  );
+}
+
+const MOVER_ICON: Partial<Record<MarketAsset["class"], KindIconName>> = {
+  index: "markets",
+  rate: "percent",
+  commodity: "drop",
+  fx: "exchange",
+  crypto: "block",
+};
+
 function movedCard(data: MarketsData): Card | null {
   const movers = biggestMoves(data.assets, 7);
   const top = movers[0];
@@ -106,14 +153,16 @@ function movedCard(data: MarketsData): Card | null {
   const gains = stockMoves.filter((asset) => (asset.change.d1 ?? 0) > 0).length;
   return {
     key: "moved",
-    title: "What moved",
+    title: "Biggest move across markets",
     href: "/markets",
     linkLabel: "Open all markets",
     figure,
     tone: top.change.d1 > 0 ? "up" : "down",
-    label: name(top),
-    logo: top.class === "etf" ? top.symbol : null,
+    label: moverLabel(top),
+    mark: <MoverMark asset={top} />,
     verdict: movesVerdict(gains, stockMoves.length),
+    // The one line is what came next; the verdict's own count moves to the chip's hover title.
+    line: nextMovesLine(movers.slice(1)),
   };
 }
 
@@ -250,18 +299,19 @@ function MarketCard({ card }: { card: Card }) {
         </div>
         {/* The small picture sits beside the figure, where a fund's logo sits on its card, not on a row of its own at
             the foot, so a card without one has no padded band where the picture would be (owner rule 4). */}
-        {card.logo ? (
-          <StockLogo ticker={card.logo} size={24} eager className="mt-1 shrink-0" />
-        ) : card.visual ? (
-          <div className="mt-1 shrink-0">{card.visual}</div>
-        ) : null}
+        {card.mark ? card.mark : card.visual ? <div className="mt-1 shrink-0">{card.visual}</div> : null}
       </div>
-      {card.verdict ? (
+      {card.verdict || card.line ? (
         <p className="mt-2.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[13.5px] leading-5">
-          <span className={`inline-flex h-6 shrink-0 items-center rounded px-2 text-[12.5px] font-medium ${VERDICT_CHIP[card.verdict.verdict]}`}>
-            {VERDICT_WORDS[card.verdict.verdict]}
-          </span>
-          <span className="min-w-0 text-pretty text-oa-muted-fg">{card.verdict.why}</span>
+          {card.verdict ? (
+            <span
+              title={card.line ? card.verdict.why : undefined}
+              className={`inline-flex h-6 shrink-0 items-center rounded px-2 text-[12.5px] font-medium ${VERDICT_CHIP[card.verdict.verdict]}`}
+            >
+              {VERDICT_WORDS[card.verdict.verdict]}
+            </span>
+          ) : null}
+          <span className="min-w-0 text-pretty text-oa-muted-fg">{card.line ?? card.verdict?.why}</span>
         </p>
       ) : null}
       {/* The whole card opens its part of /markets; no link words repeated on every card. */}

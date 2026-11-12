@@ -4,16 +4,16 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { CompareView } from "@/components/compare-desk/compare-view";
 import { JsonLd, breadcrumbLd } from "@/components/docs/json-ld";
 import { closeWords } from "@/lib/benchmark-day";
-import { AppPage, PageHead, Panel, SourceLine, fmtDay } from "@/components/oa/kit";
+import { PairMore } from "@/components/compare-desk/pair-more";
+import { AppPage, PageHead, SourceLine, fmtDay } from "@/components/oa/kit";
 import { todayET } from "@/lib/calendar-shared";
 import { getViewer } from "@/lib/entitlements-server";
 import { ogImage } from "@/lib/og/url";
 import { sectorSlug, type ScreenerRow } from "@/lib/screener-shared";
-import { insiderHref, pairHref, pairIsIndexable, parsePairSlug, sectorHref, stockLabel, type StockPair } from "@/lib/seo/families";
+import { pairHref, pairIsIndexable, parsePairSlug, sectorHref, type StockPair } from "@/lib/seo/families";
 import { getCoverage, pairsFor, stockPairs, type Coverage } from "@/lib/seo/family-data";
 import { shortCompanyName } from "@/lib/plain-copy";
 import Link from "next/link";
-import { AppLink } from "@/components/oa/app-link";
 
 /**
  * Stock against stock: /compare/amd-vs-nvda. One page per pair of rivals in
@@ -74,20 +74,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-function LinkList({ items }: { items: Array<{ href: string; label: string }> }) {
-  return (
-    <ul className="flex flex-col">
-      {items.map((item) => (
-        <li key={item.href} className="border-b border-oa-border last:border-b-0">
-          <AppLink href={item.href} className="flex items-center gap-3 px-4 py-2.5 text-[14px] text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
-            <span className="min-w-0 truncate">{item.label}</span>
-          </AppLink>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 export default async function PairPage({ params, searchParams }: Props) {
   const parsed = parsePairSlug(params.pair);
   if (!parsed) notFound();
@@ -104,7 +90,6 @@ export default async function PairPage({ params, searchParams }: Props) {
     row,
     pairs: pairsFor(allPairs, row.symbol).filter((item) => item.slug !== pair.slug),
   }));
-  const label = (item: StockPair) => `${item.a} vs ${item.b}`;
 
   return (
     <AppPage>
@@ -142,32 +127,7 @@ export default async function PairPage({ params, searchParams }: Props) {
         viewer={viewer}
       />
 
-      {/* Each list ends where it ends: no card padded to a taller neighbour's height (owner rule 4). A plain grid, not
-          CardGrid, whose cards stretch to the row on purpose. */}
-      <div className="mt-5 grid grid-cols-1 items-start gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {more.map(({ row, pairs }) => (
-          <Panel key={row.symbol} flush label={`${row.symbol} against its other rivals`}>
-            {pairs.length ? (
-              <LinkList items={pairs.map((item) => ({ href: pairHref(item.a, item.b), label: label(item) }))} />
-            ) : (
-              <p className="px-4 py-3 text-[14px] leading-5 text-oa-muted-fg">No other comparison pages for {row.symbol}.</p>
-            )}
-          </Panel>
-        ))}
-        <Panel flush label="More on these two">
-          <LinkList
-            items={[
-              { href: `/stock/${encodeURIComponent(first.symbol)}`, label: `${stockLabel(first.name, first.symbol)} report` },
-              { href: `/stock/${encodeURIComponent(second.symbol)}`, label: `${stockLabel(second.name, second.symbol)} report` },
-              { href: `/calendar/earnings/${encodeURIComponent(first.symbol)}`, label: `${first.symbol} earnings` },
-              { href: `/calendar/earnings/${encodeURIComponent(second.symbol)}`, label: `${second.symbol} earnings` },
-              { href: insiderHref(first.symbol), label: `${first.symbol} insider trades` },
-              { href: insiderHref(second.symbol), label: `${second.symbol} insider trades` },
-              ...(sector ? [{ href: sectorHref(sectorSlug(sector)), label: `${sector} stocks` }] : []),
-            ]}
-          />
-        </Panel>
-      </div>
+      <PairMore stocks={more} />
     </AppPage>
   );
 }

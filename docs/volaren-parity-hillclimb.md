@@ -185,6 +185,94 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-12 night: ship 69 (emails) live; councils clear the treemaps, visuals sweep and My stocks
+
+- **69 (dbcf0c3):** all 16 emails rebuilt as stock cards (logo, name, price, labelled moves).
+  - Hand-set price alerts email again: a fresh-quote gate, plus the day move against the previous NYSE session.
+  - backend/mail/nyse.py is a rule-based holiday calendar.
+  - The VPS is on dbcf0c3; mail tests 135/135.
+- **Council approvals, about to ship:**
+  - heatmaps: round 7 (clip detection, re-measure on data change, logo on every stock tile)
+  - visuals sweep: round 5 (sector names wrap, compact one-sector card, day words)
+  - My stocks overview: round 8
+- **My stocks, rounds 6-8:** the council caught a stock drawn twice, as a holding card and again as a week mover.
+  - WeekCells now works out each view's on-screen holdings (4 widths × folded/open).
+  - A mover hides wherever its card shows.
+  - New test: components/portfolio-home/week.test.tsx.
+- **Still in council:**
+  - briefing: round 5, the Keep badge repeated on past-day cards and the pre-open heading
+  - holdings mobile cards and filters: round 2, card links to the stock, filter subset rule, a truthful sort label, an opaque sticky bar
+
+### 2026-11-12 evening: ships 66-68 live (stock page council-approved)
+
+- **66 (a2eb814):** stock-page fact cards with signed bars; figure-led "What would change it"; prose fallbacks removed; good/watch signals on every tab from lib/stock-signals.ts (the "lean against the call" chip was dropped on council advice); the Market open pill is plain text; What changed is capped at 15.
+- **67 (7321e08):** the company name is the heading, with the call as a chip.
+- **e701fd9 (backend):** coin logos from the CC0 cryptocurrency-icons set; the job ran on the VPS and wrote 10 tm_stock_logos docs.
+- **Council rounds so far:**
+  - stock page: 4 rounds plus 3 for phase 2, now approved
+  - My stocks: 5 rounds (UI 8)
+  - briefing: 3 rounds
+  - heatmaps: 6 rounds (rebuilt as HTML tiles with container queries)
+  - emails: 5 rounds (14 of 16 approved)
+  - visuals sweep: 3 rounds
+- **New builder:** mobile holdings cards (as in the owner's reference app) and watchlist/holdings filters (sector, call, near level, reports soon, moving, size, funds).
+
+### 2026-11-12 afternoon: ships 63-65 live, plus a council gate on every visible change
+
+- **Live:**
+  - **63 (c4fec5f):** signed-in visitors land on holdings, the heat fill, equal-height cards, the premarket pill.
+  - **64 (1e38426):** Analysis insights (one bet in disguise, sector ideas, panels ending level); the memo packs its sections into rows; Ask answers when to buy or sell and sets the watch; inbox dedupe.
+  - **65 (46c3016):** any US fund covered on demand, mutual funds included; results night with revenue vs the estimate and guidance.
+- **VPS:** the earnings-day timer and the fund-requests timer are enabled. EARNINGS_DAY_ENABLED=1. Earnings day wrote 8 reports on its first run.
+- **New owner rule: council before ship.** Every visible change gets a codex APPROVE/BLOCK on screenshots before it ships. Template: scratchpad council-review65/prompt.txt.
+- **In council loops now:**
+  - stock page fact cards and figure-led checks (round 4 passed after the min-bar-width fix; ships with phase 2, the good/bad signals)
+  - My stocks without the rail (blocked: sparse rows, repeated copy, bars, the fold button)
+  - briefing visual band, top news, buy cards and treemap (blocked: order, one-line news, varied facts, tile completeness, paired heights)
+  - signals one page (approved), What moved (approved), explore heatmap (approved), screener and markets treemaps (blocked round 3)
+  - emails (12 of 16 approved; the price alert, rebalance, win-back and daily headline case are being fixed)
+- **Built, not yet reviewed:** the visuals sweep across 23 pages.
+- **Dev data:** this Mac can't reach the LocalDB over TLS (SSL_ERROR_SYSCALL), so the dev server runs with LOCALDB_URL=http://127.0.0.1:8501 through `ssh -fN -L 8501:127.0.0.1:8500 vps`.
+
+### 2026-11-12 09:16 ET: brief repair requeue run (VPS)
+
+- The dry run still showed 224 briefs that open on the coverage. `--requeue --limit 80` queued 80 for the next brief run; 112 are left for later windows, and 32 have no freshness doc (they need another path).
+- **Next:** run the same command again tomorrow between 09:00 and 09:45 ET.
+- **Builders started:** results night (9 QA bugs, revenue and guidance, one results surface); funds on demand (any ETF, plus a mutual fund decision); emails brought up to the owner rules, with a gallery. Still running: the visuals sweep and Ask setting watches. The postal address waits on the owner.
+
+### 2026-11-12 ~13:30 ET: ship 62 live (b7224c8): Analysis redesign, wide briefing, funds, sell watches
+
+- **Funds are first-class.**
+  - /stock/VOO and 49 more funds have fund pages: cost on $10k, size, yield, past year vs the S&P, top 10 with logos, sectors vs the S&P with icons, and overlap with your stocks.
+  - New tm_fund_facts and tm_fund_meta collections; 41 funds registered (additive).
+  - Holdings were refreshed for 33 funds. The weekly agentdata timer keeps them fresh.
+  - Funds show "No call on funds" (SCHD used to show "Buy more").
+- **Analysis** (renamed from What you own): a 12-column canvas capped at 90rem, built from the council (codex plus cursor). It has paired panels, a single-strip swing figure, a logo scatter, strongest pairs, a full-width heatmap with show-more, and sticky section links. The mix cache key now uses 0.1% weights, which fixes the "largest = MSFT" tie.
+- **Briefing:**
+  - 90rem layout: Do today beside the heat, levels across, why it moved beside the week.
+  - Prices on every card.
+  - The heat is sized and ordered by the move.
+  - Verdict colours come from day moves.
+  - Show-more replaces inner scroll boxes.
+- **Agents:** "tell me when to sell X" builds a sell_zone watch (our sell-some price, or the call turns to Sell some). There is a new call_change watch, and the refusal for real orders now offers a chip.
+- **Integration fixes:**
+  - share API paywall
+  - the Free memo and share card gated
+  - /portfolio/stress is a 308 to /portfolio/xray#crashes
+  - stretched last cards removed sitewide
+  - sharp binary traced for OG logos
+  - dead code removed
+  - Ask listed once in the nav
+  - Tools card removed
+- **Codex findings fixed:** stock-page facts one per line, insider clusters compact, calendar duplicates removed, landing agent cards, backtest copy, compare items-start, news one headline.
+- **Also:** themes with logos and a narrower idea column; explore moves only with a reason, plus price; the alerts explainer line removed; shared sector icons (components/oa/sector-icon.tsx).
+- **Verified:** tsc clean; vitest 3126/3126 both modes (llms flake rerun alone passes); eslint 0 errors. Live smoke test all 200 (stress 308). Live /stock/VOO screenshot read with real data. VPS b7224c8, with 42 backend tests passing.
+- **Open:**
+  - Sector icons and logos sweep on the remaining text lists (VISUALS CHECK added to the rules and judge prompt).
+  - The inbox may double a call change. Ask can't create sell watches yet.
+  - The /explore ticker strip still colours the 10-yr by sign.
+  - Results block source line.
+
 ### 2026-11-12 ~11:30 ET: ships 58-61 live (5a86f97 landing, 7b1f3d7 stock page, 3f1b85f premarket job, 00455f9 morning batch)
 
 - **Ship 58 (5a86f97): the landing page.** The split hero is back, with a live "What stood out" demo card (logo tabs; price; call with its own level; ≤15-word why; 3-month sparkline with the level) and the market check as four figure tiles. The /pricing h1 is cut to one line.

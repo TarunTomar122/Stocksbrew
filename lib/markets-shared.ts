@@ -4,6 +4,7 @@
  * The data is written by `backend/agentdata/markets.py`.
  */
 
+import { yieldDayVerdict } from "@/lib/market-verdict";
 import { fedMoveWord, volCurveWord, yieldCurveWord, type ToneWord } from "@/lib/tone";
 
 export type MarketAssetClass = "index" | "etf" | "rate" | "commodity" | "fx" | "crypto" | "option";
@@ -984,6 +985,24 @@ export interface MarketsOverview {
 
 export const OVERVIEW_ASSET_IDS = ["sp500", "nasdaq100", "us10y", "gold", "wti", "dxy", "btc"];
 
+/**
+ * A strip tile's colour. A yield is coloured by what its day's move means for stocks (lib/market-verdict.ts
+ * yieldDayVerdict, as the briefing strip does): "up 0.10 points" is red, a fall of as much is green, a move of 2 bps
+ * or less is plain. Everything else is coloured by its sign.
+ */
+export function tileTone(asset: Pick<MarketAsset, "class" | "change" | "change_mode" | "unit">): Tone {
+  // Only a yield itself ("%"): a spread between two yields ("pp", the 2s10s) widening is not dearer borrowing.
+  if (asset.class === "rate" && asset.unit === "%") {
+    const d1 = asset.change.d1;
+    if (!isNumber(d1)) return "flat";
+    // The verdict takes percentage points; a bps change is a hundredth of one. Rounded to whole bps first, as the
+    // figure beside it is printed, so "+2 bps" (stored as 2.4) stays plain.
+    const verdict = yieldDayVerdict(asset.change_mode === "bps" ? Math.round(d1) / 100 : d1)?.verdict;
+    return verdict === "good" ? "up" : verdict === "bad" ? "down" : "flat";
+  }
+  return changeTone(asset.change.d1, asset.change_mode);
+}
+
 export function buildMarketsOverview(data: MarketsData, now: Date = new Date()): MarketsOverview {
   const byId = new Map(data.assets.map((asset) => [asset.id, asset]));
   const tiles: MarketsOverviewTile[] = [];
@@ -999,7 +1018,7 @@ export function buildMarketsOverview(data: MarketsData, now: Date = new Date()):
       // A yield's move in words ("up 0.10 points"), not "+10 bps"; prices and ratios keep their signed figure.
       change: asset.change_mode === "bps" && isNumber(asset.change.d1) ? formatBpsPlain(asset.change.d1) : formatChange(asset.change.d1, asset.change_mode),
       changeLabel: dayChangeLabel(asset, now),
-      tone: changeTone(asset.change.d1, asset.change_mode),
+      tone: tileTone(asset),
       spark: asset.spark,
       href: assetHref(asset),
       source_name: asset.source_name,

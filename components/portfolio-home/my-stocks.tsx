@@ -2,16 +2,19 @@ import { Suspense } from "react";
 
 import { PortfolioAskHint } from "@/components/ask/portfolio-ask-hint";
 import { SharesPrompt } from "@/components/import/shares-prompt";
-import { AgentsPanel, AgentsPanelGhost } from "@/components/portfolio-home/agents-panel";
+import { FoldScope } from "@/components/portfolio-home/fold-cards";
 import { ExampleLine } from "@/components/portfolio-home/home";
-import { MemoFigures, StockList, StockListGhost } from "@/components/portfolio-home/stocks";
+import { StockList, StockListGhost } from "@/components/portfolio-home/stocks";
+import { WeekBand } from "@/components/portfolio-home/week";
 import { FollowedRebalances } from "@/components/strategies/rebalance-notice";
 import type { HomeLoad } from "@/lib/portfolio-home/server";
 
 /**
- * The My stocks overview under its title: every holding as a card with the one thing that matters for it; in the
- * side rail, the person's agents and the weekly memo's figures. Phones get
- * one column in that order. Each part streams in as soon as its own sources answer.
+ * The My stocks overview under its title: every holding as a card with the one thing that matters for it, then the
+ * weekly memo's figures and the person's agents, all cards of ONE grid with no side rail (owner, Nov 12: "empty space
+ * on left side, u didn't fix all possible cases"). Each part starts in whatever the one before it left of its last
+ * row, so every row ends full (./fit.ts). The holdings stream in as soon as their sources answer; the memo and
+ * agents join them once their own reads are in (React's Suspense adds no element, so they are still grid cells).
  */
 export function MyStocksBody({ load }: { load: HomeLoad }) {
   return (
@@ -24,38 +27,26 @@ export function MyStocksBody({ load }: { load: HomeLoad }) {
       </Suspense>
       {/* No summary of how the stocks did on top (owner, Nov 12: the read blocks were "super useless"): the page opens
           on the stocks themselves. */}
-      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_21rem] xl:grid-cols-[minmax(0,1fr)_23rem]">
-        {/* Both columns are `contents` on a phone, so their parts join one column in this order. */}
-        {/* Every holding shows (./stocks.tsx StockList, a long list scrolls inside on whole rows of cards). */}
-        <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-5">
-          <Suspense fallback={<StockListGhost />}>
-            <StockList load={load} />
-          </Suspense>
-          {/* Pro: a followed strategy that rebalanced in the last few days. Nothing at all otherwise. */}
-          <Suspense fallback={null}>
-            <FollowedRebalances />
-          </Suspense>
-        </div>
-        {/* On a wide screen the rail stretches to the holdings' height and the memo, last, fills what is left: its rows
-            of the week's movers scroll inside on whole rows, so the rail and the holdings end together (owner rule 4). */}
-        <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-4 lg:self-stretch [&>*]:shrink-0">
-          <Suspense fallback={<AgentsPanelGhost />}>
-            <AgentsPanel load={load} />
-          </Suspense>
-          {/* At least the memo's header, its figure and one whole row of movers (13rem), so the card is never cut mid-row. */}
-          <div data-memo-box className="relative min-w-0 lg:min-h-[13rem] lg:!shrink lg:flex-1 [&:not(:has(a))]:hidden">
-            <div className="lg:absolute lg:inset-x-0 lg:top-0 lg:flex lg:max-h-full lg:flex-col">
-              <Suspense fallback={null}>
-                <MemoFigures load={load} />
-              </Suspense>
-            </div>
-          </div>
-          {/* No tools card: the tools are in the nav (owner, Nov 12: "remove this"). */}
-          {/* No Ask box here: the shell's Ask opens on this page's stocks with its questions (owner rule 1). */}
-          <Suspense fallback={null}>
-            <PortfolioAskHint load={load} />
-          </Suspense>
-        </div>
+      <FoldScope>
+        {/* The ones that need a look, then the quiet rest behind one button; the grid never scrolls inside. */}
+        <Suspense fallback={<StockListGhost />}>
+          <StockList load={load} />
+        </Suspense>
+        {/* The memo and the agents, in the cells the holdings leave and on (./week.tsx). */}
+        <Suspense fallback={null}>
+          <WeekBand load={load} />
+        </Suspense>
+      </FoldScope>
+      <div className="mt-6 flex min-w-0 flex-col gap-6 empty:hidden">
+        {/* Pro: a followed strategy that rebalanced in the last few days. Nothing at all otherwise. */}
+        <Suspense fallback={null}>
+          <FollowedRebalances />
+        </Suspense>
+        {/* No tools card: the tools are in the nav (owner, Nov 12: "remove this"). */}
+        {/* No Ask box here: the shell's Ask opens on this page's stocks with its questions (owner rule 1). */}
+        <Suspense fallback={null}>
+          <PortfolioAskHint load={load} />
+        </Suspense>
       </div>
     </>
   );

@@ -122,6 +122,7 @@ function ResultView({ run, example }: { run: BacktestRun; example: boolean }) {
 
       <StatGrid
         headline={false}
+        strategyLabel={example ? "60/40 mix" : "Your mix"}
         strategy={s}
         benchmark={b}
         benchmarkLabel={benchmark}

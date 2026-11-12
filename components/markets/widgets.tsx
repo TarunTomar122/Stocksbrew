@@ -6,13 +6,18 @@
  */
 import * as React from "react";
 
+import { SectorHeatmap } from "@/components/markets/sector-heatmap";
+import { type TreemapLayout } from "@/components/oa/kit/treemap";
+import { KindIcon, type KindIconName } from "@/components/oa/nav-icon";
 import { Verdict } from "@/components/oa/kit/tone";
+import { FUND_TOPIC } from "@/lib/markets-insights";
 import { StockLogo } from "@/components/stock-logo";
 import {
   assetAsOfText,
   assetHref,
   signalTone,
   sparkTone,
+  tileTone,
   classHref,
   dayChangeLabel,
   formatAsOf,
@@ -218,10 +223,13 @@ export function MarketTickerStrip({ tiles, className = "" }: { tiles: MarketsOve
 
 /* ── asset class card ───────────────────────────────────────────────────── */
 
-function CardHead({ title, href, hrefLabel = "All" }: { title: React.ReactNode; href?: string | null; hrefLabel?: string }) {
+function CardHead({ title, href, hrefLabel = "All", icon }: { title: React.ReactNode; href?: string | null; hrefLabel?: string; icon?: KindIconName }) {
   return (
     <div className="flex min-h-10 items-center justify-between gap-3 border-b border-oa-border px-3.5 py-2">
-      <h3 className="oa-label min-w-0 truncate">{title}</h3>
+      <h3 className="oa-label flex min-w-0 items-center gap-2">
+        {icon ? <KindIcon name={icon} className="size-4 text-oa-muted-fg" /> : null}
+        <span className="truncate">{title}</span>
+      </h3>
       {href ? (
         <AppLink href={href} className={`${MONO} shrink-0 text-[12.5px] uppercase tracking-[0.04em] text-oa-muted-fg outline-none hover:text-oa-fg focus-visible:text-oa-fg`}>
           {hrefLabel} →
@@ -237,17 +245,21 @@ function latestAsOf(assets: MarketAsset[]): MarketAsset | null {
 
 /** One row of a class card: symbol and name, a year as a sparkline, level over day change. */
 export function AssetRow({ asset }: { asset: MarketAsset }) {
-  const tone = signalTone(asset.change.d1, asset.change_mode);
+  // A yield's day is coloured by what it means for stocks (a rise is red), the same as the strip above it.
+  const tone = asset.class === "rate" ? tileTone(asset) : signalTone(asset.change.d1, asset.change_mode);
+  // (tileTone reads only yields that way; a spread such as 2s10s keeps its sign colour.)
   return (
     <Link prefetch={false}
       href={assetHref(asset)}
       className="grid min-h-11 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 px-3.5 py-1.5 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent"
     >
       <span className="flex min-w-0 flex-col">
-        {asset.class === "etf" ? (
-          // Only funds are real tickers with logos; indexes, rates, commodities, FX and crypto are not.
+        {asset.class === "etf" || asset.class === "crypto" ? (
+          // Funds are real tickers with logos. Coins use the logo store's "-USD" key (BTC-USD): a coin it has no picture
+          // for gets its lettered mark, never a stock that happens to share the symbol (council, Nov 12). Indexes,
+          // rates, commodities and FX have no logo.
           <span className={`${MONO} flex min-w-0 items-center gap-1.5 text-[14px] font-medium leading-4 text-oa-fg`}>
-            <StockLogo ticker={asset.symbol} size={16} />
+            <StockLogo ticker={asset.class === "crypto" && !asset.symbol.includes("-") ? `${asset.symbol}-USD` : asset.symbol} size={16} circle={asset.class === "crypto"} />
             <span className="truncate">{asset.symbol}</span>
           </span>
         ) : (
@@ -277,6 +289,7 @@ export function AssetClassCard({
   noteVerdict = null,
   emptyText = "Nothing to show for this class right now.",
   className = "",
+  icon,
 }: {
   title: React.ReactNode;
   /** Null hides the header link. */
@@ -289,12 +302,14 @@ export function AssetClassCard({
   noteVerdict?: ToneWord | null;
   emptyText?: string;
   className?: string;
+  /** The kind's icon beside the title (owner VISUALS CHECK). */
+  icon?: KindIconName;
 }) {
   const rows = assets.slice(0, limit);
   const latest = latestAsOf(rows);
   return (
     <section className={`${CARD} flex flex-col ${className}`}>
-      <CardHead title={title} href={href} hrefLabel={assets.length > rows.length ? `All ${assets.length}` : "Open"} />
+      <CardHead title={title} href={href} icon={icon} hrefLabel={assets.length > rows.length ? `All ${assets.length}` : "Open"} />
       {rows.length === 0 ? (
         <EmptyState>{emptyText}</EmptyState>
       ) : (
@@ -322,16 +337,21 @@ export function AssetClassCard({
 
 /* ── sector heat grid ───────────────────────────────────────────────────── */
 
-function heatStyle(change: number | null): React.CSSProperties {
-  const tone = signalTone(change);
-  if (tone === "flat" || change === null) return { background: "var(--oa-bg)" };
-  // Full strength at a 2.5% move; never so strong that the ink stops reading.
-  const strength = Math.round(8 + Math.min(Math.abs(change) / 2.5, 1) * 30);
-  const color = tone === "up" ? "var(--signal-bullish)" : "var(--signal-bearish)";
-  return { background: `color-mix(in srgb, ${color} ${strength}%, var(--oa-card))` };
-}
+/**
+ * In a card beside others: fill the card's height on a tablet or wider (at least 200px, leaving room for the label
+ * chips under it so the card ends level with its neighbours), keep a phone's shape below.
+ */
+const CARD_HEAT_LAYOUTS: TreemapLayout[] = [
+  { width: 320, height: 210, className: "hidden min-h-[200px] flex-1 sm:block", fill: true },
+  { width: 360, height: 340, className: "sm:hidden" },
+];
+/** With the page's width to itself (/markets/etfs). */
+const WIDE_HEAT_LAYOUTS: TreemapLayout[] = [
+  { width: 1000, height: 300, className: "hidden sm:block" },
+  { width: 360, height: 400, className: "sm:hidden" },
+];
 
-/** Sector ETFs as a grid of cells shaded by the day's change, best first. */
+/** Sector ETFs as a treemap tinted by the day's change, each tile as big as its move. */
 export function SectorHeatGrid({
   assets,
   title = "Sectors",
@@ -357,7 +377,7 @@ export function SectorHeatGrid({
   const latest = latestAsOf(sectors);
   return (
     <section className={`${CARD} flex flex-col ${className}`}>
-      <CardHead title={title} href={href} hrefLabel="ETFs" />
+      <CardHead title={title} href={href} hrefLabel="ETFs" icon="sectors" />
       {sectors.length === 0 ? (
         <EmptyState>Sector funds are not available right now.</EmptyState>
       ) : (
@@ -367,24 +387,27 @@ export function SectorHeatGrid({
               <NoteLine text={takeaway} />
             </div>
           ) : null}
-          <div className={`grid grid-cols-3 gap-px bg-oa-border ${wide ? "sm:grid-cols-4 lg:grid-cols-6" : ""}`}>
-            {sectors.map((asset) => (
-              <Link prefetch={false}
-                key={asset.id}
-                href={assetHref(asset)}
-                style={heatStyle(asset.change.d1)}
-                className="flex min-h-[58px] flex-col justify-between gap-1 px-2.5 py-2 outline-none transition-[filter] hover:brightness-95 focus-visible:brightness-95 dark:hover:brightness-125"
-                title={asset.name}
-              >
-                <span className="truncate text-[12.5px] font-medium leading-4 text-oa-fg">{SECTOR_SHORT[asset.id] ?? asset.symbol}</span>
-                <span className="flex items-baseline justify-between gap-1">
-                  <span className={`${MONO} text-[14px] font-medium leading-4 text-oa-fg`}>
-                    {formatChange(asset.change.d1, asset.change_mode) ?? "·"}
-                  </span>
-                  <span className={`${MONO} text-[12.5px] leading-4 text-oa-fg/80`}>{asset.symbol}</span>
-                </span>
-              </Link>
-            ))}
+          {/* A true treemap, each tile's area the size of its fund's move (owner, Nov 12), the same map as Market
+              today's. Beside other cards it fills the card's height; with the page to itself it keeps its shape. */}
+          {/* No min-h-0: the card grows with the map and its labels instead of letting them run under the footer. */}
+          <div className="flex flex-1 flex-col p-1">
+            <SectorHeatmap
+              rows={sectors.map((asset) => ({
+                id: asset.id,
+                name: FUND_TOPIC[asset.id] ?? SECTOR_SHORT[asset.id] ?? asset.symbol,
+                slug: "",
+                href: assetHref(asset),
+                day: asset.change.d1,
+                // The chip fund (SMH) shares Tech's chip.
+                icon: asset.id === "smh" ? "xlk" : asset.id,
+                title: `${asset.name}, ${asset.symbol}`,
+              }))}
+              layouts={wide ? WIDE_HEAT_LAYOUTS : CARD_HEAT_LAYOUTS}
+              gap={4}
+              denseLabels={!wide}
+              rootClassName="flex flex-1 flex-col"
+              label="Sector funds sized by how far they moved"
+            />
           </div>
           {latest ? (
             <div className="mt-auto border-t border-oa-border bg-oa-bg px-3.5 py-2">
@@ -755,6 +778,18 @@ export function MarketReadings({
   );
 }
 
+/** Each asset class's own icon, on its tab (owner VISUALS CHECK). Keyed by the class's page slug. */
+const CLASS_ICON: Record<string, KindIconName> = {
+  indices: "markets",
+  etfs: "themes",
+  rates: "percent",
+  commodities: "drop",
+  fx: "exchange",
+  crypto: "block",
+  options: "pulse",
+  predictions: "target",
+};
+
 /** Links to every class, for the top of a markets page. */
 export function ClassTabs({ classes, active, counts }: { classes: MarketClassInfo[]; active?: string; counts?: Record<string, number> }) {
   return (
@@ -783,6 +818,7 @@ export function ClassTabs({ classes, active, counts }: { classes: MarketClassInf
                   on ? "border-oa-primary font-medium text-oa-fg" : "border-transparent text-oa-muted-fg hover:text-oa-fg"
                 }`}
               >
+                <KindIcon name={CLASS_ICON[item.slug] ?? "markets"} className="size-4" />
                 {item.title}
                 {count ? <span className={`${MONO} text-[12.5px] text-oa-muted-fg`}>{count}</span> : null}
               </AppLink>
