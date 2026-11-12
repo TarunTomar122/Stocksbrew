@@ -23,7 +23,7 @@ import { getViewer } from "@/lib/entitlements-server";
 import { countWord } from "@/lib/plain-copy";
 import { FREE_COVERED_WORD } from "@/lib/paywall-flag";
 import { CALL_COVERAGE } from "@/lib/brand-copy";
-import { US_PRO_MONTHLY, US_PRO_YEARLY, US_YEARLY_SAVE_PCT } from "@/lib/pricing";
+import { IN_PRO_MONTHLY_LABEL, pricingMarket, US_PRO_MONTHLY, US_PRO_YEARLY, US_YEARLY_SAVE_PCT } from "@/lib/pricing";
 import { SUBSCRIBE_SUPPORT_EMAIL } from "@/lib/subscribe-benefits";
 import { ogImage } from "@/lib/og/url";
 
@@ -181,11 +181,11 @@ export default async function PricingPage({ searchParams }: Props) {
   const subscriptionId = searchParams.subscription_id ?? null;
 
   const headerStore = await headers();
-  const market: "US" | "IN" = headerStore.get("x-vercel-ip-country") === "IN" ? "IN" : "US";
+  const market = pricingMarket(headerStore.get("x-vercel-ip-country"));
 
   const prices: PlanPrice[] =
     market === "IN"
-      ? [{ period: "monthly", price: "₹99", per: "a month" }]
+      ? [{ period: "monthly", price: IN_PRO_MONTHLY_LABEL, per: "a month" }]
       : [
           { period: "monthly", price: `$${US_PRO_MONTHLY}`, per: "a month" },
           {

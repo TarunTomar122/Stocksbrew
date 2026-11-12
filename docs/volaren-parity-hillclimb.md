@@ -185,6 +185,30 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-12 ~09:30 UTC, ships 55 (020ee17) and 56 (af5df1b) live: your agent as a thread, results night on, bring your holdings in (lead)
+
+- **Ship 55, "Your agent" (/agent, build A).** One dated conversation from the agent, oldest day at the top, scrolling to today on open.
+  - The morning note is the briefing's read (holdings against the S&P, past days as chips, up to 3 points).
+  - Every note is one real record: an agent finding, call change, result, alert, insider/investor trade, memo or coming report. It shows logo chips, the figure, the reason only when confirmed, "Our call: Buy more below $X" where the plan shows levels, and one step. Quiet runs are one line.
+  - The reply box asks Ask with your stocks as context (saved to Ask history). "watch…" / "tell me when…" goes through /api/agents/parse with a confirm button before anything is saved.
+  - The nav place "Alerts & agents" became "Your agent" (Notes, Agents, Inbox). Signed-in / goes to /agent.
+  - 35 new tests. tsc and eslint clean. QA fixed a level leak, redaction on tickerless notes and intent routing.
+- **Ship 56, results night (build B).** All 9 open bugs are fixed, each with a test. The gate is tested both ways.
+  - Close-time quotes from 15:55 on count as the close.
+  - **RESULTS_NIGHT=1 set in Vercel Production** (owner authorised shipping this build). Live check: CRWV, CEG and QLYS stock pages show the read, e.g. "CoreWeave lost $1.28 a share, less than the $1.45 expected, and the stock rose 25% yesterday, bigger than its usual 17% move after a report. Our call is still Buy more after the results."
+  - Revenue/guidance needs EARNINGS_DAY_ENABLED=1 and the earnings-day timer on the VPS (steps in build B's report); then drop EarningsDayStockEntry (app/(app)/stock/[symbol]/page.tsx:156). Not done.
+- **Ship 56, bring your holdings in (build C).**
+  - Sources: a CSV from Fidelity, Schwab, Vanguard, E*TRADE/Morgan Stanley, IBKR or M1; Robinhood and Webull trades netted and flagged; generic files with a 2-pick column mapper; paste ("NVDA 25 @ 120"); screenshots.
+  - The review shows value today. Cash, options, totals and money market are left out, each with its reason. GOOG and GOOGL are summed. Decimal-comma files are read correctly.
+  - Saving is additive and merge-only; stocks not in the file are never touched (tested).
+  - Entry points: /import, onboarding first, and a My stocks card when share counts are missing.
+  - QA found a dead page-wide drop and 5 parser bugs; all fixed.
+- **Checks:** 3041 tests in both modes. VPS pulled.
+- **Open:**
+  - Popular funds VOO, VTI and SCHD aren't in tm_search_index/tm_instruments, so an import reads "we do not cover VOO yet" (the example book shows VOO from static data). This coverage gap is worth closing.
+  - /agent uses the briefing with persist:false, so if people stop visiting /briefing its day snapshot isn't written.
+  - Signed-in save, ask and watch weren't run live end to end.
+
 ### 2026-11-12 ~08:30 UTC, owner: "such small fixes lol can we get back on doing ambitious things?" → three big builds in parallel (lead)
 
 - The no-new-features rule from the overnight brief is lifted by the owner. They chose all three:

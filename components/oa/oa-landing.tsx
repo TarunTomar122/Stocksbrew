@@ -20,6 +20,8 @@ import { limitFor } from "@/lib/entitlements";
 import { countWord } from "@/lib/plain-copy";
 import { getViewer } from "@/lib/entitlements-server";
 import { getLandingUserContext } from "@/components/landing-data";
+import { pricingMarket } from "@/lib/pricing";
+import { headers } from "next/headers";
 
 import { AgentDoes } from "./landing/agent-does";
 import { OnePlace } from "./landing/one-place";
@@ -142,7 +144,7 @@ export async function OaLanding() {
                 hrefLabel="Compare the plans"
               />
               <Reveal>
-                <PlansSection trialEligible={(await getViewer()).trialEligible} />
+                <PlansSection trialEligible={(await getViewer()).trialEligible} market={pricingMarket(headers().get("x-vercel-ip-country"))} />
               </Reveal>
             </section>
           ) : null}

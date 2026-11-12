@@ -2,7 +2,15 @@
 export const US_PRO_MONTHLY = 19;
 export const US_PRO_YEARLY = 190;
 
-export const US_PRO_MONTHLY_LABEL = `$${US_PRO_MONTHLY}`;
+/** Display pricing for India Pro. Visitors from India see rupees on every plan card (pricing page and landing). */
+export const IN_PRO_MONTHLY_LABEL = "₹99";
+
+/** The visitor's pricing market, from Vercel's country header. */
+export function pricingMarket(country: string | null | undefined): "US" | "IN" {
+  return country === "IN" ? "IN" : "US";
+}
+
+export const US_PRO_MONTHLY_LABEL =`$${US_PRO_MONTHLY}`;
 export const US_PRO_YEARLY_LABEL = `$${US_PRO_YEARLY}`;
 export const US_PRO_MONTHLY_MO = `$${US_PRO_MONTHLY}/mo`;
 export const US_PRO_PLAN_LINE = `${US_PRO_MONTHLY_MO} or ${US_PRO_YEARLY_LABEL}/yr`;

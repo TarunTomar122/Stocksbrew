@@ -167,7 +167,7 @@ export function PlanCards({
           {plan === "free" ? <span className="text-[13px] text-oa-muted-fg">Your plan</span> : null}
         </div>
         <p className="mt-2 flex items-baseline gap-2">
-          <span className="oa-mono text-[44px] font-semibold leading-[52px] tracking-[-0.02em] text-oa-fg">$0</span>
+          <span className="oa-mono text-[44px] font-semibold leading-[52px] tracking-[-0.02em] text-oa-fg">{market === "IN" ? "₹0" : "$0"}</span>
           <span className="text-[14px] text-oa-muted-fg">forever</span>
         </p>
         <p className="mt-3 text-[16px] font-medium leading-6 text-oa-fg">The full report on {FREE_COVERED_STOCKS} stocks you choose</p>
