@@ -1,3 +1,5 @@
+import { caseWireHeadlines } from "@/lib/wire-casing";
+
 import type { ReportData, ReportExtras, SectionData, SectionOwnership } from "./types";
 
 /**
@@ -33,13 +35,19 @@ export function toSectionData(data: ReportData, extras: Omit<ReportExtras, "time
     ownership: sectionOwnership(extras.ownership),
     congress: extras.congress,
     followSlugs: extras.followSlugs.filter((slug) => people.has(slug)),
-    news: extras.news.map((article) => ({
+    // Headlines in sentence case as /news writes them (lib/wire-casing.ts), the stock's own name kept as written; a
+    // company's own release keeps its product names (the casing reads `sourceKind`), and excerpts teach it the day's words.
+    news: caseWireHeadlines(
+      extras.news.map((article) => ({ ...article, sourceKind: article.source_kind ?? "", excerpt: article.summary })),
+      { [stock.ticker]: stock.name },
+    ).map((article) => ({
       id: article.id,
       title: article.title,
       url: article.url,
       source_name: article.source_name,
-      published_at: article.published_at,
-      sentiment_label: article.sentiment_label,
+      // One ISO form, so the row's day words read it whatever shape the feed stored.
+      published_at: isoOr(article.published_at),
+      tone: article.tone ?? null,
     })),
     reddit: extras.reddit,
     peers: extras.peers,
@@ -57,6 +65,12 @@ export function toSectionData(data: ReportData, extras: Omit<ReportExtras, "time
       : null,
     multiple: data.multiple,
   };
+}
+
+/** The stamp as ISO when it parses, else as it came. */
+function isoOr(value: string): string {
+  const at = Date.parse(value);
+  return Number.isFinite(at) ? new Date(at).toISOString() : value;
 }
 
 /** Fund rows and exits the Ownership section shows (sections.tsx); the rest only count toward the flow line. */

@@ -104,7 +104,8 @@ export type ReportExtras = {
   congress: PowerTrade[] | null;
   /** Slugs that have a page under /follow. Rows link there only when the page exists. */
   followSlugs: string[];
-  news: NewsArticle[];
+  /** The stock's headlines, each with its tone when one was read (news-tone.ts). */
+  news: Array<NewsArticle & { tone?: HeadlineTone | null }>;
   reddit: { postCount: number; sentiment: string | null; summary: string | null; generatedAt: string | null } | null;
   peers: SectorPeerRow[];
 };
@@ -128,8 +129,11 @@ export type SectionOwnership = {
   insiders: StockOwnership["insiders"];
 };
 
-/** One news row in the News section: only what the row shows. */
-export type SectionNewsArticle = Pick<NewsArticle, "id" | "title" | "url" | "source_name" | "published_at" | "sentiment_label">;
+/** A headline's tone as /news reads it: the model's label, else the headline's own words (news-tone.ts). */
+export type HeadlineTone = "positive" | "negative" | "neutral";
+
+/** One news row in the News section: only what the row shows, with its tone (null when none was read). */
+export type SectionNewsArticle = Pick<NewsArticle, "id" | "title" | "url" | "source_name" | "published_at"> & { tone: HeadlineTone | null };
 
 /**
  * What the report's sections (Overview, Financials, ... Peers) read, and no

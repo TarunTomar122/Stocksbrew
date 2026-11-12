@@ -24,15 +24,31 @@ const KIND_LABEL: Record<StockTimelineKind, string> = {
   call: "Our call",
 };
 
+const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/**
+ * A month-long entry (analyst ratings) in words beside the day words of its neighbours (judges, ship 71: "Nov 2026"
+ * beside "Today"): "This month", "Last month", the month's name earlier this year, and the year only before that.
+ */
+export function timelineMonthWords(at: string, today: string): string {
+  const year = Number(at.slice(0, 4));
+  const month = Number(at.slice(5, 7));
+  const nowYear = Number(today.slice(0, 4));
+  const nowMonth = Number(today.slice(5, 7));
+  if (!year || !month || !nowYear || !nowMonth) return at.slice(0, 7);
+  const back = (nowYear - year) * 12 + (nowMonth - month);
+  if (back <= 0) return "This month";
+  if (back === 1) return "Last month";
+  const name = MONTH_NAMES[month - 1] ?? "";
+  return year === nowYear ? name : `${name} ${year}`;
+}
+
 export function timelineDate(item: Pick<StockTimelineItem, "at" | "precision">, nowIso: string): string {
-  if (item.precision === "month") {
-    const text = fmtDate(item.at, true);
-    return text.replace(/ \d+,/, "");
-  }
   // A recent day in words ("Today", "Yesterday", "Monday"), counted from the render's own time so server and browser
   // agree (owner rule 4); anything older keeps its date.
   const nowMs = Date.parse(nowIso);
   const today = etToday(Number.isFinite(nowMs) ? nowMs : Date.now());
+  if (item.precision === "month") return timelineMonthWords(item.at, today);
   const gap = daysFromToday(item.at, today);
   if (gap !== null && gap <= 0 && gap >= -6) return capitalize(dayWords(item.at, today));
   const sameYear = item.at.slice(0, 4) === nowIso.slice(0, 4);

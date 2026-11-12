@@ -71,6 +71,8 @@ export type StockSignal = {
   evidence: string[];
   /** Why a not-eligible signal is neutral ("no prior fiscal year"); null otherwise. */
   reason: string | null;
+  /** The two figures a comparison is made of, when it is one (the stock's one-year return and the S&P 500's), for a pair of bars. */
+  pair?: { value: number; versus: number };
 };
 
 export type FiscalRow = {
@@ -238,6 +240,7 @@ function signal(id: SignalId, metric: string, fields: Partial<Omit<StockSignal, 
     period: fields.period ?? null,
     evidence: fields.evidence ?? [],
     reason: fields.reason ?? null,
+    ...(fields.pair ? { pair: fields.pair } : {}),
   };
 }
 
@@ -545,7 +548,13 @@ function vsMarketSignal(input: StockSignalsInput): StockSignal {
   const age = daysBetween(one.to, input.today);
   if (age === null || age > RULES.oneYearMaxAgeDays) return missing("price.vs_sp500", metric, "closes are out of date");
   const diff = tidy(one.stockPct - one.marketPct);
-  const base = { value: diff, display: signedPoints(diff), period: `${one.from} to ${one.to}`, evidence: ["Adjusted daily closes, stock and SPY"] };
+  const base = {
+    value: diff,
+    display: signedPoints(diff),
+    period: `${one.from} to ${one.to}`,
+    evidence: ["Adjusted daily closes, stock and SPY"],
+    pair: { value: tidy(one.stockPct), versus: tidy(one.marketPct) },
+  };
   if (diff >= RULES.vsMarketPoints) return signal("price.vs_sp500", metric, { ...base, verdict: "good", name: "Beat the S&P 500" });
   if (diff <= -RULES.vsMarketPoints) return signal("price.vs_sp500", metric, { ...base, verdict: "watch", name: "Lagged the S&P 500" });
   return signal("price.vs_sp500", metric, base);

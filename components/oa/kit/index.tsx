@@ -476,7 +476,7 @@ export function Empty({ title, children, className = "" }: { title?: React.React
 /* ── Atoms ─────────────────────────────────────────────────────────────── */
 
 // The good-or-bad marks live in ./tone (no server imports) so client components can import them directly.
-export { MarkSlot, MoveBar, PairBar, ToneGlyph, Verdict } from "./tone";
+export { MarkSlot, MoveBar, PairBar, SignedBar, ToneGlyph, Verdict, barDomain } from "./tone";
 export { ShowMore } from "./more";
 
 /** Logo, ticker and (optionally) the company name, linking to the stock page. */
@@ -487,10 +487,13 @@ export function Ticker({
   size = 20,
   wrap = false,
   stretch = false,
+  atOnce = false,
   className = "",
 }: {
   symbol: string;
   name?: string | null;
+  /** Load the logo at once rather than lazily: cards revealed by a fold or far down a page (StockLogo `atOnce`). */
+  atOnce?: boolean;
   /**
    * Make the whole row clickable: the link's hit area stretches over the
    * nearest `relative` ancestor (the row). Other links in that row need
@@ -509,7 +512,7 @@ export function Ticker({
   const label = shown && shown.toUpperCase() !== symbol.toUpperCase() ? shown : "";
   const body = (
     <>
-      <StockLogo ticker={symbol} size={size} />
+      <StockLogo ticker={symbol} size={size} atOnce={atOnce} />
       <span className="oa-mono oa-tk-sym">{symbol}</span>
       {/* One line, always (owner, Nov 11): a long name is cut with "…" and the full name shows on hover. */}
       {label ? <span title={shown} className="oa-tk-name">{label}</span> : null}

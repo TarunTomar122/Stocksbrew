@@ -104,6 +104,66 @@ export function MoveBar({
   );
 }
 
+/**
+ * One signed figure as a short bar on a scale shared with its neighbours (pass the list's lowest and highest figure
+ * as `domain`), with the zero line drawn through it: a loss runs left of zero, a gain right, so a column of these
+ * reads as one chart (owner VISUALS CHECK). `color` is a CSS colour; without one the bar is green up and red down.
+ * `mark`, when given, is a thin tick at that figure on the same scale (the S&P 500's own figure, for scale).
+ */
+export function SignedBar({
+  value,
+  domain,
+  color,
+  mark,
+  markColor = "var(--oa-fg)",
+  className = "",
+}: {
+  value: number | null | undefined;
+  domain: [number, number];
+  color?: string;
+  mark?: number | null;
+  markColor?: string;
+  className?: string;
+}) {
+  if (value == null || !Number.isFinite(value)) return null;
+  const low = Math.min(0, domain[0], value, mark ?? 0);
+  const high = Math.max(0, domain[1], value, mark ?? 0);
+  // The two ends ride along so every bar in the list sits on one scale and one zero line.
+  const geometry = barGeometry(mark != null && Number.isFinite(mark) ? [value, low, high, mark] : [value, low, high]);
+  const bar = geometry.bars[0]!;
+  const fill = color ?? (value >= 0 ? "var(--signal-bullish)" : "var(--signal-bearish)");
+  const tick = mark != null && Number.isFinite(mark) ? geometry.bars[3]! : null;
+  return (
+    <span aria-hidden="true" className={`relative block h-2 rounded-full bg-oa-bg ${className}`}>
+      {bar.width > 0 ? (
+        <span
+          className={`absolute inset-y-0 ${bar.negative ? "rounded-l-full" : "rounded-r-full"}`}
+          style={{ left: `${bar.left}%`, width: `${bar.width}%`, background: fill }}
+        />
+      ) : null}
+      {bar.tiny ? (
+        <span
+          className="absolute top-1/2 size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full"
+          style={{ left: `${bar.negative ? bar.left : bar.left + bar.width}%`, background: fill }}
+        />
+      ) : null}
+      {tick ? (
+        <span
+          className="absolute -bottom-1 -top-1 w-0.5 -translate-x-1/2 rounded-full"
+          style={{ left: `${tick.negative ? tick.left : tick.left + tick.width}%`, background: markColor }}
+        />
+      ) : null}
+      <span className="absolute -bottom-0.5 -top-0.5 w-px -translate-x-1/2 bg-oa-fg/60" style={{ left: `${geometry.zero}%` }} />
+    </span>
+  );
+}
+
+/** The lowest and highest of a list of figures, for `SignedBar`'s shared scale. Missing figures are skipped. */
+export function barDomain(values: ReadonlyArray<number | null | undefined>): [number, number] {
+  const finite = values.filter((value): value is number => value != null && Number.isFinite(value));
+  return [Math.min(0, ...finite), Math.max(0, ...finite)];
+}
+
 /** The chart series colours (components/backtest/format.ts SERIES_VARS): copper for the thing, teal for what it is held against. */
 const PAIR_VARS = "[--series-a:#b85a1e] [--series-b:#0e8199] dark:[--series-a:#cf7a35] dark:[--series-b:#2f9db5]";
 

@@ -1,6 +1,8 @@
 import { todayET } from "@/lib/calendar-shared";
 import { saysSameDevelopment, weekChange } from "@/lib/stock-timeline";
 
+import { StockLogo } from "@/components/stock-logo";
+
 import { ChangedTimeline } from "./changed-timeline";
 import { briefLeadOf, daysBetween, fmtDate, relativeDays } from "./format";
 import { NUM, Panel, SECTION_LABELS, type SectionId } from "./primitives";
@@ -69,7 +71,13 @@ export function StockReportBelow({ data, extras, signals = null }: { data: Repor
       <div data-phone-section="view" className="order-1 min-w-0">
         <Panel
           id="changed"
-          label="What changed"
+          label={
+            // The stock's logo once on the list, not on every row (owner rules 1 and 4).
+            <span className="inline-flex items-center gap-2">
+              <StockLogo ticker={stock.ticker} size={18} />
+              What changed
+            </span>
+          }
           className="scroll-mt-16 lg:scroll-mt-4"
           meta={sources ? <span className="font-sans text-[12px]">{sources}</span> : undefined}
         >

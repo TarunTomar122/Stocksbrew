@@ -318,3 +318,19 @@ export function getMarketSessionState(ref = new Date()): MarketSessionState {
     countdown: formatCountdown(msToOpen),
   };
 }
+
+/**
+ * Whether a US stock's price has sat out today's session so far: the market is open, the session's first hourly
+ * batches have had time to land (from 10:45 ET; backend/vps/install-systemd.sh runs price batches at 9:30, 9:50 and
+ * on each hour from 10:00), and the price was captured before today's 9:30 open. Such a price updates only with the
+ * run after the close. False for a missing or unreadable time: nothing is said without the evidence.
+ */
+export function priceSkipsSession(capturedAt: string | null | undefined, ref = new Date()): boolean {
+  const captured = capturedAt ? Date.parse(capturedAt) : Number.NaN;
+  if (!Number.isFinite(captured)) return false;
+  const state = getMarketSessionState(ref);
+  if (state.kind !== "open" || state.minutesOfDay < 10 * 60 + 45) return false;
+  const parts = marketClockParts("US", ref);
+  const open = etWallTimeToUtcMs(Number(parts.year), Number(parts.month), Number(parts.day), 9, 30);
+  return captured < open;
+}

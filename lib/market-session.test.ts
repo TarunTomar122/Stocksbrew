@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  priceSkipsSession,
   countdownParts,
   countdownTickMs,
   etWallTimeToUtcMs,
@@ -160,5 +161,28 @@ describe("countdown cadence", () => {
   it("always ticks every second when a seconds cell is visible", () => {
     expect(countdownTickMs(2 * 86_400_000, true)).toBe(1_000);
     expect(countdownTickMs(9 * 3_600_000, true)).toBe(1_000);
+  });
+});
+
+describe("priceSkipsSession", () => {
+  // Thu Nov 12 2026: EST, so 1:28 PM ET is 18:28 UTC.
+  const midday = new Date("2026-11-12T18:28:00Z");
+
+  it("is true mid-session for a price from before today's open", () => {
+    expect(priceSkipsSession("2026-11-11T20:59:00Z", midday)).toBe(true);
+    expect(priceSkipsSession("2026-11-12T14:29:00Z", midday)).toBe(true);
+  });
+
+  it("is false for a price from today's session, or a time it cannot read", () => {
+    expect(priceSkipsSession("2026-11-12T18:00:00Z", midday)).toBe(false);
+    expect(priceSkipsSession("2026-11-12T14:31:00Z", midday)).toBe(false);
+    expect(priceSkipsSession(null, midday)).toBe(false);
+    expect(priceSkipsSession("not a time", midday)).toBe(false);
+  });
+
+  it("says nothing before the first hourly batches land, after the close, or on a weekend", () => {
+    expect(priceSkipsSession("2026-11-11T20:59:00Z", new Date("2026-11-12T15:30:00Z"))).toBe(false); // 10:30 ET
+    expect(priceSkipsSession("2026-11-11T20:59:00Z", new Date("2026-11-12T21:30:00Z"))).toBe(false); // 4:30 PM ET
+    expect(priceSkipsSession("2026-11-13T20:59:00Z", new Date("2026-11-14T17:00:00Z"))).toBe(false); // Saturday
   });
 });

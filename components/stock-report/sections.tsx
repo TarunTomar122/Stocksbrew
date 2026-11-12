@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { todayET } from "@/lib/calendar-shared";
-import { absoluteDay, onDayWords } from "@/lib/day-words";
+import { absoluteDay, dayWords, daysFromToday, onDayWords } from "@/lib/day-words";
 
 import { StockLogo } from "@/components/stock-logo";
 import { multiplePercentile } from "@/lib/stock-chart";
@@ -8,7 +8,6 @@ import { parseMonthPeriod } from "@/lib/stock-timeline";
 import { isBalanceSheetFinancial } from "@/lib/financial-company";
 import {
   balanceReading,
-  businessHeadline,
   cashFlowReading,
   chronologicalHistory,
   growthReading,
@@ -20,8 +19,11 @@ import {
   type Reading,
 } from "@/lib/stock-readings";
 import { moodWord, scoreVerdict, type ToneWord } from "@/lib/tone";
+import { emptyCounts, rowTone } from "@/lib/wire-read";
+import { PairBar, SignedBar } from "@/components/oa/kit/tone";
 
 import { CompareBars, MiniBars, MiniLines, RangeTrack, RatingColumns, ShareRows, Spark, type RangeMarker } from "./charts";
+import { MarkedTrack, ReturnBars, RsiGauge, type TrackMark } from "./tech-charts";
 import {
   clipText,
   compactMoney,
@@ -29,7 +31,7 @@ import {
   daysBetween,
   fin,
   fmtDate,
-  fmtStampDate,
+  fmtTimeET,
   levelFormatter,
   moneyFormatter,
   multiple,
@@ -202,7 +204,8 @@ export function OverviewSection({ data }: SectionProps) {
   ].filter((item): item is NonNullable<typeof item> => Boolean(item));
 
   return (
-    <ReportSection id="overview" lede={businessHeadline(facts, balanceSheet)}>
+    // No sentence under the title: it restated the readings right below (owner rule 8).
+    <ReportSection id="overview">
       {description ? (
         <Panel label="What it does" meta={[stock.exchange, stock.country].filter(Boolean).join(" · ") || undefined}>
           <p className={`px-3.5 py-3 sm:px-4 ${PROSE}`}>{description}</p>
@@ -1008,19 +1011,46 @@ function MetaWith({ signal, children }: { signal: StockSignal | null; children: 
 
 // ─── News ────────────────────────────────────────────────────────────────────
 
+/** The row's tone word: only a clear lean is said; a neutral headline's row stays bare. */
+const NEWS_TONE = {
+  positive: { word: "Positive", color: TONE_COLOR.up },
+  negative: { word: "Negative", color: TONE_COLOR.down },
+} as const;
+
+/**
+ * How the stock's headlines lean, in the one figure or word /news uses for a stock ("65% negative", "Leans positive",
+ * "Mixed", "60% neutral"; lib/wire-read.ts), over every headline listed, read or not, in the rows' colours. Nothing
+ * when too few have a tone to say.
+ */
+function NewsLean({ news }: { news: SectionData["news"] }) {
+  const counts = emptyCounts();
+  for (const article of news) if (article.tone) counts[article.tone] += 1;
+  const said = rowTone(counts, news.length);
+  if (said.side === "unsaid" && said.text !== "Mixed") return null;
+  const color = said.side === "positive" ? TONE_COLOR.up : said.side === "negative" ? TONE_COLOR.down : TONE_COLOR.flat;
+  const title = `${counts.positive} positive, ${counts.neutral} neutral, ${counts.negative} negative of ${news.length} headlines`;
+  return (
+    <span className="oa-mono text-[12px] font-medium" style={{ color }} title={title}>
+      {said.text}
+      <span className="sr-only">: {title}</span>
+    </span>
+  );
+}
+
 export function NewsSection({ data }: SectionProps) {
-  const { stock, news, reddit } = data;
+  const { stock, news, reddit, nowIso } = data;
+  const today = todayET(Number.isFinite(Date.parse(nowIso)) ? Date.parse(nowIso) : Date.now());
   return (
     <ReportSection id="news">
       {news.length ? (
-        <Panel label={`Latest on ${stock.ticker}`} meta={`${news.length} ${news.length === 1 ? "article" : "articles"} · last 14 days`}>
+        <Panel label={`Latest on ${stock.ticker}`} meta={<NewsLean news={news} />}>
           {news.slice(0, 8).map((article) => (
-            <NewsRow key={article.id || article.url} article={article} />
+            <NewsRow key={article.id || article.url} article={article} today={today} />
           ))}
           {news.length > 8 ? (
             <Details summary={`${news.length - 8} more`} track={{ section: "news", ticker: stock.ticker }}>
               {news.slice(8).map((article) => (
-                <NewsRow key={article.id || article.url} article={article} />
+                <NewsRow key={article.id || article.url} article={article} today={today} />
               ))}
             </Details>
           ) : null}
@@ -1043,28 +1073,49 @@ export function NewsSection({ data }: SectionProps) {
   );
 }
 
+/** "today 1:11 PM", "yesterday", "Monday", "Nov 3": the hour only for today's headlines. A stamp ahead of today is "today". */
+function newsWhen(iso: string, today: string): string {
+  const gap = daysFromToday(iso, today);
+  if (gap !== null && gap > 0) return "today";
+  const words = dayWords(iso, today);
+  if (words !== "today") return words;
+  const time = fmtTimeET(iso).replace(/ ET$/, "");
+  return time ? `today ${time}` : words;
+}
+
 /**
- * A headline with its publisher and time. No "reads bullish" mark: a headline's tone is not a verified effect on the
- * business, so news is judged only from reviewed, sourced events (lib/stock-signals.ts `news.event`), none yet.
+ * A headline in sentence case with its publisher and day, and on the right "Positive" or "Negative" as /news reads it
+ * (the model's label, else the headline's own words; news-tone.ts). Neutral or unread means no word, never a guess.
  */
-function NewsRow({ article }: { article: SectionData["news"][number] }) {
+function NewsRow({ article, today }: { article: SectionData["news"][number]; today: string }) {
+  const tone = article.tone === "positive" || article.tone === "negative" ? NEWS_TONE[article.tone] : null;
   return (
     <a
       href={article.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="block border-b border-oa-border px-3.5 py-2 outline-none transition-colors last:border-b-0 hover:bg-oa-accent focus-visible:bg-oa-accent sm:px-4"
+      className="flex items-start justify-between gap-3 border-b border-oa-border px-3.5 py-2 outline-none transition-colors last:border-b-0 hover:bg-oa-accent focus-visible:bg-oa-accent sm:px-4"
     >
-      <span className="block text-pretty text-[14px] font-medium leading-5 text-oa-fg">{article.title}</span>
-      <span className="oa-mono mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] leading-4 text-oa-muted-fg">
-        <span>{article.source_name || "News"}</span>
-        <span>{fmtStampDate(article.published_at)}</span>
+      <span className="min-w-0">
+        <span className="block text-pretty text-[14px] font-medium leading-5 text-oa-fg">{article.title}</span>
+        <span className="oa-mono mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] leading-4 text-oa-muted-fg">
+          <span>{article.source_name || "News"}</span>
+          <span>{newsWhen(article.published_at, today)}</span>
+        </span>
       </span>
+      {tone ? (
+        <span className="oa-mono mt-0.5 shrink-0 text-[12px] font-medium leading-4" style={{ color: tone.color }}>
+          {tone.word}
+        </span>
+      ) : null}
     </a>
   );
 }
 
 // ─── Technicals ──────────────────────────────────────────────────────────────
+
+const PRICE_DOT = "var(--oa-fg)";
+const AVERAGE_TICK = "color-mix(in srgb, var(--oa-fg) 45%, transparent)";
 
 export function TechnicalsSection({ data, signals }: SectionProps) {
   const { stock, technicals, facts, fundamentals, series, currency } = data;
@@ -1073,11 +1124,18 @@ export function TechnicalsSection({ data, signals }: SectionProps) {
   const trend = trendReading(stock.price, technicals);
   const lede = trend?.statement ?? null;
   const away = (value: number) => `${Math.abs(((stock.price - value) / value) * 100).toFixed(1)}%`;
-  const side = (value: number) => `price is ${away(value)} ${stock.price >= value ? "above" : "below"} it`;
   const averageRows = [
-    { key: "sma20", label: "20-day average", value: averages?.sma_20 },
-    { key: "sma50", label: "50-day average", value: averages?.sma_50 ?? fundamentals?.fifty_day_average },
-    { key: "sma200", label: "200-day average", value: averages?.sma_200 ?? fundamentals?.two_hundred_day_average },
+    { key: "sma20", label: "20-day", value: averages?.sma_20 },
+    {
+      key: "sma50",
+      label: "50-day",
+      value: averages?.sma_50 ?? fundamentals?.fifty_day_average,
+    },
+    {
+      key: "sma200",
+      label: "200-day",
+      value: averages?.sma_200 ?? fundamentals?.two_hundred_day_average,
+    },
   ].filter((row): row is { key: string; label: string; value: number } => fin(row.value) && row.value > 0);
   // This tab's signals (lib/stock-signals.ts): the 50- and 200-day averages, RSI extremes, the distance from the
   // 52-week high, and the one-year return against the S&P 500.
@@ -1086,85 +1144,262 @@ export function TechnicalsSection({ data, signals }: SectionProps) {
   const rsiSignal = signalOf(signals, "price.rsi");
   const offHigh = signalOf(signals, "price.off_high");
   const vsMarket = signalOf(signals, "price.vs_sp500");
+  const pair = vsMarket?.eligible ? (vsMarket.pair ?? null) : null;
   const returns = [
     { label: "1 month", value: facts?.returns?.one_month_pct },
     { label: "3 months", value: facts?.returns?.three_month_pct },
     { label: "6 months", value: facts?.returns?.six_month_pct },
-    { label: "1 year", value: facts?.returns?.one_year_pct },
-    ...(series?.longReturns ?? []).map((row) => ({ label: row.label.replace("Y", row.label === "1Y" ? " year" : " years"), value: row.pct })),
-  ].filter((row): row is { label: string; value: number } => fin(row.value));
+    // The year the S&P 500 comparison below uses (adjusted daily closes) when it has one, so the two never disagree.
+    pair ? { label: "1 year", value: pair.value, title: "Dividends included" } : { label: "1 year", value: facts?.returns?.one_year_pct },
+    ...(series?.longReturns ?? []).map((row) => ({
+      label: row.label.replace("Y", row.label === "1Y" ? " year" : " years"),
+      value: row.pct,
+      title: "Total return, dividends included",
+    })),
+  ].filter((row): row is { label: string; value: number; title?: string } => fin(row.value));
   const rsi = technicals?.rsi_14?.value;
   const high52 = fundamentals?.week_52_high;
   const low52 = fundamentals?.week_52_low;
   const levels = technicals?.levels;
+  const hasPrice = fin(stock.price) && stock.price > 0;
+  const hasRange = fin(high52) && fin(low52) && high52 > low52;
+  // The averages on one line with the price: the line spans them all, a little either side, so the gap between the
+  // price and each average is the distance the "price is X% below" figure gives.
+  const trendValues = [...averageRows.map((row) => row.value), ...(hasPrice ? [stock.price] : [])];
+  const trendLow = Math.min(...trendValues);
+  const trendHigh = Math.max(...trendValues);
+  const trendPad = Math.max((trendHigh - trendLow) * 0.08, trendHigh * 0.01);
+  const showTrendLine = hasPrice && averageRows.length > 0;
+  const showTrend = averageRows.length > 0 || fin(rsi);
+
+  // The highest close on record sits on the 52-week line when it is the 52-week high (within half a percent).
+  const athOnLine = hasRange && series?.allTimeHigh ? Math.abs(series.allTimeHigh.close / high52 - 1) <= 0.005 : false;
+  const levelMarks: TrackMark[] = [
+    ...(fin(levels?.support)
+      ? [
+          {
+            key: "support",
+            value: levels.support,
+            name: "Support",
+            text: money(levels.support),
+            color: TONE_COLOR.up,
+            shape: "tick" as const,
+          },
+        ]
+      : []),
+    ...(fin(levels?.resistance)
+      ? [
+          {
+            key: "resistance",
+            value: levels.resistance,
+            name: "Resistance",
+            text: money(levels.resistance),
+            color: TONE_COLOR.down,
+            shape: "tick" as const,
+          },
+        ]
+      : []),
+    ...(hasPrice
+      ? [
+          {
+            key: "price",
+            value: stock.price,
+            name: "Price now",
+            text: money(stock.price),
+            color: PRICE_DOT,
+            shape: "dot" as const,
+          },
+        ]
+      : []),
+  ];
+  // Support or resistance outside the 52-week range would sit pinned at an end, so it is a row instead.
+  const onLine = (mark: TrackMark) => mark.shape === "dot" || (hasRange && mark.value >= low52 && mark.value <= high52);
+  const offLine = hasRange ? levelMarks.filter((mark) => !onLine(mark)) : levelMarks.filter((mark) => mark.shape === "tick");
 
   return (
     <ReportSection id="technicals" lede={lede}>
-      <div className="grid gap-3 md:grid-cols-2">
-        {averageRows.length || fin(rsi) ? (
-          <Panel label="Trend and momentum">
-            {averageRows.map((row) => {
-              const note = `price is ${away(row.value)} ${stock.price >= row.value ? "above" : "below"}`;
-              // The 50- and 200-day notes carry their signal (2% either way, lib/stock-signals.ts); the 20-day is shown, not judged.
-              const judged = row.key === "sma50" ? sma50 : row.key === "sma200" ? sma200 : null;
-              return (
-                <Row
-                  key={row.label}
-                  label={row.label}
-                  // The mark sits on the "price is above/below" note it judges, not on the average, which it would seem to call rising or falling.
-                  sub={judged?.eligible && judged.verdict !== "neutral" ? <SignalFigure signal={judged} className="font-sans font-normal">{note}</SignalFigure> : note}
-                  value={money(row.value)}
+      {/* Side by side when both have something; one alone takes the whole width rather than leave half of it empty. */}
+      <div className={`grid items-stretch gap-3 ${showTrend && returns.length ? "md:grid-cols-2" : ""}`}>
+        {showTrend ? (
+          <Panel label="Trend and momentum" className="flex flex-col" bodyClassName="flex flex-1 flex-col">
+            {showTrendLine ? (
+              <div className="border-b border-oa-border px-3.5 pb-2 pt-2.5 sm:px-4">
+                <MarkedTrack
+                  low={trendLow - trendPad}
+                  high={trendHigh + trendPad}
+                  marks={[
+                    // The averages' figures are in the grid under the line, so the line names them only.
+                    ...averageRows.map((row) => ({
+                      key: row.key,
+                      value: row.value,
+                      name: `${row.label} avg`,
+                      text: "",
+                      color: AVERAGE_TICK,
+                      shape: "tick" as const,
+                    })),
+                    {
+                      key: "price",
+                      value: stock.price,
+                      name: "Price now",
+                      text: money(stock.price),
+                      color: PRICE_DOT,
+                      shape: "dot" as const,
+                    },
+                  ]}
+                  // Half the content width from 768px, about 300px at its narrowest; full width on a phone.
+                  widths={{ phone: 300, wide: 300 }}
+                  label={`Price ${money(stock.price)}. ${averageRows.map((row) => `${row.label} average ${money(row.value)}`).join(", ")}.`}
                 />
-              );
-            })}
-            {fin(rsi) ? (
-              <Row
-                label="RSI (14 days)"
-                sub={rsi >= 70 ? "above 70" : rsi <= 30 ? "under 30" : "between 30 and 70"}
-                // Watch at either extreme, never good: neither predicts which way it goes next.
-                value={rsiSignal?.eligible && rsiSignal.verdict !== "neutral" ? <SignalFigure signal={rsiSignal} /> : rsi.toFixed(1)}
-              />
+              </div>
             ) : null}
-            {offHigh?.eligible ? <Row label="From the 52-week high" value={offHigh.verdict !== "neutral" ? <SignalFigure signal={offHigh} /> : offHigh.display} /> : null}
-            {/* Ahead of or behind the S&P 500 over the same year, dividends in, in points (5 either way is a signal). */}
-            {vsMarket?.eligible ? <Row label="1 year against the S&P 500" value={<SignalFigure signal={vsMarket} />} /> : null}
+            {averageRows.length ? (
+              <div
+                className="grid border-b border-oa-border"
+                style={{
+                  gridTemplateColumns: `repeat(${averageRows.length}, minmax(0, 1fr))`,
+                }}
+              >
+                {averageRows.map((row) => {
+                  const note = hasPrice ? `${away(row.value)} ${stock.price >= row.value ? "above" : "below"}` : "";
+                  // The 50- and 200-day notes carry their signal (2% either way, lib/stock-signals.ts); the 20-day is shown, not judged.
+                  const judged = row.key === "sma50" ? sma50 : row.key === "sma200" ? sma200 : null;
+                  return (
+                    <div key={row.key} className="min-w-0 border-r border-oa-border px-3 py-2 last:border-r-0 sm:px-4">
+                      <p className="text-[12px] leading-4 text-oa-muted-fg">{row.label} avg</p>
+                      <p className={`${NUM} text-[15px] font-medium leading-5 text-oa-fg`}>{money(row.value)}</p>
+                      {/* "price 35.7% below", the word "price" dropped where the column is narrow (a phone, a half-width panel under 1280px). */}
+                      {note ? (
+                        <p className="text-[12px] leading-4 text-oa-muted-fg" title={`Price ${note} its ${row.label} average`}>
+                          {judged?.eligible && judged.verdict !== "neutral" ? (
+                            <SignalFigure signal={judged} className="font-sans font-normal">
+                              <span className="hidden xl:inline">price </span>
+                              {note}
+                            </SignalFigure>
+                          ) : (
+                            <>
+                              <span className="hidden xl:inline">price </span>
+                              {note}
+                            </>
+                          )}
+                        </p>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
+            {offHigh?.eligible && fin(offHigh.value) ? (
+              <div className="border-b border-oa-border px-3.5 py-2.5 sm:px-4">
+                <div className="mb-1.5 flex items-baseline justify-between gap-3 text-[14px] leading-5">
+                  <span className="text-oa-muted-fg">From the 52-week high</span>
+                  {offHigh.verdict !== "neutral" ? (
+                    <SignalFigure signal={offHigh} />
+                  ) : (
+                    <span className={`${NUM} font-medium text-oa-fg`}>{offHigh.display}</span>
+                  )}
+                </div>
+                {/* The high is the right end, so the bar runs left from it by the fall. */}
+                <SignedBar
+                  value={Math.min(0, offHigh.value)}
+                  domain={[-100, 0]}
+                  color={offHigh.verdict === "watch" ? TONE_COLOR.down : AVERAGE_TICK}
+                />
+              </div>
+            ) : null}
+            {fin(rsi) ? (
+              <div className="flex flex-1 flex-col justify-center px-3.5 py-2.5 sm:px-4">
+                <div className="mb-1 flex items-baseline justify-between gap-3 text-[14px] leading-5">
+                  <span className="text-oa-muted-fg">RSI (14 days)</span>
+                  {/* Watch at either extreme, never good: neither predicts which way it goes next. */}
+                  {rsiSignal?.eligible && rsiSignal.verdict !== "neutral" ? (
+                    <SignalFigure signal={rsiSignal} />
+                  ) : (
+                    <span className={`${NUM} font-medium text-oa-fg`}>{rsi.toFixed(1)}</span>
+                  )}
+                </div>
+                <RsiGauge value={rsi} color={rsi >= 70 || rsi <= 30 ? TONE_COLOR.down : PRICE_DOT} />
+              </div>
+            ) : null}
           </Panel>
         ) : null}
 
         {returns.length ? (
-          <Panel label="Returns">
-            {returns.map((row) => (
-              <Row key={row.label} label={row.label} value={bigPct(row.value)} tone={row.value >= 0 ? "up" : "down"} />
-            ))}
-            {series?.longReturns.length ? (
-              <p className="border-t border-oa-border px-3.5 py-2 text-[12px] leading-4 text-oa-muted-fg sm:px-4">
-                Multi-year figures are total return, dividends included.
-              </p>
+          <Panel label="Returns" className="flex flex-col" bodyClassName="flex flex-1 flex-col">
+            <div className="flex-1">
+              <ReturnBars rows={returns} format={bigPct} />
+            </div>
+            {/* Ahead of or behind the S&P 500 over the same year, dividends in, in points (5 either way is a signal). */}
+            {vsMarket?.eligible ? (
+              <div className="border-t border-oa-border px-3.5 py-2.5 sm:px-4">
+                <div className="mb-1.5 flex items-baseline justify-between gap-3 text-[14px] leading-5">
+                  <span className="text-oa-muted-fg">1 year against the S&amp;P 500</span>
+                  <SignalFigure signal={vsMarket} />
+                </div>
+                {pair ? (
+                  <PairBar
+                    value={pair.value}
+                    versus={pair.versus}
+                    labels={[stock.ticker, "S&P 500"]}
+                    texts={[bigPct(pair.value), bigPct(pair.versus)]}
+                  />
+                ) : null}
+              </div>
             ) : null}
           </Panel>
         ) : null}
       </div>
 
-      {(fin(high52) && fin(low52) && high52 > low52) || fin(levels?.support) || fin(levels?.resistance) ? (
+      {hasRange || offLine.length ? (
         <Panel label="Range and levels">
-          {fin(high52) && fin(low52) && high52 > low52 ? (
-            <div className="px-3.5 pb-2 pt-3 sm:px-4">
-              <p className="mb-1 text-[12px] leading-4 text-oa-muted-fg">52-week range, price marked</p>
-              <RangeTrack
+          {hasRange ? (
+            <div className="px-3.5 pb-2.5 pt-2.5 sm:px-4">
+              <MarkedTrack
                 low={low52}
                 high={high52}
-                format={money}
-                markers={[{ key: "price", value: stock.price, color: "var(--oa-fg)", shape: "dot", label: "Price now" }]}
+                marks={levelMarks.filter(onLine)}
+                // The stretch from the price up to the 52-week high, the fall the header's figure gives.
+                span={
+                  hasPrice && stock.price < high52
+                    ? {
+                        from: stock.price,
+                        to: high52,
+                        color: "color-mix(in srgb, var(--signal-bearish) 22%, transparent)",
+                      }
+                    : null
+                }
+                ends={{
+                  low: money(low52),
+                  high: money(high52),
+                  lowName: "52-week low",
+                  highName: "52-week high",
+                  highNote: athOnLine && series ? `Highest close since ${series.firstDate.slice(0, 4)}` : null,
+                }}
+                label={`52-week range ${money(low52)} to ${money(high52)}. ${levelMarks
+                  .filter(onLine)
+                  .map((mark) => `${mark.name} ${mark.text}`)
+                  .join(", ")}.`}
               />
             </div>
           ) : null}
-          <div className="border-t border-oa-border">
-            {fin(levels?.resistance) ? <Row label="Resistance (monthly pivot)" sub={side(levels.resistance)} value={money(levels.resistance)} /> : null}
-            {fin(levels?.support) ? <Row label="Support (monthly pivot)" sub={side(levels.support)} value={money(levels.support)} /> : null}
-            {series?.allTimeHigh ? (
-              <Row label={`Highest close since ${series.firstDate.slice(0, 4)}`} sub={`${fmtDate(series.allTimeHigh.date)}${series.adjusted ? ", adjusted" : ""}`} value={money(series.allTimeHigh.close)} />
-            ) : null}
-          </div>
+          {offLine.length || (series?.allTimeHigh && !athOnLine) ? (
+            <div className="border-t border-oa-border">
+              {offLine.map((mark) => (
+                <Row
+                  key={mark.key}
+                  label={mark.key === "support" ? "Support (monthly pivot)" : "Resistance (monthly pivot)"}
+                  sub={hasPrice ? `price is ${away(mark.value)} ${stock.price >= mark.value ? "above" : "below"} it` : undefined}
+                  value={mark.text}
+                />
+              ))}
+              {series?.allTimeHigh && !athOnLine ? (
+                <Row
+                  label={`Highest close since ${series.firstDate.slice(0, 4)}`}
+                  sub={`${fmtDate(series.allTimeHigh.date)}${series.adjusted ? ", adjusted" : ""}`}
+                  value={money(series.allTimeHigh.close)}
+                />
+              ) : null}
+            </div>
+          ) : null}
         </Panel>
       ) : null}
     </ReportSection>

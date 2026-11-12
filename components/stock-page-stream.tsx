@@ -13,6 +13,7 @@ import type { ReportData, ReportExtras } from "@/components/stock-report/types";
 import type { HiddenLevel } from "@/components/stock-report/call-line";
 import { ownCallLevel } from "@/lib/call-level";
 import { StockReportBelow } from "@/components/stock-report/below";
+import { toneNews, type TonedArticle } from "@/components/stock-report/news-tone";
 import { SignalStrip } from "@/components/stock-report/signal-ui";
 import { stockSignalsInput } from "@/components/stock-report/signals-input";
 import { buildStockSignals, type StockSignals } from "@/lib/stock-signals";
@@ -20,7 +21,7 @@ import { StockBelowSkeleton } from "@/components/stock-report/skeleton";
 import { StockRelatedRow } from "@/components/seo/stock-family-links";
 import { StockViewTracker } from "@/components/stock-view-tracker";
 import { UnlistedStockShell } from "@/components/unlisted-stock-shell";
-import { PriorityStockModal } from "@/components/priority-stock-modal";
+import { PriorityPriceNote } from "@/components/priority-stock-modal";
 import { OnDemandResearchRefresh } from "@/components/on-demand-research-refresh";
 import { resolveStockTier } from "@/lib/ai-launch-tier";
 import { getSessionUser } from "@/lib/auth-server";
@@ -43,6 +44,7 @@ import {
   type InstrumentViewDoc,
 } from "@/lib/stock";
 import { getCurrentMarket } from "@/lib/market";
+import { priceSkipsSession } from "@/lib/market-session";
 import { getRedditContextForTicker, getRedditCues, resolveRedditContextForSymbol } from "@/lib/reddit-cues";
 import type { RedditTickerContext } from "@/lib/reddit-cues-shared";
 import { getNewsForTicker, type NewsArticle } from "@/lib/news";
@@ -187,17 +189,35 @@ async function SignalStripStream({ signals }: { signals: Promise<StockSignals | 
   return judged?.tally ? <SignalStrip tally={judged.tally} /> : null;
 }
 
-/** Whether this stock's price is refreshed less often than the priority set's (a notice explains it); never holds up the page. */
-async function PriorityNotice({ market, instrumentId, ticker }: { market: "US" | "IN"; instrumentId: string; ticker: string }) {
+/**
+ * Whether this stock's price is refreshed less often than the priority set's (a note by the price time says so);
+ * never holds up the page. The note says its price updates after each close, so it shows only where that is plainly
+ * true: a US stock outside the priority list and the price-core overrides whose price, mid-session, is still from
+ * before today's open (lib/market-session.ts `priceSkipsSession`). A stock the hourly batches did pick up says nothing.
+ */
+async function PriorityNotice({
+  market,
+  instrumentId,
+  ticker,
+  capturedAt,
+}: {
+  market: "US" | "IN";
+  instrumentId: string;
+  ticker: string;
+  capturedAt: string | null | undefined;
+}) {
+  if (market !== "US" || !priceSkipsSession(capturedAt)) return null;
   const [marketMovers, priceCoreOverrides] = await Promise.all([
     getMarketMovers(market).catch(() => null),
-    getPriceCoreOverrides(market).catch(() => [] as string[]),
+    getPriceCoreOverrides(market).catch(() => null),
   ]);
-  const priorityIds = marketMovers?.priority_instrument_ids ?? [];
+  // Either lookup failing is no evidence: the note is only said when both lists were read.
+  if (!marketMovers || !priceCoreOverrides) return null;
+  const priorityIds = marketMovers.priority_instrument_ids ?? [];
   const inPriorityCohort = priorityIds.includes(instrumentId);
-  const inExtendedOverrides = (priceCoreOverrides || []).includes(instrumentId);
+  const inExtendedOverrides = priceCoreOverrides.includes(instrumentId);
   const open = priorityIds.length > 0 && !(inPriorityCohort || inExtendedOverrides);
-  return <PriorityStockModal open={open} instrumentId={instrumentId} ticker={ticker} />;
+  return <PriorityPriceNote open={open} instrumentId={instrumentId} ticker={ticker} />;
 }
 
 export async function StockPageStream({ params }: Props) {
@@ -306,7 +326,11 @@ export async function StockPageStream({ params }: Props) {
 
   // Reads only the lower half uses (what changed, the sections, the priority notice) start now too, but the
   // top of the page (price, call, chart, the read) never waits for them: they stream in under it.
-  const newsPromise = getNewsForTicker(market, stock.ticker, { days: 14, limit: 14 }).catch(() => [] as NewsArticle[]);
+  // Each headline with its tone as /news reads it (components/stock-report/news-tone.ts); no tone read leaves it unset.
+  const newsPromise = getNewsForTicker(market, stock.ticker, { days: 14, limit: 14 })
+    .catch(() => [] as NewsArticle[])
+    // A tone failure keeps the headlines, untoned.
+    .then((rows) => toneNews(rows, stock.ticker, stock.name).catch((): TonedArticle[] => rows.map((row) => ({ ...row, tone: null }))));
   const redditPromise = getRedditContextForTicker(market, stock.ticker).catch(() => null);
   const ownershipPromise = getStockOwnership(stock.ticker, market).catch((): StockOwnership => ({ funds: null, insiders: null }));
 
@@ -751,11 +775,13 @@ export async function StockPageStream({ params }: Props) {
       />
       <StockViewTracker ticker={displayStock.ticker} instrumentId={displayStock.instrument_id} market={market} />
       <OnDemandResearchRefresh status={resolvedOnDemandStatus} />
-      <Suspense fallback={null}>
-        <PriorityNotice market={market} instrumentId={displayStock.instrument_id} ticker={displayStock.ticker} />
-      </Suspense>
       <StockReport
         data={data}
+        priceNote={
+          <Suspense fallback={null}>
+            <PriorityNotice market={market} instrumentId={displayStock.instrument_id} ticker={displayStock.ticker} capturedAt={displayStock.captured_at} />
+          </Suspense>
+        }
         signals={
           data.readState === "ready" ? (
             <Suspense fallback={null}>

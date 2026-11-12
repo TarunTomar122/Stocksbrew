@@ -184,8 +184,11 @@ export function StockReport({
   related,
   below,
   signals,
+  priceNote,
 }: {
   data: ReportData;
+  /** A quiet note beside the price time, streamed in (components/priority-stock-modal.tsx: a price updated only after the close). */
+  priceNote?: ReactNode;
   /** The good and watch tally (./signal-ui.tsx `SignalStrip`), streamed in once every section it counts has loaded. */
   signals?: ReactNode;
   /** Links to the stock's sector, rivals, insiders and earnings pages, streamed in under the head. */
@@ -472,6 +475,7 @@ export function StockReport({
                       {stock.captured_at ? <p className="text-[12px] leading-4 text-oa-muted-fg">{priceStamp(stock.captured_at)}</p> : null}
                       <MarketStatusInline nowIso={nowIso} surface="stock" />
                       {data.premarketQuote ? <StockPremarketQuote currency={currency} market={market} quote={data.premarketQuote} /> : null}
+                      {priceNote}
                     </div>
                   </div>
                   {/* How long the call has stood and when we last looked at it again, quiet under the price. */}

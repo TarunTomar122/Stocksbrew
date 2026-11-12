@@ -101,6 +101,10 @@ const KIND_PATHS = {
   factory: ["M3 20V10l5 3V10l5 3V6h4l1 14H3zM3 20h18"],
   // An annual report: a closed book.
   book: ["M5 4h11a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2V4Z", "M5 18a2 2 0 0 1 2-2h11", "M9 8h5"],
+  // When something updates: a clock face.
+  clock: ["M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z", "M12 7.5V12l3 2"],
+  // Dismiss: a cross.
+  close: ["M6 6l12 12", "M18 6 6 18"],
 } satisfies Record<string, string[]>;
 
 export type KindIconName = NavIconName | keyof typeof KIND_PATHS;

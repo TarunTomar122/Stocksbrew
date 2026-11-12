@@ -214,6 +214,48 @@ function dividendAmount(amount: number): string {
   return three.endsWith("0") ? amount.toFixed(2) : three;
 }
 
+/** A rating action, as one word of a headline. */
+const ANALYST_ACTION = /^(upgrade[sd]?|downgrade[sd]?|initiate[sd]?|initiating)$/i;
+/** Capitalised words that are never the firm: Title Case filler and rating words ("AMD Gets An Upgrade From Mizuho"). */
+const NOT_A_FIRM = new Set(
+  (
+    "a an the and or of to on for in after as amid with from by at its it is are gets get got sees wins earns lands receives " +
+    "analyst analysts wall street top stock stocks shares share rating ratings price target targets buy sell hold outperform " +
+    "underperform neutral overweight underweight equal weight market perform sector new more why what how today this week"
+  ).split(" "),
+);
+const FIRM_LEAD = /^(?:by|at|from)$/i;
+
+/**
+ * The analyst action a headline reports, as a key that stays the same however the story is worded: "William Blair
+ * upgrade boosts AMD", "William Blair upgrades Advanced Micro Devices to Outperform" and "AMD rises as William Blair
+ * upgrades" are all `up|blair`. Null when the headline reports no rating action or names no firm apart from the
+ * company itself ("Analyst Upgrades And Downgrades For Thursday"), so only the same firm's same action on the same
+ * stock is ever folded together.
+ */
+export function analystStoryKey(title: string, ticker: string, companyName = ""): string | null {
+  const words = title.split(/\s+/).map((raw) => raw.replace(/[’']s$/i, "").replace(/^[^\w&]+|[^\w&.]+$/g, "")).filter(Boolean);
+  const at = words.findIndex((word) => ANALYST_ACTION.test(word));
+  if (at < 0) return null;
+  const word = words[at]!.toLowerCase();
+  const action = word.startsWith("up") ? "up" : word.startsWith("down") ? "down" : "start";
+  const own = new Set([ticker.toLowerCase(), ...companyName.toLowerCase().split(/[^a-z0-9&]+/).filter((part) => part.length > 2)]);
+  const firmWord = (w: string) => /^[A-Z&]/.test(w) && !NOT_A_FIRM.has(w.toLowerCase());
+  // The firm's last word: from the capitalised run right before the action ("William Blair upgrades"), else from the
+  // run after "by", "at" or "from" ("AMD downgraded to Hold at Morgan Stanley"). The company's own words never count.
+  const lastOf = (run: string[]) => run.filter((w) => !own.has(w.toLowerCase())).pop()?.toLowerCase() ?? null;
+  const before: string[] = [];
+  for (let i = at - 1; i >= 0 && firmWord(words[i]!); i--) before.unshift(words[i]!);
+  let firm = lastOf(before);
+  if (!firm) {
+    const lead = words.findIndex((w, i) => i > at && FIRM_LEAD.test(w));
+    const after: string[] = [];
+    for (let i = lead + 1; lead >= 0 && i < words.length && firmWord(words[i]!); i++) after.push(words[i]!);
+    firm = lastOf(after);
+  }
+  return firm ? `${action}|${firm}` : null;
+}
+
 function normTitle(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().slice(0, 80);
 }
@@ -274,7 +316,8 @@ export function analystTrendChanges(
     out.push({
       at: cur.at,
       title: `Analyst ratings shifted: ${moves.join(", ")}`,
-      detail: `${cur.counts.buy} buy, ${cur.counts.hold} hold, ${cur.counts.sell} sell in ${cur.period}, against ${prev.counts.buy} buy, ${prev.counts.hold} hold, ${prev.counts.sell} sell in ${prev.period}.`,
+      // No "Nov '26" here: the row's own day words say when (judges, ship 71).
+      detail: `${cur.counts.buy} buy, ${cur.counts.hold} hold, ${cur.counts.sell} sell, against ${prev.counts.buy} buy, ${prev.counts.hold} hold, ${prev.counts.sell} sell the month before.`,
       tone,
     });
   }
@@ -291,12 +334,27 @@ export function buildStockTimeline(input: StockTimelineInput): {
   const seenUrls = new Set<string>();
   const seenTitles = new Set<string>();
 
-  const remember = (title: string, url?: string | null) => {
+  // The same analyst action told by several outlets (and by our own move research) is one entry: the first kept, the
+  // rest skipped when they fall within a few days of it (judges, ship 71: one William Blair upgrade listed twice).
+  const seenStories = new Map<string, number>();
+  const STORY_DAYS = 3;
+  const storyKey = (title: string) => analystStoryKey(title, ticker, input.companyName ?? "");
+  // `raw` is the headline as the outlet wrote it: its firm names keep their capitals, which the key reads.
+  const remember = (title: string, url?: string | null, at?: string | null, raw?: string) => {
     if (url) seenUrls.add(url.split("?")[0]!);
     seenTitles.add(normTitle(title));
+    const key = storyKey(raw ?? title);
+    const ms = at ? Date.parse(at) : now.getTime();
+    if (key && Number.isFinite(ms) && !seenStories.has(key)) seenStories.set(key, ms);
   };
-  const isDuplicate = (title: string, url?: string | null) =>
-    (url ? seenUrls.has(url.split("?")[0]!) : false) || seenTitles.has(normTitle(title));
+  const sameStory = (title: string, at?: string | null) => {
+    const key = storyKey(title);
+    const seen = key ? seenStories.get(key) : undefined;
+    const ms = at ? Date.parse(at) : now.getTime();
+    return seen !== undefined && Number.isFinite(ms) && Math.abs(ms - seen) <= STORY_DAYS * DAY_MS;
+  };
+  const isDuplicate = (title: string, url?: string | null, at?: string | null, raw?: string) =>
+    (url ? seenUrls.has(url.split("?")[0]!) : false) || seenTitles.has(normTitle(title)) || sameStory(raw ?? title, at);
 
   // Today's move, when we researched it.
   if (input.move?.headline) {
@@ -312,7 +370,7 @@ export function buildStockTimeline(input: StockTimelineInput): {
       sourceUrl: input.move.evidenceUrl ?? undefined,
       tone: input.move.dayChangePct >= 0 ? "up" : "down",
     });
-    remember(input.move.headline);
+    remember(input.move.headline, null, at ?? today);
   }
 
   // The call changed.
@@ -362,8 +420,8 @@ export function buildStockTimeline(input: StockTimelineInput): {
     if (!article.title || !article.published_at) continue;
     // Compared as shown (publisher tail off), so "X - Benzinga" here and "X" from the brief are one story.
     const cased = timelineHeadline(article.title, article.source_name, input.companyName ?? "");
-    if (isDuplicate(cased, article.url)) continue;
-    remember(cased, article.url);
+    if (isDuplicate(cased, article.url, article.published_at, article.title)) continue;
+    remember(cased, article.url, article.published_at, article.title);
     const shown = sayingHeadline(cased, article.summary, ticker, input.companyName ?? "");
     if (!shown) continue;
     const tone = article.sentiment_label === "bullish" ? "up" : article.sentiment_label === "bearish" ? "down" : "flat";
@@ -387,8 +445,8 @@ export function buildStockTimeline(input: StockTimelineInput): {
     // A bank quoted as the analyst ("JPMorgan says Strategy could face...") is not news about the bank.
     if (!firmIsSubject(ticker, title)) continue;
     const cased = timelineHeadline(title, event.source_name, input.companyName ?? "");
-    if (isDuplicate(cased, event.article_url)) continue;
-    remember(cased, event.article_url);
+    if (isDuplicate(cased, event.article_url, event.timestamp, title)) continue;
+    remember(cased, event.article_url, event.timestamp, title);
     const shown = sayingHeadline(cased, event.summary, ticker, input.companyName ?? "");
     if (!shown) continue;
     const label = (event.sentiment_label ?? "").toLowerCase();
