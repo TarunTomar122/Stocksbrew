@@ -185,7 +185,25 @@ function toneFor(field: NumericField, value: number): CompareCell["tone"] {
 }
 
 /** The table, group by group. A row nobody has a value for is left out entirely. */
-export function buildCompareTable(rows: ReadonlyArray<ScreenerRow | null>): CompareTableGroup[] {
+/**
+ * When the prices on a compare page are from: the newest quote time among the rows it shows. The header's "as of",
+ * the "Prices as of" line and the move row's day all read this one time, so a page that prints today's price never
+ * says "yesterday's close" (council, Nov 12).
+ */
+export function comparePricedAt(rows: ReadonlyArray<Pick<ScreenerRow, "price_at"> | null>): string | null {
+  let best: { ms: number; iso: string } | null = null;
+  for (const row of rows) {
+    const ms = row?.price_at ? Date.parse(row.price_at) : Number.NaN;
+    if (Number.isFinite(ms) && (!best || ms > best.ms)) best = { ms, iso: row!.price_at! };
+  }
+  return best?.iso ?? null;
+}
+
+/**
+ * The table, group by group. `labels` replaces a row's label: the page passes the "Today" row's real day
+ * ("Yesterday", "Friday") when the prices are not from today's session (lib/session-label.ts).
+ */
+export function buildCompareTable(rows: ReadonlyArray<ScreenerRow | null>, labels: Readonly<Record<string, string>> = {}): CompareTableGroup[] {
   const groups: CompareTableGroup[] = [];
   for (const group of COMPARE_GROUPS) {
     const tableRows: CompareTableRow[] = [];
@@ -200,7 +218,7 @@ export function buildCompareTable(rows: ReadonlyArray<ScreenerRow | null>): Comp
       const winner = bestIndex(values, field.better);
       tableRows.push({
         id,
-        label: COMPARE_LABELS[id] ?? field.short,
+        label: labels[id] ?? COMPARE_LABELS[id] ?? field.short,
         hint: field.label,
         cells: values.map((value, index) => ({
           text: value === null ? "" : formatField(field, value),

@@ -23,7 +23,14 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-export default async function PracticePage() {
+/** `?symbol=NVDA&side=buy`: the ticket filled in (an agent proposal opens it this way); nothing is placed. */
+function ticketParam(searchParams?: { symbol?: string | string[]; side?: string | string[] }): { symbol: string; side: "buy" | "sell" } | null {
+  const symbol = typeof searchParams?.symbol === "string" ? searchParams.symbol.trim().toUpperCase() : "";
+  if (!/^[A-Z][A-Z0-9.-]{0,9}$/.test(symbol)) return null;
+  return { symbol, side: searchParams?.side === "sell" ? "sell" : "buy" };
+}
+
+export default async function PracticePage({ searchParams }: { searchParams?: { symbol?: string | string[]; side?: string | string[] } }) {
   const session = await getSessionUser();
   const payload = session ? await getPracticePayload(session.uid).catch(() => null) : await getPracticeExample().catch(() => null);
 
@@ -43,7 +50,7 @@ export default async function PracticePage() {
       <div className={PAGE_FRAME}>
         <PageHead note={false} title="Practice account" lede={lede} />
         {payload ? (
-          <PracticeDesk initial={payload} mode={session ? "account" : "example"} />
+          <PracticeDesk initial={payload} mode={session ? "account" : "example"} ticket={ticketParam(searchParams)} />
         ) : (
           <div className="oa-surface border border-oa-border bg-oa-card px-4 py-8 text-center text-[15px] text-oa-muted-fg">
             Prices are unavailable right now. Try again in a few minutes.

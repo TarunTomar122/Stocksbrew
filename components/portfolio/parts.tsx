@@ -1,6 +1,7 @@
 import { callWord } from "@/lib/stock-chart";
 import { CALL_PLAIN } from "@/lib/plain-copy";
 import * as React from "react";
+import { capitalize, dayWords } from "@/lib/day-words";
 
 import { ToneGlyph } from "@/components/oa/kit/tone";
 import { reportSoon } from "@/lib/portfolio-attention";
@@ -90,12 +91,17 @@ export function EarningsCell({ next, today }: { next: EarningsDate | null; today
   const days = Math.round((Date.parse(`${next.date}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000);
   // The same line the tables use to lift a row to the top (lib/portfolio-attention.ts).
   const soon = reportSoon(next, today);
-  const when = days === 0 ? "today" : days === 1 ? "tomorrow" : `in ${days} days`;
   const time = next.time ? TIME_LABEL[next.time] : "";
+  // Within the week the day in words alone ("Today", "Tuesday"), owner rule 4; further out the date and how far.
+  const words = days >= 0 && days <= 6 ? capitalize(dayWords(next.date, today)) : "";
   return (
-    <span className={`${NUM} text-[12px] ${soon ? "text-oa-primary" : "text-oa-fg"}`} title={time ? `Reports ${time}` : undefined}>
-      {fmtDay(next.date)}
-      <span className="ml-1 text-[11px] text-oa-muted-fg">{when}</span>
+    <span className={`${NUM} text-[12px] ${soon ? "text-oa-primary" : "text-oa-fg"}`} title={[fmtDay(next.date), time ? `reports ${time}` : ""].filter(Boolean).join(", ")}>
+      {words || (
+        <>
+          {fmtDay(next.date)}
+          <span className="ml-1 text-[11px] text-oa-muted-fg">in {days} days</span>
+        </>
+      )}
     </span>
   );
 }

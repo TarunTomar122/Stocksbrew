@@ -5,7 +5,7 @@ import { SignedBar, barDomain } from "@/components/oa/kit/tone";
 import { StockLogo } from "@/components/stock-logo";
 import { capitalize, dayWords, onDayWords } from "@/lib/day-words";
 import type { ExampleReports } from "@/lib/inbox/example-reports";
-import { listNames, shortDay } from "@/lib/read-format";
+import { shortDay } from "@/lib/read-format";
 
 /** "+2.1%", "−0.4%", "0.0%" (no sign on a move that rounds to nothing). */
 function signed(value: number): string {
@@ -30,15 +30,9 @@ export type CardQuote = { price: number; dayPct: number | null };
  * cards (owner rule 1). Each card opens its stock.
  */
 export function ExampleReportCards({ reports, quotes = {}, today }: { reports: ExampleReports; quotes?: Record<string, CardQuote>; today: string }) {
-  const watched = reports.cards.filter((card) => card.watching).map((card) => card.ticker);
-  const held = reports.cards.length - watched.length;
-  const watchLine =
-    held > 0 && watched.length > 0
-      ? watched.length === 1
-        ? `The example watches ${watched[0]} without holding it.`
-        : `The example watches ${listNames(watched, watched.length)} rather than holding them.`
-      : null;
-  const intro = [reports.line, watchLine].filter(Boolean).join(" ");
+  // One line above the cards, at most 12 words (owner rule 8): what most of them did. Which ones the example only
+  // watches is not said; the cards look the same either way.
+  const intro = reports.line;
   const domain = barDomain(reports.cards.map((card) => card.move));
   return (
     <section aria-labelledby="example-reports-head" className="min-w-0">

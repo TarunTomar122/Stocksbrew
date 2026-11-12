@@ -7,6 +7,8 @@ import { InboxList } from "@/components/inbox/inbox-list";
 import { InboxSkeleton } from "@/components/inbox/inbox-skeleton";
 import { ExampleReportCards, type CardQuote } from "@/components/inbox/report-cards";
 import { AppPage, PageHead } from "@/components/oa/kit";
+import { ProposalsSection } from "@/components/proposals/proposals-section";
+import { loadProposalCards, type ProposalCardsLoad } from "@/lib/proposals-server";
 import { getSessionUser } from "@/lib/auth-server";
 import { getViewer } from "@/lib/entitlements-server";
 import { exampleReports, type ExampleReportStock } from "@/lib/inbox/example-reports";
@@ -41,7 +43,7 @@ function kindParam(value: string | string[] | undefined): InboxKind | null {
 
 const EXAMPLE_TAG = (
   <span className="mr-2 inline-flex h-[20px] items-center rounded border border-[color-mix(in_srgb,var(--oa-primary)_45%,transparent)] bg-[color-mix(in_srgb,var(--oa-primary)_7%,transparent)] px-1.5 align-[2px] text-[12px] font-medium text-oa-primary">
-    Example
+    Example inbox
   </span>
 );
 
@@ -97,12 +99,9 @@ async function ExampleInbox({ kind }: { kind: InboxKind | null }) {
   const empty = inbox.items.length === 0 && inbox.upcoming.length === 0;
   return (
     <div className="flex flex-col gap-3 sm:gap-4">
-      {/* One short line (judges, ship 42), and no button: the shell's Start free (the sidebar, or the top bar on a
-          phone) is the view's one (judges, ship 39). */}
-      <p className="min-w-0 px-1 text-pretty text-[14px] leading-5 text-oa-muted-fg">
-        {EXAMPLE_TAG}
-        This is the example portfolio&apos;s inbox. Sign in to see yours.
-      </p>
+      {/* The badge alone says what this is (owner rule 8: no paragraph under the title), and no button: the shell's
+          Start free (the sidebar, or the top bar on a phone) is the view's one (judges, ship 39). */}
+      <p className="min-w-0 px-1 leading-5">{EXAMPLE_TAG}</p>
       {empty ? (
         <EmptyInbox example unavailable={readFailed(inbox.missing)} />
       ) : (
@@ -117,7 +116,7 @@ async function ExampleInbox({ kind }: { kind: InboxKind | null }) {
   );
 }
 
-async function UserInbox({ uid, kind }: { uid: string; kind: InboxKind | null }) {
+async function UserInbox({ uid, kind, proposals }: { uid: string; kind: InboxKind | null; proposals: Promise<ProposalCardsLoad | null> }) {
   // Without the user doc there are no stocks, follows or read mark to go on: say the inbox could not be read.
   const [doc, viewer] = await Promise.all([getUserDoc(uid).catch(() => undefined), getViewer()]);
   if (doc === undefined) return <EmptyInbox unavailable />;
@@ -125,11 +124,15 @@ async function UserInbox({ uid, kind }: { uid: string; kind: InboxKind | null })
   if (inbox.items.length === 0 && inbox.upcoming.length === 0) return <EmptyInbox unavailable={readFailed(inbox.missing)} />;
   const { seenAt } = readState(inbox.items, doc, inbox.today);
   const rows = rowsAfterRead(inbox.items, inbox.upcoming, NOTHING_TOLD, inbox.today);
+  // A report a proposal card above already offers a reminder for is said once, on the card (owner rule 1).
+  const offered = new Set(((await proposals)?.cards ?? []).filter((card) => card.kind === "earnings_soon" && card.ticker).map((card) => card.ticker!));
+  const upcoming = rows.upcoming.filter((report) => !offered.has(report.ticker.toUpperCase()));
+  if (rows.items.length === 0 && upcoming.length === 0) return null;
   return (
     <div className="flex flex-col gap-3 sm:gap-4">
       <InboxList
         items={rows.items.map(forClient)}
-        upcoming={rows.upcoming}
+        upcoming={upcoming}
         seenAt={seenAt}
         today={inbox.today}
         example={false}
@@ -144,7 +147,16 @@ async function UserInbox({ uid, kind }: { uid: string; kind: InboxKind | null })
 
 async function InboxBody({ kind }: { kind: InboxKind | null }) {
   const session = await getSessionUser().catch(() => null);
-  return session ? <UserInbox uid={session.uid} kind={kind} /> : <ExampleInbox kind={kind} />;
+  if (!session) return <ExampleInbox kind={kind} />;
+  // The agent's proposals waiting for an answer sit on top. They start now beside the list's reads, bounded from
+  // here, and render with the list, so it never jumps down when they arrive.
+  const proposals = loadProposalCards(session.uid).catch(() => null);
+  return (
+    <div className="flex flex-col gap-4 sm:gap-5">
+      <ProposalsSection load={proposals} />
+      <UserInbox uid={session.uid} kind={kind} proposals={proposals} />
+    </div>
+  );
 }
 
 export default function InboxPage({ searchParams }: { searchParams?: { kind?: string | string[] } }) {

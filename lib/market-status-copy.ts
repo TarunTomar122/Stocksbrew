@@ -98,3 +98,32 @@ export function getMarketStatusBannerCopy(session: MarketSessionState): MarketSt
 export function marketStatusStateLabel(session: MarketSessionState): string {
   return session.kind === "weekend" ? `weekend_${session.weekday.toLowerCase()}` : session.kind;
 }
+
+/**
+ * The stock and fund header's session words, beside the price's own time ("Price at 3:59 PM ET"). Each says the
+ * state now and counts to the next change that matters: while open, to the close, when after hours starts; after
+ * the close, to the next open, said as the market's open so "After hours" is never read as the thing that opens.
+ */
+export function marketStatusInlineText(session: MarketSessionState): string {
+  switch (session.kind) {
+    case "open":
+      return `Market open · closes in ${session.next.countdown}`;
+    case "premarket":
+      return `Premarket · market opens in ${session.countdown}`;
+    case "afterhours":
+      return `After hours · market opens in ${session.countdown}`;
+    case "holiday":
+      return `Closed for ${session.holidayName ?? "the holiday"} · opens in ${session.countdown}`;
+    default:
+      return `Market closed · opens in ${session.countdown}`;
+  }
+}
+
+/** The tooltip under those words: when after hours starts while open, else the next opening bell. */
+export function marketStatusInlineTip(session: MarketSessionState, nextOpenLabel: string): string {
+  if (session.kind === "open") {
+    const close = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" }).format(new Date(session.next.at));
+    return `${session.earlyClose ? "Half day. " : ""}After hours from ${close} ET`;
+  }
+  return `Next open: ${nextOpenLabel}`;
+}

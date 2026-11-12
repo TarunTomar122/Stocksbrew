@@ -167,6 +167,7 @@ export function MoreLocked({
   plan,
   hidden,
   noun = "more",
+  body,
   trialEligible = false,
   className = "",
 }: {
@@ -176,6 +177,8 @@ export function MoreLocked({
   hidden: number;
   /** "more matches", "more holdings". */
   noun?: string;
+  /** One short sentence in place of the feature's lock body ("Pro keeps them all."), for a one-line lock (owner rule 8). */
+  body?: string;
   trialEligible?: boolean;
   className?: string;
 }) {
@@ -190,7 +193,7 @@ export function MoreLocked({
         <LockGlyph className="mt-0.5 size-4 text-oa-primary" />
         <span>
           <span className="oa-mono font-medium text-oa-fg">{hidden.toLocaleString("en-US")}</span> {noun}.{" "}
-          {copy.body}
+          {body ?? copy.body}
         </span>
       </p>
       <OaButton size="xs" variant="secondary" loading={busy} onClick={act} className="shrink-0 self-start sm:self-auto">

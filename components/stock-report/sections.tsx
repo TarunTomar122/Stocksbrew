@@ -213,7 +213,8 @@ export function OverviewSection({ data }: SectionProps) {
             <Readings items={readings} />
           </div>
         </Panel>
-      ) : (
+      ) : stats.length ? null : (
+        // Key figures right under it say the same numbers (owner rule 8): the plain sentences only stand in for them.
         <Panel label="In plain numbers">
           <Readings items={readings} />
         </Panel>

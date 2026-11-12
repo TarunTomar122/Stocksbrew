@@ -3,6 +3,7 @@ import type * as React from "react";
 
 import { FOCUS } from "@/components/oa/kit";
 import { StockLogo } from "@/components/stock-logo";
+import { fitLine } from "@/lib/fit-line";
 
 /**
  * The day's biggest moves as two tables side by side (owner, Nov 12: "do table here left side gainers right side
@@ -29,6 +30,10 @@ const HEAD_REM = 2.5;
 const ROWS_IN_VIEW = 7.5;
 
 const MINUS = "−";
+
+/** The reason's room in characters: two lines of the narrow cell (a phone, or md to lg), and of the wide one (xl up). */
+const SHORT_CHARS = 52;
+const LONG_CHARS = 80;
 
 function signedPct(value: number): string {
   const rounded = Number(value.toFixed(1));
@@ -71,7 +76,13 @@ function MoveTable({ title, rows, side, heightRem, when }: { title: string; rows
                   <StockLogo ticker={row.ticker} size={20} eager />
                   <span className="oa-mono truncate text-[13.5px] font-semibold text-oa-fg">{row.ticker}</span>
                 </span>
-                <span className="line-clamp-2 text-pretty text-[13px] leading-[18px] text-oa-muted-fg">{row.line ?? ""}</span>
+                {/* Cut to two lines at a clause or a whole word on the server, never mid-word by the clamp (owner
+                    rule 8): the narrow cut below xl (a phone, or the two tables side by side beside the nav), the
+                    longer one from xl. The full reason is the row's hover title. */}
+                <span className="line-clamp-2 text-pretty text-[13px] leading-[18px] text-oa-muted-fg">
+                  <span className="xl:hidden">{fitLine(row.line, SHORT_CHARS)}</span>
+                  <span className="hidden xl:inline">{fitLine(row.line, LONG_CHARS)}</span>
+                </span>
                 {/* The price, then the move under it (owner, Nov 12: the current price on every stock). */}
                 <span className="flex flex-col items-end">
                   {row.price !== null ? <span className="oa-mono text-[13px] tabular-nums text-oa-fg">{sharePrice(row.price)}</span> : null}

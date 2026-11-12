@@ -22,7 +22,8 @@ import type {
 } from "@/lib/briefing-face";
 import { dayLabel, gridColumns, levelsTitle, lineStatesCall, weekTitle, type LevelFact } from "@/lib/briefing-face";
 import type { TopStory } from "@/lib/briefing-top-news";
-import { capitalize, onDayWords } from "@/lib/day-words";
+import { capitalize, dayWords, etToday, onDayWords } from "@/lib/day-words";
+import { caseWireHeadlines } from "@/lib/wire-casing";
 import { shortCompanyName } from "@/lib/plain-copy";
 
 import { longDay, sharePrice, shortDay, signedPct } from "./format";
@@ -576,8 +577,11 @@ function Heat({ cells, beside, height }: { cells: HeatCell[]; beside: boolean; h
 /* ── levels ────────────────────────────────────────────────────────────── */
 
 /** Equal columns by how many cards there are (lib/briefing-face.ts gridColumns), written out whole for Tailwind. */
-const LG_COLS: Record<number, string> = { 3: "lg:grid-cols-3", 4: "lg:grid-cols-4" };
+const LG_COLS: Record<number, string> = { 1: "lg:grid-cols-1", 2: "lg:grid-cols-2", 3: "lg:grid-cols-3", 4: "lg:grid-cols-4" };
 const XXL_COLS: Record<number, string> = { 3: "2xl:grid-cols-3", 4: "2xl:grid-cols-4", 5: "2xl:grid-cols-5" };
+/** Why it moved beside the week: a third of the row per card, the week takes the rest. */
+const MOVED_SPAN: Record<number, string> = { 1: "lg:col-span-4", 2: "lg:col-span-8" };
+const WEEK_SPAN: Record<number, string> = { 1: "lg:col-span-8", 2: "lg:col-span-4" };
 
 /** A fact in a word or two, for the list beside the cards: "+49% sales", "$7.40 EPS", "22× P/E". */
 function factWord(fact: LevelFact): string {
@@ -686,9 +690,18 @@ function Levels({ rows }: { rows: LevelRow[] }) {
 
 /* ── the week's reports ────────────────────────────────────────────────── */
 
-function DayStocks({ day, across = false }: { day: WeekDay; across?: boolean }) {
+/** A lone day's stocks laid across its card: by the room the week has (beside Why it moved, `room` columns at most). */
+const ACROSS: Record<"full" | 1 | 2, string> = {
+  // Three to a row up to 2xl: four at 1280 left each row too narrow, and a move ran into "After close" (judges, ship 81).
+  full: "grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4",
+  2: "grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2",
+  1: "grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2 lg:grid-cols-1",
+};
+
+function DayStocks({ day, across = false, room = null }: { day: WeekDay; across?: boolean; room?: 1 | 2 | null }) {
+  const grid = ACROSS[room ?? "full"];
   return (
-    <ul className={across ? "grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2 lg:grid-cols-4" : "flex flex-col gap-1"}>
+    <ul className={across ? grid : "flex flex-col gap-1"}>
       {day.stocks.map((stock) => {
         const result = stock.result;
         return (
@@ -722,17 +735,19 @@ function DayStocks({ day, across = false }: { day: WeekDay; across?: boolean }) 
 const WEEK_COLS: Record<number, string> = { 1: "lg:grid-cols-1", 2: "lg:grid-cols-2", 3: "lg:grid-cols-3", 4: "lg:grid-cols-4", 5: "lg:grid-cols-5" };
 
 /**
- * The week's reports by day, across the page under Why it moved: a card per day in equal columns that fill the row
- * (as many columns as days, up to five), each card as tall as the row's tallest. A lone day lays its stocks across.
+ * The week's reports by day: a card per day in equal columns that fill the row (as many columns as days, up to five),
+ * each card as tall as the row's tallest day. A lone day lays its stocks across. Beside Why it moved (`room`: the columns it
+ * has room for, 2 in eight twelfths of the row, 1 in four), it keeps its own height, top-aligned.
  */
-function Week({ days }: { days: WeekDay[] }) {
+function Week({ days, room = null }: { days: WeekDay[]; room?: 1 | 2 | null }) {
   const lone = days.length === 1;
+  const cols = WEEK_COLS[Math.min(days.length, room ?? 5)];
   return (
-    <ol aria-label="Reports by day" className={`grid grid-cols-1 gap-3 ${lone ? "" : "min-[420px]:grid-cols-2"} ${WEEK_COLS[Math.min(days.length, 5)]}`}>
+    <ol aria-label="Reports by day" className={`grid grid-cols-1 gap-3 ${lone ? "" : "min-[420px]:grid-cols-2"} ${cols}`}>
       {days.map((day) => (
         <li key={day.day} className={`${CARD} min-w-0 px-3.5 py-2.5`}>
           <p className="pb-1.5 text-[12.5px] font-medium leading-5 text-oa-muted-fg">{day.label}</p>
-          <DayStocks day={day} across={lone} />
+          <DayStocks day={day} across={lone} room={room} />
         </li>
       ))}
     </ol>
@@ -783,8 +798,28 @@ function MarketNote({ viewer, pendingTracked }: { viewer: BriefingFaceProps["vie
   );
 }
 
+/** The moved cards' lines in sentence case through the wire's shared casing (owner rule 8: no scraped Title Case). */
+function casedMoved(cards: MovedCard[]): MovedCard[] {
+  const names = Object.fromEntries(cards.map((card) => [card.ticker, card.name]));
+  return caseWireHeadlines(
+    cards.map((card) => ({ ...card, title: card.line, tickers: [card.ticker] })),
+    names,
+  ).map(({ title, tickers: _tickers, ...card }) => ({ ...card, line: title }));
+}
+
+/** The briefing's day in words (owner rule 4): "Today", "Yesterday", "Tuesday", a date only past a week. */
+function headDay(date: string): string {
+  return capitalize(dayWords(date, etToday())) || longDay(date);
+}
+
+/** "Thu close" beside "Today" on a Thursday says the day twice: it reads "At the close" instead. */
+function headClock(date: string, clock: string): string {
+  return date === etToday() && clock === `${longDay(date).slice(0, 3)} close` ? "At the close" : clock;
+}
+
 export function BriefingFace(props: BriefingFaceProps) {
-  const { mode, viewer, date, clock, days, archived, degraded, example, strip, topNews, doToday, heat, levels, moved, week, top, agentFindings, locked, sessionOpened } = props;
+  const { mode, viewer, date, clock, days, archived, degraded, example, strip, topNews, doToday, heat, levels, week, top, agentFindings, locked, sessionOpened } = props;
+  const moved = casedMoved(props.moved);
   const personal = mode === "personal";
   const title = example ? "Example briefing for a made-up portfolio of real stocks" : personal ? "Your briefing" : "Market briefing";
   // Which modules have something, so a pair that lost one side gives the other the whole row.
@@ -797,8 +832,17 @@ export function BriefingFace(props: BriefingFaceProps) {
   const doBeside = showHeat && doCards.length >= 2 && heat.length <= HEAT_BESIDE_MAX;
   const showMoved = moved.length > 0;
   const showWeek = week.length > 0;
-  const movedColumns = { sm: 2, lg: gridColumns(moved.length, [3, 4]), xxl: gridColumns(moved.length, [4, 5]) };
-  const movedGrid = `grid grid-cols-1 gap-3 sm:grid-cols-2 ${LG_COLS[movedColumns.lg]} ${XXL_COLS[movedColumns.xxl]}`;
+  // One or two moves beside the week's reports, in the same row, so a lone card never leaves two thirds of a row
+  // empty (owner rule 4). Each side is as tall as its own content, top-aligned: nothing is stretched to the other's
+  // height around empty space (council, ship 81). Otherwise the cards keep their fixed width in the page's three or
+  // four columns (owner rule 4: never one card stretched across the row).
+  const movedBeside = showWeek && showMoved && moved.length <= 2;
+  const movedColumns = movedBeside
+    ? { sm: moved.length, lg: moved.length, xxl: moved.length }
+    : { sm: 2, lg: gridColumns(moved.length, [3, 4]), xxl: gridColumns(moved.length, [4, 5]) };
+  const movedGrid = movedBeside
+    ? `grid grid-cols-1 gap-3 ${moved.length === 2 ? "sm:grid-cols-2" : ""} ${LG_COLS[moved.length]}`
+    : `grid grid-cols-1 gap-3 sm:grid-cols-2 ${LG_COLS[movedColumns.lg]} ${XXL_COLS[movedColumns.xxl]}`;
   return (
     // Twelve columns from `lg`: your own stocks first (Do today and the money side by side), then the market's news, the
     // levels, why things moved and the week, each across the page so no side ends early (judges, Nov 12). One column
@@ -809,7 +853,7 @@ export function BriefingFace(props: BriefingFaceProps) {
           <h1 className="flex min-w-0 flex-wrap items-baseline gap-x-2 text-[15px] font-semibold leading-6 text-oa-fg">
             {title}
             <span className="text-[13px] font-normal text-oa-muted-fg">
-              {longDay(date)} · {archived ? "as it read that day" : clock}
+              {headDay(date)} · {archived ? "as it read that day" : headClock(date, clock)}
             </span>
           </h1>
           <div className="flex w-full min-w-0 items-center justify-between gap-3 sm:w-auto sm:shrink-0 sm:justify-end">
@@ -847,7 +891,14 @@ export function BriefingFace(props: BriefingFaceProps) {
         <MarketBand strip={strip} clock={clock} live={!archived} date={date} />
       </div>
 
-      {showDo && doToday ? (
+      {/* Nothing to do is one quiet line, not a titled module around it (owner rule 4: no card without data). */}
+      {showDo && doToday && doCards.length === 0 ? (
+        <p className={`min-w-0 px-2 text-[13.5px] leading-5 text-oa-muted-fg sm:px-0 ${SPAN.all}`}>
+          {doToday.kind === "quiet" ? (archived ? "Nothing needed you that day." : "Nothing needs you today.") : "What needs you couldn't load just now."}
+        </p>
+      ) : null}
+
+      {showDo && doToday && doCards.length > 0 ? (
         <Section id="do-today" title={archived ? "Needed you that day" : "Do today"} span={doBeside ? SPAN.narrow : SPAN.all}>
           {doBeside ? (
             // Each card as tall as its content; the map beside takes this column's height, not the other way round.
@@ -861,12 +912,8 @@ export function BriefingFace(props: BriefingFaceProps) {
                 <SlimTile stock={doCards[0]!} />
               </div>
             </>
-          ) : doCards.length > 1 ? (
-            <SharedCards cards={doCards} label="Stocks that need a decision" grid={THREE} />
           ) : (
-            <p className="px-2 text-[13.5px] leading-5 text-oa-muted-fg sm:px-0">
-              {doToday.kind === "quiet" ? "Nothing needs you today." : "What needs you couldn't load just now."}
-            </p>
+            <SharedCards cards={doCards} label="Stocks that need a decision" grid={THREE} />
           )}
         </Section>
       ) : null}
@@ -890,7 +937,7 @@ export function BriefingFace(props: BriefingFaceProps) {
       ) : null}
 
       {showMoved ? (
-        <Section id="moved" title="Why it moved">
+        <Section id="moved" title="Why it moved" span={movedBeside ? MOVED_SPAN[moved.length] : SPAN.all}>
           {/* Whole rows only: a short last row folds behind "Show N more" rather than leave a gap. */}
           <FullRows count={moved.length} columns={movedColumns} label="Moves with a confirmed reason" className={movedGrid}>
             {moved.map((card) => (
@@ -900,13 +947,15 @@ export function BriefingFace(props: BriefingFaceProps) {
         </Section>
       ) : null}
 
-      {personal && locked ? <div className={`min-w-0 ${SPAN.all}`}>{locked}</div> : null}
+      {personal && locked && !movedBeside ? <div className={`min-w-0 ${SPAN.all}`}>{locked}</div> : null}
 
       {showWeek ? (
-        <Section id="week" title={weekTitle(week, date, sessionOpened)}>
-          <Week days={week} />
+        <Section id="week" title={weekTitle(week, date, sessionOpened)} span={movedBeside ? WEEK_SPAN[moved.length] : SPAN.all}>
+          <Week days={week} room={movedBeside ? (moved.length === 2 ? 1 : 2) : null} />
         </Section>
       ) : null}
+
+      {personal && locked && movedBeside ? <div className={`min-w-0 ${SPAN.all}`}>{locked}</div> : null}
     </div>
   );
 }

@@ -100,14 +100,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Sear
   const head = (
     <PageHead
       title={example ? "Compare stocks" : symbols.length >= 2 ? symbols.join(" vs ") : "Compare stocks"}
-      lede={
-        example
-          ? `An example: ${symbols.join(" against ")}, ${EXAMPLE.why.charAt(0).toLowerCase()}${EXAMPLE.why.slice(1)}. Swap in your own.`
-          : symbols.length < 2
-            ? "Put two to four stocks side by side."
-            : undefined
-      }
-      // The whole lede stays in the head, so no note repeats it at the foot of the page.
+      // No line under the title (owner rule 8): the picker and the table under it say what this is.
       full
       actions={symbols.length >= 2 ? <div className="max-sm:hidden"><BasketActions symbols={symbols} compareLimit={0} /></div> : undefined}
     />

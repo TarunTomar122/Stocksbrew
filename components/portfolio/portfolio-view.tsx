@@ -363,7 +363,8 @@ export function PortfolioView({
             {/* The page's own title (My stocks) is above the tabs, so only the example says what it is. */}
             {example ? (
               <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-[15px] font-semibold leading-5 text-oa-fg">Example portfolio</h2>
+                {/* The badge says "example" once (owner rule 1); the heading stays for screen readers. */}
+                <h2 className="sr-only">Example portfolio</h2>
                 <span className="inline-flex h-[22px] items-center rounded border border-[color-mix(in_srgb,var(--oa-primary)_45%,transparent)] bg-[color-mix(in_srgb,var(--oa-primary)_7%,transparent)] px-2 text-[12.5px] font-medium text-oa-primary">
                   Example, not real money
                 </span>
@@ -460,7 +461,7 @@ export function PortfolioView({
             )}
             <p className="text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg lg:text-right">
               {example
-                ? `Example shares and costs. Prices from ${pricesWords ?? "the latest quotes"}.`
+                ? `Prices from ${pricesWords ?? "the latest quotes"}.`
                 : pricesWords
                   ? `Prices from ${pricesWords}.`
                   : asOf
@@ -621,10 +622,8 @@ export function PortfolioView({
 
 export function PortfolioIntro({
   signedIn,
-  freeLimit = 5,
 }: {
   signedIn: boolean;
-  /** Stocks a Free account covers in full. */ freeLimit?: number;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -637,11 +636,8 @@ export function PortfolioIntro({
         <h2 id="portfolio-intro" className="text-balance text-[20px] font-semibold leading-[27px] tracking-[-0.01em] text-oa-fg sm:text-[22px] sm:leading-7">
           {signedIn ? "Your portfolio is empty" : "Keep the stocks you own and watch in one place"}
         </h2>
-        <p className="mt-1 max-w-[44rem] text-pretty text-[15px] leading-[22px] text-oa-muted-fg">
-          {signedIn
-            ? "Add your first stocks and this page fills in around them."
-            : `It's free, and there's no brokerage login. You'll see what each stock did today and why, and ${freeLimit} you choose get our full report.`}
-        </p>
+        {/* Signed out, the title and the example under it say it all (owner rule 8): no paragraph under the title. */}
+        {signedIn ? <p className="mt-1 max-w-[44rem] text-pretty text-[15px] leading-[22px] text-oa-muted-fg">Add your first stocks and this page fills in around them.</p> : null}
       </div>
       <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 lg:shrink-0">
         {signedIn ? (
@@ -679,45 +675,5 @@ export function PortfolioIntro({
         </Link>
       </div>
     </section>
-  );
-}
-
-/** How Portfolio works, in three plain steps. It sits under the example, where it explains what was just seen. */
-export function PortfolioHow() {
-  const points: Array<[string, string]> = [
-    [
-      "Enter what you own",
-      "Ticker, shares and what you paid. No brokerage login, nothing connected.",
-    ],
-    [
-      "See it priced and explained",
-      "Value, today's move and gain per position, with our call and the price where it changes.",
-    ],
-    [
-      "Get told when it matters",
-      "Earnings dates on every row, and alerts for price levels and call changes.",
-    ],
-  ];
-  return (
-    <ol
-      aria-label="How Portfolio works"
-      className="grid gap-x-8 gap-y-3 border-t border-oa-border px-2 pt-4 sm:grid-cols-3 sm:px-0"
-    >
-      {points.map(([title, body], index) => (
-        <li key={title} className="flex gap-2.5">
-          <span className={`${NUM} text-[12.5px] leading-5 text-oa-muted-fg`}>
-            {index + 1}
-          </span>
-          <span className="min-w-0">
-            <span className="block text-[14px] font-medium leading-5 text-oa-fg">
-              {title}
-            </span>
-            <span className="mt-0.5 block max-w-[38ch] text-pretty text-[13px] leading-[18px] text-oa-muted-fg">
-              {body}
-            </span>
-          </span>
-        </li>
-      ))}
-    </ol>
   );
 }

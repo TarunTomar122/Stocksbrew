@@ -30,6 +30,9 @@ import { CONTROL, Unknown } from "@/components/screener/shared";
 import { can, limitFor } from "@/lib/entitlements";
 import { canSeeLevels, getViewer } from "@/lib/entitlements-server";
 import { getScreenerSnapshot } from "@/lib/screener";
+import { loadSectorDay } from "@/lib/sector-day";
+import { sectorDayStamp, withLiveDayMoves, withSectorFundDays } from "@/lib/sector-day-shared";
+import { dayLabelFor } from "@/lib/session-label";
 import { readSavedScreens, type SavedScreen } from "@/lib/screener-saved";
 import {
   CALL_COLUMN_IDS,
@@ -217,14 +220,14 @@ function describeScreen(view: ScreenerView, sectors: SectorOption[]): string[] {
   return parts;
 }
 
-function SectorStrip({ stat }: { stat: SectorStat }) {
+function SectorStrip({ stat, dayLabel }: { stat: SectorStat; dayLabel: string }) {
   return (
     <StatStrip
       className="mb-4"
       stats={[
         { label: stat.name, value: `${stat.count}`, sub: "stocks" },
         { label: "Market value", value: fmtCompact(stat.marketCap, "$") },
-        { label: "Today", value: <Delta value={stat.change.day_pct} />, sub: stat.advancing === null ? undefined : `${stat.advancing.toFixed(0)}% of names up` },
+        { label: dayLabel, value: <Delta value={stat.change.day_pct} />, sub: stat.advancing === null ? undefined : `${stat.advancing.toFixed(0)}% of names up` },
         { label: "1 month", value: <Delta value={stat.change.ret_1m} /> },
         { label: "This year", value: <Delta value={stat.change.ret_ytd} /> },
       ]}
@@ -270,7 +273,16 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
     .filter(([id, count]) => FIELD_BY_ID.has(id) && count >= 20)
     .map(([id]) => id);
 
-  const asOf = fmtStampET(meta.generated_at);
+  // A sector's day is its sector fund's move and the stocks' day moves are their live quotes, the same figures Market
+  // today shows (lib/sector-day-shared.ts); read only where the page shows a sector's day.
+  const onlySectorSlug = view.tab !== "sectors" && view.filters.sectors.length === 1 ? view.filters.sectors[0]! : null;
+  const sectorDay = view.tab === "sectors" || onlySectorSlug ? await loadSectorDay() : null;
+  const dayRows = sectorDay ? withLiveDayMoves(rows, sectorDay.live) : rows;
+  const dayStamp = sectorDay ? sectorDayStamp(sectorDay.funds, dayRows) : meta.generated_at;
+  // "Today" only over today's session; else the day the figures are from ("Yesterday", "Friday").
+  const dayLabel = dayLabelFor(dayStamp, "Today");
+  const upLabel = dayLabelFor(dayStamp, "Up today", Date.now(), (label) => `Up ${label.words === "yesterday" ? "yesterday" : `on ${label.words}`}`);
+  const asOf = fmtStampET(view.tab === "sectors" && view.period === "day_pct" ? dayStamp ?? meta.generated_at : meta.generated_at);
   const tabs = [
     { id: "screen", label: "Screen", href: viewHref({ ...view, tab: "screen" }), count: meta.row_count },
     { id: "sectors", label: "Sectors", href: viewHref({ ...view, tab: "sectors" }), count: sectorOptions.length },
@@ -281,7 +293,10 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
     <PageHead
       title={view.tab === "sectors" ? "Stock sectors" : "Find stocks"}
       meta={<SourceLine asOf={asOf} />}
+      // Sectors: the as-of time on the title row, no "About this page" at the foot (owner rule 8).
+      note={view.tab !== "sectors"}
       inline
+      // A phone's title row has no room beside the view switch for the time (it ran into the title).
       className={`max-sm:[&_.oa-head-compact]:hidden ${view.tab === "sectors" ? "" : "[&_.oa-head-lede]:hidden"}`}
       actions={<Segmented items={tabs} current={view.tab} label="Screener view" />}
     />
@@ -289,18 +304,20 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
 
   /* ── Sectors tab ─────────────────────────────────────────────────────── */
   if (view.tab === "sectors") {
-    const stats = sectorStats(rows, view.period);
+    const stats = sectorDay ? withSectorFundDays(sectorStats(dayRows, view.period), sectorDay.funds) : sectorStats(rows, view.period);
     const sectorHref = (slug: string) => viewHref({ ...view, tab: "screen", preset: null, filters: { ...EMPTY_FILTERS, sectors: [slug] }, sort: DEFAULT_SORT });
-    const periodLabel = SECTOR_PERIODS.find((item) => item.id === view.period)?.label ?? "Today";
+    const periodLabelOf = (id: string, label: string) => (id === "day_pct" ? dayLabel : label);
+    const periodLabel = periodLabelOf(view.period, SECTOR_PERIODS.find((item) => item.id === view.period)?.label ?? "Today");
     const sectorColumns: DataColumn[] = [
       { id: "sector", label: "Sector" },
-      { id: "count", label: "Stocks", align: "right", hideOnMobile: true },
+      // Stocks and 1W only on very wide screens: at 1280 all ten columns ran past the card and cut off Worst.
+      { id: "count", label: "Stocks", align: "right", wideOnly: true },
       { id: "cap", label: "Mkt value", align: "right", hideOnMobile: true },
-      { id: "day", label: "Today", align: "right" },
-      { id: "week", label: "1W", align: "right", hideOnMobile: true },
+      { id: "day", label: dayLabel, align: "right" },
+      { id: "week", label: "1W", align: "right", wideOnly: true },
       { id: "month", label: "1M", align: "right" },
       { id: "ytd", label: "YTD", align: "right", hideOnMobile: true },
-      { id: "adv", label: "Up today", align: "right", hideOnMobile: true, hint: "Share of the sector's stocks that are up today" },
+      { id: "adv", label: upLabel, align: "right", hideOnMobile: true, hint: `Share of the sector's stocks that are ${upLabel.charAt(0).toLowerCase()}${upLabel.slice(1)}` },
       { id: "best", label: "Best", hideOnMobile: true, sortable: false },
       { id: "worst", label: "Worst", hideOnMobile: true, sortable: false },
     ];
@@ -347,14 +364,14 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <Chips
             current={view.period}
-            items={SECTOR_PERIODS.map((item) => ({ id: item.id, label: item.label, href: viewHref({ ...view, period: item.id }) }))}
+            items={SECTOR_PERIODS.map((item) => ({ id: item.id, label: periodLabelOf(item.id, item.label), href: viewHref({ ...view, period: item.id }) }))}
           />
-          <HeatLegend period={view.period} />
+          <HeatLegend period={view.period} label={periodLabel} />
         </div>
         <Panel flush className="mb-5">
           <div className="hidden p-1.5 lg:block">
             <SectorMap
-              rows={rows}
+              rows={dayRows}
               stats={stats}
               period={view.period}
               sectorHref={sectorHref}
@@ -409,8 +426,8 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
   const savedLimit = limitFor("saved_screens", plan);
   const currentQuery = hasScreen ? viewToQuery(view) : "";
   const description = describeScreen(view, sectorOptions);
-  const onlySector =
-    view.filters.sectors.length === 1 ? sectorStats(rows).find((stat) => stat.slug === view.filters.sectors[0]) ?? null : null;
+  const onlySectorStats = onlySectorSlug ? sectorStats(dayRows).find((stat) => stat.slug === onlySectorSlug) ?? null : null;
+  const onlySector = onlySectorStats && sectorDay ? withSectorFundDays([onlySectorStats], sectorDay.funds)[0]! : onlySectorStats;
 
   const columns: DataColumn[] = [
     { id: "_select", label: <SelectAllCheck symbols={shown.map((row) => row.symbol)} />, sortable: false },
@@ -549,7 +566,7 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
       ) : null}
 
 
-      {onlySector ? <SectorStrip stat={onlySector} /> : null}
+      {onlySector ? <SectorStrip stat={onlySector} dayLabel={dayLabel} /> : null}
 
       <SelectionProvider resetKey={currentQuery}>
         <Panel flush className="!overflow-visible">

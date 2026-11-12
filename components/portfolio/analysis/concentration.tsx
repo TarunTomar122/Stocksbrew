@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { SectorIcon } from "@/components/oa/sector-icon";
+import { VsBar } from "@/components/oa/kit/vs-bar";
 import { StockLogo } from "@/components/stock-logo";
 import type { ConcentrationModule, SectorName } from "@/lib/portfolio-analysis/types";
 
@@ -40,16 +41,20 @@ export function Concentration({ module, example }: { module: ConcentrationModule
             </span>
           }
           figure={pct(module.largest.weight)}
-          line={sp.largest ? `S&P 500's largest, ${sp.largest.ticker}, is ${pct(sp.largest.weight)}` : undefined}
-        />
+        >
+          {/* Against the S&P 500's largest as two bars (owner VISUALS CHECK), not a sentence with a second number. */}
+          {sp.largest ? (
+            <VsBar value={module.largest.weight} versus={sp.largest.weight} labels={[module.largest.ticker, `S&P ${sp.largest.ticker}`]} format={(n) => pct(n)} className="mt-1 w-full" />
+          ) : null}
+        </FigureCard>
       ) : null}
       {module.top5Tickers.length > 1 ? (
       <FigureCard
         className={fill}
         label={`Top ${Math.min(5, module.top5Tickers.length)} ${lines} together`}
         figure={pct(module.top5)}
-        line={sp.top5 !== null ? `S&P 500's top five: ${pct(sp.top5)}` : undefined}
       >
+        {sp.top5 !== null ? <VsBar value={module.top5} versus={sp.top5} labels={["Mix", "S&P"]} format={(n) => pct(n)} className="mt-1 w-full" /> : null}
         <span className="mt-1 flex flex-wrap gap-x-2.5 gap-y-1">
           {module.top5Tickers.map((ticker) => (
             <Tick key={ticker} ticker={ticker} size={14} />
@@ -62,8 +67,11 @@ export function Concentration({ module, example }: { module: ConcentrationModule
           className={fill}
           label="Spread like"
           figure={`${spread} equal bets`}
-          line={sp.equalBets !== null ? `The S&P 500 spreads like ${Math.round(sp.equalBets)}` : undefined}
-        />
+        >
+          {sp.equalBets !== null ? (
+            <VsBar value={module.equalBets} versus={sp.equalBets} labels={["Mix", "S&P"]} format={(n) => (n >= 9.95 ? `${Math.round(n)}` : n.toFixed(1))} className="mt-1 w-full" />
+          ) : null}
+        </FigureCard>
       ) : null}
       </div>
       {sectors ? <Sectors module={module} beside={beside} /> : null}

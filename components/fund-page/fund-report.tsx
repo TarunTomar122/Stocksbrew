@@ -7,6 +7,7 @@ import { PricePanel } from "@/components/stock-report/price-panel";
 import { NUM, Panel, TONE_COLOR } from "@/components/stock-report/primitives";
 import { compactMoney, fmtDate, moneyFormatter, priceStamp, signedPct } from "@/components/stock-report/format";
 import { AppLink } from "@/components/oa/app-link";
+import { VsBar } from "@/components/oa/kit/vs-bar";
 import { dayPossessive } from "@/lib/day-words";
 import { packChartRanges, type ChartRange } from "@/lib/stock-chart";
 import type { FundPageData } from "@/lib/funds/page";
@@ -67,7 +68,8 @@ function figuresOf(data: FundPageData): Figure[] {
       key: "year",
       value: signedPct(year.fundPct, 1),
       label: "Past year",
-      line: `S&P 500 ${signedPct(year.sp500Pct, 1)}`,
+      // The fund against the S&P 500 as two bars (owner VISUALS CHECK), not a second number in words.
+      line: <VsBar value={year.fundPct} versus={year.sp500Pct} labels={[data.ticker, "S&P 500"]} format={(n) => n.toFixed(1)} suffix="%" signed className="mt-1 w-full" />,
       tone: year.fundPct >= 0 ? "up" : "down",
       title: `Total return with dividends, ${fmtDate(year.from)} to ${fmtDate(year.to)}`,
     });
@@ -234,7 +236,7 @@ export function FundReport({
                     {figure.value}
                   </p>
                   <p className="text-[13px] leading-5 text-oa-fg">{figure.label}</p>
-                  {figure.line ? <p className="text-[12.5px] leading-[18px] text-oa-muted-fg">{figure.line}</p> : null}
+                  {figure.line ? <div className="text-[12.5px] leading-[18px] text-oa-muted-fg">{figure.line}</div> : null}
                 </div>
               ))}
             </div>

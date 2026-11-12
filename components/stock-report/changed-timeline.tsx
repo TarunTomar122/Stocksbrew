@@ -1,12 +1,13 @@
 "use client";
 
+import * as React from "react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { FADE_BOTTOM, useMoreBelow } from "@/components/follow/use-more-below";
 import type { StockTimelineItem } from "@/lib/stock-timeline";
 
 import { Missing } from "./primitives";
-import { TimelineRow } from "./timeline-row";
+import { TimelineRow, timelineDate } from "./timeline-row";
 
 const useIsoLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
@@ -83,9 +84,21 @@ export function ChangedTimeline({ items: all, nowIso, ticker }: { items: StockTi
       className="scrollbar-hide relative max-h-[34rem] overflow-y-auto outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-oa-border sm:max-h-[19.5rem]"
       style={more ? FADE_BOTTOM : undefined}
     >
-      {shown.map((item) => (
-        <TimelineRow key={item.id} item={item} nowIso={nowIso} />
-      ))}
+      {/* The day once, as a heading over its rows, never "Today" at the end of every row (owner rule 1). */}
+      {shown.map((item, index) => {
+        const day = timelineDate(item, nowIso);
+        const heading = index === 0 || timelineDate(shown[index - 1]!, nowIso) !== day;
+        return (
+          <React.Fragment key={item.id}>
+            {heading ? (
+              <li className="border-b border-oa-border bg-oa-bg px-3.5 py-1 text-[12.5px] font-medium leading-5 text-oa-muted-fg sm:px-4">
+                {day}
+              </li>
+            ) : null}
+            <TimelineRow item={item} nowIso={nowIso} dayed />
+          </React.Fragment>
+        );
+      })}
     </ol>
   );
 }

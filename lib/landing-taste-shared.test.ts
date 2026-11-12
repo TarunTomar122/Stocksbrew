@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { aboutCount, leansAgainst, moveStamp, parseTasteTickers, pickLines, type TasteLine } from "@/lib/landing-taste-shared";
-import { heroProof } from "@/lib/brand-copy";
+import { leansAgainst, moveStamp, parseTasteTickers, pickLines, type TasteLine } from "@/lib/landing-taste-shared";
 
 const sales = (t: string): TasteLine => ({ id: "sales", text: `${t}'s sales rose 10% over the last four quarters.`, source: "From the 10-Q" });
 
@@ -11,13 +10,6 @@ describe("landing taste", () => {
     expect(parseTasteTickers("brk.b <script> 123")).toEqual(["BRK.B"]);
     expect(parseTasteTickers("brk-b")).toEqual(["BRK.B"]);
     expect(parseTasteTickers(null)).toEqual([]);
-  });
-
-  it("rounds the call count for the proof line and leaves it out when there is none", () => {
-    expect(aboutCount(726)).toBe("about 730");
-    expect(aboutCount(Number.NaN)).toBeNull();
-    expect(heroProof(aboutCount(726))).toBe("About 730 US stocks with a dated call, and the sources under each one.");
-    expect(heroProof(null)).not.toMatch(/\d/);
   });
 
   it("dates the move in New York time, with the day when it is not today", () => {

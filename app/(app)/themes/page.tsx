@@ -131,11 +131,7 @@ export default async function ThemesPage() {
   return (
     <AppPage>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemList) }} />
-      <PageHead
-        title="Idea baskets"
-        lede="One idea per basket, with what would break it."
-        className="[&_.oa-head-lede]:hidden"
-      />
+      <PageHead title="Idea baskets" />
 
       <Panel flush>
         {baskets.length === 0 ? (
@@ -188,10 +184,8 @@ export default async function ThemesPage() {
           </>
         )}
       </Panel>
-
-      <p className="mt-4 max-w-[70ch] text-[12.5px] leading-5 text-oa-muted-fg">
-        Hypothetical equal-weight baskets, picked with hindsight, so the past flatters them. Not a recommendation to buy.
-      </p>
+      {/* No footnote and no "About this page" (owner rule 8: no mechanics copy); the site footer says past returns
+          promise nothing. */}
     </AppPage>
   );
 }

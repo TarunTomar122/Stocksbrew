@@ -62,7 +62,7 @@ export function AnalysisView({ analysis, plan, trialEligible }: { analysis: Port
           className="scroll-mt-28 lg:scroll-mt-16"
         />
       ) : null}
-      {analysis.risk ? <Swings module={analysis.risk} example={example} /> : null}
+      {analysis.risk ? <Swings module={analysis.risk} /> : null}
       {together ? <Together module={together} weights={weights} example={example} /> : null}
       {analysis.overlap ? <Overlap module={analysis.overlap} example={example} /> : null}
       {analysis.crashes ? <Crashes module={analysis.crashes} /> : null}

@@ -87,6 +87,10 @@ const KIND_PATHS = {
   drop: ["M12 3c3.5 4 6 7.2 6 10.5a6 6 0 0 1-12 0C6 10.2 8.5 7 12 3Z"],
   // Currencies: two arrows trading places.
   exchange: ["M4 8h13", "m14 5 3 3-3 3", "M20 16H7", "m10 13-3 3 3 3"],
+  // Metals (gold, silver): a bar of bullion.
+  ingot: ["M3 19h18l-3.5-8h-11L3 19Z", "M8.5 11l1.5-4h4l1.5 4"],
+  // The dollar: a dollar sign.
+  dollar: ["M12 3v18", "M16.5 7.5C16 5.8 14.3 5 12 5c-2.6 0-4.5 1.2-4.5 3.2 0 4.6 9 2.6 9 7.1 0 2-1.9 3.4-4.5 3.4-2.4 0-4.2-.9-4.8-2.7"],
   // Crypto: a hexagon block.
   block: ["M12 2.5 20.5 7.5v9L12 21.5 3.5 16.5v-9L12 2.5Z", "M12 7.5 16.5 10v5L12 17.5 7.5 15v-5L12 7.5Z"],
   // Options and volatility: a pulse.

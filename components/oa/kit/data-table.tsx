@@ -12,6 +12,8 @@ export type DataColumn = {
   align?: "left" | "right";
   /** Hide below the sm breakpoint to keep phones readable. */
   hideOnMobile?: boolean;
+  /** Only on very wide screens (2xl): a column a 1280 screen has no room for, so the others never scroll sideways. Never a sort. */
+  wideOnly?: boolean;
   sortable?: boolean;
   /** Tooltip explaining what the column means. */
   hint?: string;
@@ -27,8 +29,14 @@ export type DataRow = {
 
 /** A body cell's own classes: only what differs from the .oa-dt default (left-aligned, shown everywhere). */
 function cellClass(column: DataColumn | undefined): string | undefined {
-  const parts = [column?.align === "right" ? "text-right" : "", column?.hideOnMobile ? "hidden sm:table-cell" : ""].filter(Boolean);
+  const parts = [column?.align === "right" ? "text-right" : "", hideClass(column)].filter(Boolean);
   return parts.length ? parts.join(" ") : undefined;
+}
+
+/** Where a column is hidden: everywhere below 2xl, or only on a phone. */
+function hideClass(column: DataColumn | undefined): string {
+  if (column?.wideOnly) return "hidden 2xl:table-cell";
+  return column?.hideOnMobile ? "hidden sm:table-cell" : "";
 }
 
 export function DataTable({
@@ -101,11 +109,10 @@ export function DataTable({
                     scope="col"
                     title={column.hint}
                     aria-sort={active ? (sort?.dir === "asc" ? "ascending" : "descending") : undefined}
-                    className={`oa-caption h-9 whitespace-nowrap border-b border-oa-border bg-oa-bg ${compact ? "px-1.5" : "px-2"} py-0 first:pl-4 last:pr-4 ${align} ${
-                      column.hideOnMobile ? "hidden sm:table-cell" : ""
-                    } ${stickyHeader || scrolls ? "sticky top-0 z-[1]" : ""}`}
+                    className={`oa-caption h-9 whitespace-nowrap border-b border-oa-border bg-oa-bg ${compact ? "px-1.5" : "px-2"} py-0 first:pl-4 last:pr-4 ${align} ${hideClass(column)} ${stickyHeader || scrolls ? "sticky top-0 z-[1]" : ""}`}
                   >
-                    {column.sortable === false ? (
+                    {/* A wide-only column is not a sort: sorted by it, a narrower screen would order rows by a column it hides. */}
+                    {column.sortable === false || column.wideOnly ? (
                       column.label
                     ) : (
                       <button

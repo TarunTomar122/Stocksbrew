@@ -13,6 +13,7 @@
  */
 
 import { daysFromToday, dayPossessive } from "@/lib/day-words";
+import { sessionCloseMinutes } from "@/lib/market-session";
 import type { MarketAsset } from "@/lib/markets-shared";
 import type { ScreenerRow } from "@/lib/screener-shared";
 
@@ -93,7 +94,8 @@ const ET_CLOCK = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York"
 export function closeWords(day: string, label: string, now: number | Date = Date.now()): string {
   const parts = Object.fromEntries(ET_CLOCK.formatToParts(new Date(now)).map((part) => [part.type, part.value]));
   const today = `${parts.year}-${parts.month}-${parts.day}`;
-  const beforeClose = Number(parts.hour) < 16;
+  // The close is 4 PM, 1 PM on a half day (lib/market-session.ts).
+  const beforeClose = Number(parts.hour) * 60 + Number(parts.minute) < sessionCloseMinutes(today);
   if (day === today && beforeClose) return "today, during trading";
   const gap = daysFromToday(day, today);
   return gap !== null && Math.abs(gap) <= 6 ? `${dayPossessive(day, today)} close` : `the ${label} close`;

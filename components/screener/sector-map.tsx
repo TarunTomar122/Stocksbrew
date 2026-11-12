@@ -195,10 +195,10 @@ const NARROW_LAYOUTS: TreemapLayout[] = [
   { width: 582, className: "hidden sm:block" },
 ];
 
-export function HeatLegend({ period }: { period: SectorPeriod }) {
+export function HeatLegend({ period, label: given }: { period: SectorPeriod; /** The period's label as the page shows it ("Yesterday" when the day is not today's). */ label?: string }) {
   const full = FULL_SCALE[period];
   const stops = [-1, -0.5, -0.2, 0, 0.2, 0.5, 1];
-  const label = SECTOR_PERIODS.find((item) => item.id === period)?.label ?? "";
+  const label = given ?? SECTOR_PERIODS.find((item) => item.id === period)?.label ?? "";
   return (
     <div className="oa-type-fixed flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[12px] text-oa-muted-fg">
       <span className="flex items-center">
@@ -208,7 +208,7 @@ export function HeatLegend({ period }: { period: SectorPeriod }) {
           </span>
         ))}
       </span>
-      <span>Colour is the change over {label.toLowerCase()}. Size is the move.</span>
+      <span>Colour is the change over {/^(?:Today|Yesterday|This year)$/.test(label) ? label.toLowerCase() : label}. Size is the move.</span>
     </div>
   );
 }

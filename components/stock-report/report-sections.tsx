@@ -16,7 +16,7 @@ import {
 } from "./sections";
 import type { SectionData } from "./types";
 import type { TabTone } from "@/lib/stock-signals";
-import { TabDot, type SignalsProp } from "./signal-ui";
+import type { SignalsProp } from "./signal-ui";
 
 /**
  * Each tab's view, in the order of SECTION_LABELS. A new section adds its view here. Memoised: the data never
@@ -51,7 +51,9 @@ export function ReportSections({
 }) {
   return (
     <SectionTabs
-      sections={sections.map((section) => ({ ...section, mark: <TabDot tone={section.tone} /> }))}
+      // No mark after each tab's label (owner rule 1: nothing repeated on every tab); the header's good and to-watch
+      // chips already say it once.
+      sections={sections}
       renderPanel={(id) => {
         const View = VIEWS[id as SectionId];
         return View ? <View data={data} signals={signals} /> : null;

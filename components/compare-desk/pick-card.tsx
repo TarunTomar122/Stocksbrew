@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { NUM } from "@/components/oa/kit";
 import { SignedBar, ToneGlyph } from "@/components/oa/kit/tone";
+import { VsBar } from "@/components/oa/kit/vs-bar";
 import { CallTag } from "@/components/screener/shared";
 import { StockLogo } from "@/components/stock-logo";
 import { pickPlaceWord, type ComparePick, type PickPlace, type PickReason } from "@/lib/compare-pick";
@@ -141,6 +142,9 @@ export function PickCard({ pick, names }: { pick: ComparePick; names: Record<str
 
   const top = pick.ranking[0]!;
   const name = names[top.symbol];
+  // Two stocks: their two scores as one bar pair in the header (owner VISUALS CHECK: two numbers get a bar), so the
+  // runner-up row does not print its score again.
+  const second = pick.ranking.length === 2 && !pick.callRuled ? pick.ranking[1]! : null;
   return (
     <section aria-label="Our pick of these" className="oa-surface min-w-0 overflow-hidden border border-oa-border bg-oa-card">
       <header className="relative flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 hover:bg-oa-accent">
@@ -151,7 +155,14 @@ export function PickCard({ pick, names }: { pick: ComparePick; names: Record<str
         </div>
         <span className="inline-flex shrink-0 items-center gap-3 max-sm:basis-full max-sm:pl-11">
           <CallTag call={top.call} />
-          <Score place={top} hidden={pick.callRuled} />
+          {second ? (
+            // Above the header's link so its hover title shows; the rest of the header still opens the stock.
+            <span title="Our pick score of these, out of 100" className="relative z-[1] w-48 max-sm:flex-1">
+              <VsBar value={top.score} versus={second.score} labels={[top.symbol, second.symbol]} suffix="/100" />
+            </span>
+          ) : (
+            <Score place={top} hidden={pick.callRuled} />
+          )}
         </span>
         <Link
           href={`/stock/${encodeURIComponent(top.symbol)}`}
@@ -170,7 +181,7 @@ export function PickCard({ pick, names }: { pick: ComparePick; names: Record<str
           </span>
         </p>
       ) : null}
-      <RunnerUps places={pick.ranking.slice(1)} hideScores={pick.callRuled} />
+      <RunnerUps places={pick.ranking.slice(1)} hideScores={pick.callRuled || second !== null} />
     </section>
   );
 }

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { StockSignal, StockSignals, TabTone } from "@/lib/stock-signals";
+import type { StockSignal, StockSignals } from "@/lib/stock-signals";
 import { ToneGlyph } from "@/components/oa/kit/tone";
 
 import { TONE_COLOR } from "./primitives";
@@ -45,18 +45,6 @@ export function SignalFigure({
       {children ?? signal.display}
       {tone ? <span className="sr-only">, {VERDICT_WORDS[tone]}</span> : null}
       {showPeriod && signal.period ? <span className="font-sans text-[12px] font-normal text-oa-muted-fg">{signal.period}</span> : null}
-    </span>
-  );
-}
-
-/** A tab's quiet dot: green when its good signs outnumber the ones to watch, red the other way, none on a tie. */
-export function TabDot({ tone }: { tone: TabTone | null | undefined }) {
-  if (!tone?.dot) return null;
-  const words = tone.dot === "good" ? `${tone.good} good ${tone.good === 1 ? "sign" : "signs"}` : `${tone.watch} to watch`;
-  return (
-    <span className="inline-flex items-center" title={words}>
-      <span aria-hidden="true" className="size-1.5 rounded-full" style={{ background: VERDICT_COLOR[tone.dot] }} />
-      <span className="sr-only">{words}</span>
     </span>
   );
 }

@@ -51,6 +51,8 @@ const NAV_BUTTON =
   "inline-flex h-10 min-w-10 items-center justify-center rounded-md border border-oa-border bg-oa-card px-2.5 text-[14px] text-oa-fg hover:bg-oa-accent lg:h-8 lg:min-w-8 " +
   FOCUS;
 const SECTION = "oa-caption px-3 pb-1 pt-3";
+/** A section of one kind (economic releases, IPOs) with its kind's icon before the label (owner VISUALS CHECK). */
+const SECTION_KIND = `${SECTION} flex items-center gap-1.5`;
 
 /** Each kind of event has its own icon on its chip (owner VISUALS CHECK). */
 const TYPE_ICON: Record<CalendarType, KindIconName> = { earnings: "briefing", economic: "globe", ipo: "rocket", dividend: "coins" };
@@ -292,6 +294,23 @@ function ResultMark({ item }: { item: EarningsItem }) {
 }
 
 /**
+ * A reported result before the stock has a move: beat or miss and by how much against the estimate ("Beat 12%",
+ * "Miss 5.2%"), coloured by the result. Nothing when there is no estimate to measure it against.
+ */
+function ResultFigure({ item, className = "" }: { item: EarningsItem; className?: string }) {
+  const result = resultWord(item);
+  const pct = surprisePctOf(item);
+  if (!result || result.tone === "flat" || pct === null || !Number.isFinite(pct)) return null;
+  const size = Math.abs(pct) >= 10 ? `${Math.round(Math.abs(pct))}` : Math.abs(pct).toFixed(1).replace(/\.0$/, "");
+  return (
+    // "Miss", not "Missed", and a size smaller: it has to fit a narrow desktop column beside the moves.
+    <span title={`${result.word} the estimate for profit a share by ${size}%`} className={`${NUM} whitespace-nowrap text-[12.5px] ${result.tone === "up" ? "text-signal-bullish" : "text-signal-bearish"} ${className}`}>
+      {result.tone === "up" ? "Beat" : "Miss"} {size}%
+    </span>
+  );
+}
+
+/**
  * How the stock moved after its last report, on an upcoming report's own row (the biggest companies only): "last
  * report −8.4%", with the move against a normal day in the hover title.
  */
@@ -350,12 +369,14 @@ function EarningsLine({
           <StockLogo ticker={item.ticker} size={16} atOnce />
           {item.ticker}
         </span>
-        {reported ? <ResultMark item={item} /> : null}
+        {reported && item.reaction ? <ResultMark item={item} /> : null}
         <span className="ml-auto flex shrink-0 items-baseline gap-2 text-[14px]">
           {reported ? <ResultWord item={item} compact /> : null}
           {reported ? (
-            <ReactionValue item={item} narrow />
-          ) : item.epsEstimate !== null ? (
+            // The move when there is one (the mark on the ticker says beat or miss); before it, the result against the
+            // estimate in words ("Beat 12%"), never a bare EPS beside other rows' moves (owner rule 6).
+            item.reaction ? <ReactionValue item={item} narrow /> : <ResultFigure item={item} />
+          ) : item.epsEstimate !== null && !quiet ? (
             <span className={`${NUM} text-oa-muted-fg`}>{fmtEps(item.epsEstimate)}</span>
           ) : null}
         </span>
@@ -373,7 +394,7 @@ function EarningsLine({
         <StockLogo ticker={item.ticker} size={16} atOnce />
         {item.ticker}
       </span>
-      {narrow && reported ? <ResultMark item={item} /> : null}
+      {narrow && reported && item.reaction ? <ResultMark item={item} /> : null}
       {/* Wraps on a phone rather than cutting the name; the narrow desktop columns still clip. */}
       {/* Wide rows wrap the result under the name rather than letting the two overlap. */}
       <span className={`min-w-0 flex-1 text-pretty text-[14px] leading-5 text-oa-muted-fg ${narrow ? "lg:truncate" : "min-w-[6rem]"} ${detail} ${narrow && reported ? "lg:hidden" : ""}`}>
@@ -386,14 +407,19 @@ function EarningsLine({
         {reported ? (
           <>
             <ResultWord item={item} compact={narrow} />
-            <span className={`${NUM} text-[12.5px] text-oa-muted-fg ${detail} ${item.reaction ? "max-[420px]:hidden" : ""}`}>
+            {/* A narrow desktop column has room for one figure: the move, or before it the result against the estimate
+                ("Beat 12%"), never a bare EPS beside other rows' moves (owner rule 6). */}
+            {narrow && !item.reaction ? <ResultFigure item={item} className="hidden lg:inline" /> : null}
+            <span className={`${NUM} text-[12.5px] text-oa-muted-fg ${narrow ? "lg:hidden" : detail} ${item.reaction ? "max-[420px]:hidden" : ""}`}>
               {fmtEps(item.epsActual)}
               {item.epsEstimate !== null ? <span className={narrow ? "lg:hidden" : ""}> vs {fmtEps(item.epsEstimate)} expected</span> : null}
             </span>
             <ReactionValue item={item} narrow={narrow} />
           </>
         ) : null}
-        {reported ? null : item.epsEstimate !== null ? (
+        {/* A day that has passed (`quiet`) never shows the estimate in the result's place: a row without results there
+            shows no figure until they are in. */}
+        {reported || quiet ? null : item.epsEstimate !== null ? (
           <span className={`${NUM} text-oa-muted-fg`}>
             {/* The number alone: the session heading says once what it is ("Expected profit a share"), so the words
                 are not repeated on every row (owner, Nov 11). Screen readers still get them. */}
@@ -510,17 +536,19 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
   // With today on screen it leads and the other days run narrow; any other week is five equal days.
   const compact = hasLead && !isToday;
   const dayHref = calendarHref(filters, today, { view: "list", day: bucket.day });
-  const reports = earningsCount(bucket);
   const sessions = (["bmo", "amc", "unknown"] as Session[]).filter((session) => bucket.earnings[session].length > 0);
   const all = [...bucket.earnings.bmo, ...bucket.earnings.amc, ...bucket.earnings.unknown];
+  // A day that has passed counts only the reports whose results are in: the header's "N reported" matches the rows
+  // that show a result. A coming day counts every scheduled report.
+  const reports = past ? all.filter((item) => item.epsActual !== null).length : earningsCount(bucket);
   const beats = all.filter((item) => resultWord(item)?.tone === "up").length;
   const misses = all.filter((item) => resultWord(item)?.tone === "down").length;
   return (
     <section
       id={`d-${bucket.day}`}
       aria-label={`${weekdayName(bucket.day, true)}, ${fmtShortDay(bucket.day)}`}
-      // Each day is its own card, as tall as what it holds (owner rule 4): a quiet day ends where its events end
-      // instead of leaving a hollow cell beside a busy one.
+      // Each day is its own card, as tall as what it holds: a quiet day is not padded out to the busiest one's height
+      // (owner rule 4: no card padded to match a taller neighbour).
       className={`oa-surface min-w-0 scroll-mt-16 overflow-hidden border border-oa-border lg:order-none ${past ? "order-2 bg-oa-bg" : "order-1 bg-oa-card"}`}
     >
       <AppLink
@@ -571,7 +599,7 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
 
         {bucket.economic.length ? (
           <div>
-            <h3 className={SECTION}>Economic</h3>
+            <h3 className={SECTION_KIND}><KindIcon name={TYPE_ICON.economic} className="size-3.5" />Economic</h3>
             {bucket.economic.map((item) => (
               <EconomicLine key={item.id} item={item} />
             ))}
@@ -582,7 +610,8 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
           const rows = bucket.earnings[session];
           // "Expected profit a share" once per day, over the first group whose numbers are estimates (owner rule 1).
           const estimates = (list: EarningsItem[]) => list.some((item) => item.epsActual === null && item.epsEstimate !== null);
-          const sayExpected = estimates(rows) && !sessions.slice(0, sessionIndex).some((earlier) => estimates(bucket.earnings[earlier]));
+          // A day that has passed shows no estimates (its rows show results or nothing), so it never says it.
+          const sayExpected = !past && estimates(rows) && !sessions.slice(0, sessionIndex).some((earlier) => estimates(bucket.earnings[earlier]));
           return (
             <div key={session}>
               <h3 className={`${SECTION} flex items-baseline justify-between gap-2`}>
@@ -611,7 +640,7 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
 
         {bucket.ipos.length ? (
           <div>
-            <h3 className={SECTION}>IPOs</h3>
+            <h3 className={SECTION_KIND}><KindIcon name={TYPE_ICON.ipo} className="size-3.5" />IPOs</h3>
             {bucket.ipos.map((item) => (
               <IpoLine key={item.id} item={item} />
             ))}
@@ -621,7 +650,10 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
         {bucket.dividends.length ? (
           <div>
             <h3 className={`${SECTION} flex items-center justify-between`}>
-              <span>Buy before this day to get the dividend</span>
+              <span className="flex items-center gap-1.5">
+                <KindIcon name={TYPE_ICON.dividend} className="size-3.5 shrink-0" />
+                Buy before this day to get the dividend
+              </span>
               <span className={NUM}>{bucket.dividends.length}</span>
             </h3>
             {bucket.dividends.map((item) => (
@@ -888,7 +920,7 @@ function ListDay({ bucket, today, single, filters, mark }: { bucket: DayBuckets;
         <div className="grid border-b border-oa-border last:border-b-0 sm:grid-cols-3">
           {bucket.economic.length ? (
             <div className="min-w-0 border-b border-oa-border pb-1.5 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0">
-              <h3 className={SECTION}>Economic</h3>
+              <h3 className={SECTION_KIND}><KindIcon name={TYPE_ICON.economic} className="size-3.5" />Economic</h3>
               {bucket.economic.map((item) => (
                 <EconomicLine key={item.id} item={item} />
               ))}
@@ -896,7 +928,7 @@ function ListDay({ bucket, today, single, filters, mark }: { bucket: DayBuckets;
           ) : null}
           {bucket.ipos.length ? (
             <div className="min-w-0 border-b border-oa-border pb-1.5 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0">
-              <h3 className={SECTION}>IPOs</h3>
+              <h3 className={SECTION_KIND}><KindIcon name={TYPE_ICON.ipo} className="size-3.5" />IPOs</h3>
               {bucket.ipos.map((item) => (
                 <IpoLine key={item.id} item={item} />
               ))}

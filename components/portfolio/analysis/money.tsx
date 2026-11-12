@@ -1,20 +1,26 @@
 import type { AttributionModule, LeanFigure, LeanModule } from "@/lib/portfolio-analysis/types";
-import { ShowMoreGrid } from "@/components/oa/kit/show-more-grid";
 import { PairBar } from "@/components/oa/kit/tone";
 
+import { RowsFold } from "./rows-fold";
 import { CARD, FigureStrip, Module, NUM, SPAN, Tick, signedPct, signedPts, toneClass } from "./parts";
+
+/** Rows each list shows while folded: RowsFold hides `li:nth-child(n+7)`, so the two must change together. */
+const FOLD_ROWS = 6;
 
 /** Longest first: this year, then three months, then the last month. */
 const WINDOW_ORDER = { ytd: 0, "3m": 1, "1m": 2 } as const;
 
 /**
  * What made the money: this year, 3 months and 1 month at today's weights, a third of the row each, with who earned
- * it: six names, then one "Show N more" (a card list never scrolls inside its box).
+ * it: six names each, then one "Show N more" under all three (a card list never scrolls inside its box).
  */
 export function MadeTheMoney({ module }: { module: AttributionModule }) {
   const windows = [...module.windows].sort((a, b) => WINDOW_ORDER[a.key] - WINDOW_ORDER[b.key]);
+  // One "Show N more" under the three (owner rule 1), counting every row folded away.
+  const more = windows.reduce((sum, window) => sum + Math.max(0, window.rows.length - FOLD_ROWS), 0);
   return (
     <Module id="made" title="What made the money, at today's mix">
+      <RowsFold more={more}>
       {windows.map((window) => (
         // The three end level (self-stretch): a window with a name or two fewer only ends a row short inside its card.
         <div key={window.key} className={`${CARD} ${SPAN[4]} lg:self-stretch`}>
@@ -26,7 +32,7 @@ export function MadeTheMoney({ module }: { module: AttributionModule }) {
             ) : null}
           </div>
           <div className="px-4 py-2">
-            <ShowMoreGrid count={window.rows.length} cut="rows" label={`Who made the money, ${window.label.toLowerCase()}`}>
+            <ul aria-label={`Who made the money, ${window.label.toLowerCase()}`} className="oa-fold-rows">
               {window.rows.map((row) => (
                 <li key={row.ticker} className="grid h-8 grid-cols-[minmax(0,1fr)_3.75rem_4.5rem] items-center gap-2">
                   <Tick ticker={row.ticker} />
@@ -34,10 +40,11 @@ export function MadeTheMoney({ module }: { module: AttributionModule }) {
                   <span className={`${NUM} text-right text-[13px] ${toneClass(row.contribution)}`}>{signedPts(row.contribution)}</span>
                 </li>
               ))}
-            </ShowMoreGrid>
+            </ul>
           </div>
         </div>
       ))}
+      </RowsFold>
     </Module>
   );
 }

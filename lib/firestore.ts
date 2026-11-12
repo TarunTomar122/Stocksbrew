@@ -2,6 +2,7 @@ import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { localFirestoreFromEnv } from "@/lib/local-firestore";
+import { sharedCache } from "@/lib/shared-cache";
 import type { DocumentData, DocumentReference } from "firebase-admin/firestore";
 import type {
   DashboardView,
@@ -38,10 +39,22 @@ export async function batchGetRefs<T>(
 // / getStockIntelPro / getSectorContextDoc fires its own independent read.
 
 // Single cached fetch of the raw config doc - shared by both getters below.
-const _getUniverseConfig = cache(async (): Promise<Record<string, string>> => {
-  const doc = await adminFirestore.collection("tm_config").doc("active_universes").get();
-  return doc.exists ? (doc.data() as Record<string, string>) : {};
-});
+// The doc names the live universe namespaces and only changes when a universe is
+// rotated, yet it sat on the stock page's critical path (one store round trip
+// before the intelligence, view and scorecard docs could be read). It is the
+// same for everyone, so it is also kept for two minutes across requests
+// (lib/shared-cache.ts). A failed read throws and is never kept.
+const readUniverseConfigShared = sharedCache(
+  async (): Promise<Record<string, string>> => {
+    const doc = await adminFirestore.collection("tm_config").doc("active_universes").get();
+    // Thrown, never kept: a missing doc would otherwise fail every universe lookup for the whole window.
+    if (!doc.exists) throw new Error("tm_config/active_universes is missing");
+    return doc.data() as Record<string, string>;
+  },
+  ["tm-config-active-universes-v1"],
+  { revalidate: 120 },
+);
+const _getUniverseConfig = cache(() => readUniverseConfigShared());
 
 function requireUniverse(config: Record<string, string>, key: string): string {
   const value = String(config[key] || "").trim();

@@ -16,6 +16,26 @@ import {
 import type { InsiderGroup } from "@/lib/insider-groups";
 import { capitalize, dayWords, etToday } from "@/lib/day-words";
 
+/**
+ * When a Form 4 was filed, its day in words (owner rule 4): "Today, 9:29 AM", "Tuesday, 5:17 PM", and the date only
+ * past a week ("Nov 3, 6:02 AM"). The filing's own clock is New York time already, so only the day is reworded.
+ */
+function filedWords(value: string | null | undefined, today: string): string {
+  const stamp = fmtFiledAt(value).replace(" ET", "");
+  const day = /^\d{4}-\d{2}-\d{2}/.exec(value ?? "")?.[0];
+  const words = day ? dayWords(day, today) : "";
+  if (!words) return stamp;
+  const time = stamp.split(", ")[1];
+  return time ? `${capitalize(words)}, ${time}` : capitalize(words);
+}
+
+/** The trade's day in words: "Tuesday" in the column, "Tuesday" or "yesterday" after "traded" in a sentence. */
+function tradedWords(day: string | null | undefined, today: string, inSentence = false): string {
+  const words = day ? dayWords(day, today) : "";
+  if (!words) return fmtDate(day, false);
+  return inSentence ? words : capitalize(words);
+}
+
 function spanWords(cluster: InsiderCluster): string {
   return cluster.first_date === cluster.last_date
     ? fmtDate(cluster.last_date, false)
@@ -142,10 +162,10 @@ export function ClusterRows({ clusters, today = etToday() }: { clusters: Insider
 }
 
 const TRADE_GRID =
-  "md:grid-cols-[122px_58px_minmax(150px,1.4fr)_52px_78px_72px_80px_86px]";
+  "md:grid-cols-[142px_58px_minmax(150px,1.4fr)_52px_78px_72px_80px_86px]";
 /** A list of only buys (or only sells) says the side once, in its title or filter, not "BUY" on every row. */
 const TRADE_GRID_ONE_SIDE =
-  "md:grid-cols-[122px_58px_minmax(150px,1.4fr)_78px_72px_80px_86px]";
+  "md:grid-cols-[142px_58px_minmax(150px,1.4fr)_78px_72px_80px_86px]";
 
 export function InsiderTableHead({ showSide = true }: { showSide?: boolean }) {
   const cell = "oa-caption";
@@ -174,8 +194,11 @@ export function InsiderRow({
   trade,
   showSide = true,
   logoAtOnce = true,
+  today = etToday(),
 }: {
   trade: InsiderTradeRow;
+  /** New York's today, from the server, so the day words ("Today", "Tuesday") match between server and browser. */
+  today?: string;
   showSide?: boolean;
   /** Off for rows far down a long scrolling list: the browser still fetches them well before they scroll into view. */
   logoAtOnce?: boolean;
@@ -197,11 +220,11 @@ export function InsiderRow({
         {/* The filing time opens the Form 4 itself, so no "SEC" or "Form 4" link is repeated on every row (owner, Nov 11). */}
         <ExternalLink href={formUrl(trade.url)} className="-my-1 inline-block py-1">
           <span className="md:hidden">Filed </span>
-          {fmtFiledAt(trade.filed_at).replace(" ET", "")}
+          {filedWords(trade.filed_at, today)}
           <span className="sr-only"> (the Form 4 at the SEC)</span>
         </ExternalLink>
         <span className="md:hidden">
-          , traded {fmtDate(trade.transaction_date, false)}
+          , traded {tradedWords(trade.transaction_date, today, true)}
           {lag}
         </span>
       </span>
@@ -260,7 +283,7 @@ export function InsiderRow({
             : undefined
         }
       >
-        {fmtDate(trade.transaction_date, false)}
+        {tradedWords(trade.transaction_date, today)}
       </span>
     </li>
   );
@@ -271,7 +294,18 @@ export function InsiderRow({
  * day at about the same price, said once: "12 vice presidents · Jun He, Lipen Yuan and 10 more".
  * The filing time opens the newest member's Form 4; the stock's own insider page lists each filing.
  */
-export function InsiderGroupRow({ group, showSide = true, logoAtOnce = true }: { group: InsiderGroup; showSide?: boolean; logoAtOnce?: boolean }) {
+export function InsiderGroupRow({
+  group,
+  showSide = true,
+  logoAtOnce = true,
+  today = etToday(),
+}: {
+  group: InsiderGroup;
+  showSide?: boolean;
+  logoAtOnce?: boolean;
+  /** New York's today, from the server (see InsiderRow). */
+  today?: string;
+}) {
   const buy = group.side === "buy";
   const tone = buy ? UP : DOWN;
   return (
@@ -281,10 +315,10 @@ export function InsiderGroupRow({ group, showSide = true, logoAtOnce = true }: {
       <span className="oa-mono order-3 col-span-2 text-[11.5px] text-oa-muted-fg md:order-none md:col-span-1 md:text-[12px]" title={`Filed ${group.filed_at} US Eastern`}>
         <ExternalLink href={formUrl(group.url)} className="-my-1 inline-block py-1">
           <span className="md:hidden">Filed </span>
-          {fmtFiledAt(group.filed_at).replace(" ET", "")}
+          {filedWords(group.filed_at, today)}
           <span className="sr-only"> (the newest Form 4 at the SEC)</span>
         </ExternalLink>
-        <span className="md:hidden">, traded {fmtDate(group.transaction_date, false)}</span>
+        <span className="md:hidden">, traded {tradedWords(group.transaction_date, today, true)}</span>
       </span>
       <span className="order-1 flex min-w-0 items-baseline gap-2 md:order-none">
         <Ticker ticker={group.symbol} className="text-[13.5px]" logoAtOnce={logoAtOnce} />
@@ -307,7 +341,7 @@ export function InsiderGroupRow({ group, showSide = true, logoAtOnce = true }: {
       </span>
       <span className="oa-mono hidden text-right text-[12.5px] text-oa-fg md:block">{fmtShares(group.shares)}</span>
       <span className="oa-mono hidden text-right text-[12.5px] text-oa-fg md:block">{group.price != null ? fmtPrice(group.price) : ""}</span>
-      <span className="oa-mono hidden text-right text-[12px] text-oa-muted-fg md:block">{fmtDate(group.transaction_date, false)}</span>
+      <span className="oa-mono hidden text-right text-[12px] text-oa-muted-fg md:block">{tradedWords(group.transaction_date, today)}</span>
     </li>
   );
 }

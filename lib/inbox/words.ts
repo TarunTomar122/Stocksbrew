@@ -1,5 +1,6 @@
 import { instantOf, isBareDay, nyDay, shortDay } from "./merge";
 import { onDayWords } from "@/lib/day-words";
+import { sessionDayOf } from "@/lib/session-label";
 import { sessionWords, vsDayWords, whenWords as reportWhen } from "@/lib/earnings-season";
 import { isNyseHoliday } from "@/lib/market-session";
 import type { ResultRead } from "@/lib/results/types";
@@ -281,6 +282,16 @@ export function findingItems(run: AgentRunRecord, mode: Mode, context: ReadonlyM
   const at = ranAt ?? instantOf(run.day);
   if (!at) return null;
   const exact = ranAt !== null && !isBareDay(run.ranAt);
+  // A fact about a session is filed under that session, not the day the agent ran (judges, Nov 12: "NVDA fell 5.5%
+  // on Tuesday" sat under "Yesterday", the day of the run, while the sentence said Tuesday). When the run checked
+  // the same New York day, it keeps its own time; a run that reported an earlier close files it at that close.
+  // It still arrived with the run, so it stays unread until read after the run (`arrivedAt`).
+  const eventAt = (day: string): { at: string; exact: boolean; arrivedAt?: string } => {
+    const session = DAY_RE.test(day) ? sessionDayOf(day) : null;
+    if (!session || nyDay(at) === session) return { at, exact };
+    const close = instantOf(session);
+    return close && close < at ? { at: close, exact: false, arrivedAt: at } : { at, exact };
+  };
   const source = mode === "mine" ? "Your agent" : "Example agent";
   const out: InboxItem[] = [];
   const levels: LevelFinding[] = [];
@@ -319,8 +330,7 @@ export function findingItems(run: AgentRunRecord, mode: Mode, context: ReadonlyM
       item = base({
         id: `span:${ticker}:${day}`,
         kind: "agent",
-        at,
-        exact,
+        ...eventAt(day),
         tickers: [ticker],
         text: `${ticker} ${pct >= 0 ? "rose" : "fell"} ${pctText(pct)} over the five sessions to ${shortDay(day)}.`,
         href,
@@ -332,8 +342,7 @@ export function findingItems(run: AgentRunRecord, mode: Mode, context: ReadonlyM
       item = base({
         id: `move:${ticker}:${day}`,
         kind: "agent",
-        at,
-        exact,
+        ...eventAt(day),
         tickers: [ticker],
         text: moveSentence(ticker, pct, day, normalPct, today),
         detail: reasonFor(context.get(ticker), day, pct),
@@ -384,7 +393,11 @@ export function findingItems(run: AgentRunRecord, mode: Mode, context: ReadonlyM
     if (item) out.push(item);
   });
   for (const zone of ["add", "trim"] as const) {
-    const item = levelItem(levels.filter((level) => level.zone === zone), { run, at, exact, source, today });
+    const group = levels.filter((level) => level.zone === zone);
+    // Closes from one session are filed under it; a mix of sessions stays under the run.
+    const days = new Set(group.map((level) => level.day));
+    const when = days.size === 1 ? eventAt([...days][0]!) : { at, exact };
+    const item = levelItem(group, { run, ...when, source, today });
     if (item) out.push(item);
   }
   // Every finding left out (stale quotes, reports already past): the run's own summary still says what it found.
@@ -401,7 +414,7 @@ const positive = (value: number | null): value is number => value !== null && Nu
  */
 function levelItem(
   levels: LevelFinding[],
-  where: { run: AgentRunRecord; at: string; exact: boolean; source: string; today: string | null },
+  where: { run: AgentRunRecord; at: string; exact: boolean; arrivedAt?: string; source: string; today: string | null },
 ): InboxItem | null {
   const first = levels[0];
   if (!first) return null;
@@ -430,6 +443,7 @@ function levelItem(
     kind: "agent",
     at: where.at,
     exact: where.exact,
+    ...(where.arrivedAt ? { arrivedAt: where.arrivedAt } : {}),
     tickers: levels.map((level) => level.ticker),
     text: text.replace(/\s+/g, " ").replace(/ ,/g, ","),
     detail,
@@ -829,8 +843,24 @@ export function resultsItem(read: ResultRead, position: Position, mode: Mode, to
   const reported = instantOf(reportWall(read));
   // Never before the figures were stored: a result that lands after the person last looked must still be new to them.
   const stored = instantOf(read.eps?.asOf ?? read.revenue?.asOf ?? read.guidance?.asOf ?? null);
-  const at = reported && stored && Date.parse(stored) > Date.parse(reported) ? stored : reported;
-  if (!ticker || !at) return null;
+  const landed = reported && stored && Date.parse(stored) > Date.parse(reported) ? stored : reported;
+  if (!ticker || !landed) return null;
+  // The row sits under the session its move belongs to, the day its sentence names (council, Nov 12: "ASTS rose 8.7%
+  // yesterday" and "…fell 8.7% on Tuesday" shared one row, Wednesday's move and Tuesday's report reaction). A move on a
+  // later session than the figures is placed at its quote (or that session's close); one on an earlier session at that
+  // session's close, still unread until read after the figures landed (`arrivedAt`).
+  const moveDay = read.move && DAY_RE.test(read.move.day) ? read.move.day : null;
+  let at = landed;
+  let arrivedAt: string | undefined;
+  if (moveDay && nyDay(landed) !== moveDay) {
+    const quoted = instantOf(read.move?.asOf ?? null);
+    const close = instantOf(moveDay);
+    const placed = quoted && nyDay(quoted) === moveDay ? quoted : close;
+    if (placed) {
+      if (Date.parse(placed) < Date.parse(landed)) arrivedAt = landed;
+      at = placed;
+    }
+  }
   const who =
     mode === "example"
       ? `${ticker}, which the example portfolio ${position === "watchlist" ? "is watching" : "holds"},`
@@ -845,6 +875,7 @@ export function resultsItem(read: ResultRead, position: Position, mode: Mode, to
     id: `results:${ticker}:${read.reportDate}`,
     kind: "results",
     at,
+    ...(arrivedAt ? { arrivedAt } : {}),
     exact: false,
     tickers: [ticker],
     text,

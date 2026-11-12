@@ -2,16 +2,19 @@ import * as React from "react";
 
 import { LockCard, ProMark } from "@/components/oa/gate";
 import { SignedBar, ToneGlyph, barDomain } from "@/components/oa/kit/tone";
-import { NUM, Panel, fmtMoney, fmtStampET } from "@/components/oa/kit";
+import { NUM, Panel, fmtStampET } from "@/components/oa/kit";
 import { BasketActions } from "@/components/screener/basket-actions";
 import { LINE_COLORS } from "@/components/screener/controls";
 import { OverlayChart, type OverlayRange } from "@/components/screener/overlay-chart";
 import { CallTag, EarningsDate, MarkSlot, Unknown, ZoneTag, fieldHasMark, fieldMark } from "@/components/screener/shared";
 import { StockLogo } from "@/components/stock-logo";
-import { getCompareData, getCompareDataCached } from "@/lib/compare";
-import { buildCompareTable, buildScoreboard, figureLabel, withChartReturns, type CompareTableGroup } from "@/lib/compare-shared";
+import { getCompareData, getCompareDataCached, type CompareData } from "@/lib/compare";
+import { buildCompareTable, buildScoreboard, comparePricedAt, figureLabel, withChartReturns, type CompareTableGroup } from "@/lib/compare-shared";
 import { ownCallLevel } from "@/lib/call-level";
 import { callLine } from "@/components/stock-report/call-line";
+import { levelFormatter } from "@/components/stock-report/format";
+import { dayPossessive } from "@/lib/day-words";
+import { dayLabelFor, sessionLabel } from "@/lib/session-label";
 import { buildComparePick } from "@/lib/compare-pick";
 import { PickCard } from "./pick-card";
 import { ScoreboardPanel } from "./scoreboard";
@@ -92,17 +95,24 @@ function NumberRows({ group, rows, bars = false }: { group: CompareTableGroup; r
   );
 }
 
-/** "Buy more below $160.00, 8.0% under today's $173.85.": the call's own level, when this row carries one. */
+/**
+ * "Buy more below $509, 13% under today's $586.": the call's own level, when this row carries one. The row's price,
+ * call and levels are the stock page's own (lib/compare.ts lays them over the snapshot), and the line is built and
+ * rounded exactly as the stock page builds it, so the two pages print the same sentence.
+ */
 function levelLine(row: ScreenerRow | null | undefined): string | null {
   if (!row?.call) return null;
   const price = typeof row.price === "number" && row.price > 0 ? row.price : null;
   // Within half the price, the stock page's rule; a sell-some price under the buy-more price is not a level.
   const near = (value: number | undefined) => (value && (!price || Math.abs(value - price) / price <= 0.5) ? value : null);
   const addBelow = near(row.add_below);
+  const addAbove = near(row.add_above);
   const trimAbove = near(row.trim_above);
-  const own = ownCallLevel(row.call, { addBelow, trimAbove: trimAbove && (!addBelow || trimAbove > addBelow) ? trimAbove : null });
+  const own = ownCallLevel(row.call, { addBelow, addAbove, trimAbove: trimAbove && (!addBelow || trimAbove > addBelow) ? trimAbove : null });
   if (!own) return null;
-  return callLine({ callWord: null, callAction: null, level: own, hidden: null, price, money: fmtMoney, plan: "" })?.text ?? null;
+  const session = sessionLabel(row.price_at);
+  const priceDay = session ? dayPossessive(session.day) : null;
+  return callLine({ callWord: null, callAction: null, level: own, hidden: null, price, money: levelFormatter("$"), plan: "", priceDay })?.text ?? null;
 }
 
 /**
@@ -174,18 +184,22 @@ export async function CompareView({
   range,
   viewer,
   cached = false,
+  data: given,
 }: {
   symbols: string[];
   range?: string;
   viewer: Viewer;
   /** Read the pair as one cached piece (the desk's example, which every visit to /compare opens on). */
   cached?: boolean;
+  /** The pair already read by the page (its header's "as of" comes from the same rows), so it is not read twice. */
+  data?: CompareData;
 }) {
-  const [data, benchmarkRows] = await Promise.all([cached ? getCompareDataCached([...symbols]).catch(() => getCompareData(symbols)) : getCompareData(symbols), getScreenerRows(["SPY"]).catch(() => new Map<string, ScreenerRow>())]);
+  const [data, benchmarkRows] = await Promise.all([given ? Promise.resolve(given) : cached ? getCompareDataCached([...symbols]).catch(() => getCompareData(symbols)) : getCompareData(symbols), getScreenerRows(["SPY"]).catch(() => new Map<string, ScreenerRow>())]);
   // The call is open to everyone; price zones only on stocks this viewer covers.
   // Returns over the chart's own periods come from the chart's lines, so the table and the legend agree.
   const rows: Array<ScreenerRow | null> = withChartReturns(data.rows, data.chart.ranges).map((row) => (row && !canSeeLevels(viewer, row.symbol) ? withoutZones(row) : row));
-  const groups = buildCompareTable(rows);
+  // The move row says "Today" only over today's session; else the day the prices are from.
+  const groups = buildCompareTable(rows, { day_pct: dayLabelFor(comparePricedAt(rows), "Today") });
   const benchmark = benchmarkRows.get("SPY") ?? null;
   const scoreboard = buildScoreboard(rows, benchmark);
   // Our pick of these, from the same figures as the table; nothing when the data is too thin to pick honestly.
@@ -193,7 +207,7 @@ export async function CompareView({
   const names = Object.fromEntries(rows.flatMap((row) => (row ? [[row.symbol, row.name]] : [])));
   const showCalls = rows.some((row) => row?.call);
   // The one time on the page: when the first covered stock was priced.
-  const pricedAt = rows.find((row) => row?.price_at)?.price_at ?? null;
+  const pricedAt = comparePricedAt(rows);
   const span = symbols.length + 1;
   const zonesLocked = viewer.plan !== "pro" && data.rows.some((row, index) => row?.zone && !rows[index]?.zone);
   const missing = symbols.filter((_, index) => !rows[index]);
@@ -315,8 +329,8 @@ export async function CompareView({
                                 {/* Phones get fixed 6.5rem columns, too narrow for "add under $535.93" on one line, so it wraps there instead of running into the next column. */}
                                 <span className={`${NUM} flex flex-col items-end text-right text-[11.5px] leading-4 text-oa-muted-fg sm:whitespace-nowrap`}>
                                   {/* Only the call's own level (owner rule 8): the buy-more price on Buy more, the sell-some price on Sell some, none on Keep. */}
-                                  {row.call === "Add" && row.add_below !== undefined ? <span>buy more under {fmtMoney(row.add_below)}</span> : null}
-                                  {row.call === "Trim" && row.trim_above !== undefined ? <span>sell some over {fmtMoney(row.trim_above)}</span> : null}
+                                  {row.call === "Add" && row.add_below !== undefined ? <span>buy more under {levelFormatter("$")(row.add_below)}</span> : null}
+                                  {row.call === "Trim" && row.trim_above !== undefined ? <span>sell some over {levelFormatter("$")(row.trim_above)}</span> : null}
                                 </span>
                               </span>
                             ) : data.rows[index]?.zone ? (

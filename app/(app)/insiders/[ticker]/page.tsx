@@ -1,3 +1,4 @@
+import { etToday } from "@/lib/day-words";
 import { noteDegradedRender } from "@/lib/next-render";
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
@@ -116,7 +117,7 @@ export default async function InsiderStockPage({ params }: Props) {
             ]}
           />
           <section aria-label="Trades" className="mb-4">
-            <InsiderTable trades={sorted} initialSide="all" group={false} />
+            <InsiderTable trades={sorted} initialSide="all" group={false} today={etToday()} />
           </section>
         </>
       ) : null}

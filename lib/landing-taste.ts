@@ -1,4 +1,3 @@
-import { adminFirestore } from "@/lib/firebase-admin";
 import { loadCallEvidence } from "@/lib/call-evidence-data";
 import { redactLevels } from "@/lib/entitlements";
 import { plainCallReason, wholeSentences } from "@/lib/plain-copy";
@@ -69,18 +68,3 @@ async function loadTasteCard(ticker: string): Promise<TasteCard | null> {
 /** One card per ticker, the same for every visitor, kept two minutes so the move stays close to live. */
 export const getTasteCard = sharedCache(loadTasteCard, ["landing-taste-card-v4"], { revalidate: 120 });
 
-/**
- * How many US stocks carry our call today: the screener job's own count of rows with a call
- * (`tm_screener_snapshot/US` meta `coverage.call`). Throws when it cannot be read, so a failure is never cached.
- */
-export const getCallCount = sharedCache(
-  async (): Promise<number> => {
-    const doc = await adminFirestore.collection("tm_screener_snapshot").doc("US").get();
-    const coverage = doc.exists ? (doc.data() as { coverage?: Record<string, unknown> }).coverage : undefined;
-    const count = coverage?.call;
-    if (typeof count !== "number" || !Number.isFinite(count) || count <= 0) throw new Error("call_count_unavailable");
-    return count;
-  },
-  ["landing-call-count-v1"],
-  { revalidate: 3600 },
-);

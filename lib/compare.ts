@@ -4,11 +4,16 @@ import { getScreenerRows } from "@/lib/screener";
 import { BASKET_RANGES, indexReturn, overlaySeries, rangeStart, thinAligned, type BasketRangeKey, type IndexPoint } from "@/lib/screener-basket";
 import { getDailySeries } from "@/lib/screener-series";
 import type { ScreenerRow } from "@/lib/screener-shared";
+import { loadStockPageCalls } from "@/lib/stock-page-call";
+import { withStockPageCall } from "@/lib/stock-page-call-shared";
 
 /**
- * Server loaders for the compare desk. The numbers and our call come from the
- * screening snapshot (one row per stock) and the chart from stored daily
- * closes. Nothing is generated at request time.
+ * Server loaders for the compare desk. The figures come from the screening
+ * snapshot (one row per stock) and the chart from stored daily closes. The
+ * price, today's move, our call and its levels are then laid over from the
+ * stock page's own reads (lib/stock-page-call.ts), so a stock never says one
+ * price or level here and another on its own page. Nothing is generated at
+ * request time.
  *
  * `lib/compare-stocks.ts` is the older per-request loader the MCP server and
  * the REST API still use; it is left as it is.
@@ -65,7 +70,19 @@ export type CompareData = {
   chart: CompareChart;
 };
 
+/** The stored rows with the stock page's live quote and call laid over each (a failed live read keeps the row). */
+async function withLiveCalls(data: CompareData): Promise<CompareData> {
+  const covered = data.symbols.filter((_, index) => data.rows[index]);
+  if (covered.length === 0) return data;
+  const live = await loadStockPageCalls(covered).catch(() => new Map());
+  return { ...data, rows: data.rows.map((row) => (row ? withStockPageCall(row, live.get(row.symbol.toUpperCase())) : row)) };
+}
+
 export async function getCompareData(symbols: readonly string[]): Promise<CompareData> {
+  return withLiveCalls(await getStoredCompareData(symbols));
+}
+
+async function getStoredCompareData(symbols: readonly string[]): Promise<CompareData> {
   const list = [...symbols];
   const [rowMap, chart] = await Promise.all([
     getScreenerRows(list).catch(() => new Map<string, ScreenerRow>()),
@@ -82,15 +99,20 @@ export async function getCompareData(symbols: readonly string[]): Promise<Compar
 }
 
 /**
- * The same, kept for five minutes as one finished piece (rows and the rebased chart). The desk's example
+ * The stored part, kept for five minutes as one finished piece (rows and the rebased chart). The desk's example
  * pair opens on every visit to /compare, so it should not rebuild the chart each time; the parts underneath are
  * cached on their own clocks already.
  */
 async function getCompareDataWhole(symbols: string[]): Promise<CompareData> {
-  const data = await getCompareData(symbols);
+  const data = await getStoredCompareData(symbols);
   // getCompareData turns a failed read into empty columns; a half-empty answer is thrown here, not cached for five minutes.
   if (data.rows.some((row) => row === null) || data.chart.ranges.length === 0) throw new Error("compare data incomplete");
   return data;
 }
 
-export const getCompareDataCached = unstable_cache(getCompareDataWhole, ["compare-data-v3"], { revalidate: 300 });
+const getStoredCompareDataCached = unstable_cache(getCompareDataWhole, ["compare-data-v3"], { revalidate: 300 });
+
+/** The stored rows and chart from the five-minute cache, with the live quote and call laid over on every read. */
+export async function getCompareDataCached(symbols: string[]): Promise<CompareData> {
+  return withLiveCalls(await getStoredCompareDataCached(symbols));
+}

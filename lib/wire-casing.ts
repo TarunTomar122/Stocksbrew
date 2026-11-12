@@ -41,7 +41,7 @@ const WIRE_ORDINARY = new Set(
     "crash crashes crashed rattle rattles rattled edge edges edged tie ties earn earns earned commit commits committed " +
     "durable implies imply implied parts linger lingers lingering remark remarks trim trims trimmed overdone selloff " +
     "structural reality prompting prompts me weakness strength spending plans plan warns warned rebound rebounds " +
-    "upgrade upgrades upgraded downgrade downgrades downgraded alive revamp revamps revamped"
+    "upgrade upgrades upgraded downgrade downgrades downgraded alive revamp revamps revamped potential fallout"
   ).split(" "),
 );
 
@@ -53,7 +53,7 @@ const WIRE_ORDINARY = new Set(
 const NAME_VERBS = new Set(
   (
     "earns commits ties trims crashes rattles implies lingers warns rebounds upgrades downgrades jumps soars rises " +
-    "climbs tumbles plunges surges hikes delivers ignites outweighs revamps"
+    "climbs tumbles plunges surges hikes delivers ignites outweighs revamps potential"
   ).split(" "),
 );
 

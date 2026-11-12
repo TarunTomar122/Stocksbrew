@@ -7,9 +7,10 @@ import { SinceVisit } from "@/components/briefing/since-visit";
 import { VisitBeacon } from "@/components/briefing/since-visit-beacon";
 import { withoutCircularReasons } from "@/components/briefing/real-reasons";
 import { AppPage } from "@/components/oa/kit";
+import { ProposalsLine } from "@/components/proposals/proposals-line";
 import { MarketingSchema } from "@/components/seo/marketing-schema";
 import { getSessionUser } from "@/lib/auth-server";
-import type { BriefingPosition } from "@/lib/briefing";
+import { marketDay, type BriefingPosition } from "@/lib/briefing";
 import { loadBriefingPage, type BriefingPageData } from "@/lib/briefing-data";
 import { loadExampleBriefing, type ExampleBriefingExtras } from "@/lib/briefing-example";
 import {
@@ -44,6 +45,7 @@ import { getMarketSeries, getMarketsData } from "@/lib/markets";
 import { getDailySeries } from "@/lib/screener-series";
 import { noteDegradedRender } from "@/lib/next-render";
 import { ogImage } from "@/lib/og/url";
+import { proposalsBrief, type ProposalsBrief } from "@/lib/proposals-brief";
 import { etDayOfStamp, etClock, newestStamp, oldestStamp } from "@/lib/quote-time";
 import { resultsFor } from "@/lib/results/server";
 import type { ResultRead } from "@/lib/results/types";
@@ -117,9 +119,27 @@ const TILE_SESSIONS = 22;
  * each with its last month of daily levels for the tile's line (the stored series, ending on today's level). A missing
  * series leaves the tile with its figure and no line.
  */
-async function marketExtras(): Promise<MarketExtra[]> {
-  const ids = ["us10y", "vix"] as const;
-  const [data, ...series] = await Promise.all([within(getMarketsData(), SIDE_READ_MS), ...ids.map((id) => within(getMarketSeries(id), SIDE_READ_MS))]);
+const EXTRA_IDS = ["us10y", "vix"] as const;
+
+type MarketExtraReads = {
+  data: ReturnType<typeof getMarketsData>;
+  series: Array<ReturnType<typeof getMarketSeries>>;
+};
+
+/**
+ * The strip's market reads. The signed-out page starts them before its example briefing loads (they are the same for
+ * everyone); a failure is handled where they are read, each failing soft there.
+ */
+function startMarketExtraReads(): MarketExtraReads {
+  const reads: MarketExtraReads = { data: getMarketsData(), series: EXTRA_IDS.map((id) => getMarketSeries(id)) };
+  for (const read of [reads.data, ...reads.series]) read.catch(() => {});
+  return reads;
+}
+
+async function marketExtras(reads: MarketExtraReads = startMarketExtraReads()): Promise<MarketExtra[]> {
+  const ids = EXTRA_IDS;
+  // The wait is counted from here, as before the reads started early: a head start never shortens it.
+  const [data, ...series] = await Promise.all([within(reads.data, SIDE_READ_MS), ...reads.series.map((read) => within(read, SIDE_READ_MS))]);
   const out: MarketExtra[] = [];
   ids.forEach((id, index) => {
     const asset = data?.assets.find((entry) => entry.id === id);
@@ -145,6 +165,13 @@ async function stripSeries(tickers: string[]): Promise<Record<string, Array<{ da
   return set?.series ?? null;
 }
 
+/** The slot under the header: the agent's proposals line, then "Since you last looked"; nothing when neither shows. */
+function briefingTop(proposals: ProposalsBrief | null, since: React.ReactNode): React.ReactNode {
+  if (!proposals?.count) return since;
+  const line = <ProposalsLine brief={proposals} />;
+  return since ? <div className="flex min-w-0 flex-col gap-3">{line}{since}</div> : line;
+}
+
 export default async function BriefingPage({ searchParams }: { searchParams?: { day?: string | string[] } }) {
   // Signed out, the briefing is the example portfolio's (lib/briefing-example.ts): what a member's morning read looks
   // like, from real prices. The cached signed-out copy (app/(app)/anon/[v]/briefing) reads no cookie, so it lands here.
@@ -155,6 +182,16 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
   // "Since you last looked" starts reading now, beside the briefing's own load (it needs only the user doc first).
   // Today's briefing only: a saved earlier day is read as it was.
   const sinceRead: Promise<SinceVisitResult | null> = user && !day ? loadSinceVisit(user.uid).catch((): SinceVisitResult => ({ kind: "failed" })) : Promise.resolve(null);
+  // The agent's proposals waiting for an answer: one line under the header. lib/proposals-brief.ts also works them out
+  // (throttled, as on /agent and /inbox) and shows the stored ones if that runs long.
+  const proposalsRead = user && !day ? proposalsBrief(user.uid) : Promise.resolve(null);
+  // Signed out, the market's top stories and the 10-year and VIX tiles start now, beside the example briefing's own
+  // load, instead of after it (they are the same for everyone). Signed in they still start after the briefing: the
+  // member's own reads come first, and running these beside them was measured no faster (Nov 12) since the store
+  // answers concurrent reads more slowly.
+  const earlyDay = marketDay(new Date());
+  const topNewsEarly = !user ? loadTopNews(earlyDay) : null;
+  const extrasEarly = !user ? startMarketExtraReads() : undefined;
   const data: BriefingPageData & { example?: ExampleBriefingExtras | null } = signedIn
     ? await loadBriefingPage({ day, persist: true })
     : await loadExampleBriefing();
@@ -183,11 +220,12 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
     lockedSlot(data),
     live && personal ? weekResults(tickers, today, data.since) : Promise.resolve([] as ResultRead[]),
     live ? briefingPremarket(personal ? tickers : ["SPY"], now).catch(() => null) : Promise.resolve(null),
-    live ? marketExtras() : Promise.resolve([] as MarketExtra[]),
+    live ? marketExtras(extrasEarly) : Promise.resolve([] as MarketExtra[]),
     loadLevelFacts(levelReads, today).catch(() => ({}) as Record<string, LevelFact[]>),
     live && personal ? stripSeries(holdingTickers) : Promise.resolve(null),
     // The market's top stories are the same for everyone: one cached read, a few seconds at most when it is cold.
-    live ? within(loadTopNews(today), SIDE_READ_MS).then((stories) => stories ?? []) : Promise.resolve([] as TopStory[]),
+    // Started early under the market's day; a briefing dated another day reads its own.
+    live ? within(topNewsEarly && today === earlyDay ? topNewsEarly : loadTopNews(today), SIDE_READ_MS).then((stories) => stories ?? []) : Promise.resolve([] as TopStory[]),
     sinceRead,
   ]);
 
@@ -252,6 +290,8 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
   const levels = personal ? atYourLevels(positions, shown, levelFacts, pre, prePrices) : [];
   for (const row of levels) shown.add(row.ticker);
 
+  const proposals = await proposalsRead;
+
   return (
     <AppPage width="dash">
       <MarketingSchema path="/briefing" name={TITLE} description={DESCRIPTION} breadcrumbLabel="Briefing" />
@@ -274,7 +314,7 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
         levels={levels}
         moved={moved}
         week={week}
-        top={sinceShows(sinceView) ? <SinceVisit view={sinceView} /> : null}
+        top={briefingTop(proposals, sinceShows(sinceView) ? <SinceVisit view={sinceView} /> : null)}
         agentFindings={live ? agentFindingCount([...briefing.needs_you, ...briefing.also_today]) : 0}
         locked={locked}
         sessionOpened={!live || sessionOpened(today, now.getTime())}

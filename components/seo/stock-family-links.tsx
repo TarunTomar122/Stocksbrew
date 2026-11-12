@@ -4,6 +4,9 @@ import { sectorSlug } from "@/lib/screener-shared";
 import { insiderHref, moveHref, pairHref, sectorHref } from "@/lib/seo/families";
 import { getRecentMoves, getStockFamily } from "@/lib/seo/family-data";
 import { AppLink } from "@/components/oa/app-link";
+import { capitalize, dayWords } from "@/lib/day-words";
+import { caseWireHeadlines } from "@/lib/wire-casing";
+import { sessionDayOf } from "@/lib/session-label";
 
 /** `vs`: a comparison row; the label is this stock's ticker and the rival is shown with its logo. */
 type Item = { href: string; label: string; meta?: string; vs?: string };
@@ -54,7 +57,14 @@ export async function StockFamilyLinks({ ticker }: { ticker: string }) {
   if (!family || !row) return null;
   const moves = await getRecentMoves();
   const pairs = family.pairs.slice(0, 3);
-  const recent = moves.filter((move) => move.ticker === upper).slice(0, 5);
+  // Headlines in sentence case through the wire's shared casing (owner rule 8: no scraped Title Case).
+  const recent = caseWireHeadlines(
+    moves
+      .filter((move) => move.ticker === upper)
+      .slice(0, 5)
+      .map((move) => ({ ...move, title: move.headline, tickers: [upper] })),
+    { [upper]: family.names[upper] ?? null },
+  );
 
   const panels: Array<{ label: string; items: Item[] }> = [];
   if (pairs.length) {
@@ -71,8 +81,10 @@ export async function StockFamilyLinks({ ticker }: { ticker: string }) {
       label: "Why it moved",
       items: recent.map((move) => ({
         href: moveHref(upper, move.day),
-        label: move.headline,
-        meta: `${fmtDay(move.day)} ${move.pct >= 0 ? "+" : "−"}${Math.abs(move.pct).toFixed(1)}%`,
+        label: move.title,
+        // The day in words (owner rule 4): "Today", "Tuesday", a date only past a week. The session the move was
+        // priced in, not the feed's date, which is a UTC day and runs a day ahead after 7 PM New York time.
+        meta: `${capitalize(dayWords(sessionDayOf(move.priceAsOf) ?? move.day)) || fmtDay(move.day)} ${move.pct >= 0 ? "+" : "−"}${Math.abs(move.pct).toFixed(1)}%`,
       })),
     });
   }

@@ -11,7 +11,8 @@ import { StockPremarketQuote } from "@/components/stock-premarket-quote";
 import { TrackButton } from "@/components/track-button";
 import { TrackView } from "@/components/track-view";
 import { AskPageHint } from "@/components/ask/ask-page-hint";
-import { capitalize } from "@/lib/day-words";
+import { capitalize, dayPossessive } from "@/lib/day-words";
+import { sessionLabel } from "@/lib/session-label";
 import { packChartRanges, type CallWord, type ChartRange, type PackedChartRanges } from "@/lib/stock-chart";
 
 import { AlertControls, type SuggestedAlert } from "./alert-controls";
@@ -57,8 +58,8 @@ function LongReportLink({ ticker }: { ticker: string }) {
         <path d="M10 2.5v3h3M5.5 8.5h5M5.5 11h3.5" />
       </svg>
       <span className="min-w-0 text-pretty text-[14px] leading-5 text-oa-fg">
-        <span className="font-medium">Read a long, sourced report on {ticker}.</span>{" "}
-        <span className="text-oa-muted-fg">The business, the case for and against, valuation against peers and what to watch.</span>
+        {/* One line, no muted second sentence (owner rule 8). */}
+        <span className="font-medium">Read a long, sourced report on {ticker}</span>
       </span>
     </Link>
   );
@@ -200,6 +201,8 @@ export function StockReport({
   const today = todayET(Number.isFinite(Date.parse(nowIso)) ? Date.parse(nowIso) : Date.now());
   const money = moneyFormatter(currency);
   const level = levelFormatter(currency);
+  // The session the quote is from: the call line says "today's" price only when it is today's.
+  const priceSession = market === "US" ? sessionLabel(stock.captured_at ?? null, Number.isFinite(Date.parse(nowIso)) ? Date.parse(nowIso) : Date.now()) : null;
 
   const dayPct = fin(stock.day_change_pct) ? stock.day_change_pct : null;
   const dayAbs = fin(stock.day_change_abs) ? stock.day_change_abs : null;
@@ -321,6 +324,8 @@ export function StockReport({
         money: level,
         plan: data.gate.plan,
         ticker: stock.ticker,
+        // Whose price it is: today's only when the quote is from today's session (lib/session-label.ts).
+        priceDay: priceSession ? dayPossessive(priceSession.day, today) : null,
       })
     : null;
   // The page's one lock, beside the call it unlocks: only the full report is behind it (the call, its reasons and

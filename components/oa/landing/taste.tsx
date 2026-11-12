@@ -47,14 +47,12 @@ function listWords(items: string[]): string {
 export function LandingTaste({
   lead,
   demo,
-  proof,
   footnote,
 }: {
   /** The hero's headline and line under it (server-rendered by the landing), above the search. */
   lead: React.ReactNode;
   /** The live demo card (components/oa/landing/hero-demo.tsx) in the right column until someone picks a stock. */
   demo: React.ReactNode;
-  proof: string | null;
   footnote: string | null;
 }) {
   const { user, initialAuthed } = useUser();
@@ -401,8 +399,6 @@ export function LandingTaste({
           </p>
         ) : null}
 
-        {/* Not on a phone: the demo card under the search makes the same point, and is worth the room. */}
-        {proof ? <p className="mt-5 hidden text-[14px] leading-5 text-oa-muted-fg sm:block">{proof}</p> : null}
       </div>
 
       <div className="min-w-0 empty:hidden lg:w-[440px] lg:shrink-0">

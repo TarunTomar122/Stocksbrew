@@ -1,5 +1,6 @@
 import { todayET } from "@/lib/calendar-shared";
-import { saysSameDevelopment, weekChange } from "@/lib/stock-timeline";
+import { saysSameDevelopment, weekChange, type StockTimelineItem } from "@/lib/stock-timeline";
+import { caseWireHeadlines } from "@/lib/wire-casing";
 
 import { StockLogo } from "@/components/stock-logo";
 
@@ -64,7 +65,12 @@ export function StockReportBelow({ data, extras, signals = null }: { data: Repor
   const changeLine = saysSameDevelopment(weekLine, briefLead, { ticker: stock.ticker, companyName: stock.name }) ? null : weekLine;
   // Each headline's publisher, named once in the section head instead of on every row (owner rule 1), most used first.
   const sources = publishers(extras.timeline.items.slice(0, TIMELINE_MAX));
-  const timelineItems = extras.timeline.items.slice(0, TIMELINE_MAX).map((item) => (item.kind === "news" && item.detail ? { ...item, detail: undefined } : item));
+  // Headlines and move titles in sentence case, through the wire's shared casing (owner rule 8: no Scraped Title Case).
+  const timelineItems = caseTimeline(
+    extras.timeline.items.slice(0, TIMELINE_MAX).map((item) => (item.kind === "news" && item.detail ? { ...item, detail: undefined } : item)),
+    stock.ticker,
+    stock.name,
+  );
 
   return (
     <>
@@ -113,4 +119,14 @@ export function StockReportBelow({ data, extras, signals = null }: { data: Repor
       ) : null}
     </>
   );
+}
+
+/** News and move rows in sentence case (lib/wire-casing.ts), the stock's own name kept as written. */
+function caseTimeline(items: StockTimelineItem[], ticker: string, name: string | null | undefined): StockTimelineItem[] {
+  const cased = caseWireHeadlines(
+    items.map((item) => ({ ...item, tickers: [ticker] })),
+    { [ticker]: name },
+    { shown: (item) => item.kind === "news" || item.kind === "move" },
+  );
+  return cased.map(({ tickers: _tickers, ...item }) => item);
 }

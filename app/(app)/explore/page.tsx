@@ -7,6 +7,7 @@ import { MarketCardsGhost, MovesGhost, StripGhost } from "@/app/(app)/explore/gh
 import { MoveTables, type MoveRow } from "@/app/(app)/explore/move-tables";
 import { hasMarketsData } from "@/components/markets/overview-sections";
 import { MarketCards } from "@/components/markets/market-cards";
+import { dayLabelFor } from "@/lib/session-label";
 import { MarketTickerStrip } from "@/components/markets/widgets";
 import { AppPage, FOCUS, PageHead, Panel, fmtDay } from "@/components/oa/kit";
 import { staleMoveClock } from "@/lib/move-clock";
@@ -35,13 +36,15 @@ export function generateMetadata(): Metadata {
 /**
  * Every sector's day as a heatmap, best first (components/markets/sector-heatmap.tsx), each tile opening its sector.
  */
-function SectorList({ rows }: { rows: DeskSector[] }) {
+function SectorList({ rows, asOf }: { rows: DeskSector[]; asOf: string | null }) {
   const sorted = [...rows].filter((row) => Number.isFinite(row.day)).sort((a, b) => b.day - a.day);
   if (sorted.length < 4) return null;
+  // "today" only over today's session: before the bell or over a weekend the funds hold the last session's move.
+  const when = dayLabelFor(asOf, "today", Date.now(), (label) => (label.words === "yesterday" ? "yesterday" : `on ${label.words}`));
   return (
     <section aria-labelledby="sectors-today">
       <h2 id="sectors-today" className="px-2 pb-2 text-[17px] font-medium tracking-tight text-oa-fg sm:px-3">
-        How each sector did today
+        How each sector did {when}
       </h2>
       <SectorHeatmap rows={sorted} />
     </section>
@@ -99,14 +102,6 @@ function StockMoves({ movers, today }: { movers: DeskData["movers"]; today: stri
     session.day && session.day !== today
       ? fmtDay(session.day)
       : (session.clock ?? (session.day ? (() => { const at = pricedAt(session.rows.map((row) => row.priceAsOf), session.day!); return at ? `As of ${at}` : null; })() : null));
-  // The takeaway was written over every move: it is left out when it names one the tables no longer show (a stale
-  // quote), and when it runs past one short line (owner rule 8).
-  const takeaway =
-    movers.takeaway &&
-    movers.takeaway.split(/\s+/).length <= 15 &&
-    !session.dropped.some((ticker) => new RegExp(`(?<![A-Z0-9.])${ticker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![A-Z0-9])`).test(movers.takeaway!))
-      ? movers.takeaway
-      : null;
   // "today" only for today's moves: before the open, or on a weekend, they are the last session's.
   const when = movers.day && movers.day !== today ? onDayWords(movers.day, today) : "today";
   return (
@@ -117,8 +112,7 @@ function StockMoves({ movers, today }: { movers: DeskData["movers"]; today: stri
         </h2>
         {clock ? <span className="oa-mono shrink-0 text-[12.5px] tabular-nums text-oa-muted-fg">{clock}</span> : null}
       </div>
-      {/* With one move the takeaway only repeats it ("AIRJW moved most, −11.8%"); it says something once there are several. */}
-      {takeaway && session.rows.length > 1 ? <p className="text-pretty px-2 pb-2 text-[14px] leading-5 text-oa-muted-fg sm:px-3">{takeaway}</p> : null}
+      {/* No takeaway line over the tables (owner rule 8): it restated the rows, and could name the wrong reason. */}
       <MoveTables up={up} down={down} when={when} />
     </>
   );
@@ -186,7 +180,7 @@ async function MovesSlot({ movers, today }: { movers: Promise<DeskData["movers"]
 /** Every sector's day, under the moves. */
 async function SectorsSlot({ sectors }: { sectors: ReturnType<typeof loadDeskSectors> }) {
   const data = await sectors;
-  return <SectorList rows={data.rows} />;
+  return <SectorList rows={data.rows} asOf={data.asOf} />;
 }
 
 /** A card for each other part of the market, or one line when the prices are not there. */

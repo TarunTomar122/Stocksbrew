@@ -20,10 +20,14 @@ function shares(value: number): string {
 }
 
 
-export function PracticeDesk({ initial, mode }: { initial: PracticePayload; mode: "account" | "example" }) {
+/**
+ * `ticket`: a ticket filled in from the address (an agent proposal's "Try a buy in your practice account"). Only the
+ * ticker and the side: the person picks the amount and places the order themselves.
+ */
+export function PracticeDesk({ initial, mode, ticket = null }: { initial: PracticePayload; mode: "account" | "example"; ticket?: { symbol: string; side: "buy" | "sell" } | null }) {
   const [payload, setPayload] = React.useState(initial);
-  const [symbol, setSymbol] = React.useState("");
-  const [side, setSide] = React.useState<"buy" | "sell">("buy");
+  const [symbol, setSymbol] = React.useState(ticket?.symbol ?? "");
+  const [side, setSide] = React.useState<"buy" | "sell">(ticket?.side ?? "buy");
   const [unit, setUnit] = React.useState<"dollars" | "shares">("dollars");
   const [amount, setAmount] = React.useState("");
   const [busy, setBusy] = React.useState(false);
@@ -258,7 +262,7 @@ export function PracticeDesk({ initial, mode }: { initial: PracticePayload; mode
         </div>
 
         <aside className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-4">
-          <form ref={ticketRef} onSubmit={submit} className="oa-surface scroll-mt-20 overflow-hidden border border-oa-border bg-oa-card">
+          <form id="ticket" ref={ticketRef} onSubmit={submit} className="oa-surface scroll-mt-20 overflow-hidden border border-oa-border bg-oa-card">
             <div className="flex min-h-11 items-center justify-between border-b border-oa-border px-3.5 py-2">
               <h2 className="oa-label">Order ticket</h2>
               <span className="text-[12.5px] text-oa-muted-fg">Paper money</span>

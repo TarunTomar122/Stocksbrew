@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { clearableBy, groupByStock, mergeInbox, popoverItems, unreadRows } from "./merge";
+import { clearableBy, groupByDay, groupByStock, isUnread, mergeInbox, popoverItems, unreadRows } from "./merge";
+import { newestShown } from "./seen";
 import { rowsAfterRead } from "./read";
 import type { UpcomingReport } from "./types";
 import { findingItems, moveSentence, pastWhen, reportSentence, sessionBefore, type AgentRunRecord, type MoveContext, type RunFinding } from "./words";
@@ -186,5 +187,38 @@ describe("QA round: stale quotes, rows, the bell", () => {
     // Its day named with no history told: the row keeps the history.
     const onlyHeadline = rowsAfterRead(items, upcoming, { ...told, reports: [], reportDays: [] }, TODAY);
     expect(onlyHeadline.upcoming[0]!.text).toBe("NBIS reports tomorrow before the open, and it rose 4.6% after its last report.");
+  });
+});
+
+describe("a finding is filed under its own session (judges, Nov 12)", () => {
+  // Thursday Nov 12: Wednesday's run reported Tuesday's close (the price step had not written Wednesday's bar yet).
+  const THURSDAY = "2026-11-12";
+  const wednesdayRun = run([move("NVDA", -5.47, "2026-11-10")], { day: "2026-11-11", ranAt: "2026-11-11T22:51:00Z" });
+
+  it("puts Tuesday's move under Tuesday, the day its sentence names, not under the run's day", () => {
+    const [item] = findingItems(wednesdayRun, "mine", new Map(), THURSDAY)!;
+    expect(item!.text).toBe("NVDA fell 5.5% on Tuesday.");
+    expect(item!.day).toBe("2026-11-10");
+    expect(item!.exact).toBe(false);
+    const [group] = groupByDay([item!], THURSDAY);
+    expect(group!.label).toBe("Tuesday");
+    // It arrived with Wednesday's run: read before the run, it is still new.
+    expect(item!.arrivedAt).toBe("2026-11-11T22:51:00.000Z");
+    expect(isUnread(item!, "2026-11-11T12:00:00Z")).toBe(true);
+    expect(isUnread(item!, "2026-11-11T23:00:00Z")).toBe(false);
+    expect(newestShown([item!])).toBe("2026-11-11T22:51:00.000Z");
+  });
+
+  it("keeps the run's own time when it reported the same day's close", () => {
+    const [item] = findingItems(run([move("NVDA", -4.43, "2026-11-12")], { day: THURSDAY, ranAt: "2026-11-12T22:40:00Z" }), "mine", new Map(), THURSDAY)!;
+    expect(item!.day).toBe(THURSDAY);
+    expect(item!.at).toBe("2026-11-12T22:40:00.000Z");
+    expect(item!.text).toBe("NVDA fell 4.4% today.");
+  });
+
+  it("files a level close under its session too", () => {
+    const level: RunFinding = { ticker: "AMD", headline: "AMD closed in the add zone", detail: "", at: "2026-11-10", kind: "level", zone: "add", close: 200, level: 210 };
+    const [item] = findingItems({ ...wednesdayRun, findings: [level] }, "mine", new Map(), THURSDAY)!;
+    expect(item!.day).toBe("2026-11-10");
   });
 });

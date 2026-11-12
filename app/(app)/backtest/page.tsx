@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { BacktestWorkbench, type Preset } from "@/components/backtest/backtest-workbench";
 import { interTight } from "@/components/oa/font";
 import { PageHead } from "@/components/oa/kit";
+import { etToday } from "@/lib/day-words";
 import { OaSiteHeader } from "@/components/oa/oa-site-header";
 import { PAGE_FRAME } from "@/components/strategies/shared";
 import { getSessionUser } from "@/lib/auth-server";
@@ -144,6 +145,7 @@ export default async function BacktestPage({ searchParams }: { searchParams: Que
           example={Boolean(exampleRun)}
           firstDate={firstDate}
           lastDate={dates[dates.length - 1] ?? null}
+          today={etToday()}
         />
       </div>
     </main>

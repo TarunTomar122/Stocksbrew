@@ -201,7 +201,10 @@ export function sentenceCase(text: string | null | undefined, companyName = ""):
       // After a number ("61-Year-Old", "52-Week-High") it is a measure, not a name.
       const afterNumber = /\d-$/.test(value.slice(0, tokens[start]!.offset));
       const name = !afterNumber && (KNOWN_NAMES.has(parts.join("-")) || own.has(parts.join("-")) || parts.some((part) => !COMMON.has(part)));
-      for (let index = start; index <= end; index += 1) compound[index] = name ? "keep" : "lower";
+      // A known name leading common words is a name plus a description, not a name: "China-Smuggling probe" reads
+      // "China-smuggling", "U.S.-Listed" reads "U.S.-listed" (council, Nov 12). The name keeps its capital.
+      const leadName = name && !KNOWN_NAMES.has(parts.join("-")) && !own.has(parts.join("-")) && KNOWN_NAMES.has(parts[0]!) && parts.slice(1).every((part) => !KNOWN_NAMES.has(part) && (COMMON.has(part) || COMMON_ENDING.test(part)));
+      for (let index = start; index <= end; index += 1) compound[index] = leadName ? (index === start ? "keep" : "lower") : name ? "keep" : "lower";
     }
     start = end + 1;
   }

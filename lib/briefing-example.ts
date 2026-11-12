@@ -76,6 +76,13 @@ export async function loadExampleBriefing(now: Date = new Date()): Promise<Examp
       return fallback;
     });
 
+  // The market's inputs, the news feed and the markets read do not depend on the example, so they start beside it
+  // (each is guarded where it is awaited; the early catch only keeps a failure from going unhandled meanwhile).
+  const marketRead = loadMarketInputs();
+  const newsRead = getNewsFeed("US");
+  const marketsRead = getMarketsData();
+  for (const read of [marketRead, newsRead, marketsRead]) read.catch(() => {});
+
   const example = await guard("prices", loadExamplePortfolio(), null);
   if (!example || example.portfolio.positions.length === 0) {
     // No example (too few priced holdings): the market's view rather than a hollow briefing, kept for seconds only.
@@ -89,12 +96,12 @@ export async function loadExampleBriefing(now: Date = new Date()): Promise<Examp
   const ids = all.map((position) => position.instrument_id);
 
   const [market, rows, reports, news, markets] = await Promise.all([
-    loadMarketInputs(),
+    marketRead,
     guard("calls", getScreenerRows(tickers), new Map<string, ScreenerRow>()),
     guard("earnings reports", getLatestEarningsIntelForInstruments("US", ids), []),
-    guard("news", getNewsFeed("US"), []),
+    guard("news", newsRead, []),
     // Not a degraded source: without it the market line is left out.
-    getMarketsData().catch(() => null),
+    marketsRead.catch(() => null),
   ]);
   degraded.push(...market.degraded);
   // The loader swallows its own errors: an empty answer for stocks that are always called is a failed read.

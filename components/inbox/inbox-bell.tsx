@@ -9,6 +9,7 @@ import { useUser } from "@/lib/auth-context";
 import { badgeText, inboxRows, isUnread, nyDay, unreadRows } from "@/lib/inbox/merge";
 import { newestShown, wouldClear } from "@/lib/inbox/seen";
 import { INBOX_SEEN_EVENT, type InboxSummary } from "@/lib/inbox/types";
+import { PROPOSALS_CHANGED_EVENT, type ProposalsChangedDetail } from "@/lib/proposals-event";
 import { usePublicPathname } from "@/lib/use-public-pathname";
 
 /**
@@ -157,6 +158,22 @@ export function InboxBell({ variant }: { variant: "sidebar" | "topbar" }) {
     return () => window.removeEventListener(INBOX_SEEN_EVENT, onSeen);
   }, []);
 
+  // Answering an agent proposal (components/proposals) moves the count at once.
+  React.useEffect(() => {
+    const onProposals = (event: Event) => {
+      const waiting = (event as CustomEvent<ProposalsChangedDetail>).detail?.waiting;
+      if (shared.summary?.signedIn && typeof waiting === "number" && waiting !== shared.summary.proposals) {
+        shared.summary = { ...shared.summary, proposals: waiting };
+        notify();
+        // Replace the browser's short-cached count, so a reload right after an answer does not bring the old one back.
+        const key = shared.key;
+        if (key && key !== "anon") void (shared.pending ?? Promise.resolve()).then(() => (shared.key === key ? readShared(key, "reload") : undefined));
+      }
+    };
+    window.addEventListener(PROPOSALS_CHANGED_EVENT, onProposals);
+    return () => window.removeEventListener(PROPOSALS_CHANGED_EVENT, onProposals);
+  }, []);
+
   // The popover closes on a click outside, on Escape (focus back on the bell) and when the page changes.
   React.useEffect(() => {
     if (!open) return;
@@ -201,7 +218,10 @@ export function InboxBell({ variant }: { variant: "sidebar" | "topbar" }) {
     signedIn: Boolean(summary?.signedIn),
     account: user?.uid ?? null,
   });
-  const label = unread > 0 ? `Inbox, ${unread} new` : "Inbox";
+  // The badge also counts the agent's proposals waiting for an answer (lib/proposals.ts).
+  const proposals = summary?.signedIn ? summary.proposals ?? 0 : 0;
+  const badge = unread + proposals;
+  const label = badge > 0 ? `Inbox, ${badge} new` : "Inbox";
   const onInbox = pathname === "/inbox";
 
   if (variant === "topbar") {
@@ -214,7 +234,7 @@ export function InboxBell({ variant }: { variant: "sidebar" | "topbar" }) {
         className={`relative inline-flex size-8 items-center justify-center rounded-md text-oa-muted-fg transition-colors hover:bg-oa-accent hover:text-oa-fg ${FOCUS}`}
       >
         <BellGlyph />
-        <Badge count={unread} />
+        <Badge count={badge} />
       </Link>
     );
   }
@@ -244,7 +264,7 @@ export function InboxBell({ variant }: { variant: "sidebar" | "topbar" }) {
         className={`relative inline-flex size-8 items-center justify-center rounded-md transition-colors hover:bg-oa-accent hover:text-oa-fg ${open || onInbox ? "text-oa-fg" : "text-oa-muted-fg"} ${FOCUS}`}
       >
         <BellGlyph />
-        <Badge count={unread} />
+        <Badge count={badge} />
       </button>
       {open ? (
         <div
@@ -266,6 +286,16 @@ export function InboxBell({ variant }: { variant: "sidebar" | "topbar" }) {
               <p className="oa-mono text-[12.5px] tabular-nums text-oa-muted-fg">{shownUnread > 0 ? `${shownUnread} new` : "All read"}</p>
             ) : null}
           </div>
+          {proposals > 0 ? (
+            <Link
+              href="/agent#agent-proposals"
+              prefetch={false}
+              onClick={() => setOpen(false)}
+              className={`block border-b border-oa-border px-3 py-2.5 text-[13.5px] font-medium text-oa-primary hover:bg-oa-accent ${FOCUS}`}
+            >
+              {proposals === 1 ? "Your agent has a proposal waiting for you" : `Your agent has ${proposals} proposals waiting for you`}
+            </Link>
+          ) : null}
           {!summary && state !== "failed" ? (
             <ul aria-hidden="true" className="divide-y divide-oa-border">
               {[0, 1, 2].map((row) => (

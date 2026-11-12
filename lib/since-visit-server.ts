@@ -56,7 +56,7 @@ function usTicker(instrumentId: string): string | null {
 const ITEM_NEWS_ORDER = ["1.03", "4.02", "1.05", "5.01", "2.01", "3.01", "2.05", "2.06", "1.01", "1.02", "4.01"].filter((code) => (MAJOR_ITEMS as readonly string[]).includes(code));
 
 /** "Filed an 8-K on a new material agreement", "Filed its annual report (10-K)": the filing's headline without its ticker. */
-function filingLine(fact: NonNullable<ReturnType<typeof filingFact>>): string {
+export function filingLine(fact: NonNullable<ReturnType<typeof filingFact>>): string {
   if (fact.group === "13D/G") return "An investor reported an active stake over 5%";
   if (fact.group === "8-K") {
     const lead = ITEM_NEWS_ORDER.find((code) => fact.items.includes(code));

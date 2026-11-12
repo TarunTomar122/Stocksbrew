@@ -8,7 +8,6 @@ import { StockTallyPanel } from "@/components/follow/stock-tally";
 import { buildInsiderRead } from "@/lib/follow-insights";
 import { MarketingSchema } from "@/components/seo/marketing-schema";
 import {
-  fmtDate,
   fmtUsd,
   getInsiderBuys,
   getInsiderSummary,
@@ -46,7 +45,7 @@ export default async function InsidersPage() {
     getInsiderTrades(INSIDER_TRADE_ROWS).catch(() => (noteDegradedRender(), [] as InsiderTrade[])),
     getSectorMap(),
   ]);
-  const { clusters, meta } = summary;
+  const { clusters } = summary;
   const now = Date.now();
   // Each stock's buyers and money in over the window (the tallies behind the two lists below).
   const { tallies } = buildInsiderRead({ buys, recent, sectors, today: nyDay(now), now, recentLimit: INSIDER_TRADE_ROWS });
@@ -119,10 +118,8 @@ export default async function InsidersPage() {
       ) : null}
 
       <section aria-label="Recent trades">
-        <InsiderTable trades={trades} initialSide="buy" />
-        <p className="mt-2 max-w-[78ch] px-2 text-[12.5px] leading-5 text-oa-muted-fg sm:px-0">
-          {meta ? `SEC Form 4, filed through ${fmtDate(meta.generated_at)}. ` : ""}Not investment advice.
-        </p>
+        {/* No Form 4 footnote (owner rule 8): each filing time opens its Form 4, and the site footer says it is not advice. */}
+        <InsiderTable trades={trades} initialSide="buy" today={nyDay(now)} />
       </section>
     </AppPage>
   );

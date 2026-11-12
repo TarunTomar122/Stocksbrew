@@ -120,10 +120,16 @@ export function effectiveSeenAt(seenAt: string | null | undefined, now: Date): s
 }
 
 /** Whether an item arrived after the read mark. A quiet check never counts. */
-export function isUnread(item: Pick<InboxItem, "at" | "quiet">, seenAt: string): boolean {
+/** When an item became new to the reader: when it arrived, if that is later than when it happened. */
+export function arrivedTime(item: Pick<InboxItem, "at" | "arrivedAt">): number {
+  const arrived = item.arrivedAt ? Date.parse(item.arrivedAt) : Number.NaN;
+  return Number.isNaN(arrived) ? time(item) : Math.max(time(item), arrived);
+}
+
+export function isUnread(item: Pick<InboxItem, "at" | "arrivedAt" | "quiet">, seenAt: string): boolean {
   if (item.quiet) return false;
   const seen = Date.parse(seenAt);
-  return Number.isNaN(seen) || time(item) > seen;
+  return Number.isNaN(seen) || arrivedTime(item) > seen;
 }
 
 export function unreadCount(items: ReadonlyArray<InboxItem>, seenAt: string): number {

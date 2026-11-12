@@ -21,6 +21,11 @@ export type InboxItem = {
   kind: InboxKind;
   /** When it happened, ISO. A record that only has a day gets that day's US close (4 PM ET). */
   at: string;
+  /**
+   * When it reached the inbox, when that is later than `at`: an agent run that reported an earlier session's close
+   * files it under that session (`at`) but it is new since the run, so read state goes by this time.
+   */
+  arrivedAt?: string;
   /** The New York day of `at`, YYYY-MM-DD, for grouping. */
   day: string;
   /** `at` is a real time of day. False when the record only had a day, so no clock time is shown for it. */
@@ -111,6 +116,8 @@ export type InboxSummary = {
   clearable: boolean;
   /** False when a source could not be read, so an empty list is not presented as "nothing happened". */
   complete: boolean;
+  /** Agent proposals waiting for an answer (lib/proposals.ts): counted on the bell beside the unread rows. */
+  proposals?: number;
 };
 
 /** Sent on window when "Mark all read" saved, so the bell clears its count at once. */

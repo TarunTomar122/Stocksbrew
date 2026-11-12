@@ -60,11 +60,6 @@ export function parseTasteTickers(raw: string | null | undefined): string[] {
   return out;
 }
 
-/** "About 730" from 726: rounded to ten, never above the real count by more than five. */
-export function aboutCount(count: number): string | null {
-  if (!Number.isFinite(count) || count < 20) return null;
-  return `about ${Math.round(count / 10) * 10}`;
-}
 
 /**
  * When the move was measured, in New York time: "4:00 PM ET" today, "yesterday, 4:00 PM ET", "Monday, 4:00 PM ET"

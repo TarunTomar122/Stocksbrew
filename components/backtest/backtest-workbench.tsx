@@ -22,6 +22,7 @@ import type { WeightsRebalance } from "@/lib/backtest/types";
 import { EquityChart } from "./equity-chart";
 import { longDay, money, plainPct, signedPct, toneOf } from "./format";
 import { START_MONEY } from "@/lib/backtest-insights";
+import { dayPossessive } from "@/lib/day-words";
 import type { Caveat } from "@/lib/backtest/types";
 
 import { Panel, StatGrid, YearTable } from "./results";
@@ -103,12 +104,14 @@ function HoldingCards({ run, quotes }: { run: BacktestRun; quotes: Record<string
   );
 }
 
-function ResultView({ run, example, quotes }: { run: BacktestRun; example: boolean; quotes: Record<string, HoldingQuote> | undefined }) {
+function ResultView({ run, example, quotes, today }: { run: BacktestRun; example: boolean; quotes: Record<string, HoldingQuote> | undefined; today?: string }) {
   const benchmark = run.input.benchmark;
   const s = run.summary.strategy;
   const b = run.summary.benchmark;
   // The page's one time and, on your own picks, the hindsight caveat, as one quiet line under the chart.
-  const note = [`Prices through ${longDay(run.price_as_of)}.`, hindsightSentence(run.caveats, example)].filter(Boolean).join(" ");
+  // The day in words (owner rule 4: "yesterday's close", "Monday's close"), a date only past a week.
+  const through = dayPossessive(run.price_as_of, today);
+  const note = [through ? `Prices through ${through} close.` : `Prices through ${longDay(run.price_as_of)}.`, hindsightSentence(run.caveats, example)].filter(Boolean).join(" ");
   // The chart in money: what $10,000 became on each day, in the mix and in the comparison fund. The thinned curve
   // can skip the first day, so the start (the $10,000 itself) is put back, or the legend's change would not match the figures.
   const curve = React.useMemo(() => {
@@ -192,6 +195,7 @@ export function BacktestWorkbench({
   firstDate,
   lastDate,
   example = false,
+  today,
 }: {
   initialSetup: BacktestSetup;
   initialResponse: GatedBacktestResponse | null;
@@ -203,6 +207,8 @@ export function BacktestWorkbench({
   lastDate: string | null;
   /** The page opened on its example run (no mix in the address). */
   example?: boolean;
+  /** New York's today from the server, so "yesterday's close" reads the same on the server and in the browser. */
+  today?: string;
 }) {
   const [rows, setRows] = React.useState<Row[]>(() =>
     initialSetup.holdings.length > 0 ? makeRows(initialSetup.holdings) : [{ id: nextId++, symbol: "", weight: "" }],
@@ -533,7 +539,7 @@ export function BacktestWorkbench({
           </div>
         ) : response.ok ? (
           <>
-            <ResultView run={response.result} example={showingExample} quotes={response.quotes} />
+            <ResultView run={response.result} example={showingExample} quotes={response.quotes} today={today} />
             <div className="mt-3 flex flex-col gap-2">
               {response.gate.lookback ? (
                 <LockCard

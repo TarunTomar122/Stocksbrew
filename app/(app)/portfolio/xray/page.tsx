@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { JsonLd } from "@/components/docs/json-ld";
-import { AppPage, PageHead, SourceLine } from "@/components/oa/kit";
+import { AppPage, PageHead } from "@/components/oa/kit";
 import { AnalysisView } from "@/components/portfolio/analysis/analysis-view";
 import { ShareButton } from "@/components/share/share-button";
 import { XraySignIn } from "@/components/xray/xray-sign-in";
@@ -45,7 +45,9 @@ export default async function AnalysisPage() {
       <JsonLd data={toolPageLd("/portfolio/xray")} />
       <PageHead
         title="Analysis"
-        meta={analysis ? <SourceLine source={example ? "Example portfolio, made-up shares" : undefined} note={prices ? `prices from ${prices}` : undefined} /> : undefined}
+        // One quiet line on the title row and no "About this page" at the foot (owner rule 8): what it is and how fresh.
+        meta={analysis ? [example ? "Example portfolio" : null, prices ? `prices from ${prices}` : null].filter(Boolean).join(" · ") || undefined : undefined}
+        note={false}
         actions={action}
       />
       {analysis && page ? (

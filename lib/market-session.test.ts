@@ -10,7 +10,13 @@ import {
   formatNextOpenPhrase,
   getMarketSessionState,
 } from "@/lib/market-session";
-import { getMarketStatusBannerCopy } from "@/lib/market-status-copy";
+import {
+  isNyseEarlyClose,
+  isNyseTradingDay,
+  nextTradingDay,
+  previousTradingDay,
+} from "@/lib/market-session";
+import { getMarketStatusBannerCopy, marketStatusInlineText, marketStatusInlineTip } from "@/lib/market-status-copy";
 
 /** Build a Date for an ET wall-clock time so tests don't depend on the host TZ. */
 function et(y: number, m: number, d: number, hh: number, mm: number): Date {
@@ -108,8 +114,10 @@ describe("market status copy", () => {
 
   it("computes holidays for any year, not a fixed table", () => {
     expect(getMarketSessionState(et(2028, 12, 25, 10, 0)).holidayName).toBe("Christmas Day");
-    // Jan 1 2028 is a Saturday, so NYSE observes it Friday Dec 31 2027.
-    expect(getMarketSessionState(et(2027, 12, 31, 10, 0)).holidayName).toBe("New Year's Day (observed)");
+    // Jan 1 2028 is a Saturday: the NYSE does not observe it, so Friday Dec 31 2027 trades (backend/mail/nyse.py).
+    expect(getMarketSessionState(et(2027, 12, 31, 10, 0)).kind).toBe("open");
+    // Jan 1 2028's neighbour the other way: a Sunday New Year's Day (2023) is observed Monday Jan 2.
+    expect(getMarketSessionState(et(2023, 1, 2, 10, 0)).holidayName).toBe("New Year's Day (observed)");
     // Good Friday 2030: Easter Mar 31 2030, so Apr 19 2030 is a holiday.
     expect(getMarketSessionState(et(2030, 4, 19, 10, 0)).kind).toBe("holiday");
   });
@@ -184,5 +192,69 @@ describe("priceSkipsSession", () => {
     expect(priceSkipsSession("2026-11-11T20:59:00Z", new Date("2026-11-12T15:30:00Z"))).toBe(false); // 10:30 ET
     expect(priceSkipsSession("2026-11-11T20:59:00Z", new Date("2026-11-12T21:30:00Z"))).toBe(false); // 4:30 PM ET
     expect(priceSkipsSession("2026-11-13T20:59:00Z", new Date("2026-11-14T17:00:00Z"))).toBe(false); // Saturday
+  });
+});
+
+describe("calendar parity with backend/mail/nyse.py", () => {
+  it("keeps Juneteenth only from 2022 and the Carter day of mourning", () => {
+    expect(isNyseTradingDay("2021-06-18")).toBe(true);
+    expect(isNyseTradingDay("2026-06-19")).toBe(false);
+    expect(isNyseTradingDay("2025-01-09")).toBe(false);
+  });
+
+  it("knows the 1 PM half days, only on trading weekdays", () => {
+    expect(isNyseEarlyClose("2026-11-27")).toBe(true); // day after Thanksgiving
+    expect(isNyseEarlyClose("2026-12-24")).toBe(true); // Thursday Christmas Eve
+    expect(isNyseEarlyClose("2026-07-03")).toBe(false); // Friday: the observed Independence Day
+    expect(isNyseEarlyClose("2025-07-03")).toBe(true); // Thursday
+  });
+
+  it("steps over weekends and holidays", () => {
+    expect(nextTradingDay("2026-11-25")).toBe("2026-11-27");
+    expect(previousTradingDay("2026-11-16")).toBe("2026-11-13");
+    expect(previousTradingDay("2026-01-20")).toBe("2026-01-16"); // MLK Monday Jan 19
+  });
+});
+
+describe("the next change of session (the stock and fund header)", () => {
+  it("counts to the 4 PM close, when after hours starts, while the market is open", () => {
+    const state = getMarketSessionState(et(2026, 11, 12, 15, 3)); // Thursday 3:03 PM
+    expect(state.kind).toBe("open");
+    expect(state.next.kind).toBe("close");
+    expect(state.next.countdown).toBe("57:00");
+    expect(marketStatusInlineText(state)).toBe("Market open · closes in 57:00");
+    expect(marketStatusInlineTip(state, "")).toBe("After hours from 4:00 PM ET");
+  });
+
+  it("after the close says after hours and counts to the market's next open, never 'after hours opens'", () => {
+    const state = getMarketSessionState(et(2026, 11, 11, 16, 16)); // Wednesday 4:16 PM
+    expect(state.kind).toBe("afterhours");
+    expect(state.next.kind).toBe("afterhours_end");
+    expect(state.countdown).toBe("17h 14m");
+    expect(marketStatusInlineText(state)).toBe("After hours · market opens in 17h 14m");
+    expect(marketStatusInlineText(state)).not.toMatch(/^After hours opens/);
+  });
+
+  it("closes at 1 PM on a half day and after hours ends at 5 PM", () => {
+    const open = getMarketSessionState(et(2026, 11, 27, 12, 30)); // Friday after Thanksgiving
+    expect(open.kind).toBe("open");
+    expect(open.earlyClose).toBe(true);
+    expect(open.next.countdown).toBe("30:00");
+    expect(marketStatusInlineTip(open, "")).toBe("Half day. After hours from 1:00 PM ET");
+    expect(getMarketSessionState(et(2026, 11, 27, 13, 30)).kind).toBe("afterhours");
+    expect(getMarketSessionState(et(2026, 11, 27, 17, 30)).kind).toBe("weekend"); // Friday night
+  });
+
+  it("counts across the weekend and a holiday to the next bell", () => {
+    const saturday = getMarketSessionState(et(2026, 11, 14, 15, 3));
+    expect(saturday.next.kind).toBe("open");
+    expect(saturday.countdown).toBe("1d 18h");
+    expect(marketStatusInlineText(saturday)).toBe("Market closed · opens in 1d 18h");
+    const thanksgiving = getMarketSessionState(et(2026, 11, 26, 15, 3));
+    expect(marketStatusInlineText(thanksgiving)).toBe("Closed for Thanksgiving · opens in 18h 27m");
+    const premarket = getMarketSessionState(et(2026, 11, 12, 8, 0));
+    expect(marketStatusInlineText(premarket)).toBe("Premarket · market opens in 1h 30m");
+    const overnight = getMarketSessionState(et(2026, 11, 12, 22, 0));
+    expect(marketStatusInlineText(overnight)).toBe("Market closed · opens in 11h 30m");
   });
 });

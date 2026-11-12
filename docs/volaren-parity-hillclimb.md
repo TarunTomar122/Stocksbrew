@@ -190,6 +190,27 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-12 ~22:20: PRODUCTION DOWN: Vercel blocked the team (fair-use limits), every page returns 402
+
+- **What happened:** ship 84's deploy failed with "Your Team exceeded our fair use limits and has been blocked", and since then stocksbrew.online returns HTTP 402 on every page. It's most likely tonight's volume: about 15 production deploys, plus judge and perf test traffic against production.
+- **Owner action needed:** Vercel dashboard → team billing / usage for yourtraceonline-5491s-projects. I can't resolve this from here.
+- **Now:** no more deploys or pushes; builders and judges make no production requests (local :8000 only).
+- **Ready-to-ship queue, local branch `ship-queue`:**
+  - ship 84: /portfolio/ideas visual, approved after 11 council rounds
+  - queued next once approved: the quote snapshot plus the speed pass, the word-budget sweep, agent proposals
+- **Once Vercel is unblocked:** deploy the queue in ONE batch, not one deploy per feature.
+
+### 2026-11-12 ~21:50: ship 83 live (web + backend, VPS 601a707)
+
+- **83:** data-freshness audit, rounds 2–3, after 3 council rounds.
+  - Ask and MCP read live rows (value = shares × live price; "current" only when the view's source_version matches).
+  - Buy dates are kept when shares and cost are unchanged.
+  - Reasons and alerts refresh on the shared "list changed" signal, with an extra refresh after rebuilds.
+  - An emptied list gets an empty view (old brief and events kept only while the set is unchanged).
+  - Account deletion switches off alerts and agents without deleting docs.
+  - A crossed alert with emails off is marked fired.
+- **Ideas visual:** round 10 (rows level, with real content in the shorter cards).
+
 ### 2026-11-12 ~22:00: ship 82 live; judge (cursor stand-in) 6.5; next wave started
 
 - **82 (f4e0892):** the judge sweep.

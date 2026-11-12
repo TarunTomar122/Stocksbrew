@@ -5,6 +5,7 @@ import { viewerFromUserDoc } from "@/lib/entitlements-server";
 import { clearableBy, forClient, popoverItems } from "@/lib/inbox/merge";
 import { loadExampleInbox, loadUserInbox, readState } from "@/lib/inbox/server";
 import type { InboxSummary } from "@/lib/inbox/types";
+import { waitingCount } from "@/lib/proposals-server";
 import { getUserDoc } from "@/lib/watchlist";
 
 export const dynamic = "force-dynamic";
@@ -29,6 +30,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(body, { headers: { "Cache-Control": cacheFor(300) } });
   }
   try {
+    // The proposals waiting for an answer are counted beside the unread rows; a slow or failed read counts none.
+    const proposalsRead = waitingCount(session.uid).catch(() => 0);
     const doc = await getUserDoc(session.uid);
     const viewer = viewerFromUserDoc(session.uid, doc);
     const inbox = await loadUserInbox(viewer, doc);
@@ -43,6 +46,7 @@ export async function GET(request: NextRequest) {
       items: items.map(forClient),
       clearable: clearableBy(inbox.items, items, seenAt),
       complete: inbox.missing.length === 0,
+      proposals: await proposalsRead,
     };
     return NextResponse.json(body, { headers: { "Cache-Control": cacheFor(30) } });
   } catch (error) {

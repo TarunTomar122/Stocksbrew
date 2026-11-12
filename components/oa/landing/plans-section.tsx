@@ -34,12 +34,11 @@ export function PlansSection({ trialEligible, market = "US" }: { trialEligible: 
           <p className="text-[17px] font-semibold leading-6 text-oa-fg">Free</p>
           <p className="oa-mono mt-3 text-[32px] font-medium leading-none tracking-tight">{freePrice}</p>
           <ul className="mt-5 flex flex-col gap-2">
-            <Line>Our call on {CALL_COVERAGE}, with why and what would change it, and every market and investor page</Line>
-            <Line>The full report on {coveredWord} stocks you pick: the prices where we&apos;d act, and a morning email when one of them moves</Line>
+            {/* At most 12 words a line (owner rule 8). */}
+            <Line>Our call on {CALL_COVERAGE}, with why</Line>
+            <Line>The full report on {coveredWord} stocks you pick</Line>
             <Line>
-              {freeAgents === 1
-                ? "An agent that checks your stocks every market day and emails you when something you picked happens"
-                : `${capitalize(countWord(freeAgents))} agents that check your stocks every market day and email you when something you picked happens`}
+              {freeAgents === 1 ? "One agent that emails you when your stocks move" : `${capitalize(countWord(freeAgents))} agents that email you when your stocks move`}
             </Line>
           </ul>
           <div className="mt-auto pt-6">
@@ -54,19 +53,16 @@ export function PlansSection({ trialEligible, market = "US" }: { trialEligible: 
             <span className="ml-1.5 font-sans text-[14px] font-normal tracking-normal text-oa-muted-fg">a month</span>
           </p>
           <ul className="mt-5 flex flex-col gap-2">
-            <Line>The full report on as many stocks as you follow</Line>
-            <Line>A briefing before the market opens on every stock you follow, on the days something changed</Line>
-            <Line>Up to {limitFor("agents", "pro")} agents, and an email the same day one of your stocks reaches our buy or sell price</Line>
+            <Line>The full report on every stock you follow</Line>
+            <Line>A morning briefing on the days your stocks change</Line>
+            <Line>Up to {limitFor("agents", "pro")} agents, and an email when we&apos;d buy or sell</Line>
           </ul>
           <div className="mt-auto pt-6">
             <ProCheckoutButton size="md" className="w-full">
               {trial ? "Try Pro free for 3 days" : "Get Pro"}
             </ProCheckoutButton>
-            {trial ? (
-              <p className="mt-2 text-[13px] leading-[18px] text-oa-muted-fg">
-                3 days free, then {proPrice} a month unless you cancel. Starting the trial asks for a card.
-              </p>
-            ) : null}
+            {/* The trial's terms beside its button: a required disclosure, outside the word budget. */}
+            {trial ? <p className="mt-2 text-[13px] leading-[18px] text-oa-muted-fg">3 days free, then {proPrice} a month unless you cancel; card required.</p> : null}
           </div>
         </div>
       </div>

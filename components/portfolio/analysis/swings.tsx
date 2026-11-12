@@ -10,8 +10,7 @@ import { ChartCard, FigureStrip, Key, MINE, Module, NUM, SP, SPAN, day, monthNam
  * 1%, how much it goes up and down in a year, its largest fall), then the year as two lines with that fall marked
  * (8 columns) beside each holding's weight against its share of the swings (4), the two charts ending level.
  */
-export function Swings({ module, example }: { module: RiskModule; example: boolean }) {
-  const subject = example ? "This mix" : "Your mix";
+export function Swings({ module }: { module: RiskModule }) {
   // A recent listing can shorten the shared window; the words follow the dates rather than promise a year.
   const span = module.sessions >= 240 ? "this past year" : `since ${day(module.from)}`;
   const scatter = module.shares.length > 1;
@@ -22,7 +21,13 @@ export function Swings({ module, example }: { module: RiskModule; example: boole
         className={SPAN[12]}
         cols="grid-cols-1 sm:grid-cols-3"
         cells={[
-          { key: "beta", label: "When the S&P 500 moves 1%", figure: `${module.sensitivity.toFixed(1)}%`, line: `${subject} tends to move this much` },
+          // The mix's move against the S&P 500's own 1%, as two bars like its neighbours (owner VISUALS CHECK).
+          {
+            key: "beta",
+            label: "When the S&P 500 moves 1%",
+            figure: `${module.sensitivity.toFixed(1)}%`,
+            pair: { value: module.sensitivity, versus: 1, labels: ["Mix", "S&P"], texts: [`${module.sensitivity.toFixed(1)}%`, "1.0%"] },
+          },
           // Each against the S&P 500's own as two bars on one scale (owner VISUALS CHECK).
           {
             key: "swing",

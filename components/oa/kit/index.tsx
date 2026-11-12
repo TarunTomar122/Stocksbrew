@@ -478,6 +478,7 @@ export function Empty({ title, children, className = "" }: { title?: React.React
 // The good-or-bad marks live in ./tone (no server imports) so client components can import them directly.
 export { MarkSlot, MoveBar, PairBar, SignedBar, ToneGlyph, Verdict, barDomain } from "./tone";
 export { ShowMore } from "./more";
+export { VsBar, vsText } from "./vs-bar";
 
 /** Logo, ticker and (optionally) the company name, linking to the stock page. */
 export function Ticker({

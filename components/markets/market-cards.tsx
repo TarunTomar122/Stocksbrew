@@ -12,6 +12,7 @@ import type * as React from "react";
 import { ToneGlyph } from "@/components/oa/kit/tone";
 import { KindIcon, type KindIconName } from "@/components/oa/nav-icon";
 import { StockLogo } from "@/components/stock-logo";
+import { marketKindIcon } from "@/components/markets/market-kind";
 import { FUND_TOPIC, fedOutcomeWords } from "@/lib/markets-insights";
 import {
   biggestMoves,
@@ -128,17 +129,19 @@ function MoverMark({ asset }: { asset: MarketAsset }) {
   }
   return (
     <span className="mt-1 inline-flex size-6 shrink-0 items-center justify-center rounded-full border border-oa-border bg-oa-card text-oa-muted-fg">
-      <KindIcon name={MOVER_ICON[asset.class] ?? "markets"} className="size-3.5" />
+      <KindIcon name={marketKindIcon(asset)} className="size-3.5" />
     </span>
   );
 }
 
-const MOVER_ICON: Partial<Record<MarketAsset["class"], KindIconName>> = {
-  index: "markets",
-  rate: "percent",
-  commodity: "drop",
-  fx: "exchange",
-  crypto: "block",
+/** Each card's kind icon beside its title (owner VISUALS CHECK: a list of kinds carries its icons). */
+const CARD_ICON: Record<string, KindIconName> = {
+  moved: "movers",
+  stocks: "markets",
+  rates: "percent",
+  commodities: "ingot",
+  options: "pulse",
+  predictions: "target",
 };
 
 function movedCard(data: MarketsData): Card | null {
@@ -288,7 +291,10 @@ function predictionsCard(data: MarketsData): Card | null {
 function MarketCard({ card }: { card: Card }) {
   return (
     <li className="oa-surface relative flex min-w-0 flex-col overflow-hidden border border-oa-border bg-oa-bg px-3.5 pb-3 pt-3 transition-colors hover:border-[color-mix(in_srgb,var(--oa-fg)_25%,transparent)] hover:bg-oa-accent">
-      <h3 className="oa-label">{card.title}</h3>
+      <h3 className="oa-label flex min-w-0 items-center gap-2">
+        <KindIcon name={CARD_ICON[card.key] ?? "markets"} className="size-4 text-oa-muted-fg" />
+        <span className="min-w-0 truncate">{card.title}</span>
+      </h3>
       <div className="mt-2 flex min-w-0 items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="flex items-center gap-1.5 text-[24px] font-semibold leading-[30px] tracking-[-0.02em] text-oa-fg">

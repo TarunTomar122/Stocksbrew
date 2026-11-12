@@ -86,9 +86,14 @@ export function callLine(input: {
   plan: string;
   /** Names the stock in the gate ("The price we'd buy JPM at"). */
   ticker?: string;
+  /**
+   * Whose price it is, before the noun: "today's" (the default), or the session the quote is from when that is not
+   * today ("yesterday's", "Friday's"), from lib/session-label.ts, so an old quote is never called today's.
+   */
+  priceDay?: string | null;
 }): CallLine | null {
   const { level, hidden, price, money } = input;
-  const today = price != null && price > 0 ? `today's ${money(price)}` : null;
+  const today = price != null && price > 0 ? `${input.priceDay || "today's"} ${money(price)}` : null;
   if (level) {
     const head = `${instruction(level.label)} ${money(level.price)}`;
     if (!today || price == null) return { text: `${head}.`, gate: null };
@@ -99,7 +104,7 @@ export function callLine(input: {
     return { text: `${head}, ${pctAway(level.price, price)} ${below ? "under" : "over"} ${today}.`, gate: null };
   }
   if (hidden) {
-    const at = today ?? "today's price";
+    const at = today ?? `${input.priceDay || "today's"} price`;
     const text =
       hidden.label === "We'd buy more below"
         ? hidden.reached
@@ -122,7 +127,7 @@ export function callLine(input: {
   if (key in UNDER_WORD) {
     const say = UNDER_WORD[key];
     if (!say) return null;
-    const text = say(today ? today.charAt(0).toUpperCase() + today.slice(1) : "Today's price");
+    const text = say(today ? today.charAt(0).toUpperCase() + today.slice(1) : `${input.priceDay ? input.priceDay.charAt(0).toUpperCase() + input.priceDay.slice(1) : "Today's"} price`);
     // Never a Buy more heading over a line that says not to buy more.
     if (/^buy more$/i.test(input.callWord ?? "") && /\b(?:don't|not) (?:buy more|add)\b/i.test(text)) return null;
     return { text, gate: null };

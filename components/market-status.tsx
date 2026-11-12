@@ -14,6 +14,8 @@ import {
 } from "@/lib/market-session";
 import {
   getMarketStatusBannerCopy,
+  marketStatusInlineText,
+  marketStatusInlineTip,
   type MarketStatusSurface,
 } from "@/lib/market-status-copy";
 import { captureEvent } from "@/lib/posthog";
@@ -228,31 +230,20 @@ export function MarketStatusInline({
 }) {
   const [nowMs, setNowMs] = useState(() => parseNowMs(nowIso));
   const session = getMarketSessionState(new Date(nowMs));
-  const needsTick = session.kind !== "open";
-  const tickMs = countdownTickMs(session.msToOpen);
+  // Every state ticks, so an open market turns to after hours at the close without a reload.
+  // At the pace of the countdown on screen: to the close while open, to the next open otherwise.
+  const tickMs = countdownTickMs(session.kind === "open" ? session.next.ms : session.msToOpen);
 
   useEffect(() => {
     setNowMs(Date.now());
   }, []);
 
   useEffect(() => {
-    if (!needsTick) return;
     const id = window.setInterval(() => setNowMs(Date.now()), tickMs);
     return () => window.clearInterval(id);
-  }, [needsTick, tickMs]);
+  }, [tickMs]);
 
-  let text: string;
-  if (session.kind === "open") {
-    text = "Market open";
-  } else if (session.kind === "premarket") {
-    text = `Opens in ${session.countdown}`;
-  } else if (session.kind === "afterhours") {
-    text = `After hours · opens in ${session.countdown}`;
-  } else if (session.kind === "holiday") {
-    text = `Closed for ${session.holidayName ?? "the holiday"} · opens in ${session.countdown}`;
-  } else {
-    text = `Market closed · opens in ${session.countdown}`;
-  }
+  const text = marketStatusInlineText(session);
 
   const open = session.kind === "open";
 
@@ -277,7 +268,7 @@ export function MarketStatusInline({
         {text}
       </span>
       <span id={`market-status-tip-${surface}`} role="tooltip" className="t-tt">
-        {open ? "Regular session is live" : `Next open: ${formatNextOpenLabel(new Date(nowMs))}`}
+        {marketStatusInlineTip(session, formatNextOpenLabel(new Date(nowMs)))}
       </span>
     </span>
   );

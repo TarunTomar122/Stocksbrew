@@ -48,6 +48,8 @@ export type StockTimelineItem = {
   locked?: boolean;
   /** Internal link for the full story (earnings report, Congress page). */
   href?: string;
+  /** An analyst row's share of buy ratings, percent, this month and the month before: drawn as a bar pair. */
+  buyShare?: { now: number; before: number };
 };
 
 export type StockTimelineUpcoming = {
@@ -289,14 +291,14 @@ function ratingCounts(row: RatingRow) {
 /** Month-over-month shifts in analyst ratings. Only months where something moved. */
 export function analystTrendChanges(
   trend: RatingRow[] | null | undefined,
-): Array<{ at: string; title: string; detail: string; tone: "up" | "down" | "flat" }> {
+): Array<{ at: string; title: string; detail: string; tone: "up" | "down" | "flat"; buyShare: { now: number; before: number } }> {
   const rows = (trend ?? [])
     .map((row) => ({ at: parseMonthPeriod(row.period), period: row.period, counts: ratingCounts(row) }))
     .filter((row): row is { at: string; period: string; counts: ReturnType<typeof ratingCounts> } =>
       Boolean(row.at) && row.counts.total > 0,
     )
     .sort((a, b) => a.at.localeCompare(b.at));
-  const out: Array<{ at: string; title: string; detail: string; tone: "up" | "down" | "flat" }> = [];
+  const out: Array<{ at: string; title: string; detail: string; tone: "up" | "down" | "flat"; buyShare: { now: number; before: number } }> = [];
   for (let i = 1; i < rows.length; i++) {
     const prev = rows[i - 1]!;
     const cur = rows[i]!;
@@ -319,9 +321,65 @@ export function analystTrendChanges(
       // No "Nov '26" here: the row's own day words say when (judges, ship 71).
       detail: `${cur.counts.buy} buy, ${cur.counts.hold} hold, ${cur.counts.sell} sell, against ${prev.counts.buy} buy, ${prev.counts.hold} hold, ${prev.counts.sell} sell the month before.`,
       tone,
+      // Both totals are above zero (the filter above), so the shares are real.
+      buyShare: { now: (cur.counts.buy / cur.counts.total) * 100, before: (prev.counts.buy / prev.counts.total) * 100 },
     });
   }
   return out;
+}
+
+/** "Options price an 8.5% post-Q3 move", "options imply a 6% swing after earnings": a line about one report's priced move. */
+// Within one sentence: a full stop ends it, the point in "8.5%" does not.
+const OPTIONS_MOVE = /\boptions?\b(?:[^.]|\.(?=\d)){0,60}?\b(?:price[sd]?|pricing|impl(?:y|ies|ied)|expect(?:s|ed|ing)?)\b(?:[^.]|\.(?=\d)){0,60}?\b(?:move|swing)\b/i;
+const REPORT_WORD = /\b(?:(?:pre|post)-?\s?)?(?:Q[1-4]|earnings|report|results|quarter)\b/i;
+/** How far ahead a report can be for a line about its priced move to still be the current one. */
+const OPTIONS_MOVE_WINDOW_DAYS = 21;
+
+/**
+ * Whether a line about the move options price around a report refers to a report that has already happened (judges,
+ * Nov 12: "Options price an 8.5% post-Q3 move" on a stock that reported Q3 on Nov 3). Such a line holds only for the
+ * NEXT report: one on the calendar within three weeks, with the line written after the last report. Anything else is
+ * stale: the report it priced is past, or none is close enough for options to price it. Other lines are never stale.
+ */
+export function staleOptionsMoveLine(
+  text: string | null | undefined,
+  at: string | null | undefined,
+  reports: { today: string; lastReport: string | null; nextReport: string | null },
+): boolean {
+  const line = String(text ?? "");
+  if (!OPTIONS_MOVE.test(line) || !REPORT_WORD.test(line)) return false;
+  const next = reports.nextReport;
+  if (!next || next < reports.today) return true;
+  const ahead = (Date.parse(`${next}T12:00:00Z`) - Date.parse(`${reports.today}T12:00:00Z`)) / DAY_MS;
+  if (!(ahead <= OPTIONS_MOVE_WINDOW_DAYS)) return true;
+  const written = parseLooseDate(at ?? null);
+  return Boolean(reports.lastReport && written && written <= reports.lastReport);
+}
+
+/**
+ * A brief's lines without the ones about a report's priced move that is no longer the next report
+ * (staleOptionsMoveLine), for the call's reasons and what would change it. `writtenAt` is when the brief was written.
+ */
+export function withoutStaleOptionsLines(
+  lines: readonly string[],
+  writtenAt: string | null | undefined,
+  reports: { today: string; lastReport: string | null; nextReport: string | null },
+): string[] {
+  return lines.filter((line) => !staleOptionsMoveLine(line, writtenAt, reports));
+}
+
+/** The last and next report days from a stock's earnings calendar rows, as staleOptionsMoveLine takes them. */
+export function reportDaysOf(
+  calendar: ReadonlyArray<{ event_date: string }>,
+  today: string,
+  next?: { event_date: string } | null,
+): { today: string; lastReport: string | null; nextReport: string | null } {
+  const days = calendar.map((event) => parseLooseDate(event.event_date)).filter((day): day is string => Boolean(day)).sort();
+  return {
+    today,
+    lastReport: days.filter((day) => day < today).pop() ?? null,
+    nextReport: parseLooseDate(next?.event_date) ?? days.find((day) => day >= today) ?? null,
+  };
 }
 
 export function buildStockTimeline(input: StockTimelineInput): {
@@ -331,6 +389,13 @@ export function buildStockTimeline(input: StockTimelineInput): {
   const { ticker, now } = input;
   const today = isoDay(now);
   const items: StockTimelineItem[] = [];
+  // The report a line about options' priced move must be about: the next one (staleOptionsMoveLine).
+  const lastReport = [parseLooseDate(input.earnings?.event_date), parseLooseDate(input.lastEarningsDate)]
+    .filter((day): day is string => Boolean(day) && day! <= today)
+    .sort()
+    .pop() ?? null;
+  const reportDays = { today, lastReport, nextReport: parseLooseDate(input.nextEarnings?.date) };
+  const staleOptions = (text: string | null | undefined, at: string | null | undefined) => staleOptionsMoveLine(text, at, reportDays);
   const seenUrls = new Set<string>();
   const seenTitles = new Set<string>();
 
@@ -423,7 +488,7 @@ export function buildStockTimeline(input: StockTimelineInput): {
     if (isDuplicate(cased, article.url, article.published_at, article.title)) continue;
     remember(cased, article.url, article.published_at, article.title);
     const shown = sayingHeadline(cased, article.summary, ticker, input.companyName ?? "");
-    if (!shown) continue;
+    if (!shown || staleOptions(shown, article.published_at)) continue;
     const tone = article.sentiment_label === "bullish" ? "up" : article.sentiment_label === "bearish" ? "down" : "flat";
     items.push({
       id: `news-${article.id || article.url}`,
@@ -431,7 +496,10 @@ export function buildStockTimeline(input: StockTimelineInput): {
       at: article.published_at,
       precision: "time",
       title: shown,
-      detail: article.summary && normTitle(article.summary) !== normTitle(article.title) ? article.summary : undefined,
+      detail:
+        article.summary && normTitle(article.summary) !== normTitle(article.title) && !staleOptions(article.summary, article.published_at)
+          ? article.summary
+          : undefined,
       source: article.source_name || "News",
       sourceUrl: article.url,
       tone,
@@ -448,7 +516,7 @@ export function buildStockTimeline(input: StockTimelineInput): {
     if (isDuplicate(cased, event.article_url, event.timestamp, title)) continue;
     remember(cased, event.article_url, event.timestamp, title);
     const shown = sayingHeadline(cased, event.summary, ticker, input.companyName ?? "");
-    if (!shown) continue;
+    if (!shown || staleOptions(shown, event.timestamp)) continue;
     const label = (event.sentiment_label ?? "").toLowerCase();
     items.push({
       id: `evt-${event.event_id ?? title}`,
@@ -456,7 +524,8 @@ export function buildStockTimeline(input: StockTimelineInput): {
       at: event.timestamp,
       precision: "time",
       title: shown,
-      detail: event.summary && normTitle(event.summary) !== normTitle(title) ? event.summary : undefined,
+      detail:
+        event.summary && normTitle(event.summary) !== normTitle(title) && !staleOptions(event.summary, event.timestamp) ? event.summary : undefined,
       source: event.source_name || "News",
       sourceUrl: event.article_url,
       tone: label === "bullish" ? "up" : label === "bearish" ? "down" : "flat",
@@ -561,6 +630,7 @@ export function buildStockTimeline(input: StockTimelineInput): {
       detail: change.detail,
       source: "Nasdaq analyst research",
       tone: change.tone,
+      buyShare: change.buyShare,
     });
   }
 

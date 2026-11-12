@@ -1,4 +1,4 @@
-import { isUnread } from "./merge";
+import { arrivedTime, isUnread } from "./merge";
 import type { InboxItem } from "./types";
 
 /**
@@ -11,17 +11,18 @@ import type { InboxItem } from "./types";
 export const SEEN_AFTER_MS = 2000;
 
 /** The newest time among the items shown, or null when there are none with a valid time. */
-export function newestShown(items: ReadonlyArray<Pick<InboxItem, "at">>): string | null {
+export function newestShown(items: ReadonlyArray<Pick<InboxItem, "at" | "arrivedAt">>): string | null {
   let best = Number.NEGATIVE_INFINITY;
   for (const item of items) {
-    const at = Date.parse(item.at);
+    // An item filed under an earlier session counts as shown up to when it arrived.
+    const at = Number.isFinite(Date.parse(item.at)) ? arrivedTime(item) : Number.NaN;
     if (Number.isFinite(at) && at > best) best = at;
   }
   return Number.isFinite(best) ? new Date(best).toISOString() : null;
 }
 
 /** Whether marking up to `at` would clear anything: some shown item is still unread under `seenAt`. */
-export function wouldClear(items: ReadonlyArray<Pick<InboxItem, "at" | "quiet">>, seenAt: string | null | undefined): boolean {
+export function wouldClear(items: ReadonlyArray<Pick<InboxItem, "at" | "arrivedAt" | "quiet">>, seenAt: string | null | undefined): boolean {
   if (!seenAt) return false;
   return items.some((item) => isUnread(item, seenAt));
 }

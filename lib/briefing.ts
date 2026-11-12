@@ -13,6 +13,7 @@
  * - a next step is a thing to check or read, never an instruction to trade
  */
 
+import { sessionDayOf } from "@/lib/session-label";
 import { pickStockNews } from "@/lib/briefing-news";
 import { isCircularReason } from "@/lib/reason-quality";
 import { hasResearchBackedNarrative } from "@/components/daily-anomalies-shared";
@@ -1535,7 +1536,9 @@ function buildPersonalItems(input: BriefingInput, sessionDay: string, lockedMove
   for (const position of input.positions) {
     const key = position.ticker.toUpperCase();
     const anomaly = anomalyByTicker.get(key);
-    const positionDay = marketDay(position.price_as_of ?? "") || sessionDay;
+    // The session the quote's move belongs to, not the calendar day it was written: a quote rewritten before the
+    // bell or over a weekend still carries the last session's move (lib/session-label.ts).
+    const positionDay = sessionDayOf(position.price_as_of ?? null) ?? sessionDay;
 
     const report = reportByTicker.get(key);
     const reported = report ? earningsReportedItem(report, position.relation, position.name, position, date) : null;

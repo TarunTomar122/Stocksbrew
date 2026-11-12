@@ -20,7 +20,8 @@ import { buildStockSignals, type StockSignals } from "@/lib/stock-signals";
 import { StockBelowSkeleton } from "@/components/stock-report/skeleton";
 import { StockRelatedRow } from "@/components/seo/stock-family-links";
 import { StockViewTracker } from "@/components/stock-view-tracker";
-import { UnlistedStockShell } from "@/components/unlisted-stock-shell";
+// Split into its own chunk: it only shows for a ticker we do not cover (and carries the animation library).
+import { UnlistedStockShellLazy as UnlistedStockShell } from "@/components/unlisted-stock-shell-lazy";
 import { PriorityPriceNote } from "@/components/priority-stock-modal";
 import { OnDemandResearchRefresh } from "@/components/on-demand-research-refresh";
 import { resolveStockTier } from "@/lib/ai-launch-tier";
@@ -44,6 +45,8 @@ import {
   type InstrumentViewDoc,
 } from "@/lib/stock";
 import { getCurrentMarket } from "@/lib/market";
+import { presumedStockIdentity, samePresumedStock } from "@/lib/stock-page-identity";
+import { sectorSlugForIntel } from "@/lib/sector-slugs";
 import { priceSkipsSession } from "@/lib/market-session";
 import { getRedditContextForTicker, getRedditCues, resolveRedditContextForSymbol } from "@/lib/reddit-cues";
 import type { RedditTickerContext } from "@/lib/reddit-cues-shared";
@@ -81,7 +84,7 @@ import { getFollowSlugs } from "@/lib/follow";
 import { getStockOwnership, type StockOwnership } from "@/lib/stock-ownership";
 import { CALL_PLAIN, wholeSentences } from "@/lib/plain-copy";
 import { buildStockRead, readLooksBroken } from "@/lib/stock-read";
-import { buildStockTimeline } from "@/lib/stock-timeline";
+import { buildStockTimeline, reportDaysOf, withoutStaleOptionsLines } from "@/lib/stock-timeline";
 import { fin } from "@/lib/insight-format";
 import { getDailySeries } from "@/lib/screener-series";
 import { getScreenerSymbolContext } from "@/lib/screener";
@@ -220,10 +223,88 @@ async function PriorityNotice({
   return <PriorityPriceNote open={open} instrumentId={instrumentId} ticker={ticker} />;
 }
 
+/**
+ * Every read the top of the report needs that is keyed only by the stock's market, instrument id and ticker: the
+ * stored page view and the docs it lacks, the batched docs, the chart's history, the calendar, Congress trades, the
+ * call history, the screener's reason and the closes for the call's evidence. Started together; each fails soft to
+ * "no data", exactly as the page always treated them.
+ */
+function startStockReads(market: "US" | "IN", instrumentId: string, ticker: string) {
+  const isUS = market === "US";
+  const viewPromise = getStockPageView(market, instrumentId).catch(() => null);
+  const instrumentMetaPromise = getInstrument(instrumentId).catch(() => null);
+  const resolvedViewPromise = viewPromise.then((view) => resolveStockPageViewSections(view, Date.now(), instrumentId));
+  // Sections the stored page view lacks (or holds stale) are read from their own documents.
+  const intelligenceDirectPromise = resolvedViewPromise.then(({ directNeeded }) =>
+    directNeeded.intelligence ? getStockIntelligenceDoc(instrumentId, market).catch(() => null) : null,
+  );
+  const instrumentViewDirectPromise = resolvedViewPromise.then(({ directNeeded }) =>
+    directNeeded.instrument_view ? getInstrumentViewDoc(instrumentId, market).catch(() => null) : null,
+  );
+  const intelProDirectPromise = resolvedViewPromise.then(({ directNeeded }) =>
+    directNeeded.intel_pro ? getStockIntelPro(instrumentId, market).catch(() => null) : null,
+  );
+  // The pre-earnings read is fetched whatever the plan, so this batch need not wait for the viewer; it is
+  // dropped below unless the viewer may see levels on this stock, so it never reaches anyone else's browser.
+  const docBundlePromise = resolvedViewPromise.then(({ directNeeded }) =>
+    getStockPageDocBundle(market, instrumentId, ticker, {
+      facts: directNeeded.facts,
+      technicals: directNeeded.technicals,
+      onDemandJob: true,
+      earningsIntel: directNeeded.earnings_intel,
+      preEarnings: directNeeded.pre_earnings,
+      // The steady call's state rides in the same batch: most briefs predate the steady call and carry no
+      // `stability`, so this says how long their call has stood (lib/stock-read.ts `stabilityFromState`). US only.
+      callStability: isUS,
+    }).catch(() => null),
+  );
+  return {
+    market,
+    instrumentId,
+    ticker,
+    instrumentMetaPromise,
+    resolvedViewPromise,
+    intelligenceDirectPromise,
+    instrumentViewDirectPromise,
+    intelProDirectPromise,
+    docBundlePromise,
+    // This company's own slice of the screener snapshot: the reason under the call and its as-of day (US only).
+    screenerContextPromise: isUS ? getScreenerSymbolContext(ticker).catch(() => null) : Promise.resolve(null),
+    // The results reports the call's sales figure is dated by (lib/call-evidence.ts). US only, like the filings.
+    resultsReportsPromise: isUS ? getResultsReports(ticker).catch(() => [] as ResultsReport[]) : Promise.resolve([] as ResultsReport[]),
+    // Stored closes for the stock and SPY, for the call's evidence and the chart's facts. US only: SPY is the wrong
+    // yardstick for an Indian stock.
+    insightBasePromise: isUS ? Promise.all([getDailySeries([ticker, "SPY"]).catch(() => null)]) : Promise.resolve(null),
+    topReadsPromise: Promise.all([
+      instrumentMetaPromise,
+      getStockSnapshotHistory(instrumentId).catch(() => ({ closes: [], multiple: null })),
+      isUS ? getStockLongSeries(ticker).catch(() => null) : Promise.resolve(null),
+      getDailyAnomalyForTicker(market, ticker).catch(() => null),
+      getNextEarningsCalendarEventCached(market, ticker).catch(() => null),
+      getStockEarningsDates(market, ticker).catch(() => []),
+      isUS ? getPremarketMovers(market).catch(() => null) : Promise.resolve(null),
+      isUS ? getStockCongressTrades(ticker).catch(() => []) : Promise.resolve(null),
+      getStockCallHistory(instrumentId).catch(() => []),
+      // Only the slugs: whether a member of Congress has a Follow page to link.
+      isUS ? getFollowSlugs().catch(() => [] as string[]) : Promise.resolve([] as string[]),
+    ]),
+  };
+}
+
 export async function StockPageStream({ params }: Props) {
   const { symbol } = await params;
   const sessionPromise = getSessionUser();
   const cookieMarket = getCurrentMarket();
+  // The top of the report used to wait for the stock-summary read before its own reads started (one store round
+  // trip, then the page view, then the batched docs). Nearly every visit resolves to the reader's market and the
+  // address's ticker, so those reads start now, beside the summary; if the stock resolves elsewhere they are
+  // dropped and started again for the stock actually found.
+  // (getCurrentMarket is "US" while the Indian market is off, so an Indian stock's page drops these and starts again.)
+  const presumed = presumedStockIdentity(symbol, cookieMarket);
+  const early = presumed ? startStockReads(presumed.market, presumed.instrumentId, presumed.ticker) : null;
+  // Who is reading (plan, coverage, tracked stocks) does not depend on the stock either. Both are deduped per request.
+  const viewerPromise = getViewer();
+  const userDocPromise = sessionPromise.then((session) => (session ? getUserDoc(session.uid).catch(() => null) : null));
   // Try the active market first, then fall back to the other one so that
   // sharing an IN link from a US session (or vice-versa) still resolves.
   const otherMarket: "US" | "IN" = cookieMarket === "IN" ? "US" : "IN";
@@ -244,9 +325,7 @@ export async function StockPageStream({ params }: Props) {
     const redditTickerContext =
       resolveRedditContextForSymbol(snapUs, normalizedTicker) ??
       resolveRedditContextForSymbol(snapIn, normalizedTicker);
-    const session = await sessionPromise;
-    const userDoc = session ? await getUserDoc(session.uid).catch(() => null) : null;
-    const subscribed = resolveIsSubscribed(userDoc);
+    const subscribed = resolveIsSubscribed(await userDocPromise);
 
     return (
       <main className="flex min-w-0 w-full flex-grow flex-col">
@@ -260,39 +339,24 @@ export async function StockPageStream({ params }: Props) {
     );
   }
 
-  // Every read below starts now and runs side by side; each later step waits only for the reads it needs,
-  // never for the slowest of a whole round. Anything that fails degrades to "no data".
+  // Every read below starts now (or started above) and runs side by side; each later step waits only for the reads
+  // it needs, never for the slowest of a whole round. Anything that fails degrades to "no data".
   const isUS = market === "US";
-  const viewerPromise = getViewer();
-  const userDocPromise = sessionPromise.then((session) => (session ? getUserDoc(session.uid).catch(() => null) : null));
-  const viewPromise = getStockPageView(market, stock.instrument_id).catch(() => null);
-  const instrumentMetaPromise = getInstrument(stock.instrument_id).catch(() => null);
-  const resolvedViewPromise = viewPromise.then((view) => resolveStockPageViewSections(view, Date.now(), stock.instrument_id));
-
-  // Sections the stored page view lacks (or holds stale) are read from their own documents.
-  const intelligenceDirectPromise = resolvedViewPromise.then(({ directNeeded }) =>
-    directNeeded.intelligence ? getStockIntelligenceDoc(stock.instrument_id, market).catch(() => null) : null,
-  );
-  const instrumentViewDirectPromise = resolvedViewPromise.then(({ directNeeded }) =>
-    directNeeded.instrument_view ? getInstrumentViewDoc(stock.instrument_id, market).catch(() => null) : null,
-  );
-  const intelProDirectPromise = resolvedViewPromise.then(({ directNeeded }) =>
-    directNeeded.intel_pro ? getStockIntelPro(stock.instrument_id, market).catch(() => null) : null,
-  );
-  // The pre-earnings read is fetched whatever the plan, so this batch need not wait for the viewer; it is
-  // dropped below unless the viewer may see levels on this stock, so it never reaches anyone else's browser.
-  const docBundlePromise = resolvedViewPromise.then(({ directNeeded }) =>
-    getStockPageDocBundle(market, stock.instrument_id, stock.ticker, {
-      facts: directNeeded.facts,
-      technicals: directNeeded.technicals,
-      onDemandJob: true,
-      earningsIntel: directNeeded.earnings_intel,
-      preEarnings: directNeeded.pre_earnings,
-      // The steady call's state rides in the same batch: most briefs predate the steady call and carry no
-      // `stability`, so this says how long their call has stood (lib/stock-read.ts `stabilityFromState`). US only.
-      callStability: isUS,
-    }).catch(() => null),
-  );
+  const reads =
+    early && samePresumedStock(early, { market, instrumentId: stock.instrument_id, ticker: stock.ticker })
+      ? early
+      : startStockReads(market, stock.instrument_id, stock.ticker);
+  const {
+    instrumentMetaPromise,
+    resolvedViewPromise,
+    intelligenceDirectPromise,
+    instrumentViewDirectPromise,
+    intelProDirectPromise,
+    docBundlePromise,
+    screenerContextPromise,
+    resultsReportsPromise,
+    insightBasePromise,
+  } = reads;
   const intelProPromise = Promise.all([resolvedViewPromise, intelProDirectPromise]).then(
     ([resolved, direct]) => resolved.sections.intel_pro ?? direct,
   );
@@ -305,8 +369,10 @@ export async function StockPageStream({ params }: Props) {
   ).catch(() => null);
   // Ranking is cached; quote and comparison fields are enriched from the
   // latest price/facts docs on each render. Never trust backfilled peer rows.
-  // Starts as soon as the sector is known, alongside the reads above.
-  const sectorPeersPromise = Promise.all([intelProPromise, instrumentMetaPromise]).then(async ([intelPro, instrumentMeta]) => {
+  // Starts as soon as the sector is known, alongside the reads above: the scorecard's sector decides it whenever it
+  // names one (lib/sector-slugs.ts), so the instrument doc is only waited for when it does not.
+  const sectorPeersPromise = intelProPromise.then(async (intelPro) => {
+    const instrumentMeta = sectorSlugForIntel(intelPro, null) ? null : await instrumentMetaPromise;
     const ranked = await getSectorPeersForStock(stock.instrument_id, market, intelPro, instrumentMeta, 12).catch(
       () => [] as SectorPeerRow[],
     );
@@ -316,13 +382,6 @@ export async function StockPageStream({ params }: Props) {
       () => [] as SectorPeerRow[],
     );
   }).catch(() => [] as SectorPeerRow[]);
-  // This company's own slice of the screener snapshot: the reason under the call and its as-of day (US only).
-  const screenerContextPromise = isUS ? getScreenerSymbolContext(stock.ticker).catch(() => null) : Promise.resolve(null);
-  // The results reports the call's sales figure is dated by (lib/call-evidence.ts). US only, like the filings.
-  const resultsReportsPromise = isUS ? getResultsReports(stock.ticker).catch(() => [] as ResultsReport[]) : Promise.resolve([] as ResultsReport[]);
-  // Stored closes for the stock and SPY, for the call's evidence and the chart's facts. US only: SPY is the wrong
-  // yardstick for an Indian stock.
-  const insightBasePromise = isUS ? Promise.all([getDailySeries([stock.ticker, "SPY"]).catch(() => null)]) : Promise.resolve(null);
 
   // Reads only the lower half uses (what changed, the sections, the priority notice) start now too, but the
   // top of the page (price, call, chart, the read) never waits for them: they stream in under it.
@@ -345,19 +404,7 @@ export async function StockPageStream({ params }: Props) {
     congressTrades,
     callHistory,
     followSlugs,
-  ] = await Promise.all([
-    instrumentMetaPromise,
-    getStockSnapshotHistory(stock.instrument_id).catch(() => ({ closes: [], multiple: null })),
-    isUS ? getStockLongSeries(stock.ticker).catch(() => null) : Promise.resolve(null),
-    getDailyAnomalyForTicker(market, stock.ticker).catch(() => null),
-    getNextEarningsCalendarEventCached(market, stock.ticker).catch(() => null),
-    getStockEarningsDates(market, stock.ticker).catch(() => []),
-    isUS ? getPremarketMovers(market).catch(() => null) : Promise.resolve(null),
-    isUS ? getStockCongressTrades(stock.ticker).catch(() => []) : Promise.resolve(null),
-    getStockCallHistory(stock.instrument_id).catch(() => []),
-    // Only the slugs: whether a member of Congress has a Follow page to link.
-    isUS ? getFollowSlugs().catch(() => [] as string[]) : Promise.resolve([] as string[]),
-  ]);
+  ] = await reads.topReadsPromise;
   const [
     viewer,
     userDoc,
@@ -451,8 +498,18 @@ export async function StockPageStream({ params }: Props) {
   const companyReason = screenerRow?.call_reason
     ? { text: screenerRow.call_reason, call: screenerRow.call ?? null, source: screenerRow.call_reason_source ?? null, asOf: screenerAsOf }
     : null;
-  const fullRead =
+  const builtRead =
     hasFullAnalysisAccess && !isPriceStaleBrief ? buildStockRead(intelligence, { companyReason, callChanges: callChanges(callHistory), steadyState: docBundle?.callStability ?? null }) : null;
+  // A line on the move options price around a report holds only for the next report: one already reported ("an 8.5%
+  // post-Q3 move" after Q3 came out) is dropped from the reasons and what would change the call (lib/stock-timeline.ts).
+  const optionsReports = reportDaysOf(earningsDates, todayET(Date.now()), calendarEarnings);
+  const fullRead = builtRead
+    ? {
+        ...builtRead,
+        reasons: withoutStaleOptionsLines(builtRead.reasons, builtRead.writtenAt, optionsReports),
+        changers: withoutStaleOptionsLines(builtRead.changers, builtRead.writtenAt, optionsReports),
+      }
+    : null;
   // Strip the levels here so they never reach the browser for an uncovered stock.
   // A brief written from a bot wall or an error page says nothing about the
   // company. Now that the read is open to everyone, hold those back.

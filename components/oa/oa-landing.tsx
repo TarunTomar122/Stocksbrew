@@ -9,10 +9,7 @@ import {
   HERO_HEADLINE_EMPHASIS,
   HERO_HEADLINE_LEAD,
   HERO_SUBHEAD,
-  heroProof,
 } from "@/lib/brand-copy";
-import { getCallCount } from "@/lib/landing-taste";
-import { aboutCount } from "@/lib/landing-taste-shared";
 import { CONTACT_EMAIL } from "@/lib/docs/site";
 import { getViewer } from "@/lib/entitlements-server";
 import { getLandingUserContext } from "@/components/landing-data";
@@ -66,7 +63,7 @@ const FAQS: { q: string; a: React.ReactNode }[] = [
 ];
 
 export async function OaLanding() {
-  const [user, callCount] = await Promise.all([getLandingUserContext(), getCallCount().catch(() => null)]);
+  const user = await getLandingUserContext();
 
   return (
     <main className={`oa-landing ${interTight.variable} min-w-0 flex-grow overflow-x-clip`}>
@@ -94,7 +91,6 @@ export async function OaLanding() {
                 <HeroDemo />
               </Suspense>
             }
-            proof={heroProof(callCount ? aboutCount(callCount) : null)}
             footnote={HERO_FOOTNOTE}
           />
         </section>

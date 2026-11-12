@@ -228,8 +228,15 @@ function SectionTitle({ icon, children }: { icon: React.ReactNode; children: Rea
  * Reddit first (owner, Nov 12): every name Reddit is talking about in one ranked table, then the threads behind the
  * counts. The old Today tab's Reddit card was the top of this same list, so it is drawn once, here.
  */
+/** A row carries its signal (owner rule 3): a mood and one highlight, never just a ticker and a count. */
+function hasSignal(name: RedditName, movesToday: ReadonlyMap<string, number>): boolean {
+  const mood = name.stanceRead && name.stance !== "neutral" && moodWord(name.stance) !== null;
+  return mood && Boolean(redditHighlight(name, movesToday) || paceWords(name.velocity));
+}
+
 export function RedditSection({ data }: { data: RedditData }) {
-  const names = rankReddit(data.names.filter(inRedditList));
+  const movesToday = redditMovesToday(data.names);
+  const names = rankReddit(data.names.filter((name) => inRedditList(name) && hasSignal(name, movesToday)));
   const days = Math.round(data.windowHours / 24);
   return (
     <>
@@ -457,7 +464,9 @@ export function PolicySection({
             feature="signals_archive"
             plan={archive.plan}
             hidden={archive.hidden}
-            noun={`older ${archive.hidden === 1 ? "post" : "posts"} past the last ${archive.days} days`}
+            // One line (owner rule 8): "702 older posts. Pro keeps them all."
+            noun={`older ${archive.hidden === 1 ? "post" : "posts"}`}
+            body={archive.hidden === 1 ? "Pro keeps it." : "Pro keeps them all."}
             trialEligible={archive.trialEligible}
           />
         ) : null}

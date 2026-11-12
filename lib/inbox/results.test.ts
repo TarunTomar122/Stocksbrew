@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import type { ResultRead } from "@/lib/results/types";
 
-import { mergeInbox } from "./merge";
+import { inboxRows, mergeInbox } from "./merge";
 import { rowsAfterRead } from "./read";
-import { resultsItem } from "./words";
+import { findingItems, resultsItem } from "./words";
 
 const TODAY = "2026-11-11";
 
@@ -33,8 +33,10 @@ describe("results items", () => {
     // Where the call stands is said once by the read, never on the row (owner rule 1).
     expect(item.detail).toBeNull();
     expect(item.tone).toBe("up");
-    // Placed at the report (after the close on Nov 10), or when the figures were stored if that was later.
-    expect(item.at).toBe("2026-11-10T23:00:28.738Z");
+    // Placed on the session its move belongs to (today, at the live quote), the day the sentence names, not on the
+    // evening the figures were stored.
+    expect(item.at).toBe("2026-11-11T19:03:00.000Z");
+    expect(item.day).toBe(TODAY);
     expect(item.exact).toBe(false);
     expect(item.id).toBe("results:CRWV:2026-11-10");
     expect(item.href).toBe("/stock/CRWV");
@@ -97,8 +99,48 @@ describe("results rows (bugs 1, 2 and 5)", () => {
     // CRWV reported Nov 10 after the close; the actual landed a day later, after they last looked.
     const late = resultsItem(read({ eps: { ...read().eps!, asOf: "2026-11-11T23:00:18Z" } }), "holding", "mine", TODAY)!;
     expect(late.day).toBe("2026-11-11");
-    // Stored the same evening: the row sits under the report day.
-    const prompt = resultsItem(read({ eps: { ...read().eps!, asOf: "2026-11-10T22:00:00Z" } }), "holding", "mine", TODAY)!;
+    // Stored the same evening, with no move yet: the row sits under the report day.
+    const prompt = resultsItem(read({ move: null, eps: { ...read().eps!, asOf: "2026-11-10T22:00:00Z" } }), "holding", "mine", TODAY)!;
     expect(prompt.day).toBe("2026-11-10");
+    // With its move, it sits under the move's session, the day the sentence names.
+    expect(resultsItem(read({ eps: { ...read().eps!, asOf: "2026-11-10T22:00:00Z" } }), "holding", "mine", TODAY)!.day).toBe(TODAY);
+  });
+});
+
+describe("one row, one session (council, Nov 12)", () => {
+  // ASTS on Thu Nov 12: reported Monday after the close, fell 8.7% on Tuesday; the figures were stored Wednesday
+  // evening, the same evening the agent saw Wednesday's +8.7%.
+  const THURSDAY = "2026-11-12";
+  const asts = read({
+    ticker: "ASTS",
+    company: "AST SpaceMobile",
+    reportDate: "2026-11-09",
+    eps: { actual: -0.44, expected: -0.41, verdict: "miss", surprisePct: -7.3, source: "Yahoo Finance", asOf: "2026-11-11T22:51:00Z" },
+    move: { pct: -8.67, kind: "day", day: "2026-11-10", nextDay: true, usualPct: null, usualCount: 0, source: "Daily closes", asOf: null },
+  });
+
+  it("files the report under the session of its move, not the evening its figures landed", () => {
+    const item = resultsItem(asts, "holding", "mine", THURSDAY)!;
+    expect(item.day).toBe("2026-11-10");
+    expect(item.text).toMatch(/fell 8\.7% on Tuesday/);
+    // New since the figures landed Wednesday evening.
+    expect(item.arrivedAt).toBe("2026-11-11T22:51:00.000Z");
+  });
+
+  it("never shares a row with another session's move of the same stock", () => {
+    const result = resultsItem(asts, "holding", "mine", THURSDAY)!;
+    const [agentMove] = findingItems(
+      { jobId: "j", jobName: "Evening check", day: "2026-11-11", ranAt: "2026-11-11T22:51:00Z", decision: "notify", summary: "", tickers: ["ASTS"], findings: [{ ticker: "ASTS", headline: "", detail: "", at: "2026-11-11", kind: "move", change_pct: 8.7 }] },
+      "mine",
+      new Map(),
+      THURSDAY,
+    )!;
+    const rows = inboxRows(mergeInbox([[result, agentMove!]], "2026-10-28T00:00:00Z", new Date("2026-11-12T20:00:00Z")), THURSDAY);
+    const astsRows = rows.filter((row) => row.ticker === "ASTS");
+    expect(astsRows.map((row) => [row.day, row.items.length])).toEqual([["2026-11-11", 1], ["2026-11-10", 1]]);
+    for (const row of astsRows) {
+      const signs = new Set(row.items.map((item) => (/\b(?:rose|up)\b/.test(item.text) ? "up" : /\b(?:fell|down)\b/.test(item.text) ? "down" : "?")));
+      expect(signs.size).toBe(1);
+    }
   });
 });

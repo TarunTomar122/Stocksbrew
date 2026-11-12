@@ -35,8 +35,11 @@ export function InsiderTable({
   trades,
   initialSide = "buy",
   group = true,
+  today,
 }: {
   trades: InsiderTradeRow[];
+  /** New York's today from the server, for the rows' day words (no server/browser mismatch around midnight). */
+  today?: string;
   initialSide?: Side;
   /** Fold near-identical rows into one. Off on a stock's own insider page, which lists every filing. */
   group?: boolean;
@@ -206,9 +209,9 @@ export function InsiderTable({
           >
             {visible.map((item, index) =>
               item.kind === "group" ? (
-                <InsiderGroupRow key={item.key} group={item} showSide={side === "all"} logoAtOnce={index < FIRST_PAINT} />
+                <InsiderGroupRow key={item.key} group={item} showSide={side === "all"} logoAtOnce={index < FIRST_PAINT} today={today} />
               ) : (
-                <InsiderRow key={item.trade.id} trade={item.trade} showSide={side === "all"} logoAtOnce={index < FIRST_PAINT} />
+                <InsiderRow key={item.trade.id} trade={item.trade} showSide={side === "all"} logoAtOnce={index < FIRST_PAINT} today={today} />
               ),
             )}
           </ul>

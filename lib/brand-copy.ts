@@ -36,14 +36,6 @@ export const CALL_COVERAGE = "more than 700 US stocks";
 /** Under the landing's "Watch these for me", for someone signed out. */
 export const HERO_FOOTNOTE = "Free with your Google account. No card, no broker login.";
 
-/**
- * The landing's proof line, from the screener job's own count of stocks with a call (lib/landing-taste.ts
- * `getCallCount`), rounded ("about 730"). Only facts we can show: no user counts, no ratings.
- */
-export function heroProof(about: string | null): string {
-  return about ? `${about.charAt(0).toUpperCase()}${about.slice(1)} US stocks with a dated call, and the sources under each one.` : "A dated call on each stock, with the sources under it.";
-}
-
 /** Homepage block above live movers / Reddit / sectors (Finviz-style labels, not manifesto). */
 export const HOME_LIVE_FEED_EYEBROW = "Market today";
 export const HOME_LIVE_FEED_HEADLINE = "What's moving";

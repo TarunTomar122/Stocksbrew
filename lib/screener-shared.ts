@@ -120,6 +120,8 @@ export type ScreenerRow = {
   call_confidence?: string;
   call_at?: string;
   add_below?: number;
+  /** A Buy more call on a breakout: we'd buy more above this price. Laid over from the stock page's brief (lib/stock-page-call-shared.ts); the snapshot has none. */
+  add_above?: number;
   trim_above?: number;
   to_add_pct?: number;
   to_trim_pct?: number;
@@ -476,7 +478,7 @@ export function sortRows(rows: readonly ScreenerRow[], sort: ScreenerSort): Scre
  * this one gets the row without them.
  */
 export function withoutZones(row: ScreenerRow): ScreenerRow {
-  const { add_below: _add, trim_above: _trim, to_add_pct: _toAdd, to_trim_pct: _toTrim, zone: _zone, ...rest } = row;
+  const { add_below: _add, add_above: _addAbove, trim_above: _trim, to_add_pct: _toAdd, to_trim_pct: _toTrim, zone: _zone, ...rest } = row;
   return rest;
 }
 

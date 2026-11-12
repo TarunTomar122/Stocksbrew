@@ -3,7 +3,7 @@ import { Suspense } from "react";
 
 import { getSessionUser } from "@/lib/auth-server";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
-import { FREE_COVERED_STOCKS, redactLevels } from "@/lib/entitlements";
+import { redactLevels } from "@/lib/entitlements";
 import {
   getWatchlistView,
   overlayLatestPrices,
@@ -26,7 +26,7 @@ import { pricesWords } from "@/lib/portfolio-prices";
 import { getMarketDay } from "@/lib/insight-data";
 import type { PortfolioRowInput, PortfolioTab } from "@/lib/portfolio-shared";
 import { listStockAlerts } from "@/lib/stock-alerts";
-import { PortfolioHow, PortfolioIntro, PortfolioView } from "@/components/portfolio/portfolio-view";
+import { PortfolioIntro, PortfolioView } from "@/components/portfolio/portfolio-view";
 import { AlertsTab, type PortfolioAlert, type PortfolioSignal } from "@/components/portfolio/alerts-tab";
 import { PortfolioGhost } from "@/components/portfolio/portfolio-ghost";
 import { RadarPageAnalytics } from "@/components/radar-page-analytics";
@@ -38,22 +38,16 @@ import { RadarPageAnalytics } from "@/components/radar-page-analytics";
  * is the one /watchlist made; only the address changed.
  */
 
-/** One slim line of what this is, then the example as the lead (under the tabs); how it works sits under it. */
+/** The intro card, then the example under it (under the tabs). */
 function ExampleState({ signedIn, tab }: { signedIn: boolean; tab: PortfolioTab }) {
-  const lead = (
-    <>
-      <PortfolioIntro signedIn={signedIn} freeLimit={FREE_COVERED_STOCKS} />
-      <p className="mt-2 px-2 text-[14px] leading-5 text-oa-muted-fg sm:px-0">
-        <span className="font-medium text-oa-fg">Here&apos;s what it looks like</span>, with example stocks and made-up share counts.
-      </p>
-    </>
-  );
+  // The example's "Example, not real money" badge says what it is once (owner rule 1): no line repeating it, and no
+  // how-it-works steps restating the table.
+  const lead = <PortfolioIntro signedIn={signedIn} />;
   return (
     <div className="flex flex-col gap-3">
       <Suspense fallback={<PortfolioGhost />}>
         <ExamplePortfolio tab={tab} lead={lead} />
       </Suspense>
-      <PortfolioHow />
     </div>
   );
 }
@@ -135,7 +129,7 @@ export async function HoldingsStream({ tab }: { tab: PortfolioTab }) {
       <>
         <RadarPageAnalytics state="empty" trackedCount={0} isSubscribed={isSubscribed} />
         <div className="flex flex-col gap-3">
-          <PortfolioIntro signedIn freeLimit={FREE_COVERED_STOCKS} />
+          <PortfolioIntro signedIn />
           <AlertsTab
             alerts={toPortfolioAlerts(await alertsRead)}
             signals={[]}

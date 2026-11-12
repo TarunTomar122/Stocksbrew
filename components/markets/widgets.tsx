@@ -9,6 +9,7 @@ import * as React from "react";
 import { SectorHeatmap } from "@/components/markets/sector-heatmap";
 import { type TreemapLayout } from "@/components/oa/kit/treemap";
 import { KindIcon, type KindIconName } from "@/components/oa/nav-icon";
+import { marketKindIcon } from "@/components/markets/market-kind";
 import { Verdict } from "@/components/oa/kit/tone";
 import { FUND_TOPIC } from "@/lib/markets-insights";
 import { StockLogo } from "@/components/stock-logo";
@@ -204,7 +205,11 @@ export function MarketTickerStrip({ tiles, className = "" }: { tiles: MarketsOve
               title={`${tile.name}, ${formatAsOf(tile.as_of)}`}
             >
               <span className="flex items-center justify-between gap-2">
-                <span className={`${MONO} text-[12.5px] font-medium uppercase tracking-[0.04em] text-oa-muted-fg`}>{tile.symbol}</span>
+                {/* Each market's kind icon before its symbol (owner VISUALS CHECK): an index, a yield, gold, oil, the dollar, a coin. */}
+                <span className={`${MONO} flex min-w-0 items-center gap-1.5 text-[12.5px] font-medium uppercase tracking-[0.04em] text-oa-muted-fg`}>
+                  <KindIcon name={marketKindIcon(tile)} className="size-3.5" />
+                  {tile.symbol}
+                </span>
                 <Sparkline values={tile.spark} tone={tile.tone} width={TILE_SPARK_WIDTH} height={16} />
               </span>
               <span className={`${MONO} text-[15px] font-medium leading-5 text-oa-fg`}>{tile.level}</span>
