@@ -393,18 +393,24 @@ export function StockReport({
               <div className="flex min-w-0 items-center gap-3">
                 <StockLogo ticker={stock.ticker} logoUrl={stock.logo_url} market={market} size={ready && callWord ? 40 : 36} eager />
                 <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-3 gap-y-0.5">
+                  {/* The stock leads; our call is a chip beside it (owner, Nov 12: "can I have the stock name in focus
+                      instead of Buy more"). */}
+                  <h1 className="flex min-w-0 flex-wrap items-baseline gap-x-2 text-[26px] font-semibold leading-8 tracking-[-0.02em] text-oa-fg sm:text-[32px] sm:leading-[38px]">
+                    <span className="min-w-0">{stock.name}</span>
+                    <span className="oa-mono text-[15px] font-semibold tracking-normal text-oa-muted-fg sm:text-[16px]">{stock.ticker}</span>
+                  </h1>
                   {ready && callWord ? (
-                    <p
-                      className="text-[34px] font-semibold leading-[40px] tracking-[-0.02em] sm:text-[40px] sm:leading-[46px]"
-                      style={{ color: callTone ? TONE_COLOR[callTone] : "var(--oa-fg)" }}
+                    <span
+                      className="inline-flex h-7 items-center self-center rounded-full border px-3 text-[14px] font-semibold"
+                      style={{
+                        color: callTone ? TONE_COLOR[callTone] : "var(--oa-fg)",
+                        borderColor: callTone ? `color-mix(in srgb, ${TONE_COLOR[callTone]} 40%, transparent)` : "var(--oa-border)",
+                        background: callTone ? `color-mix(in srgb, ${TONE_COLOR[callTone]} 10%, transparent)` : "transparent",
+                      }}
                     >
                       {callWord}
-                    </p>
+                    </span>
                   ) : null}
-                  <h1 className="flex min-w-0 flex-wrap items-baseline gap-x-2 text-[18px] font-medium leading-6 tracking-tight text-oa-fg sm:text-[20px] sm:leading-7">
-                    <span className="min-w-0">{stock.name}</span>
-                    <span className="oa-mono text-[14px] font-semibold text-oa-muted-fg">{stock.ticker}</span>
-                  </h1>
                   {/* A showcase stock shows its whole report to everyone; say so, so nobody takes it for the free plan. */}
                   {ready && callWord && data.gate.example ? (
                     <Tag tone="primary" className="!font-sans !text-[12.5px] !normal-case !tracking-normal">
