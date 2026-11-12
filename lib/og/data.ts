@@ -50,7 +50,7 @@ import { FREE_COVERED_STOCKS, can } from "@/lib/entitlements";
 import { getBasket, getBaskets } from "@/lib/screener-themes";
 import { buildThemeRead, buildThemesRead } from "@/lib/themes-insights";
 import { loadWire, modelLabel } from "@/lib/wire";
-import { readTheWire } from "@/lib/wire-read";
+import { readTheWire, rowTone, toneLean, toneWord, type ToneCounts } from "@/lib/wire-read";
 import { parseWireFilters } from "@/lib/wire-shared";
 import { buildCompareRead } from "@/lib/compare-insights";
 import { parseCompareSymbols } from "@/lib/compare-shared";
@@ -69,6 +69,8 @@ import { LANDING_HERO_BREW_TICKERS } from "@/lib/landing-hero-featured";
 import type { TheRead } from "@/lib/insights";
 import { withoutZones, type ScreenerRow } from "@/lib/screener-shared";
 import { loadMarketBrief, loadWireRead } from "@/lib/og/market-read";
+import { compareBars, sessionPrices, tileHeadline, tileMove, tileStories, topCovered } from "@/lib/og/rules";
+import { caseWireHeadlines } from "@/lib/wire-casing";
 import { marketTodayRead } from "@/lib/explore-insights";
 
 import {
@@ -85,7 +87,7 @@ import {
   levelFree,
   withoutCallSentence,
 } from "@/lib/og/format";
-import type { OgCall, OgCard, OgLine, OgReadCard, OgRecordCard, OgStat, OgTextCard } from "@/lib/og/types";
+import type { OgCall, OgCard, OgFact, OgLine, OgReadCard, OgRecordCard, OgStat, OgTextCard } from "@/lib/og/types";
 import type { OgPageKey } from "@/lib/og/url";
 
 /**
@@ -97,6 +99,36 @@ import type { OgPageKey } from "@/lib/og/url";
 const getQuoteCached = unstable_cache((symbol: string) => getStockSummary(symbol, "US"), ["og-stock-summary-v1"], { revalidate: 300 });
 
 /* ── shared bits ────────────────────────────────────────────────────────── */
+
+/** A stock's latest price, today's move and when it was taken, from the same quote the stock card reads. */
+type LiveQuote = { price: number; dayPct: number | null; at: string | null };
+
+/**
+ * The live quote for each symbol (lib/stock getStockSummary, cached for five minutes and shared with the stock
+ * card), or nothing for a symbol whose quote is slow, missing or not a real price. Callers keep their own stored
+ * price for a symbol left out, and date it by that price's own time.
+ */
+async function liveQuotes(symbols: readonly string[], ms = 1500): Promise<Map<string, LiveQuote>> {
+  const unique = [...new Set(symbols)];
+  const summaries = await Promise.all(unique.map((symbol) => within(getQuoteCached(symbol), ms)));
+  const out = new Map<string, LiveQuote>();
+  unique.forEach((symbol, index) => {
+    const summary = summaries[index];
+    if (!summary || summary.source === "none" || !finite(summary.price) || summary.price <= 0) return;
+    out.set(symbol, { price: summary.price, dayPct: finite(summary.day_change_pct) ? summary.day_change_pct : null, at: summary.captured_at ?? null });
+  });
+  return out;
+}
+
+/** The newest of some ISO times (compared as times, so "Z" and "+00:00" stamps mix safely), or null. */
+function newestOf(times: Array<string | null | undefined>): string | null {
+  let best: string | null = null;
+  for (const time of times) {
+    if (typeof time !== "string" || !Number.isFinite(Date.parse(time))) continue;
+    if (best === null || Date.parse(time) > Date.parse(best)) best = time;
+  }
+  return best;
+}
 
 /** Resolve within `ms` or give up with null, so one slow source never stalls a card. */
 export async function within<T>(promise: Promise<T>, ms: number): Promise<T | null> {
@@ -111,7 +143,7 @@ export async function within<T>(promise: Promise<T>, ms: number): Promise<T | nu
   }
 }
 
-function asCall(value: unknown): OgCall | null {
+export function asCall(value: unknown): OgCall | null {
   return value === "Add" || value === "Hold" || value === "Trim" ? value : null;
 }
 
@@ -260,7 +292,9 @@ export async function stockCard(raw: string): Promise<OgCard | null> {
 export async function compareCard(raw: string): Promise<OgCard | null> {
   const symbols = parseCompareSymbols(raw, 4);
   if (symbols.length < 2) return null;
-  const rows = await within(getScreenerRows([...symbols, "SPY"]), 2500);
+  // The screener snapshot is built overnight, so its prices are the last close; the price and today's move come from
+  // the live quote the stock card reads, and the snapshot only where that quote is not in.
+  const [rows, live] = await Promise.all([within(getScreenerRows([...symbols, "SPY"]), 2500), liveQuotes(symbols)]);
   if (!rows) return null;
   // Anonymous viewer: no zones reach the read (the call itself is open to everyone).
   const present = symbols.map((symbol) => {
@@ -270,30 +304,61 @@ export async function compareCard(raw: string): Promise<OgCard | null> {
   if (present.filter(Boolean).length < 2) return null;
   const read = buildCompareRead({ rows: present, benchmark: rows.get("SPY") ?? null });
   const logos = await Promise.all(symbols.map((symbol) => within(loadLogo(symbol), 2500)));
-  const priceAt = present.find((row) => row?.price_at)?.price_at ?? null;
+  const quotes = symbols.map((symbol, index) => {
+    const quote = live.get(symbol);
+    const row = present[index];
+    // A live quote with no time is not dated by the snapshot's older close.
+    if (quote) return { price: quote.price, dayPct: quote.dayPct, at: quote.at };
+    return { price: finite(row?.price) ? row!.price! : null, dayPct: finite(row?.day_pct) ? row!.day_pct! : null, at: row?.price_at ?? null };
+  });
+  // A symbol we know nothing about (no row, no price) gets no column, and the link leaves it out too.
+  const kept = symbols.map((_, index) => index).filter((index) => present[index] || quotes[index]!.price !== null);
+  // An undated price is left off; when the prices are from different days, each column carries its own day and the
+  // footnote gives no single time (lib/og/rules.ts sessionPrices).
+  const session = sessionPrices(kept.map((index) => quotes[index]!));
+  const priced = new Map(kept.map((index, at) => [index, session.columns[at]!]));
+  const priceAt = session.newestAt;
+  const priceDay = etDay(priceAt);
+  const columns = kept.map((index) => {
+    const symbol = symbols[index]!;
+    const row = present[index];
+    const quote = priced.get(index)!;
+    // Each figure with its raw number, so its bar can be drawn on one scale across the stocks below.
+    const stats: Array<OgStat & { raw: number }> = [];
+    if (finite(row?.ret_1y)) stats.push({ label: "1 year", value: ogSignedPct(row!.ret_1y)!, tone: ogTone(row!.ret_1y), raw: row!.ret_1y });
+    if (finite(row?.fwd_pe) && row!.fwd_pe! > 0) stats.push({ label: "Forward P/E", value: row!.fwd_pe!.toFixed(1), raw: row!.fwd_pe! });
+    else if (finite(row?.pe) && row!.pe! > 0) stats.push({ label: "P/E", value: row!.pe!.toFixed(1), raw: row!.pe! });
+    if (finite(row?.rev_growth)) stats.push({ label: "Revenue growth", value: ogSignedPct(row!.rev_growth)!, tone: ogTone(row!.rev_growth), raw: row!.rev_growth });
+    return {
+      ticker: symbol,
+      name: row?.name ?? null,
+      logo: logos[index] ?? null,
+      price: ogPrice(quote.price),
+      dayPct: quote.dayPct,
+      priceDay: quote.dayLabel,
+      call: asCall(row?.call),
+      stats,
+    };
+  });
+  // Owner rule 4: a comparison of numbers gets bars. Returns and growth grow from a shared zero line, P/E from the
+  // left edge with the lowest best; a figure only one stock has (or forward P/E beside trailing) gets no bar.
+  for (const [label, mode] of [["1 year", "signed"], ["Revenue growth", "signed"], ["Forward P/E", "lower"], ["P/E", "lower"]] as const) {
+    const bars = compareBars(
+      columns.map((column) => column.stats.find((stat) => stat.label === label)?.raw ?? null),
+      mode,
+    );
+    columns.forEach((column, at) => {
+      const stat = column.stats.find((item) => item.label === label);
+      if (stat && bars[at]) stat.bar = { ...bars[at]!, signed: mode === "signed" };
+    });
+  }
   return {
     kind: "compare",
-    eyebrow: ogEyebrow("Compare", ogDayLabel(etDay(priceAt))),
-    path: `/compare?symbols=${symbols.join(",")}`,
+    eyebrow: ogEyebrow("Compare", ogDayLabel(priceDay)),
+    path: `/compare?symbols=${kept.map((index) => symbols[index]).join(",")}`,
     headline: read?.headline ?? null,
-    columns: symbols.map((symbol, index) => {
-      const row = present[index];
-      const stats: OgStat[] = [];
-      if (finite(row?.ret_1y)) stats.push({ label: "1 year", value: ogSignedPct(row!.ret_1y)!, tone: ogTone(row!.ret_1y) });
-      if (finite(row?.fwd_pe) && row!.fwd_pe! > 0) stats.push({ label: "Forward P/E", value: row!.fwd_pe!.toFixed(1) });
-      else if (finite(row?.pe) && row!.pe! > 0) stats.push({ label: "P/E", value: row!.pe!.toFixed(1) });
-      if (finite(row?.rev_growth)) stats.push({ label: "Revenue growth", value: ogSignedPct(row!.rev_growth)!, tone: ogTone(row!.rev_growth) });
-      return {
-        ticker: symbol,
-        name: row?.name ?? null,
-        logo: logos[index] ?? null,
-        price: ogPrice(row?.price),
-        dayPct: finite(row?.day_pct) ? row!.day_pct! : null,
-        call: asCall(row?.call),
-        stats,
-      };
-    }),
-    footnote: ogFootnote(priceAt ? `Prices ${ogStamp(priceAt)}` : null),
+    columns: columns.map((column) => ({ ...column, stats: column.stats.map(({ raw: _raw, ...stat }) => stat) })),
+    footnote: session.oneSession && priceAt ? `Prices ${ogStamp(priceAt)}` : null,
   };
 }
 
@@ -366,13 +431,40 @@ async function exploreCard(): Promise<OgCard | null> {
   return readCard("explore", "Market today", "/explore", marketTodayRead(brief?.read, wire, brief?.marketsLine ?? null), { day: ogDayLabel(today) });
 }
 
+/**
+ * How a stock's stories lean, as the News page says it (lib/wire-read.ts): "66%" negative or positive when they lean,
+ * "62%" neutral when most read neutral, "Mixed" only where the page says it (both sides with at least two stories),
+ * else nothing.
+ */
+function toneFact(tones: ToneCounts, stories: number): OgFact | null {
+  const lean = toneLean(tones, stories);
+  if (lean) return { value: `${lean.pct}%`, label: lean.side, tone: lean.side === "positive" ? "up" : "down" };
+  const word = toneWord(tones, stories);
+  const neutral = word?.side === "neutral" ? /^(\d+%)/.exec(word.text)?.[1] : null;
+  if (neutral) return { value: neutral, label: "neutral" };
+  return rowTone(tones, stories).text === "Mixed" ? { value: "Mixed", label: "tone" } : null;
+}
+
+/**
+ * /news: the two or three most talked-about stocks as tiles, each with its logo, price and today's move from the
+ * live quote the stock card reads (never the wire's own price snapshot, which can still hold the day before's move
+ * in the morning), its story count and how its stories lean.
+ */
 async function newsCard(): Promise<OgCard | null> {
   const now = Date.now();
   const wire = await within(loadWire({ now }), 4000);
   if (!wire) return null;
+  // The headlines in sentence case before anything reads them, as the News page does (app/(app)/news/page.tsx): the
+  // shared casing, then the capitals the day's own wire writes in lower case (lib/wire-casing.ts).
+  const anchor = wire.freshness.newestAt ? Math.min(now, Date.parse(wire.freshness.newestAt)) : now;
+  const names = Object.fromEntries(Object.entries(wire.quotes).map(([ticker, quote]) => [ticker, quote.name]));
+  const items = caseWireHeadlines(wire.items, names, {
+    key: ["og-news", wire.freshness.newestAt ?? "", wire.items.length, wire.items[0]?.id ?? "", wire.items.at(-1)?.id ?? ""].join("|"),
+    shown: (item) => Date.parse(item.publishedAt) >= anchor - 48 * 3_600_000,
+  });
   const reading = readTheWire(
     {
-      items: wire.items,
+      items,
       quotes: wire.quotes,
       labels: wire.labels,
       newestAt: wire.freshness.newestAt,
@@ -381,10 +473,60 @@ async function newsCard(): Promise<OgCard | null> {
     },
     { nowMs: now, filters: parseWireFilters({}), buzzLimit: 14, themeLimit: 5 },
   );
-  return readCard("news", "The wire", "/news", reading.read, {
-    day: ogDayLabel(wire.freshness.newestAt),
-    footnote: ogFootnote(wire.freshness.newestAt ? `Newest headline ${ogStamp(wire.freshness.newestAt)}` : null),
+  // The wire's own top three, in its order: a stock without a quote keeps its place with "—" for its move, so the
+  // headline's "these drew the most" is true of exactly the tiles shown.
+  const picked = topCovered(reading.buzz, 3);
+  if (picked.length === 0 || reading.today.length === 0) return null;
+  const [live, logos] = await Promise.all([liveQuotes(picked.map((row) => row.ticker)), loadLogos(picked.map((row) => row.ticker))]);
+  // An undated quote cannot be placed on a day, so it counts as no quote.
+  const quoteOf = (ticker: string) => {
+    const quote = live.get(ticker);
+    return quote && etDay(quote.at) ? quote : null;
+  };
+  const today = todayET();
+  const pricesAt = newestOf(picked.map((row) => quoteOf(row.ticker)?.at ?? null));
+  const stories = reading.today.length.toLocaleString("en-US");
+  // Which day each move is from. "today" on every tile would repeat (owner rule 1), so the days are said only when
+  // some move is from another day ("on Nov 11", before the open), and then on every tile; the footnote dates the
+  // newest price either way.
+  const dayLabels = picked.map((row) => {
+    const quote = quoteOf(row.ticker);
+    if (!quote || quote.dayPct === null) return null;
+    const day = etDay(quote.at)!;
+    return day === today ? "today" : `on ${ogDayLabel(day)}`;
   });
+  const allToday = dayLabels.every((label) => label === null || label === "today");
+  return {
+    kind: "list",
+    eyebrow: ogEyebrow("The wire", ogDayLabel(wire.freshness.newestAt)),
+    path: "/news",
+    // The figure the tiles don't show: how much news there was. The tiles carry each stock's own count. "Most talked
+    // about" is the News page's own name for this list, ranked by the feed's weighted score, not by count alone.
+    headline: `${stories} stories in a day. The most talked about:`,
+    rows: picked.map((row, index) => {
+      const move = tileMove(quoteOf(row.ticker));
+      const facts: OgFact[] = [{ value: row.count.toLocaleString("en-US"), label: row.count === 1 ? "story" : "stories" }];
+      const tone = toneFact(row.tones, row.count);
+      if (tone) facts.push(tone);
+      return {
+        label: row.ticker,
+        ticker: row.ticker,
+        logo: logos[row.ticker] ?? null,
+        price: move.price,
+        value: move.value,
+        valueLabel: allToday ? null : dayLabels[index] ?? null,
+        tone: move.tone,
+        // The stock's top story, as the News page leads its row with it, in sentence case; when it does not fit the
+        // tile whole, its next stories in feed order; none rather than a cut sentence.
+        note: tileHeadline(tileStories(row.ticker, row.lead, reading.today).map((item) => item.title)) ?? "",
+        facts,
+      };
+    }),
+    footnote: ogFootnote(
+      pricesAt ? `Prices ${ogStamp(pricesAt)}` : null,
+      wire.freshness.newestAt ? `newest headline ${ogStamp(wire.freshness.newestAt)}` : null,
+    ),
+  };
 }
 
 const MARKET_STRIP = ["spx", "ndx", "us10y", "btc"];

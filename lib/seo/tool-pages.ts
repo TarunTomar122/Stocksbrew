@@ -38,7 +38,7 @@ export const TOOL_PAGE_SEO = {
     description:
       "Every stock you own with its price, today's move, your gain and our call, the ones that need a look first. Free, no brokerage login.",
     card: ["portfolio", "home"],
-    alt: "What stood out in the example portfolio this week",
+    alt: "The example portfolio's holdings with price, today's move and our call",
     daily: true,
     crumbs: [MY_STOCKS],
   },

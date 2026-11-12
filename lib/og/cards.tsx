@@ -20,6 +20,7 @@ import type {
   OgListRow,
   OgCard,
   OgCompareCard,
+  OgHoldingsCard,
   OgLandingCard,
   OgLine,
   OgListCard,
@@ -28,6 +29,7 @@ import type {
   OgReadCard,
   OgRecordCard,
   OgStat,
+  OgStatBar,
   OgTextCard,
   OgTone,
 } from "@/lib/og/types";
@@ -463,6 +465,40 @@ function LandingCard({ card }: { card: OgLandingCard }) {
   );
 }
 
+/**
+ * One stock's bar for a figure, on the scale it shares with the other stocks on the card: green or red by sign for
+ * returns and growth (from the zero line, drawn when losses and gains share the track), copper for P/E. The better
+ * value is drawn solid, the rest faded.
+ */
+function StatBar({ bar }: { bar: OgStatBar }) {
+  const negative = bar.signed && bar.start < bar.zero;
+  const color = bar.signed ? (negative ? C.down : C.up) : C.copper;
+  const width = Math.max(0, bar.end - bar.start);
+  return (
+    <div style={{ display: "flex", position: "relative", width: "100%", height: 8, borderRadius: 4, background: C.well }}>
+      <div
+        style={{
+          display: "flex",
+          position: "absolute",
+          top: 0,
+          left: `${(bar.start * 100).toFixed(2)}%`,
+          width: `${(width * 100).toFixed(2)}%`,
+          height: 8,
+          borderRadius: 4,
+          background: color,
+          opacity: bar.best ? 1 : 0.4,
+        }}
+      />
+      {bar.signed && bar.zero > 0 && bar.zero < 1 ? (
+        <div style={{ display: "flex", position: "absolute", top: -3, left: `${(bar.zero * 100).toFixed(2)}%`, width: 2, height: 14, background: C.muted }} />
+      ) : null}
+    </div>
+  );
+}
+
+/** Shorter figure names for three or four columns, so a name and its value share one line. */
+const NARROW_LABELS: Record<string, string> = { "Forward P/E": "Fwd P/E", "Revenue growth": "Sales growth" };
+
 function CompareCard({ card }: { card: OgCompareCard }) {
   const cols = card.columns.slice(0, 4);
   const headline = card.headline ? fit(card.headline, 95) : cols.map((col) => col.ticker).join(" vs ");
@@ -482,30 +518,47 @@ function CompareCard({ card }: { card: OgCompareCard }) {
                   display: "flex",
                   flexDirection: "column",
                   flex: 1,
+                  flexBasis: 0,
+                  minWidth: 0,
                   background: C.card,
                   border: `1.5px solid ${C.border}`,
                   borderRadius: 18,
-                  padding: "20px 22px",
-                  gap: 12,
+                  padding: narrow ? "18px 20px" : "20px 22px",
+                  gap: narrow ? 10 : 12,
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                  <Logo ticker={col.ticker} logo={col.logo} size={narrow ? 48 : 58} />
-                  <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
-                    <span style={{ fontFamily: MONO, fontSize: narrow ? 30 : 36, lineHeight: 1.05 }}>{col.ticker}</span>
-                    {col.name ? <span style={{ fontSize: 19, color: C.muted }}>{fit(col.name, narrow ? 18 : 28)}</span> : null}
+                {narrow ? (
+                  // Three or four columns are too narrow for the name beside the call: the call sits under the ticker.
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <Logo ticker={col.ticker} logo={col.logo} size={48} />
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 4 }}>
+                      <span style={{ fontFamily: MONO, fontSize: 28, lineHeight: 1.05 }}>{col.ticker}</span>
+                      {col.call ? <CallPill call={col.call} size={16} prefix={null} /> : null}
+                    </div>
                   </div>
-                  {col.call ? <CallPill call={col.call} size={narrow ? 18 : 21} prefix={null} /> : null}
-                </div>
-                <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
+                ) : (
+                  <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                    <Logo ticker={col.ticker} logo={col.logo} size={58} />
+                    <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
+                      <span style={{ fontFamily: MONO, fontSize: 36, lineHeight: 1.05 }}>{col.ticker}</span>
+                      {col.name ? <span style={{ fontSize: 19, color: C.muted }}>{fit(col.name, 28)}</span> : null}
+                    </div>
+                    {col.call ? <CallPill call={col.call} size={21} prefix={null} /> : null}
+                  </div>
+                )}
+                <div style={{ display: "flex", alignItems: "baseline", flexWrap: "wrap", columnGap: 12 }}>
                   {col.price ? <span style={{ fontFamily: MONO, fontSize: narrow ? 30 : 36 }}>{col.price}</span> : null}
                   {col.dayPct != null ? <span style={{ fontFamily: MONO, fontSize: narrow ? 20 : 24, color: toneColor(tone) }}>{signed(col.dayPct)}</span> : null}
+                  {col.priceDay ? <span style={{ fontSize: narrow ? 17 : 20, color: C.muted }}>{col.priceDay}</span> : null}
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   {col.stats.slice(0, 3).map((stat) => (
-                    <div key={stat.label} style={{ display: "flex", justifyContent: "space-between", borderTop: `1px solid ${C.border}`, paddingTop: 6 }}>
-                      <span style={{ fontSize: 19, color: C.muted }}>{stat.label}</span>
-                      <span style={{ fontFamily: MONO, fontSize: 20, color: toneColor(stat.tone) }}>{stat.value}</span>
+                    <div key={stat.label} style={{ display: "flex", flexDirection: "column", gap: 5, borderTop: `1px solid ${C.border}`, paddingTop: 6 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span style={{ fontSize: narrow ? 17 : 19, color: C.muted }}>{narrow ? (NARROW_LABELS[stat.label] ?? stat.label) : stat.label}</span>
+                        <span style={{ fontFamily: MONO, fontSize: narrow ? 18 : 20, fontWeight: stat.bar?.best ? 700 : 400, color: toneColor(stat.tone) }}>{stat.value}</span>
+                      </div>
+                      {stat.bar ? <StatBar bar={stat.bar} /> : null}
                     </div>
                   ))}
                 </div>
@@ -518,22 +571,49 @@ function CompareCard({ card }: { card: OgCompareCard }) {
   );
 }
 
-/** Stocks side by side as equal cards: logo and ticker, the move as the big number, the reason under it. */
+/**
+ * Stocks side by side as equal cards: logo and ticker (with the price when there is one), the move as the big
+ * number, then the reason under it, or the row's figures in its place.
+ */
 function StockCards({ rows }: { rows: OgListRow[] }) {
   const list = rows.slice(0, 3);
+  // Tiles with figures and a headline under them are a little taller, for the headline's one line.
+  const withStory = list.some((row) => row.facts && row.facts.length > 0 && row.note);
   return (
     <div style={{ display: "flex", gap: 18 }}>
       {list.map((row, index) => (
         <div
           key={`${row.label}-${index}`}
-          style={{ display: "flex", flexDirection: "column", flex: 1, background: C.card, border: `1.5px solid ${C.border}`, borderRadius: 20, padding: "20px 22px", gap: 10, height: 236 }}
+          style={{ display: "flex", flexDirection: "column", flex: 1, background: C.card, border: `1.5px solid ${C.border}`, borderRadius: 20, padding: "20px 22px", gap: 10, height: withStory ? 264 : 236 }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <LogoTile ticker={row.ticker ?? row.label} src={row.logo} size={46} />
             <span style={{ fontFamily: MONO, fontSize: 28 }}>{row.label}</span>
+            {row.price ? <span style={{ fontFamily: MONO, fontSize: 22, color: C.muted, marginLeft: "auto" }}>{row.price}</span> : null}
           </div>
-          {row.value ? <span style={{ fontSize: 54, fontWeight: 700, letterSpacing: "-0.04em", lineHeight: 1, color: toneColor(row.tone) }}>{row.value}</span> : null}
-          {row.note ? <span style={{ fontSize: 21, color: C.ink, lineHeight: 1.28 }}>{fit(row.note, 78)}</span> : null}
+          {row.value ? (
+            <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+              <span style={{ fontSize: 54, fontWeight: 700, letterSpacing: "-0.04em", lineHeight: 1, color: toneColor(row.tone) }}>{row.value}</span>
+              {row.valueLabel ? <span style={{ fontSize: 21, color: C.muted }}>{row.valueLabel}</span> : null}
+            </div>
+          ) : null}
+          {row.facts && row.facts.length > 0 ? (
+            <div style={{ display: "flex", gap: 22, marginTop: withStory ? 4 : "auto" }}>
+              {row.facts.slice(0, 2).map((fact) => (
+                <div key={fact.label} style={{ display: "flex", flexDirection: "column" }}>
+                  <span style={{ fontFamily: MONO, fontSize: 30, lineHeight: 1.1, color: toneColor(fact.tone) }}>{fact.value}</span>
+                  <span style={{ fontSize: 19, color: C.muted }}>{fact.label}</span>
+                </div>
+              ))}
+            </div>
+          ) : null}
+          {row.facts && row.facts.length > 0 && row.note ? (
+            // Chosen to fit whole in one line, measured with this font and size (lib/og/rules.ts TILE_HEADLINE); never cut.
+            <span style={{ fontSize: 19, color: C.ink, lineHeight: 1.25, marginTop: "auto" }}>{row.note}</span>
+          ) : null}
+          {(!row.facts || row.facts.length === 0) && row.note ? (
+            <span style={{ fontSize: 21, color: C.ink, lineHeight: 1.28 }}>{fit(row.note, 78)}</span>
+          ) : null}
         </div>
       ))}
     </div>
@@ -647,6 +727,59 @@ function RecordCard({ card }: { card: OgRecordCard }) {
   );
 }
 
+/** A portfolio's holdings: the title and total value on the left, the biggest positions as rows on the right. */
+function HoldingsCard({ card }: { card: OgHoldingsCard }) {
+  const rows = card.rows.slice(0, 6);
+  const total = card.total;
+  const totalTone: OgTone = total?.dayPct == null ? "flat" : total.dayPct > 0 ? "up" : total.dayPct < 0 ? "down" : "flat";
+  const rowPad = rows.length > 5 ? 9 : 12;
+  return (
+    <Frame eyebrow={card.eyebrow} path={card.path} footnote={card.footnote}>
+      <div style={{ display: "flex", flexGrow: 1, alignItems: "center", gap: 40, paddingBottom: 6 }}>
+        <div style={{ display: "flex", flexDirection: "column", width: 400, gap: 30 }}>
+          <span style={{ fontSize: 54, fontWeight: 700, lineHeight: 1.04, letterSpacing: "-0.035em" }}>{fit(card.title, 40)}</span>
+          {total ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <span style={{ fontFamily: MONO, fontSize: total.value.length > 9 ? 54 : 62, letterSpacing: "-0.03em", lineHeight: 1 }}>{total.value}</span>
+              {total.change ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <ToneGlyph tone={totalTone} size={22} />
+                  <span style={{ fontFamily: MONO, fontSize: 26, color: toneColor(totalTone) }}>{total.change}</span>
+                  {total.label ? <span style={{ fontSize: 23, color: C.muted }}>{total.label}</span> : null}
+                </div>
+              ) : null}
+            </div>
+          ) : card.coverage ? (
+            <span style={{ fontSize: 26, color: C.muted }}>{fit(card.coverage, 40)}</span>
+          ) : null}
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", flex: 1, background: C.card, border: `1.5px solid ${C.border}`, borderRadius: 20, padding: "4px 24px" }}>
+          {rows.map((row, index) => {
+            const tone: OgTone = row.dayPct == null ? "flat" : row.dayPct > 0 ? "up" : row.dayPct < 0 ? "down" : "flat";
+            return (
+              <div
+                key={row.ticker}
+                style={{ display: "flex", alignItems: "center", gap: 16, padding: `${rowPad}px 0`, borderTop: index === 0 ? "none" : `1px solid ${C.border}` }}
+              >
+                <LogoTile ticker={row.ticker} src={row.logo} size={40} />
+                <span style={{ fontFamily: MONO, fontSize: 26, width: 92, flexShrink: 0 }}>{row.ticker}</span>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 8, flex: 1 }}>
+                  <span style={{ fontFamily: MONO, fontSize: 23, color: C.muted }}>{row.price ?? ""}</span>
+                  {row.day ? <span style={{ fontSize: 17, color: C.muted }}>{row.day}</span> : null}
+                </div>
+                <span style={{ fontFamily: MONO, fontSize: 24, color: toneColor(tone), width: 104, flexShrink: 0, justifyContent: "flex-end", textAlign: "right" }}>
+                  {row.dayPct != null ? signed(row.dayPct) : ""}
+                </span>
+                <div style={{ display: "flex", width: 132, flexShrink: 0, justifyContent: "flex-end" }}>{row.call ? <CallPill call={row.call} size={18} prefix={null} /> : null}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </Frame>
+  );
+}
+
 function TextCard({ card }: { card: OgTextCard }) {
   const title = fit(card.title, 90);
   const size = headlineSize(title, [[30, 76], [55, 66], [75, 58]], 52);
@@ -684,5 +817,7 @@ export function OgCardView({ card }: { card: OgCard }) {
       return <RecordCard card={card} />;
     case "text":
       return <TextCard card={card} />;
+    case "holdings":
+      return <HoldingsCard card={card} />;
   }
 }

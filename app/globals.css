@@ -519,9 +519,12 @@ table tbody tr:hover > * {
 }
 /* Panel and section title: sentence case, sans, ink. The name is historical
    (it used to be the copper uppercase label). */
+/* Panel and section headings: a step above the text they head (owner, Nov 12: "headings need to be bigger, ur
+   using same font size for heading and table content"). Body and table text is 15.4px since the small-text bump,
+   so a heading is 17px (16px on a phone): the "17 panel lead" tier of the type scale below. */
 .oa-label {
-  font-size: 13.5px;
-  line-height: 20px;
+  font-size: 17px;
+  line-height: 24px;
   font-weight: 600;
   letter-spacing: -0.003em;
   color: var(--oa-fg);
@@ -626,6 +629,27 @@ main.oa-landing :is(.\!text-sm, .\!text-\[14px\]):not(.oa-topbar *, nav *, .oa-t
     font-size: 15.4px;
   }
 }
+/* Headings set with a small utility (an h2 or h3 at 13 to 14px, semibold) read as the same size as the bumped
+   body text, so they step up too: h2 to 17px, h3 to 16px (15px on a phone). Page titles and figures set their own
+   bigger sizes and are untouched; heatmap tiles and navs stay out, as above. */
+main.oa-landing h2:is(.text-xs, .text-\[12px\], .text-\[12\.5px\], .text-\[13px\], .text-\[13\.5px\], .text-\[14px\], .text-sm):not([class*=":text-["]):not(.oa-topbar *, nav *, .oa-type-fixed *, [data-tile] *) {
+  font-size: 17px;
+  line-height: 24px;
+}
+main.oa-landing h3:is(.text-xs, .text-\[12px\], .text-\[12\.5px\], .text-\[13px\], .text-\[13\.5px\], .text-\[14px\], .text-sm):not([class*=":text-["]):not(.oa-topbar *, nav *, .oa-type-fixed *, [data-tile] *) {
+  font-size: 16px;
+  line-height: 22px;
+}
+@media (max-width: 639.98px) {
+  main.oa-landing h2:is(.text-xs, .text-\[12px\], .text-\[12\.5px\], .text-\[13px\], .text-\[13\.5px\], .text-\[14px\], .text-sm):not([class*=":text-["]):not(.oa-topbar *, nav *, .oa-type-fixed *, [data-tile] *) {
+    font-size: 16px;
+    line-height: 22px;
+  }
+  main.oa-landing h3:is(.text-xs, .text-\[12px\], .text-\[12\.5px\], .text-\[13px\], .text-\[13\.5px\], .text-\[14px\], .text-sm):not([class*=":text-["]):not(.oa-topbar *, nav *, .oa-type-fixed *, [data-tile] *) {
+    font-size: 15px;
+    line-height: 21px;
+  }
+}
 /* Secondary text is never fainter than the muted ink (7:1 on cream, 8:1 in
    the dark). Faded variants of it were the small grey print the reviewers
    could not read. */
@@ -637,7 +661,8 @@ main.oa-landing :is(.\!text-sm, .\!text-\[14px\]):not(.oa-topbar *, nav *, .oa-t
     font-size: 14px;
   }
   .oa-label {
-    font-size: 14px;
+    font-size: 16px;
+    line-height: 22px;
   }
 }
 /* PageHead. When the page frame prints the page note at the bottom (AppPage

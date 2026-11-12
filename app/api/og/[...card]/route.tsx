@@ -112,7 +112,7 @@ async function resolve(parts: string[]): Promise<OgCard | null> {
  * that the data cache cannot hold (a strategy with its full backtest), so the
  * small spec is what gets cached, keyed by the card's path.
  */
-const resolveCached = unstable_cache(async (key: string) => resolve(key.split("/")), ["og-card-spec-v17"], { revalidate: 300 });
+const resolveCached = unstable_cache(async (key: string) => resolve(key.split("/")), ["og-card-spec-v31"], { revalidate: 300 });
 
 export async function GET(request: NextRequest, { params }: Params) {
   const parts = (params.card ?? []).slice(0, 4);

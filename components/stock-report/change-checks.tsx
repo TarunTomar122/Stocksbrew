@@ -35,6 +35,23 @@ function span(units: number): CSSProperties {
   return { flex: `${units} 1 calc(${units} * var(--cb) + ${units - 1} * var(--cg))`, minWidth: 0 };
 }
 
+/**
+ * One card in all is capped at every width (it is never stretched across the section). Otherwise the cap only
+ * applies once the section is wide enough for the groups to share one line (56rem: a two-unit card plus
+ * four one-unit cards); narrower, groups wrap onto their own lines and a capped one would leave a gap beside it, so
+ * there they fill their line instead (council, Nov 12).
+ */
+const CAP_WHEN_WIDE = "[@container(min-width:56rem)]:max-w-[var(--lone-cap,none)]";
+
+function cardsIn(group: Group): number {
+  return group.subs.reduce((sum, sub) => sum + sub.items.length, 0);
+}
+
+/** The widest a lone card (and its column) may grow: twice its base, so it is never stretched across the strip. */
+function loneCap(units: number): string {
+  return `calc(2 * (${units} * var(--cb) + ${units - 1} * var(--cg)))`;
+}
+
 type SubGroup = { event: ChangeCheck["event"]; items: ChangeCheck[]; units: number };
 type Group = { to: CallWord; subs: SubGroup[]; units: number };
 
@@ -138,6 +155,8 @@ function Sources({ list }: { list: ReadonlyArray<ChangeCheck> }) {
 export function ChangeChecks({ list, today, wide }: { list: ReadonlyArray<ChangeCheck>; today: string; wide: boolean }) {
   const groups = groupChecks(list);
   if (!groups.length) return null;
+  // One card in all: it keeps its card width, never stretched across the section.
+  const onlyOne = groups.reduce((sum, group) => sum + cardsIn(group), 0) === 1;
   return (
     <section aria-label="What would change it" className={`[container-type:inline-size] ${wide ? "" : "max-w-[62ch]"}`}>
       <div className="flex items-baseline justify-between gap-3">
@@ -148,7 +167,19 @@ export function ChangeChecks({ list, today, wide }: { list: ReadonlyArray<Change
           two-figure card takes the line; closer from 40rem. */}
       <div className="mt-2 flex flex-wrap gap-x-6 gap-y-4 [--cb:9.5rem] [--cg:0.75rem] [@container(min-width:40rem)]:[--cb:8.5rem]">
         {groups.map((group) => (
-          <div key={group.to} style={span(group.units)} className="flex flex-col">
+          // A one-card group is capped only when another group can take the rest of the line (it has more cards);
+          // when every group is one card they share the line evenly, so neither leaves an empty gap (owner rule 4).
+          <div
+            key={group.to}
+            style={
+              onlyOne
+                ? { ...span(group.units), maxWidth: loneCap(group.units), ["--lone-cap" as string]: "none" }
+                : cardsIn(group) === 1 && groups.some((other) => cardsIn(other) > 1)
+                  ? { ...span(group.units), ["--lone-cap" as string]: loneCap(group.units) }
+                  : { ...span(group.units), ["--lone-cap" as string]: "none" }
+            }
+            className={`flex flex-col ${CAP_WHEN_WIDE}`}
+          >
             {/* Checks under one heading are alternatives: with more than one, say that any one is enough. */}
             <h3 className="text-[14px] font-semibold leading-5 text-oa-fg">
               {group.subs.reduce((count, sub) => count + sub.items.length, 0) > 1 ? "Any one could move it to " : "Could move it to "}
@@ -156,7 +187,13 @@ export function ChangeChecks({ list, today, wide }: { list: ReadonlyArray<Change
             </h3>
             <div className="mt-1.5 flex flex-1 flex-wrap gap-[var(--cg)]">
               {group.subs.map((sub) => (
-                <div key={sub.event} style={span(sub.units)} className="flex flex-col">
+                // A lone card stops growing at twice its base (below), so its column stops there too: otherwise the
+                // column kept growing and left an empty gap before the next one (owner, Nov 12: "weird empty space").
+                <div
+                  key={sub.event}
+                  style={(onlyOne || (sub.items.length === 1 && group.subs.some((other) => other.items.length > 1))) ? { ...span(sub.units), ["--lone-cap" as string]: loneCap(sub.units) } : { ...span(sub.units), ["--lone-cap" as string]: "none" }}
+                  className={`flex flex-col ${CAP_WHEN_WIDE}`}
+                >
                   <p className="flex items-center gap-1.5 text-[13px] leading-[18px] text-oa-muted-fg">
                     <KindIcon name={EVENT_ICON[sub.event]} className="size-3.5" />
                     {subLabel(sub, today)}
@@ -170,7 +207,9 @@ export function ChangeChecks({ list, today, wide }: { list: ReadonlyArray<Change
                           key={item.text}
                           // Grows with its line. A lone card never grows past twice its base, so it is not stretched
                           // across the strip; cards with neighbours share the line out and fill it (owner rule 4).
-                          style={sub.items.length > 1 ? span(units) : { ...span(units), maxWidth: `calc(2 * (${units} * var(--cb) + ${units - 1} * var(--cg)))` }}
+                          // A lone card fills its column; the column itself is capped above when something beside
+                          // it can take the space, so a card is never stretched across an empty strip.
+                          style={span(units)}
                           className="flex flex-col rounded-lg border border-oa-border bg-oa-bg px-3 py-2.5"
                           title={usual ? `A normal day's gap is about ${usual} points` : undefined}
                         >

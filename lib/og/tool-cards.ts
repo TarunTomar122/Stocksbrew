@@ -31,18 +31,20 @@ import { HINDSIGHT_DISCOUNT, discounted } from "@/lib/goal/series";
 import type { TheRead } from "@/lib/insights";
 import { loadExampleMemo } from "@/lib/memo/server";
 import { loadLogos } from "@/lib/og/logos";
+import { etDay } from "@/lib/insight-format";
+import { holdingsTotal } from "@/lib/og/rules";
 import { signedPct, toneOfPct, weekdayOf } from "@/lib/og/pieces";
-import { newYorkToday } from "@/lib/portfolio-data";
-import { pickNoticed } from "@/lib/portfolio-home/pick";
+import { EXAMPLE_HOLDING_TICKERS, FUNDS_SECTOR, loadExamplePortfolio, newYorkToday } from "@/lib/portfolio-data";
 import { loadExampleIdeas } from "@/lib/portfolio-ideas/server";
 import { DEFAULT_RATES } from "@/lib/portfolio-ideas/tax";
+import { getScreenerRows } from "@/lib/screener";
 import { loadExampleStress } from "@/lib/stress-test-data";
 import { loadExampleXray } from "@/lib/xray-data";
 import { AGENT_SAMPLE_JOB, parseJobDraft } from "@/lib/agent-jobs";
 import { agentMarketDay, replayDraft } from "@/lib/agent-jobs-data";
 
-import { copyRows, within } from "@/lib/og/data";
-import { OG_HEADLINE_MAX, ogDayLabel, ogEyebrow, ogFootnote, ogMonthLabel, ogSignedPct, ogStamp, ogThin, ogTone, whole, wholeLines } from "@/lib/og/format";
+import { asCall, copyRows, within } from "@/lib/og/data";
+import { OG_HEADLINE_MAX, ogDayLabel, ogEyebrow, ogFootnote, ogMonthLabel, ogPrice, ogSignedPct, ogStamp, ogThin, ogTone, whole, wholeLines } from "@/lib/og/format";
 import type { OgCard, OgLine, OgReadCard, OgRecordCard, OgTextCard } from "@/lib/og/types";
 import { PORTFOLIO_OG_TOOLS, type PortfolioOgTool } from "@/lib/og/url";
 
@@ -60,8 +62,8 @@ export const PORTFOLIO_TOOL_PAGES: Record<PortfolioOgTool, ToolPage> = {
   home: {
     path: "/portfolio",
     label: "My stocks",
-    title: "What changed in your stocks this week, and what to do about it",
-    sub: "The week's moves, the next earnings report and dividend, what your funds really hold, and the trim or tax idea worth a look.",
+    title: "Every stock you own, with today's move and our call",
+    sub: "Price, today's move, your gain and our call on each holding. Free, no brokerage login.",
   },
   memo: {
     path: "/portfolio/memo",
@@ -245,38 +247,76 @@ async function ideasCard(): Promise<OgCard | null> {
   return exampleRead("ideas", view.read, ogFootnote(view.pricesAsOf ? `Prices and our calls, close of ${ogDayLabel(view.pricesAsOf)}` : "Prices and our calls", "not advice"));
 }
 
-/** The overview: what the agent noticed across the example portfolio's tools, as the page picks it. */
+/** How many holdings the /portfolio card lists, biggest first. */
+const HOME_ROWS = 6;
+
+/** "$148,230": whole dollars. */
+function dollars(value: number): string {
+  return `$${Math.round(value).toLocaleString("en-US")}`;
+}
+
+/** "+$1,204 (+0.8%)" or "−$1,840 (−1.2%)", with a true minus sign. */
+function dayChange(move: number | null, pct: number | null): string | null {
+  if (move === null || !Number.isFinite(move)) return null;
+  const sign = Math.round(move) > 0 ? "+" : Math.round(move) < 0 ? "−" : "";
+  const pctText = ogSignedPct(pct);
+  return `${sign}${dollars(Math.abs(move))}${pctText ? ` (${pctText})` : ""}`;
+}
+
+/**
+ * /portfolio is the holdings list (the overview is gone, Nov 12), so its card is the example portfolio's holdings:
+ * the total value with today's change, and its biggest positions with logo, price, today's move and our call. The
+ * prices are the example's own (lib/portfolio-data.ts loadExamplePortfolio: the newest quote the stock pages read,
+ * all from one session); the share counts are made up, and the card says so.
+ */
 async function homeCard(): Promise<OgCard | null> {
-  const [memo, xray, season, dividendSeeds, stress, ideas] = await Promise.all([
-    // The overview reads the rules-only memo (lib/portfolio-home/server.ts), so the card does too.
-    within(loadExampleMemo(newYorkToday(), null, { worded: false }), SLOW_MS),
-    within(loadExampleXray(), SLOW_MS),
-    within(loadExampleSeason(), SLOW_MS),
-    within(exampleSeeds(), SLOW_MS),
-    within(loadExampleStress(), SLOW_MS),
-    within(loadExampleIdeas(DEFAULT_RATES), SLOW_MS),
-  ]);
-  const dividendData = dividendSeeds && dividendSeeds.length ? await within(loadDividendPlan(dividendSeeds), SLOW_MS) : null;
-  const ready = <T,>(value: T | null | undefined) => (value ? { state: "ready" as const, value } : { state: "empty" as const });
-  const noticed = pickNoticed(
-    {
-      memo: ready(memo),
-      xray: ready(xray),
-      season: ready(season),
-      dividends: ready(dividendData ? { plan: dividendData.plan, read: buildDividendRead(dividendData.plan, { example: true, editHref: "/portfolio" }) } : null),
-      stress: ready(stress),
-      ideas: ready(ideas),
-    },
-    "example",
+  const example = await within(loadExamplePortfolio(), SLOW_MS);
+  if (!example) return null;
+  const { portfolio, pricesAsOf, quotedAt } = example;
+  // Stocks only: the example's index funds carry no call and would crowd out the names it is about.
+  const held = portfolio.positions
+    .filter((position) => position.kind === "holding" && position.sector !== FUNDS_SECTOR && position.price !== null)
+    .sort((a, b) => (b.value ?? -1) - (a.value ?? -1))
+    .slice(0, HOME_ROWS);
+  if (held.length < 3) return null;
+  const tickers = held.map((position) => position.ticker);
+  // Our call is open to everyone; a slow read only leaves the chips off.
+  const [rows, logos] = await Promise.all([within(getScreenerRows(tickers), 3000), loadLogos(tickers)]);
+  // Each holding's price day; the example's session is the day most of them are priced on (pricesAsOf).
+  const dayOf = (ticker: string) => etDay(quotedAt[ticker] ?? null);
+  // A total only when every holding the example has is valued and priced in that one session; otherwise how many
+  // are, never a subtotal or a sum across days as the total (lib/og/rules.ts holdingsTotal).
+  const holdings = portfolio.positions.filter((position) => position.kind === "holding");
+  const sum = holdingsTotal(
+    holdings.map((position) => ({ value: position.value, dayMove: position.dayMove, day: dayOf(position.ticker) })),
+    EXAMPLE_HOLDING_TICKERS.length,
+    pricesAsOf,
   );
-  // The first pick that fits the card whole leads; the next picks are the lines under it.
-  const lead = noticed.findIndex((item) => whole(item.text, OG_HEADLINE_MAX));
-  if (lead < 0) return null;
-  return exampleRead(
-    "home",
-    { headline: noticed[lead]!.text, insights: noticed.filter((_, index) => index !== lead) },
-    "Prices, filings, earnings and dividends",
-  );
+  // Said only when the prices' day is known; the footnote dates them either way.
+  const dayWords = !pricesAsOf ? null : pricesAsOf === newYorkToday() ? "today" : `on ${ogDayLabel(pricesAsOf)}`;
+  // The footnote's time is the newest price from the session; a row from another day carries its own day.
+  const pricedAt = held
+    .filter((position) => pricesAsOf !== null && dayOf(position.ticker) === pricesAsOf)
+    .map((position) => quotedAt[position.ticker]!)
+    .filter((at) => Number.isFinite(Date.parse(at)))
+    .reduce<string | null>((newest, at) => (newest === null || Date.parse(at) > Date.parse(newest) ? at : newest), null);
+  return {
+    kind: "holdings",
+    eyebrow: ogEyebrow("Holdings", ogDayLabel(pricesAsOf)),
+    path: PORTFOLIO_TOOL_PAGES.home.path,
+    title: "My stocks: example portfolio",
+    total: sum.kind === "total" ? { value: dollars(sum.value), change: dayChange(sum.dayMove, sum.dayPct), dayPct: sum.dayPct, label: dayWords } : null,
+    coverage: sum.kind === "partial" ? `${sum.priced} of ${sum.expected} holdings priced${dayWords ? ` ${dayWords}` : ""}` : null,
+    rows: held.map((position) => ({
+      ticker: position.ticker,
+      logo: logos[position.ticker] ?? null,
+      price: ogPrice(position.price),
+      dayPct: position.dayPct,
+      call: asCall(rows?.get(position.ticker)?.call),
+      day: dayOf(position.ticker) === pricesAsOf ? null : ogDayLabel(dayOf(position.ticker)) ?? "date unknown",
+    })),
+    footnote: ogFootnote(pricedAt ? `Prices ${ogStamp(pricedAt)}` : null, "made-up share counts"),
+  };
 }
 
 const TOOL_LOADERS: Record<PortfolioOgTool, (() => Promise<OgCard | null>) | null> = {

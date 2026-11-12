@@ -33,9 +33,38 @@ const WIRE_ORDINARY = new Set(
     "fears fear worries concerns bubble upside downside analyst analysts data center centers " +
     "quarter quarterly backlog outweigh outweighs ousting ignite ignites " +
     // Nov 12: "revokes Re-Entry of alleged spy" (a hyphen run of ordinary words is lowered whole), "Nvidia Turmoil".
-    "re entry turmoil"
+    "re entry turmoil " +
+    // Nov 12, the News page's cards: "stock Crashes 20% as … plans Rattle investors", "stocks Edge higher as Anthropic
+    // Ties deepen", "Cohesity Earns Cisco top Durable growth", "still Implies 126% upside", "worries Linger", "analyst
+    // Trims Intel", "Is the selloff Overdone?", "Structural Reality, Prompting Me". Beside a capital the guards below
+    // still keep most of them ("Chinese Parts", "Huang Remark"), in case the pair is a name.
+    "crash crashes crashed rattle rattles rattled edge edges edged tie ties earn earns earned commit commits committed " +
+    "durable implies imply implied parts linger lingers lingering remark remarks trim trims trimmed overdone selloff " +
+    "structural reality prompting prompts me weakness strength spending plans plan warns warned rebound rebounds " +
+    "upgrade upgrades upgraded downgrade downgrades downgraded alive"
   ).split(" "),
 );
+
+/**
+ * The ordinary words that, right after a name, are that name's verb rather than more of it: "Google Commits $10
+ * billion", "Cohesity Earns Cisco award", "analyst Trims Intel target". Beside a capital they are still lowered, where
+ * another ordinary word would keep its capital in case the pair is a name ("Rocket Lab", "General Motors").
+ */
+const NAME_VERBS = new Set(
+  (
+    "earns commits ties trims crashes rattles implies lingers warns rebounds upgrades downgrades jumps soars rises " +
+    "climbs tumbles plunges surges hikes delivers ignites outweighs"
+  ).split(" "),
+);
+
+/**
+ * Words that are a move after a name ("Rocket Lab Falls 5%", "stocks Edge higher") but a noun inside one ("Sioux Falls
+ * plant", "Kitchen Sinks maker", "Galaxy S25 Edge", "Google Slides"): lowered beside a capital only when what follows
+ * reads as the move (`MOVE_AFTER`). "Edge" is new to the ordinary words and needs that context everywhere.
+ */
+const MOVE_NOUNS = new Set("falls sinks slides drops gains cuts edge edges".split(" "));
+const CONTEXT_ONLY = new Set(["edge", "edges"]);
+const MOVE_AFTER = /^ (?:\$?\d|(?:to|on|after|as|higher|lower|up|down|out|past|amid|over|from|in|below|above|toward|towards|despite|while|ahead|closer)\b)/;
 
 /** Days and months: "in May", "could March higher" are too close to call, so they always keep their capital. */
 const DAY_OR_MONTH = /^(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|january|february|march|april|may|june|july|august|september|october|november|december)$/;
@@ -190,16 +219,18 @@ export function lowerOrdinaryCapitals(
       !startsClause(text, list, index) &&
       !/[\d-]$/.test(text.slice(0, token.offset)) &&
       !/^[\d-]/.test(text.slice(end)) &&
-      // A figure after it names a thing: "Phase 1", "Electronica 2026".
-      !/^ \d/.test(text.slice(end)) &&
+      // A figure after it names a thing: "Phase 1", "Electronica 2026". A share is a move, not a name: "Crashes 20%".
+      (!/^ \d/.test(text.slice(end)) || /^ \d[\d,.]*%/.test(text.slice(end))) &&
       !DAY_OR_MONTH.test(bare(token.word)) &&
       !isBrandWord(token.word) &&
       !inName(token) &&
       !shaped.has(index) &&
       // The word after a headline's opening capitals is often the rest of a name: "ODDITY Tech reports", "GFL Environmental falls".
       !(index === 1 && /^[A-Z]{2,}$/.test(list[0]!.word)) &&
-      !nameBeside(prev, before) &&
-      !nameBeside(next, after) &&
+      (!CONTEXT_ONLY.has(bare(token.word)) || MOVE_AFTER.test(text.slice(end))) &&
+      (NAME_VERBS.has(bare(token.word)) ||
+        (MOVE_NOUNS.has(bare(token.word)) && MOVE_AFTER.test(text.slice(end))) ||
+        (!nameBeside(prev, before) && !nameBeside(next, after))) &&
       !mixedPair(token, prev, before) &&
       !mixedPair(token, next, after) &&
       // "Bank of Japan", "Department of Energy": a capital before "of" and a name is part of that name.

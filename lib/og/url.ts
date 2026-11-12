@@ -14,7 +14,7 @@ export const OG_SITE_URL = "https://www.stocksbrew.online";
 export const OG_WIDTH = 1200;
 export const OG_HEIGHT = 630;
 /** Bump when the card design changes, so platforms that cache by URL fetch the new one. */
-export const OG_VERSION = "3";
+export const OG_VERSION = "4";
 
 /** The read-style pages that get a card drawn from their own read. */
 export const OG_PAGE_KEYS = [

@@ -103,4 +103,38 @@ describe("caseWireHeadlines", () => {
     expect(out[1]).toBe("Nvidia turmoil lifts AMD as chip stocks rebound");
     expect(run(["Re/Max shares slide after Re/Max earnings miss"])[0]).toBe("Re/Max shares slide after Re/Max earnings miss");
   });
+
+  it("lowers the News cards' strays: a verb after a name, a move before a share, and keeps names (Nov 12)", () => {
+    const out = run(
+      [
+        "Nebius stock Crashes 20% as massive AI spending plans Rattle investors",
+        "Microsoft stocks Edge higher as Anthropic Ties deepen despite spreadsheet rivalry",
+        "Alphabet stocks rise as Google Commits $10 billion to Anthropic at IPO",
+        "BofA 5-Star analyst Trims Intel stock price target for 2027",
+        "6 firms downgraded NVIDIA as Huang resigned. Is the selloff Overdone?",
+        "Wall Street models lag Structural Reality, Prompting Me to add an 'overvalued' Apple",
+        "Rocket Lab Falls 5% after launch",
+        "Microsoft Edge gets a new AI mode",
+        "Tesla Model 3 sales rise 5%",
+        "Sioux Falls plant to close",
+        "Samsung Galaxy S25 Edge sales top forecasts",
+        "Kitchen Sinks maker files for IPO",
+      ],
+      { INTC: "Intel Corporation", RKLB: "Rocket Lab USA, Inc.", MSFT: "Microsoft Corporation" },
+    );
+    expect(out).toEqual([
+      "Nebius stock crashes 20% as massive AI spending plans rattle investors",
+      "Microsoft stocks edge higher as Anthropic ties deepen despite spreadsheet rivalry",
+      "Alphabet stocks rise as Google commits $10 billion to Anthropic at IPO",
+      "BofA 5-Star analyst trims Intel stock price target for 2027",
+      "6 firms downgraded NVIDIA as Huang resigned. Is the selloff overdone?",
+      "Wall Street models lag structural reality, prompting me to add an 'overvalued' Apple",
+      "Rocket Lab falls 5% after launch",
+      "Microsoft Edge gets a new AI mode",
+      "Tesla Model 3 sales rise 5%",
+      "Sioux Falls plant to close",
+      "Samsung Galaxy S25 Edge sales top forecasts",
+      "Kitchen Sinks maker files for IPO",
+    ]);
+  });
 });

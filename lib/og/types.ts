@@ -6,7 +6,10 @@ export type OgCall = "Add" | "Hold" | "Trim";
 /** One supporting sentence, with its number, and whether it is good or bad news. */
 export type OgLine = { text: string; tone: OgTone };
 
-export type OgStat = { label: string; value: string; tone?: OgTone; sub?: string; subTone?: OgTone };
+/** A bar on a shared scale across a compare card's stocks (lib/og/rules.ts compareBars), in fractions of its track. */
+export type OgStatBar = { start: number; end: number; zero: number; best: boolean; signed: boolean };
+
+export type OgStat = { label: string; value: string; tone?: OgTone; sub?: string; subTone?: OgTone; bar?: OgStatBar | null };
 
 type Base = {
   /** Uppercase mono label top right, e.g. "Signals · Nov 10". */
@@ -83,14 +86,32 @@ export type OgCompareColumn = {
   logo: string | null;
   price: string | null;
   dayPct: number | null;
+  /** The price's own day ("Nov 11"), set only when the prices on the card are from different days. */
+  priceDay?: string | null;
   call: OgCall | null;
   stats: OgStat[];
 };
 
 export type OgCompareCard = Base & { kind: "compare"; headline: string | null; columns: OgCompareColumn[] };
 
-/** One row; with a `ticker` the row is a stock and is drawn as a card with its logo. */
-export type OgListRow = { label: string; value: string | null; tone: OgTone; note: string; ticker?: string | null; logo?: string | null };
+/** A small figure with its label under a stock tile's move: "340" stories, "65%" negative. */
+export type OgFact = { value: string; label: string; tone?: OgTone };
+
+/**
+ * One row; with a `ticker` the row is a stock and is drawn as a card with its logo. `price` sits beside the ticker,
+ * `valueLabel` beside the move ("today", "on Nov 11"), and `facts` replace the note with figures.
+ */
+export type OgListRow = {
+  label: string;
+  value: string | null;
+  tone: OgTone;
+  note: string;
+  ticker?: string | null;
+  logo?: string | null;
+  price?: string | null;
+  valueLabel?: string | null;
+  facts?: OgFact[] | null;
+};
 
 export type OgListCard = Base & { kind: "list"; headline: string; rows: OgListRow[] };
 
@@ -117,4 +138,19 @@ export type OgRecordCard = Base & {
 
 export type OgTextCard = Base & { kind: "text"; title: string; sub: string | null; chips?: string[]; stats?: OgStat[] };
 
-export type OgCard = OgReadCard | OgQuoteCard | OgLandingCard | OgCompareCard | OgListCard | OgRecordCard | OgTextCard;
+/** One holding: logo, ticker, price, today's move and our call. */
+/** `day` is set only when this holding's price is from another day than the rest ("Nov 11"). */
+export type OgHoldingRow = { ticker: string; logo: string | null; price: string | null; dayPct: number | null; call: OgCall | null; day?: string | null };
+
+/** A portfolio's holdings: its title, the total value with today's change, and its biggest positions as rows. */
+export type OgHoldingsCard = Base & {
+  kind: "holdings";
+  title: string;
+  /** `label` is the day the change is from ("today", "on Nov 11"), or null when that day is unknown. */
+  total: { value: string; change: string | null; dayPct: number | null; label: string | null } | null;
+  /** In place of the total when some holdings are not priced: "6 of 9 holdings priced". */
+  coverage?: string | null;
+  rows: OgHoldingRow[];
+};
+
+export type OgCard = OgHoldingsCard | OgReadCard | OgQuoteCard | OgLandingCard | OgCompareCard | OgListCard | OgRecordCard | OgTextCard;

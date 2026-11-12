@@ -151,6 +151,9 @@ const EXAMPLE: Array<{
   { ticker: "CAT", name: "Caterpillar", sector: "Industrials", kind: "watchlist" },
 ];
 
+/** Every holding in the example (stocks and funds), so a reader can tell when some failed to price (lib/og/tool-cards.ts). */
+export const EXAMPLE_HOLDING_TICKERS: readonly string[] = EXAMPLE.filter((item) => item.kind === "holding").map((item) => item.ticker);
+
 /** The example's own stocks (not its funds or watchlist), in its order: what the example agents watch (lib/portfolio-home/example-agents.ts). */
 export const EXAMPLE_STOCK_TICKERS: readonly string[] = EXAMPLE.filter((item) => item.kind === "holding" && item.sector !== FUNDS_SECTOR).map((item) => item.ticker);
 
