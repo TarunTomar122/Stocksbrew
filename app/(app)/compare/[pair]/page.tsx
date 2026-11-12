@@ -4,16 +4,14 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { CompareView } from "@/components/compare-desk/compare-view";
 import { JsonLd, breadcrumbLd } from "@/components/docs/json-ld";
 import { closeWords } from "@/lib/benchmark-day";
-import { AppPage, CardGrid, NUM, PageHead, Panel, SourceLine, Ticker, fmtDay } from "@/components/oa/kit";
-import { CallTag } from "@/components/screener/shared";
+import { AppPage, CardGrid, PageHead, Panel, SourceLine, fmtDay } from "@/components/oa/kit";
 import { todayET } from "@/lib/calendar-shared";
 import { getViewer } from "@/lib/entitlements-server";
 import { ogImage } from "@/lib/og/url";
 import { sectorSlug, type ScreenerRow } from "@/lib/screener-shared";
 import { insiderHref, pairHref, pairIsIndexable, parsePairSlug, sectorHref, stockLabel, type StockPair } from "@/lib/seo/families";
 import { getCoverage, pairsFor, stockPairs, type Coverage } from "@/lib/seo/family-data";
-import { plainCallReason, shortCompanyName } from "@/lib/plain-copy";
-import { withoutVagueChange } from "@/lib/call-basis";
+import { shortCompanyName } from "@/lib/plain-copy";
 import Link from "next/link";
 import { AppLink } from "@/components/oa/app-link";
 
@@ -74,27 +72,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: { title: `${title} · stocksbrew`, description, url: `${BASE}${path}`, images: [shareImage] },
     twitter: { card: "summary_large_image", title: `${title} · stocksbrew`, description, images: [shareImage] },
   };
-}
-
-function CallCard({ row }: { row: ScreenerRow }) {
-  return (
-    <Panel fill>
-      <div className="flex flex-wrap items-center gap-2">
-        <Ticker symbol={row.symbol} name={name(row)} size={20} />
-        <CallTag call={row.call} />
-      </div>
-      {row.call ? (
-        <>
-          {row.call_reason ? <p className="mt-2 text-pretty text-[14px] leading-[1.45rem] text-oa-fg">{plainCallReason(withoutVagueChange(row.call_reason))}</p> : null}
-          <p className={`${NUM} mt-2 text-[12px] text-oa-muted-fg`}>
-            {row.call_at ? `Call dated ${fmtDay(row.call_at, true)}` : "Call date not on file"}
-          </p>
-        </>
-      ) : (
-        <p className="mt-2 text-[14px] leading-5 text-oa-muted-fg">No call on {row.symbol} yet.</p>
-      )}
-    </Panel>
-  );
 }
 
 function LinkList({ items }: { items: Array<{ href: string; label: string }> }) {
@@ -164,13 +141,6 @@ export default async function PairPage({ params, searchParams }: Props) {
         range={range}
         viewer={viewer}
         readLabel="What separates them"
-        readCalls={false}
-        afterRead={
-          <CardGrid cols={2} className="mb-4">
-            <CallCard row={first} />
-            <CallCard row={second} />
-          </CardGrid>
-        }
       />
 
       <CardGrid cols={3} className="mt-5">

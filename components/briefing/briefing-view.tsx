@@ -341,7 +341,7 @@ function ExampleHead({ date, marketState, example, staleNote, degraded }: { date
     <header className="col-span-full min-w-0 px-2 sm:px-0">
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <h1 className="min-w-0 text-pretty text-[15px] font-semibold leading-6 text-oa-fg">Example briefing for a made-up portfolio of real stocks</h1>
-        <StartFreeButton surface="briefing_example" size="sm" label="Get yours" className="shrink-0" />
+        <StartFreeButton surface="briefing_example" size="sm" className="shrink-0" />
       </div>
       <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-pretty text-[13px] leading-5 text-oa-muted-fg">
         <span>

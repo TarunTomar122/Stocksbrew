@@ -92,7 +92,7 @@ async function IdeasBody({ rates }: { rates: TaxRates }) {
         ) : (
           <>
             This is an example portfolio{example?.pricesAsOf ? ` at the ${fmtDay(example.pricesAsOf)} close` : ""}: the shares and buy days are made up, the prices and our calls are real.{" "}
-            <XraySignIn>Sign in to see ideas for yours.</XraySignIn>
+            <XraySignIn>Start free to see ideas for yours.</XraySignIn>
           </>
         )}
       </p>

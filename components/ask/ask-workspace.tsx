@@ -195,7 +195,7 @@ function LimitNotice({ limit, onSignIn }: { limit: AskLimitReached; onSignIn: ()
       <div className="mt-3 flex flex-wrap gap-2">
         {limit.next_step === "sign_in" ? (
           <OaButton size="sm" onClick={onSignIn}>
-            {limit.limit === 0 ? "Sign in free" : "Sign in to keep going"}
+            Start free
           </OaButton>
         ) : null}
         {limit.next_step === "upgrade" ? (
@@ -1023,7 +1023,7 @@ export function AskWorkspace({
   const smallPrint = (
     <p className={`${panel ? "mt-1" : "mt-1.5"} flex flex-wrap justify-between gap-x-4 gap-y-0.5 px-1 text-[11.5px] leading-4 text-oa-muted-fg`}>
       <span>
-        {plan === "anonymous" ? `Sign in free to ask ${ASK_LIMITS.free.questionsPerDay} questions a day. ` : ""}Research, not advice.
+        {plan === "anonymous" ? `Start free to ask ${ASK_LIMITS.free.questionsPerDay} questions a day. ` : ""}Research, not advice.
       </span>
       {allowance ? (
         <span className={`${NUM} ${panel ? "" : "lg:hidden"}`}>

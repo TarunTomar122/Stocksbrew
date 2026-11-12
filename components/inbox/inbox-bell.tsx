@@ -317,7 +317,7 @@ export function InboxBell({ variant }: { variant: "sidebar" | "topbar" }) {
           )}
           <div className="flex items-center justify-between gap-3 border-t border-oa-border px-3 py-2.5">
             {summary && !summary.signedIn ? (
-              <p className="text-[12.5px] leading-[18px] text-oa-muted-fg">Sign in to get your own.</p>
+              <p className="text-[12.5px] leading-[18px] text-oa-muted-fg">Start free to get your own.</p>
             ) : summary && items.length > 0 ? (
               // The popover's one Ask, for the whole list: the panel opens beside the page from the person's own stocks.
               <Link href={`/ask?q=${encodeURIComponent("What in my inbox needs me first, and why?")}&ctx=portfolio`} prefetch={false} onClick={() => setOpen(false)} className={`rounded text-[13.5px] text-oa-muted-fg hover:text-oa-fg hover:underline ${FOCUS}`}>

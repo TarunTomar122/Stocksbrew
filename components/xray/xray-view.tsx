@@ -334,7 +334,7 @@ export function ExampleNote({ pricesWords, signedIn }: { pricesWords: string | n
           Add share counts to your holdings to see yours.
         </Link>
       ) : (
-        <XraySignIn>Sign in to see yours.</XraySignIn>
+        <XraySignIn>Start free to see yours.</XraySignIn>
       )}
     </p>
   );

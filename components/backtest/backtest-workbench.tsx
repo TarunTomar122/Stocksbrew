@@ -55,7 +55,7 @@ function HoldingCards({ run }: { run: BacktestRun }) {
     <div className="max-h-[22rem] overflow-y-auto overscroll-contain p-3">
       <ul className="flex flex-wrap gap-2">
         {run.holdings.map((holding) => (
-          <li key={holding.symbol} className="min-w-[7.75rem] flex-1 basis-[calc(33.333%-0.5rem)]">
+          <li key={holding.symbol} className="min-w-[7.75rem] flex-1 basis-[calc(50%-0.5rem)]">
             {/* Not a link: funds such as TLT or GLD have no stock page. */}
             <div className="h-full rounded-md border border-oa-border bg-oa-bg px-3 py-2.5">
             <span className="inline-flex items-center gap-1.5 text-[13.5px] font-medium text-oa-fg">
@@ -130,24 +130,33 @@ function ResultView({ run, example }: { run: BacktestRun; example: boolean }) {
         hitRate={run.hit_rate}
         turnover={run.turnover.annual}
       />
-
-      <div className="grid gap-4 xl:grid-cols-2">
-        <Panel title="Year by year">
-          {/* About eight years tall; older years scroll inside. */}
-          <div className="max-h-[21rem] overflow-y-auto overscroll-contain">
-            <YearTable years={run.years} benchmarkLabel={benchmark} strategyLabel={example ? "60/40" : "Your mix"} bars={false} />
-          </div>
-        </Panel>
-        <Panel title="What each holding did">
-          <HoldingCards run={run} />
-          <p className="border-t border-oa-border px-3.5 py-2 text-[12.5px] leading-5 text-oa-muted-fg">
-            {run.turnover.rebalances === 0
-              ? "Never rebalanced, so the end weights show how far the mix drifted."
-              : `Reset to the target weights ${run.turnover.rebalances} times. Trading costs took about ${(run.costs.total_drag * 100).toFixed(1)}% in total.`}
-          </p>
-        </Panel>
-      </div>
     </div>
+  );
+}
+
+/**
+ * The year table and the holdings, under the mix in the right column on a wide screen, so the column runs as far
+ * down as the read, the chart and the figures beside it (owner rule 4). Each panel is as tall as its content.
+ */
+function ResultSide({ run, example }: { run: BacktestRun; example: boolean }) {
+  const benchmark = run.input.benchmark;
+  return (
+    <>
+      <Panel title="Year by year">
+        {/* About eight years tall; older years scroll inside. */}
+        <div className="max-h-[21rem] overflow-y-auto overscroll-contain">
+          <YearTable years={run.years} benchmarkLabel={benchmark} strategyLabel={example ? "60/40" : "Your mix"} bars={false} />
+        </div>
+      </Panel>
+      <Panel title="What each holding did">
+        <HoldingCards run={run} />
+        <p className="border-t border-oa-border px-3.5 py-2 text-[12.5px] leading-5 text-oa-muted-fg">
+          {run.turnover.rebalances === 0
+            ? "Never rebalanced, so the end weights show how far the mix drifted."
+            : `Reset to the target weights ${run.turnover.rebalances} times. Trading costs took about ${(run.costs.total_drag * 100).toFixed(1)}% in total.`}
+        </p>
+      </Panel>
+    </>
   );
 }
 
@@ -283,12 +292,13 @@ export function BacktestWorkbench({
   const groups = [...new Set(presets.map((preset) => preset.group))];
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start">
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_21rem] lg:items-start">
+      {/* The right column: the mix, then (after a run) the year table and the holdings under it, so it ends level with
+          the results. On a phone the results come first and the mix after them; before a run, the mix comes first. */}
+      <div className={`flex min-w-0 flex-col gap-4 lg:order-last ${response?.ok ? "max-lg:order-last" : ""}`}>
       <form
         id="mix"
-        className={`oa-surface scroll-mt-16 overflow-hidden border border-oa-border bg-oa-card lg:sticky lg:top-4 lg:order-last ${
-          response?.ok ? "order-last" : ""
-        }`}
+        className="oa-surface scroll-mt-16 overflow-hidden border border-oa-border bg-oa-card max-lg:order-last"
         onSubmit={(event) => {
           event.preventDefault();
           void run();
@@ -438,6 +448,8 @@ export function BacktestWorkbench({
           </p>
         ) : null}
       </form>
+      {response?.ok ? <ResultSide run={response.result} example={showingExample} /> : null}
+      </div>
 
       <div ref={resultRef} className="min-w-0 scroll-mt-16">
         {notice && !(example && !showingExample) ? (

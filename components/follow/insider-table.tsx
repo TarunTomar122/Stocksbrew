@@ -24,6 +24,8 @@ const SIZES: { value: number; label: string }[] = [
  */
 const FIRST_PAINT = 24;
 
+const useIsoLayoutEffect = typeof window === "undefined" ? React.useEffect : React.useLayoutEffect;
+
 /**
  * Recent open-market insider trades with the three filters people reach for. Every matching row is in the list,
  * about eight in view, the rest scrolling inside it with no bar and nothing to click to see more (owner rule 5).
@@ -67,6 +69,41 @@ export function InsiderTable({
   // Near-identical rows (a dozen vice presidents buying through one window) fold into one row.
   const items = group ? groupInsiderTrades(filtered) : filtered.map((trade) => ({ kind: "trade" as const, trade }));
   const visible = mounted ? items : items.slice(0, FIRST_PAINT);
+
+  // The box ends on a whole row, never through one (owner rule 5): its height comes down from the CSS cap (about
+  // eight rows) to the bottom of the last row that fits under it. Rows differ in height on a phone, so it is measured.
+  useIsoLayoutEffect(() => {
+    const list = scroller.current;
+    if (!list) return;
+    const fit = () => {
+      list.style.maxHeight = "";
+      const cap = Number.parseFloat(window.getComputedStyle(list).maxHeight);
+      if (!Number.isFinite(cap) || list.scrollHeight <= cap) return;
+      let bottom = 0;
+      for (const row of Array.from(list.children) as HTMLElement[]) {
+        const end = row.offsetTop + row.offsetHeight;
+        if (end > cap + 0.5) break;
+        bottom = end;
+      }
+      if (bottom > 0) list.style.maxHeight = `${bottom}px`;
+    };
+    fit();
+    // A width change, or a late web font changing a row's height, measures again.
+    const observer = new ResizeObserver(fit);
+    if (list.firstElementChild) observer.observe(list.firstElementChild);
+    // Only a change of width: a phone's toolbar hiding fires resize too, and refitting then would nudge the scroll.
+    let width = window.innerWidth;
+    const onResize = () => {
+      if (window.innerWidth === width) return;
+      width = window.innerWidth;
+      fit();
+    };
+    window.addEventListener("resize", onResize);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", onResize);
+    };
+  }, [visible.length, side, minValue, hidePlans, needle]);
 
   // A new filter starts its list from the top.
   function reset<T>(setter: (value: T) => void) {

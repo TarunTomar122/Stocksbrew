@@ -68,7 +68,7 @@ function LongReportLink({ ticker }: { ticker: string }) {
 function LevelsLock({ ticker, instrumentId, tracked, gate, market }: { ticker: string; instrumentId: string; tracked: boolean; gate: ReportData["gate"]; market: "US" | "IN" }) {
   // "Covering" is our word; readers get "the full report on five (three on PAYWALL_V2) stocks you pick".
   const left = `${gate.slotsLeft} of your ${FREE_COVERED_WORD} free full reports ${gate.slotsLeft === 1 ? "is" : "are"} left`;
-  const title = gate.plan === "anon" ? `Sign in to read the full report on ${ticker}` : `Get the full report on ${ticker}`;
+  const title = gate.plan === "anon" ? `Read the full report on ${ticker} with a free account` : `Get the full report on ${ticker}`;
   const body =
     gate.plan === "anon"
       ? // The page's one lock (owner, Nov 12): the long research report, which also needs an account, is said here

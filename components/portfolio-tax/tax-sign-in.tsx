@@ -27,7 +27,7 @@ export function TaxSignIn() {
     <section className="oa-surface border border-oa-border bg-oa-card">
       <div className="flex flex-col gap-3 px-4 py-6 text-center">
         <p className="text-[15px] font-medium text-oa-fg">
-          Sign in to keep your tax lots
+          Keep your tax lots with a free account
         </p>
         <p className="mx-auto max-w-md text-pretty text-[14px] leading-5 text-oa-muted-fg">
           Your lots are saved to your account and only you can see them. US
@@ -50,7 +50,7 @@ export function TaxSignIn() {
             }}
             className="inline-flex h-10 cursor-pointer items-center rounded border border-oa-primary bg-oa-primary px-4 text-[14px] font-medium text-oa-primary-fg outline-none hover:brightness-110 focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)] disabled:opacity-60 sm:h-9"
           >
-            {busy ? "Signing in" : "Sign in with Google"}
+            {busy ? "Signing in" : "Start free"}
           </button>
         </div>
       </div>

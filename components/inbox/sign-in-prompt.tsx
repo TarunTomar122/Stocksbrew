@@ -23,7 +23,7 @@ export function InboxSignIn() {
         }
       }}
     >
-      Sign in to get your own
+      Start free
     </OaButton>
   );
 }

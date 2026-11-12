@@ -1,65 +1,18 @@
 import { unstable_cache } from "next/cache";
 
-import { getStockIntelligence } from "@/lib/firestore";
 import { getScreenerRows } from "@/lib/screener";
 import { BASKET_RANGES, indexReturn, overlaySeries, rangeStart, thinAligned, type BasketRangeKey, type IndexPoint } from "@/lib/screener-basket";
 import { getDailySeries } from "@/lib/screener-series";
 import type { ScreenerRow } from "@/lib/screener-shared";
 
 /**
- * Server loaders for the compare desk. The numbers come from the screening
- * snapshot (one row per stock), the words from each stock's stored brief, and
- * the chart from stored daily closes. Nothing is generated at request time.
+ * Server loaders for the compare desk. The numbers and our call come from the
+ * screening snapshot (one row per stock) and the chart from stored daily
+ * closes. Nothing is generated at request time.
  *
  * `lib/compare-stocks.ts` is the older per-request loader the MCP server and
  * the REST API still use; it is left as it is.
  */
-
-export type CompareBrief = {
-  symbol: string;
-  headline: string | null;
-  thesis: string | null;
-  /** What is driving the stock, from the brief's driver cards. */
-  drivers: Array<{ label: string; detail: string | null; direction: string | null }>;
-  risk: string | null;
-  points: string[];
-  generatedAt: string | null;
-};
-
-type BriefDoc = {
-  headline?: string;
-  thesis?: string;
-  risk?: string;
-  key_points?: string[];
-  generated_at?: string;
-  visual_cards?: { drivers?: Array<{ label?: string; detail?: string; direction?: string }> };
-};
-
-function text(value: unknown, max = 400): string | null {
-  const clean = typeof value === "string" ? value.trim() : "";
-  return clean ? clean.slice(0, max) : null;
-}
-
-async function readBrief(symbol: string): Promise<CompareBrief | null> {
-  const doc = (await getStockIntelligence(`US_${symbol}`, "US")) as BriefDoc | null;
-  if (!doc) return null;
-  const drivers = (doc.visual_cards?.drivers ?? [])
-    .map((driver) => ({ label: text(driver.label, 120), detail: text(driver.detail, 320), direction: text(driver.direction, 12) }))
-    .filter((driver): driver is { label: string; detail: string | null; direction: string | null } => driver.label !== null)
-    .slice(0, 3);
-  const brief: CompareBrief = {
-    symbol,
-    headline: text(doc.headline, 200),
-    thesis: text(doc.thesis, 320),
-    drivers,
-    risk: text(doc.risk, 400),
-    points: (doc.key_points ?? []).map((point) => text(point, 320)).filter((point): point is string => point !== null).slice(0, 4),
-    generatedAt: text(doc.generated_at, 40),
-  };
-  return brief.thesis || brief.headline || brief.drivers.length || brief.risk || brief.points.length ? brief : null;
-}
-
-const getBriefCached = unstable_cache(readBrief, ["compare-brief-v1"], { revalidate: 900 });
 
 export type CompareChartRange = {
   key: BasketRangeKey;
@@ -109,15 +62,13 @@ export type CompareData = {
   symbols: string[];
   /** One entry per symbol, null when the stock is not in our coverage. */
   rows: Array<ScreenerRow | null>;
-  briefs: Array<CompareBrief | null>;
   chart: CompareChart;
 };
 
 export async function getCompareData(symbols: readonly string[]): Promise<CompareData> {
   const list = [...symbols];
-  const [rowMap, briefs, chart] = await Promise.all([
+  const [rowMap, chart] = await Promise.all([
     getScreenerRows(list).catch(() => new Map<string, ScreenerRow>()),
-    Promise.all(list.map((symbol) => getBriefCached(symbol).catch(() => null))),
     buildChart(list).catch((): CompareChart => ({ ranges: [], source: "Price history", lastDate: null, missing: list })),
   ]);
   return {
@@ -126,13 +77,12 @@ export async function getCompareData(symbols: readonly string[]): Promise<Compar
       const row = rowMap.get(symbol);
       return row && !row.benchmark ? row : null;
     }),
-    briefs,
     chart,
   };
 }
 
 /**
- * The same, kept for five minutes as one finished piece (rows, briefs and the rebased chart). The desk's example
+ * The same, kept for five minutes as one finished piece (rows and the rebased chart). The desk's example
  * pair opens on every visit to /compare, so it should not rebuild the chart each time; the parts underneath are
  * cached on their own clocks already.
  */
@@ -143,4 +93,4 @@ async function getCompareDataWhole(symbols: string[]): Promise<CompareData> {
   return data;
 }
 
-export const getCompareDataCached = unstable_cache(getCompareDataWhole, ["compare-data-v2"], { revalidate: 300 });
+export const getCompareDataCached = unstable_cache(getCompareDataWhole, ["compare-data-v3"], { revalidate: 300 });

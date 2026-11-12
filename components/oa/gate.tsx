@@ -69,7 +69,8 @@ function useGate(feature: FeatureId, plan: Plan, ticker?: string) {
 }
 
 function ctaLabel(step: "sign_in" | "upgrade" | null, trialEligible: boolean): string {
-  if (step === "sign_in") return "Sign in free";
+  // The one signed-out label site-wide (the header, the landing and every lock say the same).
+  if (step === "sign_in") return "Start free";
   return trialEligible ? "Try Pro free for 3 days" : `Get Pro for $${US_PRO_MONTHLY} a month`;
 }
 

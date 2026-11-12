@@ -5,7 +5,7 @@ import { useState } from "react";
 
 import { signInWithGoogle } from "@/lib/sign-in";
 
-/** An inline "Sign in to see yours." that opens Google sign-in and reloads the page with the person's own holdings. */
+/** An inline "Start free to see yours." that opens Google sign-in and reloads the page with the person's own holdings. */
 export function XraySignIn({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);

@@ -745,7 +745,8 @@ const MIXED_COMMON = new Set(
     "already almost enough too if unless though although per via versus onto upon around beyond few many several small " +
     "smaller large larger good bad worse worst great little opportunity chance reason reasons way ways thing things " +
     "everything nothing something anything everyone nobody people reshuffle reshuffles reshuffled rebalance rebalances " +
-    "these those he she his her who whom whose which where our it's prepare prepares prepared plan plans planning consider considers considering weigh weighs weighing seek seeking"
+    "these those he she his her who whom whose which where our it's prepare prepares prepared plan plans planning consider considers considering weigh weighs weighing seek seeking " +
+    "major strategy strategies live stream streamed vote votes voted tonight capture captures captured wealth"
   ).split(" "),
 );
 

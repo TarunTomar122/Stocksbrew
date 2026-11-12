@@ -47,7 +47,8 @@ export function StockTallyPanel({
             return (
               <li key={row.ticker} className="relative grid min-h-11 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 px-4 py-1.5 transition-colors hover:bg-oa-accent">
                 <div className="min-w-0">
-                  <Ticker symbol={row.ticker} name={row.name} size={18} wrap stretch className="max-w-full" />
+                  {/* Ticker only in a dense list (owner rule 3); the company is a hover away on its page. */}
+                  <Ticker symbol={row.ticker} size={18} stretch className="max-w-full" />
                   <p className="mt-0.5 text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg">
                     {names.join(", ")}
                     {more > 0 ? ` and ${more} more` : ""}

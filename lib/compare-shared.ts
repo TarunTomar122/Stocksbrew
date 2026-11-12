@@ -178,7 +178,11 @@ export function tallyWins(groups: ReadonlyArray<CompareTableGroup>, count: numbe
 
 /* ── What separates them ───────────────────────────────────────────────── */
 
-export type Difference = { topic: string; text: string };
+/**
+ * One row of "Where they differ": a topic, the one figure that leads it (the leader's number), whether that figure
+ * reads as up or down, and a short line naming whose figure it is, against the other name's.
+ */
+export type Difference = { topic: string; figure: string; tone?: "up" | "down"; text: string };
 
 type Known = { symbol: string; value: number };
 
@@ -205,22 +209,38 @@ function money(value: number): string {
   return fmt("market_cap", Math.abs(value));
 }
 
+/** A percentage for a scan-friendly row: whole from 10 up, one decimal below, signed when asked. */
+function short(value: number, signed = false): string {
+  const abs = Math.abs(value);
+  const body = abs >= 10 ? String(Math.round(abs)) : abs.toFixed(1).replace(/\.0$/, "");
+  const text = `${body}%`;
+  // A value that rounds to zero carries no sign: "0%", never "−0%".
+  if (body === "0") return text;
+  if (!signed) return value < 0 ? `−${text}` : text;
+  return `${value > 0 ? "+" : "−"}${text}`;
+}
+
+/** "6.6×" for a small ratio, "14×" for a big one. */
+function ratioText(ratio: number): string {
+  return `${ratio >= 10 ? Math.round(ratio) : ratio.toFixed(1).replace(/\.0$/, "")}×`;
+}
+
 /**
- * Up to seven sentences on where the names differ most, each built from two
- * stored numbers. A sentence is only written when both ends are known and the
- * gap is big enough to matter.
+ * Up to seven rows on where the names differ most, each led by one figure and a short line with the other name's
+ * number as its baseline (and the S&P 500's for the year, given `benchmark`). A row is only written when both ends
+ * are known and the gap is big enough to matter.
  */
-export function describeDifferences(input: ReadonlyArray<ScreenerRow | null>): Difference[] {
+export function describeDifferences(input: ReadonlyArray<ScreenerRow | null>, benchmark?: ScreenerRow | null): Difference[] {
   const rows = input.filter((row): row is ScreenerRow => row !== null);
   if (rows.length < 2) return [];
   const out: Difference[] = [];
 
   const size = extremes(known(rows, "market_cap").filter((item) => item.value > 0));
   if (size && size.top.value / size.bottom.value >= 1.5) {
-    const ratio = size.top.value / size.bottom.value;
     out.push({
       topic: "Size",
-      text: `${size.top.symbol} is worth ${money(size.top.value)}, ${ratio >= 10 ? Math.round(ratio) : ratio.toFixed(1)} times ${size.bottom.symbol} at ${money(size.bottom.value)}.`,
+      figure: ratioText(size.top.value / size.bottom.value),
+      text: `How much bigger ${size.top.symbol} is than ${size.bottom.symbol}, at ${money(size.top.value)} against ${money(size.bottom.value)}.`,
     });
   }
 
@@ -228,32 +248,39 @@ export function describeDifferences(input: ReadonlyArray<ScreenerRow | null>): D
   if (growth && growth.top.value - growth.bottom.value >= 3) {
     out.push({
       topic: "Growth",
+      figure: short(growth.top.value, true),
+      tone: growth.top.value >= 0 ? "up" : "down",
       text:
         growth.bottom.value < 0
-          ? `${growth.top.symbol} grew revenue ${fmt("rev_growth", growth.top.value)} over the last year while ${growth.bottom.symbol}'s revenue shrank ${fmt("rev_growth", Math.abs(growth.bottom.value)).replace("+", "")}.`
-          : `${growth.top.symbol} is growing revenue fastest, ${fmt("rev_growth", growth.top.value)} over the last year against ${fmt("rev_growth", growth.bottom.value)} for ${growth.bottom.symbol}.`,
+          ? `${growth.top.symbol}'s sales growth over a year, while ${growth.bottom.symbol}'s sales shrank ${short(Math.abs(growth.bottom.value))}.`
+          : `${growth.top.symbol}'s sales growth over a year, against ${short(growth.bottom.value, true)} for ${growth.bottom.symbol}.`,
     });
   }
 
   const forward = extremes(known(rows, "fwd_pe").filter((item) => item.value > 0));
   const trailing = extremes(known(rows, "pe").filter((item) => item.value > 0));
-  const multiple = forward ? { ...forward, id: "fwd_pe", name: "next year's expected earnings" } : trailing ? { ...trailing, id: "pe", name: "the last 12 months of earnings" } : null;
+  const multiple = forward ?? trailing;
   if (multiple && multiple.top.value / multiple.bottom.value >= 1.15) {
     out.push({
       topic: "Price",
       // "15.4x" said as what you pay for each dollar of profit.
-      text: `For each $1 of ${multiple.name}, you pay about $${multiple.bottom.value.toFixed(0)} for ${multiple.bottom.symbol} and $${multiple.top.value.toFixed(0)} for ${multiple.top.symbol}.`,
+      figure: `$${multiple.bottom.value.toFixed(0)}`,
+      text: `What you pay for $1 of ${multiple.bottom.symbol}'s ${forward ? "expected profit next year" : "profit over the last year"}, against $${multiple.top.value.toFixed(0)} for ${multiple.top.symbol}.`,
     });
   }
 
   const margin = extremes(known(rows, "op_margin"));
   if (margin && margin.top.value - margin.bottom.value >= 3) {
+    const cents = (value: number) => `${Math.round(value)}¢`;
     out.push({
       topic: "Profit",
+      figure: margin.top.value < 0 ? short(margin.top.value) : cents(margin.top.value),
       text:
-        margin.bottom.value < 0
-          ? `${margin.top.symbol} keeps ${Math.round(margin.top.value)} cents of each sales dollar as operating profit; ${margin.bottom.symbol} loses money running its business (${fmt("op_margin", margin.bottom.value)}).`
-          : `${margin.top.symbol} keeps ${Math.round(margin.top.value)} cents of each sales dollar as operating profit; ${margin.bottom.symbol} keeps ${Math.round(margin.bottom.value)} cents.`,
+        margin.top.value < 0
+          ? `${margin.top.symbol}'s operating margin, against ${short(margin.bottom.value)} for ${margin.bottom.symbol}. Both lose money running the business.`
+          : margin.bottom.value < 0
+            ? `${margin.top.symbol}'s operating profit on each sales dollar, while ${margin.bottom.symbol} loses money running its business.`
+            : `${margin.top.symbol}'s operating profit on each sales dollar, against ${cents(margin.bottom.value)} for ${margin.bottom.symbol}.`,
     });
   }
 
@@ -261,41 +288,51 @@ export function describeDifferences(input: ReadonlyArray<ScreenerRow | null>): D
   if (cash && cash.top.value > 0 && cash.bottom.value < 0) {
     out.push({
       topic: "Balance sheet",
-      text: `${cash.top.symbol} holds ${money(cash.top.value)} more cash than debt; ${cash.bottom.symbol} owes ${money(cash.bottom.value)} more than it holds.`,
+      figure: money(cash.top.value),
+      text: `${cash.top.symbol}'s cash beyond its debt, while ${cash.bottom.symbol} owes ${money(cash.bottom.value)} more than it holds.`,
     });
   } else {
     const leverage = extremes(known(rows, "debt_equity").filter((item) => item.value >= 0));
     if (leverage && leverage.top.value - leverage.bottom.value >= 0.3) {
       out.push({
         topic: "Balance sheet",
-        text: `${leverage.top.symbol} carries the most debt against its equity (${fmt("debt_equity", leverage.top.value)}); ${leverage.bottom.symbol} the least (${fmt("debt_equity", leverage.bottom.value)}).`,
+        figure: fmt("debt_equity", leverage.top.value),
+        text: `${leverage.top.symbol}'s debt for each dollar of equity, next to ${fmt("debt_equity", leverage.bottom.value)} for ${leverage.bottom.symbol}.`,
       });
     }
   }
 
   const year = extremes(known(rows, "ret_1y"));
   if (year && year.top.value - year.bottom.value >= 5) {
-    const bottom = year.bottom.value < 0 ? `is down ${fmt("ret_1y", Math.abs(year.bottom.value)).replace("+", "")}` : `is up ${fmt("ret_1y", year.bottom.value).replace("+", "")}`;
-    const top = year.top.value < 0 ? `is down ${fmt("ret_1y", Math.abs(year.top.value)).replace("+", "")}` : `is up ${fmt("ret_1y", year.top.value).replace("+", "")}`;
-    // The chart runs to the latest price; this line is from the last full day's close, so it says so.
-    out.push({ topic: "The last year", text: `In the year to the last close, ${year.top.symbol} ${top} and ${year.bottom.symbol} ${bottom}. The chart runs to the latest price.` });
+    out.push({
+      topic: "The last year",
+      figure: short(year.top.value, true),
+      tone: year.top.value >= 0 ? "up" : "down",
+      // The S&P 500 as a second baseline when we have it, so the row says whether either kept up with the market.
+      text: `${year.top.symbol}'s move in the year to the last close, against ${short(year.bottom.value, true)} for ${year.bottom.symbol}${
+        benchmark && isFiniteNumber(benchmark.ret_1y) ? ` and ${short(benchmark.ret_1y, true)} for the S&P 500` : ""
+      }.`,
+    });
   }
 
   const swing = extremes(known(rows, "vol_90d"));
   if (swing && swing.top.value - swing.bottom.value >= 5) {
     out.push({
       topic: "Risk",
-      text: `${swing.top.symbol}'s price jumps around more: over the last 90 trading days its swings ran at ${fmt("vol_90d", swing.top.value)} a year, against ${fmt("vol_90d", swing.bottom.value)} for ${swing.bottom.symbol}.`,
+      figure: short(swing.top.value),
+      text: `How much ${swing.top.symbol}'s price swings in a year, against ${short(swing.bottom.value)} for ${swing.bottom.symbol}.`,
     });
   }
 
   const target = extremes(known(rows, "upside"));
   if (target && target.top.value - target.bottom.value >= 5) {
     // How far the analysts' target sits from today's price, said from the price's side: "81% above".
-    const upside = (value: number) => (value >= 0 ? `${fmt("upside", value).replace("+", "")} above` : `${fmt("upside", Math.abs(value)).replace("+", "").replace("−", "")} below`);
+    const side = (value: number) => `${short(Math.abs(value))} ${value >= 0 ? "above" : "below"}`;
     out.push({
       topic: "Analysts",
-      text: `Analysts' average price target is ${upside(target.top.value)} ${target.top.symbol}'s price and ${upside(target.bottom.value)} ${target.bottom.symbol}'s.`,
+      figure: short(target.top.value, true),
+      tone: target.top.value >= 0 ? "up" : "down",
+      text: `How far analysts' average target sits ${target.top.value >= 0 ? "above" : "below"} ${target.top.symbol}'s price. For ${target.bottom.symbol} it is ${side(target.bottom.value)}.`,
     });
   }
 

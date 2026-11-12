@@ -15,7 +15,7 @@ import type { EarningsIntelDoc } from "@/lib/earnings-intel";
 import type { NewsArticle } from "@/lib/news";
 import type { PowerTrade } from "@/lib/power-trades";
 import type { StockFacts, TimelineEvent } from "@/lib/stock";
-import { plainAction, sentenceCase } from "@/lib/plain-copy";
+import { headlineCase, plainAction } from "@/lib/plain-copy";
 
 export type StockTimelineKind =
   | "move"
@@ -99,8 +99,9 @@ export type StockTimelineInput = {
 const DAY_MS = 86_400_000;
 
 /**
- * A source headline as a person would write it (owner rule 8): Scraped Title Case goes to sentence case, keeping the
- * company's own words, and a trailing " - Benzinga" goes when the row already names that publisher.
+ * A source headline as a person would write it (owner rule 8): Scraped Title Case goes to sentence case and stray
+ * capitals in a mixed-case headline are lowered, keeping the company's own words (the same `headlineCase` the
+ * briefing and /news use), and a trailing " - Benzinga" goes when the row already names that publisher.
  */
 export function timelineHeadline(title: string, source: string | null | undefined, companyName = ""): string {
   const publisher = String(source ?? "").trim();
@@ -112,7 +113,7 @@ export function timelineHeadline(title: string, source: string | null | undefine
     const stripped = text.replace(tail, "");
     if (stripped) text = stripped;
   }
-  return sentenceCase(text, companyName);
+  return headlineCase(text, companyName);
 }
 
 const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];

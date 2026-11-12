@@ -80,7 +80,7 @@ export async function runGatedBacktest(input: unknown, now: Date = new Date()): 
     const again = "A setup you already ran today opens again without counting.";
     const message =
       viewer.plan === "anon"
-        ? `Signed out, you get ${meter.limit} a day. Sign in free for ${limitFor("backtest", "free")} a day. ${again}`
+        ? `Signed out, you get ${meter.limit} a day. Start free for ${limitFor("backtest", "free")} a day. ${again}`
         : viewer.plan === "pro"
           ? `That is today's ${meter.limit} runs. The count resets at midnight UTC. ${again}`
           : `Free runs ${meter.limit} a day and the count resets at midnight UTC. ${again} Pro runs ${limitFor("backtest", "pro")} a day.`;

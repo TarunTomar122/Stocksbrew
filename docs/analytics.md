@@ -71,7 +71,7 @@ leaves the browser. Remove the key to stop.
 |---|---|---|---|
 | `signin_started` | `surface`, `page` | `lib/sign-in.ts` | Which buttons start sign-in |
 | `signin_failed` | `surface`, `reason` (Firebase code, e.g. `auth/popup-closed-by-user`) | `lib/sign-in.ts` | Where sign-in breaks or is abandoned |
-| `user_signed_up` / `user_signed_in` | `surface`, `method`, `page` | `lib/sign-in.ts` | Signups by entry point (`import_try` is "Save this portfolio" on `/import`; `briefing_example` is "Get yours" on the signed-out `/briefing`) |
+| `user_signed_up` / `user_signed_in` | `surface`, `method`, `page` | `lib/sign-in.ts` | Signups by entry point (`import_try` is "Save this portfolio" on `/import`; `briefing_example` is "Start free" on the signed-out `/briefing`) |
 | `stock_track_clicked` | `ticker`, `signed_in`, `surface` | `components/track-button.tsx` | Intent to follow, including signed-out |
 | `stock_tracked` | `ticker`, `tracked_count`, `first`, `covered`, `position_type`, `via` (`single`/`batch`/`import`), `added_count`, `updated_count` (import) | **server**: `app/api/track/route.ts`, `app/api/watchlist/batch/route.ts`, `app/api/import/save/route.ts` | First stock, 3+ stocks (funnel steps) |
 | `stock_untracked` | `ticker`, `via` | **server**, same routes | Churn from the portfolio |
