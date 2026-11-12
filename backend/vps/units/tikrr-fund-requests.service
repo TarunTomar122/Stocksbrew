@@ -1,0 +1,15 @@
+# Not installed by default. To enable on the VPS:
+#   sudo cp backend/vps/units/tikrr-fund-requests.* /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now tikrr-fund-requests.timer
+[Unit]
+Description=Tikrr fund requests: cover ETFs and mutual funds people ask for
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/opt/tikrr
+Environment=TIKRR_REPO_DIR=/opt/tikrr
+Environment=TIKRR_ENV_FILE=/etc/tikrr/backend.env
+MemoryMax=1G
+TimeoutStartSec=15min
+ExecStart=/opt/tikrr/backend/vps/run-fund-requests.sh

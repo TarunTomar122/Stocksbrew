@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { MemoryStore } from "@/lib/import/test-store";
 
-const state = vi.hoisted(() => ({ store: null as MemoryStore | null, uid: null as string | null, events: [] as Array<[string, string, Record<string, unknown>]> }));
+const state = vi.hoisted(() => ({ store: null as MemoryStore | null, uid: null as string | null, events: [] as Array<[string, string, Record<string, unknown>]>, queued: [] as string[][] }));
 
 vi.mock("react", async (importOriginal) => ({ ...(await importOriginal<typeof import("react")>()), cache: <T,>(fn: T) => fn }));
 vi.mock("@/lib/auth-server", () => ({ getSessionUser: async () => (state.uid ? { uid: state.uid, email: null, displayName: null, photoURL: null } : null) }));
@@ -27,6 +27,12 @@ vi.mock("@/lib/import/server", async () => {
       ]),
   };
 });
+vi.mock("@/lib/funds/on-demand", () => ({
+  queueFundRequests: async (tickers: string[]) => {
+    state.queued.push(tickers);
+    return {};
+  },
+}));
 vi.mock("@/lib/on-demand-queue", () => ({ maybeQueueOnDemandNews: async () => true }));
 vi.mock("@/lib/posthog-server-capture", () => ({
   captureServerEventSafe: async (uid: string, event: string, props: Record<string, unknown>) => {
@@ -49,6 +55,7 @@ beforeEach(() => {
   state.store = createMemoryStore();
   state.uid = "me";
   state.events = [];
+  state.queued = [];
   state.store.docs.set("users/me", {
     tracked_stocks: ["US_AAPL"],
     watchlist_positions: { US_AAPL: "holding" },
@@ -71,10 +78,26 @@ describe("POST /api/import/save", () => {
   });
 
   it("refuses a stock we do not cover, even when the browser sent it", async () => {
-    const res = await POST(post({ rows: [{ instrument_id: "US_NVDA" }, { instrument_id: "US_VOO", shares: 3 }] }));
+    const res = await POST(post({ rows: [{ instrument_id: "US_NVDA" }, { instrument_id: "US_ZZZZ", shares: 3 }] }));
     expect(res.status).toBe(400);
-    expect(await res.json()).toMatchObject({ error: "unknown_stocks", unknown: ["US_VOO"] });
+    expect(await res.json()).toMatchObject({ error: "unknown_stocks", unknown: ["US_ZZZZ"] });
     expect(state.store!.writes).toEqual([]);
+    expect(state.queued).toEqual([]);
+  });
+
+  it("saves a US fund we are adding on demand, and files it with the fund worker", async () => {
+    // VTWO and VTSAX are not in this directory; the checked-in fund list says they are an ETF and a mutual fund.
+    const res = await POST(post({ rows: [{ instrument_id: "US_VTWO", shares: 4 }, { instrument_id: "US_VTSAX", shares: 12, average_cost: 101.5 }] }));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ ok: true, added: ["US_VTWO", "US_VTSAX"] });
+    expect(state.store!.docs.get("users/me")!.watchlist_holdings).toMatchObject({ US_VTSAX: { quantity: 12, average_cost: 101.5 } });
+    expect(state.queued).toEqual([["VTWO", "VTSAX"]]);
+  });
+
+  it("does not take a money market fund or a lookalike as a fund", async () => {
+    const res = await POST(post({ rows: [{ instrument_id: "US_SPAXX", shares: 100 }, { instrument_id: "US_ZZZZX", shares: 1 }] }));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ error: "unknown_stocks", unknown: ["US_SPAXX", "US_ZZZZX"] });
   });
 
   it("saves next to existing holdings, keeps the ones already owned, queues the refresh and sends one stock_tracked", async () => {

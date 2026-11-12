@@ -194,7 +194,11 @@ export function FundReport({
               )}
               <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
                 {stamp ? <p className="text-[12px] leading-4 text-oa-muted-fg">{stamp}</p> : null}
-                <MarketStatusInline nowIso={nowIso} surface="stock" />
+                {data.dailyPriced ? (
+                  <p className="text-[12px] leading-4 text-oa-muted-fg">Priced once a day</p>
+                ) : (
+                  <MarketStatusInline nowIso={nowIso} surface="stock" />
+                )}
                 <p className="text-[12px] leading-4 text-oa-muted-fg">No call on funds</p>
               </div>
             </div>

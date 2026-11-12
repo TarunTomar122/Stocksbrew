@@ -1,7 +1,11 @@
+import { revalidatePath, revalidateTag } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { getSessionUser } from "@/lib/auth-server";
 import { FieldValue } from "firebase-admin/firestore";
+import { fundRequestStateOf } from "@/lib/funds/adding";
+import { fundOnDemandTag, queueFundRequest } from "@/lib/funds/on-demand";
+import { fundKindOf } from "@/lib/funds/tickers";
 
 const INVALID_REQUEST_TOKENS = new Set([
   "TO",
@@ -39,15 +43,25 @@ export async function GET(req: NextRequest) {
   if (!query || query.length > 20 || isLikelyJunkRequest(query)) {
     return NextResponse.json({ error: "Invalid query" }, { status: 400 });
   }
+  // A fund ticker (lib/funds/tickers.ts) is covered on demand: the browser learns its kind here, since the list is server only.
+  const fundKind = fundKindOf(query);
   const snap = await adminFirestore.collection("stock_requests").doc(query).get();
-  if (!snap.exists) return NextResponse.json({ query, status: "not_requested", fulfilled: false });
+  if (!snap.exists) return NextResponse.json({ query, status: "not_requested", fulfilled: false, fundKind, fundState: "none" });
   const data = snap.data() ?? {};
+  const fundState = fundRequestStateOf(data);
+  if (fundKind && fundState === "ready") {
+    // The adding page and its facts read were cached while the fund was on its way; the next view gets the fund page.
+    revalidateTag(fundOnDemandTag(query));
+    revalidatePath(`/stock/${query}`);
+  }
   return NextResponse.json({
     query,
     status: data.status ?? "queued",
     fulfilled: Boolean(data.fulfilled),
     resolvedSymbol: data.resolved_symbol ?? null,
     fulfilledAt: data.fulfilled_at ?? null,
+    fundKind,
+    fundState,
   });
 }
 
@@ -87,6 +101,15 @@ export async function POST(req: NextRequest) {
   const requesterEmails = [session?.email, email]
     .filter(Boolean)
     .map((value) => String(value).toLowerCase());
+
+  // A fund goes through the fund queue rules: never re-queued once covered or on its way (lib/funds/on-demand.ts).
+  const fundKind = fundKindOf(query);
+  if (fundKind) {
+    const source = body.source === "import" || body.source === "typed" || body.source === "follow" ? body.source : "page";
+    const fundState = await queueFundRequest(query, { uid: session?.uid ?? null, emails: requesterEmails, source });
+    if (fundState === "none") return NextResponse.json({ error: "Could not queue the request" }, { status: 503 });
+    return NextResponse.json({ ok: true, queued: query, emailAttached: requesterEmails.length > 0, fundKind, fundState });
+  }
 
   // Deduplicate: one request per query (case-insensitive), increment count if exists
   const ref = adminFirestore.collection("stock_requests").doc(query);

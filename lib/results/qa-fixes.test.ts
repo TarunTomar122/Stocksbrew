@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { figureColumns } from "@/components/results/results-block";
+import { resultLineDay } from "@/components/results/result-line";
+import { figureColumns, figureSpan } from "@/components/results/results-block";
 
 import { buildResult, callAfter, epsResult, eventFromDoc, isOvernight, pickMove } from "./build";
 import type { ResultMove, ResultRead } from "./types";
@@ -55,6 +56,15 @@ describe("bug 2: a move is said with its own day, never an undated 'the next day
     expect(pickMove({ ...base, today: "2026-11-11", now: new Date("2026-11-11T20:59:30Z"), quote: { pct: 24.85, capturedAt: "2026-11-11T20:59:00+00:00" } })).toMatchObject({ kind: "today" });
     // An earlier quote from that session is not how it ended.
     expect(pickMove({ ...base, quote: { pct: 20, capturedAt: "2026-11-11T19:00:00+00:00" } })).toBeNull();
+  });
+});
+
+describe("bug 2 (planner): the report day is said in words", () => {
+  it("says today, yesterday, the weekday, then the date", () => {
+    expect(resultLineDay(TODAY, TODAY)).toBe("Today");
+    expect(resultLineDay("2026-11-11", TODAY)).toBe("Yesterday");
+    expect(resultLineDay("2026-11-09", TODAY)).toBe("Monday");
+    expect(resultLineDay("2026-11-03", TODAY)).toBe("Nov 3");
   });
 });
 
@@ -119,6 +129,11 @@ describe("bug 8: no empty figure slot", () => {
     expect(figureColumns(3)).toBe("grid-cols-2 sm:grid-cols-3");
     expect(figureColumns(4)).toBe("grid-cols-2 sm:grid-cols-4");
   });
+
+  it("lets a phone's odd third figure take the whole row, and only that one", () => {
+    expect(figureSpan(3, 2)).toBe("max-sm:col-span-2");
+    expect([figureSpan(3, 0), figureSpan(3, 1), figureSpan(1, 0), figureSpan(4, 3), figureSpan(2, 1)]).toEqual(["", "", "", "", ""]);
+  });
 });
 
 describe("bug 9: beat or miss is judged before rounding", () => {
@@ -134,12 +149,15 @@ describe("bug 9: beat or miss is judged before rounding", () => {
 describe("the morning-after read", () => {
   it("gives the inbox one short headline and the briefing card one fact", () => {
     expect(resultHeadline(read(), TODAY)).toBe("CRWV lost less than expected and rose 25% yesterday, bigger than its usual move after a report.");
-    // The card's figure is already the day's move, and a held call would be the same words on every card.
-    expect(briefingResultFact(read(), TODAY)).toBe("Beat by 12%, and the move is bigger than usual on results");
+    // A held call would be the same words on every card, so it is left out. The card's figure is today's move, so a
+    // results move from an earlier session keeps its own number and day.
+    expect(briefingResultFact(read(), TODAY)).toBe("Beat by 12%, up 25% yesterday, bigger than usual on results");
+    // Only today's own results move goes without its number: the card's figure already is it.
+    expect(briefingResultFact(read({ move: move({ kind: "today", day: TODAY }) }), TODAY)).toBe("Beat by 12%, and the move is bigger than usual on results");
     const ceg = read({ ticker: "CEG", eps: { actual: 5.06, expected: 3.9, ...epsResult(5.06, 3.9), source: "x", asOf: null }, move: move({ pct: 10.46, kind: "before_open", day: TODAY, usualPct: 2.02, usualCount: 7 }), call: { status: "changed", call: "Keep", from: "Buy more", on: TODAY, reason: null, asOf: TODAY } });
     expect(resultHeadline(ceg, TODAY)).toBe("CEG beat the EPS estimate and is up 10% before the open, about 5 times its usual move after a report.");
     // Before the open the chip gives the pre-market move itself: the card's figure is the last close, not this.
-    expect(briefingResultFact(ceg, TODAY)).toBe("Beat by 30%, up 10% before the open, and the move is about 5 times its usual on results");
+    expect(briefingResultFact(ceg, TODAY)).toBe("Beat by 30%, up 10% before the open, about 5 times its usual on results");
     expect(briefingResultFact(read({ call: { status: "pending", call: "Keep", asOf: null }, move: null }), TODAY)).toBe("Beat by 12%");
   });
 });

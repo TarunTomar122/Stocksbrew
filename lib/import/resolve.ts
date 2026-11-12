@@ -18,9 +18,14 @@ export type DirectoryEntry = {
  * matched:   the ticker is one we cover.
  * suggested: the ticker was missing or unknown, and we matched the name or a
  *            known alias (GOOG is tracked as GOOGL). The person confirms it.
+ * adding:    a US fund (ETF or mutual fund) we do not cover yet. We are adding
+ *            it now (lib/funds/on-demand.ts), so it saves like a match.
  * unknown:   we do not cover it yet; the person can ask us to add it.
  */
-export type ImportStatus = "matched" | "suggested" | "unknown";
+export type ImportStatus = "matched" | "suggested" | "adding" | "unknown";
+
+/** Says which tickers are US funds (lib/funds/tickers.ts `fundKindOf`); passed in so this file stays pure. */
+export type FundKindLookup = (ticker: string) => "etf" | "mutual_fund" | null;
 
 /** One row of the review table, and what the save route accepts back. */
 export type ImportRow = {
@@ -42,7 +47,14 @@ export type ImportRow = {
   merge?: MergeMode;
   /** The stock's last price in the search index, so the review can say what the shares are worth today. Never saved. */
   price?: number | null;
+  /** Set on an "adding" row: what kind of fund it is. */
+  fund_kind?: "etf" | "mutual_fund";
 };
+
+/** The house instrument id for a ticker (BRK.B is US_BRK_B). */
+function instrumentIdFor(ticker: string): string {
+  return `US_${ticker.trim().toUpperCase().replace(/\./g, "_")}`;
+}
 
 /** Symbols we track under another class or a newer ticker. */
 const ALIASES: Record<string, string> = {
@@ -105,20 +117,31 @@ function offPrice(row: ParsedHolding, entry: DirectoryEntry): boolean {
   return Math.abs(row.marketValue / row.shares / price - 1) > 0.15;
 }
 
-/** Each parsed holding against the directory, in the order they came. */
-export function resolveHoldings(rows: ParsedHolding[], directory: Directory): ImportRow[] {
+/**
+ * Each parsed holding against the directory, in the order they came. With
+ * `fundKind`, a US fund the directory does not have becomes an "adding" row
+ * under its own instrument id instead of being left out.
+ */
+export function resolveHoldings(rows: ParsedHolding[], directory: Directory, fundKind?: FundKindLookup): ImportRow[] {
   const out: ImportRow[] = [];
   const used = new Set<string>();
   rows.forEach((row, index) => {
     const raw = row.ticker ?? row.name ?? "";
     let entry: DirectoryEntry | undefined;
     let status: ImportStatus = "unknown";
+    let kind: "etf" | "mutual_fund" | null = null;
     if (row.ticker) {
       entry = lookup(directory, row.ticker);
       if (entry) status = "matched";
       else if (ALIASES[row.ticker.replace(".", "")]) {
         entry = lookup(directory, ALIASES[row.ticker.replace(".", "")]!);
         if (entry) status = "suggested";
+      }
+      kind = entry ? null : fundKind?.(row.ticker) ?? null;
+      if (kind) {
+        const ticker = row.ticker.toUpperCase();
+        entry = { instrument_id: instrumentIdFor(ticker), ticker, name: row.name ?? ticker, price: null };
+        status = "adding";
       }
     }
     if (!entry && row.name) {
@@ -147,7 +170,7 @@ export function resolveHoldings(rows: ParsedHolding[], directory: Directory): Im
     if (entry) used.add(entry.instrument_id);
     if (!entry && row.guess) return;
     let confidence: ImportConfidence =
-      status === "matched" ? row.confidence : status === "suggested" ? (row.confidence === "low" ? "low" : "medium") : "low";
+      status === "matched" || status === "adding" ? row.confidence : status === "suggested" ? (row.confidence === "low" ? "low" : "medium") : "low";
     if (entry && offPrice(row, entry)) confidence = confidence === "high" ? "medium" : "low";
     out.push({
       key: `${index}-${raw}`,
@@ -163,6 +186,7 @@ export function resolveHoldings(rows: ParsedHolding[], directory: Directory): Im
       confidence,
       ...(row.currency ? { currency: row.currency } : {}),
       price: entry && typeof entry.price === "number" && Number.isFinite(entry.price) && entry.price > 0 ? entry.price : null,
+      ...(status === "adding" && kind ? { fund_kind: kind } : {}),
     });
   });
   return out;
@@ -181,4 +205,22 @@ export function findTicker(directory: Directory, typed: string): DirectoryEntry 
   const ticker = typed.trim().toUpperCase().replace(/^\$/, "");
   if (!ticker) return null;
   return lookup(directory, ticker) ?? (ALIASES[ticker.replace(".", "")] ? lookup(directory, ALIASES[ticker.replace(".", "")]!) ?? null : null);
+}
+
+/** The tickers of the "adding" rows: the funds an import should file with the fund worker. */
+export function addingTickers(rows: ImportRow[]): string[] {
+  return [...new Set(rows.filter((row) => row.status === "adding" && row.ticker).map((row) => row.ticker!.toUpperCase()))];
+}
+
+/**
+ * Instrument ids the save may accept beyond the directory: "adding" funds,
+ * checked again here with the same fund list (never trusting the browser's status).
+ */
+export function pendingFundIds(instrumentIds: string[], known: Set<string>, fundKind: FundKindLookup): Set<string> {
+  const out = new Set<string>();
+  for (const id of instrumentIds) {
+    if (known.has(id) || !/^US_[A-Z]{1,5}$/.test(id)) continue;
+    if (fundKind(id.slice(3))) out.add(id);
+  }
+  return out;
 }

@@ -794,6 +794,51 @@ def _claim_request(store: TraceMoneyStore, ref: Any, claim_id: str) -> dict[str,
     return firestore.transactional(_txn)(transaction)
 
 
+_SEC_FUNDS: set[str] | None = None
+_SEC_FUNDS_LOCK = threading.Lock()
+
+
+def _sec_fund_tickers() -> set[str]:
+    """The SEC's fund ticker file (cached on disk for a day), for funds newer than backend/config/us_fund_tickers.json."""
+    global _SEC_FUNDS
+    with _SEC_FUNDS_LOCK:
+        if _SEC_FUNDS is None:
+            try:
+                from backend.agentdata.etf_holdings import UIT_CIKS, fund_series_by_ticker
+
+                _SEC_FUNDS = set(fund_series_by_ticker()) | set(UIT_CIKS)
+            except Exception as exc:  # EDGAR down: the checked-in list still answers
+                print(f"  [warn] SEC fund list unavailable: {exc}")
+                _SEC_FUNDS = set()
+        return _SEC_FUNDS
+
+
+def _try_fund_path(store: TraceMoneyStore, ref: Any, data: dict[str, Any], market: str, query: str) -> str | None:
+    """Cover a fund through process_fund_requests.fulfill_fund; None when it is not a fund (the stock path runs)."""
+    from backend.scripts import process_fund_requests as funds
+
+    ticker = query.strip().upper()
+    if market != "US" or data.get("fund_check") == "not_a_fund":
+        return None
+    if not funds.FUND_TICKER.match(ticker):
+        return None
+    if funds.fund_kind(ticker) is None and ticker not in _sec_fund_tickers():
+        return None
+    try:
+        from backend.agentdata.store import DocStore
+
+        outcome = funds.fulfill_fund(store=store, docs=DocStore.from_env(), ref=ref, ticker=ticker)
+    except Exception as exc:
+        ref.set({"status": "retry", "fulfilled": False, "resolve_error": f"fund: {exc}", "updated_at": _now()}, merge=True)
+        print(f"  [fail] {query} (fund): {exc}")
+        return "fail"
+    if outcome == "not_a_fund":
+        ref.set({"fund_check": "not_a_fund", "updated_at": _now()}, merge=True)
+        return None
+    print(f"  [{outcome}] {query} (fund)")
+    return outcome
+
+
 def _process_one_request(
     *,
     store: TraceMoneyStore,
@@ -832,6 +877,11 @@ def _process_one_request(
         )
         print(f"  [ignored] {query}: junk_query_filtered")
         return "ignored"
+
+    # A fund (ETF or mutual fund) gets the fund path: facts, price, holdings, no stock research.
+    fund_outcome = _try_fund_path(store, ref, data, market, query)
+    if fund_outcome is not None:
+        return fund_outcome
 
     try:
         with master_lock:

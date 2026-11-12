@@ -306,6 +306,49 @@ def yoy_pct(value: float | None, prior: float | None) -> float | None:
     return round((value / prior - 1) * 100, 1)
 
 
+# Yahoo's quarter estimate counts as this quarter's only when its year-ago revenue is the release's own, within this.
+REVENUE_ESTIMATE_MATCH = 0.02
+
+
+def revenue_estimate(revenue: dict[str, Any] | None, fetched: dict[str, Any] | None, kept: dict[str, Any] | None, *, now_iso: str) -> dict[str, Any] | None:
+    """The analysts' revenue estimate for the quarter just reported, or None.
+
+    Yahoo's current-quarter estimate (``0q``) rolls to the next quarter some hours after a report, so it is taken
+    only when its year-ago revenue is the release's own prior-year figure: then both are the same quarter. Once taken
+    it is kept (``kept``, from the stored report), because a later read may already be the next quarter's.
+    """
+    if not revenue or not revenue.get("value"):
+        return None
+    if kept and isinstance(kept.get("value"), (int, float)) and kept["value"] > 0:
+        return kept
+    prior = revenue.get("prior")
+    if not fetched or not isinstance(prior, (int, float)) or prior <= 0:
+        return None
+    avg, year_ago = fetched.get("avg"), fetched.get("year_ago")
+    if not all(isinstance(value, (int, float)) and value == value and value > 0 for value in (avg, year_ago)):
+        return None
+    if abs(year_ago / prior - 1) > REVENUE_ESTIMATE_MATCH:
+        return None
+    analysts = fetched.get("analysts")
+    return {
+        "value": round(float(avg)),
+        "analysts": int(analysts) if isinstance(analysts, (int, float)) and analysts == analysts and analysts > 0 else None,
+        "year_ago": round(float(year_ago)),
+        "source": "Yahoo Finance",
+        "captured_at": now_iso,
+    }
+
+
+def revenue_verdict(value: float | None, estimate: dict[str, Any] | None) -> dict[str, Any]:
+    """Beat, miss or in line on revenue, with the same thresholds as EPS, judged on the unrounded surprise."""
+    expected = (estimate or {}).get("value")
+    if not isinstance(value, (int, float)) or not isinstance(expected, (int, float)) or expected <= 0:
+        return {"verdict": None, "surprise_pct": None}
+    pct = (value / expected - 1) * 100
+    verdict = "beat" if pct >= BEAT_PCT else "miss" if pct <= -BEAT_PCT else "in_line"
+    return {"verdict": verdict, "surprise_pct": round(pct, 2)}
+
+
 _PROVIDERS = {"nasdaq_calendar": "Nasdaq earnings calendar", "yfinance": "Yahoo Finance", "alphavantage": "Alpha Vantage"}
 
 
@@ -707,6 +750,8 @@ class Sources(Protocol):
     def nasdaq_day(self, day: str) -> list[dict[str, Any]] | None: ...
     def daily(self, ticker: str) -> dict[str, Any] | None: ...
     def intraday(self, ticker: str) -> list[tuple[datetime, float]]: ...
+    # Optional: {avg, analysts, year_ago} for the current quarter, or None. Sources without it get no revenue estimate.
+    # def revenue_estimate(self, ticker: str) -> dict[str, Any] | None: ...
 
 
 class LiveSources:
@@ -764,6 +809,30 @@ class LiveSources:
 
         return parse_intraday(self.yahoo.get_json(_YAHOO_INTRADAY.format(symbol=prices.yahoo_symbol(ticker))))
 
+    def revenue_estimate(self, ticker: str) -> dict[str, Any] | None:
+        """Yahoo's analyst revenue estimate for the current quarter (``0q``), or None when it cannot be read."""
+        try:
+            import yfinance as yf  # the backend's own dependency; imported here so the tests run without it
+
+            from . import prices
+
+            frame = yf.Ticker(prices.yahoo_symbol(ticker)).revenue_estimate
+            if frame is None or "0q" not in frame.index:
+                return None
+            row = frame.loc["0q"]
+
+            def value(name: str) -> float | None:
+                # numpy numbers (int64 counts, float64 NaN) come back as plain floats, NaN as None.
+                try:
+                    number = float(row.get(name))
+                except (TypeError, ValueError):
+                    return None
+                return number if number == number else None
+
+            return {"avg": value("avg"), "analysts": value("numberOfAnalysts"), "year_ago": value("yearAgoRevenue")}
+        except Exception:  # noqa: BLE001 - an estimate is a nice-to-have; the report goes on without it
+            return None
+
 
 def inputs_hash(report: dict[str, Any]) -> str:
     """What the report was built from. Same hash, same report: nothing to rebuild or write."""
@@ -772,6 +841,7 @@ def inputs_hash(report: dict[str, Any]) -> str:
         "exhibit": (report.get("filing") or {}).get("exhibit_sha1"),
         "estimate": (report.get("eps") or {}).get("estimate"),
         "actual": (report.get("eps") or {}).get("actual"),
+        "revenue_estimate": ((report.get("revenue") or {}).get("estimate") or {}).get("value"),
         "reaction": {key: (report.get("reaction") or {}).get(key) for key in ("pct", "basis", "final", "typical_abs_pct")},
         "next_report": report.get("next_report"),
         "previous_guidance": report.get("previous_report"),
@@ -799,6 +869,7 @@ def build_report(
     previous_items: list[dict[str, Any]] | None,
     next_report: str | None,
     now: datetime,
+    kept_revenue_estimate: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     """The report for one earnings event, or None when there is nothing to say yet."""
     ticker = str(event["ticker"]).upper()
@@ -845,7 +916,19 @@ def build_report(
 
     revenue = facts.get("revenue") or None
     if revenue:
-        revenue = {**revenue, "yoy_pct": yoy_pct(revenue.get("value"), revenue.get("prior")), "estimate": None}
+        # Only a revenue with its year-ago figure can be matched to an estimate, and only then is one worth a request.
+        fetch = getattr(sources, "revenue_estimate", None)
+        needs_fetch = callable(fetch) and not kept_revenue_estimate and isinstance(revenue.get("prior"), (int, float)) and revenue["prior"] > 0
+        fetched = fetch(ticker) if needs_fetch else None
+        estimate_doc = revenue_estimate(revenue, fetched, kept_revenue_estimate, now_iso=now.isoformat())
+        revenue = {
+            **revenue,
+            "yoy_pct": yoy_pct(revenue.get("value"), revenue.get("prior")),
+            "estimate": estimate_doc,
+            **revenue_verdict(revenue.get("value"), estimate_doc),
+        }
+        if estimate_doc:
+            sources_list.append({"label": "Revenue estimate, Yahoo Finance", "url": f"https://finance.yahoo.com/quote/{ticker.replace('.', '-')}/analysis"})
     guidance = facts.get("guidance") or {"items": [], "change": "none"}
     if previous_items:
         guidance = {**guidance, "items": extract.compare_with_previous(guidance.get("items") or [], previous_items)}
@@ -1032,6 +1115,7 @@ def run(
                 previous_items=previous_items,
                 next_report=min(upcoming) if upcoming else None,
                 now=now,
+                kept_revenue_estimate=((existing or {}).get("revenue") or {}).get("estimate") or None,
             )
         except Exception as error:  # noqa: BLE001 - one bad filing must not stop the others
             stats["errors"].append(f"{ticker} {event.get('event_date')}: {type(error).__name__}: {error}"[:300])
@@ -1074,6 +1158,7 @@ def summary_line(report: dict[str, Any]) -> str:
         f"{report['ticker']} {report['event_date']} [{report.get('status')}] {(report.get('read') or {}).get('title')}",
         f"  EPS est {eps.get('estimate')} actual {eps.get('actual')} -> {eps.get('verdict')} ({eps.get('surprise_pct')}%) | release GAAP {(eps.get('gaap') or {}).get('value')} adj {(eps.get('adjusted') or {}).get('value')}",
         f"  Revenue {extract.fmt_money(revenue.get('value'))} vs {extract.fmt_money(revenue.get('prior'))} a year ago ({revenue.get('yoy_pct')}%) from {revenue.get('method')}: {str(revenue.get('quote') or '')[:110]}",
+        f"  Revenue estimate {extract.fmt_money((revenue.get('estimate') or {}).get('value'))} -> {revenue.get('verdict')} ({revenue.get('surprise_pct')}%)",
         f"  Guidance {guidance.get('change')}: " + "; ".join(f"{i['label']} {i['period']} {i['low']}-{i['high']} {i['direction']}" for i in guidance.get("items") or [])[:300],
         f"  Reaction {reaction.get('pct')}% {reaction.get('basis')} final={reaction.get('final')} typical {reaction.get('typical_abs_pct')}% over {reaction.get('typical_n')}",
         f"  Source {(report.get('filing') or {}).get('url')}",

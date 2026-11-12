@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense, cache } from "react";
 
-import { EarningsDayStockEntry } from "@/components/earnings-day/stock-entry";
 import { StockReason } from "@/components/thesis/stock-reason";
 import { StockPageStream } from "@/components/stock-page-stream";
 import { FundPageStream } from "@/components/fund-page/fund-page-stream";
@@ -14,6 +13,9 @@ import { todayET } from "@/lib/calendar-shared";
 import { getCurrentMarket } from "@/lib/market";
 import { getStockSummary, normalizeStockSymbolParam } from "@/lib/stock";
 import { fundListing } from "@/lib/funds/server";
+import { onDemandFundFacts } from "@/lib/funds/on-demand";
+import { fundKindOf } from "@/lib/funds/tickers";
+import { FundAddingStream } from "@/components/fund-page/fund-adding-stream";
 import { stockShareLine } from "@/lib/og/data";
 import { ogImage } from "@/lib/og/url";
 import { getStockFamily } from "@/lib/seo/family-data";
@@ -69,7 +71,20 @@ const stockExists = cache(async (symbol: string): Promise<"yes" | "no" | "unknow
 /** A fund we cover (lib/funds): it gets the fund page, whether or not the price job has quoted it yet. */
 const fundAt = cache(async (symbol: string) => {
   const normalized = normalizeStockSymbolParam(symbol);
-  return normalized ? fundListing(normalized).catch(() => null) : null;
+  if (!normalized) return null;
+  const listed = await fundListing(normalized).catch(() => null);
+  if (listed || !fundKindOf(normalized)) return listed;
+  // A fund covered on demand since the catalogue was cached (an hour): its facts say so within 30 seconds.
+  const facts = await onDemandFundFacts(normalized).catch(() => null);
+  return facts ? { ticker: normalized, name: facts.name ?? normalized } : null;
+});
+
+/** A US fund we do not cover and hold no stock page for: the page says we are adding it (lib/funds/on-demand.ts). */
+const fundToAdd = cache(async (symbol: string) => {
+  const normalized = normalizeStockSymbolParam(symbol);
+  const kind = normalized ? fundKindOf(normalized) : null;
+  if (!normalized || !kind || getSeoStockPage(normalized)) return null;
+  return (await stockExists(symbol)) === "no" ? { ticker: normalized, kind } : null;
 });
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -88,6 +103,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       twitter: { card: "summary", title: `${title} · stocksbrew`, description },
     };
   }
+  const adding = await fundToAdd(symbol);
+  if (adding) return { title: `Adding ${adding.ticker}`, robots: { index: false, follow: true } };
   const label =
     normalized ?? (symbol.trim().toUpperCase().slice(0, 16) || symbol.toUpperCase());
   const upper = label.toUpperCase();
@@ -177,6 +194,18 @@ export default async function StockPage({ params }: Props) {
       </main>
     );
   }
+  // A fund we do not cover yet: we add it now and the page says so (never a made-up price or holding).
+  const adding = await fundToAdd(symbol);
+  if (adding) {
+    return (
+      <main className={`oa-landing stock-report-page ${interTight.variable} min-w-0 flex-grow overflow-x-clip`}>
+        <OaSiteHeader />
+        <Suspense fallback={null}>
+          <FundAddingStream ticker={adding.ticker} kind={adding.kind} />
+        </Suspense>
+      </main>
+    );
+  }
   // Only symbols outside the catalogue wait for the store before anything streams (a real 404, see stockExists).
   // The 500 catalogued stocks always exist, so their shell goes out at once. If one were ever missing from the
   // store, the report would show its "not covered yet" view (with a 200) instead of the 404 page.
@@ -185,10 +214,6 @@ export default async function StockPage({ params }: Props) {
     <main className={`oa-landing stock-report-page ${interTight.variable} min-w-0 flex-grow overflow-x-clip`}>
       <style>{STICKY_FIX}</style>
       <OaSiteHeader />
-      {/* The latest earnings report, when there is one (components/earnings-day). */}
-      <Suspense fallback={null}>
-        <EarningsDayStockEntry ticker={ticker} />
-      </Suspense>
       {/* The owner's own reason and what the reason watcher found; fetched in the browser, so the page stays cached. */}
       <StockReason ticker={ticker} />
       <Suspense fallback={<StockReportSkeleton />}>

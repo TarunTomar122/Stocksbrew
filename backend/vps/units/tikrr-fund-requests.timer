@@ -1,0 +1,13 @@
+# An empty poll is one small query and exits in a few seconds. A run still busy
+# with a big fund's holdings is not started twice: systemd skips the tick.
+[Unit]
+Description=Run Tikrr fund requests every two minutes
+
+[Timer]
+OnCalendar=*:0/2
+Persistent=false
+AccuracySec=15s
+Unit=tikrr-fund-requests.service
+
+[Install]
+WantedBy=timers.target

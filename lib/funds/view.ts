@@ -168,3 +168,19 @@ export function fundLookThrough(input: {
 
   return { top, companyCount: companies.length, sectors, overlap };
 }
+
+/* ── mutual funds ───────────────────────────────────────────────────────── */
+
+const NY_DAY = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" });
+
+/**
+ * The day a mutual fund's NAV is for. Yahoo stamps a NAV at midnight UTC of its
+ * own day (2026-11-11T00:00:00Z is the Nov 11 NAV); any other stamp is read as
+ * the New York day it was taken.
+ */
+export function navDayOf(iso: string | null | undefined): string | null {
+  const text = String(iso ?? "");
+  if (/^\d{4}-\d{2}-\d{2}T00:00:00(\.0+)?(Z|\+00:00)$/.test(text)) return text.slice(0, 10);
+  const ms = Date.parse(text);
+  return Number.isFinite(ms) ? NY_DAY.format(new Date(ms)) : null;
+}

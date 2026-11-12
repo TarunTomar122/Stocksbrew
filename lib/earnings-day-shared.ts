@@ -154,9 +154,7 @@ export function isIndexable(report: EarningsDayReport | null | undefined): boole
   return verdict === "beat" || verdict === "miss" || verdict === "in_line" || typeof report.revenue?.value === "number";
 }
 
-/** How many days a report counts as news (briefing, the "new" mark on the stock page). */
-export const EARNINGS_DAY_FRESH_DAYS = 3;
-/** How long the stock page keeps pointing at the latest report. A quarter, so the link stays until the next one. */
+/** How long the latest report counts as the stock's latest (the API, thesis watch). A quarter, until the next one. */
 export const EARNINGS_DAY_LINK_DAYS = 100;
 /** How far back the sitemap lists report pages. */
 export const EARNINGS_DAY_SITEMAP_DAYS = 400;

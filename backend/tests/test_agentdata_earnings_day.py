@@ -175,6 +175,33 @@ class BeatMissTest(unittest.TestCase):
         self.assertEqual(ed.expectations(stored, None), (3.89, 5.06, "Yahoo Finance"))
         self.assertEqual(ed.expectations({"ticker": "X", "eps_estimate": 0.5}, []), (0.5, None, "Nasdaq earnings calendar"))
 
+    def test_revenue_estimate_only_for_the_reported_quarter(self):
+        revenue = {"value": 269_348_000, "prior": 52_437_000}
+        now = "2026-11-12T13:00:00+00:00"
+        # Same quarter: Yahoo's year-ago revenue is the release's prior-year figure (LUNR, Nov 12).
+        taken = ed.revenue_estimate(revenue, {"avg": 247_563_070.0, "analysts": 10.0, "year_ago": 52_437_000.0}, None, now_iso=now)
+        self.assertEqual((taken["value"], taken["analysts"], taken["source"]), (247_563_070, 10, "Yahoo Finance"))
+        self.assertEqual(ed.revenue_verdict(revenue["value"], taken), {"verdict": "beat", "surprise_pct": 8.8})
+        # Rolled to the next quarter (its year-ago is another quarter's), no prior to match, or NaN: nothing.
+        self.assertIsNone(ed.revenue_estimate(revenue, {"avg": 280e6, "analysts": 5.0, "year_ago": 44_785_000.0}, None, now_iso=now))
+        self.assertIsNone(ed.revenue_estimate({"value": 90e6, "prior": None}, {"avg": 600e6, "analysts": 1.0, "year_ago": 500e6}, None, now_iso=now))
+        self.assertIsNone(ed.revenue_estimate(revenue, {"avg": float("nan"), "analysts": None, "year_ago": 52_437_000.0}, None, now_iso=now))
+        # Once stored it is kept, whatever Yahoo says later.
+        self.assertIs(ed.revenue_estimate(revenue, None, taken, now_iso=now), taken)
+
+    def test_revenue_verdict_judged_unrounded(self):
+        self.assertEqual(ed.revenue_verdict(100.99, {"value": 100})["verdict"], "in_line")
+        self.assertEqual(ed.revenue_verdict(98.9, {"value": 100})["verdict"], "miss")
+        self.assertEqual(ed.revenue_verdict(100.0, None), {"verdict": None, "surprise_pct": None})
+
+    def test_a_percent_of_sales_is_not_the_sales_figure(self):
+        text = "Operating income increased 12% to $61.0 million, or 12.0% of sales and Adjusted operating income increased 35% to $90.0 million."
+        self.assertIsNone(x.extract_revenue(text))
+        self.assertEqual(x.extract_revenue("Net sales increased 4% to $487.8 million, compared to $478.4 million in the prior year quarter.")["value"], 487_800_000)
+        # A sentence that opens on the revenue word has no word before it.
+        opening = x.extract_revenue("Revenue was $188.0 million, compared to $169.9 million for the same quarter in 2025.")
+        self.assertEqual((opening["value"], opening["prior"]), (188_000_000, 169_900_000))
+
     def test_yoy(self):
         self.assertEqual(ed.yoy_pct(188.049, 169.882), 10.7)
         self.assertIsNone(ed.yoy_pct(1.0, 0))
@@ -376,6 +403,23 @@ class RunTest(unittest.TestCase):
         store.docs[path]["inputs_hash"] = ed.inputs_hash({**store.docs[path], "reaction": {**store.docs[path]["reaction"], "final": True}})
         again = ed.run(days=1, store=store, sources=sources, use_llm=False, now=self.now, log=lambda line: None)
         self.assertEqual((again["written"], again["unchanged"]), (0, 1))
+
+    def test_revenue_estimate_is_stored_and_kept_after_yahoo_rolls(self):
+        store, sources = FakeStore(), FakeSources()
+        # A release that states the year-ago revenue, so an estimate can be matched to its quarter.
+        sources.raw = "<html><body><p>Revenues increased 11% to $188.0 million compared to $169.9 million for the same quarter in 2025.</p></body></html>"
+        sources.revenue_estimate = lambda ticker: {"avg": 185_000_000.0, "analysts": 9.0, "year_ago": 169_900_000.0}
+        ed.run(days=1, store=store, sources=sources, use_llm=False, now=self.now, log=lambda line: None)
+        path = "tm_earnings_day/QLYS__2026-11-09"
+        revenue = store.docs[path]["revenue"]
+        self.assertEqual((revenue["estimate"]["value"], revenue["verdict"]), (185_000_000, "beat"))
+        # The next run sees the next quarter's estimate; the stored one stays and no request is made for it.
+        store.docs[path]["reaction"]["final"] = False
+        asked = []
+        sources.revenue_estimate = lambda ticker: asked.append(ticker) or {"avg": 200_000_000.0, "analysts": 9.0, "year_ago": 180_000_000.0}
+        ed.run(days=1, store=store, sources=sources, use_llm=False, now=self.now, log=lambda line: None)
+        self.assertEqual(asked, [])
+        self.assertEqual(store.docs[path]["revenue"]["estimate"]["value"], 185_000_000)
 
     def test_nothing_filed_and_no_actual_writes_nothing(self):
         store, sources = FakeStore(), FakeSources()

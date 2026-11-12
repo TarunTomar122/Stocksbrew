@@ -1,11 +1,18 @@
+import { dayWords } from "@/lib/day-words";
 import { shortDay } from "@/lib/read-format";
 import type { ResultSummary } from "@/lib/results/types";
 
 const TONE = { up: "text-signal-bullish", down: "text-signal-bearish", flat: "text-oa-fg" } as const;
 
-/** One line for a stock that just reported: "Nov 10: Beat by 18%, up 25% today". The full read is on the stock page. */
+/** "Today", "Yesterday", "Monday" within the week, "Nov 3" before: the report day in words (owner rule 4). */
+export function resultLineDay(reportDate: string, today: string): string {
+  const words = dayWords(reportDate, today) || shortDay(reportDate);
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+/** One line for a stock that just reported: "Yesterday: Beat by 18%, up 25% today". The full read is on the stock page. */
 export function ResultLine({ result, today, className = "" }: { result: ResultSummary; today: string; className?: string }) {
-  const day = result.reportDate === today ? "Today" : shortDay(result.reportDate);
+  const day = resultLineDay(result.reportDate, today);
   const cut = result.fact.indexOf(", ");
   const lead = cut > 0 ? result.fact.slice(0, cut) : result.fact;
   const rest = cut > 0 ? result.fact.slice(cut + 2) : "";

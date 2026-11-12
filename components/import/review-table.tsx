@@ -6,12 +6,30 @@ import { StockLogo } from "@/components/stock-logo";
 import { mergeHolding, type Held, type MergeMode } from "@/lib/import/merge";
 import { LIMITS, parseAmount } from "@/lib/import/normalize";
 import { aliasFor, type ImportRow } from "@/lib/import/resolve";
+import { importAddingLine } from "@/lib/funds/adding";
 
 const FOCUS = "outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]";
 const INPUT = `oa-mono h-9 w-full min-w-0 rounded border border-oa-border bg-oa-card px-2 text-right text-[13px] tabular-nums text-oa-fg placeholder:text-oa-muted-fg ${FOCUS}`;
 
 /** Look a typed ticker up in the same index the import checks against, with the same aliases (GOOG is GOOGL). */
-type Found = { instrument_id: string; ticker: string; name: string; price?: number };
+type Found = { instrument_id: string; ticker: string; name: string; price?: number; fund_kind?: "etf" | "mutual_fund" };
+
+/** A US fund we do not cover yet: filed with the fund worker (the API knows the fund list), so it can be saved as "adding". */
+async function addFund(ticker: string): Promise<Found | null> {
+  if (!/^[A-Z]{1,5}$/.test(ticker)) return null;
+  // Ask first: only a fund is filed here; a stock still waits for "Ask us to add".
+  const check = await fetch(`/api/stock-request?query=${encodeURIComponent(ticker)}`).catch(() => null);
+  const known = (await check?.json().catch(() => null)) as { fundKind?: string | null } | null;
+  if (!check?.ok || !known?.fundKind) return null;
+  const res = await fetch("/api/stock-request", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query: ticker, source: "typed" }),
+  }).catch(() => null);
+  const data = (await res?.json().catch(() => null)) as { fundKind?: "etf" | "mutual_fund" | null; fundState?: string } | null;
+  if (!res?.ok || !data?.fundKind || data.fundState === "not_found") return null;
+  return { instrument_id: `US_${ticker}`, ticker, name: ticker, fund_kind: data.fundKind };
+}
 
 async function lookupTicker(typed: string): Promise<Found | null> {
   const q = typed.trim().toUpperCase().replace(/^\$/, "");
@@ -26,7 +44,7 @@ async function lookupTicker(typed: string): Promise<Found | null> {
     const found = await exact(q);
     if (found) return found;
     const alias = aliasFor(q);
-    return alias ? await exact(alias) : null;
+    return (alias ? await exact(alias) : null) ?? (await addFund(q));
   } catch {
     return null;
   }
@@ -182,12 +200,13 @@ function StockCell({
             if (entry) {
               setFixing(false);
               update({
-                status: "matched",
+                status: entry.fund_kind ? "adding" : "matched",
                 instrument_id: entry.instrument_id,
                 ticker: entry.ticker,
-                name: entry.name,
+                name: entry.fund_kind ? row.name ?? entry.name : entry.name,
                 price: typeof entry.price === "number" && entry.price > 0 ? entry.price : null,
                 confidence: row.confidence === "low" ? "medium" : row.confidence,
+                fund_kind: entry.fund_kind,
               });
             } else update({ status: "unknown", instrument_id: null, ticker: typed.trim().toUpperCase() || row.ticker, price: null });
           }}
@@ -223,7 +242,8 @@ function StockCell({
             </svg>
           </button>
         </div>
-        <span className="block text-pretty text-[12.5px] leading-4 text-oa-muted-fg">{row.name}</span>
+        {row.name && row.name !== row.ticker ? <span className="block text-pretty text-[12.5px] leading-4 text-oa-muted-fg">{row.name}</span> : null}
+        {row.status === "adding" ? <span className="mt-0.5 block text-pretty text-[12.5px] leading-4 text-oa-label">{importAddingLine(row.fund_kind)}</span> : null}
         {row.status === "suggested" ? (
           <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[12.5px] leading-4 text-oa-label">
             We read {row.raw}. Is it {row.ticker}?

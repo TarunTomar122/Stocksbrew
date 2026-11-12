@@ -9,11 +9,20 @@ const state = vi.hoisted(() => ({
   refunds: 0,
   hasModel: true,
   modelFails: false,
+  queued: [] as string[][],
 }));
 
 vi.mock("@/lib/import/server", async () => {
-  const { buildDirectory } = await import("@/lib/import/resolve");
+  const { addingTickers, buildDirectory, resolveHoldings } = await import("@/lib/import/resolve");
+  const funds: Record<string, "etf" | "mutual_fund"> = { VTWO: "etf", VTSAX: "mutual_fund" };
   return {
+    // The real resolver with a two-fund list; filing is recorded instead of written.
+    resolveImport: async (rows: Parameters<typeof resolveHoldings>[0], directory: Parameters<typeof resolveHoldings>[1]) => {
+      const resolved = resolveHoldings(rows, directory, (ticker) => funds[ticker.toUpperCase()] ?? null);
+      const adding = addingTickers(resolved);
+      if (adding.length) state.queued.push(adding);
+      return resolved;
+    },
     getImportViewer: async () => ({ uid: state.plan === "anon" ? null : "me", plan: state.plan }),
     getImportDirectory: async () =>
       buildDirectory([
@@ -61,6 +70,7 @@ beforeEach(() => {
   state.refunds = 0;
   state.hasModel = true;
   state.modelFails = false;
+  state.queued = [];
 });
 
 describe("POST /api/import/parse", () => {
@@ -71,6 +81,18 @@ describe("POST /api/import/parse", () => {
     expect(body).toMatchObject({ via: "rules", input: "text" });
     expect(body.rows.map((r: { instrument_id: string }) => r.instrument_id)).toEqual(["US_AAPL", "US_NVDA"]);
     expect(state.meterCalls).toEqual([]);
+    expect(state.modelCalls).toBe(0);
+  });
+
+  it("adds a US fund we do not cover instead of leaving it out, and files it at once", async () => {
+    const res = await POST(form({ text: "AAPL 10\nVTWO 4\nVTSAX 12\nZZZZ 1" }));
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    const byTicker = Object.fromEntries(body.rows.map((r: { ticker: string }) => [r.ticker, r]));
+    expect(byTicker.VTWO).toMatchObject({ status: "adding", instrument_id: "US_VTWO", fund_kind: "etf", shares: 4 });
+    expect(byTicker.VTSAX).toMatchObject({ status: "adding", instrument_id: "US_VTSAX", fund_kind: "mutual_fund" });
+    expect(byTicker.ZZZZ).toMatchObject({ status: "unknown", instrument_id: null });
+    expect(state.queued).toEqual([["VTWO", "VTSAX"]]);
     expect(state.modelCalls).toBe(0);
   });
 

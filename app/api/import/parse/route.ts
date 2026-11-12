@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { anonymousSubject, consumeImportRead, refundImportRead } from "@/lib/import/limits";
-import { resolveHoldings } from "@/lib/import/resolve";
-import { getImportDirectory, getImportViewer } from "@/lib/import/server";
+import { getImportDirectory, getImportViewer, resolveImport } from "@/lib/import/server";
 import { cleanClientHoldings } from "@/lib/import/normalize";
 import { MAX_TEXT_CHARS, parseHoldingsText } from "@/lib/import/text";
 import { MAX_BODY_BYTES, MAX_IMAGE_BYTES, MAX_IMAGES, sniffImage } from "@/lib/import/upload";
@@ -56,7 +55,7 @@ export async function POST(req: NextRequest) {
     if (!holdings) return fail(400, "bad_request");
     const directory = await getImportDirectory();
     if (directory.byTicker.size === 0) return fail(503, "directory_unavailable");
-    return NextResponse.json({ rows: resolveHoldings(holdings, directory), input: "csv", via: "rules", not_holdings: false, remaining: null });
+    return NextResponse.json({ rows: await resolveImport(holdings, directory), input: "csv", via: "rules", not_holdings: false, remaining: null });
   }
 
   const files = form.getAll("images").filter((item): item is File => typeof item === "object" && item !== null && "arrayBuffer" in item);
@@ -84,7 +83,7 @@ export async function POST(req: NextRequest) {
   // Text first by rules: a CSV or a list of tickers costs nothing.
   if (images.length === 0) {
     const ruled = parseHoldingsText(text);
-    const rows = resolveHoldings(ruled.rows, directory);
+    const rows = await resolveImport(ruled.rows, directory, viewer.uid);
     // A few characters the rules could not place are not worth a model read either. A broker export
     // whose lines were all left out (only cash, say) is answered too, so the person sees why.
     if (rows.some((row) => row.status !== "unknown") || text.replace(/\s/g, "").length < 6 || ruled.csv) {
@@ -111,7 +110,7 @@ export async function POST(req: NextRequest) {
     return fail(result.code === "no_model" ? 503 : 502, result.code);
   }
   return NextResponse.json({
-    rows: resolveHoldings(result.holdings, directory),
+    rows: await resolveImport(result.holdings, directory, viewer.uid),
     input: images.length > 0 ? "image" : "text",
     via: "model",
     not_holdings: result.notHoldings,

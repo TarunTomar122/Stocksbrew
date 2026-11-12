@@ -9,8 +9,9 @@
  *   actuals job filled the row). Both numbers come from the same provider, so
  *   they are on the same basis.
  * - Revenue and the outlook: the company's own 8-K release, only when the
- *   earnings day job (`tm_earnings_day`) read it. No revenue estimate is
- *   stored anywhere, so revenue is compared with the same quarter a year ago.
+ *   earnings day job (`tm_earnings_day`) read it. Revenue is compared with the
+ *   same quarter a year ago, and with Yahoo Finance's analyst estimate when the
+ *   job could tie that estimate to this quarter.
  * - The move: daily closes (`tm_price_history_daily`) once the session is
  *   over, the live quote (`tm_latest_prices`) while it runs, or the pre-market
  *   quote before the open. The usual report move is the median of the
@@ -40,8 +41,17 @@ export type ResultEps = {
 
 export type ResultRevenue = {
   value: number;
-  /** Change from the same quarter a year ago, percent. */
+  /** Change from the same quarter a year ago, percent. Always there: a revenue without its year-ago figure is not shown. */
   yoyPct: number | null;
+  /**
+   * The analysts' average revenue estimate for the quarter (Yahoo Finance), only when the earnings day job matched it
+   * to this quarter by its year-ago revenue; else null.
+   */
+  expected: number | null;
+  /** Beat, miss or in line against `expected`, judged on the unrounded surprise; null without an estimate. */
+  verdict: ResultVerdict | null;
+  /** (value − expected) / expected in percent, unrounded; null without an estimate. */
+  surprisePct: number | null;
   source: string;
   url: string | null;
   asOf: string | null;
@@ -49,8 +59,10 @@ export type ResultRevenue = {
 
 export type ResultGuidance = {
   change: "raised" | "lowered" | "mixed" | "narrowed" | "reaffirmed" | "issued";
-  /** The first stated range, in words ("Fiscal 2027 revenue $7.98B to $8.18B"), or null. */
+  /** The range that matters most, in words ("Fiscal 2027 revenue $7.98B to $8.18B"), or null. */
   first: string | null;
+  /** That item's previous range, when the release or the last report states it ("$7.90B to $8.10B"), or null. */
+  previous: string | null;
   source: string;
   url: string | null;
   asOf: string | null;

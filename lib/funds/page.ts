@@ -8,7 +8,7 @@ import { loadFunds } from "@/lib/xray-data";
 import type { FundDoc } from "@/lib/xray";
 import type { UserDoc } from "@/lib/watchlist";
 import { getFundFacts, type FundFacts } from "@/lib/funds/server";
-import { fundLookThrough, lastCloseQuote, yearReturn, type FundLookThrough, type YearReturn } from "@/lib/funds/view";
+import { fundLookThrough, lastCloseQuote, navDayOf, yearReturn, type FundLookThrough, type YearReturn } from "@/lib/funds/view";
 
 /**
  * Everything the fund page shows, read side by side: the live quote (or, when
@@ -35,6 +35,8 @@ export type FundPageData = {
   quote: FundQuote | null;
   chart: { ranges: ChartRange[]; asOf: string | null } | null;
   facts: FundFacts | null;
+  /** A mutual fund: one price a day (its NAV), no intraday quote. */
+  dailyPriced: boolean;
   year: YearReturn | null;
   holdings: { doc: FundDoc | null; inside: FundLookThrough };
 };
@@ -87,14 +89,17 @@ export async function loadFundPage(ticker: string, fallbackName: string): Promis
   ]);
   const closes = daily?.series[upper] ?? null;
 
+  // A mutual fund has one price a day, its NAV: shown as that day's close, never as a live quote.
+  const navOnly = facts?.quoteType === "MUTUALFUND";
   let quote: FundQuote | null = null;
   if (summary && Number.isFinite(summary.price) && summary.price > 0) {
+    const navDay = navOnly ? navDayOf(summary.captured_at) : null;
     quote = {
       price: summary.price,
       changeAbs: Number.isFinite(summary.day_change_abs) ? (summary.day_change_abs as number) : null,
       changePct: Number.isFinite(summary.day_change_pct) ? (summary.day_change_pct as number) : null,
-      capturedAt: summary.captured_at ?? null,
-      closeDate: null,
+      capturedAt: navDay ? null : summary.captured_at ?? null,
+      closeDate: navDay,
     };
   } else {
     const close = lastCloseQuote(closes);
@@ -118,9 +123,10 @@ export async function loadFundPage(ticker: string, fallbackName: string): Promis
     quote,
     chart: ranges.length ? { ranges, asOf: longSeries?.lastDate ?? null } : null,
     facts,
+    dailyPriced: navOnly,
     // Today's quotes on the end of both series, as the chart has, so the card's year matches the chart's 1Y.
     year: yearReturn(
-      withLiveClose(closes, etDay(quote?.capturedAt), quote?.price),
+      withLiveClose(closes, etDay(quote?.capturedAt) ?? quote?.closeDate ?? null, quote?.price),
       withLiveClose(daily?.series.SPY ?? null, etDay(spySummary?.captured_at), spySummary?.price),
       ranges.find((range) => range.key === "1Y")?.fromDate ?? null,
     ),

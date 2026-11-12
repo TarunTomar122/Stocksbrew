@@ -64,6 +64,8 @@ export type FundFacts = {
   family: string | null;
   /** Sector name to fraction of the fund, as Yahoo reports it; null for a bond or gold fund. */
   sectorWeights: Record<string, number> | null;
+  /** Yahoo's quote type: "ETF" or "MUTUALFUND" (priced once a day from its NAV). */
+  quoteType: string | null;
   fetchedAt: string | null;
 };
 
@@ -85,6 +87,7 @@ export function toFundFacts(raw: Record<string, unknown> | null | undefined): Fu
     category: str(raw.category),
     family: str(raw.family),
     sectorWeights: sectorWeights && Object.keys(sectorWeights).length ? sectorWeights : null,
+    quoteType: str(raw.quote_type)?.toUpperCase() ?? null,
     fetchedAt: str(raw.fetched_at),
   };
 }

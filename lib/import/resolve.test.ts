@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { ParsedHolding } from "./normalize";
-import { aliasFor, buildDirectory, findTicker, nameKey, resolveHoldings } from "./resolve";
+import { addingTickers, aliasFor, buildDirectory, findTicker, nameKey, pendingFundIds, resolveHoldings } from "./resolve";
 
 const directory = buildDirectory([
   { instrument_id: "US_AAPL", ticker: "AAPL", name: "Apple Inc." },
@@ -121,5 +121,33 @@ describe("aliasFor", () => {
     expect(aliasFor("BRK-B")).toBe("BRK.B");
     expect(aliasFor("$FB")).toBe("META");
     expect(aliasFor("AAPL")).toBeNull();
+  });
+});
+
+describe("funds we add on demand", () => {
+  const funds = (ticker: string) => ({ VTWO: "etf", VTSAX: "mutual_fund", NVDA: "etf" } as Record<string, "etf" | "mutual_fund">)[ticker.toUpperCase()] ?? null;
+
+  it("turns a US fund we do not cover into an adding row under its own id", () => {
+    const rows = resolveHoldings([h({ ticker: "VTWO", shares: 4 }), h({ ticker: "VTSAX", name: "Vanguard Total Stock Mkt Idx Adm", shares: 12 }), h({ ticker: "ZZZZ" })], directory, funds);
+    expect(rows[0]).toMatchObject({ status: "adding", instrument_id: "US_VTWO", ticker: "VTWO", name: "VTWO", fund_kind: "etf", confidence: "high", price: null });
+    expect(rows[1]).toMatchObject({ status: "adding", instrument_id: "US_VTSAX", name: "Vanguard Total Stock Mkt Idx Adm", fund_kind: "mutual_fund" });
+    expect(rows[2]).toMatchObject({ status: "unknown", instrument_id: null });
+    expect(addingTickers(rows)).toEqual(["VTWO", "VTSAX"]);
+  });
+
+  it("prefers what we already cover, and adds nothing without the fund list", () => {
+    expect(resolveHoldings([h({ ticker: "NVDA" })], directory, funds)[0]).toMatchObject({ status: "matched", instrument_id: "US_NVDA" });
+    expect(resolveHoldings([h({ ticker: "VTWO" })], directory)[0]).toMatchObject({ status: "unknown", instrument_id: null });
+  });
+
+  it("adds two lines of the same fund together", () => {
+    const rows = resolveHoldings([h({ ticker: "VTWO", shares: 4 }), h({ ticker: "vtwo", shares: 6 })], directory, funds);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ status: "adding", shares: 10, confidence: "medium" });
+  });
+
+  it("lets the save take only funds the list knows, never other unknown ids", () => {
+    const known = new Set(["US_AAPL"]);
+    expect([...pendingFundIds(["US_AAPL", "US_VTWO", "US_ZZZZ", "US_VTSAX", "US_BRK_B", "IN_VTWO"], known, funds)]).toEqual(["US_VTWO", "US_VTSAX"]);
   });
 });

@@ -6,6 +6,9 @@ import { getSessionUser } from "@/lib/auth-server";
 import { getUserDoc } from "@/lib/watchlist";
 import { addRadarStock, removeRadarStock } from "@/lib/radar-mutations";
 import { captureServerEventSafe } from "@/lib/posthog-server-capture";
+import { queueFundRequest } from "@/lib/funds/on-demand";
+import { fundListing } from "@/lib/funds/server";
+import { fundKindOf } from "@/lib/funds/tickers";
 
 const INSTRUMENT_ID_RE = /^(US|IN)_[A-Z0-9_]+$/;
 
@@ -100,6 +103,12 @@ export async function POST(req: NextRequest) {
     uid: session.uid,
     instrument_id: instrumentId,
   });
+
+  // Following a US fund we do not cover yet files it with the fund worker (lib/funds/on-demand.ts).
+  const followedTicker = instrumentId.startsWith("US_") ? tickerOf(instrumentId) : "";
+  if (fundKindOf(followedTicker) && !(await fundListing(followedTicker).catch(() => null))) {
+    await queueFundRequest(followedTicker, { uid: session.uid, source: "follow" });
+  }
 
   trackApiLog(traceId, "info", "post_track_ok", { uid: session.uid, instrument_id: instrumentId });
   if (!result.already_tracked) {

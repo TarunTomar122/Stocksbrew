@@ -71,18 +71,17 @@ async function readRecentEventsUncached(since: string, today: string): Promise<R
   return [...byKey.values()].sort((a, b) => b.date.localeCompare(a.date) || a.ticker.localeCompare(b.ticker));
 }
 
-const recentEventsCached = sharedCache(readRecentEventsUncached, ["results-recent-events-v2"], { revalidate: 600 });
+const recentEventsCached = sharedCache(readRecentEventsUncached, ["results-recent-events-v3"], { revalidate: 600 });
 
-/** Reported rows from the last two weeks, newest first. */
 /**
- * Results night is built but parked (owner, Nov 11: no new features tonight; the quality pass left 9 fixes open).
- * Every loader answers empty until RESULTS_NIGHT=1 is set, so the stock page, inbox, briefing and earnings season show
- * nothing from it.
+ * Results night is switched on by RESULTS_NIGHT=1 (set in Vercel Production). Without it every loader answers empty,
+ * so the stock page, inbox, briefing and earnings season show nothing from it.
  */
 export function resultsNightOn(): boolean {
   return process.env.RESULTS_NIGHT === "1";
 }
 
+/** Report rows from the last two weeks up to today, newest first; a row whose EPS is not posted yet has `eps: null`. */
 export async function recentEvents(today: string = todayET()): Promise<ResultEvent[]> {
   if (!resultsNightOn()) return [];
   return recentEventsCached(shiftDay(today, -LIST_DAYS), today);
@@ -116,7 +115,7 @@ async function readResultUncached(ticker: string, date: string, today: string): 
     loadTickerEarnings([ticker], today),
     readSelected(
       [`tm_price_history_daily/${key}`, `tm_latest_prices/US_${key}`, `tm_call_stability/US_${key}`, `tm_earnings_day/${key}__${date}`],
-      ["last_date", "fetched_at", "quote", "captured_at", "call", "session", "changes", "updated_at", "ticker", "event_date", "revenue", "guidance", "filing", "period", "read"],
+      ["last_date", "fetched_at", "quote", "captured_at", "call", "session", "changes", "updated_at", "ticker", "event_date", "revenue", "guidance", "filing", "period", "read", "reaction"],
     ),
     getPremarketMovers("US").catch((error: unknown) => ({ failed: error }) as const),
   ]);
@@ -155,7 +154,7 @@ async function readResultUncached(ticker: string, date: string, today: string): 
   });
 }
 
-const readResultCached = sharedCache(readResultUncached, ["results-read-v2"], { revalidate: 120 });
+const readResultCached = sharedCache(readResultUncached, ["results-read-v3"], { revalidate: 120 });
 
 /** One stock's read for one report, or null. Throws when a store read fails. */
 export function readResult(ticker: string, date: string, today: string = todayET()): Promise<ResultRead | null> {

@@ -86,7 +86,7 @@ describe("the sentence", () => {
     const ceg = read({
       ticker: "CEG",
       eps: { actual: 5.06, expected: 3.9, verdict: "beat", surprisePct: 29.7, source: "Alpha Vantage", asOf: null },
-      guidance: { change: "raised", first: "Full year 2026 adjusted EPS $12.50 to $12.80", source: "The company's 8-K release", url: "https://www.sec.gov/x", asOf: null },
+      guidance: { change: "raised", first: "Full year 2026 adjusted EPS $12.50 to $12.80", previous: null, source: "The company's 8-K release", url: "https://www.sec.gov/x", asOf: null },
       move: null,
     });
     expect(resultSentence(ceg, "Constellation Energy", TODAY)).toBe("Constellation Energy beat the EPS estimate by 30% and raised its outlook.");
@@ -100,9 +100,26 @@ describe("the sentence", () => {
   });
 
   it("falls back to revenue against a year ago", () => {
-    const revenueOnly = read({ eps: null, move: null, revenue: { value: 1_497_000_000, yoyPct: -15.6, source: "8-K", url: "https://www.sec.gov/x", asOf: null } });
+    const revenueOnly = read({ eps: null, move: null, revenue: { value: 1_497_000_000, yoyPct: -15.6, expected: null, verdict: null, surprisePct: null, source: "8-K", url: "https://www.sec.gov/x", asOf: null } });
     expect(resultSentence(revenueOnly, "Take-Two", TODAY)).toBe("Take-Two reported revenue of $1.50B, down 16% from a year ago.");
     expect(resultFact(revenueOnly, TODAY)).toBe("Revenue down 16% on a year ago");
+  });
+
+  it("says revenue against the estimate and a year ago, and the outlook with its numbers", () => {
+    const revenue = { value: 269_348_000, yoyPct: 413.7, expected: 247_563_070, verdict: "beat" as const, surprisePct: 8.8, source: "The company's 8-K release", url: "https://www.sec.gov/x", asOf: null };
+    const guidance = { change: "lowered" as const, first: "Fiscal 2026 adjusted EPS $2.90 to $2.95", previous: "$3.05 to $3.15", source: "The company's 8-K release", url: "https://www.sec.gov/x", asOf: null };
+    const lunr = read({ ticker: "LUNR", eps: null, move: null, revenue });
+    expect(resultSentence(lunr, "Intuitive Machines", TODAY)).toBe("Intuitive Machines reported revenue of $269M, above the $248M expected.");
+    expect(resultFact(lunr, TODAY)).toBe("Revenue beat by 8.8%");
+    const cells = figureCells(read({ revenue, guidance, move: null }), TODAY);
+    expect(cells.map((cell) => [cell.label, cell.value, cell.sub, cell.tone])).toEqual([
+      ["EPS", "−$1.27", "vs −$1.55 expected, beat by 18%", "up"],
+      ["Revenue", "$269M", "vs $248M expected, beat by 8.8%, up 414% on a year ago", "up"],
+      ["Outlook", "Cut", "Fiscal 2026 adjusted EPS $2.90 to $2.95, was $3.05 to $3.15", "down"],
+    ]);
+    // Every sub line stays within the owner's 15 words.
+    expect(cells.every((cell) => cell.sub.split(/\s+/).length <= 15)).toBe(true);
+    expect(cells[1]!.title).toContain("Yahoo Finance");
   });
 });
 
@@ -117,8 +134,8 @@ describe("the call and the card", () => {
   it("gives the card one fact and the row its figures", () => {
     expect(resultFact(read(), TODAY)).toBe("Beat by 18%, up 25% today");
     expect(figureCells(read(), TODAY)).toEqual([
-      { label: "EPS", value: "−$1.27", sub: "vs −$1.55 expected, beat by 18%", tone: "up" },
-      { label: "The stock", value: "+25%", sub: "Today, usually 17%", tone: "up" },
+      { label: "EPS", value: "−$1.27", sub: "vs −$1.55 expected, beat by 18%", title: "EPS and estimate: Yahoo Finance, Nov 10, 6:00 PM ET", tone: "up" },
+      { label: "The stock", value: "+25%", sub: "Today, usually 17%", title: "Live price, Nov 11, 2:03 PM ET", tone: "up" },
     ]);
     expect(reportedWords(read(), TODAY)).toBe("Reported yesterday after the close");
   });

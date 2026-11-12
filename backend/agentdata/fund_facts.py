@@ -254,7 +254,28 @@ def build_meta(
 # ---------------------------------------------------------------------------
 
 
-def fetch_fund(ticker: str, *, fallback_name: str | None, fetched_at: str) -> dict[str, Any] | None:
+def minimal_fact_doc(ticker: str, info: dict[str, Any], *, fallback_name: str | None, fetched_at: str) -> dict[str, Any] | None:
+    """A fund Yahoo confirms but gives no figures for: its name and kind only, so the app knows it is a fund."""
+    quote_type = str(info.get("quoteType") or "").upper()
+    if quote_type not in FUND_QUOTE_TYPES:
+        return None
+    return {
+        "ticker": ticker,
+        "name": str(info.get("longName") or info.get("shortName") or fallback_name or ticker).strip(),
+        "quote_type": quote_type,
+        "source": SOURCE,
+        "fetched_at": fetched_at,
+        "schema_version": SCHEMA_VERSION,
+    }
+
+
+def fetch_fund(ticker: str, *, fallback_name: str | None, fetched_at: str, minimal: bool = False) -> dict[str, Any] | None:
+    """One fund's facts from Yahoo, or None when Yahoo does not call it a fund.
+
+    With ``minimal`` a confirmed fund without any figures still comes back, as
+    ``minimal_fact_doc`` (the on-demand path needs to know it is a fund); the
+    weekly run leaves it off, so a fund that lost its figures keeps its last good document.
+    """
     import yfinance as yf  # the backend's own dependency; imported here so the pure helpers test without it
 
     handle = yf.Ticker(ticker.replace(".", "-"))
@@ -274,9 +295,12 @@ def fetch_fund(ticker: str, *, fallback_name: str | None, fetched_at: str) -> di
         assets = dict(data.asset_classes or {})
     except Exception as error:  # the fund's quote still says enough on its own
         log(f"{ticker}: no fund details ({type(error).__name__})")
-    return build_fact_doc(
+    doc = build_fact_doc(
         ticker, info, operations=operations, sectors=sectors, assets=assets, fallback_name=fallback_name, fetched_at=fetched_at
     )
+    if doc is None and minimal:
+        return minimal_fact_doc(ticker, info, fallback_name=fallback_name, fetched_at=fetched_at)
+    return doc
 
 
 # ---------------------------------------------------------------------------

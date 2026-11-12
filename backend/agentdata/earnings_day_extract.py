@@ -402,8 +402,14 @@ def extract_revenue(text: str, *, period_year: int | None = None) -> dict[str, A
             continue
         mid = match.group("mid") or ""
         lead = sentence[: match.start()].lower()
+        # What comes before the revenue words. The match opens on the separator before them, or on the sentence's
+        # start (then nothing is before them: "Revenue was $188.0 million" must not read "R" as a word before it).
+        before = sentence[: match.start() + 1] if match.start() > 0 or sentence[:1] in " :(•" else ""
+        # "operating income of $61.0 million, or 12.0% of sales and ... $90.0 million": a ratio, not the sales figure.
+        if re.search(r"(?:%|\bpercent)\s+of\s*$", before, re.IGNORECASE):
+            continue
         # "Subscription revenue", "United States Revenue", segment lines: only total revenue counts.
-        word_before = re.findall(r"([A-Za-z]+)\s*$", sentence[: match.start() + 1])
+        word_before = re.findall(r"([A-Za-z]+)\s*$", before)
         if word_before and word_before[-1].lower() not in {"total", "net", "gaap", "consolidated", "quarterly", "the", "of", "and", "reported", "with", "q1", "q2", "q3", "q4", "highlights"}:
             if not re.search(r"(?:^|[\s:(•])(?:total|net|gaap|consolidated)\s", sentence[max(0, match.start() - 12) : match.start() + 12], re.I):
                 continue

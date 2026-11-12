@@ -3,6 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { getSessionUser } from "@/lib/auth-server";
 import { adminFirestore } from "@/lib/firebase-admin";
+import { queueFundRequests } from "@/lib/funds/on-demand";
+import { fundKindOf } from "@/lib/funds/tickers";
+import { pendingFundIds } from "@/lib/import/resolve";
 import { cleanSaveRows, saveImport, type SaveSource } from "@/lib/import/save";
 import { getImportDirectory } from "@/lib/import/server";
 import { maybeQueueOnDemandNews } from "@/lib/on-demand-queue";
@@ -35,13 +38,17 @@ export async function POST(req: NextRequest) {
   const directory = await getImportDirectory();
   if (directory.byTicker.size === 0) return NextResponse.json({ error: "directory_unavailable" }, { status: 503 });
   const known = new Set([...directory.byTicker.values()].map((entry) => entry.instrument_id));
-  const unknown = rows.filter((row) => !known.has(row.instrument_id)).map((row) => row.instrument_id);
+  // A US fund we are adding on demand saves too; its page and prices arrive within minutes (lib/funds/on-demand.ts).
+  const adding = pendingFundIds(rows.map((row) => row.instrument_id), known, fundKindOf);
+  const unknown = rows.filter((row) => !known.has(row.instrument_id) && !adding.has(row.instrument_id)).map((row) => row.instrument_id);
   if (unknown.length > 0) return NextResponse.json({ error: "unknown_stocks", unknown }, { status: 400 });
 
   const header = req.headers.get("x-client-mutation-id") ?? "";
   const mutationId = MUTATION_ID_RE.test(header) ? `import_${header}` : `import_${randomUUID()}`;
   const result = await saveImport({ uid: session.uid, rows, source, mutationId });
   if (!result.ok) return NextResponse.json({ error: result.code }, { status: 409 });
+  // Filed again on save (a no-op when the parse already did): a fund typed into the review was never parsed.
+  if (adding.size > 0) await queueFundRequests([...adding].map((id) => id.slice(3)), { uid: session.uid, source: "import" });
 
   if (!result.replay) {
     // Research is queued for newly covered stocks only, as on every other add.

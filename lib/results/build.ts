@@ -127,16 +127,16 @@ export function epsResult(actual: number, expected: number): Pick<ResultEps, "ve
 }
 
 /**
- * A stored calendar row as a reported event, or null when it has no result. The estimate is the one the provider of
- * the actual published beside it (`estimated_eps`), so both are on one basis; Nasdaq's rows carry the same number in
- * both fields.
+ * A stored calendar row as an event. The estimate is the one the provider of the actual published beside it
+ * (`estimated_eps`), so both are on one basis; Nasdaq's rows carry the same number in both fields. A row whose EPS is
+ * not posted yet is kept with no EPS: the company's release (revenue, the outlook) can be out hours before the actual
+ * reaches the calendar, and buildResult drops the event when there is neither.
  */
 export function eventFromDoc(raw: Record<string, unknown>): ResultEvent | null {
   const ticker = str(raw.ticker).toUpperCase();
   const date = str(raw.event_date).slice(0, 10);
   if (!ticker || !DAY_RE.test(date) || str(raw.market) !== "US") return null;
   const actual = num(raw.reported_eps);
-  if (actual === null) return null;
   const providerEstimate = num(raw.estimated_eps);
   const calendarEstimate = num(raw.eps_estimate);
   const expected = providerEstimate ?? calendarEstimate;
@@ -144,7 +144,7 @@ export function eventFromDoc(raw: Record<string, unknown>): ResultEvent | null {
   const capturedAt = str(raw.actuals_captured_at) || str(raw.captured_at) || null;
   const time = str(raw.time).toLowerCase();
   const eps: ResultEps | null =
-    expected !== null && !basisClash(providerEstimate, calendarEstimate)
+    actual !== null && expected !== null && !basisClash(providerEstimate, calendarEstimate)
       ? { actual, expected, ...epsResult(actual, expected), source, asOf: capturedAt }
       : null;
   return {
@@ -280,15 +280,47 @@ function lowerFirst(label: string): string {
   return /^[A-Z][a-z]/.test(label) ? label.charAt(0).toLowerCase() + label.slice(1) : label;
 }
 
+function bareRange(low: number | null, high: number | null, unit: unknown): string | null {
+  if (low === null || high === null) return null;
+  const fmt = (value: number) => (unit === "usd_per_share" ? fmtEps(value) : revenueWords(value));
+  return low === high ? fmt(low) : `${fmt(low)} to ${fmt(high)}`;
+}
+
 function rangeWords(item: Record<string, unknown>): string | null {
-  const low = num(item.low);
-  const high = num(item.high);
   const label = str(item.label);
-  if (low === null || high === null || !label) return null;
-  const fmt = (value: number) => (item.unit === "usd_per_share" ? fmtEps(value) : revenueWords(value));
-  const range = low === high ? fmt(low) : `${fmt(low)} to ${fmt(high)}`;
+  const range = bareRange(num(item.low), num(item.high), item.unit);
+  if (!range || !label) return null;
   const period = str(item.period);
   return `${period ? `${period} ` : ""}${period ? lowerFirst(label) : label} ${range}`;
+}
+
+const DIRECTION_RANK: Record<string, number> = { lowered: 0, raised: 1, narrowed: 2, reaffirmed: 3, new: 4, issued: 4 };
+const METRIC_RANK: Record<string, number> = { revenue: 0, net_bookings: 1, adjusted_eps: 2, eps: 3, adjusted_ebitda: 4 };
+
+/**
+ * The outlook item worth showing, the same pick as the earnings day job's own sentence
+ * (backend/agentdata/earnings_day.py guidance_lead_item): the one that moved most, revenue before EPS, the full year
+ * before a quarter. Items without a range are skipped.
+ */
+export function leadGuidanceItem(items: Array<Record<string, unknown>>): Record<string, unknown> | null {
+  const ranged = items.filter((item) => rangeWords(item) !== null);
+  const key = (item: Record<string, unknown>) => [
+    DIRECTION_RANK[str(item.direction)] ?? 5,
+    METRIC_RANK[str(item.metric)] ?? 9,
+    /full year|fiscal/i.test(str(item.period)) ? 0 : 1,
+  ];
+  return (
+    ranged
+      .map((item, index) => ({ item, index, key: key(item) }))
+      .sort((a, b) => a.key[0]! - b.key[0]! || a.key[1]! - b.key[1]! || a.key[2]! - b.key[2]! || a.index - b.index)[0]?.item ?? null
+  );
+}
+
+/** Revenue against the estimate, with the EPS thresholds, judged on the unrounded surprise. */
+export function revenueResult(value: number, expected: number | null): Pick<ResultRevenue, "expected" | "verdict" | "surprisePct"> {
+  if (expected === null || !(expected > 0)) return { expected: null, verdict: null, surprisePct: null };
+  const pct = (value / expected - 1) * 100;
+  return { expected, verdict: pct >= 1 ? "beat" : pct <= -1 ? "miss" : "in_line", surprisePct: pct };
 }
 
 export function releaseParts(doc: Record<string, unknown> | null): { revenue: ResultRevenue | null; guidance: ResultGuidance | null; period: string | null; href: string | null } {
@@ -299,17 +331,46 @@ export function releaseParts(doc: Record<string, unknown> | null): { revenue: Re
   const source = "The company's 8-K release";
   const rev = (doc.revenue && typeof doc.revenue === "object" ? doc.revenue : null) as Record<string, unknown> | null;
   const value = rev ? num(rev.value) : null;
-  const revenue: ResultRevenue | null = value !== null && value > 0 && url ? { value, yoyPct: num(rev!.yoy_pct), source, url, asOf: filedAt } : null;
+  const yoyPct = rev ? num(rev.yoy_pct) : null;
+  const estimate = rev && rev.estimate && typeof rev.estimate === "object" ? num((rev.estimate as Record<string, unknown>).value) : null;
+  // Only a revenue the release compares with the same quarter a year ago: a figure read from a sentence with nothing
+  // beside it has been a ratio's base or a segment before (YETI's "$90.0 million"), so it is not shown alone.
+  const revenue: ResultRevenue | null =
+    value !== null && value > 0 && yoyPct !== null && url ? { value, yoyPct, ...revenueResult(value, estimate), source, url, asOf: filedAt } : null;
   const g = (doc.guidance && typeof doc.guidance === "object" ? doc.guidance : null) as Record<string, unknown> | null;
   const change = g ? str(g.change).toLowerCase() : "";
   const items = g && Array.isArray(g.items) ? (g.items as Array<Record<string, unknown>>) : [];
+  const lead = leadGuidanceItem(items);
   const guidance: ResultGuidance | null =
-    GUIDANCE_CHANGES.has(change) && url ? { change: change as ResultGuidance["change"], first: items.length ? rangeWords(items[0]!) : null, source, url, asOf: filedAt } : null;
+    GUIDANCE_CHANGES.has(change) && url
+      ? {
+          change: change as ResultGuidance["change"],
+          first: lead ? rangeWords(lead) : null,
+          previous: lead ? bareRange(num(lead.prev_low), num(lead.prev_high), lead.unit) : null,
+          source,
+          url,
+          asOf: filedAt,
+        }
+      : null;
   const period = doc.period && typeof doc.period === "object" ? str((doc.period as Record<string, unknown>).label) || null : null;
   const read = doc.read && typeof doc.read === "object" && typeof (doc.read as Record<string, unknown>).title === "string";
   const ticker = str(doc.ticker);
   const day = str(doc.event_date).slice(0, 10);
   return { revenue, guidance, period, href: read && ticker && DAY_RE.test(day) ? earningsDayHref(ticker, day) : null };
+}
+
+/**
+ * The finished close-to-close move the earnings day job measured from Yahoo's daily closes (`reaction`, final), or
+ * null. The read's own move comes from our price history first; this covers a stock whose stored history is behind,
+ * where the live quote has already moved on to the next session and the move would otherwise be lost.
+ */
+export function releaseMove(doc: Record<string, unknown> | null, session: Session): Omit<ResultMove, "usualPct" | "usualCount"> | null {
+  const reaction = doc && doc.reaction && typeof doc.reaction === "object" ? (doc.reaction as Record<string, unknown>) : null;
+  if (!reaction || reaction.final !== true) return null;
+  const pct = num(reaction.pct);
+  const day = str(reaction.to_date);
+  if (pct === null || !DAY_RE.test(day)) return null;
+  return { pct, kind: "day", day, nextDay: session === "amc", source: "daily closes from Yahoo Finance", asOf: day };
 }
 
 /* ── the read ───────────────────────────────────────────────────────────── */
@@ -338,7 +399,9 @@ export function buildResult(input: ResultInput): ResultRead | null {
   const { revenue, guidance, period, href } = releaseParts(input.release);
   if (!event.eps && !revenue && !guidance) return null;
 
-  const picked = pickMove({ date: event.date, session, today, now: input.now, past: own, priceMeta: input.priceMeta, quote: input.quote, premarket: input.premarket });
+  const picked =
+    pickMove({ date: event.date, session, today, now: input.now, past: own, priceMeta: input.priceMeta, quote: input.quote, premarket: input.premarket }) ??
+    releaseMove(input.release, session);
   const earlier = past.filter((report) => report.date !== event.date && report.date < event.date);
   const stats = moveStats(earlier, input.history?.typicalDayPct ?? null);
   const move: ResultMove | null = picked ? { ...picked, usualPct: stats.usual, usualCount: stats.count } : null;

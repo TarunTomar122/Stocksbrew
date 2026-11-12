@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { PastReport } from "@/lib/earnings-season";
 
-import { basisClash, buildResult, callAfter, eventFromDoc, nextTradingDay, pickMove, previousTradingDay, reactionDay, releaseParts } from "./build";
+import { basisClash, buildResult, callAfter, eventFromDoc, leadGuidanceItem, nextTradingDay, pickMove, previousTradingDay, reactionDay, releaseMove, releaseParts, revenueResult } from "./build";
 
 const TODAY = "2026-11-11";
 const NOON = new Date("2026-11-11T19:03:00Z");
@@ -60,9 +60,10 @@ describe("the calendar row", () => {
     expect(hsai.eps).toBeNull();
   });
 
-  it("uses the ±1% thresholds and skips rows without a result or outside the US", () => {
+  it("uses the ±1% thresholds, keeps a row whose EPS is not posted yet, and skips rows outside the US", () => {
     expect(eventFromDoc(row({ reported_eps: 0.14, estimated_eps: 0.14, eps_estimate: 0.14 }))!.eps!.verdict).toBe("in_line");
-    expect(eventFromDoc(row({ reported_eps: null }))).toBeNull();
+    // The release can be out (revenue, the outlook) hours before the actual reaches the calendar.
+    expect(eventFromDoc(row({ reported_eps: null }))).toMatchObject({ ticker: "CRWV", eps: null });
     expect(eventFromDoc(row({ market: "US_SUPERSEDED" }))).toBeNull();
     expect(eventFromDoc(row({ time: "during" }))!.session).toBe("unknown");
   });
@@ -140,6 +141,38 @@ describe("the release", () => {
     expect(parts.href).toBe("/stock/CEG/earnings/2026-11-09");
     expect(releaseParts({ ...doc, filing: {} }).revenue).toBeNull();
     expect(releaseParts({ ...doc, guidance: { change: "none", items: [] } }).guidance).toBeNull();
+    // A revenue with no year-ago figure beside it is not shown (YETI's "$90.0 million" was a ratio's base).
+    expect(releaseParts({ ...doc, revenue: { value: 90_000_000, yoy_pct: null } }).revenue).toBeNull();
+  });
+
+  it("puts revenue beside the analysts' estimate, judged on the unrounded surprise", () => {
+    const doc = {
+      ticker: "LUNR",
+      event_date: "2026-11-12",
+      filing: { url: "https://www.sec.gov/lunr.htm", filed_at: "2026-11-12T11:30:00+00:00" },
+      revenue: { value: 269_348_000, yoy_pct: 413.7, estimate: { value: 247_563_070, source: "Yahoo Finance" } },
+    };
+    const revenue = releaseParts(doc).revenue!;
+    expect(revenue).toMatchObject({ value: 269_348_000, yoyPct: 413.7, expected: 247_563_070, verdict: "beat" });
+    expect(revenue.surprisePct).toBeCloseTo(8.8, 1);
+    expect(revenueResult(100.99, 100)).toMatchObject({ verdict: "in_line" });
+    expect(revenueResult(98.9, 100)).toMatchObject({ verdict: "miss" });
+    expect(revenueResult(100, null)).toEqual({ expected: null, verdict: null, surprisePct: null });
+    expect(releaseParts({ ...doc, revenue: { value: 269_348_000, yoy_pct: 413.7 } }).revenue).toMatchObject({ expected: null, verdict: null });
+  });
+
+  it("shows the outlook item that moved most, with its previous range", () => {
+    const items = [
+      { metric: "free_cash_flow", label: "Free cash flow", period: "Fiscal 2026", low: 200e6, high: 225e6, unit: "usd", direction: "issued" },
+      { metric: "adjusted_eps", label: "Adjusted EPS", period: "Fiscal 2026", low: 2.9, high: 2.95, unit: "usd_per_share", direction: "lowered", prev_low: 3.05, prev_high: 3.15 },
+      { metric: "revenue", label: "Revenue", period: "Q4 2026", low: null, high: null, unit: "usd", direction: "lowered" },
+    ];
+    expect(leadGuidanceItem(items)).toBe(items[1]);
+    const guidance = releaseParts({ ticker: "YETI", event_date: "2026-11-12", filing: { url: "https://www.sec.gov/yeti.htm" }, guidance: { change: "lowered", items } }).guidance!;
+    expect(guidance).toMatchObject({ change: "lowered", first: "Fiscal 2026 adjusted EPS $2.90 to $2.95", previous: "$3.05 to $3.15" });
+    // Revenue before EPS when both moved the same way.
+    const both = [{ ...items[1]!, direction: "raised" }, { metric: "revenue", label: "Revenue", period: "Full year 2026", low: 13e9, high: 13.3e9, unit: "usd", direction: "raised" }];
+    expect(leadGuidanceItem(both)).toBe(both[1]);
   });
 });
 
@@ -170,5 +203,15 @@ describe("the read", () => {
   it("is null with nothing reported we can stand behind", () => {
     const hsai = eventFromDoc(row({ ticker: "HSAI", eps_estimate: 0.08, estimated_eps: 1.24, reported_eps: 0.72 }))!;
     expect(buildResult({ event: hsai, today: TODAY, now: NOON, history: null, priceMeta: null, quote: null, premarket: null, stability: null, release: null })).toBeNull();
+  });
+
+  it("keeps the move from the earnings day job when our price history is behind and the quote has moved on", () => {
+    // CRWV on Nov 12: the daily history stopped at Nov 9 and the live quote is Nov 12's, so neither has the Nov 11 move.
+    const release = { reaction: { pct: 24.71, basis: "next_session", to_date: "2026-11-11", final: true } };
+    const input = { event: eventFromDoc(row())!, today: "2026-11-12", now: new Date("2026-11-12T14:41:00Z"), history: null, priceMeta: { lastDate: "2026-11-09", fetchedAt: "2026-11-09T19:53:18Z" }, quote: { pct: -11.72, capturedAt: "2026-11-12T14:34:00Z" }, premarket: null, stability: null };
+    expect(buildResult({ ...input, release }))!.toMatchObject({ move: { pct: 24.71, kind: "day", day: "2026-11-11", nextDay: true } });
+    expect(buildResult({ ...input, release: null })!.move).toBeNull();
+    // A move still in progress is not taken from it.
+    expect(releaseMove({ reaction: { pct: 3, basis: "so_far_today", final: false } }, "amc")).toBeNull();
   });
 });

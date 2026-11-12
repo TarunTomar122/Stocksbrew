@@ -11,7 +11,7 @@ import { fmtEps } from "@/lib/calendar-shared";
 import { dayWords as dayWordsOf, onDayWords } from "@/lib/day-words";
 import { shortDay } from "@/lib/read-format";
 
-import type { ResultCall, ResultEps, ResultGuidance, ResultMove, ResultRead, ResultSummary } from "./types";
+import type { ResultCall, ResultEps, ResultGuidance, ResultMove, ResultRead, ResultRevenue, ResultSummary, ResultVerdict } from "./types";
 
 const MINUS = "−";
 /** Below this many earlier report moves there is no "usual" move to compare with. */
@@ -172,8 +172,14 @@ function leadPart(read: ResultRead, name: string): string {
     return `${name} ${eps.verdict === "beat" ? "beat" : "missed"} the EPS estimate by ${marginWords(eps)}`;
   }
   if (read.revenue) {
-    const yoy = read.revenue.yoyPct;
-    return `${name} reported revenue of ${revenueWords(read.revenue.value)}${yoy !== null && !flat(yoy) ? `, ${upDown(yoy)} ${pctWords(yoy)} from a year ago` : ""}`;
+    const revenue = read.revenue;
+    const yoy = revenue.yoyPct;
+    const lead = `${name} reported revenue of ${revenueWords(revenue.value)}`;
+    if (revenue.expected !== null && revenue.verdict) {
+      if (revenue.verdict === "in_line") return `${lead}, in line with the ${revenueWords(revenue.expected)} expected`;
+      return `${lead}, ${revenue.verdict === "beat" ? "above" : "below"} the ${revenueWords(revenue.expected)} expected`;
+    }
+    return `${lead}${yoy !== null && !flat(yoy) ? `, ${upDown(yoy)} ${pctWords(yoy)} from a year ago` : ""}`;
   }
   return "";
 }
@@ -232,7 +238,8 @@ export function resultHeadline(read: ResultRead, today: string): string {
   if (eps) {
     if (eps.actual < 0 && eps.expected < 0) lead = eps.verdict === "beat" ? "lost less than expected" : eps.verdict === "miss" ? "lost more than expected" : "lost about what was expected";
     else lead = eps.verdict === "beat" ? "beat the EPS estimate" : eps.verdict === "miss" ? "missed the EPS estimate" : "matched the EPS estimate";
-  } else if (read.guidance) lead = GUIDANCE_CLAUSE[read.guidance.change];
+  } else if (read.revenue?.verdict) lead = read.revenue.verdict === "beat" ? "beat the revenue estimate" : read.revenue.verdict === "miss" ? "missed the revenue estimate" : "matched the revenue estimate";
+  else if (read.guidance) lead = GUIDANCE_CLAUSE[read.guidance.change];
   else if (read.revenue) lead = "reported its results";
   if (!lead) return "";
   if (!read.move) return `${read.ticker} ${lead}.`;
@@ -241,17 +248,24 @@ export function resultHeadline(read: ResultRead, today: string): string {
 }
 
 /**
- * A held stock's card fact in the morning briefing: the result, and the move against the stock's usual move on results.
- * The card's big figure is already the day's move, so the chip gives the move's own number only before the open (the
- * pre-market move, which the figure is not); otherwise it says how big the move was for this stock. Our call is left to
- * the card: a held call would be the same words on every card that reported (owner rule 1), and a changed call is the
- * card's own line. "Beat by 30%, and the move is about 5 times its usual on results". Null without figures.
+ * A held stock's card fact in the briefing: the result, and the move against the stock's usual move on results. The
+ * card's big figure is today's move, so the chip leaves the number out only when the results move is today's session;
+ * a pre-market move or an earlier day's move keeps its own number and day ("up 25% yesterday"), so the chip never
+ * reads as if the card's figure were the results move. Our call is left to the card: a held call would be the same
+ * words on every card that reported (owner rule 1), and a changed call is the card's own line.
+ * "Beat by 30%, and the move is about 5 times its usual on results". Null without figures.
  */
 export function briefingResultFact(read: ResultRead, today: string): string | null {
-  const fact = resultFact({ ...read, move: read.move?.kind === "before_open" ? read.move : null }, today);
+  const move = read.move;
+  const isToday = Boolean(move && (move.kind === "today" || (move.kind === "day" && move.day === today)));
+  const fact = resultFact({ ...read, move: move && !isToday ? move : null }, today);
   if (!fact) return null;
-  const ratio = read.move ? usualRatio(read.move) : null;
+  const ratio = move ? usualRatio(move) : null;
   if (ratio === null) return fact;
+  if (!isToday) {
+    const size = ratio >= 2 ? `${timesWords(ratio)} its usual` : ratio >= 1.25 ? "bigger than usual" : ratio > 0.75 ? "about its usual" : "smaller than usual";
+    return `${fact}, ${size} on results`;
+  }
   const size = ratio >= 2 ? `${timesWords(ratio)} its usual` : ratio >= 1.25 ? "bigger than usual" : ratio > 0.75 ? "about its usual size" : "smaller than usual";
   return `${fact}, and the move is ${size} on results`;
 }
@@ -260,6 +274,7 @@ export function briefingResultFact(read: ResultRead, today: string): string | nu
 export function resultFact(read: ResultRead, today: string): string | null {
   const parts: string[] = [];
   if (read.eps) parts.push(cap(verdictPhrase(read.eps)));
+  else if (read.revenue?.verdict) parts.push(revenueVerdictWords(read.revenue));
   else if (read.revenue && read.revenue.yoyPct !== null) parts.push(`Revenue ${flat(read.revenue.yoyPct) ? "flat" : `${upDown(read.revenue.yoyPct)} ${pctWords(read.revenue.yoyPct)}`} on a year ago`);
   else if (read.guidance) parts.push(cap(GUIDANCE_CLAUSE[read.guidance.change]));
   if (parts.length === 0) return null;
@@ -267,37 +282,64 @@ export function resultFact(read: ResultRead, today: string): string | null {
   return parts.join(", ");
 }
 
+/** "Revenue beat by 8.8%", "Revenue missed by 2.1%", "Revenue in line". */
+export function revenueVerdictWords(revenue: ResultRevenue): string {
+  if (!revenue.verdict || revenue.surprisePct === null) return "";
+  if (revenue.verdict === "in_line") return "Revenue in line";
+  return `Revenue ${revenue.verdict === "beat" ? "beat" : "missed"} by ${pctWords(revenue.surprisePct)}`;
+}
+
+function verdictTone(verdict: ResultVerdict | null): "up" | "down" | "flat" {
+  return verdict === "beat" ? "up" : verdict === "miss" ? "down" : "flat";
+}
+
 export function resultTone(read: ResultRead): "up" | "down" | "flat" {
-  if (read.eps) return read.eps.verdict === "beat" ? "up" : read.eps.verdict === "miss" ? "down" : "flat";
+  if (read.eps) return verdictTone(read.eps.verdict);
+  if (read.revenue?.verdict) return verdictTone(read.revenue.verdict);
   if (read.guidance?.change === "raised") return "up";
   if (read.guidance?.change === "lowered") return "down";
   return "flat";
 }
 
-export type FigureCell = { label: string; value: string; sub: string; tone: "up" | "down" | "flat" };
+/** One figure. `title` says where it came from: a hover title, never a line under the fact (owner rule 4). */
+export type FigureCell = { label: string; value: string; sub: string; title: string; tone: "up" | "down" | "flat" };
 
 /** The compact row of figures: EPS against the estimate, revenue, the outlook, the stock's move. */
 export function figureCells(read: ResultRead, today: string): FigureCell[] {
   const cells: FigureCell[] = [];
   if (read.eps) {
     const eps = read.eps;
-    cells.push({ label: "EPS", value: fmtEps(eps.actual), sub: `vs ${fmtEps(eps.expected)} expected, ${verdictPhrase(eps)}`, tone: resultTone({ ...read, guidance: null }) });
+    cells.push({
+      label: "EPS",
+      value: fmtEps(eps.actual),
+      sub: `vs ${fmtEps(eps.expected)} expected, ${verdictPhrase(eps)}`,
+      title: `EPS and estimate: ${eps.source}${eps.asOf ? `, ${stampWords(eps.asOf)}` : ""}`,
+      tone: verdictTone(eps.verdict),
+    });
   }
   if (read.revenue) {
-    const yoy = read.revenue.yoyPct;
+    const revenue = read.revenue;
+    const yoy = revenue.yoyPct;
+    const growth = yoy === null ? "" : flat(yoy) ? "flat on a year ago" : `${upDown(yoy)} ${pctWords(yoy)} on a year ago`;
+    // The same shape as the EPS figure: "vs $248M expected, beat by 8.8%, up 414% on a year ago".
+    const verdict = revenueVerdictWords(revenue);
+    const expected = revenue.expected !== null && verdict ? `vs ${revenueWords(revenue.expected)} expected, ${verdict.replace(/^Revenue /, "")}` : "";
     cells.push({
       label: "Revenue",
-      value: revenueWords(read.revenue.value),
-      sub: yoy === null ? "No year-ago figure in the release" : flat(yoy) ? "Flat on a year ago" : `${cap(upDown(yoy))} ${pctWords(yoy)} on a year ago`,
-      tone: yoy === null || flat(yoy) ? "flat" : yoy > 0 ? "up" : "down",
+      value: revenueWords(revenue.value),
+      sub: expected ? [expected, growth].filter(Boolean).join(", ") : cap(growth),
+      title: [revenue.expected !== null ? "Estimate: Yahoo Finance analysts" : "", `Revenue: ${revenue.source}${revenue.asOf ? `, ${stampWords(revenue.asOf)}` : ""}`].filter(Boolean).join(". "),
+      tone: revenue.verdict ? verdictTone(revenue.verdict) : yoy === null || flat(yoy) ? "flat" : yoy > 0 ? "up" : "down",
     });
   }
   if (read.guidance) {
+    const guidance = read.guidance;
     cells.push({
       label: "Outlook",
-      value: guidanceWord(read.guidance),
-      sub: read.guidance.first ?? "",
-      tone: read.guidance.change === "raised" ? "up" : read.guidance.change === "lowered" ? "down" : "flat",
+      value: guidanceWord(guidance),
+      sub: guidance.first ? `${guidance.first}${guidance.previous ? `, was ${guidance.previous}` : ""}` : "",
+      title: `${guidance.source}${guidance.asOf ? `, ${stampWords(guidance.asOf)}` : ""}`,
+      tone: guidance.change === "raised" ? "up" : guidance.change === "lowered" ? "down" : "flat",
     });
   }
   if (read.move) {
@@ -306,6 +348,7 @@ export function figureCells(read: ResultRead, today: string): FigureCell[] {
       label: "The stock",
       value: signed(read.move.pct),
       sub: `${cap(moveWhen(read.move, today))}${usual}`,
+      title: `${cap(read.move.source)}${read.move.asOf ? `, ${stampWords(read.move.asOf)}` : ""}`,
       tone: flat(read.move.pct) ? "flat" : read.move.pct > 0 ? "up" : "down",
     });
   }
