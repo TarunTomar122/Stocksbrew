@@ -989,7 +989,7 @@ export function JobsWorkspace({
         {/* The place's icon beside its title, as in the nav (owner rule 6), the same way PageHead draws it. */}
         <div className="flex items-center gap-2.5">
           <PageIcon />
-          <h1 className="text-balance text-[19px] font-semibold leading-6 tracking-[-0.01em] text-oa-fg sm:text-[22px] sm:leading-7">Alerts &amp; agents</h1>
+          <h1 className="text-balance text-[19px] font-semibold leading-6 tracking-[-0.01em] text-oa-fg sm:text-[22px] sm:leading-7">Agents</h1>
         </div>
       </header>
       <p className="-mt-1 max-w-[62ch] text-pretty px-2 text-[15px] leading-[22px] text-oa-muted-fg sm:-mt-2 sm:px-0">

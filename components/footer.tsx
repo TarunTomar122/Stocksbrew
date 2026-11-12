@@ -48,11 +48,12 @@ const COLUMNS: Column[] = [
   {
     title: "Yours",
     links: [
+      { label: "Your agent", href: "/agent" },
       { label: "My stocks", href: "/portfolio" },
       { label: "Practice account", href: "/practice" },
       { label: "Follow investors", href: "/follow" },
       { label: "Insiders", href: "/insiders" },
-      { label: "Alerts & agents", href: "/agents" },
+      { label: "Agents", href: "/agents" },
     ],
   },
   {

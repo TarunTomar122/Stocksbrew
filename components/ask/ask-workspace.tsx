@@ -251,7 +251,8 @@ function Chevron({ open }: { open: boolean }) {
  * from, opening in place), the numbers check, and last what it asks the person to do (a watch to set up, names to
  * save). The fold and the cards wait until the answer is finished, so nothing shoves the short answer down mid-read.
  */
-function Answer({ message, actions, streaming }: { message: AskUIMessage | null; actions: CardActions; streaming: boolean }) {
+/** One answer: its steps, prose, folded evidence and any action cards. The agent thread (/agent) draws its answers with it too. */
+export function Answer({ message, actions, streaming }: { message: AskUIMessage | null; actions: CardActions; streaming: boolean }) {
   const [open, setOpen] = React.useState(false);
   const evidenceId = React.useId();
   let audit: NumberAudit | null = null;

@@ -69,10 +69,10 @@ export function middleware(request: NextRequest) {
     });
   }
 
-  // Signed-in people skip the landing page and go straight to My stocks
-  // (/portfolio, the nav's first place for them). Only the cookie's presence is
-  // checked here (the edge cannot verify it); a stale cookie just lands on My
-  // stocks' signed-out view, the example portfolio. `/?home=1` keeps the
+  // Signed-in people skip the landing page and go straight to their agent's
+  // thread (/agent, the nav's first place). Only the cookie's presence is
+  // checked here (the edge cannot verify it); a stale cookie just lands on the
+  // thread's signed-out view, the example portfolio's. `/?home=1` keeps the
   // landing page reachable for someone who is signed in.
   if (
     request.nextUrl.pathname === "/" &&
@@ -82,9 +82,9 @@ export function middleware(request: NextRequest) {
     // A shared "/?try=NVDA,JPM" link shows its cards to anyone who opens it, signed in or not.
     !request.nextUrl.searchParams.has("try")
   ) {
-    const portfolioUrl = request.nextUrl.clone();
-    portfolioUrl.pathname = "/portfolio";
-    const response = NextResponse.redirect(portfolioUrl, 307);
+    const homeUrl = request.nextUrl.clone();
+    homeUrl.pathname = "/agent";
+    const response = NextResponse.redirect(homeUrl, 307);
     response.headers.set("Cache-Control", "private, no-store");
     appendVaryAccept(response.headers);
     return response;

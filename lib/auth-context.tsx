@@ -65,12 +65,12 @@ export function AuthProvider({ children, initialAuthed = false }: AuthProviderPr
             // (e.g. subscribed/unsubscribed locks). Refresh once after cookie sync.
             if (!refreshedAfterSignInRef.current) {
               refreshedAfterSignInRef.current = true;
-              // Signed in on the landing page: go straight to the portfolio,
+              // Signed in on the landing page: go straight to the agent thread,
               // the same place middleware sends signed-in visitors to "/".
               // `?home` and a shared `?try=` link stay on the landing, as in middleware.
               const params = new URLSearchParams(window.location.search);
               if (window.location.pathname === "/" && !params.has("home") && !params.has("try")) {
-                window.location.assign("/portfolio");
+                window.location.assign("/agent");
               } else {
                 router.refresh();
               }

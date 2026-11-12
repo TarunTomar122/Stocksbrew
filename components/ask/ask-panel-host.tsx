@@ -178,6 +178,12 @@ export function AskPanelButton({ variant }: { variant: "row" | "pill" }) {
       document.getElementById("ask-input")?.focus();
       return;
     }
+    // On the agent thread the reply box is Ask: one Ask per page (owner rule 1).
+    const reply = pathname === "/agent" ? document.getElementById("thread-input") : null;
+    if (reply) {
+      reply.focus();
+      return;
+    }
     openAskPanel({ opener: event.currentTarget });
   };
   const icon = (

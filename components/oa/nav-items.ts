@@ -1,7 +1,7 @@
 /**
- * The product's five places, named for what you get there, in the order a
- * day goes: what happened today, what you own, research a stock, see what
- * big investors did, and set something to watch for you. Every page in the
+ * The product's five places, named for what you get there: your agent's
+ * running notes on your stocks (and the agents it runs), what happened today,
+ * what you own, research a stock, and see what big investors did. Every page in the
  * app belongs to exactly one place, so one place is always lit, and each
  * place lists its pages as sections (the sidebar under the lit place, the
  * strip and its "More" menu under the phone top bar).
@@ -63,6 +63,16 @@ const section = (label: string, href: string, icon: NavIcon, match: string[] = [
 });
 
 export const PLACES: NavPlace[] = [
+  {
+    // The signed-in home: the agent's running notes on your stocks, then the agents it runs and everything they found.
+    label: "Your agent",
+    short: "Agent",
+    href: "/agent",
+    match: [],
+    icon: "agents",
+    blurb: "Notes from your agent on your stocks, and what it watches for you",
+    sections: [section("Notes", "/agent", "agents"), section("Agents", "/agents", "alerts"), section("Inbox", "/inbox", "inbox")],
+  },
   {
     label: "Today",
     short: "Today",
@@ -134,15 +144,6 @@ export const PLACES: NavPlace[] = [
       section("Funds and Congress", "/follow", "follow"),
       section("Insiders", "/insiders", "follow"),
     ],
-  },
-  {
-    label: "Alerts & agents",
-    short: "Alerts",
-    href: "/agents",
-    match: [],
-    icon: "alerts",
-    blurb: "Agents that watch the market and email you",
-    sections: [section("Agents", "/agents", "agents"), section("Inbox", "/inbox", "inbox")],
   },
 ];
 

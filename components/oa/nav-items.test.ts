@@ -8,15 +8,15 @@ const trail = (path: string) => trailFor(path)?.map((crumb) => crumb.label).join
 
 describe("the five places", () => {
   it("are named for what you get there, with short names that fit a phone tab", () => {
-    expect(PLACES.map((item) => item.label)).toEqual(["Today", "My stocks", "Research", "Follow investors", "Alerts & agents"]);
-    expect(PLACES.map((item) => item.short)).toEqual(["Today", "My stocks", "Research", "Investors", "Alerts"]);
+    expect(PLACES.map((item) => item.label)).toEqual(["Your agent", "Today", "My stocks", "Research", "Follow investors"]);
+    expect(PLACES.map((item) => item.short)).toEqual(["Agent", "Today", "My stocks", "Research", "Investors"]);
     for (const item of PLACES) expect(item.short.length).toBeLessThanOrEqual(9);
   });
 
   it("lists every app route under exactly one place", () => {
     const hrefs = PLACES.flatMap((item) => item.sections.map((sub) => sub.href));
     expect(new Set(hrefs).size).toBe(hrefs.length);
-    for (const href of ["/briefing", "/explore", "/signals", "/news", "/calendar", "/portfolio", "/portfolio/taxes", "/practice", "/screener", "/best", "/sectors", "/compare", "/markets", "/filings", "/ask", "/themes", "/strategies", "/backtest", "/follow", "/insiders", "/agents", "/inbox"]) {
+    for (const href of ["/briefing", "/explore", "/signals", "/news", "/calendar", "/portfolio", "/portfolio/taxes", "/practice", "/screener", "/best", "/sectors", "/compare", "/markets", "/filings", "/ask", "/themes", "/strategies", "/backtest", "/follow", "/insiders", "/agents", "/inbox", "/agent"]) {
       expect(hrefs).toContain(href);
     }
   });
@@ -40,8 +40,9 @@ describe("placeFor and sectionFor", () => {
     expect(place("/markets/crypto/BTC")).toBe("Research");
     expect(place("/follow/berkshire-hathaway")).toBe("Follow investors");
     expect(place("/insiders/NVDA")).toBe("Follow investors");
-    expect(place("/agents/jobs")).toBe("Alerts & agents");
-    expect(place("/inbox")).toBe("Alerts & agents");
+    expect(place("/agents/jobs")).toBe("Your agent");
+    expect(place("/agent")).toBe("Your agent");
+    expect(place("/inbox")).toBe("Your agent");
   });
 
   it("lights nothing outside the app's places", () => {
@@ -147,7 +148,7 @@ describe("marketing chrome", () => {
   });
 
   it("links the five places by their short names, then pricing and docs", () => {
-    expect(MARKETING_LINKS.map((item) => item.label)).toEqual(["Today", "My stocks", "Research", "Investors", "Alerts", "Pricing", "Docs"]);
+    expect(MARKETING_LINKS.map((item) => item.label)).toEqual(["Agent", "Today", "My stocks", "Research", "Investors", "Pricing", "Docs"]);
     expect(MARKETING_LINKS.find((item) => item.label === "My stocks")!.href).toBe("/portfolio");
   });
 });

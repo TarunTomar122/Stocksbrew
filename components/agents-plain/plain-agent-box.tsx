@@ -11,7 +11,7 @@ import type { PlainCannot, PlainParseResult } from "@/lib/agents-plain/parse";
 import { savedSentence } from "@/lib/agents-plain/save";
 
 /**
- * "Tell your agent what to watch": one box on top of Alerts & agents. A
+ * "Tell your agent what to watch": one box on top of the Agents page. A
  * person types a request in their own words, we read it back as the agents
  * we would set up (or say plainly what we can't watch), and they save it.
  * Signed out, the read-back works and saving asks for a sign-in; the request

@@ -19,12 +19,15 @@ export function StartFreeButton({
   variant = "primary",
   label = "Start free",
   className,
+  next = "/portfolio",
 }: {
   surface: AuthSurface;
   size?: "md" | "sm" | "xs";
   variant?: "primary" | "outline" | "secondary" | "ghost";
   label?: string;
   className?: string;
+  /** Where to go once signed in (My stocks unless the page says otherwise). */
+  next?: string;
 }) {
   const [loading, setLoading] = React.useState(false);
 
@@ -41,7 +44,7 @@ export function StartFreeButton({
           if (!getFirebaseAuth().currentUser) {
             await signInWithGoogle({ surface });
           }
-          window.location.href = "/portfolio";
+          window.location.href = next;
         } catch {
           // the sign-in sheet reports its own errors; nothing to add here
         } finally {
